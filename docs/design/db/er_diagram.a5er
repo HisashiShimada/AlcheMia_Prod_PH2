@@ -1,0 +1,866 @@
+﻿# A5:ER FORMAT:19
+# A5:ER ENCODING:UTF8
+# A5:ER Mk-1 Copyright © 2007 m.matsubara
+# A5:SQL Mk-2 Version 2.20.4 Copyright © 1997 - 2025 m.matsubara
+#  https://a5m2.mmatsubara.com
+
+[Manager]
+ProjectName=
+Author=
+MaxEntityRowShow=1000
+ReadOnlyRecommend=0
+Page=Main
+PageInfo="Main",2,"A2Landscape",$FFFFFF
+Page=材料開発データ管理システム_認証関連_ER図.a5er
+PageInfo="材料開発データ管理システム_認証関連_ER図.a5er",7,"A3Landscape",$FFFFDD
+Page=材料開発データ管理システム_一時保存関連_ER図.a5er
+PageInfo="材料開発データ管理システム_一時保存関連_ER図.a5er",7,"A3Landscape",$FFFFDD
+Page=材料開発データ管理システム_Maiml関連_ER図.a5er
+PageInfo="材料開発データ管理システム_Maiml関連_ER図.a5er",2,"A3Landscape",$FFFFDD
+Page=材料開発データ管理システム_共通_ER図.a5er
+PageInfo="材料開発データ管理システム_共通_ER図.a5er",2,"A3Landscape",$FFFFDD
+LogicalView=1
+DecodeDomain=0
+ViewModePageIndividually=1
+ViewMode=2
+ViewFormat=0
+UseNondependenceDashLine=0
+FontName=Tahoma
+FontSize=6
+PaperSize=A4Landscape
+HeaderLeft=
+HeaderCenter=
+HeaderRight=
+FooterLeft=
+FooterCenter=
+FooterRight=
+ShowPageoutRelation=1
+RDBMSType=7
+RDBMSTypeName=PostgreSQL
+DefaultPkName=%0:s_PKC
+DefaultPkIndexName=%0:s_PKI
+DefaultIndexName=%0:s_IX%1:d
+DefaultFkName=%0:s_FK%1:d
+SqlSeparator=0
+UpperCaseKeyword=0
+ShowTag=1
+ShowCommonAttributes=0
+BugFixEntityWidth=1
+
+[Entity]
+PName=organization
+LName=組織
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=100
+Top=100
+Field="組織ID","org_id","uuid","NOT NULL",0,"","9eea5300-db8b-4b2d-8e9e-ec306c476b12",$FFFFFFFF,""
+Field="組織名","org_name","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="組織表示名","org_display_name","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="組織E-mail","org_email","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="会社CD","corp_cd","@VARCHAR(30)",,,"","",$FFFFFFFF,""
+Field="アクティブ判定","is_active","@BOOLEAN",,,"","",$FFFFFFFF,""
+Field="作成日時","create_at","@DATETIME",,,"","",$FFFFFFFF,""
+Field="更新日時","update_at","@DATETIME",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125141007
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,100,588,503
+ZOrder=4
+
+[Entity]
+PName=login_history
+LName=ログイン履歴
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=100
+Top=1450
+Field="ID","id","@VARCHAR(30)","NOT NULL",0,"","",$FFFFFFFF,""
+Field="ユーザID","user_id","@VARCHAR(50)","NOT NULL",,"","",$FFFFFFFF,""
+Field="組織CD","org_cd","@VARCHAR(30)","NOT NULL",,"","",$FFFFFFFF,""
+Field="ログイン日時","login_at","@DATETIME",,,"","",$FFFFFFFF,""
+Field="ログイン成否","login_sf","@VARCHAR(10)",,,"","",$FFFFFFFF,""
+Field="失敗原因","failure_reason","@VARCHAR(100)",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251118131938
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,1450,594,503
+ZOrder=8
+
+[Entity]
+PName=NEW_ENTITY9
+LName=Drafts（一時保存）
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_一時保存関連_ER図.A5ER
+Left=650
+Top=1100
+Field="ID","Record_id","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="ユーザID","User_id","@VARCHAR",,,"","",$000000FF,""
+Field="組織CD","Org_cd","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="MaiMLデータ文字列","Maiml_data_str","@VARCHAR",,,"","",$000000FF,""
+Field="MaiMLファイル名","Maiml_file_name","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="プロジェクトID","Project_id","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="作業UUID","uuid","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="作業ID","Work_id","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="保存有無","Draft","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="作成日時","Create_at","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="更新日時","Update_at","@VARCHAR",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251113113858
+Position="材料開発データ管理システム_一時保存関連_ER図.A5ER",650,1100,499,503
+ZOrder=11
+
+[Entity]
+PName=NEW_ENTITY11
+LName=Organization（組織）
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_一時保存関連_ER図.A5ER
+Left=1100
+Top=450
+Field="ID","id","@VARCHAR","NOT NULL",0,"","",$FFFFFFFF,""
+Field="組織CD","Org_cd","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="識別子","Identifier","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="親組織","Org_parent","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="組織名","Org_name","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="組織表示名","Org_display_name","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="組織E-mail","Org_email","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="ストレージ使用量","Storage_use_gb","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="最大ユーザー数","Max_users","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="最大プロジェクト数","Max_projects","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="最大ワークスペース数","Max_workspaces","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="ステータス","Status","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="作成日時","Created_at","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="作成者","Created_by","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="更新日時","Update_at","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="MaiMLファイル数","Maimlfiles","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="アクティブユーザー数","Active_users","@VARCHAR",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251113111112
+Position="材料開発データ管理システム_一時保存関連_ER図.A5ER",1100,450,527,520
+ZOrder=25
+
+[Entity]
+PName=NEW_ENTITY8
+LName=User（利用者）
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_一時保存関連_ER図.A5ER
+Left=150
+Top=450
+Field="ID","id","@VARCHAR","NOT NULL",0,"","",$FFFFFFFF,""
+Field="ユーザID","User_id","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="ユーザ名","User_name","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="組織CD","Oga_cd","@VARCHAR",,,"","組織ごとにパスワードを変更できるようにするため",$FFFFFFFF,""
+Field="パスワード","Password","@VARCHAR",,,"","ハッシュ化対応？",$FFFFFFFF,""
+Field="メールアドレス","Mealadress","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="最終ログイン日時","Last_login","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="作成日時","Create_at","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="更新日時","Update_at","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="有効期限","Locked_until","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="ステータス","Status","@VARCHAR",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251113105059
+Position="材料開発データ管理システム_一時保存関連_ER図.A5ER",150,450,495,503
+ZOrder=27
+
+[Relation]
+Entity1=NEW_ENTITY11
+Entity2=NEW_ENTITY8
+RelationType1=1
+RelationType2=3
+Fields1=
+Fields2=
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_一時保存関連_ER図.A5ER",0,4725,6341,4885,R,R,""
+Dependence=1
+Caption=
+PName=
+LineMode=0
+Bar1=472
+Bar2=634
+Bar3=488
+TermPos1=R
+TermPos2=R
+ZOrder=28
+
+[Relation]
+Entity1=NEW_ENTITY9
+Entity2=NEW_ENTITY8
+RelationType1=1
+RelationType2=3
+Fields1=
+Fields2=
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_一時保存関連_ER図.A5ER",0,1731,5539,4947,R,R,""
+Dependence=1
+Caption=
+PName=
+LineMode=0
+Bar1=173
+Bar2=554
+Bar3=495
+TermPos1=R
+TermPos2=R
+ZOrder=29
+
+[Comment]
+Comment=【要検討カラム】\nEntity：organization（組織）\n　・S3プレフィックス（例\n　・s3_bucket_name\n　・trial, standard, professional, enterprise\n　・subscription_status\n　・trial_expires_at\n　・subscription_status\n　・trial_expires_at\n　・storage_quota_gb\n　・ストレージ使用量（GB）- 小数点以下4桁まで保存\n　・max_users\n　・max_projects\n　・max_workspaces\n　・features_enabled\n　・api_rate_limit\n　・status\n　・technical_contact_email\n　・metadata\n　・organization_id\n　・created_by\n　・created_at\n　・S3内のMaiMLファイル数（プロジェクト数）\n　・アクティブなユーザー数（tenant_permissionsから計算）\n\nEntity：user（利用者）\n　・SaaS全体の管理者権限（全テナントアクセス可能）\n　・管理者(manager)または作業者(worker)\n　・login_attempts\n　・locked_until\n　・metadata\n　・organization_id\n\nEntity：user_permissions（ユーザー権限管理）\n　・permission\n\nEntity：login_history（ログイン履歴管理）\n　・ip_address\n　・user_agent\n　・status
+FontName=Tahoma
+FontBold=0
+FontItalic=0
+FontUnderline=0
+FontSize=9
+FontColor=$000000
+LineColor=$000000
+BkColor=$C0DCC0
+Page=材料開発データ管理システム_認証関連_ER図.a5er
+Left=2196
+Top=429
+ZOrder=30
+Width=796
+Height=1585
+
+[Entity]
+PName=user_authentication
+LName=利用者認証
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=1000
+Top=800
+Field="ユーザID","user_id","@VARCHAR(30)","NOT NULL",0,"","",$FFFFFFFF,""
+Field="組織ID","org_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
+Field="ハッシュパスワード","password","@VARCHAR(50)","NOT NULL",,"","",$FFFFFFFF,""
+Field="二段階認証アプリ連携フラグ","entry_flg","@BOOLEAN","NOT NULL",,"","",$00000000,""
+Field="作成日時","create_at","@DATETIME",,,"","",$FFFFFFFF,""
+Field="更新日時","update_at","@DATETIME",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125141027
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,800,590,503
+ZOrder=38
+
+[Entity]
+PName=org_user
+LName=組織利用者
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=100
+Top=800
+Field="ユーザID","user_id","@VARCHAR(30)","NOT NULL",0,"","",$FFFFFFFF,""
+Field="組織ID","org_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
+Field="ユーザ名","user_name","@VARCHAR(30)","NOT NULL",,"","",$FFFFFFFF,""
+Field="ロール","role","@VARCHAR(30)","NOT NULL",,"","",$FFFFFFFF,""
+Field="メールアドレス","mail_address","@VARCHAR(50)","NOT NULL",,"","",$FFFFFFFF,""
+Field="有効期限","locked_until","@DATETIME",,,"","",$FFFFFFFF,""
+Field="最終ログイン日時","last_login","@DATETIME",,,"","",$FFFFFFFF,""
+Field="アクティブ判定","is_active","@BOOLEAN",,,"","",$FFFFFFFF,""
+Field="作成日時","create_at","@DATETIME",,,"","",$FFFFFFFF,""
+Field="更新日時","update_at","@DATETIME",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125141017
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,800,590,503
+ZOrder=39
+
+[Comment]
+Comment=【検討事項】\n　・利用者は組織ごとにロールを持つべきか？（済）\n　　⇒組織単位で利用者レコードを作成するため、レコード単位でロールを持つ。\n　・系列会社が無い組織(単体)についても、会社テーブルに紐づくレコードを作成するのか？\n　・基本的にロールは共通だが特殊な権限調整をしたい場合はロール自体を対象の組織用に用意する形でよいか？\n　・今後のマスタメンテを考えると機能テーブルを持った方がUIが楽になりそうだが必要か？\n　　別途コードマスタを用意してそちらに機能の区分を作成して管理する方法もある
+FontName=Tahoma
+FontBold=0
+FontItalic=0
+FontUnderline=0
+FontSize=9
+FontColor=$000000
+LineColor=$000000
+BkColor=$FFCC66
+Page=材料開発データ管理システム_認証関連_ER図.a5er
+Left=1741
+Top=53
+ZOrder=44
+Width=1251
+Height=336
+
+[Entity]
+PName=corporation
+LName=会社
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=1000
+Top=100
+Field="会社CD","corp_cd","@VARCHAR(30)","NOT NULL",0,"","",$FFFFFFFF,""
+Field="会社名","corp_name","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251119101749
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,100,588,503
+ZOrder=45
+
+[Relation]
+Entity1=corporation
+Entity2=organization
+RelationType1=3
+RelationType2=4
+Fields1=corp_cd
+Fields2=corp_cd
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,1761,8239,1761,R,R,""
+Dependence=0
+Caption=
+PName=
+ModifiedDateTime=20251119103139
+LineMode=0
+Bar1=176
+Bar2=824
+Bar3=176
+TermPos1=R
+TermPos2=R
+ZOrder=47
+
+[Relation]
+Entity1=organization
+Entity2=org_user
+RelationType1=2
+RelationType2=4
+Fields1=org_id
+Fields2=org_id
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,1360,8640,1355,R,R,""
+Dependence=1
+Caption=
+PName=
+ModifiedDateTime=20251119103033
+LineMode=0
+Bar1=136
+Bar2=864
+Bar3=136
+TermPos1=R
+TermPos2=R
+ZOrder=48
+
+[Relation]
+Entity1=org_user
+Entity2=user_authentication
+RelationType1=2
+RelationType2=2
+Fields1=user_id,org_id
+Fields2=user_id,org_id
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,5268,4732,5268,R,R,""
+Dependence=1
+Caption=
+PName=
+ModifiedDateTime=20251119103010
+LineMode=0
+Bar1=527
+Bar2=473
+Bar3=527
+TermPos1=R
+TermPos2=R
+ZOrder=51
+
+[Entity]
+PName=role_permission
+LName=ロール権限
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=1000
+Top=2050
+Field="ロール","role","@VARCHAR(30)","NOT NULL",0,"","ユーザのロールと同一",$FFFFFFFF,""
+Field="機能ID","function_id","@VARCHAR(30)","NOT NULL",1,"","画面単位の機能ID",$FFFFFFFF,""
+Field="権限","permission","@VARCHAR(30)","NOT NULL",,"","CRUDの権限",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251119164239
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,2050,594,503
+ZOrder=52
+
+[Entity]
+PName=function
+LName=機能
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=100
+Top=2050
+Field="機能ID","function_id","@VARCHAR(30)","NOT NULL",0,"","",$FFFFFFFF,""
+Field="機能名","permission","@VARCHAR(30)","NOT NULL",,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251119114427
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,2050,594,503
+ZOrder=53
+
+[Relation]
+Entity1=function
+Entity2=role_permission
+RelationType1=2
+RelationType2=4
+Fields1=function_id
+Fields2=function_id
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,5472,5673,5472,R,R,""
+Dependence=1
+Caption=
+PName=
+ModifiedDateTime=20251119114610
+LineMode=0
+Bar1=547
+Bar2=567
+Bar3=547
+TermPos1=R
+TermPos2=R
+ZOrder=54
+
+[Entity]
+PName=code_master
+LName=コードマスタ
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=1750
+Top=2050
+Field="コード区分","code_division","@VARCHAR(30)","NOT NULL",0,"","",$FFFFFFFF,""
+Field="コード値","code_value","@VARCHAR(30)","NOT NULL",1,"","",$FFFFFFFF,""
+Field="名称_日本語","code_name_jp","@VARCHAR(30)","NOT NULL",,"","",$FFFFFFFF,""
+Field="名称_英語","code_name_en","@VARCHAR(30)",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251120105611
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1750,2050,594,503
+ZOrder=55
+
+[Entity]
+PName=experiment_instruction
+LName=実験指示
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_MAIML関連_ER図.A5ER
+Left=950
+Top=100
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="MaimlファイルID","maiml_file_id","@VARCHAR","NOT NULL",1,"","",$FFFFFFFF,""
+Field="実験指示ID","experiment_instruction_id","@VARCHAR","NOT NULL",2,"","",$FFFFFFFF,""
+Field="指示対象ID","instruction_target_id","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="優先度","priority","numeric(2,0)",,,"","",$FFFFFFFF,""
+Field="タイプ","type","numeric(2,0)",,,"","",$FFFFFFFF,""
+Field="指示内容","instructions","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="作業指示ユーザID","instruction_user_id","@VARCHAR",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251126160534
+Position="材料開発データ管理システム_MAIML関連_ER図.A5ER",950,100,527,520
+ZOrder=61
+
+[Entity]
+PName=experiment_task
+LName=実験作業タスク
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_MAIML関連_ER図.A5ER
+Left=950
+Top=700
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="ファイルネーム","file_name","@VARCHAR","NOT NULL",1,"","",$FFFFFFFF,""
+Field="作業ID","work_id","@VARCHAR","NOT NULL",2,"","",$FFFFFFFF,""
+Field="タスクステータス","task_status","numeric(2,0)",,,"","",$FFFFFFFF,""
+Field="作業者ID","work_user_id","@VARCHAR",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251126160905
+Position="材料開発データ管理システム_MAIML関連_ER図.A5ER",950,700,527,520
+ZOrder=63
+
+[Entity]
+PName=file_metadata
+LName=ファイルメタデータマスタテーブル - アップロードファイルの詳細情報管理
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_MAIML関連_ER図.A5ER
+Left=150
+Top=100
+Field="id","id","serial","NOT NULL",0,"","",$FFFFFFFF,""
+Field="file_key","file_key","character varying(500)","NOT NULL",,"","",$FFFFFFFF,""
+Field="original_filename","original_filename","character varying(255)","NOT NULL",,"","",$FFFFFFFF,""
+Field="file_size","file_size","bigint","NOT NULL",,"","",$FFFFFFFF,""
+Field="file_type","file_type","character varying(100)",,,"","",$FFFFFFFF,""
+Field="file_extension","file_extension","character varying(10)",,,"","",$FFFFFFFF,""
+Field="file_hash","file_hash","character varying(64)",,,"","",$FFFFFFFF,""
+Field="s3_bucket","s3_bucket","character varying(100)","NOT NULL",,"","",$FFFFFFFF,""
+Field="s3_region","s3_region","character varying(50)",,,"\qap-northeast-1\q","",$FFFFFFFF,""
+Field="s3_storage_class","s3_storage_class","character varying(50)",,,"\qSTANDARD\q","",$FFFFFFFF,""
+Field="s3_etag","s3_etag","character varying(100)",,,"","",$FFFFFFFF,""
+Field="uploaded_by","uploaded_by","character varying(100)","NOT NULL",,"","",$FFFFFFFF,""
+Field="upload_batch_id","upload_batch_id","character varying(255)",,,"","",$FFFFFFFF,""
+Field="upload_source","upload_source","character varying(50)",,,"\qweb_upload\q","",$FFFFFFFF,""
+Field="upload_method","upload_method","character varying(50)",,,"\qsingle\q","",$FFFFFFFF,""
+Field="file_category","file_category","character varying(100)",,,"","",$FFFFFFFF,""
+Field="content_language","content_language","character varying(10)",,,"","",$FFFFFFFF,""
+Field="encoding","encoding","character varying(50)",,,"","",$FFFFFFFF,""
+Field="tags","tags","jsonb",,,"\q[]\q","",$FFFFFFFF,""
+Field="parent_folder_path","parent_folder_path","character varying(500)",,,"","",$FFFFFFFF,""
+Field="folder_structure","folder_structure","jsonb",,,"\q{}\q","",$FFFFFFFF,""
+Field="is_folder_root","is_folder_root","boolean",,,"false","",$FFFFFFFF,""
+Field="processing_status","processing_status","character varying(50)",,,"\qpending\q","",$FFFFFFFF,""
+Field="validation_status","validation_status","character varying(50)",,,"\qpending\q","",$FFFFFFFF,""
+Field="validation_errors","validation_errors","jsonb",,,"\q[]\q","",$FFFFFFFF,""
+Field="is_maiml_file","is_maiml_file","boolean",,,"false","",$FFFFFFFF,""
+Field="maiml_version","maiml_version","character varying(20)",,,"","",$FFFFFFFF,""
+Field="maiml_transitions_count","maiml_transitions_count","integer",,,"","",$FFFFFFFF,""
+Field="maiml_places_count","maiml_places_count","integer",,,"","",$FFFFFFFF,""
+Field="maiml_validation_result","maiml_validation_result","jsonb",,,"\q{}\q","",$FFFFFFFF,""
+Field="custom_metadata","custom_metadata","jsonb",,,"\q{}\q","",$FFFFFFFF,""
+Field="search_keywords","search_keywords","jsonb",,,"","",$FFFFFFFF,""
+Field="description","description","text",,,"","",$FFFFFFFF,""
+Field="access_level","access_level","character varying(20)",,,"\qinternal\q","",$FFFFFFFF,""
+Field="owner_user_id","owner_user_id","character varying(100)",,,"","",$FFFFFFFF,""
+Field="access_permissions","access_permissions","jsonb",,,"\q{}\q","",$FFFFFFFF,""
+Field="created_at","created_at","timestamp(6) with time zone",,,"CURRENT_TIMESTAMP","",$FFFFFFFF,""
+Field="updated_at","updated_at","timestamp(6) with time zone",,,"CURRENT_TIMESTAMP","",$FFFFFFFF,""
+Field="last_accessed_at","last_accessed_at","timestamp(6) with time zone",,,"","",$FFFFFFFF,""
+Field="archived_at","archived_at","timestamp(6) with time zone",,,"","",$FFFFFFFF,""
+Field="download_count","download_count","integer",,,"0","",$FFFFFFFF,""
+Field="view_count","view_count","integer",,,"0","",$FFFFFFFF,""
+Field="share_count","share_count","integer",,,"0","",$FFFFFFFF,""
+Field="V1.18α","is_draft","boolean",,,"false"," 一時保存フラグ（TRUE: 編集中の一時保存ファイル）",$FFFFFFFF,""
+Field="V1.18α","draft_metadata","jsonb",,,"\q{}\q"," 一時保存時の編集状態（draftName, editState, autoSaveEnabled等）",$FFFFFFFF,""
+Field="last_edit_timestamp","last_edit_timestamp","timestamp(6) with time zone",,,"","",$FFFFFFFF,""
+Field="V1.18α","data_layer","character varying(20)",,,"\quploads\q"," データレイク階層（uploads/raw/processed/archive）",$FFFFFFFF,""
+Field="version_number","version_number","integer",,,"1","",$FFFFFFFF,""
+Field="parent_version_id","parent_version_id","integer",,,"","",$FFFFFFFF,""
+Field="maiml_analysis_status","maiml_analysis_status","character varying(20)",,,"\qnot_analyzed\q","",$FFFFFFFF,""
+Field="maiml_error_count","maiml_error_count","integer",,,"0","",$FFFFFFFF,""
+Field="maiml_warning_count","maiml_warning_count","integer",,,"0","",$FFFFFFFF,""
+Field="maiml_last_analyzed","maiml_last_analyzed","timestamp(6) with time zone",,,"","",$FFFFFFFF,""
+Field="folder_level","folder_level","integer",,,"0","",$FFFFFFFF,""
+Field="is_folder_placeholder","is_folder_placeholder","boolean",,,"false","",$FFFFFFFF,""
+Field="upload_timestamp","upload_timestamp","timestamp(6) without time zone",,,"CURRENT_TIMESTAMP","",$FFFFFFFF,""
+Field="permissions","permissions","jsonb",,,"\q{}\q","",$FFFFFFFF,""
+Index=file_metadata_file_key_key=2,file_key
+Index=idx_file_metadata_access_level=0,access_level
+Index=idx_file_metadata_created_at=0,created_at
+Index=idx_file_metadata_custom_metadata_gin=0,custom_metadata
+Index=idx_file_metadata_data_layer=0,data_layer
+Index=idx_file_metadata_draft_metadata_gin=0,draft_metadata
+Index=idx_file_metadata_file_category=0,file_category
+Index=idx_file_metadata_file_key=0,file_key
+Index=idx_file_metadata_file_type=0,file_type
+Index=idx_file_metadata_folder_structure_gin=0,folder_structure
+Index=idx_file_metadata_is_draft=0,is_draft
+Index=idx_file_metadata_is_maiml=0,is_maiml_file
+Index=idx_file_metadata_is_maiml_file=0,is_maiml_file
+Index=idx_file_metadata_maiml_errors=0,maiml_error_count
+Index=idx_file_metadata_maiml_status=0,maiml_analysis_status
+Index=idx_file_metadata_processing_status=0,processing_status
+Index=idx_file_metadata_tags_gin=0,tags
+Index=idx_file_metadata_upload_batch_id=0,upload_batch_id
+Index=idx_file_metadata_uploaded_by=0,uploaded_by
+Index=idx_file_metadata_user_draft=0,uploaded_by,is_draft,last_edit_timestamp
+Index=idx_file_metadata_version=0,parent_version_id
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125080800
+Position="材料開発データ管理システム_MAIML関連_ER図.A5ER",150,100
+ZOrder=65
+
+[Comment]
+Comment=検討課題\n・maiml管理としておいているテーブルと元々あるファイルメタデータは同様の内容(システム内におけるmaimlファイルの状態とサーバ上のファイル情報)を保持するテーブルとして考えているが、ファイルメタデータをそのまま使うにしてもテーブル自体が大きいため、分割するべき\n⇒ファイル情報のメタデータは一元管理するため編集はしたくない\n・8章(4)の操作履歴はMaimlのEventLogのことでいいのか？\nファイル更新等の作業時に何かしらPROOFを取る必要がある？\n・ドキュメント情報のマスタテーブルの登録情報\n　⇒テンプレとして用意するが登録がないものに対して登録を誘導するのか無くても入力できるようにするのか\n・マスタ系のテーブルにUUIDを持つかどうか\n　⇒同一の設定先の場合UUID固定であればUUIDカラムを追加してPKに変更する\n　⇒UUIDを追加する
+FontName=Tahoma
+FontBold=0
+FontItalic=0
+FontUnderline=0
+FontSize=9
+FontColor=$000000
+LineColor=$000000
+BkColor=$FFCC66
+Page=材料開発データ管理システム_Maiml関連_ER図.a5er
+Left=101
+Top=2249
+ZOrder=68
+Width=1476
+Height=508
+
+[Entity]
+PName=creator
+LName=作成者
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_共通_ER図.A5ER
+Left=300
+Top=200
+Field="組織ID","organaization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="作成者_uuid","creator_uuid","uuid","NOT NULL",1,"","",$FFFFFFFF,""
+Field="作成者_ID","creator_id","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="作成者_名称","creator_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="作成者_説明","creator_description","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="作成者_注釈","creator_annotation","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="参照ベンダーID","ref_vendor_id","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="参照ベンダー対象","ref_vendor_target","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="参照装置タイプID","ref_instrument_id","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="参照装置タイプ対象","ref_instrument_target","@VARCHAR",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125180913
+Position="材料開発データ管理システム_共通_ER図.A5ER",300,200,527,520
+ZOrder=79
+
+[Entity]
+PName=instrument
+LName=実験装置
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_共通_ER図.A5ER
+Left=300
+Top=850
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="実験装置_uuid","instrument_uuid","uuid","NOT NULL",1,"","",$FFFFFFFF,""
+Field="実験装置_ID","instrument_id","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="実験装置_名称","instrument_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="実験装置_説明","instrument_description","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="実験装置_注釈","instrument_annotation","@VARCHAR",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125180957
+Position="材料開発データ管理システム_共通_ER図.A5ER",300,850,527,520
+ZOrder=80
+
+[Entity]
+PName=owner
+LName=所有者
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_共通_ER図.A5ER
+Left=300
+Top=1500
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="所有者_uuid","owner_uuid","uuid","NOT NULL",1,"","",$FFFFFFFF,""
+Field="所有者_ID","owner_id","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="所有者_名称","owner_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="所有者_説明","owner_description","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="所有者_注釈","owner_annotation","@VARCHAR",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125181048
+Position="材料開発データ管理システム_共通_ER図.A5ER",300,1500,527,520
+ZOrder=81
+
+[Entity]
+PName=vendor
+LName=ベンダー
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_共通_ER図.A5ER
+Left=1100
+Top=200
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="ベンダー_uuid","vendor_uuid","uuid","NOT NULL",1,"","",$FFFFFFFF,""
+Field="ベンダー_ID","vendor_id","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="ベンダー_名称","vendor_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="ベンダー_説明","vendor_description","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="ベンダー_注釈","vendor_annotation","@VARCHAR",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125181159
+Position="材料開発データ管理システム_共通_ER図.A5ER",1100,200,527,520
+ZOrder=82
+
+[Entity]
+PName=attribute
+LName=属性
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_共通_ER図.A5ER
+Left=1100
+Top=900
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="属性_ID","attribute_id","@VARCHAR","NOT NULL",1,"","",$FFFFFFFF,""
+Field="属性_名称","attribute_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+Field="属性_属性値","attribute_value","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125175829
+Position="材料開発データ管理システム_共通_ER図.A5ER",1100,900,527,520
+ZOrder=83
+
+[Relation]
+Entity1=system_notification
+Entity2=user_notification
+RelationType1=2
+RelationType2=3
+Fields1=notification_id
+Fields2=notification_id
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_共通_ER図.A5ER",0,6356,3644,6356,R,R,""
+Dependence=1
+Caption=
+PName=
+LineMode=0
+Bar1=636
+Bar2=364
+Bar3=636
+TermPos1=R
+TermPos2=R
+ZOrder=86
+
+[Entity]
+PName=user_notification
+LName=ユーザ別通知
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_共通_ER図.A5ER
+Left=2900
+Top=200
+Field="通知ID","notification_id","@VARCHAR","NOT NULL",0,"","",$FFFFFFFF,""
+Field="組織ID","organization_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
+Field="ユーザID","user_id","@VARCHAR","NOT NULL",2,"","",$FFFFFFFF,""
+Field="確認済フラグ","is_confirmed","@BOOLEAN",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125174931
+Position="材料開発データ管理システム_共通_ER図.A5ER",2900,200,527,520
+ZOrder=85
+
+[Entity]
+PName=system_notification
+LName=システム通知
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_共通_ER図.A5ER
+Left=2250
+Top=200
+Field="通知ID","notification_id","@VARCHAR","NOT NULL",0,"","",$FFFFFFFF,""
+Field="組織ID","organization_id","uuid",,,"","",$FFFFFFFF,""
+Field="ロール","role","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="通知内容_タイトル","notification_title","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="通知内容_詳細","notification_detail","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="通知期間From","notification_from","@DATETIME",,,"","",$FFFFFFFF,""
+Field="通知期間To","noticfication_to","@DATETIME",,,"","",$FFFFFFFF,""
+Field="確認済フラグ","is_confirmed","@BOOLEAN",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251125173823
+Position="材料開発データ管理システム_共通_ER図.A5ER",2250,200,527,520
+ZOrder=84
+
+[Entity]
+PName=NEW_ENTITY1
+LName=実験作業タスク
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_Maiml関連_ER図.a5er
+Left=950
+Top=1350
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="ファイルネーム","file_name","@VARCHAR","NOT NULL",1,"","",$FFFFFFFF,""
+Field="履歴連番","history_seq","numeric(2,0)","NOT NULL",2,"","",$FFFFFFFF,""
+Field="操作日時","operation_at","timestamp",,,"","",$FFFFFFFF,""
+Field="操作ユーザID","operation_user_id","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="操作内容","operation_content","@VARCHAR",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251126161144
+Position="材料開発データ管理システム_Maiml関連_ER図.a5er",950,1350,527,520
+ZOrder=87
+
+[Entity]
+PName=experiment_result
+LName=実験作業実績
+Comment=
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_Maiml関連_ER図.a5er
+Left=1850
+Top=700
+Field="作業ID","work_id","@VARCHAR","NOT NULL",0,"","",$FFFFFFFF,""
+Field="トランジションID","transition_id","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="実験作業者ID","work_user_id","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="入力内容","input_content","jsonb",,,"","",$FFFFFFFF,""
+Field="作業ステータス","work_status","numeric(2,0)",,,"","",$FFFFFFFF,""
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20251126162346
+Position="材料開発データ管理システム_Maiml関連_ER図.a5er",1850,700,527,520
+ZOrder=88
+
+[Relation]
+Entity1=experiment_task
+Entity2=experiment_result
+RelationType1=2
+RelationType2=3
+Fields1=work_id
+Fields2=work_id
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_MAIML関連_ER図.A5ER",0,3435,6565,3435,R,R,""
+Dependence=0
+Caption=
+PName=
+ModifiedDateTime=20251126162434
+LineMode=0
+Bar1=344
+Bar2=656
+Bar3=344
+TermPos1=R
+TermPos2=R
+ZOrder=90

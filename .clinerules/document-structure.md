@@ -8,30 +8,37 @@
 
 ```
 docs/
-├── ui/                          # UI設計書（画面単位）
-│   ├── _common.md               # 画面間で共通のUI設計書
-│   ├── ui_*.md                  # 各画面のUI設計書
-│   └── technical/               # UI技術仕様書（画面単位）
-│        └── ui_technical_*.md    # 各画面のUI設計書
+├── design/                      # 設計書（メインドキュメント）
+│   ├── ui/                      # UI設計書（画面単位）
+│   │   ├── ui_*.md              # 各画面のUI設計書
+│   │   └── technical/           # UI技術仕様書（画面単位）
+│   │        └── ui_technical_*.md # 各画面のUI技術仕様書
+│   │
+│   ├── api/                     # API仕様書（機能ドメイン単位）
+│   │   └── api_*.md             # 機能ドメインごとのAPI仕様
+│   │
+│   ├── security/                # セキュリティ仕様書（横断的関心事）
+│   │   └── security_*.md        # セキュリティ関連の仕様書
+│   │
+│   └── db/                      # データベース設計
+│       └── db_*.md              # データベーススキーマ、ER図など
 │
-├── api/                         # API仕様書（機能ドメイン単位）
-│   └── api_*.md                 # 機能ドメインごとのAPI仕様
+├── dev/                         # 開発関連ドキュメント
+│   └── dev-guide/               # 開発ガイド（機能単位）
+│       └── dev_*.md             # 開発・デバッグガイド
 │
-├── security/                    # セキュリティ仕様書（横断的関心事）
-│   └── security_*.md            # セキュリティ関連の仕様書
+├── cline_archive/               # 開発過程のドキュメント（アーカイブ）
+│   └── *.md                     # 実装完了報告、調査結果、修正記録など
 │
-├── dev-guide/                   # 開発ガイド（機能単位）
-│   └── dev_*.md                 # 開発・デバッグガイド
+├── images/                      # ドキュメント用画像ファイル
+│   └── *.png, *.jpg, *.svg      # スクリーンショット、図表など
 │
-├── architecture/                # アーキテクチャドキュメント
-│   └── arch_*.md                # システムアーキテクチャ設計
-│
-└── README.md                    # ドキュメント索引
+└── README.md                    # ドキュメント索引（未作成の場合は作成推奨）
 ```
 
 ## ファイル分割ルール
 
-### 1. UI設計書（docs/ui/）
+### 1. UI設計書（docs/design/ui/）
 
 #### 命名規則
 - `ui_<機能名>.md` - UI設計とUX仕様
@@ -55,9 +62,9 @@ docs/
 #### 分割判断基準
 - 基本的に1画面1ファイル（ui_*.md）
 - 実装が複雑（1000行超）な場合のみ技術仕様を分離
-- API仕様はdocs/api/を参照リンクで対応
+- API仕様はdocs/design/api/を参照リンクで対応
 
-### 2. API仕様書（docs/api/）
+### 2. API仕様書（docs/design/api/）
 
 #### 命名規則
 - `api_<機能ドメイン>.md`
@@ -119,7 +126,7 @@ GET    /api/auth/admin-audit-log # 監査ログ（Admin用）
 
 これらは全て「認証」という1つの機能ドメインなので、1ファイルにまとめます。
 
-### 3. セキュリティ仕様書（docs/security/）
+### 3. セキュリティ仕様書（docs/design/security/）
 
 #### 命名規則
 - `security_<関心事>.md`
@@ -137,7 +144,25 @@ GET    /api/auth/admin-audit-log # 監査ログ（Admin用）
 - 複数の機能にまたがるセキュリティ要件を集約
 - 特定のAPI仕様書から参照される
 
-### 4. 開発ガイド（docs/dev-guide/）
+### 4. データベース設計（docs/design/db/）
+
+#### 命名規則
+- `db_<トピック>.md`
+
+#### 内容
+データベース設計に関する情報：
+- テーブル定義（DDL）
+- ER図
+- インデックス設計
+- マイグレーションスクリプト
+- データベース正規化の説明
+
+#### 分割判断基準
+- 機能ドメインごとに1ファイル（大規模な場合）
+- または全体を1ファイルにまとめる（中小規模な場合）
+- 500〜1000行以内に収める
+
+### 5. 開発ガイド（docs/dev/dev-guide/）
 
 #### 命名規則
 - `dev_<機能>.md`
@@ -155,17 +180,40 @@ GET    /api/auth/admin-audit-log # 監査ログ（Admin用）
 - UI設計書やAPI仕様書から参照される
 - 500行以内に収める
 
-### 5. アーキテクチャドキュメント（docs/architecture/）
+### 6. 開発過程ドキュメント（docs/cline_archive/）
 
 #### 命名規則
-- `arch_<トピック>.md`
+- `<機能名>_<状態>.md`
+- 例: `PETRI_NET_EDITOR_PHASE3_COMPLETE.md`
+- 例: `MULTITENANT_S3_ACCESS_AUDIT_REPORT.md`
 
 #### 内容
-システム全体のアーキテクチャ設計：
-- `arch_overview.md` - システム全体像
-- `arch_database.md` - データベース設計
-- `arch_deployment.md` - デプロイメント構成
-- `arch_multitenancy.md` - マルチテナント設計
+開発過程で作成されたドキュメント：
+- 実装完了報告（*_COMPLETE.md）
+- 調査結果（*_ANALYSIS.md, *_DIAGNOSIS.md）
+- 実装計画（*_PLAN.md, *_IMPLEMENTATION_PLAN.md）
+- テストガイド（*_TEST_GUIDE.md）
+- デプロイメントガイド（*_DEPLOYMENT_GUIDE.md）
+
+#### 管理方針
+- **アーカイブ専用**: 完了した作業の記録を保管
+- **参照用**: 過去の実装や意思決定を振り返るため
+- **新規作成は非推奨**: 新しいドキュメントはdesign/やdev-guide/に作成
+- **削除は不可**: 開発履歴として保存
+
+### 7. 画像ファイル（docs/images/）
+
+#### 内容
+ドキュメントで使用する画像：
+- UI設計書のスクリーンショット
+- システムアーキテクチャ図
+- ER図
+- フローチャート、シーケンス図
+
+#### 命名規則
+- `<関連ドキュメント名>_<説明>.png`
+- 例: `ui_login_screen.png`
+- 例: `db_er_diagram.svg`
 
 ## ドキュメント間の相互参照
 
@@ -179,10 +227,10 @@ GET    /api/auth/admin-audit-log # 監査ログ（Admin用）
 # ログイン画面 UI設計書
 
 ## 関連ドキュメント
-- [技術仕様](xx_technical.md)
-- [認証API仕様](../api/api_auth.md)
-- [認証セキュリティ仕様](../security/security_authentication.md)
-- [開発ガイド](../dev-guide/dev_authentication.md)
+- [技術仕様](technical/ui_technical_login.md)
+- [認証API仕様](../../design/api/api_auth.md)
+- [認証セキュリティ仕様](../../design/security/security_authentication.md)
+- [開発ガイド](../../dev/dev-guide/dev_authentication.md)
 ```
 
 **API仕様書から他のドキュメントへ:**
@@ -193,7 +241,7 @@ GET    /api/auth/admin-audit-log # 監査ログ（Admin用）
 - [UI設計: ログイン画面](../ui/ui_login.md)
 - [UI設計: 組織選択画面](../ui/ui_organization_selector.md)
 - [セキュリティ仕様](../security/security_authentication.md)
-- [開発ガイド](../dev-guide/dev_authentication.md)
+- [開発ガイド](../../dev/dev-guide/dev_authentication.md)
 ```
 
 ### API仕様の参照方法
@@ -203,7 +251,7 @@ UI設計書内でAPI仕様を記述する場合：
 ```markdown
 ## API仕様
 
-詳細は [認証API仕様書](../api/api_auth.md) を参照してください。
+詳細は [認証API仕様書](../../design/api/api_auth.md) を参照してください。
 
 ### このUI画面で使用するAPI
 - POST /api/auth/login - ログイン処理
@@ -227,11 +275,19 @@ UI設計書内でAPI仕様を記述する場合：
 title: ログイン画面UI設計書
 category: UI設計
 version: 1.0.0
-last_updated: 2025-11-14
+last_updated: 2024-12-08
 author: Development Team
 tags: [authentication, login, ui, phase3]
 ---
 ```
+
+**メタデータフィールドの説明:**
+- `title`: ドキュメントのタイトル
+- `category`: ドキュメントの種類（UI設計、API仕様、セキュリティ仕様など）
+- `version`: バージョン番号（Semantic Versioning）
+- `last_updated`: 最終更新日（YYYY-MM-DD形式）
+- `author`: 作成者/担当チーム
+- `tags`: 検索用タグ（配列形式）
 
 ## バージョン管理
 
@@ -248,8 +304,8 @@ tags: [authentication, login, ui, phase3]
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 1.0.0 | 2025-11-14 | 初版作成 | Development Team |
-| 1.1.0 | 2025-11-20 | MFA機能追加 | Security Team |
+| 1.0.0 | 2024-12-08 | 初版作成 | Development Team |
+| 1.1.0 | 2024-12-15 | MFA機能追加 | Security Team |
 ```
 
 ## ベストプラクティス
@@ -261,6 +317,9 @@ tags: [authentication, login, ui, phase3]
 ✅ メタデータとバージョン情報を記載する
 ✅ 具体的な例とサンプルコードを含める
 ✅ 画像やダイアグラムを活用する
+✅ 新しいドキュメントはdesign/またはdev/配下に作成する
+✅ 画像ファイルはdocs/images/に配置する
+✅ 相対パスで画像を参照する（例: `![画面](../../images/ui_login_screen.png)`）
 
 ### DON'T（非推奨）
 ❌ 1つのファイルに全てを詰め込む
@@ -269,6 +328,8 @@ tags: [authentication, login, ui, phase3]
 ❌ 関連ドキュメントへのリンクを省略する
 ❌ 技術用語の説明なしに専門用語を使う
 ❌ 古い情報を放置する
+❌ cline_archive/に新しいドキュメントを作成する
+❌ ドキュメント内に画像をBase64エンコードで埋め込む
 
 ## まとめ
 

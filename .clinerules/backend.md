@@ -3,21 +3,20 @@
 ## 言語とフレームワーク
 
 ### 基本技術スタック
-- **言語**: TypeScript (Node.js 18+)
-- **フレームワーク**: Express.js 4.18.3
-- **データベース**: PostgreSQL (AWS Aurora)
-- **データベースクライアント**: pg 8.11.3
-- **認証**: jsonwebtoken 9.0.2、bcrypt 6.0.0
-- **セッション管理**: express-session 1.18.2
+- **言語**: TypeScript
+- **フレームワーク**: Express.js
+- **データベース**: PostgreSQL
+- **認証**: jsonwebtoken、bcrypt
+- **セッション管理**: express-session
 - **パッケージマネージャー**: npm
 
 ### 主要ライブラリ
 - **AWS SDK**: @aws-sdk/client-s3、@aws-sdk/client-bedrock-runtime、aws-sdk v2
-- **セキュリティ**: helmet 7.2.0、cors 2.8.5、express-rate-limit 7.5.1
-- **ファイル処理**: multer 1.4.5、xml2js 0.6.2、fast-xml-parser 5.2.5
-- **ロギング**: winston 3.17.0、winston-daily-rotate-file 4.7.1、morgan 1.10.1
-- **バリデーション**: express-validator 7.0.1
-- **その他**: compression 1.7.4、dotenv 16.4.5、uuid 9.0.1
+- **セキュリティ**: 
+- **ファイル処理**: 
+- **ロギング**: 
+- **バリデーション**: 
+- **その他**: dotenv、uuid
 
 ## アーキテクチャ
 
@@ -25,31 +24,13 @@
 ```
 backend/
 ├── routes/              # APIルート定義
-│   ├── authRoutes.js
-│   ├── adminRoutes.js
-│   ├── managerRoutes.js
-│   ├── workerRoutes.js
-│   ├── s3Routes.js
-│   ├── enhancedRoutes.js
-│   ├── s3/             # S3関連ルート（モジュール化）
-│   ├── tenants/        # マルチテナント関連
-│   ├── admin/          # 管理者専用ルート
-│   ├── provider/       # プロバイダー管理
-│   └── shared/         # 共有機能
 ├── middleware/          # Expressミドルウェア
-│   ├── auth.js         # JWT認証
-│   ├── tenantIsolation.js
-│   ├── permissionCheck.js
-│   ├── s3TenantGuard.js
-│   ├── editMiddleware.js
-│   └── errorHandler.js
 ├── services/            # ビジネスロジック
-├── database/            # DB接続・操作
+├── repository/          # DB接続・操作
 ├── config/              # 設定ファイル
-├── schemas/             # MAIMLスキーマ定義
-├── scripts/             # ユーティリティスクリプト
 ├── tests/               # テストコード
 ├── utils/               # ユーティリティ関数
+├── constants/           # 定数定義
 ├── output/              # 生成ファイル出力先
 ├── logs/                # ログファイル
 └── server.js            # エントリーポイント
@@ -76,7 +57,7 @@ backend/
 - 外部APIとの連携
 - トランザクション管理
 
-#### 4. データアクセス層（Database）
+#### 4. データアクセス層（Repository）
 - データベース接続
 - クエリの実行
 - データの永続化
