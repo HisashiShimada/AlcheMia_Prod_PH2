@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card, Typography, Space } from 'antd';
-import { FileTextOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
+import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
 import ProjectSelector from './ProjectSelector';
 import InstructionStats from './InstructionStats';
 import InstructionGroup from './InstructionGroup';
@@ -48,7 +48,8 @@ export default function InstructionConfirmationTab({
           <Space direction="vertical" align="center" style={{ width: '100%', padding: '64px 0' }}>
             <FileTextOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
             <Title level={3} type="secondary">
-              📋 指示確認
+              <FileTextOutlined style={{ marginRight: 8 }} />
+              指示確認
             </Title>
             <Text type="secondary">
               プロジェクトを選択してください
@@ -80,7 +81,9 @@ export default function InstructionConfirmationTab({
               }}
             >
               <Title level={4} style={{ margin: 0 }}>
-                {expandedGroups['file'] ? <DownOutlined /> : <RightOutlined />} 📄 全体指示 (
+                {expandedGroups['file'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                <FileOutlined style={{ marginRight: 8 }} />
+                全体指示 (
                 {sortedInstructions.filter((i) => i.targetType === 'file').length}
                 件)
               </Title>
@@ -89,7 +92,7 @@ export default function InstructionConfirmationTab({
               <div style={{ marginTop: 16 }}>
                 <InstructionGroup
                   title="全体指示"
-                  emoji="📄"
+                  emoji="file"
                   instructions={sortedInstructions.filter(
                     (i) => i.targetType === 'file'
                   )}
@@ -119,7 +122,9 @@ export default function InstructionConfirmationTab({
               }}
             >
               <Title level={4} style={{ margin: 0 }}>
-                {expandedGroups['method'] ? <DownOutlined /> : <RightOutlined />} 🔧 メソッド単位指示 (
+                {expandedGroups['method'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                <ToolOutlined style={{ marginRight: 8 }} />
+                メソッド単位指示 (
                 {
                   sortedInstructions.filter((i) => i.targetType === 'method')
                     .length
@@ -131,7 +136,7 @@ export default function InstructionConfirmationTab({
               <div style={{ marginTop: 16 }}>
                 <InstructionGroup
                   title="メソッド単位指示"
-                  emoji="🔧"
+                  emoji="tool"
                   instructions={sortedInstructions.filter(
                     (i) => i.targetType === 'method'
                   )}
@@ -161,7 +166,8 @@ export default function InstructionConfirmationTab({
               }}
             >
               <Title level={4} style={{ margin: 0 }}>
-                {expandedGroups['transition'] ? <DownOutlined /> : <RightOutlined />} 🎯
+                {expandedGroups['transition'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                <AimOutlined style={{ marginRight: 8 }} />
                 トランジション単位指示 (
                 {
                   sortedInstructions.filter(
@@ -175,7 +181,7 @@ export default function InstructionConfirmationTab({
               <div style={{ marginTop: 16 }}>
                 <InstructionGroup
                   title="トランジション単位指示"
-                  emoji="🎯"
+                  emoji="aim"
                   instructions={sortedInstructions.filter(
                     (i) => i.targetType === 'transition'
                   )}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Button, Space, Typography, Empty } from 'antd';
-import { CheckCircleOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, FileOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
 import type { Instruction } from '@/types/experimentWorker';
 import InstructionCard from './InstructionCard';
 
@@ -12,6 +12,21 @@ interface InstructionGroupProps {
   emoji: string;
   isClient: boolean;
 }
+
+// アイコンマッピング
+const getIcon = (iconType: string) => {
+  const iconStyle = { marginRight: 8 };
+  switch (iconType) {
+    case 'file':
+      return <FileOutlined style={iconStyle} />;
+    case 'tool':
+      return <ToolOutlined style={iconStyle} />;
+    case 'aim':
+      return <AimOutlined style={iconStyle} />;
+    default:
+      return <FileOutlined style={iconStyle} />;
+  }
+};
 
 /**
  * 指示グループコンポーネント
@@ -33,7 +48,8 @@ export default function InstructionGroup({
   return (
     <div style={{ marginBottom: 32 }}>
       <Title level={4} style={{ marginBottom: 16 }}>
-        {emoji} {title} ({groupInstructions.length}件)
+        {getIcon(emoji)}
+        {title} ({groupInstructions.length}件)
       </Title>
 
       {groupInstructions.length === 0 ? (

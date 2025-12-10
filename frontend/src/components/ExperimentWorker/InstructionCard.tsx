@@ -7,7 +7,7 @@ import {
   getTypeLabel,
   formatRelativeTime,
 } from '@/utils/instructionHelpers';
-import { CalendarOutlined } from '@ant-design/icons';
+import { CalendarOutlined, AimOutlined, ToolOutlined } from '@ant-design/icons';
 
 const { Text, Paragraph } = Typography;
 
@@ -43,13 +43,13 @@ export default function InstructionCard({
         </Space>
         
         {instruction.transitionName && (
-          <Tag icon={<span>🎯</span>} color="default">
+          <Tag icon={<AimOutlined />} color="default">
             {instruction.transitionName}
           </Tag>
         )}
         
         {instruction.methodName && (
-          <Tag icon={<span>🔧</span>} color="default">
+          <Tag icon={<ToolOutlined />} color="default">
             {instruction.methodName}
           </Tag>
         )}
