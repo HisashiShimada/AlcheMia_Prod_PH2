@@ -28,7 +28,7 @@ export default function MethodSelector({
   return (
     <Space align="center" size="middle" style={{ width: '100%' }}>
       <ToolOutlined style={{ fontSize: 16, color: '#CF0027' }} />
-      <Text strong style={{ minWidth: 100 }}>
+      <Text strong style={{ width: 100, display: 'inline-block' }}>
         メソッド:
       </Text>
       <Select

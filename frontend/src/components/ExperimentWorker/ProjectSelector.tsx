@@ -19,31 +19,29 @@ export default function ProjectSelector({
   onProjectChange,
 }: ProjectSelectorProps) {
   return (
-    <Card style={{ marginBottom: 24 }}>
-      <Space align="center" size="middle" style={{ width: '100%' }}>
-        <FolderOutlined style={{ fontSize: 20, color: '#CF0027' }} />
-        <Text strong style={{ minWidth: 100 }}>
-          プロジェクト:
-        </Text>
-        <Select
-          value={selectedProject || undefined}
-          onChange={onProjectChange}
-          placeholder="プロジェクトを選択してください"
-          style={{ minWidth: 300, flex: 1, maxWidth: 600 }}
-          size="large"
-        >
-          {Object.entries(projectsData).map(([projectId, project]) => (
-            <Select.Option key={projectId} value={projectId}>
-              <Space>
-                <Text strong>{project.projectName}</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {project.fileName}
-                </Text>
-              </Space>
-            </Select.Option>
-          ))}
-        </Select>
-      </Space>
-    </Card>
+    <Space align="center" size="middle" style={{ width: '100%' }}>
+      <FolderOutlined style={{ fontSize: 16, color: '#CF0027' }} />
+      <Text strong style={{ width: 100, display: 'inline-block' }}>
+        プロジェクト:
+      </Text>
+      <Select
+        value={selectedProject || undefined}
+        onChange={onProjectChange}
+        placeholder="プロジェクトを選択してください"
+        style={{ minWidth: 300, flex: 1, maxWidth: 600 }}
+        size="large"
+      >
+        {Object.entries(projectsData).map(([projectId, project]) => (
+          <Select.Option key={projectId} value={projectId}>
+            <Space>
+              <Text strong>{project.projectName}</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {project.fileName}
+              </Text>
+            </Space>
+          </Select.Option>
+        ))}
+      </Select>
+    </Space>
   );
 }
