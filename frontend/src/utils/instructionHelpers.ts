@@ -31,11 +31,11 @@ export const getPriorityLabel = (priority: Priority): string => {
  */
 export const getTypeLabel = (type: InstructionType): string => {
   const labels: Record<InstructionType, string> = {
-    safety: '⚠️ 安全',
-    setup: '🔧 セットアップ',
-    measurement: '📊 測定',
-    cleanup: '🧹 清掃',
-    general: '📋 一般',
+    safety: '安全',
+    setup: 'セットアップ',
+    measurement: '測定',
+    cleanup: '清掃',
+    general: '一般',
   };
   return labels[type];
 };
