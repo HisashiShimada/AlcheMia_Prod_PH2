@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Layout, Card, Typography, message } from 'antd';
 import {
   CheckSquareOutlined,
+  FileTextOutlined,
   FormOutlined,
   EyeOutlined,
   UploadOutlined,
@@ -44,26 +45,31 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     },
     {
       key: '2',
+      label: t('menu.experiment_worker.tabs.workInstruction'),
+      icon: <FileTextOutlined />,
+    },
+    {
+      key: '3',
       label: t('menu.experiment_worker.tabs.experimentRecord'),
       icon: <FormOutlined />,
     },
     {
-      key: '3',
+      key: '4',
       label: t('menu.experiment_worker.tabs.maimlViewer'),
       icon: <EyeOutlined />,
     },
     {
-      key: '4',
+      key: '5',
       label: t('menu.experiment_worker.tabs.fileUpload'),
       icon: <UploadOutlined />,
     },
     {
-      key: '5',
+      key: '6',
       label: t('menu.experiment_worker.tabs.progressReport'),
       icon: <LineChartOutlined />,
     },
     {
-      key: '6',
+      key: '7',
       label: t('menu.experiment_worker.tabs.history'),
       icon: <HistoryOutlined />,
     },

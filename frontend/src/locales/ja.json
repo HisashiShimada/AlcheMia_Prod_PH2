@@ -79,6 +79,7 @@
       "title": "実験作業者メニュー",
       "tabs": {
         "myTasks": "担当作業",
+        "workInstruction": "作業指示",
         "experimentRecord": "実験記録",
         "maimlViewer": "MAIML閲覧",
         "fileUpload": "ファイルアップロード",
