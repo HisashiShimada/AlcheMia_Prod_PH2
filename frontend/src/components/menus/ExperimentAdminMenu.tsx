@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Card, Typography } from 'antd';
+import { Layout, Card, Typography, message } from 'antd';
 import {
   ExperimentOutlined,
   UserSwitchOutlined,
@@ -11,7 +11,7 @@ import {
   BarChartOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
-import SubHeader from '../common/SubHeader';
+import SubHeader, { MenuType } from '../common/SubHeader';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -25,13 +25,14 @@ interface ExperimentAdminMenuProps {
   user: User;
   onLogout: () => void;
   onNavigate: (path: string) => void;
+  onMenuChange?: (menuType: MenuType) => void;
 }
 
 /**
  * 実験管理者メニュー画面
  * サブヘッダーに埋め込まれたタブでメニューを表示
  */
-export default function ExperimentAdminMenu({ user, onLogout, onNavigate }: ExperimentAdminMenuProps) {
+export default function ExperimentAdminMenu({ user, onLogout, onNavigate, onMenuChange }: ExperimentAdminMenuProps) {
   const { t } = useLanguage();
   const [currentTab, setCurrentTab] = useState('1');
 
@@ -72,6 +73,12 @@ export default function ExperimentAdminMenu({ user, onLogout, onNavigate }: Expe
     setCurrentTab(key);
   };
 
+  const handleMenuChange = (menuType: MenuType) => {
+    if (onMenuChange) {
+      onMenuChange(menuType);
+    }
+  };
+
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
   return (
@@ -82,6 +89,8 @@ export default function ExperimentAdminMenu({ user, onLogout, onNavigate }: Expe
         tabs={tabItems}
         activeTabKey={currentTab}
         onTabChange={handleTabChange}
+        currentMenu="experiment_admin"
+        onMenuChange={handleMenuChange}
       />
 
       {/* コンテンツエリア */}

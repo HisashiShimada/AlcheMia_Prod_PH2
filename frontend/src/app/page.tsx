@@ -78,6 +78,7 @@ const demoUsers: Record<string, { password: string; user: User }> = {
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentMenuType, setCurrentMenuType] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
@@ -93,6 +94,7 @@ export default function Home() {
     const demoUser = demoUsers[credentials.username];
     if (demoUser && demoUser.password === credentials.password) {
       setCurrentUser(demoUser.user);
+      setCurrentMenuType(demoUser.user.role); // 初期表示メニューはユーザーのロールと同じ
       messageApi.success('ログインに成功しました');
     } else {
       setError('ユーザー名またはパスワードが正しくありません');
@@ -104,12 +106,32 @@ export default function Home() {
   // ログアウト処理
   const handleLogout = () => {
     setCurrentUser(null);
+    setCurrentMenuType(null);
     messageApi.info('ログアウトしました');
   };
 
   // ナビゲーション処理（デモ用）
   const handleNavigate = (path: string) => {
     messageApi.info(`画面遷移: ${path}`);
+  };
+
+  // メニュー切り替え処理（デモ用）
+  const handleMenuChange = (menuType: UserRole) => {
+    if (!currentUser) return;
+
+    // ユーザー情報は一切変更せず、表示するメニューだけを変更
+    setCurrentMenuType(menuType);
+    
+    // メニュー名の取得（日本語表示用）
+    const menuNames: Record<UserRole, string> = {
+      provider: 'プロバイダーメニュー',
+      system_admin: 'システム管理者メニュー',
+      data_admin: 'データ管理者メニュー',
+      experiment_admin: '実験管理者メニュー',
+      experiment_worker: '実験作業者メニュー',
+    };
+    
+    messageApi.success(`${menuNames[menuType]}に切り替えました`);
   };
 
   // ログインしていない場合はログイン画面を表示
@@ -122,22 +144,38 @@ export default function Home() {
     );
   }
 
-  // ロールに応じたメニュー画面を表示
+  // 表示するメニュータイプに応じたメニュー画面を表示
+  // ユーザー情報（currentUser）は元のまま保持される
   let MenuComponent: React.ReactNode;
-  switch (currentUser.role) {
+  switch (currentMenuType) {
     case 'provider':
       MenuComponent = (
-        <ProviderMenu user={currentUser} onLogout={handleLogout} onNavigate={handleNavigate} />
+        <ProviderMenu 
+          user={currentUser} 
+          onLogout={handleLogout} 
+          onNavigate={handleNavigate}
+          onMenuChange={handleMenuChange}
+        />
       );
       break;
     case 'system_admin':
       MenuComponent = (
-        <SystemAdminMenu user={currentUser} onLogout={handleLogout} onNavigate={handleNavigate} />
+        <SystemAdminMenu 
+          user={currentUser} 
+          onLogout={handleLogout} 
+          onNavigate={handleNavigate}
+          onMenuChange={handleMenuChange}
+        />
       );
       break;
     case 'data_admin':
       MenuComponent = (
-        <DataAdminMenu user={currentUser} onLogout={handleLogout} onNavigate={handleNavigate} />
+        <DataAdminMenu 
+          user={currentUser} 
+          onLogout={handleLogout} 
+          onNavigate={handleNavigate}
+          onMenuChange={handleMenuChange}
+        />
       );
       break;
     case 'experiment_admin':
@@ -146,6 +184,7 @@ export default function Home() {
           user={currentUser}
           onLogout={handleLogout}
           onNavigate={handleNavigate}
+          onMenuChange={handleMenuChange}
         />
       );
       break;
@@ -155,6 +194,7 @@ export default function Home() {
           user={currentUser}
           onLogout={handleLogout}
           onNavigate={handleNavigate}
+          onMenuChange={handleMenuChange}
         />
       );
       break;

@@ -1,9 +1,17 @@
 'use client';
 
 import React from 'react';
-import { Typography, Space, Tabs } from 'antd';
-import type { TabsProps } from 'antd';
+import { Typography, Space, Tabs, Dropdown, Button } from 'antd';
+import type { TabsProps, MenuProps } from 'antd';
 import styled from '@emotion/styled';
+import {
+  AppstoreOutlined,
+  TeamOutlined,
+  DatabaseOutlined,
+  ExperimentOutlined,
+  UserOutlined,
+  SwapOutlined,
+} from '@ant-design/icons';
 
 const { Title } = Typography;
 
@@ -143,6 +151,11 @@ interface TabItem {
 }
 
 /**
+ * メニュー種別
+ */
+export type MenuType = 'provider' | 'system_admin' | 'data_admin' | 'experiment_admin' | 'experiment_worker';
+
+/**
  * サブヘッダーコンポーネントのProps
  */
 interface SubHeaderProps {
@@ -159,6 +172,10 @@ interface SubHeaderProps {
   tabs?: TabItem[];
   activeTabKey?: string;
   onTabChange?: (key: string) => void;
+  
+  // メニュー切り替え機能
+  currentMenu?: MenuType;
+  onMenuChange?: (menuType: MenuType) => void;
 }
 
 /**
@@ -172,6 +189,8 @@ export default function SubHeader({
   tabs,
   activeTabKey,
   onTabChange,
+  currentMenu,
+  onMenuChange,
 }: SubHeaderProps) {
   const hasTabs = tabs && tabs.length > 0;
 
@@ -182,6 +201,45 @@ export default function SubHeader({
     icon: tab.icon,
     disabled: tab.disabled,
   }));
+
+  // メニュー切り替えドロップダウンのアイテム
+  const menuItems: MenuProps['items'] = [
+    {
+      key: 'provider',
+      label: 'プロバイダーメニュー',
+      icon: <AppstoreOutlined />,
+      disabled: currentMenu === 'provider',
+      onClick: () => onMenuChange?.('provider'),
+    },
+    {
+      key: 'system_admin',
+      label: 'システム管理者メニュー',
+      icon: <TeamOutlined />,
+      disabled: currentMenu === 'system_admin',
+      onClick: () => onMenuChange?.('system_admin'),
+    },
+    {
+      key: 'data_admin',
+      label: 'データ管理者メニュー',
+      icon: <DatabaseOutlined />,
+      disabled: currentMenu === 'data_admin',
+      onClick: () => onMenuChange?.('data_admin'),
+    },
+    {
+      key: 'experiment_admin',
+      label: '実験管理者メニュー',
+      icon: <ExperimentOutlined />,
+      disabled: currentMenu === 'experiment_admin',
+      onClick: () => onMenuChange?.('experiment_admin'),
+    },
+    {
+      key: 'experiment_worker',
+      label: '実験作業者メニュー',
+      icon: <UserOutlined />,
+      disabled: currentMenu === 'experiment_worker',
+      onClick: () => onMenuChange?.('experiment_worker'),
+    },
+  ];
 
   return (
     <SubHeaderContainer>
@@ -215,11 +273,50 @@ export default function SubHeader({
             </TabsWrapper>
           )}
 
-          {/* 右側: アクションボタン */}
-          {actions && (
+          {/* 右側: アクションボタン + メニュー切り替え */}
+          {(actions || onMenuChange) && (
             <ActionsWrapper hasTabs={!!hasTabs}>
               <Space size="small">
                 {actions}
+                {onMenuChange && (
+                  <Dropdown
+                    menu={{ items: menuItems }}
+                    trigger={['hover']}
+                    placement="bottomRight"
+                    overlayStyle={{
+                      minWidth: 240,
+                    }}
+                  >
+                    <Button
+                      type="primary"
+                      ghost
+                      icon={<SwapOutlined />}
+                      style={{
+                        borderColor: 'rgba(255, 255, 255, 0.8)',
+                        color: 'white',
+                        fontWeight: 500,
+                        height: 36,
+                        paddingLeft: 16,
+                        paddingRight: 16,
+                        transition: 'all 0.3s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'white';
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    >
+                      メニュー切替
+                    </Button>
+                  </Dropdown>
+                )}
               </Space>
             </ActionsWrapper>
           )}

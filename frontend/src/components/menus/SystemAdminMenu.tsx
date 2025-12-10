@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Tabs, Card, Typography } from 'antd';
+import { Layout, Tabs, Card, Typography, message } from 'antd';
 import {
   TeamOutlined,
   ShopOutlined,
@@ -11,7 +11,7 @@ import {
   AuditOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
-import SubHeader from '../common/SubHeader';
+import SubHeader, { MenuType } from '../common/SubHeader';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -25,13 +25,14 @@ interface SystemAdminMenuProps {
   user: User;
   onLogout: () => void;
   onNavigate: (path: string) => void;
+  onMenuChange?: (menuType: MenuType) => void;
 }
 
 /**
  * システム管理者メニュー画面
  * タブ形式でメニューを表示
  */
-export default function SystemAdminMenu({ user, onLogout, onNavigate }: SystemAdminMenuProps) {
+export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChange }: SystemAdminMenuProps) {
   const { t } = useLanguage();
   const [currentTab, setCurrentTab] = useState('1');
 
@@ -72,6 +73,12 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate }: SystemAd
     setCurrentTab(key);
   };
 
+  const handleMenuChange = (menuType: MenuType) => {
+    if (onMenuChange) {
+      onMenuChange(menuType);
+    }
+  };
+
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
   return (
@@ -82,6 +89,8 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate }: SystemAd
         tabs={tabItems}
         activeTabKey={currentTab}
         onTabChange={handleTabChange}
+        currentMenu="system_admin"
+        onMenuChange={handleMenuChange}
       />
 
       {/* コンテンツエリア */}
