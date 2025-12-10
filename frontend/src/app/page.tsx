@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
+import { message } from 'antd';
 import LoginPage from '@/components/LoginPage';
 import ProviderMenu from '@/components/menus/ProviderMenu';
 import SystemAdminMenu from '@/components/menus/SystemAdminMenu';
@@ -10,30 +9,6 @@ import DataAdminMenu from '@/components/menus/DataAdminMenu';
 import ExperimentAdminMenu from '@/components/menus/ExperimentAdminMenu';
 import ExperimentWorkerMenu from '@/components/menus/ExperimentWorkerMenu';
 import { User, UserRole, LoginCredentials } from '@/types/auth';
-import { Alert, Snackbar } from '@mui/material';
-
-// Material-UIテーマ設定
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#667eea',
-    },
-    secondary: {
-      main: '#764ba2',
-    },
-  },
-  typography: {
-    fontFamily: [
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
-  },
-});
 
 /**
  * デモ用ユーザーデータ
@@ -105,7 +80,7 @@ export default function Home() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
   // ログイン処理
   const handleLogin = async (credentials: LoginCredentials) => {
@@ -118,7 +93,7 @@ export default function Home() {
     const demoUser = demoUsers[credentials.username];
     if (demoUser && demoUser.password === credentials.password) {
       setCurrentUser(demoUser.user);
-      setSuccessMessage('ログインに成功しました');
+      messageApi.success('ログインに成功しました');
     } else {
       setError('ユーザー名またはパスワードが正しくありません');
     }
@@ -129,36 +104,21 @@ export default function Home() {
   // ログアウト処理
   const handleLogout = () => {
     setCurrentUser(null);
-    setSuccessMessage('ログアウトしました');
+    messageApi.info('ログアウトしました');
   };
 
   // ナビゲーション処理（デモ用）
   const handleNavigate = (path: string) => {
-    setSuccessMessage(`画面遷移: ${path}`);
-  };
-
-  // Snackbarを閉じる
-  const handleCloseSnackbar = () => {
-    setSuccessMessage(null);
+    messageApi.info(`画面遷移: ${path}`);
   };
 
   // ログインしていない場合はログイン画面を表示
   if (!currentUser) {
     return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
+      <>
+        {contextHolder}
         <LoginPage onLogin={handleLogin} error={error} loading={loading} />
-        <Snackbar
-          open={Boolean(successMessage)}
-          autoHideDuration={3000}
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        >
-          <Alert onClose={handleCloseSnackbar} severity="success" sx={{ width: '100%' }}>
-            {successMessage}
-          </Alert>
-        </Snackbar>
-      </ThemeProvider>
+      </>
     );
   }
 
@@ -203,19 +163,9 @@ export default function Home() {
   }
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <>
+      {contextHolder}
       {MenuComponent}
-      <Snackbar
-        open={Boolean(successMessage)}
-        autoHideDuration={3000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity="info" sx={{ width: '100%' }}>
-          {successMessage}
-        </Alert>
-      </Snackbar>
-    </ThemeProvider>
+    </>
   );
 }

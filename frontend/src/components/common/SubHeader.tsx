@@ -1,11 +1,146 @@
 'use client';
 
 import React from 'react';
-import {
-  Box,
-  Container,
-  Typography,
-} from '@mui/material';
+import { Typography, Space, Tabs } from 'antd';
+import type { TabsProps } from 'antd';
+import styled from '@emotion/styled';
+
+const { Title } = Typography;
+
+/**
+ * サブヘッダーのルートコンテナ
+ */
+const SubHeaderContainer = styled.div`
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  background-color: #1976d2;
+  color: white;
+  border-bottom: 1px solid #1565c0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+`;
+
+/**
+ * 内部コンテナ
+ */
+const SubHeaderInner = styled.div`
+  margin: 0 auto;
+  padding: 0 50px;
+`;
+
+/**
+ * コンテンツ領域（タイトル、タブ、アクションを含む）
+ */
+const SubHeaderContent = styled.div`
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-top: 8px;
+  padding-bottom: 0;
+  gap: 24px;
+`;
+
+/**
+ * タイトル領域
+ */
+const TitleWrapper = styled.div<{ hasTabs: boolean }>`
+  margin-bottom: ${(props: { hasTabs: boolean }) => props.hasTabs ? '0' : '16px'};
+  flex-shrink: 0;
+`;
+
+/**
+ * タブ領域
+ */
+const TabsWrapper = styled.div`
+  flex: 1;
+  min-width: 0;
+  
+  /* Ant Design Tabsのカスタマイズ */
+  .ant-tabs {
+    color: white;
+  }
+  
+  /* タブナビゲーション */
+  .ant-tabs-nav {
+    margin-bottom: 0 !important;
+    
+    &::before {
+      border-bottom: none !important;
+    }
+  }
+  
+  /* タブアイテム */
+  .ant-tabs-tab {
+    padding: 8px 0 !important;
+    margin: 0 24px 0 0 !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-size: 16px !important;
+    font-weight: 400 !important;
+    transition: all 0.2s ease !important;
+    
+    /* ホバー時 */
+    &:hover {
+      color: white !important;
+    }
+    
+    /* アクティブ状態 */
+    &.ant-tabs-tab-active {
+      color: white !important;
+      font-weight: 600 !important;
+      
+      .ant-tabs-tab-btn {
+        color: white !important;
+      }
+    }
+    
+    /* タブボタン */
+    .ant-tabs-tab-btn {
+      color: inherit;
+    }
+    
+    /* 無効状態 */
+    &.ant-tabs-tab-disabled {
+      color: rgba(255, 255, 255, 0.3) !important;
+      cursor: not-allowed !important;
+      
+      .ant-tabs-tab-btn {
+        color: rgba(255, 255, 255, 0.3) !important;
+      }
+    }
+  }
+  
+  /* アクティブインジケーター（下線） */
+  .ant-tabs-ink-bar {
+    background-color: white !important;
+    height: 3px !important;
+    border-radius: 3px 3px 0 0 !important;
+  }
+  
+  /* アイコンとテキストのスペース */
+  .ant-tabs-tab-icon {
+    margin-right: 8px;
+  }
+`;
+
+/**
+ * アクション領域
+ */
+const ActionsWrapper = styled.div<{ hasTabs: boolean }>`
+  margin-bottom: ${(props: { hasTabs: boolean }) => props.hasTabs ? '8px' : '16px'};
+  flex-shrink: 0;
+`;
+
+/**
+ * タブアイテムの型定義
+ */
+interface TabItem {
+  key: string;
+  label: string;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+}
 
 /**
  * サブヘッダーコンポーネントのProps
@@ -19,62 +154,77 @@ interface SubHeaderProps {
     onClick?: () => void;
   }>;
   actions?: React.ReactNode;
+  
+  // タブ機能
+  tabs?: TabItem[];
+  activeTabKey?: string;
+  onTabChange?: (key: string) => void;
 }
 
 /**
  * サブヘッダーコンポーネント
  * メニュー画面の2段目ヘッダー（青系背景）
+ * タブを埋め込むことが可能
  */
 export default function SubHeader({ 
   title, 
-  actions 
+  actions,
+  tabs,
+  activeTabKey,
+  onTabChange,
 }: SubHeaderProps) {
-  return (
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 64, // Headerの高さ分下げる
-          left: 0,
-          right: 0,
-          zIndex: (theme) => theme.zIndex.drawer,
-          backgroundColor: 'primary.main', // #1976d2
-          color: 'white',
-          py: 2,
-          borderBottom: '1px solid',
-          borderColor: 'primary.dark',
-          boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-      <Container maxWidth="lg">
-        {/* タイトルとアクション */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 2,
-          }}
-        >
-          <Typography
-            variant="h5"
-            component="h1"
-            sx={{
-              fontWeight: 600,
-              color: 'white',
-            }}
-          >
-            {title}
-          </Typography>
+  const hasTabs = tabs && tabs.length > 0;
 
-          {/* アクションボタン */}
-          {actions && (
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              {actions}
-            </Box>
+  // Ant Design TabsPropsの形式に変換
+  const tabItems: TabsProps['items'] = tabs?.map((tab) => ({
+    key: tab.key,
+    label: tab.label,
+    icon: tab.icon,
+    disabled: tab.disabled,
+  }));
+
+  return (
+    <SubHeaderContainer>
+      <SubHeaderInner>
+        <SubHeaderContent>
+          {/* 左側: タイトル */}
+          <TitleWrapper hasTabs={!!hasTabs}>
+            <Title
+              level={4}
+              style={{
+                margin: 0,
+                color: 'white',
+                fontWeight: 600,
+                fontSize: 24,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {title}
+            </Title>
+          </TitleWrapper>
+
+          {/* 中央: タブ（Ant Design Tabs） */}
+          {hasTabs && (
+            <TabsWrapper>
+              <Tabs
+                activeKey={activeTabKey}
+                items={tabItems}
+                onChange={onTabChange}
+                size="large"
+              />
+            </TabsWrapper>
           )}
-        </Box>
-      </Container>
-    </Box>
+
+          {/* 右側: アクションボタン */}
+          {actions && (
+            <ActionsWrapper hasTabs={!!hasTabs}>
+              <Space size="small">
+                {actions}
+              </Space>
+            </ActionsWrapper>
+          )}
+        </SubHeaderContent>
+      </SubHeaderInner>
+    </SubHeaderContainer>
   );
 }
