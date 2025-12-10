@@ -1,0 +1,14 @@
+{
+  "common": {
+    "appName": "Tenant A Custom Name",
+    "appSubtitle": "Tenant Aのカスタムサブタイトル"
+  },
+  "menu": {
+    "system_admin": {
+      "title": "Tenant A: システム管理者メニュー",
+      "tabs": {
+        "userManagement": "Tenant A: ユーザー管理"
+      }
+    }
+  }
+}

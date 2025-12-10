@@ -203,7 +203,7 @@ export default function LoginPage({ onLogin, error, loading = false }: LoginPage
               color="text.secondary"
               sx={{ fontSize: '0.75rem' }}
             >
-              © 2024 MMDPF. All rights reserved.
+              © 2026 MMDPF. All rights reserved.
             </Typography>
           </Box>
         </Paper>

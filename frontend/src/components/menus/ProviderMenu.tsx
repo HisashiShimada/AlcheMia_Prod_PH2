@@ -20,6 +20,7 @@ import {
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
 import { User } from '@/types/auth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * プロバイダーメニューのProps
@@ -35,15 +36,16 @@ interface ProviderMenuProps {
  * タブ形式でメニューを表示
  */
 export default function ProviderMenu({ user, onLogout, onNavigate }: ProviderMenuProps) {
+  const { t } = useLanguage();
   const [currentTab, setCurrentTab] = useState(0);
 
   const tabs = [
-    { label: '組織管理', icon: <BusinessIcon /> },
-    { label: 'ユーザー管理', icon: <PeopleIcon /> },
-    { label: 'システム設定', icon: <SettingsIcon /> },
-    { label: '監査ログ', icon: <AssignmentIcon /> },
-    { label: 'ストレージ管理', icon: <StorageIcon /> },
-    { label: '統計情報', icon: <BarChartIcon /> },
+    { label: t('menu.provider.tabs.organizationManagement'), icon: <BusinessIcon /> },
+    { label: t('menu.provider.tabs.userManagement'), icon: <PeopleIcon /> },
+    { label: t('menu.provider.tabs.systemSettings'), icon: <SettingsIcon /> },
+    { label: t('menu.provider.tabs.auditLog'), icon: <AssignmentIcon /> },
+    { label: t('menu.provider.tabs.storageManagement'), icon: <StorageIcon /> },
+    { label: t('menu.provider.tabs.statistics'), icon: <BarChartIcon /> },
   ];
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -53,7 +55,7 @@ export default function ProviderMenu({ user, onLogout, onNavigate }: ProviderMen
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header user={user} onLogout={onLogout} />
-      <SubHeader title="プロバイダーメニュー" />
+      <SubHeader title={t('menu.provider.title')} />
       
       {/* タブバー */}
       <Box
@@ -119,7 +121,7 @@ export default function ProviderMenu({ user, onLogout, onNavigate }: ProviderMen
               {tabs[currentTab].label}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              コンテンツエリア（未実装）
+              {t('content.notImplemented')}
             </Typography>
           </Paper>
         </Container>

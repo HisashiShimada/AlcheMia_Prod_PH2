@@ -5,14 +5,7 @@ import {
   Box,
   Container,
   Typography,
-  Button,
-  Breadcrumbs,
-  Link,
 } from '@mui/material';
-import {
-  Home as HomeIcon,
-  ChevronRight as ChevronRightIcon,
-} from '@mui/icons-material';
 
 /**
  * サブヘッダーコンポーネントのProps

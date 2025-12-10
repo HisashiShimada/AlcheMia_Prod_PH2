@@ -20,6 +20,7 @@ import {
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
 import { User } from '@/types/auth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * 実験管理者メニューのProps
@@ -35,15 +36,16 @@ interface ExperimentAdminMenuProps {
  * タブ形式でメニューを表示
  */
 export default function ExperimentAdminMenu({ user, onLogout, onNavigate }: ExperimentAdminMenuProps) {
+  const { t } = useLanguage();
   const [currentTab, setCurrentTab] = useState(0);
 
   const tabs = [
-    { label: '実験管理', icon: <ScienceIcon /> },
-    { label: 'ワーカー割当', icon: <AssignmentIndIcon /> },
-    { label: '進捗管理', icon: <TimelineIcon /> },
-    { label: 'MAIML編集', icon: <EditIcon /> },
-    { label: 'ファイル管理', icon: <FolderIcon /> },
-    { label: '統計情報', icon: <BarChartIcon /> },
+    { label: t('menu.experiment_admin.tabs.experimentManagement'), icon: <ScienceIcon /> },
+    { label: t('menu.experiment_admin.tabs.workerAssignment'), icon: <AssignmentIndIcon /> },
+    { label: t('menu.experiment_admin.tabs.progressManagement'), icon: <TimelineIcon /> },
+    { label: t('menu.experiment_admin.tabs.maimlEditor'), icon: <EditIcon /> },
+    { label: t('menu.experiment_admin.tabs.fileManagement'), icon: <FolderIcon /> },
+    { label: t('menu.experiment_admin.tabs.statistics'), icon: <BarChartIcon /> },
   ];
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -53,7 +55,7 @@ export default function ExperimentAdminMenu({ user, onLogout, onNavigate }: Expe
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header user={user} onLogout={onLogout} />
-      <SubHeader title="実験管理者メニュー" />
+      <SubHeader title={t('menu.experiment_admin.title')} />
       
       {/* タブバー */}
       <Box
@@ -119,7 +121,7 @@ export default function ExperimentAdminMenu({ user, onLogout, onNavigate }: Expe
               {tabs[currentTab].label}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              コンテンツエリア（未実装）
+              {t('content.notImplemented')}
             </Typography>
           </Paper>
         </Container>

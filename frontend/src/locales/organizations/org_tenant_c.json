@@ -1,0 +1,16 @@
+{
+  "common": {
+    "appName": "Tenant C Lab",
+    "appSubtitle": "Advanced Materials Research Platform"
+  },
+  "menu": {
+    "data_admin": {
+      "title": "データ管理システム",
+      "tabs": {
+        "fileManagement": "ファイル管理システム",
+        "maimlEditor": "MAIML編集ツール",
+        "dataSearch": "データ検索システム"
+      }
+    }
+  }
+}

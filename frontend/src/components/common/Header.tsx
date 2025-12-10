@@ -16,8 +16,11 @@ import {
   Logout as LogoutIcon,
   AccountCircle as AccountCircleIcon,
   Settings as SettingsIcon,
+  Language as LanguageIcon,
+  Check as CheckIcon,
 } from '@mui/icons-material';
 import { User } from '@/types/auth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * ヘッダーコンポーネントのProps
@@ -32,7 +35,9 @@ interface HeaderProps {
  * UIポリシーに基づいた白背景のモダンなヘッダー
  */
 export default function Header({ user, onLogout }: HeaderProps) {
+  const { t, locale, setLocale } = useLanguage();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const [langAnchorEl, setLangAnchorEl] = React.useState<null | HTMLElement>(null);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -42,21 +47,27 @@ export default function Header({ user, onLogout }: HeaderProps) {
     setAnchorEl(null);
   };
 
+  const handleLangMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setLangAnchorEl(event.currentTarget);
+  };
+
+  const handleLangMenuClose = () => {
+    setLangAnchorEl(null);
+  };
+
+  const handleLanguageChange = (newLocale: 'ja' | 'en') => {
+    setLocale(newLocale);
+    handleLangMenuClose();
+  };
+
   const handleLogout = () => {
     handleMenuClose();
     onLogout();
   };
 
-  // ロール名の日本語表示
+  // ロール名の表示
   const getRoleLabel = (role: string): string => {
-    const roleMap: Record<string, string> = {
-      provider: 'プロバイダ',
-      system_admin: 'システム管理者',
-      data_admin: 'データ管理者',
-      experiment_admin: '実験管理者',
-      experiment_worker: '実験作業者',
-    };
-    return roleMap[role] || role;
+    return t(`roles.${role}`) || role;
   };
 
   return (
@@ -82,7 +93,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
             color: '#CF0027', // アクセントカラー（赤）
           }}
         >
-          MMDPF
+          {t('common.appName')}
         </Typography>
         
         <Typography 
@@ -92,7 +103,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
             color: 'text.secondary',
           }}
         >
-          マルチモーダルデータプラットフォーム
+          {t('common.appSubtitle')}
         </Typography>
 
         {user && (
@@ -172,7 +183,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
                 }}
               >
                 <AccountCircleIcon sx={{ mr: 1.5, fontSize: 20 }} />
-                <Typography variant="body2">プロフィール</Typography>
+                <Typography variant="body2">{t('common.profile')}</Typography>
               </MenuItem>
               <MenuItem 
                 disabled
@@ -183,7 +194,13 @@ export default function Header({ user, onLogout }: HeaderProps) {
                 }}
               >
                 <SettingsIcon sx={{ mr: 1.5, fontSize: 20 }} />
-                <Typography variant="body2">設定</Typography>
+                <Typography variant="body2">{t('common.settings')}</Typography>
+              </MenuItem>
+              <MenuItem 
+                onClick={handleLangMenuOpen}
+              >
+                <LanguageIcon sx={{ mr: 1.5, fontSize: 20 }} />
+                <Typography variant="body2">{t('common.language')}</Typography>
               </MenuItem>
               <Divider sx={{ my: 1 }} />
               <MenuItem 
@@ -197,7 +214,52 @@ export default function Header({ user, onLogout }: HeaderProps) {
                 }}
               >
                 <LogoutIcon sx={{ mr: 1.5, fontSize: 20 }} />
-                <Typography variant="body2">ログアウト</Typography>
+                <Typography variant="body2">{t('common.logout')}</Typography>
+              </MenuItem>
+            </Menu>
+
+            {/* 言語選択サブメニュー */}
+            <Menu
+              anchorEl={langAnchorEl}
+              open={Boolean(langAnchorEl)}
+              onClose={handleLangMenuClose}
+              anchorOrigin={{
+                vertical: 'top',
+                horizontal: 'left',
+              }}
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+              PaperProps={{
+                elevation: 4,
+                sx: {
+                  minWidth: 160,
+                  borderRadius: 2,
+                },
+              }}
+            >
+              <MenuItem 
+                onClick={() => handleLanguageChange('ja')}
+                selected={locale === 'ja'}
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Typography variant="body2">{t('languages.ja')}</Typography>
+                {locale === 'ja' && <CheckIcon sx={{ ml: 2, fontSize: 18, color: 'primary.main' }} />}
+              </MenuItem>
+              <MenuItem 
+                onClick={() => handleLanguageChange('en')}
+                selected={locale === 'en'}
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Typography variant="body2">{t('languages.en')}</Typography>
+                {locale === 'en' && <CheckIcon sx={{ ml: 2, fontSize: 18, color: 'primary.main' }} />}
               </MenuItem>
             </Menu>
           </Box>

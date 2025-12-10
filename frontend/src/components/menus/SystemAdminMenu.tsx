@@ -20,6 +20,7 @@ import {
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
 import { User } from '@/types/auth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * システム管理者メニューのProps
@@ -35,15 +36,16 @@ interface SystemAdminMenuProps {
  * タブ形式でメニューを表示
  */
 export default function SystemAdminMenu({ user, onLogout, onNavigate }: SystemAdminMenuProps) {
+  const { t } = useLanguage();
   const [currentTab, setCurrentTab] = useState(0);
 
   const tabs = [
-    { label: 'ユーザー管理', icon: <PeopleIcon /> },
-    { label: '組織設定', icon: <BusinessIcon /> },
-    { label: 'ファイル管理', icon: <FolderIcon /> },
-    { label: '実験一覧', icon: <ScienceIcon /> },
-    { label: '統計情報', icon: <BarChartIcon /> },
-    { label: '監査ログ', icon: <AssignmentIcon /> },
+    { label: t('menu.system_admin.tabs.userManagement'), icon: <PeopleIcon /> },
+    { label: t('menu.system_admin.tabs.organizationSettings'), icon: <BusinessIcon /> },
+    { label: t('menu.system_admin.tabs.fileManagement'), icon: <FolderIcon /> },
+    { label: t('menu.system_admin.tabs.experimentList'), icon: <ScienceIcon /> },
+    { label: t('menu.system_admin.tabs.statistics'), icon: <BarChartIcon /> },
+    { label: t('menu.system_admin.tabs.auditLog'), icon: <AssignmentIcon /> },
   ];
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -53,7 +55,7 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate }: SystemAd
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header user={user} onLogout={onLogout} />
-      <SubHeader title="システム管理者メニュー" />
+      <SubHeader title={t('menu.system_admin.title')} />
       
       {/* タブバー */}
       <Box
@@ -119,8 +121,7 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate }: SystemAd
               {tabs[currentTab].label}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {/* コンテンツはここに追加されます */}
-              コンテンツエリア（未実装）
+              {t('content.notImplemented')}
             </Typography>
           </Paper>
         </Container>

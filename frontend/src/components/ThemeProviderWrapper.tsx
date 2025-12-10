@@ -4,9 +4,10 @@ import React from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { theme } from '@/theme/theme';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 /**
- * Material-UI ThemeProvider ラッパー
+ * Material-UI ThemeProvider と LanguageProvider のラッパー
  * クライアントコンポーネントとして分離
  */
 export default function ThemeProviderWrapper({
@@ -15,10 +16,12 @@ export default function ThemeProviderWrapper({
   children: React.ReactNode;
 }) {
   return (
-    <ThemeProvider theme={theme}>
-      {/* CssBaseline: MUIのベーススタイルをリセット */}
-      <CssBaseline />
-      {children}
-    </ThemeProvider>
+    <LanguageProvider>
+      <ThemeProvider theme={theme}>
+        {/* CssBaseline: MUIのベーススタイルをリセット */}
+        <CssBaseline />
+        {children}
+      </ThemeProvider>
+    </LanguageProvider>
   );
 }

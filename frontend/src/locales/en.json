@@ -1,0 +1,93 @@
+{
+  "common": {
+    "appName": "MMDPF",
+    "appSubtitle": "Multimodal Data Platform",
+    "login": "Login",
+    "logout": "Logout",
+    "profile": "Profile",
+    "settings": "Settings",
+    "language": "Language",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info"
+  },
+  "languages": {
+    "ja": "日本語",
+    "en": "English"
+  },
+  "roles": {
+    "provider": "Provider",
+    "system_admin": "System Administrator",
+    "data_admin": "Data Administrator",
+    "experiment_admin": "Experiment Administrator",
+    "experiment_worker": "Experiment Worker"
+  },
+  "menu": {
+    "provider": {
+      "title": "Provider Menu",
+      "tabs": {
+        "organizationManagement": "Organization Management",
+        "userManagement": "User Management",
+        "systemSettings": "System Settings",
+        "auditLog": "Audit Log",
+        "storageManagement": "Storage Management",
+        "statistics": "Statistics"
+      }
+    },
+    "system_admin": {
+      "title": "System Administrator Menu",
+      "tabs": {
+        "userManagement": "User Management",
+        "organizationSettings": "Organization Settings",
+        "fileManagement": "File Management",
+        "experimentList": "Experiment List",
+        "statistics": "Statistics",
+        "auditLog": "Audit Log"
+      }
+    },
+    "data_admin": {
+      "title": "Data Administrator Menu",
+      "tabs": {
+        "fileManagement": "File Management",
+        "maimlEditor": "MAIML Editor",
+        "dataSearch": "Data Search",
+        "experimentList": "Experiment List",
+        "dataExport": "Data Export",
+        "statistics": "Statistics"
+      }
+    },
+    "experiment_admin": {
+      "title": "Experiment Administrator Menu",
+      "tabs": {
+        "experimentManagement": "Experiment Management",
+        "workerAssignment": "Worker Assignment",
+        "progressManagement": "Progress Management",
+        "maimlEditor": "MAIML Editor",
+        "fileManagement": "File Management",
+        "statistics": "Statistics"
+      }
+    },
+    "experiment_worker": {
+      "title": "Experiment Worker Menu",
+      "tabs": {
+        "myTasks": "My Tasks",
+        "experimentRecord": "Experiment Record",
+        "maimlViewer": "MAIML Viewer",
+        "fileUpload": "File Upload",
+        "progressReport": "Progress Report",
+        "history": "Work History"
+      }
+    }
+  },
+  "content": {
+    "notImplemented": "Content Area (Not Implemented)"
+  }
+}

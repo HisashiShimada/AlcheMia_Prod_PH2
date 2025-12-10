@@ -20,6 +20,7 @@ import {
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
 import { User } from '@/types/auth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * 実験作業者メニューのProps
@@ -35,15 +36,16 @@ interface ExperimentWorkerMenuProps {
  * タブ形式でメニューを表示
  */
 export default function ExperimentWorkerMenu({ user, onLogout, onNavigate }: ExperimentWorkerMenuProps) {
+  const { t } = useLanguage();
   const [currentTab, setCurrentTab] = useState(0);
 
   const tabs = [
-    { label: '担当作業', icon: <AssignmentIcon /> },
-    { label: '実験記録', icon: <CreateIcon /> },
-    { label: 'MAIML閲覧', icon: <VisibilityIcon /> },
-    { label: 'ファイルアップロード', icon: <UploadIcon /> },
-    { label: '進捗報告', icon: <CheckCircleIcon /> },
-    { label: '作業履歴', icon: <HistoryIcon /> },
+    { label: t('menu.experiment_worker.tabs.myTasks'), icon: <AssignmentIcon /> },
+    { label: t('menu.experiment_worker.tabs.experimentRecord'), icon: <CreateIcon /> },
+    { label: t('menu.experiment_worker.tabs.maimlViewer'), icon: <VisibilityIcon /> },
+    { label: t('menu.experiment_worker.tabs.fileUpload'), icon: <UploadIcon /> },
+    { label: t('menu.experiment_worker.tabs.progressReport'), icon: <CheckCircleIcon /> },
+    { label: t('menu.experiment_worker.tabs.history'), icon: <HistoryIcon /> },
   ];
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -53,7 +55,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate }: Exp
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header user={user} onLogout={onLogout} />
-      <SubHeader title="実験作業者メニュー" />
+      <SubHeader title={t('menu.experiment_worker.title')} />
       
       {/* タブバー */}
       <Box
@@ -119,7 +121,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate }: Exp
               {tabs[currentTab].label}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              コンテンツエリア（未実装）
+              {t('content.notImplemented')}
             </Typography>
           </Paper>
         </Container>

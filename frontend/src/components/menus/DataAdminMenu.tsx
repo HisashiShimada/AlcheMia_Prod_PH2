@@ -20,6 +20,7 @@ import {
 import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
 import { User } from '@/types/auth';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /**
  * データ管理者メニューのProps
@@ -35,15 +36,16 @@ interface DataAdminMenuProps {
  * タブ形式でメニューを表示
  */
 export default function DataAdminMenu({ user, onLogout, onNavigate }: DataAdminMenuProps) {
+  const { t } = useLanguage();
   const [currentTab, setCurrentTab] = useState(0);
 
   const tabs = [
-    { label: 'ファイル管理', icon: <FolderIcon /> },
-    { label: 'MAIML編集', icon: <EditIcon /> },
-    { label: 'データ検索', icon: <SearchIcon /> },
-    { label: '実験一覧', icon: <ScienceIcon /> },
-    { label: 'データエクスポート', icon: <DownloadIcon /> },
-    { label: '統計情報', icon: <BarChartIcon /> },
+    { label: t('menu.data_admin.tabs.fileManagement'), icon: <FolderIcon /> },
+    { label: t('menu.data_admin.tabs.maimlEditor'), icon: <EditIcon /> },
+    { label: t('menu.data_admin.tabs.dataSearch'), icon: <SearchIcon /> },
+    { label: t('menu.data_admin.tabs.experimentList'), icon: <ScienceIcon /> },
+    { label: t('menu.data_admin.tabs.dataExport'), icon: <DownloadIcon /> },
+    { label: t('menu.data_admin.tabs.statistics'), icon: <BarChartIcon /> },
   ];
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -53,7 +55,7 @@ export default function DataAdminMenu({ user, onLogout, onNavigate }: DataAdminM
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header user={user} onLogout={onLogout} />
-      <SubHeader title="データ管理者メニュー" />
+      <SubHeader title={t('menu.data_admin.title')} />
       
       {/* タブバー */}
       <Box
@@ -119,7 +121,7 @@ export default function DataAdminMenu({ user, onLogout, onNavigate }: DataAdminM
               {tabs[currentTab].label}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              コンテンツエリア（未実装）
+              {t('content.notImplemented')}
             </Typography>
           </Paper>
         </Container>

@@ -618,6 +618,125 @@ export default function App() {
 }
 ```
 
+## 多言語化（i18n）
+
+### 概要
+
+MaiML Viewerは、テナント（組織）ごとに言語を切り替えられる多言語化システムを実装しています。
+
+### ディレクトリ構造
+
+```
+frontend/src/
+├── locales/                    # 言語ファイル
+│   ├── ja.json                 # 日本語
+│   └── en.json                 # 英語
+└── contexts/
+    └── LanguageContext.tsx     # 言語コンテキスト
+```
+
+### 言語ファイル形式
+
+```json
+{
+  "common": {
+    "appName": "MMDPF",
+    "login": "ログイン",
+    "logout": "ログアウト"
+  },
+  "menu": {
+    "provider": {
+      "title": "プロバイダーメニュー",
+      "tabs": {
+        "userManagement": "ユーザー管理"
+      }
+    }
+  }
+}
+```
+
+### 使用方法
+
+#### 1. LanguageProviderでラップ
+
+```typescript
+import { LanguageProvider } from '@/contexts/LanguageContext';
+
+function App() {
+  const organizationLocale = 'ja'; // テナントの言語設定
+
+  return (
+    <LanguageProvider organizationLocale={organizationLocale}>
+      {/* アプリケーション */}
+    </LanguageProvider>
+  );
+}
+```
+
+#### 2. useLanguageフックで翻訳
+
+```typescript
+import { useLanguage } from '@/contexts/LanguageContext';
+
+function MyComponent() {
+  const { t, locale, setLocale } = useLanguage();
+
+  return (
+    <div>
+      <h1>{t('common.appName')}</h1>
+      <p>{t('menu.provider.title')}</p>
+      <button onClick={() => setLocale('en')}>
+        English
+      </button>
+    </div>
+  );
+}
+```
+
+### 機能
+
+#### テナントごとの言語設定
+
+- `organizationLocale` プロパティで組織の言語を指定
+- 組織設定がある場合、ユーザーは言語を変更できない
+- 組織設定がない場合、ユーザーが自由に言語を切り替え可能
+
+#### ローカルストレージ
+
+- ユーザーが選択した言語をlocalStorageに保存
+- 次回ログイン時に自動で適用
+
+#### 優先順位
+
+1. **組織設定** (`organizationLocale`) - 最優先
+2. **ユーザー設定** (localStorage)
+3. **デフォルト** (`initialLocale`, デフォルトは `ja`)
+
+### 翻訳キーの命名規則
+
+- ドット区切りの階層構造: `category.subcategory.key`
+- 小文字のキャメルケース: `userManagement`, `experimentList`
+- 明確で説明的な名前を使用
+
+### 新しい言語の追加
+
+1. `frontend/src/locales/` に新しいJSONファイルを作成
+2. `LanguageContext.tsx` の `Locale` 型に追加
+3. `translations` オブジェクトにインポート
+
+```typescript
+// 例: 中国語を追加
+import zhTranslations from '../locales/zh.json';
+
+type Locale = 'ja' | 'en' | 'zh';
+
+const translations: Record<Locale, Translations> = {
+  ja: jaTranslations,
+  en: enTranslations,
+  zh: zhTranslations,
+};
+```
+
 ## ベストプラクティス
 
 ### DO（推奨）
@@ -629,6 +748,9 @@ export default function App() {
 ✅ アクセシビリティを考慮する
 ✅ レスポンシブデザインを実装する
 ✅ 適切なコントラスト比を確保する
+✅ **ハードコーディングされたテキストを避け、`t()` 関数を使用する**
+✅ **言語ファイルは階層構造で整理する**
+✅ **翻訳キーは明確で説明的な名前にする**
 
 ### DON'T（非推奨）
 ❌ インラインスタイルを多用しない
@@ -638,6 +760,8 @@ export default function App() {
 ❌ 過度なアニメーションを使用しない
 ❌ アクセシビリティを無視しない
 ❌ モバイルレスポンシブを後回しにしない
+❌ **UIに直接日本語や英語をハードコーディングしない**
+❌ **翻訳キーに日本語を使用しない**
 
 ## 参考リンク
 
