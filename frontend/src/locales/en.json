@@ -90,5 +90,29 @@
   },
   "content": {
     "notImplemented": "Content Area (Not Implemented)"
+  },
+  "experimentRecord": {
+    "dialog": {
+      "title": "Experiment Data Record",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saveSuccess": "Experiment data saved successfully",
+      "saveError": "Please check your input",
+      "noTemplate": "No template configured",
+      "noTemplateDesc": "No input template is registered for this transition."
+    },
+    "form": {
+      "required": " is required",
+      "enterValue": "Enter ",
+      "selectValue": "Select ",
+      "selectFile": "Select File",
+      "uploadFile": " will be uploaded (not implemented)"
+    },
+    "dataGrid": {
+      "column": "Col",
+      "row": "#",
+      "addRow": "Add Row",
+      "addColumn": "Add Column"
+    }
   }
 }
