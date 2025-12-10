@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Card, Space, Tag, Typography, Empty, message } from 'antd';
-import { ClockCircleOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { Transition, ExperimentDataValue } from '@/types/experimentWorker';
 import DataRecordDialog from './DataRecordDialog';
 
@@ -64,7 +64,8 @@ export default function TransitionList({
     <>
       <div>
         <Title level={4} style={{ marginBottom: 16 }}>
-          📋 トランジション一覧
+          <UnorderedListOutlined style={{ marginRight: 8 }} />
+          トランジション一覧
           {methodName && (
             <Text type="secondary" style={{ fontSize: 14, marginLeft: 8 }}>
               （{methodName}）

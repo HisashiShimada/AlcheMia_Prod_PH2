@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Card, Table, Tag, Progress, Space, Typography, Empty } from 'antd';
+import { BarChartOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { TransitionProgress, ProgressStatus } from '@/types/experimentWorker';
 
@@ -174,7 +175,8 @@ export default function ProgressReport({ progressData }: ProgressReportProps) {
 
       {/* トランジション一覧 */}
       <Title level={4} style={{ marginBottom: 16 }}>
-        📊 トランジション一覧
+        <BarChartOutlined style={{ marginRight: 8 }} />
+        トランジション一覧
       </Title>
       <Table
         columns={columns}
