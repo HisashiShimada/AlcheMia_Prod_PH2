@@ -50,11 +50,7 @@ export default function TransitionList({
     return (
       <Card>
         <Empty
-          description={
-            methodName
-              ? `「${methodName}」にはトランジションが登録されていません`
-              : 'メソッドを選択してください'
-          }
+          description="トランジションが登録されていません"
         />
       </Card>
     );
@@ -66,11 +62,6 @@ export default function TransitionList({
         <Title level={4} style={{ marginBottom: 16 }}>
           <UnorderedListOutlined style={{ marginRight: 8 }} />
           トランジション一覧
-          {methodName && (
-            <Text type="secondary" style={{ fontSize: 14, marginLeft: 8 }}>
-              （{methodName}）
-            </Text>
-          )}
         </Title>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           {transitions.map((transition, index) => (

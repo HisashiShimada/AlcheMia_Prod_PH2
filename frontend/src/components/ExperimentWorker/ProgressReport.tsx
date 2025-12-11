@@ -118,21 +118,6 @@ export default function ProgressReport({ progressData }: ProgressReportProps) {
       ),
     },
     {
-      title: 'メソッド名',
-      dataIndex: 'methodName',
-      key: 'methodName',
-      width: 150,
-      render: (text: string, record: TransitionProgress) => (
-        <div>
-          <Text>{text}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.methodId}
-          </Text>
-        </div>
-      ),
-    },
-    {
       title: '進捗率',
       dataIndex: 'progressRate',
       key: 'progressRate',
