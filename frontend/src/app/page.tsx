@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
+import { message } from 'antd';
 import LoginPage from '@/components/LoginPage';
 import ProviderMenu from '@/components/menus/ProviderMenu';
 import SystemAdminMenu from '@/components/menus/SystemAdminMenu';
@@ -10,30 +9,6 @@ import DataAdminMenu from '@/components/menus/DataAdminMenu';
 import ExperimentAdminMenu from '@/components/menus/ExperimentAdminMenu';
 import ExperimentWorkerMenu from '@/components/menus/ExperimentWorkerMenu';
 import { User, UserRole, LoginCredentials } from '@/types/auth';
-import { Alert, Snackbar } from '@mui/material';
-
-// Material-UIテーマ設定
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#667eea',
-    },
-    secondary: {
-      main: '#764ba2',
-    },
-  },
-  typography: {
-    fontFamily: [
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
-  },
-});
 
 /**
  * デモ用ユーザーデータ
@@ -103,9 +78,10 @@ const demoUsers: Record<string, { password: string; user: User }> = {
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentMenuType, setCurrentMenuType] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
   // ログイン処理
   const handleLogin = async (credentials: LoginCredentials) => {
@@ -118,7 +94,8 @@ export default function Home() {
     const demoUser = demoUsers[credentials.username];
     if (demoUser && demoUser.password === credentials.password) {
       setCurrentUser(demoUser.user);
-      setSuccessMessage('ログインに成功しました');
+      setCurrentMenuType(demoUser.user.role); // 初期表示メニューはユーザーのロールと同じ
+      messageApi.success('ログインに成功しました');
     } else {
       setError('ユーザー名またはパスワードが正しくありません');
     }
@@ -129,55 +106,76 @@ export default function Home() {
   // ログアウト処理
   const handleLogout = () => {
     setCurrentUser(null);
-    setSuccessMessage('ログアウトしました');
+    setCurrentMenuType(null);
+    messageApi.info('ログアウトしました');
   };
 
   // ナビゲーション処理（デモ用）
   const handleNavigate = (path: string) => {
-    setSuccessMessage(`画面遷移: ${path}`);
+    messageApi.info(`画面遷移: ${path}`);
   };
 
-  // Snackbarを閉じる
-  const handleCloseSnackbar = () => {
-    setSuccessMessage(null);
+  // メニュー切り替え処理（デモ用）
+  const handleMenuChange = (menuType: UserRole) => {
+    if (!currentUser) return;
+
+    // ユーザー情報は一切変更せず、表示するメニューだけを変更
+    setCurrentMenuType(menuType);
+    
+    // メニュー名の取得（日本語表示用）
+    const menuNames: Record<UserRole, string> = {
+      provider: 'プロバイダーメニュー',
+      system_admin: 'システム管理者メニュー',
+      data_admin: 'データ管理者メニュー',
+      experiment_admin: '実験管理者メニュー',
+      experiment_worker: '実験作業者メニュー',
+    };
+    
+    messageApi.success(`${menuNames[menuType]}に切り替えました`);
   };
 
   // ログインしていない場合はログイン画面を表示
   if (!currentUser) {
     return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
+      <>
+        {contextHolder}
         <LoginPage onLogin={handleLogin} error={error} loading={loading} />
-        <Snackbar
-          open={Boolean(successMessage)}
-          autoHideDuration={3000}
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        >
-          <Alert onClose={handleCloseSnackbar} severity="success" sx={{ width: '100%' }}>
-            {successMessage}
-          </Alert>
-        </Snackbar>
-      </ThemeProvider>
+      </>
     );
   }
 
-  // ロールに応じたメニュー画面を表示
+  // 表示するメニュータイプに応じたメニュー画面を表示
+  // ユーザー情報（currentUser）は元のまま保持される
   let MenuComponent: React.ReactNode;
-  switch (currentUser.role) {
+  switch (currentMenuType) {
     case 'provider':
       MenuComponent = (
-        <ProviderMenu user={currentUser} onLogout={handleLogout} onNavigate={handleNavigate} />
+        <ProviderMenu 
+          user={currentUser} 
+          onLogout={handleLogout} 
+          onNavigate={handleNavigate}
+          onMenuChange={handleMenuChange}
+        />
       );
       break;
     case 'system_admin':
       MenuComponent = (
-        <SystemAdminMenu user={currentUser} onLogout={handleLogout} onNavigate={handleNavigate} />
+        <SystemAdminMenu 
+          user={currentUser} 
+          onLogout={handleLogout} 
+          onNavigate={handleNavigate}
+          onMenuChange={handleMenuChange}
+        />
       );
       break;
     case 'data_admin':
       MenuComponent = (
-        <DataAdminMenu user={currentUser} onLogout={handleLogout} onNavigate={handleNavigate} />
+        <DataAdminMenu 
+          user={currentUser} 
+          onLogout={handleLogout} 
+          onNavigate={handleNavigate}
+          onMenuChange={handleMenuChange}
+        />
       );
       break;
     case 'experiment_admin':
@@ -186,6 +184,7 @@ export default function Home() {
           user={currentUser}
           onLogout={handleLogout}
           onNavigate={handleNavigate}
+          onMenuChange={handleMenuChange}
         />
       );
       break;
@@ -195,6 +194,7 @@ export default function Home() {
           user={currentUser}
           onLogout={handleLogout}
           onNavigate={handleNavigate}
+          onMenuChange={handleMenuChange}
         />
       );
       break;
@@ -203,19 +203,9 @@ export default function Home() {
   }
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <>
+      {contextHolder}
       {MenuComponent}
-      <Snackbar
-        open={Boolean(successMessage)}
-        autoHideDuration={3000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity="info" sx={{ width: '100%' }}>
-          {successMessage}
-        </Alert>
-      </Snackbar>
-    </ThemeProvider>
+    </>
   );
 }

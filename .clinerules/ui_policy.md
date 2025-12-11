@@ -2,343 +2,399 @@
 
 ## デザインシステム概要
 
-MaiML Viewerは、モダンで洗練されたUIを提供するため、Material-UI (MUI) v5をベースとしたデザインシステムを採用します。白を基調とした明るく清潔感のあるインターフェースに、赤系のアクセントカラー（#CF0027）を組み合わせ、科学的な信頼性と使いやすさを両立します。
+MaiML Viewerは、モダンで洗練されたUIを提供するため、Ant Design v6をベースとしたデザインシステムを採用します。白を基調とした明るく清潔感のあるインターフェースに、赤系のアクセントカラー（#CF0027）を組み合わせ、科学的な信頼性と使いやすさを両立します。
 
 ## カラーパレット
 
 ### プライマリカラー（赤系）
 ```typescript
-primary: {
-  main: '#CF0027',      // メインの赤色（メインヘッダー）
-  light: '#E63946',     // ライトレッド（ホバー、アクティブ状態）
-  dark: '#A50020',      // ダークレッド（押下状態）
-  contrastText: '#ffffff' // プライマリカラー上のテキスト
+token: {
+  colorPrimary: '#CF0027',      // メインの赤色（メインヘッダー、プライマリボタン）
+  colorPrimaryHover: '#E63946', // ライトレッド（ホバー、アクティブ状態）
+  colorPrimaryActive: '#A50020', // ダークレッド（押下状態）
+  colorPrimaryBorder: '#CF0027',
+  colorPrimaryBg: '#FFF1F3',    // プライマリ背景色
+  colorPrimaryBgHover: '#FFE4E8',
+  colorPrimaryText: '#CF0027',
+  colorPrimaryTextHover: '#E63946',
+  colorPrimaryTextActive: '#A50020'
 }
 ```
 
 ### セカンダリカラー（青系 - タブインジケーターなど）
 ```typescript
-secondary: {
-  main: '#1976d2',      // セカンダリブルー
-  light: '#42a5f5',     // ライトブルー
-  dark: '#1565c0',      // ダークブルー
-  contrastText: '#ffffff'
-}
+colorInfo: '#0093CF',           // セカンダリブルー
+colorInfoHover: '#33ACD9',      // ライトブルー
+colorInfoActive: '#007AB3',     // ダークブルー
+colorInfoBg: '#E6F7FC',
+colorInfoBorder: '#0093CF'
 ```
-
 
 ### 背景カラー
 ```typescript
-background: {
-  default: '#fafafa',   // 全体背景（ライトグレー）
-  paper: '#ffffff',     // カード、ダイアログ等の背景
-  accent: '#f5f5f5'     // セクション区切りなど
-}
+colorBgBase: '#ffffff',         // 基本背景色
+colorBgLayout: '#fafafa',       // レイアウト背景（全体背景）
+colorBgContainer: '#ffffff',    // コンテナ背景（カード、モーダル等）
+colorBgElevated: '#ffffff',     // 浮き上がった要素の背景
+colorBgSpotlight: '#f5f5f5',    // スポットライト背景（セクション区切り）
+colorFillSecondary: '#f5f5f5'   // セカンダリ塗りつぶし
 ```
 
 ### テキストカラー
 ```typescript
-text: {
-  primary: '#212121',   // メインテキスト
-  secondary: '#757575', // 補足テキスト
-  disabled: '#bdbdbd',  // 無効状態テキスト
-  hint: '#9e9e9e'       // ヒントテキスト
-}
+colorText: '#212121',           // メインテキスト
+colorTextSecondary: '#757575',  // 補足テキスト
+colorTextTertiary: '#9e9e9e',   // 三次テキスト（ヒント）
+colorTextQuaternary: '#bdbdbd', // 四次テキスト（無効状態）
+colorTextDisabled: '#bdbdbd'    // 無効状態テキスト
 ```
 
 ### 状態カラー
 ```typescript
-success: {
-  main: '#2e7d32',      // 成功メッセージ
-  light: '#4caf50',
-  dark: '#1b5e20'
-}
-error: {
-  main: '#d32f2f',      // エラーメッセージ
-  light: '#ef5350',
-  dark: '#c62828'
-}
-warning: {
-  main: '#ed6c02',      // 警告メッセージ
-  light: '#ff9800',
-  dark: '#e65100'
-}
-info: {
-  main: '#0288d1',      // 情報メッセージ
-  light: '#03a9f4',
-  dark: '#01579b'
-}
+colorSuccess: '#2e7d32',        // 成功メッセージ
+colorSuccessBg: '#E8F5E9',      // 成功背景
+colorSuccessBorder: '#2e7d32',  // 成功ボーダー
+
+colorError: '#d32f2f',          // エラーメッセージ
+colorErrorBg: '#FFEBEE',        // エラー背景
+colorErrorBorder: '#d32f2f',    // エラーボーダー
+
+colorWarning: '#ed6c02',        // 警告メッセージ
+colorWarningBg: '#FFF4E5',      // 警告背景
+colorWarningBorder: '#ed6c02',  // 警告ボーダー
+
+colorInfo: '#0093CF',           // 情報メッセージ
+colorInfoBg: '#E6F7FC',         // 情報背景
+colorInfoBorder: '#0093CF'      // 情報ボーダー
 ```
 
 ### 境界線・分割線
 ```typescript
-divider: 'rgba(0, 0, 0, 0.12)' // 境界線色
+colorBorder: 'rgba(0, 0, 0, 0.12)',      // 標準ボーダー
+colorBorderSecondary: 'rgba(0, 0, 0, 0.06)', // セカンダリボーダー
+colorSplit: 'rgba(0, 0, 0, 0.06)'        // 分割線
 ```
 
 ## タイポグラフィ
 
 ### フォントファミリー
 ```typescript
-fontFamily: [
-  'Roboto',
-  'Noto Sans JP',
-  '-apple-system',
-  'BlinkMacSystemFont',
-  '"Segoe UI"',
-  'Arial',
-  'sans-serif'
-].join(',')
+fontFamily: `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans JP', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif`
 ```
 
 ### フォントサイズ
 ```typescript
-fontSize: {
-  xs: '0.75rem',   // 12px - キャプション、ラベル
-  sm: '0.875rem',  // 14px - 小さなテキスト
-  base: '1rem',    // 16px - 本文
-  lg: '1.125rem',  // 18px - サブヘッディング
-  xl: '1.25rem',   // 20px - 小見出し
-  '2xl': '1.5rem', // 24px - 見出し
-  '3xl': '1.875rem', // 30px - 大見出し
-  '4xl': '2.25rem'   // 36px - ページタイトル
-}
+fontSize: 14,              // 基本フォントサイズ（14px）
+fontSizeSM: 12,           // 小（12px） - キャプション、ラベル
+fontSizeLG: 16,           // 大（16px） - サブヘッディング
+fontSizeXL: 20,           // 特大（20px） - 小見出し
+fontSizeHeading1: 38,     // H1（38px） - ページタイトル
+fontSizeHeading2: 30,     // H2（30px） - 大見出し
+fontSizeHeading3: 24,     // H3（24px） - 見出し
+fontSizeHeading4: 20,     // H4（20px） - 小見出し
+fontSizeHeading5: 16      // H5（16px） - 最小見出し
+```
+
+### 行の高さ
+```typescript
+lineHeight: 1.5715,           // 基本行高
+lineHeightSM: 1.66,          // 小
+lineHeightLG: 1.5,           // 大
+lineHeightHeading1: 1.21,    // H1
+lineHeightHeading2: 1.35,    // H2
+lineHeightHeading3: 1.35,    // H3
+lineHeightHeading4: 1.4,     // H4
+lineHeightHeading5: 1.5      // H5
 ```
 
 ### フォントウェイト
 ```typescript
-fontWeight: {
-  light: 300,
-  regular: 400,
-  medium: 500,
-  semibold: 600,
-  bold: 700
-}
+fontWeightStrong: 600        // 強調（見出し）
+// 通常は400がデフォルト
 ```
 
 ## スペーシング
 
-Material-UIの8pxグリッドシステムを使用します。
+Ant Designでは基本的に8pxを基準としたスペーシングを使用します。
 
 ```typescript
-spacing: (factor: number) => `${8 * factor}px`
+// Ant DesignのSpace、Paddingなどで使用されるサイズ
+controlPaddingHorizontal: 12,    // コントロールの水平パディング
+controlPaddingHorizontalSM: 8,   // 小
+marginXS: 8,                      // 極小マージン
+marginSM: 12,                     // 小マージン
+margin: 16,                       // 標準マージン
+marginMD: 20,                     // 中マージン
+marginLG: 24,                     // 大マージン
+marginXL: 32,                     // 特大マージン
+marginXXL: 48                     // 超特大マージン
 ```
 
-**推奨スペーシング値:**
-- `0` - 0px
-- `0.5` - 4px（極小）
-- `1` - 8px（小）
-- `1.5` - 12px
-- `2` - 16px（標準）
-- `3` - 24px（中）
-- `4` - 32px（大）
-- `5` - 40px
-- `6` - 48px（極大）
-- `8` - 64px（セクション間）
+**推奨スペーシング値（Space componentで使用）:**
+- `small` - 8px
+- `middle` - 16px（デフォルト）
+- `large` - 24px
+- 数値指定: `8`, `16`, `24`, `32`, `48`, `64`
 
 ## ボーダーラジアス
 
 ```typescript
-borderRadius: {
-  none: '0',
-  sm: '4px',      // 小さなコンポーネント
-  base: '8px',    // 標準（カード、ボタン）
-  md: '12px',     // 中サイズ
-  lg: '16px',     // 大きなカード
-  xl: '20px',     // モーダル
-  full: '9999px'  // 円形ボタン
-}
+borderRadius: 8,              // 標準（ボタン、カード）
+borderRadiusSM: 4,           // 小さなコンポーネント
+borderRadiusLG: 12,          // 大きなカード
+borderRadiusXS: 2,           // 極小
+borderRadiusOuter: 8         // 外側要素
 ```
 
 ## シャドウ（影）
 
-Material-UIのelevationシステムを使用します。
-
 ```typescript
-elevation: {
-  0: 'none',                               // 影なし
-  1: '0px 2px 4px rgba(0,0,0,0.08)',      // 微小（ホバー時など）
-  2: '0px 4px 8px rgba(0,0,0,0.12)',      // 小（カード）
-  4: '0px 8px 16px rgba(0,0,0,0.16)',     // 中（ドロップダウン）
-  8: '0px 16px 32px rgba(0,0,0,0.20)',    // 大（モーダル）
-  16: '0px 24px 48px rgba(0,0,0,0.24)'    // 極大（ダイアログ）
-}
+boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',              // 基本シャドウ（カード）
+boxShadowSecondary: '0 4px 12px rgba(0, 0, 0, 0.12)',    // セカンダリ（ドロップダウン）
+boxShadowTertiary: '0 8px 24px rgba(0, 0, 0, 0.16)'     // 三次（モーダル）
 ```
+
+**Ant Design標準シャドウレベル:**
+- カード: 基本シャドウ
+- ドロップダウン: セカンダリシャドウ
+- モーダル/ドロワー: 三次シャドウ
+- Popover: セカンダリシャドウ
 
 ## コンポーネントスタイル
 
-### ボタン
+### ボタン（Button）
 
 #### プライマリボタン
-- 背景色: `primary.main`
+```typescript
+Button type="primary"
+```
+- 背景色: `colorPrimary` (#CF0027)
 - テキスト色: `#ffffff`
-- ホバー時: `primary.dark`
-- 高さ: `36px`（medium）、`40px`（large）
-- パディング: 水平 `16px`
+- ホバー時: `colorPrimaryHover` (#E63946)
+- 押下時: `colorPrimaryActive` (#A50020)
+- 高さ: `32px`（middle）、`40px`（large）、`24px`（small）
+- パディング: 水平 `15px`（middle）、`15px`（large）、`7px`（small）
 - ボーダーラジアス: `8px`
-- フォントウェイト: `medium (500)`
 
-#### セカンダリボタン（アウトライン）
-- 背景色: `transparent`
-- ボーダー: `1px solid primary.main`
-- テキスト色: `primary.main`
-- ホバー時: 背景 `primary.light` (alpha: 0.08)
+#### デフォルトボタン（アウトライン）
+```typescript
+Button type="default"
+```
+- 背景色: `#ffffff`
+- ボーダー: `1px solid colorBorder`
+- テキスト色: `colorText`
+- ホバー時: ボーダー `colorPrimaryHover`、テキスト `colorPrimaryHover`
 
 #### テキストボタン
+```typescript
+Button type="text"
+```
 - 背景色: `transparent`
-- テキスト色: `primary.main`
-- ホバー時: 背景 `primary.light` (alpha: 0.04)
+- テキスト色: `colorText`
+- ホバー時: 背景 `colorBgTextHover`
 
-### カード
+#### リンクボタン
+```typescript
+Button type="link"
+```
+- 背景色: `transparent`
+- テキスト色: `colorPrimary`
+- ホバー時: `colorPrimaryHover`
 
-- 背景色: `#ffffff`
-- ボーダーラジアス: `12px`
-- シャドウ: `elevation: 2`
-- ホバー時シャドウ: `elevation: 4`
-- パディング: `24px`
-- ボーダー: なし（シャドウのみ）
+### カード（Card）
 
-### インプットフィールド
+- 背景色: `colorBgContainer` (#ffffff)
+- ボーダーラジアス: `borderRadiusLG` (12px)
+- ボーダー: `1px solid colorBorderSecondary`
+- シャドウ: 基本シャドウ（ホバー時はセカンダリシャドウ）
+- パディング: ヘッダー `24px`、ボディ `24px`
+
+### インプットフィールド（Input）
 
 #### テキストフィールド
-- バリアント: `outlined`（推奨）
-- 背景色: `#ffffff`
-- ボーダー色: `divider`
-- フォーカス時ボーダー: `primary.main`
-- 高さ: `40px`（small）、`48px`（medium）
-- ボーダーラジアス: `8px`
-- ラベル色: `text.secondary`
+```typescript
+Input
+```
+- 背景色: `colorBgContainer` (#ffffff)
+- ボーダー色: `colorBorder`
+- フォーカス時ボーダー: `colorPrimary`
+- 高さ: `24px`（small）、`32px`（middle）、`40px`（large）
+- ボーダーラジアス: `borderRadius` (8px)
+- パディング: 水平 `11px`
 
-#### セレクト・ドロップダウン
-- テキストフィールドと同じスタイル
-- ドロップダウンメニュー: `elevation: 4`
-- 選択済みアイテム背景: `primary.light` (alpha: 0.08)
+#### Select・ドロップダウン
+```typescript
+Select
+```
+- インプットと同じスタイル
+- ドロップダウンメニュー: セカンダリシャドウ
+- 選択済みアイテム背景: `colorPrimaryBg`
+- ホバー背景: `colorBgTextHover`
 
-### ダイアログ・モーダル
+### モーダル（Modal）
 
-- 背景色: `#ffffff`
-- ボーダーラジアス: `16px`
-- シャドウ: `elevation: 8`
-- オーバーレイ背景: `rgba(0, 0, 0, 0.5)`
-- パディング: `24px`
-- 最大幅: `600px`（小）、`900px`（中）、`1200px`（大）
+- 背景色: `colorBgElevated` (#ffffff)
+- ボーダーラジアス: `borderRadiusLG` (12px)
+- シャドウ: 三次シャドウ
+- マスク背景: `rgba(0, 0, 0, 0.45)`
+- パディング: ヘッダー `16px 24px`、ボディ `24px`、フッター `10px 16px`
+- 最大幅: デフォルト `520px`、サイズ指定可能
 
-### ヘッダー・AppBar
+### ドロワー（Drawer）
+
+- 背景色: `colorBgElevated` (#ffffff)
+- シャドウ: 三次シャドウ
+- マスク背景: `rgba(0, 0, 0, 0.45)`
+- 幅: デフォルト `378px`、サイズ指定可能
+
+### ヘッダー（Layout.Header）
 
 - **Header（1段目）**
   - 背景色: `#ffffff`（白）
   - 高さ: `64px`
   - ロゴ色: `#CF0027`（赤、アクセントカラー）
-  - テキスト色: `text.secondary`（グレー）
+  - テキスト色: `colorTextSecondary`（グレー）
   - Avatar背景色: `#CF0027`（赤、アクセントカラー）
   
 - **SubHeader（2段目）**
-  - 背景色: `#1976d2`（青、プライマリカラー）
+  - 背景色: `#0093CF`（青、プライマリカラー）
   - 高さ: `48px`
   - テキスト色: `white`
   
-- シャドウ: `elevation: 1`
-- ボーダー下: `1px solid divider`
-- タブインジケーター色: `secondary.main`（青）
+- シャドウ: 基本シャドウ
+- ボーダー下: `1px solid colorBorderSecondary`
+- パディング: `0 50px`
 
-### サイドバー・ナビゲーション
+### サイドバー（Layout.Sider & Menu）
 
-- 背景色: `#ffffff`
-- 幅: `240px`（デフォルト）、`280px`（広め）
-- シャドウ: `elevation: 2`
-- アクティブアイテム背景: `primary.main` (alpha: 0.08)
-- アクティブアイテムボーダー: 左側 `3px solid primary.main`
-- ホバー時背景: `action.hover` (rgba(0, 0, 0, 0.04))
+- 背景色: `colorBgContainer` (#ffffff)
+- 幅: `256px`（デフォルト）、`280px`（広め）、折りたたみ時 `80px`
+- シャドウ: 基本シャドウ（右側）
+- メニューアイテム:
+  - アクティブ背景: `colorPrimaryBg`
+  - アクティブテキスト: `colorPrimary`
+  - アクティブボーダー: 左側 `3px solid colorPrimary`
+  - ホバー背景: `colorBgTextHover`
 
-### テーブル
+### テーブル（Table）
 
-- ヘッダー背景: `background.accent` (`#f5f5f5`)
-- ボーダー: `1px solid divider`
-- 行ホバー背景: `action.hover`
-- 選択行背景: `primary.light` (alpha: 0.08)
+- ヘッダー背景: `colorFillAlter` (#fafafa)
+- ボーダー: `1px solid colorBorder`
+- 行ホバー背景: `colorBgTextHover`
+- 選択行背景: `colorPrimaryBg`
 - セル内パディング: `16px`
-- 最小行高さ: `52px`
+- 最小行高さ: `54px`（middle）
 
-### タブ
+### タブ（Tabs）
 
-- 未選択タブ色: `text.secondary`
-- 選択タブ色: `primary.main`
-- インジケーター色: `primary.main`
-- インジケーター高さ: `3px`
-- タブ高さ: `48px`
-- ホバー時背景: `action.hover`
+- 未選択タブ色: `colorTextSecondary`
+- 選択タブ色: `colorPrimary`
+- インジケーター色: `colorPrimary`
+- インジケーター高さ: `2px`
+- タブ高さ: `46px`
+- ホバー時テキスト: `colorPrimaryHover`
 
-### チップ・タグ
+### タグ（Tag）
 
-- デフォルト背景: `background.accent`
-- プライマリチップ背景: `primary.light` (alpha: 0.12)
-- テキスト色: `text.primary`
-- 高さ: `32px`
-- ボーダーラジアス: `16px`
-- パディング: 水平 `12px`
+- デフォルト背景: `colorFillQuaternary`
+- プライマリタグ背景: `colorPrimaryBg`
+- テキスト色: `colorText`
+- 高さ: `24px`（small）、`32px`（default）
+- ボーダーラジアス: `borderRadiusSM` (4px)
+- パディング: 水平 `7px`
 
-### アラート・通知
+### アラート（Alert）
 
 #### 情報アラート
-- 背景色: `info.light` (alpha: 0.12)
-- アイコン色: `info.main`
-- ボーダー: 左側 `4px solid info.main`
+```typescript
+Alert type="info"
+```
+- 背景色: `colorInfoBg`
+- アイコン色: `colorInfo`
+- テキスト色: `colorText`
+- ボーダー: `1px solid colorInfoBorder`
 
 #### 成功アラート
-- 背景色: `success.light` (alpha: 0.12)
-- アイコン色: `success.main`
-- ボーダー: 左側 `4px solid success.main`
+```typescript
+Alert type="success"
+```
+- 背景色: `colorSuccessBg`
+- アイコン色: `colorSuccess`
+- ボーダー: `1px solid colorSuccessBorder`
 
 #### 警告アラート
-- 背景色: `warning.light` (alpha: 0.12)
-- アイコン色: `warning.main`
-- ボーダー: 左側 `4px solid warning.main`
+```typescript
+Alert type="warning"
+```
+- 背景色: `colorWarningBg`
+- アイコン色: `colorWarning`
+- ボーダー: `1px solid colorWarningBorder`
 
 #### エラーアラート
-- 背景色: `error.light` (alpha: 0.12)
-- アイコン色: `error.main`
-- ボーダー: 左側 `4px solid error.main`
+```typescript
+Alert type="error"
+```
+- 背景色: `colorErrorBg`
+- アイコン色: `colorError`
+- ボーダー: `1px solid colorErrorBorder`
+
+### メッセージ（message）・通知（notification）
+
+- message: 画面上部中央に表示される軽量通知
+- notification: 画面右上に表示されるリッチな通知
+- 自動消去時間: デフォルト `3秒`（message）、`4.5秒`（notification）
 
 ## レイアウト原則
 
-### グリッドシステム
+### グリッドシステム（Grid / Row / Col）
 
-Material-UIの12カラムグリッドシステムを使用します。
+Ant Designの24カラムグリッドシステムを使用します。
 
 ```typescript
-breakpoints: {
-  xs: 0,      // モバイル
-  sm: 600,    // タブレット（縦）
-  md: 960,    // タブレット（横）・小型ラップトップ
-  lg: 1280,   // デスクトップ
-  xl: 1920    // 大型ディスプレイ
+// Gutterの設定
+gutter: 16  // デフォルトの間隔
+```
+
+**ブレークポイント:**
+```typescript
+screen: {
+  xs: 480,    // モバイル
+  sm: 576,    // タブレット（縦）
+  md: 768,    // タブレット（横）
+  lg: 992,    // 小型ラップトップ
+  xl: 1200,   // デスクトップ
+  xxl: 1600   // 大型ディスプレイ
 }
 ```
 
-### コンテナ幅
-- `sm`: `600px`
-- `md`: `960px`
-- `lg`: `1280px`
-- `xl`: `1920px`
-
 ### レスポンシブデザイン
 
+#### Col のレスポンシブプロパティ
+```typescript
+<Col xs={24} sm={12} md={8} lg={6} xl={4}>
+  {/* コンテンツ */}
+</Col>
+```
+
 #### モバイル（xs, sm）
-- シングルカラムレイアウト
+- シングルカラムレイアウト（span={24}）
 - フルスクリーンモーダル
-- ボトムナビゲーション推奨
+- Drawer を使用したサイドナビゲーション
 - タッチターゲット最小サイズ: `44px x 44px`
 
 #### タブレット（md）
-- 2カラムレイアウト
+- 2カラムレイアウト（span={12}）
 - サイドバー折りたたみ可能
 - モーダル幅: 最大 `600px`
 
-#### デスクトップ（lg, xl）
-- 3カラムレイアウト可能
+#### デスクトップ（lg, xl, xxl）
+- 3-4カラムレイアウト可能（span={8} or span={6}）
 - 固定サイドバー
 - モーダル幅: 最大 `900px`
 
 ## アクセシビリティ
+
+Ant Designは標準でアクセシビリティに対応していますが、以下の点に注意してください。
 
 ### コントラスト比
 - 通常テキスト: 最低 4.5:1
@@ -346,302 +402,298 @@ breakpoints: {
 - UI要素（ボタン、アイコン等）: 最低 3:1
 
 ### フォーカス表示
-- フォーカスリング色: `primary.main`
-- フォーカスリング幅: `2px`
-- アウトラインオフセット: `2px`
+- Ant Designが自動的にフォーカススタイルを適用
+- フォーカスアウトライン色: `colorPrimary`
+- アウトライン幅: `2px`
 
 ### キーボード操作
 - Tab順序の論理的な流れ
 - Enterキーでボタン実行
 - Escapeキーでモーダル閉じる
-- 矢印キーでリスト/メニュー操作
+- 矢印キーでメニュー/リスト操作
+- Space キーでチェックボックス/ラジオボタン切り替え
 
 ### スクリーンリーダー対応
-- 適切なARIAラベルの使用
-- フォーム要素のラベル付け
-- ボタンの説明的なテキスト
-- 画像のalt属性
+- Ant Designコンポーネントは標準でARIA属性をサポート
+- 追加のARIAラベルが必要な場合は適宜追加
+- フォーム要素は自動的にラベル関連付け
 
 ## アニメーション・トランジション
 
-### デュレーション
+### motion設定
 ```typescript
-duration: {
-  shortest: 150,  // 簡単な状態変化
-  shorter: 200,   // ホバー、フォーカス
-  short: 250,     // ドロップダウン展開
-  standard: 300,  // 標準アニメーション
-  complex: 375,   // 複雑な遷移
-  enteringScreen: 225,
-  leavingScreen: 195
-}
+motion: true  // アニメーションを有効化（デフォルト）
 ```
 
-### イージング
+### トランジション時間
 ```typescript
-easing: {
-  easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)',  // 標準
-  easeOut: 'cubic-bezier(0.0, 0, 0.2, 1)',    // 要素の登場
-  easeIn: 'cubic-bezier(0.4, 0, 1, 1)',       // 要素の退場
-  sharp: 'cubic-bezier(0.4, 0, 0.6, 1)'       // 素早い遷移
-}
+motionDurationFast: '0.1s',    // 100ms - 簡単な状態変化
+motionDurationMid: '0.2s',     // 200ms - 標準
+motionDurationSlow: '0.3s'     // 300ms - 複雑な遷移
 ```
 
-### トランジション対象
-- ホバー状態: `200ms ease-out`
-- ボタン押下: `150ms ease-in`
-- モーダル表示: `300ms ease-in-out`
-- ドロップダウン: `250ms ease-out`
-- ページ遷移: `375ms ease-in-out`
+### イージング関数
+```typescript
+motionEaseInOut: 'cubic-bezier(0.645, 0.045, 0.355, 1)',
+motionEaseOut: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
+motionEaseIn: 'cubic-bezier(0.55, 0.055, 0.675, 0.19)',
+motionEaseInBack: 'cubic-bezier(0.6, -0.28, 0.735, 0.045)',
+motionEaseOutBack: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+motionEaseInCirc: 'cubic-bezier(0.6, 0.04, 0.98, 0.335)',
+motionEaseOutCirc: 'cubic-bezier(0.075, 0.82, 0.165, 1)'
+```
+
+### アニメーション対象
+- ホバー状態: `0.2s ease-out`
+- ボタン押下: `0.1s ease-in`
+- モーダル表示/非表示: `0.3s ease-in-out`
+- ドロップダウン: `0.2s ease-out`
+- ページ遷移: `0.3s ease-in-out`
 
 ## アイコン
 
 ### アイコンライブラリ
-- **Lucide React**: 軽量でモダンなアイコンセット
+
+#### @ant-design/icons（推奨）
+```typescript
+import { UserOutlined, HomeOutlined, SettingFilled } from '@ant-design/icons';
+```
+- Ant Design公式アイコンセット
+- Outlined（線）、Filled（塗りつぶし）、TwoTone（2色）の3スタイル
+- サイズ: デフォルト `14px`、`style={{ fontSize: 16 }}`でカスタマイズ可能
+
+#### Lucide React（補助的に使用可）
+```typescript
+import { Settings, User } from 'lucide-react';
+```
+- 軽量でモダンなアイコンセット
 - サイズ: `16px`（small）、`20px`（medium）、`24px`（large）
-- 色: `text.primary`、`text.secondary`、または`primary.main`
+- 色: `currentColor`（親要素のテキスト色を継承）
 
 ### アイコン使用ガイドライン
-- 左揃えテキストの場合、アイコンは左側に配置
-- ボタン内のアイコン: テキストとの間隔 `8px`
-- アイコンのみのボタン: パディング `8px`、最小サイズ `40x40px`
+- ボタン内のアイコン: `<Button icon={<UserOutlined />}>`
+- テキストとの間隔: `Space` コンポーネントで `8px`
+- アイコンのみのボタン: `<Button icon={<UserOutlined />} shape="circle" />`
 - 装飾的アイコン: `aria-hidden="true"`
 
-## ダークモード（将来実装）
+## ダークモード
 
-ダークモードは将来的に実装を検討します。実装時の基本方針：
+Ant Design v6では、ConfigProviderの`theme.algorithm`を使用して簡単にダークモードを実装できます。
 
-### ダークモードカラー
+### ダークモード設定
 ```typescript
-background: {
-  default: '#121212',
-  paper: '#1e1e1e',
-  accent: '#2a2a2a'
-}
-text: {
-  primary: '#ffffff',
-  secondary: '#b3b3b3'
-}
-primary: {
-  main: '#42a5f5',  // ライトブルー
-  light: '#64b5f6',
-  dark: '#1e88e5'
-}
+import { theme as antdTheme } from 'antd';
+
+<ConfigProvider
+  theme={{
+    algorithm: antdTheme.darkAlgorithm,
+    token: {
+      colorPrimary: '#CF0027',
+      // その他のトークン設定
+    }
+  }}
+>
+  {/* アプリケーション */}
+</ConfigProvider>
 ```
+
+### ダークモード時の自動調整
+- 背景色が自動的に暗い色に変換
+- テキストカラーが白系に変換
+- ボーダー、シャドウも自動調整
+- プライマリカラーは明るさが自動調整される
 
 ## 実装例
 
 ### テーマ設定（theme.ts）
 ```typescript
-import { createTheme } from '@mui/material/styles';
+import type { ThemeConfig } from 'antd';
 
-export const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: {
-      main: '#CF0027',
-      light: '#E63946',
-      dark: '#A50020',
-      contrastText: '#ffffff'
-    },
-    secondary: {
-      main: '#1976d2',
-      light: '#42a5f5',
-      dark: '#1565c0',
-      contrastText: '#ffffff'
-    },
-    background: {
-      default: '#fafafa',
-      paper: '#ffffff'
-    },
-    text: {
-      primary: '#212121',
-      secondary: '#757575'
-    },
-    success: {
-      main: '#2e7d32'
-    },
-    error: {
-      main: '#d32f2f'
-    },
-    warning: {
-      main: '#ed6c02'
-    },
-    info: {
-      main: '#0288d1'
-    }
+export const theme: ThemeConfig = {
+  token: {
+    // カラー
+    colorPrimary: '#CF0027',
+    colorInfo: '#0093CF',
+    colorSuccess: '#2e7d32',
+    colorWarning: '#ed6c02',
+    colorError: '#d32f2f',
+    
+    // 背景
+    colorBgLayout: '#fafafa',
+    
+    // テキスト
+    colorText: '#212121',
+    colorTextSecondary: '#757575',
+    
+    // ボーダー
+    colorBorder: 'rgba(0, 0, 0, 0.12)',
+    
+    // フォント
+    fontFamily: `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans JP', 'Helvetica Neue', Arial, sans-serif`,
+    fontSize: 14,
+    
+    // ボーダーラジアス
+    borderRadius: 8,
+    borderRadiusLG: 12,
+    borderRadiusSM: 4,
+    
+    // スペーシング
+    controlHeight: 32,
+    controlHeightLG: 40,
+    controlHeightSM: 24,
+    
+    // その他
+    wireframe: false,  // ワイヤーフレームモードを無効化
+    motion: true       // アニメーションを有効化
   },
-  typography: {
-    fontFamily: [
-      'Roboto',
-      'Noto Sans JP',
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Arial',
-      'sans-serif'
-    ].join(','),
-    h1: {
-      fontSize: '2.25rem',
-      fontWeight: 700
-    },
-    h2: {
-      fontSize: '1.875rem',
-      fontWeight: 600
-    },
-    h3: {
-      fontSize: '1.5rem',
-      fontWeight: 600
-    },
-    h4: {
-      fontSize: '1.25rem',
-      fontWeight: 500
-    },
-    h5: {
-      fontSize: '1.125rem',
-      fontWeight: 500
-    },
-    h6: {
-      fontSize: '1rem',
-      fontWeight: 500
-    },
-    body1: {
-      fontSize: '1rem'
-    },
-    body2: {
-      fontSize: '0.875rem'
-    }
-  },
-  spacing: 8,
-  shape: {
-    borderRadius: 8
-  },
-  shadows: [
-    'none',
-    '0px 2px 4px rgba(0,0,0,0.08)',
-    '0px 4px 8px rgba(0,0,0,0.12)',
-    '0px 4px 8px rgba(0,0,0,0.12)',
-    '0px 8px 16px rgba(0,0,0,0.16)',
-    '0px 8px 16px rgba(0,0,0,0.16)',
-    '0px 8px 16px rgba(0,0,0,0.16)',
-    '0px 8px 16px rgba(0,0,0,0.16)',
-    '0px 16px 32px rgba(0,0,0,0.20)',
-    '0px 16px 32px rgba(0,0,0,0.20)',
-    '0px 16px 32px rgba(0,0,0,0.20)',
-    '0px 16px 32px rgba(0,0,0,0.20)',
-    '0px 16px 32px rgba(0,0,0,0.20)',
-    '0px 16px 32px rgba(0,0,0,0.20)',
-    '0px 16px 32px rgba(0,0,0,0.20)',
-    '0px 16px 32px rgba(0,0,0,0.20)',
-    '0px 24px 48px rgba(0,0,0,0.24)',
-    '0px 24px 48px rgba(0,0,0,0.24)',
-    '0px 24px 48px rgba(0,0,0,0.24)',
-    '0px 24px 48px rgba(0,0,0,0.24)',
-    '0px 24px 48px rgba(0,0,0,0.24)',
-    '0px 24px 48px rgba(0,0,0,0.24)',
-    '0px 24px 48px rgba(0,0,0,0.24)',
-    '0px 24px 48px rgba(0,0,0,0.24)',
-    '0px 24px 48px rgba(0,0,0,0.24)'
-  ],
+  
   components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          borderRadius: 8,
-          fontWeight: 500,
-          padding: '8px 16px'
-        },
-        sizeLarge: {
-          padding: '12px 24px',
-          fontSize: '1rem'
-        }
-      }
+    Button: {
+      controlHeight: 32,
+      controlHeightLG: 40,
+      controlHeightSM: 24,
+      borderRadius: 8,
+      fontWeight: 500
     },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          boxShadow: '0px 4px 8px rgba(0,0,0,0.12)'
-        }
-      }
+    Card: {
+      borderRadiusLG: 12,
+      paddingLG: 24
     },
-    MuiTextField: {
-      defaultProps: {
-        variant: 'outlined'
-      },
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            borderRadius: 8
-          }
-        }
-      }
+    Input: {
+      controlHeight: 32,
+      controlHeightLG: 40,
+      controlHeightSM: 24,
+      borderRadius: 8
     },
-    MuiDialog: {
-      styleOverrides: {
-        paper: {
-          borderRadius: 16
-        }
-      }
+    Modal: {
+      borderRadiusLG: 12
+    },
+    Table: {
+      headerBg: '#fafafa',
+      headerColor: '#212121',
+      rowHoverBg: '#f5f5f5'
     }
   }
-});
+};
 ```
 
-### 使用例（コンポーネント）
+### 使用例（App.tsx）
 ```typescript
-import { ThemeProvider } from '@mui/material/styles';
-import { Button, Card, TextField } from '@mui/material';
+import { ConfigProvider, Button, Card, Input, Space } from 'antd';
+import { UserOutlined } from '@ant-design/icons';
 import { theme } from './theme';
 
 export default function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <Card sx={{ p: 3, mb: 2 }}>
-        <TextField
-          label="ユーザー名"
-          variant="outlined"
-          fullWidth
-          sx={{ mb: 2 }}
-        />
-        <Button
-          variant="contained"
-          color="primary"
-          fullWidth
-        >
-          ログイン
-        </Button>
-      </Card>
-    </ThemeProvider>
+    <ConfigProvider theme={theme}>
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Card title="ログインフォーム">
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="ユーザー名"
+              size="large"
+            />
+            <Button
+              type="primary"
+              size="large"
+              block
+            >
+              ログイン
+            </Button>
+          </Space>
+        </Card>
+      </Space>
+    </ConfigProvider>
   );
 }
 ```
 
-## ベストプラクティス
+### レイアウト例
+```typescript
+import { Layout, Menu } from 'antd';
+import {
+  HomeOutlined,
+  UserOutlined,
+  SettingOutlined
+} from '@ant-design/icons';
 
-### DO（推奨）
-✅ Material-UIの標準コンポーネントを使用する
-✅ `sx` prop でスタイルを適用する
-✅ テーマ変数を使用して一貫性を保つ
-✅ 8pxグリッドシステムに従う
-✅ 適切なelevation（影）を使用する
-✅ アクセシビリティを考慮する
-✅ レスポンシブデザインを実装する
-✅ 適切なコントラスト比を確保する
+const { Header, Sider, Content } = Layout;
 
-### DON'T（非推奨）
-❌ インラインスタイルを多用しない
-❌ カスタムCSSでMUIのスタイルを上書きしすぎない
-❌ 任意のカラーコードを使用しない
-❌ 固定幅・固定高さを多用しない
-❌ 過度なアニメーションを使用しない
-❌ アクセシビリティを無視しない
-❌ モバイルレスポンシブを後回しにしない
+export default function AppLayout() {
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      <Header style={{ background: '#fff', padding: '0 50px' }}>
+        <div style={{ color: '#CF0027', fontSize: 20, fontWeight: 600 }}>
+          MaiML Viewer
+        </div>
+      </Header>
+      
+      <Layout>
+        <Sider width={256} style={{ background: '#fff' }}>
+          <Menu
+            mode="inline"
+            defaultSelectedKeys={['1']}
+            items={[
+              {
+                key: '1',
+                icon: <HomeOutlined />,
+                label: 'ホーム'
+              },
+              {
+                key: '2',
+                icon: <UserOutlined />,
+                label: 'ユーザー管理'
+              },
+              {
+                key: '3',
+                icon: <SettingOutlined />,
+                label: '設定'
+              }
+            ]}
+          />
+        </Sider>
+        
+        <Content style={{ margin: '24px 16px', padding: 24, background: '#fff' }}>
+          {/* コンテンツ */}
+        </Content>
+      </Layout>
+    </Layout>
+  );
+}
+```
 
-## 参考リンク
+## 多言語化（i18n）
 
-- [Material-UI公式ドキュメント](https://mui.com/)
-- [Material Design ガイドライン](https://material.io/design)
-- [Lucide Icons](https://lucide.dev/)
-- [WCAG 2.1 アクセシビリティガイドライン](https://www.w3.org/WAI/WCAG21/quickref/)
+### 概要
+
+MaiML Viewerは、テナント（組織）ごとに言語を切り替えられる多言語化システムを実装しています。
+
+### Ant Designのローカライゼーション
+
+```typescript
+import { ConfigProvider } from 'antd';
+import jaJP from 'antd/locale/ja_JP';
+import enUS from 'antd/locale/en_US';
+
+<ConfigProvider locale={locale === 'ja' ? jaJP : enUS}>
+  {/* アプリケーション */}
+</ConfigProvider>
+```
+
+### ディレクトリ構造
+
+```
+frontend/src/
+├── locales/                    # 言語ファイル
+│   ├── ja.json                 # 日本語
+│   └── en.json                 # 英語
+└── contexts/
+    └── LanguageContext.tsx     # 言語コンテキスト
+```
+
+### 言語ファイル形式
+
+```json
+{
+  "common

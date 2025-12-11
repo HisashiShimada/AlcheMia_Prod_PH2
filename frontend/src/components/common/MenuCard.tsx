@@ -1,15 +1,8 @@
 'use client';
 
 import React from 'react';
-import {
-  Card,
-  CardContent,
-  CardActionArea,
-  Typography,
-  Box,
-} from '@mui/material';
-import * as Icons from '@mui/icons-material';
-import { SvgIconProps } from '@mui/material';
+import { Card } from 'antd';
+import * as AntIcons from '@ant-design/icons';
 
 /**
  * メニューカードのProps
@@ -33,87 +26,89 @@ export default function MenuCard({
   disabled = false,
   onClick,
 }: MenuCardProps) {
-  // アイコン名から対応するMUIアイコンコンポーネントを取得
-  const IconComponent = (Icons as Record<string, React.ComponentType<SvgIconProps>>)[icon] || Icons.Apps;
+  // アイコン名から対応するAnt Designアイコンコンポーネントを取得
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const IconComponent = (AntIcons as any)[icon] || AntIcons.AppstoreOutlined;
 
   return (
     <Card
-      elevation={2}
-      sx={{
+      hoverable={!disabled}
+      onClick={disabled ? undefined : onClick}
+      style={{
         height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        borderRadius: 3, // 12px
-        backgroundColor: 'background.paper', // #ffffff
-        transition: 'all 200ms ease-out',
-        '&:hover': !disabled
-          ? {
-              transform: 'translateY(-4px)',
-              boxShadow: '0px 8px 16px rgba(0,0,0,0.16)', // elevation 4
-            }
-          : {},
+        borderRadius: 12,
+        cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.6 : 1,
+        transition: 'all 200ms ease-out',
       }}
-    >
-      <CardActionArea
-        onClick={onClick}
-        disabled={disabled}
-        sx={{
+      styles={{
+        body: {
+          padding: 24,
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'flex-start',
-          justifyContent: 'flex-start',
-          p: 0,
+        },
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.transform = 'translateY(-4px)';
+          e.currentTarget.style.boxShadow = '0px 8px 16px rgba(0,0,0,0.16)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
+        }
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginBottom: 16,
         }}
       >
-        <CardContent sx={{ width: '100%', flexGrow: 1, p: 3 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              mb: 2,
-            }}
-          >
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 56,
-                height: 56,
-                borderRadius: 2, // 8px
-                bgcolor: disabled ? 'action.disabledBackground' : 'primary.main',
-                color: 'white',
-                mr: 2,
-                transition: 'all 200ms ease-out',
-              }}
-            >
-              <IconComponent sx={{ fontSize: 32 }} />
-            </Box>
-            <Typography 
-              variant="h6" 
-              component="h2" 
-              sx={{ 
-                fontWeight: 600,
-                color: 'text.primary',
-              }}
-            >
-              {label}
-            </Typography>
-          </Box>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 56,
+            height: 56,
+            borderRadius: 8,
+            backgroundColor: disabled ? '#f5f5f5' : '#1976d2',
+            color: 'white',
+            marginRight: 16,
+            transition: 'all 200ms ease-out',
+          }}
+        >
+          <IconComponent style={{ fontSize: 32 }} />
+        </div>
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 18,
+            fontWeight: 600,
+            color: '#212121',
+          }}
+        >
+          {label}
+        </h2>
+      </div>
 
-          {description && (
-            <Typography 
-              variant="body2" 
-              color="text.secondary"
-              sx={{ lineHeight: 1.5 }}
-            >
-              {description}
-            </Typography>
-          )}
-        </CardContent>
-      </CardActionArea>
+      {description && (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 14,
+            color: '#757575',
+            lineHeight: 1.5,
+          }}
+        >
+          {description}
+        </p>
+      )}
     </Card>
   );
 }

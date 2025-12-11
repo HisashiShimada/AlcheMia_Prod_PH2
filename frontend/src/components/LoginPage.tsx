@@ -1,24 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  Box,
-  Container,
-  Paper,
-  TextField,
-  Button,
-  Typography,
-  Alert,
-  InputAdornment,
-  IconButton,
-  CircularProgress,
-} from '@mui/material';
-import {
-  Visibility,
-  VisibilityOff,
-  Login as LoginIcon,
-} from '@mui/icons-material';
+import { Card, Input, Button, Typography, Alert, Space, Spin } from 'antd';
+import { EyeOutlined, EyeInvisibleOutlined, LoginOutlined } from '@ant-design/icons';
 import { LoginCredentials } from '@/types/auth';
+
+const { Title, Text } = Typography;
 
 /**
  * ログインページのProps
@@ -36,7 +23,6 @@ interface LoginPageProps {
 export default function LoginPage({ onLogin, error, loading = false }: LoginPageProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,151 +49,166 @@ export default function LoginPage({ onLogin, error, loading = false }: LoginPage
     }
   };
 
-  const handleTogglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
   return (
-    <Box
-      sx={{
+    <div
+      style={{
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'background.default', // #fafafa
+        backgroundColor: '#fafafa',
       }}
     >
-      <Container maxWidth="sm">
-        <Paper
-          elevation={2}
-          sx={{
-            p: 4,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            borderRadius: 3, // 12px
-            backgroundColor: 'background.paper', // #ffffff
+      <div style={{ width: '100%', maxWidth: 672, padding: '0 36px' }}>
+        <Card
+          style={{
+            borderRadius: 18,
+            boxShadow: '0px 6px 12px rgba(0,0,0,0.12)',
+          }}
+          styles={{
+            body: {
+              padding: 48,
+            },
           }}
         >
           {/* ロゴ・タイトル */}
-          <Box sx={{ mb: 4, textAlign: 'center' }}>
-            <Typography
-              variant="h4"
-              component="h1"
-              gutterBottom
-              sx={{ 
+          <div style={{ marginBottom: 48, textAlign: 'center' }}>
+            <Title
+              level={1}
+              style={{
+                margin: 0,
+                marginBottom: 12,
+                color: '#CF0027',
                 fontWeight: 600,
-                color: 'primary.main',
-                mb: 1,
+                fontSize: 45,
               }}
             >
               MMDPF
-            </Typography>
-            <Typography 
-              variant="body2" 
-              color="text.secondary"
-              sx={{ fontSize: '0.875rem' }}
+            </Title>
+            <Text
+              type="secondary"
+              style={{
+                fontSize: 24,
+              }}
             >
               マルチモーダルデータプラットフォーム
-            </Typography>
-          </Box>
+            </Text>
+          </div>
 
           {/* エラーメッセージ */}
           {(error || validationError) && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                width: '100%', 
-                mb: 3,
-                borderRadius: 2,
+            <Alert
+              title={validationError || error}
+              type="error"
+              showIcon
+              style={{
+                marginBottom: 36,
+                borderRadius: 12,
+                fontSize: 16,
+                padding: '16px 20px',
               }}
-            >
-              {validationError || error}
-            </Alert>
+            />
           )}
 
           {/* ログインフォーム */}
-          <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%' }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="username"
-              label="ユーザー名"
-              name="username"
-              autoComplete="username"
-              autoFocus
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={loading}
-              error={Boolean(validationError && !username.trim())}
-              sx={{ mb: 2 }}
-            />
+          <form onSubmit={handleSubmit}>
+            <Space orientation="vertical" size={32} style={{ width: '100%' }}>
+              <div>
+                <label
+                  htmlFor="username"
+                  style={{
+                    display: 'block',
+                    marginBottom: 10,
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: '#212121',
+                  }}
+                >
+                  ユーザー名 <span style={{ color: '#d32f2f' }}>*</span>
+                </label>
+                <Input
+                  id="username"
+                  name="username"
+                  placeholder="ユーザー名を入力"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={loading}
+                  status={validationError && !username.trim() ? 'error' : ''}
+                  autoComplete="username"
+                  autoFocus
+                  style={{
+                    height: 52,
+                    fontSize: 16,
+                    borderRadius: 12,
+                  }}
+                />
+              </div>
 
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="パスワード"
-              type={showPassword ? 'text' : 'password'}
-              id="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              error={Boolean(validationError && !password)}
-              sx={{ mb: 3 }}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="パスワードの表示切り替え"
-                      onClick={handleTogglePasswordVisibility}
-                      edge="end"
-                      disabled={loading}
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
+              <div>
+                <label
+                  htmlFor="password"
+                  style={{
+                    display: 'block',
+                    marginBottom: 10,
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: '#212121',
+                  }}
+                >
+                  パスワード <span style={{ color: '#d32f2f' }}>*</span>
+                </label>
+                <Input.Password
+                  id="password"
+                  name="password"
+                  placeholder="パスワードを入力"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  status={validationError && !password ? 'error' : ''}
+                  autoComplete="current-password"
+                  iconRender={(visible) =>
+                    visible ? <EyeOutlined style={{ fontSize: 16 }} /> : <EyeInvisibleOutlined style={{ fontSize: 16 }} />
+                  }
+                  style={{
+                    height: 52,
+                    fontSize: 16,
+                    borderRadius: 12,
+                  }}
+                />
+              </div>
 
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              size="large"
-              sx={{ 
-                mt: 1,
-                mb: 2,
-                height: '48px',
-                fontWeight: 500,
-                boxShadow: 'none',
-                '&:hover': {
-                  boxShadow: '0px 4px 8px rgba(0,0,0,0.12)',
-                },
-              }}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
-            >
-              {loading ? 'ログイン中...' : 'ログイン'}
-            </Button>
-          </Box>
+              <Button
+                type="primary"
+                htmlType="submit"
+                block
+                icon={loading ? <Spin /> : <LoginOutlined style={{ fontSize: 16 }} />}
+                disabled={loading}
+                style={{
+                  height: 62,
+                  fontSize: 16,
+                  fontWeight: 500,
+                  marginTop: 10,
+                  borderRadius: 12,
+                }}
+              >
+                {loading ? 'ログイン中...' : 'ログイン'}
+              </Button>
+            </Space>
+          </form>
 
           {/* フッター */}
-          <Box sx={{ mt: 4, textAlign: 'center' }}>
-            <Typography 
-              variant="caption" 
-              color="text.secondary"
-              sx={{ fontSize: '0.75rem' }}
+          <div style={{ marginTop: 48, textAlign: 'center' }}>
+            <Text
+              type="secondary"
+              style={{
+                fontSize: 18,
+              }}
             >
-              © 2024 MMDPF. All rights reserved.
-            </Typography>
-          </Box>
-        </Paper>
-      </Container>
-    </Box>
+              © 2026 AIST SOLUTIONS. All rights reserved.
+            </Text>
+          </div>
+        </Card>
+      </div>
+    </div>
   );
 }

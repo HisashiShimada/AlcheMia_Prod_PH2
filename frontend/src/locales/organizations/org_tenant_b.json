@@ -1,0 +1,15 @@
+{
+  "common": {
+    "appName": "Tenant B研究所",
+    "appSubtitle": "材料データプラットフォーム"
+  },
+  "menu": {
+    "experiment_admin": {
+      "title": "実験プロジェクト管理",
+      "tabs": {
+        "experimentManagement": "プロジェクト管理",
+        "workerAssignment": "担当者割当"
+      }
+    }
+  }
+}

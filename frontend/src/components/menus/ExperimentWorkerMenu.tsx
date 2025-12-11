@@ -1,25 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Layout, Card, Typography, message } from 'antd';
 import {
-  Box,
-  Container,
-  Typography,
-  Paper,
-  Tabs,
-  Tab,
-} from '@mui/material';
-import {
-  Assignment as AssignmentIcon,
-  Create as CreateIcon,
-  Visibility as VisibilityIcon,
-  Upload as UploadIcon,
-  CheckCircle as CheckCircleIcon,
-  History as HistoryIcon,
-} from '@mui/icons-material';
+  CheckSquareOutlined,
+  FormOutlined,
+  EyeOutlined,
+  UploadOutlined,
+  LineChartOutlined,
+  HistoryOutlined,
+} from '@ant-design/icons';
 import Header from '../common/Header';
-import SubHeader from '../common/SubHeader';
+import SubHeader, { MenuType } from '../common/SubHeader';
 import { User } from '@/types/auth';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+const { Content } = Layout;
+const { Title, Text } = Typography;
 
 /**
  * 実験作業者メニューのProps
@@ -28,102 +25,102 @@ interface ExperimentWorkerMenuProps {
   user: User;
   onLogout: () => void;
   onNavigate: (path: string) => void;
+  onMenuChange?: (menuType: MenuType) => void;
 }
 
 /**
  * 実験作業者メニュー画面
- * タブ形式でメニューを表示
+ * サブヘッダーに埋め込まれたタブでメニューを表示
  */
-export default function ExperimentWorkerMenu({ user, onLogout, onNavigate }: ExperimentWorkerMenuProps) {
-  const [currentTab, setCurrentTab] = useState(0);
+export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMenuChange }: ExperimentWorkerMenuProps) {
+  const { t } = useLanguage();
+  const [currentTab, setCurrentTab] = useState('1');
 
-  const tabs = [
-    { label: '担当作業', icon: <AssignmentIcon /> },
-    { label: '実験記録', icon: <CreateIcon /> },
-    { label: 'MAIML閲覧', icon: <VisibilityIcon /> },
-    { label: 'ファイルアップロード', icon: <UploadIcon /> },
-    { label: '進捗報告', icon: <CheckCircleIcon /> },
-    { label: '作業履歴', icon: <HistoryIcon /> },
+  const tabItems = [
+    {
+      key: '1',
+      label: t('menu.experiment_worker.tabs.myTasks'),
+      icon: <CheckSquareOutlined />,
+    },
+    {
+      key: '2',
+      label: t('menu.experiment_worker.tabs.experimentRecord'),
+      icon: <FormOutlined />,
+    },
+    {
+      key: '3',
+      label: t('menu.experiment_worker.tabs.maimlViewer'),
+      icon: <EyeOutlined />,
+    },
+    {
+      key: '4',
+      label: t('menu.experiment_worker.tabs.fileUpload'),
+      icon: <UploadOutlined />,
+    },
+    {
+      key: '5',
+      label: t('menu.experiment_worker.tabs.progressReport'),
+      icon: <LineChartOutlined />,
+    },
+    {
+      key: '6',
+      label: t('menu.experiment_worker.tabs.history'),
+      icon: <HistoryOutlined />,
+    },
   ];
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setCurrentTab(newValue);
+  const handleTabChange = (key: string) => {
+    setCurrentTab(key);
   };
 
+  const handleMenuChange = (menuType: MenuType) => {
+    if (onMenuChange) {
+      onMenuChange(menuType);
+    }
+  };
+
+  const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
       <Header user={user} onLogout={onLogout} />
-      <SubHeader title="実験作業者メニュー" />
-      
-      {/* タブバー */}
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 112,
-          left: 0,
-          right: 0,
-          zIndex: (theme) => theme.zIndex.drawer - 1,
-          bgcolor: 'background.paper',
-          borderBottom: 1,
-          borderColor: 'divider',
-          boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
+      <SubHeader 
+        title={t('menu.experiment_worker.title')}
+        tabs={tabItems}
+        activeTabKey={currentTab}
+        onTabChange={handleTabChange}
+        currentMenu="experiment_worker"
+        onMenuChange={handleMenuChange}
+      />
+
+      {/* コンテンツエリア */}
+      <Content
+        style={{
+          marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
+          padding: '24px',
         }}
       >
-        <Container maxWidth="lg">
-          <Tabs
-            value={currentTab}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{
-              '& .MuiTab-root': {
-                minHeight: 64,
-                textTransform: 'none',
-                fontSize: '0.875rem',
-                fontWeight: 500,
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <Card
+            style={{
+              minHeight: 400,
+              borderRadius: 12,
+            }}
+            styles={{
+              body: {
+                padding: 24,
               },
             }}
           >
-            {tabs.map((tab, index) => (
-              <Tab
-                key={index}
-                label={tab.label}
-                icon={tab.icon}
-                iconPosition="start"
-              />
-            ))}
-          </Tabs>
-        </Container>
-      </Box>
-
-      {/* コンテンツエリア */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          pt: 26,
-          pb: 4,
-          bgcolor: 'background.default',
-        }}
-      >
-        <Container maxWidth="lg">
-          <Paper
-            elevation={2}
-            sx={{
-              p: 3,
-              minHeight: 400,
-              borderRadius: 2,
-            }}
-          >
-            <Typography variant="h6" gutterBottom>
-              {tabs[currentTab].label}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              コンテンツエリア（未実装）
-            </Typography>
-          </Paper>
-        </Container>
-      </Box>
-    </Box>
+            <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
+              {currentTabLabel}
+            </Title>
+            <Text type="secondary">
+              {t('content.notImplemented')}
+            </Text>
+          </Card>
+        </div>
+      </Content>
+    </Layout>
   );
 }

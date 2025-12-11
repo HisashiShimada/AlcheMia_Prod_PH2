@@ -1,25 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Layout, Tabs, Card, Typography, message } from 'antd';
 import {
-  Box,
-  Container,
-  Typography,
-  Paper,
-  Tabs,
-  Tab,
-} from '@mui/material';
-import {
-  People as PeopleIcon,
-  Business as BusinessIcon,
-  Folder as FolderIcon,
-  Science as ScienceIcon,
-  BarChart as BarChartIcon,
-  Assignment as AssignmentIcon,
-} from '@mui/icons-material';
+  TeamOutlined,
+  ShopOutlined,
+  FolderOutlined,
+  ExperimentOutlined,
+  BarChartOutlined,
+  AuditOutlined,
+} from '@ant-design/icons';
 import Header from '../common/Header';
-import SubHeader from '../common/SubHeader';
+import SubHeader, { MenuType } from '../common/SubHeader';
 import { User } from '@/types/auth';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+const { Content } = Layout;
+const { Title, Text } = Typography;
 
 /**
  * システム管理者メニューのProps
@@ -28,103 +25,102 @@ interface SystemAdminMenuProps {
   user: User;
   onLogout: () => void;
   onNavigate: (path: string) => void;
+  onMenuChange?: (menuType: MenuType) => void;
 }
 
 /**
  * システム管理者メニュー画面
  * タブ形式でメニューを表示
  */
-export default function SystemAdminMenu({ user, onLogout, onNavigate }: SystemAdminMenuProps) {
-  const [currentTab, setCurrentTab] = useState(0);
+export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChange }: SystemAdminMenuProps) {
+  const { t } = useLanguage();
+  const [currentTab, setCurrentTab] = useState('1');
 
-  const tabs = [
-    { label: 'ユーザー管理', icon: <PeopleIcon /> },
-    { label: '組織設定', icon: <BusinessIcon /> },
-    { label: 'ファイル管理', icon: <FolderIcon /> },
-    { label: '実験一覧', icon: <ScienceIcon /> },
-    { label: '統計情報', icon: <BarChartIcon /> },
-    { label: '監査ログ', icon: <AssignmentIcon /> },
+  const tabItems = [
+    {
+      key: '1',
+      label: t('menu.system_admin.tabs.userManagement'),
+      icon: <TeamOutlined />,
+    },
+    {
+      key: '2',
+      label: t('menu.system_admin.tabs.organizationSettings'),
+      icon: <ShopOutlined />,
+    },
+    {
+      key: '3',
+      label: t('menu.system_admin.tabs.fileManagement'),
+      icon: <FolderOutlined />,
+    },
+    {
+      key: '4',
+      label: t('menu.system_admin.tabs.experimentList'),
+      icon: <ExperimentOutlined />,
+    },
+    {
+      key: '5',
+      label: t('menu.system_admin.tabs.statistics'),
+      icon: <BarChartOutlined />,
+    },
+    {
+      key: '6',
+      label: t('menu.system_admin.tabs.auditLog'),
+      icon: <AuditOutlined />,
+    },
   ];
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setCurrentTab(newValue);
+  const handleTabChange = (key: string) => {
+    setCurrentTab(key);
   };
 
+  const handleMenuChange = (menuType: MenuType) => {
+    if (onMenuChange) {
+      onMenuChange(menuType);
+    }
+  };
+
+  const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
+
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
       <Header user={user} onLogout={onLogout} />
-      <SubHeader title="システム管理者メニュー" />
-      
-      {/* タブバー */}
-      <Box
-        sx={{
-          position: 'fixed',
-          top: 112, // Header(64px) + SubHeader(48px)
-          left: 0,
-          right: 0,
-          zIndex: (theme) => theme.zIndex.drawer - 1,
-          bgcolor: 'background.paper',
-          borderBottom: 1,
-          borderColor: 'divider',
-          boxShadow: '0px 2px 4px rgba(0,0,0,0.1)',
+      <SubHeader 
+        title={t('menu.system_admin.title')}
+        tabs={tabItems}
+        activeTabKey={currentTab}
+        onTabChange={handleTabChange}
+        currentMenu="system_admin"
+        onMenuChange={handleMenuChange}
+      />
+
+      {/* コンテンツエリア */}
+      <Content
+        style={{
+          marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
+          padding: '24px',
         }}
       >
-        <Container maxWidth="lg">
-          <Tabs
-            value={currentTab}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{
-              '& .MuiTab-root': {
-                minHeight: 64,
-                textTransform: 'none',
-                fontSize: '0.875rem',
-                fontWeight: 500,
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <Card
+            style={{
+              minHeight: 400,
+              borderRadius: 12,
+            }}
+            styles={{
+              body: {
+                padding: 24,
               },
             }}
           >
-            {tabs.map((tab, index) => (
-              <Tab
-                key={index}
-                label={tab.label}
-                icon={tab.icon}
-                iconPosition="start"
-              />
-            ))}
-          </Tabs>
-        </Container>
-      </Box>
-
-      {/* コンテンツエリア */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          pt: 26, // Header(64px) + SubHeader(48px) + Tabs(64px) + margin
-          pb: 4,
-          bgcolor: 'background.default',
-        }}
-      >
-        <Container maxWidth="lg">
-          <Paper
-            elevation={2}
-            sx={{
-              p: 3,
-              minHeight: 400,
-              borderRadius: 2,
-            }}
-          >
-            <Typography variant="h6" gutterBottom>
-              {tabs[currentTab].label}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {/* コンテンツはここに追加されます */}
-              コンテンツエリア（未実装）
-            </Typography>
-          </Paper>
-        </Container>
-      </Box>
-    </Box>
+            <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
+              {currentTabLabel}
+            </Title>
+            <Text type="secondary">
+              {t('content.notImplemented')}
+            </Text>
+          </Card>
+        </div>
+      </Content>
+    </Layout>
   );
 }

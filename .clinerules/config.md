@@ -31,7 +31,7 @@
 詳細は [frontend.md](.clinerules/frontend.md) を参照してください。
 
 ### 主要なポイント
-- React 18.2.0 + Material-UI v5を使用
+- React 18.2.0 + Ant Design v6を使用
 - 関数コンポーネント + Hooksパターンを採用
 - コンポーネントは components/ ディレクトリに配置
 - カスタムフックは hooks/ ディレクトリに配置
@@ -182,7 +182,6 @@
 ```javascript
 // 1. React・サードパーティ
 import React, { useState } from 'react';
-import { Box, Button } from '@mui/material';
 
 // 2. 内部モジュール
 import PetriNetViewer from '../components/PetriNetViewer';

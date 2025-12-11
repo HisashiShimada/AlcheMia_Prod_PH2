@@ -1,0 +1,155 @@
+# Cline Ignore File
+# Clineがコンテキストに含めないファイル・ディレクトリを指定
+
+# Dependencies
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+.cache/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Environment variables (機密情報)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+backend/.env
+frontend/.env
+frontend/.env.*
+backend/output/production-passwords.json
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.AppleDouble
+.LSOverride
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+
+# Lock files (依存関係のロックファイル - 大容量)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
+
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Docker
+.dockerignore
+
+# AWS
+.aws/
+
+# Output directories
+output/
+backend/output/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Compiled files
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Images (大容量ファイル)
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.svg
+*.ico
+*.webp
+
+# Videos (大容量ファイル)
+*.mp4
+*.avi
+*.mov
+*.wmv
+
+# Audio (大容量ファイル)
+*.mp3
+*.wav
+*.flac
+
+# Documents (大容量ファイル)
+*.pdf
+*.doc
+*.docx
+*.ppt
+*.pptx
+*.xls
+*.xlsx
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Kubernetes
+*.kubeconfig
+
+# MAIML sample files (大容量XMLファイル)
+specification/*.maiml
+
+# ER図ファイル
+docs/design/db/*.a5er

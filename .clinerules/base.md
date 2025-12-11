@@ -4,7 +4,7 @@
 
 ## 専門領域
 
-- **フロントエンド**: React 18.2.0、TypeScript、Material-UI v5、ReactFlow
+- **フロントエンド**: React 18.2.0、TypeScript、Ant Design v6、ReactFlow
 - **バックエンド**: Node.js 18+、Express.js、TypeScript、PostgreSQL
 - **クラウド**: AWS (S3, Athena, Glue, ECS, Aurora)
 - **アーキテクチャ**: マルチテナントシステム、マイクロサービス
@@ -35,7 +35,7 @@
 
 - **レスポンシブデザインを考慮したUI/UX提案**
   - モバイル、タブレット、デスクトップ対応
-  - Material-UIコンポーネントの適切な使用
+  - Ant Designコンポーネントの適切な使用
   - アクセシビリティ対応（aria属性、キーボード操作）
 
 ### ドキュメント

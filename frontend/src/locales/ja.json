@@ -1,0 +1,95 @@
+{
+  "common": {
+    "appName": "MMDPF",
+    "appSubtitle": "マルチモーダルデータプラットフォーム",
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "profile": "プロフィール",
+    "settings": "設定",
+    "language": "言語",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "edit": "編集",
+    "add": "追加",
+    "search": "検索",
+    "loading": "読み込み中...",
+    "error": "エラー",
+    "success": "成功",
+    "warning": "警告",
+    "info": "情報"
+  },
+  "languages": {
+    "ja": "日本語",
+    "en": "English"
+  },
+  "roles": {
+    "provider": "プロバイダ",
+    "system_admin": "システム管理者",
+    "data_admin": "データ管理者",
+    "experiment_admin": "実験管理者",
+    "experiment_worker": "実験作業者"
+  },
+  "menu": {
+    "provider": {
+      "title": "プロバイダーメニュー",
+      "tabs": {
+        "organizationManagement": "組織管理",
+        "userManagement": "ユーザー管理",
+        "systemSettings": "システム設定",
+        "auditLog": "監査ログ",
+        "storageManagement": "ストレージ管理",
+        "statistics": "統計情報"
+      }
+    },
+    "system_admin": {
+      "title": "システム管理者メニュー",
+      "tabs": {
+        "userManagement": "ユーザー管理",
+        "organizationSettings": "組織設定",
+        "fileManagement": "ファイル管理",
+        "experimentList": "実験一覧",
+        "statistics": "統計情報",
+        "auditLog": "監査ログ"
+      }
+    },
+    "data_admin": {
+      "title": "データ管理者メニュー",
+      "tabs": {
+        "fileManagement": "ファイル管理",
+        "maimlEditor": "MAIML編集",
+        "dataSearch": "データ検索",
+        "experimentList": "実験一覧",
+        "dataExport": "データエクスポート",
+        "statistics": "統計情報"
+      }
+    },
+    "experiment_admin": {
+      "title": "実験管理者メニュー",
+      "tabs": {
+        "projectManagement": "プロジェクト管理",
+        "formatManagement": "フォーマット管理",
+        "experimentManagement": "実験管理",
+        "workerAssignment": "ワーカー割当",
+        "progressManagement": "進捗管理",
+        "maimlEditor": "MAIML編集",
+        "fileManagement": "ファイル管理",
+        "statistics": "統計情報"
+      }
+    },
+    "experiment_worker": {
+      "title": "実験作業者メニュー",
+      "tabs": {
+        "myTasks": "担当作業",
+        "experimentRecord": "実験記録",
+        "maimlViewer": "MAIML閲覧",
+        "fileUpload": "ファイルアップロード",
+        "progressReport": "進捗報告",
+        "history": "作業履歴"
+      }
+    }
+  },
+  "content": {
+    "notImplemented": "コンテンツエリア（未実装）"
+  }
+}
