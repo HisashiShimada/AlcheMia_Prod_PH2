@@ -37,6 +37,27 @@ export default function ProgressReportTab({
   onSelectTask,
   selectedMethod,
 }: ProgressReportTabProps) {
+  // 選択したプロジェクトとメソッドに基づいてトランジションをフィルタリング
+  const getFilteredProgressData = () => {
+    if (!selectedProject) {
+      return [];
+    }
+
+    const allProgressData = projectsData[selectedProject]?.progressData || [];
+
+    // メソッドが選択されている場合はフィルタリング
+    if (selectedMethodId) {
+      return allProgressData.filter(
+        (progress) => progress.methodId === selectedMethodId
+      );
+    }
+
+    // メソッドが選択されていない場合は空配列を返す
+    return [];
+  };
+
+  const filteredProgressData = getFilteredProgressData();
+
   return (
     <>
       {/* プロジェクト選択とメソッド選択 */}
@@ -77,11 +98,21 @@ export default function ProgressReportTab({
             </Text>
           </Space>
         </Card>
+      ) : !selectedMethodId ? (
+        <Card>
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: '64px 0' }}>
+            <BarChartOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+            <Title level={3} type="secondary">
+              📊 進捗報告
+            </Title>
+            <Text type="secondary">
+              メソッドを選択してください
+            </Text>
+          </Space>
+        </Card>
       ) : (
         <Card>
-          <ProgressReport
-            progressData={projectsData[selectedProject]?.progressData || []}
-          />
+          <ProgressReport progressData={filteredProgressData} />
         </Card>
       )}
     </>
