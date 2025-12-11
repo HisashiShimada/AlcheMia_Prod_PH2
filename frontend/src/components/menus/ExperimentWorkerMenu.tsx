@@ -3,13 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Layout, Card, Typography } from 'antd';
 import {
-  CheckSquareOutlined,
   FileTextOutlined,
   FormOutlined,
-  EyeOutlined,
-  UploadOutlined,
   LineChartOutlined,
-  HistoryOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
@@ -41,7 +37,7 @@ interface ExperimentWorkerMenuProps {
  */
 export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMenuChange }: ExperimentWorkerMenuProps) {
   const { t } = useLanguage();
-  const [currentTab, setCurrentTab] = useState('1');
+  const [currentTab, setCurrentTab] = useState('2');
   const [isClient, setIsClient] = useState(false);
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
@@ -99,11 +95,6 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
 
   const tabItems = [
     {
-      key: '1',
-      label: t('menu.experiment_worker.tabs.myTasks'),
-      icon: <CheckSquareOutlined />,
-    },
-    {
       key: '2',
       label: t('menu.experiment_worker.tabs.workInstruction'),
       icon: <FileTextOutlined />,
@@ -114,24 +105,9 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       icon: <FormOutlined />,
     },
     {
-      key: '4',
-      label: t('menu.experiment_worker.tabs.maimlViewer'),
-      icon: <EyeOutlined />,
-    },
-    {
-      key: '5',
-      label: t('menu.experiment_worker.tabs.fileUpload'),
-      icon: <UploadOutlined />,
-    },
-    {
       key: '6',
       label: t('menu.experiment_worker.tabs.progressReport'),
       icon: <LineChartOutlined />,
-    },
-    {
-      key: '7',
-      label: t('menu.experiment_worker.tabs.history'),
-      icon: <HistoryOutlined />,
     },
   ];
 
@@ -205,27 +181,6 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             />
           )}
 
-          {/* その他のタブ（未実装） */}
-          {['1', '4', '5', '7'].includes(currentTab) && (
-            <Card
-              style={{
-                minHeight: 400,
-                borderRadius: 12,
-              }}
-              styles={{
-                body: {
-                  padding: 24,
-                },
-              }}
-            >
-              <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
-                {tabItems.find(item => item.key === currentTab)?.label || ''}
-              </Title>
-              <Text type="secondary">
-                {t('content.notImplemented')}
-              </Text>
-            </Card>
-          )}
         </div>
       </Content>
     </Layout>
