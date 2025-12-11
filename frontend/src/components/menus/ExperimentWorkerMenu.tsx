@@ -65,10 +65,10 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     setIsClient(true);
   }, []);
 
-  // プロジェクト選択時、または実験記録タブ表示時に最初のメソッドを自動選択
+  // プロジェクト選択時、または実験記録タブ・進捗報告タブ表示時に最初のメソッドを自動選択
   useEffect(() => {
-    // 実験記録タブ（key='3'）が選択されている場合のみ
-    if (currentTab === '3' && selectedProject && !selectedMethodId) {
+    // 実験記録タブ（key='3'）または進捗報告タブ（key='6'）が選択されている場合のみ
+    if ((currentTab === '3' || currentTab === '6') && selectedProject && !selectedMethodId) {
       const methods = projectsData[selectedProject]?.methods || [];
       if (methods.length > 0) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -197,6 +197,11 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             <ProgressReportTab
               selectedProject={selectedProject}
               onProjectChange={handleProjectChange}
+              selectedMethodId={selectedMethodId}
+              onSelectMethod={handleSelectMethod}
+              selectedTaskId={selectedTaskId}
+              onSelectTask={handleSelectTask}
+              selectedMethod={selectedMethod}
             />
           )}
 
