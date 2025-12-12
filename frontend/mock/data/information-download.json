@@ -1,0 +1,7 @@
+{
+  "title": "組織統計情報",
+  "downloadEnabled": true,
+  "csvFileName": "organization_statistics.csv",
+  "lastUpdated": "2025-12-12T10:00:00+09:00",
+  "description": "組織の統計情報をCSV形式でダウンロードできます"
+}

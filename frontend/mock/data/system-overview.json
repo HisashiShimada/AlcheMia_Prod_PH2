@@ -1,0 +1,32 @@
+{
+  "users": {
+    "total": 4,
+    "active": 4,
+    "managers": 0,
+    "workers": 0
+  },
+  "sessions": {
+    "total": 57,
+    "active": 5,
+    "today": 0
+  },
+  "experimentSystem": {
+    "assignedFiles": 0,
+    "instructions": 0,
+    "progressReports": 0,
+    "activeWorkers": 0
+  },
+  "projects": {
+    "total": 0,
+    "active": 0
+  },
+  "storage": {
+    "totalFiles": 0,
+    "usedCapacityGB": 0
+  },
+  "loginLast7Days": {
+    "total": 25,
+    "success": 25,
+    "failed": 0
+  }
+}

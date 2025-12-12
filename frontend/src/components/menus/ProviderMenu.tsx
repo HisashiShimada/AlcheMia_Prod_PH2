@@ -14,6 +14,18 @@ import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import dynamic from 'next/dynamic';
+
+// モックコンポーネントの動的インポート
+const OrganizationManagementMock = dynamic(
+  () => import('../../../mock/components/OrganizationManagementMock'),
+  { ssr: false }
+);
+
+const InformationDownloadMock = dynamic(
+  () => import('../../../mock/components/InformationDownloadMock'),
+  { ssr: false }
+);
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -44,28 +56,8 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
     },
     {
       key: '2',
-      label: t('menu.provider.tabs.userManagement'),
-      icon: <TeamOutlined />,
-    },
-    {
-      key: '3',
-      label: t('menu.provider.tabs.systemSettings'),
-      icon: <SettingOutlined />,
-    },
-    {
-      key: '4',
-      label: t('menu.provider.tabs.auditLog'),
-      icon: <AuditOutlined />,
-    },
-    {
-      key: '5',
-      label: t('menu.provider.tabs.storageManagement'),
+      label: t('menu.provider.tabs.informationDownload'),
       icon: <DatabaseOutlined />,
-    },
-    {
-      key: '6',
-      label: t('menu.provider.tabs.statistics'),
-      icon: <BarChartOutlined />,
     },
   ];
 
@@ -100,25 +92,34 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
           padding: '24px',
         }}
       >
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Card
-            style={{
-              minHeight: 400,
-              borderRadius: 12,
-            }}
-            styles={{
-              body: {
-                padding: 24,
-              },
-            }}
-          >
-            <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
-              {currentTabLabel}
-            </Title>
-            <Text type="secondary">
-              {t('content.notImplemented')}
-            </Text>
-          </Card>
+        <div style={{ maxWidth: 1600, margin: '0 auto' }}>
+          {/* タブ1: 組織管理 */}
+          {currentTab === '1' && <OrganizationManagementMock />}
+          
+          {/* タブ2: 情報ダウンロード */}
+          {currentTab === '2' && <InformationDownloadMock />}
+          
+          {/* タブ3-6: 未実装 */}
+          {/* {['3', '4', '5', '6'].includes(currentTab) && (
+            <Card
+              style={{
+                minHeight: 400,
+                borderRadius: 12,
+              }}
+              styles={{
+                body: {
+                  padding: 24,
+                },
+              }}
+            >
+              <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
+                {currentTabLabel}
+              </Title>
+              <Text type="secondary">
+                {t('content.notImplemented')}
+              </Text>
+            </Card>
+          )} */}
         </div>
       </Content>
     </Layout>
