@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Card, Typography, message } from 'antd';
+import { Layout, Card, Typography, theme } from 'antd';
 import {
   CheckSquareOutlined,
   FormOutlined,
@@ -34,6 +34,7 @@ interface ExperimentWorkerMenuProps {
  */
 export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMenuChange }: ExperimentWorkerMenuProps) {
   const { t } = useLanguage();
+  const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
 
   const tabItems = [
@@ -82,7 +83,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
   return (
-    <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
       <SubHeader 
         title={t('menu.experiment_worker.title')}
@@ -97,22 +98,16 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       <Content
         style={{
           marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
-          padding: '24px',
+          padding: token.paddingLG,
         }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <Card
             style={{
               minHeight: 400,
-              borderRadius: 12,
-            }}
-            styles={{
-              body: {
-                padding: 24,
-              },
             }}
           >
-            <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
+            <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
               {currentTabLabel}
             </Title>
             <Text type="secondary">

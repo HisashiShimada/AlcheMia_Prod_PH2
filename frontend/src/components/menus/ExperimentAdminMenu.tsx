@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Card, Typography } from 'antd';
+import { Layout, Card, Typography, theme } from 'antd';
 import {
   ExperimentOutlined,
   UserSwitchOutlined,
@@ -43,6 +43,7 @@ export default function ExperimentAdminMenu({
   onMenuChange 
 }: ExperimentAdminMenuProps) {
   const { t } = useLanguage();
+  const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
 
   const tabItems = [
@@ -99,7 +100,7 @@ export default function ExperimentAdminMenu({
   const isFullWidthTab = currentTab === '1' || currentTab === '2';
 
   return (
-    <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
       <SubHeader 
         title={t('menu.experiment_admin.title') || '実験管理'}
@@ -114,7 +115,7 @@ export default function ExperimentAdminMenu({
       <Content
         style={{
           marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
-          padding: isFullWidthTab ? 0 : '24px',
+          padding: isFullWidthTab ? 0 : token.paddingLG,
           height: isFullWidthTab ? 'calc(100vh - 140px)' : 'auto',
           overflow: isFullWidthTab ? 'hidden' : 'auto',
         }}
@@ -135,15 +136,9 @@ export default function ExperimentAdminMenu({
             <Card
               style={{
                 minHeight: 400,
-                borderRadius: 12,
-              }}
-              styles={{
-                body: {
-                  padding: 24,
-                },
               }}
             >
-              <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
+              <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
                 {currentTabLabel}
               </Title>
               <Text type="secondary">
