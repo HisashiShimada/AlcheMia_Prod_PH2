@@ -35,33 +35,22 @@
       "title": "Provider Menu",
       "tabs": {
         "organizationManagement": "Organization Management",
-        "userManagement": "User Management",
-        "systemSettings": "System Settings",
-        "auditLog": "Audit Log",
-        "storageManagement": "Storage Management",
-        "statistics": "Statistics"
+        "informationDownload": "Information Download"
       }
     },
     "system_admin": {
       "title": "System Administrator Menu",
       "tabs": {
+        "systemOverview": "System Overview",
+        "organizationStatistics": "Organization Statistics",
         "userManagement": "User Management",
-        "organizationSettings": "Organization Settings",
-        "fileManagement": "File Management",
-        "experimentList": "Experiment List",
-        "statistics": "Statistics",
-        "auditLog": "Audit Log"
+        "sessionManagement": "Session Management"
       }
     },
     "data_admin": {
       "title": "Data Administrator Menu",
       "tabs": {
-        "fileManagement": "File Management",
-        "maimlEditor": "MAIML Editor",
-        "dataSearch": "Data Search",
-        "experimentList": "Experiment List",
-        "dataExport": "Data Export",
-        "statistics": "Statistics"
+        "masterManagement": "Master Management"
       }
     },
     "experiment_admin": {
