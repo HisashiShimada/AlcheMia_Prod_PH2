@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Card, Typography } from 'antd';
+import { Layout, Card, Typography, theme } from 'antd';
 import {
   UserSwitchOutlined,
   LineChartOutlined,
@@ -41,6 +41,7 @@ export default function ExperimentAdminMenu({
   onMenuChange 
 }: ExperimentAdminMenuProps) {
   const { t } = useLanguage();
+  const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
 
   const tabItems = [
@@ -82,7 +83,7 @@ export default function ExperimentAdminMenu({
   const isFullWidthTab = currentTab === '1' || currentTab === '2' || currentTab === '3' || currentTab === '4';
 
   return (
-    <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
       <SubHeader 
         title={t('menu.experiment_admin.title') || '実験管理'}
@@ -97,7 +98,7 @@ export default function ExperimentAdminMenu({
       <Content
         style={{
           marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
-          padding: isFullWidthTab ? 0 : '24px',
+          padding: isFullWidthTab ? 0 : token.paddingLG,
           height: isFullWidthTab ? 'calc(100vh - 140px)' : 'auto',
           overflow: isFullWidthTab ? 'hidden' : 'auto',
         }}
@@ -112,17 +113,34 @@ export default function ExperimentAdminMenu({
           <div style={{ height: '100%', overflow: 'hidden' }}>
             <FormatManagement />
           </div>
+
         ) : currentTab === '3' ? (
           // 進捗確認: 全幅表示
           <div style={{ height: '100%', overflow: 'auto' }}>
             <ProgressMonitoring />
           </div>
-        ) : currentTab === '4' ? (
+        )  : currentTab === '4' ? (
           // 作業者管理: 全幅表示
           <div style={{ height: '100%', overflow: 'auto' }}>
             <WorkerManagement />
           </div>
-        ) : null}
+        ) : (
+          // その他のタブ: カード内に表示
+          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+            <Card
+              style={{
+                minHeight: 400,
+              }}
+            >
+              <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
+                {currentTabLabel}
+              </Title>
+              <Text type="secondary">
+                {t('content.notImplemented') || 'コンテンツエリア（未実装）'}
+              </Text>
+            </Card>
+          </div>
+        )}
       </Content>
     </Layout>
   );
