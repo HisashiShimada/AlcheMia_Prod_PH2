@@ -1,12 +1,10 @@
 'use client';
 
-import React from 'react';
-import { Card, Space, Typography, theme } from 'antd';
-import { BarChartOutlined } from '@ant-design/icons';
-import ProjectSelector from './ProjectSelector';
-import MethodSelector from './MethodSelector';
-import TaskSelector from './TaskSelector';
+import React, { useState } from 'react';
+import { Card, Space, Typography, theme, Button } from 'antd';
+import { BarChartOutlined, CheckOutlined, FolderOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
 import ProgressReport from './ProgressReport';
+import UnifiedSelectionDialog from './UnifiedSelectionDialog';
 import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
@@ -44,6 +42,19 @@ export default function ProgressReportTab({
 }: ProgressReportTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // 選択中のプロジェクト情報を取得
+  const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
+
+  // タスクデータ（TODO: 実際のデータはAPIから取得）
+  const tasks = [
+    { taskId: 'new', taskName: '新規タスク' },
+    { taskId: 'task001', taskName: 'タスク001' },
+    { taskId: 'task002', taskName: 'タスク002' },
+    { taskId: 'task003', taskName: 'タスク003' },
+  ];
+  const selectedTask = tasks.find((t) => t.taskId === selectedTaskId);
 
   // 選択したプロジェクトとメソッドに基づいてトランジションをフィルタリング
   const getFilteredProgressData = () => {
@@ -68,30 +79,56 @@ export default function ProgressReportTab({
 
   return (
     <>
-      {/* プロジェクト選択とメソッド選択 */}
-      <Card style={{ marginBottom: token.marginLG }}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          {/* プロジェクト選択 */}
-          <ProjectSelector
-            selectedProject={selectedProject}
-            onProjectChange={onProjectChange}
-          />
+      {/* 選択プロジェクト・メソッド・タスク */}
+      <Card 
+        style={{ 
+          marginBottom: token.marginLG,
+          backgroundColor: selectedProject ? token.colorPrimaryBg : token.colorBgContainer,
+          borderColor: selectedProject ? token.colorPrimary : token.colorBorder,
+        }}
+      >
+        <div style={{ width: '100%' }}>
+          {/* プロジェクト */}
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: token.margin }}>
+            <Space size="middle" style={{ flex: 1 }}>
+              <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <Text strong style={{ minWidth: 80 }}>プロジェクト:</Text>
+              <Text>
+                {selectedProjectData ? selectedProjectData.projectName : '未選択'}
+              </Text>
+            </Space>
+          </div>
 
-          {/* メソッド選択 */}
-          <MethodSelector
-            methods={projectsData[selectedProject]?.methods || []}
-            selectedMethodId={selectedMethodId}
-            onSelectMethod={onSelectMethod}
-            disabled={!selectedProject}
-          />
+          {/* メソッド */}
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: token.margin }}>
+            <Space size="middle" style={{ flex: 1 }}>
+              <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <Text strong style={{ minWidth: 80 }}>メソッド:</Text>
+              <Text>
+                {selectedMethod ? selectedMethod.methodName : '未選択'}
+              </Text>
+            </Space>
+          </div>
 
-          {/* タスク選択 */}
-          <TaskSelector
-            selectedTaskId={selectedTaskId}
-            onSelectTask={onSelectTask}
-            disabled={!selectedProject}
-          />
-        </Space>
+          {/* タスク + 選択ボタン */}
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+            <Space size="middle" style={{ flex: 1 }}>
+              <AimOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <Text strong style={{ minWidth: 80 }}>タスク:</Text>
+              <Text>
+                {selectedTask ? selectedTask.taskName : '未選択'}
+              </Text>
+            </Space>
+            <Button
+              type="primary"
+              icon={<CheckOutlined />}
+              onClick={() => setDialogOpen(true)}
+              size="large"
+            >
+              選択
+            </Button>
+          </div>
+        </div>
       </Card>
 
       {!selectedProject ? (
@@ -123,6 +160,18 @@ export default function ProgressReportTab({
           <ProgressReport progressData={filteredProgressData} />
         </Card>
       )}
+
+      {/* 統合選択ダイアログ */}
+      <UnifiedSelectionDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        selectedProject={selectedProject}
+        selectedMethodId={selectedMethodId}
+        selectedTaskId={selectedTaskId}
+        onProjectChange={onProjectChange}
+        onSelectMethod={onSelectMethod}
+        onSelectTask={onSelectTask}
+      />
     </>
   );
 }
