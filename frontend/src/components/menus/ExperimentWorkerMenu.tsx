@@ -6,6 +6,7 @@ import {
   FileTextOutlined,
   FormOutlined,
   LineChartOutlined,
+  CheckSquareOutlined,
 } from '@ant-design/icons';
 import styled from '@emotion/styled';
 import Header from '../common/Header';
@@ -16,6 +17,7 @@ import { useInstructions } from '@/hooks/useInstructions';
 import { useExpandState } from '@/hooks/useExpandState';
 import InstructionConfirmationTab from '../ExperimentWorker/InstructionConfirmationTab';
 import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
+import ExperimentWorkTab from '../ExperimentWorker/ExperimentWorkTab';
 import ProgressReportTab from '../ExperimentWorker/ProgressReportTab';
 import { projectsData } from '@/data/projectsData';
 
@@ -146,6 +148,11 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       icon: <FormOutlined />,
     },
     {
+      key: '4',
+      label: t('menu.experiment_worker.tabs.experimentWork'),
+      icon: <CheckSquareOutlined />,
+    },
+    {
       key: '6',
       label: t('menu.experiment_worker.tabs.progressReport'),
       icon: <LineChartOutlined />,
@@ -206,6 +213,17 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
               onSelectTask={handleSelectTask}
               onTaskCreated={handleTaskCreated}
               selectedMethod={selectedMethod}
+            />
+          )}
+
+          {/* タブ4: 実験作業 */}
+          {currentTab === '4' && (
+            <ExperimentWorkTab
+              selectedProject={selectedProject}
+              onProjectChange={handleProjectChange}
+              selectedMethodId={selectedMethodId}
+              onSelectMethod={handleSelectMethod}
+              onTabChange={handleTabChange}
             />
           )}
 

@@ -86,6 +86,7 @@ export interface Method {
   description: string;
   category: string;
   transitions: Transition[];
+  tasks?: Task[]; // Phase 2: タスク一覧（実験作業タブ用）
 }
 
 // プロパティ定義
@@ -170,4 +171,35 @@ export interface TransitionProgress {
   status: ProgressStatus;
   reportCount: number; // 進捗報告数
   issueCount: number; // 未解決課題数
+}
+
+// ===== Phase 1: 実験作業タブ用の型定義 =====
+
+// タスクステータス（実験作業タブ用）
+export type TaskStatus = 
+  | 'not_started'       // 開始前
+  | 'started'           // 開始
+  | 'in_progress'       // 作業中
+  | 'completed'         // 完了
+  | 'forced_terminated' // 強制終了
+  | 'suspended';        // 中断
+
+// タスクデータ（実験作業タブ用）
+export interface Task {
+  taskId: string;              // タスクID
+  taskName: string;            // タスク名
+  sampleNumber: string;        // サンプル番号
+  notes: string;               // 備考
+  status: TaskStatus;          // ステータス
+  progressReport: string;      // 進捗報告の状態（例: "実験記録報告"）
+  recordNumber: string;        // 実験記録番号
+}
+
+// ワークフロー統計（実験作業タブ用）
+export interface WorkflowStatistics {
+  notStarted: number;    // 開始前のトランジション数
+  started: number;       // 開始数
+  inProgress: number;    // 作業中数
+  completed: number;     // 完了数
+  progressRate: number;  // 進捗率（%）
 }

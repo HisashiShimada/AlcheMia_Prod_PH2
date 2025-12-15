@@ -70,6 +70,7 @@
         "myTasks": "My Tasks",
         "workInstruction": "Work Instruction",
         "experimentRecord": "Experiment Record",
+        "experimentWork": "Experiment Work",
         "maimlViewer": "MAIML Viewer",
         "fileUpload": "File Upload",
         "progressReport": "Progress Report",
@@ -102,6 +103,54 @@
       "row": "#",
       "addRow": "Add Row",
       "addColumn": "Add Column"
+    }
+  },
+  "experimentWork": {
+    "selectButton": "Select",
+    "instructionButton": "Instructions",
+    "taskListButton": "Task List",
+    "batchProgressButton": "Batch Progress Report",
+    "approvalRequestButton": "Request Approval",
+    "stats": {
+      "notStarted": "Not Started Transitions",
+      "started": "Started",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "progressRate": "Progress Rate"
+    },
+    "table": {
+      "taskName": "Task Name",
+      "sampleNumber": "Sample Number",
+      "notes": "Notes",
+      "status": "Status",
+      "progressReport": "Progress Report",
+      "recordNumber": "Record Number",
+      "actions": "Actions"
+    },
+    "actions": {
+      "start": "Start",
+      "recordData": "Record Data",
+      "reportProgress": "Report Progress",
+      "complete": "Complete"
+    },
+    "status": {
+      "notStarted": "Not Started",
+      "started": "Started",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "forcedTerminated": "Forced Terminated",
+      "suspended": "Suspended"
+    },
+    "messages": {
+      "selectProjectAndMethod": "Please select a project and method",
+      "noTasksFound": "No tasks found",
+      "taskStarted": "Task started successfully",
+      "taskCompleted": "Task completed successfully",
+      "moveToExperimentRecord": "Moving to Experiment Record tab",
+      "moveToProgressReport": "Moving to Progress Report tab",
+      "updateFailed": "Failed to update task",
+      "batchProgressNotImplemented": "Batch progress report feature will be implemented in the future",
+      "approvalRequestNotImplemented": "Approval request feature will be implemented in the future"
     }
   }
 }

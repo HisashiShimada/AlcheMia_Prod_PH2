@@ -1,5 +1,7 @@
 import {
   ProjectData,
+  Task,
+  WorkflowStatistics,
 } from '@/types/experimentWorker';
 
 export const projectsData: Record<string, ProjectData> = {
@@ -262,6 +264,35 @@ export const projectsData: Record<string, ProjectData> = {
         "methodName": "温度キャリブレーション",
         "description": "加熱炉の温度計が正確であることを確認する手順。標準温度計と比較して誤差を測定します。",
         "category": "キャリブレーション",
+        "tasks": [
+          {
+            "taskId": "task_m001_001",
+            "taskName": "温度記録",
+            "sampleNumber": "Sample-001",
+            "notes": "標準温度計との比較測定",
+            "status": "started",
+            "progressReport": "実験記録報告",
+            "recordNumber": "EXP-2024-001"
+          },
+          {
+            "taskId": "task_m001_002",
+            "taskName": "誤差計算",
+            "sampleNumber": "Sample-001",
+            "notes": "温度誤差の算出と記録",
+            "status": "not_started",
+            "progressReport": "",
+            "recordNumber": ""
+          },
+          {
+            "taskId": "task_m001_003",
+            "taskName": "レポート作成",
+            "sampleNumber": "Sample-001",
+            "notes": "キャリブレーション結果のまとめ",
+            "status": "not_started",
+            "progressReport": "",
+            "recordNumber": ""
+          }
+        ],
         "transitions": [
           {
             "transitionId": "t001",
@@ -616,3 +647,115 @@ export const projectsData: Record<string, ProjectData> = {
     "progressData": []
   }
 };
+
+// ===== Phase 2: 統計情報計算ロジック =====
+
+/**
+ * タスクリストから統計情報を計算する
+ * @param tasks タスクリスト
+ * @returns 統計情報
+ */
+export function calculateWorkflowStatistics(tasks: Task[]): WorkflowStatistics {
+  if (!tasks || tasks.length === 0) {
+    return {
+      notStarted: 0,
+      started: 0,
+      inProgress: 0,
+      completed: 0,
+      progressRate: 0
+    };
+  }
+
+  const notStarted = tasks.filter(task => task.status === 'not_started').length;
+  const started = tasks.filter(task => task.status === 'started').length;
+  const inProgress = tasks.filter(task => task.status === 'in_progress').length;
+  const completed = tasks.filter(task => task.status === 'completed').length;
+  const forcedTerminated = tasks.filter(task => task.status === 'forced_terminated').length;
+  const suspended = tasks.filter(task => task.status === 'suspended').length;
+
+  // 進捗率の計算
+  // 完了したタスク / 全タスク * 100
+  const totalTasks = tasks.length;
+  const progressRate = totalTasks > 0 
+    ? Math.round((completed / totalTasks) * 100) 
+    : 0;
+
+  return {
+    notStarted,
+    started,
+    inProgress,
+    completed,
+    progressRate
+  };
+}
+
+/**
+ * プロジェクトIDとメソッドIDからタスクリストを取得する
+ * @param projectId プロジェクトID
+ * @param methodId メソッドID
+ * @returns タスクリスト（見つからない場合は空配列）
+ */
+export function getTasksByProjectAndMethod(
+  projectId: string, 
+  methodId: string
+): Task[] {
+  const project = projectsData[projectId];
+  if (!project || !project.methods) {
+    return [];
+  }
+
+  const method = project.methods.find(m => m.methodId === methodId);
+  if (!method || !method.tasks) {
+    return [];
+  }
+
+  return method.tasks;
+}
+
+/**
+ * タスクのステータスを更新する（モック用）
+ * @param projectId プロジェクトID
+ * @param methodId メソッドID
+ * @param taskId タスクID
+ * @param newStatus 新しいステータス
+ * @returns 更新後のタスクリスト
+ */
+export function updateTaskStatus(
+  projectId: string,
+  methodId: string,
+  taskId: string,
+  newStatus: Task['status']
+): Task[] {
+  const project = projectsData[projectId];
+  if (!project || !project.methods) {
+    return [];
+  }
+
+  const method = project.methods.find(m => m.methodId === methodId);
+  if (!method || !method.tasks) {
+    return [];
+  }
+
+  const taskIndex = method.tasks.findIndex(t => t.taskId === taskId);
+  if (taskIndex === -1) {
+    return method.tasks;
+  }
+
+  // タスクステータスを更新
+  method.tasks[taskIndex].status = newStatus;
+
+  // ステータスに応じて実験記録番号を生成
+  if (newStatus === 'started' && !method.tasks[taskIndex].recordNumber) {
+    const timestamp = new Date().getTime();
+    method.tasks[taskIndex].recordNumber = `EXP-${timestamp}`;
+  }
+
+  // 進捗報告フラグを更新
+  if (newStatus === 'started' || newStatus === 'in_progress') {
+    if (!method.tasks[taskIndex].progressReport) {
+      method.tasks[taskIndex].progressReport = '実験記録報告';
+    }
+  }
+
+  return [...method.tasks];
+}
