@@ -8,7 +8,7 @@ export const theme: ThemeConfig = {
   token: {
     // カラー
     colorPrimary: '#CF0027',
-    colorInfo: '#1976d2',
+    colorInfo: '#0093CF',
     colorSuccess: '#2e7d32',
     colorWarning: '#ed6c02',
     colorError: '#d32f2f',
@@ -163,8 +163,8 @@ export const theme: ThemeConfig = {
       defaultColor: '#212121',
     },
     Alert: {
-      colorInfoBg: '#E3F2FD',
-      colorInfoBorder: '#0288d1',
+      colorInfoBg: '#E6F7FC',
+      colorInfoBorder: '#0093CF',
       colorSuccessBg: '#E8F5E9',
       colorSuccessBorder: '#2e7d32',
       colorWarningBg: '#FFF4E5',

@@ -1,0 +1,23 @@
+{
+  "lastUpdated": "2025/12/3 10:40:09",
+  "statistics": {
+    "storage": {
+      "used": 0.0773,
+      "total": 999.0000,
+      "unit": "GB",
+      "usageRate": 0.01,
+      "fileCount": 75,
+      "maimlFileCount": 14
+    },
+    "projects": {
+      "count": 14,
+      "total": 999,
+      "registrationRate": 1.40
+    },
+    "activeUsers": {
+      "count": 4,
+      "total": 999,
+      "registrationRate": 0.40
+    }
+  }
+}

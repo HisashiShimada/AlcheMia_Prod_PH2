@@ -23,11 +23,11 @@ token: {
 
 ### セカンダリカラー（青系 - タブインジケーターなど）
 ```typescript
-colorInfo: '#1976d2',           // セカンダリブルー
-colorInfoHover: '#42a5f5',      // ライトブルー
-colorInfoActive: '#1565c0',     // ダークブルー
-colorInfoBg: '#E3F2FD',
-colorInfoBorder: '#1976d2'
+colorInfo: '#0093CF',           // セカンダリブルー
+colorInfoHover: '#33ACD9',      // ライトブルー
+colorInfoActive: '#007AB3',     // ダークブルー
+colorInfoBg: '#E6F7FC',
+colorInfoBorder: '#0093CF'
 ```
 
 ### 背景カラー
@@ -63,9 +63,9 @@ colorWarning: '#ed6c02',        // 警告メッセージ
 colorWarningBg: '#FFF4E5',      // 警告背景
 colorWarningBorder: '#ed6c02',  // 警告ボーダー
 
-colorInfo: '#0288d1',           // 情報メッセージ
-colorInfoBg: '#E3F2FD',         // 情報背景
-colorInfoBorder: '#0288d1'      // 情報ボーダー
+colorInfo: '#0093CF',           // 情報メッセージ
+colorInfoBg: '#E6F7FC',         // 情報背景
+colorInfoBorder: '#0093CF'      // 情報ボーダー
 ```
 
 ### 境界線・分割線
@@ -257,7 +257,7 @@ Select
   - Avatar背景色: `#CF0027`（赤、アクセントカラー）
   
 - **SubHeader（2段目）**
-  - 背景色: `#1976d2`（青、プライマリカラー）
+  - 背景色: `#0093CF`（青、プライマリカラー）
   - 高さ: `48px`
   - テキスト色: `white`
   
@@ -513,7 +513,7 @@ export const theme: ThemeConfig = {
   token: {
     // カラー
     colorPrimary: '#CF0027',
-    colorInfo: '#1976d2',
+    colorInfo: '#0093CF',
     colorSuccess: '#2e7d32',
     colorWarning: '#ed6c02',
     colorError: '#d32f2f',

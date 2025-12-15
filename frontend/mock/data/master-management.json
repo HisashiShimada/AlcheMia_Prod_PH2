@@ -1,0 +1,52 @@
+[
+  {
+    "id": "1",
+    "instrumentId": "AAA112",
+    "instrumentName": "Aタ光管",
+    "vendorId": "COS12345",
+    "typeId": "K001",
+    "attributeId": "A01",
+    "updatedAt": "202512080000",
+    "isActive": false
+  },
+  {
+    "id": "2",
+    "instrumentId": "ABC552",
+    "instrumentName": "β線検電機",
+    "vendorId": "COS12346",
+    "typeId": "RI89",
+    "attributeId": "B02",
+    "updatedAt": "202512080000",
+    "isActive": true
+  },
+  {
+    "id": "3",
+    "instrumentId": "VFG562",
+    "instrumentName": "MS質量分析器",
+    "vendorId": "COS123457",
+    "typeId": "BS22",
+    "attributeId": "C05",
+    "updatedAt": "202512080000",
+    "isActive": false
+  },
+  {
+    "id": "4",
+    "instrumentId": "LOP996",
+    "instrumentName": "zzハイブリグクター",
+    "vendorId": "COS123458",
+    "typeId": "ZO66",
+    "attributeId": "G11",
+    "updatedAt": "202512080000",
+    "isActive": false
+  },
+  {
+    "id": "5",
+    "instrumentId": "DFG755",
+    "instrumentName": "VBオシロスコープ",
+    "vendorId": "COS123459",
+    "typeId": "EQ05",
+    "attributeId": "H89",
+    "updatedAt": "202512080000",
+    "isActive": false
+  }
+]

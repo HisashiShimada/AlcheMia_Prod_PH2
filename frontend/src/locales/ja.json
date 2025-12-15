@@ -35,33 +35,22 @@
       "title": "プロバイダーメニュー",
       "tabs": {
         "organizationManagement": "組織管理",
-        "userManagement": "ユーザー管理",
-        "systemSettings": "システム設定",
-        "auditLog": "監査ログ",
-        "storageManagement": "ストレージ管理",
-        "statistics": "統計情報"
+        "informationDownload": "情報ダウンロード"
       }
     },
     "system_admin": {
       "title": "システム管理者メニュー",
       "tabs": {
+        "systemOverview": "システム概要",
+        "organizationStatistics": "組織統計情報",
         "userManagement": "ユーザー管理",
-        "organizationSettings": "組織設定",
-        "fileManagement": "ファイル管理",
-        "experimentList": "実験一覧",
-        "statistics": "統計情報",
-        "auditLog": "監査ログ"
+        "sessionManagement": "セッション管理"
       }
     },
     "data_admin": {
       "title": "データ管理者メニュー",
       "tabs": {
-        "fileManagement": "ファイル管理",
-        "maimlEditor": "MAIML編集",
-        "dataSearch": "データ検索",
-        "experimentList": "実験一覧",
-        "dataExport": "データエクスポート",
-        "statistics": "統計情報"
+        "masterManagement": "マスタ管理"
       }
     },
     "experiment_admin": {

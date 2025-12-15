@@ -24,9 +24,9 @@ const SubHeaderContainer = styled.div`
   left: 0;
   right: 0;
   z-index: 999;
-  background-color: #1976d2;
+  background-color: #0093CF;
   color: white;
-  border-bottom: 1px solid #1565c0;
+  border-bottom: 1px solid #007AB3;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
 
@@ -298,7 +298,6 @@ export default function SubHeader({
                         height: 36,
                         paddingLeft: 16,
                         paddingRight: 16,
-                        transition: 'all 0.3s ease',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.borderColor = 'white';
