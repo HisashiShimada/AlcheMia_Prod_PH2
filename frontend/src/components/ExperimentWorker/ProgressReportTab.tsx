@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card, Space, Typography } from 'antd';
+import { Card, Space, Typography, theme } from 'antd';
 import { BarChartOutlined } from '@ant-design/icons';
 import ProjectSelector from './ProjectSelector';
 import MethodSelector from './MethodSelector';
@@ -11,6 +11,11 @@ import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;
+
+/**
+ * 空状態アイコンのサイズ（UIポリシー準拠）
+ */
+const EMPTY_ICON_SIZE = 48;
 
 /**
  * 進捗報告タブのProps
@@ -37,6 +42,9 @@ export default function ProgressReportTab({
   onSelectTask,
   selectedMethod,
 }: ProgressReportTabProps) {
+  // テーマトークンを取得（UIポリシー準拠）
+  const { token } = theme.useToken();
+
   // 選択したプロジェクトとメソッドに基づいてトランジションをフィルタリング
   const getFilteredProgressData = () => {
     if (!selectedProject) {
@@ -61,7 +69,7 @@ export default function ProgressReportTab({
   return (
     <>
       {/* プロジェクト選択とメソッド選択 */}
-      <Card style={{ marginBottom: 24 }}>
+      <Card style={{ marginBottom: token.marginLG }}>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           {/* プロジェクト選択 */}
           <ProjectSelector
@@ -88,8 +96,8 @@ export default function ProgressReportTab({
 
       {!selectedProject ? (
         <Card>
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: '64px 0' }}>
-            <BarChartOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <BarChartOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
               📊 進捗報告
             </Title>
@@ -100,8 +108,8 @@ export default function ProgressReportTab({
         </Card>
       ) : !selectedMethodId ? (
         <Card>
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: '64px 0' }}>
-            <BarChartOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <BarChartOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
               📊 進捗報告
             </Title>

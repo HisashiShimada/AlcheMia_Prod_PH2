@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card, Space, Typography } from 'antd';
+import { Card, Space, Typography, theme } from 'antd';
 import { ExperimentOutlined } from '@ant-design/icons';
 import ProjectSelector from './ProjectSelector';
 import MethodSelector from './MethodSelector';
@@ -11,6 +11,11 @@ import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;
+
+/**
+ * 空状態アイコンのサイズ（UIポリシー準拠）
+ */
+const EMPTY_ICON_SIZE = 48;
 
 /**
  * 実験記録タブのProps
@@ -39,10 +44,13 @@ export default function ExperimentRecordTab({
   onTaskCreated,
   selectedMethod,
 }: ExperimentRecordTabProps) {
+  // テーマトークンを取得（UIポリシー準拠）
+  const { token } = theme.useToken();
+
   return (
     <>
       {/* プロジェクト選択とメソッド選択 */}
-      <Card style={{ marginBottom: 24 }}>
+      <Card style={{ marginBottom: token.marginLG }}>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           {/* プロジェクト選択 */}
           <ProjectSelector
@@ -69,8 +77,8 @@ export default function ExperimentRecordTab({
 
       {!selectedProject ? (
         <Card>
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: '64px 0' }}>
-            <ExperimentOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
               🧪 実験記録
             </Title>

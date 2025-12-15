@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card, Typography, Space } from 'antd';
+import { Card, Typography, Space, theme } from 'antd';
 import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
 import ProjectSelector from './ProjectSelector';
 import InstructionStats from './InstructionStats';
@@ -9,6 +9,11 @@ import InstructionGroup from './InstructionGroup';
 import { Stats, Instruction } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;
+
+/**
+ * 空状態アイコンのサイズ（UIポリシー準拠）
+ */
+const EMPTY_ICON_SIZE = 48;
 
 /**
  * 指示確認タブのProps
@@ -35,6 +40,9 @@ export default function InstructionConfirmationTab({
   expandedGroups,
   toggleGroup,
 }: InstructionConfirmationTabProps) {
+  // テーマトークンを取得（UIポリシー準拠）
+  const { token } = theme.useToken();
+
   return (
     <>
       {/* プロジェクト選択 */}
@@ -45,10 +53,10 @@ export default function InstructionConfirmationTab({
 
       {!selectedProject ? (
         <Card>
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: '64px 0' }}>
-            <FileTextOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <FileTextOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
-              <FileTextOutlined style={{ marginRight: 8 }} />
+              <FileTextOutlined style={{ marginRight: token.marginXS }} />
               指示確認
             </Title>
             <Text type="secondary">
@@ -62,19 +70,19 @@ export default function InstructionConfirmationTab({
           <InstructionStats stats={stats} />
 
           {/* 全体指示グループ */}
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: token.marginXL }}>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: 8,
+                padding: token.marginXS,
                 cursor: 'pointer',
-                borderRadius: 4,
+                borderRadius: token.borderRadiusSM,
               }}
               onClick={() => toggleGroup('file')}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f5f5f5';
+                e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -82,14 +90,14 @@ export default function InstructionConfirmationTab({
             >
               <Title level={4} style={{ margin: 0 }}>
                 {expandedGroups['file'] ? <DownOutlined /> : <RightOutlined />}{' '}
-                <FileOutlined style={{ marginRight: 8 }} />
+                <FileOutlined style={{ marginRight: token.marginXS }} />
                 全体指示 (
                 {sortedInstructions.filter((i) => i.targetType === 'file').length}
                 件)
               </Title>
             </div>
             {expandedGroups['file'] && (
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: token.margin }}>
                 <InstructionGroup
                   title="全体指示"
                   emoji="file"
@@ -103,19 +111,19 @@ export default function InstructionConfirmationTab({
           </div>
 
           {/* メソッド単位指示グループ */}
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: token.marginXL }}>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: 8,
+                padding: token.marginXS,
                 cursor: 'pointer',
-                borderRadius: 4,
+                borderRadius: token.borderRadiusSM,
               }}
               onClick={() => toggleGroup('method')}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f5f5f5';
+                e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -123,7 +131,7 @@ export default function InstructionConfirmationTab({
             >
               <Title level={4} style={{ margin: 0 }}>
                 {expandedGroups['method'] ? <DownOutlined /> : <RightOutlined />}{' '}
-                <ToolOutlined style={{ marginRight: 8 }} />
+                <ToolOutlined style={{ marginRight: token.marginXS }} />
                 メソッド単位指示 (
                 {
                   sortedInstructions.filter((i) => i.targetType === 'method')
@@ -133,7 +141,7 @@ export default function InstructionConfirmationTab({
               </Title>
             </div>
             {expandedGroups['method'] && (
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: token.margin }}>
                 <InstructionGroup
                   title="メソッド単位指示"
                   emoji="tool"
@@ -147,19 +155,19 @@ export default function InstructionConfirmationTab({
           </div>
 
           {/* トランジション単位指示グループ */}
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: token.marginXL }}>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: 8,
+                padding: token.marginXS,
                 cursor: 'pointer',
-                borderRadius: 4,
+                borderRadius: token.borderRadiusSM,
               }}
               onClick={() => toggleGroup('transition')}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f5f5f5';
+                e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -167,7 +175,7 @@ export default function InstructionConfirmationTab({
             >
               <Title level={4} style={{ margin: 0 }}>
                 {expandedGroups['transition'] ? <DownOutlined /> : <RightOutlined />}{' '}
-                <AimOutlined style={{ marginRight: 8 }} />
+                <AimOutlined style={{ marginRight: token.marginXS }} />
                 トランジション単位指示 (
                 {
                   sortedInstructions.filter(
@@ -178,7 +186,7 @@ export default function InstructionConfirmationTab({
               </Title>
             </div>
             {expandedGroups['transition'] && (
-              <div style={{ marginTop: 16 }}>
+              <div style={{ marginTop: token.margin }}>
                 <InstructionGroup
                   title="トランジション単位指示"
                   emoji="aim"
