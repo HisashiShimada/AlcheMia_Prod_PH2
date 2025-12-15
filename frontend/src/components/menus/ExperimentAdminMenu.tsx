@@ -3,12 +3,8 @@
 import React, { useState } from 'react';
 import { Layout, Card, Typography } from 'antd';
 import {
-  ExperimentOutlined,
   UserSwitchOutlined,
   LineChartOutlined,
-  EditOutlined,
-  FolderOutlined,
-  BarChartOutlined,
   FileTextOutlined,
   FolderAddOutlined,
 } from '@ant-design/icons';
@@ -16,6 +12,8 @@ import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
 import ProjectManagement from '../project/ProjectManagement';
 import FormatManagement from '../project/FormatManagement';
+import ProgressMonitoring from '../progress/ProgressMonitoring';
+import WorkerManagement from '../worker/WorkerManagement';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -58,28 +56,13 @@ export default function ExperimentAdminMenu({
     },
     {
       key: '3',
-      label: t('menu.experiment_admin.tabs.workerAssignment') || 'ワーカー割当',
-      icon: <UserSwitchOutlined />,
-    },
-    {
-      key: '4',
-      label: t('menu.experiment_admin.tabs.progressManagement') || '進捗管理',
+      label: t('menu.experiment_admin.tabs.progressMonitoring') || '進捗確認',
       icon: <LineChartOutlined />,
     },
     {
-      key: '5',
-      label: t('menu.experiment_admin.tabs.maimlEditor') || 'MAIML編集',
-      icon: <EditOutlined />,
-    },
-    {
-      key: '6',
-      label: t('menu.experiment_admin.tabs.fileManagement') || 'ファイル管理',
-      icon: <FolderOutlined />,
-    },
-    {
-      key: '7',
-      label: t('menu.experiment_admin.tabs.statistics') || '統計情報',
-      icon: <BarChartOutlined />,
+      key: '4',
+      label: t('menu.experiment_admin.tabs.workerManagement') || '作業者管理',
+      icon: <UserSwitchOutlined />,
     },
   ];
 
@@ -95,8 +78,8 @@ export default function ExperimentAdminMenu({
 
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
-  // タブ '1' と '2' は全幅表示、その他はカード内に表示
-  const isFullWidthTab = currentTab === '1' || currentTab === '2';
+  // タブ '1', '2', '3', '4' は全幅表示
+  const isFullWidthTab = currentTab === '1' || currentTab === '2' || currentTab === '3' || currentTab === '4';
 
   return (
     <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
@@ -129,29 +112,17 @@ export default function ExperimentAdminMenu({
           <div style={{ height: '100%', overflow: 'hidden' }}>
             <FormatManagement />
           </div>
-        ) : (
-          // その他のタブ: カード内に表示
-          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-            <Card
-              style={{
-                minHeight: 400,
-                borderRadius: 12,
-              }}
-              styles={{
-                body: {
-                  padding: 24,
-                },
-              }}
-            >
-              <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
-                {currentTabLabel}
-              </Title>
-              <Text type="secondary">
-                {t('content.notImplemented') || 'コンテンツエリア（未実装）'}
-              </Text>
-            </Card>
+        ) : currentTab === '3' ? (
+          // 進捗確認: 全幅表示
+          <div style={{ height: '100%', overflow: 'auto' }}>
+            <ProgressMonitoring />
           </div>
-        )}
+        ) : currentTab === '4' ? (
+          // 作業者管理: 全幅表示
+          <div style={{ height: '100%', overflow: 'auto' }}>
+            <WorkerManagement />
+          </div>
+        ) : null}
       </Content>
     </Layout>
   );

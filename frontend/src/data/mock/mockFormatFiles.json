@@ -1,0 +1,448 @@
+{
+  "files": {
+    "format_001": {
+      "root": [
+        {
+          "id": "xml_001_001",
+          "name": "基本実験プロトコル.xml",
+          "path": "experiment_protocols/基本実験プロトコル.xml",
+          "size": 15234,
+          "lastModified": "2024-12-01T14:30:00Z",
+          "type": "xml",
+          "version": "1.2",
+          "description": "標準的な実験手順を定義したプロトコル"
+        },
+        {
+          "id": "xml_001_002",
+          "name": "高温実験プロトコル.xml",
+          "path": "experiment_protocols/高温実験プロトコル.xml",
+          "size": 18456,
+          "lastModified": "2024-11-28T10:15:00Z",
+          "type": "xml",
+          "version": "1.1",
+          "description": "高温環境下での実験手順"
+        },
+        {
+          "id": "xml_001_003",
+          "name": "低温実験プロトコル.xml",
+          "path": "experiment_protocols/低温実験プロトコル.xml",
+          "size": 17890,
+          "lastModified": "2024-11-25T16:20:00Z",
+          "type": "xml",
+          "version": "1.0",
+          "description": "低温環境下での実験手順"
+        },
+        {
+          "id": "xml_001_004",
+          "name": "圧力制御プロトコル.xml",
+          "path": "experiment_protocols/圧力制御プロトコル.xml",
+          "size": 20345,
+          "lastModified": "2024-11-20T09:45:00Z",
+          "type": "xml",
+          "version": "1.3",
+          "description": "圧力制御を伴う実験手順"
+        },
+        {
+          "id": "xml_001_005",
+          "name": "真空環境プロトコル.xml",
+          "path": "experiment_protocols/真空環境プロトコル.xml",
+          "size": 19567,
+          "lastModified": "2024-11-15T13:00:00Z",
+          "type": "xml",
+          "version": "1.0",
+          "description": "真空環境下での実験手順"
+        }
+      ]
+    },
+    "format_002": {
+      "root": [
+        {
+          "id": "xml_002_001",
+          "name": "金属材料データ.xml",
+          "path": "material_data/金属材料データ.xml",
+          "size": 25678,
+          "lastModified": "2024-11-28T16:45:00Z",
+          "type": "xml",
+          "version": "2.0",
+          "description": "金属材料の物性データフォーマット"
+        },
+        {
+          "id": "xml_002_002",
+          "name": "セラミック材料データ.xml",
+          "path": "material_data/セラミック材料データ.xml",
+          "size": 23456,
+          "lastModified": "2024-11-25T14:20:00Z",
+          "type": "xml",
+          "version": "1.5",
+          "description": "セラミック材料の物性データフォーマット"
+        },
+        {
+          "id": "xml_002_003",
+          "name": "高分子材料データ.xml",
+          "path": "material_data/高分子材料データ.xml",
+          "size": 21234,
+          "lastModified": "2024-11-22T11:30:00Z",
+          "type": "xml",
+          "version": "1.8",
+          "description": "高分子材料の物性データフォーマット"
+        },
+        {
+          "id": "xml_002_004",
+          "name": "複合材料データ.xml",
+          "path": "material_data/複合材料データ.xml",
+          "size": 28901,
+          "lastModified": "2024-11-20T09:15:00Z",
+          "type": "xml",
+          "version": "1.3",
+          "description": "複合材料の物性データフォーマット"
+        },
+        {
+          "id": "xml_002_005",
+          "name": "表面処理データ.xml",
+          "path": "material_data/表面処理データ.xml",
+          "size": 19876,
+          "lastModified": "2024-11-18T15:45:00Z",
+          "type": "xml",
+          "version": "1.1",
+          "description": "表面処理情報のデータフォーマット"
+        },
+        {
+          "id": "xml_002_006",
+          "name": "結晶構造データ.xml",
+          "path": "material_data/結晶構造データ.xml",
+          "size": 26543,
+          "lastModified": "2024-11-15T10:00:00Z",
+          "type": "xml",
+          "version": "2.1",
+          "description": "結晶構造情報のデータフォーマット"
+        },
+        {
+          "id": "xml_002_007",
+          "name": "電気特性データ.xml",
+          "path": "material_data/電気特性データ.xml",
+          "size": 22345,
+          "lastModified": "2024-11-10T14:30:00Z",
+          "type": "xml",
+          "version": "1.6",
+          "description": "電気的特性のデータフォーマット"
+        },
+        {
+          "id": "xml_002_008",
+          "name": "機械特性データ.xml",
+          "path": "material_data/機械特性データ.xml",
+          "size": 24567,
+          "lastModified": "2024-11-05T16:20:00Z",
+          "type": "xml",
+          "version": "1.7",
+          "description": "機械的特性のデータフォーマット"
+        }
+      ]
+    },
+    "format_003": {
+      "root": [
+        {
+          "id": "xml_003_001",
+          "name": "XRD測定データ.maiml",
+          "path": "measurement_data/XRD測定データ.maiml",
+          "size": 32145,
+          "lastModified": "2024-12-05T10:20:00Z",
+          "type": "maiml",
+          "version": "2.3",
+          "description": "X線回折測定データのフォーマット"
+        },
+        {
+          "id": "xml_003_002",
+          "name": "SEM観察データ.maiml",
+          "path": "measurement_data/SEM観察データ.maiml",
+          "size": 28934,
+          "lastModified": "2024-12-03T14:15:00Z",
+          "type": "maiml",
+          "version": "2.0",
+          "description": "走査型電子顕微鏡観察データのフォーマット"
+        },
+        {
+          "id": "xml_003_003",
+          "name": "TEM観察データ.maiml",
+          "path": "measurement_data/TEM観察データ.maiml",
+          "size": 30567,
+          "lastModified": "2024-12-01T11:30:00Z",
+          "type": "maiml",
+          "version": "1.9",
+          "description": "透過型電子顕微鏡観察データのフォーマット"
+        },
+        {
+          "id": "xml_003_004",
+          "name": "AFM測定データ.maiml",
+          "path": "measurement_data/AFM測定データ.maiml",
+          "size": 27890,
+          "lastModified": "2024-11-28T09:45:00Z",
+          "type": "maiml",
+          "version": "1.5",
+          "description": "原子間力顕微鏡測定データのフォーマット"
+        },
+        {
+          "id": "xml_003_005",
+          "name": "ラマン分光データ.maiml",
+          "path": "measurement_data/ラマン分光データ.maiml",
+          "size": 25678,
+          "lastModified": "2024-11-25T13:20:00Z",
+          "type": "maiml",
+          "version": "1.7",
+          "description": "ラマン分光測定データのフォーマット"
+        },
+        {
+          "id": "xml_003_006",
+          "name": "IR分光データ.maiml",
+          "path": "measurement_data/IR分光データ.maiml",
+          "size": 24567,
+          "lastModified": "2024-11-22T15:00:00Z",
+          "type": "maiml",
+          "version": "1.6",
+          "description": "赤外分光測定データのフォーマット"
+        },
+        {
+          "id": "xml_003_007",
+          "name": "熱分析データ.maiml",
+          "path": "measurement_data/熱分析データ.maiml",
+          "size": 26789,
+          "lastModified": "2024-11-20T10:30:00Z",
+          "type": "maiml",
+          "version": "1.8",
+          "description": "示差熱分析・熱重量分析データのフォーマット"
+        },
+        {
+          "id": "xml_003_008",
+          "name": "硬度測定データ.maiml",
+          "path": "measurement_data/硬度測定データ.maiml",
+          "size": 22345,
+          "lastModified": "2024-11-18T14:45:00Z",
+          "type": "maiml",
+          "version": "1.4",
+          "description": "各種硬度試験データのフォーマット"
+        },
+        {
+          "id": "xml_003_009",
+          "name": "引張試験データ.maiml",
+          "path": "measurement_data/引張試験データ.maiml",
+          "size": 23456,
+          "lastModified": "2024-11-15T16:20:00Z",
+          "type": "maiml",
+          "version": "1.5",
+          "description": "引張試験測定データのフォーマット"
+        },
+        {
+          "id": "xml_003_010",
+          "name": "圧縮試験データ.maiml",
+          "path": "measurement_data/圧縮試験データ.maiml",
+          "size": 22890,
+          "lastModified": "2024-11-12T11:00:00Z",
+          "type": "maiml",
+          "version": "1.4",
+          "description": "圧縮試験測定データのフォーマット"
+        },
+        {
+          "id": "xml_003_011",
+          "name": "電気抵抗測定データ.maiml",
+          "path": "measurement_data/電気抵抗測定データ.maiml",
+          "size": 21234,
+          "lastModified": "2024-11-10T09:30:00Z",
+          "type": "maiml",
+          "version": "1.3",
+          "description": "電気抵抗測定データのフォーマット"
+        },
+        {
+          "id": "xml_003_012",
+          "name": "磁気特性測定データ.maiml",
+          "path": "measurement_data/磁気特性測定データ.maiml",
+          "size": 25123,
+          "lastModified": "2024-11-08T15:15:00Z",
+          "type": "maiml",
+          "version": "1.6",
+          "description": "磁気特性測定データのフォーマット"
+        }
+      ]
+    },
+    "format_004": {
+      "root": [
+        {
+          "id": "xml_004_001",
+          "name": "統計解析結果.maiml",
+          "path": "analysis_results/統計解析結果.maiml",
+          "size": 29876,
+          "lastModified": "2024-12-08T09:15:00Z",
+          "type": "maiml",
+          "version": "2.1",
+          "description": "統計解析結果のレポートフォーマット"
+        },
+        {
+          "id": "xml_004_002",
+          "name": "機械学習解析結果.maiml",
+          "path": "analysis_results/機械学習解析結果.maiml",
+          "size": 35678,
+          "lastModified": "2024-12-05T14:30:00Z",
+          "type": "maiml",
+          "version": "1.8",
+          "description": "機械学習による解析結果フォーマット"
+        },
+        {
+          "id": "xml_004_003",
+          "name": "相関分析結果.maiml",
+          "path": "analysis_results/相関分析結果.maiml",
+          "size": 27890,
+          "lastModified": "2024-12-03T11:45:00Z",
+          "type": "maiml",
+          "version": "1.5",
+          "description": "変数間の相関分析結果フォーマット"
+        },
+        {
+          "id": "xml_004_004",
+          "name": "回帰分析結果.maiml",
+          "path": "analysis_results/回帰分析結果.maiml",
+          "size": 28567,
+          "lastModified": "2024-12-01T10:20:00Z",
+          "type": "maiml",
+          "version": "1.6",
+          "description": "回帰分析結果のフォーマット"
+        },
+        {
+          "id": "xml_004_005",
+          "name": "クラスタリング結果.maiml",
+          "path": "analysis_results/クラスタリング結果.maiml",
+          "size": 31234,
+          "lastModified": "2024-11-28T16:00:00Z",
+          "type": "maiml",
+          "version": "1.7",
+          "description": "クラスタリング分析結果フォーマット"
+        },
+        {
+          "id": "xml_004_006",
+          "name": "最適化結果.maiml",
+          "path": "analysis_results/最適化結果.maiml",
+          "size": 33456,
+          "lastModified": "2024-11-25T13:30:00Z",
+          "type": "maiml",
+          "version": "1.9",
+          "description": "パラメータ最適化結果のフォーマット"
+        }
+      ]
+    },
+    "format_005": {
+      "root": [
+        {
+          "id": "xml_005_001",
+          "name": "試料基本情報.maiml",
+          "path": "sample_info/試料基本情報.maiml",
+          "size": 18234,
+          "lastModified": "2024-11-25T15:00:00Z",
+          "type": "maiml",
+          "version": "1.4",
+          "description": "試料の基本情報を記録するフォーマット"
+        },
+        {
+          "id": "xml_005_002",
+          "name": "試料調製履歴.maiml",
+          "path": "sample_info/試料調製履歴.maiml",
+          "size": 20567,
+          "lastModified": "2024-11-22T10:30:00Z",
+          "type": "maiml",
+          "version": "1.3",
+          "description": "試料調製プロセスの履歴フォーマット"
+        },
+        {
+          "id": "xml_005_003",
+          "name": "試料保管情報.maiml",
+          "path": "sample_info/試料保管情報.maiml",
+          "size": 17890,
+          "lastModified": "2024-11-20T14:15:00Z",
+          "type": "maiml",
+          "version": "1.2",
+          "description": "試料の保管状態を記録するフォーマット"
+        },
+        {
+          "id": "xml_005_004",
+          "name": "試料品質管理.maiml",
+          "path": "sample_info/試料品質管理.maiml",
+          "size": 19456,
+          "lastModified": "2024-11-18T11:45:00Z",
+          "type": "maiml",
+          "version": "1.1",
+          "description": "試料の品質管理情報フォーマット"
+        }
+      ]
+    },
+    "format_006": {
+      "root": [
+        {
+          "id": "xml_006_001",
+          "name": "XRD装置設定.maiml",
+          "path": "device_settings/XRD装置設定.maiml",
+          "size": 22345,
+          "lastModified": "2024-12-02T11:30:00Z",
+          "type": "maiml",
+          "version": "1.8",
+          "description": "X線回折装置の設定パラメータ"
+        },
+        {
+          "id": "xml_006_002",
+          "name": "SEM装置設定.maiml",
+          "path": "device_settings/SEM装置設定.maiml",
+          "size": 21234,
+          "lastModified": "2024-11-30T09:45:00Z",
+          "type": "maiml",
+          "version": "1.6",
+          "description": "走査型電子顕微鏡の設定パラメータ"
+        },
+        {
+          "id": "xml_006_003",
+          "name": "熱分析装置設定.maiml",
+          "path": "device_settings/熱分析装置設定.maiml",
+          "size": 20123,
+          "lastModified": "2024-11-28T14:20:00Z",
+          "type": "maiml",
+          "version": "1.5",
+          "description": "熱分析装置の設定パラメータ"
+        },
+        {
+          "id": "xml_006_004",
+          "name": "分光光度計設定.maiml",
+          "path": "device_settings/分光光度計設定.maiml",
+          "size": 19567,
+          "lastModified": "2024-11-25T16:00:00Z",
+          "type": "maiml",
+          "version": "1.4",
+          "description": "分光光度計の設定パラメータ"
+        },
+        {
+          "id": "xml_006_005",
+          "name": "引張試験機設定.maiml",
+          "path": "device_settings/引張試験機設定.maiml",
+          "size": 18890,
+          "lastModified": "2024-11-22T10:30:00Z",
+          "type": "maiml",
+          "version": "1.3",
+          "description": "引張試験機の設定パラメータ"
+        },
+        {
+          "id": "xml_006_006",
+          "name": "環境制御装置設定.maiml",
+          "path": "device_settings/環境制御装置設定.maiml",
+          "size": 23456,
+          "lastModified": "2024-11-20T13:15:00Z",
+          "type": "maiml",
+          "version": "1.7",
+          "description": "温度・湿度制御装置の設定パラメータ"
+        },
+        {
+          "id": "xml_006_007",
+          "name": "データ収集システム設定.maiml",
+          "path": "device_settings/データ収集システム設定.maiml",
+          "size": 24567,
+          "lastModified": "2024-11-18T15:45:00Z",
+          "type": "maiml",
+          "version": "1.9",
+          "description": "データ収集システムの設定パラメータ"
+        }
+      ]
+    }
+  }
+}

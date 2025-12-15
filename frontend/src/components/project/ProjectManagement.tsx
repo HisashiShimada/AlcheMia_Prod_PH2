@@ -2,48 +2,47 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Box,
-  Typography,
-  TextField,
-  InputAdornment,
+  Card,
+  Input,
   Button,
-  FormControl,
-  InputLabel,
   Select,
-  MenuItem,
-  Checkbox,
-  FormControlLabel,
-  Paper,
-  Toolbar,
-  Divider,
-  Chip,
-} from '@mui/material';
-import { 
-  Search, 
-  Plus, 
-  RefreshCw, 
-  Upload, 
-  Edit, 
-  Download,
-  FileCheck,
-  Send,
-  LayoutGrid,
-  LayoutList,
-} from 'lucide-react';
+  Space,
+  Tag,
+  Tabs,
+  Typography,
+} from 'antd';
+import {
+  SearchOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  UploadOutlined,
+  EditOutlined,
+  DownloadOutlined,
+  FileTextOutlined,
+  SendOutlined,
+} from '@ant-design/icons';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
 import ProjectDetailModal from './ProjectDetailModal';
+import TaskResultsTable from './TaskResultsTable';
 import mockProjectsData from '@/data/mock/mockProjects.json';
 import mockFilesData from '@/data/mock/mockFiles.json';
+import mockTaskResultsData from '@/data/mock/mockTaskResults.json';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+const { Title, Text } = Typography;
 
 /**
  * プロジェクト管理画面メインコンポーネント
  */
 const ProjectManagement: React.FC = () => {
+  const { t } = useLanguage();
   const [projects, setProjects] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [ownerFilter, setOwnerFilter] = useState<string>('my_only'); // my_only, all
   const [checkoutFilter, setCheckoutFilter] = useState<string>('all'); // all, checked_in, checked_out
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>('all'); // all, planning, pending, in_progress, completed
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all'); // 初期値: 全部門
   const [showMaimlOnly, setShowMaimlOnly] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt'); // ソート項目
@@ -51,20 +50,68 @@ const ProjectManagement: React.FC = () => {
   const [currentFolder, setCurrentFolder] = useState<string>('root');
   const [modalOpen, setModalOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
+  const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
 
   // モックデータの読み込み
   useEffect(() => {
     setProjects(mockProjectsData.projects);
   }, []);
 
+  // ユニークな部門リストを取得
+  const departments = useMemo(() => {
+    const uniqueDepartments = Array.from(new Set(projects.map(p => p.department)));
+    return ['all', ...uniqueDepartments];
+  }, [projects]);
+
   // フィルタリングされたプロジェクト一覧
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
-      // 検索クエリでフィルタリング
+      // プロジェクトステータスの表示名を取得
+      const getProjectStatusLabel = (status: string) => {
+        switch (status) {
+          case 'planning':
+            return t('projectManagement.status_planning');
+          case 'pending':
+            return t('projectManagement.status_pending');
+          case 'in_progress':
+            return t('projectManagement.status_in_progress');
+          case 'review_waiting':
+            return t('projectManagement.status_review_waiting');
+          case 'completed':
+            return t('projectManagement.status_completed');
+          case 'error':
+            return t('projectManagement.status_error');
+          default:
+            return status;
+        }
+      };
+
+      // チェックアウトステータスの表示名を取得
+      const getCheckoutStatusLabel = (isCheckedOut: boolean) => {
+        if (isCheckedOut) {
+          return t('projectManagement.checking_out');
+        } else {
+          return t('projectManagement.checked_in');
+        }
+      };
+
+      const projectStatusLabel = getProjectStatusLabel(project.status);
+      const checkoutStatusLabel = getCheckoutStatusLabel(project.isCheckedOut);
+
+      // 検索クエリでフィルタリング - すべての項目を対象（表示名も含む）
       const matchesSearch =
         searchQuery === '' ||
+        project.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
         project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.folderName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        projectStatusLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        checkoutStatusLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.createdAt.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.updatedAt.toLowerCase().includes(searchQuery.toLowerCase()) ||
         project.tags.some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
 
       // チェックアウト状態でフィルタリング（プロジェクト単位）
@@ -85,6 +132,12 @@ const ProjectManagement: React.FC = () => {
         matchesProjectStatus = project.status === projectStatusFilter;
       }
 
+      // 部門でフィルタリング
+      let matchesDepartment = true;
+      if (departmentFilter !== 'all') {
+        matchesDepartment = project.department === departmentFilter;
+      }
+
       // MaiMLファイルフィルタ
       const matchesMaiml = !showMaimlOnly || (mockFilesData.files as any)[project.id]?.root?.some(
         (file: any) => file.type === 'maiml'
@@ -92,9 +145,9 @@ const ProjectManagement: React.FC = () => {
         (file: any) => file.type === 'maiml'
       );
 
-      return matchesSearch && matchesCheckout && matchesProjectStatus && matchesMaiml;
+      return matchesSearch && matchesCheckout && matchesProjectStatus && matchesDepartment && matchesMaiml;
     });
-  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, showMaimlOnly]);
+  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, departmentFilter, showMaimlOnly, t]);
 
   // ソート済みプロジェクト一覧
   const sortedProjects = useMemo(() => {
@@ -105,7 +158,7 @@ const ProjectManagement: React.FC = () => {
       if (sortBy === 'name') {
         comparison = a.name.localeCompare(b.name);
       } else if (sortBy === 'status') {
-        const statusOrder = { planning: 0, pending: 1, in_progress: 2, completed: 3 };
+        const statusOrder = { planning: 0, pending: 1, in_progress: 2, review_waiting: 3, completed: 4, error: 5 };
         comparison = (statusOrder[a.status as keyof typeof statusOrder] || 0) - (statusOrder[b.status as keyof typeof statusOrder] || 0);
       } else if (sortBy === 'createdAt') {
         comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -228,104 +281,160 @@ const ProjectManagement: React.FC = () => {
     return [];
   }, [selectedProjectId, currentFolder, selectedProject]);
 
+  // タスク結果一覧を取得
+  const taskResults = useMemo(() => {
+    if (!selectedProjectId) return [];
+    return (mockTaskResultsData.taskResults as any)[selectedProjectId] || [];
+  }, [selectedProjectId]);
+
+  // タスク結果確認ハンドラ
+  const handleViewTaskResult = useCallback((result: any) => {
+    console.log('View task result:', result);
+    // TODO: タスク結果詳細モーダルを表示
+  }, []);
+
   // プロジェクトがチェックアウト中かどうかを判定（プロジェクト単位）
   const isProjectCheckedOut = useMemo(() => {
     return selectedProject?.isCheckedOut === true;
   }, [selectedProject]);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: '#fafafa' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#fafafa' }}>
       {/* ツールバー */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-          px: 3,
-          py: 2,
+      <Card
+        bordered={false}
+        style={{
+          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+          borderRadius: 0,
         }}
+        bodyStyle={{ padding: '16px 24px' }}
       >
         {/* 検索・フィルタ */}
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          {/* 検索バー */}
-          <TextField
-            size="small"
-            placeholder="プロジェクト名で検索"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{ width: 250 }}
-          />
+        <Space direction="horizontal" size="small" wrap>
+          {/* 所有者絞込 */}
+          <Space size={4} direction="horizontal">
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+              {t('projectManagement.filter_labels.owner')}
+            </Text>
+            <Select
+              style={{ width: 150 }}
+              value={ownerFilter}
+              onChange={setOwnerFilter}
+              options={[
+                { value: 'my_only', label: t('projectManagement.my_only') },
+                { value: 'all', label: t('projectManagement.all_projects') },
+              ]}
+            />
+          </Space>
 
-          {/* 詳細検索ボタン */}
-          <Button variant="contained" size="small" color="primary">
-            詳細検索
-          </Button>
+          {/* 部門絞込 */}
+          <Space size={4} direction="horizontal">
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+              {t('projectManagement.filter_labels.department')}
+            </Text>
+            <Select
+              style={{ width: 150 }}
+              value={departmentFilter}
+              onChange={setDepartmentFilter}
+              options={[
+                { value: 'all', label: t('projectManagement.all') },
+                ...departments.filter(d => d !== 'all').map(dept => ({
+                  value: dept,
+                  label: dept,
+                })),
+              ]}
+            />
+          </Space>
 
           {/* プロジェクトステータス絞込 */}
-          <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel>プロジェクトステータス</InputLabel>
+          <Space size={4} direction="horizontal">
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+              {t('projectManagement.filter_labels.project_status')}
+            </Text>
             <Select
+              style={{ width: 200 }}
               value={projectStatusFilter}
-              label="プロジェクトステータス"
-              onChange={(e) => setProjectStatusFilter(e.target.value)}
-            >
-              <MenuItem value="all">全て</MenuItem>
-              <MenuItem value="planning">プロジェクト計画中</MenuItem>
-              <MenuItem value="pending">タスク実行待ち</MenuItem>
-              <MenuItem value="in_progress">タスク実行中</MenuItem>
-              <MenuItem value="completed">プロジェクト完了</MenuItem>
-            </Select>
-          </FormControl>
+              onChange={setProjectStatusFilter}
+              options={[
+                { value: 'all', label: t('projectManagement.all') },
+                { value: 'planning', label: t('projectManagement.status_planning') },
+                { value: 'pending', label: t('projectManagement.status_pending') },
+                { value: 'in_progress', label: t('projectManagement.status_in_progress') },
+                { value: 'review_waiting', label: t('projectManagement.status_review_waiting') },
+                { value: 'completed', label: t('projectManagement.status_completed') },
+                { value: 'error', label: t('projectManagement.status_error') },
+              ]}
+            />
+          </Space>
 
           {/* チェックアウトステータス絞込 */}
-          <FormControl size="small" sx={{ minWidth: 150 }}>
-            <InputLabel>チェックアウト</InputLabel>
+          <Space size={4} direction="horizontal">
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+              {t('projectManagement.filter_labels.checkout_status')}
+            </Text>
             <Select
+              style={{ width: 150 }}
               value={checkoutFilter}
-              label="チェックアウト"
-              onChange={(e) => setCheckoutFilter(e.target.value)}
-            >
-              <MenuItem value="all">全て</MenuItem>
-              <MenuItem value="checked_in">チェックイン済み</MenuItem>
-              <MenuItem value="checked_out">チェックアウト済み</MenuItem>
-            </Select>
-          </FormControl>
+              onChange={setCheckoutFilter}
+              options={[
+                { value: 'all', label: t('projectManagement.all') },
+                { value: 'checked_in', label: t('projectManagement.checked_in') },
+                { value: 'checked_out', label: t('projectManagement.checked_out') },
+              ]}
+            />
+          </Space>
 
-          <Box sx={{ flex: 1 }} />
+          {/* 検索バー */}
+          <Space size={4} direction="horizontal">
+            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+              {t('projectManagement.filter_labels.search')}
+            </Text>
+            <Input
+              prefix={<SearchOutlined />}
+              placeholder={t('projectManagement.filter_placeholder')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ width: 250 }}
+              allowClear
+            />
+          </Space>
+
+          {/* 詳細検索ボタン */}
+          <Button type="primary">
+            {t('projectManagement.advanced_search')}
+          </Button>
+
+          <div style={{ flex: 1 }} />
 
           {/* 右側のアクションボタン */}
           <Button
-            variant="contained"
-            size="small"
-            color="success"
-            startIcon={<Plus size={16} />}
+            type="primary"
+            icon={<PlusOutlined />}
+            style={{ backgroundColor: '#2e7d32', borderColor: '#2e7d32' }}
           >
-            新規プロジェクト
+            {t('projectManagement.new_project')}
           </Button>
           <Button
-            variant="contained"
-            size="small"
-            color="success"
-            startIcon={<Upload size={16} />}
+            type="primary"
+            icon={<UploadOutlined />}
+            style={{ backgroundColor: '#2e7d32', borderColor: '#2e7d32' }}
           >
-            アップロード
+            {t('projectManagement.upload')}
           </Button>
           <Button
-            variant="contained"
-            size="small"
-            color="primary"
-            startIcon={<RefreshCw size={16} />}
+            type="primary"
+            icon={<ReloadOutlined />}
             onClick={handleRefresh}
           >
-            Refresh
+            {t('progress.refresh')}
           </Button>
-        </Box>
-      </Paper>
+        </Space>
+      </Card>
 
       {/* メインコンテンツ: 2カラムレイアウト */}
-      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* 左側: プロジェクト一覧（画面の約1/3） */}
-        <Box sx={{ width: '35%', minWidth: 400, maxWidth: 550, flexShrink: 0 }}>
+        <div style={{ width: '35%', minWidth: 400, maxWidth: 550, flexShrink: 0 }}>
           <ProjectFolderTree
             projects={sortedProjects}
             selectedProjectId={selectedProjectId}
@@ -336,151 +445,155 @@ const ProjectManagement: React.FC = () => {
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
           />
-        </Box>
+        </div>
 
-        {/* 右側: ファイル一覧 */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* 右側: 詳細ビュー */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {selectedProject ? (
             <>
               {/* プロジェクト情報ヘッダー */}
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 2,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
+              <Card
+                bordered={false}
+                style={{
+                  borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                  borderRadius: 0,
                 }}
+                bodyStyle={{ padding: 16 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Space size="small">
+                  <Title level={5} style={{ margin: 0, fontWeight: 600 }}>
                     {selectedProject.name}
-                  </Typography>
+                  </Title>
                   {/* プロジェクトステータス表示 */}
                   {selectedProject.status === 'planning' && (
-                    <Chip
-                      label="プロジェクト計画中"
-                      size="small"
-                      color="default"
-                      sx={{ fontSize: '0.75rem' }}
-                    />
+                    <Tag>{t('projectManagement.status_planning')}</Tag>
                   )}
                   {selectedProject.status === 'pending' && (
-                    <Chip
-                      label="タスク実行待ち"
-                      size="small"
-                      color="info"
-                      sx={{ fontSize: '0.75rem' }}
-                    />
+                    <Tag color="blue">{t('projectManagement.status_pending')}</Tag>
                   )}
                   {selectedProject.status === 'in_progress' && (
-                    <Chip
-                      label="タスク実行中"
-                      size="small"
-                      color="primary"
-                      sx={{ fontSize: '0.75rem' }}
-                    />
+                    <Tag color="cyan">{t('projectManagement.status_in_progress')}</Tag>
+                  )}
+                  {selectedProject.status === 'review_waiting' && (
+                    <Tag color="purple">{t('projectManagement.status_review_waiting')}</Tag>
                   )}
                   {selectedProject.status === 'completed' && (
-                    <Chip
-                      label="プロジェクト完了"
-                      size="small"
-                      color="success"
-                      sx={{ fontSize: '0.75rem' }}
-                    />
+                    <Tag color="success">{t('projectManagement.status_completed')}</Tag>
+                  )}
+                  {selectedProject.status === 'error' && (
+                    <Tag color="error">{t('projectManagement.status_error')}</Tag>
                   )}
                   {/* チェックアウト状態表示 - プロジェクト単位 */}
                   {selectedProject.isCheckedOut && (
-                    <Chip
-                      label="チェックアウト中"
-                      size="small"
-                      color="warning"
-                      sx={{ fontSize: '0.75rem' }}
-                    />
+                    <Tag color="orange">{t('projectManagement.checking_out')}</Tag>
                   )}
-                </Box>
-              </Paper>
+                </Space>
+              </Card>
 
               {/* ファイル操作ツールバー */}
-              <Box
-                sx={{
-                  p: 2,
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
-                  display: 'flex',
-                  gap: 1,
+              <Card
+                bordered={false}
+                style={{
+                  borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                  borderRadius: 0,
                 }}
+                bodyStyle={{ padding: 16 }}
               >
-                <Button
-                  variant="contained"
-                  size="small"
-                  color="primary"
-                  startIcon={<Download size={16} />}
-                >
-                  プロジェクトダウンロード
-                </Button>
-                <Button
-                  variant="contained"
-                  size="small"
-                  color="primary"
-                  startIcon={<Edit size={16} />}
-                >
-                  編集
-                </Button>
-                <Button
-                  variant="contained"
-                  size="small"
-                  color={isProjectCheckedOut ? 'warning' : 'success'}
-                  startIcon={<FileCheck size={16} />}
-                >
-                  {isProjectCheckedOut ? 'チェックイン' : 'チェックアウト'}
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Send size={16} />}
-                  disabled
-                >
-                  指示送信
-                </Button>
-                <Button
-                  variant="contained"
-                  size="small"
-                  color="info"
-                >
-                  公開
-                </Button>
-              </Box>
+                <Space size="small">
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                  >
+                    {t('projectManagement.project_download')}
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<EditOutlined />}
+                  >
+                    {t('projectManagement.edit')}
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<FileTextOutlined />}
+                    style={isProjectCheckedOut ? { backgroundColor: '#ed6c02', borderColor: '#ed6c02' } : { backgroundColor: '#2e7d32', borderColor: '#2e7d32' }}
+                  >
+                    {isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}
+                  </Button>
+                  <Button
+                    icon={<SendOutlined />}
+                    disabled
+                  >
+                    {t('projectManagement.send_instruction')}
+                  </Button>
+                  <Button
+                    type="primary"
+                    style={{ backgroundColor: '#0093CF', borderColor: '#0093CF' }}
+                  >
+                    {t('projectManagement.publish')}
+                  </Button>
+                </Space>
+              </Card>
 
-              {/* ファイル一覧 */}
-              <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-                <FileListTable
-                  files={projectFiles}
-                  onFileClick={(file) => console.log('File clicked:', file.name)}
-                  onFolderClick={handleFolderClick}
-                />
-              </Box>
+              {/* タブ */}
+              <Tabs
+                activeKey={currentTab}
+                onChange={(key) => setCurrentTab(key as 'file_management' | 'task_results')}
+                items={[
+                  {
+                    key: 'file_management',
+                    label: t('projectManagement.tabs.file_management'),
+                  },
+                  {
+                    key: 'task_results',
+                    label: t('projectManagement.tabs.task_results'),
+                  },
+                ]}
+                style={{
+                  borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                  backgroundColor: '#ffffff',
+                  padding: '0 16px',
+                }}
+              />
+
+              {/* タブコンテンツ */}
+              <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+                {currentTab === 'file_management' && (
+                  <FileListTable
+                    files={projectFiles}
+                    onFileClick={(file) => console.log('File clicked:', file.name)}
+                    onFolderClick={handleFolderClick}
+                  />
+                )}
+                
+                {currentTab === 'task_results' && (
+                  <TaskResultsTable
+                    results={taskResults}
+                    onViewResult={handleViewTaskResult}
+                  />
+                )}
+              </div>
             </>
           ) : (
-            <Box
-              sx={{
+            <div
+              style={{
                 flex: 1,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  プロジェクトを選択してください
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  左側のフォルダツリーからプロジェクトを選択すると、ファイル一覧が表示されます
-                </Typography>
-              </Box>
-            </Box>
+              <div style={{ textAlign: 'center' }}>
+                <Title level={5} type="secondary">
+                  {t('projectManagement.select_project')}
+                </Title>
+                <Typography.Text type="secondary">
+                  {t('projectManagement.select_project_description')}
+                </Typography.Text>
+              </div>
+            </div>
           )}
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* プロジェクト詳細モーダル */}
       <ProjectDetailModal
@@ -489,7 +602,7 @@ const ProjectManagement: React.FC = () => {
         project={selectedProject}
         files={projectFiles}
       />
-    </Box>
+    </div>
   );
 };
 

@@ -69,12 +69,8 @@
       "tabs": {
         "projectManagement": "Project Management",
         "formatManagement": "Format Management",
-        "experimentManagement": "Experiment Management",
-        "workerAssignment": "Worker Assignment",
-        "progressManagement": "Progress Management",
-        "maimlEditor": "MAIML Editor",
-        "fileManagement": "File Management",
-        "statistics": "Statistics"
+        "progressMonitoring": "Progress Monitoring",
+        "workerManagement": "Worker Management"
       }
     },
     "experiment_worker": {
@@ -91,5 +87,204 @@
   },
   "content": {
     "notImplemented": "Content Area (Not Implemented)"
+  },
+  "formatManagement": {
+    "search_by_format_name": "Search by format name",
+    "filter_placeholder": "Filter by input value",
+    "advanced_search": "Advanced Search",
+    "owner": "Owner",
+    "my_only": "My Only",
+    "all_formats": "All",
+    "department": "Department",
+    "all": "All",
+    "filter_labels": {
+      "category": "Category:",
+      "file_type": "File Type:",
+      "search": "Search:"
+    },
+    "category_filter": "Category Filter",
+    "protocol": "Protocol",
+    "material": "Material",
+    "measurement": "Measurement",
+    "analysis": "Analysis",
+    "sample": "Sample",
+    "device": "Device",
+    "file_type": "File Type",
+    "new_format": "New Format",
+    "upload": "Upload",
+    "refresh": "Refresh",
+    "new_xml_file": "New XML File",
+    "new_maiml_file": "New MaiML File",
+    "select_format": "Please select a format",
+    "select_format_description": "Select a format from the folder tree on the left to display the format files"
+  },
+  "projectManagement": {
+    "search_by_project_name": "Search by project name",
+    "filter_placeholder": "Filter by input value",
+    "advanced_search": "Advanced Search",
+    "owner": "Owner",
+    "my_only": "My Only",
+    "all_projects": "All",
+    "department": "Department",
+    "all": "All",
+    "filter_labels": {
+      "owner": "Owner:",
+      "department": "Department:",
+      "project_status": "Project Status:",
+      "checkout_status": "Checkout Status:",
+      "search": "Search:"
+    },
+    "project_status": "Project Status",
+    "status_planning": "Planning",
+    "status_pending": "Pending",
+    "status_in_progress": "In Progress",
+    "status_review_waiting": "Review Waiting",
+    "status_completed": "Completed",
+    "status_error": "Task Error",
+    "checkout": "Checkout",
+    "checked_in": "Checked In",
+    "checked_out": "Checked Out",
+    "checking_out": "Checking Out",
+    "new_project": "New Project",
+    "upload": "Upload",
+    "refresh": "Refresh",
+    "project_download": "Download Project",
+    "edit": "Edit",
+    "checkin": "Check In",
+    "checkout_action": "Check Out",
+    "send_instruction": "Send Instruction",
+    "publish": "Publish",
+    "select_project": "Please select a project",
+    "select_project_description": "Select a project from the folder tree on the left to display the file list",
+    "tabs": {
+      "file_management": "File Management",
+      "task_results": "Task Results"
+    },
+    "task_results": {
+      "no_project_selected": "Please select a project",
+      "no_tasks": "No task results available",
+      "coming_soon": "Task results feature is under development",
+      "work_id": "Work ID",
+      "reporter_name": "Reporter Name",
+      "reported_at": "Reported At",
+      "actions": "Actions",
+      "view_result": "View Result"
+    }
+  },
+  "progress": {
+    "title": "Progress Management",
+    "lastUpdated": "Last Updated",
+    "refresh": "Refresh",
+    "filter_placeholder": "Filter by input value",
+    "filter_labels": {
+      "owner": "Owner:",
+      "department": "Department:",
+      "project_status": "Project Status:",
+      "checkout_status": "Checkout Status:",
+      "search": "Search:"
+    },
+    "stats": {
+      "totalProjects": "Projects",
+      "checkedOut": "Checked Out",
+      "workingWorkers": "Working Workers",
+      "working": "In Progress",
+      "averageProgress": "Average Progress"
+    },
+    "search": {
+      "placeholder": "Search by project name or owner...",
+      "advancedSearch": "Advanced Search"
+    },
+    "filter": {
+      "all": "All",
+      "allDepartments": "All Departments",
+      "allStatus": "All Status",
+      "owner": "Owner",
+      "myOnly": "My Own Only",
+      "allProjects": "All Projects",
+      "department": "Department",
+      "projectStatus": "Project Status",
+      "progressStatusLabel": "Progress Status",
+      "checkout": "Checkout",
+      "checkedOut": "Checked Out",
+      "checkedIn": "Checked In",
+      "planning": "Planning",
+      "pending": "Pending",
+      "inProgress": "In Progress",
+      "reviewWaiting": "Review Waiting",
+      "completed": "Completed",
+      "error": "Task Error",
+      "notStarted": "Not Started"
+    },
+    "progressStatus": {
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "notStarted": "Not Started"
+    },
+    "table": {
+      "projectName": "Project Name",
+      "projectStatus": "Project Status",
+      "progressStatus": "Progress Status",
+      "checkoutStatus": "Checkout Status",
+      "owner": "Owner",
+      "workingWorker": "Worker",
+      "workCount": "Work Count",
+      "taskProgress": "Completed Tasks / Total Tasks",
+      "workIdCount": "Work ID Count",
+      "progressRate": "Progress Rate",
+      "completedTransitions": "Completed Transitions",
+      "actions": "Actions",
+      "total": "Total",
+      "items": "items"
+    },
+    "actions": {
+      "viewDetails": "View Details"
+    }
+  },
+  "worker": {
+    "title": "Worker Management",
+    "send": "Send",
+    "search": {
+      "placeholder": "Search by worker ID, name, email..."
+    },
+    "filter": {
+      "allStatus": "All Status"
+    },
+    "filter_labels": {
+      "status": "Status:",
+      "search": "Search:"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "stats": {
+      "totalWorkers": "Total Workers",
+      "activeWorkers": "Active",
+      "workingProjects": "Working Projects",
+      "completedProjects": "Completed Projects",
+      "totalTasks": "Total Tasks",
+      "completedTasks": "Completed Tasks",
+      "people": "people"
+    },
+    "table": {
+      "workerList": "Worker List",
+      "worker": "Worker",
+      "status": "Status",
+      "assigned": "Assigned",
+      "completed": "Completed",
+      "totalTasks": "Total Tasks",
+      "inProgressTasks": "In Progress Tasks",
+      "reportedTasks": "Reported Tasks",
+      "completedTasks": "Completed Tasks",
+      "progressRate": "Progress Rate",
+      "sessionCount": "Session",
+      "lastConnection": "Last Connection",
+      "actions": "Actions",
+      "noRecord": "No Record",
+      "total": "Total"
+    },
+    "actions": {
+      "viewDetails": "View Details"
+    }
   }
 }

@@ -2,20 +2,27 @@
 
 import React from 'react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Modal,
   Button,
-  Box,
   Typography,
-  Chip,
+  Tag,
   Divider,
-  IconButton,
-} from '@mui/material';
-import { X, Folder, Users, FileText, HardDrive, Calendar } from 'lucide-react';
+  Space,
+  Row,
+  Col,
+} from 'antd';
+import {
+  CloseOutlined,
+  FolderOutlined,
+  TeamOutlined,
+  FileTextOutlined,
+  HddOutlined,
+  CalendarOutlined,
+} from '@ant-design/icons';
 import FileListTable from './FileListTable';
 import { formatFileSize, formatRelativeTime, formatProjectStatus, getStatusColor } from '@/utils/formatters';
+
+const { Title, Text } = Typography;
 
 interface ProjectDetailModalProps {
   open: boolean;
@@ -58,169 +65,155 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 }) => {
   if (!project) return null;
 
-  const statusColor = getStatusColor(project.status);
+  const getStatusTagColor = (status: string): string => {
+    const colors: Record<string, string> = {
+      planning: 'default',
+      pending: 'blue',
+      in_progress: 'cyan',
+      completed: 'success',
+    };
+    return colors[status] || 'default';
+  };
+
   const statusText = formatProjectStatus(project.status);
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onClose={onClose}
-      maxWidth="lg"
-      fullWidth
-      PaperProps={{
-        sx: {
-          minHeight: '80vh',
-          maxHeight: '90vh',
-        },
-      }}
+      onCancel={onClose}
+      width={1000}
+      style={{ top: 40 }}
+      bodyStyle={{ maxHeight: 'calc(90vh - 200px)', overflowY: 'auto' }}
+      title={
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <Space size="middle" style={{ marginBottom: 8 }}>
+              <Title level={4} style={{ margin: 0 }}>
+                {project.name}
+              </Title>
+              <Tag color={getStatusTagColor(project.status)}>
+                {statusText}
+              </Tag>
+            </Space>
+            <Space size="small">
+              <FolderOutlined style={{ color: '#757575' }} />
+              <Text type="secondary">{project.folderName}</Text>
+            </Space>
+          </div>
+        </div>
+      }
+      footer={[
+        <Button key="close" onClick={onClose}>
+          閉じる
+        </Button>,
+        <Button key="open" type="primary" onClick={() => console.log('Open project')}>
+          プロジェクトを開く
+        </Button>,
+      ]}
     >
-      {/* ヘッダー */}
-      <DialogTitle
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          pb: 2,
-        }}
-      >
-        <Box sx={{ flex: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-            <Typography variant="h5" component="div" sx={{ fontWeight: 600 }}>
-              {project.name}
-            </Typography>
-            <Chip label={statusText} color={statusColor} size="small" />
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Folder size={16} color="#757575" />
-            <Typography variant="body2" color="text.secondary">
-              {project.folderName}
-            </Typography>
-          </Box>
-        </Box>
-        <IconButton onClick={onClose} size="small">
-          <X size={20} />
-        </IconButton>
-      </DialogTitle>
-
-      <Divider />
-
-      <DialogContent sx={{ p: 3 }}>
+      <div style={{ padding: '8px 0' }}>
         {/* プロジェクト情報 */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+        <div style={{ marginBottom: 24 }}>
+          <Title level={5} style={{ marginBottom: 16 }}>
             プロジェクト情報
-          </Typography>
+          </Title>
           
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
             {project.description}
-          </Typography>
+          </Text>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2, mb: 2 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             {/* 所有者 */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
                 所有者
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Users size={16} color="#757575" />
-                <Typography variant="body2">{project.owner}</Typography>
-              </Box>
-            </Box>
+              </Text>
+              <Space size="small">
+                <TeamOutlined style={{ color: '#757575' }} />
+                <Text>{project.owner}</Text>
+              </Space>
+            </Col>
 
             {/* メンバー */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
                 メンバー
-              </Typography>
-              <Typography variant="body2">
-                {project.members.join(', ')}
-              </Typography>
-            </Box>
+              </Text>
+              <Text>{project.members.join(', ')}</Text>
+            </Col>
 
             {/* ファイル数 */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
                 ファイル数
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <FileText size={16} color="#757575" />
-                <Typography variant="body2">{project.fileCount} ファイル</Typography>
-              </Box>
-            </Box>
+              </Text>
+              <Space size="small">
+                <FileTextOutlined style={{ color: '#757575' }} />
+                <Text>{project.fileCount} ファイル</Text>
+              </Space>
+            </Col>
 
             {/* ストレージ使用量 */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
                 ストレージ使用量
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <HardDrive size={16} color="#757575" />
-                <Typography variant="body2">{formatFileSize(project.totalSize)}</Typography>
-              </Box>
-            </Box>
+              </Text>
+              <Space size="small">
+                <HddOutlined style={{ color: '#757575' }} />
+                <Text>{formatFileSize(project.totalSize)}</Text>
+              </Space>
+            </Col>
 
             {/* 作成日 */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
                 作成日
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Calendar size={16} color="#757575" />
-                <Typography variant="body2">{formatRelativeTime(project.createdAt)}</Typography>
-              </Box>
-            </Box>
+              </Text>
+              <Space size="small">
+                <CalendarOutlined style={{ color: '#757575' }} />
+                <Text>{formatRelativeTime(project.createdAt)}</Text>
+              </Space>
+            </Col>
 
             {/* 最終更新日 */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
                 最終更新日
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Calendar size={16} color="#757575" />
-                <Typography variant="body2">{formatRelativeTime(project.updatedAt)}</Typography>
-              </Box>
-            </Box>
-          </Box>
+              </Text>
+              <Space size="small">
+                <CalendarOutlined style={{ color: '#757575' }} />
+                <Text>{formatRelativeTime(project.updatedAt)}</Text>
+              </Space>
+            </Col>
+          </Row>
 
           {/* タグ */}
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+          <div>
+            <Text type="secondary" style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>
               タグ
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            </Text>
+            <Space size="small" wrap>
               {project.tags.map((tag, index) => (
-                <Chip
-                  key={index}
-                  label={tag}
-                  size="small"
-                  variant="outlined"
-                />
+                <Tag key={index}>{tag}</Tag>
               ))}
-            </Box>
-          </Box>
-        </Box>
+            </Space>
+          </div>
+        </div>
 
-        <Divider sx={{ my: 3 }} />
+        <Divider style={{ margin: '24px 0' }} />
 
         {/* ファイル一覧 */}
-        <Box>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+        <div>
+          <Title level={5} style={{ marginBottom: 16 }}>
             ファイル一覧 ({files.length})
-          </Typography>
+          </Title>
           <FileListTable
             files={files}
             onFileClick={(file) => console.log('File clicked:', file.name)}
           />
-        </Box>
-      </DialogContent>
-
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose}>閉じる</Button>
-        <Button variant="contained" color="primary">
-          プロジェクトを開く
-        </Button>
-      </DialogActions>
-    </Dialog>
+        </div>
+      </div>
+    </Modal>
   );
 };
 

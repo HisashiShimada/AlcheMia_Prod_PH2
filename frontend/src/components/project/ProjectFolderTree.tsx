@@ -1,21 +1,22 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  Box,
   List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Collapse,
   Typography,
-  Chip,
-  IconButton,
-  Menu,
-  MenuItem as MuiMenuItem,
-} from '@mui/material';
-import { Folder, FolderOpen, ChevronRight, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+  Tag,
+  Dropdown,
+  Space,
+  Button,
+} from 'antd';
+import type { MenuProps } from 'antd';
+import {
+  SortAscendingOutlined,
+  SortDescendingOutlined,
+  SortAscendingOutlined as SortIcon,
+} from '@ant-design/icons';
+
+const { Text } = Typography;
 
 interface Project {
   id: string;
@@ -23,6 +24,9 @@ interface Project {
   folderName: string;
   fileCount: number;
   status: string;
+  department: string;
+  owner: string;
+  createdAt: string;
 }
 
 interface ProjectFolderTreeProps {
@@ -70,30 +74,6 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
     return labels[status] || status;
   };
 
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
-
-  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleSortSelect = (newSortBy: 'name' | 'status' | 'createdAt') => {
-    onSortChange(newSortBy);
-    handleClose();
-  };
-
-  const getSortIcon = () => {
-    if (sortOrder === 'asc') {
-      return <ArrowUp size={14} />;
-    } else {
-      return <ArrowDown size={14} />;
-    }
-  };
-
   const getSortLabel = (sort: 'name' | 'status' | 'createdAt'): string => {
     const labels = {
       name: 'プロジェクト名',
@@ -103,123 +83,115 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
     return labels[sort];
   };
 
+  const menuItems: MenuProps['items'] = [
+    {
+      key: 'name',
+      label: (
+        <Space>
+          <span>プロジェクト名</span>
+          {sortBy === 'name' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+        </Space>
+      ),
+      onClick: () => onSortChange('name'),
+    },
+    {
+      key: 'status',
+      label: (
+        <Space>
+          <span>ステータス</span>
+          {sortBy === 'status' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+        </Space>
+      ),
+      onClick: () => onSortChange('status'),
+    },
+    {
+      key: 'createdAt',
+      label: (
+        <Space>
+          <span>作成日</span>
+          {sortBy === 'createdAt' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+        </Space>
+      ),
+      onClick: () => onSortChange('createdAt'),
+    },
+  ];
+
   return (
-    <Box
-      sx={{
+    <div
+      style={{
         height: '100%',
-        bgcolor: 'background.paper',
-        borderRight: '1px solid',
-        borderColor: 'divider',
+        backgroundColor: '#ffffff',
+        borderRight: '1px solid rgba(0, 0, 0, 0.06)',
         overflowY: 'auto',
       }}
     >
       {/* ヘッダー */}
-      <Box
-        sx={{
-          p: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
+      <div
+        style={{
+          padding: 16,
+          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <Text strong style={{ fontSize: 14 }}>
               プロジェクト一覧
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {projects.length} プロジェクト
-            </Typography>
-          </Box>
-          <IconButton
-            size="small"
-            onClick={handleClick}
-            sx={{ ml: 1 }}
-          >
-            <ArrowUpDown size={16} />
-          </IconButton>
-        </Box>
-        <Menu
-          anchorEl={anchorEl}
-          open={open}
-          onClose={handleClose}
-        >
-          <MuiMenuItem onClick={() => handleSortSelect('name')}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-              <Typography variant="body2">プロジェクト名</Typography>
-              {sortBy === 'name' && getSortIcon()}
-            </Box>
-          </MuiMenuItem>
-          <MuiMenuItem onClick={() => handleSortSelect('status')}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-              <Typography variant="body2">ステータス</Typography>
-              {sortBy === 'status' && getSortIcon()}
-            </Box>
-          </MuiMenuItem>
-          <MuiMenuItem onClick={() => handleSortSelect('createdAt')}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-              <Typography variant="body2">作成日</Typography>
-              {sortBy === 'createdAt' && getSortIcon()}
-            </Box>
-          </MuiMenuItem>
-        </Menu>
-      </Box>
+            </Text>
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {projects.length} プロジェクト
+              </Text>
+            </div>
+          </div>
+          <Dropdown menu={{ items: menuItems }} placement="bottomRight">
+            <Button type="text" icon={<SortIcon />} size="small" />
+          </Dropdown>
+        </div>
+      </div>
 
       {/* プロジェクト一覧 */}
-      <List sx={{ py: 1 }}>
-        {projects.map((project) => (
-          <ListItemButton
+      <List
+        dataSource={projects}
+        renderItem={(project) => (
+          <List.Item
             key={project.id}
-            selected={selectedProjectId === project.id}
             onClick={() => onProjectSelect(project.id)}
-            sx={{
-              py: 1,
-              px: 2,
-              '&.Mui-selected': {
-                bgcolor: 'primary.lighter',
-                borderLeft: '3px solid',
-                borderLeftColor: 'primary.main',
-                '&:hover': {
-                  bgcolor: 'primary.light',
-                },
-              },
+            style={{
+              padding: '12px 16px',
+              cursor: 'pointer',
+              backgroundColor: selectedProjectId === project.id ? '#FFF1F3' : 'transparent',
+              borderLeft: selectedProjectId === project.id ? '3px solid #CF0027' : '3px solid transparent',
             }}
           >
-            <ListItemText
-              primary={
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontSize: '0.875rem',
-                      fontWeight: selectedProjectId === project.id ? 600 : 400,
-                    }}
-                  >
-                    {project.name}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <Chip
-                      label={getStatusLabel(project.status)}
-                      size="small"
-                      color={getStatusChipColor(project.status)}
-                      sx={{ 
-                        fontSize: '0.65rem',
-                        height: '18px',
-                        '& .MuiChip-label': {
-                          px: 0.75,
-                        }
-                      }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      {project.fileCount} ファイル
-                    </Typography>
-                  </Box>
-                </Box>
-              }
-            />
-          </ListItemButton>
-        ))}
-      </List>
-    </Box>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+              <Text
+                strong={selectedProjectId === project.id}
+                style={{ fontSize: 14 }}
+              >
+                {project.name}
+              </Text>
+              <Space size="small" wrap>
+                <Tag
+                  color={getStatusChipColor(project.status) === 'primary' ? 'cyan' : getStatusChipColor(project.status)}
+                  style={{ fontSize: 10, margin: 0 }}
+                >
+                  {getStatusLabel(project.status)}
+                </Tag>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {project.fileCount} ファイル
+                </Text>
+              </Space>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                所有者: {project.owner}
+              </Text>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {project.department} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
+              </Text>
+            </div>
+          </List.Item>
+        )}
+      />
+    </div>
   );
 };
 
