@@ -34,10 +34,23 @@ const SubHeaderContainer = styled.div`
 
 /**
  * 内部コンテナ
+ * UIポリシー: レスポンシブpadding
+ * - デスクトップ (lg+): 0 50px
+ * - タブレット (md): 0 24px
+ * - モバイル (xs, sm): 0 16px
  */
 const SubHeaderInner = styled.div`
+  height: 100%;
   margin: 0 auto;
   padding: 0 50px;
+
+  @media (max-width: 991px) {
+    padding: 0 24px;
+  }
+
+  @media (max-width: 767px) {
+    padding: 0 16px;
+  }
 `;
 
 /**

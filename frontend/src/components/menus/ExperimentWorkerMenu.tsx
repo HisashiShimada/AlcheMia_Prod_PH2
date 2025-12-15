@@ -7,6 +7,7 @@ import {
   FormOutlined,
   LineChartOutlined,
 } from '@ant-design/icons';
+import styled from '@emotion/styled';
 import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
 import { User } from '@/types/auth';
@@ -27,6 +28,39 @@ const { Title, Text } = Typography;
 const HEADER_HEIGHT = 64;      // UIポリシー: Header高さ 64px
 const SUBHEADER_HEIGHT = 48;   // UIポリシー: SubHeader高さ 48px
 const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + SUBHEADER_HEIGHT; // 合計 112px
+
+/**
+ * レスポンシブコンテナ（UIポリシー準拠）
+ * ブレークポイント:
+ * - xs, sm (< 768px): 100% 幅
+ * - md (768px+): 最大768px
+ * - lg (992px+): 最大992px
+ * - xl (1200px+): 最大1200px
+ * - xxl (1600px+): 最大1400px
+ */
+const ResponsiveContainer = styled.div`
+  max-width: 100%;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 8px;
+
+  @media (min-width: 768px) {
+    max-width: 768px;
+    padding: 0 16px;
+  }
+
+  @media (min-width: 992px) {
+    max-width: 992px;
+  }
+
+  @media (min-width: 1200px) {
+    max-width: 1200px;
+  }
+
+  @media (min-width: 1600px) {
+    max-width: 1400px;
+  }
+`;
 
 /**
  * 実験作業者メニューのProps
@@ -144,10 +178,10 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       <Content
         style={{
           marginTop: TOTAL_HEADER_HEIGHT, // UIポリシー: Header(64px) + SubHeader(48px) = 112px
-          padding: '24px',
+          padding: '24px 16px', // UIポリシー: レスポンシブpadding
         }}
       >
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+        <ResponsiveContainer>
           {/* タブ2: 作業指示 */}
           {currentTab === '2' && (
             <InstructionConfirmationTab
@@ -188,7 +222,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             />
           )}
 
-        </div>
+        </ResponsiveContainer>
       </Content>
     </Layout>
   );
