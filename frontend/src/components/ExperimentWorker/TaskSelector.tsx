@@ -1,57 +1,73 @@
 'use client';
 
 import React from 'react';
-import { Select, Space, Typography } from 'antd';
+import { Card, Space, Typography, theme } from 'antd';
 import { AimOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
 interface TaskSelectorProps {
   selectedTaskId: string | null;
-  onSelectTask: (taskId: string) => void;
+  onSelectTask?: (taskId: string) => void;
   disabled?: boolean;
 }
 
 /**
  * タスク選択コンポーネント
- * ドロップダウンリストでタスクを選択可能にする
- * MethodSelectorと同じスタイルで横一列に表示
+ * カード形式で選択中のタスク情報を表示
  */
 export default function TaskSelector({
   selectedTaskId,
-  onSelectTask,
   disabled = false,
 }: TaskSelectorProps) {
+  const { token } = theme.useToken();
+
   // TODO: 実際のタスク一覧はAPIから取得する予定
   // 現在はダミーデータで実装
   const tasks = [
-    { taskId: 'new', taskName: '新規タスク' },
+    { taskId: 'new', taskName: '新規タスク', tag: '新規' },
     { taskId: 'task001', taskName: 'タスク001' },
     { taskId: 'task002', taskName: 'タスク002' },
     { taskId: 'task003', taskName: 'タスク003' },
   ];
 
+  // 選択中のタスク情報を取得
+  const selectedTask = tasks.find((t) => t.taskId === selectedTaskId);
+
   return (
-    <Space align="center" size="middle" style={{ width: '100%' }}>
-      <AimOutlined style={{ fontSize: 16, color: '#CF0027' }} />
-      <Text strong style={{ width: 100, display: 'inline-block' }}>
-        タスク:
-      </Text>
-      <Select
-        value={selectedTaskId || 'new'}
-        onChange={onSelectTask}
-        disabled={disabled}
-        style={{ minWidth: 300, flex: 1, maxWidth: 600 }}
-        size="large"
-      >
-        {tasks.map((task) => (
-          <Select.Option key={task.taskId} value={task.taskId}>
-            <Text strong={task.taskId === 'new'}>
-              {task.taskName}
+    <Card
+      size="small"
+      style={{
+        backgroundColor: selectedTaskId ? token.colorPrimaryBg : token.colorBgContainer,
+        borderColor: selectedTaskId ? token.colorPrimary : token.colorBorder,
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        {/* ヘッダー */}
+        <Space>
+          <AimOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+          <Text strong>タスク</Text>
+        </Space>
+
+        {/* 選択中の情報 */}
+        {selectedTask ? (
+          <Space direction="vertical" size={0} style={{ paddingLeft: 24 }}>
+            <Text strong style={{ fontSize: 14 }}>
+              {selectedTask.taskName}
             </Text>
-          </Select.Option>
-        ))}
-      </Select>
-    </Space>
+            {selectedTask.tag && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {selectedTask.tag}
+              </Text>
+            )}
+          </Space>
+        ) : (
+          <Text type="secondary" style={{ paddingLeft: 24, fontSize: 12 }}>
+            {disabled ? 'プロジェクトを選択してください' : 'タスクが選択されていません'}
+          </Text>
+        )}
+      </Space>
+    </Card>
   );
 }

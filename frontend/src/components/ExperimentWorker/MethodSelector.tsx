@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Select, Space, Typography } from 'antd';
+import { Card, Space, Typography, theme } from 'antd';
 import { ToolOutlined } from '@ant-design/icons';
 import { Method } from '@/types/experimentWorker';
 
@@ -10,46 +10,56 @@ const { Text } = Typography;
 interface MethodSelectorProps {
   methods: Method[];
   selectedMethodId: string | null;
-  onSelectMethod: (methodId: string) => void;
+  onSelectMethod?: (methodId: string) => void;
   disabled?: boolean;
 }
 
 /**
  * メソッド選択コンポーネント
- * ドロップダウンリストでメソッドを選択可能にする
- * ProjectSelectorと同じスタイルで横一列に表示
+ * カード形式で選択中のメソッド情報を表示
  */
 export default function MethodSelector({
   methods,
   selectedMethodId,
-  onSelectMethod,
   disabled = false,
 }: MethodSelectorProps) {
+  const { token } = theme.useToken();
+
+  // 選択中のメソッド情報を取得
+  const selectedMethod = methods.find((m) => m.methodId === selectedMethodId);
+
   return (
-    <Space align="center" size="middle" style={{ width: '100%' }}>
-      <ToolOutlined style={{ fontSize: 16, color: '#CF0027' }} />
-      <Text strong style={{ width: 100, display: 'inline-block' }}>
-        メソッド:
-      </Text>
-      <Select
-        value={selectedMethodId || undefined}
-        onChange={onSelectMethod}
-        placeholder="メソッドを選択してください"
-        disabled={disabled}
-        style={{ minWidth: 300, flex: 1, maxWidth: 600 }}
-        size="large"
-      >
-        {methods.map((method) => (
-          <Select.Option key={method.methodId} value={method.methodId}>
-            <Space>
-              <Text strong>{method.methodName}</Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {method.methodId}
-              </Text>
-            </Space>
-          </Select.Option>
-        ))}
-      </Select>
-    </Space>
+    <Card
+      size="small"
+      style={{
+        backgroundColor: selectedMethodId ? token.colorPrimaryBg : token.colorBgContainer,
+        borderColor: selectedMethodId ? token.colorPrimary : token.colorBorder,
+        opacity: disabled ? 0.6 : 1,
+      }}
+    >
+      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        {/* ヘッダー */}
+        <Space>
+          <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+          <Text strong>メソッド</Text>
+        </Space>
+
+        {/* 選択中の情報 */}
+        {selectedMethod ? (
+          <Space direction="vertical" size={0} style={{ paddingLeft: 24 }}>
+            <Text strong style={{ fontSize: 14 }}>
+              {selectedMethod.methodName}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {selectedMethod.methodId} • {selectedMethod.transitions?.length || 0} トランジション
+            </Text>
+          </Space>
+        ) : (
+          <Text type="secondary" style={{ paddingLeft: 24, fontSize: 12 }}>
+            {disabled ? 'プロジェクトを選択してください' : 'メソッドが選択されていません'}
+          </Text>
+        )}
+      </Space>
+    </Card>
   );
 }
