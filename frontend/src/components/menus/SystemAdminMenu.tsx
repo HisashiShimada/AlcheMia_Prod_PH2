@@ -50,7 +50,7 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
     },
     {
       key: '2',
-      label: t('menu.system_admin.tabs.statistics'),
+      label: t('menu.system_admin.tabs.organizationStatistics'),
       icon: <BarChartOutlined />,
     },
     {

@@ -100,7 +100,7 @@ export default function OrganizationManagementMock() {
         <Space size="middle" align="center">
           <span>組織名</span>
           <Badge
-            count={filteredOrganizations.filter(org => org.status === 'inactive').length}
+            count={filteredOrganizations.filter(org => org.status === 'active').length}
             style={{
               backgroundColor: '#4169E1',
               fontSize: 14,
@@ -208,24 +208,14 @@ export default function OrganizationManagementMock() {
       render: (_, record) => (
         <Space size="small">
           <Button
-            size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
-            style={{
-              borderColor: '#000',
-              color: '#000',
-            }}
           >
             編集
           </Button>
           <Button
-            size="small"
             onClick={() => handleToggleActive(record.id)}
-            style={{
-              backgroundColor: record.status === 'inactive' ? '#fff' : '#CF0027',
-              borderColor: record.status === 'inactive' ? '#000' : '#CF0027',
-              color: record.status === 'inactive' ? '#000' : '#fff',
-            }}
+            danger={record.status === 'active'}
           >
             {record.status === 'inactive' ? '活性' : '非活性'}
           </Button>
@@ -588,6 +578,7 @@ Company Code: ${org.company_code}
           onClick={handleActivate}
           disabled={selectedRowKeys.length === 0}
           style={{
+            minWidth: 85,
             backgroundColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
             borderColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
             color: selectedRowKeys.length > 0 ? '#fff' : undefined,
@@ -601,6 +592,7 @@ Company Code: ${org.company_code}
           onClick={handleDeactivate}
           disabled={selectedRowKeys.length === 0}
           style={{
+            minWidth: 85,
             backgroundColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
             borderColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
             color: selectedRowKeys.length > 0 ? '#fff' : undefined,

@@ -13,6 +13,7 @@ import {
   Typography,
   Row,
   Col,
+  Badge,
 } from 'antd';
 import {
   SearchOutlined,
@@ -21,7 +22,6 @@ import {
   ReloadOutlined,
   UploadOutlined,
   DownloadOutlined,
-  DownOutlined,
   EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -54,7 +54,10 @@ export default function MasterManagementMock() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingMaster, setEditingMaster] = useState<MasterData | null>(null);
   const [selectedMasterType, setSelectedMasterType] = useState<string>('instrument');
-  const [selectedFilterKey, setSelectedFilterKey] = useState<string>('id');
+  const [selectedInstrumentId, setSelectedInstrumentId] = useState<string>('');
+  const [selectedVendorId, setSelectedVendorId] = useState<string>('');
+  const [selectedTypeId, setSelectedTypeId] = useState<string>('');
+  const [selectedAttributeId, setSelectedAttributeId] = useState<string>('');
   const [form] = Form.useForm();
 
   // マスタ種別の選択肢
@@ -65,50 +68,58 @@ export default function MasterManagementMock() {
     { value: 'attribute', label: '属性' },
   ];
 
-  // フィルター項目の選択肢
-  const filterOptions = [
-    { value: 'id', label: 'ID' },
-    { value: 'instrumentId', label: '実験装置ID' },
-    { value: 'instrumentName', label: '実験装置名' },
-    { value: 'vendorId', label: '実験装置ベンダーID' },
-    { value: 'typeId', label: '実験装置タイプID' },
-    { value: 'attributeId', label: '属性ID' },
-    { value: 'updatedAt', label: '更新日時' },
-  ];
+  // 実験装置IDの選択肢を動的に取得
+  const instrumentIds = useMemo(() => {
+    const uniqueIds = Array.from(new Set(masters.map(m => m.instrumentId).filter(id => id)));
+    return uniqueIds.sort();
+  }, [masters]);
+
+  // ベンダーIDの選択肢を動的に取得
+  const vendorIds = useMemo(() => {
+    const uniqueIds = Array.from(new Set(masters.map(m => m.vendorId).filter(id => id)));
+    return uniqueIds.sort();
+  }, [masters]);
+
+  // タイプIDの選択肢を動的に取得
+  const typeIds = useMemo(() => {
+    const uniqueIds = Array.from(new Set(masters.map(m => m.typeId).filter(id => id)));
+    return uniqueIds.sort();
+  }, [masters]);
+
+  // 属性IDの選択肢を動的に取得
+  const attributeIds = useMemo(() => {
+    const uniqueIds = Array.from(new Set(masters.map(m => m.attributeId).filter(id => id)));
+    return uniqueIds.sort();
+  }, [masters]);
 
   // フィルタリングされたデータ
   const filteredMasters = useMemo(() => {
     return masters.filter(master => {
+      // テキスト検索フィルター
       const searchLower = searchText.toLowerCase();
-      
-      switch (selectedFilterKey) {
-        case 'id':
-          return master.id.toLowerCase().includes(searchLower);
-        case 'instrumentId':
-          return master.instrumentId.toLowerCase().includes(searchLower);
-        case 'instrumentName':
-          return master.instrumentName.toLowerCase().includes(searchLower);
-        case 'vendorId':
-          return master.vendorId.toLowerCase().includes(searchLower);
-        case 'typeId':
-          return master.typeId.toLowerCase().includes(searchLower);
-        case 'attributeId':
-          return master.attributeId.toLowerCase().includes(searchLower);
-        case 'updatedAt':
-          return master.updatedAt.toLowerCase().includes(searchLower);
-        default:
-          return (
-            master.id.toLowerCase().includes(searchLower) ||
-            master.instrumentId.toLowerCase().includes(searchLower) ||
-            master.instrumentName.toLowerCase().includes(searchLower) ||
-            master.vendorId.toLowerCase().includes(searchLower) ||
-            master.typeId.toLowerCase().includes(searchLower) ||
-            master.attributeId.toLowerCase().includes(searchLower) ||
-            master.updatedAt.toLowerCase().includes(searchLower)
-          );
-      }
+      const matchesSearch = !searchText.trim() || (
+        master.instrumentId.toLowerCase().includes(searchLower) ||
+        master.instrumentName.toLowerCase().includes(searchLower) ||
+        master.vendorId.toLowerCase().includes(searchLower) ||
+        master.typeId.toLowerCase().includes(searchLower) ||
+        master.attributeId.toLowerCase().includes(searchLower)
+      );
+
+      // 実験装置IDフィルター
+      const matchesInstrumentId = !selectedInstrumentId || master.instrumentId === selectedInstrumentId;
+
+      // ベンダーIDフィルター
+      const matchesVendorId = !selectedVendorId || master.vendorId === selectedVendorId;
+
+      // タイプIDフィルター
+      const matchesTypeId = !selectedTypeId || master.typeId === selectedTypeId;
+
+      // 属性IDフィルター
+      const matchesAttributeId = !selectedAttributeId || master.attributeId === selectedAttributeId;
+
+      return matchesSearch && matchesInstrumentId && matchesVendorId && matchesTypeId && matchesAttributeId;
     });
-  }, [masters, searchText, selectedFilterKey]);
+  }, [masters, searchText, selectedInstrumentId, selectedVendorId, selectedTypeId, selectedAttributeId]);
 
   // テーブルの行選択
   const rowSelection = {
@@ -121,10 +132,20 @@ export default function MasterManagementMock() {
   // テーブルカラム定義
   const columns: ColumnsType<MasterData> = [
     {
-      title: () => (
-        <Space>
+      title: (
+        <Space size="middle" align="center">
           <span>ID</span>
-          <DownOutlined style={{ fontSize: 10 }} />
+          <Badge
+            count={filteredMasters.filter(master => !master.isActive).length}
+            style={{
+              backgroundColor: '#4169E1',
+              fontSize: 14,
+              height: 24,
+              minWidth: 40,
+              lineHeight: '24px',
+              borderRadius: 12,
+            }}
+          />
         </Space>
       ),
       dataIndex: 'id',
@@ -134,12 +155,7 @@ export default function MasterManagementMock() {
       sorter: (a, b) => parseInt(a.id) - parseInt(b.id),
     },
     {
-      title: () => (
-        <Space>
-          <span>実験装置ID</span>
-          <DownOutlined style={{ fontSize: 10 }} />
-        </Space>
-      ),
+      title: '実験装置ID',
       dataIndex: 'instrumentId',
       key: 'instrumentId',
       width: 140,
@@ -147,25 +163,23 @@ export default function MasterManagementMock() {
       sorter: (a, b) => a.instrumentId.localeCompare(b.instrumentId),
     },
     {
-      title: () => (
-        <Space>
-          <span>実験装置名</span>
-          <DownOutlined style={{ fontSize: 10 }} />
-        </Space>
-      ),
+      title: '実験装置名',
       dataIndex: 'instrumentName',
       key: 'instrumentName',
       width: 180,
       align: 'center',
       sorter: (a, b) => a.instrumentName.localeCompare(b.instrumentName),
+      render: (text: string, record) => (
+        <Text style={{ 
+          fontWeight: 500, 
+          color: record.isActive ? 'rgba(0, 0, 0, 0.45)' : '#0093CF'
+        }}>
+          {text}
+        </Text>
+      ),
     },
     {
-      title: () => (
-        <Space>
-          <span>実験装置ベンダーID</span>
-          <DownOutlined style={{ fontSize: 10 }} />
-        </Space>
-      ),
+      title: '実験装置ベンダーID',
       dataIndex: 'vendorId',
       key: 'vendorId',
       width: 180,
@@ -173,12 +187,7 @@ export default function MasterManagementMock() {
       sorter: (a, b) => a.vendorId.localeCompare(b.vendorId),
     },
     {
-      title: () => (
-        <Space>
-          <span>実験装置タイプID</span>
-          <DownOutlined style={{ fontSize: 10 }} />
-        </Space>
-      ),
+      title: '実験装置タイプID',
       dataIndex: 'typeId',
       key: 'typeId',
       width: 170,
@@ -186,12 +195,7 @@ export default function MasterManagementMock() {
       sorter: (a, b) => a.typeId.localeCompare(b.typeId),
     },
     {
-      title: () => (
-        <Space>
-          <span>属性ID</span>
-          <DownOutlined style={{ fontSize: 10 }} />
-        </Space>
-      ),
+      title: '属性ID',
       dataIndex: 'attributeId',
       key: 'attributeId',
       width: 100,
@@ -199,45 +203,28 @@ export default function MasterManagementMock() {
       sorter: (a, b) => a.attributeId.localeCompare(b.attributeId),
     },
     {
-      title: () => (
-        <Space>
-          <span>更新日時</span>
-          <DownOutlined style={{ fontSize: 10 }} />
-        </Space>
-      ),
+      title: '更新日時',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 140,
-      align: 'center',
       sorter: (a, b) => a.updatedAt.localeCompare(b.updatedAt),
     },
     {
       title: '',
       key: 'action',
-      width: 200,
+      width: 150,
       fixed: 'right',
-      align: 'center',
       render: (_, record) => (
         <Space size="small">
           <Button
-            size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
-            style={{
-              borderColor: '#000',
-              color: '#000',
-            }}
           >
             編集
           </Button>
           <Button
-            size="small"
             onClick={() => handleToggleActive(record.id)}
-            style={{
-              backgroundColor: record.isActive ? '#fff' : '#CF0027',
-              borderColor: record.isActive ? '#000' : '#CF0027',
-              color: record.isActive ? '#000' : '#fff',
-            }}
+            danger={!record.isActive}
           >
             {record.isActive ? '活性' : '非活性'}
           </Button>
@@ -251,7 +238,7 @@ export default function MasterManagementMock() {
     setEditingMaster(null);
     form.resetFields();
     form.setFieldsValue({
-      isActive: false,
+      isActive: true,
     });
     setIsModalVisible(true);
   };
@@ -263,33 +250,70 @@ export default function MasterManagementMock() {
     setIsModalVisible(true);
   };
 
-  // マスタ削除
-  const handleDelete = () => {
+  // 一括活性化
+  const handleActivate = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('削除するマスタを選択してください');
+      message.warning('活性にするマスタを選択してください');
       return;
     }
     Modal.confirm({
-      title: '選択したマスタを削除しますか？',
-      content: `${selectedRowKeys.length}件のマスタが削除されます。この操作は取り消せません。`,
-      okText: '削除',
+      title: '選択したマスタを活性にしますか？',
+      content: `${selectedRowKeys.length}件のマスタが活性になります。`,
+      okText: '活性',
       cancelText: 'キャンセル',
-      okButtonProps: { danger: true },
       onOk: () => {
-        setMasters(masters.filter(m => !selectedRowKeys.includes(m.id)));
+        setMasters(masters.map(m => 
+          selectedRowKeys.includes(m.id) ? { ...m, isActive: false } : m
+        ));
         setSelectedRowKeys([]);
-        message.success('マスタを削除しました');
+        message.success(`${selectedRowKeys.length}件のマスタを活性にしました`);
       },
     });
   };
 
-  // 活性/非活性切り替え
+  // 一括非活性化
+  const handleDeactivate = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('非活性にするマスタを選択してください');
+      return;
+    }
+    Modal.confirm({
+      title: '選択したマスタを非活性にしますか？',
+      content: `${selectedRowKeys.length}件のマスタが非活性になります。`,
+      okText: '非活性',
+      cancelText: 'キャンセル',
+      okButtonProps: { danger: true },
+      onOk: () => {
+        setMasters(masters.map(m => 
+          selectedRowKeys.includes(m.id) ? { ...m, isActive: true } : m
+        ));
+        setSelectedRowKeys([]);
+        message.success(`${selectedRowKeys.length}件のマスタを非活性にしました`);
+      },
+    });
+  };
+
+  // 個別の活性/非活性切り替え
   const handleToggleActive = (id: string) => {
-    setMasters(masters.map(m => 
-      m.id === id ? { ...m, isActive: !m.isActive } : m
-    ));
     const master = masters.find(m => m.id === id);
-    message.success(`${master?.instrumentName}を${master?.isActive ? '非活性' : '活性'}にしました`);
+    if (!master) return;
+
+    const actionText = master.isActive ? '活性' : '非活性';
+    const masterName = master.instrumentName;
+
+    Modal.confirm({
+      title: `${masterName}を${actionText}にしますか？`,
+      content: `このマスタを${actionText}状態に変更します。`,
+      okText: actionText,
+      cancelText: 'キャンセル',
+      okButtonProps: master.isActive ? undefined : { danger: true },
+      onOk: () => {
+        setMasters(masters.map(m => 
+          m.id === id ? { ...m, isActive: !m.isActive } : m
+        ));
+        message.success(`${masterName}を${actionText}にしました`);
+      },
+    });
   };
 
   // リロード
@@ -297,6 +321,10 @@ export default function MasterManagementMock() {
     setMasters(masterData as MasterData[]);
     setSearchText('');
     setSelectedRowKeys([]);
+    setSelectedInstrumentId('');
+    setSelectedVendorId('');
+    setSelectedTypeId('');
+    setSelectedAttributeId('');
     message.success('データをリロードしました');
   };
 
@@ -343,7 +371,7 @@ export default function MasterManagementMock() {
               return;
             }
 
-            const isActiveValue = row['状態'] || '非活性';
+            const isActiveValue = row['状態'] || '活性';
             const isActive = isActiveValue === '活性' || isActiveValue === 'true' || isActiveValue === '1';
 
             const newMaster: MasterData = {
@@ -501,13 +529,6 @@ export default function MasterManagementMock() {
     form.resetFields();
   };
 
-  // 検索実行
-  const handleSearch = () => {
-    // 検索は filteredMasters で自動的に実行されるため、
-    // ここでは特に処理不要（ユーザーフィードバックのみ）
-    message.info(`${filteredMasters.length}件のマスタが見つかりました`);
-  };
-
   return (
     <div style={{ padding: 0 }}>
       {/* マスタ選択と操作ボタン */}
@@ -526,7 +547,6 @@ export default function MasterManagementMock() {
             value={selectedMasterType}
             onChange={setSelectedMasterType}
             options={masterTypes}
-            suffixIcon={<DownOutlined style={{ color: '#0093CF', fontSize: 20 }} />}
           />
         </Space>
 
@@ -555,17 +575,31 @@ export default function MasterManagementMock() {
             追加
           </Button>
           <Button
-            danger
             icon={<DeleteOutlined />}
-            onClick={handleDelete}
+            onClick={handleActivate}
             disabled={selectedRowKeys.length === 0}
             style={{
+              minWidth: 85,
+              backgroundColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
+              borderColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
+              color: selectedRowKeys.length > 0 ? '#fff' : undefined,
+            }}
+          >
+            活性
+          </Button>
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            onClick={handleDeactivate}
+            disabled={selectedRowKeys.length === 0}
+            style={{
+              minWidth: 85,
               backgroundColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
               borderColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
               color: selectedRowKeys.length > 0 ? '#fff' : undefined,
             }}
           >
-            削除
+            非活性
           </Button>
           <Button
             icon={<ReloadOutlined />}
@@ -579,52 +613,64 @@ export default function MasterManagementMock() {
       {/* マスタ一覧セクション */}
       <div
         style={{
-          border: '2px solid #000',
-          borderRadius: 8,
-          padding: 24,
+          padding: 0,
           backgroundColor: '#fff',
+          maxWidth: 3600,
+          margin: '0 auto',
         }}
       >
-        {/* ヘッダー行 */}
-        <Row gutter={16} align="middle" style={{ marginBottom: 24 }}>
-          <Col flex="none">
-            <Text strong style={{ fontSize: 18 }}>インストルメントマスタ一覧</Text>
+        <Row gutter={16} style={{ marginBottom: 8 }}>
+          <Col style={{ width: 400 }}>
+            <Input
+              placeholder="実験装置ID、実験装置名、ベンダーID、タイプID、属性IDで検索"
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+            />
           </Col>
-          <Col flex="auto">
-            <Row gutter={16} justify="end">
-              <Col flex="none" style={{ width: 150 }}>
-                <Select
-                  style={{ width: '100%' }}
-                  value={selectedFilterKey}
-                  onChange={setSelectedFilterKey}
-                  options={filterOptions}
-                  suffixIcon={<DownOutlined style={{ color: '#0093CF' }} />}
-                />
-              </Col>
-              <Col flex="auto" style={{ maxWidth: 400 }}>
-                <Input
-                  placeholder="曖昧検索可"
-                  prefix={<SearchOutlined />}
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  onPressEnter={handleSearch}
-                  allowClear
-                />
-              </Col>
-              <Col flex="none" style={{ width: 100 }}>
-                <Button
-                  icon={<SearchOutlined />}
-                  style={{ width: '100%' }}
-                  onClick={handleSearch}
-                >
-                  検索
-                </Button>
-              </Col>
-            </Row>
+          <Col style={{ width: 150 }}>
+            <Select
+              placeholder="実験装置ID"
+              value={selectedInstrumentId || undefined}
+              onChange={(value) => setSelectedInstrumentId(value || '')}
+              allowClear
+              style={{ width: '100%' }}
+              options={instrumentIds.map(id => ({ label: id, value: id }))}
+            />
+          </Col>
+          <Col style={{ width: 150 }}>
+            <Select
+              placeholder="ベンダーID"
+              value={selectedVendorId || undefined}
+              onChange={(value) => setSelectedVendorId(value || '')}
+              allowClear
+              style={{ width: '100%' }}
+              options={vendorIds.map(id => ({ label: id, value: id }))}
+            />
+          </Col>
+          <Col style={{ width: 150 }}>
+            <Select
+              placeholder="タイプID"
+              value={selectedTypeId || undefined}
+              onChange={(value) => setSelectedTypeId(value || '')}
+              allowClear
+              style={{ width: '100%' }}
+              options={typeIds.map(id => ({ label: id, value: id }))}
+            />
+          </Col>
+          <Col style={{ width: 150 }}>
+            <Select
+              placeholder="属性ID"
+              value={selectedAttributeId || undefined}
+              onChange={(value) => setSelectedAttributeId(value || '')}
+              allowClear
+              style={{ width: '100%' }}
+              options={attributeIds.map(id => ({ label: id, value: id }))}
+            />
           </Col>
         </Row>
 
-        {/* マスタテーブル */}
         <Table
           rowSelection={rowSelection}
           columns={columns}
@@ -697,8 +743,8 @@ export default function MasterManagementMock() {
           >
             <Select
               options={[
-                { value: false, label: '非活性' },
-                { value: true, label: '活性' },
+                { value: false, label: '活性' },
+                { value: true, label: '非活性' },
               ]}
             />
           </Form.Item>
@@ -706,13 +752,13 @@ export default function MasterManagementMock() {
       </Modal>
 
       <style jsx global>{`
-        .active-row {
+        .active-row td {
           background-color: #d3d3d3 !important;
         }
         .active-row:hover td {
           background-color: #c0c0c0 !important;
         }
-        .inactive-row {
+        .inactive-row td {
           background-color: #fff !important;
         }
         .inactive-row:hover td {

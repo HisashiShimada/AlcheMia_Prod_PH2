@@ -571,6 +571,7 @@ export default function UserManagement() {
           onClick={handleActivate}
           disabled={selectedRowKeys.length === 0}
           style={{
+            minWidth: 85,
             backgroundColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
             borderColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
             color: selectedRowKeys.length > 0 ? '#fff' : undefined,
@@ -584,6 +585,7 @@ export default function UserManagement() {
           onClick={handleDeactivate}
           disabled={selectedRowKeys.length === 0}
           style={{
+            minWidth: 85,
             backgroundColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
             borderColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
             color: selectedRowKeys.length > 0 ? '#fff' : undefined,
