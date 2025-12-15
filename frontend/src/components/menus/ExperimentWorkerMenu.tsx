@@ -194,6 +194,8 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             <InstructionConfirmationTab
               selectedProject={selectedProject}
               onProjectChange={handleProjectChange}
+              selectedMethodId={selectedMethodId}
+              onSelectMethod={handleSelectMethod}
               sortedInstructions={sortedInstructions}
               stats={stats}
               isClient={isClient}

@@ -1,12 +1,14 @@
 'use client';
 
-import React from 'react';
-import { Card, Typography, Space, theme } from 'antd';
+import React, { useMemo } from 'react';
+import { Card, Typography, Space, theme, Divider } from 'antd';
 import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
 import ProjectSelector from './ProjectSelector';
+import MethodSelector from './MethodSelector';
 import InstructionStats from './InstructionStats';
 import InstructionGroup from './InstructionGroup';
 import { Stats, Instruction } from '@/types/experimentWorker';
+import { projectsData } from '@/data/projectsData';
 
 const { Title, Text } = Typography;
 
@@ -21,6 +23,8 @@ const EMPTY_ICON_SIZE = 48;
 interface InstructionConfirmationTabProps {
   selectedProject: string;
   onProjectChange: (value: string) => void;
+  selectedMethodId: string | null;
+  onSelectMethod: (methodId: string) => void;
   sortedInstructions: Instruction[];
   stats: Stats;
   isClient: boolean;
@@ -34,6 +38,8 @@ interface InstructionConfirmationTabProps {
 export default function InstructionConfirmationTab({
   selectedProject,
   onProjectChange,
+  selectedMethodId,
+  onSelectMethod,
   sortedInstructions,
   stats,
   isClient,
@@ -43,16 +49,47 @@ export default function InstructionConfirmationTab({
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
 
-  return (
-    <>
-      {/* プロジェクト選択 */}
-      <ProjectSelector
-        selectedProject={selectedProject}
-        onProjectChange={onProjectChange}
-      />
+  // メソッド一覧の取得
+  const methods = useMemo(() => {
+    if (!selectedProject) return [];
+    const project = projectsData[selectedProject];
+    return project?.methods || [];
+  }, [selectedProject]);
 
-      {!selectedProject ? (
-        <Card>
+  return (
+    <div style={{ padding: '24px' }}>
+      <Card
+        style={{
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+        }}
+      >
+        {/* プロジェクト・メソッド選択エリア */}
+        <div
+          style={{
+            background: '#E8F5E9',
+            padding: '16px 24px',
+            borderRadius: '8px',
+            marginBottom: '16px'
+          }}
+        >
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <ProjectSelector
+              selectedProject={selectedProject}
+              onProjectChange={onProjectChange}
+            />
+            <MethodSelector
+              methods={methods}
+              selectedMethodId={selectedMethodId}
+              onSelectMethod={onSelectMethod}
+              disabled={!selectedProject}
+            />
+          </Space>
+        </div>
+
+        <Divider style={{ margin: '16px 0' }} />
+
+        {!selectedProject ? (
           <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
             <FileTextOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
@@ -60,17 +97,16 @@ export default function InstructionConfirmationTab({
               指示確認
             </Title>
             <Text type="secondary">
-              プロジェクトを選択してください
+              プロジェクトとメソッドを選択してください
             </Text>
           </Space>
-        </Card>
-      ) : (
-        <Card>
-          {/* 指示サマリー */}
-          <InstructionStats stats={stats} />
+        ) : (
+          <>
+            {/* 指示サマリー */}
+            <InstructionStats stats={stats} />
 
-          {/* 全体指示グループ */}
-          <div style={{ marginBottom: token.marginXL }}>
+            {/* 全体指示グループ */}
+            <div style={{ marginBottom: token.marginXL }}>
             <div
               style={{
                 display: 'flex',
@@ -107,11 +143,11 @@ export default function InstructionConfirmationTab({
                   isClient={isClient}
                 />
               </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* メソッド単位指示グループ */}
-          <div style={{ marginBottom: token.marginXL }}>
+            {/* メソッド単位指示グループ */}
+            <div style={{ marginBottom: token.marginXL }}>
             <div
               style={{
                 display: 'flex',
@@ -151,11 +187,11 @@ export default function InstructionConfirmationTab({
                   isClient={isClient}
                 />
               </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* トランジション単位指示グループ */}
-          <div style={{ marginBottom: token.marginXL }}>
+            {/* トランジション単位指示グループ */}
+            <div style={{ marginBottom: token.marginXL }}>
             <div
               style={{
                 display: 'flex',
@@ -196,10 +232,11 @@ export default function InstructionConfirmationTab({
                   isClient={isClient}
                 />
               </div>
-            )}
-          </div>
-        </Card>
-      )}
-    </>
+              )}
+            </div>
+          </>
+        )}
+      </Card>
+    </div>
   );
 }
