@@ -17,12 +17,14 @@ const { Title } = Typography;
 
 /**
  * サブヘッダーのルートコンテナ
+ * UIポリシー: 高さ48px固定
  */
 const SubHeaderContainer = styled.div`
   position: fixed;
   top: 64px;
   left: 0;
   right: 0;
+  height: 48px;
   z-index: 999;
   background-color: #0093CF;
   color: white;
@@ -120,8 +122,9 @@ const TabsWrapper = styled.div`
   }
   
   /* アクティブインジケーター（下線） */
+  /* UIポリシー: インジケーター色は colorPrimary (#CF0027) */
   .ant-tabs-ink-bar {
-    background-color: white !important;
+    background-color: #CF0027 !important;
     height: 3px !important;
     border-radius: 3px 3px 0 0 !important;
   }
@@ -138,6 +141,31 @@ const TabsWrapper = styled.div`
 const ActionsWrapper = styled.div<{ hasTabs: boolean }>`
   margin-bottom: ${(props: { hasTabs: boolean }) => props.hasTabs ? '8px' : '16px'};
   flex-shrink: 0;
+`;
+
+/**
+ * メニュー切替ボタン（styled-components）
+ * UIポリシー: テーマベースのスタイル、transitionは0.2s
+ */
+const MenuSwitchButton = styled(Button)`
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  color: white !important;
+  font-weight: 500 !important;
+  height: 36px !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  transition: all 0.2s ease !important;
+
+  &:hover {
+    border-color: white !important;
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `;
 
 /**
@@ -287,33 +315,13 @@ export default function SubHeader({
                       minWidth: 240,
                     }}
                   >
-                    <Button
+                    <MenuSwitchButton
                       type="primary"
                       ghost
                       icon={<SwapOutlined />}
-                      style={{
-                        borderColor: 'rgba(255, 255, 255, 0.8)',
-                        color: 'white',
-                        fontWeight: 500,
-                        height: 36,
-                        paddingLeft: 16,
-                        paddingRight: 16,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'white';
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.8)';
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
                     >
                       メニュー切替
-                    </Button>
+                    </MenuSwitchButton>
                   </Dropdown>
                 )}
               </Space>

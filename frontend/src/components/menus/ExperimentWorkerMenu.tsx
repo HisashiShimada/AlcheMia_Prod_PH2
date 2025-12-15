@@ -22,6 +22,13 @@ const { Content } = Layout;
 const { Title, Text } = Typography;
 
 /**
+ * レイアウト定数（UIポリシー準拠）
+ */
+const HEADER_HEIGHT = 64;      // UIポリシー: Header高さ 64px
+const SUBHEADER_HEIGHT = 48;   // UIポリシー: SubHeader高さ 48px
+const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + SUBHEADER_HEIGHT; // 合計 112px
+
+/**
  * 実験作業者メニューのProps
  */
 interface ExperimentWorkerMenuProps {
@@ -136,7 +143,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       {/* コンテンツエリア */}
       <Content
         style={{
-          marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
+          marginTop: TOTAL_HEADER_HEIGHT, // UIポリシー: Header(64px) + SubHeader(48px) = 112px
           padding: '24px',
         }}
       >
