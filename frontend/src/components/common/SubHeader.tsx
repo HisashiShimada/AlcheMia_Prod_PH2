@@ -294,7 +294,7 @@ export default function SubHeader({
                 margin: 0,
                 color: 'white',
                 fontWeight: 600,
-                fontSize: 24,
+                fontSize: 24, // UIポリシー: fontSizeHeading3 (24px)
                 whiteSpace: 'nowrap',
               }}
             >
