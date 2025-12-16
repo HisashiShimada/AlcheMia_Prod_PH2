@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, Space, Button, Typography, Divider, message } from 'antd';
 import { RightOutlined, UnorderedListOutlined, FileTextOutlined } from '@ant-design/icons';
-import WorkflowStats from './WorkflowStats';
 import TaskListTable from './TaskListTable';
 import {
   getTasksByProjectAndMethod,
-  calculateWorkflowStatistics,
   updateTaskStatus
 } from '@/data/projectsData';
 import type { Task } from '@/types/experimentWorker';
@@ -24,7 +22,7 @@ interface TaskListTabProps {
 
 /**
  * タスク一覧タブ - メインコンテナ
- * プロジェクト・メソッド選択、統計情報表示、タスク一覧表示を統合
+ * プロジェクト・メソッド選択、タスク一覧表示を統合
  */
 export default function TaskListTab({
   selectedProject,
@@ -43,11 +41,6 @@ export default function TaskListTab({
     }
     return [];
   });
-
-  // 統計情報の計算
-  const statistics = useMemo(() => {
-    return calculateWorkflowStatistics(tasks);
-  }, [tasks]);
 
   // タスクアクション処理
   const handleTaskAction = useCallback((taskId: string, action: string) => {
@@ -145,11 +138,6 @@ export default function TaskListTab({
             <RightOutlined style={{ fontSize: '12px', marginLeft: '4px' }} />
           </Button>
         </div>
-
-        {/* 統計情報バー */}
-        {selectedProject && selectedMethodId && tasks.length > 0 && (
-          <WorkflowStats statistics={statistics} />
-        )}
 
         {/* タスク一覧展開ボタン */}
         <div style={{ marginBottom: '16px' }}>
