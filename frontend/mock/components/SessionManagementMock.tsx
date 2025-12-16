@@ -89,21 +89,23 @@ export default function SessionManagementMock() {
   const columns: ColumnsType<SessionData> = [
     {
       title: (
-        <Space size="middle">
-          <span>ユーザー</span>
-          <Badge
-            count={filteredSessions.length}
-            style={{
-              backgroundColor: '#4169E1',
-              fontSize: 14,
-              height: 28,
-              lineHeight: '28px',
-              borderRadius: 14,
-              paddingLeft: 12,
-              paddingRight: 12,
-            }}
-          />
-        </Space>
+        <div style={{ textAlign: 'center' }}>
+          <Space size="middle">
+            <span>ユーザー</span>
+            <Badge
+              count={filteredSessions.length}
+              style={{
+                backgroundColor: '#4169E1',
+                fontSize: 14,
+                height: 28,
+                lineHeight: '28px',
+                borderRadius: 14,
+                paddingLeft: 12,
+                paddingRight: 12,
+              }}
+            />
+          </Space>
+        </div>
       ),
       key: 'user',
       width: 350,

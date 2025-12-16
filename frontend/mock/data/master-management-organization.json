@@ -1,0 +1,122 @@
+[
+  {
+    "masterId": "1",
+    "orgId": "ORG001",
+    "orgName": "東京材料研究所",
+    "displayName": "東京材料研",
+    "orgMail": "info@tokyo-materials.jp",
+    "departmentCd": "DEPT001",
+    "RepresentativeUserId": "USER001",
+    "RepresentativeUserName": "田中 太郎",
+    "role": "システム管理",
+    "mailAddress": "tanaka@tokyo-materials.jp"
+  },
+  {
+    "masterId": "1",
+    "orgId": "ORG002",
+    "orgName": "大阪先端材料研究センター",
+    "displayName": "大阪先端材料",
+    "orgMail": "contact@osaka-advanced.jp",
+    "departmentCd": "DEPT002",
+    "RepresentativeUserId": "USER002",
+    "RepresentativeUserName": "佐藤 花子",
+    "role": "システム管理",
+    "mailAddress": "sato@osaka-advanced.jp"
+  },
+  {
+    "masterId": "1",
+    "orgId": "ORG003",
+    "orgName": "名古屋材料科学研究所",
+    "displayName": "名古屋材料科学",
+    "orgMail": "info@nagoya-materials.jp",
+    "departmentCd": "DEPT003",
+    "RepresentativeUserId": "USER003",
+    "RepresentativeUserName": "鈴木 一郎",
+    "role": "システム管理",
+    "mailAddress": "suzuki@nagoya-materials.jp"
+  },
+  {
+    "masterId": "1",
+    "orgId": "ORG004",
+    "orgName": "京都ナノマテリアル研究所",
+    "displayName": "京都ナノマテリアル",
+    "orgMail": "info@kyoto-nano.jp",
+    "departmentCd": "DEPT004",
+    "RepresentativeUserId": "USER004",
+    "RepresentativeUserName": "高橋 美咲",
+    "role": "システム管理",
+    "mailAddress": "takahashi@kyoto-nano.jp"
+  },
+  {
+    "masterId": "1",
+    "orgId": "ORG005",
+    "orgName": "横浜複合材料研究センター",
+    "displayName": "横浜複合材料",
+    "orgMail": "contact@yokohama-composite.jp",
+    "departmentCd": "DEPT005",
+    "RepresentativeUserId": "USER005",
+    "RepresentativeUserName": "伊藤 健太",
+    "role": "システム管理",
+    "mailAddress": "ito@yokohama-composite.jp"
+  },
+  {
+    "masterId": "1",
+    "orgId": "ORG006",
+    "orgName": "神戸金属材料研究所",
+    "displayName": "神戸金属材料",
+    "orgMail": "info@kobe-metals.jp",
+    "departmentCd": "DEPT006",
+    "RepresentativeUserId": "USER006",
+    "RepresentativeUserName": "渡辺 由美",
+    "role": "システム管理",
+    "mailAddress": "watanabe@kobe-metals.jp"
+  },
+  {
+    "masterId": "1",
+    "orgId": "ORG007",
+    "orgName": "福岡高分子材料研究所",
+    "displayName": "福岡高分子",
+    "orgMail": "contact@fukuoka-polymer.jp",
+    "departmentCd": "DEPT007",
+    "RepresentativeUserId": "USER007",
+    "RepresentativeUserName": "山本 大輔",
+    "role": "システム管理",
+    "mailAddress": "yamamoto@fukuoka-polymer.jp"
+  },
+  {
+    "masterId": "1",
+    "orgId": "ORG008",
+    "orgName": "仙台セラミックス研究センター",
+    "displayName": "仙台セラミックス",
+    "orgMail": "info@sendai-ceramics.jp",
+    "departmentCd": "DEPT008",
+    "RepresentativeUserId": "USER008",
+    "RepresentativeUserName": "中村 あゆみ",
+    "role": "システム管理",
+    "mailAddress": "nakamura@sendai-ceramics.jp"
+  },
+  {
+    "masterId": "1",
+    "orgId": "ORG009",
+    "orgName": "札幌低温材料研究所",
+    "displayName": "札幌低温材料",
+    "orgMail": "info@sapporo-lowtemp.jp",
+    "departmentCd": "DEPT009",
+    "RepresentativeUserId": "USER009",
+    "RepresentativeUserName": "小林 誠",
+    "role": "システム管理",
+    "mailAddress": "kobayashi@sapporo-lowtemp.jp"
+  },
+  {
+    "masterId": "1",
+    "orgId": "ORG010",
+    "orgName": "広島光学材料研究所",
+    "displayName": "広島光学材料",
+    "orgMail": "contact@hiroshima-optical.jp",
+    "departmentCd": "DEPT010",
+    "RepresentativeUserId": "USER010",
+    "RepresentativeUserName": "加藤 愛",
+    "role": "システム管理",
+    "mailAddress": "kato@hiroshima-optical.jp"
+  }
+]

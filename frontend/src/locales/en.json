@@ -56,6 +56,8 @@
     "experiment_admin": {
       "title": "Experiment Administrator Menu",
       "tabs": {
+        "projectManagement": "Project Management",
+        "formatManagement": "Format Management",
         "experimentManagement": "Experiment Management",
         "workerAssignment": "Worker Assignment",
         "progressManagement": "Progress Management",

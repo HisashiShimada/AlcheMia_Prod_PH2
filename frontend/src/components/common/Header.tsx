@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Layout, Typography, Avatar, Dropdown, Space, Divider } from 'antd';
+import { Layout, Typography, Avatar, Dropdown, Space, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   LogoutOutlined,
@@ -14,7 +14,7 @@ import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Header: AntHeader } = Layout;
-const { Text } = Typography;
+const { Text, Title } = Typography;
 
 /**
  * ヘッダーコンポーネントのProps
@@ -30,6 +30,7 @@ interface HeaderProps {
  */
 export default function Header({ user, onLogout }: HeaderProps) {
   const { t, locale, setLocale } = useLanguage();
+  const { token } = theme.useToken();
 
   // ロール名の表示
   const getRoleLabel = (role: string): string => {
@@ -43,7 +44,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
       label: (
         <Space>
           <span>{t('languages.ja')}</span>
-          {locale === 'ja' && <CheckOutlined style={{ color: '#CF0027' }} />}
+          {locale === 'ja' && <CheckOutlined style={{ color: token.colorPrimary }} />}
         </Space>
       ),
       onClick: () => setLocale('ja'),
@@ -53,7 +54,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
       label: (
         <Space>
           <span>{t('languages.en')}</span>
-          {locale === 'en' && <CheckOutlined style={{ color: '#CF0027' }} />}
+          {locale === 'en' && <CheckOutlined style={{ color: token.colorPrimary }} />}
         </Space>
       ),
       onClick: () => setLocale('en'),
@@ -102,32 +103,34 @@ export default function Header({ user, onLogout }: HeaderProps) {
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
-        padding: '0 50px',
-        backgroundColor: '#ffffff',
-        borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+        padding: `0 ${token.paddingXL * 2}px`,
+        background: token.colorBgContainer,
+        borderBottom: `1px solid ${token.colorBorderSecondary}`,
         height: 64,
         lineHeight: '64px',
       }}
     >
       {/* アプリケーション名 */}
-      <div
+      <Title
+        level={1}
         style={{
-          fontSize: 36,
-          fontWeight: 600,
-          color: '#CF0027',
-          marginRight: 32,
+          margin: 0,
+          marginRight: token.marginLG,
+          fontSize: token.fontSizeHeading1,
+          fontWeight: token.fontWeightStrong,
+          color: token.colorPrimary,
           cursor: 'default',
         }}
       >
         {t('common.appName')}
-      </div>
+      </Title>
 
       {/* サブタイトル */}
       <Text
         type="secondary"
         style={{
           flex: 1,
-          fontSize: 18,
+          fontSize: token.fontSizeLG,
         }}
       >
         {t('common.appSubtitle')}
@@ -139,9 +142,9 @@ export default function Header({ user, onLogout }: HeaderProps) {
           <div style={{ textAlign: 'right', lineHeight: 1.4 }}>
             <div
               style={{
-                fontSize: 18,
+                fontSize: token.fontSizeLG,
                 fontWeight: 500,
-                color: '#212121',
+                color: token.colorText,
               }}
             >
               {user.displayName}
@@ -149,7 +152,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
             <Text
               type="secondary"
               style={{
-                fontSize: 16,
+                fontSize: token.fontSize,
               }}
             >
               {getRoleLabel(user.role)} | {user.organizationName}
@@ -163,10 +166,10 @@ export default function Header({ user, onLogout }: HeaderProps) {
           >
             <Avatar
               style={{
-                backgroundColor: '#CF0027',
+                backgroundColor: token.colorPrimary,
                 cursor: 'pointer',
-                fontSize: 18,
-                fontWeight: 600,
+                fontSize: token.fontSizeLG,
+                fontWeight: token.fontWeightStrong,
               }}
               size={36}
             >

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Tabs, Card, Typography, message } from 'antd';
+import { Layout, Card, Typography, theme } from 'antd';
 import {
   ShopOutlined,
   TeamOutlined,
@@ -46,6 +46,7 @@ interface ProviderMenuProps {
  */
 export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange }: ProviderMenuProps) {
   const { t } = useLanguage();
+  const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
 
   const tabItems = [
@@ -73,8 +74,11 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
 
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
+  // Header + SubHeaderの高さ (Header: 64px, SubHeader with tabs: 約76px)
+  const HEADER_TOTAL_HEIGHT = 140;
+
   return (
-    <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
       <SubHeader 
         title={t('menu.provider.title')}
@@ -88,39 +92,18 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
       {/* コンテンツエリア */}
       <Content
         style={{
-          marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
-          padding: '24px',
+          marginTop: HEADER_TOTAL_HEIGHT,
+          height: `calc(100vh - ${HEADER_TOTAL_HEIGHT}px)`,
+          overflow: 'auto',
+          background: token.colorBgContainer,
+          padding: `0 ${token.paddingContentHorizontal}px`,
         }}
       >
-        <div style={{ maxWidth: 1600, margin: '0 auto' }}>
-          {/* タブ1: 組織管理 */}
-          {currentTab === '1' && <OrganizationManagementMock />}
-          
-          {/* タブ2: 情報ダウンロード */}
-          {currentTab === '2' && <InformationDownloadMock />}
-          
-          {/* タブ3-6: 未実装 */}
-          {/* {['3', '4', '5', '6'].includes(currentTab) && (
-            <Card
-              style={{
-                minHeight: 400,
-                borderRadius: 12,
-              }}
-              styles={{
-                body: {
-                  padding: 24,
-                },
-              }}
-            >
-              <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
-                {currentTabLabel}
-              </Title>
-              <Text type="secondary">
-                {t('content.notImplemented')}
-              </Text>
-            </Card>
-          )} */}
-        </div>
+        {/* タブ1: 組織管理 */}
+        {currentTab === '1' && <OrganizationManagementMock />}
+        
+        {/* タブ2: 情報ダウンロード */}
+        {currentTab === '2' && <InformationDownloadMock />}
       </Content>
     </Layout>
   );
