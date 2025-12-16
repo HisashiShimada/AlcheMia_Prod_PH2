@@ -111,6 +111,10 @@
     "taskListButton": "Task List",
     "batchProgressButton": "Batch Progress Report",
     "approvalRequestButton": "Request Approval",
+    "labels": {
+      "project": "Project",
+      "method": "Method"
+    },
     "stats": {
       "notStarted": "Not Started Transitions",
       "started": "Started",

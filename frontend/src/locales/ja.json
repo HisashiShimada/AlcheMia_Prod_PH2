@@ -111,6 +111,10 @@
     "taskListButton": "タスク一覧",
     "batchProgressButton": "一括進捗報告",
     "approvalRequestButton": "承認依頼",
+    "labels": {
+      "project": "プロジェクト",
+      "method": "メソッド"
+    },
     "stats": {
       "notStarted": "開始前のトランジション",
       "started": "開始",

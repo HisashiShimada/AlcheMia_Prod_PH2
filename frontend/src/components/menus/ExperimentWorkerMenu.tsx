@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, Typography, Space, Button, Tabs, theme } from 'antd';
+import { Layout, Card, Typography, Space, Button, Tabs, theme, Select } from 'antd';
 import {
   FileTextOutlined,
   FormOutlined,
@@ -252,12 +252,23 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             <div style={{ width: '100%' }}>
               {/* プロジェクト */}
               <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: token.margin }}>
-                <Space size="middle" style={{ flex: 1 }}>
+                <Space size="middle" style={{ flex: 1, width: '100%' }}>
                   <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-                  <Text strong style={{ minWidth: 80 }}>プロジェクト:</Text>
-                  <Text>
-                    {selectedProjectData ? selectedProjectData.projectName : '未選択'}
-                  </Text>
+                  <Text strong style={{ minWidth: 80 }}>{t('experimentWork.labels.project')}:</Text>
+                  <Select
+                    value={selectedProject || undefined}
+                    placeholder="-"
+                    style={{ flex: 1, minWidth: 200 }}
+                    onChange={handleProjectChange}
+                    options={[
+                      { value: undefined, label: '-' },
+                      ...Object.entries(projectsData).map(([id, project]) => ({
+                        value: id,
+                        label: project.projectName
+                      }))
+                    ]}
+                    size="middle"
+                  />
                 </Space>
               </div>
 
@@ -265,10 +276,24 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
               <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
                 <Space size="middle" style={{ flex: 1 }}>
                   <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-                  <Text strong style={{ minWidth: 80 }}>メソッド:</Text>
-                  <Text>
-                    {selectedMethod ? selectedMethod.methodName : '未選択'}
-                  </Text>
+                  <Text strong style={{ minWidth: 80 }}>{t('experimentWork.labels.method')}:</Text>
+                  <Select
+                    value={selectedMethodId || undefined}
+                    placeholder="-"
+                    style={{ flex: 1, minWidth: 200 }}
+                    onChange={handleSelectMethod}
+                    disabled={!selectedProject}
+                    options={[
+                      { value: undefined, label: '-' },
+                      ...(selectedProject && projectsData[selectedProject]?.methods
+                        ? projectsData[selectedProject].methods.map(method => ({
+                            value: method.methodId,
+                            label: method.methodName
+                          }))
+                        : [])
+                    ]}
+                    size="middle"
+                  />
                 </Space>
                 <Button
                   type="primary"
@@ -276,7 +301,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                   onClick={() => setDialogOpen(true)}
                   size="large"
                 >
-                  選択
+                  {t('experimentWork.selectButton')}
                 </Button>
               </div>
             </div>
