@@ -10,6 +10,8 @@ import {
   Tag,
   Tabs,
   Typography,
+  Flex,
+  theme,
 } from 'antd';
 import {
   SearchOutlined,
@@ -24,11 +26,16 @@ import {
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
 import ProjectDetailModal from './ProjectDetailModal';
+import ProjectSearchModal from './ProjectSearchModal';
 import TaskResultsTable from './TaskResultsTable';
+import BulkUploadDialog from './BulkUploadDialog';
+import InstructionDialog from './InstructionDialog';
+import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
 import mockProjectsData from '@/data/mock/mockProjects.json';
 import mockFilesData from '@/data/mock/mockFiles.json';
 import mockTaskResultsData from '@/data/mock/mockTaskResults.json';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { message } from 'antd';
 
 const { Title, Text } = Typography;
 
@@ -37,6 +44,7 @@ const { Title, Text } = Typography;
  */
 const ProjectManagement: React.FC = () => {
   const { t } = useLanguage();
+  const { token } = theme.useToken();
   const [projects, setProjects] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [ownerFilter, setOwnerFilter] = useState<string>('my_only'); // my_only, all
@@ -49,6 +57,10 @@ const ProjectManagement: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // ソート順序
   const [currentFolder, setCurrentFolder] = useState<string>('root');
   const [modalOpen, setModalOpen] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [instructionDialogOpen, setInstructionDialogOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
   const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
 
@@ -228,6 +240,27 @@ const ProjectManagement: React.FC = () => {
     setProjects([...mockProjectsData.projects]);
   };
 
+  // アップロードダイアログを開く
+  const handleOpenUploadDialog = useCallback(() => {
+    setUploadDialogOpen(true);
+  }, []);
+
+  // アップロードダイアログを閉じる
+  const handleCloseUploadDialog = useCallback(() => {
+    setUploadDialogOpen(false);
+  }, []);
+
+  // アップロード完了ハンドラ
+  const handleUploadComplete = useCallback((result: {
+    mode: string;
+    fileCount: number;
+    success: boolean;
+  }) => {
+    console.log('Upload completed:', result);
+    // TODO: ファイル一覧を更新
+    handleRefresh();
+  }, []);
+
   // 選択したプロジェクトとそのファイル一覧を取得
   const selectedProject = useMemo(() => {
     return projects.find((p) => p.id === selectedProjectId) || null;
@@ -287,6 +320,36 @@ const ProjectManagement: React.FC = () => {
     return (mockTaskResultsData.taskResults as any)[selectedProjectId] || [];
   }, [selectedProjectId]);
 
+  // タスク結果の統計情報を計算
+  const taskStats = useMemo(() => {
+    const stats = {
+      total: taskResults.length,
+      pending: 0,
+      in_progress: 0,
+      review_waiting: 0,
+      reviewed: 0,
+    };
+
+    taskResults.forEach((result: any) => {
+      switch (result.status) {
+        case 'pending':
+          stats.pending++;
+          break;
+        case 'in_progress':
+          stats.in_progress++;
+          break;
+        case 'review_waiting':
+          stats.review_waiting++;
+          break;
+        case 'reviewed':
+          stats.reviewed++;
+          break;
+      }
+    });
+
+    return stats;
+  }, [taskResults]);
+
   // タスク結果確認ハンドラ
   const handleViewTaskResult = useCallback((result: any) => {
     console.log('View task result:', result);
@@ -298,22 +361,132 @@ const ProjectManagement: React.FC = () => {
     return selectedProject?.isCheckedOut === true;
   }, [selectedProject]);
 
+  // チェックイン/チェックアウト切り替えハンドラ
+  const handleToggleCheckout = useCallback(() => {
+    if (!selectedProject) return;
+
+    // プロジェクトのチェックアウトステータスを切り替え
+    setProjects((prev) =>
+      prev.map((project) => {
+        if (project.id === selectedProject.id) {
+          return {
+            ...project,
+            isCheckedOut: !project.isCheckedOut,
+          };
+        }
+        return project;
+      })
+    );
+
+    // メッセージ表示
+    if (isProjectCheckedOut) {
+      console.log('チェックイン:', selectedProject.name);
+      // TODO: 実際のAPI呼び出しを実装
+    } else {
+      console.log('チェックアウト:', selectedProject.name);
+      // TODO: 実際のAPI呼び出しを実装
+    }
+  }, [selectedProject, isProjectCheckedOut]);
+
+  // 指示送信ダイアログを開く
+  const handleOpenInstructionDialog = useCallback(() => {
+    setInstructionDialogOpen(true);
+  }, []);
+
+  // 指示送信ダイアログを閉じる
+  const handleCloseInstructionDialog = useCallback(() => {
+    setInstructionDialogOpen(false);
+  }, []);
+
+  // 指示送信ハンドラ
+  const handleInstructionSubmit = useCallback((data: any) => {
+    console.log('指示データ送信:', data);
+    // TODO: チェックアウトAPIを呼び出す
+    // TODO: 成功時にプロジェクトをチェックアウト状態に更新
+  }, []);
+
+  // 新規プロジェクト作成モーダルを開く
+  const handleOpenCreateModal = useCallback(() => {
+    setCreateModalOpen(true);
+  }, []);
+
+  // 新規プロジェクト作成モーダルを閉じる
+  const handleCloseCreateModal = useCallback(() => {
+    setCreateModalOpen(false);
+  }, []);
+
+  // 新規プロジェクト作成ハンドラ
+  const handleCreateProject = useCallback(async (data: CreateProjectData) => {
+    try {
+      console.log('新規プロジェクト作成:', data);
+      
+      // 新しいプロジェクトIDを生成
+      const newProjectId = `proj_${String(projects.length + 1).padStart(3, '0')}`;
+      
+      // 新しいプロジェクトオブジェクトを作成
+      const newProject = {
+        id: newProjectId,
+        name: data.name,
+        folderName: data.folderName,
+        description: data.description,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        status: 'planning',
+        fileCount: 0,
+        totalSize: 0,
+        owner: data.owner,
+        department: data.department,
+        members: [data.owner],
+        tags: [],
+        isCheckedOut: false,
+        checkedOutBy: null,
+        checkedOutAt: null,
+      };
+      
+      // プロジェクト一覧に追加
+      setProjects((prev) => [newProject, ...prev]);
+      
+      // 新しいプロジェクトを選択状態にする
+      setSelectedProjectId(newProjectId);
+      
+      // 成功メッセージを表示
+      message.success({
+        content: t('projectManagement.create.success') || 'プロジェクトが正常に作成されました',
+        duration: 3,
+      });
+      
+      // モーダルを閉じる
+      handleCloseCreateModal();
+      
+      // TODO: 実際のAPI呼び出しを実装
+      // await apiService.post('/api/projects', data);
+    } catch (error) {
+      console.error('プロジェクト作成エラー:', error);
+      message.error({
+        content: t('projectManagement.create.error') || 'プロジェクトの作成に失敗しました',
+        duration: 3,
+      });
+      throw error;
+    }
+  }, [projects, t, handleCloseCreateModal]);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#fafafa' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: token.colorBgLayout }}>
       {/* ツールバー */}
       <Card
         bordered={false}
         style={{
-          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
           borderRadius: 0,
         }}
-        bodyStyle={{ padding: '16px 24px' }}
+        bodyStyle={{ padding: `${token.margin}px ${token.paddingLG}px` }}
       >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         {/* 検索・フィルタ */}
         <Space direction="horizontal" size="small" wrap>
           {/* 所有者絞込 */}
           <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+            <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('projectManagement.filter_labels.owner')}
             </Text>
             <Select
@@ -329,7 +502,7 @@ const ProjectManagement: React.FC = () => {
 
           {/* 部門絞込 */}
           <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+            <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('projectManagement.filter_labels.department')}
             </Text>
             <Select
@@ -348,7 +521,7 @@ const ProjectManagement: React.FC = () => {
 
           {/* プロジェクトステータス絞込 */}
           <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+            <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('projectManagement.filter_labels.project_status')}
             </Text>
             <Select
@@ -369,7 +542,7 @@ const ProjectManagement: React.FC = () => {
 
           {/* チェックアウトステータス絞込 */}
           <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+            <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('projectManagement.filter_labels.checkout_status')}
             </Text>
             <Select
@@ -386,7 +559,7 @@ const ProjectManagement: React.FC = () => {
 
           {/* 検索バー */}
           <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+            <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('projectManagement.filter_labels.search')}
             </Text>
             <Input
@@ -400,24 +573,30 @@ const ProjectManagement: React.FC = () => {
           </Space>
 
           {/* 詳細検索ボタン */}
-          <Button type="primary">
+          <Button 
+            type="primary"
+            icon={<SearchOutlined />}
+            onClick={() => setSearchModalOpen(true)}
+          >
             {t('projectManagement.advanced_search')}
           </Button>
+        </Space>
 
-          <div style={{ flex: 1 }} />
-
-          {/* 右側のアクションボタン */}
+        {/* 右側のアクションボタン */}
+        <Space size="small">
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            style={{ backgroundColor: '#2e7d32', borderColor: '#2e7d32' }}
+            style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+            onClick={handleOpenCreateModal}
           >
             {t('projectManagement.new_project')}
           </Button>
           <Button
             type="primary"
             icon={<UploadOutlined />}
-            style={{ backgroundColor: '#2e7d32', borderColor: '#2e7d32' }}
+            style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+            onClick={handleOpenUploadDialog}
           >
             {t('projectManagement.upload')}
           </Button>
@@ -429,6 +608,7 @@ const ProjectManagement: React.FC = () => {
             {t('progress.refresh')}
           </Button>
         </Space>
+        </div>
       </Card>
 
       {/* メインコンテンツ: 2カラムレイアウト */}
@@ -455,13 +635,13 @@ const ProjectManagement: React.FC = () => {
               <Card
                 bordered={false}
                 style={{
-                  borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                  borderBottom: `1px solid ${token.colorBorderSecondary}`,
                   borderRadius: 0,
                 }}
-                bodyStyle={{ padding: 16 }}
+                bodyStyle={{ padding: token.margin }}
               >
                 <Space size="small">
-                  <Title level={5} style={{ margin: 0, fontWeight: 600 }}>
+                  <Title level={5} style={{ margin: 0, fontWeight: token.fontWeightStrong }}>
                     {selectedProject.name}
                   </Title>
                   {/* プロジェクトステータス表示 */}
@@ -494,10 +674,10 @@ const ProjectManagement: React.FC = () => {
               <Card
                 bordered={false}
                 style={{
-                  borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                  borderBottom: `1px solid ${token.colorBorderSecondary}`,
                   borderRadius: 0,
                 }}
-                bodyStyle={{ padding: 16 }}
+                bodyStyle={{ padding: token.margin }}
               >
                 <Space size="small">
                   <Button
@@ -515,19 +695,21 @@ const ProjectManagement: React.FC = () => {
                   <Button
                     type="primary"
                     icon={<FileTextOutlined />}
-                    style={isProjectCheckedOut ? { backgroundColor: '#ed6c02', borderColor: '#ed6c02' } : { backgroundColor: '#2e7d32', borderColor: '#2e7d32' }}
+                    onClick={handleToggleCheckout}
+                    style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                   >
                     {isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}
                   </Button>
                   <Button
+                    type="primary"
                     icon={<SendOutlined />}
-                    disabled
+                    onClick={handleOpenInstructionDialog}
                   >
                     {t('projectManagement.send_instruction')}
                   </Button>
                   <Button
                     type="primary"
-                    style={{ backgroundColor: '#0093CF', borderColor: '#0093CF' }}
+                    style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
                   >
                     {t('projectManagement.publish')}
                   </Button>
@@ -549,14 +731,14 @@ const ProjectManagement: React.FC = () => {
                   },
                 ]}
                 style={{
-                  borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
-                  backgroundColor: '#ffffff',
-                  padding: '0 16px',
+                  borderBottom: `1px solid ${token.colorBorderSecondary}`,
+                  backgroundColor: token.colorBgContainer,
+                  padding: `0 ${token.margin}px`,
                 }}
               />
 
               {/* タブコンテンツ */}
-              <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+              <div style={{ flex: 1, overflow: 'auto', padding: token.margin }}>
                 {currentTab === 'file_management' && (
                   <FileListTable
                     files={projectFiles}
@@ -566,10 +748,91 @@ const ProjectManagement: React.FC = () => {
                 )}
                 
                 {currentTab === 'task_results' && (
-                  <TaskResultsTable
-                    results={taskResults}
-                    onViewResult={handleViewTaskResult}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {/* 統計カード */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: token.margin }}>
+                      <Card
+                        bordered={false}
+                        style={{ backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius }}
+                        bodyStyle={{ padding: token.margin }}
+                      >
+                        <Flex vertical align="center">
+                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                            {t('projectManagement.task_results.stats.total_tasks')}
+                          </Text>
+                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorText }}>
+                            {taskStats.total}
+                          </Title>
+                        </Flex>
+                      </Card>
+                      
+                      <Card
+                        bordered={false}
+                        style={{ backgroundColor: token.colorInfoBg, borderRadius: token.borderRadius }}
+                        bodyStyle={{ padding: token.margin }}
+                      >
+                        <Flex vertical align="center">
+                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                            {t('projectManagement.task_results.stats.pending_count')}
+                          </Text>
+                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorInfo }}>
+                            {taskStats.pending}
+                          </Title>
+                        </Flex>
+                      </Card>
+                      
+                      <Card
+                        bordered={false}
+                        style={{ backgroundColor: token.colorInfoBg, borderRadius: token.borderRadius }}
+                        bodyStyle={{ padding: token.margin }}
+                      >
+                        <Flex vertical align="center">
+                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                            {t('projectManagement.task_results.stats.in_progress_count')}
+                          </Text>
+                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorInfo }}>
+                            {taskStats.in_progress}
+                          </Title>
+                        </Flex>
+                      </Card>
+                      
+                      <Card
+                        bordered={false}
+                        style={{ backgroundColor: token.colorWarningBg, borderRadius: token.borderRadius }}
+                        bodyStyle={{ padding: token.margin }}
+                      >
+                        <Flex vertical align="center">
+                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                            {t('projectManagement.task_results.stats.review_waiting_count')}
+                          </Text>
+                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorWarning }}>
+                            {taskStats.review_waiting}
+                          </Title>
+                        </Flex>
+                      </Card>
+                      
+                      <Card
+                        bordered={false}
+                        style={{ backgroundColor: token.colorSuccessBg, borderRadius: token.borderRadius }}
+                        bodyStyle={{ padding: token.margin }}
+                      >
+                        <Flex vertical align="center">
+                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                            {t('projectManagement.task_results.stats.reviewed_count')}
+                          </Text>
+                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorSuccess }}>
+                            {taskStats.reviewed}
+                          </Title>
+                        </Flex>
+                      </Card>
+                    </div>
+
+                    {/* タスク結果テーブル */}
+                    <TaskResultsTable
+                      results={taskResults}
+                      onViewResult={handleViewTaskResult}
+                    />
+                  </div>
                 )}
               </div>
             </>
@@ -601,6 +864,42 @@ const ProjectManagement: React.FC = () => {
         onClose={handleCloseModal}
         project={selectedProject}
         files={projectFiles}
+      />
+
+      {/* プロジェクト検索モーダル */}
+      <ProjectSearchModal
+        open={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        onProjectSelect={(projectId: string) => {
+          console.log('検索結果からプロジェクトが選択されました:', projectId);
+          // プロジェクトを選択状態にする
+          handleProjectSelect(projectId);
+        }}
+      />
+
+      {/* 一括アップロードダイアログ */}
+      <BulkUploadDialog
+        open={uploadDialogOpen}
+        onClose={handleCloseUploadDialog}
+        onUploadComplete={handleUploadComplete}
+        preselectedFolder={selectedProject?.folderName || ''}
+      />
+
+      {/* 指示送信ダイアログ */}
+      <InstructionDialog
+        open={instructionDialogOpen}
+        onClose={handleCloseInstructionDialog}
+        onSubmit={handleInstructionSubmit}
+        fileKey={selectedProject?.folderName || ''}
+        managerId="current_manager_id"
+        availableWorkers={[]}
+      />
+
+      {/* 新規プロジェクト作成モーダル */}
+      <CreateProjectModal
+        open={createModalOpen}
+        onCancel={handleCloseCreateModal}
+        onSubmit={handleCreateProject}
       />
     </div>
   );

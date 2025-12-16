@@ -8,6 +8,7 @@ import {
   Dropdown,
   Space,
   Button,
+  theme,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -54,6 +55,8 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
   sortOrder,
   onSortChange,
 }) => {
+  const { token } = theme.useToken();
+  
   const getStatusChipColor = (status: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
     const colors: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
       planning: 'default',
@@ -120,25 +123,25 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
     <div
       style={{
         height: '100%',
-        backgroundColor: '#ffffff',
-        borderRight: '1px solid rgba(0, 0, 0, 0.06)',
+        backgroundColor: token.colorBgContainer,
+        borderRight: `1px solid ${token.colorBorderSecondary}`,
         overflowY: 'auto',
       }}
     >
       {/* ヘッダー */}
       <div
         style={{
-          padding: 16,
-          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+          padding: token.margin,
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <Text strong style={{ fontSize: 14 }}>
+            <Text strong style={{ fontSize: token.fontSize }}>
               プロジェクト一覧
             </Text>
             <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 {projects.length} プロジェクト
               </Text>
             </div>
@@ -157,34 +160,34 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
             key={project.id}
             onClick={() => onProjectSelect(project.id)}
             style={{
-              padding: '12px 16px',
+              padding: `${token.paddingSM}px ${token.margin}px`,
               cursor: 'pointer',
-              backgroundColor: selectedProjectId === project.id ? '#FFF1F3' : 'transparent',
-              borderLeft: selectedProjectId === project.id ? '3px solid #CF0027' : '3px solid transparent',
+              backgroundColor: selectedProjectId === project.id ? token.colorPrimaryBg : 'transparent',
+              borderLeft: selectedProjectId === project.id ? `3px solid ${token.colorPrimary}` : '3px solid transparent',
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: token.marginXS, width: '100%' }}>
               <Text
                 strong={selectedProjectId === project.id}
-                style={{ fontSize: 14 }}
+                style={{ fontSize: token.fontSize }}
               >
                 {project.name}
               </Text>
               <Space size="small" wrap>
                 <Tag
                   color={getStatusChipColor(project.status) === 'primary' ? 'cyan' : getStatusChipColor(project.status)}
-                  style={{ fontSize: 10, margin: 0 }}
+                  style={{ fontSize: token.fontSizeSM, margin: 0 }}
                 >
                   {getStatusLabel(project.status)}
                 </Tag>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                   {project.fileCount} ファイル
                 </Text>
               </Space>
-              <Text type="secondary" style={{ fontSize: 11 }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 所有者: {project.owner}
               </Text>
-              <Text type="secondary" style={{ fontSize: 11 }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 {project.department} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
               </Text>
             </div>

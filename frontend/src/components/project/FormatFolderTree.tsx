@@ -8,6 +8,7 @@ import {
   Dropdown,
   Space,
   Button,
+  theme,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -59,6 +60,8 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
   sortOrder,
   onSortChange,
 }) => {
+  const { token } = theme.useToken();
+  
   const getCategoryTagColor = (category: string): string => {
     const colors: Record<string, string> = {
       protocol: 'cyan',
@@ -120,25 +123,25 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
     <div
       style={{
         height: '100%',
-        backgroundColor: '#ffffff',
-        borderRight: '1px solid rgba(0, 0, 0, 0.06)',
+        backgroundColor: token.colorBgContainer,
+        borderRight: `1px solid ${token.colorBorderSecondary}`,
         overflowY: 'auto',
       }}
     >
       {/* ヘッダー */}
       <div
         style={{
-          padding: 16,
-          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+          padding: token.margin,
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <Text strong style={{ fontSize: 14 }}>
+            <Text strong style={{ fontSize: token.fontSize }}>
               フォーマット一覧
             </Text>
             <div>
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 {formats.length} フォーマット
               </Text>
             </div>
@@ -157,23 +160,23 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
             key={format.id}
             onClick={() => onFormatSelect(format.id)}
             style={{
-              padding: '12px 16px',
+              padding: `${token.paddingSM}px ${token.margin}px`,
               cursor: 'pointer',
-              backgroundColor: selectedFormatId === format.id ? '#FFF1F3' : 'transparent',
-              borderLeft: selectedFormatId === format.id ? '3px solid #CF0027' : '3px solid transparent',
+              backgroundColor: selectedFormatId === format.id ? token.colorPrimaryBg : 'transparent',
+              borderLeft: selectedFormatId === format.id ? `3px solid ${token.colorPrimary}` : '3px solid transparent',
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: token.marginXS, width: '100%' }}>
               <Space size="small">
                 <Text
                   strong={selectedFormatId === format.id}
-                  style={{ fontSize: 14 }}
+                  style={{ fontSize: token.fontSize }}
                 >
                   {format.name}
                 </Text>
                 <Tag
                   color={format.fileType === 'xml' ? 'cyan' : 'purple'}
-                  style={{ fontSize: 9, margin: 0 }}
+                  style={{ fontSize: token.fontSizeSM, margin: 0 }}
                 >
                   {format.fileType.toUpperCase()}
                 </Tag>
@@ -181,18 +184,18 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
               <Space size="small" wrap>
                 <Tag
                   color={getCategoryTagColor(format.category)}
-                  style={{ fontSize: 10, margin: 0 }}
+                  style={{ fontSize: token.fontSizeSM, margin: 0 }}
                 >
                   {getCategoryLabel(format.category)}
                 </Tag>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                   {format.fileCount} ファイル
                 </Text>
               </Space>
-              <Text type="secondary" style={{ fontSize: 11 }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 部門: {format.department}
               </Text>
-              <Text type="secondary" style={{ fontSize: 11 }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 更新: {new Date(format.updatedAt).toLocaleDateString('ja-JP')}
               </Text>
             </div>

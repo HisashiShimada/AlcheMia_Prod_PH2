@@ -167,8 +167,20 @@
       "work_id": "Work ID",
       "reporter_name": "Reporter Name",
       "reported_at": "Reported At",
+      "status": "Status",
       "actions": "Actions",
-      "view_result": "View Result"
+      "view_result": "View Result",
+      "status_pending": "Pending",
+      "status_in_progress": "In Progress",
+      "status_review_waiting": "Review Waiting",
+      "status_reviewed": "Reviewed",
+      "stats": {
+        "total_tasks": "Total Tasks",
+        "pending_count": "Pending",
+        "in_progress_count": "In Progress",
+        "review_waiting_count": "Review Waiting",
+        "reviewed_count": "Reviewed"
+      }
     }
   },
   "progress": {

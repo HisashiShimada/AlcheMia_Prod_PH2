@@ -7,6 +7,7 @@ import {
   Tooltip,
   Space,
   Empty,
+  theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -40,25 +41,27 @@ interface FileListTableProps {
  * ファイル一覧テーブルコンポーネント
  */
 const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFolderClick }) => {
+  const { token } = theme.useToken();
+  
   // ファイルタイプに応じたアイコンを取得
   const getFileIcon = (file: FileData) => {
     if (file.isFolder) {
-      return <FolderOpenOutlined style={{ fontSize: 20, color: '#FFA726' }} />;
+      return <FolderOpenOutlined style={{ fontSize: token.fontSizeLG, color: token.colorWarning }} />;
     }
     
     switch (file.type) {
       case 'maiml':
-        return <FileTextOutlined style={{ fontSize: 20, color: '#2196F3' }} />;
+        return <FileTextOutlined style={{ fontSize: token.fontSizeLG, color: token.colorInfo }} />;
       case 'pdf':
-        return <FileTextOutlined style={{ fontSize: 20, color: '#F44336' }} />;
+        return <FileTextOutlined style={{ fontSize: token.fontSizeLG, color: token.colorError }} />;
       case 'excel':
-        return <TableOutlined style={{ fontSize: 20, color: '#4CAF50' }} />;
+        return <TableOutlined style={{ fontSize: token.fontSizeLG, color: token.colorSuccess }} />;
       case 'csv':
-        return <TableOutlined style={{ fontSize: 20, color: '#757575' }} />;
+        return <TableOutlined style={{ fontSize: token.fontSizeLG, color: token.colorTextSecondary }} />;
       case 'archive':
-        return <FolderOpenOutlined style={{ fontSize: 20, color: '#FF9800' }} />;
+        return <FolderOpenOutlined style={{ fontSize: token.fontSizeLG, color: token.colorWarning }} />;
       default:
-        return <FileOutlined style={{ fontSize: 20, color: '#757575' }} />;
+        return <FileOutlined style={{ fontSize: token.fontSizeLG, color: token.colorTextSecondary }} />;
     }
   };
 
@@ -74,12 +77,13 @@ const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFol
       title: 'ファイル名',
       dataIndex: 'name',
       key: 'name',
+      sorter: (a, b) => a.name.localeCompare(b.name, 'ja'),
       render: (text: string, record: FileData) => (
         <Tooltip title={record.path} placement="topLeft">
           <span
             style={{
-              fontWeight: record.isFolder ? 600 : 500,
-              color: record.isFolder ? '#FFA726' : 'inherit',
+              fontWeight: record.isFolder ? token.fontWeightStrong : 'normal',
+              color: record.isFolder ? token.colorWarning : 'inherit',
               cursor: record.isFolder ? 'pointer' : 'inherit',
             }}
           >
@@ -93,18 +97,20 @@ const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFol
       title: 'サイズ',
       key: 'size',
       width: 120,
+      sorter: (a, b) => a.size - b.size,
       render: (_text: string, record: FileData) =>
         !record.isFolder ? (
-          <span style={{ color: '#757575' }}>{formatFileSize(record.size)}</span>
+          <span style={{ color: token.colorTextSecondary }}>{formatFileSize(record.size)}</span>
         ) : null,
     },
     {
       title: '最終更新日',
       key: 'lastModified',
       width: 150,
+      sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime(),
       render: (_text: string, record: FileData) =>
         !record.isFolder ? (
-          <span style={{ color: '#757575' }}>{formatRelativeTime(record.lastModified)}</span>
+          <span style={{ color: token.colorTextSecondary }}>{formatRelativeTime(record.lastModified)}</span>
         ) : null,
     },
     {
@@ -130,7 +136,7 @@ const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFol
               type="primary"
               size="small"
               icon={<EyeOutlined />}
-              style={{ backgroundColor: '#00695c', borderColor: '#00695c' }}
+              style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
               onClick={(e) => {
                 e.stopPropagation();
                 console.log('View file:', record.name);

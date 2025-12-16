@@ -82,8 +82,13 @@ export default function ExperimentAdminMenu({
   // タブ '1', '2', '3', '4' は全幅表示
   const isFullWidthTab = currentTab === '1' || currentTab === '2' || currentTab === '3' || currentTab === '4';
 
+  // Header(64px) + SubHeader(タブ込みで約76px) = 140px
+  const HEADER_HEIGHT = 64;
+  const SUBHEADER_HEIGHT = 76;
+  const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + SUBHEADER_HEIGHT;
+
   return (
-    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
+    <Layout style={{ minHeight: '100vh', backgroundColor: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
       <SubHeader 
         title={t('menu.experiment_admin.title') || '実験管理'}
@@ -97,9 +102,9 @@ export default function ExperimentAdminMenu({
       {/* コンテンツエリア */}
       <Content
         style={{
-          marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
+          marginTop: TOTAL_HEADER_HEIGHT,
           padding: isFullWidthTab ? 0 : token.paddingLG,
-          height: isFullWidthTab ? 'calc(100vh - 140px)' : 'auto',
+          height: isFullWidthTab ? `calc(100vh - ${TOTAL_HEADER_HEIGHT}px)` : 'auto',
           overflow: isFullWidthTab ? 'hidden' : 'auto',
         }}
       >

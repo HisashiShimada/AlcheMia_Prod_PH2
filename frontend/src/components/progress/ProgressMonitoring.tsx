@@ -10,6 +10,7 @@ import {
   Table,
   Tag,
   Typography,
+  theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -19,6 +20,8 @@ import {
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import mockProjectProgressData from '@/data/mock/mockProjectProgress.json';
+import WorkProgressDetailDialog from './WorkProgressDetailDialog';
+import type { FileData } from '@/types/progress';
 
 const { Text } = Typography;
 
@@ -46,6 +49,7 @@ type OrderBy = keyof ProgressRecord;
  */
 export default function ProgressMonitoring() {
   const { t } = useLanguage();
+  const { token } = theme.useToken();
   const [searchText, setSearchText] = useState('');
   const [ownerFilter, setOwnerFilter] = useState('my_only'); // my_only, all
   const [checkoutFilter, setCheckoutFilter] = useState('all');
@@ -56,6 +60,12 @@ export default function ProgressMonitoring() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [order, setOrder] = useState<Order>('asc');
   const [orderBy, setOrderBy] = useState<OrderBy>('projectName');
+  
+  // モーダル関連のState
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<ProgressRecord | null>(null);
+  const [fileData, setFileData] = useState<FileData | null>(null);
+  const [managerId] = useState('manager_001'); // TODO: 実際のログインユーザーIDを使用
 
   // JSONファイルからデータを読み込み
   const allData: ProgressRecord[] = mockProjectProgressData.projectProgress.map(
@@ -224,6 +234,25 @@ export default function ProgressMonitoring() {
     }
   };
 
+  // 詳細表示ハンドラ
+  const handleViewDetails = (record: ProgressRecord) => {
+    setSelectedProject(record);
+    // test_omori11.maimlを使用（mock環境）
+    const dummyFileData: FileData = {
+      maimlFileKey: `org_001/projects/${record.projectId}/test_omori11.maiml`,
+      fileName: `test_omori11.maiml`,
+    };
+    setFileData(dummyFileData);
+    setIsDetailDialogOpen(true);
+  };
+  
+  // モーダルを閉じるハンドラ
+  const handleCloseDialog = () => {
+    setIsDetailDialogOpen(false);
+    setSelectedProject(null);
+    setFileData(null);
+  };
+
   const handleRefresh = () => {
     console.log('Refresh data');
   };
@@ -336,7 +365,7 @@ export default function ProgressMonitoring() {
           ghost
           icon={<EyeOutlined />}
           size="small"
-          onClick={() => console.log('View details:', record)}
+          onClick={() => handleViewDetails(record)}
         >
           {t('progress.actions.viewDetails')}
         </Button>
@@ -345,95 +374,92 @@ export default function ProgressMonitoring() {
   ];
 
   return (
-    <div style={{ padding: 24, backgroundColor: '#fafafa', minHeight: '100vh' }}>
+    <div style={{ padding: token.paddingLG, backgroundColor: token.colorBgLayout, minHeight: '100vh' }}>
       {/* 検索・フィルタエリア */}
-      <Card style={{ marginBottom: 24 }} bordered={false}>
-        <Space direction="horizontal" size="middle" wrap>
-          <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
-              {t('progress.filter_labels.owner')}
-            </Text>
-            <Select
-              style={{ width: 150 }}
-              value={ownerFilter}
-              onChange={setOwnerFilter}
-              options={[
-                { value: 'my_only', label: t('progress.filter.myOnly') || '自分所有のみ' },
-                { value: 'all', label: t('progress.filter.allProjects') || '全体' },
-              ]}
-            />
+      <Card style={{ marginBottom: token.paddingLG }} bordered={false}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <Space direction="horizontal" size="middle" wrap>
+            <Space size={4} direction="horizontal">
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                {t('progress.filter_labels.owner')}
+              </Text>
+              <Select
+                style={{ width: 150 }}
+                value={ownerFilter}
+                onChange={setOwnerFilter}
+                options={[
+                  { value: 'my_only', label: t('progress.filter.myOnly') || '自分所有のみ' },
+                  { value: 'all', label: t('progress.filter.allProjects') || '全体' },
+                ]}
+              />
+            </Space>
+
+            <Space size={4} direction="horizontal">
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                {t('progress.filter_labels.department')}
+              </Text>
+              <Select
+                style={{ width: 150 }}
+                value={departmentFilter}
+                onChange={setDepartmentFilter}
+                options={[
+                  { value: 'all', label: t('progress.filter.allDepartments') || '全部門' },
+                  ...departments.map(dept => ({ value: dept, label: dept })),
+                ]}
+              />
+            </Space>
+
+            <Space size={4} direction="horizontal">
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                {t('progress.filter_labels.project_status')}
+              </Text>
+              <Select
+                style={{ width: 200 }}
+                value={projectStatusFilter}
+                onChange={setProjectStatusFilter}
+                options={[
+                  { value: 'all', label: t('progress.filter.allStatus') },
+                  { value: 'planning', label: t('progress.filter.planning') },
+                  { value: 'pending', label: t('progress.filter.pending') },
+                  { value: 'inProgress', label: t('progress.filter.inProgress') },
+                  { value: 'reviewWaiting', label: t('progress.filter.reviewWaiting') },
+                  { value: 'completed', label: t('progress.filter.completed') },
+                  { value: 'error', label: t('progress.filter.error') },
+                ]}
+              />
+            </Space>
+
+            <Space size={4} direction="horizontal">
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                {t('progress.filter_labels.checkout_status')}
+              </Text>
+              <Select
+                style={{ width: 150 }}
+                value={checkoutFilter}
+                onChange={setCheckoutFilter}
+                options={[
+                  { value: 'all', label: t('progress.filter.all') || '全て' },
+                  { value: 'checkedOut', label: t('progress.filter.checkedOut') || 'チェックアウト済み' },
+                  { value: 'checkedIn', label: t('progress.filter.checkedIn') || 'チェックイン済み' },
+                ]}
+              />
+            </Space>
+
+            <Space size={4} direction="horizontal">
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                {t('progress.filter_labels.search')}
+              </Text>
+              <Input
+                prefix={<SearchOutlined />}
+                placeholder={t('progress.filter_placeholder') || '入力値でフィルタリング'}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                style={{ width: 300 }}
+                allowClear
+              />
+            </Space>
           </Space>
 
-          <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
-              {t('progress.filter_labels.department')}
-            </Text>
-            <Select
-              style={{ width: 150 }}
-              value={departmentFilter}
-              onChange={setDepartmentFilter}
-              options={[
-                { value: 'all', label: t('progress.filter.allDepartments') || '全部門' },
-                ...departments.map(dept => ({ value: dept, label: dept })),
-              ]}
-            />
-          </Space>
-
-          <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
-              {t('progress.filter_labels.project_status')}
-            </Text>
-            <Select
-              style={{ width: 200 }}
-              value={projectStatusFilter}
-              onChange={setProjectStatusFilter}
-              options={[
-                { value: 'all', label: t('progress.filter.allStatus') },
-                { value: 'planning', label: t('progress.filter.planning') },
-                { value: 'pending', label: t('progress.filter.pending') },
-                { value: 'inProgress', label: t('progress.filter.inProgress') },
-                { value: 'reviewWaiting', label: t('progress.filter.reviewWaiting') },
-                { value: 'completed', label: t('progress.filter.completed') },
-                { value: 'error', label: t('progress.filter.error') },
-              ]}
-            />
-          </Space>
-
-          <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
-              {t('progress.filter_labels.checkout_status')}
-            </Text>
-            <Select
-              style={{ width: 150 }}
-              value={checkoutFilter}
-              onChange={setCheckoutFilter}
-              options={[
-                { value: 'all', label: t('progress.filter.all') || '全て' },
-                { value: 'checkedOut', label: t('progress.filter.checkedOut') || 'チェックアウト済み' },
-                { value: 'checkedIn', label: t('progress.filter.checkedIn') || 'チェックイン済み' },
-              ]}
-            />
-          </Space>
-
-          <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
-              {t('progress.filter_labels.search')}
-            </Text>
-            <Input
-              prefix={<SearchOutlined />}
-              placeholder={t('progress.filter_placeholder') || '入力値でフィルタリング'}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              style={{ width: 300 }}
-              allowClear
-            />
-          </Space>
-
-          <div style={{ flex: 1 }} />
-
-          <Text type="secondary">
-            {t('progress.lastUpdated') || '最終更新'}: {lastUpdated}
-          </Text>
           <Button
             type="primary"
             icon={<ReloadOutlined />}
@@ -441,7 +467,7 @@ export default function ProgressMonitoring() {
           >
             {t('progress.refresh')}
           </Button>
-        </Space>
+        </div>
       </Card>
 
       {/* テーブル */}
@@ -460,6 +486,14 @@ export default function ProgressMonitoring() {
           size="middle"
         />
       </Card>
+
+      {/* 作業進捗詳細ダイアログ */}
+      <WorkProgressDetailDialog
+        open={isDetailDialogOpen}
+        onClose={handleCloseDialog}
+        fileData={fileData}
+        managerId={managerId}
+      />
     </div>
   );
 }

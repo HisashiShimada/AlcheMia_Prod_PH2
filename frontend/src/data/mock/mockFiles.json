@@ -4,8 +4,8 @@
       "root": [
         {
           "id": "file_001_current",
-          "name": "experiment_latest.maiml",
-          "path": "high_temp_superconductor/experiment_latest.maiml",
+          "name": "test_omori11.maiml",
+          "path": "high_temp_superconductor/test_omori11.maiml",
           "size": 52341,
           "lastModified": "2024-12-09T15:30:00Z",
           "type": "maiml"
@@ -30,24 +30,24 @@
       "archive": [
         {
           "id": "file_001_arch_001",
-          "name": "experiment_v1.maiml",
-          "path": "high_temp_superconductor/archive/experiment_v1.maiml",
+          "name": "test_omori11.maiml",
+          "path": "high_temp_superconductor/archive/test_omori11.maiml",
           "size": 45678,
           "lastModified": "2024-12-01T10:00:00Z",
           "type": "maiml"
         },
         {
           "id": "file_001_arch_002",
-          "name": "experiment_v2.maiml",
-          "path": "high_temp_superconductor/archive/experiment_v2.maiml",
+          "name": "test_omori11.maiml",
+          "path": "high_temp_superconductor/archive/test_omori11.maiml",
           "size": 48234,
           "lastModified": "2024-12-05T14:20:00Z",
           "type": "maiml"
         },
         {
           "id": "file_001_arch_003",
-          "name": "experiment_v3.maiml",
-          "path": "high_temp_superconductor/archive/experiment_v3.maiml",
+          "name": "test_omori11.maiml",
+          "path": "high_temp_superconductor/archive/test_omori11.maiml",
           "size": 50123,
           "lastModified": "2024-12-08T11:30:00Z",
           "type": "maiml"
@@ -58,8 +58,8 @@
       "root": [
         {
           "id": "file_002_current",
-          "name": "cathode_synthesis_latest.maiml",
-          "path": "lithium_battery_cathode/cathode_synthesis_latest.maiml",
+          "name": "test_omori11.maiml",
+          "path": "lithium_battery_cathode/test_omori11.maiml",
           "size": 67890,
           "lastModified": "2024-12-08T14:20:00Z",
           "type": "maiml"
@@ -76,16 +76,16 @@
       "archive": [
         {
           "id": "file_002_arch_001",
-          "name": "cathode_synthesis_v1.maiml",
-          "path": "lithium_battery_cathode/archive/cathode_synthesis_v1.maiml",
+          "name": "test_omori11.maiml",
+          "path": "lithium_battery_cathode/archive/test_omori11.maiml",
           "size": 62345,
           "lastModified": "2024-11-28T09:00:00Z",
           "type": "maiml"
         },
         {
           "id": "file_002_arch_002",
-          "name": "cathode_synthesis_v2.maiml",
-          "path": "lithium_battery_cathode/archive/cathode_synthesis_v2.maiml",
+          "name": "test_omori11.maiml",
+          "path": "lithium_battery_cathode/archive/test_omori11.maiml",
           "size": 65120,
           "lastModified": "2024-12-03T10:45:00Z",
           "type": "maiml"
@@ -96,8 +96,8 @@
       "root": [
         {
           "id": "file_003_current",
-          "name": "perovskite_fabrication_latest.maiml",
-          "path": "perovskite_solar_cell/perovskite_fabrication_latest.maiml",
+          "name": "test_omori11.maiml",
+          "path": "perovskite_solar_cell/test_omori11.maiml",
           "size": 38765,
           "lastModified": "2024-12-07T16:45:00Z",
           "type": "maiml"
@@ -114,8 +114,8 @@
       "archive": [
         {
           "id": "file_003_arch_001",
-          "name": "perovskite_fabrication_v1.maiml",
-          "path": "perovskite_solar_cell/archive/perovskite_fabrication_v1.maiml",
+          "name": "test_omori11.maiml",
+          "path": "perovskite_solar_cell/archive/test_omori11.maiml",
           "size": 35120,
           "lastModified": "2024-11-25T13:00:00Z",
           "type": "maiml"
@@ -126,8 +126,8 @@
       "root": [
         {
           "id": "file_004_current",
-          "name": "catalyst_preparation_latest.maiml",
-          "path": "nanoparticle_catalyst/catalyst_preparation_latest.maiml",
+          "name": "test_omori11.maiml",
+          "path": "nanoparticle_catalyst/test_omori11.maiml",
           "size": 41234,
           "lastModified": "2024-11-30T10:00:00Z",
           "type": "maiml"
@@ -147,8 +147,8 @@
       "root": [
         {
           "id": "file_005_current",
-          "name": "graphene_composite_latest.maiml",
-          "path": "graphene_composite/graphene_composite_latest.maiml",
+          "name": "test_omori11.maiml",
+          "path": "graphene_composite/test_omori11.maiml",
           "size": 55678,
           "lastModified": "2024-12-05T13:15:00Z",
           "type": "maiml"
@@ -165,8 +165,8 @@
       "archive": [
         {
           "id": "file_005_arch_001",
-          "name": "graphene_composite_v1.maiml",
-          "path": "graphene_composite/archive/graphene_composite_v1.maiml",
+          "name": "test_omori11.maiml",
+          "path": "graphene_composite/archive/test_omori11.maiml",
           "size": 52345,
           "lastModified": "2024-11-20T14:30:00Z",
           "type": "maiml"
@@ -177,8 +177,8 @@
       "root": [
         {
           "id": "file_006_current",
-          "name": "magnet_synthesis_latest.maiml",
-          "path": "rare_earth_magnet/magnet_synthesis_latest.maiml",
+          "name": "test_omori11.maiml",
+          "path": "rare_earth_magnet/test_omori11.maiml",
           "size": 33456,
           "lastModified": "2024-10-20T11:30:00Z",
           "type": "maiml"

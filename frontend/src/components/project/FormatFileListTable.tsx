@@ -8,10 +8,12 @@ import {
   Space,
   Empty,
   Typography,
+  theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   FileTextOutlined,
+  FolderOpenOutlined,
   DownloadOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -32,6 +34,8 @@ interface FormatFileData {
   type: string;
   version?: string;
   description?: string;
+  isFolder?: boolean;
+  fileCount?: number;
 }
 
 /**
@@ -40,22 +44,31 @@ interface FormatFileData {
 interface FormatFileListTableProps {
   files: FormatFileData[];
   onFileClick?: (file: FormatFileData) => void;
+  onFolderClick?: (folderId: string) => void;
   onEdit?: (file: FormatFileData) => void;
   onDelete?: (file: FormatFileData) => void;
 }
 
 /**
  * フォーマットファイル専用のテーブルコンポーネント
- * XMLファイル（.maiml）のみを表示
+ * XMLファイル（.maiml）とフォルダを表示
  */
 const FormatFileListTable: React.FC<FormatFileListTableProps> = ({ 
   files, 
   onFileClick,
+  onFolderClick,
   onEdit,
   onDelete 
 }) => {
-  // フォーマットファイル（xml または maiml）をフィルタリング
-  const formatFiles = files.filter(file => file.type === 'xml' || file.type === 'maiml');
+  const { token } = theme.useToken();
+  
+  // ファイルタイプに応じたアイコンを取得
+  const getFileIcon = (file: FormatFileData) => {
+    if (file.isFolder) {
+      return <FolderOpenOutlined style={{ fontSize: token.fontSizeLG, color: token.colorWarning }} />;
+    }
+    return <FileTextOutlined style={{ fontSize: token.fontSizeLG, color: token.colorInfo }} />;
+  };
 
   const columns: ColumnsType<FormatFileData> = [
     {
@@ -63,24 +76,25 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
       key: 'type',
       width: 50,
       align: 'center',
-      render: () => <FileTextOutlined style={{ fontSize: 20, color: '#2196F3' }} />,
+      render: (_text: string, record: FormatFileData) => getFileIcon(record),
     },
     {
       title: 'ファイル名',
       dataIndex: 'name',
       key: 'name',
+      sorter: (a, b) => a.name.localeCompare(b.name, 'ja'),
       render: (text: string, record: FormatFileData) => (
-        <Tooltip title={record.description || record.path} placement="topLeft">
-          <div>
-            <div style={{ fontWeight: 500, marginBottom: record.description ? 4 : 0 }}>
-              {text}
-            </div>
-            {record.description && (
-              <Text type="secondary" style={{ fontSize: 11, display: 'block', lineHeight: 1.3 }}>
-                {record.description}
-              </Text>
-            )}
-          </div>
+        <Tooltip title={record.path} placement="topLeft">
+          <Text 
+            strong={record.isFolder}
+            style={{
+              color: record.isFolder ? token.colorWarning : 'inherit',
+              cursor: record.isFolder ? 'pointer' : 'inherit',
+            }}
+          >
+            {text}
+            {record.isFolder && record.fileCount !== undefined && ` (${record.fileCount})`}
+          </Text>
         </Tooltip>
       ),
     },
@@ -88,70 +102,75 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
       title: 'サイズ',
       key: 'size',
       width: 120,
-      render: (_text: string, record: FormatFileData) => (
-        <Text type="secondary">{formatFileSize(record.size)}</Text>
-      ),
+      sorter: (a, b) => a.size - b.size,
+      render: (_text: string, record: FormatFileData) =>
+        !record.isFolder ? (
+          <Text type="secondary">{formatFileSize(record.size)}</Text>
+        ) : null,
     },
     {
       title: '最終更新日',
       key: 'lastModified',
       width: 150,
-      render: (_text: string, record: FormatFileData) => (
-        <Text type="secondary">{formatRelativeTime(record.lastModified)}</Text>
-      ),
+      sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime(),
+      render: (_text: string, record: FormatFileData) =>
+        !record.isFolder ? (
+          <Text type="secondary">{formatRelativeTime(record.lastModified)}</Text>
+        ) : null,
     },
     {
       title: '操作',
       key: 'actions',
       width: 250,
       align: 'center',
-      render: (_text: string, record: FormatFileData) => (
-        <Space size="small">
-          <Button
-            type="primary"
-            size="small"
-            icon={<EditOutlined />}
-            style={{ backgroundColor: '#00695c', borderColor: '#00695c' }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit?.(record);
-              console.log('Edit file:', record.name);
-            }}
-          >
-            編集
-          </Button>
-          <Button
-            type="default"
-            size="small"
-            icon={<DownloadOutlined />}
-            onClick={(e) => {
-              e.stopPropagation();
-              console.log('Download file:', record.name);
-            }}
-          >
-            ダウンロード
-          </Button>
-          <Button
-            type="default"
-            danger
-            size="small"
-            icon={<DeleteOutlined />}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete?.(record);
-              console.log('Delete file:', record.name);
-            }}
-          >
-            削除
-          </Button>
-        </Space>
-      ),
+      render: (_text: string, record: FormatFileData) =>
+        !record.isFolder ? (
+          <Space size="small">
+            <Button
+              type="primary"
+              size="small"
+              icon={<EditOutlined />}
+              style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit?.(record);
+                console.log('Edit file:', record.name);
+              }}
+            >
+              編集
+            </Button>
+            <Button
+              type="default"
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('Download file:', record.name);
+              }}
+            >
+              ダウンロード
+            </Button>
+            <Button
+              type="default"
+              danger
+              size="small"
+              icon={<DeleteOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(record);
+                console.log('Delete file:', record.name);
+              }}
+            >
+              削除
+            </Button>
+          </Space>
+        ) : null,
     },
   ];
 
   return (
     <Table
-      dataSource={formatFiles}
+      dataSource={files}
       columns={columns}
       rowKey="id"
       size="small"
@@ -165,9 +184,15 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
         ),
       }}
       onRow={(record) => ({
-        onClick: () => onFileClick?.(record),
+        onClick: () => {
+          if (record.isFolder) {
+            onFolderClick?.(record.id);
+          } else {
+            onFileClick?.(record);
+          }
+        },
         style: {
-          cursor: onFileClick ? 'pointer' : 'default',
+          cursor: record.isFolder || onFileClick ? 'pointer' : 'default',
         },
       })}
     />

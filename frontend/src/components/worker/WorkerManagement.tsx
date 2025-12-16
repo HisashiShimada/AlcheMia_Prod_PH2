@@ -14,6 +14,7 @@ import {
   Row,
   Col,
   Avatar,
+  theme,
 } from 'antd';
 import {
   SearchOutlined,
@@ -29,6 +30,7 @@ import type { SorterResult, FilterValue } from 'antd/es/table/interface';
 import { useLanguage } from '@/contexts/LanguageContext';
 import mockWorkersData from '@/data/mock/mockWorkers.json';
 import mockProjectProgressData from '@/data/mock/mockProjectProgress.json';
+import WorkerDetailModal, { type WorkerDetails } from './WorkerDetailModal';
 
 const { Text } = Typography;
 
@@ -56,8 +58,15 @@ interface WorkerRecord {
  */
 export default function WorkerManagement() {
   const { t } = useLanguage();
+  const { token } = theme.useToken();
   const [searchText, setSearchText] = useState('');
   const [filterValue, setFilterValue] = useState('all');
+  
+  // モーダル関連のState
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
+  const [workerDetails, setWorkerDetails] = useState<WorkerDetails | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // JSONファイルからデータを読み込み、プロジェクト進捗データで集計
   const mockData: WorkerRecord[] = useMemo(() => {
@@ -263,9 +272,7 @@ export default function WorkerManagement() {
           ghost
           icon={<EyeOutlined />}
           size="small"
-          onClick={() => {
-            console.log('View details:', record);
-          }}
+          onClick={() => handleViewDetails(record)}
         >
           {t('worker.actions.viewDetails') || '詳細'}
         </Button>
@@ -273,46 +280,104 @@ export default function WorkerManagement() {
     },
   ];
 
+  // 詳細表示ボタンのハンドラ
+  const handleViewDetails = async (record: WorkerRecord) => {
+    setSelectedWorkerId(record.workerId);
+    setIsModalOpen(true);
+    setLoadingDetails(true);
+    
+    try {
+      // TODO: 実際のAPIコールに置き換える
+      // 現時点ではモックデータを使用
+      await new Promise(resolve => setTimeout(resolve, 500)); // ローディングを見せるための遅延
+      
+      // モック詳細データ
+      const mockDetails: WorkerDetails = {
+        workerId: record.workerId,
+        name: record.name,
+        email: record.email,
+        sessionInfo: {
+          lastLogin: record.lastConnection ? new Date(record.lastConnection).toISOString() : undefined,
+          lastActivity: record.lastConnection ? new Date(record.lastConnection).toISOString() : undefined,
+          totalSessions: Math.floor(Math.random() * 50) + 1,
+        },
+        stats: {
+          totalFiles: record.totalTasks,
+          completionRate: record.totalTasks > 0 ? Math.round((record.completedTasks / record.totalTasks) * 100) : 0,
+          inProgressFiles: record.inProgressTasks,
+        },
+        assignedFiles: Array.from({ length: Math.min(record.totalTasks, 5) }, (_, i) => ({
+          fileName: `sample_file_${i + 1}.maiml`,
+          fileKey: `org_001/projects/project_001/files/sample_file_${i + 1}.maiml`,
+          status: i < record.completedTasks ? 'completed' : i < record.completedTasks + record.inProgressTasks ? 'in_progress' : 'pending',
+          progressPercentage: i < record.completedTasks ? 100 : i < record.completedTasks + record.inProgressTasks ? Math.floor(Math.random() * 80) + 10 : 0,
+        })),
+        progressData: {
+          progress: Array.from({ length: Math.min(3, record.completedTasks) }, (_, i) => ({
+            fileName: `sample_file_${i + 1}.maiml`,
+            comments: i === 0 ? '実験データの入力が完了しました' : i === 1 ? '測定結果を確認しました' : '',
+            progressPercentage: 100,
+            timestamp: new Date(Date.now() - i * 86400000).toISOString(),
+          })),
+        },
+      };
+      
+      setWorkerDetails(mockDetails);
+    } catch (error) {
+      console.error('Failed to fetch worker details:', error);
+      setWorkerDetails(null);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+  
+  // モーダルを閉じるハンドラ
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedWorkerId(null);
+    setWorkerDetails(null);
+  };
+
   const handleRefresh = () => {
     console.log('Refresh worker list');
   };
 
   return (
-    <div style={{ padding: 24, backgroundColor: '#fafafa', minHeight: '100vh' }}>
+    <div style={{ padding: token.paddingLG, backgroundColor: token.colorBgLayout, minHeight: '100vh' }}>
       {/* 検索・フィルタエリア */}
-      <Card style={{ marginBottom: 24 }} bordered={false}>
-        <Space direction="horizontal" size="middle" wrap>
-          <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
-              {t('worker.filter_labels.status')}
-            </Text>
-            <Select
-              style={{ width: 180 }}
-              value={filterValue}
-              onChange={setFilterValue}
-              options={[
-                { value: 'all', label: t('worker.filter.allStatus') || '全ステータス' },
-                { value: 'active', label: t('worker.status.active') || 'アクティブ' },
-                { value: 'inactive', label: t('worker.status.inactive') || '非アクティブ' },
-              ]}
-            />
-          </Space>
+      <Card style={{ marginBottom: token.paddingLG }} bordered={false}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <Space direction="horizontal" size="middle" wrap>
+            <Space size={4} direction="horizontal">
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                {t('worker.filter_labels.status')}
+              </Text>
+              <Select
+                style={{ width: 180 }}
+                value={filterValue}
+                onChange={setFilterValue}
+                options={[
+                  { value: 'all', label: t('worker.filter.allStatus') || '全ステータス' },
+                  { value: 'active', label: t('worker.status.active') || 'アクティブ' },
+                  { value: 'inactive', label: t('worker.status.inactive') || '非アクティブ' },
+                ]}
+              />
+            </Space>
 
-          <Space size={4} direction="horizontal">
-            <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
-              {t('worker.filter_labels.search')}
-            </Text>
-            <Input
-              prefix={<SearchOutlined />}
-              placeholder={t('progress.filter_placeholder') || '入力値でフィルタリング'}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              style={{ width: 400 }}
-              allowClear
-            />
+            <Space size={4} direction="horizontal">
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                {t('worker.filter_labels.search')}
+              </Text>
+              <Input
+                prefix={<SearchOutlined />}
+                placeholder={t('progress.filter_placeholder') || '入力値でフィルタリング'}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                style={{ width: 400 }}
+                allowClear
+              />
+            </Space>
           </Space>
-
-          <div style={{ flex: 1 }} />
 
           <Button
             type="primary"
@@ -321,23 +386,23 @@ export default function WorkerManagement() {
           >
             {t('progress.refresh')}
           </Button>
-        </Space>
+        </div>
       </Card>
 
       {/* 統計カード */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: token.paddingLG }}>
         <Col xs={24} sm={12} lg={6}>
           <Card
             bordered={false}
             style={{
-              borderLeft: '4px solid #0093CF',
+              borderLeft: `4px solid ${token.colorInfo}`,
             }}
           >
             <Statistic
               title={t('worker.stats.totalWorkers') || '総作業者数'}
               value={totalWorkers}
-              prefix={<UserOutlined style={{ color: '#0093CF' }} />}
-              valueStyle={{ color: '#0093CF', fontSize: 24 }}
+              prefix={<UserOutlined style={{ color: token.colorInfo }} />}
+              valueStyle={{ color: token.colorInfo, fontSize: token.fontSizeHeading3 }}
               suffix={t('worker.stats.people') || '人'}
             />
           </Card>
@@ -346,14 +411,14 @@ export default function WorkerManagement() {
           <Card
             bordered={false}
             style={{
-              borderLeft: '4px solid #2e7d32',
+              borderLeft: `4px solid ${token.colorSuccess}`,
             }}
           >
             <Statistic
               title={t('worker.stats.activeWorkers') || 'アクティブ'}
               value={activeWorkers}
-              prefix={<CheckCircleOutlined style={{ color: '#2e7d32' }} />}
-              valueStyle={{ color: '#2e7d32', fontSize: 24 }}
+              prefix={<CheckCircleOutlined style={{ color: token.colorSuccess }} />}
+              valueStyle={{ color: token.colorSuccess, fontSize: token.fontSizeHeading3 }}
               suffix={t('worker.stats.people') || '人'}
             />
           </Card>
@@ -362,14 +427,14 @@ export default function WorkerManagement() {
           <Card
             bordered={false}
             style={{
-              borderLeft: '4px solid #722ed1',
+              borderLeft: `4px solid ${token.colorWarning}`,
             }}
           >
             <Statistic
               title={t('worker.stats.totalTasks') || '総タスク数'}
               value={totalAllTasks}
-              prefix={<FolderOutlined style={{ color: '#722ed1' }} />}
-              valueStyle={{ color: '#722ed1', fontSize: 24 }}
+              prefix={<FolderOutlined style={{ color: token.colorWarning }} />}
+              valueStyle={{ color: token.colorWarning, fontSize: token.fontSizeHeading3 }}
             />
           </Card>
         </Col>
@@ -377,14 +442,14 @@ export default function WorkerManagement() {
           <Card
             bordered={false}
             style={{
-              borderLeft: '4px solid #ed6c02',
+              borderLeft: `4px solid ${token.colorWarning}`,
             }}
           >
             <Statistic
               title={t('worker.stats.completedTasks') || '完了タスク数'}
               value={totalAllCompletedTasks}
-              prefix={<FileDoneOutlined style={{ color: '#ed6c02' }} />}
-              valueStyle={{ color: '#ed6c02', fontSize: 24 }}
+              prefix={<FileDoneOutlined style={{ color: token.colorWarning }} />}
+              valueStyle={{ color: token.colorWarning, fontSize: token.fontSizeHeading3 }}
             />
           </Card>
         </Col>
@@ -406,6 +471,15 @@ export default function WorkerManagement() {
           size="middle"
         />
       </Card>
+
+      {/* 作業者詳細モーダル */}
+      <WorkerDetailModal
+        open={isModalOpen}
+        onCancel={handleCloseModal}
+        workerId={selectedWorkerId}
+        workerDetails={workerDetails}
+        loading={loadingDetails}
+      />
     </div>
   );
 }
