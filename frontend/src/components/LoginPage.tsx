@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, Input, Button, Typography, Alert, Space, Spin } from 'antd';
+import { Card, Input, Button, Typography, Alert, Space, Spin, theme } from 'antd';
 import { EyeOutlined, EyeInvisibleOutlined, LoginOutlined } from '@ant-design/icons';
 import { LoginCredentials } from '@/types/auth';
 
@@ -21,6 +21,7 @@ interface LoginPageProps {
  * UIポリシーに基づいたモダンで清潔感のあるデザイン
  */
 export default function LoginPage({ onLogin, error, loading = false }: LoginPageProps) {
+  const { token } = theme.useToken();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -56,31 +57,29 @@ export default function LoginPage({ onLogin, error, loading = false }: LoginPage
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#fafafa',
+        background: token.colorBgLayout,
       }}
     >
-      <div style={{ width: '100%', maxWidth: 672, padding: '0 36px' }}>
+      <div style={{ width: '100%', maxWidth: 672, padding: `0 ${token.paddingLG * 1.5}px` }}>
         <Card
           style={{
-            borderRadius: 18,
-            boxShadow: '0px 6px 12px rgba(0,0,0,0.12)',
+            borderRadius: token.borderRadiusLG * 1.5,
+            boxShadow: token.boxShadowSecondary,
           }}
           styles={{
             body: {
-              padding: 48,
+              padding: token.paddingXL * 1.5,
             },
           }}
         >
           {/* ロゴ・タイトル */}
-          <div style={{ marginBottom: 48, textAlign: 'center' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%', textAlign: 'center', marginBottom: token.marginXXL }}>
             <Title
               level={1}
               style={{
                 margin: 0,
-                marginBottom: 12,
-                color: '#CF0027',
-                fontWeight: 600,
-                fontSize: 45,
+                color: token.colorPrimary,
+                fontWeight: token.fontWeightStrong,
               }}
             >
               MMDPF
@@ -88,47 +87,47 @@ export default function LoginPage({ onLogin, error, loading = false }: LoginPage
             <Text
               type="secondary"
               style={{
-                fontSize: 24,
+                fontSize: token.fontSizeHeading4,
               }}
             >
               マルチモーダルデータプラットフォーム
             </Text>
-          </div>
+          </Space>
 
           {/* エラーメッセージ */}
           {(error || validationError) && (
             <Alert
-              title={validationError || error}
+              message={validationError || error}
               type="error"
               showIcon
               style={{
-                marginBottom: 36,
-                borderRadius: 12,
-                fontSize: 16,
-                padding: '16px 20px',
+                marginBottom: token.marginXL * 1.5,
+                borderRadius: token.borderRadiusLG,
+                fontSize: token.fontSize,
               }}
             />
           )}
 
           {/* ログインフォーム */}
           <form onSubmit={handleSubmit}>
-            <Space orientation="vertical" size={32} style={{ width: '100%' }}>
+            <Space orientation="vertical" size="large" style={{ width: '100%' }}>
               <div>
                 <label
                   htmlFor="username"
                   style={{
                     display: 'block',
-                    marginBottom: 10,
-                    fontSize: 16,
+                    marginBottom: token.marginSM,
+                    fontSize: token.fontSize,
                     fontWeight: 500,
-                    color: '#212121',
+                    color: token.colorText,
                   }}
                 >
-                  ユーザー名 <span style={{ color: '#d32f2f' }}>*</span>
+                  ユーザー名 <span style={{ color: token.colorError }}>*</span>
                 </label>
                 <Input
                   id="username"
                   name="username"
+                  size="large"
                   placeholder="ユーザー名を入力"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -136,11 +135,6 @@ export default function LoginPage({ onLogin, error, loading = false }: LoginPage
                   status={validationError && !username.trim() ? 'error' : ''}
                   autoComplete="username"
                   autoFocus
-                  style={{
-                    height: 52,
-                    fontSize: 16,
-                    borderRadius: 12,
-                  }}
                 />
               </div>
 
@@ -149,17 +143,18 @@ export default function LoginPage({ onLogin, error, loading = false }: LoginPage
                   htmlFor="password"
                   style={{
                     display: 'block',
-                    marginBottom: 10,
-                    fontSize: 16,
+                    marginBottom: token.marginSM,
+                    fontSize: token.fontSize,
                     fontWeight: 500,
-                    color: '#212121',
+                    color: token.colorText,
                   }}
                 >
-                  パスワード <span style={{ color: '#d32f2f' }}>*</span>
+                  パスワード <span style={{ color: token.colorError }}>*</span>
                 </label>
                 <Input.Password
                   id="password"
                   name="password"
+                  size="large"
                   placeholder="パスワードを入力"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -167,28 +162,21 @@ export default function LoginPage({ onLogin, error, loading = false }: LoginPage
                   status={validationError && !password ? 'error' : ''}
                   autoComplete="current-password"
                   iconRender={(visible) =>
-                    visible ? <EyeOutlined style={{ fontSize: 16 }} /> : <EyeInvisibleOutlined style={{ fontSize: 16 }} />
+                    visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
                   }
-                  style={{
-                    height: 52,
-                    fontSize: 16,
-                    borderRadius: 12,
-                  }}
                 />
               </div>
 
               <Button
                 type="primary"
                 htmlType="submit"
+                size="large"
                 block
-                icon={loading ? <Spin /> : <LoginOutlined style={{ fontSize: 16 }} />}
+                icon={loading ? <Spin /> : <LoginOutlined />}
                 disabled={loading}
                 style={{
-                  height: 62,
-                  fontSize: 16,
-                  fontWeight: 500,
-                  marginTop: 10,
-                  borderRadius: 12,
+                  marginTop: token.marginSM,
+                  height: token.controlHeightLG * 1.55,
                 }}
               >
                 {loading ? 'ログイン中...' : 'ログイン'}
@@ -197,11 +185,11 @@ export default function LoginPage({ onLogin, error, loading = false }: LoginPage
           </form>
 
           {/* フッター */}
-          <div style={{ marginTop: 48, textAlign: 'center' }}>
+          <div style={{ marginTop: token.marginXXL, textAlign: 'center' }}>
             <Text
               type="secondary"
               style={{
-                fontSize: 18,
+                fontSize: token.fontSizeLG,
               }}
             >
               © 2026 AIST SOLUTIONS. All rights reserved.

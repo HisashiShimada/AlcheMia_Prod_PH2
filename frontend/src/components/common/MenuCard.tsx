@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card } from 'antd';
+import { Card, theme } from 'antd';
 import * as AntIcons from '@ant-design/icons';
 
 /**
@@ -26,6 +26,8 @@ export default function MenuCard({
   disabled = false,
   onClick,
 }: MenuCardProps) {
+  const { token } = theme.useToken();
+  
   // アイコン名から対応するAnt Designアイコンコンポーネントを取得
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const IconComponent = (AntIcons as any)[icon] || AntIcons.AppstoreOutlined;
@@ -36,14 +38,14 @@ export default function MenuCard({
       onClick={disabled ? undefined : onClick}
       style={{
         height: '100%',
-        borderRadius: 12,
+        borderRadius: token.borderRadiusLG,
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.6 : 1,
-        transition: 'all 200ms ease-out',
+        transition: `all ${token.motionDurationMid} ease-out`,
       }}
       styles={{
         body: {
-          padding: 24,
+          padding: token.paddingLG,
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -52,13 +54,13 @@ export default function MenuCard({
       onMouseEnter={(e) => {
         if (!disabled) {
           e.currentTarget.style.transform = 'translateY(-4px)';
-          e.currentTarget.style.boxShadow = '0px 8px 16px rgba(0,0,0,0.16)';
+          e.currentTarget.style.boxShadow = token.boxShadowSecondary;
         }
       }}
       onMouseLeave={(e) => {
         if (!disabled) {
           e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
+          e.currentTarget.style.boxShadow = token.boxShadow;
         }
       }}
     >
@@ -66,7 +68,7 @@ export default function MenuCard({
         style={{
           display: 'flex',
           alignItems: 'center',
-          marginBottom: 16,
+          marginBottom: token.marginLG,
         }}
       >
         <div
@@ -74,23 +76,23 @@ export default function MenuCard({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 56,
-            height: 56,
-            borderRadius: 8,
-            backgroundColor: disabled ? '#f5f5f5' : '#1976d2',
+            width: token.controlHeightLG * 1.4,
+            height: token.controlHeightLG * 1.4,
+            borderRadius: token.borderRadius,
+            backgroundColor: disabled ? token.colorBgSpotlight : token.colorPrimary,
             color: 'white',
-            marginRight: 16,
-            transition: 'all 200ms ease-out',
+            marginRight: token.marginLG,
+            transition: `all ${token.motionDurationMid} ease-out`,
           }}
         >
-          <IconComponent style={{ fontSize: 32 }} />
+          <IconComponent style={{ fontSize: token.fontSizeHeading2 }} />
         </div>
         <h2
           style={{
             margin: 0,
-            fontSize: 18,
-            fontWeight: 600,
-            color: '#212121',
+            fontSize: token.fontSizeLG,
+            fontWeight: token.fontWeightStrong,
+            color: token.colorText,
           }}
         >
           {label}
@@ -101,9 +103,9 @@ export default function MenuCard({
         <p
           style={{
             margin: 0,
-            fontSize: 14,
-            color: '#757575',
-            lineHeight: 1.5,
+            fontSize: token.fontSize,
+            color: token.colorTextSecondary,
+            lineHeight: token.lineHeight,
           }}
         >
           {description}

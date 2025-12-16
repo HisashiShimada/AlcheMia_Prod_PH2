@@ -1,0 +1,198 @@
+{
+  "files": {
+    "proj_001": {
+      "root": [
+        {
+          "id": "file_001_current",
+          "name": "experiment_latest.maiml",
+          "path": "high_temp_superconductor/experiment_latest.maiml",
+          "size": 52341,
+          "lastModified": "2024-12-09T15:30:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_001_003",
+          "name": "synthesis_conditions.xlsx",
+          "path": "high_temp_superconductor/synthesis_conditions.xlsx",
+          "size": 2345678,
+          "lastModified": "2024-12-07T14:22:00Z",
+          "type": "excel"
+        },
+        {
+          "id": "file_001_004",
+          "name": "xrd_analysis.pdf",
+          "path": "high_temp_superconductor/xrd_analysis.pdf",
+          "size": 8765432,
+          "lastModified": "2024-12-06T16:45:00Z",
+          "type": "pdf"
+        }
+      ],
+      "archive": [
+        {
+          "id": "file_001_arch_001",
+          "name": "experiment_v1.maiml",
+          "path": "high_temp_superconductor/archive/experiment_v1.maiml",
+          "size": 45678,
+          "lastModified": "2024-12-01T10:00:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_001_arch_002",
+          "name": "experiment_v2.maiml",
+          "path": "high_temp_superconductor/archive/experiment_v2.maiml",
+          "size": 48234,
+          "lastModified": "2024-12-05T14:20:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_001_arch_003",
+          "name": "experiment_v3.maiml",
+          "path": "high_temp_superconductor/archive/experiment_v3.maiml",
+          "size": 50123,
+          "lastModified": "2024-12-08T11:30:00Z",
+          "type": "maiml"
+        }
+      ]
+    },
+    "proj_002": {
+      "root": [
+        {
+          "id": "file_002_current",
+          "name": "cathode_synthesis_latest.maiml",
+          "path": "lithium_battery_cathode/cathode_synthesis_latest.maiml",
+          "size": 67890,
+          "lastModified": "2024-12-08T14:20:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_002_002",
+          "name": "electrochemical_test.xlsx",
+          "path": "lithium_battery_cathode/electrochemical_test.xlsx",
+          "size": 4567890,
+          "lastModified": "2024-12-07T13:15:00Z",
+          "type": "excel"
+        }
+      ],
+      "archive": [
+        {
+          "id": "file_002_arch_001",
+          "name": "cathode_synthesis_v1.maiml",
+          "path": "lithium_battery_cathode/archive/cathode_synthesis_v1.maiml",
+          "size": 62345,
+          "lastModified": "2024-11-28T09:00:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_002_arch_002",
+          "name": "cathode_synthesis_v2.maiml",
+          "path": "lithium_battery_cathode/archive/cathode_synthesis_v2.maiml",
+          "size": 65120,
+          "lastModified": "2024-12-03T10:45:00Z",
+          "type": "maiml"
+        }
+      ]
+    },
+    "proj_003": {
+      "root": [
+        {
+          "id": "file_003_current",
+          "name": "perovskite_fabrication_latest.maiml",
+          "path": "perovskite_solar_cell/perovskite_fabrication_latest.maiml",
+          "size": 38765,
+          "lastModified": "2024-12-07T16:45:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_003_002",
+          "name": "efficiency_data.csv",
+          "path": "perovskite_solar_cell/efficiency_data.csv",
+          "size": 234567,
+          "lastModified": "2024-12-06T15:20:00Z",
+          "type": "csv"
+        }
+      ],
+      "archive": [
+        {
+          "id": "file_003_arch_001",
+          "name": "perovskite_fabrication_v1.maiml",
+          "path": "perovskite_solar_cell/archive/perovskite_fabrication_v1.maiml",
+          "size": 35120,
+          "lastModified": "2024-11-25T13:00:00Z",
+          "type": "maiml"
+        }
+      ]
+    },
+    "proj_004": {
+      "root": [
+        {
+          "id": "file_004_current",
+          "name": "catalyst_preparation_latest.maiml",
+          "path": "nanoparticle_catalyst/catalyst_preparation_latest.maiml",
+          "size": 41234,
+          "lastModified": "2024-11-30T10:00:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_004_002",
+          "name": "activity_measurement.xlsx",
+          "path": "nanoparticle_catalyst/activity_measurement.xlsx",
+          "size": 1876543,
+          "lastModified": "2024-11-29T16:30:00Z",
+          "type": "excel"
+        }
+      ],
+      "archive": []
+    },
+    "proj_005": {
+      "root": [
+        {
+          "id": "file_005_current",
+          "name": "graphene_composite_latest.maiml",
+          "path": "graphene_composite/graphene_composite_latest.maiml",
+          "size": 55678,
+          "lastModified": "2024-12-05T13:15:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_005_002",
+          "name": "mechanical_properties.csv",
+          "path": "graphene_composite/mechanical_properties.csv",
+          "size": 345678,
+          "lastModified": "2024-12-04T11:45:00Z",
+          "type": "csv"
+        }
+      ],
+      "archive": [
+        {
+          "id": "file_005_arch_001",
+          "name": "graphene_composite_v1.maiml",
+          "path": "graphene_composite/archive/graphene_composite_v1.maiml",
+          "size": 52345,
+          "lastModified": "2024-11-20T14:30:00Z",
+          "type": "maiml"
+        }
+      ]
+    },
+    "proj_006": {
+      "root": [
+        {
+          "id": "file_006_current",
+          "name": "magnet_synthesis_latest.maiml",
+          "path": "rare_earth_magnet/magnet_synthesis_latest.maiml",
+          "size": 33456,
+          "lastModified": "2024-10-20T11:30:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_006_002",
+          "name": "magnetic_properties.xlsx",
+          "path": "rare_earth_magnet/magnetic_properties.xlsx",
+          "size": 987654,
+          "lastModified": "2024-10-19T15:45:00Z",
+          "type": "excel"
+        }
+      ],
+      "archive": []
+    }
+  }
+}

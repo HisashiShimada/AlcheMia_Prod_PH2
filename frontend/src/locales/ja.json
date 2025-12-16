@@ -56,6 +56,8 @@
     "experiment_admin": {
       "title": "実験管理者メニュー",
       "tabs": {
+        "projectManagement": "プロジェクト管理",
+        "formatManagement": "フォーマット管理",
         "experimentManagement": "実験管理",
         "workerAssignment": "ワーカー割当",
         "progressManagement": "進捗管理",

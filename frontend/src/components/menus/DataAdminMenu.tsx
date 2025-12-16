@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Card, Typography, message } from 'antd';
+import { Layout, Card, Typography, theme } from 'antd';
 import {
   FolderOutlined,
   EditOutlined,
@@ -35,6 +35,7 @@ interface DataAdminMenuProps {
  */
 export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange }: DataAdminMenuProps) {
   const { t } = useLanguage();
+  const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
 
   const tabItems = [
@@ -58,7 +59,7 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
   return (
-    <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
       <SubHeader 
         title={t('menu.data_admin.title')}
@@ -73,7 +74,7 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
       <Content
         style={{
           marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
-          padding: '24px',
+          padding: token.paddingLG,
         }}
       >
         <div style={{ maxWidth: 1400, margin: '0 auto' }}>

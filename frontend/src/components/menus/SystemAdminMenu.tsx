@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Tabs, Card, Typography, message } from 'antd';
+import { Layout, Card, Typography, theme } from 'antd';
 import {
   TeamOutlined,
   ShopOutlined,
@@ -40,6 +40,7 @@ interface SystemAdminMenuProps {
  */
 export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChange }: SystemAdminMenuProps) {
   const { t } = useLanguage();
+  const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
 
   const tabItems = [
@@ -78,7 +79,7 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
   return (
-    <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
       <SubHeader 
         title={t('menu.system_admin.title')}

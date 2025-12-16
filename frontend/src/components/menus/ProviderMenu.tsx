@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Tabs, Card, Typography, message } from 'antd';
+import { Layout, Card, Typography, theme } from 'antd';
 import {
   ShopOutlined,
   TeamOutlined,
@@ -46,6 +46,7 @@ interface ProviderMenuProps {
  */
 export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange }: ProviderMenuProps) {
   const { t } = useLanguage();
+  const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
 
   const tabItems = [
@@ -74,7 +75,7 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
   return (
-    <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
       <SubHeader 
         title={t('menu.provider.title')}
@@ -89,7 +90,7 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
       <Content
         style={{
           marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
-          padding: '24px',
+          padding: token.paddingLG,
         }}
       >
         <div style={{ maxWidth: 1600, margin: '0 auto' }}>
@@ -104,15 +105,9 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
             <Card
               style={{
                 minHeight: 400,
-                borderRadius: 12,
-              }}
-              styles={{
-                body: {
-                  padding: 24,
-                },
               }}
             >
-              <Title level={4} style={{ marginTop: 0, marginBottom: 16 }}>
+            <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
                 {currentTabLabel}
               </Title>
               <Text type="secondary">
