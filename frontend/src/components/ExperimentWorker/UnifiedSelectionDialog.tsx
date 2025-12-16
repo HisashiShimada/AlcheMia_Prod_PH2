@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Modal, Tabs, List, Typography, Space, Tag, Button, theme } from 'antd';
-import { FolderOutlined, ToolOutlined, AimOutlined, CheckOutlined } from '@ant-design/icons';
+import { Modal, List, Typography, Space, Tag, Button, theme } from 'antd';
+import { FolderOutlined, ToolOutlined, CheckOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
@@ -23,45 +23,46 @@ interface UnifiedSelectionDialogProps {
 }
 
 /**
+ * 選択ステップの型定義
+ */
+type SelectionStep = 'project' | 'method';
+
+/**
  * 統合選択ダイアログコンポーネント
- * プロジェクト、メソッド、タスクを1つのモーダルで選択
+ * プロジェクト選択 → メソッド選択の2ステップで選択
  */
 export default function UnifiedSelectionDialog({
   open,
   onClose,
   selectedProject,
   selectedMethodId,
-  selectedTaskId,
   onProjectChange,
   onSelectMethod,
-  onSelectTask,
 }: UnifiedSelectionDialogProps) {
   const { token } = theme.useToken();
-  const [activeTab, setActiveTab] = useState<string>('project');
+  const [step, setStep] = useState<SelectionStep>('project');
   const [tempProject, setTempProject] = useState<string>(selectedProject);
   const [tempMethodId, setTempMethodId] = useState<string | null>(selectedMethodId);
-  const [tempTaskId, setTempTaskId] = useState<string | null>(selectedTaskId);
 
-  // ダイアログが開かれた時に現在の選択状態を一時変数に設定
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // ダイアログが開かれた時に現在の選択状態を一時変数に設定し、ステップをリセット
   useEffect(() => {
     if (open) {
       setTempProject(selectedProject);
       setTempMethodId(selectedMethodId);
-      setTempTaskId(selectedTaskId);
+      setStep('project');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  // タスクデータ（TODO: 実際のデータはAPIから取得）
-  const tasks = [
-    { taskId: 'new', taskName: '新規タスク', tag: '新規' },
-    { taskId: 'task001', taskName: 'タスク001' },
-    { taskId: 'task002', taskName: 'タスク002' },
-    { taskId: 'task003', taskName: 'タスク003' },
-  ];
 
   // 選択中のプロジェクトのメソッド一覧を取得
   const methods: Method[] = tempProject ? (projectsData[tempProject]?.methods || []) : [];
+
+  // プロジェクト選択時の処理
+  const handleProjectSelect = (projectId: string) => {
+    setTempProject(projectId);
+    setTempMethodId(null); // プロジェクト変更時はメソッドをリセット
+    setStep('method'); // メソッド選択ステップに進む
+  };
 
   // 決定ボタンの処理
   const handleOk = () => {
@@ -71,9 +72,6 @@ export default function UnifiedSelectionDialog({
     if (tempMethodId !== selectedMethodId) {
       onSelectMethod(tempMethodId || '');
     }
-    if (tempTaskId !== selectedTaskId) {
-      onSelectTask(tempTaskId || '');
-    }
     onClose();
   };
 
@@ -82,22 +80,24 @@ export default function UnifiedSelectionDialog({
     // 一時変数をリセット
     setTempProject(selectedProject);
     setTempMethodId(selectedMethodId);
-    setTempTaskId(selectedTaskId);
+    setStep('project');
     onClose();
+  };
+
+  // 戻るボタンの処理
+  const handleBack = () => {
+    setStep('project');
   };
 
   // プロジェクトリストアイテム
   const renderProjectItem = (projectId: string) => {
     const project = projectsData[projectId];
     const isSelected = tempProject === projectId;
+    const isCurrentlySelected = selectedProject === projectId;
 
     return (
       <List.Item
-        onClick={() => {
-          setTempProject(projectId);
-          // プロジェクトを変更したらメソッドをリセット
-          setTempMethodId(null);
-        }}
+        onClick={() => handleProjectSelect(projectId)}
         style={{
           cursor: 'pointer',
           padding: token.paddingMD,
@@ -105,6 +105,7 @@ export default function UnifiedSelectionDialog({
           borderRadius: token.borderRadius,
           marginBottom: token.marginXS,
           transition: 'all 0.2s',
+          border: isCurrentlySelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
         }}
         onMouseEnter={(e) => {
           if (!isSelected) {
@@ -118,9 +119,11 @@ export default function UnifiedSelectionDialog({
         }}
       >
         <List.Item.Meta
+          avatar={<FolderOutlined style={{ fontSize: 24, color: token.colorPrimary }} />}
           title={
             <Space>
-              <Text strong={isSelected}>{project.projectName}</Text>
+              <Text strong>{project.projectName}</Text>
+              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
             </Space>
           }
           description={
@@ -134,7 +137,6 @@ export default function UnifiedSelectionDialog({
             </Space>
           }
         />
-        {isSelected && <Tag color="red">選択中</Tag>}
       </List.Item>
     );
   };
@@ -142,6 +144,7 @@ export default function UnifiedSelectionDialog({
   // メソッドリストアイテム
   const renderMethodItem = (method: Method) => {
     const isSelected = tempMethodId === method.methodId;
+    const isCurrentlySelected = selectedMethodId === method.methodId;
 
     return (
       <List.Item
@@ -153,6 +156,7 @@ export default function UnifiedSelectionDialog({
           borderRadius: token.borderRadius,
           marginBottom: token.marginXS,
           transition: 'all 0.2s',
+          border: isCurrentlySelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
         }}
         onMouseEnter={(e) => {
           if (!isSelected) {
@@ -166,9 +170,12 @@ export default function UnifiedSelectionDialog({
         }}
       >
         <List.Item.Meta
+          avatar={<ToolOutlined style={{ fontSize: 24, color: token.colorInfo }} />}
           title={
             <Space>
-              <Text strong={isSelected}>{method.methodName}</Text>
+              <Text strong>{method.methodName}</Text>
+              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
+              {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
             </Space>
           }
           description={
@@ -182,86 +189,48 @@ export default function UnifiedSelectionDialog({
             </Space>
           }
         />
-        {isSelected && <Tag color="red">選択中</Tag>}
       </List.Item>
     );
   };
 
-  // タスクリストアイテム
-  const renderTaskItem = (task: { taskId: string; taskName: string; tag?: string }) => {
-    const isSelected = tempTaskId === task.taskId;
-
-    return (
-      <List.Item
-        onClick={() => setTempTaskId(task.taskId)}
-        style={{
-          cursor: 'pointer',
-          padding: token.paddingMD,
-          backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
-          borderRadius: token.borderRadius,
-          marginBottom: token.marginXS,
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = token.colorBgTextHover;
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }
-        }}
-      >
-        <List.Item.Meta
-          title={
-            <Space>
-              <Text strong={isSelected}>{task.taskName}</Text>
-              {task.tag && (
-                <Tag color={isSelected ? 'red' : 'default'}>{task.tag}</Tag>
-              )}
-            </Space>
-          }
-        />
-        {isSelected && <Tag color="red">選択中</Tag>}
-      </List.Item>
-    );
-  };
-
-  // タブアイテム
-  const tabItems = [
-    {
-      key: 'project',
-      label: (
+  // ステップに応じたタイトルとアイコンを取得
+  const getModalTitle = () => {
+    if (step === 'project') {
+      return (
         <Space>
-          <FolderOutlined />
-          <Text>プロジェクト</Text>
+          <FolderOutlined style={{ color: token.colorPrimary }} />
+          <Text strong>プロジェクトを選択</Text>
         </Space>
-      ),
-      children: (
-        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+      );
+    } else {
+      const projectName = tempProject ? projectsData[tempProject]?.projectName : '';
+      return (
+        <Space>
+          <ToolOutlined style={{ color: token.colorInfo }} />
+          <Text strong>メソッドを選択</Text>
+          <Text type="secondary" style={{ fontSize: 14 }}>
+            （プロジェクト: {projectName}）
+          </Text>
+        </Space>
+      );
+    }
+  };
+
+  // ステップに応じたコンテンツを取得
+  const getModalContent = () => {
+    if (step === 'project') {
+      return (
+        <div style={{ maxHeight: 500, overflowY: 'auto' }}>
           <List
             dataSource={Object.keys(projectsData)}
             renderItem={renderProjectItem}
           />
         </div>
-      ),
-    },
-    {
-      key: 'method',
-      label: (
-        <Space>
-          <ToolOutlined />
-          <Text>メソッド</Text>
-        </Space>
-      ),
-      children: (
-        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-          {!tempProject ? (
-            <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
-              <Text type="secondary">プロジェクトを選択してください</Text>
-            </Space>
-          ) : methods.length === 0 ? (
+      );
+    } else {
+      return (
+        <div style={{ maxHeight: 500, overflowY: 'auto' }}>
+          {methods.length === 0 ? (
             <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
               <Text type="secondary">メソッドがありません</Text>
             </Space>
@@ -272,53 +241,46 @@ export default function UnifiedSelectionDialog({
             />
           )}
         </div>
-      ),
-    },
-    {
-      key: 'task',
-      label: (
-        <Space>
-          <AimOutlined />
-          <Text>タスク</Text>
-        </Space>
-      ),
-      children: (
-        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-          {!tempProject ? (
-            <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
-              <Text type="secondary">プロジェクトを選択してください</Text>
-            </Space>
-          ) : (
-            <List
-              dataSource={tasks}
-              renderItem={renderTaskItem}
-            />
-          )}
-        </div>
-      ),
-    },
-  ];
+      );
+    }
+  };
 
   return (
     <Modal
       open={open}
       onCancel={handleCancel}
-      onOk={handleOk}
+      onOk={step === 'method' ? handleOk : undefined}
       width={700}
-      title={
-        <Space>
-          <CheckOutlined style={{ color: token.colorPrimary }} />
-          <Text strong>プロジェクト・メソッド・タスク選択</Text>
-        </Space>
-      }
+      title={getModalTitle()}
       okText="決定"
       cancelText="キャンセル"
+      okButtonProps={{
+        disabled: step === 'method' && !tempMethodId,
+      }}
+      footer={
+        step === 'project' ? (
+          <Space>
+            <Button onClick={handleCancel}>キャンセル</Button>
+          </Space>
+        ) : (
+          <Space>
+            <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
+              戻る
+            </Button>
+            <Button onClick={handleCancel}>キャンセル</Button>
+            <Button
+              type="primary"
+              onClick={handleOk}
+              disabled={!tempMethodId}
+              icon={<CheckOutlined />}
+            >
+              決定
+            </Button>
+          </Space>
+        )
+      }
     >
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={tabItems}
-      />
+      {getModalContent()}
     </Modal>
   );
 }

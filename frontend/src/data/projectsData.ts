@@ -271,6 +271,7 @@ export const projectsData: Record<string, ProjectData> = {
             "sampleNumber": "Sample-001",
             "notes": "標準温度計との比較測定",
             "status": "started",
+            "progressRate": 30,
             "progressReport": "実験記録報告",
             "recordNumber": "EXP-2024-001"
           },
@@ -280,6 +281,7 @@ export const projectsData: Record<string, ProjectData> = {
             "sampleNumber": "Sample-001",
             "notes": "温度誤差の算出と記録",
             "status": "not_started",
+            "progressRate": 0,
             "progressReport": "",
             "recordNumber": ""
           },
@@ -289,6 +291,7 @@ export const projectsData: Record<string, ProjectData> = {
             "sampleNumber": "Sample-001",
             "notes": "キャリブレーション結果のまとめ",
             "status": "not_started",
+            "progressRate": 0,
             "progressReport": "",
             "recordNumber": ""
           }

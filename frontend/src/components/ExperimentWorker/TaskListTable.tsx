@@ -37,42 +37,11 @@ export default function TaskListTable({ tasks, onTaskAction }: TaskListTableProp
       title: 'タスク名',
       dataIndex: 'taskName',
       key: 'taskName',
-      width: 150,
+      width: 200,
       ellipsis: true,
       render: (text: string) => (
         <Text strong style={{ fontSize: '14px' }}>
           {text}
-        </Text>
-      )
-    },
-    {
-      title: 'サンプル番号',
-      dataIndex: 'sampleNumber',
-      key: 'sampleNumber',
-      width: 130,
-      render: (text: string) => (
-        <div
-          style={{
-            background: '#FCE4EC',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            display: 'inline-block'
-          }}
-        >
-          <Text style={{ fontSize: '13px', color: '#212121' }}>
-            {text}
-          </Text>
-        </div>
-      )
-    },
-    {
-      title: '備考',
-      dataIndex: 'notes',
-      key: 'notes',
-      ellipsis: true,
-      render: (text: string) => (
-        <Text style={{ fontSize: '13px', color: '#757575' }}>
-          {text || '-'}
         </Text>
       )
     },
@@ -96,36 +65,66 @@ export default function TaskListTable({ tasks, onTaskAction }: TaskListTableProp
       }
     },
     {
-      title: '進捗報告',
-      dataIndex: 'progressReport',
-      key: 'progressReport',
-      width: 120,
-      render: (text: string) => (
-        <Text style={{ fontSize: '13px', color: '#757575' }}>
-          {text || '-'}
+      title: '進捗率',
+      dataIndex: 'progressRate',
+      key: 'progressRate',
+      width: 100,
+      align: 'center',
+      render: (rate: number) => (
+        <Text strong style={{ fontSize: '14px', color: '#0093CF' }}>
+          {rate}%
         </Text>
       )
     },
     {
-      title: '実験記録番号',
-      dataIndex: 'recordNumber',
-      key: 'recordNumber',
-      width: 150,
-      render: (text: string) => (
-        <Text style={{ fontSize: '13px', color: '#757575' }}>
-          {text || '-'}
-        </Text>
-      )
-    },
-    {
-      title: 'アクション',
-      key: 'actions',
-      width: 240,
+      title: '開始',
+      key: 'start',
+      width: 80,
       align: 'center',
       render: (_, record: Task) => (
         <TaskActionButtons
           task={record}
           onAction={(action) => onTaskAction(record.taskId, action)}
+          buttonType="start"
+        />
+      )
+    },
+    {
+      title: '結果記録',
+      key: 'record',
+      width: 100,
+      align: 'center',
+      render: (_, record: Task) => (
+        <TaskActionButtons
+          task={record}
+          onAction={(action) => onTaskAction(record.taskId, action)}
+          buttonType="record"
+        />
+      )
+    },
+    {
+      title: '進捗報告',
+      key: 'progress',
+      width: 100,
+      align: 'center',
+      render: (_, record: Task) => (
+        <TaskActionButtons
+          task={record}
+          onAction={(action) => onTaskAction(record.taskId, action)}
+          buttonType="progress"
+        />
+      )
+    },
+    {
+      title: '終了',
+      key: 'complete',
+      width: 80,
+      align: 'center',
+      render: (_, record: Task) => (
+        <TaskActionButtons
+          task={record}
+          onAction={(action) => onTaskAction(record.taskId, action)}
+          buttonType="complete"
         />
       )
     }
@@ -136,7 +135,12 @@ export default function TaskListTable({ tasks, onTaskAction }: TaskListTableProp
       columns={columns}
       dataSource={tasks}
       rowKey="taskId"
-      pagination={false}
+      pagination={{
+        pageSize: 10,
+        showSizeChanger: false,
+        showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}件`,
+        position: ['bottomCenter']
+      }}
       scroll={{ x: 1200 }}
       size="middle"
       bordered

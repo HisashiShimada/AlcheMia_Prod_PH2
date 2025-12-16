@@ -191,6 +191,7 @@ export interface Task {
   sampleNumber: string;        // サンプル番号
   notes: string;               // 備考
   status: TaskStatus;          // ステータス
+  progressRate: number;        // 進捗率（0-100）
   progressReport: string;      // 進捗報告の状態（例: "実験記録報告"）
   recordNumber: string;        // 実験記録番号
 }

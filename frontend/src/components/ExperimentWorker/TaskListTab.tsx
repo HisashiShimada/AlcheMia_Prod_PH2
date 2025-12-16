@@ -119,11 +119,6 @@ export default function TaskListTab({
     message.info('一括進捗報告機能は今後実装予定です');
   }, []);
 
-  // 承認依頼ボタン
-  const handleApprovalRequest = useCallback(() => {
-    message.info('承認依頼機能は今後実装予定です');
-  }, []);
-
   return (
     <div style={{ padding: '24px' }}>
       <Card
@@ -132,18 +127,28 @@ export default function TaskListTab({
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
         }}
       >
-        {/* 指示確認ボタン */}
+        {/* 指示確認ボタン・一括進捗報告ボタン */}
         <div style={{ marginBottom: '16px', textAlign: 'right' }}>
-          <Button
-            type="default"
-            size="middle"
-            onClick={handleInstructionConfirmation}
-            icon={<FileTextOutlined />}
-            aria-label="作業指示を確認"
-          >
-            指示確認
-            <RightOutlined style={{ fontSize: '12px', marginLeft: '4px' }} />
-          </Button>
+          <Space size="middle">
+            <Button
+              type="default"
+              size="middle"
+              onClick={handleInstructionConfirmation}
+              icon={<FileTextOutlined />}
+              aria-label="作業指示を確認"
+            >
+              指示確認
+              <RightOutlined style={{ fontSize: '12px', marginLeft: '4px' }} />
+            </Button>
+            <Button
+              type="default"
+              size="middle"
+              onClick={handleBatchProgressReport}
+              aria-label="一括進捗報告"
+            >
+              一括進捗報告
+            </Button>
+          </Space>
         </div>
 
         {/* タスク一覧展開ボタン */}
@@ -197,37 +202,6 @@ export default function TaskListTab({
           </>
         )}
 
-        {/* フッターボタン */}
-        {selectedProject && selectedMethodId && tasks.length > 0 && (
-          <>
-            <Divider style={{ margin: '16px 0' }} />
-            <div
-              style={{
-                background: '#E8F5E9',
-                padding: '16px 24px',
-                borderRadius: '8px',
-                textAlign: 'right'
-              }}
-            >
-              <Space size="middle">
-                <Button
-                  type="default"
-                  size="large"
-                  onClick={handleBatchProgressReport}
-                >
-                  一括進捗報告
-                </Button>
-                <Button
-                  type="primary"
-                  size="large"
-                  onClick={handleApprovalRequest}
-                >
-                  承認依頼
-                </Button>
-              </Space>
-            </div>
-          </>
-        )}
       </Card>
     </div>
   );

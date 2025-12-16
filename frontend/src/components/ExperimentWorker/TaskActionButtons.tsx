@@ -1,139 +1,100 @@
 'use client';
 
 import React from 'react';
-import { Space, Button } from 'antd';
+import { Button } from 'antd';
 import { PlayCircleOutlined, FormOutlined, LineChartOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { Task } from '@/types/experimentWorker';
 
 interface TaskActionButtonsProps {
   task: Task;
   onAction: (action: string) => void;
+  buttonType: 'start' | 'record' | 'progress' | 'complete';
 }
 
 /**
- * タスクアクションボタン群
- * タスクのステータスに応じて適切なボタンを表示する
+ * タスクアクションボタン（個別ボタン）
+ * 各カラムに表示する個別のボタンを返す
+ * ステータスに応じて活性/非活性を制御する
  */
-export default function TaskActionButtons({ task, onAction }: TaskActionButtonsProps) {
+export default function TaskActionButtons({ task, onAction, buttonType }: TaskActionButtonsProps) {
   const { status } = task;
 
-  // 開始前: 「開始」ボタンのみ
-  if (status === 'not_started') {
+  // 開始ボタン
+  if (buttonType === 'start') {
+    // 開始前、完了、中断の場合のみ活性
+    const isDisabled = !(status === 'not_started' || status === 'completed' || status === 'suspended');
+    const label = status === 'not_started' ? 'タスクを開始' : 'タスクを再開';
+    
     return (
-      <Space size="small">
-        <Button
-          type="primary"
-          size="small"
-          icon={<PlayCircleOutlined />}
-          onClick={() => onAction('start')}
-          aria-label="タスクを開始"
-        >
-          開始
-        </Button>
-      </Space>
+      <Button
+        type="primary"
+        size="small"
+        icon={<PlayCircleOutlined />}
+        onClick={() => onAction('start')}
+        disabled={isDisabled}
+        aria-label={label}
+      >
+        開始
+      </Button>
     );
   }
 
-  // 開始: 「結果入力」「進捗報告」ボタン
-  if (status === 'started') {
+  // 結果記録ボタン
+  if (buttonType === 'record') {
+    // 開始、作業中の場合のみ活性
+    const isDisabled = !(status === 'started' || status === 'in_progress');
+    
     return (
-      <Space size="small">
-        <Button
-          type="default"
-          size="small"
-          icon={<FormOutlined />}
-          onClick={() => onAction('record')}
-          aria-label="実験結果を入力"
-        >
-          結果入力
-        </Button>
-        <Button
-          type="default"
-          size="small"
-          icon={<LineChartOutlined />}
-          onClick={() => onAction('progress')}
-          aria-label="進捗を報告"
-        >
-          進捗報告
-        </Button>
-      </Space>
+      <Button
+        type="default"
+        size="small"
+        icon={<FormOutlined />}
+        onClick={() => onAction('record')}
+        disabled={isDisabled}
+        aria-label="実験結果を記録"
+      >
+        記録
+      </Button>
     );
   }
 
-  // 作業中: 「結果入力」「進捗報告」「終了」ボタン
-  if (status === 'in_progress') {
+  // 進捗報告ボタン
+  if (buttonType === 'progress') {
+    // 開始、作業中の場合のみ活性
+    const isDisabled = !(status === 'started' || status === 'in_progress');
+    
     return (
-      <Space size="small">
-        <Button
-          type="default"
-          size="small"
-          icon={<FormOutlined />}
-          onClick={() => onAction('record')}
-          aria-label="実験結果を入力"
-        >
-          結果入力
-        </Button>
-        <Button
-          type="default"
-          size="small"
-          icon={<LineChartOutlined />}
-          onClick={() => onAction('progress')}
-          aria-label="進捗を報告"
-        >
-          進捗報告
-        </Button>
-        <Button
-          type="primary"
-          size="small"
-          icon={<CheckCircleOutlined />}
-          onClick={() => onAction('complete')}
-          aria-label="タスクを完了"
-        >
-          終了
-        </Button>
-      </Space>
+      <Button
+        type="default"
+        size="small"
+        icon={<LineChartOutlined />}
+        onClick={() => onAction('progress')}
+        disabled={isDisabled}
+        aria-label="進捗を報告"
+      >
+        報告
+      </Button>
     );
   }
 
-  // 完了: 「開始」ボタンのみ（再開用）
-  if (status === 'completed') {
+  // 終了ボタン
+  if (buttonType === 'complete') {
+    // 作業中の場合のみ活性
+    const isDisabled = status !== 'in_progress';
+    
     return (
-      <Space size="small">
-        <Button
-          type="default"
-          size="small"
-          icon={<PlayCircleOutlined />}
-          onClick={() => onAction('start')}
-          aria-label="タスクを再開"
-        >
-          開始
-        </Button>
-      </Space>
+      <Button
+        type="primary"
+        size="small"
+        icon={<CheckCircleOutlined />}
+        onClick={() => onAction('complete')}
+        disabled={isDisabled}
+        aria-label="タスクを完了"
+      >
+        終了
+      </Button>
     );
   }
 
-  // 中断: 「開始」ボタンのみ（再開用）
-  if (status === 'suspended') {
-    return (
-      <Space size="small">
-        <Button
-          type="default"
-          size="small"
-          icon={<PlayCircleOutlined />}
-          onClick={() => onAction('start')}
-          aria-label="タスクを再開"
-        >
-          開始
-        </Button>
-      </Space>
-    );
-  }
-
-  // 強制終了: ボタンなし
-  if (status === 'forced_terminated') {
-    return null;
-  }
-
-  // その他: ボタンなし
   return null;
 }
