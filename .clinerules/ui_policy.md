@@ -282,7 +282,466 @@ function AppLayout() {
 
 **DO（推奨）:**
 ```typescript
-// ✅ サイズpropsを使用
+// ✅ Formコンポーネントのサイズpropsを使用
+<Form size="large">
+  <Form.Item name="username" label="ユーザー名">
+    <Input />
+  </Form.Item>
+  <Form.Item name="role" label="ロール">
+    <Select>
+      <Select.Option value="admin">管理者</Select.Option>
+      <Select.Option value="user">一般ユーザー</Select.Option>
+    </Select>
+  </Form.Item>
+</Form>
+```
+
+**DON'T（非推奨）:**
+```typescript
+// ❌ 各入力要素に個別にスタイルを指定
+<Input style={{ height: '40px', fontSize: '16px' }} />
+<Select style={{ height: '40px' }} />
+```
+
+### リストコンポーネント（Table）
+
+Ant DesignのTableコンポーネントは、データの一覧表示、フィルタリング、ソート、ページングなどの機能を提供します。
+
+#### 基本構造
+
+**DO（推奨）:**
+```typescript
+import { Table, Input, Select, Space, Row, Col, Badge } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+
+interface DataType {
+  id: string;
+  name: string;
+  count: number;
+  date: string;
+  status: boolean;
+}
+
+const columns: ColumnsType<DataType> = [
+  {
+    title: 'ID',
+    dataIndex: 'id',
+    key: 'id',
+    width: 80,
+    align: 'right',  // 数値は右寄せ
+    sorter: (a, b) => parseInt(a.id) - parseInt(b.id),
+  },
+  {
+    title: '名前',
+    dataIndex: 'name',
+    key: 'name',
+    width: 200,
+    align: 'left',  // テキストは左寄せ（デフォルト）
+    sorter: (a, b) => a.name.localeCompare(b.name),
+  },
+  {
+    title: '件数',
+    dataIndex: 'count',
+    key: 'count',
+    width: 100,
+    align: 'right',  // 数値は右寄せ
+    sorter: (a, b) => a.count - b.count,
+  },
+  {
+    title: '日付',
+    dataIndex: 'date',
+    key: 'date',
+    width: 140,
+    align: 'right',  // 日付は右寄せ
+    sorter: (a, b) => a.date.localeCompare(b.date),
+  },
+  {
+    title: 'ステータス',
+    dataIndex: 'status',
+    key: 'status',
+    width: 100,
+    align: 'center',  // Boolean/バッジは中央寄せ
+    render: (status: boolean) => (
+      <Badge 
+        status={status ? 'success' : 'default'} 
+        text={status ? '有効' : '無効'} 
+      />
+    ),
+  },
+];
+
+function DataList() {
+  return (
+    <>
+      {/* フィルタリング部分（左寄せ） */}
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col flex="400px">
+          <Input
+            placeholder="検索"
+            prefix={<SearchOutlined />}
+            allowClear
+          />
+        </Col>
+        <Col flex="150px">
+          <Select
+            placeholder="カテゴリー"
+            allowClear
+            style={{ width: '100%' }}
+          />
+        </Col>
+        <Col flex="150px">
+          <Select
+            placeholder="ステータス"
+            allowClear
+            style={{ width: '100%' }}
+          />
+        </Col>
+      </Row>
+
+      {/* テーブル */}
+      <Table
+        columns={columns}
+        dataSource={data}
+        rowKey="id"
+        scroll={{ x: 1200 }}
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: true,
+          showTotal: (total) => `全 ${total} 件`,
+          pageSizeOptions: ['10', '20', '50', '100'],
+        }}
+      />
+    </>
+  );
+}
+```
+
+#### フィルタリング機能
+
+**配置:** リスト上部に左寄せで配置
+
+**DO（推奨）:**
+```typescript
+// ✅ Row/Colを使用したレスポンシブなフィルタリングエリア
+<Row gutter={16} style={{ marginBottom: 16 }}>
+  {/* 全体検索 */}
+  <Col flex="400px">
+    <Input
+      placeholder="ID、名前、説明で検索"
+      prefix={<SearchOutlined />}
+      value={searchText}
+      onChange={(e) => setSearchText(e.target.value)}
+      allowClear
+    />
+  </Col>
+  
+  {/* カテゴリーフィルター */}
+  <Col flex="150px">
+    <Select
+      placeholder="カテゴリー"
+      value={selectedCategory || undefined}
+      onChange={setSelectedCategory}
+      allowClear
+      style={{ width: '100%' }}
+      options={categories.map(cat => ({ label: cat, value: cat }))}
+    />
+  </Col>
+  
+  {/* ステータスフィルター */}
+  <Col flex="150px">
+    <Select
+      placeholder="ステータス"
+      value={selectedStatus || undefined}
+      onChange={setSelectedStatus}
+      allowClear
+      style={{ width: '100%' }}
+    />
+  </Col>
+</Row>
+```
+
+**DON'T（非推奨）:**
+```typescript
+// ❌ 固定幅でレスポンシブ対応していない
+<div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+  <Input style={{ width: '400px' }} />
+  <Select style={{ width: '150px' }} />
+</div>
+```
+
+#### ソート機能
+
+**DO（推奨）:**
+```typescript
+// ✅ sorterプロパティでソート機能を有効化
+const columns: ColumnsType<DataType> = [
+  {
+    title: 'ID',
+    dataIndex: 'id',
+    sorter: (a, b) => parseInt(a.id) - parseInt(b.id),  // 数値ソート
+  },
+  {
+    title: '名前',
+    dataIndex: 'name',
+    sorter: (a, b) => a.name.localeCompare(b.name),  // 文字列ソート（日本語対応）
+  },
+  {
+    title: '日付',
+    dataIndex: 'date',
+    sorter: (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),  // 日付ソート
+  },
+];
+```
+
+#### 列の配置（align）
+
+**配置ルール:**
+- **基本は左寄せ** (`align: 'left'` またはデフォルト)
+- **数値は右寄せ** (`align: 'right'`)
+- **日付は右寄せ** (`align: 'right'`)
+- **バッジ表示は中央寄せ** (`align: 'center'`)
+- **Boolean値（True/False）やステータス表示は中央寄せ** (`align: 'center'`)
+
+**DO（推奨）:**
+```typescript
+const columns: ColumnsType<DataType> = [
+  {
+    title: 'ID',
+    dataIndex: 'id',
+    align: 'right',  // ✅ 数値は右寄せ
+  },
+  {
+    title: 'ユーザー名',
+    dataIndex: 'username',
+    align: 'left',  // ✅ テキストは左寄せ（デフォルトなので省略可）
+  },
+  {
+    title: '件数',
+    dataIndex: 'count',
+    align: 'right',  // ✅ 数値は右寄せ
+  },
+  {
+    title: '更新日時',
+    dataIndex: 'updatedAt',
+    align: 'right',  // ✅ 日付は右寄せ
+  },
+  {
+    title: 'アクティブ',
+    dataIndex: 'isActive',
+    align: 'center',  // ✅ Boolean値は中央寄せ
+    render: (isActive: boolean) => (
+      <Badge status={isActive ? 'success' : 'default'} text={isActive ? '有効' : '無効'} />
+    ),
+  },
+  {
+    title: 'ステータス',
+    dataIndex: 'status',
+    align: 'center',  // ✅ バッジは中央寄せ
+    render: (status: string) => <Badge color="blue" text={status} />,
+  },
+];
+```
+
+**DON'T（非推奨）:**
+```typescript
+// ❌ 配置が不適切
+const columns: ColumnsType<DataType> = [
+  {
+    title: 'ID',
+    dataIndex: 'id',
+    align: 'left',  // ❌ 数値なのに左寄せ
+  },
+  {
+    title: 'ステータス',
+    dataIndex: 'status',
+    align: 'left',  // ❌ バッジなのに左寄せ
+  },
+];
+```
+
+#### ページング機能
+
+**DO（推奨）:**
+```typescript
+// ✅ paginationプロパティで制御
+<Table
+  dataSource={data}
+  columns={columns}
+  pagination={{
+    pageSize: 10,  // 1ページあたりの表示件数
+    showSizeChanger: true,  // ページサイズ変更を有効化
+    showTotal: (total) => `全 ${total} 件`,  // 総件数表示
+    pageSizeOptions: ['10', '20', '50', '100'],  // ページサイズの選択肢
+  }}
+/>
+```
+
+**ページサイズの推奨値:**
+- デフォルト: `10`
+- 選択肢: `['10', '20', '50', '100']`
+
+**DON'T（非推奨）:**
+```typescript
+// ❌ ページング機能を無効化（大量データの場合）
+<Table
+  dataSource={largeData}
+  pagination={false}  // ❌ 大量データでページングなしは避ける
+/>
+```
+
+#### 行選択機能
+
+**DO（推奨）:**
+```typescript
+// ✅ rowSelectionでチェックボックスを表示
+const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+
+const rowSelection = {
+  selectedRowKeys,
+  onChange: (newSelectedRowKeys: React.Key[]) => {
+    setSelectedRowKeys(newSelectedRowKeys);
+  },
+};
+
+<Table
+  rowSelection={rowSelection}
+  columns={columns}
+  dataSource={data}
+  rowKey="id"  // ✅ 一意のキーを指定（必須）
+/>
+```
+
+#### スクロール設定
+
+**DO（推奨）:**
+```typescript
+// ✅ 横スクロールを設定（カラムが多い場合）
+<Table
+  columns={columns}
+  dataSource={data}
+  scroll={{ x: 1200 }}  // ✅ 最小幅を指定
+/>
+
+// ✅ 縦スクロールも設定可能（固定ヘッダー）
+<Table
+  columns={columns}
+  dataSource={data}
+  scroll={{ x: 1200, y: 600 }}
+/>
+```
+
+#### カラム幅の指定
+
+**DO（推奨）:**
+```typescript
+// ✅ widthプロパティでカラム幅を明示
+const columns: ColumnsType<DataType> = [
+  {
+    title: 'ID',
+    dataIndex: 'id',
+    width: 80,  // ✅ 固定幅（数値・短いテキスト）
+  },
+  {
+    title: '名前',
+    dataIndex: 'name',
+    width: 200,  // ✅ 適度な幅（通常のテキスト）
+  },
+  {
+    title: '説明',
+    dataIndex: 'description',
+    // width指定なし - 残りの幅を自動調整
+  },
+  {
+    title: 'アクション',
+    key: 'action',
+    width: 150,
+    fixed: 'right',  // ✅ 右端に固定
+  },
+];
+```
+
+#### カスタムレンダリング
+
+**DO（推奨）:**
+```typescript
+// ✅ renderプロパティでカスタム表示
+const columns: ColumnsType<DataType> = [
+  {
+    title: 'ステータス',
+    dataIndex: 'isActive',
+    align: 'center',
+    render: (isActive: boolean) => (
+      <Badge 
+        status={isActive ? 'success' : 'default'} 
+        text={isActive ? '有効' : '無効'} 
+      />
+    ),
+  },
+  {
+    title: 'アクション',
+    key: 'action',
+    align: 'center',
+    render: (_, record) => (
+      <Space size="small">
+        <Button icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+          編集
+        </Button>
+        <Button danger onClick={() => handleDelete(record.id)}>
+          削除
+        </Button>
+      </Space>
+    ),
+  },
+];
+```
+
+#### タイトルのカスタマイズ
+
+**DO（推奨）:**
+```typescript
+// ✅ タイトルにバッジやアイコンを追加
+const columns: ColumnsType<DataType> = [
+  {
+    title: (
+      <Space size="middle" align="center">
+        <span>ID</span>
+        <Badge 
+          count={inactiveCount} 
+          style={{ backgroundColor: '#4169E1' }} 
+        />
+      </Space>
+    ),
+    dataIndex: 'id',
+  },
+];
+```
+
+#### ローディング状態
+
+**DO（推奨）:**
+```typescript
+// ✅ loadingプロパティで読み込み中を表示
+<Table
+  columns={columns}
+  dataSource={data}
+  loading={isLoading}  // ✅ スピナーを自動表示
+/>
+```
+
+#### 空データの表示
+
+**DO（推奨）:**
+```typescript
+// ✅ localeプロパティでカスタムメッセージ
+<Table
+  columns={columns}
+  dataSource={data}
+  locale={{
+    emptyText: 'データがありません',
+  }}
+/>
+```
 
 ## レイアウト原則
 
