@@ -9,11 +9,17 @@ import {
   ExperimentOutlined,
   BarChartOutlined,
   AuditOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
+// モックコンポーネントのインポート
+import SystemOverviewMock from '../../../mock/components/SystemOverviewMock';
+import UserManagement from '../../../mock/components/UserManagement';
+import OrganizationStatisticsMock from '../../../mock/components/OrganizationStatisticsMock';
+import SessionManagementMock from '../../../mock/components/SessionManagementMock';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -40,34 +46,24 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
   const tabItems = [
     {
       key: '1',
+      label: t('menu.system_admin.tabs.systemOverview'),
+      icon: <EyeOutlined />,
+    },
+    {
+      key: '2',
+      label: t('menu.system_admin.tabs.organizationStatistics'),
+      icon: <BarChartOutlined />,
+    },
+    {
+      key: '3',
       label: t('menu.system_admin.tabs.userManagement'),
       icon: <TeamOutlined />,
     },
     {
-      key: '2',
-      label: t('menu.system_admin.tabs.organizationSettings'),
-      icon: <ShopOutlined />,
-    },
-    {
-      key: '3',
-      label: t('menu.system_admin.tabs.fileManagement'),
-      icon: <FolderOutlined />,
-    },
-    {
       key: '4',
-      label: t('menu.system_admin.tabs.experimentList'),
+      label: t('menu.system_admin.tabs.sessionManagement'),
       icon: <ExperimentOutlined />,
-    },
-    {
-      key: '5',
-      label: t('menu.system_admin.tabs.statistics'),
-      icon: <BarChartOutlined />,
-    },
-    {
-      key: '6',
-      label: t('menu.system_admin.tabs.auditLog'),
-      icon: <AuditOutlined />,
-    },
+    }
   ];
 
   const handleTabChange = (key: string) => {
@@ -97,23 +93,58 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
       {/* コンテンツエリア */}
       <Content
         style={{
-          marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
-          padding: token.paddingLG,
+          marginTop: 0, // Header(64px) + SubHeader(タブ込みで約76px)
+          padding: 50,
         }}
       >
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Card
-            style={{
-              minHeight: 400,
-            }}
-          >
-            <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
-              {currentTabLabel}
-            </Title>
-            <Text type="secondary">
-              {t('content.notImplemented')}
-            </Text>
-          </Card>
+        <div style={{ maxWidth: 1600, margin: '0 auto' }}>
+          {/* タブ1: システム概要 */}
+          {currentTab === '1' && <SystemOverviewMock />}
+
+          {/* タブ2: 組織統計情報 */}
+          {currentTab === '2' && <OrganizationStatisticsMock />}
+
+          {/* タブ3: ユーザー管理 */}
+          {currentTab === '3' && (
+            <Card
+              style={{
+                minHeight: 400,
+                borderRadius: 12,
+                margin: '24px',
+              }}
+              styles={{
+                body: {
+                  padding: 24,
+                },
+              }}
+            >
+              <Title level={4} style={{ marginTop: 0, marginBottom: 24 }}>
+                {/* {currentTabLabel} */}
+              </Title>
+              <UserManagement />
+            </Card>
+          )}
+
+          {/* タブ4: セッション管理 */}
+          {currentTab === '4' && (
+            <Card
+              style={{
+                minHeight: 400,
+                borderRadius: 12,
+                margin: '24px',
+              }}
+              styles={{
+                body: {
+                  padding: 24,
+                },
+              }}
+            >
+              <Title level={4} style={{ marginTop: 0, marginBottom: 24 }}>
+                {/* {currentTabLabel} */}
+              </Title>
+              <SessionManagementMock />
+            </Card>
+          )}
         </div>
       </Content>
     </Layout>

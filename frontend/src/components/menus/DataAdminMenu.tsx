@@ -14,6 +14,7 @@ import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import MasterManagementMock from '../../../mock/components/MasterManagementMock';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -40,34 +41,9 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
   const tabItems = [
     {
       key: '1',
-      label: t('menu.data_admin.tabs.fileManagement'),
+      label: t('menu.data_admin.tabs.masterManagement'),
       icon: <FolderOutlined />,
-    },
-    {
-      key: '2',
-      label: t('menu.data_admin.tabs.maimlEditor'),
-      icon: <EditOutlined />,
-    },
-    {
-      key: '3',
-      label: t('menu.data_admin.tabs.dataSearch'),
-      icon: <SearchOutlined />,
-    },
-    {
-      key: '4',
-      label: t('menu.data_admin.tabs.experimentList'),
-      icon: <ExperimentOutlined />,
-    },
-    {
-      key: '5',
-      label: t('menu.data_admin.tabs.dataExport'),
-      icon: <DownloadOutlined />,
-    },
-    {
-      key: '6',
-      label: t('menu.data_admin.tabs.statistics'),
-      icon: <BarChartOutlined />,
-    },
+    }
   ];
 
   const handleTabChange = (key: string) => {
@@ -101,19 +77,9 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
           padding: token.paddingLG,
         }}
       >
-        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <Card
-            style={{
-              minHeight: 400,
-            }}
-          >
-            <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
-              {currentTabLabel}
-            </Title>
-            <Text type="secondary">
-              {t('content.notImplemented')}
-            </Text>
-          </Card>
+        <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+          {/* マスタ管理タブ */}
+          {currentTab === '1' && <MasterManagementMock />}
         </div>
       </Content>
     </Layout>

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "A182",
+    "organization_id": "A182",
+    "organization_name": "Alpha研究所",
+    "display_name": "αβγ",
+    "email": "alpha@aist.go.jp",
+    "company_code": "K001",
+    "certificate_url": "/api/certificates/A182",
+    "updated_at": "202512080000",
+    "status": "inactive"
+  },
+  {
+    "id": "B7J3",
+    "organization_id": "B7J3",
+    "organization_name": "Beta研究所",
+    "display_name": "pβγ",
+    "email": "beta@aist.go.jp",
+    "company_code": "R189",
+    "certificate_url": "/api/certificates/B7J3",
+    "updated_at": "202512080000",
+    "status": "active"
+  },
+  {
+    "id": "L3M7",
+    "organization_id": "L3M7",
+    "organization_name": "Gamma研究所",
+    "display_name": "γδη",
+    "email": "gamma@aist.go.jp",
+    "company_code": "BS22",
+    "certificate_url": "/api/certificates/L3M7",
+    "updated_at": "202512080000",
+    "status": "inactive"
+  },
+  {
+    "id": "U2V0",
+    "organization_id": "U2V0",
+    "organization_name": "Delta研究所",
+    "display_name": "δεζ",
+    "email": "delta@aist.go.jp",
+    "company_code": "ZO66",
+    "certificate_url": "/api/certificates/U2V0",
+    "updated_at": "202512080000",
+    "status": "inactive"
+  },
+  {
+    "id": "D4S6",
+    "organization_id": "D4S6",
+    "organization_name": "Epsilon研究所",
+    "display_name": "εθι",
+    "email": "epsilon@aist.go.jp",
+    "company_code": "EC05",
+    "certificate_url": "/api/certificates/D4S6",
+    "updated_at": "202512080000",
+    "status": "inactive"
+  }
+]

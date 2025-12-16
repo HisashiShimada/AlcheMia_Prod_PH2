@@ -1,0 +1,67 @@
+[
+  {
+    "id": "session001",
+    "userId": "user001",
+    "lastName": "大森",
+    "firstName": "千潤",
+    "email": "yukihiro.omori@soft-service.co.jp",
+    "sessionDuration": "1日",
+    "durationDays": 1,
+    "loginTime": "2025-12-11T10:30:00",
+    "lastActivity": "2025-12-12T10:30:00",
+    "isCurrentUser": true,
+    "avatarText": "大"
+  },
+  {
+    "id": "session002",
+    "userId": "user002",
+    "lastName": "島田",
+    "firstName": "久資",
+    "email": "hisashi.shimada@aist-solutions.co.jp",
+    "sessionDuration": "1日",
+    "durationDays": 1,
+    "loginTime": "2025-12-11T11:00:00",
+    "lastActivity": "2025-12-12T09:45:00",
+    "isCurrentUser": false,
+    "avatarText": "島"
+  },
+  {
+    "id": "session003",
+    "userId": "user001",
+    "lastName": "大森",
+    "firstName": "千潤",
+    "email": "yukihiro.omori@soft-service.co.jp",
+    "sessionDuration": "1日",
+    "durationDays": 1,
+    "loginTime": "2025-12-11T14:20:00",
+    "lastActivity": "2025-12-12T08:15:00",
+    "isCurrentUser": false,
+    "avatarText": "大"
+  },
+  {
+    "id": "session004",
+    "userId": "user001",
+    "lastName": "大森",
+    "firstName": "千潤",
+    "email": "yukihiro.omori@soft-service.co.jp",
+    "sessionDuration": "1日",
+    "durationDays": 1,
+    "loginTime": "2025-12-11T16:45:00",
+    "lastActivity": "2025-12-12T07:30:00",
+    "isCurrentUser": false,
+    "avatarText": "大"
+  },
+  {
+    "id": "session005",
+    "userId": "user001",
+    "lastName": "大森",
+    "firstName": "千潤",
+    "email": "yukihiro.omori@soft-service.co.jp",
+    "sessionDuration": "2日",
+    "durationDays": 2,
+    "loginTime": "2025-12-10T09:00:00",
+    "lastActivity": "2025-12-12T06:00:00",
+    "isCurrentUser": false,
+    "avatarText": "大"
+  }
+]
