@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, Space, Button, Typography, Divider, message } from 'antd';
 import { RightOutlined, UnorderedListOutlined, FileTextOutlined } from '@ant-design/icons';
 import TaskListTable from './TaskListTable';
@@ -35,12 +35,19 @@ export default function TaskListTab({
   const [isTaskListExpanded, setIsTaskListExpanded] = useState(true);
   
   // タスクデータの取得
-  const [tasks, setTasks] = useState<Task[]>(() => {
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  // プロジェクトまたはメソッドが変更されたらタスク一覧を更新
+  useEffect(() => {
     if (selectedProject && selectedMethodId) {
-      return getTasksByProjectAndMethod(selectedProject, selectedMethodId);
+      const fetchedTasks = getTasksByProjectAndMethod(selectedProject, selectedMethodId);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      setTasks(fetchedTasks);
+      console.log(`タスク取得: プロジェクト=${selectedProject}, メソッド=${selectedMethodId}, タスク数=${fetchedTasks.length}`);
+    } else {
+      setTasks([]);
     }
-    return [];
-  });
+  }, [selectedProject, selectedMethodId]);
 
   // タスクアクション処理
   const handleTaskAction = useCallback((taskId: string, action: string) => {
