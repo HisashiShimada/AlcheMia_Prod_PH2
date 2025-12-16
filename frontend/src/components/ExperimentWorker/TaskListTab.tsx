@@ -14,7 +14,7 @@ import type { Task } from '@/types/experimentWorker';
 
 const { Title } = Typography;
 
-interface ExperimentWorkTabProps {
+interface TaskListTabProps {
   selectedProject: string | null;
   onProjectChange: (projectId: string) => void;
   selectedMethodId: string | null;
@@ -23,16 +23,16 @@ interface ExperimentWorkTabProps {
 }
 
 /**
- * 実験作業タブ - メインコンテナ
+ * タスク一覧タブ - メインコンテナ
  * プロジェクト・メソッド選択、統計情報表示、タスク一覧表示を統合
  */
-export default function ExperimentWorkTab({
+export default function TaskListTab({
   selectedProject,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
   onTabChange
-}: ExperimentWorkTabProps) {
+}: TaskListTabProps) {
   // タスク一覧の展開状態
   const [isTaskListExpanded, setIsTaskListExpanded] = useState(true);
   

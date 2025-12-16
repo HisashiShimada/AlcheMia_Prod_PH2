@@ -20,7 +20,7 @@ import { useInstructions } from '@/hooks/useInstructions';
 import { useExpandState } from '@/hooks/useExpandState';
 import InstructionConfirmationTab from '../ExperimentWorker/InstructionConfirmationTab';
 import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
-import ExperimentWorkTab from '../ExperimentWorker/ExperimentWorkTab';
+import TaskListTab from '../ExperimentWorker/TaskListTab';
 import ProgressReportTab from '../ExperimentWorker/ProgressReportTab';
 import UnifiedSelectionDialog from '../ExperimentWorker/UnifiedSelectionDialog';
 import { projectsData } from '@/data/projectsData';
@@ -159,10 +159,10 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const tabItems = [
     {
       key: '4',
-      label: t('menu.experiment_worker.tabs.experimentWork'),
+      label: t('menu.experiment_worker.tabs.taskList'),
       icon: <CheckSquareOutlined />,
       children: (
-        <ExperimentWorkTab
+        <TaskListTab
           selectedProject={selectedProject}
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
