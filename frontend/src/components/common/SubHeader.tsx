@@ -293,7 +293,7 @@ export default function SubHeader({
                 {onMenuChange && (
                   <Dropdown
                     menu={{ items: menuItems }}
-                    trigger={['hover']}
+                    trigger={['click']}
                     placement="bottomRight"
                     styles={{
                       root: {
