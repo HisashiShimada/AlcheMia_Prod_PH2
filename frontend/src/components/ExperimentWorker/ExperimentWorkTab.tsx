@@ -3,15 +3,12 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Card, Space, Button, Typography, Divider, message } from 'antd';
 import { RightOutlined, UnorderedListOutlined, FileTextOutlined } from '@ant-design/icons';
-import ProjectSelector from './ProjectSelector';
-import MethodSelector from './MethodSelector';
 import WorkflowStats from './WorkflowStats';
 import TaskListTable from './TaskListTable';
 import {
   getTasksByProjectAndMethod,
   calculateWorkflowStatistics,
-  updateTaskStatus,
-  projectsData
+  updateTaskStatus
 } from '@/data/projectsData';
 import type { Task } from '@/types/experimentWorker';
 
@@ -51,32 +48,6 @@ export default function ExperimentWorkTab({
   const statistics = useMemo(() => {
     return calculateWorkflowStatistics(tasks);
   }, [tasks]);
-
-  // メソッド一覧の取得
-  const methods = useMemo(() => {
-    if (!selectedProject) return [];
-    const project = projectsData[selectedProject];
-    return project?.methods || [];
-  }, [selectedProject]);
-
-  // プロジェクト変更時
-  const handleProjectChange = useCallback((projectId: string) => {
-    onProjectChange(projectId);
-    // メソッドをリセット
-    onSelectMethod('');
-    setTasks([]);
-  }, [onProjectChange, onSelectMethod]);
-
-  // メソッド選択時
-  const handleMethodSelect = useCallback((methodId: string) => {
-    onSelectMethod(methodId);
-    if (selectedProject && methodId) {
-      const newTasks = getTasksByProjectAndMethod(selectedProject, methodId);
-      setTasks(newTasks);
-    } else {
-      setTasks([]);
-    }
-  }, [selectedProject, onSelectMethod]);
 
   // タスクアクション処理
   const handleTaskAction = useCallback((taskId: string, action: string) => {
@@ -161,42 +132,19 @@ export default function ExperimentWorkTab({
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
         }}
       >
-        {/* プロジェクト・メソッド選択エリア */}
-        <div
-          style={{
-            background: '#E8F5E9',
-            padding: '16px 24px',
-            borderRadius: '8px',
-            marginBottom: '16px'
-          }}
-        >
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <ProjectSelector
-              selectedProject={selectedProject || ''}
-              onProjectChange={handleProjectChange}
-            />
-            <MethodSelector
-              methods={methods}
-              selectedMethodId={selectedMethodId}
-              onSelectMethod={handleMethodSelect}
-              disabled={!selectedProject}
-            />
-            <div style={{ textAlign: 'right' }}>
-              <Button
-                type="default"
-                size="middle"
-                onClick={handleInstructionConfirmation}
-                icon={<FileTextOutlined />}
-                aria-label="作業指示を確認"
-              >
-                指示確認
-                <RightOutlined style={{ fontSize: '12px', marginLeft: '4px' }} />
-              </Button>
-            </div>
-          </Space>
+        {/* 指示確認ボタン */}
+        <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+          <Button
+            type="default"
+            size="middle"
+            onClick={handleInstructionConfirmation}
+            icon={<FileTextOutlined />}
+            aria-label="作業指示を確認"
+          >
+            指示確認
+            <RightOutlined style={{ fontSize: '12px', marginLeft: '4px' }} />
+          </Button>
         </div>
-
-        <Divider style={{ margin: '16px 0' }} />
 
         {/* 統計情報バー */}
         {selectedProject && selectedMethodId && tasks.length > 0 && (
