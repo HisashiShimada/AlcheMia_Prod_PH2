@@ -230,11 +230,14 @@ export default function TaskListTable({ tasks, onTaskAction }: TaskListTableProp
       pagination={{
         pageSize: 20,
         showSizeChanger: true,
-        showTotal: (total) => `全${total}件`,
+        showQuickJumper: false,
+        showTotal: (total, range) => `全${total}件`,
         pageSizeOptions: ['10', '20', '50', '100'],
         position: ['bottomRight'],
         locale: {
-          items_per_page: '件/ページ'
+          items_per_page: '件/ページ',
+          jump_to: 'ページ',
+          page: ''
         }
       }}
       scroll={{ x: 1200 }}

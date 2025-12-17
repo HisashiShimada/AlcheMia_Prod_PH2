@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Card,
   Table,
@@ -14,10 +14,11 @@ import {
   Select,
   Slider,
   Input,
-  Divider,
+  Row,
+  Col,
   message,
 } from 'antd';
-import { BarChartOutlined, FileTextOutlined } from '@ant-design/icons';
+import { BarChartOutlined, FileTextOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { TransitionProgress, ProgressStatus } from '@/types/experimentWorker';
 
@@ -85,6 +86,46 @@ export default function ProgressReport({
   const [progressRate, setProgressRate] = useState<number>(0);
   const [issueType, setIssueType] = useState<IssueType>('technical');
   const [comment, setComment] = useState<string>('');
+  
+  // 絞り込み用のstate
+  const [searchText, setSearchText] = useState<string>('');
+  const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
+  const [selectedStatus, setSelectedStatus] = useState<ProgressStatus | undefined>(undefined);
+
+  // トランジション名の選択肢を生成
+  const transitionNameOptions = useMemo(() => {
+    const uniqueNames = Array.from(new Set(progressData.map(p => p.transitionName)));
+    return uniqueNames.map(name => ({ label: name, value: name }));
+  }, [progressData]);
+
+  // ステータスの選択肢
+  const statusOptions = [
+    { label: '未着手', value: 'not_started' },
+    { label: '進行中', value: 'in_progress' },
+    { label: '完了', value: 'completed' },
+    { label: '保留', value: 'on_hold' },
+    { label: '課題あり', value: 'issue' }
+  ];
+
+  // フィルタリングされたデータ
+  const filteredProgressData = useMemo(() => {
+    return progressData.filter(progress => {
+      // あいまい検索（全カラム対象）
+      const matchesSearch = searchText === '' || 
+        progress.transitionName.toLowerCase().includes(searchText.toLowerCase()) ||
+        (progress.transitionId && progress.transitionId.toLowerCase().includes(searchText.toLowerCase())) ||
+        getStatusLabel(progress.status).includes(searchText) ||
+        progress.progressRate.toString().includes(searchText);
+      
+      // トランジション名フィルタ
+      const matchesTransitionName = !selectedTransitionName || progress.transitionName === selectedTransitionName;
+      
+      // ステータスフィルタ
+      const matchesStatus = !selectedStatus || progress.status === selectedStatus;
+      
+      return matchesSearch && matchesTransitionName && matchesStatus;
+    });
+  }, [progressData, searchText, selectedTransitionName, selectedStatus]);
 
   if (!progressData || progressData.length === 0) {
     return (
@@ -201,24 +242,73 @@ export default function ProgressReport({
   return (
     <div>
       {/* トランジション一覧 */}
-      <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
-        <Title level={4} style={{ marginBottom: 0 }}>
-          <BarChartOutlined style={{ marginRight: 8 }} />
-          トランジション一覧
-        </Title>
-        <Text type="secondary">
-          選択中: {selectedRowKeys.length} / {totalCount} 件
-        </Text>
-      </Space>
+      <Title level={4} style={{ marginBottom: 16 }}>
+        <BarChartOutlined style={{ marginRight: 8 }} />
+        トランジション一覧
+      </Title>
+
+      {/* 絞り込みUI */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={8}>
+          <Input
+            placeholder="トランジション名、ID、ステータス..."
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            allowClear
+            aria-label="全カラム検索"
+          />
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Select
+            placeholder="トランジション名"
+            style={{ width: '100%' }}
+            value={selectedTransitionName}
+            onChange={(value) => setSelectedTransitionName(value)}
+            allowClear
+            options={transitionNameOptions}
+            aria-label="トランジション名で絞り込み"
+          />
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Select
+            placeholder="ステータス"
+            style={{ width: '100%' }}
+            value={selectedStatus}
+            onChange={(value) => setSelectedStatus(value as ProgressStatus)}
+            allowClear
+            options={statusOptions}
+            aria-label="ステータスで絞り込み"
+          />
+        </Col>
+      </Row>
 
       <Table
         rowSelection={rowSelection}
         columns={columns}
-        dataSource={progressData}
+        dataSource={filteredProgressData}
         rowKey={(record) => `${record.transitionId}-${record.methodId}`}
-        pagination={{ pageSize: 10 }}
-        size="small"
+        pagination={{
+          pageSize: 20,
+          showSizeChanger: true,
+          showQuickJumper: false,
+          showTotal: (total, range) => `全${total}件`,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          position: ['bottomRight'],
+          locale: {
+            items_per_page: '件/ページ',
+            jump_to: 'ページ',
+            page: ''
+          }
+        }}
+        size="middle"
+        bordered
         scroll={{ x: 900 }}
+        rowClassName={(_, index) => index % 2 === 0 ? 'table-row-light' : 'table-row-dark'}
+        style={{
+          background: '#ffffff',
+          borderRadius: '8px'
+        }}
       />
 
       {/* 進捗報告フォーム */}

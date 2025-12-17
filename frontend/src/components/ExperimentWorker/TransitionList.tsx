@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Card, Space, Tag, Typography, Empty, message } from 'antd';
-import { ClockCircleOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import React, { useState, useMemo } from 'react';
+import { Table, Tag, Typography, Input, Select, Row, Col, message } from 'antd';
+import { SearchOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import type { Key } from 'react';
 import { Transition, ExperimentDataValue } from '@/types/experimentWorker';
 import DataRecordDialog from './DataRecordDialog';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 
 interface TransitionListProps {
   transitions: Transition[];
@@ -22,10 +24,60 @@ interface TransitionListProps {
  */
 export default function TransitionList({
   transitions,
-  methodName,
 }: TransitionListProps) {
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // 選択された行のキーを管理
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
+  
+  // 絞り込み用のstate
+  const [searchText, setSearchText] = useState<string>('');
+  const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+
+  // 行選択の設定
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (selectedKeys: Key[]) => {
+      setSelectedRowKeys(selectedKeys);
+    },
+  };
+
+  // トランジション名の選択肢を生成
+  const transitionNameOptions = useMemo(() => {
+    const uniqueNames = Array.from(new Set(transitions.map(t => t.transitionName)));
+    return uniqueNames.map(name => ({ label: name, value: name }));
+  }, [transitions]);
+
+  // カテゴリの選択肢を生成
+  const categoryOptions = useMemo(() => {
+    const uniqueCategories = Array.from(
+      new Set(transitions.map(t => t.category).filter(Boolean))
+    ) as string[];
+    return uniqueCategories.map(category => ({ label: category, value: category }));
+  }, [transitions]);
+
+  // フィルタリングされたトランジションデータ
+  const filteredTransitions = useMemo(() => {
+    return transitions.filter(transition => {
+      // あいまい検索（全カラム対象）
+      const matchesSearch = searchText === '' || 
+        transition.transitionName.toLowerCase().includes(searchText.toLowerCase()) ||
+        (transition.transitionId && transition.transitionId.toLowerCase().includes(searchText.toLowerCase())) ||
+        (transition.category && transition.category.toLowerCase().includes(searchText.toLowerCase())) ||
+        (transition.description && transition.description.toLowerCase().includes(searchText.toLowerCase())) ||
+        (transition.estimatedDuration && transition.estimatedDuration.includes(searchText));
+      
+      // トランジション名フィルタ
+      const matchesTransitionName = !selectedTransitionName || transition.transitionName === selectedTransitionName;
+      
+      // カテゴリフィルタ
+      const matchesCategory = !selectedCategory || transition.category === selectedCategory;
+      
+      return matchesSearch && matchesTransitionName && matchesCategory;
+    });
+  }, [transitions, searchText, selectedTransitionName, selectedCategory]);
 
   // トランジションをクリックしてダイアログを開く
   const handleTransitionClick = (transition: Transition) => {
@@ -46,62 +98,179 @@ export default function TransitionList({
     message.success('実験データを保存しました');
   };
 
-  if (!transitions || transitions.length === 0) {
-    return (
-      <Card>
-        <Empty
-          description="トランジションが登録されていません"
-        />
-      </Card>
-    );
-  }
+  // テーブルの列定義
+  const columns: ColumnsType<Transition> = [
+    {
+      title: 'No.',
+      key: 'index',
+      width: 60,
+      align: 'center',
+      render: (_, __, index) => (
+        <Text strong style={{ fontSize: '14px' }}>
+          {index + 1}
+        </Text>
+      )
+    },
+    {
+      title: 'トランジション名',
+      dataIndex: 'transitionName',
+      key: 'transitionName',
+      width: 200,
+      ellipsis: true,
+      render: (text: string) => (
+        <Text strong style={{ fontSize: '14px', color: '#CF0027' }}>
+          {text}
+        </Text>
+      )
+    },
+    {
+      title: 'トランジションID',
+      dataIndex: 'transitionId',
+      key: 'transitionId',
+      width: 150,
+      ellipsis: true,
+      render: (text: string) => (
+        <Text type="secondary" style={{ fontSize: '12px' }}>
+          {text}
+        </Text>
+      )
+    },
+    {
+      title: 'カテゴリ',
+      dataIndex: 'category',
+      key: 'category',
+      width: 120,
+      align: 'center',
+      render: (category: string | undefined) => 
+        category ? (
+          <Tag color="blue" style={{ margin: 0 }}>
+            {category}
+          </Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        )
+    },
+    {
+      title: '推定所要時間',
+      dataIndex: 'estimatedDuration',
+      key: 'estimatedDuration',
+      width: 120,
+      align: 'center',
+      render: (duration: string | undefined) => 
+        duration ? (
+          <Tag icon={<ClockCircleOutlined />} style={{ margin: 0 }}>
+            {duration}
+          </Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        )
+    },
+    {
+      title: 'テンプレート数',
+      key: 'templateCount',
+      width: 120,
+      align: 'center',
+      render: (_, record: Transition) => {
+        const count = record.templates?.length || 0;
+        return count > 0 ? (
+          <Tag color="purple" style={{ margin: 0 }}>
+            {count}件
+          </Tag>
+        ) : (
+          <Text type="secondary">0件</Text>
+        );
+      }
+    },
+    {
+      title: '説明',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+      render: (text: string | undefined) => (
+        <Text type="secondary" style={{ fontSize: '13px' }}>
+          {text || '-'}
+        </Text>
+      )
+    }
+  ];
 
   return (
     <>
       <div>
-        <Title level={4} style={{ marginBottom: 16 }}>
-          <UnorderedListOutlined style={{ marginRight: 8 }} />
-          トランジション一覧
-        </Title>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          {transitions.map((transition, index) => (
-            <Card
-              key={transition.transitionId}
-              hoverable
-              style={{ cursor: 'pointer' }}
-              onClick={() => handleTransitionClick(transition)}
-            >
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                <Space align="center" wrap>
-                  <Title level={5} style={{ margin: 0, color: '#CF0027' }}>
-                    {index + 1}. {transition.transitionName}
-                  </Title>
-                  {transition.category && (
-                    <Tag color="blue">{transition.category}</Tag>
-                  )}
-                  {transition.estimatedDuration && (
-                    <Tag icon={<ClockCircleOutlined />}>
-                      {transition.estimatedDuration}
-                    </Tag>
-                  )}
-                  {transition.templates && transition.templates.length > 0 && (
-                    <Tag color="purple">
-                      テンプレート: {transition.templates.length}件
-                    </Tag>
-                  )}
-                </Space>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  ID: {transition.transitionId}
-                </Text>
-                {transition.description && (
-                  <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                    {transition.description}
-                  </Paragraph>
-                )}
-              </Space>
-            </Card>
-          ))}
-        </Space>
+        {/* 絞り込みUI */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Col xs={24} sm={12} md={8}>
+            <Input
+              placeholder="トランジション名、ID、カテゴリ..."
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+              aria-label="全カラム検索"
+            />
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Select
+              placeholder="トランジション名"
+              style={{ width: '100%' }}
+              value={selectedTransitionName}
+              onChange={(value) => setSelectedTransitionName(value)}
+              allowClear
+              options={transitionNameOptions}
+              aria-label="トランジション名で絞り込み"
+            />
+          </Col>
+          <Col xs={24} sm={12} md={8}>
+            <Select
+              placeholder="カテゴリ"
+              style={{ width: '100%' }}
+              value={selectedCategory}
+              onChange={(value) => setSelectedCategory(value)}
+              allowClear
+              options={categoryOptions}
+              aria-label="カテゴリで絞り込み"
+            />
+          </Col>
+        </Row>
+        
+        {/* テーブル */}
+        <Table
+          columns={columns}
+          dataSource={filteredTransitions}
+          rowKey="transitionId"
+          rowSelection={rowSelection}
+          pagination={{
+            pageSize: 20,
+            showSizeChanger: true,
+            showQuickJumper: false,
+            showTotal: (total, range) => `全${total}件`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            position: ['bottomRight'],
+            locale: {
+              items_per_page: '件/ページ',
+              jump_to: 'ページ',
+              page: ''
+            }
+          }}
+          scroll={{ x: 1200 }}
+          size="middle"
+          bordered
+          aria-label="トランジション一覧"
+          aria-describedby="transition-list-description"
+          rowClassName={(_, index) => index % 2 === 0 ? 'table-row-light' : 'table-row-dark'}
+          style={{
+            background: '#ffffff',
+            borderRadius: '8px'
+          }}
+          className="transition-list-table"
+          onRow={(record) => ({
+            onClick: () => handleTransitionClick(record),
+            style: { cursor: 'pointer' }
+          })}
+          locale={{
+            emptyText: 'トランジションが登録されていません'
+          }}
+        />
       </div>
 
       {/* データ記録ダイアログ */}
