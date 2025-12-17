@@ -1,8 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, Space, Typography, theme, Button, Select } from 'antd';
-import { ExperimentOutlined, CheckOutlined, AimOutlined } from '@ant-design/icons';
+import { Card, Space, Typography, theme, Button, Select, Empty } from 'antd';
+import { 
+  ExperimentOutlined, 
+  CheckOutlined, 
+  AimOutlined, 
+  PartitionOutlined,
+  UnorderedListOutlined 
+} from '@ant-design/icons';
 import TransitionList from './TransitionList';
 import TaskSelectionDialog from './TaskSelectionDialog';
 import { projectsData } from '@/data/projectsData';
@@ -14,6 +20,11 @@ const { Title, Text } = Typography;
  * 空状態アイコンのサイズ（UIポリシー準拠）
  */
 const EMPTY_ICON_SIZE = 48;
+
+/**
+ * 表示モード
+ */
+type ViewMode = 'list' | 'flow';
 
 /**
  * 実験記録タブのProps
@@ -45,6 +56,8 @@ export default function ExperimentRecordTab({
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
   const [dialogOpen, setDialogOpen] = useState(false);
+  // 表示モードの状態管理
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   // 選択中のプロジェクト情報を取得
   const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
@@ -65,6 +78,16 @@ export default function ExperimentRecordTab({
     label: task.taskName,
     value: task.taskId,
   }));
+
+  // フロー図に切り替え
+  const handleSwitchToFlow = () => {
+    setViewMode('flow');
+  };
+
+  // 一覧表示に切り替え
+  const handleSwitchToList = () => {
+    setViewMode('list');
+  };
 
   return (
     <>
@@ -104,6 +127,33 @@ export default function ExperimentRecordTab({
         </div>
       </Card>
 
+      {/* 表示切り替えボタン */}
+      {selectedProject && selectedMethod && (
+        <div style={{ marginBottom: token.margin, display: 'flex', justifyContent: 'flex-end' }}>
+          <Space size="middle">
+            {viewMode === 'list' ? (
+              <Button
+                type="default"
+                icon={<PartitionOutlined />}
+                onClick={handleSwitchToFlow}
+                size="large"
+              >
+                フロー図に切り替え
+              </Button>
+            ) : (
+              <Button
+                type="default"
+                icon={<UnorderedListOutlined />}
+                onClick={handleSwitchToList}
+                size="large"
+              >
+                一覧表示に切り替え
+              </Button>
+            )}
+          </Space>
+        </div>
+      )}
+
       {!selectedProject ? (
         <Card>
           <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
@@ -118,13 +168,36 @@ export default function ExperimentRecordTab({
         </Card>
       ) : (
         <Card>
-          {/* トランジション表示エリア */}
-          <TransitionList
-            transitions={selectedMethod?.transitions || []}
-            methodName={selectedMethod?.methodName}
-            selectedTaskId={selectedTaskId}
-            onTaskCreated={onTaskCreated}
-          />
+          {viewMode === 'list' ? (
+            /* トランジション一覧表示 */
+            <TransitionList
+              transitions={selectedMethod?.transitions || []}
+              methodName={selectedMethod?.methodName}
+              selectedTaskId={selectedTaskId}
+              onTaskCreated={onTaskCreated}
+            />
+          ) : (
+            /* フロー図表示（プレースホルダー） */
+            <div style={{ padding: `${token.marginXXL}px 0` }}>
+              <Empty
+                image={<PartitionOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorPrimary }} />}
+                imageStyle={{ height: EMPTY_ICON_SIZE }}
+                description={
+                  <Space direction="vertical" align="center" size="small">
+                    <Title level={4} style={{ margin: 0 }}>
+                      フロー図表示
+                    </Title>
+                    <Text type="secondary">
+                      {selectedMethod?.methodName || 'メソッド'} のワークフローをフロー図で表示します
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      （実装予定）
+                    </Text>
+                  </Space>
+                }
+              />
+            </div>
+          )}
         </Card>
       )}
 
