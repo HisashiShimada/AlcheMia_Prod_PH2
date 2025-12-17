@@ -68,6 +68,47 @@ export default function ExperimentRecordTab({
     ? selectedMethod.tasks || []
     : [];
 
+  // 進捗データをトランジションにマージ
+  const transitionsWithProgress = React.useMemo(() => {
+    if (!selectedMethod || !selectedTaskId || !selectedProjectData?.progressData) {
+      return selectedMethod?.transitions || [];
+    }
+
+    // 選択されたタスク名を取得
+    const selectedTask = tasks.find(t => t.taskId === selectedTaskId);
+    const selectedTaskName = selectedTask?.taskName;
+
+    return selectedMethod.transitions.map(transition => {
+      // 該当するトランジションの進捗データを検索
+      const progress = selectedProjectData.progressData?.find(
+        p => p.transitionId === transition.transitionId && 
+             p.taskName === selectedTaskName
+      );
+      
+      if (progress) {
+        // 進捗データが見つかった場合、マージする
+        return {
+          ...transition,
+          status: progress.status,
+          progressRate: progress.progressRate,
+          inputMaterialsCount: progress.inputMaterialsCount || 0,
+          inputIngredientsCount: progress.inputIngredientsCount || 0,
+          inputResultsCount: progress.inputResultsCount || 0
+        };
+      }
+      
+      // 進捗データが見つからない場合、デフォルト値を設定
+      return {
+        ...transition,
+        status: 'not_started' as const,
+        progressRate: 0,
+        inputMaterialsCount: 0,
+        inputIngredientsCount: 0,
+        inputResultsCount: 0
+      };
+    });
+  }, [selectedMethod, selectedTaskId, selectedProjectData, tasks]);
+
   // Selectコンポーネント用のオプションを生成
   const taskOptions = [
     { label: '-', value: '' }, // 未選択状態を表す
@@ -213,7 +254,7 @@ export default function ExperimentRecordTab({
                 </Title>
                 <div style={{ flex: 1, minHeight: 0 }}>
                   <TransitionList
-                    transitions={selectedMethod?.transitions || []}
+                    transitions={transitionsWithProgress}
                     methodName={selectedMethod?.methodName}
                     selectedTaskId={selectedTaskId}
                     onTaskCreated={onTaskCreated}

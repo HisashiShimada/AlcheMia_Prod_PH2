@@ -181,6 +181,9 @@ export interface TransitionProgress {
   status: ProgressStatus;
   reportCount: number; // 進捗報告数
   issueCount: number; // 未解決課題数
+  inputMaterialsCount?: number; // 入力済み材料数（Phase 6で追加）
+  inputIngredientsCount?: number; // 入力済み素材数（Phase 6で追加）
+  inputResultsCount?: number; // 入力済み結果数（Phase 6で追加）
 }
 
 // ===== Phase 1: 実験作業タブ用の型定義 =====
