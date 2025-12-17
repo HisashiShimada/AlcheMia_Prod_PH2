@@ -77,6 +77,15 @@ export interface Transition {
   category?: string;
   estimatedDuration?: string;
   templates?: Template[];
+  // Phase 6追加: 実験記録タブ用のプロパティ
+  status?: ProgressStatus; // ステータス
+  progressRate?: number; // 進捗率（浸食率）
+  inputMaterialsCount?: number; // 入力済材料数
+  totalMaterialsCount?: number; // 材料の総数
+  inputIngredientsCount?: number; // 入力済素材数
+  totalIngredientsCount?: number; // 素材の総数
+  inputResultsCount?: number; // 入力済結果数
+  totalResultsCount?: number; // 結果の総数
 }
 
 // メソッド

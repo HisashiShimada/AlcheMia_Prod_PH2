@@ -2,9 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Table, Tag, Typography, Input, Select, Row, Col, message } from 'antd';
-import { SearchOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { Key } from 'react';
 import { Transition, ExperimentDataValue } from '@/types/experimentWorker';
 import DataRecordDialog from './DataRecordDialog';
 
@@ -28,21 +27,10 @@ export default function TransitionList({
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   
-  // 選択された行のキーを管理
-  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
-  
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
-
-  // 行選択の設定
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: (selectedKeys: Key[]) => {
-      setSelectedRowKeys(selectedKeys);
-    },
-  };
 
   // トランジション名の選択肢を生成
   const transitionNameOptions = useMemo(() => {
@@ -66,8 +54,7 @@ export default function TransitionList({
         transition.transitionName.toLowerCase().includes(searchText.toLowerCase()) ||
         (transition.transitionId && transition.transitionId.toLowerCase().includes(searchText.toLowerCase())) ||
         (transition.category && transition.category.toLowerCase().includes(searchText.toLowerCase())) ||
-        (transition.description && transition.description.toLowerCase().includes(searchText.toLowerCase())) ||
-        (transition.estimatedDuration && transition.estimatedDuration.includes(searchText));
+        (transition.description && transition.description.toLowerCase().includes(searchText.toLowerCase()));
       
       // トランジション名フィルタ
       const matchesTransitionName = !selectedTransitionName || transition.transitionName === selectedTransitionName;
@@ -151,37 +138,6 @@ export default function TransitionList({
         )
     },
     {
-      title: '推定所要時間',
-      dataIndex: 'estimatedDuration',
-      key: 'estimatedDuration',
-      width: 120,
-      align: 'center',
-      render: (duration: string | undefined) => 
-        duration ? (
-          <Tag icon={<ClockCircleOutlined />} style={{ margin: 0 }}>
-            {duration}
-          </Tag>
-        ) : (
-          <Text type="secondary">-</Text>
-        )
-    },
-    {
-      title: 'テンプレート数',
-      key: 'templateCount',
-      width: 120,
-      align: 'center',
-      render: (_, record: Transition) => {
-        const count = record.templates?.length || 0;
-        return count > 0 ? (
-          <Tag color="purple" style={{ margin: 0 }}>
-            {count}件
-          </Tag>
-        ) : (
-          <Text type="secondary">0件</Text>
-        );
-      }
-    },
-    {
       title: '説明',
       dataIndex: 'description',
       key: 'description',
@@ -238,7 +194,6 @@ export default function TransitionList({
           columns={columns}
           dataSource={filteredTransitions}
           rowKey="transitionId"
-          rowSelection={rowSelection}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
