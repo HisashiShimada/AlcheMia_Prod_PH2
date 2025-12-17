@@ -243,7 +243,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
         <ResponsiveContainer>
           {/* プロジェクト選択・メソッド選択・選択ボタン */}
           <div style={{ 
-            marginBottom: token.marginLG,
+            marginBottom: 0,
             display: 'flex',
             alignItems: 'center',
             gap: token.margin,
@@ -313,7 +313,9 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             display: 'flex',
             flexDirection: 'column',
             backgroundColor: token.colorBgContainer,
-            borderRadius: token.borderRadiusLG,
+            border: `1px solid ${token.colorBorder}`,
+            borderTop: 'none',
+            borderRadius: 0,
             overflow: 'hidden'
           }}>
             <Tabs
@@ -330,6 +332,8 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                 padding: `0 ${token.paddingLG}px`,
                 margin: 0,
                 flexShrink: 0,
+                border: `1px solid ${token.colorBorder}`,
+                borderRadius: 0,
               }}
             />
           </div>
