@@ -88,12 +88,18 @@ export default function ExperimentRecordTab({
   };
 
   return (
-    <>
+    <div style={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
       {/* 選択カード */}
       <div
         style={{ 
           marginBottom: token.marginLG,
           height: 56,
+          flexShrink: 0,
           display: 'flex',
           alignItems: 'center',
           paddingLeft: token.paddingLG,
@@ -133,7 +139,7 @@ export default function ExperimentRecordTab({
 
       {/* 表示切り替えボタン */}
       {selectedProject && selectedMethod && (
-        <div style={{ marginBottom: token.margin, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginBottom: token.margin, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
           <Space size="middle">
             {viewMode === 'list' ? (
               <Button
@@ -159,82 +165,86 @@ export default function ExperimentRecordTab({
       )}
 
       {/* トランジション一覧カード - タスク選択後のみ表示 */}
-      {!selectedProject ? (
-        <Card>
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
-            <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
-            <Title level={3} type="secondary">
-              🧪 実験記録
-            </Title>
-            <Text type="secondary">
-              プロジェクトを選択してください
-            </Text>
-          </Space>
-        </Card>
-      ) : !selectedMethod ? (
-        <Card>
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
-            <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
-            <Title level={3} type="secondary">
-              📋 トランジション一覧
-            </Title>
-            <Text type="secondary">
-              メソッドを選択してください
-            </Text>
-          </Space>
-        </Card>
-      ) : !selectedTaskId ? (
-        <Card>
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
-            <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
-            <Title level={3} type="secondary">
-              📋 トランジション一覧
-            </Title>
-            <Text type="secondary">
-              タスクを選択してください
-            </Text>
-          </Space>
-        </Card>
-      ) : (
-        <Card>
-          {viewMode === 'list' ? (
-            /* トランジション一覧表示 - タスク選択後のみ表示 */
-            <>
-              <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
-                <BarChartOutlined style={{ marginRight: 8 }} />
-                トランジション一覧
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {!selectedProject ? (
+          <Card style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+              <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
+              <Title level={3} type="secondary">
+                🧪 実験記録
               </Title>
-              <TransitionList
-                transitions={selectedMethod?.transitions || []}
-                methodName={selectedMethod?.methodName}
-                selectedTaskId={selectedTaskId}
-                onTaskCreated={onTaskCreated}
-              />
-            </>
-          ) : (
-            /* フロー図表示（プレースホルダー） */
-            <div style={{ padding: `${token.marginXXL}px 0` }}>
-              <Empty
-                image={<PartitionOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorPrimary }} />}
-                imageStyle={{ height: EMPTY_ICON_SIZE }}
-                description={
-                  <Space direction="vertical" align="center" size="small">
-                    <Title level={4} style={{ margin: 0 }}>
-                      フロー図表示
-                    </Title>
-                    <Text type="secondary">
-                      {selectedMethod?.methodName || 'メソッド'} のワークフローをフロー図で表示します
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: 12 }}>
-                      （実装予定）
-                    </Text>
-                  </Space>
-                }
-              />
-            </div>
-          )}
-        </Card>
-      )}
+              <Text type="secondary">
+                プロジェクトを選択してください
+              </Text>
+            </Space>
+          </Card>
+        ) : !selectedMethod ? (
+          <Card style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+              <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
+              <Title level={3} type="secondary">
+                📋 トランジション一覧
+              </Title>
+              <Text type="secondary">
+                メソッドを選択してください
+              </Text>
+            </Space>
+          </Card>
+        ) : !selectedTaskId ? (
+          <Card style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+              <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
+              <Title level={3} type="secondary">
+                📋 トランジション一覧
+              </Title>
+              <Text type="secondary">
+                タスクを選択してください
+              </Text>
+            </Space>
+          </Card>
+        ) : (
+          <Card style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {viewMode === 'list' ? (
+              /* トランジション一覧表示 - タスク選択後のみ表示 */
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0 }}>
+                  <BarChartOutlined style={{ marginRight: 8 }} />
+                  トランジション一覧
+                </Title>
+                <div style={{ flex: 1, minHeight: 0 }}>
+                  <TransitionList
+                    transitions={selectedMethod?.transitions || []}
+                    methodName={selectedMethod?.methodName}
+                    selectedTaskId={selectedTaskId}
+                    onTaskCreated={onTaskCreated}
+                  />
+                </div>
+              </div>
+            ) : (
+              /* フロー図表示（プレースホルダー） */
+              <div style={{ padding: `${token.marginXXL}px 0` }}>
+                <Empty
+                  image={<PartitionOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorPrimary }} />}
+                  imageStyle={{ height: EMPTY_ICON_SIZE }}
+                  description={
+                    <Space direction="vertical" align="center" size="small">
+                      <Title level={4} style={{ margin: 0 }}>
+                        フロー図表示
+                      </Title>
+                      <Text type="secondary">
+                        {selectedMethod?.methodName || 'メソッド'} のワークフローをフロー図で表示します
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        （実装予定）
+                      </Text>
+                    </Space>
+                  }
+                />
+              </div>
+            )}
+          </Card>
+        )}
+      </div>
 
       {/* タスク選択ダイアログ */}
       <TaskSelectionDialog
@@ -245,6 +255,6 @@ export default function ExperimentRecordTab({
         selectedTaskId={selectedTaskId}
         onSelectTask={onSelectTask}
       />
-    </>
+    </div>
   );
 }

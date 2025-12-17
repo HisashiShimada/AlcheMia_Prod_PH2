@@ -255,7 +255,7 @@ export default function TransitionList({
               page: ''
             }
           }}
-          scroll={{ x: 1300 }}
+          scroll={{ x: 1300, y: 'calc(100vh - 650px)' }}
           size="middle"
           bordered
           aria-label="トランジション一覧"

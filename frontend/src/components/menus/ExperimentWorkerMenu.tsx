@@ -338,6 +338,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
+                overflow: 'hidden',
               }}
               tabBarStyle={{
                 padding: `0 ${token.paddingLG}px`,
