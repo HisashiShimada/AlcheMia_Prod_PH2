@@ -7,7 +7,8 @@ import {
   CheckOutlined, 
   AimOutlined, 
   PartitionOutlined,
-  UnorderedListOutlined 
+  UnorderedListOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 import TransitionList from './TransitionList';
 import TaskSelectionDialog from './TaskSelectionDialog';
@@ -198,12 +199,18 @@ export default function ExperimentRecordTab({
         <Card>
           {viewMode === 'list' ? (
             /* トランジション一覧表示 - タスク選択後のみ表示 */
-            <TransitionList
-              transitions={selectedMethod?.transitions || []}
-              methodName={selectedMethod?.methodName}
-              selectedTaskId={selectedTaskId}
-              onTaskCreated={onTaskCreated}
-            />
+            <>
+              <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
+                <BarChartOutlined style={{ marginRight: 8 }} />
+                トランジション一覧
+              </Title>
+              <TransitionList
+                transitions={selectedMethod?.transitions || []}
+                methodName={selectedMethod?.methodName}
+                selectedTaskId={selectedTaskId}
+                onTaskCreated={onTaskCreated}
+              />
+            </>
           ) : (
             /* フロー図表示（プレースホルダー） */
             <div style={{ padding: `${token.marginXXL}px 0` }}>
