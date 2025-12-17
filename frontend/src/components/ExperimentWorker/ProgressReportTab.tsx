@@ -88,12 +88,19 @@ export default function ProgressReportTab({
 
   return (
     <>
-      {/* 選択カード */}
-      <Card 
+      {/* 選択タスク */}
+      <div 
         style={{ 
-          marginBottom: token.marginLG,
-          backgroundColor: selectedMethod ? token.colorPrimaryBg : token.colorBgContainer,
-          borderColor: selectedMethod ? token.colorPrimary : token.colorBorder,
+          height: 56,
+          marginBottom: 0,
+          borderRadius: 0,
+          backgroundColor: token.colorBgContainer,
+          borderColor: token.colorBorder,
+          borderWidth: 1,
+          borderStyle: 'solid',
+          display: 'flex',
+          alignItems: 'center',
+          padding: `0 ${token.padding}px`,
         }}
       >
         <div style={{ width: '100%' }}>
@@ -122,10 +129,23 @@ export default function ProgressReportTab({
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
 
-      {/* 報告タイプ選択カード */}
-      <Card style={{ marginBottom: token.marginLG }}>
+      {/* 報告タイプ選択 */}
+      <div 
+        style={{ 
+          height: 56,
+          marginBottom: token.marginLG,
+          borderRadius: 0,
+          backgroundColor: token.colorBgContainer,
+          borderColor: token.colorBorder,
+          borderWidth: 1,
+          borderStyle: 'solid',
+          display: 'flex',
+          alignItems: 'center',
+          padding: `0 ${token.padding}px`,
+        }}
+      >
         <Space size="middle" style={{ width: '100%' }}>
           <FileTextOutlined style={{ fontSize: 16, color: token.colorInfo }} />
           <Text strong style={{ minWidth: 80 }}>報告タイプ:</Text>
@@ -141,7 +161,7 @@ export default function ProgressReportTab({
             size="large"
           />
         </Space>
-      </Card>
+      </div>
 
       {!selectedProject ? (
         <Card>
