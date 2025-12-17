@@ -254,14 +254,17 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
         <ResponsiveContainer>
           {/* プロジェクト選択・メソッド選択・選択ボタン */}
           <div style={{ 
+            height: 56,
             marginBottom: 0,
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'flex-start',
             gap: token.margin,
-            flexWrap: 'wrap',
+            flexWrap: 'nowrap',
             backgroundColor: token.colorBgContainer,
             border: `1px solid ${token.colorBorder}`,
-            padding: token.paddingLG,
+            paddingLeft: token.paddingLG,
+            paddingRight: token.paddingLG,
           }}>
             {/* プロジェクト選択 */}
             <Space size="small" style={{ flex: '1 1 250px', minWidth: 250 }}>
@@ -320,7 +323,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
 
           {/* タブ */}
           <div style={{
-            height: `calc(100vh - ${TOTAL_HEADER_HEIGHT}px - 24px - 80px - 24px)`, // 画面高さ - ヘッダー - Content padding(下) - 選択エリア - margin
+            height: `calc(100vh - ${TOTAL_HEADER_HEIGHT}px - 24px - 56px - 24px)`, // 画面高さ - ヘッダー - Content padding(下) - 選択エリア - margin
             display: 'flex',
             flexDirection: 'column',
             backgroundColor: token.colorBgContainer,
