@@ -27,12 +27,16 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
     
     return (
       <Button
-        type="primary"
+        type="default"
         size="small"
         icon={<PlayCircleOutlined />}
         onClick={() => onAction('start')}
         disabled={isDisabled}
         aria-label={label}
+        style={{
+          borderColor: isDisabled ? undefined : '#0093CF',
+          color: isDisabled ? undefined : '#0093CF'
+        }}
       >
         開始
       </Button>
@@ -84,12 +88,16 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
     
     return (
       <Button
-        type="primary"
+        type="default"
         size="small"
         icon={<CheckCircleOutlined />}
         onClick={() => onAction('complete')}
         disabled={isDisabled}
         aria-label="タスクを完了"
+        style={{
+          borderColor: isDisabled ? undefined : '#0093CF',
+          color: isDisabled ? undefined : '#0093CF'
+        }}
       >
         終了
       </Button>

@@ -1,8 +1,10 @@
 'use client';
 
-import React from 'react';
-import { Table, Tag, Typography } from 'antd';
+import React, { useState, useMemo } from 'react';
+import { Table, Tag, Typography, Input, Select, Space, Row, Col } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import type { Key } from 'react';
 import { Task, TaskStatus } from '@/types/experimentWorker';
 import TaskActionButtons from './TaskActionButtons';
 
@@ -18,6 +20,38 @@ interface TaskListTableProps {
  * タスクのリストをテーブル形式で表示する
  */
 export default function TaskListTable({ tasks, onTaskAction }: TaskListTableProps) {
+  // 選択されたタスクのキーを管理
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
+  
+  // 絞り込み用のstate
+  const [searchText, setSearchText] = useState<string>('');
+  const [selectedTaskName, setSelectedTaskName] = useState<string | undefined>(undefined);
+  const [selectedStatus, setSelectedStatus] = useState<TaskStatus | undefined>(undefined);
+
+  // 行選択の設定
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (selectedKeys: Key[]) => {
+      setSelectedRowKeys(selectedKeys);
+    },
+  };
+  
+  // タスク名の選択肢を生成
+  const taskNameOptions = useMemo(() => {
+    const uniqueNames = Array.from(new Set(tasks.map(task => task.taskName)));
+    return uniqueNames.map(name => ({ label: name, value: name }));
+  }, [tasks]);
+  
+  // ステータスの選択肢
+  const statusOptions = [
+    { label: '開始前', value: 'not_started' },
+    { label: '開始', value: 'started' },
+    { label: '作業中', value: 'in_progress' },
+    { label: '完了', value: 'completed' },
+    { label: '強制終了', value: 'forced_terminated' },
+    { label: '中断', value: 'suspended' }
+  ];
+  
   // ステータスバッジの色とラベルを取得
   const getStatusConfig = (status: TaskStatus) => {
     const configs = {
@@ -30,6 +64,25 @@ export default function TaskListTable({ tasks, onTaskAction }: TaskListTableProp
     };
     return configs[status] || { color: 'default', label: '不明' };
   };
+  
+  // フィルタリングされたタスクデータ
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      // あいまい検索（全カラム対象）
+      const matchesSearch = searchText === '' || 
+        task.taskName.toLowerCase().includes(searchText.toLowerCase()) ||
+        getStatusConfig(task.status).label.includes(searchText) ||
+        task.progressRate.toString().includes(searchText);
+      
+      // タスク名フィルタ
+      const matchesTaskName = !selectedTaskName || task.taskName === selectedTaskName;
+      
+      // ステータスフィルタ
+      const matchesStatus = !selectedStatus || task.status === selectedStatus;
+      
+      return matchesSearch && matchesTaskName && matchesStatus;
+    });
+  }, [tasks, searchText, selectedTaskName, selectedStatus]);
 
   // テーブルの列定義
   const columns: ColumnsType<Task> = [
@@ -131,25 +184,72 @@ export default function TaskListTable({ tasks, onTaskAction }: TaskListTableProp
   ];
 
   return (
-    <Table
-      columns={columns}
-      dataSource={tasks}
-      rowKey="taskId"
+    <div>
+      {/* 絞り込みUI */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={8}>
+          <Input
+            placeholder="タスク名、ステータス、進捗率..."
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            allowClear
+            aria-label="全カラム検索"
+          />
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Select
+            placeholder="タスク名"
+            style={{ width: '100%' }}
+            value={selectedTaskName}
+            onChange={(value) => setSelectedTaskName(value)}
+            allowClear
+            options={taskNameOptions}
+            aria-label="タスク名で絞り込み"
+          />
+        </Col>
+        <Col xs={24} sm={12} md={8}>
+          <Select
+            placeholder="ステータス"
+            style={{ width: '100%' }}
+            value={selectedStatus}
+            onChange={(value) => setSelectedStatus(value as TaskStatus)}
+            allowClear
+            options={statusOptions}
+            aria-label="ステータスで絞り込み"
+          />
+        </Col>
+      </Row>
+      
+      {/* テーブル */}
+      <Table
+        columns={columns}
+        dataSource={filteredTasks}
+        rowKey="taskId"
+      rowSelection={rowSelection}
       pagination={{
-        pageSize: 10,
-        showSizeChanger: false,
-        showTotal: (total, range) => `${range[0]}-${range[1]} / ${total}件`,
-        position: ['bottomCenter']
+        pageSize: 20,
+        showSizeChanger: true,
+        showTotal: (total) => `全${total}件`,
+        pageSizeOptions: ['10', '20', '50', '100'],
+        position: ['bottomRight'],
+        locale: {
+          items_per_page: '件/ページ'
+        }
       }}
       scroll={{ x: 1200 }}
       size="middle"
       bordered
       aria-label="タスク一覧"
       aria-describedby="task-list-description"
+      rowClassName={(_, index) => index % 2 === 0 ? 'table-row-light' : 'table-row-dark'}
       style={{
         background: '#ffffff',
         borderRadius: '8px'
       }}
-    />
+      // カスタムスタイリング
+      className="task-list-table"
+      />
+    </div>
   );
 }
