@@ -157,6 +157,7 @@ export default function ExperimentRecordTab({
         </div>
       )}
 
+      {/* トランジション一覧カード - タスク選択後のみ表示 */}
       {!selectedProject ? (
         <Card>
           <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
@@ -169,10 +170,34 @@ export default function ExperimentRecordTab({
             </Text>
           </Space>
         </Card>
+      ) : !selectedMethod ? (
+        <Card>
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
+            <Title level={3} type="secondary">
+              📋 トランジション一覧
+            </Title>
+            <Text type="secondary">
+              メソッドを選択してください
+            </Text>
+          </Space>
+        </Card>
+      ) : !selectedTaskId ? (
+        <Card>
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <AimOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
+            <Title level={3} type="secondary">
+              📋 トランジション一覧
+            </Title>
+            <Text type="secondary">
+              タスクを選択してください
+            </Text>
+          </Space>
+        </Card>
       ) : (
         <Card>
           {viewMode === 'list' ? (
-            /* トランジション一覧表示 */
+            /* トランジション一覧表示 - タスク選択後のみ表示 */
             <TransitionList
               transitions={selectedMethod?.transitions || []}
               methodName={selectedMethod?.methodName}
