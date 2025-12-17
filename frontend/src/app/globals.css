@@ -75,8 +75,7 @@ body {
 
 .ant-tabs-content {
   height: 100% !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
+  overflow: hidden !important;
 }
 
 .ant-tabs-tabpane {

@@ -17,6 +17,7 @@ import {
   Row,
   Col,
   message,
+  Modal,
 } from 'antd';
 import { BarChartOutlined, FileTextOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -86,6 +87,9 @@ export default function ProgressReport({
   const [progressRate, setProgressRate] = useState<number>(0);
   const [issueType, setIssueType] = useState<IssueType>('technical');
   const [comment, setComment] = useState<string>('');
+  
+  // モーダル表示制御
+  const [modalOpen, setModalOpen] = useState<boolean>(false);
   
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
@@ -246,15 +250,40 @@ export default function ProgressReport({
     message.success('進捗報告を送信しました');
     handleClear();
     setSelectedRowKeys([]);
+    setModalOpen(false);
+  };
+  
+  // 報告ボタンクリック時の処理
+  const handleReportClick = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('トランジションを選択してください');
+      return;
+    }
+    setModalOpen(true);
+  };
+  
+  // モーダルを閉じる際の処理
+  const handleModalCancel = () => {
+    setModalOpen(false);
   };
 
   return (
     <div>
-      {/* トランジション一覧 */}
-      <Title level={4} style={{ marginBottom: 16 }}>
-        <BarChartOutlined style={{ marginRight: 8 }} />
-        トランジション一覧
-      </Title>
+      {/* トランジション一覧タイトルと報告ボタン */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          <BarChartOutlined style={{ marginRight: 8 }} />
+          トランジション一覧
+        </Title>
+        <Button
+          type="primary"
+          icon={<FileTextOutlined />}
+          onClick={handleReportClick}
+          disabled={selectedRowKeys.length === 0}
+        >
+          報告
+        </Button>
+      </div>
 
       {/* 絞り込みUI */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
@@ -320,117 +349,120 @@ export default function ProgressReport({
         }}
       />
 
-      {/* 進捗報告フォーム */}
-      {selectedRowKeys.length > 0 && (
-        <Card
-          style={{ marginTop: 24 }}
-          title={
-            <Space>
-              <FileTextOutlined style={{ color: '#1890ff' }} />
-              <span>進捗報告</span>
-              <Tag color="blue">{selectedRowKeys.length} 件選択中</Tag>
-            </Space>
-          }
-        >
-          <Form form={form} layout="vertical">
-            {/* 進捗更新フォーム */}
-            {reportType === 'progress' && (
-              <>
-                <Form.Item label="ステータス" name="status" initialValue="in_progress">
-                  <Select
-                    value={status}
-                    onChange={(value: ProgressStatus) => setStatus(value)}
-                    options={[
-                      { label: '未着手', value: 'not_started' },
-                      { label: '進行中', value: 'in_progress' },
-                      { label: '完了', value: 'completed' },
-                      { label: '保留', value: 'on_hold' },
-                      { label: '課題あり', value: 'issue' },
-                    ]}
-                  />
-                </Form.Item>
+      {/* 進捗報告モーダル */}
+      <Modal
+        title={
+          <Space>
+            <FileTextOutlined style={{ color: '#1890ff' }} />
+            <span>進捗報告</span>
+            <Tag color="blue">{selectedRowKeys.length} 件選択中</Tag>
+          </Space>
+        }
+        open={modalOpen}
+        onCancel={handleModalCancel}
+        footer={null}
+        width={700}
+        destroyOnClose
+      >
+        <Form form={form} layout="vertical">
+          {/* 進捗更新フォーム */}
+          {reportType === 'progress' && (
+            <>
+              <Form.Item label="ステータス" name="status" initialValue="in_progress">
+                <Select
+                  value={status}
+                  onChange={(value: ProgressStatus) => setStatus(value)}
+                  options={[
+                    { label: '未着手', value: 'not_started' },
+                    { label: '進行中', value: 'in_progress' },
+                    { label: '完了', value: 'completed' },
+                    { label: '保留', value: 'on_hold' },
+                    { label: '課題あり', value: 'issue' },
+                  ]}
+                />
+              </Form.Item>
 
-                <Form.Item label={`進捗率: ${progressRate}%`} name="progressRate">
-                  <Slider
-                    value={progressRate}
-                    onChange={(value: number) => setProgressRate(value)}
-                    step={5}
-                    marks={{ 0: '0%', 25: '25%', 50: '50%', 75: '75%', 100: '100%' }}
-                    tooltip={{ formatter: (value) => `${value}%` }}
-                  />
-                </Form.Item>
+              <Form.Item label={`進捗率: ${progressRate}%`} name="progressRate">
+                <Slider
+                  value={progressRate}
+                  onChange={(value: number) => setProgressRate(value)}
+                  step={5}
+                  marks={{ 0: '0%', 25: '25%', 50: '50%', 75: '75%', 100: '100%' }}
+                  tooltip={{ formatter: (value) => `${value}%` }}
+                />
+              </Form.Item>
 
-                <Form.Item label="コメント" name="comment">
-                  <TextArea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    rows={4}
-                    placeholder="進捗状況の詳細を入力してください"
-                  />
-                </Form.Item>
-              </>
-            )}
-
-            {/* 問題報告フォーム */}
-            {reportType === 'issue' && (
-              <>
-                <Form.Item label="問題タイプ" name="issueType" initialValue="technical">
-                  <Select
-                    value={issueType}
-                    onChange={(value: IssueType) => setIssueType(value)}
-                    options={[
-                      { label: '技術的問題', value: 'technical' },
-                      { label: 'リソース不足', value: 'resource' },
-                      { label: 'スケジュール遅延', value: 'schedule' },
-                      { label: '品質問題', value: 'quality' },
-                      { label: 'その他', value: 'other' },
-                    ]}
-                  />
-                </Form.Item>
-
-                <Form.Item
-                  label="コメント"
-                  name="comment"
-                  rules={[{ required: true, message: '問題の詳細を入力してください' }]}
-                >
-                  <TextArea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    rows={4}
-                    placeholder="問題の詳細を入力してください"
-                  />
-                </Form.Item>
-              </>
-            )}
-
-            {/* マイルストーン到達フォーム */}
-            {reportType === 'milestone' && (
               <Form.Item label="コメント" name="comment">
                 <TextArea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   rows={4}
-                  placeholder="マイルストーン到達の詳細を入力してください"
+                  placeholder="進捗状況の詳細を入力してください"
                 />
               </Form.Item>
-            )}
+            </>
+          )}
 
-            {/* 送信ボタン */}
-            <Form.Item style={{ marginBottom: 0 }}>
-              <Space style={{ float: 'right' }}>
-                <Button onClick={handleClear}>クリア</Button>
-                <Button
-                  type="primary"
-                  onClick={handleSubmit}
-                  disabled={reportType === 'issue' && !comment.trim()}
-                >
-                  報告を送信
-                </Button>
-              </Space>
+          {/* 問題報告フォーム */}
+          {reportType === 'issue' && (
+            <>
+              <Form.Item label="問題タイプ" name="issueType" initialValue="technical">
+                <Select
+                  value={issueType}
+                  onChange={(value: IssueType) => setIssueType(value)}
+                  options={[
+                    { label: '技術的問題', value: 'technical' },
+                    { label: 'リソース不足', value: 'resource' },
+                    { label: 'スケジュール遅延', value: 'schedule' },
+                    { label: '品質問題', value: 'quality' },
+                    { label: 'その他', value: 'other' },
+                  ]}
+                />
+              </Form.Item>
+
+              <Form.Item
+                label="コメント"
+                name="comment"
+                rules={[{ required: true, message: '問題の詳細を入力してください' }]}
+              >
+                <TextArea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={4}
+                  placeholder="問題の詳細を入力してください"
+                />
+              </Form.Item>
+            </>
+          )}
+
+          {/* マイルストーン到達フォーム */}
+          {reportType === 'milestone' && (
+            <Form.Item label="コメント" name="comment">
+              <TextArea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                rows={4}
+                placeholder="マイルストーン到達の詳細を入力してください"
+              />
             </Form.Item>
-          </Form>
-        </Card>
-      )}
+          )}
+
+          {/* 送信ボタン */}
+          <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
+            <Space style={{ float: 'right' }}>
+              <Button onClick={handleModalCancel}>キャンセル</Button>
+              <Button onClick={handleClear}>クリア</Button>
+              <Button
+                type="primary"
+                onClick={handleSubmit}
+                disabled={reportType === 'issue' && !comment.trim()}
+              >
+                報告を送信
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }
