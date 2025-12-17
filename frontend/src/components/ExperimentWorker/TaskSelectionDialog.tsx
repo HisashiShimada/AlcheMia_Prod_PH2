@@ -46,13 +46,14 @@ export default function TaskSelectionDialog({
   // 選択中のプロジェクト情報を取得
   const projectData = selectedProject ? projectsData[selectedProject] : null;
   
-  // 選択中のメソッド情報を取得
+  // 選択中のメソッド情報を取得（選択プロジェクトと選択メソッドに紐づくタスクのみを取得）
   const methods: Method[] = projectData?.methods || [];
   const methodData = selectedMethodId
     ? methods.find((m) => m.methodId === selectedMethodId)
     : null;
   
   // 選択中のメソッドに紐づくタスク一覧を取得
+  // これにより、選択プロジェクトと選択メソッドに関連するタスクのみが表示される
   const tasks: Task[] = methodData?.tasks || [];
 
   // 決定ボタンの処理
@@ -178,18 +179,32 @@ export default function TaskSelectionDialog({
       }}
     >
       <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-        {!selectedMethodId ? (
+        {!selectedProject ? (
           <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
+            <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
+            <Text type="secondary">プロジェクトを選択してください</Text>
+          </Space>
+        ) : !selectedMethodId ? (
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
+            <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
             <Text type="secondary">メソッドを選択してください</Text>
           </Space>
         ) : tasks.length === 0 ? (
           <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
-            <Text type="secondary">タスクがありません</Text>
+            <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
+            <Text type="secondary">選択されたメソッドにタスクがありません</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              プロジェクト: {projectData?.projectName || '未選択'}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              メソッド: {methodData?.methodName || '未選択'}
+            </Text>
           </Space>
         ) : (
           <List
             dataSource={tasks}
             renderItem={renderTaskItem}
+            style={{ padding: `${token.paddingSM}px 0` }}
           />
         )}
       </div>

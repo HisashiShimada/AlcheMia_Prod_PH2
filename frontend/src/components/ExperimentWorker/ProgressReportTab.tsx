@@ -59,8 +59,9 @@ export default function ProgressReportTab({
     value: task.taskId,
   }));
 
-  // 選択したプロジェクトとメソッドに基づいてprogressDataを取得
-  // 実験記録タブと同様に、タスク選択に関わらずメソッドの全データを表示
+  // 選択したプロジェクトとメソッドとタスクに基づいてprogressDataを取得
+  // タスク未選択: 選択プロジェクトと選択メソッドに紐づくすべてのトランジションを表示
+  // タスク選択時: 選択プロジェクトと選択メソッドと選択タスクに紐づくすべてのトランジションを表示
   const getProgressDataForMethod = () => {
     if (!selectedProject || !selectedMethodId) {
       return [];
@@ -68,10 +69,19 @@ export default function ProgressReportTab({
 
     const allProgressData = projectsData[selectedProject]?.progressData || [];
 
-    // メソッドでフィルタリングのみ（タスクフィルタは行わない）
-    return allProgressData.filter(
+    // メソッドでフィルタリング
+    let filteredData = allProgressData.filter(
       (progress) => progress.methodId === selectedMethodId
     );
+
+    // タスクが選択されている場合は、さらにタスクでフィルタリング
+    if (selectedTaskId) {
+      filteredData = filteredData.filter(
+        (progress) => progress.taskName === tasks.find(t => t.taskId === selectedTaskId)?.taskName
+      );
+    }
+
+    return filteredData;
   };
 
   const filteredProgressData = getProgressDataForMethod();
@@ -102,14 +112,15 @@ export default function ProgressReportTab({
               <Select
                 style={{ flex: 1, minWidth: 200 }}
                 placeholder="-"
-                value={selectedTaskId || undefined}
-                onChange={onSelectTask}
+                value={selectedTaskId || ''}
+                onChange={(value) => onSelectTask(value || '')}
                 options={[
-                  { value: undefined, label: '-' },
+                  { value: '', label: '-' },
                   ...taskOptions
                 ]}
                 disabled={!selectedMethod}
                 size="large"
+                allowClear
               />
             </Space>
             <Button
