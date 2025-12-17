@@ -122,6 +122,11 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     }
   }, [currentTab, selectedProject, selectedMethodId]);
 
+  // プロジェクトまたはメソッドが変更されたときにタスクをリセット
+  useEffect(() => {
+    setSelectedTaskId('');
+  }, [selectedProject, selectedMethodId]);
+
   // 選択中のプロジェクト情報を取得
   const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
 

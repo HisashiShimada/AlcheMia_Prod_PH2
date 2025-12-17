@@ -62,22 +62,19 @@ export default function ExperimentRecordTab({
   // 選択中のプロジェクト情報を取得
   const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
 
-  // タスクデータ（TODO: 実際のデータはAPIから取得）
-  // 選択されたメソッドに基づいてタスク一覧を生成
-  const tasks = selectedMethod
-    ? [
-        { taskId: 'new', taskName: '新規タスク' },
-        { taskId: 'task001', taskName: 'タスク001' },
-        { taskId: 'task002', taskName: 'タスク002' },
-        { taskId: 'task003', taskName: 'タスク003' },
-      ]
+  // タスクデータ: 選択されたプロジェクトとメソッドに紐づくタスクを取得
+  const tasks = selectedProject && selectedMethod
+    ? selectedMethod.tasks || []
     : [];
 
   // Selectコンポーネント用のオプションを生成
-  const taskOptions = tasks.map((task) => ({
-    label: task.taskName,
-    value: task.taskId,
-  }));
+  const taskOptions = [
+    { label: '-', value: '' }, // 未選択状態を表す
+    ...tasks.map((task) => ({
+      label: task.taskName,
+      value: task.taskId,
+    })),
+  ];
 
   // フロー図に切り替え
   const handleSwitchToFlow = () => {
@@ -114,7 +111,7 @@ export default function ExperimentRecordTab({
               <Select
                 style={{ flex: 1, minWidth: 200 }}
                 placeholder="タスクを選択してください"
-                value={selectedTaskId || undefined}
+                value={selectedTaskId || ''}
                 onChange={onSelectTask}
                 options={taskOptions}
                 disabled={!selectedMethod}
