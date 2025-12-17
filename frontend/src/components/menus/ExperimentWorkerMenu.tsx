@@ -237,79 +237,79 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       <Content
         style={{
           marginTop: TOTAL_HEADER_HEIGHT, // UIポリシー: Header(64px) + SubHeader(48px) = 112px
-          padding: '24px 16px', // UIポリシー: レスポンシブpadding
+          padding: '0 16px 24px', // 上部の余白をなくし、左右と下部のみパディング
         }}
       >
         <ResponsiveContainer>
-          {/* 選択プロジェクト・メソッド */}
-          <Card 
-            style={{ 
-              marginBottom: token.marginLG,
-              backgroundColor: selectedProject ? token.colorPrimaryBg : token.colorBgContainer,
-              borderColor: selectedProject ? token.colorPrimary : token.colorBorder,
-            }}
-          >
-            <div style={{ width: '100%' }}>
-              {/* プロジェクト */}
-              <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: token.margin }}>
-                <Space size="middle" style={{ flex: 1, width: '100%' }}>
-                  <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-                  <Text strong style={{ minWidth: 80 }}>{t('experimentWork.labels.project')}:</Text>
-                  <Select
-                    value={selectedProject || undefined}
-                    placeholder="-"
-                    style={{ flex: 1, minWidth: 200 }}
-                    onChange={handleProjectChange}
-                    options={[
-                      { value: undefined, label: '-' },
-                      ...Object.entries(projectsData).map(([id, project]) => ({
-                        value: id,
-                        label: project.projectName
-                      }))
-                    ]}
-                    size="middle"
-                  />
-                </Space>
-              </div>
+          {/* プロジェクト選択・メソッド選択・選択ボタン */}
+          <div style={{ 
+            marginBottom: token.marginLG,
+            display: 'flex',
+            alignItems: 'center',
+            gap: token.margin,
+            flexWrap: 'wrap',
+            backgroundColor: token.colorBgContainer,
+            border: `1px solid ${token.colorBorder}`,
+            padding: token.paddingLG,
+          }}>
+            {/* プロジェクト選択 */}
+            <Space size="small" style={{ flex: '1 1 250px', minWidth: 250 }}>
+              <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <Text strong>{t('experimentWork.labels.project')}:</Text>
+              <Select
+                value={selectedProject || undefined}
+                placeholder="-"
+                style={{ flex: 1, minWidth: 150 }}
+                onChange={handleProjectChange}
+                options={[
+                  { value: undefined, label: '-' },
+                  ...Object.entries(projectsData).map(([id, project]) => ({
+                    value: id,
+                    label: project.projectName
+                  }))
+                ]}
+                size="middle"
+              />
+            </Space>
 
-              {/* メソッド + 選択ボタン */}
-              <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
-                <Space size="middle" style={{ flex: 1 }}>
-                  <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-                  <Text strong style={{ minWidth: 80 }}>{t('experimentWork.labels.method')}:</Text>
-                  <Select
-                    value={selectedMethodId || undefined}
-                    placeholder="-"
-                    style={{ flex: 1, minWidth: 200 }}
-                    onChange={handleSelectMethod}
-                    disabled={!selectedProject}
-                    options={[
-                      { value: undefined, label: '-' },
-                      ...(selectedProject && projectsData[selectedProject]?.methods
-                        ? projectsData[selectedProject].methods.map(method => ({
-                            value: method.methodId,
-                            label: method.methodName
-                          }))
-                        : [])
-                    ]}
-                    size="middle"
-                  />
-                </Space>
-                <Button
-                  type="primary"
-                  icon={<CheckOutlined />}
-                  onClick={() => setDialogOpen(true)}
-                  size="large"
-                >
-                  {t('experimentWork.selectButton')}
-                </Button>
-              </div>
-            </div>
-          </Card>
+            {/* メソッド選択 */}
+            <Space size="small" style={{ flex: '1 1 250px', minWidth: 250 }}>
+              <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <Text strong>{t('experimentWork.labels.method')}:</Text>
+              <Select
+                value={selectedMethodId || undefined}
+                placeholder="-"
+                style={{ flex: 1, minWidth: 150 }}
+                onChange={handleSelectMethod}
+                disabled={!selectedProject}
+                options={[
+                  { value: undefined, label: '-' },
+                  ...(selectedProject && projectsData[selectedProject]?.methods
+                    ? projectsData[selectedProject].methods.map(method => ({
+                        value: method.methodId,
+                        label: method.methodName
+                      }))
+                    : [])
+                ]}
+                size="middle"
+              />
+            </Space>
+
+            {/* 選択ボタン */}
+            <Button
+              type="primary"
+              icon={<CheckOutlined />}
+              onClick={() => setDialogOpen(true)}
+              size="large"
+              style={{ flexShrink: 0 }}
+            >
+              {t('experimentWork.selectButton')}
+            </Button>
+          </div>
 
           {/* タブ */}
           <div style={{
-            height: `calc(100vh - ${TOTAL_HEADER_HEIGHT}px - 48px - 120px - 24px)`, // 画面高さ - ヘッダー - Content padding - 選択Card - margin
+            height: `calc(100vh - ${TOTAL_HEADER_HEIGHT}px - 24px - 80px - 24px)`, // 画面高さ - ヘッダー - Content padding(下) - 選択エリア - margin
             display: 'flex',
             flexDirection: 'column',
             backgroundColor: token.colorBgContainer,
