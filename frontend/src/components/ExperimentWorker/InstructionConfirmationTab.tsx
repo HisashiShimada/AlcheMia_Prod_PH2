@@ -64,30 +64,6 @@ export default function InstructionConfirmationTab({
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
         }}
       >
-        {/* プロジェクト・メソッド選択エリア */}
-        <div
-          style={{
-            background: '#E8F5E9',
-            padding: '16px 24px',
-            borderRadius: '8px',
-            marginBottom: '16px'
-          }}
-        >
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <ProjectSelector
-              selectedProject={selectedProject}
-              onProjectChange={onProjectChange}
-            />
-            <MethodSelector
-              methods={methods}
-              selectedMethodId={selectedMethodId}
-              onSelectMethod={onSelectMethod}
-              disabled={!selectedProject}
-            />
-          </Space>
-        </div>
-
-        <Divider style={{ margin: '16px 0' }} />
 
         {!selectedProject ? (
           <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
