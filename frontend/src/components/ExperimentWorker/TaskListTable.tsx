@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import { Table, Tag, Typography, Input, Select, Space, Row, Col } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { Key } from 'react';
 import { Task, TaskStatus } from '@/types/experimentWorker';
 import TaskActionButtons from './TaskActionButtons';
 
@@ -20,21 +19,10 @@ interface TaskListTableProps {
  * タスクのリストをテーブル形式で表示する
  */
 export default function TaskListTable({ tasks, onTaskAction }: TaskListTableProps) {
-  // 選択されたタスクのキーを管理
-  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
-  
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTaskName, setSelectedTaskName] = useState<string | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | undefined>(undefined);
-
-  // 行選択の設定
-  const rowSelection = {
-    selectedRowKeys,
-    onChange: (selectedKeys: Key[]) => {
-      setSelectedRowKeys(selectedKeys);
-    },
-  };
   
   // タスク名の選択肢を生成
   const taskNameOptions = useMemo(() => {
@@ -226,8 +214,7 @@ export default function TaskListTable({ tasks, onTaskAction }: TaskListTableProp
         columns={columns}
         dataSource={filteredTasks}
         rowKey="taskId"
-      rowSelection={rowSelection}
-      pagination={{
+        pagination={{
         pageSize: 20,
         showSizeChanger: true,
         showQuickJumper: false,
