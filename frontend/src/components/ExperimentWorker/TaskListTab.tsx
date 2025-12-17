@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { Card, Space, Button, Typography, Divider, message } from 'antd';
-import { RightOutlined, UnorderedListOutlined, FileTextOutlined } from '@ant-design/icons';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Card, Space, Button, Typography, message } from 'antd';
+import { RightOutlined, FileTextOutlined } from '@ant-design/icons';
 import TaskListTable from './TaskListTable';
 import {
   getTasksByProjectAndMethod,
@@ -31,9 +31,6 @@ export default function TaskListTab({
   onSelectMethod,
   onTabChange
 }: TaskListTabProps) {
-  // タスク一覧の展開状態
-  const [isTaskListExpanded, setIsTaskListExpanded] = useState(true);
-  
   // タスクデータの取得
   const [tasks, setTasks] = useState<Task[]>([]);
 
@@ -141,30 +138,18 @@ export default function TaskListTab({
             marginBottom: '16px'
           }}
         >
-          {/* タスク一覧展開ボタン */}
-          <Button
-            type="text"
-            size="large"
-            icon={<UnorderedListOutlined />}
-            onClick={() => setIsTaskListExpanded(!isTaskListExpanded)}
+          {/* タスク一覧タイトル */}
+          <Typography.Title
+            level={5}
             style={{
+              margin: 0,
               fontSize: '16px',
               fontWeight: 600,
-              color: '#212121',
-              padding: 0
+              color: '#212121'
             }}
-            aria-label="タスク一覧を表示/非表示"
           >
             タスク一覧
-            <RightOutlined
-              style={{
-                fontSize: '12px',
-                marginLeft: '8px',
-                transform: isTaskListExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s'
-              }}
-            />
-          </Button>
+          </Typography.Title>
 
           {/* 指示確認ボタン・一括進捗報告ボタン・承認依頼ボタン */}
           <Space size="middle">
@@ -198,28 +183,24 @@ export default function TaskListTab({
         </div>
 
         {/* タスク一覧テーブル */}
-        {isTaskListExpanded && (
-          <>
-            {selectedProject && selectedMethodId && tasks.length > 0 ? (
-              <TaskListTable
-                tasks={tasks}
-                onTaskAction={handleTaskAction}
-              />
-            ) : (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '40px',
-                  color: '#9e9e9e',
-                  fontSize: '14px'
-                }}
-              >
-                {!selectedProject || !selectedMethodId
-                  ? 'プロジェクトとメソッドを選択してください'
-                  : 'タスクが見つかりません'}
-              </div>
-            )}
-          </>
+        {selectedProject && selectedMethodId && tasks.length > 0 ? (
+          <TaskListTable
+            tasks={tasks}
+            onTaskAction={handleTaskAction}
+          />
+        ) : (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: '40px',
+              color: '#9e9e9e',
+              fontSize: '14px'
+            }}
+          >
+            {!selectedProject || !selectedMethodId
+              ? 'プロジェクトとメソッドを選択してください'
+              : 'タスクが見つかりません'}
+          </div>
         )}
 
       </Card>
