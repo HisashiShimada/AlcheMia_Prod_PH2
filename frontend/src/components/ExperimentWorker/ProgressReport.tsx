@@ -150,14 +150,11 @@ export default function ProgressReport({
       dataIndex: 'transitionName',
       key: 'transitionName',
       width: 200,
-      render: (text: string, record: TransitionProgress) => (
-        <div>
-          <Text strong>{text}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            ID: {record.transitionId}
-          </Text>
-        </div>
+      ellipsis: true,
+      render: (text: string) => (
+        <Text strong style={{ fontSize: '14px', color: '#CF0027' }}>
+          {text}
+        </Text>
       ),
     },
     {
