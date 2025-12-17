@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, Space, Typography, theme, Button } from 'antd';
-import { ExperimentOutlined, CheckOutlined, FolderOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
+import { Card, Space, Typography, theme, Button, Select } from 'antd';
+import { ExperimentOutlined, CheckOutlined, AimOutlined } from '@ant-design/icons';
 import TransitionList from './TransitionList';
-import UnifiedSelectionDialog from './UnifiedSelectionDialog';
+import TaskSelectionDialog from './TaskSelectionDialog';
 import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
@@ -50,13 +50,21 @@ export default function ExperimentRecordTab({
   const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
 
   // タスクデータ（TODO: 実際のデータはAPIから取得）
-  const tasks = [
-    { taskId: 'new', taskName: '新規タスク' },
-    { taskId: 'task001', taskName: 'タスク001' },
-    { taskId: 'task002', taskName: 'タスク002' },
-    { taskId: 'task003', taskName: 'タスク003' },
-  ];
-  const selectedTask = tasks.find((t) => t.taskId === selectedTaskId);
+  // 選択されたメソッドに基づいてタスク一覧を生成
+  const tasks = selectedMethod
+    ? [
+        { taskId: 'new', taskName: '新規タスク' },
+        { taskId: 'task001', taskName: 'タスク001' },
+        { taskId: 'task002', taskName: 'タスク002' },
+        { taskId: 'task003', taskName: 'タスク003' },
+      ]
+    : [];
+
+  // Selectコンポーネント用のオプションを生成
+  const taskOptions = tasks.map((task) => ({
+    label: task.taskName,
+    value: task.taskId,
+  }));
 
   return (
     <>
@@ -64,41 +72,25 @@ export default function ExperimentRecordTab({
       <Card 
         style={{ 
           marginBottom: token.marginLG,
-          backgroundColor: selectedProject ? token.colorPrimaryBg : token.colorBgContainer,
-          borderColor: selectedProject ? token.colorPrimary : token.colorBorder,
+          backgroundColor: selectedMethod ? token.colorPrimaryBg : token.colorBgContainer,
+          borderColor: selectedMethod ? token.colorPrimary : token.colorBorder,
         }}
       >
         <div style={{ width: '100%' }}>
-          {/* プロジェクト */}
-          <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: token.margin }}>
-            <Space size="middle" style={{ flex: 1 }}>
-              <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-              <Text strong style={{ minWidth: 80 }}>プロジェクト:</Text>
-              <Text>
-                {selectedProjectData ? selectedProjectData.projectName : '未選択'}
-              </Text>
-            </Space>
-          </div>
-
-          {/* メソッド */}
-          <div style={{ display: 'flex', alignItems: 'center', width: '100%', marginBottom: token.margin }}>
-            <Space size="middle" style={{ flex: 1 }}>
-              <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-              <Text strong style={{ minWidth: 80 }}>メソッド:</Text>
-              <Text>
-                {selectedMethod ? selectedMethod.methodName : '未選択'}
-              </Text>
-            </Space>
-          </div>
-
-          {/* タスク + 選択ボタン */}
-          <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+          {/* タスク選択（コンボボックス） + 選択ボタン */}
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: token.margin }}>
             <Space size="middle" style={{ flex: 1 }}>
               <AimOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong style={{ minWidth: 80 }}>タスク:</Text>
-              <Text>
-                {selectedTask ? selectedTask.taskName : '未選択'}
-              </Text>
+              <Select
+                style={{ flex: 1, minWidth: 200 }}
+                placeholder="タスクを選択してください"
+                value={selectedTaskId || undefined}
+                onChange={onSelectTask}
+                options={taskOptions}
+                disabled={!selectedMethod}
+                size="large"
+              />
             </Space>
             <Button
               type="primary"
@@ -136,15 +128,13 @@ export default function ExperimentRecordTab({
         </Card>
       )}
 
-      {/* 統合選択ダイアログ */}
-      <UnifiedSelectionDialog
+      {/* タスク選択ダイアログ */}
+      <TaskSelectionDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         selectedProject={selectedProject}
         selectedMethodId={selectedMethodId}
         selectedTaskId={selectedTaskId}
-        onProjectChange={onProjectChange}
-        onSelectMethod={onSelectMethod}
         onSelectTask={onSelectTask}
       />
     </>

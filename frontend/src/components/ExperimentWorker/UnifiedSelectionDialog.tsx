@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal, List, Typography, Space, Tag, Button, theme } from 'antd';
-import { FolderOutlined, ToolOutlined, CheckOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { FolderOutlined, ToolOutlined, AimOutlined, CheckOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
@@ -25,30 +25,43 @@ interface UnifiedSelectionDialogProps {
 /**
  * 選択ステップの型定義
  */
-type SelectionStep = 'project' | 'method';
+type SelectionStep = 'project' | 'method' | 'task';
+
+/**
+ * タスクの型定義
+ */
+interface Task {
+  taskId: string;
+  taskName: string;
+  tag?: string;
+}
 
 /**
  * 統合選択ダイアログコンポーネント
- * プロジェクト選択 → メソッド選択の2ステップで選択
+ * プロジェクト選択 → メソッド選択 → タスク選択の3ステップで選択
  */
 export default function UnifiedSelectionDialog({
   open,
   onClose,
   selectedProject,
   selectedMethodId,
+  selectedTaskId,
   onProjectChange,
   onSelectMethod,
+  onSelectTask,
 }: UnifiedSelectionDialogProps) {
   const { token } = theme.useToken();
   const [step, setStep] = useState<SelectionStep>('project');
   const [tempProject, setTempProject] = useState<string>(selectedProject);
   const [tempMethodId, setTempMethodId] = useState<string | null>(selectedMethodId);
+  const [tempTaskId, setTempTaskId] = useState<string | null>(selectedTaskId);
 
   // ダイアログが開かれた時に現在の選択状態を一時変数に設定し、ステップをリセット
   useEffect(() => {
     if (open) {
       setTempProject(selectedProject);
       setTempMethodId(selectedMethodId);
+      setTempTaskId(selectedTaskId);
       setStep('project');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,12 +69,30 @@ export default function UnifiedSelectionDialog({
 
   // 選択中のプロジェクトのメソッド一覧を取得
   const methods: Method[] = tempProject ? (projectsData[tempProject]?.methods || []) : [];
+  
+  // 選択中のメソッドに紐づくタスク一覧を取得（TODO: 実際のデータはAPIから取得）
+  const tasks: Task[] = tempMethodId
+    ? [
+        { taskId: 'new', taskName: '新規タスク', tag: '新規' },
+        { taskId: 'task001', taskName: 'タスク001' },
+        { taskId: 'task002', taskName: 'タスク002' },
+        { taskId: 'task003', taskName: 'タスク003' },
+      ]
+    : [];
 
   // プロジェクト選択時の処理
   const handleProjectSelect = (projectId: string) => {
     setTempProject(projectId);
     setTempMethodId(null); // プロジェクト変更時はメソッドをリセット
+    setTempTaskId(null); // プロジェクト変更時はタスクをリセット
     setStep('method'); // メソッド選択ステップに進む
+  };
+
+  // メソッド選択時の処理
+  const handleMethodSelect = (methodId: string) => {
+    setTempMethodId(methodId);
+    setTempTaskId(null); // メソッド変更時はタスクをリセット
+    setStep('task'); // タスク選択ステップに進む
   };
 
   // 決定ボタンの処理
@@ -72,6 +103,9 @@ export default function UnifiedSelectionDialog({
     if (tempMethodId !== selectedMethodId) {
       onSelectMethod(tempMethodId || '');
     }
+    if (tempTaskId !== selectedTaskId) {
+      onSelectTask(tempTaskId || '');
+    }
     onClose();
   };
 
@@ -80,13 +114,18 @@ export default function UnifiedSelectionDialog({
     // 一時変数をリセット
     setTempProject(selectedProject);
     setTempMethodId(selectedMethodId);
+    setTempTaskId(selectedTaskId);
     setStep('project');
     onClose();
   };
 
   // 戻るボタンの処理
   const handleBack = () => {
-    setStep('project');
+    if (step === 'task') {
+      setStep('method');
+    } else if (step === 'method') {
+      setStep('project');
+    }
   };
 
   // プロジェクトリストアイテム
@@ -148,7 +187,7 @@ export default function UnifiedSelectionDialog({
 
     return (
       <List.Item
-        onClick={() => setTempMethodId(method.methodId)}
+        onClick={() => handleMethodSelect(method.methodId)}
         style={{
           cursor: 'pointer',
           padding: token.paddingMD,
@@ -175,7 +214,6 @@ export default function UnifiedSelectionDialog({
             <Space>
               <Text strong>{method.methodName}</Text>
               {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-              {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
             </Space>
           }
           description={
@@ -193,8 +231,63 @@ export default function UnifiedSelectionDialog({
     );
   };
 
+  // タスクリストアイテム
+  const renderTaskItem = (task: Task) => {
+    const isSelected = tempTaskId === task.taskId;
+    const isCurrentlySelected = selectedTaskId === task.taskId;
+
+    return (
+      <List.Item
+        onClick={() => setTempTaskId(task.taskId)}
+        style={{
+          cursor: 'pointer',
+          padding: token.paddingMD,
+          backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
+          borderRadius: token.borderRadius,
+          marginBottom: token.marginXS,
+          transition: 'all 0.2s',
+          border: isCurrentlySelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
+        }}
+        onMouseEnter={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.backgroundColor = token.colorBgTextHover;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
+      >
+        <List.Item.Meta
+          avatar={<AimOutlined style={{ fontSize: 24, color: token.colorPrimary }} />}
+          title={
+            <Space>
+              <Text strong>{task.taskName}</Text>
+              {task.tag && <Tag>{task.tag}</Tag>}
+              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
+              {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
+            </Space>
+          }
+          description={
+            <Space direction="vertical" size={0}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {task.taskId}
+              </Text>
+            </Space>
+          }
+        />
+      </List.Item>
+    );
+  };
+
   // ステップに応じたタイトルとアイコンを取得
   const getModalTitle = () => {
+    const projectName = tempProject ? projectsData[tempProject]?.projectName : '';
+    const methodName = tempMethodId
+      ? methods.find((m) => m.methodId === tempMethodId)?.methodName
+      : '';
+
     if (step === 'project') {
       return (
         <Space>
@@ -202,14 +295,23 @@ export default function UnifiedSelectionDialog({
           <Text strong>プロジェクトを選択</Text>
         </Space>
       );
-    } else {
-      const projectName = tempProject ? projectsData[tempProject]?.projectName : '';
+    } else if (step === 'method') {
       return (
         <Space>
           <ToolOutlined style={{ color: token.colorInfo }} />
           <Text strong>メソッドを選択</Text>
           <Text type="secondary" style={{ fontSize: 14 }}>
             （プロジェクト: {projectName}）
+          </Text>
+        </Space>
+      );
+    } else {
+      return (
+        <Space>
+          <AimOutlined style={{ color: token.colorPrimary }} />
+          <Text strong>タスクを選択</Text>
+          <Text type="secondary" style={{ fontSize: 14 }}>
+            （プロジェクト: {projectName} / メソッド: {methodName}）
           </Text>
         </Space>
       );
@@ -227,7 +329,7 @@ export default function UnifiedSelectionDialog({
           />
         </div>
       );
-    } else {
+    } else if (step === 'method') {
       return (
         <div style={{ maxHeight: 500, overflowY: 'auto' }}>
           {methods.length === 0 ? (
@@ -242,6 +344,21 @@ export default function UnifiedSelectionDialog({
           )}
         </div>
       );
+    } else {
+      return (
+        <div style={{ maxHeight: 500, overflowY: 'auto' }}>
+          {tasks.length === 0 ? (
+            <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
+              <Text type="secondary">タスクがありません</Text>
+            </Space>
+          ) : (
+            <List
+              dataSource={tasks}
+              renderItem={renderTaskItem}
+            />
+          )}
+        </div>
+      );
     }
   };
 
@@ -249,17 +366,20 @@ export default function UnifiedSelectionDialog({
     <Modal
       open={open}
       onCancel={handleCancel}
-      onOk={step === 'method' ? handleOk : undefined}
       width={700}
       title={getModalTitle()}
       okText="決定"
       cancelText="キャンセル"
-      okButtonProps={{
-        disabled: step === 'method' && !tempMethodId,
-      }}
       footer={
         step === 'project' ? (
           <Space>
+            <Button onClick={handleCancel}>キャンセル</Button>
+          </Space>
+        ) : step === 'method' ? (
+          <Space>
+            <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
+              戻る
+            </Button>
             <Button onClick={handleCancel}>キャンセル</Button>
           </Space>
         ) : (
@@ -271,7 +391,7 @@ export default function UnifiedSelectionDialog({
             <Button
               type="primary"
               onClick={handleOk}
-              disabled={!tempMethodId}
+              disabled={!tempTaskId}
               icon={<CheckOutlined />}
             >
               決定
