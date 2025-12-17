@@ -461,19 +461,6 @@ function DataList() {
 </Row>
 ```
 
-**DON'T（非推奨）:**
-```typescript
-// ❌ 具体的な値をハードコーディング
-<Layout>
-  <Layout.Header style={{ background: '#ffffff' }}>
-    ヘッダー
-  </Layout.Header>
-  <Layout.Content style={{ padding: '24px' }}>
-    コンテンツ
-  </Layout.Content>
-</Layout>
-```
-
 ### テキスト（Typography）
 
 **DO（推奨）:**
