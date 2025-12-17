@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Table, Tag, Typography, Input, Select, Row, Col, message } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress } from 'antd';
+import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue } from '@/types/experimentWorker';
 import DataRecordDialog from './DataRecordDialog';
 
@@ -30,20 +31,11 @@ export default function TransitionList({
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
 
   // トランジション名の選択肢を生成
   const transitionNameOptions = useMemo(() => {
     const uniqueNames = Array.from(new Set(transitions.map(t => t.transitionName)));
     return uniqueNames.map(name => ({ label: name, value: name }));
-  }, [transitions]);
-
-  // カテゴリの選択肢を生成
-  const categoryOptions = useMemo(() => {
-    const uniqueCategories = Array.from(
-      new Set(transitions.map(t => t.category).filter(Boolean))
-    ) as string[];
-    return uniqueCategories.map(category => ({ label: category, value: category }));
   }, [transitions]);
 
   // フィルタリングされたトランジションデータ
@@ -52,19 +44,14 @@ export default function TransitionList({
       // あいまい検索（全カラム対象）
       const matchesSearch = searchText === '' || 
         transition.transitionName.toLowerCase().includes(searchText.toLowerCase()) ||
-        (transition.transitionId && transition.transitionId.toLowerCase().includes(searchText.toLowerCase())) ||
-        (transition.category && transition.category.toLowerCase().includes(searchText.toLowerCase())) ||
         (transition.description && transition.description.toLowerCase().includes(searchText.toLowerCase()));
       
       // トランジション名フィルタ
       const matchesTransitionName = !selectedTransitionName || transition.transitionName === selectedTransitionName;
       
-      // カテゴリフィルタ
-      const matchesCategory = !selectedCategory || transition.category === selectedCategory;
-      
-      return matchesSearch && matchesTransitionName && matchesCategory;
+      return matchesSearch && matchesTransitionName;
     });
-  }, [transitions, searchText, selectedTransitionName, selectedCategory]);
+  }, [transitions, searchText, selectedTransitionName]);
 
   // トランジションをクリックしてダイアログを開く
   const handleTransitionClick = (transition: Transition) => {
@@ -83,6 +70,28 @@ export default function TransitionList({
     console.log('保存されたデータ:', data);
     // TODO: バックエンドAPIへの保存処理を実装
     message.success('実験データを保存しました');
+  };
+
+  // ステータス表示用のヘルパー関数
+  const getStatusDisplay = (status?: ProgressStatus) => {
+    if (!status) {
+      return <Text type="secondary">-</Text>;
+    }
+
+    const statusConfig = {
+      not_started: { color: 'default', icon: <MinusCircleOutlined />, text: '未開始' },
+      in_progress: { color: 'processing', icon: <ClockCircleOutlined />, text: '作業中' },
+      completed: { color: 'success', icon: <CheckCircleOutlined />, text: '完了' },
+      on_hold: { color: 'warning', icon: <ExclamationCircleOutlined />, text: '保留中' },
+      issue: { color: 'error', icon: <ExclamationCircleOutlined />, text: '問題あり' }
+    };
+
+    const config = statusConfig[status] || statusConfig.not_started;
+    return (
+      <Tag icon={config.icon} color={config.color} style={{ margin: 0 }}>
+        {config.text}
+      </Tag>
+    );
   };
 
   // テーブルの列定義
@@ -111,31 +120,92 @@ export default function TransitionList({
       )
     },
     {
-      title: 'トランジションID',
-      dataIndex: 'transitionId',
-      key: 'transitionId',
-      width: 150,
-      ellipsis: true,
-      render: (text: string) => (
-        <Text type="secondary" style={{ fontSize: '12px' }}>
-          {text}
-        </Text>
-      )
-    },
-    {
-      title: 'カテゴリ',
-      dataIndex: 'category',
-      key: 'category',
+      title: 'ステータス',
+      dataIndex: 'status',
+      key: 'status',
       width: 120,
       align: 'center',
-      render: (category: string | undefined) => 
-        category ? (
-          <Tag color="blue" style={{ margin: 0 }}>
-            {category}
-          </Tag>
-        ) : (
-          <Text type="secondary">-</Text>
-        )
+      render: (status: ProgressStatus | undefined) => getStatusDisplay(status)
+    },
+    {
+      title: '進捗率',
+      dataIndex: 'progressRate',
+      key: 'progressRate',
+      width: 150,
+      align: 'center',
+      render: (progressRate: number | undefined) => {
+        if (progressRate === undefined || progressRate === null) {
+          return <Text type="secondary">-</Text>;
+        }
+        return (
+          <Progress
+            percent={progressRate}
+            size="small"
+            strokeColor={{
+              '0%': '#CF0027',
+              '100%': '#E63946'
+            }}
+            format={(percent) => `${percent}%`}
+          />
+        );
+      }
+    },
+    {
+      title: '材料',
+      key: 'materials',
+      width: 100,
+      align: 'center',
+      render: (_, record: Transition) => {
+        const input = record.inputMaterialsCount ?? 0;
+        const total = record.totalMaterialsCount ?? 0;
+        if (total === 0) {
+          return <Text type="secondary">-</Text>;
+        }
+        const isComplete = input === total;
+        return (
+          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+            {input}/{total}
+          </Text>
+        );
+      }
+    },
+    {
+      title: '素材',
+      key: 'ingredients',
+      width: 100,
+      align: 'center',
+      render: (_, record: Transition) => {
+        const input = record.inputIngredientsCount ?? 0;
+        const total = record.totalIngredientsCount ?? 0;
+        if (total === 0) {
+          return <Text type="secondary">-</Text>;
+        }
+        const isComplete = input === total;
+        return (
+          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+            {input}/{total}
+          </Text>
+        );
+      }
+    },
+    {
+      title: '結果',
+      key: 'results',
+      width: 100,
+      align: 'center',
+      render: (_, record: Transition) => {
+        const input = record.inputResultsCount ?? 0;
+        const total = record.totalResultsCount ?? 0;
+        if (total === 0) {
+          return <Text type="secondary">-</Text>;
+        }
+        const isComplete = input === total;
+        return (
+          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+            {input}/{total}
+          </Text>
+        );
+      }
     },
     {
       title: '説明',
@@ -155,9 +225,9 @@ export default function TransitionList({
       <div>
         {/* 絞り込みUI */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={24} sm={12} md={12}>
             <Input
-              placeholder="トランジション名、ID、カテゴリ..."
+              placeholder="トランジション名、説明で検索..."
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -165,26 +235,15 @@ export default function TransitionList({
               aria-label="全カラム検索"
             />
           </Col>
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={24} sm={12} md={12}>
             <Select
-              placeholder="トランジション名"
+              placeholder="トランジション名で絞り込み"
               style={{ width: '100%' }}
               value={selectedTransitionName}
               onChange={(value) => setSelectedTransitionName(value)}
               allowClear
               options={transitionNameOptions}
               aria-label="トランジション名で絞り込み"
-            />
-          </Col>
-          <Col xs={24} sm={12} md={8}>
-            <Select
-              placeholder="カテゴリ"
-              style={{ width: '100%' }}
-              value={selectedCategory}
-              onChange={(value) => setSelectedCategory(value)}
-              allowClear
-              options={categoryOptions}
-              aria-label="カテゴリで絞り込み"
             />
           </Col>
         </Row>
@@ -207,7 +266,7 @@ export default function TransitionList({
               page: ''
             }
           }}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1300 }}
           size="middle"
           bordered
           aria-label="トランジション一覧"
