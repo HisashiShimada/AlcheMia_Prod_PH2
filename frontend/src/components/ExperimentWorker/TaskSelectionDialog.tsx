@@ -61,15 +61,8 @@ export default function TaskSelectionDialog({
     ? methods.find((m) => m.methodId === selectedMethodId)
     : null;
   
-  // 選択中のメソッドに紐づくタスク一覧を取得（TODO: 実際のデータはAPIから取得）
-  const tasks: Task[] = selectedMethodId
-    ? [
-        { taskId: 'new', taskName: '新規タスク', tag: '新規' },
-        { taskId: 'task001', taskName: 'タスク001' },
-        { taskId: 'task002', taskName: 'タスク002' },
-        { taskId: 'task003', taskName: 'タスク003' },
-      ]
-    : [];
+  // 選択中のメソッドに紐づくタスク一覧を取得
+  const tasks: Task[] = methodData?.tasks || [];
 
   // 決定ボタンの処理
   const handleOk = () => {
