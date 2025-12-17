@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Card, Typography, Space, theme, Divider } from 'antd';
-import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
+import { Card, Typography, Space, theme, Divider, Button } from 'antd';
+import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import ProjectSelector from './ProjectSelector';
 import MethodSelector from './MethodSelector';
 import InstructionStats from './InstructionStats';
@@ -55,6 +55,27 @@ export default function InstructionConfirmationTab({
     const project = projectsData[selectedProject];
     return project?.methods || [];
   }, [selectedProject]);
+
+  // 全ての指示の確認完了ハンドラ
+  const handleConfirmAllInstructions = () => {
+    // 未読の指示数を確認
+    const unreadCount = stats.unread;
+    
+    if (unreadCount === 0) {
+      alert('全ての指示は既に確認済みです');
+      return;
+    }
+    
+    // モック実装：実際にはAPIを呼び出して全指示を確認済みに更新
+    const confirmed = window.confirm(
+      `全ての指示（${stats.total}件中${unreadCount}件未読）を確認完了にしますか？`
+    );
+    
+    if (confirmed) {
+      alert(`全ての指示の確認完了処理を実行しました（モック）`);
+      // TODO: 実際のAPI実装時には、ここで全指示を確認済みにする処理を呼び出す
+    }
+  };
 
   return (
     <div style={{ padding: '24px' }}>
@@ -209,6 +230,28 @@ export default function InstructionConfirmationTab({
                 />
               </div>
               )}
+            </div>
+
+            {/* 全ての指示の確認完了ボタン */}
+            <Divider style={{ margin: `${token.marginXL}px 0` }} />
+            <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: token.marginLG }}>
+              <Button
+                type="primary"
+                size="large"
+                icon={<CheckCircleOutlined />}
+                onClick={handleConfirmAllInstructions}
+                disabled={stats.total === 0}
+                style={{
+                  minWidth: 300,
+                  height: 48,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  backgroundColor: stats.total === 0 ? undefined : token.colorSuccess,
+                  borderColor: stats.total === 0 ? undefined : token.colorSuccess,
+                }}
+              >
+                全ての指示の確認完了
+              </Button>
             </div>
           </>
         )}
