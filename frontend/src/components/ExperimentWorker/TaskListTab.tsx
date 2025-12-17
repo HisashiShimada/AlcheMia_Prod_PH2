@@ -119,6 +119,11 @@ export default function TaskListTab({
     message.info('一括進捗報告機能は今後実装予定です');
   }, []);
 
+  // 承認依頼ボタン
+  const handleApprovalRequest = useCallback(() => {
+    message.info('承認依頼機能は今後実装予定です');
+  }, []);
+
   return (
     <div style={{ padding: '24px' }}>
       <Card
@@ -127,7 +132,7 @@ export default function TaskListTab({
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
         }}
       >
-        {/* 指示確認ボタン・一括進捗報告ボタン */}
+        {/* 指示確認ボタン・一括進捗報告ボタン・承認依頼ボタン */}
         <div style={{ marginBottom: '16px', textAlign: 'right' }}>
           <Space size="middle">
             <Button
@@ -147,6 +152,14 @@ export default function TaskListTab({
               aria-label="一括進捗報告"
             >
               一括進捗報告
+            </Button>
+            <Button
+              type="default"
+              size="middle"
+              onClick={handleApprovalRequest}
+              aria-label="承認依頼"
+            >
+              承認依頼
             </Button>
           </Space>
         </div>
