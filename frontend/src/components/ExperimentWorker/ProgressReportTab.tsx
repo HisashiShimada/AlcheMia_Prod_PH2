@@ -2,13 +2,16 @@
 
 import React, { useState } from 'react';
 import { Card, Space, Typography, theme, Button, Select } from 'antd';
-import { BarChartOutlined, CheckOutlined, AimOutlined } from '@ant-design/icons';
+import { BarChartOutlined, CheckOutlined, AimOutlined, FileTextOutlined } from '@ant-design/icons';
 import ProgressReport from './ProgressReport';
 import TaskSelectionDialog from './TaskSelectionDialog';
 import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;
+
+// 報告タイプの定義
+type ReportType = 'progress' | 'issue' | 'milestone';
 
 /**
  * 空状態アイコンのサイズ（UIポリシー準拠）
@@ -43,6 +46,7 @@ export default function ProgressReportTab({
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [reportType, setReportType] = useState<ReportType>('progress');
 
   // タスクデータ（TODO: 実際のデータはAPIから取得）
   // 選択されたメソッドに基づいてタスク一覧を生成
@@ -120,6 +124,25 @@ export default function ProgressReportTab({
         </div>
       </Card>
 
+      {/* 報告タイプ選択カード */}
+      <Card style={{ marginBottom: token.marginLG }}>
+        <Space size="middle" style={{ width: '100%' }}>
+          <FileTextOutlined style={{ fontSize: 16, color: token.colorInfo }} />
+          <Text strong style={{ minWidth: 80 }}>報告タイプ:</Text>
+          <Select
+            style={{ flex: 1, minWidth: 200 }}
+            value={reportType}
+            onChange={(value: ReportType) => setReportType(value)}
+            options={[
+              { label: '進捗更新', value: 'progress' },
+              { label: '問題報告', value: 'issue' },
+              { label: 'マイルストーン到達', value: 'milestone' },
+            ]}
+            size="large"
+          />
+        </Space>
+      </Card>
+
       {!selectedProject ? (
         <Card>
           <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
@@ -146,7 +169,11 @@ export default function ProgressReportTab({
         </Card>
       ) : (
         <Card>
-          <ProgressReport progressData={filteredProgressData} />
+          <ProgressReport 
+            progressData={filteredProgressData}
+            reportType={reportType}
+            onReportTypeChange={setReportType}
+          />
         </Card>
       )}
 

@@ -26,10 +26,9 @@ const { TextArea } = Input;
 
 interface ProgressReportProps {
   progressData: TransitionProgress[];
+  reportType: 'progress' | 'issue' | 'milestone';
+  onReportTypeChange: (type: 'progress' | 'issue' | 'milestone') => void;
 }
-
-// 報告タイプの定義
-type ReportType = 'progress' | 'issue' | 'milestone';
 
 // 問題タイプの定義
 type IssueType = 'technical' | 'resource' | 'schedule' | 'quality' | 'other';
@@ -75,10 +74,13 @@ const getStatusLabel = (status: ProgressStatus): string => {
  * トランジションの進捗状況を一覧表示
  * チェックボックスで選択したトランジションに対して進捗報告を入力
  */
-export default function ProgressReport({ progressData }: ProgressReportProps) {
+export default function ProgressReport({ 
+  progressData, 
+  reportType,
+  onReportTypeChange 
+}: ProgressReportProps) {
   const [form] = Form.useForm();
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [reportType, setReportType] = useState<ReportType>('progress');
   const [status, setStatus] = useState<ProgressStatus>('in_progress');
   const [progressRate, setProgressRate] = useState<number>(0);
   const [issueType, setIssueType] = useState<IssueType>('technical');
@@ -232,21 +234,6 @@ export default function ProgressReport({ progressData }: ProgressReportProps) {
           }
         >
           <Form form={form} layout="vertical">
-            {/* 報告タイプ選択 */}
-            <Form.Item label="報告タイプ" name="reportType" initialValue="progress">
-              <Select
-                value={reportType}
-                onChange={(value: ReportType) => setReportType(value)}
-                options={[
-                  { label: '進捗更新', value: 'progress' },
-                  { label: '問題報告', value: 'issue' },
-                  { label: 'マイルストーン到達', value: 'milestone' },
-                ]}
-              />
-            </Form.Item>
-
-            <Divider />
-
             {/* 進捗更新フォーム */}
             {reportType === 'progress' && (
               <>
