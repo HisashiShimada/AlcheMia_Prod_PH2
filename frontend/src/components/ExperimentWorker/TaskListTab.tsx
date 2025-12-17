@@ -132,8 +132,41 @@ export default function TaskListTab({
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
         }}
       >
-        {/* 指示確認ボタン・一括進捗報告ボタン・承認依頼ボタン */}
-        <div style={{ marginBottom: '16px', textAlign: 'right' }}>
+        {/* タスク一覧タイトルとアクションボタン */}
+        <div 
+          style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: '16px'
+          }}
+        >
+          {/* タスク一覧展開ボタン */}
+          <Button
+            type="text"
+            size="large"
+            icon={<UnorderedListOutlined />}
+            onClick={() => setIsTaskListExpanded(!isTaskListExpanded)}
+            style={{
+              fontSize: '16px',
+              fontWeight: 600,
+              color: '#212121',
+              padding: 0
+            }}
+            aria-label="タスク一覧を表示/非表示"
+          >
+            タスク一覧
+            <RightOutlined
+              style={{
+                fontSize: '12px',
+                marginLeft: '8px',
+                transform: isTaskListExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                transition: 'transform 0.3s'
+              }}
+            />
+          </Button>
+
+          {/* 指示確認ボタン・一括進捗報告ボタン・承認依頼ボタン */}
           <Space size="middle">
             <Button
               type="default"
@@ -162,32 +195,6 @@ export default function TaskListTab({
               承認依頼
             </Button>
           </Space>
-        </div>
-
-        {/* タスク一覧展開ボタン */}
-        <div style={{ marginBottom: '16px' }}>
-          <Button
-            type="text"
-            size="large"
-            icon={<UnorderedListOutlined />}
-            onClick={() => setIsTaskListExpanded(!isTaskListExpanded)}
-            style={{
-              fontSize: '16px',
-              fontWeight: 600,
-              color: '#212121'
-            }}
-            aria-label="タスク一覧を表示/非表示"
-          >
-            タスク一覧
-            <RightOutlined
-              style={{
-                fontSize: '12px',
-                marginLeft: '8px',
-                transform: isTaskListExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s'
-              }}
-            />
-          </Button>
         </div>
 
         {/* タスク一覧テーブル */}
