@@ -389,13 +389,172 @@ export const projectsData: Record<string, ProjectData> = {
         "methodName": "サンプル重量測定",
         "description": "精密天秤を使用してサンプルの正確な重量を測定する手順。",
         "category": "測定",
+        "tasks": [
+          {
+            "taskId": "task_m002_001",
+            "taskName": "重量測定記録",
+            "sampleNumber": "Sample-W001",
+            "notes": "精密天秤による重量測定とデータ記録",
+            "status": "not_started",
+            "progressRate": 0,
+            "progressReport": "",
+            "recordNumber": ""
+          }
+        ],
         "transitions": [
           {
-            "transitionId": "t001",
-            "transitionName": "サンプル準備",
-            "description": "実験に使用するサンプルを準備する工程。",
+            "transitionId": "t004",
+            "transitionName": "測定環境準備",
+            "description": "測定を開始する前に環境条件を整える工程。",
             "category": "準備工程",
+            "estimatedDuration": "10分"
+          },
+          {
+            "transitionId": "t005",
+            "transitionName": "天秤キャリブレーション",
+            "description": "精密天秤の精度を確認し、必要に応じて調整する工程。",
+            "category": "キャリブレーション",
             "estimatedDuration": "15分"
+          },
+          {
+            "transitionId": "t006",
+            "transitionName": "ゼロ点調整",
+            "description": "天秤のゼロ点を調整して正確な測定を可能にする工程。",
+            "category": "調整",
+            "estimatedDuration": "5分"
+          },
+          {
+            "transitionId": "t007",
+            "transitionName": "サンプルA-1測定",
+            "description": "サンプルA-1の重量を測定する工程。",
+            "category": "測定工程",
+            "estimatedDuration": "3分"
+          },
+          {
+            "transitionId": "t008",
+            "transitionName": "サンプルA-2測定",
+            "description": "サンプルA-2の重量を測定する工程。",
+            "category": "測定工程",
+            "estimatedDuration": "3分"
+          },
+          {
+            "transitionId": "t009",
+            "transitionName": "サンプルA-3測定",
+            "description": "サンプルA-3の重量を測定する工程。",
+            "category": "測定工程",
+            "estimatedDuration": "3分"
+          },
+          {
+            "transitionId": "t010",
+            "transitionName": "サンプルB-1測定",
+            "description": "サンプルB-1の重量を測定する工程。",
+            "category": "測定工程",
+            "estimatedDuration": "3分"
+          },
+          {
+            "transitionId": "t011",
+            "transitionName": "サンプルB-2測定",
+            "description": "サンプルB-2の重量を測定する工程。",
+            "category": "測定工程",
+            "estimatedDuration": "3分"
+          },
+          {
+            "transitionId": "t012",
+            "transitionName": "サンプルB-3測定",
+            "description": "サンプルB-3の重量を測定する工程。",
+            "category": "測定工程",
+            "estimatedDuration": "3分"
+          },
+          {
+            "transitionId": "t013",
+            "transitionName": "重量データ記録",
+            "description": "測定した重量データをシステムに記録する工程。",
+            "category": "記録",
+            "estimatedDuration": "10分"
+          },
+          {
+            "transitionId": "t014",
+            "transitionName": "データ検証",
+            "description": "記録したデータの妥当性を検証する工程。",
+            "category": "検証",
+            "estimatedDuration": "15分"
+          },
+          {
+            "transitionId": "t015",
+            "transitionName": "異常値チェック",
+            "description": "測定値に異常がないか統計的に確認する工程。",
+            "category": "検証",
+            "estimatedDuration": "10分"
+          },
+          {
+            "transitionId": "t016",
+            "transitionName": "再測定判定",
+            "description": "再測定の必要性を判断する工程。",
+            "category": "判定",
+            "estimatedDuration": "5分"
+          },
+          {
+            "transitionId": "t017",
+            "transitionName": "環境データ記録",
+            "description": "測定時の温度・湿度・気圧を記録する工程。",
+            "category": "記録",
+            "estimatedDuration": "5分"
+          },
+          {
+            "transitionId": "t018",
+            "transitionName": "測定結果入力",
+            "description": "測定結果を正式なフォーマットで入力する工程。",
+            "category": "入力",
+            "estimatedDuration": "20分"
+          },
+          {
+            "transitionId": "t019",
+            "transitionName": "データバックアップ",
+            "description": "測定データをバックアップする工程。",
+            "category": "データ管理",
+            "estimatedDuration": "5分"
+          },
+          {
+            "transitionId": "t020",
+            "transitionName": "品質確認",
+            "description": "測定データの品質を最終確認する工程。",
+            "category": "品質管理",
+            "estimatedDuration": "15分"
+          },
+          {
+            "transitionId": "t021",
+            "transitionName": "承認申請",
+            "description": "測定結果の承認を申請する工程。",
+            "category": "申請",
+            "estimatedDuration": "5分"
+          },
+          {
+            "transitionId": "t022",
+            "transitionName": "最終確認",
+            "description": "すべての工程が完了していることを最終確認する工程。",
+            "category": "確認",
+            "estimatedDuration": "10分"
+          },
+          {
+            "transitionId": "t023",
+            "transitionName": "レポート作成",
+            "description": "測定結果のレポートを作成する工程。",
+            "category": "報告",
+            "estimatedDuration": "30分"
+          },
+          {
+            "transitionId": "t024",
+            "transitionName": "サンプル保管",
+            "description": "測定済みサンプルを適切に保管する工程。",
+            "category": "後処理",
+            "estimatedDuration": "10分"
+          },
+          {
+            "transitionId": "t025",
+            "transitionName": "記録完了",
+            "description": "すべての記録作業を完了する工程。",
+            "category": "完了",
+            "estimatedDuration": "5分"
           }
         ]
       },
@@ -496,6 +655,16 @@ export const projectsData: Record<string, ProjectData> = {
         "estimatedDuration": "60分",
         "requiredEquipment": ["測定器", "データロガー", "PC"],
         "safetyNotes": "測定中は装置に触れないこと"
+      },
+      "t004": {
+        "transitionId": "t004",
+        "transitionName": "測定環境準備",
+        "category": "準備工程",
+        "description": "測定を開始する前に環境条件を整える工程。室温・湿度を確認し、測定に適した状態にします。",
+        "isExperimentRelevant": true,
+        "estimatedDuration": "10分",
+        "requiredEquipment": ["温湿度計", "エアコン", "除湿機"],
+        "safetyNotes": "測定環境を整えてから作業開始すること"
       }
     },
     "progressData": [
