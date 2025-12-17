@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, Typography, Space, theme, Divider, Button } from 'antd';
-import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined, CheckCircleOutlined, NodeIndexOutlined } from '@ant-design/icons';
 import ProjectSelector from './ProjectSelector';
 import MethodSelector from './MethodSelector';
 import InstructionStats from './InstructionStats';
 import InstructionGroup from './InstructionGroup';
+import FlowDiagramModal from './FlowDiagramModal';
 import { Stats, Instruction } from '@/types/experimentWorker';
 import { projectsData } from '@/data/projectsData';
 
@@ -49,12 +50,36 @@ export default function InstructionConfirmationTab({
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
 
+  // フロー図モーダルの表示状態
+  const [isFlowDiagramModalVisible, setIsFlowDiagramModalVisible] = useState(false);
+
   // メソッド一覧の取得
   const methods = useMemo(() => {
     if (!selectedProject) return [];
     const project = projectsData[selectedProject];
     return project?.methods || [];
   }, [selectedProject]);
+
+  // 選択されたプロジェクト・メソッドの情報を取得
+  const projectInfo = useMemo(() => {
+    if (!selectedProject) return null;
+    return projectsData[selectedProject];
+  }, [selectedProject]);
+
+  const methodInfo = useMemo(() => {
+    if (!selectedMethodId || !projectInfo) return null;
+    return projectInfo.methods?.find((m) => m.methodId === selectedMethodId);
+  }, [selectedMethodId, projectInfo]);
+
+  // フロー図モーダルを開く
+  const handleOpenFlowDiagram = () => {
+    setIsFlowDiagramModalVisible(true);
+  };
+
+  // フロー図モーダルを閉じる
+  const handleCloseFlowDiagram = () => {
+    setIsFlowDiagramModalVisible(false);
+  };
 
   // 全ての指示の確認完了ハンドラ
   const handleConfirmAllInstructions = () => {
@@ -105,9 +130,24 @@ export default function InstructionConfirmationTab({
           {/* 指示詳細カード */}
           <Card
             title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <FileTextOutlined style={{ fontSize: 18, color: token.colorPrimary }} />
-                <span>指示詳細</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <FileTextOutlined style={{ fontSize: 18, color: token.colorPrimary }} />
+                  <span>指示詳細</span>
+                </div>
+                <Button
+                  type="default"
+                  icon={<NodeIndexOutlined />}
+                  onClick={handleOpenFlowDiagram}
+                  style={{
+                    height: 32,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  フロー図
+                </Button>
               </div>
             }
             style={{
@@ -267,6 +307,14 @@ export default function InstructionConfirmationTab({
               </Button>
             </div>
           </Card>
+
+          {/* フロー図モーダル */}
+          <FlowDiagramModal
+            visible={isFlowDiagramModalVisible}
+            onClose={handleCloseFlowDiagram}
+            projectName={projectInfo?.projectName}
+            methodName={methodInfo?.methodName}
+          />
         </>
       )}
     </div>
