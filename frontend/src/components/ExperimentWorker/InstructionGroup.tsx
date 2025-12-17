@@ -1,10 +1,10 @@
-import React from 'react';
-import { Card, Button, Space, Typography, Empty } from 'antd';
-import { CheckCircleOutlined, FileOutlined, ToolOutlined, AimOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Card, Button, Space, Typography, Empty, theme } from 'antd';
+import { CheckCircleOutlined, FileOutlined, ToolOutlined, AimOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
 import type { Instruction } from '@/types/experimentWorker';
 import InstructionCard from './InstructionCard';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 interface InstructionGroupProps {
   title: string;
@@ -38,6 +38,19 @@ export default function InstructionGroup({
   emoji,
   isClient,
 }: InstructionGroupProps) {
+  const { token } = theme.useToken();
+
+  // 各メソッド/トランジションの展開状態を管理
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+
+  // 項目の展開/折りたたみを切り替え
+  const toggleItem = (itemKey: string) => {
+    setExpandedItems((prev) => ({
+      ...prev,
+      [itemKey]: !prev[itemKey],
+    }));
+  };
+
   // メッセージのマッピング
   const noDataMessages: Record<string, string> = {
     '全体指示': '実験全体への作業指示がありません',
@@ -45,45 +58,289 @@ export default function InstructionGroup({
     'トランジション単位指示': 'トランジションへの作業指示がありません',
   };
 
+  // メソッド単位指示の場合、メソッドごとにグループ化
+  const groupByMethod = () => {
+    const groups: Record<string, Instruction[]> = {};
+    groupInstructions.forEach((instruction) => {
+      const key = instruction.methodId || 'unknown';
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(instruction);
+    });
+    return groups;
+  };
+
+  // トランジション単位指示の場合、トランジションごとにグループ化
+  const groupByTransition = () => {
+    const groups: Record<string, Instruction[]> = {};
+    groupInstructions.forEach((instruction) => {
+      const key = instruction.transitionId || 'unknown';
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(instruction);
+    });
+    return groups;
+  };
+
+  // 確認完了ボタンのクリックハンドラ
+  const handleConfirmation = (groupType: string, targetName?: string) => {
+    if (targetName) {
+      alert(`${targetName}の確認完了（モック）`);
+    } else {
+      alert(`${groupType}の確認完了（モック）`);
+    }
+  };
+
+  // 全体指示の場合は従来通りの表示
+  if (title === '全体指示') {
+    return (
+      <div style={{ marginBottom: 32 }}>
+        {groupInstructions.length === 0 ? (
+          <Card>
+            <Empty description={noDataMessages[title] || '作業指示がありません'} />
+          </Card>
+        ) : (
+          <>
+            <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 16 }}>
+              {groupInstructions.map((instruction) => (
+                <InstructionCard
+                  key={instruction.instructionId}
+                  instruction={instruction}
+                  isClient={isClient}
+                />
+              ))}
+            </Space>
+
+            {/* 全体指示の確認完了ボタン */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+              <Button
+                type="primary"
+                size="large"
+                icon={<CheckCircleOutlined />}
+                onClick={() => handleConfirmation(title)}
+                style={{ 
+                  minWidth: 250, 
+                  backgroundColor: token.colorSuccess, 
+                  borderColor: token.colorSuccess 
+                }}
+              >
+                {title}の確認完了
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // メソッド単位指示の場合
+  if (title === 'メソッド単位指示') {
+    const methodGroups = groupByMethod();
+    const methodIds = Object.keys(methodGroups);
+
+    if (methodIds.length === 0) {
+      return (
+        <div style={{ marginBottom: 32 }}>
+          <Card>
+            <Empty description={noDataMessages[title] || '作業指示がありません'} />
+          </Card>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ marginBottom: 32 }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          {methodIds.map((methodId) => {
+            const methodInstructions = methodGroups[methodId];
+            const methodName = methodInstructions[0]?.methodName || `メソッド ${methodId}`;
+            const isExpanded = expandedItems[methodId] !== false; // デフォルトで展開
+
+            return (
+              <Card
+                key={methodId}
+                style={{
+                  borderRadius: token.borderRadius,
+                  backgroundColor: token.colorBgContainer,
+                  border: `1px solid ${token.colorBorderSecondary}`,
+                }}
+              >
+                {/* クリック可能なタイトル */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    padding: token.paddingXS,
+                    marginLeft: -token.paddingXS,
+                    marginRight: -token.paddingXS,
+                    borderRadius: token.borderRadiusSM,
+                  }}
+                  onClick={() => toggleItem(methodId)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  {isExpanded ? <DownOutlined style={{ marginRight: 8, fontSize: 12 }} /> : <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />}
+                  <Title level={5} style={{ margin: 0, flex: 1 }}>
+                    <ToolOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
+                    {methodName} ({methodInstructions.length}件)
+                  </Title>
+                </div>
+
+                {/* 展開時のみ表示 */}
+                {isExpanded && (
+                  <>
+                    <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 16, marginBottom: 16 }}>
+                      {methodInstructions.map((instruction) => (
+                        <InstructionCard
+                          key={instruction.instructionId}
+                          instruction={instruction}
+                          isClient={isClient}
+                        />
+                      ))}
+                    </Space>
+
+                    {/* メソッド単位の確認完了ボタン */}
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+                      <Button
+                        type="primary"
+                        size="large"
+                        icon={<CheckCircleOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleConfirmation('メソッド単位指示', methodName);
+                        }}
+                        style={{ 
+                          minWidth: 250, 
+                          backgroundColor: token.colorSuccess, 
+                          borderColor: token.colorSuccess 
+                        }}
+                      >
+                        {methodName}の確認完了
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </Card>
+            );
+          })}
+        </Space>
+      </div>
+    );
+  }
+
+  // トランジション単位指示の場合
+  if (title === 'トランジション単位指示') {
+    const transitionGroups = groupByTransition();
+    const transitionIds = Object.keys(transitionGroups);
+
+    if (transitionIds.length === 0) {
+      return (
+        <div style={{ marginBottom: 32 }}>
+          <Card>
+            <Empty description={noDataMessages[title] || '作業指示がありません'} />
+          </Card>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ marginBottom: 32 }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          {transitionIds.map((transitionId) => {
+            const transitionInstructions = transitionGroups[transitionId];
+            const transitionName = transitionInstructions[0]?.transitionName || `トランジション ${transitionId}`;
+            const isExpanded = expandedItems[transitionId] !== false; // デフォルトで展開
+
+            return (
+              <Card
+                key={transitionId}
+                style={{
+                  borderRadius: token.borderRadius,
+                  backgroundColor: token.colorBgContainer,
+                  border: `1px solid ${token.colorBorderSecondary}`,
+                }}
+              >
+                {/* クリック可能なタイトル */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    padding: token.paddingXS,
+                    marginLeft: -token.paddingXS,
+                    marginRight: -token.paddingXS,
+                    borderRadius: token.borderRadiusSM,
+                  }}
+                  onClick={() => toggleItem(transitionId)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  {isExpanded ? <DownOutlined style={{ marginRight: 8, fontSize: 12 }} /> : <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />}
+                  <Title level={5} style={{ margin: 0, flex: 1 }}>
+                    <AimOutlined style={{ marginRight: 8, color: token.colorInfo }} />
+                    {transitionName} ({transitionInstructions.length}件)
+                  </Title>
+                </div>
+
+                {/* 展開時のみ表示 */}
+                {isExpanded && (
+                  <>
+                    <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 16, marginBottom: 16 }}>
+                      {transitionInstructions.map((instruction) => (
+                        <InstructionCard
+                          key={instruction.instructionId}
+                          instruction={instruction}
+                          isClient={isClient}
+                        />
+                      ))}
+                    </Space>
+
+                    {/* トランジション単位の確認完了ボタン */}
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+                      <Button
+                        type="primary"
+                        size="large"
+                        icon={<CheckCircleOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleConfirmation('トランジション単位指示', transitionName);
+                        }}
+                        style={{ 
+                          minWidth: 250, 
+                          backgroundColor: token.colorSuccess, 
+                          borderColor: token.colorSuccess 
+                        }}
+                      >
+                        {transitionName}の確認完了
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </Card>
+            );
+          })}
+        </Space>
+      </div>
+    );
+  }
+
+  // その他のケース（念のため）
   return (
     <div style={{ marginBottom: 32 }}>
-      <Title level={4} style={{ marginBottom: 16 }}>
-        {getIcon(emoji)}
-        {title} ({groupInstructions.length}件)
-      </Title>
-
-      {groupInstructions.length === 0 ? (
-        // データがない場合のメッセージ
-        <Card>
-          <Empty description={noDataMessages[title] || '作業指示がありません'} />
-        </Card>
-      ) : (
-        <>
-          {/* データがある場合の表示 */}
-          <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 16 }}>
-            {groupInstructions.map((instruction) => (
-              <InstructionCard
-                key={instruction.instructionId}
-                instruction={instruction}
-                isClient={isClient}
-              />
-            ))}
-          </Space>
-
-          {/* 確認完了ボタン（データがある場合のみ表示） */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-            <Button
-              type="primary"
-              size="large"
-              icon={<CheckCircleOutlined />}
-              onClick={() => alert(`${title}の確認完了（モック）`)}
-              style={{ minWidth: 250, backgroundColor: '#52c41a', borderColor: '#52c41a' }}
-            >
-              {title}の確認完了
-            </Button>
-          </div>
-        </>
-      )}
+      <Card>
+        <Empty description={noDataMessages[title] || '作業指示がありません'} />
+      </Card>
     </div>
   );
 }
