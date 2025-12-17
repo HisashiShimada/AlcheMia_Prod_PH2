@@ -268,9 +268,20 @@ export default function ProgressReport({
   };
 
   return (
-    <div>
+    <div style={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
       {/* トランジション一覧タイトルと報告ボタン */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: 16,
+        flexShrink: 0
+      }}>
         <Title level={4} style={{ margin: 0 }}>
           <BarChartOutlined style={{ marginRight: 8 }} />
           トランジション一覧
@@ -286,7 +297,7 @@ export default function ProgressReport({
       </div>
 
       {/* 絞り込みUI */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16, flexShrink: 0 }}>
         <Col xs={24} sm={12} md={8}>
           <Input
             placeholder="トランジション名、ID、ステータス..."
@@ -321,33 +332,45 @@ export default function ProgressReport({
         </Col>
       </Row>
 
-      <Table
-        rowSelection={rowSelection}
-        columns={columns}
-        dataSource={filteredProgressData}
-        rowKey={(record) => `${record.transitionId}-${record.methodId}`}
-        pagination={{
-          pageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: false,
-          showTotal: (total, range) => `全${total}件`,
-          pageSizeOptions: ['10', '20', '50', '100'],
-          position: ['bottomRight'],
-          locale: {
-            items_per_page: '件/ページ',
-            jump_to: 'ページ',
-            page: ''
-          }
-        }}
-        size="middle"
-        bordered
-        scroll={{ x: 900 }}
-        rowClassName={(_, index) => index % 2 === 0 ? 'table-row-light' : 'table-row-dark'}
-        style={{
-          background: '#ffffff',
-          borderRadius: '8px'
-        }}
-      />
+      {/* テーブルコンテナ（残りの高さを占有してスクロール） */}
+      <div style={{ 
+        flex: 1, 
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}>
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={filteredProgressData}
+          rowKey={(record) => `${record.transitionId}-${record.methodId}`}
+          pagination={{
+            pageSize: 20,
+            showSizeChanger: true,
+            showQuickJumper: false,
+            showTotal: (total, range) => `全${total}件`,
+            pageSizeOptions: ['10', '20', '50', '100'],
+            position: ['bottomRight'],
+            locale: {
+              items_per_page: '件/ページ',
+              jump_to: 'ページ',
+              page: ''
+            }
+          }}
+          size="middle"
+          bordered
+          scroll={{ 
+            x: 900,
+            y: 400
+          }}
+          rowClassName={(_, index) => index % 2 === 0 ? 'table-row-light' : 'table-row-dark'}
+          style={{
+            background: '#ffffff',
+            borderRadius: '8px'
+          }}
+        />
+      </div>
 
       {/* 進捗報告モーダル */}
       <Modal

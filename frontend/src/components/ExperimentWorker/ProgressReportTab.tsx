@@ -87,7 +87,12 @@ export default function ProgressReportTab({
   const filteredProgressData = getProgressDataForMethod();
 
   return (
-    <>
+    <div style={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
       {/* 選択タスク */}
       <div 
         style={{ 
@@ -101,6 +106,7 @@ export default function ProgressReportTab({
           display: 'flex',
           alignItems: 'center',
           padding: `0 ${token.padding}px`,
+          flexShrink: 0,
         }}
       >
         <div style={{ width: '100%' }}>
@@ -148,6 +154,7 @@ export default function ProgressReportTab({
           display: 'flex',
           alignItems: 'center',
           padding: `0 ${token.padding}px`,
+          flexShrink: 0,
         }}
       >
         <Space size="middle" style={{ width: '100%' }}>
@@ -167,39 +174,54 @@ export default function ProgressReportTab({
         </Space>
       </div>
 
-      {!selectedProject ? (
-        <Card>
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
-            <BarChartOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
-            <Title level={3} type="secondary">
-              📊 進捗報告
-            </Title>
-            <Text type="secondary">
-              プロジェクトを選択してください
-            </Text>
-          </Space>
-        </Card>
-      ) : !selectedMethodId ? (
-        <Card>
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
-            <BarChartOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
-            <Title level={3} type="secondary">
-              📊 進捗報告
-            </Title>
-            <Text type="secondary">
-              メソッドを選択してください
-            </Text>
-          </Space>
-        </Card>
-      ) : (
-        <Card>
-          <ProgressReport 
-            progressData={filteredProgressData}
-            reportType={reportType}
-            onReportTypeChange={setReportType}
-          />
-        </Card>
-      )}
+      {/* コンテンツエリア（残りの高さを占有） */}
+      <div style={{ 
+        flex: 1, 
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {!selectedProject ? (
+          <Card style={{ height: '100%', overflow: 'auto' }}>
+            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+              <BarChartOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
+              <Title level={3} type="secondary">
+                📊 進捗報告
+              </Title>
+              <Text type="secondary">
+                プロジェクトを選択してください
+              </Text>
+            </Space>
+          </Card>
+        ) : !selectedMethodId ? (
+          <Card style={{ height: '100%', overflow: 'auto' }}>
+            <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+              <BarChartOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
+              <Title level={3} type="secondary">
+                📊 進捗報告
+              </Title>
+              <Text type="secondary">
+                メソッドを選択してください
+              </Text>
+            </Space>
+          </Card>
+        ) : (
+          <Card style={{ 
+            height: '100%', 
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <ProgressReport 
+                progressData={filteredProgressData}
+                reportType={reportType}
+                onReportTypeChange={setReportType}
+              />
+            </div>
+          </Card>
+        )}
+      </div>
 
       {/* タスク選択ダイアログ */}
       <TaskSelectionDialog
@@ -210,6 +232,6 @@ export default function ProgressReportTab({
         selectedTaskId={selectedTaskId}
         onSelectTask={onSelectTask}
       />
-    </>
+    </div>
   );
 }
