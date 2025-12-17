@@ -308,17 +308,31 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
           </Card>
 
           {/* タブ */}
-          <Tabs
-            activeKey={currentTab}
-            onChange={handleTabChange}
-            items={tabItems}
-            size="large"
-            style={{
-              backgroundColor: token.colorBgContainer,
-              padding: token.paddingLG,
-              borderRadius: token.borderRadiusLG,
-            }}
-          />
+          <div style={{
+            height: `calc(100vh - ${TOTAL_HEADER_HEIGHT}px - 48px - 120px - 24px)`, // 画面高さ - ヘッダー - Content padding - 選択Card - margin
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: token.colorBgContainer,
+            borderRadius: token.borderRadiusLG,
+            overflow: 'hidden'
+          }}>
+            <Tabs
+              activeKey={currentTab}
+              onChange={handleTabChange}
+              items={tabItems}
+              size="large"
+              style={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              tabBarStyle={{
+                padding: `0 ${token.paddingLG}px`,
+                margin: 0,
+                flexShrink: 0,
+              }}
+            />
+          </div>
 
           {/* 統合選択ダイアログ */}
           <UnifiedSelectionDialog

@@ -78,14 +78,13 @@ export default function InstructionConfirmationTab({
   };
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ height: '100%', overflow: 'auto', padding: '24px' }}>
       <Card
         style={{
           borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
         }}
       >
-
         {!selectedProject ? (
           <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
             <FileTextOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
