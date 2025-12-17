@@ -34,6 +34,7 @@ function StatCard({ icon, label, value, borderColor, iconColor }: StatCardProps)
         borderLeft: `4px solid ${borderColor}`,
         borderRadius: token.borderRadius,
         height: '100%',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
       }}
       bodyStyle={{ padding: '20px 24px' }}
     >
@@ -78,13 +79,26 @@ function StatCard({ icon, label, value, borderColor, iconColor }: StatCardProps)
 
 /**
  * 指示統計コンポーネント
- * 指示の件数サマリーを表示
+ * 指示の件数サマリーを親カード内に4つの個別カードで表示
  */
 export default function InstructionStats({ stats }: InstructionStatsProps) {
   const { token } = theme.useToken();
 
   return (
-    <div style={{ marginBottom: 24 }}>
+    <Card
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FileTextOutlined style={{ fontSize: 18, color: token.colorPrimary }} />
+          <span>作業指示サマリー</span>
+        </div>
+      }
+      style={{
+        marginBottom: 24,
+        borderRadius: token.borderRadius,
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+      }}
+      bodyStyle={{ padding: '24px' }}
+    >
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={6}>
           <StatCard
@@ -123,6 +137,6 @@ export default function InstructionStats({ stats }: InstructionStatsProps) {
           />
         </Col>
       </Row>
-    </div>
+    </Card>
   );
 }

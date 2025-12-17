@@ -79,13 +79,13 @@ export default function InstructionConfirmationTab({
 
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: '24px' }}>
-      <Card
-        style={{
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-        }}
-      >
-        {!selectedProject ? (
+      {!selectedProject ? (
+        <Card
+          style={{
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+          }}
+        >
           <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
             <FileTextOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
@@ -96,138 +96,152 @@ export default function InstructionConfirmationTab({
               プロジェクトとメソッドを選択してください
             </Text>
           </Space>
-        ) : (
-          <>
-            {/* 指示サマリー */}
-            <InstructionStats stats={stats} />
+        </Card>
+      ) : (
+        <>
+          {/* 作業指示サマリーカード */}
+          <InstructionStats stats={stats} />
 
+          {/* 指示詳細カード */}
+          <Card
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FileTextOutlined style={{ fontSize: 18, color: token.colorPrimary }} />
+                <span>指示詳細</span>
+              </div>
+            }
+            style={{
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+            }}
+          >
             {/* 全体指示グループ */}
             <div style={{ marginBottom: token.marginXL }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: token.marginXS,
-                cursor: 'pointer',
-                borderRadius: token.borderRadiusSM,
-              }}
-              onClick={() => toggleGroup('file')}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              <Title level={4} style={{ margin: 0 }}>
-                {expandedGroups['file'] ? <DownOutlined /> : <RightOutlined />}{' '}
-                <FileOutlined style={{ marginRight: token.marginXS }} />
-                全体指示 (
-                {sortedInstructions.filter((i) => i.targetType === 'file').length}
-                件)
-              </Title>
-            </div>
-            {expandedGroups['file'] && (
-              <div style={{ marginTop: token.margin }}>
-                <InstructionGroup
-                  title="全体指示"
-                  emoji="file"
-                  instructions={sortedInstructions.filter(
-                    (i) => i.targetType === 'file'
-                  )}
-                  isClient={isClient}
-                />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: token.marginXS,
+                  cursor: 'pointer',
+                  borderRadius: token.borderRadiusSM,
+                }}
+                onClick={() => toggleGroup('file')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <Title level={4} style={{ margin: 0 }}>
+                  {expandedGroups['file'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                  <FileOutlined style={{ marginRight: token.marginXS }} />
+                  全体指示 (
+                  {sortedInstructions.filter((i) => i.targetType === 'file').length}
+                  件)
+                </Title>
               </div>
+              {expandedGroups['file'] && (
+                <div style={{ marginTop: token.margin }}>
+                  <InstructionGroup
+                    title="全体指示"
+                    emoji="file"
+                    instructions={sortedInstructions.filter(
+                      (i) => i.targetType === 'file'
+                    )}
+                    isClient={isClient}
+                  />
+                </div>
               )}
             </div>
 
             {/* メソッド単位指示グループ */}
             <div style={{ marginBottom: token.marginXL }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: token.marginXS,
-                cursor: 'pointer',
-                borderRadius: token.borderRadiusSM,
-              }}
-              onClick={() => toggleGroup('method')}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              <Title level={4} style={{ margin: 0 }}>
-                {expandedGroups['method'] ? <DownOutlined /> : <RightOutlined />}{' '}
-                <ToolOutlined style={{ marginRight: token.marginXS }} />
-                メソッド単位指示 (
-                {
-                  sortedInstructions.filter((i) => i.targetType === 'method')
-                    .length
-                }
-                件)
-              </Title>
-            </div>
-            {expandedGroups['method'] && (
-              <div style={{ marginTop: token.margin }}>
-                <InstructionGroup
-                  title="メソッド単位指示"
-                  emoji="tool"
-                  instructions={sortedInstructions.filter(
-                    (i) => i.targetType === 'method'
-                  )}
-                  isClient={isClient}
-                />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: token.marginXS,
+                  cursor: 'pointer',
+                  borderRadius: token.borderRadiusSM,
+                }}
+                onClick={() => toggleGroup('method')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <Title level={4} style={{ margin: 0 }}>
+                  {expandedGroups['method'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                  <ToolOutlined style={{ marginRight: token.marginXS }} />
+                  メソッド単位指示 (
+                  {
+                    sortedInstructions.filter((i) => i.targetType === 'method')
+                      .length
+                  }
+                  件)
+                </Title>
               </div>
+              {expandedGroups['method'] && (
+                <div style={{ marginTop: token.margin }}>
+                  <InstructionGroup
+                    title="メソッド単位指示"
+                    emoji="tool"
+                    instructions={sortedInstructions.filter(
+                      (i) => i.targetType === 'method'
+                    )}
+                    isClient={isClient}
+                  />
+                </div>
               )}
             </div>
 
             {/* トランジション単位指示グループ */}
             <div style={{ marginBottom: token.marginXL }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: token.marginXS,
-                cursor: 'pointer',
-                borderRadius: token.borderRadiusSM,
-              }}
-              onClick={() => toggleGroup('transition')}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              <Title level={4} style={{ margin: 0 }}>
-                {expandedGroups['transition'] ? <DownOutlined /> : <RightOutlined />}{' '}
-                <AimOutlined style={{ marginRight: token.marginXS }} />
-                トランジション単位指示 (
-                {
-                  sortedInstructions.filter(
-                    (i) => i.targetType === 'transition'
-                  ).length
-                }
-                件)
-              </Title>
-            </div>
-            {expandedGroups['transition'] && (
-              <div style={{ marginTop: token.margin }}>
-                <InstructionGroup
-                  title="トランジション単位指示"
-                  emoji="aim"
-                  instructions={sortedInstructions.filter(
-                    (i) => i.targetType === 'transition'
-                  )}
-                  isClient={isClient}
-                />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: token.marginXS,
+                  cursor: 'pointer',
+                  borderRadius: token.borderRadiusSM,
+                }}
+                onClick={() => toggleGroup('transition')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <Title level={4} style={{ margin: 0 }}>
+                  {expandedGroups['transition'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                  <AimOutlined style={{ marginRight: token.marginXS }} />
+                  トランジション単位指示 (
+                  {
+                    sortedInstructions.filter(
+                      (i) => i.targetType === 'transition'
+                    ).length
+                  }
+                  件)
+                </Title>
               </div>
+              {expandedGroups['transition'] && (
+                <div style={{ marginTop: token.margin }}>
+                  <InstructionGroup
+                    title="トランジション単位指示"
+                    emoji="aim"
+                    instructions={sortedInstructions.filter(
+                      (i) => i.targetType === 'transition'
+                    )}
+                    isClient={isClient}
+                  />
+                </div>
               )}
             </div>
 
@@ -252,9 +266,9 @@ export default function InstructionConfirmationTab({
                 全ての指示の確認完了
               </Button>
             </div>
-          </>
-        )}
-      </Card>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
