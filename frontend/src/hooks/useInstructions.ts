@@ -7,13 +7,20 @@ import { projectsData } from '@/data/projectsData';
  * プロジェクト選択、指示データ、統計情報を管理
  */
 export function useInstructions() {
-  const [selectedProject, setSelectedProject] = useState('');
+  const [selectedProject, setSelectedProject] = useState<string>('');
   const [instructions, setInstructions] = useState<Instruction[]>([]);
   const [workAssignment, setWorkAssignment] = useState<WorkAssignment | null>(null);
 
   // プロジェクト選択ハンドラー
   const handleProjectChange = (value: string) => {
     setSelectedProject(value);
+    // 空文字列またはundefinedの場合は、データをクリア
+    if (!value) {
+      setInstructions([]);
+      setWorkAssignment(null);
+      return;
+    }
+    
     const projectData = projectsData[value];
     if (projectData) {
       setInstructions(projectData.instructions);

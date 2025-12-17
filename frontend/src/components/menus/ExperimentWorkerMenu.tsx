@@ -96,7 +96,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     selectedProject,
     sortedInstructions,
     stats,
-    handleProjectChange,
+    handleProjectChange: originalHandleProjectChange,
   } = useInstructions();
 
   const {
@@ -122,17 +122,23 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     }
   }, [currentTab, selectedProject, selectedMethodId]);
 
-  // プロジェクトまたはメソッドが変更されたときにタスクをリセット
-  useEffect(() => {
+  // プロジェクト変更時のハンドラー（メソッドを"-"にリセット）
+  const handleProjectChange = (value: string | null) => {
+    // nullは空文字列として扱う
+    const projectValue = value || '';
+    originalHandleProjectChange(projectValue);
+    // プロジェクトが変更された場合、メソッドを"-"にリセット
+    setSelectedMethodId(null);
+    // タスクもリセット
     setSelectedTaskId('');
-  }, [selectedProject, selectedMethodId]);
-
-  // 選択中のプロジェクト情報を取得
-  const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
+  };
 
   // メソッド選択ハンドラー
-  const handleSelectMethod = (methodId: string) => {
+  const handleSelectMethod = (methodId: string | null) => {
+    // null値をそのまま設定
     setSelectedMethodId(methodId);
+    // メソッドが変更された場合、タスクをリセット
+    setSelectedTaskId('');
   };
 
   // タスク選択ハンドラー
@@ -262,12 +268,12 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
               <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong>{t('experimentWork.labels.project')}:</Text>
               <Select
-                value={selectedProject || undefined}
+                value={selectedProject === '' ? null : selectedProject}
                 placeholder="-"
                 style={{ flex: 1, minWidth: 150 }}
                 onChange={handleProjectChange}
                 options={[
-                  { value: undefined, label: '-' },
+                  { value: null, label: '-' },
                   ...Object.entries(projectsData).map(([id, project]) => ({
                     value: id,
                     label: project.projectName
@@ -282,13 +288,13 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
               <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong>{t('experimentWork.labels.method')}:</Text>
               <Select
-                value={selectedMethodId || undefined}
+                value={selectedMethodId}
                 placeholder="-"
                 style={{ flex: 1, minWidth: 150 }}
                 onChange={handleSelectMethod}
                 disabled={!selectedProject}
                 options={[
-                  { value: undefined, label: '-' },
+                  { value: null, label: '-' },
                   ...(selectedProject && projectsData[selectedProject]?.methods
                     ? projectsData[selectedProject].methods.map(method => ({
                         value: method.methodId,

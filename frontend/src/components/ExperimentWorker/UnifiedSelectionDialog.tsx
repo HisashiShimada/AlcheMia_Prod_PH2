@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal, List, Typography, Space, Tag, Button, theme } from 'antd';
-import { FolderOutlined, ToolOutlined, AimOutlined, CheckOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { FolderOutlined, ToolOutlined, AimOutlined, CheckOutlined, ArrowLeftOutlined, MinusOutlined } from '@ant-design/icons';
 import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
@@ -85,14 +85,26 @@ export default function UnifiedSelectionDialog({
     setTempProject(projectId);
     setTempMethodId(null); // プロジェクト変更時はメソッドをリセット
     setTempTaskId(null); // プロジェクト変更時はタスクをリセット
-    setStep('method'); // メソッド選択ステップに進む
+    
+    // "-" が選択された場合は、すぐに決定する
+    if (!projectId) {
+      handleOk();
+    } else {
+      setStep('method'); // メソッド選択ステップに進む
+    }
   };
 
   // メソッド選択時の処理
   const handleMethodSelect = (methodId: string) => {
     setTempMethodId(methodId);
     setTempTaskId(null); // メソッド変更時はタスクをリセット
-    setStep('task'); // タスク選択ステップに進む
+    
+    // "-" が選択された場合は、すぐに決定する
+    if (!methodId) {
+      handleOk();
+    } else {
+      setStep('task'); // タスク選択ステップに進む
+    }
   };
 
   // 決定ボタンの処理
@@ -126,6 +138,56 @@ export default function UnifiedSelectionDialog({
     } else if (step === 'method') {
       setStep('project');
     }
+  };
+
+  // "-" 選択アイテムをレンダリング
+  const renderEmptyOption = (type: 'project' | 'method') => {
+    const isSelected = type === 'project' ? !tempProject : !tempMethodId;
+    const isCurrentlySelected = type === 'project' ? !selectedProject : !selectedMethodId;
+    const icon = type === 'project' ? <FolderOutlined /> : <ToolOutlined />;
+    const label = type === 'project' ? 'プロジェクト' : 'メソッド';
+    const color = type === 'project' ? token.colorPrimary : token.colorInfo;
+
+    return (
+      <List.Item
+        onClick={() => type === 'project' ? handleProjectSelect('') : handleMethodSelect('')}
+        style={{
+          cursor: 'pointer',
+          padding: token.paddingMD,
+          backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
+          borderRadius: token.borderRadius,
+          marginBottom: token.marginXS,
+          transition: 'all 0.2s',
+          border: isCurrentlySelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
+        }}
+        onMouseEnter={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.backgroundColor = token.colorBgTextHover;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isSelected) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
+      >
+        <List.Item.Meta
+          avatar={React.cloneElement(icon, { style: { fontSize: 24, color } })}
+          title={
+            <Space>
+              <Text strong>-</Text>
+              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
+              {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
+            </Space>
+          }
+          description={
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {label}を選択しない
+            </Text>
+          }
+        />
+      </List.Item>
+    );
   };
 
   // プロジェクトリストアイテム
@@ -323,25 +385,29 @@ export default function UnifiedSelectionDialog({
     if (step === 'project') {
       return (
         <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-          <List
-            dataSource={Object.keys(projectsData)}
-            renderItem={renderProjectItem}
-          />
+          <List>
+            {/* "-" オプション */}
+            {renderEmptyOption('project')}
+            {/* プロジェクト一覧 */}
+            {Object.keys(projectsData).map(renderProjectItem)}
+          </List>
         </div>
       );
     } else if (step === 'method') {
       return (
         <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-          {methods.length === 0 ? (
-            <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
-              <Text type="secondary">メソッドがありません</Text>
-            </Space>
-          ) : (
-            <List
-              dataSource={methods}
-              renderItem={renderMethodItem}
-            />
-          )}
+          <List>
+            {/* "-" オプション */}
+            {renderEmptyOption('method')}
+            {/* メソッド一覧 */}
+            {methods.length === 0 ? (
+              <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
+                <Text type="secondary">メソッドがありません</Text>
+              </Space>
+            ) : (
+              methods.map(renderMethodItem)
+            )}
+          </List>
         </div>
       );
     } else {
