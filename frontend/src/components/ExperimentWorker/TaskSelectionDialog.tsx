@@ -4,18 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { Modal, List, Typography, Space, Tag, Button, theme } from 'antd';
 import { AimOutlined, CheckOutlined } from '@ant-design/icons';
 import { projectsData } from '@/data/projectsData';
-import { Method } from '@/types/experimentWorker';
+import { Method, Task } from '@/types/experimentWorker';
 
 const { Text } = Typography;
-
-/**
- * タスクの型定義
- */
-interface Task {
-  taskId: string;
-  taskName: string;
-  tag?: string;
-}
 
 /**
  * タスク選択ダイアログのProps
@@ -84,6 +75,26 @@ export default function TaskSelectionDialog({
     const isSelected = tempTaskId === task.taskId;
     const isCurrentlySelected = selectedTaskId === task.taskId;
 
+    // ステータスに応じたタグ表示
+    const getStatusTag = (status: string) => {
+      switch (status) {
+        case 'not_started':
+          return <Tag>未着手</Tag>;
+        case 'started':
+          return <Tag color="blue">着手</Tag>;
+        case 'in_progress':
+          return <Tag color="orange">進行中</Tag>;
+        case 'completed':
+          return <Tag color="green">完了</Tag>;
+        case 'suspended':
+          return <Tag color="red">中断</Tag>;
+        case 'forced_terminated':
+          return <Tag color="red">強制終了</Tag>;
+        default:
+          return null;
+      }
+    };
+
     return (
       <List.Item
         onClick={() => setTempTaskId(task.taskId)}
@@ -112,7 +123,7 @@ export default function TaskSelectionDialog({
           title={
             <Space>
               <Text strong>{task.taskName}</Text>
-              {task.tag && <Tag>{task.tag}</Tag>}
+              {getStatusTag(task.status)}
               {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
               {isSelected && !isCurrentlySelected && <Tag color="red">選択中</Tag>}
             </Space>
@@ -120,8 +131,18 @@ export default function TaskSelectionDialog({
           description={
             <Space direction="vertical" size={0}>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                {task.taskId}
+                タスクID: {task.taskId}
               </Text>
+              {task.sampleNumber && (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  サンプル番号: {task.sampleNumber}
+                </Text>
+              )}
+              {task.notes && (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  備考: {task.notes}
+                </Text>
+              )}
             </Space>
           }
         />

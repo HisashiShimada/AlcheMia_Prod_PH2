@@ -49,8 +49,8 @@ export default function ProgressReportTab({
   const [reportType, setReportType] = useState<ReportType>('progress');
 
   // タスクデータを選択されたプロジェクトとメソッドから取得
-  const tasks = (selectedProject && selectedMethodId)
-    ? (projectsData[selectedProject]?.methods?.find((m) => m.methodId === selectedMethodId)?.tasks || [])
+  const tasks = selectedProject && selectedMethod
+    ? selectedMethod.tasks || []
     : [];
 
   // Selectコンポーネント用のオプションを生成
@@ -59,26 +59,22 @@ export default function ProgressReportTab({
     value: task.taskId,
   }));
 
-  // 選択したプロジェクトとメソッドに基づいてトランジションをフィルタリング
-  const getFilteredProgressData = () => {
-    if (!selectedProject) {
+  // 選択したプロジェクトとメソッドに基づいてprogressDataを取得
+  // 実験記録タブと同様に、タスク選択に関わらずメソッドの全データを表示
+  const getProgressDataForMethod = () => {
+    if (!selectedProject || !selectedMethodId) {
       return [];
     }
 
     const allProgressData = projectsData[selectedProject]?.progressData || [];
 
-    // メソッドが選択されている場合はフィルタリング
-    if (selectedMethodId) {
-      return allProgressData.filter(
-        (progress) => progress.methodId === selectedMethodId
-      );
-    }
-
-    // メソッドが選択されていない場合は空配列を返す
-    return [];
+    // メソッドでフィルタリングのみ（タスクフィルタは行わない）
+    return allProgressData.filter(
+      (progress) => progress.methodId === selectedMethodId
+    );
   };
 
-  const filteredProgressData = getFilteredProgressData();
+  const filteredProgressData = getProgressDataForMethod();
 
   return (
     <>

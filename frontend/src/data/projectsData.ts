@@ -668,6 +668,8 @@ export const projectsData: Record<string, ProjectData> = {
       }
     },
     "progressData": [
+      // m001（温度キャリブレーション）: タスク×トランジション = 3×2 = 6個
+      // タスク1: 温度記録
       {
         "transitionId": "t001",
         "transitionName": "サンプル準備",
@@ -690,50 +692,301 @@ export const projectsData: Record<string, ProjectData> = {
         "reportCount": 2,
         "issueCount": 1
       },
+      // タスク2: 誤差計算
       {
         "transitionId": "t001",
         "transitionName": "サンプル準備",
         "taskName": "誤差計算",
-        "methodId": "m002",
-        "methodName": "サンプル重量測定",
-        "progressRate": 50,
-        "status": "in_progress",
-        "reportCount": 1,
-        "issueCount": 0
-      },
-      {
-        "transitionId": "t003",
-        "transitionName": "データ測定",
-        "taskName": "レポート作成",
-        "methodId": "m003",
-        "methodName": "データバックアップ",
-        "progressRate": 100,
-        "status": "completed",
-        "reportCount": 5,
-        "issueCount": 0
-      },
-      {
-        "transitionId": "t002",
-        "transitionName": "温度設定",
-        "taskName": "温度記録",
-        "methodId": "m004",
-        "methodName": "機器クリーニング",
+        "methodId": "m001",
+        "methodName": "温度キャリブレーション",
         "progressRate": 0,
         "status": "not_started",
         "reportCount": 0,
         "issueCount": 0
       },
       {
-        "transitionId": "t003",
-        "transitionName": "データ測定",
+        "transitionId": "t002",
+        "transitionName": "温度設定",
         "taskName": "誤差計算",
-        "methodId": "m004",
-        "methodName": "機器クリーニング",
-        "progressRate": 25,
-        "status": "issue",
-        "reportCount": 1,
-        "issueCount": 2
-      }
+        "methodId": "m001",
+        "methodName": "温度キャリブレーション",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      // タスク3: レポート作成
+      {
+        "transitionId": "t001",
+        "transitionName": "サンプル準備",
+        "taskName": "レポート作成",
+        "methodId": "m001",
+        "methodName": "温度キャリブレーション",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t002",
+        "transitionName": "温度設定",
+        "taskName": "レポート作成",
+        "methodId": "m001",
+        "methodName": "温度キャリブレーション",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      
+      // m002（サンプル重量測定）: タスク×トランジション = 1×22 = 22個
+      // タスク1: 重量測定記録
+      {
+        "transitionId": "t004",
+        "transitionName": "測定環境準備",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t005",
+        "transitionName": "天秤キャリブレーション",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t006",
+        "transitionName": "ゼロ点調整",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t007",
+        "transitionName": "サンプルA-1測定",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t008",
+        "transitionName": "サンプルA-2測定",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t009",
+        "transitionName": "サンプルA-3測定",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t010",
+        "transitionName": "サンプルB-1測定",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t011",
+        "transitionName": "サンプルB-2測定",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t012",
+        "transitionName": "サンプルB-3測定",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t013",
+        "transitionName": "重量データ記録",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t014",
+        "transitionName": "データ検証",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t015",
+        "transitionName": "異常値チェック",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t016",
+        "transitionName": "再測定判定",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t017",
+        "transitionName": "環境データ記録",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t018",
+        "transitionName": "測定結果入力",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t019",
+        "transitionName": "データバックアップ",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t020",
+        "transitionName": "品質確認",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t021",
+        "transitionName": "承認申請",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t022",
+        "transitionName": "最終確認",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t023",
+        "transitionName": "レポート作成",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t024",
+        "transitionName": "サンプル保管",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      {
+        "transitionId": "t025",
+        "transitionName": "記録完了",
+        "taskName": "重量測定記録",
+        "methodId": "m002",
+        "methodName": "サンプル重量測定",
+        "progressRate": 0,
+        "status": "not_started",
+        "reportCount": 0,
+        "issueCount": 0
+      },
+      
+      // m003（データバックアップ）: タスクがないため、progressDataなし
+      
+      // m004（機器クリーニング）: タスクがないため、progressDataなし
     ]
   },
   "project_002": {
