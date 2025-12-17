@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Space, Button, Typography, message } from 'antd';
-import { RightOutlined, FileTextOutlined } from '@ant-design/icons';
+import { RightOutlined, FileTextOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import TaskListTable from './TaskListTable';
 import {
   getTasksByProjectAndMethod,
@@ -148,6 +148,7 @@ export default function TaskListTab({
               color: '#212121'
             }}
           >
+            <CheckSquareOutlined style={{ marginRight: 8 }} />
             タスク一覧
           </Typography.Title>
 

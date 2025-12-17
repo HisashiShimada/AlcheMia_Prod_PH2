@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Card, Space, Typography, theme, Button, Select } from 'antd';
-import { BarChartOutlined, CheckOutlined, AimOutlined, FileTextOutlined } from '@ant-design/icons';
+import { BarChartOutlined, CheckOutlined, CheckSquareOutlined, FileTextOutlined } from '@ant-design/icons';
 import ProgressReport from './ProgressReport';
 import TaskSelectionDialog from './TaskSelectionDialog';
 import { projectsData } from '@/data/projectsData';
@@ -107,7 +107,7 @@ export default function ProgressReportTab({
           {/* タスク選択（コンボボックス） + 選択ボタン */}
           <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: token.margin }}>
             <Space size="middle" style={{ flex: 1 }}>
-              <AimOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong style={{ minWidth: 80 }}>タスク:</Text>
               <Select
                 style={{ flex: 1, minWidth: 200 }}

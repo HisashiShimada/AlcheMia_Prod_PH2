@@ -5,7 +5,7 @@ import { Card, Space, Typography, theme, Button, Select, Empty } from 'antd';
 import { 
   ExperimentOutlined, 
   CheckOutlined, 
-  AimOutlined, 
+  CheckSquareOutlined, 
   PartitionOutlined,
   UnorderedListOutlined,
   BarChartOutlined
@@ -107,7 +107,7 @@ export default function ExperimentRecordTab({
           {/* タスク選択（コンボボックス） + 選択ボタン */}
           <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: token.margin }}>
             <Space size="middle" style={{ flex: 1 }}>
-              <AimOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong style={{ minWidth: 80 }}>タスク:</Text>
               <Select
                 style={{ flex: 1, minWidth: 200 }}
@@ -186,7 +186,7 @@ export default function ExperimentRecordTab({
       ) : !selectedTaskId ? (
         <Card>
           <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
-            <AimOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
+            <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
               📋 トランジション一覧
             </Title>
