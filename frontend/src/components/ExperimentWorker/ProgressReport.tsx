@@ -166,13 +166,6 @@ export default function ProgressReport({ progressData }: ProgressReportProps) {
 
   // サマリー統計
   const totalCount = progressData.length;
-  const completedCount = progressData.filter((p) => p.status === 'completed').length;
-  const inProgressCount = progressData.filter((p) => p.status === 'in_progress').length;
-  const notStartedCount = progressData.filter((p) => p.status === 'not_started').length;
-  const issueCount = progressData.filter((p) => p.status === 'issue').length;
-  const avgProgress = totalCount > 0
-    ? Math.round(progressData.reduce((sum, p) => sum + p.progressRate, 0) / totalCount)
-    : 0;
 
   // フォームクリア
   const handleClear = () => {
@@ -205,34 +198,6 @@ export default function ProgressReport({ progressData }: ProgressReportProps) {
 
   return (
     <div>
-      {/* サマリー情報 */}
-      <Space size="large" wrap style={{ marginBottom: 24 }}>
-        <Card size="small" style={{ minWidth: 150 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>合計トランジション数</Text>
-          <Title level={3} style={{ margin: 0 }}>{totalCount}</Title>
-        </Card>
-        <Card size="small" style={{ minWidth: 120 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>完了</Text>
-          <Title level={3} style={{ margin: 0, color: '#52c41a' }}>{completedCount}</Title>
-        </Card>
-        <Card size="small" style={{ minWidth: 120 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>進行中</Text>
-          <Title level={3} style={{ margin: 0, color: '#1890ff' }}>{inProgressCount}</Title>
-        </Card>
-        <Card size="small" style={{ minWidth: 120 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>未着手</Text>
-          <Title level={3} style={{ margin: 0, color: '#8c8c8c' }}>{notStartedCount}</Title>
-        </Card>
-        <Card size="small" style={{ minWidth: 120 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>課題あり</Text>
-          <Title level={3} style={{ margin: 0, color: '#ff4d4f' }}>{issueCount}</Title>
-        </Card>
-        <Card size="small" style={{ minWidth: 140 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>平均進捗率</Text>
-          <Title level={3} style={{ margin: 0 }}>{avgProgress}%</Title>
-        </Card>
-      </Space>
-
       {/* トランジション一覧 */}
       <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
         <Title level={4} style={{ marginBottom: 0 }}>
