@@ -92,11 +92,17 @@ export default function ExperimentRecordTab({
   return (
     <>
       {/* 選択カード */}
-      <Card 
+      <div
         style={{ 
           marginBottom: token.marginLG,
-          backgroundColor: selectedMethod ? token.colorPrimaryBg : token.colorBgContainer,
-          borderColor: selectedMethod ? token.colorPrimary : token.colorBorder,
+          height: 56,
+          display: 'flex',
+          alignItems: 'center',
+          paddingLeft: token.paddingLG,
+          paddingRight: token.paddingLG,
+          backgroundColor: token.colorBgContainer,
+          border: `1px solid ${token.colorBorder}`,
+          borderRadius: 0,
         }}
       >
         <div style={{ width: '100%' }}>
@@ -125,7 +131,7 @@ export default function ExperimentRecordTab({
             </Button>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* 表示切り替えボタン */}
       {selectedProject && selectedMethod && (
