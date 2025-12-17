@@ -48,15 +48,9 @@ export default function ProgressReportTab({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reportType, setReportType] = useState<ReportType>('progress');
 
-  // タスクデータ（TODO: 実際のデータはAPIから取得）
-  // 選択されたメソッドに基づいてタスク一覧を生成
-  const tasks = selectedMethod
-    ? [
-        { taskId: 'new', taskName: '新規タスク' },
-        { taskId: 'task001', taskName: 'タスク001' },
-        { taskId: 'task002', taskName: 'タスク002' },
-        { taskId: 'task003', taskName: 'タスク003' },
-      ]
+  // タスクデータを選択されたプロジェクトとメソッドから取得
+  const tasks = (selectedProject && selectedMethodId)
+    ? (projectsData[selectedProject]?.methods?.find((m) => m.methodId === selectedMethodId)?.tasks || [])
     : [];
 
   // Selectコンポーネント用のオプションを生成
@@ -111,10 +105,13 @@ export default function ProgressReportTab({
               <Text strong style={{ minWidth: 80 }}>タスク:</Text>
               <Select
                 style={{ flex: 1, minWidth: 200 }}
-                placeholder="タスクを選択してください"
+                placeholder="-"
                 value={selectedTaskId || undefined}
                 onChange={onSelectTask}
-                options={taskOptions}
+                options={[
+                  { value: undefined, label: '-' },
+                  ...taskOptions
+                ]}
                 disabled={!selectedMethod}
                 size="large"
               />
