@@ -20,10 +20,12 @@
     "axios": "^1.13.2",
     "lucide-react": "^0.556.0",
     "dayjs": "^1.11.19",
+    "lucide-react": "^0.556.0",
     "next": "16.0.8",
     "papaparse": "^5.5.3",
     "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "react-dom": "19.2.1",
+    "reactflow": "^11.11.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

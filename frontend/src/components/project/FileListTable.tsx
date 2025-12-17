@@ -1,20 +1,24 @@
 'use client';
 
 import React from 'react';
-import { Table, Tag, Tooltip, Button, Space, Typography, Flex } from 'antd';
+import {
+  Table,
+  Button,
+  Tooltip,
+  Space,
+  Empty,
+  theme,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   FileTextOutlined,
   FileOutlined,
-  FolderOpenOutlined,
   TableOutlined,
-  FilePdfOutlined,
-  FileExcelOutlined,
+  FolderOpenOutlined,
   DownloadOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
-
-const { Text } = Typography;
 
 interface FileData {
   id: string;
@@ -37,115 +41,105 @@ interface FileListTableProps {
  * ファイル一覧テーブルコンポーネント
  */
 const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFolderClick }) => {
+  const { token } = theme.useToken();
+  
   // ファイルタイプに応じたアイコンを取得
   const getFileIcon = (file: FileData) => {
     if (file.isFolder) {
-      return <FolderOpenOutlined style={{ fontSize: 20, color: '#FFA726' }} />;
+      return <FolderOpenOutlined style={{ fontSize: token.fontSizeLG, color: token.colorWarning }} />;
     }
     
     switch (file.type) {
       case 'maiml':
-        return <FileTextOutlined style={{ fontSize: 20, color: '#2196F3' }} />;
+        return <FileTextOutlined style={{ fontSize: token.fontSizeLG, color: token.colorInfo }} />;
       case 'pdf':
-        return <FilePdfOutlined style={{ fontSize: 20, color: '#F44336' }} />;
+        return <FileTextOutlined style={{ fontSize: token.fontSizeLG, color: token.colorError }} />;
       case 'excel':
-        return <FileExcelOutlined style={{ fontSize: 20, color: '#4CAF50' }} />;
+        return <TableOutlined style={{ fontSize: token.fontSizeLG, color: token.colorSuccess }} />;
       case 'csv':
-        return <TableOutlined style={{ fontSize: 20, color: '#757575' }} />;
+        return <TableOutlined style={{ fontSize: token.fontSizeLG, color: token.colorTextSecondary }} />;
       case 'archive':
-        return <FolderOpenOutlined style={{ fontSize: 20, color: '#FF9800' }} />;
+        return <FolderOpenOutlined style={{ fontSize: token.fontSizeLG, color: token.colorWarning }} />;
       default:
-        return <FileOutlined style={{ fontSize: 20, color: '#757575' }} />;
+        return <FileOutlined style={{ fontSize: token.fontSizeLG, color: token.colorTextSecondary }} />;
     }
   };
 
-  // テーブルのカラム定義
   const columns: ColumnsType<FileData> = [
     {
       title: 'タイプ',
-      dataIndex: 'type',
       key: 'type',
-      width: 80,
+      width: 50,
       align: 'center',
-      render: (_, file) => (
-        <Flex justify="center">
-          {getFileIcon(file)}
-        </Flex>
-      ),
+      render: (_text: string, record: FileData) => getFileIcon(record),
     },
     {
       title: 'ファイル名',
       dataIndex: 'name',
       key: 'name',
-      render: (_, file) => (
-        <Tooltip title={file.path} placement="topLeft">
-          <Space direction="vertical" size={4}>
-            <Text
-              strong={file.isFolder}
-              style={{
-                color: file.isFolder ? '#FFA726' : 'inherit',
-                cursor: file.isFolder ? 'pointer' : 'inherit',
-              }}
-            >
-              {file.name}
-              {file.isFolder && file.fileCount !== undefined && ` (${file.fileCount})`}
-            </Text>
-            {file.type === 'maiml' && !file.isFolder && (
-              <Tag color="blue" style={{ marginTop: 4 }}>
-                MaiML
-              </Tag>
-            )}
-          </Space>
+      sorter: (a, b) => a.name.localeCompare(b.name, 'ja'),
+      render: (text: string, record: FileData) => (
+        <Tooltip title={record.path} placement="topLeft">
+          <span
+            style={{
+              fontWeight: record.isFolder ? token.fontWeightStrong : 'normal',
+              color: record.isFolder ? token.colorWarning : 'inherit',
+              cursor: record.isFolder ? 'pointer' : 'inherit',
+            }}
+          >
+            {text}
+            {record.isFolder && record.fileCount !== undefined && ` (${record.fileCount})`}
+          </span>
         </Tooltip>
       ),
     },
     {
       title: 'サイズ',
-      dataIndex: 'size',
       key: 'size',
       width: 120,
-      render: (_, file) =>
-        !file.isFolder ? (
-          <Text type="secondary">{formatFileSize(file.size)}</Text>
+      sorter: (a, b) => a.size - b.size,
+      render: (_text: string, record: FileData) =>
+        !record.isFolder ? (
+          <span style={{ color: token.colorTextSecondary }}>{formatFileSize(record.size)}</span>
         ) : null,
     },
     {
       title: '最終更新日',
-      dataIndex: 'lastModified',
       key: 'lastModified',
-      width: 180,
-      render: (_, file) =>
-        !file.isFolder ? (
-          <Text type="secondary">{formatRelativeTime(file.lastModified)}</Text>
+      width: 150,
+      sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime(),
+      render: (_text: string, record: FileData) =>
+        !record.isFolder ? (
+          <span style={{ color: token.colorTextSecondary }}>{formatRelativeTime(record.lastModified)}</span>
         ) : null,
     },
     {
       title: '操作',
       key: 'actions',
-      width: 240,
+      width: 220,
       align: 'center',
-      render: (_, file) =>
-        !file.isFolder ? (
+      render: (_text: string, record: FileData) =>
+        !record.isFolder ? (
           <Space size="small">
             <Button
-              size="middle"
+              type="default"
+              size="small"
               icon={<DownloadOutlined />}
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('Download file:', file.name);
+                console.log('Download file:', record.name);
               }}
             >
               ダウンロード
             </Button>
             <Button
               type="primary"
-              size="middle"
-              style={{
-                backgroundColor: '#00695c',
-              }}
+              size="small"
+              icon={<EyeOutlined />}
+              style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('View file:', file.name);
+                console.log('View file:', record.name);
               }}
             >
               ビューア
@@ -157,13 +151,13 @@ const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFol
 
   return (
     <Table
-      columns={columns}
       dataSource={files}
+      columns={columns}
       rowKey="id"
+      size="small"
       pagination={false}
-      scroll={{ y: 600 }}
       locale={{
-        emptyText: 'ファイルがありません',
+        emptyText: <Empty description="ファイルがありません" image={Empty.PRESENTED_IMAGE_SIMPLE} />,
       }}
       onRow={(record) => ({
         onClick: () => {

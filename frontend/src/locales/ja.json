@@ -58,12 +58,9 @@
       "tabs": {
         "projectManagement": "プロジェクト管理",
         "formatManagement": "フォーマット管理",
-        "experimentManagement": "実験管理",
-        "workerAssignment": "ワーカー割当",
-        "progressManagement": "進捗管理",
-        "maimlEditor": "MAIML編集",
-        "fileManagement": "ファイル管理",
-        "statistics": "統計情報"
+        "progressMonitoring": "進捗確認",
+        "workerManagement": "作業者管理"
+
       }
     },
     "experiment_worker": {
@@ -80,5 +77,300 @@
   },
   "content": {
     "notImplemented": "コンテンツエリア（未実装）"
+  },
+  "formatManagement": {
+    "search_by_format_name": "フォーマット名で検索",
+    "filter_placeholder": "入力値でフィルタリング",
+    "advanced_search": "詳細検索",
+    "owner": "所有者",
+    "my_only": "自分所有のみ",
+    "all_formats": "全体",
+    "department": "部門",
+    "all": "全て",
+    "create": {
+      "titleXml": "新規XMLファイル作成",
+      "titleMaiml": "新規MaiMLファイル作成",
+      "submit": "作成",
+      "error": "作成エラー",
+      "formatInfo": "フォーマット情報",
+      "formatName": "フォーマット",
+      "fileType": "ファイルタイプ",
+      "extension": "拡張子",
+      "fileName": "ファイル名",
+      "fileNameRequired": "ファイル名を入力してください",
+      "fileNameMinLength": "ファイル名は1文字以上で入力してください",
+      "fileNameMaxLength": "ファイル名は100文字以内で入力してください",
+      "fileNamePlaceholder": "ファイル名を入力",
+      "fileNameExtra": "拡張子は自動で付加されます",
+      "success": "ファイルが正常に作成されました",
+      "successDescription": "新しいファイルが作成され、一覧に追加されました"
+    },
+    "filter_labels": {
+      "category": "カテゴリ:",
+      "file_type": "ファイルタイプ:",
+      "search": "検索:"
+    },
+    "category_filter": "カテゴリ絞込",
+    "protocol": "プロトコル",
+    "material": "材料",
+    "measurement": "測定",
+    "analysis": "解析",
+    "sample": "試料",
+    "device": "装置",
+    "file_type": "ファイルタイプ",
+    "new_format": "新規フォーマット",
+    "upload": "アップロード",
+    "refresh": "Refresh",
+    "new_xml_file": "新規XMLファイル",
+    "new_maiml_file": "新規MaiMLファイル",
+    "new_folder": "新規フォルダ",
+    "selected_format": "選択中のフォーマット",
+    "folder_name": "フォルダ名（物理名）",
+    "folder_name_required": "フォルダ名を入力してください",
+    "folder_name_format": "フォルダ名は英数字、アンダースコア、ハイフンのみ使用できます",
+    "folder_name_tooltip": "S3に作成されるフォルダの物理名です（半角英数字、アンダースコア、ハイフン）",
+    "display_name": "表示名",
+    "display_name_required": "表示名を入力してください",
+    "folder_create_success": "フォルダが正常に作成されました",
+    "folder_create_error": "フォルダの作成に失敗しました",
+    "folder_create_note": "新しいフォルダが作成されます。フォルダ名は後から変更できません。",
+    "select_format": "フォーマットを選択してください",
+    "select_format_description": "左側のフォルダツリーからフォーマットを選択すると、フォーマットファイルの一覧が表示されます"
+  },
+  "projectManagement": {
+    "search_by_project_name": "プロジェクト名で検索",
+    "filter_placeholder": "入力値でフィルタリング",
+    "advanced_search": "詳細検索",
+    "owner": "所有者",
+    "my_only": "自分所有のみ",
+    "all_projects": "全体",
+    "department": "部門",
+    "all": "全て",
+    "create": {
+      "title": "新規プロジェクト作成",
+      "submit": "作成",
+      "error": "作成エラー",
+      "userInfo": "作成者情報",
+      "owner": "所有者",
+      "department": "部門",
+      "projectName": "プロジェクト名",
+      "projectNameRequired": "プロジェクト名を入力してください",
+      "projectNameMinLength": "プロジェクト名は3文字以上で入力してください",
+      "projectNameMaxLength": "プロジェクト名は100文字以内で入力してください",
+      "projectNamePlaceholder": "プロジェクト名を入力",
+      "folderName": "フォルダ名",
+      "folderNameRequired": "フォルダ名を入力してください",
+      "folderNamePattern": "フォルダ名は小文字英数字、アンダースコア、ハイフンのみ使用できます",
+      "folderNameMinLength": "フォルダ名は3文字以上で入力してください",
+      "folderNameMaxLength": "フォルダ名は50文字以内で入力してください",
+      "folderNamePlaceholder": "project_folder_name",
+      "folderNameExtra": "プロジェクト名から自動生成されます。必要に応じて編集可能です。",
+      "description": "プロジェクト説明",
+      "descriptionPlaceholder": "プロジェクトの説明を入力（オプション）",
+      "success": "プロジェクトが正常に作成されました",
+      "successDescription": "新しいプロジェクトフォルダが作成され、一覧に追加されました"
+    },
+    "filter_labels": {
+      "owner": "所有者:",
+      "department": "部門:",
+      "project_status": "プロジェクトステータス:",
+      "checkout_status": "チェックアウトステータス:",
+      "search": "検索:"
+    },
+    "project_status": "プロジェクトステータス",
+    "status_planning": "プロジェクト計画中",
+    "status_pending": "タスク実行待ち",
+    "status_in_progress": "タスク実行中",
+    "status_review_waiting": "タスク結果レビュー待ち",
+    "status_completed": "プロジェクト完了",
+    "status_error": "タスク異常終了",
+    "checkout": "チェックアウト",
+    "checked_in": "チェックイン済み",
+    "checked_out": "チェックアウト済み",
+    "checking_out": "チェックアウト中",
+    "new_project": "新規プロジェクト",
+    "upload": "アップロード",
+    "refresh": "Refresh",
+    "project_download": "プロジェクトダウンロード",
+    "edit": "編集",
+    "checkin": "チェックイン",
+    "checkout_action": "チェックアウト",
+    "send_instruction": "指示送信",
+    "publish": "公開",
+    "select_project": "プロジェクトを選択してください",
+    "select_project_description": "左側のフォルダツリーからプロジェクトを選択すると、ファイル一覧が表示されます",
+    "tabs": {
+      "file_management": "ファイル管理",
+      "task_results": "タスク結果確認"
+    },
+    "task_results": {
+      "no_project_selected": "プロジェクトを選択してください",
+      "no_tasks": "タスク結果がありません",
+      "coming_soon": "タスク結果確認機能は開発中です",
+      "work_id": "作業ID",
+      "reporter_name": "報告者名",
+      "reported_at": "報告日時",
+      "status": "ステータス",
+      "actions": "操作",
+      "view_result": "結果確認",
+      "status_pending": "実行待ち",
+      "status_in_progress": "実行中",
+      "status_review_waiting": "結果レビュー待ち",
+      "status_reviewed": "結果レビュー済み",
+      "stats": {
+        "total_tasks": "タスク総数",
+        "pending_count": "実行待ち",
+        "in_progress_count": "実行中",
+        "review_waiting_count": "レビュー待ち",
+        "reviewed_count": "レビュー済み"
+      }
+    }
+  },
+  "progress": {
+    "title": "進捗管理",
+    "lastUpdated": "最終更新",
+    "refresh": "更新",
+    "filter_placeholder": "入力値でフィルタリング",
+    "filter_labels": {
+      "owner": "所有者:",
+      "department": "部門:",
+      "project_status": "プロジェクトステータス:",
+      "checkout_status": "チェックアウトステータス:",
+      "search": "検索:"
+    },
+    "stats": {
+      "totalProjects": "プロジェクト",
+      "checkedOut": "チェックアウト中",
+      "workingWorkers": "作業中の作業者数",
+      "working": "作業中数",
+      "averageProgress": "平均進捗"
+    },
+    "search": {
+      "placeholder": "プロジェクト名、所有者で検索...",
+      "advancedSearch": "詳細検索"
+    },
+    "filter": {
+      "all": "全て",
+      "allDepartments": "全部門",
+      "allStatus": "全ステータス",
+      "owner": "所有者",
+      "myOnly": "自分所有のみ",
+      "allProjects": "全体",
+      "department": "部門",
+      "projectStatus": "プロジェクトステータス",
+      "progressStatusLabel": "進捗ステータス",
+      "checkout": "チェックアウト",
+      "checkedOut": "チェックアウト済み",
+      "checkedIn": "チェックイン済み",
+      "planning": "プロジェクト計画中",
+      "pending": "タスク実行待ち",
+      "inProgress": "タスク実行中",
+      "reviewWaiting": "タスク結果レビュー待ち",
+      "completed": "プロジェクト完了",
+      "error": "タスク異常終了",
+      "notStarted": "未着手"
+    },
+    "progressStatus": {
+      "completed": "完了",
+      "inProgress": "作業中",
+      "notStarted": "未着手"
+    },
+    "table": {
+      "projectName": "プロジェクト名",
+      "projectStatus": "プロジェクトステータス",
+      "progressStatus": "進捗ステータス",
+      "checkoutStatus": "チェックアウト",
+      "owner": "所有者",
+      "workingWorker": "作業者",
+      "workCount": "作業数",
+      "taskProgress": "完了タスク数/総タスク数",
+      "workIdCount": "作業ID数",
+      "progressRate": "進捗率",
+      "completedTransitions": "完了トランジション",
+      "actions": "操作",
+      "total": "合計",
+      "items": "件"
+    },
+    "actions": {
+      "viewDetails": "詳細表示"
+    }
+  },
+  "worker": {
+    "title": "作業者管理",
+    "send": "送信",
+    "search": {
+      "placeholder": "作業者ID、名前、メールで検索..."
+    },
+    "filter": {
+      "allStatus": "全ステータス"
+    },
+    "filter_labels": {
+      "status": "ステータス:",
+      "search": "検索:"
+    },
+    "status": {
+      "active": "アクティブ",
+      "inactive": "非アクティブ"
+    },
+    "stats": {
+      "totalWorkers": "総作業者数",
+      "activeWorkers": "アクティブ",
+      "workingProjects": "作業中プロジェクト",
+      "completedProjects": "完了プロジェクト",
+      "totalTasks": "総タスク数",
+      "completedTasks": "完了タスク数",
+      "people": "人"
+    },
+    "table": {
+      "workerList": "作業者一覧",
+      "worker": "作業者",
+      "status": "ステータス",
+      "assigned": "割り当て",
+      "completed": "完了",
+      "totalTasks": "総タスク数",
+      "inProgressTasks": "作業中タスク数",
+      "reportedTasks": "報告済みタスク数",
+      "completedTasks": "完了タスク数",
+      "progressRate": "進捗率",
+      "sessionCount": "セッション",
+      "lastConnection": "最終接続",
+      "actions": "操作",
+      "noRecord": "未記録",
+      "total": "合計"
+    },
+    "actions": {
+      "viewDetails": "詳細表示"
+    },
+    "detail": {
+      "title": "作業者詳細",
+      "loading": "読み込み中",
+      "loadingMessage": "詳細データ読み込み中...",
+      "basicInfo": "基本情報",
+      "workStats": "作業統計",
+      "assignedFiles": "割り当てファイル",
+      "recentProgress": "最近の進捗報告",
+      "id": "ID",
+      "name": "名前",
+      "email": "メール",
+      "lastLogin": "最終ログイン",
+      "lastActivity": "最終活動",
+      "totalFiles": "総ファイル数",
+      "completionRate": "完了率",
+      "inProgress": "進行中",
+      "sessionCount": "セッション数",
+      "filesCount": "件",
+      "notSet": "未設定",
+      "noRecord": "未記録",
+      "unknownFile": "ファイル名不明",
+      "noAssignedFiles": "割り当てられたファイルがありません",
+      "noProgressReports": "進捗報告がありません",
+      "fetchError": "詳細データの取得に失敗",
+      "fetchErrorMessage": "作業者の詳細情報を取得できませんでした",
+      "status": {
+        "completed": "完了",
+        "inProgress": "進行中",
+        "pending": "未開始"
+      }
+    }
   }
 }

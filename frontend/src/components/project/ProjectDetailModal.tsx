@@ -3,21 +3,20 @@
 import React from 'react';
 import {
   Modal,
+  Button,
   Typography,
   Tag,
   Divider,
   Space,
-  Button,
-  Flex,
-  Descriptions,
+  Row,
+  Col,
 } from 'antd';
 import {
   CloseOutlined,
   FolderOutlined,
-  UserOutlined,
   TeamOutlined,
   FileTextOutlined,
-  DatabaseOutlined,
+  HddOutlined,
   CalendarOutlined,
 } from '@ant-design/icons';
 import FileListTable from './FileListTable';
@@ -49,11 +48,9 @@ interface ProjectDetailModalProps {
     size: number;
     lastModified: string;
     type: string;
-    isFolder?: boolean;
-    fileCount?: number;
-    isCheckedOut?: boolean;
-    checkedOutBy?: string | null;
-    checkedOutAt?: string | null;
+    isCheckedOut: boolean;
+    checkedOutBy: string | null;
+    checkedOutAt: string | null;
   }>;
 }
 
@@ -68,7 +65,16 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
 }) => {
   if (!project) return null;
 
-  const statusColor = getStatusColor(project.status);
+  const getStatusTagColor = (status: string): string => {
+    const colors: Record<string, string> = {
+      planning: 'default',
+      pending: 'blue',
+      in_progress: 'cyan',
+      completed: 'success',
+    };
+    return colors[status] || 'default';
+  };
+
   const statusText = formatProjectStatus(project.status);
 
   return (
@@ -76,39 +82,39 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
       open={open}
       onCancel={onClose}
       width={1000}
-      style={{ top: 20 }}
-      styles={{
-        body: { maxHeight: 'calc(90vh - 200px)', overflowY: 'auto' },
-      }}
+      style={{ top: 40 }}
+      bodyStyle={{ maxHeight: 'calc(90vh - 200px)', overflowY: 'auto' }}
+      title={
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <Space size="middle" style={{ marginBottom: 8 }}>
+              <Title level={4} style={{ margin: 0 }}>
+                {project.name}
+              </Title>
+              <Tag color={getStatusTagColor(project.status)}>
+                {statusText}
+              </Tag>
+            </Space>
+            <Space size="small">
+              <FolderOutlined style={{ color: '#757575' }} />
+              <Text type="secondary">{project.folderName}</Text>
+            </Space>
+          </div>
+        </div>
+      }
       footer={[
         <Button key="close" onClick={onClose}>
           閉じる
         </Button>,
-        <Button key="open" type="primary">
+        <Button key="open" type="primary" onClick={() => console.log('Open project')}>
           プロジェクトを開く
         </Button>,
       ]}
     >
-      {/* ヘッダー */}
-      <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
-        <Flex align="center" gap="middle">
-          <Title level={4} style={{ margin: 0 }}>
-            {project.name}
-          </Title>
-          <Tag color={statusColor}>{statusText}</Tag>
-        </Flex>
-        <Flex align="center" gap="small">
-          <FolderOutlined style={{ color: '#757575' }} />
-          <Text type="secondary">{project.folderName}</Text>
-        </Flex>
-      </Space>
-
-      <Divider style={{ margin: '16px 0' }} />
-
-      {/* プロジェクト情報 */}
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-        <div>
-          <Title level={5} style={{ marginTop: 0 }}>
+      <div style={{ padding: '8px 0' }}>
+        {/* プロジェクト情報 */}
+        <div style={{ marginBottom: 24 }}>
+          <Title level={5} style={{ marginBottom: 16 }}>
             プロジェクト情報
           </Title>
           
@@ -116,65 +122,74 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
             {project.description}
           </Text>
 
-          <Descriptions column={2} size="small" bordered>
-            <Descriptions.Item label={
-              <Flex align="center" gap="small">
-                <UserOutlined />
-                <span>所有者</span>
-              </Flex>
-            }>
-              {project.owner}
-            </Descriptions.Item>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            {/* 所有者 */}
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                所有者
+              </Text>
+              <Space size="small">
+                <TeamOutlined style={{ color: '#757575' }} />
+                <Text>{project.owner}</Text>
+              </Space>
+            </Col>
 
-            <Descriptions.Item label={
-              <Flex align="center" gap="small">
-                <TeamOutlined />
-                <span>メンバー</span>
-              </Flex>
-            }>
-              {project.members.join(', ')}
-            </Descriptions.Item>
+            {/* メンバー */}
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                メンバー
+              </Text>
+              <Text>{project.members.join(', ')}</Text>
+            </Col>
 
-            <Descriptions.Item label={
-              <Flex align="center" gap="small">
-                <FileTextOutlined />
-                <span>ファイル数</span>
-              </Flex>
-            }>
-              {project.fileCount} ファイル
-            </Descriptions.Item>
+            {/* ファイル数 */}
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                ファイル数
+              </Text>
+              <Space size="small">
+                <FileTextOutlined style={{ color: '#757575' }} />
+                <Text>{project.fileCount} ファイル</Text>
+              </Space>
+            </Col>
 
-            <Descriptions.Item label={
-              <Flex align="center" gap="small">
-                <DatabaseOutlined />
-                <span>ストレージ使用量</span>
-              </Flex>
-            }>
-              {formatFileSize(project.totalSize)}
-            </Descriptions.Item>
+            {/* ストレージ使用量 */}
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                ストレージ使用量
+              </Text>
+              <Space size="small">
+                <HddOutlined style={{ color: '#757575' }} />
+                <Text>{formatFileSize(project.totalSize)}</Text>
+              </Space>
+            </Col>
 
-            <Descriptions.Item label={
-              <Flex align="center" gap="small">
-                <CalendarOutlined />
-                <span>作成日</span>
-              </Flex>
-            }>
-              {formatRelativeTime(project.createdAt)}
-            </Descriptions.Item>
+            {/* 作成日 */}
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                作成日
+              </Text>
+              <Space size="small">
+                <CalendarOutlined style={{ color: '#757575' }} />
+                <Text>{formatRelativeTime(project.createdAt)}</Text>
+              </Space>
+            </Col>
 
-            <Descriptions.Item label={
-              <Flex align="center" gap="small">
-                <CalendarOutlined />
-                <span>最終更新日</span>
-              </Flex>
-            }>
-              {formatRelativeTime(project.updatedAt)}
-            </Descriptions.Item>
-          </Descriptions>
+            {/* 最終更新日 */}
+            <Col span={12}>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                最終更新日
+              </Text>
+              <Space size="small">
+                <CalendarOutlined style={{ color: '#757575' }} />
+                <Text>{formatRelativeTime(project.updatedAt)}</Text>
+              </Space>
+            </Col>
+          </Row>
 
           {/* タグ */}
-          <div style={{ marginTop: 16 }}>
-            <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+          <div>
+            <Text type="secondary" style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>
               タグ
             </Text>
             <Space size="small" wrap>
@@ -185,7 +200,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
           </div>
         </div>
 
-        <Divider style={{ margin: '16px 0' }} />
+        <Divider style={{ margin: '24px 0' }} />
 
         {/* ファイル一覧 */}
         <div>
@@ -197,7 +212,7 @@ const ProjectDetailModal: React.FC<ProjectDetailModalProps> = ({
             onFileClick={(file) => console.log('File clicked:', file.name)}
           />
         </div>
-      </Space>
+      </div>
     </Modal>
   );
 };

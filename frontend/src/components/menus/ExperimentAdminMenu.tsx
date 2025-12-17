@@ -3,12 +3,8 @@
 import React, { useState } from 'react';
 import { Layout, Card, Typography, theme } from 'antd';
 import {
-  ExperimentOutlined,
   UserSwitchOutlined,
   LineChartOutlined,
-  EditOutlined,
-  FolderOutlined,
-  BarChartOutlined,
   FileTextOutlined,
   FolderAddOutlined,
 } from '@ant-design/icons';
@@ -16,6 +12,8 @@ import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
 import ProjectManagement from '../project/ProjectManagement';
 import FormatManagement from '../project/FormatManagement';
+import ProgressMonitoring from '../progress/ProgressMonitoring';
+import WorkerManagement from '../worker/WorkerManagement';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -59,28 +57,13 @@ export default function ExperimentAdminMenu({
     },
     {
       key: '3',
-      label: t('menu.experiment_admin.tabs.workerAssignment') || 'ワーカー割当',
-      icon: <UserSwitchOutlined />,
-    },
-    {
-      key: '4',
-      label: t('menu.experiment_admin.tabs.progressManagement') || '進捗管理',
+      label: t('menu.experiment_admin.tabs.progressMonitoring') || '進捗確認',
       icon: <LineChartOutlined />,
     },
     {
-      key: '5',
-      label: t('menu.experiment_admin.tabs.maimlEditor') || 'MAIML編集',
-      icon: <EditOutlined />,
-    },
-    {
-      key: '6',
-      label: t('menu.experiment_admin.tabs.fileManagement') || 'ファイル管理',
-      icon: <FolderOutlined />,
-    },
-    {
-      key: '7',
-      label: t('menu.experiment_admin.tabs.statistics') || '統計情報',
-      icon: <BarChartOutlined />,
+      key: '4',
+      label: t('menu.experiment_admin.tabs.workerManagement') || '作業者管理',
+      icon: <UserSwitchOutlined />,
     },
   ];
 
@@ -96,11 +79,16 @@ export default function ExperimentAdminMenu({
 
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
-  // Header + SubHeaderの高さ (Header: 64px, SubHeader with tabs: 約76px)
-  const HEADER_TOTAL_HEIGHT = 140;
+  // タブ '1', '2', '3', '4' は全幅表示
+  const isFullWidthTab = currentTab === '1' || currentTab === '2' || currentTab === '3' || currentTab === '4';
+
+  // Header(64px) + SubHeader(タブ込みで約76px) = 140px
+  const HEADER_HEIGHT = 64;
+  const SUBHEADER_HEIGHT = 76;
+  const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + SUBHEADER_HEIGHT;
 
   return (
-    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
+    <Layout style={{ minHeight: '100vh', backgroundColor: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
       <SubHeader 
         title={t('menu.experiment_admin.title') || '実験管理'}
@@ -114,12 +102,10 @@ export default function ExperimentAdminMenu({
       {/* コンテンツエリア */}
       <Content
         style={{
-          marginTop: HEADER_TOTAL_HEIGHT,
-          height: `calc(100vh - ${HEADER_TOTAL_HEIGHT}px)`,
-          overflow: 'auto',
-          background: token.colorBgContainer,
-          paddingLeft: '15px',
-          paddingRight: '15px',
+          marginTop: TOTAL_HEADER_HEIGHT,
+          padding: isFullWidthTab ? 0 : token.paddingLG,
+          height: isFullWidthTab ? `calc(100vh - ${TOTAL_HEADER_HEIGHT}px)` : 'auto',
+          overflow: isFullWidthTab ? 'hidden' : 'auto',
         }}
       >
         {currentTab === '1' ? (
@@ -132,9 +118,19 @@ export default function ExperimentAdminMenu({
           <div style={{ height: '100%', overflow: 'hidden' }}>
             <FormatManagement />
           </div>
+        ) : currentTab === '3' ? (
+          // 進捗確認: 全幅表示
+          <div style={{ height: '100%', overflow: 'auto' }}>
+            <ProgressMonitoring />
+          </div>
+        )  : currentTab === '4' ? (
+          // 作業者管理: 全幅表示
+          <div style={{ height: '100%', overflow: 'auto' }}>
+            <WorkerManagement />
+          </div>
         ) : (
-          // その他のタブ: 全幅表示
-          <div style={{ height: '100%', overflow: 'auto', padding: token.paddingLG }}>
+          // その他のタブ: カード内に表示
+          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
             <Card
               style={{
                 minHeight: 400,

@@ -1,22 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   List,
   Typography,
   Tag,
-  Button,
   Dropdown,
   Space,
-  Flex,
+  Button,
   theme,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   SortAscendingOutlined,
   SortDescendingOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
+  SortAscendingOutlined as SortIcon,
 } from '@ant-design/icons';
 
 const { Text } = Typography;
@@ -27,6 +25,9 @@ interface Project {
   folderName: string;
   fileCount: number;
   status: string;
+  department: string;
+  owner: string;
+  createdAt: string;
 }
 
 interface ProjectFolderTreeProps {
@@ -55,12 +56,12 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
   onSortChange,
 }) => {
   const { token } = theme.useToken();
-
-  const getStatusTagColor = (status: string): string => {
-    const colors: Record<string, string> = {
+  
+  const getStatusChipColor = (status: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
+    const colors: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
       planning: 'default',
-      pending: 'processing',
-      in_progress: 'blue',
+      pending: 'info',
+      in_progress: 'primary',
       completed: 'success',
     };
     return colors[status] || 'default';
@@ -76,14 +77,6 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
     return labels[status] || status;
   };
 
-  const getSortIcon = () => {
-    if (sortOrder === 'asc') {
-      return <ArrowUpOutlined style={{ fontSize: 14 }} />;
-    } else {
-      return <ArrowDownOutlined style={{ fontSize: 14 }} />;
-    }
-  };
-
   const getSortLabel = (sort: 'name' | 'status' | 'createdAt'): string => {
     const labels = {
       name: 'プロジェクト名',
@@ -97,30 +90,30 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
     {
       key: 'name',
       label: (
-        <Flex justify="space-between" align="center" style={{ minWidth: 120 }}>
+        <Space>
           <span>プロジェクト名</span>
-          {sortBy === 'name' && getSortIcon()}
-        </Flex>
+          {sortBy === 'name' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+        </Space>
       ),
       onClick: () => onSortChange('name'),
     },
     {
       key: 'status',
       label: (
-        <Flex justify="space-between" align="center" style={{ minWidth: 120 }}>
+        <Space>
           <span>ステータス</span>
-          {sortBy === 'status' && getSortIcon()}
-        </Flex>
+          {sortBy === 'status' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+        </Space>
       ),
       onClick: () => onSortChange('status'),
     },
     {
       key: 'createdAt',
       label: (
-        <Flex justify="space-between" align="center" style={{ minWidth: 120 }}>
+        <Space>
           <span>作成日</span>
-          {sortBy === 'createdAt' && getSortIcon()}
-        </Flex>
+          {sortBy === 'createdAt' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+        </Space>
       ),
       onClick: () => onSortChange('createdAt'),
     },
@@ -138,27 +131,25 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
       {/* ヘッダー */}
       <div
         style={{
-          padding: 16,
+          padding: token.margin,
           borderBottom: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
-        <Flex justify="space-between" align="center">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <Text strong style={{ display: 'block', fontSize: 14 }}>
+            <Text strong style={{ fontSize: token.fontSize }}>
               プロジェクト一覧
             </Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {projects.length} プロジェクト
-            </Text>
+            <div>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                {projects.length} プロジェクト
+              </Text>
+            </div>
           </div>
-          <Dropdown menu={{ items: menuItems }} trigger={['click']}>
-            <Button
-              type="text"
-              size="small"
-              icon={sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
-            />
+          <Dropdown menu={{ items: menuItems }} placement="bottomRight">
+            <Button type="text" icon={<SortIcon />} size="small" />
           </Dropdown>
-        </Flex>
+        </div>
       </div>
 
       {/* プロジェクト一覧 */}
@@ -169,55 +160,39 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
             key={project.id}
             onClick={() => onProjectSelect(project.id)}
             style={{
+              padding: `${token.paddingSM}px ${token.margin}px`,
               cursor: 'pointer',
-              padding: '8px 16px',
-              backgroundColor:
-                selectedProjectId === project.id
-                  ? token.colorPrimaryBg
-                  : 'transparent',
-              borderLeft:
-                selectedProjectId === project.id
-                  ? `3px solid ${token.colorPrimary}`
-                  : '3px solid transparent',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              if (selectedProjectId !== project.id) {
-                e.currentTarget.style.backgroundColor = token.colorBgTextHover;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (selectedProjectId !== project.id) {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }
+              backgroundColor: selectedProjectId === project.id ? token.colorPrimaryBg : 'transparent',
+              borderLeft: selectedProjectId === project.id ? `3px solid ${token.colorPrimary}` : '3px solid transparent',
             }}
           >
-            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: token.marginXS, width: '100%' }}>
               <Text
                 strong={selectedProjectId === project.id}
-                style={{ fontSize: 14 }}
+                style={{ fontSize: token.fontSize }}
               >
                 {project.name}
               </Text>
-              <Flex align="center" gap={8}>
+              <Space size="small" wrap>
                 <Tag
-                  color={getStatusTagColor(project.status)}
-                  style={{
-                    fontSize: 10,
-                    padding: '0 6px',
-                    margin: 0,
-                  }}
+                  color={getStatusChipColor(project.status) === 'primary' ? 'cyan' : getStatusChipColor(project.status)}
+                  style={{ fontSize: token.fontSizeSM, margin: 0 }}
                 >
                   {getStatusLabel(project.status)}
                 </Tag>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                   {project.fileCount} ファイル
                 </Text>
-              </Flex>
-            </Space>
+              </Space>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                所有者: {project.owner}
+              </Text>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                {project.department} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
+              </Text>
+            </div>
           </List.Item>
         )}
-        style={{ padding: '8px 0' }}
       />
     </div>
   );

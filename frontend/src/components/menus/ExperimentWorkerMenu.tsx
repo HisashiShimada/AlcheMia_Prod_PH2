@@ -82,9 +82,6 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
 
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
-  // Header + SubHeaderの高さ (Header: 64px, SubHeader with tabs: 約76px)
-  const HEADER_TOTAL_HEIGHT = 140;
-
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
@@ -100,26 +97,24 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       {/* コンテンツエリア */}
       <Content
         style={{
-          marginTop: HEADER_TOTAL_HEIGHT,
-          height: `calc(100vh - ${HEADER_TOTAL_HEIGHT}px)`,
-          overflow: 'auto',
-          background: token.colorBgContainer,
-          paddingLeft: '15px',
-          paddingRight: '15px',
+          marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
+          padding: token.paddingLG,
         }}
       >
-        <Card
-          style={{
-            minHeight: 400,
-          }}
-        >
-          <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
-            {currentTabLabel}
-          </Title>
-          <Text type="secondary">
-            {t('content.notImplemented')}
-          </Text>
-        </Card>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <Card
+            style={{
+              minHeight: 400,
+            }}
+          >
+            <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
+              {currentTabLabel}
+            </Title>
+            <Text type="secondary">
+              {t('content.notImplemented')}
+            </Text>
+          </Card>
+        </div>
       </Content>
     </Layout>
   );
