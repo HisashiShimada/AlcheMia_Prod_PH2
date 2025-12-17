@@ -71,6 +71,37 @@ export default function InstructionConfirmationTab({
     return projectInfo.methods?.find((m) => m.methodId === selectedMethodId);
   }, [selectedMethodId, projectInfo]);
 
+  // 選択されたメソッドに紐づく指示のみをフィルタリング
+  const filteredInstructions = useMemo(() => {
+    return sortedInstructions.filter((instruction) => {
+      // 全体指示とトランジション単位指示はそのまま表示
+      if (instruction.targetType === 'file' || instruction.targetType === 'transition') {
+        return true;
+      }
+      // メソッド単位指示は選択されたメソッドに紐づくもののみ
+      if (instruction.targetType === 'method') {
+        return instruction.methodId === selectedMethodId;
+      }
+      return false;
+    });
+  }, [sortedInstructions, selectedMethodId]);
+
+  // 選択されたメソッドに合わせた統計情報を再計算
+  const filteredStats = useMemo(() => {
+    const fileInstructions = filteredInstructions.filter((i) => i.targetType === 'file');
+    const methodInstructions = filteredInstructions.filter((i) => i.targetType === 'method');
+    const transitionInstructions = filteredInstructions.filter((i) => i.targetType === 'transition');
+    const unreadInstructions = filteredInstructions.filter((i) => !i.isRead);
+
+    return {
+      total: filteredInstructions.length,
+      file: fileInstructions.length,
+      method: methodInstructions.length,
+      transition: transitionInstructions.length,
+      unread: unreadInstructions.length,
+    };
+  }, [filteredInstructions]);
+
   // フロー図モーダルを開く
   const handleOpenFlowDiagram = () => {
     setIsFlowDiagramModalVisible(true);
@@ -83,8 +114,8 @@ export default function InstructionConfirmationTab({
 
   // 全ての指示の確認完了ハンドラ
   const handleConfirmAllInstructions = () => {
-    // 未読の指示数を確認
-    const unreadCount = stats.unread;
+    // 未読の指示数を確認（フィルタ済みの統計を使用）
+    const unreadCount = filteredStats.unread;
     
     if (unreadCount === 0) {
       alert('全ての指示は既に確認済みです');
@@ -93,7 +124,7 @@ export default function InstructionConfirmationTab({
     
     // モック実装：実際にはAPIを呼び出して全指示を確認済みに更新
     const confirmed = window.confirm(
-      `全ての指示（${stats.total}件中${unreadCount}件未読）を確認完了にしますか？`
+      `全ての指示（${filteredStats.total}件中${unreadCount}件未読）を確認完了にしますか？`
     );
     
     if (confirmed) {
@@ -104,7 +135,7 @@ export default function InstructionConfirmationTab({
 
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: '24px' }}>
-      {!selectedProject ? (
+      {!selectedProject || !selectedMethodId ? (
         <Card
           style={{
             borderRadius: '8px',
@@ -125,7 +156,7 @@ export default function InstructionConfirmationTab({
       ) : (
         <>
           {/* 作業指示サマリーカード */}
-          <InstructionStats stats={stats} />
+          <InstructionStats stats={filteredStats} />
 
           {/* 指示詳細カード */}
           <Card
@@ -178,7 +209,7 @@ export default function InstructionConfirmationTab({
                   {expandedGroups['file'] ? <DownOutlined /> : <RightOutlined />}{' '}
                   <FileOutlined style={{ marginRight: token.marginXS }} />
                   全体指示 (
-                  {sortedInstructions.filter((i) => i.targetType === 'file').length}
+                  {filteredInstructions.filter((i) => i.targetType === 'file').length}
                   件)
                 </Title>
               </div>
@@ -187,7 +218,7 @@ export default function InstructionConfirmationTab({
                   <InstructionGroup
                     title="全体指示"
                     emoji="file"
-                    instructions={sortedInstructions.filter(
+                    instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'file'
                     )}
                     isClient={isClient}
@@ -220,7 +251,7 @@ export default function InstructionConfirmationTab({
                   <ToolOutlined style={{ marginRight: token.marginXS }} />
                   メソッド単位指示 (
                   {
-                    sortedInstructions.filter((i) => i.targetType === 'method')
+                    filteredInstructions.filter((i) => i.targetType === 'method')
                       .length
                   }
                   件)
@@ -231,7 +262,7 @@ export default function InstructionConfirmationTab({
                   <InstructionGroup
                     title="メソッド単位指示"
                     emoji="tool"
-                    instructions={sortedInstructions.filter(
+                    instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'method'
                     )}
                     isClient={isClient}
@@ -264,7 +295,7 @@ export default function InstructionConfirmationTab({
                   <AimOutlined style={{ marginRight: token.marginXS }} />
                   トランジション単位指示 (
                   {
-                    sortedInstructions.filter(
+                    filteredInstructions.filter(
                       (i) => i.targetType === 'transition'
                     ).length
                   }
@@ -276,7 +307,7 @@ export default function InstructionConfirmationTab({
                   <InstructionGroup
                     title="トランジション単位指示"
                     emoji="aim"
-                    instructions={sortedInstructions.filter(
+                    instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'transition'
                     )}
                     isClient={isClient}
@@ -293,14 +324,14 @@ export default function InstructionConfirmationTab({
                 size="large"
                 icon={<CheckCircleOutlined />}
                 onClick={handleConfirmAllInstructions}
-                disabled={stats.total === 0}
+                disabled={filteredStats.total === 0}
                 style={{
                   minWidth: 300,
                   height: 48,
                   fontSize: 16,
                   fontWeight: 600,
-                  backgroundColor: stats.total === 0 ? undefined : token.colorSuccess,
-                  borderColor: stats.total === 0 ? undefined : token.colorSuccess,
+                  backgroundColor: filteredStats.total === 0 ? undefined : token.colorSuccess,
+                  borderColor: filteredStats.total === 0 ? undefined : token.colorSuccess,
                 }}
               >
                 全ての指示の確認完了
