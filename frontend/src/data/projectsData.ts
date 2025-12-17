@@ -502,6 +502,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t001",
         "transitionName": "サンプル準備",
+        "taskName": "温度記録",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
         "progressRate": 100,
@@ -512,6 +513,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t002",
         "transitionName": "温度設定",
+        "taskName": "温度記録",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
         "progressRate": 75,
@@ -522,6 +524,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t001",
         "transitionName": "サンプル準備",
+        "taskName": "誤差計算",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
         "progressRate": 50,
@@ -532,6 +535,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t003",
         "transitionName": "データ測定",
+        "taskName": "レポート作成",
         "methodId": "m003",
         "methodName": "データバックアップ",
         "progressRate": 100,
@@ -542,6 +546,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t002",
         "transitionName": "温度設定",
+        "taskName": "温度記録",
         "methodId": "m004",
         "methodName": "機器クリーニング",
         "progressRate": 0,
@@ -552,6 +557,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t003",
         "transitionName": "データ測定",
+        "taskName": "誤差計算",
         "methodId": "m004",
         "methodName": "機器クリーニング",
         "progressRate": 25,

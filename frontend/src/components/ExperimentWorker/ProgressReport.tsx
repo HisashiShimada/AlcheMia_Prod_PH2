@@ -161,6 +161,18 @@ export default function ProgressReport({
       ),
     },
     {
+      title: 'タスク名',
+      dataIndex: 'taskName',
+      key: 'taskName',
+      width: 150,
+      ellipsis: true,
+      render: (taskName: string | undefined) => (
+        <Text style={{ fontSize: 14 }}>
+          {taskName || '-'}
+        </Text>
+      ),
+    },
+    {
       title: '進捗率',
       dataIndex: 'progressRate',
       key: 'progressRate',

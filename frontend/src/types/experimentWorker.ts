@@ -165,6 +165,7 @@ export type ProgressStatus = 'not_started' | 'in_progress' | 'completed' | 'on_h
 export interface TransitionProgress {
   transitionId: string;
   transitionName: string;
+  taskName?: string; // タスク名（Phase 6で追加）
   methodId: string;
   methodName: string;
   progressRate: number; // 0-100
