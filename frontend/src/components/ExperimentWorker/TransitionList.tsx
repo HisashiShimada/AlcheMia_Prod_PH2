@@ -97,17 +97,6 @@ export default function TransitionList({
   // テーブルの列定義
   const columns: ColumnsType<Transition> = [
     {
-      title: 'No.',
-      key: 'index',
-      width: 60,
-      align: 'center',
-      render: (_, __, index) => (
-        <Text strong style={{ fontSize: '14px' }}>
-          {index + 1}
-        </Text>
-      )
-    },
-    {
       title: 'トランジション名',
       dataIndex: 'transitionName',
       key: 'transitionName',
