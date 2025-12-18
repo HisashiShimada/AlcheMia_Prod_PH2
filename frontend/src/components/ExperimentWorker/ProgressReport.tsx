@@ -344,7 +344,7 @@ export default function ProgressReport({
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredProgressData}
-          rowKey={(record) => `${record.transitionId}-${record.methodId}`}
+          rowKey={(record) => `${record.transitionId}-${record.methodId}-${record.taskName || 'notask'}`}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
