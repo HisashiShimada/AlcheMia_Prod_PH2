@@ -93,11 +93,44 @@ export default function ProgressReportTab({
       flexDirection: 'column',
       overflow: 'hidden'
     }}>
-      {/* 選択タスク */}
+      {/* 報告タイプ選択 */}
       <div 
         style={{ 
           height: 56,
           marginBottom: 0,
+          borderRadius: 0,
+          backgroundColor: token.colorBgContainer,
+          borderColor: token.colorBorder,
+          borderWidth: 1,
+          borderStyle: 'solid',
+          display: 'flex',
+          alignItems: 'center',
+          padding: `0 ${token.padding}px`,
+          flexShrink: 0,
+        }}
+      >
+        <Space size="middle" style={{ width: '100%' }}>
+          <FileTextOutlined style={{ fontSize: 16, color: token.colorInfo }} />
+          <Text strong style={{ minWidth: 80 }}>報告タイプ:</Text>
+          <Select
+            style={{ flex: 1, minWidth: 200 }}
+            value={reportType}
+            onChange={(value: ReportType) => setReportType(value)}
+            options={[
+              { label: '進捗更新', value: 'progress' },
+              { label: '問題報告', value: 'issue' },
+              { label: 'マイルストーン到達', value: 'milestone' },
+            ]}
+            size="large"
+          />
+        </Space>
+      </div>
+
+      {/* 選択タスク */}
+      <div 
+        style={{ 
+          height: 56,
+          marginBottom: token.marginLG,
           borderRadius: 0,
           backgroundColor: token.colorBgContainer,
           borderColor: token.colorBorder,
@@ -139,39 +172,6 @@ export default function ProgressReportTab({
             </Button>
           </div>
         </div>
-      </div>
-
-      {/* 報告タイプ選択 */}
-      <div 
-        style={{ 
-          height: 56,
-          marginBottom: token.marginLG,
-          borderRadius: 0,
-          backgroundColor: token.colorBgContainer,
-          borderColor: token.colorBorder,
-          borderWidth: 1,
-          borderStyle: 'solid',
-          display: 'flex',
-          alignItems: 'center',
-          padding: `0 ${token.padding}px`,
-          flexShrink: 0,
-        }}
-      >
-        <Space size="middle" style={{ width: '100%' }}>
-          <FileTextOutlined style={{ fontSize: 16, color: token.colorInfo }} />
-          <Text strong style={{ minWidth: 80 }}>報告タイプ:</Text>
-          <Select
-            style={{ flex: 1, minWidth: 200 }}
-            value={reportType}
-            onChange={(value: ReportType) => setReportType(value)}
-            options={[
-              { label: '進捗更新', value: 'progress' },
-              { label: '問題報告', value: 'issue' },
-              { label: 'マイルストーン到達', value: 'milestone' },
-            ]}
-            size="large"
-          />
-        </Space>
       </div>
 
       {/* コンテンツエリア（残りの高さを占有） */}
