@@ -1,5 +1,6 @@
 # Cline Ignore File
 # Clineがコンテキストに含めないファイル・ディレクトリを指定
+
 .kiro/
 cline_archives/
 
