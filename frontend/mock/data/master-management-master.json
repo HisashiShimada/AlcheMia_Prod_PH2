@@ -1,0 +1,310 @@
+[
+  {
+    "masterId": "1",
+    "role": "プロバイダー",
+    "relationData": "master-management-organization.json",
+    "displayName": "組織",
+    "itemCategories":{
+      "orgId": {
+        "headerName": "組織ID",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": false,
+        "update": false
+      },
+      "orgName": {
+        "headerName": "組織名",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "displayName": {
+        "headerName": "組織表示名",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "orgMail": {
+        "headerName": "組織e-mail",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "departmentCd": {
+        "headerName": "会社CD",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "RepresentativeUserId": {
+        "headerName": "代表者ID",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "RepresentativeUserName": {
+        "headerName": "代表者名",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "role": {
+        "headerName": "ロール",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": false,
+        "update": false
+      },
+      "mailAddress": {
+        "headerName": "メールアドレス",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      }
+    },
+    "isActive": false
+  },
+  {
+    "masterId": "2",
+    "role": "データ管理者",
+    "relationData": "master-management-department.json",
+    "displayName": "部署",
+    "itemCategories": {
+      "departmentId": {
+        "headerName": "部署ID",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": false,
+        "update": false
+      },
+      "organizationId": {
+        "headerName": "組織ID",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": false
+      },
+      "displayName": {
+        "headerName": "部署表示名",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      }
+    },
+    "isActive": false
+  },
+  {
+    "masterId": "3",
+    "role": "システム管理",
+    "relationData": "master-management-users.json",
+    "displayName": "組織利用者",
+        "itemCategories":{
+      "userId": {
+        "headerName": "ユーザーID",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": false,
+        "update": false
+      },
+      "orgId": {
+        "headerName": "組織ID",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "userName": {
+        "headerName": "ユーザー名",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "role": {
+        "headerName": "ロール",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "mailAddress": {
+        "headerName": "メールアドレス",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      }
+    },
+    "isActive": false
+  },
+  {
+    "masterId": "4",
+    "role": "システム管理",
+    "relationData": "master-management-role.json",
+    "displayName": "ロール",
+        "itemCategories":{
+      "role": {
+        "headerName": "ロール",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": false,
+        "update": false
+      },
+      "roleName": {
+        "headerName": "ロール名",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "functionId": {
+        "headerName": "機能ID",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "functionName": {
+        "headerName": "機能名",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "permission": {
+        "headerName": "権限",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "roleExplan": {
+        "headerName": "説明",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      }
+    },
+    "isActive": false
+  },
+  {
+    "masterId": "5",
+    "role": "実験管理",
+    "relationData": "master-management-laboratory-equipment.json",
+    "displayName": "実験装置",
+    "itemCategories":{
+      "laboratorEquipmentId": {
+        "headerName": "実験装置ID",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": false,
+        "update": false
+      },
+      "laboratorEquipmentName": {
+        "headerName": "実験装置名",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "laboratorEquipmentDisplayName": {
+        "headerName": "実験装置表示名",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "laboratorEquipmentExplan": {
+        "headerName": "実験装置説明",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "laboratorEquipmentTypeId": {
+        "headerName": "実験装置タイプID",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "laboratorEquipmentVendorId": {
+        "headerName": "実験装置ベンダーID",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      }
+    },
+    "isActive": true
+  },
+  {
+    "masterId": "6",
+    "role": "実験管理",
+    "relationData": "master-management-laboratory-equipment-type.json",
+    "displayName": "実験装置タイプ",
+    "itemCategories":{
+      "laboratorEquipmentTypeId": {
+        "headerName": "実験装置タイプID",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": false,
+        "update": false
+      },
+      "laboratorEquipmentTypeName": {
+        "headerName": "実験装置タイプ名",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "laboratorEquipmentTypeExplan": {
+        "headerName": "実験装置タイプ説明",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      }
+    },
+    "isActive": true
+  },
+  {
+    "masterId": "7",
+    "role": "実験管理",
+    "relationData": "master-management-laboratory-equipment-vendor.json",
+    "displayName": "実験装置ベンダー",
+    "itemCategories":{
+      "laboratorEquipmentVendorId": {
+        "headerName": "実験装置ベンダーID",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": false,
+        "update": false
+      },
+      "laboratorEquipmentVendorName": {
+        "headerName": "実験装置ベンダー名",
+        "searchFixed": true,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      },
+      "laboratorEquipmentVendorExplan": {
+        "headerName": "実験装置ベンダー説明",
+        "searchFixed": false,
+        "isDisplay": true,
+        "addable": true,
+        "update": true
+      }
+    },
+    "isActive": true
+  }
+]

@@ -58,6 +58,9 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
 
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
+  // Header + SubHeaderの高さ (Header: 64px, SubHeader with tabs: 約76px)
+  const HEADER_TOTAL_HEIGHT = 140;
+
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
@@ -73,14 +76,15 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
       {/* コンテンツエリア */}
       <Content
         style={{
-          marginTop: 140, // Header(64px) + SubHeader(タブ込みで約76px)
-          padding: token.paddingLG,
+          marginTop: HEADER_TOTAL_HEIGHT,
+          height: `calc(100vh - ${HEADER_TOTAL_HEIGHT}px)`,
+          overflow: 'auto',
+          background: token.colorBgContainer,
+          padding: `0 ${token.paddingContentHorizontal}px`,
         }}
       >
-        <div style={{ maxWidth: 1400, margin: '0 auto' }}>
-          {/* マスタ管理タブ */}
-          {currentTab === '1' && <MasterManagementMock />}
-        </div>
+        {/* マスタ管理タブ */}
+        {currentTab === '1' && <MasterManagementMock />}
       </Content>
     </Layout>
   );

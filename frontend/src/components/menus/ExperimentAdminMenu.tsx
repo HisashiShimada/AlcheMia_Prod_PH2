@@ -111,7 +111,6 @@ export default function ExperimentAdminMenu({
           <div style={{ height: '100%', overflow: 'hidden' }}>
             <FormatManagement user={user} />
           </div>
-
         ) : currentTab === '3' ? (
           // 進捗確認: 全幅表示
           <div style={{ height: '100%', overflow: 'auto' }}>

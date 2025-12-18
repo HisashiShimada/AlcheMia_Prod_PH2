@@ -1,0 +1,92 @@
+[
+  {
+    "masterId": "5",
+    "laboratorEquipmentId": "EQ001",
+    "laboratorEquipmentName": "X-ray Diffractometer XRD-7000",
+    "laboratorEquipmentDisplayName": "X線回折装置",
+    "laboratorEquipmentExplan": "結晶構造解析用のX線回折装置",
+    "laboratorEquipmentTypeId": "TYPE001",
+    "laboratorEquipmentVendorId": "VENDOR001"
+  },
+  {
+    "masterId": "5",
+    "laboratorEquipmentId": "EQ002",
+    "laboratorEquipmentName": "Scanning Electron Microscope SEM-5000",
+    "laboratorEquipmentDisplayName": "走査型電子顕微鏡",
+    "laboratorEquipmentExplan": "高解像度表面観察用の電子顕微鏡",
+    "laboratorEquipmentTypeId": "TYPE002",
+    "laboratorEquipmentVendorId": "VENDOR002"
+  },
+  {
+    "masterId": "5",
+    "laboratorEquipmentId": "EQ003",
+    "laboratorEquipmentName": "Atomic Force Microscope AFM-3000",
+    "laboratorEquipmentDisplayName": "原子間力顕微鏡",
+    "laboratorEquipmentExplan": "ナノスケール表面形状測定装置",
+    "laboratorEquipmentTypeId": "TYPE002",
+    "laboratorEquipmentVendorId": "VENDOR003"
+  },
+  {
+    "masterId": "5",
+    "laboratorEquipmentId": "EQ004",
+    "laboratorEquipmentName": "Thermogravimetric Analyzer TGA-500",
+    "laboratorEquipmentDisplayName": "熱重量測定装置",
+    "laboratorEquipmentExplan": "熱分解挙動測定用の熱分析装置",
+    "laboratorEquipmentTypeId": "TYPE003",
+    "laboratorEquipmentVendorId": "VENDOR001"
+  },
+  {
+    "masterId": "5",
+    "laboratorEquipmentId": "EQ005",
+    "laboratorEquipmentName": "Differential Scanning Calorimeter DSC-600",
+    "laboratorEquipmentDisplayName": "示差走査熱量計",
+    "laboratorEquipmentExplan": "熱的特性評価用のDSC装置",
+    "laboratorEquipmentTypeId": "TYPE003",
+    "laboratorEquipmentVendorId": "VENDOR004"
+  },
+  {
+    "masterId": "5",
+    "laboratorEquipmentId": "EQ006",
+    "laboratorEquipmentName": "Fourier Transform Infrared Spectrometer FTIR-8000",
+    "laboratorEquipmentDisplayName": "フーリエ変換赤外分光光度計",
+    "laboratorEquipmentExplan": "分子構造解析用の赤外分光装置",
+    "laboratorEquipmentTypeId": "TYPE004",
+    "laboratorEquipmentVendorId": "VENDOR002"
+  },
+  {
+    "masterId": "5",
+    "laboratorEquipmentId": "EQ007",
+    "laboratorEquipmentName": "UV-Visible Spectrophotometer UV-2600",
+    "laboratorEquipmentDisplayName": "紫外可視分光光度計",
+    "laboratorEquipmentExplan": "光学特性測定用のUV-Vis装置",
+    "laboratorEquipmentTypeId": "TYPE004",
+    "laboratorEquipmentVendorId": "VENDOR003"
+  },
+  {
+    "masterId": "5",
+    "laboratorEquipmentId": "EQ008",
+    "laboratorEquipmentName": "Universal Testing Machine UTM-100",
+    "laboratorEquipmentDisplayName": "万能試験機",
+    "laboratorEquipmentExplan": "機械的強度測定用の引張試験機",
+    "laboratorEquipmentTypeId": "TYPE005",
+    "laboratorEquipmentVendorId": "VENDOR005"
+  },
+  {
+    "masterId": "5",
+    "laboratorEquipmentId": "EQ009",
+    "laboratorEquipmentName": "Dynamic Mechanical Analyzer DMA-8000",
+    "laboratorEquipmentDisplayName": "動的粘弾性測定装置",
+    "laboratorEquipmentExplan": "粘弾性特性評価用のDMA装置",
+    "laboratorEquipmentTypeId": "TYPE005",
+    "laboratorEquipmentVendorId": "VENDOR004"
+  },
+  {
+    "masterId": "5",
+    "laboratorEquipmentId": "EQ010",
+    "laboratorEquipmentName": "Gas Chromatograph Mass Spectrometer GCMS-9000",
+    "laboratorEquipmentDisplayName": "ガスクロマトグラフ質量分析計",
+    "laboratorEquipmentExplan": "組成分析用のGC-MS装置",
+    "laboratorEquipmentTypeId": "TYPE006",
+    "laboratorEquipmentVendorId": "VENDOR001"
+  }
+]

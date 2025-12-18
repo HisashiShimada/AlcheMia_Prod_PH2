@@ -20,6 +20,7 @@ import SystemOverviewMock from '../../../mock/components/SystemOverviewMock';
 import UserManagement from '../../../mock/components/UserManagement';
 import OrganizationStatisticsMock from '../../../mock/components/OrganizationStatisticsMock';
 import SessionManagementMock from '../../../mock/components/SessionManagementMock';
+import MasterManagementMock from '../../../mock/components/MasterManagementMock';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -63,6 +64,16 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
       key: '4',
       label: t('menu.system_admin.tabs.sessionManagement'),
       icon: <ExperimentOutlined />,
+    },
+    {
+      key: '5',
+      label: '部署管理',
+      icon: <ShopOutlined />,
+    },
+    {
+      key: '6',
+      label: 'ロール管理',
+      icon: <AuditOutlined />,
     }
   ];
 
@@ -77,6 +88,9 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
   };
 
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
+
+  // Header + SubHeaderの高さ (Header: 64px, SubHeader with tabs: 約76px)
+  const HEADER_TOTAL_HEIGHT = 140;
 
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
@@ -93,59 +107,38 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
       {/* コンテンツエリア */}
       <Content
         style={{
-          marginTop: 0, // Header(64px) + SubHeader(タブ込みで約76px)
-          padding: 50,
+          marginTop: HEADER_TOTAL_HEIGHT,
+          height: `calc(100vh - ${HEADER_TOTAL_HEIGHT}px)`,
+          overflow: 'auto',
+          background: token.colorBgContainer,
+          padding: `0 ${token.paddingContentHorizontal}px`,
         }}
       >
-        <div style={{ maxWidth: 1600, margin: '0 auto' }}>
-          {/* タブ1: システム概要 */}
-          {currentTab === '1' && <SystemOverviewMock />}
+        {/* タブ1: システム概要 */}
+        {currentTab === '1' && <SystemOverviewMock />}
 
-          {/* タブ2: 組織統計情報 */}
-          {currentTab === '2' && <OrganizationStatisticsMock />}
+        {/* タブ2: 組織統計情報 */}
+        {currentTab === '2' && <OrganizationStatisticsMock />}
 
-          {/* タブ3: ユーザー管理 */}
-          {currentTab === '3' && (
-            <Card
-              style={{
-                minHeight: 400,
-                borderRadius: 12,
-                margin: '24px',
-              }}
-              styles={{
-                body: {
-                  padding: 24,
-                },
-              }}
-            >
-              <Title level={4} style={{ marginTop: 0, marginBottom: 24 }}>
-                {/* {currentTabLabel} */}
-              </Title>
-              <UserManagement />
-            </Card>
-          )}
+        {/* タブ3: ユーザー管理 */}
+        {currentTab === '3' && <UserManagement />}
 
-          {/* タブ4: セッション管理 */}
-          {currentTab === '4' && (
-            <Card
-              style={{
-                minHeight: 400,
-                borderRadius: 12,
-                margin: '24px',
-              }}
-              styles={{
-                body: {
-                  padding: 24,
-                },
-              }}
-            >
-              <Title level={4} style={{ marginTop: 0, marginBottom: 24 }}>
-                {/* {currentTabLabel} */}
-              </Title>
-              <SessionManagementMock />
-            </Card>
-          )}
-        </div>
+        {/* タブ4: セッション管理 */}
+        {currentTab === '4' && <SessionManagementMock />}
+
+        {/* タブ5: 部署管理 */}
+        {currentTab === '5' && (
+          <div style={{ padding: token.paddingContentVertical }}>
+            <MasterManagementMock initialMasterId="2" />
+          </div>
+        )}
+
+        {/* タブ6: ロール管理 */}
+        {currentTab === '6' && (
+          <div style={{ padding: token.paddingContentVertical }}>
+            <MasterManagementMock initialMasterId="4" />
+          </div>
+        )}
       </Content>
     </Layout>
   );

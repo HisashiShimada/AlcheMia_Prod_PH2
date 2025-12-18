@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useMemo } from 'react';
 import {
@@ -39,6 +39,7 @@ interface OrganizationData {
   organization_name: string;
   display_name: string;
   email: string;
+  representative_admin: string;
   company_code: string;
   certificate_url: string;
   updated_at: string;
@@ -46,7 +47,7 @@ interface OrganizationData {
 }
 
 /**
- * 組織管理画面（モック）
+ * 組織管理画面のモックコンポーネント
  */
 export default function OrganizationManagementMock() {
   const [organizations, setOrganizations] = useState<OrganizationData[]>(
@@ -56,6 +57,8 @@ export default function OrganizationManagementMock() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingOrg, setEditingOrg] = useState<OrganizationData | null>(null);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string>('');
+  const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('');
   const [form] = Form.useForm();
 
   // 日時フォーマット関数
@@ -70,20 +73,42 @@ export default function OrganizationManagementMock() {
     return `${year}/${month}/${day} ${hour}:${minute}`;
   };
 
+  // 組織IDの選択肢を動的に取得
+  const organizationIds = useMemo(() => {
+    const uniqueIds = Array.from(new Set(organizations.map(o => o.organization_id).filter(id => id)));
+    return uniqueIds.sort();
+  }, [organizations]);
+
+  // 会社CDの選択肢を動的に取得
+  const companyCodes = useMemo(() => {
+    const uniqueCodes = Array.from(new Set(organizations.map(o => o.company_code).filter(code => code)));
+    return uniqueCodes.sort();
+  }, [organizations]);
+
   // フィルタリングされた組織
   const filteredOrganizations = useMemo(() => {
     return organizations.filter(org => {
+      // テキスト検索フィルター
       const searchLower = searchText.toLowerCase();
-      return (
+      const matchesSearch = !searchText.trim() || (
         org.organization_id.toLowerCase().includes(searchLower) ||
         org.organization_name.toLowerCase().includes(searchLower) ||
         org.display_name.toLowerCase().includes(searchLower) ||
         org.email.toLowerCase().includes(searchLower) ||
+        org.representative_admin.toLowerCase().includes(searchLower) ||
         org.company_code.toLowerCase().includes(searchLower) ||
         formatDateTime(org.updated_at).toLowerCase().includes(searchLower)
       );
+
+      // 組織IDフィルター
+      const matchesOrganizationId = !selectedOrganizationId || org.organization_id === selectedOrganizationId;
+
+      // 会社CDフィルター
+      const matchesCompanyCode = !selectedCompanyCode || org.company_code === selectedCompanyCode;
+
+      return matchesSearch && matchesOrganizationId && matchesCompanyCode;
     });
-  }, [organizations, searchText]);
+  }, [organizations, searchText, selectedOrganizationId, selectedCompanyCode]);
 
   // テーブルの行選択
   const rowSelection = {
@@ -96,36 +121,7 @@ export default function OrganizationManagementMock() {
   // テーブルカラム定義
   const columns: ColumnsType<OrganizationData> = [
     {
-      title: (
-        <Space size="middle" align="center">
-          <span>組織名</span>
-          <Badge
-            count={filteredOrganizations.filter(org => org.status === 'active').length}
-            style={{
-              backgroundColor: '#4169E1',
-              fontSize: 14,
-              height: 24,
-              minWidth: 40,
-              lineHeight: '24px',
-              borderRadius: 12,
-            }}
-          />
-        </Space>
-      ),
-      key: 'organization',
-      width: 180,
-      sorter: (a, b) => a.organization_name.localeCompare(b.organization_name),
-      render: (_, record) => (
-        <Text style={{ 
-          fontWeight: 500, 
-          color: record.status === 'inactive' ? 'rgba(0, 0, 0, 0.45)' : '#0093CF'
-        }}>
-          {record.organization_name}
-        </Text>
-      ),
-    },
-    {
-      title: '組織ID',
+      title: <div style={{ textAlign: 'center' }}>組織ID</div>,
       dataIndex: 'organization_id',
       key: 'organization_id',
       width: 120,
@@ -140,7 +136,38 @@ export default function OrganizationManagementMock() {
       ),
     },
     {
-      title: '組織表示名',
+      title: (
+        <div style={{ textAlign: 'center' }}>
+          <Space size="middle" align="center">
+            <span>組織名</span>
+            <Badge
+              count={filteredOrganizations.filter(org => org.status === 'active').length}
+              style={{
+                backgroundColor: '#4169E1',
+                fontSize: 14,
+                height: 24,
+                minWidth: 40,
+                lineHeight: '24px',
+                borderRadius: 12,
+              }}
+            />
+          </Space>
+        </div>
+      ),
+      key: 'organization',
+      width: 180,
+      sorter: (a, b) => a.organization_name.localeCompare(b.organization_name),
+      render: (_, record) => (
+        <Text style={{ 
+          fontWeight: 500, 
+          color: record.status === 'inactive' ? 'rgba(0, 0, 0, 0.45)' : '#0093CF'
+        }}>
+          {record.organization_name}
+        </Text>
+      ),
+    },
+    {
+      title: <div style={{ textAlign: 'center' }}>組織表示名</div>,
       dataIndex: 'display_name',
       key: 'display_name',
       width: 150,
@@ -155,7 +182,7 @@ export default function OrganizationManagementMock() {
       ),
     },
     {
-      title: '組織e-mail',
+      title: <div style={{ textAlign: 'center' }}>組織e-mail</div>,
       dataIndex: 'email',
       key: 'email',
       width: 250,
@@ -170,7 +197,22 @@ export default function OrganizationManagementMock() {
       ),
     },
     {
-      title: '会社CD',
+      title: <div style={{ textAlign: 'center' }}>代表システム管理者</div>,
+      dataIndex: 'representative_admin',
+      key: 'representative_admin',
+      width: 150,
+      sorter: (a, b) => a.representative_admin.localeCompare(b.representative_admin),
+      render: (text: string, record) => (
+        <Text style={{ 
+          fontSize: 13,
+          color: record.status === 'inactive' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
+        }}>
+          {text}
+        </Text>
+      ),
+    },
+    {
+      title: <div style={{ textAlign: 'center' }}>会社CD</div>,
       dataIndex: 'company_code',
       key: 'company_code',
       width: 100,
@@ -178,25 +220,34 @@ export default function OrganizationManagementMock() {
       sorter: (a, b) => a.company_code.localeCompare(b.company_code),
     },
     {
-      title: '証明書DL',
+      title: <div style={{ textAlign: 'center' }}>証明書DL</div>,
       key: 'certificate',
       width: 120,
       align: 'center',
       sorter: (a, b) => a.certificate_url.localeCompare(b.certificate_url),
-      render: (_, record) => (
-        <Link
-          onClick={() => handleDownloadCertificate(record)}
-          style={{ color: '#0093CF', textDecoration: 'underline' }}
-        >
-          ダウンロード
-        </Link>
-      ),
+      render: (_, record) => {
+        const isInactive = record.status === 'inactive';
+        return (
+          <Link
+            onClick={isInactive ? undefined : () => handleDownloadCertificate(record)}
+            style={{
+              color: isInactive ? 'rgba(0, 0, 0, 0.25)' : '#0093CF',
+              textDecoration: isInactive ? 'none' : 'underline',
+              cursor: isInactive ? 'not-allowed' : 'pointer',
+              pointerEvents: isInactive ? 'none' : 'auto',
+            }}
+          >
+            ダウンロード
+          </Link>
+        );
+      },
     },
     {
       title: '更新日時',
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 160,
+      align: 'center',
       sorter: (a, b) => a.updated_at.localeCompare(b.updated_at),
       render: (text: string) => formatDateTime(text),
     },
@@ -204,6 +255,7 @@ export default function OrganizationManagementMock() {
       title: '',
       key: 'action',
       width: 200,
+      align: 'center',
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
@@ -216,8 +268,9 @@ export default function OrganizationManagementMock() {
           <Button
             onClick={() => handleToggleActive(record.id)}
             danger={record.status === 'active'}
+            style={{ width: '100px' }}
           >
-            {record.status === 'inactive' ? '活性' : '非活性'}
+            {record.status === 'inactive' ? 'アクティブ' : '非アクティブ'}
           </Button>
         </Space>
       ),
@@ -275,37 +328,37 @@ Company Code: ${org.company_code}
     setIsModalVisible(true);
   };
 
-  // 活性化
+  // アクティブ化
   const handleActivate = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('活性にする組織を選択してください');
+      message.warning('アクティブにする組織を選択してください');
       return;
     }
     Modal.confirm({
-      title: '選択した組織を活性にしますか？',
-      content: `${selectedRowKeys.length}件の組織が活性になります。`,
-      okText: '活性',
+      title: '選択した組織をアクティブにしますか？',
+      content: `${selectedRowKeys.length}件の組織がアクティブになります。`,
+      okText: 'アクティブ化',
       cancelText: 'キャンセル',
       onOk: () => {
         setOrganizations(organizations.map(o => 
           selectedRowKeys.includes(o.id) ? { ...o, status: 'active' } : o
         ));
         setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件の組織を活性にしました`);
+        message.success(`${selectedRowKeys.length}件の組織をアクティブにしました`);
       },
     });
   };
 
-  // 非活性化
+  // 非アクティブ化
   const handleDeactivate = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('非活性にする組織を選択してください');
+      message.warning('非アクティブにする組織を選択してください');
       return;
     }
     Modal.confirm({
-      title: '選択した組織を非活性にしますか？',
-      content: `${selectedRowKeys.length}件の組織が非活性になります。`,
-      okText: '非活性',
+      title: '選択した組織を非アクティブにしますか？',
+      content: `${selectedRowKeys.length}件の組織が非アクティブになります。`,
+      okText: '非アクティブ化',
       cancelText: 'キャンセル',
       okButtonProps: { danger: true },
       onOk: () => {
@@ -313,22 +366,22 @@ Company Code: ${org.company_code}
           selectedRowKeys.includes(o.id) ? { ...o, status: 'inactive' } : o
         ));
         setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件の組織を非活性にしました`);
+        message.success(`${selectedRowKeys.length}件の組織を非アクティブにしました`);
       },
     });
   };
 
-  // 活性/非活性切り替え
+  // アクティブ/非アクティブ切り替え
   const handleToggleActive = (id: string) => {
     const org = organizations.find(o => o.id === id);
     if (!org) return;
 
-    const actionText = org.status === 'inactive' ? '活性' : '非活性';
+    const actionText = org.status === 'inactive' ? 'アクティブ' : '非アクティブ';
     const orgName = org.organization_name;
 
     Modal.confirm({
       title: `${orgName}を${actionText}にしますか？`,
-      content: `この組織を${actionText}状態に変更します。`,
+      content: `この組織を${org.status === 'inactive' ? 'アクティブ' : '非アクティブ'}状態に変更します。`,
       okText: actionText,
       cancelText: 'キャンセル',
       okButtonProps: org.status === 'inactive' ? undefined : { danger: true },
@@ -336,7 +389,7 @@ Company Code: ${org.company_code}
         setOrganizations(organizations.map(o => 
           o.id === id ? { ...o, status: o.status === 'active' ? 'inactive' : 'active' } : o
         ));
-        message.success(`${orgName}を${actionText}にしました`);
+        message.success(`${orgName}を${org.status === 'inactive' ? 'アクティブ' : '非アクティブ'}にしました`);
       },
     });
   };
@@ -346,6 +399,8 @@ Company Code: ${org.company_code}
     setOrganizations(organizationsData as OrganizationData[]);
     setSearchText('');
     setSelectedRowKeys([]);
+    setSelectedOrganizationId('');
+    setSelectedCompanyCode('');
     message.success('データをリロードしました');
   };
 
@@ -396,9 +451,9 @@ Company Code: ${org.company_code}
               return;
             }
 
-            const statusValue = row['状態'] || '活性';
+            const statusValue = row['状態'] || 'アクティブ';
             const status: 'active' | 'inactive' = 
-              (statusValue === '活性' || statusValue === 'active') ? 'active' : 'inactive';
+              (statusValue === 'アクティブ' || statusValue === 'active') ? 'active' : 'inactive';
 
             const newOrg: OrganizationData = {
               id: row['組織ID'].trim(),
@@ -406,6 +461,7 @@ Company Code: ${org.company_code}
               organization_name: row['組織名'].trim(),
               display_name: row['組織表示名']?.trim() || row['組織名'].trim(),
               email: row['組織e-mail'].trim(),
+              representative_admin: row['代表システム管理者']?.trim() || '',
               company_code: row['会社CD']?.trim() || '',
               certificate_url: `/api/certificates/${row['組織ID'].trim()}`,
               updated_at: new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14),
@@ -473,6 +529,7 @@ Company Code: ${org.company_code}
       '組織名',
       '組織表示名',
       '組織e-mail',
+      '代表システム管理者',
       '会社CD',
       '更新日時',
       '状態',
@@ -483,9 +540,10 @@ Company Code: ${org.company_code}
       org.organization_name,
       org.display_name,
       org.email,
+      org.representative_admin,
       org.company_code,
       formatDateTime(org.updated_at),
-      org.status === 'active' ? '活性' : '非活性',
+      org.status === 'active' ? 'アクティブ' : '非アクティブ',
     ]);
 
     const csvContent = [
@@ -584,7 +642,7 @@ Company Code: ${org.company_code}
             color: selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
-          活性
+          アクティブ
         </Button>
         <Button
           danger
@@ -598,7 +656,7 @@ Company Code: ${org.company_code}
             color: selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
-          非活性
+          非アクティブ
         </Button>
         <Button icon={<ReloadOutlined />} onClick={handleReload}>
           リロード
@@ -615,11 +673,31 @@ Company Code: ${org.company_code}
         <Row gutter={16} style={{ marginBottom: 8 }}>
           <Col style={{ width: 400 }}>
             <Input
-              placeholder="組織ID、組織名、組織表示名、組織e-mail、会社CD、更新日時で検索"
+              placeholder="組織ID、組織名、組織表示名、組織e-mail、代表システム管理者、会社CD、更新日時で検索"
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
+            />
+          </Col>
+          <Col style={{ width: 150 }}>
+            <Select
+              placeholder="組織ID"
+              value={selectedOrganizationId || undefined}
+              onChange={(value) => setSelectedOrganizationId(value || '')}
+              allowClear
+              style={{ width: '100%' }}
+              options={organizationIds.map(id => ({ label: id, value: id }))}
+            />
+          </Col>
+          <Col style={{ width: 150 }}>
+            <Select
+              placeholder="会社CD"
+              value={selectedCompanyCode || undefined}
+              onChange={(value) => setSelectedCompanyCode(value || '')}
+              allowClear
+              style={{ width: '100%' }}
+              options={companyCodes.map(code => ({ label: code, value: code }))}
             />
           </Col>
         </Row>
@@ -687,6 +765,14 @@ Company Code: ${org.company_code}
           </Form.Item>
 
           <Form.Item
+            name="representative_admin"
+            label="代表システム管理者"
+            rules={[{ required: true, message: '代表システム管理者を入力してください' }]}
+          >
+            <Input placeholder="山田 太郎" />
+          </Form.Item>
+
+          <Form.Item
             name="company_code"
             label="会社CD"
             rules={[{ required: true, message: '会社CDを入力してください' }]}
@@ -701,8 +787,8 @@ Company Code: ${org.company_code}
           >
             <Select
               options={[
-                { value: 'active', label: '活性' },
-                { value: 'inactive', label: '非活性' },
+                { value: 'active', label: 'アクティブ' },
+                { value: 'inactive', label: '非アクティブ' },
               ]}
             />
           </Form.Item>

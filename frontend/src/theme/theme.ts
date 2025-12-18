@@ -79,6 +79,9 @@ export const theme: ThemeConfig = {
     marginXL: 32,
     marginXXL: 48,
     
+    // カスタムパディング（コンテンツエリア用）
+    paddingContentHorizontal: 15,
+    
     // シャドウ
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
     boxShadowSecondary: '0 4px 12px rgba(0, 0, 0, 0.12)',

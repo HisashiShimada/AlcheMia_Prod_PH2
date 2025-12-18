@@ -461,8 +461,30 @@ function DataList() {
 </Row>
 ```
 
+### テキスト（Typography）
+
+**DO（推奨）:**
+```typescript
+// ✅ Typographyコンポーネントを使用
+<Typography.Title level={1}>ページタイトル</Typography.Title>
+<Typography.Title level={2}>セクションタイトル</Typography.Title>
+<Typography.Text type="secondary">補足テキスト</Typography.Text>
+<Typography.Text type="danger">エラーメッセージ</Typography.Text>
+```
+
 **DON'T（非推奨）:**
 ```typescript
+// ❌ 直接HTMLタグとインラインスタイル
+<h1 style={{ fontSize: '38px', color: '#212121' }}>タイトル</h1>
+<span style={{ color: '#757575' }}>補足テキスト</span>
+```
+
+### フォーム（Form, Input, Select）
+
+**DO（推奨）:**
+```typescript
+// ✅ サイズpropsを使用
+=======
 // ❌ 固定幅でレスポンシブ対応していない
 <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
   <Input style={{ width: '400px' }} />
