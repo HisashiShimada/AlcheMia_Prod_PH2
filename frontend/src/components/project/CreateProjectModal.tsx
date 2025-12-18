@@ -79,7 +79,7 @@ export default function CreateProjectModal({
       // プロジェクトデータの作成
       const projectData: CreateProjectData = {
         name: values.name,
-        description: '',
+        description: values.description || '',
         folderName: folderName,
         owner: currentUser.name,
         department: currentUser.department,
@@ -170,6 +170,25 @@ export default function CreateProjectModal({
               maxLength={100}
               showCount
               autoFocus
+            />
+          </Form.Item>
+
+          {/* 概要 */}
+          <Form.Item
+            name="description"
+            label={t('projectManagement.create.description') || '概要'}
+            rules={[
+              {
+                max: 500,
+                message: t('projectManagement.create.descriptionMaxLength') || '概要は500文字以内で入力してください',
+              },
+            ]}
+          >
+            <Input.TextArea
+              placeholder={t('projectManagement.create.descriptionPlaceholder') || 'プロジェクトの概要を入力（任意）'}
+              maxLength={500}
+              showCount
+              rows={4}
             />
           </Form.Item>
         </Form>
