@@ -274,7 +274,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-start',
-            gap: token.margin,
+            gap: token.marginXS,
             flexWrap: 'nowrap',
             backgroundColor: token.colorBgContainer,
             border: `1px solid ${token.colorBorder}`,
@@ -282,13 +282,13 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             paddingRight: token.paddingLG,
           }}>
             {/* プロジェクト選択 */}
-            <Space size="small" style={{ flex: '1 1 250px', minWidth: 250 }}>
+            <Space size="small" style={{ flex: '0 0 auto' }}>
               <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong>{t('experimentWork.labels.project')}:</Text>
               <Select
                 value={selectedProject === '' ? null : selectedProject}
                 placeholder="-"
-                style={{ flex: 1, minWidth: 150 }}
+                style={{ width: 180 }}
                 onChange={handleProjectChange}
                 options={[
                   { value: null, label: '-' },
@@ -302,13 +302,13 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             </Space>
 
             {/* メソッド選択 */}
-            <Space size="small" style={{ flex: '1 1 250px', minWidth: 250 }}>
+            <Space size="small" style={{ flex: '0 0 auto' }}>
               <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong>{t('experimentWork.labels.method')}:</Text>
               <Select
                 value={selectedMethodId}
                 placeholder="-"
-                style={{ flex: 1, minWidth: 150 }}
+                style={{ width: 180 }}
                 onChange={handleSelectMethod}
                 disabled={!selectedProject}
                 options={[
@@ -330,7 +330,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
               icon={<CheckOutlined />}
               onClick={() => setDialogOpen(true)}
               size="large"
-              style={{ flexShrink: 0 }}
+              style={{ marginLeft: 'auto', flexShrink: 0 }}
             >
               {t('experimentWork.selectButton')}
             </Button>
