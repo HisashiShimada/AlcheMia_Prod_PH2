@@ -150,6 +150,7 @@ const InformationDownloadMock: React.FC = () => {
         style={{
           borderRadius: 0,
           marginBottom: 0,
+          boxShadow: 'none',
         }}
         bodyStyle={headerStyle}
       >

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card, Row, Col, Statistic, Space } from 'antd';
+import { Card, Row, Col, Flex, theme } from 'antd';
 import {
   UserOutlined,
   DesktopOutlined,
@@ -17,189 +17,193 @@ import systemOverviewData from '../data/system-overview.json';
  * システム全体の統計情報を表示するダッシュボード
  */
 const SystemOverviewMock: React.FC = () => {
+  const { token } = theme.useToken();
   const { users, sessions, experimentSystem, projects, storage, loginLast7Days } =
     systemOverviewData;
 
   // 統計カードのスタイル
   const cardStyle: React.CSSProperties = {
-    marginTop: 90,
     padding: 0,
     height: '100%',
-    borderRadius: '12px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+    borderRadius: token.borderRadiusLG,
+    boxShadow: token.boxShadow,
   };
 
   const titleStyle: React.CSSProperties = {
-    fontSize: '18px',
-    fontWeight: 600,
-    marginBottom: '16px',
+    fontSize: token.fontSizeLG,
+    fontWeight: token.fontWeightStrong,
+    marginBottom: token.marginMD,
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: token.marginXS,
   };
 
   const statRowStyle: React.CSSProperties = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '8px 0',
+    padding: `${token.paddingXS}px 0`,
   };
 
   const labelStyle: React.CSSProperties = {
-    fontSize: '14px',
-    color: '#757575',
+    fontSize: token.fontSize,
+    color: token.colorTextSecondary,
   };
 
-  const valueStyle = (color: string): React.CSSProperties => ({
-    fontSize: '20px',
-    fontWeight: 600,
-    color: color,
-  });
+  const valueStyle: React.CSSProperties = {
+    fontSize: token.fontSizeHeading5,
+    fontWeight: token.fontWeightStrong,
+    color: token.colorText,
+  };
 
   return (
-    <div style={{ padding: '24px', background: '#f5f5f5', minHeight: 'calc(100vh - 112px)' }}>
+    <div style={{ 
+      padding: token.paddingLG,
+      background: token.colorBgLayout,
+      minHeight: 'calc(100vh - 112px)' 
+    }}>
       <Row gutter={[24, 24]}>
         {/* ユーザー */}
         <Col xs={24} md={12} lg={8}>
-          <Card style={cardStyle} bordered={false}>
+          <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
-              <UserOutlined style={{ fontSize: '24px' }} />
+              <UserOutlined style={{ fontSize: token.fontSizeHeading4 }} />
               ユーザー
             </div>
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
                 <span style={labelStyle}>総ユーザー数</span>
-                <span style={valueStyle('#212121')}>{users.total}</span>
+                <span style={valueStyle}>{users.total}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>アクティブ</span>
-                <span style={valueStyle('#212121')}>{users.active}</span>
+                <span style={valueStyle}>{users.active}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>管理者</span>
-                <span style={valueStyle('#212121')}>{users.managers}</span>
+                <span style={valueStyle}>{users.managers}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>作業者</span>
-                <span style={valueStyle('#212121')}>{users.workers}</span>
+                <span style={valueStyle}>{users.workers}</span>
               </div>
-            </Space>
+            </Flex>
           </Card>
         </Col>
 
         {/* セッション */}
         <Col xs={24} md={12} lg={8}>
-          <Card style={cardStyle} bordered={false}>
+          <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
-              <DesktopOutlined style={{ fontSize: '24px' }} />
+              <DesktopOutlined style={{ fontSize: token.fontSizeHeading4 }} />
               セッション
             </div>
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
                 <span style={labelStyle}>総セッション</span>
-                <span style={valueStyle('#212121')}>{sessions.total}</span>
+                <span style={valueStyle}>{sessions.total}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>アクティブ</span>
-                <span style={valueStyle('#212121')}>{sessions.active}</span>
+                <span style={valueStyle}>{sessions.active}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>今日のセッション</span>
-                <span style={valueStyle('#212121')}>{sessions.today}</span>
+                <span style={valueStyle}>{sessions.today}</span>
               </div>
-            </Space>
+            </Flex>
           </Card>
         </Col>
 
         {/* 実験システム */}
         <Col xs={24} md={12} lg={8}>
-          <Card style={cardStyle} bordered={false}>
+          <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
-              <ExperimentOutlined style={{ fontSize: '24px' }} />
+              <ExperimentOutlined style={{ fontSize: token.fontSizeHeading4 }} />
               実験システム
             </div>
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
                 <span style={labelStyle}>割当ファイル</span>
-                <span style={valueStyle('#212121')}>{experimentSystem.assignedFiles}</span>
+                <span style={valueStyle}>{experimentSystem.assignedFiles}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>指示</span>
-                <span style={valueStyle('#212121')}>{experimentSystem.instructions}</span>
+                <span style={valueStyle}>{experimentSystem.instructions}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>進捗レポート</span>
-                <span style={valueStyle('#212121')}>{experimentSystem.progressReports}</span>
+                <span style={valueStyle}>{experimentSystem.progressReports}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>アクティブ作業者</span>
-                <span style={valueStyle('#212121')}>{experimentSystem.activeWorkers}</span>
+                <span style={valueStyle}>{experimentSystem.activeWorkers}</span>
               </div>
-            </Space>
+            </Flex>
           </Card>
         </Col>
 
         {/* プロジェクト */}
         <Col xs={24} md={12} lg={8}>
-          <Card style={cardStyle} bordered={false}>
+          <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
-              <FolderOutlined style={{ fontSize: '24px' }} />
+              <FolderOutlined style={{ fontSize: token.fontSizeHeading4 }} />
               プロジェクト
             </div>
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
                 <span style={labelStyle}>総プロジェクト数</span>
-                <span style={valueStyle('#212121')}>{projects.total}</span>
+                <span style={valueStyle}>{projects.total}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>アクティブ</span>
-                <span style={valueStyle('#212121')}>{projects.active}</span>
+                <span style={valueStyle}>{projects.active}</span>
               </div>
-            </Space>
+            </Flex>
           </Card>
         </Col>
 
         {/* ストレージ */}
         <Col xs={24} md={12} lg={8}>
-          <Card style={cardStyle} bordered={false}>
+          <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
-              <DatabaseOutlined style={{ fontSize: '24px' }} />
+              <DatabaseOutlined style={{ fontSize: token.fontSizeHeading4 }} />
               ストレージ
             </div>
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
                 <span style={labelStyle}>総ファイル数</span>
-                <span style={valueStyle('#212121')}>{storage.totalFiles}</span>
+                <span style={valueStyle}>{storage.totalFiles}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>使用容量</span>
-                <span style={valueStyle('#212121')}>{storage.usedCapacityGB} GB</span>
+                <span style={valueStyle}>{storage.usedCapacityGB} GB</span>
               </div>
-            </Space>
+            </Flex>
           </Card>
         </Col>
 
         {/* ログイン（過去7日） */}
         <Col xs={24} md={12} lg={8}>
-          <Card style={cardStyle} bordered={false}>
+          <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
-              <LoginOutlined style={{ fontSize: '24px' }} />
+              <LoginOutlined style={{ fontSize: token.fontSizeHeading4 }} />
               ログイン（過去7日）
             </div>
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+            <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
                 <span style={labelStyle}>総ログイン</span>
-                <span style={valueStyle('#212121')}>{loginLast7Days.total}</span>
+                <span style={valueStyle}>{loginLast7Days.total}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>成功</span>
-                <span style={valueStyle('#212121')}>{loginLast7Days.success}</span>
+                <span style={valueStyle}>{loginLast7Days.success}</span>
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>失敗</span>
-                <span style={valueStyle('#212121')}>{loginLast7Days.failed}</span>
+                <span style={valueStyle}>{loginLast7Days.failed}</span>
               </div>
-            </Space>
+            </Flex>
           </Card>
         </Col>
       </Row>

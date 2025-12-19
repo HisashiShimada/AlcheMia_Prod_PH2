@@ -236,7 +236,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
       <SubHeader 
         title={t('menu.experiment_worker.title')}

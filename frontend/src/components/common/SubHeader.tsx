@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Typography, Space, Tabs, Dropdown, Button } from 'antd';
+import { Typography, Space, Tabs, Dropdown, Button, theme } from 'antd';
 import type { TabsProps, MenuProps } from 'antd';
 import styled from '@emotion/styled';
 import {
@@ -15,20 +15,31 @@ import {
 
 const { Title } = Typography;
 
+// テーマトークン用の型定義
+interface ThemeToken {
+  colorInfo: string;
+  colorBorderSecondary: string;
+  paddingXL: number;
+  marginLG: number;
+  fontSizeHeading4: number;
+  fontWeightStrong: number;
+  fontSize: number;
+}
+
 /**
  * サブヘッダーのルートコンテナ
  * UIポリシー: 高さ48px固定
  */
-const SubHeaderContainer = styled.div`
+const SubHeaderContainer = styled.div<{ token: ThemeToken }>`
   position: fixed;
   top: 64px;
   left: 0;
   right: 0;
   height: 48px;
   z-index: 999;
-  background-color: #0093CF;
+  background-color: ${props => props.token.colorInfo};
   color: white;
-  border-bottom: 1px solid #007AB3;
+  border-bottom: 1px solid ${props => props.token.colorBorderSecondary};
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
 
@@ -39,37 +50,28 @@ const SubHeaderContainer = styled.div`
  * - タブレット (md): 0 24px
  * - モバイル (xs, sm): 0 16px
  */
-const SubHeaderInner = styled.div`
-  height: 100%;
+const SubHeaderInner = styled.div<{ token: ThemeToken }>`
   margin: 0 auto;
-  padding: 0 50px;
-
-  @media (max-width: 991px) {
-    padding: 0 24px;
-  }
-
-  @media (max-width: 767px) {
-    padding: 0 16px;
-  }
+  padding: 0 ${props => props.token.paddingXL * 2}px;
 `;
 
 /**
  * コンテンツ領域（タイトル、タブ、アクションを含む）
  */
-const SubHeaderContent = styled.div`
+const SubHeaderContent = styled.div<{ token: ThemeToken }>`
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  padding-top: 8px;
+  padding-top: ${props => props.token.paddingXL / 4}px;
   padding-bottom: 0;
-  gap: 24px;
+  gap: ${props => props.token.marginLG}px;
 `;
 
 /**
  * タイトル領域
  */
-const TitleWrapper = styled.div<{ hasTabs: boolean }>`
-  margin-bottom: ${(props: { hasTabs: boolean }) => props.hasTabs ? '0' : '16px'};
+const TitleWrapper = styled.div<{ hasTabs: boolean; token: ThemeToken }>`
+  margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => props.hasTabs ? '0' : `${props.token.marginLG}px`};
   flex-shrink: 0;
 `;
 
@@ -151,8 +153,8 @@ const TabsWrapper = styled.div`
 /**
  * アクション領域
  */
-const ActionsWrapper = styled.div<{ hasTabs: boolean }>`
-  margin-bottom: ${(props: { hasTabs: boolean }) => props.hasTabs ? '8px' : '16px'};
+const ActionsWrapper = styled.div<{ hasTabs: boolean; token: ThemeToken }>`
+  margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => props.hasTabs ? `${props.token.paddingXL / 4}px` : `${props.token.marginLG}px`};
   flex-shrink: 0;
 `;
 
@@ -233,6 +235,7 @@ export default function SubHeader({
   currentMenu,
   onMenuChange,
 }: SubHeaderProps) {
+  const { token } = theme.useToken();
   const hasTabs = tabs && tabs.length > 0;
 
   // Ant Design TabsPropsの形式に変換
@@ -283,18 +286,18 @@ export default function SubHeader({
   ];
 
   return (
-    <SubHeaderContainer>
-      <SubHeaderInner>
-        <SubHeaderContent>
+    <SubHeaderContainer token={token}>
+      <SubHeaderInner token={token}>
+        <SubHeaderContent token={token}>
           {/* 左側: タイトル */}
-          <TitleWrapper hasTabs={!!hasTabs}>
+          <TitleWrapper hasTabs={!!hasTabs} token={token}>
             <Title
               level={4}
               style={{
                 margin: 0,
                 color: 'white',
-                fontWeight: 600,
-                fontSize: 24, // UIポリシー: fontSizeHeading3 (24px)
+                fontWeight: token.fontWeightStrong,
+                fontSize: token.fontSizeHeading4,
                 whiteSpace: 'nowrap',
               }}
             >
@@ -316,25 +319,47 @@ export default function SubHeader({
 
           {/* 右側: アクションボタン + メニュー切り替え */}
           {(actions || onMenuChange) && (
-            <ActionsWrapper hasTabs={!!hasTabs}>
+            <ActionsWrapper hasTabs={!!hasTabs} token={token}>
               <Space size="small">
                 {actions}
                 {onMenuChange && (
                   <Dropdown
                     menu={{ items: menuItems }}
-                    trigger={['hover']}
+                    trigger={['click']}
                     placement="bottomRight"
-                    overlayStyle={{
-                      minWidth: 240,
+                    styles={{
+                      root: {
+                        minWidth: 240,
+                      },
                     }}
                   >
-                    <MenuSwitchButton
+                    <Button
                       type="primary"
                       ghost
                       icon={<SwapOutlined />}
+                      style={{
+                        borderColor: 'rgba(255, 255, 255, 0.8)',
+                        color: 'white',
+                        fontWeight: 500,
+                        height: 36,
+                        paddingLeft: token.marginLG,
+                        paddingRight: token.marginLG,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'white';
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
                     >
                       メニュー切替
-                    </MenuSwitchButton>
+                    </Button>
                   </Dropdown>
                 )}
               </Space>

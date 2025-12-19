@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useMemo } from 'react';
 import {
@@ -51,7 +51,7 @@ interface UserData {
 }
 
 /**
- * ユーザー管理画面（モック）
+ * ユーザー管理画面のモックコンポーネント
  */
 export default function UserManagement() {
   const [users, setUsers] = useState<UserData[]>(usersData as UserData[]);
@@ -118,23 +118,25 @@ export default function UserManagement() {
   const columns: ColumnsType<UserData> = [
     {
       title: (
-        <Space size="middle" align="center">
-          <span>ユーザー名</span>
-          <Badge
-            count={filteredUsers.filter(user => !user.isActive).length}
-            style={{
-              backgroundColor: '#4169E1',
-              fontSize: 14,
-              height: 24,
-              minWidth: 40,
-              lineHeight: '24px',
-              borderRadius: 12,
-            }}
-          />
-        </Space>
+        <div style={{ textAlign: 'center' }}>
+          <Space size="middle" align="center">
+            <span>ユーザー名</span>
+            <Badge
+              count={filteredUsers.filter(user => !user.isActive).length}
+              style={{
+                backgroundColor: '#4169E1',
+                fontSize: 14,
+                height: 24,
+                minWidth: 40,
+                lineHeight: '24px',
+                borderRadius: 12,
+              }}
+            />
+          </Space>
+        </div>
       ),
       key: 'user',
-      width: 200,
+      width: 150,
       sorter: (a, b) => a.lastName.localeCompare(b.lastName),
       render: (_, record) => (
         <Text style={{ 
@@ -146,7 +148,7 @@ export default function UserManagement() {
       ),
     },
     {
-      title: 'ユーザーID',
+      title: <div style={{ textAlign: 'center' }}>ユーザーID</div>,
       dataIndex: 'userId',
       key: 'userId',
       width: 250,
@@ -161,7 +163,7 @@ export default function UserManagement() {
       ),
     },
     {
-      title: 'メールアドレス',
+      title: <div style={{ textAlign: 'center' }}>メールアドレス</div>,
       dataIndex: 'emailAdress',
       key: 'emailAdress',
       width: 250,
@@ -176,7 +178,7 @@ export default function UserManagement() {
       ),
     },
     {
-      title: '所属部署',
+      title: <div style={{ textAlign: 'center' }}>所属部署</div>,
       dataIndex: 'department',
       key: 'department',
       width: 150,
@@ -184,7 +186,7 @@ export default function UserManagement() {
       sorter: (a, b) => a.department.localeCompare(b.department),
     },
     {
-      title: '二段階認証設定',
+      title: <div style={{ textAlign: 'center' }}>二段階認証設定</div>,
       dataIndex: 'twoFactorAuth',
       key: 'twoFactorAuth',
       width: 130,
@@ -192,7 +194,7 @@ export default function UserManagement() {
       sorter: (a, b) => a.twoFactorAuth.localeCompare(b.twoFactorAuth),
     },
     {
-      title: 'ロール',
+      title: <div style={{ textAlign: 'center' }}>ロール</div>,
       dataIndex: 'role',
       key: 'role',
       width: 130,
@@ -212,16 +214,18 @@ export default function UserManagement() {
       ),
     },
     {
-      title: '最終ログイン',
+      title: <div style={{ textAlign: 'center' }}>最終ログイン</div>,
       dataIndex: 'lastLogin',
       key: 'lastLogin',
       width: 130,
+      align: 'center',
       sorter: (a, b) => new Date(a.lastLogin).getTime() - new Date(b.lastLogin).getTime(),
     },
     {
       title: '',
       key: 'action',
       width: 150,
+      align: 'center',
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
@@ -234,8 +238,9 @@ export default function UserManagement() {
           <Button
             onClick={() => handleToggleActive(record.id)}
             danger={!record.isActive}
+            style={{ width: '100px' }}
           >
-            {record.isActive ? '活性' : '非活性'}
+            {record.isActive ? 'アクティブ' : '非アクティブ'}
           </Button>
         </Space>
       ),
@@ -261,33 +266,33 @@ export default function UserManagement() {
 
   const handleActivate = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('活性にするユーザーを選択してください');
+      message.warning('アクティブにするユーザーを選択してください');
       return;
     }
     Modal.confirm({
-      title: '選択したユーザーを活性にしますか？',
-      content: `${selectedRowKeys.length}件のユーザーが活性になります。`,
-      okText: '活性',
+      title: '選択したユーザーをアクティブにしますか？',
+      content: `${selectedRowKeys.length}件のユーザーがアクティブになります。`,
+      okText: 'アクティブ化',
       cancelText: 'キャンセル',
       onOk: () => {
         setUsers(users.map(u => 
           selectedRowKeys.includes(u.id) ? { ...u, isActive: false } : u
         ));
         setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件のユーザーを活性にしました`);
+        message.success(`${selectedRowKeys.length}件のユーザーをアクティブにしました`);
       },
     });
   };
 
   const handleDeactivate = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('非活性にするユーザーを選択してください');
+      message.warning('非アクティブにするユーザーを選択してください');
       return;
     }
     Modal.confirm({
-      title: '選択したユーザーを非活性にしますか？',
-      content: `${selectedRowKeys.length}件のユーザーが非活性になります。`,
-      okText: '非活性',
+      title: '選択したユーザーを非アクティブにしますか？',
+      content: `${selectedRowKeys.length}件のユーザーが非アクティブになります。`,
+      okText: '非アクティブ化',
       cancelText: 'キャンセル',
       okButtonProps: { danger: true },
       onOk: () => {
@@ -295,7 +300,7 @@ export default function UserManagement() {
           selectedRowKeys.includes(u.id) ? { ...u, isActive: true } : u
         ));
         setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件のユーザーを非活性にしました`);
+        message.success(`${selectedRowKeys.length}件のユーザーを非アクティブにしました`);
       },
     });
   };
@@ -304,12 +309,12 @@ export default function UserManagement() {
     const user = users.find(u => u.id === id);
     if (!user) return;
 
-    const actionText = user.isActive ? '活性' : '非活性';
+    const actionText = user.isActive ? 'アクティブ' : '非アクティブ';
     const userName = `${user.lastName} ${user.firstName}`;
 
     Modal.confirm({
       title: `${userName}を${actionText}にしますか？`,
-      content: `このユーザーを${actionText}状態に変更します。`,
+      content: `このユーザーを${user.isActive ? 'アクティブ' : '非アクティブ'}状態に変更します。`,
       okText: actionText,
       cancelText: 'キャンセル',
       okButtonProps: user.isActive ? undefined : { danger: true },
@@ -317,7 +322,7 @@ export default function UserManagement() {
         setUsers(users.map(u => 
           u.id === id ? { ...u, isActive: !u.isActive } : u
         ));
-        message.success(`${userName}を${actionText}にしました`);
+        message.success(`${userName}を${user.isActive ? 'アクティブ' : '非アクティブ'}にしました`);
       },
     });
   };
@@ -387,8 +392,8 @@ export default function UserManagement() {
               return;
             }
 
-            const isActiveValue = row['状態'] || '活性';
-            const isActive = isActiveValue === '活性' || isActiveValue === 'true' || isActiveValue === '1';
+            const isActiveValue = row['状態'] || 'アクティブ';
+            const isActive = isActiveValue === 'アクティブ' || isActiveValue === 'true' || isActiveValue === '1';
 
             const newUser: UserData = {
               id: `user${String(users.length + newUsers.length + 1).padStart(3, '0')}`,
@@ -480,7 +485,7 @@ export default function UserManagement() {
       user.twoFactorAuth,
       user.role,
       user.lastLogin,
-      user.isActive ? '活性' : '非活性',
+      user.isActive ? 'アクティブ' : '非アクティブ',
     ]);
 
     const csvContent = [
@@ -577,7 +582,7 @@ export default function UserManagement() {
             color: selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
-          活性
+          アクティブ
         </Button>
         <Button
           danger
@@ -585,13 +590,13 @@ export default function UserManagement() {
           onClick={handleDeactivate}
           disabled={selectedRowKeys.length === 0}
           style={{
-            minWidth: 85,
+            minWidth: 110,
             backgroundColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
             borderColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
             color: selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
-          非活性
+          非アクティブ
         </Button>
         <Button icon={<ReloadOutlined />} onClick={handleReload}>
           リロード
@@ -757,8 +762,8 @@ export default function UserManagement() {
           >
             <Select
               options={[
-                { value: false, label: '活性' },
-                { value: true, label: '非活性' },
+                { value: false, label: 'アクティブ' },
+                { value: true, label: '非アクティブ' },
               ]}
             />
           </Form.Item>
