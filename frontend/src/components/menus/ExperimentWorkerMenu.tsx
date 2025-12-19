@@ -267,7 +267,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
           paddingRight: 16,
           paddingBottom: 24,
         }}>
-          {/* プロジェクト選択・メソッド選択・選択ボタン */}
+          {/* プロジェクト選択・選択ボタン */}
           <div style={{ 
             height: SELECTION_AREA_HEIGHT,
             marginBottom: 0,
@@ -296,29 +296,6 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                     value: id,
                     label: project.projectName
                   }))
-                ]}
-                size="middle"
-              />
-            </Space>
-
-            {/* メソッド選択 */}
-            <Space size="small" style={{ flex: '0 0 auto' }}>
-              <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-              <Text strong>{t('experimentWork.labels.method')}:</Text>
-              <Select
-                value={selectedMethodId}
-                placeholder="-"
-                style={{ width: 180 }}
-                onChange={handleSelectMethod}
-                disabled={!selectedProject}
-                options={[
-                  { value: null, label: '-' },
-                  ...(selectedProject && projectsData[selectedProject]?.methods
-                    ? projectsData[selectedProject].methods.map(method => ({
-                        value: method.methodId,
-                        label: method.methodName
-                      }))
-                    : [])
                 ]}
                 size="middle"
               />

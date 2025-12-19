@@ -122,12 +122,12 @@
       "progressRate": "Progress Rate"
     },
     "table": {
+      "methodName": "Method Name",
       "taskName": "Task Name",
-      "sampleNumber": "Sample Number",
-      "notes": "Notes",
       "status": "Status",
-      "progressReport": "Progress Report",
-      "recordNumber": "Record Number",
+      "progressRate": "Progress Rate",
+      "issueReport": "Issue Report",
+      "experimentRecord": "Experiment Record",
       "actions": "Actions"
     },
     "actions": {

@@ -6,9 +6,10 @@ import { RightOutlined, FileTextOutlined, CheckSquareOutlined } from '@ant-desig
 import TaskListTable from './TaskListTable';
 import {
   getTasksByProjectAndMethod,
-  updateTaskStatus
+  updateTaskStatus,
+  projectsData
 } from '@/data/projectsData';
-import type { Task } from '@/types/experimentWorker';
+import type { Task, Method } from '@/types/experimentWorker';
 
 const { Title } = Typography;
 
@@ -23,7 +24,7 @@ interface TaskListTabProps {
 
 /**
  * タスク一覧タブ - メインコンテナ
- * プロジェクト・メソッド選択、タスク一覧表示を統合
+ * プロジェクト選択に連動してタスク一覧を表示
  */
 export default function TaskListTab({
   selectedProject,
@@ -36,39 +37,52 @@ export default function TaskListTab({
   // タスクデータの取得
   const [tasks, setTasks] = useState<Task[]>([]);
 
-  // プロジェクトまたはメソッドが変更されたらタスク一覧を更新
+  // プロジェクトが選択されたらタスク一覧を更新（メソッド選択不要）
   useEffect(() => {
-    if (selectedProject && selectedMethodId) {
-      const fetchedTasks = getTasksByProjectAndMethod(selectedProject, selectedMethodId);
+    if (selectedProject) {
+      // プロジェクト内の全メソッドのタスクを取得
+      const allTasks: Task[] = [];
+      const projectData = projectsData[selectedProject];
+      
+      if (projectData?.methods) {
+        projectData.methods.forEach((method: Method) => {
+          if (method.tasks) {
+            // プロジェクトIDとメソッドIDを各タスクに付与
+            const tasksWithIds = method.tasks.map((task: Task) => ({
+              ...task,
+              projectId: selectedProject,
+              methodId: method.methodId,
+            }));
+            allTasks.push(...tasksWithIds);
+          }
+        });
+      }
+      
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      setTasks(fetchedTasks);
-      console.log(`タスク取得: プロジェクト=${selectedProject}, メソッド=${selectedMethodId}, タスク数=${fetchedTasks.length}`);
+      setTasks(allTasks);
+      console.log(`タスク取得: プロジェクト=${selectedProject}, タスク数=${allTasks.length}`);
     } else {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       setTasks([]);
     }
-  }, [selectedProject, selectedMethodId]);
+  }, [selectedProject]);
 
   // タスクアクション処理
   const handleTaskAction = useCallback((taskId: string, action: string) => {
-    if (!selectedProject || !selectedMethodId) {
-      message.warning('プロジェクトとメソッドを選択してください');
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+
+    // タスクからmethodIdを取得
+    const task = tasks.find(t => t.taskId === taskId);
+    if (!task || !task.methodId) {
+      message.error('タスク情報が見つかりません');
       return;
     }
 
     try {
       switch (action) {
-        case 'start':
-          // タスクを開始
-          const updatedTasksStart = updateTaskStatus(
-            selectedProject,
-            selectedMethodId,
-            taskId,
-            'started'
-          );
-          setTasks([...updatedTasksStart]);
-          message.success('タスクを開始しました');
-          break;
-
         case 'record':
           // 実験記録タブへ遷移（タスクを選択状態にする）
           if (onSelectTaskAndTab) {
@@ -80,27 +94,9 @@ export default function TaskListTab({
           }
           break;
 
-        case 'progress':
-          // 進捗報告タブへ遷移（タスクを選択状態にする）
-          if (onSelectTaskAndTab) {
-            onSelectTaskAndTab(taskId, '6'); // 進捗報告タブ
-            message.info('進捗報告タブに移動します');
-          } else if (onTabChange) {
-            onTabChange('6'); // フォールバック
-            message.info('進捗報告タブに移動します');
-          }
-          break;
-
-        case 'complete':
-          // タスクを完了
-          const updatedTasksComplete = updateTaskStatus(
-            selectedProject,
-            selectedMethodId,
-            taskId,
-            'completed'
-          );
-          setTasks([...updatedTasksComplete]);
-          message.success('タスクを完了しました');
+        case 'issue':
+          // 問題報告（今後実装予定）
+          message.info('問題報告機能は今後実装予定です');
           break;
 
         default:
@@ -110,7 +106,7 @@ export default function TaskListTab({
       console.error('タスクアクション処理エラー:', error);
       message.error('タスクの更新に失敗しました');
     }
-  }, [selectedProject, selectedMethodId, onTabChange, onSelectTaskAndTab]);
+  }, [selectedProject, tasks, onTabChange, onSelectTaskAndTab]);
 
   // 指示確認ボタン
   const handleInstructionConfirmation = useCallback(() => {
@@ -118,11 +114,6 @@ export default function TaskListTab({
       onTabChange('2'); // 作業指示確認タブ
     }
   }, [onTabChange]);
-
-  // 一括進捗報告ボタン
-  const handleBatchProgressReport = useCallback(() => {
-    message.info('一括進捗報告機能は今後実装予定です');
-  }, []);
 
   // 承認依頼ボタン
   const handleApprovalRequest = useCallback(() => {
@@ -160,7 +151,7 @@ export default function TaskListTab({
             タスク一覧
           </Typography.Title>
 
-          {/* 指示確認ボタン・一括進捗報告ボタン・承認依頼ボタン */}
+          {/* 指示確認ボタン・承認依頼ボタン */}
           <Space size="middle">
             <Button
               type="default"
@@ -175,14 +166,6 @@ export default function TaskListTab({
             <Button
               type="default"
               size="middle"
-              onClick={handleBatchProgressReport}
-              aria-label="一括進捗報告"
-            >
-              一括進捗報告
-            </Button>
-            <Button
-              type="default"
-              size="middle"
               onClick={handleApprovalRequest}
               aria-label="承認依頼"
             >
@@ -192,7 +175,7 @@ export default function TaskListTab({
         </div>
 
         {/* タスク一覧テーブル */}
-        {selectedProject && selectedMethodId && tasks.length > 0 ? (
+        {selectedProject && tasks.length > 0 ? (
           <TaskListTable
             tasks={tasks}
             onTaskAction={handleTaskAction}
@@ -206,8 +189,8 @@ export default function TaskListTab({
               fontSize: '14px'
             }}
           >
-            {!selectedProject || !selectedMethodId
-              ? 'プロジェクトとメソッドを選択してください'
+            {!selectedProject
+              ? 'プロジェクトを選択してください'
               : 'タスクが見つかりません'}
           </div>
         )}

@@ -200,6 +200,9 @@ export type TaskStatus =
 // タスクデータ（実験作業タブ用）
 export interface Task {
   taskId: string;              // タスクID
+  projectId?: string;          // プロジェクトID（Phase 7追加: プロジェクト選択連動用）
+  methodId?: string;           // メソッドID（Phase 7追加: プロジェクト選択連動用）
+  methodName: string;          // メソッド名（Phase 1追加: グループ化・折りたたみ用）
   taskName: string;            // タスク名
   sampleNumber: string;        // サンプル番号
   notes: string;               // 備考

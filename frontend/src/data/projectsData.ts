@@ -267,6 +267,7 @@ export const projectsData: Record<string, ProjectData> = {
         "tasks": [
           {
             "taskId": "task_m001_001",
+            "methodName": "温度キャリブレーション",
             "taskName": "温度記録",
             "sampleNumber": "Sample-001",
             "notes": "標準温度計との比較測定",
@@ -277,6 +278,7 @@ export const projectsData: Record<string, ProjectData> = {
           },
           {
             "taskId": "task_m001_002",
+            "methodName": "温度キャリブレーション",
             "taskName": "誤差計算",
             "sampleNumber": "Sample-001",
             "notes": "温度誤差の算出と記録",
@@ -287,6 +289,7 @@ export const projectsData: Record<string, ProjectData> = {
           },
           {
             "taskId": "task_m001_003",
+            "methodName": "温度キャリブレーション",
             "taskName": "レポート作成",
             "sampleNumber": "Sample-001",
             "notes": "キャリブレーション結果のまとめ",
@@ -398,6 +401,7 @@ export const projectsData: Record<string, ProjectData> = {
         "tasks": [
           {
             "taskId": "task_m002_001",
+            "methodName": "サンプル重量測定",
             "taskName": "重量測定記録",
             "sampleNumber": "Sample-W001",
             "notes": "精密天秤による重量測定とデータ記録",

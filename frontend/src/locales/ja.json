@@ -122,12 +122,12 @@
       "progressRate": "進捗率"
     },
     "table": {
+      "methodName": "メソッド名",
       "taskName": "タスク名",
-      "sampleNumber": "サンプル番号",
-      "notes": "備考",
       "status": "ステータス",
-      "progressReport": "進捗報告",
-      "recordNumber": "実験記録番号",
+      "progressRate": "進捗率",
+      "issueReport": "問題報告",
+      "experimentRecord": "実験記録",
       "actions": "アクション"
     },
     "actions": {
