@@ -152,6 +152,14 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     setSelectedTaskId(newTaskId);
   };
 
+  // タスク選択とタブ切り替えを同時に実行するハンドラー
+  const handleSelectTaskAndTab = (taskId: string, tabKey: string) => {
+    // タスクを選択
+    setSelectedTaskId(taskId);
+    // タブを切り替え
+    setCurrentTab(tabKey);
+  };
+
   // 選択されたメソッドを取得
   const selectedMethod = (selectedProject && selectedMethodId
     ? projectsData[selectedProject]?.methods?.find((m) => m.methodId === selectedMethodId)
@@ -180,6 +188,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
           onTabChange={handleTabChange}
+          onSelectTaskAndTab={handleSelectTaskAndTab}
         />
       ),
     },

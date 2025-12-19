@@ -18,6 +18,7 @@ interface TaskListTabProps {
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string) => void;
   onTabChange?: (tabKey: string) => void;
+  onSelectTaskAndTab?: (taskId: string, tabKey: string) => void;
 }
 
 /**
@@ -29,7 +30,8 @@ export default function TaskListTab({
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
-  onTabChange
+  onTabChange,
+  onSelectTaskAndTab
 }: TaskListTabProps) {
   // タスクデータの取得
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -68,17 +70,23 @@ export default function TaskListTab({
           break;
 
         case 'record':
-          // 実験記録タブへ遷移
-          if (onTabChange) {
-            onTabChange('3'); // 実験記録タブ
+          // 実験記録タブへ遷移（タスクを選択状態にする）
+          if (onSelectTaskAndTab) {
+            onSelectTaskAndTab(taskId, '3'); // 実験記録タブ
+            message.info('実験記録タブに移動します');
+          } else if (onTabChange) {
+            onTabChange('3'); // フォールバック
             message.info('実験記録タブに移動します');
           }
           break;
 
         case 'progress':
-          // 進捗報告タブへ遷移
-          if (onTabChange) {
-            onTabChange('6'); // 進捗報告タブ
+          // 進捗報告タブへ遷移（タスクを選択状態にする）
+          if (onSelectTaskAndTab) {
+            onSelectTaskAndTab(taskId, '6'); // 進捗報告タブ
+            message.info('進捗報告タブに移動します');
+          } else if (onTabChange) {
+            onTabChange('6'); // フォールバック
             message.info('進捗報告タブに移動します');
           }
           break;
@@ -102,7 +110,7 @@ export default function TaskListTab({
       console.error('タスクアクション処理エラー:', error);
       message.error('タスクの更新に失敗しました');
     }
-  }, [selectedProject, selectedMethodId, onTabChange]);
+  }, [selectedProject, selectedMethodId, onTabChange, onSelectTaskAndTab]);
 
   // 指示確認ボタン
   const handleInstructionConfirmation = useCallback(() => {
