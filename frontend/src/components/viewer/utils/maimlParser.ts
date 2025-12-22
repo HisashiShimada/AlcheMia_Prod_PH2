@@ -63,10 +63,13 @@ export interface PetriNetStructure {
 
 /**
  * MAIML XMLからペトリネット構造を抽出
+ * @param maimlXml MAIML XML文字列
+ * @param selectedMethodId 選択されたメソッドID（複数メソッド対応）
  */
-export function parseMaimlToPetriNet(maimlXml: string): PetriNetStructure {
+export function parseMaimlToPetriNet(maimlXml: string, selectedMethodId?: string): PetriNetStructure {
   console.log('🔍 [parseMaimlToPetriNet] パース開始:', {
     xmlLength: maimlXml.length,
+    selectedMethodId: selectedMethodId || 'all',
     firstChars: maimlXml.substring(0, 200),
   });
 
@@ -83,9 +86,22 @@ export function parseMaimlToPetriNet(maimlXml: string): PetriNetStructure {
 
   console.log('✅ [parseMaimlToPetriNet] XML解析成功');
 
-  // Placesを抽出
+  // 🎯 複数メソッド対応: 特定のメソッドのみを抽出
+  let targetDoc: Document | Element = xmlDoc;
+  if (selectedMethodId) {
+    const methodElement = xmlDoc.querySelector(`method[id="${selectedMethodId}"]`);
+    if (methodElement) {
+      console.log('🎯 [parseMaimlToPetriNet] メソッドフィルタリング:', selectedMethodId);
+      targetDoc = methodElement;
+    } else {
+      console.warn('⚠️ [parseMaimlToPetriNet] 指定されたメソッドが見つかりません:', selectedMethodId);
+      // メソッドが見つからない場合は全体をパース（フォールバック）
+    }
+  }
+
+  // Placesを抽出（targetDocから）
   const places: Place[] = [];
-  const placeElements = xmlDoc.querySelectorAll('place');
+  const placeElements = targetDoc.querySelectorAll('place');
   placeElements.forEach((placeEl) => {
     const id = placeEl.getAttribute('id') || '';
     const nameEl = placeEl.querySelector('name');
@@ -99,9 +115,9 @@ export function parseMaimlToPetriNet(maimlXml: string): PetriNetStructure {
     places.push({ id, name, x, y });
   });
 
-  // Transitionsを抽出
+  // Transitionsを抽出（targetDocから）
   const transitions: Transition[] = [];
-  const transitionElements = xmlDoc.querySelectorAll('transition');
+  const transitionElements = targetDoc.querySelectorAll('transition');
   transitionElements.forEach((transEl) => {
     const id = transEl.getAttribute('id') || '';
     const nameEl = transEl.querySelector('name');
@@ -115,9 +131,9 @@ export function parseMaimlToPetriNet(maimlXml: string): PetriNetStructure {
     transitions.push({ id, name, x, y });
   });
 
-  // Arcsを抽出
+  // Arcsを抽出（targetDocから）
   const arcs: Arc[] = [];
-  const arcElements = xmlDoc.querySelectorAll('arc');
+  const arcElements = targetDoc.querySelectorAll('arc');
   arcElements.forEach((arcEl) => {
     const id = arcEl.getAttribute('id') || '';
     const source = arcEl.getAttribute('source') || '';
@@ -128,7 +144,7 @@ export function parseMaimlToPetriNet(maimlXml: string): PetriNetStructure {
     arcs.push({ id, source, target, name });
   });
 
-  // Templatesを抽出
+  // Templatesを抽出（xmlDocから - テンプレートは全体から取得）
   const templates: Record<string, Template> = {};
   
   // Material Templates

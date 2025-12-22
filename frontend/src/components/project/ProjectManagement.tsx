@@ -32,10 +32,14 @@ import BulkUploadDialog from './BulkUploadDialog';
 import InstructionDialog from './InstructionDialog';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
-import mockProjectsData from '@/data/mock/mockProjects.json';
 import mockFilesData from '@/data/mock/mockFiles.json';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
+import { useApi } from '@/hooks/useApi';
+import { fetchProjects, fetchProjectFiles } from '@/utils/apiClient';
+import type { ApiResponse } from '@/types/api';
+import type { ProjectListResponse } from '@/types/project';
+import type { ProjectFilesResponse } from '@/types/file';
 
 const { Title, Text } = Typography;
 
@@ -81,10 +85,25 @@ const ProjectManagement: React.FC = () => {
   const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
   const [nextZIndex, setNextZIndex] = useState(1000);
 
-  // モックデータの読み込み
+  // プロジェクト一覧をAPI経由で取得
+  const { 
+    data: projectsData, 
+    isLoading: isLoadingProjects, 
+    error: projectsError, 
+    refetch: refetchProjects 
+  } = useApi<ApiResponse<ProjectListResponse>>(
+    fetchProjects,
+    []
+  );
+
+  // プロジェクトデータが取得できたらstateを更新
   useEffect(() => {
-    setProjects(mockProjectsData.projects);
-  }, []);
+    if (projectsData?.data.projects) {
+      // Data synchronization in useEffect is a valid pattern
+      // eslint-disable-next-line
+      setProjects(projectsData.data.projects);
+    }
+  }, [projectsData]);
 
   // ユニークな部門リストを取得
   const departments = useMemo(() => {
@@ -252,10 +271,10 @@ const ProjectManagement: React.FC = () => {
   }, [selectedProjectId]);
 
   // リフレッシュ
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     console.log('Refreshing project list...');
-    setProjects([...mockProjectsData.projects]);
-  };
+    refetchProjects();
+  }, [refetchProjects]);
 
   // アップロードダイアログを開く
   const handleOpenUploadDialog = useCallback(() => {
@@ -276,7 +295,7 @@ const ProjectManagement: React.FC = () => {
     console.log('Upload completed:', result);
     // TODO: ファイル一覧を更新
     handleRefresh();
-  }, []);
+  }, [handleRefresh]);
 
   // 選択したプロジェクトとそのファイル一覧を取得
   const selectedProject = useMemo(() => {

@@ -56,7 +56,7 @@ export interface SubnetData {
  */
 interface ViewRendererDialogProps {
   id: string;
-  contentType: 'file' | 'subnet';
+  contentType: 'file' | 'subnet' | 'edit';
   file?: FileData;
   subnetData?: SubnetData;
   zIndex: number;
@@ -122,9 +122,9 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
 
-  // ファイルが変更されたらコンテンツをロード
+  // ファイルが変更されたらコンテンツをロード（fileモードとeditモードで使用）
   useEffect(() => {
-    if (contentType !== 'file' || !file) {
+    if ((contentType !== 'file' && contentType !== 'edit') || !file) {
       return;
     }
 
@@ -154,6 +154,9 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
     }
     if (contentType === 'subnet' && subnetData) {
       return `サブネット: ${subnetData.transitionName}`;
+    }
+    if (contentType === 'edit' && file) {
+      return `🚀 編集: ${file.name}`;
     }
     return '不明';
   };
@@ -203,6 +206,57 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
               deviceType="desktop"
               isTabletDevice={false}
               isMobileDevice={false}
+              onOpenSubNetViewer={onOpenSubNetViewer}
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (contentType === 'edit') {
+      if (!file) return null;
+
+      // ファイル情報をViewRenderer用に変換
+      const selectedFile = {
+        key: file.id,
+        name: file.name,
+        content: fileContent || undefined,
+        size: file.size,
+        lastModified: file.lastModified,
+      };
+
+      return (
+        <div
+          style={{
+            height: '100%',
+            width: '100%',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {loading ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+              }}
+            >
+              <Spin size="large" tip="ファイルを読み込み中..." />
+            </div>
+          ) : (
+            <ViewRenderer
+              currentView="edit"
+              selectedFile={selectedFile}
+              fileContent={fileContent}
+              enhancedMode={false}
+              downloadingFile={false}
+              deviceType="desktop"
+              isTabletDevice={false}
+              isMobileDevice={false}
+              onExitEdit={() => onClose(id)}
               onOpenSubNetViewer={onOpenSubNetViewer}
             />
           )}

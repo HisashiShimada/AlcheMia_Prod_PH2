@@ -3,8 +3,8 @@
 
 'use client';
 
-import React from 'react';
-import { Alert, Space, Typography, Card, Button, Tag } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Alert, Space, Typography, Card, Button, Tag, Tabs, Spin, message } from 'antd';
 import { 
   RocketOutlined, 
   FileTextOutlined, 
@@ -17,6 +17,8 @@ import ErrorBoundary from './ErrorBoundary';
 import TiffViewer from './TiffViewer';
 import ImageViewer from './ImageViewer';
 import PetriNetViewer from './PetriNetViewer';
+import PetriNetEditor from './PetriNetEditor';
+import { fetchMultipleMethodsStructureFromContent } from '@/utils/apiClient';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -249,6 +251,90 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
   onExitExperimentControl,
   onOpenSubNetViewer,
 }) => {
+  // 🎯 複数メソッド対応: 型定義
+  interface MethodData {
+    methodId: string;
+    methodIndex: number;
+    name: string;
+    places?: Array<{ id: string; type: string; description?: string }>;
+    transitions?: Array<{ id: string; description?: string }>;
+    arcs?: Array<{ id: string; source: string; target: string }>;
+  }
+
+  // 🎯 複数メソッド対応: State管理
+  const [loadingMethods, setLoadingMethods] = useState(false);
+  const [methods, setMethods] = useState<MethodData[]>([]);
+  const [selectedMethodIndex, setSelectedMethodIndex] = useState<number>(0);
+  const [isMultiMethod, setIsMultiMethod] = useState(false);
+  const [checkedFileKey, setCheckedFileKey] = useState<string>('');
+
+  // 🎯 複数メソッドチェック: fileContentが変わったら実行
+  useEffect(() => {
+    if (!fileContent || !selectedFile || getFileType(selectedFile.name) !== 'maiml') {
+      setMethods([]);
+      setIsMultiMethod(false);
+      setSelectedMethodIndex(0);
+      setCheckedFileKey('');
+      return;
+    }
+
+    // 既に同じファイルをチェック済みの場合はスキップ
+    if (checkedFileKey === selectedFile.key) {
+      console.log('ℹ️ [ViewRenderer] 既にチェック済み - スキップ:', selectedFile.key);
+      return;
+    }
+
+    const checkMultipleMethods = async () => {
+      try {
+        setLoadingMethods(true);
+        console.log('🔍 [ViewRenderer] 複数メソッドチェック開始:', selectedFile.key);
+        
+        // Base64エンコード
+        const base64Content = btoa(unescape(encodeURIComponent(fileContent)));
+        
+        const response = await fetchMultipleMethodsStructureFromContent(base64Content);
+        
+        if (response && typeof response === 'object' && 'success' in response) {
+          const apiResponse = response as { 
+            success: boolean; 
+            data?: { methods?: MethodData[] }; 
+            error?: string;
+          };
+          
+          if (apiResponse.success && apiResponse.data?.methods && apiResponse.data.methods.length > 1) {
+            console.log('✅ [ViewRenderer] 複数メソッド検出:', apiResponse.data.methods.length);
+            setMethods(apiResponse.data.methods);
+            setIsMultiMethod(true);
+            setSelectedMethodIndex(0);
+            
+            // メッセージ表示（キーで重複防止）
+            message.success({
+              content: `${apiResponse.data.methods.length}個のメソッドを検出しました`,
+              key: 'multiple-methods-detected',
+              duration: 3
+            });
+          } else {
+            console.log('ℹ️ [ViewRenderer] 単一メソッドまたは非対応');
+            setMethods([]);
+            setIsMultiMethod(false);
+          }
+        }
+        
+        // チェック済みフラグを設定
+        setCheckedFileKey(selectedFile.key);
+      } catch (error) {
+        console.error('❌ [ViewRenderer] 複数メソッドチェックエラー:', error);
+        setMethods([]);
+        setIsMultiMethod(false);
+        setCheckedFileKey(selectedFile.key);
+      } finally {
+        setLoadingMethods(false);
+      }
+    };
+
+    checkMultipleMethods();
+  }, [fileContent, selectedFile?.key]);
+
   /**
    * ファイルビューアーのレンダリング
    */
@@ -269,16 +355,62 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
     
     switch (fileType) {
       case 'maiml':
+        // 🎯 複数メソッド対応: Tabsで切り替え
+        if (isMultiMethod && methods.length > 0) {
+          return (
+            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div style={{ flexShrink: 0, borderBottom: '1px solid #f0f0f0', padding: '8px 16px', backgroundColor: '#fafafa' }}>
+                <Tabs
+                  activeKey={String(selectedMethodIndex)}
+                  onChange={(key) => setSelectedMethodIndex(Number(key))}
+                  items={methods.map((method, index) => ({
+                    key: String(index),
+                    label: (
+                      <span>
+                        <Text strong>{method.name || `Method ${index + 1}`}</Text>
+                        <Tag color="blue" style={{ marginLeft: 8 }}>
+                          {method.places?.length || 0} nodes, {method.transitions?.length || 0} transitions
+                        </Tag>
+                      </span>
+                    ),
+                  }))}
+                />
+              </div>
+              <div 
+                id="petri-net-viewer-container"
+                style={{ flex: 1, overflow: 'hidden', position: 'relative' }}
+              >
+                <ErrorBoundary>
+                  <PetriNetViewer 
+                    maimlData={fileContent}
+                    enhancedMode={enhancedMode}
+                    propertyDisplayMode="drawer"
+                    containerElementId="petri-net-viewer-container"
+                    onOpenSubNetViewer={onOpenSubNetViewer}
+                    selectedMethodId={methods[selectedMethodIndex]?.methodId}
+                  />
+                </ErrorBoundary>
+              </div>
+            </div>
+          );
+        }
+        
+        // 🎯 単一メソッドまたはチェック中: 従来通りの表示
         return (
           <div 
             id="petri-net-viewer-container"
             style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}
           >
+            {loadingMethods && (
+              <div style={{ padding: 16, textAlign: 'center', backgroundColor: '#fafafa' }}>
+                <Spin size="small" /> <Text type="secondary">メソッド情報を確認中...</Text>
+              </div>
+            )}
             <ErrorBoundary>
               <PetriNetViewer 
                 maimlData={fileContent}
                 enhancedMode={enhancedMode}
-                propertyDisplayMode="drawer"  // 'modal' または 'drawer' に変更可能
+                propertyDisplayMode="drawer"
                 containerElementId="petri-net-viewer-container"
                 onOpenSubNetViewer={onOpenSubNetViewer}
               />
@@ -322,20 +454,14 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
    */
   const renderEditView = () => {
     return (
-      <div style={{ padding: 24 }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Alert
-            message="MAIML Editor"
-            description="編集機能は未実装です"
-            type="warning"
-            showIcon
-            action={
-              <Button size="small" onClick={onExitEdit}>
-                メイン画面に戻る
-              </Button>
-            }
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <ErrorBoundary>
+          <PetriNetEditor
+            editingFileName={selectedFile?.name}
+            initialMaiMLData={fileContent}
+            onExitEdit={onExitEdit}
           />
-        </Space>
+        </ErrorBoundary>
       </div>
     );
   };

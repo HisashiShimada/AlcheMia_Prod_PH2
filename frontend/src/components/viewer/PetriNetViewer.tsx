@@ -48,6 +48,7 @@ interface PetriNetViewerProps {
   performanceStats?: unknown;
   propertyDisplayMode?: 'modal' | 'drawer';  // 新規: プロパティ表示モード
   containerElementId?: string;  // 新規: コンテナ要素ID
+  selectedMethodId?: string;  // 🆕 複数メソッド対応: 選択されたメソッドID
   onOpenSubNetViewer?: (subnetData: {
     transitionName: string;
     maimlData: string;
@@ -90,6 +91,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   performanceStats,
   propertyDisplayMode = 'modal',  // デフォルト: modal
   containerElementId,
+  selectedMethodId,  // 🆕 複数メソッド対応
   onOpenSubNetViewer
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -97,6 +99,10 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showArcLabels, setShowArcLabels] = useState(false);
+
+  // 🎯 複数メソッド管理用State
+  const [multiMethodMode, setMultiMethodMode] = useState(false);
+  const [methodName, setMethodName] = useState<string>('');
 
   // ノード選択状態
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -153,10 +159,12 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
     setError(null);
 
     try {
-      console.log('🔍 [PetriNetViewer] MAIMLデータの解析開始');
+      console.log('🔍 [PetriNetViewer] MAIMLデータの解析開始', {
+        selectedMethodId: selectedMethodId || 'all'
+      });
       
-      // MAIML XMLをパース
-      const structure = parseMaimlToPetriNet(maimlData);
+      // MAIML XMLをパース（🆕 selectedMethodIdを渡す）
+      const structure = parseMaimlToPetriNet(maimlData, selectedMethodId);
       
       // ペトリネット構造をSubNetViewer用の形式に変換
       const placesForSubNet = structure.places.map(place => ({
@@ -202,6 +210,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         edges: flowEdges.length,
         places: structure.places.length,
         arcs: structure.arcs.length,
+        selectedMethodId: selectedMethodId || 'all',
       });
     } catch (err) {
       console.error('❌ [PetriNetViewer] 初期化エラー:', err);
@@ -209,7 +218,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [maimlData, setNodes, setEdges]);
+  }, [maimlData, selectedMethodId, setNodes, setEdges]);
 
   // ノードクリックハンドラ
   const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
@@ -467,6 +476,11 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
                 Enhanced Mode
               </Text>
             )}
+            {multiMethodMode && methodName && (
+              <Text type="secondary" style={{ fontSize: 12, color: '#1890ff' }}>
+                📋 {methodName}
+              </Text>
+            )}
             <Text type="secondary" style={{ fontSize: 12 }}>
               ノード: {nodes.length} | エッジ: {edges.length}
             </Text>
@@ -541,7 +555,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       </Card>
 
       {/* 情報表示 */}
-      {performanceStats && (
+      {performanceStats ? (
         <Card size="small" style={{ marginTop: 16 }}>
           <Space direction="vertical" size="small" style={{ width: '100%' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -552,7 +566,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
             </pre>
           </Space>
         </Card>
-      )}
+      ) : null}
 
       {/* プロパティ選択ダイアログ */}
       <StructuredPropertySelector
