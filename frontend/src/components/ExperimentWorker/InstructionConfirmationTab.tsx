@@ -156,7 +156,9 @@ export default function InstructionConfirmationTab({
       ) : (
         <>
           {/* 作業指示サマリーカード */}
-          <InstructionStats stats={filteredStats} />
+          <div style={{ marginBottom: 8 }}>
+            <InstructionStats stats={filteredStats} />
+          </div>
 
           {/* 指示詳細カード */}
           <Card
@@ -193,25 +195,53 @@ export default function InstructionConfirmationTab({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: token.marginXS,
-                  cursor: 'pointer',
-                  borderRadius: token.borderRadiusSM,
-                }}
-                onClick={() => toggleGroup('file')}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
+                  gap: 8,
                 }}
               >
-                <Title level={4} style={{ margin: 0 }}>
-                  {expandedGroups['file'] ? <DownOutlined /> : <RightOutlined />}{' '}
-                  <FileOutlined style={{ marginRight: token.marginXS }} />
-                  全体指示 (
-                  {filteredInstructions.filter((i) => i.targetType === 'file').length}
-                  件)
-                </Title>
+                {/* タイトル部分（クリック可能） */}
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: token.marginXS,
+                    cursor: 'pointer',
+                    borderRadius: token.borderRadiusSM,
+                  }}
+                  onClick={() => toggleGroup('file')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <Title level={4} style={{ margin: 0 }}>
+                    {expandedGroups['file'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                    <FileOutlined style={{ marginRight: token.marginXS }} />
+                    全体指示 (
+                    {filteredInstructions.filter((i) => i.targetType === 'file').length}
+                    件)
+                  </Title>
+                </div>
+                
+                {/* 確認完了ボタン（展開時のみ表示） */}
+                {expandedGroups['file'] && filteredInstructions.filter((i) => i.targetType === 'file').length > 0 && (
+                  <Button
+                    type="primary"
+                    icon={<CheckCircleOutlined />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      alert('全体指示の確認完了（モック）');
+                    }}
+                    style={{ 
+                      backgroundColor: token.colorSuccess, 
+                      borderColor: token.colorSuccess 
+                    }}
+                  >
+                    確認完了
+                  </Button>
+                )}
               </div>
               {expandedGroups['file'] && (
                 <div style={{ marginTop: token.margin }}>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Tag, Space, Typography } from 'antd';
+import { Card, Tag, Space, Typography, Flex } from 'antd';
 import type { Instruction } from '@/types/experimentWorker';
 import {
   getPriorityColor,
@@ -7,7 +7,7 @@ import {
   getTypeLabel,
   formatRelativeTime,
 } from '@/utils/instructionHelpers';
-import { CalendarOutlined, AimOutlined, ToolOutlined } from '@ant-design/icons';
+import { CalendarOutlined } from '@ant-design/icons';
 
 const { Text, Paragraph } = Typography;
 
@@ -30,39 +30,36 @@ export default function InstructionCard({
         borderLeft: `4px solid ${getPriorityColor(instruction.priority)}`,
         backgroundColor: instruction.priority === 'high' ? '#fef2f2' : 'white',
       }}
+      styles={{
+        body: {
+          padding: '8px',
+        },
+      }}
     >
       <Space direction="vertical" size="small" style={{ width: '100%' }}>
-        <Space size="small" wrap>
-          <Tag
-            color={getPriorityColor(instruction.priority)}
-            style={{ fontWeight: 'bold' }}
-          >
-            {getPriorityLabel(instruction.priority)}
-          </Tag>
-          <Tag>{getTypeLabel(instruction.instructionType)}</Tag>
-        </Space>
+        {/* 優先度・タイプと日付を横並びに配置 */}
+        <Flex justify="space-between" align="center">
+          <Space size="small" wrap>
+            <Tag
+              color={getPriorityColor(instruction.priority)}
+              style={{ fontWeight: 'bold' }}
+            >
+              {getPriorityLabel(instruction.priority)}
+            </Tag>
+            <Tag>{getTypeLabel(instruction.instructionType)}</Tag>
+          </Space>
+          
+          {isClient && (
+            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+              <CalendarOutlined /> {formatRelativeTime(instruction.createdAt)}
+            </Text>
+          )}
+        </Flex>
         
-        {instruction.transitionName && (
-          <Tag icon={<AimOutlined />} color="default">
-            {instruction.transitionName}
-          </Tag>
-        )}
-        
-        {instruction.methodName && (
-          <Tag icon={<ToolOutlined />} color="default">
-            {instruction.methodName}
-          </Tag>
-        )}
-        
+        {/* 指示内容 */}
         <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>
           {instruction.content}
         </Paragraph>
-        
-        {isClient && (
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            <CalendarOutlined /> {formatRelativeTime(instruction.createdAt)}
-          </Text>
-        )}
       </Space>
     </Card>
   );
