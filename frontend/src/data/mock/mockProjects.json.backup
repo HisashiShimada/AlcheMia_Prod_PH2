@@ -1,0 +1,975 @@
+{
+  "_comment": "プロジェクト管理画面、進捗確認画面、作業進捗詳細ダイアログで共通利用するプロジェクト・タスク・進捗情報",
+  "projects": [
+    {
+      "id": "proj_001",
+      "name": "HighTempSuperconductor",
+      "folderName": "high_temp_superconductor",
+      "description": "YBCO系高温超伝導体の合成条件最適化プロジェクト",
+      "createdAt": "2024-11-01T09:00:00Z",
+      "updatedAt": "2024-12-09T15:30:00Z",
+      "status": "in_progress",
+      "fileCount": 45,
+      "totalSize": 125000000,
+      "owner": "田中 太郎",
+      "department": "材料開発部",
+      "members": ["田中 太郎", "佐藤 花子", "鈴木 一郎"],
+      "tags": ["超伝導", "材料合成", "YBCO"],
+      "isCheckedOut": true,
+      "checkedOutBy": "田中 太郎",
+      "checkedOutAt": "2024-12-09T09:00:00Z",
+      "completedTasks": 2,
+      "totalTasks": 6,
+      "ownerId": "worker_tanaka",
+      "ownerEmail": "taro.tanaka@example.com",
+      "ownerName": "田中 太郎",
+      "methods": ["SamplePreparation", "Characterization"],
+      "fileInfo": {
+        "fileName": "experiment_supercond_001.maiml",
+        "maimlFileKey": "org_maiml_lab_001/projects/proj_001/experiments/experiment_supercond_001.maiml",
+        "organizationId": "org_maiml_lab_001"
+      },
+      "tasks": [
+        {
+          "workId": "work_supercond_001",
+          "taskName": "SamplePreparation_1",
+          "methodName": "SamplePreparation",
+          "assignedWorker": "田中 太郎",
+          "assignedWorkerId": "worker_tanaka",
+          "workStatus": "completed",
+          "progressPercentage": 100,
+          "completedAt": "2024-12-08T16:00:00Z",
+          "workCompletedAt": "2024-12-08T16:00:00Z",
+          "reviewCompletedAt": "2024-12-08T17:00:00Z",
+          "stats": {
+            "totalTransitions": 4,
+            "completed": 4,
+            "working": 0,
+            "paused": 0,
+            "notStarted": 0,
+            "completionRate": 100
+          },
+          "transitionProgress": [
+            {
+              "transitionId": "trans_001",
+              "transitionName": "試料調製",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-08T08:00:00Z",
+              "endDate": "2024-12-08T10:00:00Z"
+            },
+            {
+              "transitionId": "trans_002",
+              "transitionName": "X線回折測定",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-08T10:30:00Z",
+              "endDate": "2024-12-08T12:00:00Z"
+            },
+            {
+              "transitionId": "trans_003",
+              "transitionName": "データ解析",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-08T13:00:00Z",
+              "endDate": "2024-12-08T15:00:00Z"
+            },
+            {
+              "transitionId": "trans_004",
+              "transitionName": "レポート作成",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-08T15:00:00Z",
+              "endDate": "2024-12-08T16:00:00Z"
+            }
+          ]
+        },
+        {
+          "workId": "work_supercond_002",
+          "taskName": "SamplePreparation_2",
+          "methodName": "SamplePreparation",
+          "assignedWorker": "田中 太郎",
+          "assignedWorkerId": "worker_tanaka",
+          "workStatus": "completed",
+          "progressPercentage": 100,
+          "completedAt": "2024-12-09T12:00:00Z",
+          "workCompletedAt": "2024-12-09T12:00:00Z",
+          "reviewCompletedAt": "2024-12-09T14:00:00Z",
+          "stats": {
+            "totalTransitions": 4,
+            "completed": 4,
+            "working": 0,
+            "paused": 0,
+            "notStarted": 0,
+            "completionRate": 100
+          },
+          "transitionProgress": [
+            {
+              "transitionId": "trans_001",
+              "transitionName": "試料調製",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-09T08:00:00Z",
+              "endDate": "2024-12-09T09:30:00Z"
+            },
+            {
+              "transitionId": "trans_002",
+              "transitionName": "X線回折測定",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-09T10:00:00Z",
+              "endDate": "2024-12-09T11:00:00Z"
+            },
+            {
+              "transitionId": "trans_003",
+              "transitionName": "データ解析",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-09T11:00:00Z",
+              "endDate": "2024-12-09T11:45:00Z"
+            },
+            {
+              "transitionId": "trans_004",
+              "transitionName": "レポート作成",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-09T11:45:00Z",
+              "endDate": "2024-12-09T12:00:00Z"
+            }
+          ]
+        },
+        {
+          "workId": "work_supercond_003",
+          "taskName": "Characterization_1",
+          "methodName": "Characterization",
+          "assignedWorker": "田中 太郎",
+          "assignedWorkerId": "worker_tanaka",
+          "workStatus": "in_progress",
+          "progressPercentage": 60,
+          "completedAt": null,
+          "workCompletedAt": null,
+          "reviewCompletedAt": null,
+          "stats": {
+            "totalTransitions": 5,
+            "completed": 3,
+            "working": 1,
+            "paused": 0,
+            "notStarted": 1,
+            "completionRate": 60
+          },
+          "transitionProgress": [
+            {
+              "transitionId": "trans_001",
+              "transitionName": "SEM観察",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-09T13:00:00Z",
+              "endDate": "2024-12-09T14:30:00Z"
+            },
+            {
+              "transitionId": "trans_002",
+              "transitionName": "TEM観察",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-09T15:00:00Z",
+              "endDate": "2024-12-09T16:30:00Z"
+            },
+            {
+              "transitionId": "trans_003",
+              "transitionName": "EDX分析",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-10T08:00:00Z",
+              "endDate": "2024-12-10T09:30:00Z"
+            },
+            {
+              "transitionId": "trans_004",
+              "transitionName": "データ整理",
+              "progressStatus": "作業中",
+              "progressPercentage": 50,
+              "assignedWorker": "田中 太郎",
+              "startDate": "2024-12-10T10:00:00Z",
+              "endDate": null
+            },
+            {
+              "transitionId": "trans_005",
+              "transitionName": "レポート作成",
+              "progressStatus": "未開始",
+              "progressPercentage": 0,
+              "assignedWorker": "田中 太郎",
+              "startDate": null,
+              "endDate": null
+            }
+          ]
+        },
+        {
+          "workId": "work_supercond_004",
+          "taskName": "Characterization_2",
+          "methodName": "Characterization",
+          "assignedWorker": "田中 太郎",
+          "assignedWorkerId": "worker_tanaka",
+          "workStatus": "pending",
+          "progressPercentage": 0,
+          "completedAt": null,
+          "workCompletedAt": null,
+          "reviewCompletedAt": null,
+          "stats": {
+            "totalTransitions": 5,
+            "completed": 0,
+            "working": 0,
+            "paused": 0,
+            "notStarted": 5,
+            "completionRate": 0
+          },
+          "transitionProgress": []
+        },
+        {
+          "workId": "work_supercond_005",
+          "taskName": "Characterization_3",
+          "methodName": "Characterization",
+          "assignedWorker": "田中 太郎",
+          "assignedWorkerId": "worker_tanaka",
+          "workStatus": "review_waiting",
+          "progressPercentage": 100,
+          "completedAt": null,
+          "workCompletedAt": "2024-12-10T16:00:00Z",
+          "reviewCompletedAt": null,
+          "stats": {
+            "totalTransitions": 5,
+            "completed": 5,
+            "working": 0,
+            "paused": 0,
+            "notStarted": 0,
+            "completionRate": 100
+          },
+          "transitionProgress": []
+        },
+        {
+          "workId": "work_supercond_006",
+          "taskName": "Characterization_4",
+          "methodName": "Characterization",
+          "assignedWorker": "田中 太郎",
+          "assignedWorkerId": "worker_tanaka",
+          "workStatus": "pending",
+          "progressPercentage": 0,
+          "completedAt": null,
+          "workCompletedAt": null,
+          "reviewCompletedAt": null,
+          "stats": {
+            "totalTransitions": 5,
+            "completed": 0,
+            "working": 0,
+            "paused": 0,
+            "notStarted": 5,
+            "completionRate": 0
+          },
+          "transitionProgress": []
+        }
+      ]
+    },
+    {
+      "id": "proj_002",
+      "name": "LithiumBatteryCathode",
+      "folderName": "lithium_battery_cathode",
+      "description": "高容量リチウムイオン電池用正極材料の開発と評価",
+      "createdAt": "2024-10-15T10:30:00Z",
+      "updatedAt": "2024-12-08T14:20:00Z",
+      "status": "pending",
+      "fileCount": 62,
+      "totalSize": 210000000,
+      "owner": "佐藤 花子",
+      "department": "エネルギー材料部",
+      "members": ["佐藤 花子", "山田 次郎"],
+      "tags": ["電池", "正極材料", "リチウムイオン"],
+      "isCheckedOut": true,
+      "checkedOutBy": "佐藤 花子",
+      "checkedOutAt": "2024-12-08T09:30:00Z",
+      "completedTasks": 0,
+      "totalTasks": 0,
+      "ownerId": "worker_sato",
+      "ownerEmail": "hanako.sato@example.com",
+      "ownerName": "佐藤 花子",
+      "methods": [],
+      "fileInfo": {
+        "fileName": "experiment_battery_001.maiml",
+        "maimlFileKey": "org_maiml_lab_001/projects/proj_002/experiments/experiment_battery_001.maiml",
+        "organizationId": "org_maiml_lab_001"
+      },
+      "tasks": []
+    },
+    {
+      "id": "proj_003",
+      "name": "PerovskiteSolarCell",
+      "folderName": "perovskite_solar_cell",
+      "description": "ペロブスカイト型太陽電池の変換効率向上に関する研究",
+      "createdAt": "2024-09-20T11:15:00Z",
+      "updatedAt": "2024-12-07T16:45:00Z",
+      "status": "in_progress",
+      "fileCount": 38,
+      "totalSize": 95000000,
+      "owner": "鈴木 一郎",
+      "department": "エネルギー材料部",
+      "members": ["鈴木 一郎", "田中 太郎"],
+      "tags": ["太陽電池", "ペロブスカイト", "エネルギー"],
+      "isCheckedOut": false,
+      "checkedOutBy": null,
+      "checkedOutAt": null,
+      "completedTasks": 1,
+      "totalTasks": 3,
+      "ownerId": "worker_suzuki",
+      "ownerEmail": "ichiro.suzuki@example.com",
+      "ownerName": "鈴木 一郎",
+      "methods": ["MaterialSynthesis", "PerformanceEvaluation", "StabilityTest"],
+      "fileInfo": {
+        "fileName": "experiment_perovskite_001.maiml",
+        "maimlFileKey": "org_maiml_lab_001/projects/proj_003/experiments/experiment_perovskite_001.maiml",
+        "organizationId": "org_maiml_lab_001"
+      },
+      "tasks": [
+        {
+          "workId": "work_perovskite_001",
+          "taskName": "MaterialSynthesis_1",
+          "methodName": "MaterialSynthesis",
+          "assignedWorker": "鈴木 一郎",
+          "assignedWorkerId": "worker_suzuki",
+          "workStatus": "completed",
+          "progressPercentage": 100,
+          "completedAt": "2024-12-06T17:00:00Z",
+          "stats": {
+            "totalTransitions": 6,
+            "completed": 6,
+            "working": 0,
+            "paused": 0,
+            "notStarted": 0,
+            "completionRate": 100
+          },
+          "transitionProgress": [
+            {
+              "transitionId": "trans_001",
+              "transitionName": "材料調製",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-06T08:00:00Z",
+              "endDate": "2024-12-06T10:00:00Z"
+            },
+            {
+              "transitionId": "trans_002",
+              "transitionName": "薄膜作製",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-06T10:30:00Z",
+              "endDate": "2024-12-06T12:30:00Z"
+            },
+            {
+              "transitionId": "trans_003",
+              "transitionName": "構造評価",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-06T13:30:00Z",
+              "endDate": "2024-12-06T15:00:00Z"
+            },
+            {
+              "transitionId": "trans_004",
+              "transitionName": "光学測定",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-06T15:00:00Z",
+              "endDate": "2024-12-06T16:00:00Z"
+            },
+            {
+              "transitionId": "trans_005",
+              "transitionName": "データ解析",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-06T16:00:00Z",
+              "endDate": "2024-12-06T16:45:00Z"
+            },
+            {
+              "transitionId": "trans_006",
+              "transitionName": "報告書作成",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-06T16:45:00Z",
+              "endDate": "2024-12-06T17:00:00Z"
+            }
+          ]
+        },
+        {
+          "workId": "work_perovskite_002",
+          "taskName": "PerformanceEvaluation_1",
+          "methodName": "PerformanceEvaluation",
+          "assignedWorker": "鈴木 一郎",
+          "assignedWorkerId": "worker_suzuki",
+          "workStatus": "in_progress",
+          "progressPercentage": 66,
+          "completedAt": null,
+          "stats": {
+            "totalTransitions": 6,
+            "completed": 4,
+            "working": 1,
+            "paused": 0,
+            "notStarted": 1,
+            "completionRate": 66
+          },
+          "transitionProgress": [
+            {
+              "transitionId": "trans_001",
+              "transitionName": "セル組み立て",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-07T08:00:00Z",
+              "endDate": "2024-12-07T09:00:00Z"
+            },
+            {
+              "transitionId": "trans_002",
+              "transitionName": "IV測定",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-07T09:30:00Z",
+              "endDate": "2024-12-07T11:00:00Z"
+            },
+            {
+              "transitionId": "trans_003",
+              "transitionName": "EQE測定",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-07T11:30:00Z",
+              "endDate": "2024-12-07T13:00:00Z"
+            },
+            {
+              "transitionId": "trans_004",
+              "transitionName": "インピーダンス測定",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-07T14:00:00Z",
+              "endDate": "2024-12-07T15:30:00Z"
+            },
+            {
+              "transitionId": "trans_005",
+              "transitionName": "データ解析",
+              "progressStatus": "作業中",
+              "progressPercentage": 60,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": "2024-12-07T16:00:00Z",
+              "endDate": null
+            },
+            {
+              "transitionId": "trans_006",
+              "transitionName": "報告書作成",
+              "progressStatus": "未開始",
+              "progressPercentage": 0,
+              "assignedWorker": "鈴木 一郎",
+              "startDate": null,
+              "endDate": null
+            }
+          ]
+        },
+        {
+          "workId": "work_perovskite_003",
+          "taskName": "StabilityTest_1",
+          "methodName": "StabilityTest",
+          "assignedWorker": "鈴木 一郎",
+          "assignedWorkerId": "worker_suzuki",
+          "workStatus": "pending",
+          "progressPercentage": 0,
+          "completedAt": null,
+          "workCompletedAt": null,
+          "reviewCompletedAt": null,
+          "stats": {
+            "totalTransitions": 4,
+            "completed": 0,
+            "working": 0,
+            "paused": 0,
+            "notStarted": 4,
+            "completionRate": 0
+          },
+          "transitionProgress": []
+        }
+      ]
+    },
+    {
+      "id": "proj_004",
+      "name": "NanoparticleCatalyst",
+      "folderName": "nanoparticle_catalyst",
+      "description": "金属ナノ粒子の触媒活性評価と構造解析",
+      "createdAt": "2024-08-10T13:00:00Z",
+      "updatedAt": "2024-11-30T10:00:00Z",
+      "status": "completed",
+      "fileCount": 28,
+      "totalSize": 68000000,
+      "owner": "山田 次郎",
+      "department": "触媒化学部",
+      "members": ["山田 次郎"],
+      "tags": ["ナノ粒子", "触媒", "金属"],
+      "isCheckedOut": false,
+      "checkedOutBy": null,
+      "checkedOutAt": null,
+      "completedTasks": 1,
+      "totalTasks": 1,
+      "ownerId": "worker_yamada",
+      "ownerEmail": "jiro.yamada@example.com",
+      "ownerName": "山田 次郎",
+      "methods": ["NanoparticleCatalyst"],
+      "fileInfo": {
+        "fileName": "experiment_catalyst_001.maiml",
+        "maimlFileKey": "org_maiml_lab_001/projects/proj_004/experiments/experiment_catalyst_001.maiml",
+        "organizationId": "org_maiml_lab_001"
+      },
+      "tasks": [
+        {
+          "workId": "work_catalyst_001",
+          "taskName": "NanoparticleCatalyst",
+          "methodName": "NanoparticleCatalyst",
+          "assignedWorker": "山田 次郎",
+          "assignedWorkerId": "worker_yamada",
+          "workStatus": "completed",
+          "progressPercentage": 100,
+          "completedAt": "2024-11-30T10:00:00Z",
+          "stats": {
+            "totalTransitions": 6,
+            "completed": 6,
+            "working": 0,
+            "paused": 0,
+            "notStarted": 0,
+            "completionRate": 100
+          },
+          "transitionProgress": [
+            {
+              "transitionId": "trans_001",
+              "transitionName": "触媒調製",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "山田 次郎",
+              "startDate": "2024-11-29T08:00:00Z",
+              "endDate": "2024-11-29T09:00:00Z"
+            },
+            {
+              "transitionId": "trans_002",
+              "transitionName": "活性測定",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "山田 次郎",
+              "startDate": "2024-11-29T09:30:00Z",
+              "endDate": "2024-11-29T10:30:00Z"
+            },
+            {
+              "transitionId": "trans_003",
+              "transitionName": "構造解析",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "山田 次郎",
+              "startDate": "2024-11-29T11:00:00Z",
+              "endDate": "2024-11-29T13:00:00Z"
+            },
+            {
+              "transitionId": "trans_004",
+              "transitionName": "データ整理",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "山田 次郎",
+              "startDate": "2024-11-29T13:30:00Z",
+              "endDate": "2024-11-29T15:00:00Z"
+            },
+            {
+              "transitionId": "trans_005",
+              "transitionName": "報告書作成",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "山田 次郎",
+              "startDate": "2024-11-30T08:00:00Z",
+              "endDate": "2024-11-30T09:00:00Z"
+            },
+            {
+              "transitionId": "trans_006",
+              "transitionName": "最終確認",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "山田 次郎",
+              "startDate": "2024-11-30T09:30:00Z",
+              "endDate": "2024-11-30T10:00:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "proj_005",
+      "name": "GrapheneComposite",
+      "folderName": "graphene_composite",
+      "description": "グラフェン複合材料の合成と物性評価",
+      "createdAt": "2024-07-05T09:30:00Z",
+      "updatedAt": "2024-12-05T13:15:00Z",
+      "status": "in_progress",
+      "fileCount": 51,
+      "totalSize": 143000000,
+      "owner": "伊藤 美咲",
+      "department": "材料開発部",
+      "members": ["伊藤 美咲", "佐藤 花子", "鈴木 一郎"],
+      "tags": ["グラフェン", "複合材料", "ナノ材料"],
+      "isCheckedOut": true,
+      "checkedOutBy": "伊藤 美咲",
+      "checkedOutAt": "2024-12-05T08:00:00Z",
+      "completedTasks": 0,
+      "totalTasks": 1,
+      "ownerId": "worker_ito",
+      "ownerEmail": "misaki.ito@example.com",
+      "ownerName": "伊藤 美咲",
+      "methods": ["GrapheneSynthesis"],
+      "fileInfo": {
+        "fileName": "experiment_graphene_001.maiml",
+        "maimlFileKey": "org_maiml_lab_001/projects/proj_005/experiments/experiment_graphene_001.maiml",
+        "organizationId": "org_maiml_lab_001"
+      },
+      "tasks": [
+        {
+          "workId": "work_graphene_001",
+          "taskName": "GrapheneSynthesis",
+          "methodName": "GrapheneSynthesis",
+          "assignedWorker": "伊藤 美咲",
+          "assignedWorkerId": "worker_ito",
+          "workStatus": "in_progress",
+          "progressPercentage": 60,
+          "completedAt": null,
+          "stats": {
+            "totalTransitions": 5,
+            "completed": 3,
+            "working": 1,
+            "paused": 0,
+            "notStarted": 1,
+            "completionRate": 60
+          },
+          "transitionProgress": [
+            {
+              "transitionId": "trans_001",
+              "transitionName": "グラフェン合成",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "伊藤 美咲",
+              "startDate": "2024-12-01T09:00:00Z",
+              "endDate": "2024-12-01T10:00:00Z"
+            },
+            {
+              "transitionId": "trans_002",
+              "transitionName": "複合化プロセス",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "伊藤 美咲",
+              "startDate": "2024-12-02T13:00:00Z",
+              "endDate": "2024-12-02T14:30:00Z"
+            },
+            {
+              "transitionId": "trans_003",
+              "transitionName": "構造評価",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "伊藤 美咲",
+              "startDate": "2024-12-03T09:30:00Z",
+              "endDate": "2024-12-03T11:00:00Z"
+            },
+            {
+              "transitionId": "trans_004",
+              "transitionName": "電気特性測定",
+              "progressStatus": "作業中",
+              "progressPercentage": 45,
+              "assignedWorker": "伊藤 美咲",
+              "startDate": "2024-12-05T10:00:00Z",
+              "endDate": null
+            },
+            {
+              "transitionId": "trans_005",
+              "transitionName": "データ解析",
+              "progressStatus": "未開始",
+              "progressPercentage": 0,
+              "assignedWorker": "伊藤 美咲",
+              "startDate": null,
+              "endDate": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "proj_006",
+      "name": "RareEarthMagnet",
+      "folderName": "rare_earth_magnet",
+      "description": "希土類磁石の高性能化に関する研究",
+      "createdAt": "2024-06-01T10:00:00Z",
+      "updatedAt": "2024-11-15T14:00:00Z",
+      "status": "in_progress",
+      "fileCount": 33,
+      "totalSize": 78000000,
+      "owner": "高橋 健太",
+      "department": "磁性材料部",
+      "members": ["高橋 健太", "田中 太郎"],
+      "tags": ["磁石", "希土類", "高性能"],
+      "isCheckedOut": false,
+      "checkedOutBy": null,
+      "checkedOutAt": null,
+      "completedTasks": 0,
+      "totalTasks": 0,
+      "ownerId": "worker_takahashi",
+      "ownerEmail": "kenta.takahashi@example.com",
+      "ownerName": "高橋 健太",
+      "methods": ["MagnetSynthesis"],
+      "fileInfo": {
+        "fileName": "experiment_magnet_001.maiml",
+        "maimlFileKey": "org_maiml_lab_001/projects/proj_006/experiments/experiment_magnet_001.maiml",
+        "organizationId": "org_maiml_lab_001"
+      },
+      "tasks": []
+    },
+    {
+      "id": "proj_007",
+      "name": "OrganicSolarCell",
+      "folderName": "organic_solar_cell",
+      "description": "有機太陽電池の長期安定性評価",
+      "createdAt": "2024-07-15T09:00:00Z",
+      "updatedAt": "2024-12-10T16:30:00Z",
+      "status": "review_waiting",
+      "fileCount": 25,
+      "totalSize": 58000000,
+      "owner": "中村 健",
+      "department": "エネルギー材料部",
+      "members": ["中村 健", "島田 尚"],
+      "tags": ["有機太陽電池", "安定性", "劣化"],
+      "isCheckedOut": false,
+      "checkedOutBy": null,
+      "checkedOutAt": null,
+      "completedTasks": 1,
+      "totalTasks": 1,
+      "ownerId": "worker_nakamura",
+      "ownerEmail": "ken.nakamura@example.com",
+      "ownerName": "中村 健",
+      "methods": ["OrganicSolarCell"],
+      "fileInfo": {
+        "fileName": "experiment_organic_001.maiml",
+        "maimlFileKey": "org_maiml_lab_001/projects/proj_007/experiments/experiment_organic_001.maiml",
+        "organizationId": "org_maiml_lab_001"
+      },
+      "tasks": [
+        {
+          "workId": "work_organic_001",
+          "taskName": "OrganicSolarCell",
+          "methodName": "OrganicSolarCell",
+          "assignedWorker": "中村 健",
+          "assignedWorkerId": "worker_nakamura",
+          "workStatus": "completed",
+          "progressPercentage": 100,
+          "completedAt": "2024-12-10T16:30:00Z",
+          "stats": {
+            "totalTransitions": 4,
+            "completed": 4,
+            "working": 0,
+            "paused": 0,
+            "notStarted": 0,
+            "completionRate": 100
+          },
+          "transitionProgress": [
+            {
+              "transitionId": "trans_o001",
+              "transitionName": "セル作製",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "島田 尚",
+              "startDate": "2024-08-27T08:00:00Z",
+              "endDate": "2024-08-27T09:00:00Z"
+            },
+            {
+              "transitionId": "trans_o002",
+              "transitionName": "初期特性評価",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "中村 健",
+              "startDate": "2024-08-28T09:00:00Z",
+              "endDate": "2024-08-28T11:00:00Z"
+            },
+            {
+              "transitionId": "trans_o003",
+              "transitionName": "長期暴露試験",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "中村 健",
+              "startDate": "2024-09-01T09:00:00Z",
+              "endDate": "2024-12-01T17:00:00Z"
+            },
+            {
+              "transitionId": "trans_o004",
+              "transitionName": "劣化メカニズム解析",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "中村 健",
+              "startDate": "2024-12-05T09:00:00Z",
+              "endDate": "2024-12-10T16:30:00Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "proj_008",
+      "name": "FuelCellElectrolyte",
+      "folderName": "fuel_cell_electrolyte",
+      "description": "固体酸化物形燃料電池用電解質材料の開発",
+      "createdAt": "2024-11-20T10:00:00Z",
+      "updatedAt": "2024-12-15T10:45:00Z",
+      "status": "error",
+      "fileCount": 18,
+      "totalSize": 42000000,
+      "owner": "小林 裕樹",
+      "department": "エネルギー材料部",
+      "members": ["小林 裕樹"],
+      "tags": ["燃料電池", "電解質", "固体酸化物"],
+      "isCheckedOut": true,
+      "checkedOutBy": "小林 裕樹",
+      "checkedOutAt": "2024-12-11T08:30:00Z",
+      "completedTasks": 0,
+      "totalTasks": 2,
+      "ownerId": "worker_kobayashi",
+      "ownerEmail": "hiroki.kobayashi@example.com",
+      "ownerName": "小林 裕樹",
+      "methods": ["MaterialSynthesis", "Characterization"],
+      "fileInfo": {
+        "fileName": "experiment_fuelcell_001.maiml",
+        "maimlFileKey": "org_maiml_lab_001/projects/proj_008/experiments/experiment_fuelcell_001.maiml",
+        "organizationId": "org_maiml_lab_001"
+      },
+      "tasks": [
+        {
+          "workId": "work_fuelcell_001",
+          "taskName": "MaterialSynthesis_1",
+          "methodName": "MaterialSynthesis",
+          "assignedWorker": "小林 裕樹",
+          "assignedWorkerId": "worker_kobayashi",
+          "workStatus": "error",
+          "progressPercentage": 40,
+          "completedAt": null,
+          "stats": {
+            "totalTransitions": 5,
+            "completed": 2,
+            "working": 0,
+            "paused": 1,
+            "notStarted": 2,
+            "completionRate": 40
+          },
+          "transitionProgress": [
+            {
+              "transitionId": "trans_fc001",
+              "transitionName": "原料調製",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "小林 裕樹",
+              "startDate": "2024-12-10T09:00:00Z",
+              "endDate": "2024-12-10T10:30:00Z"
+            },
+            {
+              "transitionId": "trans_fc002",
+              "transitionName": "混合・成形",
+              "progressStatus": "完了",
+              "progressPercentage": 100,
+              "assignedWorker": "小林 裕樹",
+              "startDate": "2024-12-10T11:00:00Z",
+              "endDate": "2024-12-10T12:00:00Z"
+            },
+            {
+              "transitionId": "trans_fc003",
+              "transitionName": "焼成",
+              "progressStatus": "異常中",
+              "progressPercentage": 50,
+              "assignedWorker": "小林 裕樹",
+              "startDate": "2024-12-11T09:00:00Z",
+              "endDate": null
+            },
+            {
+              "transitionId": "trans_fc004",
+              "transitionName": "冷却",
+              "progressStatus": "未開始",
+              "progressPercentage": 0,
+              "assignedWorker": "小林 裕樹",
+              "startDate": null,
+              "endDate": null
+            },
+            {
+              "transitionId": "trans_fc005",
+              "transitionName": "試料回収",
+              "progressStatus": "未開始",
+              "progressPercentage": 0,
+              "assignedWorker": "小林 裕樹",
+              "startDate": null,
+              "endDate": null
+            }
+          ]
+        },
+        {
+          "workId": "work_fuelcell_002",
+          "taskName": "Characterization_1",
+          "methodName": "Characterization",
+          "assignedWorker": "小林 裕樹",
+          "assignedWorkerId": "worker_kobayashi",
+          "workStatus": "pending",
+          "progressPercentage": 0,
+          "completedAt": null,
+          "workCompletedAt": null,
+          "reviewCompletedAt": null,
+          "stats": {
+            "totalTransitions": 3,
+            "completed": 0,
+            "working": 0,
+            "paused": 0,
+            "notStarted": 3,
+            "completionRate": 0
+          },
+          "transitionProgress": [
+            {
+              "transitionId": "trans_fc011",
+              "transitionName": "XRD測定",
+              "progressStatus": "未開始",
+              "progressPercentage": 0,
+              "assignedWorker": "小林 裕樹",
+              "startDate": null,
+              "endDate": null
+            },
+            {
+              "transitionId": "trans_fc012",
+              "transitionName": "イオン伝導度測定",
+              "progressStatus": "未開始",
+              "progressPercentage": 0,
+              "assignedWorker": "小林 裕樹",
+              "startDate": null,
+              "endDate": null
+            },
+            {
+              "transitionId": "trans_fc013",
+              "transitionName": "微細組織観察",
+              "progressStatus": "未開始",
+              "progressPercentage": 0,
+              "assignedWorker": "小林 裕樹",
+              "startDate": null,
+              "endDate": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

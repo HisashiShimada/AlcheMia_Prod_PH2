@@ -33,7 +33,6 @@ import InstructionDialog from './InstructionDialog';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
 import mockProjectsData from '@/data/mock/mockProjects.json';
 import mockFilesData from '@/data/mock/mockFiles.json';
-import mockTaskResultsData from '@/data/mock/mockTaskResults.json';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
 
@@ -314,35 +313,40 @@ const ProjectManagement: React.FC = () => {
     return [];
   }, [selectedProjectId, currentFolder, selectedProject]);
 
-  // タスク結果一覧を取得
+  // タスク結果一覧を取得（統合されたmockProjects.jsonから取得）
   const taskResults = useMemo(() => {
     if (!selectedProjectId) return [];
-    return (mockTaskResultsData.taskResults as any)[selectedProjectId] || [];
-  }, [selectedProjectId]);
+    const project = projects.find(p => p.id === selectedProjectId);
+    return project?.tasks || [];
+  }, [selectedProjectId, projects]);
 
-  // タスク結果の統計情報を計算
+  // タスク結果の統計情報を計算（workStatus基準）
   const taskStats = useMemo(() => {
     const stats = {
       total: taskResults.length,
       pending: 0,
       in_progress: 0,
+      error: 0,
       review_waiting: 0,
-      reviewed: 0,
+      completed: 0,
     };
 
     taskResults.forEach((result: any) => {
-      switch (result.status) {
+      switch (result.workStatus) {
         case 'pending':
           stats.pending++;
           break;
         case 'in_progress':
           stats.in_progress++;
           break;
+        case 'error':
+          stats.error++;
+          break;
         case 'review_waiting':
           stats.review_waiting++;
           break;
-        case 'reviewed':
-          stats.reviewed++;
+        case 'completed':
+          stats.completed++;
           break;
       }
     });
@@ -640,32 +644,40 @@ const ProjectManagement: React.FC = () => {
                 }}
                 bodyStyle={{ padding: token.margin }}
               >
-                <Space size="small">
-                  <Title level={5} style={{ margin: 0, fontWeight: token.fontWeightStrong }}>
-                    {selectedProject.name}
-                  </Title>
-                  {/* プロジェクトステータス表示 */}
-                  {selectedProject.status === 'planning' && (
-                    <Tag>{t('projectManagement.status_planning')}</Tag>
-                  )}
-                  {selectedProject.status === 'pending' && (
-                    <Tag color="blue">{t('projectManagement.status_pending')}</Tag>
-                  )}
-                  {selectedProject.status === 'in_progress' && (
-                    <Tag color="cyan">{t('projectManagement.status_in_progress')}</Tag>
-                  )}
-                  {selectedProject.status === 'review_waiting' && (
-                    <Tag color="purple">{t('projectManagement.status_review_waiting')}</Tag>
-                  )}
-                  {selectedProject.status === 'completed' && (
-                    <Tag color="success">{t('projectManagement.status_completed')}</Tag>
-                  )}
-                  {selectedProject.status === 'error' && (
-                    <Tag color="error">{t('projectManagement.status_error')}</Tag>
-                  )}
-                  {/* チェックアウト状態表示 - プロジェクト単位 */}
-                  {selectedProject.isCheckedOut && (
-                    <Tag color="orange">{t('projectManagement.checking_out')}</Tag>
+                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space size="small">
+                    <Title level={5} style={{ margin: 0, fontWeight: token.fontWeightStrong }}>
+                      {selectedProject.name}
+                    </Title>
+                    {/* プロジェクトステータス表示 */}
+                    {selectedProject.status === 'planning' && (
+                      <Tag>{t('projectManagement.status_planning')}</Tag>
+                    )}
+                    {selectedProject.status === 'pending' && (
+                      <Tag color="blue">{t('projectManagement.status_pending')}</Tag>
+                    )}
+                    {selectedProject.status === 'in_progress' && (
+                      <Tag color="cyan">{t('projectManagement.status_in_progress')}</Tag>
+                    )}
+                    {selectedProject.status === 'review_waiting' && (
+                      <Tag color="purple">{t('projectManagement.status_review_waiting')}</Tag>
+                    )}
+                    {selectedProject.status === 'completed' && (
+                      <Tag color="success">{t('projectManagement.status_completed')}</Tag>
+                    )}
+                    {selectedProject.status === 'error' && (
+                      <Tag color="error">{t('projectManagement.status_error')}</Tag>
+                    )}
+                    {/* チェックアウト状態表示 - プロジェクト単位 */}
+                    {selectedProject.isCheckedOut && (
+                      <Tag color="orange">{t('projectManagement.checking_out')}</Tag>
+                    )}
+                  </Space>
+                  {/* プロジェクト概要 */}
+                  {selectedProject.description && (
+                    <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                      {selectedProject.description}
+                    </Text>
                   )}
                 </Space>
               </Card>
@@ -750,7 +762,7 @@ const ProjectManagement: React.FC = () => {
                 {currentTab === 'task_results' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {/* 統計カード */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: token.margin }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: token.margin }}>
                       <Card
                         bordered={false}
                         style={{ backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius }}
@@ -758,7 +770,7 @@ const ProjectManagement: React.FC = () => {
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.total_tasks')}
+                            {t('projectManagement.task_results.stats.total_tasks') || '総タスク数'}
                           </Text>
                           <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorText }}>
                             {taskStats.total}
@@ -768,14 +780,14 @@ const ProjectManagement: React.FC = () => {
                       
                       <Card
                         bordered={false}
-                        style={{ backgroundColor: token.colorInfoBg, borderRadius: token.borderRadius }}
+                        style={{ backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius }}
                         bodyStyle={{ padding: token.margin }}
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.pending_count')}
+                            {t('projectManagement.task_results.stats.pending_count') || '実行待ち'}
                           </Text>
-                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorInfo }}>
+                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorTextSecondary }}>
                             {taskStats.pending}
                           </Title>
                         </Flex>
@@ -783,15 +795,30 @@ const ProjectManagement: React.FC = () => {
                       
                       <Card
                         bordered={false}
-                        style={{ backgroundColor: token.colorInfoBg, borderRadius: token.borderRadius }}
+                        style={{ backgroundColor: token.colorPrimaryBg, borderRadius: token.borderRadius }}
                         bodyStyle={{ padding: token.margin }}
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.in_progress_count')}
+                            {t('projectManagement.task_results.stats.in_progress_count') || '実行中'}
                           </Text>
-                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorInfo }}>
+                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorPrimary }}>
                             {taskStats.in_progress}
+                          </Title>
+                        </Flex>
+                      </Card>
+                      
+                      <Card
+                        bordered={false}
+                        style={{ backgroundColor: token.colorErrorBg, borderRadius: token.borderRadius }}
+                        bodyStyle={{ padding: token.margin }}
+                      >
+                        <Flex vertical align="center">
+                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                            {t('projectManagement.task_results.stats.error_count') || '異常終了'}
+                          </Text>
+                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorError }}>
+                            {taskStats.error}
                           </Title>
                         </Flex>
                       </Card>
@@ -803,7 +830,7 @@ const ProjectManagement: React.FC = () => {
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.review_waiting_count')}
+                            {t('projectManagement.task_results.stats.review_waiting_count') || 'レビュー待ち'}
                           </Text>
                           <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorWarning }}>
                             {taskStats.review_waiting}
@@ -818,10 +845,10 @@ const ProjectManagement: React.FC = () => {
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.reviewed_count')}
+                            {t('projectManagement.task_results.stats.completed_count') || '完了'}
                           </Text>
                           <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorSuccess }}>
-                            {taskStats.reviewed}
+                            {taskStats.completed}
                           </Title>
                         </Flex>
                       </Card>
@@ -886,14 +913,36 @@ const ProjectManagement: React.FC = () => {
       />
 
       {/* 指示送信ダイアログ */}
-      <InstructionDialog
-        open={instructionDialogOpen}
-        onClose={handleCloseInstructionDialog}
-        onSubmit={handleInstructionSubmit}
-        fileKey={selectedProject?.folderName || ''}
-        managerId="current_manager_id"
-        availableWorkers={[]}
-      />
+      {selectedProject && (
+        <InstructionDialog
+          open={instructionDialogOpen}
+          onClose={handleCloseInstructionDialog}
+          onSubmit={handleInstructionSubmit}
+          fileKey={selectedProject.folderName}
+          managerId="current_manager_id"
+          projectName={selectedProject.name}
+          projectOwner={selectedProject.owner}
+          projectStatus={(() => {
+            switch (selectedProject.status) {
+              case 'planning':
+                return t('projectManagement.status_planning');
+              case 'pending':
+                return t('projectManagement.status_pending');
+              case 'in_progress':
+                return t('projectManagement.status_in_progress');
+              case 'review_waiting':
+                return t('projectManagement.status_review_waiting');
+              case 'completed':
+                return t('projectManagement.status_completed');
+              case 'error':
+                return t('projectManagement.status_error');
+              default:
+                return selectedProject.status;
+            }
+          })()}
+          availableWorkers={[]}
+        />
+      )}
 
       {/* 新規プロジェクト作成モーダル */}
       <CreateProjectModal
