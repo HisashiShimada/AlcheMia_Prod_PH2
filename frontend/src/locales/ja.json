@@ -114,6 +114,17 @@
       "project": "プロジェクト",
       "method": "メソッド"
     },
+    "projectSelection": {
+      "title": "プロジェクトを選択",
+      "noSelection": "未選択",
+      "noSelectionDescription": "プロジェクトを選択しない",
+      "currentlySelected": "現在選択中",
+      "selected": "選択中",
+      "owner": "所有者",
+      "unknownOwner": "不明",
+      "cancel": "キャンセル",
+      "confirm": "決定"
+    },
     "issueReport": {
       "title": "問題報告",
       "issueType": "問題タイプ",

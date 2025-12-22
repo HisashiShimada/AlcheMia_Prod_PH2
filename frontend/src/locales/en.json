@@ -109,10 +109,21 @@
     "instructionButton": "Instructions",
     "taskListButton": "Task List",
     "batchProgressButton": "Batch Progress Report",
-    "approvalRequestButton": "Request Approval",
+    "approvalRequestButton": "Approval Request",
     "labels": {
       "project": "Project",
       "method": "Method"
+    },
+    "projectSelection": {
+      "title": "Select Project",
+      "noSelection": "No Selection",
+      "noSelectionDescription": "Do not select a project",
+      "currentlySelected": "Currently Selected",
+      "selected": "Selected",
+      "owner": "Owner",
+      "unknownOwner": "Unknown",
+      "cancel": "Cancel",
+      "confirm": "Confirm"
     },
     "issueReport": {
       "title": "Issue Report",

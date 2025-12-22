@@ -20,7 +20,7 @@ import { useExpandState } from '@/hooks/useExpandState';
 import InstructionConfirmationTab from '../ExperimentWorker/InstructionConfirmationTab';
 import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
 import ProgressCheckTab from '../ExperimentWorker/ProgressCheckTab';
-import UnifiedSelectionDialog from '../ExperimentWorker/UnifiedSelectionDialog';
+import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import { projectsData } from '@/data/projectsData';
 
 const { Content } = Layout;
@@ -324,16 +324,12 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             />
           </div>
 
-          {/* 統合選択ダイアログ */}
-          <UnifiedSelectionDialog
+          {/* プロジェクト選択モーダル */}
+          <ProjectSelectionModal
             open={dialogOpen}
             onClose={() => setDialogOpen(false)}
             selectedProject={selectedProject}
-            selectedMethodId={selectedMethodId}
-            selectedTaskId={selectedTaskId}
             onProjectChange={handleProjectChange}
-            onSelectMethod={handleSelectMethod}
-            onSelectTask={handleSelectTask}
           />
         </div>
       </Content>

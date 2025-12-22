@@ -150,6 +150,7 @@ export interface PastExperimentData {
 export interface ProjectData {
   projectId: string;
   projectName: string;
+  description?: string; // プロジェクトの説明
   fileName: string;
   workAssignment: WorkAssignment;
   instructions: Instruction[];

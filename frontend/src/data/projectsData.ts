@@ -8,6 +8,7 @@ export const projectsData: Record<string, ProjectData> = {
   "project_001": {
     "projectId": "project_001",
     "projectName": "高温材料特性評価実験",
+    "description": "高温環境下での材料特性を評価し、耐熱性能を検証する実験プロジェクト",
     "fileName": "experiment_workflow_v2.maiml",
     "workAssignment": {
       "workId": "work_001",
@@ -1150,6 +1151,7 @@ export const projectsData: Record<string, ProjectData> = {
   "project_002": {
     "projectId": "project_002",
     "projectName": "Ramanスペクトル解析",
+    "description": "Ramanスペクトル測定による材料の分子構造解析プロジェクト",
     "fileName": "Raman_analysis_v1.maiml",
     "workAssignment": {
       "workId": "work_002",
@@ -1201,6 +1203,7 @@ export const projectsData: Record<string, ProjectData> = {
   "project_003": {
     "projectId": "project_003",
     "projectName": "XRF元素分析実験",
+    "description": "蛍光X線分析による試料の元素組成分析プロジェクト",
     "fileName": "XRF_experiment.maiml",
     "workAssignment": {
       "workId": "work_003",
