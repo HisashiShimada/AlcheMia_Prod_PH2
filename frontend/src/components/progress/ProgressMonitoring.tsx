@@ -19,14 +19,14 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
-import mockProjectsData from '@/data/mock/mockProjects.json';
+import mockProjectProgressData from '@/data/mock/mockProjectProgress.json';
 import WorkProgressDetailDialog from './WorkProgressDetailDialog';
-import type { FileData, Project } from '@/types/progress';
+import type { FileData } from '@/types/progress';
 
 const { Text } = Typography;
 
 /**
- * 進捗情報の型定義（表示用）
+ * 進捗情報の型定義
  */
 interface ProgressRecord {
   key: string;
@@ -37,8 +37,8 @@ interface ProgressRecord {
   isCheckedOut: boolean;
   ownerEmail: string;
   ownerName: string;
-  completedTasks: number;
-  totalTasks: number;
+  completedTransitions: number;
+  totalTransitions: number;
 }
 
 type Order = 'asc' | 'desc';
@@ -67,20 +67,19 @@ export default function ProgressMonitoring() {
   const [fileData, setFileData] = useState<FileData | null>(null);
   const [managerId] = useState('manager_001'); // TODO: 実際のログインユーザーIDを使用
 
-  // JSONファイルからデータを読み込み（Project型を使用）
-  const allData: ProgressRecord[] = mockProjectsData.projects.map(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (item: any, index: number) => ({
+  // JSONファイルからデータを読み込み
+  const allData: ProgressRecord[] = mockProjectProgressData.projectProgress.map(
+    (item, index) => ({
       key: `${index + 1}`,
-      projectId: item.id,
-      projectName: item.name,
-      projectStatus: item.status,
+      projectId: item.projectId,
+      projectName: item.projectName,
+      projectStatus: item.projectStatus,
       department: item.department,
       isCheckedOut: item.isCheckedOut,
-      ownerEmail: item.ownerEmail || '',
-      ownerName: item.ownerName || item.owner,
-      completedTasks: item.completedTasks,
-      totalTasks: item.totalTasks,
+      ownerEmail: item.ownerEmail,
+      ownerName: item.ownerName,
+      completedTransitions: item.completedTransitions,
+      totalTransitions: item.totalTransitions,
     })
   );
 
@@ -136,8 +135,8 @@ export default function ProgressMonitoring() {
         item.department.toLowerCase().includes(searchText.toLowerCase()) ||
         item.ownerEmail.toLowerCase().includes(searchText.toLowerCase()) ||
         item.ownerName.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.completedTasks.toString().includes(searchText) ||
-        item.totalTasks.toString().includes(searchText);
+        item.completedTransitions.toString().includes(searchText) ||
+        item.totalTransitions.toString().includes(searchText);
 
       let matchesCheckout = true;
       if (checkoutFilter !== 'all') {
@@ -348,10 +347,10 @@ export default function ProgressMonitoring() {
       key: 'progress',
       width: 150,
       align: 'center',
-      sorter: (a, b) => a.completedTasks - b.completedTasks,
+      sorter: (a, b) => a.completedTransitions - b.completedTransitions,
       render: (_text: string, record: ProgressRecord) => (
         <span style={{ fontWeight: 500 }}>
-          {record.completedTasks}/{record.totalTasks}
+          {record.completedTransitions}/{record.totalTransitions}
         </span>
       ),
     },

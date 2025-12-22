@@ -5,20 +5,15 @@ import { Table, Button, Tag, Typography, Empty, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EyeOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { TaskStatus } from '@/types/progress';
 
 const { Text } = Typography;
 
 interface TaskResult {
+  id: string;
   workId: string;
-  taskName: string;
-  methodName: string;
-  assignedWorker: string;
-  workStatus: TaskStatus;
-  progressPercentage: number;
-  completedAt: string | null;
-  workCompletedAt: string | null; // 作業終了日
-  reviewCompletedAt: string | null; // レビュー完了日
+  reporterName: string;
+  reportedAt: string;
+  status: string;
 }
 
 interface TaskResultsTableProps {
@@ -40,15 +35,13 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'pending':
-        return t('projectManagement.task_results.status_pending') || '実行待ち';
+        return t('projectManagement.task_results.status_pending');
       case 'in_progress':
-        return t('projectManagement.task_results.status_in_progress') || '実行中';
-      case 'error':
-        return t('projectManagement.task_results.status_error') || '異常終了';
+        return t('projectManagement.task_results.status_in_progress');
       case 'review_waiting':
-        return t('projectManagement.task_results.status_review_waiting') || 'レビュー待ち';
-      case 'completed':
-        return t('projectManagement.task_results.status_completed') || '完了';
+        return t('projectManagement.task_results.status_review_waiting');
+      case 'reviewed':
+        return t('projectManagement.task_results.status_reviewed');
       default:
         return status;
     }
@@ -56,42 +49,48 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
 
   const columns: ColumnsType<TaskResult> = [
     {
-      title: t('projectManagement.task_results.task_name') || 'タスク名',
-      dataIndex: 'taskName',
-      key: 'taskName',
-      width: '30%',
-      sorter: (a, b) => a.taskName.localeCompare(b.taskName),
+      title: t('projectManagement.task_results.work_id'),
+      dataIndex: 'workId',
+      key: 'workId',
+      width: '20%',
+      sorter: (a, b) => a.workId.localeCompare(b.workId),
       render: (text: string) => <Text strong>{text}</Text>,
     },
     {
-      title: t('projectManagement.task_results.method_name') || 'メソッド',
-      dataIndex: 'methodName',
-      key: 'methodName',
+      title: t('projectManagement.task_results.reporter_name'),
+      dataIndex: 'reporterName',
+      key: 'reporterName',
       width: '20%',
-      sorter: (a, b) => a.methodName.localeCompare(b.methodName),
+      sorter: (a, b) => a.reporterName.localeCompare(b.reporterName, 'ja'),
     },
     {
-      title: t('projectManagement.task_results.status') || 'ステータス',
-      dataIndex: 'workStatus',
-      key: 'workStatus',
-      width: '15%',
+      title: t('projectManagement.task_results.reported_at'),
+      dataIndex: 'reportedAt',
+      key: 'reportedAt',
+      width: '20%',
+      sorter: (a, b) => new Date(a.reportedAt).getTime() - new Date(b.reportedAt).getTime(),
+      render: (text: string) => <Text type="secondary">{text}</Text>,
+    },
+    {
+      title: t('projectManagement.task_results.status'),
+      dataIndex: 'status',
+      key: 'status',
+      width: '25%',
       align: 'center',
       sorter: (a, b) => {
-        const statusOrder = { pending: 0, in_progress: 1, error: 2, review_waiting: 3, completed: 4 };
-        return (statusOrder[a.workStatus as keyof typeof statusOrder] || 0) - (statusOrder[b.workStatus as keyof typeof statusOrder] || 0);
+        const statusOrder = { pending: 0, in_progress: 1, review_waiting: 2, reviewed: 3 };
+        return (statusOrder[a.status as keyof typeof statusOrder] || 0) - (statusOrder[b.status as keyof typeof statusOrder] || 0);
       },
       render: (status: string) => {
         const getStatusColor = (status: string) => {
           switch (status) {
             case 'pending':
-              return 'default';
+              return 'blue';
             case 'in_progress':
-              return 'processing';
-            case 'error':
-              return 'error';
+              return 'cyan';
             case 'review_waiting':
-              return 'warning';
-            case 'completed':
+              return 'purple';
+            case 'reviewed':
               return 'success';
             default:
               return 'default';
@@ -101,53 +100,9 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
       },
     },
     {
-      title: t('projectManagement.task_results.work_completed_at') || '作業終了日',
-      dataIndex: 'workCompletedAt',
-      key: 'workCompletedAt',
-      width: '18%',
-      align: 'right',
-      sorter: (a, b) => {
-        if (!a.workCompletedAt && !b.workCompletedAt) return 0;
-        if (!a.workCompletedAt) return 1;
-        if (!b.workCompletedAt) return -1;
-        return new Date(a.workCompletedAt).getTime() - new Date(b.workCompletedAt).getTime();
-      },
-      render: (date: string | null) => (
-        <Text style={{ fontSize: token.fontSizeSM }}>
-          {date ? new Date(date).toLocaleDateString('ja-JP', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          }) : '-'}
-        </Text>
-      ),
-    },
-    {
-      title: t('projectManagement.task_results.review_completed_at') || 'レビュー完了日',
-      dataIndex: 'reviewCompletedAt',
-      key: 'reviewCompletedAt',
-      width: '15%',
-      align: 'right',
-      sorter: (a, b) => {
-        if (!a.reviewCompletedAt && !b.reviewCompletedAt) return 0;
-        if (!a.reviewCompletedAt) return 1;
-        if (!b.reviewCompletedAt) return -1;
-        return new Date(a.reviewCompletedAt).getTime() - new Date(b.reviewCompletedAt).getTime();
-      },
-      render: (date: string | null) => (
-        <Text style={{ fontSize: token.fontSizeSM }}>
-          {date ? new Date(date).toLocaleDateString('ja-JP', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          }) : '-'}
-        </Text>
-      ),
-    },
-    {
-      title: t('projectManagement.task_results.actions') || '操作',
+      title: t('projectManagement.task_results.actions'),
       key: 'actions',
-      width: '10%',
+      width: '15%',
       align: 'center',
       render: (_text: string, record: TaskResult) => (
         <Button
@@ -159,7 +114,7 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
             onViewResult(record);
           }}
         >
-          {t('projectManagement.task_results.view_result') || '詳細'}
+          {t('projectManagement.task_results.view_result')}
         </Button>
       ),
     },
@@ -169,13 +124,13 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
     <Table
       dataSource={results}
       columns={columns}
-      rowKey="workId"
+      rowKey="id"
       size="small"
       pagination={false}
       locale={{
         emptyText: (
           <Empty
-            description={t('projectManagement.task_results.no_tasks') || 'タスクがありません'}
+            description={t('projectManagement.task_results.no_tasks')}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         ),

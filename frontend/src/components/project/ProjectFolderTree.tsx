@@ -16,7 +16,6 @@ import {
   SortDescendingOutlined,
   SortAscendingOutlined as SortIcon,
 } from '@ant-design/icons';
-import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -56,7 +55,6 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
   sortOrder,
   onSortChange,
 }) => {
-  const { t } = useLanguage();
   const { token } = theme.useToken();
   
   const getStatusChipColor = (status: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
@@ -70,35 +68,22 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
   };
 
   const getStatusLabel = (status: string): string => {
-    switch (status) {
-      case 'planning':
-        return t('projectManagement.status_planning');
-      case 'pending':
-        return t('projectManagement.status_pending');
-      case 'in_progress':
-        return t('projectManagement.status_in_progress');
-      case 'review_waiting':
-        return t('projectManagement.status_review_waiting');
-      case 'completed':
-        return t('projectManagement.status_completed');
-      case 'error':
-        return t('projectManagement.status_error');
-      default:
-        return status;
-    }
+    const labels: Record<string, string> = {
+      planning: 'プロジェクト計画中',
+      pending: 'タスク実行待ち',
+      in_progress: 'タスク実行中',
+      completed: 'プロジェクト完了',
+    };
+    return labels[status] || status;
   };
 
   const getSortLabel = (sort: 'name' | 'status' | 'createdAt'): string => {
-    switch (sort) {
-      case 'name':
-        return t('projectManagement.folder_tree.sort.name');
-      case 'status':
-        return t('projectManagement.folder_tree.sort.status');
-      case 'createdAt':
-        return t('projectManagement.folder_tree.sort.created_at');
-      default:
-        return sort;
-    }
+    const labels = {
+      name: 'プロジェクト名',
+      status: 'ステータス',
+      createdAt: '作成日',
+    };
+    return labels[sort];
   };
 
   const menuItems: MenuProps['items'] = [
@@ -106,7 +91,7 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
       key: 'name',
       label: (
         <Space>
-          <span>{t('projectManagement.folder_tree.sort.name')}</span>
+          <span>プロジェクト名</span>
           {sortBy === 'name' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
         </Space>
       ),
@@ -116,7 +101,7 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
       key: 'status',
       label: (
         <Space>
-          <span>{t('projectManagement.folder_tree.sort.status')}</span>
+          <span>ステータス</span>
           {sortBy === 'status' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
         </Space>
       ),
@@ -126,7 +111,7 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
       key: 'createdAt',
       label: (
         <Space>
-          <span>{t('projectManagement.folder_tree.sort.created_at')}</span>
+          <span>作成日</span>
           {sortBy === 'createdAt' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
         </Space>
       ),
@@ -153,11 +138,11 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <Text strong style={{ fontSize: token.fontSize }}>
-              {t('projectManagement.folder_tree.title')}
+              プロジェクト一覧
             </Text>
             <div>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                {projects.length} {t('projectManagement.folder_tree.projects')}
+                {projects.length} プロジェクト
               </Text>
             </div>
           </div>
@@ -196,11 +181,11 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
                   {getStatusLabel(project.status)}
                 </Tag>
                 <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                  {project.fileCount} {t('projectManagement.folder_tree.files')}
+                  {project.fileCount} ファイル
                 </Text>
               </Space>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                {t('projectManagement.folder_tree.owner')}: {project.owner}
+                所有者: {project.owner}
               </Text>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 {project.department} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
