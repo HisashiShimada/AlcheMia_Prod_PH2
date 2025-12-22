@@ -1,0 +1,95 @@
+{
+  "projectProgress": [
+    {
+      "projectId": "proj_001",
+      "projectName": "HighTempSuperconductor",
+      "projectStatus": "in_progress",
+      "department": "材料開発部",
+      "ownerId": "worker_001",
+      "ownerEmail": "yukihiro.omori@soft-service.co.jp",
+      "ownerName": "大森 幸弘",
+      "isCheckedOut": false,
+      "completedTransitions": 2,
+      "totalTransitions": 2,
+      "lastUpdated": "2024-12-09T15:30:00Z"
+    },
+    {
+      "projectId": "proj_002",
+      "projectName": "LithiumBatteryCathode",
+      "projectStatus": "pending",
+      "department": "エネルギー材料部",
+      "ownerId": "worker_001",
+      "ownerEmail": "yukihiro.omori@soft-service.co.jp",
+      "ownerName": "大森 幸弘",
+      "isCheckedOut": true,
+      "completedTransitions": 1,
+      "totalTransitions": 1,
+      "lastUpdated": "2024-12-08T14:20:00Z"
+    },
+    {
+      "projectId": "proj_003",
+      "projectName": "PerovskiteSolarCell",
+      "projectStatus": "in_progress",
+      "department": "エネルギー材料部",
+      "ownerId": "worker_002",
+      "ownerEmail": "hisashi.shimada@aisit-solutions.co.jp",
+      "ownerName": "島田 尚",
+      "isCheckedOut": true,
+      "completedTransitions": 1,
+      "totalTransitions": 2,
+      "lastUpdated": "2024-12-07T16:45:00Z"
+    },
+    {
+      "projectId": "proj_004",
+      "projectName": "NanoparticleCatalyst",
+      "projectStatus": "completed",
+      "department": "触媒化学部",
+      "ownerId": "worker_001",
+      "ownerEmail": "yukihiro.omori@soft-service.co.jp",
+      "ownerName": "大森 幸弘",
+      "isCheckedOut": false,
+      "completedTransitions": 2,
+      "totalTransitions": 2,
+      "lastUpdated": "2024-11-30T10:00:00Z"
+    },
+    {
+      "projectId": "proj_005",
+      "projectName": "GrapheneComposite",
+      "projectStatus": "in_progress",
+      "department": "材料開発部",
+      "ownerId": "worker_001",
+      "ownerEmail": "yukihiro.omori@soft-service.co.jp",
+      "ownerName": "大森 幸弘",
+      "isCheckedOut": false,
+      "completedTransitions": 3,
+      "totalTransitions": 5,
+      "lastUpdated": "2024-12-05T13:15:00Z"
+    },
+    {
+      "projectId": "proj_006",
+      "projectName": "RareEarthMagnet",
+      "projectStatus": "planning",
+      "department": "材料開発部",
+      "ownerId": "worker_001",
+      "ownerEmail": "yukihiro.omori@soft-service.co.jp",
+      "ownerName": "大森 幸弘",
+      "isCheckedOut": true,
+      "completedTransitions": 1,
+      "totalTransitions": 3,
+      "lastUpdated": "2024-10-20T11:30:00Z"
+    },
+    {
+      "projectId": "proj_007",
+      "projectName": "OrganicSolarCell",
+      "projectStatus": "pending",
+      "department": "エネルギー材料部",
+      "ownerId": "worker_002",
+      "ownerEmail": "hisashi.shimada@aisit-solutions.co.jp",
+      "ownerName": "島田 尚",
+      "isCheckedOut": false,
+      "completedTransitions": 1,
+      "totalTransitions": 4,
+      "lastUpdated": "2024-08-27T09:00:00Z"
+    }
+  ]
+}

@@ -26,12 +26,10 @@ import FormatSearchModal from './FormatSearchModal';
 import FormatUploadDialog from './FormatUploadDialog';
 import CreateFormatFileModal, { CreateFormatFileData } from './CreateFormatFileModal';
 import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatFolderModal';
-import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
 import mockFormatsData from '@/data/mock/mockFormats.json';
 import mockFormatFilesData from '@/data/mock/mockFormatFiles.json';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
-import { User } from '@/types/auth';
 
 const { Title, Text } = Typography;
 
@@ -69,17 +67,10 @@ interface FormatFile {
 }
 
 /**
- * FormatManagementのProps型定義
- */
-interface FormatManagementProps {
-  user: User;
-}
-
-/**
  * フォーマット管理画面メインコンポーネント
  * XMLフォーマットファイルの管理に特化
  */
-const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
+const FormatManagement: React.FC = () => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [formats] = useState<Format[]>(mockFormatsData.folders as Format[]);
@@ -91,8 +82,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createFileModalOpen, setCreateFileModalOpen] = useState(false);
   const [createFolderModalOpen, setCreateFolderModalOpen] = useState(false);
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<FormatFileDetailData | null>(null);
   const [sortBy, setSortBy] = useState<'name' | 'category' | 'updatedAt'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentFolderPath, setCurrentFolderPath] = useState<string[]>([]);
@@ -251,26 +240,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   // 新規フォルダ作成モーダルを閉じる
   const handleCloseCreateFolderModal = useCallback(() => {
     setCreateFolderModalOpen(false);
-  }, []);
-
-  // ファイル詳細表示ハンドラ
-  const handleFileDetail = useCallback((file: FormatFileDetailData) => {
-    console.log('ファイル詳細表示:', file);
-    // 作成者情報を付与（現在はログインユーザー情報を使用）
-    const fileWithCreator: FormatFileDetailData = {
-      ...file,
-      createdBy: user.id,
-      createdByName: user.displayName,
-      createdAt: file.createdAt || file.lastModified, // 作成日がない場合は最終更新日を使用
-    };
-    setSelectedFile(fileWithCreator);
-    setDetailModalOpen(true);
-  }, [user]);
-
-  // 詳細モーダルを閉じる
-  const handleCloseDetailModal = useCallback(() => {
-    setDetailModalOpen(false);
-    setSelectedFile(null);
   }, []);
 
   // 新規フォルダ作成ハンドラ
@@ -588,7 +557,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                   files={formatFiles}
                   onFileClick={(file) => console.log('File clicked:', file.name)}
                   onFolderClick={handleFolderClick}
-                  onDetail={handleFileDetail}
                   onEdit={(file) => console.log('Edit file:', file.name)}
                   onDelete={(file) => console.log('Delete file:', file.name)}
                 />
@@ -652,8 +620,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         formatId={selectedFormatId}
         formatName={selectedFormat?.name || null}
         fileType={selectedFileType}
-        createdBy={user.id}
-        createdByName={user.displayName}
       />
 
       {/* 新規フォルダ作成モーダル */}
@@ -663,13 +629,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         onSubmit={handleCreateFormatFolder}
         formatId={selectedFormatId}
         formatName={selectedFormat?.name || null}
-      />
-
-      {/* ファイル詳細表示モーダル */}
-      <FormatFileDetailModal
-        open={detailModalOpen}
-        onClose={handleCloseDetailModal}
-        file={selectedFile}
       />
     </div>
   );

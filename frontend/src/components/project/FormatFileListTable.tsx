@@ -34,7 +34,6 @@ interface FormatFileData {
   type: string;
   version?: string;
   description?: string;
-  creator?: string;
   isFolder?: boolean;
   fileCount?: number;
 }
@@ -46,7 +45,6 @@ interface FormatFileListTableProps {
   files: FormatFileData[];
   onFileClick?: (file: FormatFileData) => void;
   onFolderClick?: (folderId: string) => void;
-  onDetail?: (file: FormatFileData) => void;
   onEdit?: (file: FormatFileData) => void;
   onDelete?: (file: FormatFileData) => void;
 }
@@ -59,7 +57,6 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
   files, 
   onFileClick,
   onFolderClick,
-  onDetail,
   onEdit,
   onDelete 
 }) => {
@@ -87,39 +84,19 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
       key: 'name',
       sorter: (a, b) => a.name.localeCompare(b.name, 'ja'),
       render: (text: string, record: FormatFileData) => (
-        <div>
-          <Tooltip title={record.path} placement="topLeft">
-            <Text 
-              strong={record.isFolder}
-              style={{
-                color: record.isFolder ? token.colorWarning : 'inherit',
-                cursor: record.isFolder ? 'pointer' : 'inherit',
-              }}
-            >
-              {text}
-              {record.isFolder && record.fileCount !== undefined && ` (${record.fileCount})`}
-            </Text>
-          </Tooltip>
-          {!record.isFolder && record.description && (
-            <div style={{ marginTop: 4 }}>
-              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                {record.description}
-              </Text>
-            </div>
-          )}
-        </div>
+        <Tooltip title={record.path} placement="topLeft">
+          <Text 
+            strong={record.isFolder}
+            style={{
+              color: record.isFolder ? token.colorWarning : 'inherit',
+              cursor: record.isFolder ? 'pointer' : 'inherit',
+            }}
+          >
+            {text}
+            {record.isFolder && record.fileCount !== undefined && ` (${record.fileCount})`}
+          </Text>
+        </Tooltip>
       ),
-    },
-    {
-      title: '作成者',
-      dataIndex: 'creator',
-      key: 'creator',
-      width: 120,
-      sorter: (a, b) => (a.creator || '').localeCompare(b.creator || '', 'ja'),
-      render: (text: string, record: FormatFileData) =>
-        !record.isFolder && text ? (
-          <Text type="secondary">{text}</Text>
-        ) : null,
     },
     {
       title: 'サイズ',
@@ -144,7 +121,7 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      width: 250,
       align: 'center',
       render: (_text: string, record: FormatFileData) =>
         !record.isFolder ? (

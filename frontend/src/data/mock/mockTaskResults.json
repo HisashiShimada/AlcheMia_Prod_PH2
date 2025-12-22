@@ -1,0 +1,83 @@
+{
+  "taskResults": {
+    "proj_001": [
+      {
+        "id": "result_001",
+        "workId": "WORK-001",
+        "reporterName": "山田太郎",
+        "reportedAt": "2024-12-10 14:30:25",
+        "status": "reviewed"
+      },
+      {
+        "id": "result_002",
+        "workId": "WORK-002",
+        "reporterName": "佐藤花子",
+        "reportedAt": "2024-12-11 09:15:42",
+        "status": "review_waiting"
+      },
+      {
+        "id": "result_003",
+        "workId": "WORK-003",
+        "reporterName": "鈴木一郎",
+        "reportedAt": "2024-12-12 16:45:18",
+        "status": "in_progress"
+      }
+    ],
+    "proj_002": [
+      {
+        "id": "result_004",
+        "workId": "WORK-004",
+        "reporterName": "田中美咲",
+        "reportedAt": "2024-12-09 11:20:33",
+        "status": "reviewed"
+      },
+      {
+        "id": "result_005",
+        "workId": "WORK-005",
+        "reporterName": "高橋健太",
+        "reportedAt": "2024-12-10 13:55:10",
+        "status": "pending"
+      }
+    ],
+    "proj_003": [
+      {
+        "id": "result_006",
+        "workId": "WORK-006",
+        "reporterName": "伊藤真由美",
+        "reportedAt": "2024-12-11 10:30:45",
+        "status": "review_waiting"
+      }
+    ],
+    "proj_004": [],
+    "proj_005": [
+      {
+        "id": "result_007",
+        "workId": "WORK-007",
+        "reporterName": "渡辺大輔",
+        "reportedAt": "2024-12-08 15:40:22",
+        "status": "reviewed"
+      },
+      {
+        "id": "result_008",
+        "workId": "WORK-008",
+        "reporterName": "中村優子",
+        "reportedAt": "2024-12-09 08:25:15",
+        "status": "reviewed"
+      },
+      {
+        "id": "result_009",
+        "workId": "WORK-009",
+        "reporterName": "小林誠",
+        "reportedAt": "2024-12-10 12:10:38",
+        "status": "review_waiting"
+      },
+      {
+        "id": "result_010",
+        "workId": "WORK-010",
+        "reporterName": "加藤麻衣",
+        "reportedAt": "2024-12-11 14:55:50",
+        "status": "in_progress"
+      }
+    ]
+  }
+}

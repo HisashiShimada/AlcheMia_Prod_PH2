@@ -143,12 +143,6 @@ interface InstructionDialogProps {
   fileKey: string;
   /** 管理者ID */
   managerId: string;
-  /** プロジェクト名 */
-  projectName: string;
-  /** プロジェクト所有者 */
-  projectOwner: string;
-  /** プロジェクトステータス */
-  projectStatus: string;
   /** 選択されたファイル（現在未使用） */
   selectedFile?: Record<string, unknown>;
   /** 利用可能な作業者リスト */
@@ -164,9 +158,6 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
   onSubmit,
   fileKey,
   managerId,
-  projectName,
-  projectOwner,
-  projectStatus,
   selectedFile,
   availableWorkers = [],
 }) => {
@@ -189,11 +180,6 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
   const [maimlParseError, setMaimlParseError] = useState<string | null>(null);
   const [fileBasicInfo, setFileBasicInfo] = useState<FileBasicInfo | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
-  
-  // 新規追加: 実験条件、試行回数、タスク名
-  const [experimentCondition, setExperimentCondition] = useState<'same' | 'different'>('same');
-  const [trialCount, setTrialCount] = useState<number | ''>('');
-  const [taskName, setTaskName] = useState<string>('');
 
   // ファイル名の抽出
   const fileName = useMemo(() => {
@@ -318,12 +304,6 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
    */
   const handleSubmit = useCallback(async () => {
     try {
-      // 試行回数のバリデーション（入力されている場合のみ）
-      if (trialCount !== '' && (trialCount < 1 || trialCount > 999)) {
-        message.warning('試行回数は1〜999の範囲で入力してください');
-        return;
-      }
-
       // バリデーション
       const validInstructions = instructions.filter((inst) => inst.content.trim());
 
@@ -402,10 +382,6 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         setAvailableTransitions([]);
         setMaimlParseError(null);
         setFileBasicInfo(null);
-        // 新規追加項目のリセット
-        setExperimentCondition('same');
-        setTrialCount('');
-        setTaskName('');
       }, 300);
     } catch (error) {
       const errorMessage =
@@ -414,7 +390,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [instructions, fileKey, managerId, selectedWorkerId, experimentCondition, trialCount, taskName, onSubmit, onClose]);
+  }, [instructions, fileKey, managerId, selectedWorkerId, onSubmit, onClose]);
 
   /**
    * ダイアログを閉じる
@@ -473,20 +449,55 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
       }}
     >
       <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        {/* プロジェクト情報 */}
+        {/* ファイル情報とMaiML解析結果 */}
         <Alert
-          message="プロジェクト情報"
+          message="ファイル情報"
           description={
             <Space direction="vertical" size="small" style={{ width: '100%' }}>
               <Text>
-                <Text strong>プロジェクト名:</Text> {projectName}
+                <Text strong>ファイル:</Text> {fileName}
               </Text>
               <Text>
-                <Text strong>所有者:</Text> {projectOwner}
+                <Text strong>管理者:</Text> {managerId}
               </Text>
-              <Text>
-                <Text strong>プロジェクトステータス:</Text> <Tag color="blue">{projectStatus}</Tag>
-              </Text>
+
+              {fileBasicInfo && (
+                <Flex gap="small" wrap="wrap">
+                  <Text strong>MaiML解析:</Text>
+                  {fileBasicInfo.hasProtocol && <Tag color="blue">Protocol</Tag>}
+                  {fileBasicInfo.hasMethod && <Tag color="blue">Method</Tag>}
+                  {fileBasicInfo.hasPnml && <Tag color="blue">PetriNet</Tag>}
+                  {fileBasicInfo.hasProgram && <Tag color="blue">Program</Tag>}
+                  {fileBasicInfo.hasData && <Tag color="blue">Data</Tag>}
+                </Flex>
+              )}
+
+              <div>
+                <Text strong>利用可能トランジション: </Text>
+                {loadingTransitions && (
+                  <Text type="warning">
+                    <LoadingOutlined /> 解析中...
+                  </Text>
+                )}
+                {maimlParseError && (
+                  <Text type="danger">
+                    ❌ {maimlParseError}
+                  </Text>
+                )}
+                {!loadingTransitions && !maimlParseError && (
+                  <>
+                    <Text type="success">{availableTransitions.length}件</Text>
+                    {availableTransitions.length > 0 && (
+                      <Text type="secondary">
+                        {' '}
+                        (実験関連:{' '}
+                        {availableTransitions.filter((t) => t.isExperimentRelevant).length}
+                        件)
+                      </Text>
+                    )}
+                  </>
+                )}
+              </div>
             </Space>
           }
           type="info"
@@ -525,79 +536,6 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
             </Space>
           </Card>
         )}
-
-        <Divider style={{ margin: `${token.marginSM}px 0` }}>条件内容</Divider>
-
-        {/* 実験条件セクション */}
-        <Card 
-          size="small" 
-          title={<Text strong>複数回実行時の実験条件</Text>}
-          style={{ backgroundColor: token.colorBgContainer }}
-        >
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            {/* タスク名 */}
-            <div>
-              <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-                📝 タスク名
-              </Text>
-              <Input
-                value={taskName}
-                onChange={(e) => setTaskName(e.target.value)}
-                placeholder="タスク名を入力"
-                disabled={submitting}
-                maxLength={100}
-                showCount
-                style={{ width: '100%' }}
-              />
-            </div>
-
-            {/* 条件指定と試行回数 */}
-            <Flex gap="middle" wrap="wrap">
-              {/* 条件指定 */}
-              <div style={{ flex: 1, minWidth: 300 }}>
-                <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-                  🔬 条件指定
-                </Text>
-                <Radio.Group
-                  value={experimentCondition}
-                  onChange={(e) => setExperimentCondition(e.target.value)}
-                  disabled={submitting}
-                  style={{ display: 'flex', flexDirection: 'column', gap: token.marginXS }}
-                >
-                  <Radio value="same">全て同一条件で実施</Radio>
-                  <Radio value="different">実験ごとに条件を変更</Radio>
-                </Radio.Group>
-              </div>
-
-              {/* 試行回数 */}
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-                  🔢 試行回数
-                </Text>
-                <Input
-                  type="number"
-                  value={trialCount}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === '') {
-                      setTrialCount('');
-                    } else {
-                      const num = parseInt(value, 10);
-                      if (!isNaN(num) && num >= 1 && num <= 999) {
-                        setTrialCount(num);
-                      }
-                    }
-                  }}
-                  placeholder="試行回数を入力"
-                  disabled={submitting}
-                  min={1}
-                  max={999}
-                  style={{ width: '100%' }}
-                />
-              </div>
-            </Flex>
-          </Space>
-        </Card>
 
         <Divider style={{ margin: `${token.marginSM}px 0` }}>指示内容</Divider>
 

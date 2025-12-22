@@ -10,8 +10,7 @@
           "lastModified": "2024-12-01T14:30:00Z",
           "type": "xml",
           "version": "1.2",
-          "description": "標準的な実験手順を定義したプロトコル",
-          "creator": "山田太郎"
+          "description": "標準的な実験手順を定義したプロトコル"
         },
         {
           "id": "xml_001_002",
@@ -21,8 +20,7 @@
           "lastModified": "2024-11-30T09:00:00Z",
           "type": "xml",
           "version": "1.0",
-          "description": "実験の安全管理に関するプロトコル",
-          "creator": "佐藤花子"
+          "description": "実験の安全管理に関するプロトコル"
         }
       ],
       "subfolders": {
@@ -37,8 +35,7 @@
               "lastModified": "2024-11-28T10:15:00Z",
               "type": "xml",
               "version": "1.1",
-              "description": "A社向け高温環境下での実験手順",
-              "creator": "田中一郎"
+              "description": "A社向け高温環境下での実験手順"
             },
             {
               "id": "xml_001_a02",
@@ -48,8 +45,7 @@
               "lastModified": "2024-11-25T16:20:00Z",
               "type": "xml",
               "version": "1.0",
-              "description": "A社向け低温環境下での実験手順",
-              "creator": "鈴木美咲"
+              "description": "A社向け低温環境下での実験手順"
             }
           ]
         },
@@ -64,8 +60,7 @@
               "lastModified": "2024-11-20T09:45:00Z",
               "type": "xml",
               "version": "1.3",
-              "description": "B社向け圧力制御を伴う実験手順",
-              "creator": "高橋健太"
+              "description": "B社向け圧力制御を伴う実験手順"
             },
             {
               "id": "xml_001_b02",
@@ -75,8 +70,7 @@
               "lastModified": "2024-11-15T13:00:00Z",
               "type": "xml",
               "version": "1.0",
-              "description": "B社向け真空環境下での実験手順",
-              "creator": "伊藤愛"
+              "description": "B社向け真空環境下での実験手順"
             }
           ]
         },
@@ -91,8 +85,7 @@
               "lastModified": "2024-11-22T14:00:00Z",
               "type": "xml",
               "version": "1.0",
-              "description": "C社向け温度サイクル試験の実験手順",
-              "creator": "渡辺翔太"
+              "description": "C社向け温度サイクル試験の実験手順"
             },
             {
               "id": "xml_001_c02",
@@ -102,8 +95,7 @@
               "lastModified": "2024-11-18T11:30:00Z",
               "type": "xml",
               "version": "1.1",
-              "description": "C社向け高圧環境下での実験手順",
-              "creator": "中村結衣"
+              "description": "C社向け高圧環境下での実験手順"
             }
           ]
         },
@@ -118,8 +110,7 @@
               "lastModified": "2024-11-12T10:20:00Z",
               "type": "xml",
               "version": "1.0",
-              "description": "D社向け湿度制御を伴う実験手順",
-              "creator": "小林大輔"
+              "description": "D社向け湿度制御を伴う実験手順"
             },
             {
               "id": "xml_001_d02",
@@ -129,8 +120,7 @@
               "lastModified": "2024-11-10T15:45:00Z",
               "type": "xml",
               "version": "1.0",
-              "description": "D社向け不活性ガス雰囲気での実験手順",
-              "creator": "加藤優香"
+              "description": "D社向け不活性ガス雰囲気での実験手順"
             }
           ]
         }
@@ -146,8 +136,7 @@
           "lastModified": "2024-11-28T16:45:00Z",
           "type": "xml",
           "version": "2.0",
-          "description": "全材料共通の基本データフォーマット",
-          "creator": "森本拓也"
+          "description": "全材料共通の基本データフォーマット"
         }
       ],
       "subfolders": {
@@ -162,8 +151,7 @@
               "lastModified": "2024-11-28T16:45:00Z",
               "type": "xml",
               "version": "2.0",
-              "description": "A社向け金属材料の物性データフォーマット",
-              "creator": "林真由美"
+              "description": "A社向け金属材料の物性データフォーマット"
             },
             {
               "id": "xml_002_a02",
@@ -173,8 +161,7 @@
               "lastModified": "2024-11-25T13:20:00Z",
               "type": "xml",
               "version": "1.8",
-              "description": "A社向け合金材料の物性データフォーマット",
-              "creator": "木村隆史"
+              "description": "A社向け合金材料の物性データフォーマット"
             },
             {
               "id": "xml_002_a03",
@@ -184,8 +171,7 @@
               "lastModified": "2024-11-18T15:45:00Z",
               "type": "xml",
               "version": "1.1",
-              "description": "A社向け表面処理情報のデータフォーマット",
-              "creator": "斎藤恵子"
+              "description": "A社向け表面処理情報のデータフォーマット"
             }
           ]
         },
@@ -200,8 +186,7 @@
               "lastModified": "2024-11-25T14:20:00Z",
               "type": "xml",
               "version": "1.5",
-              "description": "B社向けセラミック材料の物性データフォーマット",
-              "creator": "松本和也"
+              "description": "B社向けセラミック材料の物性データフォーマット"
             },
             {
               "id": "xml_002_b02",
@@ -211,8 +196,7 @@
               "lastModified": "2024-11-22T11:00:00Z",
               "type": "xml",
               "version": "1.4",
-              "description": "B社向け酸化物セラミックの物性データフォーマット",
-              "creator": "井上さくら"
+              "description": "B社向け酸化物セラミックの物性データフォーマット"
             }
           ]
         },
@@ -227,8 +211,7 @@
               "lastModified": "2024-11-22T11:30:00Z",
               "type": "xml",
               "version": "1.8",
-              "description": "C社向け高分子材料の物性データフォーマット",
-              "creator": "前田浩二"
+              "description": "C社向け高分子材料の物性データフォーマット"
             },
             {
               "id": "xml_002_c02",
@@ -238,8 +221,7 @@
               "lastModified": "2024-11-20T09:45:00Z",
               "type": "xml",
               "version": "1.6",
-              "description": "C社向け熱可塑性樹脂の物性データフォーマット",
-              "creator": "岡田あかり"
+              "description": "C社向け熱可塑性樹脂の物性データフォーマット"
             }
           ]
         },
@@ -254,8 +236,7 @@
               "lastModified": "2024-11-20T09:15:00Z",
               "type": "xml",
               "version": "1.3",
-              "description": "D社向け複合材料の物性データフォーマット",
-              "creator": "長谷川修"
+              "description": "D社向け複合材料の物性データフォーマット"
             },
             {
               "id": "xml_002_d02",
@@ -265,8 +246,7 @@
               "lastModified": "2024-11-15T10:00:00Z",
               "type": "xml",
               "version": "2.1",
-              "description": "D社向け結晶構造情報のデータフォーマット",
-              "creator": "清水麻衣"
+              "description": "D社向け結晶構造情報のデータフォーマット"
             }
           ]
         },
@@ -281,8 +261,7 @@
               "lastModified": "2024-11-10T14:30:00Z",
               "type": "xml",
               "version": "1.6",
-              "description": "E社向け電気的特性のデータフォーマット",
-              "creator": "藤田直樹"
+              "description": "E社向け電気的特性のデータフォーマット"
             },
             {
               "id": "xml_002_e02",
@@ -292,8 +271,7 @@
               "lastModified": "2024-11-05T16:20:00Z",
               "type": "xml",
               "version": "1.7",
-              "description": "E社向け機械的特性のデータフォーマット",
-              "creator": "村田陽子"
+              "description": "E社向け機械的特性のデータフォーマット"
             },
             {
               "id": "xml_002_e03",
@@ -303,8 +281,7 @@
               "lastModified": "2024-11-08T12:15:00Z",
               "type": "xml",
               "version": "1.5",
-              "description": "E社向け熱的特性のデータフォーマット",
-              "creator": "坂本誠"
+              "description": "E社向け熱的特性のデータフォーマット"
             }
           ]
         }
