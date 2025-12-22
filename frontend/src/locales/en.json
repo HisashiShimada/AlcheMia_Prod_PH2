@@ -114,6 +114,27 @@
       "project": "Project",
       "method": "Method"
     },
+    "issueReport": {
+      "title": "Issue Report",
+      "issueType": "Issue Type",
+      "comment": "Comment",
+      "commentPlaceholder": "Please describe the issue in detail.\nExample: There is a shortage of XX material and the experiment cannot proceed.",
+      "commentRequired": "Please describe the issue",
+      "commentMinLength": "Comment must be at least 10 characters",
+      "clear": "Clear",
+      "submit": "Report",
+      "success": "Issue report submitted successfully",
+      "noTask": "Task information not found",
+      "issueTypes": {
+        "material_shortage": "Material Shortage",
+        "equipment_failure": "Equipment Failure",
+        "procedure_unclear": "Procedure Unclear",
+        "safety_concern": "Safety Concern",
+        "quality_issue": "Quality Issue",
+        "time_constraint": "Time Constraint",
+        "other": "Other"
+      }
+    },
     "stats": {
       "notStarted": "Not Started Transitions",
       "started": "Started",

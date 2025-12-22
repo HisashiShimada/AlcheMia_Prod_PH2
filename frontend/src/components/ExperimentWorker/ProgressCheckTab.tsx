@@ -4,12 +4,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Space, Button, Typography, message } from 'antd';
 import { RightOutlined, FileTextOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import ProgressCheckTable from './ProgressCheckTable';
+import IssueReportModal from './IssueReportModal';
 import {
   getTasksByProjectAndMethod,
   updateTaskStatus,
   projectsData
 } from '@/data/projectsData';
-import type { Task, Method } from '@/types/experimentWorker';
+import type { Task, Method, IssueReportData } from '@/types/experimentWorker';
 
 const { Title } = Typography;
 
@@ -36,6 +37,10 @@ export default function ProgressCheckTab({
 }: ProgressCheckTabProps) {
   // タスクデータの取得
   const [tasks, setTasks] = useState<Task[]>([]);
+  
+  // 問題報告モーダルの状態管理
+  const [issueReportModalVisible, setIssueReportModalVisible] = useState<boolean>(false);
+  const [selectedTaskForIssue, setSelectedTaskForIssue] = useState<Task | null>(null);
 
   // プロジェクトが選択されたらタスク一覧を更新（メソッド選択不要）
   useEffect(() => {
@@ -100,8 +105,8 @@ export default function ProgressCheckTab({
           break;
 
         case 'issue':
-          // 問題報告（今後実装予定）
-          message.info('問題報告機能は今後実装予定です');
+          // 問題報告モーダルを開く
+          handleOpenIssueReport(task);
           break;
 
         case 'forceTerminate':
@@ -128,6 +133,25 @@ export default function ProgressCheckTab({
   // 承認依頼ボタン
   const handleApprovalRequest = useCallback(() => {
     message.info('承認依頼機能は今後実装予定です');
+  }, []);
+
+  // 問題報告モーダルを開く
+  const handleOpenIssueReport = useCallback((task: Task) => {
+    setSelectedTaskForIssue(task);
+    setIssueReportModalVisible(true);
+  }, []);
+
+  // 問題報告モーダルを閉じる
+  const handleCloseIssueReport = useCallback(() => {
+    setIssueReportModalVisible(false);
+    setSelectedTaskForIssue(null);
+  }, []);
+
+  // 問題報告送信処理
+  const handleIssueReportSubmit = useCallback((data: IssueReportData) => {
+    console.log('問題報告データ:', data);
+    // TODO: バックエンドAPIへの送信処理を実装
+    // ここで問題報告をバックエンドに送信する
   }, []);
 
   return (
@@ -207,6 +231,14 @@ export default function ProgressCheckTab({
         )}
 
       </Card>
+
+      {/* 問題報告モーダル */}
+      <IssueReportModal
+        visible={issueReportModalVisible}
+        task={selectedTaskForIssue}
+        onClose={handleCloseIssueReport}
+        onSubmit={handleIssueReportSubmit}
+      />
     </div>
   );
 }

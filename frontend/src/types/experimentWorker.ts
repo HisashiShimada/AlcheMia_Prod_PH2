@@ -220,3 +220,24 @@ export interface WorkflowStatistics {
   completed: number;     // 完了数
   progressRate: number;  // 進捗率（%）
 }
+
+// ===== Phase: 問題報告モーダル用の型定義 =====
+
+// 問題タイプ（問題報告モーダル用）
+export type IssueType = 
+  | 'material_shortage'    // 材料不足
+  | 'equipment_failure'    // 機器故障
+  | 'procedure_unclear'    // 手順不明確
+  | 'safety_concern'       // 安全性の懸念
+  | 'quality_issue'        // 品質問題
+  | 'time_constraint'      // 時間制約
+  | 'other';               // その他
+
+// 問題報告データ（問題報告モーダル用）
+export interface IssueReportData {
+  taskId: string;          // タスクID
+  issueType: IssueType;    // 問題タイプ
+  comment: string;         // コメント
+  reportedAt?: string;     // 報告日時（バックエンドで設定）
+  reportedBy?: string;     // 報告者（バックエンドで設定）
+}
