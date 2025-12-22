@@ -134,7 +134,7 @@ export default function InstructionConfirmationTab({
   };
 
   return (
-    <div style={{ height: '100%', overflow: 'auto', padding: '24px' }}>
+    <div style={{ height: '100%', overflow: 'auto' }}>
       {!selectedProject || !selectedMethodId ? (
         <Card
           style={{
@@ -155,8 +155,8 @@ export default function InstructionConfirmationTab({
         </Card>
       ) : (
         <>
-          {/* 作業指示サマリーカード */}
-          <div style={{ marginBottom: 8 }}>
+          {/* 作業指示サマリー */}
+          <div style={{ marginBottom: 0 }}>
             <InstructionStats stats={filteredStats} />
           </div>
 
@@ -187,9 +187,13 @@ export default function InstructionConfirmationTab({
               borderRadius: '8px',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
             }}
+            bodyStyle={{
+              paddingTop: '8px',
+              paddingBottom: '8px',
+            }}
           >
             {/* 全体指示グループ */}
-            <div style={{ marginBottom: token.marginXL }}>
+            <div style={{ marginBottom: '8px' }}>
               <div
                 style={{
                   display: 'flex',
@@ -258,7 +262,7 @@ export default function InstructionConfirmationTab({
             </div>
 
             {/* メソッド単位指示グループ */}
-            <div style={{ marginBottom: token.marginXL }}>
+            <div style={{ marginBottom: '8px' }}>
               <div
                 style={{
                   display: 'flex',
@@ -302,7 +306,7 @@ export default function InstructionConfirmationTab({
             </div>
 
             {/* トランジション単位指示グループ */}
-            <div style={{ marginBottom: token.marginXL }}>
+            <div style={{ marginBottom: '8px' }}>
               <div
                 style={{
                   display: 'flex',
