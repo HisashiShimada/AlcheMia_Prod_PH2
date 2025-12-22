@@ -31,6 +31,7 @@ import TaskResultsTable from './TaskResultsTable';
 import BulkUploadDialog from './BulkUploadDialog';
 import InstructionDialog from './InstructionDialog';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
+import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import mockProjectsData from '@/data/mock/mockProjects.json';
 import mockFilesData from '@/data/mock/mockFiles.json';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -62,6 +63,23 @@ const ProjectManagement: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
   const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
+  
+  // 複数ダイアログ管理
+  interface OpenDialog {
+    id: string;
+    contentType: 'file' | 'subnet';
+    file?: any;
+    subnetData?: {
+      transitionName: string;
+      maimlData: string;
+      templateMap: Record<string, { element: Element }>;
+      petriNetData: any;
+    };
+    zIndex: number;
+    position: { x: number; y: number };
+  }
+  const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
+  const [nextZIndex, setNextZIndex] = useState(1000);
 
   // モックデータの読み込み
   useEffect(() => {
@@ -419,6 +437,89 @@ const ProjectManagement: React.FC = () => {
     setCreateModalOpen(false);
   }, []);
 
+  // ダイアログを開く
+  const handleViewFile = useCallback((file: any) => {
+    // 上限チェック（5個まで）
+    if (openDialogs.length >= 5) {
+      message.warning('同時に開けるダイアログは5個までです');
+      return;
+    }
+
+    const id = `${file.id}-${Date.now()}`;
+    const offset = openDialogs.length * 30;  // カスケード配置
+    
+    const newDialog: OpenDialog = {
+      id,
+      contentType: 'file',  // ファイル表示
+      file,
+      zIndex: nextZIndex,
+      position: { x: 100 + offset, y: 100 + offset }
+    };
+    
+    setOpenDialogs(prev => [...prev, newDialog]);
+    setNextZIndex(prev => prev + 1);
+  }, [openDialogs, nextZIndex]);
+
+  // ダイアログを閉じる
+  const handleCloseDialog = useCallback((id: string) => {
+    setOpenDialogs(prev => prev.filter(d => d.id !== id));
+  }, []);
+
+  // ダイアログをフォーカス（最前面に）
+  const handleFocusDialog = useCallback((id: string) => {
+    setOpenDialogs(prev => 
+      prev.map(d => 
+        d.id === id 
+          ? { ...d, zIndex: nextZIndex }
+          : d
+      )
+    );
+    setNextZIndex(prev => prev + 1);
+  }, [nextZIndex]);
+
+  // SubNetViewerを開く
+  const handleViewSubnet = useCallback((subnetData: {
+    transitionName: string;
+    maimlData: string;
+    templateMap: Record<string, { element: Element }>;
+    petriNetData: {
+      places: Array<{
+        id: string;
+        data: {
+          label?: string;
+          stereotype?: string;
+          template?: { id: string };
+          templateId?: string;
+        };
+      }>;
+      arcs: Array<{
+        id: string;
+        source: string;
+        target: string;
+      }>;
+    };
+  }) => {
+    // 上限チェック（5個まで）
+    if (openDialogs.length >= 5) {
+      message.warning('同時に開けるダイアログは5個までです');
+      return;
+    }
+
+    const id = `subnet-${subnetData.transitionName}-${Date.now()}`;
+    const offset = openDialogs.length * 30;  // カスケード配置
+    
+    const newDialog: OpenDialog = {
+      id,
+      contentType: 'subnet',
+      subnetData,
+      zIndex: nextZIndex,
+      position: { x: 150 + offset, y: 150 + offset }
+    };
+    
+    setOpenDialogs(prev => [...prev, newDialog]);
+    setNextZIndex(prev => prev + 1);
+  }, [openDialogs, nextZIndex]);
+
   // 新規プロジェクト作成ハンドラ
   const handleCreateProject = useCallback(async (data: CreateProjectData) => {
     try {
@@ -756,6 +857,7 @@ const ProjectManagement: React.FC = () => {
                     files={projectFiles}
                     onFileClick={(file) => console.log('File clicked:', file.name)}
                     onFolderClick={handleFolderClick}
+                    onViewFile={handleViewFile}
                   />
                 )}
                 
@@ -950,6 +1052,22 @@ const ProjectManagement: React.FC = () => {
         onCancel={handleCloseCreateModal}
         onSubmit={handleCreateProject}
       />
+
+      {/* 複数のフローティングダイアログ */}
+      {openDialogs.map(dialog => (
+        <ViewRendererDialog
+          key={dialog.id}
+          id={dialog.id}
+          contentType={dialog.contentType}
+          file={dialog.file}
+          subnetData={dialog.subnetData}
+          zIndex={dialog.zIndex}
+          initialPosition={dialog.position}
+          onClose={handleCloseDialog}
+          onFocus={handleFocusDialog}
+          onOpenSubNetViewer={handleViewSubnet}
+        />
+      ))}
     </div>
   );
 };

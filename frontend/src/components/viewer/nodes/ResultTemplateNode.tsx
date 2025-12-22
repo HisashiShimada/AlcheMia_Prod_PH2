@@ -1,17 +1,15 @@
 // frontend/src/components/viewer/nodes/ResultTemplateNode.tsx
-// Result Templateノードコンポーネント
+// Result Templateノードコンポーネント（reference版互換）
 
 'use client';
 
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { Card, Typography, Tag, Space } from 'antd';
-import { CheckCircleOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
 
 interface ResultTemplateData {
-  label: string;
+  label?: string;
+  name?: string;
+  id?: string;
   nodeType: 'place';
   templateType: 'result';
   description?: string;
@@ -19,38 +17,88 @@ interface ResultTemplateData {
   selectedProperties?: Record<string, string>;
 }
 
+/**
+ * Result Templateノード - 矩形ノード（Result用）
+ * シンプルな矩形で、内部は空（白色）
+ */
 const ResultTemplateNode: React.FC<NodeProps<ResultTemplateData>> = memo(({ data, selected }) => {
   return (
-    <Card
-      size="small"
-      style={{
-        minWidth: 150,
-        border: selected ? '2px solid #52c41a' : '1px solid #d9d9d9',
-        borderRadius: 8,
-        background: '#f6ffed',
-        boxShadow: selected ? '0 4px 12px rgba(82, 196, 26, 0.2)' : '0 2px 8px rgba(0,0,0,0.08)',
-      }}
-    >
-      <Handle type="target" position={Position.Top} style={{ background: '#52c41a' }} />
+    <div style={{ position: 'relative' }}>
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        style={{ background: '#555' }} 
+      />
       
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
-        <Space>
-          <CheckCircleOutlined style={{ color: '#52c41a' }} />
-          <Text strong style={{ fontSize: 12 }}>{data.label}</Text>
-        </Space>
-        <Tag color="green" style={{ fontSize: 10, margin: 0 }}>Result</Tag>
-        {data.description && <Text type="secondary" style={{ fontSize: 10 }}>{data.description}</Text>}
+      <div>
+        {/* 選択されたプロパティキャプション（縦並び） */}
         {data.selectedProperties && Object.keys(data.selectedProperties).length > 0 && (
-          <div style={{ fontSize: 10, color: '#8c8c8c', maxHeight: 60, overflow: 'auto' }}>
+          <div style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            marginBottom: '8px',
+            background: 'rgba(33, 150, 243, 0.95)',
+            border: '1px solid #2196f3',
+            borderRadius: '4px',
+            padding: '6px 10px',
+            fontSize: '10px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            zIndex: 10,
+            minWidth: '120px',
+            maxWidth: '250px',
+            color: '#fff',
+          }}>
             {Object.entries(data.selectedProperties).map(([key, value]) => (
-              <div key={key}><Text style={{ fontSize: 10 }}>{key}: {value}</Text></div>
+              <div key={key} style={{ 
+                marginBottom: '2px',
+                wordBreak: 'break-word'
+              }}>
+                <strong>{key}:</strong> {String(value)}
+              </div>
             ))}
           </div>
         )}
-      </Space>
+        
+        <div style={{
+          width: 42,
+          height: 28,
+          border: `2px solid ${selected ? '#2196f3' : 'black'}`,
+          background: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2px',
+          position: 'relative',
+          boxShadow: selected ? '0 0 8px rgba(33, 150, 243, 0.8)' : 'none',
+          cursor: 'pointer',
+        }}>
+          {/* ラベルを下に配置 */}
+          <div style={{
+            position: 'absolute',
+            bottom: -30,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            textAlign: 'center',
+            fontSize: '10px',
+            width: '150px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            fontWeight: 'bold',
+          }}>
+            {data.name || data.label || data.id}
+          </div>
+        </div>
+      </div>
       
-      <Handle type="source" position={Position.Bottom} style={{ background: '#52c41a' }} />
-    </Card>
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        style={{ background: '#555' }} 
+      />
+    </div>
   );
 });
 

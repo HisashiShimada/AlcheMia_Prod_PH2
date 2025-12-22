@@ -35,12 +35,13 @@ interface FileListTableProps {
   files: FileData[];
   onFileClick?: (file: FileData) => void;
   onFolderClick?: (folderId: string) => void;
+  onViewFile?: (file: FileData) => void;
 }
 
 /**
  * ファイル一覧テーブルコンポーネント
  */
-const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFolderClick }) => {
+const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFolderClick, onViewFile }) => {
   const { token } = theme.useToken();
   
   // ファイルタイプに応じたアイコンを取得
@@ -139,7 +140,7 @@ const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFol
               style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('View file:', record.name);
+                onViewFile?.(record);
               }}
             >
               ビューア

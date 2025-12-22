@@ -65,15 +65,23 @@ export interface PetriNetStructure {
  * MAIML XMLからペトリネット構造を抽出
  */
 export function parseMaimlToPetriNet(maimlXml: string): PetriNetStructure {
+  console.log('🔍 [parseMaimlToPetriNet] パース開始:', {
+    xmlLength: maimlXml.length,
+    firstChars: maimlXml.substring(0, 200),
+  });
+
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(maimlXml, 'text/xml');
 
   // パースエラーチェック
   const parseError = xmlDoc.querySelector('parsererror');
   if (parseError) {
-    console.error('XML parse error:', parseError.textContent);
-    throw new Error('MAIML XMLのパースに失敗しました');
+    console.error('❌ [parseMaimlToPetriNet] XMLパースエラー:', parseError.textContent);
+    console.error('XMLの先頭100文字:', maimlXml.substring(0, 100));
+    throw new Error(`MAIML XMLのパースに失敗しました: ${parseError.textContent}`);
   }
+
+  console.log('✅ [parseMaimlToPetriNet] XML解析成功');
 
   // Placesを抽出
   const places: Place[] = [];

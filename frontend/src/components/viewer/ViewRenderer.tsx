@@ -78,6 +78,27 @@ interface ViewRendererProps {
   onExitEdit?: () => void;
   onExitExperiment?: () => void;
   onExitExperimentControl?: () => void;
+  onOpenSubNetViewer?: (subnetData: {
+    transitionName: string;
+    maimlData: string;
+    templateMap: Record<string, { element: Element }>;
+    petriNetData: {
+      places: Array<{
+        id: string;
+        data: {
+          label?: string;
+          stereotype?: string;
+          template?: { id: string };
+          templateId?: string;
+        };
+      }>;
+      arcs: Array<{
+        id: string;
+        source: string;
+        target: string;
+      }>;
+    };
+  }) => void;
 }
 
 /**
@@ -226,6 +247,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
   onExitEdit,
   onExitExperiment,
   onExitExperimentControl,
+  onOpenSubNetViewer,
 }) => {
   /**
    * ファイルビューアーのレンダリング
@@ -248,11 +270,17 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
     switch (fileType) {
       case 'maiml':
         return (
-          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div 
+            id="petri-net-viewer-container"
+            style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}
+          >
             <ErrorBoundary>
               <PetriNetViewer 
                 maimlData={fileContent}
                 enhancedMode={enhancedMode}
+                propertyDisplayMode="drawer"  // 'modal' または 'drawer' に変更可能
+                containerElementId="petri-net-viewer-container"
+                onOpenSubNetViewer={onOpenSubNetViewer}
               />
             </ErrorBoundary>
           </div>
