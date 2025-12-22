@@ -67,9 +67,9 @@
       "title": "Experiment Worker Menu",
       "tabs": {
         "myTasks": "My Tasks",
-        "workInstruction": "Instruction Confirmation",
+        "workInstruction": "Work Instructions",
         "experimentRecord": "Experiment Record",
-        "taskList": "Task List",
+        "progressCheck": "Progress Check",
         "maimlViewer": "MAIML Viewer",
         "fileUpload": "File Upload",
         "progressReport": "Progress Report",

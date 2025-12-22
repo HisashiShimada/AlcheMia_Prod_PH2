@@ -20,7 +20,7 @@ import { useInstructions } from '@/hooks/useInstructions';
 import { useExpandState } from '@/hooks/useExpandState';
 import InstructionConfirmationTab from '../ExperimentWorker/InstructionConfirmationTab';
 import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
-import TaskListTab from '../ExperimentWorker/TaskListTab';
+import ProgressCheckTab from '../ExperimentWorker/ProgressCheckTab';
 import ProgressReportTab from '../ExperimentWorker/ProgressReportTab';
 import UnifiedSelectionDialog from '../ExperimentWorker/UnifiedSelectionDialog';
 import { projectsData } from '@/data/projectsData';
@@ -179,10 +179,10 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const tabItems = [
     {
       key: '4',
-      label: t('menu.experiment_worker.tabs.taskList'),
+      label: t('menu.experiment_worker.tabs.progressCheck'),
       icon: <CheckSquareOutlined />,
       children: (
-        <TaskListTab
+        <ProgressCheckTab
           selectedProject={selectedProject}
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
@@ -258,14 +258,12 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       <Content
         style={{
           marginTop: TOTAL_HEADER_HEIGHT, // Header(64px) + SubHeader(48px) = 112px
-          padding: '0', // パディングなし（ResponsiveContainer内で調整）
+          padding: 0,
         }}
       >
-        <ResponsiveContainer style={{ 
-          paddingTop: 0, // 上部パディングなし
-          paddingLeft: 16,
-          paddingRight: 16,
-          paddingBottom: 24,
+        <div style={{ 
+          width: '100%',
+          padding: 0,
         }}>
           {/* プロジェクト選択・選択ボタン */}
           <div style={{ 
@@ -278,6 +276,8 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             flexWrap: 'nowrap',
             backgroundColor: token.colorBgContainer,
             border: `1px solid ${token.colorBorder}`,
+            borderLeft: 'none',
+            borderRight: 'none',
             paddingLeft: token.paddingLG,
             paddingRight: token.paddingLG,
           }}>
@@ -333,7 +333,10 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                 padding: `0 ${token.paddingLG}px`,
                 margin: 0,
                 flexShrink: 0,
-                border: `1px solid ${token.colorBorder}`,
+                borderTop: `1px solid ${token.colorBorder}`,
+                borderBottom: `1px solid ${token.colorBorder}`,
+                borderLeft: 'none',
+                borderRight: 'none',
                 borderRadius: 0,
               }}
             />
@@ -350,7 +353,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             onSelectMethod={handleSelectMethod}
             onSelectTask={handleSelectTask}
           />
-        </ResponsiveContainer>
+        </div>
       </Content>
     </Layout>
   );

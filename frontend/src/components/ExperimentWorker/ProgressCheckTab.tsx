@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Space, Button, Typography, message } from 'antd';
 import { RightOutlined, FileTextOutlined, CheckSquareOutlined } from '@ant-design/icons';
-import TaskListTable from './TaskListTable';
+import ProgressCheckTable from './ProgressCheckTable';
 import {
   getTasksByProjectAndMethod,
   updateTaskStatus,
@@ -13,7 +13,7 @@ import type { Task, Method } from '@/types/experimentWorker';
 
 const { Title } = Typography;
 
-interface TaskListTabProps {
+interface ProgressCheckTabProps {
   selectedProject: string | null;
   onProjectChange: (projectId: string) => void;
   selectedMethodId: string | null;
@@ -23,17 +23,17 @@ interface TaskListTabProps {
 }
 
 /**
- * タスク一覧タブ - メインコンテナ
- * プロジェクト選択に連動してタスク一覧を表示
+ * 進捗確認タブ - メインコンテナ
+ * プロジェクト選択に連動してサブタスク一覧を表示
  */
-export default function TaskListTab({
+export default function ProgressCheckTab({
   selectedProject,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
   onTabChange,
   onSelectTaskAndTab
-}: TaskListTabProps) {
+}: ProgressCheckTabProps) {
   // タスクデータの取得
   const [tasks, setTasks] = useState<Task[]>([]);
 
@@ -83,6 +83,11 @@ export default function TaskListTab({
 
     try {
       switch (action) {
+        case 'start':
+          // 開始処理（今後実装予定）
+          message.info('タスク開始機能は今後実装予定です');
+          break;
+
         case 'record':
           // 実験記録タブへ遷移（タスクを選択状態にする）
           if (onSelectTaskAndTab) {
@@ -97,6 +102,11 @@ export default function TaskListTab({
         case 'issue':
           // 問題報告（今後実装予定）
           message.info('問題報告機能は今後実装予定です');
+          break;
+
+        case 'forceTerminate':
+          // 強制終了（今後実装予定）
+          message.info('強制終了機能は今後実装予定です');
           break;
 
         default:
@@ -121,14 +131,15 @@ export default function TaskListTab({
   }, []);
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: 0 }}>
       <Card
         style={{
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+          borderRadius: 0,
+          boxShadow: 'none',
+          border: 'none'
         }}
       >
-        {/* タスク一覧タイトルとアクションボタン */}
+        {/* サブタスク一覧タイトルとアクションボタン */}
         <div 
           style={{ 
             display: 'flex', 
@@ -137,7 +148,7 @@ export default function TaskListTab({
             marginBottom: '16px'
           }}
         >
-          {/* タスク一覧タイトル */}
+          {/* サブタスク一覧タイトル */}
           <Typography.Title
             level={5}
             style={{
@@ -148,7 +159,7 @@ export default function TaskListTab({
             }}
           >
             <CheckSquareOutlined style={{ marginRight: 8 }} />
-            タスク一覧
+            サブタスク一覧
           </Typography.Title>
 
           {/* 指示確認ボタン・承認依頼ボタン */}
@@ -174,9 +185,9 @@ export default function TaskListTab({
           </Space>
         </div>
 
-        {/* タスク一覧テーブル */}
+        {/* サブタスク一覧テーブル */}
         {selectedProject && tasks.length > 0 ? (
-          <TaskListTable
+          <ProgressCheckTable
             tasks={tasks}
             onTaskAction={handleTaskAction}
           />
