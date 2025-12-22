@@ -109,35 +109,24 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     setIsClient(true);
   }, []);
 
-  // プロジェクト選択時、または実験記録タブ表示時に最初のメソッドを自動選択
-  useEffect(() => {
-    // 実験記録タブ（key='3'）が選択されている場合のみ
-    if (currentTab === '3' && selectedProject && !selectedMethodId) {
-      const methods = projectsData[selectedProject]?.methods || [];
-      if (methods.length > 0) {
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        setSelectedMethodId(methods[0].methodId);
-      }
-    }
-  }, [currentTab, selectedProject, selectedMethodId]);
-
-  // プロジェクト変更時のハンドラー（メソッドを"-"にリセット）
+  // プロジェクト変更時のハンドラー（メソッドとタスクをリセット）
   const handleProjectChange = (value: string | null) => {
     // nullは空文字列として扱う
     const projectValue = value || '';
     originalHandleProjectChange(projectValue);
-    // プロジェクトが変更された場合、メソッドを"-"にリセット
+    
+    // プロジェクトが変更された場合、メソッドとタスクをリセット
     setSelectedMethodId(null);
-    // タスクもリセット
     setSelectedTaskId('');
   };
 
-  // メソッド選択ハンドラー
+  // メソッド選択ハンドラー（タスクをリセット）
   const handleSelectMethod = (methodId: string | null) => {
-    // null値をそのまま設定
+    // メソッドが実際に変更された場合のみタスクをリセット
+    if (methodId !== selectedMethodId) {
+      setSelectedTaskId('');
+    }
     setSelectedMethodId(methodId);
-    // メソッドが変更された場合、タスクをリセット
-    setSelectedTaskId('');
   };
 
   // タスク選択ハンドラー

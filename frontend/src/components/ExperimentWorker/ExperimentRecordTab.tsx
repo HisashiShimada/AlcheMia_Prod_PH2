@@ -34,7 +34,7 @@ interface ExperimentRecordTabProps {
   selectedProject: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
-  onSelectMethod: (methodId: string) => void;
+  onSelectMethod: (methodId: string | null) => void;
   selectedTaskId: string;
   onSelectTask: (taskId: string) => void;
   onTaskCreated: (newTaskId: string) => void;
@@ -160,10 +160,10 @@ export default function ExperimentRecordTab({
               <Select
                 style={{ flex: 1, minWidth: 200 }}
                 placeholder="メソッドを選択してください"
-                value={selectedMethodId || ''}
-                onChange={onSelectMethod}
+                value={selectedMethodId || undefined}
+                onChange={(value) => onSelectMethod(value || null)}
                 options={[
-                  { label: '-', value: '' },
+                  { label: '-', value: null },
                   ...(selectedProjectData?.methods || []).map((method) => ({
                     label: method.methodName,
                     value: method.methodId,
