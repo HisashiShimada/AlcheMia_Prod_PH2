@@ -499,23 +499,17 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     setEditingMaster(null);
     form.resetFields();
     
-    // ロール管理画面の場合、デフォルトで「システム管理」を選択
+    // ロール管理画面の場合、デフォルト値なしで初期化
     if (selectedMasterInfo?.masterId === '4') {
-      // システム管理（FUNC001）をデフォルトで選択
-      const defaultFunctions: Record<string, boolean> = {
-        'FUNC001': true,
-      };
-      const defaultWritePermissions: Record<string, boolean> = {
-        'FUNC001': true,
-      };
-      setSelectedFunctions(defaultFunctions);
-      setSelectedWritePermissions(defaultWritePermissions);
+      // デフォルトの機能選択なし
+      setSelectedFunctions({});
+      setSelectedWritePermissions({});
       
       form.setFieldsValue({
         isActive: true,
-        functionId: 'FUNC001',
-        functionName: 'システム管理',
-        functionWritePermissions: 'FUNC001',
+        functionId: '',
+        functionName: '',
+        functionWritePermissions: '',
       });
     } else {
       form.setFieldsValue({
@@ -1446,19 +1440,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
               </Form.Item>
             );
           })}
-          
-          {/* ロール管理画面の場合、機能IDフィールドを追加（非活性） */}
-          {selectedMasterInfo?.masterId === '4' && !editingMaster && (
-            <Form.Item 
-              name="functionId" 
-              label="機能ID"
-            >
-              <Input
-                disabled
-                placeholder="機能を選択すると自動的に設定されます"
-              />
-            </Form.Item>
-          )}
           
           {/* ロール管理画面の場合、機能名フィールドを追加 */}
           {selectedMasterInfo?.masterId === '4' && !editingMaster && (
