@@ -15,6 +15,8 @@ interface TransitionListProps {
   methodName?: string;
   selectedTaskId?: string;
   onTaskCreated?: (taskId: string) => void;
+  projectId?: string;
+  methodId?: string;
 }
 
 /**
@@ -24,6 +26,8 @@ interface TransitionListProps {
  */
 export default function TransitionList({
   transitions,
+  projectId,
+  methodId,
 }: TransitionListProps) {
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -282,6 +286,8 @@ export default function TransitionList({
         transition={selectedTransition}
         onClose={handleDialogClose}
         onSave={handleDataSave}
+        projectId={projectId}
+        methodId={methodId}
       />
     </>
   );
