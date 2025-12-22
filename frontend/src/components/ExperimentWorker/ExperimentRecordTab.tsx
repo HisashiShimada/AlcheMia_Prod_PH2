@@ -151,8 +151,30 @@ export default function ExperimentRecordTab({
         }}
       >
         <div style={{ width: '100%' }}>
-          {/* タスク選択（コンボボックス） + 選択ボタン */}
+          {/* メソッド選択 + タスク選択（コンボボックス） + 選択ボタン */}
           <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: token.margin }}>
+            {/* メソッド選択 */}
+            <Space size="middle" style={{ flex: 1 }}>
+              <PartitionOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <Text strong style={{ minWidth: 80 }}>メソッド:</Text>
+              <Select
+                style={{ flex: 1, minWidth: 200 }}
+                placeholder="メソッドを選択してください"
+                value={selectedMethodId || ''}
+                onChange={onSelectMethod}
+                options={[
+                  { label: '-', value: '' },
+                  ...(selectedProjectData?.methods || []).map((method) => ({
+                    label: method.methodName,
+                    value: method.methodId,
+                  })),
+                ]}
+                disabled={!selectedProject}
+                size="large"
+              />
+            </Space>
+            
+            {/* タスク選択 */}
             <Space size="middle" style={{ flex: 1 }}>
               <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong style={{ minWidth: 80 }}>タスク:</Text>
@@ -166,6 +188,7 @@ export default function ExperimentRecordTab({
                 size="large"
               />
             </Space>
+            
             <Button
               type="primary"
               icon={<CheckOutlined />}

@@ -159,7 +159,7 @@ export default function TransitionList({
       }
     },
     {
-      title: '素材',
+      title: '条件',
       key: 'ingredients',
       width: 100,
       align: 'center',
