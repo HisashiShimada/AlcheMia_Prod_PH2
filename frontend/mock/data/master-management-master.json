@@ -153,15 +153,15 @@
         "itemCategories":{
       "role": {
         "headerName": "ロール",
-        "searchFixed": false,
+        "searchFixed": true,
         "isDisplay": true,
         "addable": false,
         "update": false
       },
       "roleName": {
         "headerName": "ロール名",
-        "searchFixed": true,
-        "isDisplay": true,
+        "searchFixed": false,
+        "isDisplay": false,
         "addable": true,
         "update": true
       },
@@ -174,22 +174,22 @@
       },
       "functionName": {
         "headerName": "機能名",
-        "searchFixed": true,
+        "searchFixed": false,
         "isDisplay": true,
         "addable": true,
         "update": true
       },
       "permission": {
         "headerName": "権限",
-        "searchFixed": true,
-        "isDisplay": true,
+        "searchFixed": false,
+        "isDisplay": false,
         "addable": true,
         "update": true
       },
       "roleExplan": {
         "headerName": "説明",
         "searchFixed": false,
-        "isDisplay": true,
+        "isDisplay": false,
         "addable": true,
         "update": true
       }
