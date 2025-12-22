@@ -9,10 +9,12 @@
     "language": "Language",
     "save": "Save",
     "cancel": "Cancel",
+    "create": "Create",
     "delete": "Delete",
     "edit": "Edit",
     "add": "Add",
     "search": "Search",
+    "note": "Note",
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
@@ -35,7 +37,6 @@
       "title": "Provider Menu",
       "tabs": {
         "organizationManagement": "Organization Management",
-        "companyManagement": "Company Management",
         "informationDownload": "Information Download"
       }
     },
@@ -59,15 +60,16 @@
       "tabs": {
         "projectManagement": "Project Management",
         "formatManagement": "Format Management",
-        "progressMonitoring": "Progress Monitoring",
-        "workerManagement": "Worker Management"
+        "progressMonitoring": "Progress Monitoring"
       }
     },
     "experiment_worker": {
       "title": "Experiment Worker Menu",
       "tabs": {
         "myTasks": "My Tasks",
+        "workInstruction": "Instruction Confirmation",
         "experimentRecord": "Experiment Record",
+        "taskList": "Task List",
         "maimlViewer": "MAIML Viewer",
         "fileUpload": "File Upload",
         "progressReport": "Progress Report",
@@ -77,6 +79,82 @@
   },
   "content": {
     "notImplemented": "Content Area (Not Implemented)"
+  },
+  "experimentRecord": {
+    "dialog": {
+      "title": "Experiment Data Record",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saveSuccess": "Experiment data saved successfully",
+      "saveError": "Please check your input",
+      "noTemplate": "No template configured",
+      "noTemplateDesc": "No input template is registered for this transition."
+    },
+    "form": {
+      "required": " is required",
+      "enterValue": "Enter ",
+      "selectValue": "Select ",
+      "selectFile": "Select File",
+      "uploadFile": " will be uploaded (not implemented)"
+    },
+    "dataGrid": {
+      "column": "Col",
+      "row": "#",
+      "addRow": "Add Row",
+      "addColumn": "Add Column"
+    }
+  },
+  "experimentWork": {
+    "selectButton": "Select",
+    "instructionButton": "Instructions",
+    "taskListButton": "Task List",
+    "batchProgressButton": "Batch Progress Report",
+    "approvalRequestButton": "Request Approval",
+    "labels": {
+      "project": "Project",
+      "method": "Method"
+    },
+    "stats": {
+      "notStarted": "Not Started Transitions",
+      "started": "Started",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "progressRate": "Progress Rate"
+    },
+    "table": {
+      "taskName": "Task Name",
+      "sampleNumber": "Sample Number",
+      "notes": "Notes",
+      "status": "Status",
+      "progressReport": "Progress Report",
+      "recordNumber": "Record Number",
+      "actions": "Actions"
+    },
+    "actions": {
+      "start": "Start",
+      "recordData": "Record Data",
+      "reportProgress": "Report Progress",
+      "complete": "Complete"
+    },
+    "status": {
+      "notStarted": "Not Started",
+      "started": "Started",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "forcedTerminated": "Forced Terminated",
+      "suspended": "Suspended"
+    },
+    "messages": {
+      "selectProjectAndMethod": "Please select a project and method",
+      "noTasksFound": "No tasks found",
+      "taskStarted": "Task started successfully",
+      "taskCompleted": "Task completed successfully",
+      "moveToExperimentRecord": "Moving to Experiment Record tab",
+      "moveToProgressReport": "Moving to Progress Report tab",
+      "updateFailed": "Failed to update task",
+      "batchProgressNotImplemented": "Batch progress report feature will be implemented in the future",
+      "approvalRequestNotImplemented": "Approval request feature will be implemented in the future"
+    }
   },
   "formatManagement": {
     "search_by_format_name": "Search by format name",
@@ -102,6 +180,12 @@
       "fileNameMaxLength": "File name must be 100 characters or less",
       "fileNamePlaceholder": "Enter file name",
       "fileNameExtra": "Extension will be added automatically",
+      "description": "Description",
+      "descriptionPlaceholder": "Enter file description (optional)",
+      "descriptionExtra": "Describe the purpose and content of the file",
+      "descriptionMaxLength": "Description must be 500 characters or less",
+      "createdByInfo": "Creator Information",
+      "createdBy": "Created By",
       "success": "File created successfully",
       "successDescription": "A new file has been created and added to the list"
     },
@@ -135,7 +219,20 @@
     "folder_create_error": "Failed to create folder",
     "folder_create_note": "A new folder will be created. The folder name cannot be changed later.",
     "select_format": "Please select a format",
-    "select_format_description": "Select a format from the folder tree on the left to display the format files"
+    "select_format_description": "Select a format from the folder tree on the left to display the format files",
+    "detail": {
+      "title": "File Details",
+      "fileName": "File Name",
+      "fileType": "File Type",
+      "filePath": "File Path",
+      "fileSize": "File Size",
+      "lastModified": "Last Modified",
+      "createdAt": "Created At",
+      "createdBy": "Created By",
+      "version": "Version",
+      "description": "Description",
+      "noDescription": "No description available"
+    }
   },
   "projectManagement": {
     "search_by_project_name": "Search by project name",
@@ -146,6 +243,18 @@
     "all_projects": "All",
     "department": "Department",
     "all": "All",
+    "instruction": {
+      "experimentConditionTitle": "Experiment Conditions for Multiple Runs",
+      "conditionSpecification": "Condition Specification",
+      "sameCondition": "Use same conditions for all",
+      "differentCondition": "Change conditions per experiment",
+      "trialCount": "Trial Count",
+      "trialCountPlaceholder": "Enter trial count (optional)",
+      "trialCountRange": "Trial count must be between 1 and 999",
+      "taskName": "Task Name",
+      "taskNamePlaceholder": "Enter task name (optional)",
+      "taskNameMaxLength": "Task name must be 100 characters or less"
+    },
     "create": {
       "title": "Create New Project",
       "submit": "Create",
@@ -165,8 +274,9 @@
       "folderNameMaxLength": "Folder name must be 50 characters or less",
       "folderNamePlaceholder": "project_folder_name",
       "folderNameExtra": "Auto-generated from project name. Can be edited if needed.",
-      "description": "Project Description",
+      "description": "Description",
       "descriptionPlaceholder": "Enter project description (optional)",
+      "descriptionMaxLength": "Description must be 500 characters or less",
       "success": "Project created successfully",
       "successDescription": "A new project folder has been created and added to the list"
     },
@@ -199,6 +309,17 @@
     "publish": "Publish",
     "select_project": "Please select a project",
     "select_project_description": "Select a project from the folder tree on the left to display the file list",
+    "folder_tree": {
+      "title": "Project List",
+      "projects": "Projects",
+      "files": "Files",
+      "owner": "Owner",
+      "sort": {
+        "name": "Project Name",
+        "status": "Status",
+        "created_at": "Created Date"
+      }
+    },
     "tabs": {
       "file_management": "File Management",
       "task_results": "Task Results"
@@ -208,6 +329,12 @@
       "no_tasks": "No task results available",
       "coming_soon": "Task results feature is under development",
       "work_id": "Work ID",
+      "task_name": "Task Name",
+      "method_name": "Method",
+      "assigned_worker": "Assigned Worker",
+      "progress": "Progress",
+      "work_completed_at": "Work Completed",
+      "review_completed_at": "Review Completed",
       "reporter_name": "Reporter Name",
       "reported_at": "Reported At",
       "status": "Status",
@@ -215,21 +342,23 @@
       "view_result": "View Result",
       "status_pending": "Pending",
       "status_in_progress": "In Progress",
+      "status_error": "Error",
       "status_review_waiting": "Review Waiting",
-      "status_reviewed": "Reviewed",
+      "status_completed": "Completed",
       "stats": {
         "total_tasks": "Total Tasks",
         "pending_count": "Pending",
         "in_progress_count": "In Progress",
+        "error_count": "Error",
         "review_waiting_count": "Review Waiting",
-        "reviewed_count": "Reviewed"
+        "completed_count": "Completed"
       }
     }
   },
   "progress": {
     "title": "Progress Management",
     "lastUpdated": "Last Updated",
-    "refresh": "Refresh",
+    "refresh": "Reload",
     "filter_placeholder": "Filter by input value",
     "filter_labels": {
       "owner": "Owner:",
@@ -293,84 +422,6 @@
     },
     "actions": {
       "viewDetails": "View Details"
-    }
-  },
-  "worker": {
-    "title": "Worker Management",
-    "send": "Send",
-    "search": {
-      "placeholder": "Search by worker ID, name, email..."
-    },
-    "filter": {
-      "allStatus": "All Status"
-    },
-    "filter_labels": {
-      "status": "Status:",
-      "search": "Search:"
-    },
-    "status": {
-      "active": "Active",
-      "inactive": "Inactive"
-    },
-    "stats": {
-      "totalWorkers": "Total Workers",
-      "activeWorkers": "Active",
-      "workingProjects": "Working Projects",
-      "completedProjects": "Completed Projects",
-      "totalTasks": "Total Tasks",
-      "completedTasks": "Completed Tasks",
-      "people": "people"
-    },
-    "table": {
-      "workerList": "Worker List",
-      "worker": "Worker",
-      "status": "Status",
-      "assigned": "Assigned",
-      "completed": "Completed",
-      "totalTasks": "Total Tasks",
-      "inProgressTasks": "In Progress Tasks",
-      "reportedTasks": "Reported Tasks",
-      "completedTasks": "Completed Tasks",
-      "progressRate": "Progress Rate",
-      "sessionCount": "Session",
-      "lastConnection": "Last Connection",
-      "actions": "Actions",
-      "noRecord": "No Record",
-      "total": "Total"
-    },
-    "actions": {
-      "viewDetails": "View Details"
-    },
-    "detail": {
-      "title": "Worker Details",
-      "loading": "Loading",
-      "loadingMessage": "Loading detail data...",
-      "basicInfo": "Basic Information",
-      "workStats": "Work Statistics",
-      "assignedFiles": "Assigned Files",
-      "recentProgress": "Recent Progress Reports",
-      "id": "ID",
-      "name": "Name",
-      "email": "Email",
-      "lastLogin": "Last Login",
-      "lastActivity": "Last Activity",
-      "totalFiles": "Total Files",
-      "completionRate": "Completion Rate",
-      "inProgress": "In Progress",
-      "sessionCount": "Session Count",
-      "filesCount": "files",
-      "notSet": "Not Set",
-      "noRecord": "No Record",
-      "unknownFile": "Unknown File",
-      "noAssignedFiles": "No assigned files",
-      "noProgressReports": "No progress reports",
-      "fetchError": "Failed to fetch details",
-      "fetchErrorMessage": "Could not retrieve worker details",
-      "status": {
-        "completed": "Completed",
-        "inProgress": "In Progress",
-        "pending": "Pending"
-      }
     }
   }
 }

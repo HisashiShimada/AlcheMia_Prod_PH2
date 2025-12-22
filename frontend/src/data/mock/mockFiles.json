@@ -193,6 +193,111 @@
         }
       ],
       "archive": []
+    },
+    "proj_007": {
+      "root": [
+        {
+          "id": "file_007_current",
+          "name": "test_omori11.maiml",
+          "path": "organic_solar_cell/test_omori11.maiml",
+          "size": 58234,
+          "lastModified": "2024-12-10T16:30:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_007_002",
+          "name": "stability_test_results.xlsx",
+          "path": "organic_solar_cell/stability_test_results.xlsx",
+          "size": 3456789,
+          "lastModified": "2024-12-10T15:45:00Z",
+          "type": "excel"
+        },
+        {
+          "id": "file_007_003",
+          "name": "degradation_analysis.pdf",
+          "path": "organic_solar_cell/degradation_analysis.pdf",
+          "size": 5678901,
+          "lastModified": "2024-12-10T16:00:00Z",
+          "type": "pdf"
+        }
+      ],
+      "archive": [
+        {
+          "id": "file_007_arch_001",
+          "name": "test_omori11.maiml",
+          "path": "organic_solar_cell/archive/test_omori11.maiml",
+          "size": 54321,
+          "lastModified": "2024-08-27T10:00:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_007_arch_002",
+          "name": "test_omori11.maiml",
+          "path": "organic_solar_cell/archive/test_omori11.maiml",
+          "size": 56789,
+          "lastModified": "2024-11-15T14:20:00Z",
+          "type": "maiml"
+        }
+      ]
+    },
+    "proj_008": {
+      "root": [
+        {
+          "id": "file_008_current",
+          "name": "test_omori11.maiml",
+          "path": "fuel_cell_electrolyte/test_omori11.maiml",
+          "size": 42567,
+          "lastModified": "2024-12-15T10:45:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_008_002",
+          "name": "synthesis_log.xlsx",
+          "path": "fuel_cell_electrolyte/synthesis_log.xlsx",
+          "size": 1234567,
+          "lastModified": "2024-12-11T12:00:00Z",
+          "type": "excel"
+        },
+        {
+          "id": "file_008_003",
+          "name": "error_report.pdf",
+          "path": "fuel_cell_electrolyte/error_report.pdf",
+          "size": 876543,
+          "lastModified": "2024-12-11T14:30:00Z",
+          "type": "pdf"
+        }
+      ],
+      "archive": [
+        {
+          "id": "file_008_arch_001",
+          "name": "test_omori11.maiml",
+          "path": "fuel_cell_electrolyte/archive/test_omori11.maiml",
+          "size": 39876,
+          "lastModified": "2024-12-10T10:00:00Z",
+          "type": "maiml"
+        }
+      ]
+    },
+    "proj_009": {
+      "root": [
+        {
+          "id": "file_009_current",
+          "name": "test_omori11.maiml",
+          "path": "quantum_dot_led/test_omori11.maiml",
+          "size": 35789,
+          "lastModified": "2024-12-15T10:00:00Z",
+          "type": "maiml"
+        },
+        {
+          "id": "file_009_002",
+          "name": "project_plan.pdf",
+          "path": "quantum_dot_led/project_plan.pdf",
+          "size": 1567890,
+          "lastModified": "2024-12-01T14:00:00Z",
+          "type": "pdf"
+        }
+      ],
+      "archive": []
     }
   }
 }

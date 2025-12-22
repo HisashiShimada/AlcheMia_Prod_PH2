@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { Layout, Card, Typography, theme } from 'antd';
 import {
-  UserSwitchOutlined,
   LineChartOutlined,
   FileTextOutlined,
   FolderAddOutlined,
@@ -13,7 +12,6 @@ import SubHeader, { MenuType } from '../common/SubHeader';
 import ProjectManagement from '../project/ProjectManagement';
 import FormatManagement from '../project/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
-import WorkerManagement from '../worker/WorkerManagement';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -60,11 +58,6 @@ export default function ExperimentAdminMenu({
       label: t('menu.experiment_admin.tabs.progressMonitoring') || '進捗確認',
       icon: <LineChartOutlined />,
     },
-    {
-      key: '4',
-      label: t('menu.experiment_admin.tabs.workerManagement') || '作業者管理',
-      icon: <UserSwitchOutlined />,
-    },
   ];
 
   const handleTabChange = (key: string) => {
@@ -79,8 +72,8 @@ export default function ExperimentAdminMenu({
 
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
-  // タブ '1', '2', '3', '4' は全幅表示
-  const isFullWidthTab = currentTab === '1' || currentTab === '2' || currentTab === '3' || currentTab === '4';
+  // タブ '1', '2', '3' は全幅表示
+  const isFullWidthTab = currentTab === '1' || currentTab === '2' || currentTab === '3';
 
   // Header(64px) + SubHeader(タブ込みで約76px) = 140px
   const HEADER_HEIGHT = 64;
@@ -116,17 +109,12 @@ export default function ExperimentAdminMenu({
         ) : currentTab === '2' ? (
           // フォーマット管理: 全幅表示
           <div style={{ height: '100%', overflow: 'hidden' }}>
-            <FormatManagement />
+            <FormatManagement user={user} />
           </div>
         ) : currentTab === '3' ? (
           // 進捗確認: 全幅表示
           <div style={{ height: '100%', overflow: 'auto' }}>
             <ProgressMonitoring />
-          </div>
-        )  : currentTab === '4' ? (
-          // 作業者管理: 全幅表示
-          <div style={{ height: '100%', overflow: 'auto' }}>
-            <WorkerManagement />
           </div>
         ) : (
           // その他のタブ: カード内に表示

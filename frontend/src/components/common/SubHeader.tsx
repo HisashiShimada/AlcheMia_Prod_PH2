@@ -65,7 +65,7 @@ const SubHeaderContent = styled.div<{ token: ThemeToken }>`
  * タイトル領域
  */
 const TitleWrapper = styled.div<{ hasTabs: boolean; token: ThemeToken }>`
-  margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => props.hasTabs ? '0' : `${props.token.marginLG}px`};
+  margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => props.hasTabs ? '0' : `${props.token.paddingXL / 4}px`};
   flex-shrink: 0;
 `;
 
@@ -147,7 +147,7 @@ const TabsWrapper = styled.div`
  * アクション領域
  */
 const ActionsWrapper = styled.div<{ hasTabs: boolean; token: ThemeToken }>`
-  margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => props.hasTabs ? `${props.token.paddingXL / 4}px` : `${props.token.marginLG}px`};
+  margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => `${props.token.paddingXL / 4}px`};
   flex-shrink: 0;
 `;
 
