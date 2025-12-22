@@ -135,32 +135,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const [fixedFilters, setFixedFilters] = useState<Record<string, string>>({});
   const [form] = Form.useForm();
   
-  // 機能管理モーダル用のステート（一覧から開く用）
-  const [isFunctionModalVisible, setIsFunctionModalVisible] = useState(false);
-  const [editingFunctionMaster, setEditingFunctionMaster] = useState<MasterRecord | null>(null);
-  const [selectedFunctions, setSelectedFunctions] = useState<Record<string, boolean>>({});
-  const [selectedWritePermissions, setSelectedWritePermissions] = useState<Record<string, boolean>>({});
-  
-  // ロール追加専用の機能管理モーダル用のステート
-  const [isAddFunctionModalVisible, setIsAddFunctionModalVisible] = useState(false);
-  const [addSelectedFunctions, setAddSelectedFunctions] = useState<Record<string, boolean>>({});
-  const [addSelectedWritePermissions, setAddSelectedWritePermissions] = useState<Record<string, boolean>>({});
-
-  // 利用可能な機能一覧（マスタデータ）
-  const availableFunctions = useMemo(() => [
-    { id: 'FUNC001', name: 'システム管理', description: '全システム管理権限', hasWritePermission: true },
-    { id: 'FUNC002', name: 'ユーザー管理', description: 'ユーザーの作成・編集・削除', hasWritePermission: true },
-    { id: 'FUNC003', name: 'データ管理', description: 'データマスタの管理', hasWritePermission: false, isParent: true },
-    { id: 'FUNC003-1', name: '実験装置管理', description: '実験装置の登録・編集・削除', hasWritePermission: true, parentId: 'FUNC003', indent: 1 },
-    { id: 'FUNC003-2', name: '実験装置ベンダー管理', description: '実験装置ベンダーの登録・編集・削除', hasWritePermission: true, parentId: 'FUNC003', indent: 1 },
-    { id: 'FUNC003-3', name: '実験装置タイプ管理', description: '実験装置タイプの登録・編集・削除', hasWritePermission: true, parentId: 'FUNC003', indent: 1 },
-    { id: 'FUNC004', name: '実験管理', description: '実験の管理・制御', hasWritePermission: true },
-    { id: 'FUNC005', name: '作業者管理', description: '作業者の監査・指導', hasWritePermission: true },
-    { id: 'FUNC006', name: '実験作業', description: '実験作業の実行', hasWritePermission: true },
-    { id: 'FUNC007', name: '進捗報告', description: '作業進捗の報告', hasWritePermission: true },
-    { id: 'FUNC008', name: 'データアクセス', description: '実験データのアクセス', hasWritePermission: true },
-    { id: 'FUNC009', name: 'システム監視', description: 'システム状態の監視', hasWritePermission: true },
-  ], []);
 
   // 選択されたマスタ種別の情報を取得
   const selectedMasterInfo = useMemo(() => {
@@ -169,10 +143,10 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     );
   }, [selectedMasterType]);
 
-  // マスタ種別の選択肢をJSONファイルから生成
+  // マスタ種別の選択肢をJSONファイルから生成（ロール管理は除外）
   const masterTypes = useMemo(() => {
     return masterTypesData
-      .filter((master) => master.isActive)
+      .filter((master) => master.isActive && master.masterId !== '4') // ロール管理を除外
       .map((master) => ({
         value: master.masterId,
         label: `${master.displayName}（${master.role}）`,
@@ -283,11 +257,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   // searchFixedがfalseの項目を取得（曖昧検索対象）
   const fuzzySearchFields = useMemo(() => {
     if (!selectedMasterInfo) return [];
-    
-    // ロール管理画面（masterId="4"）の場合、機能名のみを曖昧検索対象にする
-    if (selectedMasterInfo.masterId === '4') {
-      return ['functionName'];
-    }
     
     return Object.entries(selectedMasterInfo.itemCategories)
       .filter(([_, category]) => category && !category.searchFixed && category.isDisplay)
@@ -423,43 +392,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                 </span>
               );
             }
-            // 機能名列の場合、クリック可能にする（ロール管理画面のみ）
-            if (isFunctionName && selectedMasterInfo?.masterId === '4') {
-              // 機能IDと機能名を"/"で分割
-              const functionIds = String(record.functionId || '').split('/').map(id => id.trim()).filter(Boolean);
-              const functionNames = String(text || '').split('/').map(name => name.trim()).filter(Boolean);
-              
-              // 書込可の機能IDを取得（カンマ区切り）
-              const writePermissionIds = String(record.functionWritePermissions || '').split(',').map(id => id.trim()).filter(Boolean);
-              
-              // 各機能にアイコンと色を付けてレンダリング
-              return (
-                <span
-                  style={{ 
-                    cursor: 'pointer',
-                    textDecoration: 'underline'
-                  }}
-                  onClick={() => handleOpenFunctionModal(record)}
-                >
-                  {functionNames.map((name, idx) => {
-                    const funcId = functionIds[idx];
-                    // 書込可のリストに含まれているかチェック
-                    const hasWritePermission = funcId && writePermissionIds.includes(funcId);
-                    const icon = hasWritePermission ? 'Ⓦ' : 'Ⓡ';
-                    // アイコンの色：Ⓡは青色、Ⓦは緑色
-                    const iconColor = hasWritePermission ? '#52c41a' : '#1890ff';
-                    
-                    return (
-                      <React.Fragment key={idx}>
-                        {idx > 0 && <span style={{ color: token.colorText }}> / </span>}
-                        <span style={{ color: iconColor, fontWeight: token.fontWeightStrong }}>{icon}</span>
-                        <span style={{ color: token.colorText, fontWeight: token.fontWeightStrong }}> {name}</span>
-                      </React.Fragment>
-                    );
-                  })}
-                </span>
-              );
-            }
             return String(text || '');
           },
         };
@@ -508,25 +440,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const handleAdd = () => {
     setEditingMaster(null);
     form.resetFields();
-    
-    // ロール管理画面の場合、デフォルト値なしで初期化
-    if (selectedMasterInfo?.masterId === '4') {
-      // デフォルトの機能選択なし
-      setSelectedFunctions({});
-      setSelectedWritePermissions({});
-      
-      form.setFieldsValue({
-        isActive: true,
-        functionId: '',
-        functionName: '',
-        functionWritePermissions: '',
-      });
-    } else {
-      form.setFieldsValue({
-        isActive: true,
-      });
-    }
-    
+    form.setFieldsValue({
+      isActive: true,
+    });
     setIsModalVisible(true);
   };
 
@@ -817,8 +733,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       
       setIsModalVisible(false);
       form.resetFields();
-      setSelectedFunctions({});
-      setSelectedWritePermissions({});
     } catch (error) {
       console.error('バリデーションエラー:', error);
     }
@@ -830,93 +744,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     form.resetFields();
   };
 
-  // 機能管理モーダルを開く（ロール管理画面でのみ有効）
-  const handleOpenFunctionModal = (record: MasterRecord) => {
-    // ロール管理画面（masterId = "4"）の場合のみ機能管理モーダルを開く
-    if (selectedMasterInfo?.masterId !== '4') return;
-    
-    setEditingFunctionMaster(record);
-    
-    // 現在の機能IDと機能名から選択状態を復元
-    const functionIds = String(record.functionId || '').split('/').map(id => id.trim()).filter(Boolean);
-    const functionNames = String(record.functionName || '').split('/').map(name => name.trim()).filter(Boolean);
-    
-    // 書込可の機能IDを取得
-    const writePermissionIds = String(record.functionWritePermissions || '').split(',').map(id => id.trim()).filter(Boolean);
-    
-    // 選択されている機能をマップ化
-    const functionsMap: Record<string, boolean> = {};
-    const writePermissionsMap: Record<string, boolean> = {};
-    
-    availableFunctions.forEach(func => {
-      const isSelected = functionIds.includes(func.id) || functionNames.includes(func.name);
-      functionsMap[func.id] = isSelected;
-      // 書込可の状態を復元（保存されていない場合はデフォルトでON）
-      writePermissionsMap[func.id] = isSelected && (writePermissionIds.length === 0 || writePermissionIds.includes(func.id));
-    });
-    
-    setSelectedFunctions(functionsMap);
-    setSelectedWritePermissions(writePermissionsMap);
-    setIsFunctionModalVisible(true);
-  };
-
-  // 機能管理モーダルの保存
-  const handleFunctionModalOk = () => {
-    // 選択された機能のIDと名前、書込可の状態を取得
-    const selectedFunctionIds: string[] = [];
-    const selectedFunctionNames: string[] = [];
-    const writePermissionIds: string[] = [];
-    
-    availableFunctions.forEach(func => {
-      if (selectedFunctions[func.id]) {
-        selectedFunctionIds.push(func.id);
-        selectedFunctionNames.push(func.name);
-        // 書込可がONの機能IDを記録
-        if (selectedWritePermissions[func.id]) {
-          writePermissionIds.push(func.id);
-        }
-      }
-    });
-    
-    // 機能IDと機能名を"/"区切りで結合
-    const functionId = selectedFunctionIds.join('/');
-    const functionName = selectedFunctionNames.join('/');
-    // 書込可の機能IDをカンマ区切りで保存
-    const functionWritePermissions = writePermissionIds.join(',');
-    
-    // 既存のマスタを編集している場合
-    if (editingFunctionMaster && selectedMasterInfo) {
-      const idField = Object.keys(selectedMasterInfo.itemCategories)[0];
-      // IDフィールドが存在する場合のみマスタデータを更新（一覧からの編集）
-      if (editingFunctionMaster[idField]) {
-        setMasters(masters.map(m => 
-          m[idField] === editingFunctionMaster[idField] 
-            ? { ...m, functionId, functionName, functionWritePermissions } 
-            : m
-        ));
-        message.success('機能を更新しました');
-      } else {
-        // IDフィールドがない場合は、ロール追加モーダルからの呼び出し
-        // フォームの値を更新
-        form.setFieldsValue({
-          functionId,
-          functionName,
-          functionWritePermissions,
-        });
-      }
-    }
-    
-    setIsFunctionModalVisible(false);
-    setEditingFunctionMaster(null);
-  };
-
-  // 機能管理モーダルのキャンセル
-  const handleFunctionModalCancel = () => {
-    setIsFunctionModalVisible(false);
-    setEditingFunctionMaster(null);
-    setSelectedFunctions({});
-    setSelectedWritePermissions({});
-  };
 
   // 曖昧検索のプレースホルダーを生成
   const fuzzySearchPlaceholder = useMemo(() => {
@@ -1075,325 +902,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         />
       </div>
 
-      {/* 機能管理モーダル（ロール管理画面専用） */}
-      <Modal
-        title={<div style={{ textAlign: 'center' }}>機能管理</div>}
-        open={isFunctionModalVisible}
-        onCancel={handleFunctionModalCancel}
-        width={500}
-        styles={{
-          body: { padding: '16px 0' }
-        }}
-        footer={
-          <Flex gap="middle" justify="center" style={{ width: '100%' }}>
-            <Button 
-              style={{ width: '160px' }}
-              onClick={handleFunctionModalCancel}
-            >
-              キャンセル
-            </Button>
-            <Button 
-              type="primary"
-              style={{ width: '160px' }}
-              onClick={handleFunctionModalOk}
-            >
-              機能を更新
-            </Button>
-          </Flex>
-        }
-      >
-        <div>
-          <Row gutter={[16, 16]}>
-            {availableFunctions.map((func, index) => {
-              const indentStyle = func.indent ? { marginLeft: func.indent * 24 } : {};
-              const showWritePermission = func.hasWritePermission !== false;
-              
-              // 親機能のチェック状態を確認
-              const parentId = func.parentId;
-              const isParentChecked = parentId ? selectedFunctions[parentId] || false : true;
-              const isDisabled = !isParentChecked;
-              
-              // 最後の要素以外に区切り線を追加
-              const isLast = index === availableFunctions.length - 1;
-              
-              return (
-                <Col 
-                  span={24} 
-                  key={func.id}
-                  style={{ 
-                    borderBottom: isLast ? 'none' : '1px solid #f0f0f0',
-                    paddingBottom: isLast ? 0 : 8
-                  }}
-                >
-                  <Row gutter={8} justify="center" style={{ marginLeft: -40 }}>
-                    <Col span={12}>
-                      <div style={indentStyle}>
-                        <Checkbox
-                          checked={selectedFunctions[func.id] || false}
-                          disabled={isDisabled}
-                          onChange={(e) => {
-                            const newSelectedFunctions = {
-                              ...selectedFunctions,
-                              [func.id]: e.target.checked,
-                            };
-                            
-                            // チェックが外された場合、この行の書込可も外す
-                            if (!e.target.checked) {
-                              setSelectedWritePermissions(prev => ({
-                                ...prev,
-                                [func.id]: false,
-                              }));
-                              
-                              // 親機能のチェックが外された場合、子機能のチェックも外す
-                              if (func.isParent) {
-                                availableFunctions.forEach(childFunc => {
-                                  if (childFunc.parentId === func.id) {
-                                    newSelectedFunctions[childFunc.id] = false;
-                                    // 子機能の書込可も外す
-                                    setSelectedWritePermissions(prev => ({
-                                      ...prev,
-                                      [childFunc.id]: false,
-                                    }));
-                                  }
-                                });
-                              }
-                            }
-                            
-                            setSelectedFunctions(newSelectedFunctions);
-                            
-                            if (e.target.checked && showWritePermission) {
-                              // 機能が選択されたら、書込可もデフォルトでONにする
-                              setSelectedWritePermissions({
-                                ...selectedWritePermissions,
-                                [func.id]: true,
-                              });
-                            }
-                          }}
-                          style={{ 
-                            fontSize: token.fontSize,
-                            fontWeight: token.fontWeightStrong,
-                          }}
-                        >
-                          {func.name}
-                        </Checkbox>
-                        <div style={{ 
-                          marginLeft: 24,
-                          color: token.colorTextSecondary,
-                          fontSize: token.fontSizeSM,
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {func.description}
-                        </div>
-                      </div>
-                    </Col>
-                    <Col span={4} style={{ marginLeft: 50 }}>
-                      {showWritePermission && (
-                        <Checkbox
-                          checked={selectedWritePermissions[func.id] || false}
-                          disabled={!selectedFunctions[func.id]}
-                          onChange={(e) => {
-                            setSelectedWritePermissions({
-                              ...selectedWritePermissions,
-                              [func.id]: e.target.checked,
-                            });
-                          }}
-                          style={{ 
-                            whiteSpace: 'nowrap',
-                            color: selectedWritePermissions[func.id] ? '#52c41a' : '#1890ff',
-                          }}
-                          className={selectedWritePermissions[func.id] ? 'write-permission-checked' : 'write-permission-unchecked'}
-                        >
-                          書込可
-                        </Checkbox>
-                      )}
-                    </Col>
-                  </Row>
-                </Col>
-              );
-            })}
-          </Row>
-        </div>
-      </Modal>
-
-      {/* ロール追加専用の機能管理モーダル */}
-      <Modal
-        title={<div style={{ textAlign: 'center' }}>機能管理</div>}
-        open={isAddFunctionModalVisible}
-        onCancel={() => {
-          setIsAddFunctionModalVisible(false);
-          setAddSelectedFunctions({});
-          setAddSelectedWritePermissions({});
-        }}
-        width={500}
-        styles={{
-          body: { padding: '16px 0' }
-        }}
-        footer={
-          <Flex gap="middle" justify="center" style={{ width: '100%' }}>
-            <Button 
-              style={{ width: '160px' }}
-              onClick={() => {
-                setIsAddFunctionModalVisible(false);
-                setAddSelectedFunctions({});
-                setAddSelectedWritePermissions({});
-              }}
-            >
-              キャンセル
-            </Button>
-            <Button 
-              type="primary"
-              style={{ width: '160px' }}
-              onClick={() => {
-                // 選択された機能のIDと名前、書込可の状態を取得
-                const selectedFunctionIds: string[] = [];
-                const selectedFunctionNames: string[] = [];
-                const writePermissionIds: string[] = [];
-                
-                availableFunctions.forEach(func => {
-                  if (addSelectedFunctions[func.id]) {
-                    selectedFunctionIds.push(func.id);
-                    selectedFunctionNames.push(func.name);
-                    // 書込可がONの機能IDを記録
-                    if (addSelectedWritePermissions[func.id]) {
-                      writePermissionIds.push(func.id);
-                    }
-                  }
-                });
-                
-                // 機能IDと機能名を"/"区切りで結合
-                const functionId = selectedFunctionIds.join('/');
-                const functionName = selectedFunctionNames.join('/');
-                // 書込可の機能IDをカンマ区切りで保存
-                const functionWritePermissions = writePermissionIds.join(',');
-                
-                // フォームの値を更新
-                form.setFieldsValue({
-                  functionId,
-                  functionName,
-                  functionWritePermissions,
-                });
-                
-                setIsAddFunctionModalVisible(false);
-              }}
-            >
-              機能を更新
-            </Button>
-          </Flex>
-        }
-      >
-        <div>
-          <Row gutter={[16, 16]}>
-            {availableFunctions.map((func, index) => {
-              const indentStyle = func.indent ? { marginLeft: func.indent * 24 } : {};
-              const showWritePermission = func.hasWritePermission !== false;
-              
-              // 親機能のチェック状態を確認
-              const parentId = func.parentId;
-              const isParentChecked = parentId ? addSelectedFunctions[parentId] || false : true;
-              const isDisabled = !isParentChecked;
-              
-              // 最後の要素以外に区切り線を追加
-              const isLast = index === availableFunctions.length - 1;
-              
-              return (
-                <Col 
-                  span={24} 
-                  key={func.id}
-                  style={{ 
-                    borderBottom: isLast ? 'none' : '1px solid #f0f0f0',
-                    paddingBottom: isLast ? 0 : 8
-                  }}
-                >
-                  <Row gutter={8} justify="center" style={{ marginLeft: -40 }}>
-                    <Col span={12}>
-                      <div style={indentStyle}>
-                        <Checkbox
-                          checked={addSelectedFunctions[func.id] || false}
-                          disabled={isDisabled}
-                          onChange={(e) => {
-                            const newSelectedFunctions = {
-                              ...addSelectedFunctions,
-                              [func.id]: e.target.checked,
-                            };
-                            
-                            // チェックが外された場合、この行の書込可も外す
-                            if (!e.target.checked) {
-                              setAddSelectedWritePermissions(prev => ({
-                                ...prev,
-                                [func.id]: false,
-                              }));
-                              
-                              // 親機能のチェックが外された場合、子機能のチェックも外す
-                              if (func.isParent) {
-                                availableFunctions.forEach(childFunc => {
-                                  if (childFunc.parentId === func.id) {
-                                    newSelectedFunctions[childFunc.id] = false;
-                                    // 子機能の書込可も外す
-                                    setAddSelectedWritePermissions(prev => ({
-                                      ...prev,
-                                      [childFunc.id]: false,
-                                    }));
-                                  }
-                                });
-                              }
-                            }
-                            
-                            setAddSelectedFunctions(newSelectedFunctions);
-                            
-                            if (e.target.checked && showWritePermission) {
-                              // 機能が選択されたら、書込可もデフォルトでONにする
-                              setAddSelectedWritePermissions({
-                                ...addSelectedWritePermissions,
-                                [func.id]: true,
-                              });
-                            }
-                          }}
-                          style={{ 
-                            fontSize: token.fontSize,
-                            fontWeight: token.fontWeightStrong,
-                          }}
-                        >
-                          {func.name}
-                        </Checkbox>
-                        <div style={{ 
-                          marginLeft: 24,
-                          color: token.colorTextSecondary,
-                          fontSize: token.fontSizeSM,
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {func.description}
-                        </div>
-                      </div>
-                    </Col>
-                    <Col span={4} style={{ marginLeft: 50 }}>
-                      {showWritePermission && (
-                        <Checkbox
-                          checked={addSelectedWritePermissions[func.id] || false}
-                          disabled={!addSelectedFunctions[func.id]}
-                          onChange={(e) => {
-                            setAddSelectedWritePermissions({
-                              ...addSelectedWritePermissions,
-                              [func.id]: e.target.checked,
-                            });
-                          }}
-                          style={{ 
-                            whiteSpace: 'nowrap',
-                            color: addSelectedWritePermissions[func.id] ? '#52c41a' : '#1890ff',
-                          }}
-                          className={addSelectedWritePermissions[func.id] ? 'write-permission-checked' : 'write-permission-unchecked'}
-                        >
-                          書込可
-                        </Checkbox>
-                      )}
-                    </Col>
-                  </Row>
-                </Col>
-              );
-            })}
-          </Row>
-        </div>
-      </Modal>
-
       {/* マスタ追加/編集モーダル */}
       <Modal
         title={
@@ -1451,78 +959,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             );
           })}
           
-          {/* ロール管理画面の場合、機能名フィールドを追加 */}
-          {selectedMasterInfo?.masterId === '4' && !editingMaster && (
-            <Form.Item 
-              name="functionName" 
-              label="機能名"
-              rules={[{ required: true, message: '機能名を選択してください' }]}
-            >
-              <div
-                style={{ 
-                  border: '1px solid #d9d9d9',
-                  borderRadius: '6px',
-                  padding: '4px 11px',
-                  minHeight: '32px',
-                  cursor: 'pointer',
-                  backgroundColor: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                onClick={() => {
-                  // ロール追加専用の機能管理モーダルを開く
-                  const functionIds = String(form.getFieldValue('functionId') || '').split('/').map(id => id.trim()).filter(Boolean);
-                  const writePermissionIds = String(form.getFieldValue('functionWritePermissions') || '').split(',').map(id => id.trim()).filter(Boolean);
-                  
-                  // 現在の選択状態を復元
-                  const functionsMap: Record<string, boolean> = {};
-                  const writePermissionsMap: Record<string, boolean> = {};
-                  
-                  availableFunctions.forEach(func => {
-                    const isSelected = functionIds.includes(func.id);
-                    functionsMap[func.id] = isSelected;
-                    writePermissionsMap[func.id] = isSelected && writePermissionIds.includes(func.id);
-                  });
-                  
-                  setAddSelectedFunctions(functionsMap);
-                  setAddSelectedWritePermissions(writePermissionsMap);
-                  setIsAddFunctionModalVisible(true);
-                }}
-              >
-                {(() => {
-                  const functionIds = String(form.getFieldValue('functionId') || '').split('/').map(id => id.trim()).filter(Boolean);
-                  const functionNames = String(form.getFieldValue('functionName') || '').split('/').map(name => name.trim()).filter(Boolean);
-                  const writePermissionIds = String(form.getFieldValue('functionWritePermissions') || '').split(',').map(id => id.trim()).filter(Boolean);
-                  
-                  if (functionNames.length === 0) {
-                    return <span style={{ color: '#bfbfbf' }}>機能を選択してください</span>;
-                  }
-                  
-                  return (
-                    <span>
-                      {functionNames.map((name, idx) => {
-                        const funcId = functionIds[idx];
-                        const hasWritePermission = funcId && writePermissionIds.includes(funcId);
-                        const icon = hasWritePermission ? 'Ⓦ' : 'Ⓡ';
-                        const iconColor = hasWritePermission ? '#52c41a' : '#1890ff';
-                        
-                        return (
-                          <React.Fragment key={idx}>
-                            {idx > 0 && <span style={{ color: token.colorText }}> / </span>}
-                            <span style={{ color: iconColor, fontWeight: token.fontWeightStrong }}>{icon}</span>
-                            <span style={{ color: token.colorText, fontWeight: token.fontWeightStrong }}> {name}</span>
-                          </React.Fragment>
-                        );
-                      })}
-                    </span>
-                  );
-                })()}
-              </div>
-            </Form.Item>
-          )}
-          
-          {/* ロール管理画面以外の場合のみ状態フィールドを表示 */}
-          {selectedMasterInfo?.masterId !== '4' && (
+          {/* 状態フィールドを表示 */}
+          {(
             <Form.Item name="isActive" label="状態">
               <Select
                 options={[
