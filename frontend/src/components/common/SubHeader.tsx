@@ -28,14 +28,12 @@ interface ThemeToken {
 
 /**
  * サブヘッダーのルートコンテナ
- * UIポリシー: 高さ48px固定
  */
 const SubHeaderContainer = styled.div<{ token: ThemeToken }>`
   position: fixed;
   top: 64px;
   left: 0;
   right: 0;
-  height: 48px;
   z-index: 999;
   background-color: ${props => props.token.colorInfo};
   color: white;
@@ -45,10 +43,6 @@ const SubHeaderContainer = styled.div<{ token: ThemeToken }>`
 
 /**
  * 内部コンテナ
- * UIポリシー: レスポンシブpadding
- * - デスクトップ (lg+): 0 50px
- * - タブレット (md): 0 24px
- * - モバイル (xs, sm): 0 16px
  */
 const SubHeaderInner = styled.div<{ token: ThemeToken }>`
   margin: 0 auto;
@@ -71,7 +65,7 @@ const SubHeaderContent = styled.div<{ token: ThemeToken }>`
  * タイトル領域
  */
 const TitleWrapper = styled.div<{ hasTabs: boolean; token: ThemeToken }>`
-  margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => props.hasTabs ? '0' : `${props.token.marginLG}px`};
+  margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => props.hasTabs ? '0' : `${props.token.paddingXL / 4}px`};
   flex-shrink: 0;
 `;
 
@@ -137,9 +131,8 @@ const TabsWrapper = styled.div`
   }
   
   /* アクティブインジケーター（下線） */
-  /* UIポリシー: インジケーター色は colorPrimary (#CF0027) */
   .ant-tabs-ink-bar {
-    background-color: #CF0027 !important;
+    background-color: white !important;
     height: 3px !important;
     border-radius: 3px 3px 0 0 !important;
   }
@@ -154,33 +147,8 @@ const TabsWrapper = styled.div`
  * アクション領域
  */
 const ActionsWrapper = styled.div<{ hasTabs: boolean; token: ThemeToken }>`
-  margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => props.hasTabs ? `${props.token.paddingXL / 4}px` : `${props.token.marginLG}px`};
+  margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => `${props.token.paddingXL / 4}px`};
   flex-shrink: 0;
-`;
-
-/**
- * メニュー切替ボタン（styled-components）
- * UIポリシー: テーマベースのスタイル、transitionは0.2s
- */
-const MenuSwitchButton = styled(Button)`
-  border-color: rgba(255, 255, 255, 0.8) !important;
-  color: white !important;
-  font-weight: 500 !important;
-  height: 36px !important;
-  padding-left: 16px !important;
-  padding-right: 16px !important;
-  transition: all 0.2s ease !important;
-
-  &:hover {
-    border-color: white !important;
-    background-color: rgba(255, 255, 255, 0.15) !important;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
 `;
 
 /**

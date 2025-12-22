@@ -32,7 +32,8 @@ const { Title, Text } = Typography;
  * レイアウト定数（UIポリシー準拠）
  */
 const HEADER_HEIGHT = 64;      // UIポリシー: Header高さ 64px
-const SUBHEADER_HEIGHT = 48;   // UIポリシー: SubHeader高さ 48px
+const SUBHEADER_HEIGHT = 48;   // UIポリシー: SubHeader高さ 48px（タブなし）
+const SELECTION_AREA_HEIGHT = 56; // プロジェクト・メソッド選択エリア高さ
 const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + SUBHEADER_HEIGHT; // 合計 112px
 
 /**
@@ -247,14 +248,19 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       {/* コンテンツエリア */}
       <Content
         style={{
-          marginTop: TOTAL_HEADER_HEIGHT, // UIポリシー: Header(64px) + SubHeader(48px) = 112px
-          padding: '0 16px 24px', // 上部の余白をなくし、左右と下部のみパディング
+          marginTop: TOTAL_HEADER_HEIGHT, // Header(64px) + SubHeader(48px) = 112px
+          padding: '0', // パディングなし（ResponsiveContainer内で調整）
         }}
       >
-        <ResponsiveContainer>
+        <ResponsiveContainer style={{ 
+          paddingTop: 0, // 上部パディングなし
+          paddingLeft: 16,
+          paddingRight: 16,
+          paddingBottom: 24,
+        }}>
           {/* プロジェクト選択・メソッド選択・選択ボタン */}
           <div style={{ 
-            height: 56,
+            height: SELECTION_AREA_HEIGHT,
             marginBottom: 0,
             display: 'flex',
             alignItems: 'center',
@@ -323,12 +329,6 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
 
           {/* タブ */}
           <div style={{
-            height: `calc(100vh - ${TOTAL_HEADER_HEIGHT}px - 24px - 56px - 24px)`, // 画面高さ - ヘッダー - Content padding(下) - 選択エリア - margin
-            display: 'flex',
-            flexDirection: 'column',
-            backgroundColor: token.colorBgContainer,
-            border: `1px solid ${token.colorBorder}`,
-            borderTop: 'none',
             borderRadius: 0,
             overflow: 'hidden'
           }}>
