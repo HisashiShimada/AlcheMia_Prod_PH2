@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Card, Typography, Space, theme, Divider, Button } from 'antd';
+import { Card, Typography, Space, theme, Divider, Button, Select, Row, Col } from 'antd';
 import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined, CheckCircleOutlined, NodeIndexOutlined } from '@ant-design/icons';
 import ProjectSelector from './ProjectSelector';
-import MethodSelector from './MethodSelector';
+import MethodSelectionModal from './MethodSelectionModal';
 import InstructionStats from './InstructionStats';
 import InstructionGroup from './InstructionGroup';
 import FlowDiagramModal from './FlowDiagramModal';
@@ -25,7 +25,7 @@ interface InstructionConfirmationTabProps {
   selectedProject: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
-  onSelectMethod: (methodId: string) => void;
+  onSelectMethod: (methodId: string | null) => void;
   sortedInstructions: Instruction[];
   stats: Stats;
   isClient: boolean;
@@ -52,6 +52,9 @@ export default function InstructionConfirmationTab({
 
   // フロー図モーダルの表示状態
   const [isFlowDiagramModalVisible, setIsFlowDiagramModalVisible] = useState(false);
+  
+  // メソッド選択モーダルの表示状態
+  const [isMethodModalVisible, setIsMethodModalVisible] = useState(false);
 
   // メソッド一覧の取得
   const methods = useMemo(() => {
@@ -78,8 +81,13 @@ export default function InstructionConfirmationTab({
       if (instruction.targetType === 'file' || instruction.targetType === 'transition') {
         return true;
       }
-      // メソッド単位指示は選択されたメソッドに紐づくもののみ
+      // メソッド単位指示の場合
       if (instruction.targetType === 'method') {
+        // メソッド未選択の場合は全てのメソッドの作業指示を表示
+        if (!selectedMethodId) {
+          return true;
+        }
+        // メソッド選択済みの場合は選択されたメソッドに紐づくもののみ表示
         return instruction.methodId === selectedMethodId;
       }
       return false;
@@ -135,7 +143,7 @@ export default function InstructionConfirmationTab({
 
   return (
     <div style={{ height: '100%', overflow: 'auto' }}>
-      {!selectedProject || !selectedMethodId ? (
+      {!selectedProject ? (
         <Card
           style={{
             borderRadius: '8px',
@@ -149,12 +157,56 @@ export default function InstructionConfirmationTab({
               指示確認
             </Title>
             <Text type="secondary">
-              プロジェクトとメソッドを選択してください
+              プロジェクトを選択してください
             </Text>
           </Space>
         </Card>
       ) : (
         <>
+          {/* メソッド選択エリア */}
+          <Card
+            style={{
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+              marginBottom: 0,
+            }}
+            bodyStyle={{
+              padding: `8px ${token.paddingMD}px`,
+            }}
+          >
+            <Row gutter={16} align="middle">
+              <Col flex="auto">
+                <Space size="middle">
+                  <ToolOutlined style={{ fontSize: 20, color: token.colorPrimary }} />
+                  <Text strong>メソッド</Text>
+                  <Select
+                    value={selectedMethodId || undefined}
+                    onChange={(value) => onSelectMethod(value || null)}
+                    placeholder="メソッドを選択"
+                    style={{ minWidth: 300 }}
+                    disabled={!selectedProject}
+                    options={[
+                      { label: '未選択', value: null },
+                      ...methods.map((method) => ({
+                        label: method.methodName,
+                        value: method.methodId,
+                      })),
+                    ]}
+                  />
+                </Space>
+              </Col>
+              <Col flex="none">
+                <Button
+                  type="default"
+                  onClick={() => setIsMethodModalVisible(true)}
+                  disabled={!selectedProject}
+                >
+                  選択
+                </Button>
+              </Col>
+            </Row>
+          </Card>
+
           {/* 作業指示サマリー */}
           <div style={{ marginBottom: 0 }}>
             <InstructionStats stats={filteredStats} />
@@ -379,6 +431,18 @@ export default function InstructionConfirmationTab({
             onClose={handleCloseFlowDiagram}
             projectName={projectInfo?.projectName}
             methodName={methodInfo?.methodName}
+          />
+
+          {/* メソッド選択モーダル */}
+          <MethodSelectionModal
+            open={isMethodModalVisible}
+            onClose={() => setIsMethodModalVisible(false)}
+            selectedProject={selectedProject}
+            selectedMethodId={selectedMethodId}
+            onMethodChange={(methodId) => {
+              onSelectMethod(methodId);
+              setIsMethodModalVisible(false);
+            }}
           />
         </>
       )}
