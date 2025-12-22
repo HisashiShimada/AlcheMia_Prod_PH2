@@ -27,16 +27,26 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import Papa from 'papaparse';
-import masterTypesData from '../data/master-management-master.json';
-import organizationData from '../data/master-management-organization.json';
-import departmentData from '../data/master-management-department.json';
-import usersData from '../data/master-management-users.json';
-import roleData from '../data/master-management-role.json';
-import laboratoryEquipmentData from '../data/master-management-laboratory-equipment.json';
-import laboratoryEquipmentTypeData from '../data/master-management-laboratory-equipment-type.json';
-import laboratoryEquipmentVendorData from '../data/master-management-laboratory-equipment-vendor.json';
+import rawMasterTypesData from '../data/master-management-master.json';
+import rawOrganizationData from '../data/master-management-organization.json';
+import rawDepartmentData from '../data/master-management-department.json';
+import rawUsersData from '../data/master-management-users.json';
+import rawRoleData from '../data/master-management-role.json';
+import rawLaboratoryEquipmentData from '../data/master-management-laboratory-equipment.json';
+import rawLaboratoryEquipmentTypeData from '../data/master-management-laboratory-equipment-type.json';
+import rawLaboratoryEquipmentVendorData from '../data/master-management-laboratory-equipment-vendor.json';
 
 const { Text } = Typography;
+
+// JSONデータを型付きで取得
+const masterTypesData = rawMasterTypesData as MasterTypeData[];
+const organizationData = rawOrganizationData as MasterRecord[];
+const departmentData = rawDepartmentData as MasterRecord[];
+const usersData = rawUsersData as MasterRecord[];
+const roleData = rawRoleData as MasterRecord[];
+const laboratoryEquipmentData = rawLaboratoryEquipmentData as MasterRecord[];
+const laboratoryEquipmentTypeData = rawLaboratoryEquipmentTypeData as MasterRecord[];
+const laboratoryEquipmentVendorData = rawLaboratoryEquipmentVendorData as MasterRecord[];
 
 // JSONデータのマッピング
 const masterDataMap: Record<string, MasterRecord[]> = {
@@ -87,7 +97,7 @@ interface MasterManagementMockProps {
 /**
  * マスタ管理画面のモックコンポーネント
  */
-export default function MasterManagementMock({ initialMasterId }: MasterManagementMockProps = {}) {
+export default function MasterManagementMock({ initialMasterId }: MasterManagementMockProps) {
   const { token } = theme.useToken();
   
   // 日時フォーマット関数
@@ -118,7 +128,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       return initialMasterId;
     }
     // 指定がない場合は最初のアクティブなマスタを選択
-    const firstMaster = (masterTypesData as MasterTypeData[]).find(m => m.isActive);
+    const firstMaster = masterTypesData.find(m => m.isActive);
     return firstMaster?.masterId || '1';
   });
   const [displayScope, setDisplayScope] = useState<string>('all'); // 表示切替: 'all' | 'own'
@@ -154,14 +164,14 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
   // 選択されたマスタ種別の情報を取得
   const selectedMasterInfo = useMemo(() => {
-    return (masterTypesData as MasterTypeData[]).find(
+    return masterTypesData.find(
       m => m.masterId === selectedMasterType
     );
   }, [selectedMasterType]);
 
   // マスタ種別の選択肢をJSONファイルから生成
   const masterTypes = useMemo(() => {
-    return (masterTypesData as MasterTypeData[])
+    return masterTypesData
       .filter((master) => master.isActive)
       .map((master) => ({
         value: master.masterId,
