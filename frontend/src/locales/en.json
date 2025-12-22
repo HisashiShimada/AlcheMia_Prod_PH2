@@ -67,7 +67,9 @@
       "title": "Experiment Worker Menu",
       "tabs": {
         "myTasks": "My Tasks",
+        "workInstruction": "Instruction Confirmation",
         "experimentRecord": "Experiment Record",
+        "taskList": "Task List",
         "maimlViewer": "MAIML Viewer",
         "fileUpload": "File Upload",
         "progressReport": "Progress Report",
@@ -77,6 +79,82 @@
   },
   "content": {
     "notImplemented": "Content Area (Not Implemented)"
+  },
+  "experimentRecord": {
+    "dialog": {
+      "title": "Experiment Data Record",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saveSuccess": "Experiment data saved successfully",
+      "saveError": "Please check your input",
+      "noTemplate": "No template configured",
+      "noTemplateDesc": "No input template is registered for this transition."
+    },
+    "form": {
+      "required": " is required",
+      "enterValue": "Enter ",
+      "selectValue": "Select ",
+      "selectFile": "Select File",
+      "uploadFile": " will be uploaded (not implemented)"
+    },
+    "dataGrid": {
+      "column": "Col",
+      "row": "#",
+      "addRow": "Add Row",
+      "addColumn": "Add Column"
+    }
+  },
+  "experimentWork": {
+    "selectButton": "Select",
+    "instructionButton": "Instructions",
+    "taskListButton": "Task List",
+    "batchProgressButton": "Batch Progress Report",
+    "approvalRequestButton": "Request Approval",
+    "labels": {
+      "project": "Project",
+      "method": "Method"
+    },
+    "stats": {
+      "notStarted": "Not Started Transitions",
+      "started": "Started",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "progressRate": "Progress Rate"
+    },
+    "table": {
+      "taskName": "Task Name",
+      "sampleNumber": "Sample Number",
+      "notes": "Notes",
+      "status": "Status",
+      "progressReport": "Progress Report",
+      "recordNumber": "Record Number",
+      "actions": "Actions"
+    },
+    "actions": {
+      "start": "Start",
+      "recordData": "Record Data",
+      "reportProgress": "Report Progress",
+      "complete": "Complete"
+    },
+    "status": {
+      "notStarted": "Not Started",
+      "started": "Started",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "forcedTerminated": "Forced Terminated",
+      "suspended": "Suspended"
+    },
+    "messages": {
+      "selectProjectAndMethod": "Please select a project and method",
+      "noTasksFound": "No tasks found",
+      "taskStarted": "Task started successfully",
+      "taskCompleted": "Task completed successfully",
+      "moveToExperimentRecord": "Moving to Experiment Record tab",
+      "moveToProgressReport": "Moving to Progress Report tab",
+      "updateFailed": "Failed to update task",
+      "batchProgressNotImplemented": "Batch progress report feature will be implemented in the future",
+      "approvalRequestNotImplemented": "Approval request feature will be implemented in the future"
+    }
   },
   "formatManagement": {
     "search_by_format_name": "Search by format name",

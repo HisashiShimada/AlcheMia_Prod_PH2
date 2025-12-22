@@ -67,7 +67,9 @@
       "title": "実験作業者メニュー",
       "tabs": {
         "myTasks": "担当作業",
+        "workInstruction": "指示確認",
         "experimentRecord": "実験記録",
+        "taskList": "タスク一覧",
         "maimlViewer": "MAIML閲覧",
         "fileUpload": "ファイルアップロード",
         "progressReport": "進捗報告",
@@ -77,6 +79,82 @@
   },
   "content": {
     "notImplemented": "コンテンツエリア（未実装）"
+  },
+  "experimentRecord": {
+    "dialog": {
+      "title": "実験データ記録",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "saveSuccess": "実験データを保存しました",
+      "saveError": "入力内容を確認してください",
+      "noTemplate": "テンプレートが設定されていません",
+      "noTemplateDesc": "このトランジションには入力テンプレートが登録されていません。"
+    },
+    "form": {
+      "required": "は必須項目です",
+      "enterValue": "を入力",
+      "selectValue": "を選択",
+      "selectFile": "ファイルを選択",
+      "uploadFile": "をアップロードします（未実装）"
+    },
+    "dataGrid": {
+      "column": "列",
+      "row": "#",
+      "addRow": "行を追加",
+      "addColumn": "列を追加"
+    }
+  },
+  "experimentWork": {
+    "selectButton": "選択",
+    "instructionButton": "指示確認",
+    "taskListButton": "タスク一覧",
+    "batchProgressButton": "一括進捗報告",
+    "approvalRequestButton": "承認依頼",
+    "labels": {
+      "project": "プロジェクト",
+      "method": "メソッド"
+    },
+    "stats": {
+      "notStarted": "開始前のトランジション",
+      "started": "開始",
+      "inProgress": "作業中",
+      "completed": "完了",
+      "progressRate": "進捗率"
+    },
+    "table": {
+      "taskName": "タスク名",
+      "sampleNumber": "サンプル番号",
+      "notes": "備考",
+      "status": "ステータス",
+      "progressReport": "進捗報告",
+      "recordNumber": "実験記録番号",
+      "actions": "アクション"
+    },
+    "actions": {
+      "start": "開始",
+      "recordData": "結果入力",
+      "reportProgress": "進捗報告",
+      "complete": "終了"
+    },
+    "status": {
+      "notStarted": "開始前",
+      "started": "開始",
+      "inProgress": "作業中",
+      "completed": "完了",
+      "forcedTerminated": "強制終了",
+      "suspended": "中断"
+    },
+    "messages": {
+      "selectProjectAndMethod": "プロジェクトとメソッドを選択してください",
+      "noTasksFound": "タスクが見つかりません",
+      "taskStarted": "タスクを開始しました",
+      "taskCompleted": "タスクを完了しました",
+      "moveToExperimentRecord": "実験記録タブに移動します",
+      "moveToProgressReport": "進捗報告タブに移動します",
+      "updateFailed": "タスクの更新に失敗しました",
+      "batchProgressNotImplemented": "一括進捗報告機能は今後実装予定です",
+      "approvalRequestNotImplemented": "承認依頼機能は今後実装予定です"
+    }
   },
   "formatManagement": {
     "search_by_format_name": "フォーマット名で検索",
