@@ -32,14 +32,12 @@ import BulkUploadDialog from './BulkUploadDialog';
 import InstructionDialog from './InstructionDialog';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
-import mockFilesData from '@/data/mock/mockFiles.json';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
 import { useApi } from '@/hooks/useApi';
 import { fetchProjects, fetchProjectFiles } from '@/utils/apiClient';
 import type { ApiResponse } from '@/types/api';
 import type { ProjectListResponse } from '@/types/project';
-import type { ProjectFilesResponse } from '@/types/file';
 
 const { Title, Text } = Typography;
 
@@ -55,7 +53,6 @@ const ProjectManagement: React.FC = () => {
   const [checkoutFilter, setCheckoutFilter] = useState<string>('all'); // all, checked_in, checked_out
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>('all'); // all, planning, pending, in_progress, completed
   const [departmentFilter, setDepartmentFilter] = useState<string>('all'); // 初期値: 全部門
-  const [showMaimlOnly, setShowMaimlOnly] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt'); // ソート項目
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // ソート順序
@@ -67,6 +64,7 @@ const ProjectManagement: React.FC = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
   const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
+  const [projectFilesData, setProjectFilesData] = useState<Record<string, any>>({});
   
   // 複数ダイアログ管理
   interface OpenDialog {
@@ -186,16 +184,9 @@ const ProjectManagement: React.FC = () => {
         matchesDepartment = project.department === departmentFilter;
       }
 
-      // MaiMLファイルフィルタ
-      const matchesMaiml = !showMaimlOnly || (mockFilesData.files as any)[project.id]?.root?.some(
-        (file: any) => file.type === 'maiml'
-      ) || (mockFilesData.files as any)[project.id]?.archive?.some(
-        (file: any) => file.type === 'maiml'
-      );
-
-      return matchesSearch && matchesCheckout && matchesProjectStatus && matchesDepartment && matchesMaiml;
+      return matchesSearch && matchesCheckout && matchesProjectStatus && matchesDepartment;
     });
-  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, departmentFilter, showMaimlOnly, t]);
+  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, departmentFilter, t]);
 
   // ソート済みプロジェクト一覧
   const sortedProjects = useMemo(() => {
@@ -297,6 +288,31 @@ const ProjectManagement: React.FC = () => {
     handleRefresh();
   }, [handleRefresh]);
 
+  // プロジェクトのファイル一覧を取得
+  useEffect(() => {
+    const loadProjectFiles = async () => {
+      if (!selectedProjectId) return;
+      
+      try {
+        const response = await fetchProjectFiles(selectedProjectId);
+        if (response.success && response.data.files) {
+          setProjectFilesData(prev => ({
+            ...prev,
+            [selectedProjectId]: {
+              root: response.data.files,
+              archive: response.data.archiveFiles || [],
+            }
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch project files:', error);
+        message.error('ファイル一覧の取得に失敗しました');
+      }
+    };
+    
+    loadProjectFiles();
+  }, [selectedProjectId]);
+
   // 選択したプロジェクトとそのファイル一覧を取得
   const selectedProject = useMemo(() => {
     return projects.find((p) => p.id === selectedProjectId) || null;
@@ -304,7 +320,7 @@ const ProjectManagement: React.FC = () => {
 
   const projectFiles = useMemo(() => {
     if (!selectedProjectId) return [];
-    const projectData = (mockFilesData.files as any)[selectedProjectId];
+    const projectData = projectFilesData[selectedProjectId];
     if (!projectData) return [];
     
     if (currentFolder === 'root') {
@@ -348,7 +364,7 @@ const ProjectManagement: React.FC = () => {
     }
     
     return [];
-  }, [selectedProjectId, currentFolder, selectedProject]);
+  }, [selectedProjectId, currentFolder, selectedProject, projectFilesData]);
 
   // タスク結果一覧を取得（統合されたmockProjects.jsonから取得）
   const taskResults = useMemo(() => {
@@ -848,7 +864,7 @@ const ProjectManagement: React.FC = () => {
                 </Space>
               </Card>
 
-              {/* タブ */}
+              {/* タブとコンテンツ */}
               <Tabs
                 activeKey={currentTab}
                 onChange={(key) => setCurrentTab(key as 'file_management' | 'task_results')}
@@ -856,32 +872,20 @@ const ProjectManagement: React.FC = () => {
                   {
                     key: 'file_management',
                     label: t('projectManagement.tabs.file_management'),
+                    children: (
+                      <FileListTable
+                        files={projectFiles}
+                        onFileClick={(file) => console.log('File clicked:', file.name)}
+                        onFolderClick={handleFolderClick}
+                        onViewFile={handleViewFile}
+                      />
+                    ),
                   },
                   {
                     key: 'task_results',
                     label: t('projectManagement.tabs.task_results'),
-                  },
-                ]}
-                style={{
-                  borderBottom: `1px solid ${token.colorBorderSecondary}`,
-                  backgroundColor: token.colorBgContainer,
-                  padding: `0 ${token.margin}px`,
-                }}
-              />
-
-              {/* タブコンテンツ */}
-              <div style={{ flex: 1, overflow: 'auto', padding: token.margin }}>
-                {currentTab === 'file_management' && (
-                  <FileListTable
-                    files={projectFiles}
-                    onFileClick={(file) => console.log('File clicked:', file.name)}
-                    onFolderClick={handleFolderClick}
-                    onViewFile={handleViewFile}
-                  />
-                )}
-                
-                {currentTab === 'task_results' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    children: (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {/* 統計カード */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: token.margin }}>
                       <Card
@@ -981,8 +985,16 @@ const ProjectManagement: React.FC = () => {
                       onViewResult={handleViewTaskResult}
                     />
                   </div>
-                )}
-              </div>
+                    ),
+                  },
+                ]}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              />
             </>
           ) : (
             <div

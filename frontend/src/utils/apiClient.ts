@@ -64,7 +64,7 @@ export async function fetchProjectById(projectId: string): Promise<ApiResponse<P
 /**
  * プロジェクトのファイル一覧を取得
  */
-export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<{ files: ProjectFile[] }>> {
+export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>> {
   await simulateApiDelay();
   
   const allFiles = filesData.files as Record<string, { root: ProjectFile[]; archive?: ProjectFile[] }>;
@@ -78,6 +78,7 @@ export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<
     success: true,
     data: {
       files: projectFiles.root || [],
+      archiveFiles: projectFiles.archive || [],
     },
     message: 'ファイル一覧の取得に成功しました',
   };
