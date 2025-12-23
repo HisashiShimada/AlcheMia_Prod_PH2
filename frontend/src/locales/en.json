@@ -19,7 +19,9 @@
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
-    "info": "Info"
+    "info": "Info",
+    "total": "Total",
+    "items": "items"
   },
   "languages": {
     "ja": "日本語",
@@ -116,14 +118,16 @@
     },
     "projectSelection": {
       "title": "Select Project",
-      "noSelection": "No Selection",
-      "noSelectionDescription": "Do not select a project",
-      "currentlySelected": "Currently Selected",
-      "selected": "Selected",
+      "projectName": "Project Name",
+      "description": "Description",
       "owner": "Owner",
       "unknownOwner": "Unknown",
+      "clearSelection": "Clear Selection",
       "cancel": "Cancel",
-      "confirm": "Confirm"
+      "confirm": "Confirm",
+      "searchPlaceholder": "Search by project name, description, owner",
+      "projectNameFilter": "Project Name",
+      "ownerFilter": "Owner"
     },
     "issueReport": {
       "title": "Issue Report",

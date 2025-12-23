@@ -19,7 +19,9 @@
     "error": "エラー",
     "success": "成功",
     "warning": "警告",
-    "info": "情報"
+    "info": "情報",
+    "total": "合計",
+    "items": "件"
   },
   "languages": {
     "ja": "日本語",
@@ -116,14 +118,16 @@
     },
     "projectSelection": {
       "title": "プロジェクトを選択",
-      "noSelection": "未選択",
-      "noSelectionDescription": "プロジェクトを選択しない",
-      "currentlySelected": "現在選択中",
-      "selected": "選択中",
+      "projectName": "プロジェクト名",
+      "description": "説明",
       "owner": "所有者",
       "unknownOwner": "不明",
+      "clearSelection": "選択解除",
       "cancel": "キャンセル",
-      "confirm": "決定"
+      "confirm": "決定",
+      "searchPlaceholder": "プロジェクト名、説明、所有者で検索",
+      "projectNameFilter": "プロジェクト名",
+      "ownerFilter": "所有者"
     },
     "issueReport": {
       "title": "問題報告",
