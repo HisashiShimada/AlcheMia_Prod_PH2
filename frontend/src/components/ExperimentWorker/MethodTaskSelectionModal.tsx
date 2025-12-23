@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Modal, Table, Tag, Typography, Input, Select, Space, Row, Col, theme } from 'antd';
-import { SearchOutlined, CheckOutlined } from '@ant-design/icons';
+import { Modal, Table, Tag, Typography, Input, Select, Space, Row, Col, Button, Radio, theme } from 'antd';
+import { SearchOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Task, TaskStatus, Method } from '@/types/experimentWorker';
 import { projectsData } from '@/data/projectsData';
@@ -241,22 +241,26 @@ export default function MethodTaskSelectionModal({
     return result;
   }, [filteredTasks, collapsedMethodIds]);
   
-  // 行クリックハンドラー（タスク選択）
-  const handleRowClick = (record: TableRow) => {
-    if (isAggregatedRow(record)) {
-      // 集約行の場合は選択不可（展開のみ）
-      return;
-    }
-    
-    // タスク行の場合は選択
+  // ラジオボタンクリックハンドラー（タスク選択）
+  const handleRadioClick = (record: Task) => {
     setTempSelectedMethodId(record.methodId || null);
     setTempSelectedTaskId(record.taskId);
+  };
+  
+  // 選択解除ハンドラー
+  const handleClearSelection = () => {
+    setTempSelectedMethodId(null);
+    setTempSelectedTaskId(null);
   };
   
   // 決定ボタンの処理
   const handleOk = () => {
     if (tempSelectedMethodId && tempSelectedTaskId) {
+      // 選択されている場合
       onSelect(tempSelectedMethodId, tempSelectedTaskId);
+    } else {
+      // 未選択の場合は、空文字列を渡して親コンポーネントの選択状態をクリア
+      onSelect('', '');
     }
     onClose();
   };
@@ -271,6 +275,30 @@ export default function MethodTaskSelectionModal({
   
   // テーブルの列定義
   const columns: ColumnsType<TableRow> = [
+    {
+      title: '選択',
+      key: 'radio',
+      width: 60,
+      align: 'center',
+      render: (_, record: TableRow) => {
+        if (isAggregatedRow(record)) {
+          // 集約行ではラジオボタンを表示しない
+          return null;
+        }
+        
+        // タスク行ではラジオボタンを表示
+        return (
+          <Radio
+            checked={record.taskId === tempSelectedTaskId}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRadioClick(record);
+            }}
+            aria-label={`タスク ${record.taskName} を選択`}
+          />
+        );
+      }
+    },
     {
       title: 'メソッドの名称',
       dataIndex: 'methodName',
@@ -387,7 +415,6 @@ export default function MethodTaskSelectionModal({
     <Modal
       open={open}
       onCancel={handleCancel}
-      onOk={handleOk}
       width={900}
       title={
         <Space>
@@ -395,12 +422,30 @@ export default function MethodTaskSelectionModal({
           <Text strong>メソッド・タスク選択</Text>
         </Space>
       }
-      okText="決定"
-      cancelText="キャンセル"
-      okButtonProps={{
-        disabled: !tempSelectedMethodId || !tempSelectedTaskId,
-        icon: <CheckOutlined />,
-      }}
+      footer={
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Button
+            danger
+            icon={<CloseOutlined />}
+            onClick={handleClearSelection}
+            disabled={!tempSelectedTaskId}
+          >
+            選択解除
+          </Button>
+          <Space>
+            <Button onClick={handleCancel}>
+              キャンセル
+            </Button>
+            <Button 
+              type="primary"
+              onClick={handleOk}
+              icon={<CheckOutlined />}
+            >
+              決定
+            </Button>
+          </Space>
+        </Space>
+      }
       styles={{
         body: {
           maxHeight: '70vh',
@@ -470,10 +515,6 @@ export default function MethodTaskSelectionModal({
           }
           return '';
         }}
-        onRow={(record) => ({
-          onClick: () => handleRowClick(record),
-          style: { cursor: isAggregatedRow(record) ? 'default' : 'pointer' }
-        })}
         pagination={{
           pageSize: 10,
           showSizeChanger: true,
