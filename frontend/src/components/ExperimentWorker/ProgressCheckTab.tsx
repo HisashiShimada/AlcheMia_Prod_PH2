@@ -93,6 +93,17 @@ export default function ProgressCheckTab({
           message.info('タスク開始機能は今後実装予定です');
           break;
 
+        case 'instruction':
+          // 指示確認タブへ遷移（メソッドを選択状態にする）
+          if (task.methodId && onSelectMethod) {
+            onSelectMethod(task.methodId);
+          }
+          if (onTabChange) {
+            onTabChange('2'); // 指示確認タブ
+            message.info('指示確認タブに移動します');
+          }
+          break;
+
         case 'record':
           // 実験記録タブへ遷移（タスクを選択状態にする）
           if (onSelectTaskAndTab) {
@@ -121,7 +132,7 @@ export default function ProgressCheckTab({
       console.error('タスクアクション処理エラー:', error);
       message.error('タスクの更新に失敗しました');
     }
-  }, [selectedProject, tasks, onTabChange, onSelectTaskAndTab]);
+  }, [selectedProject, tasks, onTabChange, onSelectTaskAndTab, onSelectMethod]);
 
   // 指示確認ボタン
   const handleInstructionConfirmation = useCallback(() => {
@@ -183,7 +194,7 @@ export default function ProgressCheckTab({
             }}
           >
             <CheckSquareOutlined style={{ marginRight: 8 }} />
-            サブタスク一覧
+            タスク一覧
           </Typography.Title>
 
           {/* 指示確認ボタン・承認依頼ボタン */}
@@ -196,7 +207,6 @@ export default function ProgressCheckTab({
               aria-label="作業指示を確認"
             >
               指示確認
-              <RightOutlined style={{ fontSize: '12px', marginLeft: '4px' }} />
             </Button>
             <Button
               type="default"

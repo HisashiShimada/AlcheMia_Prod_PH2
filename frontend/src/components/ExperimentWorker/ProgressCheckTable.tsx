@@ -306,6 +306,27 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
       }
     },
     {
+      title: '指示確認',
+      key: 'instruction',
+      width: 100,
+      align: 'center',
+      render: (_, record: TableRow) => {
+        if (isAggregatedRow(record)) {
+          return null;
+        }
+        return (
+          <Button
+            type="default"
+            size="small"
+            onClick={() => onTaskAction(record.taskId, 'instruction')}
+            aria-label="作業指示を確認"
+          >
+            指示
+          </Button>
+        );
+      }
+    },
+    {
       title: '開始',
       key: 'start',
       width: 80,
