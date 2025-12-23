@@ -71,7 +71,6 @@ frontend/src/
 - `.css`ファイルは作成しない（既存のレガシーファイルのみ）
 - グローバルスタイル: `frontend/src/app/globals.scss`
 - コンポーネント固有スタイル: `[ComponentName].module.scss`
-- 参照: [SCSS使用ガイド](.clinerules/use-scss-for-styles.md)
 
 #### SCSS機能の活用
 - **変数**: 繰り返し使用される値は変数化（例: `$color-primary: #CF0027;`）

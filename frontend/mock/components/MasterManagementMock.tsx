@@ -38,6 +38,21 @@ import rawLaboratoryEquipmentVendorData from '../data/master-management-laborato
 
 const { Text } = Typography;
 
+// 日時フォーマット関数（コンポーネント外に定義）
+const formatDateTime = (dateTimeStr: string): string => {
+  if (!dateTimeStr || dateTimeStr === '-') return '-';
+  // YYYYMMDDhhmmss 形式を yyyy/MM/dd hh:mm に変換
+  if (dateTimeStr.length >= 12) {
+    const year = dateTimeStr.substring(0, 4);
+    const month = dateTimeStr.substring(4, 6);
+    const day = dateTimeStr.substring(6, 8);
+    const hour = dateTimeStr.substring(8, 10);
+    const minute = dateTimeStr.substring(10, 12);
+    return `${year}/${month}/${day} ${hour}:${minute}`;
+  }
+  return dateTimeStr;
+};
+
 // JSONデータを型付きで取得
 const masterTypesData = rawMasterTypesData as MasterTypeData[];
 const organizationData = rawOrganizationData as MasterRecord[];
@@ -99,21 +114,6 @@ interface MasterManagementMockProps {
  */
 export default function MasterManagementMock({ initialMasterId }: MasterManagementMockProps) {
   const { token } = theme.useToken();
-  
-  // 日時フォーマット関数
-  const formatDateTime = (dateTimeStr: string): string => {
-    if (!dateTimeStr || dateTimeStr === '-') return '-';
-    // YYYYMMDDhhmmss 形式を yyyy/MM/dd hh:mm に変換
-    if (dateTimeStr.length >= 12) {
-      const year = dateTimeStr.substring(0, 4);
-      const month = dateTimeStr.substring(4, 6);
-      const day = dateTimeStr.substring(6, 8);
-      const hour = dateTimeStr.substring(8, 10);
-      const minute = dateTimeStr.substring(10, 12);
-      return `${year}/${month}/${day} ${hour}:${minute}`;
-    }
-    return dateTimeStr;
-  };
 
   // State管理
   const [masters, setMasters] = useState<MasterRecord[]>([]);
@@ -426,7 +426,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     });
 
     return dynamicColumns;
-  }, [selectedMasterInfo, token, formatDateTime]);
+  }, [selectedMasterInfo, token]);
 
   // テーブルの行選択
   const rowSelection = {

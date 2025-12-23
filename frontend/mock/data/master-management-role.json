@@ -4,7 +4,7 @@
     "role": "システム管理",
     "roleName": "System Administrator",
     "functionId": "FUNC001/FUNC002/FUNC003/FUNC004/FUNC005/FUNC006/FUNC007/FUNC008/     FUNC009/FUNC010",
-    "functionName": "組織管理/ファイル管理/実験記録管理/実験実施/データ分析/システム監視/データアクセス/　　進捗報告/セッション管理",
+    "functionName": "組織管理/ファイル管理/実験記録管理/実験実施/データ分析/システム監視/データアクセス/　　ｔ進捗報告/セッション管理",
     "permission": "読み取り・書き込み"
   },
   {
