@@ -20,6 +20,7 @@ import {
   message,
   Collapse,
   theme,
+  Select,
 } from 'antd';
 import {
   PlusOutlined,
@@ -30,6 +31,8 @@ import {
   FileTextOutlined,
   DownOutlined,
   RightOutlined,
+  SearchOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -38,8 +41,9 @@ import {
   Transition,
   Template,
   Instruction,
+  TemplateCategory,
 } from '@/types/experimentWorker';
-import { projectsData } from '@/data/projectsData';
+import { projectsData, templatesList } from '@/data/projectsData';
 import InstructionCard from './InstructionCard';
 
 const { Title, Text } = Typography;
@@ -78,10 +82,62 @@ export default function DataRecordDialog({
   const [methodInstructionsExpanded, setMethodInstructionsExpanded] = useState(true);
   const [transitionInstructionsExpanded, setTransitionInstructionsExpanded] = useState(true);
 
+  // テンプレート一覧用の状態
+  const [templateSearchText, setTemplateSearchText] = useState('');
+  const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<TemplateCategory | undefined>(undefined);
+  const [templatesExpanded, setTemplatesExpanded] = useState(true);
+
   // クライアント判定
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // テンプレート一覧のフィルタリング
+  const filteredTemplates = useMemo(() => {
+    let filtered = templatesList;
+
+    // テンプレート名でのあいまい検索
+    if (templateSearchText) {
+      filtered = filtered.filter((template) =>
+        template.name.toLowerCase().includes(templateSearchText.toLowerCase())
+      );
+    }
+
+    // テンプレート種別での絞り込み
+    if (selectedTemplateCategory) {
+      filtered = filtered.filter((template) => template.category === selectedTemplateCategory);
+    }
+
+    return filtered;
+  }, [templateSearchText, selectedTemplateCategory]);
+
+  // テンプレート種別のラベル変換
+  const getTemplateCategoryLabel = (category: TemplateCategory): string => {
+    switch (category) {
+      case 'Materials':
+        return '材料';
+      case 'Conditions':
+        return '条件';
+      case 'Results':
+        return '結果';
+      default:
+        return category;
+    }
+  };
+
+  // テンプレート種別のタグ色
+  const getTemplateCategoryColor = (category: TemplateCategory): string => {
+    switch (category) {
+      case 'Materials':
+        return 'blue';
+      case 'Conditions':
+        return 'green';
+      case 'Results':
+        return 'orange';
+      default:
+        return 'default';
+    }
+  };
 
   // ダイアログを開いたときにフォームをリセット
   useEffect(() => {
@@ -820,6 +876,121 @@ export default function DataRecordDialog({
             )}
           </div>
         )}
+
+        {/* テンプレート一覧セクション */}
+        <div style={{ marginBottom: 24 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              padding: token.marginXS,
+              borderRadius: token.borderRadiusSM,
+              marginBottom: token.marginSM,
+            }}
+            onClick={() => setTemplatesExpanded(!templatesExpanded)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            {templatesExpanded ? (
+              <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
+            ) : (
+              <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
+            )}
+            <AppstoreOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
+            <Text strong style={{ fontSize: 16 }}>
+              テンプレート一覧 ({filteredTemplates.length}件)
+            </Text>
+          </div>
+
+          {templatesExpanded && (
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              {/* フィルタリングエリア */}
+              <Row gutter={16}>
+              <Col flex="400px">
+                <Input
+                  placeholder="テンプレート名で検索"
+                  prefix={<SearchOutlined />}
+                  value={templateSearchText}
+                  onChange={(e) => setTemplateSearchText(e.target.value)}
+                  allowClear
+                />
+              </Col>
+              <Col flex="150px">
+                <Select
+                  placeholder="テンプレート種別"
+                  value={selectedTemplateCategory}
+                  onChange={setSelectedTemplateCategory}
+                  allowClear
+                  style={{ width: '100%' }}
+                  options={[
+                    { label: '材料', value: 'Materials' },
+                    { label: '条件', value: 'Conditions' },
+                    { label: '結果', value: 'Results' },
+                  ]}
+                />
+              </Col>
+            </Row>
+
+            {/* テーブル */}
+            <Table
+              size="small"
+              dataSource={filteredTemplates}
+              rowKey="templateId"
+              scroll={{ x: 800 }}
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showTotal: (total) => `全 ${total} 件`,
+                pageSizeOptions: ['10', '20', '50'],
+              }}
+              columns={[
+                {
+                  title: 'テンプレート名',
+                  dataIndex: 'name',
+                  key: 'name',
+                  width: 250,
+                  align: 'left',
+                  render: (name: string, record: Template) => (
+                    <Space>
+                      <Text strong>{name}</Text>
+                      {record.description && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          - {record.description}
+                        </Text>
+                      )}
+                    </Space>
+                  ),
+                },
+                {
+                  title: 'テンプレート種別',
+                  dataIndex: 'category',
+                  key: 'category',
+                  width: 150,
+                  align: 'center',
+                  render: (category: TemplateCategory) => (
+                    <Tag color={getTemplateCategoryColor(category)}>
+                      {getTemplateCategoryLabel(category)}
+                    </Tag>
+                  ),
+                },
+                {
+                  title: 'プロパティ数',
+                  dataIndex: 'properties',
+                  key: 'propertyCount',
+                  width: 120,
+                  align: 'right',
+                  render: (properties: Property[]) => properties.length,
+                },
+              ]}
+            />
+            </Space>
+          )}
+        </div>
 
         {/* 入力フォーム */}
         {transition?.templates && transition.templates.length > 0 ? (

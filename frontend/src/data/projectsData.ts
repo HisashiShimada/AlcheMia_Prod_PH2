@@ -2,7 +2,361 @@ import {
   ProjectData,
   Task,
   WorkflowStatistics,
+  Template,
 } from '@/types/experimentWorker';
+
+/**
+ * テンプレート一覧（データ記録モーダル用）
+ */
+export const templatesList: Template[] = [
+  // 材料テンプレート
+  {
+    templateId: "tpl_mat_001",
+    category: "Materials",
+    name: "金属材料情報",
+    description: "金属系材料の基本情報を記録するテンプレート",
+    properties: [
+      {
+        key: "material_name",
+        label: "材料名",
+        type: "stringType",
+        required: true
+      },
+      {
+        key: "material_type",
+        label: "材料種別",
+        type: "stringType",
+        required: true,
+        options: ["鉄", "銅", "アルミニウム", "チタン", "その他"]
+      },
+      {
+        key: "purity",
+        label: "純度",
+        type: "floatType",
+        units: "%",
+        required: true,
+        min: 0,
+        max: 100
+      },
+      {
+        key: "weight",
+        label: "重量",
+        type: "floatType",
+        units: "g",
+        required: true
+      }
+    ]
+  },
+  {
+    templateId: "tpl_mat_002",
+    category: "Materials",
+    name: "化学試薬情報",
+    description: "化学試薬の詳細情報を記録するテンプレート",
+    properties: [
+      {
+        key: "reagent_name",
+        label: "試薬名",
+        type: "stringType",
+        required: true
+      },
+      {
+        key: "cas_number",
+        label: "CAS番号",
+        type: "stringType",
+        required: false
+      },
+      {
+        key: "concentration",
+        label: "濃度",
+        type: "floatType",
+        units: "mol/L",
+        required: true
+      },
+      {
+        key: "volume",
+        label: "使用量",
+        type: "floatType",
+        units: "mL",
+        required: true
+      },
+      {
+        key: "lot_number",
+        label: "ロット番号",
+        type: "stringType",
+        required: false
+      }
+    ]
+  },
+  {
+    templateId: "tpl_mat_003",
+    category: "Materials",
+    name: "複合材料情報",
+    description: "複合材料・混合材料の組成情報を記録するテンプレート",
+    properties: [
+      {
+        key: "composite_name",
+        label: "複合材料名",
+        type: "stringType",
+        required: true
+      },
+      {
+        key: "matrix_material",
+        label: "マトリックス材料",
+        type: "stringType",
+        required: true
+      },
+      {
+        key: "reinforcement_material",
+        label: "強化材",
+        type: "stringType",
+        required: false
+      },
+      {
+        key: "composition_ratio",
+        label: "組成比",
+        type: "stringType",
+        required: false
+      }
+    ]
+  },
+  
+  // 条件テンプレート
+  {
+    templateId: "tpl_cond_001",
+    category: "Conditions",
+    name: "温度条件",
+    description: "実験時の温度条件を記録するテンプレート",
+    properties: [
+      {
+        key: "target_temperature",
+        label: "目標温度",
+        type: "intType",
+        units: "℃",
+        required: true,
+        min: -273,
+        max: 2000
+      },
+      {
+        key: "heating_rate",
+        label: "昇温速度",
+        type: "floatType",
+        units: "℃/min",
+        required: false,
+        min: 0.1,
+        max: 100
+      },
+      {
+        key: "holding_time",
+        label: "保持時間",
+        type: "intType",
+        units: "分",
+        required: false,
+        min: 0
+      },
+      {
+        key: "cooling_method",
+        label: "冷却方法",
+        type: "stringType",
+        required: false,
+        options: ["自然冷却", "強制冷却", "急冷", "徐冷"]
+      }
+    ]
+  },
+  {
+    templateId: "tpl_cond_002",
+    category: "Conditions",
+    name: "圧力・雰囲気条件",
+    description: "実験時の圧力と雰囲気ガスの条件を記録するテンプレート",
+    properties: [
+      {
+        key: "pressure",
+        label: "圧力",
+        type: "floatType",
+        units: "MPa",
+        required: true,
+        min: 0
+      },
+      {
+        key: "atmosphere_gas",
+        label: "雰囲気ガス",
+        type: "stringType",
+        required: true,
+        options: ["大気", "窒素", "アルゴン", "真空", "その他"]
+      },
+      {
+        key: "gas_flow_rate",
+        label: "ガス流量",
+        type: "floatType",
+        units: "L/min",
+        required: false,
+        min: 0
+      },
+      {
+        key: "humidity",
+        label: "湿度",
+        type: "floatType",
+        units: "%",
+        required: false,
+        min: 0,
+        max: 100
+      }
+    ]
+  },
+  {
+    templateId: "tpl_cond_003",
+    category: "Conditions",
+    name: "測定条件",
+    description: "測定機器の設定条件を記録するテンプレート",
+    properties: [
+      {
+        key: "measurement_method",
+        label: "測定手法",
+        type: "stringType",
+        required: true
+      },
+      {
+        key: "equipment_name",
+        label: "使用機器",
+        type: "stringType",
+        required: true
+      },
+      {
+        key: "measurement_time",
+        label: "測定時間",
+        type: "intType",
+        units: "秒",
+        required: true,
+        min: 1
+      },
+      {
+        key: "integration_count",
+        label: "積算回数",
+        type: "intType",
+        required: false,
+        min: 1,
+        defaultValue: 1
+      },
+      {
+        key: "measurement_date",
+        label: "測定日時",
+        type: "dateTimeType",
+        required: true
+      }
+    ]
+  },
+  
+  // 結果テンプレート
+  {
+    templateId: "tpl_res_001",
+    category: "Results",
+    name: "物性測定結果",
+    description: "材料の物理的特性の測定結果を記録するテンプレート",
+    properties: [
+      {
+        key: "hardness",
+        label: "硬度",
+        type: "floatType",
+        units: "HV",
+        required: false
+      },
+      {
+        key: "tensile_strength",
+        label: "引張強度",
+        type: "floatType",
+        units: "MPa",
+        required: false
+      },
+      {
+        key: "elongation",
+        label: "伸び",
+        type: "floatType",
+        units: "%",
+        required: false
+      },
+      {
+        key: "density",
+        label: "密度",
+        type: "floatType",
+        units: "g/cm³",
+        required: false
+      },
+      {
+        key: "observation",
+        label: "観察結果",
+        type: "stringType",
+        required: false
+      }
+    ]
+  },
+  {
+    templateId: "tpl_res_002",
+    category: "Results",
+    name: "化学分析結果",
+    description: "化学分析の結果を記録するテンプレート",
+    properties: [
+      {
+        key: "element_composition",
+        label: "元素組成",
+        type: "stringType",
+        required: false
+      },
+      {
+        key: "phase_identification",
+        label: "相同定結果",
+        type: "stringType",
+        required: false
+      },
+      {
+        key: "purity_analysis",
+        label: "純度分析結果",
+        type: "floatType",
+        units: "%",
+        required: false,
+        min: 0,
+        max: 100
+      },
+      {
+        key: "impurity_content",
+        label: "不純物含有量",
+        type: "floatType",
+        units: "ppm",
+        required: false
+      }
+    ]
+  },
+  {
+    templateId: "tpl_res_003",
+    category: "Results",
+    name: "画像・スペクトルデータ",
+    description: "測定画像やスペクトルデータを記録するテンプレート",
+    properties: [
+      {
+        key: "spectrum_data",
+        label: "スペクトルデータ",
+        type: "contentDoubleListType",
+        required: false
+      },
+      {
+        key: "peak_positions",
+        label: "ピーク位置",
+        type: "stringType",
+        required: false
+      },
+      {
+        key: "image_file",
+        label: "測定画像",
+        type: "insertion",
+        required: false
+      },
+      {
+        key: "analysis_comment",
+        label: "解析コメント",
+        type: "stringType",
+        required: false
+      }
+    ]
+  }
+];
 
 export const projectsData: Record<string, ProjectData> = {
   "project_001": {
