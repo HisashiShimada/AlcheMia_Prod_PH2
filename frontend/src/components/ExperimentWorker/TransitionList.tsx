@@ -121,29 +121,6 @@ export default function TransitionList({
       render: (status: ProgressStatus | undefined) => getStatusDisplay(status)
     },
     {
-      title: '進捗率',
-      dataIndex: 'progressRate',
-      key: 'progressRate',
-      width: 150,
-      align: 'center',
-      render: (progressRate: number | undefined) => {
-        if (progressRate === undefined || progressRate === null) {
-          return <Text type="secondary">-</Text>;
-        }
-        return (
-          <Progress
-            percent={progressRate}
-            size="small"
-            strokeColor={{
-              '0%': '#CF0027',
-              '100%': '#E63946'
-            }}
-            format={(percent) => `${percent}%`}
-          />
-        );
-      }
-    },
-    {
       title: '材料',
       key: 'materials',
       width: 100,
@@ -217,7 +194,7 @@ export default function TransitionList({
     <>
       <div>
         {/* 絞り込みUI */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Row gutter={[16, 8]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={12} md={12}>
             <Input
               placeholder="トランジション名、説明で検索..."

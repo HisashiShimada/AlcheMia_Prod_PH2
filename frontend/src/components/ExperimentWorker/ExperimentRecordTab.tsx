@@ -138,7 +138,7 @@ export default function ExperimentRecordTab({
       {/* 選択カード */}
       <div
         style={{ 
-          marginBottom: token.marginLG,
+          marginBottom: 8,
           height: 56,
           flexShrink: 0,
           display: 'flex',
@@ -154,11 +154,11 @@ export default function ExperimentRecordTab({
           {/* メソッド選択 + タスク選択（コンボボックス） + 選択ボタン */}
           <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: token.margin }}>
             {/* メソッド選択 */}
-            <Space size="middle" style={{ flex: 1 }}>
+            <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
               <PartitionOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong style={{ minWidth: 80 }}>メソッド:</Text>
               <Select
-                style={{ flex: 1, minWidth: 200 }}
+                style={{ width: 200 }}
                 placeholder="メソッドを選択してください"
                 value={selectedMethodId || undefined}
                 onChange={(value) => onSelectMethod(value || null)}
@@ -175,11 +175,11 @@ export default function ExperimentRecordTab({
             </Space>
             
             {/* タスク選択 */}
-            <Space size="middle" style={{ flex: 1 }}>
+            <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
               <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong style={{ minWidth: 80 }}>タスク:</Text>
               <Select
-                style={{ flex: 1, minWidth: 200 }}
+                style={{ width: 200 }}
                 placeholder="タスクを選択してください"
                 value={selectedTaskId || ''}
                 onChange={onSelectTask}
@@ -195,6 +195,7 @@ export default function ExperimentRecordTab({
               onClick={() => setModalOpen(true)}
               size="large"
               disabled={!selectedProject}
+              style={{ marginLeft: 'auto' }}
             >
               選択
             </Button>
@@ -204,7 +205,7 @@ export default function ExperimentRecordTab({
 
       {/* 表示切り替えボタン */}
       {selectedProject && selectedMethod && (
-        <div style={{ marginBottom: token.margin, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginBottom: 8, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
           <Space size="middle">
             {viewMode === 'list' ? (
               <Button
@@ -272,7 +273,7 @@ export default function ExperimentRecordTab({
             {viewMode === 'list' ? (
               /* トランジション一覧表示 - タスク選択後のみ表示 */
               <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0 }}>
+                <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0, fontSize: 16 }}>
                   <BarChartOutlined style={{ marginRight: 8 }} />
                   トランジション一覧
                 </Title>
