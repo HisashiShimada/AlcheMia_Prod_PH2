@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, List, Typography, Space, Tag, Button, theme } from 'antd';
-import { ToolOutlined, MinusOutlined, CheckOutlined } from '@ant-design/icons';
+import { Modal, Table, Typography, Space, Button, theme, Input, Select, Row, Col } from 'antd';
+import { ToolOutlined, CheckOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import { projectsData } from '@/data/projectsData';
 
 const { Text } = Typography;
@@ -19,8 +20,20 @@ interface MethodSelectionModalProps {
 }
 
 /**
+ * テーブルデータの型定義
+ */
+interface MethodTableData {
+  key: string;
+  methodId: string;
+  methodName: string;
+  description: string;
+  owner: string;
+  isCurrentlySelected: boolean;
+}
+
+/**
  * メソッド選択モーダルコンポーネント
- * プロジェクトに紐づくメソッドを選択するためのモーダル
+ * プロジェクトに紐づくメソッドをテーブル形式で選択するためのモーダル
  */
 export default function MethodSelectionModal({
   open,
@@ -31,11 +44,19 @@ export default function MethodSelectionModal({
 }: MethodSelectionModalProps) {
   const { token } = theme.useToken();
   const [tempMethodId, setTempMethodId] = useState<string | null>(selectedMethodId);
+  
+  // フィルター状態
+  const [searchText, setSearchText] = useState<string>('');
+  const [selectedMethodName, setSelectedMethodName] = useState<string | undefined>(undefined);
+  const [selectedOwner, setSelectedOwner] = useState<string | undefined>(undefined);
 
-  // ダイアログが開かれた時に現在の選択状態を一時変数に設定
+  // ダイアログが開かれた時に現在の選択状態とフィルターをリセット
   useEffect(() => {
     if (open) {
       setTempMethodId(selectedMethodId);
+      setSearchText('');
+      setSelectedMethodName(undefined);
+      setSelectedOwner(undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -53,6 +74,86 @@ export default function MethodSelectionModal({
     return projectsData[selectedProject];
   }, [selectedProject]);
 
+  // テーブルデータの作成
+  const allTableData: MethodTableData[] = useMemo(() => {
+    const owner = projectInfo?.workAssignment?.assignedBy?.userName || '不明';
+    
+    return methods.map((method) => ({
+      key: method.methodId,
+      methodId: method.methodId,
+      methodName: method.methodName,
+      description: method.description || '',
+      owner,
+      isCurrentlySelected: selectedMethodId === method.methodId,
+    }));
+  }, [methods, projectInfo, selectedMethodId]);
+
+  // メソッド名の選択肢
+  const methodNameOptions = useMemo(() => {
+    const uniqueNames = Array.from(new Set(allTableData.map(item => item.methodName)));
+    return uniqueNames.sort().map(name => ({ label: name, value: name }));
+  }, [allTableData]);
+
+  // 所有者の選択肢
+  const ownerOptions = useMemo(() => {
+    const uniqueOwners = Array.from(new Set(allTableData.map(item => item.owner)));
+    return uniqueOwners.sort().map(owner => ({ label: owner, value: owner }));
+  }, [allTableData]);
+
+  // フィルタリングされたデータ
+  const filteredData = useMemo(() => {
+    return allTableData.filter(item => {
+      // あいまい検索（メソッド名、説明）
+      const matchesSearch = !searchText || 
+        item.methodName.toLowerCase().includes(searchText.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchText.toLowerCase());
+      
+      // メソッド名フィルター
+      const matchesMethodName = !selectedMethodName || item.methodName === selectedMethodName;
+      
+      // 所有者フィルター
+      const matchesOwner = !selectedOwner || item.owner === selectedOwner;
+      
+      return matchesSearch && matchesMethodName && matchesOwner;
+    });
+  }, [allTableData, searchText, selectedMethodName, selectedOwner]);
+
+  // テーブルカラムの定義
+  const columns: ColumnsType<MethodTableData> = [
+    {
+      title: 'メソッド名',
+      dataIndex: 'methodName',
+      key: 'methodName',
+      width: 200,
+      sorter: (a, b) => a.methodName.localeCompare(b.methodName),
+      render: (text: string) => (
+        <Space>
+          <ToolOutlined style={{ color: token.colorPrimary }} />
+          <Text strong>{text}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '説明',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+      render: (text: string) => (
+        <Text type="secondary">{text || '-'}</Text>
+      ),
+    },
+    {
+      title: '所有者',
+      dataIndex: 'owner',
+      key: 'owner',
+      width: 150,
+      sorter: (a, b) => a.owner.localeCompare(b.owner),
+      render: (text: string) => (
+        <Text>{text}</Text>
+      ),
+    },
+  ];
+
   // 決定ボタンの処理
   const handleOk = () => {
     onMethodChange(tempMethodId);
@@ -66,114 +167,25 @@ export default function MethodSelectionModal({
     onClose();
   };
 
-  // 「未選択」アイテムをレンダリング
-  const renderEmptyOption = () => {
-    const isSelected = !tempMethodId;
-    const isCurrentlySelected = !selectedMethodId;
-
-    return (
-      <List.Item
-        onClick={() => setTempMethodId(null)}
-        style={{
-          cursor: 'pointer',
-          padding: token.paddingMD,
-          backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
-          borderRadius: token.borderRadius,
-          marginBottom: token.marginXS,
-          transition: 'all 0.2s',
-          border: isCurrentlySelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
-        }}
-        onMouseEnter={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = token.colorBgTextHover;
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }
-        }}
-      >
-        <List.Item.Meta
-          avatar={<MinusOutlined style={{ fontSize: 24, color: token.colorTextSecondary }} />}
-          title={
-            <Space>
-              <Text strong>未選択</Text>
-              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-              {isSelected && !isCurrentlySelected && <Tag color="red">選択</Tag>}
-            </Space>
-          }
-          description={
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              全てのメソッドの作業指示を表示します
-            </Text>
-          }
-        />
-      </List.Item>
-    );
+  // 選択解除ボタンの処理
+  const handleClearSelection = () => {
+    setTempMethodId(null);
   };
 
-  // メソッドリストアイテムをレンダリング
-  const renderMethodItem = (method: typeof methods[0]) => {
-    const isSelected = tempMethodId === method.methodId;
-    const isCurrentlySelected = selectedMethodId === method.methodId;
-    const owner = projectInfo?.workAssignment?.assignedBy?.userName || '不明';
-
-    return (
-      <List.Item
-        key={method.methodId}
-        onClick={() => setTempMethodId(method.methodId)}
-        style={{
-          cursor: 'pointer',
-          padding: token.paddingMD,
-          backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
-          borderRadius: token.borderRadius,
-          marginBottom: token.marginXS,
-          transition: 'all 0.2s',
-          border: isCurrentlySelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
-        }}
-        onMouseEnter={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = token.colorBgTextHover;
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isSelected) {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }
-        }}
-      >
-        <List.Item.Meta
-          avatar={<ToolOutlined style={{ fontSize: 24, color: token.colorPrimary }} />}
-          title={
-            <Space>
-              <Text strong>{method.methodName}</Text>
-              {isCurrentlySelected && <Tag color="blue">現在選択中</Tag>}
-              {isSelected && !isCurrentlySelected && <Tag color="red">選択</Tag>}
-            </Space>
-          }
-          description={
-            <Space direction="vertical" size={0} style={{ width: '100%' }}>
-              {method.description && (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {method.description}
-                </Text>
-              )}
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                所有者: {owner}
-              </Text>
-            </Space>
-          }
-        />
-      </List.Item>
-    );
+  // 行選択の設定
+  const rowSelection = {
+    type: 'radio' as const,
+    selectedRowKeys: tempMethodId ? [tempMethodId] : [],
+    onChange: (selectedRowKeys: React.Key[]) => {
+      setTempMethodId((selectedRowKeys[0] as string) || null);
+    },
   };
 
   return (
     <Modal
       open={open}
       onCancel={handleCancel}
-      width={700}
+      width={900}
       title={
         <Space>
           <ToolOutlined style={{ color: token.colorPrimary }} />
@@ -181,28 +193,83 @@ export default function MethodSelectionModal({
         </Space>
       }
       footer={
-        <Space>
-          <Button onClick={handleCancel}>
-            キャンセル
-          </Button>
+        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
           <Button
-            type="primary"
-            onClick={handleOk}
-            icon={<CheckOutlined />}
+            danger
+            icon={<CloseOutlined />}
+            onClick={handleClearSelection}
+            disabled={!tempMethodId}
           >
-            決定
+            選択解除
           </Button>
+          <Space>
+            <Button onClick={handleCancel}>
+              キャンセル
+            </Button>
+            <Button
+              type="primary"
+              onClick={handleOk}
+              icon={<CheckOutlined />}
+            >
+              決定
+            </Button>
+          </Space>
         </Space>
       }
     >
-      <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-        <List>
-          {/* 未選択オプション */}
-          {renderEmptyOption()}
-          {/* メソッド一覧 */}
-          {methods.map(renderMethodItem)}
-        </List>
-      </div>
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        {/* フィルタリングコントロール */}
+        <Row gutter={16}>
+          <Col flex="400px">
+            <Input
+              placeholder="メソッド名、説明で検索"
+              prefix={<SearchOutlined />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+            />
+          </Col>
+          <Col flex="150px">
+            <Select
+              placeholder="メソッド名"
+              value={selectedMethodName}
+              onChange={setSelectedMethodName}
+              allowClear
+              style={{ width: '100%' }}
+              options={methodNameOptions}
+            />
+          </Col>
+          <Col flex="150px">
+            <Select
+              placeholder="所有者"
+              value={selectedOwner}
+              onChange={setSelectedOwner}
+              allowClear
+              style={{ width: '100%' }}
+              options={ownerOptions}
+            />
+          </Col>
+        </Row>
+
+        {/* テーブル */}
+        <Table
+          columns={columns}
+          dataSource={filteredData}
+          rowSelection={rowSelection}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => `全 ${total} 件`,
+            pageSizeOptions: ['10', '20', '50'],
+            showQuickJumper: true,
+          }}
+          scroll={{ y: 350 }}
+          size="middle"
+          locale={{
+            emptyText: 'メソッドがありません',
+          }}
+        />
+      </Space>
     </Modal>
   );
 }
