@@ -11,7 +11,7 @@ import {
   BarChartOutlined
 } from '@ant-design/icons';
 import TransitionList from './TransitionList';
-import TaskSelectionDialog from './TaskSelectionDialog';
+import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
@@ -56,7 +56,7 @@ export default function ExperimentRecordTab({
 }: ExperimentRecordTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   // 表示モードの状態管理
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
@@ -192,8 +192,9 @@ export default function ExperimentRecordTab({
             <Button
               type="primary"
               icon={<CheckOutlined />}
-              onClick={() => setDialogOpen(true)}
+              onClick={() => setModalOpen(true)}
               size="large"
+              disabled={!selectedProject}
             >
               選択
             </Button>
@@ -312,14 +313,17 @@ export default function ExperimentRecordTab({
         )}
       </div>
 
-      {/* タスク選択ダイアログ */}
-      <TaskSelectionDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+      {/* メソッド・タスク選択モーダル */}
+      <MethodTaskSelectionModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
         selectedProject={selectedProject}
         selectedMethodId={selectedMethodId}
         selectedTaskId={selectedTaskId}
-        onSelectTask={onSelectTask}
+        onSelect={(methodId: string, taskId: string) => {
+          onSelectMethod(methodId);
+          onSelectTask(taskId);
+        }}
       />
     </div>
   );
