@@ -9,6 +9,24 @@ import FlowDiagramModal from './FlowDiagramModal';
 
 const { Text } = Typography;
 
+// 集約行の型定義
+interface AggregatedRow {
+  isAggregated: true;
+  methodName: string;
+  methodId: string;
+  taskCount: number;
+  // rowKey用の一意ID
+  id: string;
+}
+
+// テーブル行の型（通常タスク or 集約行）
+type TableRow = Task | AggregatedRow;
+
+// 型ガード関数
+function isAggregatedRow(row: TableRow): row is AggregatedRow {
+  return 'isAggregated' in row && row.isAggregated === true;
+}
+
 interface ProgressCheckTableProps {
   tasks: Task[];
   onTaskAction: (taskId: string, action: string) => void;
@@ -28,6 +46,27 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
   // フロー図モーダルの状態
   const [flowDiagramVisible, setFlowDiagramVisible] = useState<boolean>(false);
   const [selectedTaskForFlow, setSelectedTaskForFlow] = useState<Task | null>(null);
+  
+  // メソッド集約の状態管理（集約されているメソッドIDのSet）
+  const [collapsedMethodIds, setCollapsedMethodIds] = useState<Set<string>>(new Set());
+  
+  // 初回レンダリング時に全メソッドを集約状態にする
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  
+  // メソッド名クリックハンドラー（集約/展開のトグル）
+  const handleMethodNameClick = (methodId: string) => {
+    setCollapsedMethodIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(methodId)) {
+        // すでに集約されている場合は展開
+        newSet.delete(methodId);
+      } else {
+        // 集約する
+        newSet.add(methodId);
+      }
+      return newSet;
+    });
+  };
   
   // メソッド名の選択肢を生成
   const methodNameOptions = useMemo(() => {
@@ -87,6 +126,58 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
     });
   }, [tasks, searchText, selectedMethodName, selectedTaskName, selectedStatus]);
 
+  // 初回レンダリング時に全メソッドを集約状態にする
+  React.useEffect(() => {
+    if (!isInitialized && filteredTasks.length > 0) {
+      // 全メソッドIDを取得
+      const allMethodIds = new Set<string>();
+      filteredTasks.forEach(task => {
+        const methodId = task.methodId || task.methodName;
+        allMethodIds.add(methodId);
+      });
+      
+      // 初期状態として全メソッドを集約
+      setCollapsedMethodIds(allMethodIds);
+      setIsInitialized(true);
+    }
+  }, [filteredTasks, isInitialized]);
+
+  // テーブルデータソース（集約処理を適用）
+  const tableDataSource = useMemo<TableRow[]>(() => {
+    // メソッドIDでグループ化
+    const methodGroups = new Map<string, Task[]>();
+    
+    filteredTasks.forEach(task => {
+      const methodId = task.methodId || task.methodName; // methodIdがない場合はmethodNameを使用
+      if (!methodGroups.has(methodId)) {
+        methodGroups.set(methodId, []);
+      }
+      methodGroups.get(methodId)!.push(task);
+    });
+    
+    // 各メソッドグループを処理
+    const result: TableRow[] = [];
+    
+    methodGroups.forEach((tasksInMethod, methodId) => {
+      if (collapsedMethodIds.has(methodId)) {
+        // 集約モード: 1行の集約行を追加
+        const aggregatedRow: AggregatedRow = {
+          isAggregated: true,
+          methodName: tasksInMethod[0].methodName,
+          methodId: methodId,
+          taskCount: tasksInMethod.length,
+          id: `aggregated-${methodId}`
+        };
+        result.push(aggregatedRow);
+      } else {
+        // 通常モード: すべてのタスクを追加
+        result.push(...tasksInMethod);
+      }
+    });
+    
+    return result;
+  }, [filteredTasks, collapsedMethodIds]);
+
   // 進捗率クリック時のハンドラー
   const handleProgressRateClick = (task: Task) => {
     setSelectedTaskForFlow(task);
@@ -100,7 +191,7 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
   };
 
   // テーブルの列定義
-  const columns: ColumnsType<Task> = [
+  const columns: ColumnsType<TableRow> = [
     {
       title: 'メソッドの名称',
       dataIndex: 'methodName',
@@ -108,11 +199,34 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
       width: 200,
       ellipsis: true,
       sorter: (a, b) => a.methodName.localeCompare(b.methodName),
-      render: (text: string) => (
-        <Text style={{ fontSize: '14px' }}>
-          {text}
-        </Text>
-      )
+      render: (text: string, record: TableRow) => {
+        const methodId = isAggregatedRow(record) 
+          ? record.methodId 
+          : (record.methodId || record.methodName);
+        
+        // 集約行の場合は件数を表示
+        const displayText = isAggregatedRow(record)
+          ? `${text} (${record.taskCount}件)`
+          : text;
+        
+        return (
+          <Text 
+            style={{ 
+              fontSize: '14px',
+              cursor: 'pointer',
+              color: '#0093CF',
+              textDecoration: 'underline'
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMethodNameClick(methodId);
+            }}
+            aria-label={`メソッド名: ${displayText} - クリックして集約/展開`}
+          >
+            {displayText}
+          </Text>
+        );
+      }
     },
     {
       title: 'タスクの名称',
@@ -120,12 +234,17 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
       key: 'taskName',
       width: 200,
       ellipsis: true,
-      sorter: (a, b) => a.taskName.localeCompare(b.taskName),
-      render: (text: string) => (
-        <Text style={{ fontSize: '14px' }}>
-          {text}
-        </Text>
-      )
+      sorter: (a, b) => {
+        const aName = isAggregatedRow(a) ? '' : a.taskName;
+        const bName = isAggregatedRow(b) ? '' : b.taskName;
+        return aName.localeCompare(bName);
+      },
+      render: (text: string, record: TableRow) => {
+        if (isAggregatedRow(record)) {
+          return <Text style={{ fontSize: '14px', color: '#9e9e9e' }}>-</Text>;
+        }
+        return <Text style={{ fontSize: '14px' }}>{text}</Text>;
+      }
     },
     {
       title: 'ステータス',
@@ -133,8 +252,15 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
       key: 'status',
       width: 100,
       align: 'center',
-      sorter: (a, b) => a.status.localeCompare(b.status),
-      render: (status: TaskStatus) => {
+      sorter: (a, b) => {
+        const aStatus = isAggregatedRow(a) ? '' : a.status;
+        const bStatus = isAggregatedRow(b) ? '' : b.status;
+        return aStatus.localeCompare(bStatus);
+      },
+      render: (status: TaskStatus, record: TableRow) => {
+        if (isAggregatedRow(record)) {
+          return <Text style={{ fontSize: '14px', color: '#9e9e9e' }}>-</Text>;
+        }
         const config = getStatusConfig(status);
         return (
           <Tag
@@ -153,88 +279,117 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
       key: 'progressRate',
       width: 100,
       align: 'center',
-      sorter: (a, b) => a.progressRate - b.progressRate,
-      render: (rate: number, record: Task) => (
-        <Text
-          strong
-          style={{
-            fontSize: '14px',
-            color: '#0093CF',
-            cursor: 'pointer',
-            textDecoration: 'underline'
-          }}
-          onClick={() => handleProgressRateClick(record)}
-          aria-label={`進捗率 ${rate}% - クリックしてフロー図を表示`}
-        >
-          {rate}%
-        </Text>
-      )
+      sorter: (a, b) => {
+        const aRate = isAggregatedRow(a) ? -1 : a.progressRate;
+        const bRate = isAggregatedRow(b) ? -1 : b.progressRate;
+        return aRate - bRate;
+      },
+      render: (rate: number, record: TableRow) => {
+        if (isAggregatedRow(record)) {
+          return <Text style={{ fontSize: '14px', color: '#9e9e9e' }}>-</Text>;
+        }
+        return (
+          <Text
+            strong
+            style={{
+              fontSize: '14px',
+              color: '#0093CF',
+              cursor: 'pointer',
+              textDecoration: 'underline'
+            }}
+            onClick={() => handleProgressRateClick(record)}
+            aria-label={`進捗率 ${rate}% - クリックしてフロー図を表示`}
+          >
+            {rate}%
+          </Text>
+        );
+      }
     },
     {
       title: '開始',
       key: 'start',
       width: 80,
       align: 'center',
-      render: (_, record: Task) => (
-        <Button
-          type="primary"
-          size="small"
-          onClick={() => onTaskAction(record.taskId, 'start')}
-          disabled={record.status !== 'not_started'}
-          aria-label="タスクを開始"
-        >
-          開始
-        </Button>
-      )
+      render: (_, record: TableRow) => {
+        if (isAggregatedRow(record)) {
+          return null;
+        }
+        return (
+          <Button
+            type="primary"
+            size="small"
+            onClick={() => onTaskAction(record.taskId, 'start')}
+            disabled={record.status !== 'not_started'}
+            aria-label="タスクを開始"
+          >
+            開始
+          </Button>
+        );
+      }
     },
     {
       title: '問題報告',
       key: 'issue',
       width: 100,
       align: 'center',
-      render: (_, record: Task) => (
-        <Button
-          type="default"
-          size="small"
-          onClick={() => onTaskAction(record.taskId, 'issue')}
-          aria-label="問題を報告"
-        >
-          報告
-        </Button>
-      )
+      render: (_, record: TableRow) => {
+        if (isAggregatedRow(record)) {
+          return null;
+        }
+        return (
+          <Button
+            type="default"
+            size="small"
+            onClick={() => onTaskAction(record.taskId, 'issue')}
+            aria-label="問題を報告"
+          >
+            報告
+          </Button>
+        );
+      }
     },
     {
       title: '実験記録',
       key: 'record',
       width: 100,
       align: 'center',
-      render: (_, record: Task) => (
-        <Button
-          type="default"
-          size="small"
-          onClick={() => onTaskAction(record.taskId, 'record')}
-          aria-label="実験記録を入力"
-        >
-          記録
-        </Button>
-      )
+      render: (_, record: TableRow) => {
+        if (isAggregatedRow(record)) {
+          return null;
+        }
+        return (
+          <Button
+            type="default"
+            size="small"
+            onClick={() => onTaskAction(record.taskId, 'record')}
+            aria-label="実験記録を入力"
+          >
+            記録
+          </Button>
+        );
+      }
     },
     {
       title: '強制終了',
       key: 'forceTerminate',
       width: 100,
       align: 'center',
-      render: (_, record: Task) => (
-        <Button
-          danger
-          size="small"
-          onClick={() => onTaskAction(record.taskId, 'forceTerminate')}
-          disabled={record.status === 'completed' || record.status === 'forced_terminated'}
-          aria-label="タスクを強制終了"
-        >
-          終了
-        </Button>
-      )
+      render: (_, record: TableRow) => {
+        if (isAggregatedRow(record)) {
+          return null;
+        }
+        return (
+          <Button
+            danger
+            size="small"
+            onClick={() => onTaskAction(record.taskId, 'forceTerminate')}
+            disabled={record.status === 'completed' || record.status === 'forced_terminated'}
+            aria-label="タスクを強制終了"
+          >
+            終了
+          </Button>
+        );
+      }
     }
   ];
 
@@ -290,8 +445,11 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
       {/* テーブル */}
       <Table
         columns={columns}
-        dataSource={filteredTasks}
-        rowKey="taskId"
+        dataSource={tableDataSource}
+        rowKey={(record) => isAggregatedRow(record) ? record.id : record.taskId}
+        rowClassName={(record) => {
+          return isAggregatedRow(record) ? 'aggregated-row' : '';
+        }}
         pagination={{
           pageSize: 20,
           showSizeChanger: true,
@@ -315,6 +473,16 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
           borderRadius: '8px'
         }}
       />
+      
+      {/* 集約行のスタイル */}
+      <style jsx>{`
+        :global(.aggregated-row) {
+          background-color: #f5f5f5 !important;
+        }
+        :global(.aggregated-row:hover) {
+          background-color: #eeeeee !important;
+        }
+      `}</style>
       
       {/* フロー図モーダル */}
       {selectedTaskForFlow && (
