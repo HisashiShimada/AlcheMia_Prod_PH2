@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Card, Typography, Space, theme, Divider, Button, Select, Row, Col } from 'antd';
-import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined, CheckCircleOutlined,   CheckOutlined, NodeIndexOutlined } from '@ant-design/icons';
-import ProjectSelector from './ProjectSelector';
-import MethodSelectionModal from './MethodSelectionModal';
+import { Card, Typography, Space, theme, Divider, Button, Select } from 'antd';
+import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined, CheckCircleOutlined, CheckOutlined, NodeIndexOutlined, PartitionOutlined, CheckSquareOutlined } from '@ant-design/icons';
+import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import InstructionStats from './InstructionStats';
 import InstructionGroup from './InstructionGroup';
 import FlowDiagramModal from './FlowDiagramModal';
@@ -26,6 +25,8 @@ interface InstructionConfirmationTabProps {
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string | null) => void;
+  selectedTaskId: string;
+  onSelectTask: (taskId: string) => void;
   sortedInstructions: Instruction[];
   stats: Stats;
   isClient: boolean;
@@ -41,6 +42,8 @@ export default function InstructionConfirmationTab({
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
+  selectedTaskId,
+  onSelectTask,
   sortedInstructions,
   stats,
   isClient,
@@ -53,15 +56,8 @@ export default function InstructionConfirmationTab({
   // フロー図モーダルの表示状態
   const [isFlowDiagramModalVisible, setIsFlowDiagramModalVisible] = useState(false);
   
-  // メソッド選択モーダルの表示状態
-  const [isMethodModalVisible, setIsMethodModalVisible] = useState(false);
-
-  // メソッド一覧の取得
-  const methods = useMemo(() => {
-    if (!selectedProject) return [];
-    const project = projectsData[selectedProject];
-    return project?.methods || [];
-  }, [selectedProject]);
+  // メソッド・タスク選択モーダルの表示状態
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   // 選択されたプロジェクト・メソッドの情報を取得
   const projectInfo = useMemo(() => {
@@ -74,37 +70,55 @@ export default function InstructionConfirmationTab({
     return projectInfo.methods?.find((m) => m.methodId === selectedMethodId);
   }, [selectedMethodId, projectInfo]);
 
-  // 選択されたメソッドに紐づく指示のみをフィルタリング
+  // タスクデータ: 選択されたプロジェクトとメソッドに紐づくタスクを取得
+  const tasks = selectedProject && methodInfo
+    ? methodInfo.tasks || []
+    : [];
+
+  // Selectコンポーネント用のオプションを生成
+  const taskOptions = [
+    { label: '-', value: '' },
+    ...tasks.map((task) => ({
+      label: task.taskName,
+      value: task.taskId,
+    })),
+  ];
+
+  // タスクIDに紐づく指示のみをフィルタリング
   const filteredInstructions = useMemo(() => {
     return sortedInstructions.filter((instruction) => {
       // 全体指示とトランジション単位指示はそのまま表示
       if (instruction.targetType === 'file' || instruction.targetType === 'transition') {
         return true;
       }
-      // メソッド単位指示の場合
-      if (instruction.targetType === 'method') {
-        // メソッド未選択の場合は全てのメソッドの作業指示を表示
-        if (!selectedMethodId) {
+      // タスク単位指示の場合
+      if (instruction.targetType === 'task') {
+        // メソッド選択済みの場合、選択されたメソッドに属するタスクのみに限定
+        if (selectedMethodId && instruction.methodId !== selectedMethodId) {
+          return false;
+        }
+        // タスク未選択の場合（空文字列または'new'）は選択されたメソッドの全てのタスクの作業指示を表示
+        if (!selectedTaskId || selectedTaskId === '' || selectedTaskId === 'new') {
           return true;
         }
-        // メソッド選択済みの場合は選択されたメソッドに紐づくもののみ表示
-        return instruction.methodId === selectedMethodId;
+        // タスク選択済みの場合は選択されたタスクに紐づくもののみ表示
+        return instruction.taskId === selectedTaskId;
       }
       return false;
     });
-  }, [sortedInstructions, selectedMethodId]);
+  }, [sortedInstructions, selectedMethodId, selectedTaskId]);
 
-  // 選択されたメソッドに合わせた統計情報を再計算
+  // 選択されたタスクに合わせた統計情報を再計算
   const filteredStats = useMemo(() => {
     const fileInstructions = filteredInstructions.filter((i) => i.targetType === 'file');
-    const methodInstructions = filteredInstructions.filter((i) => i.targetType === 'method');
+    const taskInstructions = filteredInstructions.filter((i) => i.targetType === 'task');
     const transitionInstructions = filteredInstructions.filter((i) => i.targetType === 'transition');
     const unreadInstructions = filteredInstructions.filter((i) => !i.isRead);
 
     return {
       total: filteredInstructions.length,
       file: fileInstructions.length,
-      method: methodInstructions.length,
+      method: taskInstructions.length, // 後方互換性のためmethodキーを残すがtaskInstructionsを使用
       transition: transitionInstructions.length,
       unread: unreadInstructions.length,
     };
@@ -163,52 +177,73 @@ export default function InstructionConfirmationTab({
         </Card>
       ) : (
         <>
-          {/* メソッド選択エリア */}
-          <Card
-            style={{
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-              marginBottom: 0,
-            }}
-            bodyStyle={{
-              padding: `8px ${token.paddingMD}px`,
+          {/* 選択メソッド・タスクエリア（実験記録タブと同じ構造） */}
+          <div
+            style={{ 
+              marginBottom: 8,
+              height: 56,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              paddingLeft: token.paddingLG,
+              paddingRight: token.paddingLG,
+              backgroundColor: token.colorBgContainer,
+              border: `1px solid ${token.colorBorder}`,
+              borderRadius: 0,
             }}
           >
-            <Row gutter={16} align="middle">
-              <Col flex="auto">
-                <Space size="middle">
-                  <ToolOutlined style={{ fontSize: 20, color: token.colorPrimary }} />
-                  <Text strong>メソッド</Text>
+            <div style={{ width: '100%' }}>
+              {/* メソッド選択 + タスク選択（コンボボックス） + 選択ボタン */}
+              <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: token.margin }}>
+                {/* メソッド選択 */}
+                <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
+                  <PartitionOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+                  <Text strong style={{ minWidth: 80 }}>メソッド:</Text>
                   <Select
+                    style={{ width: 200 }}
+                    placeholder="メソッドを選択してください"
                     value={selectedMethodId || undefined}
                     onChange={(value) => onSelectMethod(value || null)}
-                    placeholder="メソッドを選択"
-                    style={{ minWidth: 300 }}
-                    disabled={!selectedProject}
                     options={[
-                      { label: '未選択', value: null },
-                      ...methods.map((method) => ({
+                      { label: '-', value: null },
+                      ...(projectInfo?.methods || []).map((method) => ({
                         label: method.methodName,
                         value: method.methodId,
                       })),
                     ]}
+                    disabled={!selectedProject}
+                    size="large"
                   />
                 </Space>
-              </Col>
-              <Col flex="none">
+                
+                {/* タスク選択 */}
+                <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
+                  <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+                  <Text strong style={{ minWidth: 80 }}>タスク:</Text>
+                  <Select
+                    style={{ width: 200 }}
+                    placeholder="タスクを選択してください"
+                    value={selectedTaskId || ''}
+                    onChange={onSelectTask}
+                    options={taskOptions}
+                    disabled={!methodInfo}
+                    size="large"
+                  />
+                </Space>
+                
                 <Button
                   type="primary"
                   icon={<CheckOutlined />}
-                  onClick={() => setIsMethodModalVisible(true)}
+                  onClick={() => setIsModalVisible(true)}
                   size="large"
                   disabled={!selectedProject}
                   style={{ marginLeft: 'auto' }}
                 >
                   選択
                 </Button>
-              </Col>
-            </Row>
-          </Card>
+              </div>
+            </div>
+          </div>
 
           {/* 作業指示サマリー */}
           <div style={{ marginBottom: 0 }}>
@@ -278,7 +313,7 @@ export default function InstructionConfirmationTab({
                   <Title level={4} style={{ margin: 0 }}>
                     {expandedGroups['file'] ? <DownOutlined /> : <RightOutlined />}{' '}
                     <FileOutlined style={{ marginRight: token.marginXS }} />
-                    全体指示 (
+                    プロジェクト指示 (
                     {filteredInstructions.filter((i) => i.targetType === 'file').length}
                     件)
                   </Title>
@@ -316,7 +351,7 @@ export default function InstructionConfirmationTab({
               )}
             </div>
 
-            {/* メソッド単位指示グループ */}
+            {/* タスク単位指示グループ */}
             <div style={{ marginBottom: '8px' }}>
               <div
                 style={{
@@ -327,7 +362,7 @@ export default function InstructionConfirmationTab({
                   cursor: 'pointer',
                   borderRadius: token.borderRadiusSM,
                 }}
-                onClick={() => toggleGroup('method')}
+                onClick={() => toggleGroup('task')}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
                 }}
@@ -336,23 +371,23 @@ export default function InstructionConfirmationTab({
                 }}
               >
                 <Title level={4} style={{ margin: 0 }}>
-                  {expandedGroups['method'] ? <DownOutlined /> : <RightOutlined />}{' '}
-                  <ToolOutlined style={{ marginRight: token.marginXS }} />
-                  メソッド単位指示 (
+                  {expandedGroups['task'] ? <DownOutlined /> : <RightOutlined />}{' '}
+                  <CheckSquareOutlined style={{ marginRight: token.marginXS }} />
+                  タスク指示 (
                   {
-                    filteredInstructions.filter((i) => i.targetType === 'method')
+                    filteredInstructions.filter((i) => i.targetType === 'task')
                       .length
                   }
                   件)
                 </Title>
               </div>
-              {expandedGroups['method'] && (
+              {expandedGroups['task'] && (
                 <div style={{ marginTop: token.margin }}>
                   <InstructionGroup
-                    title="メソッド単位指示"
-                    emoji="tool"
+                    title="タスク単位指示"
+                    emoji="checkSquare"
                     instructions={filteredInstructions.filter(
-                      (i) => i.targetType === 'method'
+                      (i) => i.targetType === 'task'
                     )}
                     isClient={isClient}
                   />
@@ -382,7 +417,7 @@ export default function InstructionConfirmationTab({
                 <Title level={4} style={{ margin: 0 }}>
                   {expandedGroups['transition'] ? <DownOutlined /> : <RightOutlined />}{' '}
                   <AimOutlined style={{ marginRight: token.marginXS }} />
-                  トランジション単位指示 (
+                  トランジション指示 (
                   {
                     filteredInstructions.filter(
                       (i) => i.targetType === 'transition'
@@ -436,15 +471,16 @@ export default function InstructionConfirmationTab({
             methodName={methodInfo?.methodName}
           />
 
-          {/* メソッド選択モーダル */}
-          <MethodSelectionModal
-            open={isMethodModalVisible}
-            onClose={() => setIsMethodModalVisible(false)}
+          {/* メソッド・タスク選択モーダル */}
+          <MethodTaskSelectionModal
+            open={isModalVisible}
+            onClose={() => setIsModalVisible(false)}
             selectedProject={selectedProject}
             selectedMethodId={selectedMethodId}
-            onMethodChange={(methodId) => {
+            selectedTaskId={selectedTaskId}
+            onSelect={(methodId: string, taskId: string) => {
               onSelectMethod(methodId);
-              setIsMethodModalVisible(false);
+              onSelectTask(taskId);
             }}
           />
         </>

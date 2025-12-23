@@ -94,13 +94,19 @@ export default function ProgressCheckTab({
           break;
 
         case 'instruction':
-          // 指示確認タブへ遷移（メソッドを選択状態にする）
-          if (task.methodId && onSelectMethod) {
-            onSelectMethod(task.methodId);
-          }
-          if (onTabChange) {
-            onTabChange('2'); // 指示確認タブ
+          // 指示確認タブへ遷移（メソッドとタスクを選択状態にする）
+          if (onSelectTaskAndTab) {
+            onSelectTaskAndTab(taskId, '2'); // 指示確認タブ
             message.info('指示確認タブに移動します');
+          } else {
+            // フォールバック: メソッドのみ選択
+            if (task.methodId && onSelectMethod) {
+              onSelectMethod(task.methodId);
+            }
+            if (onTabChange) {
+              onTabChange('2'); // 指示確認タブ
+              message.info('指示確認タブに移動します');
+            }
           }
           break;
 

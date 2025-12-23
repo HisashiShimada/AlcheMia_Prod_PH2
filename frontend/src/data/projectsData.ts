@@ -116,9 +116,10 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_007",
-        "targetType": "method",
+        "targetType": "task",
+        "taskId": "task_m001_001",
+        "taskName": "温度記録",
         "methodId": "m001",
-        "methodName": "温度キャリブレーション",
         "content": "加熱炉の温度計が正確であることを確認してください。標準温度計と比較し、誤差が±2℃以内であることを確認します。誤差が大きい場合は管理者に報告してください。",
         "priority": "high",
         "instructionType": "setup",
@@ -132,9 +133,10 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_008",
-        "targetType": "method",
+        "targetType": "task",
+        "taskId": "task_m002_001",
+        "taskName": "重量測定記録",
         "methodId": "m002",
-        "methodName": "サンプル重量測定",
         "content": "精密天秤を使用してサンプルの重量を測定します。測定前に天秤のゼロ点調整を必ず実施してください。重量は小数点以下2桁まで記録してください。",
         "priority": "medium",
         "instructionType": "measurement",
@@ -148,9 +150,10 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_009",
-        "targetType": "method",
-        "methodId": "m003",
-        "methodName": "データバックアップ",
+        "targetType": "task",
+        "taskId": "task_m001_003",
+        "taskName": "レポート作成",
+        "methodId": "m001",
         "content": "測定データは実験終了後、必ず共有フォルダとローカルPCの両方に保存してください。ファイル名は「YYYYMMDD_実験名_作業者名.xlsx」の形式で保存してください。",
         "priority": "high",
         "instructionType": "general",
@@ -164,9 +167,10 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_010",
-        "targetType": "method",
-        "methodId": "m004",
-        "methodName": "機器クリーニング",
+        "targetType": "task",
+        "taskId": "task_m001_002",
+        "taskName": "誤差計算",
+        "methodId": "m001",
         "content": "実験終了後、加熱炉内部を柔らかい布で拭き取ってください。残留物がある場合はアルコールを使用して除去してください。クリーニング後は必ず乾燥させてから次の実験に使用してください。",
         "priority": "medium",
         "instructionType": "cleanup",
@@ -180,9 +184,10 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_011",
-        "targetType": "method",
+        "targetType": "task",
+        "taskId": "task_m001_001",
+        "taskName": "温度記録",
         "methodId": "m001",
-        "methodName": "温度キャリブレーション",
         "content": "キャリブレーション実施後、結果をExcelシートに記録してください。記録項目：測定時刻、標準温度計の値、装置温度計の値、誤差。誤差が±2℃を超える場合は赤字で記入してください。",
         "priority": "high",
         "instructionType": "measurement",
@@ -196,9 +201,10 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_012",
-        "targetType": "method",
+        "targetType": "task",
+        "taskId": "task_m002_001",
+        "taskName": "重量測定記録",
         "methodId": "m002",
-        "methodName": "サンプル重量測定",
         "content": "測定値に異常がある場合（前回測定値との差が5%以上）は、再測定を実施してください。それでも異常値が続く場合は管理者に報告してください。",
         "priority": "high",
         "instructionType": "measurement",
@@ -757,6 +763,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t001",
         "transitionName": "サンプル準備",
+        "taskId": "task_m001_001",
         "taskName": "温度記録",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -771,6 +778,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t002",
         "transitionName": "温度設定",
+        "taskId": "task_m001_001",
         "taskName": "温度記録",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -785,6 +793,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t001",
         "transitionName": "サンプル準備",
+        "taskId": "task_m001_002",
         "taskName": "誤差計算",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -799,6 +808,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t002",
         "transitionName": "温度設定",
+        "taskId": "task_m001_002",
         "taskName": "誤差計算",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -813,6 +823,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t001",
         "transitionName": "サンプル準備",
+        "taskId": "task_m001_003",
         "taskName": "レポート作成",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -827,6 +838,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t002",
         "transitionName": "温度設定",
+        "taskId": "task_m001_003",
         "taskName": "レポート作成",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -841,6 +853,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t004",
         "transitionName": "測定環境準備",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -855,6 +868,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t005",
         "transitionName": "天秤キャリブレーション",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -869,6 +883,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t006",
         "transitionName": "ゼロ点調整",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -883,6 +898,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t007",
         "transitionName": "サンプルA-1測定",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -897,6 +913,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t008",
         "transitionName": "サンプルA-2測定",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -911,6 +928,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t009",
         "transitionName": "サンプルA-3測定",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -925,6 +943,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t010",
         "transitionName": "サンプルB-1測定",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -939,6 +958,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t011",
         "transitionName": "サンプルB-2測定",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -953,6 +973,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t012",
         "transitionName": "サンプルB-3測定",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -967,6 +988,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t013",
         "transitionName": "重量データ記録",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -981,6 +1003,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t014",
         "transitionName": "データ検証",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -995,6 +1018,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t015",
         "transitionName": "異常値チェック",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1009,6 +1033,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t016",
         "transitionName": "再測定判定",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1023,6 +1048,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t017",
         "transitionName": "環境データ記録",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1037,6 +1063,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t018",
         "transitionName": "測定結果入力",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1051,6 +1078,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t019",
         "transitionName": "データバックアップ",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1065,6 +1093,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t020",
         "transitionName": "品質確認",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1079,6 +1108,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t021",
         "transitionName": "承認申請",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1093,6 +1123,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t022",
         "transitionName": "最終確認",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1107,6 +1138,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t023",
         "transitionName": "レポート作成",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1121,6 +1153,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t024",
         "transitionName": "サンプル保管",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1135,6 +1168,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t025",
         "transitionName": "記録完了",
+        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",

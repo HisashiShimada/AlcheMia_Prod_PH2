@@ -2,7 +2,7 @@
 export type Priority = 'high' | 'medium' | 'normal' | 'low';
 
 // 対象タイプ
-export type TargetType = 'file' | 'method' | 'transition';
+export type TargetType = 'file' | 'method' | 'transition' | 'task';
 
 // 指示タイプ
 export type InstructionType = 'safety' | 'setup' | 'measurement' | 'cleanup' | 'general';
@@ -37,6 +37,8 @@ export interface Instruction {
   transitionName?: string;
   methodId?: string;
   methodName?: string;
+  taskId?: string;
+  taskName?: string;
   content: string;
   priority: Priority;
   instructionType: InstructionType;
@@ -175,6 +177,7 @@ export type ProgressStatus = 'not_started' | 'in_progress' | 'completed' | 'on_h
 export interface TransitionProgress {
   transitionId: string;
   transitionName: string;
+  taskId?: string; // タスクID（Phase 6で追加）
   taskName?: string; // タスク名（Phase 6で追加）
   methodId: string;
   methodName: string;

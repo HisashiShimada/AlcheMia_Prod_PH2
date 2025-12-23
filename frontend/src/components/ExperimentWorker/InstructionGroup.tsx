@@ -54,6 +54,7 @@ export default function InstructionGroup({
   // メッセージのマッピング
   const noDataMessages: Record<string, string> = {
     '全体指示': '実験全体への作業指示がありません',
+    'タスク単位指示': 'タスクへの作業指示がありません',
     'メソッド単位指示': 'メソッドへの作業指示がありません',
     'トランジション単位指示': 'トランジションへの作業指示がありません',
   };
@@ -63,6 +64,19 @@ export default function InstructionGroup({
     const groups: Record<string, Instruction[]> = {};
     groupInstructions.forEach((instruction) => {
       const key = instruction.methodId || 'unknown';
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(instruction);
+    });
+    return groups;
+  };
+
+  // タスク単位指示の場合、タスクごとにグループ化
+  const groupByTask = () => {
+    const groups: Record<string, Instruction[]> = {};
+    groupInstructions.forEach((instruction) => {
+      const key = instruction.taskId || 'unknown';
       if (!groups[key]) {
         groups[key] = [];
       }
@@ -112,6 +126,117 @@ export default function InstructionGroup({
             ))}
           </Space>
         )}
+      </div>
+    );
+  }
+
+  // タスク単位指示の場合
+  if (title === 'タスク単位指示') {
+    const taskGroups = groupByTask();
+    const taskIds = Object.keys(taskGroups);
+
+    if (taskIds.length === 0) {
+      return (
+        <div style={{ marginBottom: 32 }}>
+          <Card>
+            <Empty description={noDataMessages[title] || '作業指示がありません'} />
+          </Card>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ marginBottom: 32 }}>
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          {taskIds.map((taskId) => {
+            const taskInstructions = taskGroups[taskId];
+            const taskName = taskInstructions[0]?.taskName || `タスク ${taskId}`;
+            const isExpanded = expandedItems[taskId] !== false; // デフォルトで展開
+
+            return (
+              <Card
+                key={taskId}
+                style={{
+                  borderRadius: token.borderRadius,
+                  backgroundColor: token.colorBgContainer,
+                  border: `1px solid ${token.colorBorderSecondary}`,
+                  margin: '8px 0',
+                }}
+                styles={{
+                  body: {
+                    padding: '8px',
+                  },
+                }}
+              >
+                {/* タイトル行（タスク名と確認完了ボタン） */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px',
+                    margin: '-8px',
+                    borderRadius: token.borderRadiusSM,
+                  }}
+                >
+                  {/* 展開/折りたたみアイコンとタイトル */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      flex: 1,
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => toggleItem(taskId)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    {isExpanded ? <DownOutlined style={{ marginRight: 8, fontSize: 12 }} /> : <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />}
+                    <Title level={5} style={{ margin: 0, flex: 1 }}>
+                      <ToolOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
+                      {taskName} ({taskInstructions.length}件)
+                    </Title>
+                  </div>
+                  
+                  {/* 確認完了ボタン（展開時のみ表示） */}
+                  {isExpanded && (
+                    <Button
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConfirmation('タスク単位指示', taskName);
+                      }}
+                      style={{ 
+                        backgroundColor: token.colorSuccess, 
+                        borderColor: token.colorSuccess 
+                      }}
+                    >
+                      確認完了
+                    </Button>
+                  )}
+                </div>
+
+                {/* 展開時のみ指示カードを表示 */}
+                {isExpanded && (
+                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+                    {taskInstructions.map((instruction) => (
+                      <InstructionCard
+                        key={instruction.instructionId}
+                        instruction={instruction}
+                        isClient={isClient}
+                      />
+                    ))}
+                  </Space>
+                )}
+              </Card>
+            );
+          })}
+        </Space>
       </div>
     );
   }

@@ -141,6 +141,20 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
 
   // タスク選択とタブ切り替えを同時に実行するハンドラー
   const handleSelectTaskAndTab = (taskId: string, tabKey: string) => {
+    // タスクからメソッドIDを取得
+    if (selectedProject) {
+      const projectData = projectsData[selectedProject];
+      if (projectData?.methods) {
+        for (const method of projectData.methods) {
+          const task = method.tasks?.find(t => t.taskId === taskId);
+          if (task) {
+            // メソッドIDを設定
+            setSelectedMethodId(method.methodId);
+            break;
+          }
+        }
+      }
+    }
     // タスクを選択
     setSelectedTaskId(taskId);
     // タブを切り替え
@@ -189,6 +203,8 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
+          selectedTaskId={selectedTaskId}
+          onSelectTask={handleSelectTask}
           sortedInstructions={sortedInstructions}
           stats={stats}
           isClient={isClient}
