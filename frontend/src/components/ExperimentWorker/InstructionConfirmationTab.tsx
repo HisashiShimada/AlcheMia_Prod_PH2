@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { Card, Typography, Space, theme, Divider, Button, Select, Row, Col } from 'antd';
-import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined, CheckCircleOutlined, NodeIndexOutlined } from '@ant-design/icons';
+import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, ToolOutlined, AimOutlined, CheckCircleOutlined,   CheckOutlined, NodeIndexOutlined } from '@ant-design/icons';
 import ProjectSelector from './ProjectSelector';
 import MethodSelectionModal from './MethodSelectionModal';
 import InstructionStats from './InstructionStats';
@@ -197,9 +197,12 @@ export default function InstructionConfirmationTab({
               </Col>
               <Col flex="none">
                 <Button
-                  type="default"
+                  type="primary"
+                  icon={<CheckOutlined />}
                   onClick={() => setIsMethodModalVisible(true)}
+                  size="large"
                   disabled={!selectedProject}
+                  style={{ marginLeft: 'auto' }}
                 >
                   選択
                 </Button>
