@@ -21,6 +21,7 @@ import {
   Collapse,
   theme,
   Select,
+  Card,
 } from 'antd';
 import {
   PlusOutlined,
@@ -87,6 +88,12 @@ export default function DataRecordDialog({
   const [templateSearchText, setTemplateSearchText] = useState('');
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<TemplateCategory | undefined>(undefined);
   const [templatesExpanded, setTemplatesExpanded] = useState(true);
+  
+  // テンプレート選択状態（単一選択）
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  
+  // プロパティ入力フォームの折りたたみ状態
+  const [propertyFormExpanded, setPropertyFormExpanded] = useState(true);
 
   // ステータスとコメント用の状態
   const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>('initial');
@@ -127,6 +134,14 @@ export default function DataRecordDialog({
     return filtered;
   }, [templateSearchText, selectedTemplateCategory]);
 
+  // 選択されたテンプレートのみを取得
+  const selectedTemplate = useMemo(() => {
+    if (!selectedTemplateId) return null;
+    return filteredTemplates.find(template => 
+      template.templateId === selectedTemplateId
+    );
+  }, [filteredTemplates, selectedTemplateId]);
+
   // テンプレート種別のラベル変換
   const getTemplateCategoryLabel = (category: TemplateCategory): string => {
     switch (category) {
@@ -164,6 +179,7 @@ export default function DataRecordDialog({
       setInstructionsConfirmed(false); // 確認状態もリセット
       setSelectedStatus('initial'); // ステータスをリセット
       setComment(''); // コメントをリセット
+      setSelectedTemplateId(null); // テンプレート選択状態をリセット
       
       // 各テンプレートのDataGridを初期化
       transition.templates?.forEach((template) => {
@@ -229,7 +245,59 @@ export default function DataRecordDialog({
   // 作業指示の確認完了ハンドラ
   const handleConfirmInstructions = () => {
     setInstructionsConfirmed(true);
+    setInstructionsExpanded(false); // 確認済み後に自動的に折りたたむ
     message.success('作業指示を確認しました');
+  };
+
+  // テンプレート保存ハンドラ
+  const handleSaveTemplate = async () => {
+    if (!selectedTemplate) {
+      message.error('テンプレートが選択されていません');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const values = await form.validateFields();
+      
+      const template = selectedTemplate;
+
+      const templateData: ExperimentDataValue = {
+        templateId: template.templateId,
+        category: template.category,
+      };
+      
+      template.properties.forEach((prop) => {
+        const key = `${template.templateId}_${prop.key}`;
+        if (prop.type === 'contentDoubleListType') {
+          templateData[prop.key] = dataGrids[key] || [[0, 0, 0]];
+        } else if (prop.type === 'dateType' || prop.type === 'dateTimeType') {
+          const dateValue = values[key];
+          templateData[prop.key] = dateValue ? dayjs(dateValue).format(
+            prop.type === 'dateType' ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'
+          ) : null;
+        } else {
+          templateData[prop.key] = values[key] ?? null;
+        }
+      });
+      
+      // ステータスとコメントをログ出力（バックエンド実装時に使用）
+      console.log('保存データ:', {
+        transitionId: transition?.transitionId,
+        templateId: template.templateId,
+        status: selectedStatus,
+        comment: comment,
+        experimentData: templateData,
+      });
+      
+      onSave([templateData]);
+      message.success(`「${template.name}」を保存しました（ステータス: ${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`);
+    } catch (error) {
+      console.error('Validation failed:', error);
+      message.error('入力内容を確認してください');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // フォーム送信ハンドラ
@@ -634,26 +702,32 @@ export default function DataRecordDialog({
   // テンプレート別にフォームをレンダリング
   const renderTemplateForm = (template: Template) => {
     return (
-      <div key={template.templateId} style={{ marginBottom: 32 }}>
+      <Card
+        key={template.templateId}
+        style={{ marginBottom: 32 }}
+      >
+        {/* テンプレート情報ヘッダー */}
         <Alert
           message={
             <Space>
+              <Tag color={getTemplateCategoryColor(template.category)}>
+                {getTemplateCategoryLabel(template.category)}
+              </Tag>
               <Text strong>{template.name}</Text>
-              <Tag color="purple">{template.category}</Tag>
             </Space>
           }
-          description={template.description}
           type="info"
           style={{ marginBottom: 16 }}
         />
+        
+        {/* プロパティ入力フォーム */}
         <Row gutter={16}>
           {template.properties.map((prop) => (
             <Col
               key={prop.key}
               span={
                 prop.type === 'contentDoubleListType' ||
-                prop.type === 'propertyListType' ||
-                prop.type === 'stringType'
+                prop.type === 'propertyListType'
                   ? 24
                   : 12
               }
@@ -662,7 +736,20 @@ export default function DataRecordDialog({
             </Col>
           ))}
         </Row>
-      </div>
+        
+        {/* 保存ボタン */}
+        <div style={{ marginTop: 16, textAlign: 'right' }}>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handleSaveTemplate}
+            loading={loading}
+            disabled={instructions.length > 0 && !instructionsConfirmed}
+          >
+            保存
+          </Button>
+        </div>
+      </Card>
     );
   };
 
@@ -766,8 +853,6 @@ export default function DataRecordDialog({
                   backgroundColor: token.colorBgContainer,
                   border: `1px solid ${token.colorBorderSecondary}`,
                   borderRadius: token.borderRadius,
-                  maxHeight: 400,
-                  overflowY: 'auto',
                 }}
               >
                 {/* 全体指示 */}
@@ -967,6 +1052,18 @@ export default function DataRecordDialog({
               size="small"
               dataSource={filteredTemplates}
               rowKey="templateId"
+              onRow={(record) => ({
+                onClick: () => {
+                  // 行クリックで選択（単一選択）
+                  setSelectedTemplateId(record.templateId);
+                },
+                style: { cursor: 'pointer' },
+              })}
+              rowClassName={(record) => 
+                selectedTemplateId === record.templateId
+                  ? 'ant-table-row-selected' 
+                  : ''
+              }
               scroll={{ x: 800 }}
               pagination={{
                 pageSize: 10,
@@ -1019,21 +1116,22 @@ export default function DataRecordDialog({
         </div>
 
         {/* 入力フォーム */}
-        {transition?.templates && transition.templates.length > 0 ? (
+        {selectedTemplate ? (
           <Form
             form={form}
             layout="vertical"
             autoComplete="off"
             disabled={instructions.length > 0 && !instructionsConfirmed}
           >
-            {transition.templates.map(renderTemplateForm)}
+            {renderTemplateForm(selectedTemplate)}
           </Form>
         ) : (
           <Alert
-            message="テンプレートが設定されていません"
-            description="このトランジションには入力テンプレートが登録されていません。"
-            type="warning"
+            message="テンプレートを選択してください"
+            description="上記のテンプレート一覧から記録したいテンプレートを選択してください。"
+            type="info"
             showIcon
+            style={{ marginTop: 16 }}
           />
         )}
 
