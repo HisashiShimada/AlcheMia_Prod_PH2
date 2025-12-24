@@ -95,6 +95,9 @@ export default function DataRecordDialog({
   // プロパティ入力フォームの折りたたみ状態
   const [propertyFormExpanded, setPropertyFormExpanded] = useState(true);
 
+  // ステータス更新セクションの折りたたみ状態
+  const [statusUpdateExpanded, setStatusUpdateExpanded] = useState(true);
+
   // ステータスとコメント用の状態
   const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>('initial');
   const [comment, setComment] = useState('');
@@ -702,54 +705,76 @@ export default function DataRecordDialog({
   // テンプレート別にフォームをレンダリング
   const renderTemplateForm = (template: Template) => {
     return (
-      <Card
-        key={template.templateId}
-        style={{ marginBottom: 32 }}
-      >
-        {/* テンプレート情報ヘッダー */}
-        <Alert
-          message={
-            <Space>
-              <Tag color={getTemplateCategoryColor(template.category)}>
-                {getTemplateCategoryLabel(template.category)}
-              </Tag>
-              <Text strong>{template.name}</Text>
-            </Space>
-          }
-          type="info"
-          style={{ marginBottom: 16 }}
-        />
-        
-        {/* プロパティ入力フォーム */}
-        <Row gutter={16}>
-          {template.properties.map((prop) => (
-            <Col
-              key={prop.key}
-              span={
-                prop.type === 'contentDoubleListType' ||
-                prop.type === 'propertyListType'
-                  ? 24
-                  : 12
-              }
-            >
-              {renderPropertyInput(prop, template.templateId)}
-            </Col>
-          ))}
-        </Row>
-        
-        {/* 保存ボタン */}
-        <div style={{ marginTop: 16, textAlign: 'right' }}>
-          <Button
-            type="primary"
-            icon={<SaveOutlined />}
-            onClick={handleSaveTemplate}
-            loading={loading}
-            disabled={instructions.length > 0 && !instructionsConfirmed}
-          >
-            保存
-          </Button>
+      <div key={template.templateId} style={{ marginBottom: 24 }}>
+        {/* タイトルセクション */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'pointer',
+            padding: token.marginXS,
+            borderRadius: token.borderRadiusSM,
+            marginBottom: token.marginSM,
+          }}
+          onClick={() => setPropertyFormExpanded(!propertyFormExpanded)}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
+        >
+          {propertyFormExpanded ? (
+            <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
+          ) : (
+            <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
+          )}
+          <FileTextOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
+          <Text strong style={{ fontSize: 16, marginRight: 12 }}>
+            データ記録
+          </Text>
+          <Tag color={getTemplateCategoryColor(template.category)}>
+            {getTemplateCategoryLabel(template.category)}
+          </Tag>
+          <Text strong style={{ marginLeft: 8 }}>
+            {template.name}
+          </Text>
         </div>
-      </Card>
+
+        {/* プロパティ入力フォーム（Card なし） */}
+        {propertyFormExpanded && (
+          <>
+            <Row gutter={16}>
+              {template.properties.map((prop) => (
+                <Col
+                  key={prop.key}
+                  span={
+                    prop.type === 'contentDoubleListType' ||
+                    prop.type === 'propertyListType'
+                      ? 24
+                      : 12
+                  }
+                >
+                  {renderPropertyInput(prop, template.templateId)}
+                </Col>
+              ))}
+            </Row>
+            
+            {/* 保存ボタン */}
+            <div style={{ marginTop: 16, textAlign: 'right' }}>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                onClick={handleSaveTemplate}
+                loading={loading}
+                disabled={instructions.length > 0 && !instructionsConfirmed}
+              >
+                保存
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
     );
   };
 
@@ -773,20 +798,11 @@ export default function DataRecordDialog({
       style={{ top: 20 }}
       footer={[
         <Button
-          key="cancel"
+          key="close"
           icon={<CloseOutlined />}
           onClick={onClose}
         >
-          キャンセル
-        </Button>,
-        <Button
-          key="submit"
-          type="primary"
-          icon={<SaveOutlined />}
-          loading={loading}
-          onClick={handleSubmit}
-        >
-          保存
+          閉じる
         </Button>,
       ]}
     >
@@ -1109,57 +1125,185 @@ export default function DataRecordDialog({
         </div>
 
         {/* 入力フォーム */}
-        {selectedTemplate ? (
-          <Form
-            form={form}
-            layout="vertical"
-            autoComplete="off"
-            disabled={instructions.length > 0 && !instructionsConfirmed}
+        <div style={{ marginBottom: 24 }}>
+          {/* データ記録タイトルセクション（常に表示） */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              padding: token.marginXS,
+              borderRadius: token.borderRadiusSM,
+              marginBottom: token.marginSM,
+            }}
+            onClick={() => setPropertyFormExpanded(!propertyFormExpanded)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            {renderTemplateForm(selectedTemplate)}
-          </Form>
-        ) : (
-          <Alert
-            message="テンプレートを選択してください"
-            description="上記のテンプレート一覧から記録したいテンプレートを選択してください。"
-            type="info"
-            showIcon
-            style={{ marginTop: 16 }}
-          />
-        )}
+            {propertyFormExpanded ? (
+              <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
+            ) : (
+              <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
+            )}
+            <FileTextOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
+            <Text strong style={{ fontSize: 16, marginRight: 12 }}>
+              データ記録
+            </Text>
+            {selectedTemplate && (
+              <>
+                <Tag color={getTemplateCategoryColor(selectedTemplate.category)}>
+                  {getTemplateCategoryLabel(selectedTemplate.category)}
+                </Tag>
+                <Text strong style={{ marginLeft: 8 }}>
+                  {selectedTemplate.name}
+                </Text>
+              </>
+            )}
+          </div>
 
-        {/* ステータスとコメントセクション */}
+          {/* 折りたたみ可能なコンテンツ */}
+          {propertyFormExpanded && (
+            <>
+              {/* テンプレート選択時: プロパティ入力フォーム */}
+              {selectedTemplate ? (
+                <Form
+                  form={form}
+                  layout="vertical"
+                  autoComplete="off"
+                  disabled={instructions.length > 0 && !instructionsConfirmed}
+                >
+                  <Row gutter={16}>
+                    {selectedTemplate.properties.map((prop) => (
+                      <Col
+                        key={prop.key}
+                        span={
+                          prop.type === 'contentDoubleListType' ||
+                          prop.type === 'propertyListType'
+                            ? 24
+                            : 12
+                        }
+                      >
+                        {renderPropertyInput(prop, selectedTemplate.templateId)}
+                      </Col>
+                    ))}
+                  </Row>
+                  
+                  {/* 保存ボタン */}
+                  <div style={{ marginTop: 16, textAlign: 'right' }}>
+                    <Button
+                      type="primary"
+                      icon={<SaveOutlined />}
+                      onClick={handleSaveTemplate}
+                      loading={loading}
+                      disabled={instructions.length > 0 && !instructionsConfirmed}
+                    >
+                      保存
+                    </Button>
+                  </div>
+                </Form>
+              ) : (
+                /* テンプレート未選択時: 選択を促すAlert */
+                <Alert
+                  message="テンプレートを選択してください"
+                  description="上記のテンプレート一覧から記録したいテンプレートを選択してください。"
+                  type="info"
+                  showIcon
+                />
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ステータス更新セクション */}
         <div style={{ marginTop: 24 }}>
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
-            {/* ステータス更新 */}
-            <div>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                ステータス更新
-              </Text>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="ステータスを選択"
-                value={selectedStatus}
-                onChange={setSelectedStatus}
-                disabled={instructions.length > 0 && !instructionsConfirmed}
-                options={statusOptions}
-              />
-            </div>
+          {/* タイトルセクション */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              padding: token.marginXS,
+              borderRadius: token.borderRadiusSM,
+              marginBottom: token.marginSM,
+            }}
+            onClick={() => setStatusUpdateExpanded(!statusUpdateExpanded)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            {statusUpdateExpanded ? (
+              <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
+            ) : (
+              <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
+            )}
+            <SaveOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
+            <Text strong style={{ fontSize: 16 }}>
+              ステータス更新
+            </Text>
+          </div>
 
-            {/* コメント */}
-            <div>
-              <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                コメント
-              </Text>
-              <TextArea
-                rows={4}
-                placeholder="コメントを入力"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                disabled={instructions.length > 0 && !instructionsConfirmed}
-              />
-            </div>
-          </Space>
+          {/* 折りたたみ可能なコンテンツ */}
+          {statusUpdateExpanded && (
+            <>
+              <Row gutter={16}>
+                {/* ステータス */}
+                <Col span={6}>
+                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                    ステータス
+                  </Text>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder="ステータスを選択"
+                    value={selectedStatus}
+                    onChange={setSelectedStatus}
+                    disabled={instructions.length > 0 && !instructionsConfirmed}
+                    options={statusOptions}
+                  />
+                </Col>
+
+                {/* コメント */}
+                <Col span={18}>
+                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                    コメント
+                  </Text>
+                  <TextArea
+                    rows={1}
+                    placeholder="コメントを入力"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    disabled={instructions.length > 0 && !instructionsConfirmed}
+                  />
+                </Col>
+              </Row>
+
+              {/* 保存ボタン */}
+              <div style={{ marginTop: 16, textAlign: 'right' }}>
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  onClick={() => {
+                    // ステータス更新の保存処理
+                    console.log('ステータス更新保存:', {
+                      transitionId: transition?.transitionId,
+                      status: selectedStatus,
+                      comment: comment,
+                    });
+                    message.success(`ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`);
+                  }}
+                  disabled={instructions.length > 0 && !instructionsConfirmed}
+                >
+                  保存
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </Modal>
