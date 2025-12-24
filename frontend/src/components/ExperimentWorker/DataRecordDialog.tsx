@@ -41,12 +41,10 @@ import {
   ExperimentDataValue,
   Transition,
   Template,
-  Instruction,
   TemplateCategory,
   TransitionStatus,
 } from '@/types/experimentWorker';
-import { projectsData, templatesList } from '@/data/projectsData';
-import InstructionCard from './InstructionCard';
+import { templatesList } from '@/data/projectsData';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -78,11 +76,6 @@ export default function DataRecordDialog({
   const [dataGrids, setDataGrids] = useState<Record<string, number[][]>>({});
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [instructionsExpanded, setInstructionsExpanded] = useState(true);
-  const [instructionsConfirmed, setInstructionsConfirmed] = useState(false);
-  const [fileInstructionsExpanded, setFileInstructionsExpanded] = useState(true);
-  const [methodInstructionsExpanded, setMethodInstructionsExpanded] = useState(true);
-  const [transitionInstructionsExpanded, setTransitionInstructionsExpanded] = useState(true);
 
   // テンプレート一覧用の状態
   const [templateSearchText, setTemplateSearchText] = useState('');
@@ -182,7 +175,6 @@ export default function DataRecordDialog({
       form.resetFields();
       setFormData({});
       setDataGrids({});
-      setInstructionsConfirmed(false); // 確認状態もリセット
       setSelectedStatus('initial'); // ステータスをリセット
       setComment(''); // コメントをリセット
       setSelectedTemplateId(null); // テンプレート選択状態をリセット
@@ -200,60 +192,6 @@ export default function DataRecordDialog({
       });
     }
   }, [open, transition, form]);
-
-  // 作業指示を取得
-  const instructions = useMemo(() => {
-    if (!projectId || !transition) return [];
-    
-    const project = projectsData[projectId];
-    if (!project || !project.instructions) return [];
-
-    // このトランジションに紐づく作業指示をフィルタリング
-    return project.instructions.filter((instruction) => {
-      // 全体指示（ファイル単位）
-      if (instruction.targetType === 'file') {
-        return true;
-      }
-      
-      // メソッド単位指示
-      if (instruction.targetType === 'method' && methodId) {
-        return instruction.methodId === methodId;
-      }
-      
-      // トランジション単位指示
-      if (instruction.targetType === 'transition') {
-        return instruction.transitionId === transition.transitionId;
-      }
-      
-      return false;
-    });
-  }, [projectId, methodId, transition]);
-
-  // 作業指示を種類別にグループ化
-  const groupedInstructions = useMemo(() => {
-    const file: Instruction[] = [];
-    const method: Instruction[] = [];
-    const transitionInst: Instruction[] = [];
-
-    instructions.forEach((instruction) => {
-      if (instruction.targetType === 'file') {
-        file.push(instruction);
-      } else if (instruction.targetType === 'method') {
-        method.push(instruction);
-      } else if (instruction.targetType === 'transition') {
-        transitionInst.push(instruction);
-      }
-    });
-
-    return { file, method, transition: transitionInst };
-  }, [instructions]);
-
-  // 作業指示の確認完了ハンドラ
-  const handleConfirmInstructions = () => {
-    setInstructionsConfirmed(true);
-    setInstructionsExpanded(false); // 確認済み後に自動的に折りたたむ
-    message.success('作業指示を確認しました');
-  };
 
   // テンプレート保存ハンドラ
   const handleSaveTemplate = async () => {
@@ -705,82 +643,6 @@ export default function DataRecordDialog({
     );
   };
 
-  // テンプレート別にフォームをレンダリング
-  const renderTemplateForm = (template: Template) => {
-    return (
-      <div key={template.templateId} style={{ marginBottom: 24 }}>
-        {/* タイトルセクション */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            cursor: 'pointer',
-            padding: token.marginXS,
-            borderRadius: token.borderRadiusSM,
-            marginBottom: token.marginSM,
-          }}
-          onClick={() => setPropertyFormExpanded(!propertyFormExpanded)}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }}
-        >
-          {propertyFormExpanded ? (
-            <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-          ) : (
-            <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-          )}
-          <FileTextOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-          <Text strong style={{ fontSize: 16, marginRight: 12 }}>
-            データ記録
-          </Text>
-          <Tag color={getTemplateCategoryColor(template.category)}>
-            {getTemplateCategoryLabel(template.category)}
-          </Tag>
-          <Text strong style={{ marginLeft: 8 }}>
-            {template.name}
-          </Text>
-        </div>
-
-        {/* プロパティ入力フォーム（Card なし） */}
-        {propertyFormExpanded && (
-          <>
-            <Row gutter={16}>
-              {template.properties.map((prop) => (
-                <Col
-                  key={prop.key}
-                  span={
-                    prop.type === 'contentDoubleListType' ||
-                    prop.type === 'propertyListType'
-                      ? 24
-                      : 12
-                  }
-                >
-                  {renderPropertyInput(prop, template.templateId)}
-                </Col>
-              ))}
-            </Row>
-            
-            {/* 保存ボタン */}
-            <div style={{ marginTop: 16, textAlign: 'right' }}>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={handleSaveTemplate}
-                loading={loading}
-                disabled={instructions.length > 0 && !instructionsConfirmed}
-              >
-                保存
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
-    );
-  };
-
   return (
     <Modal
       title={
@@ -810,196 +672,6 @@ export default function DataRecordDialog({
       ]}
     >
       <div>
-        {/* 作業指示セクション */}
-        {instructions.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: token.marginXS,
-                borderRadius: token.borderRadiusSM,
-                marginBottom: token.marginSM,
-              }}
-            >
-              {/* 左側：折りたたみ操作エリア */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  flex: 1,
-                  cursor: 'pointer',
-                }}
-                onClick={() => setInstructionsExpanded(!instructionsExpanded)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                {instructionsExpanded ? (
-                  <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                ) : (
-                  <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                )}
-                <FileTextOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-                <Text strong style={{ fontSize: 16 }}>
-                  作業指示 ({instructions.length}件)
-                </Text>
-              </div>
-
-              {/* 右側：確認完了ボタン */}
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={handleConfirmInstructions}
-                disabled={instructionsConfirmed}
-                style={{
-                  backgroundColor: instructionsConfirmed ? undefined : token.colorSuccess,
-                  borderColor: instructionsConfirmed ? undefined : token.colorSuccess,
-                }}
-              >
-                {instructionsConfirmed ? '確認済み' : '確認完了'}
-              </Button>
-            </div>
-
-            {instructionsExpanded && (
-              <>
-                {/* 全体指示 */}
-                {groupedInstructions.file.length > 0 && (
-                  <div style={{ marginBottom: token.marginMD }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        padding: token.marginXS,
-                        borderRadius: token.borderRadiusSM,
-                        marginBottom: token.marginXS,
-                      }}
-                      onClick={() => setFileInstructionsExpanded(!fileInstructionsExpanded)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      {fileInstructionsExpanded ? (
-                        <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      ) : (
-                        <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      )}
-                      <Text strong style={{ fontSize: 14 }}>
-                        📄 プロジェクト指示 ({groupedInstructions.file.length}件)
-                      </Text>
-                    </div>
-                    {fileInstructionsExpanded && (
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        {groupedInstructions.file.map((instruction) => (
-                          <InstructionCard
-                            key={instruction.instructionId}
-                            instruction={instruction}
-                            isClient={isClient}
-                          />
-                        ))}
-                      </Space>
-                    )}
-                  </div>
-                )}
-
-                {/* メソッド単位指示 */}
-                {groupedInstructions.method.length > 0 && (
-                  <div style={{ marginBottom: token.marginMD }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        padding: token.marginXS,
-                        borderRadius: token.borderRadiusSM,
-                        marginBottom: token.marginXS,
-                      }}
-                      onClick={() => setMethodInstructionsExpanded(!methodInstructionsExpanded)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      {methodInstructionsExpanded ? (
-                        <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      ) : (
-                        <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      )}
-                      <Text strong style={{ fontSize: 14 }}>
-                        🔧 メソッド単位指示 ({groupedInstructions.method.length}件)
-                      </Text>
-                    </div>
-                    {methodInstructionsExpanded && (
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        {groupedInstructions.method.map((instruction) => (
-                          <InstructionCard
-                            key={instruction.instructionId}
-                            instruction={instruction}
-                            isClient={isClient}
-                          />
-                        ))}
-                      </Space>
-                    )}
-                  </div>
-                )}
-
-                {/* トランジション単位指示 */}
-                {groupedInstructions.transition.length > 0 && (
-                  <div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        padding: token.marginXS,
-                        borderRadius: token.borderRadiusSM,
-                        marginBottom: token.marginXS,
-                      }}
-                      onClick={() => setTransitionInstructionsExpanded(!transitionInstructionsExpanded)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      {transitionInstructionsExpanded ? (
-                        <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      ) : (
-                        <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      )}
-                      <Text strong style={{ fontSize: 14 }}>
-                        🎯 トランジション指示 ({groupedInstructions.transition.length}件)
-                      </Text>
-                    </div>
-                    {transitionInstructionsExpanded && (
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        {groupedInstructions.transition.map((instruction) => (
-                          <InstructionCard
-                            key={instruction.instructionId}
-                            instruction={instruction}
-                            isClient={isClient}
-                          />
-                        ))}
-                      </Space>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
         {/* みなし進捗更新チェックボックス */}
         <div style={{ marginBottom: 16 }}>
           <Checkbox
@@ -1288,7 +960,6 @@ export default function DataRecordDialog({
                   form={form}
                   layout="vertical"
                   autoComplete="off"
-                  disabled={instructions.length > 0 && !instructionsConfirmed}
                 >
                   <Row gutter={16}>
                     {selectedTemplate.properties.map((prop) => (
@@ -1313,7 +984,6 @@ export default function DataRecordDialog({
                       icon={<SaveOutlined />}
                       onClick={handleSaveTemplate}
                       loading={loading}
-                      disabled={instructions.length > 0 && !instructionsConfirmed}
                     >
                       保存
                     </Button>

@@ -6,6 +6,7 @@ import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCi
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue } from '@/types/experimentWorker';
+import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 
 const { Text } = Typography;
@@ -30,7 +31,8 @@ export default function TransitionList({
   methodId,
 }: TransitionListProps) {
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [instructionModalOpen, setInstructionModalOpen] = useState(false);
+  const [dataRecordModalOpen, setDataRecordModalOpen] = useState(false);
   
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
@@ -57,15 +59,27 @@ export default function TransitionList({
     });
   }, [transitions, searchText, selectedTransitionName]);
 
-  // トランジションをクリックしてダイアログを開く
+  // トランジションをクリックして作業指示モーダルを開く
   const handleTransitionClick = (transition: Transition) => {
     setSelectedTransition(transition);
-    setDialogOpen(true);
+    setInstructionModalOpen(true);
   };
 
-  // ダイアログを閉じる
-  const handleDialogClose = () => {
-    setDialogOpen(false);
+  // 作業指示モーダルを閉じる
+  const handleInstructionModalClose = () => {
+    setInstructionModalOpen(false);
+    setSelectedTransition(null);
+  };
+
+  // 作業指示確認完了 → データ記録モーダルを開く
+  const handleInstructionConfirmed = () => {
+    setInstructionModalOpen(false);
+    setDataRecordModalOpen(true);
+  };
+
+  // データ記録モーダルを閉じる
+  const handleDataRecordModalClose = () => {
+    setDataRecordModalOpen(false);
     setSelectedTransition(null);
   };
 
@@ -74,6 +88,8 @@ export default function TransitionList({
     console.log('保存されたデータ:', data);
     // TODO: バックエンドAPIへの保存処理を実装
     message.success('実験データを保存しました');
+    setDataRecordModalOpen(false);
+    setSelectedTransition(null);
   };
 
   // ステータス表示用のヘルパー関数
@@ -101,7 +117,7 @@ export default function TransitionList({
   // 記録ボタンクリックハンドラ
   const handleRecord = (transition: Transition) => {
     setSelectedTransition(transition);
-    setDialogOpen(true);
+    setInstructionModalOpen(true);
   };
 
   // テーブルの列定義（統合版）
@@ -300,11 +316,21 @@ export default function TransitionList({
         />
       </div>
 
-      {/* データ記録ダイアログ */}
-      <DataRecordDialog
-        open={dialogOpen}
+      {/* 作業指示確認モーダル */}
+      <InstructionConfirmationModal
+        open={instructionModalOpen}
         transition={selectedTransition}
-        onClose={handleDialogClose}
+        projectId={projectId}
+        methodId={methodId}
+        onConfirm={handleInstructionConfirmed}
+        onCancel={handleInstructionModalClose}
+      />
+
+      {/* データ記録モーダル */}
+      <DataRecordDialog
+        open={dataRecordModalOpen}
+        transition={selectedTransition}
+        onClose={handleDataRecordModalClose}
         onSave={handleDataSave}
         projectId={projectId}
         methodId={methodId}
