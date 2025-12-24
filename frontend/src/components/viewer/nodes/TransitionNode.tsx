@@ -1,45 +1,64 @@
 // frontend/src/components/viewer/nodes/TransitionNode.tsx
-// Transitionノードコンポーネント
+// Transitionノードコンポーネント（reference版互換）
 
 'use client';
 
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { Card, Typography, Space } from 'antd';
-import { ThunderboltOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
 
 interface TransitionData {
-  label: string;
+  label?: string;
+  name?: string;
+  id?: string;
   nodeType: 'transition';
   description?: string;
 }
 
+/**
+ * Transitionノード - 長方形ノード（Transition用）
+ * 黒塗りつぶしの細い長方形
+ */
 const TransitionNode: React.FC<NodeProps<TransitionData>> = memo(({ data, selected }) => {
   return (
-    <Card
-      size="small"
-      style={{
-        minWidth: 120,
-        border: selected ? '2px solid #722ed1' : '1px solid #d9d9d9',
-        borderRadius: 8,
-        background: '#f9f0ff',
-        boxShadow: selected ? '0 4px 12px rgba(114, 46, 209, 0.2)' : '0 2px 8px rgba(0,0,0,0.08)',
-      }}
-    >
-      <Handle type="target" position={Position.Top} style={{ background: '#722ed1' }} />
+    <div style={{ position: 'relative' }}>
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        style={{ background: '#555' }} 
+      />
       
-      <Space direction="vertical" size="small" style={{ width: '100%', alignItems: 'center' }}>
-        <Space>
-          <ThunderboltOutlined style={{ color: '#722ed1' }} />
-          <Text strong style={{ fontSize: 12 }}>{data.label}</Text>
-        </Space>
-        {data.description && <Text type="secondary" style={{ fontSize: 10 }}>{data.description}</Text>}
-      </Space>
+      <div style={{
+        width: 5.6,
+        height: 28,
+        background: selected ? '#2196f3' : 'black',
+        position: 'relative',
+        boxShadow: selected ? '0 0 8px rgba(33, 150, 243, 0.8)' : 'none',
+        cursor: 'pointer',
+      }}>
+        {/* ラベルを下部に配置 */}
+        <div style={{
+          position: 'absolute',
+          top: 32,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          textAlign: 'center',
+          fontSize: '10px',
+          width: '150px',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          fontWeight: 'bold',
+        }}>
+          {data.name || data.label || data.id}
+        </div>
+      </div>
       
-      <Handle type="source" position={Position.Bottom} style={{ background: '#722ed1' }} />
-    </Card>
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        style={{ background: '#555' }} 
+      />
+    </div>
   );
 });
 

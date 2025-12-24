@@ -10,6 +10,13 @@ import ExperimentAdminMenu from '@/components/menus/ExperimentAdminMenu';
 import ExperimentWorkerMenu from '@/components/menus/ExperimentWorkerMenu';
 import { User, UserRole, LoginCredentials } from '@/types/auth';
 
+// デバッグ機能のインポート（開発環境専用）
+import DebugLoginPanel from '@/components/common/DebugLoginPanel';
+import type { DebugUser } from '@/types/debug';
+
+// 開発環境判定
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 /**
  * デモ用ユーザーデータ
  */
@@ -136,10 +143,34 @@ export default function Home() {
 
   // ログインしていない場合はログイン画面を表示
   if (!currentUser) {
+    // デバッグパネルの準備（開発環境のみ）
+    let debugPanel: React.ReactNode = null;
+    if (isDevelopment) {
+      const debugUsers: DebugUser[] = Object.entries(demoUsers).map(([username, data]) => ({
+        username,
+        password: data.password,
+        displayName: data.user.displayName,
+        role: data.user.role,
+      }));
+
+      debugPanel = (
+        <DebugLoginPanel 
+          onLogin={handleLogin}
+          loading={loading}
+          debugUsers={debugUsers}
+        />
+      );
+    }
+
     return (
       <>
         {contextHolder}
-        <LoginPage onLogin={handleLogin} error={error} loading={loading} />
+        <LoginPage 
+          onLogin={handleLogin} 
+          error={error} 
+          loading={loading}
+          debugPanel={debugPanel}
+        />
       </>
     );
   }

@@ -27,11 +27,14 @@ import FormatUploadDialog from './FormatUploadDialog';
 import CreateFormatFileModal, { CreateFormatFileData } from './CreateFormatFileModal';
 import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatFolderModal';
 import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
-import mockFormatsData from '@/data/mock/mockFormats.json';
 import mockFormatFilesData from '@/data/mock/mockFormatFiles.json';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
 import { User } from '@/types/auth';
+import { useApi } from '@/hooks/useApi';
+import { fetchFormats } from '@/utils/apiClient';
+import type { ApiResponse } from '@/types/api';
+import type { FormatListResponse } from '@/types/format';
 
 const { Title, Text } = Typography;
 
@@ -82,7 +85,7 @@ interface FormatManagementProps {
 const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
-  const [formats] = useState<Format[]>(mockFormatsData.folders as Format[]);
+  const [formats, setFormats] = useState<Format[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [fileTypeFilter, setFileTypeFilter] = useState<'all' | 'xml' | 'maiml'>('all');
@@ -96,6 +99,26 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const [sortBy, setSortBy] = useState<'name' | 'category' | 'updatedAt'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentFolderPath, setCurrentFolderPath] = useState<string[]>([]);
+
+  // フォーマット一覧をAPI経由で取得
+  const { 
+    data: formatsData, 
+    isLoading: isLoadingFormats, 
+    error: formatsError, 
+    refetch: refetchFormats 
+  } = useApi<ApiResponse<FormatListResponse>>(
+    fetchFormats,
+    []
+  );
+
+  // フォーマットデータが取得できたらstateを更新
+  React.useEffect(() => {
+    if (formatsData?.data.folders) {
+      // Data synchronization in useEffect is a valid pattern
+      // eslint-disable-next-line
+      setFormats(formatsData.data.folders as Format[]);
+    }
+  }, [formatsData]);
 
   // サブフォルダのモックデータ（実際はAPIから取得）
   // 各取引先会社のフォルダ（1階層のみ）
@@ -190,11 +213,10 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   }, []);
 
   // リフレッシュ
-  const handleRefresh = () => {
+  const handleRefresh = React.useCallback(() => {
     console.log('Refreshing format list...');
-    // モックデータの場合、既に初期化されているため処理なし
-    // 実際のAPIでは、ここでデータを再取得する
-  };
+    refetchFormats();
+  }, [refetchFormats]);
 
   // 新規ファイル作成モーダルを開く
   const handleOpenCreateFileModal = useCallback(() => {
@@ -237,7 +259,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       });
       throw error;
     }
-  }, [t, handleCloseCreateFileModal]);
+  }, [t, handleCloseCreateFileModal, handleRefresh]);
 
   // 新規フォルダ作成モーダルを開く
   const handleOpenCreateFolderModal = useCallback(() => {
@@ -300,7 +322,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       });
       throw error;
     }
-  }, [t, handleCloseCreateFolderModal]);
+  }, [t, handleCloseCreateFolderModal, handleRefresh]);
 
   // 選択したフォーマットとそのファイル一覧を取得
   const selectedFormat = useMemo(() => {
