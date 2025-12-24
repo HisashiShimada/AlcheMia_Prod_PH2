@@ -42,6 +42,7 @@ import {
   Template,
   Instruction,
   TemplateCategory,
+  TransitionStatus,
 } from '@/types/experimentWorker';
 import { projectsData, templatesList } from '@/data/projectsData';
 import InstructionCard from './InstructionCard';
@@ -86,6 +87,21 @@ export default function DataRecordDialog({
   const [templateSearchText, setTemplateSearchText] = useState('');
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<TemplateCategory | undefined>(undefined);
   const [templatesExpanded, setTemplatesExpanded] = useState(true);
+
+  // ステータスとコメント用の状態
+  const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>('initial');
+  const [comment, setComment] = useState('');
+
+  // ステータスの選択肢
+  const statusOptions = [
+    { value: 'initial' as TransitionStatus, label: '初期状態' },
+    { value: 'preparing' as TransitionStatus, label: '準備状態' },
+    { value: 'ready' as TransitionStatus, label: '準備完了状態' },
+    { value: 'running' as TransitionStatus, label: '動作状態' },
+    { value: 'paused' as TransitionStatus, label: '休止状態' },
+    { value: 'completed' as TransitionStatus, label: '終状態' },
+    { value: 'error' as TransitionStatus, label: '異常終了状態' },
+  ];
 
   // クライアント判定
   useEffect(() => {
@@ -146,6 +162,8 @@ export default function DataRecordDialog({
       setFormData({});
       setDataGrids({});
       setInstructionsConfirmed(false); // 確認状態もリセット
+      setSelectedStatus('initial'); // ステータスをリセット
+      setComment(''); // コメントをリセット
       
       // 各テンプレートのDataGridを初期化
       transition.templates?.forEach((template) => {
@@ -246,8 +264,16 @@ export default function DataRecordDialog({
         recordsData.push(templateData);
       });
       
+      // ステータスとコメントをログ出力（バックエンド実装時に使用）
+      console.log('保存データ:', {
+        transitionId: transition?.transitionId,
+        status: selectedStatus,
+        comment: comment,
+        experimentData: recordsData,
+      });
+      
       onSave(recordsData);
-      message.success('実験データを保存しました');
+      message.success(`実験データを保存しました（ステータス: ${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`);
       onClose();
     } catch (error) {
       console.error('Validation failed:', error);
@@ -1010,6 +1036,40 @@ export default function DataRecordDialog({
             showIcon
           />
         )}
+
+        {/* ステータスとコメントセクション */}
+        <div style={{ marginTop: 24 }}>
+          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            {/* ステータス更新 */}
+            <div>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                ステータス更新
+              </Text>
+              <Select
+                style={{ width: '100%' }}
+                placeholder="ステータスを選択"
+                value={selectedStatus}
+                onChange={setSelectedStatus}
+                disabled={instructions.length > 0 && !instructionsConfirmed}
+                options={statusOptions}
+              />
+            </div>
+
+            {/* コメント */}
+            <div>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                コメント
+              </Text>
+              <TextArea
+                rows={4}
+                placeholder="コメントを入力"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                disabled={instructions.length > 0 && !instructionsConfirmed}
+              />
+            </div>
+          </Space>
+        </div>
       </div>
     </Modal>
   );
