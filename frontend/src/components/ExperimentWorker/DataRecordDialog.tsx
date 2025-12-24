@@ -890,7 +890,7 @@ export default function DataRecordDialog({
                         <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
                       )}
                       <Text strong style={{ fontSize: 14 }}>
-                        📄 全体指示 ({groupedInstructions.file.length}件)
+                        📄 プロジェクト指示 ({groupedInstructions.file.length}件)
                       </Text>
                     </div>
                     {fileInstructionsExpanded && (
@@ -976,7 +976,7 @@ export default function DataRecordDialog({
                         <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
                       )}
                       <Text strong style={{ fontSize: 14 }}>
-                        🎯 トランジション単位指示 ({groupedInstructions.transition.length}件)
+                        🎯 トランジション指示 ({groupedInstructions.transition.length}件)
                       </Text>
                     </div>
                     {transitionInstructionsExpanded && (
