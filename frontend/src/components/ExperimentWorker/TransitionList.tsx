@@ -98,19 +98,13 @@ export default function TransitionList({
     );
   };
 
-  // インプット記録ボタンクリックハンドラ
-  const handleInputRecord = (transition: Transition) => {
+  // 記録ボタンクリックハンドラ
+  const handleRecord = (transition: Transition) => {
     setSelectedTransition(transition);
     setDialogOpen(true);
   };
 
-  // アウトプット記録ボタンクリックハンドラ
-  const handleOutputRecord = (transition: Transition) => {
-    setSelectedTransition(transition);
-    setDialogOpen(true);
-  };
-
-  // テーブルの列定義（2段ヘッダー構造）
+  // テーブルの列定義（統合版）
   const columns: ColumnsType<Transition> = [
     {
       title: 'トランジション名',
@@ -135,160 +129,95 @@ export default function TransitionList({
       render: (status: ProgressStatus | undefined) => getStatusDisplay(status)
     },
     {
-      title: 'インプット',
-      children: [
-        {
-          title: '材料',
-          key: 'inputMaterials',
-          width: 90,
-          align: 'center',
-          render: (_, record: Transition) => {
-            const input = record.inputMaterialsCount ?? 0;
-            const total = record.totalMaterialsCount ?? 0;
-            if (total === 0) {
-              return <Text type="secondary">-</Text>;
-            }
-            const isComplete = input === total;
-            return (
-              <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
-                {input}/{total}
-              </Text>
-            );
-          }
-        },
-        {
-          title: '条件',
-          key: 'inputConditions',
-          width: 90,
-          align: 'center',
-          render: (_, record: Transition) => {
-            const input = record.inputIngredientsCount ?? 0;
-            const total = record.totalIngredientsCount ?? 0;
-            if (total === 0) {
-              return <Text type="secondary">-</Text>;
-            }
-            const isComplete = input === total;
-            return (
-              <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
-                {input}/{total}
-              </Text>
-            );
-          }
-        },
-        {
-          title: '結果',
-          key: 'inputResults',
-          width: 90,
-          align: 'center',
-          render: (_, record: Transition) => {
-            const input = record.inputResultsCount ?? 0;
-            const total = record.totalResultsCount ?? 0;
-            if (total === 0) {
-              return <Text type="secondary">-</Text>;
-            }
-            const isComplete = input === total;
-            return (
-              <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
-                {input}/{total}
-              </Text>
-            );
-          }
-        },
-        {
-          title: '記録',
-          key: 'inputRecord',
-          width: 100,
-          align: 'center',
-          render: (_, record: Transition) => (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleInputRecord(record);
-              }}
-              style={{
-                padding: '4px 12px',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: '#ffffff',
-                backgroundColor: '#CF0027',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = '#a50020';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = '#CF0027';
-              }}
-            >
-              記録
-            </button>
-          )
+      title: '材料',
+      key: 'materials',
+      width: 90,
+      align: 'center',
+      render: (_, record: Transition) => {
+        const input = record.inputMaterialsCount ?? 0;
+        const total = record.totalMaterialsCount ?? 0;
+        if (total === 0) {
+          return <Text type="secondary">-</Text>;
         }
-      ]
+        const isComplete = input === total;
+        return (
+          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+            {input}/{total}
+          </Text>
+        );
+      }
     },
     {
-      title: 'アウトプット',
-      children: [
-        {
-          title: '材料',
-          key: 'outputMaterials',
-          width: 90,
-          align: 'center',
-          render: () => <Text type="secondary">-</Text>
-        },
-        {
-          title: '条件',
-          key: 'outputConditions',
-          width: 90,
-          align: 'center',
-          render: () => <Text type="secondary">-</Text>
-        },
-        {
-          title: '結果',
-          key: 'outputResults',
-          width: 90,
-          align: 'center',
-          render: () => <Text type="secondary">-</Text>
-        },
-        {
-          title: '記録',
-          key: 'outputRecord',
-          width: 100,
-          align: 'center',
-          render: (_, record: Transition) => (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOutputRecord(record);
-              }}
-              style={{
-                padding: '4px 12px',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: '#ffffff',
-                backgroundColor: '#CF0027',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = '#a50020';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = '#CF0027';
-              }}
-            >
-              記録
-            </button>
-          )
+      title: '条件',
+      key: 'conditions',
+      width: 90,
+      align: 'center',
+      render: (_, record: Transition) => {
+        const input = record.inputIngredientsCount ?? 0;
+        const total = record.totalIngredientsCount ?? 0;
+        if (total === 0) {
+          return <Text type="secondary">-</Text>;
         }
-      ]
+        const isComplete = input === total;
+        return (
+          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+            {input}/{total}
+          </Text>
+        );
+      }
+    },
+    {
+      title: '結果',
+      key: 'results',
+      width: 90,
+      align: 'center',
+      render: (_, record: Transition) => {
+        const input = record.inputResultsCount ?? 0;
+        const total = record.totalResultsCount ?? 0;
+        if (total === 0) {
+          return <Text type="secondary">-</Text>;
+        }
+        const isComplete = input === total;
+        return (
+          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+            {input}/{total}
+          </Text>
+        );
+      }
+    },
+    {
+      title: '記録',
+      key: 'record',
+      width: 100,
+      align: 'center',
+      render: (_, record: Transition) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRecord(record);
+          }}
+          style={{
+            padding: '4px 12px',
+            fontSize: '13px',
+            fontWeight: 500,
+            color: '#ffffff',
+            backgroundColor: '#CF0027',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.backgroundColor = '#a50020';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.backgroundColor = '#CF0027';
+          }}
+        >
+          記録
+        </button>
+      )
     },
     {
       title: '説明',

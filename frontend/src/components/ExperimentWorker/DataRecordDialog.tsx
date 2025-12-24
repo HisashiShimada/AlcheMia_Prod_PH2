@@ -1111,6 +1111,18 @@ export default function DataRecordDialog({
                   ),
                 },
                 {
+                  title: 'IN/OUT',
+                  dataIndex: 'inputOutput',
+                  key: 'inputOutput',
+                  width: 120,
+                  align: 'center',
+                  render: (inputOutput: string) => (
+                    <Tag color={inputOutput === 'input' ? 'blue' : 'green'}>
+                      {inputOutput === 'input' ? 'インプット' : 'アウトプット'}
+                    </Tag>
+                  ),
+                },
+                {
                   title: 'プロパティ数',
                   dataIndex: 'properties',
                   key: 'propertyCount',
