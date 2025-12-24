@@ -847,14 +847,7 @@ export default function DataRecordDialog({
             </div>
 
             {instructionsExpanded && (
-              <div
-                style={{
-                  padding: token.paddingMD,
-                  backgroundColor: token.colorBgContainer,
-                  border: `1px solid ${token.colorBorderSecondary}`,
-                  borderRadius: token.borderRadius,
-                }}
-              >
+              <>
                 {/* 全体指示 */}
                 {groupedInstructions.file.length > 0 && (
                   <div style={{ marginBottom: token.marginMD }}>
@@ -983,7 +976,7 @@ export default function DataRecordDialog({
                     )}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         )}
