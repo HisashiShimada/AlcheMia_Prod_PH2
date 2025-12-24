@@ -22,6 +22,7 @@ import {
   theme,
   Select,
   Card,
+  Layout,
 } from 'antd';
 import {
   PlusOutlined,
@@ -48,6 +49,7 @@ import { templatesList } from '@/data/projectsData';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+const { Sider, Content } = Layout;
 
 interface DataRecordDialogProps {
   open: boolean;
@@ -659,15 +661,23 @@ export default function DataRecordDialog({
       }
       open={open}
       onCancel={onClose}
-      width={1000}
+      width={1400}
       style={{ top: 20 }}
       footer={[
         <Button
-          key="close"
-          icon={<CloseOutlined />}
+          key="cancel"
           onClick={onClose}
         >
-          閉じる
+          キャンセル
+        </Button>,
+        <Button
+          key="save"
+          type="primary"
+          icon={<SaveOutlined />}
+          onClick={handleSaveTemplate}
+          loading={loading}
+        >
+          保存
         </Button>,
       ]}
     >
@@ -771,41 +781,39 @@ export default function DataRecordDialog({
           </div>
         )}
 
-        {/* テンプレート一覧セクション */}
-        <div style={{ marginBottom: 24 }}>
-          <div
+        {/* 2カラムレイアウト: サイドバー（テンプレート一覧） + コンテンツ（データ記録） */}
+        <Layout style={{ height: 600, background: 'transparent' }}>
+          {/* 左サイドバー: テンプレート一覧 */}
+          <Sider
+            width={300}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              padding: token.marginXS,
+              background: token.colorBgContainer,
+              borderRight: `1px solid ${token.colorBorder}`,
               borderRadius: token.borderRadiusSM,
-              marginBottom: token.marginSM,
-            }}
-            onClick={() => setTemplatesExpanded(!templatesExpanded)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
+              overflow: 'hidden',
             }}
           >
-            {templatesExpanded ? (
-              <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            ) : (
-              <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            )}
-            <AppstoreOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-            <Text strong style={{ fontSize: 16 }}>
-              テンプレート一覧 ({filteredTemplates.length}件)
-            </Text>
-          </div>
+            <div
+              style={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: token.paddingMD,
+              }}
+            >
+              {/* タイトル */}
+              <div style={{ marginBottom: token.marginMD }}>
+                <Space>
+                  <AppstoreOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
+                  <Text strong style={{ fontSize: 16 }}>
+                    テンプレート一覧
+                  </Text>
+                  <Tag color="blue">{filteredTemplates.length}件</Tag>
+                </Space>
+              </div>
 
-          {templatesExpanded && (
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
               {/* フィルタリングエリア */}
-              <Row gutter={16}>
-              <Col flex="400px">
+              <Space direction="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
                 <Input
                   placeholder="テンプレート名で検索"
                   prefix={<SearchOutlined />}
@@ -813,8 +821,6 @@ export default function DataRecordDialog({
                   onChange={(e) => setTemplateSearchText(e.target.value)}
                   allowClear
                 />
-              </Col>
-              <Col flex="150px">
                 <Select
                   placeholder="テンプレート種別"
                   value={selectedTemplateCategory}
@@ -827,134 +833,96 @@ export default function DataRecordDialog({
                     { label: '結果', value: 'Results' },
                   ]}
                 />
-              </Col>
-            </Row>
+              </Space>
 
-            {/* テーブル */}
-            <Table
-              size="small"
-              dataSource={filteredTemplates}
-              rowKey="templateId"
-              onRow={(record) => ({
-                onClick: () => {
-                  // 行クリックで選択（単一選択）
-                  setSelectedTemplateId(record.templateId);
-                },
-                style: { cursor: 'pointer' },
-              })}
-              rowClassName={(record) => 
-                selectedTemplateId === record.templateId
-                  ? 'ant-table-row-selected' 
-                  : ''
-              }
-              scroll={{ x: 800 }}
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showTotal: (total) => `全 ${total} 件`,
-                pageSizeOptions: ['10', '20', '50'],
-              }}
-              columns={[
-                {
-                  title: 'テンプレート名',
-                  dataIndex: 'name',
-                  key: 'name',
-                  width: 250,
-                  align: 'left',
-                  render: (name: string, record: Template) => (
-                    <Space>
-                      <Text strong>{name}</Text>
-                      {record.description && (
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          - {record.description}
-                        </Text>
-                      )}
-                    </Space>
-                  ),
-                },
-                {
-                  title: 'テンプレート種別',
-                  dataIndex: 'category',
-                  key: 'category',
-                  width: 150,
-                  align: 'center',
-                  render: (category: TemplateCategory) => (
-                    <Tag color={getTemplateCategoryColor(category)}>
-                      {getTemplateCategoryLabel(category)}
-                    </Tag>
-                  ),
-                },
-                {
-                  title: 'IN/OUT',
-                  dataIndex: 'inputOutput',
-                  key: 'inputOutput',
-                  width: 120,
-                  align: 'center',
-                  render: (inputOutput: string) => (
-                    <Tag color={inputOutput === 'input' ? 'blue' : 'green'}>
-                      {inputOutput === 'input' ? 'インプット' : 'アウトプット'}
-                    </Tag>
-                  ),
-                },
-                {
-                  title: 'プロパティ数',
-                  dataIndex: 'properties',
-                  key: 'propertyCount',
-                  width: 120,
-                  align: 'right',
-                  render: (properties: Property[]) => properties.length,
-                },
-              ]}
-            />
-            </Space>
-          )}
-        </div>
+              {/* テーブル */}
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <Table
+                  size="small"
+                  dataSource={filteredTemplates}
+                  rowKey="templateId"
+                  onRow={(record) => ({
+                    onClick: () => {
+                      setSelectedTemplateId(record.templateId);
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
+                  rowClassName={(record) =>
+                    selectedTemplateId === record.templateId
+                      ? 'ant-table-row-selected'
+                      : ''
+                  }
+                  scroll={{ y: 400 }}
+                  pagination={false}
+                  showHeader={false}
+                  columns={[
+                    {
+                      title: 'テンプレート',
+                      dataIndex: 'name',
+                      key: 'name',
+                      render: (name: string, record: Template) => {
+                        // カテゴリーからI/Oを判定
+                        const isOutput = record.category === 'Results';
+                        const ioLabel = isOutput ? 'OUT' : 'IN';
+                        const ioColor = isOutput ? 'green' : 'blue';
+                        const propertyCount = record.properties?.length || 0;
+                        
+                        return (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Text strong style={{ fontSize: 13 }}>{name}</Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                ({propertyCount}項目)
+                              </Text>
+                            </div>
+                            <div style={{ marginTop: 4 }}>
+                              <Space size="small">
+                                <Tag color={getTemplateCategoryColor(record.category)} style={{ fontSize: 11, margin: 0 }}>
+                                  {getTemplateCategoryLabel(record.category)}
+                                </Tag>
+                                <Tag color={ioColor} style={{ fontSize: 11, margin: 0 }}>
+                                  {ioLabel}
+                                </Tag>
+                              </Space>
+                            </div>
+                          </div>
+                        );
+                      },
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+          </Sider>
 
-        {/* 入力フォーム */}
-        <div style={{ marginBottom: 24 }}>
-          {/* データ記録タイトルセクション（常に表示） */}
-          <div
+          {/* 右コンテンツ: データ記録 */}
+          <Content
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              padding: token.marginXS,
-              borderRadius: token.borderRadiusSM,
-              marginBottom: token.marginSM,
-            }}
-            onClick={() => setPropertyFormExpanded(!propertyFormExpanded)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
+              background: token.colorBgLayout,
+              padding: token.paddingMD,
+              overflow: 'auto',
             }}
           >
-            {propertyFormExpanded ? (
-              <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            ) : (
-              <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            )}
-            <FileTextOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-            <Text strong style={{ fontSize: 16, marginRight: 12 }}>
-              データ記録
-            </Text>
-            {selectedTemplate && (
-              <>
-                <Tag color={getTemplateCategoryColor(selectedTemplate.category)}>
-                  {getTemplateCategoryLabel(selectedTemplate.category)}
-                </Tag>
-                <Text strong style={{ marginLeft: 8 }}>
-                  {selectedTemplate.name}
-                </Text>
-              </>
-            )}
-          </div>
+            <div style={{ height: '100%' }}>
+              {/* タイトル */}
+              <div style={{ marginBottom: token.marginMD }}>
+                <Space>
+                  <FileTextOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
+                  <Text strong style={{ fontSize: 16 }}>
+                    データ記録
+                  </Text>
+                  {selectedTemplate && (
+                    <>
+                      <Tag color={getTemplateCategoryColor(selectedTemplate.category)}>
+                        {getTemplateCategoryLabel(selectedTemplate.category)}
+                      </Tag>
+                      <Text strong>{selectedTemplate.name}</Text>
+                    </>
+                  )}
+                </Space>
+              </div>
 
-          {/* 折りたたみ可能なコンテンツ */}
-          {propertyFormExpanded && (
-            <>
-              {/* テンプレート選択時: プロパティ入力フォーム */}
+              {/* フォームまたは選択促進メッセージ */}
               {selectedTemplate ? (
                 <Form
                   form={form}
@@ -976,31 +944,18 @@ export default function DataRecordDialog({
                       </Col>
                     ))}
                   </Row>
-                  
-                  {/* 保存ボタン */}
-                  <div style={{ marginTop: 16, textAlign: 'right' }}>
-                    <Button
-                      type="primary"
-                      icon={<SaveOutlined />}
-                      onClick={handleSaveTemplate}
-                      loading={loading}
-                    >
-                      保存
-                    </Button>
-                  </div>
                 </Form>
               ) : (
-                /* テンプレート未選択時: 選択を促すAlert */
                 <Alert
                   message="テンプレートを選択してください"
-                  description="上記のテンプレート一覧から記録したいテンプレートを選択してください。"
+                  description="左側のテンプレート一覧から記録したいテンプレートを選択してください。"
                   type="info"
                   showIcon
                 />
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </Content>
+        </Layout>
 
       </div>
     </Modal>
