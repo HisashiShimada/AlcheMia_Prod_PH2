@@ -101,6 +101,9 @@ export default function DataRecordDialog({
   // ステータスとコメント用の状態
   const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>('initial');
   const [comment, setComment] = useState('');
+  
+  // みなし進捗更新用の状態
+  const [useDeemedProgress, setUseDeemedProgress] = useState(true);
 
   // ステータスの選択肢
   const statusOptions = [
@@ -997,6 +1000,105 @@ export default function DataRecordDialog({
           </div>
         )}
 
+        {/* みなし進捗更新チェックボックス */}
+        <div style={{ marginBottom: 16 }}>
+          <Checkbox
+            checked={useDeemedProgress}
+            onChange={(e) => setUseDeemedProgress(e.target.checked)}
+          >
+            みなし進捗更新
+          </Checkbox>
+        </div>
+
+        {/* ステータス更新セクション（みなし進捗更新OFF時のみ表示） */}
+        {!useDeemedProgress && (
+          <div style={{ marginBottom: 24 }}>
+            {/* タイトルセクション */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                cursor: 'pointer',
+                padding: token.marginXS,
+                borderRadius: token.borderRadiusSM,
+                marginBottom: token.marginSM,
+              }}
+              onClick={() => setStatusUpdateExpanded(!statusUpdateExpanded)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              {statusUpdateExpanded ? (
+                <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
+              ) : (
+                <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
+              )}
+              <SaveOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
+              <Text strong style={{ fontSize: 16 }}>
+                ステータス更新
+              </Text>
+            </div>
+
+            {/* 折りたたみ可能なコンテンツ */}
+            {statusUpdateExpanded && (
+              <>
+                <Row gutter={16}>
+                  {/* ステータス */}
+                  <Col span={6}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                      ステータス
+                    </Text>
+                    <Select
+                      style={{ width: '100%' }}
+                      placeholder="ステータスを選択"
+                      value={selectedStatus}
+                      onChange={setSelectedStatus}
+                      options={statusOptions}
+                    />
+                  </Col>
+
+                  {/* コメント */}
+                  <Col span={18}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                      コメント
+                    </Text>
+                    <TextArea
+                      rows={1}
+                      placeholder="コメントを入力"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                    />
+                  </Col>
+                </Row>
+
+                {/* 保存ボタン */}
+                <div style={{ marginTop: 16, textAlign: 'right' }}>
+                  <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    onClick={() => {
+                      // ステータス更新の保存処理
+                      console.log('ステータス更新保存:', {
+                        transitionId: transition?.transitionId,
+                        status: selectedStatus,
+                        comment: comment,
+                      });
+                      message.success(
+                        `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`
+                      );
+                    }}
+                  >
+                    保存
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* テンプレート一覧セクション */}
         <div style={{ marginBottom: 24 }}>
           <div
@@ -1230,93 +1332,6 @@ export default function DataRecordDialog({
           )}
         </div>
 
-        {/* ステータス更新セクション */}
-        <div style={{ marginTop: 24 }}>
-          {/* タイトルセクション */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              padding: token.marginXS,
-              borderRadius: token.borderRadiusSM,
-              marginBottom: token.marginSM,
-            }}
-            onClick={() => setStatusUpdateExpanded(!statusUpdateExpanded)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            {statusUpdateExpanded ? (
-              <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            ) : (
-              <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            )}
-            <SaveOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-            <Text strong style={{ fontSize: 16 }}>
-              ステータス更新
-            </Text>
-          </div>
-
-          {/* 折りたたみ可能なコンテンツ */}
-          {statusUpdateExpanded && (
-            <>
-              <Row gutter={16}>
-                {/* ステータス */}
-                <Col span={6}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                    ステータス
-                  </Text>
-                  <Select
-                    style={{ width: '100%' }}
-                    placeholder="ステータスを選択"
-                    value={selectedStatus}
-                    onChange={setSelectedStatus}
-                    disabled={instructions.length > 0 && !instructionsConfirmed}
-                    options={statusOptions}
-                  />
-                </Col>
-
-                {/* コメント */}
-                <Col span={18}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                    コメント
-                  </Text>
-                  <TextArea
-                    rows={1}
-                    placeholder="コメントを入力"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    disabled={instructions.length > 0 && !instructionsConfirmed}
-                  />
-                </Col>
-              </Row>
-
-              {/* 保存ボタン */}
-              <div style={{ marginTop: 16, textAlign: 'right' }}>
-                <Button
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  onClick={() => {
-                    // ステータス更新の保存処理
-                    console.log('ステータス更新保存:', {
-                      transitionId: transition?.transitionId,
-                      status: selectedStatus,
-                      comment: comment,
-                    });
-                    message.success(`ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`);
-                  }}
-                  disabled={instructions.length > 0 && !instructionsConfirmed}
-                >
-                  保存
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
       </div>
     </Modal>
   );
