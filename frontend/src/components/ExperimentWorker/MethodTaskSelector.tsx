@@ -99,7 +99,7 @@ export default function MethodTaskSelector({
             />
           </Space>
           
-          {/* タスク選択 */}
+          {/* タスク選択 + 選択ボタン */}
           <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
             <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
             <Text strong style={{ minWidth: 80 }}>タスク:</Text>
@@ -112,18 +112,16 @@ export default function MethodTaskSelector({
               disabled={taskDisabled}
               size="large"
             />
+            <Button
+              type="primary"
+              icon={<CheckOutlined />}
+              onClick={onOpenModal}
+              size="large"
+              disabled={!selectedProject}
+            >
+              選択
+            </Button>
           </Space>
-          
-          <Button
-            type="primary"
-            icon={<CheckOutlined />}
-            onClick={onOpenModal}
-            size="large"
-            disabled={!selectedProject}
-            style={{ marginLeft: 'auto' }}
-          >
-            選択
-          </Button>
         </div>
       </div>
     </div>

@@ -268,8 +268,8 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             paddingLeft: token.paddingLG,
             paddingRight: token.paddingLG,
           }}>
-            {/* プロジェクト選択 */}
-            <Space size="small" style={{ flex: '0 0 auto' }}>
+            {/* プロジェクト選択・選択ボタン */}
+            <Space size="middle" style={{ flex: '0 0 auto' }}>
               <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong>{t('experimentWork.labels.project')}:</Text>
               <Select
@@ -286,18 +286,15 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                 ]}
                 size="middle"
               />
+              <Button
+                type="primary"
+                icon={<CheckOutlined />}
+                onClick={() => setDialogOpen(true)}
+                size="large"
+              >
+                {t('experimentWork.selectButton')}
+              </Button>
             </Space>
-
-            {/* 選択ボタン */}
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => setDialogOpen(true)}
-              size="large"
-              style={{ marginLeft: 'auto', flexShrink: 0 }}
-            >
-              {t('experimentWork.selectButton')}
-            </Button>
           </div>
 
           {/* タブ */}
