@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, Space, Typography, theme, Button, Select, Empty } from 'antd';
+import { Card, Space, Typography, theme, Button, Empty } from 'antd';
 import { 
   ExperimentOutlined, 
-  CheckOutlined, 
   CheckSquareOutlined, 
   PartitionOutlined,
   UnorderedListOutlined,
@@ -12,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import TransitionList from './TransitionList';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
+import MethodTaskSelector from './MethodTaskSelector';
 import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
@@ -135,73 +135,19 @@ export default function ExperimentRecordTab({
       flexDirection: 'column',
       overflow: 'hidden'
     }}>
-      {/* 選択カード */}
-      <div
-        style={{ 
-          marginBottom: 8,
-          height: 56,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          paddingLeft: token.paddingLG,
-          paddingRight: token.paddingLG,
-          backgroundColor: token.colorBgContainer,
-          border: `1px solid ${token.colorBorder}`,
-          borderRadius: 0,
-        }}
-      >
-        <div style={{ width: '100%' }}>
-          {/* メソッド選択 + タスク選択（コンボボックス） + 選択ボタン */}
-          <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: token.margin }}>
-            {/* メソッド選択 */}
-            <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
-              <PartitionOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-              <Text strong style={{ minWidth: 80 }}>メソッド:</Text>
-              <Select
-                style={{ width: 200 }}
-                placeholder="メソッドを選択してください"
-                value={selectedMethodId || undefined}
-                onChange={(value) => onSelectMethod(value || null)}
-                options={[
-                  { label: '-', value: null },
-                  ...(selectedProjectData?.methods || []).map((method) => ({
-                    label: method.methodName,
-                    value: method.methodId,
-                  })),
-                ]}
-                disabled={!selectedProject}
-                size="large"
-              />
-            </Space>
-            
-            {/* タスク選択 */}
-            <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
-              <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-              <Text strong style={{ minWidth: 80 }}>タスク:</Text>
-              <Select
-                style={{ width: 200 }}
-                placeholder="タスクを選択してください"
-                value={selectedTaskId || ''}
-                onChange={onSelectTask}
-                options={taskOptions}
-                disabled={!selectedMethod}
-                size="large"
-              />
-            </Space>
-            
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => setModalOpen(true)}
-              size="large"
-              disabled={!selectedProject}
-              style={{ marginLeft: 'auto' }}
-            >
-              選択
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* 選択メソッド・タスクエリア（共通コンポーネント使用） */}
+      <MethodTaskSelector
+        selectedProject={selectedProject}
+        selectedMethodId={selectedMethodId}
+        onSelectMethod={onSelectMethod}
+        methods={selectedProjectData?.methods || []}
+        selectedTaskId={selectedTaskId}
+        onSelectTask={onSelectTask}
+        tasks={tasks}
+        onOpenModal={() => setModalOpen(true)}
+        methodDisabled={!selectedProject}
+        taskDisabled={!selectedMethod}
+      />
 
       {/* 表示切り替えボタン */}
       {selectedProject && selectedMethod && (
