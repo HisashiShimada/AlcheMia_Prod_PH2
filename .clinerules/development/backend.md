@@ -1,5 +1,11 @@
 # バックエンド規約
 
+## API設計
+
+**API設計の詳細は [api.md](api.md) を参照してください。**
+
+このドキュメントではバックエンド実装の詳細に焦点を当てます。URL設計、HTTPメソッド、レスポンス形式などのAPIインターフェース設計については、api.mdで統一的に定義されています。
+
 ## 言語とフレームワーク
 
 ### 基本技術スタック
@@ -97,24 +103,197 @@ backend/
 - 必要な権限の確認
 - アクセス拒否の処理
 
-### データベース操作
+### SQL管理方法
 
-#### Parameterized Queries（必須）
+#### 基本方針: Kysely + SQL-in-File パターン
+
+**採用パッケージ**: Kysely（TypeScript-first Query Builder）
+
+- **型安全性**: データベーススキーマから型を自動生成
+- **Parameterized Query**: 自動対応でSQLインジェクション対策
+- **マルチテナント対応**: organization_id強制が容易
+- **学習コスト**: 生SQLに近い記法で習得が容易
+
+詳細は `docs/SQL管理方法選定_提案書.md` を参照してください。
+
+#### SQL記述の使い分けルール
+
+##### 1. 簡単なクエリ: Kyselyのクエリビルダーを使用
+
+**対象:**
+- 単一テーブルへのCRUD操作
+- 簡単なWHERE条件のみのクエリ
+- 基本的なORDER BY、LIMIT、OFFSET
+
+**例:**
+```typescript
+// ✅ 推奨: Kyselyのクエリビルダー
+export class ProjectRepository {
+  async findById(id: string, organizationId: string) {
+    return await db
+      .selectFrom('projects')
+      .selectAll()
+      .where('id', '=', id)
+      .where('organization_id', '=', organizationId)
+      .executeTakeFirst();
+  }
+
+  async create(project: NewProject) {
+    return await db
+      .insertInto('projects')
+      .values(project)
+      .returningAll()
+      .executeTakeFirstOrThrow();
+  }
+}
+```
+
+##### 2. 複雑なクエリ: 外部SQLファイルを必須使用（重要）
+
+**対象（いずれかに該当する場合は外部SQLファイル化必須）:**
+- **JOINを使用するクエリ**（INNER JOIN、LEFT JOIN、RIGHT JOIN等）
+- 複数テーブルのサブクエリ
+- WITH句（CTE: Common Table Expression）を使用
+- UNION、INTERSECT、EXCEPT
+- ウィンドウ関数（ROW_NUMBER、RANK等）
+- 複雑な集計（GROUP BY + HAVING + 複数の集計関数）
+
+**重要**: JOINを使うクエリは必ず外部SQLファイルを使用してください。
+
+**ディレクトリ構造:**
+```
+backend/src/
+├── sql/
+│   ├── queries/
+│   │   ├── projects/
+│   │   │   ├── findWithExperiments.sql
+│   │   │   └── getProjectStats.sql
+│   │   ├── experiments/
+│   │   │   └── findWithTasks.sql
+│   │   └── reports/
+│   │       └── complexReport.sql
+│   └── loader.ts
+```
+
+**外部SQLファイルの例:**
+```sql
+-- src/sql/queries/projects/findWithExperiments.sql
+-- プロジェクトと実験の結合取得
+SELECT
+  p.id,
+  p.project_name,
+  p.description,
+  COUNT(DISTINCT e.id) as experiment_count,
+  MAX(e.updated_at) as latest_experiment_update
+FROM projects p
+LEFT JOIN experiments e ON e.project_id = p.id
+WHERE p.organization_id = $1
+  AND e.organization_id = $1  -- マルチテナント分離（両方で必須）
+GROUP BY p.id, p.project_name, p.description
+ORDER BY p.created_at DESC;
+```
+
+**リポジトリでの使用例:**
+```typescript
+// src/repositories/projectRepository.ts
+import { sql } from 'kysely';
+import { db } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
+
+export class ProjectRepository {
+  // ✅ 推奨: JOINを使う場合は外部SQLファイルを使用
+  async findWithExperiments(organizationId: string) {
+    const sqlQuery = await loadSqlFile('projects/findWithExperiments.sql');
+    
+    const result = await sql.raw(sqlQuery).execute(db);
+    return result.rows;
+  }
+}
+```
+
+**SQLローダーの実装:**
+```typescript
+// src/sql/loader.ts
+import fs from 'fs/promises';
+import path from 'path';
+
+/**
+ * 外部SQLファイルを読み込む
+ * @param filename クエリファイル名（queries/からの相対パス）
+ */
+export async function loadSqlFile(filename: string): Promise<string> {
+  const filePath = path.join(__dirname, 'queries', filename);
+  return await fs.readFile(filePath, 'utf-8');
+}
+```
+
+#### データベース操作の基本ルール
+
+##### Parameterized Queries（必須）
 - すべてのクエリでParameterized Queryを使用
 - SQLインジェクションを防ぐ
 - 文字列連結でクエリを構築しない
+- Kyselyは自動的にParameterized Queryを生成
 
-#### organization_idフィルタ（必須）
+##### organization_idフィルタ（必須）
 - すべてのクエリにorganization_idフィルタを含める
 - マルチテナント分離を保証
 - System Admin以外はクロステナントアクセス不可
+- JOINを使う場合、**全てのテーブルでorganization_idを指定**
 
-#### トランザクション管理
+**例（重要）:**
+```sql
+-- ❌ 悪い例: 片方のテーブルのみでorganization_id指定
+SELECT p.*, e.*
+FROM projects p
+JOIN experiments e ON e.project_id = p.id
+WHERE p.organization_id = $1;  -- これだけでは不十分
+
+-- ✅ 良い例: 両方のテーブルでorganization_id指定
+SELECT p.*, e.*
+FROM projects p
+JOIN experiments e ON e.project_id = p.id
+WHERE p.organization_id = $1
+  AND e.organization_id = $1;  -- 必須
+```
+
+##### トランザクション管理
 - 複数のクエリを含む処理はトランザクションで保護
 - エラー時は必ずロールバック
 - コミット前にバリデーション
 
-#### 接続プール
+**Kyselyでのトランザクション例:**
+```typescript
+export class ProjectService {
+  async createProjectWithExperiment(
+    projectData: NewProject,
+    experimentData: NewExperiment,
+    organizationId: string
+  ) {
+    return await db.transaction().execute(async (trx) => {
+      const project = await trx
+        .insertInto('projects')
+        .values({ ...projectData, organization_id: organizationId })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+
+      const experiment = await trx
+        .insertInto('experiments')
+        .values({
+          ...experimentData,
+          project_id: project.id,
+          organization_id: organizationId,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow();
+
+      return { project, experiment };
+    });
+  }
+}
+```
+
+##### 接続プール
 - PostgreSQL接続プールを使用
 - 最大接続数: 20
 - アイドルタイムアウト: 30秒
@@ -140,24 +319,105 @@ backend/
 
 ### エラーハンドリング
 
-#### エラーの種類
-- **ValidationError**: バリデーションエラー（400）
-- **AuthenticationError**: 認証エラー（401）
-- **AuthorizationError**: 認可エラー（403）
-- **NotFoundError**: リソースが見つからない（404）
-- **DatabaseError**: データベースエラー（500）
-- **InternalServerError**: その他のサーバーエラー（500）
+**エラーレスポンス形式とHTTPステータスコードの詳細は [api.md](api.md#レスポンス仕様) を参照してください。**
 
-#### エラーレスポンス形式
-- 統一されたJSON形式
-- エラーメッセージ
-- エラーコード
-- タイムスタンプ
+#### エラークラスの定義
+
+カスタムエラークラスを作成し、適切なHTTPステータスコードを設定：
+
+```typescript
+// utils/errors.ts
+export class ValidationError extends Error {
+  statusCode = 400;
+  constructor(message: string, public details?: any[]) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+export class AuthenticationError extends Error {
+  statusCode = 401;
+  constructor(message: string = 'Authentication failed') {
+    super(message);
+    this.name = 'AuthenticationError';
+  }
+}
+
+export class AuthorizationError extends Error {
+  statusCode = 403;
+  constructor(message: string = 'Insufficient permissions') {
+    super(message);
+    this.name = 'AuthorizationError';
+  }
+}
+
+export class NotFoundError extends Error {
+  statusCode = 404;
+  constructor(message: string = 'Resource not found') {
+    super(message);
+    this.name = 'NotFoundError';
+  }
+}
+
+export class DatabaseError extends Error {
+  statusCode = 500;
+  constructor(message: string, public originalError?: any) {
+    super(message);
+    this.name = 'DatabaseError';
+  }
+}
+```
+
+#### エラーハンドリングミドルウェア
+
+統一されたエラーレスポンスを返すミドルウェア：
+
+```typescript
+// middleware/errorHandler.ts
+import { Request, Response, NextFunction } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+
+export const errorHandler = (
+  err: any,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const statusCode = err.statusCode || 500;
+  const requestId = req.headers['x-request-id'] || uuidv4();
+
+  // ログ記録
+  logger.error({
+    message: err.message,
+    statusCode,
+    requestId,
+    path: req.path,
+    method: req.method,
+    stack: err.stack,
+    userId: req.user?.id,
+    organizationId: req.organizationId
+  });
+
+  // api.mdで定義された統一形式でレスポンス
+  res.status(statusCode).json({
+    success: false,
+    error: {
+      code: err.name || 'INTERNAL_SERVER_ERROR',
+      message: err.message,
+      details: err.details || undefined
+    },
+    meta: {
+      timestamp: new Date().toISOString(),
+      requestId
+    }
+  });
+};
+```
 
 #### ログ記録
 - すべてのエラーをログに記録
 - スタックトレースを含める
-- コンテキスト情報を付与
+- コンテキスト情報を付与（userId, organizationId, requestId）
 
 ### バリデーション
 
@@ -190,7 +450,73 @@ backend/
 - コンテキスト情報
 - スタックトレース（エラー時）
 
+### レスポンス形式の統一
+
+**レスポンス形式の詳細は [api.md](api.md#レスポンス仕様) を参照してください。**
+
+すべてのAPIレスポンスは以下の共通型を使用：
+
+```typescript
+// types/api.ts
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any[];
+  };
+  meta: {
+    timestamp: string;
+    requestId: string;
+  };
+  pagination?: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+```
+
+#### 実装例
+
+```typescript
+// controllers/projectController.ts
+export const list = async (req: Request, res: Response) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const organizationId = req.organizationId;
+
+    const result = await projectService.list(organizationId, { page, limit });
+
+    res.json({
+      success: true,
+      data: result.items,
+      pagination: {
+        page: result.page,
+        limit: result.limit,
+        totalItems: result.totalItems,
+        totalPages: result.totalPages,
+        hasNext: result.hasNext,
+        hasPrev: result.hasPrev
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: req.headers['x-request-id'] as string
+      }
+    });
+  } catch (error) {
+    throw error; // エラーハンドリングミドルウェアで処理
+  }
+};
+```
+
 ### セキュリティ
+
+**認証・認可・マルチテナント分離の詳細は [api.md](api.md#セキュリティ) と [security.md](security.md) を参照してください。**
 
 #### パスワード処理
 - bcryptでハッシュ化
@@ -208,9 +534,41 @@ backend/
 - セキュアCookie設定
 
 #### レート制限
-- ログインAPI: 15分間に5回
-- その他のAPI: 適切に設定
-- ブルートフォース攻撃の防止
+
+**レート制限の詳細は [api.md](api.md#セキュリティ) を参照してください。**
+
+実装例：
+
+```typescript
+// middleware/rateLimit.ts
+import rateLimit from 'express-rate-limit';
+
+// 認証API用のレート制限
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分
+  max: 5, // 5回まで
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Too many authentication attempts. Please try again later.'
+    }
+  }
+});
+
+// 一般API用のレート制限
+export const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1分
+  max: 100, // 100回まで
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Rate limit exceeded. Please retry after 60 seconds.'
+    }
+  }
+});
+```
 
 ### 非同期処理
 

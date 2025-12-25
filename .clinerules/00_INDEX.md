@@ -61,6 +61,16 @@
 - データベース操作規約
 - セキュリティベストプラクティス
 
+### [development/api.md](development/api.md)
+- RESTful API設計原則
+- URL設計規約（命名規則、バージョニング）
+- HTTPメソッド使用ガイド
+- リクエスト・レスポンス形式
+- ページネーション、フィルタリング、ソート
+- エラーハンドリング、ステータスコード体系
+- セキュリティ（認証・認可・レート制限）
+- OpenAPI/Swaggerドキュメント化
+
 ### [development/security.md](development/security.md)
 - 機密ファイル管理
 - ユーザー認証（JWT + Session Hybrid）
