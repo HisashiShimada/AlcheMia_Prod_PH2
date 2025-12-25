@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card, Space, Button, Typography, message } from 'antd';
-import { RightOutlined, FileTextOutlined, CheckSquareOutlined } from '@ant-design/icons';
+import { RightOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import ProgressCheckTable from './ProgressCheckTable';
 import IssueReportModal from './IssueReportModal';
 import {
@@ -140,13 +140,6 @@ export default function ProgressCheckTab({
     }
   }, [selectedProject, tasks, onTabChange, onSelectTaskAndTab, onSelectMethod]);
 
-  // 指示確認ボタン
-  const handleInstructionConfirmation = useCallback(() => {
-    if (onTabChange) {
-      onTabChange('2'); // 作業指示確認タブ
-    }
-  }, [onTabChange]);
-
   // 承認依頼ボタン
   const handleApprovalRequest = useCallback(() => {
     message.info('承認依頼機能は今後実装予定です');
@@ -203,26 +196,15 @@ export default function ProgressCheckTab({
             タスク一覧
           </Typography.Title>
 
-          {/* 指示確認ボタン・承認依頼ボタン */}
-          <Space size="middle">
-            <Button
-              type="default"
-              size="middle"
-              onClick={handleInstructionConfirmation}
-              icon={<FileTextOutlined />}
-              aria-label="作業指示を確認"
-            >
-              指示確認
-            </Button>
-            <Button
-              type="default"
-              size="middle"
-              onClick={handleApprovalRequest}
-              aria-label="承認依頼"
-            >
-              承認依頼
-            </Button>
-          </Space>
+          {/* 承認依頼ボタン */}
+          <Button
+            type="default"
+            size="middle"
+            onClick={handleApprovalRequest}
+            aria-label="承認依頼"
+          >
+            承認依頼
+          </Button>
         </div>
 
         {/* サブタスク一覧テーブル */}
