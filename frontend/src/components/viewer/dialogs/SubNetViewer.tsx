@@ -40,10 +40,10 @@ import {
 } from '@ant-design/icons';
 
 // カスタムノード
-import MaterialTemplateNode from '../nodes/MaterialTemplateNode';
-import ConditionTemplateNode from '../nodes/ConditionTemplateNode';
-import ResultTemplateNode from '../nodes/ResultTemplateNode';
-import TransitionNode from '../nodes/TransitionNode';
+import MaterialTemplateNode from '../../nodes/MaterialTemplateNode';
+import ConditionTemplateNode from '../../nodes/ConditionTemplateNode';
+import ResultTemplateNode from '../../nodes/ResultTemplateNode';
+import TransitionNode from '../../nodes/TransitionNode';
 
 // プロパティビューア
 import PropertyViewer from './PropertyViewer';
@@ -55,7 +55,7 @@ import {
   PlaceInfo,
   ArcInfo,
   TemplateInfo,
-} from '../utils/subnetReactFlowConverter';
+} from '../../../utils/subnetReactFlowConverter';
 
 const { Title, Text } = Typography;
 

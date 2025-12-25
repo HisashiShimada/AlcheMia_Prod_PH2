@@ -32,6 +32,7 @@ import BulkUploadDialog from './BulkUploadDialog';
 import InstructionDialog from './InstructionDialog';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
+import DraftRestoreDialog from '../viewer/DraftRestoreDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
 import { useApi } from '@/hooks/useApi';
@@ -42,9 +43,22 @@ import type { ProjectListResponse } from '@/types/project';
 const { Title, Text } = Typography;
 
 /**
+ * プロジェクト編集時のパラメータ
+ */
+export interface ProjectEditParams {
+  projectId: string;
+  projectName: string;
+  projectOverview?: string;
+}
+
+/**
  * プロジェクト管理画面メインコンポーネント
  */
-const ProjectManagement: React.FC = () => {
+interface ProjectManagementProps {
+  onEdit?: (params: ProjectEditParams) => void;
+}
+
+const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [projects, setProjects] = useState<any[]>([]);
@@ -63,6 +77,14 @@ const ProjectManagement: React.FC = () => {
   const [instructionDialogOpen, setInstructionDialogOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
+  
+  // Phase 6追加: Draft関連のステート
+  const [draftRestoreDialogOpen, setDraftRestoreDialogOpen] = useState(false);
+  const [draftInfo, setDraftInfo] = useState<{
+    savedAt: string;
+    methodCount: number;
+    nodeCount: number;
+  } | null>(null);
   const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
   const [projectFilesData, setProjectFilesData] = useState<Record<string, any>>({});
   
@@ -462,6 +484,78 @@ const ProjectManagement: React.FC = () => {
     // TODO: 成功時にプロジェクトをチェックアウト状態に更新
   }, []);
 
+  // Phase 6追加: 編集ボタンクリックハンドラー
+  const handleEditButtonClick = useCallback(() => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+
+    console.log('✏️ [ProjectManagement] Edit button clicked:', selectedProject.id);
+
+    // Draftチェック
+    const draftKey = `petri-net-draft-${selectedProject.id}`;
+    const draftData = localStorage.getItem(draftKey);
+    
+    if (draftData) {
+      try {
+        const draft = JSON.parse(draftData);
+        const info = {
+          savedAt: draft.savedAt || new Date().toISOString(),
+          methodCount: draft.methods?.length || 0,
+          nodeCount: draft.nodes?.length || 0
+        };
+        
+        console.log('💾 [ProjectManagement] Draft found:', info);
+        setDraftInfo(info);
+        setDraftRestoreDialogOpen(true);
+        return;
+      } catch (error) {
+        console.error('❌ [ProjectManagement] Draft parse error:', error);
+      }
+    }
+
+    // Draftがない場合は直接エディタへ
+    console.log('➡️ [ProjectManagement] No draft, opening editor directly');
+    const params: ProjectEditParams = {
+      projectId: selectedProject.id,
+      projectName: selectedProject.name,
+      projectOverview: selectedProject.description
+    };
+    onEdit?.(params);
+  }, [selectedProject, onEdit]);
+
+  // Phase 6追加: Draft復元ハンドラー
+  const handleRestoreDraft = useCallback(() => {
+    console.log('💾 [ProjectManagement] Restoring draft');
+    setDraftRestoreDialogOpen(false);
+    if (selectedProject) {
+      const params: ProjectEditParams = {
+        projectId: selectedProject.id,
+        projectName: selectedProject.name,
+        projectOverview: selectedProject.description
+      };
+      onEdit?.(params);
+    }
+  }, [selectedProject, onEdit]);
+
+  // Phase 6追加: 新規作成/既存ファイルハンドラー
+  const handleCreateNewOrExisting = useCallback(() => {
+    console.log('🆕 [ProjectManagement] Create new or open existing');
+    setDraftRestoreDialogOpen(false);
+    if (selectedProject) {
+      // Draftを削除してから開く
+      const draftKey = `petri-net-draft-${selectedProject.id}`;
+      localStorage.removeItem(draftKey);
+      const params: ProjectEditParams = {
+        projectId: selectedProject.id,
+        projectName: selectedProject.name,
+        projectOverview: selectedProject.description
+      };
+      onEdit?.(params);
+    }
+  }, [selectedProject, onEdit]);
+
   // 新規プロジェクト作成モーダルを開く
   const handleOpenCreateModal = useCallback(() => {
     setCreateModalOpen(true);
@@ -837,6 +931,8 @@ const ProjectManagement: React.FC = () => {
                   <Button
                     type="primary"
                     icon={<EditOutlined />}
+                    onClick={handleEditButtonClick}
+                    disabled={!selectedProject}
                   >
                     {t('projectManagement.edit')}
                   </Button>
@@ -1099,6 +1195,17 @@ const ProjectManagement: React.FC = () => {
           onOpenSubNetViewer={handleViewSubnet}
         />
       ))}
+
+      {/* Phase 6追加: Draft復元確認ダイアログ */}
+      {draftInfo && (
+        <DraftRestoreDialog
+          open={draftRestoreDialogOpen}
+          onClose={() => setDraftRestoreDialogOpen(false)}
+          onRestoreDraft={handleRestoreDraft}
+          onCreateNew={handleCreateNewOrExisting}
+          draftInfo={draftInfo}
+        />
+      )}
     </div>
   );
 };

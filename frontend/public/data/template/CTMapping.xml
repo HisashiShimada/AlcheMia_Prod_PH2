@@ -1,0 +1,50 @@
+<keyDictionary xmlns="http://abc.com/schema/keyDictionary/conditionTemplate/CTMapping" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <property key="AcquisitionTime" units="s" xsi:type="doubleType">
+    <value>3.5</value>
+    <description>測定時間設定</description>
+  </property>
+  <property key="Accumulations" units="ADU" xsi:type="intType">
+    <value>2</value>
+    <description>積算回数</description>
+  </property>
+  <property key="Binning" xsi:type="booleanType">
+    <value>1</value>
+    <description>ビニング機能の有効化</description>
+  </property>
+  <property key="Objective" xsi:type="stringType">
+    <value>x100_VIS</value>
+    <description>対物レンズ設定</description>
+  </property>
+  <property key="Grating" xsi:type="stringType">
+    <value>300(600nm)</value>
+    <description>回折格子設定</description>
+  </property>
+  <property key="NDFilter" units="%" xsi:type="floatType">
+    <value>10</value>
+    <description>NDフィルター減光率</description>
+  </property>
+  <property key="Laser" units="nm" xsi:type="floatType">
+    <value>532</value>
+    <description>励起レーザー波長</description>
+  </property>
+  <property key="Spectro" units="/cm" xsi:type="floatType">
+    <value>1780.02</value>
+    <description>スペクトル値</description>
+  </property>
+  <property key="Hole" units="ADU" xsi:type="floatType">
+    <value>79.9925</value>
+    <description>ホール径設定</description>
+  </property>
+  <property key="Temperature" units="℃" xsi:type="floatType">
+    <value>-70.1</value>
+    <description>測定温度</description>
+    <metadata>
+      <calibrationDate>2024-12-01</calibrationDate>
+      <sensorType>K-type thermocouple</sensorType>
+    </metadata>
+  </property>
+  <property key="LocationZ" units="μm" xsi:type="floatType">
+    <value>46.5</value>
+    <description>Z軸位置</description>
+  </property>
+</keyDictionary>

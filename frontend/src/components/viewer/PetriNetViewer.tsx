@@ -27,17 +27,17 @@ import {
 } from '@ant-design/icons';
 
 // カスタムノードコンポーネント
-import MaterialTemplateNode from './nodes/MaterialTemplateNode';
-import ConditionTemplateNode from './nodes/ConditionTemplateNode';
-import ResultTemplateNode from './nodes/ResultTemplateNode';
-import TransitionNode from './nodes/TransitionNode';
+import MaterialTemplateNode from '../nodes/MaterialTemplateNode';
+import ConditionTemplateNode from '../nodes/ConditionTemplateNode';
+import ResultTemplateNode from '../nodes/ResultTemplateNode';
+import TransitionNode from '../nodes/TransitionNode';
 
 // ダイアログコンポーネント
 import StructuredPropertySelector from './dialogs/StructuredPropertySelector';
 
 // ユーティリティ
-import { parseMaimlToPetriNet } from './utils/maimlParser';
-import { convertToReactFlow } from './utils/reactFlowConverter';
+import { parseMaimlToPetriNet } from '../../utils/maimlParser';
+import { convertToReactFlow } from '../../utils/reactFlowConverter';
 
 const { Title, Text } = Typography;
 

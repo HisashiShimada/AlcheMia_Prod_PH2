@@ -59,6 +59,9 @@ export interface PetriNetStructure {
   transitions: Transition[];
   arcs: Arc[];
   templates: Record<string, Template>;
+  // 共通テンプレート情報（複数methodで共有されるテンプレート）
+  commonTemplateIds?: Set<string>;
+  commonTemplateRefMap?: Record<string, string>; // { placeId: firstPlaceId }
 }
 
 /**
@@ -181,14 +184,83 @@ export function parseMaimlToPetriNet(maimlXml: string, selectedMethodId?: string
     }
   });
 
+  // 🎯 共通テンプレート検出: 複数placeRefを持つテンプレートを特定
+  const commonTemplateIds = new Set<string>();
+  const commonTemplateRefMap: Record<string, string> = {};
+  
+  const allTemplateElements = [
+    ...Array.from(xmlDoc.querySelectorAll('materialTemplate')),
+    ...Array.from(xmlDoc.querySelectorAll('conditionTemplate')),
+    ...Array.from(xmlDoc.querySelectorAll('resultTemplate'))
+  ];
+  
+  console.log('🔍 [parseMaimlToPetriNet] 共通テンプレート検出開始:', {
+    totalTemplates: allTemplateElements.length
+  });
+  
+  allTemplateElements.forEach(templateEl => {
+    const templateId = templateEl.getAttribute('id');
+    if (!templateId) return;
+    
+    const placeRefEls = Array.from(templateEl.querySelectorAll('placeRef'));
+    
+    if (placeRefEls.length > 1) {
+      commonTemplateIds.add(templateId);
+      
+      // placeRefからplace IDを取得する関数
+      const getPlaceId = (placeRefEl: Element): string | null => {
+        return placeRefEl.getAttribute('ref') ||
+               placeRefEl.getAttribute('idref') ||
+               placeRefEl.getAttribute('href')?.replace('#', '') ||
+               null;
+      };
+      
+      // 最初のplaceRef以外のplaceに対して参照関係を設定
+      const firstPlaceId = getPlaceId(placeRefEls[0]);
+      
+      if (firstPlaceId) {
+        for (let i = 1; i < placeRefEls.length; i++) {
+          const placeId = getPlaceId(placeRefEls[i]);
+          if (placeId) {
+            commonTemplateRefMap[placeId] = firstPlaceId;
+          }
+        }
+        
+        console.log('🔗 [parseMaimlToPetriNet] 共通テンプレート検出:', {
+          templateId,
+          placeRefCount: placeRefEls.length,
+          firstPlaceId,
+          referencePlaceIds: placeRefEls.slice(1).map(ref => getPlaceId(ref)).filter(Boolean)
+        });
+      } else {
+        console.warn('⚠️ [parseMaimlToPetriNet] placeRef IDが取得できません:', {
+          templateId,
+          placeRefHTML: placeRefEls[0]?.outerHTML
+        });
+      }
+    }
+  });
+  
+  console.log('📋 [parseMaimlToPetriNet] 共通テンプレート一覧:', Array.from(commonTemplateIds));
+  console.log('🔗 [parseMaimlToPetriNet] 参照関係マップ:', commonTemplateRefMap);
+
   console.log('📊 [parseMaimlToPetriNet] 抽出結果:', {
     places: places.length,
     transitions: transitions.length,
     arcs: arcs.length,
     templates: Object.keys(templates).length,
+    commonTemplates: commonTemplateIds.size,
+    commonTemplateRefs: Object.keys(commonTemplateRefMap).length,
   });
 
-  return { places, transitions, arcs, templates };
+  return { 
+    places, 
+    transitions, 
+    arcs, 
+    templates,
+    commonTemplateIds,
+    commonTemplateRefMap
+  };
 }
 
 /**
