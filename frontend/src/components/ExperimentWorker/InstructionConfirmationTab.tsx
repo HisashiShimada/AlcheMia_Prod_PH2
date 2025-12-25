@@ -287,7 +287,7 @@ export default function InstructionConfirmationTab({
               {expandedGroups['file'] && (
                 <div style={{ marginTop: token.margin }}>
                   <InstructionGroup
-                    title="全体指示"
+                    title="プロジェクト指示"
                     emoji="file"
                     instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'file'
@@ -331,7 +331,7 @@ export default function InstructionConfirmationTab({
               {expandedGroups['task'] && (
                 <div style={{ marginTop: token.margin }}>
                   <InstructionGroup
-                    title="タスク単位指示"
+                    title="タスク指示"
                     emoji="checkSquare"
                     instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'task'

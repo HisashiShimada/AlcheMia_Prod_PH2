@@ -53,10 +53,13 @@ export default function InstructionGroup({
 
   // メッセージのマッピング
   const noDataMessages: Record<string, string> = {
+    'プロジェクト指示': '実験全体への作業指示がありません',
+    'タスク指示': 'タスクへの作業指示がありません',
+    'トランジション単位指示': 'トランジションへの作業指示がありません',
+    // 後方互換性のため旧名称も残す
     '全体指示': '実験全体への作業指示がありません',
     'タスク単位指示': 'タスクへの作業指示がありません',
     'メソッド単位指示': 'メソッドへの作業指示がありません',
-    'トランジション単位指示': 'トランジションへの作業指示がありません',
   };
 
   // メソッド単位指示の場合、メソッドごとにグループ化
@@ -107,8 +110,8 @@ export default function InstructionGroup({
     }
   };
 
-  // 全体指示の場合（カードなしで表示）
-  if (title === '全体指示') {
+  // プロジェクト指示の場合（カードなしで表示）
+  if (title === 'プロジェクト指示' || title === '全体指示') {
     return (
       <div style={{ marginBottom: 32 }}>
         {groupInstructions.length === 0 ? (
@@ -130,8 +133,8 @@ export default function InstructionGroup({
     );
   }
 
-  // タスク単位指示の場合
-  if (title === 'タスク単位指示') {
+  // タスク指示の場合
+  if (title === 'タスク指示' || title === 'タスク単位指示') {
     const taskGroups = groupByTask();
     const taskIds = Object.keys(taskGroups);
 
