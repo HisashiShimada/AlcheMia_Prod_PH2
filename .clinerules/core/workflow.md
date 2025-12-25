@@ -46,15 +46,15 @@ Clineがタスクを実行する際は、必ず事前にタスク計画書を`do
 ## タスク計画書のファイル命名規則
 
 ```
-docs/cline_archives/YYYYMMDD_HHMM_<タスク名>_PLAN.md
+docs/YYYYMMDD_HHMM_<タスク名>_PLAN.md
 ```
 
 **重要:** YYYYMMDDは**現在の日付**を使用してください（例: 2025年12月16日の場合は20251216）
 
 **例:**
 ```
-docs/cline_archives/20251216_1830_ログイン機能改修_PLAN.md
-docs/cline_archives/20251216_1900_API認証強化_PLAN.md
+docs/20251216_1830_ログイン機能改修_PLAN.md
+docs/20251216_1900_API認証強化_PLAN.md
 ```
 
 ## タスク計画書のテンプレート
