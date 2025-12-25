@@ -23,6 +23,7 @@ import {
   Select,
   Card,
   Layout,
+  Slider,
 } from 'antd';
 import {
   PlusOutlined,
@@ -96,6 +97,7 @@ export default function DataRecordDialog({
   // ステータスとコメント用の状態
   const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>('initial');
   const [comment, setComment] = useState('');
+  const [progress, setProgress] = useState<number>(0);
   
   // みなし進捗更新用の状態
   const [useDeemedProgress, setUseDeemedProgress] = useState(true);
@@ -179,6 +181,7 @@ export default function DataRecordDialog({
       setDataGrids({});
       setSelectedStatus('initial'); // ステータスをリセット
       setComment(''); // コメントをリセット
+      setProgress(0); // 進捗をリセット
       setSelectedTemplateId(null); // テンプレート選択状態をリセット
       
       // 各テンプレートのDataGridを初期化
@@ -727,9 +730,10 @@ export default function DataRecordDialog({
             {/* 折りたたみ可能なコンテンツ */}
             {statusUpdateExpanded && (
               <>
+                {/* 上段：ステータス + 進捗 */}
                 <Row gutter={16}>
                   {/* ステータス */}
-                  <Col span={6}>
+                  <Col span={8}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>
                       ステータス
                     </Text>
@@ -742,13 +746,39 @@ export default function DataRecordDialog({
                     />
                   </Col>
 
-                  {/* コメント */}
-                  <Col span={18}>
+                  {/* 進捗 */}
+                  <Col span={16}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                      進捗
+                    </Text>
+                    <Slider
+                      value={progress}
+                      onChange={setProgress}
+                      min={0}
+                      max={100}
+                      step={1}
+                      marks={{
+                        0: '0%',
+                        25: '25%',
+                        50: '50%',
+                        75: '75%',
+                        100: '100%',
+                      }}
+                      tooltip={{
+                        formatter: (value) => `${value}%`,
+                      }}
+                    />
+                  </Col>
+                </Row>
+
+                {/* 中段：コメント */}
+                <Row gutter={16} style={{ marginTop: 16 }}>
+                  <Col span={24}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>
                       コメント
                     </Text>
                     <TextArea
-                      rows={1}
+                      rows={3}
                       placeholder="コメントを入力"
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
@@ -756,26 +786,29 @@ export default function DataRecordDialog({
                   </Col>
                 </Row>
 
-                {/* 保存ボタン */}
-                <div style={{ marginTop: 16, textAlign: 'right' }}>
-                  <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    onClick={() => {
-                      // ステータス更新の保存処理
-                      console.log('ステータス更新保存:', {
-                        transitionId: transition?.transitionId,
-                        status: selectedStatus,
-                        comment: comment,
-                      });
-                      message.success(
-                        `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`
-                      );
-                    }}
-                  >
-                    保存
-                  </Button>
-                </div>
+                {/* 下段：保存ボタン */}
+                <Row gutter={16} style={{ marginTop: 16 }}>
+                  <Col span={24} style={{ textAlign: 'right' }}>
+                    <Button
+                      type="primary"
+                      icon={<SaveOutlined />}
+                      onClick={() => {
+                        // ステータス更新の保存処理
+                        console.log('ステータス更新保存:', {
+                          transitionId: transition?.transitionId,
+                          status: selectedStatus,
+                          progress: progress,
+                          comment: comment,
+                        });
+                        message.success(
+                          `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}、進捗: ${progress}%）`
+                        );
+                      }}
+                    >
+                      保存
+                    </Button>
+                  </Col>
+                </Row>
               </>
             )}
           </div>

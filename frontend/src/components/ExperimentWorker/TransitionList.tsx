@@ -145,6 +145,21 @@ export default function TransitionList({
       render: (status: ProgressStatus | undefined) => getStatusDisplay(status)
     },
     {
+      title: '進捗率',
+      dataIndex: 'progressRate',
+      key: 'progressRate',
+      width: 90,
+      align: 'center',
+      render: (progressRate: number | undefined) => {
+        const rate = progressRate ?? 0;
+        return (
+          <Text strong>
+            {rate}%
+          </Text>
+        );
+      }
+    },
+    {
       title: '材料',
       key: 'materials',
       width: 90,
