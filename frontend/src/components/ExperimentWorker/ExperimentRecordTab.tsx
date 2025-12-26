@@ -13,7 +13,7 @@ import TransitionList from './TransitionList';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
 import { projectsData } from '@/data/projectsData';
-import { Method } from '@/types/experimentWorker';
+import { Method, ProjectStatus } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;
 
@@ -62,6 +62,9 @@ export default function ExperimentRecordTab({
 
   // 選択中のプロジェクト情報を取得
   const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
+  
+  // プロジェクトの状態を取得
+  const projectStatus: ProjectStatus | null = selectedProjectData?.status ?? null;
 
   // タスクデータ: 選択されたプロジェクトとメソッドに紐づくタスクを取得
   const tasks = selectedProject && selectedMethod
@@ -228,6 +231,7 @@ export default function ExperimentRecordTab({
                     transitions={transitionsWithProgress}
                     methodName={selectedMethod?.methodName}
                     selectedTaskId={selectedTaskId}
+                    projectStatus={projectStatus}
                     onTaskCreated={onTaskCreated}
                     projectId={selectedProject}
                     methodId={selectedMethodId || undefined}

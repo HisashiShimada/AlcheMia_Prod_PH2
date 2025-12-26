@@ -116,6 +116,13 @@
       "project": "Project",
       "method": "Method"
     },
+    "projectStatus": {
+      "planning": "Planning",
+      "waiting_task": "Waiting for Task",
+      "executing_task": "Task in Progress",
+      "waiting_approval": "Waiting for Approval",
+      "completed": "Completed"
+    },
     "projectSelection": {
       "title": "Select Project",
       "projectName": "Project Name",

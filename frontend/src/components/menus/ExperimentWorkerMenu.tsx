@@ -22,6 +22,7 @@ import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
 import ProgressCheckTab from '../ExperimentWorker/ProgressCheckTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import { projectsData } from '@/data/projectsData';
+import { isSelectableStatus } from '@/types/experimentWorker';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -275,14 +276,16 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
               <Select
                 value={selectedProject === '' ? null : selectedProject}
                 placeholder="-"
-                style={{ width: 180 }}
+                style={{ width: 280 }}
                 onChange={handleProjectChange}
                 options={[
                   { value: null, label: '-' },
-                  ...Object.entries(projectsData).map(([id, project]) => ({
-                    value: id,
-                    label: project.projectName
-                  }))
+                  ...Object.entries(projectsData)
+                    .filter(([, project]) => isSelectableStatus(project.status))
+                    .map(([id, project]) => ({
+                      value: id,
+                      label: `${project.projectName} - ${t(`experimentWork.projectStatus.${project.status}`)}`
+                    }))
                 ]}
                 size="middle"
               />

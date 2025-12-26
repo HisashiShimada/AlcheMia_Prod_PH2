@@ -10,7 +10,7 @@ import {
   updateTaskStatus,
   projectsData
 } from '@/data/projectsData';
-import type { Task, Method, IssueReportData } from '@/types/experimentWorker';
+import type { Task, Method, IssueReportData, ProjectStatus } from '@/types/experimentWorker';
 
 const { Title } = Typography;
 
@@ -37,6 +37,11 @@ export default function ProgressCheckTab({
 }: ProgressCheckTabProps) {
   // タスクデータの取得
   const [tasks, setTasks] = useState<Task[]>([]);
+  
+  // プロジェクトの状態を取得
+  const projectStatus: ProjectStatus | null = selectedProject 
+    ? projectsData[selectedProject]?.status ?? null
+    : null;
   
   // 問題報告モーダルの状態管理
   const [issueReportModalVisible, setIssueReportModalVisible] = useState<boolean>(false);
@@ -211,6 +216,7 @@ export default function ProgressCheckTab({
         {selectedProject && tasks.length > 0 ? (
           <ProgressCheckTable
             tasks={tasks}
+            projectStatus={projectStatus}
             onTaskAction={handleTaskAction}
           />
         ) : (

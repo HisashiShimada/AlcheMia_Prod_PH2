@@ -45,6 +45,8 @@ import {
   Template,
   TemplateCategory,
   TransitionStatus,
+  ProjectStatus,
+  isEditableStatus,
 } from '@/types/experimentWorker';
 import { templatesList } from '@/data/projectsData';
 
@@ -55,6 +57,7 @@ const { Sider, Content } = Layout;
 interface DataRecordDialogProps {
   open: boolean;
   transition: Transition | null;
+  projectStatus: ProjectStatus | null;
   onClose: () => void;
   onSave: (data: ExperimentDataValue[]) => void;
   projectId?: string;
@@ -68,6 +71,7 @@ interface DataRecordDialogProps {
 export default function DataRecordDialog({
   open,
   transition,
+  projectStatus,
   onClose,
   onSave,
   projectId,
@@ -92,7 +96,11 @@ export default function DataRecordDialog({
   const [propertyFormExpanded, setPropertyFormExpanded] = useState(true);
 
   // ステータス更新セクションの折りたたみ状態
+  // プロジェクトの状態が編集可能でない場合は折りたたむ
   const [statusUpdateExpanded, setStatusUpdateExpanded] = useState(true);
+  
+  // プロジェクトの状態が編集可能かどうか
+  const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
 
   // ステータスとコメント用の状態
   const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>('initial');
@@ -184,6 +192,9 @@ export default function DataRecordDialog({
       setProgress(0); // 進捗をリセット
       setSelectedTemplateId(null); // テンプレート選択状態をリセット
       
+      // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
+      setStatusUpdateExpanded(isProjectEditable);
+      
       // 各テンプレートのDataGridを初期化
       transition.templates?.forEach((template) => {
         template.properties.forEach((prop) => {
@@ -196,7 +207,7 @@ export default function DataRecordDialog({
         });
       });
     }
-  }, [open, transition, form]);
+  }, [open, transition, form, isProjectEditable]);
 
   // テンプレート保存ハンドラ
   const handleSaveTemplate = async () => {
@@ -390,6 +401,7 @@ export default function DataRecordDialog({
             <TextArea
               rows={3}
               placeholder={`${property.label}を入力`}
+              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -409,6 +421,7 @@ export default function DataRecordDialog({
               max={property.max}
               step={1}
               precision={0}
+              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -428,6 +441,7 @@ export default function DataRecordDialog({
               max={property.max}
               step={0.01}
               precision={2}
+              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -439,7 +453,7 @@ export default function DataRecordDialog({
             name={key}
             valuePropName="checked"
           >
-            <Checkbox>{property.label}</Checkbox>
+            <Checkbox disabled={!isProjectEditable}>{property.label}</Checkbox>
           </Form.Item>
         );
 
@@ -455,6 +469,7 @@ export default function DataRecordDialog({
               style={{ width: '100%' }}
               format="YYYY-MM-DD"
               placeholder={`${property.label}を選択`}
+              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -472,6 +487,7 @@ export default function DataRecordDialog({
               style={{ width: '100%' }}
               format="YYYY-MM-DD HH:mm:ss"
               placeholder={`${property.label}を選択`}
+              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -493,7 +509,7 @@ export default function DataRecordDialog({
             label={label}
             rules={rules}
           >
-            <Input placeholder={`${property.label}を入力`} />
+            <Input placeholder={`${property.label}を入力`} disabled={!isProjectEditable} />
           </Form.Item>
         );
     }
@@ -513,7 +529,7 @@ export default function DataRecordDialog({
             size="small"
             icon={<DeleteOutlined />}
             onClick={() => handleDeleteColumn(key, colIndex)}
-            disabled={grid[0].length <= 1}
+            disabled={!isProjectEditable || grid[0].length <= 1}
           />
         </Space>
       ),
@@ -526,6 +542,7 @@ export default function DataRecordDialog({
           onChange={(value) => handleDataGridChange(key, rowIndex, colIndex, value)}
           step={0.01}
           style={{ width: '100%' }}
+          disabled={!isProjectEditable}
         />
       ),
     })) || [];
@@ -566,7 +583,7 @@ export default function DataRecordDialog({
                       size="small"
                       icon={<DeleteOutlined />}
                       onClick={() => handleDeleteRow(key, index)}
-                      disabled={grid.length <= 1}
+                      disabled={!isProjectEditable || grid.length <= 1}
                     />
                   </Space>
                 ),
@@ -583,6 +600,7 @@ export default function DataRecordDialog({
               size="small"
               icon={<PlusOutlined />}
               onClick={() => handleAddRow(key)}
+              disabled={!isProjectEditable}
             >
               行を追加
             </Button>
@@ -590,6 +608,7 @@ export default function DataRecordDialog({
               size="small"
               icon={<PlusOutlined />}
               onClick={() => handleAddColumn(key)}
+              disabled={!isProjectEditable}
             >
               列を追加
             </Button>
@@ -641,8 +660,9 @@ export default function DataRecordDialog({
             message.info(`${file.name}をアップロードします（未実装）`);
             return false;
           }}
+          disabled={!isProjectEditable}
         >
-          <Button icon={<UploadOutlined />}>ファイルを選択</Button>
+          <Button icon={<UploadOutlined />} disabled={!isProjectEditable}>ファイルを選択</Button>
         </Upload>
       </Form.Item>
     );
@@ -679,6 +699,7 @@ export default function DataRecordDialog({
           icon={<SaveOutlined />}
           onClick={handleSaveTemplate}
           loading={loading}
+          disabled={!isProjectEditable}
         >
           保存
         </Button>,
@@ -743,6 +764,7 @@ export default function DataRecordDialog({
                       value={selectedStatus}
                       onChange={setSelectedStatus}
                       options={statusOptions}
+                      disabled={!isProjectEditable}
                     />
                   </Col>
 
@@ -767,6 +789,7 @@ export default function DataRecordDialog({
                       tooltip={{
                         formatter: (value) => `${value}%`,
                       }}
+                      disabled={!isProjectEditable}
                     />
                   </Col>
                 </Row>
@@ -782,6 +805,7 @@ export default function DataRecordDialog({
                       placeholder="コメントを入力"
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
+                      disabled={!isProjectEditable}
                     />
                   </Col>
                 </Row>
@@ -804,6 +828,7 @@ export default function DataRecordDialog({
                           `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}、進捗: ${progress}%）`
                         );
                       }}
+                      disabled={!isProjectEditable}
                     >
                       保存
                     </Button>

@@ -148,17 +148,57 @@ export interface PastExperimentData {
   createdAt: string;
 }
 
+// プロジェクト状態
+export type ProjectStatus = 
+  | 'planning'           // 計画中
+  | 'waiting_task'       // タスク実行待ち
+  | 'executing_task'     // タスク実行中
+  | 'waiting_approval'   // 承認待ち
+  | 'completed';         // 完了
+
 // プロジェクトデータ
 export interface ProjectData {
   projectId: string;
   projectName: string;
   description?: string; // プロジェクトの説明
   fileName: string;
+  status: ProjectStatus; // プロジェクト状態
   workAssignment: WorkAssignment;
   instructions: Instruction[];
   transitionDetails: Record<string, TransitionDetail>;
   methods?: Method[];
   progressData?: TransitionProgress[];
+}
+
+/**
+ * プロジェクト状態のヘルパー関数
+ */
+
+/**
+ * 編集可能な状態かどうかを判定
+ * @param status プロジェクト状態
+ * @returns 編集可能な場合true
+ */
+export function isEditableStatus(status: ProjectStatus): boolean {
+  return ['waiting_task', 'executing_task'].includes(status);
+}
+
+/**
+ * プロジェクト選択可能な状態かどうかを判定
+ * @param status プロジェクト状態
+ * @returns 選択可能な場合true
+ */
+export function isSelectableStatus(status: ProjectStatus): boolean {
+  return ['waiting_task', 'executing_task', 'waiting_approval'].includes(status);
+}
+
+/**
+ * トランジション記録が可能な状態かどうかを判定
+ * @param status プロジェクト状態
+ * @returns 記録可能な場合true
+ */
+export function isRecordableStatus(status: ProjectStatus): boolean {
+  return ['waiting_task', 'executing_task', 'waiting_approval'].includes(status);
 }
 
 // 統計情報

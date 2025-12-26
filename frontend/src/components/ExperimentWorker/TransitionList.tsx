@@ -5,7 +5,7 @@ import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress } fr
 import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
-import { Transition, ExperimentDataValue } from '@/types/experimentWorker';
+import { Transition, ExperimentDataValue, ProjectStatus, isRecordableStatus } from '@/types/experimentWorker';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 
@@ -15,6 +15,7 @@ interface TransitionListProps {
   transitions: Transition[];
   methodName?: string;
   selectedTaskId?: string;
+  projectStatus: ProjectStatus | null;
   onTaskCreated?: (taskId: string) => void;
   projectId?: string;
   methodId?: string;
@@ -27,6 +28,7 @@ interface TransitionListProps {
  */
 export default function TransitionList({
   transitions,
+  projectStatus,
   projectId,
   methodId,
 }: TransitionListProps) {
@@ -221,34 +223,45 @@ export default function TransitionList({
       key: 'record',
       width: 100,
       align: 'center',
-      render: (_, record: Transition) => (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleRecord(record);
-          }}
-          style={{
-            padding: '4px 12px',
-            fontSize: '13px',
-            fontWeight: 500,
-            color: '#ffffff',
-            backgroundColor: '#CF0027',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = '#a50020';
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = '#CF0027';
-          }}
-        >
-          記録
-        </button>
-      )
+      render: (_, record: Transition) => {
+        // プロジェクトの状態が記録可能でない場合は非活性化
+        const isProjectRecordable = projectStatus ? isRecordableStatus(projectStatus) : true;
+        
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRecord(record);
+            }}
+            disabled={!isProjectRecordable}
+            style={{
+              padding: '4px 12px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: '#ffffff',
+              backgroundColor: isProjectRecordable ? '#CF0027' : '#d3d3d3',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: isProjectRecordable ? 'pointer' : 'not-allowed',
+              transition: 'all 0.2s',
+              opacity: isProjectRecordable ? 1 : 0.6
+            }}
+            onMouseOver={(e) => {
+              if (isProjectRecordable) {
+                e.currentTarget.style.backgroundColor = '#a50020';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (isProjectRecordable) {
+                e.currentTarget.style.backgroundColor = '#CF0027';
+              }
+            }}
+          >
+            記録
+          </button>
+        );
+      }
     },
     {
       title: '説明',
@@ -345,6 +358,7 @@ export default function TransitionList({
       <DataRecordDialog
         open={dataRecordModalOpen}
         transition={selectedTransition}
+        projectStatus={projectStatus}
         onClose={handleDataRecordModalClose}
         onSave={handleDataSave}
         projectId={projectId}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Space, Typography, Empty, theme } from 'antd';
 import { CheckCircleOutlined, FileOutlined, ToolOutlined, AimOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
-import type { Instruction } from '@/types/experimentWorker';
+import type { Instruction, ProjectStatus } from '@/types/experimentWorker';
 import InstructionCard from './InstructionCard';
 
 const { Title, Text } = Typography;
@@ -10,6 +10,7 @@ interface InstructionGroupProps {
   title: string;
   instructions: Instruction[];
   emoji: string;
+  projectStatus: ProjectStatus | null;
   isClient: boolean;
 }
 
@@ -36,6 +37,7 @@ export default function InstructionGroup({
   title,
   instructions: groupInstructions,
   emoji,
+  projectStatus,
   isClient,
 }: InstructionGroupProps) {
   const { token } = theme.useToken();
@@ -124,6 +126,7 @@ export default function InstructionGroup({
               <InstructionCard
                 key={instruction.instructionId}
                 instruction={instruction}
+                projectStatus={projectStatus}
                 isClient={isClient}
               />
             ))}
@@ -231,6 +234,7 @@ export default function InstructionGroup({
                       <InstructionCard
                         key={instruction.instructionId}
                         instruction={instruction}
+                        projectStatus={projectStatus}
                         isClient={isClient}
                       />
                     ))}
@@ -342,6 +346,7 @@ export default function InstructionGroup({
                       <InstructionCard
                         key={instruction.instructionId}
                         instruction={instruction}
+                        projectStatus={projectStatus}
                         isClient={isClient}
                       />
                     ))}
@@ -453,6 +458,7 @@ export default function InstructionGroup({
                       <InstructionCard
                         key={instruction.instructionId}
                         instruction={instruction}
+                        projectStatus={projectStatus}
                         isClient={isClient}
                       />
                     ))}

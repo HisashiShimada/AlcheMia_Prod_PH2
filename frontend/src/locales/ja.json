@@ -116,6 +116,13 @@
       "project": "プロジェクト",
       "method": "メソッド"
     },
+    "projectStatus": {
+      "planning": "計画中",
+      "waiting_task": "タスク実行待ち",
+      "executing_task": "タスク実行中",
+      "waiting_approval": "承認待ち",
+      "completed": "完了"
+    },
     "projectSelection": {
       "title": "プロジェクトを選択",
       "projectName": "プロジェクト名",

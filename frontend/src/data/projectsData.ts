@@ -364,6 +364,7 @@ export const projectsData: Record<string, ProjectData> = {
     "projectName": "高温材料特性評価実験",
     "description": "高温環境下での材料特性を評価し、耐熱性能を検証する実験プロジェクト",
     "fileName": "experiment_workflow_v2.maiml",
+    "status": "executing_task",
     "workAssignment": {
       "workId": "work_001",
       "fileKey": "org_maiml_lab_001/projects/proj_001/files/experiment_workflow_v2.maiml",
@@ -1541,6 +1542,7 @@ export const projectsData: Record<string, ProjectData> = {
     "projectName": "Ramanスペクトル解析",
     "description": "Ramanスペクトル測定による材料の分子構造解析プロジェクト",
     "fileName": "Raman_analysis_v1.maiml",
+    "status": "waiting_task",
     "workAssignment": {
       "workId": "work_002",
       "fileKey": "org_maiml_lab_001/projects/proj_002/files/Raman_analysis_v1.maiml",
@@ -1593,6 +1595,7 @@ export const projectsData: Record<string, ProjectData> = {
     "projectName": "XRF元素分析実験",
     "description": "蛍光X線分析による試料の元素組成分析プロジェクト",
     "fileName": "XRF_experiment.maiml",
+    "status": "waiting_approval",
     "workAssignment": {
       "workId": "work_003",
       "fileKey": "org_maiml_lab_001/projects/proj_003/files/XRF_experiment.maiml",
@@ -1620,11 +1623,221 @@ export const projectsData: Record<string, ProjectData> = {
           "userName": "山田太郎"
         },
         "isRead": false
+      },
+      {
+        "instructionId": "inst_302",
+        "targetType": "task",
+        "taskId": "task_m301_001",
+        "taskName": "サンプル前処理",
+        "methodId": "m301",
+        "content": "XRF測定用サンプルの表面を丁寧にクリーニングし、異物を除去してください。",
+        "priority": "high",
+        "instructionType": "setup",
+        "createdAt": "2024-12-07T13:35:00Z",
+        "updatedAt": null,
+        "createdBy": {
+          "userId": "manager_001",
+          "userName": "山田太郎"
+        },
+        "isRead": false
+      },
+      {
+        "instructionId": "inst_303",
+        "targetType": "task",
+        "taskId": "task_m301_002",
+        "taskName": "XRF測定実行",
+        "methodId": "m301",
+        "content": "測定条件を確認し、XRF分析を実行してください。測定時間は各ポイント60秒です。",
+        "priority": "high",
+        "instructionType": "measurement",
+        "createdAt": "2024-12-07T13:40:00Z",
+        "updatedAt": null,
+        "createdBy": {
+          "userId": "manager_001",
+          "userName": "山田太郎"
+        },
+        "isRead": false
       }
     ],
-    "transitionDetails": {},
-    "methods": [],
-    "progressData": []
+    "transitionDetails": {
+      "t301": {
+        "transitionId": "t301",
+        "transitionName": "サンプルクリーニング",
+        "category": "前処理",
+        "description": "XRF測定前にサンプル表面の汚れや異物を除去する工程。",
+        "isExperimentRelevant": true,
+        "estimatedDuration": "20分",
+        "requiredEquipment": ["クリーニング液", "クリーンクロス", "ピンセット"],
+        "safetyNotes": "クリーニング液は換気の良い場所で使用すること"
+      },
+      "t302": {
+        "transitionId": "t302",
+        "transitionName": "装置キャリブレーション",
+        "category": "キャリブレーション",
+        "description": "XRF装置の精度を確認し、標準試料で校正する工程。",
+        "isExperimentRelevant": true,
+        "estimatedDuration": "30分",
+        "requiredEquipment": ["XRF装置", "標準試料", "PC"],
+        "safetyNotes": "X線照射中は装置に近づかないこと"
+      },
+      "t303": {
+        "transitionId": "t303",
+        "transitionName": "元素分析測定",
+        "category": "測定",
+        "description": "試料の元素組成をXRFで測定する工程。",
+        "isExperimentRelevant": true,
+        "estimatedDuration": "60分",
+        "requiredEquipment": ["XRF装置", "データロガー"],
+        "safetyNotes": "測定中は装置のドアを開けないこと"
+      }
+    },
+    "methods": [
+      {
+        "methodId": "m301",
+        "methodName": "XRF元素分析",
+        "description": "蛍光X線分析法による試料の元素組成分析手順。",
+        "category": "元素分析",
+        "tasks": [
+          {
+            "taskId": "task_m301_001",
+            "methodName": "XRF元素分析",
+            "taskName": "サンプル前処理",
+            "sampleNumber": "XRF-Sample-001",
+            "notes": "表面クリーニングと異物除去",
+            "status": "completed",
+            "progressRate": 100,
+            "progressReport": "実験記録報告",
+            "recordNumber": "EXP-XRF-001"
+          },
+          {
+            "taskId": "task_m301_002",
+            "methodName": "XRF元素分析",
+            "taskName": "XRF測定実行",
+            "sampleNumber": "XRF-Sample-001",
+            "notes": "元素組成の測定と記録",
+            "status": "completed",
+            "progressRate": 100,
+            "progressReport": "実験記録報告",
+            "recordNumber": "EXP-XRF-002"
+          },
+          {
+            "taskId": "task_m301_003",
+            "methodName": "XRF元素分析",
+            "taskName": "データ解析",
+            "sampleNumber": "XRF-Sample-001",
+            "notes": "測定データの解析とレポート作成",
+            "status": "in_progress",
+            "progressRate": 60,
+            "progressReport": "実験記録報告",
+            "recordNumber": "EXP-XRF-003"
+          }
+        ],
+        "transitions": [
+          {
+            "transitionId": "t301",
+            "transitionName": "サンプルクリーニング",
+            "description": "XRF測定前にサンプル表面の汚れや異物を除去する工程。",
+            "category": "前処理",
+            "estimatedDuration": "20分",
+            "totalMaterialsCount": 1,
+            "totalIngredientsCount": 2,
+            "totalResultsCount": 0
+          },
+          {
+            "transitionId": "t302",
+            "transitionName": "装置キャリブレーション",
+            "description": "XRF装置の精度を確認し、標準試料で校正する工程。",
+            "category": "キャリブレーション",
+            "estimatedDuration": "30分",
+            "totalMaterialsCount": 1,
+            "totalIngredientsCount": 3,
+            "totalResultsCount": 1
+          },
+          {
+            "transitionId": "t303",
+            "transitionName": "元素分析測定",
+            "description": "試料の元素組成をXRFで測定する工程。",
+            "category": "測定",
+            "estimatedDuration": "60分",
+            "totalMaterialsCount": 1,
+            "totalIngredientsCount": 4,
+            "totalResultsCount": 3
+          },
+          {
+            "transitionId": "t304",
+            "transitionName": "スペクトル解析",
+            "description": "取得したXRFスペクトルを解析する工程。",
+            "category": "データ処理",
+            "estimatedDuration": "40分",
+            "totalMaterialsCount": 0,
+            "totalIngredientsCount": 2,
+            "totalResultsCount": 2
+          }
+        ]
+      }
+    ],
+    "progressData": [
+      {
+        "transitionId": "t301",
+        "transitionName": "サンプルクリーニング",
+        "taskId": "task_m301_001",
+        "taskName": "サンプル前処理",
+        "methodId": "m301",
+        "methodName": "XRF元素分析",
+        "progressRate": 100,
+        "status": "completed",
+        "reportCount": 2,
+        "issueCount": 0,
+        "inputMaterialsCount": 1,
+        "inputIngredientsCount": 2,
+        "inputResultsCount": 0
+      },
+      {
+        "transitionId": "t302",
+        "transitionName": "装置キャリブレーション",
+        "taskId": "task_m301_002",
+        "taskName": "XRF測定実行",
+        "methodId": "m301",
+        "methodName": "XRF元素分析",
+        "progressRate": 100,
+        "status": "completed",
+        "reportCount": 1,
+        "issueCount": 0,
+        "inputMaterialsCount": 1,
+        "inputIngredientsCount": 3,
+        "inputResultsCount": 1
+      },
+      {
+        "transitionId": "t303",
+        "transitionName": "元素分析測定",
+        "taskId": "task_m301_002",
+        "taskName": "XRF測定実行",
+        "methodId": "m301",
+        "methodName": "XRF元素分析",
+        "progressRate": 100,
+        "status": "completed",
+        "reportCount": 3,
+        "issueCount": 0,
+        "inputMaterialsCount": 1,
+        "inputIngredientsCount": 4,
+        "inputResultsCount": 3
+      },
+      {
+        "transitionId": "t304",
+        "transitionName": "スペクトル解析",
+        "taskId": "task_m301_003",
+        "taskName": "データ解析",
+        "methodId": "m301",
+        "methodName": "XRF元素分析",
+        "progressRate": 60,
+        "status": "in_progress",
+        "reportCount": 1,
+        "issueCount": 0,
+        "inputMaterialsCount": 0,
+        "inputIngredientsCount": 1,
+        "inputResultsCount": 1
+      }
+    ]
   }
 };
 

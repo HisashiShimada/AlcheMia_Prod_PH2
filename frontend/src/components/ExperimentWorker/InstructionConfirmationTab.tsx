@@ -8,7 +8,7 @@ import MethodTaskSelector from './MethodTaskSelector';
 import InstructionStats from './InstructionStats';
 import InstructionGroup from './InstructionGroup';
 import FlowDiagramModal from './FlowDiagramModal';
-import { Stats, Instruction } from '@/types/experimentWorker';
+import { Stats, Instruction, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
 import { projectsData } from '@/data/projectsData';
 
 const { Title, Text } = Typography;
@@ -35,6 +35,11 @@ interface InstructionConfirmationTabProps {
   toggleGroup: (groupKey: string) => void;
 }
 
+// プロジェクトの状態を取得するヘルパー関数
+function getProjectStatus(projectId: string): ProjectStatus | null {
+  return projectsData[projectId]?.status ?? null;
+}
+
 /**
  * 指示確認タブのコンテンツ
  */
@@ -59,6 +64,11 @@ export default function InstructionConfirmationTab({
   
   // メソッド・タスク選択モーダルの表示状態
   const [isModalVisible, setIsModalVisible] = useState(false);
+  
+  // プロジェクトの状態を取得
+  const projectStatus: ProjectStatus | null = selectedProject 
+    ? getProjectStatus(selectedProject)
+    : null;
 
   // 選択されたプロジェクト・メソッドの情報を取得
   const projectInfo = useMemo(() => {
@@ -292,6 +302,7 @@ export default function InstructionConfirmationTab({
                     instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'file'
                     )}
+                    projectStatus={projectStatus}
                     isClient={isClient}
                   />
                 </div>
@@ -336,6 +347,7 @@ export default function InstructionConfirmationTab({
                     instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'task'
                     )}
+                    projectStatus={projectStatus}
                     isClient={isClient}
                   />
                 </div>
@@ -381,6 +393,7 @@ export default function InstructionConfirmationTab({
                     instructions={filteredInstructions.filter(
                       (i) => i.targetType === 'transition'
                     )}
+                    projectStatus={projectStatus}
                     isClient={isClient}
                   />
                 </div>

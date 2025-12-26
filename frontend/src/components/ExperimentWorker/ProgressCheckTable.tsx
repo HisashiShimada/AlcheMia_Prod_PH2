@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Table, Tag, Typography, Input, Select, Space, Row, Col, Button } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { Task, TaskStatus } from '@/types/experimentWorker';
+import { Task, TaskStatus, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
 import FlowDiagramModal from './FlowDiagramModal';
 
 const { Text } = Typography;
@@ -29,6 +29,7 @@ function isAggregatedRow(row: TableRow): row is AggregatedRow {
 
 interface ProgressCheckTableProps {
   tasks: Task[];
+  projectStatus: ProjectStatus | null;
   onTaskAction: (taskId: string, action: string) => void;
 }
 
@@ -36,7 +37,7 @@ interface ProgressCheckTableProps {
  * 進捗確認テーブル
  * サブタスクのリストを表示する（折りたたみなし）
  */
-export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressCheckTableProps) {
+export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction }: ProgressCheckTableProps) {
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedMethodName, setSelectedMethodName] = useState<string | undefined>(undefined);
@@ -335,12 +336,16 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
         if (isAggregatedRow(record)) {
           return null;
         }
+        // プロジェクトの状態が編集可能でない場合は非活性化
+        const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
+        const isDisabled = record.status !== 'not_started' || !isProjectEditable;
+        
         return (
           <Button
             type="primary"
             size="small"
             onClick={() => onTaskAction(record.taskId, 'start')}
-            disabled={record.status !== 'not_started'}
+            disabled={isDisabled}
             aria-label="タスクを開始"
           >
             開始
@@ -399,12 +404,19 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
         if (isAggregatedRow(record)) {
           return null;
         }
+        // プロジェクトの状態が編集可能でない場合は非活性化
+        const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
+        const isDisabled = 
+          record.status === 'completed' || 
+          record.status === 'forced_terminated' || 
+          !isProjectEditable;
+        
         return (
           <Button
             danger
             size="small"
             onClick={() => onTaskAction(record.taskId, 'forceTerminate')}
-            disabled={record.status === 'completed' || record.status === 'forced_terminated'}
+            disabled={isDisabled}
             aria-label="タスクを強制終了"
           >
             終了
