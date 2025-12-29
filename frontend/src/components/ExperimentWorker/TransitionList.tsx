@@ -61,21 +61,9 @@ export default function TransitionList({
     });
   }, [transitions, searchText, selectedTransitionName]);
 
-  // トランジションをクリックして作業指示モーダルを開く
+  // トランジションをクリックして実験データ記録モーダルを直接開く
   const handleTransitionClick = (transition: Transition) => {
     setSelectedTransition(transition);
-    setInstructionModalOpen(true);
-  };
-
-  // 作業指示モーダルを閉じる
-  const handleInstructionModalClose = () => {
-    setInstructionModalOpen(false);
-    setSelectedTransition(null);
-  };
-
-  // 作業指示確認完了 → データ記録モーダルを開く
-  const handleInstructionConfirmed = () => {
-    setInstructionModalOpen(false);
     setDataRecordModalOpen(true);
   };
 
@@ -116,10 +104,10 @@ export default function TransitionList({
     );
   };
 
-  // 記録ボタンクリックハンドラ
+  // 記録ボタンクリックハンドラ - 直接データ記録モーダルを開く
   const handleRecord = (transition: Transition) => {
     setSelectedTransition(transition);
-    setInstructionModalOpen(true);
+    setDataRecordModalOpen(true);
   };
 
   // テーブルの列定義（統合版）
@@ -343,16 +331,6 @@ export default function TransitionList({
           }}
         />
       </div>
-
-      {/* 作業指示確認モーダル */}
-      <InstructionConfirmationModal
-        open={instructionModalOpen}
-        transition={selectedTransition}
-        projectId={projectId}
-        methodId={methodId}
-        onConfirm={handleInstructionConfirmed}
-        onCancel={handleInstructionModalClose}
-      />
 
       {/* データ記録モーダル */}
       <DataRecordDialog

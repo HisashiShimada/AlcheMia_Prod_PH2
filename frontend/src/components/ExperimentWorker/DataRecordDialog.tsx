@@ -36,6 +36,7 @@ import {
   RightOutlined,
   SearchOutlined,
   AppstoreOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -49,6 +50,7 @@ import {
   isEditableStatus,
 } from '@/types/experimentWorker';
 import { templatesList } from '@/data/projectsData';
+import InstructionConfirmationModal from './InstructionConfirmationModal';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -83,6 +85,9 @@ export default function DataRecordDialog({
   const [dataGrids, setDataGrids] = useState<Record<string, number[][]>>({});
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  
+  // 作業指示モーダルの状態
+  const [instructionModalOpen, setInstructionModalOpen] = useState(false);
 
   // テンプレート一覧用の状態
   const [templateSearchText, setTemplateSearchText] = useState('');
@@ -706,14 +711,20 @@ export default function DataRecordDialog({
       ]}
     >
       <div>
-        {/* みなし進捗更新チェックボックス */}
-        <div style={{ marginBottom: 16 }}>
+        {/* みなし進捗更新チェックボックスと作業指示ボタン */}
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Checkbox
             checked={useDeemedProgress}
             onChange={(e) => setUseDeemedProgress(e.target.checked)}
           >
             みなし進捗更新
           </Checkbox>
+          <Button
+            icon={<InfoCircleOutlined />}
+            onClick={() => setInstructionModalOpen(true)}
+          >
+            作業指示
+          </Button>
         </div>
 
         {/* ステータス更新セクション（みなし進捗更新OFF時のみ表示） */}
@@ -1016,6 +1027,16 @@ export default function DataRecordDialog({
         </Layout>
 
       </div>
+
+      {/* 作業指示モーダル */}
+      <InstructionConfirmationModal
+        open={instructionModalOpen}
+        transition={transition}
+        projectId={projectId}
+        methodId={methodId}
+        projectStatus={projectStatus}
+        onCancel={() => setInstructionModalOpen(false)}
+      />
     </Modal>
   );
 }

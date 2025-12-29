@@ -15,7 +15,7 @@ import {
   DownOutlined,
   RightOutlined,
 } from '@ant-design/icons';
-import { Transition, Instruction } from '@/types/experimentWorker';
+import { Transition, Instruction, ProjectStatus } from '@/types/experimentWorker';
 import { projectsData } from '@/data/projectsData';
 import InstructionCard from './InstructionCard';
 
@@ -26,7 +26,7 @@ interface InstructionConfirmationModalProps {
   transition: Transition | null;
   projectId?: string;
   methodId?: string;
-  onConfirm: () => void;
+  projectStatus: ProjectStatus | null;
   onCancel: () => void;
 }
 
@@ -39,7 +39,7 @@ export default function InstructionConfirmationModal({
   transition,
   projectId,
   methodId,
-  onConfirm,
+  projectStatus,
   onCancel,
 }: InstructionConfirmationModalProps) {
   const { token } = theme.useToken();
@@ -121,23 +121,12 @@ export default function InstructionConfirmationModal({
       style={{ top: 40 }}
       footer={[
         <Button
-          key="cancel"
+          key="close"
+          type="primary"
           icon={<CloseOutlined />}
           onClick={onCancel}
         >
-          キャンセル
-        </Button>,
-        <Button
-          key="confirm"
-          type="primary"
-          icon={<CheckOutlined />}
-          onClick={onConfirm}
-          style={{
-            backgroundColor: token.colorSuccess,
-            borderColor: token.colorSuccess,
-          }}
-        >
-          確認完了
+          閉じる
         </Button>,
       ]}
     >
@@ -185,6 +174,7 @@ export default function InstructionConfirmationModal({
                       <InstructionCard
                         key={instruction.instructionId}
                         instruction={instruction}
+                        projectStatus={projectStatus}
                         isClient={isClient}
                       />
                     ))}
@@ -228,6 +218,7 @@ export default function InstructionConfirmationModal({
                       <InstructionCard
                         key={instruction.instructionId}
                         instruction={instruction}
+                        projectStatus={projectStatus}
                         isClient={isClient}
                       />
                     ))}
@@ -271,6 +262,7 @@ export default function InstructionConfirmationModal({
                       <InstructionCard
                         key={instruction.instructionId}
                         instruction={instruction}
+                        projectStatus={projectStatus}
                         isClient={isClient}
                       />
                     ))}
