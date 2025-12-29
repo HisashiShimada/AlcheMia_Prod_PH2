@@ -19,7 +19,9 @@
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
-    "info": "Info"
+    "info": "Info",
+    "total": "Total",
+    "items": "items"
   },
   "languages": {
     "ja": "日本語",
@@ -67,9 +69,9 @@
       "title": "Experiment Worker Menu",
       "tabs": {
         "myTasks": "My Tasks",
-        "workInstruction": "Instruction Confirmation",
+        "workInstruction": "Work Instructions",
         "experimentRecord": "Experiment Record",
-        "taskList": "Task List",
+        "progressCheck": "Progress Check",
         "maimlViewer": "MAIML Viewer",
         "fileUpload": "File Upload",
         "progressReport": "Progress Report",
@@ -109,10 +111,44 @@
     "instructionButton": "Instructions",
     "taskListButton": "Task List",
     "batchProgressButton": "Batch Progress Report",
-    "approvalRequestButton": "Request Approval",
+    "approvalRequestButton": "Approval Request",
     "labels": {
       "project": "Project",
       "method": "Method"
+    },
+    "projectSelection": {
+      "title": "Select Project",
+      "projectName": "Project Name",
+      "description": "Description",
+      "owner": "Owner",
+      "unknownOwner": "Unknown",
+      "clearSelection": "Clear Selection",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "searchPlaceholder": "Search by project name, description, owner",
+      "projectNameFilter": "Project Name",
+      "ownerFilter": "Owner"
+    },
+    "issueReport": {
+      "title": "Issue Report",
+      "issueType": "Issue Type",
+      "comment": "Comment",
+      "commentPlaceholder": "Please describe the issue in detail.\nExample: There is a shortage of XX material and the experiment cannot proceed.",
+      "commentRequired": "Please describe the issue",
+      "commentMinLength": "Comment must be at least 10 characters",
+      "clear": "Clear",
+      "submit": "Report",
+      "success": "Issue report submitted successfully",
+      "noTask": "Task information not found",
+      "issueTypes": {
+        "material_shortage": "Material Shortage",
+        "equipment_failure": "Equipment Failure",
+        "procedure_unclear": "Procedure Unclear",
+        "safety_concern": "Safety Concern",
+        "quality_issue": "Quality Issue",
+        "time_constraint": "Time Constraint",
+        "other": "Other"
+      }
     },
     "stats": {
       "notStarted": "Not Started Transitions",
@@ -122,12 +158,12 @@
       "progressRate": "Progress Rate"
     },
     "table": {
+      "methodName": "Method Name",
       "taskName": "Task Name",
-      "sampleNumber": "Sample Number",
-      "notes": "Notes",
       "status": "Status",
-      "progressReport": "Progress Report",
-      "recordNumber": "Record Number",
+      "progressRate": "Progress Rate",
+      "issueReport": "Issue Report",
+      "experimentRecord": "Experiment Record",
       "actions": "Actions"
     },
     "actions": {

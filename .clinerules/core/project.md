@@ -31,39 +31,21 @@ git@bitbucket.org:soft-service-ws/mmdpf.git
 ```
 maiml_viewer/
 ├── frontend/                    # フロントエンド（Next.js）
-│
 ├── backend/                     # バックエンド（Node.js + Express）
-│
 ├── config/                      # インフラ設定
-│   ├── aws/                     # AWS設定
-│   ├── ecs/                     # ECS設定
-│   └── nginx/                   # Nginx設定
-│
 ├── scripts/                     # デプロイメントスクリプト
-│   ├── aws/                     # AWSスクリプト
-│   ├── database/                # DBマイグレーション
-│   └── deployment/              # デプロイスクリプト
-│
 ├── docs/                        # ドキュメント
-│
 ├── specification/               # MAIML仕様・サンプルファイル
-│   ├── *.maiml                  # MAIMLサンプルファイル
-│   └── MaiML-Schema-1_0/        # スキーマ定義
-│
 ├── .clinerules/                 # Clineルール定義
-│   ├── base.md
-│   ├── project.md
-│   ├── security.md
-│   ├── config.md
-│   ├── frontend.md
-│   ├── backend.md
-│   ├── test.md
-│   └── deploy.md
-│
-├── docker-compose.yml           # Docker Compose設定
-├── package.json                 # ルートパッケージ
+├── docker-compose.yml
+├── package.json
 └── .gitignore
 ```
+
+**詳細なディレクトリ構造:**
+- フロントエンド: [frontend.md](../development/frontend.md) を参照
+- バックエンド: [backend.md](../development/backend.md) を参照
+- デプロイ: [deploy.md](../operations/deploy.md) を参照
 
 ## 主要機能
 

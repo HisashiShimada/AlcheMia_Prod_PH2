@@ -19,7 +19,9 @@
     "error": "エラー",
     "success": "成功",
     "warning": "警告",
-    "info": "情報"
+    "info": "情報",
+    "total": "合計",
+    "items": "件"
   },
   "languages": {
     "ja": "日本語",
@@ -69,7 +71,7 @@
         "myTasks": "担当作業",
         "workInstruction": "指示確認",
         "experimentRecord": "実験記録",
-        "taskList": "タスク一覧",
+        "progressCheck": "進捗確認",
         "maimlViewer": "MAIML閲覧",
         "fileUpload": "ファイルアップロード",
         "progressReport": "進捗報告",
@@ -114,6 +116,40 @@
       "project": "プロジェクト",
       "method": "メソッド"
     },
+    "projectSelection": {
+      "title": "プロジェクトを選択",
+      "projectName": "プロジェクト名",
+      "description": "説明",
+      "owner": "所有者",
+      "unknownOwner": "不明",
+      "clearSelection": "選択解除",
+      "cancel": "キャンセル",
+      "confirm": "決定",
+      "searchPlaceholder": "プロジェクト名、説明、所有者で検索",
+      "projectNameFilter": "プロジェクト名",
+      "ownerFilter": "所有者"
+    },
+    "issueReport": {
+      "title": "問題報告",
+      "issueType": "問題タイプ",
+      "comment": "コメント",
+      "commentPlaceholder": "問題の詳細を具体的に入力してください\n例: 〇〇の材料が不足しており、実験を続行できません。",
+      "commentRequired": "問題の詳細を入力してください",
+      "commentMinLength": "コメントは10文字以上で入力してください",
+      "clear": "クリア",
+      "submit": "報告",
+      "success": "問題報告を送信しました",
+      "noTask": "タスク情報が見つかりません",
+      "issueTypes": {
+        "material_shortage": "材料不足",
+        "equipment_failure": "機器故障",
+        "procedure_unclear": "手順不明確",
+        "safety_concern": "安全性の懸念",
+        "quality_issue": "品質問題",
+        "time_constraint": "時間制約",
+        "other": "その他"
+      }
+    },
     "stats": {
       "notStarted": "開始前のトランジション",
       "started": "開始",
@@ -122,12 +158,12 @@
       "progressRate": "進捗率"
     },
     "table": {
+      "methodName": "メソッド名",
       "taskName": "タスク名",
-      "sampleNumber": "サンプル番号",
-      "notes": "備考",
       "status": "ステータス",
-      "progressReport": "進捗報告",
-      "recordNumber": "実験記録番号",
+      "progressRate": "進捗率",
+      "issueReport": "問題報告",
+      "experimentRecord": "実験記録",
       "actions": "アクション"
     },
     "actions": {

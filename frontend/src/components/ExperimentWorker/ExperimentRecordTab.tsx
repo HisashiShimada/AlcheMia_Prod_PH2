@@ -11,7 +11,7 @@ import {
   BarChartOutlined
 } from '@ant-design/icons';
 import TransitionList from './TransitionList';
-import TaskSelectionDialog from './TaskSelectionDialog';
+import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import { projectsData } from '@/data/projectsData';
 import { Method } from '@/types/experimentWorker';
 
@@ -34,7 +34,7 @@ interface ExperimentRecordTabProps {
   selectedProject: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
-  onSelectMethod: (methodId: string) => void;
+  onSelectMethod: (methodId: string | null) => void;
   selectedTaskId: string;
   onSelectTask: (taskId: string) => void;
   onTaskCreated: (newTaskId: string) => void;
@@ -56,7 +56,7 @@ export default function ExperimentRecordTab({
 }: ExperimentRecordTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   // 表示モードの状態管理
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
@@ -138,7 +138,7 @@ export default function ExperimentRecordTab({
       {/* 選択カード */}
       <div
         style={{ 
-          marginBottom: token.marginLG,
+          marginBottom: 8,
           height: 56,
           flexShrink: 0,
           display: 'flex',
@@ -151,13 +151,35 @@ export default function ExperimentRecordTab({
         }}
       >
         <div style={{ width: '100%' }}>
-          {/* タスク選択（コンボボックス） + 選択ボタン */}
+          {/* メソッド選択 + タスク選択（コンボボックス） + 選択ボタン */}
           <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: token.margin }}>
-            <Space size="middle" style={{ flex: 1 }}>
+            {/* メソッド選択 */}
+            <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
+              <PartitionOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <Text strong style={{ minWidth: 80 }}>メソッド:</Text>
+              <Select
+                style={{ width: 200 }}
+                placeholder="メソッドを選択してください"
+                value={selectedMethodId || undefined}
+                onChange={(value) => onSelectMethod(value || null)}
+                options={[
+                  { label: '-', value: null },
+                  ...(selectedProjectData?.methods || []).map((method) => ({
+                    label: method.methodName,
+                    value: method.methodId,
+                  })),
+                ]}
+                disabled={!selectedProject}
+                size="large"
+              />
+            </Space>
+            
+            {/* タスク選択 */}
+            <Space size="middle" style={{ minWidth: 300, maxWidth: 400 }}>
               <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong style={{ minWidth: 80 }}>タスク:</Text>
               <Select
-                style={{ flex: 1, minWidth: 200 }}
+                style={{ width: 200 }}
                 placeholder="タスクを選択してください"
                 value={selectedTaskId || ''}
                 onChange={onSelectTask}
@@ -166,11 +188,14 @@ export default function ExperimentRecordTab({
                 size="large"
               />
             </Space>
+            
             <Button
               type="primary"
               icon={<CheckOutlined />}
-              onClick={() => setDialogOpen(true)}
+              onClick={() => setModalOpen(true)}
               size="large"
+              disabled={!selectedProject}
+              style={{ marginLeft: 'auto' }}
             >
               選択
             </Button>
@@ -180,7 +205,7 @@ export default function ExperimentRecordTab({
 
       {/* 表示切り替えボタン */}
       {selectedProject && selectedMethod && (
-        <div style={{ marginBottom: token.margin, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginBottom: 8, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
           <Space size="middle">
             {viewMode === 'list' ? (
               <Button
@@ -248,7 +273,7 @@ export default function ExperimentRecordTab({
             {viewMode === 'list' ? (
               /* トランジション一覧表示 - タスク選択後のみ表示 */
               <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0 }}>
+                <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0, fontSize: 16 }}>
                   <BarChartOutlined style={{ marginRight: 8 }} />
                   トランジション一覧
                 </Title>
@@ -258,6 +283,8 @@ export default function ExperimentRecordTab({
                     methodName={selectedMethod?.methodName}
                     selectedTaskId={selectedTaskId}
                     onTaskCreated={onTaskCreated}
+                    projectId={selectedProject}
+                    methodId={selectedMethodId || undefined}
                   />
                 </div>
               </div>
@@ -287,14 +314,17 @@ export default function ExperimentRecordTab({
         )}
       </div>
 
-      {/* タスク選択ダイアログ */}
-      <TaskSelectionDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+      {/* メソッド・タスク選択モーダル */}
+      <MethodTaskSelectionModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
         selectedProject={selectedProject}
         selectedMethodId={selectedMethodId}
         selectedTaskId={selectedTaskId}
-        onSelectTask={onSelectTask}
+        onSelect={(methodId: string, taskId: string) => {
+          onSelectMethod(methodId);
+          onSelectTask(taskId);
+        }}
       />
     </div>
   );

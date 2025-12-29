@@ -2,7 +2,7 @@
 export type Priority = 'high' | 'medium' | 'normal' | 'low';
 
 // 対象タイプ
-export type TargetType = 'file' | 'method' | 'transition';
+export type TargetType = 'file' | 'method' | 'transition' | 'task';
 
 // 指示タイプ
 export type InstructionType = 'safety' | 'setup' | 'measurement' | 'cleanup' | 'general';
@@ -37,6 +37,8 @@ export interface Instruction {
   transitionName?: string;
   methodId?: string;
   methodName?: string;
+  taskId?: string;
+  taskName?: string;
   content: string;
   priority: Priority;
   instructionType: InstructionType;
@@ -150,6 +152,7 @@ export interface PastExperimentData {
 export interface ProjectData {
   projectId: string;
   projectName: string;
+  description?: string; // プロジェクトの説明
   fileName: string;
   workAssignment: WorkAssignment;
   instructions: Instruction[];
@@ -170,10 +173,21 @@ export interface Stats {
 // 進捗ステータス
 export type ProgressStatus = 'not_started' | 'in_progress' | 'completed' | 'on_hold' | 'issue';
 
+// トランジションステータス（実験データ記録用）
+export type TransitionStatus = 
+  | 'initial'           // 初期状態
+  | 'preparing'         // 準備状態
+  | 'ready'             // 準備完了状態
+  | 'running'           // 動作状態
+  | 'paused'            // 休止状態
+  | 'completed'         // 終状態
+  | 'error';            // 異常終了状態
+
 // トランジション進捗情報
 export interface TransitionProgress {
   transitionId: string;
   transitionName: string;
+  taskId?: string; // タスクID（Phase 6で追加）
   taskName?: string; // タスク名（Phase 6で追加）
   methodId: string;
   methodName: string;
@@ -200,6 +214,9 @@ export type TaskStatus =
 // タスクデータ（実験作業タブ用）
 export interface Task {
   taskId: string;              // タスクID
+  projectId?: string;          // プロジェクトID（Phase 7追加: プロジェクト選択連動用）
+  methodId?: string;           // メソッドID（Phase 7追加: プロジェクト選択連動用）
+  methodName: string;          // メソッド名（Phase 1追加: グループ化・折りたたみ用）
   taskName: string;            // タスク名
   sampleNumber: string;        // サンプル番号
   notes: string;               // 備考
@@ -216,4 +233,25 @@ export interface WorkflowStatistics {
   inProgress: number;    // 作業中数
   completed: number;     // 完了数
   progressRate: number;  // 進捗率（%）
+}
+
+// ===== Phase: 問題報告モーダル用の型定義 =====
+
+// 問題タイプ（問題報告モーダル用）
+export type IssueType = 
+  | 'material_shortage'    // 材料不足
+  | 'equipment_failure'    // 機器故障
+  | 'procedure_unclear'    // 手順不明確
+  | 'safety_concern'       // 安全性の懸念
+  | 'quality_issue'        // 品質問題
+  | 'time_constraint'      // 時間制約
+  | 'other';               // その他
+
+// 問題報告データ（問題報告モーダル用）
+export interface IssueReportData {
+  taskId: string;          // タスクID
+  issueType: IssueType;    // 問題タイプ
+  comment: string;         // コメント
+  reportedAt?: string;     // 報告日時（バックエンドで設定）
+  reportedBy?: string;     // 報告者（バックエンドで設定）
 }
