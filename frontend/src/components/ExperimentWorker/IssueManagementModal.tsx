@@ -45,6 +45,8 @@ interface IssueManagementModalProps {
   onSubmitIssue?: (issue: IssueReportFormData) => void;
   onSubmitComment?: (issueId: string, comment: string) => void;
   onUpdateStatus?: (issueId: string, status: IssueStatus) => void;
+  viewMode?: boolean; // 参照専用モード（デフォルト: false）
+  filterTaskId?: string; // フィルタリング用タスクID
 }
 
 /**
@@ -60,6 +62,8 @@ export default function IssueManagementModal({
   onSubmitIssue,
   onSubmitComment,
   onUpdateStatus,
+  viewMode = false,
+  filterTaskId,
 }: IssueManagementModalProps) {
   const [form] = Form.useForm();
   const [commentForm] = Form.useForm();
@@ -76,6 +80,11 @@ export default function IssueManagementModal({
   // フィルタリングされた問題一覧
   const filteredIssues = useMemo(() => {
     return issues.filter((issue) => {
+      // タスクIDフィルタ（参照専用モード用）
+      if (filterTaskId && issue.taskId !== filterTaskId) {
+        return false;
+      }
+      
       // あいまい検索（タイトル、内容）
       const matchesSearch =
         searchText === '' ||
@@ -88,7 +97,7 @@ export default function IssueManagementModal({
 
       return matchesSearch && matchesStatus;
     });
-  }, [issues, searchText, statusFilter]);
+  }, [issues, searchText, statusFilter, filterTaskId]);
 
   // 問題ステータス表示用のヘルパー関数
   const getStatusTag = (status: IssueStatus) => {
@@ -247,16 +256,18 @@ export default function IssueManagementModal({
       style={{ top: 20 }}
       destroyOnClose
     >
-      {/* 新規問題報告ボタン */}
-      <div style={{ marginBottom: 16 }}>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleNewIssueClick}
-        >
-          新規問題報告
-        </Button>
-      </div>
+      {/* 新規問題報告ボタン（参照専用モードでは非表示） */}
+      {!viewMode && (
+        <div style={{ marginBottom: 16 }}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={handleNewIssueClick}
+          >
+            新規問題報告
+          </Button>
+        </div>
+      )}
 
       {/* 2カラムレイアウト */}
       <Row gutter={16}>
@@ -497,48 +508,54 @@ export default function IssueManagementModal({
                   />
                 </div>
 
-                {/* コメント入力 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Text type="secondary" strong>
-                    コメントを追加
-                  </Text>
-                  <TextArea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    rows={3}
-                    placeholder="コメントを入力..."
-                    maxLength={500}
-                    showCount
-                    style={{ marginTop: 8 }}
-                  />
-                </div>
+                {/* コメント入力（参照専用モードでは非表示） */}
+                {!viewMode && (
+                  <div style={{ marginBottom: 16 }}>
+                    <Text type="secondary" strong>
+                      コメントを追加
+                    </Text>
+                    <TextArea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      rows={3}
+                      placeholder="コメントを入力..."
+                      maxLength={500}
+                      showCount
+                      style={{ marginTop: 8 }}
+                    />
+                  </div>
+                )}
 
-                {/* ステータス選択 */}
-                <div style={{ marginBottom: 16 }}>
-                  <Text type="secondary" strong>
-                    ステータス変更
-                  </Text>
-                  <Select
-                    value={selectedStatus}
-                    onChange={(value) => setSelectedStatus(value as IssueStatus)}
-                    style={{ width: '100%', marginTop: 8 }}
-                  >
-                    <Select.Option value="unresolved">未解決</Select.Option>
-                    <Select.Option value="resolved">解決済</Select.Option>
-                  </Select>
-                </div>
+                {/* ステータス選択（参照専用モードでは非表示） */}
+                {!viewMode && (
+                  <div style={{ marginBottom: 16 }}>
+                    <Text type="secondary" strong>
+                      ステータス変更
+                    </Text>
+                    <Select
+                      value={selectedStatus}
+                      onChange={(value) => setSelectedStatus(value as IssueStatus)}
+                      style={{ width: '100%', marginTop: 8 }}
+                    >
+                      <Select.Option value="unresolved">未解決</Select.Option>
+                      <Select.Option value="resolved">解決済</Select.Option>
+                    </Select>
+                  </div>
+                )}
 
-                {/* 送信ボタン */}
-                <div style={{ textAlign: 'right' }}>
-                  <Button
-                    type="primary"
-                    icon={<SendOutlined />}
-                    onClick={handleSubmitCommentAndStatus}
-                    disabled={!newComment.trim() && selectedStatus === selectedIssue.status}
-                  >
-                    送信
-                  </Button>
-                </div>
+                {/* 送信ボタン（参照専用モードでは非表示） */}
+                {!viewMode && (
+                  <div style={{ textAlign: 'right' }}>
+                    <Button
+                      type="primary"
+                      icon={<SendOutlined />}
+                      onClick={handleSubmitCommentAndStatus}
+                      disabled={!newComment.trim() && selectedStatus === selectedIssue.status}
+                    >
+                      送信
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 

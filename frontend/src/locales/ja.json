@@ -116,6 +116,10 @@
       "project": "プロジェクト",
       "method": "メソッド"
     },
+    "progressCheck": {
+      "issueCheck": "問題確認",
+      "checkButton": "確認"
+    },
     "projectStatus": {
       "planning": "計画中",
       "waiting_task": "タスク実行待ち",

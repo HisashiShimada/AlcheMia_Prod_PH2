@@ -6,6 +6,7 @@ import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Task, TaskStatus, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
 import FlowDiagramModal from './FlowDiagramModal';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -67,6 +68,8 @@ interface ProgressCheckTableProps {
  * サブタスクのリストを表示する（折りたたみなし）
  */
 export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction }: ProgressCheckTableProps) {
+  const { t } = useLanguage();
+  
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedMethodName, setSelectedMethodName] = useState<string | undefined>(undefined);
@@ -383,7 +386,7 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
       }
     },
     {
-      title: '問題報告',
+      title: t('experimentWork.progressCheck.issueCheck'),
       key: 'issue',
       width: 100,
       align: 'center',
@@ -395,10 +398,10 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
           <Button
             type="default"
             size="small"
-            onClick={() => onTaskAction(record.taskId, 'issue')}
-            aria-label="問題を報告"
+            onClick={() => onTaskAction(record.taskId, 'issueCheck')}
+            aria-label={t('experimentWork.progressCheck.issueCheck')}
           >
-            報告
+            {t('experimentWork.progressCheck.checkButton')}
           </Button>
         );
       }

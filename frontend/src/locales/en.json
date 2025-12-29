@@ -116,6 +116,10 @@
       "project": "Project",
       "method": "Method"
     },
+    "progressCheck": {
+      "issueCheck": "Issue Check",
+      "checkButton": "Check"
+    },
     "projectStatus": {
       "planning": "Planning",
       "waiting_task": "Waiting for Task",
