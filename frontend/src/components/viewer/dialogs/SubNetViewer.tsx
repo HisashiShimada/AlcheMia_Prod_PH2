@@ -116,9 +116,31 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [subnetData, setSubnetData] = useState<SubnetData | null>(null);
   
-  // 右ペイン（PropertyViewer）
+  // 右ペイン（PropertyViewerWithSelection）
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  
+  // プロパティオブジェクトの型定義（PropertyViewerWithSelectionと同じ）
+  interface PropertyObject {
+    key?: string;
+    value?: unknown;
+    type?: string;
+    description?: string;
+    defaultValue?: string;
+  }
+
+  // プロパティ構造（ノードのプロパティ情報）
+  const [structuredProperties, setStructuredProperties] = useState<{
+    basic: Record<string, PropertyObject>;
+    template: Record<string, PropertyObject>;
+    data: Record<string, PropertyObject>;
+  }>({
+    basic: {},
+    template: {},
+    data: {}
+  });
+
 
   // MAIMLデータからサブネット情報を抽出
   useEffect(() => {
@@ -262,9 +284,47 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
   const handleNodeClick: NodeMouseHandler = useCallback((event, node) => {
     console.log('👆 [SubNetViewer] ノードクリック:', node.id, node.data.nodeType);
     
+    setSelectedNodeId(node.id);
+    setSelectedNode(node);
+
+    // 基本情報
+    const basicProperties: Record<string, PropertyObject> = {
+      id: { key: 'id', value: String(node.id), type: 'string', description: 'ノードID' },
+      type: { key: 'type', value: String(node.data.templateType || node.data.nodeType || 'place'), type: 'string', description: 'ノード種別' },
+      name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: 'ノード名' },
+    };
+
+    // テンプレートプロパティ
+    const templateProperties: Record<string, PropertyObject> = {};
+    if (node.data.properties && typeof node.data.properties === 'object') {
+      Object.entries(node.data.properties).forEach(([key, value]) => {
+        templateProperties[key] = {
+          key,
+          value: value || '値なし',
+          type: 'string',
+          description: '説明なし'
+        };
+      });
+    }
+
+    // データプロパティ
+    const dataProperties: Record<string, PropertyObject> = {
+      coordinates: {
+        key: 'coordinates',
+        value: `(${node.position.x.toFixed(2)}, ${node.position.y.toFixed(2)})`,
+        type: 'coordinates',
+        description: 'ノード座標'
+      }
+    };
+
+    setStructuredProperties({
+      basic: basicProperties,
+      template: templateProperties,
+      data: dataProperties
+    });
+    
     // 右ペインを開く
     setRightPanelOpen(true);
-    setSelectedNode(node);
   }, []);
 
   // ビューポートリセット
@@ -282,6 +342,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
   const handleClosePropertyViewer = useCallback(() => {
     setRightPanelOpen(false);
     setSelectedNode(null);
+    setSelectedNodeId(null);
   }, []);
 
   // React Flow設定
@@ -401,13 +462,13 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
           <PropertyViewer
             properties={{
               id: selectedNode.id,
-              name: selectedNode.data.label as string,
-              type: selectedNode.data.nodeType === 'transition' ? 'Transition' : 
+              name: selectedNode.data.label as string || selectedNode.id,
+              type: (selectedNode.data.nodeType === 'transition' ? 'Transition' : 
                     selectedNode.data.templateType === 'material' ? 'Material' :
                     selectedNode.data.templateType === 'condition' ? 'Condition' :
-                    selectedNode.data.templateType === 'result' ? 'Result' : 'Place',
+                    selectedNode.data.templateType === 'result' ? 'Result' : 'Material') as 'Material' | 'Condition' | 'Result' | 'Transition',
             }}
-            maimlData={maimlData}
+            structuredProperties={structuredProperties}
             onClose={handleClosePropertyViewer}
           />
         </div>

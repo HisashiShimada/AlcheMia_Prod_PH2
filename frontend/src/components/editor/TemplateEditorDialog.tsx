@@ -520,6 +520,9 @@ export interface TemplateEditorDialogProps {
   node: Node | null;
   onSave: (updatedNode: Node) => void;
   allNodes?: Node[];
+  // フォーマット管理統合用
+  sourceContext?: 'project' | 'format';  // デフォルト: 'project'
+  editingFileName?: string;              // フォーマット管理から編集時のファイル名
 }
 
 /**
@@ -530,7 +533,10 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   onClose,
   node,
   onSave,
-  allNodes = []
+  allNodes = [],
+  // フォーマット管理統合用
+  sourceContext = 'project',
+  editingFileName
 }) => {
   // Phase 3.1: 基本情報管理
   const [uuid, setUuid] = useState('');
@@ -576,6 +582,28 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     analyzeNamespaceFile
   } = useNamespaceOperations();
 
+  // ダイアログタイトルと表示制御をuseEffectより前に計算
+  const templateType = useMemo(() => {
+    if (!node) return 'Template';
+    return node.data.placeType === 'material' ? 'MaterialTemplate' :
+           node.data.placeType === 'condition' ? 'ConditionTemplate' :
+           'ResultTemplate';
+  }, [node]);
+
+  const templateIcon = useMemo(() => {
+    if (!node) return <ExperimentOutlined />;
+    return node.data.placeType === 'material' ? <ExperimentOutlined /> :
+           node.data.placeType === 'condition' ? <SettingOutlined /> :
+           <BarChartOutlined />;
+  }, [node]);
+
+  const dialogTitle = useMemo(() => {
+    return `${templateType}を編集`;
+  }, [templateType]);
+
+  const showBasicInfo = useMemo(() => sourceContext !== 'format', [sourceContext]);
+  const showInsertionInfo = useMemo(() => sourceContext !== 'format', [sourceContext]);
+
   useEffect(() => {
     if (open && node) {
       console.log('🔍 [TemplateEditorDialog] ノードデータ読み込み:', node);
@@ -598,14 +626,6 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   }, [open, node]);
 
   if (!node) return null;
-
-  const templateType = node.data.placeType === 'material' ? 'MaterialTemplate' :
-                      node.data.placeType === 'condition' ? 'ConditionTemplate' :
-                      'ResultTemplate';
-
-  const templateIcon = node.data.placeType === 'material' ? <ExperimentOutlined /> :
-                       node.data.placeType === 'condition' ? <SettingOutlined /> :
-                       <BarChartOutlined />;
 
   // UUID生成ハンドラー
   const handleGenerateUuid = () => {
@@ -1094,7 +1114,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         title={
           <Flex align="center" gap="small">
             {templateIcon}
-            <span>{templateType}を編集</span>
+            <span>{dialogTitle}</span>
           </Flex>
         }
         width={1200}
@@ -1112,17 +1132,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       >
         <Text type="secondary">{node.data.name} | NestedPropertyEditor完全準拠版</Text>
 
-        <Divider />
-
-        {/* Phase 3.1: 基本情報編集セクション */}
-        <div style={{ 
-          marginBottom: 24, 
-          padding: 16, 
-          background: '#f8f9fa', 
-          borderRadius: 8, 
-          border: '2px solid #007bff' 
-        }}>
-          <Title level={5}>📋 基本情報</Title>
+        {/* Phase 3.1: 基本情報編集セクション - フォーマット管理から遷移時は非表示 */}
+        {showBasicInfo && (
+          <>
+            <Divider />
+          <div style={{ 
+            marginBottom: 24, 
+            padding: 16, 
+            background: '#f8f9fa', 
+            borderRadius: 8, 
+            border: '2px solid #007bff' 
+          }}>
+            <Title level={5}>📋 基本情報</Title>
           
           {/* UUID */}
           <div style={{ marginBottom: 16 }}>
@@ -1193,10 +1214,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               </div>
             </>
           )}
-        </div>
+          </div>
+          </>
+        )}
 
         {/* Properties編集セクション */}
-        <Divider />
+        {showBasicInfo && <Divider />}
         <Title level={5}>🏷️ Properties</Title>
         
         <Flex gap="small" style={{ marginBottom: 16 }}>

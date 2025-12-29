@@ -10,18 +10,42 @@ import { CloseOutlined } from '@ant-design/icons';
 const { Title, Text, Paragraph } = Typography;
 
 /**
+ * プロパティオブジェクトの型定義
+ */
+interface PropertyObject {
+  key?: string;
+  value?: unknown;
+  type?: string;
+  description?: string;
+  defaultValue?: string;
+}
+
+/**
+ * 構造化されたプロパティの型定義
+ */
+interface StructuredProperties {
+  basic: Record<string, PropertyObject>;
+  template: Record<string, PropertyObject>;
+  data: Record<string, PropertyObject>;
+}
+
+/**
  * プロパティビューアコンポーネント
- * MAIML構造に特化したプロパティ表示
+ * MAIML構造に特化したプロパティ表示（structuredProperties方式）
  */
 interface PropertyViewerProps {
-  properties: Record<string, any>;  // ノードのプロパティ情報
-  maimlData: string;  // MAIMLデータ全体（XML文字列）
+  properties: {
+    id: string;
+    name: string;
+    type: 'Material' | 'Condition' | 'Result' | 'Transition';
+  };
+  structuredProperties: StructuredProperties;  // 構造化されたプロパティ
   onClose?: () => void;  // 閉じるボタンのハンドラ
 }
 
 const PropertyViewer: React.FC<PropertyViewerProps> = ({
   properties,
-  maimlData,
+  structuredProperties,
   onClose,
 }) => {
   const { token } = theme.useToken();
@@ -29,94 +53,59 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   // アクティブなタブの状態
   const [activeTab, setActiveTab] = useState('basic');
   
-  // 各タブのデータ
-  const [basicInfo, setBasicInfo] = useState<Record<string, any>>({});
-  const [templateProps, setTemplateProps] = useState<Record<string, any>>({});
-  const [dataProps, setDataProps] = useState<Record<string, any>>({});
-  
-  // MAIMLデータのパース結果
-  const [parsedXml, setParsedXml] = useState<Document | null>(null);
-  
-  // ヘッダーカラー
-  const [headerColor, setHeaderColor] = useState('#D7BDE2');
-  
-  // 初期化処理
-  useEffect(() => {
-    if (!maimlData) return;
+  // ヘッダーカラーを計算
+  const headerColor = React.useMemo(() => {
+    if (!properties?.type) return '#D7BDE2';
     
-    try {
-      // XMLをパース
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(maimlData, 'text/xml');
-      setParsedXml(xmlDoc);
-      
-      // ノードタイプに応じたヘッダー色を設定
-      if (properties && properties.type) {
-        switch (properties.type) {
-          case 'Result':
-            setHeaderColor('#D7BDE2'); // マゼンタ
-            break;
-          case 'Condition':
-            setHeaderColor('#85C1E9'); // シアン
-            break;
-          case 'Material':
-            setHeaderColor('#F8C471'); // 黄色
-            break;
-          case 'Transition':
-            setHeaderColor('#CCCCCC'); // グレー
-            break;
-          default:
-            setHeaderColor('#D7BDE2');
-        }
-      }
-    } catch (err) {
-      console.error('MAIMLデータのパースエラー:', err);
+    switch (properties.type) {
+      case 'Result':
+        return '#D7BDE2'; // マゼンタ
+      case 'Condition':
+        return '#85C1E9'; // シアン
+      case 'Material':
+        return '#F8C471'; // 黄色
+      case 'Transition':
+        return '#CCCCCC'; // グレー
+      default:
+        return '#D7BDE2';
     }
-  }, [maimlData, properties]);
+  }, [properties?.type]);
   
-  // プロパティが更新されたときにデータを取得
-  useEffect(() => {
-    if (!parsedXml || !properties || !properties.id) return;
-    
-    const nodeId = properties.id;
-    const nodeType = properties.type;
-    
-    console.log(`[PropertyViewer] ノード情報: id=${nodeId}, type=${nodeType}`);
-    
-    // Transitionノードのプロパティを取得
-    const fetchTransitionPropertiesInternal = (nodeId: string) => {
-      const newBasicInfo: Record<string, unknown> = {
-        id: nodeId,
-        name: properties.name || nodeId,
-        type: properties.type || 'Transition',
-      };
-      
-      setBasicInfo(newBasicInfo);
-      setTemplateProps({});
-      setDataProps({});
-    };
-    
-    // Placeノードのプロパティを取得
-    const fetchPlacePropertiesInternal = (nodeId: string, nodeType: string) => {
-      const newBasicInfo: Record<string, unknown> = {
-        id: nodeId,
-        name: properties.name || nodeId,
-        type: properties.type || 'Place',
-      };
-      
-      setBasicInfo(newBasicInfo);
-      setTemplateProps({});
-      setDataProps({});
-    };
-    
-    // transitionノードの場合
-    if (nodeType === 'Transition') {
-      fetchTransitionPropertiesInternal(nodeId);
-    } else {
-      // placeノードの場合
-      fetchPlacePropertiesInternal(nodeId, nodeType);
+  // structuredPropertiesから値を取得するヘルパー関数
+  const getPropertyValue = (propObj: PropertyObject): unknown => {
+    if (propObj.value !== undefined) {
+      return propObj.value;
     }
-  }, [parsedXml, properties]);
+    if (propObj.defaultValue !== undefined) {
+      return propObj.defaultValue;
+    }
+    return '未設定';
+  };
+  
+  // structuredPropertiesをテーブル用のRecord形式に変換
+  const basicInfo = React.useMemo(() => {
+    const result: Record<string, unknown> = {};
+    Object.entries(structuredProperties.basic || {}).forEach(([key, propObj]) => {
+      result[key] = getPropertyValue(propObj);
+    });
+    return result;
+  }, [structuredProperties.basic]);
+  
+  const templateProps = React.useMemo(() => {
+    const result: Record<string, unknown> = {};
+    Object.entries(structuredProperties.template || {}).forEach(([key, propObj]) => {
+      result[key] = getPropertyValue(propObj);
+    });
+    return result;
+  }, [structuredProperties.template]);
+  
+  const dataProps = React.useMemo(() => {
+    const result: Record<string, unknown> = {};
+    Object.entries(structuredProperties.data || {}).forEach(([key, propObj]) => {
+      result[key] = getPropertyValue(propObj);
+    });
+    return result;
+  }, [structuredProperties.data]);
   
   // プロパティテーブルのカラム定義
   const columns = [
@@ -151,7 +140,7 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   ];
   
   // プロパティデータをテーブル用に変換
-  const convertToTableData = (data: Record<string, any>) => {
+  const convertToTableData = (data: Record<string, unknown>) => {
     return Object.entries(data).map(([propKey, value], index) => ({
       key: index.toString(),
       propKey: formatKey(propKey),

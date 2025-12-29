@@ -332,3 +332,69 @@ export function hasDocumentInMaiML(maimlData: string): boolean {
   if (!maimlData) return false;
   return /<document[^>]*>/.test(maimlData);
 }
+
+/**
+ * DocumentDataの不足フィールドを補完する
+ * 
+ * 基本情報とMaiML ID属性が空またはデフォルト値の場合、新しい値を生成して設定する。
+ * 既存の値がある場合はそのまま保持する。
+ * 
+ * @param doc 元のDocumentData
+ * @param baseName 基準となる名前（プロジェクト名など）
+ * @returns 補完されたDocumentData
+ */
+export function fillMissingDocumentFields(
+  doc: DocumentData,
+  baseName: string
+): DocumentData {
+  const sanitizedBaseName = baseName
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9_]/g, '');
+  
+  // 既存の値を保持しつつ、空のフィールドだけを補完
+  return {
+    ...doc,
+    
+    // 基本情報の補完
+    id: doc.id && doc.id !== 'documentID' && doc.id !== '' 
+      ? doc.id 
+      : `document_${sanitizedBaseName}_${crypto.randomUUID().substring(0, 8)}`,
+    
+    name: doc.name && doc.name !== 'document' && doc.name !== '' 
+      ? doc.name 
+      : baseName,
+    
+    description: doc.description || '',  // 空文字列はそのまま
+    
+    date: doc.date && doc.date !== '' 
+      ? doc.date 
+      : new Date().toISOString(),
+    
+    uuid: doc.uuid && doc.uuid !== '' 
+      ? doc.uuid 
+      : crypto.randomUUID(),
+    
+    // MaiML ID属性の補完
+    protocolId: doc.protocolId && doc.protocolId !== 'protocolID' && doc.protocolId !== '' 
+      ? doc.protocolId 
+      : `protocol_${sanitizedBaseName}_${crypto.randomUUID().substring(0, 8)}`,
+    
+    methodId: doc.methodId && doc.methodId !== 'methodID' && doc.methodId !== '' 
+      ? doc.methodId 
+      : `method_${sanitizedBaseName}_${crypto.randomUUID().substring(0, 8)}`,
+    
+    pnmlId: doc.pnmlId && doc.pnmlId !== 'pnmlID' && doc.pnmlId !== '' 
+      ? doc.pnmlId 
+      : `pnml_${sanitizedBaseName}_${crypto.randomUUID().substring(0, 8)}`,
+    
+    programId: doc.programId && doc.programId !== 'programID' && doc.programId !== '' 
+      ? doc.programId 
+      : `program_${sanitizedBaseName}_${crypto.randomUUID().substring(0, 8)}`,
+    
+    // Creator/Vendor/Owner/Instrumentsはそのまま引き継ぐ（補完しない）
+    creators: doc.creators || [],
+    vendors: doc.vendors || [],
+    owners: doc.owners || [],
+    instruments: doc.instruments || [],
+  };
+}

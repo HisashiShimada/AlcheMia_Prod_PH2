@@ -33,7 +33,8 @@ import ResultTemplateNode from '../nodes/ResultTemplateNode';
 import TransitionNode from '../nodes/TransitionNode';
 
 // ダイアログコンポーネント
-import StructuredPropertySelector from './dialogs/StructuredPropertySelector';
+import PropertyViewerWithSelection from './dialogs/PropertyViewerWithSelection';
+import { Drawer } from 'antd';
 
 // ユーティリティ
 import { parseMaimlToPetriNet } from '../../utils/maimlParser';
@@ -104,16 +105,25 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
   const [multiMethodMode, setMultiMethodMode] = useState(false);
   const [methodName, setMethodName] = useState<string>('');
 
-  // ノード選択状態
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // Drawer表示状態
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [dialogVisible, setDialogVisible] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   
-  // プロパティ構造
+  // プロパティオブジェクトの型定義（PropertyViewerWithSelectionと同じ）
+  interface PropertyObject {
+    key?: string;
+    value?: unknown;
+    type?: string;
+    description?: string;
+    defaultValue?: string;
+  }
+
+  // プロパティ構造（ノードのプロパティ情報）
   const [structuredProperties, setStructuredProperties] = useState<{
-    basic: Record<string, unknown>;
-    template: Record<string, unknown>;
-    data: Record<string, unknown>;
+    basic: Record<string, PropertyObject>;
+    template: Record<string, PropertyObject>;
+    data: Record<string, PropertyObject>;
   }>({
     basic: {},
     template: {},
@@ -167,15 +177,21 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       const structure = parseMaimlToPetriNet(maimlData, selectedMethodId);
       
       // ペトリネット構造をSubNetViewer用の形式に変換
-      const placesForSubNet = structure.places.map(place => ({
-        id: place.id,
-        data: {
-          label: place.name,
-          stereotype: place.type,
-          template: structure.templates[place.id] ? { id: structure.templates[place.id].id } : undefined,
-          templateId: structure.templates[place.id]?.id,
-        },
-      }));
+      const placesForSubNet = structure.places.map(place => {
+        // templatesからtypeを取得（存在しない場合はmaterial）
+        const template = structure.templates[place.id];
+        const templateType = template?.type || 'material';
+        
+        return {
+          id: place.id,
+          data: {
+            label: place.name,
+            stereotype: templateType, // templatesから取得したtypeを使用
+            template: template ? { id: template.id } : undefined,
+            templateId: template?.id,
+          },
+        };
+      });
       
       setPetriNetStructure({
         places: placesForSubNet,
@@ -232,7 +248,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       console.log('🔍 [PetriNetViewer] Placeノード処理開始');
 
       // 基本情報
-      const basicProperties: Record<string, unknown> = {
+      const basicProperties: Record<string, PropertyObject> = {
         id: { key: 'id', value: String(node.id), type: 'string', description: 'ノードID' },
         type: { key: 'type', value: String(node.data.templateType || 'material'), type: 'string', description: 'ノード種別' },
         name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: 'ノード名' },
@@ -240,7 +256,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       };
 
       // テンプレートプロパティ
-      const templateProperties: Record<string, unknown> = {};
+      const templateProperties: Record<string, PropertyObject> = {};
       if (node.data.properties && typeof node.data.properties === 'object') {
         Object.entries(node.data.properties).forEach(([key, value]) => {
           templateProperties[key] = {
@@ -253,7 +269,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       }
 
       // データプロパティ
-      const dataProperties: Record<string, unknown> = {
+      const dataProperties: Record<string, PropertyObject> = {
         coordinates: {
           key: 'coordinates',
           value: `(${node.position.x.toFixed(2)}, ${node.position.y.toFixed(2)})`,
@@ -274,7 +290,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         data: dataProperties
       });
 
-      setDialogVisible(true);
+      setDrawerOpen(true);
     } else if (node.data?.nodeType === 'transition') {
       // Transitionノード → 親コンポーネントに通知
       console.log('🔍 [PetriNetViewer] Transitionノードクリック:', node.id);
@@ -568,37 +584,36 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         </Card>
       ) : null}
 
-      {/* プロパティ選択ダイアログ */}
-      <StructuredPropertySelector
-        open={dialogVisible}
-        onClose={() => setDialogVisible(false)}
-        nodeId={selectedNodeId}
-        nodeName={selectedNode?.data?.label as string}
-        structuredProperties={structuredProperties as {
-          basic: Record<string, {
-            key?: string;
-            value?: unknown;
-            type?: string;
-            description?: string;
-          }>;
-          template: Record<string, {
-            key?: string;
-            value?: unknown;
-            type?: string;
-            description?: string;
-          }>;
-          data: Record<string, {
-            key?: string;
-            value?: unknown;
-            type?: string;
-            description?: string;
-          }>;
+      {/* プロパティ選択Drawer */}
+      <Drawer
+        open={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelectedNode(null);
+          setSelectedNodeId(null);
         }}
-        selectedProperties={selectedPropertiesByNode[selectedNodeId || ''] || { basic: [], template: [], data: [] }}
-        onPropertyToggle={handlePropertyToggle}
-        displayMode={propertyDisplayMode}
-        getContainer={containerElementId ? () => document.getElementById(containerElementId) as HTMLElement : undefined}
-      />
+        width={450}
+        getContainer={containerElementId ? () => document.getElementById(containerElementId) as HTMLElement : document.body}
+        styles={{ body: { padding: 0 } }}
+      >
+        {selectedNode && (
+          <PropertyViewerWithSelection
+            properties={{
+              id: selectedNode.id,
+              name: selectedNode.data?.label as string || selectedNode.id,
+              type: (selectedNode.data?.templateType as 'Material' | 'Condition' | 'Result' | 'Transition') || 'Material',
+            }}
+            structuredProperties={structuredProperties}
+            selectedProperties={selectedPropertiesByNode[selectedNode.id] || { basic: [], template: [], data: [] }}
+            onPropertyToggle={handlePropertyToggle}
+            onClose={() => {
+              setDrawerOpen(false);
+              setSelectedNode(null);
+              setSelectedNodeId(null);
+            }}
+          />
+        )}
+      </Drawer>
     </div>
   );
 };

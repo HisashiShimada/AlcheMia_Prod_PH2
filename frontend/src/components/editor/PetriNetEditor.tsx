@@ -42,7 +42,7 @@ import useDraftManager from '../../hooks/useDraftManager';
 // ユーティリティ関数
 import { convertReactFlowToMaiML, validatePetriNet } from '../../utils/converters/reactFlowToMaiml';
 import { convertMultipleMethodsToMaiML } from '../../utils/converters/multiMethodConverter';
-import { extractDocumentFromMaiML, type DocumentData } from '../../utils/documentParser';
+import { extractDocumentFromMaiML, fillMissingDocumentFields, type DocumentData } from '../../utils/documentParser';
 import { validateMaimlContent, autoCorrectMaiml } from '../../utils/apiClient';
 
 // Viewer用ノード（既存の正しいノード描画）
@@ -71,6 +71,8 @@ export interface PetriNetEditorProps {
   projectName?: string;                 // プロジェクト名（DocumentEditDialogのデフォルト値用）
   onSave?: (content: string) => Promise<void>;  // 保存コールバック
   onContentChange?: () => void;         // 変更通知コールバック
+  // フォーマット管理統合用
+  sourceContext?: 'project' | 'format'; // 遷移元コンテキスト（デフォルト: 'project'）
 }
 
 /**
@@ -102,6 +104,8 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
   projectName,
   onSave: onSaveCallback,
   onContentChange,
+  // フォーマット管理統合用
+  sourceContext = 'project', // デフォルト: 'project'
 }) => {
   // initialContentとmaimlDataの統合（後方互換性維持）
   const effectiveMaimlData = initialContent || maimlData;
@@ -350,28 +354,39 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
       if (!effectiveMaimlData) {
         console.log('🆕 [PetriNetEditor] 新規作成モード: 空の状態で起動');
         
-        if (projectName && !documentData) {
-          const uuidFull = crypto.randomUUID();
-          const uuidPrefix = uuidFull.substring(0, 8);
-          
-          const initialDocumentData: DocumentData = {
-            id: `document_${projectName}_${uuidPrefix}`,
-            protocolId: `protocol_${projectName}_${crypto.randomUUID().substring(0, 8)}`,
-            methodId: `method_${projectName}_${crypto.randomUUID().substring(0, 8)}`,
-            pnmlId: `pnml_${projectName}_${crypto.randomUUID().substring(0, 8)}`,
-            programId: `program_${projectName}_${crypto.randomUUID().substring(0, 8)}`,
-            name: projectName,
+        // sourceContextに応じてベース名を決定
+        const baseName = sourceContext === 'format' && editingFileName 
+          ? editingFileName.replace(/\.maiml$/, '').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '')
+          : projectName;
+        
+        if (baseName && !documentData) {
+          // 空のDocumentDataを作成
+          const emptyDocumentData: DocumentData = {
+            id: '',
+            protocolId: '',
+            methodId: '',
+            pnmlId: '',
+            programId: '',
+            name: '',
             description: '',
-            date: new Date().toISOString(),
-            uuid: uuidFull,
-            creators: [],  // 空配列（マスタから追加）
-            vendors: [],   // 空配列（マスタから追加）
-            owners: [],    // 空配列（マスタから追加）
+            date: '',
+            uuid: '',
+            creators: [],  // 空配列
+            vendors: [],   // 空配列
+            owners: [],    // 空配列
             instruments: [],
           };
+          
+          // sourceContext === 'project' の場合のみfillMissingDocumentFieldsで補完
+          const initialDocumentData = sourceContext === 'project'
+            ? fillMissingDocumentFields(emptyDocumentData, baseName)
+            : emptyDocumentData;
+          
           setDocumentData(initialDocumentData);
-          console.log('📄 [PetriNetEditor] Document初期化（ID自動生成）:', {
-            projectName,
+          console.log('📄 [PetriNetEditor] Document初期化:', {
+            sourceContext,
+            baseName,
+            補完実行: sourceContext === 'project',
             documentId: initialDocumentData.id,
             protocolId: initialDocumentData.protocolId,
             methodId: initialDocumentData.methodId,
@@ -443,14 +458,30 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
               
               const extractedDocument = extractDocumentFromMaiML(effectiveMaimlData || '');
               if (extractedDocument) {
-                const documentWithCorrectName: DocumentData = {
+                // まず元のファイル名を設定
+                const documentWithFileName: DocumentData = {
                   ...extractedDocument,
-                  name: originalFileName 
+                  name: extractedDocument.name || (originalFileName 
                     ? originalFileName.replace('.maiml', '') 
-                    : extractedDocument.name || 'document'
+                    : 'document')
                 };
-                setDocumentData(documentWithCorrectName);
-                console.log('📄 [PetriNetEditor] Document情報を読み込みました');
+                
+                // sourceContext === 'project' の場合のみ不足フィールドを補完
+                const baseName = projectName || documentWithFileName.name || 'template';
+                const documentToSet = sourceContext === 'project'
+                  ? fillMissingDocumentFields(documentWithFileName, baseName)
+                  : documentWithFileName;
+                
+                setDocumentData(documentToSet);
+                console.log('📄 [PetriNetEditor] Document読み込み完了（複数method）:', {
+                  sourceContext,
+                  補完実行: sourceContext === 'project',
+                  originalId: extractedDocument.id,
+                  finalId: documentToSet.id,
+                  creatorsCount: documentToSet.creators.length,
+                  vendorsCount: documentToSet.vendors.length,
+                  ownersCount: documentToSet.owners.length,
+                });
               }
               
               const convertedMethods = methodsData.map((method: any, index: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -510,15 +541,30 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         
         const extractedDocument = extractDocumentFromMaiML(effectiveMaimlData);
         if (extractedDocument) {
-          const documentWithCorrectName: DocumentData = {
+          // まず元のファイル名を設定
+          const documentWithFileName: DocumentData = {
             ...extractedDocument,
-            name: originalFileName 
+            name: extractedDocument.name || (originalFileName 
               ? originalFileName.replace('.maiml', '') 
-              : extractedDocument.name || 'document'
+              : 'document')
           };
           
-          setDocumentData(documentWithCorrectName);
-          console.log('📄 [PetriNetEditor] Document情報を読み込みました');
+          // sourceContext === 'project' の場合のみ不足フィールドを補完
+          const baseName = projectName || documentWithFileName.name || 'template';
+          const documentToSet = sourceContext === 'project'
+            ? fillMissingDocumentFields(documentWithFileName, baseName)
+            : documentWithFileName;
+          
+          setDocumentData(documentToSet);
+          console.log('📄 [PetriNetEditor] Document読み込み完了（単一method）:', {
+            sourceContext,
+            補完実行: sourceContext === 'project',
+            originalId: extractedDocument.id,
+            finalId: documentToSet.id,
+            creatorsCount: documentToSet.creators.length,
+            vendorsCount: documentToSet.vendors.length,
+            ownersCount: documentToSet.owners.length,
+          });
         }
         
         // parseMaimlToPetriNetで直接パース
@@ -931,9 +977,13 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
   // ===== イベントハンドラー: ダイアログ操作 =====
   const handleOpenTemplateEditor = useCallback((node: Node) => {
     console.log('🔧 [PetriNetEditor] テンプレート編集:', node);
+    
+    // テンプレート編集ダイアログを開く前に現在の状態を履歴に保存
+    pushState({ nodes, edges });
+    
     setTemplateEditNode(node);
     setTemplateEditorOpen(true);
-  }, []);
+  }, [nodes, edges, pushState]);
 
   const handleCloseTemplateEditor = useCallback(() => {
     setTemplateEditorOpen(false);
@@ -1541,6 +1591,8 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         node={templateEditNode}
         onClose={handleCloseTemplateEditor}
         onSave={handleSaveTemplate}
+        sourceContext={sourceContext}
+        editingFileName={editingFileName}
       />
 
       <DocumentEditDialog
