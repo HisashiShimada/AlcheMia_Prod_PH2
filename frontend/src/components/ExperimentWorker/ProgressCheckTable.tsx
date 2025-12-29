@@ -15,6 +15,7 @@ interface AggregatedRow {
   methodName: string;
   methodId: string;
   taskCount: number;
+  status: TaskStatus;  // メソッド全体のステータス
   // rowKey用の一意ID
   id: string;
 }
@@ -25,6 +26,34 @@ type TableRow = Task | AggregatedRow;
 // 型ガード関数
 function isAggregatedRow(row: TableRow): row is AggregatedRow {
   return 'isAggregated' in row && row.isAggregated === true;
+}
+
+/**
+ * メソッドに紐づくタスクのステータスから、メソッド全体のステータスを計算
+ * @param tasks メソッドに紐づくタスクの配列
+ * @returns 計算されたメソッドステータス
+ */
+function calculateMethodStatus(tasks: Task[]): TaskStatus {
+  if (tasks.length === 0) {
+    return 'not_started';
+  }
+  
+  // 1つでも「作業中」系のタスクがあれば「作業中」
+  const hasInProgress = tasks.some(task => 
+    task.status === 'started' || task.status === 'in_progress'
+  );
+  if (hasInProgress) {
+    return 'in_progress';
+  }
+  
+  // 全て「完了」であれば「完了」
+  const allCompleted = tasks.every(task => task.status === 'completed');
+  if (allCompleted) {
+    return 'completed';
+  }
+  
+  // それ以外は「開始前」
+  return 'not_started';
 }
 
 interface ProgressCheckTableProps {
@@ -162,11 +191,13 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
     methodGroups.forEach((tasksInMethod, methodId) => {
       if (collapsedMethodIds.has(methodId)) {
         // 集約モード: 1行の集約行を追加
+        const methodStatus = calculateMethodStatus(tasksInMethod);
         const aggregatedRow: AggregatedRow = {
           isAggregated: true,
           methodName: tasksInMethod[0].methodName,
           methodId: methodId,
           taskCount: tasksInMethod.length,
+          status: methodStatus,
           id: `aggregated-${methodId}`
         };
         result.push(aggregatedRow);
@@ -254,14 +285,12 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
       width: 100,
       align: 'center',
       sorter: (a, b) => {
-        const aStatus = isAggregatedRow(a) ? '' : a.status;
-        const bStatus = isAggregatedRow(b) ? '' : b.status;
+        const aStatus = a.status;
+        const bStatus = b.status;
         return aStatus.localeCompare(bStatus);
       },
       render: (status: TaskStatus, record: TableRow) => {
-        if (isAggregatedRow(record)) {
-          return <Text style={{ fontSize: '14px', color: '#9e9e9e' }}>-</Text>;
-        }
+        // 集約行の場合もステータスを表示
         const config = getStatusConfig(status);
         return (
           <Tag
