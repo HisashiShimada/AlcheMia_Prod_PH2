@@ -5,9 +5,11 @@ import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress } fr
 import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
-import { Transition, ExperimentDataValue, ProjectStatus, isRecordableStatus } from '@/types/experimentWorker';
+import { Transition, ExperimentDataValue, ProjectStatus, isRecordableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
+import { getIssuesByTransitionId } from '@/data/projectsData';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
+import IssueManagementModal from './IssueManagementModal';
 
 const { Text } = Typography;
 
@@ -35,10 +37,14 @@ export default function TransitionList({
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
   const [dataRecordModalOpen, setDataRecordModalOpen] = useState(false);
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
   
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
+
+  // TODO: モックデータ - 実際はpropsまたはAPIから取得
+  const [issues, setIssues] = useState<Issue[]>([]);
 
   // トランジション名の選択肢を生成
   const transitionNameOptions = useMemo(() => {
@@ -108,6 +114,35 @@ export default function TransitionList({
   const handleRecord = (transition: Transition) => {
     setSelectedTransition(transition);
     setDataRecordModalOpen(true);
+  };
+
+  // 問題報告ボタンクリックハンドラ
+  const handleIssueReport = (transition: Transition) => {
+    setSelectedTransition(transition);
+    // トランジションIDに関連する問題を取得
+    const transitionIssues = getIssuesByTransitionId(transition.transitionId);
+    setIssues(transitionIssues);
+    setIssueModalOpen(true);
+  };
+
+  // 問題報告モーダルを閉じる
+  const handleIssueModalClose = () => {
+    setIssueModalOpen(false);
+    setSelectedTransition(null);
+  };
+
+  // 新規問題報告送信ハンドラ
+  const handleSubmitIssue = (issue: IssueReportFormData) => {
+    console.log('新規問題報告:', issue);
+    // TODO: バックエンドAPIへの送信処理を実装
+    message.success('問題を報告しました');
+  };
+
+  // コメント送信ハンドラ
+  const handleSubmitComment = (issueId: string, comment: string) => {
+    console.log('コメント投稿:', { issueId, comment });
+    // TODO: バックエンドAPIへの送信処理を実装
+    message.success('コメントを投稿しました');
   };
 
   // テーブルの列定義（統合版）
@@ -252,6 +287,42 @@ export default function TransitionList({
       }
     },
     {
+      title: '問題報告',
+      key: 'issue',
+      width: 100,
+      align: 'center',
+      render: (_, record: Transition) => {
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleIssueReport(record);
+            }}
+            style={{
+              padding: '4px 12px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: '#CF0027',
+              backgroundColor: '#ffffff',
+              border: '1px solid #CF0027',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#fff5f7';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+            }}
+          >
+            報告
+          </button>
+        );
+      }
+    },
+    {
       title: '説明',
       dataIndex: 'description',
       key: 'description',
@@ -342,6 +413,19 @@ export default function TransitionList({
         projectId={projectId}
         methodId={methodId}
       />
+
+      {/* 問題管理モーダル */}
+      {selectedTransition && (
+        <IssueManagementModal
+          visible={issueModalOpen}
+          transitionId={selectedTransition.transitionId}
+          transitionName={selectedTransition.transitionName}
+          issues={issues}
+          onClose={handleIssueModalClose}
+          onSubmitIssue={handleSubmitIssue}
+          onSubmitComment={handleSubmitComment}
+        />
+      )}
     </>
   );
 }

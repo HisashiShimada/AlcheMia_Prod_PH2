@@ -1933,3 +1933,182 @@ export function updateTaskStatus(
 
   return [...method.tasks];
 }
+
+/**
+ * 問題報告モックデータ
+ * トランジションIDをキーとして問題一覧を管理
+ */
+import { Issue, IssueComment, User } from '@/types/experimentWorker';
+
+// モックユーザーデータ
+const mockUsers: Record<string, User> = {
+  worker_001: {
+    userId: 'worker_001',
+    userName: '田中一郎',
+    role: 'Worker'
+  },
+  worker_002: {
+    userId: 'worker_002',
+    userName: '鈴木二郎',
+    role: 'Worker'
+  },
+  manager_001: {
+    userId: 'manager_001',
+    userName: '山田太郎',
+    role: 'Manager'
+  }
+};
+
+// 問題報告モックデータ
+export const issuesData: Record<string, Issue[]> = {
+  // トランジションt002の問題
+  t002: [
+    {
+      issueId: 'issue_001',
+      transitionId: 't002',
+      transitionName: '温度設定',
+      title: '目標温度到達に時間がかかる',
+      content: '加熱炉の温度が目標値に達するまでに通常より5分程度余計に時間がかかっています。ヒーターの劣化が疑われます。',
+      status: 'unresolved',
+      targetType: 'transition',
+      reportedBy: mockUsers.worker_001,
+      reportedAt: '2024-12-25T10:30:00Z',
+      comments: [
+        {
+          commentId: 'comment_001',
+          issueId: 'issue_001',
+          content: 'ヒーターの点検を実施しました。接触不良を確認したため、配線を修正しました。',
+          createdBy: mockUsers.manager_001,
+          createdAt: '2024-12-25T14:20:00Z'
+        },
+        {
+          commentId: 'comment_002',
+          issueId: 'issue_001',
+          content: '修正後、温度上昇が正常に戻ったことを確認しました。ありがとうございます。',
+          createdBy: mockUsers.worker_001,
+          createdAt: '2024-12-25T15:10:00Z'
+        }
+      ]
+    }
+  ],
+  // トランジションt005の問題
+  t005: [
+    {
+      issueId: 'issue_002',
+      transitionId: 't005',
+      transitionName: '天秤キャリブレーション',
+      title: '校正用分銅の重量が基準値とずれている',
+      content: '100g の校正用分銅を測定したところ、99.95g と表示されました。許容誤差範囲を超えているため、分銅の再校正が必要と思われます。',
+      status: 'unresolved',
+      targetType: 'transition',
+      reportedBy: mockUsers.worker_002,
+      reportedAt: '2024-12-26T09:15:00Z',
+      comments: [
+        {
+          commentId: 'comment_003',
+          issueId: 'issue_002',
+          content: '分銅メーカーに問い合わせ中です。来週中に新しい分銅セットが届く予定です。',
+          createdBy: mockUsers.manager_001,
+          createdAt: '2024-12-26T11:30:00Z'
+        }
+      ]
+    },
+    {
+      issueId: 'issue_003',
+      transitionId: 't005',
+      transitionName: '天秤キャリブレーション',
+      title: '天秤の表示が不安定',
+      content: '天秤に何も載せていない状態でも、表示が0.01g〜0.02gの範囲で変動します。環境の振動が原因か、天秤自体の問題か調査が必要です。',
+      status: 'resolved',
+      targetType: 'transition',
+      reportedBy: mockUsers.worker_001,
+      reportedAt: '2024-12-24T13:45:00Z',
+      comments: [
+        {
+          commentId: 'comment_004',
+          issueId: 'issue_003',
+          content: '天秤の設置場所を確認したところ、エアコンの風が直接当たっていました。風除けパネルを設置しました。',
+          createdBy: mockUsers.manager_001,
+          createdAt: '2024-12-24T15:00:00Z'
+        },
+        {
+          commentId: 'comment_005',
+          issueId: 'issue_003',
+          content: '風除けパネル設置後、表示の変動が±0.001g以内に収まるようになりました。問題解決を確認しました。',
+          createdBy: mockUsers.worker_001,
+          createdAt: '2024-12-24T16:20:00Z'
+        }
+      ]
+    }
+  ],
+  // トランジションt007の問題
+  t007: [
+    {
+      issueId: 'issue_004',
+      transitionId: 't007',
+      transitionName: 'サンプルA-1測定',
+      title: 'サンプルの表面に傷がある',
+      content: 'サンプルA-1の表面に小さな傷が確認されました。測定値に影響する可能性があるため、代替サンプルの使用を検討したいです。',
+      status: 'unresolved',
+      targetType: 'transition',
+      reportedBy: mockUsers.worker_002,
+      reportedAt: '2024-12-27T10:05:00Z',
+      comments: []
+    }
+  ],
+  // トランジションt303の問題
+  t303: [
+    {
+      issueId: 'issue_005',
+      transitionId: 't303',
+      transitionName: '元素分析測定',
+      title: 'スペクトルにノイズが多い',
+      content: 'XRF測定のスペクトルに通常より多くのノイズが含まれています。測定時間を延長するか、積算回数を増やす必要があるかもしれません。',
+      status: 'resolved',
+      targetType: 'transition',
+      reportedBy: mockUsers.worker_001,
+      reportedAt: '2024-12-28T14:30:00Z',
+      comments: [
+        {
+          commentId: 'comment_006',
+          issueId: 'issue_005',
+          content: 'X線管の出力を確認したところ、設定値より低下していました。出力を規定値に調整しました。',
+          createdBy: mockUsers.manager_001,
+          createdAt: '2024-12-28T15:45:00Z'
+        },
+        {
+          commentId: 'comment_007',
+          issueId: 'issue_005',
+          content: '出力調整後、ノイズレベルが正常範囲に戻りました。ありがとうございます。',
+          createdBy: mockUsers.worker_001,
+          createdAt: '2024-12-28T16:10:00Z'
+        }
+      ]
+    }
+  ]
+};
+
+/**
+ * トランジションIDから問題一覧を取得する
+ * @param transitionId トランジションID
+ * @returns 問題一覧
+ */
+export function getIssuesByTransitionId(transitionId: string): Issue[] {
+  return issuesData[transitionId] || [];
+}
+
+/**
+ * すべての問題を取得する
+ * @returns 全問題一覧
+ */
+export function getAllIssues(): Issue[] {
+  return Object.values(issuesData).flat();
+}
+
+/**
+ * 未解決の問題のみを取得する
+ * @returns 未解決問題一覧
+ */
+export function getUnresolvedIssues(): Issue[] {
+  return getAllIssues().filter(issue => issue.status === 'unresolved');
+}

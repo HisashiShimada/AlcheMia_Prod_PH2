@@ -463,8 +463,65 @@
       "total": "Total",
       "items": "items"
     },
-    "actions": {
-      "viewDetails": "View Details"
+      "actions": {
+        "viewDetails": "View Details"
+      }
+    },
+  "issueManagement": {
+    "title": "Issue Management",
+    "newIssue": "New Issue Report",
+    "issueList": "Issue List",
+    "issueDetails": "Issue Details",
+    "noIssueSelected": "Select an issue",
+    "noIssues": "No issues reported",
+    "columns": {
+      "title": "Title",
+      "status": "Status",
+      "targetType": "Target",
+      "reportedBy": "Reporter",
+      "reportedAt": "Reported At"
+    },
+    "status": {
+      "unresolved": "Unresolved",
+      "resolved": "Resolved"
+    },
+    "targetType": {
+      "project": "Project",
+      "task": "Task",
+      "transition": "Transition"
+    },
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "Enter issue title",
+      "titleRequired": "Title is required",
+      "titleMaxLength": "Title must be 100 characters or less",
+      "targetType": "Target",
+      "targetTypeRequired": "Target is required",
+      "content": "Content",
+      "contentPlaceholder": "Describe the issue in detail",
+      "contentRequired": "Content is required",
+      "contentMinLength": "Content must be at least 10 characters",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "details": {
+      "title": "Title",
+      "status": "Status",
+      "targetType": "Target",
+      "reportedBy": "Reported By",
+      "reportedAt": "Reported At",
+      "content": "Content",
+      "comments": "Comments",
+      "commentsCount": "Comments",
+      "noComments": "No comments",
+      "addComment": "Add Comment",
+      "commentPlaceholder": "Enter your comment...",
+      "commentRequired": "Comment is required",
+      "send": "Send"
+    },
+    "messages": {
+      "issueReported": "Issue reported successfully",
+      "commentPosted": "Comment posted successfully"
     }
   }
 }

@@ -295,3 +295,47 @@ export interface IssueReportData {
   reportedAt?: string;     // 報告日時（バックエンドで設定）
   reportedBy?: string;     // 報告者（バックエンドで設定）
 }
+
+// ===== Phase: 問題管理（参照・コメント）用の型定義 =====
+
+// 問題状態（未解決/解決済）
+export type IssueStatus = 'unresolved' | 'resolved';
+
+// 問題対象タイプ（プロジェクト/タスク/トランジション）
+export type IssueTargetType = 'project' | 'task' | 'transition';
+
+// 問題コメント
+export interface IssueComment {
+  commentId: string;       // コメントID
+  issueId: string;         // 問題ID
+  content: string;         // コメント内容
+  createdBy: User;         // 記入者
+  createdAt: string;       // 記入時刻
+}
+
+// 問題
+export interface Issue {
+  issueId: string;         // 問題ID
+  transitionId: string;    // トランジションID
+  transitionName: string;  // トランジション名
+  projectId?: string;      // プロジェクトID（対象がプロジェクトの場合）
+  projectName?: string;    // プロジェクト名（対象がプロジェクトの場合）
+  taskId?: string;         // タスクID（対象がタスクの場合）
+  taskName?: string;       // タスク名（対象がタスクの場合）
+  title: string;           // タイトル
+  content: string;         // 内容
+  status: IssueStatus;     // 状態（未解決/解決済）
+  targetType: IssueTargetType; // 対象（プロジェクト/タスク/トランジション）
+  issueType?: IssueType;   // 問題タイプ（材料不足/機器故障/etc.）
+  reportedBy: User;        // 報告者
+  reportedAt: string;      // 報告時刻
+  comments: IssueComment[]; // コメント一覧
+}
+
+// 問題報告フォームデータ
+export interface IssueReportFormData {
+  title: string;           // タイトル
+  targetType: IssueTargetType; // 対象
+  issueType: IssueType;    // 問題タイプ
+  content: string;         // 内容
+}
