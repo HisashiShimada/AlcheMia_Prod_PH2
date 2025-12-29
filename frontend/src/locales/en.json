@@ -233,6 +233,10 @@
       "descriptionMaxLength": "Description must be 500 characters or less",
       "createdByInfo": "Creator Information",
       "createdBy": "Created By",
+      "templateType": "Template Type",
+      "templateTypeExtra": "Select the template type for the XML to be created",
+      "templateTypeRequired": "Please select a template type",
+      "templateTypePlaceholder": "Select template type",
       "success": "File created successfully",
       "successDescription": "A new file has been created and added to the list"
     },

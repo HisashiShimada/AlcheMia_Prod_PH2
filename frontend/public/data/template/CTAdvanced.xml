@@ -1,0 +1,54 @@
+<keyDictionary xmlns="http://abc.com/schema/keyDictionary/conditionTemplate/advanced/CTAdvanced" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <property key="LaserParameters" xsi:type="objectType">
+    <wavelength units="nm">532</wavelength>
+    <power units="mW">10.5</power>
+    <beamDiameter units="μm">1.2</beamDiameter>
+    <polarization>linear</polarization>
+    <description>レーザーパラメータ</description>
+    <calibration>
+      <date>2024-11-15</date>
+      <certificate>LASER-CAL-2024-089</certificate>
+    </calibration>
+  </property>
+  <property key="EnvironmentalConditions" xsi:type="objectType">
+    <temperature units="℃">23.2</temperature>
+    <humidity units="%">45</humidity>
+    <pressure units="hPa">1013.25</pressure>
+    <vibrationLevel units="μm/s">0.1</vibrationLevel>
+    <description>環境条件</description>
+    <monitoring>
+      <temperatureSensor>PT100</temperatureSensor>
+      <humiditySensor>capacitive</humiditySensor>
+      <pressureSensor>barometric</pressureSensor>
+    </monitoring>
+  </property>
+  <property key="OpticalSystem" xsi:type="objectType">
+    <objective>
+      <magnification>100x</magnification>
+      <numericAperture>0.9</numericAperture>
+      <workingDistance units="mm">0.2</workingDistance>
+    </objective>
+    <spectrometer>
+      <grating>600 gr/mm</grating>
+      <blazeWavelength units="nm">500</blazeWavelength>
+      <resolution units="/cm">2.0</resolution>
+    </spectrometer>
+    <detector>
+      <type>CCD</type>
+      <cooling units="℃">-70</cooling>
+      <pixelSize units="μm">13.5</pixelSize>
+    </detector>
+    <description>光学系設定</description>
+  </property>
+  <property key="DataAcquisition" xsi:type="objectType">
+    <exposureTime units="s">3.5</exposureTime>
+    <accumulations>3</accumulations>
+    <binning>
+      <horizontal>1</horizontal>
+      <vertical>1</vertical>
+    </binning>
+    <readoutSpeed>1 MHz</readoutSpeed>
+    <gainSetting>high</gainSetting>
+    <description>データ取得設定</description>
+  </property>
+</keyDictionary>

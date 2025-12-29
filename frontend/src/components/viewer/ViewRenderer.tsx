@@ -13,11 +13,12 @@ import {
   TabletOutlined,
   DesktopOutlined
 } from '@ant-design/icons';
+import { ReactFlowProvider } from 'reactflow';
 import ErrorBoundary from './ErrorBoundary';
 import TiffViewer from './TiffViewer';
 import ImageViewer from './ImageViewer';
 import PetriNetViewer from './PetriNetViewer';
-import PetriNetEditor from './PetriNetEditor';
+import PetriNetEditor from '../editor/PetriNetEditor';
 import { fetchMultipleMethodsStructureFromContent } from '@/utils/apiClient';
 
 const { Title, Text, Paragraph } = Typography;
@@ -456,11 +457,16 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
         <ErrorBoundary>
-          <PetriNetEditor
-            editingFileName={selectedFile?.name}
-            initialMaiMLData={fileContent}
-            onExitEdit={onExitEdit}
-          />
+          <ReactFlowProvider>
+            <PetriNetEditor
+              maimlData={fileContent || undefined}
+              editingFileName={selectedFile?.name}
+              onError={(error) => {
+                console.error('❌ [ViewRenderer] PetriNetEditor error:', error);
+                message.error('エディタの初期化に失敗しました');
+              }}
+            />
+          </ReactFlowProvider>
         </ErrorBoundary>
       </div>
     );

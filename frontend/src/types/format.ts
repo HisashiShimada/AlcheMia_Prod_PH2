@@ -176,3 +176,61 @@ export interface FormatUploadResult {
   uploadedFiles: string[];
   errors?: string[];
 }
+
+/**
+ * 名前空間関連の型定義
+ */
+
+/**
+ * S3フォルダ構造
+ */
+export interface Folder {
+  name: string;
+  path: string;
+  level: number;
+  subfolders: Folder[];
+  files: string[];
+  xmlFileCount: number;
+  totalFileCount: number;
+  totalXmlFileCount: number;
+  totalAllFileCount: number;
+}
+
+/**
+ * S3ファイル情報
+ */
+export interface FileInfo {
+  key: string;
+  name: string;
+  size?: number;
+  lastModified?: string;
+}
+
+/**
+ * 名前空間データ
+ */
+export interface NamespaceData {
+  namespaceURI: string;
+  hierarchyPath: string[];
+  properties: Record<string, PropertyData>;
+  contents: Record<string, PropertyData>;
+  totalElements: number;
+}
+
+/**
+ * プロパティデータ（名前空間用）
+ */
+export interface PropertyData {
+  key?: string;
+  tagName: string;
+  attributes: Record<string, string>;
+  elements: Record<string, string>;
+  children: PropertyData[];
+  namespaceOrigin?: boolean;
+  namespaceSource?: {
+    uri: string;
+    hierarchyPath: string[];
+    importedAt: string;
+    originalKey?: string;
+  };
+}

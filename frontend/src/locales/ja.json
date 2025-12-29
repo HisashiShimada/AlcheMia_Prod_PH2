@@ -233,6 +233,10 @@
       "descriptionMaxLength": "概要は500文字以内で入力してください",
       "createdByInfo": "作成者情報",
       "createdBy": "作成者",
+      "templateType": "テンプレートタイプ",
+      "templateTypeExtra": "作成するXMLのテンプレート種別を選択してください",
+      "templateTypeRequired": "テンプレートタイプを選択してください",
+      "templateTypePlaceholder": "テンプレートタイプを選択",
       "success": "ファイルが正常に作成されました",
       "successDescription": "新しいファイルが作成され、一覧に追加されました"
     },

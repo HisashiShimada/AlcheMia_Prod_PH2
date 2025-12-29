@@ -16,6 +16,8 @@ import {
   Col,
   message,
   Typography,
+  Select,
+  Spin,
 } from 'antd';
 import {
   UserOutlined,
@@ -25,7 +27,8 @@ import {
   ReloadOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
-import type { DocumentInfo } from '../utils/maimlGenerator';
+import type { DocumentInfo } from '../../../utils/maimlGenerator';
+import { fetchCreators, fetchVendors, type MasterDataItem } from '@/utils/apiClient';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -35,6 +38,8 @@ interface DocumentEditDialogProps {
   documentData: DocumentInfo | null;
   onClose: () => void;
   onSave: (data: DocumentInfo) => void;
+  projectName?: string;        // 新規作成時のデフォルト値
+  isNewDocument?: boolean;     // 新規/既存の判定
 }
 
 /**
@@ -56,30 +61,83 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   documentData,
   onClose,
   onSave,
+  projectName,
+  isNewDocument = false,
 }) => {
   const [form] = Form.useForm();
   const [hasChanges, setHasChanges] = useState(false);
+  const [creators, setCreators] = useState<MasterDataItem[]>([]);
+  const [vendors, setVendors] = useState<MasterDataItem[]>([]);
+  const [isLoadingMasters, setIsLoadingMasters] = useState(false);
+
+  // マスタデータの取得
+  useEffect(() => {
+    const loadMasterData = async () => {
+      if (!open) return;
+      
+      setIsLoadingMasters(true);
+      try {
+        const [creatorsResponse, vendorsResponse] = await Promise.all([
+          fetchCreators(),
+          fetchVendors(),
+        ]);
+        
+        if (creatorsResponse.success) {
+          setCreators(creatorsResponse.data.items);
+        }
+        
+        if (vendorsResponse.success) {
+          setVendors(vendorsResponse.data.items);
+        }
+        
+        console.log('✅ [DocumentEditDialog] マスタデータ取得完了');
+      } catch (error) {
+        console.error('❌ [DocumentEditDialog] マスタデータ取得エラー:', error);
+        message.error('マスタデータの取得に失敗しました');
+      } finally {
+        setIsLoadingMasters(false);
+      }
+    };
+    
+    loadMasterData();
+  }, [open]);
 
   // ダイアログが開いたときにフォームを初期化
   useEffect(() => {
-    if (open && documentData) {
-      form.setFieldsValue({
-        id: documentData.id || `doc_${Date.now()}`,
-        name: documentData.name || 'Untitled',
-        description: documentData.description || '',
-        date: documentData.date || new Date().toISOString(),
-        creatorId: documentData.creator?.id || 'Creator',
-        creatorName: documentData.creator?.name || '',
-        vendorId: documentData.vendor?.id || 'Vendor',
-        vendorName: documentData.vendor?.name || '',
-      });
+    if (open) {
+      if (documentData) {
+        // 既存Document編集
+        form.setFieldsValue({
+          id: documentData.id || `doc_${Date.now()}`,
+          name: documentData.name || 'Untitled',
+          description: documentData.description || '',
+          date: documentData.date || new Date().toISOString(),
+          creatorId: documentData.creator?.id || 'Creator',
+          creatorName: documentData.creator?.name || '',
+          vendorId: documentData.vendor?.id || 'Vendor',
+          vendorName: documentData.vendor?.name || '',
+        });
+      } else {
+        // 新規Document作成
+        const defaultName = projectName || 'Untitled';
+        form.setFieldsValue({
+          id: `doc_${Date.now()}`,
+          name: defaultName,
+          description: '',
+          date: new Date().toISOString(),
+          creatorId: 'Creator',
+          creatorName: '',
+          vendorId: 'Vendor',
+          vendorName: '',
+        });
+      }
       
       // 次のレンダリングサイクルで実行
       setTimeout(() => {
         setHasChanges(false);
       }, 0);
     }
-  }, [open, documentData, form]);
+  }, [open, documentData, form, projectName]);
 
   // UUID生成
   const handleGenerateUUID = useCallback(() => {
@@ -170,7 +228,10 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                 label="名前"
                 rules={[{ required: true, message: '名前は必須です' }]}
               >
-                <Input placeholder="実験名" />
+                <Input 
+                  placeholder="実験名" 
+                  disabled={!isNewDocument && !!documentData}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -203,18 +264,33 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       ),
       children: (
         <Row gutter={16}>
-          <Col span={12}>
+          <Col span={24}>
             <Form.Item
               name="creatorId"
-              label="Creator ID"
-              rules={[{ required: true, message: 'Creator IDは必須です' }]}
+              label="Creator"
+              rules={[{ required: true, message: 'Creatorは必須です' }]}
             >
-              <Input placeholder="Creator" />
+              <Select
+                placeholder="Creatorを選択してください"
+                loading={isLoadingMasters}
+                onChange={(value) => {
+                  const selected = creators.find(c => c.id === value);
+                  if (selected) {
+                    form.setFieldValue('creatorName', selected.name);
+                    setHasChanges(true);
+                  }
+                }}
+                options={creators.map(creator => ({
+                  label: `${creator.name}${creator.description ? ` (${creator.description})` : ''}`,
+                  value: creator.id,
+                }))}
+                allowClear
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item name="creatorName" label="Creator Name">
-              <Input placeholder="作成者名" />
+              <Input placeholder="自動入力されます" readOnly />
             </Form.Item>
           </Col>
         </Row>
@@ -230,18 +306,33 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       ),
       children: (
         <Row gutter={16}>
-          <Col span={12}>
+          <Col span={24}>
             <Form.Item
               name="vendorId"
-              label="Vendor ID"
-              rules={[{ required: true, message: 'Vendor IDは必須です' }]}
+              label="Vendor"
+              rules={[{ required: true, message: 'Vendorは必須です' }]}
             >
-              <Input placeholder="Vendor" />
+              <Select
+                placeholder="Vendorを選択してください"
+                loading={isLoadingMasters}
+                onChange={(value) => {
+                  const selected = vendors.find(v => v.id === value);
+                  if (selected) {
+                    form.setFieldValue('vendorName', selected.name);
+                    setHasChanges(true);
+                  }
+                }}
+                options={vendors.map(vendor => ({
+                  label: `${vendor.name}${vendor.description ? ` (${vendor.description})` : ''}`,
+                  value: vendor.id,
+                }))}
+                allowClear
+              />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item name="vendorName" label="Vendor Name">
-              <Input placeholder="ベンダー名" />
+              <Input placeholder="自動入力されます" readOnly />
             </Form.Item>
           </Col>
         </Row>

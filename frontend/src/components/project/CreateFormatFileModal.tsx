@@ -8,6 +8,7 @@ import {
   Space,
   Typography,
   Alert,
+  Select,
   theme,
 } from 'antd';
 import { FileAddOutlined } from '@ant-design/icons';
@@ -24,6 +25,7 @@ export interface CreateFormatFileData {
   formatId: string;
   formatName: string;
   fileType: 'xml' | 'maiml';
+  templateType?: 'material' | 'condition' | 'result';
   description: string;
   createdBy: string;
   createdByName: string;
@@ -90,6 +92,7 @@ export default function CreateFormatFileModal({
         formatId: formatId || '',
         formatName: formatName || '',
         fileType: fileType || 'xml',
+        templateType: values.templateType,
         description: values.description || '',
         createdBy: createdBy,
         createdByName: createdByName,
@@ -213,6 +216,40 @@ export default function CreateFormatFileModal({
               addonAfter={extension}
             />
           </Form.Item>
+
+          {/* テンプレート種別選択（XMLファイルの場合のみ表示） */}
+          {fileType === 'xml' && (
+            <Form.Item
+              name="templateType"
+              label={t('formatManagement.create.templateType') || 'テンプレートタイプ'}
+              extra={t('formatManagement.create.templateTypeExtra') || '作成するXMLのテンプレート種別を選択してください'}
+              rules={[
+                {
+                  required: true,
+                  message: t('formatManagement.create.templateTypeRequired') || 'テンプレートタイプを選択してください',
+                },
+              ]}
+              initialValue="material"
+            >
+              <Select
+                placeholder={t('formatManagement.create.templateTypePlaceholder') || 'テンプレートタイプを選択'}
+                options={[
+                  { 
+                    value: 'material', 
+                    label: 'MaterialTemplate',
+                  },
+                  { 
+                    value: 'condition', 
+                    label: 'ConditionTemplate',
+                  },
+                  { 
+                    value: 'result', 
+                    label: 'ResultTemplate',
+                  },
+                ]}
+              />
+            </Form.Item>
+          )}
 
           {/* 概要 */}
           <Form.Item
