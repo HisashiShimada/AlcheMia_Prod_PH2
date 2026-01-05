@@ -101,7 +101,7 @@ export default function InstructionStats({ stats }: InstructionStatsProps) {
         <Col xs={24} sm={12} md={6}>
           <StatCard
             icon={<FileOutlined />}
-            label="全体指示"
+            label="プロジェクト指示"
             value={stats.file}
             borderColor="#52c41a"
             iconColor="#52c41a"
@@ -110,7 +110,7 @@ export default function InstructionStats({ stats }: InstructionStatsProps) {
         <Col xs={24} sm={12} md={6}>
           <StatCard
             icon={<ToolOutlined />}
-            label="メソッド指示"
+            label="タスク指示"
             value={stats.method}
             borderColor="#fa8c16"
             iconColor="#fa8c16"

@@ -116,6 +116,17 @@
       "project": "プロジェクト",
       "method": "メソッド"
     },
+    "progressCheck": {
+      "issueCheck": "問題確認",
+      "checkButton": "確認"
+    },
+    "projectStatus": {
+      "planning": "計画中",
+      "waiting_task": "タスク実行待ち",
+      "executing_task": "タスク実行中",
+      "waiting_approval": "承認待ち",
+      "completed": "完了"
+    },
     "projectSelection": {
       "title": "プロジェクトを選択",
       "projectName": "プロジェクト名",
@@ -460,8 +471,65 @@
       "total": "合計",
       "items": "件"
     },
-    "actions": {
+      "actions": {
       "viewDetails": "詳細表示"
+    }
+  },
+  "issueManagement": {
+    "title": "問題報告",
+    "newIssue": "新規問題報告",
+    "issueList": "問題一覧",
+    "issueDetails": "問題詳細",
+    "noIssueSelected": "問題を選択してください",
+    "noIssues": "問題が報告されていません",
+    "columns": {
+      "title": "タイトル",
+      "status": "状態",
+      "targetType": "対象",
+      "reportedBy": "報告者",
+      "reportedAt": "報告時刻"
+    },
+    "status": {
+      "unresolved": "未解決",
+      "resolved": "解決済"
+    },
+    "targetType": {
+      "project": "プロジェクト",
+      "task": "タスク",
+      "transition": "トランジション"
+    },
+    "form": {
+      "title": "タイトル",
+      "titlePlaceholder": "問題のタイトルを入力",
+      "titleRequired": "タイトルを入力してください",
+      "titleMaxLength": "タイトルは100文字以内で入力してください",
+      "targetType": "対象",
+      "targetTypeRequired": "対象を選択してください",
+      "content": "内容",
+      "contentPlaceholder": "問題の詳細を具体的に入力してください",
+      "contentRequired": "内容を入力してください",
+      "contentMinLength": "内容は10文字以上で入力してください",
+      "save": "保存",
+      "cancel": "キャンセル"
+    },
+    "details": {
+      "title": "タイトル",
+      "status": "状態",
+      "targetType": "対象",
+      "reportedBy": "報告者",
+      "reportedAt": "報告時刻",
+      "content": "内容",
+      "comments": "コメント",
+      "commentsCount": "コメント",
+      "noComments": "コメントがありません",
+      "addComment": "コメントを追加",
+      "commentPlaceholder": "コメントを入力...",
+      "commentRequired": "コメントを入力してください",
+      "send": "送信"
+    },
+    "messages": {
+      "issueReported": "問題を報告しました",
+      "commentPosted": "コメントを投稿しました"
     }
   }
 }

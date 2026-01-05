@@ -1,16 +1,17 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { Card, Space, Button, Typography, message } from 'antd';
-import { RightOutlined, FileTextOutlined, CheckSquareOutlined } from '@ant-design/icons';
+import { RightOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import ProgressCheckTable from './ProgressCheckTable';
 import IssueReportModal from './IssueReportModal';
+import IssueManagementModal from './IssueManagementModal';
 import {
   getTasksByProjectAndMethod,
   updateTaskStatus,
   projectsData
 } from '@/data/projectsData';
-import type { Task, Method, IssueReportData } from '@/types/experimentWorker';
+import type { Task, Method, IssueReportData, ProjectStatus, Issue } from '@/types/experimentWorker';
 
 const { Title } = Typography;
 
@@ -38,9 +39,18 @@ export default function ProgressCheckTab({
   // タスクデータの取得
   const [tasks, setTasks] = useState<Task[]>([]);
   
+  // プロジェクトの状態を取得
+  const projectStatus: ProjectStatus | null = selectedProject 
+    ? projectsData[selectedProject]?.status ?? null
+    : null;
+  
   // 問題報告モーダルの状態管理
   const [issueReportModalVisible, setIssueReportModalVisible] = useState<boolean>(false);
   const [selectedTaskForIssue, setSelectedTaskForIssue] = useState<Task | null>(null);
+  
+  // 問題確認モーダルの状態管理
+  const [issueCheckModalVisible, setIssueCheckModalVisible] = useState<boolean>(false);
+  const [selectedTaskForIssueCheck, setSelectedTaskForIssueCheck] = useState<Task | null>(null);
 
   // プロジェクトが選択されたらタスク一覧を更新（メソッド選択不要）
   useEffect(() => {
@@ -125,6 +135,11 @@ export default function ProgressCheckTab({
           // 問題報告モーダルを開く
           handleOpenIssueReport(task);
           break;
+        
+        case 'issueCheck':
+          // 問題確認モーダルを開く（参照専用）
+          handleOpenIssueCheck(task);
+          break;
 
         case 'forceTerminate':
           // 強制終了（今後実装予定）
@@ -139,13 +154,6 @@ export default function ProgressCheckTab({
       message.error('タスクの更新に失敗しました');
     }
   }, [selectedProject, tasks, onTabChange, onSelectTaskAndTab, onSelectMethod]);
-
-  // 指示確認ボタン
-  const handleInstructionConfirmation = useCallback(() => {
-    if (onTabChange) {
-      onTabChange('2'); // 作業指示確認タブ
-    }
-  }, [onTabChange]);
 
   // 承認依頼ボタン
   const handleApprovalRequest = useCallback(() => {
@@ -170,6 +178,57 @@ export default function ProgressCheckTab({
     // TODO: バックエンドAPIへの送信処理を実装
     // ここで問題報告をバックエンドに送信する
   }, []);
+
+  // 問題確認モーダルを開く（参照専用）
+  const handleOpenIssueCheck = useCallback((task: Task) => {
+    setSelectedTaskForIssueCheck(task);
+    setIssueCheckModalVisible(true);
+  }, []);
+
+  // 問題確認モーダルを閉じる
+  const handleCloseIssueCheck = useCallback(() => {
+    setIssueCheckModalVisible(false);
+    setSelectedTaskForIssueCheck(null);
+  }, []);
+
+  // モックの問題データ（プロジェクト全体の問題を想定）
+  const mockIssues = useMemo<Issue[]>(() => {
+    if (!selectedProject) return [];
+    
+    // TODO: 実際にはバックエンドから取得
+    return [
+      {
+        issueId: 'issue_001',
+        projectId: selectedProject,
+        projectName: projectsData[selectedProject]?.projectName || '',
+        taskId: tasks[0]?.taskId || '',
+        taskName: tasks[0]?.taskName || '',
+        transitionId: 'trans_001',
+        transitionName: 'サンプル調製',
+        targetType: 'task',
+        title: '材料が不足しています',
+        content: '実験に必要な試薬Aが不足しており、実験を進められません。',
+        status: 'unresolved',
+        reportedBy: {
+          userId: 'user_001',
+          userName: '実験作業者A'
+        },
+        reportedAt: new Date().toISOString(),
+        comments: [
+          {
+            commentId: 'comment_001',
+            issueId: 'issue_001',
+            content: '試薬を追加発注しました。明日到着予定です。',
+            createdBy: {
+              userId: 'user_002',
+              userName: '実験管理者B'
+            },
+            createdAt: new Date(Date.now() - 3600000).toISOString()
+          }
+        ]
+      }
+    ];
+  }, [selectedProject, tasks]);
 
   return (
     <div style={{ padding: 0 }}>
@@ -203,32 +262,22 @@ export default function ProgressCheckTab({
             タスク一覧
           </Typography.Title>
 
-          {/* 指示確認ボタン・承認依頼ボタン */}
-          <Space size="middle">
-            <Button
-              type="default"
-              size="middle"
-              onClick={handleInstructionConfirmation}
-              icon={<FileTextOutlined />}
-              aria-label="作業指示を確認"
-            >
-              指示確認
-            </Button>
-            <Button
-              type="default"
-              size="middle"
-              onClick={handleApprovalRequest}
-              aria-label="承認依頼"
-            >
-              承認依頼
-            </Button>
-          </Space>
+          {/* 承認依頼ボタン */}
+          <Button
+            type="default"
+            size="middle"
+            onClick={handleApprovalRequest}
+            aria-label="承認依頼"
+          >
+            承認依頼
+          </Button>
         </div>
 
         {/* サブタスク一覧テーブル */}
         {selectedProject && tasks.length > 0 ? (
           <ProgressCheckTable
             tasks={tasks}
+            projectStatus={projectStatus}
             onTaskAction={handleTaskAction}
           />
         ) : (
@@ -255,6 +304,19 @@ export default function ProgressCheckTab({
         onClose={handleCloseIssueReport}
         onSubmit={handleIssueReportSubmit}
       />
+
+      {/* 問題確認モーダル（参照専用） */}
+      {selectedTaskForIssueCheck && (
+        <IssueManagementModal
+          visible={issueCheckModalVisible}
+          transitionId={selectedTaskForIssueCheck.taskId}
+          transitionName={selectedTaskForIssueCheck.taskName}
+          issues={mockIssues}
+          onClose={handleCloseIssueCheck}
+          viewMode={true}
+          filterTaskId={selectedTaskForIssueCheck.taskId}
+        />
+      )}
     </div>
   );
 }

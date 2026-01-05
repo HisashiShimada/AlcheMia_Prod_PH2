@@ -22,6 +22,7 @@ import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
 import ProgressCheckTab from '../ExperimentWorker/ProgressCheckTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import { projectsData } from '@/data/projectsData';
+import { isSelectableStatus } from '@/types/experimentWorker';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -268,36 +269,35 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             paddingLeft: token.paddingLG,
             paddingRight: token.paddingLG,
           }}>
-            {/* プロジェクト選択 */}
-            <Space size="small" style={{ flex: '0 0 auto' }}>
+            {/* プロジェクト選択・選択ボタン */}
+            <Space size="middle" style={{ flex: '0 0 auto' }}>
               <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong>{t('experimentWork.labels.project')}:</Text>
               <Select
                 value={selectedProject === '' ? null : selectedProject}
                 placeholder="-"
-                style={{ width: 180 }}
+                style={{ width: 280 }}
                 onChange={handleProjectChange}
                 options={[
                   { value: null, label: '-' },
-                  ...Object.entries(projectsData).map(([id, project]) => ({
-                    value: id,
-                    label: project.projectName
-                  }))
+                  ...Object.entries(projectsData)
+                    .filter(([, project]) => isSelectableStatus(project.status))
+                    .map(([id, project]) => ({
+                      value: id,
+                      label: `${project.projectName} - ${t(`experimentWork.projectStatus.${project.status}`)}`
+                    }))
                 ]}
                 size="middle"
               />
+              <Button
+                type="primary"
+                icon={<CheckOutlined />}
+                onClick={() => setDialogOpen(true)}
+                size="large"
+              >
+                {t('experimentWork.selectButton')}
+              </Button>
             </Space>
-
-            {/* 選択ボタン */}
-            <Button
-              type="primary"
-              icon={<CheckOutlined />}
-              onClick={() => setDialogOpen(true)}
-              size="large"
-              style={{ marginLeft: 'auto', flexShrink: 0 }}
-            >
-              {t('experimentWork.selectButton')}
-            </Button>
           </div>
 
           {/* タブ */}

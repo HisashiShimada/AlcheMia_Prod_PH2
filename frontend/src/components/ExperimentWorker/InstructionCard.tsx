@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, Tag, Space, Typography, Flex } from 'antd';
-import type { Instruction } from '@/types/experimentWorker';
+import type { Instruction, ProjectStatus } from '@/types/experimentWorker';
 import {
   getPriorityColor,
   getPriorityLabel,
@@ -13,6 +13,7 @@ const { Text, Paragraph } = Typography;
 
 interface InstructionCardProps {
   instruction: Instruction;
+  projectStatus: ProjectStatus | null;
   isClient: boolean;
 }
 
@@ -22,8 +23,11 @@ interface InstructionCardProps {
  */
 export default function InstructionCard({
   instruction,
+  projectStatus,
   isClient,
 }: InstructionCardProps) {
+  // 現在InstructionCardには確認完了ボタンがないため、
+  // projectStatusは将来の拡張に備えて受け取るのみ
   return (
     <Card
       style={{

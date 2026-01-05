@@ -4,8 +4,9 @@ import React, { useState, useMemo } from 'react';
 import { Table, Tag, Typography, Input, Select, Space, Row, Col, Button } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { Task, TaskStatus } from '@/types/experimentWorker';
+import { Task, TaskStatus, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
 import FlowDiagramModal from './FlowDiagramModal';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -15,6 +16,7 @@ interface AggregatedRow {
   methodName: string;
   methodId: string;
   taskCount: number;
+  status: TaskStatus;  // メソッド全体のステータス
   // rowKey用の一意ID
   id: string;
 }
@@ -27,8 +29,37 @@ function isAggregatedRow(row: TableRow): row is AggregatedRow {
   return 'isAggregated' in row && row.isAggregated === true;
 }
 
+/**
+ * メソッドに紐づくタスクのステータスから、メソッド全体のステータスを計算
+ * @param tasks メソッドに紐づくタスクの配列
+ * @returns 計算されたメソッドステータス
+ */
+function calculateMethodStatus(tasks: Task[]): TaskStatus {
+  if (tasks.length === 0) {
+    return 'not_started';
+  }
+  
+  // 1つでも「作業中」系のタスクがあれば「作業中」
+  const hasInProgress = tasks.some(task => 
+    task.status === 'started' || task.status === 'in_progress'
+  );
+  if (hasInProgress) {
+    return 'in_progress';
+  }
+  
+  // 全て「完了」であれば「完了」
+  const allCompleted = tasks.every(task => task.status === 'completed');
+  if (allCompleted) {
+    return 'completed';
+  }
+  
+  // それ以外は「開始前」
+  return 'not_started';
+}
+
 interface ProgressCheckTableProps {
   tasks: Task[];
+  projectStatus: ProjectStatus | null;
   onTaskAction: (taskId: string, action: string) => void;
 }
 
@@ -36,7 +67,9 @@ interface ProgressCheckTableProps {
  * 進捗確認テーブル
  * サブタスクのリストを表示する（折りたたみなし）
  */
-export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressCheckTableProps) {
+export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction }: ProgressCheckTableProps) {
+  const { t } = useLanguage();
+  
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedMethodName, setSelectedMethodName] = useState<string | undefined>(undefined);
@@ -161,11 +194,13 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
     methodGroups.forEach((tasksInMethod, methodId) => {
       if (collapsedMethodIds.has(methodId)) {
         // 集約モード: 1行の集約行を追加
+        const methodStatus = calculateMethodStatus(tasksInMethod);
         const aggregatedRow: AggregatedRow = {
           isAggregated: true,
           methodName: tasksInMethod[0].methodName,
           methodId: methodId,
           taskCount: tasksInMethod.length,
+          status: methodStatus,
           id: `aggregated-${methodId}`
         };
         result.push(aggregatedRow);
@@ -253,14 +288,12 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
       width: 100,
       align: 'center',
       sorter: (a, b) => {
-        const aStatus = isAggregatedRow(a) ? '' : a.status;
-        const bStatus = isAggregatedRow(b) ? '' : b.status;
+        const aStatus = a.status;
+        const bStatus = b.status;
         return aStatus.localeCompare(bStatus);
       },
       render: (status: TaskStatus, record: TableRow) => {
-        if (isAggregatedRow(record)) {
-          return <Text style={{ fontSize: '14px', color: '#9e9e9e' }}>-</Text>;
-        }
+        // 集約行の場合もステータスを表示
         const config = getStatusConfig(status);
         return (
           <Tag
@@ -335,12 +368,16 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
         if (isAggregatedRow(record)) {
           return null;
         }
+        // プロジェクトの状態が編集可能でない場合は非活性化
+        const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
+        const isDisabled = record.status !== 'not_started' || !isProjectEditable;
+        
         return (
           <Button
             type="primary"
             size="small"
             onClick={() => onTaskAction(record.taskId, 'start')}
-            disabled={record.status !== 'not_started'}
+            disabled={isDisabled}
             aria-label="タスクを開始"
           >
             開始
@@ -349,7 +386,7 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
       }
     },
     {
-      title: '問題報告',
+      title: t('experimentWork.progressCheck.issueCheck'),
       key: 'issue',
       width: 100,
       align: 'center',
@@ -361,10 +398,10 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
           <Button
             type="default"
             size="small"
-            onClick={() => onTaskAction(record.taskId, 'issue')}
-            aria-label="問題を報告"
+            onClick={() => onTaskAction(record.taskId, 'issueCheck')}
+            aria-label={t('experimentWork.progressCheck.issueCheck')}
           >
-            報告
+            {t('experimentWork.progressCheck.checkButton')}
           </Button>
         );
       }
@@ -399,12 +436,19 @@ export default function ProgressCheckTable({ tasks, onTaskAction }: ProgressChec
         if (isAggregatedRow(record)) {
           return null;
         }
+        // プロジェクトの状態が編集可能でない場合は非活性化
+        const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
+        const isDisabled = 
+          record.status === 'completed' || 
+          record.status === 'forced_terminated' || 
+          !isProjectEditable;
+        
         return (
           <Button
             danger
             size="small"
             onClick={() => onTaskAction(record.taskId, 'forceTerminate')}
-            disabled={record.status === 'completed' || record.status === 'forced_terminated'}
+            disabled={isDisabled}
             aria-label="タスクを強制終了"
           >
             終了

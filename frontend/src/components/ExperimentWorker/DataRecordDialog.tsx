@@ -22,6 +22,8 @@ import {
   theme,
   Select,
   Card,
+  Layout,
+  Slider,
 } from 'antd';
 import {
   PlusOutlined,
@@ -34,6 +36,7 @@ import {
   RightOutlined,
   SearchOutlined,
   AppstoreOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -41,19 +44,22 @@ import {
   ExperimentDataValue,
   Transition,
   Template,
-  Instruction,
   TemplateCategory,
   TransitionStatus,
+  ProjectStatus,
+  isEditableStatus,
 } from '@/types/experimentWorker';
-import { projectsData, templatesList } from '@/data/projectsData';
-import InstructionCard from './InstructionCard';
+import { templatesList } from '@/data/projectsData';
+import InstructionConfirmationModal from './InstructionConfirmationModal';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
+const { Sider, Content } = Layout;
 
 interface DataRecordDialogProps {
   open: boolean;
   transition: Transition | null;
+  projectStatus: ProjectStatus | null;
   onClose: () => void;
   onSave: (data: ExperimentDataValue[]) => void;
   projectId?: string;
@@ -67,6 +73,7 @@ interface DataRecordDialogProps {
 export default function DataRecordDialog({
   open,
   transition,
+  projectStatus,
   onClose,
   onSave,
   projectId,
@@ -78,11 +85,9 @@ export default function DataRecordDialog({
   const [dataGrids, setDataGrids] = useState<Record<string, number[][]>>({});
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [instructionsExpanded, setInstructionsExpanded] = useState(true);
-  const [instructionsConfirmed, setInstructionsConfirmed] = useState(false);
-  const [fileInstructionsExpanded, setFileInstructionsExpanded] = useState(true);
-  const [methodInstructionsExpanded, setMethodInstructionsExpanded] = useState(true);
-  const [transitionInstructionsExpanded, setTransitionInstructionsExpanded] = useState(true);
+  
+  // 作業指示モーダルの状態
+  const [instructionModalOpen, setInstructionModalOpen] = useState(false);
 
   // テンプレート一覧用の状態
   const [templateSearchText, setTemplateSearchText] = useState('');
@@ -96,11 +101,19 @@ export default function DataRecordDialog({
   const [propertyFormExpanded, setPropertyFormExpanded] = useState(true);
 
   // ステータス更新セクションの折りたたみ状態
+  // プロジェクトの状態が編集可能でない場合は折りたたむ
   const [statusUpdateExpanded, setStatusUpdateExpanded] = useState(true);
+  
+  // プロジェクトの状態が編集可能かどうか
+  const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
 
   // ステータスとコメント用の状態
   const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>('initial');
   const [comment, setComment] = useState('');
+  const [progress, setProgress] = useState<number>(0);
+  
+  // みなし進捗更新用の状態
+  const [useDeemedProgress, setUseDeemedProgress] = useState(true);
 
   // ステータスの選択肢
   const statusOptions = [
@@ -179,10 +192,13 @@ export default function DataRecordDialog({
       form.resetFields();
       setFormData({});
       setDataGrids({});
-      setInstructionsConfirmed(false); // 確認状態もリセット
       setSelectedStatus('initial'); // ステータスをリセット
       setComment(''); // コメントをリセット
+      setProgress(0); // 進捗をリセット
       setSelectedTemplateId(null); // テンプレート選択状態をリセット
+      
+      // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
+      setStatusUpdateExpanded(isProjectEditable);
       
       // 各テンプレートのDataGridを初期化
       transition.templates?.forEach((template) => {
@@ -196,61 +212,7 @@ export default function DataRecordDialog({
         });
       });
     }
-  }, [open, transition, form]);
-
-  // 作業指示を取得
-  const instructions = useMemo(() => {
-    if (!projectId || !transition) return [];
-    
-    const project = projectsData[projectId];
-    if (!project || !project.instructions) return [];
-
-    // このトランジションに紐づく作業指示をフィルタリング
-    return project.instructions.filter((instruction) => {
-      // 全体指示（ファイル単位）
-      if (instruction.targetType === 'file') {
-        return true;
-      }
-      
-      // メソッド単位指示
-      if (instruction.targetType === 'method' && methodId) {
-        return instruction.methodId === methodId;
-      }
-      
-      // トランジション単位指示
-      if (instruction.targetType === 'transition') {
-        return instruction.transitionId === transition.transitionId;
-      }
-      
-      return false;
-    });
-  }, [projectId, methodId, transition]);
-
-  // 作業指示を種類別にグループ化
-  const groupedInstructions = useMemo(() => {
-    const file: Instruction[] = [];
-    const method: Instruction[] = [];
-    const transitionInst: Instruction[] = [];
-
-    instructions.forEach((instruction) => {
-      if (instruction.targetType === 'file') {
-        file.push(instruction);
-      } else if (instruction.targetType === 'method') {
-        method.push(instruction);
-      } else if (instruction.targetType === 'transition') {
-        transitionInst.push(instruction);
-      }
-    });
-
-    return { file, method, transition: transitionInst };
-  }, [instructions]);
-
-  // 作業指示の確認完了ハンドラ
-  const handleConfirmInstructions = () => {
-    setInstructionsConfirmed(true);
-    setInstructionsExpanded(false); // 確認済み後に自動的に折りたたむ
-    message.success('作業指示を確認しました');
-  };
+  }, [open, transition, form, isProjectEditable]);
 
   // テンプレート保存ハンドラ
   const handleSaveTemplate = async () => {
@@ -444,6 +406,7 @@ export default function DataRecordDialog({
             <TextArea
               rows={3}
               placeholder={`${property.label}を入力`}
+              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -463,6 +426,7 @@ export default function DataRecordDialog({
               max={property.max}
               step={1}
               precision={0}
+              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -482,6 +446,7 @@ export default function DataRecordDialog({
               max={property.max}
               step={0.01}
               precision={2}
+              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -493,7 +458,7 @@ export default function DataRecordDialog({
             name={key}
             valuePropName="checked"
           >
-            <Checkbox>{property.label}</Checkbox>
+            <Checkbox disabled={!isProjectEditable}>{property.label}</Checkbox>
           </Form.Item>
         );
 
@@ -509,6 +474,7 @@ export default function DataRecordDialog({
               style={{ width: '100%' }}
               format="YYYY-MM-DD"
               placeholder={`${property.label}を選択`}
+              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -526,6 +492,7 @@ export default function DataRecordDialog({
               style={{ width: '100%' }}
               format="YYYY-MM-DD HH:mm:ss"
               placeholder={`${property.label}を選択`}
+              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -547,7 +514,7 @@ export default function DataRecordDialog({
             label={label}
             rules={rules}
           >
-            <Input placeholder={`${property.label}を入力`} />
+            <Input placeholder={`${property.label}を入力`} disabled={!isProjectEditable} />
           </Form.Item>
         );
     }
@@ -567,7 +534,7 @@ export default function DataRecordDialog({
             size="small"
             icon={<DeleteOutlined />}
             onClick={() => handleDeleteColumn(key, colIndex)}
-            disabled={grid[0].length <= 1}
+            disabled={!isProjectEditable || grid[0].length <= 1}
           />
         </Space>
       ),
@@ -580,6 +547,7 @@ export default function DataRecordDialog({
           onChange={(value) => handleDataGridChange(key, rowIndex, colIndex, value)}
           step={0.01}
           style={{ width: '100%' }}
+          disabled={!isProjectEditable}
         />
       ),
     })) || [];
@@ -620,7 +588,7 @@ export default function DataRecordDialog({
                       size="small"
                       icon={<DeleteOutlined />}
                       onClick={() => handleDeleteRow(key, index)}
-                      disabled={grid.length <= 1}
+                      disabled={!isProjectEditable || grid.length <= 1}
                     />
                   </Space>
                 ),
@@ -637,6 +605,7 @@ export default function DataRecordDialog({
               size="small"
               icon={<PlusOutlined />}
               onClick={() => handleAddRow(key)}
+              disabled={!isProjectEditable}
             >
               行を追加
             </Button>
@@ -644,6 +613,7 @@ export default function DataRecordDialog({
               size="small"
               icon={<PlusOutlined />}
               onClick={() => handleAddColumn(key)}
+              disabled={!isProjectEditable}
             >
               列を追加
             </Button>
@@ -695,86 +665,11 @@ export default function DataRecordDialog({
             message.info(`${file.name}をアップロードします（未実装）`);
             return false;
           }}
+          disabled={!isProjectEditable}
         >
-          <Button icon={<UploadOutlined />}>ファイルを選択</Button>
+          <Button icon={<UploadOutlined />} disabled={!isProjectEditable}>ファイルを選択</Button>
         </Upload>
       </Form.Item>
-    );
-  };
-
-  // テンプレート別にフォームをレンダリング
-  const renderTemplateForm = (template: Template) => {
-    return (
-      <div key={template.templateId} style={{ marginBottom: 24 }}>
-        {/* タイトルセクション */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            cursor: 'pointer',
-            padding: token.marginXS,
-            borderRadius: token.borderRadiusSM,
-            marginBottom: token.marginSM,
-          }}
-          onClick={() => setPropertyFormExpanded(!propertyFormExpanded)}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }}
-        >
-          {propertyFormExpanded ? (
-            <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-          ) : (
-            <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-          )}
-          <FileTextOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-          <Text strong style={{ fontSize: 16, marginRight: 12 }}>
-            データ記録
-          </Text>
-          <Tag color={getTemplateCategoryColor(template.category)}>
-            {getTemplateCategoryLabel(template.category)}
-          </Tag>
-          <Text strong style={{ marginLeft: 8 }}>
-            {template.name}
-          </Text>
-        </div>
-
-        {/* プロパティ入力フォーム（Card なし） */}
-        {propertyFormExpanded && (
-          <>
-            <Row gutter={16}>
-              {template.properties.map((prop) => (
-                <Col
-                  key={prop.key}
-                  span={
-                    prop.type === 'contentDoubleListType' ||
-                    prop.type === 'propertyListType'
-                      ? 24
-                      : 12
-                  }
-                >
-                  {renderPropertyInput(prop, template.templateId)}
-                </Col>
-              ))}
-            </Row>
-            
-            {/* 保存ボタン */}
-            <div style={{ marginTop: 16, textAlign: 'right' }}>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={handleSaveTemplate}
-                loading={loading}
-                disabled={instructions.length > 0 && !instructionsConfirmed}
-              >
-                保存
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
     );
   };
 
@@ -794,244 +689,200 @@ export default function DataRecordDialog({
       }
       open={open}
       onCancel={onClose}
-      width={1000}
+      width={1400}
       style={{ top: 20 }}
       footer={[
         <Button
-          key="close"
-          icon={<CloseOutlined />}
+          key="cancel"
           onClick={onClose}
         >
-          閉じる
+          キャンセル
+        </Button>,
+        <Button
+          key="save"
+          type="primary"
+          icon={<SaveOutlined />}
+          onClick={handleSaveTemplate}
+          loading={loading}
+          disabled={!isProjectEditable}
+        >
+          保存
         </Button>,
       ]}
     >
       <div>
-        {/* 作業指示セクション */}
-        {instructions.length > 0 && (
+        {/* みなし進捗更新チェックボックスと作業指示ボタン */}
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Checkbox
+            checked={useDeemedProgress}
+            onChange={(e) => setUseDeemedProgress(e.target.checked)}
+          >
+            みなし進捗更新
+          </Checkbox>
+          <Button
+            icon={<InfoCircleOutlined />}
+            onClick={() => setInstructionModalOpen(true)}
+          >
+            作業指示
+          </Button>
+        </div>
+
+        {/* ステータス更新セクション（みなし進捗更新OFF時のみ表示） */}
+        {!useDeemedProgress && (
           <div style={{ marginBottom: 24 }}>
+            {/* タイトルセクション */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                cursor: 'pointer',
                 padding: token.marginXS,
                 borderRadius: token.borderRadiusSM,
                 marginBottom: token.marginSM,
               }}
+              onClick={() => setStatusUpdateExpanded(!statusUpdateExpanded)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
             >
-              {/* 左側：折りたたみ操作エリア */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  flex: 1,
-                  cursor: 'pointer',
-                }}
-                onClick={() => setInstructionsExpanded(!instructionsExpanded)}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                {instructionsExpanded ? (
-                  <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                ) : (
-                  <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                )}
-                <FileTextOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-                <Text strong style={{ fontSize: 16 }}>
-                  作業指示 ({instructions.length}件)
-                </Text>
-              </div>
-
-              {/* 右側：確認完了ボタン */}
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={handleConfirmInstructions}
-                disabled={instructionsConfirmed}
-                style={{
-                  backgroundColor: instructionsConfirmed ? undefined : token.colorSuccess,
-                  borderColor: instructionsConfirmed ? undefined : token.colorSuccess,
-                }}
-              >
-                {instructionsConfirmed ? '確認済み' : '確認完了'}
-              </Button>
+              {statusUpdateExpanded ? (
+                <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
+              ) : (
+                <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
+              )}
+              <SaveOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
+              <Text strong style={{ fontSize: 16 }}>
+                ステータス更新
+              </Text>
             </div>
 
-            {instructionsExpanded && (
+            {/* 折りたたみ可能なコンテンツ */}
+            {statusUpdateExpanded && (
               <>
-                {/* 全体指示 */}
-                {groupedInstructions.file.length > 0 && (
-                  <div style={{ marginBottom: token.marginMD }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        padding: token.marginXS,
-                        borderRadius: token.borderRadiusSM,
-                        marginBottom: token.marginXS,
-                      }}
-                      onClick={() => setFileInstructionsExpanded(!fileInstructionsExpanded)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      {fileInstructionsExpanded ? (
-                        <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      ) : (
-                        <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      )}
-                      <Text strong style={{ fontSize: 14 }}>
-                        📄 全体指示 ({groupedInstructions.file.length}件)
-                      </Text>
-                    </div>
-                    {fileInstructionsExpanded && (
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        {groupedInstructions.file.map((instruction) => (
-                          <InstructionCard
-                            key={instruction.instructionId}
-                            instruction={instruction}
-                            isClient={isClient}
-                          />
-                        ))}
-                      </Space>
-                    )}
-                  </div>
-                )}
+                {/* 上段：ステータス + 進捗 */}
+                <Row gutter={16}>
+                  {/* ステータス */}
+                  <Col span={8}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                      ステータス
+                    </Text>
+                    <Select
+                      style={{ width: '100%' }}
+                      placeholder="ステータスを選択"
+                      value={selectedStatus}
+                      onChange={setSelectedStatus}
+                      options={statusOptions}
+                      disabled={!isProjectEditable}
+                    />
+                  </Col>
 
-                {/* メソッド単位指示 */}
-                {groupedInstructions.method.length > 0 && (
-                  <div style={{ marginBottom: token.marginMD }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        padding: token.marginXS,
-                        borderRadius: token.borderRadiusSM,
-                        marginBottom: token.marginXS,
+                  {/* 進捗 */}
+                  <Col span={16}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                      進捗
+                    </Text>
+                    <Slider
+                      value={progress}
+                      onChange={setProgress}
+                      min={0}
+                      max={100}
+                      step={1}
+                      marks={{
+                        0: '0%',
+                        25: '25%',
+                        50: '50%',
+                        75: '75%',
+                        100: '100%',
                       }}
-                      onClick={() => setMethodInstructionsExpanded(!methodInstructionsExpanded)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                      tooltip={{
+                        formatter: (value) => `${value}%`,
                       }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      {methodInstructionsExpanded ? (
-                        <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      ) : (
-                        <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      )}
-                      <Text strong style={{ fontSize: 14 }}>
-                        🔧 メソッド単位指示 ({groupedInstructions.method.length}件)
-                      </Text>
-                    </div>
-                    {methodInstructionsExpanded && (
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        {groupedInstructions.method.map((instruction) => (
-                          <InstructionCard
-                            key={instruction.instructionId}
-                            instruction={instruction}
-                            isClient={isClient}
-                          />
-                        ))}
-                      </Space>
-                    )}
-                  </div>
-                )}
+                      disabled={!isProjectEditable}
+                    />
+                  </Col>
+                </Row>
 
-                {/* トランジション単位指示 */}
-                {groupedInstructions.transition.length > 0 && (
-                  <div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        padding: token.marginXS,
-                        borderRadius: token.borderRadiusSM,
-                        marginBottom: token.marginXS,
+                {/* 中段：コメント */}
+                <Row gutter={16} style={{ marginTop: 16 }}>
+                  <Col span={24}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                      コメント
+                    </Text>
+                    <TextArea
+                      rows={3}
+                      placeholder="コメントを入力"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      disabled={!isProjectEditable}
+                    />
+                  </Col>
+                </Row>
+
+                {/* 下段：保存ボタン */}
+                <Row gutter={16} style={{ marginTop: 16 }}>
+                  <Col span={24} style={{ textAlign: 'right' }}>
+                    <Button
+                      type="primary"
+                      icon={<SaveOutlined />}
+                      onClick={() => {
+                        // ステータス更新の保存処理
+                        console.log('ステータス更新保存:', {
+                          transitionId: transition?.transitionId,
+                          status: selectedStatus,
+                          progress: progress,
+                          comment: comment,
+                        });
+                        message.success(
+                          `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}、進捗: ${progress}%）`
+                        );
                       }}
-                      onClick={() => setTransitionInstructionsExpanded(!transitionInstructionsExpanded)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
+                      disabled={!isProjectEditable}
                     >
-                      {transitionInstructionsExpanded ? (
-                        <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      ) : (
-                        <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-                      )}
-                      <Text strong style={{ fontSize: 14 }}>
-                        🎯 トランジション単位指示 ({groupedInstructions.transition.length}件)
-                      </Text>
-                    </div>
-                    {transitionInstructionsExpanded && (
-                      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                        {groupedInstructions.transition.map((instruction) => (
-                          <InstructionCard
-                            key={instruction.instructionId}
-                            instruction={instruction}
-                            isClient={isClient}
-                          />
-                        ))}
-                      </Space>
-                    )}
-                  </div>
-                )}
+                      保存
+                    </Button>
+                  </Col>
+                </Row>
               </>
             )}
           </div>
         )}
 
-        {/* テンプレート一覧セクション */}
-        <div style={{ marginBottom: 24 }}>
-          <div
+        {/* 2カラムレイアウト: サイドバー（テンプレート一覧） + コンテンツ（データ記録） */}
+        <Layout style={{ height: 600, background: 'transparent' }}>
+          {/* 左サイドバー: テンプレート一覧 */}
+          <Sider
+            width={300}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              padding: token.marginXS,
+              background: token.colorBgContainer,
+              borderRight: `1px solid ${token.colorBorder}`,
               borderRadius: token.borderRadiusSM,
-              marginBottom: token.marginSM,
-            }}
-            onClick={() => setTemplatesExpanded(!templatesExpanded)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
+              overflow: 'hidden',
             }}
           >
-            {templatesExpanded ? (
-              <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            ) : (
-              <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            )}
-            <AppstoreOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-            <Text strong style={{ fontSize: 16 }}>
-              テンプレート一覧 ({filteredTemplates.length}件)
-            </Text>
-          </div>
+            <div
+              style={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: token.paddingMD,
+              }}
+            >
+              {/* タイトル */}
+              <div style={{ marginBottom: token.marginMD }}>
+                <Space>
+                  <AppstoreOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
+                  <Text strong style={{ fontSize: 16 }}>
+                    テンプレート一覧
+                  </Text>
+                  <Tag color="blue">{filteredTemplates.length}件</Tag>
+                </Space>
+              </div>
 
-          {templatesExpanded && (
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
               {/* フィルタリングエリア */}
-              <Row gutter={16}>
-              <Col flex="400px">
+              <Space direction="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
                 <Input
                   placeholder="テンプレート名で検索"
                   prefix={<SearchOutlined />}
@@ -1039,8 +890,6 @@ export default function DataRecordDialog({
                   onChange={(e) => setTemplateSearchText(e.target.value)}
                   allowClear
                 />
-              </Col>
-              <Col flex="150px">
                 <Select
                   placeholder="テンプレート種別"
                   value={selectedTemplateCategory}
@@ -1053,128 +902,101 @@ export default function DataRecordDialog({
                     { label: '結果', value: 'Results' },
                   ]}
                 />
-              </Col>
-            </Row>
+              </Space>
 
-            {/* テーブル */}
-            <Table
-              size="small"
-              dataSource={filteredTemplates}
-              rowKey="templateId"
-              onRow={(record) => ({
-                onClick: () => {
-                  // 行クリックで選択（単一選択）
-                  setSelectedTemplateId(record.templateId);
-                },
-                style: { cursor: 'pointer' },
-              })}
-              rowClassName={(record) => 
-                selectedTemplateId === record.templateId
-                  ? 'ant-table-row-selected' 
-                  : ''
-              }
-              scroll={{ x: 800 }}
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showTotal: (total) => `全 ${total} 件`,
-                pageSizeOptions: ['10', '20', '50'],
-              }}
-              columns={[
-                {
-                  title: 'テンプレート名',
-                  dataIndex: 'name',
-                  key: 'name',
-                  width: 250,
-                  align: 'left',
-                  render: (name: string, record: Template) => (
-                    <Space>
-                      <Text strong>{name}</Text>
-                      {record.description && (
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                          - {record.description}
-                        </Text>
-                      )}
-                    </Space>
-                  ),
-                },
-                {
-                  title: 'テンプレート種別',
-                  dataIndex: 'category',
-                  key: 'category',
-                  width: 150,
-                  align: 'center',
-                  render: (category: TemplateCategory) => (
-                    <Tag color={getTemplateCategoryColor(category)}>
-                      {getTemplateCategoryLabel(category)}
-                    </Tag>
-                  ),
-                },
-                {
-                  title: 'プロパティ数',
-                  dataIndex: 'properties',
-                  key: 'propertyCount',
-                  width: 120,
-                  align: 'right',
-                  render: (properties: Property[]) => properties.length,
-                },
-              ]}
-            />
-            </Space>
-          )}
-        </div>
+              {/* テーブル */}
+              <div style={{ flex: 1, overflow: 'auto' }}>
+                <Table
+                  size="small"
+                  dataSource={filteredTemplates}
+                  rowKey="templateId"
+                  onRow={(record) => ({
+                    onClick: () => {
+                      setSelectedTemplateId(record.templateId);
+                    },
+                    style: { cursor: 'pointer' },
+                  })}
+                  rowClassName={(record) =>
+                    selectedTemplateId === record.templateId
+                      ? 'ant-table-row-selected'
+                      : ''
+                  }
+                  scroll={{ y: 400 }}
+                  pagination={false}
+                  showHeader={false}
+                  columns={[
+                    {
+                      title: 'テンプレート',
+                      dataIndex: 'name',
+                      key: 'name',
+                      render: (name: string, record: Template) => {
+                        // カテゴリーからI/Oを判定
+                        const isOutput = record.category === 'Results';
+                        const ioLabel = isOutput ? 'OUT' : 'IN';
+                        const ioColor = isOutput ? 'green' : 'blue';
+                        const propertyCount = record.properties?.length || 0;
+                        
+                        return (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Text strong style={{ fontSize: 13 }}>{name}</Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                ({propertyCount}項目)
+                              </Text>
+                            </div>
+                            <div style={{ marginTop: 4 }}>
+                              <Space size="small">
+                                <Tag color={getTemplateCategoryColor(record.category)} style={{ fontSize: 11, margin: 0 }}>
+                                  {getTemplateCategoryLabel(record.category)}
+                                </Tag>
+                                <Tag color={ioColor} style={{ fontSize: 11, margin: 0 }}>
+                                  {ioLabel}
+                                </Tag>
+                              </Space>
+                            </div>
+                          </div>
+                        );
+                      },
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+          </Sider>
 
-        {/* 入力フォーム */}
-        <div style={{ marginBottom: 24 }}>
-          {/* データ記録タイトルセクション（常に表示） */}
-          <div
+          {/* 右コンテンツ: データ記録 */}
+          <Content
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              padding: token.marginXS,
-              borderRadius: token.borderRadiusSM,
-              marginBottom: token.marginSM,
-            }}
-            onClick={() => setPropertyFormExpanded(!propertyFormExpanded)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
+              background: token.colorBgLayout,
+              padding: token.paddingMD,
+              overflow: 'auto',
             }}
           >
-            {propertyFormExpanded ? (
-              <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            ) : (
-              <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            )}
-            <FileTextOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-            <Text strong style={{ fontSize: 16, marginRight: 12 }}>
-              データ記録
-            </Text>
-            {selectedTemplate && (
-              <>
-                <Tag color={getTemplateCategoryColor(selectedTemplate.category)}>
-                  {getTemplateCategoryLabel(selectedTemplate.category)}
-                </Tag>
-                <Text strong style={{ marginLeft: 8 }}>
-                  {selectedTemplate.name}
-                </Text>
-              </>
-            )}
-          </div>
+            <div style={{ height: '100%' }}>
+              {/* タイトル */}
+              <div style={{ marginBottom: token.marginMD }}>
+                <Space>
+                  <FileTextOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
+                  <Text strong style={{ fontSize: 16 }}>
+                    データ記録
+                  </Text>
+                  {selectedTemplate && (
+                    <>
+                      <Tag color={getTemplateCategoryColor(selectedTemplate.category)}>
+                        {getTemplateCategoryLabel(selectedTemplate.category)}
+                      </Tag>
+                      <Text strong>{selectedTemplate.name}</Text>
+                    </>
+                  )}
+                </Space>
+              </div>
 
-          {/* 折りたたみ可能なコンテンツ */}
-          {propertyFormExpanded && (
-            <>
-              {/* テンプレート選択時: プロパティ入力フォーム */}
+              {/* フォームまたは選択促進メッセージ */}
               {selectedTemplate ? (
                 <Form
                   form={form}
                   layout="vertical"
                   autoComplete="off"
-                  disabled={instructions.length > 0 && !instructionsConfirmed}
                 >
                   <Row gutter={16}>
                     {selectedTemplate.properties.map((prop) => (
@@ -1191,121 +1013,30 @@ export default function DataRecordDialog({
                       </Col>
                     ))}
                   </Row>
-                  
-                  {/* 保存ボタン */}
-                  <div style={{ marginTop: 16, textAlign: 'right' }}>
-                    <Button
-                      type="primary"
-                      icon={<SaveOutlined />}
-                      onClick={handleSaveTemplate}
-                      loading={loading}
-                      disabled={instructions.length > 0 && !instructionsConfirmed}
-                    >
-                      保存
-                    </Button>
-                  </div>
                 </Form>
               ) : (
-                /* テンプレート未選択時: 選択を促すAlert */
                 <Alert
                   message="テンプレートを選択してください"
-                  description="上記のテンプレート一覧から記録したいテンプレートを選択してください。"
+                  description="左側のテンプレート一覧から記録したいテンプレートを選択してください。"
                   type="info"
                   showIcon
                 />
               )}
-            </>
-          )}
-        </div>
+            </div>
+          </Content>
+        </Layout>
 
-        {/* ステータス更新セクション */}
-        <div style={{ marginTop: 24 }}>
-          {/* タイトルセクション */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              padding: token.marginXS,
-              borderRadius: token.borderRadiusSM,
-              marginBottom: token.marginSM,
-            }}
-            onClick={() => setStatusUpdateExpanded(!statusUpdateExpanded)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            {statusUpdateExpanded ? (
-              <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            ) : (
-              <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-            )}
-            <SaveOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-            <Text strong style={{ fontSize: 16 }}>
-              ステータス更新
-            </Text>
-          </div>
-
-          {/* 折りたたみ可能なコンテンツ */}
-          {statusUpdateExpanded && (
-            <>
-              <Row gutter={16}>
-                {/* ステータス */}
-                <Col span={6}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                    ステータス
-                  </Text>
-                  <Select
-                    style={{ width: '100%' }}
-                    placeholder="ステータスを選択"
-                    value={selectedStatus}
-                    onChange={setSelectedStatus}
-                    disabled={instructions.length > 0 && !instructionsConfirmed}
-                    options={statusOptions}
-                  />
-                </Col>
-
-                {/* コメント */}
-                <Col span={18}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                    コメント
-                  </Text>
-                  <TextArea
-                    rows={1}
-                    placeholder="コメントを入力"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    disabled={instructions.length > 0 && !instructionsConfirmed}
-                  />
-                </Col>
-              </Row>
-
-              {/* 保存ボタン */}
-              <div style={{ marginTop: 16, textAlign: 'right' }}>
-                <Button
-                  type="primary"
-                  icon={<SaveOutlined />}
-                  onClick={() => {
-                    // ステータス更新の保存処理
-                    console.log('ステータス更新保存:', {
-                      transitionId: transition?.transitionId,
-                      status: selectedStatus,
-                      comment: comment,
-                    });
-                    message.success(`ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`);
-                  }}
-                  disabled={instructions.length > 0 && !instructionsConfirmed}
-                >
-                  保存
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
       </div>
+
+      {/* 作業指示モーダル */}
+      <InstructionConfirmationModal
+        open={instructionModalOpen}
+        transition={transition}
+        projectId={projectId}
+        methodId={methodId}
+        projectStatus={projectStatus}
+        onCancel={() => setInstructionModalOpen(false)}
+      />
     </Modal>
   );
 }

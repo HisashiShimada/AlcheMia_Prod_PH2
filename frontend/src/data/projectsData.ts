@@ -364,6 +364,7 @@ export const projectsData: Record<string, ProjectData> = {
     "projectName": "高温材料特性評価実験",
     "description": "高温環境下での材料特性を評価し、耐熱性能を検証する実験プロジェクト",
     "fileName": "experiment_workflow_v2.maiml",
+    "status": "executing_task",
     "workAssignment": {
       "workId": "work_001",
       "fileKey": "org_maiml_lab_001/projects/proj_001/files/experiment_workflow_v2.maiml",
@@ -1541,6 +1542,7 @@ export const projectsData: Record<string, ProjectData> = {
     "projectName": "Ramanスペクトル解析",
     "description": "Ramanスペクトル測定による材料の分子構造解析プロジェクト",
     "fileName": "Raman_analysis_v1.maiml",
+    "status": "waiting_task",
     "workAssignment": {
       "workId": "work_002",
       "fileKey": "org_maiml_lab_001/projects/proj_002/files/Raman_analysis_v1.maiml",
@@ -1593,6 +1595,7 @@ export const projectsData: Record<string, ProjectData> = {
     "projectName": "XRF元素分析実験",
     "description": "蛍光X線分析による試料の元素組成分析プロジェクト",
     "fileName": "XRF_experiment.maiml",
+    "status": "waiting_approval",
     "workAssignment": {
       "workId": "work_003",
       "fileKey": "org_maiml_lab_001/projects/proj_003/files/XRF_experiment.maiml",
@@ -1620,11 +1623,221 @@ export const projectsData: Record<string, ProjectData> = {
           "userName": "山田太郎"
         },
         "isRead": false
+      },
+      {
+        "instructionId": "inst_302",
+        "targetType": "task",
+        "taskId": "task_m301_001",
+        "taskName": "サンプル前処理",
+        "methodId": "m301",
+        "content": "XRF測定用サンプルの表面を丁寧にクリーニングし、異物を除去してください。",
+        "priority": "high",
+        "instructionType": "setup",
+        "createdAt": "2024-12-07T13:35:00Z",
+        "updatedAt": null,
+        "createdBy": {
+          "userId": "manager_001",
+          "userName": "山田太郎"
+        },
+        "isRead": false
+      },
+      {
+        "instructionId": "inst_303",
+        "targetType": "task",
+        "taskId": "task_m301_002",
+        "taskName": "XRF測定実行",
+        "methodId": "m301",
+        "content": "測定条件を確認し、XRF分析を実行してください。測定時間は各ポイント60秒です。",
+        "priority": "high",
+        "instructionType": "measurement",
+        "createdAt": "2024-12-07T13:40:00Z",
+        "updatedAt": null,
+        "createdBy": {
+          "userId": "manager_001",
+          "userName": "山田太郎"
+        },
+        "isRead": false
       }
     ],
-    "transitionDetails": {},
-    "methods": [],
-    "progressData": []
+    "transitionDetails": {
+      "t301": {
+        "transitionId": "t301",
+        "transitionName": "サンプルクリーニング",
+        "category": "前処理",
+        "description": "XRF測定前にサンプル表面の汚れや異物を除去する工程。",
+        "isExperimentRelevant": true,
+        "estimatedDuration": "20分",
+        "requiredEquipment": ["クリーニング液", "クリーンクロス", "ピンセット"],
+        "safetyNotes": "クリーニング液は換気の良い場所で使用すること"
+      },
+      "t302": {
+        "transitionId": "t302",
+        "transitionName": "装置キャリブレーション",
+        "category": "キャリブレーション",
+        "description": "XRF装置の精度を確認し、標準試料で校正する工程。",
+        "isExperimentRelevant": true,
+        "estimatedDuration": "30分",
+        "requiredEquipment": ["XRF装置", "標準試料", "PC"],
+        "safetyNotes": "X線照射中は装置に近づかないこと"
+      },
+      "t303": {
+        "transitionId": "t303",
+        "transitionName": "元素分析測定",
+        "category": "測定",
+        "description": "試料の元素組成をXRFで測定する工程。",
+        "isExperimentRelevant": true,
+        "estimatedDuration": "60分",
+        "requiredEquipment": ["XRF装置", "データロガー"],
+        "safetyNotes": "測定中は装置のドアを開けないこと"
+      }
+    },
+    "methods": [
+      {
+        "methodId": "m301",
+        "methodName": "XRF元素分析",
+        "description": "蛍光X線分析法による試料の元素組成分析手順。",
+        "category": "元素分析",
+        "tasks": [
+          {
+            "taskId": "task_m301_001",
+            "methodName": "XRF元素分析",
+            "taskName": "サンプル前処理",
+            "sampleNumber": "XRF-Sample-001",
+            "notes": "表面クリーニングと異物除去",
+            "status": "completed",
+            "progressRate": 100,
+            "progressReport": "実験記録報告",
+            "recordNumber": "EXP-XRF-001"
+          },
+          {
+            "taskId": "task_m301_002",
+            "methodName": "XRF元素分析",
+            "taskName": "XRF測定実行",
+            "sampleNumber": "XRF-Sample-001",
+            "notes": "元素組成の測定と記録",
+            "status": "completed",
+            "progressRate": 100,
+            "progressReport": "実験記録報告",
+            "recordNumber": "EXP-XRF-002"
+          },
+          {
+            "taskId": "task_m301_003",
+            "methodName": "XRF元素分析",
+            "taskName": "データ解析",
+            "sampleNumber": "XRF-Sample-001",
+            "notes": "測定データの解析とレポート作成",
+            "status": "in_progress",
+            "progressRate": 60,
+            "progressReport": "実験記録報告",
+            "recordNumber": "EXP-XRF-003"
+          }
+        ],
+        "transitions": [
+          {
+            "transitionId": "t301",
+            "transitionName": "サンプルクリーニング",
+            "description": "XRF測定前にサンプル表面の汚れや異物を除去する工程。",
+            "category": "前処理",
+            "estimatedDuration": "20分",
+            "totalMaterialsCount": 1,
+            "totalIngredientsCount": 2,
+            "totalResultsCount": 0
+          },
+          {
+            "transitionId": "t302",
+            "transitionName": "装置キャリブレーション",
+            "description": "XRF装置の精度を確認し、標準試料で校正する工程。",
+            "category": "キャリブレーション",
+            "estimatedDuration": "30分",
+            "totalMaterialsCount": 1,
+            "totalIngredientsCount": 3,
+            "totalResultsCount": 1
+          },
+          {
+            "transitionId": "t303",
+            "transitionName": "元素分析測定",
+            "description": "試料の元素組成をXRFで測定する工程。",
+            "category": "測定",
+            "estimatedDuration": "60分",
+            "totalMaterialsCount": 1,
+            "totalIngredientsCount": 4,
+            "totalResultsCount": 3
+          },
+          {
+            "transitionId": "t304",
+            "transitionName": "スペクトル解析",
+            "description": "取得したXRFスペクトルを解析する工程。",
+            "category": "データ処理",
+            "estimatedDuration": "40分",
+            "totalMaterialsCount": 0,
+            "totalIngredientsCount": 2,
+            "totalResultsCount": 2
+          }
+        ]
+      }
+    ],
+    "progressData": [
+      {
+        "transitionId": "t301",
+        "transitionName": "サンプルクリーニング",
+        "taskId": "task_m301_001",
+        "taskName": "サンプル前処理",
+        "methodId": "m301",
+        "methodName": "XRF元素分析",
+        "progressRate": 100,
+        "status": "completed",
+        "reportCount": 2,
+        "issueCount": 0,
+        "inputMaterialsCount": 1,
+        "inputIngredientsCount": 2,
+        "inputResultsCount": 0
+      },
+      {
+        "transitionId": "t302",
+        "transitionName": "装置キャリブレーション",
+        "taskId": "task_m301_002",
+        "taskName": "XRF測定実行",
+        "methodId": "m301",
+        "methodName": "XRF元素分析",
+        "progressRate": 100,
+        "status": "completed",
+        "reportCount": 1,
+        "issueCount": 0,
+        "inputMaterialsCount": 1,
+        "inputIngredientsCount": 3,
+        "inputResultsCount": 1
+      },
+      {
+        "transitionId": "t303",
+        "transitionName": "元素分析測定",
+        "taskId": "task_m301_002",
+        "taskName": "XRF測定実行",
+        "methodId": "m301",
+        "methodName": "XRF元素分析",
+        "progressRate": 100,
+        "status": "completed",
+        "reportCount": 3,
+        "issueCount": 0,
+        "inputMaterialsCount": 1,
+        "inputIngredientsCount": 4,
+        "inputResultsCount": 3
+      },
+      {
+        "transitionId": "t304",
+        "transitionName": "スペクトル解析",
+        "taskId": "task_m301_003",
+        "taskName": "データ解析",
+        "methodId": "m301",
+        "methodName": "XRF元素分析",
+        "progressRate": 60,
+        "status": "in_progress",
+        "reportCount": 1,
+        "issueCount": 0,
+        "inputMaterialsCount": 0,
+        "inputIngredientsCount": 1,
+        "inputResultsCount": 1
+      }
+    ]
   }
 };
 
@@ -1719,4 +1932,183 @@ export function updateTaskStatus(
   }
 
   return [...method.tasks];
+}
+
+/**
+ * 問題報告モックデータ
+ * トランジションIDをキーとして問題一覧を管理
+ */
+import { Issue, IssueComment, User } from '@/types/experimentWorker';
+
+// モックユーザーデータ
+const mockUsers: Record<string, User> = {
+  worker_001: {
+    userId: 'worker_001',
+    userName: '田中一郎',
+    role: 'Worker'
+  },
+  worker_002: {
+    userId: 'worker_002',
+    userName: '鈴木二郎',
+    role: 'Worker'
+  },
+  manager_001: {
+    userId: 'manager_001',
+    userName: '山田太郎',
+    role: 'Manager'
+  }
+};
+
+// 問題報告モックデータ
+export const issuesData: Record<string, Issue[]> = {
+  // トランジションt002の問題
+  t002: [
+    {
+      issueId: 'issue_001',
+      transitionId: 't002',
+      transitionName: '温度設定',
+      title: '目標温度到達に時間がかかる',
+      content: '加熱炉の温度が目標値に達するまでに通常より5分程度余計に時間がかかっています。ヒーターの劣化が疑われます。',
+      status: 'unresolved',
+      targetType: 'transition',
+      reportedBy: mockUsers.worker_001,
+      reportedAt: '2024-12-25T10:30:00Z',
+      comments: [
+        {
+          commentId: 'comment_001',
+          issueId: 'issue_001',
+          content: 'ヒーターの点検を実施しました。接触不良を確認したため、配線を修正しました。',
+          createdBy: mockUsers.manager_001,
+          createdAt: '2024-12-25T14:20:00Z'
+        },
+        {
+          commentId: 'comment_002',
+          issueId: 'issue_001',
+          content: '修正後、温度上昇が正常に戻ったことを確認しました。ありがとうございます。',
+          createdBy: mockUsers.worker_001,
+          createdAt: '2024-12-25T15:10:00Z'
+        }
+      ]
+    }
+  ],
+  // トランジションt005の問題
+  t005: [
+    {
+      issueId: 'issue_002',
+      transitionId: 't005',
+      transitionName: '天秤キャリブレーション',
+      title: '校正用分銅の重量が基準値とずれている',
+      content: '100g の校正用分銅を測定したところ、99.95g と表示されました。許容誤差範囲を超えているため、分銅の再校正が必要と思われます。',
+      status: 'unresolved',
+      targetType: 'transition',
+      reportedBy: mockUsers.worker_002,
+      reportedAt: '2024-12-26T09:15:00Z',
+      comments: [
+        {
+          commentId: 'comment_003',
+          issueId: 'issue_002',
+          content: '分銅メーカーに問い合わせ中です。来週中に新しい分銅セットが届く予定です。',
+          createdBy: mockUsers.manager_001,
+          createdAt: '2024-12-26T11:30:00Z'
+        }
+      ]
+    },
+    {
+      issueId: 'issue_003',
+      transitionId: 't005',
+      transitionName: '天秤キャリブレーション',
+      title: '天秤の表示が不安定',
+      content: '天秤に何も載せていない状態でも、表示が0.01g〜0.02gの範囲で変動します。環境の振動が原因か、天秤自体の問題か調査が必要です。',
+      status: 'resolved',
+      targetType: 'transition',
+      reportedBy: mockUsers.worker_001,
+      reportedAt: '2024-12-24T13:45:00Z',
+      comments: [
+        {
+          commentId: 'comment_004',
+          issueId: 'issue_003',
+          content: '天秤の設置場所を確認したところ、エアコンの風が直接当たっていました。風除けパネルを設置しました。',
+          createdBy: mockUsers.manager_001,
+          createdAt: '2024-12-24T15:00:00Z'
+        },
+        {
+          commentId: 'comment_005',
+          issueId: 'issue_003',
+          content: '風除けパネル設置後、表示の変動が±0.001g以内に収まるようになりました。問題解決を確認しました。',
+          createdBy: mockUsers.worker_001,
+          createdAt: '2024-12-24T16:20:00Z'
+        }
+      ]
+    }
+  ],
+  // トランジションt007の問題
+  t007: [
+    {
+      issueId: 'issue_004',
+      transitionId: 't007',
+      transitionName: 'サンプルA-1測定',
+      title: 'サンプルの表面に傷がある',
+      content: 'サンプルA-1の表面に小さな傷が確認されました。測定値に影響する可能性があるため、代替サンプルの使用を検討したいです。',
+      status: 'unresolved',
+      targetType: 'transition',
+      reportedBy: mockUsers.worker_002,
+      reportedAt: '2024-12-27T10:05:00Z',
+      comments: []
+    }
+  ],
+  // トランジションt303の問題
+  t303: [
+    {
+      issueId: 'issue_005',
+      transitionId: 't303',
+      transitionName: '元素分析測定',
+      title: 'スペクトルにノイズが多い',
+      content: 'XRF測定のスペクトルに通常より多くのノイズが含まれています。測定時間を延長するか、積算回数を増やす必要があるかもしれません。',
+      status: 'resolved',
+      targetType: 'transition',
+      reportedBy: mockUsers.worker_001,
+      reportedAt: '2024-12-28T14:30:00Z',
+      comments: [
+        {
+          commentId: 'comment_006',
+          issueId: 'issue_005',
+          content: 'X線管の出力を確認したところ、設定値より低下していました。出力を規定値に調整しました。',
+          createdBy: mockUsers.manager_001,
+          createdAt: '2024-12-28T15:45:00Z'
+        },
+        {
+          commentId: 'comment_007',
+          issueId: 'issue_005',
+          content: '出力調整後、ノイズレベルが正常範囲に戻りました。ありがとうございます。',
+          createdBy: mockUsers.worker_001,
+          createdAt: '2024-12-28T16:10:00Z'
+        }
+      ]
+    }
+  ]
+};
+
+/**
+ * トランジションIDから問題一覧を取得する
+ * @param transitionId トランジションID
+ * @returns 問題一覧
+ */
+export function getIssuesByTransitionId(transitionId: string): Issue[] {
+  return issuesData[transitionId] || [];
+}
+
+/**
+ * すべての問題を取得する
+ * @returns 全問題一覧
+ */
+export function getAllIssues(): Issue[] {
+  return Object.values(issuesData).flat();
+}
+
+/**
+ * 未解決の問題のみを取得する
+ * @returns 未解決問題一覧
+ */
+export function getUnresolvedIssues(): Issue[] {
+  return getAllIssues().filter(issue => issue.status === 'unresolved');
 }
