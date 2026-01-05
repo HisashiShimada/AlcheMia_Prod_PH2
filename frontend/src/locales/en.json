@@ -116,6 +116,17 @@
       "project": "Project",
       "method": "Method"
     },
+    "progressCheck": {
+      "issueCheck": "Issue Check",
+      "checkButton": "Check"
+    },
+    "projectStatus": {
+      "planning": "Planning",
+      "waiting_task": "Waiting for Task",
+      "executing_task": "Task in Progress",
+      "waiting_approval": "Waiting for Approval",
+      "completed": "Completed"
+    },
     "projectSelection": {
       "title": "Select Project",
       "projectName": "Project Name",
@@ -222,6 +233,10 @@
       "descriptionMaxLength": "Description must be 500 characters or less",
       "createdByInfo": "Creator Information",
       "createdBy": "Created By",
+      "templateType": "Template Type",
+      "templateTypeExtra": "Select the template type for the XML to be created",
+      "templateTypeRequired": "Please select a template type",
+      "templateTypePlaceholder": "Select template type",
       "success": "File created successfully",
       "successDescription": "A new file has been created and added to the list"
     },
@@ -456,8 +471,65 @@
       "total": "Total",
       "items": "items"
     },
-    "actions": {
-      "viewDetails": "View Details"
+      "actions": {
+        "viewDetails": "View Details"
+      }
+    },
+  "issueManagement": {
+    "title": "Issue Management",
+    "newIssue": "New Issue Report",
+    "issueList": "Issue List",
+    "issueDetails": "Issue Details",
+    "noIssueSelected": "Select an issue",
+    "noIssues": "No issues reported",
+    "columns": {
+      "title": "Title",
+      "status": "Status",
+      "targetType": "Target",
+      "reportedBy": "Reporter",
+      "reportedAt": "Reported At"
+    },
+    "status": {
+      "unresolved": "Unresolved",
+      "resolved": "Resolved"
+    },
+    "targetType": {
+      "project": "Project",
+      "task": "Task",
+      "transition": "Transition"
+    },
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "Enter issue title",
+      "titleRequired": "Title is required",
+      "titleMaxLength": "Title must be 100 characters or less",
+      "targetType": "Target",
+      "targetTypeRequired": "Target is required",
+      "content": "Content",
+      "contentPlaceholder": "Describe the issue in detail",
+      "contentRequired": "Content is required",
+      "contentMinLength": "Content must be at least 10 characters",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "details": {
+      "title": "Title",
+      "status": "Status",
+      "targetType": "Target",
+      "reportedBy": "Reported By",
+      "reportedAt": "Reported At",
+      "content": "Content",
+      "comments": "Comments",
+      "commentsCount": "Comments",
+      "noComments": "No comments",
+      "addComment": "Add Comment",
+      "commentPlaceholder": "Enter your comment...",
+      "commentRequired": "Comment is required",
+      "send": "Send"
+    },
+    "messages": {
+      "issueReported": "Issue reported successfully",
+      "commentPosted": "Comment posted successfully"
     }
   }
 }

@@ -6,6 +6,7 @@ import { FolderOutlined, CheckOutlined, CloseOutlined, SearchOutlined } from '@a
 import type { ColumnsType } from 'antd/es/table';
 import { projectsData } from '@/data/projectsData';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { isSelectableStatus, ProjectStatus } from '@/types/experimentWorker';
 
 const { Text } = Typography;
 
@@ -26,6 +27,7 @@ interface ProjectTableData {
   key: string;
   projectId: string;
   projectName: string;
+  status: ProjectStatus;
   description: string;
   owner: string;
   isCurrentlySelected: boolean;
@@ -61,21 +63,24 @@ export default function ProjectSelectionModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // テーブルデータの作成
+  // テーブルデータの作成（選択可能な状態のプロジェクトのみ）
   const allTableData: ProjectTableData[] = useMemo(() => {
-    return Object.keys(projectsData).map((projectId) => {
-      const project = projectsData[projectId];
-      const owner = project.workAssignment?.assignedBy?.userName || t('experimentWork.projectSelection.unknownOwner');
-      
-      return {
-        key: projectId,
-        projectId,
-        projectName: project.projectName,
-        description: project.description || '',
-        owner,
-        isCurrentlySelected: selectedProject === projectId,
-      };
-    });
+    return Object.keys(projectsData)
+      .map((projectId) => {
+        const project = projectsData[projectId];
+        const owner = project.workAssignment?.assignedBy?.userName || t('experimentWork.projectSelection.unknownOwner');
+        
+        return {
+          key: projectId,
+          projectId,
+          projectName: project.projectName,
+          status: project.status,
+          description: project.description || '',
+          owner,
+          isCurrentlySelected: selectedProject === projectId,
+        };
+      })
+      .filter((project) => isSelectableStatus(project.status)); // 選択可能な状態のみ
   }, [selectedProject, t]);
 
   // プロジェクト名の選択肢
@@ -109,7 +114,7 @@ export default function ProjectSelectionModal({
     });
   }, [allTableData, searchText, selectedProjectName, selectedOwner]);
 
-  // テーブルカラムの定義（ステータス列を削除）
+  // テーブルカラムの定義
   const columns: ColumnsType<ProjectTableData> = [
     {
       title: t('experimentWork.projectSelection.projectName'),
@@ -121,6 +126,16 @@ export default function ProjectSelectionModal({
           <FolderOutlined style={{ color: token.colorPrimary }} />
           <Text strong>{text}</Text>
         </Space>
+      ),
+    },
+    {
+      title: '状態',
+      dataIndex: 'status',
+      key: 'status',
+      width: 140,
+      align: 'center',
+      render: (status: ProjectStatus) => (
+        <Text>{t(`experimentWork.projectStatus.${status}`)}</Text>
       ),
     },
     {

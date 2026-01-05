@@ -53,7 +53,7 @@ export function convertToReactFlow(structure: PetriNetStructure): {
     );
   }
 
-  // 3. Placesをノードに変換
+  // 3. Placesをノードに変換（共通テンプレートフラグ付き）
   structure.places.forEach((place) => {
     const template = structure.templates[place.id];
     const nodeType = template
@@ -61,6 +61,32 @@ export function convertToReactFlow(structure: PetriNetStructure): {
       : 'default';
 
     const position = nodePositions.get(place.id) || { x: 0, y: 0 };
+
+    // 🎯 共通テンプレートフラグの設定
+    const placeId = place.id;
+    const templateId = template?.id;
+    
+    // 共通テンプレート参照の場合（このplaceは別のplaceへの参照）
+    const isCommonTemplateRef = structure.commonTemplateRefMap?.[placeId];
+    const commonTemplateRef = isCommonTemplateRef ? structure.commonTemplateRefMap?.[placeId] : undefined;
+    
+    // 共通テンプレートの定義元の場合（このplaceは他から参照される）
+    const isCommonTemplate = templateId && structure.commonTemplateIds?.has(templateId);
+
+    if (isCommonTemplateRef) {
+      console.log('🔗 [convertToReactFlow] 共通テンプレート参照設定:', {
+        placeId,
+        referencedPlaceId: commonTemplateRef,
+        templateId
+      });
+    }
+
+    if (isCommonTemplate) {
+      console.log('✅ [convertToReactFlow] 共通テンプレートフラグ設定:', {
+        placeId,
+        templateId
+      });
+    }
 
     const node: Node = {
       id: place.id,
@@ -76,6 +102,9 @@ export function convertToReactFlow(structure: PetriNetStructure): {
           return acc;
         }, {} as Record<string, string>),
         template,
+        // 🎯 共通テンプレート情報を追加
+        isCommonTemplate: isCommonTemplate || false,
+        commonTemplateRef: commonTemplateRef,
       },
     };
 

@@ -5,8 +5,11 @@ import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress } fr
 import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
-import { Transition, ExperimentDataValue } from '@/types/experimentWorker';
+import { Transition, ExperimentDataValue, ProjectStatus, isRecordableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
+import { getIssuesByTransitionId } from '@/data/projectsData';
+import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
+import IssueManagementModal from './IssueManagementModal';
 
 const { Text } = Typography;
 
@@ -14,6 +17,7 @@ interface TransitionListProps {
   transitions: Transition[];
   methodName?: string;
   selectedTaskId?: string;
+  projectStatus: ProjectStatus | null;
   onTaskCreated?: (taskId: string) => void;
   projectId?: string;
   methodId?: string;
@@ -26,15 +30,21 @@ interface TransitionListProps {
  */
 export default function TransitionList({
   transitions,
+  projectStatus,
   projectId,
   methodId,
 }: TransitionListProps) {
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [instructionModalOpen, setInstructionModalOpen] = useState(false);
+  const [dataRecordModalOpen, setDataRecordModalOpen] = useState(false);
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
   
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
+
+  // TODO: モックデータ - 実際はpropsまたはAPIから取得
+  const [issues, setIssues] = useState<Issue[]>([]);
 
   // トランジション名の選択肢を生成
   const transitionNameOptions = useMemo(() => {
@@ -57,15 +67,15 @@ export default function TransitionList({
     });
   }, [transitions, searchText, selectedTransitionName]);
 
-  // トランジションをクリックしてダイアログを開く
+  // トランジションをクリックして実験データ記録モーダルを直接開く
   const handleTransitionClick = (transition: Transition) => {
     setSelectedTransition(transition);
-    setDialogOpen(true);
+    setDataRecordModalOpen(true);
   };
 
-  // ダイアログを閉じる
-  const handleDialogClose = () => {
-    setDialogOpen(false);
+  // データ記録モーダルを閉じる
+  const handleDataRecordModalClose = () => {
+    setDataRecordModalOpen(false);
     setSelectedTransition(null);
   };
 
@@ -74,6 +84,8 @@ export default function TransitionList({
     console.log('保存されたデータ:', data);
     // TODO: バックエンドAPIへの保存処理を実装
     message.success('実験データを保存しました');
+    setDataRecordModalOpen(false);
+    setSelectedTransition(null);
   };
 
   // ステータス表示用のヘルパー関数
@@ -98,19 +110,42 @@ export default function TransitionList({
     );
   };
 
-  // インプット記録ボタンクリックハンドラ
-  const handleInputRecord = (transition: Transition) => {
+  // 記録ボタンクリックハンドラ - 直接データ記録モーダルを開く
+  const handleRecord = (transition: Transition) => {
     setSelectedTransition(transition);
-    setDialogOpen(true);
+    setDataRecordModalOpen(true);
   };
 
-  // アウトプット記録ボタンクリックハンドラ
-  const handleOutputRecord = (transition: Transition) => {
+  // 問題報告ボタンクリックハンドラ
+  const handleIssueReport = (transition: Transition) => {
     setSelectedTransition(transition);
-    setDialogOpen(true);
+    // トランジションIDに関連する問題を取得
+    const transitionIssues = getIssuesByTransitionId(transition.transitionId);
+    setIssues(transitionIssues);
+    setIssueModalOpen(true);
   };
 
-  // テーブルの列定義（2段ヘッダー構造）
+  // 問題報告モーダルを閉じる
+  const handleIssueModalClose = () => {
+    setIssueModalOpen(false);
+    setSelectedTransition(null);
+  };
+
+  // 新規問題報告送信ハンドラ
+  const handleSubmitIssue = (issue: IssueReportFormData) => {
+    console.log('新規問題報告:', issue);
+    // TODO: バックエンドAPIへの送信処理を実装
+    message.success('問題を報告しました');
+  };
+
+  // コメント送信ハンドラ
+  const handleSubmitComment = (issueId: string, comment: string) => {
+    console.log('コメント投稿:', { issueId, comment });
+    // TODO: バックエンドAPIへの送信処理を実装
+    message.success('コメントを投稿しました');
+  };
+
+  // テーブルの列定義（統合版）
   const columns: ColumnsType<Transition> = [
     {
       title: 'トランジション名',
@@ -135,160 +170,157 @@ export default function TransitionList({
       render: (status: ProgressStatus | undefined) => getStatusDisplay(status)
     },
     {
-      title: 'インプット',
-      children: [
-        {
-          title: '材料',
-          key: 'inputMaterials',
-          width: 90,
-          align: 'center',
-          render: (_, record: Transition) => {
-            const input = record.inputMaterialsCount ?? 0;
-            const total = record.totalMaterialsCount ?? 0;
-            if (total === 0) {
-              return <Text type="secondary">-</Text>;
-            }
-            const isComplete = input === total;
-            return (
-              <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
-                {input}/{total}
-              </Text>
-            );
-          }
-        },
-        {
-          title: '条件',
-          key: 'inputConditions',
-          width: 90,
-          align: 'center',
-          render: (_, record: Transition) => {
-            const input = record.inputIngredientsCount ?? 0;
-            const total = record.totalIngredientsCount ?? 0;
-            if (total === 0) {
-              return <Text type="secondary">-</Text>;
-            }
-            const isComplete = input === total;
-            return (
-              <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
-                {input}/{total}
-              </Text>
-            );
-          }
-        },
-        {
-          title: '結果',
-          key: 'inputResults',
-          width: 90,
-          align: 'center',
-          render: (_, record: Transition) => {
-            const input = record.inputResultsCount ?? 0;
-            const total = record.totalResultsCount ?? 0;
-            if (total === 0) {
-              return <Text type="secondary">-</Text>;
-            }
-            const isComplete = input === total;
-            return (
-              <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
-                {input}/{total}
-              </Text>
-            );
-          }
-        },
-        {
-          title: '記録',
-          key: 'inputRecord',
-          width: 100,
-          align: 'center',
-          render: (_, record: Transition) => (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleInputRecord(record);
-              }}
-              style={{
-                padding: '4px 12px',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: '#ffffff',
-                backgroundColor: '#CF0027',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = '#a50020';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = '#CF0027';
-              }}
-            >
-              記録
-            </button>
-          )
-        }
-      ]
+      title: '進捗率',
+      dataIndex: 'progressRate',
+      key: 'progressRate',
+      width: 90,
+      align: 'center',
+      render: (progressRate: number | undefined) => {
+        const rate = progressRate ?? 0;
+        return (
+          <Text strong>
+            {rate}%
+          </Text>
+        );
+      }
     },
     {
-      title: 'アウトプット',
-      children: [
-        {
-          title: '材料',
-          key: 'outputMaterials',
-          width: 90,
-          align: 'center',
-          render: () => <Text type="secondary">-</Text>
-        },
-        {
-          title: '条件',
-          key: 'outputConditions',
-          width: 90,
-          align: 'center',
-          render: () => <Text type="secondary">-</Text>
-        },
-        {
-          title: '結果',
-          key: 'outputResults',
-          width: 90,
-          align: 'center',
-          render: () => <Text type="secondary">-</Text>
-        },
-        {
-          title: '記録',
-          key: 'outputRecord',
-          width: 100,
-          align: 'center',
-          render: (_, record: Transition) => (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOutputRecord(record);
-              }}
-              style={{
-                padding: '4px 12px',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: '#ffffff',
-                backgroundColor: '#CF0027',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = '#a50020';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = '#CF0027';
-              }}
-            >
-              記録
-            </button>
-          )
+      title: '材料',
+      key: 'materials',
+      width: 90,
+      align: 'center',
+      render: (_, record: Transition) => {
+        const input = record.inputMaterialsCount ?? 0;
+        const total = record.totalMaterialsCount ?? 0;
+        if (total === 0) {
+          return <Text type="secondary">-</Text>;
         }
-      ]
+        const isComplete = input === total;
+        return (
+          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+            {input}/{total}
+          </Text>
+        );
+      }
+    },
+    {
+      title: '条件',
+      key: 'conditions',
+      width: 90,
+      align: 'center',
+      render: (_, record: Transition) => {
+        const input = record.inputIngredientsCount ?? 0;
+        const total = record.totalIngredientsCount ?? 0;
+        if (total === 0) {
+          return <Text type="secondary">-</Text>;
+        }
+        const isComplete = input === total;
+        return (
+          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+            {input}/{total}
+          </Text>
+        );
+      }
+    },
+    {
+      title: '結果',
+      key: 'results',
+      width: 90,
+      align: 'center',
+      render: (_, record: Transition) => {
+        const input = record.inputResultsCount ?? 0;
+        const total = record.totalResultsCount ?? 0;
+        if (total === 0) {
+          return <Text type="secondary">-</Text>;
+        }
+        const isComplete = input === total;
+        return (
+          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+            {input}/{total}
+          </Text>
+        );
+      }
+    },
+    {
+      title: '記録',
+      key: 'record',
+      width: 100,
+      align: 'center',
+      render: (_, record: Transition) => {
+        // プロジェクトの状態が記録可能でない場合は非活性化
+        const isProjectRecordable = projectStatus ? isRecordableStatus(projectStatus) : true;
+        
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRecord(record);
+            }}
+            disabled={!isProjectRecordable}
+            style={{
+              padding: '4px 12px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: '#ffffff',
+              backgroundColor: isProjectRecordable ? '#CF0027' : '#d3d3d3',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: isProjectRecordable ? 'pointer' : 'not-allowed',
+              transition: 'all 0.2s',
+              opacity: isProjectRecordable ? 1 : 0.6
+            }}
+            onMouseOver={(e) => {
+              if (isProjectRecordable) {
+                e.currentTarget.style.backgroundColor = '#a50020';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (isProjectRecordable) {
+                e.currentTarget.style.backgroundColor = '#CF0027';
+              }
+            }}
+          >
+            記録
+          </button>
+        );
+      }
+    },
+    {
+      title: '問題報告',
+      key: 'issue',
+      width: 100,
+      align: 'center',
+      render: (_, record: Transition) => {
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleIssueReport(record);
+            }}
+            style={{
+              padding: '4px 12px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: '#CF0027',
+              backgroundColor: '#ffffff',
+              border: '1px solid #CF0027',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = '#fff5f7';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#ffffff';
+            }}
+          >
+            報告
+          </button>
+        );
+      }
     },
     {
       title: '説明',
@@ -371,15 +403,29 @@ export default function TransitionList({
         />
       </div>
 
-      {/* データ記録ダイアログ */}
+      {/* データ記録モーダル */}
       <DataRecordDialog
-        open={dialogOpen}
+        open={dataRecordModalOpen}
         transition={selectedTransition}
-        onClose={handleDialogClose}
+        projectStatus={projectStatus}
+        onClose={handleDataRecordModalClose}
         onSave={handleDataSave}
         projectId={projectId}
         methodId={methodId}
       />
+
+      {/* 問題管理モーダル */}
+      {selectedTransition && (
+        <IssueManagementModal
+          visible={issueModalOpen}
+          transitionId={selectedTransition.transitionId}
+          transitionName={selectedTransition.transitionName}
+          issues={issues}
+          onClose={handleIssueModalClose}
+          onSubmitIssue={handleSubmitIssue}
+          onSubmitComment={handleSubmitComment}
+        />
+      )}
     </>
   );
 }

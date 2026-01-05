@@ -1,0 +1,8 @@
+<keyDictionary xmlns="http://abc.com/schema/keyDictionary/resultTemplate/RTSpectrum" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<property formatString="0.000" key="LocationX" scaleFactor="1.000" xsi:type="doubleType">
+	</property>
+	<property formatString="0.000" key="LocationY" scaleFactor="1.000" xsi:type="doubleType">
+	</property>
+	<content axis="Intensity" formatString="0.0000000" id="RTSpecrumI" key="Intensity" scaleFactor="1.0000000" size="1016" xsi:type="contentDoubleListType">
+	</content>
+</keyDictionary>
