@@ -1,0 +1,251 @@
+'use client';
+
+/**
+ * AuthContainer - 認証フロー統合コンポーネント
+ * 
+ * 認証フロー全体の状態管理とコンポーネント切り替えを行います。
+ * State Machineパターンで状態遷移を管理します。
+ */
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Card, Typography, message, theme } from 'antd';
+import LoginForm from './LoginForm';
+import PINCodeForm from './PINCodeForm';
+import PasswordResetRequest from './PasswordResetRequest';
+import type {
+  AuthFlowState,
+  LoginResponse,
+  VerifyPINResponse,
+  ROLE_REDIRECT_MAP,
+} from '../../types/auth';
+
+const { Title } = Typography;
+const { useToken } = theme;
+
+interface AuthContainerProps {
+  /**
+   * 組織ID
+   */
+  organizationId: string;
+  
+  /**
+   * ロール別リダイレクトマップ
+   */
+  roleRedirectMap: typeof ROLE_REDIRECT_MAP;
+}
+
+/**
+ * AuthContainer コンポーネント
+ */
+export default function AuthContainer({
+  organizationId,
+  roleRedirectMap,
+}: AuthContainerProps) {
+  const { token } = useToken();
+  const router = useRouter();
+  
+  // 認証フロー状態
+  const [flowState, setFlowState] = useState<AuthFlowState>('login');
+  
+  // セッション情報
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [maskedEmail, setMaskedEmail] = useState<string | null>(null);
+  const [pinExpiresIn, setPinExpiresIn] = useState<number | null>(null);
+
+  /**
+   * ログイン成功ハンドラ
+   */
+  const handleLoginSuccess = (response: LoginResponse) => {
+    setSessionToken(response.sessionToken);
+    setMaskedEmail(response.email);
+    setPinExpiresIn(response.expiresIn);
+    setFlowState('pin-input');
+    
+    message.success(response.message);
+  };
+
+  /**
+   * ログインエラーハンドラ
+   */
+  const handleLoginError = (error: string) => {
+    message.error(error);
+  };
+
+  /**
+   * PINコード検証成功ハンドラ
+   */
+  const handlePINVerifySuccess = (response: VerifyPINResponse) => {
+    message.success('ログインに成功しました');
+    
+    // ロール別画面にリダイレクト
+    const redirectUrl = roleRedirectMap[response.user.role] || '/';
+    router.push(redirectUrl);
+  };
+
+  /**
+   * PINコード検証エラーハンドラ
+   */
+  const handlePINVerifyError = (error: string) => {
+    message.error(error);
+  };
+
+  /**
+   * PINコード試行回数超過ハンドラ
+   */
+  const handlePINMaxAttemptsExceeded = () => {
+    message.error('PINコード入力試行回数の上限に達しました。最初からやり直してください');
+    
+    // ログイン画面に戻る
+    setFlowState('login');
+    setSessionToken(null);
+    setMaskedEmail(null);
+    setPinExpiresIn(null);
+  };
+
+  /**
+   * パスワードリセット要求成功ハンドラ
+   */
+  const handleResetRequestSuccess = () => {
+    setFlowState('reset-sent');
+    message.success('パスワードリセット用のリンクをメールに送信しました');
+  };
+
+  /**
+   * パスワードリセット要求エラーハンドラ
+   */
+  const handleResetRequestError = (error: string) => {
+    message.error(error);
+  };
+
+  /**
+   * ログイン画面に戻るハンドラ
+   */
+  const handleBackToLogin = () => {
+    setFlowState('login');
+    setSessionToken(null);
+    setMaskedEmail(null);
+    setPinExpiresIn(null);
+  };
+
+  /**
+   * パスワードリセット画面に遷移するハンドラ
+   */
+  const handleNavigateToPasswordReset = () => {
+    setFlowState('reset-request');
+  };
+
+  /**
+   * 状態に応じたタイトルを取得
+   */
+  const getTitle = (): string => {
+    switch (flowState) {
+      case 'login':
+        return 'ログイン';
+      case 'pin-input':
+        return 'PINコード入力';
+      case 'reset-request':
+        return 'パスワードリセット';
+      case 'reset-sent':
+        return 'メール送信完了';
+      default:
+        return 'ログイン';
+    }
+  };
+
+  /**
+   * 状態に応じたコンポーネントをレンダリング
+   */
+  const renderContent = () => {
+    switch (flowState) {
+      case 'login':
+        return (
+          <LoginForm
+            onSuccess={handleLoginSuccess}
+            onError={handleLoginError}
+            onPasswordReset={handleNavigateToPasswordReset}
+            organizationId={organizationId}
+          />
+        );
+
+      case 'pin-input':
+        if (!sessionToken || !maskedEmail || pinExpiresIn === null) {
+          // 状態が不正な場合はログイン画面に戻る
+          setFlowState('login');
+          return null;
+        }
+        return (
+          <PINCodeForm
+            sessionToken={sessionToken}
+            maskedEmail={maskedEmail}
+            initialExpiresIn={pinExpiresIn}
+            onSuccess={handlePINVerifySuccess}
+            onError={handlePINVerifyError}
+            onMaxAttemptsExceeded={handlePINMaxAttemptsExceeded}
+            organizationId={organizationId}
+          />
+        );
+
+      case 'reset-request':
+        return (
+          <PasswordResetRequest
+            onSuccess={handleResetRequestSuccess}
+            onError={handleResetRequestError}
+            onBackToLogin={handleBackToLogin}
+            organizationId={organizationId}
+          />
+        );
+
+      case 'reset-sent':
+        return (
+          <div style={{ textAlign: 'center', padding: token.paddingLG }}>
+            <Typography.Paragraph>
+              パスワードリセット用のリンクをメールに送信しました。
+              <br />
+              メールに記載されたリンクからパスワードを変更してください。
+            </Typography.Paragraph>
+            <Typography.Link onClick={handleBackToLogin}>
+              ログイン画面に戻る
+            </Typography.Link>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: token.colorBgLayout,
+        padding: token.padding,
+      }}
+    >
+      <Card
+        style={{
+          width: '100%',
+          maxWidth: '500px',
+          boxShadow: token.boxShadow,
+        }}
+      >
+        <Title
+          level={2}
+          style={{
+            textAlign: 'center',
+            marginBottom: token.marginLG,
+            color: token.colorPrimary,
+          }}
+        >
+          {getTitle()}
+        </Title>
+        
+        {renderContent()}
+      </Card>
+    </div>
+  );
+}

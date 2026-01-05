@@ -1,7 +1,7 @@
 # Cline Ignore File
 # Clineがコンテキストに含めないファイル・ディレクトリを指定
 
-.kiro/
+; .kiro/
 cline_archives/
 
 # Dependencies
@@ -154,5 +154,5 @@ backend/output/
 # MAIML sample files (大容量XMLファイル)
 specification/*.maiml
 
-# ER図ファイル
-docs/design/db/*.a5er
+; # ER図ファイル
+; docs/design/db/*.a5er
