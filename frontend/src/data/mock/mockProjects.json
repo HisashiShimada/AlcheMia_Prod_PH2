@@ -51,8 +51,8 @@
           },
           "transitionProgress": [
             {
-              "transitionId": "trans_001",
-              "transitionName": "試料調製",
+              "transitionId": "transition-1764899405147",
+              "transitionName": "混ぜ合わせる",
               "progressStatus": "完了",
               "progressPercentage": 100,
               "assignedWorker": "田中 太郎",
@@ -60,31 +60,13 @@
               "endDate": "2024-12-08T10:00:00Z"
             },
             {
-              "transitionId": "trans_002",
-              "transitionName": "X線回折測定",
+              "transitionId": "transition-1764899498618",
+              "transitionName": "New transition",
               "progressStatus": "完了",
               "progressPercentage": 100,
               "assignedWorker": "田中 太郎",
               "startDate": "2024-12-08T10:30:00Z",
               "endDate": "2024-12-08T12:00:00Z"
-            },
-            {
-              "transitionId": "trans_003",
-              "transitionName": "データ解析",
-              "progressStatus": "完了",
-              "progressPercentage": 100,
-              "assignedWorker": "田中 太郎",
-              "startDate": "2024-12-08T13:00:00Z",
-              "endDate": "2024-12-08T15:00:00Z"
-            },
-            {
-              "transitionId": "trans_004",
-              "transitionName": "レポート作成",
-              "progressStatus": "完了",
-              "progressPercentage": 100,
-              "assignedWorker": "田中 太郎",
-              "startDate": "2024-12-08T15:00:00Z",
-              "endDate": "2024-12-08T16:00:00Z"
             }
           ]
         },
@@ -100,8 +82,8 @@
           "workCompletedAt": "2024-12-09T12:00:00Z",
           "reviewCompletedAt": "2024-12-09T14:00:00Z",
           "stats": {
-            "totalTransitions": 4,
-            "completed": 4,
+            "totalTransitions": 2,
+            "completed": 2,
             "working": 0,
             "paused": 0,
             "notStarted": 0,
@@ -109,8 +91,8 @@
           },
           "transitionProgress": [
             {
-              "transitionId": "trans_001",
-              "transitionName": "試料調製",
+              "transitionId": "transition-1764899405147",
+              "transitionName": "混ぜ合わせる",
               "progressStatus": "完了",
               "progressPercentage": 100,
               "assignedWorker": "田中 太郎",
@@ -118,31 +100,13 @@
               "endDate": "2024-12-09T09:30:00Z"
             },
             {
-              "transitionId": "trans_002",
-              "transitionName": "X線回折測定",
+              "transitionId": "transition-1764899498618",
+              "transitionName": "New transition",
               "progressStatus": "完了",
               "progressPercentage": 100,
               "assignedWorker": "田中 太郎",
               "startDate": "2024-12-09T10:00:00Z",
               "endDate": "2024-12-09T11:00:00Z"
-            },
-            {
-              "transitionId": "trans_003",
-              "transitionName": "データ解析",
-              "progressStatus": "完了",
-              "progressPercentage": 100,
-              "assignedWorker": "田中 太郎",
-              "startDate": "2024-12-09T11:00:00Z",
-              "endDate": "2024-12-09T11:45:00Z"
-            },
-            {
-              "transitionId": "trans_004",
-              "transitionName": "レポート作成",
-              "progressStatus": "完了",
-              "progressPercentage": 100,
-              "assignedWorker": "田中 太郎",
-              "startDate": "2024-12-09T11:45:00Z",
-              "endDate": "2024-12-09T12:00:00Z"
             }
           ]
         },

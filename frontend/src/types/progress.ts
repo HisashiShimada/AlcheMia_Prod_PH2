@@ -192,9 +192,23 @@ export interface Arc {
 }
 
 /**
+ * Method情報（複数メソッド対応）
+ */
+export interface MethodData {
+  methodId: string;
+  methodName?: string;
+  places: PlaceNode[];
+  transitions: TransitionNode[];
+  arcs: Arc[];
+}
+
+/**
  * Petri Net構造データ
  */
 export interface PetriNetData {
+  fileKey?: string;
+  isMultiMethod?: boolean;
+  methods?: MethodData[];
   places: PlaceNode[];
   transitions: TransitionNode[];
   arcs: Arc[];

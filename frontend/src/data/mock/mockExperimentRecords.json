@@ -1,0 +1,158 @@
+{
+  "work_001": {
+    "success": true,
+    "data": {
+      "workId": "work_001",
+      "materials": [
+        {
+          "recordId": "material_rec_001",
+          "transitionId": "transition-1764899405147",
+          "transitionName": "混ぜ合わせる",
+          "placeId": "material-1764899172116",
+          "placeName": "material01",
+          "materialName": "material 1",
+          "recordedAt": "2025-12-05T02:10:00Z",
+          "recordedBy": "yukihiro.omori@soft-service.co.jp",
+          "values": {
+            "LaserParameters": {},
+            "EnvironmentalConditions": {},
+            "OpticalSystem": {},
+            "DataAcquisition": {}
+          }
+        },
+        {
+          "recordId": "material_rec_002",
+          "transitionId": "transition-1764899405147",
+          "transitionName": "混ぜ合わせる",
+          "placeId": "material-1764899356810",
+          "placeName": "material02",
+          "materialName": "マテリアル",
+          "recordedAt": "2025-12-05T02:10:30Z",
+          "recordedBy": "yukihiro.omori@soft-service.co.jp",
+          "values": {
+            "AcquisitionTime": 3.5,
+            "Accumulations": 2,
+            "Binning": true,
+            "Objective": "x100_VIS",
+            "Grating": "300(600nm)",
+            "NDFilter": 10,
+            "Laser": 532,
+            "Spectro": 1780.02,
+            "Hole": 79.9925,
+            "Temperature": -70.1,
+            "LocationZ": 46.5
+          }
+        },
+        {
+          "recordId": "material_rec_003",
+          "transitionId": "transition-1764899498618",
+          "transitionName": "New transition",
+          "placeId": "material-1764899481970",
+          "placeName": "material 04",
+          "materialName": "material 04 hoge",
+          "recordedAt": "2025-12-05T05:05:00Z",
+          "recordedBy": "hisashi.shimada@aist-solutions.co.jp",
+          "values": {
+            "AcquisitionTime": 3.5,
+            "Accumulations": 2,
+            "Binning": true,
+            "Objective": "x100_VIS",
+            "Grating": "300(600nm)",
+            "NDFilter": 10,
+            "Laser": 532,
+            "Spectro": 1780.02,
+            "Hole": 79.9925,
+            "Temperature": -70.1,
+            "LocationZ": 46.5
+          }
+        },
+        {
+          "recordId": "material_rec_004",
+          "transitionId": "transition-1764899498618",
+          "transitionName": "New transition",
+          "placeId": "material-1764899487787",
+          "placeName": "material03",
+          "materialName": "material03",
+          "recordedAt": "2025-12-05T05:06:00Z",
+          "recordedBy": "hisashi.shimada@aist-solutions.co.jp",
+          "values": {
+            "AcquisitionTime": 3.5,
+            "Accumulations": 2,
+            "Binning": true,
+            "Objective": "x100_VIS",
+            "Grating": "300(600nm)",
+            "NDFilter": 10,
+            "Laser": 532,
+            "Spectro": 1780.02,
+            "Hole": 79.9925,
+            "Temperature": -70.1,
+            "LocationZ": 46.5
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "recordId": "condition_rec_001",
+          "transitionId": "transition-1764899405147",
+          "transitionName": "混ぜ合わせる",
+          "placeId": "condition-1764899304242",
+          "placeName": "condition 01",
+          "conditionName": "条件1",
+          "recordedAt": "2025-12-05T02:11:00Z",
+          "recordedBy": "yukihiro.omori@soft-service.co.jp",
+          "values": {
+            "tubeVoltage": 15.0,
+            "tubeCurrent": 100.0,
+            "liveTime": 300.0,
+            "realTime": 305.2,
+            "deadTime": 1.7,
+            "collimator": 1.0,
+            "primaryFilter": "None"
+          }
+        }
+      ],
+      "results": [
+        {
+          "recordId": "result_rec_001",
+          "transitionId": "transition-1764899405147",
+          "transitionName": "混ぜ合わせる",
+          "placeId": "result-1764899430825",
+          "placeName": "result",
+          "resultName": "途中結果",
+          "recordedAt": "2025-12-05T02:12:00Z",
+          "recordedBy": "yukihiro.omori@soft-service.co.jp",
+          "values": {
+            "MeasurementRecodeResultTable": {
+              "Wavelength": [],
+              "Intensity": []
+            }
+          }
+        },
+        {
+          "recordId": "result_rec_002",
+          "transitionId": "transition-1764899498618",
+          "transitionName": "New transition",
+          "placeId": "result-1764899593844",
+          "placeName": "result",
+          "resultName": "最終結果",
+          "recordedAt": "2025-12-05T05:08:00Z",
+          "recordedBy": "hisashi.shimada@aist-solutions.co.jp",
+          "values": {
+            "MeasurementRecodeResultTable": {
+              "Wavelength": [],
+              "Intensity": []
+            }
+          }
+        }
+      ],
+      "summary": {
+        "totalMaterials": 4,
+        "totalConditions": 1,
+        "totalResults": 2,
+        "totalRecords": 7,
+        "lastUpdated": "2025-12-05T05:08:58.668Z"
+      }
+    },
+    "timestamp": "2025-12-22T11:30:00Z"
+  }
+}
