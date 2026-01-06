@@ -11,7 +11,7 @@ import {
   updateTaskStatus,
   projectsData
 } from '@/data/projectsData';
-import type { Task, Method, IssueReportData, ProjectStatus, Issue } from '@/types/experimentWorker';
+import type { Task, Method, ProjectStatus, Issue, IssueStatus } from '@/types/experimentWorker';
 
 const { Title } = Typography;
 
@@ -172,11 +172,18 @@ export default function ProgressCheckTab({
     setSelectedTaskForIssue(null);
   }, []);
 
-  // 問題報告送信処理
-  const handleIssueReportSubmit = useCallback((data: IssueReportData) => {
-    console.log('問題報告データ:', data);
+  // コメント送信処理
+  const handleCommentSubmit = useCallback((taskId: string, comment: string) => {
+    console.log('コメント送信:', { taskId, comment });
     // TODO: バックエンドAPIへの送信処理を実装
-    // ここで問題報告をバックエンドに送信する
+    message.success('コメントを送信しました');
+  }, []);
+
+  // ステータス変更処理
+  const handleStatusChange = useCallback((taskId: string, newStatus: IssueStatus) => {
+    console.log('ステータス変更:', { taskId, newStatus });
+    // TODO: バックエンドAPIへの送信処理を実装
+    message.success(`ステータスを「${newStatus === 'unresolved' ? '未解決' : '解決済'}」に変更しました`);
   }, []);
 
   // 問題確認モーダルを開く（参照専用）
@@ -301,8 +308,10 @@ export default function ProgressCheckTab({
       <IssueReportModal
         visible={issueReportModalVisible}
         task={selectedTaskForIssue}
+        initialStatus="unresolved"
         onClose={handleCloseIssueReport}
-        onSubmit={handleIssueReportSubmit}
+        onCommentSubmit={handleCommentSubmit}
+        onStatusChange={handleStatusChange}
       />
 
       {/* 問題確認モーダル（参照専用） */}
