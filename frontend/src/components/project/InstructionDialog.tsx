@@ -32,7 +32,25 @@ import {
   LoadingOutlined,
   CheckCircleOutlined,
   InfoCircleOutlined,
+  HolderOutlined,
 } from '@ant-design/icons';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -64,6 +82,7 @@ const INSTRUCTION_PRIORITIES = {
  */
 const TARGET_TYPES = {
   FILE: 'file',
+  TASK: 'task',
   TRANSITION: 'transition',
 } as const;
 
@@ -94,7 +113,6 @@ interface MethodInfo {
 interface TaskDetail {
   id: number;
   methodId: string;
-  taskName: string;
 }
 
 /**
@@ -107,6 +125,7 @@ interface InstructionData {
   type: string;
   targetType: string;
   transitionId: string;
+  taskNumber?: number;
 }
 
 /**
@@ -141,6 +160,7 @@ interface SubmitInstructionData {
   targetType: string;
   transitionId: string | null;
   targetTransitionId?: string;
+  taskNumber?: number;
 }
 
 /**
@@ -200,6 +220,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
       type: INSTRUCTION_TYPES.GENERAL,
       targetType: TARGET_TYPES.FILE,
       transitionId: '',
+      taskNumber: undefined,
     },
   ]);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
@@ -216,7 +237,6 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
     {
       id: 1,
       methodId: '',
-      taskName: '',
     },
   ]);
   
@@ -267,13 +287,10 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
 
         setAvailableMethods(mockMethods);
 
-        // メソッド数分のタスク詳細を初期化
+        // メソッドを取得した順序でタスク詳細を初期化（methodIdも自動設定）
         const initialTasks: TaskDetail[] = mockMethods.map((method, index) => ({
           id: index + 1,
-          methodId: mockMethods.length === 1 ? method.id : '', // 1つの場合は自動選択
-          taskName: mockMethods.length === 1 
-            ? projectName  // メソッドが1つの場合はプロジェクト名（即座に設定）
-            : '',  // メソッドが2以上の場合は空（メソッド選択時に設定）
+          methodId: method.id, // 取得順に自動設定
         }));
 
         setTaskDetails(initialTasks);
@@ -362,24 +379,13 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
       setTaskDetails((prev) =>
         prev.map((task) => {
           if (task.id === id) {
-            const updated = { ...task, [field]: value };
-            
-            // メソッドが選択された場合、タスク名を自動設定（メソッドが2以上の場合のみ）
-            if (field === 'methodId' && value && availableMethods.length > 1) {
-              const selectedMethod = availableMethods.find((m) => m.id === value);
-              if (selectedMethod) {
-                // メソッド選択時は常にタスク名を上書き
-                updated.taskName = selectedMethod.displayName;
-              }
-            }
-            
-            return updated;
+            return { ...task, [field]: value };
           }
           return task;
         })
       );
     },
-    [availableMethods]
+    []
   );
 
   /**
@@ -411,6 +417,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         type: INSTRUCTION_TYPES.GENERAL,
         targetType: TARGET_TYPES.FILE,
         transitionId: '',
+        taskNumber: undefined,
       },
     ]);
   }, []);
@@ -426,15 +433,23 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
    * 指示を更新
    */
   const handleUpdateInstruction = useCallback(
-    (id: number, field: keyof InstructionData, value: string) => {
+    (id: number, field: keyof InstructionData, value: string | number | undefined) => {
       setInstructions((prev) =>
         prev.map((inst) => {
           if (inst.id === id) {
             const updated = { ...inst, [field]: value };
 
-            // 対象タイプが変更された場合、トランジションIDをリセット
-            if (field === 'targetType' && value === TARGET_TYPES.FILE) {
-              updated.transitionId = '';
+            // 対象タイプが変更された場合、トランジションIDとタスク番号をリセット
+            if (field === 'targetType') {
+              if (value === TARGET_TYPES.FILE) {
+                updated.transitionId = '';
+                updated.taskNumber = undefined;
+              } else if (value === TARGET_TYPES.TASK) {
+                updated.transitionId = '';
+                updated.taskNumber = undefined;
+              } else if (value === TARGET_TYPES.TRANSITION) {
+                updated.taskNumber = undefined;
+              }
             }
 
             return updated;
@@ -451,13 +466,6 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
    */
   const handleSubmit = useCallback(async () => {
     try {
-      // タスク名のバリデーション（必須）
-      const emptyTaskName = taskDetails.find((task) => !task.taskName || !task.taskName.trim());
-      if (emptyTaskName) {
-        message.warning('すべてのタスク名を入力してください');
-        return;
-      }
-
       // メソッド選択のバリデーション（必須）
       const emptyMethod = taskDetails.find((task) => !task.methodId);
       if (emptyMethod) {
@@ -489,6 +497,16 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         return;
       }
 
+      // タスク指示のバリデーション
+      const invalidTaskInstruction = validInstructions.find(
+        (inst) => inst.targetType === TARGET_TYPES.TASK && !inst.taskNumber
+      );
+
+      if (invalidTaskInstruction) {
+        message.warning('タスク指示には対象タスクを選択してください');
+        return;
+      }
+
       setSubmitting(true);
 
       // 指示データの構築
@@ -509,6 +527,15 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
             ...baseData,
             transitionId: inst.transitionId,
             targetTransitionId: inst.transitionId,
+          };
+        }
+
+        // タスク別指示の場合のみtaskNumberを設定
+        if (inst.targetType === TARGET_TYPES.TASK && inst.taskNumber) {
+          return {
+            ...baseData,
+            transitionId: null,
+            taskNumber: inst.taskNumber,
           };
         }
 
@@ -543,6 +570,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
             type: INSTRUCTION_TYPES.GENERAL,
             targetType: TARGET_TYPES.FILE,
             transitionId: '',
+            taskNumber: undefined,
           },
         ]);
         setSelectedWorkerId('');
@@ -556,7 +584,6 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
           {
             id: 1,
             methodId: '',
-            taskName: '',
           },
         ]);
       }, 300);
@@ -595,6 +622,107 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
     },
     [availableTransitions]
   );
+
+  /**
+   * ドラッグ&ドロップセンサーの設定
+   */
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px移動したらドラッグ開始
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  /**
+   * タスク詳細の順序変更ハンドラ
+   */
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setTaskDetails((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  }, []);
+
+  /**
+   * ドラッグ可能な行コンポーネント
+   */
+  interface DraggableRowProps {
+    task: TaskDetail;
+    index: number;
+    selectedMethod?: MethodInfo;
+  }
+
+  const DraggableRow: React.FC<DraggableRowProps> = ({
+    task,
+    index,
+    selectedMethod,
+  }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({
+      id: task.id,
+      disabled: submitting,
+    });
+
+    const style: React.CSSProperties = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+      cursor: submitting ? 'default' : 'grab',
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+      >
+        <Flex gap="middle" align="center" style={{ width: '100%' }}>
+          {/* ドラッグハンドル */}
+          <div
+            {...listeners}
+            style={{
+              cursor: submitting ? 'not-allowed' : 'grab',
+              padding: `${token.paddingXXS}px ${token.paddingXS}px`,
+              color: submitting ? token.colorTextDisabled : token.colorTextSecondary,
+            }}
+          >
+            <HolderOutlined />
+          </div>
+
+          {/* 作業順序 */}
+          <div style={{ minWidth: 80 }}>
+            <Text strong>作業順序 {index + 1}</Text>
+          </div>
+
+          {/* メソッド名（ラベル表示） */}
+          <div style={{ flex: 1 }}>
+            <Text>{selectedMethod?.displayName || 'メソッド未設定'}</Text>
+            {selectedMethod?.description && (
+              <Text type="secondary" style={{ marginLeft: token.marginXS, fontSize: '12px' }}>
+                - {selectedMethod.description}
+              </Text>
+            )}
+          </div>
+        </Flex>
+      </div>
+    );
+  };
 
   return (
     <Modal
@@ -689,82 +817,47 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         ) : availableMethods.length > 0 ? (
           <Card
             size="small"
-            title={<Text strong>📝 タスク詳細</Text>}
+            title={
+              <Flex justify="space-between" align="center">
+                <Text strong>📝 タスク詳細</Text>
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  {taskDetails.length > 1 && '🔀 ドラッグで順序変更可能'}
+                </Text>
+              </Flex>
+            }
             style={{ backgroundColor: token.colorBgContainer }}
           >
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              {taskDetails.map((task, index) => {
-                const availableMethodsForThis = getAvailableMethodsForTask(task.id);
-                const isOnlyOneMethod = availableMethods.length === 1;
-                const selectedMethod = availableMethods.find((m) => m.id === task.methodId);
+              {/* ドラッグ&ドロップ対応のメソッド順序設定 */}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={taskDetails.map((task) => task.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    {taskDetails.map((task, index) => {
+                      const selectedMethod = availableMethods.find((m) => m.id === task.methodId);
 
-                return (
-                  <div key={task.id}>
-                    <Text
-                      strong
-                      style={{ display: 'block', marginBottom: token.marginXS }}
-                    >
-                      作業順序 {index + 1}
-                    </Text>
-                    <Flex gap="middle" wrap="wrap">
-                      {/* メソッド選択 */}
-                      <div style={{ flex: 1, minWidth: 250 }}>
-                        <Text
-                          type="secondary"
-                          style={{ display: 'block', marginBottom: token.marginXXS, fontSize: '12px' }}
-                        >
-                          メソッド <Text type="danger">*</Text>
-                        </Text>
-                        <Select
-                          value={task.methodId || undefined}
-                          onChange={(value) =>
-                            handleUpdateTaskDetail(task.id, 'methodId', value)
-                          }
-                          placeholder="メソッドを選択..."
-                          disabled={submitting || isOnlyOneMethod}
-                          style={{ width: '100%' }}
-                        >
-                          {/* 現在選択されているメソッドは常に表示 */}
-                          {selectedMethod && !availableMethodsForThis.find((m) => m.id === selectedMethod.id) && (
-                            <Select.Option key={selectedMethod.id} value={selectedMethod.id}>
-                              {selectedMethod.displayName}
-                            </Select.Option>
-                          )}
-                          {/* 選択可能なメソッド */}
-                          {availableMethodsForThis.map((method) => (
-                            <Select.Option key={method.id} value={method.id}>
-                              {method.displayName}
-                              {method.description && ` - ${method.description}`}
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </div>
-
-                      {/* タスク名入力 */}
-                      <div style={{ flex: 1, minWidth: 250 }}>
-                        <Text
-                          type="secondary"
-                          style={{ display: 'block', marginBottom: token.marginXXS, fontSize: '12px' }}
-                        >
-                          タスク名 <Text type="danger">*</Text>
-                        </Text>
-                        <Input
-                          value={task.taskName}
-                          onChange={(e) =>
-                            handleUpdateTaskDetail(task.id, 'taskName', e.target.value)
-                          }
-                          placeholder="タスク名を入力"
-                          disabled={submitting}
-                          maxLength={100}
-                          style={{ width: '100%' }}
+                      return (
+                        <DraggableRow
+                          key={task.id}
+                          task={task}
+                          index={index}
+                          selectedMethod={selectedMethod}
                         />
-                      </div>
-                    </Flex>
-                  </div>
-                );
-              })}
+                      );
+                    })}
+                  </Space>
+                </SortableContext>
+              </DndContext>
 
-              {/* 条件指定と試行回数（タスク詳細カード内に移動） */}
+              {/* 条件指定と試行回数 */}
+              <Divider style={{ margin: `${token.marginXS}px 0` }} />
+              
               <Flex gap="middle" wrap="wrap">
                 {/* 条件指定 */}
                 <div style={{ flex: 1, minWidth: 300 }}>
@@ -855,12 +948,23 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                       <FileTextOutlined /> ファイル全体
                     </Radio>
                     <Radio
+                      value={TARGET_TYPES.TASK}
+                      disabled={!trialCount}
+                    >
+                      <AimOutlined /> 特定タスク
+                    </Radio>
+                    <Radio
                       value={TARGET_TYPES.TRANSITION}
                       disabled={availableTransitions.length === 0}
                     >
                       <AimOutlined /> 特定トランジション
                     </Radio>
                   </Radio.Group>
+                  {!trialCount && (
+                    <Text type="secondary" style={{ display: 'block', marginTop: token.marginXXS, fontSize: '12px' }}>
+                      ※ 特定タスクを選択するには、試行回数を入力してください
+                    </Text>
+                  )}
                 </div>
 
                 {/* 優先度・タイプ・トランジション選択 */}
@@ -916,6 +1020,10 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                         <>
                           🎯 対象トランジション <Text type="danger">*</Text>
                         </>
+                      ) : instruction.targetType === TARGET_TYPES.TASK ? (
+                        <>
+                          🎯 対象タスク <Text type="danger">*</Text>
+                        </>
                       ) : (
                         '対象範囲'
                       )}
@@ -940,6 +1048,22 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                             {transition.isExperimentRelevant && '⭐ '}
                             {transition.displayName}
                             {transition.category !== 'other' && ` [${transition.category}]`}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    ) : instruction.targetType === TARGET_TYPES.TASK ? (
+                      <Select
+                        value={instruction.taskNumber || undefined}
+                        onChange={(value) =>
+                          handleUpdateInstruction(instruction.id, 'taskNumber', value)
+                        }
+                        disabled={!trialCount || submitting}
+                        placeholder="タスク番号を選択..."
+                        style={{ width: '100%' }}
+                      >
+                        {trialCount && Array.from({ length: trialCount as number }, (_, i) => (
+                          <Select.Option key={i + 1} value={i + 1}>
+                            タスク {i + 1}
                           </Select.Option>
                         ))}
                       </Select>
@@ -988,6 +1112,20 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                     />
                   )}
 
+                {/* 選択されたタスクの詳細 */}
+                {instruction.targetType === TARGET_TYPES.TASK &&
+                  instruction.taskNumber && (
+                    <Alert
+                      message={
+                        <Text>
+                          <Text strong>選択中:</Text> タスク {instruction.taskNumber} への指示
+                        </Text>
+                      }
+                      type="success"
+                      showIcon
+                    />
+                  )}
+
                 {/* 指示内容 */}
                 <div>
                   <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
@@ -1005,6 +1143,9 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                             getSelectedTransition(instruction.transitionId)?.displayName ||
                             instruction.transitionId
                           }」に対する具体的な指示を入力してください...`
+                        : instruction.targetType === TARGET_TYPES.TASK &&
+                          instruction.taskNumber
+                        ? `タスク ${instruction.taskNumber} に対する具体的な指示を入力してください...`
                         : '作業者への具体的な指示を入力してください...'
                     }
                     disabled={submitting}
