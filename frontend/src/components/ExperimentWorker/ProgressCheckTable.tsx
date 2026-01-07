@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Table, Tag, Typography, Input, Select, Space, Row, Col, Button } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Table, Tag, Typography, Input, Select, Space, Row, Col, Button, Dropdown, Menu } from 'antd';
+import { SearchOutlined, EllipsisOutlined, FileTextOutlined, PlayCircleOutlined, WarningOutlined, EditOutlined, StopOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Task, TaskStatus, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
 import FlowDiagramModal from './FlowDiagramModal';
@@ -69,6 +69,24 @@ interface ProgressCheckTableProps {
  */
 export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction }: ProgressCheckTableProps) {
   const { t } = useLanguage();
+  
+  // 画面幅の状態管理
+  const [windowWidth, setWindowWidth] = useState<number>(
+    typeof window !== 'undefined' ? window.innerWidth : 1920
+  );
+
+  // 画面幅検知
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 1400px以下を狭い画面と判定
+  const isNarrowScreen = windowWidth <= 1400;
   
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
@@ -225,13 +243,67 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
     setSelectedTaskForFlow(null);
   };
 
+  // ケバブメニューの生成関数
+  const getActionMenu = React.useCallback((record: Task) => {
+    const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
+    const isTerminateDisabled = 
+      record.status === 'completed' || 
+      record.status === 'forced_terminated' || 
+      !isProjectEditable;
+
+    return (
+      <Menu
+        onClick={(e) => {
+          e.domEvent.stopPropagation();
+        }}
+        items={[
+          {
+            key: 'instruction',
+            icon: <FileTextOutlined />,
+            label: '指示確認',
+            onClick: () => onTaskAction(record.taskId, 'instruction')
+          },
+          {
+            key: 'start',
+            icon: <PlayCircleOutlined />,
+            label: '開始',
+            disabled: record.status !== 'not_started' || !isProjectEditable,
+            onClick: () => onTaskAction(record.taskId, 'start')
+          },
+          {
+            key: 'issue',
+            icon: <WarningOutlined />,
+            label: t('experimentWork.progressCheck.checkButton'),
+            onClick: () => onTaskAction(record.taskId, 'issueCheck')
+          },
+          {
+            key: 'record',
+            icon: <EditOutlined />,
+            label: '実験記録',
+            onClick: () => onTaskAction(record.taskId, 'record')
+          },
+          {
+            key: 'terminate',
+            icon: <StopOutlined />,
+            label: '強制終了',
+            danger: true,
+            disabled: isTerminateDisabled,
+            onClick: () => onTaskAction(record.taskId, 'forceTerminate')
+          }
+        ]}
+      />
+    );
+  }, [projectStatus, onTaskAction, t]);
+
   // テーブルの列定義
-  const columns: ColumnsType<TableRow> = [
-    {
-      title: 'メソッドの名称',
+  const columns: ColumnsType<TableRow> = useMemo(() => {
+    // 基本カラム（常に表示）
+    const baseColumns: ColumnsType<TableRow> = [
+      {
+        title: 'メソッドの名称',
       dataIndex: 'methodName',
       key: 'methodName',
-      width: 200,
+      width: isNarrowScreen ? 180 : 200,
       ellipsis: true,
       sorter: (a, b) => a.methodName.localeCompare(b.methodName),
       render: (text: string, record: TableRow) => {
@@ -267,7 +339,7 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
       title: 'タスクの名称',
       dataIndex: 'taskName',
       key: 'taskName',
-      width: 200,
+      width: isNarrowScreen ? 180 : 200,
       ellipsis: true,
       sorter: (a, b) => {
         const aName = isAggregatedRow(a) ? '' : a.taskName;
@@ -310,7 +382,7 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
       title: '進捗率',
       dataIndex: 'progressRate',
       key: 'progressRate',
-      width: 100,
+      width: isNarrowScreen ? 80 : 100,
       align: 'center',
       sorter: (a, b) => {
         const aRate = isAggregatedRow(a) ? -1 : a.progressRate;
@@ -337,7 +409,11 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
           </Text>
         );
       }
-    },
+    }
+  ];
+
+  // ワイド画面用のボタンカラム
+  const buttonColumns: ColumnsType<TableRow> = [
     {
       title: '指示確認',
       key: 'instruction',
@@ -458,6 +534,80 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
     }
   ];
 
+  // ナロー画面用の操作カラム（ケバブメニュー）
+  const actionColumn: ColumnsType<TableRow>[0] = {
+    title: '操作',
+    key: 'action',
+    width: 80,
+    align: 'center',
+    fixed: 'right',
+    render: (_, record: TableRow) => {
+      if (isAggregatedRow(record)) {
+        return null;
+      }
+      return (
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: 'instruction',
+                icon: <FileTextOutlined />,
+                label: '指示確認',
+                onClick: () => onTaskAction(record.taskId, 'instruction')
+              },
+              {
+                key: 'start',
+                icon: <PlayCircleOutlined />,
+                label: '開始',
+                disabled: record.status !== 'not_started' || (projectStatus ? !isEditableStatus(projectStatus) : false),
+                onClick: () => onTaskAction(record.taskId, 'start')
+              },
+              {
+                key: 'issue',
+                icon: <WarningOutlined />,
+                label: t('experimentWork.progressCheck.checkButton'),
+                onClick: () => onTaskAction(record.taskId, 'issueCheck')
+              },
+              {
+                key: 'record',
+                icon: <EditOutlined />,
+                label: '実験記録',
+                onClick: () => onTaskAction(record.taskId, 'record')
+              },
+              {
+                key: 'terminate',
+                icon: <StopOutlined />,
+                label: '強制終了',
+                danger: true,
+                disabled: record.status === 'completed' || 
+                  record.status === 'forced_terminated' || 
+                  (projectStatus ? !isEditableStatus(projectStatus) : false),
+                onClick: () => onTaskAction(record.taskId, 'forceTerminate')
+              }
+            ]
+          }}
+          trigger={['click']}
+          placement="bottomRight"
+        >
+          <Button
+            type="text"
+            icon={<EllipsisOutlined style={{ fontSize: '18px' }} />}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="操作メニューを開く"
+          />
+        </Dropdown>
+      );
+    }
+  };
+
+  // 画面幅に応じてカラムを動的に生成
+  if (isNarrowScreen) {
+    return [...baseColumns, actionColumn];
+  } else {
+    return [...baseColumns, ...buttonColumns];
+  }
+}, [isNarrowScreen, projectStatus, collapsedMethodIds, t, onTaskAction, getActionMenu]);
+
   return (
     <div>
       {/* 絞り込みUI */}
@@ -528,7 +678,7 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
             page: ''
           }
         }}
-        scroll={{ x: 1300 }}
+        scroll={isNarrowScreen ? { x: undefined } : { x: 1300 }}
         size="middle"
         bordered
         aria-label="サブタスク一覧"
