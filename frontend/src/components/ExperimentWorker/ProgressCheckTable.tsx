@@ -5,7 +5,9 @@ import { Table, Tag, Typography, Input, Select, Space, Row, Col, Button, Dropdow
 import { SearchOutlined, EllipsisOutlined, FileTextOutlined, PlayCircleOutlined, WarningOutlined, EditOutlined, StopOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Task, TaskStatus, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
-import FlowDiagramModal from './FlowDiagramModal';
+import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
+import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
+import type { FileData, SubnetData } from '@/components/viewer/ViewRendererDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
@@ -94,9 +96,16 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
   const [selectedTaskName, setSelectedTaskName] = useState<string | undefined>(undefined);
   const [selectedStatus, setSelectedStatus] = useState<TaskStatus | undefined>(undefined);
   
-  // フロー図モーダルの状態
-  const [flowDiagramVisible, setFlowDiagramVisible] = useState<boolean>(false);
-  const [selectedTaskForFlow, setSelectedTaskForFlow] = useState<Task | null>(null);
+  // ViewRendererDialogの管理
+  const [viewerDialogs, setViewerDialogs] = useState<Array<{
+    id: string;
+    file: FileData;
+    zIndex: number;
+  }>>([]);
+  const [nextZIndex, setNextZIndex] = useState(999999);
+  
+  // SubNetViewerの管理
+  const [subnetData, setSubnetData] = useState<SubnetData | null>(null);
   
   // メソッド集約の状態管理（集約されているメソッドIDのSet）
   const [collapsedMethodIds, setCollapsedMethodIds] = useState<Set<string>>(new Set());
@@ -233,14 +242,51 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
 
   // 進捗率クリック時のハンドラー
   const handleProgressRateClick = (task: Task) => {
-    setSelectedTaskForFlow(task);
-    setFlowDiagramVisible(true);
+    const fileData: FileData = {
+      id: 'test_omori11',
+      name: 'test_omori11.maiml',
+      path: '/data/mock/test_omori11.maiml',
+      size: 0,
+      lastModified: new Date().toISOString(),
+      type: 'maiml',
+    };
+
+    const newDialog = {
+      id: `flow-diagram-${Date.now()}`,
+      file: fileData,
+      zIndex: nextZIndex,
+    };
+
+    setViewerDialogs([...viewerDialogs, newDialog]);
+    setNextZIndex(nextZIndex + 1);
   };
 
-  // フロー図モーダルを閉じる
-  const handleFlowDiagramClose = () => {
-    setFlowDiagramVisible(false);
-    setSelectedTaskForFlow(null);
+  // ダイアログを閉じる
+  const handleCloseDialog = (id: string) => {
+    setViewerDialogs(viewerDialogs.filter((d) => d.id !== id));
+  };
+
+  // ダイアログにフォーカス
+  const handleFocusDialog = (id: string) => {
+    const dialog = viewerDialogs.find((d) => d.id === id);
+    if (dialog && dialog.zIndex !== nextZIndex - 1) {
+      setViewerDialogs(
+        viewerDialogs.map((d) =>
+          d.id === id ? { ...d, zIndex: nextZIndex } : d
+        )
+      );
+      setNextZIndex(nextZIndex + 1);
+    }
+  };
+
+  // SubNetViewerを開く
+  const handleOpenSubNetViewer = (data: SubnetData) => {
+    setSubnetData(data);
+  };
+
+  // SubNetViewerを閉じる
+  const handleCloseSubNetViewer = () => {
+    setSubnetData(null);
   };
 
   // ケバブメニューの生成関数
@@ -606,7 +652,7 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
   } else {
     return [...baseColumns, ...buttonColumns];
   }
-}, [isNarrowScreen, projectStatus, collapsedMethodIds, t, onTaskAction, getActionMenu]);
+}, [isNarrowScreen, projectStatus, collapsedMethodIds, t, onTaskAction, getActionMenu, handleProgressRateClick]);
 
   return (
     <div>
@@ -699,12 +745,31 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
         }
       `}</style>
       
-      {/* フロー図モーダル */}
-      {selectedTaskForFlow && (
-        <FlowDiagramModal
-          visible={flowDiagramVisible}
-          onClose={handleFlowDiagramClose}
-          methodName={selectedTaskForFlow.methodName}
+      {/* ViewRendererDialog群 */}
+      {viewerDialogs.map((dialog) => (
+        <ViewRendererDialog
+          key={dialog.id}
+          id={dialog.id}
+          contentType="file"
+          file={dialog.file}
+          zIndex={dialog.zIndex}
+          initialPosition={{ x: 100, y: 100 }}
+          initialSize={{ width: 1200, height: 800 }}
+          onClose={handleCloseDialog}
+          onFocus={handleFocusDialog}
+          onOpenSubNetViewer={handleOpenSubNetViewer}
+        />
+      ))}
+
+      {/* SubNetViewer */}
+      {subnetData && (
+        <SubNetViewer
+          open={true}
+          nodeName={subnetData.transitionName}
+          maimlData={subnetData.maimlData}
+          templateMap={subnetData.templateMap}
+          petriNetData={subnetData.petriNetData}
+          onClose={handleCloseSubNetViewer}
         />
       )}
     </div>
