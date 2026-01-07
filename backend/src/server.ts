@@ -1,9 +1,11 @@
 import express, { Application } from 'express';
 import dotenv from 'dotenv';
-import authRoutes from './routes/authRoutes';
 
-// Load environment variables
+// Load environment variables FIRST (before any other imports that might use them)
 dotenv.config();
+
+// Import routes after dotenv is configured
+import authRoutes from './routes/authRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;

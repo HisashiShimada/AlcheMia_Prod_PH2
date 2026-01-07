@@ -80,17 +80,22 @@ export function rateLimitMiddleware(config: RateLimitConfig) {
       } else {
         // login_historyテーブルから失敗回数を取得
         // キーに組織IDとユーザー名が含まれていることを想定
-        const [orgId, username] = key.split('-');
+        console.log(key)
+        const [organizationId, userName] = key.split('_');
+        console.log(organizationId)
+        console.log(userName)
+        console.log(windowStart)
         
+        // インデックス idx_login_history_rate_limit (login_at, login_sf) を利用
         const query = `
           SELECT COUNT(*) as count 
           FROM login_history 
-          WHERE org_cd = $1 
-          AND user_id = $2 
-          AND login_at > $3 
-          AND login_sf = false
+          WHERE login_at > $1 
+          AND login_sf != 'success'
+          AND user_name = $2 
+          AND organization_id = $3
         `;
-        const result = await pool.query(query, [orgId, username, windowStart]);
+        const result = await pool.query(query, [windowStart, userName, organizationId]);
         currentAttempts = parseInt(result.rows[0].count, 10);
       }
 
@@ -130,7 +135,9 @@ export function rateLimitMiddleware(config: RateLimitConfig) {
 export const loginRateLimit = rateLimitMiddleware({
   windowMs: 15 * 60 * 1000, // 15分
   maxAttempts: 5,
-  keyGenerator: (req) => `${req.headers['x-organization-id']}-${req.body.username}`,
+  // keyGenerator: (req) => `${req.headers['x-organization-id']}-${req.body.username}`,
+  // TODO: クライアント証明書を導入するまでの仮実装
+  keyGenerator: (req) => `${req.body.organizationId}_${req.body.username}`,
   errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
   message: 'ログイン試行回数が上限に達しました。15分後に再試行してください。',
 });

@@ -23,8 +23,13 @@ export class JwtService {
     this.issuer = process.env.JWT_ISSUER || 'mmdpf-auth-api';
     this.audience = process.env.JWT_AUDIENCE || 'mmdpf-client';
 
+    // JWT_SECRETが設定されていない場合はエラー
     if (!this.secret) {
-      throw new Error('JWT_SECRET environment variable is required');
+      throw new Error(
+        'JWT_SECRET environment variable is required. ' +
+        'Please set JWT_SECRET in your .env file. ' +
+        'See docs/20250106_0930_環境変数設定ガイド.md for details.'
+      );
     }
   }
 

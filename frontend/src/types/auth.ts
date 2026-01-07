@@ -32,6 +32,8 @@ export interface User {
 export interface LoginCredentials {
   username: string;
   password: string;
+  // TODO: クライアント証明書を導入するまでの仮実装
+  organizationId: string;
 }
 
 /**

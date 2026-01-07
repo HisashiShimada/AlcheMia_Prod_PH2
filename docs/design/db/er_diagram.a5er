@@ -82,17 +82,20 @@ TableOption=
 Page=材料開発データ管理システム_認証関連_ER図.A5ER
 Left=100
 Top=1450
-Field="ID","id","@VARCHAR(30)","NOT NULL",0,"","",$FFFFFFFF,""
-Field="ユーザID","user_id","@VARCHAR(50)","NOT NULL",,"","",$FFFFFFFF,""
-Field="組織CD","organization_code","@VARCHAR(30)","NOT NULL",,"","",$FFFFFFFF,""
+Field="ID","id","serial","NOT NULL",0,"","",$FFFFFFFF,""
+Field="ユーザ名","user_name","@VARCHAR(30)","NOT NULL",,"","",$FFFFFFFF,""
+Field="組織ID","organization_id","uuid","NOT NULL",,"","",$FFFFFFFF,""
 Field="ログイン日時","login_at","@DATETIME",,,"","",$FFFFFFFF,""
 Field="ログイン成否","login_sf","@VARCHAR(10)",,,"","",$FFFFFFFF,""
 Field="失敗原因","failure_reason","@VARCHAR(100)",,,"","",$FFFFFFFF,""
+Field="IPアドレス","ip_address","@VARCHAR(45)",,,"","セキュリティ監査用（IPv4/IPv6対応）",$FFFFFFFF,""
+Field="User-Agent","user_agent","text",,,"","ブラウザ・OS情報",$FFFFFFFF,""
+Index=idx_login_history_rate_limit=0,login_at,login_sf
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20251118131938
-Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,1450,594,503
+ModifiedDateTime=20260107144933
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,1450,594,448
 ZOrder=8
 
 [Entity]
@@ -242,6 +245,38 @@ Width=796
 Height=1585
 
 [Entity]
+PName=pin_codes
+LName=PINコード
+Comment=メールPINコード二段階認証用の一時データ
+TableInnerOption=
+TableOption=
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
+Left=1000
+Top=1450
+Field="ID","id","serial","NOT NULL",0,"","uuid_generate_v4()",$FFFFFFFF,""
+Field="ユーザID","user_id","uuid","NOT NULL",,"","",$FFFFFFFF,""
+Field="組織ID","organization_id","uuid","NOT NULL",,"","",$FFFFFFFF,""
+Field="PINコード","pin_code","@VARCHAR(6)","NOT NULL",,"","6桁数字（000000-999999）",$FFFFFFFF,""
+Field="セッショントークン","session_token","@VARCHAR(255)","NOT NULL",,"","temp_session-{id}_{timestamp}",$FFFFFFFF,""
+Field="使用済みフラグ","is_used","@BOOLEAN","NOT NULL",,"false","",$FFFFFFFF,""
+Field="使用日時","used_at","@DATETIME",,,"","",$FFFFFFFF,""
+Field="有効期限","expires_at","@DATETIME","NOT NULL",,"","作成時刻 + 5分",$FFFFFFFF,""
+Field="試行回数","attempts_count","@INT","NOT NULL",,"0","0-3",$FFFFFFFF,""
+Field="最大試行回数","max_attempts","@INT","NOT NULL",,"3","",$FFFFFFFF,""
+Field="作成日時","created_at","@DATETIME","NOT NULL",,"CURRENT_TIMESTAMP","",$FFFFFFFF,""
+Index=idx_pin_codes_pin_session=2,pin_code,session_token
+Index=idx_pin_codes_user=0,user_id
+Index=idx_pin_codes_token=0,session_token
+Index=idx_pin_codes_expires=0,expires_at
+Index=idx_pin_codes_is_used=0,is_used
+EffectMode=None
+Color=$000000
+BkColor=$FFFFFF
+ModifiedDateTime=20260107144925
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,1450,590,448
+ZOrder=115
+
+[Entity]
 PName=user_authentication
 LName=利用者認証
 Comment=
@@ -250,7 +285,7 @@ TableOption=
 Page=材料開発データ管理システム_認証関連_ER図.A5ER
 Left=1000
 Top=800
-Field="ユーザID","user_id","@VARCHAR(30)","NOT NULL",0,"","",$FFFFFFFF,""
+Field="ユーザID","user_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="組織ID","organization_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
 Field="ハッシュパスワード","password","@VARCHAR(50)","NOT NULL",,"","",$FFFFFFFF,""
 Field="二段階認証アプリ連携フラグ","entry_flg","@BOOLEAN","NOT NULL",,"","",$00000000,""
@@ -259,7 +294,7 @@ Field="更新日時","update_at","@DATETIME",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20251125141027
+ModifiedDateTime=20260107140353
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,800,590,503
 ZOrder=38
 
@@ -272,7 +307,7 @@ TableOption=
 Page=材料開発データ管理システム_認証関連_ER図.A5ER
 Left=100
 Top=800
-Field="ユーザID","user_id","@VARCHAR(30)","NOT NULL",0,"","",$FFFFFFFF,""
+Field="ユーザID","user_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="組織ID","organization_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
 Field="ユーザ名","user_name","@VARCHAR(30)","NOT NULL",,"","",$FFFFFFFF,""
 Field="ロール","role","@VARCHAR(30)","NOT NULL",,"","",$FFFFFFFF,""
@@ -285,7 +320,7 @@ Field="更新日時","update_at","@DATETIME",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20251125141017
+ModifiedDateTime=20260107140335
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,800,590,503
 ZOrder=39
 
@@ -389,6 +424,28 @@ Bar3=527
 TermPos1=R
 TermPos2=R
 ZOrder=51
+
+[Relation]
+Entity1=organization_user
+Entity2=pin_codes
+RelationType1=2
+RelationType2=3
+Fields1=user_id,organization_id
+Fields2=user_id,org_id
+Cardinarity1=
+Cardinarity2=
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,7650,2350,7650,R,R,""
+Dependence=1
+Caption=
+PName=
+ModifiedDateTime=20260106083500
+LineMode=0
+Bar1=765
+Bar2=235
+Bar3=765
+TermPos1=R
+TermPos2=R
+ZOrder=116
 
 [Entity]
 PName=role_permission
@@ -1008,7 +1065,7 @@ LName=コードマスタ
 Comment=
 TableInnerOption=
 TableOption=
-Page=材料開発データ管理システム_共通_ER図.a5er
+Page=材料開発データ管理システム_共通_ER図.A5ER
 Left=2250
 Top=1000
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
@@ -1021,7 +1078,7 @@ EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
 ModifiedDateTime=20260105140821
-Position="材料開発データ管理システム_共通_ER図.a5er",2250,1000,594,503
+Position="材料開発データ管理システム_共通_ER図.A5ER",2250,1000,594,503
 ZOrder=109
 
 [Entity]
@@ -1030,7 +1087,7 @@ LName=属性
 Comment=
 TableInnerOption=
 TableOption=
-Page=材料開発データ管理システム_共通_ER図.a5er
+Page=材料開発データ管理システム_共通_ER図.A5ER
 Left=1450
 Top=900
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
@@ -1041,7 +1098,7 @@ EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
 ModifiedDateTime=20251125175829
-Position="材料開発データ管理システム_共通_ER図.a5er",1450,900,527,520
+Position="材料開発データ管理システム_共通_ER図.A5ER",1450,900,527,520
 ZOrder=114
 
 [Entity]
@@ -1050,7 +1107,7 @@ LName=ベンダー
 Comment=
 TableInnerOption=
 TableOption=
-Page=材料開発データ管理システム_共通_ER図.a5er
+Page=材料開発データ管理システム_共通_ER図.A5ER
 Left=800
 Top=150
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
@@ -1063,7 +1120,7 @@ EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
 ModifiedDateTime=20251125181159
-Position="材料開発データ管理システム_共通_ER図.a5er",800,150,527,520
+Position="材料開発データ管理システム_共通_ER図.A5ER",800,150,527,520
 ZOrder=113
 
 [Entity]
@@ -1072,7 +1129,7 @@ LName=所有者
 Comment=
 TableInnerOption=
 TableOption=
-Page=材料開発データ管理システム_共通_ER図.a5er
+Page=材料開発データ管理システム_共通_ER図.A5ER
 Left=150
 Top=900
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
@@ -1085,7 +1142,7 @@ EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
 ModifiedDateTime=20251125181048
-Position="材料開発データ管理システム_共通_ER図.a5er",150,900,527,520
+Position="材料開発データ管理システム_共通_ER図.A5ER",150,900,527,520
 ZOrder=112
 
 [Entity]
@@ -1094,7 +1151,7 @@ LName=実験装置
 Comment=
 TableInnerOption=
 TableOption=
-Page=材料開発データ管理システム_共通_ER図.a5er
+Page=材料開発データ管理システム_共通_ER図.A5ER
 Left=750
 Top=900
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
@@ -1107,7 +1164,7 @@ EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
 ModifiedDateTime=20251125180957
-Position="材料開発データ管理システム_共通_ER図.a5er",750,900,527,520
+Position="材料開発データ管理システム_共通_ER図.A5ER",750,900,527,520
 ZOrder=111
 
 [Entity]
@@ -1116,7 +1173,7 @@ LName=作成者
 Comment=
 TableInnerOption=
 TableOption=
-Page=材料開発データ管理システム_共通_ER図.a5er
+Page=材料開発データ管理システム_共通_ER図.A5ER
 Left=150
 Top=150
 Field="組織ID","organaization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
@@ -1129,5 +1186,5 @@ EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
 ModifiedDateTime=20260105103806
-Position="材料開発データ管理システム_共通_ER図.a5er",150,150,527,520
+Position="材料開発データ管理システム_共通_ER図.A5ER",150,150,527,520
 ZOrder=110

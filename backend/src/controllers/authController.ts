@@ -39,10 +39,12 @@ export async function login(req: Request, res: Response): Promise<void> {
   try {
     // 1. バリデーション
     const { username, password } = req.body;
-    const organizationId = req.headers['x-organization-id'] as string;
+    // const organizationId = req.headers['x-organization-id'] as string;
+    const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'
 
     // 必須パラメータチェック
     if (!username || !password) {
+      console.log('!username || !password')
       res.status(400).json({
         success: false,
         error: {
@@ -62,6 +64,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     if (!organizationId) {
+      console.log('!organizationId')
       res.status(400).json({
         success: false,
         error: {
@@ -81,6 +84,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     // 入力値バリデーション
     if (username.length > 100) {
+      console.log('username.length > 100')
       res.status(400).json({
         success: false,
         error: {
@@ -98,23 +102,24 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    if (password.length < 8) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'パスワードは8文字以上である必要があります',
-          details: [
-            { field: 'password', message: 'パスワードは8文字以上です', code: 'MIN_LENGTH_NOT_MET' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
+    // if (password.length < 8) {
+    //   console.log('password.length < 8')
+    //   res.status(400).json({
+    //     success: false,
+    //     error: {
+    //       code: 'VALIDATION_ERROR',
+    //       message: 'パスワードは8文字以上である必要があります',
+    //       details: [
+    //         { field: 'password', message: 'パスワードは8文字以上です', code: 'MIN_LENGTH_NOT_MET' },
+    //       ],
+    //     },
+    //     meta: {
+    //       timestamp: new Date().toISOString(),
+    //       requestId,
+    //     },
+    //   });
+    //   return;
+    // }
 
     // 2. ユーザー検索
     const userQuery = `
@@ -131,6 +136,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     `;
     
     const userResult = await pool.query(userQuery, [username, organizationId]);
+    console.log(userResult.rows.length)
 
     if (userResult.rows.length === 0) {
       // ユーザーが存在しない場合も同じエラーメッセージ（情報漏洩防止）
@@ -149,6 +155,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     const user = userResult.rows[0];
+    console.log(user.role)
 
     // 3. アカウント有効性チェック
     if (!user.is_active) {

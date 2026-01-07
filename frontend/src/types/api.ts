@@ -1,129 +1,109 @@
 /**
  * API共通型定義
- * 全てのAPI呼び出しで使用される基本的な型
  */
 
 /**
- * API成功レスポンス
+ * API成功レスポンスの共通型
  */
-export interface ApiResponse<T> {
+export interface ApiSuccessResponse<T> {
   success: true;
   data: T;
-  message?: string;
-  timestamp?: string;
+  meta: {
+    timestamp: string;
+    requestId: string;
+  };
+  pagination?: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }
 
 /**
- * APIエラーレスポンス
+ * APIエラーレスポンスの共通型
  */
-export interface ApiError {
+export interface ApiErrorResponse {
   success: false;
   error: {
     code: string;
     message: string;
-    details?: unknown;
+    details?: Array<{
+      field: string;
+      message: string;
+      code: string;
+    }>;
   };
-  timestamp: string;
-}
-
-/**
- * ページネーション付きレスポンス
- */
-export interface PaginatedResponse<T> {
-  success: true;
-  data: T[];
-  pagination: {
-    page: number;
-    pageSize: number;
-    total: number;
-    totalPages: number;
+  meta: {
+    timestamp: string;
+    requestId: string;
   };
-  message?: string;
-  timestamp?: string;
 }
 
 /**
- * API呼び出し結果（成功またはエラー）
+ * APIレスポンスの共通型（成功またはエラー）
  */
-export type ApiResult<T> = ApiResponse<T> | ApiError;
+export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 /**
- * ソート順序
+ * ログインレスポンスデータ
  */
-export type SortOrder = 'asc' | 'desc';
-
-/**
- * フィルタ条件の基本型
- */
-export interface FilterParams {
-  search?: string;
-  page?: number;
-  pageSize?: number;
-  sortBy?: string;
-  sortOrder?: SortOrder;
+export interface LoginResponseData {
+  sessionToken: string;
+  message: string;
+  email: string;
+  expiresIn: number;
 }
 
 /**
- * API呼び出しオプション
+ * PINコード検証レスポンスデータ
  */
-export interface ApiOptions {
-  /** タイムアウト時間（ミリ秒） */
-  timeout?: number;
-  /** リトライ回数 */
-  retryCount?: number;
-  /** キャッシュを使用するか */
-  useCache?: boolean;
+export interface VerifyPinResponseData {
+  user: {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+    organizationId: string;
+    organizationName: string;
+    displayName: string;
+  };
+  session: {
+    token: string;
+    expiresAt: string;
+  };
+  redirectUrl: string;
 }
 
 /**
- * ロード状態
+ * PINコード再送信レスポンスデータ
  */
-export interface LoadingState {
-  isLoading: boolean;
-  error: Error | null;
+export interface ResendPinResponseData {
+  message: string;
+  email: string;
+  expiresIn: number;
 }
 
 /**
- * データ取得状態（ロード状態 + データ）
+ * ログアウトレスポンスデータ
  */
-export interface DataState<T> extends LoadingState {
-  data: T | null;
+export interface LogoutResponseData {
+  message: string;
 }
 
 /**
- * APIエラーの型ガード
+ * パスワードリセット要求レスポンスデータ
  */
-export function isApiError(result: unknown): result is ApiError {
-  return (
-    typeof result === 'object' &&
-    result !== null &&
-    'success' in result &&
-    result.success === false &&
-    'error' in result
-  );
+export interface ResetPasswordRequestResponseData {
+  message: string;
+  email: string;
 }
 
 /**
- * API成功レスポンスの型ガード
+ * パスワードリセット実行レスポンスデータ
  */
-export function isApiResponse<T>(result: unknown): result is ApiResponse<T> {
-  return (
-    typeof result === 'object' &&
-    result !== null &&
-    'success' in result &&
-    result.success === true &&
-    'data' in result
-  );
-}
-
-/**
- * ページネーション付きレスポンスの型ガード
- */
-export function isPaginatedResponse<T>(result: unknown): result is PaginatedResponse<T> {
-  return (
-    isApiResponse(result) &&
-    'pagination' in result &&
-    typeof result.pagination === 'object' &&
-    result.pagination !== null
-  );
+export interface ResetPasswordResponseData {
+  message: string;
 }
