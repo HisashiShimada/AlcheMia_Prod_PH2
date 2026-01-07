@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress } from 'antd';
-import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress, Dropdown, Button } from 'antd';
+import type { MenuProps } from 'antd';
+import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined, MoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue, ProjectStatus, isRecordableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
@@ -43,6 +44,25 @@ export default function TransitionList({
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
 
+  // レスポンシブデザイン用の画面幅監視
+  const [isNarrowScreen, setIsNarrowScreen] = useState(false);
+
+  // 画面幅の監視
+  useEffect(() => {
+    const handleResize = () => {
+      setIsNarrowScreen(window.innerWidth <= 1500);
+    };
+
+    // 初期化
+    handleResize();
+    
+    // リサイズイベントの監視
+    window.addEventListener('resize', handleResize);
+    
+    // クリーンアップ
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // TODO: モックデータ - 実際はpropsまたはAPIから取得
   const [issues, setIssues] = useState<Issue[]>([]);
 
@@ -66,12 +86,6 @@ export default function TransitionList({
       return matchesSearch && matchesTransitionName;
     });
   }, [transitions, searchText, selectedTransitionName]);
-
-  // トランジションをクリックして実験データ記録モーダルを直接開く
-  const handleTransitionClick = (transition: Transition) => {
-    setSelectedTransition(transition);
-    setDataRecordModalOpen(true);
-  };
 
   // データ記録モーダルを閉じる
   const handleDataRecordModalClose = () => {
@@ -145,13 +159,32 @@ export default function TransitionList({
     message.success('コメントを投稿しました');
   };
 
-  // テーブルの列定義（統合版）
+  // ケバブメニュー用のメニュー項目を生成
+  const getMenuItems = (record: Transition): MenuProps['items'] => {
+    const isProjectRecordable = projectStatus ? isRecordableStatus(projectStatus) : true;
+    
+    return [
+      {
+        key: 'record',
+        label: '記録',
+        disabled: !isProjectRecordable,
+        onClick: () => handleRecord(record),
+      },
+      {
+        key: 'report',
+        label: '問題報告',
+        onClick: () => handleIssueReport(record),
+      },
+    ];
+  };
+
+  // テーブルの列定義（レスポンシブ対応）
   const columns: ColumnsType<Transition> = [
     {
       title: 'トランジション名',
       dataIndex: 'transitionName',
       key: 'transitionName',
-      width: 200,
+      width: isNarrowScreen ? 150 : 200,
       fixed: 'left',
       ellipsis: true,
       render: (text: string) => (
@@ -173,7 +206,7 @@ export default function TransitionList({
       title: '進捗率',
       dataIndex: 'progressRate',
       key: 'progressRate',
-      width: 90,
+      width: 70,
       align: 'center',
       render: (progressRate: number | undefined) => {
         const rate = progressRate ?? 0;
@@ -184,144 +217,170 @@ export default function TransitionList({
         );
       }
     },
-    {
-      title: '材料',
-      key: 'materials',
-      width: 90,
-      align: 'center',
-      render: (_, record: Transition) => {
-        const input = record.inputMaterialsCount ?? 0;
-        const total = record.totalMaterialsCount ?? 0;
-        if (total === 0) {
-          return <Text type="secondary">-</Text>;
+    // レスポンシブ時は非表示にするカラム
+    ...(!isNarrowScreen ? [
+      {
+        title: '材料',
+        key: 'materials',
+        width: 70,
+        align: 'center' as const,
+        render: (_: unknown, record: Transition) => {
+          const input = record.inputMaterialsCount ?? 0;
+          const total = record.totalMaterialsCount ?? 0;
+          if (total === 0) {
+            return <Text type="secondary">-</Text>;
+          }
+          const isComplete = input === total;
+          return (
+            <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+              {input}/{total}
+            </Text>
+          );
         }
-        const isComplete = input === total;
-        return (
-          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
-            {input}/{total}
-          </Text>
-        );
-      }
-    },
-    {
-      title: '条件',
-      key: 'conditions',
-      width: 90,
-      align: 'center',
-      render: (_, record: Transition) => {
-        const input = record.inputIngredientsCount ?? 0;
-        const total = record.totalIngredientsCount ?? 0;
-        if (total === 0) {
-          return <Text type="secondary">-</Text>;
+      },
+      {
+        title: '条件',
+        key: 'conditions',
+        width: 70,
+        align: 'center' as const,
+        render: (_: unknown, record: Transition) => {
+          const input = record.inputIngredientsCount ?? 0;
+          const total = record.totalIngredientsCount ?? 0;
+          if (total === 0) {
+            return <Text type="secondary">-</Text>;
+          }
+          const isComplete = input === total;
+          return (
+            <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+              {input}/{total}
+            </Text>
+          );
         }
-        const isComplete = input === total;
-        return (
-          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
-            {input}/{total}
-          </Text>
-        );
-      }
-    },
-    {
-      title: '結果',
-      key: 'results',
-      width: 90,
-      align: 'center',
-      render: (_, record: Transition) => {
-        const input = record.inputResultsCount ?? 0;
-        const total = record.totalResultsCount ?? 0;
-        if (total === 0) {
-          return <Text type="secondary">-</Text>;
+      },
+      {
+        title: '結果',
+        key: 'results',
+        width: 70,
+        align: 'center' as const,
+        render: (_: unknown, record: Transition) => {
+          const input = record.inputResultsCount ?? 0;
+          const total = record.totalResultsCount ?? 0;
+          if (total === 0) {
+            return <Text type="secondary">-</Text>;
+          }
+          const isComplete = input === total;
+          return (
+            <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
+              {input}/{total}
+            </Text>
+          );
         }
-        const isComplete = input === total;
-        return (
-          <Text strong style={{ color: isComplete ? '#2e7d32' : '#757575' }}>
-            {input}/{total}
-          </Text>
-        );
-      }
-    },
-    {
-      title: '記録',
-      key: 'record',
-      width: 100,
-      align: 'center',
-      render: (_, record: Transition) => {
-        // プロジェクトの状態が記録可能でない場合は非活性化
-        const isProjectRecordable = projectStatus ? isRecordableStatus(projectStatus) : true;
-        
-        return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRecord(record);
-            }}
-            disabled={!isProjectRecordable}
-            style={{
-              padding: '4px 12px',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: '#ffffff',
-              backgroundColor: isProjectRecordable ? '#CF0027' : '#d3d3d3',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: isProjectRecordable ? 'pointer' : 'not-allowed',
-              transition: 'all 0.2s',
-              opacity: isProjectRecordable ? 1 : 0.6
-            }}
-            onMouseOver={(e) => {
-              if (isProjectRecordable) {
-                e.currentTarget.style.backgroundColor = '#a50020';
-              }
-            }}
-            onMouseOut={(e) => {
-              if (isProjectRecordable) {
-                e.currentTarget.style.backgroundColor = '#CF0027';
-              }
-            }}
+      },
+      {
+        title: '記録',
+        key: 'record',
+        width: 80,
+        align: 'center' as const,
+        render: (_: unknown, record: Transition) => {
+          // プロジェクトの状態が記録可能でない場合は非活性化
+          const isProjectRecordable = projectStatus ? isRecordableStatus(projectStatus) : true;
+          
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRecord(record);
+              }}
+              disabled={!isProjectRecordable}
+              style={{
+                padding: '4px 12px',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#ffffff',
+                backgroundColor: isProjectRecordable ? '#CF0027' : '#d3d3d3',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: isProjectRecordable ? 'pointer' : 'not-allowed',
+                transition: 'all 0.2s',
+                opacity: isProjectRecordable ? 1 : 0.6
+              }}
+              onMouseOver={(e) => {
+                if (isProjectRecordable) {
+                  e.currentTarget.style.backgroundColor = '#a50020';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (isProjectRecordable) {
+                  e.currentTarget.style.backgroundColor = '#CF0027';
+                }
+              }}
+            >
+              記録
+            </button>
+          );
+        }
+      },
+      {
+        title: '問題報告',
+        key: 'issue',
+        width: 80,
+        align: 'center' as const,
+        render: (_: unknown, record: Transition) => {
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleIssueReport(record);
+              }}
+              style={{
+                padding: '4px 12px',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#CF0027',
+                backgroundColor: '#ffffff',
+                border: '1px solid #CF0027',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = '#fff5f7';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+              }}
+            >
+              報告
+            </button>
+          );
+        }
+      },
+    ] : []),
+    // レスポンシブ時の操作カラム（ケバブメニュー）
+    ...(isNarrowScreen ? [
+      {
+        title: '操作',
+        key: 'action',
+        width: 60,
+        align: 'center' as const,
+        render: (_: unknown, record: Transition) => (
+          <Dropdown
+            menu={{ items: getMenuItems(record) }}
+            trigger={['click']}
+            placement="bottomRight"
           >
-            記録
-          </button>
-        );
-      }
-    },
-    {
-      title: '問題報告',
-      key: 'issue',
-      width: 100,
-      align: 'center',
-      render: (_, record: Transition) => {
-        return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleIssueReport(record);
-            }}
-            style={{
-              padding: '4px 12px',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: '#CF0027',
-              backgroundColor: '#ffffff',
-              border: '1px solid #CF0027',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#fff5f7';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#ffffff';
-            }}
-          >
-            報告
-          </button>
-        );
-      }
-    },
+            <Button
+              type="text"
+              icon={<MoreOutlined />}
+              onClick={(e) => e.stopPropagation()}
+              aria-label="操作メニュー"
+            />
+          </Dropdown>
+        )
+      },
+    ] : []),
     {
       title: '説明',
       dataIndex: 'description',
@@ -382,7 +441,9 @@ export default function TransitionList({
               page: ''
             }
           }}
-          scroll={{ x: 1500, y: 'calc(100vh - 650px)' }}
+          scroll={{ 
+            y: 'calc(100vh - 650px)' 
+          }}
           size="middle"
           bordered
           aria-label="トランジション一覧"
@@ -393,10 +454,6 @@ export default function TransitionList({
             borderRadius: '8px'
           }}
           className="transition-list-table"
-          onRow={(record) => ({
-            onClick: () => handleTransitionClick(record),
-            style: { cursor: 'pointer' }
-          })}
           locale={{
             emptyText: 'トランジションが登録されていません'
           }}
