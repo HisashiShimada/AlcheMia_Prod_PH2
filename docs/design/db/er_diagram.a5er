@@ -702,23 +702,6 @@ ModifiedDateTime=20260106163456
 Position="実験管理者",300,1150
 ZOrder=105
 
-[Entity]
-PName=experiment_record
-LName=作業記録
-Comment=
-TableInnerOption=
-TableOption=
-Page=実験管理者
-Left=1800
-Top=400
-Field="タスクID","task_id","@VARCHAR",,,"","",$FFFFFFFF,""
-EffectMode=None
-Color=$000000
-BkColor=$FFFFFF
-ModifiedDateTime=20260105103115
-Position="実験管理者",1800,400,132,138
-ZOrder=104
-
 [Relation]
 Entity1=project
 Entity2=project_instruction
@@ -781,27 +764,6 @@ ModifiedDateTime=20260105135154
 Position="実験管理者",900,1300
 ZOrder=107
 
-[Relation]
-Entity1=project_task_detail
-Entity2=experiment_record
-RelationType1=1
-RelationType2=3
-Fields1=organization_id,project_id,method_id,task_no
-Fields2=
-Cardinarity1=
-Cardinarity2=
-Position="実験管理者",0,3235,8881,1552,R,R,""
-Dependence=0
-Caption=
-PName=
-LineMode=0
-Bar1=324
-Bar2=888
-Bar3=155
-TermPos1=R
-TermPos2=R
-ZOrder=106
-
 [Entity]
 PName=project_task
 LName=プロジェクトタスク
@@ -816,10 +778,12 @@ Field="プロジェクトID","project_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
 Field="メソッドID","method_id","@VARCHAR","NOT NULL",2,"","",$FFFFFFFF,""
 Field="タスク名","task_name","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="実験順序","experiment_order","numeric(2,0)",,,"","",$FFFFFFFF,""
+Field="実験条件","experiment_condition","numeric(2,0)",,,"","",$FFFFFFFF,""
+Field="試行回数","attempts_count","numeric(3,0)",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260105142220
+ModifiedDateTime=20260108101410
 Position="実験管理者",800,300
 ZOrder=99
 
@@ -841,12 +805,12 @@ Field="タイプ","type","numeric(2,0)",,,"","",$FFFFFFFF,""
 Field="タスク連番","task_no","numeric(3,0)",,,"","",$FFFFFFFF,""
 Field="トランジションID","transition_id","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="指示内容","instructions","text",,,"","",$FFFFFFFF,""
-Field="実験指示ユーザID","instruction_user_id","@VARCHAR",,,"","",$FFFFFFFF,""
-Field="指示送信日","instruction_date","@DATE",,,"","",$FFFFFFFF,""
+Field="実験指示ユーザID","instruction_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="指示送信日","instruction_date","@DATETIME",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260106162957
+ModifiedDateTime=20260108142443
 Position="実験管理者",700,700
 ZOrder=98
 
@@ -867,14 +831,12 @@ Field="部門ID","department_id","uuid",,,"","",$FFFFFFFF,""
 Field="所有者ユーザID","owner_user_id","uuid",,,"","",$FFFFFFFF,""
 Field="プロジェクトステータス","project_status","numeric(2,0)",,,"","",$FFFFFFFF,""
 Field="プロジェクトMaiml有無","project_maiml_flg","@BOOLEAN",,,"","false:ファイルなし、true:ファイルあり",$FFFFFFFF,""
-Field="実験条件","experiment_condition","numeric(2,0)",,,"","",$FFFFFFFF,""
-Field="試行回数","attempts_count","numeric(3,0)",,,"","",$FFFFFFFF,""
 Field="チェックアウトステータス","checkout_status","numeric(2,0)",,,"","",$FFFFFFFF,""
-Field="作成日","create_at","@DATE",,,"","",$FFFFFFFF,""
+Field="作成日","create_at","@DATETIME",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260105092848
+ModifiedDateTime=20260108142451
 Position="実験管理者",200,200
 ZOrder=97
 
@@ -887,7 +849,7 @@ Fields1=organization_id,project_id,method_id
 Fields2=organization_id,project_id,method_id
 Cardinarity1=
 Cardinarity2=
-Position="実験管理者",0,1573,8427,1023,R,R,""
+Position="実験管理者",0,1573,8427,1101,R,R,""
 Dependence=1
 Caption=
 PName=
@@ -895,7 +857,7 @@ ModifiedDateTime=20260105104838
 LineMode=0
 Bar1=157
 Bar2=843
-Bar3=102
+Bar3=110
 TermPos1=R
 TermPos2=R
 ZOrder=102
@@ -935,15 +897,15 @@ Field="プロジェクトID","project_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
 Field="メソッドID","method_id","@VARCHAR","NOT NULL",2,"","",$FFFFFFFF,""
 Field="タスク連番","task_no","numeric(3,0)","NOT NULL",3,"","",$FFFFFFFF,""
 Field="タスクステータス","task_status","numeric(2,0)",,,"","",$FFFFFFFF,""
-Field="実験開始日","experiment_start_at","@DATE",,,"","",$FFFFFFFF,""
-Field="実験終了日","experiment_end_at","@DATE",,,"","",$FFFFFFFF,""
-Field="実験作業者ID","experiment_user_id","@VARCHAR",,,"","",$FFFFFFFF,""
-Field="レビュー完了日","reviewed_at","@DATE",,,"","",$FFFFFFFF,""
-Field="レビュアーID","review_user_id","@VARCHAR",,,"","",$FFFFFFFF,""
+Field="実験開始日","experiment_start_at","@DATETIME",,,"","",$FFFFFFFF,""
+Field="実験終了日","experiment_end_at","@DATETIME",,,"","",$FFFFFFFF,""
+Field="実験作業者ID","experiment_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="レビュー完了日","reviewed_at","@DATETIME",,,"","",$FFFFFFFF,""
+Field="レビュアーID","review_user_id","uuid",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260106151912
+ModifiedDateTime=20260108142528
 Position="実験管理者",1250,300
 ZOrder=100
 
@@ -971,7 +933,7 @@ ZOrder=109
 
 [Entity]
 PName=attribute
-LName=属性
+LName=属性マスタ
 Comment=
 TableInnerOption=
 TableOption=
@@ -985,13 +947,13 @@ Field="属性_属性値","attribute_value","@VARCHAR","NOT NULL",,"","",$FFFFFFF
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20251125175829
+ModifiedDateTime=20260108092026
 Position="材料開発データ管理システム_共通_ER図.A5ER",1000,550,257,295
 ZOrder=114
 
 [Entity]
 PName=vendor
-LName=ベンダー
+LName=ベンダーマスタ
 Comment=
 TableInnerOption=
 TableOption=
@@ -1007,13 +969,13 @@ Field="ベンダー_注釈","vendor_annotation","@VARCHAR",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20251125181159
+ModifiedDateTime=20260108091555
 Position="材料開発データ管理システム_共通_ER図.A5ER",600,150,251,255
 ZOrder=113
 
 [Entity]
 PName=owner
-LName=所有者
+LName=所有者マスタ
 Comment=
 TableInnerOption=
 TableOption=
@@ -1029,13 +991,13 @@ Field="所有者_注釈","owner_annotation","@VARCHAR",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20251125181048
+ModifiedDateTime=20260108091603
 Position="材料開発データ管理システム_共通_ER図.A5ER",150,500,321,278
 ZOrder=112
 
 [Entity]
 PName=instrument
-LName=実験装置
+LName=実験装置マスタ
 Comment=
 TableInnerOption=
 TableOption=
@@ -1051,13 +1013,13 @@ Field="実験装置_注釈","instrument_annotation","@VARCHAR",,,"","",$FFFFFFFF
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20251125180957
+ModifiedDateTime=20260108091611
 Position="材料開発データ管理システム_共通_ER図.A5ER",600,500,255,285
 ZOrder=111
 
 [Entity]
 PName=creator
-LName=作成者
+LName=作成者マスタ
 Comment=
 TableInnerOption=
 TableOption=
@@ -1073,6 +1035,6 @@ Field="作成者_注釈","creator_annotation","@VARCHAR",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260105103806
+ModifiedDateTime=20260108091548
 Position="材料開発データ管理システム_共通_ER図.A5ER",150,150,306,274
 ZOrder=110
