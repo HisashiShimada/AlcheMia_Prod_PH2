@@ -101,24 +101,24 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // if (password.length < 8) {
-    //   console.log('password.length < 8')
-    //   res.status(400).json({
-    //     success: false,
-    //     error: {
-    //       code: 'VALIDATION_ERROR',
-    //       message: 'パスワードは8文字以上である必要があります',
-    //       details: [
-    //         { field: 'password', message: 'パスワードは8文字以上です', code: 'MIN_LENGTH_NOT_MET' },
-    //       ],
-    //     },
-    //     meta: {
-    //       timestamp: new Date().toISOString(),
-    //       requestId,
-    //     },
-    //   });
-    //   return;
-    // }
+    if (password.length < 8) {
+      console.log('password.length < 8')
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'パスワードは8文字以上である必要があります',
+          details: [
+            { field: 'password', message: 'パスワードは8文字以上です', code: 'MIN_LENGTH_NOT_MET' },
+          ],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
 
     // 2. ユーザー検索
     const userQuery = `
@@ -1065,6 +1065,11 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     const verifyResult = await pinCodeService.verify(pinCode, sessionToken);
 
     if (!verifyResult.success) {
+      // PINコード不正の場合、試行回数をインクリメント
+      if (verifyResult.error?.code === 'AUTH_PIN_INVALID') {
+        await pinCodeService.incrementAttempts(sessionToken);
+      }
+      
       // エラーコードに応じてHTTPステータスを設定
       const errorCode = verifyResult.error?.code || 'AUTH_PIN_INVALID';
       const statusCode = errorCode === 'AUTH_PIN_MAX_ATTEMPTS' ? 429 : 401;
@@ -1135,23 +1140,23 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     // 5. PINコード削除（使用済み処理）
     await pinCodeService.delete(sessionToken);
 
-    // 6. Admin監査ログ記録（Admin権限のみ）
-    if (userInfo.role === 'provider' || userInfo.role === 'system_admin') {
-      const ipAddress = req.ip || '';
-      const userAgent = req.get('user-agent') || '';
+    // // 6. Admin監査ログ記録（Admin権限のみ）
+    // if (userInfo.role === 'provider' || userInfo.role === 'system_admin') {
+    //   const ipAddress = req.ip || '';
+    //   const userAgent = req.get('user-agent') || '';
 
-      const auditQuery = `
-        INSERT INTO admin_audit_log (user_id, org_cd, action, ip_address, user_agent, created_at)
-        VALUES ($1, $2, $3, $4, $5, NOW())
-      `;
-      await pool.query(auditQuery, [
-        userInfo.id,
-        userInfo.organizationId,
-        'login',
-        ipAddress,
-        userAgent,
-      ]);
-    }
+    //   const auditQuery = `
+    //     INSERT INTO admin_audit_log (user_id, org_cd, action, ip_address, user_agent, created_at)
+    //     VALUES ($1, $2, $3, $4, $5, NOW())
+    //   `;
+    //   await pool.query(auditQuery, [
+    //     userInfo.id,
+    //     userInfo.organizationId,
+    //     'login',
+    //     ipAddress,
+    //     userAgent,
+    //   ]);
+    // }
 
     // 7. 成功レスポンス
     res.status(200).json({

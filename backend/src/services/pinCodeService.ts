@@ -231,22 +231,21 @@ export class PinCodeService {
   /**
    * 試行回数をインクリメント
    * 
-   * @param pinCode - PINコード
    * @param sessionToken - セッショントークン
    * @returns 更新成功時にvoid
    */
   async incrementAttempts(
-    pinCode: string,
     sessionToken: string
   ): Promise<Result<void>> {
     try {
       // attempts_countをインクリメント
       // Parameterized Query使用
+      // 注意: WHERE条件にpin_codeを含めない（誤ったPINコードが渡される可能性があるため）
       const result = await this.pool.query(
         `UPDATE pin_codes 
          SET attempts_count = attempts_count + 1 
-         WHERE pin_code = $1 AND session_token = $2`,
-        [pinCode, sessionToken]
+         WHERE session_token = $1`,
+        [sessionToken]
       );
 
       // 更新対象が存在しない場合
