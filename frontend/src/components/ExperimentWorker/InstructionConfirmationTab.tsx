@@ -7,9 +7,9 @@ import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
 import InstructionStats from './InstructionStats';
 import InstructionGroup from './InstructionGroup';
-import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
+import InstructionFlowDialog from './InstructionFlowDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
-import type { FileData, SubnetData } from '@/components/viewer/ViewRendererDialog';
+import type { FileData, SubnetData } from './InstructionFlowDialog';
 import { Stats, Instruction, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
 import { projectsData } from '@/data/projectsData';
 
@@ -472,13 +472,13 @@ export default function InstructionConfirmationTab({
             </div>
           </Card>
 
-          {/* ViewRendererDialog群 */}
+          {/* InstructionFlowDialog群 */}
           {viewerDialogs.map((dialog) => (
-            <ViewRendererDialog
+            <InstructionFlowDialog
               key={dialog.id}
               id={dialog.id}
-              contentType="file"
               file={dialog.file}
+              selectedMethodId={selectedMethodId}
               zIndex={dialog.zIndex}
               initialPosition={{ x: 100, y: 100 }}
               initialSize={{ width: 1200, height: 800 }}
