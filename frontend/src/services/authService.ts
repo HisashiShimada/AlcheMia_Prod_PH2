@@ -30,13 +30,24 @@ const createApiClient = (): AxiosInstance => {
     withCredentials: true, // HTTPOnly Cookie送信のため
   });
 
+  // // リクエストインターセプター（組織IDヘッダーの自動付与）
+  // client.interceptors.request.use(
+  //   (config) => {
+  //     const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID;
+  //     if (organizationId) {
+  //       config.headers['X-Organization-Id'] = organizationId;
+  //     }
+  //     return config;
+  //   },
+  //   (error) => {
+  //     return Promise.reject(error);
+  //   }
+  // );
+
   // リクエストインターセプター（組織IDヘッダーの自動付与）
   client.interceptors.request.use(
     (config) => {
-      const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID;
-      if (organizationId) {
-        config.headers['X-Organization-Id'] = organizationId;
-      }
+      config.headers['X-Organization-Id'] = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}';
       return config;
     },
     (error) => {

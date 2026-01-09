@@ -39,8 +39,7 @@ export async function login(req: Request, res: Response): Promise<void> {
   try {
     // 1. バリデーション
     const { username, password } = req.body;
-    // const organizationId = req.headers['x-organization-id'] as string;
-    const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'
+    const organizationId = req.headers['x-organization-id'] as string;
 
     // 必須パラメータチェック
     if (!username || !password) {
@@ -183,11 +182,11 @@ export async function login(req: Request, res: Response): Promise<void> {
     if (!passwordResult.success || !passwordResult.data) {
       // パスワード不一致 - ログイン履歴に記録
       const historyQuery = `
-        INSERT INTO login_history (user_id, org_cd, login_at, login_sf, failure_reason)
+        INSERT INTO login_history (user_name, organization_id, login_at, login_sf, failure_reason)
         VALUES ($1, $2, NOW(), $3, $4)
       `;
       await pool.query(historyQuery, [
-        user.user_id,
+        user.user_name,
         user.organization_id,
         false,
         'Invalid password',
@@ -231,35 +230,35 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 6. メール送信
-    const emailResult = await emailService.sendPinCode(
-      user.mail_address,
-      pinResult.data.pinCode,
-      user.user_name
-    );
+    // // 6. メール送信
+    // const emailResult = await emailService.sendPinCode(
+    //   user.mail_address,
+    //   pinResult.data.pinCode,
+    //   user.user_name
+    // );
 
-    if (!emailResult.success) {
-      res.status(500).json({
-        success: false,
-        error: {
-          code: 'SYSTEM_EMAIL_SEND_FAILED',
-          message: 'メール送信に失敗しました。しばらく待ってから再試行してください',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
+    // if (!emailResult.success) {
+    //   res.status(500).json({
+    //     success: false,
+    //     error: {
+    //       code: 'SYSTEM_EMAIL_SEND_FAILED',
+    //       message: 'メール送信に失敗しました。しばらく待ってから再試行してください',
+    //     },
+    //     meta: {
+    //       timestamp: new Date().toISOString(),
+    //       requestId,
+    //     },
+    //   });
+    //   return;
+    // }
 
     // 7. ログイン成功履歴記録
     const successHistoryQuery = `
-      INSERT INTO login_history (user_id, org_cd, login_at, login_sf)
+      INSERT INTO login_history (user_name, organization_id, login_at, login_sf)
       VALUES ($1, $2, NOW(), $3)
     `;
     await pool.query(successHistoryQuery, [
-      user.user_id,
+      user.user_name,
       user.organization_id,
       true,
     ]);

@@ -135,9 +135,7 @@ export function rateLimitMiddleware(config: RateLimitConfig) {
 export const loginRateLimit = rateLimitMiddleware({
   windowMs: 15 * 60 * 1000, // 15分
   maxAttempts: 5,
-  // keyGenerator: (req) => `${req.headers['x-organization-id']}-${req.body.username}`,
-  // TODO: クライアント証明書を導入するまでの仮実装
-  keyGenerator: (req) => `${req.body.organizationId}_${req.body.username}`,
+  keyGenerator: (req) => `${req.headers['x-organization-id']}_${req.body.username}`,
   errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
   message: 'ログイン試行回数が上限に達しました。15分後に再試行してください。',
 });

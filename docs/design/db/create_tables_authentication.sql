@@ -129,7 +129,7 @@ COMMENT ON COLUMN login_history.user_agent IS 'User-Agent - ブラウザ・OS情
 
 -- インデックス作成
 CREATE INDEX idx_login_history_rate_limit 
-    ON login_history(organization_code, user_id, login_at, login_sf);
+    ON login_history(organization_id, user_id, login_at, login_sf);
 
 -- ========================================
 -- 6. pin_codes (PINコード)
@@ -137,7 +137,7 @@ CREATE INDEX idx_login_history_rate_limit
 CREATE TABLE public.pin_codes (
     id UUID NOT NULL DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL,
-    org_id UUID NOT NULL,
+    organization_id UUID NOT NULL,
     pin_code VARCHAR(6) NOT NULL,
     session_token VARCHAR(255) NOT NULL,
     is_used BOOLEAN NOT NULL DEFAULT false,
@@ -147,14 +147,14 @@ CREATE TABLE public.pin_codes (
     max_attempts INTEGER NOT NULL DEFAULT 3,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pin_codes_PKC PRIMARY KEY (id),
-    CONSTRAINT pin_codes_FK1 FOREIGN KEY (user_id, org_id) 
+    CONSTRAINT pin_codes_FK1 FOREIGN KEY (user_id, organization_id) 
         REFERENCES organization_user(user_id, organization_id)
 );
 
 COMMENT ON TABLE pin_codes IS 'PINコード - メールPINコード二段階認証用の一時データ';
 COMMENT ON COLUMN pin_codes.id IS 'ID';
 COMMENT ON COLUMN pin_codes.user_id IS 'ユーザID';
-COMMENT ON COLUMN pin_codes.org_id IS '組織ID';
+COMMENT ON COLUMN pin_codes.organization_id IS '組織ID';
 COMMENT ON COLUMN pin_codes.pin_code IS 'PINコード - 6桁数字（000000-999999）';
 COMMENT ON COLUMN pin_codes.session_token IS 'セッショントークン - temp_session-{id}_{timestamp}';
 COMMENT ON COLUMN pin_codes.is_used IS '使用済みフラグ';
@@ -168,7 +168,7 @@ COMMENT ON COLUMN pin_codes.created_at IS '作成日時';
 CREATE UNIQUE INDEX idx_pin_codes_pin_session 
     ON pin_codes(pin_code, session_token);
 CREATE INDEX idx_pin_codes_user 
-    ON pin_codes(user_id, org_id);
+    ON pin_codes(user_id, organization_id);
 CREATE INDEX idx_pin_codes_token 
     ON pin_codes(session_token);
 CREATE INDEX idx_pin_codes_expires 

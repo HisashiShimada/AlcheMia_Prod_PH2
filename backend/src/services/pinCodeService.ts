@@ -47,7 +47,7 @@ export class PinCodeService {
       // Parameterized Query使用、organization_id含む
       const result = await this.pool.query(
         `INSERT INTO pin_codes 
-         (user_id, org_id, pin_code, session_token, expires_at, attempts_count, max_attempts) 
+         (user_id, organization_id, pin_code, session_token, expires_at, attempts_count, max_attempts) 
          VALUES ($1, $2, $3, $4, $5, 0, $6)
          RETURNING pin_code, expires_at`,
         [userId, orgId, pinCode, sessionToken, expiresAt, this.MAX_ATTEMPTS]
@@ -89,7 +89,7 @@ export class PinCodeService {
       const result = await this.pool.query(
         `SELECT 
            pc.user_id,
-           pc.org_id as organization_id,
+           pc.organization_id,
            pc.expires_at,
            pc.attempts_count,
            pc.max_attempts,
@@ -99,8 +99,8 @@ export class PinCodeService {
            ou.user_name as display_name,
            o.organization_name
          FROM pin_codes pc
-         INNER JOIN organization_user ou ON pc.user_id = ou.user_id AND pc.org_id = ou.organization_id
-         LEFT JOIN organization o ON pc.org_id = o.organization_id
+         INNER JOIN organization_user ou ON pc.user_id = ou.user_id AND pc.organization_id = ou.organization_id
+         LEFT JOIN organization o ON pc.organization_id = o.organization_id
          WHERE pc.pin_code = $1 AND pc.session_token = $2 AND pc.is_used = false`,
         [pinCode, sessionToken]
       );
