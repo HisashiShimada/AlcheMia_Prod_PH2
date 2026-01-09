@@ -226,6 +226,144 @@ INSERT INTO user_authentication (
 );
 
 -- =============================================
+-- 5. code_masterテーブル
+-- =============================================
+
+-- プロジェクトステータス（AIML研究所）
+INSERT INTO code_master (
+    organization_id,
+    code_division,
+    code_value,
+    code_name,
+    code_description,
+    code_remark
+) VALUES
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'project_status',
+    '0',
+    'プロジェクト計画中',
+    'プロジェクトの進捗ステータス',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'project_status',
+    '1',
+    'タスク実行待ち',
+    'プロジェクトの進捗ステータス',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'project_status',
+    '2',
+    'タスク実行中',
+    'プロジェクトの進捗ステータス',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'project_status',
+    '3',
+    'タスク結果レビュー待ち',
+    'プロジェクトの進捗ステータス',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'project_status',
+    '4',
+    'プロジェクト完了',
+    'プロジェクトの進捗ステータス',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'project_status',
+    '5',
+    'タスク異常終了',
+    'プロジェクトの進捗ステータス',
+    NULL
+);
+
+-- チェックアウトステータス（AIML研究所）
+INSERT INTO code_master (
+    organization_id,
+    code_division,
+    code_value,
+    code_name,
+    code_description,
+    code_remark
+) VALUES
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'checkout_status',
+    '0',
+    'チェックイン中',
+    'プロジェクトのチェックアウト状態',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'checkout_status',
+    '1',
+    'チェックアウト済',
+    'プロジェクトのチェックアウト状態',
+    NULL
+);
+
+-- タスクステータス（AIML研究所）
+INSERT INTO code_master (
+    organization_id,
+    code_division,
+    code_value,
+    code_name,
+    code_description,
+    code_remark
+) VALUES
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'task_status',
+    '0',
+    '実行待ち',
+    'タスクの進捗ステータス',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'task_status',
+    '1',
+    '実行中',
+    'タスクの進捗ステータス',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'task_status',
+    '2',
+    'レビュー待ち',
+    'タスクの進捗ステータス',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'task_status',
+    '3',
+    '完了',
+    'タスクの進捗ステータス',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'task_status',
+    '4',
+    '異常終了',
+    'タスクの進捗ステータス',
+    NULL
+);
+
+-- =============================================
 -- 機能マスタテーブル（functionテーブル）用データ
 -- =============================================
 -- role_permissionで参照している機能IDの定義
@@ -255,3 +393,4 @@ INSERT INTO user_authentication (
 -- 4. organization_user テーブル
 -- 5. user_authentication テーブル（パスワードハッシュ化後）
 -- 6. role_permission テーブル
+-- 7. code_master テーブル
