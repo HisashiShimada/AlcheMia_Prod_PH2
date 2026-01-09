@@ -1,0 +1,95 @@
+# mmdpf Docker Compose Configuration
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: mmdpf-postgres
+    environment:
+      POSTGRES_DB: mmdpf_db
+      POSTGRES_USER: mmdpf_user
+      POSTGRES_PASSWORD: mmdpf_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - mmdpf-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mmdpf_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # OpenStack Swift (Object Storage)
+  swift:
+    image: bouncestorage/swift-aio:latest
+    container_name: mmdpf-swift
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTH_URL=http://localhost:8080/auth/v1.0
+      - ACCOUNT=test
+      - USER=tester
+      - PASSWORD=testing
+    volumes:
+      - swift-data:/srv
+    networks:
+      - mmdpf-network
+    healthcheck:
+      test: ["CMD", "swift", "-A", "http://localhost:8080/auth/v1.0", "-U", "test:tester", "-K", "testing", "stat"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Backend API Server (開発時に使用)
+  # backend:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile
+  #   container_name: mmdpf-backend
+  #   ports:
+  #     - "3001:3001"
+  #   environment:
+  #     - NODE_ENV=development
+  #   env_file:
+  #     - ./backend/.env
+  #   volumes:
+  #     - ./backend:/app
+  #     - /app/node_modules
+  #   depends_on:
+  #     - postgres
+  #     - swift
+  #   networks:
+  #     - mmdpf-network
+
+  # Frontend (開発時に使用)
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: mmdpf-frontend
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #   volumes:
+  #     - ./frontend:/app
+  #     - /app/node_modules
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - mmdpf-network
+
+volumes:
+  postgres-data:
+    name: mmdpf_postgres-data
+  swift-data:
+    name: mmdpf_swift-data
+
+networks:
+  mmdpf-network:
+    name: mmdpf-network
+    driver: bridge

@@ -1,8 +1,11 @@
 import express, { Application } from 'express';
 import dotenv from 'dotenv';
 
-// Load environment variables
+// Load environment variables FIRST (before any other imports that might use them)
 dotenv.config();
+
+// Import routes after dotenv is configured
+import authRoutes from './routes/authRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -10,6 +13,9 @@ const PORT = process.env.PORT || 3001;
 // Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Mount authentication routes
+app.use('/api/v1/auth', authRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {

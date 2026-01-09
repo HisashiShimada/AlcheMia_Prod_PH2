@@ -22,6 +22,7 @@ import {
   DownloadOutlined,
   FileTextOutlined,
   SendOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
@@ -33,6 +34,7 @@ import InstructionDialog from './InstructionDialog';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import DraftRestoreDialog from '../viewer/DraftRestoreDialog';
+import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
 import { useApi } from '@/hooks/useApi';
@@ -76,6 +78,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [instructionDialogOpen, setInstructionDialogOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [issueManagementModalOpen, setIssueManagementModalOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
   
   // Phase 6追加: Draft関連のステート
@@ -483,6 +486,27 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     // TODO: チェックアウトAPIを呼び出す
     // TODO: 成功時にプロジェクトをチェックアウト状態に更新
   }, []);
+
+  // 問題確認モーダルを開く
+  const handleOpenIssueManagement = useCallback(() => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+    setIssueManagementModalOpen(true);
+  }, [selectedProject]);
+
+  // 問題確認モーダルを閉じる
+  const handleCloseIssueManagement = useCallback(() => {
+    setIssueManagementModalOpen(false);
+  }, []);
+
+  // モックの問題データ（将来的にAPIから取得）
+  const mockIssues = useMemo(() => {
+    if (!selectedProject) return [];
+    // TODO: 実際のAPIから取得する
+    return [];
+  }, [selectedProject]);
 
   // Phase 6追加: 編集ボタンクリックハンドラー
   const handleEditButtonClick = useCallback(() => {
@@ -946,6 +970,14 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                   </Button>
                   <Button
                     type="primary"
+                    icon={<ExclamationCircleOutlined />}
+                    onClick={handleOpenIssueManagement}
+                    style={{ backgroundColor: token.colorWarning, borderColor: token.colorWarning }}
+                  >
+                    問題確認
+                  </Button>
+                  <Button
+                    type="primary"
                     icon={<SendOutlined />}
                     onClick={handleOpenInstructionDialog}
                   >
@@ -1204,6 +1236,18 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
           onRestoreDraft={handleRestoreDraft}
           onCreateNew={handleCreateNewOrExisting}
           draftInfo={draftInfo}
+        />
+      )}
+
+      {/* 問題確認モーダル */}
+      {selectedProject && (
+        <IssueManagementModal
+          visible={issueManagementModalOpen}
+          transitionId={selectedProject.id}
+          transitionName={selectedProject.name}
+          issues={mockIssues}
+          onClose={handleCloseIssueManagement}
+          viewMode={true}
         />
       )}
     </div>
