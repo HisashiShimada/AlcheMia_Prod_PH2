@@ -60,56 +60,69 @@
 
 ---
 
-## 📊 画面カテゴリ
+## 📊 画面カテゴリ（ロール別）
 
-### 1. 認証関連（auth/）
-- LoginForm, PasswordResetRequest, PasswordResetExecute
-- PINCodeForm, AuthContainer
+**全7ロールカテゴリで110+コンポーネントを管理**
 
-### 2. 共通コンポーネント（common/）
-- Header, SubHeader, MenuCard
-- DebugLoginPanel
+詳細は `docs/design/ui/ui_screen_list.md` を参照してください。
 
-### 3. エディタ関連（editor/）
-- PetriNetEditor, DocumentEditDialog, TemplateEditorDialog
-- PropertyPanel, ValidationPanel, EditorToolbar
-- MethodTabPanel, MultiObjectEditor, DraftManager
+### 1. 認証関連（ログイン前）
+- LoginPage, AuthContainer, LoginForm
+- PasswordResetRequest, PasswordResetExecute, PINCodeForm
+- **6コンポーネント**
 
-### 4. 実験作業者画面（ExperimentWorker/）
-- ExperimentRecordTab - 実験記録タブ
-- ProgressCheckTab - 進捗確認タブ
-- InstructionConfirmationTab - 指示確認タブ
-- DataRecordDialog - データ記録ダイアログ
-- 各種選択モーダル（プロジェクト、メソッド、タスク）
+### 2. 共通コンポーネント（全ユーザー）
+- Header, SubHeader, MenuCard, DebugLoginPanel
+- ViewRenderer, ImageViewer, TiffViewer, ErrorBoundary
+- PropertyViewer, StructuredPropertySelector, SubNetViewer
+- TransitionNode, MaterialTemplateNode, ConditionTemplateNode, ResultTemplateNode
+- PetriNetVisualization
+- **18コンポーネント**
 
-### 5. メニュー（menus/）
-- ProviderMenu - プロバイダメニュー
-- SystemAdminMenu - システム管理メニュー
-- DataAdminMenu - データ管理メニュー
-- ExperimentAdminMenu - 実験管理メニュー
-- ExperimentWorkerMenu - 実験作業メニュー
+### 3. プロバイダ用画面（Provider）
+**メニュー:** ProviderMenu
+**機能画面:**
+- 組織管理（OrganizationManagementMock）
+- 情報ダウンロード（InformationDownloadMock）
+- **3コンポーネント**
 
-### 6. ノード（nodes/）
-- TransitionNode - トランジションノード
-- MaterialTemplateNode, ConditionTemplateNode, ResultTemplateNode
+### 4. システム管理者用画面（System Admin）
+**メニュー:** SystemAdminMenu
+**機能画面:**
+- システム概要、組織統計情報
+- ユーザー管理、セッション管理
+- マスタ管理（部署、ロール）
+- **6コンポーネント**
 
-### 7. 進捗管理（progress/）
-- ProgressMonitoring - 進捗モニタリング
-- PetriNetVisualization - PetriNet可視化
-- WorkProgressDetailDialog - 作業進捗詳細ダイアログ
+### 5. データ管理者用画面（Data Admin）
+**メニュー:** DataAdminMenu
+**機能画面:**
+- マスタ管理、組織管理
+- 情報ダウンロード
+- **4コンポーネント**
 
-### 8. プロジェクト管理（project/）
-- ProjectManagement - プロジェクト管理
-- FormatManagement - フォーマット管理
-- 各種モーダル（作成、詳細、検索、アップロード）
-- フォルダツリー、ファイル一覧テーブル
+### 6. 実験管理者用画面（Experiment Admin）
+**メニュー:** ExperimentAdminMenu
+**機能画面:**
+- プロジェクト管理（7コンポーネント）
+- フォーマット管理（8コンポーネント）
+- PetriNetエディタ（7コンポーネント）
+- ドキュメント編集（7コンポーネント）
+- 進捗管理（3コンポーネント）
+- 作業指示（1コンポーネント）
+- **46コンポーネント**
 
-### 9. ビューア（viewer/）
-- PetriNetViewer - PetriNetビューア
-- PetriNetEditorScreen - PetriNetエディタ画面
-- ViewRenderer, ViewRendererDialog
-- PropertyViewer, PropertyViewerWithSelection
-- ImageViewer, TiffViewer
+### 7. 実験作業者用画面（Experiment Worker）
+**メニュー:** ExperimentWorkerMenu
+**機能画面:**
+- メインタブ（実験記録、進捗確認、指示確認）
+- 実験記録関連（3コンポーネント）
+- 進捗確認関連（2コンポーネント）
+- 指示確認関連（4コンポーネント）
+- 問題管理（2コンポーネント）
+- 選択ダイアログ（10コンポーネント）
+- 操作ボタン（1コンポーネント）
+- **28コンポーネント**
 
 ---
 
@@ -159,3 +172,4 @@ import DataRecordDialog from './DataRecordDialog';
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-01-09 | 初版作成 | Cline |
+| 2026-01-09 | ロール別画面カテゴリを完成版に更新（110+コンポーネント） | Cline |

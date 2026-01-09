@@ -124,6 +124,13 @@
 - テーブル間の外部キー関係
 - マルチテナント分離の設計原則
 
+### [references/ui_structure.md](references/ui_structure.md)
+- 画面構成定義（ロール別）
+- 全画面の物理名・論理名・ファイルパス一覧
+- 7ロールカテゴリで110+コンポーネントを管理
+- 画面一覧ファイル（docs/design/ui/ui_screen_list.md）への参照
+- コンポーネント命名規則・配置ルール
+
 ---
 
 ## 🔍 使い方
@@ -136,6 +143,7 @@
 ### フロントエンド開発時
 1. `development/frontend.md` でコンポーネント設計を確認
 2. `references/ui_policy.md` でAnt Design使用方法を確認
+3. `references/ui_structure.md` で画面構成を確認（画面名からファイルパスを特定）
 
 ### バックエンド開発時
 1. `development/backend.md` でアーキテクチャを確認
@@ -151,6 +159,7 @@
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-01-09 | ui_structure.md追加（画面構成定義・110+コンポーネント管理） | Cline |
 | 2024-12-25 | 階層化整理（core/development/operations/references） | Cline |
 | 2024-12-XX | 初版作成 | Development Team |
 
