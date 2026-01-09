@@ -204,7 +204,7 @@ export default function PinCodeInputPage({
           }}
         >
           {/* ヘッダー */}
-          <Space direction="vertical" size="middle" style={{ width: '100%', textAlign: 'center', marginBottom: token.marginXXL }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%', textAlign: 'center', marginBottom: token.marginXXL }}>
             <Title
               level={2}
               style={{
@@ -329,7 +329,7 @@ export default function PinCodeInputPage({
           </div>
 
           {/* アクションボタン */}
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             <Button
               type="primary"
               size="large"

@@ -47,7 +47,12 @@ const createApiClient = (): AxiosInstance => {
   // リクエストインターセプター（組織IDヘッダーの自動付与）
   client.interceptors.request.use(
     (config) => {
-      config.headers['X-Organization-Id'] = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}';
+      // TODO：クライアント証明書導入までの仮実装
+      // const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}';
+      const organizationId = '{c9621ed6-5def-4970-8e7f-fbe97c98e3ed}';
+      if (organizationId) {
+        config.headers['X-Organization-Id'] = organizationId;
+      }
       return config;
     },
     (error) => {
