@@ -356,6 +356,7 @@ export default function ExperimentRecordTab({
         onClose={handleIssueModalClose}
         onSubmitIssue={handleSubmitIssue}
         onSubmitComment={handleSubmitComment}
+        projectStatus={projectStatus}
       />
     </div>
   );

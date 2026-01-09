@@ -481,6 +481,7 @@ export default function TransitionList({
           onClose={handleIssueModalClose}
           onSubmitIssue={handleSubmitIssue}
           onSubmitComment={handleSubmitComment}
+          projectStatus={projectStatus}
         />
       )}
     </>

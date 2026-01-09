@@ -31,6 +31,7 @@ import {
   IssueTargetType,
   IssueReportFormData,
   IssueComment,
+  ProjectStatus,
 } from '@/types/experimentWorker';
 
 const { TextArea } = Input;
@@ -47,6 +48,7 @@ interface IssueManagementModalProps {
   onUpdateStatus?: (issueId: string, status: IssueStatus) => void;
   viewMode?: boolean; // 参照専用モード（デフォルト: false）
   filterTaskId?: string; // フィルタリング用タスクID
+  projectStatus?: ProjectStatus | null; // プロジェクトステータス（編集可否の判定用）
 }
 
 /**
@@ -64,6 +66,7 @@ export default function IssueManagementModal({
   onUpdateStatus,
   viewMode = false,
   filterTaskId,
+  projectStatus,
 }: IssueManagementModalProps) {
   const [form] = Form.useForm();
   const [commentForm] = Form.useForm();
@@ -75,6 +78,10 @@ export default function IssueManagementModal({
   // フィルタリング用のstate
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<IssueStatus | 'all'>('all');
+
+  // プロジェクトが承認依頼中の場合は編集不可
+  const isApprovalPending = projectStatus === 'waiting_approval';
+  const isEditDisabled = viewMode || isApprovalPending;
 
   // フィルタリングされた問題一覧
   const filteredIssues = useMemo(() => {
@@ -287,13 +294,15 @@ export default function IssueManagementModal({
       style={{ top: 20 }}
       destroyOnClose
     >
-      {/* 新規問題報告ボタン（参照専用モードでは非表示） */}
+      {/* 新規問題報告ボタン（参照専用モードまたは承認依頼中は非活性） */}
       {!viewMode && (
         <div style={{ marginBottom: 16 }}>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleNewIssueClick}
+            disabled={isEditDisabled}
+            title={isApprovalPending ? 'プロジェクトが承認依頼中のため、新規問題報告はできません' : undefined}
           >
             新規問題報告
           </Button>
@@ -539,7 +548,7 @@ export default function IssueManagementModal({
                   />
                 </div>
 
-                {/* コメント入力（参照専用モードでは非表示） */}
+                {/* コメント入力（参照専用モードでは非表示、承認依頼中は非活性） */}
                 {!viewMode && (
                   <div style={{ marginBottom: 16 }}>
                     <Text type="secondary" strong>
@@ -549,37 +558,41 @@ export default function IssueManagementModal({
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
                       rows={3}
-                      placeholder="コメントを入力..."
+                      placeholder={isApprovalPending ? 'プロジェクトが承認依頼中のため、コメントを追加できません' : 'コメントを入力...'}
                       maxLength={500}
                       showCount
                       style={{ marginTop: 8 }}
+                      disabled={isEditDisabled}
                     />
                   </div>
                 )}
 
-                {/* ボタンエリア（参照専用モードでは非表示） */}
+                {/* ボタンエリア（参照専用モードでは非表示、承認依頼中は非活性） */}
                 {!viewMode && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                     <Button
                       type="primary"
                       onClick={handleCommentSubmit}
-                      disabled={!newComment.trim()}
+                      disabled={!newComment.trim() || isEditDisabled}
+                      title={isApprovalPending ? 'プロジェクトが承認依頼中のため、コメント送信はできません' : undefined}
                     >
                       コメント送信
                     </Button>
                     <Button
                       onClick={handleSetUnresolved}
-                      disabled={!newComment.trim() || selectedIssue.status === 'unresolved'}
+                      disabled={!newComment.trim() || selectedIssue.status === 'unresolved' || isEditDisabled}
+                      title={isApprovalPending ? 'プロジェクトが承認依頼中のため、ステータス変更はできません' : undefined}
                     >
                       未解決
                     </Button>
                     <Button
                       onClick={handleSetResolved}
-                      disabled={!newComment.trim() || selectedIssue.status === 'resolved'}
+                      disabled={!newComment.trim() || selectedIssue.status === 'resolved' || isEditDisabled}
+                      title={isApprovalPending ? 'プロジェクトが承認依頼中のため、ステータス変更はできません' : undefined}
                       style={{
-                        backgroundColor: newComment.trim() && selectedIssue.status === 'unresolved' ? '#52c41a' : undefined,
-                        borderColor: newComment.trim() && selectedIssue.status === 'unresolved' ? '#52c41a' : undefined,
-                        color: newComment.trim() && selectedIssue.status === 'unresolved' ? '#fff' : undefined,
+                        backgroundColor: newComment.trim() && selectedIssue.status === 'unresolved' && !isEditDisabled ? '#52c41a' : undefined,
+                        borderColor: newComment.trim() && selectedIssue.status === 'unresolved' && !isEditDisabled ? '#52c41a' : undefined,
+                        color: newComment.trim() && selectedIssue.status === 'unresolved' && !isEditDisabled ? '#fff' : undefined,
                       }}
                     >
                       解決
