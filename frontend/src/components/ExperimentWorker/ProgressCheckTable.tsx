@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { Table, Tag, Typography, Input, Select, Space, Row, Col, Button, Dropdown, Menu } from 'antd';
-import { SearchOutlined, EllipsisOutlined, FileTextOutlined, PlayCircleOutlined, WarningOutlined, EditOutlined, StopOutlined } from '@ant-design/icons';
+import React, { useState, useMemo } from 'react';
+import { Table, Tag, Typography, Input, Select, Space, Row, Col, Button } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Task, TaskStatus, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
@@ -71,24 +71,6 @@ interface ProgressCheckTableProps {
  */
 export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction }: ProgressCheckTableProps) {
   const { t } = useLanguage();
-  
-  // 画面幅の状態管理
-  const [windowWidth, setWindowWidth] = useState<number>(
-    typeof window !== 'undefined' ? window.innerWidth : 1920
-  );
-
-  // 画面幅検知
-  useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // 1400px以下を狭い画面と判定
-  const isNarrowScreen = windowWidth <= 1400;
   
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
@@ -289,370 +271,247 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
     setSubnetData(null);
   };
 
-  // ケバブメニューの生成関数
-  const getActionMenu = React.useCallback((record: Task) => {
-    const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
-    const isTerminateDisabled = 
-      record.status === 'completed' || 
-      record.status === 'forced_terminated' || 
-      !isProjectEditable;
-
-    return (
-      <Menu
-        onClick={(e) => {
-          e.domEvent.stopPropagation();
-        }}
-        items={[
-          {
-            key: 'instruction',
-            icon: <FileTextOutlined />,
-            label: '指示確認',
-            onClick: () => onTaskAction(record.taskId, 'instruction')
-          },
-          {
-            key: 'start',
-            icon: <PlayCircleOutlined />,
-            label: '開始',
-            disabled: record.status !== 'not_started' || !isProjectEditable,
-            onClick: () => onTaskAction(record.taskId, 'start')
-          },
-          {
-            key: 'issue',
-            icon: <WarningOutlined />,
-            label: t('experimentWork.progressCheck.checkButton'),
-            onClick: () => onTaskAction(record.taskId, 'issueCheck')
-          },
-          {
-            key: 'record',
-            icon: <EditOutlined />,
-            label: '実験記録',
-            onClick: () => onTaskAction(record.taskId, 'record')
-          },
-          {
-            key: 'terminate',
-            icon: <StopOutlined />,
-            label: '強制終了',
-            danger: true,
-            disabled: isTerminateDisabled,
-            onClick: () => onTaskAction(record.taskId, 'forceTerminate')
-          }
-        ]}
-      />
-    );
-  }, [projectStatus, onTaskAction, t]);
-
   // テーブルの列定義
   const columns: ColumnsType<TableRow> = useMemo(() => {
     // 基本カラム（常に表示）
     const baseColumns: ColumnsType<TableRow> = [
-      {
-        title: 'メソッドの名称',
+    {
+      title: 'メソッドの名称',
       dataIndex: 'methodName',
       key: 'methodName',
-      width: isNarrowScreen ? 180 : 200,
-      ellipsis: true,
-      sorter: (a, b) => a.methodName.localeCompare(b.methodName),
-      render: (text: string, record: TableRow) => {
-        const methodId = isAggregatedRow(record) 
-          ? record.methodId 
-          : (record.methodId || record.methodName);
-        
-        // 集約行の場合は件数を表示
-        const displayText = isAggregatedRow(record)
-          ? `${text} (${record.taskCount}件)`
-          : text;
-        
-        return (
-          <Text 
-            style={{ 
-              fontSize: '14px',
-              cursor: 'pointer',
-              color: '#0093CF',
-              textDecoration: 'underline'
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleMethodNameClick(methodId);
-            }}
-            aria-label={`メソッド名: ${displayText} - クリックして集約/展開`}
-          >
-            {displayText}
-          </Text>
-        );
-      }
-    },
+      width: 160,
+        ellipsis: true,
+        sorter: (a, b) => a.methodName.localeCompare(b.methodName),
+        render: (text: string, record: TableRow) => {
+          const methodId = isAggregatedRow(record) 
+            ? record.methodId 
+            : (record.methodId || record.methodName);
+          
+          // 集約行の場合は件数を表示
+          const displayText = isAggregatedRow(record)
+            ? `${text} (${record.taskCount}件)`
+            : text;
+          
+          return (
+            <Text 
+              style={{ 
+                fontSize: '14px',
+                cursor: 'pointer',
+                color: '#0093CF',
+                textDecoration: 'underline'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMethodNameClick(methodId);
+              }}
+              aria-label={`メソッド名: ${displayText} - クリックして集約/展開`}
+            >
+              {displayText}
+            </Text>
+          );
+        }
+      },
     {
       title: 'タスクの名称',
       dataIndex: 'taskName',
       key: 'taskName',
-      width: isNarrowScreen ? 180 : 200,
-      ellipsis: true,
-      sorter: (a, b) => {
-        const aName = isAggregatedRow(a) ? '' : a.taskName;
-        const bName = isAggregatedRow(b) ? '' : b.taskName;
-        return aName.localeCompare(bName);
-      },
-      render: (text: string, record: TableRow) => {
-        if (isAggregatedRow(record)) {
-          return <Text style={{ fontSize: '14px', color: '#9e9e9e' }}>-</Text>;
+      width: 100,
+        ellipsis: true,
+        sorter: (a, b) => {
+          const aName = isAggregatedRow(a) ? '' : a.taskName;
+          const bName = isAggregatedRow(b) ? '' : b.taskName;
+          return aName.localeCompare(bName);
+        },
+        render: (text: string, record: TableRow) => {
+          if (isAggregatedRow(record)) {
+            return <Text style={{ fontSize: '14px', color: '#9e9e9e' }}>-</Text>;
+          }
+          return <Text style={{ fontSize: '14px' }}>{text}</Text>;
         }
-        return <Text style={{ fontSize: '14px' }}>{text}</Text>;
-      }
-    },
+      },
     {
       title: 'ステータス',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
-      align: 'center',
-      sorter: (a, b) => {
-        const aStatus = a.status;
-        const bStatus = b.status;
-        return aStatus.localeCompare(bStatus);
+      width: 95,
+        align: 'center',
+        sorter: (a, b) => {
+          const aStatus = a.status;
+          const bStatus = b.status;
+          return aStatus.localeCompare(bStatus);
+        },
+        render: (status: TaskStatus, record: TableRow) => {
+          // 集約行の場合もステータスを表示
+          const config = getStatusConfig(status);
+          return (
+            <Tag
+              color={config.color}
+              style={{ margin: 0 }}
+              aria-label={`ステータス: ${config.label}`}
+            >
+              {config.label}
+            </Tag>
+          );
+        }
       },
-      render: (status: TaskStatus, record: TableRow) => {
-        // 集約行の場合もステータスを表示
-        const config = getStatusConfig(status);
-        return (
-          <Tag
-            color={config.color}
-            style={{ margin: 0 }}
-            aria-label={`ステータス: ${config.label}`}
-          >
-            {config.label}
-          </Tag>
-        );
-      }
-    },
     {
       title: '進捗率',
       dataIndex: 'progressRate',
       key: 'progressRate',
-      width: isNarrowScreen ? 80 : 100,
-      align: 'center',
-      sorter: (a, b) => {
-        const aRate = isAggregatedRow(a) ? -1 : a.progressRate;
-        const bRate = isAggregatedRow(b) ? -1 : b.progressRate;
-        return aRate - bRate;
+      width: 75,
+        align: 'center',
+        sorter: (a, b) => {
+          const aRate = isAggregatedRow(a) ? -1 : a.progressRate;
+          const bRate = isAggregatedRow(b) ? -1 : b.progressRate;
+          return aRate - bRate;
+        },
+        render: (rate: number, record: TableRow) => {
+          if (isAggregatedRow(record)) {
+            return <Text style={{ fontSize: '14px', color: '#9e9e9e' }}>-</Text>;
+          }
+          return (
+            <Text
+              strong
+              style={{
+                fontSize: '14px',
+                color: '#0093CF',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+              onClick={() => handleProgressRateClick(record)}
+              aria-label={`進捗率 ${rate}% - クリックしてフロー図を表示`}
+            >
+              {rate}%
+            </Text>
+          );
+        }
+      }
+    ];
+
+    // ボタンカラム
+    const buttonColumns: ColumnsType<TableRow> = [
+      {
+        title: '指示確認',
+        key: 'instruction',
+        width: 85,
+        align: 'center',
+        render: (_, record: TableRow) => {
+          if (isAggregatedRow(record)) {
+            return null;
+          }
+          return (
+            <Button
+              type="default"
+              size="small"
+              onClick={() => onTaskAction(record.taskId, 'instruction')}
+              aria-label="作業指示を確認"
+            >
+              指示
+            </Button>
+          );
+        }
       },
-      render: (rate: number, record: TableRow) => {
-        if (isAggregatedRow(record)) {
-          return <Text style={{ fontSize: '14px', color: '#9e9e9e' }}>-</Text>;
+      {
+        title: '開始',
+        key: 'start',
+        width: 65,
+        align: 'center',
+        render: (_, record: TableRow) => {
+          if (isAggregatedRow(record)) {
+            return null;
+          }
+          // プロジェクトの状態が編集可能でない場合は非活性化
+          const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
+          const isDisabled = record.status !== 'not_started' || !isProjectEditable;
+          
+          return (
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => onTaskAction(record.taskId, 'start')}
+              disabled={isDisabled}
+              aria-label="タスクを開始"
+            >
+              開始
+            </Button>
+          );
         }
-        return (
-          <Text
-            strong
-            style={{
-              fontSize: '14px',
-              color: '#0093CF',
-              cursor: 'pointer',
-              textDecoration: 'underline'
-            }}
-            onClick={() => handleProgressRateClick(record)}
-            aria-label={`進捗率 ${rate}% - クリックしてフロー図を表示`}
-          >
-            {rate}%
-          </Text>
-        );
+      },
+      {
+        title: t('experimentWork.progressCheck.issueCheck'),
+        key: 'issue',
+        width: 65,
+        align: 'center',
+        render: (_, record: TableRow) => {
+          if (isAggregatedRow(record)) {
+            return null;
+          }
+          return (
+            <Button
+              type="default"
+              size="small"
+              onClick={() => onTaskAction(record.taskId, 'issueCheck')}
+              aria-label={t('experimentWork.progressCheck.issueCheck')}
+            >
+              {t('experimentWork.progressCheck.checkButton')}
+            </Button>
+          );
+        }
+      },
+      {
+        title: '実験記録',
+        key: 'record',
+        width: 85,
+        align: 'center',
+        render: (_, record: TableRow) => {
+          if (isAggregatedRow(record)) {
+            return null;
+          }
+          return (
+            <Button
+              type="default"
+              size="small"
+              onClick={() => onTaskAction(record.taskId, 'record')}
+              aria-label="実験記録を入力"
+            >
+              記録
+            </Button>
+          );
+        }
+      },
+      {
+        title: '強制終了',
+        key: 'forceTerminate',
+        width: 85,
+        align: 'center',
+        render: (_, record: TableRow) => {
+          if (isAggregatedRow(record)) {
+            return null;
+          }
+          // プロジェクトの状態が編集可能でない場合は非活性化
+          const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
+          const isDisabled = 
+            record.status === 'completed' || 
+            record.status === 'forced_terminated' || 
+            !isProjectEditable;
+          
+          return (
+            <Button
+              danger
+              size="small"
+              onClick={() => onTaskAction(record.taskId, 'forceTerminate')}
+              disabled={isDisabled}
+              aria-label="タスクを強制終了"
+            >
+              終了
+            </Button>
+          );
+        }
       }
-    }
-  ];
+    ];
 
-  // ワイド画面用のボタンカラム
-  const buttonColumns: ColumnsType<TableRow> = [
-    {
-      title: '指示確認',
-      key: 'instruction',
-      width: 100,
-      align: 'center',
-      render: (_, record: TableRow) => {
-        if (isAggregatedRow(record)) {
-          return null;
-        }
-        return (
-          <Button
-            type="default"
-            size="small"
-            onClick={() => onTaskAction(record.taskId, 'instruction')}
-            aria-label="作業指示を確認"
-          >
-            指示
-          </Button>
-        );
-      }
-    },
-    {
-      title: '開始',
-      key: 'start',
-      width: 80,
-      align: 'center',
-      render: (_, record: TableRow) => {
-        if (isAggregatedRow(record)) {
-          return null;
-        }
-        // プロジェクトの状態が編集可能でない場合は非活性化
-        const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
-        const isDisabled = record.status !== 'not_started' || !isProjectEditable;
-        
-        return (
-          <Button
-            type="primary"
-            size="small"
-            onClick={() => onTaskAction(record.taskId, 'start')}
-            disabled={isDisabled}
-            aria-label="タスクを開始"
-          >
-            開始
-          </Button>
-        );
-      }
-    },
-    {
-      title: t('experimentWork.progressCheck.issueCheck'),
-      key: 'issue',
-      width: 100,
-      align: 'center',
-      render: (_, record: TableRow) => {
-        if (isAggregatedRow(record)) {
-          return null;
-        }
-        return (
-          <Button
-            type="default"
-            size="small"
-            onClick={() => onTaskAction(record.taskId, 'issueCheck')}
-            aria-label={t('experimentWork.progressCheck.issueCheck')}
-          >
-            {t('experimentWork.progressCheck.checkButton')}
-          </Button>
-        );
-      }
-    },
-    {
-      title: '実験記録',
-      key: 'record',
-      width: 100,
-      align: 'center',
-      render: (_, record: TableRow) => {
-        if (isAggregatedRow(record)) {
-          return null;
-        }
-        return (
-          <Button
-            type="default"
-            size="small"
-            onClick={() => onTaskAction(record.taskId, 'record')}
-            aria-label="実験記録を入力"
-          >
-            記録
-          </Button>
-        );
-      }
-    },
-    {
-      title: '強制終了',
-      key: 'forceTerminate',
-      width: 100,
-      align: 'center',
-      render: (_, record: TableRow) => {
-        if (isAggregatedRow(record)) {
-          return null;
-        }
-        // プロジェクトの状態が編集可能でない場合は非活性化
-        const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
-        const isDisabled = 
-          record.status === 'completed' || 
-          record.status === 'forced_terminated' || 
-          !isProjectEditable;
-        
-        return (
-          <Button
-            danger
-            size="small"
-            onClick={() => onTaskAction(record.taskId, 'forceTerminate')}
-            disabled={isDisabled}
-            aria-label="タスクを強制終了"
-          >
-            終了
-          </Button>
-        );
-      }
-    }
-  ];
-
-  // ナロー画面用の操作カラム（ケバブメニュー）
-  const actionColumn: ColumnsType<TableRow>[0] = {
-    title: '操作',
-    key: 'action',
-    width: 80,
-    align: 'center',
-    fixed: 'right',
-    render: (_, record: TableRow) => {
-      if (isAggregatedRow(record)) {
-        return null;
-      }
-      return (
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'instruction',
-                icon: <FileTextOutlined />,
-                label: '指示確認',
-                onClick: () => onTaskAction(record.taskId, 'instruction')
-              },
-              {
-                key: 'start',
-                icon: <PlayCircleOutlined />,
-                label: '開始',
-                disabled: record.status !== 'not_started' || (projectStatus ? !isEditableStatus(projectStatus) : false),
-                onClick: () => onTaskAction(record.taskId, 'start')
-              },
-              {
-                key: 'issue',
-                icon: <WarningOutlined />,
-                label: t('experimentWork.progressCheck.checkButton'),
-                onClick: () => onTaskAction(record.taskId, 'issueCheck')
-              },
-              {
-                key: 'record',
-                icon: <EditOutlined />,
-                label: '実験記録',
-                onClick: () => onTaskAction(record.taskId, 'record')
-              },
-              {
-                key: 'terminate',
-                icon: <StopOutlined />,
-                label: '強制終了',
-                danger: true,
-                disabled: record.status === 'completed' || 
-                  record.status === 'forced_terminated' || 
-                  (projectStatus ? !isEditableStatus(projectStatus) : false),
-                onClick: () => onTaskAction(record.taskId, 'forceTerminate')
-              }
-            ]
-          }}
-          trigger={['click']}
-          placement="bottomRight"
-        >
-          <Button
-            type="text"
-            icon={<EllipsisOutlined style={{ fontSize: '18px' }} />}
-            onClick={(e) => e.stopPropagation()}
-            aria-label="操作メニューを開く"
-          />
-        </Dropdown>
-      );
-    }
-  };
-
-  // 画面幅に応じてカラムを動的に生成
-  if (isNarrowScreen) {
-    return [...baseColumns, actionColumn];
-  } else {
     return [...baseColumns, ...buttonColumns];
-  }
-}, [isNarrowScreen, projectStatus, collapsedMethodIds, t, onTaskAction, getActionMenu, handleProgressRateClick]);
+  }, [projectStatus, collapsedMethodIds, t, onTaskAction, handleProgressRateClick]);
 
   return (
     <div>
@@ -724,7 +583,7 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
             page: ''
           }
         }}
-        scroll={isNarrowScreen ? { x: undefined } : { x: 1300 }}
+        scroll={{ x: 976 }}
         size="middle"
         bordered
         aria-label="サブタスク一覧"

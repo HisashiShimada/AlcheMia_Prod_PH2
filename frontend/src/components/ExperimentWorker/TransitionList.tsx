@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress, Dropdown, Button } from 'antd';
-import type { MenuProps } from 'antd';
-import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined, MoreOutlined } from '@ant-design/icons';
+import React, { useState, useMemo } from 'react';
+import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress, Button } from 'antd';
+import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue, ProjectStatus, isRecordableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
@@ -43,25 +42,6 @@ export default function TransitionList({
   // 絞り込み用のstate
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
-
-  // レスポンシブデザイン用の画面幅監視
-  const [isNarrowScreen, setIsNarrowScreen] = useState(false);
-
-  // 画面幅の監視
-  useEffect(() => {
-    const handleResize = () => {
-      setIsNarrowScreen(window.innerWidth <= 1500);
-    };
-
-    // 初期化
-    handleResize();
-    
-    // リサイズイベントの監視
-    window.addEventListener('resize', handleResize);
-    
-    // クリーンアップ
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // TODO: モックデータ - 実際はpropsまたはAPIから取得
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -159,32 +139,13 @@ export default function TransitionList({
     message.success('コメントを投稿しました');
   };
 
-  // ケバブメニュー用のメニュー項目を生成
-  const getMenuItems = (record: Transition): MenuProps['items'] => {
-    const isProjectRecordable = projectStatus ? isRecordableStatus(projectStatus) : true;
-    
-    return [
-      {
-        key: 'record',
-        label: '記録',
-        disabled: !isProjectRecordable,
-        onClick: () => handleRecord(record),
-      },
-      {
-        key: 'report',
-        label: '問題報告',
-        onClick: () => handleIssueReport(record),
-      },
-    ];
-  };
-
-  // テーブルの列定義（レスポンシブ対応）
+  // テーブルの列定義
   const columns: ColumnsType<Transition> = [
     {
       title: 'トランジション名',
       dataIndex: 'transitionName',
       key: 'transitionName',
-      width: isNarrowScreen ? 150 : 200,
+      width: 160,
       fixed: 'left',
       ellipsis: true,
       render: (text: string) => (
@@ -197,7 +158,7 @@ export default function TransitionList({
       title: 'ステータス',
       dataIndex: 'status',
       key: 'status',
-      width: 120,
+      width: 100,
       fixed: 'left',
       align: 'center',
       render: (status: ProgressStatus | undefined) => getStatusDisplay(status)
@@ -206,7 +167,7 @@ export default function TransitionList({
       title: '進捗率',
       dataIndex: 'progressRate',
       key: 'progressRate',
-      width: 70,
+      width: 65,
       align: 'center',
       render: (progressRate: number | undefined) => {
         const rate = progressRate ?? 0;
@@ -217,12 +178,10 @@ export default function TransitionList({
         );
       }
     },
-    // レスポンシブ時は非表示にするカラム
-    ...(!isNarrowScreen ? [
-      {
+    {
         title: '材料',
         key: 'materials',
-        width: 70,
+        width: 55,
         align: 'center' as const,
         render: (_: unknown, record: Transition) => {
           const input = record.inputMaterialsCount ?? 0;
@@ -241,7 +200,7 @@ export default function TransitionList({
       {
         title: '条件',
         key: 'conditions',
-        width: 70,
+        width: 55,
         align: 'center' as const,
         render: (_: unknown, record: Transition) => {
           const input = record.inputIngredientsCount ?? 0;
@@ -260,7 +219,7 @@ export default function TransitionList({
       {
         title: '結果',
         key: 'results',
-        width: 70,
+        width: 55,
         align: 'center' as const,
         render: (_: unknown, record: Transition) => {
           const input = record.inputResultsCount ?? 0;
@@ -279,7 +238,7 @@ export default function TransitionList({
       {
         title: '記録',
         key: 'record',
-        width: 80,
+        width: 65,
         align: 'center' as const,
         render: (_: unknown, record: Transition) => {
           // プロジェクトの状態が記録可能でない場合は非活性化
@@ -324,7 +283,7 @@ export default function TransitionList({
       {
         title: '問題報告',
         key: 'issue',
-        width: 80,
+        width: 65,
         align: 'center' as const,
         render: (_: unknown, record: Transition) => {
           return (
@@ -357,35 +316,11 @@ export default function TransitionList({
           );
         }
       },
-    ] : []),
-    // レスポンシブ時の操作カラム（ケバブメニュー）
-    ...(isNarrowScreen ? [
-      {
-        title: '操作',
-        key: 'action',
-        width: 60,
-        align: 'center' as const,
-        render: (_: unknown, record: Transition) => (
-          <Dropdown
-            menu={{ items: getMenuItems(record) }}
-            trigger={['click']}
-            placement="bottomRight"
-          >
-            <Button
-              type="text"
-              icon={<MoreOutlined />}
-              onClick={(e) => e.stopPropagation()}
-              aria-label="操作メニュー"
-            />
-          </Dropdown>
-        )
-      },
-    ] : []),
     {
       title: '説明',
       dataIndex: 'description',
       key: 'description',
-      width: 200,
+      width: 140,
       ellipsis: true,
       render: (text: string | undefined) => (
         <Text type="secondary" style={{ fontSize: '13px' }}>
@@ -442,6 +377,7 @@ export default function TransitionList({
             }
           }}
           scroll={{ 
+            x: 976,
             y: 'calc(100vh - 650px)' 
           }}
           size="middle"
