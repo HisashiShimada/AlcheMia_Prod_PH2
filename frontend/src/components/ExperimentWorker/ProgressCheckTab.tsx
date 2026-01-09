@@ -246,40 +246,6 @@ export default function ProgressCheckTab({
           border: 'none'
         }}
       >
-        {/* サブタスク一覧タイトルとアクションボタン */}
-        <div 
-          style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: '16px'
-          }}
-        >
-          {/* サブタスク一覧タイトル */}
-          <Typography.Title
-            level={5}
-            style={{
-              margin: 0,
-              fontSize: '16px',
-              fontWeight: 600,
-              color: '#212121'
-            }}
-          >
-            <CheckSquareOutlined style={{ marginRight: 8 }} />
-            タスク一覧
-          </Typography.Title>
-
-          {/* 承認依頼ボタン */}
-          <Button
-            type="default"
-            size="middle"
-            onClick={handleApprovalRequest}
-            aria-label="承認依頼"
-          >
-            承認依頼
-          </Button>
-        </div>
-
         {/* サブタスク一覧テーブル */}
         {selectedProject && tasks.length > 0 ? (
           <ProgressCheckTable
