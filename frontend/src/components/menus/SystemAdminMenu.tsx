@@ -21,7 +21,6 @@ import UserManagement from '../../../mock/components/UserManagement';
 import OrganizationStatisticsMock from '../../../mock/components/OrganizationStatisticsMock';
 import SessionManagementMock from '../../../mock/components/SessionManagementMock';
 import MasterManagementMock from '../../../mock/components/MasterManagementMock';
-import RoleManagementMock from '../../../mock/components/RoleManagementMock';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -137,7 +136,7 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
         {/* タブ6: ロール管理 */}
         {currentTab === '6' && (
           <div style={{ padding: token.paddingContentVertical }}>
-            <RoleManagementMock />
+            <MasterManagementMock initialMasterId="4" />
           </div>
         )}
       </Content>

@@ -12,11 +12,6 @@ export const theme: ThemeConfig = {
     colorSuccess: '#2e7d32',
     colorWarning: '#ed6c02',
     colorError: '#d32f2f',
-    // colorPrimary: '#CF0027',
-    // colorInfo: '#0093CF',
-    // colorSuccess: '#2e7d32',
-    // colorWarning: '#ed6c02',
-    // colorError: '#d32f2f',
     
     // 背景
     colorBgBase: '#ffffff',

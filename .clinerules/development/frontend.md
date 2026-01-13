@@ -66,19 +66,6 @@ frontend/src/
 
 ### スタイリング規約
 
-#### スタイルファイルの形式（重要）
-- **必須**: 新規スタイルファイルは`.scss`形式で作成すること
-- `.css`ファイルは作成しない（既存のレガシーファイルのみ）
-- グローバルスタイル: `frontend/src/app/globals.scss`
-- コンポーネント固有スタイル: `[ComponentName].module.scss`
-
-#### SCSS機能の活用
-- **変数**: 繰り返し使用される値は変数化（例: `$color-primary: #CF0027;`）
-- **ネスト**: クラスの階層構造を明確に表現
-- **&記号**: 親セレクタの参照（例: `&:hover`, `&-item`）
-- **ミックスイン**: 共通スタイルの再利用（例: `@mixin hover-effect($color)`）
-- **補間構文**: CSS変数内でSCSS変数を使用（例: `--color: #{$variable};`）
-
 #### Ant Designの使用
 - コンポーネントスタイリングにはAnt Designを優先
 - `sx`プロップでインラインスタイルを適用
@@ -89,10 +76,8 @@ frontend/src/
 - テーマ変数を活用
 - 動的スタイリングに使用
 
-#### スタイルファイルの命名規則
-- グローバルスタイル: `globals.scss`
-- CSS Modules: `[ComponentName].module.scss`
-- 変数・ミックスイン定義: `_variables.scss`, `_mixins.scss` （プレフィックス`_`）
+#### グローバルスタイル
+- css/ディレクトリで管理
 
 ### API通信規約
 

@@ -121,24 +121,7 @@ export default function OrganizationManagementMock() {
   // テーブルカラム定義
   const columns: ColumnsType<OrganizationData> = [
     {
-      title: (
-        <div style={{ textAlign: 'center' }}>
-          <Space size="middle" align="center">
-            <span>組織ID</span>
-            <Badge
-              count={filteredOrganizations.filter(org => org.status === 'active').length}
-              style={{
-                backgroundColor: '#4169E1',
-                fontSize: 14,
-                height: 24,
-                minWidth: 40,
-                lineHeight: '24px',
-                borderRadius: 12,
-              }}
-            />
-          </Space>
-        </div>
-      ),
+      title: <div style={{ textAlign: 'center' }}>組織ID</div>,
       dataIndex: 'organization_id',
       key: 'organization_id',
       width: 120,
@@ -153,7 +136,24 @@ export default function OrganizationManagementMock() {
       ),
     },
     {
-      title: <div style={{ textAlign: 'center' }}>組織名</div>,
+      title: (
+        <div style={{ textAlign: 'center' }}>
+          <Space size="middle" align="center">
+            <span>組織名</span>
+            <Badge
+              count={filteredOrganizations.filter(org => org.status === 'active').length}
+              style={{
+                backgroundColor: '#4169E1',
+                fontSize: 14,
+                height: 24,
+                minWidth: 40,
+                lineHeight: '24px',
+                borderRadius: 12,
+              }}
+            />
+          </Space>
+        </div>
+      ),
       key: 'organization',
       width: 180,
       sorter: (a, b) => a.organization_name.localeCompare(b.organization_name),
@@ -216,7 +216,7 @@ export default function OrganizationManagementMock() {
       dataIndex: 'company_code',
       key: 'company_code',
       width: 100,
-      align: 'left',
+      align: 'center',
       sorter: (a, b) => a.company_code.localeCompare(b.company_code),
     },
     {
@@ -243,11 +243,11 @@ export default function OrganizationManagementMock() {
       },
     },
     {
-      title: <div style={{ textAlign: 'center' }}>更新日時</div>,
+      title: '更新日時',
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 160,
-      align: 'right',
+      align: 'center',
       sorter: (a, b) => a.updated_at.localeCompare(b.updated_at),
       render: (text: string) => formatDateTime(text),
     },
@@ -278,36 +278,37 @@ export default function OrganizationManagementMock() {
   ];
 
   // 証明書ダウンロード
-  const handleDownloadCertificate = async (org: OrganizationData) => {
-    try {
-      // publicフォルダの証明書ファイルにアクセス（Next.jsは/publicを/でアクセス可能）
-      const certPath = '/certs/rootCA.crt';
-      
-      // fetchでファイルを取得
-      const response = await fetch(certPath);
-      if (!response.ok) {
-        throw new Error('証明書ファイルの取得に失敗しました');
-      }
-      
-      const blob = await response.blob();
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      
-      // ファイル名を設定（組織IDを使用）
-      link.href = url;
-      link.download = `${org.organization_id}_certificate.crt`;
-      
-      // ダウンロード実行
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      message.success(`${org.organization_name}の証明書をダウンロードしました`);
-    } catch (error) {
-      console.error('証明書ダウンロードエラー:', error);
-      message.error('証明書のダウンロードに失敗しました');
-    }
+  const handleDownloadCertificate = (org: OrganizationData) => {
+    // 証明書の内容を生成（モック）
+    const certificateContent = `-----BEGIN CERTIFICATE-----
+MIIDXTCCAkWgAwIBAgIJAKL3VqQqJz7SMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
+BAYTAkpQMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+aWRnaXRzIFB0eSBMdGQwHhcNMjQwMTAxMDAwMDAwWhcNMjUwMTAxMDAwMDAwWjBF
+MQswCQYDVQQGEwJKUDETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50
+ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB
+CgKCAQEAw8VqEQKjhpXdxQqZaJLhIVGqDvKTNVqZEzxVxNW8xqTDQqZaJLhIVGq
+Organization: ${org.organization_name}
+Organization ID: ${org.organization_id}
+Email: ${org.email}
+Company Code: ${org.company_code}
+-----END CERTIFICATE-----`;
+
+    // Blobを作成してダウンロード
+    const blob = new Blob([certificateContent], { type: 'application/x-x509-ca-cert' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    // ファイル名を設定（組織IDを使用）
+    link.href = url;
+    link.download = `${org.organization_id}_certificate.crt`;
+    
+    // ダウンロード実行
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    message.success(`${org.organization_name}の証明書をダウンロードしました`);
   };
 
   // 組織追加
@@ -614,7 +615,7 @@ export default function OrganizationManagementMock() {
   };
 
   return (
-    <div style={{ padding: '0 15px' }}>
+    <div style={{ padding: 0 }}>
       <div style={{ 
         display: 'flex', 
         justifyContent: 'flex-end', 
@@ -664,10 +665,9 @@ export default function OrganizationManagementMock() {
 
       <div
         style={{
-          padding: 0,
+          padding: 24,
           backgroundColor: '#fff',
-          maxWidth: 3600,
-          margin: '0 auto',
+          border: 'none',
         }}
       >
         <Row gutter={16} style={{ marginBottom: 8 }}>

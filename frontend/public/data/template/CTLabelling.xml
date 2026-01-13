@@ -1,0 +1,68 @@
+<keyDictionary xmlns="http://abc.com/schema/keyDictionary/conditionTemplate/advanced/CTLabelling" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	<property key="spectrumA" xsi:type="propertyListType">
+		<property key="ExternalFile" xsi:type="idRefType"> 
+		</property>	
+		<property key="Label" xsi:type="stringType">
+		</property>
+		<property key="SubstanceName" xsi:type="stringType">
+		</property>
+		<property key="LabelColor" xsi:type="stringType">
+		</property>
+		<property key="AcquisitionTime" units="s" xsi:type="intType">
+		</property>
+		<property key="Accumulations" units="ADU" xsi:type="intType">
+		</property>
+		<property key="Binning" xsi:type="booleanType">
+		</property>
+		<property key="Objective" xsi:type="stringType">
+		</property>
+		<property key="Grating" xsi:type="stringType">
+		</property>
+		<property key="NDFilter" units="%" xsi:type="floatType">
+		</property>
+		<property key="Laser" units="nm" xsi:type="floatType">
+		</property>
+		<property key="Spectro" units="/cm" xsi:type="floatType">
+		</property>
+		<property key="Hole" units="ADU" xsi:type="floatType">
+		</property>
+		<property key="Temperature" units="℃" xsi:type="floatType">
+		</property>
+		<property key="LocationZ" units="μm" xsi:type="floatType">
+		</property>
+	</property>
+	<property key="AcquisitionTime" units="s" xsi:type="doubleType">
+		<value>3.5</value>
+	</property>
+	<property key="Accumulations" units="ADU" xsi:type="intType">
+		<value>2</value>
+	</property>
+	<property key="Binning" xsi:type="booleanType">
+		<value>1</value>
+	</property>
+	<property key="Objective" xsi:type="stringType">
+		<value>x100_VIS</value>
+	</property>
+	<property key="Grating" xsi:type="stringType">
+		<value>300(600nm)</value>
+	</property>
+	<property key="NDFilter" units="%" xsi:type="floatType">
+		<value>10</value>
+	</property>
+	<property key="Laser" units="nm" xsi:type="floatType">
+		<value>532</value>
+	</property>
+	<property key="Spectro" units="/cm" xsi:type="floatType">
+		<value>1780.02</value>
+	</property>
+	<property key="Hole" units="ADU" xsi:type="floatType">
+		<value>79.9925</value>
+	</property>
+	<property key="Temperature" units="℃" xsi:type="floatType">
+		<value>-70.1</value>
+	</property>
+	<property key="LocationZ" units="μm" xsi:type="floatType">
+	</property>
+	<property key="Power" xsi:type="stringType">
+	</property>
+</keyDictionary>
