@@ -43,7 +43,9 @@ export default function LoginPage({ onLogin, error, loading = false }: LoginPage
 
     // ログイン処理
     try {
-      await onLogin({ username: username.trim(), password });
+      // await onLogin({ username: username.trim(), password });
+      //TODO: クライアント証明書を導入するまでの仮実装
+      await onLogin({ username: username.trim(), password , organizationId: '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'});
     } catch (err) {
       // エラーは親コンポーネントで処理
       console.error('Login failed:', err);

@@ -2,13 +2,21 @@
 
 import React, { useState } from 'react';
 import { message } from 'antd';
+import AuthContainer from '@/components/auth/AuthContainer';
 import LoginPage from '@/components/LoginPage';
 import ProviderMenu from '@/components/menus/ProviderMenu';
 import SystemAdminMenu from '@/components/menus/SystemAdminMenu';
 import DataAdminMenu from '@/components/menus/DataAdminMenu';
 import ExperimentAdminMenu from '@/components/menus/ExperimentAdminMenu';
 import ExperimentWorkerMenu from '@/components/menus/ExperimentWorkerMenu';
-import { User, UserRole, LoginCredentials } from '@/types/auth';
+import { User, UserRole, LoginCredentials, ROLE_REDIRECT_MAP } from '@/types/auth';
+
+// デバッグ機能のインポート（開発環境専用）
+import DebugLoginPanel from '@/components/common/DebugLoginPanel';
+import type { DebugUser } from '@/types/debug';
+
+// 開発環境判定
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 /**
  * デモ用ユーザーデータ
@@ -129,6 +137,7 @@ export default function Home() {
       data_admin: 'データ管理者メニュー',
       experiment_admin: '実験管理者メニュー',
       experiment_worker: '実験作業者メニュー',
+      mi_engineer: 'MI技術者メニュー',
     };
     
     messageApi.success(`${menuNames[menuType]}に切り替えました`);
@@ -136,10 +145,46 @@ export default function Home() {
 
   // ログインしていない場合はログイン画面を表示
   if (!currentUser) {
+    // 開発環境では旧デバッグパネルを使用（暫定）
+    // TODO: バックエンドAPI完成後、本番用AuthContainerに切り替え
+    if (isDevelopment) {
+      const debugUsers: DebugUser[] = Object.entries(demoUsers).map(([username, data]) => ({
+        username,
+        password: data.password,
+        displayName: data.user.displayName,
+        role: data.user.role,
+      }));
+
+      const debugPanel = (
+        <DebugLoginPanel 
+          onLogin={handleLogin}
+          loading={loading}
+          debugUsers={debugUsers}
+        />
+      );
+
+      // 旧LoginPageを使用（デバッグ用）
+      return (
+        <>
+          {contextHolder}
+          <LoginPage 
+            onLogin={handleLogin} 
+            error={error} 
+            loading={loading}
+            debugPanel={debugPanel}
+          />
+        </>
+      );
+    }
+
+    // 本番環境または開発環境でデバッグなしの場合は新しいAuthContainerを使用
     return (
       <>
         {contextHolder}
-        <LoginPage onLogin={handleLogin} error={error} loading={loading} />
+        <AuthContainer 
+          organizationId="org_lab_001"
+          roleRedirectMap={ROLE_REDIRECT_MAP}
+        />
       </>
     );
   }

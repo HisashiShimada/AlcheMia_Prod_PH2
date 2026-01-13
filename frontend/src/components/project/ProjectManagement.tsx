@@ -22,6 +22,7 @@ import {
   DownloadOutlined,
   FileTextOutlined,
   SendOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
@@ -31,17 +32,35 @@ import TaskResultsTable from './TaskResultsTable';
 import BulkUploadDialog from './BulkUploadDialog';
 import InstructionDialog from './InstructionDialog';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
-import mockProjectsData from '@/data/mock/mockProjects.json';
-import mockFilesData from '@/data/mock/mockFiles.json';
+import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
+import DraftRestoreDialog from '../viewer/DraftRestoreDialog';
+import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
+import { useApi } from '@/hooks/useApi';
+import { fetchProjects, fetchProjectFiles } from '@/utils/apiClient';
+import type { ApiResponse } from '@/types/api';
+import type { ProjectListResponse } from '@/types/project';
 
 const { Title, Text } = Typography;
 
 /**
+ * プロジェクト編集時のパラメータ
+ */
+export interface ProjectEditParams {
+  projectId: string;
+  projectName: string;
+  projectOverview?: string;
+}
+
+/**
  * プロジェクト管理画面メインコンポーネント
  */
-const ProjectManagement: React.FC = () => {
+interface ProjectManagementProps {
+  onEdit?: (params: ProjectEditParams) => void;
+}
+
+const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [projects, setProjects] = useState<any[]>([]);
@@ -50,7 +69,6 @@ const ProjectManagement: React.FC = () => {
   const [checkoutFilter, setCheckoutFilter] = useState<string>('all'); // all, checked_in, checked_out
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>('all'); // all, planning, pending, in_progress, completed
   const [departmentFilter, setDepartmentFilter] = useState<string>('all'); // 初期値: 全部門
-  const [showMaimlOnly, setShowMaimlOnly] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt'); // ソート項目
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // ソート順序
@@ -60,13 +78,55 @@ const ProjectManagement: React.FC = () => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [instructionDialogOpen, setInstructionDialogOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [issueManagementModalOpen, setIssueManagementModalOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
+  
+  // Phase 6追加: Draft関連のステート
+  const [draftRestoreDialogOpen, setDraftRestoreDialogOpen] = useState(false);
+  const [draftInfo, setDraftInfo] = useState<{
+    savedAt: string;
+    methodCount: number;
+    nodeCount: number;
+  } | null>(null);
   const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
+  const [projectFilesData, setProjectFilesData] = useState<Record<string, any>>({});
+  
+  // 複数ダイアログ管理
+  interface OpenDialog {
+    id: string;
+    contentType: 'file' | 'subnet';
+    file?: any;
+    subnetData?: {
+      transitionName: string;
+      maimlData: string;
+      templateMap: Record<string, { element: Element }>;
+      petriNetData: any;
+    };
+    zIndex: number;
+    position: { x: number; y: number };
+  }
+  const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
+  const [nextZIndex, setNextZIndex] = useState(1000);
 
-  // モックデータの読み込み
+  // プロジェクト一覧をAPI経由で取得
+  const { 
+    data: projectsData, 
+    isLoading: isLoadingProjects, 
+    error: projectsError, 
+    refetch: refetchProjects 
+  } = useApi<ApiResponse<ProjectListResponse>>(
+    fetchProjects,
+    []
+  );
+
+  // プロジェクトデータが取得できたらstateを更新
   useEffect(() => {
-    setProjects(mockProjectsData.projects);
-  }, []);
+    if (projectsData?.data.projects) {
+      // Data synchronization in useEffect is a valid pattern
+      // eslint-disable-next-line
+      setProjects(projectsData.data.projects);
+    }
+  }, [projectsData]);
 
   // ユニークな部門リストを取得
   const departments = useMemo(() => {
@@ -149,16 +209,9 @@ const ProjectManagement: React.FC = () => {
         matchesDepartment = project.department === departmentFilter;
       }
 
-      // MaiMLファイルフィルタ
-      const matchesMaiml = !showMaimlOnly || (mockFilesData.files as any)[project.id]?.root?.some(
-        (file: any) => file.type === 'maiml'
-      ) || (mockFilesData.files as any)[project.id]?.archive?.some(
-        (file: any) => file.type === 'maiml'
-      );
-
-      return matchesSearch && matchesCheckout && matchesProjectStatus && matchesDepartment && matchesMaiml;
+      return matchesSearch && matchesCheckout && matchesProjectStatus && matchesDepartment;
     });
-  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, departmentFilter, showMaimlOnly, t]);
+  }, [projects, searchQuery, checkoutFilter, projectStatusFilter, departmentFilter, t]);
 
   // ソート済みプロジェクト一覧
   const sortedProjects = useMemo(() => {
@@ -234,10 +287,10 @@ const ProjectManagement: React.FC = () => {
   }, [selectedProjectId]);
 
   // リフレッシュ
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     console.log('Refreshing project list...');
-    setProjects([...mockProjectsData.projects]);
-  };
+    refetchProjects();
+  }, [refetchProjects]);
 
   // アップロードダイアログを開く
   const handleOpenUploadDialog = useCallback(() => {
@@ -258,7 +311,32 @@ const ProjectManagement: React.FC = () => {
     console.log('Upload completed:', result);
     // TODO: ファイル一覧を更新
     handleRefresh();
-  }, []);
+  }, [handleRefresh]);
+
+  // プロジェクトのファイル一覧を取得
+  useEffect(() => {
+    const loadProjectFiles = async () => {
+      if (!selectedProjectId) return;
+      
+      try {
+        const response = await fetchProjectFiles(selectedProjectId);
+        if (response.success && response.data.files) {
+          setProjectFilesData(prev => ({
+            ...prev,
+            [selectedProjectId]: {
+              root: response.data.files,
+              archive: response.data.archiveFiles || [],
+            }
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch project files:', error);
+        message.error('ファイル一覧の取得に失敗しました');
+      }
+    };
+    
+    loadProjectFiles();
+  }, [selectedProjectId]);
 
   // 選択したプロジェクトとそのファイル一覧を取得
   const selectedProject = useMemo(() => {
@@ -267,7 +345,7 @@ const ProjectManagement: React.FC = () => {
 
   const projectFiles = useMemo(() => {
     if (!selectedProjectId) return [];
-    const projectData = (mockFilesData.files as any)[selectedProjectId];
+    const projectData = projectFilesData[selectedProjectId];
     if (!projectData) return [];
     
     if (currentFolder === 'root') {
@@ -311,7 +389,7 @@ const ProjectManagement: React.FC = () => {
     }
     
     return [];
-  }, [selectedProjectId, currentFolder, selectedProject]);
+  }, [selectedProjectId, currentFolder, selectedProject, projectFilesData]);
 
   // タスク結果一覧を取得（統合されたmockProjects.jsonから取得）
   const taskResults = useMemo(() => {
@@ -409,6 +487,99 @@ const ProjectManagement: React.FC = () => {
     // TODO: 成功時にプロジェクトをチェックアウト状態に更新
   }, []);
 
+  // 問題確認モーダルを開く
+  const handleOpenIssueManagement = useCallback(() => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+    setIssueManagementModalOpen(true);
+  }, [selectedProject]);
+
+  // 問題確認モーダルを閉じる
+  const handleCloseIssueManagement = useCallback(() => {
+    setIssueManagementModalOpen(false);
+  }, []);
+
+  // モックの問題データ（将来的にAPIから取得）
+  const mockIssues = useMemo(() => {
+    if (!selectedProject) return [];
+    // TODO: 実際のAPIから取得する
+    return [];
+  }, [selectedProject]);
+
+  // Phase 6追加: 編集ボタンクリックハンドラー
+  const handleEditButtonClick = useCallback(() => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+
+    console.log('✏️ [ProjectManagement] Edit button clicked:', selectedProject.id);
+
+    // Draftチェック
+    const draftKey = `petri-net-draft-${selectedProject.id}`;
+    const draftData = localStorage.getItem(draftKey);
+    
+    if (draftData) {
+      try {
+        const draft = JSON.parse(draftData);
+        const info = {
+          savedAt: draft.savedAt || new Date().toISOString(),
+          methodCount: draft.methods?.length || 0,
+          nodeCount: draft.nodes?.length || 0
+        };
+        
+        console.log('💾 [ProjectManagement] Draft found:', info);
+        setDraftInfo(info);
+        setDraftRestoreDialogOpen(true);
+        return;
+      } catch (error) {
+        console.error('❌ [ProjectManagement] Draft parse error:', error);
+      }
+    }
+
+    // Draftがない場合は直接エディタへ
+    console.log('➡️ [ProjectManagement] No draft, opening editor directly');
+    const params: ProjectEditParams = {
+      projectId: selectedProject.id,
+      projectName: selectedProject.name,
+      projectOverview: selectedProject.description
+    };
+    onEdit?.(params);
+  }, [selectedProject, onEdit]);
+
+  // Phase 6追加: Draft復元ハンドラー
+  const handleRestoreDraft = useCallback(() => {
+    console.log('💾 [ProjectManagement] Restoring draft');
+    setDraftRestoreDialogOpen(false);
+    if (selectedProject) {
+      const params: ProjectEditParams = {
+        projectId: selectedProject.id,
+        projectName: selectedProject.name,
+        projectOverview: selectedProject.description
+      };
+      onEdit?.(params);
+    }
+  }, [selectedProject, onEdit]);
+
+  // Phase 6追加: 新規作成/既存ファイルハンドラー
+  const handleCreateNewOrExisting = useCallback(() => {
+    console.log('🆕 [ProjectManagement] Create new or open existing');
+    setDraftRestoreDialogOpen(false);
+    if (selectedProject) {
+      // Draftを削除してから開く
+      const draftKey = `petri-net-draft-${selectedProject.id}`;
+      localStorage.removeItem(draftKey);
+      const params: ProjectEditParams = {
+        projectId: selectedProject.id,
+        projectName: selectedProject.name,
+        projectOverview: selectedProject.description
+      };
+      onEdit?.(params);
+    }
+  }, [selectedProject, onEdit]);
+
   // 新規プロジェクト作成モーダルを開く
   const handleOpenCreateModal = useCallback(() => {
     setCreateModalOpen(true);
@@ -418,6 +589,89 @@ const ProjectManagement: React.FC = () => {
   const handleCloseCreateModal = useCallback(() => {
     setCreateModalOpen(false);
   }, []);
+
+  // ダイアログを開く
+  const handleViewFile = useCallback((file: any) => {
+    // 上限チェック（5個まで）
+    if (openDialogs.length >= 5) {
+      message.warning('同時に開けるダイアログは5個までです');
+      return;
+    }
+
+    const id = `${file.id}-${Date.now()}`;
+    const offset = openDialogs.length * 30;  // カスケード配置
+    
+    const newDialog: OpenDialog = {
+      id,
+      contentType: 'file',  // ファイル表示
+      file,
+      zIndex: nextZIndex,
+      position: { x: 100 + offset, y: 100 + offset }
+    };
+    
+    setOpenDialogs(prev => [...prev, newDialog]);
+    setNextZIndex(prev => prev + 1);
+  }, [openDialogs, nextZIndex]);
+
+  // ダイアログを閉じる
+  const handleCloseDialog = useCallback((id: string) => {
+    setOpenDialogs(prev => prev.filter(d => d.id !== id));
+  }, []);
+
+  // ダイアログをフォーカス（最前面に）
+  const handleFocusDialog = useCallback((id: string) => {
+    setOpenDialogs(prev => 
+      prev.map(d => 
+        d.id === id 
+          ? { ...d, zIndex: nextZIndex }
+          : d
+      )
+    );
+    setNextZIndex(prev => prev + 1);
+  }, [nextZIndex]);
+
+  // SubNetViewerを開く
+  const handleViewSubnet = useCallback((subnetData: {
+    transitionName: string;
+    maimlData: string;
+    templateMap: Record<string, { element: Element }>;
+    petriNetData: {
+      places: Array<{
+        id: string;
+        data: {
+          label?: string;
+          stereotype?: string;
+          template?: { id: string };
+          templateId?: string;
+        };
+      }>;
+      arcs: Array<{
+        id: string;
+        source: string;
+        target: string;
+      }>;
+    };
+  }) => {
+    // 上限チェック（5個まで）
+    if (openDialogs.length >= 5) {
+      message.warning('同時に開けるダイアログは5個までです');
+      return;
+    }
+
+    const id = `subnet-${subnetData.transitionName}-${Date.now()}`;
+    const offset = openDialogs.length * 30;  // カスケード配置
+    
+    const newDialog: OpenDialog = {
+      id,
+      contentType: 'subnet',
+      subnetData,
+      zIndex: nextZIndex,
+      position: { x: 150 + offset, y: 150 + offset }
+    };
+    
+    setOpenDialogs(prev => [...prev, newDialog]);
+    setNextZIndex(prev => prev + 1);
+  }, [openDialogs, nextZIndex]);
 
   // 新規プロジェクト作成ハンドラ
   const handleCreateProject = useCallback(async (data: CreateProjectData) => {
@@ -701,6 +955,8 @@ const ProjectManagement: React.FC = () => {
                   <Button
                     type="primary"
                     icon={<EditOutlined />}
+                    onClick={handleEditButtonClick}
+                    disabled={!selectedProject}
                   >
                     {t('projectManagement.edit')}
                   </Button>
@@ -711,6 +967,14 @@ const ProjectManagement: React.FC = () => {
                     style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                   >
                     {isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<ExclamationCircleOutlined />}
+                    onClick={handleOpenIssueManagement}
+                    style={{ backgroundColor: token.colorWarning, borderColor: token.colorWarning }}
+                  >
+                    問題確認
                   </Button>
                   <Button
                     type="primary"
@@ -728,7 +992,7 @@ const ProjectManagement: React.FC = () => {
                 </Space>
               </Card>
 
-              {/* タブ */}
+              {/* タブとコンテンツ */}
               <Tabs
                 activeKey={currentTab}
                 onChange={(key) => setCurrentTab(key as 'file_management' | 'task_results')}
@@ -736,31 +1000,20 @@ const ProjectManagement: React.FC = () => {
                   {
                     key: 'file_management',
                     label: t('projectManagement.tabs.file_management'),
+                    children: (
+                      <FileListTable
+                        files={projectFiles}
+                        onFileClick={(file) => console.log('File clicked:', file.name)}
+                        onFolderClick={handleFolderClick}
+                        onViewFile={handleViewFile}
+                      />
+                    ),
                   },
                   {
                     key: 'task_results',
                     label: t('projectManagement.tabs.task_results'),
-                  },
-                ]}
-                style={{
-                  borderBottom: `1px solid ${token.colorBorderSecondary}`,
-                  backgroundColor: token.colorBgContainer,
-                  padding: `0 ${token.margin}px`,
-                }}
-              />
-
-              {/* タブコンテンツ */}
-              <div style={{ flex: 1, overflow: 'auto', padding: token.margin }}>
-                {currentTab === 'file_management' && (
-                  <FileListTable
-                    files={projectFiles}
-                    onFileClick={(file) => console.log('File clicked:', file.name)}
-                    onFolderClick={handleFolderClick}
-                  />
-                )}
-                
-                {currentTab === 'task_results' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    children: (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {/* 統計カード */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: token.margin }}>
                       <Card
@@ -860,8 +1113,16 @@ const ProjectManagement: React.FC = () => {
                       onViewResult={handleViewTaskResult}
                     />
                   </div>
-                )}
-              </div>
+                    ),
+                  },
+                ]}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              />
             </>
           ) : (
             <div
@@ -950,6 +1211,45 @@ const ProjectManagement: React.FC = () => {
         onCancel={handleCloseCreateModal}
         onSubmit={handleCreateProject}
       />
+
+      {/* 複数のフローティングダイアログ */}
+      {openDialogs.map(dialog => (
+        <ViewRendererDialog
+          key={dialog.id}
+          id={dialog.id}
+          contentType={dialog.contentType}
+          file={dialog.file}
+          subnetData={dialog.subnetData}
+          zIndex={dialog.zIndex}
+          initialPosition={dialog.position}
+          onClose={handleCloseDialog}
+          onFocus={handleFocusDialog}
+          onOpenSubNetViewer={handleViewSubnet}
+        />
+      ))}
+
+      {/* Phase 6追加: Draft復元確認ダイアログ */}
+      {draftInfo && (
+        <DraftRestoreDialog
+          open={draftRestoreDialogOpen}
+          onClose={() => setDraftRestoreDialogOpen(false)}
+          onRestoreDraft={handleRestoreDraft}
+          onCreateNew={handleCreateNewOrExisting}
+          draftInfo={draftInfo}
+        />
+      )}
+
+      {/* 問題確認モーダル */}
+      {selectedProject && (
+        <IssueManagementModal
+          visible={issueManagementModalOpen}
+          transitionId={selectedProject.id}
+          transitionName={selectedProject.name}
+          issues={mockIssues}
+          onClose={handleCloseIssueManagement}
+          viewMode={true}
+        />
+      )}
     </div>
   );
 };
