@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Space, Typography, Empty, theme } from 'antd';
 import { CheckCircleOutlined, FileOutlined, ToolOutlined, AimOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
-import type { Instruction } from '@/types/experimentWorker';
+import type { Instruction, ProjectStatus } from '@/types/experimentWorker';
 import InstructionCard from './InstructionCard';
 
 const { Title, Text } = Typography;
@@ -10,10 +10,11 @@ interface InstructionGroupProps {
   title: string;
   instructions: Instruction[];
   emoji: string;
+  projectStatus: ProjectStatus | null;
   isClient: boolean;
 }
 
-// アイコンマッピング
+// アイコン
 const getIcon = (iconType: string) => {
   const iconStyle = { marginRight: 8 };
   switch (iconType) {
@@ -36,6 +37,7 @@ export default function InstructionGroup({
   title,
   instructions: groupInstructions,
   emoji,
+  projectStatus,
   isClient,
 }: InstructionGroupProps) {
   const { token } = theme.useToken();
@@ -53,9 +55,13 @@ export default function InstructionGroup({
 
   // メッセージのマッピング
   const noDataMessages: Record<string, string> = {
-    '全体指示': '実験全体への作業指示がありません',
-    'メソッド単位指示': 'メソッドへの作業指示がありません',
+    'プロジェクト指示': '実験全体への作業指示がありません',
+    'タスク指示': 'タスクへの作業指示がありません',
     'トランジション単位指示': 'トランジションへの作業指示がありません',
+    // 後方互換性のため旧名称も残す
+    '全体指示': '実験全体への作業指示がありません',
+    'タスク単位指示': 'タスクへの作業指示がありません',
+    'メソッド単位指示': 'メソッドへの作業指示がありません',
   };
 
   // メソッド単位指示の場合、メソッドごとにグループ化
@@ -63,6 +69,19 @@ export default function InstructionGroup({
     const groups: Record<string, Instruction[]> = {};
     groupInstructions.forEach((instruction) => {
       const key = instruction.methodId || 'unknown';
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(instruction);
+    });
+    return groups;
+  };
+
+  // タスク単位指示の場合、タスクごとにグループ化
+  const groupByTask = () => {
+    const groups: Record<string, Instruction[]> = {};
+    groupInstructions.forEach((instruction) => {
+      const key = instruction.taskId || 'unknown';
       if (!groups[key]) {
         groups[key] = [];
       }
@@ -93,8 +112,8 @@ export default function InstructionGroup({
     }
   };
 
-  // 全体指示の場合は従来通りの表示
-  if (title === '全体指示') {
+  // プロジェクト指示の場合（カードなしで表示）
+  if (title === 'プロジェクト指示' || title === '全体指示') {
     return (
       <div style={{ marginBottom: 32 }}>
         {groupInstructions.length === 0 ? (
@@ -102,35 +121,129 @@ export default function InstructionGroup({
             <Empty description={noDataMessages[title] || '作業指示がありません'} />
           </Card>
         ) : (
-          <>
-            <Space direction="vertical" size="middle" style={{ width: '100%', marginBottom: 16 }}>
-              {groupInstructions.map((instruction) => (
-                <InstructionCard
-                  key={instruction.instructionId}
-                  instruction={instruction}
-                  isClient={isClient}
-                />
-              ))}
-            </Space>
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            {groupInstructions.map((instruction) => (
+              <InstructionCard
+                key={instruction.instructionId}
+                instruction={instruction}
+                projectStatus={projectStatus}
+                isClient={isClient}
+              />
+            ))}
+          </Space>
+        )}
+      </div>
+    );
+  }
 
-            {/* 全体指示の確認完了ボタン */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-              <Button
-                type="primary"
-                size="large"
-                icon={<CheckCircleOutlined />}
-                onClick={() => handleConfirmation(title)}
-                style={{ 
-                  minWidth: 250, 
-                  backgroundColor: token.colorSuccess, 
-                  borderColor: token.colorSuccess 
+  // タスク指示の場合
+  if (title === 'タスク指示' || title === 'タスク単位指示') {
+    const taskGroups = groupByTask();
+    const taskIds = Object.keys(taskGroups);
+
+    if (taskIds.length === 0) {
+      return (
+        <div style={{ marginBottom: 32 }}>
+          <Card>
+            <Empty description={noDataMessages[title] || '作業指示がありません'} />
+          </Card>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ marginBottom: 32 }}>
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          {taskIds.map((taskId) => {
+            const taskInstructions = taskGroups[taskId];
+            const taskName = taskInstructions[0]?.taskName || `タスク ${taskId}`;
+            const isExpanded = expandedItems[taskId] !== false; // デフォルトで展開
+
+            return (
+              <Card
+                key={taskId}
+                style={{
+                  borderRadius: token.borderRadius,
+                  backgroundColor: token.colorBgContainer,
+                  border: `1px solid ${token.colorBorderSecondary}`,
+                  margin: '8px 0',
+                }}
+                styles={{
+                  body: {
+                    padding: '8px',
+                  },
                 }}
               >
-                {title}の確認完了
-              </Button>
-            </div>
-          </>
-        )}
+                {/* タイトル行（タスク名と確認完了ボタン） */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px',
+                    margin: '-8px',
+                    borderRadius: token.borderRadiusSM,
+                  }}
+                >
+                  {/* 展開/折りたたみアイコンとタイトル */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      flex: 1,
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => toggleItem(taskId)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    {isExpanded ? <DownOutlined style={{ marginRight: 8, fontSize: 12 }} /> : <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />}
+                    <Title level={5} style={{ margin: 0, flex: 1 }}>
+                      <ToolOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
+                      {taskName} ({taskInstructions.length}件)
+                    </Title>
+                  </div>
+                  
+                  {/* 確認完了ボタン（展開時のみ表示） */}
+                  {isExpanded && (
+                    <Button
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConfirmation('タスク単位指示', taskName);
+                      }}
+                      style={{ 
+                        backgroundColor: token.colorSuccess, 
+                        borderColor: token.colorSuccess 
+                      }}
+                    >
+                      確認完了
+                    </Button>
+                  )}
+                </div>
+
+                {/* 展開時のみ指示カードを表示 */}
+                {isExpanded && (
+                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+                    {taskInstructions.map((instruction) => (
+                      <InstructionCard
+                        key={instruction.instructionId}
+                        instruction={instruction}
+                        projectStatus={projectStatus}
+                        isClient={isClient}
+                      />
+                    ))}
+                  </Space>
+                )}
+              </Card>
+            );
+          })}
+        </Space>
       </div>
     );
   }
@@ -152,7 +265,7 @@ export default function InstructionGroup({
 
     return (
       <div style={{ marginBottom: 32 }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
           {methodIds.map((methodId) => {
             const methodInstructions = methodGroups[methodId];
             const methodName = methodInstructions[0]?.methodName || `メソッド ${methodId}`;
@@ -165,67 +278,79 @@ export default function InstructionGroup({
                   borderRadius: token.borderRadius,
                   backgroundColor: token.colorBgContainer,
                   border: `1px solid ${token.colorBorderSecondary}`,
+                  margin: '8px 0',
+                }}
+                styles={{
+                  body: {
+                    padding: '8px',
+                  },
                 }}
               >
-                {/* クリック可能なタイトル */}
+                {/* タイトル行（メソッド名と確認完了ボタン） */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    cursor: 'pointer',
-                    padding: token.paddingXS,
-                    marginLeft: -token.paddingXS,
-                    marginRight: -token.paddingXS,
+                    gap: 8,
+                    padding: '8px',
+                    margin: '-8px',
                     borderRadius: token.borderRadiusSM,
                   }}
-                  onClick={() => toggleItem(methodId)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
                 >
-                  {isExpanded ? <DownOutlined style={{ marginRight: 8, fontSize: 12 }} /> : <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />}
-                  <Title level={5} style={{ margin: 0, flex: 1 }}>
-                    <ToolOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-                    {methodName} ({methodInstructions.length}件)
-                  </Title>
+                  {/* 展開/折りたたみアイコンとタイトル */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      flex: 1,
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => toggleItem(methodId)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    {isExpanded ? <DownOutlined style={{ marginRight: 8, fontSize: 12 }} /> : <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />}
+                    <Title level={5} style={{ margin: 0, flex: 1 }}>
+                      <ToolOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
+                      {methodName} ({methodInstructions.length}件)
+                    </Title>
+                  </div>
+                  
+                  {/* 確認完了ボタン（展開時のみ表示） */}
+                  {isExpanded && (
+                    <Button
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConfirmation('メソッド単位指示', methodName);
+                      }}
+                      style={{ 
+                        backgroundColor: token.colorSuccess, 
+                        borderColor: token.colorSuccess 
+                      }}
+                    >
+                      確認完了
+                    </Button>
+                  )}
                 </div>
 
-                {/* 展開時のみ表示 */}
+                {/* 展開時のみ指示カードを表示 */}
                 {isExpanded && (
-                  <>
-                    <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 16, marginBottom: 16 }}>
-                      {methodInstructions.map((instruction) => (
-                        <InstructionCard
-                          key={instruction.instructionId}
-                          instruction={instruction}
-                          isClient={isClient}
-                        />
-                      ))}
-                    </Space>
-
-                    {/* メソッド単位の確認完了ボタン */}
-                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-                      <Button
-                        type="primary"
-                        size="large"
-                        icon={<CheckCircleOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleConfirmation('メソッド単位指示', methodName);
-                        }}
-                        style={{ 
-                          minWidth: 250, 
-                          backgroundColor: token.colorSuccess, 
-                          borderColor: token.colorSuccess 
-                        }}
-                      >
-                        {methodName}の確認完了
-                      </Button>
-                    </div>
-                  </>
+                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+                    {methodInstructions.map((instruction) => (
+                      <InstructionCard
+                        key={instruction.instructionId}
+                        instruction={instruction}
+                        projectStatus={projectStatus}
+                        isClient={isClient}
+                      />
+                    ))}
+                  </Space>
                 )}
               </Card>
             );
@@ -252,7 +377,7 @@ export default function InstructionGroup({
 
     return (
       <div style={{ marginBottom: 32 }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
           {transitionIds.map((transitionId) => {
             const transitionInstructions = transitionGroups[transitionId];
             const transitionName = transitionInstructions[0]?.transitionName || `トランジション ${transitionId}`;
@@ -265,67 +390,79 @@ export default function InstructionGroup({
                   borderRadius: token.borderRadius,
                   backgroundColor: token.colorBgContainer,
                   border: `1px solid ${token.colorBorderSecondary}`,
+                  margin: '8px 0',
+                }}
+                styles={{
+                  body: {
+                    padding: '8px',
+                  },
                 }}
               >
-                {/* クリック可能なタイトル */}
+                {/* タイトル行（トランジション名と確認完了ボタン） */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    cursor: 'pointer',
-                    padding: token.paddingXS,
-                    marginLeft: -token.paddingXS,
-                    marginRight: -token.paddingXS,
+                    gap: 8,
+                    padding: '8px',
+                    margin: '-8px',
                     borderRadius: token.borderRadiusSM,
                   }}
-                  onClick={() => toggleItem(transitionId)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
                 >
-                  {isExpanded ? <DownOutlined style={{ marginRight: 8, fontSize: 12 }} /> : <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />}
-                  <Title level={5} style={{ margin: 0, flex: 1 }}>
-                    <AimOutlined style={{ marginRight: 8, color: token.colorInfo }} />
-                    {transitionName} ({transitionInstructions.length}件)
-                  </Title>
+                  {/* 展開/折りたたみアイコンとタイトル */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      flex: 1,
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => toggleItem(transitionId)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    {isExpanded ? <DownOutlined style={{ marginRight: 8, fontSize: 12 }} /> : <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />}
+                    <Title level={5} style={{ margin: 0, flex: 1 }}>
+                      <AimOutlined style={{ marginRight: 8, color: token.colorInfo }} />
+                      {transitionName} ({transitionInstructions.length}件)
+                    </Title>
+                  </div>
+                  
+                  {/* 確認完了ボタン（常に表示） */}
+                  {isExpanded && (
+                    <Button
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConfirmation('トランジション単位指示', transitionName);
+                      }}
+                      style={{ 
+                        backgroundColor: token.colorSuccess, 
+                        borderColor: token.colorSuccess 
+                      }}
+                    >
+                      確認完了
+                    </Button>
+                  )}
                 </div>
 
-                {/* 展開時のみ表示 */}
+                {/* 展開時のみ指示カードを表示 */}
                 {isExpanded && (
-                  <>
-                    <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 16, marginBottom: 16 }}>
-                      {transitionInstructions.map((instruction) => (
-                        <InstructionCard
-                          key={instruction.instructionId}
-                          instruction={instruction}
-                          isClient={isClient}
-                        />
-                      ))}
-                    </Space>
-
-                    {/* トランジション単位の確認完了ボタン */}
-                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-                      <Button
-                        type="primary"
-                        size="large"
-                        icon={<CheckCircleOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleConfirmation('トランジション単位指示', transitionName);
-                        }}
-                        style={{ 
-                          minWidth: 250, 
-                          backgroundColor: token.colorSuccess, 
-                          borderColor: token.colorSuccess 
-                        }}
-                      >
-                        {transitionName}の確認完了
-                      </Button>
-                    </div>
-                  </>
+                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+                    {transitionInstructions.map((instruction) => (
+                      <InstructionCard
+                        key={instruction.instructionId}
+                        instruction={instruction}
+                        projectStatus={projectStatus}
+                        isClient={isClient}
+                      />
+                    ))}
+                  </Space>
                 )}
               </Card>
             );

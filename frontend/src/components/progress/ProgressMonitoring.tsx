@@ -19,9 +19,12 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
-import mockProjectsData from '@/data/mock/mockProjects.json';
 import WorkProgressDetailDialog from './WorkProgressDetailDialog';
 import type { FileData, Project } from '@/types/progress';
+import { useApi } from '@/hooks/useApi';
+import { fetchProjects } from '@/utils/apiClient';
+import type { ApiResponse } from '@/types/api';
+import type { ProjectListResponse } from '@/types/project';
 
 const { Text } = Typography;
 
@@ -67,22 +70,36 @@ export default function ProgressMonitoring() {
   const [fileData, setFileData] = useState<FileData | null>(null);
   const [managerId] = useState('manager_001'); // TODO: 実際のログインユーザーIDを使用
 
-  // JSONファイルからデータを読み込み（Project型を使用）
-  const allData: ProgressRecord[] = mockProjectsData.projects.map(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (item: any, index: number) => ({
-      key: `${index + 1}`,
-      projectId: item.id,
-      projectName: item.name,
-      projectStatus: item.status,
-      department: item.department,
-      isCheckedOut: item.isCheckedOut,
-      ownerEmail: item.ownerEmail || '',
-      ownerName: item.ownerName || item.owner,
-      completedTasks: item.completedTasks,
-      totalTasks: item.totalTasks,
-    })
+  // プロジェクト一覧をAPI経由で取得
+  const { 
+    data: projectsData, 
+    isLoading: isLoadingProjects, 
+    error: projectsError, 
+    refetch: refetchProjects 
+  } = useApi<ApiResponse<ProjectListResponse>>(
+    fetchProjects,
+    []
   );
+
+  // APIから取得したデータを進捗記録形式に変換
+  const allData: ProgressRecord[] = useMemo(() => {
+    if (!projectsData?.data.projects) return [];
+    
+    return projectsData.data.projects.map(
+      (item, index) => ({
+        key: `${index + 1}`,
+        projectId: item.id,
+        projectName: item.name,
+        projectStatus: item.status,
+        department: item.department || '',
+        isCheckedOut: item.isCheckedOut || false,
+        ownerEmail: item.ownerEmail || '',
+        ownerName: item.ownerName || item.owner || '',
+        completedTasks: item.completedTasks || 0,
+        totalTasks: item.totalTasks || 0,
+      })
+    );
+  }, [projectsData]);
 
   // ユニークな部門リストを取得
   const departments = useMemo(() => {
@@ -256,6 +273,7 @@ export default function ProgressMonitoring() {
 
   const handleRefresh = () => {
     console.log('Refresh data');
+    refetchProjects();
   };
 
   // Ant Design Tableのカラム定義

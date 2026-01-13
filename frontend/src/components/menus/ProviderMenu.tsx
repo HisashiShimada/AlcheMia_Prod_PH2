@@ -22,11 +22,6 @@ const OrganizationManagementMock = dynamic(
   { ssr: false }
 );
 
-const CompanyManagementMock = dynamic(
-  () => import('../../../mock/components/CompanyManagementMock'),
-  { ssr: false }
-);
-
 const InformationDownloadMock = dynamic(
   () => import('../../../mock/components/InformationDownloadMock'),
   { ssr: false }
@@ -57,16 +52,11 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
   const tabItems = [
     {
       key: '1',
-      label: t('menu.provider.tabs.companyManagement'),
-      icon: <AuditOutlined />,
-    },
-    {
-      key: '2',
       label: t('menu.provider.tabs.organizationManagement'),
       icon: <ShopOutlined />,
     },
     {
-      key: '3',
+      key: '2',
       label: t('menu.provider.tabs.informationDownload'),
       icon: <DatabaseOutlined />,
     },
@@ -106,18 +96,31 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
           height: `calc(100vh - ${HEADER_TOTAL_HEIGHT}px)`,
           overflow: 'auto',
           background: token.colorBgContainer,
-          padding: 0,
+          padding: `0 ${token.paddingContentHorizontal}px`,
         }}
       >
-        <div>
-          {/* タブ1: 会社管理 */}
-          {currentTab === '1' && <CompanyManagementMock />}
+        <div style={{ maxWidth: 1600, margin: '0 auto' }}>
+          {/* タブ1: 組織管理 */}
+          {currentTab === '1' && <OrganizationManagementMock />}
           
-          {/* タブ2: 組織管理 */}
-          {currentTab === '2' && <OrganizationManagementMock />}
+          {/* タブ2: 情報ダウンロード */}
+          {currentTab === '2' && <InformationDownloadMock />}
           
-          {/* タブ3: 情報ダウンロード */}
-          {currentTab === '3' && <InformationDownloadMock />}
+          {/* タブ3-6: 未実装 */}
+          {/* {['3', '4', '5', '6'].includes(currentTab) && (
+            <Card
+              style={{
+                minHeight: 400,
+              }}
+            >
+            <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG }}>
+                {currentTabLabel}
+              </Title>
+              <Text type="secondary">
+                {t('content.notImplemented')}
+              </Text>
+            </Card>
+          )} */}
         </div>
       </Content>
     </Layout>

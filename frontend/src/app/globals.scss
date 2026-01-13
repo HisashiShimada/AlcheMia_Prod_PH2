@@ -9,10 +9,14 @@ $color-gray-medium: #d9d9d9;
 $color-gray-hover: #bfbfbf;
 $color-text-primary: #212121;
 
+// ブランドカラー
+$color-brand-primary: #CF0027;
+
 // CSS変数（ランタイムで必要）
 :root {
   --background: #{$color-white};
   --foreground: #171717;
+  --color-brand-primary: #{$color-brand-primary};
 }
 
 @theme inline {
