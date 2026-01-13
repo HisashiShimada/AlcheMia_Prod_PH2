@@ -49,7 +49,7 @@ export function useInstructions() {
     () => ({
       total: instructions.length,
       file: instructions.filter((i) => i.targetType === 'file').length,
-      method: instructions.filter((i) => i.targetType === 'task').length, // 後方互換性のためmethodキーを維持、taskでフィルタ
+      method: instructions.filter((i) => i.targetType === 'method').length,
       transition: instructions.filter((i) => i.targetType === 'transition')
         .length,
       unread: instructions.filter((i) => !i.isRead).length,

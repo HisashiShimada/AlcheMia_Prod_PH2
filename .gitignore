@@ -2,6 +2,11 @@
 node_modules/
 **/node_modules/
 
+# ui
+frontend/src/components/demo
+frontend/src/app/demo
+docs/design/ui
+
 # Build output
 backend/dist/
 backend/build/
@@ -74,4 +79,3 @@ Thumbs.db
 .npm
 .eslintcache
 .node_repl_history
-.clinerules/ui_design_policy.md

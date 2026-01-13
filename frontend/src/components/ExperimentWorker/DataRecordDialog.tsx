@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   Form,
@@ -18,12 +18,6 @@ import {
   Row,
   Col,
   message,
-  Collapse,
-  theme,
-  Select,
-  Card,
-  Layout,
-  Slider,
 } from 'antd';
 import {
   PlusOutlined,
@@ -31,12 +25,6 @@ import {
   UploadOutlined,
   SaveOutlined,
   CloseOutlined,
-  FileTextOutlined,
-  DownOutlined,
-  RightOutlined,
-  SearchOutlined,
-  AppstoreOutlined,
-  InfoCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import {
@@ -44,26 +32,16 @@ import {
   ExperimentDataValue,
   Transition,
   Template,
-  TemplateCategory,
-  TransitionStatus,
-  ProjectStatus,
-  isEditableStatus,
 } from '@/types/experimentWorker';
-import { templatesList } from '@/data/projectsData';
-import InstructionConfirmationModal from './InstructionConfirmationModal';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
-const { Sider, Content } = Layout;
 
 interface DataRecordDialogProps {
   open: boolean;
   transition: Transition | null;
-  projectStatus: ProjectStatus | null;
   onClose: () => void;
   onSave: (data: ExperimentDataValue[]) => void;
-  projectId?: string;
-  methodId?: string;
 }
 
 /**
@@ -73,118 +51,13 @@ interface DataRecordDialogProps {
 export default function DataRecordDialog({
   open,
   transition,
-  projectStatus,
   onClose,
   onSave,
-  projectId,
-  methodId,
 }: DataRecordDialogProps) {
-  const { token } = theme.useToken();
   const [form] = Form.useForm();
   const [formData, setFormData] = useState<Record<string, ExperimentDataValue>>({});
   const [dataGrids, setDataGrids] = useState<Record<string, number[][]>>({});
   const [loading, setLoading] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-  
-  // 作業指示モーダルの状態
-  const [instructionModalOpen, setInstructionModalOpen] = useState(false);
-
-  // テンプレート一覧用の状態
-  const [templateSearchText, setTemplateSearchText] = useState('');
-  const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<TemplateCategory | undefined>(undefined);
-  const [templatesExpanded, setTemplatesExpanded] = useState(true);
-  
-  // テンプレート選択状態（単一選択）
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-  
-  // プロパティ入力フォームの折りたたみ状態
-  const [propertyFormExpanded, setPropertyFormExpanded] = useState(true);
-
-  // ステータス更新セクションの折りたたみ状態
-  // プロジェクトの状態が編集可能でない場合は折りたたむ
-  const [statusUpdateExpanded, setStatusUpdateExpanded] = useState(true);
-  
-  // プロジェクトの状態が編集可能かどうか
-  const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
-
-  // ステータスとコメント用の状態
-  const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>('initial');
-  const [comment, setComment] = useState('');
-  const [progress, setProgress] = useState<number>(0);
-  
-  // みなし進捗更新用の状態
-  const [useDeemedProgress, setUseDeemedProgress] = useState(true);
-
-  // ステータスの選択肢
-  const statusOptions = [
-    { value: 'initial' as TransitionStatus, label: '初期状態' },
-    { value: 'preparing' as TransitionStatus, label: '準備状態' },
-    { value: 'ready' as TransitionStatus, label: '準備完了状態' },
-    { value: 'running' as TransitionStatus, label: '動作状態' },
-    { value: 'paused' as TransitionStatus, label: '休止状態' },
-    { value: 'completed' as TransitionStatus, label: '終状態' },
-    { value: 'error' as TransitionStatus, label: '異常終了状態' },
-  ];
-
-  // クライアント判定
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // テンプレート一覧のフィルタリング
-  const filteredTemplates = useMemo(() => {
-    let filtered = templatesList;
-
-    // テンプレート名でのあいまい検索
-    if (templateSearchText) {
-      filtered = filtered.filter((template) =>
-        template.name.toLowerCase().includes(templateSearchText.toLowerCase())
-      );
-    }
-
-    // テンプレート種別での絞り込み
-    if (selectedTemplateCategory) {
-      filtered = filtered.filter((template) => template.category === selectedTemplateCategory);
-    }
-
-    return filtered;
-  }, [templateSearchText, selectedTemplateCategory]);
-
-  // 選択されたテンプレートのみを取得
-  const selectedTemplate = useMemo(() => {
-    if (!selectedTemplateId) return null;
-    return filteredTemplates.find(template => 
-      template.templateId === selectedTemplateId
-    );
-  }, [filteredTemplates, selectedTemplateId]);
-
-  // テンプレート種別のラベル変換
-  const getTemplateCategoryLabel = (category: TemplateCategory): string => {
-    switch (category) {
-      case 'Materials':
-        return '材料';
-      case 'Conditions':
-        return '条件';
-      case 'Results':
-        return '結果';
-      default:
-        return category;
-    }
-  };
-
-  // テンプレート種別のタグ色
-  const getTemplateCategoryColor = (category: TemplateCategory): string => {
-    switch (category) {
-      case 'Materials':
-        return 'blue';
-      case 'Conditions':
-        return 'green';
-      case 'Results':
-        return 'orange';
-      default:
-        return 'default';
-    }
-  };
 
   // ダイアログを開いたときにフォームをリセット
   useEffect(() => {
@@ -192,13 +65,6 @@ export default function DataRecordDialog({
       form.resetFields();
       setFormData({});
       setDataGrids({});
-      setSelectedStatus('initial'); // ステータスをリセット
-      setComment(''); // コメントをリセット
-      setProgress(0); // 進捗をリセット
-      setSelectedTemplateId(null); // テンプレート選択状態をリセット
-      
-      // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
-      setStatusUpdateExpanded(isProjectEditable);
       
       // 各テンプレートのDataGridを初期化
       transition.templates?.forEach((template) => {
@@ -212,58 +78,7 @@ export default function DataRecordDialog({
         });
       });
     }
-  }, [open, transition, form, isProjectEditable]);
-
-  // テンプレート保存ハンドラ
-  const handleSaveTemplate = async () => {
-    if (!selectedTemplate) {
-      message.error('テンプレートが選択されていません');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const values = await form.validateFields();
-      
-      const template = selectedTemplate;
-
-      const templateData: ExperimentDataValue = {
-        templateId: template.templateId,
-        category: template.category,
-      };
-      
-      template.properties.forEach((prop) => {
-        const key = `${template.templateId}_${prop.key}`;
-        if (prop.type === 'contentDoubleListType') {
-          templateData[prop.key] = dataGrids[key] || [[0, 0, 0]];
-        } else if (prop.type === 'dateType' || prop.type === 'dateTimeType') {
-          const dateValue = values[key];
-          templateData[prop.key] = dateValue ? dayjs(dateValue).format(
-            prop.type === 'dateType' ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'
-          ) : null;
-        } else {
-          templateData[prop.key] = values[key] ?? null;
-        }
-      });
-      
-      // ステータスとコメントをログ出力（バックエンド実装時に使用）
-      console.log('保存データ:', {
-        transitionId: transition?.transitionId,
-        templateId: template.templateId,
-        status: selectedStatus,
-        comment: comment,
-        experimentData: templateData,
-      });
-      
-      onSave([templateData]);
-      message.success(`「${template.name}」を保存しました（ステータス: ${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`);
-    } catch (error) {
-      console.error('Validation failed:', error);
-      message.error('入力内容を確認してください');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [open, transition, form]);
 
   // フォーム送信ハンドラ
   const handleSubmit = async () => {
@@ -297,16 +112,8 @@ export default function DataRecordDialog({
         recordsData.push(templateData);
       });
       
-      // ステータスとコメントをログ出力（バックエンド実装時に使用）
-      console.log('保存データ:', {
-        transitionId: transition?.transitionId,
-        status: selectedStatus,
-        comment: comment,
-        experimentData: recordsData,
-      });
-      
       onSave(recordsData);
-      message.success(`実験データを保存しました（ステータス: ${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`);
+      message.success('実験データを保存しました');
       onClose();
     } catch (error) {
       console.error('Validation failed:', error);
@@ -406,7 +213,6 @@ export default function DataRecordDialog({
             <TextArea
               rows={3}
               placeholder={`${property.label}を入力`}
-              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -426,7 +232,6 @@ export default function DataRecordDialog({
               max={property.max}
               step={1}
               precision={0}
-              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -446,7 +251,6 @@ export default function DataRecordDialog({
               max={property.max}
               step={0.01}
               precision={2}
-              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -458,7 +262,7 @@ export default function DataRecordDialog({
             name={key}
             valuePropName="checked"
           >
-            <Checkbox disabled={!isProjectEditable}>{property.label}</Checkbox>
+            <Checkbox>{property.label}</Checkbox>
           </Form.Item>
         );
 
@@ -474,7 +278,6 @@ export default function DataRecordDialog({
               style={{ width: '100%' }}
               format="YYYY-MM-DD"
               placeholder={`${property.label}を選択`}
-              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -492,7 +295,6 @@ export default function DataRecordDialog({
               style={{ width: '100%' }}
               format="YYYY-MM-DD HH:mm:ss"
               placeholder={`${property.label}を選択`}
-              disabled={!isProjectEditable}
             />
           </Form.Item>
         );
@@ -514,7 +316,7 @@ export default function DataRecordDialog({
             label={label}
             rules={rules}
           >
-            <Input placeholder={`${property.label}を入力`} disabled={!isProjectEditable} />
+            <Input placeholder={`${property.label}を入力`} />
           </Form.Item>
         );
     }
@@ -534,7 +336,7 @@ export default function DataRecordDialog({
             size="small"
             icon={<DeleteOutlined />}
             onClick={() => handleDeleteColumn(key, colIndex)}
-            disabled={!isProjectEditable || grid[0].length <= 1}
+            disabled={grid[0].length <= 1}
           />
         </Space>
       ),
@@ -547,7 +349,6 @@ export default function DataRecordDialog({
           onChange={(value) => handleDataGridChange(key, rowIndex, colIndex, value)}
           step={0.01}
           style={{ width: '100%' }}
-          disabled={!isProjectEditable}
         />
       ),
     })) || [];
@@ -588,7 +389,7 @@ export default function DataRecordDialog({
                       size="small"
                       icon={<DeleteOutlined />}
                       onClick={() => handleDeleteRow(key, index)}
-                      disabled={!isProjectEditable || grid.length <= 1}
+                      disabled={grid.length <= 1}
                     />
                   </Space>
                 ),
@@ -605,7 +406,6 @@ export default function DataRecordDialog({
               size="small"
               icon={<PlusOutlined />}
               onClick={() => handleAddRow(key)}
-              disabled={!isProjectEditable}
             >
               行を追加
             </Button>
@@ -613,7 +413,6 @@ export default function DataRecordDialog({
               size="small"
               icon={<PlusOutlined />}
               onClick={() => handleAddColumn(key)}
-              disabled={!isProjectEditable}
             >
               列を追加
             </Button>
@@ -665,11 +464,45 @@ export default function DataRecordDialog({
             message.info(`${file.name}をアップロードします（未実装）`);
             return false;
           }}
-          disabled={!isProjectEditable}
         >
-          <Button icon={<UploadOutlined />} disabled={!isProjectEditable}>ファイルを選択</Button>
+          <Button icon={<UploadOutlined />}>ファイルを選択</Button>
         </Upload>
       </Form.Item>
+    );
+  };
+
+  // テンプレート別にフォームをレンダリング
+  const renderTemplateForm = (template: Template) => {
+    return (
+      <div key={template.templateId} style={{ marginBottom: 32 }}>
+        <Alert
+          message={
+            <Space>
+              <Text strong>{template.name}</Text>
+              <Tag color="purple">{template.category}</Tag>
+            </Space>
+          }
+          description={template.description}
+          type="info"
+          style={{ marginBottom: 16 }}
+        />
+        <Row gutter={16}>
+          {template.properties.map((prop) => (
+            <Col
+              key={prop.key}
+              span={
+                prop.type === 'contentDoubleListType' ||
+                prop.type === 'propertyListType' ||
+                prop.type === 'stringType'
+                  ? 24
+                  : 12
+              }
+            >
+              {renderPropertyInput(prop, template.templateId)}
+            </Col>
+          ))}
+        </Row>
+      </div>
     );
   };
 
@@ -689,354 +522,43 @@ export default function DataRecordDialog({
       }
       open={open}
       onCancel={onClose}
-      width={1400}
+      width={1000}
       style={{ top: 20 }}
       footer={[
         <Button
           key="cancel"
+          icon={<CloseOutlined />}
           onClick={onClose}
         >
           キャンセル
         </Button>,
         <Button
-          key="save"
+          key="submit"
           type="primary"
           icon={<SaveOutlined />}
-          onClick={handleSaveTemplate}
           loading={loading}
-          disabled={!isProjectEditable}
+          onClick={handleSubmit}
         >
           保存
         </Button>,
       ]}
     >
-      <div>
-        {/* みなし進捗更新チェックボックスと作業指示ボタン */}
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Checkbox
-            checked={useDeemedProgress}
-            onChange={(e) => setUseDeemedProgress(e.target.checked)}
-          >
-            みなし進捗更新
-          </Checkbox>
-          <Button
-            icon={<InfoCircleOutlined />}
-            onClick={() => setInstructionModalOpen(true)}
-          >
-            作業指示
-          </Button>
-        </div>
-
-        {/* ステータス更新セクション（みなし進捗更新OFF時のみ表示） */}
-        {!useDeemedProgress && (
-          <div style={{ marginBottom: 24 }}>
-            {/* タイトルセクション */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                cursor: 'pointer',
-                padding: token.marginXS,
-                borderRadius: token.borderRadiusSM,
-                marginBottom: token.marginSM,
-              }}
-              onClick={() => setStatusUpdateExpanded(!statusUpdateExpanded)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = token.colorBgSpotlight;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              {statusUpdateExpanded ? (
-                <DownOutlined style={{ marginRight: 8, fontSize: 12 }} />
-              ) : (
-                <RightOutlined style={{ marginRight: 8, fontSize: 12 }} />
-              )}
-              <SaveOutlined style={{ marginRight: 8, color: token.colorPrimary }} />
-              <Text strong style={{ fontSize: 16 }}>
-                ステータス更新
-              </Text>
-            </div>
-
-            {/* 折りたたみ可能なコンテンツ */}
-            {statusUpdateExpanded && (
-              <>
-                {/* 上段：ステータス + 進捗 */}
-                <Row gutter={16}>
-                  {/* ステータス */}
-                  <Col span={8}>
-                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                      ステータス
-                    </Text>
-                    <Select
-                      style={{ width: '100%' }}
-                      placeholder="ステータスを選択"
-                      value={selectedStatus}
-                      onChange={setSelectedStatus}
-                      options={statusOptions}
-                      disabled={!isProjectEditable}
-                    />
-                  </Col>
-
-                  {/* 進捗 */}
-                  <Col span={16}>
-                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                      進捗
-                    </Text>
-                    <Slider
-                      value={progress}
-                      onChange={setProgress}
-                      min={0}
-                      max={100}
-                      step={1}
-                      marks={{
-                        0: '0%',
-                        25: '25%',
-                        50: '50%',
-                        75: '75%',
-                        100: '100%',
-                      }}
-                      tooltip={{
-                        formatter: (value) => `${value}%`,
-                      }}
-                      disabled={!isProjectEditable}
-                    />
-                  </Col>
-                </Row>
-
-                {/* 中段：コメント */}
-                <Row gutter={16} style={{ marginTop: 16 }}>
-                  <Col span={24}>
-                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
-                      コメント
-                    </Text>
-                    <TextArea
-                      rows={3}
-                      placeholder="コメントを入力"
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      disabled={!isProjectEditable}
-                    />
-                  </Col>
-                </Row>
-
-                {/* 下段：保存ボタン */}
-                <Row gutter={16} style={{ marginTop: 16 }}>
-                  <Col span={24} style={{ textAlign: 'right' }}>
-                    <Button
-                      type="primary"
-                      icon={<SaveOutlined />}
-                      onClick={() => {
-                        // ステータス更新の保存処理
-                        console.log('ステータス更新保存:', {
-                          transitionId: transition?.transitionId,
-                          status: selectedStatus,
-                          progress: progress,
-                          comment: comment,
-                        });
-                        message.success(
-                          `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}、進捗: ${progress}%）`
-                        );
-                      }}
-                      disabled={!isProjectEditable}
-                    >
-                      保存
-                    </Button>
-                  </Col>
-                </Row>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* 2カラムレイアウト: サイドバー（テンプレート一覧） + コンテンツ（データ記録） */}
-        <Layout style={{ height: 600, background: 'transparent' }}>
-          {/* 左サイドバー: テンプレート一覧 */}
-          <Sider
-            width={300}
-            style={{
-              background: token.colorBgContainer,
-              borderRight: `1px solid ${token.colorBorder}`,
-              borderRadius: token.borderRadiusSM,
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                padding: token.paddingMD,
-              }}
-            >
-              {/* タイトル */}
-              <div style={{ marginBottom: token.marginMD }}>
-                <Space>
-                  <AppstoreOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
-                  <Text strong style={{ fontSize: 16 }}>
-                    テンプレート一覧
-                  </Text>
-                  <Tag color="blue">{filteredTemplates.length}件</Tag>
-                </Space>
-              </div>
-
-              {/* フィルタリングエリア */}
-              <Space direction="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
-                <Input
-                  placeholder="テンプレート名で検索"
-                  prefix={<SearchOutlined />}
-                  value={templateSearchText}
-                  onChange={(e) => setTemplateSearchText(e.target.value)}
-                  allowClear
-                />
-                <Select
-                  placeholder="テンプレート種別"
-                  value={selectedTemplateCategory}
-                  onChange={setSelectedTemplateCategory}
-                  allowClear
-                  style={{ width: '100%' }}
-                  options={[
-                    { label: '材料', value: 'Materials' },
-                    { label: '条件', value: 'Conditions' },
-                    { label: '結果', value: 'Results' },
-                  ]}
-                />
-              </Space>
-
-              {/* テーブル */}
-              <div style={{ flex: 1, overflow: 'auto' }}>
-                <Table
-                  size="small"
-                  dataSource={filteredTemplates}
-                  rowKey="templateId"
-                  onRow={(record) => ({
-                    onClick: () => {
-                      setSelectedTemplateId(record.templateId);
-                    },
-                    style: { cursor: 'pointer' },
-                  })}
-                  rowClassName={(record) =>
-                    selectedTemplateId === record.templateId
-                      ? 'ant-table-row-selected'
-                      : ''
-                  }
-                  scroll={{ y: 400 }}
-                  pagination={false}
-                  showHeader={false}
-                  columns={[
-                    {
-                      title: 'テンプレート',
-                      dataIndex: 'name',
-                      key: 'name',
-                      render: (name: string, record: Template) => {
-                        // カテゴリーからI/Oを判定
-                        const isOutput = record.category === 'Results';
-                        const ioLabel = isOutput ? 'OUT' : 'IN';
-                        const ioColor = isOutput ? 'green' : 'blue';
-                        const propertyCount = record.properties?.length || 0;
-                        
-                        return (
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <Text strong style={{ fontSize: 13 }}>{name}</Text>
-                              <Text type="secondary" style={{ fontSize: 12 }}>
-                                ({propertyCount}項目)
-                              </Text>
-                            </div>
-                            <div style={{ marginTop: 4 }}>
-                              <Space size="small">
-                                <Tag color={getTemplateCategoryColor(record.category)} style={{ fontSize: 11, margin: 0 }}>
-                                  {getTemplateCategoryLabel(record.category)}
-                                </Tag>
-                                <Tag color={ioColor} style={{ fontSize: 11, margin: 0 }}>
-                                  {ioLabel}
-                                </Tag>
-                              </Space>
-                            </div>
-                          </div>
-                        );
-                      },
-                    },
-                  ]}
-                />
-              </div>
-            </div>
-          </Sider>
-
-          {/* 右コンテンツ: データ記録 */}
-          <Content
-            style={{
-              background: token.colorBgLayout,
-              padding: token.paddingMD,
-              overflow: 'auto',
-            }}
-          >
-            <div style={{ height: '100%' }}>
-              {/* タイトル */}
-              <div style={{ marginBottom: token.marginMD }}>
-                <Space>
-                  <FileTextOutlined style={{ color: token.colorPrimary, fontSize: 18 }} />
-                  <Text strong style={{ fontSize: 16 }}>
-                    データ記録
-                  </Text>
-                  {selectedTemplate && (
-                    <>
-                      <Tag color={getTemplateCategoryColor(selectedTemplate.category)}>
-                        {getTemplateCategoryLabel(selectedTemplate.category)}
-                      </Tag>
-                      <Text strong>{selectedTemplate.name}</Text>
-                    </>
-                  )}
-                </Space>
-              </div>
-
-              {/* フォームまたは選択促進メッセージ */}
-              {selectedTemplate ? (
-                <Form
-                  form={form}
-                  layout="vertical"
-                  autoComplete="off"
-                >
-                  <Row gutter={16}>
-                    {selectedTemplate.properties.map((prop) => (
-                      <Col
-                        key={prop.key}
-                        span={
-                          prop.type === 'contentDoubleListType' ||
-                          prop.type === 'propertyListType'
-                            ? 24
-                            : 12
-                        }
-                      >
-                        {renderPropertyInput(prop, selectedTemplate.templateId)}
-                      </Col>
-                    ))}
-                  </Row>
-                </Form>
-              ) : (
-                <Alert
-                  message="テンプレートを選択してください"
-                  description="左側のテンプレート一覧から記録したいテンプレートを選択してください。"
-                  type="info"
-                  showIcon
-                />
-              )}
-            </div>
-          </Content>
-        </Layout>
-
-      </div>
-
-      {/* 作業指示モーダル */}
-      <InstructionConfirmationModal
-        open={instructionModalOpen}
-        transition={transition}
-        projectId={projectId}
-        methodId={methodId}
-        projectStatus={projectStatus}
-        onCancel={() => setInstructionModalOpen(false)}
-      />
+      {transition?.templates && transition.templates.length > 0 ? (
+        <Form
+          form={form}
+          layout="vertical"
+          autoComplete="off"
+        >
+          {transition.templates.map(renderTemplateForm)}
+        </Form>
+      ) : (
+        <Alert
+          message="テンプレートが設定されていません"
+          description="このトランジションには入力テンプレートが登録されていません。"
+          type="warning"
+          showIcon
+        />
+      )}
     </Modal>
   );
 }

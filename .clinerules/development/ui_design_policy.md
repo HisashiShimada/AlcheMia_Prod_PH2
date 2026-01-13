@@ -30,7 +30,7 @@
 │
 ├─ デザイントークンで対応可能？
 │  ├─ YES → theme.useToken()で取得して使用
-│  └─ NO  → theme.tsに新しいトークンを定義
+│  └─ NO  → デフォルト値で対応する
 │
 └─ 複雑なレイアウトが必要？
    └─ YES → 例外的にEmotionを使用（ただしトークン参照必須）
@@ -48,11 +48,11 @@
 操作の種類は？
 │
 ├─ データを変更する？
-│  ├─ 削除・非アクティブ化など取り返しがつかない
+│  ├─ 削除など取り返しがつかない
 │  │  └─ → パターン3: primary danger
 │  │
 │  ├─ ステータス切替（アクティブ化/非アクティブ化）
-│  │  └─ → パターン4: default + 動的配色
+│  │  └─ → パターン4: switch + 動的配色
 │  │
 │  ├─ ページ内で最重要アクション（保存、検索、新規作成）
 │  │  └─ → パターン1: primary
@@ -61,12 +61,11 @@
 │     └─ → パターン2: default
 │
 └─ データを変更しない？
-   ├─ 軽量なアクション（詳細表示、リンク）
-   │  └─ → パターン5: text/link
-   │
    └─ 通常の表示操作
       └─ → パターン2: default
 ```
+
+**注意:** リンクのような軽量なアクションには、Buttonではなく後述の「Link（リンク）」セクションを参照してください。
 
 #### ▼ サイズの判断
 
@@ -120,9 +119,6 @@
 
 // 条件: 削除など危険な操作
 <Button type="primary" danger icon={<DeleteOutlined />}>削除</Button>
-
-// 条件: 軽量なアクション
-<Button type="link" icon={<EyeOutlined />}>詳細</Button>
 ```
 
 ---
@@ -183,12 +179,30 @@
 #### ▼ 幅の判断
 
 ```
-選択肢の文字数は？
+選択肢の文字数とレイアウトは？
 │
-├─ 短い（5文字以内）   → width: 150px
-├─ 中程度（10文字以内） → width: 200px
-└─ 長い（15文字以内）   → width: 250px
+├─ 短い選択肢（5文字以内）
+│  └─ → 最小幅を確保したコンパクトな配置
+│
+├─ 中程度（10文字以内）
+│  └─ → 標準的な幅での配置
+│
+├─ 長い（15文字以内）
+│  └─ → やや広めの幅での配置
+│
+└─ 非常に長い（15文字超）
+   ├─ 固定レイアウト → 広めの固定幅 + ellipsis対応
+   └─ 可変レイアウト → width: '100%'（親コンテナに応じて）
 ```
+
+**原則: 可変幅（width: '100%'）を推奨**
+- Form.Item、Col、flexコンテナ内では`width: '100%'`を使用
+- 親要素の幅に応じて自動調整され、レスポンシブ対応が容易
+
+**15文字超の場合の対応:**
+- **ellipsis**: 長いテキストを省略表示（`...`）
+- **Tooltip**: ホバー時に全文を表示
+- **maxTagCount**: 複数選択時の表示タグ数を制限（`responsive`推奨）
 
 #### ▼ モードの判断
 
@@ -202,7 +216,53 @@
 ```
 
 ```typescript
-<Select style={{ width: 200 }} mode="multiple" options={[...]} />
+// ✅ 推奨: 可変幅（親要素に応じて自動調整）
+<Form.Item label="カテゴリー">
+  <Select 
+    style={{ width: '100%' }} 
+    mode="multiple" 
+    options={options}
+    maxTagCount="responsive"
+  />
+</Form.Item>
+
+// ✅ 推奨: グリッド内での使用
+<Row gutter={16}>
+  <Col xs={24} md={12}>
+    <Select 
+      style={{ width: '100%' }} 
+      options={options}
+    />
+  </Col>
+</Row>
+
+// 15文字超の長い選択肢の場合（ellipsis + Tooltip）
+<Select 
+  style={{ width: '100%' }} 
+  options={longOptions}
+  optionRender={(option) => (
+    <Tooltip title={option.label}>
+      <div style={{ 
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }}>
+        {option.label}
+      </div>
+    </Tooltip>
+  )}
+  maxTagCount="responsive"
+/>
+
+// ⚠️ 例外: ツールバーなど特殊なレイアウトで固定幅が必要な場合のみ
+// （このケースは最小限に留めること）
+<Space>
+  <Select 
+    style={{ minWidth: 150 }} 
+    options={shortOptions}
+  />
+  <Button>検索</Button>
+</Space>
 ```
 
 ---
@@ -384,11 +444,11 @@ const columns: ColumnsType<DataType> = [
 ```
 通知の種類は？
 │
-├─ 成功   → success（緑）
-├─ エラー → error（赤）
-├─ 警告   → warning（黄）
-├─ 情報   → info（青）
-└─ 処理中 → loading（アニメーション）
+├─ 成功   → success
+├─ エラー → error
+├─ 警告   → warning
+├─ 情報   → info
+└─ 処理中 → loading
 ```
 
 ```typescript
@@ -423,14 +483,17 @@ notification.error({ message: 'エラー', description: '詳細...' });
 ```
 間隔の広さは？
 │
-├─ 狭い   → size="small"
-├─ 通常   → サイズ指定を省略（デフォルト = middle）
-└─ 広い   → size="large"
-```
-
-```typescript
-<Space direction="vertical">{children}</Space>
-<Flex gap="middle" vertical wrap>{children}</Flex>
+├─ コンパクトに配置したい（8px相当）
+│  └─ → size="small"
+│       例: テーブル行内の複数ボタン、タグの並列表示
+│
+├─ 標準的な間隔（16px相当・デフォルト）
+│  └─ → サイズ指定を省略
+│       例: フォーム項目間、カード間の標準的な配置
+│
+└─ ゆとりを持たせたい（24px相当）
+   └─ → size="large"
+        例: セクション間の区切り、重要な要素の分離
 ```
 
 ---
@@ -880,3 +943,67 @@ notification.error({ message: 'エラー', description: '詳細...' });
 ```typescript
 <Popconfirm title="削除しますか？" onConfirm={...} okText="はい" cancelText="いいえ"><Button danger>削除</Button></Popconfirm>
 ```
+
+---
+
+### Link（リンク）
+
+#### ▼ 使用場面の判断
+
+```
+リンクの用途は？
+│
+├─ 詳細表示・画面遷移
+│  └─ → Typography.Link
+│       - テキストベースのリンク
+│       - underline（ホバー時に下線）
+│
+├─ ナビゲーション
+│  └─ → Breadcrumb.Item または Menu.Item
+│       - パンくずリスト
+│       - メニュー項目
+│
+└─ 外部サイトへの遷移
+   └─ → Typography.Link + target="_blank"
+        - 新しいタブで開く
+        - rel="noopener noreferrer" を付与
+```
+
+#### ▼ 実装例
+
+```typescript
+// 条件: 詳細表示・画面遷移
+<Typography.Link onClick={() => navigate(`/detail/${id}`)}>
+  詳細を見る
+</Typography.Link>
+
+// 条件: テーブル内のリンク
+<Typography.Link icon={<EyeOutlined />} onClick={handleViewDetail}>
+  詳細
+</Typography.Link>
+
+// 条件: 外部サイトへの遷移
+<Typography.Link 
+  href="https://example.com" 
+  target="_blank" 
+  rel="noopener noreferrer"
+>
+  外部サイト <ExternalLinkOutlined />
+</Typography.Link>
+
+// 条件: ナビゲーション（パンくずリスト）
+<Breadcrumb>
+  <Breadcrumb.Item>
+    <Link href="/">ホーム</Link>
+  </Breadcrumb.Item>
+  <Breadcrumb.Item>
+    <Link href="/category">カテゴリ</Link>
+  </Breadcrumb.Item>
+  <Breadcrumb.Item>現在のページ</Breadcrumb.Item>
+</Breadcrumb>
+```
+
+**注意事項:**
+- ボタンのような見た目にしたい場合でも、画面遷移が主目的ならLinkを使用
+- アクション（保存、削除など）が主目的ならButtonを使用
+- `type="link"`のButtonは、既存コードとの互換性のためのみ使用可能（新規実装では非推奨）

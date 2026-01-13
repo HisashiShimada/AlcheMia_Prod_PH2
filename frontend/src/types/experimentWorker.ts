@@ -2,7 +2,7 @@
 export type Priority = 'high' | 'medium' | 'normal' | 'low';
 
 // 対象タイプ
-export type TargetType = 'file' | 'method' | 'transition' | 'task';
+export type TargetType = 'file' | 'method' | 'transition';
 
 // 指示タイプ
 export type InstructionType = 'safety' | 'setup' | 'measurement' | 'cleanup' | 'general';
@@ -37,8 +37,6 @@ export interface Instruction {
   transitionName?: string;
   methodId?: string;
   methodName?: string;
-  taskId?: string;
-  taskName?: string;
   content: string;
   priority: Priority;
   instructionType: InstructionType;
@@ -148,57 +146,16 @@ export interface PastExperimentData {
   createdAt: string;
 }
 
-// プロジェクト状態
-export type ProjectStatus = 
-  | 'planning'           // 計画中
-  | 'waiting_task'       // タスク実行待ち
-  | 'executing_task'     // タスク実行中
-  | 'waiting_approval'   // 承認待ち
-  | 'completed';         // 完了
-
 // プロジェクトデータ
 export interface ProjectData {
   projectId: string;
   projectName: string;
-  description?: string; // プロジェクトの説明
   fileName: string;
-  status: ProjectStatus; // プロジェクト状態
   workAssignment: WorkAssignment;
   instructions: Instruction[];
   transitionDetails: Record<string, TransitionDetail>;
   methods?: Method[];
   progressData?: TransitionProgress[];
-}
-
-/**
- * プロジェクト状態のヘルパー関数
- */
-
-/**
- * 編集可能な状態かどうかを判定
- * @param status プロジェクト状態
- * @returns 編集可能な場合true
- */
-export function isEditableStatus(status: ProjectStatus): boolean {
-  return ['waiting_task', 'executing_task'].includes(status);
-}
-
-/**
- * プロジェクト選択可能な状態かどうかを判定
- * @param status プロジェクト状態
- * @returns 選択可能な場合true
- */
-export function isSelectableStatus(status: ProjectStatus): boolean {
-  return ['waiting_task', 'executing_task', 'waiting_approval'].includes(status);
-}
-
-/**
- * トランジション記録が可能な状態かどうかを判定
- * @param status プロジェクト状態
- * @returns 記録可能な場合true
- */
-export function isRecordableStatus(status: ProjectStatus): boolean {
-  return ['waiting_task', 'executing_task', 'waiting_approval'].includes(status);
 }
 
 // 統計情報
@@ -213,21 +170,10 @@ export interface Stats {
 // 進捗ステータス
 export type ProgressStatus = 'not_started' | 'in_progress' | 'completed' | 'on_hold' | 'issue';
 
-// トランジションステータス（実験データ記録用）
-export type TransitionStatus = 
-  | 'initial'           // 初期状態
-  | 'preparing'         // 準備状態
-  | 'ready'             // 準備完了状態
-  | 'running'           // 動作状態
-  | 'paused'            // 休止状態
-  | 'completed'         // 終状態
-  | 'error';            // 異常終了状態
-
 // トランジション進捗情報
 export interface TransitionProgress {
   transitionId: string;
   transitionName: string;
-  taskId?: string; // タスクID（Phase 6で追加）
   taskName?: string; // タスク名（Phase 6で追加）
   methodId: string;
   methodName: string;
@@ -254,9 +200,6 @@ export type TaskStatus =
 // タスクデータ（実験作業タブ用）
 export interface Task {
   taskId: string;              // タスクID
-  projectId?: string;          // プロジェクトID（Phase 7追加: プロジェクト選択連動用）
-  methodId?: string;           // メソッドID（Phase 7追加: プロジェクト選択連動用）
-  methodName: string;          // メソッド名（Phase 1追加: グループ化・折りたたみ用）
   taskName: string;            // タスク名
   sampleNumber: string;        // サンプル番号
   notes: string;               // 備考
@@ -273,69 +216,4 @@ export interface WorkflowStatistics {
   inProgress: number;    // 作業中数
   completed: number;     // 完了数
   progressRate: number;  // 進捗率（%）
-}
-
-// ===== Phase: 問題報告モーダル用の型定義 =====
-
-// 問題タイプ（問題報告モーダル用）
-export type IssueType = 
-  | 'material_shortage'    // 材料不足
-  | 'equipment_failure'    // 機器故障
-  | 'procedure_unclear'    // 手順不明確
-  | 'safety_concern'       // 安全性の懸念
-  | 'quality_issue'        // 品質問題
-  | 'time_constraint'      // 時間制約
-  | 'other';               // その他
-
-// 問題報告データ（問題報告モーダル用）
-export interface IssueReportData {
-  taskId: string;          // タスクID
-  issueType: IssueType;    // 問題タイプ
-  comment: string;         // コメント
-  reportedAt?: string;     // 報告日時（バックエンドで設定）
-  reportedBy?: string;     // 報告者（バックエンドで設定）
-}
-
-// ===== Phase: 問題管理（参照・コメント）用の型定義 =====
-
-// 問題状態（未解決/解決済）
-export type IssueStatus = 'unresolved' | 'resolved';
-
-// 問題対象タイプ（プロジェクト/タスク/トランジション）
-export type IssueTargetType = 'project' | 'task' | 'transition';
-
-// 問題コメント
-export interface IssueComment {
-  commentId: string;       // コメントID
-  issueId: string;         // 問題ID
-  content: string;         // コメント内容
-  createdBy: User;         // 記入者
-  createdAt: string;       // 記入時刻
-}
-
-// 問題
-export interface Issue {
-  issueId: string;         // 問題ID
-  transitionId: string;    // トランジションID
-  transitionName: string;  // トランジション名
-  projectId?: string;      // プロジェクトID（対象がプロジェクトの場合）
-  projectName?: string;    // プロジェクト名（対象がプロジェクトの場合）
-  taskId?: string;         // タスクID（対象がタスクの場合）
-  taskName?: string;       // タスク名（対象がタスクの場合）
-  title: string;           // タイトル
-  content: string;         // 内容
-  status: IssueStatus;     // 状態（未解決/解決済）
-  targetType: IssueTargetType; // 対象（プロジェクト/タスク/トランジション）
-  issueType?: IssueType;   // 問題タイプ（材料不足/機器故障/etc.）
-  reportedBy: User;        // 報告者
-  reportedAt: string;      // 報告時刻
-  comments: IssueComment[]; // コメント一覧
-}
-
-// 問題報告フォームデータ
-export interface IssueReportFormData {
-  title: string;           // タイトル
-  targetType: IssueTargetType; // 対象
-  issueType: IssueType;    // 問題タイプ
-  content: string;         // 内容
 }

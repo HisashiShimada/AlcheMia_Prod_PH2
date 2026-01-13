@@ -9,10 +9,9 @@ import {
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
-import ProjectManagement, { ProjectEditParams } from '../project/ProjectManagement';
+import ProjectManagement from '../project/ProjectManagement';
 import FormatManagement from '../project/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
-import PetriNetEditorScreen from '../viewer/PetriNetEditorScreen';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -42,10 +41,6 @@ export default function ExperimentAdminMenu({
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
-  
-  // Phase 6追加: エディタ表示用のステート
-  const [showEditor, setShowEditor] = useState(false);
-  const [editorProjectParams, setEditorProjectParams] = useState<ProjectEditParams | null>(null);
 
   const tabItems = [
     {
@@ -75,20 +70,6 @@ export default function ExperimentAdminMenu({
     }
   };
 
-  // Phase 6追加: 編集画面表示ハンドラー
-  const handleEditProject = (params: ProjectEditParams) => {
-    console.log('✏️ [ExperimentAdminMenu] Edit project:', params);
-    setEditorProjectParams(params);
-    setShowEditor(true);
-  };
-
-  // Phase 6追加: 編集画面を閉じるハンドラー
-  const handleCloseEditor = () => {
-    console.log('🔙 [ExperimentAdminMenu] Close editor');
-    setShowEditor(false);
-    setEditorProjectParams(null);
-  };
-
   const currentTabLabel = tabItems.find(item => item.key === currentTab)?.label || '';
 
   // タブ '1', '2', '3' は全幅表示
@@ -99,19 +80,6 @@ export default function ExperimentAdminMenu({
   const SUBHEADER_HEIGHT = 76;
   const TOTAL_HEADER_HEIGHT = HEADER_HEIGHT + SUBHEADER_HEIGHT;
 
-  // Phase 6追加: エディタ表示時は専用画面を表示
-  if (showEditor && editorProjectParams) {
-    return (
-      <PetriNetEditorScreen
-        projectId={editorProjectParams.projectId}
-        projectName={editorProjectParams.projectName}
-        projectOverview={editorProjectParams.projectOverview}
-        onClose={handleCloseEditor}
-      />
-    );
-  }
-
-  // 通常の管理画面
   return (
     <Layout style={{ minHeight: '100vh', backgroundColor: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
@@ -136,7 +104,7 @@ export default function ExperimentAdminMenu({
         {currentTab === '1' ? (
           // プロジェクト管理: 全幅表示
           <div style={{ height: '100%', overflow: 'hidden' }}>
-            <ProjectManagement onEdit={handleEditProject} />
+            <ProjectManagement />
           </div>
         ) : currentTab === '2' ? (
           // フォーマット管理: 全幅表示

@@ -79,25 +79,6 @@ interface TransitionInfo {
 }
 
 /**
- * メソッド情報の型
- */
-interface MethodInfo {
-  id: string;
-  name: string;
-  displayName: string;
-  description?: string;
-}
-
-/**
- * タスク詳細の型
- */
-interface TaskDetail {
-  id: number;
-  methodId: string;
-  taskName: string;
-}
-
-/**
  * 指示データの型
  */
 interface InstructionData {
@@ -209,85 +190,15 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
   const [fileBasicInfo, setFileBasicInfo] = useState<FileBasicInfo | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
   
-  // 新規追加: メソッド情報とタスク詳細
-  const [availableMethods, setAvailableMethods] = useState<MethodInfo[]>([]);
-  const [loadingMethods, setLoadingMethods] = useState<boolean>(false);
-  const [taskDetails, setTaskDetails] = useState<TaskDetail[]>([
-    {
-      id: 1,
-      methodId: '',
-      taskName: '',
-    },
-  ]);
-  
-  // 新規追加: 実験条件、試行回数
+  // 新規追加: 実験条件、試行回数、タスク名
   const [experimentCondition, setExperimentCondition] = useState<'same' | 'different'>('same');
   const [trialCount, setTrialCount] = useState<number | ''>('');
+  const [taskName, setTaskName] = useState<string>('');
 
   // ファイル名の抽出
   const fileName = useMemo(() => {
     return fileKey?.split('/').pop() || '';
   }, [fileKey]);
-
-  /**
-   * MAIMLファイルからメソッド情報を取得
-   */
-  useEffect(() => {
-    const fetchMethods = async () => {
-      if (!open || !fileKey) return;
-
-      setLoadingMethods(true);
-
-      try {
-        // TODO: 実際のAPI実装時に置き換え
-        // モックデータでの動作確認
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // モックのメソッド情報（必ず1つ以上存在）
-        const mockMethods: MethodInfo[] = [
-          {
-            id: 'method_001',
-            name: 'sample_preparation',
-            displayName: 'サンプル準備',
-            description: '実験サンプルの準備プロセス',
-          },
-          {
-            id: 'method_002',
-            name: 'measurement',
-            displayName: '測定実行',
-            description: '測定機器による測定プロセス',
-          },
-          {
-            id: 'method_003',
-            name: 'data_analysis',
-            displayName: 'データ分析',
-            description: 'データの分析プロセス',
-          },
-        ];
-
-        setAvailableMethods(mockMethods);
-
-        // メソッド数分のタスク詳細を初期化
-        const initialTasks: TaskDetail[] = mockMethods.map((method, index) => ({
-          id: index + 1,
-          methodId: mockMethods.length === 1 ? method.id : '', // 1つの場合は自動選択
-          taskName: mockMethods.length === 1 
-            ? projectName  // メソッドが1つの場合はプロジェクト名（即座に設定）
-            : '',  // メソッドが2以上の場合は空（メソッド選択時に設定）
-        }));
-
-        setTaskDetails(initialTasks);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'メソッド取得エラー';
-        message.error(errorMessage);
-      } finally {
-        setLoadingMethods(false);
-      }
-    };
-
-    fetchMethods();
-  }, [open, fileKey]);
 
   /**
    * MAIMLファイルからトランジション情報を取得
@@ -355,50 +266,6 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
   }, [open, fileKey]);
 
   /**
-   * タスク詳細を更新
-   */
-  const handleUpdateTaskDetail = useCallback(
-    (id: number, field: keyof TaskDetail, value: string) => {
-      setTaskDetails((prev) =>
-        prev.map((task) => {
-          if (task.id === id) {
-            const updated = { ...task, [field]: value };
-            
-            // メソッドが選択された場合、タスク名を自動設定（メソッドが2以上の場合のみ）
-            if (field === 'methodId' && value && availableMethods.length > 1) {
-              const selectedMethod = availableMethods.find((m) => m.id === value);
-              if (selectedMethod) {
-                // メソッド選択時は常にタスク名を上書き
-                updated.taskName = selectedMethod.displayName;
-              }
-            }
-            
-            return updated;
-          }
-          return task;
-        })
-      );
-    },
-    [availableMethods]
-  );
-
-  /**
-   * 選択可能なメソッドリストを取得（すでに選択されているメソッドを除外）
-   */
-  const getAvailableMethodsForTask = useCallback(
-    (currentTaskId: number): MethodInfo[] => {
-      const selectedMethodIds = taskDetails
-        .filter((task) => task.id !== currentTaskId && task.methodId)
-        .map((task) => task.methodId);
-
-      return availableMethods.filter(
-        (method) => !selectedMethodIds.includes(method.id)
-      );
-    },
-    [taskDetails, availableMethods]
-  );
-
-  /**
    * 指示を追加
    */
   const handleAddInstruction = useCallback(() => {
@@ -451,20 +318,6 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
    */
   const handleSubmit = useCallback(async () => {
     try {
-      // タスク名のバリデーション（必須）
-      const emptyTaskName = taskDetails.find((task) => !task.taskName || !task.taskName.trim());
-      if (emptyTaskName) {
-        message.warning('すべてのタスク名を入力してください');
-        return;
-      }
-
-      // メソッド選択のバリデーション（必須）
-      const emptyMethod = taskDetails.find((task) => !task.methodId);
-      if (emptyMethod) {
-        message.warning('すべてのメソッドを選択してください');
-        return;
-      }
-
       // 試行回数のバリデーション（入力されている場合のみ）
       if (trialCount !== '' && (trialCount < 1 || trialCount > 999)) {
         message.warning('試行回数は1〜999の範囲で入力してください');
@@ -552,13 +405,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         // 新規追加項目のリセット
         setExperimentCondition('same');
         setTrialCount('');
-        setTaskDetails([
-          {
-            id: 1,
-            methodId: '',
-            taskName: '',
-          },
-        ]);
+        setTaskName('');
       }, 300);
     } catch (error) {
       const errorMessage =
@@ -567,7 +414,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [instructions, fileKey, managerId, selectedWorkerId, experimentCondition, trialCount, onSubmit, onClose]);
+  }, [instructions, fileKey, managerId, selectedWorkerId, experimentCondition, trialCount, taskName, onSubmit, onClose]);
 
   /**
    * ダイアログを閉じる
@@ -679,139 +526,80 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
           </Card>
         )}
 
-        <Divider style={{ margin: `${token.marginSM}px 0` }}>指示内容</Divider>
+        <Divider style={{ margin: `${token.marginSM}px 0` }}>条件内容</Divider>
 
-        {/* タスク詳細カード */}
-        {loadingMethods ? (
-          <Card size="small">
-            <Spin tip="メソッド情報を読み込み中..." />
-          </Card>
-        ) : availableMethods.length > 0 ? (
-          <Card
-            size="small"
-            title={<Text strong>📝 タスク詳細</Text>}
-            style={{ backgroundColor: token.colorBgContainer }}
-          >
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              {taskDetails.map((task, index) => {
-                const availableMethodsForThis = getAvailableMethodsForTask(task.id);
-                const isOnlyOneMethod = availableMethods.length === 1;
-                const selectedMethod = availableMethods.find((m) => m.id === task.methodId);
+        {/* 実験条件セクション */}
+        <Card 
+          size="small" 
+          title={<Text strong>複数回実行時の実験条件</Text>}
+          style={{ backgroundColor: token.colorBgContainer }}
+        >
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {/* タスク名 */}
+            <div>
+              <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
+                📝 タスク名
+              </Text>
+              <Input
+                value={taskName}
+                onChange={(e) => setTaskName(e.target.value)}
+                placeholder="タスク名を入力"
+                disabled={submitting}
+                maxLength={100}
+                showCount
+                style={{ width: '100%' }}
+              />
+            </div>
 
-                return (
-                  <div key={task.id}>
-                    <Text
-                      strong
-                      style={{ display: 'block', marginBottom: token.marginXS }}
-                    >
-                      作業順序 {index + 1}
-                    </Text>
-                    <Flex gap="middle" wrap="wrap">
-                      {/* メソッド選択 */}
-                      <div style={{ flex: 1, minWidth: 250 }}>
-                        <Text
-                          type="secondary"
-                          style={{ display: 'block', marginBottom: token.marginXXS, fontSize: '12px' }}
-                        >
-                          メソッド <Text type="danger">*</Text>
-                        </Text>
-                        <Select
-                          value={task.methodId || undefined}
-                          onChange={(value) =>
-                            handleUpdateTaskDetail(task.id, 'methodId', value)
-                          }
-                          placeholder="メソッドを選択..."
-                          disabled={submitting || isOnlyOneMethod}
-                          style={{ width: '100%' }}
-                        >
-                          {/* 現在選択されているメソッドは常に表示 */}
-                          {selectedMethod && !availableMethodsForThis.find((m) => m.id === selectedMethod.id) && (
-                            <Select.Option key={selectedMethod.id} value={selectedMethod.id}>
-                              {selectedMethod.displayName}
-                            </Select.Option>
-                          )}
-                          {/* 選択可能なメソッド */}
-                          {availableMethodsForThis.map((method) => (
-                            <Select.Option key={method.id} value={method.id}>
-                              {method.displayName}
-                              {method.description && ` - ${method.description}`}
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      </div>
+            {/* 条件指定と試行回数 */}
+            <Flex gap="middle" wrap="wrap">
+              {/* 条件指定 */}
+              <div style={{ flex: 1, minWidth: 300 }}>
+                <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
+                  🔬 条件指定
+                </Text>
+                <Radio.Group
+                  value={experimentCondition}
+                  onChange={(e) => setExperimentCondition(e.target.value)}
+                  disabled={submitting}
+                  style={{ display: 'flex', flexDirection: 'column', gap: token.marginXS }}
+                >
+                  <Radio value="same">全て同一条件で実施</Radio>
+                  <Radio value="different">実験ごとに条件を変更</Radio>
+                </Radio.Group>
+              </div>
 
-                      {/* タスク名入力 */}
-                      <div style={{ flex: 1, minWidth: 250 }}>
-                        <Text
-                          type="secondary"
-                          style={{ display: 'block', marginBottom: token.marginXXS, fontSize: '12px' }}
-                        >
-                          タスク名 <Text type="danger">*</Text>
-                        </Text>
-                        <Input
-                          value={task.taskName}
-                          onChange={(e) =>
-                            handleUpdateTaskDetail(task.id, 'taskName', e.target.value)
-                          }
-                          placeholder="タスク名を入力"
-                          disabled={submitting}
-                          maxLength={100}
-                          style={{ width: '100%' }}
-                        />
-                      </div>
-                    </Flex>
-                  </div>
-                );
-              })}
-
-              {/* 条件指定と試行回数（タスク詳細カード内に移動） */}
-              <Flex gap="middle" wrap="wrap">
-                {/* 条件指定 */}
-                <div style={{ flex: 1, minWidth: 300 }}>
-                  <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-                    🔬 条件指定
-                  </Text>
-                  <Radio.Group
-                    value={experimentCondition}
-                    onChange={(e) => setExperimentCondition(e.target.value)}
-                    disabled={submitting}
-                    style={{ display: 'flex', flexDirection: 'column', gap: token.marginXS }}
-                  >
-                    <Radio value="same">全て同一条件で実施</Radio>
-                    <Radio value="different">実験ごとに条件を変更</Radio>
-                  </Radio.Group>
-                </div>
-
-                {/* 試行回数 */}
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-                    🔢 試行回数
-                  </Text>
-                  <Input
-                    type="number"
-                    value={trialCount}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '') {
-                        setTrialCount('');
-                      } else {
-                        const num = parseInt(value, 10);
-                        if (!isNaN(num) && num >= 1 && num <= 999) {
-                          setTrialCount(num);
-                        }
+              {/* 試行回数 */}
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
+                  🔢 試行回数
+                </Text>
+                <Input
+                  type="number"
+                  value={trialCount}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setTrialCount('');
+                    } else {
+                      const num = parseInt(value, 10);
+                      if (!isNaN(num) && num >= 1 && num <= 999) {
+                        setTrialCount(num);
                       }
-                    }}
-                    placeholder="試行回数を入力"
-                    disabled={submitting}
-                    min={1}
-                    max={999}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              </Flex>
-            </Space>
-          </Card>
-        ) : null}
+                    }
+                  }}
+                  placeholder="試行回数を入力"
+                  disabled={submitting}
+                  min={1}
+                  max={999}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </Flex>
+          </Space>
+        </Card>
+
+        <Divider style={{ margin: `${token.marginSM}px 0` }}>指示内容</Divider>
 
         {/* 指示入力フォーム */}
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
