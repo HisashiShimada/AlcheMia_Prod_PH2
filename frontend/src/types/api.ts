@@ -55,6 +55,9 @@ export interface LoginResponseData {
   message: string;
   email: string;
   expiresIn: number;
+  // 開発環境専用フィールド（NODE_ENV=developmentの場合のみ含まれる）
+  pinCode?: string;
+  devMode?: boolean;
 }
 
 /**

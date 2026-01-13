@@ -47,13 +47,34 @@ export default function PinCodeInputPage({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
+  const [isDevMode, setIsDevMode] = useState(false);
   
   // 各入力欄へのref
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // 初期表示時に最初の入力欄にフォーカス
+  // 初期表示時に開発環境のPINコードを自動入力（開発効率化のため）
   useEffect(() => {
-    inputRefs.current[0]?.focus();
+    if (typeof window !== 'undefined') {
+      const devPinCode = sessionStorage.getItem('devPinCode');
+      
+      if (devPinCode && devPinCode.length === 6) {
+        // 開発モードフラグをセット
+        setIsDevMode(true);
+        
+        // PINコードを各桁に分割して自動入力
+        const digits = devPinCode.split('');
+        setPinValues(digits);
+        
+        // sessionStorageから削除（セキュリティ対策）
+        sessionStorage.removeItem('devPinCode');
+        
+        // 最後の入力欄にフォーカス（ユーザーが認証ボタンを押しやすいように）
+        inputRefs.current[5]?.focus();
+      } else {
+        // 通常モード: 最初の入力欄にフォーカス
+        inputRefs.current[0]?.focus();
+      }
+    }
   }, []);
 
   // エラーが変更されたらバリデーションエラーをクリア
@@ -237,6 +258,21 @@ export default function PinCodeInputPage({
             </Paragraph>
           </Space>
 
+          {/* 開発モード表示 */}
+          {isDevMode && !error && !validationError && (
+            <Alert
+              message="開発モード"
+              description="PINコードが自動入力されました。本番環境では表示されません。"
+              type="info"
+              showIcon
+              style={{
+                marginBottom: token.marginXL * 1.5,
+                borderRadius: token.borderRadiusLG,
+                fontSize: token.fontSize,
+              }}
+            />
+          )}
+
           {/* エラーメッセージ */}
           {(error || validationError) && (
             <Alert
@@ -252,7 +288,7 @@ export default function PinCodeInputPage({
           )}
 
           {/* 成功メッセージ */}
-          {resendSuccess && !error && !validationError && (
+          {resendSuccess && !error && !validationError && !isDevMode && (
             <Alert
               message="PINコードを再送信しました"
               type="success"

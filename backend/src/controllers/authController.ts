@@ -264,14 +264,22 @@ export async function login(req: Request, res: Response): Promise<void> {
     ]);
 
     // 8. 成功レスポンス
+    const responseData: any = {
+      sessionToken,
+      message: 'PINコードをメールで送信しました',
+      email: maskEmail(user.mail_address),
+      expiresIn: 300, // 5分（秒）
+    };
+
+    // 開発環境の場合のみPINコードを含める（開発効率化のため）
+    if (process.env.NODE_ENV === 'development') {
+      responseData.pinCode = pinResult.data.pinCode;
+      responseData.devMode = true;
+    }
+
     res.status(200).json({
       success: true,
-      data: {
-        sessionToken,
-        message: 'PINコードをメールで送信しました',
-        email: maskEmail(user.mail_address),
-        expiresIn: 300, // 5分（秒）
-      },
+      data: responseData,
       meta: {
         timestamp: new Date().toISOString(),
         requestId,

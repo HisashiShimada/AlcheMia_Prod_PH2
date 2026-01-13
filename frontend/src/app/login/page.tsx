@@ -50,6 +50,13 @@ export default function LoginPageContainer() {
       setOrganizationId(credentials.organizationId);
       setMaskedEmail(response.email);
 
+      // 開発環境の場合、PINコードをsessionStorageに保存（開発効率化のため）
+      if (response.devMode && response.pinCode) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('devPinCode', response.pinCode);
+        }
+      }
+
       // PINコード入力画面へ遷移
       setStep('pin-code');
     } catch (err) {
