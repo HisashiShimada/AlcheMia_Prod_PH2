@@ -36,7 +36,7 @@ function StatCard({ icon, label, value, borderColor, iconColor }: StatCardProps)
         height: '100%',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
       }}
-      bodyStyle={{ padding: '8px 24px' }}
+      bodyStyle={{ padding: '20px 24px' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div
@@ -49,25 +49,29 @@ function StatCard({ icon, label, value, borderColor, iconColor }: StatCardProps)
         >
           {icon}
         </div>
-        <Text
-          type="secondary"
-          style={{
-            fontSize: 14,
-          }}
-        >
-          {label}
-        </Text>
-        <Title
-          level={3}
-          style={{
-            margin: 0,
-            fontSize: 28,
-            fontWeight: 600,
-            color: iconColor,
-          }}
-        >
-          {value}
-        </Title>
+        <div style={{ flex: 1 }}>
+          <Text
+            type="secondary"
+            style={{
+              fontSize: 12,
+              display: 'block',
+              marginBottom: 4,
+            }}
+          >
+            {label}
+          </Text>
+          <Title
+            level={3}
+            style={{
+              margin: 0,
+              fontSize: 28,
+              fontWeight: 600,
+              color: iconColor,
+            }}
+          >
+            {value}
+          </Title>
+        </div>
       </div>
     </Card>
   );
@@ -75,18 +79,25 @@ function StatCard({ icon, label, value, borderColor, iconColor }: StatCardProps)
 
 /**
  * 指示統計コンポーネント
- * 指示の件数サマリーを4つの個別カードで表示（ヘッダなし、画面幅いっぱい）
+ * 指示の件数サマリーを親カード内に4つの個別カードで表示
  */
 export default function InstructionStats({ stats }: InstructionStatsProps) {
   const { token } = theme.useToken();
 
   return (
-    <div
+    <Card
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FileTextOutlined style={{ fontSize: 18, color: token.colorPrimary }} />
+          <span>作業指示サマリー</span>
+        </div>
+      }
       style={{
-        backgroundColor: token.colorBgContainer,
-        border: `1px solid ${token.colorBorderSecondary}`,
-        padding: '8px',
+        marginBottom: 24,
+        borderRadius: token.borderRadius,
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
       }}
+      bodyStyle={{ padding: '24px' }}
     >
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={6}>
@@ -101,7 +112,7 @@ export default function InstructionStats({ stats }: InstructionStatsProps) {
         <Col xs={24} sm={12} md={6}>
           <StatCard
             icon={<FileOutlined />}
-            label="プロジェクト指示"
+            label="全体指示"
             value={stats.file}
             borderColor="#52c41a"
             iconColor="#52c41a"
@@ -110,7 +121,7 @@ export default function InstructionStats({ stats }: InstructionStatsProps) {
         <Col xs={24} sm={12} md={6}>
           <StatCard
             icon={<ToolOutlined />}
-            label="タスク指示"
+            label="メソッド指示"
             value={stats.method}
             borderColor="#fa8c16"
             iconColor="#fa8c16"
@@ -126,6 +137,6 @@ export default function InstructionStats({ stats }: InstructionStatsProps) {
           />
         </Col>
       </Row>
-    </div>
+    </Card>
   );
 }

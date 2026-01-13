@@ -2,13 +2,13 @@
 
 import React from 'react';
 import { Button } from 'antd';
-import { PlayCircleOutlined, FormOutlined, LineChartOutlined, CheckCircleOutlined, AlertOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, FormOutlined, LineChartOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { Task } from '@/types/experimentWorker';
 
 interface TaskActionButtonsProps {
   task: Task;
   onAction: (action: string) => void;
-  buttonType: 'start' | 'record' | 'progress' | 'complete' | 'issue';
+  buttonType: 'start' | 'record' | 'progress' | 'complete';
 }
 
 /**
@@ -75,29 +75,6 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
         onClick={() => onAction('progress')}
         disabled={isDisabled}
         aria-label="進捗を報告"
-      >
-        報告
-      </Button>
-    );
-  }
-
-  // 問題報告ボタン（Phase 2追加）
-  if (buttonType === 'issue') {
-    // 開始、作業中の場合のみ活性
-    const isDisabled = !(status === 'started' || status === 'in_progress');
-    
-    return (
-      <Button
-        type="default"
-        size="small"
-        icon={<AlertOutlined />}
-        onClick={() => onAction('issue')}
-        disabled={isDisabled}
-        aria-label="問題を報告"
-        style={{
-          borderColor: isDisabled ? undefined : '#FF6B6B',
-          color: isDisabled ? undefined : '#FF6B6B'
-        }}
       >
         報告
       </Button>

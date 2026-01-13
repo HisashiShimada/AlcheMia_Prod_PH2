@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { ReactFlowProvider } from 'reactflow';
 import {
   Card,
   Input,
@@ -11,7 +10,6 @@ import {
   Typography,
   theme,
   Breadcrumb,
-  Spin,
 } from 'antd';
 import {
   SearchOutlined,
@@ -29,16 +27,11 @@ import FormatUploadDialog from './FormatUploadDialog';
 import CreateFormatFileModal, { CreateFormatFileData } from './CreateFormatFileModal';
 import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatFolderModal';
 import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
-import PetriNetEditor from '../editor/PetriNetEditor';
-import TemplateEditorDialog from '../editor/TemplateEditorDialog';
+import mockFormatsData from '@/data/mock/mockFormats.json';
 import mockFormatFilesData from '@/data/mock/mockFormatFiles.json';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
 import { User } from '@/types/auth';
-import { useApi } from '@/hooks/useApi';
-import { fetchFormats } from '@/utils/apiClient';
-import type { ApiResponse } from '@/types/api';
-import type { FormatListResponse } from '@/types/format';
 
 const { Title, Text } = Typography;
 
@@ -89,7 +82,7 @@ interface FormatManagementProps {
 const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
-  const [formats, setFormats] = useState<Format[]>([]);
+  const [formats] = useState<Format[]>(mockFormatsData.folders as Format[]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [fileTypeFilter, setFileTypeFilter] = useState<'all' | 'xml' | 'maiml'>('all');
@@ -103,36 +96,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const [sortBy, setSortBy] = useState<'name' | 'category' | 'updatedAt'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentFolderPath, setCurrentFolderPath] = useState<string[]>([]);
-  
-  // PetriNetEditor表示用State
-  const [showPetriNetEditor, setShowPetriNetEditor] = useState(false);
-  const [editingMaimlFile, setEditingMaimlFile] = useState<FormatFileDetailData | null>(null);
-  const [maimlFileContent, setMaimlFileContent] = useState<string | null>(null);
-  const [isLoadingMaimlContent, setIsLoadingMaimlContent] = useState(false);
-  
-  // TemplateEditorDialog表示用State
-  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
-  const [editingXmlFile, setEditingXmlFile] = useState<FormatFileDetailData | null>(null);
-
-  // フォーマット一覧をAPI経由で取得
-  const { 
-    data: formatsData, 
-    isLoading: isLoadingFormats, 
-    error: formatsError, 
-    refetch: refetchFormats 
-  } = useApi<ApiResponse<FormatListResponse>>(
-    fetchFormats,
-    []
-  );
-
-  // フォーマットデータが取得できたらstateを更新
-  React.useEffect(() => {
-    if (formatsData?.data.folders) {
-      // Data synchronization in useEffect is a valid pattern
-      // eslint-disable-next-line
-      setFormats(formatsData.data.folders as Format[]);
-    }
-  }, [formatsData]);
 
   // サブフォルダのモックデータ（実際はAPIから取得）
   // 各取引先会社のフォルダ（1階層のみ）
@@ -227,10 +190,11 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   }, []);
 
   // リフレッシュ
-  const handleRefresh = React.useCallback(() => {
+  const handleRefresh = () => {
     console.log('Refreshing format list...');
-    refetchFormats();
-  }, [refetchFormats]);
+    // モックデータの場合、既に初期化されているため処理なし
+    // 実際のAPIでは、ここでデータを再取得する
+  };
 
   // 新規ファイル作成モーダルを開く
   const handleOpenCreateFileModal = useCallback(() => {
@@ -249,31 +213,14 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   // 新規ファイル作成ハンドラ
   const handleCreateFormatFile = useCallback(async (data: CreateFormatFileData) => {
     try {
-      console.log('📝 [FormatManagement] 新規フォーマットファイル作成:', data);
-      
-      // XMLファイルの場合、templateTypeに応じたメッセージ
-      if (data.fileType === 'xml' && data.templateType) {
-        console.log(`✅ [FormatManagement] テンプレートタイプ: ${data.templateType}`);
-        
-        // TODO: Phase 6 - templateTypeに応じたデフォルトXML生成
-        // const xmlContent = generateDefaultXmlContent(data.templateType, data.fileName);
-        // console.log('生成されたXML:', xmlContent);
-      }
+      console.log('新規フォーマットファイル作成:', data);
       
       // TODO: 実際のAPI呼び出しを実装
-      // await apiService.post(`/api/formats/${data.formatId}/files`, {
-      //   ...data,
-      //   // XMLファイルの場合、生成したコンテンツを含める
-      //   // content: data.fileType === 'xml' ? xmlContent : undefined
-      // });
+      // await apiService.post(`/api/formats/${data.formatId}/files`, data);
       
-      // 成功メッセージを表示（テンプレートタイプを含む）
-      const successMessage = data.fileType === 'xml' && data.templateType
-        ? `${data.templateType}テンプレートが作成されました`
-        : 'ファイルが正常に作成されました';
-      
+      // 成功メッセージを表示
       message.success({
-        content: t('formatManagement.create.success') || successMessage,
+        content: t('formatManagement.create.success') || 'ファイルが正常に作成されました',
         duration: 3,
       });
       
@@ -283,14 +230,14 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       // ファイル一覧を更新
       handleRefresh();
     } catch (error) {
-      console.error('❌ [FormatManagement] ファイル作成エラー:', error);
+      console.error('ファイル作成エラー:', error);
       message.error({
         content: t('formatManagement.create.error') || 'ファイルの作成に失敗しました',
         duration: 3,
       });
       throw error;
     }
-  }, [t, handleCloseCreateFileModal, handleRefresh]);
+  }, [t, handleCloseCreateFileModal]);
 
   // 新規フォルダ作成モーダルを開く
   const handleOpenCreateFolderModal = useCallback(() => {
@@ -306,96 +253,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     setCreateFolderModalOpen(false);
   }, []);
 
-  // ファイル編集ハンドラ
-  const handleFileEdit = useCallback(async (file: FormatFileDetailData) => {
-    console.log('ファイル編集:', file);
-    
-    // ファイル拡張子で判定
-    const fileName = file.name.toLowerCase();
-    const isMaimlFile = fileName.endsWith('.maiml');
-    const isXmlFile = fileName.endsWith('.xml');
-    
-    if (isMaimlFile) {
-      // MAIMLファイル: PetriNetEditorを開く
-      console.log('📝 [FormatManagement] MAIMLファイル編集:', file.name);
-      setEditingMaimlFile(file);
-      
-      // ファイル内容を読み込む
-      setIsLoadingMaimlContent(true);
-      setMaimlFileContent(null);
-      
-      try {
-        // ファイルパスがある場合は読み込みを試みる
-        if (file.path && file.path.trim() !== '') {
-          console.log('📂 [FormatManagement] ファイル内容読み込み開始:', file.path);
-          
-          try {
-            const response = await fetch('/api/worker/load-maiml-file', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                s3Key: file.path,
-              }),
-            });
-            
-            if (response.ok) {
-              const result = await response.json();
-              
-              // 成功かつ中身がある場合のみ、既存ファイルとして扱う
-              if (result.success && result.data?.content) {
-                const maimlContent = atob(result.data.content);
-                
-                // 中身が実質空（空白のみ、非常に短い）の場合は新規扱い
-                if (maimlContent.trim().length > 0) {
-                  console.log('✅ [FormatManagement] ファイル内容読み込み完了（既存ファイル）');
-                  setMaimlFileContent(maimlContent);
-                } else {
-                  console.log('🆕 [FormatManagement] ファイルは存在するが中身が空 - 新規扱い');
-                  setMaimlFileContent(null);
-                }
-              } else {
-                // APIは成功したがコンテンツがない場合は新規扱い
-                console.log('🆕 [FormatManagement] ファイルは存在するが中身が取得できない - 新規扱い');
-                setMaimlFileContent(null);
-              }
-            } else {
-              // ファイルが存在しない、または読み込みエラーの場合は新規扱い
-              console.log('🆕 [FormatManagement] ファイル読み込み失敗 - 新規扱い:', response.status);
-              setMaimlFileContent(null);
-            }
-          } catch (fetchError) {
-            // ネットワークエラーなどの場合は新規扱い
-            console.log('🆕 [FormatManagement] ファイル読み込みエラー - 新規扱い:', fetchError);
-            setMaimlFileContent(null);
-          }
-        } else {
-          // パスがない場合は新規作成
-          console.log('🆕 [FormatManagement] パス未設定 - 新規作成モード');
-          setMaimlFileContent(null);
-        }
-        
-        setShowPetriNetEditor(true);
-      } catch (error) {
-        console.error('❌ [FormatManagement] ファイル読み込みエラー:', error);
-        message.error('ファイルの読み込みに失敗しました: ' + (error as Error).message);
-        setEditingMaimlFile(null);
-      } finally {
-        setIsLoadingMaimlContent(false);
-      }
-    } else if (isXmlFile) {
-      // XMLファイル: TemplateEditorDialogを開く
-      console.log('📝 [FormatManagement] XMLファイル編集:', file.name);
-      setEditingXmlFile(file);
-      setShowTemplateEditor(true);
-    } else {
-      // その他のファイル: エラーメッセージ
-      message.error('編集できないファイル形式です');
-    }
-  }, []);
-  
   // ファイル詳細表示ハンドラ
   const handleFileDetail = useCallback((file: FormatFileDetailData) => {
     console.log('ファイル詳細表示:', file);
@@ -443,7 +300,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       });
       throw error;
     }
-  }, [t, handleCloseCreateFolderModal, handleRefresh]);
+  }, [t, handleCloseCreateFolderModal]);
 
   // 選択したフォーマットとそのファイル一覧を取得
   const selectedFormat = useMemo(() => {
@@ -732,7 +589,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                   onFileClick={(file) => console.log('File clicked:', file.name)}
                   onFolderClick={handleFolderClick}
                   onDetail={handleFileDetail}
-                  onEdit={handleFileEdit}
+                  onEdit={(file) => console.log('Edit file:', file.name)}
                   onDelete={(file) => console.log('Delete file:', file.name)}
                 />
               </div>
@@ -814,108 +671,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         onClose={handleCloseDetailModal}
         file={selectedFile}
       />
-
-      {/* PetriNetEditor表示エリア（フルスクリーンモーダル） */}
-      {showPetriNetEditor && editingMaimlFile && (
-        <div style={{ 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          bottom: 0, 
-          backgroundColor: token.colorBgLayout,
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-        }}>
-          {/* ヘッダー: 閉じるボタン */}
-          <div style={{ 
-            padding: token.padding, 
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
-            backgroundColor: token.colorBgContainer,
-          }}>
-            <Space>
-              <Button 
-                onClick={() => {
-                  setShowPetriNetEditor(false);
-                  setEditingMaimlFile(null);
-                }}
-              >
-                閉じる
-              </Button>
-              <Text strong>編集中: {editingMaimlFile.name}</Text>
-            </Space>
-          </div>
-          
-          {/* PetriNetEditor */}
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            {isLoadingMaimlContent ? (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                height: '100%' 
-              }}>
-                <Spin size="large" tip="ファイル読み込み中..." />
-              </div>
-            ) : (
-              <ReactFlowProvider>
-                <PetriNetEditor
-                  editingFileName={editingMaimlFile.name}
-                  sourceContext="format"
-                  initialContent={maimlFileContent || undefined}
-                  onSave={async (content: string) => {
-                    console.log('💾 [FormatManagement] MAIML保存:', editingMaimlFile.name);
-                    // TODO: 実際の保存処理を実装
-                    message.success('保存しました（モック）');
-                  }}
-                  onContentChange={() => {
-                    console.log('📝 [FormatManagement] MAIML変更検知');
-                  }}
-                />
-              </ReactFlowProvider>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* TemplateEditorDialog表示エリア */}
-      {showTemplateEditor && editingXmlFile && (() => {
-        // 一時的なノードを作成（Date.now()の警告を回避するためuseMemoの代わりに即時関数を使用）
-        const tempId = `temp_${editingXmlFile.id}_${editingXmlFile.lastModified}`;
-        const tempNode = {
-          id: tempId,
-          type: 'materialTemplate', // TODO: Phase 5でtemplateTypeから判定
-          position: { x: 0, y: 0 },
-          data: {
-            id: tempId,
-            name: editingXmlFile.name.replace('.xml', ''),
-            description: '',
-            placeType: 'material',
-            nodeType: 'place',
-          },
-        };
-        
-        return (
-          <TemplateEditorDialog
-            open={showTemplateEditor}
-            onClose={() => {
-              setShowTemplateEditor(false);
-              setEditingXmlFile(null);
-            }}
-            node={tempNode}
-            onSave={(updatedNode) => {
-              console.log('💾 [FormatManagement] XML保存:', editingXmlFile.name, updatedNode);
-              // TODO: 実際の保存処理を実装
-              message.success('保存しました（モック）');
-              setShowTemplateEditor(false);
-              setEditingXmlFile(null);
-            }}
-            sourceContext="format"
-            editingFileName={editingXmlFile.name}
-          />
-        );
-      })()}
     </div>
   );
 };

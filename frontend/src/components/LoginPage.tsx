@@ -14,15 +14,13 @@ interface LoginPageProps {
   onLogin: (credentials: LoginCredentials) => Promise<void>;
   error?: string | null;
   loading?: boolean;
-  /** デバッグパネル（開発環境でのみ提供） */
-  debugPanel?: React.ReactNode;
 }
 
 /**
  * ログイン画面コンポーネント
  * UIポリシーに基づいたモダンで清潔感のあるデザイン
  */
-export default function LoginPage({ onLogin, error, loading = false, debugPanel }: LoginPageProps) {
+export default function LoginPage({ onLogin, error, loading = false }: LoginPageProps) {
   const { token } = theme.useToken();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -183,9 +181,6 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
               >
                 {loading ? 'ログイン中...' : 'ログイン'}
               </Button>
-
-              {/* デバッグパネル（開発環境でのみ渡される） */}
-              {debugPanel}
             </Space>
           </form>
 

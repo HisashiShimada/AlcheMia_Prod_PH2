@@ -19,9 +19,7 @@
     "error": "エラー",
     "success": "成功",
     "warning": "警告",
-    "info": "情報",
-    "total": "合計",
-    "items": "件"
+    "info": "情報"
   },
   "languages": {
     "ja": "日本語",
@@ -39,6 +37,7 @@
       "title": "プロバイダーメニュー",
       "tabs": {
         "organizationManagement": "組織管理",
+        "companyManagement": "会社管理",
         "informationDownload": "情報ダウンロード"
       }
     },
@@ -71,7 +70,7 @@
         "myTasks": "担当作業",
         "workInstruction": "指示確認",
         "experimentRecord": "実験記録",
-        "progressCheck": "進捗確認",
+        "taskList": "タスク一覧",
         "maimlViewer": "MAIML閲覧",
         "fileUpload": "ファイルアップロード",
         "progressReport": "進捗報告",
@@ -116,51 +115,6 @@
       "project": "プロジェクト",
       "method": "メソッド"
     },
-    "progressCheck": {
-      "issueCheck": "問題確認",
-      "checkButton": "確認"
-    },
-    "projectStatus": {
-      "planning": "計画中",
-      "waiting_task": "タスク実行待ち",
-      "executing_task": "タスク実行中",
-      "waiting_approval": "承認待ち",
-      "completed": "完了"
-    },
-    "projectSelection": {
-      "title": "プロジェクトを選択",
-      "projectName": "プロジェクト名",
-      "description": "説明",
-      "owner": "所有者",
-      "unknownOwner": "不明",
-      "clearSelection": "選択解除",
-      "cancel": "キャンセル",
-      "confirm": "決定",
-      "searchPlaceholder": "プロジェクト名、説明、所有者で検索",
-      "projectNameFilter": "プロジェクト名",
-      "ownerFilter": "所有者"
-    },
-    "issueReport": {
-      "title": "問題報告",
-      "issueType": "問題タイプ",
-      "comment": "コメント",
-      "commentPlaceholder": "問題の詳細を具体的に入力してください\n例: 〇〇の材料が不足しており、実験を続行できません。",
-      "commentRequired": "問題の詳細を入力してください",
-      "commentMinLength": "コメントは10文字以上で入力してください",
-      "clear": "クリア",
-      "submit": "報告",
-      "success": "問題報告を送信しました",
-      "noTask": "タスク情報が見つかりません",
-      "issueTypes": {
-        "material_shortage": "材料不足",
-        "equipment_failure": "機器故障",
-        "procedure_unclear": "手順不明確",
-        "safety_concern": "安全性の懸念",
-        "quality_issue": "品質問題",
-        "time_constraint": "時間制約",
-        "other": "その他"
-      }
-    },
     "stats": {
       "notStarted": "開始前のトランジション",
       "started": "開始",
@@ -169,12 +123,12 @@
       "progressRate": "進捗率"
     },
     "table": {
-      "methodName": "メソッド名",
       "taskName": "タスク名",
+      "sampleNumber": "サンプル番号",
+      "notes": "備考",
       "status": "ステータス",
-      "progressRate": "進捗率",
-      "issueReport": "問題報告",
-      "experimentRecord": "実験記録",
+      "progressReport": "進捗報告",
+      "recordNumber": "実験記録番号",
       "actions": "アクション"
     },
     "actions": {
@@ -233,10 +187,6 @@
       "descriptionMaxLength": "概要は500文字以内で入力してください",
       "createdByInfo": "作成者情報",
       "createdBy": "作成者",
-      "templateType": "テンプレートタイプ",
-      "templateTypeExtra": "作成するXMLのテンプレート種別を選択してください",
-      "templateTypeRequired": "テンプレートタイプを選択してください",
-      "templateTypePlaceholder": "テンプレートタイプを選択",
       "success": "ファイルが正常に作成されました",
       "successDescription": "新しいファイルが作成され、一覧に追加されました"
     },
@@ -471,65 +421,8 @@
       "total": "合計",
       "items": "件"
     },
-      "actions": {
+    "actions": {
       "viewDetails": "詳細表示"
-    }
-  },
-  "issueManagement": {
-    "title": "問題報告",
-    "newIssue": "新規問題報告",
-    "issueList": "問題一覧",
-    "issueDetails": "問題詳細",
-    "noIssueSelected": "問題を選択してください",
-    "noIssues": "問題が報告されていません",
-    "columns": {
-      "title": "タイトル",
-      "status": "状態",
-      "targetType": "対象",
-      "reportedBy": "報告者",
-      "reportedAt": "報告時刻"
-    },
-    "status": {
-      "unresolved": "未解決",
-      "resolved": "解決済"
-    },
-    "targetType": {
-      "project": "プロジェクト",
-      "task": "タスク",
-      "transition": "トランジション"
-    },
-    "form": {
-      "title": "タイトル",
-      "titlePlaceholder": "問題のタイトルを入力",
-      "titleRequired": "タイトルを入力してください",
-      "titleMaxLength": "タイトルは100文字以内で入力してください",
-      "targetType": "対象",
-      "targetTypeRequired": "対象を選択してください",
-      "content": "内容",
-      "contentPlaceholder": "問題の詳細を具体的に入力してください",
-      "contentRequired": "内容を入力してください",
-      "contentMinLength": "内容は10文字以上で入力してください",
-      "save": "保存",
-      "cancel": "キャンセル"
-    },
-    "details": {
-      "title": "タイトル",
-      "status": "状態",
-      "targetType": "対象",
-      "reportedBy": "報告者",
-      "reportedAt": "報告時刻",
-      "content": "内容",
-      "comments": "コメント",
-      "commentsCount": "コメント",
-      "noComments": "コメントがありません",
-      "addComment": "コメントを追加",
-      "commentPlaceholder": "コメントを入力...",
-      "commentRequired": "コメントを入力してください",
-      "send": "送信"
-    },
-    "messages": {
-      "issueReported": "問題を報告しました",
-      "commentPosted": "コメントを投稿しました"
     }
   }
 }

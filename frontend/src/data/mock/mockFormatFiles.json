@@ -4,24 +4,22 @@
       "root": [
         {
           "id": "xml_001_001",
-          "name": "basic_experiment_protocol.xml",
-          "path": "experiment_protocols/basic_experiment_protocol.xml",
+          "name": "基本実験プロトコル.xml",
+          "path": "experiment_protocols/基本実験プロトコル.xml",
           "size": 15234,
           "lastModified": "2024-12-01T14:30:00Z",
           "type": "xml",
-          "templateType": "condition",
           "version": "1.2",
           "description": "標準的な実験手順を定義したプロトコル",
           "creator": "山田太郎"
         },
         {
           "id": "xml_001_002",
-          "name": "safety_management_protocol.xml",
-          "path": "experiment_protocols/safety_management_protocol.xml",
+          "name": "安全管理プロトコル.xml",
+          "path": "experiment_protocols/安全管理プロトコル.xml",
           "size": 16789,
           "lastModified": "2024-11-30T09:00:00Z",
           "type": "xml",
-          "templateType": "condition",
           "version": "1.0",
           "description": "実験の安全管理に関するプロトコル",
           "creator": "佐藤花子"
@@ -33,8 +31,8 @@
           "files": [
             {
               "id": "xml_001_a01",
-              "name": "company_a_high_temp_protocol.xml",
-              "path": "experiment_protocols/company_a/company_a_high_temp_protocol.xml",
+              "name": "A社_高温実験プロトコル.xml",
+              "path": "experiment_protocols/company_a/A社_高温実験プロトコル.xml",
               "size": 18456,
               "lastModified": "2024-11-28T10:15:00Z",
               "type": "xml",
@@ -44,8 +42,8 @@
             },
             {
               "id": "xml_001_a02",
-              "name": "company_a_low_temp_protocol.xml",
-              "path": "experiment_protocols/company_a/company_a_low_temp_protocol.xml",
+              "name": "A社_低温実験プロトコル.xml",
+              "path": "experiment_protocols/company_a/A社_低温実験プロトコル.xml",
               "size": 17890,
               "lastModified": "2024-11-25T16:20:00Z",
               "type": "xml",
@@ -60,8 +58,8 @@
           "files": [
             {
               "id": "xml_001_b01",
-              "name": "company_b_pressure_control_protocol.xml",
-              "path": "experiment_protocols/company_b/company_b_pressure_control_protocol.xml",
+              "name": "B社_圧力制御プロトコル.xml",
+              "path": "experiment_protocols/company_b/B社_圧力制御プロトコル.xml",
               "size": 20345,
               "lastModified": "2024-11-20T09:45:00Z",
               "type": "xml",
@@ -71,8 +69,8 @@
             },
             {
               "id": "xml_001_b02",
-              "name": "company_b_vacuum_protocol.xml",
-              "path": "experiment_protocols/company_b/company_b_vacuum_protocol.xml",
+              "name": "B社_真空環境プロトコル.xml",
+              "path": "experiment_protocols/company_b/B社_真空環境プロトコル.xml",
               "size": 19567,
               "lastModified": "2024-11-15T13:00:00Z",
               "type": "xml",
@@ -87,8 +85,8 @@
           "files": [
             {
               "id": "xml_001_c01",
-              "name": "company_c_temp_cycle_test_protocol.xml",
-              "path": "experiment_protocols/company_c/company_c_temp_cycle_test_protocol.xml",
+              "name": "C社_温度サイクル試験プロトコル.xml",
+              "path": "experiment_protocols/company_c/C社_温度サイクル試験プロトコル.xml",
               "size": 19234,
               "lastModified": "2024-11-22T14:00:00Z",
               "type": "xml",
@@ -98,8 +96,8 @@
             },
             {
               "id": "xml_001_c02",
-              "name": "company_c_high_pressure_protocol.xml",
-              "path": "experiment_protocols/company_c/company_c_high_pressure_protocol.xml",
+              "name": "C社_高圧実験プロトコル.xml",
+              "path": "experiment_protocols/company_c/C社_高圧実験プロトコル.xml",
               "size": 21234,
               "lastModified": "2024-11-18T11:30:00Z",
               "type": "xml",
@@ -114,8 +112,8 @@
           "files": [
             {
               "id": "xml_001_d01",
-              "name": "company_d_humidity_control_protocol.xml",
-              "path": "experiment_protocols/company_d/company_d_humidity_control_protocol.xml",
+              "name": "D社_湿度制御プロトコル.xml",
+              "path": "experiment_protocols/company_d/D社_湿度制御プロトコル.xml",
               "size": 17345,
               "lastModified": "2024-11-12T10:20:00Z",
               "type": "xml",
@@ -125,8 +123,8 @@
             },
             {
               "id": "xml_001_d02",
-              "name": "company_d_inert_gas_protocol.xml",
-              "path": "experiment_protocols/company_d/company_d_inert_gas_protocol.xml",
+              "name": "D社_不活性ガス雰囲気プロトコル.xml",
+              "path": "experiment_protocols/company_d/D社_不活性ガス雰囲気プロトコル.xml",
               "size": 18678,
               "lastModified": "2024-11-10T15:45:00Z",
               "type": "xml",
@@ -142,12 +140,11 @@
       "root": [
         {
           "id": "xml_002_001",
-          "name": "common_material_data_format.xml",
-          "path": "material_data/common_material_data_format.xml",
+          "name": "材料データ共通フォーマット.xml",
+          "path": "material_data/材料データ共通フォーマット.xml",
           "size": 22345,
           "lastModified": "2024-11-28T16:45:00Z",
           "type": "xml",
-          "templateType": "material",
           "version": "2.0",
           "description": "全材料共通の基本データフォーマット",
           "creator": "森本拓也"
@@ -159,8 +156,8 @@
           "files": [
             {
               "id": "xml_002_a01",
-              "name": "company_a_metal_material_data.xml",
-              "path": "material_data/company_a/company_a_metal_material_data.xml",
+              "name": "A社_金属材料データ.xml",
+              "path": "material_data/company_a/A社_金属材料データ.xml",
               "size": 25678,
               "lastModified": "2024-11-28T16:45:00Z",
               "type": "xml",
@@ -170,8 +167,8 @@
             },
             {
               "id": "xml_002_a02",
-              "name": "company_a_alloy_data.xml",
-              "path": "material_data/company_a/company_a_alloy_data.xml",
+              "name": "A社_合金データ.xml",
+              "path": "material_data/company_a/A社_合金データ.xml",
               "size": 26789,
               "lastModified": "2024-11-25T13:20:00Z",
               "type": "xml",
@@ -181,8 +178,8 @@
             },
             {
               "id": "xml_002_a03",
-              "name": "company_a_surface_treatment_data.xml",
-              "path": "material_data/company_a/company_a_surface_treatment_data.xml",
+              "name": "A社_表面処理データ.xml",
+              "path": "material_data/company_a/A社_表面処理データ.xml",
               "size": 19876,
               "lastModified": "2024-11-18T15:45:00Z",
               "type": "xml",
@@ -197,8 +194,8 @@
           "files": [
             {
               "id": "xml_002_b01",
-              "name": "company_b_ceramic_material_data.xml",
-              "path": "material_data/company_b/company_b_ceramic_material_data.xml",
+              "name": "B社_セラミック材料データ.xml",
+              "path": "material_data/company_b/B社_セラミック材料データ.xml",
               "size": 23456,
               "lastModified": "2024-11-25T14:20:00Z",
               "type": "xml",
@@ -208,8 +205,8 @@
             },
             {
               "id": "xml_002_b02",
-              "name": "company_b_oxide_ceramic_data.xml",
-              "path": "material_data/company_b/company_b_oxide_ceramic_data.xml",
+              "name": "B社_酸化物セラミックデータ.xml",
+              "path": "material_data/company_b/B社_酸化物セラミックデータ.xml",
               "size": 24567,
               "lastModified": "2024-11-22T11:00:00Z",
               "type": "xml",
@@ -224,8 +221,8 @@
           "files": [
             {
               "id": "xml_002_c01",
-              "name": "company_c_polymer_material_data.xml",
-              "path": "material_data/company_c/company_c_polymer_material_data.xml",
+              "name": "C社_高分子材料データ.xml",
+              "path": "material_data/company_c/C社_高分子材料データ.xml",
               "size": 21234,
               "lastModified": "2024-11-22T11:30:00Z",
               "type": "xml",
@@ -235,8 +232,8 @@
             },
             {
               "id": "xml_002_c02",
-              "name": "company_c_thermoplastic_resin_data.xml",
-              "path": "material_data/company_c/company_c_thermoplastic_resin_data.xml",
+              "name": "C社_熱可塑性樹脂データ.xml",
+              "path": "material_data/company_c/C社_熱可塑性樹脂データ.xml",
               "size": 20123,
               "lastModified": "2024-11-20T09:45:00Z",
               "type": "xml",
@@ -251,8 +248,8 @@
           "files": [
             {
               "id": "xml_002_d01",
-              "name": "company_d_composite_material_data.xml",
-              "path": "material_data/company_d/company_d_composite_material_data.xml",
+              "name": "D社_複合材料データ.xml",
+              "path": "material_data/company_d/D社_複合材料データ.xml",
               "size": 28901,
               "lastModified": "2024-11-20T09:15:00Z",
               "type": "xml",
@@ -262,8 +259,8 @@
             },
             {
               "id": "xml_002_d02",
-              "name": "company_d_crystal_structure_data.xml",
-              "path": "material_data/company_d/company_d_crystal_structure_data.xml",
+              "name": "D社_結晶構造データ.xml",
+              "path": "material_data/company_d/D社_結晶構造データ.xml",
               "size": 26543,
               "lastModified": "2024-11-15T10:00:00Z",
               "type": "xml",
@@ -278,8 +275,8 @@
           "files": [
             {
               "id": "xml_002_e01",
-              "name": "company_e_electrical_property_data.xml",
-              "path": "material_data/company_e/company_e_electrical_property_data.xml",
+              "name": "E社_電気特性データ.xml",
+              "path": "material_data/company_e/E社_電気特性データ.xml",
               "size": 22345,
               "lastModified": "2024-11-10T14:30:00Z",
               "type": "xml",
@@ -289,8 +286,8 @@
             },
             {
               "id": "xml_002_e02",
-              "name": "company_e_mechanical_property_data.xml",
-              "path": "material_data/company_e/company_e_mechanical_property_data.xml",
+              "name": "E社_機械特性データ.xml",
+              "path": "material_data/company_e/E社_機械特性データ.xml",
               "size": 24567,
               "lastModified": "2024-11-05T16:20:00Z",
               "type": "xml",
@@ -300,8 +297,8 @@
             },
             {
               "id": "xml_002_e03",
-              "name": "company_e_thermal_property_data.xml",
-              "path": "material_data/company_e/company_e_thermal_property_data.xml",
+              "name": "E社_熱特性データ.xml",
+              "path": "material_data/company_e/E社_熱特性データ.xml",
               "size": 23678,
               "lastModified": "2024-11-08T12:15:00Z",
               "type": "xml",
@@ -317,8 +314,8 @@
       "root": [
         {
           "id": "xml_003_001",
-          "name": "common_measurement_data_format.maiml",
-          "path": "measurement_data/common_measurement_data_format.maiml",
+          "name": "測定データ共通フォーマット.maiml",
+          "path": "measurement_data/測定データ共通フォーマット.maiml",
           "size": 28000,
           "lastModified": "2024-12-05T10:20:00Z",
           "type": "maiml",
@@ -332,8 +329,8 @@
           "files": [
             {
               "id": "xml_003_a01",
-              "name": "company_a_sem_observation_data.maiml",
-              "path": "measurement_data/company_a/company_a_sem_observation_data.maiml",
+              "name": "A社_SEM観察データ.maiml",
+              "path": "measurement_data/company_a/A社_SEM観察データ.maiml",
               "size": 28934,
               "lastModified": "2024-12-03T14:15:00Z",
               "type": "maiml",
@@ -342,8 +339,8 @@
             },
             {
               "id": "xml_003_a02",
-              "name": "company_a_tem_observation_data.maiml",
-              "path": "measurement_data/company_a/company_a_tem_observation_data.maiml",
+              "name": "A社_TEM観察データ.maiml",
+              "path": "measurement_data/company_a/A社_TEM観察データ.maiml",
               "size": 30567,
               "lastModified": "2024-12-01T11:30:00Z",
               "type": "maiml",
@@ -352,8 +349,8 @@
             },
             {
               "id": "xml_003_a03",
-              "name": "company_a_afm_measurement_data.maiml",
-              "path": "measurement_data/company_a/company_a_afm_measurement_data.maiml",
+              "name": "A社_AFM測定データ.maiml",
+              "path": "measurement_data/company_a/A社_AFM測定データ.maiml",
               "size": 27890,
               "lastModified": "2024-11-28T09:45:00Z",
               "type": "maiml",
@@ -362,8 +359,8 @@
             },
             {
               "id": "xml_003_a04",
-              "name": "company_a_xrd_measurement_data.maiml",
-              "path": "measurement_data/company_a/company_a_xrd_measurement_data.maiml",
+              "name": "A社_XRD測定データ.maiml",
+              "path": "measurement_data/company_a/A社_XRD測定データ.maiml",
               "size": 32145,
               "lastModified": "2024-12-05T10:20:00Z",
               "type": "maiml",
@@ -377,8 +374,8 @@
           "files": [
             {
               "id": "xml_003_b01",
-              "name": "company_b_xrf_measurement_data.maiml",
-              "path": "measurement_data/company_b/company_b_xrf_measurement_data.maiml",
+              "name": "B社_XRF測定データ.maiml",
+              "path": "measurement_data/company_b/B社_XRF測定データ.maiml",
               "size": 29876,
               "lastModified": "2024-11-30T13:40:00Z",
               "type": "maiml",
@@ -387,8 +384,8 @@
             },
             {
               "id": "xml_003_b02",
-              "name": "company_b_raman_spectroscopy_data.maiml",
-              "path": "measurement_data/company_b/company_b_raman_spectroscopy_data.maiml",
+              "name": "B社_ラマン分光データ.maiml",
+              "path": "measurement_data/company_b/B社_ラマン分光データ.maiml",
               "size": 25678,
               "lastModified": "2024-11-25T13:20:00Z",
               "type": "maiml",
@@ -397,8 +394,8 @@
             },
             {
               "id": "xml_003_b03",
-              "name": "company_b_ir_spectroscopy_data.maiml",
-              "path": "measurement_data/company_b/company_b_ir_spectroscopy_data.maiml",
+              "name": "B社_IR分光データ.maiml",
+              "path": "measurement_data/company_b/B社_IR分光データ.maiml",
               "size": 24567,
               "lastModified": "2024-11-22T15:00:00Z",
               "type": "maiml",
@@ -412,8 +409,8 @@
           "files": [
             {
               "id": "xml_003_c01",
-              "name": "company_c_uv_vis_spectroscopy_data.maiml",
-              "path": "measurement_data/company_c/company_c_uv_vis_spectroscopy_data.maiml",
+              "name": "C社_UV-VIS分光データ.maiml",
+              "path": "measurement_data/company_c/C社_UV-VIS分光データ.maiml",
               "size": 23456,
               "lastModified": "2024-11-20T11:25:00Z",
               "type": "maiml",
@@ -422,8 +419,8 @@
             },
             {
               "id": "xml_003_c02",
-              "name": "company_c_dsc_measurement_data.maiml",
-              "path": "measurement_data/company_c/company_c_dsc_measurement_data.maiml",
+              "name": "C社_DSC測定データ.maiml",
+              "path": "measurement_data/company_c/C社_DSC測定データ.maiml",
               "size": 26789,
               "lastModified": "2024-11-20T10:30:00Z",
               "type": "maiml",
@@ -432,8 +429,8 @@
             },
             {
               "id": "xml_003_c03",
-              "name": "company_c_tga_measurement_data.maiml",
-              "path": "measurement_data/company_c/company_c_tga_measurement_data.maiml",
+              "name": "C社_TGA測定データ.maiml",
+              "path": "measurement_data/company_c/C社_TGA測定データ.maiml",
               "size": 25890,
               "lastModified": "2024-11-18T14:15:00Z",
               "type": "maiml",
@@ -447,8 +444,8 @@
           "files": [
             {
               "id": "xml_003_d01",
-              "name": "company_d_hardness_measurement_data.maiml",
-              "path": "measurement_data/company_d/company_d_hardness_measurement_data.maiml",
+              "name": "D社_硬度測定データ.maiml",
+              "path": "measurement_data/company_d/D社_硬度測定データ.maiml",
               "size": 22345,
               "lastModified": "2024-11-18T14:45:00Z",
               "type": "maiml",
@@ -457,8 +454,8 @@
             },
             {
               "id": "xml_003_d02",
-              "name": "company_d_tensile_test_data.maiml",
-              "path": "measurement_data/company_d/company_d_tensile_test_data.maiml",
+              "name": "D社_引張試験データ.maiml",
+              "path": "measurement_data/company_d/D社_引張試験データ.maiml",
               "size": 23456,
               "lastModified": "2024-11-15T16:20:00Z",
               "type": "maiml",
@@ -467,8 +464,8 @@
             },
             {
               "id": "xml_003_d03",
-              "name": "company_d_compression_test_data.maiml",
-              "path": "measurement_data/company_d/company_d_compression_test_data.maiml",
+              "name": "D社_圧縮試験データ.maiml",
+              "path": "measurement_data/company_d/D社_圧縮試験データ.maiml",
               "size": 22890,
               "lastModified": "2024-11-12T11:00:00Z",
               "type": "maiml",
@@ -477,8 +474,8 @@
             },
             {
               "id": "xml_003_d04",
-              "name": "company_d_fatigue_test_data.maiml",
-              "path": "measurement_data/company_d/company_d_fatigue_test_data.maiml",
+              "name": "D社_疲労試験データ.maiml",
+              "path": "measurement_data/company_d/D社_疲労試験データ.maiml",
               "size": 24123,
               "lastModified": "2024-11-10T13:30:00Z",
               "type": "maiml",
@@ -492,8 +489,8 @@
           "files": [
             {
               "id": "xml_003_e01",
-              "name": "company_e_electrical_resistance_data.maiml",
-              "path": "measurement_data/company_e/company_e_electrical_resistance_data.maiml",
+              "name": "E社_電気抵抗測定データ.maiml",
+              "path": "measurement_data/company_e/E社_電気抵抗測定データ.maiml",
               "size": 21234,
               "lastModified": "2024-11-10T09:30:00Z",
               "type": "maiml",
@@ -502,8 +499,8 @@
             },
             {
               "id": "xml_003_e02",
-              "name": "company_e_dielectric_constant_data.maiml",
-              "path": "measurement_data/company_e/company_e_dielectric_constant_data.maiml",
+              "name": "E社_誘電率測定データ.maiml",
+              "path": "measurement_data/company_e/E社_誘電率測定データ.maiml",
               "size": 22456,
               "lastModified": "2024-11-08T14:20:00Z",
               "type": "maiml",
@@ -512,8 +509,8 @@
             },
             {
               "id": "xml_003_e03",
-              "name": "company_e_magnetic_property_data.maiml",
-              "path": "measurement_data/company_e/company_e_magnetic_property_data.maiml",
+              "name": "E社_磁気特性測定データ.maiml",
+              "path": "measurement_data/company_e/E社_磁気特性測定データ.maiml",
               "size": 25123,
               "lastModified": "2024-11-08T15:15:00Z",
               "type": "maiml",
@@ -528,8 +525,8 @@
       "root": [
         {
           "id": "xml_004_001",
-          "name": "common_analysis_result_format.maiml",
-          "path": "analysis_results/common_analysis_result_format.maiml",
+          "name": "解析結果共通フォーマット.maiml",
+          "path": "analysis_results/解析結果共通フォーマット.maiml",
           "size": 27000,
           "lastModified": "2024-12-08T09:15:00Z",
           "type": "maiml",
@@ -543,8 +540,8 @@
           "files": [
             {
               "id": "xml_004_a01",
-              "name": "company_a_statistical_analysis_result.maiml",
-              "path": "analysis_results/company_a/company_a_statistical_analysis_result.maiml",
+              "name": "A社_統計解析結果.maiml",
+              "path": "analysis_results/company_a/A社_統計解析結果.maiml",
               "size": 29876,
               "lastModified": "2024-12-08T09:15:00Z",
               "type": "maiml",
@@ -553,8 +550,8 @@
             },
             {
               "id": "xml_004_a02",
-              "name": "company_a_correlation_analysis_result.maiml",
-              "path": "analysis_results/company_a/company_a_correlation_analysis_result.maiml",
+              "name": "A社_相関分析結果.maiml",
+              "path": "analysis_results/company_a/A社_相関分析結果.maiml",
               "size": 27890,
               "lastModified": "2024-12-03T11:45:00Z",
               "type": "maiml",
@@ -568,8 +565,8 @@
           "files": [
             {
               "id": "xml_004_b01",
-              "name": "company_b_regression_analysis_result.maiml",
-              "path": "analysis_results/company_b/company_b_regression_analysis_result.maiml",
+              "name": "B社_回帰分析結果.maiml",
+              "path": "analysis_results/company_b/B社_回帰分析結果.maiml",
               "size": 28567,
               "lastModified": "2024-12-01T10:20:00Z",
               "type": "maiml",
@@ -578,8 +575,8 @@
             },
             {
               "id": "xml_004_b02",
-              "name": "company_b_machine_learning_result.maiml",
-              "path": "analysis_results/company_b/company_b_machine_learning_result.maiml",
+              "name": "B社_機械学習解析結果.maiml",
+              "path": "analysis_results/company_b/B社_機械学習解析結果.maiml",
               "size": 35678,
               "lastModified": "2024-12-05T14:30:00Z",
               "type": "maiml",
@@ -593,8 +590,8 @@
           "files": [
             {
               "id": "xml_004_c01",
-              "name": "company_c_neural_network_result.maiml",
-              "path": "analysis_results/company_c/company_c_neural_network_result.maiml",
+              "name": "C社_ニューラルネットワーク結果.maiml",
+              "path": "analysis_results/company_c/C社_ニューラルネットワーク結果.maiml",
               "size": 36789,
               "lastModified": "2024-12-02T13:15:00Z",
               "type": "maiml",
@@ -603,8 +600,8 @@
             },
             {
               "id": "xml_004_c02",
-              "name": "company_c_clustering_result.maiml",
-              "path": "analysis_results/company_c/company_c_clustering_result.maiml",
+              "name": "C社_クラスタリング結果.maiml",
+              "path": "analysis_results/company_c/C社_クラスタリング結果.maiml",
               "size": 31234,
               "lastModified": "2024-11-28T16:00:00Z",
               "type": "maiml",
@@ -618,8 +615,8 @@
           "files": [
             {
               "id": "xml_004_d01",
-              "name": "company_d_hierarchical_clustering_result.maiml",
-              "path": "analysis_results/company_d/company_d_hierarchical_clustering_result.maiml",
+              "name": "D社_階層的クラスタリング結果.maiml",
+              "path": "analysis_results/company_d/D社_階層的クラスタリング結果.maiml",
               "size": 32456,
               "lastModified": "2024-11-26T11:20:00Z",
               "type": "maiml",
@@ -628,8 +625,8 @@
             },
             {
               "id": "xml_004_d02",
-              "name": "company_d_optimization_result.maiml",
-              "path": "analysis_results/company_d/company_d_optimization_result.maiml",
+              "name": "D社_最適化結果.maiml",
+              "path": "analysis_results/company_d/D社_最適化結果.maiml",
               "size": 33456,
               "lastModified": "2024-11-25T13:30:00Z",
               "type": "maiml",
@@ -643,8 +640,8 @@
           "files": [
             {
               "id": "xml_004_e01",
-              "name": "company_e_genetic_algorithm_result.maiml",
-              "path": "analysis_results/company_e/company_e_genetic_algorithm_result.maiml",
+              "name": "E社_遺伝的アルゴリズム結果.maiml",
+              "path": "analysis_results/company_e/E社_遺伝的アルゴリズム結果.maiml",
               "size": 34567,
               "lastModified": "2024-11-22T14:45:00Z",
               "type": "maiml",
@@ -659,8 +656,8 @@
       "root": [
         {
           "id": "xml_005_001",
-          "name": "basic_sample_info.maiml",
-          "path": "sample_info/basic_sample_info.maiml",
+          "name": "試料基本情報.maiml",
+          "path": "sample_info/試料基本情報.maiml",
           "size": 18234,
           "lastModified": "2024-11-25T15:00:00Z",
           "type": "maiml",
@@ -674,8 +671,8 @@
           "files": [
             {
               "id": "xml_005_a01",
-              "name": "company_a_sample_preparation_history.maiml",
-              "path": "sample_info/company_a/company_a_sample_preparation_history.maiml",
+              "name": "A社_試料調製履歴.maiml",
+              "path": "sample_info/company_a/A社_試料調製履歴.maiml",
               "size": 20567,
               "lastModified": "2024-11-22T10:30:00Z",
               "type": "maiml",
@@ -684,8 +681,8 @@
             },
             {
               "id": "xml_005_a02",
-              "name": "company_a_preparation_condition_record.maiml",
-              "path": "sample_info/company_a/company_a_preparation_condition_record.maiml",
+              "name": "A社_調製条件記録.maiml",
+              "path": "sample_info/company_a/A社_調製条件記録.maiml",
               "size": 19456,
               "lastModified": "2024-11-20T09:30:00Z",
               "type": "maiml",
@@ -699,8 +696,8 @@
           "files": [
             {
               "id": "xml_005_b01",
-              "name": "company_b_sample_storage_info.maiml",
-              "path": "sample_info/company_b/company_b_sample_storage_info.maiml",
+              "name": "B社_試料保管情報.maiml",
+              "path": "sample_info/company_b/B社_試料保管情報.maiml",
               "size": 17890,
               "lastModified": "2024-11-20T14:15:00Z",
               "type": "maiml",
@@ -709,8 +706,8 @@
             },
             {
               "id": "xml_005_b02",
-              "name": "company_b_storage_environment_record.maiml",
-              "path": "sample_info/company_b/company_b_storage_environment_record.maiml",
+              "name": "B社_保管環境記録.maiml",
+              "path": "sample_info/company_b/B社_保管環境記録.maiml",
               "size": 18234,
               "lastModified": "2024-11-18T10:45:00Z",
               "type": "maiml",
@@ -724,8 +721,8 @@
           "files": [
             {
               "id": "xml_005_c01",
-              "name": "company_c_sample_quality_control.maiml",
-              "path": "sample_info/company_c/company_c_sample_quality_control.maiml",
+              "name": "C社_試料品質管理.maiml",
+              "path": "sample_info/company_c/C社_試料品質管理.maiml",
               "size": 19456,
               "lastModified": "2024-11-18T11:45:00Z",
               "type": "maiml",
@@ -734,8 +731,8 @@
             },
             {
               "id": "xml_005_c02",
-              "name": "company_c_quality_inspection_record.maiml",
-              "path": "sample_info/company_c/company_c_quality_inspection_record.maiml",
+              "name": "C社_品質検査記録.maiml",
+              "path": "sample_info/company_c/C社_品質検査記録.maiml",
               "size": 20123,
               "lastModified": "2024-11-15T14:20:00Z",
               "type": "maiml",
@@ -750,8 +747,8 @@
       "root": [
         {
           "id": "xml_006_001",
-          "name": "common_device_settings_format.maiml",
-          "path": "device_settings/common_device_settings_format.maiml",
+          "name": "装置設定共通フォーマット.maiml",
+          "path": "device_settings/装置設定共通フォーマット.maiml",
           "size": 21000,
           "lastModified": "2024-12-02T11:30:00Z",
           "type": "maiml",
@@ -765,8 +762,8 @@
           "files": [
             {
               "id": "xml_006_a01",
-              "name": "company_a_xrd_device_settings.maiml",
-              "path": "device_settings/company_a/company_a_xrd_device_settings.maiml",
+              "name": "A社_XRD装置設定.maiml",
+              "path": "device_settings/company_a/A社_XRD装置設定.maiml",
               "size": 22345,
               "lastModified": "2024-12-02T11:30:00Z",
               "type": "maiml",
@@ -775,8 +772,8 @@
             },
             {
               "id": "xml_006_a02",
-              "name": "company_a_xrf_device_settings.maiml",
-              "path": "device_settings/company_a/company_a_xrf_device_settings.maiml",
+              "name": "A社_XRF装置設定.maiml",
+              "path": "device_settings/company_a/A社_XRF装置設定.maiml",
               "size": 21890,
               "lastModified": "2024-11-28T10:15:00Z",
               "type": "maiml",
@@ -790,8 +787,8 @@
           "files": [
             {
               "id": "xml_006_b01",
-              "name": "company_b_sem_device_settings.maiml",
-              "path": "device_settings/company_b/company_b_sem_device_settings.maiml",
+              "name": "B社_SEM装置設定.maiml",
+              "path": "device_settings/company_b/B社_SEM装置設定.maiml",
               "size": 21234,
               "lastModified": "2024-11-30T09:45:00Z",
               "type": "maiml",
@@ -800,8 +797,8 @@
             },
             {
               "id": "xml_006_b02",
-              "name": "company_b_tem_device_settings.maiml",
-              "path": "device_settings/company_b/company_b_tem_device_settings.maiml",
+              "name": "B社_TEM装置設定.maiml",
+              "path": "device_settings/company_b/B社_TEM装置設定.maiml",
               "size": 22456,
               "lastModified": "2024-11-26T13:20:00Z",
               "type": "maiml",
@@ -815,8 +812,8 @@
           "files": [
             {
               "id": "xml_006_c01",
-              "name": "company_c_thermal_analysis_device_settings.maiml",
-              "path": "device_settings/company_c/company_c_thermal_analysis_device_settings.maiml",
+              "name": "C社_熱分析装置設定.maiml",
+              "path": "device_settings/company_c/C社_熱分析装置設定.maiml",
               "size": 20123,
               "lastModified": "2024-11-28T14:20:00Z",
               "type": "maiml",
@@ -825,8 +822,8 @@
             },
             {
               "id": "xml_006_c02",
-              "name": "company_c_spectrophotometer_settings.maiml",
-              "path": "device_settings/company_c/company_c_spectrophotometer_settings.maiml",
+              "name": "C社_分光光度計設定.maiml",
+              "path": "device_settings/company_c/C社_分光光度計設定.maiml",
               "size": 19567,
               "lastModified": "2024-11-25T16:00:00Z",
               "type": "maiml",
@@ -840,8 +837,8 @@
           "files": [
             {
               "id": "xml_006_d01",
-              "name": "company_d_tensile_tester_settings.maiml",
-              "path": "device_settings/company_d/company_d_tensile_tester_settings.maiml",
+              "name": "D社_引張試験機設定.maiml",
+              "path": "device_settings/company_d/D社_引張試験機設定.maiml",
               "size": 18890,
               "lastModified": "2024-11-22T10:30:00Z",
               "type": "maiml",
@@ -850,8 +847,8 @@
             },
             {
               "id": "xml_006_d02",
-              "name": "company_d_hardness_tester_settings.maiml",
-              "path": "device_settings/company_d/company_d_hardness_tester_settings.maiml",
+              "name": "D社_硬度計設定.maiml",
+              "path": "device_settings/company_d/D社_硬度計設定.maiml",
               "size": 17654,
               "lastModified": "2024-11-20T09:15:00Z",
               "type": "maiml",
@@ -865,8 +862,8 @@
           "files": [
             {
               "id": "xml_006_e01",
-              "name": "company_e_environmental_control_device_settings.maiml",
-              "path": "device_settings/company_e/company_e_environmental_control_device_settings.maiml",
+              "name": "E社_環境制御装置設定.maiml",
+              "path": "device_settings/company_e/E社_環境制御装置設定.maiml",
               "size": 23456,
               "lastModified": "2024-11-20T13:15:00Z",
               "type": "maiml",
@@ -875,8 +872,8 @@
             },
             {
               "id": "xml_006_e02",
-              "name": "company_e_data_acquisition_system_settings.maiml",
-              "path": "device_settings/company_e/company_e_data_acquisition_system_settings.maiml",
+              "name": "E社_データ収集システム設定.maiml",
+              "path": "device_settings/company_e/E社_データ収集システム設定.maiml",
               "size": 24567,
               "lastModified": "2024-11-18T15:45:00Z",
               "type": "maiml",

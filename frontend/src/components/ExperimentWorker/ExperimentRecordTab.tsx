@@ -1,19 +1,19 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, Space, Typography, theme, Button, Empty } from 'antd';
+import { Card, Space, Typography, theme, Button, Select, Empty } from 'antd';
 import { 
   ExperimentOutlined, 
+  CheckOutlined, 
   CheckSquareOutlined, 
   PartitionOutlined,
   UnorderedListOutlined,
   BarChartOutlined
 } from '@ant-design/icons';
 import TransitionList from './TransitionList';
-import MethodTaskSelectionModal from './MethodTaskSelectionModal';
-import MethodTaskSelector from './MethodTaskSelector';
+import TaskSelectionDialog from './TaskSelectionDialog';
 import { projectsData } from '@/data/projectsData';
-import { Method, ProjectStatus } from '@/types/experimentWorker';
+import { Method } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;
 
@@ -34,7 +34,7 @@ interface ExperimentRecordTabProps {
   selectedProject: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
-  onSelectMethod: (methodId: string | null) => void;
+  onSelectMethod: (methodId: string) => void;
   selectedTaskId: string;
   onSelectTask: (taskId: string) => void;
   onTaskCreated: (newTaskId: string) => void;
@@ -56,15 +56,12 @@ export default function ExperimentRecordTab({
 }: ExperimentRecordTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
-  const [modalOpen, setModalOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   // 表示モードの状態管理
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   // 選択中のプロジェクト情報を取得
   const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
-  
-  // プロジェクトの状態を取得
-  const projectStatus: ProjectStatus | null = selectedProjectData?.status ?? null;
 
   // タスクデータ: 選択されたプロジェクトとメソッドに紐づくタスクを取得
   const tasks = selectedProject && selectedMethod
@@ -138,23 +135,52 @@ export default function ExperimentRecordTab({
       flexDirection: 'column',
       overflow: 'hidden'
     }}>
-      {/* 選択メソッド・タスクエリア（共通コンポーネント使用） */}
-      <MethodTaskSelector
-        selectedProject={selectedProject}
-        selectedMethodId={selectedMethodId}
-        onSelectMethod={onSelectMethod}
-        methods={selectedProjectData?.methods || []}
-        selectedTaskId={selectedTaskId}
-        onSelectTask={onSelectTask}
-        tasks={tasks}
-        onOpenModal={() => setModalOpen(true)}
-        methodDisabled={!selectedProject}
-        taskDisabled={!selectedMethod}
-      />
+      {/* 選択カード */}
+      <div
+        style={{ 
+          marginBottom: token.marginLG,
+          height: 56,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          paddingLeft: token.paddingLG,
+          paddingRight: token.paddingLG,
+          backgroundColor: token.colorBgContainer,
+          border: `1px solid ${token.colorBorder}`,
+          borderRadius: 0,
+        }}
+      >
+        <div style={{ width: '100%' }}>
+          {/* タスク選択（コンボボックス） + 選択ボタン */}
+          <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: token.margin }}>
+            <Space size="middle" style={{ flex: 1 }}>
+              <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <Text strong style={{ minWidth: 80 }}>タスク:</Text>
+              <Select
+                style={{ flex: 1, minWidth: 200 }}
+                placeholder="タスクを選択してください"
+                value={selectedTaskId || ''}
+                onChange={onSelectTask}
+                options={taskOptions}
+                disabled={!selectedMethod}
+                size="large"
+              />
+            </Space>
+            <Button
+              type="primary"
+              icon={<CheckOutlined />}
+              onClick={() => setDialogOpen(true)}
+              size="large"
+            >
+              選択
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* 表示切り替えボタン */}
       {selectedProject && selectedMethod && (
-        <div style={{ marginBottom: 8, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ marginBottom: token.margin, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
           <Space size="middle">
             {viewMode === 'list' ? (
               <Button
@@ -222,7 +248,7 @@ export default function ExperimentRecordTab({
             {viewMode === 'list' ? (
               /* トランジション一覧表示 - タスク選択後のみ表示 */
               <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0, fontSize: 16 }}>
+                <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0 }}>
                   <BarChartOutlined style={{ marginRight: 8 }} />
                   トランジション一覧
                 </Title>
@@ -231,10 +257,7 @@ export default function ExperimentRecordTab({
                     transitions={transitionsWithProgress}
                     methodName={selectedMethod?.methodName}
                     selectedTaskId={selectedTaskId}
-                    projectStatus={projectStatus}
                     onTaskCreated={onTaskCreated}
-                    projectId={selectedProject}
-                    methodId={selectedMethodId || undefined}
                   />
                 </div>
               </div>
@@ -264,17 +287,14 @@ export default function ExperimentRecordTab({
         )}
       </div>
 
-      {/* メソッド・タスク選択モーダル */}
-      <MethodTaskSelectionModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
+      {/* タスク選択ダイアログ */}
+      <TaskSelectionDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
         selectedProject={selectedProject}
         selectedMethodId={selectedMethodId}
         selectedTaskId={selectedTaskId}
-        onSelect={(methodId: string, taskId: string) => {
-          onSelectMethod(methodId);
-          onSelectTask(taskId);
-        }}
+        onSelectTask={onSelectTask}
       />
     </div>
   );

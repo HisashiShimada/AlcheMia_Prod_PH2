@@ -2,369 +2,13 @@ import {
   ProjectData,
   Task,
   WorkflowStatistics,
-  Template,
 } from '@/types/experimentWorker';
-
-/**
- * テンプレート一覧（データ記録モーダル用）
- */
-export const templatesList: Template[] = [
-  // 材料テンプレート
-  {
-    templateId: "tpl_mat_001",
-    category: "Materials",
-    name: "金属材料情報",
-    description: "金属系材料の基本情報を記録するテンプレート",
-    properties: [
-      {
-        key: "material_name",
-        label: "材料名",
-        type: "stringType",
-        required: true
-      },
-      {
-        key: "material_type",
-        label: "材料種別",
-        type: "stringType",
-        required: true,
-        options: ["鉄", "銅", "アルミニウム", "チタン", "その他"]
-      },
-      {
-        key: "purity",
-        label: "純度",
-        type: "floatType",
-        units: "%",
-        required: true,
-        min: 0,
-        max: 100
-      },
-      {
-        key: "weight",
-        label: "重量",
-        type: "floatType",
-        units: "g",
-        required: true
-      }
-    ]
-  },
-  {
-    templateId: "tpl_mat_002",
-    category: "Materials",
-    name: "化学試薬情報",
-    description: "化学試薬の詳細情報を記録するテンプレート",
-    properties: [
-      {
-        key: "reagent_name",
-        label: "試薬名",
-        type: "stringType",
-        required: true
-      },
-      {
-        key: "cas_number",
-        label: "CAS番号",
-        type: "stringType",
-        required: false
-      },
-      {
-        key: "concentration",
-        label: "濃度",
-        type: "floatType",
-        units: "mol/L",
-        required: true
-      },
-      {
-        key: "volume",
-        label: "使用量",
-        type: "floatType",
-        units: "mL",
-        required: true
-      },
-      {
-        key: "lot_number",
-        label: "ロット番号",
-        type: "stringType",
-        required: false
-      }
-    ]
-  },
-  {
-    templateId: "tpl_mat_003",
-    category: "Materials",
-    name: "複合材料情報",
-    description: "複合材料・混合材料の組成情報を記録するテンプレート",
-    properties: [
-      {
-        key: "composite_name",
-        label: "複合材料名",
-        type: "stringType",
-        required: true
-      },
-      {
-        key: "matrix_material",
-        label: "マトリックス材料",
-        type: "stringType",
-        required: true
-      },
-      {
-        key: "reinforcement_material",
-        label: "強化材",
-        type: "stringType",
-        required: false
-      },
-      {
-        key: "composition_ratio",
-        label: "組成比",
-        type: "stringType",
-        required: false
-      }
-    ]
-  },
-  
-  // 条件テンプレート
-  {
-    templateId: "tpl_cond_001",
-    category: "Conditions",
-    name: "温度条件",
-    description: "実験時の温度条件を記録するテンプレート",
-    properties: [
-      {
-        key: "target_temperature",
-        label: "目標温度",
-        type: "intType",
-        units: "℃",
-        required: true,
-        min: -273,
-        max: 2000
-      },
-      {
-        key: "heating_rate",
-        label: "昇温速度",
-        type: "floatType",
-        units: "℃/min",
-        required: false,
-        min: 0.1,
-        max: 100
-      },
-      {
-        key: "holding_time",
-        label: "保持時間",
-        type: "intType",
-        units: "分",
-        required: false,
-        min: 0
-      },
-      {
-        key: "cooling_method",
-        label: "冷却方法",
-        type: "stringType",
-        required: false,
-        options: ["自然冷却", "強制冷却", "急冷", "徐冷"]
-      }
-    ]
-  },
-  {
-    templateId: "tpl_cond_002",
-    category: "Conditions",
-    name: "圧力・雰囲気条件",
-    description: "実験時の圧力と雰囲気ガスの条件を記録するテンプレート",
-    properties: [
-      {
-        key: "pressure",
-        label: "圧力",
-        type: "floatType",
-        units: "MPa",
-        required: true,
-        min: 0
-      },
-      {
-        key: "atmosphere_gas",
-        label: "雰囲気ガス",
-        type: "stringType",
-        required: true,
-        options: ["大気", "窒素", "アルゴン", "真空", "その他"]
-      },
-      {
-        key: "gas_flow_rate",
-        label: "ガス流量",
-        type: "floatType",
-        units: "L/min",
-        required: false,
-        min: 0
-      },
-      {
-        key: "humidity",
-        label: "湿度",
-        type: "floatType",
-        units: "%",
-        required: false,
-        min: 0,
-        max: 100
-      }
-    ]
-  },
-  {
-    templateId: "tpl_cond_003",
-    category: "Conditions",
-    name: "測定条件",
-    description: "測定機器の設定条件を記録するテンプレート",
-    properties: [
-      {
-        key: "measurement_method",
-        label: "測定手法",
-        type: "stringType",
-        required: true
-      },
-      {
-        key: "equipment_name",
-        label: "使用機器",
-        type: "stringType",
-        required: true
-      },
-      {
-        key: "measurement_time",
-        label: "測定時間",
-        type: "intType",
-        units: "秒",
-        required: true,
-        min: 1
-      },
-      {
-        key: "integration_count",
-        label: "積算回数",
-        type: "intType",
-        required: false,
-        min: 1,
-        defaultValue: 1
-      },
-      {
-        key: "measurement_date",
-        label: "測定日時",
-        type: "dateTimeType",
-        required: true
-      }
-    ]
-  },
-  
-  // 結果テンプレート
-  {
-    templateId: "tpl_res_001",
-    category: "Results",
-    name: "物性測定結果",
-    description: "材料の物理的特性の測定結果を記録するテンプレート",
-    properties: [
-      {
-        key: "hardness",
-        label: "硬度",
-        type: "floatType",
-        units: "HV",
-        required: false
-      },
-      {
-        key: "tensile_strength",
-        label: "引張強度",
-        type: "floatType",
-        units: "MPa",
-        required: false
-      },
-      {
-        key: "elongation",
-        label: "伸び",
-        type: "floatType",
-        units: "%",
-        required: false
-      },
-      {
-        key: "density",
-        label: "密度",
-        type: "floatType",
-        units: "g/cm³",
-        required: false
-      },
-      {
-        key: "observation",
-        label: "観察結果",
-        type: "stringType",
-        required: false
-      }
-    ]
-  },
-  {
-    templateId: "tpl_res_002",
-    category: "Results",
-    name: "化学分析結果",
-    description: "化学分析の結果を記録するテンプレート",
-    properties: [
-      {
-        key: "element_composition",
-        label: "元素組成",
-        type: "stringType",
-        required: false
-      },
-      {
-        key: "phase_identification",
-        label: "相同定結果",
-        type: "stringType",
-        required: false
-      },
-      {
-        key: "purity_analysis",
-        label: "純度分析結果",
-        type: "floatType",
-        units: "%",
-        required: false,
-        min: 0,
-        max: 100
-      },
-      {
-        key: "impurity_content",
-        label: "不純物含有量",
-        type: "floatType",
-        units: "ppm",
-        required: false
-      }
-    ]
-  },
-  {
-    templateId: "tpl_res_003",
-    category: "Results",
-    name: "画像・スペクトルデータ",
-    description: "測定画像やスペクトルデータを記録するテンプレート",
-    properties: [
-      {
-        key: "spectrum_data",
-        label: "スペクトルデータ",
-        type: "contentDoubleListType",
-        required: false
-      },
-      {
-        key: "peak_positions",
-        label: "ピーク位置",
-        type: "stringType",
-        required: false
-      },
-      {
-        key: "image_file",
-        label: "測定画像",
-        type: "insertion",
-        required: false
-      },
-      {
-        key: "analysis_comment",
-        label: "解析コメント",
-        type: "stringType",
-        required: false
-      }
-    ]
-  }
-];
 
 export const projectsData: Record<string, ProjectData> = {
   "project_001": {
     "projectId": "project_001",
     "projectName": "高温材料特性評価実験",
-    "description": "高温環境下での材料特性を評価し、耐熱性能を検証する実験プロジェクト",
     "fileName": "experiment_workflow_v2.maiml",
-    "status": "executing_task",
     "workAssignment": {
       "workId": "work_001",
       "fileKey": "org_maiml_lab_001/projects/proj_001/files/experiment_workflow_v2.maiml",
@@ -471,10 +115,9 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_007",
-        "targetType": "task",
-        "taskId": "task_m001_001",
-        "taskName": "温度記録",
+        "targetType": "method",
         "methodId": "m001",
+        "methodName": "温度キャリブレーション",
         "content": "加熱炉の温度計が正確であることを確認してください。標準温度計と比較し、誤差が±2℃以内であることを確認します。誤差が大きい場合は管理者に報告してください。",
         "priority": "high",
         "instructionType": "setup",
@@ -488,10 +131,9 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_008",
-        "targetType": "task",
-        "taskId": "task_m002_001",
-        "taskName": "重量測定記録",
+        "targetType": "method",
         "methodId": "m002",
+        "methodName": "サンプル重量測定",
         "content": "精密天秤を使用してサンプルの重量を測定します。測定前に天秤のゼロ点調整を必ず実施してください。重量は小数点以下2桁まで記録してください。",
         "priority": "medium",
         "instructionType": "measurement",
@@ -505,10 +147,9 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_009",
-        "targetType": "task",
-        "taskId": "task_m001_003",
-        "taskName": "レポート作成",
-        "methodId": "m001",
+        "targetType": "method",
+        "methodId": "m003",
+        "methodName": "データバックアップ",
         "content": "測定データは実験終了後、必ず共有フォルダとローカルPCの両方に保存してください。ファイル名は「YYYYMMDD_実験名_作業者名.xlsx」の形式で保存してください。",
         "priority": "high",
         "instructionType": "general",
@@ -522,10 +163,9 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_010",
-        "targetType": "task",
-        "taskId": "task_m001_002",
-        "taskName": "誤差計算",
-        "methodId": "m001",
+        "targetType": "method",
+        "methodId": "m004",
+        "methodName": "機器クリーニング",
         "content": "実験終了後、加熱炉内部を柔らかい布で拭き取ってください。残留物がある場合はアルコールを使用して除去してください。クリーニング後は必ず乾燥させてから次の実験に使用してください。",
         "priority": "medium",
         "instructionType": "cleanup",
@@ -539,10 +179,9 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_011",
-        "targetType": "task",
-        "taskId": "task_m001_001",
-        "taskName": "温度記録",
+        "targetType": "method",
         "methodId": "m001",
+        "methodName": "温度キャリブレーション",
         "content": "キャリブレーション実施後、結果をExcelシートに記録してください。記録項目：測定時刻、標準温度計の値、装置温度計の値、誤差。誤差が±2℃を超える場合は赤字で記入してください。",
         "priority": "high",
         "instructionType": "measurement",
@@ -556,10 +195,9 @@ export const projectsData: Record<string, ProjectData> = {
       },
       {
         "instructionId": "inst_012",
-        "targetType": "task",
-        "taskId": "task_m002_001",
-        "taskName": "重量測定記録",
+        "targetType": "method",
         "methodId": "m002",
+        "methodName": "サンプル重量測定",
         "content": "測定値に異常がある場合（前回測定値との差が5%以上）は、再測定を実施してください。それでも異常値が続く場合は管理者に報告してください。",
         "priority": "high",
         "instructionType": "measurement",
@@ -629,7 +267,6 @@ export const projectsData: Record<string, ProjectData> = {
         "tasks": [
           {
             "taskId": "task_m001_001",
-            "methodName": "温度キャリブレーション",
             "taskName": "温度記録",
             "sampleNumber": "Sample-001",
             "notes": "標準温度計との比較測定",
@@ -640,7 +277,6 @@ export const projectsData: Record<string, ProjectData> = {
           },
           {
             "taskId": "task_m001_002",
-            "methodName": "温度キャリブレーション",
             "taskName": "誤差計算",
             "sampleNumber": "Sample-001",
             "notes": "温度誤差の算出と記録",
@@ -651,7 +287,6 @@ export const projectsData: Record<string, ProjectData> = {
           },
           {
             "taskId": "task_m001_003",
-            "methodName": "温度キャリブレーション",
             "taskName": "レポート作成",
             "sampleNumber": "Sample-001",
             "notes": "キャリブレーション結果のまとめ",
@@ -763,7 +398,6 @@ export const projectsData: Record<string, ProjectData> = {
         "tasks": [
           {
             "taskId": "task_m002_001",
-            "methodName": "サンプル重量測定",
             "taskName": "重量測定記録",
             "sampleNumber": "Sample-W001",
             "notes": "精密天秤による重量測定とデータ記録",
@@ -1118,7 +752,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t001",
         "transitionName": "サンプル準備",
-        "taskId": "task_m001_001",
         "taskName": "温度記録",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -1133,7 +766,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t002",
         "transitionName": "温度設定",
-        "taskId": "task_m001_001",
         "taskName": "温度記録",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -1148,7 +780,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t001",
         "transitionName": "サンプル準備",
-        "taskId": "task_m001_002",
         "taskName": "誤差計算",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -1163,7 +794,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t002",
         "transitionName": "温度設定",
-        "taskId": "task_m001_002",
         "taskName": "誤差計算",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -1178,7 +808,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t001",
         "transitionName": "サンプル準備",
-        "taskId": "task_m001_003",
         "taskName": "レポート作成",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -1193,7 +822,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t002",
         "transitionName": "温度設定",
-        "taskId": "task_m001_003",
         "taskName": "レポート作成",
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
@@ -1208,7 +836,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t004",
         "transitionName": "測定環境準備",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1223,7 +850,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t005",
         "transitionName": "天秤キャリブレーション",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1238,7 +864,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t006",
         "transitionName": "ゼロ点調整",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1253,7 +878,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t007",
         "transitionName": "サンプルA-1測定",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1268,7 +892,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t008",
         "transitionName": "サンプルA-2測定",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1283,7 +906,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t009",
         "transitionName": "サンプルA-3測定",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1298,7 +920,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t010",
         "transitionName": "サンプルB-1測定",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1313,7 +934,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t011",
         "transitionName": "サンプルB-2測定",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1328,7 +948,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t012",
         "transitionName": "サンプルB-3測定",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1343,7 +962,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t013",
         "transitionName": "重量データ記録",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1358,7 +976,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t014",
         "transitionName": "データ検証",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1373,7 +990,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t015",
         "transitionName": "異常値チェック",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1388,7 +1004,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t016",
         "transitionName": "再測定判定",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1403,7 +1018,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t017",
         "transitionName": "環境データ記録",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1418,7 +1032,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t018",
         "transitionName": "測定結果入力",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1433,7 +1046,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t019",
         "transitionName": "データバックアップ",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1448,7 +1060,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t020",
         "transitionName": "品質確認",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1463,7 +1074,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t021",
         "transitionName": "承認申請",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1478,7 +1088,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t022",
         "transitionName": "最終確認",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1493,7 +1102,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t023",
         "transitionName": "レポート作成",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1508,7 +1116,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t024",
         "transitionName": "サンプル保管",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1523,7 +1130,6 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "transitionId": "t025",
         "transitionName": "記録完了",
-        "taskId": "task_m002_001",
         "taskName": "重量測定記録",
         "methodId": "m002",
         "methodName": "サンプル重量測定",
@@ -1540,9 +1146,7 @@ export const projectsData: Record<string, ProjectData> = {
   "project_002": {
     "projectId": "project_002",
     "projectName": "Ramanスペクトル解析",
-    "description": "Ramanスペクトル測定による材料の分子構造解析プロジェクト",
     "fileName": "Raman_analysis_v1.maiml",
-    "status": "waiting_task",
     "workAssignment": {
       "workId": "work_002",
       "fileKey": "org_maiml_lab_001/projects/proj_002/files/Raman_analysis_v1.maiml",
@@ -1593,9 +1197,7 @@ export const projectsData: Record<string, ProjectData> = {
   "project_003": {
     "projectId": "project_003",
     "projectName": "XRF元素分析実験",
-    "description": "蛍光X線分析による試料の元素組成分析プロジェクト",
     "fileName": "XRF_experiment.maiml",
-    "status": "waiting_approval",
     "workAssignment": {
       "workId": "work_003",
       "fileKey": "org_maiml_lab_001/projects/proj_003/files/XRF_experiment.maiml",
@@ -1623,221 +1225,11 @@ export const projectsData: Record<string, ProjectData> = {
           "userName": "山田太郎"
         },
         "isRead": false
-      },
-      {
-        "instructionId": "inst_302",
-        "targetType": "task",
-        "taskId": "task_m301_001",
-        "taskName": "サンプル前処理",
-        "methodId": "m301",
-        "content": "XRF測定用サンプルの表面を丁寧にクリーニングし、異物を除去してください。",
-        "priority": "high",
-        "instructionType": "setup",
-        "createdAt": "2024-12-07T13:35:00Z",
-        "updatedAt": null,
-        "createdBy": {
-          "userId": "manager_001",
-          "userName": "山田太郎"
-        },
-        "isRead": false
-      },
-      {
-        "instructionId": "inst_303",
-        "targetType": "task",
-        "taskId": "task_m301_002",
-        "taskName": "XRF測定実行",
-        "methodId": "m301",
-        "content": "測定条件を確認し、XRF分析を実行してください。測定時間は各ポイント60秒です。",
-        "priority": "high",
-        "instructionType": "measurement",
-        "createdAt": "2024-12-07T13:40:00Z",
-        "updatedAt": null,
-        "createdBy": {
-          "userId": "manager_001",
-          "userName": "山田太郎"
-        },
-        "isRead": false
       }
     ],
-    "transitionDetails": {
-      "t301": {
-        "transitionId": "t301",
-        "transitionName": "サンプルクリーニング",
-        "category": "前処理",
-        "description": "XRF測定前にサンプル表面の汚れや異物を除去する工程。",
-        "isExperimentRelevant": true,
-        "estimatedDuration": "20分",
-        "requiredEquipment": ["クリーニング液", "クリーンクロス", "ピンセット"],
-        "safetyNotes": "クリーニング液は換気の良い場所で使用すること"
-      },
-      "t302": {
-        "transitionId": "t302",
-        "transitionName": "装置キャリブレーション",
-        "category": "キャリブレーション",
-        "description": "XRF装置の精度を確認し、標準試料で校正する工程。",
-        "isExperimentRelevant": true,
-        "estimatedDuration": "30分",
-        "requiredEquipment": ["XRF装置", "標準試料", "PC"],
-        "safetyNotes": "X線照射中は装置に近づかないこと"
-      },
-      "t303": {
-        "transitionId": "t303",
-        "transitionName": "元素分析測定",
-        "category": "測定",
-        "description": "試料の元素組成をXRFで測定する工程。",
-        "isExperimentRelevant": true,
-        "estimatedDuration": "60分",
-        "requiredEquipment": ["XRF装置", "データロガー"],
-        "safetyNotes": "測定中は装置のドアを開けないこと"
-      }
-    },
-    "methods": [
-      {
-        "methodId": "m301",
-        "methodName": "XRF元素分析",
-        "description": "蛍光X線分析法による試料の元素組成分析手順。",
-        "category": "元素分析",
-        "tasks": [
-          {
-            "taskId": "task_m301_001",
-            "methodName": "XRF元素分析",
-            "taskName": "サンプル前処理",
-            "sampleNumber": "XRF-Sample-001",
-            "notes": "表面クリーニングと異物除去",
-            "status": "completed",
-            "progressRate": 100,
-            "progressReport": "実験記録報告",
-            "recordNumber": "EXP-XRF-001"
-          },
-          {
-            "taskId": "task_m301_002",
-            "methodName": "XRF元素分析",
-            "taskName": "XRF測定実行",
-            "sampleNumber": "XRF-Sample-001",
-            "notes": "元素組成の測定と記録",
-            "status": "completed",
-            "progressRate": 100,
-            "progressReport": "実験記録報告",
-            "recordNumber": "EXP-XRF-002"
-          },
-          {
-            "taskId": "task_m301_003",
-            "methodName": "XRF元素分析",
-            "taskName": "データ解析",
-            "sampleNumber": "XRF-Sample-001",
-            "notes": "測定データの解析とレポート作成",
-            "status": "in_progress",
-            "progressRate": 60,
-            "progressReport": "実験記録報告",
-            "recordNumber": "EXP-XRF-003"
-          }
-        ],
-        "transitions": [
-          {
-            "transitionId": "t301",
-            "transitionName": "サンプルクリーニング",
-            "description": "XRF測定前にサンプル表面の汚れや異物を除去する工程。",
-            "category": "前処理",
-            "estimatedDuration": "20分",
-            "totalMaterialsCount": 1,
-            "totalIngredientsCount": 2,
-            "totalResultsCount": 0
-          },
-          {
-            "transitionId": "t302",
-            "transitionName": "装置キャリブレーション",
-            "description": "XRF装置の精度を確認し、標準試料で校正する工程。",
-            "category": "キャリブレーション",
-            "estimatedDuration": "30分",
-            "totalMaterialsCount": 1,
-            "totalIngredientsCount": 3,
-            "totalResultsCount": 1
-          },
-          {
-            "transitionId": "t303",
-            "transitionName": "元素分析測定",
-            "description": "試料の元素組成をXRFで測定する工程。",
-            "category": "測定",
-            "estimatedDuration": "60分",
-            "totalMaterialsCount": 1,
-            "totalIngredientsCount": 4,
-            "totalResultsCount": 3
-          },
-          {
-            "transitionId": "t304",
-            "transitionName": "スペクトル解析",
-            "description": "取得したXRFスペクトルを解析する工程。",
-            "category": "データ処理",
-            "estimatedDuration": "40分",
-            "totalMaterialsCount": 0,
-            "totalIngredientsCount": 2,
-            "totalResultsCount": 2
-          }
-        ]
-      }
-    ],
-    "progressData": [
-      {
-        "transitionId": "t301",
-        "transitionName": "サンプルクリーニング",
-        "taskId": "task_m301_001",
-        "taskName": "サンプル前処理",
-        "methodId": "m301",
-        "methodName": "XRF元素分析",
-        "progressRate": 100,
-        "status": "completed",
-        "reportCount": 2,
-        "issueCount": 0,
-        "inputMaterialsCount": 1,
-        "inputIngredientsCount": 2,
-        "inputResultsCount": 0
-      },
-      {
-        "transitionId": "t302",
-        "transitionName": "装置キャリブレーション",
-        "taskId": "task_m301_002",
-        "taskName": "XRF測定実行",
-        "methodId": "m301",
-        "methodName": "XRF元素分析",
-        "progressRate": 100,
-        "status": "completed",
-        "reportCount": 1,
-        "issueCount": 0,
-        "inputMaterialsCount": 1,
-        "inputIngredientsCount": 3,
-        "inputResultsCount": 1
-      },
-      {
-        "transitionId": "t303",
-        "transitionName": "元素分析測定",
-        "taskId": "task_m301_002",
-        "taskName": "XRF測定実行",
-        "methodId": "m301",
-        "methodName": "XRF元素分析",
-        "progressRate": 100,
-        "status": "completed",
-        "reportCount": 3,
-        "issueCount": 0,
-        "inputMaterialsCount": 1,
-        "inputIngredientsCount": 4,
-        "inputResultsCount": 3
-      },
-      {
-        "transitionId": "t304",
-        "transitionName": "スペクトル解析",
-        "taskId": "task_m301_003",
-        "taskName": "データ解析",
-        "methodId": "m301",
-        "methodName": "XRF元素分析",
-        "progressRate": 60,
-        "status": "in_progress",
-        "reportCount": 1,
-        "issueCount": 0,
-        "inputMaterialsCount": 0,
-        "inputIngredientsCount": 1,
-        "inputResultsCount": 1
-      }
-    ]
+    "transitionDetails": {},
+    "methods": [],
+    "progressData": []
   }
 };
 
@@ -1932,183 +1324,4 @@ export function updateTaskStatus(
   }
 
   return [...method.tasks];
-}
-
-/**
- * 問題報告モックデータ
- * トランジションIDをキーとして問題一覧を管理
- */
-import { Issue, IssueComment, User } from '@/types/experimentWorker';
-
-// モックユーザーデータ
-const mockUsers: Record<string, User> = {
-  worker_001: {
-    userId: 'worker_001',
-    userName: '田中一郎',
-    role: 'Worker'
-  },
-  worker_002: {
-    userId: 'worker_002',
-    userName: '鈴木二郎',
-    role: 'Worker'
-  },
-  manager_001: {
-    userId: 'manager_001',
-    userName: '山田太郎',
-    role: 'Manager'
-  }
-};
-
-// 問題報告モックデータ
-export const issuesData: Record<string, Issue[]> = {
-  // トランジションt002の問題
-  t002: [
-    {
-      issueId: 'issue_001',
-      transitionId: 't002',
-      transitionName: '温度設定',
-      title: '目標温度到達に時間がかかる',
-      content: '加熱炉の温度が目標値に達するまでに通常より5分程度余計に時間がかかっています。ヒーターの劣化が疑われます。',
-      status: 'unresolved',
-      targetType: 'transition',
-      reportedBy: mockUsers.worker_001,
-      reportedAt: '2024-12-25T10:30:00Z',
-      comments: [
-        {
-          commentId: 'comment_001',
-          issueId: 'issue_001',
-          content: 'ヒーターの点検を実施しました。接触不良を確認したため、配線を修正しました。',
-          createdBy: mockUsers.manager_001,
-          createdAt: '2024-12-25T14:20:00Z'
-        },
-        {
-          commentId: 'comment_002',
-          issueId: 'issue_001',
-          content: '修正後、温度上昇が正常に戻ったことを確認しました。ありがとうございます。',
-          createdBy: mockUsers.worker_001,
-          createdAt: '2024-12-25T15:10:00Z'
-        }
-      ]
-    }
-  ],
-  // トランジションt005の問題
-  t005: [
-    {
-      issueId: 'issue_002',
-      transitionId: 't005',
-      transitionName: '天秤キャリブレーション',
-      title: '校正用分銅の重量が基準値とずれている',
-      content: '100g の校正用分銅を測定したところ、99.95g と表示されました。許容誤差範囲を超えているため、分銅の再校正が必要と思われます。',
-      status: 'unresolved',
-      targetType: 'transition',
-      reportedBy: mockUsers.worker_002,
-      reportedAt: '2024-12-26T09:15:00Z',
-      comments: [
-        {
-          commentId: 'comment_003',
-          issueId: 'issue_002',
-          content: '分銅メーカーに問い合わせ中です。来週中に新しい分銅セットが届く予定です。',
-          createdBy: mockUsers.manager_001,
-          createdAt: '2024-12-26T11:30:00Z'
-        }
-      ]
-    },
-    {
-      issueId: 'issue_003',
-      transitionId: 't005',
-      transitionName: '天秤キャリブレーション',
-      title: '天秤の表示が不安定',
-      content: '天秤に何も載せていない状態でも、表示が0.01g〜0.02gの範囲で変動します。環境の振動が原因か、天秤自体の問題か調査が必要です。',
-      status: 'resolved',
-      targetType: 'transition',
-      reportedBy: mockUsers.worker_001,
-      reportedAt: '2024-12-24T13:45:00Z',
-      comments: [
-        {
-          commentId: 'comment_004',
-          issueId: 'issue_003',
-          content: '天秤の設置場所を確認したところ、エアコンの風が直接当たっていました。風除けパネルを設置しました。',
-          createdBy: mockUsers.manager_001,
-          createdAt: '2024-12-24T15:00:00Z'
-        },
-        {
-          commentId: 'comment_005',
-          issueId: 'issue_003',
-          content: '風除けパネル設置後、表示の変動が±0.001g以内に収まるようになりました。問題解決を確認しました。',
-          createdBy: mockUsers.worker_001,
-          createdAt: '2024-12-24T16:20:00Z'
-        }
-      ]
-    }
-  ],
-  // トランジションt007の問題
-  t007: [
-    {
-      issueId: 'issue_004',
-      transitionId: 't007',
-      transitionName: 'サンプルA-1測定',
-      title: 'サンプルの表面に傷がある',
-      content: 'サンプルA-1の表面に小さな傷が確認されました。測定値に影響する可能性があるため、代替サンプルの使用を検討したいです。',
-      status: 'unresolved',
-      targetType: 'transition',
-      reportedBy: mockUsers.worker_002,
-      reportedAt: '2024-12-27T10:05:00Z',
-      comments: []
-    }
-  ],
-  // トランジションt303の問題
-  t303: [
-    {
-      issueId: 'issue_005',
-      transitionId: 't303',
-      transitionName: '元素分析測定',
-      title: 'スペクトルにノイズが多い',
-      content: 'XRF測定のスペクトルに通常より多くのノイズが含まれています。測定時間を延長するか、積算回数を増やす必要があるかもしれません。',
-      status: 'resolved',
-      targetType: 'transition',
-      reportedBy: mockUsers.worker_001,
-      reportedAt: '2024-12-28T14:30:00Z',
-      comments: [
-        {
-          commentId: 'comment_006',
-          issueId: 'issue_005',
-          content: 'X線管の出力を確認したところ、設定値より低下していました。出力を規定値に調整しました。',
-          createdBy: mockUsers.manager_001,
-          createdAt: '2024-12-28T15:45:00Z'
-        },
-        {
-          commentId: 'comment_007',
-          issueId: 'issue_005',
-          content: '出力調整後、ノイズレベルが正常範囲に戻りました。ありがとうございます。',
-          createdBy: mockUsers.worker_001,
-          createdAt: '2024-12-28T16:10:00Z'
-        }
-      ]
-    }
-  ]
-};
-
-/**
- * トランジションIDから問題一覧を取得する
- * @param transitionId トランジションID
- * @returns 問題一覧
- */
-export function getIssuesByTransitionId(transitionId: string): Issue[] {
-  return issuesData[transitionId] || [];
-}
-
-/**
- * すべての問題を取得する
- * @returns 全問題一覧
- */
-export function getAllIssues(): Issue[] {
-  return Object.values(issuesData).flat();
-}
-
-/**
- * 未解決の問題のみを取得する
- * @returns 未解決問題一覧
- */
-export function getUnresolvedIssues(): Issue[] {
-  return getAllIssues().filter(issue => issue.status === 'unresolved');
 }

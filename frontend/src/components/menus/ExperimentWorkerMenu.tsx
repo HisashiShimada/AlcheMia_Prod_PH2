@@ -5,6 +5,7 @@ import { Layout, Card, Typography, Space, Button, Tabs, theme, Select } from 'an
 import {
   FileTextOutlined,
   FormOutlined,
+  LineChartOutlined,
   CheckSquareOutlined,
   FolderOutlined,
   ToolOutlined,
@@ -19,10 +20,10 @@ import { useInstructions } from '@/hooks/useInstructions';
 import { useExpandState } from '@/hooks/useExpandState';
 import InstructionConfirmationTab from '../ExperimentWorker/InstructionConfirmationTab';
 import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
-import ProgressCheckTab from '../ExperimentWorker/ProgressCheckTab';
-import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
+import TaskListTab from '../ExperimentWorker/TaskListTab';
+import ProgressReportTab from '../ExperimentWorker/ProgressReportTab';
+import UnifiedSelectionDialog from '../ExperimentWorker/UnifiedSelectionDialog';
 import { projectsData } from '@/data/projectsData';
-import { isSelectableStatus } from '@/types/experimentWorker';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -110,24 +111,35 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     setIsClient(true);
   }, []);
 
-  // プロジェクト変更時のハンドラー（メソッドとタスクをリセット）
+  // プロジェクト選択時、または実験記録タブ・進捗報告タブ表示時に最初のメソッドを自動選択
+  useEffect(() => {
+    // 実験記録タブ（key='3'）または進捗報告タブ（key='6'）が選択されている場合のみ
+    if ((currentTab === '3' || currentTab === '6') && selectedProject && !selectedMethodId) {
+      const methods = projectsData[selectedProject]?.methods || [];
+      if (methods.length > 0) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        setSelectedMethodId(methods[0].methodId);
+      }
+    }
+  }, [currentTab, selectedProject, selectedMethodId]);
+
+  // プロジェクト変更時のハンドラー（メソッドを"-"にリセット）
   const handleProjectChange = (value: string | null) => {
     // nullは空文字列として扱う
     const projectValue = value || '';
     originalHandleProjectChange(projectValue);
-    
-    // プロジェクトが変更された場合、メソッドとタスクをリセット
+    // プロジェクトが変更された場合、メソッドを"-"にリセット
     setSelectedMethodId(null);
+    // タスクもリセット
     setSelectedTaskId('');
   };
 
-  // メソッド選択ハンドラー（タスクをリセット）
+  // メソッド選択ハンドラー
   const handleSelectMethod = (methodId: string | null) => {
-    // メソッドが実際に変更された場合のみタスクをリセット
-    if (methodId !== selectedMethodId) {
-      setSelectedTaskId('');
-    }
+    // null値をそのまま設定
     setSelectedMethodId(methodId);
+    // メソッドが変更された場合、タスクをリセット
+    setSelectedTaskId('');
   };
 
   // タスク選択ハンドラー
@@ -138,28 +150,6 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   // タスク発行時のハンドラー
   const handleTaskCreated = (newTaskId: string) => {
     setSelectedTaskId(newTaskId);
-  };
-
-  // タスク選択とタブ切り替えを同時に実行するハンドラー
-  const handleSelectTaskAndTab = (taskId: string, tabKey: string) => {
-    // タスクからメソッドIDを取得
-    if (selectedProject) {
-      const projectData = projectsData[selectedProject];
-      if (projectData?.methods) {
-        for (const method of projectData.methods) {
-          const task = method.tasks?.find(t => t.taskId === taskId);
-          if (task) {
-            // メソッドIDを設定
-            setSelectedMethodId(method.methodId);
-            break;
-          }
-        }
-      }
-    }
-    // タスクを選択
-    setSelectedTaskId(taskId);
-    // タブを切り替え
-    setCurrentTab(tabKey);
   };
 
   // 選択されたメソッドを取得
@@ -181,16 +171,15 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const tabItems = [
     {
       key: '4',
-      label: t('menu.experiment_worker.tabs.progressCheck'),
+      label: t('menu.experiment_worker.tabs.taskList'),
       icon: <CheckSquareOutlined />,
       children: (
-        <ProgressCheckTab
+        <TaskListTab
           selectedProject={selectedProject}
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
           onTabChange={handleTabChange}
-          onSelectTaskAndTab={handleSelectTaskAndTab}
         />
       ),
     },
@@ -204,8 +193,6 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
-          selectedTaskId={selectedTaskId}
-          onSelectTask={handleSelectTask}
           sortedInstructions={sortedInstructions}
           stats={stats}
           isClient={isClient}
@@ -231,6 +218,22 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
         />
       ),
     },
+    {
+      key: '6',
+      label: t('menu.experiment_worker.tabs.progressReport'),
+      icon: <LineChartOutlined />,
+      children: (
+        <ProgressReportTab
+          selectedProject={selectedProject}
+          onProjectChange={handleProjectChange}
+          selectedMethodId={selectedMethodId}
+          onSelectMethod={handleSelectMethod}
+          selectedTaskId={selectedTaskId}
+          onSelectTask={handleSelectTask}
+          selectedMethod={selectedMethod}
+        />
+      ),
+    },
   ];
 
   return (
@@ -246,58 +249,82 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       <Content
         style={{
           marginTop: TOTAL_HEADER_HEIGHT, // Header(64px) + SubHeader(48px) = 112px
-          padding: 0,
+          padding: '0', // パディングなし（ResponsiveContainer内で調整）
         }}
       >
-        <div style={{ 
-          width: '100%',
-          padding: 0,
+        <ResponsiveContainer style={{ 
+          paddingTop: 0, // 上部パディングなし
+          paddingLeft: 16,
+          paddingRight: 16,
+          paddingBottom: 24,
         }}>
-          {/* プロジェクト選択・選択ボタン */}
+          {/* プロジェクト選択・メソッド選択・選択ボタン */}
           <div style={{ 
             height: SELECTION_AREA_HEIGHT,
             marginBottom: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-start',
-            gap: token.marginXS,
+            gap: token.margin,
             flexWrap: 'nowrap',
             backgroundColor: token.colorBgContainer,
             border: `1px solid ${token.colorBorder}`,
-            borderLeft: 'none',
-            borderRight: 'none',
             paddingLeft: token.paddingLG,
             paddingRight: token.paddingLG,
           }}>
-            {/* プロジェクト選択・選択ボタン */}
-            <Space size="middle" style={{ flex: '0 0 auto' }}>
+            {/* プロジェクト選択 */}
+            <Space size="small" style={{ flex: '1 1 250px', minWidth: 250 }}>
               <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong>{t('experimentWork.labels.project')}:</Text>
               <Select
                 value={selectedProject === '' ? null : selectedProject}
                 placeholder="-"
-                style={{ width: 280 }}
+                style={{ flex: 1, minWidth: 150 }}
                 onChange={handleProjectChange}
                 options={[
                   { value: null, label: '-' },
-                  ...Object.entries(projectsData)
-                    .filter(([, project]) => isSelectableStatus(project.status))
-                    .map(([id, project]) => ({
-                      value: id,
-                      label: `${project.projectName} - ${t(`experimentWork.projectStatus.${project.status}`)}`
-                    }))
+                  ...Object.entries(projectsData).map(([id, project]) => ({
+                    value: id,
+                    label: project.projectName
+                  }))
                 ]}
                 size="middle"
               />
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                onClick={() => setDialogOpen(true)}
-                size="large"
-              >
-                {t('experimentWork.selectButton')}
-              </Button>
             </Space>
+
+            {/* メソッド選択 */}
+            <Space size="small" style={{ flex: '1 1 250px', minWidth: 250 }}>
+              <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+              <Text strong>{t('experimentWork.labels.method')}:</Text>
+              <Select
+                value={selectedMethodId}
+                placeholder="-"
+                style={{ flex: 1, minWidth: 150 }}
+                onChange={handleSelectMethod}
+                disabled={!selectedProject}
+                options={[
+                  { value: null, label: '-' },
+                  ...(selectedProject && projectsData[selectedProject]?.methods
+                    ? projectsData[selectedProject].methods.map(method => ({
+                        value: method.methodId,
+                        label: method.methodName
+                      }))
+                    : [])
+                ]}
+                size="middle"
+              />
+            </Space>
+
+            {/* 選択ボタン */}
+            <Button
+              type="primary"
+              icon={<CheckOutlined />}
+              onClick={() => setDialogOpen(true)}
+              size="large"
+              style={{ flexShrink: 0 }}
+            >
+              {t('experimentWork.selectButton')}
+            </Button>
           </div>
 
           {/* タブ */}
@@ -320,23 +347,24 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                 padding: `0 ${token.paddingLG}px`,
                 margin: 0,
                 flexShrink: 0,
-                borderTop: `1px solid ${token.colorBorder}`,
-                borderBottom: `1px solid ${token.colorBorder}`,
-                borderLeft: 'none',
-                borderRight: 'none',
+                border: `1px solid ${token.colorBorder}`,
                 borderRadius: 0,
               }}
             />
           </div>
 
-          {/* プロジェクト選択モーダル */}
-          <ProjectSelectionModal
+          {/* 統合選択ダイアログ */}
+          <UnifiedSelectionDialog
             open={dialogOpen}
             onClose={() => setDialogOpen(false)}
             selectedProject={selectedProject}
+            selectedMethodId={selectedMethodId}
+            selectedTaskId={selectedTaskId}
             onProjectChange={handleProjectChange}
+            onSelectMethod={handleSelectMethod}
+            onSelectTask={handleSelectTask}
           />
-        </div>
+        </ResponsiveContainer>
       </Content>
     </Layout>
   );
