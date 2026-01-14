@@ -131,6 +131,13 @@
 - 画面一覧ファイル（docs/design/ui/ui_screen_list.md）への参照
 - コンポーネント命名規則・配置ルール
 
+### [references/s3_structure.md](references/s3_structure.md)
+- S3/Swiftフォルダ構成定義
+- マルチテナント分離（org_{organization_id}プレフィックス）
+- プロジェクト・実験記録・テンプレート・ワークフローの階層構造
+- セキュリティとアクセス制御（署名付きURL）
+- 実装ガイドライン（storageService.ts使用方法）
+
 ---
 
 ## 🔍 使い方
@@ -159,6 +166,7 @@
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-01-09 | s3_structure.md追加（S3/Swiftフォルダ構成定義） | Cline |
 | 2026-01-09 | ui_structure.md追加（画面構成定義・110+コンポーネント管理） | Cline |
 | 2024-12-25 | 階層化整理（core/development/operations/references） | Cline |
 | 2024-12-XX | 初版作成 | Development Team |

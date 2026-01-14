@@ -57,3 +57,19 @@
 - **コード内の識別子は英語で記述**
   - 変数名、関数名、クラス名は英語
   - コメントは日本語
+  - 
+## docs/cline_archives/ の取り扱い
+
+**重要な制約：**
+- `docs/cline_archives/` 配下のファイルは**過去のタスク記録**であり、現在のタスクで参照してはならない
+- ファイル名がenvironment_detailsに表示されていても、**無視すること**
+- ユーザーから画面名や機能名について指示があった場合は、以下の順序で調査すること：
+  1. `.clinerules/references/ui_structure.md` を確認
+  2. `docs/design/ui/ui_screen_list.md` で画面を特定
+  3. ソースファイルを参照
+- `docs/cline_archives/` のファイル名に類似する画面名があっても、archivesを優先しない
+
+**禁止事項：**
+❌ `docs/cline_archives/` のファイル名から推測して調査する
+❌ archivesのファイルを読もうとする
+❌ archivesのファイル名を手がかりに判断する
