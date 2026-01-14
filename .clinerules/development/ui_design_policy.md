@@ -105,13 +105,21 @@
 // 条件: テーブル行内の編集ボタン
 <Button type="default" size="small" icon={<EditOutlined />}>編集</Button>
 
-// 条件: ステータス切替（アクティブ化/非アクティブ化） - パターン4
-<Switch 
-  checked={record.is_active}
-  onChange={(checked) => handleStatusChange(record.id, checked)}
-  checkedChildren="有効"
-  unCheckedChildren="無効"
-/>
+// 条件: ステータス切替（アクティブ化/非アクティブ化） - パターン4: switch + 動的配色
+<Button 
+　type="switch"
+  size="small"
+  style={record.is_active ? {
+    color: token.colorError,
+    borderColor: token.colorError
+  } : {
+    color: token.colorSuccess,
+    borderColor: token.colorSuccess
+  }}
+  onClick={() => handleStatusToggle(record.id, !record.is_active)}
+>
+  {record.is_active ? '非アクティブ化' : 'アクティブ化'}
+</Button>
 
 // 条件: 削除など危険な操作
 <Button type="danger" icon={<DeleteOutlined />}>削除</Button>
