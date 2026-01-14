@@ -49,13 +49,13 @@
 │
 ├─ データを変更する？
 │  ├─ 削除など取り返しがつかない
-│  │  └─ → パターン3: primary danger（colorError）
+│  │  └─ → パターン3: danger
 │  │
 │  ├─ ステータス切替（アクティブ化/非アクティブ化）
 │  │  └─ → パターン4: switch + 動的配色
 │  │
 │  ├─ ページ内で最重要アクション（保存、検索、新規作成）
-│  │  └─ → パターン1: primary（colorPrimary）
+│  │  └─ → パターン1: primary
 │  │
 │  └─ 通常の操作（追加、リロード、編集）
 │     └─ → パターン2: default
@@ -105,20 +105,16 @@
 // 条件: テーブル行内の編集ボタン
 <Button type="default" size="small" icon={<EditOutlined />}>編集</Button>
 
-// 条件: ステータス切替（動的配色）
-<Button 
-  size="small"
-  danger={record.is_active}
-  style={!record.is_active ? { 
-    color: token.colorSuccess,
-    borderColor: token.colorSuccess 
-  } : undefined}
->
-  {record.is_active ? '非アクティブ化' : 'アクティブ化'}
-</Button>
+// 条件: ステータス切替（アクティブ化/非アクティブ化） - パターン4
+<Switch 
+  checked={record.is_active}
+  onChange={(checked) => handleStatusChange(record.id, checked)}
+  checkedChildren="有効"
+  unCheckedChildren="無効"
+/>
 
 // 条件: 削除など危険な操作
-<Button type="primary" danger icon={<DeleteOutlined />}>削除</Button>
+<Button type="danger" icon={<DeleteOutlined />}>削除</Button>
 ```
 
 ---
