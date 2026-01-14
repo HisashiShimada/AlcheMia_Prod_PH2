@@ -59,25 +59,9 @@ export default function TaskListTable({
     { label: '中断', value: 'suspended' }
   ];
   
-  // 選択されたメソッドのタスクのみをフィルタリング
-  const methodTasks = useMemo(() => {
-    if (!selectedMethodId) {
-      return [];
-    }
-    
-    if (!selectedMethodId) {
-      return [];
-    }
-    
-    return tasks.filter(task => {
-      const methodId = task.methodId || task.methodName;
-      return methodId === selectedMethodId;
-    });
-  }, [tasks, selectedMethodId]);
-  
-  // さらに絞り込み条件を適用
+  // 絞り込み条件を適用（tasksは既にメソッドでフィルタリング済み）
   const filteredTasks = useMemo(() => {
-    return methodTasks.filter(task => {
+    return tasks.filter(task => {
       // ステータスバッジの色とラベルを取得
       const getStatusLabel = (status: TaskStatus): string => {
         const configs = {
@@ -102,7 +86,7 @@ export default function TaskListTable({
       
       return matchesSearch && matchesStatus;
     });
-  }, [methodTasks, searchText, selectedStatus]);
+  }, [tasks, searchText, selectedStatus]);
   
   // テーブルの列定義
   const columns: ColumnsType<Task> = useMemo(() => {
@@ -263,23 +247,6 @@ export default function TaskListTable({
 
     return [...baseColumns, ...buttonColumns];
   }, [projectStatus, t, onTaskAction, onProgressRateClick]);
-  
-  // メソッドが選択されていない場合のメッセージ
-  if (!selectedMethodId) {
-    return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '60px 20px',
-        background: '#fafafa',
-        borderRadius: '8px',
-        border: '1px solid #d9d9d9'
-      }}>
-        <Text type="secondary" style={{ fontSize: '14px' }}>
-          メソッドを選択してください
-        </Text>
-      </div>
-    );
-  }
   
   return (
     <div>

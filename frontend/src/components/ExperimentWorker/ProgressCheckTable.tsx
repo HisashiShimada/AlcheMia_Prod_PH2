@@ -1,15 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Typography, Divider } from 'antd';
 import { Task, ProjectStatus } from '@/types/experimentWorker';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
 import type { FileData, SubnetData } from '@/components/viewer/ViewRendererDialog';
-import MethodListTable from './MethodListTable';
 import TaskListTable from './TaskListTable';
-
-const { Title } = Typography;
 
 interface ProgressCheckTableProps {
   tasks: Task[];
@@ -19,12 +15,9 @@ interface ProgressCheckTableProps {
 
 /**
  * 進捗確認テーブル（親コンポーネント）
- * メソッド一覧とタスク一覧を2つのテーブルに分けて表示
+ * タスク一覧を表示（メソッドはタブで選択済み）
  */
 export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction }: ProgressCheckTableProps) {
-  // メソッド選択状態
-  const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
-  
   // ViewRendererDialogの管理
   const [viewerDialogs, setViewerDialogs] = useState<Array<{
     id: string;
@@ -35,11 +28,6 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
   
   // SubNetViewerの管理
   const [subnetData, setSubnetData] = useState<SubnetData | null>(null);
-
-  // メソッド選択ハンドラー
-  const handleMethodSelect = (methodId: string) => {
-    setSelectedMethodId(methodId);
-  };
   
   // 進捗率クリック時のハンドラー
   const handleProgressRateClick = (task: Task) => {
@@ -92,26 +80,10 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
 
   return (
     <div>
-      {/* メソッド一覧テーブル */}
-      <Title level={5} style={{ marginBottom: 12 }}>
-        メソッド一覧
-      </Title>
-      <MethodListTable
-        tasks={tasks}
-        selectedMethodId={selectedMethodId}
-        onMethodSelect={handleMethodSelect}
-      />
-      
-      {/* 区切り線 */}
-      <Divider style={{ margin: '24px 0' }} />
-      
-      {/* タスク一覧テーブル */}
-      <Title level={5} style={{ marginBottom: 12 }}>
-        タスク一覧
-      </Title>
+      {/* タスク一覧テーブル（メソッドはタブで選択済み） */}
       <TaskListTable
         tasks={tasks}
-        selectedMethodId={selectedMethodId}
+        selectedMethodId={null}
         projectStatus={projectStatus}
         onTaskAction={onTaskAction}
         onProgressRateClick={handleProgressRateClick}
