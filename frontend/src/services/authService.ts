@@ -30,10 +30,14 @@ const createApiClient = (): AxiosInstance => {
     withCredentials: true, // HTTPOnly Cookie送信のため
   });
 
-  // // リクエストインターセプター（組織IDヘッダーの自動付与）
+  // クライアント証明書認証使用時:
+  // X-Organization-IdはNginxが自動設定するため、
+  // フロントエンドからの送信は不要
+  
+  // 開発環境でNginxを使用しない場合は、以下のコメントを外す
   // client.interceptors.request.use(
   //   (config) => {
-  //     const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID;
+  //     const organizationId = '{c9621ed6-5def-4970-8e7f-fbe97c98e3ed}';
   //     if (organizationId) {
   //       config.headers['X-Organization-Id'] = organizationId;
   //     }
@@ -43,22 +47,6 @@ const createApiClient = (): AxiosInstance => {
   //     return Promise.reject(error);
   //   }
   // );
-
-  // リクエストインターセプター（組織IDヘッダーの自動付与）
-  client.interceptors.request.use(
-    (config) => {
-      // TODO：クライアント証明書導入までの仮実装
-      // const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}';
-      const organizationId = '{c9621ed6-5def-4970-8e7f-fbe97c98e3ed}';
-      if (organizationId) {
-        config.headers['X-Organization-Id'] = organizationId;
-      }
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
-  );
 
   return client;
 };

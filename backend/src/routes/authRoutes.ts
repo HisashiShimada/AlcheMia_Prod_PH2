@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { body, header } from 'express-validator';
+import { body } from 'express-validator';
 import * as authController from '../controllers/authController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { skipClientCertInDev } from '../middleware/clientCertMiddleware';
 import {
   loginRateLimit,
   pinVerifyRateLimit,
@@ -22,20 +23,19 @@ const corsOptions = {
 
 router.use(cors(corsOptions));
 
-// バリデーションヘルパー
-const validateOrganizationHeader = header('X-Organization-Id')
-  .notEmpty()
-  .withMessage('Organization ID is required')
-  .isUUID()
-  .withMessage('Invalid organization ID format');
+// クライアント証明書検証ミドルウェア（開発環境では証明書なしでもOK）
+router.use(skipClientCertInDev);
+
+// 注意: X-Organization-IdはNginxから自動設定されるため、
+// クライアント証明書認証有効時は手動バリデーション不要
 
 // 1. ログインエンドポイント
 // POST /api/v1/auth/login
+// 注意: X-Organization-Idは不要（証明書から自動設定）
 router.post(
   '/login',
   loginRateLimit,
   [
-    validateOrganizationHeader,
     body('username')
       .notEmpty()
       .withMessage('Username is required')
@@ -85,11 +85,11 @@ router.post(
 
 // 5. パスワードリセット要求エンドポイント
 // POST /api/v1/auth/reset-password-request
+// 注意: X-Organization-Idは不要（証明書から自動設定）
 router.post(
   '/reset-password-request',
   passwordResetRequestRateLimit,
   [
-    validateOrganizationHeader,
     body('username')
       .notEmpty()
       .withMessage('Username is required')

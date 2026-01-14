@@ -261,7 +261,7 @@ export default function PinCodeInputPage({
           {/* 開発モード表示 */}
           {isDevMode && !error && !validationError && (
             <Alert
-              message="開発モード"
+              title="開発モード"
               description="PINコードが自動入力されました。本番環境では表示されません。"
               type="info"
               showIcon
@@ -276,7 +276,7 @@ export default function PinCodeInputPage({
           {/* エラーメッセージ */}
           {(error || validationError) && (
             <Alert
-              message={validationError || error}
+              description={validationError || error}
               type="error"
               showIcon
               style={{
@@ -290,7 +290,7 @@ export default function PinCodeInputPage({
           {/* 成功メッセージ */}
           {resendSuccess && !error && !validationError && !isDevMode && (
             <Alert
-              message="PINコードを再送信しました"
+              description="PINコードを再送信しました"
               type="success"
               showIcon
               style={{

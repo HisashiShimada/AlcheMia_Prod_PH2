@@ -101,7 +101,7 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
           {/* エラーメッセージ */}
           {(error || validationError) && (
             <Alert
-              message={validationError || error}
+              description={validationError || error}
               type="error"
               showIcon
               style={{
