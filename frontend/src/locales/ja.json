@@ -39,6 +39,7 @@
       "title": "プロバイダーメニュー",
       "tabs": {
         "organizationManagement": "組織管理",
+        "companyManagement": "会社管理",
         "informationDownload": "情報ダウンロード"
       }
     },

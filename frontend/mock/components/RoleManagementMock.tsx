@@ -266,19 +266,23 @@ export default function RoleManagementMock() {
   const columns: ColumnsType<MasterRecord> = useMemo(() => {
     if (!selectedMasterInfo) return [];
 
-    const dynamicColumns: ColumnsType<MasterRecord> = Object.entries(
+    const dynamicColumns = Object.entries(
       selectedMasterInfo.itemCategories
     )
       .filter(([_, category]) => category && category.isDisplay)
       .map(([key, category], index) => {
+        // 機能ID列はスキップ（非表示）
+        if (/function.*id/i.test(key)) {
+          return null;
+        }
+        
         // すべてのフィールドを左寄せ
         const align = 'left' as const;
         
-        // 機能ID、機能名は幅を広く設定
-        const isFunctionId = /function.*id/i.test(key);
+        // 機能名は幅を広く設定
         const isFunctionName = /function.*name/i.test(key);
         const isRoleName = /role.*name/i.test(key);
-        const columnWidth = isFunctionId ? 460 : (isFunctionName ? 500 : (isRoleName ? 170 : 150));
+        const columnWidth = isFunctionName ? 800 : (isRoleName ? 170 : 150);
         
         return {
           title: <div style={{ textAlign: 'center' }}>{category!.headerName}</div>,
@@ -307,41 +311,12 @@ export default function RoleManagementMock() {
                 </Text>
               );
             }
-            // 機能ID列の場合、色分けして表示
-            if (isFunctionId) {
-              // 機能IDを"/"で分割
-              const functionIds = String(text || '').split('/').map(id => id.trim()).filter(Boolean);
-              
-              // 書込可の機能IDを取得（カンマ区切り）
-              const writePermissionIds = String(record.functionWritePermissions || '').split(',').map(id => id.trim()).filter(Boolean);
-              
-              // 各機能IDに色を付けてレンダリング
-              return (
-                <span>
-                  {functionIds.map((funcId, idx) => {
-                    // 書込可のリストに含まれているかチェック
-                    const hasWritePermission = writePermissionIds.includes(funcId);
-                    // 色：書込可は緑色、読み取り専用は青色
-                    const textColor = hasWritePermission ? '#52c41a' : '#1890ff';
-                    
-                    return (
-                      <React.Fragment key={idx}>
-                        {idx > 0 && <span style={{ color: token.colorText }}> / </span>}
-                        <span style={{ color: textColor, fontWeight: token.fontWeightStrong }}>{funcId}</span>
-                      </React.Fragment>
-                    );
-                  })}
-                </span>
-              );
-            }
             // 機能名列の場合、クリック可能にする
             if (isFunctionName) {
-              // 機能IDと機能名を"/"で分割
-              const functionIds = String(record.functionId || '').split('/').map(id => id.trim()).filter(Boolean);
               const functionNames = String(text || '').split('/').map(name => name.trim()).filter(Boolean);
               
-              // 書込可の機能IDを取得（カンマ区切り）
-              const writePermissionIds = String(record.functionWritePermissions || '').split(',').map(id => id.trim()).filter(Boolean);
+              // 書込可の機能名を取得（"/"区切り）
+              const writePermissionNames = String(record.functionWritePermissions || '').split('/').map(name => name.trim()).filter(Boolean);
               
               // 各機能にアイコンと色を付けてレンダリング
               return (
@@ -353,9 +328,8 @@ export default function RoleManagementMock() {
                   onClick={() => handleOpenFunctionModal(record)}
                 >
                   {functionNames.map((name, idx) => {
-                    const funcId = functionIds[idx];
                     // 書込可のリストに含まれているかチェック
-                    const hasWritePermission = funcId && writePermissionIds.includes(funcId);
+                    const hasWritePermission = writePermissionNames.includes(name);
                     const icon = hasWritePermission ? 'Ⓦ' : 'Ⓡ';
                     // アイコンの色：Ⓡは青色、Ⓦは緑色
                     const iconColor = hasWritePermission ? '#52c41a' : '#1890ff';
@@ -374,7 +348,8 @@ export default function RoleManagementMock() {
             return String(text || '');
           },
         };
-      });
+      })
+      .filter((col): col is NonNullable<typeof col> => col !== null) as ColumnsType<MasterRecord>; // nullを除外して型を保証
 
     // アクションカラムを追加
     dynamicColumns.push({
@@ -722,22 +697,21 @@ export default function RoleManagementMock() {
   const handleOpenFunctionModal = (record: MasterRecord) => {
     setEditingFunctionMaster(record);
     
-    // 現在の機能IDと機能名から選択状態を復元
-    const functionIds = String(record.functionId || '').split('/').map(id => id.trim()).filter(Boolean);
+    // 現在の機能名から選択状態を復元
     const functionNames = String(record.functionName || '').split('/').map(name => name.trim()).filter(Boolean);
     
-    // 書込可の機能IDを取得
-    const writePermissionIds = String(record.functionWritePermissions || '').split(',').map(id => id.trim()).filter(Boolean);
+    // 書込可の機能名を取得（"/"区切り）
+    const writePermissionNames = String(record.functionWritePermissions || '').split('/').map(name => name.trim()).filter(Boolean);
     
     // 選択されている機能をマップ化
     const functionsMap: Record<string, boolean> = {};
     const writePermissionsMap: Record<string, boolean> = {};
     
     availableFunctions.forEach(func => {
-      const isSelected = functionIds.includes(func.id) || functionNames.includes(func.name);
+      const isSelected = functionNames.includes(func.name);
       functionsMap[func.id] = isSelected;
-      // 書込可の状態を復元（保存されていない場合はデフォルトでON）
-      writePermissionsMap[func.id] = isSelected && (writePermissionIds.length === 0 || writePermissionIds.includes(func.id));
+      // 書込可の状態を復元
+      writePermissionsMap[func.id] = isSelected && writePermissionNames.includes(func.name);
     });
     
     setSelectedFunctions(functionsMap);
@@ -747,27 +721,24 @@ export default function RoleManagementMock() {
 
   // 機能管理モーダルの保存
   const handleFunctionModalOk = () => {
-    // 選択された機能のIDと名前、書込可の状態を取得
-    const selectedFunctionIds: string[] = [];
+    // 選択された機能の名前と書込可の状態を取得
     const selectedFunctionNames: string[] = [];
-    const writePermissionIds: string[] = [];
+    const writePermissionNames: string[] = [];
     
     availableFunctions.forEach(func => {
       if (selectedFunctions[func.id]) {
-        selectedFunctionIds.push(func.id);
         selectedFunctionNames.push(func.name);
-        // 書込可がONの機能IDを記録
+        // 書込可がONの機能名を記録
         if (selectedWritePermissions[func.id]) {
-          writePermissionIds.push(func.id);
+          writePermissionNames.push(func.name);
         }
       }
     });
     
-    // 機能IDと機能名を"/"区切りで結合
-    const functionId = selectedFunctionIds.join('/');
+    // 機能名を"/"区切りで結合
     const functionName = selectedFunctionNames.join('/');
-    // 書込可の機能IDをカンマ区切りで保存
-    const functionWritePermissions = writePermissionIds.join(',');
+    // 書込可の機能名を"/"区切りで保存
+    const functionWritePermissions = writePermissionNames.join('/');
     
     // 既存のマスタを編集している場合
     if (editingFunctionMaster && selectedMasterInfo) {
@@ -776,7 +747,7 @@ export default function RoleManagementMock() {
       if (editingFunctionMaster[idField]) {
         setMasters(masters.map(m => 
           m[idField] === editingFunctionMaster[idField] 
-            ? { ...m, functionId, functionName, functionWritePermissions } 
+            ? { ...m, functionName, functionWritePermissions } 
             : m
         ));
         message.success('機能を更新しました');
@@ -784,7 +755,6 @@ export default function RoleManagementMock() {
         // IDフィールドがない場合は、ロール追加モーダルからの呼び出し
         // フォームの値を更新
         form.setFieldsValue({
-          functionId,
           functionName,
           functionWritePermissions,
         });
