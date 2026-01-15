@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+// SCSS変数の定義
+$color-white: #ffffff;
+$color-gray-dark: #0a0a0a;
+$color-gray-light: #fafafa;
+$color-gray-lighter: #f5f5f5;
+$color-gray-medium: #d9d9d9;
+$color-gray-hover: #bfbfbf;
+$color-text-primary: #212121;
+
+// ブランドカラー
+$color-brand-primary: #CF0027;
+
+// CSS変数（ランタイムで必要）
+:root {
+  --background: #{$color-white};
+  --foreground: #171717;
+  --color-brand-primary: #{$color-brand-primary};
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #{$color-gray-dark};
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+// タスク一覧テーブルのストライプ行スタイル（ネスト化）
+.task-list-table {
+  .table-row-light {
+    background-color: $color-white !important;
+
+    &:hover {
+      background-color: $color-gray-lighter !important;
+    }
+  }
+
+  .table-row-dark {
+    background-color: $color-gray-light !important;
+
+    &:hover {
+      background-color: $color-gray-lighter !important;
+    }
+  }
+
+  // テーブルヘッダーのスタイル調整
+  .ant-table-thead > tr > th {
+    background-color: $color-gray-light !important;
+    font-weight: 600;
+    color: $color-text-primary;
+  }
+
+  // チェックボックスのカラムスタイル
+  .ant-table-selection-column {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  // ページネーションのスタイル調整
+  .ant-pagination {
+    margin-top: 16px;
+
+    &-total-text {
+      margin-right: 16px;
+    }
+  }
+}
+
+// タブコンテンツのスクロール制御（ネスト化）
+.ant-tabs {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+
+  &-content-holder {
+    flex: 1 !important;
+    overflow: hidden !important;
+  }
+
+  &-content {
+    height: 100% !important;
+    overflow: hidden !important;
+
+    // スクロールバーのカスタマイズ（Webkit系ブラウザ）
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: $color-gray-lighter;
+      border-radius: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: $color-gray-medium;
+      border-radius: 4px;
+
+      &:hover {
+        background: $color-gray-hover;
+      }
+    }
+  }
+
+  &-tabpane {
+    height: 100% !important;
+    padding: 0 !important;
+  }
+}
