@@ -8,13 +8,14 @@ DROP TABLE IF EXISTS organization CASCADE;
 
 CREATE TABLE organization (
     -- 主キー
-    organization_id UUID NOT NULL DEFAULT uuid_generate_v4(),
+    organization_id UUID NOT NULL,
     
     -- 組織情報
-    organization_name VARCHAR(50),
-    organization_display_name VARCHAR(50),
-    organization_email VARCHAR(50),
-    corporation_code VARCHAR(30),
+    organization_name CHARACTER VARYING(50),
+    organization_display_name CHARACTER VARYING(50),
+    organization_email CHARACTER VARYING(50),
+    chief_user_id CHARACTER VARYING(50),
+    corporation_id UUID,
     
     -- ステータス
     is_active BOOLEAN,
@@ -24,23 +25,17 @@ CREATE TABLE organization (
     update_at TIMESTAMP,
     
     -- 制約
-    CONSTRAINT organization_pkey PRIMARY KEY (organization_id),
-    CONSTRAINT organization_corporation_fkey 
-        FOREIGN KEY (corporation_code) 
-        REFERENCES corporation(corporation_code)
+    CONSTRAINT organization_PKC PRIMARY KEY (organization_id)
 );
 
--- インデックス
-CREATE INDEX idx_organization_corporation_code ON organization(corporation_code);
-CREATE INDEX idx_organization_is_active ON organization(is_active);
-
 -- コメント
-COMMENT ON TABLE organization IS '組織マスタテーブル';
-COMMENT ON COLUMN organization.organization_id IS '組織ID';
+COMMENT ON TABLE organization IS '組織';
+COMMENT ON COLUMN organization.organization_id IS '組織ID:9eea5300-db8b-4b2d-8e9e-ec306c476b12';
 COMMENT ON COLUMN organization.organization_name IS '組織名';
 COMMENT ON COLUMN organization.organization_display_name IS '組織表示名';
 COMMENT ON COLUMN organization.organization_email IS '組織E-mail';
-COMMENT ON COLUMN organization.corporation_code IS '会社CD';
+COMMENT ON COLUMN organization.chief_user_id IS '代表者ユーザID';
+COMMENT ON COLUMN organization.corporation_id IS '会社ID';
 COMMENT ON COLUMN organization.is_active IS 'アクティブ判定';
 COMMENT ON COLUMN organization.create_at IS '作成日時';
 COMMENT ON COLUMN organization.update_at IS '更新日時';
