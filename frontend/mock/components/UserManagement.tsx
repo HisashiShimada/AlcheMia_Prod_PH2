@@ -64,6 +64,21 @@ export default function UserManagement() {
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [form] = Form.useForm();
 
+  // 日時フォーマット関数
+  const formatDateTime = (dateTimeStr: string): string => {
+    if (!dateTimeStr || dateTimeStr === '-') return '-';
+    // YYYYMMDDhhmmss 形式を yyyy/MM/dd hh:mm に変換
+    if (dateTimeStr.length >= 12) {
+      const year = dateTimeStr.substring(0, 4);
+      const month = dateTimeStr.substring(4, 6);
+      const day = dateTimeStr.substring(6, 8);
+      const hour = dateTimeStr.substring(8, 10);
+      const minute = dateTimeStr.substring(10, 12);
+      return `${year}/${month}/${day} ${hour}:${minute}`;
+    }
+    return dateTimeStr;
+  };
+
   // 所属部署の選択肢を動的に取得
   const departments = useMemo(() => {
     const uniqueDepts = Array.from(new Set(users.map(u => u.department).filter(d => d)));
@@ -182,7 +197,7 @@ export default function UserManagement() {
       dataIndex: 'department',
       key: 'department',
       width: 150,
-      align: 'center',
+      align: 'left',
       sorter: (a, b) => a.department.localeCompare(b.department),
     },
     {
@@ -217,9 +232,10 @@ export default function UserManagement() {
       title: <div style={{ textAlign: 'center' }}>最終ログイン</div>,
       dataIndex: 'lastLogin',
       key: 'lastLogin',
-      width: 130,
-      align: 'center',
-      sorter: (a, b) => new Date(a.lastLogin).getTime() - new Date(b.lastLogin).getTime(),
+      width: 150,
+      align: 'right',
+      sorter: (a, b) => a.lastLogin.localeCompare(b.lastLogin),
+      render: (text: string) => formatDateTime(text),
     },
     {
       title: '',

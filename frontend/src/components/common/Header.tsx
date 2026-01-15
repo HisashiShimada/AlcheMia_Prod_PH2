@@ -113,12 +113,12 @@ export default function Header({ user, onLogout }: HeaderProps) {
       {/* アプリケーション名 */}
       <Title
         level={1}
+        className="header-title"
         style={{
           margin: 0,
           marginRight: token.marginLG,
           fontSize: token.fontSizeHeading1,
           fontWeight: token.fontWeightStrong,
-          color: token.colorPrimary,
           cursor: 'default',
         }}
       >
@@ -165,8 +165,8 @@ export default function Header({ user, onLogout }: HeaderProps) {
             placement="bottomRight"
           >
             <Avatar
+              className="header-user-avatar"
               style={{
-                backgroundColor: token.colorPrimary,
                 cursor: 'pointer',
                 fontSize: token.fontSizeLG,
                 fontWeight: token.fontWeightStrong,
