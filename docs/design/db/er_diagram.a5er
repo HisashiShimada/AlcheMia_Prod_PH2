@@ -959,6 +959,7 @@ Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="creator_uuid","creator_uuid","uuid","NOT NULL",1,"","",$FFFFFFFF,""
 Field="vendor_uuid","vendor_uuid","uuid",,,"","",$FFFFFFFF,""
 Field="instrument_uuid","instrument_uuid","uuid",,,"","",$FFFFFFFF,""
+Field="会社ID","corporation_id","uuid",,,"","",$FFFFFFFF,""
 Field="ID","creator_id","uuid","NOT NULL",,"","",$FFFFFFFF,""
 Field="名称","creator_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
 Field="説明","creator_description","@VARCHAR",,,"","",$FFFFFFFF,""
@@ -969,7 +970,7 @@ Field="更新日時","update_at","@BOOLEAN",,,"","",$00000000,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260115173723
+ModifiedDateTime=20260115174543
 Position="材料開発データ管理システム_共通_ER図.A5ER",150,100,293,314
 ZOrder=111
 
