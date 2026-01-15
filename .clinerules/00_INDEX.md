@@ -83,6 +83,22 @@
 - カバレッジ目標（70%以上）
 - ベストプラクティス
 
+### [development/file-writing.md](development/file-writing.md)
+- ファイル書き込みツールの使い分け
+- write_fileツールの制約事項
+- replace_in_fileツールの活用
+- 大規模ファイル書き込みワークフロー
+- トラブルシューティング
+
+### [development/command-execution.md](development/command-execution.md)
+- コマンド実行ベストプラクティス
+- Pending問題の回避方法
+- echo+リダイレクトの注意点
+- cd+複数コマンドチェーンの対処法
+- インタラクティブコマンドの回避
+- 長時間実行プロセスの対応
+- コマンドテンプレート集
+
 ---
 
 ## 🚀 運用規約（Operations Rules）
@@ -131,6 +147,13 @@
 - 画面一覧ファイル（docs/design/ui/ui_screen_list.md）への参照
 - コンポーネント命名規則・配置ルール
 
+### [references/s3_structure.md](references/s3_structure.md)
+- S3/Swiftフォルダ構成定義
+- マルチテナント分離（org_{organization_id}プレフィックス）
+- プロジェクト・実験記録・テンプレート・ワークフローの階層構造
+- セキュリティとアクセス制御（署名付きURL）
+- 実装ガイドライン（storageService.ts使用方法）
+
 ---
 
 ## 🔍 使い方
@@ -159,6 +182,8 @@
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-01-14 | command-execution.md追加（コマンド実行ベストプラクティス） | Cline |
+| 2026-01-09 | s3_structure.md追加（S3/Swiftフォルダ構成定義） | Cline |
 | 2026-01-09 | ui_structure.md追加（画面構成定義・110+コンポーネント管理） | Cline |
 | 2024-12-25 | 階層化整理（core/development/operations/references） | Cline |
 | 2024-12-XX | 初版作成 | Development Team |
