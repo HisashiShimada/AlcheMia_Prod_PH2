@@ -668,6 +668,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "実験に使用するサンプルを準備する工程。",
             "category": "準備工程",
             "estimatedDuration": "15分",
+            "workOrder": 1,
             "totalMaterialsCount": 3,
             "totalIngredientsCount": 2,
             "totalResultsCount": 1,
@@ -709,6 +710,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "加熱炉の温度を目標値に設定し、温度が安定するまで待機する工程。",
             "category": "セットアップ",
             "estimatedDuration": "20分",
+            "workOrder": 2,
             "totalMaterialsCount": 2,
             "totalIngredientsCount": 4,
             "totalResultsCount": 2,
@@ -780,6 +782,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "測定を開始する前に環境条件を整える工程。",
             "category": "準備工程",
             "estimatedDuration": "10分",
+            "workOrder": 1,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 3,
             "totalResultsCount": 0
@@ -790,6 +793,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "精密天秤の精度を確認し、必要に応じて調整する工程。",
             "category": "キャリブレーション",
             "estimatedDuration": "15分",
+            "workOrder": 2,
             "totalMaterialsCount": 1,
             "totalIngredientsCount": 2,
             "totalResultsCount": 1
@@ -800,6 +804,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "天秤のゼロ点を調整して正確な測定を可能にする工程。",
             "category": "調整",
             "estimatedDuration": "5分",
+            "workOrder": 3,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 1,
             "totalResultsCount": 0
@@ -810,6 +815,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "サンプルA-1の重量を測定する工程。",
             "category": "測定工程",
             "estimatedDuration": "3分",
+            "workOrder": 4,
             "totalMaterialsCount": 1,
             "totalIngredientsCount": 0,
             "totalResultsCount": 1
@@ -820,6 +826,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "サンプルA-2の重量を測定する工程。",
             "category": "測定工程",
             "estimatedDuration": "3分",
+            "workOrder": 5,
             "totalMaterialsCount": 1,
             "totalIngredientsCount": 0,
             "totalResultsCount": 1
@@ -830,6 +837,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "サンプルA-3の重量を測定する工程。",
             "category": "測定工程",
             "estimatedDuration": "3分",
+            "workOrder": 6,
             "totalMaterialsCount": 1,
             "totalIngredientsCount": 0,
             "totalResultsCount": 1
@@ -840,6 +848,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "サンプルB-1の重量を測定する工程。",
             "category": "測定工程",
             "estimatedDuration": "3分",
+            "workOrder": 7,
             "totalMaterialsCount": 1,
             "totalIngredientsCount": 0,
             "totalResultsCount": 1
@@ -850,6 +859,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "サンプルB-2の重量を測定する工程。",
             "category": "測定工程",
             "estimatedDuration": "3分",
+            "workOrder": 8,
             "totalMaterialsCount": 1,
             "totalIngredientsCount": 0,
             "totalResultsCount": 1
@@ -860,6 +870,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "サンプルB-3の重量を測定する工程。",
             "category": "測定工程",
             "estimatedDuration": "3分",
+            "workOrder": 9,
             "totalMaterialsCount": 1,
             "totalIngredientsCount": 0,
             "totalResultsCount": 1
@@ -870,6 +881,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "測定した重量データをシステムに記録する工程。",
             "category": "記録",
             "estimatedDuration": "10分",
+            "workOrder": 10,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 2,
             "totalResultsCount": 6
@@ -880,6 +892,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "記録したデータの妥当性を検証する工程。",
             "category": "検証",
             "estimatedDuration": "15分",
+            "workOrder": 11,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 1,
             "totalResultsCount": 1
@@ -890,6 +903,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "測定値に異常がないか統計的に確認する工程。",
             "category": "検証",
             "estimatedDuration": "10分",
+            "workOrder": 12,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 2,
             "totalResultsCount": 1
@@ -900,6 +914,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "再測定の必要性を判断する工程。",
             "category": "判定",
             "estimatedDuration": "5分",
+            "workOrder": 13,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 1,
             "totalResultsCount": 1
@@ -910,6 +925,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "測定時の温度・湿度・気圧を記録する工程。",
             "category": "記録",
             "estimatedDuration": "5分",
+            "workOrder": 14,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 3,
             "totalResultsCount": 3
@@ -920,6 +936,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "測定結果を正式なフォーマットで入力する工程。",
             "category": "入力",
             "estimatedDuration": "20分",
+            "workOrder": 15,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 4,
             "totalResultsCount": 6
@@ -930,6 +947,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "測定データをバックアップする工程。",
             "category": "データ管理",
             "estimatedDuration": "5分",
+            "workOrder": 16,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 1,
             "totalResultsCount": 0
@@ -940,6 +958,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "測定データの品質を最終確認する工程。",
             "category": "品質管理",
             "estimatedDuration": "15分",
+            "workOrder": 17,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 2,
             "totalResultsCount": 1
@@ -950,6 +969,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "測定結果の承認を申請する工程。",
             "category": "申請",
             "estimatedDuration": "5分",
+            "workOrder": 18,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 1,
             "totalResultsCount": 0
@@ -960,6 +980,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "すべての工程が完了していることを最終確認する工程。",
             "category": "確認",
             "estimatedDuration": "10分",
+            "workOrder": 19,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 1,
             "totalResultsCount": 1
@@ -970,6 +991,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "測定結果のレポートを作成する工程。",
             "category": "報告",
             "estimatedDuration": "30分",
+            "workOrder": 20,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 5,
             "totalResultsCount": 1
@@ -980,6 +1002,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "測定済みサンプルを適切に保管する工程。",
             "category": "後処理",
             "estimatedDuration": "10分",
+            "workOrder": 21,
             "totalMaterialsCount": 6,
             "totalIngredientsCount": 1,
             "totalResultsCount": 0
@@ -990,6 +1013,7 @@ export const projectsData: Record<string, ProjectData> = {
             "description": "すべての記録作業を完了する工程。",
             "category": "完了",
             "estimatedDuration": "5分",
+            "workOrder": 22,
             "totalMaterialsCount": 0,
             "totalIngredientsCount": 0,
             "totalResultsCount": 1
