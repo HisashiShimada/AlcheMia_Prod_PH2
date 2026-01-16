@@ -93,6 +93,8 @@
 | UserManagement.tsx | ユーザー管理 | frontend/mock/components/UserManagement.tsx | ユーザー管理画面 |
 | SessionManagementMock.tsx | セッション管理 | frontend/mock/components/SessionManagementMock.tsx | セッション管理画面（モック） |
 | MasterManagementMock.tsx | マスタ管理 | frontend/mock/components/MasterManagementMock.tsx | 部署管理・ロール管理などのマスタ管理（モック） |
+| CompanyManagementMock.tsx | 会社管理 | frontend/mock/components/CompanyManagementMock.tsx | 会社管理画面（モック） |
+| RoleManagementMock.tsx | ロール管理 | frontend/mock/components/RoleManagementMock.tsx | ロール管理画面（モック） |
 
 ---
 
@@ -209,7 +211,10 @@
 |--------|--------|--------------|-----------|
 | DataRecordDialog.tsx | データ記録ダイアログ | frontend/src/components/ExperimentWorker/DataRecordDialog.tsx | 実験データ記録ダイアログ |
 | TransitionList.tsx | トランジション一覧 | frontend/src/components/ExperimentWorker/TransitionList.tsx | トランジション一覧表示 |
-| FlowDiagramModal.tsx | フロー図モーダル | frontend/src/components/ExperimentWorker/FlowDiagramModal.tsx | 実験フロー図表示モーダル |
+| InstructionFlowDialog.tsx | 指示フロー図ダイアログ | frontend/src/components/ExperimentWorker/InstructionFlowDialog.tsx | 指示フロー図表示ダイアログ |
+| TransitionFlowDiagram.tsx | トランジションフロー図 | frontend/src/components/ExperimentWorker/TransitionFlowDiagram.tsx | トランジションフロー図表示コンポーネント |
+| TransitionFlowNode.tsx | トランジションフローノード | frontend/src/components/ExperimentWorker/TransitionFlowNode.tsx | トランジションフローノード表示コンポーネント |
+| TaskListTable.tsx | タスク一覧テーブル | frontend/src/components/ExperimentWorker/TaskListTable.tsx | タスク一覧テーブル表示 |
 
 **進捗確認関連:**
 
@@ -313,6 +318,7 @@
 |------|----------|--------|
 | 2026-01-09 | 初版作成 - 全コンポーネントファイルをロール別に登録 | Cline |
 | 2026-01-09 | システム管理者用・データ管理者用・プロバイダ用のモックコンポーネントを追加 | Cline |
+| 2026-01-16 | 実装ファイルとの差分を更新 - ExperimentWorker実験記録関連コンポーネント追加（InstructionFlowDialog、TransitionFlowDiagram、TransitionFlowNode、TaskListTable）、System Admin用モック追加（CompanyManagement、RoleManagement） | Cline |
 
 ---
 
