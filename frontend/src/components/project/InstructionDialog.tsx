@@ -22,6 +22,7 @@ import {
   Flex,
   message,
   theme,
+  Checkbox,
 } from 'antd';
 import {
   PlusOutlined,
@@ -113,6 +114,9 @@ interface MethodInfo {
 interface TaskDetail {
   id: number;
   methodId: string;
+  experimentCondition: 0 | 1;  // 0: 全て同一条件, 1: 実験ごとに条件変更
+  trialCount: number;
+  taskNumberOptions: number[];  // 指示入力部用のタスク番号リスト
 }
 
 /**
@@ -126,6 +130,7 @@ interface InstructionData {
   targetType: string;
   transitionId: string;
   taskNumber?: number;
+  methodId: string;
 }
 
 /**
@@ -221,6 +226,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
       targetType: TARGET_TYPES.FILE,
       transitionId: '',
       taskNumber: undefined,
+      methodId: '',
     },
   ]);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
@@ -237,17 +243,60 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
     {
       id: 1,
       methodId: '',
+      experimentCondition: 0,  // 0: 全て同一条件
+      trialCount: 1,  // デフォルトを1に変更
+      taskNumberOptions: [1],  // 初期値: trialCount=1なので[1]
     },
   ]);
-  
-  // 新規追加: 実験条件、試行回数
-  const [experimentCondition, setExperimentCondition] = useState<'same' | 'different'>('same');
-  const [trialCount, setTrialCount] = useState<number | ''>('');
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [activeInstructionId, setActiveInstructionId] = useState<number>(1);
+  const [continuousInstruction, setContinuousInstruction] = useState<boolean>(true);
 
   // ファイル名の抽出
   const fileName = useMemo(() => {
     return fileKey?.split('/').pop() || '';
   }, [fileKey]);
+
+  /**
+   * ダイアログが閉じられた際にstateをリセット
+   */
+  useEffect(() => {
+    if (!open) {
+      // ダイアログが閉じられた時にstateをリセット
+      setInstructions([
+        {
+          id: 1,
+          content: '',
+          priority: INSTRUCTION_PRIORITIES.NORMAL,
+          type: INSTRUCTION_TYPES.GENERAL,
+          targetType: TARGET_TYPES.FILE,
+          transitionId: '',
+          taskNumber: undefined,
+          methodId: '',
+        },
+      ]);
+      setSelectedWorkerId('');
+      setAvailableTransitions([]);
+      setMaimlParseError(null);
+      setFileBasicInfo(null);
+      setAvailableMethods([]);
+      setLoadingMethods(false);
+      setTaskDetails([
+        {
+          id: 1,
+          methodId: '',
+          experimentCondition: 0,
+          trialCount: 1,
+          taskNumberOptions: [1],
+        },
+      ]);
+      setSelectedTaskId(null);
+      setActiveInstructionId(1);
+      setContinuousInstruction(true);
+      setLoadingTransitions(false);
+      setSubmitting(false);
+    }
+  }, [open]);
 
   /**
    * MAIMLファイルからメソッド情報を取得
@@ -291,6 +340,9 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         const initialTasks: TaskDetail[] = mockMethods.map((method, index) => ({
           id: index + 1,
           methodId: method.id, // 取得順に自動設定
+          experimentCondition: 0,  // 0: 全て同一条件
+          trialCount: 1,
+          taskNumberOptions: [1],  // 初期値: trialCount=1なので[1]
         }));
 
         setTaskDetails(initialTasks);
@@ -375,18 +427,79 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
    * タスク詳細を更新
    */
   const handleUpdateTaskDetail = useCallback(
-    (id: number, field: keyof TaskDetail, value: string) => {
+    (id: number, field: keyof TaskDetail, value: string | number) => {
       setTaskDetails((prev) =>
         prev.map((task) => {
           if (task.id === id) {
+            // experimentConditionの場合は数値型に変換
+            if (field === 'experimentCondition') {
+              return { ...task, [field]: Number(value) as 0 | 1 };
+            }
+            
+            // trialCountの場合、taskNumberOptionsも更新
+            if (field === 'trialCount') {
+              const newTrialCount = typeof value === 'number' ? value : parseInt(value.toString(), 10);
+              if (!isNaN(newTrialCount) && newTrialCount > 0) {
+                const newOptions = Array.from({ length: newTrialCount }, (_, i) => i + 1);
+                return { ...task, trialCount: newTrialCount, taskNumberOptions: newOptions };
+              }
+            }
+            
             return { ...task, [field]: value };
           }
           return task;
         })
       );
+
+      // 試行回数が変更された場合、影響を受ける指示のタスク番号をリセット
+      if (field === 'trialCount') {
+        const newTrialCount = typeof value === 'number' ? value : parseInt(value.toString(), 10);
+        if (!isNaN(newTrialCount)) {
+          setInstructions((prevInstructions) =>
+            prevInstructions.map((inst) => {
+              // タスク番号が新しい試行回数を超えている場合はリセット
+              if (inst.taskNumber && inst.taskNumber > newTrialCount) {
+                return { ...inst, taskNumber: undefined };
+              }
+              return inst;
+            })
+          );
+        }
+      }
     },
     []
   );
+
+  /**
+   * タスクの選択/解除ハンドラ（単一選択のトグル）
+   */
+  const handleToggleTaskSelection = useCallback((taskId: number) => {
+    const newSelectedId = selectedTaskId === taskId ? null : taskId;
+    setSelectedTaskId(newSelectedId);
+    
+    // アクティブな指示のmethodIdを更新
+    if (newSelectedId !== null) {
+      const selectedTask = taskDetails.find((t) => t.id === newSelectedId);
+      if (selectedTask) {
+        setInstructions((prev) =>
+          prev.map((inst) =>
+            inst.id === activeInstructionId
+              ? { ...inst, methodId: selectedTask.methodId }
+              : inst
+          )
+        );
+      }
+    } else {
+      // 選択解除時はmethodIdをクリア
+      setInstructions((prev) =>
+        prev.map((inst) =>
+          inst.id === activeInstructionId
+            ? { ...inst, methodId: '' }
+            : inst
+        )
+      );
+    }
+  }, [selectedTaskId, taskDetails, activeInstructionId]);
 
   /**
    * 選択可能なメソッドリストを取得（すでに選択されているメソッドを除外）
@@ -405,29 +518,104 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
   );
 
   /**
+   * 選択中のタスクからメソッド名を取得
+   */
+  const getSelectedTaskMethodName = useCallback((): string | null => {
+    if (!selectedTaskId) return null;
+    
+    const selectedTask = taskDetails.find((task) => task.id === selectedTaskId);
+    if (!selectedTask || !selectedTask.methodId) return null;
+    
+    const method = availableMethods.find((m) => m.id === selectedTask.methodId);
+    return method ? method.displayName : null;
+  }, [selectedTaskId, taskDetails, availableMethods]);
+
+  /**
+   * タスク選択状態を復元
+   */
+  const restoreTaskSelection = useCallback((instructionId: number) => {
+    const targetInstruction = instructions.find(inst => inst.id === instructionId);
+    if (targetInstruction) {
+      if (targetInstruction.methodId) {
+        // methodIdがある場合、対応するタスクを選択
+        const matchingTask = taskDetails.find((t) => t.methodId === targetInstruction.methodId);
+        if (matchingTask) {
+          setSelectedTaskId(matchingTask.id);
+        } else {
+          // 対応するタスクが見つからない場合は選択解除
+          setSelectedTaskId(null);
+        }
+      } else {
+        // methodIdがない場合は選択解除
+        setSelectedTaskId(null);
+      }
+    }
+  }, [instructions, taskDetails]);
+
+  /**
    * 指示を追加
    */
   const handleAddInstruction = useCallback(() => {
-    setInstructions((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
+    setInstructions((prev) => {
+      const newId = prev.length + 1;
+      
+      // 連続指示がONの場合、選択中のタスクのmethodIdを設定
+      let defaultMethodId = '';
+      if (continuousInstruction && selectedTaskId) {
+        const selectedTask = taskDetails.find((t) => t.id === selectedTaskId);
+        if (selectedTask) {
+          defaultMethodId = selectedTask.methodId;
+        }
+      }
+      
+      const newInstruction: InstructionData = {
+        id: newId,
         content: '',
         priority: INSTRUCTION_PRIORITIES.NORMAL,
         type: INSTRUCTION_TYPES.GENERAL,
         targetType: TARGET_TYPES.FILE,
         transitionId: '',
         taskNumber: undefined,
-      },
-    ]);
-  }, []);
+        methodId: defaultMethodId,
+      };
+      
+      setActiveInstructionId(newId);
+      // 次のレンダリングサイクルでrestoreTaskSelectionを呼ぶ
+      setTimeout(() => restoreTaskSelection(newId), 0);
+      
+      return [...prev, newInstruction];
+    });
+  }, [continuousInstruction, selectedTaskId, taskDetails, restoreTaskSelection]);
 
   /**
    * 指示を削除
    */
   const handleRemoveInstruction = useCallback((id: number) => {
-    setInstructions((prev) => prev.filter((inst) => inst.id !== id));
-  }, []);
+    setInstructions((prev) => {
+      const filtered = prev.filter((inst) => inst.id !== id);
+      
+      // 削除後、アクティブな指示の処理
+      if (filtered.length > 0 && activeInstructionId === id) {
+        // 削除した指示がアクティブだった場合、残っている最初の指示をアクティブ化
+        const newActiveId = filtered[0].id;
+        setActiveInstructionId(newActiveId);
+        // タスク選択状態を復元
+        setTimeout(() => restoreTaskSelection(newActiveId), 0);
+      }
+      
+      return filtered;
+    });
+  }, [activeInstructionId, restoreTaskSelection]);
+
+  /**
+   * 指示カードをクリックしてアクティブ化
+   */
+  const handleActivateInstruction = useCallback((id: number) => {
+    if (activeInstructionId !== id) {
+      setActiveInstructionId(id);
+      restoreTaskSelection(id);
+    }
+  }, [activeInstructionId, restoreTaskSelection]);
 
   /**
    * 指示を更新
@@ -462,6 +650,16 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
   );
 
   /**
+   * 各タスクの試行回数の合計を計算
+   */
+  const totalTrialCount = useMemo(() => {
+    return taskDetails.reduce((sum, task) => {
+      const count = typeof task.trialCount === 'number' ? task.trialCount : 0;
+      return sum + count;
+    }, 0);
+  }, [taskDetails]);
+
+  /**
    * 送信処理
    */
   const handleSubmit = useCallback(async () => {
@@ -473,8 +671,11 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         return;
       }
 
-      // 試行回数のバリデーション（入力されている場合のみ）
-      if (trialCount !== '' && (trialCount < 1 || trialCount > 999)) {
+      // 各タスクの試行回数のバリデーション（入力されている場合のみ）
+      const invalidTrialCount = taskDetails.find(
+        (task) => (task.trialCount < 1 || task.trialCount > 999)
+      );
+      if (invalidTrialCount) {
         message.warning('試行回数は1〜999の範囲で入力してください');
         return;
       }
@@ -557,36 +758,8 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
 
       message.success('指示データを準備しました');
 
-      // ダイアログを閉じる
+      // ダイアログを閉じる（リセットはuseEffectで自動実行される）
       onClose();
-
-      // 状態をリセット
-      setTimeout(() => {
-        setInstructions([
-          {
-            id: 1,
-            content: '',
-            priority: INSTRUCTION_PRIORITIES.NORMAL,
-            type: INSTRUCTION_TYPES.GENERAL,
-            targetType: TARGET_TYPES.FILE,
-            transitionId: '',
-            taskNumber: undefined,
-          },
-        ]);
-        setSelectedWorkerId('');
-        setAvailableTransitions([]);
-        setMaimlParseError(null);
-        setFileBasicInfo(null);
-        // 新規追加項目のリセット
-        setExperimentCondition('same');
-        setTrialCount('');
-        setTaskDetails([
-          {
-            id: 1,
-            methodId: '',
-          },
-        ]);
-      }, 300);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : '指示データ準備エラー';
@@ -594,7 +767,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [instructions, fileKey, managerId, selectedWorkerId, experimentCondition, trialCount, onSubmit, onClose]);
+  }, [instructions, fileKey, managerId, selectedWorkerId, taskDetails, onSubmit, onClose]);
 
   /**
    * ダイアログを閉じる
@@ -679,11 +852,17 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
       disabled: submitting,
     });
 
+    const isSelected = selectedTaskId === task.id;
+
     const style: React.CSSProperties = {
       transform: CSS.Transform.toString(transform),
       transition,
       opacity: isDragging ? 0.5 : 1,
       cursor: submitting ? 'default' : 'grab',
+      backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
+      padding: token.paddingSM,
+      borderRadius: token.borderRadius,
+      border: isSelected ? `1px solid ${token.colorPrimary}` : '1px solid transparent',
     };
 
     return (
@@ -693,6 +872,13 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         {...attributes}
       >
         <Flex gap="middle" align="center" style={{ width: '100%' }}>
+          {/* チェックボックス */}
+          <Checkbox
+            checked={isSelected}
+            onChange={() => handleToggleTaskSelection(task.id)}
+            disabled={submitting}
+          />
+
           {/* ドラッグハンドル */}
           <div
             {...listeners}
@@ -718,6 +904,51 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                 - {selectedMethod.description}
               </Text>
             )}
+          </div>
+
+          {/* 実験条件 */}
+          <div style={{ minWidth: 180 }}>
+            <Select
+              value={task.experimentCondition}
+              onChange={(value) =>
+                handleUpdateTaskDetail(task.id, 'experimentCondition', value.toString())
+              }
+              disabled={submitting || !isSelected}
+              size="small"
+              style={{ width: '100%' }}
+            >
+              <Select.Option value={0}>全て同一条件</Select.Option>
+              <Select.Option value={1}>条件を変更</Select.Option>
+            </Select>
+          </div>
+
+          {/* 試行回数 */}
+          <div style={{ minWidth: 100 }}>
+            <Input
+              type="number"
+              value={task.trialCount}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '') {
+                  handleUpdateTaskDetail(task.id, 'trialCount', '');
+                } else {
+                  const num = parseInt(value, 10);
+                  if (!isNaN(num) && num >= 1 && num <= 999) {
+                    handleUpdateTaskDetail(task.id, 'trialCount', num.toString());
+                  }
+                }
+              }}
+              onBlur={() => {
+                // フォーカスアウト時にタスク番号の選択肢を再生成（試行回数変更を反映）
+                // 実際の再生成はinstructionsのuseEffectで自動的に行われる
+              }}
+              placeholder="試行回数"
+              disabled={submitting || !isSelected}
+              size="small"
+              min={1}
+              max={999}
+              style={{ width: '100%' }}
+            />
           </div>
         </Flex>
       </div>
@@ -828,6 +1059,40 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
             style={{ backgroundColor: token.colorBgContainer }}
           >
             <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              {/* ヘッダー行（ラベル） */}
+              <Flex gap="middle" align="center" style={{ 
+                padding: `${token.paddingXS}px ${token.paddingSM}px`,
+                backgroundColor: token.colorBgContainerDisabled,
+                borderRadius: token.borderRadius,
+                marginBottom: token.marginXS,
+              }}>
+                {/* チェックボックス列 */}
+                <div style={{ width: 24 }} />
+                
+                {/* ドラッグハンドル列 */}
+                <div style={{ width: 24 }} />
+
+                {/* 作業順序列 */}
+                <div style={{ minWidth: 80 }}>
+                  <Text strong type="secondary">作業順序</Text>
+                </div>
+
+                {/* メソッド名列 */}
+                <div style={{ flex: 1 }}>
+                  <Text strong type="secondary">メソッド名</Text>
+                </div>
+
+                {/* 実験条件列 */}
+                <div style={{ minWidth: 180 }}>
+                  <Text strong type="secondary">実験条件</Text>
+                </div>
+
+                {/* 試行回数列 */}
+                <div style={{ minWidth: 100 }}>
+                  <Text strong type="secondary">試行回数</Text>
+                </div>
+              </Flex>
+
               {/* ドラッグ&ドロップ対応のメソッド順序設定 */}
               <DndContext
                 sensors={sensors}
@@ -855,121 +1120,94 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                 </SortableContext>
               </DndContext>
 
-              {/* 条件指定と試行回数 */}
-              <Divider style={{ margin: `${token.marginXS}px 0` }} />
-              
-              <Flex gap="middle" wrap="wrap">
-                {/* 条件指定 */}
-                <div style={{ flex: 1, minWidth: 300 }}>
-                  <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-                    🔬 条件指定
-                  </Text>
-                  <Radio.Group
-                    value={experimentCondition}
-                    onChange={(e) => setExperimentCondition(e.target.value)}
-                    disabled={submitting}
-                    style={{ display: 'flex', flexDirection: 'column', gap: token.marginXS }}
-                  >
-                    <Radio value="same">全て同一条件で実施</Radio>
-                    <Radio value="different">実験ごとに条件を変更</Radio>
-                  </Radio.Group>
-                </div>
-
-                {/* 試行回数 */}
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-                    🔢 試行回数
-                  </Text>
-                  <Input
-                    type="number"
-                    value={trialCount}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === '') {
-                        setTrialCount('');
-                      } else {
-                        const num = parseInt(value, 10);
-                        if (!isNaN(num) && num >= 1 && num <= 999) {
-                          setTrialCount(num);
-                        }
-                      }
-                    }}
-                    placeholder="試行回数を入力"
-                    disabled={submitting}
-                    min={1}
-                    max={999}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              </Flex>
             </Space>
           </Card>
         ) : null}
 
+        {/* 連続指示チェックボックス */}
+        <Card size="small" style={{ backgroundColor: token.colorBgContainer }}>
+          <Checkbox
+            checked={continuousInstruction}
+            onChange={(e) => setContinuousInstruction(e.target.checked)}
+            disabled={submitting}
+          >
+            <Text strong>🔄 連続指示モード</Text>
+            <Text type="secondary" style={{ marginLeft: token.marginXS, fontSize: '12px' }}>
+              （タスク選択を維持したまま複数の指示を追加）
+            </Text>
+          </Checkbox>
+        </Card>
+
         {/* 指示入力フォーム */}
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {instructions.map((instruction, index) => (
-            <Card
-              key={instruction.id}
-              size="small"
-              title={
-                <Flex justify="space-between" align="center">
-                  <Text strong>指示 {index + 1}</Text>
-                  {instructions.length > 1 && (
-                    <Button
-                      type="text"
-                      danger
-                      size="small"
-                      icon={<DeleteOutlined />}
-                      onClick={() => handleRemoveInstruction(instruction.id)}
-                      disabled={submitting}
-                    >
-                      削除
-                    </Button>
-                  )}
-                </Flex>
-              }
-              style={{ backgroundColor: token.colorBgContainer }}
-            >
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                {/* 指示対象選択 */}
+          {instructions.map((instruction, index) => {
+            const isActive = activeInstructionId === instruction.id;
+            
+            return (
+              <Card
+                key={instruction.id}
+                size="small"
+                title={
+                  <Flex justify="space-between" align="center">
+                    <Space>
+                      <Text strong>指示 {index + 1}</Text>
+                      {isActive && (
+                        <Tag color="blue" style={{ margin: 0 }}>
+                          アクティブ
+                        </Tag>
+                      )}
+                    </Space>
+                    {instructions.length > 1 && (
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveInstruction(instruction.id);
+                        }}
+                        disabled={submitting}
+                      >
+                        削除
+                      </Button>
+                    )}
+                  </Flex>
+                }
+                onClick={() => handleActivateInstruction(instruction.id)}
+                style={{
+                  backgroundColor: isActive ? token.colorPrimaryBg : token.colorBgContainer,
+                  border: isActive ? `2px solid ${token.colorPrimary}` : `1px solid ${token.colorBorder}`,
+                  cursor: instructions.length > 1 ? 'pointer' : 'default',
+                }}
+                hoverable={instructions.length > 1}
+              >
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                {/* 指示対象（ラベル表示） */}
                 <div>
                   <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-                    🎯 指示対象 <Text type="danger">*</Text>
+                    🎯 指示対象
                   </Text>
-                  <Radio.Group
-                    value={instruction.targetType}
-                    onChange={(e) =>
-                      handleUpdateInstruction(instruction.id, 'targetType', e.target.value)
-                    }
-                    disabled={submitting}
-                  >
-                    <Radio value={TARGET_TYPES.FILE}>
-                      <FileTextOutlined /> ファイル全体
-                    </Radio>
-                    <Radio
-                      value={TARGET_TYPES.TASK}
-                      disabled={!trialCount}
-                    >
-                      <AimOutlined /> 特定タスク
-                    </Radio>
-                    <Radio
-                      value={TARGET_TYPES.TRANSITION}
-                      disabled={availableTransitions.length === 0}
-                    >
-                      <AimOutlined /> 特定トランジション
-                    </Radio>
-                  </Radio.Group>
-                  {!trialCount && (
-                    <Text type="secondary" style={{ display: 'block', marginTop: token.marginXXS, fontSize: '12px' }}>
-                      ※ 特定タスクを選択するには、試行回数を入力してください
-                    </Text>
-                  )}
+                  <Card size="small" style={{ backgroundColor: token.colorPrimaryBg }}>
+                    {instruction.methodId ? (
+                      <Text>
+                        <AimOutlined />{' '}
+                        {(() => {
+                          const method = availableMethods.find((m) => m.id === instruction.methodId);
+                          return method ? method.displayName : 'メソッド未設定';
+                        })()}
+                      </Text>
+                    ) : (
+                      <Text>
+                        <FileTextOutlined /> ファイル全体
+                      </Text>
+                    )}
+                  </Card>
                 </div>
 
-                {/* 優先度・タイプ・トランジション選択 */}
-                <Flex gap="middle" wrap="wrap">
-                  <div style={{ flex: 1, minWidth: 150 }}>
+                {/* 1行目: 優先度・タイプ */}
+                <Flex gap="middle">
+                  <div style={{ flex: 1 }}>
                     <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
                       優先度
                     </Text>
@@ -990,7 +1228,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                     </Select>
                   </div>
 
-                  <div style={{ flex: 1, minWidth: 150 }}>
+                  <div style={{ flex: 1 }}>
                     <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
                       タイプ
                     </Text>
@@ -1013,63 +1251,81 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                       <Select.Option value={INSTRUCTION_TYPES.CLEANUP}>清掃</Select.Option>
                     </Select>
                   </div>
+                </Flex>
 
-                  <div style={{ flex: 1, minWidth: 200 }}>
+                {/* 2行目: タスク番号・トランジションID */}
+                <Flex gap="middle">
+                  <div style={{ flex: 1 }}>
                     <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
-                      {instruction.targetType === TARGET_TYPES.TRANSITION ? (
-                        <>
-                          🎯 対象トランジション <Text type="danger">*</Text>
-                        </>
-                      ) : instruction.targetType === TARGET_TYPES.TASK ? (
-                        <>
-                          🎯 対象タスク <Text type="danger">*</Text>
-                        </>
-                      ) : (
-                        '対象範囲'
-                      )}
+                      🎯 対象タスク
                     </Text>
-                    {instruction.targetType === TARGET_TYPES.TRANSITION ? (
-                      <Select
-                        value={instruction.transitionId || undefined}
-                        onChange={(value) =>
-                          handleUpdateInstruction(instruction.id, 'transitionId', value)
+                    <Select
+                      value={instruction.taskNumber || undefined}
+                      onChange={(value) =>
+                        handleUpdateInstruction(instruction.id, 'taskNumber', value)
+                      }
+                      disabled={
+                        submitting ||
+                        !isActive ||
+                        !selectedTaskId ||
+                        (() => {
+                          const selectedTask = taskDetails.find((t) => t.id === selectedTaskId);
+                          return !selectedTask || selectedTask.experimentCondition !== 1;
+                        })()
+                      }
+                      placeholder="タスク番号を選択..."
+                      style={{ width: '100%' }}
+                    >
+                      {isActive && selectedTaskId && (() => {
+                        const selectedTask = taskDetails.find((t) => t.id === selectedTaskId);
+                        if (selectedTask && selectedTask.experimentCondition === 1) {
+                          // taskNumberOptionsから選択肢を生成
+                          return selectedTask.taskNumberOptions.map((taskNum) => (
+                            <Select.Option key={taskNum} value={taskNum}>
+                              タスク {taskNum}
+                            </Select.Option>
+                          ));
                         }
-                        disabled={
-                          submitting ||
-                          loadingTransitions ||
-                          availableTransitions.length === 0
+                        return null;
+                      })()}
+                    </Select>
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
+                      🔗 トランジションID
+                    </Text>
+                    <Select
+                      value={instruction.transitionId || undefined}
+                      onChange={(value) =>
+                        handleUpdateInstruction(instruction.id, 'transitionId', value)
+                      }
+                      disabled={
+                        submitting ||
+                        loadingTransitions ||
+                        !isActive ||
+                        !selectedTaskId
+                      }
+                      placeholder="トランジションを選択..."
+                      style={{ width: '100%' }}
+                      loading={loadingTransitions}
+                    >
+                      {isActive && selectedTaskId && (() => {
+                        const selectedTask = taskDetails.find((t) => t.id === selectedTaskId);
+                        if (selectedTask && selectedTask.methodId) {
+                          // 選択したメソッドに含まれるトランジションのみ表示（モック実装）
+                          // TODO: 実際のAPI実装時に、メソッドIDに紐づくトランジションを取得
+                          return availableTransitions.map((transition) => (
+                            <Select.Option key={transition.id} value={transition.id}>
+                              {transition.isExperimentRelevant && '⭐ '}
+                              {transition.displayName}
+                              {transition.category !== 'other' && ` [${transition.category}]`}
+                            </Select.Option>
+                          ));
                         }
-                        placeholder="トランジションを選択..."
-                        style={{ width: '100%' }}
-                        loading={loadingTransitions}
-                      >
-                        {availableTransitions.map((transition) => (
-                          <Select.Option key={transition.id} value={transition.id}>
-                            {transition.isExperimentRelevant && '⭐ '}
-                            {transition.displayName}
-                            {transition.category !== 'other' && ` [${transition.category}]`}
-                          </Select.Option>
-                        ))}
-                      </Select>
-                    ) : instruction.targetType === TARGET_TYPES.TASK ? (
-                      <Select
-                        value={instruction.taskNumber || undefined}
-                        onChange={(value) =>
-                          handleUpdateInstruction(instruction.id, 'taskNumber', value)
-                        }
-                        disabled={!trialCount || submitting}
-                        placeholder="タスク番号を選択..."
-                        style={{ width: '100%' }}
-                      >
-                        {trialCount && Array.from({ length: trialCount as number }, (_, i) => (
-                          <Select.Option key={i + 1} value={i + 1}>
-                            タスク {i + 1}
-                          </Select.Option>
-                        ))}
-                      </Select>
-                    ) : (
-                      <Input value="実験全体への指示" disabled style={{ width: '100%' }} />
-                    )}
+                        return null;
+                      })()}
+                    </Select>
                   </div>
                 </Flex>
 
@@ -1156,7 +1412,8 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                 </div>
               </Space>
             </Card>
-          ))}
+          );
+        })}
         </Space>
 
         {/* 指示追加ボタン */}

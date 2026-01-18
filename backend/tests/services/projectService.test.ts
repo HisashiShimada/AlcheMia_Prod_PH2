@@ -1,0 +1,210 @@
+/**
+ * ProjectService ユニットテスト
+ * 
+ * @description プロジェクト一覧取得のビジネスロジックテスト
+ * Task: 1.1 データベースクエリ機能の実装
+ */
+
+import { ProjectService } from '../../src/services/projectService';
+import { getPool } from '../../src/database/db';
+
+// データベースプールをモック
+jest.mock('../../src/database/db');
+
+describe('ProjectService', () => {
+  let projectService: ProjectService;
+  let mockQuery: jest.Mock;
+
+  beforeEach(() => {
+    // 各テスト前にモックをリセット
+    mockQuery = jest.fn();
+    (getPool as jest.Mock).mockReturnValue({
+      query: mockQuery
+    });
+
+    projectService = new ProjectService();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('list', () => {
+    const organizationId = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385';
+    const defaultOptions = {
+      page: 1,
+      limit: 20,
+      includeCompleted: false
+    };
+
+    it('should retrieve project list with organization_id filter', async () => {
+      // Arrange
+      const mockProjects = [
+        {
+          organization_id: organizationId,
+          project_id: 'b1234567-89ab-cdef-0123-456789abcdef',
+          project_name: 'Sample Project',
+          description: 'Test project',
+          department_id: null,
+          owner_user_id: 'd3456789-abcd-ef01-2345-6789abcdef01',
+          project_status: 1,
+          project_maiml_flg: true,
+          checkout_status: 0,
+          create_at: new Date('2026-01-05T10:30:00Z'),
+          task_count: '3'
+        }
+      ];
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: mockProjects }) // プロジェクト一覧
+        .mockResolvedValueOnce({ rows: [{ total: '1' }] }); // 総件数
+
+      // Act
+      const result = await projectService.list(organizationId, defaultOptions);
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(mockQuery).toHaveBeenCalledTimes(2);
+      
+      // organization_idがパラメータに含まれているか確認
+      const firstCall = mockQuery.mock.calls[0];
+      expect(firstCall[1]).toContain(organizationId);
+    });
+
+    it('should exclude completed projects by default (project_status=4)', async () => {
+      // Arrange
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ total: '0' }] });
+
+      // Act
+      await projectService.list(organizationId, defaultOptions);
+
+      // Assert
+      const queryCall = mockQuery.mock.calls[0];
+      const query = queryCall[0];
+      
+      // project_status != 4 のフィルタが含まれているか確認
+      expect(query).toContain('project_status');
+    });
+
+    it('should include completed projects when includeCompleted=true', async () => {
+      // Arrange
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ total: '0' }] });
+
+      // Act
+      await projectService.list(organizationId, {
+        ...defaultOptions,
+        includeCompleted: true
+      });
+
+      // Assert
+      expect(mockQuery).toHaveBeenCalled();
+      // includeCompleted=true の場合、フィルタ条件が変わる
+      const queryCall = mockQuery.mock.calls[0];
+      expect(queryCall[1]).toContain(true);
+    });
+
+    it('should use parameterized queries for SQL injection protection', async () => {
+      // Arrange
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ total: '0' }] });
+
+      // Act
+      await projectService.list(organizationId, defaultOptions);
+
+      // Assert
+      const queryCall = mockQuery.mock.calls[0];
+      const query = queryCall[0];
+      const params = queryCall[1];
+
+      // プレースホルダー ($1, $2, ...) が使用されているか
+      expect(query).toMatch(/\$\d+/);
+      // パラメータ配列が存在するか
+      expect(Array.isArray(params)).toBe(true);
+      expect(params.length).toBeGreaterThan(0);
+    });
+
+    it('should LEFT JOIN with project_task_detail to get task count', async () => {
+      // Arrange
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ total: '0' }] });
+
+      // Act
+      await projectService.list(organizationId, defaultOptions);
+
+      // Assert
+      const queryCall = mockQuery.mock.calls[0];
+      const query = queryCall[0].toLowerCase();
+
+      // LEFT JOINが含まれているか
+      expect(query).toContain('left join');
+      // project_task_detailテーブルが参照されているか
+      expect(query).toContain('project_task_detail');
+      // COUNTが含まれているか（タスク数集計）
+      expect(query).toContain('count');
+    });
+
+    it('should return error when database query fails', async () => {
+      // Arrange
+      mockQuery.mockRejectedValueOnce(new Error('Database connection failed'));
+
+      // Act
+      const result = await projectService.list(organizationId, defaultOptions);
+
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.error?.code).toBe('SYSTEM_DATABASE_ERROR');
+    });
+
+    it('should calculate pagination correctly', async () => {
+      // Arrange
+      const mockProjects = [
+        {
+          organization_id: organizationId,
+          project_id: 'proj1',
+          project_name: 'Project 1',
+          description: null,
+          department_id: null,
+          owner_user_id: 'user1',
+          project_status: 1,
+          project_maiml_flg: false,
+          checkout_status: 0,
+          create_at: new Date(),
+          task_count: '0'
+        }
+      ];
+
+      mockQuery
+        .mockResolvedValueOnce({ rows: mockProjects })
+        .mockResolvedValueOnce({ rows: [{ total: '25' }] });
+
+      // Act
+      const result = await projectService.list(organizationId, {
+        page: 2,
+        limit: 10,
+        includeCompleted: false
+      });
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      if (result.success && result.data) {
+        expect(result.data.pagination).toEqual({
+          page: 2,
+          limit: 10,
+          totalItems: 25,
+          totalPages: 3,
+          hasNext: true,
+          hasPrev: true
+        });
+      }
+    });
+  });
+});

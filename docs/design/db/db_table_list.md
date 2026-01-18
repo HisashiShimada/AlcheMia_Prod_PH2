@@ -6,7 +6,7 @@
 
 **重要**: DDLファイルを変更した際は、必ずこのファイルも更新してください。
 
-**最終更新**: 2026-01-09
+**最終更新**: 2026-01-16
 **ER図ファイル**: `docs/design/db/er_diagram.a5er`
 **DDLディレクトリ**: `docs/design/db/ddl/`
 
@@ -336,6 +336,37 @@
 
 ---
 
+### 4. ファイル管理関連テーブル
+
+#### 4.1 file_metadata（ファイルメタデータ）
+- **物理名**: `file_metadata`
+- **論理名**: ファイルメタデータ
+- **DDLファイル**: `docs/design/db/ddl/file_metadata.sql`
+- **説明**: S3/Swiftファイルのメタデータ管理テーブル（v1.0 - 初期実装: S3アクセス必須カラムのみ）
+- **主キー**: `file_key` (VARCHAR(500)) - S3キーを主キーとする自然キー設計
+- **主要カラム**:
+  - `file_key` - S3キー（org_prefix/path/to/file形式、主キー）
+  - `s3_bucket` - S3バケット名またはSwiftコンテナ名
+  - `organization_id` - 組織ID（マルチテナント分離用、必須）
+  - `original_filename` - 元のファイル名（アップロード時の名前）
+  - `file_size` - ファイルサイズ（バイト単位）
+  - `file_type` - MIMEタイプ（例: application/xml）
+  - `uploaded_by` - アップロードユーザーID
+  - `created_at` - 作成日時（自動設定）
+  - `updated_at` - 更新日時（トリガーで自動更新）
+- **外部キー**: なし
+- **インデックス**:
+  - `idx_file_metadata_organization_id` - organization_id（マルチテナント分離必須）
+  - `idx_file_metadata_uploaded_by` - uploaded_by（ユーザー単位のファイル一覧取得用）
+- **トリガー**:
+  - `update_file_metadata_updated_at` - updated_at自動更新
+- **特記事項**:
+  - file_keyは主キーなので、インデックスは自動作成される
+  - すべてのクエリでorganization_idフィルタを必須とする
+  - v2.0でMAIML解析メタデータ追加予定
+
+---
+
 ## 📊 テーブル数サマリー
 
 | カテゴリ | テーブル数 |
@@ -343,7 +374,8 @@
 | 認証関連 | 8 |
 | プロジェクト管理関連 | 4 |
 | 共通マスタ | 6 |
-| **合計** | **18** |
+| ファイル管理関連 | 1 |
+| **合計** | **19** |
 
 ---
 
@@ -409,6 +441,7 @@ project_instruction
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-01-16 | file_metadataテーブル追加（ファイル管理関連カテゴリ新設、合計19テーブル） | Cline |
 | 2026-01-09 | DDLファイル削除に伴い18テーブルに調整（format, format_subfolder, experiment_recordを削除） | Cline |
 | 2026-01-09 | DDLファイルが存在するテーブルのみに絞り込み（21テーブル） | Cline |
 | 2026-01-09 | 初版作成（24テーブル） | Cline |

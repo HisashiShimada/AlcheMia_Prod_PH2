@@ -939,7 +939,7 @@ TableInnerOption=
 TableOption=
 Page=材料開発データ管理システム_共通_ER図.A5ER
 Left=1000
-Top=550
+Top=500
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="属性_ID","attribute_id","@VARCHAR","NOT NULL",1,"","",$FFFFFFFF,""
 Field="属性_名称","attribute_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
@@ -948,7 +948,7 @@ EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
 ModifiedDateTime=20260108092026
-Position="材料開発データ管理システム_共通_ER図.A5ER",1000,550,257,295
+Position="材料開発データ管理システム_共通_ER図.A5ER",1000,500,257,295
 ZOrder=114
 
 [Entity]
