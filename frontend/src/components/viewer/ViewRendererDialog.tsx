@@ -4,6 +4,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Spin, message, Button, Typography } from 'antd';
 import { CloseOutlined, MinusOutlined, ExpandOutlined } from '@ant-design/icons';
 import { Rnd } from 'react-rnd';
@@ -280,7 +281,8 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
     return null;
   };
 
-  return (
+  // Portal を使用して document.body に直接レンダリング
+  const dialogContent = (
     <Rnd
       default={{
         x: initialPosition.x,
@@ -310,6 +312,8 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          position: 'relative',
+          zIndex: zIndex,
         }}
       >
         {/* タイトルバー */}
@@ -366,6 +370,14 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
       </div>
     </Rnd>
   );
+
+  // document.body が存在する場合のみPortalを使用
+  if (typeof document !== 'undefined') {
+    return ReactDOM.createPortal(dialogContent, document.body);
+  }
+
+  // SSR時はnullを返す
+  return null;
 };
 
 export default ViewRendererDialog;

@@ -76,6 +76,9 @@ interface ViewRendererProps {
   isTabletDevice?: boolean;
   isMobileDevice?: boolean;
   
+  // UI制御
+  hideMethodTabs?: boolean; // メソッド選択Tabsを非表示にする（指示確認タブ用）
+  
   // イベントハンドラー
   onFileDownload?: (fileKey: string, fileName: string) => void;
   onExitEdit?: () => void;
@@ -246,6 +249,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
   deviceType = 'desktop',
   isTabletDevice = false,
   isMobileDevice = false,
+  hideMethodTabs = false,
   onFileDownload,
   onExitEdit,
   onExitExperiment,
@@ -356,8 +360,8 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
     
     switch (fileType) {
       case 'maiml':
-        // 🎯 複数メソッド対応: Tabsで切り替え
-        if (isMultiMethod && methods.length > 0) {
+        // 🎯 複数メソッド対応: hideMethodTabsがtrueの場合はTabsを非表示
+        if (isMultiMethod && methods.length > 0 && !hideMethodTabs) {
           return (
             <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ flexShrink: 0, borderBottom: '1px solid #f0f0f0', padding: '8px 16px', backgroundColor: '#fafafa' }}>

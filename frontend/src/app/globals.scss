@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 // SCSS変数の定義
+$color-primary: #CF0027;
 $color-white: #ffffff;
 $color-gray-dark: #0a0a0a;
 $color-gray-light: #fafafa;
@@ -9,14 +10,11 @@ $color-gray-medium: #d9d9d9;
 $color-gray-hover: #bfbfbf;
 $color-text-primary: #212121;
 
-// ブランドカラー
-$color-brand-primary: #CF0027;
-
 // CSS変数（ランタイムで必要）
 :root {
+  --color-primary: #{$color-primary};
   --background: #{$color-white};
   --foreground: #171717;
-  --color-brand-primary: #{$color-brand-primary};
 }
 
 @theme inline {
@@ -119,4 +117,13 @@ body {
     height: 100% !important;
     padding: 0 !important;
   }
+}
+
+// ヘッダーのタイトルとアイコンのスタイル
+.header-title {
+  color: $color-primary !important;
+}
+
+.header-user-avatar {
+  background-color: $color-primary !important;
 }

@@ -1,0 +1,92 @@
+[
+  {
+    "masterId": "8",
+    "creatorId": "CREATOR001",
+    "creatorName": "山田太郎",
+    "creatorDescription": "材料科学研究室の主任研究員",
+    "creatorAnnotation": "専門：高分子材料 / 経験：15年 / 主要プロジェクト：3件",
+    "vendorName": "リガク株式会社",
+    "instrumentName": "高性能HPLC システム"
+  },
+  {
+    "masterId": "8",
+    "creatorId": "CREATOR002",
+    "creatorName": "佐藤花子",
+    "creatorDescription": "無機材料分析の専門家",
+    "creatorAnnotation": "専門：セラミックス / 経験：10年 / 主要プロジェクト：5件",
+    "vendorName": "日本電子株式会社",
+    "instrumentName": "X線回折装置"
+  },
+  {
+    "masterId": "8",
+    "creatorId": "CREATOR003",
+    "creatorName": "鈴木一郎",
+    "creatorDescription": "金属材料試験担当",
+    "creatorAnnotation": "専門：金属組織学 / 経験：8年 / 認定：非破壊検査技術者",
+    "vendorName": "島津製作所",
+    "instrumentName": "走査型電子顕微鏡"
+  },
+  {
+    "masterId": "8",
+    "creatorId": "CREATOR004",
+    "creatorName": "田中美咲",
+    "creatorDescription": "複合材料開発チームリーダー",
+    "creatorAnnotation": "専門：CFRP / 経験：12年 / 特許：2件",
+    "vendorName": "日立ハイテク",
+    "instrumentName": ""
+  },
+  {
+    "masterId": "8",
+    "creatorId": "CREATOR005",
+    "creatorName": "伊藤健",
+    "creatorDescription": "表面処理技術の研究員",
+    "creatorAnnotation": "専門：コーティング / 経験：6年 / 論文発表：8本",
+    "vendorName": "株式会社島津",
+    "instrumentName": "粒度分布測定装置"
+  },
+  {
+    "masterId": "8",
+    "creatorId": "CREATOR006",
+    "creatorName": "渡辺明子",
+    "creatorDescription": "品質管理部門の分析担当",
+    "creatorAnnotation": "専門：品質保証 / 経験：9年 / 資格：ISO9001審査員",
+    "vendorName": "Thermo Fisher Scientific",
+    "instrumentName": "3Dレーザー顕微鏡"
+  },
+  {
+    "masterId": "8",
+    "creatorId": "CREATOR007",
+    "creatorName": "中村誠",
+    "creatorDescription": "電子材料開発の主任",
+    "creatorAnnotation": "専門：半導体材料 / 経験：11年 / 受賞：技術賞1回",
+    "vendorName": "",
+    "instrumentName": ""
+  },
+  {
+    "masterId": "8",
+    "creatorId": "CREATOR008",
+    "creatorName": "小林由美",
+    "creatorDescription": "生体材料の研究員",
+    "creatorAnnotation": "専門：バイオマテリアル / 経験：7年 / 共同研究：3機関",
+    "vendorName": "Bruker Corporation",
+    "instrumentName": "共焦点レーザー顕微鏡"
+  },
+  {
+    "masterId": "8",
+    "creatorId": "CREATOR009",
+    "creatorName": "加藤大輔",
+    "creatorDescription": "機能性材料の開発担当",
+    "creatorAnnotation": "専門：光学材料 / 経験：13年 / プロジェクトリーダー経験あり",
+    "vendorName": "PerkinElmer",
+    "instrumentName": "紫外可視分光光度計"
+  },
+  {
+    "masterId": "8",
+    "creatorId": "CREATOR010",
+    "creatorName": "吉田真理",
+    "creatorDescription": "環境適合材料の研究者",
+    "creatorAnnotation": "専門：グリーン材料 / 経験：5年 / 学位：博士（工学）",
+    "vendorName": "",
+    "instrumentName": "ガスクロマトグラフ質量分析計"
+  }
+]

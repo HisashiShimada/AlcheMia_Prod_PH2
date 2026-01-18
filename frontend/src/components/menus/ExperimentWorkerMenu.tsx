@@ -91,6 +91,12 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // 承認依頼ハンドラー
+  const handleApprovalRequest = () => {
+    // TODO: 承認依頼処理を実装
+    console.log('承認依頼ボタンがクリックされました');
+  };
+
   // カスタムフック
   const {
     selectedProject,
@@ -297,13 +303,24 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
               >
                 {t('experimentWork.selectButton')}
               </Button>
+              
+              {/* 承認依頼ボタン（進捗確認タブ選択時のみ表示） */}
+              {currentTab === '4' && (
+                <Button
+                  type="default"
+                  onClick={handleApprovalRequest}
+                  size="large"
+                  disabled={!selectedProject || selectedProject === ''}
+                >
+                  承認依頼
+                </Button>
+              )}
             </Space>
           </div>
 
           {/* タブ */}
           <div style={{
             borderRadius: 0,
-            overflow: 'hidden'
           }}>
             <Tabs
               activeKey={currentTab}
@@ -311,15 +328,11 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
               items={tabItems}
               size="large"
               style={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
+                marginBottom: 0,
               }}
               tabBarStyle={{
                 padding: `0 ${token.paddingLG}px`,
                 margin: 0,
-                flexShrink: 0,
                 borderTop: `1px solid ${token.colorBorder}`,
                 borderBottom: `1px solid ${token.colorBorder}`,
                 borderLeft: 'none',
