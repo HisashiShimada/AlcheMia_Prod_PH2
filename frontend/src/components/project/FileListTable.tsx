@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   Button,
   Tooltip,
   Space,
   Empty,
+  message,
   theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -19,6 +20,10 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
+import {
+  downloadFile,
+  executeFileDownload,
+} from '@/api/fileDownloadService';
 
 interface FileData {
   id: string;
@@ -33,6 +38,7 @@ interface FileData {
 
 interface FileListTableProps {
   files: FileData[];
+  projectId: string;
   onFileClick?: (file: FileData) => void;
   onFolderClick?: (folderId: string) => void;
   onViewFile?: (file: FileData) => void;
@@ -41,8 +47,42 @@ interface FileListTableProps {
 /**
  * ファイル一覧テーブルコンポーネント
  */
-const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFolderClick, onViewFile }) => {
+const FileListTable: React.FC<FileListTableProps> = ({ 
+  files, 
+  projectId, 
+  onFileClick, 
+  onFolderClick, 
+  onViewFile 
+}) => {
   const { token } = theme.useToken();
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+
+  /**
+   * ファイルダウンロード処理
+   */
+  const handleDownloadFile = async (file: FileData) => {
+    try {
+      setDownloadingFileId(file.id);
+
+      // API通信: 署名付きURLを取得
+      const fileDownloadInfo = await downloadFile(projectId, file.name);
+
+      // ファイルダウンロード実行
+      executeFileDownload(fileDownloadInfo.downloadUrl, fileDownloadInfo.fileName);
+
+      // 成功メッセージ表示
+      message.success(`「${file.name}」のダウンロードを開始しました`);
+    } catch (error) {
+      console.error('ファイルダウンロードエラー:', error);
+      message.error(
+        `ファイルのダウンロードに失敗しました: ${
+          error instanceof Error ? error.message : '不明なエラー'
+        }`
+      );
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
   
   // ファイルタイプに応じたアイコンを取得
   const getFileIcon = (file: FileData) => {
@@ -126,9 +166,11 @@ const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFol
               type="default"
               size="small"
               icon={<DownloadOutlined />}
+              loading={downloadingFileId === record.id}
+              disabled={downloadingFileId !== null}
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('Download file:', record.name);
+                handleDownloadFile(record);
               }}
             >
               ダウンロード

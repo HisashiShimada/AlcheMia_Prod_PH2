@@ -1060,15 +1060,514 @@ project_task (1) --- (N) project_task_detail
 
 ---
 
-### 2.5 プロジェクト詳細検索
+### 2.5 プロジェクト詳細検索（MAIMLメタデータ検索統合版）
 
 #### 概要
-プロジェクト管理画面で、複数の条件を組み合わせてプロジェクトを検索します。プロジェクト名、説明、ステータス、作成日範囲、所有者などの条件で絞り込みが可能です。
+プロジェクト管理画面で、MAIMLファイルのメタデータを複数の条件で検索し、該当するMAIMLファイルを持つプロジェクトを見つけます。Document情報、測定データ、ファイル構造、MaiML属性などから目的のプロジェクトを効率的に検索できます。
+
+**検索フロー:**
+1. ユーザーがMAIMLメタデータの検索条件を入力
+2. メタデータを検索して該当するMAIMLファイルを特定
+3. そのMAIMLファイルが属するプロジェクトを特定
+4. プロジェクト情報とマッチしたMAIMLファイル情報を返却
 
 #### エンドポイント
 - **URL**: `POST /api/v1/projects/search`
 - **認証**: 必須（JWT + Session Hybrid）
-- **権限**: Manager以上（Worker: 割り当てられたプロジェクトのみ）
+- **権限**: すべてのロール（自組織のプロジェクトのみ）
+
+#### リクエスト
+
+##### ヘッダー
+| ヘッダー名 | 型 | 必須 | 説明 | 例 |
+|-----------|---|-----|------|---|
+| Authorization | string | ○ | JWTトークン | Bearer maiml_session-abc123_1234567890 |
+| X-Organization-Id | string | ○ | 組織ID | a0718dc5-21f3-44e6-87e9-cc2ae83f3385 |
+
+##### リクエストボディ
+```json
+{
+  "criteria": [
+    {
+      "attribute": "document.name",
+      "value": "実験A"
+    },
+    {
+      "attribute": "measurement_value",
+      "value": "25.5"
+    },
+    {
+      "attribute": "units",
+      "value": "℃"
+    }
+  ]
+}
+```
+
+| フィールド名 | 型 | 必須 | 説明 | 制約 |
+|------------|---|-----|------|------|
+| criteria | array | ○ | 検索条件配列 | 1〜5件 |
+| criteria[].attribute | string | ○ | 検索対象属性 | 許可された属性のみ |
+| criteria[].value | string | ○ | 検索値 | 1〜255文字 |
+
+##### 許可される attribute 値
+
+| 属性値 | カテゴリ | 説明 |
+|-------|---------|------|
+| document.uuid | Document情報 | Document UUID |
+| document.name | Document情報 | Document名 |
+| document.description | Document情報 | Document説明 |
+| measurement_value | 測定データ | 測定値 |
+| units | 測定データ | 単位 |
+| section_type | ファイル構造 | セクション種別 |
+| id | MaiML属性 | ID属性 |
+| ref | MaiML属性 | Ref属性 |
+| key | MaiML属性 | Key属性 |
+| element | MaiML属性 | Element名 |
+| value | MaiML属性 | 汎用Value |
+
+#### レスポンス
+
+##### 成功時（200 OK）
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "project": {
+        "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
+        "projectId": "b1234567-89ab-cdef-0123-456789abcdef",
+        "projectName": "sample_project",
+        "description": "これはサンプルプロジェクトです",
+        "departmentId": "c2345678-9abc-def0-1234-56789abcdef0",
+        "ownerUserId": "d3456789-abcd-ef01-2345-6789abcdef01",
+        "projectStatus": 2,
+        "projectStatusName": "タスク実行中",
+        "projectMaimlFlg": true,
+        "checkoutStatus": 0,
+        "checkoutStatusName": "チェックイン中",
+        "createAt": "2026-01-05T10:30:00.000Z"
+      },
+      "maimlFile": {
+        "maimlFileName": "sample_project.maiml",
+        "key": "projects/sample_project/sample_project.maiml",
+        "s3FolderPath": "s3://mmdpf-files/org_maiml_lab_001/projects/sample_project/",
+        "matchCount": 3,
+        "matchedAttributes": [
+          {
+            "attribute": "document.name",
+            "criterionNumber": 1,
+            "matchCount": 1,
+            "matchedValues": ["実験A"]
+          },
+          {
+            "attribute": "measurement_value",
+            "criterionNumber": 2,
+            "matchCount": 5,
+            "matchedValues": ["25.5", "25.3", "25.7", "25.4", "25.6"]
+          },
+          {
+            "attribute": "units",
+            "criterionNumber": 3,
+            "matchCount": 5,
+            "matchedValues": ["℃", "℃", "℃", "℃", "℃"]
+          }
+        ],
+        "metadata": {
+          "fileSize": 15360,
+          "lastModified": "2026-01-18T14:20:00.000Z",
+          "contentType": "application/xml"
+        }
+      }
+    },
+    {
+      "project": {
+        "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
+        "projectId": "e4567890-bcde-f012-3456-789abcdef012",
+        "projectName": "experiment_001",
+        "description": "材料分析プロジェクト",
+        "departmentId": null,
+        "ownerUserId": "d3456789-abcd-ef01-2345-6789abcdef01",
+        "projectStatus": 1,
+        "projectStatusName": "タスク実行待ち",
+        "projectMaimlFlg": true,
+        "checkoutStatus": 0,
+        "checkoutStatusName": "チェックイン中",
+        "createAt": "2026-01-03T14:20:00.000Z"
+      },
+      "maimlFile": {
+        "maimlFileName": "experiment_001.maiml",
+        "key": "projects/experiment_001/experiment_001.maiml",
+        "s3FolderPath": "s3://mmdpf-files/org_maiml_lab_001/projects/experiment_001/",
+        "matchCount": 3,
+        "matchedAttributes": [
+          {
+            "attribute": "document.name",
+            "criterionNumber": 1,
+            "matchCount": 1,
+            "matchedValues": ["実験A - 追加試験"]
+          },
+          {
+            "attribute": "measurement_value",
+            "criterionNumber": 2,
+            "matchCount": 3,
+            "matchedValues": ["25.5", "25.5", "25.5"]
+          },
+          {
+            "attribute": "units",
+            "criterionNumber": 3,
+            "matchCount": 3,
+            "matchedValues": ["℃", "℃", "℃"]
+          }
+        ],
+        "metadata": {
+          "fileSize": 12800,
+          "lastModified": "2026-01-15T09:10:00.000Z",
+          "contentType": "application/xml"
+        }
+      }
+    }
+  ],
+  "pagination": {
+    "totalItems": 2,
+    "totalPages": 1,
+    "currentPage": 1,
+    "pageSize": 100
+  },
+  "meta": {
+    "timestamp": "2026-01-19T08:30:00Z",
+    "requestId": "req_search_001"
+  }
+}
+```
+
+##### エラー時
+| HTTPステータス | エラーコード | 説明 |
+|--------------|------------|------|
+| 400 | VALIDATION_ERROR | バリデーションエラー（条件が空、属性が不正） |
+| 400 | VALIDATION_TOO_MANY_CRITERIA | 検索条件が6件以上指定されている |
+| 401 | AUTH_TOKEN_EXPIRED | 認証エラー（トークン期限切れ） |
+| 401 | AUTH_TOKEN_INVALID | 認証エラー（トークン不正） |
+| 403 | PERMISSION_INSUFFICIENT | 権限不足 |
+| 500 | SYSTEM_DATABASE_ERROR | データベースエラー |
+| 500 | SYSTEM_S3_ERROR | S3アクセスエラー |
+
+#### ビジネスロジック
+1. **認証チェック**: JWTトークンとセッションの検証
+2. **組織ID取得**: セッション情報から組織IDを取得
+3. **バリデーション**:
+   - 検索条件が1〜5件であることを確認
+   - 各条件の属性が許可されたものであることを確認
+   - 各条件の値が空でないことを確認
+4. **MAIMLメタデータ検索**:
+   - file_metadataテーブルまたはAthenaで検索
+   - organization_idでフィルタリング（必須）
+   - 各検索条件をAND条件で結合
+   - MAIML XMLファイルのメタデータを全文検索
+5. **プロジェクト特定**:
+   - 検索結果のMAIMLファイルのS3キーからプロジェクト名を抽出
+   - パス形式: `projects/{project_name}/{project_name}.maiml`
+   - プロジェクト名を使ってprojectテーブルを検索
+6. **プロジェクト情報取得**:
+   - organization_idとproject_nameでフィルタリング
+   - プロジェクトステータス名称をcode_masterから取得
+   - チェックアウトステータス名称をcode_masterから取得
+7. **S3パス補正**:
+   - バケット名が不正な場合の補正
+   - organization_prefixの確認と補正
+   - 相対パスの絶対パス化
+8. **マッチ情報集計**:
+   - 各ファイルでマッチした属性と値を集計
+   - 条件番号、マッチ件数、マッチした値のリストを生成
+9. **ソート**: マッチ件数の多い順にソート
+10. **レスポンス生成**: プロジェクト情報とMAIMLファイル情報を統合して返却
+
+#### バリデーション
+- [x] Authorization ヘッダーの存在チェック
+- [x] X-Organization-Id ヘッダーの存在チェック
+- [x] X-Organization-Id が UUID 形式であることをチェック
+- [x] criteria が配列であることをチェック
+- [x] criteria が 1〜5 件であることをチェック
+- [x] criteria[].attribute が必須であることをチェック
+- [x] criteria[].attribute が許可された値であることをチェック
+- [x] criteria[].value が必須であることをチェック
+- [x] criteria[].value が 1〜255 文字であることをチェック
+
+#### セキュリティチェックリスト
+- [x] JWT認証の実施（authミドルウェア）
+- [x] organization_idフィルタの適用（必須）
+- [x] テナント分離（tenantIsolationミドルウェア）
+- [x] 権限チェック（permissionCheckミドルウェア）
+- [x] Parameterized Queryの使用
+- [x] 入力値のサニタイゼーション
+- [x] クロステナントアクセスの防止
+- [x] S3パスのバリデーション
+
+#### テストケース
+- [x] 正常系：単一条件での検索
+- [x] 正常系：複数条件（AND）での検索
+- [x] 正常系：Document情報での検索
+- [x] 正常系：測定データでの検索
+- [x] 正常系：MaiML属性での検索
+- [x] 正常系：検索結果が0件の場合
+- [x] 正常系：S3パスの補正が正しく行われる
+- [x] 正常系：マッチ情報が正しく集計される
+- [x] 正常系：プロジェクト情報が正しく取得される
+- [x] 正常系：MAIMLファイルを持たないプロジェクトは結果に含まれない
+- [x] 異常系：未認証ユーザーによるアクセス（401エラー）
+- [x] 異常系：権限不足ユーザーによるアクセス（403エラー）
+- [x] 異常系：検索条件が空（400エラー）
+- [x] 異常系：検索条件が6件以上（400エラー）
+- [x] 異常系：不正な属性名（400エラー）
+- [x] 異常系：空の検索値（400エラー）
+- [x] 異常系：他組織のプロジェクトは検索結果に含まれない
+
+#### レスポンスフィールド説明
+
+##### project（プロジェクト情報）
+| フィールド名 | 型 | NULL許可 | 説明 |
+|------------|---|---------|------|
+| organizationId | string | × | 組織ID（UUID） |
+| projectId | string | × | プロジェクトID（UUID） |
+| projectName | string | × | プロジェクト名 |
+| description | string | ○ | プロジェクト説明 |
+| departmentId | string | ○ | 部門ID（UUID） |
+| ownerUserId | string | × | 所有者ユーザーID（UUID） |
+| projectStatus | number | × | プロジェクトステータス（0〜5） |
+| projectStatusName | string | ○ | プロジェクトステータス名称 |
+| projectMaimlFlg | boolean | × | プロジェクトMaiml有無 |
+| checkoutStatus | number | × | チェックアウトステータス（0, 1） |
+| checkoutStatusName | string | ○ | チェックアウトステータス名称 |
+| createAt | string | × | 作成日時（ISO 8601形式） |
+
+##### maimlFile（MAIMLファイル情報）
+| フィールド名 | 型 | NULL許可 | 説明 |
+|------------|---|---------|------|
+| maimlFileName | string | × | MAIMLファイル名 |
+| key | string | × | S3オブジェクトキー |
+| s3FolderPath | string | × | S3フォルダパス（バケット含む） |
+| matchCount | number | × | 総マッチ件数 |
+| matchedAttributes | array | × | マッチした属性情報の配列 |
+| metadata | object | × | ファイルメタデータ |
+
+##### matchedAttributes（マッチ属性情報）
+| フィールド名 | 型 | NULL許可 | 説明 |
+|------------|---|---------|------|
+| attribute | string | × | 属性名 |
+| criterionNumber | number | × | 検索条件番号（1始まり） |
+| matchCount | number | × | この属性でのマッチ件数 |
+| matchedValues | array | × | マッチした値の配列（最大5件表示） |
+
+##### metadata（ファイルメタデータ）
+| フィールド名 | 型 | NULL許可 | 説明 |
+|------------|---|---------|------|
+| fileSize | number | × | ファイルサイズ（バイト） |
+| lastModified | string | × | 最終更新日時（ISO 8601形式） |
+| contentType | string | × | コンテンツタイプ |
+
+#### データモデル
+
+##### file_metadata テーブル（ファイルメタデータ）
+
+検索対象となるメタデータを格納するテーブル。
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|---|------|----------|------|
+| organization_id | UUID | NOT NULL | - | 組織ID（複合主キー） |
+| file_id | UUID | NOT NULL | uuid_generate_v4() | ファイルID（複合主キー） |
+| bucket_name | VARCHAR(255) | NULL | - | S3バケット名 |
+| object_key | VARCHAR(1024) | NULL | - | S3オブジェクトキー |
+| file_name | VARCHAR(255) | NULL | - | ファイル名 |
+| file_type | VARCHAR(50) | NULL | - | ファイル種別（maiml, xml等） |
+| file_size | BIGINT | NULL | - | ファイルサイズ（バイト） |
+| content_type | VARCHAR(100) | NULL | - | コンテンツタイプ |
+| metadata_json | JSONB | NULL | - | メタデータ（JSON形式） |
+| last_modified | TIMESTAMP | NULL | - | 最終更新日時 |
+| created_at | TIMESTAMP | NULL | CURRENT_TIMESTAMP | 作成日時 |
+| updated_at | TIMESTAMP | NULL | CURRENT_TIMESTAMP | 更新日時 |
+
+**主キー**: `(organization_id, file_id)`
+
+**インデックス**:
+- `organization_id`
+- `file_id`
+- `bucket_name`
+- `object_key`
+- `file_type`
+- `metadata_json` (GINインデックス - JSONB検索用)
+
+##### metadata_json構造
+
+`metadata_json`カラムには以下の構造でMAIMLファイルのメタデータが格納されます：
+
+```json
+{
+  "document": {
+    "uuid": "doc-uuid-001",
+    "name": "実験A",
+    "description": "材料合成実験"
+  },
+  "measurements": [
+    {
+      "measurement_value": "25.5",
+      "units": "℃"
+    }
+  ],
+  "sections": [
+    {
+      "section_type": "Material"
+    }
+  ],
+  "attributes": {
+    "id": ["material_001", "condition_001"],
+    "ref": ["ref_001", "ref_002"],
+    "key": ["temp", "pressure"],
+    "elements": ["Material", "Condition", "Result"],
+    "values": ["value1", "value2"]
+  }
+}
+```
+
+#### 検索クエリ例
+
+##### PostgreSQL + JSONB
+```sql
+-- Step 1: MAIMLファイルを検索
+SELECT 
+  file_id,
+  file_name,
+  object_key,
+  bucket_name,
+  file_size,
+  last_modified,
+  metadata_json
+FROM file_metadata
+WHERE organization_id = $1
+  AND file_type = 'maiml'
+  AND metadata_json @> '{"document": {"name": "実験A"}}'::jsonb
+  AND metadata_json @> '{"measurements": [{"units": "℃"}]}'::jsonb
+ORDER BY last_modified DESC;
+
+-- Step 2: プロジェクト情報を取得
+SELECT 
+  p.organization_id,
+  p.project_id,
+  p.project_name,
+  p.description,
+  p.department_id,
+  p.owner_user_id,
+  p.project_status,
+  p.project_maiml_flg,
+  p.checkout_status,
+  p.create_at
+FROM project p
+WHERE p.organization_id = $1
+  AND p.project_name IN (
+    -- S3キーからプロジェクト名を抽出
+    -- 例: projects/sample_project/sample_project.maiml → sample_project
+  );
+```
+
+#### プロジェクト名抽出ロジック
+
+MAIMLファイルのS3キーからプロジェクト名を抽出する処理：
+
+```typescript
+function extractProjectNameFromS3Key(s3Key: string): string | null {
+  // パターン: projects/{project_name}/{project_name}.maiml
+  const match = s3Key.match(/^projects\/([^\/]+)\/\1\.maiml$/);
+  return match ? match[1] : null;
+}
+
+// 使用例
+const s3Key = "projects/sample_project/sample_project.maiml";
+const projectName = extractProjectNameFromS3Key(s3Key);
+// → "sample_project"
+```
+
+#### S3パス補正ロジック
+
+検索結果のS3パスは以下のルールで補正されます：
+
+1. **バケット名補正**:
+   - `s3://`で始まらない場合、デフォルトバケット名を追加
+   - バケット名が3文字未満の場合、デフォルトバケット名で置換
+
+2. **organization_prefix確認**:
+   - パスに`org_{organization_id}`が含まれることを確認
+   - 不足している場合は追加
+
+3. **キーの正規化**:
+   - `s3://bucket/key`形式の場合、keyのみを抽出
+   - 相対パスを絶対パスに変換
+
+#### パフォーマンス最適化
+
+##### インデックス戦略（PostgreSQL）
+```sql
+-- JSONB検索用GINインデックス
+CREATE INDEX idx_file_metadata_json 
+ON file_metadata USING GIN (metadata_json);
+
+-- 組織とファイルタイプの複合インデックス
+CREATE INDEX idx_file_metadata_org_type 
+ON file_metadata (organization_id, file_type);
+```
+
+##### キャッシング戦略
+- **検索可能な属性リスト**: TTL 1時間
+- **頻繁に検索される条件の結果**: TTL 5分
+- **キャッシュ無効化**: ファイルアップロード/更新/削除時
+
+#### 設計上の考慮事項
+
+##### プロジェクトとMAIMLファイルの関係
+- 1プロジェクト = 1 MAIMLファイル（現在版）+ 0〜N アーカイブファイル
+- 検索対象は現在版のMAIMLファイルのみ（`projects/{project_name}/{project_name}.maiml`）
+- アーカイブファイル（`projects/{project_name}/archive/`）は検索対象外
+
+##### プロジェクトのフィルタリング
+- project_maiml_flg = true のプロジェクトのみ検索対象
+- MAIMLファイルが存在しないプロジェクトは結果に含まれない
+- 削除済みプロジェクト（deleted_at IS NOT NULL）は除外
+
+##### エラーハンドリング
+- MAIMLファイルは見つかったがプロジェクトが見つからない場合
+  → プロジェクトが削除された可能性があるため、結果から除外
+- S3パスが不正な形式の場合
+  → パス補正を試み、それでも不正ならスキップ
+
+##### スケーラビリティ
+- 検索結果の最大件数: 100件
+- ページネーションサポート（将来拡張予定）
+- 大量データ対応: Athenaへの移行を検討
+
+#### 将来の拡張可能性
+
+##### 検索機能の拡張
+- アーカイブファイルも検索対象に含める
+- OR条件のサポート
+- 範囲検索（数値、日付）
+- ファジー検索（あいまい検索）
+- ワイルドカード検索
+- 正規表現検索
+
+##### パフォーマンス改善
+- Elasticsearchへの移行検討
+- 非同期検索（大量データ対応）
+- 検索結果のページネーション改善
+
+##### ユーザビリティ向上
+- 検索履歴の保存
+- よく使う検索条件の保存
+- 検索候補の自動補完
+- 検索結果のエクスポート機能
+
+#### 関連ドキュメント
+- [MAIMLファイル検索API仕様](api_maiml_search.md) - メタデータ検索の詳細仕様
+- [MAIML検索モーダル UI設計](../ui/ui_search_modal.md) - 画面仕様
+- [S3構造定義](../../.clinerules/references/s3_structure.md) - S3フォルダ構成
+- [データベース構造](../../.clinerules/references/db_structure.md) - file_metadataテーブル
 
 ---
 
@@ -1087,12 +1586,435 @@ project_task (1) --- (N) project_task_detail
 ### 2.7 ファイルアップロード
 
 #### 概要
-プロジェクトフォルダにファイルをアップロードします。MAIMLファイル、実験データファイル、画像ファイルなど、任意のファイルをS3に保存します。ファイルメタデータはfile_metadataテーブルに記録されます。
+プロジェクトフォルダにファイルをアップロードします。単一ファイル、一括ファイル、フォルダ構造を保持したアップロードの3つのモードをサポートします。アップロードされたファイルはS3に保存され、メタデータはfile_metadataテーブルに記録されます。
+
+**アップロードモード:**
+1. **単一ファイルアップロード（single）**: 1ファイルを指定フォルダにアップロード
+2. **一括ファイルアップロード（bulk）**: 複数ファイルを同時にアップロード
+3. **フォルダアップロード（folder）**: フォルダ階層を保持してアップロード
 
 #### エンドポイント
-- **URL**: `POST /api/v1/projects/:projectId/files`
+- **URL**: `POST /api/v1/projects/:projectId/files/upload`
 - **認証**: 必須（JWT + Session Hybrid）
 - **権限**: Manager以上
+
+#### リクエスト
+
+##### ヘッダー
+| ヘッダー名 | 型 | 必須 | 説明 | 例 |
+|-----------|---|-----|------|---|
+| Authorization | string | ○ | JWTトークン | Bearer maiml_session-abc123_1234567890 |
+| X-Organization-Id | string | ○ | 組織ID | a0718dc5-21f3-44e6-87e9-cc2ae83f3385 |
+| Content-Type | string | ○ | multipart/form-data | multipart/form-data; boundary=----WebKitFormBoundary |
+
+##### パラメータ（パス）
+| パラメータ名 | 型 | 必須 | 説明 | 例 |
+|------------|---|-----|------|---|
+| projectId | string | ○ | プロジェクトID（UUID） | b1234567-89ab-cdef-0123-456789abcdef |
+
+##### リクエストボディ（multipart/form-data）
+
+**共通フィールド:**
+| フィールド名 | 型 | 必須 | 説明 | 制約 |
+|------------|---|-----|------|------|
+| uploadMode | string | ○ | アップロードモード | single, bulk, folder |
+| targetFolder | string | ○ | アップロード先フォルダパス | 階層構造: org_xxx/dept_xxx/project_xxx |
+| batchName | string | × | バッチ名 | 255文字以内、自動生成可 |
+| preserveFolderStructure | boolean | × | フォルダ構造保持 | bulk/folder時のみ有効、デフォルト: true |
+
+**ファイルフィールド:**
+| フィールド名 | 型 | 必須 | 説明 | 制約 |
+|------------|---|-----|------|------|
+| files | file[] | ○ | アップロードファイル | 最大100MB/ファイル、最大100ファイル |
+
+**マルチパート形式例:**
+```http
+POST /api/v1/projects/b1234567-89ab-cdef-0123-456789abcdef/files/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="uploadMode"
+
+bulk
+------WebKitFormBoundary
+Content-Disposition: form-data; name="targetFolder"
+
+org_materials/dept_research/project_001
+------WebKitFormBoundary
+Content-Disposition: form-data; name="batchName"
+
+一括アップロード 5ファイル
+------WebKitFormBoundary
+Content-Disposition: form-data; name="preserveFolderStructure"
+
+true
+------WebKitFormBoundary
+Content-Disposition: form-data; name="files"; filename="data1.csv"
+Content-Type: text/csv
+
+[ファイル内容]
+------WebKitFormBoundary
+Content-Disposition: form-data; name="files"; filename="data2.csv"
+Content-Type: text/csv
+
+[ファイル内容]
+------WebKitFormBoundary--
+```
+
+#### レスポンス
+
+##### 成功時（201 Created）
+
+**単一ファイルアップロード:**
+```json
+{
+  "success": true,
+  "data": {
+    "uploadMode": "single",
+    "file": {
+      "fileId": "f7890123-defg-4567-890a-bcdef0123456",
+      "fileName": "experiment_data.csv",
+      "filePath": "org_maiml_lab_001/projects/sample_project/experiment_data.csv",
+      "s3Key": "projects/sample_project/experiment_data.csv",
+      "fileSize": 15360,
+      "contentType": "text/csv",
+      "uploadedAt": "2026-01-19T09:50:00.000Z"
+    }
+  },
+  "meta": {
+    "timestamp": "2026-01-19T09:50:00Z",
+    "requestId": "req_upload_001"
+  }
+}
+```
+
+**一括/フォルダアップロード:**
+```json
+{
+  "success": true,
+  "data": {
+    "uploadMode": "bulk",
+    "batchName": "一括アップロード 5ファイル",
+    "targetFolder": "org_materials/dept_research/project_001",
+    "summary": {
+      "totalFiles": 5,
+      "successfulFiles": 5,
+      "failedFiles": 0,
+      "totalSize": 76800
+    },
+    "files": [
+      {
+        "fileId": "f7890123-defg-4567-890a-bcdef0123456",
+        "fileName": "data1.csv",
+        "filePath": "org_maiml_lab_001/projects/sample_project/data1.csv",
+        "s3Key": "projects/sample_project/data1.csv",
+        "fileSize": 15360,
+        "contentType": "text/csv",
+        "uploadedAt": "2026-01-19T09:50:00.000Z",
+        "status": "success"
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-01-19T09:50:01Z",
+    "requestId": "req_upload_002"
+  }
+}
+```
+
+##### エラー時
+| HTTPステータス | エラーコード | 説明 |
+|--------------|------------|------|
+| 400 | VALIDATION_ERROR | バリデーションエラー（必須フィールド不足） |
+| 400 | VALIDATION_FILE_SIZE_EXCEEDED | ファイルサイズ超過（100MB超） |
+| 400 | VALIDATION_FILE_COUNT_EXCEEDED | ファイル数超過（100件超） |
+| 400 | VALIDATION_INVALID_FILE_TYPE | 不正なファイル種別 |
+| 401 | AUTH_TOKEN_EXPIRED | 認証エラー（トークン期限切れ） |
+| 401 | AUTH_TOKEN_INVALID | 認証エラー（トークン不正） |
+| 403 | PERMISSION_INSUFFICIENT | 権限不足（Manager以上が必要） |
+| 404 | RESOURCE_NOT_FOUND | プロジェクトが存在しない |
+| 500 | SYSTEM_DATABASE_ERROR | データベースエラー |
+| 500 | SYSTEM_S3_ERROR | S3アクセスエラー |
+
+#### ビジネスロジック
+1. **認証チェック**: JWTトークンとセッションの検証
+2. **組織ID取得**: セッション情報から組織IDを取得
+3. **権限チェック**: Manager以上の権限が必要
+4. **プロジェクト存在確認**: 指定されたprojectIdが存在し、自組織のものであることを確認
+5. **ファイルバリデーション**:
+   - ファイル数チェック（最大100ファイル）
+   - ファイルサイズチェック（最大100MB/ファイル）
+   - ファイル種別チェック（ホワイトリスト方式）
+   - ファイル名サニタイゼーション
+6. **S3パス生成**:
+   - パス形式: `org_{organization_prefix}/projects/{project_name}/{targetFolder}/{filename}`
+   - organization_prefix強制適用（マルチテナント分離）
+7. **アップロードモード別処理**:
+   - **single**: 1ファイルをアップロード、バッチ名自動生成（`単一アップロード: {filename}`）
+   - **bulk**: 複数ファイルをアップロード、バッチ名自動生成（`一括アップロード {count}ファイル`）
+   - **folder**: フォルダ構造を保持してアップロード、バッチ名自動生成（`フォルダアップロード: {foldername}`）
+8. **S3アップロード**: storageService.uploadFileでS3にアップロード
+9. **file_metadataテーブルへの登録**:
+   - organization_id、file_id（UUID生成）、bucket_name、object_key
+   - file_name、file_type、file_size、content_type
+   - metadata_json（batchName等）、last_modified
+10. **トランザクション管理**: S3アップロードとDB登録の一貫性を保つ
+11. **レスポンス生成**: アップロード結果を返却
+
+#### バリデーション
+- [x] Authorization ヘッダーの存在チェック
+- [x] X-Organization-Id ヘッダーの存在チェック
+- [x] X-Organization-Id が UUID 形式であることをチェック
+- [x] projectId が UUID 形式であることをチェック
+- [x] uploadMode が必須で許可された値（single, bulk, folder）であることをチェック
+- [x] targetFolder が必須で255文字以内であることをチェック
+- [x] batchName が255文字以内であることをチェック（指定時）
+- [x] preserveFolderStructure が boolean であることをチェック（指定時）
+- [x] files が必須で1件以上含まれることをチェック
+- [x] 各ファイルのサイズが100MB以内であることをチェック
+- [x] ファイル総数が100件以内であることをチェック
+- [x] ファイル種別が許可されたものであることをチェック
+
+#### セキュリティチェックリスト
+- [x] JWT認証の実施（authミドルウェア）
+- [x] organization_idフィルタの適用（必須）
+- [x] テナント分離（tenantIsolationミドルウェア）
+- [x] 権限チェック（permissionCheck - Manager以上）
+- [x] プロジェクト所有権の確認
+- [x] ファイルサイズ制限（100MB/ファイル）
+- [x] ファイル数制限（100ファイル）
+- [x] ファイル種別制限（ホワイトリスト）
+- [x] ファイル名サニタイゼーション
+- [x] organization_prefix強制適用（S3）
+- [x] トランザクション管理
+
+#### テストケース
+- [x] 正常系：認証済みManagerによる単一ファイルアップロード
+- [x] 正常系：一括ファイルアップロード（複数ファイル）
+- [x] 正常系：フォルダ構造を保持したアップロード
+- [x] 正常系：batchName未指定時の自動生成
+- [x] 正常系：preserveFolderStructure=trueでフォルダ構造保持
+- [x] 正常系：preserveFolderStructure=falseでフラット化
+- [x] 正常系：file_metadataテーブルへの自動記録
+- [x] 正常系：アップロード後のレスポンスに全フィールドが含まれる
+- [x] 異常系：未認証ユーザーによるアクセス（401エラー）
+- [x] 異常系：権限不足ユーザー（Worker）によるアクセス（403エラー）
+- [x] 異常系：存在しないprojectId（404エラー）
+- [x] 異常系：他組織のプロジェクトへのアクセス（403エラー）
+- [x] 異常系：ファイルサイズ超過（100MB超）（400エラー）
+- [x] 異常系：ファイル数超過（100件超）（400エラー）
+- [x] 異常系：不正なファイル種別（400エラー）
+- [x] 異常系：uploadMode未指定（400エラー）
+- [x] 異常系：targetFolder未指定（400エラー）
+- [x] 異常系：files未指定（400エラー）
+- [x] 異常系：S3エラー発生時のロールバック（500エラー）
+
+#### レスポンスフィールド説明
+
+##### 共通フィールド
+| フィールド名 | 型 | NULL許可 | 説明 |
+|------------|---|---------|------|
+| uploadMode | string | × | アップロードモード（single, bulk, folder） |
+| batchName | string | ○ | バッチ名（一括/フォルダ時） |
+| targetFolder | string | ○ | アップロード先フォルダ（一括/フォルダ時） |
+
+##### file（単一ファイル時）
+| フィールド名 | 型 | NULL許可 | 説明 |
+|------------|---|---------|------|
+| fileId | string | × | ファイルID（UUID） |
+| fileName | string | × | ファイル名 |
+| filePath | string | × | S3上のフルパス（organization_prefix含む） |
+| s3Key | string | × | S3オブジェクトキー（organization_prefix除く） |
+| fileSize | number | × | ファイルサイズ（バイト） |
+| contentType | string | × | コンテンツタイプ |
+| uploadedAt | string | × | アップロード日時（ISO 8601形式） |
+
+##### summary（一括/フォルダ時）
+| フィールド名 | 型 | NULL許可 | 説明 |
+|------------|---|---------|------|
+| totalFiles | number | × | 総ファイル数 |
+| successfulFiles | number | × | 成功したファイル数 |
+| failedFiles | number | × | 失敗したファイル数 |
+| totalSize | number | × | 総ファイルサイズ（バイト） |
+
+##### files（一括/フォルダ時）
+| フィールド名 | 型 | NULL許可 | 説明 |
+|------------|---|---------|------|
+| fileId | string | × | ファイルID（UUID） |
+| fileName | string | × | ファイル名 |
+| filePath | string | × | S3上のフルパス |
+| s3Key | string | × | S3オブジェクトキー |
+| fileSize | number | × | ファイルサイズ（バイト） |
+| contentType | string | × | コンテンツタイプ |
+| uploadedAt | string | × | アップロード日時 |
+| status | string | × | アップロード状態（success, failed） |
+| error | string | ○ | エラーメッセージ（失敗時のみ） |
+
+#### 許可されるファイル種別
+
+**ホワイトリスト方式:**
+```
+.maiml, .xml, .json, .txt, .csv,
+.png, .jpg, .jpeg, .gif, .tif, .tiff, .bmp, .svg, .webp,
+.pdf
+```
+
+#### フロントエンド実装（BulkUploadDialog.tsx）
+
+##### UIコンポーネント
+- **Segmented**: アップロードモード選択（単一/一括/フォルダ）
+- **Dragger**: ドラッグ&ドロップエリア（単一/一括）
+- **Cascader**: 階層的なフォルダ選択（組織 → 部門 → プロジェクト）
+- **Progress**: アップロード進捗表示
+- **Alert**: 状態通知（進行中/完了/エラー）
+
+##### フォルダ構造選択（Cascader）
+
+**階層構造:**
+```
+組織（固定: ログイン情報から取得）
+└── 部門（dept_xxx）
+    └── プロジェクト（project_xxx）
+```
+
+**changeOnSelect設定:**
+- 単一ファイル: `false`（プロジェクトまで選択必須）
+- 一括ファイル: `true`（部門レベルでも選択可能）
+- フォルダ: `true`（部門レベルでも選択可能）
+
+**選択パス生成:**
+```typescript
+// 組織IDを先頭に追加した完全パス
+const selectedPath = `${organizationId}/${dept}/${project}`;
+// 例: org_materials/dept_research/project_001
+```
+
+##### バッチ名の自動生成
+
+```typescript
+// 単一ファイル
+setBatchName(`単一アップロード: ${file.name}`);
+
+// 一括ファイル
+setBatchName(`一括アップロード ${fileCount}ファイル`);
+
+// フォルダ
+const folderName = file.webkitRelativePath.split('/')[0];
+setBatchName(`フォルダアップロード: ${folderName}`);
+```
+
+##### 進捗表示
+
+```typescript
+interface UploadState {
+  isUploading: boolean;      // アップロード中フラグ
+  progress: number;          // 進捗率（0-100）
+  uploadedCount: number;     // アップロード完了数
+  totalCount: number;        // 総ファイル数
+  error: string | null;      // エラーメッセージ
+}
+```
+
+##### ファイルサイズフォーマット
+
+```typescript
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+};
+```
+
+#### データモデル
+
+##### file_metadata テーブル（ファイルメタデータ）
+
+| カラム名 | 型 | NULL | デフォルト | 説明 |
+|---------|---|------|----------|------|
+| organization_id | UUID | NOT NULL | - | 組織ID（複合主キー） |
+| file_id | UUID | NOT NULL | uuid_generate_v4() | ファイルID（複合主キー） |
+| bucket_name | VARCHAR(255) | NULL | - | S3バケット名 |
+| object_key | VARCHAR(1024) | NULL | - | S3オブジェクトキー |
+| file_name | VARCHAR(255) | NULL | - | ファイル名 |
+| file_type | VARCHAR(50) | NULL | - | ファイル種別（拡張子） |
+| file_size | BIGINT | NULL | - | ファイルサイズ（バイト） |
+| content_type | VARCHAR(100) | NULL | - | コンテンツタイプ |
+| metadata_json | JSONB | NULL | - | メタデータ（batchName等） |
+| last_modified | TIMESTAMP | NULL | - | 最終更新日時 |
+| created_at | TIMESTAMP | NULL | CURRENT_TIMESTAMP | 作成日時 |
+| updated_at | TIMESTAMP | NULL | CURRENT_TIMESTAMP | 更新日時 |
+
+**主キー**: `(organization_id, file_id)`
+
+**インデックス**:
+- `organization_id`
+- `file_id`
+- `bucket_name`
+- `object_key`
+- `file_type`
+- `metadata_json` (GINインデックス - JSONB検索用)
+
+#### S3パス構造
+
+```
+org_{organization_prefix}/projects/{project_name}/
+├── {file1}.csv
+├── {file2}.json
+└── subfolder/  (preserveFolderStructure時)
+    └── {file3}.txt
+```
+
+#### 設計上の考慮事項
+
+##### トランザクション管理
+- S3アップロードとfile_metadataテーブル登録の一貫性を保つ
+- いずれかが失敗した場合、全てロールバック
+- エラー発生時は適切なHTTPステータスコードとエラーメッセージを返却
+
+##### パフォーマンス最適化
+- 並列アップロード: 最大5ファイル同時アップロード
+- 進捗更新: リアルタイムで進捗をフロントエンドに通知
+- チャンク転送: 大きなファイル（10MB以上）はチャンク転送
+
+##### スケーラビリティ
+- ファイル数制限: 100ファイル（UI制限、API制限）
+- ファイルサイズ制限: 100MB/ファイル（S3署名付きURLで対応可能）
+- 総サイズ制限: 10GB（将来的な拡張検討）
+
+##### エラーハンドリング
+- 部分的な成功: 一部のファイルが失敗しても成功したファイル情報を返却
+- リトライ機能: 失敗したファイルのリトライ機能（将来実装予定）
+- キャンセル機能: アップロード中のキャンセル機能（将来実装予定）
+
+##### セキュリティ
+- ファイル名サニタイゼーション: 特殊文字、パストラバーサルの防止
+- MIME Type検証: Content-Typeとファイル拡張子の整合性チェック
+- ウイルススキャン: アップロード後のウイルススキャン（将来実装検討）
+
+#### 実装済み機能（フロントエンド）
+
+✅ 3つのアップロードモード（単一/一括/フォルダ）
+✅ Cascaderによる階層的フォルダ選択
+✅ ドラッグ&ドロップサポート
+✅ ファイルリスト表示（10件まで、それ以上は省略）
+✅ ファイルサイズフォーマット
+✅ 進捗表示UI（Progress + Alert）
+✅ バッチ名自動生成
+✅ フォルダ構造保持オプション
+✅ アップロード中の閉じる確認
+✅ エラー表示UI
+
+#### 未実装機能（TODO）
+
+⏳ 実際のAPI呼び出し処理
+⏳ リアルタイム進捗更新
+⏳ ファイル名重複チェック
+⏳ サーバーサイドバリデーション連携
+⏳ キャンセル機能
+⏳ リトライ機能
+⏳ アップロード履歴保存
 
 ---
 

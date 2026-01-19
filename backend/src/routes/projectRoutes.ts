@@ -146,4 +146,24 @@ router.get(
   projectController.getCheckoutStatus
 );
 
+/**
+ * プロジェクトリロード
+ * POST /api/v1/projects/:projectId/reload
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description プロジェクトのファイルメタデータをS3から再読み込みする
+ * @note Task 3.2: リロードエンドポイント追加
+ * @requirements REQ-1, REQ-5
+ */
+router.post(
+  '/:projectId/reload',
+  authMiddleware,
+  [
+    param('projectId')
+      .isUUID()
+      .withMessage('projectIdはUUID形式である必要があります'),
+  ],
+  projectController.reload
+);
+
 export default router;

@@ -363,7 +363,8 @@ export async function checkout(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { organizationId, userId } = req.user;
+    const { organizationId } = req.user;
+    const userId = req.user.userId;
     const { projectId } = req.params;
 
     // UUID形式バリデーション
@@ -673,6 +674,163 @@ export async function getCheckoutStatus(req: Request, res: Response): Promise<vo
       action: 'project_getCheckoutStatus',
       organizationId: req.user?.organizationId,
       projectId: req.params.projectId,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
+ * プロジェクトリロードエンドポイント
+ * POST /api/v1/projects/:projectId/reload
+ * 
+ * Task 3.1: Controllerのリロードハンドラー実装
+ * Requirements: REQ-1, REQ-4, REQ-5
+ */
+export async function reload(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+  
+  let organizationId: string | undefined;
+  let userId: string | undefined;
+  let projectId: string | undefined;
+
+  try {
+    // 認証チェック
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTH_TOKEN_INVALID',
+          message: '認証が必要です',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    organizationId = req.user.organizationId;
+    userId = req.user.userId;
+    projectId = req.params.projectId;
+
+    // UUID形式バリデーション
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(projectId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_INVALID_FORMAT',
+          message: 'projectIdはUUID形式である必要があります',
+          details: [{
+            field: 'projectId',
+            message: 'UUID形式が必要です',
+            code: 'INVALID_FORMAT',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // organization_prefix取得
+    const { getPool } = require('../database/db');
+    const pool = getPool();
+    const orgQuery = `
+      SELECT organization_name, project_name
+      FROM organization o
+      LEFT JOIN project p ON p.organization_id = o.organization_id AND p.project_id = $2
+      WHERE o.organization_id = $1
+    `;
+    const orgResult = await pool.query(orgQuery, [organizationId, projectId]);
+    
+    if (orgResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: '組織情報が見つかりません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const organizationPrefix = orgResult.rows[0].organization_name.replace(/\s+/g, '_');
+    const projectName = orgResult.rows[0].project_name;
+
+    // Service層呼び出し
+    const result = await projectService.reloadProject(
+      organizationId,
+      organizationPrefix,
+      projectId,
+      projectName
+    );
+
+    // エラーハンドリング
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      // ステータスコードマッピング
+      if (errorCode === 'PROJECT_RELOAD_IN_PROGRESS') {
+        statusCode = 409;
+      } else if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode.startsWith('VALIDATION_')) {
+        statusCode = 400;
+      } else if (errorCode === 'PERMISSION_INSUFFICIENT') {
+        statusCode = 403;
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    logError('Project reload error', error as Error, {
+      action: 'project_reload',
+      organizationId,
+      projectId,
+      userId,
       requestId,
     });
 

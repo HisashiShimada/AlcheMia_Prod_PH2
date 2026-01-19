@@ -38,6 +38,10 @@ import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
 import { useApi } from '@/hooks/useApi';
+import {
+  downloadAllFiles,
+  executeMultipleDownloads,
+} from '@/api/fileDownloadService';
 import { fetchProjects, fetchProjectFiles } from '@/utils/apiClient';
 import type { ApiResponse } from '@/types/api';
 import type { ProjectListResponse } from '@/types/project';
@@ -107,6 +111,13 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   }
   const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
   const [nextZIndex, setNextZIndex] = useState(1000);
+
+  // ダウンロード状態管理
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
+  
+  // プロジェクトリロード状態管理
+  const [isReloadingProject, setIsReloadingProject] = useState(false);
 
   // プロジェクト一覧をAPI経由で取得
   const { 
@@ -673,6 +684,158 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     setNextZIndex(prev => prev + 1);
   }, [openDialogs, nextZIndex]);
 
+  // プロジェクト一括ダウンロードハンドラ
+  const handleProjectDownload = useCallback(async () => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+
+    try {
+      setIsDownloading(true);
+      setDownloadProgress({ current: 0, total: 0 });
+
+      // プロジェクト一括ダウンロードAPI呼び出し
+      const bulkDownloadInfo = await downloadAllFiles(selectedProject.id);
+      
+      setDownloadProgress({ current: 0, total: bulkDownloadInfo.files.length });
+
+      // 複数ファイルを順次ダウンロード
+      await executeMultipleDownloads(
+        bulkDownloadInfo.files,
+        (current, total) => {
+          // 進捗更新
+          setDownloadProgress({ current, total });
+          message.info(`ダウンロード中: ${current} / ${total} ファイル`);
+        },
+        (fileName, error) => {
+          // エラー通知
+          console.error(`Failed to download ${fileName}:`, error);
+          message.error(`「${fileName}」のダウンロードに失敗しました`);
+        }
+      );
+
+      message.success(`プロジェクト「${selectedProject.name}」の全ファイルをダウンロードしました`);
+    } catch (error) {
+      console.error('Project download failed:', error);
+      message.error('プロジェクトのダウンロードに失敗しました');
+    } finally {
+      setIsDownloading(false);
+      setDownloadProgress({ current: 0, total: 0 });
+    }
+  }, [selectedProject]);
+
+  // プロジェクトリロードハンドラ
+  const handleProjectReload = useCallback(async () => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+
+    try {
+      setIsReloadingProject(true);
+      
+      console.log('プロジェクトリロード開始:', selectedProject.id);
+      
+      // リロードAPI呼び出し（POST /api/v1/projects/:projectId/reload）
+      const response = await fetch(`/api/v1/projects/${selectedProject.id}/reload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // 認証トークンは自動的にCookieから送信される
+        },
+        credentials: 'include', // Cookie認証を使用
+        signal: AbortSignal.timeout(30000), // 30秒タイムアウト
+      });
+
+      if (!response.ok) {
+        // エラーレスポンスの処理
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error?.message || 'リロードに失敗しました';
+        
+        switch (response.status) {
+          case 400:
+            // バリデーションエラー
+            message.error('リクエストが正しくありません。プロジェクトIDを確認してください。');
+            break;
+          case 401:
+            // 認証エラー
+            message.error('認証に失敗しました。再度ログインしてください。');
+            // TODO: ログイン画面にリダイレクト
+            break;
+          case 403:
+            // 権限エラー
+            message.error('この操作を実行する権限がありません。管理者権限が必要です。');
+            break;
+          case 404:
+            // プロジェクト不存在
+            message.error('プロジェクトが見つかりません');
+            break;
+          case 409:
+            // 並行実行競合
+            message.warning('別のリロードが実行中です。しばらくしてから再度お試しください。');
+            break;
+          case 500:
+          case 502:
+          case 503:
+            // サーバーエラー
+            message.error(`サーバーエラーが発生しました: ${errorMessage}`);
+            break;
+          default:
+            // その他のエラー
+            message.error(errorMessage);
+        }
+        return;
+      }
+
+      // 成功レスポンスのパース
+      const result = await response.json();
+      
+      // サマリー情報を取得
+      const summary = result.data?.summary || {};
+      const filesAdded = summary.filesAdded || 0;
+      const filesUpdated = summary.filesUpdated || 0;
+      const filesDeleted = summary.filesDeleted || 0;
+      
+      // サマリーメッセージの生成
+      const summaryParts: string[] = [];
+      if (filesAdded > 0) summaryParts.push(`追加: ${filesAdded}件`);
+      if (filesUpdated > 0) summaryParts.push(`更新: ${filesUpdated}件`);
+      if (filesDeleted > 0) summaryParts.push(`削除: ${filesDeleted}件`);
+      
+      const summaryText = summaryParts.length > 0 
+        ? ` (${summaryParts.join(', ')})`
+        : '';
+      
+      // 成功メッセージ（サマリー付き）
+      message.success(`プロジェクトのリロードが完了しました${summaryText}`);
+      
+      // ファイル一覧を再取得
+      const filesResponse = await fetchProjectFiles(selectedProject.id);
+      if (filesResponse.success && filesResponse.data.files) {
+        setProjectFilesData(prev => ({
+          ...prev,
+          [selectedProject.id]: {
+            root: filesResponse.data.files,
+            archive: filesResponse.data.archiveFiles || [],
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('プロジェクトリロードエラー:', error);
+      
+      if (error instanceof DOMException && error.name === 'TimeoutError') {
+        message.error('リロードがタイムアウトしました。プロジェクトが大きすぎる可能性があります。');
+      } else if (error instanceof TypeError && error.message.includes('fetch')) {
+        message.error('ネットワークエラーが発生しました。接続を確認してください。');
+      } else {
+        message.error('プロジェクトのリロードに失敗しました');
+      }
+    } finally {
+      setIsReloadingProject(false);
+    }
+  }, [selectedProject]);
+
   // 新規プロジェクト作成ハンドラ
   const handleCreateProject = useCallback(async (data: CreateProjectData) => {
     try {
@@ -861,9 +1024,11 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
           <Button
             type="primary"
             icon={<ReloadOutlined />}
-            onClick={handleRefresh}
+            onClick={handleProjectReload}
+            loading={isReloadingProject}
+            disabled={!selectedProject || isReloadingProject}
           >
-            {t('progress.refresh')}
+            {isReloadingProject ? 'リロード中...' : 'リロード'}
           </Button>
         </Space>
         </div>
@@ -949,8 +1114,14 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                   <Button
                     type="primary"
                     icon={<DownloadOutlined />}
+                    onClick={handleProjectDownload}
+                    loading={isDownloading}
+                    disabled={!selectedProject || isDownloading}
                   >
-                    {t('projectManagement.project_download')}
+                    {isDownloading 
+                      ? `ダウンロード中: ${downloadProgress.current} / ${downloadProgress.total}`
+                      : t('projectManagement.project_download')
+                    }
                   </Button>
                   <Button
                     type="primary"
@@ -1003,6 +1174,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                     children: (
                       <FileListTable
                         files={projectFiles}
+                        projectId={selectedProject.id}
                         onFileClick={(file) => console.log('File clicked:', file.name)}
                         onFolderClick={handleFolderClick}
                         onViewFile={handleViewFile}
