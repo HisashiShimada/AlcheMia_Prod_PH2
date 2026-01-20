@@ -10,10 +10,13 @@ import {
   BarChartOutlined
 } from '@ant-design/icons';
 import TransitionList from './TransitionList';
+import TransitionFlowDiagram from './TransitionFlowDiagram';
+import DataRecordDialog from './DataRecordDialog';
+import IssueManagementModal from './IssueManagementModal';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
-import { projectsData } from '@/data/projectsData';
-import { Method, ProjectStatus } from '@/types/experimentWorker';
+import { projectsData, getIssuesByTransitionId } from '@/data/projectsData';
+import { Method, ProjectStatus, Transition, Issue, IssueReportFormData } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;
 
@@ -59,12 +62,72 @@ export default function ExperimentRecordTab({
   const [modalOpen, setModalOpen] = useState(false);
   // 表示モードの状態管理
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  
+  // データ記録モーダルの状態管理
+  const [dataRecordModalOpen, setDataRecordModalOpen] = useState(false);
+  const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
+  
+  // 問題報告モーダルの状態管理
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
+  const [issues, setIssues] = useState<Issue[]>([]);
 
   // 選択中のプロジェクト情報を取得
   const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
   
   // プロジェクトの状態を取得
   const projectStatus: ProjectStatus | null = selectedProjectData?.status ?? null;
+  
+  // プロジェクトの状態が記録可能かどうか
+  // waiting_approval（承認待ち）とwaiting_task（タスク待ち）は記録不可
+  const isProjectRecordable = projectStatus 
+    ? ['active', 'in_progress', 'executing_task'].includes(projectStatus) 
+    : true;
+
+  // 記録ボタンクリックハンドラ
+  const handleRecordClick = (transition: Transition) => {
+    setSelectedTransition(transition);
+    setDataRecordModalOpen(true);
+  };
+  
+  // 問題報告ボタンクリックハンドラ
+  const handleIssueClick = (transition: Transition) => {
+    setSelectedTransition(transition);
+    const transitionIssues = getIssuesByTransitionId(transition.transitionId);
+    setIssues(transitionIssues);
+    setIssueModalOpen(true);
+  };
+
+  // データ記録モーダルを閉じる
+  const handleDataRecordModalClose = () => {
+    setDataRecordModalOpen(false);
+    setSelectedTransition(null);
+  };
+  
+  // 問題報告モーダルを閉じる
+  const handleIssueModalClose = () => {
+    setIssueModalOpen(false);
+    setSelectedTransition(null);
+  };
+
+  // データ保存ハンドラ
+  const handleDataSave = (data: unknown) => {
+    console.log('保存されたデータ:', data);
+    // TODO: バックエンドAPIへの保存処理を実装
+    setDataRecordModalOpen(false);
+    setSelectedTransition(null);
+  };
+  
+  // 新規問題報告送信ハンドラ
+  const handleSubmitIssue = (issue: IssueReportFormData) => {
+    console.log('新規問題報告:', issue);
+    // TODO: バックエンドAPIへの送信処理を実装
+  };
+  
+  // コメント送信ハンドラ
+  const handleSubmitComment = (issueId: string, comment: string) => {
+    console.log('コメント投稿:', { issueId, comment });
+    // TODO: バックエンドAPIへの送信処理を実装
+  };
 
   // タスクデータ: 選択されたプロジェクトとメソッドに紐づくタスクを取得
   const tasks = selectedProject && selectedMethod
@@ -239,25 +302,21 @@ export default function ExperimentRecordTab({
                 </div>
               </div>
             ) : (
-              /* フロー図表示（プレースホルダー） */
-              <div style={{ padding: `${token.marginXXL}px 0` }}>
-                <Empty
-                  image={<PartitionOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorPrimary }} />}
-                  imageStyle={{ height: EMPTY_ICON_SIZE }}
-                  description={
-                    <Space direction="vertical" align="center" size="small">
-                      <Title level={4} style={{ margin: 0 }}>
-                        フロー図表示
-                      </Title>
-                      <Text type="secondary">
-                        {selectedMethod?.methodName || 'メソッド'} のワークフローをフロー図で表示します
-                      </Text>
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        （実装予定）
-                      </Text>
-                    </Space>
-                  }
-                />
+              /* フロー図表示 */
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0, fontSize: 16 }}>
+                  <PartitionOutlined style={{ marginRight: 8 }} />
+                  フロー図
+                </Title>
+                <div style={{ flex: 1, minHeight: 0 }}>
+                  <TransitionFlowDiagram
+                    transitions={transitionsWithProgress}
+                    onRecordClick={handleRecordClick}
+                    onIssueClick={handleIssueClick}
+                    isProjectRecordable={isProjectRecordable}
+                    methodName={selectedMethod?.methodName}
+                  />
+                </div>
               </div>
             )}
           </Card>
@@ -275,6 +334,29 @@ export default function ExperimentRecordTab({
           onSelectMethod(methodId);
           onSelectTask(taskId);
         }}
+      />
+
+      {/* データ記録モーダル */}
+      <DataRecordDialog
+        open={dataRecordModalOpen}
+        transition={selectedTransition}
+        projectStatus={projectStatus}
+        onClose={handleDataRecordModalClose}
+        onSave={handleDataSave}
+        projectId={selectedProject}
+        methodId={selectedMethodId || undefined}
+      />
+
+      {/* 問題報告モーダル */}
+      <IssueManagementModal
+        visible={issueModalOpen}
+        transitionId={selectedTransition?.transitionId || ''}
+        transitionName={selectedTransition?.transitionName || ''}
+        issues={issues}
+        onClose={handleIssueModalClose}
+        onSubmitIssue={handleSubmitIssue}
+        onSubmitComment={handleSubmitComment}
+        projectStatus={projectStatus}
       />
     </div>
   );

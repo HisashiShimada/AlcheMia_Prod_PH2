@@ -14,6 +14,7 @@ import {
   Row,
   Col,
   theme,
+  Checkbox,
 } from 'antd';
 import {
   SearchOutlined,
@@ -26,16 +27,45 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import Papa from 'papaparse';
-import masterTypesData from '../data/master-management-master.json';
-import organizationData from '../data/master-management-organization.json';
-import departmentData from '../data/master-management-department.json';
-import usersData from '../data/master-management-users.json';
-import roleData from '../data/master-management-role.json';
-import laboratoryEquipmentData from '../data/master-management-laboratory-equipment.json';
-import laboratoryEquipmentTypeData from '../data/master-management-laboratory-equipment-type.json';
-import laboratoryEquipmentVendorData from '../data/master-management-laboratory-equipment-vendor.json';
+import rawMasterTypesData from '../data/master-management-master.json';
+import rawOrganizationData from '../data/master-management-organization.json';
+import rawDepartmentData from '../data/master-management-department.json';
+import rawUsersData from '../data/master-management-users.json';
+import rawRoleData from '../data/master-management-role.json';
+import rawLaboratoryEquipmentData from '../data/master-management-laboratory-equipment.json';
+import rawLaboratoryEquipmentTypeData from '../data/master-management-laboratory-equipment-type.json';
+import rawLaboratoryEquipmentVendorData from '../data/master-management-laboratory-equipment-vendor.json';
+import rawCreatorData from '../data/master-management-creator.json';
+import rawOwnerData from '../data/master-management-owner.json';
 
 const { Text } = Typography;
+
+// 日時フォーマット関数（コンポーネント外に定義）
+const formatDateTime = (dateTimeStr: string): string => {
+  if (!dateTimeStr || dateTimeStr === '-') return '-';
+  // YYYYMMDDhhmmss 形式を yyyy/MM/dd hh:mm に変換
+  if (dateTimeStr.length >= 12) {
+    const year = dateTimeStr.substring(0, 4);
+    const month = dateTimeStr.substring(4, 6);
+    const day = dateTimeStr.substring(6, 8);
+    const hour = dateTimeStr.substring(8, 10);
+    const minute = dateTimeStr.substring(10, 12);
+    return `${year}/${month}/${day} ${hour}:${minute}`;
+  }
+  return dateTimeStr;
+};
+
+// JSONデータを型付きで取得
+const masterTypesData = rawMasterTypesData as MasterTypeData[];
+const organizationData = rawOrganizationData as MasterRecord[];
+const departmentData = rawDepartmentData as MasterRecord[];
+const usersData = rawUsersData as MasterRecord[];
+const roleData = rawRoleData as MasterRecord[];
+const laboratoryEquipmentData = rawLaboratoryEquipmentData as MasterRecord[];
+const laboratoryEquipmentTypeData = rawLaboratoryEquipmentTypeData as MasterRecord[];
+const laboratoryEquipmentVendorData = rawLaboratoryEquipmentVendorData as MasterRecord[];
+const creatorData = rawCreatorData as MasterRecord[];
+const ownerData = rawOwnerData as MasterRecord[];
 
 // JSONデータのマッピング
 const masterDataMap: Record<string, MasterRecord[]> = {
@@ -46,6 +76,8 @@ const masterDataMap: Record<string, MasterRecord[]> = {
   'master-management-laboratory-equipment.json': laboratoryEquipmentData,
   'master-management-laboratory-equipment-type.json': laboratoryEquipmentTypeData,
   'master-management-laboratory-equipment-vendor.json': laboratoryEquipmentVendorData,
+  'master-management-creator.json': creatorData,
+  'master-management-owner.json': ownerData,
 };
 
 /**
@@ -86,23 +118,8 @@ interface MasterManagementMockProps {
 /**
  * マスタ管理画面のモックコンポーネント
  */
-export default function MasterManagementMock({ initialMasterId }: MasterManagementMockProps = {}) {
+export default function MasterManagementMock({ initialMasterId }: MasterManagementMockProps) {
   const { token } = theme.useToken();
-  
-  // 日時フォーマット関数
-  const formatDateTime = (dateTimeStr: string): string => {
-    if (!dateTimeStr || dateTimeStr === '-') return '-';
-    // YYYYMMDDhhmmss 形式を yyyy/MM/dd hh:mm に変換
-    if (dateTimeStr.length >= 12) {
-      const year = dateTimeStr.substring(0, 4);
-      const month = dateTimeStr.substring(4, 6);
-      const day = dateTimeStr.substring(6, 8);
-      const hour = dateTimeStr.substring(8, 10);
-      const minute = dateTimeStr.substring(10, 12);
-      return `${year}/${month}/${day} ${hour}:${minute}`;
-    }
-    return dateTimeStr;
-  };
 
   // State管理
   const [masters, setMasters] = useState<MasterRecord[]>([]);
@@ -117,26 +134,28 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       return initialMasterId;
     }
     // 指定がない場合は最初のアクティブなマスタを選択
-    const firstMaster = (masterTypesData as MasterTypeData[]).find(m => m.isActive);
+    const firstMaster = masterTypesData.find(m => m.isActive);
     return firstMaster?.masterId || '1';
   });
+  const [displayScope, setDisplayScope] = useState<string>('all'); // 表示切替: 'all' | 'own'
   const [fixedFilters, setFixedFilters] = useState<Record<string, string>>({});
   const [form] = Form.useForm();
+  
 
   // 選択されたマスタ種別の情報を取得
   const selectedMasterInfo = useMemo(() => {
-    return (masterTypesData as MasterTypeData[]).find(
+    return masterTypesData.find(
       m => m.masterId === selectedMasterType
     );
   }, [selectedMasterType]);
 
-  // マスタ種別の選択肢をJSONファイルから生成
+  // マスタ種別の選択肢をJSONファイルから生成（ロール管理は除外）
   const masterTypes = useMemo(() => {
-    return (masterTypesData as MasterTypeData[])
-      .filter((master) => master.isActive)
+    return masterTypesData
+      .filter((master) => master.isActive && master.masterId !== '4') // ロール管理を除外
       .map((master) => ({
         value: master.masterId,
-        label: `${master.displayName}（${master.role}）`,
+        label: master.role ? `${master.displayName}（${master.role}）` : master.displayName,
       }));
   }, []);
 
@@ -244,6 +263,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   // searchFixedがfalseの項目を取得（曖昧検索対象）
   const fuzzySearchFields = useMemo(() => {
     if (!selectedMasterInfo) return [];
+    
     return Object.entries(selectedMasterInfo.itemCategories)
       .filter(([_, category]) => category && !category.searchFixed && category.isDisplay)
       .map(([key]) => key);
@@ -274,6 +294,19 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         return false;
       }
       
+      // 表示切替フィルター（自組織の場合、IDの末尾2桁が偶数のみ）
+      if (displayScope === 'own') {
+        const idString = String(idValue);
+        // IDの末尾2桁を取得
+        const lastTwoDigits = idString.slice(-2);
+        // 数値に変換して偶数チェック
+        const lastTwoDigitsNum = parseInt(lastTwoDigits, 10);
+        // 数値として解析できて、かつ偶数でない場合は除外
+        if (!isNaN(lastTwoDigitsNum) && lastTwoDigitsNum % 2 !== 0) {
+          return false;
+        }
+      }
+      
       // テキスト検索フィルター（searchFixed=falseの項目）
       const searchLower = searchText.toLowerCase();
       const matchesSearch = !searchText.trim() || fuzzySearchFields.some(fieldKey => {
@@ -289,7 +322,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
       return matchesSearch && matchesFixedFilters;
     });
-  }, [masters, searchText, fixedFilters, fuzzySearchFields, selectedMasterInfo]);
+  }, [masters, searchText, fixedFilters, fuzzySearchFields, selectedMasterInfo, displayScope]);
 
   // テーブルカラムを動的に生成
   const columns: ColumnsType<MasterRecord> = useMemo(() => {
@@ -305,10 +338,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         
         // 説明系のフィールド、機能名、ロール名、実験装置名は幅を広く設定
         const isExplanation = /explan|explanation|description|desc|comment/i.test(key);
+        const isFunctionId = /function.*id/i.test(key);
         const isFunctionName = /function.*name/i.test(key);
         const isRoleName = /role.*name/i.test(key);
         const isLabEquipmentName = /laborator.*equipment.*(name|display)/i.test(key);
-        const columnWidth = isExplanation ? 420 : (isFunctionName ? 190 : (isRoleName ? 170 : (isLabEquipmentName ? 180 : 150)));
+        const columnWidth = isExplanation ? 420 : (isFunctionId ? 460 : (isFunctionName ? 500 : (isRoleName ? 170 : (isLabEquipmentName ? 180 : 150))));
         
         return {
           title: <div style={{ textAlign: 'center' }}>{category!.headerName}</div>,
@@ -337,6 +371,33 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                 </Text>
               );
             }
+            // 機能ID列の場合、色分けして表示（ロール管理画面のみ）
+            if (isFunctionId && selectedMasterInfo?.masterId === '4') {
+              // 機能IDを"/"で分割
+              const functionIds = String(text || '').split('/').map(id => id.trim()).filter(Boolean);
+              
+              // 書込可の機能IDを取得（カンマ区切り）
+              const writePermissionIds = String(record.functionWritePermissions || '').split(',').map(id => id.trim()).filter(Boolean);
+              
+              // 各機能IDに色を付けてレンダリング
+              return (
+                <span>
+                  {functionIds.map((funcId, idx) => {
+                    // 書込可のリストに含まれているかチェック
+                    const hasWritePermission = writePermissionIds.includes(funcId);
+                    // 色：書込可は緑色、読み取り専用は青色
+                    const textColor = hasWritePermission ? '#52c41a' : '#1890ff';
+                    
+                    return (
+                      <React.Fragment key={idx}>
+                        {idx > 0 && <span style={{ color: token.colorText }}> / </span>}
+                        <span style={{ color: textColor, fontWeight: token.fontWeightStrong }}>{funcId}</span>
+                      </React.Fragment>
+                    );
+                  })}
+                </span>
+              );
+            }
             return String(text || '');
           },
         };
@@ -346,21 +407,23 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     dynamicColumns.push({
       title: '',
       key: 'action',
-      width: 250,
+      width: 140,
       align: 'right',
       fixed: 'right',
       render: (_, record) => (
         <Flex gap="small" justify="end">
           <Button
+            size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
             編集
           </Button>
           <Button
+            size="small"
             onClick={() => handleToggleActive(record)}
             danger={record.isActive === false}
-            style={{ width: '100px' }}
+            style={{ minWidth: '80px' }}
           >
             {record.isActive !== false ? 'アクティブ' : '非アクティブ'}
           </Button>
@@ -369,7 +432,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     });
 
     return dynamicColumns;
-  }, [selectedMasterInfo, token, formatDateTime]);
+  }, [selectedMasterInfo, token]);
 
   // テーブルの行選択
   const rowSelection = {
@@ -636,13 +699,41 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       const values = await form.validateFields();
       
       if (editingMaster) {
+        // 編集の場合
         const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
         setMasters(masters.map(m => 
           m[idField] === editingMaster[idField] ? { ...m, ...values } : m
         ));
         message.success('マスタ情報を更新しました');
       } else {
-        setMasters([...masters, values]);
+        // 新規追加の場合
+        const newRecord: MasterRecord = { ...values };
+        
+        // ロール管理画面の場合
+        if (selectedMasterInfo?.masterId === '4') {
+          // フォームから入力されたロールIDをそのまま使用
+          newRecord.masterId = '4';
+          newRecord.isActive = true;
+          
+          // 機能ID、機能名、書込可能機能IDを必ず含める
+          newRecord.functionId = values.functionId || '';
+          newRecord.functionName = values.functionName || '';
+          newRecord.functionWritePermissions = values.functionWritePermissions || '';
+          
+          // デバッグログ
+          console.log('=== ロール追加デバッグ ===');
+          console.log('フォーム入力値(values):', values);
+          console.log('保存するレコード(newRecord):', newRecord);
+          console.log('ロール(values.role):', values.role);
+          console.log('ロール(newRecord.role):', newRecord.role);
+          console.log('ロール名(values.roleName):', values.roleName);
+          console.log('ロール名(newRecord.roleName):', newRecord.roleName);
+        } else {
+          // その他のマスタの場合はisActiveをデフォルトでtrueに設定
+          newRecord.isActive = values.isActive !== undefined ? values.isActive : true;
+        }
+        
+        setMasters([...masters, newRecord]);
         message.success('マスタを追加しました');
       }
       
@@ -658,6 +749,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     setIsModalVisible(false);
     form.resetFields();
   };
+
 
   // 曖昧検索のプレースホルダーを生成
   const fuzzySearchPlaceholder = useMemo(() => {
@@ -679,7 +771,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         marginBottom: 16,
         gap: 16,
       }}>
-        {/* 左側：マスタ選択（initialMasterIdが指定されていない場合のみ表示） */}
+        {/* 左側：マスタ選択と表示切替（initialMasterIdが指定されていない場合のみ表示） */}
         {!initialMasterId && (
           <Flex gap="middle" align="center">
             <Text strong style={{ fontSize: token.fontSizeLG }}>マスタ選択：</Text>
@@ -688,6 +780,16 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
               value={selectedMasterType}
               onChange={setSelectedMasterType}
               options={masterTypes}
+            />
+            <Text strong style={{ fontSize: token.fontSizeLG, marginLeft: 16 }}>表示切替：</Text>
+            <Select
+              style={{ width: 200 }}
+              value={displayScope}
+              onChange={setDisplayScope}
+              options={[
+                { value: 'all', label: '全体' },
+                { value: 'own', label: '自組織' },
+              ]}
             />
           </Flex>
         )}
@@ -808,7 +910,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
       {/* マスタ追加/編集モーダル */}
       <Modal
-        title={editingMaster ? 'マスタ編集' : 'マスタ追加'}
+        title={
+          selectedMasterInfo?.masterId === '4' 
+            ? (editingMaster ? 'ロール編集' : 'ロール追加')
+            : (editingMaster ? 'マスタ編集' : 'マスタ追加')
+        }
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
@@ -817,11 +923,48 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         cancelText="キャンセル"
       >
         <Form form={form} layout="vertical">
-          {selectedMasterInfo && Object.entries(selectedMasterInfo.itemCategories).map(([key, category]) => {
+          {selectedMasterInfo && Object.entries(selectedMasterInfo.itemCategories).map(([key, category], index) => {
             if (!category || !category.isDisplay) return null;
             
-            const isRequired = category.addable && !editingMaster;
-            const isDisabled = editingMaster ? !category.update : !category.addable;
+            // ロール管理画面（masterId="4"）の場合、機能ID、機能名、書込可能機能IDを除外
+            if (selectedMasterInfo.masterId === '4') {
+              if (key === 'functionId' || key === 'functionName' || key === 'functionWritePermissions') {
+                return null;
+              }
+            }
+            
+            // ロール管理画面の場合の特別処理
+            if (selectedMasterInfo.masterId === '4') {
+              // ロールIDとロール名は常に編集可能
+              if (key === 'role' || key === 'roleName') {
+                return (
+                  <Form.Item
+                    key={key}
+                    name={key}
+                    label={category.headerName}
+                    rules={[{ required: true, message: `${category.headerName}を入力してください` }]}
+                  >
+                    <Input placeholder={`${category.headerName}を入力してください`} />
+                  </Form.Item>
+                );
+              }
+            }
+            
+            // IDフィールド（最初のフィールド）の判定
+            const isIdField = index === 0;
+            
+            // 活性/非活性の判定
+            let isDisabled: boolean;
+            if (isIdField) {
+              // IDフィールドの場合: 編集時は非活性、追加時は活性
+              isDisabled = !!editingMaster;
+            } else {
+              // その他のフィールドの場合: 従来のロジック
+              isDisabled = editingMaster ? !category.update : !category.addable;
+            }
+            
+            // 必須項目の判定（IDフィールドは追加時に必須）
+            const isRequired = isIdField ? !editingMaster : (category.addable && !editingMaster);
 
             return (
               <Form.Item
@@ -835,14 +978,17 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             );
           })}
           
-          <Form.Item name="isActive" label="状態">
-            <Select
-              options={[
-                { value: true, label: 'アクティブ' },
-                { value: false, label: '非アクティブ' },
-              ]}
-            />
-          </Form.Item>
+          {/* 状態フィールドを表示 */}
+          {(
+            <Form.Item name="isActive" label="状態">
+              <Select
+                options={[
+                  { value: true, label: 'アクティブ' },
+                  { value: false, label: '非アクティブ' },
+                ]}
+              />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
 
@@ -858,6 +1004,35 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         }
         .inactive-row:hover td {
           background-color: #f5f5f5 !important;
+        }
+        
+        /* 書込可チェックボックスの色（チェック時：緑） */
+        .write-permission-checked .ant-checkbox-checked .ant-checkbox-inner {
+          background-color: #52c41a !important;
+          border-color: #52c41a !important;
+        }
+        .write-permission-checked .ant-checkbox-checked:hover .ant-checkbox-inner {
+          background-color: #73d13d !important;
+          border-color: #73d13d !important;
+        }
+        
+        /* 書込可チェックボックスの色（未チェック時：青） */
+        .write-permission-unchecked .ant-checkbox-inner {
+          border-color: #1890ff !important;
+        }
+        .write-permission-unchecked .ant-checkbox:hover .ant-checkbox-inner {
+          border-color: #40a9ff !important;
+        }
+        
+        /* 書込可チェックボックスの色（非活性時：グレー） */
+        .write-permission-checked .ant-checkbox-disabled .ant-checkbox-inner,
+        .write-permission-unchecked .ant-checkbox-disabled .ant-checkbox-inner {
+          background-color: #f5f5f5 !important;
+          border-color: #d9d9d9 !important;
+        }
+        .write-permission-checked.ant-checkbox-wrapper-disabled,
+        .write-permission-unchecked.ant-checkbox-wrapper-disabled {
+          color: rgba(0, 0, 0, 0.25) !important;
         }
       `}</style>
     </div>

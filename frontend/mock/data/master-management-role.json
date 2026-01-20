@@ -3,90 +3,35 @@
     "masterId": "4",
     "role": "システム管理",
     "roleName": "System Administrator",
-    "functionId": "FUNC001",
-    "functionName": "組織管理",
-    "permission": "読み取り・書き込み",
-    "roleExplan": "全システムへのフルアクセス権限を持つ管理者"
+    "functionName": "システム管理/ユーザー管理/データ管理/実験管理/作業者管理/実験作業/進捗報告/データアクセス/システム監視",
+    "functionWritePermissions": "システム管理/ユーザー管理/データ管理/実験管理/作業者管理/実験作業/進捗報告/データアクセス/システム監視"
   },
   {
     "masterId": "4",
     "role": "データ管理",
     "roleName": "Data Administrator",
-    "functionId": "FUNC002",
-    "functionName": "ファイル管理",
-    "permission": "読み取り・書き込み",
-    "roleExplan": "データとファイルの管理権限を持つ"
-  },
-  {
-    "masterId": "4",
-    "role": "実験管理",
-    "roleName": "Experiment Manager",
-    "functionId": "FUNC003",
-    "functionName": "実験記録管理",
-    "permission": "読み取り・書き込み",
-    "roleExplan": "実験の計画と管理を行う"
-  },
-  {
-    "masterId": "4",
-    "role": "実験作業",
-    "roleName": "Experiment Worker",
-    "functionId": "FUNC004",
-    "functionName": "実験実施",
-    "permission": "読み取り",
-    "roleExplan": "割り当てられた実験作業を実施する"
-  },
-  {
-    "masterId": "4",
-    "role": "MI技術者",
-    "roleName": "MI Engineer",
-    "functionId": "FUNC005",
-    "functionName": "データ分析",
-    "permission": "読み取り・書き込み",
-    "roleExplan": "マテリアルズインフォマティクスの分析を行う"
-  },
-  {
-    "masterId": "4",
-    "role": "システム管理",
-    "roleName": "System Administrator",
-    "functionId": "FUNC006",
     "functionName": "ユーザー管理",
-    "permission": "読み取り・書き込み",
-    "roleExplan": "ユーザーアカウントの管理"
-  },
-  {
-    "masterId": "4",
-    "role": "データ管理",
-    "roleName": "Data Administrator",
-    "functionId": "FUNC007",
-    "functionName": "プロジェクト管理",
-    "permission": "読み取り・書き込み",
-    "roleExplan": "プロジェクトの作成と管理"
+    "functionWritePermissions": "ユーザー管理"
   },
   {
     "masterId": "4",
     "role": "実験管理",
     "roleName": "Experiment Manager",
-    "functionId": "FUNC008",
-    "functionName": "ワークフロー設計",
-    "permission": "読み取り・書き込み",
-    "roleExplan": "実験ワークフローの設計と編集"
+    "functionName": "データ管理",
+    "functionWritePermissions": "データ管理"
   },
   {
     "masterId": "4",
     "role": "実験作業",
     "roleName": "Experiment Worker",
-    "functionId": "FUNC009",
-    "functionName": "進捗報告",
-    "permission": "書き込み",
-    "roleExplan": "実験進捗の報告"
+    "functionName": "実験管理",
+    "functionWritePermissions": ""
   },
   {
     "masterId": "4",
     "role": "MI技術者",
     "roleName": "MI Engineer",
-    "functionId": "FUNC010",
-    "functionName": "統計分析",
-    "permission": "読み取り",
-    "roleExplan": "統計的データ分析の実施"
+    "functionName": "作業者管理",
+    "functionWritePermissions": "作業者管理"
   }
 ]

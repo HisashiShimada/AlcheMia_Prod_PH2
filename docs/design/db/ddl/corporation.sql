@@ -8,16 +8,24 @@ DROP TABLE IF EXISTS corporation CASCADE;
 
 CREATE TABLE corporation (
     -- 主キー
-    corporation_code VARCHAR(30) NOT NULL,
+    corporation_id UUID NOT NULL,
     
     -- 会社情報
-    corporation_name VARCHAR(50),
+    corporation_name CHARACTER VARYING(50) NOT NULL,
+    is_active BOOLEAN NOT NULL,
+    
+    -- タイムスタンプ
+    create_at BOOLEAN,
+    update_at TIMESTAMP,
     
     -- 制約
-    CONSTRAINT corporation_pkey PRIMARY KEY (corporation_code)
+    CONSTRAINT corporation_PKC PRIMARY KEY (corporation_id)
 );
 
 -- コメント
-COMMENT ON TABLE corporation IS '会社マスタテーブル';
-COMMENT ON COLUMN corporation.corporation_code IS '会社CD';
+COMMENT ON TABLE corporation IS '会社';
+COMMENT ON COLUMN corporation.corporation_id IS '会社ID';
 COMMENT ON COLUMN corporation.corporation_name IS '会社名';
+COMMENT ON COLUMN corporation.is_active IS 'アクティブ判定';
+COMMENT ON COLUMN corporation.create_at IS '作成日時';
+COMMENT ON COLUMN corporation.update_at IS '更新日時';

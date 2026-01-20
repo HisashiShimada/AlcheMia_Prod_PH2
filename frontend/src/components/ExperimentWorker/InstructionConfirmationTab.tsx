@@ -7,7 +7,9 @@ import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
 import InstructionStats from './InstructionStats';
 import InstructionGroup from './InstructionGroup';
-import FlowDiagramModal from './FlowDiagramModal';
+import InstructionFlowDialog from './InstructionFlowDialog';
+import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
+import type { FileData, SubnetData } from './InstructionFlowDialog';
 import { Stats, Instruction, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
 import { projectsData } from '@/data/projectsData';
 
@@ -59,8 +61,16 @@ export default function InstructionConfirmationTab({
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
 
-  // フロー図モーダルの表示状態
-  const [isFlowDiagramModalVisible, setIsFlowDiagramModalVisible] = useState(false);
+  // ViewRendererDialogの管理
+  const [viewerDialogs, setViewerDialogs] = useState<Array<{
+    id: string;
+    file: FileData;
+    zIndex: number;
+  }>>([]);
+  const [nextZIndex, setNextZIndex] = useState(999999);
+  
+  // SubNetViewerの管理
+  const [subnetData, setSubnetData] = useState<SubnetData | null>(null);
   
   // メソッド・タスク選択モーダルの表示状態
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -135,14 +145,53 @@ export default function InstructionConfirmationTab({
     };
   }, [filteredInstructions]);
 
-  // フロー図モーダルを開く
+  // フロー図ダイアログを開く
   const handleOpenFlowDiagram = () => {
-    setIsFlowDiagramModalVisible(true);
+    const fileData: FileData = {
+      id: 'test_omori11',
+      name: 'test_omori11.maiml',
+      path: '/data/mock/test_omori11.maiml',
+      size: 0,
+      lastModified: new Date().toISOString(),
+      type: 'maiml',
+    };
+
+    const newDialog = {
+      id: `flow-diagram-${Date.now()}`,
+      file: fileData,
+      zIndex: nextZIndex,
+    };
+
+    setViewerDialogs([...viewerDialogs, newDialog]);
+    setNextZIndex(nextZIndex + 1);
   };
 
-  // フロー図モーダルを閉じる
-  const handleCloseFlowDiagram = () => {
-    setIsFlowDiagramModalVisible(false);
+  // ダイアログを閉じる
+  const handleCloseDialog = (id: string) => {
+    setViewerDialogs(viewerDialogs.filter((d) => d.id !== id));
+  };
+
+  // ダイアログにフォーカス
+  const handleFocusDialog = (id: string) => {
+    const dialog = viewerDialogs.find((d) => d.id === id);
+    if (dialog && dialog.zIndex !== nextZIndex - 1) {
+      setViewerDialogs(
+        viewerDialogs.map((d) =>
+          d.id === id ? { ...d, zIndex: nextZIndex } : d
+        )
+      );
+      setNextZIndex(nextZIndex + 1);
+    }
+  };
+
+  // SubNetViewerを開く
+  const handleOpenSubNetViewer = (data: SubnetData) => {
+    setSubnetData(data);
+  };
+
+  // SubNetViewerを閉じる
+  const handleCloseSubNetViewer = () => {
+    setSubnetData(null);
   };
 
   // 全ての指示の確認完了ハンドラ
@@ -423,13 +472,33 @@ export default function InstructionConfirmationTab({
             </div>
           </Card>
 
-          {/* フロー図モーダル */}
-          <FlowDiagramModal
-            visible={isFlowDiagramModalVisible}
-            onClose={handleCloseFlowDiagram}
-            projectName={projectInfo?.projectName}
-            methodName={methodInfo?.methodName}
-          />
+          {/* InstructionFlowDialog群 */}
+          {viewerDialogs.map((dialog) => (
+            <InstructionFlowDialog
+              key={dialog.id}
+              id={dialog.id}
+              file={dialog.file}
+              selectedMethodId={selectedMethodId}
+              zIndex={dialog.zIndex}
+              initialPosition={{ x: 100, y: 100 }}
+              initialSize={{ width: 1200, height: 800 }}
+              onClose={handleCloseDialog}
+              onFocus={handleFocusDialog}
+              onOpenSubNetViewer={handleOpenSubNetViewer}
+            />
+          ))}
+
+          {/* SubNetViewer */}
+          {subnetData && (
+            <SubNetViewer
+              open={true}
+              nodeName={subnetData.transitionName}
+              maimlData={subnetData.maimlData}
+              templateMap={subnetData.templateMap}
+              petriNetData={subnetData.petriNetData}
+              onClose={handleCloseSubNetViewer}
+            />
+          )}
 
           {/* メソッド・タスク選択モーダル */}
           <MethodTaskSelectionModal

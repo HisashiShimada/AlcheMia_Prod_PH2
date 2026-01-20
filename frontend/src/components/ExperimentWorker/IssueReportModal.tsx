@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import {
   Modal,
   Form,
-  Select,
   Input,
   Button,
   Space,
@@ -12,7 +11,7 @@ import {
   Typography,
 } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
-import { Task, IssueType, IssueReportData } from '@/types/experimentWorker';
+import { Task, IssueStatus } from '@/types/experimentWorker';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -20,33 +19,44 @@ const { Text } = Typography;
 interface IssueReportModalProps {
   visible: boolean;
   task: Task | null;
+  initialStatus?: IssueStatus; // 問題の初期ステータス（デフォルト: 'unresolved'）
   onClose: () => void;
-  onSubmit?: (data: IssueReportData) => void;
+  onCommentSubmit?: (taskId: string, comment: string) => void;
+  onStatusChange?: (taskId: string, newStatus: IssueStatus) => void;
 }
 
 /**
  * 問題報告モーダル
  * サブタスク一覧の「報告」ボタンから呼び出される独立したモーダル
+ * 
+ * Phase 2026-01-06: UI修正
+ * - 問題タイプコンボボックスを削除
+ * - ステータス変更ボタンを追加（未解決/解決）
+ * - コメント送信ボタンに名称変更
+ * 
+ * Note: destroyOnClose=trueにより、モーダルが閉じる度にコンポーネントが破棄され、
+ * 次回開く時には新しいインスタンスが作成されるため、initialStatusが正しく反映される
  */
 export default function IssueReportModal({
   visible,
   task,
+  initialStatus = 'unresolved',
   onClose,
-  onSubmit
+  onCommentSubmit,
+  onStatusChange
 }: IssueReportModalProps) {
   const [form] = Form.useForm();
-  const [issueType, setIssueType] = useState<IssueType>('material_shortage');
   const [comment, setComment] = useState<string>('');
+  const [currentStatus, setCurrentStatus] = useState<IssueStatus>(initialStatus);
 
   // フォームクリア
   const handleClear = () => {
     form.resetFields();
-    setIssueType('material_shortage');
     setComment('');
   };
 
-  // 報告送信
-  const handleSubmit = () => {
+  // コメント送信
+  const handleCommentSubmit = () => {
     if (!task) {
       message.error('タスク情報が見つかりません');
       return;
@@ -57,22 +67,77 @@ export default function IssueReportModal({
       return;
     }
 
-    const reportData: IssueReportData = {
-      taskId: task.taskId,
-      issueType,
-      comment: comment.trim(),
-    };
-
     // TODO: バックエンドAPIへの送信処理を実装
-    console.log('問題報告送信:', reportData);
+    console.log('コメント送信:', {
+      taskId: task.taskId,
+      comment: comment.trim(),
+    });
 
-    if (onSubmit) {
-      onSubmit(reportData);
+    if (onCommentSubmit) {
+      onCommentSubmit(task.taskId, comment.trim());
     }
 
-    message.success('問題報告を送信しました');
-    handleClear();
-    onClose();
+    message.success('コメントを送信しました');
+    setComment('');
+    form.setFieldsValue({ comment: '' });
+  };
+
+  // ステータスを「未解決」に変更
+  const handleSetUnresolved = () => {
+    if (!task) {
+      message.error('タスク情報が見つかりません');
+      return;
+    }
+
+    if (!comment.trim()) {
+      message.warning('コメントを入力してください');
+      return;
+    }
+
+    // TODO: バックエンドAPIへの送信処理を実装
+    console.log('ステータス変更（未解決）:', {
+      taskId: task.taskId,
+      newStatus: 'unresolved',
+      comment: comment.trim(),
+    });
+
+    if (onStatusChange) {
+      onStatusChange(task.taskId, 'unresolved');
+    }
+
+    setCurrentStatus('unresolved');
+    message.success('ステータスを「未解決」に変更しました');
+    setComment('');
+    form.setFieldsValue({ comment: '' });
+  };
+
+  // ステータスを「解決済」に変更
+  const handleSetResolved = () => {
+    if (!task) {
+      message.error('タスク情報が見つかりません');
+      return;
+    }
+
+    if (!comment.trim()) {
+      message.warning('コメントを入力してください');
+      return;
+    }
+
+    // TODO: バックエンドAPIへの送信処理を実装
+    console.log('ステータス変更（解決済）:', {
+      taskId: task.taskId,
+      newStatus: 'resolved',
+      comment: comment.trim(),
+    });
+
+    if (onStatusChange) {
+      onStatusChange(task.taskId, 'resolved');
+    }
+
+    setCurrentStatus('resolved');
+    message.success('ステータスを「解決済」に変更しました');
+    setComment('');
+    form.setFieldsValue({ comment: '' });
   };
 
   // モーダルを閉じる際の処理
@@ -81,16 +146,10 @@ export default function IssueReportModal({
     onClose();
   };
 
-  // 問題タイプの選択肢
-  const issueTypeOptions = [
-    { label: '材料不足', value: 'material_shortage' },
-    { label: '機器故障', value: 'equipment_failure' },
-    { label: '手順不明確', value: 'procedure_unclear' },
-    { label: '安全性の懸念', value: 'safety_concern' },
-    { label: '品質問題', value: 'quality_issue' },
-    { label: '時間制約', value: 'time_constraint' },
-    { label: 'その他', value: 'other' },
-  ];
+  // ボタンの活性状態を判定
+  const hasComment = comment.trim().length > 0;
+  const canResolve = hasComment && currentStatus === 'unresolved';
+  const canUnresolve = hasComment && currentStatus === 'resolved';
 
   return (
     <Modal
@@ -127,55 +186,78 @@ export default function IssueReportModal({
         </div>
       )}
 
+      {/* ステータス表示 */}
+      <div style={{ marginBottom: '16px' }}>
+        <Text strong>現在のステータス: </Text>
+        <Text
+          style={{
+            color: currentStatus === 'unresolved' ? '#faad14' : '#52c41a',
+            fontWeight: 'bold',
+          }}
+        >
+          {currentStatus === 'unresolved' ? '未解決' : '解決済'}
+        </Text>
+      </div>
+
       {/* 問題報告フォーム */}
       <Form form={form} layout="vertical">
         <Form.Item
-          label="問題タイプ"
-          name="issueType"
-          initialValue="material_shortage"
-        >
-          <Select
-            value={issueType}
-            onChange={(value: IssueType) => setIssueType(value)}
-            options={issueTypeOptions}
-            size="large"
-          />
-        </Form.Item>
-
-        <Form.Item
-          label="コメント"
+          label="コメントを追加"
           name="comment"
           rules={[
-            { required: true, message: '問題の詳細を入力してください' },
-            { min: 10, message: 'コメントは10文字以上で入力してください' },
+            { required: true, message: 'コメントを入力してください' },
           ]}
         >
           <TextArea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={6}
-            placeholder="問題の詳細を具体的に入力してください&#13;&#10;例: 〇〇の材料が不足しており、実験を続行できません。"
+            placeholder="コメントを入力してください"
             maxLength={500}
             showCount
           />
         </Form.Item>
 
-        {/* 送信ボタン */}
+        {/* ボタンエリア */}
         <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
-          <Space style={{ float: 'right' }}>
-            <Button onClick={handleCancel}>
-              キャンセル
-            </Button>
-            <Button onClick={handleClear}>
-              クリア
-            </Button>
-            <Button
-              type="primary"
-              onClick={handleSubmit}
-              disabled={!comment.trim()}
-            >
-              報告
-            </Button>
+          <Space style={{ display: 'flex', justifyContent: 'space-between' }}>
+            {/* 左側: キャンセル・クリア */}
+            <Space>
+              <Button onClick={handleCancel}>
+                キャンセル
+              </Button>
+              <Button onClick={handleClear}>
+                クリア
+              </Button>
+            </Space>
+            
+            {/* 右側: コメント送信・未解決・解決 */}
+            <Space>
+              <Button
+                type="primary"
+                onClick={handleCommentSubmit}
+                disabled={!hasComment}
+              >
+                コメント送信
+              </Button>
+              <Button
+                onClick={handleSetUnresolved}
+                disabled={!canUnresolve}
+              >
+                未解決
+              </Button>
+              <Button
+                onClick={handleSetResolved}
+                disabled={!canResolve}
+                style={{
+                  backgroundColor: canResolve ? '#52c41a' : undefined,
+                  borderColor: canResolve ? '#52c41a' : undefined,
+                  color: canResolve ? '#fff' : undefined,
+                }}
+              >
+                解決
+              </Button>
+            </Space>
           </Space>
         </Form.Item>
       </Form>
