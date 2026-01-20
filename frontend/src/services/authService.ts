@@ -85,11 +85,15 @@ const translateErrorMessage = (code: string, defaultMessage: string): string => 
     AUTH_TOKEN_INVALID: 'セッションが無効です。再度ログインしてください',
     AUTH_TOKEN_EXPIRED: 'セッションの有効期限が切れました。再度ログインしてください',
     AUTH_UNAUTHORIZED: '認証が必要です',
+    AUTH_FORBIDDEN: 'アクセスが拒否されました',
     
     // PINコードエラー
     AUTH_PIN_INVALID: 'PINコードが正しくありません',
     AUTH_PIN_EXPIRED: 'PINコードの有効期限が切れています',
     AUTH_PIN_MAX_ATTEMPTS: 'PINコードの入力試行回数が上限を超えました',
+    
+    // リソースエラー
+    RESOURCE_NOT_FOUND: 'リソースが見つかりません',
     
     // システムエラー
     SYSTEM_ERROR: 'システムエラーが発生しました',
@@ -131,10 +135,36 @@ const handleApiError = (error: unknown): AuthServiceError => {
     
     // APIエラーレスポンス
     const response = axiosError.response.data;
-    if (response && !response.success) {
-      const errorCode = response.error.code;
-      const errorMessage = translateErrorMessage(errorCode, response.error.message);
+    if (response && !response.success && response.error) {
+      const errorCode = response.error.code || 'UNKNOWN_ERROR';
+      const errorMessage = translateErrorMessage(
+        errorCode,
+        response.error.message || 'エラーが発生しました'
+      );
       return new AuthServiceError(errorMessage, errorCode, response.error.details);
+    }
+    
+    // レスポンスはあるがエラー構造が不正な場合
+    if (axiosError.response.status >= 400) {
+      const statusCode = axiosError.response.status;
+      let errorCode = 'HTTP_ERROR';
+      let errorMessage = 'エラーが発生しました';
+      
+      if (statusCode === 401) {
+        errorCode = 'AUTH_UNAUTHORIZED';
+        errorMessage = translateErrorMessage(errorCode, '認証が必要です');
+      } else if (statusCode === 403) {
+        errorCode = 'AUTH_FORBIDDEN';
+        errorMessage = translateErrorMessage('AUTH_FORBIDDEN', 'アクセスが拒否されました');
+      } else if (statusCode === 404) {
+        errorCode = 'RESOURCE_NOT_FOUND';
+        errorMessage = translateErrorMessage('RESOURCE_NOT_FOUND', 'リソースが見つかりません');
+      } else if (statusCode >= 500) {
+        errorCode = 'SYSTEM_ERROR';
+        errorMessage = translateErrorMessage('SYSTEM_ERROR', 'サーバーエラーが発生しました');
+      }
+      
+      return new AuthServiceError(errorMessage, errorCode);
     }
   }
   
