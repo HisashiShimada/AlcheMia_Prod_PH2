@@ -27,7 +27,9 @@ interface Project {
   fileCount: number;
   status: string;
   department: string;
+  departmentName?: string;
   owner: string;
+  ownerName?: string;
   createdAt: string;
 }
 
@@ -200,10 +202,10 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
                 </Text>
               </Space>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                {t('projectManagement.folder_tree.owner')}: {project.owner}
+                {t('projectManagement.folder_tree.owner')}: {project.ownerName || project.owner}
               </Text>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                {project.department} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
+                {project.departmentName || project.department} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
               </Text>
             </div>
           </List.Item>

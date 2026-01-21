@@ -28,6 +28,7 @@ export interface Project {
   ownerName?: string;
   ownerEmail?: string;
   department: string;
+  departmentName?: string;
   members: string[];
   tags: string[];
   isCheckedOut: boolean;

@@ -1,4 +1,5 @@
 import express, { Application } from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 
 // Load environment variables FIRST (before any other imports that might use them)
@@ -11,6 +12,18 @@ import fileDownloadRoutes from './routes/fileDownloadRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
+
+// CORS設定
+const allowedOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(',')
+  : ['http://localhost:3000']; // デフォルト: Next.jsの開発サーバー
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true, // withCredentials: true をサポート
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id'],
+}));
 
 // Basic middleware
 app.use(express.json());

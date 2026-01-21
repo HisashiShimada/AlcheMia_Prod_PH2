@@ -44,7 +44,7 @@ import {
 } from '@/api/fileDownloadService';
 import { fetchProjects, fetchProjectFiles } from '@/utils/apiClient';
 import type { ApiResponse } from '@/types/api';
-import type { ProjectListResponse } from '@/types/project';
+import type { Project, ProjectListResponse, Task } from '@/types/project';
 
 const { Title, Text } = Typography;
 
@@ -58,6 +58,29 @@ export interface ProjectEditParams {
 }
 
 /**
+ * ファイルデータ
+ */
+interface FileData {
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+  lastModified: string;
+  type: string;
+  isFolder?: boolean;
+  fileCount?: number;
+  signedUrl?: string;
+}
+
+/**
+ * プロジェクトファイルデータ
+ */
+interface ProjectFilesData {
+  root: FileData[];
+  archive: FileData[];
+}
+
+/**
  * プロジェクト管理画面メインコンポーネント
  */
 interface ProjectManagementProps {
@@ -67,7 +90,7 @@ interface ProjectManagementProps {
 const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [ownerFilter, setOwnerFilter] = useState<string>('my_only'); // my_only, all
   const [checkoutFilter, setCheckoutFilter] = useState<string>('all'); // all, checked_in, checked_out
@@ -93,18 +116,33 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     nodeCount: number;
   } | null>(null);
   const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
-  const [projectFilesData, setProjectFilesData] = useState<Record<string, any>>({});
+  const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
   
   // 複数ダイアログ管理
   interface OpenDialog {
     id: string;
     contentType: 'file' | 'subnet';
-    file?: any;
+    file?: FileData;
     subnetData?: {
       transitionName: string;
       maimlData: string;
       templateMap: Record<string, { element: Element }>;
-      petriNetData: any;
+      petriNetData: {
+        places: Array<{
+          id: string;
+          data: {
+            label?: string;
+            stereotype?: string;
+            template?: { id: string };
+            templateId?: string;
+          };
+        }>;
+        arcs: Array<{
+          id: string;
+          source: string;
+          target: string;
+        }>;
+      };
     };
     zIndex: number;
     position: { x: number; y: number };
@@ -132,21 +170,62 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
 
   // プロジェクトデータが取得できたらstateを更新
   useEffect(() => {
-    if (projectsData?.data.projects) {
-      // Data synchronization in useEffect is a valid pattern
-      // eslint-disable-next-line
-      setProjects(projectsData.data.projects);
+    console.log('📊 [ProjectManagement] projectsData received:', projectsData);
+    
+    if (!projectsData) {
+      console.log('⏳ [ProjectManagement] Waiting for projectsData...');
+      return;
     }
-  }, [projectsData]);
+    
+    if (projectsError) {
+      console.error('❌ [ProjectManagement] API error:', projectsError);
+      message.error('プロジェクト一覧の取得に失敗しました');
+      return;
+    }
+    
+    if (projectsData.success && projectsData.data) {
+      // バックエンドのレスポンス構造を正しく参照
+      // ApiResponse<ProjectListResponse> なので data.projects でアクセス
+      const projectsList = Array.isArray(projectsData.data) 
+        ? projectsData.data 
+        : (projectsData.data as any).projects || [];
+      
+      console.log('✅ [ProjectManagement] Setting projects:', projectsList.length, 'projects');
+      console.log('📋 [ProjectManagement] Projects data:', projectsList);
+      setProjects(projectsList);
+    } else {
+      console.warn('⚠️ [ProjectManagement] Invalid projectsData structure:', projectsData);
+      setProjects([]);
+    }
+  }, [projectsData, projectsError]);
 
-  // ユニークな部門リストを取得
+  // ユニークな部署リストを取得（CD→名前のマッピング付き）
   const departments = useMemo(() => {
-    const uniqueDepartments = Array.from(new Set(projects.map(p => p.department)));
-    return ['all', ...uniqueDepartments];
+    if (!projects || projects.length === 0) {
+      return [];
+    }
+    
+    // 部署CDと部署名のマッピングを作成
+    const departmentMap = new Map<string, string>();
+    projects.forEach(p => {
+      if (p.department && !departmentMap.has(p.department)) {
+        // 部署名がある場合は名前、ない場合はCDをそのまま使用
+        departmentMap.set(p.department, p.departmentName || p.department);
+      }
+    });
+    
+    // ソート済みの部署リストを返す（名前順）
+    return Array.from(departmentMap.entries())
+      .sort((a, b) => a[1].localeCompare(b[1], 'ja'))
+      .map(([code, name]) => ({ code, name }));
   }, [projects]);
 
   // フィルタリングされたプロジェクト一覧
   const filteredProjects = useMemo(() => {
+    if (!projects || projects.length === 0) {
+      return [];
+    }
+    
     return projects.filter((project) => {
       // プロジェクトステータスの表示名を取得
       const getProjectStatusLabel = (status: string) => {
@@ -327,21 +406,35 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   // プロジェクトのファイル一覧を取得
   useEffect(() => {
     const loadProjectFiles = async () => {
-      if (!selectedProjectId) return;
+      if (!selectedProjectId) {
+        console.log('⏳ [ProjectManagement] No project selected, skipping file load');
+        return;
+      }
       
       try {
+        console.log('📂 [ProjectManagement] Loading files for project:', selectedProjectId);
         const response = await fetchProjectFiles(selectedProjectId);
-        if (response.success && response.data.files) {
+        
+        if (response.success && response.data?.files) {
+          const filesData: ProjectFilesData = {
+            root: response.data.files || [],
+            archive: response.data.archiveFiles || [],
+          };
+          
+          console.log('✅ [ProjectManagement] Files loaded:', {
+            root: filesData.root.length,
+            archive: filesData.archive.length
+          });
+          
           setProjectFilesData(prev => ({
             ...prev,
-            [selectedProjectId]: {
-              root: response.data.files,
-              archive: response.data.archiveFiles || [],
-            }
+            [selectedProjectId]: filesData
           }));
+        } else {
+          console.warn('⚠️ [ProjectManagement] Invalid file response:', response);
         }
       } catch (error) {
-        console.error('Failed to fetch project files:', error);
+        console.error('❌ [ProjectManagement] Failed to fetch project files:', error);
         message.error('ファイル一覧の取得に失敗しました');
       }
     };
@@ -351,60 +444,65 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
 
   // 選択したプロジェクトとそのファイル一覧を取得
   const selectedProject = useMemo(() => {
+    if (!projects || projects.length === 0 || !selectedProjectId) {
+      return null;
+    }
     return projects.find((p) => p.id === selectedProjectId) || null;
   }, [projects, selectedProjectId]);
 
-  const projectFiles = useMemo(() => {
-    if (!selectedProjectId) return [];
+  const projectFiles = useMemo((): FileData[] => {
+    if (!selectedProjectId) {
+      return [];
+    }
+    
     const projectData = projectFilesData[selectedProjectId];
-    if (!projectData) return [];
+    if (!projectData) {
+      return [];
+    }
     
     if (currentFolder === 'root') {
       // ルートフォルダの場合、rootファイル + archiveフォルダを表示
       const rootFiles = projectData.root || [];
       const archiveFiles = projectData.archive || [];
       
-      if (archiveFiles.length > 0) {
+      if (archiveFiles.length > 0 && selectedProject) {
         // archiveフォルダを追加
-        return [
-          ...rootFiles,
-          {
-            id: 'archive',
-            name: 'archive',
-            path: `${selectedProject?.folderName}/archive`,
-            size: 0,
-            lastModified: '',
-            type: 'folder',
-            isFolder: true,
-            fileCount: archiveFiles.length,
-          },
-        ];
+        const archiveFolder: FileData = {
+          id: 'archive',
+          name: 'archive',
+          path: `${selectedProject.folderName}/archive`,
+          size: 0,
+          lastModified: '',
+          type: 'folder',
+          isFolder: true,
+          fileCount: archiveFiles.length,
+        };
+        return [...rootFiles, archiveFolder];
       }
       return rootFiles;
     } else if (currentFolder === 'archive') {
       // archiveフォルダの中身を表示 - 戻るボタンを先頭に追加
       const archiveFiles = projectData.archive || [];
-      return [
-        {
-          id: 'back',
-          name: '↑ 戻る',
-          path: '',
-          size: 0,
-          lastModified: '',
-          type: 'folder',
-          isFolder: true,
-          fileCount: undefined,
-        },
-        ...archiveFiles,
-      ];
+      const backButton: FileData = {
+        id: 'back',
+        name: '↑ 戻る',
+        path: '',
+        size: 0,
+        lastModified: '',
+        type: 'folder',
+        isFolder: true,
+      };
+      return [backButton, ...archiveFiles];
     }
     
     return [];
   }, [selectedProjectId, currentFolder, selectedProject, projectFilesData]);
 
-  // タスク結果一覧を取得（統合されたmockProjects.jsonから取得）
-  const taskResults = useMemo(() => {
-    if (!selectedProjectId) return [];
+  // タスク結果一覧を取得
+  const taskResults = useMemo((): Task[] => {
+    if (!selectedProjectId || !projects || projects.length === 0) {
+      return [];
+    }
     const project = projects.find(p => p.id === selectedProjectId);
     return project?.tasks || [];
   }, [selectedProjectId, projects]);
@@ -420,7 +518,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
       completed: 0,
     };
 
-    taskResults.forEach((result: any) => {
+    taskResults.forEach((result) => {
       switch (result.workStatus) {
         case 'pending':
           stats.pending++;
@@ -444,7 +542,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   }, [taskResults]);
 
   // タスク結果確認ハンドラ
-  const handleViewTaskResult = useCallback((result: any) => {
+  const handleViewTaskResult = useCallback((result: Task) => {
     console.log('View task result:', result);
     // TODO: タスク結果詳細モーダルを表示
   }, []);
@@ -492,7 +590,14 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   }, []);
 
   // 指示送信ハンドラ
-  const handleInstructionSubmit = useCallback((data: any) => {
+  const handleInstructionSubmit = useCallback((data: {
+    taskDetails: Array<{
+      methodId: string;
+      taskNo: number;
+      transitionIds: string[];
+    }>;
+    instructionMessage: string;
+  }) => {
     console.log('指示データ送信:', data);
     // TODO: チェックアウトAPIを呼び出す
     // TODO: 成功時にプロジェクトをチェックアウト状態に更新
@@ -602,7 +707,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   }, []);
 
   // ダイアログを開く
-  const handleViewFile = useCallback((file: any) => {
+  const handleViewFile = useCallback((file: FileData) => {
     // 上限チェック（5個まで）
     if (openDialogs.length >= 5) {
       message.warning('同時に開けるダイアログは5個までです');
@@ -845,14 +950,14 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
       const newProjectId = `proj_${String(projects.length + 1).padStart(3, '0')}`;
       
       // 新しいプロジェクトオブジェクトを作成
-      const newProject = {
+      const newProject: Project = {
         id: newProjectId,
         name: data.name,
         folderName: data.folderName,
         description: data.description,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        status: 'planning',
+        status: 'planning' as const,
         fileCount: 0,
         totalSize: 0,
         owner: data.owner,
@@ -932,9 +1037,9 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
               onChange={setDepartmentFilter}
               options={[
                 { value: 'all', label: t('projectManagement.all') },
-                ...departments.filter(d => d !== 'all').map(dept => ({
-                  value: dept,
-                  label: dept,
+                ...departments.map(dept => ({
+                  value: dept.code,
+                  label: dept.name,
                 })),
               ]}
             />
@@ -1342,6 +1447,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
         open={uploadDialogOpen}
         onClose={handleCloseUploadDialog}
         onUploadComplete={handleUploadComplete}
+        projectId={selectedProject?.id || ''}
         preselectedFolder={selectedProject?.folderName || ''}
       />
 
@@ -1350,7 +1456,17 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
         <InstructionDialog
           open={instructionDialogOpen}
           onClose={handleCloseInstructionDialog}
-          onSubmit={handleInstructionSubmit}
+          onSubmit={(data) => {
+            // InstructionDialogの型に合わせて変換
+            handleInstructionSubmit({
+              taskDetails: data.instructions.map(inst => ({
+                methodId: inst.methodId || '',
+                taskNo: inst.taskNo || 0,
+                transitionIds: inst.transitionIds || [],
+              })),
+              instructionMessage: '',
+            });
+          }}
           fileKey={selectedProject.folderName}
           managerId="current_manager_id"
           projectName={selectedProject.name}

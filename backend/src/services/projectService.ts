@@ -10,34 +10,15 @@ import NodeCache from 'node-cache';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { getStorageService } from './storageService';
 import type { BatchOperation } from '../repositories/fileMetadataRepository';
+import type { 
+  Project, 
+  Pagination, 
+  ProjectListResponse, 
+  PROJECT_STATUS_MAP 
+} from '../types/project';
 
 // キャッシュインスタンス（TTL: 1時間）
 const projectCache = new NodeCache({ stdTTL: 3600 });
-
-interface Project {
-  organizationId: string;
-  projectId: string;
-  projectName: string;
-  description: string | null;
-  departmentId: string | null;
-  ownerUserId: string;
-  projectStatus: number;
-  projectStatusName?: string;
-  projectMaimlFlg: boolean;
-  checkoutStatus: number;
-  checkoutStatusName?: string;
-  createAt: string;
-  taskCount: number;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  totalItems: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrev: boolean;
-}
 
 interface ListOptions {
   page: number;
@@ -45,11 +26,6 @@ interface ListOptions {
   includeCompleted: boolean;
   sortBy?: string;
   order?: 'asc' | 'desc';
-}
-
-interface ListResult {
-  projects: Project[];
-  pagination: Pagination;
 }
 
 interface ServiceResult<T> {
@@ -160,7 +136,7 @@ export class ProjectService {
           project_id,
           project_name,
           description,
-          department_id,
+          department_cd,
           owner_user_id,
           project_status,
           checkout_status,
@@ -209,38 +185,49 @@ export class ProjectService {
 
       // Task 3.7: ステータス名取得
       const statusQuery = `
-        SELECT code_value, code_name
+        SELECT code_value, code_name, code_division
         FROM code_master
-        WHERE code_class IN ('project_status', 'checkout_status')
+        WHERE code_division IN ('project_status', 'checkout_status')
+          AND organization_id = $1
       `;
-      const statusResult = await client.query(statusQuery);
+      const statusResult = await client.query(statusQuery, [organizationId]);
 
       const projectStatusName = statusResult.rows.find(
-        (row: any) => row.code_class === 'project_status' && row.code_value === 0
+        (row: any) => row.code_division === 'project_status' && row.code_value === '0'
       )?.code_name || '';
       
       const checkoutStatusName = statusResult.rows.find(
-        (row: any) => row.code_class === 'checkout_status' && row.code_value === 0
+        (row: any) => row.code_division === 'checkout_status' && row.code_value === '0'
       )?.code_name || '';
 
       // トランザクションコミット
       await client.query('COMMIT');
 
-      // レスポンスデータ構築（キャメルケース変換）
+      // PROJECT_STATUS_MAPをインポート
+      const { PROJECT_STATUS_MAP } = require('../types/project');
+
+      // レスポンスデータ構築（フロントエンドの型に合わせる）
       const projectData: Project = {
-        organizationId: insertResult.rows[0].organization_id,
-        projectId: insertResult.rows[0].project_id,
-        projectName: insertResult.rows[0].project_name,
-        description: insertResult.rows[0].description,
-        departmentId: insertResult.rows[0].department_id,
-        ownerUserId: insertResult.rows[0].owner_user_id,
-        projectStatus: insertResult.rows[0].project_status,
-        projectStatusName,
-        projectMaimlFlg: insertResult.rows[0].project_maiml_flg,
-        checkoutStatus: insertResult.rows[0].checkout_status,
-        checkoutStatusName,
-        createAt: new Date(insertResult.rows[0].create_at).toISOString(),
-        taskCount: 0,
+        id: insertResult.rows[0].project_id,
+        name: insertResult.rows[0].project_name,
+        folderName: insertResult.rows[0].project_name,
+        description: insertResult.rows[0].description || '',
+        status: PROJECT_STATUS_MAP[insertResult.rows[0].project_status] || 'planning',
+        fileCount: 0,
+        totalSize: 0,
+        owner: insertResult.rows[0].owner_user_id,
+        ownerName: undefined,
+        ownerEmail: undefined,
+        department: insertResult.rows[0].department_cd || '',
+        members: [],
+        tags: [],
+        isCheckedOut: insertResult.rows[0].checkout_status === 1,
+        checkedOutBy: insertResult.rows[0].checkout_status === 1 ? insertResult.rows[0].owner_user_id : null,
+        checkedOutAt: insertResult.rows[0].checkout_status === 1 ? new Date().toISOString() : null,
+        createdAt: new Date(insertResult.rows[0].create_at).toISOString(),
+        updatedAt: new Date(insertResult.rows[0].create_at).toISOString(),
+        totalTasks: 0,
+        completedTasks: 0,
       };
 
       return {
@@ -276,33 +263,52 @@ export class ProjectService {
   async list(
     organizationId: string,
     options: ListOptions
-  ): Promise<ServiceResult<ListResult>> {
+  ): Promise<ServiceResult<ProjectListResponse>> {
     try {
       const { page, limit, includeCompleted, sortBy = 'create_at', order = 'desc' } = options;
       const offset = (page - 1) * limit;
 
-      // プロジェクト一覧取得クエリ
+      // プロジェクト一覧取得クエリ（ユーザー名、部署名、チェックアウト情報も取得）
       const projectQuery = `
         SELECT 
           p.organization_id,
           p.project_id,
           p.project_name,
           p.description,
-          p.department_id,
+          p.department_cd,
+          d.department_name,
           p.owner_user_id,
+          ou.user_name as owner_user_name,
+          ou.mail_address as owner_email,
           p.project_status,
           p.project_maiml_flg,
           p.checkout_status,
           p.create_at,
+          checkout_user.user_id as checkout_user_id,
           COUNT(DISTINCT CASE 
             WHEN ptd.method_id IS NOT NULL AND ptd.task_no IS NOT NULL 
             THEN ptd.method_id || '_' || ptd.task_no::TEXT 
             ELSE NULL 
-          END) as task_count
+          END) as task_count,
+          COUNT(DISTINCT CASE 
+            WHEN ptd.task_status = 4 
+            THEN ptd.method_id || '_' || ptd.task_no::TEXT 
+            ELSE NULL 
+          END) as completed_task_count
         FROM project p
         LEFT JOIN project_task_detail ptd
           ON ptd.project_id = p.project_id
           AND ptd.organization_id = p.organization_id
+        LEFT JOIN organization_user ou
+          ON ou.user_id = p.owner_user_id
+          AND ou.organization_id = p.organization_id
+        LEFT JOIN department d
+          ON d.department_cd = p.department_cd
+          AND d.organization_id = p.organization_id
+        LEFT JOIN organization_user checkout_user
+          ON checkout_user.user_id = p.owner_user_id
+          AND checkout_user.organization_id = p.organization_id
+          AND p.checkout_status = 1
         WHERE p.organization_id = $1
           AND ($2::boolean IS NULL OR 
                ($2 = true OR p.project_status != 4))
@@ -311,12 +317,16 @@ export class ProjectService {
           p.project_id,
           p.project_name,
           p.description,
-          p.department_id,
+          p.department_cd,
+          d.department_name,
           p.owner_user_id,
+          ou.user_name,
+          ou.mail_address,
           p.project_status,
           p.project_maiml_flg,
           p.checkout_status,
-          p.create_at
+          p.create_at,
+          checkout_user.user_id
         ORDER BY p.${sortBy} ${order.toUpperCase()}
         LIMIT $3 OFFSET $4
       `;
@@ -350,19 +360,32 @@ export class ProjectService {
       const totalItems = parseInt(countResult.rows[0].total, 10);
       const totalPages = Math.ceil(totalItems / limit);
 
-      // データを変換（スネークケース→キャメルケース）
+      // PROJECT_STATUS_MAPをインポート
+      const { PROJECT_STATUS_MAP } = require('../types/project');
+
+      // データを変換（フロントエンドの型に合わせる）
       const formattedProjects: Project[] = projects.map((row: any) => ({
-        organizationId: row.organization_id,
-        projectId: row.project_id,
-        projectName: row.project_name,
-        description: row.description,
-        departmentId: row.department_id,
-        ownerUserId: row.owner_user_id,
-        projectStatus: row.project_status,
-        projectMaimlFlg: row.project_maiml_flg,
-        checkoutStatus: row.checkout_status,
-        createAt: row.create_at.toISOString(),
-        taskCount: parseInt(row.task_count, 10)
+        id: row.project_id,
+        name: row.project_name,
+        folderName: row.project_name, // プロジェクト名をフォルダ名としても使用
+        description: row.description || '',
+        status: PROJECT_STATUS_MAP[row.project_status] || 'planning',
+        fileCount: 0, // 後で実装予定
+        totalSize: 0, // 後で実装予定
+        owner: row.owner_user_id,
+        ownerName: row.owner_user_name || undefined,
+        ownerEmail: row.owner_email || undefined,
+        department: row.department_cd || '',
+        departmentName: row.department_name || undefined,
+        members: [], // 後で実装予定
+        tags: [], // 後で実装予定
+        isCheckedOut: row.checkout_status === 1,
+        checkedOutBy: row.checkout_status === 1 ? row.checkout_user_id : null,
+        checkedOutAt: row.checkout_status === 1 ? new Date().toISOString() : null,
+        createdAt: row.create_at.toISOString(),
+        updatedAt: row.create_at.toISOString(), // 後で実装予定
+        totalTasks: parseInt(row.task_count, 10),
+        completedTasks: parseInt(row.completed_task_count, 10)
       }));
 
       // ページネーション情報を構築
@@ -418,7 +441,8 @@ export class ProjectService {
           p.project_id,
           p.project_name,
           p.description,
-          p.department_id,
+          p.department_cd,
+          d.department_name,
           p.owner_user_id,
           ou.user_name as owner_user_name,
           p.project_status,
@@ -431,12 +455,17 @@ export class ProjectService {
         LEFT JOIN organization_user ou 
           ON ou.user_id = p.owner_user_id 
           AND ou.organization_id = p.organization_id
+        LEFT JOIN department d
+          ON d.department_cd = p.department_cd
+          AND d.organization_id = p.organization_id
         LEFT JOIN code_master ps 
-          ON ps.code_class = 'project_status' 
-          AND ps.code_value = p.project_status
+          ON ps.code_division = 'project_status' 
+          AND ps.code_value = CAST(p.project_status AS VARCHAR)
+          AND ps.organization_id = p.organization_id
         LEFT JOIN code_master cs 
-          ON cs.code_class = 'checkout_status' 
-          AND cs.code_value = p.checkout_status
+          ON cs.code_division = 'checkout_status' 
+          AND cs.code_value = CAST(p.checkout_status AS VARCHAR)
+          AND cs.organization_id = p.organization_id
         WHERE p.organization_id = $1 AND p.project_id = $2
       `;
 
@@ -531,8 +560,9 @@ export class ProjectService {
             ON ru.user_id = ptd.review_user_id 
             AND ru.organization_id = ptd.organization_id
           LEFT JOIN code_master ts 
-            ON ts.code_class = 'task_status' 
-            AND ts.code_value = ptd.task_status
+            ON ts.code_division = 'task_status' 
+            AND ts.code_value = CAST(ptd.task_status AS VARCHAR)
+            AND ts.organization_id = ptd.organization_id
           WHERE ptd.organization_id = $1 AND ptd.project_id = $2
           ORDER BY ptd.method_id, ptd.task_no
         `;
@@ -562,7 +592,8 @@ export class ProjectService {
         projectId: projectRow.project_id,
         projectName: projectRow.project_name,
         description: projectRow.description,
-        departmentId: projectRow.department_id,
+        departmentCd: projectRow.department_cd,
+        departmentName: projectRow.department_name || '',
         ownerUserId: projectRow.owner_user_id,
         ownerUserName: projectRow.owner_user_name,
         projectStatus: projectRow.project_status,

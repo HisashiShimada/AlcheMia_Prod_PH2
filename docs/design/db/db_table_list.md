@@ -6,7 +6,7 @@
 
 **重要**: DDLファイルを変更した際は、必ずこのファイルも更新してください。
 
-**最終更新**: 2026-01-16
+**最終更新**: 2026-01-21
 **ER図ファイル**: `docs/design/db/er_diagram.a5er`
 **DDLディレクトリ**: `docs/design/db/ddl/`
 
@@ -143,7 +143,22 @@
 
 ---
 
-#### 1.8 role_permission（ロール権限）
+#### 1.8 role（ロール）
+- **物理名**: `role`
+- **論理名**: ロール
+- **DDLファイル**: `docs/design/db/ddl/role.sql`
+- **主キー**: `organization_id` (UUID), `role_id` (VARCHAR(30))
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `role_id` - ロール（ユーザのロールと同一）
+  - `role_name` - ロール名
+  - `is_active` - アクティブ判定
+  - `create_at` - 作成日時
+  - `update_at` - 更新日時
+
+---
+
+#### 1.9 role_permission（ロール権限）
 - **物理名**: `role_permission`
 - **論理名**: ロール権限
 - **DDLファイル**: `docs/design/db/ddl/role_permission.sql`
@@ -246,6 +261,69 @@
 
 ---
 
+#### 2.5 instruction_acknowledged_history（指示確認履歴）
+- **物理名**: `instruction_acknowledged_history`
+- **論理名**: 指示確認履歴
+- **DDLファイル**: `docs/design/db/ddl/instruction_acknowledged_history.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `experiment_instruction_id` (VARCHAR), `experiment_user_id` (UUID)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `experiment_instruction_id` - 実験指示ID
+  - `experiment_user_id` - 実験作業者ID
+  - `acknowledged_at` - 確認日時
+
+---
+
+#### 2.6 template_data（テンプレート実績）
+- **物理名**: `template_data`
+- **論理名**: テンプレート実績
+- **DDLファイル**: `docs/design/db/ddl/template_data.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `template_id` (UUID), `place_id` (VARCHAR)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `method_id` - メソッドID
+  - `task_no` - タスク連番
+  - `template_id` - テンプレートID
+  - `place_id` - プレースID
+  - `テンプレートタイプ` - テンプレートタイプ
+  - `property_value` - プロパティ値
+
+---
+
+#### 2.7 template_transition（テンプレートトランジション関係）
+- **物理名**: `template_transition`
+- **論理名**: テンプレートトランジション関係
+- **DDLファイル**: `docs/design/db/ddl/template_transition.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `place_id` (VARCHAR), `template_id` (UUID), `transition_id` (VARCHAR)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `method_id` - メソッドID
+  - `task_no` - タスク連番
+  - `place_id` - プレースID
+  - `template_id` - テンプレートID
+  - `transition_id` - トランジションID
+
+---
+
+#### 2.8 transition_data（トランジション実績）
+- **物理名**: `transition_data`
+- **論理名**: トランジション実績
+- **DDLファイル**: `docs/design/db/ddl/transition_data.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `transition_id` (VARCHAR)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `method_id` - メソッドID
+  - `task_no` - タスク連番
+  - `transition_id` - トランジションID
+  - `status` - ステータス
+  - `progress_rate` - 進捗率
+
+---
+
 ### 3. 共通マスタテーブル
 
 #### 3.1 code_master（コードマスタ）
@@ -263,40 +341,46 @@
 
 ---
 
-#### 3.2 creator（作成者マスタ）
-- **物理名**: `creator`
-- **論理名**: 作成者マスタ
-- **DDLファイル**: `docs/design/db/ddl/creator.sql`
-- **主キー**: `organaization_id` (UUID), `creator_uuid` (UUID)
-- **主要カラム**:
-  - `organaization_id` - 組織ID
-  - `creator_uuid` - 作成者_uuid
-  - `creator_id` - 作成者_ID
-  - `creator_name` - 作成者_名称
-  - `creator_description` - 作成者_説明
-  - `creator_annotation` - 作成者_注釈
-
----
-
-#### 3.3 owner（所有者マスタ）
-- **物理名**: `owner`
-- **論理名**: 所有者マスタ
-- **DDLファイル**: `docs/design/db/ddl/owner.sql`
-- **主キー**: `organization_id` (UUID), `owner_uuid` (UUID)
+#### 3.2 department（部署）
+- **物理名**: `department`
+- **論理名**: 部署
+- **DDLファイル**: `docs/design/db/ddl/department.sql`
+- **主キー**: `organization_id` (UUID), `department_cd` (VARCHAR(50))
 - **主要カラム**:
   - `organization_id` - 組織ID
-  - `owner_uuid` - 所有者_uuid
-  - `owner_id` - 所有者_ID
-  - `owner_name` - 所有者_名称
-  - `owner_description` - 所有者_説明
-  - `owner_annotation` - 所有者_注釈
+  - `department_cd` - 部署CD
+  - `department_name` - 部署名
+  - `is_active` - アクティブ判定
+  - `create_at` - 作成日時
+  - `update_at` - 更新日時
 
 ---
 
-#### 3.4 instrument（実験装置マスタ）
-- **物理名**: `instrument`
+#### 3.3 creator_master（作成者マスタ）
+- **物理名**: `creator_master`
+- **論理名**: 作成者マスタ
+- **DDLファイル**: `docs/design/db/ddl/creator_master.sql`
+- **主キー**: `organization_id` (UUID), `creator_uuid` (UUID)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `creator_uuid` - 作成者_uuid
+  - `vendor_uuid` - ベンダー_uuid
+  - `instrument_uuid` - 実験装置_uuid
+  - `corporation_id` - 会社ID
+  - `creator_id` - ID
+  - `creator_name` - 名称
+  - `creator_description` - 説明
+  - `creator_annotation` - 注釈
+  - `is_active` - アクティブ判定
+  - `create_at` - 作成日時
+  - `update_at` - 更新日時
+
+---
+
+#### 3.4 instrument_master（実験装置マスタ）
+- **物理名**: `instrument_master`
 - **論理名**: 実験装置マスタ
-- **DDLファイル**: `docs/design/db/ddl/instrument.sql`
+- **DDLファイル**: `docs/design/db/ddl/instrument_master.sql`
 - **主キー**: `organization_id` (UUID), `instrument_uuid` (UUID)
 - **主要カラム**:
   - `organization_id` - 組織ID
@@ -308,10 +392,10 @@
 
 ---
 
-#### 3.5 vendor（ベンダーマスタ）
-- **物理名**: `vendor`
+#### 3.5 vendor_master（ベンダーマスタ）
+- **物理名**: `vendor_master`
 - **論理名**: ベンダーマスタ
-- **DDLファイル**: `docs/design/db/ddl/vendor.sql`
+- **DDLファイル**: `docs/design/db/ddl/vendor_master.sql`
 - **主キー**: `organization_id` (UUID), `vendor_uuid` (UUID)
 - **主要カラム**:
   - `organization_id` - 組織ID
@@ -336,9 +420,81 @@
 
 ---
 
-### 4. ファイル管理関連テーブル
+### 4. 問題管理関連テーブル
 
-#### 4.1 file_metadata（ファイルメタデータ）
+#### 4.1 issue（問題）
+- **物理名**: `issue`
+- **論理名**: 問題
+- **DDLファイル**: `docs/design/db/ddl/issue.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `issue_id` (VARCHAR)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `issue_id` - 問題ID
+  - `issue_target` - 問題対象
+  - `task_id` - タスクID
+  - `transition_id` - トランジションID
+  - `issue_title` - 問題タイトル
+  - `issue_type` - 問題タイプ
+  - `issue_contents` - 問題内容
+  - `issue_reporter_id` - 問題報告者ID
+  - `issue_report_at` - 問題報告日時
+  - `issue_completer_id` - 問題完了者ID
+  - `issue_complate_at` - 問題完了日時
+
+---
+
+#### 4.2 issue_comment（問題コメント）
+- **物理名**: `issue_comment`
+- **論理名**: 問題コメント
+- **DDLファイル**: `docs/design/db/ddl/issue_comment.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `issue_id` (VARCHAR), `sequence_no` (NUMERIC)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `issue_id` - 問題ID
+  - `sequence_no` - シーケンス番号
+  - `comment` - コメント
+  - `author_id` - 記入者ID
+  - `commented_at` - 記入日時
+
+---
+
+### 5. 通知関連テーブル
+
+#### 5.1 user_notification（ユーザ別通知）
+- **物理名**: `user_notification`
+- **論理名**: ユーザ別通知
+- **DDLファイル**: `docs/design/db/ddl/user_notification.sql`
+- **主キー**: `notification_id` (VARCHAR), `organization_id` (UUID), `user_id` (VARCHAR)
+- **主要カラム**:
+  - `notification_id` - 通知ID
+  - `organization_id` - 組織ID
+  - `user_id` - ユーザID
+  - `is_confirmed` - 確認済フラグ
+
+---
+
+### 6. 監査・ログ関連テーブル
+
+#### 6.1 event_log（イベントログ）
+- **物理名**: `event_log`
+- **論理名**: イベントログ
+- **DDLファイル**: `docs/design/db/ddl/event_log.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `sequence_no` (NUMERIC)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `method_id` - メソッドID
+  - `task_no` - タスク連番
+  - `sequence_no` - シーケンス番号
+  - `log` - ログ
+
+---
+
+### 7. ファイル管理関連テーブル
+
+#### 7.1 file_metadata（ファイルメタデータ）
 - **物理名**: `file_metadata`
 - **論理名**: ファイルメタデータ
 - **DDLファイル**: `docs/design/db/ddl/file_metadata.sql`
@@ -371,11 +527,14 @@
 
 | カテゴリ | テーブル数 |
 |---------|----------|
-| 認証関連 | 8 |
-| プロジェクト管理関連 | 4 |
-| 共通マスタ | 6 |
+| 認証関連 | 9 |
+| プロジェクト管理関連 | 8 |
+| 共通マスタ | 7 |
+| 問題管理関連 | 2 |
+| 通知関連 | 1 |
+| 監査・ログ関連 | 1 |
 | ファイル管理関連 | 1 |
-| **合計** | **19** |
+| **合計** | **29** |
 
 ---
 
@@ -402,14 +561,29 @@ role_permission
 organization
   ↓
 project
+  ↓ ↓
+  │ └→ project_instruction
+  │      ↓
+  │      instruction_acknowledged_history
   ↓
 project_task
+  ↓ ↓ ↓
+  │ │ └→ template_data
+  │ │      ↓
+  │ │      template_transition
+  │ └→ transition_data
   ↓
 project_task_detail
 
 project
   ↓
-project_instruction
+issue
+  ↓
+issue_comment
+
+project
+  ↓
+event_log
 ```
 
 ---
@@ -441,6 +615,7 @@ project_instruction
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-01-21 | DDLファイル更新に伴い29テーブルに更新（+10テーブル: department, event_log, instruction_acknowledged_history, issue, issue_comment, role, template_data, template_transition, transition_data, user_notification）、マスタテーブルのDDLファイル名を修正（creator→creator_master等） | Cline |
 | 2026-01-16 | file_metadataテーブル追加（ファイル管理関連カテゴリ新設、合計19テーブル） | Cline |
 | 2026-01-09 | DDLファイル削除に伴い18テーブルに調整（format, format_subfolder, experiment_recordを削除） | Cline |
 | 2026-01-09 | DDLファイルが存在するテーブルのみに絞り込み（21テーブル） | Cline |
