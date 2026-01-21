@@ -305,6 +305,7 @@
   - `issue_title` - 問題タイトル
   - `issue_type` - 問題タイプ
   - `issue_contents` - 問題内容
+  - `status` - ステータス
   - `issue_reporter_id` - 問題報告者ID
   - `issue_report_at` - 問題報告日時
   - `issue_completer_id` - 問題完了者ID
@@ -343,6 +344,19 @@
 
 ---
 
+#### 2.9 maiml_event_log（MaiMLイベントログ）
+- **物理名**: `maiml_event_log`
+- **論理名**: MaiMLイベントログ
+- **DDLファイル**: `docs/design/db/ddl/maiml_event_log.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `sequence_no` (NUMERIC)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `sequence_no` - シーケンス番号
+  - `log` - ログ（JSONB形式）
+
+---
+
 ### 3. 実験データ管理関連テーブル（3テーブル）
 
 #### 3.1 transition_data（トランジション実績）
@@ -365,36 +379,18 @@
 - **物理名**: `template_data`
 - **論理名**: テンプレート実績
 - **DDLファイル**: `docs/design/db/ddl/template_data.sql`
-- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `template_id` (UUID), `place_id` (VARCHAR)
-- **主要カラム**:
-  - `organization_id` - 組織ID
-  - `project_id` - プロジェクトID
-  - `method_id` - メソッドID
-  - `task_no` - タスク連番
-  - `template_id` - テンプレートID
-  - `place_id` - プレースID
-  - `テンプレートタイプ` - テンプレートタイプ
-  - `property_value` - プロパティ値
-
----
-
-#### 3.3 template_transition（テンプレートトランジション関係）
-- **物理名**: `template_transition`
-- **論理名**: テンプレートトランジション関係
-- **DDLファイル**: `docs/design/db/ddl/template_transition.sql`
-- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `place_id` (VARCHAR), `template_id` (UUID), `transition_id` (VARCHAR)
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `place_id` (VARCHAR)
 - **主要カラム**:
   - `organization_id` - 組織ID
   - `project_id` - プロジェクトID
   - `method_id` - メソッドID
   - `task_no` - タスク連番
   - `place_id` - プレースID
-  - `template_id` - テンプレートID
-  - `transition_id` - トランジションID
+  - `property_set` - プロパティセット（JSONB形式）
 
 ---
 
-### 4. 共通マスタテーブル（10テーブル）
+### 4. 共通マスタテーブル（6テーブル）
 
 #### 4.1 code_master（コードマスタ）
 - **物理名**: `code_master`
@@ -516,8 +512,8 @@
 | カテゴリ | テーブル数 |
 |---------|----------|
 | 認証関連 | 10 |
-| プロジェクト管理関連 | 8 |
-| 実験データ管理関連 | 3 |
+| プロジェクト管理関連 | 9 |
+| 実験データ管理関連 | 2 |
 | 共通マスタ | 6 |
 | 通知関連 | 1 |
 | **合計** | **28** |
@@ -561,8 +557,7 @@ issue
 issue_comment
 
 project_task_detail
-  ↓ ↓ ↓
-  │ │ └→ template_transition
+  ↓ ↓
   │ └→ template_data
   └→ transition_data
 ```
@@ -603,6 +598,7 @@ user_notification
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-01-21 | maiml_event_log追加、issueにstatusカラム追加、template_data構造更新、template_transition削除、合計28テーブルに調整 | Cline |
 | 2026-01-16 | DDL削除に伴い4テーブル削除（creator, owner, instrument, vendor）、合計28テーブルに調整 | Cline |
 | 2026-01-16 | DDLファイルから全テーブルを再調査し32テーブルに更新（role, department, system_notification, user_notification等を追加） | Cline |
 | 2026-01-09 | DDLファイル削除に伴い18テーブルに調整（format, format_subfolder, experiment_recordを削除） | Cline |

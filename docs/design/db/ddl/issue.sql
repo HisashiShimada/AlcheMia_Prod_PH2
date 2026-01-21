@@ -19,6 +19,7 @@ CREATE TABLE issue (
     issue_title CHARACTER VARYING,
     issue_type NUMERIC(2,0),
     issue_contents TEXT,
+    status NUMERIC(2,0),
     
     -- 報告・完了情報
     issue_reporter_id UUID,
@@ -41,6 +42,7 @@ COMMENT ON COLUMN issue.transition_id IS 'トランジションID';
 COMMENT ON COLUMN issue.issue_title IS '問題タイトル';
 COMMENT ON COLUMN issue.issue_type IS '問題タイプ';
 COMMENT ON COLUMN issue.issue_contents IS '問題内容';
+COMMENT ON COLUMN issue.status IS 'ステータス';
 COMMENT ON COLUMN issue.issue_reporter_id IS '問題報告者ID';
 COMMENT ON COLUMN issue.issue_report_at IS '問題報告日時';
 COMMENT ON COLUMN issue.issue_completer_id IS '問題完了者ID';
