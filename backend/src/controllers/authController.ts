@@ -486,7 +486,6 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
  * POST /api/v1/auth/logout
  */
 export async function logout(req: Request, res: Response): Promise<void> {
-  const pool = getPool();
   const requestId = uuidv4();
 
   try {
@@ -506,8 +505,6 @@ export async function logout(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { userId, organizationId, role } = req.user;
-
     // 2. HTTPOnly Cookie削除
     res.clearCookie('maiml_session', {
       httpOnly: true,
@@ -516,28 +513,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
       path: '/',
     });
 
-    // 3. Admin監査ログ記録（providerまたはsystem_adminのみ）
-    if (role === 'provider' || role === 'system_admin') {
-      try {
-        const ipAddress = req.ip || '';
-        const userAgent = req.get('user-agent') || '';
-
-        const auditQuery = `
-          INSERT INTO admin_audit_log (user_id, org_cd, action, ip_address, user_agent, created_at)
-          VALUES ($1, $2, $3, $4, $5, NOW())
-        `;
-        await pool.query(auditQuery, [userId, organizationId, 'logout', ipAddress, userAgent]);
-      } catch (auditError) {
-        // 監査ログ記録失敗はログに記録するが、ログアウト自体は成功させる
-        logError('Admin audit log error', auditError as Error, {
-          userId,
-          organizationId,
-          action: 'logout_audit',
-        });
-      }
-    }
-
-    // 4. 成功レスポンス
+    // 3. 成功レスポンス
     res.status(200).json({
       success: true,
       data: {
@@ -1147,25 +1123,7 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     // 5. PINコード削除（使用済み処理）
     await pinCodeService.delete(sessionToken);
 
-    // // 6. Admin監査ログ記録（Admin権限のみ）
-    // if (userInfo.role === 'provider' || userInfo.role === 'system_admin') {
-    //   const ipAddress = req.ip || '';
-    //   const userAgent = req.get('user-agent') || '';
-
-    //   const auditQuery = `
-    //     INSERT INTO admin_audit_log (user_id, org_cd, action, ip_address, user_agent, created_at)
-    //     VALUES ($1, $2, $3, $4, $5, NOW())
-    //   `;
-    //   await pool.query(auditQuery, [
-    //     userInfo.id,
-    //     userInfo.organizationId,
-    //     'login',
-    //     ipAddress,
-    //     userAgent,
-    //   ]);
-    // }
-
-    // 7. 成功レスポンス
+    // 6. 成功レスポンス
     res.status(200).json({
       success: true,
       data: {

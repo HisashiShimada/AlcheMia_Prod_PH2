@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { message } from 'antd';
 import LoginPage from '@/components/LoginPage';
 import PinCodeInputPage from '@/components/PinCodeInputPage';
@@ -15,7 +15,6 @@ import type { LoginCredentials, User, UserRole } from '@/types/auth';
 
 // デバッグ機能のインポート（開発環境専用）
 import DebugLoginPanel from '@/components/common/DebugLoginPanel';
-import type { DebugUser } from '@/types/debug';
 
 // 開発環境判定
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -95,8 +94,11 @@ const demoUsers: Record<string, { password: string; user: User }> = {
  * ホームページ（統合ログイン画面）
  */
 export default function Home() {
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const [messageApi, contextHolder] = message.useMessage();
+
+  // URLクエリパラメータから組織IDを取得（開発環境用）
+  const orgIdFromUrl = searchParams.get('orgId') || undefined;
 
   // 認証フロー状態管理
   const [authStep, setAuthStep] = useState<AuthStep>('login');
@@ -122,22 +124,8 @@ export default function Home() {
     setLoading(true);
 
     try {
-      // 開発環境でデバッグユーザーを使用した場合
-      if (isDevelopment && demoUsers[credentials.username]) {
-        const demoUser = demoUsers[credentials.username];
-        if (demoUser.password === credentials.password) {
-          // デモユーザーログイン成功 - 直接認証完了
-          setCurrentUser(demoUser.user);
-          setCurrentMenuType(demoUser.user.role as UserRole);
-          setAuthStep('authenticated');
-          messageApi.success('ログインに成功しました（デバッグモード）');
-          setLoading(false);
-          return;
-        }
-      }
-
-      // バックエンドAPIにログインリクエスト
-      const response = await authService.login(credentials);
+      // バックエンドAPIにログインリクエスト（開発環境用: URLのorgIdを渡す）
+      const response = await authService.login(credentials, orgIdFromUrl);
 
       // ログイン成功 - PINコード送信完了
       console.log('Login successful:', response);
@@ -190,12 +178,13 @@ export default function Home() {
 
       // ユーザー情報を設定
       setCurrentUser(response.user);
-      setCurrentMenuType(response.user.role);
+      setCurrentMenuType(response.user.role as UserRole);
       setAuthStep('authenticated');
 
-      // ユーザー情報をSessionStorageに保存（オプション）
+      // ユーザー情報とセッショントークンをSessionStorageに保存
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('user', JSON.stringify(response.user));
+        sessionStorage.setItem('sessionToken', response.session.token); // ← session.tokenを保存
       }
 
       messageApi.success('ログインに成功しました');
@@ -269,22 +258,35 @@ export default function Home() {
   /**
    * ログアウト処理
    */
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setCurrentMenuType(null);
-    setAuthStep('login');
-    setSessionToken('');
-    setOrganizationId('');
-    setMaskedEmail('');
-    setError(null);
-    
-    // SessionStorageをクリア
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('user');
-      sessionStorage.removeItem('devPinCode');
+  const handleLogout = async () => {
+    try {
+      // バックエンドのログアウトAPIを呼び出し
+      await authService.logout();
+      messageApi.success('ログアウトしました');
+    } catch (error) {
+      // エラーが発生してもローカル状態はクリアする
+      console.error('Logout API error:', error);
+      if (error instanceof AuthServiceError) {
+        messageApi.warning(`ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました: ${error.message}`);
+      } else {
+        messageApi.warning('ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました');
+      }
+    } finally {
+      // 成功・失敗に関わらずローカル状態をクリア
+      setCurrentUser(null);
+      setCurrentMenuType(null);
+      setAuthStep('login');
+      setSessionToken('');
+      setOrganizationId('');
+      setMaskedEmail('');
+      setError(null);
+      
+      // SessionStorageをクリア
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('devPinCode');
+      }
     }
-    
-    messageApi.info('ログアウトしました');
   };
 
   /**

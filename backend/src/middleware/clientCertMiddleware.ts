@@ -169,15 +169,38 @@ export const skipClientCertInDev = (
   const isDevelopment = process.env.NODE_ENV === 'development';
 
   if (isDevelopment) {
-    console.warn('[ClientCert] ⚠️  開発環境: クライアント証明書検証を完全にスキップ');
+    console.log('[ClientCert] ⚠️  開発環境: クライアント証明書検証を完全にスキップ');
     
-    // 開発環境用のデフォルトorganizationIdを設定
-    // X-Organization-Idヘッダーが存在しない場合のみ設定
-    if (!req.headers['x-organization-id']) {
-      const defaultOrgId = 'c9621ed6-5def-4970-8e7f-fbe97c98e3ed';
-      req.headers['x-organization-id'] = defaultOrgId;
-      console.warn(`[ClientCert] 開発環境: デフォルトorganizationIdを設定 (${defaultOrgId})`);
+    // クエリパラメータから組織IDを取得
+    const queryOrgId = req.query.orgId as string | undefined;
+    
+    // UUID形式の検証パターン
+    const uuidPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+    
+    // デフォルトの組織ID
+    const defaultOrgId = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385';
+    
+    // 優先順位: クエリパラメータ > デフォルト値
+    let orgId: string;
+    
+    if (queryOrgId) {
+      // UUID形式の検証
+      if (uuidPattern.test(queryOrgId)) {
+        orgId = queryOrgId;
+        console.log(`[ClientCert] 開発環境: クエリパラメータからorganizationIdを設定 (${orgId})`);
+      } else {
+        // 無効なUUID形式の場合はデフォルト値を使用
+        orgId = defaultOrgId;
+        console.error(`[ClientCert] 開発環境: 無効なorgId形式 (${queryOrgId})、デフォルト値を使用 (${orgId})`);
+      }
+    } else {
+      // クエリパラメータがない場合はデフォルト値を使用
+      orgId = defaultOrgId;
+      console.log(`[ClientCert] 開発環境: デフォルトorganizationIdを設定 (${orgId})`);
     }
+    
+    // X-Organization-Idヘッダーに設定
+    req.headers['x-organization-id'] = orgId;
     
     return next();
   }

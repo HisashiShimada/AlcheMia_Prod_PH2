@@ -68,7 +68,7 @@ export interface VerifyPinResponseData {
     id: string;
     username: string;
     email: string;
-    role: string;
+    role: 'provider' | 'system_admin' | 'data_admin' | 'experiment_admin' | 'experiment_worker' | 'mi_engineer';
     organizationId: string;
     organizationName: string;
     displayName: string;

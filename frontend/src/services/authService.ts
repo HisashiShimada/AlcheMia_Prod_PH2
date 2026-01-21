@@ -182,13 +182,18 @@ export const authService = {
   /**
    * ログイン
    * @param credentials ユーザー名とパスワード
+   * @param orgId 組織ID（オプション、開発環境用）
    * @returns セッショントークンとメッセージ
    */
-  async login(credentials: LoginCredentials): Promise<LoginResponseData> {
+  async login(credentials: LoginCredentials, orgId?: string): Promise<LoginResponseData> {
     try {
+      // クエリパラメータにorgIdを追加（開発環境用）
+      const params = orgId ? { orgId } : {};
+      
       const response = await apiClient.post<ApiResponse<LoginResponseData>>(
         '/auth/login',
-        credentials
+        credentials,
+        { params }
       );
       
       if (response.data.success) {
@@ -262,11 +267,36 @@ export const authService = {
    */
   async logout(): Promise<LogoutResponseData> {
     try {
+      // SessionStorageからセッショントークンを取得
+      let sessionToken = '';
+      if (typeof window !== 'undefined') {
+        sessionToken = sessionStorage.getItem('sessionToken') || '';
+      }
+
+      // トークンがない場合はエラー
+      if (!sessionToken) {
+        throw new AuthServiceError(
+          'セッショントークンが見つかりません',
+          'AUTH_TOKEN_MISSING'
+        );
+      }
+
+      // Authorizationヘッダーにトークンを設定してリクエスト
       const response = await apiClient.post<ApiResponse<LogoutResponseData>>(
-        '/auth/logout'
+        '/auth/logout',
+        {},  // ボディは空
+        {
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+          },
+        }
       );
       
       if (response.data.success) {
+        // 成功したらSessionStorageからトークンを削除
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('sessionToken');
+        }
         return response.data.data;
       }
       
