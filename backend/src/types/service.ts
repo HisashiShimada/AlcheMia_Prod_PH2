@@ -43,18 +43,6 @@ export const BCRYPT_ROUNDS: Record<UserRole, number> = {
 };
 
 /**
- * ロール別セッション有効期限（秒）
- */
-export const SESSION_EXPIRY: Record<UserRole, number> = {
-  provider: 48 * 60 * 60, // 48時間
-  system_admin: 48 * 60 * 60,
-  data_admin: 24 * 60 * 60,
-  experiment_admin: 24 * 60 * 60,
-  mi_engineer: 24 * 60 * 60,
-  experiment_worker: 12 * 60 * 60
-};
-
-/**
  * PINコード情報
  */
 export interface PinCodeData {

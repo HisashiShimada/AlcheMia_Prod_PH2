@@ -1112,8 +1112,7 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
         organizationId: userInfo.organizationId,
         role: userInfo.role,
         sessionId: uuidv4(),
-      },
-      userInfo.role
+      }
     );
 
     if (!jwtResult.success) {

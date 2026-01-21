@@ -6,8 +6,7 @@
  */
 
 import jwt from 'jsonwebtoken';
-import type { JwtPayload, UserRole, Result, ServiceError } from '../types/auth';
-import { SESSION_EXPIRY } from '../types/auth';
+import type { JwtPayload, Result, ServiceError } from '../types/auth';
 
 /**
  * JWTサービスクラス
@@ -41,13 +40,9 @@ export class JwtService {
    * @returns maiml_session-{sessionId}_{timestamp} 形式のトークン
    */
   async generate(
-    payload: Omit<JwtPayload, 'iat' | 'exp'>,
-    role: UserRole
+    payload: Omit<JwtPayload, 'iat' | 'exp'>
   ): Promise<Result<string, ServiceError>> {
     try {
-      // ロール別の有効期限を取得（秒）
-      const expiresIn = SESSION_EXPIRY[role];
-      
       // 現在時刻
       const now = Math.floor(Date.now() / 1000);
       
@@ -55,7 +50,9 @@ export class JwtService {
       const fullPayload: JwtPayload = {
         ...payload,
         iat: now,
-        exp: now + expiresIn
+        exp: now + 9999999999
+        // TODO: トークンの有効期限をenvファイルから設定する
+        // exp: now + expiresIn
       };
 
       // HS256署名でJWT生成
