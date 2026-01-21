@@ -45,7 +45,10 @@
 
 ## 2. コンポーネント構成
 
-### 2.1 レイアウト構造
+### 2.1 画面イメージ
+![指示フロー図ダイアログイメージ](images\ui_instruction_flow_dialog.jpg)
+
+### 2.2 レイアウト構造
 
 ```
 Portal (document.body)
@@ -64,7 +67,7 @@ Portal (document.body)
                     └── React Flow
 ```
 
-### 2.2 使用コンポーネント
+### 2.3 使用コンポーネント
 
 **Ant Design:**
 - Spin - ローディング表示
