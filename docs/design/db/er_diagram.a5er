@@ -125,26 +125,18 @@ TableOption=
 Page=材料開発データ管理システム_認証関連_ER図.A5ER
 Left=1000
 Top=1450
-Field="ID","id","serial","NOT NULL",0,"","uuid_generate_v4()",$FFFFFFFF,""
-Field="ユーザID","user_id","uuid","NOT NULL",,"","",$FFFFFFFF,""
-Field="組織ID","organization_id","uuid","NOT NULL",,"","",$FFFFFFFF,""
+Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="ユーザID","user_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
 Field="PINコード","pin_code","@VARCHAR(6)","NOT NULL",,"","6桁数字（000000-999999）",$FFFFFFFF,""
 Field="セッショントークン","session_token","@VARCHAR(255)","NOT NULL",,"","temp_session-{id}_{timestamp}",$FFFFFFFF,""
-Field="使用済みフラグ","is_used","@BOOLEAN","NOT NULL",,"false","",$FFFFFFFF,""
-Field="使用日時","used_at","@DATETIME",,,"","",$FFFFFFFF,""
 Field="有効期限","expires_at","@DATETIME","NOT NULL",,"","作成時刻 + 5分",$FFFFFFFF,""
-Field="試行回数","attempts_count","@INT","NOT NULL",,"0","0-3",$FFFFFFFF,""
-Field="最大試行回数","max_attempts","@INT","NOT NULL",,"3","",$FFFFFFFF,""
+Field="試行回数","attempts_count","@INT","NOT NULL",,"0","0-3",$00000000,""
 Field="作成日時","created_at","@DATETIME","NOT NULL",,"CURRENT_TIMESTAMP","",$FFFFFFFF,""
-Index=idx_pin_codes_pin_session=2,pin_code,session_token
-Index=idx_pin_codes_user=0,user_id
 Index=idx_pin_codes_token=0,session_token
-Index=idx_pin_codes_expires=0,expires_at
-Index=idx_pin_codes_is_used=0,is_used
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260107144925
+ModifiedDateTime=20260123091458
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,1450,590,448
 ZOrder=115
 
@@ -306,14 +298,14 @@ Entity2=pin_codes
 RelationType1=2
 RelationType2=3
 Fields1=user_id,organization_id
-Fields2=user_id,org_id
+Fields2=user_id,organization_id
 Cardinarity1=
 Cardinarity2=
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",0,7650,5224,7650,R,R,""
 Dependence=1
 Caption=
 PName=
-ModifiedDateTime=20260106083500
+ModifiedDateTime=20260121180523
 LineMode=0
 Bar1=765
 Bar2=522

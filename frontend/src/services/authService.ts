@@ -30,20 +30,6 @@ const createApiClient = (): AxiosInstance => {
     withCredentials: true, // HTTPOnly Cookie送信のため
   });
 
-  // リクエストインターセプター（組織IDヘッダーの自動付与）
-  client.interceptors.request.use(
-    (config) => {
-      const organizationId = process.env.NEXT_PUBLIC_ORGANIZATION_ID;
-      if (organizationId) {
-        config.headers['X-Organization-Id'] = organizationId;
-      }
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
-  );
-
   return client;
 };
 
@@ -81,11 +67,15 @@ const translateErrorMessage = (code: string, defaultMessage: string): string => 
     AUTH_TOKEN_INVALID: 'セッションが無効です。再度ログインしてください',
     AUTH_TOKEN_EXPIRED: 'セッションの有効期限が切れました。再度ログインしてください',
     AUTH_UNAUTHORIZED: '認証が必要です',
+    AUTH_FORBIDDEN: 'アクセスが拒否されました',
     
     // PINコードエラー
     AUTH_PIN_INVALID: 'PINコードが正しくありません',
     AUTH_PIN_EXPIRED: 'PINコードの有効期限が切れています',
     AUTH_PIN_MAX_ATTEMPTS: 'PINコードの入力試行回数が上限を超えました',
+    
+    // リソースエラー
+    RESOURCE_NOT_FOUND: 'リソースが見つかりません',
     
     // システムエラー
     SYSTEM_ERROR: 'システムエラーが発生しました',
@@ -127,10 +117,36 @@ const handleApiError = (error: unknown): AuthServiceError => {
     
     // APIエラーレスポンス
     const response = axiosError.response.data;
-    if (response && !response.success) {
-      const errorCode = response.error.code;
-      const errorMessage = translateErrorMessage(errorCode, response.error.message);
+    if (response && !response.success && response.error) {
+      const errorCode = response.error.code || 'UNKNOWN_ERROR';
+      const errorMessage = translateErrorMessage(
+        errorCode,
+        response.error.message || 'エラーが発生しました'
+      );
       return new AuthServiceError(errorMessage, errorCode, response.error.details);
+    }
+    
+    // レスポンスはあるがエラー構造が不正な場合
+    if (axiosError.response.status >= 400) {
+      const statusCode = axiosError.response.status;
+      let errorCode = 'HTTP_ERROR';
+      let errorMessage = 'エラーが発生しました';
+      
+      if (statusCode === 401) {
+        errorCode = 'AUTH_UNAUTHORIZED';
+        errorMessage = translateErrorMessage(errorCode, '認証が必要です');
+      } else if (statusCode === 403) {
+        errorCode = 'AUTH_FORBIDDEN';
+        errorMessage = translateErrorMessage('AUTH_FORBIDDEN', 'アクセスが拒否されました');
+      } else if (statusCode === 404) {
+        errorCode = 'RESOURCE_NOT_FOUND';
+        errorMessage = translateErrorMessage('RESOURCE_NOT_FOUND', 'リソースが見つかりません');
+      } else if (statusCode >= 500) {
+        errorCode = 'SYSTEM_ERROR';
+        errorMessage = translateErrorMessage('SYSTEM_ERROR', 'サーバーエラーが発生しました');
+      }
+      
+      return new AuthServiceError(errorMessage, errorCode);
     }
   }
   
@@ -148,13 +164,19 @@ export const authService = {
   /**
    * ログイン
    * @param credentials ユーザー名とパスワード
+   * @param orgId 組織ID（ログイン画面ではURLクエリパラメータから取得）
    * @returns セッショントークンとメッセージ
    */
-  async login(credentials: LoginCredentials): Promise<LoginResponseData> {
+  async login(credentials: LoginCredentials, orgId?: string): Promise<LoginResponseData> {
     try {
+      // ログイン画面では組織IDをクエリパラメータで送信
+      // （ログイン前のため、証明書認証によるヘッダー設定がまだ行われていない）
+      const params = orgId ? { orgId } : {};
+      
       const response = await apiClient.post<ApiResponse<LoginResponseData>>(
         '/auth/login',
-        credentials
+        credentials,
+        { params }
       );
       
       if (response.data.success) {
@@ -171,10 +193,14 @@ export const authService = {
    * PINコード検証
    * @param pinCode 6桁のPINコード
    * @param sessionToken 仮セッショントークン
+   * @param orgId 組織ID（ログイン画面ではURLクエリパラメータから取得）
    * @returns ユーザー情報とセッション情報
    */
-  async verifyPin(pinCode: string, sessionToken: string): Promise<VerifyPinResponseData> {
+  async verifyPin(pinCode: string, sessionToken: string, orgId?: string): Promise<VerifyPinResponseData> {
     try {
+      // ログイン画面では組織IDをクエリパラメータで送信
+      const params = orgId ? { orgId } : {};
+      
       const response = await apiClient.post<ApiResponse<VerifyPinResponseData>>(
         '/auth/verify-pin',
         { pinCode },
@@ -182,6 +208,7 @@ export const authService = {
           headers: {
             Authorization: `Bearer ${sessionToken}`,
           },
+          params,
         }
       );
       
@@ -198,10 +225,14 @@ export const authService = {
   /**
    * PINコード再送信
    * @param sessionToken 仮セッショントークン
+   * @param orgId 組織ID（ログイン画面ではURLクエリパラメータから取得）
    * @returns 再送信結果
    */
-  async resendPin(sessionToken: string): Promise<ResendPinResponseData> {
+  async resendPin(sessionToken: string, orgId?: string): Promise<ResendPinResponseData> {
     try {
+      // ログイン画面では組織IDをクエリパラメータで送信
+      const params = orgId ? { orgId } : {};
+      
       const response = await apiClient.post<ApiResponse<ResendPinResponseData>>(
         '/auth/resend-pin',
         {},
@@ -209,6 +240,7 @@ export const authService = {
           headers: {
             Authorization: `Bearer ${sessionToken}`,
           },
+          params,
         }
       );
       
@@ -228,11 +260,36 @@ export const authService = {
    */
   async logout(): Promise<LogoutResponseData> {
     try {
+      // SessionStorageからセッショントークンを取得
+      let sessionToken = '';
+      if (typeof window !== 'undefined') {
+        sessionToken = sessionStorage.getItem('sessionToken') || '';
+      }
+
+      // トークンがない場合はエラー
+      if (!sessionToken) {
+        throw new AuthServiceError(
+          'セッショントークンが見つかりません',
+          'AUTH_TOKEN_MISSING'
+        );
+      }
+
+      // Authorizationヘッダーにトークンを設定してリクエスト
       const response = await apiClient.post<ApiResponse<LogoutResponseData>>(
-        '/auth/logout'
+        '/auth/logout',
+        {},  // ボディは空
+        {
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+          },
+        }
       );
       
       if (response.data.success) {
+        // 成功したらSessionStorageからトークンを削除
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('sessionToken');
+        }
         return response.data.data;
       }
       

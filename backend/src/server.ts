@@ -1,4 +1,5 @@
 import express, { Application } from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
 
 // Load environment variables FIRST (before any other imports that might use them)
@@ -9,6 +10,20 @@ import authRoutes from './routes/authRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
+
+// CORS設定
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL || 'https://your-production-domain.com'
+    : 'http://localhost:3000', // 開発環境用
+  credentials: true, // Cookie送信を許可
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id'],
+  exposedHeaders: ['Set-Cookie'],
+  maxAge: 86400, // プリフライトリクエストのキャッシュ時間（24時間）
+};
+
+app.use(cors(corsOptions));
 
 // Basic middleware
 app.use(express.json());

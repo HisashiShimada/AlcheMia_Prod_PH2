@@ -6,8 +6,7 @@
  */
 
 import jwt from 'jsonwebtoken';
-import type { JwtPayload, UserRole, Result, ServiceError } from '../types/auth';
-import { SESSION_EXPIRY } from '../types/auth';
+import type { JwtPayload, Result, ServiceError } from '../types/auth';
 
 /**
  * JWTサービスクラス
@@ -41,13 +40,9 @@ export class JwtService {
    * @returns maiml_session-{sessionId}_{timestamp} 形式のトークン
    */
   async generate(
-    payload: Omit<JwtPayload, 'iat' | 'exp'>,
-    role: UserRole
+    payload: Omit<JwtPayload, 'iat' | 'exp'>
   ): Promise<Result<string, ServiceError>> {
     try {
-      // ロール別の有効期限を取得（秒）
-      const expiresIn = SESSION_EXPIRY[role];
-      
       // 現在時刻
       const now = Math.floor(Date.now() / 1000);
       
@@ -55,22 +50,21 @@ export class JwtService {
       const fullPayload: JwtPayload = {
         ...payload,
         iat: now,
-        exp: now + expiresIn
+        exp: now + 9999999999
+        // TODO: トークンの有効期限をenvファイルから設定する
+        // exp: now + expiresIn
       };
 
       // HS256署名でJWT生成
-      // NOTE: 現在の実装ではJWT本体は使用せず、セッションIDベースのトークンを返す
-      // 将来的にはJWT本体を返すように設計変更予定
-      jwt.sign(fullPayload, this.secret, {
+      const jwtToken = jwt.sign(fullPayload, this.secret, {
         algorithm: 'HS256',
         issuer: this.issuer,
         audience: this.audience
       });
 
-      // トークン形式: maiml_session-{sessionId}_{timestamp}
-      // NOTE: このトークンIDとJWT本体は別々に管理される
-      // HTTPOnly Cookieには完全なJWTが保存される
-      const sessionToken = `maiml_session-${payload.sessionId}_${now}`;
+      // トークン形式: maiml_session-{sessionId}_{timestamp}.{jwt}
+      // セッションIDとJWT本体を結合して返す
+      const sessionToken = `maiml_session-${payload.sessionId}_${now}.${jwtToken}`;
 
       return {
         success: true,
@@ -98,6 +92,7 @@ export class JwtService {
     try {
       // トークンからJWT部分を抽出
       const parts = token.split('.');
+      
       if (parts.length < 4) {
         // maiml_session-{sessionId}_{timestamp}.{jwt}の形式でない
         return {
@@ -109,8 +104,8 @@ export class JwtService {
         };
       }
 
-      // JWT部分を抽出（最初の3つのドット区切り以降）
-      const jwtToken = parts.slice(3).join('.');
+      // JWT部分を抽出（プレフィックス部分を除いた残り）
+      const jwtToken = parts.slice(1).join('.');
 
       // JWT検証
       const decoded = jwt.verify(jwtToken, this.secret, {
@@ -171,7 +166,7 @@ export class JwtService {
         return null;
       }
 
-      const jwtToken = parts.slice(3).join('.');
+      const jwtToken = parts.slice(1).join('.');
 
       // 検証なしでデコード
       const decoded = jwt.decode(jwtToken) as JwtPayload | null;

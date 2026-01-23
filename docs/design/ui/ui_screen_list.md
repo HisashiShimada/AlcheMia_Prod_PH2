@@ -237,20 +237,15 @@
 | 物理名 | 論理名 | ファイルパス | 用途・説明 |
 |--------|--------|--------------|-----------|
 | IssueManagementModal.tsx | 問題管理モーダル | frontend/src/components/ExperimentWorker/IssueManagementModal.tsx | 問題管理モーダル |
-| IssueReportModal.tsx | 問題報告モーダル | frontend/src/components/ExperimentWorker/IssueReportModal.tsx | 問題報告モーダル |
 
 **選択ダイアログ:**
 
 | 物理名 | 論理名 | ファイルパス | 用途・説明 |
 |--------|--------|--------------|-----------|
 | ProjectSelectionModal.tsx | プロジェクト選択モーダル | frontend/src/components/ExperimentWorker/ProjectSelectionModal.tsx | プロジェクト選択モーダル |
-| ProjectSelector.tsx | プロジェクトセレクタ | frontend/src/components/ExperimentWorker/ProjectSelector.tsx | プロジェクト選択コンポーネント |
-| MethodSelectionModal.tsx | メソッド選択モーダル | frontend/src/components/ExperimentWorker/MethodSelectionModal.tsx | メソッド選択モーダル |
-| MethodSelector.tsx | メソッドセレクタ | frontend/src/components/ExperimentWorker/MethodSelector.tsx | メソッド選択コンポーネント |
-| TaskSelectionDialog.tsx | タスク選択ダイアログ | frontend/src/components/ExperimentWorker/TaskSelectionDialog.tsx | タスク選択ダイアログ |
-| TaskSelector.tsx | タスクセレクタ | frontend/src/components/ExperimentWorker/TaskSelector.tsx | タスク選択コンポーネント |
+| ~~TaskSelector.tsx~~ | ~~タスクセレクタ~~ | ~~frontend/src/components/ExperimentWorker/TaskSelector.tsx~~ | ❌ **未使用**（MethodTaskSelector.tsx に置き換えられました） |
 | MethodTaskSelectionModal.tsx | メソッド・タスク選択モーダル | frontend/src/components/ExperimentWorker/MethodTaskSelectionModal.tsx | メソッドとタスクを一緒に選択するモーダル |
-| MethodTaskSelector.tsx | メソッド・タスクセレクタ | frontend/src/components/ExperimentWorker/MethodTaskSelector.tsx | メソッドとタスク選択コンポーネント |
+| MethodTaskSelector.tsx | メソッド・タスクセレクタ | frontend/src/components/ExperimentWorker/MethodTaskSelector.tsx | ✅ **現在使用中** - メソッドとタスク選択コンポーネント（TaskSelector.tsx の代替） |
 | UnifiedSelectionDialog.tsx | 統合選択ダイアログ | frontend/src/components/ExperimentWorker/UnifiedSelectionDialog.tsx | 統合選択ダイアログ |
 | SelectionDialog.tsx | 選択ダイアログ | frontend/src/components/ExperimentWorker/SelectionDialog.tsx | 汎用選択ダイアログ |
 
@@ -319,6 +314,7 @@
 | 2026-01-09 | 初版作成 - 全コンポーネントファイルをロール別に登録 | Cline |
 | 2026-01-09 | システム管理者用・データ管理者用・プロバイダ用のモックコンポーネントを追加 | Cline |
 | 2026-01-16 | 実装ファイルとの差分を更新 - ExperimentWorker実験記録関連コンポーネント追加（InstructionFlowDialog、TransitionFlowDiagram、TransitionFlowNode、TaskListTable）、System Admin用モック追加（CompanyManagement、RoleManagement） | Cline |
+| 2026-01-21 | TaskSelector.tsx を未使用として明記、MethodTaskSelector.tsx が代替コンポーネントであることを明示 | Cline |
 
 ---
 
