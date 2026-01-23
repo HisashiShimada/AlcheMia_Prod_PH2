@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 1.0.0
-- **最終更新**: 2026-01-20
+- **バージョン**: 2.0.0
+- **最終更新**: 2026-01-23
 - **担当**: Development Team
 
 ---
@@ -58,44 +58,124 @@
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
 | 2.1 | GET | /api/v1/projects | プロジェクト一覧取得 | ✅ 実装済み | ProjectController.list |
-| 2.2 | GET | /api/v1/projects/:projectId | プロジェクト詳細取得 | ✅ 実装済み | ProjectController.getDetail |
-| 2.3 | POST | /api/v1/projects | プロジェクト作成 | ✅ 実装済み | ProjectController.create |
-| 2.4 | POST | /api/v1/projects/:projectId/instructions | 指示送信（タスク作成） | ✅ 実装済み | ProjectController.createInstruction |
-| 2.5 | POST | /api/v1/projects/search | プロジェクト詳細検索 | ✅ 実装済み | ProjectController.search |
-| 2.6 | PATCH | /api/v1/projects/:projectId/checkout-status | チェックイン/チェックアウト切替 | ⏳ 未実装 | - |
-| 2.7 | POST | /api/v1/projects/:projectId/files/upload | ファイルアップロード | ⏳ 未実装 | - |
-| 2.8 | GET | /api/v1/projects/:projectId/files/:fileName/download | ファイルダウンロード（署名付きURL） | ⏳ 未実装 | - |
-| 2.9 | POST | /api/v1/projects/:projectId/reload | プロジェクトリロード | ⏳ 未実装 | - |
-| 2.10 | POST | /api/v1/projects/:projectId/publish | プロジェクト公開 | ⏳ 未実装 | - |
+| 2.2 | POST | /api/v1/projects | プロジェクト作成 | ✅ 実装済み | ProjectController.create |
+| 2.3 | POST | /api/v1/projects/:projectId/checkout | チェックアウト | ✅ 実装済み | ProjectController.checkout |
+| 2.4 | POST | /api/v1/projects/:projectId/checkin | チェックイン | ✅ 実装済み | ProjectController.checkin |
+| 2.5 | GET | /api/v1/projects/:projectId/files | ファイル一覧取得 | ⏳ 未実装 | ProjectController.listFiles |
+| 2.6 | GET | /api/v1/projects/:projectId/tasks | タスク一覧取得 | ⏳ 未実装 | ProjectController.listTasks |
+| 2.7 | POST | /api/v1/projects/:projectId/reload | プロジェクトリロード | ✅ 実装済み | ProjectController.reload |
+| 2.8 | POST | /api/v1/projects/:projectId/instructions | 指示送信（タスク作成） | ⏳ 未実装 | ProjectController.createInstruction |
+| 2.9 | GET | /api/v1/projects/:projectId/instructions | 指示一覧取得 | ⏳ 未実装 | ProjectController.listInstructions |
+| 2.10 | POST | /api/v1/projects/search | プロジェクト詳細検索 | ⏳ 未実装 | ProjectController.search |
+| 2.11 | POST | /api/v1/projects/:projectId/publish | プロジェクト公開 | ⏳ 未実装 | ProjectController.publish |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
-- 2.1, 2.2, 2.5: Manager以上（Worker: 割り当てプロジェクトのみ）
-- 2.3, 2.4, 2.6〜2.10: Manager以上
+- 権限: Manager以上（Worker は閲覧のみ可能）
 
 **備考:**
 - すべてのクエリに organization_id フィルタ必須
 - S3操作には organization_prefix を強制適用
-- トランザクション管理が必要な操作: 2.3, 2.4, 2.7
+- チェックアウト/チェックインで排他編集制御
+- トランザクション管理が必要な操作: 2.2, 2.8
 
 ---
 
-### 3. ファイルダウンロードAPI（File Download）
+### 3. 共通API（Common / File Operations）
 
-**API設計書**: 未作成（api_project_management.mdに含まれる）  
-**ルートファイル**: `backend/src/routes/fileDownloadRoutes.ts`
+**API設計書**: [api_common.md](./api_common.md)  
+**ルートファイル**: `backend/src/routes/fileRoutes.ts`（推定）
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 3.1 | GET | /api/v1/files/download | 汎用ファイルダウンロード | ⚠️ 要確認 | FileDownloadController.download |
+| 3.1 | POST | /api/v1/files/upload | ファイルアップロード（汎用） | ⏳ 未実装 | FileController.upload |
+| 3.2 | POST | /api/v1/files/download | ファイル/フォルダダウンロード | ⏳ 未実装 | FileController.download |
 
 **ミドルウェアチェーン:**
-- `auth` → `tenantIsolation` → `permissionCheck`
+- すべて: `auth` → `tenantIsolation` → `permissionCheck`
+- 権限: Manager以上
 
 **備考:**
-- S3署名付きURLを生成（有効期限: 1時間）
-- organization_prefix の検証必須
-- プロジェクトAPI（2.8）との重複を要確認
+- contextパラメータで保存先を判定（project/format）
+- フォルダダウンロード時はZIP生成（最大1GB、1000ファイル）
+- 署名付きURL有効期限: 1時間（最大24時間）
+- マルチテナント分離必須（organization_prefix強制付与）
+
+---
+
+### 4. フォーマット管理API（Format Management）
+
+**API設計書**: [api_format_management.md](./api_format_management.md)  
+**ルートファイル**: `backend/src/routes/formatRoutes.ts`（推定）
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 4.1 | GET | /api/v1/formats | フォーマット一覧取得 | ⏳ 未実装 | FormatController.list |
+| 4.2 | GET | /api/v1/formats/:formatId/files | フォーマットファイル一覧取得 | ⏳ 未実装 | FormatController.listFiles |
+| 4.3 | POST | /api/v1/formats/:formatId/files | 新規ファイル作成 | ⏳ 未実装 | FormatController.createFile |
+| 4.4 | POST | /api/v1/formats/:formatId/folders | 新規フォルダ作成 | ⏳ 未実装 | FormatController.createFolder |
+| 4.5 | PUT | /api/v1/formats/:formatId/files/:fileId | ファイル編集（保存） | ⏳ 未実装 | FormatController.updateFile |
+
+**ミドルウェアチェーン:**
+- すべて: `auth` → `tenantIsolation` → `permissionCheck`
+- 権限: Manager以上
+
+**備考:**
+- ワークフローMAIML（.maiml）とテンプレートXML（.xml）を管理
+- S3パス: `org_{organization_prefix}/formats/{format_prefix}/`
+- バックアップ機能（.backupフォルダ）
+- XMLバリデーション必須（XXE攻撃対策）
+
+---
+
+### 5. Maiml編集API（MAIML Editor）
+
+**API設計書**: [api_maiml_editor.md](./api_maiml_edit.md)  
+**ルートファイル**: `backend/src/routes/maimlRoutes.ts`（推定）
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 5.1 | POST | /api/v1/maiml/parse | MAIMLパース（複数メソッド構造取得） | ⏳ 未実装 | MaimlController.parse |
+| 5.2 | PUT | /api/v1/projects/:projectId/maiml | MAIMLファイル保存（プロジェクト） | ⏳ 未実装 | MaimlController.saveProject |
+| 5.3 | PUT | /api/v1/formats/:formatId/maiml | MAIMLファイル保存（フォーマット） | ⏳ 未実装 | MaimlController.saveFormat |
+| 5.4 | GET | /api/v1/maiml-files | MAIMLファイル一覧取得 | ⏳ 未実装 | MaimlController.listFiles |
+| 5.5 | GET | /api/v1/projects/:projectId/maiml | MAIMLファイル取得（プロジェクト） | ⏳ 未実装 | MaimlController.getProject |
+| 5.6 | GET | /api/v1/formats/:formatId/maiml | MAIMLファイル取得（フォーマット） | ⏳ 未実装 | MaimlController.getFormat |
+| 5.7 | POST | /api/v1/maiml/validate | MAIMLバリデーション | ⏳ 未実装 | MaimlController.validate |
+| 5.8 | POST | /api/v1/maiml/correct | MAIML自動補正 | ⏳ 未実装 | MaimlController.correct |
+
+**ミドルウェアチェーン:**
+- すべて: `auth` → `tenantIsolation` → `permissionCheck`
+- 権限: Manager以上
+
+**備考:**
+- 複数メソッド対応（1ファイルに複数の実験手順）
+- Petri Net構造解析
+- XMLバリデーション・自動補正機能
+- バックアップ機能（archiveフォルダ）
+- 旧エンドポイント（`/api/worker/*`）は2026年7月21日廃止予定
+
+---
+
+### 6. 進捗確認API（Progress Monitoring）
+
+**API設計書**: [api_progress_monitoring.md](./api_progress_check.md)  
+**ルートファイル**: `backend/src/routes/progressRoutes.ts`（推定）
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 6.1 | GET | /api/v1/projects/:projectId/methods/:methodId/tasks | メソッド別タスク一覧取得 | ⏳ 未実装 | ProgressController.listTasks |
+| 6.2 | GET | /api/v1/tasks/:taskId | タスク詳細取得 | ⏳ 未実装 | ProgressController.getTaskDetail |
+
+**ミドルウェアチェーン:**
+- すべて: `auth` → `tenantIsolation` → `permissionCheck`
+- 権限: Manager以上
+
+**備考:**
+- メソッド別進捗集約
+- タスク詳細情報（担当者、ステータス、実験記録）
+- リアルタイム進捗反映
+- 進捗情報キャッシュ（5分間）
 
 ---
 
@@ -128,8 +208,12 @@
 - セクション2: プロジェクト管理API
 
 **ファイル操作が必要な場合:**
-- セクション2.7, 2.8: ファイルアップロード/ダウンロード
-- セクション3: 汎用ファイルダウンロード
+- セクション3: 共通API（ファイルアップロード/ダウンロード）
+- セクション4: フォーマット管理API
+- セクション5: Maiml編集API
+
+**進捗確認が必要な場合:**
+- セクション6: 進捗確認API
 
 ---
 
@@ -140,9 +224,12 @@
 | カテゴリ | 総数 | 実装済み | 未実装 | 実装率 |
 |---------|------|---------|--------|--------|
 | 認証API | 6 | 6 | 0 | 100% |
-| プロジェクト管理API | 10 | 5 | 5 | 50% |
-| ファイルダウンロードAPI | 1 | 0 | 1 | 0% |
-| **合計** | **17** | **11** | **6** | **65%** |
+| プロジェクト管理API | 11 | 5 | 6 | 45% |
+| 共通API | 2 | 0 | 2 | 0% |
+| フォーマット管理API | 5 | 0 | 5 | 0% |
+| Maiml編集API | 8 | 0 | 8 | 0% |
+| 進捗確認API | 2 | 0 | 2 | 0% |
+| **合計** | **34** | **11** | **23** | **32%** |
 
 ### 優先度別実装状況
 
@@ -157,12 +244,14 @@
 - ✅ プロジェクト詳細検索
 
 **Phase 3（ファイル管理）- 未実装:**
+- ⏳ ファイルアップロード/ダウンロード（共通API）
+- ⏳ フォーマット管理API（5エンドポイント）
+- ⏳ Maiml編集API（8エンドポイント）
 - ⏳ チェックイン/チェックアウト
-- ⏳ ファイルアップロード
-- ⏳ ファイルダウンロード
 - ⏳ プロジェクトリロード
 
-**Phase 4（公開機能）- 未実装:**
+**Phase 4（進捗・公開機能）- 未実装:**
+- ⏳ 進捗確認API（2エンドポイント）
 - ⏳ プロジェクト公開
 
 ---
@@ -172,26 +261,35 @@
 ### ルートファイル
 ```
 backend/src/routes/
-├── authRoutes.ts              # 認証API（6エンドポイント）
-├── projectRoutes.ts           # プロジェクト管理API（10エンドポイント）
-└── fileDownloadRoutes.ts      # ファイルダウンロードAPI（1エンドポイント）
+├── authRoutes.ts              # 認証API（6エンドポイント）✅ 実装済み
+├── projectRoutes.ts           # プロジェクト管理API（10エンドポイント）✅ 実装済み
+├── fileRoutes.ts              # 共通API（2エンドポイント）⏳ 未実装
+├── formatRoutes.ts            # フォーマット管理API（5エンドポイント）⏳ 未実装
+├── maimlRoutes.ts             # Maiml編集API（8エンドポイント）⏳ 未実装
+└── progressRoutes.ts          # 進捗確認API（2エンドポイント）⏳ 未実装
 ```
 
 ### コントローラーファイル（推定）
 ```
 backend/src/controllers/
-├── authController.ts          # 認証コントローラー
-├── projectController.ts       # プロジェクト管理コントローラー
-└── fileDownloadController.ts # ファイルダウンロードコントローラー
+├── authController.ts          # 認証コントローラー ✅
+├── projectController.ts       # プロジェクト管理コントローラー ✅
+├── fileController.ts          # ファイルコントローラー ⏳
+├── formatController.ts        # フォーマット管理コントローラー ⏳
+├── maimlController.ts         # Maiml編集コントローラー ⏳
+└── progressController.ts      # 進捗確認コントローラー ⏳
 ```
 
 ### サービスファイル（推定）
 ```
 backend/src/services/
-├── authService.ts             # 認証サービス
-├── projectService.ts          # プロジェクトサービス
-├── storageService.ts          # S3操作サービス
-└── emailService.ts            # メール送信サービス
+├── authService.ts             # 認証サービス ✅
+├── projectService.ts          # プロジェクトサービス ✅
+├── storageService.ts          # S3操作サービス ✅
+├── emailService.ts            # メール送信サービス ✅
+├── formatService.ts           # フォーマットサービス ⏳
+├── maimlService.ts            # Maimlパースサービス ⏳
+└── progressService.ts         # 進捗サービス ⏳
 ```
 
 ---
@@ -235,6 +333,13 @@ const path = `org_${organizationPrefix}/projects/${projectName}/file.maiml`;
 const path = `projects/${projectName}/file.maiml`;
 ```
 
+### RESTful設計原則
+
+- リソース指向のURL設計
+- 適切なHTTPメソッド使用（GET/POST/PUT/PATCH/DELETE）
+- 動詞はサブリソースとして配置（例: `/maiml/parse`, `/maiml/validate`）
+- kebab-case統一（例: `/api/v1/maiml-files`）
+
 ---
 
 ## 📝 更新ガイドライン
@@ -272,11 +377,23 @@ const path = `projects/${projectName}/file.maiml`;
 
 ## 🔗 関連ドキュメント
 
+### 規約
 - [API設計ポリシー](../../.clinerules/development/api.md) - API設計の統一ルール
 - [バックエンド規約](../../.clinerules/development/backend.md) - 実装規約
 - [セキュリティ規約](../../.clinerules/development/security.md) - セキュリティ要件
+
+### 参照ドキュメント
+- [API構成定義](../../.clinerules/references/api_structure.md) - API構成の参照ルール
 - [データベース構造](../../.clinerules/references/db_structure.md) - DB設計
 - [S3構造](../../.clinerules/references/s3_structure.md) - S3フォルダ構成
+
+### API設計書
+- [認証API](./api_auth.md) - 認証・セッション管理
+- [プロジェクト管理API](./api_project_management.md) - プロジェクト操作
+- [共通API](./api_common.md) - ファイルアップロード/ダウンロード
+- [フォーマット管理API](./api_format_management.md) - フォーマット管理
+- [Maiml編集API](./api_maiml_edit.md) - MAIML編集・パース
+- [進捗確認API](./api_progress_check.md) - タスク進捗確認
 
 ---
 
@@ -284,6 +401,18 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.1.0 | 2026-01-23 | プロジェクト管理APIを最新化（34エンドポイント） | Cline |
+| | | - プロジェクト管理API: 10→11エンドポイントに更新 | |
+| | | - チェックアウト/チェックイン機能を追加 | |
+| | | - ファイル一覧/タスク一覧/指示一覧取得を追加 | |
+| | | - プロジェクト詳細取得を削除（設計書に未記載） | |
+| 2.0.0 | 2026-01-23 | 全API仕様書を反映して大幅更新（33エンドポイント登録） | Cline |
+| | | - 共通API追加（2エンドポイント） | |
+| | | - フォーマット管理API追加（5エンドポイント） | |
+| | | - Maiml編集API追加（8エンドポイント） | |
+| | | - 進捗確認API追加（2エンドポイント） | |
+| | | - 実装状況サマリーを更新 | |
+| | | - RESTful設計原則を追記 | |
 | 1.0.0 | 2026-01-20 | 初版作成（17エンドポイント登録） | Development Team |
 
 ---

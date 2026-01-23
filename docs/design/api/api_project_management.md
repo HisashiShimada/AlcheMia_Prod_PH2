@@ -1,2565 +1,952 @@
-# プロジェクト管理画面 バックエンド機能要件書
+# プロジェクト管理API仕様書
 
----
-title: プロジェクト管理画面 バックエンド機能要件書
-category: API仕様
-version: 0.1.0
-last_updated: 2026-01-09
-author: Development Team
-tags: [project-management, api, backend]
----
-
-## 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.4.0 | 2026-01-14 | セクション1.2をrole_permissionベースのアクセス制御に修正、データレベルのアクセス制御を追加 | Development Team |
-| 1.3.0 | 2026-01-13 | 主要機能6件の概要とエンドポイント追加（詳細検索、チェックイン/アウト、アップロード、ダウンロード、リロード、公開） | Development Team |
-| 1.2.0 | 2026-01-13 | セクション2.4のpriority/type/targetTypeを数値型に変更、taskNumber対応追加（code_master準拠） | Development Team |
-| 1.1.0 | 2026-01-13 | セクション2.4の手動修正内容を全体に反映（リクエスト構造変更、タスク単位のexperimentCondition/trialCount対応） | Development Team |
-| 1.0.0 | 2026-01-13 | セクション2.4指示送信機能のリクエスト仕様修正（assignedWorkerId削除、experimentConditionを数値型0/1に変更） | Development Team |
-| 0.9.0 | 2026-01-13 | セクション2.4指示送信機能を画面構成に合わせて修正（InstructionDialog.tsx準拠） | Development Team |
-| 0.8.0 | 2026-01-13 | 実装例・SQL例を全削除、実際のDDL構造に完全準拠、セクション3データモデルを実DDLに合わせて修正 | Development Team |
-| 0.7.0 | 2026-01-13 | 指示送信機能を実際のDDL構造に合わせて修正（方針B採用：既存構造活用） | Development Team |
-| 0.6.0 | 2026-01-13 | 指示送信機能追加（4テーブル更新、トランザクション管理、プロジェクトステータス遷移を含む） | Development Team |
-| 0.5.0 | 2026-01-13 | プロジェクト作成機能追加（S3フォルダ作成、トランザクション管理を含む） | Development Team |
-| 0.4.0 | 2026-01-13 | プロジェクト詳細取得機能仕様を修正（クエリパラメータ削除、タスク一覧取得ロジック変更） | Development Team |
-| 0.3.0 | 2026-01-09 | プロジェクト詳細取得機能追加（S3ファイル一覧、タスク一覧を含む） | Development Team |
-| 0.2.0 | 2026-01-09 | プロジェクト一覧取得機能追加 | Development Team |
-| 0.1.0 | 2026-01-09 | 初版作成（テンプレート） | Development Team |
+**作成日**: 2026-01-21 16:30  
+**最終更新**: 2026-01-21 17:36  
+**バージョン**: 2.1.0  
+**対象画面**: 実験管理者 - プロジェクト管理画面  
+**総API数**: 11個  
+**実装状況**: 5個実装済み、6個未実装
 
 ---
 
-## 1. 概要
+## 📊 実装状況サマリー
 
-### 1.1 システム概要
+| カテゴリ | 実装済み | 未実装 | 合計 |
+|---------|---------|--------|------|
+| 基本CRUD | 2 | 0 | 2 |
+| チェックイン/チェックアウト | 2 | 0 | 2 |
+| データ取得 | 1 | 2 | 3 |
+| 指示管理 | 0 | 2 | 2 |
+| その他 | 0 | 2 | 2 |
+| **合計** | **5** | **6** | **11** |
 
-プロジェクト管理画面のバックエンドAPIは、実験プロジェクトのライフサイクル全体を管理する機能を提供します。マルチテナント環境において、組織ごとに分離されたプロジェクトデータの安全な管理を実現します。
-
-### 1.2 アクセス制御
-
-#### 権限管理の基本方針
-
-プロジェクト管理APIのアクセス制御は、以下の2つの仕組みで管理されます：
-
-1. **機能レベルのアクセス制御**: `role_permission` テーブルで定義
-2. **データレベルのアクセス制御**: organization_id、プロジェクト所有権、タスク割り当て状況により動的に判定
-
-#### 機能レベルのアクセス制御（role_permission）
-
-各エンドポイントへのアクセス権限は `role_permission` テーブルで管理されます。ロールごとに許可される機能（function_id）が定義されており、ミドルウェア（`permissionCheck`）で検証されます。
-
-**主要なロール:**
-- **System Admin（システム管理者）**: 全組織のデータにアクセス可能
-- **Data Admin（データ管理者）**: 自組織のデータ管理
-- **Experiment Admin（実験管理者）**: 実験プロジェクトの管理・作成
-- **Experiment Worker（実験作業者）**: 割り当てられたタスクの実行
-- **その他**: Provider、MI Engineer など
-
-**注意**: 具体的なロールと権限の対応は `role_permission` テーブルおよび `function` テーブルで定義されます。
-
-#### データレベルのアクセス制御
-
-機能レベルでアクセスが許可されても、以下の条件でデータレベルのアクセス可否が判定されます：
-
-1. **組織分離（必須）**: すべてのクエリで `organization_id` フィルタを適用
-2. **プロジェクト所有権**: プロジェクトの `owner_user_id` または `department_id` で判定
-3. **タスク割り当て**: `project_task_detail.experiment_user_id` で判定
-4. **チェックアウト状態**: 編集操作時に排他制御
-
-**例:**
-- System Adminは機能レベルで全組織アクセス可能
-- Experiment Adminは自組織のプロジェクトのみアクセス可能
-- Experiment Workerは自分に割り当てられたタスクを持つプロジェクトのみアクセス可能
-
-### 1.3 主要機能一覧
-
-以下の機能を段階的に追加していきます：
-
-- [x] プロジェクト一覧取得
-- [x] プロジェクト詳細取得（S3ファイル一覧、タスク一覧を含む）
-- [x] プロジェクト作成（S3フォルダ作成、トランザクション管理を含む）
-- [x] 指示送信（タスク作成）（4テーブル更新、プロジェクトステータス遷移を含む）
-- [x] プロジェクト詳細検索
-- [x] チェックイン/チェックアウト状態切り替え
-- [x] ファイルアップロード（S3）
-- [x] ファイルダウンロード（署名付きURL）
-- [x] プロジェクトリロード（S3ファイル再読み込み）
-- [x] プロジェクト公開
-- [ ] その他（ユーザーから提供される機能を追記）
+**完了率**: 45% (5/11)
 
 ---
 
-## 2. 機能詳細
+## 🎯 API一覧
 
-### 2.1 プロジェクト一覧取得
+| # | API名 | メソッド | エンドポイント | 状態 | 優先度 |
+|---|------|---------|---------------|------|--------|
+| 1 | プロジェクト一覧取得 | GET | `/api/v1/projects` | ✅ 実装済み | - |
+| 2 | プロジェクト作成 | POST | `/api/v1/projects` | ✅ 実装済み | - |
+| 3 | チェックアウト | POST | `/api/v1/projects/:projectId/checkout` | ✅ 実装済み | - |
+| 4 | チェックイン | POST | `/api/v1/projects/:projectId/checkin` | ✅ 実装済み | - |
+| 5 | ファイル一覧取得 | GET | `/api/v1/projects/:projectId/files` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 6 | タスク一覧取得 | GET | `/api/v1/projects/:projectId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 7 | プロジェクトリロード | POST | `/api/v1/projects/:projectId/reload` | ✅ 実装済み | - |
+| 8 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectId/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 9 | 指示一覧取得 | GET | `/api/v1/projects/:projectId/instructions` | 🔴 未実装 | ⭐⭐ 中 |
+| 10 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐⭐ 中 |
+| 11 | プロジェクト公開 | POST | `/api/v1/projects/:projectId/publish` | 🔴 未実装 | ⭐⭐ 中 |
 
-#### 概要
-プロジェクト管理画面を表示した際に、ログインユーザーの所属組織に紐づくプロジェクト一覧を取得します。プロジェクト完了ステータス（project_status = 4）のプロジェクトも取得しますが、初期表示時は非表示とします。
+---
 
-#### エンドポイント
-- **URL**: `GET /api/v1/projects`
-- **認証**: 必須（JWT + Session Hybrid）
-- **権限**: Manager以上（Worker: 割り当てられたプロジェクトのみ）
+## 🔐 共通仕様
 
-#### リクエスト
+### 認証・認可
 
-##### ヘッダー
-| ヘッダー名 | 型 | 必須 | 説明 | 例 |
-|-----------|---|-----|------|---|
-| Authorization | string | ○ | JWTトークン | Bearer maiml_session-abc123_1234567890 |
-| X-Organization-Id | string | ○ | 組織ID | a0718dc5-21f3-44e6-87e9-cc2ae83f3385 |
+**認証方式**: JWT + Session Hybrid
 
-##### パラメータ（クエリ）
-| パラメータ名 | 型 | 必須 | 説明 | デフォルト値 | 例 |
-|------------|---|-----|------|------------|---|
-| page | number | × | ページ番号 | 1 | 1 |
-| limit | number | × | 1ページあたりの件数 | 20 | 20 |
-| include_completed | boolean | × | 完了プロジェクトを含めるか | false | false |
-| sort_by | string | × | ソート項目 | create_at | create_at, project_name |
-| order | string | × | ソート順 | desc | desc, asc |
+**必須ヘッダー**:
+```http
+Authorization: Bearer maiml_session-{sessionId}_{timestamp}
+X-Organization-Id: {organization_id}
+```
+
+**権限要件**:
+- すべてのAPI: `experiment_admin` または `system_admin` ロール必須
+- `experiment_worker` ロールは403 Forbiddenを返却
+
+**ミドルウェアチェーン**:
+```typescript
+router.METHOD('/path', 
+  authMiddleware,           // JWT認証
+  tenantIsolation,          // テナント分離（暗黙的）
+  permissionCheck([...]),   // 権限チェック
+  controller.handler
+);
+```
+
+### マルチテナント分離
+
+- すべてのDBクエリに `organization_id` フィルタ必須
+- すべてのS3パスに `org_{organization_prefix}` プレフィックス必須
+- クロステナントアクセスは厳禁（System Admin除く）
+
+### 統一レスポンス形式
+
+**成功レスポンス**:
+```json
+{
+  "success": true,
+  "data": { ... },
+  "pagination": {  // オプショナル
+    "page": 1,
+    "limit": 20,
+    "totalItems": 150,
+    "totalPages": 8,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "meta": {
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラーレスポンス**:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "エラーメッセージ",
+    "details": [
+      {
+        "field": "fieldName",
+        "message": "詳細メッセージ",
+        "code": "FIELD_ERROR_CODE"
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+### 共通エラーコード
+
+| コード | HTTPステータス | 説明 |
+|-------|---------------|------|
+| `AUTH_TOKEN_INVALID` | 401 | 認証トークンが無効 |
+| `PERMISSION_INSUFFICIENT` | 403 | 権限不足 |
+| `RESOURCE_NOT_FOUND` | 404 | リソースが見つからない |
+| `VALIDATION_ERROR` | 400 | バリデーションエラー |
+| `VALIDATION_REQUIRED_FIELD` | 400 | 必須フィールドが未入力 |
+| `VALIDATION_INVALID_FORMAT` | 400 | フォーマットが不正 |
+| `SYSTEM_ERROR` | 500 | システムエラー |
+| `SYSTEM_DATABASE_ERROR` | 500 | データベースエラー |
+
+---
+
+## 📋 API詳細仕様
+
+### 1. プロジェクト一覧取得 ✅
+
+**エンドポイント**: `GET /api/v1/projects`
+
+**説明**: 組織内のプロジェクト一覧を取得
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+#### リクエストパラメータ
+
+**クエリパラメータ**:
+| パラメータ | 型 | 必須 | デフォルト | 説明 |
+|----------|---|------|-----------|------|
+| `page` | integer | × | 1 | ページ番号（1以上） |
+| `limit` | integer | × | 20 | 1ページあたりの件数（1-100） |
+| `include_completed` | boolean | × | false | 完了プロジェクトを含める |
+| `sort_by` | string | × | `create_at` | ソート項目（`create_at`, `project_name`） |
+| `order` | string | × | `desc` | ソート順（`asc`, `desc`） |
 
 #### レスポンス
 
-##### 成功時（200 OK）
+**成功時 (200 OK)**:
 ```json
 {
   "success": true,
   "data": [
     {
-      "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
-      "projectId": "b1234567-89ab-cdef-0123-456789abcdef",
-      "projectName": "サンプルプロジェクト",
-      "description": "これはサンプルプロジェクトです",
-      "departmentId": "c2345678-9abc-def0-1234-56789abcdef0",
-      "ownerUserId": "d3456789-abcd-ef01-2345-6789abcdef01",
-      "projectStatus": 2,
-      "projectStatusName": "タスク実行中",
-      "projectMaimlFlg": true,
-      "checkoutStatus": 0,
-      "checkoutStatusName": "チェックイン中",
-      "createAt": "2026-01-05T10:30:00.000Z"
-    },
-    {
-      "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
-      "projectId": "e4567890-bcde-f012-3456-789abcdef012",
-      "projectName": "実験プロジェクトA",
-      "description": "材料分析プロジェクト",
-      "departmentId": null,
-      "ownerUserId": "d3456789-abcd-ef01-2345-6789abcdef01",
-      "projectStatus": 1,
-      "projectStatusName": "タスク実行待ち",
-      "projectMaimlFlg": false,
-      "checkoutStatus": 0,
-      "checkoutStatusName": "チェックイン中",
-      "createAt": "2026-01-03T14:20:00.000Z"
+      "project_id": "550e8400-e29b-41d4-a716-446655440000",
+      "project_name": "Sample Project",
+      "description": "プロジェクトの説明",
+      "project_status": "created",
+      "is_checked_out": false,
+      "checked_out_by": null,
+      "checked_out_at": null,
+      "checked_out_user_name": null,
+      "create_at": "2026-01-21T10:00:00Z",
+      "update_at": "2026-01-21T10:00:00Z"
     }
   ],
   "pagination": {
     "page": 1,
     "limit": 20,
-    "totalItems": 15,
-    "totalPages": 1,
-    "hasNext": false,
+    "totalItems": 150,
+    "totalPages": 8,
+    "hasNext": true,
     "hasPrev": false
   },
   "meta": {
-    "timestamp": "2026-01-09T11:39:00Z",
+    "timestamp": "2026-01-21T16:00:00Z",
     "requestId": "req_abc123"
   }
 }
 ```
 
-##### エラー時
-| HTTPステータス | エラーコード | 説明 |
-|--------------|------------|------|
-| 400 | VALIDATION_ERROR | バリデーションエラー（不正なクエリパラメータ） |
-| 401 | AUTH_TOKEN_EXPIRED | 認証エラー（トークン期限切れ） |
-| 401 | AUTH_TOKEN_INVALID | 認証エラー（トークン不正） |
-| 403 | PERMISSION_INSUFFICIENT | 権限不足 |
-| 500 | SYSTEM_DATABASE_ERROR | データベースエラー |
+**エラー時**:
+- 401: 認証エラー
+- 403: 権限不足
+- 400: バリデーションエラー
+- 500: システムエラー
 
-#### ビジネスロジック
-1. **認証チェック**: JWTトークンとセッションの検証
-2. **組織ID取得**: セッション情報から組織IDを取得（X-Organization-Idヘッダーと照合）
-3. **権限チェック**: ユーザーのロールに応じたアクセス制御
-   - System Admin: 全組織のプロジェクト取得可能
-   - Manager: 自組織のプロジェクトのみ取得可能
-   - Worker: 割り当てられたプロジェクトのみ取得可能
-4. **データ取得**: projectテーブルから該当データを取得
-   - organization_idでフィルタリング（必須）
-   - include_completed=falseの場合、project_status != 4でフィルタリング
-   - create_atの降順（新しい順）でソート
-   - ページネーション適用
-5. **コード値変換**: project_statusとcheckout_statusの名称をcode_masterから取得
-6. **レスポンス生成**: キャメルケースに変換してJSON形式で返却
-
-#### バリデーション
-- [x] Authorization ヘッダーの存在チェック
-- [x] X-Organization-Id ヘッダーの存在チェック
-- [x] X-Organization-Id が UUID 形式であることをチェック
-- [x] page が正の整数であることをチェック
-- [x] limit が 1〜100 の範囲内であることをチェック
-- [x] include_completed が boolean であることをチェック
-- [x] sort_by が許可された値（create_at, project_name）であることをチェック
-- [x] order が許可された値（desc, asc）であることをチェック
-
-#### セキュリティチェックリスト
-- [x] JWT認証の実施（authミドルウェア）
-- [x] organization_idフィルタの適用（必須）
-- [x] テナント分離（tenantIsolationミドルウェア）
-- [x] 権限チェック（permissionCheckミドルウェア）
-- [x] Parameterized Queryの使用
-- [x] 入力値のサニタイゼーション
-- [x] クロステナントアクセスの防止
-
-
-#### テストケース
-- [x] 正常系：認証済みManagerによるプロジェクト一覧取得
-- [x] 正常系：System Adminによる全組織のプロジェクト取得
-- [x] 正常系：完了プロジェクトが除外されていることを確認
-- [x] 正常系：include_completed=trueで完了プロジェクトも取得
-- [x] 正常系：create_atの降順でソートされていることを確認
-- [x] 正常系：ページネーションが正しく動作することを確認
-- [x] 異常系：未認証ユーザーによるアクセス（401エラー）
-- [x] 異常系：権限不足ユーザーによるアクセス（403エラー）
-- [x] 異常系：他組織のデータへのアクセス（403エラー）
-- [x] 異常系：不正なorganization_id（400エラー）
-- [x] 異常系：不正なページ番号（400エラー）
-- [x] 異常系：limitが範囲外（400エラー）
-
-#### レスポンスフィールド説明
-
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| organizationId | string | × | 組織ID（UUID） |
-| projectId | string | × | プロジェクトID（UUID） |
-| projectName | string | × | プロジェクト名 |
-| description | string | ○ | プロジェクト説明 |
-| departmentId | string | ○ | 部門ID（UUID） |
-| ownerUserId | string | × | 所有者ユーザーID（UUID） |
-| projectStatus | number | × | プロジェクトステータス（0〜5） |
-| projectStatusName | string | ○ | プロジェクトステータス名称 |
-| projectMaimlFlg | boolean | × | プロジェクトMaiml有無 |
-| checkoutStatus | number | × | チェックアウトステータス（0, 1） |
-| checkoutStatusName | string | ○ | チェックアウトステータス名称 |
-| createAt | string | × | 作成日時（ISO 8601形式） |
-
-#### プロジェクトステータス一覧
-
-| コード値 | 名称 | 説明 |
-|---------|------|------|
-| 0 | プロジェクト計画中 | プロジェクトの計画段階 |
-| 1 | タスク実行待ち | タスクの実行を待機中 |
-| 2 | タスク実行中 | タスクが実行中 |
-| 3 | タスク結果レビュー待ち | タスク結果のレビュー待ち |
-| 4 | プロジェクト完了 | プロジェクトが完了（初期表示では非表示） |
-| 5 | タスク異常終了 | タスクが異常終了 |
-
-#### チェックアウトステータス一覧
-
-| コード値 | 名称 | 説明 |
-|---------|------|------|
-| 0 | チェックイン中 | プロジェクトがチェックイン中 |
-| 1 | チェックアウト済 | プロジェクトがチェックアウト済 |
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/projectController.ts` (`list`)
+- **サービス**: `backend/src/services/projectService.ts` (`list`)
 
 ---
 
-### 2.2 プロジェクト詳細取得
+### 2. プロジェクト作成 ✅
 
-#### 概要
-プロジェクト一覧から特定のプロジェクトを選択した際に、プロジェクトの詳細情報を取得します。プロジェクト基本情報（名称・概要）に加えて、S3上のファイル一覧とタスク一覧を含む包括的な情報を返却します。
+**エンドポイント**: `POST /api/v1/projects`
 
-#### エンドポイント
-- **URL**: `GET /api/v1/projects/:projectId`
-- **認証**: 必須（JWT + Session Hybrid）
-- **権限**: Manager以上（Worker: 割り当てられたプロジェクトのみ）
+**説明**: 新規プロジェクトを作成
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
 
 #### リクエスト
 
-##### ヘッダー
-| ヘッダー名 | 型 | 必須 | 説明 | 例 |
-|-----------|---|-----|------|---|
-| Authorization | string | ○ | JWTトークン | Bearer maiml_session-abc123_1234567890 |
-| X-Organization-Id | string | ○ | 組織ID | a0718dc5-21f3-44e6-87e9-cc2ae83f3385 |
+**ボディ（JSON）**:
+```json
+{
+  "projectName": "New Project",
+  "description": "プロジェクトの説明（オプション）"
+}
+```
 
-##### パラメータ（パス）
-| パラメータ名 | 型 | 必須 | 説明 | 例 |
-|------------|---|-----|------|---|
-| projectId | string | ○ | プロジェクトID（UUID） | b1234567-89ab-cdef-0123-456789abcdef |
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `projectName` | string | ○ | 1-255文字、制御文字不可 |
+| `description` | string | × | 0-1000文字 |
 
 #### レスポンス
 
-##### 成功時（200 OK）
+**成功時 (201 Created)**:
 ```json
 {
   "success": true,
   "data": {
-    "project": {
-      "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
-      "projectId": "b1234567-89ab-cdef-0123-456789abcdef",
-      "projectName": "サンプルプロジェクト",
-      "description": "これはサンプルプロジェクトです",
-      "departmentId": "c2345678-9abc-def0-1234-56789abcdef0",
-      "ownerUserId": "d3456789-abcd-ef01-2345-6789abcdef01",
-      "projectStatus": 2,
-      "projectStatusName": "タスク実行中",
-      "projectMaimlFlg": true,
-      "checkoutStatus": 0,
-      "checkoutStatusName": "チェックイン中",
-      "createAt": "2026-01-05T10:30:00.000Z"
-    },
+    "project_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_name": "New Project",
+    "description": "プロジェクトの説明",
+    "project_status": "created",
+    "organization_id": "org-uuid",
+    "department_id": "dept-uuid",
+    "create_user_id": "user-uuid",
+    "create_at": "2026-01-21T16:00:00Z",
+    "update_at": "2026-01-21T16:00:00Z"
+  },
+  "meta": {
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー
+- 409: プロジェクト名重複（`BUSINESS_DUPLICATE_PROJECT_NAME`）
+- 401: 認証エラー
+- 403: 権限不足
+- 500: システムエラー
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/projectController.ts` (`create`)
+- **サービス**: `backend/src/services/projectService.ts` (`create`)
+
+---
+
+### 3. チェックアウト ✅
+
+**エンドポイント**: `POST /api/v1/projects/:projectId/checkout`
+
+**説明**: プロジェクトをチェックアウトし、排他編集を開始
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | UUID | ○ | プロジェクトID |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_name": "Sample Project",
+    "is_checked_out": true,
+    "checked_out_by": "user-uuid",
+    "checked_out_at": "2026-01-21T16:00:00Z",
+    "project_status": "in_progress"
+  },
+  "meta": {
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー、プロジェクトステータス不正
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない
+- 409: 既にチェックアウト済み（`PROJECT_ALREADY_CHECKED_OUT`）
+- 500: システムエラー
+
+#### ビジネスルール
+- プロジェクトステータスが `created` または `checked_in` の場合のみチェックアウト可能
+- チェックアウト中は他のユーザーは編集不可
+- チェックアウト時に指示が存在しない場合はエラー
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/projectController.ts` (`checkout`)
+- **サービス**: `backend/src/services/projectService.ts` (`checkout`)
+
+---
+
+### 4. チェックイン ✅
+
+**エンドポイント**: `POST /api/v1/projects/:projectId/checkin`
+
+**説明**: プロジェクトをチェックインし、排他編集を終了
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | UUID | ○ | プロジェクトID |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_name": "Sample Project",
+    "is_checked_out": false,
+    "checked_out_by": null,
+    "checked_out_at": null,
+    "project_status": "checked_in"
+  },
+  "meta": {
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: 実行中のタスクあり（`TASK_IN_PROGRESS`）
+- 401: 認証エラー
+- 403: 権限不足（他ユーザーがチェックアウト中）
+- 404: プロジェクトが存在しない
+- 500: システムエラー
+
+#### ビジネスルール
+- チェックアウトしたユーザーのみチェックイン可能
+- 実行中のタスクがある場合はチェックイン不可
+- チェックイン時にプロジェクトステータスを `checked_in` に更新
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/projectController.ts` (`checkin`)
+- **サービス**: `backend/src/services/projectService.ts` (`checkin`)
+
+---
+
+### 5. ファイル一覧取得 🔴
+
+**エンドポイント**: `GET /api/v1/projects/:projectId/files`
+
+**説明**: プロジェクト内のファイル一覧を取得
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | UUID | ○ | プロジェクトID |
+
+**クエリパラメータ**:
+| パラメータ | 型 | 必須 | デフォルト | 説明 |
+|----------|---|------|-----------|------|
+| `include_archive` | boolean | × | false | アーカイブファイルを含める |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_name": "Sample Project",
     "files": [
       {
-        "fileName": "sample_project.maiml",
-        "filePath": "projects/sample_project/sample_project.maiml",
-        "fileSize": 15360,
-        "lastModified": "2026-01-08T14:20:00.000Z",
-        "fileType": "maiml",
-        "isArchive": false,
-        "signedUrl": "https://s3.amazonaws.com/bucket/...?X-Amz-Signature=..."
-      },
-      {
-        "fileName": "sample_project_v1.maiml",
-        "filePath": "projects/sample_project/archive/sample_project_v1.maiml",
-        "fileSize": 12800,
-        "lastModified": "2026-01-05T10:30:00.000Z",
-        "fileType": "maiml",
-        "isArchive": true,
-        "version": 1,
-        "signedUrl": "https://s3.amazonaws.com/bucket/...?X-Amz-Signature=..."
+        "file_id": "file-uuid",
+        "file_name": "sample_project.maiml",
+        "file_path": "org_maiml_lab_001/projects/Sample_Project/sample_project.maiml",
+        "file_size": 12345,
+        "file_type": "maiml",
+        "is_archive": false,
+        "version": null,
+        "created_at": "2026-01-21T10:00:00Z",
+        "updated_at": "2026-01-21T16:00:00Z"
       }
     ],
+    "archive_files": [
+      {
+        "file_id": "archive-file-uuid",
+        "file_name": "sample_project_v1.maiml",
+        "file_path": "org_maiml_lab_001/projects/Sample_Project/archive/sample_project_v1.maiml",
+        "file_size": 11234,
+        "file_type": "maiml",
+        "is_archive": true,
+        "version": 1,
+        "created_at": "2026-01-20T10:00:00Z",
+        "updated_at": "2026-01-20T10:00:00Z"
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない
+- 500: システムエラー
+
+#### 実装要件
+- S3から `org_{organization_prefix}/projects/{project_name}/` 配下のファイル一覧を取得
+- `include_archive=true` の場合、`archive/` サブフォルダのファイルも含める
+- バージョン番号は `_v{number}` から抽出
+
+---
+
+### 6. タスク一覧取得 🔴
+
+**エンドポイント**: `GET /api/v1/projects/:projectId/tasks`
+
+**説明**: プロジェクト内のタスク一覧を取得
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | UUID | ○ | プロジェクトID |
+
+**クエリパラメータ**:
+| パラメータ | 型 | 必須 | デフォルト | 説明 |
+|----------|---|------|-----------|------|
+| `status` | string | × | all | タスクステータスフィルタ（`all`, `pending`, `in_progress`, `completed`, `failed`） |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_name": "Sample Project",
     "tasks": [
       {
-        "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
-        "projectId": "b1234567-89ab-cdef-0123-456789abcdef",
-        "methodId": "method_001",
-        "taskNo": 1,
-        "taskStatus": 3,
-        "taskStatusName": "完了",
-        "experimentStartAt": "2026-01-06T09:00:00.000Z",
-        "experimentEndAt": "2026-01-06T17:30:00.000Z",
-        "experimentUserId": "e5678901-cdef-0123-4567-89abcdef0123",
-        "experimentUserName": "山田太郎",
-        "reviewedAt": "2026-01-07T10:00:00.000Z",
-        "reviewUserId": "d3456789-abcd-ef01-2345-6789abcdef01",
-        "reviewUserName": "佐藤花子"
-      },
-      {
-        "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
-        "projectId": "b1234567-89ab-cdef-0123-456789abcdef",
-        "methodId": "method_001",
-        "taskNo": 2,
-        "taskStatus": 1,
-        "taskStatusName": "実行中",
-        "experimentStartAt": "2026-01-08T09:00:00.000Z",
-        "experimentEndAt": null,
-        "experimentUserId": "e5678901-cdef-0123-4567-89abcdef0123",
-        "experimentUserName": "山田太郎",
-        "reviewedAt": null,
-        "reviewUserId": null,
-        "reviewUserName": null
+        "task_id": "task-uuid",
+        "task_name": "実験タスク1",
+        "task_status": "in_progress",
+        "assigned_to": "worker-uuid",
+        "assigned_user_name": "Worker Name",
+        "method_name": "Method 1",
+        "transition_name": "Transition A",
+        "created_at": "2026-01-21T10:00:00Z",
+        "updated_at": "2026-01-21T16:00:00Z",
+        "completed_at": null
       }
     ],
-    "summary": {
-      "totalFiles": 2,
-      "totalTasks": 5,
-      "completedTasks": 2,
-      "inProgressTasks": 1,
-      "pendingTasks": 2
+    "statistics": {
+      "total": 10,
+      "pending": 2,
+      "in_progress": 5,
+      "completed": 3,
+      "failed": 0
     }
   },
   "meta": {
-    "timestamp": "2026-01-09T16:42:00Z",
-    "requestId": "req_def456"
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
   }
 }
 ```
 
-##### エラー時
-| HTTPステータス | エラーコード | 説明 |
-|--------------|------------|------|
-| 400 | VALIDATION_ERROR | バリデーションエラー（不正なprojectId） |
-| 401 | AUTH_TOKEN_EXPIRED | 認証エラー（トークン期限切れ） |
-| 401 | AUTH_TOKEN_INVALID | 認証エラー（トークン不正） |
-| 403 | PERMISSION_INSUFFICIENT | 権限不足（アクセス権限がない） |
-| 404 | RESOURCE_NOT_FOUND | プロジェクトが存在しない |
-| 500 | SYSTEM_DATABASE_ERROR | データベースエラー |
-| 500 | SYSTEM_S3_ERROR | S3アクセスエラー |
+**エラー時**:
+- 400: バリデーションエラー
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない
+- 500: システムエラー
 
-#### ビジネスロジック
-1. **認証チェック**: JWTトークンとセッションの検証
-2. **組織ID取得**: セッション情報から組織IDを取得
-3. **権限チェック**: ユーザーのロールとプロジェクトアクセス権限の確認
-   - System Admin: 全組織のプロジェクト取得可能
-   - Manager: 自組織のプロジェクトのみ取得可能
-   - Worker: 割り当てられたプロジェクトのみ取得可能
-4. **プロジェクト基本情報取得**: projectテーブルから取得
-   - organization_idとproject_idでフィルタリング（必須）
-   - 存在しない場合は404エラー
-5. **S3ファイル一覧取得**（常に実行）:
-   - storageService.listFilesで対象プロジェクトフォルダ配下を取得
-   - パス: `projects/{project_name}/`
-   - アーカイブフォルダも含める: `projects/{project_name}/archive/`
-   - 各ファイルの署名付きURL（有効期限: 1時間）を生成
-   - ファイルサイズ、最終更新日時を取得
-6. **タスク一覧取得**（タスクが作成済みの場合のみ）:
-   - project_task_detailテーブルにレコードが存在するかチェック
-   - レコードが存在する場合のみ取得
-   - organization_idとproject_idでフィルタリング（必須）
-   - task_no順でソート
-   - ユーザー名を取得（organization_userテーブルとJOIN）
-   - タスクステータス名称をcode_masterから取得
-7. **サマリー情報生成**:
-   - ファイル数、タスク数、完了タスク数などを集計
-8. **レスポンス生成**: キャメルケースに変換してJSON形式で返却
-
-#### バリデーション
-- [x] Authorization ヘッダーの存在チェック
-- [x] X-Organization-Id ヘッダーの存在チェック
-- [x] X-Organization-Id が UUID 形式であることをチェック
-- [x] projectId が UUID 形式であることをチェック
-
-#### セキュリティチェックリスト
-- [x] JWT認証の実施（authミドルウェア）
-- [x] organization_idフィルタの適用（必須）
-- [x] テナント分離（tenantIsolationミドルウェア）
-- [x] 権限チェック（permissionCheckミドルウェア）
-- [x] プロジェクトアクセス権限の確認
-- [x] Parameterized Queryの使用
-- [x] S3署名付きURLの使用（有効期限: 1時間）
-- [x] organization_prefixの強制適用
-
-
-#### テストケース
-- [x] 正常系：認証済みManagerによるプロジェクト詳細取得
-- [x] 正常系：ファイル一覧が常に含まれることを確認
-- [x] 正常系：タスクが作成済みの場合、タスク一覧が含まれることを確認
-- [x] 正常系：タスクが未作成の場合、空の配列が返却されることを確認
-- [x] 正常系：署名付きURLが正しく生成される
-- [x] 正常系：アーカイブファイルがバージョン番号付きで取得される
-- [x] 正常系：タスクステータス別の件数が正しく集計される
-- [x] 正常系：タスク未作成時もサマリー情報が正しく生成される
-- [x] 異常系：未認証ユーザーによるアクセス（401エラー）
-- [x] 異常系：権限不足ユーザーによるアクセス（403エラー）
-- [x] 異常系：他組織のプロジェクトへのアクセス（403エラー）
-- [x] 異常系：存在しないprojectId（404エラー）
-- [x] 異常系：不正なprojectId形式（400エラー）
-- [x] 異常系：S3アクセスエラー（500エラー）
-
-#### レスポンスフィールド説明
-
-##### project（プロジェクト基本情報）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| organizationId | string | × | 組織ID（UUID） |
-| projectId | string | × | プロジェクトID（UUID） |
-| projectName | string | × | プロジェクト名 |
-| description | string | ○ | プロジェクト説明 |
-| departmentId | string | ○ | 部門ID（UUID） |
-| ownerUserId | string | × | 所有者ユーザーID（UUID） |
-| projectStatus | number | × | プロジェクトステータス（0〜5） |
-| projectStatusName | string | ○ | プロジェクトステータス名称 |
-| projectMaimlFlg | boolean | × | プロジェクトMaiml有無 |
-| checkoutStatus | number | × | チェックアウトステータス（0, 1） |
-| checkoutStatusName | string | ○ | チェックアウトステータス名称 |
-| createAt | string | × | 作成日時（ISO 8601形式） |
-
-##### files（ファイル一覧）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| fileName | string | × | ファイル名 |
-| filePath | string | × | S3上のファイルパス |
-| fileSize | number | × | ファイルサイズ（バイト） |
-| lastModified | string | × | 最終更新日時（ISO 8601形式） |
-| fileType | string | × | ファイル種別（maiml, other） |
-| isArchive | boolean | × | アーカイブファイルかどうか |
-| version | number | ○ | バージョン番号（アーカイブの場合のみ） |
-| signedUrl | string | × | 署名付きURL（有効期限: 1時間） |
-
-##### tasks（タスク一覧）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| organizationId | string | × | 組織ID（UUID） |
-| projectId | string | × | プロジェクトID（UUID） |
-| methodId | string | × | メソッドID |
-| taskNo | number | × | タスク連番 |
-| taskStatus | number | × | タスクステータス（0〜4） |
-| taskStatusName | string | ○ | タスクステータス名称 |
-| experimentStartAt | string | ○ | 実験開始日時（ISO 8601形式） |
-| experimentEndAt | string | ○ | 実験終了日時（ISO 8601形式） |
-| experimentUserId | string | ○ | 実験作業者ID（UUID） |
-| experimentUserName | string | ○ | 実験作業者名 |
-| reviewedAt | string | ○ | レビュー完了日時（ISO 8601形式） |
-| reviewUserId | string | ○ | レビュアーID（UUID） |
-| reviewUserName | string | ○ | レビュアー名 |
-
-##### summary（サマリー情報）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| totalFiles | number | × | 総ファイル数 |
-| totalTasks | number | × | 総タスク数 |
-| completedTasks | number | × | 完了タスク数 |
-| inProgressTasks | number | × | 実行中タスク数 |
-| pendingTasks | number | × | 実行待ちタスク数 |
-
-#### タスクステータス一覧
-
-| コード値 | 名称 | 説明 |
-|---------|------|------|
-| 0 | 実行待ち | タスクの実行を待機中 |
-| 1 | 実行中 | タスクが実行中 |
-| 2 | レビュー待ち | タスク結果のレビュー待ち |
-| 3 | 完了 | タスクが完了 |
-| 4 | 異常終了 | タスクが異常終了 |
-
-#### S3パス構造
-
-```
-org_{organization_prefix}/projects/{project_name}/
-├── {project_name}.maiml           # 現在のMAIMLファイル
-└── archive/
-    ├── {project_name}_v1.maiml    # アーカイブバージョン1
-    ├── {project_name}_v2.maiml    # アーカイブバージョン2
-    └── {project_name}_v3.maiml    # アーカイブバージョン3
-```
-
-#### 設計上の考慮事項
-
-##### データ取得方針
-- **ファイル一覧**: 常に取得（ファイル確認タブ用）
-- **タスク一覧**: 作成済みの場合のみ取得（タスク結果確認タブ用）
-  - プロジェクト作成直後など、タスク未作成時は空配列を返却
-  - タスク存在チェック後に取得することで、不要なクエリを回避
-
-##### パフォーマンス最適化
-- **並列取得**: プロジェクト基本情報、S3ファイル一覧、タスク存在チェックを並列実行可能
-- **条件付きタスク取得**: タスクが存在する場合のみ詳細を取得
-- **キャッシング**: プロジェクト基本情報は短時間（3分）キャッシュ可能
-- **署名付きURL**: S3ファイルへのアクセスは署名付きURLで1時間有効
-
-##### スケーラビリティ
-- **大量ファイル対応**: S3ファイル一覧は最大1000件まで取得（ページネーション不要と想定）
-- **大量タスク対応**: タスク一覧は全件取得（通常は数十〜数百件程度を想定）
-- **必要に応じて分割**: ファイル・タスクが大量になる場合は別エンドポイントに分割を検討
-
-##### 実装上の注意事項
-- タスク未作成時でもレスポンス構造は統一（`tasks: []`, `summary.totalTasks: 0`）
-- S3ファイルが存在しない場合も空配列を返却（エラーにしない）
-- アーカイブファイルはバージョン番号順にソート推奨
-
-##### 代替案: エンドポイント分割
-パフォーマンスやスケーラビリティが問題になる場合は、以下のように分割することも可能：
-- `GET /api/v1/projects/:projectId` - プロジェクト基本情報のみ
-- `GET /api/v1/projects/:projectId/files` - ファイル一覧のみ
-- `GET /api/v1/projects/:projectId/tasks` - タスク一覧のみ
+#### 実装要件
+- `project_task` テーブルから取得
+- ステータスフィルタリング対応
+- ワーカー名、メソッド名、トランジション名をJOINで取得
+- タスク統計を集計
 
 ---
 
-### 2.3 プロジェクト作成
+### 7. プロジェクトリロード ✅
 
-#### 概要
-プロジェクト管理画面で「新規プロジェクト」ボタンを押下すると表示されるダイアログで入力された情報をもとに、新しいプロジェクトを作成します。データベース（projectテーブル）への登録とS3上へのプロジェクトフォルダ作成を行います。
+**エンドポイント**: `POST /api/v1/projects/:projectId/reload`
 
-#### エンドポイント
-- **URL**: `POST /api/v1/projects`
-- **認証**: 必須（JWT + Session Hybrid）
-- **権限**: Manager以上
+**説明**: プロジェクトのファイルメタデータをS3から再読み込み
 
-#### リクエスト
+**認証**: 必須
 
-##### ヘッダー
-| ヘッダー名 | 型 | 必須 | 説明 | 例 |
-|-----------|---|-----|------|---|
-| Authorization | string | ○ | JWTトークン | Bearer maiml_session-abc123_1234567890 |
-| X-Organization-Id | string | ○ | 組織ID | a0718dc5-21f3-44e6-87e9-cc2ae83f3385 |
+**権限**: `experiment_admin`, `system_admin`
 
-##### リクエストボディ
-```json
-{
-  "projectName": "新規プロジェクト",
-  "description": "プロジェクトの説明文"
-}
-```
+#### リクエストパラメータ
 
-| フィールド名 | 型 | 必須 | 説明 | 制約 |
-|------------|---|-----|------|------|
-| projectName | string | ○ | プロジェクト名 | 1〜255文字、同一組織内で一意 |
-| description | string | × | プロジェクト説明 | 最大1000文字 |
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | UUID | ○ | プロジェクトID |
 
 #### レスポンス
 
-##### 成功時（201 Created）
+**成功時 (200 OK)**:
 ```json
 {
   "success": true,
   "data": {
-    "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
-    "projectId": "f6789012-defg-3456-789a-bcdef0123456",
-    "projectName": "新規プロジェクト",
-    "description": "プロジェクトの説明文",
-    "departmentId": "c2345678-9abc-def0-1234-56789abcdef0",
-    "ownerUserId": "d3456789-abcd-ef01-2345-6789abcdef01",
-    "projectStatus": 0,
-    "projectStatusName": "プロジェクト計画中",
-    "projectMaimlFlg": false,
-    "checkoutStatus": 0,
-    "checkoutStatusName": "チェックイン中",
-    "createAt": "2026-01-13T08:36:00.000Z"
+    "project_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_name": "Sample Project",
+    "reloaded": true,
+    "files_count": 5,
+    "reloaded_at": "2026-01-21T16:00:00Z"
   },
   "meta": {
-    "timestamp": "2026-01-13T08:36:00Z",
-    "requestId": "req_ghi789"
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
   }
 }
 ```
 
-##### エラー時
-| HTTPステータス | エラーコード | 説明 |
-|--------------|------------|------|
-| 400 | VALIDATION_ERROR | バリデーションエラー（必須フィールド不足、文字数超過） |
-| 401 | AUTH_TOKEN_EXPIRED | 認証エラー（トークン期限切れ） |
-| 401 | AUTH_TOKEN_INVALID | 認証エラー（トークン不正） |
-| 403 | PERMISSION_INSUFFICIENT | 権限不足（Manager以上が必要） |
-| 409 | BUSINESS_DUPLICATE_PROJECT_NAME | プロジェクト名が既に存在 |
-| 500 | SYSTEM_DATABASE_ERROR | データベースエラー |
-| 500 | SYSTEM_S3_ERROR | S3アクセスエラー |
+**エラー時**:
+- 400: バリデーションエラー
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない
+- 409: リロード実行中（`PROJECT_RELOAD_IN_PROGRESS`）
+- 500: システムエラー
 
-#### ビジネスロジック
-1. **認証チェック**: JWTトークンとセッションの検証
-2. **組織ID取得**: セッション情報から組織IDを取得
-3. **権限チェック**: Manager以上の権限が必要
-4. **ユーザー情報取得**: ログインユーザーの部門ID、ユーザーIDを取得
-5. **プロジェクト名重複チェック**: 同一組織内で同じプロジェクト名が存在しないか確認
-6. **プロジェクトID生成**: UUID v4を使用して新規プロジェクトIDを生成
-7. **projectテーブルへの登録**:
-   - organization_id: セッション情報から取得
-   - project_id: 新規生成したUUID
-   - project_name: リクエストボディから取得
-   - description: リクエストボディから取得（NULL許容）
-   - department_id: ログインユーザーの部門ID
-   - owner_user_id: ログインユーザーのユーザーID
-   - project_status: 0（プロジェクト計画中）
-   - project_maiml_flg: false
-   - checkout_status: 0（チェックイン中）
-   - create_at: 現在日時
-8. **S3プロジェクトフォルダ作成**:
-   - パス: `org_{organization_prefix}/projects/{project_name}/`
-   - 空のプロジェクトフォルダを作成（マーカーファイルで実現）
-9. **レスポンス生成**: 作成したプロジェクト情報を返却
-10. **トランザクション**: データベース登録とS3作成は一貫性を保つ（片方失敗時はロールバック）
-
-#### バリデーション
-- [x] Authorization ヘッダーの存在チェック
-- [x] X-Organization-Id ヘッダーの存在チェック
-- [x] X-Organization-Id が UUID 形式であることをチェック
-- [x] projectName が必須であることをチェック
-- [x] projectName が1〜255文字であることをチェック
-- [x] projectName が有効な文字のみ含むことをチェック（英数字、日本語、アンダースコア、ハイフン）
-- [x] description が1000文字以内であることをチェック（指定時）
-- [x] projectName が同一組織内で一意であることをチェック
-
-#### セキュリティチェックリスト
-- [x] JWT認証の実施（authミドルウェア）
-- [x] organization_idフィルタの適用（必須）
-- [x] テナント分離（tenantIsolationミドルウェア）
-- [x] 権限チェック（permissionCheck - Manager以上）
-- [x] Parameterized Queryの使用
-- [x] 入力値のサニタイゼーション
-- [x] プロジェクト名重複チェック
-- [x] organization_prefixの強制適用（S3）
-
-
-#### テストケース
-- [x] 正常系：認証済みManagerによるプロジェクト作成
-- [x] 正常系：descriptionなしでのプロジェクト作成
-- [x] 正常系：部門IDがnullのユーザーによるプロジェクト作成
-- [x] 正常系：作成したプロジェクトのデフォルト値が正しい
-- [x] 正常系：S3にプロジェクトフォルダが作成される
-- [x] 正常系：作成後のレスポンスに全フィールドが含まれる
-- [x] 異常系：未認証ユーザーによるアクセス（401エラー）
-- [x] 異常系：権限不足ユーザー（Worker）によるアクセス（403エラー）
-- [x] 異常系：projectNameが空文字（400エラー）
-- [x] 異常系：projectNameが256文字以上（400エラー）
-- [x] 異常系：projectNameが重複（409エラー）
-- [x] 異常系：descriptionが1001文字以上（400エラー）
-- [x] 異常系：不正なorganization_id（400エラー）
-- [x] 異常系：S3エラー発生時のロールバック（500エラー、DBに登録されない）
-
-#### レスポンスフィールド説明
-
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| organizationId | string | × | 組織ID（UUID） |
-| projectId | string | × | プロジェクトID（UUID、新規生成） |
-| projectName | string | × | プロジェクト名 |
-| description | string | ○ | プロジェクト説明 |
-| departmentId | string | ○ | 部門ID（ログインユーザーの部門ID） |
-| ownerUserId | string | × | 所有者ユーザーID（ログインユーザーのユーザーID） |
-| projectStatus | number | × | プロジェクトステータス（常に0） |
-| projectStatusName | string | ○ | プロジェクトステータス名称（「プロジェクト計画中」） |
-| projectMaimlFlg | boolean | × | プロジェクトMaiml有無（常にfalse） |
-| checkoutStatus | number | × | チェックアウトステータス（常に0） |
-| checkoutStatusName | string | ○ | チェックアウトステータス名称（「チェックイン中」） |
-| createAt | string | × | 作成日時（ISO 8601形式） |
-
-#### S3フォルダ構造
-
-```
-org_{organization_prefix}/projects/{project_name}/
-└── .keep  # マーカーファイル（フォルダ作成のため）
-```
-
-#### 設計上の考慮事項
-
-##### トランザクション管理
-- データベース挿入とS3フォルダ作成は一貫性を保つ
-- S3作成失敗時はデータベースのトランザクションをロールバック
-- エラー発生時は適切なHTTPステータスコードとエラーメッセージを返却
-
-##### プロジェクト名の制約
-- 同一組織内で一意である必要がある
-- 論理削除されたプロジェクトと同名は作成可能（deleted_at IS NULL でフィルタ）
-- S3のフォルダ名としても使用されるため、特殊文字は制限
-
-##### デフォルト値
-- project_status: 0（プロジェクト計画中）
-- checkout_status: 0（チェックイン中）
-- project_maiml_flg: false
-- これらの値は固定でフロントエンドから指定不可
-
-##### フロントエンド連携
-- 作成成功後、フロントエンドでプロジェクト一覧を再取得
-- 新規作成されたプロジェクトが一覧の先頭に表示される（create_at DESC）
-
-##### エラーハンドリング
-- プロジェクト名重複時は409 Conflictを返却
-- S3エラー時は500 Internal Server Errorを返却し、DBはロールバック
-- バリデーションエラー時は400 Bad Requestを返却
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/projectController.ts` (`reload`)
+- **サービス**: `backend/src/services/projectService.ts` (`reloadProject`)
 
 ---
 
-### 2.4 指示送信（タスク作成）
+### 8. 指示送信（タスク作成） 🔴
 
-#### 概要
-プロジェクト管理画面で「指示送信」ボタンを押下すると表示されるダイアログで入力された情報をもとに、プロジェクトに対する作業指示とタスクを作成します。複数のテーブル（project、project_instruction、project_task、project_task_detail）に対してトランザクション管理しながらデータを登録します。
+**エンドポイント**: `POST /api/v1/projects/:projectId/instructions`
 
-#### エンドポイント
-- **URL**: `POST /api/v1/projects/:projectId/instructions`
-- **認証**: 必須（JWT + Session Hybrid）
-- **権限**: Manager以上
+**説明**: プロジェクトに対して実験指示を送信し、タスクを作成
 
-#### リクエスト
+**認証**: 必須
 
-##### ヘッダー
-| ヘッダー名 | 型 | 必須 | 説明 | 例 |
-|-----------|---|-----|------|---|
-| Authorization | string | ○ | JWTトークン | Bearer maiml_session-abc123_1234567890 |
-| X-Organization-Id | string | ○ | 組織ID | a0718dc5-21f3-44e6-87e9-cc2ae83f3385 |
+**権限**: `experiment_admin`, `system_admin`
 
-##### パラメータ（パス）
-| パラメータ名 | 型 | 必須 | 説明 | 例 |
-|------------|---|-----|------|---|
-| projectId | string | ○ | プロジェクトID（UUID） | b1234567-89ab-cdef-0123-456789abcdef |
+**優先度**: ⭐⭐⭐ 高
 
-##### リクエストボディ
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | UUID | ○ | プロジェクトID |
+
+**ボディ（JSON）**:
 ```json
 {
+  "instructionTitle": "実験指示タイトル",
+  "instructionContent": "実験指示の詳細内容",
+  "dueDate": "2026-01-31T23:59:59Z",
   "tasks": [
     {
-      "methodId": "method_001",
-      "experimentCondition": 0,
-      "trialCount": 3
-    },
-    {
-      "methodId": "method_002",
-      "experimentCondition": 0,
-      "trialCount": 1
-    }
-  ],
-  "instructions": [
-    {
-      "content": "以下の手順で実験を実施してください。",
-      "priority": 1,
-      "type": 0,
-      "targetType": 0,
-      "transitionId": null,
-      "taskNumber": null
-    },
-    {
-      "content": "測定時は温度を25℃に保ってください。",
-      "priority": 3,
-      "type": 2,
-      "targetType": 2,
-      "transitionId": "transition_002",
-      "taskNumber": null
-    },
-    {
-      "content": "特定タスクに対する指示です。",
-      "priority": 2,
-      "type": 0,
-      "targetType": 1,
-      "transitionId": null,
-      "taskNumber": 1
+      "methodId": "method-uuid",
+      "transitionId": "transition-uuid",
+      "assignedTo": "worker-uuid",
+      "priority": "high"
     }
   ]
 }
 ```
 
-| フィールド名 | 型 | 必須 | 説明 | 制約 |
-|------------|---|-----|------|------|
-| tasks | array | ○ | タスク一覧（メソッド順序） | 最低1件以上 |
-| tasks[].methodId | string | ○ | メソッドID | 255文字以内 |
-| experimentCondition | number | ○ | 実験条件 | 0（全て同一条件）または 1（実験ごとに変更） |
-| trialCount | number | × | 試行回数 | 1〜999の整数 |
-| instructions | array | ○ | 指示一覧 | 最低1件以上 |
-| instructions[].content | string | ○ | 指示内容 | 1〜1000文字 |
-| instructions[].priority | number | ○ | 優先度 | 0（低）、1（通常）、2（中）、3（高） |
-| instructions[].type | number | ○ | タイプ | 0（一般）、1（セットアップ）、2（測定）、3（安全）、4（清掃） |
-| instructions[].targetType | number | ○ | 指示対象 | 0（ファイル全体）、1（特定タスク）、2（特定トランジション） |
-| instructions[].transitionId | string | ○※ | 対象トランジションID | targetType=2の場合必須、それ以外はnull |
-| instructions[].taskNumber | number | ○※ | 対象タスク番号 | targetType=1の場合必須で1以上の整数、それ以外はnull |
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `instructionTitle` | string | ○ | 1-255文字 |
+| `instructionContent` | string | ○ | 1-5000文字 |
+| `dueDate` | ISO8601 | × | 未来の日時 |
+| `tasks` | array | ○ | 1個以上 |
+| `tasks[].methodId` | UUID | ○ | 有効なメソッドID |
+| `tasks[].transitionId` | UUID | ○ | 有効なトランジションID |
+| `tasks[].assignedTo` | UUID | ○ | 有効なワーカーID |
+| `tasks[].priority` | string | × | `low`, `medium`, `high` |
 
 #### レスポンス
 
-##### 成功時（201 Created）
+**成功時 (201 Created)**:
 ```json
 {
   "success": true,
   "data": {
-    "summary": {
-      "totalTasks": 2,
-      "createdTasks": 2
-    }
+    "instruction_id": "instruction-uuid",
+    "project_id": "550e8400-e29b-41d4-a716-446655440000",
+    "instruction_title": "実験指示タイトル",
+    "instruction_content": "実験指示の詳細内容",
+    "due_date": "2026-01-31T23:59:59Z",
+    "created_tasks": [
+      {
+        "task_id": "task-uuid",
+        "method_id": "method-uuid",
+        "transition_id": "transition-uuid",
+        "assigned_to": "worker-uuid",
+        "task_status": "pending"
+      }
+    ],
+    "created_at": "2026-01-21T16:00:00Z"
   },
   "meta": {
-    "timestamp": "2026-01-13T10:55:00Z",
-    "requestId": "req_jkl012"
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
   }
 }
 ```
 
-##### エラー時
-| HTTPステータス | エラーコード | 説明 |
-|--------------|------------|------|
-| 400 | VALIDATION_ERROR | バリデーションエラー（必須フィールド不足、タスク配列が空） |
-| 401 | AUTH_TOKEN_EXPIRED | 認証エラー（トークン期限切れ） |
-| 401 | AUTH_TOKEN_INVALID | 認証エラー（トークン不正） |
-| 403 | PERMISSION_INSUFFICIENT | 権限不足（Manager以上が必要） |
-| 404 | RESOURCE_NOT_FOUND | プロジェクトが存在しない |
-| 409 | BUSINESS_INVALID_PROJECT_STATUS | プロジェクトステータスが不正（指示送信不可） |
-| 500 | SYSTEM_DATABASE_ERROR | データベースエラー |
+**エラー時**:
+- 400: バリデーションエラー、期限が過去
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクト、メソッド、トランジション、ワーカーが存在しない
+- 500: システムエラー
 
-#### ビジネスロジック
-1. **認証チェック**: JWTトークンとセッションの検証
-2. **組織ID取得**: セッション情報から組織IDを取得
-3. **権限チェック**: Manager以上の権限が必要
-4. **プロジェクト存在確認**: 指定されたprojectIdが存在し、自組織のものであることを確認
-5. **プロジェクトステータス確認**: project_status = 0（プロジェクト計画中）であることを確認
-6. **ユーザー存在確認**: 割り当てユーザーIDが全て存在し、同一組織のユーザーであることを確認
-7. **指示ID生成**: UUID v4を使用して新規指示IDを生成
-8. **トランザクション開始**: 複数テーブルの更新を一貫性を保って実行
-9. **project_instructionテーブルへの登録**:
-   - experiment_instruction_id: 新規生成したUUID
-   - organization_id: セッション情報から取得
-   - project_id: パスパラメータから取得
-   - instructions: リクエストボディのinstructionContent
-   - instruction_user_id: ログインユーザーID
-   - instruction_date: 現在日時
-   - instruction_target: 画面で選択した指示対象のコード値
-   - priority: 画面で選択した優先度のコード値
-   - type: 画面で選択したタイプのコード値
-   - task_no: 画面で選択されている場合、画面で設定したタスク番号
-   - transition_id: 画面で選択されている場合、画面で設定したトランジションのID
-10. **project_taskテーブルへの登録**:
-    - organization_id: セッション情報から取得
-    - project_id: パスパラメータから取得
-    - method_id: 各タスクのmethod_id
-    - task_name: 各タスクのtaskName
-    - experiment_order: タスク詳細セクションの作業順序
-    - experiment_condition: タスク詳細セクションの実験条件
-    - attempts_count: タスク詳細セクションの試行回数
-    - 各method_idごとにレコード作成（重複時はUPSERT）
-11. **project_task_detailテーブルへの登録**:
-    - organization_id: セッション情報から取得
-    - project_id: パスパラメータから取得
-    - method_id: 各タスクのmethod_id
-    - task_no: 各タスクのtask_no
-    - task_status: 0（実行待ち）固定
-    - experiment_user_id, experiment_start_at, experiment_end_at, reviewed_at, review_user_id: NULL
-    - 各タスクごとにレコード作成
-12. **projectテーブルの更新**:
-    - project_status: 1（タスク実行待ち）に更新
-13. **トランザクションコミット**: すべての処理が成功した場合のみコミット
-14. **レスポンス生成**: 作成した指示とタスク情報を返却
-
-**注意事項:**
-- DBへの実際の登録内容は別途連携される仕様に従う
-- リクエストボディの項目とDBカラムの対応は「登録時の値マッピング」セクションを参照
-
-#### バリデーション
-- [x] Authorization ヘッダーの存在チェック
-- [x] X-Organization-Id ヘッダーの存在チェック
-- [x] X-Organization-Id が UUID 形式であることをチェック
-- [x] projectId が UUID 形式であることをチェック
-- [x] tasks が配列であることをチェック
-- [x] tasks が最低1件以上含まれることをチェック
-- [x] tasks[].methodId が必須であることをチェック
-- [x] experimentCondition が必須で 0 または 1 であることをチェック
-- [x] trialCount が 1〜999 の整数であることをチェック（指定時）
-- [x] instructions が配列であることをチェック
-- [x] instructions が最低1件以上含まれることをチェック
-- [x] instructions[].content が必須で1〜1000文字であることをチェック
-- [x] instructions[].priority が 0〜3 の整数であることをチェック
-- [x] instructions[].type が 0〜4 の整数であることをチェック
-- [x] instructions[].targetType が 0〜2 の整数であることをチェック
-- [x] instructions[].transitionId が targetType=2 の場合必須であることをチェック
-- [x] instructions[].taskNumber が targetType=1 の場合必須で1以上の整数であることをチェック
-
-#### セキュリティチェックリスト
-- [x] JWT認証の実施（authミドルウェア）
-- [x] organization_idフィルタの適用（必須）
-- [x] テナント分離（tenantIsolationミドルウェア）
-- [x] 権限チェック（permissionCheck - Manager以上）
-- [x] プロジェクト所有権の確認
-- [x] 割り当てユーザーの組織確認
-- [x] Parameterized Queryの使用
-- [x] 入力値のサニタイゼーション
-- [x] トランザクション管理
-
-
-#### テストケース
-- [x] 正常系：認証済みManagerによる指示送信
-- [x] 正常系：複数のタスクを含む指示の作成
-- [x] 正常系：due_dateなしでの指示作成
-- [x] 正常系：task_nameなしでのタスク作成
-- [x] 正常系：プロジェクトステータスが1に更新される
-- [x] 正常系：project_taskテーブルにmethod_idごとのレコードが作成される
-- [x] 正常系：project_task_detailテーブルに各タスクのレコードが作成される
-- [x] 正常系：タスクステータスが0（実行待ち）で作成される
-- [x] 正常系：作成後のレスポンスに全フィールドが含まれる
-- [x] 異常系：未認証ユーザーによるアクセス（401エラー）
-- [x] 異常系：権限不足ユーザー（Worker）によるアクセス（403エラー）
-- [x] 異常系：存在しないprojectId（404エラー）
-- [x] 異常系：他組織のプロジェクトへのアクセス（403エラー）
-- [x] 異常系：プロジェクトステータスが不正（project_status != 0）（409エラー）
-- [x] 異常系：instructionTitleが空文字（400エラー）
-- [x] 異常系：instructionContentが空文字（400エラー）
-- [x] 異常系：tasks配列が空（400エラー）
-- [x] 異常系：存在しないassignedUserId（400エラー）
-- [x] 異常系：他組織のユーザーをassignedUserIdに指定（400エラー）
-- [x] 異常系：トランザクション中のエラー発生時のロールバック（500エラー）
-
-#### レスポンスフィールド説明
-
-##### summary（サマリー情報）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| totalTasks | number | × | 作成されたタスク総数 |
-| createdTasks | number | × | 正常に作成されたタスク数 |
-
-#### 実際のテーブル構造（DDLに基づく）
-
-##### project_instruction テーブル（指示情報）
-- `experiment_instruction_id`: 指示ID（主キーの一部）
-- `instructions`: 指示内容（リクエストのinstructionContentを格納）
-- `instruction_user_id`: 指示作成者ID
-- `instruction_date`: 指示作成日時
-- `instruction_target`: 指示対象（1:ファイル全体、2:タスク、3:トランジション）
-- `priority`, `type`, `task_no`, `transition_id`: NULL（現在は使用しない）
-
-##### project_task テーブル（メソッド単位のタスク管理）
-- 主キー: `(organization_id, project_id, method_id)`
-- `task_name`: タスク名
-- `experiment_order`, `experiment_condition`, `attempts_count`: NULL（現在は使用しない）
-- **注意**: `instruction_id`カラムは存在しない（DDL上）
-
-##### project_task_detail テーブル（タスク詳細）
-- 主キー: `(organization_id, project_id, method_id, task_no)`
-- `task_status`: タスクステータス（0:実行待ち、1:実行中、2:レビュー待ち、3:完了、4:異常終了）
-- `experiment_user_id`: 実験作業者ID（リクエストのassignedUserIdを格納、本来は実験実施者だが初期値として使用）
-- `experiment_start_at`, `experiment_end_at`: 実験期間
-- `reviewed_at`, `review_user_id`: レビュー情報
-- **注意**: `task_name`カラムは存在しない（project_taskに存在）
-- **注意**: `assigned_user_id`カラムは存在しない（experiment_user_idで代用）
-
-#### テーブル間の関係
-
-```
-project (1) --- (N) project_instruction
-project (1) --- (N) project_task
-project_task (1) --- (N) project_task_detail
-
-注意: 
-- project_instructionとproject_taskは直接の外部キー関係なし
-- project_taskとproject_task_detailは(organization_id, project_id, method_id)で紐づく
-```
-
-#### 登録時の値マッピング
-
-##### project_instruction への登録
-- `experiment_instruction_id` ← UUID v4生成
-- `instructions` ← リクエストのinstructionContent
-- `instruction_user_id` ← ログインユーザーID
-- `instruction_date` ← 現在日時
-- `instruction_target` ← 1（ファイル全体）固定
-- その他 ← NULL
-
-##### project_task への登録
-- `method_id` ← リクエストのmethodId
-- `task_name` ← リクエストのtaskName
-- その他 ← NULL
-
-##### project_task_detail への登録
-- `task_no` ← リクエストのtaskNo
-- `task_status` ← 0（実行待ち）固定
-- `experiment_user_id` ← リクエストのassignedUserId（⚠️本来は実験実施者だが初期値として使用）
-- その他 ← NULL
-
-##### project の更新
-- `project_status` ← 1（タスク実行待ち）に更新
-
-#### 設計上の考慮事項
-
-##### トランザクション管理（重要）
-- 4つのテーブル（project, project_instruction, project_task, project_task_detail）への操作は一貫性を保つ
-- いずれかのテーブルへの登録・更新が失敗した場合、全てロールバック
-- エラー発生時は適切なHTTPステータスコードとエラーメッセージを返却
-
-##### プロジェクトステータスの遷移
-- 指示送信前: project_status = 0（プロジェクト計画中）
-- 指示送信後: project_status = 1（タスク実行待ち）
-- project_status != 0 の場合は指示送信不可（409エラー）
-
-##### project_taskテーブルの役割
-- method_idごとに1レコード作成
-- 同じmethod_idの複数タスクは、1つのproject_taskレコードに紐づく
-- instruction_idで最新の指示を追跡
-
-##### project_task_detailテーブルの役割
-- 各タスクごとに1レコード作成
-- 実験作業者はこのテーブルを参照してタスクを実行
-- task_status で進捗管理（0: 実行待ち, 1: 実行中, 2: レビュー待ち, 3: 完了, 4: 異常終了）
-
-##### フロントエンド連携
-- 指示送信成功後、フロントエンドでプロジェクト一覧と詳細を全て再取得
-- プロジェクトステータスが「タスク実行待ち」に変更される
-- 作成されたタスクが「タスク結果確認」タブに表示される
-
-##### 割り当てユーザーの制約
-- 割り当てユーザーは必ず同一組織内のユーザーである必要がある
-- Worker権限のユーザーに割り当てることを想定
-- 存在しないユーザーIDの場合はバリデーションエラー
-
-##### エラーハンドリング
-- プロジェクトが存在しない: 404 Not Found
-- プロジェクトステータスが不正: 409 Conflict
-- 割り当てユーザーが存在しない: 400 Bad Request
-- トランザクション中のエラー: 500 Internal Server Error（ロールバック）
+#### 実装要件
+- `project_instruction` テーブルに指示を登録
+- 各タスクを `project_task` テーブルに登録
+- トランザクション処理必須
 
 ---
 
-### 2.5 プロジェクト詳細検索（MAIMLメタデータ検索統合版）
+### 9. 指示一覧取得 🔴
 
-#### 概要
-プロジェクト管理画面で、MAIMLファイルのメタデータを複数の条件で検索し、該当するMAIMLファイルを持つプロジェクトを見つけます。Document情報、測定データ、ファイル構造、MaiML属性などから目的のプロジェクトを効率的に検索できます。
+**エンドポイント**: `GET /api/v1/projects/:projectId/instructions`
 
-**検索フロー:**
-1. ユーザーがMAIMLメタデータの検索条件を入力
-2. メタデータを検索して該当するMAIMLファイルを特定
-3. そのMAIMLファイルが属するプロジェクトを特定
-4. プロジェクト情報とマッチしたMAIMLファイル情報を返却
+**説明**: プロジェクトの指示一覧を取得
 
-#### エンドポイント
-- **URL**: `POST /api/v1/projects/search`
-- **認証**: 必須（JWT + Session Hybrid）
-- **権限**: すべてのロール（自組織のプロジェクトのみ）
+**認証**: 必須
 
-#### リクエスト
+**権限**: `experiment_admin`, `system_admin`
 
-##### ヘッダー
-| ヘッダー名 | 型 | 必須 | 説明 | 例 |
-|-----------|---|-----|------|---|
-| Authorization | string | ○ | JWTトークン | Bearer maiml_session-abc123_1234567890 |
-| X-Organization-Id | string | ○ | 組織ID | a0718dc5-21f3-44e6-87e9-cc2ae83f3385 |
+**優先度**: ⭐⭐ 中
 
-##### リクエストボディ
-```json
-{
-  "criteria": [
-    {
-      "attribute": "document.name",
-      "value": "実験A"
-    },
-    {
-      "attribute": "measurement_value",
-      "value": "25.5"
-    },
-    {
-      "attribute": "units",
-      "value": "℃"
-    }
-  ]
-}
-```
+#### リクエストパラメータ
 
-| フィールド名 | 型 | 必須 | 説明 | 制約 |
-|------------|---|-----|------|------|
-| criteria | array | ○ | 検索条件配列 | 1〜5件 |
-| criteria[].attribute | string | ○ | 検索対象属性 | 許可された属性のみ |
-| criteria[].value | string | ○ | 検索値 | 1〜255文字 |
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | UUID | ○ | プロジェクトID |
 
-##### 許可される attribute 値
-
-| 属性値 | カテゴリ | 説明 |
-|-------|---------|------|
-| document.uuid | Document情報 | Document UUID |
-| document.name | Document情報 | Document名 |
-| document.description | Document情報 | Document説明 |
-| measurement_value | 測定データ | 測定値 |
-| units | 測定データ | 単位 |
-| section_type | ファイル構造 | セクション種別 |
-| id | MaiML属性 | ID属性 |
-| ref | MaiML属性 | Ref属性 |
-| key | MaiML属性 | Key属性 |
-| element | MaiML属性 | Element名 |
-| value | MaiML属性 | 汎用Value |
+**クエリパラメータ**:
+| パラメータ | 型 | 必須 | デフォルト | 説明 |
+|----------|---|------|-----------|------|
+| `page` | integer | × | 1 | ページ番号 |
+| `limit` | integer | × | 20 | 1ページあたりの件数（1-100） |
 
 #### レスポンス
 
-##### 成功時（200 OK）
+**成功時 (200 OK)**:
 ```json
 {
   "success": true,
   "data": [
     {
-      "project": {
-        "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
-        "projectId": "b1234567-89ab-cdef-0123-456789abcdef",
-        "projectName": "sample_project",
-        "description": "これはサンプルプロジェクトです",
-        "departmentId": "c2345678-9abc-def0-1234-56789abcdef0",
-        "ownerUserId": "d3456789-abcd-ef01-2345-6789abcdef01",
-        "projectStatus": 2,
-        "projectStatusName": "タスク実行中",
-        "projectMaimlFlg": true,
-        "checkoutStatus": 0,
-        "checkoutStatusName": "チェックイン中",
-        "createAt": "2026-01-05T10:30:00.000Z"
-      },
-      "maimlFile": {
-        "maimlFileName": "sample_project.maiml",
-        "key": "projects/sample_project/sample_project.maiml",
-        "s3FolderPath": "s3://mmdpf-files/org_maiml_lab_001/projects/sample_project/",
-        "matchCount": 3,
-        "matchedAttributes": [
-          {
-            "attribute": "document.name",
-            "criterionNumber": 1,
-            "matchCount": 1,
-            "matchedValues": ["実験A"]
-          },
-          {
-            "attribute": "measurement_value",
-            "criterionNumber": 2,
-            "matchCount": 5,
-            "matchedValues": ["25.5", "25.3", "25.7", "25.4", "25.6"]
-          },
-          {
-            "attribute": "units",
-            "criterionNumber": 3,
-            "matchCount": 5,
-            "matchedValues": ["℃", "℃", "℃", "℃", "℃"]
-          }
-        ],
-        "metadata": {
-          "fileSize": 15360,
-          "lastModified": "2026-01-18T14:20:00.000Z",
-          "contentType": "application/xml"
-        }
-      }
-    },
-    {
-      "project": {
-        "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
-        "projectId": "e4567890-bcde-f012-3456-789abcdef012",
-        "projectName": "experiment_001",
-        "description": "材料分析プロジェクト",
-        "departmentId": null,
-        "ownerUserId": "d3456789-abcd-ef01-2345-6789abcdef01",
-        "projectStatus": 1,
-        "projectStatusName": "タスク実行待ち",
-        "projectMaimlFlg": true,
-        "checkoutStatus": 0,
-        "checkoutStatusName": "チェックイン中",
-        "createAt": "2026-01-03T14:20:00.000Z"
-      },
-      "maimlFile": {
-        "maimlFileName": "experiment_001.maiml",
-        "key": "projects/experiment_001/experiment_001.maiml",
-        "s3FolderPath": "s3://mmdpf-files/org_maiml_lab_001/projects/experiment_001/",
-        "matchCount": 3,
-        "matchedAttributes": [
-          {
-            "attribute": "document.name",
-            "criterionNumber": 1,
-            "matchCount": 1,
-            "matchedValues": ["実験A - 追加試験"]
-          },
-          {
-            "attribute": "measurement_value",
-            "criterionNumber": 2,
-            "matchCount": 3,
-            "matchedValues": ["25.5", "25.5", "25.5"]
-          },
-          {
-            "attribute": "units",
-            "criterionNumber": 3,
-            "matchCount": 3,
-            "matchedValues": ["℃", "℃", "℃"]
-          }
-        ],
-        "metadata": {
-          "fileSize": 12800,
-          "lastModified": "2026-01-15T09:10:00.000Z",
-          "contentType": "application/xml"
-        }
-      }
+      "instruction_id": "instruction-uuid",
+      "instruction_title": "実験指示タイトル",
+      "instruction_content": "実験指示の詳細内容",
+      "due_date": "2026-01-31T23:59:59Z",
+      "task_count": 5,
+      "completed_tasks": 2,
+      "created_at": "2026-01-21T10:00:00Z",
+      "created_by": "user-uuid",
+      "created_by_name": "Manager Name"
     }
   ],
   "pagination": {
-    "totalItems": 2,
-    "totalPages": 1,
-    "currentPage": 1,
-    "pageSize": 100
+    "page": 1,
+    "limit": 20,
+    "totalItems": 50,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
   },
   "meta": {
-    "timestamp": "2026-01-19T08:30:00Z",
-    "requestId": "req_search_001"
-  }
-}
-```
-
-##### エラー時
-| HTTPステータス | エラーコード | 説明 |
-|--------------|------------|------|
-| 400 | VALIDATION_ERROR | バリデーションエラー（条件が空、属性が不正） |
-| 400 | VALIDATION_TOO_MANY_CRITERIA | 検索条件が6件以上指定されている |
-| 401 | AUTH_TOKEN_EXPIRED | 認証エラー（トークン期限切れ） |
-| 401 | AUTH_TOKEN_INVALID | 認証エラー（トークン不正） |
-| 403 | PERMISSION_INSUFFICIENT | 権限不足 |
-| 500 | SYSTEM_DATABASE_ERROR | データベースエラー |
-| 500 | SYSTEM_S3_ERROR | S3アクセスエラー |
-
-#### ビジネスロジック
-1. **認証チェック**: JWTトークンとセッションの検証
-2. **組織ID取得**: セッション情報から組織IDを取得
-3. **バリデーション**:
-   - 検索条件が1〜5件であることを確認
-   - 各条件の属性が許可されたものであることを確認
-   - 各条件の値が空でないことを確認
-4. **MAIMLメタデータ検索**:
-   - file_metadataテーブルまたはAthenaで検索
-   - organization_idでフィルタリング（必須）
-   - 各検索条件をAND条件で結合
-   - MAIML XMLファイルのメタデータを全文検索
-5. **プロジェクト特定**:
-   - 検索結果のMAIMLファイルのS3キーからプロジェクト名を抽出
-   - パス形式: `projects/{project_name}/{project_name}.maiml`
-   - プロジェクト名を使ってprojectテーブルを検索
-6. **プロジェクト情報取得**:
-   - organization_idとproject_nameでフィルタリング
-   - プロジェクトステータス名称をcode_masterから取得
-   - チェックアウトステータス名称をcode_masterから取得
-7. **S3パス補正**:
-   - バケット名が不正な場合の補正
-   - organization_prefixの確認と補正
-   - 相対パスの絶対パス化
-8. **マッチ情報集計**:
-   - 各ファイルでマッチした属性と値を集計
-   - 条件番号、マッチ件数、マッチした値のリストを生成
-9. **ソート**: マッチ件数の多い順にソート
-10. **レスポンス生成**: プロジェクト情報とMAIMLファイル情報を統合して返却
-
-#### バリデーション
-- [x] Authorization ヘッダーの存在チェック
-- [x] X-Organization-Id ヘッダーの存在チェック
-- [x] X-Organization-Id が UUID 形式であることをチェック
-- [x] criteria が配列であることをチェック
-- [x] criteria が 1〜5 件であることをチェック
-- [x] criteria[].attribute が必須であることをチェック
-- [x] criteria[].attribute が許可された値であることをチェック
-- [x] criteria[].value が必須であることをチェック
-- [x] criteria[].value が 1〜255 文字であることをチェック
-
-#### セキュリティチェックリスト
-- [x] JWT認証の実施（authミドルウェア）
-- [x] organization_idフィルタの適用（必須）
-- [x] テナント分離（tenantIsolationミドルウェア）
-- [x] 権限チェック（permissionCheckミドルウェア）
-- [x] Parameterized Queryの使用
-- [x] 入力値のサニタイゼーション
-- [x] クロステナントアクセスの防止
-- [x] S3パスのバリデーション
-
-#### テストケース
-- [x] 正常系：単一条件での検索
-- [x] 正常系：複数条件（AND）での検索
-- [x] 正常系：Document情報での検索
-- [x] 正常系：測定データでの検索
-- [x] 正常系：MaiML属性での検索
-- [x] 正常系：検索結果が0件の場合
-- [x] 正常系：S3パスの補正が正しく行われる
-- [x] 正常系：マッチ情報が正しく集計される
-- [x] 正常系：プロジェクト情報が正しく取得される
-- [x] 正常系：MAIMLファイルを持たないプロジェクトは結果に含まれない
-- [x] 異常系：未認証ユーザーによるアクセス（401エラー）
-- [x] 異常系：権限不足ユーザーによるアクセス（403エラー）
-- [x] 異常系：検索条件が空（400エラー）
-- [x] 異常系：検索条件が6件以上（400エラー）
-- [x] 異常系：不正な属性名（400エラー）
-- [x] 異常系：空の検索値（400エラー）
-- [x] 異常系：他組織のプロジェクトは検索結果に含まれない
-
-#### レスポンスフィールド説明
-
-##### project（プロジェクト情報）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| organizationId | string | × | 組織ID（UUID） |
-| projectId | string | × | プロジェクトID（UUID） |
-| projectName | string | × | プロジェクト名 |
-| description | string | ○ | プロジェクト説明 |
-| departmentId | string | ○ | 部門ID（UUID） |
-| ownerUserId | string | × | 所有者ユーザーID（UUID） |
-| projectStatus | number | × | プロジェクトステータス（0〜5） |
-| projectStatusName | string | ○ | プロジェクトステータス名称 |
-| projectMaimlFlg | boolean | × | プロジェクトMaiml有無 |
-| checkoutStatus | number | × | チェックアウトステータス（0, 1） |
-| checkoutStatusName | string | ○ | チェックアウトステータス名称 |
-| createAt | string | × | 作成日時（ISO 8601形式） |
-
-##### maimlFile（MAIMLファイル情報）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| maimlFileName | string | × | MAIMLファイル名 |
-| key | string | × | S3オブジェクトキー |
-| s3FolderPath | string | × | S3フォルダパス（バケット含む） |
-| matchCount | number | × | 総マッチ件数 |
-| matchedAttributes | array | × | マッチした属性情報の配列 |
-| metadata | object | × | ファイルメタデータ |
-
-##### matchedAttributes（マッチ属性情報）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| attribute | string | × | 属性名 |
-| criterionNumber | number | × | 検索条件番号（1始まり） |
-| matchCount | number | × | この属性でのマッチ件数 |
-| matchedValues | array | × | マッチした値の配列（最大5件表示） |
-
-##### metadata（ファイルメタデータ）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| fileSize | number | × | ファイルサイズ（バイト） |
-| lastModified | string | × | 最終更新日時（ISO 8601形式） |
-| contentType | string | × | コンテンツタイプ |
-
-#### データモデル
-
-##### file_metadata テーブル（ファイルメタデータ）
-
-検索対象となるメタデータを格納するテーブル。
-
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|---|------|----------|------|
-| organization_id | UUID | NOT NULL | - | 組織ID（複合主キー） |
-| file_id | UUID | NOT NULL | uuid_generate_v4() | ファイルID（複合主キー） |
-| bucket_name | VARCHAR(255) | NULL | - | S3バケット名 |
-| object_key | VARCHAR(1024) | NULL | - | S3オブジェクトキー |
-| file_name | VARCHAR(255) | NULL | - | ファイル名 |
-| file_type | VARCHAR(50) | NULL | - | ファイル種別（maiml, xml等） |
-| file_size | BIGINT | NULL | - | ファイルサイズ（バイト） |
-| content_type | VARCHAR(100) | NULL | - | コンテンツタイプ |
-| metadata_json | JSONB | NULL | - | メタデータ（JSON形式） |
-| last_modified | TIMESTAMP | NULL | - | 最終更新日時 |
-| created_at | TIMESTAMP | NULL | CURRENT_TIMESTAMP | 作成日時 |
-| updated_at | TIMESTAMP | NULL | CURRENT_TIMESTAMP | 更新日時 |
-
-**主キー**: `(organization_id, file_id)`
-
-**インデックス**:
-- `organization_id`
-- `file_id`
-- `bucket_name`
-- `object_key`
-- `file_type`
-- `metadata_json` (GINインデックス - JSONB検索用)
-
-##### metadata_json構造
-
-`metadata_json`カラムには以下の構造でMAIMLファイルのメタデータが格納されます：
-
-```json
-{
-  "document": {
-    "uuid": "doc-uuid-001",
-    "name": "実験A",
-    "description": "材料合成実験"
-  },
-  "measurements": [
-    {
-      "measurement_value": "25.5",
-      "units": "℃"
-    }
-  ],
-  "sections": [
-    {
-      "section_type": "Material"
-    }
-  ],
-  "attributes": {
-    "id": ["material_001", "condition_001"],
-    "ref": ["ref_001", "ref_002"],
-    "key": ["temp", "pressure"],
-    "elements": ["Material", "Condition", "Result"],
-    "values": ["value1", "value2"]
-  }
-}
-```
-
-#### 検索クエリ例
-
-##### PostgreSQL + JSONB
-```sql
--- Step 1: MAIMLファイルを検索
-SELECT 
-  file_id,
-  file_name,
-  object_key,
-  bucket_name,
-  file_size,
-  last_modified,
-  metadata_json
-FROM file_metadata
-WHERE organization_id = $1
-  AND file_type = 'maiml'
-  AND metadata_json @> '{"document": {"name": "実験A"}}'::jsonb
-  AND metadata_json @> '{"measurements": [{"units": "℃"}]}'::jsonb
-ORDER BY last_modified DESC;
-
--- Step 2: プロジェクト情報を取得
-SELECT 
-  p.organization_id,
-  p.project_id,
-  p.project_name,
-  p.description,
-  p.department_id,
-  p.owner_user_id,
-  p.project_status,
-  p.project_maiml_flg,
-  p.checkout_status,
-  p.create_at
-FROM project p
-WHERE p.organization_id = $1
-  AND p.project_name IN (
-    -- S3キーからプロジェクト名を抽出
-    -- 例: projects/sample_project/sample_project.maiml → sample_project
-  );
-```
-
-#### プロジェクト名抽出ロジック
-
-MAIMLファイルのS3キーからプロジェクト名を抽出する処理：
-
-```typescript
-function extractProjectNameFromS3Key(s3Key: string): string | null {
-  // パターン: projects/{project_name}/{project_name}.maiml
-  const match = s3Key.match(/^projects\/([^\/]+)\/\1\.maiml$/);
-  return match ? match[1] : null;
-}
-
-// 使用例
-const s3Key = "projects/sample_project/sample_project.maiml";
-const projectName = extractProjectNameFromS3Key(s3Key);
-// → "sample_project"
-```
-
-#### S3パス補正ロジック
-
-検索結果のS3パスは以下のルールで補正されます：
-
-1. **バケット名補正**:
-   - `s3://`で始まらない場合、デフォルトバケット名を追加
-   - バケット名が3文字未満の場合、デフォルトバケット名で置換
-
-2. **organization_prefix確認**:
-   - パスに`org_{organization_id}`が含まれることを確認
-   - 不足している場合は追加
-
-3. **キーの正規化**:
-   - `s3://bucket/key`形式の場合、keyのみを抽出
-   - 相対パスを絶対パスに変換
-
-#### パフォーマンス最適化
-
-##### インデックス戦略（PostgreSQL）
-```sql
--- JSONB検索用GINインデックス
-CREATE INDEX idx_file_metadata_json 
-ON file_metadata USING GIN (metadata_json);
-
--- 組織とファイルタイプの複合インデックス
-CREATE INDEX idx_file_metadata_org_type 
-ON file_metadata (organization_id, file_type);
-```
-
-##### キャッシング戦略
-- **検索可能な属性リスト**: TTL 1時間
-- **頻繁に検索される条件の結果**: TTL 5分
-- **キャッシュ無効化**: ファイルアップロード/更新/削除時
-
-#### 設計上の考慮事項
-
-##### プロジェクトとMAIMLファイルの関係
-- 1プロジェクト = 1 MAIMLファイル（現在版）+ 0〜N アーカイブファイル
-- 検索対象は現在版のMAIMLファイルのみ（`projects/{project_name}/{project_name}.maiml`）
-- アーカイブファイル（`projects/{project_name}/archive/`）は検索対象外
-
-##### プロジェクトのフィルタリング
-- project_maiml_flg = true のプロジェクトのみ検索対象
-- MAIMLファイルが存在しないプロジェクトは結果に含まれない
-- 削除済みプロジェクト（deleted_at IS NOT NULL）は除外
-
-##### エラーハンドリング
-- MAIMLファイルは見つかったがプロジェクトが見つからない場合
-  → プロジェクトが削除された可能性があるため、結果から除外
-- S3パスが不正な形式の場合
-  → パス補正を試み、それでも不正ならスキップ
-
-##### スケーラビリティ
-- 検索結果の最大件数: 100件
-- ページネーションサポート（将来拡張予定）
-- 大量データ対応: Athenaへの移行を検討
-
-#### 将来の拡張可能性
-
-##### 検索機能の拡張
-- アーカイブファイルも検索対象に含める
-- OR条件のサポート
-- 範囲検索（数値、日付）
-- ファジー検索（あいまい検索）
-- ワイルドカード検索
-- 正規表現検索
-
-##### パフォーマンス改善
-- Elasticsearchへの移行検討
-- 非同期検索（大量データ対応）
-- 検索結果のページネーション改善
-
-##### ユーザビリティ向上
-- 検索履歴の保存
-- よく使う検索条件の保存
-- 検索候補の自動補完
-- 検索結果のエクスポート機能
-
-#### 関連ドキュメント
-- [MAIMLファイル検索API仕様](api_maiml_search.md) - メタデータ検索の詳細仕様
-- [MAIML検索モーダル UI設計](../ui/ui_search_modal.md) - 画面仕様
-- [S3構造定義](../../.clinerules/references/s3_structure.md) - S3フォルダ構成
-- [データベース構造](../../.clinerules/references/db_structure.md) - file_metadataテーブル
-
----
-
-### 2.6 チェックイン/チェックアウト状態切り替え
-
-#### 概要
-プロジェクトのチェックアウトステータスを切り替えます。チェックイン中にのみ実験計画の修正が可能。チェックアウト状態になったのちに実験作業者にて作業を行う。
-
-#### エンドポイント
-- **URL**: `PATCH /api/v1/projects/:projectId/checkout-status`
-- **認証**: 必須（JWT + Session Hybrid）
-- **権限**: Manager以上
-
----
-
-### 2.7 ファイルアップロード
-
-#### 概要
-プロジェクトフォルダにファイルをアップロードします。単一ファイル、一括ファイル、フォルダ構造を保持したアップロードの3つのモードをサポートします。アップロードされたファイルはS3に保存され、メタデータはfile_metadataテーブルに記録されます。
-
-**アップロードモード:**
-1. **単一ファイルアップロード（single）**: 1ファイルを指定フォルダにアップロード
-2. **一括ファイルアップロード（bulk）**: 複数ファイルを同時にアップロード
-3. **フォルダアップロード（folder）**: フォルダ階層を保持してアップロード
-
-#### エンドポイント
-- **URL**: `POST /api/v1/projects/:projectId/files/upload`
-- **認証**: 必須（JWT + Session Hybrid）
-- **権限**: Manager以上
-
-#### リクエスト
-
-##### ヘッダー
-| ヘッダー名 | 型 | 必須 | 説明 | 例 |
-|-----------|---|-----|------|---|
-| Authorization | string | ○ | JWTトークン | Bearer maiml_session-abc123_1234567890 |
-| X-Organization-Id | string | ○ | 組織ID | a0718dc5-21f3-44e6-87e9-cc2ae83f3385 |
-| Content-Type | string | ○ | multipart/form-data | multipart/form-data; boundary=----WebKitFormBoundary |
-
-##### パラメータ（パス）
-| パラメータ名 | 型 | 必須 | 説明 | 例 |
-|------------|---|-----|------|---|
-| projectId | string | ○ | プロジェクトID（UUID） | b1234567-89ab-cdef-0123-456789abcdef |
-
-##### リクエストボディ（multipart/form-data）
-
-**共通フィールド:**
-| フィールド名 | 型 | 必須 | 説明 | 制約 |
-|------------|---|-----|------|------|
-| uploadMode | string | ○ | アップロードモード | single, bulk, folder |
-| targetFolder | string | ○ | アップロード先フォルダパス | 階層構造: org_xxx/dept_xxx/project_xxx |
-| batchName | string | × | バッチ名 | 255文字以内、自動生成可 |
-| preserveFolderStructure | boolean | × | フォルダ構造保持 | bulk/folder時のみ有効、デフォルト: true |
-
-**ファイルフィールド:**
-| フィールド名 | 型 | 必須 | 説明 | 制約 |
-|------------|---|-----|------|------|
-| files | file[] | ○ | アップロードファイル | 最大100MB/ファイル、最大100ファイル |
-
-**マルチパート形式例:**
-```http
-POST /api/v1/projects/b1234567-89ab-cdef-0123-456789abcdef/files/upload
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
-
-------WebKitFormBoundary
-Content-Disposition: form-data; name="uploadMode"
-
-bulk
-------WebKitFormBoundary
-Content-Disposition: form-data; name="targetFolder"
-
-org_materials/dept_research/project_001
-------WebKitFormBoundary
-Content-Disposition: form-data; name="batchName"
-
-一括アップロード 5ファイル
-------WebKitFormBoundary
-Content-Disposition: form-data; name="preserveFolderStructure"
-
-true
-------WebKitFormBoundary
-Content-Disposition: form-data; name="files"; filename="data1.csv"
-Content-Type: text/csv
-
-[ファイル内容]
-------WebKitFormBoundary
-Content-Disposition: form-data; name="files"; filename="data2.csv"
-Content-Type: text/csv
-
-[ファイル内容]
-------WebKitFormBoundary--
-```
-
-#### レスポンス
-
-##### 成功時（201 Created）
-
-**単一ファイルアップロード:**
-```json
-{
-  "success": true,
-  "data": {
-    "uploadMode": "single",
-    "file": {
-      "fileId": "f7890123-defg-4567-890a-bcdef0123456",
-      "fileName": "experiment_data.csv",
-      "filePath": "org_maiml_lab_001/projects/sample_project/experiment_data.csv",
-      "s3Key": "projects/sample_project/experiment_data.csv",
-      "fileSize": 15360,
-      "contentType": "text/csv",
-      "uploadedAt": "2026-01-19T09:50:00.000Z"
-    }
-  },
-  "meta": {
-    "timestamp": "2026-01-19T09:50:00Z",
-    "requestId": "req_upload_001"
-  }
-}
-```
-
-**一括/フォルダアップロード:**
-```json
-{
-  "success": true,
-  "data": {
-    "uploadMode": "bulk",
-    "batchName": "一括アップロード 5ファイル",
-    "targetFolder": "org_materials/dept_research/project_001",
-    "summary": {
-      "totalFiles": 5,
-      "successfulFiles": 5,
-      "failedFiles": 0,
-      "totalSize": 76800
-    },
-    "files": [
-      {
-        "fileId": "f7890123-defg-4567-890a-bcdef0123456",
-        "fileName": "data1.csv",
-        "filePath": "org_maiml_lab_001/projects/sample_project/data1.csv",
-        "s3Key": "projects/sample_project/data1.csv",
-        "fileSize": 15360,
-        "contentType": "text/csv",
-        "uploadedAt": "2026-01-19T09:50:00.000Z",
-        "status": "success"
-      }
-    ]
-  },
-  "meta": {
-    "timestamp": "2026-01-19T09:50:01Z",
-    "requestId": "req_upload_002"
-  }
-}
-```
-
-##### エラー時
-| HTTPステータス | エラーコード | 説明 |
-|--------------|------------|------|
-| 400 | VALIDATION_ERROR | バリデーションエラー（必須フィールド不足） |
-| 400 | VALIDATION_FILE_SIZE_EXCEEDED | ファイルサイズ超過（100MB超） |
-| 400 | VALIDATION_FILE_COUNT_EXCEEDED | ファイル数超過（100件超） |
-| 400 | VALIDATION_INVALID_FILE_TYPE | 不正なファイル種別 |
-| 401 | AUTH_TOKEN_EXPIRED | 認証エラー（トークン期限切れ） |
-| 401 | AUTH_TOKEN_INVALID | 認証エラー（トークン不正） |
-| 403 | PERMISSION_INSUFFICIENT | 権限不足（Manager以上が必要） |
-| 404 | RESOURCE_NOT_FOUND | プロジェクトが存在しない |
-| 500 | SYSTEM_DATABASE_ERROR | データベースエラー |
-| 500 | SYSTEM_S3_ERROR | S3アクセスエラー |
-
-#### ビジネスロジック
-1. **認証チェック**: JWTトークンとセッションの検証
-2. **組織ID取得**: セッション情報から組織IDを取得
-3. **権限チェック**: Manager以上の権限が必要
-4. **プロジェクト存在確認**: 指定されたprojectIdが存在し、自組織のものであることを確認
-5. **ファイルバリデーション**:
-   - ファイル数チェック（最大100ファイル）
-   - ファイルサイズチェック（最大100MB/ファイル）
-   - ファイル種別チェック（ホワイトリスト方式）
-   - ファイル名サニタイゼーション
-6. **S3パス生成**:
-   - パス形式: `org_{organization_prefix}/projects/{project_name}/{targetFolder}/{filename}`
-   - organization_prefix強制適用（マルチテナント分離）
-7. **アップロードモード別処理**:
-   - **single**: 1ファイルをアップロード、バッチ名自動生成（`単一アップロード: {filename}`）
-   - **bulk**: 複数ファイルをアップロード、バッチ名自動生成（`一括アップロード {count}ファイル`）
-   - **folder**: フォルダ構造を保持してアップロード、バッチ名自動生成（`フォルダアップロード: {foldername}`）
-8. **S3アップロード**: storageService.uploadFileでS3にアップロード
-9. **file_metadataテーブルへの登録**:
-   - organization_id、file_id（UUID生成）、bucket_name、object_key
-   - file_name、file_type、file_size、content_type
-   - metadata_json（batchName等）、last_modified
-10. **トランザクション管理**: S3アップロードとDB登録の一貫性を保つ
-11. **レスポンス生成**: アップロード結果を返却
-
-#### バリデーション
-- [x] Authorization ヘッダーの存在チェック
-- [x] X-Organization-Id ヘッダーの存在チェック
-- [x] X-Organization-Id が UUID 形式であることをチェック
-- [x] projectId が UUID 形式であることをチェック
-- [x] uploadMode が必須で許可された値（single, bulk, folder）であることをチェック
-- [x] targetFolder が必須で255文字以内であることをチェック
-- [x] batchName が255文字以内であることをチェック（指定時）
-- [x] preserveFolderStructure が boolean であることをチェック（指定時）
-- [x] files が必須で1件以上含まれることをチェック
-- [x] 各ファイルのサイズが100MB以内であることをチェック
-- [x] ファイル総数が100件以内であることをチェック
-- [x] ファイル種別が許可されたものであることをチェック
-
-#### セキュリティチェックリスト
-- [x] JWT認証の実施（authミドルウェア）
-- [x] organization_idフィルタの適用（必須）
-- [x] テナント分離（tenantIsolationミドルウェア）
-- [x] 権限チェック（permissionCheck - Manager以上）
-- [x] プロジェクト所有権の確認
-- [x] ファイルサイズ制限（100MB/ファイル）
-- [x] ファイル数制限（100ファイル）
-- [x] ファイル種別制限（ホワイトリスト）
-- [x] ファイル名サニタイゼーション
-- [x] organization_prefix強制適用（S3）
-- [x] トランザクション管理
-
-#### テストケース
-- [x] 正常系：認証済みManagerによる単一ファイルアップロード
-- [x] 正常系：一括ファイルアップロード（複数ファイル）
-- [x] 正常系：フォルダ構造を保持したアップロード
-- [x] 正常系：batchName未指定時の自動生成
-- [x] 正常系：preserveFolderStructure=trueでフォルダ構造保持
-- [x] 正常系：preserveFolderStructure=falseでフラット化
-- [x] 正常系：file_metadataテーブルへの自動記録
-- [x] 正常系：アップロード後のレスポンスに全フィールドが含まれる
-- [x] 異常系：未認証ユーザーによるアクセス（401エラー）
-- [x] 異常系：権限不足ユーザー（Worker）によるアクセス（403エラー）
-- [x] 異常系：存在しないprojectId（404エラー）
-- [x] 異常系：他組織のプロジェクトへのアクセス（403エラー）
-- [x] 異常系：ファイルサイズ超過（100MB超）（400エラー）
-- [x] 異常系：ファイル数超過（100件超）（400エラー）
-- [x] 異常系：不正なファイル種別（400エラー）
-- [x] 異常系：uploadMode未指定（400エラー）
-- [x] 異常系：targetFolder未指定（400エラー）
-- [x] 異常系：files未指定（400エラー）
-- [x] 異常系：S3エラー発生時のロールバック（500エラー）
-
-#### レスポンスフィールド説明
-
-##### 共通フィールド
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| uploadMode | string | × | アップロードモード（single, bulk, folder） |
-| batchName | string | ○ | バッチ名（一括/フォルダ時） |
-| targetFolder | string | ○ | アップロード先フォルダ（一括/フォルダ時） |
-
-##### file（単一ファイル時）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| fileId | string | × | ファイルID（UUID） |
-| fileName | string | × | ファイル名 |
-| filePath | string | × | S3上のフルパス（organization_prefix含む） |
-| s3Key | string | × | S3オブジェクトキー（organization_prefix除く） |
-| fileSize | number | × | ファイルサイズ（バイト） |
-| contentType | string | × | コンテンツタイプ |
-| uploadedAt | string | × | アップロード日時（ISO 8601形式） |
-
-##### summary（一括/フォルダ時）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| totalFiles | number | × | 総ファイル数 |
-| successfulFiles | number | × | 成功したファイル数 |
-| failedFiles | number | × | 失敗したファイル数 |
-| totalSize | number | × | 総ファイルサイズ（バイト） |
-
-##### files（一括/フォルダ時）
-| フィールド名 | 型 | NULL許可 | 説明 |
-|------------|---|---------|------|
-| fileId | string | × | ファイルID（UUID） |
-| fileName | string | × | ファイル名 |
-| filePath | string | × | S3上のフルパス |
-| s3Key | string | × | S3オブジェクトキー |
-| fileSize | number | × | ファイルサイズ（バイト） |
-| contentType | string | × | コンテンツタイプ |
-| uploadedAt | string | × | アップロード日時 |
-| status | string | × | アップロード状態（success, failed） |
-| error | string | ○ | エラーメッセージ（失敗時のみ） |
-
-#### 許可されるファイル種別
-
-**ホワイトリスト方式:**
-```
-.maiml, .xml, .json, .txt, .csv,
-.png, .jpg, .jpeg, .gif, .tif, .tiff, .bmp, .svg, .webp,
-.pdf
-```
-
-#### フロントエンド実装（BulkUploadDialog.tsx）
-
-##### UIコンポーネント
-- **Segmented**: アップロードモード選択（単一/一括/フォルダ）
-- **Dragger**: ドラッグ&ドロップエリア（単一/一括）
-- **Cascader**: 階層的なフォルダ選択（組織 → 部門 → プロジェクト）
-- **Progress**: アップロード進捗表示
-- **Alert**: 状態通知（進行中/完了/エラー）
-
-##### フォルダ構造選択（Cascader）
-
-**階層構造:**
-```
-組織（固定: ログイン情報から取得）
-└── 部門（dept_xxx）
-    └── プロジェクト（project_xxx）
-```
-
-**changeOnSelect設定:**
-- 単一ファイル: `false`（プロジェクトまで選択必須）
-- 一括ファイル: `true`（部門レベルでも選択可能）
-- フォルダ: `true`（部門レベルでも選択可能）
-
-**選択パス生成:**
-```typescript
-// 組織IDを先頭に追加した完全パス
-const selectedPath = `${organizationId}/${dept}/${project}`;
-// 例: org_materials/dept_research/project_001
-```
-
-##### バッチ名の自動生成
-
-```typescript
-// 単一ファイル
-setBatchName(`単一アップロード: ${file.name}`);
-
-// 一括ファイル
-setBatchName(`一括アップロード ${fileCount}ファイル`);
-
-// フォルダ
-const folderName = file.webkitRelativePath.split('/')[0];
-setBatchName(`フォルダアップロード: ${folderName}`);
-```
-
-##### 進捗表示
-
-```typescript
-interface UploadState {
-  isUploading: boolean;      // アップロード中フラグ
-  progress: number;          // 進捗率（0-100）
-  uploadedCount: number;     // アップロード完了数
-  totalCount: number;        // 総ファイル数
-  error: string | null;      // エラーメッセージ
-}
-```
-
-##### ファイルサイズフォーマット
-
-```typescript
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-};
-```
-
-#### データモデル
-
-##### file_metadata テーブル（ファイルメタデータ）
-
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|---|------|----------|------|
-| organization_id | UUID | NOT NULL | - | 組織ID（複合主キー） |
-| file_id | UUID | NOT NULL | uuid_generate_v4() | ファイルID（複合主キー） |
-| bucket_name | VARCHAR(255) | NULL | - | S3バケット名 |
-| object_key | VARCHAR(1024) | NULL | - | S3オブジェクトキー |
-| file_name | VARCHAR(255) | NULL | - | ファイル名 |
-| file_type | VARCHAR(50) | NULL | - | ファイル種別（拡張子） |
-| file_size | BIGINT | NULL | - | ファイルサイズ（バイト） |
-| content_type | VARCHAR(100) | NULL | - | コンテンツタイプ |
-| metadata_json | JSONB | NULL | - | メタデータ（batchName等） |
-| last_modified | TIMESTAMP | NULL | - | 最終更新日時 |
-| created_at | TIMESTAMP | NULL | CURRENT_TIMESTAMP | 作成日時 |
-| updated_at | TIMESTAMP | NULL | CURRENT_TIMESTAMP | 更新日時 |
-
-**主キー**: `(organization_id, file_id)`
-
-**インデックス**:
-- `organization_id`
-- `file_id`
-- `bucket_name`
-- `object_key`
-- `file_type`
-- `metadata_json` (GINインデックス - JSONB検索用)
-
-#### S3パス構造
-
-```
-org_{organization_prefix}/projects/{project_name}/
-├── {file1}.csv
-├── {file2}.json
-└── subfolder/  (preserveFolderStructure時)
-    └── {file3}.txt
-```
-
-#### 設計上の考慮事項
-
-##### トランザクション管理
-- S3アップロードとfile_metadataテーブル登録の一貫性を保つ
-- いずれかが失敗した場合、全てロールバック
-- エラー発生時は適切なHTTPステータスコードとエラーメッセージを返却
-
-##### パフォーマンス最適化
-- 並列アップロード: 最大5ファイル同時アップロード
-- 進捗更新: リアルタイムで進捗をフロントエンドに通知
-- チャンク転送: 大きなファイル（10MB以上）はチャンク転送
-
-##### スケーラビリティ
-- ファイル数制限: 100ファイル（UI制限、API制限）
-- ファイルサイズ制限: 100MB/ファイル（S3署名付きURLで対応可能）
-- 総サイズ制限: 10GB（将来的な拡張検討）
-
-##### エラーハンドリング
-- 部分的な成功: 一部のファイルが失敗しても成功したファイル情報を返却
-- リトライ機能: 失敗したファイルのリトライ機能（将来実装予定）
-- キャンセル機能: アップロード中のキャンセル機能（将来実装予定）
-
-##### セキュリティ
-- ファイル名サニタイゼーション: 特殊文字、パストラバーサルの防止
-- MIME Type検証: Content-Typeとファイル拡張子の整合性チェック
-- ウイルススキャン: アップロード後のウイルススキャン（将来実装検討）
-
-#### 実装済み機能（フロントエンド）
-
-✅ 3つのアップロードモード（単一/一括/フォルダ）
-✅ Cascaderによる階層的フォルダ選択
-✅ ドラッグ&ドロップサポート
-✅ ファイルリスト表示（10件まで、それ以上は省略）
-✅ ファイルサイズフォーマット
-✅ 進捗表示UI（Progress + Alert）
-✅ バッチ名自動生成
-✅ フォルダ構造保持オプション
-✅ アップロード中の閉じる確認
-✅ エラー表示UI
-
-#### 未実装機能（TODO）
-
-⏳ 実際のAPI呼び出し処理
-⏳ リアルタイム進捗更新
-⏳ ファイル名重複チェック
-⏳ サーバーサイドバリデーション連携
-⏳ キャンセル機能
-⏳ リトライ機能
-⏳ アップロード履歴保存
-
----
-
-### 2.8 ファイルダウンロード
-
-#### 概要
-プロジェクトフォルダ内のファイルをダウンロードするための署名付きURLを生成します。生成されたURLは1時間有効で、クライアント側で直接S3からファイルをダウンロードできます。
-
-#### エンドポイント
-- **URL**: `GET /api/v1/projects/:projectId/files/:fileName/download`
-- **認証**: 必須（JWT + Session Hybrid）
-- **権限**: Manager以上（Worker: 割り当てられたプロジェクトのみ）
-
----
-
-### 2.9 プロジェクトリロード
-
-#### 概要
-S3上のファイル一覧を再読み込みし、最新の状態を取得します。外部からファイルが追加・更新された場合や、キャッシュをクリアして最新状態を確認したい場合に使用します。
-
-#### エンドポイント
-- **URL**: `POST /api/v1/projects/:projectId/reload`
-- **認証**: 必須（JWT + Session Hybrid）
-- **権限**: Manager以上
-
----
-
-### 2.10 プロジェクト公開
-
-#### 概要
-プロジェクトを他の組織や外部ユーザーに公開します。公開設定により、読み取り専用アクセスを付与したり、共同編集を許可したりできます。公開URLの生成や、アクセス権限の管理を行います。
-
-#### エンドポイント
-- **URL**: `POST /api/v1/projects/:projectId/publish`
-- **認証**: 必須（JWT + Session Hybrid）
-- **権限**: Manager以上
-
----
-
-### 📝 機能追加方法
-
-各機能仕様は以下のテンプレートに従って追記していきます：
-
-```markdown
-### 2.X [機能名]
-
-#### 概要
-[機能の簡潔な説明]
-
-#### エンドポイント
-- **URL**: `GET /api/v1/projects`
-- **認証**: 必須（JWT）
-- **権限**: Manager以上
-
-#### リクエスト
-
-##### パラメータ（クエリ）
-| パラメータ名 | 型 | 必須 | 説明 | デフォルト値 | 例 |
-|------------|---|-----|------|------------|---|
-| page | number | × | ページ番号 | 1 | 1 |
-| limit | number | × | 1ページあたりの件数 | 20 | 20 |
-
-##### パラメータ（パス）
-| パラメータ名 | 型 | 必須 | 説明 | 例 |
-|------------|---|-----|------|---|
-| id | string | ○ | プロジェクトID | proj_123 |
-
-##### リクエストボディ
-\`\`\`json
-{
-  "projectName": "サンプルプロジェクト",
-  "description": "説明"
-}
-\`\`\`
-
-#### レスポンス
-
-##### 成功時（200 OK）
-\`\`\`json
-{
-  "success": true,
-  "data": {
-    "projectId": "proj_123",
-    "projectName": "サンプルプロジェクト"
-  },
-  "meta": {
-    "timestamp": "2026-01-09T10:00:00Z",
+    "timestamp": "2026-01-21T16:00:00Z",
     "requestId": "req_abc123"
   }
 }
-\`\`\`
+```
 
-##### エラー時
-| HTTPステータス | エラーコード | 説明 |
-|--------------|------------|------|
-| 400 | VALIDATION_ERROR | バリデーションエラー |
-| 401 | AUTH_TOKEN_EXPIRED | 認証エラー |
-| 403 | PERMISSION_INSUFFICIENT | 権限不足 |
-| 404 | RESOURCE_NOT_FOUND | リソースが存在しない |
+**エラー時**:
+- 400: バリデーションエラー
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない
+- 500: システムエラー
 
-#### ビジネスロジック
-1. [処理ステップ1]
-2. [処理ステップ2]
-3. [処理ステップ3]
+---
 
-#### バリデーション
-- [ ] 必須フィールドのチェック
-- [ ] データ型のチェック
-- [ ] 文字列長のチェック
-- [ ] organization_idの存在チェック
+### 10. プロジェクト詳細検索 🔴
 
-#### セキュリティチェックリスト
-- [ ] JWT認証の実施
-- [ ] organization_idフィルタの適用
-- [ ] 権限チェック（permissionCheck）の実施
-- [ ] Parameterized Queryの使用
-- [ ] 入力値のサニタイゼーション
+**エンドポイント**: `POST /api/v1/projects/search`
 
-#### データベース操作
-\`\`\`sql
-SELECT * FROM projects 
-WHERE organization_id = $1 
-ORDER BY created_at DESC 
-LIMIT $2 OFFSET $3;
-\`\`\`
+**説明**: 複雑な条件でプロジェクトを検索
 
-#### テストケース
-- [ ] 正常系：認証済みユーザーによるアクセス
-- [ ] 異常系：未認証ユーザーによるアクセス
-- [ ] 異常系：権限不足ユーザーによるアクセス
-- [ ] 異常系：他組織のデータへのアクセス
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐ 中
+
+#### リクエスト
+
+**ボディ（JSON）**:
+```json
+{
+  "projectName": "検索キーワード",
+  "status": ["created", "in_progress"],
+  "dateRange": {
+    "start": "2026-01-01",
+    "end": "2026-01-31"
+  },
+  "createdBy": "user-uuid",
+  "hasActiveTasks": true,
+  "page": 1,
+  "limit": 20
+}
+```
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "project_id": "550e8400-e29b-41d4-a716-446655440000",
+      "project_name": "Sample Project",
+      "description": "プロジェクトの説明",
+      "project_status": "in_progress",
+      "is_checked_out": true,
+      "checked_out_by": "user-uuid",
+      "active_tasks_count": 5,
+      "create_at": "2026-01-15T10:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "totalItems": 10,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  },
+  "meta": {
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
 ```
 
 ---
 
-## 3. データモデル
+### 11. プロジェクト公開 🔴
 
-### 3.1 使用するテーブル
+**エンドポイント**: `POST /api/v1/projects/:projectId/publish`
 
-このAPIで使用する主要テーブルの構造を記載します。詳細なDDL定義は `docs/design/db/ddl/` を参照してください。
+**説明**: プロジェクトを公開状態に変更
 
-#### project テーブル（プロジェクト）
+**認証**: 必須
 
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|---|------|----------|------|
-| organization_id | UUID | NOT NULL | - | 組織ID（マルチテナント分離、複合主キー） |
-| project_id | UUID | NOT NULL | uuid_generate_v4() | プロジェクトID（複合主キー） |
-| project_name | VARCHAR(255) | NULL | - | プロジェクト名 |
-| description | TEXT | NULL | - | プロジェクト説明 |
-| department_id | UUID | NULL | - | 部門ID |
-| owner_user_id | UUID | NULL | - | 所有者ユーザーID |
-| project_status | NUMERIC(2,0) | NULL | - | プロジェクトステータス（0-5） |
-| project_maiml_flg | BOOLEAN | NULL | - | プロジェクトMaiml有無 |
-| checkout_status | NUMERIC(2,0) | NULL | - | チェックアウトステータス（0-1） |
-| create_at | TIMESTAMP | NULL | - | 作成日時 |
+**権限**: `experiment_admin`, `system_admin`
 
-**主キー**: `(organization_id, project_id)`
+**優先度**: ⭐⭐ 中
 
-**インデックス**:
-- `organization_id`
-- `project_id`
-- `project_status`
+#### リクエストパラメータ
 
-#### project_instruction テーブル（プロジェクト指示）
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | UUID | ○ | プロジェクトID |
 
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|---|------|----------|------|
-| organization_id | UUID | NOT NULL | - | 組織ID（複合主キー） |
-| project_id | UUID | NOT NULL | - | プロジェクトID（複合主キー） |
-| experiment_instruction_id | VARCHAR(255) | NOT NULL | - | 指示ID（複合主キー） |
-| instruction_target | NUMERIC(2,0) | NULL | - | 指示対象（1:ファイル全体、2:タスク、3:トランジション） |
-| priority | NUMERIC(2,0) | NULL | - | 優先度 |
-| type | NUMERIC(2,0) | NULL | - | タイプ |
-| task_no | NUMERIC(3,0) | NULL | - | タスク連番 |
-| transition_id | VARCHAR(255) | NULL | - | トランジションID |
-| instructions | TEXT | NULL | - | 指示内容 |
-| instruction_user_id | UUID | NULL | - | 指示作成者ID |
-| instruction_date | TIMESTAMP | NULL | - | 指示作成日時 |
-
-**主キー**: `(organization_id, project_id, experiment_instruction_id)`
-
-**インデックス**:
-- `organization_id`
-- `project_id`
-- `experiment_instruction_id`
-
-#### project_task テーブル（プロジェクトタスク）
-
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|---|------|----------|------|
-| organization_id | UUID | NOT NULL | - | 組織ID（複合主キー） |
-| project_id | UUID | NOT NULL | - | プロジェクトID（複合主キー） |
-| method_id | VARCHAR(255) | NOT NULL | - | メソッドID（複合主キー） |
-| task_name | VARCHAR(255) | NULL | - | タスク名 |
-| experiment_order | NUMERIC(2,0) | NULL | - | 実験順序 |
-| experiment_condition | NUMERIC(2,0) | NULL | - | 実験条件 |
-| attempts_count | NUMERIC(3,0) | NULL | - | 試行回数 |
-
-**主キー**: `(organization_id, project_id, method_id)`
-
-**インデックス**:
-- `organization_id`
-- `project_id`
-- `method_id`
-
-**外部キー**:
-- `(organization_id, project_id)` → `project(organization_id, project_id)`
-
-#### project_task_detail テーブル（プロジェクトタスク詳細）
-
-| カラム名 | 型 | NULL | デフォルト | 説明 |
-|---------|---|------|----------|------|
-| organization_id | UUID | NOT NULL | - | 組織ID（複合主キー） |
-| project_id | UUID | NOT NULL | - | プロジェクトID（複合主キー） |
-| method_id | VARCHAR(255) | NOT NULL | - | メソッドID（複合主キー） |
-| task_no | NUMERIC(3,0) | NOT NULL | - | タスク連番（複合主キー） |
-| task_status | NUMERIC(2,0) | NULL | - | タスクステータス（0-4） |
-| experiment_start_at | TIMESTAMP | NULL | - | 実験開始日時 |
-| experiment_end_at | TIMESTAMP | NULL | - | 実験終了日時 |
-| experiment_user_id | UUID | NULL | - | 実験作業者ID |
-| reviewed_at | TIMESTAMP | NULL | - | レビュー完了日時 |
-| review_user_id | UUID | NULL | - | レビュアーID |
-
-**主キー**: `(organization_id, project_id, method_id, task_no)`
-
-**インデックス**:
-- `organization_id`
-- `project_id`
-- `method_id`
-- `task_status`
-- `experiment_user_id`
-
-**外部キー**:
-- `(organization_id, project_id, method_id)` → `project_task(organization_id, project_id, method_id)`
-
-### 3.2 リレーション
-
-```
-project (1) ─┬─ (N) project_instruction
-             ├─ (N) project_task (1) ─── (N) project_task_detail
-             └─ (N) file_metadata (S3ファイル管理)
-
-organization (1) ─── (N) project
-organization_user (1) ─── (N) project_task_detail (experiment_user_id)
+**ボディ（JSON）**:
+```json
+{
+  "publishNote": "公開コメント（オプション）"
+}
 ```
 
-### 3.3 ステータス値の定義
+#### レスポンス
 
-#### project_status（プロジェクトステータス）
-
-| 値 | 名称 | 説明 |
-|----|------|------|
-| 0 | プロジェクト計画中 | プロジェクトの計画段階 |
-| 1 | タスク実行待ち | タスクの実行を待機中 |
-| 2 | タスク実行中 | タスクが実行中 |
-| 3 | タスク結果レビュー待ち | タスク結果のレビュー待ち |
-| 4 | プロジェクト完了 | プロジェクトが完了 |
-| 5 | タスク異常終了 | タスクが異常終了 |
-
-#### checkout_status（チェックアウトステータス）
-
-| 値 | 名称 | 説明 |
-|----|------|------|
-| 0 | チェックイン中 | プロジェクトがチェックイン中 |
-| 1 | チェックアウト済 | プロジェクトがチェックアウト済 |
-
-#### task_status（タスクステータス）
-
-| 値 | 名称 | 説明 |
-|----|------|------|
-| 0 | 実行待ち | タスクの実行を待機中 |
-| 1 | 実行中 | タスクが実行中 |
-| 2 | レビュー待ち | タスク結果のレビュー待ち |
-| 3 | 完了 | タスクが完了 |
-| 4 | 異常終了 | タスクが異常終了 |
-
-#### instruction_priority（優先度）
-
-| 値 | 名称 | 説明 |
-|----|------|------|
-| 0 | 低 | 優先度が低い指示 |
-| 1 | 通常 | 通常の優先度 |
-| 2 | 中 | 優先度が中程度の指示 |
-| 3 | 高 | 優先度が高い指示 |
-
-#### instruction_type（指示タイプ）
-
-| 値 | 名称 | 説明 |
-|----|------|------|
-| 0 | 一般 | 一般的な指示 |
-| 1 | セットアップ | セットアップに関する指示 |
-| 2 | 測定 | 測定に関する指示 |
-| 3 | 安全 | 安全に関する指示 |
-| 4 | 清掃 | 清掃に関する指示 |
-
-#### instruction_target（指示対象）
-
-| 値 | 名称 | 説明 |
-|----|------|------|
-| 0 | ファイル全体 | プロジェクト全体への指示 |
-| 1 | 特定タスク | 特定タスクへの指示 |
-| 2 | 特定トランジション | 特定トランジションへの指示 |
-
-### 3.4 マルチテナント設計
-
-#### 必須事項
-- すべてのテーブルに `organization_id` カラムが存在
-- すべてのテーブルで `organization_id` が複合主キーの一部
-- すべてのクエリで `organization_id` フィルタが必須
-- クロステナントアクセスは厳禁（System Adminを除く）
-
-#### 外部キー制約
-外部キー制約には必ず `organization_id` を含める：
-```sql
-FOREIGN KEY (organization_id, project_id, method_id)
-REFERENCES project_task(organization_id, project_id, method_id)
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "550e8400-e29b-41d4-a716-446655440000",
+    "project_name": "Sample Project",
+    "project_status": "published",
+    "published_at": "2026-01-21T16:00:00Z",
+    "published_by": "user-uuid"
+  },
+  "meta": {
+    "timestamp": "2026-01-21T16:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
 ```
+
+**エラー時**:
+- 400: プロジェクトステータスが不正
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない
+- 500: システムエラー
+
+#### ビジネスルール
+- 完了済みのプロジェクトのみ公開可能
+- 公開後は編集不可
 
 ---
 
-## 4. セキュリティ要件
+## 🔒 セキュリティ考慮事項
 
-### 4.1 認証・認可
+### マルチテナント分離の徹底
 
-#### 認証方式
-- JWT + Session Hybrid認証を使用
-- すべてのエンドポイントで `auth` ミドルウェアを適用
+**必須チェック:**
+- [ ] すべてのDBクエリに `organization_id` フィルタ
+- [ ] すべてのS3操作に `org_{organization_prefix}` プレフィックス
+- [ ] クロステナントアクセスの防止
 
-#### 認可（RBAC）
-
-| エンドポイント | System Admin | Manager | Worker |
-|--------------|-------------|---------|--------|
-| GET /projects | ○（全組織） | ○（自組織のみ） | ○（割り当てのみ） |
-| POST /projects | ○ | ○ | × |
-| PUT /projects/:id | ○ | ○ | × |
-| DELETE /projects/:id | ○ | ○ | × |
-
-### 4.2 マルチテナント分離
-
-#### 必須事項
-- すべてのAPIリクエストに `X-Organization-Id` ヘッダーが必須
-- すべてのDBクエリに `organization_id` フィルタが必須
-- クロステナントアクセスは厳禁（System Adminを除く）
-
-#### ミドルウェアチェーン
-```javascript
-router.get('/projects',
-  auth,                        // JWT認証
-  tenantIsolation,            // テナント分離
-  permissionCheck(['manager', 'admin']), // 権限チェック
-  projectController.list
-);
-```
-
-### 4.3 データアクセス制御
-
-#### SQL実装例
+**実装例:**
 ```typescript
 // ✅ 良い例
-const projects = await db.query(
-  'SELECT * FROM projects WHERE organization_id = $1',
-  [organizationId]
-);
+const projects = await db
+  .selectFrom('projects')
+  .where('organization_id', '=', organizationId)
+  .where('project_id', '=', projectId)
+  .selectAll()
+  .execute();
 
 // ❌ 悪い例
-const projects = await db.query('SELECT * FROM projects');
+const projects = await db
+  .selectFrom('projects')
+  .where('project_id', '=', projectId)  // organization_idフィルタなし
+  .selectAll()
+  .execute();
 ```
 
----
+### 権限チェック
 
-## 5. パフォーマンス要件
+**ロール別権限:**
+- `system_admin`: すべての操作可能
+- `experiment_admin`: 所属組織内のプロジェクト操作可能
+- `experiment_worker`: プロジェクト一覧取得のみ（編集不可）
 
-### 5.1 レスポンスタイム
+### S3署名付きURL
 
-| エンドポイント | 目標レスポンスタイム | 最大許容時間 |
-|--------------|-------------------|-------------|
-| GET /projects | < 200ms | < 500ms |
-| POST /projects | < 300ms | < 1000ms |
-| PUT /projects/:id | < 300ms | < 1000ms |
-| DELETE /projects/:id | < 200ms | < 500ms |
-
-### 5.2 スループット
-
-- 同時リクエスト処理: 100 req/sec 以上
-- データベース接続プール: 最大20接続
-
-### 5.3 キャッシング戦略
-
-#### 対象データ
-- プロジェクト一覧（TTL: 5分）
-- プロジェクト詳細（TTL: 3分）
-
-#### キャッシュ無効化タイミング
-- プロジェクト作成時
-- プロジェクト更新時
-- プロジェクト削除時
+**ファイルダウンロード:**
+- 直接URLではなく署名付きURLを返却
+- 有効期限: 1時間
+- organization_prefixの検証必須
 
 ---
 
-## 6. テスト要件
+## 📚 関連ドキュメント
 
-### 6.1 ユニットテスト
-
-#### テスト対象
-- バリデーション関数
-- ビジネスロジック
-- データ変換処理
-
-#### カバレッジ目標
-- Branches: 70%以上
-- Functions: 70%以上
-- Lines: 70%以上
-
-### 6.2 統合テスト
-
-#### テストシナリオ
-- 認証・認可フロー
-- マルチテナント分離
-- CRUD操作の一連の流れ
-- エラーハンドリング
-
-### 6.3 E2Eテスト（将来実装予定）
-
-#### テストシナリオ
-- ユーザーログインからプロジェクト作成まで
-- プロジェクト一覧表示から詳細表示まで
-- プロジェクト編集から保存まで
-
----
-
-## 7. エラーハンドリング
-
-### 7.1 エラーコード体系
-
-#### カテゴリ別エラーコード
-
-**VALIDATION_***
-- `VALIDATION_REQUIRED_FIELD` - 必須フィールドが不足
-- `VALIDATION_INVALID_FORMAT` - フォーマットが不正
-- `VALIDATION_STRING_TOO_LONG` - 文字列が長すぎる
-
-**AUTH_***
-- `AUTH_TOKEN_EXPIRED` - トークンの有効期限切れ
-- `AUTH_TOKEN_INVALID` - トークンが無効
-- `AUTH_UNAUTHORIZED` - 未認証
-
-**PERMISSION_***
-- `PERMISSION_INSUFFICIENT` - 権限不足
-- `PERMISSION_DENIED` - アクセス拒否
-
-**RESOURCE_***
-- `RESOURCE_NOT_FOUND` - リソースが存在しない
-- `RESOURCE_ALREADY_EXISTS` - リソースが既に存在
-- `RESOURCE_CONFLICT` - リソースの競合
-
-**BUSINESS_***
-- `BUSINESS_INVALID_OPERATION` - 不正な操作
-- `BUSINESS_DUPLICATE_PROJECT_NAME` - プロジェクト名の重複
-
-### 7.2 エラーレスポンス形式
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "VALIDATION_REQUIRED_FIELD",
-    "message": "必須フィールドが不足しています",
-    "details": [
-      {
-        "field": "projectName",
-        "message": "プロジェクト名は必須です",
-        "code": "REQUIRED_FIELD"
-      }
-    ]
-  },
-  "meta": {
-    "timestamp": "2026-01-09T10:00:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
----
-
-## 8. 関連ドキュメント
-
+### 規約
 - [API設計ポリシー](../../.clinerules/development/api.md)
 - [バックエンド規約](../../.clinerules/development/backend.md)
-- [セキュリティルール](../../.clinerules/development/security.md)
-- [データベース設計](../db/)
+- [セキュリティ規約](../../.clinerules/development/security.md)
+
+### 設計書
+- [API一覧（統合版）](../../20260121_API一覧.md)
+- [API実装方針](../../20260121_API実装方針.md)
+- [データベース構造](../../.clinerules/references/db_structure.md)
+- [S3構造](../../.clinerules/references/s3_structure.md)
+
+### UI仕様書
+- [プロジェクト管理画面](../ui/experiment_admin/01_project_management/ProjectManagement.md)
 
 ---
 
-## 9. 付録
+## 📝 変更履歴
 
-### 9.1 用語集
-
-| 用語 | 説明 |
-|------|------|
-| プロジェクト | 実験の単位となる管理対象 |
-| マルチテナント | 組織ごとにデータを分離する仕組み |
-| RBAC | ロールベースアクセス制御 |
-| JWT | JSON Web Token（認証トークン） |
-
-### 9.2 実装時の注意事項
-
-#### DO（推奨）
-✅ すべてのDBクエリに organization_id フィルタを含める
-✅ Parameterized Queries を使用する
-✅ 適切なエラーハンドリングを実装する
-✅ ログを適切に記録する
-✅ トランザクション管理を適切に行う
-
-#### DON'T（非推奨）
-❌ organization_id なしでクエリを実行しない
-❌ 文字列連結でSQLクエリを構築しない
-❌ 認証・認可ミドルウェアを省略しない
-❌ エラーを握りつぶさない
-❌ 機密情報をログに出力しない
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|----------|--------|
+| 2.0.0 | 2026-01-21 | API一覧に基づき全面改訂、実装状況反映 | Cline |
+| 1.0.0 | 2024-12-XX | 初版作成 | Development Team |
 
 ---
 
-## 📝 機能仕様の追加について
-
-このドキュメントは段階的に更新されます。
-新しい機能仕様を追加する際は、以下の手順で進めてください：
-
-1. **セクション2（機能詳細）に新しい機能を追記**
-   - テンプレートに従って記述
-   - 一貫性のある形式を維持
-
-2. **セクション3（データモデル）の更新**
-   - 新しいテーブルやカラムが必要な場合は追記
-
-3. **セクション4（セキュリティ要件）の確認**
-   - 新機能の権限設定を追加
-
-4. **セクション6（テスト要件）の更新**
-   - 新機能のテストケースを追加
-
-5. **変更履歴の更新**
-   - ドキュメント冒頭の変更履歴テーブルに記録
-
----
-
-**現在の状態**: テンプレート作成完了。機能仕様の追加待ち。
-
-**次のステップ**: ユーザーから提供される各機能仕様を順次このドキュメントに統合していきます。
+**作成者**: Cline  
+**作成日**: 2026-01-21 16:30  
+**最終更新**: 2026-01-21 16:30
