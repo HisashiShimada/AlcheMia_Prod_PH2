@@ -1,25 +1,31 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { message } from 'antd';
-import AuthContainer from '@/components/auth/AuthContainer';
 import LoginPage from '@/components/LoginPage';
+import PinCodeInputPage from '@/components/PinCodeInputPage';
 import ProviderMenu from '@/components/menus/ProviderMenu';
 import SystemAdminMenu from '@/components/menus/SystemAdminMenu';
 import DataAdminMenu from '@/components/menus/DataAdminMenu';
 import ExperimentAdminMenu from '@/components/menus/ExperimentAdminMenu';
 import ExperimentWorkerMenu from '@/components/menus/ExperimentWorkerMenu';
-import { User, UserRole, LoginCredentials, ROLE_REDIRECT_MAP } from '@/types/auth';
+import { authService, AuthServiceError } from '@/services/authService';
+import type { LoginCredentials, User, UserRole } from '@/types/auth';
 
 // デバッグ機能のインポート（開発環境専用）
 import DebugLoginPanel from '@/components/common/DebugLoginPanel';
-import type { DebugUser } from '@/types/debug';
 
 // 開発環境判定
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 /**
- * デモ用ユーザーデータ
+ * 認証フロー状態
+ */
+type AuthStep = 'login' | 'pin-code' | 'authenticated';
+
+/**
+ * デモ用ユーザーデータ（開発環境用）
  */
 const demoUsers: Record<string, { password: string; user: User }> = {
   provider: {
@@ -84,52 +90,221 @@ const demoUsers: Record<string, { password: string; user: User }> = {
   },
 };
 
+/**
+ * ホームページ（統合ログイン画面）
+ */
 export default function Home() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentMenuType, setCurrentMenuType] = useState<UserRole | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
   const [messageApi, contextHolder] = message.useMessage();
 
-  // ログイン処理
-  const handleLogin = async (credentials: LoginCredentials) => {
+  // URLクエリパラメータから組織IDを取得（開発環境用）
+  const orgIdFromUrl = searchParams.get('orgId') || undefined;
+
+  // 認証フロー状態管理
+  const [authStep, setAuthStep] = useState<AuthStep>('login');
+
+  // ログイン後のユーザー情報とメニュー表示
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentMenuType, setCurrentMenuType] = useState<UserRole | null>(null);
+
+  // 共通状態
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // PINコード入力に必要な情報
+  const [sessionToken, setSessionToken] = useState<string>('');
+  const [organizationId, setOrganizationId] = useState<string>('');
+  const [maskedEmail, setMaskedEmail] = useState<string>('');
+
+  /**
+   * ログイン処理（第1段階）
+   */
+  const handleLogin = async (credentials: LoginCredentials): Promise<void> => {
+    setError(null);
     setLoading(true);
+
+    try {
+      // バックエンドAPIにログインリクエスト（開発環境用: URLのorgIdを渡す）
+      const response = await authService.login(credentials, orgIdFromUrl);
+
+      // ログイン成功 - PINコード送信完了
+      console.log('Login successful:', response);
+
+      // 仮セッショントークンと組織IDを保存
+      setSessionToken(response.sessionToken);
+      setOrganizationId(credentials.organizationId);
+      setMaskedEmail(response.email);
+
+      // 開発環境の場合、PINコードをsessionStorageに保存
+      if (response.devMode && response.pinCode) {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('devPinCode', response.pinCode);
+        }
+      }
+
+      // PINコード入力画面へ遷移
+      setAuthStep('pin-code');
+    } catch (err) {
+      // エラーハンドリング
+      if (err instanceof AuthServiceError) {
+        setError(err.message);
+        console.error('Login error:', {
+          code: err.code,
+          message: err.message,
+          details: err.details,
+        });
+      } else {
+        setError('予期しないエラーが発生しました');
+        console.error('Unexpected error:', err);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * PINコード検証処理（第2段階）
+   */
+  const handleVerifyPin = async (pinCode: string): Promise<void> => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      // PINコード検証API呼び出し
+      const response = await authService.verifyPin(pinCode, sessionToken, orgIdFromUrl);
+
+      // 検証成功
+      console.log('PIN verification successful:', response);
+
+      // ユーザー情報を設定
+      setCurrentUser(response.user);
+      setCurrentMenuType(response.user.role as UserRole);
+      setAuthStep('authenticated');
+
+      // ユーザー情報とセッショントークンをSessionStorageに保存
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('user', JSON.stringify(response.user));
+        sessionStorage.setItem('sessionToken', response.session.token); // ← session.tokenを保存
+      }
+
+      messageApi.success('ログインに成功しました');
+    } catch (err) {
+      // エラーハンドリング
+      if (err instanceof AuthServiceError) {
+        setError(err.message);
+        console.error('PIN verification error:', {
+          code: err.code,
+          message: err.message,
+          details: err.details,
+        });
+      } else {
+        setError('予期しないエラーが発生しました');
+        console.error('Unexpected error:', err);
+      }
+
+      // エラーを再スローしてPinCodeInputPageでの処理を継続
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * PINコード再送信処理
+   */
+  const handleResendPin = async (): Promise<void> => {
     setError(null);
 
-    // デモ用の遅延
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+      // PINコード再送信API呼び出し（ログイン画面では組織IDをURLから取得）
+      const response = await authService.resendPin(sessionToken, orgIdFromUrl);
 
-    const demoUser = demoUsers[credentials.username];
-    if (demoUser && demoUser.password === credentials.password) {
-      setCurrentUser(demoUser.user);
-      setCurrentMenuType(demoUser.user.role); // 初期表示メニューはユーザーのロールと同じ
-      messageApi.success('ログインに成功しました');
-    } else {
-      setError('ユーザー名またはパスワードが正しくありません');
+      console.log('PIN resend successful:', response);
+
+      // マスキングメールを更新
+      if (response.email) {
+        setMaskedEmail(response.email);
+      }
+    } catch (err) {
+      // エラーハンドリング
+      if (err instanceof AuthServiceError) {
+        setError(err.message);
+        console.error('PIN resend error:', {
+          code: err.code,
+          message: err.message,
+          details: err.details,
+        });
+      } else {
+        setError('予期しないエラーが発生しました');
+        console.error('Unexpected error:', err);
+      }
+
+      // エラーを再スローしてPinCodeInputPageでの処理を継続
+      throw err;
     }
-
-    setLoading(false);
   };
 
-  // ログアウト処理
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setCurrentMenuType(null);
-    messageApi.info('ログアウトしました');
+  /**
+   * ログイン画面に戻る処理
+   */
+  const handleBackToLogin = (): void => {
+    setAuthStep('login');
+    setError(null);
+    setSessionToken('');
+    setOrganizationId('');
+    setMaskedEmail('');
   };
 
-  // ナビゲーション処理（デモ用）
+  /**
+   * ログアウト処理
+   */
+  const handleLogout = async () => {
+    try {
+      // バックエンドのログアウトAPIを呼び出し
+      await authService.logout();
+      messageApi.success('ログアウトしました');
+    } catch (error) {
+      // エラーが発生してもローカル状態はクリアする
+      console.error('Logout API error:', error);
+      if (error instanceof AuthServiceError) {
+        messageApi.warning(`ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました: ${error.message}`);
+      } else {
+        messageApi.warning('ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました');
+      }
+    } finally {
+      // 成功・失敗に関わらずローカル状態をクリア
+      setCurrentUser(null);
+      setCurrentMenuType(null);
+      setAuthStep('login');
+      setSessionToken('');
+      setOrganizationId('');
+      setMaskedEmail('');
+      setError(null);
+      
+      // SessionStorageをクリア
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('devPinCode');
+      }
+    }
+  };
+
+  /**
+   * ナビゲーション処理（デモ用）
+   */
   const handleNavigate = (path: string) => {
     messageApi.info(`画面遷移: ${path}`);
   };
 
-  // メニュー切り替え処理（デモ用）
+  /**
+   * メニュー切り替え処理（デモ用）
+   */
   const handleMenuChange = (menuType: UserRole) => {
     if (!currentUser) return;
 
     // ユーザー情報は一切変更せず、表示するメニューだけを変更
     setCurrentMenuType(menuType);
-    
+
     // メニュー名の取得（日本語表示用）
     const menuNames: Record<UserRole, string> = {
       provider: 'プロバイダーメニュー',
@@ -139,118 +314,127 @@ export default function Home() {
       experiment_worker: '実験作業者メニュー',
       mi_engineer: 'MI技術者メニュー',
     };
-    
+
     messageApi.success(`${menuNames[menuType]}に切り替えました`);
   };
 
-  // ログインしていない場合はログイン画面を表示
-  if (!currentUser) {
-    // 開発環境では旧デバッグパネルを使用（暫定）
-    // TODO: バックエンドAPI完成後、本番用AuthContainerに切り替え
-    if (isDevelopment) {
-      const debugUsers: DebugUser[] = Object.entries(demoUsers).map(([username, data]) => ({
-        username,
-        password: data.password,
-        displayName: data.user.displayName,
-        role: data.user.role,
-      }));
+  // 条件分岐レンダリング
+  
+  // Step 1: ログイン画面
+  if (authStep === 'login') {
+    // 開発環境ではデバッグパネル付きのLoginPageを表示
+    const debugPanel = isDevelopment ? (
+      <DebugLoginPanel
+        onLogin={(cred) => handleLogin({ ...cred, organizationId: 'org_lab_001' })}
+        loading={loading}
+        debugUsers={Object.entries(demoUsers).map(([username, data]) => ({
+          username,
+          password: data.password,
+          displayName: data.user.displayName,
+          role: data.user.role as UserRole,
+        }))}
+      />
+    ) : undefined;
 
-      const debugPanel = (
-        <DebugLoginPanel 
-          onLogin={handleLogin}
-          loading={loading}
-          debugUsers={debugUsers}
-        />
-      );
-
-      // 旧LoginPageを使用（デバッグ用）
-      return (
-        <>
-          {contextHolder}
-          <LoginPage 
-            onLogin={handleLogin} 
-            error={error} 
-            loading={loading}
-            debugPanel={debugPanel}
-          />
-        </>
-      );
-    }
-
-    // 本番環境または開発環境でデバッグなしの場合は新しいAuthContainerを使用
     return (
       <>
         {contextHolder}
-        <AuthContainer 
-          organizationId="org_lab_001"
-          roleRedirectMap={ROLE_REDIRECT_MAP}
+        <LoginPage
+          onLogin={handleLogin}
+          error={error}
+          loading={loading}
+          debugPanel={debugPanel}
         />
       </>
     );
   }
 
-  // 表示するメニュータイプに応じたメニュー画面を表示
-  // ユーザー情報（currentUser）は元のまま保持される
-  let MenuComponent: React.ReactNode;
-  switch (currentMenuType) {
-    case 'provider':
-      MenuComponent = (
-        <ProviderMenu 
-          user={currentUser} 
-          onLogout={handleLogout} 
-          onNavigate={handleNavigate}
-          onMenuChange={handleMenuChange}
+  // Step 2: PINコード入力画面
+  if (authStep === 'pin-code') {
+    return (
+      <>
+        {contextHolder}
+        <PinCodeInputPage
+          sessionToken={sessionToken}
+          organizationId={organizationId}
+          maskedEmail={maskedEmail}
+          onVerify={handleVerifyPin}
+          onBack={handleBackToLogin}
+          onResend={handleResendPin}
+          error={error}
+          loading={loading}
         />
-      );
-      break;
-    case 'system_admin':
-      MenuComponent = (
-        <SystemAdminMenu 
-          user={currentUser} 
-          onLogout={handleLogout} 
-          onNavigate={handleNavigate}
-          onMenuChange={handleMenuChange}
-        />
-      );
-      break;
-    case 'data_admin':
-      MenuComponent = (
-        <DataAdminMenu 
-          user={currentUser} 
-          onLogout={handleLogout} 
-          onNavigate={handleNavigate}
-          onMenuChange={handleMenuChange}
-        />
-      );
-      break;
-    case 'experiment_admin':
-      MenuComponent = (
-        <ExperimentAdminMenu
-          user={currentUser}
-          onLogout={handleLogout}
-          onNavigate={handleNavigate}
-          onMenuChange={handleMenuChange}
-        />
-      );
-      break;
-    case 'experiment_worker':
-      MenuComponent = (
-        <ExperimentWorkerMenu
-          user={currentUser}
-          onLogout={handleLogout}
-          onNavigate={handleNavigate}
-          onMenuChange={handleMenuChange}
-        />
-      );
-      break;
-    default:
-      MenuComponent = <div>Unknown role</div>;
+      </>
+    );
   }
 
-  return (
-    <>
-      {contextHolder}
-      {MenuComponent}
-    </>
-  );
+  // Step 3: ログイン済み - メニュー表示
+  if (authStep === 'authenticated' && currentUser) {
+    let MenuComponent: React.ReactNode;
+
+    switch (currentMenuType) {
+      case 'provider':
+        MenuComponent = (
+          <ProviderMenu
+            user={currentUser}
+            onLogout={handleLogout}
+            onNavigate={handleNavigate}
+            onMenuChange={handleMenuChange}
+          />
+        );
+        break;
+      case 'system_admin':
+        MenuComponent = (
+          <SystemAdminMenu
+            user={currentUser}
+            onLogout={handleLogout}
+            onNavigate={handleNavigate}
+            onMenuChange={handleMenuChange}
+          />
+        );
+        break;
+      case 'data_admin':
+        MenuComponent = (
+          <DataAdminMenu
+            user={currentUser}
+            onLogout={handleLogout}
+            onNavigate={handleNavigate}
+            onMenuChange={handleMenuChange}
+          />
+        );
+        break;
+      case 'experiment_admin':
+        MenuComponent = (
+          <ExperimentAdminMenu
+            user={currentUser}
+            onLogout={handleLogout}
+            onNavigate={handleNavigate}
+            onMenuChange={handleMenuChange}
+          />
+        );
+        break;
+      case 'experiment_worker':
+        MenuComponent = (
+          <ExperimentWorkerMenu
+            user={currentUser}
+            onLogout={handleLogout}
+            onNavigate={handleNavigate}
+            onMenuChange={handleMenuChange}
+          />
+        );
+        break;
+      default:
+        MenuComponent = <div>Unknown role</div>;
+    }
+
+    return (
+      <>
+        {contextHolder}
+        {MenuComponent}
+      </>
+    );
+  }
+
+  // フォールバック
+  return null;
 }

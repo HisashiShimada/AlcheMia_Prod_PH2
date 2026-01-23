@@ -12,15 +12,13 @@ CREATE TABLE template_data (
     project_id UUID NOT NULL,
     method_id CHARACTER VARYING NOT NULL,
     task_no NUMERIC(3,0) NOT NULL,
-    template_id UUID NOT NULL,
     place_id CHARACTER VARYING NOT NULL,
     
-    -- テンプレート情報
-    "テンプレートタイプ" NUMERIC(2,0),
-    property_value CHARACTER VARYING,
+    -- プロパティセット情報
+    property_set JSONB,
     
     -- 制約
-    CONSTRAINT template_data_pkey PRIMARY KEY (organization_id, project_id, method_id, task_no, template_id, place_id)
+    CONSTRAINT template_data_pkey PRIMARY KEY (organization_id, project_id, method_id, task_no, place_id)
 );
 
 -- コメント
@@ -29,7 +27,5 @@ COMMENT ON COLUMN template_data.organization_id IS '組織ID';
 COMMENT ON COLUMN template_data.project_id IS 'プロジェクトID';
 COMMENT ON COLUMN template_data.method_id IS 'メソッドID';
 COMMENT ON COLUMN template_data.task_no IS 'タスク連番';
-COMMENT ON COLUMN template_data.template_id IS 'テンプレートID';
 COMMENT ON COLUMN template_data.place_id IS 'プレースID';
-COMMENT ON COLUMN template_data."テンプレートタイプ" IS 'テンプレートタイプ';
-COMMENT ON COLUMN template_data.property_value IS 'プロパティ値';
+COMMENT ON COLUMN template_data.property_set IS 'プロパティセット';

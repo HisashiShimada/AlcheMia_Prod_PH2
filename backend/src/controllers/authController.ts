@@ -36,24 +36,25 @@ export async function login(req: Request, res: Response): Promise<void> {
   const passwordService = new PasswordService(pool);
   const pinCodeService = new PinCodeService(pool);
 
+  // IPアドレスとUser-Agentを取得（ログイン履歴記録用）
+  const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] 
+    || req.ip 
+    || req.socket.remoteAddress 
+    || 'unknown';
+  const userAgent = req.headers['user-agent'] || 'unknown';
+
   try {
     // 1. バリデーション
     const { username, password } = req.body;
-    // const organizationId = req.headers['x-organization-id'] as string;
-    const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'
+    const organizationId = req.query.orgId as string | undefined;
 
     // 必須パラメータチェック
     if (!username || !password) {
-      console.log('!username || !password')
       res.status(400).json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
           message: '必須パラメータが不足しています',
-          details: [
-            !username && { field: 'username', message: 'ユーザー名は必須です', code: 'REQUIRED_FIELD' },
-            !password && { field: 'password', message: 'パスワードは必須です', code: 'REQUIRED_FIELD' },
-          ].filter(Boolean),
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -64,15 +65,11 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     if (!organizationId) {
-      console.log('!organizationId')
       res.status(400).json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
           message: '組織IDヘッダーが必要です',
-          details: [
-            { field: 'X-Organization-Id', message: '組織IDヘッダーは必須です', code: 'REQUIRED_HEADER' },
-          ],
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -81,45 +78,6 @@ export async function login(req: Request, res: Response): Promise<void> {
       });
       return;
     }
-
-    // 入力値バリデーション
-    if (username.length > 100) {
-      console.log('username.length > 100')
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'ユーザー名は100文字以内である必要があります',
-          details: [
-            { field: 'username', message: 'ユーザー名は100文字以内です', code: 'MAX_LENGTH_EXCEEDED' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // if (password.length < 8) {
-    //   console.log('password.length < 8')
-    //   res.status(400).json({
-    //     success: false,
-    //     error: {
-    //       code: 'VALIDATION_ERROR',
-    //       message: 'パスワードは8文字以上である必要があります',
-    //       details: [
-    //         { field: 'password', message: 'パスワードは8文字以上です', code: 'MIN_LENGTH_NOT_MET' },
-    //       ],
-    //     },
-    //     meta: {
-    //       timestamp: new Date().toISOString(),
-    //       requestId,
-    //     },
-    //   });
-    //   return;
-    // }
 
     // 2. ユーザー検索
     const userQuery = `
@@ -139,6 +97,28 @@ export async function login(req: Request, res: Response): Promise<void> {
     console.log(userResult.rows.length)
 
     if (userResult.rows.length === 0) {
+      // ユーザー不存在 - ログイン履歴に記録
+      const historyQuery = `
+        INSERT INTO login_history (
+          user_name, 
+          organization_id, 
+          login_at, 
+          login_sf, 
+          failure_reason,
+          ip_address,
+          user_agent
+        )
+        VALUES ($1, $2, NOW(), $3, $4, $5, $6)
+      `;
+      await pool.query(historyQuery, [
+        username,
+        organizationId,
+        false,
+        'User not found',
+        ipAddress,
+        userAgent,
+      ]);
+
       // ユーザーが存在しない場合も同じエラーメッセージ（情報漏洩防止）
       res.status(401).json({
         success: false,
@@ -159,6 +139,28 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     // 3. アカウント有効性チェック
     if (!user.is_active) {
+      // アカウント無効 - ログイン履歴に記録
+      const historyQuery = `
+        INSERT INTO login_history (
+          user_name, 
+          organization_id, 
+          login_at, 
+          login_sf, 
+          failure_reason,
+          ip_address,
+          user_agent
+        )
+        VALUES ($1, $2, NOW(), $3, $4, $5, $6)
+      `;
+      await pool.query(historyQuery, [
+        user.user_name,
+        user.organization_id,
+        false,
+        'Account disabled',
+        ipAddress,
+        userAgent,
+      ]);
+
       res.status(403).json({
         success: false,
         error: {
@@ -183,14 +185,24 @@ export async function login(req: Request, res: Response): Promise<void> {
     if (!passwordResult.success || !passwordResult.data) {
       // パスワード不一致 - ログイン履歴に記録
       const historyQuery = `
-        INSERT INTO login_history (user_id, org_cd, login_at, login_sf, failure_reason)
-        VALUES ($1, $2, NOW(), $3, $4)
+        INSERT INTO login_history (
+          user_name, 
+          organization_id, 
+          login_at, 
+          login_sf, 
+          failure_reason,
+          ip_address,
+          user_agent
+        )
+        VALUES ($1, $2, NOW(), $3, $4, $5, $6)
       `;
       await pool.query(historyQuery, [
-        user.user_id,
+        user.user_name,
         user.organization_id,
         false,
         'Invalid password',
+        ipAddress,
+        userAgent,
       ]);
 
       res.status(401).json({
@@ -231,48 +243,65 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 6. メール送信
-    const emailResult = await emailService.sendPinCode(
-      user.mail_address,
-      pinResult.data.pinCode,
-      user.user_name
-    );
+    // // 6. メール送信
+    // const emailResult = await emailService.sendPinCode(
+    //   user.mail_address,
+    //   pinResult.data.pinCode,
+    //   user.user_name
+    // );
 
-    if (!emailResult.success) {
-      res.status(500).json({
-        success: false,
-        error: {
-          code: 'SYSTEM_EMAIL_SEND_FAILED',
-          message: 'メール送信に失敗しました。しばらく待ってから再試行してください',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
+    // if (!emailResult.success) {
+    //   res.status(500).json({
+    //     success: false,
+    //     error: {
+    //       code: 'SYSTEM_EMAIL_SEND_FAILED',
+    //       message: 'メール送信に失敗しました。しばらく待ってから再試行してください',
+    //     },
+    //     meta: {
+    //       timestamp: new Date().toISOString(),
+    //       requestId,
+    //     },
+    //   });
+    //   return;
+    // }
 
     // 7. ログイン成功履歴記録
     const successHistoryQuery = `
-      INSERT INTO login_history (user_id, org_cd, login_at, login_sf)
-      VALUES ($1, $2, NOW(), $3)
+      INSERT INTO login_history (
+        user_name, 
+        organization_id, 
+        login_at, 
+        login_sf,
+        ip_address,
+        user_agent
+      )
+      VALUES ($1, $2, NOW(), $3, $4, $5)
     `;
     await pool.query(successHistoryQuery, [
-      user.user_id,
+      user.user_name,
       user.organization_id,
       true,
+      ipAddress,
+      userAgent,
     ]);
 
     // 8. 成功レスポンス
+    const responseData: any = {
+      sessionToken,
+      message: 'PINコードをメールで送信しました',
+      email: maskEmail(user.mail_address),
+      expiresIn: 300, // 5分（秒）
+    };
+
+    // 開発環境の場合のみPINコードを含める（開発効率化のため）
+    if (process.env.NODE_ENV === 'development') {
+      responseData.pinCode = pinResult.data.pinCode;
+      responseData.devMode = true;
+    }
+
     res.status(200).json({
       success: true,
-      data: {
-        sessionToken,
-        message: 'PINコードをメールで送信しました',
-        email: maskEmail(user.mail_address),
-        expiresIn: 300, // 5分（秒）
-      },
+      data: responseData,
       meta: {
         timestamp: new Date().toISOString(),
         requestId,
@@ -339,7 +368,7 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
   try {
     // 1. バリデーション
     const { username } = req.body;
-    const organizationId = req.headers['x-organization-id'] as string;
+    const organizationId = req.query.orgId as string | undefined;
 
     // 必須パラメータチェック
     if (!username) {
@@ -479,7 +508,6 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
  * POST /api/v1/auth/logout
  */
 export async function logout(req: Request, res: Response): Promise<void> {
-  const pool = getPool();
   const requestId = uuidv4();
 
   try {
@@ -499,8 +527,6 @@ export async function logout(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { userId, organizationId, role } = req.user;
-
     // 2. HTTPOnly Cookie削除
     res.clearCookie('maiml_session', {
       httpOnly: true,
@@ -509,28 +535,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
       path: '/',
     });
 
-    // 3. Admin監査ログ記録（providerまたはsystem_adminのみ）
-    if (role === 'provider' || role === 'system_admin') {
-      try {
-        const ipAddress = req.ip || '';
-        const userAgent = req.get('user-agent') || '';
-
-        const auditQuery = `
-          INSERT INTO admin_audit_log (user_id, org_cd, action, ip_address, user_agent, created_at)
-          VALUES ($1, $2, $3, $4, $5, NOW())
-        `;
-        await pool.query(auditQuery, [userId, organizationId, 'logout', ipAddress, userAgent]);
-      } catch (auditError) {
-        // 監査ログ記録失敗はログに記録するが、ログアウト自体は成功させる
-        logError('Admin audit log error', auditError as Error, {
-          userId,
-          organizationId,
-          action: 'logout_audit',
-        });
-      }
-    }
-
-    // 4. 成功レスポンス
+    // 3. 成功レスポンス
     res.status(200).json({
       success: true,
       data: {
@@ -575,7 +580,7 @@ export async function resendPin(req: Request, res: Response): Promise<void> {
   try {
     // 1. バリデーション
     const authHeader = req.headers.authorization as string;
-    const organizationId = req.headers['x-organization-id'] as string;
+    const organizationId = req.query.orgId as string | undefined;
 
     // 必須ヘッダーチェック
     if (!authHeader) {
@@ -964,7 +969,7 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     // 1. バリデーション
     const { pinCode } = req.body;
     const authHeader = req.headers.authorization as string;
-    const organizationId = req.headers['x-organization-id'] as string;
+    const organizationId = req.query.orgId as string | undefined;
 
     // 必須パラメータチェック
     if (!pinCode) {
@@ -973,9 +978,6 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
         error: {
           code: 'VALIDATION_ERROR',
           message: '必須パラメータが不足しています',
-          details: [
-            { field: 'pinCode', message: 'PINコードは必須です', code: 'REQUIRED_FIELD' },
-          ],
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -991,9 +993,6 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Authorizationヘッダーが必要です',
-          details: [
-            { field: 'Authorization', message: 'Authorizationヘッダーは必須です', code: 'REQUIRED_HEADER' },
-          ],
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -1009,28 +1008,6 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
         error: {
           code: 'VALIDATION_ERROR',
           message: '組織IDヘッダーが必要です',
-          details: [
-            { field: 'X-Organization-Id', message: '組織IDヘッダーは必須です', code: 'REQUIRED_HEADER' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // PINコードバリデーション（6桁の数字）
-    if (!/^\d{6}$/.test(pinCode)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'PINコードは6桁の数字である必要があります',
-          details: [
-            { field: 'pinCode', message: 'PINコードは6桁の数字です', code: 'INVALID_FORMAT' },
-          ],
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -1066,6 +1043,11 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     const verifyResult = await pinCodeService.verify(pinCode, sessionToken);
 
     if (!verifyResult.success) {
+      // PINコード不正の場合、試行回数をインクリメント
+      if (verifyResult.error?.code === 'AUTH_PIN_INVALID') {
+        await pinCodeService.incrementAttempts(sessionToken);
+      }
+      
       // エラーコードに応じてHTTPステータスを設定
       const errorCode = verifyResult.error?.code || 'AUTH_PIN_INVALID';
       const statusCode = errorCode === 'AUTH_PIN_MAX_ATTEMPTS' ? 429 : 401;
@@ -1100,8 +1082,7 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
         organizationId: userInfo.organizationId,
         role: userInfo.role,
         sessionId: uuidv4(),
-      },
-      userInfo.role
+      }
     );
 
     if (!jwtResult.success) {
@@ -1136,25 +1117,7 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     // 5. PINコード削除（使用済み処理）
     await pinCodeService.delete(sessionToken);
 
-    // 6. Admin監査ログ記録（Admin権限のみ）
-    if (userInfo.role === 'provider' || userInfo.role === 'system_admin') {
-      const ipAddress = req.ip || '';
-      const userAgent = req.get('user-agent') || '';
-
-      const auditQuery = `
-        INSERT INTO admin_audit_log (user_id, org_cd, action, ip_address, user_agent, created_at)
-        VALUES ($1, $2, $3, $4, $5, NOW())
-      `;
-      await pool.query(auditQuery, [
-        userInfo.id,
-        userInfo.organizationId,
-        'login',
-        ipAddress,
-        userAgent,
-      ]);
-    }
-
-    // 7. 成功レスポンス
+    // 6. 成功レスポンス
     res.status(200).json({
       success: true,
       data: {

@@ -14,16 +14,18 @@ const app: Application = express();
 const PORT = process.env.PORT || 3001;
 
 // CORS設定
-const allowedOrigins = process.env.CORS_ORIGIN 
-  ? process.env.CORS_ORIGIN.split(',')
-  : ['http://localhost:3000']; // デフォルト: Next.jsの開発サーバー
-
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true, // withCredentials: true をサポート
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL || 'https://your-production-domain.com'
+    : 'http://localhost:3000', // 開発環境用
+  credentials: true, // Cookie送信を許可
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id'],
-}));
+  exposedHeaders: ['Set-Cookie'],
+  maxAge: 86400, // プリフライトリクエストのキャッシュ時間（24時間）
+};
+
+app.use(cors(corsOptions));
 
 // Basic middleware
 app.use(express.json());
