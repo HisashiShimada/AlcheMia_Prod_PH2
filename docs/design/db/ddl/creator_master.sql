@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS creator_master CASCADE;
 
 CREATE TABLE creator_master (
     -- 主キー
-    organization_id UUID NOT NULL,
+    organization_id CHARACTER VARYING NOT NULL,
     creator_uuid UUID NOT NULL,
     
     -- 関連情報
@@ -26,8 +26,8 @@ CREATE TABLE creator_master (
     is_active BOOLEAN,
     
     -- タイムスタンプ
-    create_at BOOLEAN,
-    update_at BOOLEAN,
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
     
     -- 制約
     CONSTRAINT creator_master_PKC PRIMARY KEY (organization_id, creator_uuid)

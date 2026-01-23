@@ -41,6 +41,7 @@ interface OrganizationData {
   email: string;
   representative_admin: string;
   company_code: string;
+  company_name: string;
   certificate_url: string;
   updated_at: string;
   status: 'active' | 'inactive';
@@ -97,6 +98,7 @@ export default function OrganizationManagementMock() {
         org.email.toLowerCase().includes(searchLower) ||
         org.representative_admin.toLowerCase().includes(searchLower) ||
         org.company_code.toLowerCase().includes(searchLower) ||
+        org.company_name.toLowerCase().includes(searchLower) ||
         formatDateTime(org.updated_at).toLowerCase().includes(searchLower)
       );
 
@@ -124,7 +126,7 @@ export default function OrganizationManagementMock() {
       title: (
         <div style={{ textAlign: 'center' }}>
           <Space size="middle" align="center">
-            <span>組織ID</span>
+            <span>組織名</span>
             <Badge
               count={filteredOrganizations.filter(org => org.status === 'active').length}
               style={{
@@ -139,21 +141,6 @@ export default function OrganizationManagementMock() {
           </Space>
         </div>
       ),
-      dataIndex: 'organization_id',
-      key: 'organization_id',
-      width: 120,
-      sorter: (a, b) => a.organization_id.localeCompare(b.organization_id),
-      render: (text: string, record) => (
-        <Text style={{ 
-          fontSize: 13,
-          color: record.status === 'inactive' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
-        }}>
-          {text}
-        </Text>
-      ),
-    },
-    {
-      title: <div style={{ textAlign: 'center' }}>組織名</div>,
       key: 'organization',
       width: 180,
       sorter: (a, b) => a.organization_name.localeCompare(b.organization_name),
@@ -212,12 +199,20 @@ export default function OrganizationManagementMock() {
       ),
     },
     {
-      title: <div style={{ textAlign: 'center' }}>会社ID</div>,
-      dataIndex: 'company_code',
-      key: 'company_code',
-      width: 100,
+      title: <div style={{ textAlign: 'center' }}>会社名</div>,
+      dataIndex: 'company_name',
+      key: 'company_name',
+      width: 250,
       align: 'left',
-      sorter: (a, b) => a.company_code.localeCompare(b.company_code),
+      sorter: (a, b) => a.company_name.localeCompare(b.company_name),
+      render: (text: string, record) => (
+        <Text style={{ 
+          fontSize: 13,
+          color: record.status === 'inactive' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
+        }}>
+          {text}
+        </Text>
+      ),
     },
     {
       title: <div style={{ textAlign: 'center' }}>更新日時</div>,
@@ -449,6 +444,7 @@ export default function OrganizationManagementMock() {
               email: row['組織e-mail'].trim(),
               representative_admin: row['代表システム管理者']?.trim() || '',
               company_code: row['会社CD']?.trim() || '',
+              company_name: row['会社名']?.trim() || '',
               certificate_url: `/api/certificates/${row['組織ID'].trim()}`,
               updated_at: new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14),
               status: status,
@@ -516,7 +512,7 @@ export default function OrganizationManagementMock() {
       '組織表示名',
       '組織e-mail',
       '代表システム管理者',
-      '会社ID',
+      '会社名',
       '更新日時',
       '状態',
     ];
@@ -527,7 +523,7 @@ export default function OrganizationManagementMock() {
       org.display_name,
       org.email,
       org.representative_admin,
-      org.company_code,
+      org.company_name,
       formatDateTime(org.updated_at),
       org.status === 'active' ? 'アクティブ' : '非アクティブ',
     ]);

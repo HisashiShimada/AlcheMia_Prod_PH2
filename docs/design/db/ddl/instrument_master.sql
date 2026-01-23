@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS instrument_master CASCADE;
 
 CREATE TABLE instrument_master (
     -- 主キー
-    organization_id UUID NOT NULL,
+    organization_id CHARACTER VARYING NOT NULL,
     instrument_uuid UUID NOT NULL,
     
     -- instrument情報
@@ -21,8 +21,8 @@ CREATE TABLE instrument_master (
     is_active BOOLEAN,
     
     -- タイムスタンプ
-    create_at BOOLEAN,
-    update_at BOOLEAN,
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
     
     -- 制約
     CONSTRAINT instrument_master_PKC PRIMARY KEY (organization_id, instrument_uuid)

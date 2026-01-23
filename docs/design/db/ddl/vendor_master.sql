@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS vendor_master CASCADE;
 
 CREATE TABLE vendor_master (
     -- 主キー
-    organization_id UUID NOT NULL,
+    organization_id CHARACTER VARYING NOT NULL,
     vendor_uuid UUID NOT NULL,
     
     -- vendor情報
@@ -21,8 +21,8 @@ CREATE TABLE vendor_master (
     is_active BOOLEAN,
     
     -- タイムスタンプ
-    create_at BOOLEAN,
-    update_at BOOLEAN,
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
     
     -- 制約
     CONSTRAINT vendor_master_PKC PRIMARY KEY (organization_id, vendor_uuid)

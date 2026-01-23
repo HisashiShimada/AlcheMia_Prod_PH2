@@ -15,6 +15,8 @@ import {
   Col,
   theme,
   Checkbox,
+  Tooltip,
+  Alert,
 } from 'antd';
 import {
   SearchOutlined,
@@ -133,14 +135,336 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     if (initialMasterId) {
       return initialMasterId;
     }
-    // 指定がない場合は最初のアクティブなマスタを選択
-    const firstMaster = masterTypesData.find(m => m.isActive);
-    return firstMaster?.masterId || '1';
+    // 指定がない場合はCreatorマスタ（masterId='8'）を選択
+    return '8';
   });
   const [displayScope, setDisplayScope] = useState<string>('all'); // 表示切替: 'all' | 'own'
   const [fixedFilters, setFixedFilters] = useState<Record<string, string>>({});
   const [form] = Form.useForm();
   
+  // CreatorマスタをAPIから取得する関数
+  const fetchCreatorMasters = async () => {
+    try {
+      setLoading(true);
+      
+      // APIエンドポイント
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const endpoint = `${apiUrl}/api/v1/master/creator`;
+      
+      // ヘッダー設定（組織IDを含める）
+      const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'; // TODO: 実際の組織IDを取得
+      
+      console.log('=== Fetching Creator Masters ===');
+      console.log('API URL:', apiUrl);
+      console.log('Endpoint:', endpoint);
+      console.log('Organization ID:', organizationId);
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Organization-Id': organizationId,
+        },
+        credentials: 'include', // Cookieを含める
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('API Response:', result);
+      
+      if (result.success && Array.isArray(result.data)) {
+        // APIレスポンスをフロントエンド形式に変換
+        const convertedData = result.data.map((item: any) => ({
+          masterId: '8', // Creatorマスタ
+          creatorId: item.creatorId,
+          creatorName: item.creatorName,
+          creatorDescription: item.creatorDescription,
+          creatorAnnotation: item.creatorAnnotation,
+          isActive: item.isActive,
+          vendorName: item.vendorName,
+          vendorIsActive: item.vendorIsActive,
+          instrumentName: item.instrumentName,
+          instrumentIsActive: item.instrumentIsActive,
+          updatedAt: item.updatedAt,
+        }));
+        
+        setMasters(convertedData);
+        console.log('Loaded from API:', convertedData.length, 'records');
+      } else {
+        throw new Error('Invalid API response format');
+      }
+    } catch (error) {
+      console.error('API fetch error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      message.error(`Creatorマスタの取得に失敗しました: ${errorMessage}`);
+      setMasters([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // InstrumentマスタをAPIから取得する関数
+  const fetchInstrumentMasters = async () => {
+    try {
+      setLoading(true);
+      
+      // APIエンドポイント
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const endpoint = `${apiUrl}/api/v1/master/instrument`;
+      
+      // ヘッダー設定（組織IDを含める）
+      const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'; // TODO: 実際の組織IDを取得
+      
+      console.log('=== Fetching Instrument Masters ===');
+      console.log('API URL:', apiUrl);
+      console.log('Endpoint:', endpoint);
+      console.log('Organization ID:', organizationId);
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Organization-Id': organizationId,
+        },
+        credentials: 'include', // Cookieを含める
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('API Response:', result);
+      
+      if (result.success && Array.isArray(result.data)) {
+        // APIレスポンスをフロントエンド形式に変換
+        const convertedData = result.data.map((item: any) => ({
+          masterId: '5', // Instrumentマスタ
+          laboratorEquipmentId: item.instrumentId,
+          laboratorEquipmentName: item.instrumentName,
+          laboratorEquipmentExplan: item.instrumentDescription,
+          laboratorEquipmentAnnotation: item.instrumentAnnotation,
+          isActive: item.isActive,
+          updatedAt: item.updatedAt,
+        }));
+        
+        setMasters(convertedData);
+        console.log('Loaded from API:', convertedData.length, 'records');
+      } else {
+        throw new Error('Invalid API response format');
+      }
+    } catch (error) {
+      console.error('API fetch error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      message.error(`Instrumentマスタの取得に失敗しました: ${errorMessage}`);
+      setMasters([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // VendorマスタをAPIから取得する関数
+  const fetchVendorMasters = async () => {
+    try {
+      setLoading(true);
+      
+      // APIエンドポイント
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const endpoint = `${apiUrl}/api/v1/master/vendor`;
+      
+      // ヘッダー設定（組織IDを含める）
+      const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'; // TODO: 実際の組織IDを取得
+      
+      console.log('=== Fetching Vendor Masters ===');
+      console.log('API URL:', apiUrl);
+      console.log('Endpoint:', endpoint);
+      console.log('Organization ID:', organizationId);
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Organization-Id': organizationId,
+        },
+        credentials: 'include', // Cookieを含める
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('API Response:', result);
+      
+      if (result.success && Array.isArray(result.data)) {
+        // APIレスポンスをフロントエンド形式に変換
+        const convertedData = result.data.map((item: any) => ({
+          masterId: '7', // Vendorマスタ
+          laboratorEquipmentVendorId: item.vendorId,
+          laboratorEquipmentVendorName: item.vendorName,
+          laboratorEquipmentVendorExplan: item.vendorDescription,
+          laboratorEquipmentVendorAnnotation: item.vendorAnnotation,
+          isActive: item.isActive,
+          updatedAt: item.updatedAt,
+        }));
+        
+        setMasters(convertedData);
+        console.log('Loaded from API:', convertedData.length, 'records');
+      } else {
+        throw new Error('Invalid API response format');
+      }
+    } catch (error) {
+      console.error('API fetch error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      message.error(`Vendorマスタの取得に失敗しました: ${errorMessage}`);
+      setMasters([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 部署マスタをAPIから取得する関数
+  const fetchDepartmentMasters = async () => {
+    try {
+      setLoading(true);
+      
+      // APIエンドポイント
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const endpoint = `${apiUrl}/api/v1/master/department`;
+      
+      // ヘッダー設定（組織IDを含める）
+      const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'; // TODO: 実際の組織IDを取得
+      
+      console.log('=== Fetching Department Masters ===');
+      console.log('API URL:', apiUrl);
+      console.log('Endpoint:', endpoint);
+      console.log('Organization ID:', organizationId);
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Organization-Id': organizationId,
+        },
+        credentials: 'include', // Cookieを含める
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('API Response:', result);
+      
+      if (result.success && Array.isArray(result.data)) {
+        // APIレスポンスをフロントエンド形式に変換
+        const convertedData = result.data.map((item: any) => ({
+          masterId: '2', // 部署マスタ
+          departmentId: item.departmentId,  // APIレスポンスのフィールド名に合わせる
+          organizationId: item.organizationId,
+          displayName: item.displayName,  // APIレスポンスのフィールド名に合わせる
+          isActive: item.isActive,
+          updatedAt: item.updatedAt,
+        }));
+        
+        setMasters(convertedData);
+        console.log('Loaded from API:', convertedData.length, 'records');
+      } else {
+        throw new Error('Invalid API response format');
+      }
+    } catch (error) {
+      console.error('API fetch error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      message.error(`部署マスタの取得に失敗しました: ${errorMessage}`);
+      setMasters([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ロールマスタをAPIから取得する関数
+  const fetchRoleMasters = async () => {
+    try {
+      setLoading(true);
+      
+      // APIエンドポイント
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const endpoint = `${apiUrl}/api/v1/master/role`;
+      
+      // ヘッダー設定（組織IDを含める）
+      const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'; // TODO: 実際の組織IDを取得
+      
+      console.log('=== Fetching Role Masters ===');
+      console.log('API URL:', apiUrl);
+      console.log('Endpoint:', endpoint);
+      console.log('Organization ID:', organizationId);
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Organization-Id': organizationId,
+        },
+        credentials: 'include', // Cookieを含める
+      });
+      
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('API Response:', result);
+      
+      if (result.success && Array.isArray(result.data)) {
+        // APIレスポンスをフロントエンド形式に変換
+        const convertedData = result.data.map((item: any) => ({
+          masterId: '4', // ロールマスタ
+          role: item.roleId,
+          roleName: item.roleName,
+          functionName: item.functionName,
+          functionWritePermissions: item.functionWritePermissions,
+          isActive: item.isActive,
+          updatedAt: item.updatedAt,
+        }));
+        
+        setMasters(convertedData);
+        console.log('Loaded from API:', convertedData.length, 'records');
+      } else {
+        throw new Error('Invalid API response format');
+      }
+    } catch (error) {
+      console.error('API fetch error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      message.error(`ロールマスタの取得に失敗しました: ${errorMessage}`);
+      setMasters([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 選択されたマスタ種別の情報を取得
   const selectedMasterInfo = useMemo(() => {
@@ -169,6 +493,29 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     setFixedFilters({});
     setSearchText('');
     setSelectedRowKeys([]);
+
+    // DB連携マスタの場合はAPIから取得
+    if (selectedMasterInfo.masterId === '8') {
+      // Creatorマスタ
+      fetchCreatorMasters();
+      return;
+    } else if (selectedMasterInfo.masterId === '5') {
+      // Instrumentマスタ
+      fetchInstrumentMasters();
+      return;
+    } else if (selectedMasterInfo.masterId === '7') {
+      // Vendorマスタ
+      fetchVendorMasters();
+      return;
+    } else if (selectedMasterInfo.masterId === '2') {
+      // 部署マスタ
+      fetchDepartmentMasters();
+      return;
+    } else if (selectedMasterInfo.masterId === '4') {
+      // ロールマスタ
+      fetchRoleMasters();
+      return;
+    }
 
     // localStorageからデータを読み込む
     const storageKey = `master_${selectedMasterInfo.masterId}`;
@@ -356,13 +703,16 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             return aVal.localeCompare(bVal);
           },
           render: (text: unknown, record: MasterRecord) => {
+            // レンダリング内容を生成
+            let content: React.ReactNode;
+            
             // 日時フィールドの判定（updatedAtなど）
             if (key.includes('updated') || key.includes('Updated')) {
-              return formatDateTime(String(text || ''));
+              content = formatDateTime(String(text || ''));
             }
             // 最初の表示項目を強調表示
-            if (index === 1) {
-              return (
+            else if (index === 1) {
+              content = (
                 <Text style={{ 
                   fontWeight: token.fontWeightStrong, 
                   color: record.isActive === false ? token.colorTextDisabled : token.colorPrimary
@@ -372,7 +722,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
               );
             }
             // 機能ID列の場合、色分けして表示（ロール管理画面のみ）
-            if (isFunctionId && selectedMasterInfo?.masterId === '4') {
+            else if (isFunctionId && selectedMasterInfo?.masterId === '4') {
               // 機能IDを"/"で分割
               const functionIds = String(text || '').split('/').map(id => id.trim()).filter(Boolean);
               
@@ -380,7 +730,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
               const writePermissionIds = String(record.functionWritePermissions || '').split(',').map(id => id.trim()).filter(Boolean);
               
               // 各機能IDに色を付けてレンダリング
-              return (
+              content = (
                 <span>
                   {functionIds.map((funcId, idx) => {
                     // 書込可のリストに含まれているかチェック
@@ -398,7 +748,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
                 </span>
               );
             }
-            return String(text || '');
+            else {
+              content = String(text || '');
+            }
+            
+            return content;
           },
         };
       });
@@ -422,10 +776,10 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           <Button
             size="small"
             onClick={() => handleToggleActive(record)}
-            danger={record.isActive === false}
+            danger={record.isActive !== false}
             style={{ minWidth: '80px' }}
           >
-            {record.isActive !== false ? 'アクティブ' : '非アクティブ'}
+            {record.isActive !== false ? '非アクティブ' : 'アクティブ'}
           </Button>
         </Flex>
       ),
@@ -460,29 +814,152 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   };
 
   // 一括アクティブ化
-  const handleActivate = () => {
+  const handleActivate = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('アクティブにするマスタを選択してください');
       return;
     }
+    
+    console.log('=== 一括アクティブ化デバッグ ===');
+    console.log('選択されたキー:', selectedRowKeys);
+    console.log('マスタID:', selectedMasterInfo?.masterId);
+    console.log('全マスタ:', masters);
+    
     Modal.confirm({
       title: '選択したマスタをアクティブにしますか？',
       content: `${selectedRowKeys.length}件のマスタがアクティブになります。`,
       okText: 'アクティブ化',
       cancelText: 'キャンセル',
-      onOk: () => {
-        setMasters(masters.map(m => {
-          const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
-          return selectedRowKeys.includes(String(m[idField])) ? { ...m, isActive: true } : m;
-        }));
-        setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件のマスタをアクティブにしました`);
+      onOk: async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+          const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}';
+          
+          // DB連携マスタの場合はAPI経由で更新
+          if (selectedMasterInfo?.masterId === '5') {
+            // Instrumentマスタ - 各レコードをAPIで更新
+            console.log('Instrumentマスタの一括更新開始');
+            for (const key of selectedRowKeys) {
+              console.log('処理中のキー:', key);
+              const record = masters.find(m => String(m.laboratorEquipmentId) === String(key));
+              console.log('見つかったレコード:', record);
+              if (record) {
+                const response = await fetch(
+                  `${apiUrl}/api/v1/master/instrument/${record.laboratorEquipmentId}/status`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Organization-Id': organizationId,
+                    },
+                    body: JSON.stringify({ isActive: true }),
+                  }
+                );
+                console.log('API応答:', response.status);
+                if (!response.ok) {
+                  throw new Error(`API Error: ${response.status}`);
+                }
+              }
+            }
+            await fetchInstrumentMasters();
+          } else if (selectedMasterInfo?.masterId === '7') {
+            // Vendorマスタ - 各レコードをAPIで更新
+            console.log('Vendorマスタの一括更新開始');
+            for (const key of selectedRowKeys) {
+              console.log('処理中のキー:', key);
+              const record = masters.find(m => String(m.laboratorEquipmentVendorId) === String(key));
+              console.log('見つかったレコード:', record);
+              if (record) {
+                const response = await fetch(
+                  `${apiUrl}/api/v1/master/vendor/${record.laboratorEquipmentVendorId}/status`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Organization-Id': organizationId,
+                    },
+                    body: JSON.stringify({ isActive: true }),
+                  }
+                );
+                console.log('API応答:', response.status);
+                if (!response.ok) {
+                  throw new Error(`API Error: ${response.status}`);
+                }
+              }
+            }
+            await fetchVendorMasters();
+          } else if (selectedMasterInfo?.masterId === '8') {
+            // Creatorマスタ - 各レコードをAPIで更新
+            console.log('Creatorマスタの一括更新開始');
+            for (const key of selectedRowKeys) {
+              console.log('処理中のキー:', key);
+              const record = masters.find(m => String(m.creatorId) === String(key));
+              console.log('見つかったレコード:', record);
+              if (record) {
+                const response = await fetch(
+                  `${apiUrl}/api/v1/master/creator/${record.creatorId}/status`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Organization-Id': organizationId,
+                    },
+                    body: JSON.stringify({ isActive: true }),
+                  }
+                );
+                console.log('API応答:', response.status);
+                if (!response.ok) {
+                  throw new Error(`API Error: ${response.status}`);
+                }
+              }
+            }
+            await fetchCreatorMasters();
+          } else if (selectedMasterInfo?.masterId === '2') {
+            // 部署マスタ - 各レコードをAPIで更新
+            console.log('部署マスタの一括更新開始');
+            for (const key of selectedRowKeys) {
+              console.log('処理中のキー:', key);
+              const record = masters.find(m => String(m.departmentId) === String(key));
+              console.log('見つかったレコード:', record);
+              if (record) {
+                const response = await fetch(
+                  `${apiUrl}/api/v1/master/department/${record.departmentId}/status`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Organization-Id': organizationId,
+                    },
+                    body: JSON.stringify({ isActive: true }),
+                  }
+                );
+                console.log('API応答:', response.status);
+                if (!response.ok) {
+                  throw new Error(`API Error: ${response.status}`);
+                }
+              }
+            }
+            await fetchDepartmentMasters();
+          } else {
+            // その他のマスタ（ローカル処理）
+            setMasters(masters.map(m => {
+              const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
+              return selectedRowKeys.includes(String(m[idField])) ? { ...m, isActive: true } : m;
+            }));
+          }
+          
+          setSelectedRowKeys([]);
+          message.success(`${selectedRowKeys.length}件のマスタをアクティブにしました`);
+        } catch (error) {
+          console.error('一括アクティブ化エラー:', error);
+          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+        }
       },
     });
   };
 
   // 一括非アクティブ化
-  const handleDeactivate = () => {
+  const handleDeactivate = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('非アクティブにするマスタを選択してください');
       return;
@@ -493,36 +970,231 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       okText: '非アクティブ化',
       cancelText: 'キャンセル',
       okButtonProps: { danger: true },
-      onOk: () => {
-        setMasters(masters.map(m => {
-          const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
-          return selectedRowKeys.includes(String(m[idField])) ? { ...m, isActive: false } : m;
-        }));
-        setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件のマスタを非アクティブにしました`);
+      onOk: async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+          const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}';
+          
+          // DB連携マスタの場合はAPI経由で更新
+          if (selectedMasterInfo?.masterId === '5') {
+            // Instrumentマスタ - 各レコードをAPIで更新
+            for (const key of selectedRowKeys) {
+              const record = masters.find(m => String(m.laboratorEquipmentId) === String(key));
+              if (record) {
+                await fetch(
+                  `${apiUrl}/api/v1/master/instrument/${record.laboratorEquipmentId}/status`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Organization-Id': organizationId,
+                    },
+                    body: JSON.stringify({ isActive: false }),
+                  }
+                );
+              }
+            }
+            await fetchInstrumentMasters();
+          } else if (selectedMasterInfo?.masterId === '7') {
+            // Vendorマスタ - 各レコードをAPIで更新
+            for (const key of selectedRowKeys) {
+              const record = masters.find(m => String(m.laboratorEquipmentVendorId) === String(key));
+              if (record) {
+                await fetch(
+                  `${apiUrl}/api/v1/master/vendor/${record.laboratorEquipmentVendorId}/status`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Organization-Id': organizationId,
+                    },
+                    body: JSON.stringify({ isActive: false }),
+                  }
+                );
+              }
+            }
+            await fetchVendorMasters();
+          } else if (selectedMasterInfo?.masterId === '8') {
+            // Creatorマスタ - 各レコードをAPIで更新
+            for (const key of selectedRowKeys) {
+              const record = masters.find(m => String(m.creatorId) === String(key));
+              if (record) {
+                await fetch(
+                  `${apiUrl}/api/v1/master/creator/${record.creatorId}/status`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Organization-Id': organizationId,
+                    },
+                    body: JSON.stringify({ isActive: false }),
+                  }
+                );
+              }
+            }
+            await fetchCreatorMasters();
+          } else if (selectedMasterInfo?.masterId === '2') {
+            // 部署マスタ - 各レコードをAPIで更新
+            for (const key of selectedRowKeys) {
+              const record = masters.find(m => String(m.departmentId) === String(key));
+              if (record) {
+                await fetch(
+                  `${apiUrl}/api/v1/master/department/${record.departmentId}/status`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-Organization-Id': organizationId,
+                    },
+                    body: JSON.stringify({ isActive: false }),
+                  }
+                );
+              }
+            }
+            await fetchDepartmentMasters();
+          } else {
+            // その他のマスタ（ローカル処理）
+            setMasters(masters.map(m => {
+              const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
+              return selectedRowKeys.includes(String(m[idField])) ? { ...m, isActive: false } : m;
+            }));
+          }
+          
+          setSelectedRowKeys([]);
+          message.success(`${selectedRowKeys.length}件のマスタを非アクティブにしました`);
+        } catch (error) {
+          console.error('エラー:', error);
+          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+        }
       },
     });
   };
 
   // 個別のアクティブ/非アクティブ切り替え
-  const handleToggleActive = (record: MasterRecord) => {
+  const handleToggleActive = async (record: MasterRecord) => {
     const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
-    const nameField = Object.keys(selectedMasterInfo?.itemCategories || {})[1];
-    const masterName = record[nameField] || 'このマスタ';
+    
+    // マスタ名の取得（部署管理の場合はdisplayNameを使用）
+    let masterName: string;
+    if (selectedMasterInfo?.masterId === '2') {
+      // 部署管理の場合
+      masterName = String(record.displayName || 'この部署');
+    } else {
+      // その他のマスタの場合
+      const nameField = Object.keys(selectedMasterInfo?.itemCategories || {})[1];
+      masterName = String(record[nameField] || 'このマスタ');
+    }
 
-    const actionText = record.isActive === false ? 'アクティブ' : '非アクティブ';
+    // 現在のステータスに基づいてアクション決定
+    // isActive=false（非活性）→ アクティブ化
+    // isActive=true（活性）→ 非アクティブ化
+    const currentStatus = record.isActive !== false; // undefinedやtrueの場合はアクティブとみなす
+    const actionText = currentStatus ? '非アクティブ' : 'アクティブ';
+    const newStatus = !currentStatus;
 
     Modal.confirm({
       title: `${masterName}を${actionText}にしますか？`,
-      content: `このマスタを${record.isActive === false ? 'アクティブ' : '非アクティブ'}状態に変更します。`,
+      content: `このマスタを${actionText}状態に変更します。`,
       okText: actionText,
       cancelText: 'キャンセル',
-      okButtonProps: record.isActive === false ? undefined : { danger: true },
-      onOk: () => {
-        setMasters(masters.map(m => 
-          m[idField] === record[idField] ? { ...m, isActive: !record.isActive } : m
-        ));
-        message.success(`${masterName}を${record.isActive === false ? 'アクティブ' : '非アクティブ'}にしました`);
+      okButtonProps: actionText === '非アクティブ' ? { danger: true } : undefined,
+      onOk: async () => {
+        try {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+          const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}';
+          
+          // Instrument/Vendor/Creatorマスタの場合はAPI経由で更新
+          if (selectedMasterInfo?.masterId === '5') {
+            // Instrumentマスタ
+            const response = await fetch(
+              `${apiUrl}/api/v1/master/instrument/${record.laboratorEquipmentId}/status`,
+              {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Organization-Id': organizationId,
+                },
+                body: JSON.stringify({ isActive: newStatus }),
+              }
+            );
+            
+            if (!response.ok) {
+              throw new Error('ステータス更新に失敗しました');
+            }
+            
+            await fetchInstrumentMasters();
+            message.success(`${masterName}を${actionText}にしました`);
+          } else if (selectedMasterInfo?.masterId === '7') {
+            // Vendorマスタ
+            const response = await fetch(
+              `${apiUrl}/api/v1/master/vendor/${record.laboratorEquipmentVendorId}/status`,
+              {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Organization-Id': organizationId,
+                },
+                body: JSON.stringify({ isActive: newStatus }),
+              }
+            );
+            
+            if (!response.ok) {
+              throw new Error('ステータス更新に失敗しました');
+            }
+            
+            await fetchVendorMasters();
+            message.success(`${masterName}を${actionText}にしました`);
+          } else if (selectedMasterInfo?.masterId === '8') {
+            // Creatorマスタ
+            const response = await fetch(
+              `${apiUrl}/api/v1/master/creator/${record.creatorId}/status`,
+              {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Organization-Id': organizationId,
+                },
+                body: JSON.stringify({ isActive: newStatus }),
+              }
+            );
+            
+            if (!response.ok) {
+              throw new Error('ステータス更新に失敗しました');
+            }
+            
+            await fetchCreatorMasters();
+            message.success(`${masterName}を${actionText}にしました`);
+          } else if (selectedMasterInfo?.masterId === '2') {
+            // 部署マスタ
+            const response = await fetch(
+              `${apiUrl}/api/v1/master/department/${record.departmentId}/status`,
+              {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-Organization-Id': organizationId,
+                },
+                body: JSON.stringify({ isActive: newStatus }),
+              }
+            );
+            
+            if (!response.ok) {
+              throw new Error('ステータス更新に失敗しました');
+            }
+            
+            await fetchDepartmentMasters();
+            message.success(`${masterName}を${actionText}にしました`);
+          } else {
+            // その他のマスタ（従来のローカル処理）
+            setMasters(masters.map(m => 
+              m[idField] === record[idField] ? { ...m, isActive: newStatus } : m
+            ));
+            message.success(`${masterName}を${actionText}にしました`);
+          }
+        } catch (error) {
+          console.error('エラー:', error);
+          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+        }
       },
     });
   };
@@ -530,6 +1202,25 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   // リロード
   const handleReload = () => {
     if (!selectedMasterInfo) return;
+    
+    // DB連携マスタの場合はAPIから再取得
+    if (selectedMasterInfo.masterId === '8') {
+      // Creatorマスタ
+      fetchCreatorMasters();
+      return;
+    } else if (selectedMasterInfo.masterId === '5') {
+      // Instrumentマスタ
+      fetchInstrumentMasters();
+      return;
+    } else if (selectedMasterInfo.masterId === '7') {
+      // Vendorマスタ
+      fetchVendorMasters();
+      return;
+    } else if (selectedMasterInfo.masterId === '2') {
+      // 部署マスタ
+      fetchDepartmentMasters();
+      return;
+    }
     
     setLoading(true);
     
@@ -583,6 +1274,14 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
   // CSVアップロード
   const handleUpload = () => {
+    if (!selectedMasterInfo) return;
+    
+    // DB連携マスタ（Department, Instrument, Vendor, Creator）のみCSVアップロード可能
+    if (!['2', '5', '7', '8'].includes(selectedMasterInfo.masterId)) {
+      message.warning('このマスタはCSVアップロードに対応していません');
+      return;
+    }
+    
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.csv';
@@ -596,61 +1295,172 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     input.click();
   };
 
-  // CSVファイルをパースして一覧に反映
-  const handleCSVUpload = (file: File) => {
+  // CSVファイルをAPIにアップロード
+  const handleCSVUpload = async (file: File) => {
     if (!selectedMasterInfo) return;
-
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      encoding: 'UTF-8',
-      skipEmptyLines: true,
-      complete: (results: Papa.ParseResult<Record<string, string>>) => {
-        try {
-          const newMasters: MasterRecord[] = [];
-
-          results.data.forEach((row: Record<string, string>) => {
-            const newRecord: MasterRecord = {};
-
-            // itemCategoriesに基づいてデータを構築
-            Object.entries(selectedMasterInfo.itemCategories).forEach(([key, category]) => {
-              if (category && row[category.headerName] !== undefined) {
-                newRecord[key] = row[category.headerName].trim();
-              }
-            });
-
-            // isActiveの処理
-            if (row['状態']) {
-              const statusValue = row['状態'];
-              newRecord.isActive = statusValue === 'アクティブ' || statusValue === 'true' || statusValue === '1';
-            } else {
-              newRecord.isActive = true;
-            }
-
-            newMasters.push(newRecord);
-          });
-
-          if (newMasters.length > 0) {
-            setMasters([...masters, ...newMasters]);
-            message.success(`${newMasters.length}件のマスタを追加しました`);
-          } else {
-            message.warning('追加するマスタデータがありませんでした');
-          }
-        } catch (error) {
-          console.error('CSV処理エラー:', error);
-          message.error('CSVファイルの処理中にエラーが発生しました');
-        }
-      },
-      error: (error: Error) => {
-        console.error('CSVパースエラー:', error);
-        message.error('CSVファイルの読み込みに失敗しました');
-      },
-    });
+    
+    try {
+      setLoading(true);
+      
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}';
+      
+      // マスタIDに応じたエンドポイントを決定
+      let endpoint = '';
+      if (selectedMasterInfo.masterId === '5') {
+        endpoint = `${apiUrl}/api/v1/master/instrument/upload-csv`;
+      } else if (selectedMasterInfo.masterId === '7') {
+        endpoint = `${apiUrl}/api/v1/master/vendor/upload-csv`;
+      } else if (selectedMasterInfo.masterId === '8') {
+        endpoint = `${apiUrl}/api/v1/master/creator/upload-csv`;
+      } else if (selectedMasterInfo.masterId === '2') {
+        endpoint = `${apiUrl}/api/v1/master/department/upload-csv`;
+      } else {
+        message.error('このマスタはCSVアップロードに対応していません');
+        return;
+      }
+      
+      // FormDataを作成
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      console.log('=== CSV Upload ===');
+      console.log('Endpoint:', endpoint);
+      console.log('File:', file.name);
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'X-Organization-Id': organizationId,
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error?.message || 'CSVアップロードに失敗しました');
+      }
+      
+      const result = await response.json();
+      console.log('Upload result:', result);
+      
+      message.success('CSVファイルをアップロードしました');
+      
+      // データを再取得
+      if (selectedMasterInfo.masterId === '5') {
+        await fetchInstrumentMasters();
+      } else if (selectedMasterInfo.masterId === '7') {
+        await fetchVendorMasters();
+      } else if (selectedMasterInfo.masterId === '8') {
+        await fetchCreatorMasters();
+      } else if (selectedMasterInfo.masterId === '2') {
+        await fetchDepartmentMasters();
+      }
+    } catch (error) {
+      console.error('CSV upload error:', error);
+      message.error(error instanceof Error ? error.message : 'CSVアップロードに失敗しました');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // CSVダウンロード
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!selectedMasterInfo) return;
-
+    
+    // DB連携マスタ（Department, Instrument, Vendor, Creator）の場合はAPI経由
+    if (['2', '5', '7', '8'].includes(selectedMasterInfo.masterId)) {
+      try {
+        setLoading(true);
+        
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}';
+        
+        // マスタIDに応じたエンドポイントを決定
+        let endpoint = '';
+        let filename = '';
+        if (selectedMasterInfo.masterId === '5') {
+          endpoint = `${apiUrl}/api/v1/master/instrument/download-csv`;
+          filename = 'instruments.csv';
+        } else if (selectedMasterInfo.masterId === '7') {
+          endpoint = `${apiUrl}/api/v1/master/vendor/download-csv`;
+          filename = 'vendors.csv';
+        } else if (selectedMasterInfo.masterId === '8') {
+          endpoint = `${apiUrl}/api/v1/master/creator/download-csv`;
+          filename = 'creators.csv';
+        } else if (selectedMasterInfo.masterId === '2') {
+          endpoint = `${apiUrl}/api/v1/master/department/download-csv`;
+          filename = 'departments.csv';
+        }
+        
+        // フィルタ条件をクエリパラメータに追加
+        const params = new URLSearchParams();
+        if (searchText.trim()) {
+          params.append('search', searchText.trim());
+        }
+        if (displayScope && displayScope !== 'all') {
+          params.append('display_scope', displayScope);
+        }
+        // 固定フィルター（searchFixed=trueの項目）もクエリパラメータに追加
+        Object.entries(fixedFilters).forEach(([key, value]) => {
+          if (value) {
+            params.append(key, value);
+          }
+        });
+        
+        const queryString = params.toString();
+        const fullUrl = queryString ? `${endpoint}?${queryString}` : endpoint;
+        
+        console.log('=== CSV Download ===');
+        console.log('Endpoint:', fullUrl);
+        console.log('Filters:', {
+          search: searchText,
+          displayScope,
+          fixedFilters,
+        });
+        
+        const response = await fetch(fullUrl, {
+          method: 'GET',
+          headers: {
+            'X-Organization-Id': organizationId,
+            'Authorization': 'Bearer dummy-token-for-development', // 開発用ダミートークン
+          },
+          credentials: 'include', // Cookieを含める
+        });
+        
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API Error Response:', errorText);
+          throw new Error(`CSVダウンロードに失敗しました: ${response.status} - ${errorText}`);
+        }
+        
+        // レスポンスをBlobとして取得
+        const blob = await response.blob();
+        
+        // ダウンロードリンクを作成
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        message.success('CSVファイルをダウンロードしました');
+      } catch (error) {
+        console.error('CSV download error:', error);
+        message.error(error instanceof Error ? error.message : 'CSVダウンロードに失敗しました');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    
+    // その他のマスタ（ローカル処理）
     const headers = Object.values(selectedMasterInfo.itemCategories)
       .filter(c => c && c.isDisplay)
       .map(c => c!.headerName)
@@ -697,50 +1507,300 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const organizationId = '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}';
       
-      if (editingMaster) {
-        // 編集の場合
-        const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
-        setMasters(masters.map(m => 
-          m[idField] === editingMaster[idField] ? { ...m, ...values } : m
-        ));
-        message.success('マスタ情報を更新しました');
-      } else {
-        // 新規追加の場合
-        const newRecord: MasterRecord = { ...values };
-        
-        // ロール管理画面の場合
-        if (selectedMasterInfo?.masterId === '4') {
-          // フォームから入力されたロールIDをそのまま使用
-          newRecord.masterId = '4';
-          newRecord.isActive = true;
+      console.log('=== handleModalOk デバッグ ===');
+      console.log('選択されたマスタID:', selectedMasterInfo?.masterId);
+      console.log('編集中:', editingMaster ? 'はい' : 'いいえ');
+      console.log('フォーム値:', values);
+      console.log('API URL:', apiUrl);
+      console.log('Organization ID:', organizationId);
+      
+      // Instrument/Vendorマスタの場合はAPI経由で更新
+      if (selectedMasterInfo?.masterId === '5') {
+        // Instrumentマスタ
+        if (editingMaster) {
+          // 編集の場合 - PUT
+          const response = await fetch(
+            `${apiUrl}/api/v1/master/instrument/${editingMaster.laboratorEquipmentId}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Organization-Id': organizationId,
+              },
+              body: JSON.stringify({
+                instrumentName: values.laboratorEquipmentName,
+                instrumentDescription: values.laboratorEquipmentExplan,
+                instrumentAnnotation: values.laboratorEquipmentAnnotation,
+                isActive: values.isActive,
+              }),
+            }
+          );
           
-          // 機能ID、機能名、書込可能機能IDを必ず含める
-          newRecord.functionId = values.functionId || '';
-          newRecord.functionName = values.functionName || '';
-          newRecord.functionWritePermissions = values.functionWritePermissions || '';
+          if (!response.ok) {
+            throw new Error('更新に失敗しました');
+          }
           
-          // デバッグログ
-          console.log('=== ロール追加デバッグ ===');
-          console.log('フォーム入力値(values):', values);
-          console.log('保存するレコード(newRecord):', newRecord);
-          console.log('ロール(values.role):', values.role);
-          console.log('ロール(newRecord.role):', newRecord.role);
-          console.log('ロール名(values.roleName):', values.roleName);
-          console.log('ロール名(newRecord.roleName):', newRecord.roleName);
+          await fetchInstrumentMasters();
+          message.success('マスタ情報を更新しました');
         } else {
-          // その他のマスタの場合はisActiveをデフォルトでtrueに設定
-          newRecord.isActive = values.isActive !== undefined ? values.isActive : true;
+          // 新規追加の場合 - POST
+          const response = await fetch(`${apiUrl}/api/v1/master/instrument`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Organization-Id': organizationId,
+            },
+            body: JSON.stringify({
+              instrumentId: values.laboratorEquipmentId,
+              instrumentName: values.laboratorEquipmentName,
+              instrumentDescription: values.laboratorEquipmentExplan,
+              instrumentAnnotation: values.laboratorEquipmentAnnotation,
+              isActive: values.isActive !== undefined ? values.isActive : true,
+            }),
+          });
+          
+          if (!response.ok) {
+            if (response.status === 409) {
+              throw new Error('入力されたIDは既に存在しています');
+            }
+            throw new Error('追加に失敗しました');
+          }
+          
+          await fetchInstrumentMasters();
+          message.success('マスタを追加しました');
         }
-        
-        setMasters([...masters, newRecord]);
-        message.success('マスタを追加しました');
+      } else if (selectedMasterInfo?.masterId === '7') {
+        // Vendorマスタ
+        if (editingMaster) {
+          // 編集の場合 - PUT
+          const response = await fetch(
+            `${apiUrl}/api/v1/master/vendor/${editingMaster.laboratorEquipmentVendorId}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Organization-Id': organizationId,
+              },
+              body: JSON.stringify({
+                vendorName: values.laboratorEquipmentVendorName,
+                vendorDescription: values.laboratorEquipmentVendorExplan,
+                vendorAnnotation: values.laboratorEquipmentVendorAnnotation,
+                isActive: values.isActive,
+              }),
+            }
+          );
+          
+          if (!response.ok) {
+            throw new Error('更新に失敗しました');
+          }
+          
+          await fetchVendorMasters();
+          message.success('マスタ情報を更新しました');
+        } else {
+          // 新規追加の場合 - POST
+          const response = await fetch(`${apiUrl}/api/v1/master/vendor`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Organization-Id': organizationId,
+            },
+            body: JSON.stringify({
+              vendorId: values.laboratorEquipmentVendorId,
+              vendorName: values.laboratorEquipmentVendorName,
+              vendorDescription: values.laboratorEquipmentVendorExplan,
+              vendorAnnotation: values.laboratorEquipmentVendorAnnotation,
+              isActive: values.isActive !== undefined ? values.isActive : true,
+            }),
+          });
+          
+          if (!response.ok) {
+            if (response.status === 409) {
+              throw new Error('入力されたIDは既に存在しています');
+            }
+            throw new Error('追加に失敗しました');
+          }
+          
+          await fetchVendorMasters();
+          message.success('マスタを追加しました');
+        }
+      } else if (selectedMasterInfo?.masterId === '8') {
+        // Creatorマスタ
+        if (editingMaster) {
+          // 編集の場合 - PUT
+          const response = await fetch(
+            `${apiUrl}/api/v1/master/creator/${editingMaster.creatorId}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Organization-Id': organizationId,
+              },
+              body: JSON.stringify({
+                creatorName: values.creatorName,
+                creatorDescription: values.creatorDescription,
+                creatorAnnotation: values.creatorAnnotation,
+                vendorName: values.vendorName,
+                instrumentName: values.instrumentName,
+                isActive: values.isActive,
+              }),
+            }
+          );
+          
+          if (!response.ok) {
+            throw new Error('更新に失敗しました');
+          }
+          
+          await fetchCreatorMasters();
+          message.success('マスタ情報を更新しました');
+        } else {
+          // 新規追加の場合 - POST
+          const response = await fetch(`${apiUrl}/api/v1/master/creator`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Organization-Id': organizationId,
+            },
+            body: JSON.stringify({
+              creatorId: values.creatorId,
+              creatorName: values.creatorName,
+              creatorDescription: values.creatorDescription,
+              creatorAnnotation: values.creatorAnnotation,
+              vendorName: values.vendorName,
+              instrumentName: values.instrumentName,
+              isActive: values.isActive !== undefined ? values.isActive : true,
+            }),
+          });
+          
+          if (!response.ok) {
+            if (response.status === 409) {
+              throw new Error('入力されたIDは既に存在しています');
+            }
+            throw new Error('追加に失敗しました');
+          }
+          
+          await fetchCreatorMasters();
+          message.success('マスタを追加しました');
+        }
+      } else if (selectedMasterInfo?.masterId === '2') {
+        // 部署マスタ
+        if (editingMaster) {
+          // 編集の場合 - PUT
+          const response = await fetch(
+            `${apiUrl}/api/v1/master/department/${editingMaster.departmentId}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Organization-Id': organizationId,
+              },
+              body: JSON.stringify({
+                departmentName: values.displayName,
+                isActive: values.isActive,
+              }),
+            }
+          );
+          
+          if (!response.ok) {
+            throw new Error('更新に失敗しました');
+          }
+          
+          await fetchDepartmentMasters();
+          message.success('マスタ情報を更新しました');
+        } else {
+          // 新規追加の場合 - POST
+          const response = await fetch(`${apiUrl}/api/v1/master/department`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Organization-Id': organizationId,
+            },
+            body: JSON.stringify({
+              departmentCd: values.departmentId,
+              departmentName: values.displayName,
+              isActive: values.isActive !== undefined ? values.isActive : true,
+            }),
+          });
+          
+          if (!response.ok) {
+            if (response.status === 409) {
+              throw new Error('入力されたIDは既に存在しています');
+            }
+            throw new Error('追加に失敗しました');
+          }
+          
+          await fetchDepartmentMasters();
+          message.success('マスタを追加しました');
+        }
+      } else {
+        // その他のマスタ（従来のローカル処理）
+        if (editingMaster) {
+          // 編集の場合
+          const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
+          setMasters(masters.map(m => 
+            m[idField] === editingMaster[idField] ? { ...m, ...values } : m
+          ));
+          message.success('マスタ情報を更新しました');
+        } else {
+          // 新規追加の場合
+          const newRecord: MasterRecord = { ...values };
+          
+          // ロール管理画面の場合
+          if (selectedMasterInfo?.masterId === '4') {
+            // フォームから入力されたロールIDをそのまま使用
+            newRecord.masterId = '4';
+            newRecord.isActive = true;
+            
+            // 機能ID、機能名、書込可能機能IDを必ず含める
+            newRecord.functionId = values.functionId || '';
+            newRecord.functionName = values.functionName || '';
+            newRecord.functionWritePermissions = values.functionWritePermissions || '';
+          } else {
+            // その他のマスタの場合はisActiveをデフォルトでtrueに設定
+            newRecord.isActive = values.isActive !== undefined ? values.isActive : true;
+          }
+          
+          setMasters([...masters, newRecord]);
+          message.success('マスタを追加しました');
+        }
       }
       
       setIsModalVisible(false);
       form.resetFields();
     } catch (error) {
-      console.error('バリデーションエラー:', error);
+      console.error('エラー:', error);
+      
+      // エラーメッセージを取得
+      const errorMessage = error instanceof Error ? error.message : 'エラーが発生しました';
+      
+      // 409エラー（ID重複）の場合
+      if (errorMessage.includes('既に存在しています')) {
+        // IDフィールド名を取得
+        const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
+        
+        // エラーメッセージのテキスト（部署管理の場合はCD、それ以外はID）
+        const fieldLabel = selectedMasterInfo?.masterId === '2' ? 'CD' : 'ID';
+        const errorMsg = `入力された${fieldLabel}は既に存在しています`;
+        
+        // フォームのIDフィールドにエラーを設定（背景色が薄い赤色になる）
+        form.setFields([
+          {
+            name: idField,
+            errors: [errorMsg],
+          },
+        ]);
+        
+        // エラーメッセージを表示
+        message.error(errorMsg);
+        
+        // モーダルは閉じない（ユーザーがIDを修正できるようにする）
+        return;
+      }
+      
+      // その他のエラー
+      message.error(errorMessage);
     }
   };
 
@@ -760,6 +1820,30 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       .join('、');
     return fieldNames ? `${fieldNames}で検索` : '検索';
   }, [selectedMasterInfo, fuzzySearchFields]);
+
+  // Vendor名称の選択肢を生成（Creatorマスタ用）
+  const vendorNameOptions = useMemo(() => {
+    if (selectedMasterInfo?.masterId !== '8') return [];
+    
+    return laboratoryEquipmentVendorData
+      .map(vendor => ({
+        value: String(vendor.laboratorEquipmentVendorName || ''),
+        label: String(vendor.laboratorEquipmentVendorName || ''),
+      }))
+      .filter(option => option.value.trim() !== '');
+  }, [selectedMasterInfo]);
+
+  // Instrument名称の選択肢を生成（Creatorマスタ用）
+  const instrumentNameOptions = useMemo(() => {
+    if (selectedMasterInfo?.masterId !== '8') return [];
+    
+    return laboratoryEquipmentData
+      .map(equipment => ({
+        value: String(equipment.laboratorEquipmentName || ''),
+        label: String(equipment.laboratorEquipmentName || ''),
+      }))
+      .filter(option => option.value.trim() !== '');
+  }, [selectedMasterInfo]);
 
   return (
     <div style={{ padding: 0 }}>
@@ -874,27 +1958,28 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           ))}
         </Row>
 
+        {/* Creatorマスタの場合のみ注意書きを表示 */}
+        {selectedMasterInfo?.masterId === '8' && (
+          <Alert
+            title={<strong>Creatorに紐づくVendorまたはInstrumentに不備がある場合、該当レコードは強調表示されます。</strong>}
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
         <Table
           key={selectedMasterType}
           loading={loading}
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredMasters}
-          rowKey={(record, index) => {
-            if (!selectedMasterInfo) return `row_${index}`;
+          rowKey={(record) => {
+            if (!selectedMasterInfo) return String(Math.random());
             
-            // 確実にユニークなキーを生成するため、インデックスを常に含める
-            const displayFields = Object.keys(selectedMasterInfo.itemCategories)
-              .filter(key => selectedMasterInfo.itemCategories[key]?.isDisplay);
-            
-            // すべての表示フィールドの値を結合
-            const keyParts = displayFields
-              .map(field => String(record[field] || ''))
-              .filter(Boolean)
-              .join('_');
-            
-            // インデックスを必ず含めることで確実にユニークにする
-            return `${keyParts}_${index}`;
+            // IDフィールド（最初のフィールド）の値を使用
+            const idField = Object.keys(selectedMasterInfo.itemCategories)[0];
+            return String(record[idField] || Math.random());
           }}
           size="small"
           scroll={{ x: 1400 }}
@@ -904,7 +1989,31 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             pageSizeOptions: ['10', '20', '50', '100'],
             showTotal: (total) => `全 ${total} 件`,
           }}
-          rowClassName={(record) => (record.isActive === false ? 'active-row' : 'inactive-row')}
+          rowClassName={(record) => {
+            // Creatorマスタ（masterId="8"）の場合、VendorとInstrumentの状態チェック
+            if (selectedMasterInfo?.masterId === '8') {
+              const vendorName = record.vendorName as string | undefined;
+              const instrumentName = record.instrumentName as string | undefined;
+              const vendorIsActive = record.vendorIsActive as boolean | null | undefined;
+              const instrumentIsActive = record.instrumentIsActive as boolean | null | undefined;
+              
+              // ①Vendor名称 or Instrument名称が空白の場合
+              const isVendorEmpty = !vendorName || vendorName.trim() === '';
+              const isInstrumentEmpty = !instrumentName || instrumentName.trim() === '';
+              
+              // ②Vendor名称 or Instrument名称に紐づくマスタが非アクティブの場合
+              const isVendorInactive = vendorName && vendorName.trim() !== '' && vendorIsActive === false;
+              const isInstrumentInactive = instrumentName && instrumentName.trim() !== '' && instrumentIsActive === false;
+              
+              // ①か②のどちらかに該当すれば警告行として赤背景
+              if (isVendorEmpty || isInstrumentEmpty || isVendorInactive || isInstrumentInactive) {
+                return 'warning-row';
+              }
+            }
+            
+            // 通常のアクティブ/非アクティブ判定
+            return record.isActive === false ? 'active-row' : 'inactive-row';
+          }}
         />
       </div>
 
@@ -913,6 +2022,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         title={
           selectedMasterInfo?.masterId === '4' 
             ? (editingMaster ? 'ロール編集' : 'ロール追加')
+            : selectedMasterInfo?.masterId === '2'
+            ? (editingMaster ? '部署編集' : '部署追加')
             : (editingMaster ? 'マスタ編集' : 'マスタ追加')
         }
         open={isModalVisible}
@@ -966,6 +2077,51 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             // 必須項目の判定（IDフィールドは追加時に必須）
             const isRequired = isIdField ? !editingMaster : (category.addable && !editingMaster);
 
+            // Creatorマスタ（masterId="8"）の場合、vendorNameとinstrumentNameはSelectを使用（選択のみ）
+            if (selectedMasterInfo.masterId === '8') {
+              if (key === 'vendorName') {
+                return (
+                  <Form.Item
+                    key={key}
+                    name={key}
+                    label={category.headerName}
+                    rules={isRequired ? [{ required: true, message: `${category.headerName}を選択してください` }] : []}
+                  >
+                    <Select
+                      options={vendorNameOptions}
+                      placeholder={`${category.headerName}を選択してください`}
+                      disabled={isDisabled}
+                      showSearch
+                      filterOption={(input, option) =>
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    />
+                  </Form.Item>
+                );
+              }
+              
+              if (key === 'instrumentName') {
+                return (
+                  <Form.Item
+                    key={key}
+                    name={key}
+                    label={category.headerName}
+                    rules={isRequired ? [{ required: true, message: `${category.headerName}を選択してください` }] : []}
+                  >
+                    <Select
+                      options={instrumentNameOptions}
+                      placeholder={`${category.headerName}を選択してください`}
+                      disabled={isDisabled}
+                      showSearch
+                      filterOption={(input, option) =>
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    />
+                  </Form.Item>
+                );
+              }
+            }
+
             return (
               <Form.Item
                 key={key}
@@ -993,6 +2149,20 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       </Modal>
 
       <style jsx global>{`
+        /* ID重複エラー時の背景色（薄い赤色） */
+        .ant-form-item-has-error .ant-input {
+          background-color: #ffcccc !important;
+        }
+        .ant-form-item-has-error .ant-input:focus {
+          background-color: #ffcccc !important;
+        }
+        
+        .warning-row td {
+          background-color: #ffe6e6 !important;
+        }
+        .warning-row:hover td {
+          background-color: #ffcccc !important;
+        }
         .active-row td {
           background-color: #d3d3d3 !important;
         }
