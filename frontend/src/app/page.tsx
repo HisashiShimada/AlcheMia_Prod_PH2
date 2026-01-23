@@ -171,7 +171,7 @@ export default function Home() {
 
     try {
       // PINコード検証API呼び出し
-      const response = await authService.verifyPin(pinCode, sessionToken);
+      const response = await authService.verifyPin(pinCode, sessionToken, orgIdFromUrl);
 
       // 検証成功
       console.log('PIN verification successful:', response);
@@ -216,8 +216,8 @@ export default function Home() {
     setError(null);
 
     try {
-      // PINコード再送信API呼び出し
-      const response = await authService.resendPin(sessionToken);
+      // PINコード再送信API呼び出し（ログイン画面では組織IDをURLから取得）
+      const response = await authService.resendPin(sessionToken, orgIdFromUrl);
 
       console.log('PIN resend successful:', response);
 

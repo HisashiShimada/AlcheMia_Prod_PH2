@@ -30,24 +30,6 @@ const createApiClient = (): AxiosInstance => {
     withCredentials: true, // HTTPOnly Cookie送信のため
   });
 
-  // クライアント証明書認証使用時:
-  // X-Organization-IdはNginxが自動設定するため、
-  // フロントエンドからの送信は不要
-  
-  // 開発環境でNginxを使用しない場合は、以下のコメントを外す
-  // client.interceptors.request.use(
-  //   (config) => {
-  //     const organizationId = '{c9621ed6-5def-4970-8e7f-fbe97c98e3ed}';
-  //     if (organizationId) {
-  //       config.headers['X-Organization-Id'] = organizationId;
-  //     }
-  //     return config;
-  //   },
-  //   (error) => {
-  //     return Promise.reject(error);
-  //   }
-  // );
-
   return client;
 };
 
@@ -182,12 +164,13 @@ export const authService = {
   /**
    * ログイン
    * @param credentials ユーザー名とパスワード
-   * @param orgId 組織ID（オプション、開発環境用）
+   * @param orgId 組織ID（ログイン画面ではURLクエリパラメータから取得）
    * @returns セッショントークンとメッセージ
    */
   async login(credentials: LoginCredentials, orgId?: string): Promise<LoginResponseData> {
     try {
-      // クエリパラメータにorgIdを追加（開発環境用）
+      // ログイン画面では組織IDをクエリパラメータで送信
+      // （ログイン前のため、証明書認証によるヘッダー設定がまだ行われていない）
       const params = orgId ? { orgId } : {};
       
       const response = await apiClient.post<ApiResponse<LoginResponseData>>(
@@ -210,10 +193,14 @@ export const authService = {
    * PINコード検証
    * @param pinCode 6桁のPINコード
    * @param sessionToken 仮セッショントークン
+   * @param orgId 組織ID（ログイン画面ではURLクエリパラメータから取得）
    * @returns ユーザー情報とセッション情報
    */
-  async verifyPin(pinCode: string, sessionToken: string): Promise<VerifyPinResponseData> {
+  async verifyPin(pinCode: string, sessionToken: string, orgId?: string): Promise<VerifyPinResponseData> {
     try {
+      // ログイン画面では組織IDをクエリパラメータで送信
+      const params = orgId ? { orgId } : {};
+      
       const response = await apiClient.post<ApiResponse<VerifyPinResponseData>>(
         '/auth/verify-pin',
         { pinCode },
@@ -221,6 +208,7 @@ export const authService = {
           headers: {
             Authorization: `Bearer ${sessionToken}`,
           },
+          params,
         }
       );
       
@@ -237,10 +225,14 @@ export const authService = {
   /**
    * PINコード再送信
    * @param sessionToken 仮セッショントークン
+   * @param orgId 組織ID（ログイン画面ではURLクエリパラメータから取得）
    * @returns 再送信結果
    */
-  async resendPin(sessionToken: string): Promise<ResendPinResponseData> {
+  async resendPin(sessionToken: string, orgId?: string): Promise<ResendPinResponseData> {
     try {
+      // ログイン画面では組織IDをクエリパラメータで送信
+      const params = orgId ? { orgId } : {};
+      
       const response = await apiClient.post<ApiResponse<ResendPinResponseData>>(
         '/auth/resend-pin',
         {},
@@ -248,6 +240,7 @@ export const authService = {
           headers: {
             Authorization: `Bearer ${sessionToken}`,
           },
+          params,
         }
       );
       

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Card, Input, Button, Typography, Alert, Space, Spin, theme } from 'antd';
 import { EyeOutlined, EyeInvisibleOutlined, LoginOutlined } from '@ant-design/icons';
 import { LoginCredentials } from '@/types/auth';
+import { validateUsername, validatePassword } from '@/utils/validation';
 
 const { Title, Text } = Typography;
 
@@ -27,19 +28,70 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [touched, setTouched] = useState({ username: false, password: false });
+
+  // ユーザー名の変更ハンドラ（リアルタイムバリデーション）
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setUsername(value);
+    
+    // タッチされている場合のみバリデーション
+    if (touched.username) {
+      const result = validateUsername(value);
+      setUsernameError(result.isValid ? null : result.error || null);
+    }
+  };
+
+  // パスワードの変更ハンドラ（リアルタイムバリデーション）
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPassword(value);
+    
+    // タッチされている場合のみバリデーション
+    if (touched.password) {
+      const result = validatePassword(value);
+      setPasswordError(result.isValid ? null : result.error || null);
+    }
+  };
+
+  // フィールドのフォーカス喪失ハンドラ
+  const handleUsernameBlur = () => {
+    setTouched(prev => ({ ...prev, username: true }));
+    const result = validateUsername(username);
+    setUsernameError(result.isValid ? null : result.error || null);
+  };
+
+  const handlePasswordBlur = () => {
+    setTouched(prev => ({ ...prev, password: true }));
+    const result = validatePassword(password);
+    setPasswordError(result.isValid ? null : result.error || null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
 
-    // バリデーション
-    if (!username.trim()) {
-      setValidationError('ユーザー名を入力してください');
+    // すべてのフィールドをタッチ済みにする
+    setTouched({ username: true, password: true });
+
+    // バリデーション実行
+    const usernameValidation = validateUsername(username);
+    const passwordValidation = validatePassword(password);
+
+    // エラーを設定
+    setUsernameError(usernameValidation.isValid ? null : usernameValidation.error || null);
+    setPasswordError(passwordValidation.isValid ? null : passwordValidation.error || null);
+
+    // バリデーション失敗時は送信しない
+    if (!usernameValidation.isValid) {
+      setValidationError(usernameValidation.error || '入力値を確認してください');
       return;
     }
 
-    if (!password) {
-      setValidationError('パスワードを入力してください');
+    if (!passwordValidation.isValid) {
+      setValidationError(passwordValidation.error || '入力値を確認してください');
       return;
     }
 
@@ -134,12 +186,18 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
                   size="large"
                   placeholder="ユーザー名を入力"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={handleUsernameChange}
+                  onBlur={handleUsernameBlur}
                   disabled={loading}
-                  status={validationError && !username.trim() ? 'error' : ''}
+                  status={usernameError ? 'error' : ''}
                   autoComplete="username"
                   autoFocus
                 />
+                {usernameError && (
+                  <div style={{ color: token.colorError, fontSize: token.fontSizeSM, marginTop: token.marginXS }}>
+                    {usernameError}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -161,14 +219,20 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
                   size="large"
                   placeholder="パスワードを入力"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
+                  onBlur={handlePasswordBlur}
                   disabled={loading}
-                  status={validationError && !password ? 'error' : ''}
+                  status={passwordError ? 'error' : ''}
                   autoComplete="current-password"
                   iconRender={(visible) =>
                     visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
                   }
                 />
+                {passwordError && (
+                  <div style={{ color: token.colorError, fontSize: token.fontSizeSM, marginTop: token.marginXS }}>
+                    {passwordError}
+                  </div>
+                )}
               </div>
 
               <Button

@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import * as authController from '../controllers/authController';
 import { authMiddleware } from '../middleware/authMiddleware';
-import { skipClientCertInDev } from '../middleware/clientCertMiddleware';
 import {
   loginRateLimit,
   pinVerifyRateLimit,
@@ -22,12 +21,6 @@ const corsOptions = {
 };
 
 router.use(cors(corsOptions));
-
-// クライアント証明書検証ミドルウェア（開発環境では証明書なしでもOK）
-router.use(skipClientCertInDev);
-
-// 注意: X-Organization-IdはNginxから自動設定されるため、
-// クライアント証明書認証有効時は手動バリデーション不要
 
 // 1. ログインエンドポイント
 // POST /api/v1/auth/login

@@ -89,27 +89,17 @@
 - **論理名**: PINコード
 - **DDLファイル**: `docs/design/db/ddl/pin_codes.sql`
 - **説明**: メールPINコード二段階認証用の一時データ
-- **主キー**: `id` (SERIAL)
+- **主キー**: `organization_id` (UUID), `user_id` (UUID)
 - **主要カラム**:
-  - `id` - ID
-  - `user_id` - ユーザID (FK: organization_user)
-  - `organization_id` - 組織ID (FK: organization_user)
-  - `pin_code` - PINコード（6桁数字）
-  - `session_token` - セッショントークン
-  - `is_used` - 使用済みフラグ
-  - `used_at` - 使用日時
+  - `organization_id` - 組織ID
+  - `user_id` - ユーザID
+  - `pin_code` - PINコード（6桁数字、000000-999999）
+  - `session_token` - セッショントークン（temp_session-{id}_{timestamp}）
   - `expires_at` - 有効期限（作成時刻 + 5分）
-  - `attempts_count` - 試行回数（0-3）
-  - `max_attempts` - 最大試行回数（デフォルト: 3）
+  - `attempts_count` - 試行回数（0-3、デフォルト: 0）
   - `created_at` - 作成日時
-- **外部キー**:
-  - `(user_id, organization_id)` → `organization_user(user_id, organization_id)`
 - **インデックス**:
-  - `idx_pin_codes_pin_session` (UNIQUE) - pin_code, session_token
-  - `idx_pin_codes_user` - user_id
   - `idx_pin_codes_token` - session_token
-  - `idx_pin_codes_expires` - expires_at
-  - `idx_pin_codes_is_used` - is_used
 
 ---
 

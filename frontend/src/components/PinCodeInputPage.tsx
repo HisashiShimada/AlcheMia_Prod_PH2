@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react';
 import { Card, Button, Typography, Alert, Space, Spin, theme } from 'antd';
 import { LoginOutlined, MailOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { validatePinCode } from '@/utils/validation';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -158,14 +159,10 @@ export default function PinCodeInputPage({
     
     setValidationError(null);
 
-    // バリデーション
-    if (fullPin.length !== 6) {
-      setValidationError('6桁のPINコードを入力してください');
-      return;
-    }
-
-    if (!/^\d{6}$/.test(fullPin)) {
-      setValidationError('PINコードは数字のみで入力してください');
+    // バリデーション（validation.tsを使用）
+    const validationResult = validatePinCode(fullPin);
+    if (!validationResult.isValid) {
+      setValidationError(validationResult.error || '入力値を確認してください');
       return;
     }
 

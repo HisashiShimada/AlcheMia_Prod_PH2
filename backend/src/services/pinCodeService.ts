@@ -19,9 +19,12 @@ import type { Result, PinCodeData, UserInfo, UserRole } from '../types/service';
  */
 export class PinCodeService {
   private readonly PIN_EXPIRY_MINUTES = 5;
-  private readonly MAX_ATTEMPTS = 3;
+  private readonly maxAttempts: number;
 
-  constructor(private pool: Pool) {}
+  constructor(private pool: Pool) {
+    // 環境変数から最大試行回数を読み込み（デフォルト: 3）
+    this.maxAttempts = parseInt(process.env.PIN_MAX_ATTEMPTS || '3', 10);
+  }
 
   /**
    * PINコードを生成して保存
@@ -43,14 +46,22 @@ export class PinCodeService {
       // 有効期限を5分後に設定
       const expiresAt = new Date(Date.now() + this.PIN_EXPIRY_MINUTES * 60 * 1000);
 
-      // pin_codesテーブルに保存
+      // pin_codesテーブルに保存（既存レコードがあれば更新）
       // Parameterized Query使用、organization_id含む
+      // DDLのカラム順序に合わせる: organization_id, user_id, pin_code, session_token, expires_at, attempts_count
       const result = await this.pool.query(
         `INSERT INTO pin_codes 
-         (user_id, organization_id, pin_code, session_token, expires_at, attempts_count, max_attempts) 
-         VALUES ($1, $2, $3, $4, $5, 0, $6)
+         (organization_id, user_id, pin_code, session_token, expires_at, attempts_count) 
+         VALUES ($1, $2, $3, $4, $5, 0)
+         ON CONFLICT (organization_id, user_id) 
+         DO UPDATE SET 
+           pin_code = EXCLUDED.pin_code,
+           session_token = EXCLUDED.session_token,
+           expires_at = EXCLUDED.expires_at,
+           attempts_count = 0,
+           created_at = CURRENT_TIMESTAMP
          RETURNING pin_code, expires_at`,
-        [userId, orgId, pinCode, sessionToken, expiresAt, this.MAX_ATTEMPTS]
+        [orgId, userId, pinCode, sessionToken, expiresAt]
       );
 
       return {
@@ -92,7 +103,6 @@ export class PinCodeService {
            pc.organization_id,
            pc.expires_at,
            pc.attempts_count,
-           pc.max_attempts,
            ou.user_name as username,
            ou.mail_address as email,
            ou.role,
@@ -101,7 +111,7 @@ export class PinCodeService {
          FROM pin_codes pc
          INNER JOIN organization_user ou ON pc.user_id = ou.user_id AND pc.organization_id = ou.organization_id
          LEFT JOIN organization o ON pc.organization_id = o.organization_id
-         WHERE pc.pin_code = $1 AND pc.session_token = $2 AND pc.is_used = false`,
+         WHERE pc.pin_code = $1 AND pc.session_token = $2`,
         [pinCode, sessionToken]
       );
 
@@ -132,7 +142,7 @@ export class PinCodeService {
       }
 
       // 試行回数チェック
-      if (row.attempts_count >= row.max_attempts) {
+      if (row.attempts_count >= this.maxAttempts) {
         return {
           success: false,
           error: {

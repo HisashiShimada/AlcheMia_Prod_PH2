@@ -79,12 +79,8 @@ export function rateLimitMiddleware(config: RateLimitConfig) {
         currentAttempts = parseInt(result.rows[0].count, 10);
       } else {
         // login_historyテーブルから失敗回数を取得
-        // キーに組織IDとユーザー名が含まれていることを想定
-        console.log(key)
-        const [organizationId, userName] = key.split('_');
-        console.log(organizationId)
-        console.log(userName)
-        console.log(windowStart)
+        const organizationId = req.query.orgId as string | undefined;
+        const userName = key.split('_')[1];
         
         // インデックス idx_login_history_rate_limit (login_at, login_sf) を利用
         const query = `
@@ -135,7 +131,7 @@ export function rateLimitMiddleware(config: RateLimitConfig) {
 export const loginRateLimit = rateLimitMiddleware({
   windowMs: 15 * 60 * 1000, // 15分
   maxAttempts: 5,
-  keyGenerator: (req) => `${req.headers['x-organization-id']}_${req.body.username}`,
+  keyGenerator: (req) => `${req.query.orgId}_${req.body.username}`,
   errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
   message: 'ログイン試行回数が上限に達しました。15分後に再試行してください。',
 });
@@ -166,7 +162,7 @@ export const pinResendRateLimit = rateLimitMiddleware({
 export const passwordResetRequestRateLimit = rateLimitMiddleware({
   windowMs: 15 * 60 * 1000, // 15分
   maxAttempts: 3,
-  keyGenerator: (req) => req.headers['x-organization-id'] as string || '',
+  keyGenerator: (req) => req.query.orgId as string || '',
   errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
   message: 'パスワードリセット要求の回数が上限に達しました。15分後に再試行してください。',
 });
