@@ -2,7 +2,6 @@
 
 import React from 'react';
 import {
-  List,
   Typography,
   Tag,
   Dropdown,
@@ -153,10 +152,9 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
       </div>
 
       {/* フォーマット一覧 */}
-      <List
-        dataSource={formats}
-        renderItem={(format) => (
-          <List.Item
+      <Space orientation="vertical" size={0} style={{ width: '100%' }}>
+        {formats.map((format) => (
+          <div
             key={format.id}
             onClick={() => onFormatSelect(format.id)}
             style={{
@@ -199,9 +197,9 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
                 更新: {new Date(format.updatedAt).toLocaleDateString('ja-JP')}
               </Text>
             </div>
-          </List.Item>
-        )}
-      />
+          </div>
+        ))}
+      </Space>
     </div>
   );
 };

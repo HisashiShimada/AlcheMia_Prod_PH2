@@ -147,7 +147,9 @@ export default function PetriNetEditorScreen({
         height: '100vh',
         backgroundColor: '#f0f2f5'
       }}>
-        <Spin size="large" tip="プロジェクトを読み込み中..." />
+        <Spin size="large">
+          <div style={{ minHeight: 100 }} />
+        </Spin>
       </div>
     );
   }

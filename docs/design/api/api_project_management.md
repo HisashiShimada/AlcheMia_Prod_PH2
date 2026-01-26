@@ -30,15 +30,15 @@
 |---|------|---------|---------------|------|--------|
 | 1 | プロジェクト一覧取得 | GET | `/api/v1/projects` | ✅ 実装済み | - |
 | 2 | プロジェクト作成 | POST | `/api/v1/projects` | ✅ 実装済み | - |
-| 3 | チェックアウト | POST | `/api/v1/projects/:projectId/checkout` | ✅ 実装済み | - |
-| 4 | チェックイン | POST | `/api/v1/projects/:projectId/checkin` | ✅ 実装済み | - |
-| 5 | ファイル一覧取得 | GET | `/api/v1/projects/:projectId/files` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 6 | タスク一覧取得 | GET | `/api/v1/projects/:projectId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 7 | プロジェクトリロード | POST | `/api/v1/projects/:projectId/reload` | ✅ 実装済み | - |
-| 8 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectId/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 9 | 指示一覧取得 | GET | `/api/v1/projects/:projectId/instructions` | 🔴 未実装 | ⭐⭐ 中 |
+| 3 | チェックアウト | POST | `/api/v1/projects/:projectName/checkout` | ✅ 実装済み | - |
+| 4 | チェックイン | POST | `/api/v1/projects/:projectName/checkin` | ✅ 実装済み | - |
+| 5 | ファイル一覧取得 | GET | `/api/v1/projects/:projectName/files` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 6 | タスク一覧取得 | GET | `/api/v1/projects/:projectName/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 7 | プロジェクトリロード | POST | `/api/v1/projects/:projectName/reload` | ✅ 実装済み | - |
+| 8 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 9 | 指示一覧取得 | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
 | 10 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐⭐ 中 |
-| 11 | プロジェクト公開 | POST | `/api/v1/projects/:projectId/publish` | 🔴 未実装 | ⭐⭐ 中 |
+| 11 | プロジェクト公開 | POST | `/api/v1/projects/:projectName/publish` | 🔴 未実装 | ⭐⭐ 中 |
 
 ---
 
@@ -51,8 +51,13 @@
 **必須ヘッダー**:
 ```http
 Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
 ```
+
+**organization_id の取得**:
+- ログイン時に `X-Organization-Id` ヘッダーから組織IDを取得し、セッションに保存します
+- ログイン後のAPIでは、`Authorization` ヘッダーのセッショントークンから自動的に取得されます
+- リクエストヘッダーで `X-Organization-Id` を指定する必要はありません
+- `authMiddleware` がセッション情報を検証し、ユーザー情報（organization_idを含む）を `req.user` に格納します
 
 **権限要件**:
 - すべてのAPI: `experiment_admin` または `system_admin` ロール必須
@@ -61,12 +66,16 @@ X-Organization-Id: {organization_id}
 **ミドルウェアチェーン**:
 ```typescript
 router.METHOD('/path', 
-  authMiddleware,           // JWT認証
-  tenantIsolation,          // テナント分離（暗黙的）
-  permissionCheck([...]),   // 権限チェック
-  controller.handler
+  authMiddleware,           // 1. JWT認証（セッション検証、req.userに格納）
+  permissionCheck([...]),   // 2. 権限チェック
+  controller.handler        // 3. コントローラー処理
 );
 ```
+
+**ミドルウェアの動作**:
+1. `authMiddleware`: JWTトークン（`maiml_session-{sessionId}_{timestamp}`）を検証し、セッション情報を取得して `req.user` に格納（organizationIdを含む）
+2. `permissionCheck`: ユーザーのロール（`req.user.role`）を検証
+3. コントローラー: `req.user.organizationId` を使用してテナント分離されたデータにアクセス
 
 ### マルチテナント分離
 
@@ -270,7 +279,7 @@ router.METHOD('/path',
 
 ### 3. チェックアウト ✅
 
-**エンドポイント**: `POST /api/v1/projects/:projectId/checkout`
+**エンドポイント**: `POST /api/v1/projects/:projectName/checkout`
 
 **説明**: プロジェクトをチェックアウトし、排他編集を開始
 
@@ -283,7 +292,7 @@ router.METHOD('/path',
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 #### レスポンス
 
@@ -328,7 +337,7 @@ router.METHOD('/path',
 
 ### 4. チェックイン ✅
 
-**エンドポイント**: `POST /api/v1/projects/:projectId/checkin`
+**エンドポイント**: `POST /api/v1/projects/:projectName/checkin`
 
 **説明**: プロジェクトをチェックインし、排他編集を終了
 
@@ -341,7 +350,7 @@ router.METHOD('/path',
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 #### レスポンス
 
@@ -385,7 +394,7 @@ router.METHOD('/path',
 
 ### 5. ファイル一覧取得 🔴
 
-**エンドポイント**: `GET /api/v1/projects/:projectId/files`
+**エンドポイント**: `GET /api/v1/projects/:projectName/files`
 
 **説明**: プロジェクト内のファイル一覧を取得
 
@@ -400,7 +409,7 @@ router.METHOD('/path',
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 **クエリパラメータ**:
 | パラメータ | 型 | 必須 | デフォルト | 説明 |
@@ -466,7 +475,7 @@ router.METHOD('/path',
 
 ### 6. タスク一覧取得 🔴
 
-**エンドポイント**: `GET /api/v1/projects/:projectId/tasks`
+**エンドポイント**: `GET /api/v1/projects/:projectName/tasks`
 
 **説明**: プロジェクト内のタスク一覧を取得
 
@@ -481,7 +490,7 @@ router.METHOD('/path',
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 **クエリパラメータ**:
 | パラメータ | 型 | 必須 | デフォルト | 説明 |
@@ -543,7 +552,7 @@ router.METHOD('/path',
 
 ### 7. プロジェクトリロード ✅
 
-**エンドポイント**: `POST /api/v1/projects/:projectId/reload`
+**エンドポイント**: `POST /api/v1/projects/:projectName/reload`
 
 **説明**: プロジェクトのファイルメタデータをS3から再読み込み
 
@@ -556,7 +565,7 @@ router.METHOD('/path',
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 #### レスポンス
 
@@ -595,7 +604,7 @@ router.METHOD('/path',
 
 ### 8. 指示送信（タスク作成） 🔴
 
-**エンドポイント**: `POST /api/v1/projects/:projectId/instructions`
+**エンドポイント**: `POST /api/v1/projects/:projectName/instructions`
 
 **説明**: プロジェクトに対して実験指示を送信し、タスクを作成
 
@@ -610,7 +619,7 @@ router.METHOD('/path',
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 **ボディ（JSON）**:
 ```json
@@ -687,7 +696,7 @@ router.METHOD('/path',
 
 ### 9. 指示一覧取得 🔴
 
-**エンドポイント**: `GET /api/v1/projects/:projectId/instructions`
+**エンドポイント**: `GET /api/v1/projects/:projectName/instructions`
 
 **説明**: プロジェクトの指示一覧を取得
 
@@ -702,7 +711,7 @@ router.METHOD('/path',
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 **クエリパラメータ**:
 | パラメータ | 型 | 必須 | デフォルト | 説明 |
@@ -820,7 +829,7 @@ router.METHOD('/path',
 
 ### 11. プロジェクト公開 🔴
 
-**エンドポイント**: `POST /api/v1/projects/:projectId/publish`
+**エンドポイント**: `POST /api/v1/projects/:projectName/publish`
 
 **説明**: プロジェクトを公開状態に変更
 
@@ -835,7 +844,7 @@ router.METHOD('/path',
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 **ボディ（JSON）**:
 ```json

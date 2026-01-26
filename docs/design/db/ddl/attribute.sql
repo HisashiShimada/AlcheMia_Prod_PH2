@@ -16,10 +16,7 @@ CREATE TABLE attribute (
     attribute_value VARCHAR(500) NOT NULL,
     
     -- 制約
-    CONSTRAINT attribute_pkey PRIMARY KEY (organization_id, attribute_id),
-    CONSTRAINT attribute_organization_fkey 
-        FOREIGN KEY (organization_id) 
-        REFERENCES organization(organization_id)
+    CONSTRAINT attribute_pkey PRIMARY KEY (organization_id, attribute_id)
 );
 
 -- インデックス

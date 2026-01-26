@@ -126,11 +126,11 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
         overflow: 'auto',
         background: '#f5f5f5'
       }}>
-        <Space direction="vertical" size="large" style={{ textAlign: 'center' }}>
+        <Space orientation="vertical" size="large" style={{ textAlign: 'center' }}>
           <Alert
             message="TIFFファイルが選択されました"
             description={
-              <Space direction="vertical" size="small">
+              <Space orientation="vertical" size="small">
                 <Text>{fileName}</Text>
                 <Text type="secondary">
                   ブラウザでのTIFF表示には制限があります。
@@ -155,7 +155,7 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
 
           {/* モック表示用の情報 */}
           <Card size="small" style={{ marginTop: 16 }}>
-            <Space direction="vertical" size="small">
+            <Space orientation="vertical" size="small">
               <Text type="secondary" style={{ fontSize: 12 }}>
                 <strong>モックモード:</strong> API呼び出しはコメントアウトされています
               </Text>

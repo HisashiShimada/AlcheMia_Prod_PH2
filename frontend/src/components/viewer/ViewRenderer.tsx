@@ -130,7 +130,7 @@ const NoSelectionView: React.FC<{
       margin: '0 auto',
       textAlign: 'center'
     }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <RocketOutlined style={{ fontSize: 64, color: '#CF0027' }} />
         
         <Title level={2}>
@@ -146,7 +146,7 @@ const NoSelectionView: React.FC<{
         </Paragraph>
         
         <Card>
-          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="small" style={{ width: '100%' }}>
             <Text strong>🎯 統一UX動線（デスクトップ/モバイル対応）</Text>
             <Text>• 左のFileExplorerまたは検索でMAIMLファイル選択 → ペトリネット図表示</Text>
             <Text>• 右上の「編集開始」ボタン → 新規/既存選択 → 編集画面</Text>
@@ -173,7 +173,7 @@ const NoSelectionView: React.FC<{
           }
           size="small"
         >
-          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="small" style={{ width: '100%' }}>
             <Text>
               <Text strong>タイプ:</Text> {deviceType}
             </Text>
@@ -212,7 +212,7 @@ const UnsupportedFileView: React.FC<{
       margin: '0 auto',
       textAlign: 'center'
     }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         <FileTextOutlined style={{ fontSize: 64, color: '#8c8c8c' }} />
         
         <Title level={3}>
@@ -482,7 +482,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
   const renderExperimentView = () => {
     return (
       <div style={{ padding: 24 }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           <Alert
             message="実験記録システム"
             description="実験記録機能は未実装です"
@@ -505,7 +505,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
   const renderExperimentControlView = () => {
     return (
       <div style={{ padding: 24 }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           <Alert
             message="実験制御（実験管理者）"
             description="実験制御機能は未実装です"

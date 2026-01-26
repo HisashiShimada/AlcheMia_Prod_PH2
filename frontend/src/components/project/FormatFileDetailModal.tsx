@@ -72,7 +72,7 @@ export default function FormatFileDetailModal({
       onCancel={onClose}
       footer={null}
       width={600}
-      destroyOnClose
+      destroyOnHidden
     >
       <Descriptions
         bordered

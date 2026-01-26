@@ -4,10 +4,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Modal, Drawer, Tabs, List, Checkbox, Tag, Typography, Space, Empty } from 'antd';
+import { Modal, Drawer, Tabs, Table, Checkbox, Tag, Typography, Space, Empty } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 
-const { TabPane } = Tabs;
 const { Text } = Typography;
 
 interface PropertyObject {
@@ -155,7 +155,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
     );
   };
 
-  // プロパティリストの表示
+  // プロパティリストの表示（Table形式）
   const renderPropertyList = (structure: keyof StructuredProperties) => {
     const properties = structuredProperties[structure] || {};
     const selected = selectedProperties[structure] || [];
@@ -172,33 +172,62 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
       );
     }
 
-    return (
-      <List
-        dataSource={propertyEntries}
-        renderItem={([propKey, propertyObj]) => {
-          const isSelected = selected.includes(propKey);
-          const label = getPropertyLabel(propKey, propertyObj);
-          const value = formatPropertyValue(propertyObj);
+    // テーブルのデータソース
+    const dataSource = propertyEntries.map(([propKey, propertyObj]) => ({
+      key: propKey,
+      propKey,
+      propertyObj,
+      isSelected: selected.includes(propKey),
+      label: getPropertyLabel(propKey, propertyObj),
+      value: formatPropertyValue(propertyObj),
+    }));
 
-          return (
-            <List.Item
-              style={{ cursor: 'pointer', padding: '12px 16px' }}
-              onClick={() => onPropertyToggle(structure, propKey)}
-            >
-              <List.Item.Meta
-                avatar={
-                  <Checkbox
-                    checked={isSelected}
-                    onChange={() => onPropertyToggle(structure, propKey)}
-                  />
-                }
-                title={<Text strong>{label}</Text>}
-                description={<Text type="secondary" style={{ fontSize: '12px' }}>{value}</Text>}
-              />
-            </List.Item>
-          );
-        }}
-        style={{ maxHeight: '400px', overflow: 'auto' }}
+    // テーブルのカラム定義
+    const columns: ColumnsType<typeof dataSource[0]> = [
+      {
+        title: '',
+        dataIndex: 'isSelected',
+        key: 'checkbox',
+        width: 50,
+        align: 'center',
+        render: (isSelected: boolean, record) => (
+          <Checkbox
+            checked={isSelected}
+            onChange={() => onPropertyToggle(structure, record.propKey)}
+            onClick={(e) => e.stopPropagation()}
+          />
+        ),
+      },
+      {
+        title: 'プロパティ名',
+        dataIndex: 'label',
+        key: 'label',
+        width: '40%',
+        render: (label: string) => <Text strong>{label}</Text>,
+      },
+      {
+        title: '値',
+        dataIndex: 'value',
+        key: 'value',
+        render: (value: string) => (
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            {value}
+          </Text>
+        ),
+      },
+    ];
+
+    return (
+      <Table
+        dataSource={dataSource}
+        columns={columns}
+        pagination={false}
+        size="small"
+        scroll={{ y: 400 }}
+        onRow={(record) => ({
+          onClick: () => onPropertyToggle(structure, record.propKey),
+          style: { cursor: 'pointer' },
+        })}
       />
     );
   };
@@ -291,7 +320,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
           style={{ position: 'absolute' }}
           mask={true}
           maskClosable={true}
-          destroyOnClose={false}
+          destroyOnHidden={false}
         >
           {renderContent()}
         </Drawer>
@@ -309,7 +338,7 @@ const StructuredPropertySelector: React.FC<StructuredPropertySelectorProps> = ({
           width={800}
           style={{ top: 80 }}
           getContainer={getContainer || (() => document.body)}
-          bodyStyle={{ maxHeight: '70vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+          styles={{ body: { maxHeight: '70vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' } }}
         >
           {renderContent()}
         </Modal>

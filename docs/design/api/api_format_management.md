@@ -75,11 +75,30 @@ org_{organization_prefix}/formats/
 **必須ヘッダー**:
 ```http
 Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
 ```
+
+**organization_id の取得**:
+- ログイン時に `X-Organization-Id` ヘッダーから組織IDを取得し、セッションに保存します
+- ログイン後のAPIでは、`Authorization` ヘッダーのセッショントークンから自動的に取得されます
+- リクエストヘッダーで `X-Organization-Id` を指定する必要はありません
+- `authMiddleware` がセッション情報を検証し、ユーザー情報（organization_idを含む）を `req.user` に格納します
 
 **権限要件**:
 - すべてのAPI: `experiment_admin` または `system_admin` ロール必須
+
+**ミドルウェアチェーン**:
+```typescript
+router.METHOD('/path', 
+  authMiddleware,           // 1. JWT認証（セッション検証、req.userに格納）
+  permissionCheck([...]),   // 2. 権限チェック
+  controller.handler        // 3. コントローラー処理
+);
+```
+
+**ミドルウェアの動作**:
+1. `authMiddleware`: JWTトークン（`maiml_session-{sessionId}_{timestamp}`）を検証し、セッション情報を取得して `req.user` に格納（organizationIdを含む）
+2. `permissionCheck`: ユーザーのロール（`req.user.role`）を検証
+3. コントローラー: `req.user.organizationId` を使用してテナント分離されたデータにアクセス
 
 ### マルチテナント分離
 

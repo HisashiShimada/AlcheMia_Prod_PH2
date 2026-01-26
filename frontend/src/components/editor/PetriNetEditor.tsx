@@ -1460,7 +1460,7 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         justify="center"
       >
         <Alert
-          message="エラー"
+          title="エラー"
           description={error}
           type="error"
           showIcon

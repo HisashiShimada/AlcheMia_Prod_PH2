@@ -984,12 +984,12 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         body: { maxHeight: '70vh', overflowY: 'auto' },
       }}
     >
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         {/* プロジェクト情報 */}
         <Alert
-          message="プロジェクト情報"
+          title="プロジェクト情報"
           description={
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Text>
                 <Text strong>プロジェクト名:</Text> {projectName}
               </Text>
@@ -1010,7 +1010,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         {/* 作業者選択 */}
         {availableWorkers.length > 0 && (
           <Card size="small" style={{ backgroundColor: token.colorWarningBg }}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Text strong>👷 作業者を割り当て（任意）</Text>
               <Select
                 value={selectedWorkerId || undefined}
@@ -1043,7 +1043,9 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         {/* タスク詳細カード */}
         {loadingMethods ? (
           <Card size="small">
-            <Spin tip="メソッド情報を読み込み中..." />
+            <Spin>
+              <div style={{ minHeight: 100 }} />
+            </Spin>
           </Card>
         ) : availableMethods.length > 0 ? (
           <Card
@@ -1058,7 +1060,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
             }
             style={{ backgroundColor: token.colorBgContainer }}
           >
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
               {/* ヘッダー行（ラベル） */}
               <Flex gap="middle" align="center" style={{ 
                 padding: `${token.paddingXS}px ${token.paddingSM}px`,
@@ -1103,7 +1105,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                   items={taskDetails.map((task) => task.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                     {taskDetails.map((task, index) => {
                       const selectedMethod = availableMethods.find((m) => m.id === task.methodId);
 
@@ -1139,7 +1141,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
         </Card>
 
         {/* 指示入力フォーム */}
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           {instructions.map((instruction, index) => {
             const isActive = activeInstructionId === instruction.id;
             
@@ -1182,7 +1184,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                 }}
                 hoverable={instructions.length > 1}
               >
-                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                 {/* 指示対象（ラベル表示） */}
                 <div>
                   <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
@@ -1334,7 +1336,7 @@ const InstructionDialog: React.FC<InstructionDialogProps> = ({
                   instruction.transitionId && (
                     <Alert
                       message={
-                        <Space direction="vertical" size="small">
+                        <Space orientation="vertical" size="small">
                           {(() => {
                             const selected = getSelectedTransition(instruction.transitionId);
                             if (selected) {

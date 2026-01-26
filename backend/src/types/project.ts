@@ -109,3 +109,31 @@ export const TASK_STATUS_MAP: Record<number, TaskStatus> = {
   3: 'review_waiting',
   4: 'completed'
 };
+
+/**
+ * タスク統計情報
+ */
+export interface TaskStatistics {
+  /** 総タスク数 */
+  total: number;
+  
+  /** 実行待ちタスク数 */
+  pending: number;
+  
+  /** 実行中タスク数 */
+  inProgress: number;
+  
+  /** 完了タスク数 */
+  completed: number;
+  
+  /** 異常終了タスク数 */
+  failed: number;
+}
+
+/**
+ * タスク一覧レスポンス
+ */
+export interface TaskListResponse {
+  tasks: Task[];
+  statistics: TaskStatistics;
+}

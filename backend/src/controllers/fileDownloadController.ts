@@ -90,7 +90,7 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
     // 3. organization_prefix取得
     const { getPool } = require('../database/db');
     const pool = getPool();
-    const orgQuery = 'SELECT organization_name FROM organization WHERE organization_id = $1';
+    const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
     const orgResult = await pool.query(orgQuery, [organizationId]);
     
     if (orgResult.rows.length === 0) {
@@ -108,7 +108,7 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const organizationPrefix = orgResult.rows[0].organization_name.replace(/\s+/g, '_');
+    const organizationPrefix = orgResult.rows[0].organization_prefix;
 
     // 4. Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();
@@ -297,7 +297,7 @@ export async function downloadAllFiles(req: Request, res: Response): Promise<voi
     // 3. organization_prefix取得
     const { getPool } = require('../database/db');
     const pool = getPool();
-    const orgQuery = 'SELECT organization_name FROM organization WHERE organization_id = $1';
+    const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
     const orgResult = await pool.query(orgQuery, [organizationId]);
     
     if (orgResult.rows.length === 0) {
@@ -315,7 +315,7 @@ export async function downloadAllFiles(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const organizationPrefix = orgResult.rows[0].organization_name.replace(/\s+/g, '_');
+    const organizationPrefix = orgResult.rows[0].organization_prefix;
 
     // 4. Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();

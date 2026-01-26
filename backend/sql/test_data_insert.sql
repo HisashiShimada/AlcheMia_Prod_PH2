@@ -9,6 +9,7 @@
 INSERT INTO organization (
     organization_name,
     organization_display_name,
+    organization_prefix,
     organization_email,
     is_active,
     create_at,
@@ -17,6 +18,7 @@ INSERT INTO organization (
 (
     'システム管理組織',
     'システム管理組織',
+    'system_admin_org',
     'system@example.com',
     true,
     CURRENT_TIMESTAMP,
@@ -25,6 +27,7 @@ INSERT INTO organization (
 (
     'AIML研究所',
     'AIML研究所',
+    'maiml_lab_001',
     'lab001@example.com',
     true,
     CURRENT_TIMESTAMP,

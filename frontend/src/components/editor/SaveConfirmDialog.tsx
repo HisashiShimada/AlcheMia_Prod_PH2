@@ -310,7 +310,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         {/* バリデーション結果統計 */}
         {hasErrors && (
           <Alert
-            message={
+            title={
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <Text>
                   <strong>❌ エラー:</strong> {errorCount}件
@@ -371,7 +371,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
           </div>
           
           <Radio.Group value={saveDestination} onChange={(e) => setSaveDestination(e.target.value)}>
-            <Space direction="vertical">
+            <Space orientation="vertical">
               <Radio value="s3">
                 <CloudUploadOutlined /> S3に保存
               </Radio>
@@ -465,7 +465,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         </Text>
 
         {/* アクションボタン */}
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           {hasErrors && hasCorrections && (
             <Button
               type="primary"
@@ -505,7 +505,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
 
           {hasErrors && (
             <Alert
-              message="💡 ヒント: ValidationPanelでエラー詳細を確認できます"
+              title="💡 ヒント: ValidationPanelでエラー詳細を確認できます"
               type="info"
               style={{ marginTop: 8 }}
             />

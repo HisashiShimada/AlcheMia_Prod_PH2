@@ -13,8 +13,7 @@ import type { BatchOperation } from '../repositories/fileMetadataRepository';
 import type { 
   Project, 
   Pagination, 
-  ProjectListResponse, 
-  PROJECT_STATUS_MAP 
+  ProjectListResponse
 } from '../types/project';
 
 // キャッシュインスタンス（TTL: 1時間）
@@ -106,7 +105,7 @@ export class ProjectService {
 
       // Task 3.5: organization_prefix取得
       const orgQuery = `
-        SELECT organization_name
+        SELECT organization_prefix
         FROM organization
         WHERE organization_id = $1
       `;
@@ -123,7 +122,7 @@ export class ProjectService {
         };
       }
 
-      const organizationPrefix = orgResult.rows[0].organization_name.replace(/\s+/g, '_');
+      const organizationPrefix = orgResult.rows[0].organization_prefix;
 
       // Task 3.4: プロジェクトレコード登録
       const { v4: uuidv4 } = require('uuid');
@@ -182,23 +181,6 @@ export class ProjectService {
           },
         };
       }
-
-      // Task 3.7: ステータス名取得
-      const statusQuery = `
-        SELECT code_value, code_name, code_division
-        FROM code_master
-        WHERE code_division IN ('project_status', 'checkout_status')
-          AND organization_id = $1
-      `;
-      const statusResult = await client.query(statusQuery, [organizationId]);
-
-      const projectStatusName = statusResult.rows.find(
-        (row: any) => row.code_division === 'project_status' && row.code_value === '0'
-      )?.code_name || '';
-      
-      const checkoutStatusName = statusResult.rows.find(
-        (row: any) => row.code_division === 'checkout_status' && row.code_value === '0'
-      )?.code_name || '';
 
       // トランザクションコミット
       await client.query('COMMIT');
@@ -1198,6 +1180,163 @@ export class ProjectService {
   }
 
   /**
+   * プロジェクトファイル一覧を取得
+   * 
+   * Task 2.1: ファイル一覧取得API - Service層実装
+   * Requirements: 2, 3, 11
+   * 
+   * @param organizationId - 組織ID
+   * @param projectId - プロジェクトID
+   * @param organizationPrefix - 組織プレフィックス
+   * @param includeArchive - アーカイブファイルを含めるか
+   * @returns ファイル一覧
+   */
+  async getProjectFiles(
+    organizationId: string,
+    projectId: string,
+    organizationPrefix: string,
+    includeArchive: boolean
+  ): Promise<ServiceResult<{
+    projectId: string;
+    projectName: string;
+    files: any[];
+    archiveFiles: any[];
+  }>> {
+    try {
+      const pool = getPool();
+
+      // プロジェクト存在確認（WHERE organization_id = $1 AND project_id = $2）
+      const projectQuery = `
+        SELECT project_id, project_name
+        FROM project
+        WHERE organization_id = $1 AND project_id = $2
+      `;
+
+      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
+
+      if (projectResult.rows.length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'プロジェクトが見つかりません',
+          },
+        };
+      }
+
+      const projectName = projectResult.rows[0].project_name;
+
+      // S3からファイル一覧を取得（グレースフル処理）
+      let files: any[] = [];
+      let archiveFiles: any[] = [];
+
+      try {
+        const storageService = getStorageService();
+
+        // 現在のファイル一覧を取得
+        const currentFiles = await storageService.listFiles(
+          organizationPrefix,
+          `projects/${projectName}/`
+        ).catch(() => []);
+
+        // archive配下のファイルを除外してフィルタリング
+        const rootFiles = currentFiles.filter((file: any) => {
+          // archive/配下のファイルは除外
+          return !file.key.includes('/archive/');
+        });
+
+        // 各ファイルに対して署名付きURLを生成
+        files = await Promise.all(
+          rootFiles.map(async (file: any) => {
+            const signedUrl = await storageService.getSignedUrl(
+              organizationPrefix,
+              file.key.replace(`org_${organizationPrefix}/`, ''),
+              3600
+            );
+
+            // ファイル名を抽出
+            const fileName = file.key.split('/').pop() || '';
+            const fileType = fileName.split('.').pop() || '';
+
+            return {
+              id: file.key,
+              name: fileName,
+              path: file.key,
+              size: file.size,
+              lastModified: file.lastModified.toISOString(),
+              type: fileType,
+              isArchive: false,
+              version: null,
+              signedUrl,
+              createdAt: file.lastModified.toISOString(),
+            };
+          })
+        );
+
+        // include_archive=true の場合、アーカイブファイルも取得
+        if (includeArchive) {
+          const archiveFilesList = await storageService.listFiles(
+            organizationPrefix,
+            `projects/${projectName}/archive/`
+          ).catch(() => []);
+
+          archiveFiles = await Promise.all(
+            archiveFilesList.map(async (file: any) => {
+              const signedUrl = await storageService.getSignedUrl(
+                organizationPrefix,
+                file.key.replace(`org_${organizationPrefix}/`, ''),
+                3600
+              );
+
+              const fileName = file.key.split('/').pop() || '';
+              const fileType = fileName.split('.').pop() || '';
+
+              // バージョン番号を抽出（_v{number}.maiml パターン）
+              const versionMatch = fileName.match(/_v(\d+)\.maiml$/);
+              const version = versionMatch ? parseInt(versionMatch[1], 10) : null;
+
+              return {
+                id: file.key,
+                name: fileName,
+                path: file.key,
+                size: file.size,
+                lastModified: file.lastModified.toISOString(),
+                type: fileType,
+                isArchive: true,
+                version,
+                signedUrl,
+                createdAt: file.lastModified.toISOString(),
+              };
+            })
+          );
+        }
+      } catch (s3Error) {
+        // S3エラー時は空配列を返す（グレースフル処理）
+        console.error('S3 file listing failed:', s3Error);
+      }
+
+      return {
+        success: true,
+        data: {
+          projectId,
+          projectName,
+          files,
+          archiveFiles,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'データベースエラーが発生しました',
+          originalError: error as Error,
+        },
+      };
+    }
+  }
+
+  /**
    * プロジェクトリロード
    * 
    * Task 2.3, 2.4: 並行リロード制御機能とサマリー生成機能の実装
@@ -1322,5 +1461,220 @@ export class ProjectService {
 
     // リロード実行
     return await reloadPromise;
+  }
+
+  /**
+   * プロジェクトに紐づくタスク一覧と統計情報を取得
+   * 
+   * Task 3.1: タスク一覧取得API - Service層実装
+   * Requirements: 6, 7, 8, 11
+   * 
+   * @param organizationId - 組織ID
+   * @param projectId - プロジェクトID
+   * @param status - タスクステータスフィルタ
+   * @returns タスク一覧と統計情報
+   */
+  async getProjectTasks(
+    organizationId: string,
+    projectId: string,
+    status: 'all' | 'pending' | 'in_progress' | 'completed' | 'failed'
+  ): Promise<ServiceResult<{
+    projectId: string;
+    projectName: string;
+    tasks: any[];
+    statistics: {
+      total: number;
+      pending: number;
+      inProgress: number;
+      completed: number;
+      failed: number;
+    };
+  }>> {
+    try {
+      const pool = getPool();
+
+      // プロジェクト存在確認（WHERE organization_id = $1 AND project_id = $2）
+      const projectQuery = `
+        SELECT project_id, project_name
+        FROM project
+        WHERE organization_id = $1 AND project_id = $2
+      `;
+
+      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
+
+      if (projectResult.rows.length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'プロジェクトが見つかりません',
+          },
+        };
+      }
+
+      const projectName = projectResult.rows[0].project_name;
+
+      // タスクステータスマップ（数値 → 文字列）
+      const TASK_STATUS_MAP: { [key: number]: string } = {
+        0: 'pending',
+        1: 'in_progress',
+        2: 'failed',
+        3: 'completed',
+      };
+
+      // statusパラメータに応じた動的WHERE条件を生成
+      let taskQuery = `
+        SELECT 
+          ptd.organization_id,
+          ptd.project_id,
+          ptd.method_id,
+          ptd.task_no,
+          ptd.task_status,
+          ptd.experiment_start_at,
+          ptd.experiment_end_at,
+          ptd.experiment_user_id,
+          ou.user_name as experiment_user_name,
+          ptd.reviewed_at,
+          ptd.review_user_id,
+          ru.user_name as review_user_name
+        FROM project_task_detail ptd
+        LEFT JOIN organization_user ou
+          ON ou.user_id = ptd.experiment_user_id
+          AND ou.organization_id = ptd.organization_id
+        LEFT JOIN organization_user ru
+          ON ru.user_id = ptd.review_user_id
+          AND ru.organization_id = ptd.organization_id
+        WHERE ptd.organization_id = $1
+          AND ptd.project_id = $2
+      `;
+
+      const taskParams: any[] = [organizationId, projectId];
+
+      // statusパラメータに応じてWHERE条件を追加
+      if (status !== 'all') {
+        const statusValue = Object.entries(TASK_STATUS_MAP).find(
+          ([_, v]) => v === status
+        )?.[0];
+        
+        if (statusValue) {
+          taskQuery += ` AND ptd.task_status = $3`;
+          taskParams.push(parseInt(statusValue, 10));
+        }
+      }
+
+      taskQuery += ` ORDER BY ptd.method_id, ptd.task_no`;
+
+      // タスク一覧を取得
+      const tasksResult = await pool.query(taskQuery, taskParams);
+
+      // タスクデータをフロントエンドの型に合わせて変換
+      const tasks = tasksResult.rows.map((row: any) => {
+        const taskStatus = TASK_STATUS_MAP[row.task_status] || 'pending';
+        const taskId = `${row.method_id}_${row.task_no}`;
+        
+        return {
+          // フロントエンドの必須プロパティ
+          taskId,
+          workerId: row.experiment_user_id || '',
+          workerName: row.experiment_user_name || '',
+          transitionId: `${row.method_id}_${row.task_no}`,
+          transitionName: `Task ${row.task_no}`, // 実際のトランジション名が必要な場合は別途取得
+          workStatus: taskStatus as any,
+          assignedAt: row.experiment_start_at
+            ? new Date(row.experiment_start_at).toISOString()
+            : new Date().toISOString(),
+          startedAt: row.experiment_start_at
+            ? new Date(row.experiment_start_at).toISOString()
+            : null,
+          completedAt: row.experiment_end_at
+            ? new Date(row.experiment_end_at).toISOString()
+            : null,
+          progress: taskStatus === 'completed' ? 100 : taskStatus === 'in_progress' ? 50 : 0,
+          
+          // TaskResultsTable用の追加プロパティ
+          workId: taskId,
+          taskName: `Task ${row.task_no}`,
+          methodName: row.method_id,
+          assignedWorker: row.experiment_user_name || '',
+          progressPercentage: taskStatus === 'completed' ? 100 : taskStatus === 'in_progress' ? 50 : 0,
+          workCompletedAt: row.experiment_end_at
+            ? new Date(row.experiment_end_at).toISOString()
+            : null,
+          reviewCompletedAt: row.reviewed_at
+            ? new Date(row.reviewed_at).toISOString()
+            : null,
+          
+          // バックエンド固有のプロパティ（デバッグ用）
+          organizationId: row.organization_id,
+          projectId: row.project_id,
+          methodId: row.method_id,
+          taskNo: row.task_no,
+          taskStatus: taskStatus,
+          experimentUserId: row.experiment_user_id,
+          reviewUserId: row.review_user_id,
+          reviewUserName: row.review_user_name || null,
+        };
+      });
+
+      // 統計情報を取得（GROUP BY + COUNT）
+      const statsQuery = `
+        SELECT 
+          task_status,
+          COUNT(*) as count
+        FROM project_task_detail
+        WHERE organization_id = $1 AND project_id = $2
+        GROUP BY task_status
+      `;
+
+      const statsResult = await pool.query(statsQuery, [organizationId, projectId]);
+
+      // 統計情報を集計
+      const statistics = {
+        total: 0,
+        pending: 0,
+        inProgress: 0,
+        completed: 0,
+        failed: 0,
+      };
+
+      statsResult.rows.forEach((row: any) => {
+        const count = parseInt(row.count, 10);
+        statistics.total += count;
+
+        switch (row.task_status) {
+          case 0:
+            statistics.pending = count;
+            break;
+          case 1:
+            statistics.inProgress = count;
+            break;
+          case 2:
+            statistics.failed = count;
+            break;
+          case 3:
+            statistics.completed = count;
+            break;
+        }
+      });
+
+      return {
+        success: true,
+        data: {
+          projectId,
+          projectName,
+          tasks,
+          statistics,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'データベースエラーが発生しました',
+          originalError: error as Error,
+        },
+      };
+    }
   }
 }

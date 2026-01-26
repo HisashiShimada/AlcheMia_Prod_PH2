@@ -166,4 +166,52 @@ router.post(
   projectController.reload
 );
 
+/**
+ * プロジェクトファイル一覧取得
+ * GET /api/v1/projects/:projectName/files
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description プロジェクトに関連するファイル一覧を取得する（署名付きURL付き）
+ * @note Task 2.3: ファイル一覧取得エンドポイント追加
+ * @requirements REQ-2, REQ-3, REQ-11
+ */
+router.get(
+  '/:projectName/files',
+  authMiddleware,
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です'),
+    query('include_archive')
+      .optional()
+      .isBoolean()
+      .withMessage('include_archiveはtrueまたはfalseである必要があります'),
+  ],
+  projectController.getProjectFiles
+);
+
+/**
+ * プロジェクトタスク一覧取得
+ * GET /api/v1/projects/:projectName/tasks
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description プロジェクトに関連するタスク一覧を取得する
+ * @note Task 3.3: タスク一覧取得エンドポイント追加
+ * @requirements REQ-2, REQ-4
+ */
+router.get(
+  '/:projectName/tasks',
+  authMiddleware,
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です'),
+    query('status')
+      .optional()
+      .isIn(['all', 'pending', 'in_progress', 'completed', 'failed'])
+      .withMessage('statusはall, pending, in_progress, completed, failedのいずれかである必要があります'),
+  ],
+  projectController.getProjectTasks
+);
+
 export default router;

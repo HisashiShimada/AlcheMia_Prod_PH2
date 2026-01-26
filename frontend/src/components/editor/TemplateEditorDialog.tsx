@@ -383,7 +383,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
         }}
       >
         <Alert
-          message={`親要素: ${propertyKey} | 現在の子要素数: ${propertyData.children?.length || 0}件`}
+          title={`親要素: ${propertyKey} | 現在の子要素数: ${propertyData.children?.length || 0}件`}
           type="info"
           style={{ marginBottom: 16 }}
         />
@@ -426,7 +426,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
         }}
       >
         <Alert
-          message={`コピー元: ${propertyKey}`}
+          title={`コピー元: ${propertyKey}`}
           type="info"
           style={{ marginBottom: 16 }}
         />
@@ -1244,7 +1244,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
         {Object.keys(properties).length === 0 ? (
           <Alert
-            message="プロパティがありません。「新規プロパティを追加」ボタンから追加してください。"
+            title="プロパティがありません。「新規プロパティを追加」ボタンから追加してください。"
             type="info"
           />
         ) : (
@@ -1306,7 +1306,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
             {Object.keys(contents).length === 0 ? (
               <Alert
-                message="Contentがありません。「新規Contentを追加」ボタンから追加してください。"
+                title="Contentがありません。「新規Contentを追加」ボタンから追加してください。"
                 type="info"
               />
             ) : (
@@ -1602,11 +1602,14 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             
             {isLoadingFolderStructure ? (
               <div style={{ textAlign: 'center', padding: 40 }}>
-                <Spin tip="フォルダ構造を読み込み中..." />
+                <Spin tip="フォルダ構造を読み込み中...">
+              <div style={{ minHeight: 100 }} />
+                  <div style={{ minHeight: 100 }} />
+                </Spin>
               </div>
             ) : s3FolderStructure.length === 0 ? (
               <Alert
-                message="フォルダが見つかりません"
+                title="フォルダが見つかりません"
                 description="S3に名前空間フォルダがありません"
                 type="info"
               />
@@ -1630,7 +1633,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 
                 {namespaceFiles.length === 0 ? (
                   <Alert
-                    message="ファイルが見つかりません"
+                    title="ファイルが見つかりません"
                     description="このフォルダにXMLファイルがありません"
                     type="info"
                   />
@@ -1710,14 +1713,14 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
                     {namespaceImportMode === 'replace_all_properties' && (
                       <Alert
-                        message="Propertiesセクションに取り込まれます"
+                        title="Propertiesセクションに取り込まれます"
                         type="info"
                         style={{ marginTop: 12 }}
                       />
                     )}
                     {namespaceImportMode === 'replace_all_contents' && (
                       <Alert
-                        message="Contentsセクションに取り込まれます"
+                        title="Contentsセクションに取り込まれます"
                         type="info"
                         style={{ marginTop: 12 }}
                       />

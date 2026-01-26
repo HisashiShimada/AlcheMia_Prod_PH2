@@ -119,15 +119,15 @@ export default function CreateProjectModal({
         </Space>
       }
       open={open}
-      onCancel={handleCancel}
       onOk={handleSubmit}
-      okText={t('projectManagement.create.submit') || '作成'}
-      cancelText={t('common.cancel') || 'キャンセル'}
+      onCancel={handleCancel}
       confirmLoading={submitting}
-      width={500}
-      destroyOnClose
+      okText={t('common.create')}
+      cancelText={t('common.cancel')}
+      width={600}
+      destroyOnHidden
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         {/* エラーメッセージ表示 */}
         {error && (
           <Alert

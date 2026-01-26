@@ -202,6 +202,152 @@ export async function create(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * プロジェクトタスク一覧取得エンドポイント
+ * GET /api/v1/projects/:projectName/tasks
+ * 
+ * Task 3.2: Controller層実装
+ */
+export async function getProjectTasks(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    console.log('[DEBUG] getProjectTasks - Start', { requestId, params: req.params, query: req.query });
+    
+    // 認証チェック
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTH_TOKEN_INVALID',
+          message: '認証が必要です',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const { organizationId } = req.user;
+    const { projectName } = req.params;
+    
+    console.log('[DEBUG] getProjectTasks - Auth OK', { organizationId, projectName });
+
+    // projectNameからprojectIdを取得
+    const { getPool } = require('../database/db');
+    const pool = getPool();
+    const projectQuery = 'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2';
+    const projectResult = await pool.query(projectQuery, [organizationId, projectName]);
+    
+    if (projectResult.rows.length === 0) {
+      console.log('[DEBUG] getProjectTasks - Project not found', { projectName });
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'プロジェクトが見つかりません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+    
+    const projectId = projectResult.rows[0].project_id;
+    console.log('[DEBUG] getProjectTasks - Project ID resolved', { projectName, projectId });
+
+    // statusパラメータの取得とバリデーション
+    const status = (req.query.status as string) || 'all';
+    const allowedStatus = ['all', 'pending', 'in_progress', 'completed', 'failed'];
+    
+    if (!allowedStatus.includes(status)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: `statusは次のいずれかである必要があります: ${allowedStatus.join(', ')}`,
+          details: [{
+            field: 'status',
+            message: `許可された値: ${allowedStatus.join(', ')}`,
+            code: 'INVALID_VALUE',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Service層呼び出し
+    const result = await projectService.getProjectTasks(
+      organizationId,
+      projectId,
+      status as 'all' | 'pending' | 'in_progress' | 'completed' | 'failed'
+    );
+
+    // エラーハンドリング
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode.startsWith('VALIDATION_')) {
+        statusCode = 400;
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    logError('Project getProjectTasks error', error as Error, {
+      action: 'project_getProjectTasks',
+      organizationId: req.user?.organizationId,
+      projectId: req.params.projectId,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
  * プロジェクト詳細取得エンドポイント
  * GET /api/v1/projects/:projectId
  * 
@@ -256,7 +402,7 @@ export async function getById(req: Request, res: Response): Promise<void> {
     // organization_prefix取得
     const { getPool } = require('../database/db');
     const pool = getPool();
-    const orgQuery = 'SELECT organization_name FROM organization WHERE organization_id = $1';
+    const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
     const orgResult = await pool.query(orgQuery, [organizationId]);
     
     if (orgResult.rows.length === 0) {
@@ -274,7 +420,7 @@ export async function getById(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const organizationPrefix = orgResult.rows[0].organization_name.replace(/\s+/g, '_');
+    const organizationPrefix = orgResult.rows[0].organization_prefix;
 
     // Service層呼び出し
     const result = await projectService.getById(organizationId, projectId, organizationPrefix);
@@ -753,7 +899,7 @@ export async function reload(req: Request, res: Response): Promise<void> {
     const { getPool } = require('../database/db');
     const pool = getPool();
     const orgQuery = `
-      SELECT organization_name, project_name
+      SELECT o.organization_prefix, p.project_name
       FROM organization o
       LEFT JOIN project p ON p.organization_id = o.organization_id AND p.project_id = $2
       WHERE o.organization_id = $1
@@ -775,7 +921,7 @@ export async function reload(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const organizationPrefix = orgResult.rows[0].organization_name.replace(/\s+/g, '_');
+    const organizationPrefix = orgResult.rows[0].organization_prefix;
     const projectName = orgResult.rows[0].project_name;
 
     // Service層呼び出し
@@ -831,6 +977,171 @@ export async function reload(req: Request, res: Response): Promise<void> {
       organizationId,
       projectId,
       userId,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
+ * プロジェクトファイル一覧取得エンドポイント
+ * GET /api/v1/projects/:projectId/files
+ * 
+ * Task 2.2: Controller層実装
+ */
+export async function getProjectFiles(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    console.log('[DEBUG] getProjectFiles - Start', { requestId, params: req.params, query: req.query });
+    
+    // 認証チェック
+    if (!req.user) {
+      console.log('[DEBUG] getProjectFiles - No user authentication');
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTH_TOKEN_INVALID',
+          message: '認証が必要です',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const { organizationId } = req.user;
+    const { projectName } = req.params;
+    
+    console.log('[DEBUG] getProjectFiles - Auth OK', { organizationId, projectName, userId: req.user.userId });
+
+    // projectNameからprojectIdを取得
+    const { getPool } = require('../database/db');
+    const pool = getPool();
+    const projectQuery = 'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2';
+    const projectResult = await pool.query(projectQuery, [organizationId, projectName]);
+    
+    if (projectResult.rows.length === 0) {
+      console.log('[DEBUG] getProjectFiles - Project not found', { projectName });
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'プロジェクトが見つかりません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+    
+    const projectId = projectResult.rows[0].project_id;
+    console.log('[DEBUG] getProjectFiles - Project ID resolved', { projectName, projectId });
+
+    // include_archiveパラメータの取得
+    const includeArchive = req.query.include_archive === 'true';
+    
+    console.log('[DEBUG] getProjectFiles - Params', { includeArchive });
+
+    // organization_prefix取得
+    const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
+    const orgResult = await pool.query(orgQuery, [organizationId]);
+    
+    if (orgResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: '組織情報が見つかりません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const organizationPrefix = orgResult.rows[0].organization_prefix;
+    
+    console.log('[DEBUG] getProjectFiles - Organization prefix', { organizationPrefix });
+
+    // Service層呼び出し
+    console.log('[DEBUG] getProjectFiles - Calling service...');
+    const result = await projectService.getProjectFiles(
+      organizationId,
+      projectId,
+      organizationPrefix,
+      includeArchive
+    );
+    
+    console.log('[DEBUG] getProjectFiles - Service result', { 
+      success: result.success, 
+      hasData: !!result.data,
+      errorCode: result.error?.code 
+    });
+
+    // エラーハンドリング
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode.startsWith('VALIDATION_')) {
+        statusCode = 400;
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 成功レスポンス
+    console.log('[DEBUG] getProjectFiles - Success response', { 
+      filesCount: result.data?.files?.length || 0,
+      archiveFilesCount: result.data?.archiveFiles?.length || 0
+    });
+    
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    console.error('[DEBUG] getProjectFiles - Exception caught', error);
+    logError('Project getProjectFiles error', error as Error, {
+      action: 'project_getProjectFiles',
+      organizationId: req.user?.organizationId,
+      projectId: req.params.projectId,
       requestId,
     });
 

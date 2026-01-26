@@ -1038,7 +1038,7 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
   if (error) {
     return (
       <Alert
-        message="エラー"
+        title="エラー"
         description={error}
         type="error"
         showIcon
@@ -1050,7 +1050,7 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
   if (!petriNetData) {
     return (
       <Alert
-        message="ペトリネット構造が見つかりません"
+        title="ペトリネット構造が見つかりません"
         type="info"
         showIcon
         style={{ margin: token.margin }}
@@ -1083,7 +1083,7 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
       {/* 🆕 Method切り替えタブ（複数methodの場合のみ表示） */}
       {isMultiMethod && methods.length > 1 && (
         <Card size="small">
-          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="small" style={{ width: '100%' }}>
             <Text strong>🔬 Method選択:</Text>
             <Tabs
               activeKey={selectedMethodId || undefined}

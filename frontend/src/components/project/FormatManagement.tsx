@@ -568,18 +568,19 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: token.colorBgLayout }}>
       {/* ツールバー */}
       <Card
-        bordered={false}
+        variant="borderless"
         style={{
           borderBottom: `1px solid ${token.colorBorderSecondary}`,
           borderRadius: 0,
         }}
-        bodyStyle={{ padding: `${token.margin}px ${token.paddingLG}px` }}
+        styles={{ body: { padding: `${token.margin}px ${token.paddingLG}px` } }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         {/* 検索・フィルタ */}
-        <Space direction="horizontal" size="small" wrap>
+        <Space orientation="horizontal" size="small" wrap>
           {/* カテゴリ絞込 */}
-          <Space size={4} direction="horizontal">
+          {/* カテゴリ絞込 */}
+          <Space size={4} orientation="horizontal">
             <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('formatManagement.filter_labels.category')}
             </Text>
@@ -600,7 +601,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           </Space>
 
           {/* ファイルタイプ絞込 */}
-          <Space size={4} direction="horizontal">
+          <Space size={4} orientation="horizontal">
             <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('formatManagement.filter_labels.file_type')}
             </Text>
@@ -617,7 +618,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           </Space>
 
           {/* 検索バー */}
-          <Space size={4} direction="horizontal">
+          <Space size={4} orientation="horizontal">
             <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('formatManagement.filter_labels.search')}
             </Text>
@@ -672,12 +673,12 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
             <>
               {/* フォーマット情報ヘッダー */}
               <Card
-                bordered={false}
+                variant="borderless"
                 style={{
                   borderBottom: `1px solid ${token.colorBorderSecondary}`,
                   borderRadius: 0,
                 }}
-                bodyStyle={{ padding: token.margin }}
+                styles={{ body: { padding: token.margin } }}
               >
                 <div>
                   <Title level={5} style={{ margin: 0, fontWeight: token.fontWeightStrong }}>
@@ -691,12 +692,12 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
 
               {/* フォーマット操作ツールバー */}
               <Card
-                bordered={false}
+                variant="borderless"
                 style={{
                   borderBottom: `1px solid ${token.colorBorderSecondary}`,
                   borderRadius: 0,
                 }}
-                bodyStyle={{ padding: token.margin }}
+                styles={{ body: { padding: token.margin } }}
               >
                 <Space size="small">
                   <Button
@@ -856,7 +857,10 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                 justifyContent: 'center', 
                 height: '100%' 
               }}>
-                <Spin size="large" tip="ファイル読み込み中..." />
+                <Spin size="large" tip="ファイル読み込み中..." >
+              <div style={{ minHeight: 100 }} />
+            </Spin>
+              <div style={{ minHeight: 100 }} />
               </div>
             ) : (
               <ReactFlowProvider>

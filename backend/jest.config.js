@@ -7,8 +7,11 @@ module.exports = {
     '^.+\\.ts$': 'ts-jest',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!uuid)',
+    'node_modules/(?!(uuid)/)',
   ],
+  moduleNameMapper: {
+    '^uuid$': require.resolve('uuid'),
+  },
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

@@ -24,24 +24,14 @@ import {
   downloadFile,
   executeFileDownload,
 } from '@/api/fileDownloadService';
-
-interface FileData {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  lastModified: string;
-  type: string;
-  isFolder?: boolean;
-  fileCount?: number;
-}
+import type { ProjectFile } from '@/types/file';
 
 interface FileListTableProps {
-  files: FileData[];
+  files: ProjectFile[];
   projectId: string;
-  onFileClick?: (file: FileData) => void;
+  onFileClick?: (file: ProjectFile) => void;
   onFolderClick?: (folderId: string) => void;
-  onViewFile?: (file: FileData) => void;
+  onViewFile?: (file: ProjectFile) => void;
 }
 
 /**
@@ -60,7 +50,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
   /**
    * ファイルダウンロード処理
    */
-  const handleDownloadFile = async (file: FileData) => {
+  const handleDownloadFile = async (file: ProjectFile) => {
     try {
       setDownloadingFileId(file.id);
 
@@ -85,7 +75,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
   };
   
   // ファイルタイプに応じたアイコンを取得
-  const getFileIcon = (file: FileData) => {
+  const getFileIcon = (file: ProjectFile) => {
     if (file.isFolder) {
       return <FolderOpenOutlined style={{ fontSize: token.fontSizeLG, color: token.colorWarning }} />;
     }
@@ -106,20 +96,20 @@ const FileListTable: React.FC<FileListTableProps> = ({
     }
   };
 
-  const columns: ColumnsType<FileData> = [
+  const columns: ColumnsType<ProjectFile> = [
     {
       title: 'タイプ',
       key: 'type',
       width: 50,
       align: 'center',
-      render: (_text: string, record: FileData) => getFileIcon(record),
+      render: (_text: string, record: ProjectFile) => getFileIcon(record),
     },
     {
       title: 'ファイル名',
       dataIndex: 'name',
       key: 'name',
       sorter: (a, b) => a.name.localeCompare(b.name, 'ja'),
-      render: (text: string, record: FileData) => (
+      render: (text: string, record: ProjectFile) => (
         <Tooltip title={record.path} placement="topLeft">
           <span
             style={{
@@ -139,7 +129,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
       key: 'size',
       width: 120,
       sorter: (a, b) => a.size - b.size,
-      render: (_text: string, record: FileData) =>
+      render: (_text: string, record: ProjectFile) =>
         !record.isFolder ? (
           <span style={{ color: token.colorTextSecondary }}>{formatFileSize(record.size)}</span>
         ) : null,
@@ -149,7 +139,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
       key: 'lastModified',
       width: 150,
       sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime(),
-      render: (_text: string, record: FileData) =>
+      render: (_text: string, record: ProjectFile) =>
         !record.isFolder ? (
           <span style={{ color: token.colorTextSecondary }}>{formatRelativeTime(record.lastModified)}</span>
         ) : null,
@@ -159,7 +149,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
       key: 'actions',
       width: 220,
       align: 'center',
-      render: (_text: string, record: FileData) =>
+      render: (_text: string, record: ProjectFile) =>
         !record.isFolder ? (
           <Space size="small">
             <Button

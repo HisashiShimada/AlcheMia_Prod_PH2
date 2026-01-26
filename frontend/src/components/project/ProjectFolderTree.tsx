@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import {
-  List,
   Typography,
   Tag,
   Dropdown,
@@ -170,10 +169,9 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
       </div>
 
       {/* プロジェクト一覧 */}
-      <List
-        dataSource={projects}
-        renderItem={(project) => (
-          <List.Item
+      <Space orientation="vertical" size={0} style={{ width: '100%' }}>
+        {projects.map((project) => (
+          <div
             key={project.id}
             onClick={() => onProjectSelect(project.id)}
             style={{
@@ -208,9 +206,9 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
                 {project.departmentName || project.department} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
               </Text>
             </div>
-          </List.Item>
-        )}
-      />
+          </div>
+        ))}
+      </Space>
     </div>
   );
 };
