@@ -64,7 +64,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
       return (
         <div style={{ padding: 24 }}>
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             <Alert
               message="コンポーネント表示エラー"
               description="このコンポーネントの表示中にエラーが発生しました。"
@@ -87,7 +87,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                 </Button>
               }
             >
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                 {error && (
                   <div>
                     <Text strong>エラーメッセージ:</Text>

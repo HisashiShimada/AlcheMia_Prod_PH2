@@ -13,7 +13,7 @@ import {
   Modal,
   Input,
   Button,
-  List,
+  Card,
   Typography,
   Space,
   Tag,
@@ -33,7 +33,6 @@ import {
 } from '@ant-design/icons';
 
 const { Text, Title } = Typography;
-const { Panel } = Collapse;
 
 /**
  * ファイル情報の型定義
@@ -186,12 +185,14 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
 
     return (
       <div key={node.path}>
-        <List.Item
+        <div
           style={{
             paddingLeft: level * 24,
+            padding: token.paddingSM,
             cursor: 'pointer',
             backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
-            borderRadius: token.borderRadiusLG
+            borderRadius: token.borderRadiusLG,
+            marginBottom: 4
           }}
           onClick={() => {
             if (hasChildren) {
@@ -214,7 +215,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
               <Tag color="blue">{`${fileCount}件`}</Tag>
             )}
           </Space>
-        </List.Item>
+        </div>
 
         {/* 子フォルダを再帰的に表示 */}
         {hasChildren && isExpanded && (
@@ -261,7 +262,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
         </Button>
       ]}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <div>
           <Text type="secondary">追加するMaiMLファイルを選択してください</Text>
         </div>
@@ -281,7 +282,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
         {/* エラー表示 */}
         {error && (
           <Alert
-            message={error}
+            title={error}
             type="error"
             closable
             onClose={() => setError(null)}
@@ -302,12 +303,9 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
             <Text type="secondary" strong style={{ display: 'block', marginBottom: 8 }}>
               フォルダ
             </Text>
-            <List
-              size="small"
-              dataSource={folderTree}
-              renderItem={(node) => renderFolderTree(node)}
-              style={{ maxHeight: 'calc(60vh - 240px)', overflowY: 'auto' }}
-            />
+            <div style={{ maxHeight: 'calc(60vh - 240px)', overflowY: 'auto' }}>
+              {folderTree.map((node) => renderFolderTree(node))}
+            </div>
           </div>
 
           {/* 右側: ファイル一覧 */}
@@ -330,54 +328,49 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
                 </Text>
               </Flex>
             ) : (
-              <List
-                size="small"
-                dataSource={filteredFiles}
-                renderItem={(file) => (
-                  <List.Item
+              <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+                {filteredFiles.map((file) => (
+                  <Card
                     key={file.key}
+                    size="small"
+                    hoverable
                     style={{
                       cursor: 'pointer',
-                      padding: token.paddingSM,
-                      marginBottom: 4,
                       border: `${selectedFile?.key === file.key ? 2 : 1}px solid ${
                         selectedFile?.key === file.key ? token.colorPrimary : token.colorBorder
                       }`,
-                      borderRadius: token.borderRadiusLG,
                       backgroundColor: selectedFile?.key === file.key
                         ? token.colorPrimaryBg
                         : 'transparent'
                     }}
                     onClick={() => handleFileSelect(file)}
                   >
-                    <List.Item.Meta
-                      avatar={
-                        <FileTextOutlined
-                          style={{
-                            color: selectedFile?.key === file.key
-                              ? token.colorPrimary
-                              : token.colorTextSecondary,
-                            fontSize: 20
-                          }}
-                        />
-                      }
-                      title={
+                    <Flex gap="middle" align="flex-start">
+                      <FileTextOutlined
+                        style={{
+                          color: selectedFile?.key === file.key
+                            ? token.colorPrimary
+                            : token.colorTextSecondary,
+                          fontSize: 20
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
                         <Space>
                           <Text>{file.name || file.key}</Text>
                           {file.size && (
                             <Tag>{formatFileSize(file.size)}</Tag>
                           )}
                         </Space>
-                      }
-                      description={
-                        <Text type="secondary" ellipsis style={{ fontSize: 12 }}>
-                          {file.key}
-                        </Text>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
+                        <div>
+                          <Text type="secondary" ellipsis style={{ fontSize: 12 }}>
+                            {file.key}
+                          </Text>
+                        </div>
+                      </div>
+                    </Flex>
+                  </Card>
+                ))}
+              </Space>
             )}
           </div>
         </Flex>
@@ -395,7 +388,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
             <Text strong style={{ color: token.colorPrimary, display: 'block', marginBottom: 8 }}>
               選択中のファイル
             </Text>
-            <Space direction="vertical" size="small">
+            <Space orientation="vertical" size="small">
               <Text>
                 <strong>名前:</strong> {selectedFile.name || selectedFile.key}
               </Text>

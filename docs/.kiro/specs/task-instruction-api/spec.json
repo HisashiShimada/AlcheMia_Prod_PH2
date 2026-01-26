@@ -1,0 +1,28 @@
+{
+  "feature_name": "task-instruction-api",
+  "created_at": "2026-01-15T14:55:20+09:00",
+  "updated_at": "2026-01-15T16:45:00+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "classification": "extension",
+  "discovery_type": "light",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_at": "2026-01-15T15:16:00+09:00",
+      "auto_approved": true,
+      "reason": "Extension type with clear integration points"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_at": "2026-01-15T15:30:00+09:00"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false
+}

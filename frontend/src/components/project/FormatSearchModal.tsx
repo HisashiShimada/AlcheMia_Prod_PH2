@@ -343,7 +343,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
       onCancel={handleClose}
       width={900}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       styles={{
         body: { maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' },
       }}
@@ -365,7 +365,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
             <span>検索条件</span>
           </Space>
         }
-        bordered={false}
+        variant="borderless"
         style={{ marginBottom: 24, backgroundColor: '#fafafa' }}
         extra={
           <Space size="small">
@@ -390,7 +390,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
           </Space>
         }
       >
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           {searchCriteria.map((criteria, index) => (
             <div key={index}>
               <Space align="start" style={{ width: '100%' }}>
@@ -478,7 +478,7 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
       {searchStats && (
         <Card
           size="small"
-          bordered={false}
+          variant="borderless"
           style={{ marginBottom: 16, backgroundColor: '#E8F5E9' }}
         >
           <Space split={<Divider type="vertical" />} wrap>
@@ -521,10 +521,10 @@ const FormatSearchModal: React.FC<FormatSearchModalProps> = ({
             )}
           </Space>
         }
-        bordered={false}
+        variant="borderless"
       >
         {searchResults.length > 0 ? (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             {searchResults.map((file, index) => (
               <Card
                 key={`${file.id}-${index}`}

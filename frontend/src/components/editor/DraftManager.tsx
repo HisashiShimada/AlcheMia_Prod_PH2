@@ -16,7 +16,6 @@ import {
   Modal,
   Button,
   Input,
-  List,
   Typography,
   Space,
   Tag,
@@ -415,7 +414,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         }}
         footer={null}
       >
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           {/* ツールバー */}
           <Flex gap="small" wrap="wrap" align="center">
             <Button
@@ -468,7 +467,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
           {/* 自動保存ステータス */}
           {autoSaveEnabled && currentDraftKey && (
             <Alert
-              message={`🟢 自動保存有効 | 編集中: ${currentDraftKey} | 間隔: 30秒`}
+              title={`🟢 自動保存有効 | 編集中: ${currentDraftKey} | 間隔: 30秒`}
               type="success"
               showIcon
             />
@@ -477,7 +476,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
           {/* エラー表示 */}
           {error && (
             <Alert
-              message={`⚠️ エラー: ${error}`}
+              title={`⚠️ エラー: ${error}`}
               type="error"
               showIcon
               closable
@@ -503,7 +502,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                   style={{ backgroundColor: '#f0f8ff', marginBottom: 16 }}
                   size="small"
                 >
-                  <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                     <Text strong style={{ color: token.colorPrimary }}>
                       🤖 自動保存（最大3世代）
                     </Text>
@@ -550,11 +549,10 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                   <Text strong style={{ display: 'block', marginTop: 16, marginBottom: 8 }}>
                     💾 手動保存（{manualDrafts.length}件）
                   </Text>
-                  <List
-                    dataSource={manualDrafts}
-                    renderItem={(draft) => (
-                      <Card size="small" style={{ marginBottom: 8 }}>
-                        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+                    {manualDrafts.map((draft) => (
+                      <Card key={draft.draft_key} size="small">
+                        <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                           <Flex justify="space-between" align="flex-start">
                             <Text strong>{draft.draft_name}</Text>
                             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -599,8 +597,8 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                           </Space>
                         </Space>
                       </Card>
-                    )}
-                  />
+                    ))}
+                  </Space>
                 </>
               )}
             </>
@@ -638,7 +636,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         cancelText="キャンセル"
         confirmLoading={isLoading}
       >
-        <Space direction="vertical">
+        <Space orientation="vertical">
           <Text>以下のDraftを削除しますか?</Text>
           <Text strong>{selectedDraft?.draft_name}</Text>
         </Space>

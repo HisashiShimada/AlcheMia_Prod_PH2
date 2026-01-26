@@ -211,7 +211,7 @@
     "owner": "所有者",
     "my_only": "自分所有のみ",
     "all_formats": "全体",
-    "department": "部門",
+    "department": "部署",
     "all": "全て",
     "create": {
       "titleXml": "新規XMLファイル作成",
@@ -313,7 +313,7 @@
       "error": "作成エラー",
       "userInfo": "作成者情報",
       "owner": "所有者",
-      "department": "部門",
+      "department": "部署",
       "projectName": "プロジェクト名",
       "projectNameRequired": "プロジェクト名を入力してください",
       "projectNameMinLength": "プロジェクト名は3文字以上で入力してください",
@@ -334,7 +334,7 @@
     },
     "filter_labels": {
       "owner": "所有者:",
-      "department": "部門:",
+      "department": "部署:",
       "project_status": "プロジェクトステータス:",
       "checkout_status": "チェックアウトステータス:",
       "search": "検索:"
@@ -432,12 +432,12 @@
     },
     "filter": {
       "all": "全て",
-      "allDepartments": "全部門",
+      "allDepartments": "全部署",
       "allStatus": "全ステータス",
       "owner": "所有者",
       "myOnly": "自分所有のみ",
       "allProjects": "全体",
-      "department": "部門",
+      "department": "部署",
       "projectStatus": "プロジェクトステータス",
       "progressStatusLabel": "進捗ステータス",
       "checkout": "チェックアウト",

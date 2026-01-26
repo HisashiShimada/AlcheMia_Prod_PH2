@@ -35,7 +35,6 @@ import {
 } from '@ant-design/icons';
 
 const { Text } = Typography;
-const { Panel } = Collapse;
 const { TextArea } = Input;
 
 /**
@@ -261,12 +260,15 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
       activeKey={isExpanded ? ['1'] : []}
       onChange={() => onToggleExpanded(index)}
       style={{ marginBottom: 8 }}
-    >
-      <Panel header={panelHeader} key="1">
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      items={[
+        {
+          key: '1',
+          label: panelHeader,
+          children: (
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           {internalData.fromMaster && (
             <Alert
-              message="📌 マスタデータから追加された項目"
+              title="📌 マスタデータから追加された項目"
               description="この項目はマスタデータから追加されたため、編集できません。"
               type="info"
               showIcon
@@ -433,9 +435,11 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
               )}
             </>
           )}
-        </Space>
-      </Panel>
-    </Collapse>
+            </Space>
+          )
+        }
+      ]}
+    />
   );
 };
 
@@ -623,12 +627,15 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
       activeKey={isExpanded ? ['1'] : []}
       onChange={() => onToggleExpanded(objectKey)}
       style={{ marginTop: 16 }}
-    >
-      <Panel header={panelHeader} key="1">
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      items={[
+        {
+          key: '1',
+          label: panelHeader,
+          children: (
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           {/* マスタデータから追加（最上部に配置） */}
           {masterData.length > 0 && (
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Text type="secondary">マスタデータから{title}を追加:</Text>
               <Space.Compact style={{ width: '100%' }}>
                 <Select
@@ -657,7 +664,7 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
 
           {objects.length === 0 && (
             <Alert
-              message={`${title}が登録されていません。最低${minItems}件必要です。`}
+              title={`${title}が登録されていません。最低${minItems}件必要です。`}
               type="warning"
               showIcon
             />
@@ -693,9 +700,11 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
           >
             空の{title}を追加
           </Button>
-        </Space>
-      </Panel>
-    </Collapse>
+            </Space>
+          )
+        }
+      ]}
+    />
   );
 };
 

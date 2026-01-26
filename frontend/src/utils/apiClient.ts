@@ -46,40 +46,65 @@ import formatFilesData from '@/data/mock/mockFormatFiles.json';
 const simulateApiDelay = (ms: number = 200) => 
   new Promise(resolve => setTimeout(resolve, ms));
 
+// API ベースURL（環境変数から取得）
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+
 /**
  * プロジェクト一覧を取得
+ * GET /api/v1/projects
  */
 export async function fetchProjects(): Promise<ApiResponse<ProjectListResponse>> {
-  await simulateApiDelay();
-  
-  return {
-    success: true,
-    data: {
-      projects: projectsData.projects as unknown as Project[],
-    },
-    message: 'プロジェクト一覧の取得に成功しました',
-  };
+  try {
+    const response = await fetch(`${API_BASE_URL}/projects`, {
+      method: 'GET',
+      credentials: 'include', // Cookie認証
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error?.message || 'プロジェクト一覧の取得に失敗しました'
+      );
+    }
+
+    const data: ApiResponse<ProjectListResponse> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('fetchProjects error:', error);
+    throw error;
+  }
 }
 
 /**
  * プロジェクト詳細を取得
+ * GET /api/v1/projects/:projectId
  */
 export async function fetchProjectById(projectId: string): Promise<ApiResponse<ProjectDetailResponse>> {
-  await simulateApiDelay();
-  
-  const project = (projectsData.projects as unknown as Project[]).find((p) => p.id === projectId);
-  
-  if (!project) {
-    throw new Error(`プロジェクトが見つかりません: ${projectId}`);
+  try {
+    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+      method: 'GET',
+      credentials: 'include', // Cookie認証
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error?.message || 'プロジェクト詳細の取得に失敗しました'
+      );
+    }
+
+    const data: ApiResponse<ProjectDetailResponse> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('fetchProjectById error:', error);
+    throw error;
   }
-  
-  return {
-    success: true,
-    data: {
-      project,
-    },
-    message: 'プロジェクト詳細の取得に成功しました',
-  };
 }
 
 /**

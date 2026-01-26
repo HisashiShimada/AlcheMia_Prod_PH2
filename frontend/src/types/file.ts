@@ -14,6 +14,27 @@ export interface ProjectFile {
   type: string;
   isFolder?: boolean;
   fileCount?: number;
+  
+  /** アーカイブファイルかどうか */
+  isArchive?: boolean;
+  
+  /** バージョン番号（アーカイブファイルの場合） */
+  version?: number;
+  
+  /** 署名付きURL（TTL: 3600秒） */
+  signedUrl?: string;
+  
+  /** 作成日時（ISO 8601形式） */
+  createdAt?: string;
+  
+  /** チェックアウト中かどうか */
+  isCheckedOut?: boolean;
+  
+  /** チェックアウトしたユーザー */
+  checkedOutBy?: string | null;
+  
+  /** チェックアウト日時 */
+  checkedOutAt?: string | null;
 }
 
 /**
@@ -36,6 +57,13 @@ export type UploadMode =
  * プロジェクトファイル一覧レスポンス
  */
 export interface ProjectFilesResponse {
+  files: ProjectFile[];
+}
+
+/**
+ * ファイル一覧レスポンス（API用）
+ */
+export interface FileListResponse {
   files: ProjectFile[];
 }
 

@@ -409,7 +409,7 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
         
         {error && (
           <div style={{ padding: token.padding }}>
-            <Alert message={error} type="error" showIcon />
+            <Alert title={error} type="error" showIcon />
           </div>
         )}
         

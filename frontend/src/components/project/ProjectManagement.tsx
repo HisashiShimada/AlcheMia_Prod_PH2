@@ -38,19 +38,25 @@ import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
 import { useApi } from '@/hooks/useApi';
-import { fetchProjects, fetchProjectFiles } from '@/utils/apiClient';
+import {
+  downloadAllFiles,
+  executeMultipleDownloads,
+} from '@/api/fileDownloadService';
+import { fetchProjects } from '@/utils/apiClient';
+import { getProjectFiles, getProjectTasks } from '@/api/projectApiService';
+import type { FileListResponse, TaskListResponse } from '@/api/projectApiService';
 import type { ApiResponse } from '@/types/api';
-import type { ProjectListResponse } from '@/types/project';
+import type { Project, ProjectListResponse, Task, ProjectEditParams } from '@/types/project';
+import type { ProjectFile } from '@/types/file';
 
 const { Title, Text } = Typography;
 
 /**
- * プロジェクト編集時のパラメータ
+ * プロジェクトファイルデータ
  */
-export interface ProjectEditParams {
-  projectId: string;
-  projectName: string;
-  projectOverview?: string;
+interface ProjectFilesData {
+  root: ProjectFile[];
+  archive: ProjectFile[];
 }
 
 /**
@@ -63,7 +69,7 @@ interface ProjectManagementProps {
 const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [ownerFilter, setOwnerFilter] = useState<string>('my_only'); // my_only, all
   const [checkoutFilter, setCheckoutFilter] = useState<string>('all'); // all, checked_in, checked_out
@@ -89,24 +95,48 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     nodeCount: number;
   } | null>(null);
   const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
-  const [projectFilesData, setProjectFilesData] = useState<Record<string, any>>({});
+  const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
+  const [projectTasksData, setProjectTasksData] = useState<Record<string, { tasks: Task[]; statistics: any }>>({});
+  const [isLoadingTabData, setIsLoadingTabData] = useState(false);
   
   // 複数ダイアログ管理
   interface OpenDialog {
     id: string;
     contentType: 'file' | 'subnet';
-    file?: any;
+    file?: ProjectFile;
     subnetData?: {
       transitionName: string;
       maimlData: string;
       templateMap: Record<string, { element: Element }>;
-      petriNetData: any;
+      petriNetData: {
+        places: Array<{
+          id: string;
+          data: {
+            label?: string;
+            stereotype?: string;
+            template?: { id: string };
+            templateId?: string;
+          };
+        }>;
+        arcs: Array<{
+          id: string;
+          source: string;
+          target: string;
+        }>;
+      };
     };
     zIndex: number;
     position: { x: number; y: number };
   }
   const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
   const [nextZIndex, setNextZIndex] = useState(1000);
+
+  // ダウンロード状態管理
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
+  
+  // プロジェクトリロード状態管理
+  const [isReloadingProject, setIsReloadingProject] = useState(false);
 
   // プロジェクト一覧をAPI経由で取得
   const { 
@@ -121,21 +151,62 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
 
   // プロジェクトデータが取得できたらstateを更新
   useEffect(() => {
-    if (projectsData?.data.projects) {
-      // Data synchronization in useEffect is a valid pattern
-      // eslint-disable-next-line
-      setProjects(projectsData.data.projects);
+    console.log('📊 [ProjectManagement] projectsData received:', projectsData);
+    
+    if (!projectsData) {
+      console.log('⏳ [ProjectManagement] Waiting for projectsData...');
+      return;
     }
-  }, [projectsData]);
+    
+    if (projectsError) {
+      console.error('❌ [ProjectManagement] API error:', projectsError);
+      message.error('プロジェクト一覧の取得に失敗しました');
+      return;
+    }
+    
+    if (projectsData.success && projectsData.data) {
+      // バックエンドのレスポンス構造を正しく参照
+      // ApiResponse<ProjectListResponse> なので data.projects でアクセス
+      const projectsList = Array.isArray(projectsData.data) 
+        ? projectsData.data 
+        : ((projectsData.data as ProjectListResponse)?.projects || []);
+      
+      console.log('✅ [ProjectManagement] Setting projects:', projectsList.length, 'projects');
+      console.log('📋 [ProjectManagement] Projects data:', projectsList);
+      setProjects(projectsList);
+    } else {
+      console.warn('⚠️ [ProjectManagement] Invalid projectsData structure:', projectsData);
+      setProjects([]);
+    }
+  }, [projectsData, projectsError]);
 
-  // ユニークな部門リストを取得
+  // ユニークな部署リストを取得（CD→名前のマッピング付き）
   const departments = useMemo(() => {
-    const uniqueDepartments = Array.from(new Set(projects.map(p => p.department)));
-    return ['all', ...uniqueDepartments];
+    if (!projects || projects.length === 0) {
+      return [];
+    }
+    
+    // 部署CDと部署名のマッピングを作成
+    const departmentMap = new Map<string, string>();
+    projects.forEach(p => {
+      if (p.department && !departmentMap.has(p.department)) {
+        // 部署名がある場合は名前、ない場合はCDをそのまま使用
+        departmentMap.set(p.department, p.departmentName || p.department);
+      }
+    });
+    
+    // ソート済みの部署リストを返す（名前順）
+    return Array.from(departmentMap.entries())
+      .sort((a, b) => a[1].localeCompare(b[1], 'ja'))
+      .map(([code, name]) => ({ code, name }));
   }, [projects]);
 
   // フィルタリングされたプロジェクト一覧
   const filteredProjects = useMemo(() => {
+    if (!projects || projects.length === 0) {
+      return [];
+    }
+    
     return projects.filter((project) => {
       // プロジェクトステータスの表示名を取得
       const getProjectStatusLabel = (status: string) => {
@@ -313,90 +384,105 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     handleRefresh();
   }, [handleRefresh]);
 
+  // 選択したプロジェクトとそのファイル一覧を取得
+  const selectedProject = useMemo(() => {
+    if (!projects || projects.length === 0 || !selectedProjectId) {
+      return null;
+    }
+    return projects.find((p) => p.id === selectedProjectId) || null;
+  }, [projects, selectedProjectId]);
+
   // プロジェクトのファイル一覧を取得
   useEffect(() => {
     const loadProjectFiles = async () => {
-      if (!selectedProjectId) return;
+      if (!selectedProjectId || !selectedProject) {
+        console.log('⏳ [ProjectManagement] No project selected, skipping file load');
+        return;
+      }
       
       try {
-        const response = await fetchProjectFiles(selectedProjectId);
-        if (response.success && response.data.files) {
-          setProjectFilesData(prev => ({
-            ...prev,
-            [selectedProjectId]: {
-              root: response.data.files,
-              archive: response.data.archiveFiles || [],
-            }
-          }));
-        }
+        console.log('📂 [ProjectManagement] Loading files for project:', selectedProject.name);
+        const fileResponse = await getProjectFiles(selectedProject.name, true); // archiveファイルも取得
+        
+        const filesData: ProjectFilesData = {
+          root: fileResponse.files || [],
+          archive: fileResponse.archiveFiles || [],
+        };
+        
+        console.log('✅ [ProjectManagement] Files loaded:', {
+          root: filesData.root.length,
+          archive: filesData.archive.length
+        });
+        
+        setProjectFilesData(prev => ({
+          ...prev,
+          [selectedProjectId]: filesData
+        }));
       } catch (error) {
-        console.error('Failed to fetch project files:', error);
+        console.error('❌ [ProjectManagement] Failed to fetch project files:', error);
         message.error('ファイル一覧の取得に失敗しました');
       }
     };
     
     loadProjectFiles();
-  }, [selectedProjectId]);
+  }, [selectedProjectId, selectedProject]);
 
-  // 選択したプロジェクトとそのファイル一覧を取得
-  const selectedProject = useMemo(() => {
-    return projects.find((p) => p.id === selectedProjectId) || null;
-  }, [projects, selectedProjectId]);
-
-  const projectFiles = useMemo(() => {
-    if (!selectedProjectId) return [];
+  const projectFiles = useMemo((): ProjectFile[] => {
+    if (!selectedProjectId) {
+      return [];
+    }
+    
     const projectData = projectFilesData[selectedProjectId];
-    if (!projectData) return [];
+    if (!projectData) {
+      return [];
+    }
     
     if (currentFolder === 'root') {
       // ルートフォルダの場合、rootファイル + archiveフォルダを表示
       const rootFiles = projectData.root || [];
       const archiveFiles = projectData.archive || [];
       
-      if (archiveFiles.length > 0) {
-        // archiveフォルダを追加
-        return [
-          ...rootFiles,
-          {
-            id: 'archive',
-            name: 'archive',
-            path: `${selectedProject?.folderName}/archive`,
-            size: 0,
-            lastModified: '',
-            type: 'folder',
-            isFolder: true,
-            fileCount: archiveFiles.length,
-          },
-        ];
+      // archiveフォルダを常に表示（ファイルの有無に関わらず）
+      if (selectedProject) {
+        const archiveFolder: ProjectFile = {
+          id: 'archive',
+          name: 'archive',
+          path: `${selectedProject.folderName}/archive`,
+          size: 0,
+          lastModified: '',
+          type: 'folder',
+          isFolder: true,
+          fileCount: archiveFiles.length, // ファイル数を表示
+        };
+        return [...rootFiles, archiveFolder];
       }
       return rootFiles;
     } else if (currentFolder === 'archive') {
       // archiveフォルダの中身を表示 - 戻るボタンを先頭に追加
       const archiveFiles = projectData.archive || [];
-      return [
-        {
-          id: 'back',
-          name: '↑ 戻る',
-          path: '',
-          size: 0,
-          lastModified: '',
-          type: 'folder',
-          isFolder: true,
-          fileCount: undefined,
-        },
-        ...archiveFiles,
-      ];
+      const backButton: ProjectFile = {
+        id: 'back',
+        name: '↑ 戻る',
+        path: '',
+        size: 0,
+        lastModified: '',
+        type: 'folder',
+        isFolder: true,
+      };
+      return [backButton, ...archiveFiles];
     }
     
     return [];
   }, [selectedProjectId, currentFolder, selectedProject, projectFilesData]);
 
-  // タスク結果一覧を取得（統合されたmockProjects.jsonから取得）
-  const taskResults = useMemo(() => {
-    if (!selectedProjectId) return [];
-    const project = projects.find(p => p.id === selectedProjectId);
-    return project?.tasks || [];
-  }, [selectedProjectId, projects]);
+  // タスク結果一覧を取得（projectTasksDataから取得）
+  const taskResults = useMemo((): Task[] => {
+    if (!selectedProjectId) {
+      return [];
+    }
+    const projectData = projectTasksData[selectedProjectId];
+    return projectData?.tasks || [];
+  }, [selectedProjectId, projectTasksData]);
 
   // タスク結果の統計情報を計算（workStatus基準）
   const taskStats = useMemo(() => {
@@ -409,7 +495,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
       completed: 0,
     };
 
-    taskResults.forEach((result: any) => {
+    taskResults.forEach((result) => {
       switch (result.workStatus) {
         case 'pending':
           stats.pending++;
@@ -433,7 +519,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   }, [taskResults]);
 
   // タスク結果確認ハンドラ
-  const handleViewTaskResult = useCallback((result: any) => {
+  const handleViewTaskResult = useCallback((result: Task) => {
     console.log('View task result:', result);
     // TODO: タスク結果詳細モーダルを表示
   }, []);
@@ -481,7 +567,14 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   }, []);
 
   // 指示送信ハンドラ
-  const handleInstructionSubmit = useCallback((data: any) => {
+  const handleInstructionSubmit = useCallback((data: {
+    taskDetails: Array<{
+      methodId: string;
+      taskNo: number;
+      transitionIds: string[];
+    }>;
+    instructionMessage: string;
+  }) => {
     console.log('指示データ送信:', data);
     // TODO: チェックアウトAPIを呼び出す
     // TODO: 成功時にプロジェクトをチェックアウト状態に更新
@@ -591,7 +684,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   }, []);
 
   // ダイアログを開く
-  const handleViewFile = useCallback((file: any) => {
+  const handleViewFile = useCallback((file: ProjectFile) => {
     // 上限チェック（5個まで）
     if (openDialogs.length >= 5) {
       message.warning('同時に開けるダイアログは5個までです');
@@ -673,6 +766,156 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     setNextZIndex(prev => prev + 1);
   }, [openDialogs, nextZIndex]);
 
+  // プロジェクト一括ダウンロードハンドラ
+  const handleProjectDownload = useCallback(async () => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+
+    try {
+      setIsDownloading(true);
+      setDownloadProgress({ current: 0, total: 0 });
+
+      // プロジェクト一括ダウンロードAPI呼び出し
+      const bulkDownloadInfo = await downloadAllFiles(selectedProject.id);
+      
+      setDownloadProgress({ current: 0, total: bulkDownloadInfo.files.length });
+
+      // 複数ファイルを順次ダウンロード
+      await executeMultipleDownloads(
+        bulkDownloadInfo.files,
+        (current, total) => {
+          // 進捗更新
+          setDownloadProgress({ current, total });
+          message.info(`ダウンロード中: ${current} / ${total} ファイル`);
+        },
+        (fileName, error) => {
+          // エラー通知
+          console.error(`Failed to download ${fileName}:`, error);
+          message.error(`「${fileName}」のダウンロードに失敗しました`);
+        }
+      );
+
+      message.success(`プロジェクト「${selectedProject.name}」の全ファイルをダウンロードしました`);
+    } catch (error) {
+      console.error('Project download failed:', error);
+      message.error('プロジェクトのダウンロードに失敗しました');
+    } finally {
+      setIsDownloading(false);
+      setDownloadProgress({ current: 0, total: 0 });
+    }
+  }, [selectedProject]);
+
+  // プロジェクトリロードハンドラ
+  const handleProjectReload = useCallback(async () => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+
+    try {
+      setIsReloadingProject(true);
+      
+      console.log('プロジェクトリロード開始:', selectedProject.id);
+      
+      // リロードAPI呼び出し（POST /api/v1/projects/:projectId/reload）
+      const response = await fetch(`/api/v1/projects/${selectedProject.id}/reload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // 認証トークンは自動的にCookieから送信される
+        },
+        credentials: 'include', // Cookie認証を使用
+        signal: AbortSignal.timeout(30000), // 30秒タイムアウト
+      });
+
+      if (!response.ok) {
+        // エラーレスポンスの処理
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error?.message || 'リロードに失敗しました';
+        
+        switch (response.status) {
+          case 400:
+            // バリデーションエラー
+            message.error('リクエストが正しくありません。プロジェクトIDを確認してください。');
+            break;
+          case 401:
+            // 認証エラー
+            message.error('認証に失敗しました。再度ログインしてください。');
+            // TODO: ログイン画面にリダイレクト
+            break;
+          case 403:
+            // 権限エラー
+            message.error('この操作を実行する権限がありません。管理者権限が必要です。');
+            break;
+          case 404:
+            // プロジェクト不存在
+            message.error('プロジェクトが見つかりません');
+            break;
+          case 409:
+            // 並行実行競合
+            message.warning('別のリロードが実行中です。しばらくしてから再度お試しください。');
+            break;
+          case 500:
+          case 502:
+          case 503:
+            // サーバーエラー
+            message.error(`サーバーエラーが発生しました: ${errorMessage}`);
+            break;
+          default:
+            // その他のエラー
+            message.error(errorMessage);
+        }
+        return;
+      }
+
+      // 成功レスポンスのパース
+      const result = await response.json();
+      
+      // サマリー情報を取得
+      const summary = result.data?.summary || {};
+      const filesAdded = summary.filesAdded || 0;
+      const filesUpdated = summary.filesUpdated || 0;
+      const filesDeleted = summary.filesDeleted || 0;
+      
+      // サマリーメッセージの生成
+      const summaryParts: string[] = [];
+      if (filesAdded > 0) summaryParts.push(`追加: ${filesAdded}件`);
+      if (filesUpdated > 0) summaryParts.push(`更新: ${filesUpdated}件`);
+      if (filesDeleted > 0) summaryParts.push(`削除: ${filesDeleted}件`);
+      
+      const summaryText = summaryParts.length > 0 
+        ? ` (${summaryParts.join(', ')})`
+        : '';
+      
+      // 成功メッセージ（サマリー付き）
+      message.success(`プロジェクトのリロードが完了しました${summaryText}`);
+      
+      // ファイル一覧を再取得（APIサービスは既に展開済み）
+      const filesResponse = await getProjectFiles(selectedProject.id, false);
+      setProjectFilesData(prev => ({
+        ...prev,
+        [selectedProject.id]: {
+          root: filesResponse.files || [],
+          archive: filesResponse.archiveFiles || [],
+        }
+      }));
+    } catch (error) {
+      console.error('プロジェクトリロードエラー:', error);
+      
+      if (error instanceof DOMException && error.name === 'TimeoutError') {
+        message.error('リロードがタイムアウトしました。プロジェクトが大きすぎる可能性があります。');
+      } else if (error instanceof TypeError && error.message.includes('fetch')) {
+        message.error('ネットワークエラーが発生しました。接続を確認してください。');
+      } else {
+        message.error('プロジェクトのリロードに失敗しました');
+      }
+    } finally {
+      setIsReloadingProject(false);
+    }
+  }, [selectedProject]);
+
   // 新規プロジェクト作成ハンドラ
   const handleCreateProject = useCallback(async (data: CreateProjectData) => {
     try {
@@ -682,14 +925,14 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
       const newProjectId = `proj_${String(projects.length + 1).padStart(3, '0')}`;
       
       // 新しいプロジェクトオブジェクトを作成
-      const newProject = {
+      const newProject: Project = {
         id: newProjectId,
         name: data.name,
         folderName: data.folderName,
         description: data.description,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        status: 'planning',
+        status: 'planning' as const,
         fileCount: 0,
         totalSize: 0,
         owner: data.owner,
@@ -732,18 +975,19 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: token.colorBgLayout }}>
       {/* ツールバー */}
       <Card
-        bordered={false}
+        variant="borderless"
         style={{
           borderBottom: `1px solid ${token.colorBorderSecondary}`,
           borderRadius: 0,
         }}
-        bodyStyle={{ padding: `${token.margin}px ${token.paddingLG}px` }}
+        styles={{ body: { padding: `${token.margin}px ${token.paddingLG}px` } }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
         {/* 検索・フィルタ */}
-        <Space direction="horizontal" size="small" wrap>
+        <Space orientation="horizontal" size="small" wrap>
           {/* 所有者絞込 */}
-          <Space size={4} direction="horizontal">
+          {/* 所有者絞込 */}
+          <Space size={4} orientation="horizontal">
             <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('projectManagement.filter_labels.owner')}
             </Text>
@@ -759,7 +1003,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
           </Space>
 
           {/* 部門絞込 */}
-          <Space size={4} direction="horizontal">
+          <Space size={4} orientation="horizontal">
             <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('projectManagement.filter_labels.department')}
             </Text>
@@ -769,16 +1013,16 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
               onChange={setDepartmentFilter}
               options={[
                 { value: 'all', label: t('projectManagement.all') },
-                ...departments.filter(d => d !== 'all').map(dept => ({
-                  value: dept,
-                  label: dept,
+                ...departments.map(dept => ({
+                  value: dept.code,
+                  label: dept.name,
                 })),
               ]}
             />
           </Space>
 
           {/* プロジェクトステータス絞込 */}
-          <Space size={4} direction="horizontal">
+          <Space size={4} orientation="horizontal">
             <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('projectManagement.filter_labels.project_status')}
             </Text>
@@ -799,7 +1043,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
           </Space>
 
           {/* チェックアウトステータス絞込 */}
-          <Space size={4} direction="horizontal">
+          <Space size={4} orientation="horizontal">
             <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('projectManagement.filter_labels.checkout_status')}
             </Text>
@@ -816,7 +1060,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
           </Space>
 
           {/* 検索バー */}
-          <Space size={4} direction="horizontal">
+          <Space size={4} orientation="horizontal">
             <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
               {t('projectManagement.filter_labels.search')}
             </Text>
@@ -861,9 +1105,11 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
           <Button
             type="primary"
             icon={<ReloadOutlined />}
-            onClick={handleRefresh}
+            onClick={handleProjectReload}
+            loading={isReloadingProject}
+            disabled={!selectedProject || isReloadingProject}
           >
-            {t('progress.refresh')}
+            {isReloadingProject ? 'リロード中...' : 'リロード'}
           </Button>
         </Space>
         </div>
@@ -891,14 +1137,14 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
             <>
               {/* プロジェクト情報ヘッダー */}
               <Card
-                bordered={false}
+                variant="borderless"
                 style={{
                   borderBottom: `1px solid ${token.colorBorderSecondary}`,
                   borderRadius: 0,
                 }}
-                bodyStyle={{ padding: token.margin }}
+                styles={{ body: { padding: token.margin } }}
               >
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                   <Space size="small">
                     <Title level={5} style={{ margin: 0, fontWeight: token.fontWeightStrong }}>
                       {selectedProject.name}
@@ -938,19 +1184,25 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
 
               {/* ファイル操作ツールバー */}
               <Card
-                bordered={false}
+                variant="borderless"
                 style={{
                   borderBottom: `1px solid ${token.colorBorderSecondary}`,
                   borderRadius: 0,
                 }}
-                bodyStyle={{ padding: token.margin }}
+                styles={{ body: { padding: token.margin } }}
               >
                 <Space size="small">
                   <Button
                     type="primary"
                     icon={<DownloadOutlined />}
+                    onClick={handleProjectDownload}
+                    loading={isDownloading}
+                    disabled={!selectedProject || isDownloading}
                   >
-                    {t('projectManagement.project_download')}
+                    {isDownloading 
+                      ? `ダウンロード中: ${downloadProgress.current} / ${downloadProgress.total}`
+                      : t('projectManagement.project_download')
+                    }
                   </Button>
                   <Button
                     type="primary"
@@ -995,7 +1247,46 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
               {/* タブとコンテンツ */}
               <Tabs
                 activeKey={currentTab}
-                onChange={(key) => setCurrentTab(key as 'file_management' | 'task_results')}
+                onChange={async (key) => {
+                  const newTab = key as 'file_management' | 'task_results';
+                  setCurrentTab(newTab);
+                  
+                  // タブ切り替え時に最新データを取得
+                  if (!selectedProjectId || !selectedProject) return;
+                  
+                  try {
+                    setIsLoadingTabData(true);
+                    
+                    if (newTab === 'file_management') {
+                      // ファイル一覧を最新取得（APIサービスは既に展開済み）
+                      console.log('📂 [ProjectManagement] Loading files for tab switch:', selectedProject.name);
+                      const fileResponse = await getProjectFiles(selectedProject.name, true); // archiveファイルも取得
+                      setProjectFilesData(prev => ({
+                        ...prev,
+                        [selectedProjectId]: {
+                          root: fileResponse.files || [],
+                          archive: fileResponse.archiveFiles || [],
+                        }
+                      }));
+                    } else if (newTab === 'task_results') {
+                      // タスク一覧を最新取得（APIサービスは既に展開済み）
+                      console.log('📋 [ProjectManagement] Loading tasks for tab switch:', selectedProject.name);
+                      const taskResponse = await getProjectTasks(selectedProject.name, 'all');
+                      setProjectTasksData(prev => ({
+                        ...prev,
+                        [selectedProjectId]: {
+                          tasks: taskResponse.tasks || [],
+                          statistics: taskResponse.statistics || {},
+                        }
+                      }));
+                    }
+                  } catch (error) {
+                    console.error('❌ [ProjectManagement] Tab data loading failed:', error);
+                    message.error('データの取得に失敗しました');
+                  } finally {
+                    setIsLoadingTabData(false);
+                  }
+                }}
                 items={[
                   {
                     key: 'file_management',
@@ -1003,6 +1294,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                     children: (
                       <FileListTable
                         files={projectFiles}
+                        projectId={selectedProject.id}
                         onFileClick={(file) => console.log('File clicked:', file.name)}
                         onFolderClick={handleFolderClick}
                         onViewFile={handleViewFile}
@@ -1017,9 +1309,9 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                     {/* 統計カード */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: token.margin }}>
                       <Card
-                        bordered={false}
+                        variant="borderless"
                         style={{ backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius }}
-                        bodyStyle={{ padding: token.margin }}
+                        styles={{ body: { padding: token.margin } }}
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
@@ -1032,9 +1324,9 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                       </Card>
                       
                       <Card
-                        bordered={false}
+                        variant="borderless"
                         style={{ backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius }}
-                        bodyStyle={{ padding: token.margin }}
+                        styles={{ body: { padding: token.margin } }}
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
@@ -1047,9 +1339,9 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                       </Card>
                       
                       <Card
-                        bordered={false}
+                        variant="borderless"
                         style={{ backgroundColor: token.colorPrimaryBg, borderRadius: token.borderRadius }}
-                        bodyStyle={{ padding: token.margin }}
+                        styles={{ body: { padding: token.margin } }}
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
@@ -1062,9 +1354,9 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                       </Card>
                       
                       <Card
-                        bordered={false}
+                        variant="borderless"
                         style={{ backgroundColor: token.colorErrorBg, borderRadius: token.borderRadius }}
-                        bodyStyle={{ padding: token.margin }}
+                        styles={{ body: { padding: token.margin } }}
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
@@ -1077,9 +1369,9 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                       </Card>
                       
                       <Card
-                        bordered={false}
+                        variant="borderless"
                         style={{ backgroundColor: token.colorWarningBg, borderRadius: token.borderRadius }}
-                        bodyStyle={{ padding: token.margin }}
+                        styles={{ body: { padding: token.margin } }}
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
@@ -1092,9 +1384,9 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                       </Card>
                       
                       <Card
-                        bordered={false}
+                        variant="borderless"
                         style={{ backgroundColor: token.colorSuccessBg, borderRadius: token.borderRadius }}
-                        bodyStyle={{ padding: token.margin }}
+                        styles={{ body: { padding: token.margin } }}
                       >
                         <Flex vertical align="center">
                           <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
@@ -1146,14 +1438,6 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
         </div>
       </div>
 
-      {/* プロジェクト詳細モーダル */}
-      <ProjectDetailModal
-        open={modalOpen}
-        onClose={handleCloseModal}
-        project={selectedProject}
-        files={projectFiles}
-      />
-
       {/* プロジェクト検索モーダル */}
       <ProjectSearchModal
         open={searchModalOpen}
@@ -1170,6 +1454,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
         open={uploadDialogOpen}
         onClose={handleCloseUploadDialog}
         onUploadComplete={handleUploadComplete}
+        projectId={selectedProject?.id || ''}
         preselectedFolder={selectedProject?.folderName || ''}
       />
 
@@ -1178,7 +1463,17 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
         <InstructionDialog
           open={instructionDialogOpen}
           onClose={handleCloseInstructionDialog}
-          onSubmit={handleInstructionSubmit}
+          onSubmit={(data) => {
+            // InstructionDialogの型に合わせて変換
+            handleInstructionSubmit({
+              taskDetails: data.instructions.map(inst => ({
+                methodId: inst.methodId || '',
+                taskNo: inst.taskNo || 0,
+                transitionIds: inst.transitionIds || [],
+              })),
+              instructionMessage: '',
+            });
+          }}
           fileKey={selectedProject.folderName}
           managerId="current_manager_id"
           projectName={selectedProject.name}

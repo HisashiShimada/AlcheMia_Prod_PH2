@@ -22,11 +22,12 @@ import {
   Button,
   Switch,
   Progress,
-  List,
+  Table,
   Divider,
   Space,
   Spin,
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -37,7 +38,6 @@ import {
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
-const { Panel } = Collapse;
 
 /**
  * ValidationError型定義
@@ -148,7 +148,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
 
     return (
       <div style={{ padding: 16, marginBottom: 16, border: '1px solid #d9d9d9', borderRadius: 8, backgroundColor: '#fff' }}>
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Space size="large">
               {isValid ? (
@@ -188,74 +188,93 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       return null;
     }
 
-    return (
-      <Collapse defaultActiveKey={['errors']} style={{ marginBottom: 16 }}>
-        <Panel
-          header={
-            <Space>
-              <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
-              <Text>エラー詳細 ({validationResult.errors.length}件)</Text>
-            </Space>
-          }
-          key="errors"
-        >
-          <List
-            dataSource={validationResult.errors}
-            renderItem={(err, index) => (
-              <List.Item>
-                <div style={{ width: '100%' }}>
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                      <Switch
-                        size="small"
-                        checked={selectedErrors.includes(index)}
-                        onChange={(checked) => {
-                          if (checked) {
-                            setSelectedErrors(prev => [...prev, index]);
-                          } else {
-                            setSelectedErrors(prev => prev.filter(i => i !== index));
-                          }
-                        }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <Space>
-                          <Tag color={err.severity === 'critical' ? 'error' : 'warning'}>
-                            {err.severity || 'error'}
-                          </Tag>
-                          <Text>{err.message}</Text>
-                        </Space>
-                        
-                        <div style={{ marginTop: 8 }}>
-                          {err.xpath && (
-                            <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
-                              XPath: {err.xpath}
-                            </Text>
-                          )}
-                          {err.element && (
-                            <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
-                              要素: {typeof err.element === 'object' ? JSON.stringify(err.element) : err.element}
-                            </Text>
-                          )}
-                          {err.line && (
-                            <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
-                              行: {err.line}
-                            </Text>
-                          )}
-                          {err.suggestion && (
-                            <Text style={{ display: 'block', fontSize: 12, color: '#1890ff', marginTop: 4 }}>
-                              💡 修正案: {typeof err.suggestion === 'object' ? JSON.stringify(err.suggestion) : err.suggestion}
-                            </Text>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Space>
-                </div>
-              </List.Item>
-            )}
+    const errorColumns: ColumnsType<ValidationError & { index: number }> = [
+      {
+        title: '選択',
+        key: 'select',
+        width: 60,
+        align: 'center',
+        render: (_text, record) => (
+          <Switch
+            size="small"
+            checked={selectedErrors.includes(record.index)}
+            onChange={(checked) => {
+              if (checked) {
+                setSelectedErrors(prev => [...prev, record.index]);
+              } else {
+                setSelectedErrors(prev => prev.filter(i => i !== record.index));
+              }
+            }}
           />
-        </Panel>
-      </Collapse>
+        ),
+      },
+      {
+        title: '重要度',
+        key: 'severity',
+        width: 100,
+        render: (_text, record) => (
+          <Tag color={record.severity === 'critical' ? 'error' : 'warning'}>
+            {record.severity || 'error'}
+          </Tag>
+        ),
+      },
+      {
+        title: 'エラー内容',
+        key: 'details',
+        render: (_text, record) => (
+          <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+            <Text>{record.message}</Text>
+            {record.xpath && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                XPath: {record.xpath}
+              </Text>
+            )}
+            {record.element && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                要素: {typeof record.element === 'object' ? JSON.stringify(record.element) : record.element}
+              </Text>
+            )}
+            {record.line && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                行: {record.line}
+              </Text>
+            )}
+            {record.suggestion && (
+              <Text style={{ fontSize: 12, color: '#1890ff' }}>
+                💡 修正案: {typeof record.suggestion === 'object' ? JSON.stringify(record.suggestion) : record.suggestion}
+              </Text>
+            )}
+          </Space>
+        ),
+      },
+    ];
+
+    const errorData = validationResult.errors.map((err, index) => ({ ...err, index, key: index }));
+
+    return (
+      <Collapse
+        defaultActiveKey={['errors']}
+        style={{ marginBottom: 16 }}
+        items={[
+          {
+            key: 'errors',
+            label: (
+              <Space>
+                <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+                <Text>エラー詳細 ({validationResult.errors.length}件)</Text>
+              </Space>
+            ),
+            children: (
+              <Table
+                dataSource={errorData}
+                columns={errorColumns}
+                pagination={false}
+                size="small"
+              />
+            )
+          }
+        ]}
+      />
     );
   };
 
@@ -265,47 +284,59 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       return null;
     }
 
-    return (
-      <Collapse style={{ marginBottom: 16 }}>
-        <Panel
-          header={
-            <Space>
-              <WarningOutlined style={{ color: '#faad14' }} />
-              <Text>警告詳細 ({validationResult.warnings.length}件)</Text>
-            </Space>
-          }
-          key="warnings"
-        >
-          <List
-            dataSource={validationResult.warnings}
-            renderItem={(warn) => (
-              <List.Item>
-                <div style={{ width: '100%' }}>
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Space>
-                      <Tag color="warning">warning</Tag>
-                      <Text>{warn.message}</Text>
-                    </Space>
-                    
-                    <div>
-                      {warn.xpath && (
-                        <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
-                          XPath: {warn.xpath}
-                        </Text>
-                      )}
-                      {warn.element && (
-                        <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
-                          要素: {typeof warn.element === 'object' ? JSON.stringify(warn.element) : warn.element}
-                        </Text>
-                      )}
-                    </div>
-                  </Space>
-                </div>
-              </List.Item>
+    const warningColumns: ColumnsType<ValidationError> = [
+      {
+        title: '重要度',
+        key: 'severity',
+        width: 100,
+        render: () => <Tag color="warning">warning</Tag>,
+      },
+      {
+        title: '警告内容',
+        key: 'details',
+        render: (_text, record) => (
+          <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+            <Text>{record.message}</Text>
+            {record.xpath && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                XPath: {record.xpath}
+              </Text>
             )}
-          />
-        </Panel>
-      </Collapse>
+            {record.element && (
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                要素: {typeof record.element === 'object' ? JSON.stringify(record.element) : record.element}
+              </Text>
+            )}
+          </Space>
+        ),
+      },
+    ];
+
+    const warningData = validationResult.warnings.map((warn, index) => ({ ...warn, key: index }));
+
+    return (
+      <Collapse
+        style={{ marginBottom: 16 }}
+        items={[
+          {
+            key: 'warnings',
+            label: (
+              <Space>
+                <WarningOutlined style={{ color: '#faad14' }} />
+                <Text>警告詳細 ({validationResult.warnings.length}件)</Text>
+              </Space>
+            ),
+            children: (
+              <Table
+                dataSource={warningData}
+                columns={warningColumns}
+                pagination={false}
+                size="small"
+              />
+            )
+          }
+        ]}
+      />
     );
   };
 
@@ -321,7 +352,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       width={900}
       footer={null}
       style={{ top: 20 }}
-      bodyStyle={{ maxHeight: 'calc(90vh - 100px)', overflowY: 'auto' }}
+      styles={{ body: { maxHeight: 'calc(90vh - 100px)', overflowY: 'auto' } }}
     >
       {/* 進行状態バー */}
       {(isValidating || isCorrecting) && (
@@ -373,7 +404,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
       {/* 成功メッセージ */}
       {validationResult && validationResult.isValid && (
         <Alert
-          message="✅ MaiMLファイルは有効です。スキーマバリデーションに合格しました。"
+          title="✅ MaiMLファイルは有効です。スキーマバリデーションに合格しました。"
           type="success"
           style={{ marginTop: 16 }}
         />

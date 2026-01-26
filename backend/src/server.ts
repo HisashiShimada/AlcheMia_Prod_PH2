@@ -7,6 +7,8 @@ dotenv.config();
 
 // Import routes after dotenv is configured
 import authRoutes from './routes/authRoutes';
+import projectRoutes from './routes/projectRoutes';
+import fileDownloadRoutes from './routes/fileDownloadRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -29,8 +31,10 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Mount authentication routes
+// Mount routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/projects', projectRoutes);
+app.use('/api/v1/projects', fileDownloadRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {

@@ -46,7 +46,7 @@ export default function DebugLoginPanel({ onLogin, loading = false, debugUsers }
           デバッグログイン
         </Text>
       </Divider>
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%' }}>
         <Select
           placeholder="デバッグユーザーを選択"
           value={selectedDebugUser}

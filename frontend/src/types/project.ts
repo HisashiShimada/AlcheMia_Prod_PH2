@@ -28,6 +28,7 @@ export interface Project {
   ownerName?: string;
   ownerEmail?: string;
   department: string;
+  departmentName?: string;
   members: string[];
   tags: string[];
   isCheckedOut: boolean;
@@ -65,6 +66,43 @@ export interface Task {
   completedAt: string | null;
   progress: number;
   errorMessage?: string;
+  
+  // TaskResultsTable用の追加プロパティ（エイリアス・オプション）
+  workId?: string;              // taskIdのエイリアス
+  taskName?: string;            // transitionNameのエイリアス
+  methodName?: string;          // メソッド名
+  assignedWorker?: string;      // workerNameのエイリアス
+  progressPercentage?: number;  // progressのエイリアス
+  workCompletedAt?: string | null;    // 作業終了日
+  reviewCompletedAt?: string | null;  // レビュー完了日
+}
+
+/**
+ * タスク統計情報
+ */
+export interface TaskStatistics {
+  /** 総タスク数 */
+  total: number;
+  
+  /** 実行待ちタスク数 */
+  pending: number;
+  
+  /** 実行中タスク数 */
+  inProgress: number;
+  
+  /** 完了タスク数 */
+  completed: number;
+  
+  /** 異常終了タスク数 */
+  failed: number;
+}
+
+/**
+ * タスク一覧レスポンス
+ */
+export interface TaskListResponse {
+  tasks: Task[];
+  statistics: TaskStatistics;
 }
 
 /**
@@ -144,4 +182,13 @@ export interface CheckoutProjectResponse {
   projectId: string;
   checkedOutBy: string;
   checkedOutAt: string;
+}
+
+/**
+ * プロジェクト編集パラメータ
+ */
+export interface ProjectEditParams {
+  projectId: string;
+  projectName: string;
+  projectOverview?: string;
 }

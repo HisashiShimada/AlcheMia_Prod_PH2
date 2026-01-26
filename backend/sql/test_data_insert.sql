@@ -9,6 +9,7 @@
 INSERT INTO organization (
     organization_name,
     organization_display_name,
+    organization_prefix,
     organization_email,
     is_active,
     create_at,
@@ -17,6 +18,7 @@ INSERT INTO organization (
 (
     'システム管理組織',
     'システム管理組織',
+    'system_admin_org',
     'system@example.com',
     true,
     CURRENT_TIMESTAMP,
@@ -25,6 +27,7 @@ INSERT INTO organization (
 (
     'AIML研究所',
     'AIML研究所',
+    'maiml_lab_001',
     'lab001@example.com',
     true,
     CURRENT_TIMESTAMP,
@@ -360,6 +363,158 @@ INSERT INTO code_master (
     '4',
     '異常終了',
     'タスクの進捗ステータス',
+    NULL
+);
+
+-- 指示優先度（AIML研究所）
+INSERT INTO code_master (
+    organization_id,
+    code_division,
+    code_value,
+    code_name,
+    code_description,
+    code_remark
+) VALUES
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_priority',
+    '0',
+    '低',
+    '実験指示の優先度',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_priority',
+    '1',
+    '通常',
+    '実験指示の優先度',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_priority',
+    '2',
+    '中',
+    '実験指示の優先度',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_priority',
+    '3',
+    '高',
+    '実験指示の優先度',
+    NULL
+);
+
+-- 指示タイプ（AIML研究所）
+INSERT INTO code_master (
+    organization_id,
+    code_division,
+    code_value,
+    code_name,
+    code_description,
+    code_remark
+) VALUES
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_type',
+    '0',
+    '一般',
+    '実験指示のタイプ',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_type',
+    '1',
+    'セットアップ',
+    '実験指示のタイプ',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_type',
+    '2',
+    '測定',
+    '実験指示のタイプ',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_type',
+    '3',
+    '安全',
+    '実験指示のタイプ',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_type',
+    '4',
+    '清掃',
+    '実験指示のタイプ',
+    NULL
+);
+
+-- 実験条件（AIML研究所）
+INSERT INTO code_master (
+    organization_id,
+    code_division,
+    code_value,
+    code_name,
+    code_description,
+    code_remark
+) VALUES
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'experiment_condition',
+    '0',
+    '全て同一条件で実行',
+    '繰り返し実験時の条件指定',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'experiment_condition',
+    '1',
+    '実験ごとに条件を変更',
+    '繰り返し実験時の条件指定',
+    NULL
+);
+
+-- 指示範囲（AIML研究所）
+INSERT INTO code_master (
+    organization_id,
+    code_division,
+    code_value,
+    code_name,
+    code_description,
+    code_remark
+) VALUES
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_target',
+    '0',
+    'ファイル全体',
+    '指示送信時の指示範囲',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_target',
+    '1',
+    '特定タスク',
+    '指示送信時の指示範囲',
+    NULL
+),
+(
+    '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}'::uuid,
+    'instruction_target',
+    '2',
+    '特定トランジション',
+    '指示送信時の指示範囲',
     NULL
 );
 

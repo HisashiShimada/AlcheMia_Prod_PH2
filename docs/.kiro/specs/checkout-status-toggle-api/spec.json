@@ -1,0 +1,60 @@
+{
+  "spec_version": "1.0.0",
+  "feature_name": "checkout-status-toggle-api",
+  "project_description": "チェックイン/チェックアウト状態切り替えAPI実装",
+  "language": "ja",
+  "created_at": "2026-01-16T10:06:23+09:00",
+  "updated_at": "2026-01-16T11:36:00+09:00",
+  "status": "tasks-generated",
+  "phases": {
+    "requirements": "completed",
+    "design": "completed",
+    "implementation": "pending",
+    "testing": "pending",
+    "deployment": "pending"
+  },
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_at": "2026-01-16T11:36:00+09:00",
+      "approved_by": "auto-approved"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_at": "2026-01-16T11:36:00+09:00",
+      "approved_by": "auto-approved"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true,
+      "approved_at": null,
+      "approved_by": null
+    }
+  },
+  "metadata": {
+    "author": "system",
+    "priority": "medium",
+    "estimated_hours": null,
+    "tags": ["api", "checkout", "status-management", "file-locking", "concurrent-access", "project-status-validation", "task-status-validation"],
+    "business_rules": [
+      "チェックアウトはproject_statusが0（計画中）以外で可能",
+      "チェックアウトはproject_instructionレコードが存在する場合のみ可能",
+      "チェックインはtask_statusが1（実行中）のタスクが存在しない場合のみ可能"
+    ],
+    "removed_features": [
+      "強制チェックイン機能（管理者による他ユーザーのチェックアウト解除）"
+    ],
+    "database_changes": "なし（既存のcheckout_statusカラムを使用）",
+    "database_schema": {
+      "table": "project",
+      "column": "checkout_status",
+      "type": "NUMERIC(2,0)",
+      "values": {
+        "0": "チェックイン中",
+        "1": "チェックアウト中"
+      }
+    }
+  }
+}

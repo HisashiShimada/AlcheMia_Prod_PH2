@@ -62,7 +62,7 @@ export default function DraftRestoreDialog({
       ]}
       width={500}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Alert
           message="一時保存データが見つかりました"
           description={`最終保存: ${new Date(draftInfo.savedAt).toLocaleString('ja-JP')}`}
@@ -75,7 +75,7 @@ export default function DraftRestoreDialog({
           background: '#f5f5f5', 
           borderRadius: '4px' 
         }}>
-          <Space direction="vertical" size="small">
+          <Space orientation="vertical" size="small">
             <Text>
               <strong>Method数:</strong> {draftInfo.methodCount}
             </Text>

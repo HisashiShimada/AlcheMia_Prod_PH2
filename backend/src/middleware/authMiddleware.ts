@@ -10,8 +10,9 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { JwtService } from '../services/jwtService';
+// import { JwtService } from '../services/jwtService';
 import { JwtPayload } from '../types/auth';
+import { JwtService } from '../services/jwtService';
 
 // Request型を拡張してuserプロパティを追加
 declare global {

@@ -5,6 +5,8 @@
  */
 
 import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { fileService } from '@/services/fileService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 import {
   Modal,
   Segmented,
@@ -66,6 +68,8 @@ interface BulkUploadDialogProps {
   }) => void;
   /** 事前選択されたフォルダパス */
   preselectedFolder?: string;
+  /** プロジェクトID（必須） */
+  projectId: string;
 }
 
 /**
@@ -136,11 +140,19 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
   onClose,
   onUploadComplete,
   preselectedFolder = '',
+  projectId,
 }) => {
   // 状態管理
   const [uploadMode, setUploadMode] = useState<UploadMode>('single');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
-  const [selectedFolderPath, setSelectedFolderPath] = useState<(string | number)[]>([]);
+  const [selectedFolderPath, setSelectedFolderPath] = useState<(string | number)[]>(() => {
+    // preselectedFolderから初期値を計算
+    if (preselectedFolder) {
+      const pathParts = preselectedFolder.split('/').filter(part => part.length > 0);
+      return pathParts.length > 0 ? pathParts : [];
+    }
+    return [];
+  });
   const [batchName, setBatchName] = useState<string>('');
   const [preserveFolderStructure, setPreserveFolderStructure] = useState<boolean>(true);
   const [uploadState, setUploadState] = useState<UploadState>({
@@ -236,6 +248,17 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
   );
 
   /**
+   * 選択されたフォルダパスを文字列に変換（組織を含む完全パス）
+   */
+  const selectedFolderPathString = useMemo(() => {
+    if (selectedFolderPath.length === 0) {
+      return '';
+    }
+    // 組織を先頭に追加
+    return `${userOrganization.id}/${selectedFolderPath.join('/')}`;
+  }, [selectedFolderPath, userOrganization.id]);
+
+  /**
    * アップロード実行
    */
   const handleUpload = useCallback(async () => {
@@ -253,49 +276,63 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
     });
 
     try {
-      // ここに実際のアップロード処理を実装
-      // 現在はモック動作
-      for (let i = 0; i < fileList.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        setUploadState((prev) => ({
-          ...prev,
-          uploadedCount: i + 1,
-          progress: Math.round(((i + 1) / fileList.length) * 100),
-        }));
-      }
+      // originFileObjを抽出してFile型に変換
+      const files = fileList
+        .map(f => f.originFileObj)
+        .filter((f): f is RcFile => !!f)
+        .map(f => f as unknown as File);
 
-      message.success('アップロードが完了しました');
-      
-      if (onUploadComplete) {
-        onUploadComplete({
-          mode: uploadMode,
-          fileCount: fileList.length,
-          success: true,
-        });
-      }
+      // API呼び出し
+      const response = await fileService.uploadFiles({
+        projectId,
+        uploadMode,
+        targetFolder: selectedFolderPathString,
+        files,
+        batchName: batchName || undefined,
+        preserveFolderStructure: uploadMode !== 'single' && preserveFolderStructure,
+        onProgress: (progress) => {
+          setUploadState(prev => ({
+            ...prev,
+            progress: progress.percentage,
+            uploadedCount: progress.uploadedCount,
+          }));
+        },
+      });
 
-      // 完了後の状態リセット
-      setTimeout(() => {
-        setFileList([]);
-        setBatchName('');
-        setUploadState({
-          isUploading: false,
-          progress: 0,
-          uploadedCount: 0,
-          totalCount: 0,
-          error: null,
-        });
-      }, 2000);
+      if (response.success) {
+        message.success('アップロードが完了しました');
+        
+        if (onUploadComplete) {
+          onUploadComplete({
+            mode: uploadMode,
+            fileCount: fileList.length,
+            success: true,
+          });
+        }
+
+        // 完了後の状態リセット（2秒後）
+        setTimeout(() => {
+          setFileList([]);
+          setBatchName('');
+          setUploadState({
+            isUploading: false,
+            progress: 100,
+            uploadedCount: fileList.length,
+            totalCount: fileList.length,
+            error: null,
+          });
+        }, 2000);
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'アップロードに失敗しました';
-      setUploadState((prev) => ({
+      const errorMessage = extractErrorMessage(error);
+      setUploadState(prev => ({
         ...prev,
         isUploading: false,
         error: errorMessage,
       }));
       message.error(errorMessage);
     }
-  }, [fileList, uploadMode, onUploadComplete]);
+  }, [fileList, uploadMode, projectId, selectedFolderPathString, batchName, preserveFolderStructure, onUploadComplete]);
 
   /**
    * ダイアログを閉じる
@@ -322,17 +359,6 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
     const filteredValue = value.filter((v): v is string | number => v !== null);
     setSelectedFolderPath(filteredValue);
   }, []);
-
-  /**
-   * 選択されたフォルダパスを文字列に変換（組織を含む完全パス）
-   */
-  const selectedFolderPathString = useMemo(() => {
-    if (selectedFolderPath.length === 0) {
-      return '';
-    }
-    // 組織を先頭に追加
-    return `${userOrganization.id}/${selectedFolderPath.join('/')}`;
-  }, [selectedFolderPath, userOrganization.id]);
 
   /**
    * Cascaderのプレースホルダー（モードに応じて変更）
@@ -383,7 +409,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         body: { maxHeight: '70vh', overflowY: 'auto' },
       }}
     >
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         {/* アップロードタイプ選択 */}
         <div>
           <Text strong style={{ display: 'block', marginBottom: 8 }}>
@@ -468,7 +494,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
               padding: 16,
             }}
           >
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Text strong>選択ファイル ({fileList.length}個)</Text>
               <div
                 style={{
@@ -525,7 +551,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         <Divider style={{ margin: '12px 0' }} />
 
         {/* オプション設定 */}
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <div>
             <Text strong style={{ display: 'block', marginBottom: 8 }}>
               アップロード先フォルダ
@@ -587,7 +613,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
           <Alert
             message="アップロード中"
             description={
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                 <Text>
                   {uploadState.uploadedCount} / {uploadState.totalCount} ファイル完了
                 </Text>

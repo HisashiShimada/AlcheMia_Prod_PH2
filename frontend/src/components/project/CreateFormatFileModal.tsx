@@ -136,19 +136,19 @@ export default function CreateFormatFileModal({
         </Space>
       }
       open={open}
-      onCancel={handleCancel}
       onOk={handleSubmit}
-      okText={t('formatManagement.create.submit') || '作成'}
-      cancelText={t('common.cancel') || 'キャンセル'}
+      onCancel={handleCancel}
       confirmLoading={submitting}
-      width={500}
-      destroyOnClose
+      okText={t('common.create')}
+      cancelText={t('common.cancel')}
+      width={600}
+      destroyOnHidden
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         {/* エラーメッセージ表示 */}
         {error && (
           <Alert
-            message={t('formatManagement.create.error') || '作成エラー'}
+            title={t('formatManagement.create.error') || '作成エラー'}
             description={error}
             type="error"
             showIcon
@@ -160,9 +160,9 @@ export default function CreateFormatFileModal({
         {/* フォーマット情報表示 */}
         {formatName && (
           <Alert
-            message={t('formatManagement.create.formatInfo') || 'フォーマット情報'}
+            title={t('formatManagement.create.formatInfo') || 'フォーマット情報'}
             description={
-              <Space direction="vertical" size="small">
+              <Space orientation="vertical" size="small">
                 <Text>
                   <Text type="secondary">{t('formatManagement.create.formatName') || 'フォーマット'}: </Text>
                   <Text strong>{formatName}</Text>
@@ -208,13 +208,20 @@ export default function CreateFormatFileModal({
               },
             ]}
           >
-            <Input
-              placeholder={t('formatManagement.create.fileNamePlaceholder') || 'ファイル名を入力'}
-              maxLength={100}
-              showCount
-              autoFocus
-              addonAfter={extension}
-            />
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                placeholder={t('formatManagement.create.fileNamePlaceholder') || 'ファイル名を入力'}
+                maxLength={100}
+                showCount
+                autoFocus
+                style={{ flex: 1 }}
+              />
+              <Input
+                value={extension}
+                disabled
+                style={{ width: 80, textAlign: 'center' }}
+              />
+            </Space.Compact>
           </Form.Item>
 
           {/* テンプレート種別選択（XMLファイルの場合のみ表示） */}
