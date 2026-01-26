@@ -34,7 +34,9 @@ export async function login(req: Request, res: Response): Promise<void> {
 
   // Initialize services with pool
   const passwordService = new PasswordService(pool);
-  const pinCodeService = new PinCodeService(pool);
+  // 開発環境ではメール送信をスキップ
+  const emailServiceForPin = process.env.NODE_ENV === 'development' ? undefined : emailService;
+  const pinCodeService = new PinCodeService(pool, emailServiceForPin);
 
   // IPアドレスとUser-Agentを取得（ログイン履歴記録用）
   const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] 
@@ -219,21 +221,28 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 5. PINコード生成と仮セッショントークン作成
+    // 5. PINコード生成と仮セッショントークン作成＋メール送信（共通処理）
     const sessionToken = `temp_session-${uuidv4()}_${Date.now()}`;
     
-    const pinResult = await pinCodeService.generateAndSave(
+    const pinSendResult = await pinCodeService.generateAndSendPin(
       user.user_id,
       user.organization_id,
-      sessionToken
+      sessionToken,
+      user.mail_address,
+      user.user_name
     );
 
-    if (!pinResult.success) {
-      res.status(500).json({
+    if (!pinSendResult.success) {
+      const errorCode = pinSendResult.error?.code || 'SYSTEM_DATABASE_ERROR';
+      const statusCode = errorCode === 'SYSTEM_EMAIL_SEND_FAILED' ? 500 : 500;
+      
+      res.status(statusCode).json({
         success: false,
         error: {
-          code: 'SYSTEM_DATABASE_ERROR',
-          message: 'PINコード生成に失敗しました',
+          code: errorCode,
+          message: errorCode === 'SYSTEM_EMAIL_SEND_FAILED'
+            ? 'メール送信に失敗しました。しばらく待ってから再試行してください'
+            : 'PINコード生成に失敗しました',
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -243,29 +252,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // // 6. メール送信
-    // const emailResult = await emailService.sendPinCode(
-    //   user.mail_address,
-    //   pinResult.data.pinCode,
-    //   user.user_name
-    // );
-
-    // if (!emailResult.success) {
-    //   res.status(500).json({
-    //     success: false,
-    //     error: {
-    //       code: 'SYSTEM_EMAIL_SEND_FAILED',
-    //       message: 'メール送信に失敗しました。しばらく待ってから再試行してください',
-    //     },
-    //     meta: {
-    //       timestamp: new Date().toISOString(),
-    //       requestId,
-    //     },
-    //   });
-    //   return;
-    // }
-
-    // 7. ログイン成功履歴記録
+    // 6. ログイン成功履歴記録
     const successHistoryQuery = `
       INSERT INTO login_history (
         user_name, 
@@ -289,13 +276,13 @@ export async function login(req: Request, res: Response): Promise<void> {
     const responseData: any = {
       sessionToken,
       message: 'PINコードをメールで送信しました',
-      email: maskEmail(user.mail_address),
+      email: pinSendResult.data.maskedEmail,
       expiresIn: 300, // 5分（秒）
     };
 
     // 開発環境の場合のみPINコードを含める（開発効率化のため）
     if (process.env.NODE_ENV === 'development') {
-      responseData.pinCode = pinResult.data.pinCode;
+      responseData.pinCode = pinSendResult.data.pinCode;
       responseData.devMode = true;
     }
 
@@ -575,7 +562,9 @@ export async function resendPin(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
 
   // Initialize services with pool
-  const pinCodeService = new PinCodeService(pool);
+  // 開発環境ではメール送信をスキップ
+  const emailServiceForPin = process.env.NODE_ENV === 'development' ? undefined : emailService;
+  const pinCodeService = new PinCodeService(pool, emailServiceForPin);
 
   try {
     // 1. バリデーション
@@ -675,41 +664,26 @@ export async function resendPin(req: Request, res: Response): Promise<void> {
     // 3. 既存のPINコード削除
     await pinCodeService.delete(sessionToken);
 
-    // 4. 新しいPINコード生成
-    const pinResult = await pinCodeService.generateAndSave(
+    // 4. 新しいPINコード生成＋メール送信（共通処理）
+    const pinSendResult = await pinCodeService.generateAndSendPin(
       userInfo.user_id,
       userInfo.organization_id,
-      sessionToken
-    );
-
-    if (!pinResult.success) {
-      res.status(500).json({
-        success: false,
-        error: {
-          code: 'SYSTEM_DATABASE_ERROR',
-          message: 'PINコード生成に失敗しました',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 5. メール送信
-    const emailResult = await emailService.sendPinCode(
+      sessionToken,
       userInfo.mail_address,
-      pinResult.data.pinCode,
       userInfo.user_name
     );
 
-    if (!emailResult.success) {
-      res.status(500).json({
+    if (!pinSendResult.success) {
+      const errorCode = pinSendResult.error?.code || 'SYSTEM_DATABASE_ERROR';
+      const statusCode = errorCode === 'SYSTEM_EMAIL_SEND_FAILED' ? 500 : 500;
+      
+      res.status(statusCode).json({
         success: false,
         error: {
-          code: 'SYSTEM_EMAIL_SEND_FAILED',
-          message: 'メール送信に失敗しました。しばらく待ってから再試行してください',
+          code: errorCode,
+          message: errorCode === 'SYSTEM_EMAIL_SEND_FAILED'
+            ? 'メール送信に失敗しました。しばらく待ってから再試行してください'
+            : 'PINコード生成に失敗しました',
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -719,12 +693,12 @@ export async function resendPin(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 6. 成功レスポンス
+    // 5. 成功レスポンス
     res.status(200).json({
       success: true,
       data: {
         message: 'PINコードを再送信しました',
-        email: maskEmail(userInfo.mail_address),
+        email: pinSendResult.data.maskedEmail,
         expiresIn: 300, // 5分（秒）
       },
       meta: {
