@@ -19,7 +19,7 @@ const { Text } = Typography;
  * プロジェクト作成データの型定義
  */
 export interface CreateProjectData {
-  name: string;
+  projectName: string;
   description: string;
   folderName: string;
   owner: string;
@@ -72,13 +72,13 @@ export default function CreateProjectModal({
       
       // プロジェクト名からフォルダ名を自動生成
       // 入力値をそのまま使用し、スペースなどフォルダ名に使用できない文字のみ_に変換
-      const folderName = values.name
+      const folderName = values.projectName
         .replace(/\s+/g, '_')
         .replace(/[^a-zA-Z0-9_-]/g, '_');
       
       // プロジェクトデータの作成
       const projectData: CreateProjectData = {
-        name: values.name,
+        projectName: values.projectName,
         description: values.description || '',
         folderName: folderName,
         owner: currentUser.name,
@@ -148,7 +148,7 @@ export default function CreateProjectModal({
         >
           {/* プロジェクト名 */}
           <Form.Item
-            name="name"
+            name="projectName"
             label={t('projectManagement.create.projectName') || 'プロジェクト名'}
             rules={[
               {

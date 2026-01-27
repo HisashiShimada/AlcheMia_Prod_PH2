@@ -53,7 +53,7 @@ const demoUsers: Record<string, { password: string; user: User }> = {
     },
   },
   data_admin: {
-    password: 'data123',
+    password: 'dataadmin123',
     user: {
       id: '3',
       username: 'data_admin',
@@ -65,7 +65,7 @@ const demoUsers: Record<string, { password: string; user: User }> = {
     },
   },
   experiment_admin: {
-    password: 'exp123',
+    password: 'expadmin123',
     user: {
       id: '4',
       username: 'experiment_admin',
@@ -77,7 +77,7 @@ const demoUsers: Record<string, { password: string; user: User }> = {
     },
   },
   experiment_worker: {
-    password: 'worker123',
+    password: 'expworker123',
     user: {
       id: '5',
       username: 'experiment_worker',
@@ -336,7 +336,7 @@ export default function Home() {
     // 開発環境ではデバッグパネル付きのLoginPageを表示
     const debugPanel = isDevelopment ? (
       <DebugLoginPanel
-        onLogin={(cred) => handleLogin({ ...cred, organizationId: 'org_lab_001' })}
+        onLogin={(cred) => handleLogin({ ...cred, organizationId: '' })}
         loading={loading}
         debugUsers={Object.entries(demoUsers).map(([username, data]) => ({
           username,

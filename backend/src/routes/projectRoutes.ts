@@ -147,32 +147,12 @@ router.get(
 );
 
 /**
- * プロジェクトリロード
- * POST /api/v1/projects/:projectId/reload
- * 
- * @middleware authMiddleware - JWT認証
- * @description プロジェクトのファイルメタデータをS3から再読み込みする
- * @note Task 3.2: リロードエンドポイント追加
- * @requirements REQ-1, REQ-5
- */
-router.post(
-  '/:projectId/reload',
-  authMiddleware,
-  [
-    param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
-  ],
-  projectController.reload
-);
-
-/**
  * プロジェクトファイル一覧取得
  * GET /api/v1/projects/:projectName/files
  * 
  * @middleware authMiddleware - JWT認証
  * @description プロジェクトに関連するファイル一覧を取得する（署名付きURL付き）
- * @note Task 2.3: ファイル一覧取得エンドポイント追加
+ * @note archiveファイルは常に取得される（include_archiveパラメータ削除）
  * @requirements REQ-2, REQ-3, REQ-11
  */
 router.get(
@@ -182,10 +162,6 @@ router.get(
     param('projectName')
       .notEmpty()
       .withMessage('projectNameは必須です'),
-    query('include_archive')
-      .optional()
-      .isBoolean()
-      .withMessage('include_archiveはtrueまたはfalseである必要があります'),
   ],
   projectController.getProjectFiles
 );
