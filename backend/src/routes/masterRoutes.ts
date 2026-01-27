@@ -49,9 +49,9 @@ const validateOrganizationHeader = header('X-Organization-Id')
  */
 router.get(
   '/creator',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
   [
-    validateOrganizationHeader,
+    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
     query('display_scope')
       .optional()
       .isIn(['all', 'own'])
@@ -76,10 +76,8 @@ router.get(
  */
 router.get(
   '/creator/download-csv',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
-  [
-    validateOrganizationHeader,
-  ],
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
+  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
   masterController.downloadCreatorsCsv
 );
 
@@ -91,11 +89,9 @@ router.get(
  */
 router.post(
   '/creator/upload-csv',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
   upload.single('file'),
-  [
-    validateOrganizationHeader,
-  ],
+  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
   masterController.uploadCreatorsCsv
 );
 
@@ -123,10 +119,8 @@ router.get(
  */
 router.get(
   '/instrument',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
-  [
-    validateOrganizationHeader,
-  ],
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
+  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
   masterController.getInstruments
 );
 
@@ -138,10 +132,8 @@ router.get(
  */
 router.get(
   '/instrument/download-csv',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
-  [
-    validateOrganizationHeader,
-  ],
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
+  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
   masterController.downloadInstrumentsCsv
 );
 
@@ -153,11 +145,9 @@ router.get(
  */
 router.post(
   '/instrument/upload-csv',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
   upload.single('file'),
-  [
-    validateOrganizationHeader,
-  ],
+  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
   masterController.uploadInstrumentsCsv
 );
 
@@ -185,10 +175,8 @@ router.get(
  */
 router.get(
   '/vendor',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
-  [
-    validateOrganizationHeader,
-  ],
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
+  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
   masterController.getVendors
 );
 
@@ -200,10 +188,8 @@ router.get(
  */
 router.get(
   '/vendor/download-csv',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
-  [
-    validateOrganizationHeader,
-  ],
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
+  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
   masterController.downloadVendorsCsv
 );
 
@@ -215,11 +201,9 @@ router.get(
  */
 router.post(
   '/vendor/upload-csv',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
   upload.single('file'),
-  [
-    validateOrganizationHeader,
-  ],
+  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
   masterController.uploadVendorsCsv
 );
 
@@ -247,10 +231,7 @@ router.get(
  */
 router.post(
   '/instrument',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
-  [
-    validateOrganizationHeader,
-  ],
+  authMiddleware, // 認証ミドルウェア有効化
   masterController.createInstrument
 );
 
@@ -260,9 +241,8 @@ router.post(
  */
 router.put(
   '/instrument/:instrumentId',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化
   [
-    validateOrganizationHeader,
     param('instrumentId')
       .notEmpty()
       .withMessage('instrumentId is required')
@@ -278,9 +258,8 @@ router.put(
  */
 router.patch(
   '/instrument/:instrumentId/status',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化
   [
-    validateOrganizationHeader,
     param('instrumentId')
       .notEmpty()
       .withMessage('instrumentId is required')
@@ -296,10 +275,7 @@ router.patch(
  */
 router.post(
   '/vendor',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
-  [
-    validateOrganizationHeader,
-  ],
+  authMiddleware, // 認証ミドルウェア有効化
   masterController.createVendor
 );
 
@@ -309,9 +285,8 @@ router.post(
  */
 router.put(
   '/vendor/:vendorId',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化
   [
-    validateOrganizationHeader,
     param('vendorId')
       .notEmpty()
       .withMessage('vendorId is required')
@@ -327,9 +302,8 @@ router.put(
  */
 router.patch(
   '/vendor/:vendorId/status',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化
   [
-    validateOrganizationHeader,
     param('vendorId')
       .notEmpty()
       .withMessage('vendorId is required')
@@ -345,10 +319,7 @@ router.patch(
  */
 router.post(
   '/creator',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
-  [
-    validateOrganizationHeader,
-  ],
+  authMiddleware, // 認証ミドルウェア有効化
   masterController.createCreator
 );
 
@@ -358,9 +329,8 @@ router.post(
  */
 router.put(
   '/creator/:creatorId',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化
   [
-    validateOrganizationHeader,
     param('creatorId')
       .notEmpty()
       .withMessage('creatorId is required')
@@ -376,9 +346,8 @@ router.put(
  */
 router.patch(
   '/creator/:creatorId/status',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化
   [
-    validateOrganizationHeader,
     param('creatorId')
       .notEmpty()
       .withMessage('creatorId is required')
@@ -528,9 +497,9 @@ router.patch(
  */
 router.get(
   '/department',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
   [
-    validateOrganizationHeader,
+    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
     query('search')
       .optional()
       .isString()
@@ -559,10 +528,8 @@ router.get(
  */
 router.get(
   '/department/download-csv',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
-  [
-    validateOrganizationHeader,
-  ],
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
+  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
   masterController.downloadDepartmentCsv
 );
 
@@ -574,11 +541,9 @@ router.get(
  */
 router.post(
   '/department/upload-csv',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
   upload.single('file'),
-  [
-    validateOrganizationHeader,
-  ],
+  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
   masterController.uploadDepartmentCsv
 );
 
@@ -588,9 +553,9 @@ router.post(
  */
 router.get(
   '/department/:departmentCd',
-  authMiddleware,
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
   [
-    validateOrganizationHeader,
+    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
     param('departmentCd')
       .notEmpty()
       .withMessage('departmentCd is required')
@@ -606,9 +571,9 @@ router.get(
  */
 router.post(
   '/department',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
   [
-    validateOrganizationHeader,
+    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
     body('departmentCd')
       .notEmpty()
       .withMessage('departmentCd is required')
@@ -633,9 +598,9 @@ router.post(
  */
 router.put(
   '/department/:departmentCd',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
   [
-    validateOrganizationHeader,
+    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
     param('departmentCd')
       .notEmpty()
       .withMessage('departmentCd is required')
@@ -659,9 +624,9 @@ router.put(
  */
 router.patch(
   '/department/:departmentCd/status',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
   [
-    validateOrganizationHeader,
+    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
     param('departmentCd')
       .notEmpty()
       .withMessage('departmentCd is required')
@@ -677,10 +642,7 @@ router.patch(
  */
 router.get(
   '/role',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
-  [
-    validateOrganizationHeader,
-  ],
+  authMiddleware, // 認証ミドルウェア有効化
   masterController.getRoles
 );
 
@@ -690,9 +652,8 @@ router.get(
  */
 router.get(
   '/role/:roleId',
-  // authMiddleware, // TODO: 一時的に無効化（テスト用）
+  authMiddleware, // 認証ミドルウェア有効化
   [
-    validateOrganizationHeader,
     param('roleId')
       .notEmpty()
       .withMessage('roleId is required')

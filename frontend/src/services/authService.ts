@@ -14,6 +14,13 @@ import type {
   ResetPasswordRequestResponseData,
   ResetPasswordResponseData,
 } from '@/types/api';
+import {
+  getSessionToken,
+  setSessionToken,
+  getOrganizationId,
+  setUserInfo,
+  clearAllSessionData,
+} from '@/utils/sessionStorageHelper';
 
 /**
  * Axiosインスタンスの作成
@@ -34,6 +41,27 @@ const createApiClient = (): AxiosInstance => {
 };
 
 const apiClient = createApiClient();
+
+/**
+ * Axios Request Interceptor
+ * リクエスト送信前にorganizationIdヘッダーを自動設定
+ */
+apiClient.interceptors.request.use(
+  (config) => {
+    // SessionStorageからorganizationIdを取得
+    const organizationId = getOrganizationId();
+    
+    // organizationIdが存在する場合、ヘッダーに設定
+    if (organizationId) {
+      config.headers['X-Organization-Id'] = organizationId;
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 /**
  * APIエラーハンドリング
@@ -213,7 +241,27 @@ export const authService = {
       );
       
       if (response.data.success) {
-        return response.data.data;
+        const data = response.data.data;
+        
+        // PIN検証成功時、ユーザー情報をSessionStorageに保存
+        if (data.user) {
+          setUserInfo({
+            id: data.user.id,
+            username: data.user.username,
+            displayName: data.user.displayName,
+            email: data.user.email,
+            organizationId: data.user.organizationId,
+            organizationName: data.user.organizationName,
+            role: data.user.role,
+          });
+        }
+        
+        // セッショントークンも保存（既存の処理を統一）
+        if (data.session?.token) {
+          setSessionToken(data.session.token);
+        }
+        
+        return data;
       }
       
       throw new AuthServiceError('PIN検証に失敗しました', 'PIN_VERIFY_FAILED');
@@ -261,10 +309,7 @@ export const authService = {
   async logout(): Promise<LogoutResponseData> {
     try {
       // SessionStorageからセッショントークンを取得
-      let sessionToken = '';
-      if (typeof window !== 'undefined') {
-        sessionToken = sessionStorage.getItem('sessionToken') || '';
-      }
+      const sessionToken = getSessionToken();
 
       // トークンがない場合はエラー
       if (!sessionToken) {
@@ -286,10 +331,8 @@ export const authService = {
       );
       
       if (response.data.success) {
-        // 成功したらSessionStorageからトークンを削除
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('sessionToken');
-        }
+        // 成功したらSessionStorageから全データを削除
+        clearAllSessionData();
         return response.data.data;
       }
       

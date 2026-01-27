@@ -39,8 +39,8 @@ export async function getCreators(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    // 組織IDを取得（authMiddlewareで設定される）
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    // 組織IDを取得（X-Organization-Idヘッダーまたはreq.user.organizationId）
+    const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
     
     console.log('Organization ID:', organizationId);
     console.log('req.organizationId:', (req as any).organizationId);
@@ -122,8 +122,8 @@ export async function getCreatorById(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // 組織IDを取得
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    // 組織IDを取得（X-Organization-Idヘッダーまたはreq.user.organizationId）
+    const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -183,10 +183,16 @@ export async function getCreatorById(req: Request, res: Response, next: NextFunc
 export async function getInstruments(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     console.log('=== getInstruments API called ===');
+    console.log('Headers:', req.headers);
+    console.log('Query:', req.query);
     
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    // 組織IDを取得（X-Organization-Idヘッダーまたはreq.user.organizationId）
+    const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
+    
+    console.log('Organization ID:', organizationId);
     
     if (!organizationId) {
+      console.log('ERROR: Organization ID not found');
       res.status(400).json({
         success: false,
         error: {
@@ -227,7 +233,7 @@ export async function getInstruments(req: Request, res: Response, next: NextFunc
  */
 export async function getInstrumentById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -287,10 +293,16 @@ export async function getInstrumentById(req: Request, res: Response, next: NextF
 export async function getVendors(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     console.log('=== getVendors API called ===');
+    console.log('Headers:', req.headers);
+    console.log('Query:', req.query);
     
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    // 組織IDを取得（X-Organization-Idヘッダーまたはreq.user.organizationId）
+    const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
+    
+    console.log('Organization ID:', organizationId);
     
     if (!organizationId) {
+      console.log('ERROR: Organization ID not found');
       res.status(400).json({
         success: false,
         error: {
@@ -331,7 +343,7 @@ export async function getVendors(req: Request, res: Response, next: NextFunction
  */
 export async function getVendorById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -412,7 +424,7 @@ export async function createInstrument(req: Request, res: Response, next: NextFu
       return;
     }
 
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -452,7 +464,7 @@ export async function createInstrument(req: Request, res: Response, next: NextFu
  */
 export async function updateInstrument(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
     const { instrumentId } = req.params;
 
     const instrument = await masterService.updateInstrumentMaster(
@@ -497,7 +509,7 @@ export async function updateInstrument(req: Request, res: Response, next: NextFu
  */
 export async function updateInstrumentStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
     const { instrumentId } = req.params;
     const { isActive } = req.body;
 
@@ -560,7 +572,7 @@ export async function createVendor(req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -600,7 +612,7 @@ export async function createVendor(req: Request, res: Response, next: NextFuncti
  */
 export async function updateVendor(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
     const { vendorId } = req.params;
 
     const vendor = await masterService.updateVendorMaster(
@@ -645,7 +657,7 @@ export async function updateVendor(req: Request, res: Response, next: NextFuncti
  */
 export async function updateVendorStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
     const { vendorId } = req.params;
     const { isActive } = req.body;
 
@@ -711,7 +723,7 @@ export async function createCreator(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -751,7 +763,7 @@ export async function createCreator(req: Request, res: Response, next: NextFunct
  */
 export async function updateCreator(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
     const { creatorId } = req.params;
 
     const creator = await masterService.updateCreatorMaster(
@@ -796,7 +808,7 @@ export async function updateCreator(req: Request, res: Response, next: NextFunct
  */
 export async function updateCreatorStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
     const { creatorId } = req.params;
     const { isActive } = req.body;
 
@@ -842,7 +854,7 @@ export async function updateCreatorStatus(req: Request, res: Response, next: Nex
  */
 export async function uploadCreatorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -903,7 +915,7 @@ export async function uploadCreatorsCsv(req: Request, res: Response, next: NextF
  */
 export async function downloadCreatorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -974,7 +986,7 @@ export async function downloadCreatorsCsv(req: Request, res: Response, next: Nex
  */
 export async function uploadInstrumentsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -1035,7 +1047,7 @@ export async function uploadInstrumentsCsv(req: Request, res: Response, next: Ne
  */
 export async function downloadInstrumentsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -1104,7 +1116,7 @@ export async function downloadInstrumentsCsv(req: Request, res: Response, next: 
  */
 export async function uploadVendorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -1165,7 +1177,7 @@ export async function uploadVendorsCsv(req: Request, res: Response, next: NextFu
  */
 export async function downloadVendorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -1545,8 +1557,12 @@ export async function getDepartments(req: Request, res: Response, next: NextFunc
   try {
     console.log('=== getDepartments API called ===');
     console.log('Query:', req.query);
+    console.log('req.user:', req.user);
+    console.log('req.headers:', req.headers);
 
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    // X-Organization-Idヘッダーまたはreq.user.organizationIdから取得
+    const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
+    console.log('Extracted organizationId:', organizationId);
 
     if (!organizationId) {
       res.status(400).json({
@@ -1607,7 +1623,7 @@ export async function getDepartments(req: Request, res: Response, next: NextFunc
  */
 export async function getDepartmentById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -1686,7 +1702,7 @@ export async function createDepartment(req: Request, res: Response, next: NextFu
       return;
     }
 
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -1726,7 +1742,7 @@ export async function createDepartment(req: Request, res: Response, next: NextFu
  */
 export async function updateDepartment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
     const { departmentCd } = req.params;
 
     const department = await masterService.updateDepartment(
@@ -1771,7 +1787,7 @@ export async function updateDepartment(req: Request, res: Response, next: NextFu
  */
 export async function updateDepartmentStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
     const { departmentCd } = req.params;
     const { isActive } = req.body;
 
@@ -1817,7 +1833,7 @@ export async function updateDepartmentStatus(req: Request, res: Response, next: 
  */
 export async function uploadDepartmentCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -1877,7 +1893,7 @@ export async function uploadDepartmentCsv(req: Request, res: Response, next: Nex
  */
 export async function downloadDepartmentCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({
@@ -1944,10 +1960,14 @@ export async function getRoles(req: Request, res: Response, next: NextFunction):
   try {
     console.log('=== getRoles API called ===');
     console.log('Query:', req.query);
+    console.log('req.user:', req.user);
+    console.log('req.headers:', req.headers);
 
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
+    console.log('Extracted organizationId from req.user:', organizationId);
 
     if (!organizationId) {
+      console.log('ERROR: Organization ID not found in req.user');
       res.status(400).json({
         success: false,
         error: {
@@ -1988,7 +2008,7 @@ export async function getRoles(req: Request, res: Response, next: NextFunction):
  */
 export async function getRoleById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = (req as any).organizationId || req.headers['x-organization-id'];
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(400).json({

@@ -1,5 +1,6 @@
 import express, { Application } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 // Load environment variables FIRST (before any other imports that might use them)
@@ -9,6 +10,7 @@ dotenv.config();
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
 import fileDownloadRoutes from './routes/fileDownloadRoutes';
+import masterRoutes from './routes/masterRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -30,11 +32,15 @@ app.use(cors(corsOptions));
 // Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser()); // Cookie解析ミドルウェア
 
 // Mount routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/projects', projectRoutes);
 app.use('/api/v1/projects', fileDownloadRoutes);
+
+// Mount master routes
+app.use('/api/v1/master', masterRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {

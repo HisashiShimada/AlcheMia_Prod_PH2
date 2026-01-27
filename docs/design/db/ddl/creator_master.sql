@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS creator_master CASCADE;
 
 CREATE TABLE creator_master (
     -- 主キー
-    organization_id CHARACTER VARYING NOT NULL,
+    organization_id UUID NOT NULL,
     creator_uuid UUID NOT NULL,
     
     -- 関連情報

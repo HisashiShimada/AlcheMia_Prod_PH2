@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS vendor_master CASCADE;
 
 CREATE TABLE vendor_master (
     -- 主キー
-    organization_id CHARACTER VARYING NOT NULL,
+    organization_id UUID NOT NULL,
     vendor_uuid UUID NOT NULL,
     
     -- vendor情報

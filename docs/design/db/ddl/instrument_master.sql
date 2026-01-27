@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS instrument_master CASCADE;
 
 CREATE TABLE instrument_master (
     -- 主キー
-    organization_id CHARACTER VARYING NOT NULL,
+    organization_id UUID NOT NULL,
     instrument_uuid UUID NOT NULL,
     
     -- instrument情報

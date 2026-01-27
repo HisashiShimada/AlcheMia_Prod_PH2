@@ -38,32 +38,26 @@ export async function authMiddleware(
   try {
     // JwtServiceインスタンスを作成（テスト時にモック可能にするため関数内で作成）
     const jwtService = new JwtService();
-    // Authorizationヘッダーからトークンを取得
+    
+    // トークンを取得（優先順位: 1. Authorization ヘッダー, 2. Cookie）
+    let token = '';
+    
+    // 1. Authorizationヘッダーからトークンを取得
     const authHeader = req.headers.authorization;
-
-    // ヘッダーが存在しない、または空の場合
-    if (!authHeader || authHeader.trim() === '') {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_MISSING',
-          message: '認証トークンが提供されていません'
-        },
-        meta: {
-          timestamp: new Date().toISOString()
-        }
-      });
-      return;
+    if (authHeader && authHeader.trim() !== '') {
+      token = authHeader.trim();
+      // Bearer スキームを除去してトークンを抽出
+      if (token.toLowerCase().startsWith('bearer ')) {
+        token = token.slice(7).trim();
+      }
+    }
+    
+    // 2. Authorizationヘッダーにトークンがない場合、Cookieから取得
+    if (!token && req.cookies && req.cookies.maiml_session) {
+      token = req.cookies.maiml_session;
     }
 
-    // Bearer スキームを除去してトークンを抽出
-    // "Bearer token" または "bearer token" または "token" の形式に対応
-    let token = authHeader.trim();
-    if (token.toLowerCase().startsWith('bearer ')) {
-      token = token.slice(7).trim();
-    }
-
-    // トークンが空の場合
+    // トークンが見つからない場合
     if (!token) {
       res.status(401).json({
         success: false,
@@ -77,6 +71,19 @@ export async function authMiddleware(
       });
       return;
     }
+
+    // // 開発環境用: ダミートークンを許可
+    // if (process.env.NODE_ENV === 'development' && token === 'dummy-token-for-development') {
+      
+    //   // ダミーユーザーを設定
+    //   req.user = {
+    //     userId: 'dev-user-id',
+    //     organizationId: '{a0718dc5-21f3-44e6-87e9-cc2ae83f3385}',
+    //     role: 'data_admin',
+    //   } as any;
+    //   next();
+    //   return;
+    // }
 
     // JWTトークンを検証
     const result = await jwtService.verify(token);
@@ -97,6 +104,7 @@ export async function authMiddleware(
     }
 
     // 検証成功 - req.userにペイロードを格納
+    // JWTトークンから取得したuser情報をそのまま使用（organizationIdを含む）
     req.user = result.data;
 
     // 次のミドルウェアへ
