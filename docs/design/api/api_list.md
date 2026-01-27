@@ -207,7 +207,7 @@
 
 ### 7. 問題管理API（Issue Management）
 
-**API設計書**: [API一覧_実験作業者画面.md](./API一覧_実験作業者画面.md) セクション4-8  
+**API設計書**: [api_issue_management.md](./api_issue_management.md)  
 **ルートファイル**: `backend/src/routes/issueRoutes.ts`
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
@@ -236,7 +236,7 @@
 
 ### 8. 実験データ記録API（Experiment Data Recording）
 
-**API設計書**: [API一覧_実験作業者画面.md](./API一覧_実験作業者画面.md) セクション1-2  
+**API設計書**: [api_experiment_data.md](./api_experiment_data.md)  
 **ルートファイル**: `backend/src/routes/experimentDataRoutes.ts`（推定）
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
@@ -483,6 +483,10 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.5.2 | 2026-01-27 19:43 | API設計書リンク更新（問題管理・実験データ記録） | Cline |
+| | | - 問題管理API: 設計書リンクをapi_issue_management.mdに更新 | |
+| | | - 実験データ記録API: 設計書リンクをapi_experiment_data.mdに更新 | |
+| | | - API一覧_実験作業者画面.mdからの移行完了 | |
 | 2.5.1 | 2026-01-27 18:51 | 実験作業者用プロジェクト一覧取得API追加（52エンドポイント） | Cline |
 | | | - プロジェクト管理API: 15→16エンドポイント（+1: 実験作業者用プロジェクト一覧取得） | |
 | | | - 全体実装率: 55%→54%（分母増加により一時的に低下） | |
