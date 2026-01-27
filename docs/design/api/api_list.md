@@ -59,15 +59,16 @@
 |----|-------------|---------------|------|---------|--------------|
 | 2.1 | GET | /api/v1/projects | プロジェクト一覧取得 | ✅ 実装済み | ProjectController.list |
 | 2.2 | POST | /api/v1/projects | プロジェクト作成 | ✅ 実装済み | ProjectController.create |
-| 2.3 | POST | /api/v1/projects/:projectId/checkout | チェックアウト | ✅ 実装済み | ProjectController.checkout |
-| 2.4 | POST | /api/v1/projects/:projectId/checkin | チェックイン | ✅ 実装済み | ProjectController.checkin |
-| 2.5 | GET | /api/v1/projects/:projectId/files | ファイル一覧取得 | ⏳ 未実装 | ProjectController.listFiles |
-| 2.6 | GET | /api/v1/projects/:projectId/tasks | タスク一覧取得 | ⏳ 未実装 | ProjectController.listTasks |
-| 2.7 | POST | /api/v1/projects/:projectId/reload | プロジェクトリロード | ✅ 実装済み | ProjectController.reload |
-| 2.8 | POST | /api/v1/projects/:projectId/instructions | 指示送信（タスク作成） | ⏳ 未実装 | ProjectController.createInstruction |
-| 2.9 | GET | /api/v1/projects/:projectId/instructions | 指示一覧取得 | ⏳ 未実装 | ProjectController.listInstructions |
-| 2.10 | POST | /api/v1/projects/search | プロジェクト詳細検索 | ⏳ 未実装 | ProjectController.search |
-| 2.11 | POST | /api/v1/projects/:projectId/publish | プロジェクト公開 | ⏳ 未実装 | ProjectController.publish |
+| 2.3 | GET | /api/v1/projects/:projectId | プロジェクト詳細取得 | ✅ 実装済み | ProjectController.getById |
+| 2.4 | POST | /api/v1/projects/:projectId/checkout | チェックアウト | ✅ 実装済み | ProjectController.checkout |
+| 2.5 | POST | /api/v1/projects/:projectId/checkin | チェックイン | ✅ 実装済み | ProjectController.checkin |
+| 2.6 | GET | /api/v1/projects/:projectId/checkout-status | チェックアウト状態取得 | ✅ 実装済み | ProjectController.getCheckoutStatus |
+| 2.7 | GET | /api/v1/projects/:projectName/files | ファイル一覧取得 | ✅ 実装済み | ProjectController.getProjectFiles |
+| 2.8 | GET | /api/v1/projects/:projectName/tasks | タスク一覧取得 | ✅ 実装済み | ProjectController.getProjectTasks |
+| 2.9 | POST | /api/v1/projects/:projectName/instructions | 指示送信（タスク作成） | ⏳ 未実装 | ProjectController.createInstruction |
+| 2.10 | GET | /api/v1/projects/:projectName/instructions | 指示一覧取得 | ⏳ 未実装 | ProjectController.listInstructions |
+| 2.11 | POST | /api/v1/projects/search | プロジェクト詳細検索 | ⏳ 未実装 | ProjectController.search |
+| 2.12 | POST | /api/v1/projects/:projectName/publish | プロジェクト公開 | ⏳ 未実装 | ProjectController.publish |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -77,7 +78,9 @@
 - すべてのクエリに organization_id フィルタ必須
 - S3操作には organization_prefix を強制適用
 - チェックアウト/チェックインで排他編集制御
-- トランザクション管理が必要な操作: 2.2, 2.8
+- トランザクション管理が必要な操作: 2.2, 2.9
+- API 2.3, 2.6: 実装追加（設計書には未記載、後日設計書に追記予定）
+- パスパラメータ: 一部APIで`:projectId`（UUID）、一部で`:projectName`（文字列）を使用
 
 ---
 
@@ -131,28 +134,43 @@
 ### 5. Maiml編集API（MAIML Editor）
 
 **API設計書**: [api_maiml_editor.md](./api_maiml_edit.md)  
-**ルートファイル**: `backend/src/routes/maimlRoutes.ts`（推定）
+**ルートファイル**: `backend/src/routes/maimlRoutes.ts`
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 5.1 | POST | /api/v1/maiml/parse | MAIMLパース（複数メソッド構造取得） | ⏳ 未実装 | MaimlController.parse |
-| 5.2 | PUT | /api/v1/projects/:projectId/maiml | MAIMLファイル保存（プロジェクト） | ⏳ 未実装 | MaimlController.saveProject |
-| 5.3 | PUT | /api/v1/formats/:formatId/maiml | MAIMLファイル保存（フォーマット） | ⏳ 未実装 | MaimlController.saveFormat |
-| 5.4 | GET | /api/v1/maiml-files | MAIMLファイル一覧取得 | ⏳ 未実装 | MaimlController.listFiles |
-| 5.5 | GET | /api/v1/projects/:projectId/maiml | MAIMLファイル取得（プロジェクト） | ⏳ 未実装 | MaimlController.getProject |
-| 5.6 | GET | /api/v1/formats/:formatId/maiml | MAIMLファイル取得（フォーマット） | ⏳ 未実装 | MaimlController.getFormat |
-| 5.7 | POST | /api/v1/maiml/validate | MAIMLバリデーション | ⏳ 未実装 | MaimlController.validate |
-| 5.8 | POST | /api/v1/maiml/correct | MAIML自動補正 | ⏳ 未実装 | MaimlController.correct |
+| 5.1 | POST | /api/v1/maiml/parse | MAIML解析（基本） | ✅ 実装済み | maimlController.parse |
+| 5.2 | POST | /api/v1/maiml/parse-petri-net-structure | ペトリネット構造解析（複数method対応・強化版） | ✅ 実装済み | maimlController.parsePetriNetStructure |
+| 5.3 | POST | /api/v1/maiml/save | MAIMLファイル保存 | ✅ 実装済み | maimlController.save |
+| 5.4 | POST | /api/v1/maiml/load | MAIMLファイル読込 | ✅ 実装済み | maimlController.load |
+| 5.5 | GET | /api/v1/maiml/list | MAIMLファイル一覧取得 | ✅ 実装済み | maimlController.list |
+| 5.6 | POST | /api/v1/maiml/validate | MAIMLバリデーション | ✅ 実装済み | maimlController.validate |
+| 5.7 | POST | /api/v1/maiml/correct | MAIML自動補正 | ⚠️ スタブ実装 | maimlController.correct |
+| 5.8 | POST | /api/v1/maiml/session/start | 編集セッション開始 | ✅ 実装済み | maimlController.startSession |
+| 5.9 | POST | /api/v1/maiml/session/end | 編集セッション終了 | ✅ 実装済み | maimlController.endSession |
+| 5.10 | GET | /api/v1/maiml/health | ヘルスチェック | ✅ 実装済み | maimlController.health |
 
 **ミドルウェアチェーン:**
-- すべて: `auth` → `tenantIsolation` → `permissionCheck`
+- 5.1-5.9: `auth` → バリデーション
+- 5.3-5.5, 5.8-5.9: organization_id必須（tenantIsolation相当）
+- 5.10: 認証不要
 - 権限: Manager以上
 
 **備考:**
+- ✅ Phase 4（2026-01-27）: サービス層実装完了
+  - parseMaiML, parsePetriNetStructure, saveMaiML, loadMaiML
+  - listMaiMLFiles, validateMaiML, correctMaiML（スタブ）
+  - startEditSession, endEditSession
+- ✅ Phase 6（2026-01-27）: API接続完全統合
+  - 新API `/parse-petri-net-structure` 追加（複数method対応）
+  - フロントエンドPetriNetEditorを新APIに接続
 - 複数メソッド対応（1ファイルに複数の実験手順）
-- Petri Net構造解析
+- Petri Net構造解析（method別のplace/transition/arc抽出）
+- ステレオタイプ自動抽出（materialTemplate, conditionTemplate, resultTemplate）
+- InstructionID自動紐付け
+- 重複ID検証統合
 - XMLバリデーション・自動補正機能
 - バックアップ機能（archiveフォルダ）
+- storageService統合（S3/Swift対応）
 - 旧エンドポイント（`/api/worker/*`）は2026年7月21日廃止予定
 
 ---
@@ -221,15 +239,15 @@
 
 ### 全体統計
 
-| カテゴリ | 総数 | 実装済み | 未実装 | 実装率 |
-|---------|------|---------|--------|--------|
-| 認証API | 6 | 6 | 0 | 100% |
-| プロジェクト管理API | 11 | 5 | 6 | 45% |
-| 共通API | 2 | 0 | 2 | 0% |
-| フォーマット管理API | 5 | 0 | 5 | 0% |
-| Maiml編集API | 8 | 0 | 8 | 0% |
-| 進捗確認API | 2 | 0 | 2 | 0% |
-| **合計** | **34** | **11** | **23** | **32%** |
+| カテゴリ | 総数 | 実装済み | スタブ | 未実装 | 実装率 |
+|---------|------|---------|-------|--------|--------|
+| 認証API | 6 | 6 | 0 | 0 | 100% |
+| プロジェクト管理API | 12 | 8 | 0 | 4 | 67% |
+| 共通API | 2 | 0 | 0 | 2 | 0% |
+| フォーマット管理API | 5 | 0 | 0 | 5 | 0% |
+| Maiml編集API | 10 | 9 | 1 | 0 | 90% |
+| 進捗確認API | 2 | 0 | 0 | 2 | 0% |
+| **合計** | **37** | **23** | **1** | **13** | **62%** |
 
 ### 優先度別実装状況
 
@@ -248,7 +266,6 @@
 - ⏳ フォーマット管理API（5エンドポイント）
 - ⏳ Maiml編集API（8エンドポイント）
 - ⏳ チェックイン/チェックアウト
-- ⏳ プロジェクトリロード
 
 **Phase 4（進捗・公開機能）- 未実装:**
 - ⏳ 進捗確認API（2エンドポイント）
@@ -262,7 +279,7 @@
 ```
 backend/src/routes/
 ├── authRoutes.ts              # 認証API（6エンドポイント）✅ 実装済み
-├── projectRoutes.ts           # プロジェクト管理API（10エンドポイント）✅ 実装済み
+├── projectRoutes.ts           # プロジェクト管理API（10エンドポイント、リロードAPI削除済み）✅ 実装済み
 ├── fileRoutes.ts              # 共通API（2エンドポイント）⏳ 未実装
 ├── formatRoutes.ts            # フォーマット管理API（5エンドポイント）⏳ 未実装
 ├── maimlRoutes.ts             # Maiml編集API（8エンドポイント）⏳ 未実装
@@ -401,6 +418,25 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.4.0 | 2026-01-27 09:24 | Maiml編集API実装完了（37エンドポイント） | Cline |
+| | | - Maiml編集API: 10エンドポイント、9実装済み、1スタブ（90%） | |
+| | | - 新規実装: parse, parsePetriNetStructure, save, load, list | |
+| | | - 新規実装: validate, session/start, session/end, health | |
+| | | - スタブ実装: correct（自動補正機能） | |
+| | | - Phase 4（2026-01-27）: サービス層実装完了 | |
+| | | - Phase 6（2026-01-27）: API接続完全統合 | |
+| | | - 全体実装率: 40%→62%に大幅向上 | |
+| 2.3.0 | 2026-01-26 15:42 | プロジェクト管理APIの実装状況を更新（35エンドポイント） | Cline |
+| | | - プロジェクト管理API: 12エンドポイント、8実装済み（67%） | |
+| | | - 新規実装: プロジェクト詳細取得、チェックアウト状態取得 | |
+| | | - 新規実装: ファイル一覧取得、タスク一覧取得 | |
+| | | - 全体実装率: 30%→40%に向上 | |
+| | | - 未実装: 指示送信・一覧、プロジェクト詳細検索、公開 | |
+| 2.2.0 | 2026-01-26 | プロジェクトリロードAPI削除（33エンドポイント） | Cline |
+| | | - プロジェクト管理API: 11→10エンドポイントに削減 | |
+| | | - `/api/v1/projects/:projectId/reload` エンドポイント削除 | |
+| | | - 理由: 既存のプロジェクト一覧・ファイル一覧・タスク一覧APIで代用可能 | |
+| | | - フロントエンドは既存APIを組み合わせたリロード処理に変更済み | |
 | 2.1.0 | 2026-01-23 | プロジェクト管理APIを最新化（34エンドポイント） | Cline |
 | | | - プロジェクト管理API: 10→11エンドポイントに更新 | |
 | | | - チェックアウト/チェックイン機能を追加 | |

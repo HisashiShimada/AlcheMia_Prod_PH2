@@ -53,9 +53,6 @@ interface ProjectCheckoutInfo {
 /**
  * ProjectServiceクラス
  */
-// インメモリロック（並行リロード制御用）
-const reloadLocks = new Map<string, Promise<any>>();
-
 export class ProjectService {
   /**
    * プロジェクト作成
@@ -995,191 +992,6 @@ export class ProjectService {
   }
 
   /**
-   * プロジェクトキャッシュクリア
-   * 
-   * Task 2.1: プロジェクト存在確認とキャッシュクリア機能の実装
-   * Requirements: REQ-1, REQ-3, REQ-5
-   * 
-   * @param organizationId - 組織ID
-   * @param projectId - プロジェクトID
-   * @returns キャッシュクリア結果
-   */
-  async clearProjectCache(
-    organizationId: string,
-    projectId: string
-  ): Promise<ServiceResult<{ projectId: string; clearedCaches: string[] }>> {
-    try {
-      const pool = getPool();
-
-      // プロジェクト存在確認（organization_idフィルタ付き）
-      const checkQuery = `
-        SELECT project_id
-        FROM project
-        WHERE organization_id = $1 AND project_id = $2
-      `;
-
-      const result = await pool.query(checkQuery, [organizationId, projectId]);
-
-      // プロジェクト存在確認
-      if (result.rows.length === 0) {
-        return {
-          success: false,
-          error: {
-            code: 'RESOURCE_NOT_FOUND',
-            message: 'プロジェクトが見つかりません',
-          },
-        };
-      }
-
-      // キャッシュキーを構築
-      const detailKey = `project:${organizationId}:${projectId}:detail`;
-      const filesKey = `project:${organizationId}:${projectId}:files`;
-      const tasksKey = `project:${organizationId}:${projectId}:tasks`;
-
-      // キャッシュクリア実行
-      projectCache.del(detailKey);
-      projectCache.del(filesKey);
-      projectCache.del(tasksKey);
-
-      return {
-        success: true,
-        data: {
-          projectId,
-          clearedCaches: ['detail', 'files', 'tasks'],
-        },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'SYSTEM_DATABASE_ERROR',
-          message: 'データベースエラーが発生しました',
-          originalError: error as Error,
-        },
-      };
-    }
-  }
-
-  /**
-   * ファイル同期処理（Three-way merge）
-   * 
-   * Task 2.2: ファイル同期処理の実装
-   * Requirements: REQ-2, REQ-4, REQ-5
-   * 
-   * @param organizationId - 組織ID
-   * @param organizationPrefix - 組織プレフィックス
-   * @param projectId - プロジェクトID
-   * @param projectName - プロジェクト名
-   * @returns 同期結果サマリー
-   */
-  async syncFiles(
-    organizationId: string,
-    organizationPrefix: string,
-    projectId: string,
-    projectName: string
-  ): Promise<{ addedCount: number; updatedCount: number; deletedCount: number }> {
-    const { v4: uuidv4 } = require('uuid');
-    const storageService = getStorageService();
-    const fileMetadataRepo = new FileMetadataRepository();
-
-    // S3からファイルリストを取得
-    const s3Files = await storageService.listFiles(
-      organizationPrefix,
-      `projects/${projectName}/`
-    );
-
-    // データベースから現在のfile_metadataを取得
-    const dbFiles = await fileMetadataRepo.getByProject(organizationId, projectId);
-
-    // S3ファイルをMap化（objectKey -> S3ファイル）
-    const s3FileMap = new Map(
-      s3Files.map((file) => [file.key, file])
-    );
-
-    // DBファイルをMap化（objectKey -> DBファイル）
-    const dbFileMap = new Map(
-      dbFiles.map((file) => [file.objectKey, file])
-    );
-
-    // バッチ操作を構築
-    const operations: BatchOperation[] = [];
-
-    // 新規ファイルと更新ファイルを検出
-    for (const [objectKey, s3File] of s3FileMap) {
-      const dbFile = dbFileMap.get(objectKey);
-
-      if (!dbFile) {
-        // 新規ファイル
-        const fileName = objectKey.split('/').pop() || '';
-        const fileType = fileName.split('.').pop() || '';
-
-        operations.push({
-          type: 'INSERT',
-          data: {
-            fileId: uuidv4(),
-            organizationId,
-            projectId,
-            bucketName: storageService.getBucketName(),
-            objectKey,
-            fileName,
-            fileType,
-            fileSize: s3File.size,
-            contentType: fileType === 'maiml' ? 'application/xml' : 'application/octet-stream',
-            lastModified: s3File.lastModified,
-          },
-        });
-      } else {
-        // 既存ファイル - サイズまたは更新日時が変更されているか確認
-        const sizeChanged = s3File.size !== dbFile.fileSize;
-        const timeChanged =
-          new Date(s3File.lastModified).getTime() !== new Date(dbFile.lastModified).getTime();
-
-        if (sizeChanged || timeChanged) {
-          operations.push({
-            type: 'UPDATE',
-            data: {
-              fileId: dbFile.fileId,
-              organizationId,
-              fileSize: s3File.size,
-              lastModified: s3File.lastModified,
-            },
-          });
-        }
-      }
-    }
-
-    // 削除ファイルを検出
-    for (const [objectKey, dbFile] of dbFileMap) {
-      if (!s3FileMap.has(objectKey)) {
-        // S3に存在しない → 削除対象
-        operations.push({
-          type: 'DELETE',
-          data: {
-            fileId: dbFile.fileId,
-            organizationId,
-          },
-        });
-      }
-    }
-
-    // バッチ操作を実行（操作がある場合のみ）
-    if (operations.length > 0) {
-      await fileMetadataRepo.executeBatch(operations);
-    }
-
-    // サマリーを計算
-    const addedCount = operations.filter((op) => op.type === 'INSERT').length;
-    const updatedCount = operations.filter((op) => op.type === 'UPDATE').length;
-    const deletedCount = operations.filter((op) => op.type === 'DELETE').length;
-
-    return {
-      addedCount,
-      updatedCount,
-      deletedCount,
-    };
-  }
-
-  /**
    * プロジェクトファイル一覧を取得
    * 
    * Task 2.1: ファイル一覧取得API - Service層実装
@@ -1188,14 +1000,12 @@ export class ProjectService {
    * @param organizationId - 組織ID
    * @param projectId - プロジェクトID
    * @param organizationPrefix - 組織プレフィックス
-   * @param includeArchive - アーカイブファイルを含めるか
-   * @returns ファイル一覧
+   * @returns ファイル一覧（archiveファイルは常に取得）
    */
   async getProjectFiles(
     organizationId: string,
     projectId: string,
-    organizationPrefix: string,
-    includeArchive: boolean
+    organizationPrefix: string
   ): Promise<ServiceResult<{
     projectId: string;
     projectName: string;
@@ -1239,10 +1049,20 @@ export class ProjectService {
           `projects/${projectName}/`
         ).catch(() => []);
 
-        // archive配下のファイルを除外してフィルタリング
+        // archive配下のファイルと.keepファイルを除外してフィルタリング
         const rootFiles = currentFiles.filter((file: any) => {
           // archive/配下のファイルは除外
-          return !file.key.includes('/archive/');
+          if (file.key.includes('/archive/')) {
+            return false;
+          }
+          
+          // .keepファイルを除外
+          const fileName = file.key.split('/').pop() || '';
+          if (fileName === '.keep') {
+            return false;
+          }
+          
+          return true;
         });
 
         // 各ファイルに対して署名付きURLを生成
@@ -1273,15 +1093,22 @@ export class ProjectService {
           })
         );
 
-        // include_archive=true の場合、アーカイブファイルも取得
-        if (includeArchive) {
-          const archiveFilesList = await storageService.listFiles(
-            organizationPrefix,
-            `projects/${projectName}/archive/`
-          ).catch(() => []);
+        // archiveファイルを常に取得（include_archiveパラメータ削除）
+        const archiveFilesList = await storageService.listFiles(
+          organizationPrefix,
+          `projects/${projectName}/archive/`
+        ).catch(() => []);
 
+        // .keepファイルを除外
+        const filteredArchiveFiles = archiveFilesList.filter((file: any) => {
+          const fileName = file.key.split('/').pop() || '';
+          return fileName !== '.keep';
+        });
+
+        // archiveファイルが存在する場合のみ署名付きURL生成
+        if (filteredArchiveFiles.length > 0) {
           archiveFiles = await Promise.all(
-            archiveFilesList.map(async (file: any) => {
+            filteredArchiveFiles.map(async (file: any) => {
               const signedUrl = await storageService.getSignedUrl(
                 organizationPrefix,
                 file.key.replace(`org_${organizationPrefix}/`, ''),
@@ -1309,6 +1136,9 @@ export class ProjectService {
               };
             })
           );
+        } else {
+          // 空配列を明示的に設定
+          archiveFiles = [];
         }
       } catch (s3Error) {
         // S3エラー時は空配列を返す（グレースフル処理）
@@ -1334,133 +1164,6 @@ export class ProjectService {
         },
       };
     }
-  }
-
-  /**
-   * プロジェクトリロード
-   * 
-   * Task 2.3, 2.4: 並行リロード制御機能とサマリー生成機能の実装
-   * Requirements: REQ-1, REQ-4, REQ-6
-   * 
-   * @param organizationId - 組織ID
-   * @param organizationPrefix - 組織プレフィックス
-   * @param projectId - プロジェクトID
-   * @param projectName - プロジェクト名
-   * @returns リロード結果サマリー
-   */
-  async reloadProject(
-    organizationId: string,
-    organizationPrefix: string,
-    projectId: string,
-    projectName: string
-  ): Promise<ServiceResult<{ projectId: string; summary: any }>> {
-    // 並行リロードチェック
-    if (reloadLocks.has(projectId)) {
-      return {
-        success: false,
-        error: {
-          code: 'PROJECT_RELOAD_IN_PROGRESS',
-          message: '別のリロード処理が実行中です。しばらく待ってから再試行してください。',
-        },
-      };
-    }
-
-    // リロードPromiseを作成してロックに登録
-    const reloadPromise = (async () => {
-      try {
-        const pool = getPool();
-
-        // プロジェクト存在確認
-        const checkQuery = `
-          SELECT project_id, project_name
-          FROM project
-          WHERE organization_id = $1 AND project_id = $2
-        `;
-
-        const result = await pool.query(checkQuery, [organizationId, projectId]);
-
-        if (result.rows.length === 0) {
-          return {
-            success: false,
-            error: {
-              code: 'RESOURCE_NOT_FOUND',
-              message: 'プロジェクトが見つかりません',
-            },
-          };
-        }
-
-        // Task 2.4: タスク数取得
-        const taskCountQuery = `
-          SELECT COUNT(DISTINCT CASE 
-            WHEN method_id IS NOT NULL AND task_no IS NOT NULL 
-            THEN method_id || '_' || task_no::TEXT 
-            ELSE NULL 
-          END) as total_tasks
-          FROM project_task_detail
-          WHERE organization_id = $1 AND project_id = $2
-        `;
-
-        const taskCountResult = await pool.query(taskCountQuery, [organizationId, projectId]);
-        const totalTasks = parseInt(taskCountResult.rows[0]?.total_tasks || '0', 10);
-
-        // Promise.allで並列実行: ファイル同期とキャッシュクリア
-        const [syncResult, cacheResult] = await Promise.all([
-          this.syncFiles(organizationId, organizationPrefix, projectId, projectName),
-          this.clearProjectCache(organizationId, projectId),
-        ]);
-
-        // キャッシュクリアのエラーチェック
-        if (!cacheResult.success) {
-          return cacheResult as ServiceResult<any>;
-        }
-
-        // Task 2.4: サマリーを構築（タスク情報を含む）
-        return {
-          success: true,
-          data: {
-            projectId,
-            summary: {
-              filesAdded: syncResult.addedCount,
-              filesUpdated: syncResult.updatedCount,
-              filesDeleted: syncResult.deletedCount,
-              totalTasks,
-              cacheCleared: true,
-            },
-          },
-        };
-      } catch (error) {
-        // エラーの種類に応じてエラーコードを設定
-        const errorMessage = (error as Error).message || '';
-        if (errorMessage.includes('S3') || errorMessage.includes('storage')) {
-          return {
-            success: false,
-            error: {
-              code: 'SYSTEM_S3_ERROR',
-              message: 'S3エラーが発生しました',
-              originalError: error as Error,
-            },
-          };
-        }
-
-        return {
-          success: false,
-          error: {
-            code: 'SYSTEM_DATABASE_ERROR',
-            message: 'データベースエラーが発生しました',
-            originalError: error as Error,
-          },
-        };
-      } finally {
-        // 処理完了後、ロックを解放
-        reloadLocks.delete(projectId);
-      }
-    })();
-
-    // ロックに登録
-    reloadLocks.set(projectId, reloadPromise);
-
-    // リロード実行
-    return await reloadPromise;
   }
 
   /**

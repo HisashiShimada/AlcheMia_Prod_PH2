@@ -42,11 +42,18 @@ import {
   downloadAllFiles,
   executeMultipleDownloads,
 } from '@/api/fileDownloadService';
-import { fetchProjects } from '@/utils/apiClient';
-import { getProjectFiles, getProjectTasks } from '@/api/projectApiService';
-import type { FileListResponse, TaskListResponse } from '@/api/projectApiService';
-import type { ApiResponse } from '@/types/api';
-import type { Project, ProjectListResponse, Task, ProjectEditParams } from '@/types/project';
+import { getProjects } from '@/api/projectApiService';
+import {
+  getProjectFiles, 
+  getProjectTasks,
+  createProject as createProjectApi,
+  type CreateProjectRequest,
+  type ApiResponse,
+  type ProjectListResponse,
+  type FileListResponse,
+  type TaskListResponse
+} from '@/api/projectApiService';
+import type { Project, Task, ProjectEditParams } from '@/types/project';
 import type { ProjectFile } from '@/types/file';
 
 const { Title, Text } = Typography;
@@ -96,7 +103,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   } | null>(null);
   const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
   const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
-  const [projectTasksData, setProjectTasksData] = useState<Record<string, { tasks: Task[]; statistics: any }>>({});
+  const [projectTasksData, setProjectTasksData] = useState<Record<string, { tasks: Task[]; statistics: unknown }>>({});
   const [isLoadingTabData, setIsLoadingTabData] = useState(false);
   
   // 複数ダイアログ管理
@@ -139,13 +146,13 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   const [isReloadingProject, setIsReloadingProject] = useState(false);
 
   // プロジェクト一覧をAPI経由で取得
-  const { 
-    data: projectsData, 
-    isLoading: isLoadingProjects, 
-    error: projectsError, 
-    refetch: refetchProjects 
+  const {
+    data: projectsData,
+    loading: projectsLoading,
+    error: projectsError,
+    refetch: refetchProjects
   } = useApi<ApiResponse<ProjectListResponse>>(
-    fetchProjects,
+    async () => await getProjects(),
     []
   );
 
@@ -442,8 +449,8 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
       const rootFiles = projectData.root || [];
       const archiveFiles = projectData.archive || [];
       
-      // archiveフォルダを常に表示（ファイルの有無に関わらず）
-      if (selectedProject) {
+      // archiveフォルダはファイルが存在する場合のみ表示
+      if (selectedProject && archiveFiles.length > 0) {
         const archiveFolder: ProjectFile = {
           id: 'archive',
           name: 'archive',
@@ -568,12 +575,21 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
 
   // 指示送信ハンドラ
   const handleInstructionSubmit = useCallback((data: {
-    taskDetails: Array<{
-      methodId: string;
-      taskNo: number;
-      transitionIds: string[];
+    instructions: Array<{
+      instructionId: string;
+      content: string;
+      priority: string;
+      instructionType: string;
+      type: string;
+      timestamp: string;
+      targetType: string;
+      transitionId: string | null;
+      targetTransitionId?: string;
+      taskNumber?: number;
     }>;
-    instructionMessage: string;
+    fileKey: string;
+    managerId: string;
+    assignedWorkerId: string | null;
   }) => {
     console.log('指示データ送信:', data);
     // TODO: チェックアウトAPIを呼び出す
@@ -807,7 +823,14 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     }
   }, [selectedProject]);
 
-  // プロジェクトリロードハンドラ
+  /**
+   * プロジェクトリロードハンドラー
+   * 
+   * 処理フロー:
+   * 1. プロジェクト一覧を最新化
+   * 2. 選択中のプロジェクトを復元
+   * 3. 選択中のタブのデータを最新化
+   */
   const handleProjectReload = useCallback(async () => {
     if (!selectedProject) {
       message.warning('プロジェクトを選択してください');
@@ -817,138 +840,87 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     try {
       setIsReloadingProject(true);
       
-      console.log('プロジェクトリロード開始:', selectedProject.id);
-      
-      // リロードAPI呼び出し（POST /api/v1/projects/:projectId/reload）
-      const response = await fetch(`/api/v1/projects/${selectedProject.id}/reload`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // 認証トークンは自動的にCookieから送信される
-        },
-        credentials: 'include', // Cookie認証を使用
-        signal: AbortSignal.timeout(30000), // 30秒タイムアウト
+      console.log('🔄 [ProjectManagement] リロード開始:', {
+        projectId: selectedProject.id,
+        projectName: selectedProject.name,
+        currentTab,
       });
-
-      if (!response.ok) {
-        // エラーレスポンスの処理
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error?.message || 'リロードに失敗しました';
-        
-        switch (response.status) {
-          case 400:
-            // バリデーションエラー
-            message.error('リクエストが正しくありません。プロジェクトIDを確認してください。');
-            break;
-          case 401:
-            // 認証エラー
-            message.error('認証に失敗しました。再度ログインしてください。');
-            // TODO: ログイン画面にリダイレクト
-            break;
-          case 403:
-            // 権限エラー
-            message.error('この操作を実行する権限がありません。管理者権限が必要です。');
-            break;
-          case 404:
-            // プロジェクト不存在
-            message.error('プロジェクトが見つかりません');
-            break;
-          case 409:
-            // 並行実行競合
-            message.warning('別のリロードが実行中です。しばらくしてから再度お試しください。');
-            break;
-          case 500:
-          case 502:
-          case 503:
-            // サーバーエラー
-            message.error(`サーバーエラーが発生しました: ${errorMessage}`);
-            break;
-          default:
-            // その他のエラー
-            message.error(errorMessage);
-        }
-        return;
+      
+      // 1. 現在の選択状態を保存
+      const currentProjectId = selectedProject.id;
+      const currentProjectName = selectedProject.name;
+      const currentTabKey = currentTab;
+      
+      // 2. プロジェクト一覧を最新化
+      console.log('📋 [ProjectManagement] プロジェクト一覧を最新化');
+      await refetchProjects();
+      
+      // 3. プロジェクト選択を復元
+      console.log('🎯 [ProjectManagement] プロジェクト選択を復元:', currentProjectId);
+      setSelectedProjectId(currentProjectId);
+      
+      // 4. 選択中のタブに応じてデータを最新化
+      if (currentTabKey === 'file_management') {
+        console.log('📂 [ProjectManagement] ファイル一覧を最新化');
+        const fileResponse = await getProjectFiles(currentProjectName, true);
+        setProjectFilesData(prev => ({
+          ...prev,
+          [currentProjectId]: {
+            root: fileResponse.files || [],
+            archive: fileResponse.archiveFiles || [],
+          }
+        }));
+        console.log('✅ [ProjectManagement] ファイル一覧更新完了:', {
+          root: fileResponse.files?.length || 0,
+          archive: fileResponse.archiveFiles?.length || 0,
+        });
+      } else if (currentTabKey === 'task_results') {
+        console.log('📋 [ProjectManagement] タスク一覧を最新化');
+        const taskResponse = await getProjectTasks(currentProjectName, 'all');
+        setProjectTasksData(prev => ({
+          ...prev,
+          [currentProjectId]: {
+            tasks: taskResponse.tasks || [],
+            statistics: taskResponse.statistics || {},
+          }
+        }));
+        console.log('✅ [ProjectManagement] タスク一覧更新完了:', {
+          tasks: taskResponse.tasks?.length || 0,
+        });
       }
-
-      // 成功レスポンスのパース
-      const result = await response.json();
       
-      // サマリー情報を取得
-      const summary = result.data?.summary || {};
-      const filesAdded = summary.filesAdded || 0;
-      const filesUpdated = summary.filesUpdated || 0;
-      const filesDeleted = summary.filesDeleted || 0;
-      
-      // サマリーメッセージの生成
-      const summaryParts: string[] = [];
-      if (filesAdded > 0) summaryParts.push(`追加: ${filesAdded}件`);
-      if (filesUpdated > 0) summaryParts.push(`更新: ${filesUpdated}件`);
-      if (filesDeleted > 0) summaryParts.push(`削除: ${filesDeleted}件`);
-      
-      const summaryText = summaryParts.length > 0 
-        ? ` (${summaryParts.join(', ')})`
-        : '';
-      
-      // 成功メッセージ（サマリー付き）
-      message.success(`プロジェクトのリロードが完了しました${summaryText}`);
-      
-      // ファイル一覧を再取得（APIサービスは既に展開済み）
-      const filesResponse = await getProjectFiles(selectedProject.id, false);
-      setProjectFilesData(prev => ({
-        ...prev,
-        [selectedProject.id]: {
-          root: filesResponse.files || [],
-          archive: filesResponse.archiveFiles || [],
-        }
-      }));
+      // 成功メッセージ
+      message.success('プロジェクトの最新情報を読み込みました');
+      console.log('✅ [ProjectManagement] リロード完了');
     } catch (error) {
-      console.error('プロジェクトリロードエラー:', error);
-      
-      if (error instanceof DOMException && error.name === 'TimeoutError') {
-        message.error('リロードがタイムアウトしました。プロジェクトが大きすぎる可能性があります。');
-      } else if (error instanceof TypeError && error.message.includes('fetch')) {
-        message.error('ネットワークエラーが発生しました。接続を確認してください。');
-      } else {
-        message.error('プロジェクトのリロードに失敗しました');
-      }
+      console.error('❌ [ProjectManagement] リロードエラー:', error);
+      message.error('プロジェクトの最新情報の取得に失敗しました');
     } finally {
       setIsReloadingProject(false);
     }
-  }, [selectedProject]);
+  }, [selectedProject, currentTab, refetchProjects]);
 
   // 新規プロジェクト作成ハンドラ
   const handleCreateProject = useCallback(async (data: CreateProjectData) => {
     try {
-      console.log('新規プロジェクト作成:', data);
+      console.log('🆕 [ProjectManagement] Creating new project:', data);
       
-      // 新しいプロジェクトIDを生成
-      const newProjectId = `proj_${String(projects.length + 1).padStart(3, '0')}`;
-      
-      // 新しいプロジェクトオブジェクトを作成
-      const newProject: Project = {
-        id: newProjectId,
-        name: data.name,
-        folderName: data.folderName,
-        description: data.description,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: 'planning' as const,
-        fileCount: 0,
-        totalSize: 0,
-        owner: data.owner,
-        department: data.department,
-        members: [data.owner],
-        tags: [],
-        isCheckedOut: false,
-        checkedOutBy: null,
-        checkedOutAt: null,
+      // API呼び出し用のリクエストデータを作成
+      const requestData: CreateProjectRequest = {
+        projectName: data.projectName,
+        description: data.description || undefined,
       };
       
-      // プロジェクト一覧に追加
-      setProjects((prev) => [newProject, ...prev]);
+      // プロジェクト作成APIを呼び出し
+      const createdProject = await createProjectApi(requestData);
+      
+      console.log('✅ [ProjectManagement] Project created successfully:', createdProject);
+      
+      // プロジェクト一覧を再取得
+      await refetchProjects();
       
       // 新しいプロジェクトを選択状態にする
-      setSelectedProjectId(newProjectId);
+      setSelectedProjectId(createdProject.projectId);
       
       // 成功メッセージを表示
       message.success({
@@ -958,18 +930,23 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
       
       // モーダルを閉じる
       handleCloseCreateModal();
-      
-      // TODO: 実際のAPI呼び出しを実装
-      // await apiService.post('/api/projects', data);
     } catch (error) {
-      console.error('プロジェクト作成エラー:', error);
+      console.error('❌ [ProjectManagement] Project creation failed:', error);
+      
+      // エラーメッセージをユーザーに表示
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (t('projectManagement.create.error') || 'プロジェクトの作成に失敗しました');
+      
       message.error({
-        content: t('projectManagement.create.error') || 'プロジェクトの作成に失敗しました',
-        duration: 3,
+        content: errorMessage,
+        duration: 5,
       });
+      
+      // エラーを再スローしてCreateProjectModalでキャッチさせる
       throw error;
     }
-  }, [projects, t, handleCloseCreateModal]);
+  }, [t, handleCloseCreateModal, refetchProjects]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: token.colorBgLayout }}>
@@ -1463,17 +1440,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
         <InstructionDialog
           open={instructionDialogOpen}
           onClose={handleCloseInstructionDialog}
-          onSubmit={(data) => {
-            // InstructionDialogの型に合わせて変換
-            handleInstructionSubmit({
-              taskDetails: data.instructions.map(inst => ({
-                methodId: inst.methodId || '',
-                taskNo: inst.taskNo || 0,
-                transitionIds: inst.transitionIds || [],
-              })),
-              instructionMessage: '',
-            });
-          }}
+          onSubmit={handleInstructionSubmit}
           fileKey={selectedProject.folderName}
           managerId="current_manager_id"
           projectName={selectedProject.name}
