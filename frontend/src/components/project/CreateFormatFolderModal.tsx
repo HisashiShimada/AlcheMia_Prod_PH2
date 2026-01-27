@@ -95,7 +95,7 @@ const CreateFormatFolderModal: React.FC<CreateFormatFolderModalProps> = ({
       okText={t('common.create')}
       cancelText={t('common.cancel')}
       width={600}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ marginTop: token.margin }}>
         {/* 選択中のフォーマット情報 */}

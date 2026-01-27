@@ -287,7 +287,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
         cancelText="キャンセル"
         width={480}
       >
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <div>
             <div style={{ marginBottom: 8 }}>
               <label>Method ID</label>

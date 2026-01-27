@@ -1,0 +1,206 @@
+/**
+ * カスタムエラークラスとエラーハンドリング機能
+ * 
+ * タスク1.2: エラークラスとエラーハンドリング機能の実装
+ * Requirements: 7 (エラーハンドリングとレスポンス)
+ * 
+ * 統一されたエラーレスポンス形式を提供し、
+ * HTTPステータスコードとエラーコードのマッピングを管理します。
+ */
+
+/**
+ * バリデーションエラー（HTTP 400）
+ */
+export class ValidationError extends Error {
+  public readonly statusCode = 400;
+  public readonly code = 'VALIDATION_ERROR';
+  public readonly details?: any[];
+
+  constructor(message: string, details?: any[]) {
+    super(message);
+    this.name = 'ValidationError';
+    this.details = details;
+    
+    // TypeScript の制約により、Error を継承する場合は必要
+    Object.setPrototypeOf(this, ValidationError.prototype);
+  }
+}
+
+/**
+ * 認証エラー（HTTP 401）
+ */
+export class AuthenticationError extends Error {
+  public readonly statusCode = 401;
+  public readonly code = 'AUTHENTICATION_ERROR';
+
+  constructor(message: string = 'Authentication failed') {
+    super(message);
+    this.name = 'AuthenticationError';
+    Object.setPrototypeOf(this, AuthenticationError.prototype);
+  }
+}
+
+/**
+ * 認可エラー（HTTP 403）
+ */
+export class AuthorizationError extends Error {
+  public readonly statusCode = 403;
+  public readonly code = 'AUTHORIZATION_ERROR';
+
+  constructor(message: string = 'Insufficient permissions') {
+    super(message);
+    this.name = 'AuthorizationError';
+    Object.setPrototypeOf(this, AuthorizationError.prototype);
+  }
+}
+
+/**
+ * リソース未検出エラー（HTTP 404）
+ */
+export class NotFoundError extends Error {
+  public readonly statusCode = 404;
+  public readonly code = 'NOT_FOUND';
+  public readonly resourceType?: string;
+
+  constructor(message: string = 'Resource not found', resourceType?: string) {
+    super(message);
+    this.name = 'NotFoundError';
+    this.resourceType = resourceType;
+    Object.setPrototypeOf(this, NotFoundError.prototype);
+  }
+}
+
+/**
+ * ストレージエラー（HTTP 500）
+ */
+export class StorageError extends Error {
+  public readonly statusCode = 500;
+  public readonly code = 'STORAGE_ERROR';
+  public readonly originalError?: Error;
+
+  constructor(message: string, originalError?: Error) {
+    super(message);
+    this.name = 'StorageError';
+    this.originalError = originalError;
+    Object.setPrototypeOf(this, StorageError.prototype);
+  }
+}
+
+/**
+ * エラーレスポンス形式
+ */
+export interface ErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: any[];
+  };
+  meta: {
+    timestamp: string;
+    requestId?: string;
+  };
+}
+
+/**
+ * エラーオブジェクトを統一されたレスポンス形式に変換
+ * 
+ * @param error - 変換するエラーオブジェクト
+ * @param requestId - リクエストID（オプション）
+ * @returns 統一されたエラーレスポンス
+ * 
+ * @example
+ * ```typescript
+ * const error = new ValidationError('Invalid email', [{ field: 'email', message: 'Required' }]);
+ * const response = formatErrorResponse(error, 'req_123');
+ * // => { success: false, error: { code: 'VALIDATION_ERROR', ... }, meta: { ... } }
+ * ```
+ */
+export function formatErrorResponse(
+  error: Error,
+  requestId?: string
+): ErrorResponse {
+  const timestamp = new Date().toISOString();
+
+  // カスタムエラークラスの場合
+  if (error instanceof ValidationError) {
+    return {
+      success: false,
+      error: {
+        code: error.code,
+        message: error.message,
+        ...(error.details && { details: error.details }),
+      },
+      meta: {
+        timestamp,
+        ...(requestId && { requestId }),
+      },
+    };
+  }
+
+  if (
+    error instanceof AuthenticationError ||
+    error instanceof AuthorizationError ||
+    error instanceof NotFoundError ||
+    error instanceof StorageError
+  ) {
+    return {
+      success: false,
+      error: {
+        code: error.code,
+        message: error.message,
+      },
+      meta: {
+        timestamp,
+        ...(requestId && { requestId }),
+      },
+    };
+  }
+
+  // 一般的なErrorの場合
+  return {
+    success: false,
+    error: {
+      code: 'INTERNAL_SERVER_ERROR',
+      message: error.message,
+    },
+    meta: {
+      timestamp,
+      ...(requestId && { requestId }),
+    },
+  };
+}
+
+/**
+ * エラーオブジェクトから適切なHTTPステータスコードを取得
+ * 
+ * @param error - エラーオブジェクト
+ * @returns HTTPステータスコード
+ * 
+ * @example
+ * ```typescript
+ * const error = new ValidationError('Invalid input');
+ * const statusCode = getHttpStatusFromError(error);
+ * // => 400
+ * ```
+ */
+export function getHttpStatusFromError(error: Error): number {
+  // カスタムエラークラスの場合
+  if (
+    error instanceof ValidationError ||
+    error instanceof AuthenticationError ||
+    error instanceof AuthorizationError ||
+    error instanceof NotFoundError ||
+    error instanceof StorageError
+  ) {
+    return error.statusCode;
+  }
+
+  // statusCode プロパティを持つエラーの場合
+  if ('statusCode' in error && typeof (error as any).statusCode === 'number') {
+    return (error as any).statusCode;
+  }
+
+  // デフォルトは 500 Internal Server Error
+  return 500;
+}

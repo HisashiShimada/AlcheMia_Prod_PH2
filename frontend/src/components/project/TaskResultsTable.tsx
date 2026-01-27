@@ -5,25 +5,13 @@ import { Table, Button, Tag, Typography, Empty, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EyeOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { TaskStatus } from '@/types/progress';
+import type { Task } from '@/types/project';
 
 const { Text } = Typography;
 
-interface TaskResult {
-  workId: string;
-  taskName: string;
-  methodName: string;
-  assignedWorker: string;
-  workStatus: TaskStatus;
-  progressPercentage: number;
-  completedAt: string | null;
-  workCompletedAt: string | null; // 作業終了日
-  reviewCompletedAt: string | null; // レビュー完了日
-}
-
 interface TaskResultsTableProps {
-  results: TaskResult[];
-  onViewResult: (result: TaskResult) => void;
+  results: Task[];
+  onViewResult: (result: Task) => void;
 }
 
 /**
@@ -54,21 +42,22 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
     }
   };
 
-  const columns: ColumnsType<TaskResult> = [
+  const columns: ColumnsType<Task> = [
     {
       title: t('projectManagement.task_results.task_name') || 'タスク名',
       dataIndex: 'taskName',
       key: 'taskName',
       width: '30%',
-      sorter: (a, b) => a.taskName.localeCompare(b.taskName),
-      render: (text: string) => <Text strong>{text}</Text>,
+      sorter: (a, b) => (a.taskName || a.transitionName).localeCompare(b.taskName || b.transitionName),
+      render: (_text: string, record: Task) => <Text strong>{record.taskName || record.transitionName}</Text>,
     },
     {
       title: t('projectManagement.task_results.method_name') || 'メソッド',
       dataIndex: 'methodName',
       key: 'methodName',
       width: '20%',
-      sorter: (a, b) => a.methodName.localeCompare(b.methodName),
+      sorter: (a, b) => (a.methodName || '').localeCompare(b.methodName || ''),
+      render: (text: string | undefined) => text || '-',
     },
     {
       title: t('projectManagement.task_results.status') || 'ステータス',
@@ -149,7 +138,7 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
       key: 'actions',
       width: '10%',
       align: 'center',
-      render: (_text: string, record: TaskResult) => (
+      render: (_text: string, record: Task) => (
         <Button
           type="default"
           size="small"
@@ -169,7 +158,7 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
     <Table
       dataSource={results}
       columns={columns}
-      rowKey="workId"
+      rowKey={(record) => record.workId || record.taskId}
       size="small"
       pagination={false}
       locale={{

@@ -265,7 +265,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
         {/* エッジ選択時のUI */}
         {isEdge && selectedEdge && (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             {/* エッジタイプ表示 */}
             <div style={{ padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
               <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -357,7 +357,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
         {/* ノード選択時のUI */}
         {selectedNode && (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             {/* ノードタイプ表示 */}
             <div style={{ padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
               <Text type="secondary" style={{ fontSize: '12px' }}>

@@ -38,7 +38,6 @@ import MultiObjectEditor, { ObjectData } from './MultiObjectEditor';
 import { fetchCreators, fetchVendors, fetchOwners, fetchInstruments, type MasterDataItem } from '@/utils/apiClient';
 
 const { Text, Title, Paragraph } = Typography;
-const { Panel } = Collapse;
 const { TextArea } = Input;
 
 /**
@@ -453,7 +452,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
         {/* バリデーションエラー表示 */}
         {validationErrors.length > 0 && (
           <Alert
-            message="バリデーションエラー"
+            title="バリデーションエラー"
             description={
               <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
                 {validationErrors.map((error, index) => (
@@ -469,7 +468,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
         {/* 新規作成モード表示 */}
         {isNewDocument && (
           <Alert
-            message="🆕 新規Document作成モード"
+            title="🆕 新規Document作成モード"
             description="必要最小限の情報から開始します。参照プロパティは必要に応じて追加できます。"
             type="success"
             showIcon
@@ -480,82 +479,86 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
         <Collapse
           activeKey={expandedSections}
           onChange={handleToggleSection}
-        >
-          {/* 基本プロパティセクション */}
-          <Panel header={<Text strong>📄 基本プロパティ</Text>} key="basic">
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Text type="secondary">Document ID *</Text>
-                  <Input
-                    value={editingDocument.id || ''}
-                    onChange={(e) => handleBasicPropertyUpdate('id', e.target.value)}
-                    size="small"
-                  />
-                </Col>
-                <Col span={12}>
-                  <Text type="secondary">UUID</Text>
-                  <Space.Compact style={{ width: '100%' }}>
-                    <Input
-                      value={editingDocument.uuid || ''}
-                      onChange={(e) => handleBasicPropertyUpdate('uuid', e.target.value)}
-                      size="small"
-                    />
-                    <Button
-                      icon={<ExperimentOutlined />}
-                      onClick={() => handleBasicPropertyUpdate('uuid', generateUUID())}
-                      size="small"
-                      title="UUID生成"
-                    />
-                  </Space.Compact>
-                </Col>
-              </Row>
+          items={[
+            {
+              key: 'basic',
+              label: <Text strong>📄 基本プロパティ</Text>,
+              children: (
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Text type="secondary">Document ID *</Text>
+                      <Input
+                        value={editingDocument.id || ''}
+                        onChange={(e) => handleBasicPropertyUpdate('id', e.target.value)}
+                        size="small"
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <Text type="secondary">UUID</Text>
+                      <Space.Compact style={{ width: '100%' }}>
+                        <Input
+                          value={editingDocument.uuid || ''}
+                          onChange={(e) => handleBasicPropertyUpdate('uuid', e.target.value)}
+                          size="small"
+                        />
+                        <Button
+                          icon={<ExperimentOutlined />}
+                          onClick={() => handleBasicPropertyUpdate('uuid', generateUUID())}
+                          size="small"
+                          title="UUID生成"
+                        />
+                      </Space.Compact>
+                    </Col>
+                  </Row>
 
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Text type="secondary">Name *</Text>
-                  <Input
-                    value={editingDocument.name || ''}
-                    onChange={(e) => handleBasicPropertyUpdate('name', e.target.value)}
-                    size="small"
-                    disabled={!isNewDocument && !!documentData}
-                  />
-                </Col>
-                <Col span={12}>
-                  <Text type="secondary">Description</Text>
-                  <Input
-                    value={editingDocument.description || ''}
-                    onChange={(e) => handleBasicPropertyUpdate('description', e.target.value)}
-                    size="small"
-                  />
-                </Col>
-              </Row>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Text type="secondary">Name *</Text>
+                      <Input
+                        value={editingDocument.name || ''}
+                        onChange={(e) => handleBasicPropertyUpdate('name', e.target.value)}
+                        size="small"
+                        disabled={!isNewDocument && !!documentData}
+                      />
+                    </Col>
+                    <Col span={12}>
+                      <Text type="secondary">Description</Text>
+                      <Input
+                        value={editingDocument.description || ''}
+                        onChange={(e) => handleBasicPropertyUpdate('description', e.target.value)}
+                        size="small"
+                      />
+                    </Col>
+                  </Row>
 
-              <div>
-                <Text type="secondary">Date</Text>
-                <Space.Compact style={{ width: '100%' }}>
-                  <Input
-                    type="datetime-local"
-                    value={editingDocument.date ? editingDocument.date.slice(0, 16) : ''}
-                    onChange={(e) => handleBasicPropertyUpdate('date', e.target.value + ':00.000Z')}
-                    size="small"
-                  />
-                  <Button
-                    icon={<ClockCircleOutlined />}
-                    onClick={setCurrentDateTime}
-                    size="small"
-                    title="現在日時を設定"
-                  />
-                </Space.Compact>
-              </div>
-            </Space>
-          </Panel>
-
-          {/* MaiML ID属性セクション */}
-          <Panel header={<Text strong>🔑 MaiML ID属性（詳細設定）</Text>} key="maimlIds">
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                  <div>
+                    <Text type="secondary">Date</Text>
+                    <Space.Compact style={{ width: '100%' }}>
+                      <Input
+                        type="datetime-local"
+                        value={editingDocument.date ? editingDocument.date.slice(0, 16) : ''}
+                        onChange={(e) => handleBasicPropertyUpdate('date', e.target.value + ':00.000Z')}
+                        size="small"
+                      />
+                      <Button
+                        icon={<ClockCircleOutlined />}
+                        onClick={setCurrentDateTime}
+                        size="small"
+                        title="現在日時を設定"
+                      />
+                    </Space.Compact>
+                  </div>
+                </Space>
+              )
+            },
+            {
+              key: 'maimlIds',
+              label: <Text strong>🔑 MaiML ID属性（詳細設定）</Text>,
+              children: (
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Alert
-                message="💡 MaiMLファイル内の各要素に設定されるID属性値を編集できます。新規作成時は自動生成された値が設定されています。"
+                title="💡 MaiMLファイル内の各要素に設定されるID属性値を編集できます。新規作成時は自動生成された値が設定されています。"
                 type="info"
               />
 
@@ -610,28 +613,27 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
               </Row>
 
               <Alert
-                message="⚠️ ID値は英数字、アンダースコア(_)、ハイフン(-)のみ使用可能です。最大64文字まで設定できます。"
+                title="⚠️ ID値は英数字、アンダースコア(_)、ハイフン(-)のみ使用可能です。最大64文字まで設定できます。"
                 type="warning"
               />
-            </Space>
-          </Panel>
-
-          {/* XML署名セクション */}
-          <Panel
-            header={
-              <Space>
-                <LockOutlined />
-                <Text strong>🔒 XML署名（改ざん防止）</Text>
-                {editingDocument.signature?.enabled && (
-                  <Tag color="success">有効</Tag>
-                )}
-              </Space>
-            }
-            key="signature"
-          >
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                </Space>
+              )
+            },
+            {
+              key: 'signature',
+              label: (
+                <Space>
+                  <LockOutlined />
+                  <Text strong>🔒 XML署名（改ざん防止）</Text>
+                  {editingDocument.signature?.enabled && (
+                    <Tag color="success">有効</Tag>
+                  )}
+                </Space>
+              ),
+              children: (
+                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
               <Alert
-                message="📋 XML署名機能について"
+                title="📋 XML署名機能について"
                 description="W3C XMLDSig仕様に基づくXML署名を追加します。MaiML保存時にSHA-256ハッシュを計算し、document要素内にSignature要素を挿入します。これにより、ファイルの改ざんを検出できます。"
                 type="info"
               />
@@ -673,9 +675,11 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                   </Text>
                 </div>
               )}
-            </Space>
-          </Panel>
-        </Collapse>
+                </Space>
+              )
+            }
+          ]}
+        />
 
         {/* MultiObjectEditorセクション */}
         <MultiObjectEditor
@@ -754,7 +758,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
 
         {/* ヒント */}
         <Alert
-          message="💡 ヒント"
+          title="💡 ヒント"
           description={
             <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
               <li>UUIDジェネレーターボタンで一意の識別子を一括生成できます</li>

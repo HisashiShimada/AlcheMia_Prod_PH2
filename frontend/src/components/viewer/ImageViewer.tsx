@@ -191,7 +191,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
       }}>
         {/* ローディング */}
         {loading && (
-          <Space direction="vertical" size="large" align="center">
+          <Space orientation="vertical" size="large" align="center">
             <Spin 
               indicator={<LoadingOutlined style={{ fontSize: 48 }} spin />}
               size="large"
@@ -217,7 +217,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
 
         {/* 画像表示 */}
         {imageUrl && !loading && !error && (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <div style={{ 
               display: 'flex', 
               justifyContent: 'center',
@@ -242,7 +242,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
 
             {/* 画像情報 */}
             <Card size="small" style={{ textAlign: 'center' }}>
-              <Space direction="vertical" size="small">
+              <Space orientation="vertical" size="small">
                 {imageDimensions.width > 0 && (
                   <Text type="secondary">
                     サイズ: {imageDimensions.width} x {imageDimensions.height} px

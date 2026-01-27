@@ -1,0 +1,49 @@
+{
+  "feature_name": "file-task-list-api",
+  "created_at": "2026-01-23T09:30:30+09:00",
+  "updated_at": "2026-01-23T10:30:27+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "source_document": "docs/design/api/api_project_management.md",
+  "modification_history": [
+    {
+      "date": "2026-01-23T10:02:00+09:00",
+      "description": "認証部分の修正を反映（X-Organization-Idヘッダーからセッション情報経由に変更）",
+      "reference": "docs/20260123_0944_API仕様書_認証部分見直し_PLAN.md"
+    },
+    {
+      "date": "2026-01-23T10:14:00+09:00",
+      "description": "tenantIsolationミドルウェア削除に伴う要件の見直し（authMiddlewareがreq.userにorganizationIdを格納し、コントローラーで直接使用する方式に変更）",
+      "reference": "API仕様書の整理に基づく修正"
+    }
+  ],
+  "apis": [
+    {
+      "name": "ファイル一覧取得API",
+      "endpoint": "GET /api/v1/projects/:projectId/files",
+      "priority": "high",
+      "authentication": "JWT + Session Hybrid (organization_id from session)"
+    },
+    {
+      "name": "タスク一覧取得API",
+      "endpoint": "GET /api/v1/projects/:projectId/tasks",
+      "priority": "high",
+      "authentication": "JWT + Session Hybrid (organization_id from session)"
+    }
+  ],
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "ready_for_implementation": false
+}

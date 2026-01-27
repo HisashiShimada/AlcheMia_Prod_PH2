@@ -9,6 +9,9 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!(uuid)/)',
   ],
+  moduleNameMapper: {
+    '^uuid$': require.resolve('uuid'),
+  },
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',

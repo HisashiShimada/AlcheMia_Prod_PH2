@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   Button,
   Tooltip,
   Space,
   Empty,
+  message,
   theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -19,33 +20,62 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
-
-interface FileData {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  lastModified: string;
-  type: string;
-  isFolder?: boolean;
-  fileCount?: number;
-}
+import {
+  downloadFile,
+  executeFileDownload,
+} from '@/api/fileDownloadService';
+import type { ProjectFile } from '@/types/file';
 
 interface FileListTableProps {
-  files: FileData[];
-  onFileClick?: (file: FileData) => void;
+  files: ProjectFile[];
+  projectId: string;
+  onFileClick?: (file: ProjectFile) => void;
   onFolderClick?: (folderId: string) => void;
-  onViewFile?: (file: FileData) => void;
+  onViewFile?: (file: ProjectFile) => void;
 }
 
 /**
  * ファイル一覧テーブルコンポーネント
  */
-const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFolderClick, onViewFile }) => {
+const FileListTable: React.FC<FileListTableProps> = ({ 
+  files, 
+  projectId, 
+  onFileClick, 
+  onFolderClick, 
+  onViewFile 
+}) => {
   const { token } = theme.useToken();
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
+
+  /**
+   * ファイルダウンロード処理
+   */
+  const handleDownloadFile = async (file: ProjectFile) => {
+    try {
+      setDownloadingFileId(file.id);
+
+      // API通信: 署名付きURLを取得
+      const fileDownloadInfo = await downloadFile(projectId, file.name);
+
+      // ファイルダウンロード実行
+      executeFileDownload(fileDownloadInfo.downloadUrl, fileDownloadInfo.fileName);
+
+      // 成功メッセージ表示
+      message.success(`「${file.name}」のダウンロードを開始しました`);
+    } catch (error) {
+      console.error('ファイルダウンロードエラー:', error);
+      message.error(
+        `ファイルのダウンロードに失敗しました: ${
+          error instanceof Error ? error.message : '不明なエラー'
+        }`
+      );
+    } finally {
+      setDownloadingFileId(null);
+    }
+  };
   
   // ファイルタイプに応じたアイコンを取得
-  const getFileIcon = (file: FileData) => {
+  const getFileIcon = (file: ProjectFile) => {
     if (file.isFolder) {
       return <FolderOpenOutlined style={{ fontSize: token.fontSizeLG, color: token.colorWarning }} />;
     }
@@ -66,20 +96,20 @@ const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFol
     }
   };
 
-  const columns: ColumnsType<FileData> = [
+  const columns: ColumnsType<ProjectFile> = [
     {
       title: 'タイプ',
       key: 'type',
       width: 50,
       align: 'center',
-      render: (_text: string, record: FileData) => getFileIcon(record),
+      render: (_text: string, record: ProjectFile) => getFileIcon(record),
     },
     {
       title: 'ファイル名',
       dataIndex: 'name',
       key: 'name',
       sorter: (a, b) => a.name.localeCompare(b.name, 'ja'),
-      render: (text: string, record: FileData) => (
+      render: (text: string, record: ProjectFile) => (
         <Tooltip title={record.path} placement="topLeft">
           <span
             style={{
@@ -99,7 +129,7 @@ const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFol
       key: 'size',
       width: 120,
       sorter: (a, b) => a.size - b.size,
-      render: (_text: string, record: FileData) =>
+      render: (_text: string, record: ProjectFile) =>
         !record.isFolder ? (
           <span style={{ color: token.colorTextSecondary }}>{formatFileSize(record.size)}</span>
         ) : null,
@@ -109,7 +139,7 @@ const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFol
       key: 'lastModified',
       width: 150,
       sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime(),
-      render: (_text: string, record: FileData) =>
+      render: (_text: string, record: ProjectFile) =>
         !record.isFolder ? (
           <span style={{ color: token.colorTextSecondary }}>{formatRelativeTime(record.lastModified)}</span>
         ) : null,
@@ -119,16 +149,18 @@ const FileListTable: React.FC<FileListTableProps> = ({ files, onFileClick, onFol
       key: 'actions',
       width: 220,
       align: 'center',
-      render: (_text: string, record: FileData) =>
+      render: (_text: string, record: ProjectFile) =>
         !record.isFolder ? (
           <Space size="small">
             <Button
               type="default"
               size="small"
               icon={<DownloadOutlined />}
+              loading={downloadingFileId === record.id}
+              disabled={downloadingFileId !== null}
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('Download file:', record.name);
+                handleDownloadFile(record);
               }}
             >
               ダウンロード

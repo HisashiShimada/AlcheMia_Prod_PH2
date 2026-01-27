@@ -195,7 +195,9 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
                 height: '100%',
               }}
             >
-              <Spin size="large" tip="ファイルを読み込み中..." />
+              <Spin size="large">
+                <div style={{ minHeight: 100 }} />
+              </Spin>
             </div>
           ) : (
             <ViewRenderer
@@ -245,7 +247,9 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
                 height: '100%',
               }}
             >
-              <Spin size="large" tip="ファイルを読み込み中..." />
+              <Spin size="large">
+                <div style={{ minHeight: 100 }} />
+              </Spin>
             </div>
           ) : (
             <ViewRenderer

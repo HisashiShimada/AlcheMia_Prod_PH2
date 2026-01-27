@@ -360,7 +360,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         body: { maxHeight: '70vh', overflowY: 'auto' },
       }}
     >
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         {/* アップロードタイプ選択 */}
         <div>
           <Text strong style={{ display: 'block', marginBottom: 8 }}>
@@ -445,7 +445,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
               padding: 16,
             }}
           >
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Text strong>選択ファイル ({fileList.length}個)</Text>
               <div
                 style={{
@@ -502,7 +502,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         <Divider style={{ margin: '12px 0' }} />
 
         {/* オプション設定 */}
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <div>
             <Text strong style={{ display: 'block', marginBottom: 8 }}>
               アップロード先フォルダ
@@ -570,7 +570,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           <Alert
             message="アップロード中"
             description={
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                 <Text>
                   {uploadState.uploadedCount} / {uploadState.totalCount} ファイル完了
                 </Text>

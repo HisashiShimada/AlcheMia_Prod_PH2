@@ -156,3 +156,7 @@ specification/*.maiml
 
 # ER図ファイル
 docs/design/db/*.a5er
+
+# demoファイル
+frontend/src/app/demo
+frontend/src/components/demo

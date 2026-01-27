@@ -458,7 +458,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         alignItems: 'center', 
         height: 500 
       }}>
-        <Space direction="vertical" size="large" align="center">
+        <Space orientation="vertical" size="large" align="center">
           <Spin size="large" />
           <Text type="secondary">ペトリネット構造を読み込み中...</Text>
         </Space>
@@ -573,7 +573,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       {/* 情報表示 */}
       {performanceStats ? (
         <Card size="small" style={{ marginTop: 16 }}>
-          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="small" style={{ width: '100%' }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
               <strong>パフォーマンス統計:</strong>
             </Text>

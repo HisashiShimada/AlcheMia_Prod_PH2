@@ -19,7 +19,6 @@ import {
   Space,
   Flex,
   Divider,
-  List,
   theme,
   Grid,
   Row,
@@ -404,7 +403,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       {/* エラー表示 */}
       {error && (
         <Alert
-          message="エラー"
+          title="エラー"
           description={error}
           type="error"
           showIcon
@@ -421,7 +420,10 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       {/* ローディング */}
       {loading && !fileDetails && (
         <Flex justify="center" align="center" style={{ padding: token.paddingXL }}>
-          <Spin size="large" tip="ファイル詳細を読み込み中..." />
+          <Spin size="large" tip="ファイル詳細を読み込み中..." >
+              <div style={{ minHeight: 100 }} />
+            </Spin>
+              <div style={{ minHeight: 100 }} />
         </Flex>
       )}
 
@@ -429,21 +431,21 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       {fileDetails?.projectInfo && (
         <Card
           size="small"
-          bordered={false}
+          variant="borderless"
           style={{
             background: token.colorBgLayout,
             borderBottom: `1px solid ${token.colorBorder}`,
             borderRadius: 0,
           }}
         >
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <Text type="secondary" strong>
               プロジェクト情報
             </Text>
             
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={12}>
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                   <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                     プロジェクト名
                   </Text>
@@ -473,7 +475,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                 </Space>
               </Col>
               <Col xs={24} sm={12}>
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                   <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                     プロジェクトID
                   </Text>
@@ -487,7 +489,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
             {fileDetails.projectInfo.projectDescription && (
               <Row>
                 <Col span={24}>
-                  <Space direction="vertical" size={0}>
+                  <Space orientation="vertical" size={0}>
                     <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                       説明
                     </Text>
@@ -499,7 +501,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
 
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={8}>
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                   <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                     オーナー
                   </Text>
@@ -508,7 +510,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
               </Col>
               {fileDetails.projectInfo.department && (
                 <Col xs={24} sm={8}>
-                  <Space direction="vertical" size={0}>
+                  <Space orientation="vertical" size={0}>
                     <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                       部門
                     </Text>
@@ -517,7 +519,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                 </Col>
               )}
               <Col xs={24} sm={8}>
-                <Space direction="vertical" size={0}>
+                <Space orientation="vertical" size={0}>
                   <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                     更新日時
                   </Text>
@@ -535,7 +537,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       {needsMethodFilter && (
         <Card
           size="small"
-          bordered={false}
+          variant="borderless"
           style={{
             background: token.colorBgContainer,
             borderBottom: `1px solid ${token.colorBorder}`,
@@ -583,12 +585,12 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       {/* 選択中の作業詳細 */}
       {selectedWork && (
         <div style={{ padding: token.padding }}>
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             {/* タスク詳細 */}
             <Card size="small" title="タスク詳細">
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={12} md={6}>
-                  <Space direction="vertical" size={0}>
+                  <Space orientation="vertical" size={0}>
                     <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                       タスク名
                     </Text>
@@ -598,7 +600,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                   </Space>
                 </Col>
                 <Col xs={24} sm={12} md={6}>
-                  <Space direction="vertical" size={0}>
+                  <Space orientation="vertical" size={0}>
                     <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                       タスクID
                     </Text>
@@ -608,7 +610,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                   </Space>
                 </Col>
                 <Col xs={24} sm={12} md={6}>
-                  <Space direction="vertical" size={0}>
+                  <Space orientation="vertical" size={0}>
                     <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                       タスクステータス
                     </Text>
@@ -618,7 +620,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                   </Space>
                 </Col>
                 <Col xs={24} sm={12} md={6}>
-                  <Space direction="vertical" size={0}>
+                  <Space orientation="vertical" size={0}>
                     <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                       メソッド名
                     </Text>
@@ -632,7 +634,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
 
             {/* トランジションサマリー */}
             <Card size="small" title="トランジションサマリー">
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
 
                 {/* トランジション統計 */}
                 <Row gutter={[8, 8]}>
@@ -644,7 +646,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                         background: token.colorBgLayout,
                         padding: `${token.paddingXXS}px ${token.paddingXS}px`,
                       }}
-                      bodyStyle={{ padding: token.paddingXS }}
+                      styles={{ body: { padding: token.paddingXS } }}
                     >
                       <Text strong style={{ fontSize: token.fontSize }}>
                         {selectedWork.stats.totalTransitions}
@@ -663,7 +665,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                         background: token.colorSuccessBg,
                         padding: `${token.paddingXXS}px ${token.paddingXS}px`,
                       }}
-                      bodyStyle={{ padding: token.paddingXS }}
+                      styles={{ body: { padding: token.paddingXS } }}
                     >
                       <Text strong style={{ fontSize: token.fontSize, color: token.colorSuccess }}>
                         {selectedWork.stats.completed}
@@ -682,7 +684,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                         background: token.colorPrimaryBg,
                         padding: `${token.paddingXXS}px ${token.paddingXS}px`,
                       }}
-                      bodyStyle={{ padding: token.paddingXS }}
+                      styles={{ body: { padding: token.paddingXS } }}
                     >
                       <Text strong style={{ fontSize: token.fontSize, color: token.colorPrimary }}>
                         {selectedWork.stats.working}
@@ -701,7 +703,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                         background: token.colorBgLayout,
                         padding: `${token.paddingXXS}px ${token.paddingXS}px`,
                       }}
-                      bodyStyle={{ padding: token.paddingXS }}
+                      styles={{ body: { padding: token.paddingXS } }}
                     >
                       <Text strong style={{ fontSize: token.fontSize }}>
                         {selectedWork.stats.notStarted}
@@ -720,7 +722,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                         background: token.colorInfoBg,
                         padding: `${token.paddingXXS}px ${token.paddingXS}px`,
                       }}
-                      bodyStyle={{ padding: token.paddingXS }}
+                      styles={{ body: { padding: token.paddingXS } }}
                     >
                       <Text strong style={{ fontSize: token.fontSize, color: token.colorInfo }}>
                         {selectedWork.stats.completionRate}%
@@ -764,15 +766,17 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                 <Text type="secondary" strong style={{ paddingLeft: token.paddingSM }}>
                   トランジション詳細 ({selectedWork.transitionProgress.length}件)
                 </Text>
-                <List
-                  style={{ marginTop: token.marginXS }}
-                  dataSource={selectedWork.transitionProgress}
-                  renderItem={(transition: TransitionProgress) => (
-                    <List.Item>
-                      <Card
-                        size="small"
-                        style={{ width: '100%', borderColor: token.colorBorder }}
-                      >
+                <Space 
+                  orientation="vertical" 
+                  size="small" 
+                  style={{ width: '100%', marginTop: token.marginXS }}
+                >
+                  {selectedWork.transitionProgress.map((transition: TransitionProgress) => (
+                    <Card
+                      key={transition.transitionId}
+                      size="small"
+                      style={{ width: '100%', borderColor: token.colorBorder }}
+                    >
                         <Row gutter={[16, 8]} align="middle">
                           <Col flex="30px">
                             {getProgressStatusIcon(transition.progressStatus)}
@@ -794,7 +798,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                             </Text>
                           </Col>
                           <Col xs={24} sm={8} md={6}>
-                            <Space direction="vertical" size={0}>
+                            <Space orientation="vertical" size={0}>
                               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                                 作業者
                               </Text>
@@ -804,7 +808,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                             </Space>
                           </Col>
                           <Col xs={24} sm={8} md={6}>
-                            <Space direction="vertical" size={0}>
+                            <Space orientation="vertical" size={0}>
                               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                                 開始日
                               </Text>
@@ -821,7 +825,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                             </Space>
                           </Col>
                           <Col xs={24} sm={8} md={6}>
-                            <Space direction="vertical" size={0}>
+                            <Space orientation="vertical" size={0}>
                               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                                 終了日
                               </Text>
@@ -839,16 +843,15 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                           </Col>
                         </Row>
                       </Card>
-                    </List.Item>
-                  )}
-                />
+                  ))}
+                </Space>
               </div>
             )}
 
             {selectedWork.transitionProgress &&
               selectedWork.transitionProgress.length === 0 && (
                 <Alert
-                  message="トランジション進捗データがありません"
+                  title="トランジション進捗データがありません"
                   type="info"
                   showIcon
                 />
@@ -860,7 +863,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       {/* データなし */}
       {!loading && fileDetails?.workDetails && fileDetails.workDetails.length === 0 && (
         <Alert
-          message="作業IDが割り当てられていません"
+          title="作業IDが割り当てられていません"
           description="このファイルには作業IDが割り当てられていません。"
           type="info"
           showIcon

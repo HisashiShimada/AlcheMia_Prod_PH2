@@ -44,6 +44,7 @@
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "axios-mock-adapter": "^2.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.0.8",
     "jest": "^30.2.0",

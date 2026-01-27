@@ -6,7 +6,7 @@
 
 **重要**: DDLファイルを変更した際は、必ずこのファイルも更新してください。
 
-**最終更新**: 2026-01-16
+**最終更新**: 2026-01-23
 **ER図ファイル**: `docs/design/db/er_diagram.a5er`
 **DDLディレクトリ**: `docs/design/db/ddl/`
 
@@ -14,7 +14,7 @@
 
 ## 📋 テーブル一覧（カテゴリ別）
 
-### 1. 認証関連テーブル（10テーブル）
+### 1. 認証関連テーブル（9テーブル）
 
 #### 1.1 corporation（会社）
 - **物理名**: `corporation`
@@ -162,21 +162,6 @@
 
 ---
 
-#### 1.10 department（部署）
-- **物理名**: `department`
-- **論理名**: 部署
-- **DDLファイル**: `docs/design/db/ddl/department.sql`
-- **主キー**: `organization_id` (UUID), `department_cd` (VARCHAR(50))
-- **主要カラム**:
-  - `organization_id` - 組織ID
-  - `department_cd` - 部署CD
-  - `department_name` - 部署名
-  - `is_active` - アクティブ判定
-  - `create_at` - 作成日時
-  - `update_at` - 更新日時
-
----
-
 ### 2. プロジェクト管理関連テーブル（8テーブル）
 
 #### 2.1 project（プロジェクト）
@@ -280,7 +265,55 @@
 
 ---
 
-#### 2.6 issue（問題）
+#### 2.6 template_data（テンプレート実績）
+- **物理名**: `template_data`
+- **論理名**: テンプレート実績
+- **DDLファイル**: `docs/design/db/ddl/template_data.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `place_id` (VARCHAR)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `method_id` - メソッドID
+  - `task_no` - タスク連番
+  - `place_id` - プレースID
+  - `property_set` - プロパティセット（JSONB形式）
+
+---
+
+#### 2.7 transition_data（トランジション実績）
+- **物理名**: `transition_data`
+- **論理名**: トランジション実績
+- **DDLファイル**: `docs/design/db/ddl/transition_data.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `transition_id` (VARCHAR)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `method_id` - メソッドID
+  - `task_no` - タスク連番
+  - `transition_id` - トランジションID
+  - `status` - ステータス
+  - `progress_rate` - 進捗率
+
+---
+
+#### 2.8 department（部署）
+- **物理名**: `department`
+- **論理名**: 部署
+- **DDLファイル**: `docs/design/db/ddl/department.sql`
+- **主キー**: `organization_id` (UUID), `department_cd` (VARCHAR(50))
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `department_cd` - 部署CD
+  - `department_name` - 部署名
+  - `is_active` - アクティブ判定
+  - `create_at` - 作成日時
+  - `update_at` - 更新日時
+
+---
+
+### 3. 問題管理関連テーブル（2テーブル）
+
+#### 3.1 issue（問題）
 - **物理名**: `issue`
 - **論理名**: 問題
 - **DDLファイル**: `docs/design/db/ddl/issue.sql`
@@ -303,7 +336,7 @@
 
 ---
 
-#### 2.7 issue_comment（問題コメント）
+#### 3.2 issue_comment（問題コメント）
 - **物理名**: `issue_comment`
 - **論理名**: 問題コメント
 - **DDLファイル**: `docs/design/db/ddl/issue_comment.sql`
@@ -319,68 +352,7 @@
 
 ---
 
-#### 2.8 event_log（イベントログ）
-- **物理名**: `event_log`
-- **論理名**: イベントログ
-- **DDLファイル**: `docs/design/db/ddl/event_log.sql`
-- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `sequence_no` (NUMERIC)
-- **主要カラム**:
-  - `organization_id` - 組織ID
-  - `project_id` - プロジェクトID
-  - `method_id` - メソッドID
-  - `task_no` - タスク連番
-  - `sequence_no` - シーケンス番号
-  - `log` - ログ
-
----
-
-#### 2.9 maiml_event_log（MaiMLイベントログ）
-- **物理名**: `maiml_event_log`
-- **論理名**: MaiMLイベントログ
-- **DDLファイル**: `docs/design/db/ddl/maiml_event_log.sql`
-- **主キー**: `organization_id` (UUID), `project_id` (UUID), `sequence_no` (NUMERIC)
-- **主要カラム**:
-  - `organization_id` - 組織ID
-  - `project_id` - プロジェクトID
-  - `sequence_no` - シーケンス番号
-  - `log` - ログ（JSONB形式）
-
----
-
-### 3. 実験データ管理関連テーブル（3テーブル）
-
-#### 3.1 transition_data（トランジション実績）
-- **物理名**: `transition_data`
-- **論理名**: トランジション実績
-- **DDLファイル**: `docs/design/db/ddl/transition_data.sql`
-- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `transition_id` (VARCHAR)
-- **主要カラム**:
-  - `organization_id` - 組織ID
-  - `project_id` - プロジェクトID
-  - `method_id` - メソッドID
-  - `task_no` - タスク連番
-  - `transition_id` - トランジションID
-  - `status` - ステータス
-  - `progress_rate` - 進捗率
-
----
-
-#### 3.2 template_data（テンプレート実績）
-- **物理名**: `template_data`
-- **論理名**: テンプレート実績
-- **DDLファイル**: `docs/design/db/ddl/template_data.sql`
-- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR), `task_no` (NUMERIC), `place_id` (VARCHAR)
-- **主要カラム**:
-  - `organization_id` - 組織ID
-  - `project_id` - プロジェクトID
-  - `method_id` - メソッドID
-  - `task_no` - タスク連番
-  - `place_id` - プレースID
-  - `property_set` - プロパティセット（JSONB形式）
-
----
-
-### 4. 共通マスタテーブル（6テーブル）
+### 4. 共通マスタテーブル（5テーブル）
 
 #### 4.1 code_master（コードマスタ）
 - **物理名**: `code_master`
@@ -415,6 +387,8 @@
   - `is_active` - アクティブ判定
   - `create_at` - 作成日時
   - `update_at` - 更新日時
+
+---
 
 #### 4.3 instrument_master（instrumentマスタ）
 - **物理名**: `instrument_master`
@@ -465,23 +439,6 @@
 
 ---
 
-#### 4.6 system_notification（システム通知）
-- **物理名**: `system_notification`
-- **論理名**: システム通知
-- **DDLファイル**: `docs/design/db/ddl/system_notification.sql`
-- **主キー**: `notification_id` (VARCHAR)
-- **主要カラム**:
-  - `notification_id` - 通知ID
-  - `organization_id` - 組織ID
-  - `role` - ロール
-  - `notification_title` - 通知内容_タイトル
-  - `notification_detail` - 通知内容_詳細
-  - `notification_from` - 通知期間From
-  - `noticfication_to` - 通知期間To
-  - `is_confirmed` - 確認済フラグ
-
----
-
 ### 5. 通知関連テーブル（1テーブル）
 
 #### 5.1 user_notification（ユーザ別通知）
@@ -497,16 +454,64 @@
 
 ---
 
+### 6. 監査・ログ関連テーブル（1テーブル）
+
+#### 6.1 maiml_event_log（MaiMLイベントログ）
+- **物理名**: `maiml_event_log`
+- **論理名**: MaiMLイベントログ
+- **DDLファイル**: `docs/design/db/ddl/maiml_event_log.sql`
+- **主キー**: `organization_id` (UUID), `project_id` (UUID), `sequence_no` (NUMERIC)
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `project_id` - プロジェクトID
+  - `sequence_no` - シーケンス番号
+  - `log` - ログ（JSONB形式）
+
+---
+
+### 7. ファイル管理関連テーブル（1テーブル）
+
+#### 7.1 file_metadata（ファイルメタデータ）
+- **物理名**: `file_metadata`
+- **論理名**: ファイルメタデータ
+- **DDLファイル**: `docs/design/db/ddl/file_metadata.sql`
+- **説明**: S3/Swiftファイルのメタデータ管理テーブル（v1.0 - 初期実装: S3アクセス必須カラムのみ）
+- **主キー**: `file_key` (VARCHAR(500)) - S3キーを主キーとする自然キー設計
+- **主要カラム**:
+  - `file_key` - S3キー（org_prefix/path/to/file形式、主キー）
+  - `s3_bucket` - S3バケット名またはSwiftコンテナ名
+  - `organization_id` - 組織ID（マルチテナント分離用、必須）
+  - `original_filename` - 元のファイル名（アップロード時の名前）
+  - `file_size` - ファイルサイズ（バイト単位）
+  - `file_type` - MIMEタイプ（例: application/xml）
+  - `uploaded_by` - アップロードユーザーID
+  - `created_at` - 作成日時（自動設定）
+  - `updated_at` - 更新日時（トリガーで自動更新）
+- **外部キー**: なし
+- **インデックス**:
+  - `idx_file_metadata_organization_id` - organization_id（マルチテナント分離必須）
+  - `idx_file_metadata_uploaded_by` - uploaded_by（ユーザー単位のファイル一覧取得用）
+- **トリガー**:
+  - `update_file_metadata_updated_at` - updated_at自動更新
+- **特記事項**:
+  - file_keyは主キーなので、インデックスは自動作成される
+  - すべてのクエリでorganization_idフィルタを必須とする
+  - v2.0でMAIML解析メタデータ追加予定
+
+---
+
 ## 📊 テーブル数サマリー
 
 | カテゴリ | テーブル数 |
 |---------|----------|
-| 認証関連 | 10 |
-| プロジェクト管理関連 | 9 |
-| 実験データ管理関連 | 2 |
-| 共通マスタ | 6 |
+| 認証関連 | 9 |
+| プロジェクト管理関連 | 8 |
+| 問題管理関連 | 2 |
+| 共通マスタ | 5 |
 | 通知関連 | 1 |
-| **合計** | **28** |
+| 監査・ログ関連 | 1 |
+| ファイル管理関連 | 1 |
+| **合計** | **27** |
 
 ---
 
@@ -535,8 +540,13 @@ organization
 project
   ↓ ↓
   │ └→ project_instruction
+  │      ↓
+  │      instruction_acknowledged_history
   ↓
 project_task
+  ↓ ↓
+  │ └→ template_data
+  └→ transition_data
   ↓
 project_task_detail
 
@@ -545,18 +555,18 @@ project
 issue
   ↓
 issue_comment
-
-project_task_detail
-  ↓ ↓
-  │ └→ template_data
-  └→ transition_data
 ```
 
 ### 通知フロー
 ```
-system_notification
+user_notification (独立テーブル)
+```
+
+### ログフロー
+```
+project
   ↓
-user_notification
+maiml_event_log
 ```
 
 ---
@@ -588,9 +598,45 @@ user_notification
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
-| 2026-01-21 | maiml_event_log追加、issueにstatusカラム追加、template_data構造更新、template_transition削除、合計28テーブルに調整 | Cline |
-| 2026-01-16 | DDL削除に伴い4テーブル削除（creator, owner, instrument, vendor）、合計28テーブルに調整 | Cline |
-| 2026-01-16 | DDLファイルから全テーブルを再調査し32テーブルに更新（role, department, system_notification, user_notification等を追加） | Cline |
-| 2026-01-09 | DDLファイル削除に伴い18テーブルに調整（format, format_subfolder, experiment_recordを削除） | Cline |
-| 2026-01-09 | DDLファイルが存在するテーブルのみに絞り込み（21テーブル） | Cline |
+| 2026-01-23 15:00 | event_log.sql削除に伴い27テーブルに更新 | Cline |
+| 2026-01-23 14:59 | DDLファイル(28個)と完全一致するように整理、重複削除、カテゴリ整理 | Cline |
+| 2026-01-21 | DDLファイル更新に伴い29テーブルに更新 | Cline |
+| 2026-01-16 | file_metadataテーブル追加（ファイル管理関連カテゴリ新設） | Cline |
 | 2026-01-09 | 初版作成（24テーブル） | Cline |
+
+---
+
+## ✅ DDL配下ファイルとの整合性
+
+**DDL配下のファイル（27個）:**
+1. attribute.sql
+2. code_master.sql
+3. corporation.sql
+4. creator_master.sql
+5. department.sql
+6. file_metadata.sql
+7. function.sql
+8. instruction_acknowledged_history.sql
+9. instrument_master.sql
+10. issue_comment.sql
+11. issue.sql
+12. login_history.sql
+13. maiml_event_log.sql
+14. organization_user.sql
+15. organization.sql
+16. pin_codes.sql
+17. project_instruction.sql
+18. project_task_detail.sql
+19. project_task.sql
+20. project.sql
+21. role_permission.sql
+22. role.sql
+23. template_data.sql
+24. transition_data.sql
+25. user_authentication.sql
+26. user_notification.sql
+27. vendor_master.sql
+
+**このドキュメントのテーブル数: 27個** ✅
+
+すべてのDDLファイルがこのドキュメントに反映されています。

@@ -211,7 +211,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       key: 'basic',
       label: '📄 基本情報',
       children: (
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -350,7 +350,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       okText="保存"
       cancelText="キャンセル"
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="large">
+      <Space orientation="vertical" style={{ width: '100%' }} size="large">
         {hasChanges && (
           <Alert
             message="未保存の変更があります"
@@ -374,7 +374,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
 
         <Alert
           message={
-            <Space direction="vertical" size="small">
+            <Space orientation="vertical" size="small">
               <Text strong>💡 ヒント:</Text>
               <ul style={{ margin: 0, paddingLeft: 20 }}>
                 <li>Document IDは一意である必要があります</li>

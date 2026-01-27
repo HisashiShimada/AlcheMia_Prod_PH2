@@ -395,10 +395,10 @@ export default function ProgressMonitoring() {
   return (
     <div style={{ padding: token.paddingLG, backgroundColor: token.colorBgLayout, minHeight: '100vh' }}>
       {/* 検索・フィルタエリア */}
-      <Card style={{ marginBottom: token.paddingLG }} bordered={false}>
+      <Card style={{ marginBottom: token.paddingLG }} variant="borderless">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <Space direction="horizontal" size="middle" wrap>
-            <Space size={4} direction="horizontal">
+          <Space orientation="horizontal" size="middle" wrap>
+            <Space size={4} orientation="horizontal">
               <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
                 {t('progress.filter_labels.owner')}
               </Text>
@@ -413,7 +413,7 @@ export default function ProgressMonitoring() {
               />
             </Space>
 
-            <Space size={4} direction="horizontal">
+            <Space size={4} orientation="horizontal">
               <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
                 {t('progress.filter_labels.department')}
               </Text>
@@ -428,7 +428,7 @@ export default function ProgressMonitoring() {
               />
             </Space>
 
-            <Space size={4} direction="horizontal">
+            <Space size={4} orientation="horizontal">
               <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
                 {t('progress.filter_labels.project_status')}
               </Text>
@@ -448,7 +448,7 @@ export default function ProgressMonitoring() {
               />
             </Space>
 
-            <Space size={4} direction="horizontal">
+            <Space size={4} orientation="horizontal">
               <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
                 {t('progress.filter_labels.checkout_status')}
               </Text>
@@ -464,7 +464,7 @@ export default function ProgressMonitoring() {
               />
             </Space>
 
-            <Space size={4} direction="horizontal">
+            <Space size={4} orientation="horizontal">
               <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
                 {t('progress.filter_labels.search')}
               </Text>
@@ -490,7 +490,7 @@ export default function ProgressMonitoring() {
       </Card>
 
       {/* テーブル */}
-      <Card bordered={false}>
+      <Card variant="borderless">
         <Table
           dataSource={filteredData}
           columns={columns}
