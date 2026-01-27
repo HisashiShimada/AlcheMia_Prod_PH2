@@ -83,6 +83,12 @@ export default function AuthContainer({
   const handlePINVerifySuccess = (response: VerifyPINResponse) => {
     message.success('ログインに成功しました');
     
+    // JWTトークンをsessionStorageに保存
+    // 仮セッショントークンを上書き（同じキー名を使用）
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('sessionToken', response.session.token);
+    }
+    
     // ロール別画面にリダイレクト
     const redirectUrl = roleRedirectMap[response.user.role] || '/';
     router.push(redirectUrl);

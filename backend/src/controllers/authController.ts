@@ -493,6 +493,11 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
 /**
  * ログアウトエンドポイント
  * POST /api/v1/auth/logout
+ * 
+ * @description
+ * sessionStorage方式でのログアウト処理
+ * - サーバー側では認証チェックのみ実施
+ * - クライアント側でsessionStorageをクリアする
  */
 export async function logout(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
@@ -514,13 +519,8 @@ export async function logout(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 2. HTTPOnly Cookie削除
-    res.clearCookie('maiml_session', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-    });
+    // 2. sessionStorage方式ではサーバー側で行う処理はない
+    //    クライアント側でsessionStorageをクリアする
 
     // 3. 成功レスポンス
     res.status(200).json({
@@ -1076,22 +1076,14 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
 
     const jwtToken = jwtResult.data;
 
-    // 4. HTTPOnly Cookie設定
+    // 4. セッション有効期限を計算
     const maxAge = SESSION_MAX_AGE[userInfo.role];
     const expiresAt = new Date(Date.now() + maxAge);
-
-    res.cookie('maiml_session', jwtToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: maxAge,
-      path: '/',
-    });
 
     // 5. PINコード削除（使用済み処理）
     await pinCodeService.delete(sessionToken);
 
-    // 6. 成功レスポンス
+    // 6. 成功レスポンス（JWTトークンをレスポンスボディで返す）
     res.status(200).json({
       success: true,
       data: {
