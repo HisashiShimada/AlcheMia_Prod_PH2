@@ -29,7 +29,7 @@ const LOCAL_SWIFT_CONFIG = {
 
 // サーバーSwift設定
 const SERVER_SWIFT_CONFIG = {
-  endpoint: 'http://10.1.1.219:9090',
+  endpoint: 'http://10.1.1.219:3002',
   credentials: {
     accessKeyId: 'test:tester',
     secretAccessKey: 'testing',

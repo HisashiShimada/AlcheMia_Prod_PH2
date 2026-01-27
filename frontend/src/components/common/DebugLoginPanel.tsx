@@ -5,12 +5,28 @@
  */
 'use client';
 
-import React, { useState } from 'react';
-import { Button, Divider, Select, Space, Typography, theme } from 'antd';
+import React, { useState, useMemo } from 'react';
+import { Button, Card, Divider, Select, Space, Typography, theme } from 'antd';
 import { LoginOutlined, UserOutlined } from '@ant-design/icons';
 import type { DebugLoginPanelProps } from '@/types/debug';
+import type { UserRole } from '@/types/auth';
 
 const { Text } = Typography;
+
+/**
+ * ロール名の日本語マッピング
+ */
+const getRoleDisplayName = (role: UserRole): string => {
+  const roleNames: Record<UserRole, string> = {
+    provider: 'プロバイダー',
+    system_admin: 'システム管理者',
+    data_admin: 'データ管理者',
+    experiment_admin: '実験管理者',
+    experiment_worker: '実験作業者',
+    mi_engineer: 'MI技術者',
+  };
+  return roleNames[role] || role;
+};
 
 /**
  * デバッグログインパネルコンポーネント
@@ -19,6 +35,11 @@ const { Text } = Typography;
 export default function DebugLoginPanel({ onLogin, loading = false, debugUsers }: DebugLoginPanelProps) {
   const { token } = theme.useToken();
   const [selectedDebugUser, setSelectedDebugUser] = useState<string | undefined>(undefined);
+
+  // 選択中のユーザー情報を取得
+  const selectedUser = useMemo(() => {
+    return debugUsers.find(u => u.username === selectedDebugUser);
+  }, [debugUsers, selectedDebugUser]);
 
   /**
    * デバッグ用: 選択したユーザーでログイン
@@ -46,7 +67,7 @@ export default function DebugLoginPanel({ onLogin, loading = false, debugUsers }
           デバッグログイン
         </Text>
       </Divider>
-      <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+      <Space direction="vertical" size="small" style={{ width: '100%' }}>
         <Select
           placeholder="デバッグユーザーを選択"
           value={selectedDebugUser}
@@ -67,6 +88,36 @@ export default function DebugLoginPanel({ onLogin, loading = false, debugUsers }
             ),
           }))}
         />
+        
+        {/* 選択中のユーザー情報を表示 */}
+        {selectedUser && (
+          <Card 
+            size="small" 
+            style={{ 
+              marginTop: token.marginXS,
+              backgroundColor: token.colorBgContainer,
+            }}
+          >
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                選択中の情報:
+              </Text>
+              <div>
+                <Text strong style={{ fontSize: token.fontSizeSM }}>ユーザー名: </Text>
+                <Text style={{ fontSize: token.fontSizeSM }}>{selectedUser.username}</Text>
+              </div>
+              <div>
+                <Text strong style={{ fontSize: token.fontSizeSM }}>パスワード: </Text>
+                <Text code style={{ fontSize: token.fontSizeSM }}>{selectedUser.password}</Text>
+              </div>
+              <div>
+                <Text strong style={{ fontSize: token.fontSizeSM }}>ロール: </Text>
+                <Text style={{ fontSize: token.fontSizeSM }}>{getRoleDisplayName(selectedUser.role)}</Text>
+              </div>
+            </Space>
+          </Card>
+        )}
+
         <Button
           type="default"
           size="small"

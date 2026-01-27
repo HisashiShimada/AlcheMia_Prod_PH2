@@ -11,7 +11,7 @@ import { S3Client, ListBucketsCommand, ListObjectsV2Command, PutObjectCommand, G
 
 // サーバーSwift接続情報
 const SERVER_SWIFT_CONFIG = {
-  endpoint: 'http://10.1.1.219:9090',
+  endpoint: 'http://10.1.1.219:3002',
   credentials: {
     accessKeyId: 'test:tester',
     secretAccessKey: 'testing',
