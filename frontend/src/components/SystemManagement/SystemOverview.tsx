@@ -13,7 +13,7 @@ import {
 import systemOverviewData from '../../../mock/data/system-overview.json';
 
 /**
- * システム概要画面モック
+ * システム概要画面
  * システム全体の統計情報を表示するダッシュボード
  */
 const SystemOverviewMock: React.FC = () => {

@@ -9,7 +9,7 @@ import {
   Modal,
   Form,
   Select,
-  message,
+  App,
   Typography,
   Row,
   Col,
@@ -73,10 +73,11 @@ interface RoleApiResponse {
 }
 
 /**
- * ロール管理画面のモックコンポーネント
+ * ロール管理画面のコンポーネント
  */
 export default function RoleManagementMock() {
   const { token } = theme.useToken();
+  const { message } = App.useApp();
 
   // State管理
   const [masters, setMasters] = useState<MasterRecord[]>([]);

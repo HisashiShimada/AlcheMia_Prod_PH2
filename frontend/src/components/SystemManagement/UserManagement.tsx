@@ -51,7 +51,7 @@ interface UserData {
 }
 
 /**
- * ユーザー管理画面のモックコンポーネント
+ * ユーザー管理画面のコンポーネント
  */
 export default function UserManagement() {
   const [users, setUsers] = useState<UserData[]>(usersData as UserData[]);

@@ -6,7 +6,7 @@ import { ReloadOutlined, DatabaseOutlined, FolderOutlined, UsergroupAddOutlined 
 import statisticsData from '../../../mock/data/organization-statistics.json';
 
 /**
- * 組織統計情報モック画面
+ * 組織統計情報画面
  * 
  * 機能:
  * - ストレージ使用量の表示

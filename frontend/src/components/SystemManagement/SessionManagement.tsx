@@ -44,7 +44,7 @@ interface SessionData {
 }
 
 /**
- * セッション管理画面（モック）
+ * セッション管理画面
  */
 export default function SessionManagementMock() {
   const [sessions, setSessions] = useState<SessionData[]>(sessionsData as SessionData[]);
