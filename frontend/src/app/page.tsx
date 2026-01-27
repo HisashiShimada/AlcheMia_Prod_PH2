@@ -135,6 +135,11 @@ export default function Home() {
       setOrganizationId(credentials.organizationId);
       setMaskedEmail(response.email);
 
+      // SessionStorageに保存（authServiceのインターセプターが参照）
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('sessionToken', response.sessionToken);
+      }
+
       // 開発環境の場合、PINコードをsessionStorageに保存
       if (response.devMode && response.pinCode) {
         if (typeof window !== 'undefined') {
@@ -248,6 +253,11 @@ export default function Home() {
    * ログイン画面に戻る処理
    */
   const handleBackToLogin = (): void => {
+    // SessionStorageをクリア
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('sessionToken');
+    }
+    
     setAuthStep('login');
     setError(null);
     setSessionToken('');
@@ -284,6 +294,7 @@ export default function Home() {
       // SessionStorageをクリア
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('user');
+        sessionStorage.removeItem('sessionToken');
         sessionStorage.removeItem('devPinCode');
       }
     }
