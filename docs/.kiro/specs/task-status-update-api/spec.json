@@ -1,0 +1,45 @@
+{
+  "name": "task-status-update-api",
+  "title": "タスクステータス更新API",
+  "description": "実験作業者が実験タスク（project_task_detail）のステータスを更新するためのREST APIエンドポイント",
+  "phase": "tasks-generated",
+  "language": "ja",
+  "priority": "high",
+  "created_at": "2026-01-28T08:47:00+09:00",
+  "updated_at": "2026-01-28T09:12:00+09:00",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true,
+      "approved_at": "2026-01-28T08:47:00+09:00"
+    },
+    "design": {
+      "generated": true,
+      "approved": true,
+      "approved_at": "2026-01-28T09:08:00+09:00"
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "metadata": {
+    "feature_type": "Extension",
+    "complexity": "Medium",
+    "estimated_effort": "2-3 days",
+    "target_components": [
+      "backend/src/routes/taskRoutes.ts",
+      "backend/src/controllers/taskController.ts",
+      "backend/src/services/taskService.ts"
+    ],
+    "database_changes": false,
+    "api_endpoints": [
+      "PUT /api/v1/projects/:projectId/methods/:methodId/tasks/:taskNo/status"
+    ],
+    "affected_roles": [
+      "experiment_worker",
+      "experiment_admin",
+      "system_admin"
+    ]
+  }
+}

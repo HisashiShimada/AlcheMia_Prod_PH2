@@ -8,6 +8,7 @@ dotenv.config();
 // Import routes after dotenv is configured
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
+import taskRoutes from './routes/taskRoutes';
 import fileDownloadRoutes from './routes/fileDownloadRoutes';
 
 const app: Application = express();
@@ -34,6 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 // Mount routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/projects', projectRoutes);
+app.use('/api/v1/projects', taskRoutes);
 app.use('/api/v1/projects', fileDownloadRoutes);
 
 // Health check endpoint
