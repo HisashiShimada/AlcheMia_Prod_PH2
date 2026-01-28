@@ -39,14 +39,14 @@ export async function getCreators(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    // 組織IDを取得（X-Organization-Idヘッダーまたはreq.user.organizationId）
-    const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
+    // 組織IDを取得（req.user.organizationId）
+    const organizationId = req.user?.organizationId;
     
     console.log('Organization ID:', organizationId);
     console.log('req.organizationId:', (req as any).organizationId);
     console.log('req.headers["x-organization-id"]:', req.headers['x-organization-id']);
 
-    if (!organizationId) {
+    if (!req.user) {
       console.log('ERROR: Organization ID not found');
       res.status(400).json({
         success: false,
@@ -122,10 +122,10 @@ export async function getCreatorById(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // 組織IDを取得（X-Organization-Idヘッダーまたはreq.user.organizationId）
-    const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
+    // 組織IDを取得（req.user.organizationId）
+    const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -186,12 +186,12 @@ export async function getInstruments(req: Request, res: Response, next: NextFunc
     console.log('Headers:', req.headers);
     console.log('Query:', req.query);
     
-    // 組織IDを取得（X-Organization-Idヘッダーまたはreq.user.organizationId）
-    const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
+    // 組織IDを取得（req.user.organizationId）
+    const organizationId = req.user?.organizationId;
     
     console.log('Organization ID:', organizationId);
     
-    if (!organizationId) {
+    if (!req.user) {
       console.log('ERROR: Organization ID not found');
       res.status(400).json({
         success: false,
@@ -235,7 +235,7 @@ export async function getInstrumentById(req: Request, res: Response, next: NextF
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -296,12 +296,12 @@ export async function getVendors(req: Request, res: Response, next: NextFunction
     console.log('Headers:', req.headers);
     console.log('Query:', req.query);
     
-    // 組織IDを取得（X-Organization-Idヘッダーまたはreq.user.organizationId）
-    const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
+    // 組織IDを取得（req.user.organizationId）
+    const organizationId = req.user?.organizationId;
     
     console.log('Organization ID:', organizationId);
     
-    if (!organizationId) {
+    if (!req.user) {
       console.log('ERROR: Organization ID not found');
       res.status(400).json({
         success: false,
@@ -345,7 +345,7 @@ export async function getVendorById(req: Request, res: Response, next: NextFunct
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -426,7 +426,7 @@ export async function createInstrument(req: Request, res: Response, next: NextFu
 
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -574,7 +574,7 @@ export async function createVendor(req: Request, res: Response, next: NextFuncti
 
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -725,7 +725,7 @@ export async function createCreator(req: Request, res: Response, next: NextFunct
 
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -856,7 +856,7 @@ export async function uploadCreatorsCsv(req: Request, res: Response, next: NextF
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -917,7 +917,7 @@ export async function downloadCreatorsCsv(req: Request, res: Response, next: Nex
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -988,7 +988,7 @@ export async function uploadInstrumentsCsv(req: Request, res: Response, next: Ne
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -1049,7 +1049,7 @@ export async function downloadInstrumentsCsv(req: Request, res: Response, next: 
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -1118,7 +1118,7 @@ export async function uploadVendorsCsv(req: Request, res: Response, next: NextFu
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -1179,7 +1179,7 @@ export async function downloadVendorsCsv(req: Request, res: Response, next: Next
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -1560,11 +1560,11 @@ export async function getDepartments(req: Request, res: Response, next: NextFunc
     console.log('req.user:', req.user);
     console.log('req.headers:', req.headers);
 
-    // X-Organization-Idヘッダーまたはreq.user.organizationIdから取得
-    const organizationId = req.headers['x-organization-id'] as string || req.user?.organizationId;
+    // 組織IDを取得（req.user.organizationId）
+    const organizationId = req.user?.organizationId;
     console.log('Extracted organizationId:', organizationId);
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -1625,7 +1625,7 @@ export async function getDepartmentById(req: Request, res: Response, next: NextF
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -1704,7 +1704,7 @@ export async function createDepartment(req: Request, res: Response, next: NextFu
 
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -1835,7 +1835,7 @@ export async function uploadDepartmentCsv(req: Request, res: Response, next: Nex
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -1895,7 +1895,7 @@ export async function downloadDepartmentCsv(req: Request, res: Response, next: N
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
@@ -1966,7 +1966,7 @@ export async function getRoles(req: Request, res: Response, next: NextFunction):
     const organizationId = req.user?.organizationId;
     console.log('Extracted organizationId from req.user:', organizationId);
 
-    if (!organizationId) {
+    if (!req.user) {
       console.log('ERROR: Organization ID not found in req.user');
       res.status(400).json({
         success: false,
@@ -2010,7 +2010,7 @@ export async function getRoleById(req: Request, res: Response, next: NextFunctio
   try {
     const organizationId = req.user?.organizationId;
 
-    if (!organizationId) {
+    if (!req.user) {
       res.status(400).json({
         success: false,
         error: {
