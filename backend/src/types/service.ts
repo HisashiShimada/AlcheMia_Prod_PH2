@@ -51,6 +51,15 @@ export interface PinCodeData {
 }
 
 /**
+ * PINコード送信情報（メール送信結果を含む）
+ */
+export interface PinCodeSendData {
+  pinCode: string;
+  expiresAt: Date;
+  maskedEmail: string;
+}
+
+/**
  * ユーザー情報
  */
 export interface UserInfo {

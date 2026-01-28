@@ -57,6 +57,11 @@ export default function AuthContainer({
    * ログイン成功ハンドラ
    */
   const handleLoginSuccess = (response: LoginResponse) => {
+    // SessionStorageに保存（authServiceのインターセプターが参照）
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('sessionToken', response.sessionToken);
+    }
+    
     setSessionToken(response.sessionToken);
     setMaskedEmail(response.email);
     setPinExpiresIn(response.expiresIn);
@@ -78,6 +83,12 @@ export default function AuthContainer({
   const handlePINVerifySuccess = (response: VerifyPINResponse) => {
     message.success('ログインに成功しました');
     
+    // JWTトークンをsessionStorageに保存
+    // 仮セッショントークンを上書き（同じキー名を使用）
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('sessionToken', response.session.token);
+    }
+    
     // ロール別画面にリダイレクト
     const redirectUrl = roleRedirectMap[response.user.role] || '/';
     router.push(redirectUrl);
@@ -95,6 +106,11 @@ export default function AuthContainer({
    */
   const handlePINMaxAttemptsExceeded = () => {
     message.error('PINコード入力試行回数の上限に達しました。最初からやり直してください');
+    
+    // SessionStorageをクリア
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('sessionToken');
+    }
     
     // ログイン画面に戻る
     setFlowState('login');
@@ -122,6 +138,11 @@ export default function AuthContainer({
    * ログイン画面に戻るハンドラ
    */
   const handleBackToLogin = () => {
+    // SessionStorageをクリア
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('sessionToken');
+    }
+    
     setFlowState('login');
     setSessionToken(null);
     setMaskedEmail(null);
