@@ -3,7 +3,8 @@
  * バックエンドの認証APIとの通信を担当
  */
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
+import { createApiClient } from '@/utils/authUtils';
 import type { LoginCredentials } from '@/types/auth';
 import type {
   ApiResponse,
@@ -14,41 +15,6 @@ import type {
   ResetPasswordRequestResponseData,
   ResetPasswordResponseData,
 } from '@/types/api';
-
-/**
- * Axiosインスタンスの作成
- */
-const createApiClient = (): AxiosInstance => {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-  
-  const client = axios.create({
-    baseURL: `${baseURL}`,
-    timeout: 10000, // 10秒
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  // リクエストインターセプター: 全てのAPIリクエストに自動的にAuthorizationヘッダーを付与
-  client.interceptors.request.use(
-    (config) => {
-      // SessionStorageからセッショントークンを自動取得
-      if (typeof window !== 'undefined') {
-        const sessionToken = sessionStorage.getItem('sessionToken');
-        if (sessionToken) {
-          // Authorizationヘッダーに自動設定
-          config.headers.Authorization = `Bearer ${sessionToken}`;
-        }
-      }
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
-  );
-
-  return client;
-};
 
 const apiClient = createApiClient();
 
