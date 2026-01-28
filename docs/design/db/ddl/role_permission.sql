@@ -24,4 +24,4 @@ COMMENT ON TABLE role_permission IS 'ロール権限';
 COMMENT ON COLUMN role_permission.organization_id IS '組織ID';
 COMMENT ON COLUMN role_permission.role_id IS 'ロール';
 COMMENT ON COLUMN role_permission.function_id IS '機能ID:機能名はソースで管理';
-COMMENT ON COLUMN role_permission.permission IS '権限:読書判定';
+COMMENT ON COLUMN role_permission.permission IS '権限:0:書込専用 1:読取権限';

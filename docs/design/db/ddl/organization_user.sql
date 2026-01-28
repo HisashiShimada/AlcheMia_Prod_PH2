@@ -13,7 +13,7 @@ CREATE TABLE organization_user (
     
     -- ユーザー情報
     user_name CHARACTER VARYING(30) NOT NULL,
-    role CHARACTER VARYING(30) NOT NULL,
+    role_id CHARACTER VARYING(30) NOT NULL,
     mail_address CHARACTER VARYING(50) NOT NULL,
     depertment_cd CHARACTER VARYING(50),
     
@@ -34,7 +34,7 @@ COMMENT ON TABLE organization_user IS '組織利用者';
 COMMENT ON COLUMN organization_user.user_id IS 'ユーザID';
 COMMENT ON COLUMN organization_user.organization_id IS '組織ID';
 COMMENT ON COLUMN organization_user.user_name IS 'ユーザ名';
-COMMENT ON COLUMN organization_user.role IS 'ロール';
+COMMENT ON COLUMN organization_user.role_id IS 'ロール';
 COMMENT ON COLUMN organization_user.mail_address IS 'メールアドレス';
 COMMENT ON COLUMN organization_user.depertment_cd IS '所属部署CD';
 COMMENT ON COLUMN organization_user.locked_until IS '有効期限';
