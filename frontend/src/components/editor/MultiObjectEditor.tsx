@@ -26,7 +26,6 @@ import {
   theme
 } from 'antd';
 import {
-  DownOutlined,
   PlusOutlined,
   DeleteOutlined,
   ArrowUpOutlined,
@@ -65,7 +64,7 @@ interface SingleObjectEditorProps {
   objectData: ObjectData;
   objectKey: string;
   includeReferences: boolean;
-  onUpdate: (index: number, property: string, value: any, type?: string) => void;
+  onUpdate: (index: number, property: string, value: string | { id?: string; ref?: string } | null, type?: string) => void;
   onDelete: (index: number) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
@@ -84,7 +83,6 @@ interface SingleObjectEditorProps {
 const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
   index,
   objectData,
-  objectKey,
   includeReferences,
   onUpdate,
   onDelete,
@@ -98,17 +96,11 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
   vendorIds = [],
   instrumentIds = []
 }) => {
-  const { token } = theme.useToken();
-  const [internalData, setInternalData] = useState<ObjectData>(objectData);
+  const [internalData, setInternalData] = useState<ObjectData>(() => objectData);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 親からの初期データ同期
-  useEffect(() => {
-    setInternalData(objectData);
-  }, [JSON.stringify(objectData)]);
-
   // 遅延更新機能
-  const handleInternalUpdate = useCallback((property: string, value: any) => {
+  const handleInternalUpdate = useCallback((property: string, value: string) => {
     setInternalData(prev => ({
       ...prev,
       [property]: value
@@ -123,24 +115,24 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
   }, [index, onUpdate]);
 
   // Reference ID連番生成
-  const generateReferenceId = useCallback((refType: string) => {
-    const existingRefs = internalData[refType as keyof ObjectData] ? 1 : 0;
-    const basePrefix = refType === 'vendorRef' ? 'vendorRef' : 'instrumentRef';
+  const generateReferenceId = useCallback((refType: 'vendorRef' | 'instrumentRef') => {
+    const existingRefs = internalData[refType] ? 1 : 0;
+    const basePrefix = refType;
     const nextNumber = existingRefs + 1;
     return `${basePrefix}_${nextNumber}`;
   }, [internalData]);
 
   // 参照プロパティ用の遅延更新
-  const handleReferenceUpdate = useCallback((refKey: string, property: string, value: string) => {
+  const handleReferenceUpdate = useCallback((refKey: 'vendorRef' | 'instrumentRef', property: 'id' | 'ref', value: string) => {
     if (!value || value.trim() === '') {
       setInternalData(prev => {
         const newData = { ...prev };
-        const refData = newData[refKey as keyof ObjectData] as any;
+        const refData = newData[refKey] as { id?: string; ref?: string } | undefined;
         if (refData) {
           delete refData[property];
           
           if (!refData.id && !refData.ref) {
-            delete (newData as any)[refKey];
+            delete newData[refKey];
           }
         }
         return newData;
@@ -159,7 +151,7 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
     setInternalData(prev => ({
       ...prev,
       [refKey]: {
-        ...(prev[refKey as keyof ObjectData] as any),
+        ...(prev[refKey] as { id?: string; ref?: string } | undefined),
         [property]: value
       }
     }));
@@ -168,7 +160,7 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
       clearTimeout(updateTimeoutRef.current);
     }
     updateTimeoutRef.current = setTimeout(() => {
-      const refData = internalData[refKey as keyof ObjectData] as any;
+      const refData = internalData[refKey] as { id?: string; ref?: string } | undefined;
       const updatedRef = {
         ...refData,
         [property]: value
@@ -188,8 +180,8 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
   }, [handleInternalUpdate]);
 
   // 参照プロパティ表示判定
-  const shouldShowReference = useCallback((refKey: string) => {
-    const refData = internalData[refKey as keyof ObjectData] as any;
+  const shouldShowReference = useCallback((refKey: 'vendorRef' | 'instrumentRef') => {
+    const refData = internalData[refKey] as { id?: string; ref?: string } | undefined;
     return refData && (refData.id || refData.ref);
   }, [internalData]);
 
@@ -491,19 +483,16 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
   masterData = [],
   isLoadingMasterData = false
 }) => {
-  const { token } = theme.useToken();
-  const [objects, setObjects] = useState<ObjectData[]>(initialData);
-  const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
-  const [selectedMasterId, setSelectedMasterId] = useState<string | undefined>(undefined);
-
-  // 親からの初期データ同期
-  useEffect(() => {
-    setObjects(initialData);
-    // 最初のアイテムを展開
-    if (initialData.length > 0 && Object.keys(expandedItems).length === 0) {
-      setExpandedItems({ 0: true });
+  const [objects, setObjects] = useState<ObjectData[]>(() => initialData);
+  const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>(() => {
+    // 初期データがある場合は最初のアイテムを展開
+    const initial: Record<number, boolean> = {};
+    if (initialData.length > 0) {
+      initial[0] = true;
     }
-  }, [JSON.stringify(initialData)]);
+    return initial;
+  });
+  const [selectedMasterId, setSelectedMasterId] = useState<string | undefined>(undefined);
 
   // マスタデータから追加
   const handleAddFromMaster = useCallback(() => {
@@ -564,17 +553,20 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
   }, [objects, objectKey, onDataChange]);
 
   // オブジェクト更新
-  const handleUpdate = useCallback((index: number, property: string, value: any, type: string = 'simple') => {
+  const handleUpdate = useCallback((index: number, property: string, value: string | { id?: string; ref?: string } | null, type: string = 'simple') => {
     const newObjects = [...objects];
     
     if (type === 'reference_delete') {
-      if ((newObjects[index] as any)[property]) {
-        delete (newObjects[index] as any)[property];
+      const obj = newObjects[index] as unknown as Record<string, unknown>;
+      if (obj[property]) {
+        delete obj[property];
       }
     } else if (type === 'reference') {
-      (newObjects[index] as any)[property] = value;
+      const obj = newObjects[index] as unknown as Record<string, unknown>;
+      obj[property] = value;
     } else {
-      (newObjects[index] as any)[property] = value;
+      const obj = newObjects[index] as unknown as Record<string, unknown>;
+      obj[property] = value;
     }
     
     setObjects(newObjects);

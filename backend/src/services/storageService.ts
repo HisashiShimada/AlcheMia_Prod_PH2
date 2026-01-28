@@ -219,13 +219,13 @@ export class StorageService {
    * ファイル一覧を取得
    * @param organizationId 組織ID
    * @param prefix プレフィックス（オプション）
-   * @param maxKeys 最大取得数（デフォルト: 1000）
+   * @param maxKeys 最大取得数（デフォルト: 500、タイムアウト対策）
    * @returns ファイルメタデータの配列
    */
   async listFiles(
     organizationId: string,
     prefix: string = '',
-    maxKeys: number = 1000
+    maxKeys: number = 500
   ): Promise<FileMetadata[]> {
     const keyPrefix = this.buildKey(organizationId, prefix);
 

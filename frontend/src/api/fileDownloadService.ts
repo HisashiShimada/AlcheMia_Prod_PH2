@@ -5,7 +5,8 @@
  * Requirements: 10
  */
 
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
+import { createApiClient } from '@/utils/authUtils';
 
 // API Base URL（環境変数から取得、デフォルトは相対パス）
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -42,7 +43,7 @@ interface ApiErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: any[];
+    details?: unknown[];
   };
   meta: {
     timestamp: string;
@@ -50,56 +51,6 @@ interface ApiErrorResponse {
   };
 }
 
-/**
- * Axiosインスタンスの作成
- * - 認証トークンとX-Organization-Idヘッダーを自動付与
- * - タイムアウト設定: 30秒
- */
-const createApiClient = () => {
-  const client = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 30000, // 30秒
-    withCredentials: true, // Cookie送信を有効化
-  });
-
-  // リクエストインターセプター
-  client.interceptors.request.use(
-    (config) => {
-      // 認証トークン（Cookie経由で自動送信）
-
-      // X-Organization-Idヘッダーを取得（localStorageから）
-      if (typeof window !== 'undefined') {
-        const organizationId = localStorage.getItem('organizationId');
-        if (organizationId && config.headers) {
-          config.headers['X-Organization-Id'] = organizationId;
-        }
-      }
-
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
-  );
-
-  // レスポンスインターセプター（エラーハンドリング）
-  client.interceptors.response.use(
-    (response) => response,
-    (error: AxiosError<ApiErrorResponse>) => {
-      // エラーレスポンスの整形
-      if (error.response?.data) {
-        const apiError = error.response.data;
-        throw new Error(apiError.error.message || 'APIエラーが発生しました');
-      } else if (error.request) {
-        throw new Error('サーバーに接続できませんでした');
-      } else {
-        throw new Error('リクエストの送信に失敗しました');
-      }
-    }
-  );
-
-  return client;
-};
 
 /**
  * 単一ファイルのダウンロード用署名付きURLを取得

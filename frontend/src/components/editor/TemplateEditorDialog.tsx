@@ -47,11 +47,10 @@ import {
   FileOutlined
 } from '@ant-design/icons';
 import useNamespaceOperations from '@/hooks/useNamespaceOperations';
-import type { Folder, FileInfo, NamespaceData } from '@/types/format';
+import type { Folder, NamespaceData } from '@/types/format';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
-const { Panel } = Collapse;
 
 /**
  * NestedPropertyEditorのProps型定義
@@ -540,6 +539,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 }) => {
   // Phase 3.1: 基本情報管理
   const [uuid, setUuid] = useState('');
+  const [templateId, setTemplateId] = useState(''); // 🆕 Phase 5-3: Template ID管理
+  const [maimlId, setMaimlId] = useState(''); // 🆕 Phase 5-4: MaiML ID属性管理
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [insertion, setInsertion] = useState({ uri: '', hash: '', format: '' });
@@ -563,6 +564,11 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   
   // Bug Fix: V1のforceRenderKeyパターンを適用（Contents用）
   const [forceContentRenderKey, setForceContentRenderKey] = useState(0);
+
+  // 🆕 Phase 5-1: PlaceReferences管理用のState
+  const [placeRefs, setPlaceRefs] = useState<string[]>([]);
+  const [showPlaceRefAddModal, setShowPlaceRefAddModal] = useState(false);
+  const [selectedPlaceToAdd, setSelectedPlaceToAdd] = useState<string | null>(null);
 
   // 🆕 名前空間機能用のState
   const [showNamespaceDialog, setShowNamespaceDialog] = useState(false);
@@ -604,6 +610,142 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   const showBasicInfo = useMemo(() => sourceContext !== 'format', [sourceContext]);
   const showInsertionInfo = useMemo(() => sourceContext !== 'format', [sourceContext]);
 
+  // 🆕 Phase 5-1: 利用可能なPlace一覧を計算
+  const availablePlaces = useMemo(() => {
+    return allNodes
+      .filter(n => n.data.nodeType === 'place')
+      .filter(n => !placeRefs.includes(n.id))
+      .map(n => ({
+        id: n.id,
+        name: n.data.name || n.data.label || n.id
+      }));
+  }, [allNodes, placeRefs]);
+
+  // 🆕 Phase 5-1: 参照中のPlace情報を取得
+  const referencedPlaces = useMemo(() => {
+    return placeRefs
+      .map(placeId => {
+        const placeNode = allNodes.find(n => n.id === placeId);
+        return {
+          id: placeId,
+          name: placeNode?.data.name || placeNode?.data.label || placeId,
+          exists: !!placeNode
+        };
+      });
+  }, [allNodes, placeRefs]);
+
+  // 🆕 Phase 5-2: 継承元テンプレートを取得
+  const inheritedTemplate = useMemo(() => {
+    const templateRefId = node?.data?.templateRefId;
+    if (!templateRefId) return null;
+    
+    return allNodes.find(n => {
+      const template = n.data?.templateRef || n.data?.template;
+      return template?.id === templateRefId || template?.uuid === templateRefId;
+    });
+  }, [node, allNodes]);
+
+  // 🆕 Phase 5-2: 継承元情報を抽出
+  const inheritedInfo = useMemo(() => {
+    if (!inheritedTemplate) return null;
+    
+    const template = inheritedTemplate.data?.templateRef || inheritedTemplate.data?.template;
+    
+    return {
+      name: template?.name || inheritedTemplate.data?.name || '名称未設定',
+      description: template?.description || inheritedTemplate.data?.description || '',
+      uuid: template?.uuid || '',
+      properties: template?.properties || {},
+      contents: template?.contents || {},
+      nodeId: inheritedTemplate.id,
+      nodeType: inheritedTemplate.data?.nodeType,
+      placeType: inheritedTemplate.data?.placeType
+    };
+  }, [inheritedTemplate]);
+
+  // 🆕 Phase 5-2: 継承元情報表示制御
+  const showInheritedInfo = useMemo(() => {
+    // フォーマット管理から遷移した場合は非表示
+    if (sourceContext === 'format') return false;
+    
+    // 継承元が存在する場合のみ表示
+    return !!inheritedTemplate && !!inheritedInfo;
+  }, [sourceContext, inheritedTemplate, inheritedInfo]);
+
+  // 🆕 Phase 5-2: 継承元プロパティ表示用のState
+  const [showInheritedProperties, setShowInheritedProperties] = useState(false);
+
+  // 🆕 Phase 5-3: Template ID重複チェック
+  const isTemplateIdDuplicate = useCallback((id: string): boolean => {
+    if (!id || id === node?.id) return false;
+    
+    return allNodes.some(n => {
+      // 自分自身は除外
+      if (n.id === node?.id) return false;
+      
+      const template = n.data?.templateRef || n.data?.template;
+      return template?.id === id;
+    });
+  }, [allNodes, node]);
+
+  // 🆕 Template ID自動生成ハンドラー
+  const handleGenerateTemplateId = useCallback(() => {
+    if (!node) return;
+    
+    // テンプレートタイプから接頭辞を決定
+    const prefix = node.data.placeType === 'material' ? 'material_template' :
+                   node.data.placeType === 'condition' ? 'condition_template' :
+                   'result_template';
+    
+    // 既存のTemplate IDから最大連番を取得
+    const existingIds = allNodes
+      .map(n => {
+        const template = n.data?.templateRef || n.data?.template;
+        return template?.id || '';
+      })
+      .filter(id => id.startsWith(prefix + '_'))
+      .map(id => {
+        const match = id.match(new RegExp(`${prefix}_(\\d+)$`));
+        return match ? parseInt(match[1]) : 0;
+      });
+    
+    const maxNumber = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+    const nextNumber = maxNumber + 1;
+    const newTemplateId = `${prefix}_${String(nextNumber).padStart(3, '0')}`;
+    
+    setTemplateId(newTemplateId);
+    console.log('🆔 [TemplateEditor] Template ID自動生成:', newTemplateId);
+  }, [node, allNodes]);
+
+  // 🆕 MaiML ID自動生成ハンドラー
+  const handleGenerateMaimlId = useCallback(() => {
+    if (!node) return;
+    
+    // テンプレートタイプから接頭辞を決定
+    const prefix = node.data.placeType === 'material' ? 'mat' :
+                   node.data.placeType === 'condition' ? 'cond' :
+                   'res';
+    
+    // 既存のMaiML IDから最大連番を取得
+    const existingIds = allNodes
+      .map(n => {
+        const template = n.data?.templateRef || n.data?.template;
+        return template?.maimlId || '';
+      })
+      .filter(id => id.startsWith(prefix + '_'))
+      .map(id => {
+        const match = id.match(new RegExp(`${prefix}_(\\d+)$`));
+        return match ? parseInt(match[1]) : 0;
+      });
+    
+    const maxNumber = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+    const nextNumber = maxNumber + 1;
+    const newMaimlId = `${prefix}_${String(nextNumber).padStart(3, '0')}`;
+    
+    setMaimlId(newMaimlId);
+    console.log('🆔 [TemplateEditor] MaiML ID自動生成:', newMaimlId);
+  }, [node, allNodes]);
+
   useEffect(() => {
     if (open && node) {
       console.log('🔍 [TemplateEditorDialog] ノードデータ読み込み:', node);
@@ -611,6 +753,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       // 基本情報の読み込み
       const templateRef = node.data.templateRef || node.data.template || {};
       setUuid(templateRef.uuid || '');
+      setTemplateId(templateRef.id || ''); // 🆕 Phase 5-3: Template ID読み込み
+      setMaimlId(templateRef.maimlId || ''); // 🆕 Phase 5-4: MaiML ID読み込み
       setName(templateRef.name || node.data.name || '');
       setDescription(templateRef.description || node.data.description || '');
       setInsertion(templateRef.insertion || { uri: '', hash: '', format: '' });
@@ -622,6 +766,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       // Contentsの読み込み（ResultTemplateのみ）
       setContents(templateRef.contents || {});
       setExpandedContentNodes(new Set());
+      
+      // 🆕 Phase 5-1: PlaceReferencesの読み込み
+      setPlaceRefs(templateRef.placeRefs || []);
     }
   }, [open, node]);
 
@@ -1064,15 +1211,57 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     }
   };
 
+  // 🆕 Phase 5-1: PlaceReference追加ハンドラー
+  const handleAddPlaceRef = () => {
+    if (!selectedPlaceToAdd) {
+      alert('Placeを選択してください');
+      return;
+    }
+
+    if (placeRefs.includes(selectedPlaceToAdd)) {
+      alert('このPlaceは既に参照されています');
+      return;
+    }
+
+    setPlaceRefs([...placeRefs, selectedPlaceToAdd]);
+    setSelectedPlaceToAdd(null);
+    setShowPlaceRefAddModal(false);
+    console.log('📍 [TemplateEditor] PlaceRef追加:', selectedPlaceToAdd);
+  };
+
+  // 🆕 Phase 5-1: PlaceReference削除ハンドラー
+  const handleRemovePlaceRef = (placeId: string) => {
+    if (window.confirm(`Place参照「${placeId}」を削除しますか？`)) {
+      setPlaceRefs(placeRefs.filter(id => id !== placeId));
+      console.log('📍 [TemplateEditor] PlaceRef削除:', placeId);
+    }
+  };
+
   // 保存ハンドラー
   const handleSaveClick = () => {
-    const templateRef: any = {
+    // 🆕 Phase 5-3: Template ID重複チェック
+    if (templateId && isTemplateIdDuplicate(templateId)) {
+      alert('このテンプレートIDは既に使用されています。別のIDを指定してください。');
+      return;
+    }
+
+    const templateRef: Record<string, unknown> = {
       type: templateType,
       uuid: uuid,
       name: name,
       description: description,
       properties: properties
     };
+    
+    // 🆕 Phase 5-3: Template IDを追加
+    if (templateId) {
+      templateRef.id = templateId;
+    }
+    
+    // 🆕 Phase 5-4: MaiML IDを追加
+    if (maimlId) {
+      templateRef.maimlId = maimlId;
+    }
     
     // 継承元情報（href）を保持
     if (node.data.templateRef?.href) {
@@ -1088,6 +1277,11 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     // ResultTemplateの場合のみContentsを追加
     if (node.data.placeType === 'result' && Object.keys(contents).length > 0) {
       templateRef.contents = contents;
+    }
+    
+    // 🆕 Phase 5-1: PlaceReferencesを追加
+    if (placeRefs.length > 0) {
+      templateRef.placeRefs = placeRefs;
     }
     
     // 更新されたNodeオブジェクトを作成
@@ -1159,6 +1353,49 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             </Flex>
           </div>
 
+          {/* 🆕 Phase 5-3: Template ID */}
+          <div style={{ marginBottom: 16 }}>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>Template ID</Text>
+            <Flex gap="small">
+              <Input
+                value={templateId}
+                onChange={(e) => setTemplateId(e.target.value)}
+                placeholder="例: material_template_base"
+                style={{ flex: 1 }}
+              />
+              <Button onClick={handleGenerateTemplateId}>🔄 自動生成</Button>
+            </Flex>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+              ℹ️ テンプレート固有のIDです。ノードID（{node.id}）とは異なります。
+            </Text>
+            {templateId && isTemplateIdDuplicate(templateId) && (
+              <Alert
+                type="warning"
+                message="このテンプレートIDは既に使用されています"
+                description="別のIDを指定してください"
+                style={{ marginTop: 8 }}
+                showIcon
+              />
+            )}
+          </div>
+
+          {/* 🆕 Phase 5-4: MaiML ID (XML ID属性) */}
+          <div style={{ marginBottom: 16 }}>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>MaiML ID (XML ID属性)</Text>
+            <Flex gap="small">
+              <Input
+                value={maimlId}
+                onChange={(e) => setMaimlId(e.target.value)}
+                placeholder="例: compound_base_001"
+                style={{ flex: 1 }}
+              />
+              <Button onClick={handleGenerateMaimlId}>🔄 自動生成</Button>
+            </Flex>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+              ℹ️ XML内での要素参照に使用されるID属性です。ref属性で参照できます。
+            </Text>
+          </div>
+
           {/* Name */}
           <div style={{ marginBottom: 16 }}>
             <Text strong style={{ display: 'block', marginBottom: 4 }}>Name</Text>
@@ -1215,6 +1452,198 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             </>
           )}
           </div>
+          </>
+        )}
+
+        {/* 🆕 Phase 5-1: PlaceReferencesセクション */}
+        {showBasicInfo && (
+          <>
+            <Divider />
+            <div style={{ 
+              marginBottom: 24, 
+              padding: 16, 
+              background: '#f0f5ff', 
+              borderRadius: 8, 
+              border: '2px solid #1890ff' 
+            }}>
+              <Title level={5}>📍 PlaceReferences (参照するPlace)</Title>
+              
+              <Button
+                icon={<PlusOutlined />}
+                onClick={() => setShowPlaceRefAddModal(true)}
+                disabled={availablePlaces.length === 0}
+                style={{ marginBottom: 16 }}
+              >
+                Place参照を追加
+              </Button>
+
+              {placeRefs.length === 0 ? (
+                <Alert
+                  title="参照しているPlaceがありません"
+                  type="info"
+                />
+              ) : (
+                <div>
+                  <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                    参照中のPlace一覧 ({placeRefs.length}件):
+                  </Text>
+                  <Space direction="vertical" style={{ width: '100%' }} size="small">
+                    {referencedPlaces.map((place) => (
+                      <div
+                        key={place.id}
+                        style={{
+                          padding: '8px 12px',
+                          background: place.exists ? '#ffffff' : '#fff2e8',
+                          border: place.exists ? '1px solid #d9d9d9' : '1px solid #faad14',
+                          borderRadius: 4
+                        }}
+                      >
+                        <Flex justify="space-between" align="center">
+                          <div>
+                            <Text strong>{place.id}</Text>
+                            <Text type="secondary" style={{ marginLeft: 8 }}>
+                              {place.name}
+                            </Text>
+                            {!place.exists && (
+                              <Tag color="warning" style={{ marginLeft: 8 }}>
+                                Place未存在
+                              </Tag>
+                            )}
+                          </div>
+                          <Button
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => handleRemovePlaceRef(place.id)}
+                          />
+                        </Flex>
+                      </div>
+                    ))}
+                  </Space>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* 🆕 Phase 5-2: 継承元テンプレート情報セクション */}
+        {showInheritedInfo && (
+          <>
+            <Divider />
+            <div style={{ 
+              marginBottom: 24, 
+              padding: 16, 
+              background: '#fff7e6', 
+              borderRadius: 8, 
+              border: '2px solid #faad14' 
+            }}>
+              <Title level={5}>📖 継承元テンプレート情報</Title>
+              
+              <div style={{ marginBottom: 12 }}>
+                <Text strong>継承元: </Text>
+                <Text>{inheritedInfo?.name}</Text>
+                <Text type="secondary" style={{ marginLeft: 8 }}>
+                  ({inheritedInfo?.nodeId})
+                </Text>
+              </div>
+
+              {inheritedInfo?.uuid && (
+                <div style={{ marginBottom: 8 }}>
+                  <Text strong>UUID: </Text>
+                  <Text code style={{ fontSize: 12 }}>{inheritedInfo.uuid}</Text>
+                </div>
+              )}
+
+              {inheritedInfo?.description && (
+                <div style={{ marginBottom: 12 }}>
+                  <Text strong>説明: </Text>
+                  <Text type="secondary">{inheritedInfo.description}</Text>
+                </div>
+              )}
+
+              <Divider style={{ margin: '12px 0' }} />
+
+              <Button
+                icon={showInheritedProperties ? <DownOutlined /> : <RightOutlined />}
+                onClick={() => setShowInheritedProperties(!showInheritedProperties)}
+                style={{ marginBottom: 12 }}
+              >
+                継承元プロパティを{showInheritedProperties ? '非表示' : '表示'}
+                （{Object.keys(inheritedInfo?.properties || {}).length}件）
+              </Button>
+
+              {showInheritedProperties && inheritedInfo && (
+                <div style={{
+                  padding: 12,
+                  background: '#ffffff',
+                  borderRadius: 4,
+                  border: '1px solid #d9d9d9',
+                  maxHeight: 400,
+                  overflowY: 'auto'
+                }}>
+                  <Text strong style={{ display: 'block', marginBottom: 8, color: '#8c8c8c' }}>
+                    継承元プロパティ（参照専用）
+                  </Text>
+
+                  {Object.keys(inheritedInfo.properties || {}).length === 0 ? (
+                    <Alert
+                      title="継承元プロパティがありません"
+                      type="info"
+                    />
+                  ) : (
+                    <Space direction="vertical" style={{ width: '100%' }} size="small">
+                      {Object.entries(inheritedInfo.properties || {}).map(([key, propData]) => {
+                        const typedPropData = propData as PropertyData;
+                        return (
+                        <div
+                          key={key}
+                          style={{
+                            padding: '8px 12px',
+                            background: '#fafafa',
+                            border: '1px solid #e8e8e8',
+                            borderRadius: 4
+                          }}
+                        >
+                          <Text strong>{key}</Text>
+                          <Text type="secondary" style={{ marginLeft: 8 }}>
+                            ({typedPropData.tagName || 'property'})
+                          </Text>
+
+                          {typedPropData.attributes && Object.keys(typedPropData.attributes).length > 0 && (
+                            <div style={{ marginTop: 4, paddingLeft: 12 }}>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                📋 {Object.entries(typedPropData.attributes)
+                                  .map(([k, v]) => `${k}="${v}"`)
+                                  .join(', ')}
+                              </Text>
+                            </div>
+                          )}
+
+                          {typedPropData.elements && Object.keys(typedPropData.elements).length > 0 && (
+                            <div style={{ marginTop: 4, paddingLeft: 12 }}>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                📄 {Object.entries(typedPropData.elements)
+                                  .map(([k, v]) => `${k}: ${v}`)
+                                  .join(', ')}
+                              </Text>
+                            </div>
+                          )}
+
+                          {typedPropData.children && typedPropData.children.length > 0 && (
+                            <div style={{ marginTop: 4, paddingLeft: 12 }}>
+                              <Tag color="blue" style={{ fontSize: 11 }}>
+                                🌿 子要素 {typedPropData.children.length}件
+                              </Tag>
+                            </div>
+                          )}
+                        </div>
+                        );
+                      })}
+                    </Space>
+                  )}
+                </div>
+              )}
+            </div>
           </>
         )}
 
@@ -1525,6 +1954,48 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               ]}
             />
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 🆕 Phase 5-1: Place参照追加モーダル */}
+      <Modal
+        open={showPlaceRefAddModal}
+        onCancel={() => {
+          setShowPlaceRefAddModal(false);
+          setSelectedPlaceToAdd(null);
+        }}
+        title="📍 Place参照を追加"
+        onOk={handleAddPlaceRef}
+      >
+        <Form layout="vertical">
+          <Form.Item label="参照するPlace">
+            <Select
+              value={selectedPlaceToAdd}
+              onChange={(value) => setSelectedPlaceToAdd(value)}
+              placeholder="Placeを選択してください"
+              showSearch
+              optionFilterProp="label"
+            >
+              {availablePlaces.map((place) => (
+                <Select.Option key={place.id} value={place.id} label={place.name}>
+                  <Flex justify="space-between" align="center">
+                    <span>{place.id}</span>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {place.name}
+                    </Text>
+                  </Flex>
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+          
+          {availablePlaces.length === 0 && (
+            <Alert
+              title="利用可能なPlaceがありません"
+              description="全てのPlaceが既に参照されているか、Placeが存在しません"
+              type="info"
+            />
+          )}
         </Form>
       </Modal>
 

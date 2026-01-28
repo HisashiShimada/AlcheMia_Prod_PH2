@@ -28,16 +28,50 @@ import {
   theme
 } from 'antd';
 import {
-  CloseOutlined,
   SaveOutlined,
   ReloadOutlined,
   DeleteOutlined,
   FolderOpenOutlined,
-  SearchOutlined,
-  SortAscendingOutlined
+  SearchOutlined
 } from '@ant-design/icons';
 
 const { Text } = Typography;
+
+/**
+ * ノード情報の型定義
+ */
+interface NodeData {
+  id: string;
+  type?: string;
+  position?: { x: number; y: number };
+  data?: Record<string, unknown>;
+}
+
+/**
+ * エッジ情報の型定義
+ */
+interface EdgeData {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
+}
+
+/**
+ * テンプレート情報の型定義
+ */
+interface TemplateData {
+  [key: string]: unknown;
+}
+
+/**
+ * ドキュメント情報の型定義
+ */
+interface DocumentData {
+  id?: string;
+  name?: string;
+  [key: string]: unknown;
+}
 
 /**
  * Draft情報の型定義
@@ -50,10 +84,10 @@ interface DraftInfo {
   node_count?: number;
   arc_count?: number;
   template_count?: number;
-  nodes?: any[];
-  edges?: any[];
-  templates?: any;
-  documentData?: any;
+  nodes?: NodeData[];
+  edges?: EdgeData[];
+  templates?: TemplateData;
+  documentData?: DocumentData;
 }
 
 /**
@@ -61,10 +95,17 @@ interface DraftInfo {
  */
 interface EditState {
   fileName?: string;
-  nodes?: any[];
-  edges?: any[];
-  templates?: any;
-  documentData?: any;
+  nodes?: NodeData[];
+  edges?: EdgeData[];
+  templates?: TemplateData;
+  documentData?: DocumentData;
+}
+
+/**
+ * ロード用Draft情報の型定義
+ */
+interface LoadDraftData extends DraftInfo {
+  fileName?: string;
 }
 
 /**
@@ -73,7 +114,7 @@ interface EditState {
 export interface DraftManagerProps {
   open: boolean;
   onClose: () => void;
-  onLoad: (draft: any) => void;
+  onLoad: (draft: LoadDraftData) => void;
   currentEditState?: EditState;
   userId: string;
   autoSaveEnabled?: boolean;
@@ -146,7 +187,15 @@ const DraftManager: React.FC<DraftManagerProps> = ({
   };
 
   // Draft保存
-  const saveDraft = async (draftData: any) => {
+  const saveDraft = async (draftData: {
+    draftKey: string;
+    draftName: string;
+    originalFileKey: string;
+    nodes: NodeData[];
+    edges: EdgeData[];
+    templates: TemplateData;
+    documentData: DocumentData;
+  }) => {
     setIsLoading(true);
     setError(null);
     
@@ -155,7 +204,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
       
       const currentOrgId = localStorage.getItem('currentOrganizationId');
       
-      const arcs = draftData.edges?.map((edge: any) => ({
+      const arcs = draftData.edges?.map((edge) => ({
         id: edge.id,
         source: edge.source,
         target: edge.target,
@@ -235,7 +284,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
       console.log('📄 [DraftManager] モーダル表示 - Draft一覧取得');
       fetchDrafts();
     }
-  }, [open]);
+  }, [open, fetchDrafts]);
 
   // 新規保存ダイアログを開く際に初期値を設定
   useEffect(() => {

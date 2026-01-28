@@ -101,3 +101,21 @@ body {
 .ant-tabs-content::-webkit-scrollbar-thumb:hover {
   background: #bfbfbf;
 }
+
+/* ===== Phase B-1: エラー視覚化スタイル ===== */
+
+/* エラーノードのスタイル */
+.react-flow__node.error-node {
+  border: 2px solid #f5222d !important;
+  box-shadow: 0 0 10px rgba(245, 34, 45, 0.5) !important;
+}
+
+/* エラーエッジのスタイル */
+.react-flow__edge.error-edge path {
+  stroke: #f5222d !important;
+  stroke-width: 3px !important;
+}
+
+.react-flow__edge.error-edge .react-flow__edge-path {
+  stroke: #f5222d !important;
+}

@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import ReactFlow, {
+  ReactFlowProvider,
   useNodesState,
   useEdgesState,
   useReactFlow,
@@ -21,7 +22,7 @@ import ReactFlow, {
   type Node,
   type Edge,
 } from 'reactflow';
-import { Spin, Alert, Flex } from 'antd';
+import { Spin, Alert, Flex, theme } from 'antd';
 
 // サブコンポーネント
 import EditorToolbar from './EditorToolbar';
@@ -33,6 +34,10 @@ import WorkflowSelectorDialog from './WorkflowSelectorDialog';
 import SaveConfirmDialog from './SaveConfirmDialog';
 import ValidationPanel from './ValidationPanel';
 import DraftManager from './DraftManager';
+import TemplateList from './TemplateList';
+import type { CategorizedTemplates } from './TemplateList';
+import type { TemplateError } from './TemplateItem';
+import { TemplateProvider } from '@/contexts/TemplateContext';
 
 // カスタムフック
 import useHistory from '../../hooks/useHistory';
@@ -43,7 +48,9 @@ import useDraftManager from '../../hooks/useDraftManager';
 import { convertReactFlowToMaiML, validatePetriNet } from '../../utils/converters/reactFlowToMaiml';
 import { convertMultipleMethodsToMaiML } from '../../utils/converters/multiMethodConverter';
 import { extractDocumentFromMaiML, fillMissingDocumentFields, type DocumentData } from '../../utils/documentParser';
-import { validateMaimlContent, autoCorrectMaiml } from '../../utils/apiClient';
+
+// API Service
+import { validateMaiml, correctMaiml } from '../../api/maimlApiService';
 
 // Viewer用ノード（既存の正しいノード描画）
 import MaterialTemplateNode from '../nodes/MaterialTemplateNode';
@@ -56,7 +63,13 @@ import { convertToReactFlow } from '../../utils/reactFlowConverter';
 import 'reactflow/dist/style.css';
 
 /**
- * Props型定義
+ * PetriNetEditor - Props型定義
+ * 
+ * @interface PetriNetEditorProps
+ * @description
+ * PetriNetEditorコンポーネントに渡すプロパティの型定義。
+ * Reference版PetriNetEditorV2をベースに、TypeScript + Ant Design で実装。
+ * Phase 6で新しいprops（initialContent、onSave等）が追加されました。
  */
 export interface PetriNetEditorProps {
   maimlData?: string;
@@ -89,9 +102,9 @@ interface MethodData {
 
 
 /**
- * PetriNetEditor - メインコンポーネント
+ * PetriNetEditorInner - メインロジック
  */
-const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
+const PetriNetEditorInner: React.FC<PetriNetEditorProps> = ({
   maimlData,
   onError,
   editingFileName,
@@ -107,8 +120,22 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
   // フォーマット管理統合用
   sourceContext = 'project', // デフォルト: 'project'
 }) => {
+  const { token } = theme.useToken();
+  
   // initialContentとmaimlDataの統合（後方互換性維持）
   const effectiveMaimlData = initialContent || maimlData;
+  
+  // ===== エディタービューモード管理（Phase 1: ペトリネット/テンプレート切替） =====
+  // 注意: propsのeditMode（'normal' | 'draft'）とは別の変数
+  const [editorMode, setEditorMode] = useState<'petri-net' | 'template'>('petri-net');
+  
+  // ===== Phase A-2: ビューポート保存/復元 =====
+  const [savedPetriNetViewport, setSavedPetriNetViewport] = useState<{
+    x: number;
+    y: number;
+    zoom: number;
+  } | null>(null);
+  
   // ===== React Flow State =====
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -122,6 +149,103 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
   const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
   const [clipboard, setClipboard] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
+  const [showArcLabels, setShowArcLabels] = useState(false); // Phase 5: アーク属性表示トグル
+  
+  // ===== TemplateListView State =====
+  const [showCommonTemplates, setShowCommonTemplates] = useState(false);
+  const [categorizedTemplates, setCategorizedTemplates] = useState<CategorizedTemplates>({
+    material: [],
+    condition: [],
+    result: []
+  });
+  const [commonTemplatesData, setCommonTemplatesData] = useState<CategorizedTemplates>({
+    material: [],
+    condition: [],
+    result: []
+  });
+  const [templateErrors, setTemplateErrors] = useState<Record<string, TemplateError[]>>({});
+
+  // ===== データ変換ロジック: Node → TemplateData =====
+  const convertNodeToTemplateData = useCallback((node: Node): any => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    return {
+      id: node.id,
+      name: node.data.name || node.id,
+      propertiesCount: node.data.properties?.length || 0,
+      placeRefsCount: 0, // 将来実装
+      type: node.type,
+      description: node.data.description || '',
+      data: node.data,
+    };
+  }, []);
+
+  // ===== Phase A-4: useMemoでテンプレートデータを抽出（パフォーマンス最適化） =====
+  const categorizedTemplatesMemo = useMemo(() => {
+    const materialTemplates = nodes
+      .filter(n => n.type === 'materialTemplate')
+      .map(convertNodeToTemplateData);
+    
+    const conditionTemplates = nodes
+      .filter(n => n.type === 'conditionTemplate')
+      .map(convertNodeToTemplateData);
+    
+    const resultTemplates = nodes
+      .filter(n => n.type === 'resultTemplate')
+      .map(convertNodeToTemplateData);
+    
+    const result = {
+      material: materialTemplates,
+      condition: conditionTemplates,
+      result: resultTemplates,
+    };
+    
+    console.log('📋 [PetriNetEditor] テンプレート一覧更新（useMemo）:', {
+      materialCount: materialTemplates.length,
+      conditionCount: conditionTemplates.length,
+      resultCount: resultTemplates.length,
+    });
+    
+    return result;
+  }, [nodes, convertNodeToTemplateData]);
+
+  // ===== Phase A-4: useMemoで共通テンプレートを抽出（パフォーマンス最適化） =====
+  const commonTemplatesDataMemo = useMemo(() => {
+    // typeプロパティがnullまたはundefinedのテンプレートを共通テンプレートとして抽出
+    const commonMaterial = nodes
+      .filter(n => n.type === 'materialTemplate' && !n.data.type)
+      .map(convertNodeToTemplateData);
+    
+    const commonCondition = nodes
+      .filter(n => n.type === 'conditionTemplate' && !n.data.type)
+      .map(convertNodeToTemplateData);
+    
+    const commonResult = nodes
+      .filter(n => n.type === 'resultTemplate' && !n.data.type)
+      .map(convertNodeToTemplateData);
+    
+    const result = {
+      material: commonMaterial,
+      condition: commonCondition,
+      result: commonResult,
+    };
+    
+    console.log('📋 [PetriNetEditor] 共通テンプレート更新（useMemo）:', {
+      materialCount: commonMaterial.length,
+      conditionCount: commonCondition.length,
+      resultCount: commonResult.length,
+      totalCount: commonMaterial.length + commonCondition.length + commonResult.length,
+    });
+    
+    return result;
+  }, [nodes, convertNodeToTemplateData]);
+
+  // ===== State更新: useMemoの結果をStateに反映 =====
+  useEffect(() => {
+    setCategorizedTemplates(categorizedTemplatesMemo);
+  }, [categorizedTemplatesMemo]);
+
+  useEffect(() => {
+    setCommonTemplatesData(commonTemplatesDataMemo);
+  }, [commonTemplatesDataMemo]);
 
   // ===== ダイアログ State =====
   const [saveConfirmDialogOpen, setSaveConfirmDialogOpen] = useState(false);
@@ -137,6 +261,85 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
   const [isValidating, setIsValidating] = useState(false);
   const [isCorrecting, setIsCorrecting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // ===== Phase A-3: エラー分類 State =====
+  const [criticalErrors, setCriticalErrors] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const [nonCriticalErrors, setNonCriticalErrors] = useState<any[]>([]); // eslint-disable-line @typescript-eslint/no-explicit-any
+  
+  // ===== Phase B-1: エラー視覚化関数 =====
+  const extractAffectedElements = useCallback((errors: any[]) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const affectedNodeIds = new Set<string>();
+    const affectedEdgeIds = new Set<string>();
+    
+    errors.forEach(error => {
+      // elementType と elementId から直接抽出
+      if (error.elementType === 'node' && error.elementId) {
+        affectedNodeIds.add(error.elementId);
+      } else if (error.elementType === 'edge' && error.elementId) {
+        affectedEdgeIds.add(error.elementId);
+      }
+      
+      // メッセージからID抽出（フォールバック）
+      const nodeMatch = error.message?.match(/node[:\s]+([a-zA-Z0-9_-]+)/i);
+      const edgeMatch = error.message?.match(/edge[:\s]+([a-zA-Z0-9_-]+)/i);
+      
+      if (nodeMatch) affectedNodeIds.add(nodeMatch[1]);
+      if (edgeMatch) affectedEdgeIds.add(edgeMatch[1]);
+    });
+    
+    return { affectedNodeIds, affectedEdgeIds };
+  }, []);
+
+  const applyErrorVisualization = useCallback(() => {
+    if (!validationResult || validationResult.valid) {
+      // エラーなし - フラグをクリア
+      setNodes(nds => nds.map(node => ({
+        ...node,
+        data: { ...node.data, hasError: false },
+        className: node.className?.replace(' error-node', '') || ''
+      })));
+      
+      setEdges(eds => eds.map(edge => ({
+        ...edge,
+        data: { ...edge.data, hasError: false },
+        className: edge.className?.replace(' error-edge', '') || ''
+      })));
+      
+      return;
+    }
+    
+    const { affectedNodeIds, affectedEdgeIds } = 
+      extractAffectedElements(validationResult.errors || []);
+    
+    console.log('🔴 [PetriNetEditor] エラー視覚化:', {
+      affectedNodes: Array.from(affectedNodeIds),
+      affectedEdges: Array.from(affectedEdgeIds)
+    });
+    
+    // ノードにエラーフラグ設定
+    setNodes(nds => nds.map(node => ({
+      ...node,
+      data: { 
+        ...node.data, 
+        hasError: affectedNodeIds.has(node.id) 
+      },
+      className: affectedNodeIds.has(node.id) 
+        ? `${node.className || ''} error-node`.trim() 
+        : node.className?.replace(' error-node', '') || ''
+    })));
+    
+    // エッジにエラーフラグ設定
+    setEdges(eds => eds.map(edge => ({
+      ...edge,
+      data: { 
+        ...edge.data, 
+        hasError: affectedEdgeIds.has(edge.id) 
+      },
+      className: affectedEdgeIds.has(edge.id) 
+        ? `${edge.className || ''} error-edge`.trim() 
+        : edge.className?.replace(' error-edge', '') || ''
+    })));
+  }, [validationResult, extractAffectedElements, setNodes, setEdges]);
 
   // ===== Document/Draft State =====
   const [documentData, setDocumentData] = useState<DocumentData | undefined>(undefined);
@@ -224,17 +427,16 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
   console.log('🔍 [PetriNetEditor] Received editingFileName:', editingFileName);
 
   // ===== useEffect: history.presentとの同期 =====
-  // 注意: このuseEffectを一時的にコメントアウトしてテスト
-  // useEffect(() => {
-  //   if (history.present.nodes && history.present.edges) {
-  //     setNodes(history.present.nodes);
-  //     setEdges(history.present.edges);
-  //     console.log('↻ [PetriNetEditor] 履歴から状態復元:', {
-  //       nodesCount: history.present.nodes.length,
-  //       edgesCount: history.present.edges.length,
-  //     });
-  //   }
-  // }, [history.present, setNodes, setEdges]);
+  useEffect(() => {
+    if (history.present.nodes && history.present.edges) {
+      setNodes(history.present.nodes);
+      setEdges(history.present.edges);
+      console.log('↻ [PetriNetEditor] 履歴から状態復元:', {
+        nodesCount: history.present.nodes.length,
+        edgesCount: history.present.edges.length,
+      });
+    }
+  }, [history.present, setNodes, setEdges]);
 
   // ===== useEffect: キーボードショートカット =====
   useEffect(() => {
@@ -348,6 +550,31 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
     }
   }, [editMode, draftModeHandled, isLoading]);
 
+  // ===== useEffect: Phase 5 - アーク属性表示トグル =====
+  useEffect(() => {
+    setEdges((eds) => 
+      eds.map((edge) => ({
+        ...edge,
+        label: showArcLabels ? (edge.data?.id || edge.id) : undefined,
+        labelStyle: showArcLabels ? { 
+          fill: '#333',
+          fontSize: 12,
+          fontWeight: 500,
+        } : undefined,
+        labelBgStyle: showArcLabels ? { 
+          fill: '#fff',
+          fillOpacity: 0.8,
+        } : undefined,
+      }))
+    );
+    console.log(`🔖 [PetriNetEditor] アーク属性表示: ${showArcLabels ? 'ON' : 'OFF'}`);
+  }, [showArcLabels, setEdges]);
+
+  // ===== Phase B-1: validationResult変更時にエラー視覚化適用 =====
+  useEffect(() => {
+    applyErrorVisualization();
+  }, [validationResult, applyErrorVisualization]);
+
   // ===== useEffect: MaiMLデータ読み込みと変換 =====
   useEffect(() => {
     const fetchPetriNetData = async () => {
@@ -430,14 +657,20 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         hasLoadedRef.current = true;
         maimlDataRef.current = effectiveMaimlData;
         
-        const base64Data = btoa(unescape(encodeURIComponent(effectiveMaimlData)));
+        // Phase 6: 新しいAPI /api/v1/maiml/parse-petri-net-structure を使用
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('❌ [PetriNetEditor] 認証トークンが見つかりません');
+          throw new Error('認証トークンが見つかりません');
+        }
         
-        const multiMethodResponse = await fetch('/api/worker/multiple-methods-structure-from-content', {
+        const multiMethodResponse = await fetch('/api/v1/maiml/parse-petri-net-structure', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify({ maimlContent: base64Data }),
+          body: JSON.stringify({ content: effectiveMaimlData }),
           credentials: 'include'
         });
         
@@ -446,8 +679,15 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         if (multiMethodResponse.ok) {
           const multiMethodResult = await multiMethodResponse.json();
           
-          if (multiMethodResult.success && multiMethodResult.data.methods) {
+          // 新しいAPIのレスポンス形式: { success: true, data: { success, isMultiMethod, methods, ... } }
+          if (multiMethodResult.success && multiMethodResult.data?.success && multiMethodResult.data.methods) {
             const methodsData = multiMethodResult.data.methods;
+            
+            console.log('🎯 [PetriNetEditor] 新API使用 - 複数method構造取得:', {
+              apiVersion: multiMethodResult.meta?.apiVersion || 'unknown',
+              isMultiMethod: multiMethodResult.data.isMultiMethod,
+              methodCount: methodsData.length,
+            });
             
             console.log('🎯 [PetriNetEditor] 複数method構造取得:', {
               methodCount: methodsData.length,
@@ -613,6 +853,12 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         }, 100);
         
         setIsLoading(false);
+        
+        // ✅ Phase A-1: 自動バリデーション追加
+        // データ読み込み完了後、500ms後に自動バリデーション実行
+        setTimeout(() => {
+          handleValidate();
+        }, 500);
       } catch (err) {
         console.error('❌ [PetriNetEditor] 初期化エラー:', err);
         setError((err as Error).message || 'ペトリネット構造の読み込みに失敗しました');
@@ -628,6 +874,10 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
   }, [effectiveMaimlData]);
 
   // ===== イベントハンドラー: ノード操作 =====
+  /**
+   * ノード追加ハンドラー
+   * @param nodeType - ノードタイプ（'material' | 'condition' | 'result' | 'transition'）
+   */
   const handleAddNode = useCallback((nodeType: string) => {
     const newNode: Node = {
       id: `${nodeType}-${Date.now()}`,
@@ -880,6 +1130,60 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
     console.log('📝 [PetriNetEditor] エッジID更新:', { oldId: edgeId, newId });
   }, [setEdges, nodes, pushState]);
 
+  // ===== Phase B-2: ノードID変更機能 =====
+  const handleUpdateNodeId = useCallback((oldId: string, newId: string) => {
+    console.log('🔄 [PetriNetEditor] ノードID変更:', { oldId, newId });
+    
+    // バリデーション
+    if (oldId === newId) {
+      return; // 変更なし
+    }
+    if (!newId || newId.trim() === '') {
+      alert('IDを入力してください');
+      return;
+    }
+    
+    // 重複チェック
+    const exists = nodes.some(n => n.id === newId && n.id !== oldId);
+    if (exists) {
+      alert('このIDは既に使用されています');
+      return;
+    }
+    
+    // ノードID変更
+    setNodes(nds => {
+      const newNodes = nds.map(node =>
+        node.id === oldId 
+          ? { ...node, id: newId, data: { ...node.data, id: newId } } 
+          : node
+      );
+      
+      // 関連エッジも更新
+      setEdges(eds => {
+        const newEdges = eds.map(edge => ({
+          ...edge,
+          source: edge.source === oldId ? newId : edge.source,
+          target: edge.target === oldId ? newId : edge.target,
+        }));
+        
+        pushState({ nodes: newNodes, edges: newEdges });
+        return newEdges;
+      });
+      
+      // 選択状態を更新
+      if (selectedNode?.id === oldId) {
+        const updatedNode = newNodes.find(n => n.id === newId);
+        if (updatedNode) {
+          setSelectedNode(updatedNode);
+        }
+      }
+      
+      return newNodes;
+    });
+    
+    console.log('✅ [PetriNetEditor] ノードID変更完了:', { oldId, newId });
+  }, [nodes, selectedNode, setNodes, setEdges, pushState]);
+
   const handleCopy = useCallback(() => {
     if (selectedNodes.length === 0) return;
     
@@ -974,6 +1278,28 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
     setSelectedEdge(edge);
   }, []);
 
+  // ===== Phase A-2: エディタモード変更時にビューポート保存 =====
+  const handleEditorModeChange = useCallback((newMode: 'petri-net' | 'template') => {
+    if (newMode === 'template' && editorMode === 'petri-net') {
+      // ペトリネットモードから切り替え時にビューポートを保存
+      const currentViewport = getViewport();
+      setSavedPetriNetViewport(currentViewport);
+      console.log('💾 [PetriNetEditor] ビューポート保存:', currentViewport);
+    }
+    
+    setEditorMode(newMode);
+  }, [editorMode, getViewport]);
+  
+  // ===== Phase A-2: ペトリネットモードに戻る時にビューポート復元 =====
+  useEffect(() => {
+    if (editorMode === 'petri-net' && savedPetriNetViewport) {
+      setTimeout(() => {
+        setViewport(savedPetriNetViewport, { duration: 300 });
+        console.log('🔄 [PetriNetEditor] ビューポート復元:', savedPetriNetViewport);
+      }, 100);
+    }
+  }, [editorMode, savedPetriNetViewport, setViewport]);
+  
   // ===== イベントハンドラー: ダイアログ操作 =====
   const handleOpenTemplateEditor = useCallback((node: Node) => {
     console.log('🔧 [PetriNetEditor] テンプレート編集:', node);
@@ -1088,6 +1414,33 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
     setDraftManagerOpen(false);
   }, [setNodes, setEdges, reset, fitView]);
 
+  // ===== Phase A-3: エラー分類関数 =====
+  const classifyErrors = useCallback((errors: any[]) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const critical: any[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const nonCritical: any[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
+    
+    errors.forEach(error => {
+      const isCritical = 
+        error.code === 'syntax_error' || 
+        error.code === 'invalid_structure' ||
+        error.severity === 'critical';
+      
+      if (isCritical) {
+        critical.push(error);
+      } else {
+        nonCritical.push(error);
+      }
+    });
+    
+    setCriticalErrors(critical);
+    setNonCriticalErrors(nonCritical);
+    
+    console.log('🔍 [PetriNetEditor] エラー分類:', {
+      critical: critical.length,
+      nonCritical: nonCritical.length
+    });
+  }, []);
+
   const handleValidate = useCallback(async () => {
     console.log('✅ [PetriNetEditor] バリデーション開始');
     setIsValidating(true);
@@ -1118,12 +1471,35 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         safeDocumentData
       );
       
-      // モックAPIでバリデーション
-      const currentOrgId = localStorage.getItem('currentOrganizationId') || 'default-org';
-      const result = await validateMaimlContent(maimlXml, currentOrgId);
+      // 実APIでバリデーション
+      const apiResponse = await validateMaiml(maimlXml, false);
       
+      if (!apiResponse.success || !apiResponse.data) {
+        throw new Error(apiResponse.error?.message || 'バリデーションに失敗しました');
+      }
+      
+      const result = apiResponse.data;
+      
+      // エラーを文字列配列からオブジェクト配列に変換（エラー分類用）
+      const errorObjects = result.errors.map(msg => ({
+        code: 'VALIDATION_ERROR',
+        message: msg,
+        elementType: null,
+        elementId: null
+      }));
+      
+      // ✅ Phase A-3: エラー分類を実行
+      if (errorObjects.length > 0) {
+        classifyErrors(errorObjects);
+      } else {
+        // エラーなし - クリア
+        setCriticalErrors([]);
+        setNonCriticalErrors([]);
+      }
+      
+      // ValidationPanel用のフォーマット
       setValidationResult({
-        valid: result.valid,
+        valid: result.isValid,
         errors: result.errors,
         warnings: result.warnings,
       });
@@ -1136,12 +1512,14 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         errors: [(error as Error).message],
         warnings: [],
       });
+      setCriticalErrors([]);
+      setNonCriticalErrors([]);
     } finally {
       setIsValidating(false);
     }
-  }, [nodes, edges, documentData]);
+  }, [nodes, edges, documentData, classifyErrors]);
 
-  const handleAutoCorrect = useCallback(async (selectedErrors?: string[]) => {
+  const handleAutoCorrect = useCallback(async (selectedErrors: number[]) => {
     console.log('🔧 [PetriNetEditor] 自動補正開始');
     setIsCorrecting(true);
     
@@ -1170,17 +1548,22 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         safeDocumentData
       );
       
-      // モックAPIで自動補正
-      const currentOrgId = localStorage.getItem('currentOrganizationId') || 'default-org';
-      const result = await autoCorrectMaiml(maimlXml, currentOrgId, selectedErrors);
+      // 実APIで自動補正
+      const apiResponse = await correctMaiml(maimlXml, 'safe');
       
-      if (result.success && result.correctedMaiml) {
-        console.log('✅ [PetriNetEditor] 自動補正完了:', result.appliedCorrections);
+      if (!apiResponse.success || !apiResponse.data) {
+        throw new Error(apiResponse.error?.message || '自動補正に失敗しました');
+      }
+      
+      const result = apiResponse.data;
+      
+      if (result.corrected && result.correctedContent) {
+        console.log('✅ [PetriNetEditor] 自動補正完了:', result.corrections);
+        alert(`自動補正が完了しました\n\n適用された補正: ${result.corrections.length}件`);
         // 補正結果を反映する場合はここで処理
-        // 現在はメッセージ表示のみ
-        alert(`自動補正が完了しました\n\n適用された補正:\n${result.appliedCorrections?.join('\n')}`);
+        // TODO: 補正されたMAIMLを再パースして表示
       } else {
-        throw new Error('自動補正に失敗しました');
+        alert('補正が必要なエラーはありませんでした');
       }
     } catch (error) {
       console.error('❌ [PetriNetEditor] 自動補正エラー:', error);
@@ -1195,8 +1578,8 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
     setSaveConfirmDialogOpen(true);
   }, []);
 
-  const handleSave = useCallback(async (targetS3Key: string) => {
-    console.log('💾 [PetriNetEditor] 保存開始:', targetS3Key);
+  const handleSave = useCallback(async (action: string, destination: string, folder: string) => {
+    console.log('💾 [PetriNetEditor] 保存開始:', { action, destination, folder });
     setIsSaving(true);
     
     try {
@@ -1252,35 +1635,61 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         );
       }
       
-      const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
-      
-      const response = await fetch('/api/worker/save-maiml-file', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          s3Key: targetS3Key,
-          content: base64Data,
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('保存に失敗しました');
+      // 保存先による処理分岐
+      if (destination === 'download') {
+        // ローカルダウンロード
+        console.log('💾 [PetriNetEditor] ローカルダウンロード実行');
+        
+        const fileName = editingFileName || documentData?.name || 'Untitled';
+        const downloadFileName = fileName.endsWith('.maiml') ? fileName : `${fileName}.maiml`;
+        
+        const blob = new Blob([maimlXml], { type: 'application/xml' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = downloadFileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        URL.revokeObjectURL(url);
+        
+        console.log('✅ [PetriNetEditor] ローカルダウンロード完了:', downloadFileName);
+        setSaveConfirmDialogOpen(false);
+      } else {
+        // S3保存
+        const targetS3Key = folder;
+        const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
+        
+        const response = await fetch('/api/worker/save-maiml-file', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            s3Key: targetS3Key,
+            content: base64Data,
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('保存に失敗しました');
+        }
+        
+        const result = await response.json();
+        console.log('✅ [PetriNetEditor] S3保存成功:', result);
+        
+        setSaveConfirmDialogOpen(false);
       }
-      
-      const result = await response.json();
-      console.log('✅ [PetriNetEditor] 保存成功:', result);
-      
-      setSaveConfirmDialogOpen(false);
     } catch (error) {
       console.error('❌ [PetriNetEditor] 保存エラー:', error);
       alert('保存に失敗しました: ' + (error as Error).message);
     } finally {
       setIsSaving(false);
     }
-  }, [nodes, edges, documentData, multiMethodMode, methods, activeMethodIndex, getViewport]);
+  }, [nodes, edges, documentData, multiMethodMode, methods, activeMethodIndex, getViewport, editingFileName]);
 
   const handleMethodTabChange = useCallback((index: number) => {
     console.log('📑 [PetriNetEditor] Methodタブ切り替え:', index);
@@ -1388,7 +1797,109 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
     setPendingClickPosition(null);
   }, []);
 
-  const handleConfirmWorkflowSelection = useCallback(async (selectedFile: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+  // ===== TemplateListView ハンドラー =====
+  const handleTemplateSelect = useCallback((template: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    console.log('📋 [PetriNetEditor] テンプレート選択:', template);
+    
+    // テンプレートに対応するノードを見つけて選択
+    const node = nodes.find(n => n.id === template.id);
+    if (node) {
+      setSelectedNode(node);
+      // ノードを画面中央に表示
+      const viewport = getViewport();
+      const x = node.position.x - (viewport.x / viewport.zoom);
+      const y = node.position.y - (viewport.y / viewport.zoom);
+      
+      setViewport({ x: -x + 400, y: -y + 300, zoom: viewport.zoom }, { duration: 300 });
+      
+      console.log('✅ [PetriNetEditor] ノード選択・フォーカス:', node.id);
+    }
+  }, [nodes, getViewport, setViewport]);
+
+  // ===== Phase 6: テンプレート追加ハンドラー =====
+  const handleTemplateAdd = useCallback((category: 'material' | 'condition' | 'result') => {
+    console.log('➕ [PetriNetEditor] テンプレート追加:', category);
+    
+    // 新規テンプレートノードを作成
+    const timestamp = Date.now();
+    const nodeType = category === 'material' ? 'materialTemplate' :
+                     category === 'condition' ? 'conditionTemplate' : 'resultTemplate';
+    
+    const newNode: Node = {
+      id: `${category}-${timestamp}`,
+      type: nodeType,
+      position: {
+        x: Math.random() * 400 + 100,
+        y: Math.random() * 400 + 100,
+      },
+      data: {
+        id: `${category}-${timestamp}`,
+        name: `New ${category.charAt(0).toUpperCase() + category.slice(1)} Template`,
+        description: '',
+        placeType: category,
+        nodeType: 'place',
+        properties: [],
+      },
+    };
+    
+    // ノードを追加
+    setNodes((nds) => {
+      const newNodes = [...nds, newNode];
+      pushState({ nodes: newNodes, edges });
+      return newNodes;
+    });
+    
+    // テンプレート編集ダイアログを開く
+    setTemplateEditNode(newNode);
+    setTemplateEditorOpen(true);
+    
+    console.log('✅ [PetriNetEditor] 新規テンプレートノード作成完了:', newNode.id);
+  }, [edges, pushState, setNodes]);
+
+  // ===== Phase 6: テンプレート削除ハンドラー =====
+  const handleTemplateDelete = useCallback((templateId: string) => {
+    console.log('🗑️ [PetriNetEditor] テンプレート削除:', templateId);
+    
+    // 確認ダイアログ
+    const confirmed = window.confirm('このテンプレートを削除してもよろしいですか？\n\n関連するエッジも削除されます。');
+    
+    if (!confirmed) {
+      console.log('⏸️ [PetriNetEditor] テンプレート削除キャンセル');
+      return;
+    }
+    
+    // 関連するエッジを見つける
+    const affectedEdges = edges.filter(edge => 
+      edge.source === templateId || edge.target === templateId
+    );
+    
+    console.log('🗑️ [PetriNetEditor] 関連エッジ削除:', {
+      templateId,
+      affectedEdges: affectedEdges.map(e => e.id)
+    });
+    
+    // エッジを削除
+    setEdges((eds) => eds.filter(e => 
+      !affectedEdges.find(ae => ae.id === e.id)
+    ));
+    
+    // ノードを削除
+    setNodes((nds) => {
+      const newNodes = nds.filter(n => n.id !== templateId);
+      const newEdges = edges.filter(e => !affectedEdges.find(ae => ae.id === e.id));
+      pushState({ nodes: newNodes, edges: newEdges });
+      return newNodes;
+    });
+    
+    // 選択状態をクリア
+    if (selectedNode?.id === templateId) {
+      setSelectedNode(null);
+    }
+    
+    console.log('✅ [PetriNetEditor] テンプレート削除完了:', templateId);
+  }, [edges, selectedNode, setEdges, setNodes, pushState]);
+
+  const handleConfirmWorkflowSelection = useCallback(async (selectedFile: { s3Key: string; fileName?: string }) => {
     console.log('📂 [PetriNetEditor] Workflow選択確定:', selectedFile);
     
     if (!selectedFile || !selectedFile.s3Key) {
@@ -1420,7 +1931,7 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
       
       const maimlContent = atob(result.data.content);
       
-      await addWorkflow(maimlContent as any, (pendingClickPosition || { x: 100, y: 100 }) as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+      await addWorkflow(maimlContent, pendingClickPosition || { x: 100, y: 100 });
       
       console.log('✅ [PetriNetEditor] Workflow追加完了');
     } catch (error) {
@@ -1475,6 +1986,8 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
     <Flex vertical style={{ height: '100%' }}>
       {/* EditorToolbar */}
       <EditorToolbar
+        editMode={editorMode}
+        onEditModeChange={handleEditorModeChange}
         selectedTool={selectedTool}
         onToolChange={setSelectedTool}
         onAddNode={handleAddNode}
@@ -1489,6 +2002,8 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         autoSaveEnabled={autoSaveEnabled}
         onToggleAutoSave={() => setAutoSaveEnabled(!autoSaveEnabled)}
         lastAutoSaveTime={lastAutoSaveTime}
+        showArcLabels={showArcLabels}
+        onToggleArcLabels={() => setShowArcLabels(!showArcLabels)}
       />
 
       {/* MethodTabPanel - 初期状態から常に表示 */}
@@ -1517,9 +2032,11 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         />
       )}
 
-      {/* ReactFlow */}
+      {/* メインコンテンツエリア: editorModeに応じて切り替え */}
       <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-        <ReactFlow
+        {editorMode === 'petri-net' ? (
+          // ペトリネットモード: ReactFlowを表示
+          <ReactFlow
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -1567,9 +2084,24 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
             }}
           />
         </ReactFlow>
+        ) : (
+          // テンプレートモード: TemplateListを表示
+          <div style={{ height: '100%', backgroundColor: token.colorBgLayout }}>
+            <TemplateList
+              templates={categorizedTemplates}
+              commonTemplates={commonTemplatesData}
+              templateErrors={templateErrors}
+              onTemplateSelect={handleTemplateSelect}
+              onTemplateDelete={handleTemplateDelete}
+              onTemplateAdd={handleTemplateAdd}
+              showCommonTemplates={showCommonTemplates}
+              onShowCommonTemplatesChange={setShowCommonTemplates}
+            />
+          </div>
+        )}
 
-        {/* PropertyPanel */}
-        {(selectedNode || selectedEdge) && (
+        {/* PropertyPanel - ペトリネットモード時のみ表示 */}
+        {editorMode === 'petri-net' && (selectedNode || selectedEdge) && (
           <PropertyPanel
             selectedNode={selectedNode}
             selectedEdge={selectedEdge}
@@ -1578,6 +2110,7 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
             onClose={handleClosePropertyPanel}
             onUpdate={handleUpdateNodeProperty}
             onUpdateEdge={handleUpdateEdgeProperty}
+            onUpdateNodeId={handleUpdateNodeId}
             onDelete={handleDeleteNode}
             onDeleteEdge={handleDeleteEdge}
             onOpenTemplateEditor={handleOpenTemplateEditor}
@@ -1599,7 +2132,7 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         open={documentDialogOpen}
         documentData={documentData}
         onClose={handleCloseDocumentEditor}
-        onSave={handleSaveDocument as any} // eslint-disable-line @typescript-eslint/no-explicit-any
+        onSave={handleSaveDocument}
       />
 
       <WorkflowSelectorDialog
@@ -1608,16 +2141,16 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         onSelect={handleConfirmWorkflowSelection}
         availableFiles={availableFiles}
         position={pendingClickPosition}
-        {...({ isLoadingFiles } as any)}
+        isLoadingFiles={isLoadingFiles}
       />
 
       <SaveConfirmDialog
         open={saveConfirmDialogOpen}
         onClose={() => setSaveConfirmDialogOpen(false)}
+        validationResult={validationResult}
         onSave={handleSave}
-        isSaving={isSaving}
-        sourceS3Key={sourceS3Key}
-        {...({ fileName: editingFileName || documentData?.name || 'Untitled.maiml' } as any)}
+        sourceFolder={sourceS3Key}
+        fileName={editingFileName || documentData?.name || 'Untitled.maiml'}
       />
 
       <ValidationPanel
@@ -1626,7 +2159,7 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         validationResult={validationResult}
         isValidating={isValidating}
         isCorrecting={isCorrecting}
-        onAutoCorrect={handleAutoCorrect as any} // eslint-disable-line @typescript-eslint/no-explicit-any
+        onAutoCorrect={handleAutoCorrect}
       />
 
       <DraftManager
@@ -1637,6 +2170,30 @@ const PetriNetEditor: React.FC<PetriNetEditorProps> = ({
         userId={currentUserId}
       />
     </Flex>
+  );
+};
+
+/**
+ * PetriNetEditor - エントリーポイント（ReactFlowProviderラップ）
+ */
+const PetriNetEditor: React.FC<PetriNetEditorProps> = (props) => {
+  console.log('🔍 [PetriNetEditor] Props received:', {
+    hasInitialContent: !!props.initialContent,
+    hasMaimlData: !!props.maimlData,
+    editMode: props.editMode,
+  });
+
+  return (
+    <ReactFlowProvider>
+      <TemplateProvider
+        maimlData={props.initialContent || props.maimlData || ''}
+        validationResult={null}
+        activeMethodIndex={0}
+        methods={[]}
+      >
+        <PetriNetEditorInner {...props} />
+      </TemplateProvider>
+    </ReactFlowProvider>
   );
 };
 

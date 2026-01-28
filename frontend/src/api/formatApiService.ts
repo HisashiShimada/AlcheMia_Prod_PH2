@@ -5,7 +5,8 @@
  * API設計書: docs/design/api/api_format_management.md
  */
 
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
+import { createApiClient } from '@/utils/authUtils';
 
 // API Base URL（環境変数から取得、デフォルトは相対パス）
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -27,37 +28,6 @@ export interface ApiResponse<T> {
   };
 }
 
-/**
- * Axiosインスタンスの作成
- */
-const createApiClient = () => {
-  const client = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 30000,
-    withCredentials: true,
-  });
-
-  client.interceptors.request.use(
-    (config) => config,
-    (error) => Promise.reject(error)
-  );
-
-  client.interceptors.response.use(
-    (response) => response,
-    (error: AxiosError<ApiResponse<unknown>>) => {
-      if (error.response?.data) {
-        const errorMessage = error.response.data.error?.message || 'APIエラーが発生しました';
-        throw new Error(errorMessage);
-      } else if (error.request) {
-        throw new Error('サーバーに接続できませんでした');
-      } else {
-        throw new Error('リクエストの送信に失敗しました');
-      }
-    }
-  );
-
-  return client;
-};
 
 /**
  * フォーマット情報の型定義

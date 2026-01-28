@@ -8,7 +8,7 @@
  */
 
 import React, { useState } from 'react';
-import { Tabs, Tag, Button, Tooltip, Modal, Input, Space } from 'antd';
+import { Tabs, Tag, Button, Tooltip, Modal, Input, Space, theme } from 'antd';
 import { Plus, Edit2, X } from 'lucide-react';
 import { Node } from 'reactflow';
 
@@ -53,6 +53,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
   onEditMethodId,
   onDeleteMethod
 }) => {
+  const { token } = theme.useToken();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingMethodIndex, setEditingMethodIndex] = useState<number | null>(null);
   const [newMethodId, setNewMethodId] = useState('');
@@ -175,9 +176,9 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '8px',
-          borderBottom: '1px solid #f0f0f0',
-          backgroundColor: '#ffffff',
+          padding: token.paddingSM,
+          borderBottom: `1px solid ${token.colorBorder}`,
+          backgroundColor: token.colorBgContainer,
         }}
       >
         <Tooltip title="Add new method">
@@ -203,11 +204,11 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
     return {
       key: String(index),
       label: (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: token.marginXS }}>
           <span>{method.methodId}</span>
           <Tag
             color={index === activeMethodIndex ? 'blue' : 'default'}
-            style={{ margin: 0, fontSize: '11px' }}
+            style={{ margin: 0, fontSize: token.fontSizeSM }}
           >
             {nodeCount} nodes
           </Tag>
@@ -240,8 +241,8 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          borderBottom: '1px solid #f0f0f0',
-          backgroundColor: '#ffffff',
+          borderBottom: `1px solid ${token.colorBorder}`,
+          backgroundColor: token.colorBgContainer,
         }}
       >
         <div style={{ flex: 1 }}>
@@ -261,8 +262,8 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
         {/* Add Method Button */}
         <div
           style={{
-            padding: '0 8px',
-            borderBottom: '1px solid #f0f0f0',
+            padding: `0 ${token.paddingSM}px`,
+            borderBottom: `1px solid ${token.colorBorder}`,
           }}
         >
           <Tooltip title="Add new method">
@@ -289,7 +290,7 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
       >
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <div>
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: token.marginSM }}>
               <label>Method ID</label>
             </div>
             <Input
@@ -303,11 +304,11 @@ const MethodTabPanel: React.FC<MethodTabPanelProps> = ({
               placeholder="Method IDを入力"
             />
             {idError ? (
-              <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: 4 }}>
+              <div style={{ color: token.colorError, fontSize: token.fontSizeSM, marginTop: token.marginXS }}>
                 {idError}
               </div>
             ) : (
-              <div style={{ color: '#8c8c8c', fontSize: '12px', marginTop: 4 }}>
+              <div style={{ color: token.colorTextSecondary, fontSize: token.fontSizeSM, marginTop: token.marginXS }}>
                 MaiMLファイル内で一意のIDを指定してください
               </div>
             )}

@@ -23,9 +23,9 @@ import {
   Switch,
   Progress,
   Table,
-  Divider,
   Space,
   Spin,
+  theme,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -33,11 +33,41 @@ import {
   CloseCircleOutlined,
   WarningOutlined,
   ToolOutlined,
-  ReloadOutlined,
-  CloseOutlined,
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
+
+/**
+ * ValidationErrorElement型定義
+ */
+interface ValidationErrorElement {
+  tagName?: string;
+  attributes?: Record<string, string>;
+  value?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * ValidationSuggestion型定義
+ */
+interface ValidationSuggestion {
+  type?: string;
+  value?: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * ValidationCorrection型定義
+ */
+interface ValidationCorrection {
+  type?: string;
+  xpath?: string;
+  originalValue?: string;
+  correctedValue?: string;
+  description?: string;
+  [key: string]: unknown;
+}
 
 /**
  * ValidationError型定義
@@ -46,9 +76,9 @@ interface ValidationError {
   severity?: string;
   message: string;
   xpath?: string;
-  element?: any;
+  element?: ValidationErrorElement;
   line?: number;
-  suggestion?: any;
+  suggestion?: ValidationSuggestion;
 }
 
 /**
@@ -59,7 +89,7 @@ interface ValidationResult {
   schemaVersion?: string;
   errors?: ValidationError[];
   warnings?: ValidationError[];
-  corrections?: any[];
+  corrections?: ValidationCorrection[];
 }
 
 /**
@@ -70,7 +100,6 @@ export interface ValidationPanelProps {
   validationResult: ValidationResult | null;
   onClose?: () => void;
   onAutoCorrect?: (selectedErrors: number[]) => void;
-  onRevalidate?: () => void;
   isValidating?: boolean;
   isCorrecting?: boolean;
 }
@@ -83,10 +112,11 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   validationResult = null,
   onClose,
   onAutoCorrect,
-  onRevalidate,
   isValidating = false,
   isCorrecting = false,
 }) => {
+  const { token } = theme.useToken();
+  
   console.log('🎨 [ValidationPanel] Rendering with props:', {
     open,
     hasResult: !!validationResult,
@@ -101,14 +131,14 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
 
   // validationResult変更時に選択をリセット
   useEffect(() => {
-    if (validationResult) {
-      setSelectedErrors([]);
-      console.log('✅ [ValidationPanel] Validation result updated:', {
-        isValid: validationResult.isValid,
-        errorCount: validationResult.errors?.length || 0,
-        warningCount: validationResult.warnings?.length || 0
-      });
-    }
+    console.log('✅ [ValidationPanel] Validation result updated:', {
+      isValid: validationResult?.isValid,
+      errorCount: validationResult?.errors?.length || 0,
+      warningCount: validationResult?.warnings?.length || 0
+    });
+    // 選択状態をリセット（validationResult変更時に意図的にリセット）
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedErrors([]);
   }, [validationResult]);
 
   // 自動補正実行ハンドラー
@@ -131,9 +161,9 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   const renderValidationSummary = () => {
     if (!validationResult) {
       return (
-        <div style={{ padding: 16, marginBottom: 16, backgroundColor: '#f5f5f5', borderRadius: 8 }}>
+        <div style={{ padding: token.padding, marginBottom: token.margin, backgroundColor: token.colorBgLayout, borderRadius: token.borderRadius }}>
           <Space>
-            <Text type="secondary" style={{ fontSize: 16 }}>
+            <Text type="secondary" style={{ fontSize: token.fontSizeLG }}>
               バリデーション結果がありません
             </Text>
           </Space>
@@ -147,14 +177,14 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
     const criticalErrors = errors.filter(e => e.severity === 'critical').length;
 
     return (
-      <div style={{ padding: 16, marginBottom: 16, border: '1px solid #d9d9d9', borderRadius: 8, backgroundColor: '#fff' }}>
+      <div style={{ padding: token.padding, marginBottom: token.margin, border: `1px solid ${token.colorBorder}`, borderRadius: token.borderRadius, backgroundColor: token.colorBgContainer }}>
         <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Space size="large">
               {isValid ? (
-                <CheckCircleOutlined style={{ fontSize: 40, color: '#52c41a' }} />
+                <CheckCircleOutlined style={{ fontSize: 40, color: token.colorSuccess }} />
               ) : (
-                <CloseCircleOutlined style={{ fontSize: 40, color: '#ff4d4f' }} />
+                <CloseCircleOutlined style={{ fontSize: 40, color: token.colorError }} />
               )}
               <div>
                 <Title level={5} style={{ margin: 0 }}>

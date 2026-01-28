@@ -1065,33 +1065,44 @@ export class ProjectService {
           return true;
         });
 
-        // 各ファイルに対して署名付きURLを生成
-        files = await Promise.all(
-          rootFiles.map(async (file: any) => {
-            const signedUrl = await storageService.getSignedUrl(
-              organizationPrefix,
-              file.key.replace(`org_${organizationPrefix}/`, ''),
-              3600
-            );
+        // 各ファイルに対して署名付きURLを生成（並列数制限: 20ファイルずつ）
+        const startTime = Date.now();
+        const chunkSize = 20;
+        files = [];
+        
+        for (let i = 0; i < rootFiles.length; i += chunkSize) {
+          const chunk = rootFiles.slice(i, i + chunkSize);
+          const chunkResults = await Promise.all(
+            chunk.map(async (file: any) => {
+              const signedUrl = await storageService.getSignedUrl(
+                organizationPrefix,
+                file.key.replace(`org_${organizationPrefix}/`, ''),
+                3600
+              );
 
-            // ファイル名を抽出
-            const fileName = file.key.split('/').pop() || '';
-            const fileType = fileName.split('.').pop() || '';
+              // ファイル名を抽出
+              const fileName = file.key.split('/').pop() || '';
+              const fileType = fileName.split('.').pop() || '';
 
-            return {
-              id: file.key,
-              name: fileName,
-              path: file.key,
-              size: file.size,
-              lastModified: file.lastModified.toISOString(),
-              type: fileType,
-              isArchive: false,
-              version: null,
-              signedUrl,
-              createdAt: file.lastModified.toISOString(),
-            };
-          })
-        );
+              return {
+                id: file.key,
+                name: fileName,
+                path: file.key,
+                size: file.size,
+                lastModified: file.lastModified.toISOString(),
+                type: fileType,
+                isArchive: false,
+                version: null,
+                signedUrl,
+                createdAt: file.lastModified.toISOString(),
+              };
+            })
+          );
+          files.push(...chunkResults);
+        }
+        
+        const endTime = Date.now();
+        console.log(`[Performance] 署名付きURL生成完了: ${rootFiles.length}ファイル、処理時間: ${endTime - startTime}ms`);
 
         // archiveファイルを常に取得（include_archiveパラメータ削除）
         const archiveFilesList = await storageService.listFiles(
@@ -1105,37 +1116,47 @@ export class ProjectService {
           return fileName !== '.keep';
         });
 
-        // archiveファイルが存在する場合のみ署名付きURL生成
+        // archiveファイルが存在する場合のみ署名付きURL生成（並列数制限: 20ファイルずつ）
         if (filteredArchiveFiles.length > 0) {
-          archiveFiles = await Promise.all(
-            filteredArchiveFiles.map(async (file: any) => {
-              const signedUrl = await storageService.getSignedUrl(
-                organizationPrefix,
-                file.key.replace(`org_${organizationPrefix}/`, ''),
-                3600
-              );
+          const archiveStartTime = Date.now();
+          archiveFiles = [];
+          
+          for (let i = 0; i < filteredArchiveFiles.length; i += chunkSize) {
+            const chunk = filteredArchiveFiles.slice(i, i + chunkSize);
+            const chunkResults = await Promise.all(
+              chunk.map(async (file: any) => {
+                const signedUrl = await storageService.getSignedUrl(
+                  organizationPrefix,
+                  file.key.replace(`org_${organizationPrefix}/`, ''),
+                  3600
+                );
 
-              const fileName = file.key.split('/').pop() || '';
-              const fileType = fileName.split('.').pop() || '';
+                const fileName = file.key.split('/').pop() || '';
+                const fileType = fileName.split('.').pop() || '';
 
-              // バージョン番号を抽出（_v{number}.maiml パターン）
-              const versionMatch = fileName.match(/_v(\d+)\.maiml$/);
-              const version = versionMatch ? parseInt(versionMatch[1], 10) : null;
+                // バージョン番号を抽出（_v{number}.maiml パターン）
+                const versionMatch = fileName.match(/_v(\d+)\.maiml$/);
+                const version = versionMatch ? parseInt(versionMatch[1], 10) : null;
 
-              return {
-                id: file.key,
-                name: fileName,
-                path: file.key,
-                size: file.size,
-                lastModified: file.lastModified.toISOString(),
-                type: fileType,
-                isArchive: true,
-                version,
-                signedUrl,
-                createdAt: file.lastModified.toISOString(),
-              };
-            })
-          );
+                return {
+                  id: file.key,
+                  name: fileName,
+                  path: file.key,
+                  size: file.size,
+                  lastModified: file.lastModified.toISOString(),
+                  type: fileType,
+                  isArchive: true,
+                  version,
+                  signedUrl,
+                  createdAt: file.lastModified.toISOString(),
+                };
+              })
+            );
+            archiveFiles.push(...chunkResults);
+          }
+          
+          const archiveEndTime = Date.now();
+          console.log(`[Performance] アーカイブファイル署名付きURL生成完了: ${filteredArchiveFiles.length}ファイル、処理時間: ${archiveEndTime - archiveStartTime}ms`);
         } else {
           // 空配列を明示的に設定
           archiveFiles = [];

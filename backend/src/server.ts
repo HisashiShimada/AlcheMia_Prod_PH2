@@ -9,6 +9,7 @@ dotenv.config();
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
 import fileDownloadRoutes from './routes/fileDownloadRoutes';
+import maimlRoutes from './routes/maimlRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -35,6 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/projects', projectRoutes);
 app.use('/api/v1/projects', fileDownloadRoutes);
+app.use('/api/v1/maiml', maimlRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
@@ -56,10 +58,20 @@ app.get('/', (_req, res) => {
 
 // Start server
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   });
+
+  // タイムアウト設定（大量ファイルの署名付きURL生成に対応）
+  server.timeout = 180000; // 3分（180秒）
+  server.headersTimeout = 240000; // 4分（240秒）
+  server.keepAliveTimeout = 65000; // 65秒
+
+  console.log('Server timeout settings:');
+  console.log(`  - Request timeout: ${server.timeout}ms (${server.timeout / 1000}s)`);
+  console.log(`  - Headers timeout: ${server.headersTimeout}ms (${server.headersTimeout / 1000}s)`);
+  console.log(`  - Keep-Alive timeout: ${server.keepAliveTimeout}ms (${server.keepAliveTimeout / 1000}s)`);
 }
 
 export default app;

@@ -90,7 +90,7 @@
 
 ## 📊 APIカテゴリ
 
-**全3カテゴリで17エンドポイントを管理**
+**全6カテゴリで37エンドポイントを管理**（実装率: 62%）
 
 詳細は `docs/design/api/api_list.md` を参照してください。
 
@@ -101,32 +101,76 @@
 - ログイン（PINコード方式）
 - PINコード検証
 - PINコード再送信
-- パスワードリセット
+- パスワードリセット要求
+- パスワードリセット実行
 - ログアウト
-- **6エンドポイント（実装済み）**
+- **6エンドポイント（✅ 100%実装済み）**
 
 ### 2. プロジェクト管理API（Project Management）
 **設計書**: [api_project_management.md](../../docs/design/api/api_project_management.md)  
 **ルートファイル**: `backend/src/routes/projectRoutes.ts`
 
 - プロジェクト一覧取得
-- プロジェクト詳細取得
 - プロジェクト作成
-- 指示送信（タスク作成）
-- プロジェクト詳細検索
-- チェックイン/チェックアウト切替（未実装）
-- ファイルアップロード（未実装）
-- ファイルダウンロード（未実装）
-- プロジェクトリロード（未実装）
+- プロジェクト詳細取得
+- チェックアウト/チェックイン
+- チェックアウト状態取得
+- ファイル一覧取得
+- タスク一覧取得
+- 指示送信（未実装）
+- 指示一覧取得（未実装）
+- プロジェクト詳細検索（未実装）
 - プロジェクト公開（未実装）
-- **10エンドポイント（5実装済み、5未実装）**
+- **12エンドポイント（8実装済み、4未実装 - 67%）**
 
-### 3. ファイルダウンロードAPI（File Download）
-**設計書**: 未作成  
-**ルートファイル**: `backend/src/routes/fileDownloadRoutes.ts`
+### 3. 共通API（Common / File Operations）
+**設計書**: [api_common.md](../../docs/design/api/api_common.md)  
+**ルートファイル**: `backend/src/routes/fileRoutes.ts`
 
-- 汎用ファイルダウンロード（署名付きURL生成）
-- **1エンドポイント（要確認）**
+- ファイルアップロード（汎用）
+- ファイル/フォルダダウンロード
+- **2エンドポイント（未実装 - 0%）**
+
+### 4. フォーマット管理API（Format Management）
+**設計書**: [api_format_management.md](../../docs/design/api/api_format_management.md)  
+**ルートファイル**: `backend/src/routes/formatRoutes.ts`
+
+- フォーマット一覧取得
+- フォーマットファイル一覧取得
+- 新規ファイル作成
+- 新規フォルダ作成
+- ファイル編集（保存）
+- **5エンドポイント（未実装 - 0%）**
+
+### 5. Maiml編集API（MAIML Editor）
+**設計書**: [api_maiml_editor.md](../../docs/design/api/api_maiml_edit.md)  
+**ルートファイル**: `backend/src/routes/maimlRoutes.ts`
+
+- MAIML解析（基本）
+- ペトリネット構造解析（複数method対応・強化版）
+- MAIMLファイル保存
+- MAIMLファイル読込
+- MAIMLファイル一覧取得
+- MAIMLバリデーション
+- MAIML自動補正（スタブ実装）
+- 編集セッション開始
+- 編集セッション終了
+- ヘルスチェック
+- **10エンドポイント（9実装済み、1スタブ - 90%）**
+
+**実装完了日**: 2026-01-27
+- Phase 4: サービス層実装完了
+- Phase 6: API接続完全統合
+- 複数メソッド対応、Petri Net構造解析、ステレオタイプ自動抽出
+- XMLバリデーション、バックアップ機能、storageService統合
+
+### 6. 進捗確認API（Progress Monitoring）
+**設計書**: [api_progress_monitoring.md](../../docs/design/api/api_progress_check.md)  
+**ルートファイル**: `backend/src/routes/progressRoutes.ts`
+
+- メソッド別タスク一覧取得
+- タスク詳細取得
+- **2エンドポイント（未実装 - 0%）**
 
 ---
 

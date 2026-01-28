@@ -5,7 +5,8 @@
  * Requirements: 4, 9
  */
 
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
+import { createApiClient } from '@/utils/authUtils';
 import type { ProjectFile } from '@/types/file';
 import type { Task, TaskStatistics, Project } from '@/types/project';
 
@@ -107,82 +108,6 @@ interface ApiErrorResponse {
   };
 }
 
-/**
- * セッショントークンを取得
- * Cookie優先（Cookie名: maiml_session）、なければLocalStorageから取得
- */
-const getSessionToken = (): string | null => {
-  // ブラウザ環境でない場合（SSR時）はnullを返す
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  // Cookieから取得を試みる（Cookie名: maiml_session）
-  const cookies = document.cookie.split(';');
-  const sessionCookie = cookies.find(c => c.trim().startsWith('maiml_session='));
-  if (sessionCookie) {
-    return sessionCookie.split('=')[1];
-  }
-  
-  // フォールバック: LocalStorageから取得
-  try {
-    return sessionStorage.getItem('sessionToken');
-  } catch (error) {
-    console.error('Failed to get sessionToken from localStorage:', error);
-    return null;
-  }
-};
-
-/**
- * Axiosインスタンスの作成
- * - 認証トークンを自動付与（Cookie or LocalStorage経由）
- * - タイムアウト設定: 30秒
- */
-const createApiClient = () => {
-  const client = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 30000, // 30秒
-    withCredentials: true, // Cookie送信を有効化（JWT + Session Hybrid認証）
-  });
-
-  // リクエストインターセプター
-  client.interceptors.request.use(
-    (config) => {
-      // セッショントークンを取得
-      const sessionToken = getSessionToken();
-
-      // Authorizationヘッダーを追加
-      if (sessionToken) {
-        config.headers['Authorization'] = `Bearer ${sessionToken}`;
-      }
-
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
-  );
-
-  // レスポンスインターセプター（エラーハンドリング）
-  client.interceptors.response.use(
-    (response) => response,
-    (error: AxiosError<ApiErrorResponse>) => {
-      // エラーレスポンスの整形
-      if (error.response?.data) {
-        const apiError = error.response.data;
-        // 安全にmessageにアクセス（オプショナルチェーン）
-        const errorMessage = apiError.error?.message || 'APIエラーが発生しました';
-        throw new Error(errorMessage);
-      } else if (error.request) {
-        throw new Error('サーバーに接続できませんでした');
-      } else {
-        throw new Error('リクエストの送信に失敗しました');
-      }
-    }
-  );
-
-  return client;
-};
 
 /**
  * プロジェクト一覧APIレスポンス型

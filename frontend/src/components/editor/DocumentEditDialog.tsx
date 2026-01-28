@@ -25,7 +25,6 @@ import {
   Checkbox,
   Row,
   Col,
-  Select,
   theme
 } from 'antd';
 import {
@@ -37,8 +36,7 @@ import {
 import MultiObjectEditor, { ObjectData } from './MultiObjectEditor';
 import { fetchCreators, fetchVendors, fetchOwners, fetchInstruments, type MasterDataItem } from '@/utils/apiClient';
 
-const { Text, Title, Paragraph } = Typography;
-const { TextArea } = Input;
+const { Text } = Typography;
 
 /**
  * Document データの型定義
@@ -571,7 +569,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                     size="small"
                   />
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    &lt;protocol id='...'&gt; 要素のID属性
+                    &lt;protocol id=&apos;...&apos;&gt; 要素のID属性
                   </Text>
                 </Col>
                 <Col span={12}>
@@ -582,7 +580,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                     size="small"
                   />
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    &lt;method id='...'&gt; 要素のID属性
+                    &lt;method id=&apos;...&apos;&gt; 要素のID属性
                   </Text>
                 </Col>
               </Row>
@@ -596,7 +594,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                     size="small"
                   />
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    &lt;pnml id='...'&gt; 要素のID属性
+                    &lt;pnml id=&apos;...&apos;&gt; 要素のID属性
                   </Text>
                 </Col>
                 <Col span={12}>
@@ -607,7 +605,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                     size="small"
                   />
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    &lt;program id='...'&gt; 要素のID属性
+                    &lt;program id=&apos;...&apos;&gt; 要素のID属性
                   </Text>
                 </Col>
               </Row>

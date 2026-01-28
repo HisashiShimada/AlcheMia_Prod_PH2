@@ -17,10 +17,13 @@ import {
   Modal, 
   Select,
   Checkbox,
-  Space
+  Space,
+  theme,
+  message
 } from 'antd';
 import { X, Trash2 } from 'lucide-react';
 import { Node, Edge } from 'reactflow';
+import { useTemplates } from '@/contexts/TemplateContext';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -43,9 +46,11 @@ export interface PropertyPanelProps {
   /** 選択されたエッジ */
   selectedEdge: Edge | null;
   /** ノード更新ハンドラー */
-  onUpdate: (nodeId: string, data: any) => void;
+  onUpdate: (nodeId: string, data: Record<string, unknown>) => void;
   /** エッジ更新ハンドラー */
   onUpdateEdge?: (oldEdgeId: string, newEdgeId: string) => void;
+  /** ノードID更新ハンドラー（Phase B-2追加） */
+  onUpdateNodeId?: (oldId: string, newId: string) => void;
   /** パネルクローズハンドラー */
   onClose: () => void;
   /** テンプレートエディタオープンハンドラー */
@@ -82,6 +87,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   selectedEdge,
   onUpdate,
   onUpdateEdge,
+  onUpdateNodeId,
   onClose,
   onOpenTemplateEditor,
   onDelete,
@@ -91,8 +97,19 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   methods,
   activeMethodIndex
 }) => {
+  const { token } = theme.useToken();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteEdgeConfirmOpen, setDeleteEdgeConfirmOpen] = useState(false);
+  
+  // ノードID編集用のローカルState（Phase B-2）
+  const [editingNodeId, setEditingNodeId] = useState<string>('');
+  
+  // 選択ノード変更時にeditingNodeIdを初期化
+  React.useEffect(() => {
+    if (selectedNode) {
+      setEditingNodeId(selectedNode.id || '');
+    }
+  }, [selectedNode?.id]);
   
   // ノード・エッジの判定
   const isPlace = selectedNode?.data?.nodeType === 'place';
@@ -156,7 +173,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   /**
    * ノードデータ更新ハンドラー
    */
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: string, value: unknown) => {
     if (!selectedNode) return;
     onUpdate(selectedNode.id, {
       ...selectedNode.data,
@@ -227,27 +244,27 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         top: 0,
         width: 350,
         height: '100%',
-        backgroundColor: '#ffffff',
-        borderLeft: '1px solid #f0f0f0',
+        backgroundColor: token.colorBgContainer,
+        borderLeft: `1px solid ${token.colorBorder}`,
         display: 'flex',
         flexDirection: 'column',
         zIndex: 1000,
-        boxShadow: '-2px 0 8px rgba(0,0,0,0.1)',
+        boxShadow: token.boxShadow,
       }}
     >
       {/* ヘッダー */}
       <div
         style={{
-          padding: '16px',
-          borderBottom: '1px solid #f0f0f0',
+          padding: token.padding,
+          borderBottom: `1px solid ${token.colorBorder}`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          backgroundColor: '#1890ff',
-          color: '#ffffff',
+          backgroundColor: token.colorPrimary,
+          color: token.colorTextLightSolid,
         }}
       >
-        <Typography.Title level={5} style={{ margin: 0, color: '#ffffff' }}>
+        <Typography.Title level={5} style={{ margin: 0, color: token.colorTextLightSolid }}>
           {isEdge ? 'Arc プロパティ' :
            isPlace ? 'Place プロパティ' : 'Transition プロパティ'}
         </Typography.Title>
@@ -255,20 +272,20 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           type="text"
           shape="circle"
           size="small"
-          icon={<X size={16} color="#ffffff" />}
+          icon={<X size={16} color={token.colorTextLightSolid} />}
           onClick={onClose}
-          style={{ color: '#ffffff' }}
+          style={{ color: token.colorTextLightSolid }}
         />
       </div>
 
       {/* プロパティ編集エリア */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: token.padding }}>
         {/* エッジ選択時のUI */}
         {isEdge && selectedEdge && (
-          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             {/* エッジタイプ表示 */}
-            <div style={{ padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
+            <div style={{ padding: token.paddingSM, backgroundColor: token.colorBgLayout, borderRadius: token.borderRadius }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 要素タイプ
               </Text>
               <div>
@@ -280,7 +297,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             {/* Arc ID（編集可能） */}
             <div>
-              <Text style={{ fontSize: '12px', display: 'block', marginBottom: 4 }}>
+              <Text style={{ fontSize: token.fontSizeSM, display: 'block', marginBottom: token.marginXS }}>
                 Arc ID
               </Text>
               <Input
@@ -294,27 +311,27 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 }}
                 size="small"
               />
-              <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 4 }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', marginTop: token.marginXS }}>
                 Arc IDを編集できます（重複チェックは保存時に行われます）
               </Text>
             </div>
 
             {/* Source/Target情報 */}
             <div>
-              <Text strong style={{ fontSize: '12px', display: 'block', marginBottom: 8 }}>
+              <Text strong style={{ fontSize: token.fontSizeSM, display: 'block', marginBottom: token.marginSM }}>
                 接続情報
               </Text>
-              <div style={{ padding: '12px', backgroundColor: '#fafafa', borderRadius: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>Source:</Text>
-                  <Text strong style={{ fontSize: '12px' }}>{selectedEdge.source}</Text>
+              <div style={{ padding: token.padding, backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: token.marginSM }}>
+                  <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>Source:</Text>
+                  <Text strong style={{ fontSize: token.fontSizeSM }}>{selectedEdge.source}</Text>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>Target:</Text>
-                  <Text strong style={{ fontSize: '12px' }}>{selectedEdge.target}</Text>
+                  <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>Target:</Text>
+                  <Text strong style={{ fontSize: token.fontSizeSM }}>{selectedEdge.target}</Text>
                 </div>
               </div>
-              <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 4 }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', marginTop: token.marginXS }}>
                 Source/Targetは変更できません
               </Text>
             </div>
@@ -330,24 +347,24 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               >
                 エッジを削除
               </Button>
-              <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 4 }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', marginTop: token.marginXS }}>
                 このエッジを完全に削除します
               </Text>
             </div>
 
             {/* デバッグ情報 */}
             {process.env.NODE_ENV === 'development' && (
-              <div style={{ marginTop: 16, padding: '8px', backgroundColor: '#fafafa', borderRadius: '4px', fontSize: '11px' }}>
-                <Text type="secondary" style={{ fontSize: '11px', display: 'block' }}>
+              <div style={{ marginTop: token.margin, padding: token.paddingSM, backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius, fontSize: token.fontSizeSM }}>
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block' }}>
                   デバッグ情報:
                 </Text>
-                <Text style={{ fontSize: '11px', display: 'block' }}>
+                <Text style={{ fontSize: token.fontSizeSM, display: 'block' }}>
                   Edge ID: {selectedEdge.id}
                 </Text>
-                <Text style={{ fontSize: '11px', display: 'block' }}>
+                <Text style={{ fontSize: token.fontSizeSM, display: 'block' }}>
                   Source: {selectedEdge.source}
                 </Text>
-                <Text style={{ fontSize: '11px', display: 'block' }}>
+                <Text style={{ fontSize: token.fontSizeSM, display: 'block' }}>
                   Target: {selectedEdge.target}
                 </Text>
               </div>
@@ -357,10 +374,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
         {/* ノード選択時のUI */}
         {selectedNode && (
-          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             {/* ノードタイプ表示 */}
-            <div style={{ padding: '8px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
+            <div style={{ padding: token.paddingSM, backgroundColor: token.colorBgLayout, borderRadius: token.borderRadius }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 ノードタイプ
               </Text>
               <div>
@@ -372,24 +389,40 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             <Divider style={{ margin: 0 }} />
 
-            {/* ID（読み取り専用） */}
+            {/* ID（編集可能 - Phase B-2） */}
             <div>
-              <Text style={{ fontSize: '12px', display: 'block', marginBottom: 4 }}>
-                ID
+              <Text style={{ fontSize: token.fontSizeSM, display: 'block', marginBottom: token.marginXS }}>
+                ID {onUpdateNodeId && <Text type="warning" style={{ fontSize: token.fontSizeSM }}>(編集可能)</Text>}
               </Text>
               <Input
-                value={selectedNode.data.id || ''}
-                disabled
+                value={editingNodeId}
+                onChange={(e) => setEditingNodeId(e.target.value)}
+                onBlur={() => {
+                  // Blur時にID変更を適用
+                  if (selectedNode && onUpdateNodeId && editingNodeId !== selectedNode.id) {
+                    onUpdateNodeId(selectedNode.id, editingNodeId);
+                  }
+                }}
+                onPressEnter={() => {
+                  // Enter押下時にID変更を適用
+                  if (selectedNode && onUpdateNodeId && editingNodeId !== selectedNode.id) {
+                    onUpdateNodeId(selectedNode.id, editingNodeId);
+                  }
+                }}
+                disabled={!onUpdateNodeId}
                 size="small"
+                placeholder="ノードIDを入力"
               />
-              <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 4 }}>
-                ID は自動生成され、変更できません
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', marginTop: token.marginXS }}>
+                {onUpdateNodeId 
+                  ? 'IDを変更できます（Enter または フォーカスアウトで適用、重複チェックあり）'
+                  : 'ID は自動生成され、変更できません'}
               </Text>
             </div>
 
             {/* 名前 */}
             <div>
-              <Text style={{ fontSize: '12px', display: 'block', marginBottom: 4 }}>
+              <Text style={{ fontSize: token.fontSizeSM, display: 'block', marginBottom: token.marginXS }}>
                 名前
               </Text>
               <Input
@@ -402,7 +435,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
             {/* 説明 */}
             <div>
-              <Text style={{ fontSize: '12px', display: 'block', marginBottom: 4 }}>
+              <Text style={{ fontSize: token.fontSizeSM, display: 'block', marginBottom: token.marginXS }}>
                 説明
               </Text>
               <TextArea
@@ -425,7 +458,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 >
                   共通テンプレート（全methodで共有）
                 </Checkbox>
-                <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginLeft: 24, marginTop: 4 }}>
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', marginLeft: 24, marginTop: token.marginXS }}>
                   チェックすると、このテンプレートを他のmethodからも参照できます
                 </Text>
               </div>
@@ -434,7 +467,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             {/* テンプレート継承（同一method内） */}
             {isPlace && availableTemplatesForInheritance.length > 0 && (
               <div>
-                <Text style={{ fontSize: '12px', display: 'block', marginBottom: 4 }}>
+                <Text style={{ fontSize: token.fontSizeSM, display: 'block', marginBottom: token.marginXS }}>
                   テンプレート継承
                 </Text>
                 <Select
@@ -453,7 +486,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     </Select.Option>
                   ))}
                 </Select>
-                <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 4 }}>
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', marginTop: token.marginXS }}>
                   同一method内のテンプレートからプロパティを継承
                 </Text>
               </div>
@@ -462,7 +495,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             {/* 共通テンプレート参照（全methodから） */}
             {isPlace && availableCommonTemplates.length > 0 && (
               <div>
-                <Text style={{ fontSize: '12px', display: 'block', marginBottom: 4 }}>
+                <Text style={{ fontSize: token.fontSizeSM, display: 'block', marginBottom: token.marginXS }}>
                   共通テンプレート参照
                 </Text>
                 <Select
@@ -484,12 +517,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     </Select.Option>
                   ))}
                 </Select>
-                <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 4 }}>
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', marginTop: token.marginXS }}>
                   共通テンプレートへのplaceRef参照を追加
                 </Text>
                 {process.env.NODE_ENV === 'development' && (
-                  <Text type="danger" style={{ fontSize: '10px', display: 'block', marginTop: 4 }}>
-                    DEBUG: commonTemplateRef = "{selectedNode.data.commonTemplateRef || '(empty)'}"
+                  <Text type="danger" style={{ fontSize: token.fontSizeSM, display: 'block', marginTop: token.marginXS }}>
+                    DEBUG: commonTemplateRef = &quot;{selectedNode.data.commonTemplateRef || '(empty)'}&quot;
                     <br />
                     Available: [{availableCommonTemplates.map(t => t.id).join(', ')}]
                   </Text>
@@ -500,36 +533,36 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             {/* テンプレート情報（Placeのみ） */}
             {isPlace && (
               <div>
-                <Text strong style={{ fontSize: '12px', display: 'block', marginBottom: 8 }}>
+                <Text strong style={{ fontSize: token.fontSizeSM, display: 'block', marginBottom: token.marginSM }}>
                   テンプレート情報
                 </Text>
-                <div style={{ padding: '12px', backgroundColor: '#fafafa', borderRadius: '4px', marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>種類:</Text>
-                    <Text strong style={{ fontSize: '12px' }}>
+                <div style={{ padding: token.padding, backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius, marginBottom: token.padding }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: token.marginSM }}>
+                    <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>種類:</Text>
+                    <Text strong style={{ fontSize: token.fontSizeSM }}>
                       {placeType === 'material' ? 'Material Template' :
                        placeType === 'condition' ? 'Condition Template' :
                        'Result Template'}
                     </Text>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>プロパティ数:</Text>
-                    <Text strong style={{ fontSize: '12px' }}>
+                    <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>プロパティ数:</Text>
+                    <Text strong style={{ fontSize: token.fontSizeSM }}>
                       {selectedNode.data.templateRef?.properties?.length || 0}件
                     </Text>
                   </div>
                   {selectedNode.data.templateRef?.properties && selectedNode.data.templateRef.properties.length > 0 && (
-                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f0f0' }}>
-                      <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginBottom: 4 }}>
+                    <div style={{ marginTop: token.marginSM, paddingTop: token.marginSM, borderTop: `1px solid ${token.colorBorder}` }}>
+                      <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', marginBottom: token.marginXS }}>
                         登録済みプロパティ:
                       </Text>
-                      {selectedNode.data.templateRef.properties.slice(0, 3).map((prop: any, index: number) => (
-                        <Text key={index} style={{ fontSize: '11px', display: 'block', paddingLeft: 8 }}>
+                      {selectedNode.data.templateRef.properties.slice(0, 3).map((prop: { name: string; value?: string; unit?: string }, index: number) => (
+                        <Text key={index} style={{ fontSize: token.fontSizeSM, display: 'block', paddingLeft: token.paddingSM }}>
                           • {prop.name}: {prop.value || '(値なし)'}{prop.unit ? ` ${prop.unit}` : ''}
                         </Text>
                       ))}
                       {selectedNode.data.templateRef.properties.length > 3 && (
-                        <Text type="secondary" style={{ fontSize: '11px', display: 'block', paddingLeft: 8, marginTop: 4 }}>
+                        <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', paddingLeft: token.paddingSM, marginTop: token.marginXS }}>
                           他 {selectedNode.data.templateRef.properties.length - 3}件
                         </Text>
                       )}
@@ -542,7 +575,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 >
                   テンプレート編集
                 </Button>
-                <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 4 }}>
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', marginTop: token.marginXS }}>
                   プロパティの追加・編集・削除
                 </Text>
               </div>
@@ -559,24 +592,24 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
               >
                 ノードを削除
               </Button>
-              <Text type="secondary" style={{ fontSize: '11px', display: 'block', marginTop: 4 }}>
+              <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block', marginTop: token.marginXS }}>
                 このノードを完全に削除します
               </Text>
             </div>
 
             {/* デバッグ情報 */}
             {process.env.NODE_ENV === 'development' && (
-              <div style={{ marginTop: 16, padding: '8px', backgroundColor: '#fafafa', borderRadius: '4px', fontSize: '11px' }}>
-                <Text type="secondary" style={{ fontSize: '11px', display: 'block' }}>
+              <div style={{ marginTop: token.margin, padding: token.paddingSM, backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius, fontSize: token.fontSizeSM }}>
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM, display: 'block' }}>
                   デバッグ情報:
                 </Text>
-                <Text style={{ fontSize: '11px', display: 'block' }}>
+                <Text style={{ fontSize: token.fontSizeSM, display: 'block' }}>
                   Node ID: {selectedNode.id}
                 </Text>
-                <Text style={{ fontSize: '11px', display: 'block' }}>
+                <Text style={{ fontSize: token.fontSizeSM, display: 'block' }}>
                   Type: {selectedNode.type}
                 </Text>
-                <Text style={{ fontSize: '11px', display: 'block' }}>
+                <Text style={{ fontSize: token.fontSizeSM, display: 'block' }}>
                   Position: ({Math.round(selectedNode.position.x)}, {Math.round(selectedNode.position.y)})
                 </Text>
               </div>
@@ -597,7 +630,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           okButtonProps={{ danger: true }}
         >
           <p>
-            ノード "{selectedNode.data.name || selectedNode.id}" を削除してもよろしいですか？
+            ノード &quot;{selectedNode.data.name || selectedNode.id}&quot; を削除してもよろしいですか？
             <br />
             この操作は元に戻せません。
           </p>
@@ -622,7 +655,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           okButtonProps={{ danger: true }}
         >
           <p>
-            エッジ "{selectedEdge.id}" を削除してもよろしいですか？
+            エッジ &quot;{selectedEdge.id}&quot; を削除してもよろしいですか？
             <br />
             この操作は元に戻せません。
           </p>

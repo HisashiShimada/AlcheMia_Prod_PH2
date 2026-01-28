@@ -5,7 +5,8 @@
  * API設計書: docs/design/api/api_maiml_editor.md
  */
 
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
+import { createApiClient } from '@/utils/authUtils';
 
 // API Base URL（環境変数から取得、デフォルトは相対パス）
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -27,62 +28,21 @@ export interface ApiResponse<T> {
   };
 }
 
-/**
- * Axiosインスタンスの作成
- */
-const createApiClient = () => {
-  const client = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 30000,
-    withCredentials: true,
-  });
-
-  client.interceptors.request.use(
-    (config) => config,
-    (error) => Promise.reject(error)
-  );
-
-  client.interceptors.response.use(
-    (response) => response,
-    (error: AxiosError<ApiResponse<unknown>>) => {
-      if (error.response?.data) {
-        const errorMessage = error.response.data.error?.message || 'APIエラーが発生しました';
-        throw new Error(errorMessage);
-      } else if (error.request) {
-        throw new Error('サーバーに接続できませんでした');
-      } else {
-        throw new Error('リクエストの送信に失敗しました');
-      }
-    }
-  );
-
-  return client;
-};
 
 /**
  * MAIMLバリデーション結果の型定義
+ * バックエンドの実際のレスポンス形式に合わせて修正
  */
 export interface MaimlValidationResult {
-  valid: boolean;
-  errors: Array<{
-    code: string;
-    message: string;
-    line?: number;
-    column?: number;
-    element?: string;
-  }>;
-  warnings: Array<{
-    code: string;
-    message: string;
-    line?: number;
-    element?: string;
-    attribute?: string;
-  }>;
-  info?: {
-    methodCount?: number;
-    placeCount?: number;
-    transitionCount?: number;
-    arcCount?: number;
+  isValid: boolean;  // バックエンドは isValid
+  errors: string[];  // バックエンドは文字列配列
+  warnings: string[]; // バックエンドは文字列配列
+  info: string[];    // バックエンドは文字列配列
+  statistics?: {
+    places: number;
+    transitions: number;
+    arcs: number;
+    totalNodes: number;
   };
 }
 
@@ -178,8 +138,9 @@ export const validateMaimlMock = async (
   console.log('🔍 [maimlApiService] MAIMLバリデーション実行（モック）');
   
   // 簡易的なバリデーション
-  const errors: MaimlValidationResult['errors'] = [];
-  const warnings: MaimlValidationResult['warnings'] = [];
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const info: string[] = [];
   
   // XMLパースチェック
   try {
@@ -188,45 +149,45 @@ export const validateMaimlMock = async (
     const parseError = xmlDoc.querySelector('parsererror');
     
     if (parseError) {
-      errors.push({
-        code: 'INVALID_XML_STRUCTURE',
-        message: 'XML形式が不正です'
-      });
+      errors.push('XML形式が不正です');
     }
   } catch {
-    errors.push({
-      code: 'INVALID_XML_STRUCTURE',
-      message: 'XMLのパースに失敗しました'
-    });
+    errors.push('XMLのパースに失敗しました');
   }
   
   // ルート要素チェック
   if (!content.includes('<document') && !content.includes('<maiml')) {
-    warnings.push({
-      code: 'MISSING_ROOT_ELEMENT',
-      message: 'document要素またはmaiml要素が見つかりません'
-    });
+    warnings.push('document要素またはmaiml要素が見つかりません');
   }
   
   // method要素チェック
   if (!content.includes('<method')) {
-    warnings.push({
-      code: 'MISSING_METHOD_ELEMENT',
-      message: 'method要素が見つかりません'
-    });
+    warnings.push('method要素が見つかりません');
   }
+  
+  // 統計情報を info 配列に追加
+  const methodCount = (content.match(/<method/g) || []).length;
+  const placeCount = (content.match(/<place/g) || []).length;
+  const transitionCount = (content.match(/<transition/g) || []).length;
+  const arcCount = (content.match(/<arc/g) || []).length;
+  
+  info.push(`メソッド数: ${methodCount}`);
+  info.push(`プレース数: ${placeCount}`);
+  info.push(`トランジション数: ${transitionCount}`);
+  info.push(`アーク数: ${arcCount}`);
   
   return {
     success: true,
     data: {
-      valid: errors.length === 0,
+      isValid: errors.length === 0,
       errors,
       warnings,
-      info: {
-        methodCount: (content.match(/<method/g) || []).length,
-        placeCount: (content.match(/<place/g) || []).length,
-        transitionCount: (content.match(/<transition/g) || []).length,
-        arcCount: (content.match(/<arc/g) || []).length
+      info,
+      statistics: {
+        places: placeCount,
+        transitions: transitionCount,
+        arcs: arcCount,
+        totalNodes: placeCount + transitionCount
       }
     },
     meta: {
@@ -264,4 +225,321 @@ export const correctMaimlMock = async (
       requestId: `req_${Date.now()}`
     }
   };
+};
+
+// ============================================================================
+// Petri Net構造の型定義
+// ============================================================================
+
+/**
+ * Place（プレース）の型定義
+ */
+export interface Place {
+  id: string;
+  type: 'material' | 'condition' | 'result';
+  description: string;
+}
+
+/**
+ * Transition（トランジション）の型定義
+ */
+export interface Transition {
+  id: string;
+  description: string;
+}
+
+/**
+ * Arc（アーク）の型定義
+ */
+export interface Arc {
+  id: string;
+  source: string;
+  target: string;
+}
+
+/**
+ * Method（メソッド）の型定義
+ */
+export interface Method {
+  methodId: string;
+  methodIndex: number;
+  name: string;
+  places: Place[];
+  transitions: Transition[];
+  arcs: Arc[];
+}
+
+/**
+ * Petri Net構造全体の型定義
+ */
+export interface PetriNetStructure {
+  metadata: {
+    documentId: string;
+    documentName: string;
+  };
+  methods: Method[];
+  statistics: {
+    totalPlaces: number;
+    totalTransitions: number;
+    totalArcs: number;
+  };
+}
+
+/**
+ * MAIML保存結果の型定義
+ */
+export interface SaveMaimlResult {
+  saved: boolean;
+  filePath: string;
+  backupPath?: string;
+  timestamp: string;
+}
+
+/**
+ * MAIMLファイル情報の型定義
+ */
+export interface MaimlFileInfo {
+  key: string;
+  name: string;
+  context: 'project' | 'format';
+  size: number;
+  lastModified: string;
+  isArchive?: boolean;
+}
+
+// ============================================================================
+// MAIMLパースAPI
+// ============================================================================
+
+/**
+ * MAIMLパース（複数メソッド対応）
+ * POST /api/v1/maiml/parse
+ * 
+ * @param content MAIMLコンテンツ（XML文字列またはBase64）
+ * @returns Petri Net構造データ
+ */
+export const parseMaiml = async (
+  content: string
+): Promise<ApiResponse<PetriNetStructure>> => {
+  const client = createApiClient();
+  
+  try {
+    console.log('📊 [maimlApiService] MAIMLパース実行');
+    
+    const response = await client.post<ApiResponse<PetriNetStructure>>(
+      '/api/v1/maiml/parse',
+      { content }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ [maimlApiService] パースエラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * MAIMLパース（モック版）
+ */
+export const parseMaimlMock = async (
+  content: string
+): Promise<ApiResponse<PetriNetStructure>> => {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  console.log('📊 [maimlApiService] MAIMLパース実行（モック）');
+  
+  // Base64デコード
+  let decodedContent: string;
+  try {
+    decodedContent = decodeURIComponent(escape(atob(content)));
+  } catch {
+    decodedContent = content;
+  }
+  
+  // test_omori11の場合のみモックデータを返す
+  if (decodedContent.includes('test_omori11')) {
+    return {
+      success: true,
+      data: {
+        metadata: {
+          documentId: 'document_test_omori11_7fbcc8ec',
+          documentName: 'test_omori11'
+        },
+        methods: [
+          {
+            methodId: 'method_1764899170484',
+            methodIndex: 0,
+            name: 'test_omori11_method_1764899170484',
+            places: [
+              { id: 'material-1764899172116', type: 'material', description: 'material 1' },
+              { id: 'condition-1764899304242', type: 'condition', description: '条件1' },
+              { id: 'material-1764899356810', type: 'material', description: 'マテリアル' },
+              { id: 'result-1764899430825', type: 'result', description: '途中結果' },
+              { id: 'material-1764899481970', type: 'material', description: 'material 04 hoge' },
+              { id: 'material-1764899487787', type: 'material', description: '' },
+              { id: 'result-1764899593844', type: 'result', description: '最終結果' }
+            ],
+            transitions: [
+              { id: 'transition-1764899405147', description: '混ぜ合わせる' },
+              { id: 'transition-1764899498618', description: 'New transition' }
+            ],
+            arcs: [
+              { id: 'edge-1764899410688', source: 'material-1764899356810', target: 'transition-1764899405147' },
+              { id: 'edge-1764899412630', source: 'material-1764899172116', target: 'transition-1764899405147' },
+              { id: 'edge-1764899414482', source: 'condition-1764899304242', target: 'transition-1764899405147' },
+              { id: 'edge-1764899435475', source: 'transition-1764899405147', target: 'result-1764899430825' },
+              { id: 'edge-1764899507077', source: 'result-1764899430825', target: 'transition-1764899498618' },
+              { id: 'edge-1764899517278', source: 'material-1764899487787', target: 'transition-1764899498618' },
+              { id: 'edge-1764899519948', source: 'material-1764899481970', target: 'transition-1764899498618' },
+              { id: 'edge-1764899597452', source: 'transition-1764899498618', target: 'result-1764899593844' }
+            ]
+          },
+          {
+            methodId: 'method_1764899692529',
+            methodIndex: 1,
+            name: 'test_omori11_method_1764899692529',
+            places: [
+              { id: 'material-1764899770318', type: 'material', description: '素材1' },
+              { id: 'condition-1764899772859', type: 'condition', description: '条件2' },
+              { id: 'result-1764899779265', type: 'result', description: '最終結果' }
+            ],
+            transitions: [
+              { id: 'transition-1764899776281', description: 'New transition' }
+            ],
+            arcs: [
+              { id: 'edge-1764899783329', source: 'material-1764899770318', target: 'transition-1764899776281' },
+              { id: 'edge-1764899785122', source: 'condition-1764899772859', target: 'transition-1764899776281' },
+              { id: 'edge-1764899786809', source: 'transition-1764899776281', target: 'result-1764899779265' }
+            ]
+          }
+        ],
+        statistics: {
+          totalPlaces: 10,
+          totalTransitions: 3,
+          totalArcs: 11
+        }
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: `req_${Date.now()}`
+      }
+    };
+  }
+  
+  // その他は空データ
+  return {
+    success: false,
+    error: {
+      code: 'MOCK_DATA_ONLY',
+      message: '複数メソッド対応はtest_omori11.maimlのみです（モック）',
+      details: []
+    },
+    meta: {
+      timestamp: new Date().toISOString(),
+      requestId: `req_${Date.now()}`
+    }
+  };
+};
+
+// ============================================================================
+// MAIMLファイル操作API
+// ============================================================================
+
+/**
+ * MAIMLファイル保存
+ * PUT /api/v1/projects/:projectId/maiml
+ * PUT /api/v1/formats/:formatId/maiml
+ * 
+ * @param context プロジェクトまたはフォーマット
+ * @param id プロジェクトIDまたはフォーマットID
+ * @param content MAIMLコンテンツ
+ * @returns 保存結果
+ */
+export const saveMaiml = async (
+  context: 'project' | 'format',
+  id: string,
+  content: string
+): Promise<ApiResponse<SaveMaimlResult>> => {
+  const client = createApiClient();
+  
+  try {
+    console.log(`💾 [maimlApiService] MAIMLファイル保存 (${context}: ${id})`);
+    
+    const endpoint = context === 'project' 
+      ? `/api/v1/projects/${id}/maiml`
+      : `/api/v1/formats/${id}/maiml`;
+    
+    const response = await client.put<ApiResponse<SaveMaimlResult>>(
+      endpoint,
+      { content }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ [maimlApiService] 保存エラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * MAIMLファイル取得
+ * GET /api/v1/projects/:projectId/maiml
+ * GET /api/v1/formats/:formatId/maiml
+ * 
+ * @param context プロジェクトまたはフォーマット
+ * @param id プロジェクトIDまたはフォーマットID
+ * @returns MAIMLコンテンツ
+ */
+export const loadMaiml = async (
+  context: 'project' | 'format',
+  id: string
+): Promise<ApiResponse<{ content: string }>> => {
+  const client = createApiClient();
+  
+  try {
+    console.log(`📂 [maimlApiService] MAIMLファイル取得 (${context}: ${id})`);
+    
+    const endpoint = context === 'project' 
+      ? `/api/v1/projects/${id}/maiml`
+      : `/api/v1/formats/${id}/maiml`;
+    
+    const response = await client.get<ApiResponse<{ content: string }>>(endpoint);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ [maimlApiService] 取得エラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * MAIMLファイル一覧取得
+ * GET /api/v1/maiml-files
+ * 
+ * @param context プロジェクトまたはフォーマット（オプション）
+ * @param includeArchive アーカイブを含むか（オプション）
+ * @returns ファイル一覧
+ */
+export const listMaimlFiles = async (
+  context?: 'project' | 'format',
+  includeArchive?: boolean
+): Promise<ApiResponse<{ files: MaimlFileInfo[] }>> => {
+  const client = createApiClient();
+  
+  try {
+    console.log('📋 [maimlApiService] MAIMLファイル一覧取得');
+    
+    const params = new URLSearchParams();
+    if (context) params.append('context', context);
+    if (includeArchive !== undefined) params.append('include_archive', String(includeArchive));
+    
+    const response = await client.get<ApiResponse<{ files: MaimlFileInfo[] }>>(
+      `/api/v1/maiml-files?${params.toString()}`
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ [maimlApiService] 一覧取得エラー:', error);
+    throw error;
+  }
 };

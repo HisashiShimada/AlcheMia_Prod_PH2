@@ -18,7 +18,7 @@ export const createApiClient = (): AxiosInstance => {
   
   const client = axios.create({
     baseURL: `${baseURL}`,
-    timeout: 10000, // 10秒
+    timeout: 120000, // 120秒（2分） - 大量ファイルの署名付きURL生成に対応
     headers: {
       'Content-Type': 'application/json',
     },

@@ -23,10 +23,8 @@ import {
   Alert,
   Spin,
   Space,
-  Collapse,
-  List,
   Tag,
-  Divider,
+  theme,
 } from 'antd';
 import {
   FolderOutlined,
@@ -38,20 +36,46 @@ import {
   RightOutlined,
 } from '@ant-design/icons';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
+
+/**
+ * ValidationError型定義
+ */
+interface ValidationError {
+  type?: string;
+  message?: string;
+  description?: string;
+  xpath?: string;
+}
+
+/**
+ * ValidationWarning型定義
+ */
+interface ValidationWarning {
+  type?: string;
+  message?: string;
+  description?: string;
+  xpath?: string;
+}
+
+/**
+ * ValidationCorrection型定義
+ */
+interface ValidationCorrection {
+  type?: string;
+  message?: string;
+  originalValue?: string;
+  correctedValue?: string;
+  xpath?: string;
+}
 
 /**
  * ValidationResult型定義
  */
 interface ValidationResult {
-  errors?: Array<{
-    type?: string;
-    message?: string;
-    description?: string;
-    xpath?: string;
-  }>;
-  warnings?: Array<any>;
-  corrections?: Array<any>;
+  errors?: ValidationError[];
+  warnings?: ValidationWarning[];
+  corrections?: ValidationCorrection[];
 }
 
 /**
@@ -76,7 +100,7 @@ interface FolderStructureItem {
   __folderPath?: string;
   __depth?: number;
   __fileCount?: number;
-  [key: string]: any;
+  [key: string]: FolderStructureItem | boolean | string | number | undefined;
 }
 
 /**
@@ -88,6 +112,7 @@ export interface SaveConfirmDialogProps {
   validationResult: ValidationResult | null;
   onSave: (action: string, destination: string, folder: string) => void;
   sourceFolder?: string;
+  fileName?: string;
 }
 
 /**
@@ -100,11 +125,12 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
   onSave,
   sourceFolder = '',
 }) => {
+  const { token } = theme.useToken();
+  
   // 保存先選択 ('s3' | 'download')
   const [saveDestination, setSaveDestination] = useState('s3');
   
   // S3フォルダ関連
-  const [folders, setFolders] = useState<FolderItem[]>([]);
   const [folderStructure, setFolderStructure] = useState<FolderStructure>({});
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [selectedFolder, setSelectedFolder] = useState('');
@@ -121,21 +147,13 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
     }
   }, [open, saveDestination, sourceFolder, selectedFolder]);
 
-  // S3フォルダ一覧取得
-  useEffect(() => {
-    if (open && saveDestination === 's3') {
-      fetchS3Folders();
-    }
-  }, [open, saveDestination]);
-
-  const fetchS3Folders = async () => {
+  const fetchS3Folders = useCallback(async () => {
     setLoadingFolders(true);
     try {
       const currentOrgId = localStorage.getItem('currentOrganizationId');
       
       if (!currentOrgId) {
         console.error('❌ [SaveConfirmDialog] Organization ID not found');
-        setFolders([]);
         setLoadingFolders(false);
         return;
       }
@@ -151,7 +169,6 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
       
       if (result.success && result.folders) {
         const orgFolders = result.folders;
-        setFolders(orgFolders);
         buildFolderStructure(orgFolders);
         
         if (sourceFolder) {
@@ -162,11 +179,17 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
       }
     } catch (error) {
       console.error('❌ [SaveConfirmDialog] フォルダ取得エラー:', error);
-      setFolders([]);
     } finally {
       setLoadingFolders(false);
     }
-  };
+  }, [sourceFolder]);
+
+  // S3フォルダ一覧取得
+  useEffect(() => {
+    if (open && saveDestination === 's3') {
+      fetchS3Folders();
+    }
+  }, [open, saveDestination, fetchS3Folders]);
 
   // フォルダ階層構造を構築
   const buildFolderStructure = (folderList: FolderItem[]) => {
@@ -175,7 +198,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
     
     folderList.forEach(folder => {
       const parts = folder.fullPath.split('/').filter(p => p);
-      let current: any = structure;
+      let current = structure as Record<string, FolderStructureItem>;
       
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
@@ -188,14 +211,14 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
             __folderPath: currentPath,
             __depth: i,
             __fileCount: folder.fileCount || 0,
-          };
+          } as FolderStructureItem;
           
           if (i === 0) {
             defaultExpanded[currentPath] = true;
           }
         }
         
-        current = current[part];
+        current = current[part] as Record<string, FolderStructureItem>;
       }
     });
     
@@ -222,7 +245,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
     if (!items) return null;
     
     return Object.keys(items).sort().map(key => {
-      const item = items[key];
+      const item = items[key] as FolderStructureItem;
       
       if (key.startsWith('__')) return null;
       
@@ -235,11 +258,11 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         <div key={itemPath}>
           <div
             style={{
-              paddingLeft: `${8 + depth * 16}px`,
-              padding: '4px 8px',
-              borderRadius: '4px',
-              marginBottom: '4px',
-              backgroundColor: isSelected ? '#e6f7ff' : 'transparent',
+              paddingLeft: `${token.paddingSM + depth * token.padding}px`,
+              padding: `${token.paddingXS}px ${token.paddingSM}px`,
+              borderRadius: token.borderRadius,
+              marginBottom: token.marginXS,
+              backgroundColor: isSelected ? token.colorPrimaryBg : 'transparent',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -253,18 +276,18 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
                   toggleFolder(itemPath);
                 }
               }}
-              style={{ marginRight: 8, cursor: hasChildren ? 'pointer' : 'default' }}
+              style={{ marginRight: token.marginSM, cursor: hasChildren ? 'pointer' : 'default' }}
             >
               {hasChildren ? (
-                isExpanded ? <DownOutlined style={{ fontSize: 12 }} /> : <RightOutlined style={{ fontSize: 12 }} />
+                isExpanded ? <DownOutlined style={{ fontSize: token.fontSizeSM }} /> : <RightOutlined style={{ fontSize: token.fontSizeSM }} />
               ) : (
-                <span style={{ width: 12, display: 'inline-block' }} />
+                <span style={{ width: token.fontSizeSM, display: 'inline-block' }} />
               )}
             </span>
-            <FolderOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+            <FolderOutlined style={{ marginRight: token.marginSM, color: token.colorPrimary }} />
             <Text strong={isSelected}>{item.__folderName || key}</Text>
             {(item.__fileCount as number) > 0 && (
-              <Tag style={{ marginLeft: 8, fontSize: '12px', padding: '0 4px' }}>
+              <Tag style={{ marginLeft: token.marginSM, fontSize: token.fontSizeSM, padding: `0 ${token.paddingXS}px` }}>
                 {item.__fileCount}
               </Tag>
             )}
@@ -296,7 +319,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
     <Modal
       title={
         <Space>
-          {hasErrors ? <WarningOutlined style={{ color: '#ff4d4f' }} /> : <CloudUploadOutlined />}
+          {hasErrors ? <WarningOutlined style={{ color: token.colorError }} /> : <CloudUploadOutlined />}
           <span>{hasErrors ? 'バリデーションエラー検出' : 'MaiML保存'}</span>
         </Space>
       }
@@ -304,14 +327,14 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
       onCancel={onClose}
       width={700}
       footer={null}
-      style={{ borderRadius: 8 }}
+      style={{ borderRadius: token.borderRadius }}
     >
       <div>
         {/* バリデーション結果統計 */}
         {hasErrors && (
           <Alert
             title={
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: token.marginSM }}>
                 <Text>
                   <strong>❌ エラー:</strong> {errorCount}件
                 </Text>
@@ -324,29 +347,29 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
               </div>
             }
             type="error"
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: token.margin }}
           />
         )}
 
         {/* エラー詳細プレビュー */}
         {hasErrors && validationResult?.errors && (
-          <div style={{ marginBottom: 16, padding: 12, backgroundColor: '#fafafa', borderRadius: 4, maxHeight: 200, overflowY: 'auto' }}>
-            <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+          <div style={{ marginBottom: token.margin, padding: token.padding, backgroundColor: token.colorBgLayout, borderRadius: token.borderRadius, maxHeight: 200, overflowY: 'auto' }}>
+            <Text type="secondary" style={{ display: 'block', marginBottom: token.marginSM }}>
               エラー詳細 (上位3件):
             </Text>
             {validationResult.errors.slice(0, 3).map((error, index) => (
-              <div key={index} style={{ marginBottom: 8, padding: 8, backgroundColor: '#fff', borderRadius: 4, border: '1px solid #d9d9d9' }}>
+              <div key={index} style={{ marginBottom: token.marginSM, padding: token.paddingSM, backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius, border: `1px solid ${token.colorBorder}` }}>
                 <Text type="danger" strong>
                   {error.type || 'Validation Error'}
                 </Text>
-                <div style={{ marginTop: 4 }}>
+                <div style={{ marginTop: token.marginXS }}>
                   <Text type="secondary">
                     {error.message || error.description || 'エラー詳細なし'}
                   </Text>
                 </div>
                 {error.xpath && (
-                  <div style={{ marginTop: 4 }}>
-                    <Text style={{ fontSize: 12, color: '#1890ff' }}>
+                  <div style={{ marginTop: token.marginXS }}>
+                    <Text style={{ fontSize: token.fontSizeSM, color: token.colorPrimary }}>
                       📍 XPath: {error.xpath}
                     </Text>
                   </div>
@@ -354,7 +377,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
               </div>
             ))}
             {validationResult.errors.length > 3 && (
-              <Text type="secondary" style={{ marginTop: 8, display: 'block', fontSize: 12 }}>
+              <Text type="secondary" style={{ marginTop: token.marginSM, display: 'block', fontSize: token.fontSizeSM }}>
                 ... 他 {validationResult.errors.length - 3} 件のエラー
               </Text>
             )}
@@ -362,10 +385,10 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         )}
 
         {/* 保存先選択 */}
-        <div style={{ marginBottom: 16, padding: 16, backgroundColor: '#e6f7ff', borderRadius: 4, border: '2px solid #1890ff' }}>
-          <div style={{ marginBottom: 12 }}>
-            <Text strong style={{ fontSize: 16 }}>
-              <CloudUploadOutlined style={{ marginRight: 8 }} />
+        <div style={{ marginBottom: token.margin, padding: token.padding, backgroundColor: token.colorPrimaryBg, borderRadius: token.borderRadius, border: `2px solid ${token.colorPrimary}` }}>
+          <div style={{ marginBottom: token.padding }}>
+            <Text strong style={{ fontSize: token.fontSizeLG }}>
+              <CloudUploadOutlined style={{ marginRight: token.marginSM }} />
               保存先を選択
             </Text>
           </div>
