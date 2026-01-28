@@ -10,7 +10,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-// import { JwtService } from '../services/jwtService';
 import { JwtPayload } from '../types/auth';
 import { JwtService } from '../services/jwtService';
 

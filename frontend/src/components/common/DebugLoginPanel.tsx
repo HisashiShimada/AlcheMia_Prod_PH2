@@ -67,7 +67,7 @@ export default function DebugLoginPanel({ onLogin, loading = false, debugUsers }
           デバッグログイン
         </Text>
       </Divider>
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%' }}>
         <Select
           placeholder="デバッグユーザーを選択"
           value={selectedDebugUser}
@@ -98,7 +98,7 @@ export default function DebugLoginPanel({ onLogin, loading = false, debugUsers }
               backgroundColor: token.colorBgContainer,
             }}
           >
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 選択中の情報:
               </Text>
@@ -112,7 +112,7 @@ export default function DebugLoginPanel({ onLogin, loading = false, debugUsers }
               </div>
               <div>
                 <Text strong style={{ fontSize: token.fontSizeSM }}>ロール: </Text>
-                <Text style={{ fontSize: token.fontSizeSM }}>{getRoleDisplayName(selectedUser.role)}</Text>
+                <Text style={{ fontSize: token.fontSizeSM }}>{getRoleDisplayName(selectedUser.role as UserRole)}</Text>
               </div>
             </Space>
           </Card>

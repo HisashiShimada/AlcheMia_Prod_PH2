@@ -3,7 +3,8 @@
  * バックエンドの認証APIとの通信を担当
  */
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
+import { createApiClient } from '@/utils/authUtils';
 import type { LoginCredentials } from '@/types/auth';
 import type {
   ApiResponse,
@@ -14,54 +15,8 @@ import type {
   ResetPasswordRequestResponseData,
   ResetPasswordResponseData,
 } from '@/types/api';
-import {
-  getSessionToken,
-  setSessionToken,
-  getOrganizationId,
-  setUserInfo,
-  clearAllSessionData,
-} from '@/utils/sessionStorageHelper';
-
-/**
- * Axiosインスタンスの作成
- */
-const createApiClient = (): AxiosInstance => {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-  
-  const client = axios.create({
-    baseURL: `${baseURL}`,
-    timeout: 10000, // 10秒
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    withCredentials: true, // HTTPOnly Cookie送信のため
-  });
-
-  return client;
-};
 
 const apiClient = createApiClient();
-
-/**
- * Axios Request Interceptor
- * リクエスト送信前にorganizationIdヘッダーを自動設定
- */
-apiClient.interceptors.request.use(
-  (config) => {
-    // SessionStorageからorganizationIdを取得
-    const organizationId = getOrganizationId();
-    
-    // organizationIdが存在する場合、ヘッダーに設定
-    if (organizationId) {
-      config.headers['X-Organization-Id'] = organizationId;
-    }
-    
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 /**
  * APIエラーハンドリング
@@ -220,7 +175,7 @@ export const authService = {
   /**
    * PINコード検証
    * @param pinCode 6桁のPINコード
-   * @param sessionToken 仮セッショントークン
+   * @param sessionToken 仮セッショントークン（SessionStorageに保存済み）
    * @param orgId 組織ID（ログイン画面ではURLクエリパラメータから取得）
    * @returns ユーザー情報とセッション情報
    */
@@ -229,39 +184,15 @@ export const authService = {
       // ログイン画面では組織IDをクエリパラメータで送信
       const params = orgId ? { orgId } : {};
       
+      // Authorizationヘッダーはインターセプターで自動付与される
       const response = await apiClient.post<ApiResponse<VerifyPinResponseData>>(
         '/auth/verify-pin',
         { pinCode },
-        {
-          headers: {
-            Authorization: `Bearer ${sessionToken}`,
-          },
-          params,
-        }
+        { params }
       );
       
       if (response.data.success) {
-        const data = response.data.data;
-        
-        // PIN検証成功時、ユーザー情報をSessionStorageに保存
-        if (data.user) {
-          setUserInfo({
-            id: data.user.id,
-            username: data.user.username,
-            displayName: data.user.displayName,
-            email: data.user.email,
-            organizationId: data.user.organizationId,
-            organizationName: data.user.organizationName,
-            role: data.user.role,
-          });
-        }
-        
-        // セッショントークンも保存（既存の処理を統一）
-        if (data.session?.token) {
-          setSessionToken(data.session.token);
-        }
-        
-        return data;
+        return response.data.data;
       }
       
       throw new AuthServiceError('PIN検証に失敗しました', 'PIN_VERIFY_FAILED');
@@ -272,7 +203,7 @@ export const authService = {
 
   /**
    * PINコード再送信
-   * @param sessionToken 仮セッショントークン
+   * @param sessionToken 仮セッショントークン（SessionStorageに保存済み）
    * @param orgId 組織ID（ログイン画面ではURLクエリパラメータから取得）
    * @returns 再送信結果
    */
@@ -281,15 +212,11 @@ export const authService = {
       // ログイン画面では組織IDをクエリパラメータで送信
       const params = orgId ? { orgId } : {};
       
+      // Authorizationヘッダーはインターセプターで自動付与される
       const response = await apiClient.post<ApiResponse<ResendPinResponseData>>(
         '/auth/resend-pin',
         {},
-        {
-          headers: {
-            Authorization: `Bearer ${sessionToken}`,
-          },
-          params,
-        }
+        { params }
       );
       
       if (response.data.success) {
@@ -308,31 +235,17 @@ export const authService = {
    */
   async logout(): Promise<LogoutResponseData> {
     try {
-      // SessionStorageからセッショントークンを取得
-      const sessionToken = getSessionToken();
-
-      // トークンがない場合はエラー
-      if (!sessionToken) {
-        throw new AuthServiceError(
-          'セッショントークンが見つかりません',
-          'AUTH_TOKEN_MISSING'
-        );
-      }
-
-      // Authorizationヘッダーにトークンを設定してリクエスト
+      // Authorizationヘッダーはインターセプターで自動付与される
       const response = await apiClient.post<ApiResponse<LogoutResponseData>>(
         '/auth/logout',
-        {},  // ボディは空
-        {
-          headers: {
-            Authorization: `Bearer ${sessionToken}`,
-          },
-        }
+        {}
       );
       
       if (response.data.success) {
-        // 成功したらSessionStorageから全データを削除
-        clearAllSessionData();
+        // 成功したらSessionStorageからトークンを削除
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('sessionToken');
+        }
         return response.data.data;
       }
       

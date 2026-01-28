@@ -69,6 +69,10 @@
 | 2.10 | GET | /api/v1/projects/:projectName/instructions | 指示一覧取得 | ⏳ 未実装 | ProjectController.listInstructions |
 | 2.11 | POST | /api/v1/projects/search | プロジェクト詳細検索 | ⏳ 未実装 | ProjectController.search |
 | 2.12 | POST | /api/v1/projects/:projectName/publish | プロジェクト公開 | ⏳ 未実装 | ProjectController.publish |
+| 2.13 | GET | /api/v1/instructions | 指示一覧取得 | ⏳ 未実装 | InstructionController.list |
+| 2.14 | PUT | /api/v1/instructions/:instructionId/confirm | 指示確認完了 | ⏳ 未実装 | InstructionController.confirm |
+| 2.15 | POST | /api/v1/projects/:projectId/approval-request | 承認依頼 | ⏳ 未実装 | ProjectController.requestApproval |
+| 2.16 | GET | /api/v1/projects/worker-accessible | 実験作業者用プロジェクト一覧取得 | ⏳ 未実装 | ProjectController.listWorkerAccessible |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -148,6 +152,7 @@
 | 5.8 | POST | /api/v1/maiml/session/start | 編集セッション開始 | ✅ 実装済み | maimlController.startSession |
 | 5.9 | POST | /api/v1/maiml/session/end | 編集セッション終了 | ✅ 実装済み | maimlController.endSession |
 | 5.10 | GET | /api/v1/maiml/health | ヘルスチェック | ✅ 実装済み | maimlController.health |
+| 5.11 | GET | /api/v1/files/maiml/:fileId | MAIMLファイル取得 | ⏳ 未実装 | maimlController.getFile |
 
 **ミドルウェアチェーン:**
 - 5.1-5.9: `auth` → バリデーション
@@ -184,6 +189,9 @@
 |----|-------------|---------------|------|---------|--------------|
 | 6.1 | GET | /api/v1/projects/:projectId/methods/:methodId/tasks | メソッド別タスク一覧取得 | ⏳ 未実装 | ProgressController.listTasks |
 | 6.2 | GET | /api/v1/tasks/:taskId | タスク詳細取得 | ⏳ 未実装 | ProgressController.getTaskDetail |
+| 6.3 | GET | /api/v1/progress/:projectId/:methodId/:taskId | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
+| 6.4 | GET | /api/v1/tasks | タスク一覧取得（プロジェクト単位） | ⏳ 未実装 | ProgressController.listAllTasks |
+| 6.5 | PUT | /api/v1/tasks/:taskId/status | タスクステータス更新 | ⏳ 未実装 | ProgressController.updateTaskStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -194,6 +202,61 @@
 - タスク詳細情報（担当者、ステータス、実験記録）
 - リアルタイム進捗反映
 - 進捗情報キャッシュ（5分間）
+
+---
+
+### 7. 問題管理API（Issue Management）
+
+**API設計書**: [api_issue_management.md](./api_issue_management.md)  
+**ルートファイル**: `backend/src/routes/issueRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 7.1 | POST | /api/v1/issues | 問題報告 | ✅ 実装済み | IssueController.create |
+| 7.2 | POST | /api/v1/issues/:issueId/comments | コメント投稿 | ✅ 実装済み | IssueController.addComment |
+| 7.3 | GET | /api/v1/issues | 問題一覧取得 | ✅ 実装済み | IssueController.list |
+| 7.4 | GET | /api/v1/issues/:issueId | 問題詳細取得 | ✅ 実装済み | IssueController.getById |
+| 7.5 | PATCH | /api/v1/issues/:issueId/status | 問題ステータス変更 | ✅ 実装済み | IssueController.updateStatus |
+
+**ミドルウェアチェーン:**
+- すべて: `auth` → `tenantIsolation` → `permissionCheck`
+- 権限: 7.1-7.4（全ユーザー）、7.5（Manager/Admin のみ）
+
+**備考:**
+- ✅ 実装完了（テスト103件すべてPASS）
+- 問題の種類: material_shortage, equipment_failure, procedure_unclear, safety_concern, quality_issue, time_constraint, other
+- 対象種別: project, task, transition
+- 複合フィルタリング対応（プロジェクト・タスク・トランジション・ステータス・種別等）
+- コメント投稿時に自動的に `issues.updated_at` を更新
+- トランザクション保証により整合性を確保
+- Winston構造化ログによる監査証跡を記録
+- マルチテナント分離により自組織の問題のみ取得可能
+
+---
+
+### 8. 実験データ記録API（Experiment Data Recording）
+
+**API設計書**: [api_experiment_data.md](./api_experiment_data.md)  
+**ルートファイル**: `backend/src/routes/experimentDataRoutes.ts`（推定）
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 8.1 | POST | /api/v1/experiments/:transitionId/data | 実験データ保存 | ⏳ 未実装 | ExperimentDataController.save |
+| 8.2 | PUT | /api/v1/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | ExperimentDataController.updateStatus |
+
+**ミドルウェアチェーン:**
+- すべて: `auth` → `tenantIsolation` → `permissionCheck`
+- 権限: Worker以上（実験作業者が主な利用者）
+
+**備考:**
+- 実験データのテンプレート単位保存
+- ステータス: initial, preparing, ready, running, paused, completed, error
+- DataGrid（2次元配列）、ネストプロパティに対応
+- みなし進捗更新機能をサポート（保存時に自動でステータス判定）
+- プロジェクトステータスが編集可能な場合のみ保存可能
+- ファイルアップロードは共通API（3.1）を使用
+- トランザクション保証により整合性を確保
+- マルチテナント分離により自組織の実験データのみ操作可能
 
 ---
 
@@ -242,12 +305,14 @@
 | カテゴリ | 総数 | 実装済み | スタブ | 未実装 | 実装率 |
 |---------|------|---------|-------|--------|--------|
 | 認証API | 6 | 6 | 0 | 0 | 100% |
-| プロジェクト管理API | 12 | 8 | 0 | 4 | 67% |
+| プロジェクト管理API | 16 | 8 | 0 | 8 | 50% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 5 | 0 | 0 | 5 | 0% |
-| Maiml編集API | 10 | 9 | 1 | 0 | 90% |
-| 進捗確認API | 2 | 0 | 0 | 2 | 0% |
-| **合計** | **37** | **23** | **1** | **13** | **62%** |
+| Maiml編集API | 11 | 9 | 1 | 1 | 82% |
+| 進捗確認API | 5 | 0 | 0 | 5 | 0% |
+| 問題管理API | 5 | 5 | 0 | 0 | 100% |
+| 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
+| **合計** | **52** | **28** | **1** | **23** | **54%** |
 
 ### 優先度別実装状況
 
@@ -418,6 +483,22 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.5.2 | 2026-01-27 19:43 | API設計書リンク更新（問題管理・実験データ記録） | Cline |
+| | | - 問題管理API: 設計書リンクをapi_issue_management.mdに更新 | |
+| | | - 実験データ記録API: 設計書リンクをapi_experiment_data.mdに更新 | |
+| | | - API一覧_実験作業者画面.mdからの移行完了 | |
+| 2.5.1 | 2026-01-27 18:51 | 実験作業者用プロジェクト一覧取得API追加（52エンドポイント） | Cline |
+| | | - プロジェクト管理API: 15→16エンドポイント（+1: 実験作業者用プロジェクト一覧取得） | |
+| | | - 全体実装率: 55%→54%（分母増加により一時的に低下） | |
+| 2.5.0 | 2026-01-27 18:33 | 実験作業者API統合（51エンドポイント） | Cline |
+| | | - プロジェクト管理API: 12→15エンドポイント（+3: 指示管理2個、承認依頼1個） | |
+| | | - Maiml編集API: 10→11エンドポイント（+1: MAIMLファイル取得） | |
+| | | - 進捗確認API: 2→5エンドポイント（+3: 進捗データ、タスク一覧・更新） | |
+| | | - 問題管理API: 新規カテゴリ追加、5エンドポイント（実装済み100%） | |
+| | | - 実験データ記録API: 新規カテゴリ追加、2エンドポイント（未実装） | |
+| | | - カテゴリ数: 6→8カテゴリ | |
+| | | - 全体実装率: 62%→55%（分母増加により一時的に低下） | |
+| | | - 実装済みAPI総数: 23→28エンドポイント（+5: 問題管理API） | |
 | 2.4.0 | 2026-01-27 09:24 | Maiml編集API実装完了（37エンドポイント） | Cline |
 | | | - Maiml編集API: 10エンドポイント、9実装済み、1スタブ（90%） | |
 | | | - 新規実装: parse, parsePetriNetStructure, save, load, list | |
