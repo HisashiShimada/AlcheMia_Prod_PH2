@@ -16,11 +16,12 @@
 | 基本CRUD | 2 | 0 | 2 |
 | チェックイン/チェックアウト | 2 | 0 | 2 |
 | データ取得 | 2 | 0 | 2 |
-| 指示管理 | 0 | 2 | 2 |
+| 指示管理 | 0 | 4 | 4 |
 | その他 | 2 | 0 | 2 |
-| **合計** | **8** | **2** | **10** |
+| 実験作業者用 | 0 | 2 | 2 |
+| **合計** | **8** | **6** | **14** |
 
-**完了率**: 80% (8/10)
+**完了率**: 57% (8/14)
 
 ---
 
@@ -38,6 +39,10 @@
 | 8 | 指示一覧取得 | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
 | 9 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | ✅ 実装済み | - |
 | 10 | プロジェクト公開 | POST | `/api/v1/projects/:projectName/publish` | ✅ 実装済み | - |
+| 11 | 指示一覧取得（実験作業者用） | GET | `/api/v1/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 12 | 指示確認完了 | PUT | `/api/v1/instructions/:instructionId/confirm` | 🔴 未実装 | ⭐⭐ 中 |
+| 13 | 承認依頼 | POST | `/api/v1/projects/:projectId/approval-request` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 14 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | 🔴 未実装 | ⭐⭐⭐ 高 |
 
 ---
 
@@ -845,6 +850,626 @@ router.METHOD('/path',
 #### ビジネスルール
 - 完了済みのプロジェクトのみ公開可能
 - 公開後は編集不可
+
+---
+
+### 11. 指示一覧取得（実験作業者用） 🔴
+
+**エンドポイント**: `GET /api/v1/instructions`
+
+**説明**: 実験作業者が自分に割り当てられた指示一覧を取得
+
+**認証**: 必須
+
+**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**クエリパラメータ**:
+| パラメータ | 型 | 必須 | デフォルト | 説明 |
+|----------|---|------|-----------|------|
+| `projectId` | UUID | × | - | プロジェクトIDでフィルタリング |
+| `methodId` | string | × | - | メソッドIDでフィルタリング |
+| `taskNo` | integer | × | - | タスク番号でフィルタリング |
+| `instructionTarget` | string | × | - | 指示対象でフィルタリング（`file`, `task`, `transition`） |
+| `isAcknowledged` | boolean | × | - | 確認済みフラグでフィルタリング |
+| `page` | integer | × | 1 | ページ番号 |
+| `limit` | integer | × | 20 | 1ページあたりの件数（1-100） |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "instruction_id": "instruction-uuid",
+      "project_id": "project-uuid",
+      "project_name": "Sample Project",
+      "method_id": "method1",
+      "method_name": "合成実験",
+      "task_no": 1,
+      "task_name": "材料準備",
+      "instruction_target": "task",
+      "instruction_content": "指示内容の詳細",
+      "instruction_conditions": "実施条件の詳細",
+      "is_acknowledged": false,
+      "acknowledged_at": null,
+      "acknowledged_user_id": null,
+      "created_at": "2026-01-21T10:00:00Z",
+      "created_by": "manager-uuid",
+      "created_by_name": "Manager Name",
+      "due_date": "2026-01-31T23:59:59Z"
+    },
+    {
+      "instruction_id": "instruction-uuid-2",
+      "project_id": "project-uuid",
+      "project_name": "Sample Project",
+      "method_id": "method1",
+      "method_name": "合成実験",
+      "task_no": 2,
+      "task_name": "反応実験",
+      "instruction_target": "transition",
+      "instruction_content": "トランジション指示の詳細",
+      "instruction_conditions": null,
+      "is_acknowledged": true,
+      "acknowledged_at": "2026-01-21T14:00:00Z",
+      "acknowledged_user_id": "worker-uuid",
+      "created_at": "2026-01-21T10:00:00Z",
+      "created_by": "manager-uuid",
+      "created_by_name": "Manager Name",
+      "due_date": "2026-02-15T23:59:59Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "totalItems": 45,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "meta": {
+    "timestamp": "2026-01-27T19:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー
+- 401: 認証エラー
+- 403: 権限不足
+- 500: システムエラー
+
+#### 実装要件
+
+**DBクエリ**:
+```typescript
+// project_instructionテーブルから指示を取得
+let query = db
+  .selectFrom('project_instruction')
+  .innerJoin('project', 'project_instruction.project_id', 'project.project_id')
+  .leftJoin('organization_user as creator', 'project_instruction.create_user_id', 'creator.user_id')
+  .leftJoin('user_authentication', 'creator.user_id', 'user_authentication.user_id')
+  .where('project_instruction.organization_id', '=', organizationId);
+
+// 実験作業者の場合は自分が担当するタスクに紐づく指示のみ
+if (req.user.role === 'experiment_worker') {
+  query = query
+    .innerJoin('project_task', 'project_instruction.instruction_id', 'project_task.instruction_id')
+    .where('project_task.assign_user_id', '=', req.user.userId);
+}
+
+// フィルタリング
+if (projectId) {
+  query = query.where('project_instruction.project_id', '=', projectId);
+}
+if (methodId) {
+  query = query.where('project_instruction.method_id', '=', methodId);
+}
+if (taskNo !== undefined) {
+  query = query.where('project_instruction.task_no', '=', taskNo);
+}
+if (instructionTarget) {
+  query = query.where('project_instruction.instruction_target', '=', instructionTarget);
+}
+if (isAcknowledged !== undefined) {
+  query = query.where('project_instruction.is_acknowledged', '=', isAcknowledged);
+}
+
+const instructions = await query
+  .select([
+    'project_instruction.*',
+    'project.project_name',
+    'user_authentication.user_name as created_by_name'
+  ])
+  .orderBy('project_instruction.create_at', 'desc')
+  .execute();
+```
+
+**メソッド名・タスク名の取得**:
+```typescript
+// MAIMLファイルからメソッド情報を取得
+for (const instruction of instructions) {
+  const project = await db
+    .selectFrom('project')
+    .where('project_id', '=', instruction.project_id)
+    .select('project_name')
+    .executeTakeFirst();
+
+  if (project) {
+    const maimlContent = await storageService.downloadFile(
+      organizationPrefix,
+      `projects/${project.project_name}/${project.project_name}.maiml`
+    );
+
+    const methods = await parseMultipleMethodsStructure(maimlContent);
+    const method = methods.find(m => m.methodId === instruction.method_id);
+    
+    instruction.method_name = method?.methodName || '';
+    
+    if (instruction.task_no && method) {
+      const task = method.tasks?.find(t => t.task_no === instruction.task_no);
+      instruction.task_name = task?.task_name || '';
+    }
+  }
+}
+```
+
+---
+
+### 12. 指示確認完了 🔴
+
+**エンドポイント**: `PUT /api/v1/instructions/:instructionId/confirm`
+
+**説明**: 指示を確認済みに変更
+
+**認証**: 必須
+
+**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐ 中
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `instructionId` | UUID | ○ | 指示ID |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "instruction_id": "instruction-uuid",
+    "is_acknowledged": true,
+    "acknowledged_at": "2026-01-27T19:00:00Z",
+    "acknowledged_user_id": "worker-uuid",
+    "acknowledged_user_name": "Worker Name"
+  },
+  "meta": {
+    "timestamp": "2026-01-27T19:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー、既に確認済み
+- 401: 認証エラー
+- 403: 権限不足（担当者以外が確認しようとした）
+- 404: 指示が存在しない
+- 500: システムエラー
+
+#### ビジネスロジック
+
+**前提条件チェック**:
+```typescript
+// 指示が存在するか確認
+const instruction = await db
+  .selectFrom('project_instruction')
+  .where('instruction_id', '=', instructionId)
+  .where('organization_id', '=', organizationId)
+  .selectAll()
+  .executeTakeFirstOrThrow();
+
+// 実験作業者の場合は自分のタスクに紐づく指示のみ
+if (req.user.role === 'experiment_worker') {
+  const task = await db
+    .selectFrom('project_task')
+    .where('instruction_id', '=', instructionId)
+    .where('assign_user_id', '=', req.user.userId)
+    .where('organization_id', '=', organizationId)
+    .executeTakeFirst();
+
+  if (!task) {
+    throw new ForbiddenError('自分に割り当てられていない指示は確認できません');
+  }
+}
+
+// 既に確認済みの場合はエラー
+if (instruction.is_acknowledged) {
+  throw new BadRequestError('この指示は既に確認済みです');
+}
+```
+
+#### 実装要件
+
+**DBクエリ**:
+```typescript
+// 指示を確認済みに更新
+await db
+  .updateTable('project_instruction')
+  .set({
+    is_acknowledged: true,
+    acknowledged_at: new Date().toISOString(),
+    acknowledged_user_id: req.user.userId,
+    update_at: new Date().toISOString()
+  })
+  .where('instruction_id', '=', instructionId)
+  .where('organization_id', '=', organizationId)
+  .execute();
+
+// 更新後のユーザー名を取得
+const user = await db
+  .selectFrom('organization_user')
+  .innerJoin('user_authentication', 'organization_user.user_id', 'user_authentication.user_id')
+  .where('organization_user.user_id', '=', req.user.userId)
+  .select('user_authentication.user_name')
+  .executeTakeFirst();
+```
+
+---
+
+### 13. 承認依頼 🔴
+
+**エンドポイント**: `POST /api/v1/projects/:projectId/approval-request`
+
+**説明**: 実験作業完了後に実験管理者へ承認依頼を送信
+
+**認証**: 必須
+
+**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | UUID | ○ | プロジェクトID |
+
+**ボディ（JSON）**:
+```json
+{
+  "comment": "すべての実験が完了しました。ご確認をお願いします。"
+}
+```
+
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `comment` | string | × | 0-1000文字 |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "project_id": "project-uuid",
+    "project_name": "Sample Project",
+    "previous_status": "active",
+    "new_status": "waiting_approval",
+    "requested_by": "worker-uuid",
+    "requested_by_name": "Worker Name",
+    "requested_at": "2026-01-27T19:00:00Z",
+    "comment": "すべての実験が完了しました。ご確認をお願いします。",
+    "notification_id": "notification-uuid"
+  },
+  "meta": {
+    "timestamp": "2026-01-27T19:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー、タスク未完了
+- 401: 認証エラー
+- 403: 権限不足（担当者以外が依頼しようとした）
+- 404: プロジェクトが存在しない
+- 409: プロジェクトステータスが不正、未解決の問題が存在
+- 500: システムエラー
+
+#### ビジネスロジック
+
+**前提条件チェック**:
+```typescript
+// プロジェクト情報を取得
+const project = await db
+  .selectFrom('project')
+  .where('project_id', '=', projectId)
+  .where('organization_id', '=', organizationId)
+  .selectAll()
+  .executeTakeFirstOrThrow();
+
+// プロジェクトステータスが active であることを確認
+if (project.project_status !== 'active') {
+  throw new ConflictError(
+    `プロジェクトステータスが '${project.project_status}' のため、承認依頼できません`
+  );
+}
+
+// すべてのタスクが完了状態であることを確認
+const incompleteTasks = await db
+  .selectFrom('project_task')
+  .where('project_id', '=', projectId)
+  .where('organization_id', '=', organizationId)
+  .where('task_status', '!=', 'completed')
+  .select(db.fn.count('task_id').as('count'))
+  .executeTakeFirstOrThrow();
+
+if (Number(incompleteTasks.count) > 0) {
+  throw new BadRequestError(
+    `未完了のタスクが ${incompleteTasks.count} 件あります。すべてのタスクを完了してください。`
+  );
+}
+
+// 未解決の問題が存在しないことを確認
+const unresolvedIssues = await db
+  .selectFrom('task_issue')
+  .where('project_id', '=', projectId)
+  .where('organization_id', '=', organizationId)
+  .where('status', '=', 'open')
+  .select(db.fn.count('issue_id').as('count'))
+  .executeTakeFirstOrThrow();
+
+if (Number(unresolvedIssues.count) > 0) {
+  throw new ConflictError(
+    `未解決の問題が ${unresolvedIssues.count} 件あります。すべての問題を解決してください。`
+  );
+}
+```
+
+#### 実装要件
+
+**DBクエリ（トランザクション）**:
+```typescript
+await db.transaction().execute(async (trx) => {
+  // プロジェクトステータスを waiting_approval に更新
+  await trx
+    .updateTable('project')
+    .set({
+      project_status: 'waiting_approval',
+      update_at: new Date().toISOString(),
+      update_user_id: req.user.userId
+    })
+    .where('project_id', '=', projectId)
+    .where('organization_id', '=', organizationId)
+    .execute();
+
+  // system_notificationテーブルに通知登録
+  const notificationId = uuidv4();
+  await trx
+    .insertInto('system_notification')
+    .values({
+      notification_id: notificationId,
+      organization_id: organizationId,
+      notification_type: 'approval_request',
+      title: `承認依頼: ${project.project_name}`,
+      message: comment || '実験作業が完了しました。承認をお願いします。',
+      related_entity_type: 'project',
+      related_entity_id: projectId,
+      created_by: req.user.userId,
+      create_at: new Date().toISOString(),
+      is_read: false
+    })
+    .execute();
+
+  // 監査ログ記録
+  logger.info('Approval request submitted', {
+    projectId,
+    projectName: project.project_name,
+    requestedBy: req.user.userId,
+    organizationId,
+    comment
+  });
+
+  return notificationId;
+});
+```
+
+---
+
+### 14. 実験作業者用プロジェクト一覧取得 🔴
+
+**エンドポイント**: `GET /api/v1/projects/worker-accessible`
+
+**説明**: 実験作業者が選択可能なプロジェクト一覧を取得
+
+**認証**: 必須
+
+**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**クエリパラメータ**:
+| パラメータ | 型 | 必須 | デフォルト | 説明 |
+|----------|---|------|-----------|------|
+| `page` | integer | × | 1 | ページ番号（1以上） |
+| `limit` | integer | × | 20 | 1ページあたりの件数（1-100） |
+| `status` | string | × | - | ステータスフィルタ（`draft`, `active`, `waiting_approval`, `approved`） |
+| `sort_by` | string | × | `create_at` | ソート項目（`create_at`, `project_name`, `update_at`） |
+| `order` | string | × | `desc` | ソート順（`asc`, `desc`） |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "project_id": "project-uuid",
+      "project_name": "Sample Project",
+      "description": "プロジェクトの説明",
+      "project_status": "active",
+      "my_task_count": 5,
+      "completed_task_count": 2,
+      "pending_instruction_count": 3,
+      "has_unresolved_issues": false,
+      "created_at": "2026-01-21T10:00:00Z",
+      "updated_at": "2026-01-27T19:00:00Z"
+    },
+    {
+      "project_id": "project-uuid-2",
+      "project_name": "Another Project",
+      "description": "別のプロジェクト",
+      "project_status": "waiting_approval",
+      "my_task_count": 3,
+      "completed_task_count": 3,
+      "pending_instruction_count": 0,
+      "has_unresolved_issues": false,
+      "created_at": "2026-01-20T10:00:00Z",
+      "updated_at": "2026-01-27T18:00:00Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "totalItems": 15,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  },
+  "meta": {
+    "timestamp": "2026-01-27T19:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー
+- 401: 認証エラー
+- 403: 権限不足
+- 500: システムエラー
+
+#### ビジネスロジック
+
+**対象プロジェクト**:
+- ステータスが `draft`, `active`, `waiting_approval`, `approved` のプロジェクト
+- 実験作業者に少なくとも1つのタスクが割り当てられているプロジェクト
+- 自組織内のプロジェクトのみ（マルチテナント分離）
+
+#### 実装要件
+
+**DBクエリ**:
+```typescript
+let query = db
+  .selectFrom('project')
+  .innerJoin('project_task', 'project.project_id', 'project_task.project_id')
+  .where('project.organization_id', '=', organizationId)
+  .where('project.project_status', 'in', ['draft', 'active', 'waiting_approval', 'approved']);
+
+// 実験作業者の場合は自分が担当するタスクがあるプロジェクトのみ
+if (req.user.role === 'experiment_worker') {
+  query = query.where('project_task.assign_user_id', '=', req.user.userId);
+}
+
+// ステータスフィルタ
+if (status) {
+  query = query.where('project.project_status', '=', status);
+}
+
+// プロジェクトごとにグループ化
+const projects = await query
+  .select([
+    'project.project_id',
+    'project.project_name',
+    'project.description',
+    'project.project_status',
+    'project.create_at as created_at',
+    'project.update_at as updated_at',
+    db.fn.count('project_task.task_id').as('my_task_count'),
+    db.fn.count(
+      db.case()
+        .when('project_task.task_status', '=', 'completed')
+        .then(1)
+        .end()
+    ).as('completed_task_count')
+  ])
+  .groupBy([
+    'project.project_id',
+    'project.project_name',
+    'project.description',
+    'project.project_status',
+    'project.create_at',
+    'project.update_at'
+  ])
+  .orderBy(`project.${sortBy}`, order)
+  .execute();
+
+// 各プロジェクトの未確認指示数と未解決問題を取得
+for (const project of projects) {
+  // 未確認指示数
+  const pendingInstructions = await db
+    .selectFrom('project_instruction')
+    .innerJoin('project_task', 'project_instruction.instruction_id', 'project_task.instruction_id')
+    .where('project_instruction.project_id', '=', project.project_id)
+    .where('project_instruction.is_acknowledged', '=', false)
+    .where('project_task.assign_user_id', '=', req.user.userId)
+    .where('project_instruction.organization_id', '=', organizationId)
+    .select(db.fn.count('project_instruction.instruction_id').as('count'))
+    .executeTakeFirstOrThrow();
+
+  project.pending_instruction_count = Number(pendingInstructions.count);
+
+  // 未解決問題の有無
+  const unresolvedIssues = await db
+    .selectFrom('task_issue')
+    .where('project_id', '=', project.project_id)
+    .where('status', '=', 'open')
+    .where('organization_id', '=', organizationId)
+    .select(db.fn.count('issue_id').as('count'))
+    .executeTakeFirstOrThrow();
+
+  project.has_unresolved_issues = Number(unresolvedIssues.count) > 0;
+}
+```
+
+**ページネーション**:
+```typescript
+const offset = (page - 1) * limit;
+const paginatedProjects = projects.slice(offset, offset + limit);
+
+const totalItems = projects.length;
+const totalPages = Math.ceil(totalItems / limit);
+
+return {
+  data: paginatedProjects,
+  pagination: {
+    page,
+    limit,
+    totalItems,
+    totalPages,
+    hasNext: page < totalPages,
+    hasPrev: page > 1
+  }
+};
+```
 
 ---
 
