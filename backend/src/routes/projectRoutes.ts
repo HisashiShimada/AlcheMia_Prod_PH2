@@ -8,9 +8,27 @@
 import { Router } from 'express';
 import { query, body, param } from 'express-validator';
 import * as projectController from '../controllers/projectController';
+import * as workerProjectController from '../controllers/workerProjectController';
 import { authMiddleware } from '../middleware/authMiddleware';
 
 const router = Router();
+
+/**
+ * 実験作業者がアクセス可能なプロジェクト一覧取得
+ * GET /api/v1/projects/worker-accessible
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description 実験作業者が作業可能なプロジェクト一覧を取得する
+ * @note Task 4.1: 実験作業者用プロジェクト一覧APIエンドポイント追加
+ * @note 静的ルートは動的ルート（/:projectId等）より前に定義する必要がある
+ * @requirements REQ-1, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7
+ * @roles experiment_worker, experiment_admin, system_admin
+ */
+router.get(
+  '/worker-accessible',
+  authMiddleware,
+  workerProjectController.listWorkerAccessible
+);
 
 /**
  * プロジェクト一覧取得
