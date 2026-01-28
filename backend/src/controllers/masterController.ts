@@ -39,13 +39,6 @@ export async function getCreators(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    // 組織IDを取得（req.user.organizationId）
-    const organizationId = req.user?.organizationId;
-    
-    console.log('Organization ID:', organizationId);
-    console.log('req.organizationId:', (req as any).organizationId);
-    console.log('req.headers["x-organization-id"]:', req.headers['x-organization-id']);
-
     if (!req.user) {
       console.log('ERROR: Organization ID not found');
       res.status(400).json({
@@ -61,6 +54,12 @@ export async function getCreators(req: Request, res: Response, next: NextFunctio
       });
       return;
     }
+
+    // 組織IDを取得（req.user.organizationId）
+    const organizationId = req.user?.organizationId;
+    
+    console.log('Organization ID:', organizationId);
+    console.log('req.organizationId:', (req as any).organizationId);
 
     // クエリパラメータを取得
     const { display_scope, search, is_active } = req.query;
@@ -122,9 +121,6 @@ export async function getCreatorById(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // 組織IDを取得（req.user.organizationId）
-    const organizationId = req.user?.organizationId;
-
     if (!req.user) {
       res.status(400).json({
         success: false,
@@ -139,6 +135,9 @@ export async function getCreatorById(req: Request, res: Response, next: NextFunc
       });
       return;
     }
+
+    // 組織IDを取得（req.user.organizationId）
+    const organizationId = req.user?.organizationId;
 
     const { creatorId } = req.params;
 
@@ -186,11 +185,6 @@ export async function getInstruments(req: Request, res: Response, next: NextFunc
     console.log('Headers:', req.headers);
     console.log('Query:', req.query);
     
-    // 組織IDを取得（req.user.organizationId）
-    const organizationId = req.user?.organizationId;
-    
-    console.log('Organization ID:', organizationId);
-    
     if (!req.user) {
       console.log('ERROR: Organization ID not found');
       res.status(400).json({
@@ -206,6 +200,10 @@ export async function getInstruments(req: Request, res: Response, next: NextFunc
       });
       return;
     }
+    // 組織IDを取得（req.user.organizationId）
+    const organizationId = req.user?.organizationId;
+    
+    console.log('Organization ID:', organizationId);
 
     // サービス層でデータ取得
     const instruments = await masterService.getInstrumentMasters(String(organizationId));
@@ -233,7 +231,6 @@ export async function getInstruments(req: Request, res: Response, next: NextFunc
  */
 export async function getInstrumentById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -249,6 +246,7 @@ export async function getInstrumentById(req: Request, res: Response, next: NextF
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
 
     const { instrumentId } = req.params;
 
@@ -296,11 +294,6 @@ export async function getVendors(req: Request, res: Response, next: NextFunction
     console.log('Headers:', req.headers);
     console.log('Query:', req.query);
     
-    // 組織IDを取得（req.user.organizationId）
-    const organizationId = req.user?.organizationId;
-    
-    console.log('Organization ID:', organizationId);
-    
     if (!req.user) {
       console.log('ERROR: Organization ID not found');
       res.status(400).json({
@@ -316,6 +309,10 @@ export async function getVendors(req: Request, res: Response, next: NextFunction
       });
       return;
     }
+    // 組織IDを取得（req.user.organizationId）
+    const organizationId = req.user?.organizationId;
+    
+    console.log('Organization ID:', organizationId);
 
     // サービス層でデータ取得
     const vendors = await masterService.getVendorMasters(String(organizationId));
@@ -343,7 +340,6 @@ export async function getVendors(req: Request, res: Response, next: NextFunction
  */
 export async function getVendorById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -359,6 +355,8 @@ export async function getVendorById(req: Request, res: Response, next: NextFunct
       });
       return;
     }
+
+    const organizationId = req.user?.organizationId;
 
     const { vendorId } = req.params;
 
@@ -424,8 +422,6 @@ export async function createInstrument(req: Request, res: Response, next: NextFu
       return;
     }
 
-    const organizationId = req.user?.organizationId;
-
     if (!req.user) {
       res.status(400).json({
         success: false,
@@ -440,6 +436,8 @@ export async function createInstrument(req: Request, res: Response, next: NextFu
       });
       return;
     }
+
+    const organizationId = req.user?.organizationId;
 
     const instrument = await masterService.createInstrumentMaster(String(organizationId), req.body);
 
@@ -572,8 +570,6 @@ export async function createVendor(req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const organizationId = req.user?.organizationId;
-
     if (!req.user) {
       res.status(400).json({
         success: false,
@@ -588,6 +584,8 @@ export async function createVendor(req: Request, res: Response, next: NextFuncti
       });
       return;
     }
+
+    const organizationId = req.user?.organizationId;
 
     const vendor = await masterService.createVendorMaster(String(organizationId), req.body);
 
@@ -723,8 +721,6 @@ export async function createCreator(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const organizationId = req.user?.organizationId;
-
     if (!req.user) {
       res.status(400).json({
         success: false,
@@ -739,6 +735,8 @@ export async function createCreator(req: Request, res: Response, next: NextFunct
       });
       return;
     }
+
+    const organizationId = req.user?.organizationId;
 
     const creator = await masterService.createCreatorMaster(String(organizationId), req.body);
 
@@ -854,7 +852,6 @@ export async function updateCreatorStatus(req: Request, res: Response, next: Nex
  */
 export async function uploadCreatorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -870,6 +867,8 @@ export async function uploadCreatorsCsv(req: Request, res: Response, next: NextF
       });
       return;
     }
+
+    const organizationId = req.user?.organizationId;
 
     if (!req.file) {
       res.status(400).json({
@@ -915,7 +914,6 @@ export async function uploadCreatorsCsv(req: Request, res: Response, next: NextF
  */
 export async function downloadCreatorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -931,6 +929,8 @@ export async function downloadCreatorsCsv(req: Request, res: Response, next: Nex
       });
       return;
     }
+
+    const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
     const { display_scope, search, is_active } = req.query;
@@ -986,7 +986,6 @@ export async function downloadCreatorsCsv(req: Request, res: Response, next: Nex
  */
 export async function uploadInstrumentsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -1002,6 +1001,7 @@ export async function uploadInstrumentsCsv(req: Request, res: Response, next: Ne
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
 
     if (!req.file) {
       res.status(400).json({
@@ -1047,7 +1047,6 @@ export async function uploadInstrumentsCsv(req: Request, res: Response, next: Ne
  */
 export async function downloadInstrumentsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -1063,6 +1062,7 @@ export async function downloadInstrumentsCsv(req: Request, res: Response, next: 
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
     const { display_scope, search, is_active } = req.query;
@@ -1116,7 +1116,6 @@ export async function downloadInstrumentsCsv(req: Request, res: Response, next: 
  */
 export async function uploadVendorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -1132,6 +1131,7 @@ export async function uploadVendorsCsv(req: Request, res: Response, next: NextFu
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
 
     if (!req.file) {
       res.status(400).json({
@@ -1177,7 +1177,6 @@ export async function uploadVendorsCsv(req: Request, res: Response, next: NextFu
  */
 export async function downloadVendorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -1193,6 +1192,7 @@ export async function downloadVendorsCsv(req: Request, res: Response, next: Next
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
     const { display_scope, search, is_active } = req.query;
@@ -1560,10 +1560,6 @@ export async function getDepartments(req: Request, res: Response, next: NextFunc
     console.log('req.user:', req.user);
     console.log('req.headers:', req.headers);
 
-    // 組織IDを取得（req.user.organizationId）
-    const organizationId = req.user?.organizationId;
-    console.log('Extracted organizationId:', organizationId);
-
     if (!req.user) {
       res.status(400).json({
         success: false,
@@ -1578,6 +1574,9 @@ export async function getDepartments(req: Request, res: Response, next: NextFunc
       });
       return;
     }
+    // 組織IDを取得（req.user.organizationId）
+    const organizationId = req.user?.organizationId;
+    console.log('Extracted organizationId:', organizationId);
 
     // クエリパラメータを取得
     const { search, is_active, sort_by, sort_order } = req.query;
@@ -1623,7 +1622,6 @@ export async function getDepartments(req: Request, res: Response, next: NextFunc
  */
 export async function getDepartmentById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -1639,6 +1637,7 @@ export async function getDepartmentById(req: Request, res: Response, next: NextF
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
 
     const { departmentCd } = req.params;
 
@@ -1702,8 +1701,6 @@ export async function createDepartment(req: Request, res: Response, next: NextFu
       return;
     }
 
-    const organizationId = req.user?.organizationId;
-
     if (!req.user) {
       res.status(400).json({
         success: false,
@@ -1718,6 +1715,7 @@ export async function createDepartment(req: Request, res: Response, next: NextFu
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
 
     const department = await masterService.createDepartment(String(organizationId), req.body);
 
@@ -1833,7 +1831,6 @@ export async function updateDepartmentStatus(req: Request, res: Response, next: 
  */
 export async function uploadDepartmentCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -1849,6 +1846,7 @@ export async function uploadDepartmentCsv(req: Request, res: Response, next: Nex
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
 
     if (!req.file) {
       res.status(400).json({
@@ -1893,7 +1891,7 @@ export async function uploadDepartmentCsv(req: Request, res: Response, next: Nex
  */
 export async function downloadDepartmentCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
+    
 
     if (!req.user) {
       res.status(400).json({
@@ -1909,6 +1907,7 @@ export async function downloadDepartmentCsv(req: Request, res: Response, next: N
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
     const { search, is_active } = req.query;
@@ -1963,9 +1962,6 @@ export async function getRoles(req: Request, res: Response, next: NextFunction):
     console.log('req.user:', req.user);
     console.log('req.headers:', req.headers);
 
-    const organizationId = req.user?.organizationId;
-    console.log('Extracted organizationId from req.user:', organizationId);
-
     if (!req.user) {
       console.log('ERROR: Organization ID not found in req.user');
       res.status(400).json({
@@ -1981,6 +1977,8 @@ export async function getRoles(req: Request, res: Response, next: NextFunction):
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
+    console.log('Extracted organizationId from req.user:', organizationId);
 
     // サービス層でデータ取得
     const roles = await masterService.getRoles(String(organizationId));
@@ -2008,7 +2006,6 @@ export async function getRoles(req: Request, res: Response, next: NextFunction):
  */
 export async function getRoleById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const organizationId = req.user?.organizationId;
 
     if (!req.user) {
       res.status(400).json({
@@ -2024,6 +2021,7 @@ export async function getRoleById(req: Request, res: Response, next: NextFunctio
       });
       return;
     }
+    const organizationId = req.user?.organizationId;
 
     const { roleId } = req.params;
 
