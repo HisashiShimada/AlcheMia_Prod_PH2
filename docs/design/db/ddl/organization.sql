@@ -26,7 +26,9 @@ CREATE TABLE organization (
   , chief_user_id character varying(50)
   , corporation_id uuid
   , is_active BOOLEAN
+  , create_user_id uuid
   , create_at timestamp
+  , update_user_id uuid
   , update_at timestamp
   , CONSTRAINT organization_PKC PRIMARY KEY (organization_id)
 ) ;
@@ -40,6 +42,7 @@ COMMENT ON COLUMN organization.organization_email IS '組織E-mail';
 COMMENT ON COLUMN organization.chief_user_id IS '代表者ユーザID';
 COMMENT ON COLUMN organization.corporation_id IS '会社ID';
 COMMENT ON COLUMN organization.is_active IS 'アクティブ判定';
+COMMENT ON COLUMN organization.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN organization.create_at IS '作成日時';
+COMMENT ON COLUMN organization.update_user_id IS '更新者ユーザID';
 COMMENT ON COLUMN organization.update_at IS '更新日時';
-

@@ -80,6 +80,10 @@ CREATE TABLE IF NOT EXISTS file_metadata (
     -- 例: "user_001", "system"
     uploaded_by VARCHAR(100) NOT NULL,
     
+    -- 監査証跡
+    create_user_id UUID,
+    update_user_id UUID,
+    
     -- 作成日時（自動設定）
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
@@ -250,6 +254,8 @@ COMMENT ON COLUMN file_metadata.original_filename IS '元のファイル名（�
 COMMENT ON COLUMN file_metadata.file_size IS 'ファイルサイズ（バイト単位）';
 COMMENT ON COLUMN file_metadata.file_type IS 'MIMEタイプ（例: application/xml）';
 COMMENT ON COLUMN file_metadata.uploaded_by IS 'アップロードユーザーID';
+COMMENT ON COLUMN file_metadata.create_user_id IS '作成者ユーザID（監査証跡）';
+COMMENT ON COLUMN file_metadata.update_user_id IS '更新者ユーザID（監査証跡）';
 COMMENT ON COLUMN file_metadata.created_at IS '作成日時（自動設定）';
 COMMENT ON COLUMN file_metadata.updated_at IS '更新日時（トリガーで自動更新）';
 

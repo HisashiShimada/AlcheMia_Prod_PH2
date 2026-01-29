@@ -6,7 +6,7 @@
 
 **重要**: DDLファイルを変更した際は、必ずこのファイルも更新してください。
 
-**最終更新**: 2026-01-23
+**最終更新**: 2026-01-29
 **ER図ファイル**: `docs/design/db/er_diagram.a5er`
 **DDLディレクトリ**: `docs/design/db/ddl/`
 
@@ -14,7 +14,7 @@
 
 ## 📋 テーブル一覧（カテゴリ別）
 
-### 1. 認証関連テーブル（9テーブル）
+### 1. 認証関連テーブル（8テーブル）
 
 #### 1.1 corporation（会社）
 - **物理名**: `corporation`
@@ -122,33 +122,23 @@
 
 ---
 
-#### 1.7 function（機能）
-- **物理名**: `function`
-- **論理名**: 機能
-- **DDLファイル**: `docs/design/db/ddl/function.sql`
-- **主キー**: `function_id` (VARCHAR(30))
-- **主要カラム**:
-  - `function_id` - 機能ID
-  - `permission` - 機能名
-
----
-
-#### 1.8 role（ロール）
+#### 1.7 role（ロール）
 - **物理名**: `role`
 - **論理名**: ロール
 - **DDLファイル**: `docs/design/db/ddl/role.sql`
-- **主キー**: `organization_id` (UUID), `role_id` (VARCHAR(30))
+- **主キー**: `organization_id` (UUID), `role_cd` (VARCHAR(30))
 - **主要カラム**:
   - `organization_id` - 組織ID
-  - `role_id` - ロール（ユーザのロールと同一）
+  - `role_cd` - ロールCD（ユーザのロールCDと同一）
   - `role_name` - ロール名
+  - `initial_screen_function_cd` - 初期画面機能CD
   - `is_active` - アクティブ判定
   - `create_at` - 作成日時
   - `update_at` - 更新日時
 
 ---
 
-#### 1.9 role_permission（ロール権限）
+#### 1.8 role_permission（ロール権限）
 - **物理名**: `role_permission`
 - **論理名**: ロール権限
 - **DDLファイル**: `docs/design/db/ddl/role_permission.sql`
@@ -369,9 +359,9 @@
 
 ---
 
-#### 4.2 creator_master（creatorマスタ）
-- **物理名**: `creator_master`
-- **論理名**: creatorマスタ
+#### 4.2 creator（creator）
+- **物理名**: `creator`
+- **論理名**: creator
 - **DDLファイル**: `docs/design/db/ddl/creator_master.sql`
 - **主キー**: `organization_id` (UUID), `creator_uuid` (UUID)
 - **主要カラム**:
@@ -390,9 +380,9 @@
 
 ---
 
-#### 4.3 instrument_master（instrumentマスタ）
-- **物理名**: `instrument_master`
-- **論理名**: instrumentマスタ
+#### 4.3 instrument（instrument）
+- **物理名**: `instrument`
+- **論理名**: instrument
 - **DDLファイル**: `docs/design/db/ddl/instrument_master.sql`
 - **主キー**: `organization_id` (UUID), `instrument_uuid` (UUID)
 - **主要カラム**:
@@ -408,9 +398,9 @@
 
 ---
 
-#### 4.4 vendor_master（vendorマスタ）
-- **物理名**: `vendor_master`
-- **論理名**: vendorマスタ
+#### 4.4 vendor（vendor）
+- **物理名**: `vendor`
+- **論理名**: vendor
 - **DDLファイル**: `docs/design/db/ddl/vendor_master.sql`
 - **主キー**: `organization_id` (UUID), `vendor_uuid` (UUID)
 - **主要カラム**:
@@ -426,37 +416,26 @@
 
 ---
 
-#### 4.5 attribute（属性マスタ）
+#### 4.5 attribute（属性）
 - **物理名**: `attribute`
-- **論理名**: 属性マスタ
+- **論理名**: 属性
 - **DDLファイル**: `docs/design/db/ddl/attribute.sql`
 - **主キー**: `organization_id` (UUID), `attribute_id` (VARCHAR)
 - **主要カラム**:
   - `organization_id` - 組織ID
-  - `attribute_id` - 属性_ID
-  - `attribute_name` - 属性_名称
-  - `attribute_value` - 属性_属性値
+  - `attribute_id` - 属性ID
+  - `attribute_name` - 属性名
+  - `attribute_value` - 属性値
+  - `create_user_id` - 作成者ユーザID
+  - `update_user_id` - 更新者ユーザID
+  - `create_at` - 作成日時
+  - `update_at` - 更新日時
 
 ---
 
-### 5. 通知関連テーブル（1テーブル）
+### 5. 監査・ログ関連テーブル（1テーブル）
 
-#### 5.1 user_notification（ユーザ別通知）
-- **物理名**: `user_notification`
-- **論理名**: ユーザ別通知
-- **DDLファイル**: `docs/design/db/ddl/user_notification.sql`
-- **主キー**: `notification_id` (VARCHAR), `organization_id` (UUID), `user_id` (VARCHAR)
-- **主要カラム**:
-  - `notification_id` - 通知ID
-  - `organization_id` - 組織ID
-  - `user_id` - ユーザID
-  - `is_confirmed` - 確認済フラグ
-
----
-
-### 6. 監査・ログ関連テーブル（1テーブル）
-
-#### 6.1 maiml_event_log（MaiMLイベントログ）
+#### 5.1 maiml_event_log（MaiMLイベントログ）
 - **物理名**: `maiml_event_log`
 - **論理名**: MaiMLイベントログ
 - **DDLファイル**: `docs/design/db/ddl/maiml_event_log.sql`
@@ -469,9 +448,9 @@
 
 ---
 
-### 7. ファイル管理関連テーブル（1テーブル）
+### 6. ファイル管理関連テーブル（1テーブル）
 
-#### 7.1 file_metadata（ファイルメタデータ）
+#### 6.1 file_metadata（ファイルメタデータ）
 - **物理名**: `file_metadata`
 - **論理名**: ファイルメタデータ
 - **DDLファイル**: `docs/design/db/ddl/file_metadata.sql`
@@ -504,14 +483,13 @@
 
 | カテゴリ | テーブル数 |
 |---------|----------|
-| 認証関連 | 9 |
+| 認証関連 | 8 |
 | プロジェクト管理関連 | 8 |
 | 問題管理関連 | 2 |
 | 共通マスタ | 5 |
-| 通知関連 | 1 |
 | 監査・ログ関連 | 1 |
 | ファイル管理関連 | 1 |
-| **合計** | **27** |
+| **合計** | **25** |
 
 ---
 
@@ -528,8 +506,6 @@ organization_user
   │ └→ user_authentication
   └→ pin_codes
 
-function
-  ↓
 role_permission
 ```
 
@@ -555,11 +531,6 @@ project
 issue
   ↓
 issue_comment
-```
-
-### 通知フロー
-```
-user_notification (独立テーブル)
 ```
 
 ### ログフロー
@@ -598,6 +569,9 @@ maiml_event_log
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-01-29 17:46 | function, user_notificationテーブル削除（25テーブルに統一） | Cline |
+| 2026-01-29 17:31 | ER図の最新構造に合わせて更新（role, attribute, instrument, vendor） | Cline |
+| 2026-01-29 16:40 | DDLファイル（27個）の現状に合わせて更新完了 | Cline |
 | 2026-01-23 15:00 | event_log.sql削除に伴い27テーブルに更新 | Cline |
 | 2026-01-23 14:59 | DDLファイル(28個)と完全一致するように整理、重複削除、カテゴリ整理 | Cline |
 | 2026-01-21 | DDLファイル更新に伴い29テーブルに更新 | Cline |
@@ -608,35 +582,33 @@ maiml_event_log
 
 ## ✅ DDL配下ファイルとの整合性
 
-**DDL配下のファイル（27個）:**
+**DDL配下のファイル（25個）:**
 1. attribute.sql
 2. code_master.sql
 3. corporation.sql
 4. creator_master.sql
 5. department.sql
 6. file_metadata.sql
-7. function.sql
-8. instruction_acknowledged_history.sql
-9. instrument_master.sql
-10. issue_comment.sql
-11. issue.sql
-12. login_history.sql
-13. maiml_event_log.sql
-14. organization_user.sql
-15. organization.sql
-16. pin_codes.sql
-17. project_instruction.sql
-18. project_task_detail.sql
-19. project_task.sql
-20. project.sql
-21. role_permission.sql
-22. role.sql
-23. template_data.sql
-24. transition_data.sql
-25. user_authentication.sql
-26. user_notification.sql
-27. vendor_master.sql
+7. instruction_acknowledged_history.sql
+8. instrument_master.sql
+9. issue_comment.sql
+10. issue.sql
+11. login_history.sql
+12. maiml_event_log.sql
+13. organization_user.sql
+14. organization.sql
+15. pin_codes.sql
+16. project_instruction.sql
+17. project_task_detail.sql
+18. project_task.sql
+19. project.sql
+20. role_permission.sql
+21. role.sql
+22. template_data.sql
+23. transition_data.sql
+24. user_authentication.sql
+25. vendor_master.sql
 
-**このドキュメントのテーブル数: 27個** ✅
+**このドキュメントのテーブル数: 25個** ✅
 
 すべてのDDLファイルがこのドキュメントに反映されています。

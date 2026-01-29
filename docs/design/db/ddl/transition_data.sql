@@ -18,6 +18,14 @@ CREATE TABLE transition_data (
     status NUMERIC(2,0),
     progress_rate NUMERIC(3,0),
     
+    -- 監査証跡
+    create_user_id UUID,
+    update_user_id UUID,
+    
+    -- タイムスタンプ
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
+    
     -- 制約
     CONSTRAINT transition_data_pkey PRIMARY KEY (organization_id, project_id, method_id, task_no, transition_id)
 );
@@ -31,3 +39,7 @@ COMMENT ON COLUMN transition_data.task_no IS 'タスク連番';
 COMMENT ON COLUMN transition_data.transition_id IS 'トランジションID';
 COMMENT ON COLUMN transition_data.status IS 'ステータス';
 COMMENT ON COLUMN transition_data.progress_rate IS '進捗率';
+COMMENT ON COLUMN transition_data.create_user_id IS '作成者ユーザID';
+COMMENT ON COLUMN transition_data.update_user_id IS '更新者ユーザID';
+COMMENT ON COLUMN transition_data.create_at IS '作成日時';
+COMMENT ON COLUMN transition_data.update_at IS '更新日時';
