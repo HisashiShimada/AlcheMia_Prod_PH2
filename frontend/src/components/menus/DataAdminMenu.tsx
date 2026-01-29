@@ -14,7 +14,7 @@ import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
-import MasterManagementMock from '../../../mock/components/MasterManagementMock';
+import MasterManagement from '../DataManagement/MasterManagement';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -84,7 +84,7 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
         }}
       >
         {/* マスタ管理タブ */}
-        {currentTab === '1' && <MasterManagementMock />}
+        {currentTab === '1' && <MasterManagement />}
       </Content>
     </Layout>
   );

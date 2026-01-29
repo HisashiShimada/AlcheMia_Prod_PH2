@@ -21,8 +21,8 @@ CREATE TABLE instrument_master (
     is_active BOOLEAN,
     
     -- タイムスタンプ
-    create_at BOOLEAN,
-    update_at BOOLEAN,
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
     
     -- 制約
     CONSTRAINT instrument_master_PKC PRIMARY KEY (organization_id, instrument_uuid)

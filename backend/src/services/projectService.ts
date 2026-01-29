@@ -6,18 +6,12 @@
  */
 
 import { getPool } from '../database/db';
-import NodeCache from 'node-cache';
-import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { getStorageService } from './storageService';
-import type { BatchOperation } from '../repositories/fileMetadataRepository';
 import type { 
   Project, 
   Pagination, 
   ProjectListResponse
 } from '../types/project';
-
-// キャッシュインスタンス（TTL: 1時間）
-const projectCache = new NodeCache({ stdTTL: 3600 });
 
 interface ListOptions {
   page: number;

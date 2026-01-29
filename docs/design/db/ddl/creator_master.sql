@@ -26,8 +26,8 @@ CREATE TABLE creator_master (
     is_active BOOLEAN,
     
     -- タイムスタンプ
-    create_at BOOLEAN,
-    update_at BOOLEAN,
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
     
     -- 制約
     CONSTRAINT creator_master_PKC PRIMARY KEY (organization_id, creator_uuid)

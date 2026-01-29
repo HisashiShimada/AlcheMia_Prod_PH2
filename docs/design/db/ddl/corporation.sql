@@ -15,7 +15,7 @@ CREATE TABLE corporation (
     is_active BOOLEAN NOT NULL,
     
     -- タイムスタンプ
-    create_at BOOLEAN,
+    create_at TIMESTAMP,
     update_at TIMESTAMP,
     
     -- 制約

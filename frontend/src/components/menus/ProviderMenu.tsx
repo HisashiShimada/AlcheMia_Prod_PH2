@@ -16,19 +16,19 @@ import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import dynamic from 'next/dynamic';
 
-// モックコンポーネントの動的インポート
-const OrganizationManagementMock = dynamic(
-  () => import('../../../mock/components/OrganizationManagementMock'),
+// Providerコンポーネントの動的インポート
+const OrganizationManagement = dynamic(
+  () => import('../Provider/OrganizationManagement'),
   { ssr: false }
 );
 
-const CompanyManagementMock = dynamic(
-  () => import('../../../mock/components/CompanyManagementMock'),
+const CorporationManagement = dynamic(
+  () => import('../Provider/CorporationManagement'),
   { ssr: false }
 );
 
-const InformationDownloadMock = dynamic(
-  () => import('../../../mock/components/InformationDownloadMock'),
+const InformationDownload = dynamic(
+  () => import('../Provider/InformationDownload'),
   { ssr: false }
 );
 
@@ -111,13 +111,13 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
       >
         <div>
           {/* タブ1: 会社管理 */}
-          {currentTab === '1' && <CompanyManagementMock />}
+          {currentTab === '1' && <CorporationManagement />}
           
           {/* タブ2: 組織管理 */}
-          {currentTab === '2' && <OrganizationManagementMock />}
+          {currentTab === '2' && <OrganizationManagement />}
           
           {/* タブ3: 情報ダウンロード */}
-          {currentTab === '3' && <InformationDownloadMock />}
+          {currentTab === '3' && <InformationDownload />}
         </div>
       </Content>
     </Layout>

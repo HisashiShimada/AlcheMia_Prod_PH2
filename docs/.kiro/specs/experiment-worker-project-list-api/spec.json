@@ -1,0 +1,22 @@
+{
+  "feature_name": "experiment-worker-project-list-api",
+  "created_at": "2026-01-27T20:03:00+09:00",
+  "updated_at": "2026-01-27T20:35:40+09:00",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "ready_for_implementation": false
+}

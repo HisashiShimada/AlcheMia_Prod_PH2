@@ -19,9 +19,7 @@
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
-    "info": "Info",
-    "total": "Total",
-    "items": "items"
+    "info": "Info"
   },
   "languages": {
     "ja": "日本語",
@@ -69,9 +67,9 @@
       "title": "Experiment Worker Menu",
       "tabs": {
         "myTasks": "My Tasks",
-        "workInstruction": "Work Instructions",
+        "workInstruction": "Instruction Confirmation",
         "experimentRecord": "Experiment Record",
-        "progressCheck": "Progress Check",
+        "taskList": "Task List",
         "maimlViewer": "MAIML Viewer",
         "fileUpload": "File Upload",
         "progressReport": "Progress Report",
@@ -111,55 +109,10 @@
     "instructionButton": "Instructions",
     "taskListButton": "Task List",
     "batchProgressButton": "Batch Progress Report",
-    "approvalRequestButton": "Approval Request",
+    "approvalRequestButton": "Request Approval",
     "labels": {
       "project": "Project",
       "method": "Method"
-    },
-    "progressCheck": {
-      "issueCheck": "Issue Check",
-      "checkButton": "Check"
-    },
-    "projectStatus": {
-      "planning": "Planning",
-      "waiting_task": "Waiting for Task",
-      "executing_task": "Task in Progress",
-      "waiting_approval": "Waiting for Approval",
-      "completed": "Completed"
-    },
-    "projectSelection": {
-      "title": "Select Project",
-      "projectName": "Project Name",
-      "description": "Description",
-      "owner": "Owner",
-      "unknownOwner": "Unknown",
-      "clearSelection": "Clear Selection",
-      "cancel": "Cancel",
-      "confirm": "Confirm",
-      "searchPlaceholder": "Search by project name, description, owner",
-      "projectNameFilter": "Project Name",
-      "ownerFilter": "Owner"
-    },
-    "issueReport": {
-      "title": "Issue Report",
-      "issueType": "Issue Type",
-      "comment": "Comment",
-      "commentPlaceholder": "Please describe the issue in detail.\nExample: There is a shortage of XX material and the experiment cannot proceed.",
-      "commentRequired": "Please describe the issue",
-      "commentMinLength": "Comment must be at least 10 characters",
-      "clear": "Clear",
-      "submit": "Report",
-      "success": "Issue report submitted successfully",
-      "noTask": "Task information not found",
-      "issueTypes": {
-        "material_shortage": "Material Shortage",
-        "equipment_failure": "Equipment Failure",
-        "procedure_unclear": "Procedure Unclear",
-        "safety_concern": "Safety Concern",
-        "quality_issue": "Quality Issue",
-        "time_constraint": "Time Constraint",
-        "other": "Other"
-      }
     },
     "stats": {
       "notStarted": "Not Started Transitions",
@@ -169,12 +122,12 @@
       "progressRate": "Progress Rate"
     },
     "table": {
-      "methodName": "Method Name",
       "taskName": "Task Name",
+      "sampleNumber": "Sample Number",
+      "notes": "Notes",
       "status": "Status",
-      "progressRate": "Progress Rate",
-      "issueReport": "Issue Report",
-      "experimentRecord": "Experiment Record",
+      "progressReport": "Progress Report",
+      "recordNumber": "Record Number",
       "actions": "Actions"
     },
     "actions": {
@@ -233,10 +186,6 @@
       "descriptionMaxLength": "Description must be 500 characters or less",
       "createdByInfo": "Creator Information",
       "createdBy": "Created By",
-      "templateType": "Template Type",
-      "templateTypeExtra": "Select the template type for the XML to be created",
-      "templateTypeRequired": "Please select a template type",
-      "templateTypePlaceholder": "Select template type",
       "success": "File created successfully",
       "successDescription": "A new file has been created and added to the list"
     },
@@ -471,65 +420,8 @@
       "total": "Total",
       "items": "items"
     },
-      "actions": {
-        "viewDetails": "View Details"
-      }
-    },
-  "issueManagement": {
-    "title": "Issue Management",
-    "newIssue": "New Issue Report",
-    "issueList": "Issue List",
-    "issueDetails": "Issue Details",
-    "noIssueSelected": "Select an issue",
-    "noIssues": "No issues reported",
-    "columns": {
-      "title": "Title",
-      "status": "Status",
-      "targetType": "Target",
-      "reportedBy": "Reporter",
-      "reportedAt": "Reported At"
-    },
-    "status": {
-      "unresolved": "Unresolved",
-      "resolved": "Resolved"
-    },
-    "targetType": {
-      "project": "Project",
-      "task": "Task",
-      "transition": "Transition"
-    },
-    "form": {
-      "title": "Title",
-      "titlePlaceholder": "Enter issue title",
-      "titleRequired": "Title is required",
-      "titleMaxLength": "Title must be 100 characters or less",
-      "targetType": "Target",
-      "targetTypeRequired": "Target is required",
-      "content": "Content",
-      "contentPlaceholder": "Describe the issue in detail",
-      "contentRequired": "Content is required",
-      "contentMinLength": "Content must be at least 10 characters",
-      "save": "Save",
-      "cancel": "Cancel"
-    },
-    "details": {
-      "title": "Title",
-      "status": "Status",
-      "targetType": "Target",
-      "reportedBy": "Reported By",
-      "reportedAt": "Reported At",
-      "content": "Content",
-      "comments": "Comments",
-      "commentsCount": "Comments",
-      "noComments": "No comments",
-      "addComment": "Add Comment",
-      "commentPlaceholder": "Enter your comment...",
-      "commentRequired": "Comment is required",
-      "send": "Send"
-    },
-    "messages": {
-      "issueReported": "Issue reported successfully",
-      "commentPosted": "Comment posted successfully"
+    "actions": {
+      "viewDetails": "View Details"
     }
   }
 }
