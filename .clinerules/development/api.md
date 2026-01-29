@@ -500,7 +500,7 @@ GET /api/v1/projects?search=experiment&search_fields=name,description
 ```http
 GET /api/v1/projects
 Authorization: Bearer maiml_session-abc123_1234567890
-X-Organization-Id: org_maiml_lab_001
+X-Organization-Id: {a0718dc5-21f3-44e6-87e9-cc2ae83f3385}
 ```
 
 ### 認可

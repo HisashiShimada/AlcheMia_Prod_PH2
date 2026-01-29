@@ -12,7 +12,20 @@
 import crypto from 'crypto';
 import type { Pool } from 'pg';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { Result, PinCodeData, UserInfo, UserRole } from '../types/service';
+import type { Result, PinCodeData, PinCodeSendData, UserInfo, UserRole } from '../types/service';
+import type { EmailService } from './emailService';
+
+/**
+ * メールアドレスをマスキング
+ * 例: user@example.com -> use***@example.com
+ */
+function maskEmail(email: string): string {
+  const [localPart, domain] = email.split('@');
+  if (localPart.length <= 3) {
+    return `${localPart.charAt(0)}***@${domain}`;
+  }
+  return `${localPart.substring(0, 3)}***@${domain}`;
+}
 
 /**
  * PinCodeService クラス
@@ -21,7 +34,10 @@ export class PinCodeService {
   private readonly PIN_EXPIRY_MINUTES = 5;
   private readonly maxAttempts: number;
 
-  constructor(private pool: Pool) {
+  constructor(
+    private pool: Pool,
+    private emailService?: EmailService
+  ) {
     // 環境変数から最大試行回数を読み込み（デフォルト: 3）
     this.maxAttempts = parseInt(process.env.PIN_MAX_ATTEMPTS || '3', 10);
   }
@@ -279,6 +295,75 @@ export class PinCodeService {
         error: {
           code: 'SYSTEM_DATABASE_ERROR',
           message: 'Failed to increment attempts',
+          originalError: error as Error,
+        },
+      };
+    }
+  }
+
+  /**
+   * PINコードを生成してメール送信（共通処理）
+   * login()とresendPin()で共通利用
+   * 
+   * @param userId - ユーザーID
+   * @param orgId - 組織ID
+   * @param sessionToken - 仮セッショントークン
+   * @param userEmail - ユーザーのメールアドレス
+   * @param username - ユーザー名
+   * @returns PINコード送信情報
+   */
+  async generateAndSendPin(
+    userId: string,
+    orgId: string,
+    sessionToken: string,
+    userEmail: string,
+    username: string
+  ): Promise<Result<PinCodeSendData>> {
+    try {
+      // 1. PINコード生成
+      const pinResult = await this.generateAndSave(userId, orgId, sessionToken);
+      
+      if (!pinResult.success) {
+        return {
+          success: false,
+          error: pinResult.error,
+        };
+      }
+
+      // 2. メール送信（emailServiceが設定されている場合のみ）
+      if (this.emailService) {
+        const emailResult = await this.emailService.sendPinCode(
+          userEmail,
+          pinResult.data.pinCode,
+          username
+        );
+
+        if (!emailResult.success) {
+          return {
+            success: false,
+            error: {
+              code: 'SYSTEM_EMAIL_SEND_FAILED',
+              message: 'Failed to send PIN code email',
+            },
+          };
+        }
+      }
+
+      // 3. 成功レスポンス
+      return {
+        success: true,
+        data: {
+          pinCode: pinResult.data.pinCode,
+          expiresAt: pinResult.data.expiresAt,
+          maskedEmail: maskEmail(userEmail),
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'Failed to generate and send PIN code',
           originalError: error as Error,
         },
       };

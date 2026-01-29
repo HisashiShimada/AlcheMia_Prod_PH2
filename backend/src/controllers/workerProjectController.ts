@@ -50,22 +50,6 @@ export class WorkerProjectController {
     const requestId = (req.headers['x-request-id'] as string) || uuidv4();
 
     try {
-      // 1. 認証チェック
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          error: {
-            code: 'AUTH_TOKEN_INVALID',
-            message: '認証が必要です',
-          },
-          meta: {
-            timestamp: new Date().toISOString(),
-            requestId,
-          },
-        });
-        return;
-      }
-
       const { userId, role, organizationId } = req.user;
 
       // 2. クエリパラメータの取得とバリデーション
