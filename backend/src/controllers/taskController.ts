@@ -79,22 +79,6 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 1. 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
     // 2. パラメータ抽出
     const { projectId, methodId, taskNo } = req.params;
     const { status, currentUpdateAt, comment } = req.body;
