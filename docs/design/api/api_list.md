@@ -191,7 +191,6 @@
 | 6.2 | GET | /api/v1/tasks/:taskId | タスク詳細取得 | ⏳ 未実装 | ProgressController.getTaskDetail |
 | 6.3 | GET | /api/v1/progress/:projectId/:methodId/:taskId | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
 | 6.4 | GET | /api/v1/tasks | タスク一覧取得（プロジェクト単位） | ⏳ 未実装 | ProgressController.listAllTasks |
-| 6.5 | PUT | /api/v1/tasks/:taskId/status | タスクステータス更新 | ⏳ 未実装 | ProgressController.updateTaskStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -260,6 +259,30 @@
 
 ---
 
+### 9. タスク管理API（Task Management）
+
+**API設計書**: [api_task_management.md](./api_task_management.md)（未作成）  
+**ルートファイル**: `backend/src/routes/taskRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 9.1 | PUT | /api/v1/projects/:projectId/methods/:methodId/tasks/:taskNo/status | タスクステータス更新 | ✅ 実装済み | taskController.updateStatus |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`
+- 権限: experiment_worker, experiment_admin, system_admin
+
+**備考:**
+- ✅ 実装完了（2026-01-28）
+- 楽観的ロック（currentUpdateAt）による並行更新制御
+- ステータス遷移バリデーション（pending→in_progress→completed等）
+- マルチテナント分離（organization_id必須）
+- 詳細なログ記録（Winston構造化ログ）
+- エラーハンドリング（バリデーション、権限、排他制御）
+- 統合テスト・単体テスト完備（100%カバレッジ）
+
+---
+
 ## 🔍 API検索ガイド
 
 ### API名で検索する
@@ -309,10 +332,11 @@
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 5 | 0 | 0 | 5 | 0% |
 | Maiml編集API | 11 | 9 | 1 | 1 | 82% |
-| 進捗確認API | 5 | 0 | 0 | 5 | 0% |
+| 進捗確認API | 4 | 0 | 0 | 4 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
 | 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
-| **合計** | **52** | **28** | **1** | **23** | **54%** |
+| タスク管理API | 1 | 1 | 0 | 0 | 100% |
+| **合計** | **52** | **29** | **1** | **22** | **56%** |
 
 ### 優先度別実装状況
 
@@ -483,6 +507,13 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.6.0 | 2026-01-28 14:45 | タスク管理API追加（52→53エンドポイント） | Cline |
+| | | - 新規カテゴリ追加: タスク管理API（1エンドポイント、実装済み100%） | |
+| | | - 進捗確認API: 5→4エンドポイント（6.5タスクステータス更新を削除） | |
+| | | - カテゴリ数: 8→9カテゴリ | |
+| | | - 実装済みAPI総数: 28→29エンドポイント | |
+| | | - 全体実装率: 54%→56%に向上 | |
+| | | - API 9.1: タスクステータス更新（楽観的ロック、並行更新制御実装済み） | |
 | 2.5.2 | 2026-01-27 19:43 | API設計書リンク更新（問題管理・実験データ記録） | Cline |
 | | | - 問題管理API: 設計書リンクをapi_issue_management.mdに更新 | |
 | | | - 実験データ記録API: 設計書リンクをapi_experiment_data.mdに更新 | |

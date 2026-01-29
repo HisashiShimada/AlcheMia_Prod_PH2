@@ -9,6 +9,7 @@ dotenv.config();
 // Import routes after dotenv is configured
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
+import taskRoutes from './routes/taskRoutes';
 import fileDownloadRoutes from './routes/fileDownloadRoutes';
 import masterRoutes from './routes/masterRoutes';
 
@@ -37,6 +38,7 @@ app.use(cookieParser()); // Cookie解析ミドルウェア
 // Mount routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/projects', projectRoutes);
+app.use('/api/v1/projects', taskRoutes);
 app.use('/api/v1/projects', fileDownloadRoutes);
 
 // Mount master routes
