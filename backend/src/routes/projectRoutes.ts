@@ -10,6 +10,7 @@ import { query, body, param } from 'express-validator';
 import * as projectController from '../controllers/projectController';
 import * as workerProjectController from '../controllers/workerProjectController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { tenantIsolation } from '../middleware/tenantIsolation';
 
 const router = Router();
 
@@ -142,6 +143,28 @@ router.post(
       .withMessage('projectIdはUUID形式である必要があります'),
   ],
   projectController.checkin
+);
+
+/**
+ * 承認依頼
+ * POST /api/v1/projects/:projectId/approval-request
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @middleware tenantIsolation - テナント分離
+ * @description 実験作業者が実験作業完了後に実験管理者へ承認依頼を送信する
+ * @note Task 1.1: 承認依頼エンドポイントのルーティング追加
+ * @requirements REQ-1, REQ-2, REQ-3
+ */
+router.post(
+  '/:projectId/approval-request',
+  authMiddleware,
+  tenantIsolation,
+  [
+    param('projectId')
+      .isUUID()
+      .withMessage('projectIdはUUID形式である必要があります'),
+  ],
+  projectController.requestApproval
 );
 
 /**

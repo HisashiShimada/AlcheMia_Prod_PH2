@@ -87,6 +87,30 @@ export class StorageError extends Error {
 }
 
 /**
+ * 競合エラー（HTTP 409）
+ * 
+ * ビジネスルール違反やリソース競合状態を示すエラー。
+ * 例: 既に承認依頼中のプロジェクトに再度承認依頼を送信しようとした場合
+ * 
+ * タスク5.1: ConflictErrorクラスの実装
+ * Requirements: 10, 14
+ */
+export class ConflictError extends Error {
+  public readonly statusCode = 409;
+  public readonly code = 'CONFLICT';
+  public readonly details?: any[];
+
+  constructor(message: string = 'Resource conflict', details?: any[]) {
+    super(message);
+    this.name = 'ConflictError';
+    this.details = details;
+    
+    // TypeScript の制約により、Error を継承する場合は必要
+    Object.setPrototypeOf(this, ConflictError.prototype);
+  }
+}
+
+/**
  * エラーレスポンス形式
  */
 export interface ErrorResponse {
@@ -122,8 +146,8 @@ export function formatErrorResponse(
 ): ErrorResponse {
   const timestamp = new Date().toISOString();
 
-  // カスタムエラークラスの場合
-  if (error instanceof ValidationError) {
+  // カスタムエラークラスの場合（detailsフィールドを持つエラー）
+  if (error instanceof ValidationError || error instanceof ConflictError) {
     return {
       success: false,
       error: {
@@ -138,6 +162,7 @@ export function formatErrorResponse(
     };
   }
 
+  // カスタムエラークラスの場合（detailsフィールドを持たないエラー）
   if (
     error instanceof AuthenticationError ||
     error instanceof AuthorizationError ||
@@ -191,6 +216,7 @@ export function getHttpStatusFromError(error: Error): number {
     error instanceof AuthenticationError ||
     error instanceof AuthorizationError ||
     error instanceof NotFoundError ||
+    error instanceof ConflictError ||
     error instanceof StorageError
   ) {
     return error.statusCode;
