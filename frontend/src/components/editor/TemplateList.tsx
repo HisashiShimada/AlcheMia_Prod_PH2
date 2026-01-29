@@ -9,6 +9,7 @@ import React, { useEffect } from 'react';
 import { Card, Typography, Badge, Spin, Flex, Checkbox, Button, Tooltip, theme } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import TemplateItem, { Template, TemplateError } from './TemplateItem';
+import { useTemplates } from '@/contexts/TemplateContext';
 
 const { Title, Text } = Typography;
 
@@ -25,11 +26,8 @@ export interface CategorizedTemplates {
  * Props型定義
  */
 interface TemplateListProps {
-  templates: CategorizedTemplates;
-  commonTemplates?: CategorizedTemplates;
   templateErrors: Record<string, TemplateError[]>;
   showCommonTemplates: boolean;
-  isLoading?: boolean;
   onTemplateSelect: (template: Template) => void;
   onShowCommonTemplatesChange: (show: boolean) => void;
   onTemplateAdd: (category: 'material' | 'condition' | 'result') => void;
@@ -40,17 +38,17 @@ interface TemplateListProps {
  * TemplateList コンポーネント
  */
 const TemplateList: React.FC<TemplateListProps> = ({
-  templates,
-  commonTemplates,
   templateErrors,
   showCommonTemplates,
-  isLoading = false,
   onTemplateSelect,
   onShowCommonTemplatesChange,
   onTemplateAdd,
   onTemplateDelete,
 }) => {
   const { token } = theme.useToken();
+  
+  // ✅ TemplateContextから直接取得（reference版と同じ）
+  const { templates, commonTemplates, isLoading } = useTemplates();
 
   // レンダリング検出用のuseEffect
   useEffect(() => {
@@ -65,10 +63,8 @@ const TemplateList: React.FC<TemplateListProps> = ({
     });
   });
 
-  // 表示するテンプレートを決定（安全なデフォルト値を保証）
-  const displayTemplates = showCommonTemplates && commonTemplates
-    ? commonTemplates
-    : templates;
+  // ✅ 表示するテンプレートを決定（TemplateContextから取得したデータを使用）
+  const displayTemplates = showCommonTemplates ? commonTemplates : templates;
 
   console.log('🔍 [TemplateList] displayTemplates:', {
     showCommonTemplates,

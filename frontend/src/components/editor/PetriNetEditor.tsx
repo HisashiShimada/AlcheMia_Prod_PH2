@@ -37,7 +37,17 @@ import DraftManager from './DraftManager';
 import TemplateList from './TemplateList';
 import type { CategorizedTemplates } from './TemplateList';
 import type { TemplateError } from './TemplateItem';
-import { TemplateProvider } from '@/contexts/TemplateContext';
+import { TemplateProvider, useTemplates } from '@/contexts/TemplateContext';
+
+// ✅ window.cline* の型定義
+declare global {
+  interface Window {
+    clineAddTemplate?: (data: { category: string; template: any }) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+    clineDeleteTemplate?: (templateId: string) => void;
+    clineUpdateTemplate?: (templateId: string, updatedTemplate: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+    clineAllTemplates?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  }
+}
 
 // カスタムフック
 import useHistory from '../../hooks/useHistory';
@@ -122,6 +132,23 @@ const PetriNetEditorInner: React.FC<PetriNetEditorProps> = ({
 }) => {
   const { token } = theme.useToken();
   
+  // ===== TemplateContext フック =====
+  const { addTemplate, deleteTemplate, updateTemplate, allTemplates } = useTemplates();
+  
+  // ✅ グローバルスコープに設定（TemplateEditorDialogからアクセスするため）
+  useEffect(() => {
+    window.clineAddTemplate = addTemplate;
+    window.clineDeleteTemplate = deleteTemplate;
+    window.clineUpdateTemplate = updateTemplate;
+    window.clineAllTemplates = allTemplates;
+    return () => {
+      delete window.clineAddTemplate;
+      delete window.clineDeleteTemplate;
+      delete window.clineUpdateTemplate;
+      delete window.clineAllTemplates;
+    };
+  }, [addTemplate, deleteTemplate, updateTemplate, allTemplates]);
+  
   // initialContentとmaimlDataの統合（後方互換性維持）
   const effectiveMaimlData = initialContent || maimlData;
   
@@ -153,19 +180,9 @@ const PetriNetEditorInner: React.FC<PetriNetEditorProps> = ({
   
   // ===== TemplateListView State =====
   const [showCommonTemplates, setShowCommonTemplates] = useState(false);
-  const [categorizedTemplates, setCategorizedTemplates] = useState<CategorizedTemplates>({
-    material: [],
-    condition: [],
-    result: []
-  });
-  const [commonTemplatesData, setCommonTemplatesData] = useState<CategorizedTemplates>({
-    material: [],
-    condition: [],
-    result: []
-  });
   const [templateErrors, setTemplateErrors] = useState<Record<string, TemplateError[]>>({});
 
-  // ===== データ変換ロジック: Node → TemplateData =====
+  // ===== データ変換ロジック: Node → TemplateData（handleSaveTemplateで使用） =====
   const convertNodeToTemplateData = useCallback((node: Node): any => { // eslint-disable-line @typescript-eslint/no-explicit-any
     return {
       id: node.id,
@@ -177,75 +194,6 @@ const PetriNetEditorInner: React.FC<PetriNetEditorProps> = ({
       data: node.data,
     };
   }, []);
-
-  // ===== Phase A-4: useMemoでテンプレートデータを抽出（パフォーマンス最適化） =====
-  const categorizedTemplatesMemo = useMemo(() => {
-    const materialTemplates = nodes
-      .filter(n => n.type === 'materialTemplate')
-      .map(convertNodeToTemplateData);
-    
-    const conditionTemplates = nodes
-      .filter(n => n.type === 'conditionTemplate')
-      .map(convertNodeToTemplateData);
-    
-    const resultTemplates = nodes
-      .filter(n => n.type === 'resultTemplate')
-      .map(convertNodeToTemplateData);
-    
-    const result = {
-      material: materialTemplates,
-      condition: conditionTemplates,
-      result: resultTemplates,
-    };
-    
-    console.log('📋 [PetriNetEditor] テンプレート一覧更新（useMemo）:', {
-      materialCount: materialTemplates.length,
-      conditionCount: conditionTemplates.length,
-      resultCount: resultTemplates.length,
-    });
-    
-    return result;
-  }, [nodes, convertNodeToTemplateData]);
-
-  // ===== Phase A-4: useMemoで共通テンプレートを抽出（パフォーマンス最適化） =====
-  const commonTemplatesDataMemo = useMemo(() => {
-    // typeプロパティがnullまたはundefinedのテンプレートを共通テンプレートとして抽出
-    const commonMaterial = nodes
-      .filter(n => n.type === 'materialTemplate' && !n.data.type)
-      .map(convertNodeToTemplateData);
-    
-    const commonCondition = nodes
-      .filter(n => n.type === 'conditionTemplate' && !n.data.type)
-      .map(convertNodeToTemplateData);
-    
-    const commonResult = nodes
-      .filter(n => n.type === 'resultTemplate' && !n.data.type)
-      .map(convertNodeToTemplateData);
-    
-    const result = {
-      material: commonMaterial,
-      condition: commonCondition,
-      result: commonResult,
-    };
-    
-    console.log('📋 [PetriNetEditor] 共通テンプレート更新（useMemo）:', {
-      materialCount: commonMaterial.length,
-      conditionCount: commonCondition.length,
-      resultCount: commonResult.length,
-      totalCount: commonMaterial.length + commonCondition.length + commonResult.length,
-    });
-    
-    return result;
-  }, [nodes, convertNodeToTemplateData]);
-
-  // ===== State更新: useMemoの結果をStateに反映 =====
-  useEffect(() => {
-    setCategorizedTemplates(categorizedTemplatesMemo);
-  }, [categorizedTemplatesMemo]);
-
-  useEffect(() => {
-    setCommonTemplatesData(commonTemplatesDataMemo);
-  }, [commonTemplatesDataMemo]);
 
   // ===== ダイアログ State =====
   const [saveConfirmDialogOpen, setSaveConfirmDialogOpen] = useState(false);
@@ -1363,10 +1311,44 @@ const PetriNetEditorInner: React.FC<PetriNetEditorProps> = ({
   const handleSaveTemplate = useCallback((updatedNode: Node) => {
     console.log('💾 [PetriNetEditor] テンプレート保存:', updatedNode);
     
-    handleUpdateNodeProperty(updatedNode.id, updatedNode.data);
+    // ✅ ペトリネットに配置されているかチェック
+    const existsInPetriNet = nodes.some(n => n.id === updatedNode.id);
+    
+    if (updatedNode.data.isNewTemplate) {
+      // 新規テンプレート: TemplateContextに追加（ペトリネットには追加しない）
+      console.log('🆕 [PetriNetEditor] 新規テンプレートをTemplateContextに追加:', updatedNode.id);
+      
+      // カテゴリの判定
+      const category = updatedNode.type === 'materialTemplate' ? 'material' :
+                      updatedNode.type === 'conditionTemplate' ? 'condition' : 'result';
+      
+      // テンプレートデータを作成
+      const templateData = convertNodeToTemplateData(updatedNode);
+      
+      // TemplateContextに追加
+      addTemplate({ category, template: templateData });
+      
+      console.log('✅ [PetriNetEditor] テンプレート追加完了（ペトリネットには非表示）');
+    } else if (existsInPetriNet) {
+      // ペトリネットに配置済みのテンプレート: nodesを更新
+      console.log('📝 [PetriNetEditor] ペトリネット内のテンプレートを更新:', updatedNode.id);
+      handleUpdateNodeProperty(updatedNode.id, updatedNode.data);
+    } else {
+      // ペトリネット未配置の既存テンプレート: TemplateContextを更新
+      console.log('📝 [PetriNetEditor] TemplateContextのテンプレートを更新:', updatedNode.id);
+      
+      // テンプレートデータを作成
+      const templateData = convertNodeToTemplateData(updatedNode);
+      
+      // TemplateContextを更新
+      updateTemplate(updatedNode.id, templateData);
+      
+      console.log('✅ [PetriNetEditor] テンプレート更新完了');
+    }
+    
     setTemplateEditorOpen(false);
     setTemplateEditNode(null);
-  }, [handleUpdateNodeProperty]);
+  }, [nodes, addTemplate, updateTemplate, convertNodeToTemplateData, handleUpdateNodeProperty]);
 
   const handleOpenDocumentEditor = useCallback(() => {
     console.log('📄 [PetriNetEditor] Document編集ダイアログを開く');
@@ -1801,11 +1783,12 @@ const PetriNetEditorInner: React.FC<PetriNetEditorProps> = ({
   const handleTemplateSelect = useCallback((template: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.log('📋 [PetriNetEditor] テンプレート選択:', template);
     
-    // テンプレートに対応するノードを見つけて選択
+    // ペトリネットに配置されているかチェック
     const node = nodes.find(n => n.id === template.id);
+    
     if (node) {
+      // ペトリネット内のノードをフォーカス
       setSelectedNode(node);
-      // ノードを画面中央に表示
       const viewport = getViewport();
       const x = node.position.x - (viewport.x / viewport.zoom);
       const y = node.position.y - (viewport.y / viewport.zoom);
@@ -1813,6 +1796,52 @@ const PetriNetEditorInner: React.FC<PetriNetEditorProps> = ({
       setViewport({ x: -x + 400, y: -y + 300, zoom: viewport.zoom }, { duration: 300 });
       
       console.log('✅ [PetriNetEditor] ノード選択・フォーカス:', node.id);
+    } else {
+      // ✅ 完全な仮ノードを作成
+      const tempNode: Node = {
+        id: template.id,
+        type: template.type === 'material' ? 'materialTemplate' :
+              template.type === 'condition' ? 'conditionTemplate' : 'resultTemplate',
+        position: { x: 0, y: 0 },
+        data: {
+          id: template.id,
+          name: template.name,
+          description: template.description || '',
+          nodeType: 'place',
+          placeType: template.type,
+          // ✅ template 追加
+          template: {
+            id: template.id,
+            type: template.type === 'material' ? 'MaterialTemplate' :
+                  template.type === 'condition' ? 'ConditionTemplate' :
+                  'ResultTemplate',
+            uuid: template.uuid,
+            name: template.name,
+            description: template.description || '',
+            placeRefs: template.placeRefs || [],
+            templateRefs: template.templateRefs || [],
+            properties: template.properties,
+          },
+          // ✅ templateRef 追加
+          templateRef: {
+            type: template.type === 'material' ? 'MaterialTemplate' :
+                  template.type === 'condition' ? 'ConditionTemplate' :
+                  'ResultTemplate',
+            uuid: template.uuid,
+            name: template.name,
+            description: template.description || '',
+            placeRefs: template.placeRefs || [],
+            templateRefs: template.templateRefs || [],
+            properties: template.properties,
+          },
+          isNewTemplate: false, // ✅ 既存テンプレート
+        },
+      };
+      
+      setTemplateEditNode(tempNode);
+      setTemplateEditorOpen(true);
+      
+      console.log('✅ [PetriNetEditor] テンプレート編集ダイアログを開く:', template.id);
     }
   }, [nodes, getViewport, setViewport]);
 
@@ -1820,84 +1849,73 @@ const PetriNetEditorInner: React.FC<PetriNetEditorProps> = ({
   const handleTemplateAdd = useCallback((category: 'material' | 'condition' | 'result') => {
     console.log('➕ [PetriNetEditor] テンプレート追加:', category);
     
-    // 新規テンプレートノードを作成
     const timestamp = Date.now();
-    const nodeType = category === 'material' ? 'materialTemplate' :
-                     category === 'condition' ? 'conditionTemplate' : 'resultTemplate';
+    const newId = `${category}Template_${timestamp}`;
     
-    const newNode: Node = {
-      id: `${category}-${timestamp}`,
-      type: nodeType,
-      position: {
-        x: Math.random() * 400 + 100,
-        y: Math.random() * 400 + 100,
-      },
+    const tempNode: Node = {
+      id: newId,
+      type: category === 'material' ? 'materialTemplate' :
+            category === 'condition' ? 'conditionTemplate' : 'resultTemplate',
+      position: { x: 0, y: 0 }, // ダミー位置（ペトリネットに配置しないため実際には使用されない）
       data: {
-        id: `${category}-${timestamp}`,
-        name: `New ${category.charAt(0).toUpperCase() + category.slice(1)} Template`,
+        id: newId,
+        name: '', // ✅ 空文字（ユーザーが入力する）
         description: '',
-        placeType: category,
         nodeType: 'place',
-        properties: [],
+        placeType: category,
+        // ✅ template 追加
+        template: {
+          id: newId,
+          type: category === 'material' ? 'MaterialTemplate' :
+                category === 'condition' ? 'ConditionTemplate' :
+                'ResultTemplate',
+          uuid: crypto.randomUUID(), // ✅ UUID生成
+          placeRefs: [],
+          templateRefs: [],
+          properties: [],
+        },
+        // ✅ templateRef 追加
+        templateRef: {
+          type: category === 'material' ? 'MaterialTemplate' :
+                category === 'condition' ? 'ConditionTemplate' :
+                'ResultTemplate',
+          uuid: crypto.randomUUID(), // ✅ UUID生成
+          name: '',
+          placeRefs: [],
+          templateRefs: [],
+          properties: [],
+        },
+        // ✅ 新規作成フラグ
+        isNewTemplate: true,
+        templateCategory: category,
+        // ✅ 共通テンプレート/メソッド内テンプレートの判定
+        isCommonTemplate: showCommonTemplates,
+        methodId: showCommonTemplates ? null : (documentData?.methodId || null),
       },
     };
     
-    // ノードを追加
-    setNodes((nds) => {
-      const newNodes = [...nds, newNode];
-      pushState({ nodes: newNodes, edges });
-      return newNodes;
-    });
-    
-    // テンプレート編集ダイアログを開く
-    setTemplateEditNode(newNode);
+    setTemplateEditNode(tempNode);
     setTemplateEditorOpen(true);
     
-    console.log('✅ [PetriNetEditor] 新規テンプレートノード作成完了:', newNode.id);
-  }, [edges, pushState, setNodes]);
+    console.log('✅ [PetriNetEditor] 新規テンプレート仮ノード作成:', newId);
+  }, [showCommonTemplates, documentData]);
 
   // ===== Phase 6: テンプレート削除ハンドラー =====
   const handleTemplateDelete = useCallback((templateId: string) => {
     console.log('🗑️ [PetriNetEditor] テンプレート削除:', templateId);
     
-    // 確認ダイアログ
-    const confirmed = window.confirm('このテンプレートを削除してもよろしいですか？\n\n関連するエッジも削除されます。');
-    
-    if (!confirmed) {
-      console.log('⏸️ [PetriNetEditor] テンプレート削除キャンセル');
+    if (!window.confirm(`テンプレート「${templateId}」を削除しますか？\nこの操作は元に戻せません。`)) {
       return;
     }
     
-    // 関連するエッジを見つける
-    const affectedEdges = edges.filter(edge => 
-      edge.source === templateId || edge.target === templateId
-    );
-    
-    console.log('🗑️ [PetriNetEditor] 関連エッジ削除:', {
-      templateId,
-      affectedEdges: affectedEdges.map(e => e.id)
-    });
-    
-    // エッジを削除
-    setEdges((eds) => eds.filter(e => 
-      !affectedEdges.find(ae => ae.id === e.id)
-    ));
-    
-    // ノードを削除
-    setNodes((nds) => {
-      const newNodes = nds.filter(n => n.id !== templateId);
-      const newEdges = edges.filter(e => !affectedEdges.find(ae => ae.id === e.id));
-      pushState({ nodes: newNodes, edges: newEdges });
-      return newNodes;
-    });
-    
-    // 選択状態をクリア
-    if (selectedNode?.id === templateId) {
-      setSelectedNode(null);
+    // ✅ TemplateContextから削除（window.clineDeleteTemplateを使用）
+    if (window.clineDeleteTemplate) {
+      window.clineDeleteTemplate(templateId);
+      console.log('✅ [PetriNetEditor] テンプレート削除完了');
+    } else {
+      console.error('❌ [PetriNetEditor] deleteTemplate関数が見つかりません');
     }
-    
-    console.log('✅ [PetriNetEditor] テンプレート削除完了:', templateId);
-  }, [edges, selectedNode, setEdges, setNodes, pushState]);
+  }, []);
 
   const handleConfirmWorkflowSelection = useCallback(async (selectedFile: { s3Key: string; fileName?: string }) => {
     console.log('📂 [PetriNetEditor] Workflow選択確定:', selectedFile);
@@ -2085,17 +2103,15 @@ const PetriNetEditorInner: React.FC<PetriNetEditorProps> = ({
           />
         </ReactFlow>
         ) : (
-          // テンプレートモード: TemplateListを表示
+          // テンプレートモード: TemplateListを表示（TemplateContextから直接取得）
           <div style={{ height: '100%', backgroundColor: token.colorBgLayout }}>
             <TemplateList
-              templates={categorizedTemplates}
-              commonTemplates={commonTemplatesData}
               templateErrors={templateErrors}
-              onTemplateSelect={handleTemplateSelect}
-              onTemplateDelete={handleTemplateDelete}
-              onTemplateAdd={handleTemplateAdd}
               showCommonTemplates={showCommonTemplates}
               onShowCommonTemplatesChange={setShowCommonTemplates}
+              onTemplateSelect={handleTemplateSelect}
+              onTemplateAdd={handleTemplateAdd}
+              onTemplateDelete={handleTemplateDelete}
             />
           </div>
         )}

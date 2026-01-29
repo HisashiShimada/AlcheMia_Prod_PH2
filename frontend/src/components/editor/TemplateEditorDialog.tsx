@@ -444,6 +444,123 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
 };
 
 /**
+ * MaiMLParser.jsの配列形式をNestedPropertyEditor形式に変換
+ * Reference版から移植（Line 636-728）
+ */
+const convertPropertiesArrayToNestedFormat = (propertiesArray: any[]): Record<string, PropertyData> => {
+  const result: Record<string, PropertyData> = {};
+  
+  if (!Array.isArray(propertiesArray)) {
+    console.warn('[convertPropertiesArrayToNestedFormat] 配列ではありません:', propertiesArray);
+    return result;
+  }
+  
+  propertiesArray.forEach((prop) => {
+    if (!prop || typeof prop !== 'object') {
+      return;
+    }
+    
+    const key = prop.key || prop.name || `property_${Object.keys(result).length}`;
+    const tagName = prop.tagName || 'property';
+    const attributes = prop.attributes || {};
+    const elements = prop.elements || {};
+    
+    // 子要素の変換（再帰的）
+    let children: PropertyData[] = [];
+    if (prop.children && Array.isArray(prop.children)) {
+      children = convertPropertiesArrayToNestedFormatRecursive(prop.children);
+    }
+    
+    result[key] = {
+      key,
+      tagName,
+      attributes,
+      elements,
+      children
+    };
+  });
+  
+  return result;
+};
+
+/**
+ * 再帰的な配列形式変換
+ */
+const convertPropertiesArrayToNestedFormatRecursive = (propertiesArray: any[]): PropertyData[] => {
+  if (!Array.isArray(propertiesArray)) {
+    return [];
+  }
+  
+  return propertiesArray.map((prop) => {
+    if (!prop || typeof prop !== 'object') {
+      return null;
+    }
+    
+    const key = prop.key || prop.name || 'property';
+    const tagName = prop.tagName || 'property';
+    const attributes = prop.attributes || {};
+    const elements = prop.elements || {};
+    
+    let children: PropertyData[] = [];
+    if (prop.children && Array.isArray(prop.children)) {
+      children = convertPropertiesArrayToNestedFormatRecursive(prop.children);
+    }
+    
+    return {
+      key,
+      tagName,
+      attributes,
+      elements,
+      children
+    };
+  }).filter((item): item is PropertyData => item !== null);
+};
+
+/**
+ * オブジェクト形式をNestedPropertyEditor形式に変換
+ */
+const convertPropertiesObjectToNestedFormat = (propertiesObject: any): Record<string, PropertyData> => {
+  const result: Record<string, PropertyData> = {};
+  
+  if (!propertiesObject || typeof propertiesObject !== 'object') {
+    console.warn('[convertPropertiesObjectToNestedFormat] オブジェクトではありません:', propertiesObject);
+    return result;
+  }
+  
+  // 既にNestedPropertyEditor形式かチェック
+  const isAlreadyNestedFormat = Object.values(propertiesObject).every((value: any) => {
+    return value && 
+           typeof value === 'object' && 
+           'key' in value && 
+           'tagName' in value && 
+           'attributes' in value && 
+           'elements' in value;
+  });
+  
+  if (isAlreadyNestedFormat) {
+    console.log('[convertPropertiesObjectToNestedFormat] 既にNestedPropertyEditor形式です');
+    return propertiesObject;
+  }
+  
+  // 通常のオブジェクトをNestedPropertyEditor形式に変換
+  Object.entries(propertiesObject).forEach(([key, value]: [string, any]) => {
+    if (!value || typeof value !== 'object') {
+      return;
+    }
+    
+    result[key] = {
+      key,
+      tagName: value.tagName || 'property',
+      attributes: value.attributes || {},
+      elements: value.elements || {},
+      children: value.children || []
+    };
+  });
+  
+  return result;
+};
+
+/**
  * MaiMLスキーマで定義されているpropertyタイプ一覧
  * @see specification/MaiML-Schema-1_0/maiml-property.xsd
  */
@@ -607,18 +724,30 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     return `${templateType}を編集`;
   }, [templateType]);
 
-  const showBasicInfo = useMemo(() => sourceContext !== 'format', [sourceContext]);
-  const showInsertionInfo = useMemo(() => sourceContext !== 'format', [sourceContext]);
-
   // 🆕 Phase 5-1: 利用可能なPlace一覧を計算
   const availablePlaces = useMemo(() => {
-    return allNodes
-      .filter(n => n.data.nodeType === 'place')
-      .filter(n => !placeRefs.includes(n.id))
-      .map(n => ({
-        id: n.id,
-        name: n.data.name || n.data.label || n.id
-      }));
+    console.log('🔍 [availablePlaces計算] allNodes:', allNodes.length);
+    console.log('🔍 [availablePlaces計算] allNodesサンプル:', allNodes.slice(0, 3).map(n => ({
+      id: n.id,
+      type: n.type,
+      nodeType: n.data?.nodeType,
+      label: n.data?.label,
+      name: n.data?.name
+    })));
+    console.log('🔍 [availablePlaces計算] placeRefs:', placeRefs);
+    
+    const placeNodes = allNodes.filter(n => {
+      // nodeTypeが'place'、またはReactFlowのtypeが'place'のノード
+      const isPlace = n.data?.nodeType === 'place' || n.type === 'place';
+      return isPlace && !placeRefs.includes(n.id);
+    });
+    
+    console.log('🔍 [availablePlaces計算] フィルタ後のPlace数:', placeNodes.length);
+    
+    return placeNodes.map(n => ({
+      id: n.id,
+      name: n.data?.name || n.data?.label || n.id
+    }));
   }, [allNodes, placeRefs]);
 
   // 🆕 Phase 5-1: 参照中のPlace情報を取得
@@ -688,6 +817,39 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     });
   }, [allNodes, node]);
 
+  // ✅ Phase 0-2: mergedTemplateをuseMemoで計算
+  const mergedTemplate = useMemo(() => {
+    if (!node) return null;
+    
+    const template = node.data.template || {};
+    const templateRef = node.data.templateRef || {};
+    
+    // templateとtemplateRefをマージ（templateを優先）
+    const merged = {
+      ...templateRef,
+      ...template,
+      properties: template.properties || templateRef.properties || []
+    };
+    
+    // placeRefsの正規化（配列形式に統一）
+    if (merged.placeRefs) {
+      merged.placeRefs = Array.isArray(merged.placeRefs) 
+        ? merged.placeRefs.map((ref: unknown) => 
+            typeof ref === 'string' ? ref : ((ref as Record<string, unknown>)?.ref || (ref as Record<string, unknown>)?.id || '')
+          ).filter((ref: string) => ref)
+        : [];
+    }
+    
+    console.log('✅ [TemplateEditorDialog] mergedTemplate計算完了:', {
+      hasTemplate: !!node.data.template,
+      hasTemplateRef: !!node.data.templateRef,
+      mergedKeys: Object.keys(merged),
+      placeRefsNormalized: merged.placeRefs
+    });
+    
+    return merged;
+  }, [node]);
+
   // 🆕 Template ID自動生成ハンドラー
   const handleGenerateTemplateId = useCallback(() => {
     if (!node) return;
@@ -750,27 +912,49 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     if (open && node) {
       console.log('🔍 [TemplateEditorDialog] ノードデータ読み込み:', node);
       
-      // 基本情報の読み込み
-      const templateRef = node.data.templateRef || node.data.template || {};
-      setUuid(templateRef.uuid || '');
-      setTemplateId(templateRef.id || ''); // 🆕 Phase 5-3: Template ID読み込み
-      setMaimlId(templateRef.maimlId || ''); // 🆕 Phase 5-4: MaiML ID読み込み
-      setName(templateRef.name || node.data.name || '');
-      setDescription(templateRef.description || node.data.description || '');
-      setInsertion(templateRef.insertion || { uri: '', hash: '', format: '' });
+      // ✅ Phase 0-3: mergedTemplateから読み込む
+      if (!mergedTemplate) {
+        console.warn('⚠️ [TemplateEditorDialog] mergedTemplateが存在しません');
+        return;
+      }
       
-      // Propertiesの読み込み
-      setProperties(templateRef.properties || {});
+      // 基本情報の読み込み
+      setUuid(mergedTemplate.uuid || '');
+      setTemplateId(mergedTemplate.id || '');
+      setMaimlId(mergedTemplate.maimlId || '');
+      setName(mergedTemplate.name || node.data.name || '');
+      setDescription(mergedTemplate.description || node.data.description || '');
+      setInsertion(mergedTemplate.insertion || { uri: '', hash: '', format: '' });
+      
+      // ✅ Phase 0-3: Propertiesの変換処理（Reference版ロジック）
+      let convertedProperties: Record<string, PropertyData> = {};
+      if (mergedTemplate.properties) {
+        if (Array.isArray(mergedTemplate.properties)) {
+          console.log('📋 [TemplateEditorDialog] properties配列を変換:', mergedTemplate.properties.length);
+          convertedProperties = convertPropertiesArrayToNestedFormat(mergedTemplate.properties);
+        } else if (typeof mergedTemplate.properties === 'object') {
+          console.log('📋 [TemplateEditorDialog] propertiesオブジェクトを変換');
+          convertedProperties = convertPropertiesObjectToNestedFormat(mergedTemplate.properties);
+        }
+      }
+      
+      setProperties(convertedProperties);
       setExpandedNodes(new Set());
       
       // Contentsの読み込み（ResultTemplateのみ）
-      setContents(templateRef.contents || {});
+      setContents(mergedTemplate.contents || {});
       setExpandedContentNodes(new Set());
       
-      // 🆕 Phase 5-1: PlaceReferencesの読み込み
-      setPlaceRefs(templateRef.placeRefs || []);
+      // PlaceReferencesの読み込み（正規化済み）
+      setPlaceRefs(mergedTemplate.placeRefs || []);
+      
+      console.log('✅ [TemplateEditorDialog] データ読み込み完了:', {
+        propertiesCount: Object.keys(convertedProperties).length,
+        contentsCount: Object.keys(mergedTemplate.contents || {}).length,
+        placeRefsCount: (mergedTemplate.placeRefs || []).length
+      });
     }
-  }, [open, node]);
+  }, [open, node, mergedTemplate]);
 
   if (!node) return null;
 
@@ -1115,13 +1299,29 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
    */
   const handleSelectNamespaceFile = async (fileKey: string) => {
     try {
-      console.log('[名前空間] ファイル選択:', fileKey);
+      console.log('[DEBUG-1] ファイル選択開始:', fileKey);
+      console.log('[DEBUG-2] fileKeyの型:', typeof fileKey);
+      
       setSelectedNamespaceFile(fileKey);
+      console.log('[DEBUG-3] selectedNamespaceFile設定完了');
+      
+      console.log('[DEBUG-4] analyzeNamespaceFile呼び出し開始');
       const parsedData = await analyzeNamespaceFile(fileKey);
+      
+      console.log('[DEBUG-5] analyzeNamespaceFile戻り値:', parsedData);
+      console.log('[DEBUG-6] parsedDataの型:', typeof parsedData);
+      console.log('[DEBUG-7] parsedDataのキー:', parsedData ? Object.keys(parsedData) : 'null');
+      console.log('[DEBUG-8] parsedData.properties:', parsedData?.properties);
+      console.log('[DEBUG-9] parsedData.contents:', parsedData?.contents);
+      
       setNamespaceData(parsedData);
+      console.log('[DEBUG-10] setNamespaceData実行完了');
+      
       console.log('[名前空間] ファイル解析完了:', parsedData);
     } catch (error) {
-      console.error('[名前空間] ファイル解析エラー:', error);
+      console.error('[DEBUG-ERROR] エラー発生:', error);
+      console.error('[DEBUG-ERROR] エラーメッセージ:', error instanceof Error ? error.message : String(error));
+      console.error('[DEBUG-ERROR] エラースタック:', error instanceof Error ? error.stack : 'スタックなし');
       alert(`ファイルの解析に失敗しました: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
@@ -1237,15 +1437,23 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     }
   };
 
-  // 保存ハンドラー
+  // ✅ Phase 0-4: 保存ハンドラー（Reference版ロジック）
   const handleSaveClick = () => {
-    // 🆕 Phase 5-3: Template ID重複チェック
+    // Template ID重複チェック
     if (templateId && isTemplateIdDuplicate(templateId)) {
       alert('このテンプレートIDは既に使用されています。別のIDを指定してください。');
       return;
     }
 
-    const templateRef: Record<string, unknown> = {
+    // ✅ Phase 0-4: templateとtemplateRefをマージ（templateを優先）
+    const template = node.data.template || {};
+    const templateRef = node.data.templateRef || {};
+    
+    // 保存するtemplateRefを作成（既存の情報を保持しつつ編集値で上書き）
+    const updatedTemplateRef: Record<string, unknown> = {
+      ...templateRef,  // 元のtemplateRefを保持
+      ...template,     // 元のtemplateも保持
+      // 編集した値で上書き
       type: templateType,
       uuid: uuid,
       name: name,
@@ -1253,49 +1461,53 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       properties: properties
     };
     
-    // 🆕 Phase 5-3: Template IDを追加
+    // Template IDを追加
     if (templateId) {
-      templateRef.id = templateId;
+      updatedTemplateRef.id = templateId;
     }
     
-    // 🆕 Phase 5-4: MaiML IDを追加
+    // MaiML IDを追加
     if (maimlId) {
-      templateRef.maimlId = maimlId;
+      updatedTemplateRef.maimlId = maimlId;
     }
     
     // 継承元情報（href）を保持
     if (node.data.templateRef?.href) {
-      templateRef.href = node.data.templateRef.href;
+      updatedTemplateRef.href = node.data.templateRef.href;
     }
     
     // MaterialTemplate・ResultTemplateの場合Insertionを追加
     if ((node.data.placeType === 'material' || node.data.placeType === 'result') && 
         (insertion.uri || insertion.hash || insertion.format)) {
-      templateRef.insertion = insertion;
+      updatedTemplateRef.insertion = insertion;
     }
     
     // ResultTemplateの場合のみContentsを追加
     if (node.data.placeType === 'result' && Object.keys(contents).length > 0) {
-      templateRef.contents = contents;
+      updatedTemplateRef.contents = contents;
     }
     
-    // 🆕 Phase 5-1: PlaceReferencesを追加
-    if (placeRefs.length > 0) {
-      templateRef.placeRefs = placeRefs;
-    }
+    // PlaceReferencesを追加（編集した値）
+    updatedTemplateRef.placeRefs = placeRefs;
     
     // 更新されたNodeオブジェクトを作成
     const updatedNode: Node = {
       ...node,
       data: {
         ...node.data,
-        templateRef: templateRef,
+        templateRef: updatedTemplateRef,
         name: name,
         description: description
       }
     };
     
-    console.log('💾 [TemplateEditor] 保存:', updatedNode);
+    console.log('✅ [TemplateEditor] Phase 0-4保存完了:', {
+      updatedTemplateRef,
+      placeRefsCount: placeRefs.length,
+      propertiesCount: Object.keys(properties).length,
+      contentsCount: Object.keys(contents).length
+    });
+    
     onSave(updatedNode);
     onClose();
   };
@@ -1326,34 +1538,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       >
         <Text type="secondary">{node.data.name} | NestedPropertyEditor完全準拠版</Text>
 
-        {/* Phase 3.1: 基本情報編集セクション - フォーマット管理から遷移時は非表示 */}
-        {showBasicInfo && (
-          <>
-            <Divider />
-          <div style={{ 
-            marginBottom: 24, 
-            padding: 16, 
-            background: '#f8f9fa', 
-            borderRadius: 8, 
-            border: '2px solid #007bff' 
-          }}>
+        {/* 基本情報編集セクション - 常に表示 */}
+        <Divider />
+        <div style={{ 
+          marginBottom: 24, 
+          padding: 16, 
+          background: '#f8f9fa', 
+          borderRadius: 8, 
+          border: '2px solid #007bff' 
+        }}>
             <Title level={5}>📋 基本情報</Title>
           
-          {/* UUID */}
-          <div style={{ marginBottom: 16 }}>
-            <Text strong style={{ display: 'block', marginBottom: 4 }}>UUID</Text>
-            <Flex gap="small">
-              <Input
-                value={uuid}
-                onChange={(e) => setUuid(e.target.value)}
-                placeholder="例: urn:uuid:12345678-1234-1234-1234-123456789abc"
-                style={{ flex: 1 }}
-              />
-              <Button onClick={handleGenerateUuid}>🔄 生成</Button>
-            </Flex>
-          </div>
-
-          {/* 🆕 Phase 5-3: Template ID */}
+          {/* 🆕 Phase 5-3: Template ID - 先頭に配置 */}
           <div style={{ marginBottom: 16 }}>
             <Text strong style={{ display: 'block', marginBottom: 4 }}>Template ID</Text>
             <Flex gap="small">
@@ -1379,7 +1575,21 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             )}
           </div>
 
-          {/* 🆕 Phase 5-4: MaiML ID (XML ID属性) */}
+          {/* UUID - 2番目に配置 */}
+          <div style={{ marginBottom: 16 }}>
+            <Text strong style={{ display: 'block', marginBottom: 4 }}>UUID</Text>
+            <Flex gap="small">
+              <Input
+                value={uuid}
+                onChange={(e) => setUuid(e.target.value)}
+                placeholder="例: urn:uuid:12345678-1234-1234-1234-123456789abc"
+                style={{ flex: 1 }}
+              />
+              <Button onClick={handleGenerateUuid}>🔄 生成</Button>
+            </Flex>
+          </div>
+
+          {/* 🆕 Phase 5-4: MaiML ID (XML ID属性) - 3番目に配置 */}
           <div style={{ marginBottom: 16 }}>
             <Text strong style={{ display: 'block', marginBottom: 4 }}>MaiML ID (XML ID属性)</Text>
             <Flex gap="small">
@@ -1417,6 +1627,67 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             />
           </div>
 
+          {/* 🆕 Phase 5-1: PlaceReferences - 基本情報セクション内に配置 */}
+          <Divider />
+          <Title level={5}>📍 PlaceReferences (参照するPlace)</Title>
+          
+          <Button
+            icon={<PlusOutlined />}
+            onClick={() => setShowPlaceRefAddModal(true)}
+            disabled={availablePlaces.length === 0}
+            style={{ marginBottom: 16 }}
+          >
+            Place参照を追加
+          </Button>
+
+          {placeRefs.length === 0 ? (
+            <Alert
+              title="参照しているPlaceがありません"
+              type="info"
+            />
+          ) : (
+            <div>
+              <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+                参照中のPlace一覧 ({placeRefs.length}件):
+              </Text>
+              <Space direction="vertical" style={{ width: '100%' }} size="small">
+                {referencedPlaces.map((place) => (
+                  <div
+                    key={place.id}
+                    style={{
+                      padding: '8px 12px',
+                      background: place.exists ? '#ffffff' : '#fff2e8',
+                      border: place.exists ? '1px solid #d9d9d9' : '1px solid #faad14',
+                      borderRadius: 4
+                    }}
+                  >
+                    <Flex justify="space-between" align="center">
+                      <div>
+                        <Text strong>{place.id}</Text>
+                        <Text type="secondary" style={{ marginLeft: 8 }}>
+                          {place.name}
+                        </Text>
+                        {!place.exists && (
+                          <Tag color="warning" style={{ marginLeft: 8 }}>
+                            Place未存在
+                          </Tag>
+                        )}
+                      </div>
+                      <Button
+                        size="small"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={() => handleRemovePlaceRef(place.id)}
+                      />
+                    </Flex>
+                  </div>
+                ))}
+              </Space>
+            </div>
+          )}
+
+          <Divider />
+
           {/* Insertion（MaterialTemplate・ResultTemplateの場合表示） */}
           {(node.data.placeType === 'material' || node.data.placeType === 'result') && (
             <>
@@ -1451,80 +1722,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               </div>
             </>
           )}
-          </div>
-          </>
-        )}
-
-        {/* 🆕 Phase 5-1: PlaceReferencesセクション */}
-        {showBasicInfo && (
-          <>
-            <Divider />
-            <div style={{ 
-              marginBottom: 24, 
-              padding: 16, 
-              background: '#f0f5ff', 
-              borderRadius: 8, 
-              border: '2px solid #1890ff' 
-            }}>
-              <Title level={5}>📍 PlaceReferences (参照するPlace)</Title>
-              
-              <Button
-                icon={<PlusOutlined />}
-                onClick={() => setShowPlaceRefAddModal(true)}
-                disabled={availablePlaces.length === 0}
-                style={{ marginBottom: 16 }}
-              >
-                Place参照を追加
-              </Button>
-
-              {placeRefs.length === 0 ? (
-                <Alert
-                  title="参照しているPlaceがありません"
-                  type="info"
-                />
-              ) : (
-                <div>
-                  <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-                    参照中のPlace一覧 ({placeRefs.length}件):
-                  </Text>
-                  <Space direction="vertical" style={{ width: '100%' }} size="small">
-                    {referencedPlaces.map((place) => (
-                      <div
-                        key={place.id}
-                        style={{
-                          padding: '8px 12px',
-                          background: place.exists ? '#ffffff' : '#fff2e8',
-                          border: place.exists ? '1px solid #d9d9d9' : '1px solid #faad14',
-                          borderRadius: 4
-                        }}
-                      >
-                        <Flex justify="space-between" align="center">
-                          <div>
-                            <Text strong>{place.id}</Text>
-                            <Text type="secondary" style={{ marginLeft: 8 }}>
-                              {place.name}
-                            </Text>
-                            {!place.exists && (
-                              <Tag color="warning" style={{ marginLeft: 8 }}>
-                                Place未存在
-                              </Tag>
-                            )}
-                          </div>
-                          <Button
-                            size="small"
-                            danger
-                            icon={<DeleteOutlined />}
-                            onClick={() => handleRemovePlaceRef(place.id)}
-                          />
-                        </Flex>
-                      </div>
-                    ))}
-                  </Space>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+        </div>
 
         {/* 🆕 Phase 5-2: 継承元テンプレート情報セクション */}
         {showInheritedInfo && (
@@ -1648,7 +1846,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         )}
 
         {/* Properties編集セクション */}
-        {showBasicInfo && <Divider />}
+        <Divider />
         <Title level={5}>🏷️ Properties</Title>
         
         <Flex gap="small" style={{ marginBottom: 16 }}>
