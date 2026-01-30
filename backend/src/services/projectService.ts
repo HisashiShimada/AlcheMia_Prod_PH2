@@ -7,6 +7,9 @@
 
 import { getPool } from '../database/db';
 import { getStorageService } from './storageService';
+import { escapeHtml } from '../utils/sanitize';
+import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
+import winston from 'winston';
 import type { 
   Project, 
   Pagination, 
@@ -1157,6 +1160,197 @@ export class ProjectService {
           originalError: error as Error,
         },
       };
+    }
+  }
+
+  /**
+   * 承認依頼
+   * 
+   * Task: 3.1-3.3 プロジェクト存在確認、ステータス検証、トランザクション管理、ステータス更新
+   * Requirements: 3, 4, 5, 6, 7, 9, 10, 11
+   * 
+   * @param projectId - プロジェクトID
+   * @param comment - コメント（オプション）
+   * @param organizationId - 組織ID
+   * @param userId - ユーザーID
+   * @returns 承認依頼結果
+   */
+  async requestApproval(
+    projectId: string,
+    comment: string | null,
+    organizationId: string,
+    userId: string
+  ): Promise<ServiceResult<any>> {
+    const pool = getPool();
+    let client;
+
+    // Task 5.2.4: ログ記録開始（機密情報フィルタリング）
+    winston.info('Approval request initiated', {
+      projectId,
+      organizationId,
+      userId,
+      comment: sanitizeForLog(comment || ''),
+      timestamp: new Date().toISOString(),
+    });
+
+    try {
+      // Task 3.1: プロジェクト存在確認とステータス検証（トランザクション外）
+      // organization_idフィルタ必須でプロジェクト情報を取得
+      const projectQuery = `
+        SELECT 
+          project_id,
+          project_name,
+          project_status,
+          organization_id
+        FROM project
+        WHERE organization_id = $1 AND project_id = $2
+      `;
+
+      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
+
+      // プロジェクト存在確認
+      if (projectResult.rows.length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'プロジェクトが見つかりません',
+          },
+        };
+      }
+
+      const project = projectResult.rows[0];
+
+      // プロジェクトステータスマップ（数値 → 文字列）
+      const PROJECT_STATUS_MAP: { [key: number]: string } = {
+        0: 'draft',
+        1: 'active',
+        2: 'waiting_approval',
+        3: 'approved',
+        4: 'archived',
+      };
+
+      const currentStatus = PROJECT_STATUS_MAP[project.project_status] || 'unknown';
+
+      // プロジェクトステータス検証: active (1) のみ許可
+      if (project.project_status !== 1) {
+        // waiting_approval の場合は特別なメッセージ
+        const message =
+          project.project_status === 2
+            ? '既に承認依頼が送信されています'
+            : `プロジェクトステータスがactiveではありません。現在のステータス: ${currentStatus}`;
+
+        return {
+          success: false,
+          error: {
+            code: 'BUSINESS_STATUS_INVALID',
+            message,
+            details: {
+              currentStatus,
+              requiredStatus: 'active',
+            },
+          },
+        };
+      }
+
+      // Task 3.2: トランザクション管理とステータス更新
+      client = await pool.connect();
+      await client.query('BEGIN');
+
+      // プロジェクトステータス更新（Parameterized Query）
+      const updateQuery = `
+        UPDATE project
+        SET project_status = $1,
+            update_at = $2,
+            update_user_id = $3
+        WHERE organization_id = $4 AND project_id = $5
+      `;
+
+      const currentTimestamp = new Date().toISOString();
+      await client.query(updateQuery, [
+        2, // waiting_approval
+        currentTimestamp,
+        userId,
+        organizationId,
+        projectId,
+      ]);
+
+      // commentをエスケープしてXSS攻撃を防ぐ（通知削除後も保持）
+      const escapedComment = escapeHtml(comment);
+
+      // トランザクションコミット
+      await client.query('COMMIT');
+
+      // Task 5.2.4: 承認依頼成功ログ
+      winston.info('Approval request completed successfully', {
+        projectId,
+        projectName: project.project_name,
+        organizationId,
+        userId,
+        previousStatus: 'active',
+        newStatus: 'waiting_approval',
+        timestamp: currentTimestamp,
+      });
+
+      // Task 3.4.1: ユーザー名を取得（トランザクション後）
+      let requestedByName = userId; // デフォルトはuserIdをフォールバック
+      
+      try {
+        const userQuery = `
+          SELECT user_name
+          FROM organization_user
+          WHERE organization_id = $1 AND user_id = $2
+        `;
+        
+        const userResult = await pool.query(userQuery, [organizationId, userId]);
+        
+        if (userResult.rows.length > 0 && userResult.rows[0].user_name) {
+          requestedByName = userResult.rows[0].user_name;
+        }
+      } catch (userError) {
+        // ユーザー名取得失敗時はフォールバック値を使用（ログのみ）
+        console.warn('Failed to retrieve user name, using userId as fallback:', userError);
+      }
+
+      return {
+        success: true,
+        data: {
+          project_id: projectId,
+          project_name: project.project_name,
+          previous_status: 'active',
+          new_status: 'waiting_approval',
+          requested_by: userId,
+          requested_by_name: requestedByName,
+          requested_at: currentTimestamp,
+          comment: escapedComment,  // エスケープ済みコメント（nullの場合はnull）
+        },
+      };
+    } catch (error) {
+      if (client) {
+        await client.query('ROLLBACK');
+      }
+      
+      // Task 5.2.4: エラーログ記録（機密情報フィルタリング）
+      winston.error('Approval request failed', {
+        projectId,
+        organizationId,
+        userId,
+        error: sanitizeErrorForLog(error as Error),
+        timestamp: new Date().toISOString(),
+      });
+      
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'データベースエラーが発生しました',
+          originalError: error as Error,
+        },
+      };
+    } finally {
+      if (client) {
+        client.release();
+      }
     }
   }
 

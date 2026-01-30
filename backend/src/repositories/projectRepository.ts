@@ -56,12 +56,14 @@ export class ProjectRepository {
    * @param projectId - プロジェクトID
    * @param newStatus - 新しいステータス値
    * @param organizationId - 組織ID（マルチテナント分離必須）
+   * @param userId - 更新ユーザーID（updated_user_idに設定）
    * @param client - トランザクション用のクライアント（オプション）
    */
   async updateStatus(
     projectId: string,
     newStatus: number,
     organizationId: string,
+    userId: string,
     client?: PoolClient
   ): Promise<void> {
     // トランザクション引数がある場合はそれを使用、なければプールを使用
@@ -73,11 +75,12 @@ export class ProjectRepository {
       UPDATE project
       SET 
         project_status = $1,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE organization_id = $2
-        AND project_id = $3
+        updated_at = CURRENT_TIMESTAMP,
+        updated_user_id = $2
+      WHERE organization_id = $3
+        AND project_id = $4
     `;
 
-    await executor.query(query, [newStatus, organizationId, projectId]);
+    await executor.query(query, [newStatus, userId, organizationId, projectId]);
   }
 }

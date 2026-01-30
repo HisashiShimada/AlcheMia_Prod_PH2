@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { ProjectService } from '../services/projectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
+import { isValidUUID, createUUIDValidationError } from '../utils/validation';
 
 /**
  * プロジェクト作成エンドポイント
@@ -1181,6 +1182,143 @@ export async function list(req: Request, res: Response): Promise<void> {
     logError('Project list error', error as Error, {
       action: 'project_list',
       organizationId: req.user?.organizationId,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
+ * 承認依頼エンドポイント
+ * POST /api/v1/projects/:projectId/approval-request
+ * 
+ * @description 実験作業者が実験作業完了後に実験管理者へ承認依頼を送信
+ * Task: 2.1 リクエストバリデーションとパラメータ抽出
+ * Requirements: 1, 4, 10, 14
+ */
+export async function requestApproval(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    // Task 2.1: 認証チェック
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTH_TOKEN_INVALID',
+          message: '認証が必要です',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const { organizationId, userId } = req.user;
+    const { projectId } = req.params;
+    const { comment } = req.body;
+
+    // Task 2.1, 5.2.3: projectId UUID形式バリデーション（強化版）
+    if (!isValidUUID(projectId)) {
+      const error = createUUIDValidationError('projectId');
+      res.status(400).json({
+        success: false,
+        error,
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Task 2.1: comment長さバリデーション（オプショナル、1000文字以内）
+    if (comment && comment.length > 1000) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_STRING_TOO_LONG',
+          message: 'commentは1000文字以内である必要があります',
+          details: [{
+            field: 'comment',
+            message: 'commentは1000文字以内です',
+            code: 'STRING_TOO_LONG',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // バリデーション通過後にProjectServiceを初期化
+    const projectService = new ProjectService();
+
+    // Task 2.1: Service層呼び出し（commentがundefinedの場合はnullに変換）
+    const result = await projectService.requestApproval(
+      projectId,
+      comment || null,
+      organizationId,
+      userId
+    );
+
+    // Task 2.2: エラーハンドリング（次のタスクで実装）
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode.startsWith('BUSINESS_')) {
+        statusCode = 409;
+      } else if (errorCode.startsWith('VALIDATION_')) {
+        statusCode = 400;
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Task 2.2: 成功レスポンス（次のタスクで実装）
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    logError('Project requestApproval error', error as Error, {
+      action: 'project_requestApproval',
+      organizationId: req.user?.organizationId,
+      projectId: req.params.projectId,
       requestId,
     });
 
