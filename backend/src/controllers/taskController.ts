@@ -88,7 +88,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
     // 2. パラメータ抽出
     const { projectId, methodId, taskNo } = req.params;
     const { status, currentUpdateAt, comment } = req.body;
-    const { organizationId, userId, role } = req.user;
+    const { organizationId, userId, role } = req.user!; // authミドルウェアで設定済み
 
     // 3. UUID形式バリデーション（projectId）
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

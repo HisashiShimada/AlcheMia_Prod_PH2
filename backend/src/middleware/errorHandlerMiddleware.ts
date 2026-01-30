@@ -20,8 +20,8 @@ export const errorHandler = (
   // HTTPステータスコードの決定
   const statusCode = err.statusCode || 500;
 
-  // エラーコードの決定
-  const errorCode = err.code || 'SYSTEM_INTERNAL_ERROR';
+  // エラーコードの決定（err.code → err.name → デフォルト値の順で優先）
+  const errorCode = err.code || err.name || 'SYSTEM_INTERNAL_ERROR';
 
   // ユーザーフレンドリーなエラーメッセージ
   let errorMessage: string;

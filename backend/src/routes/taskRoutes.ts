@@ -33,29 +33,29 @@ router.get(
     // クエリパラメータバリデーション
     query('projectId')
       .notEmpty()
-      .withMessage('projectIdは必須です')
+      .withMessage('projectId is required')
       .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+      .withMessage('projectId must be a valid UUID'),
     query('methodId')
       .optional()
       .isUUID()
-      .withMessage('methodIdはUUID形式である必要があります'),
+      .withMessage('methodId must be a valid UUID'),
     query('status')
       .optional()
       .isIn(['not_started', 'started', 'in_progress', 'completed', 'forced_terminated'])
-      .withMessage('statusはnot_started, started, in_progress, completed, forced_terminatedのいずれかである必要があります'),
+      .withMessage('status must be one of: not_started, started, in_progress, completed, forced_terminated'),
     query('assignUserId')
       .optional()
       .isUUID()
-      .withMessage('assignUserIdはUUID形式である必要があります'),
+      .withMessage('assignUserId must be a valid UUID'),
     query('sortBy')
       .optional()
       .isIn(['task_no', 'created_at', 'updated_at', 'status'])
-      .withMessage('sortByはtask_no, created_at, updated_at, statusのいずれかである必要があります'),
+      .withMessage('sortBy must be one of: task_no, created_at, updated_at, status'),
     query('order')
       .optional()
       .isIn(['asc', 'desc'])
-      .withMessage('orderはascまたはdescである必要があります'),
+      .withMessage('order must be either asc or desc'),
   ],
   taskController.list
 );
