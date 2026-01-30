@@ -17,6 +17,14 @@ CREATE TABLE template_data (
     -- プロパティセット情報
     property_set JSONB,
     
+    -- 監査証跡
+    create_user_id UUID,
+    update_user_id UUID,
+    
+    -- タイムスタンプ
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
+    
     -- 制約
     CONSTRAINT template_data_pkey PRIMARY KEY (organization_id, project_id, method_id, task_no, place_id)
 );
@@ -29,3 +37,7 @@ COMMENT ON COLUMN template_data.method_id IS 'メソッドID';
 COMMENT ON COLUMN template_data.task_no IS 'タスク連番';
 COMMENT ON COLUMN template_data.place_id IS 'プレースID';
 COMMENT ON COLUMN template_data.property_set IS 'プロパティセット';
+COMMENT ON COLUMN template_data.create_user_id IS '作成者ユーザID';
+COMMENT ON COLUMN template_data.update_user_id IS '更新者ユーザID';
+COMMENT ON COLUMN template_data.create_at IS '作成日時';
+COMMENT ON COLUMN template_data.update_at IS '更新日時';

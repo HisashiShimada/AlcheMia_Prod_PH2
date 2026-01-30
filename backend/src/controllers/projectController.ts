@@ -1211,22 +1211,6 @@ export async function requestApproval(req: Request, res: Response): Promise<void
   const requestId = uuidv4();
 
   try {
-    // Task 2.1: 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
     const { organizationId, userId } = req.user;
     const { projectId } = req.params;
     const { comment } = req.body;

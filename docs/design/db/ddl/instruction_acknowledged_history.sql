@@ -16,6 +16,14 @@ CREATE TABLE instruction_acknowledged_history (
     -- 確認情報
     acknowledged_at TIMESTAMP,
     
+    -- 監査証跡
+    create_user_id UUID,
+    update_user_id UUID,
+    
+    -- タイムスタンプ
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
+    
     -- 制約
     CONSTRAINT instruction_acknowledged_history_pkey PRIMARY KEY (organization_id, project_id, experiment_instruction_id, experiment_user_id)
 );
@@ -27,3 +35,7 @@ COMMENT ON COLUMN instruction_acknowledged_history.project_id IS 'プロジェ�
 COMMENT ON COLUMN instruction_acknowledged_history.experiment_instruction_id IS '実験指示ID';
 COMMENT ON COLUMN instruction_acknowledged_history.experiment_user_id IS '実験作業者ID';
 COMMENT ON COLUMN instruction_acknowledged_history.acknowledged_at IS '確認日時';
+COMMENT ON COLUMN instruction_acknowledged_history.create_user_id IS '作成者ユーザID';
+COMMENT ON COLUMN instruction_acknowledged_history.update_user_id IS '更新者ユーザID';
+COMMENT ON COLUMN instruction_acknowledged_history.create_at IS '作成日時';
+COMMENT ON COLUMN instruction_acknowledged_history.update_at IS '更新日時';
