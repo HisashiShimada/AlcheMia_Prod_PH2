@@ -829,15 +829,7 @@ const calculateOverallProgress = (transitions: any[]) => {
         "method_name": "分析実験",
         "tasks": [...]
       }
-    ],
-    "statistics": {
-      "total_tasks": 15,
-      "not_started": 5,
-      "started": 2,
-      "in_progress": 5,
-      "completed": 2,
-      "forced_terminated": 1,
-      "overall_progress": 52.3
+    ]
     }
   },
   "meta": {

@@ -5,12 +5,18 @@
  * Task: 2.1, 2.2 コントローラー層実装
  */
 
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
-import { updateTaskStatus as updateTaskStatusService } from '../services/taskService';
+import { updateTaskStatus as updateTaskStatusService, TaskService } from '../services/taskService';
 import { TaskStatus } from '../types/taskService.types';
+import { TaskFilters } from '../types/task';
+import { TaskRepository } from '../repositories/taskRepository';
 import { logger } from '../utils/logger';
+
+// タスク一覧取得用のサービスインスタンス
+const taskRepositoryInstance = new TaskRepository();
+const taskServiceInstance = new TaskService(taskRepositoryInstance);
 
 /**
  * エラーコードからHTTPステータスコードへのマッピング
@@ -219,5 +225,75 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
         requestId,
       },
     });
+  }
+}
+
+/**
+ * タスク一覧取得ハンドラー
+ * 
+ * GET /api/v1/tasks
+ * 
+ * @description プロジェクト内の全タスクをメソッド単位でグループ化して取得
+ * Feature: worker-task-list-api
+ */
+export async function list(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // 1. バリデーション結果をチェック
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const firstError = errors.array()[0];
+      const error: any = new Error(firstError.msg);
+      error.statusCode = 400;
+      error.code = 'VALIDATION_ERROR';
+      error.details = errors.array().map(err => ({
+        field: err.type === 'field' ? (err as any).path : 'unknown',
+        message: err.msg,
+        code: 'INVALID_VALUE',
+      }));
+      throw error;
+    }
+
+    // 2. organizationIdの検証（tenantIsolationミドルウェアから取得）
+    const organizationId = (req as any).organizationId as string | undefined;
+    if (!organizationId) {
+      const error: any = new Error('Organization ID is required');
+      error.statusCode = 401;
+      throw error;
+    }
+
+    // 3. 必須パラメータ（projectId）の抽出
+    const projectId = req.query.projectId as string;
+
+    // 4. オプションパラメータの抽出
+    const filters: TaskFilters = {
+      methodId: req.query.methodId as string | undefined,
+      status: req.query.status as any,
+      assignUserId: req.query.assignUserId as string | undefined,
+      sortBy: req.query.sortBy as any,
+      order: req.query.order as any,
+    };
+
+    // 5. TaskServiceを呼び出してタスク一覧を取得
+    const methodGroups = await taskServiceInstance.getTasksGroupedByMethod(
+      projectId,
+      organizationId,
+      filters
+    );
+
+    // 6. requestIdを取得または生成
+    const requestId = (req.headers['x-request-id'] as string) || uuidv4();
+
+    // 7. 統一レスポンス形式で返却
+    res.json({
+      success: true,
+      data: methodGroups,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    // 8. エラーハンドリングミドルウェアにスロー
+    next(error);
   }
 }
