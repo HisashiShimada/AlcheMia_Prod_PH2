@@ -39,7 +39,7 @@
 | 8 | 指示一覧取得 | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
 | 9 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | ✅ 実装済み | - |
 | 10 | プロジェクト公開 | POST | `/api/v1/projects/:projectName/publish` | ✅ 実装済み | - |
-| 11 | 指示一覧取得（実験作業者用） | GET | `/api/v1/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 11 | 指示一覧取得（実験作業者用） | GET | `/api/v1/projects/:projectName/worker-instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 12 | 指示確認完了 | PUT | `/api/v1/instructions/:instructionId/confirm` | 🔴 未実装 | ⭐⭐ 中 |
 | 13 | 承認依頼 | POST | `/api/v1/projects/:projectId/approval-request` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 14 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | 🔴 未実装 | ⭐⭐⭐ 高 |
@@ -855,7 +855,7 @@ router.METHOD('/path',
 
 ### 11. 指示一覧取得（実験作業者用） 🔴
 
-**エンドポイント**: `GET /api/v1/instructions`
+**エンドポイント**: `GET /api/v1/projects/:projectName/worker-instructions`
 
 **説明**: 実験作業者が自分に割り当てられた指示一覧を取得
 
@@ -867,6 +867,11 @@ router.METHOD('/path',
 
 #### リクエストパラメータ
 
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
+
 **クエリパラメータ**:
 | パラメータ | 型 | 必須 | デフォルト | 説明 |
 |----------|---|------|-----------|------|
@@ -875,8 +880,6 @@ router.METHOD('/path',
 | `taskNo` | integer | × | - | タスク番号でフィルタリング |
 | `instructionTarget` | string | × | - | 指示対象でフィルタリング（`file`, `task`, `transition`） |
 | `isAcknowledged` | boolean | × | - | 確認済みフラグでフィルタリング |
-| `page` | integer | × | 1 | ページ番号 |
-| `limit` | integer | × | 20 | 1ページあたりの件数（1-100） |
 
 #### レスポンス
 
@@ -893,16 +896,18 @@ router.METHOD('/path',
       "method_name": "合成実験",
       "task_no": 1,
       "task_name": "材料準備",
+      "transition_id": "transition-uuid-1",
+      "transition_name": "材料準備トランジション",
       "instruction_target": "task",
       "instruction_content": "指示内容の詳細",
-      "instruction_conditions": "実施条件の詳細",
+      "priority": "high",
+      "type": "normal",
       "is_acknowledged": false,
       "acknowledged_at": null,
       "acknowledged_user_id": null,
       "created_at": "2026-01-21T10:00:00Z",
       "created_by": "manager-uuid",
-      "created_by_name": "Manager Name",
-      "due_date": "2026-01-31T23:59:59Z"
+      "created_by_name": "Manager Name"
     },
     {
       "instruction_id": "instruction-uuid-2",
@@ -912,26 +917,20 @@ router.METHOD('/path',
       "method_name": "合成実験",
       "task_no": 2,
       "task_name": "反応実験",
+      "transition_id": "transition-uuid-2",
+      "transition_name": "反応実験トランジション",
       "instruction_target": "transition",
       "instruction_content": "トランジション指示の詳細",
-      "instruction_conditions": null,
+      "priority": "medium",
+      "type": "urgent",
       "is_acknowledged": true,
       "acknowledged_at": "2026-01-21T14:00:00Z",
       "acknowledged_user_id": "worker-uuid",
       "created_at": "2026-01-21T10:00:00Z",
       "created_by": "manager-uuid",
-      "created_by_name": "Manager Name",
-      "due_date": "2026-02-15T23:59:59Z"
+      "created_by_name": "Manager Name"
     }
   ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "totalItems": 45,
-    "totalPages": 3,
-    "hasNext": true,
-    "hasPrev": false
-  },
   "meta": {
     "timestamp": "2026-01-27T19:00:00Z",
     "requestId": "req_abc123"
