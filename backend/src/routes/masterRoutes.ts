@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { header, query, param, body } from 'express-validator';
+import { query, param, body } from 'express-validator';
 import * as masterController from '../controllers/masterController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import cors from 'cors';
@@ -15,7 +15,7 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
       cb(null, true);
     } else {
