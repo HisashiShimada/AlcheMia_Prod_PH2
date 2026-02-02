@@ -50,7 +50,7 @@ export class WorkerProjectController {
     const requestId = (req.headers['x-request-id'] as string) || uuidv4();
 
     try {
-      const { userId, role, organizationId } = req.user;
+      const { userId, role, organizationId } = req.user!;
 
       // 2. クエリパラメータの取得とバリデーション
       const pageStr = (req.query.page as string) || '1';
