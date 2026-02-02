@@ -876,7 +876,6 @@ router.METHOD('/path',
 | パラメータ | 型 | 必須 | デフォルト | 説明 |
 |----------|---|------|-----------|------|
 | `projectId` | UUID | × | - | プロジェクトIDでフィルタリング |
-| `isAcknowledged` | boolean | × | - | 確認済みフラグでフィルタリング |
 
 #### レスポンス
 
@@ -961,18 +960,6 @@ if (req.user.role === 'experiment_worker') {
 // フィルタリング
 if (projectId) {
   query = query.where('project_instruction.project_id', '=', projectId);
-}
-if (methodId) {
-  query = query.where('project_instruction.method_id', '=', methodId);
-}
-if (taskNo !== undefined) {
-  query = query.where('project_instruction.task_no', '=', taskNo);
-}
-if (instructionTarget) {
-  query = query.where('project_instruction.instruction_target', '=', instructionTarget);
-}
-if (isAcknowledged !== undefined) {
-  query = query.where('project_instruction.is_acknowledged', '=', isAcknowledged);
 }
 
 const instructions = await query

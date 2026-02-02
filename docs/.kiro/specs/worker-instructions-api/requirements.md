@@ -64,11 +64,9 @@
 
 1. When projectIdクエリパラメータが指定された場合、the Worker Instructions API shall 指定されたプロジェクトIDの指示のみを返却する
 
-2. When isAcknowledgedクエリパラメータが指定された場合、the Worker Instructions API shall 指定された確認状態（true/false）の指示のみを返却する
+2. When 複数のフィルタリング条件が指定された場合、the Worker Instructions API shall すべての条件を満たす指示のみを返却する（AND条件）
 
-3. When 複数のフィルタリング条件が指定された場合、the Worker Instructions API shall すべての条件を満たす指示のみを返却する（AND条件）
-
-4. When フィルタリング条件が指定されない場合、the Worker Instructions API shall すべての指示を返却する
+3. When フィルタリング条件が指定されない場合、the Worker Instructions API shall すべての指示を返却する
 
 ---
 
