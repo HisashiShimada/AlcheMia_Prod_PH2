@@ -876,9 +876,6 @@ router.METHOD('/path',
 | パラメータ | 型 | 必須 | デフォルト | 説明 |
 |----------|---|------|-----------|------|
 | `projectId` | UUID | × | - | プロジェクトIDでフィルタリング |
-| `methodId` | string | × | - | メソッドIDでフィルタリング |
-| `taskNo` | integer | × | - | タスク番号でフィルタリング |
-| `instructionTarget` | string | × | - | 指示対象でフィルタリング（`file`, `task`, `transition`） |
 | `isAcknowledged` | boolean | × | - | 確認済みフラグでフィルタリング |
 
 #### レスポンス
@@ -895,7 +892,6 @@ router.METHOD('/path',
       "method_id": "method1",
       "method_name": "合成実験",
       "task_no": 1,
-      "task_name": "材料準備",
       "transition_id": "transition-uuid-1",
       "transition_name": "材料準備トランジション",
       "instruction_target": "task",
@@ -916,7 +912,6 @@ router.METHOD('/path',
       "method_id": "method1",
       "method_name": "合成実験",
       "task_no": 2,
-      "task_name": "反応実験",
       "transition_id": "transition-uuid-2",
       "transition_name": "反応実験トランジション",
       "instruction_target": "transition",
