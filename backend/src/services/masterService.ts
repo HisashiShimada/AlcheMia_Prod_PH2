@@ -14,7 +14,6 @@ import { CorporationSearchFilters } from '../repositories/corporationRepository'
 import * as departmentRepository from '../repositories/departmentRepository';
 import { DepartmentSearchFilters } from '../repositories/departmentRepository';
 import * as roleRepository from '../repositories/roleRepository';
-import { Role } from '../repositories/roleRepository';
 import { getPool } from '../database/db';
 
 /**
