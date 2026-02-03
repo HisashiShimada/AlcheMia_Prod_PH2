@@ -498,7 +498,13 @@ router.put('/experiments/projects/:projectId/methods/:methodId/transitions/:tran
    - statusが"completed"の場合、progress_rateを自動的に100に設定
    - updated_byに現在のユーザーIDを設定
 
-4. **タスク進捗の再計算（オプション）**
+4. **イベントログ記録**
+   - maiml_event_logテーブルに変更履歴を記録
+   - 組織ID、プロジェクトIDはリクエストデータから取得
+   - シーケンス番号は自動採番（organization_id、project_id単位で連番）
+   - APIリクエストデータをJSON形式でlogカラムに格納
+
+5. **タスク進捗の再計算（オプション）**
    - タスク内の全トランジションの進捗率から、タスク全体の進捗率を再計算
 
 ### バリデーション
@@ -517,10 +523,15 @@ router.put('/experiments/projects/:projectId/methods/:methodId/transitions/:tran
    - status, progress_rate, comment
    - updated_by, updated_at, created_at
 
-2. **projects**（ステータス確認）
+2. **maiml_event_log**（イベントログ）
+   - organization_id, project_id, sequence_no
+   - log (JSONB)
+   - created_at
+
+3. **projects**（ステータス確認）
    - id, status, organization_id
 
-3. **project_task**（存在確認）
+4. **project_task**（存在確認）
    - project_id, task_no, organization_id
 
 #### SQL例
@@ -556,6 +567,35 @@ WHERE organization_id = $2
   AND task_no = $3
   AND transition_id = $9
 RETURNING *;
+
+-- イベントログ記録
+INSERT INTO maiml_event_log (
+  organization_id,
+  project_id,
+  sequence_no,
+  log,
+  created_at
+) VALUES (
+  $2,  -- organization_id
+  $1,  -- project_id
+  (
+    SELECT COALESCE(MAX(sequence_no), 0) + 1
+    FROM maiml_event_log
+    WHERE organization_id = $2 AND project_id = $1
+  ),  -- 自動採番されたsequence_no
+  jsonb_build_object(
+    'event_type', 'transition_status_update',
+    'method_id', $8,
+    'task_no', $3,
+    'transition_id', $9,
+    'status', $4,
+    'progress_rate', CASE WHEN $4 = 'completed' THEN 100 ELSE $5 END,
+    'comment', $6,
+    'updated_by', $7,
+    'timestamp', NOW()
+  ),  -- APIデータをJSON形式で格納
+  NOW()
+);
 
 -- タスク進捗率の再計算（オプション）
 UPDATE project_task
