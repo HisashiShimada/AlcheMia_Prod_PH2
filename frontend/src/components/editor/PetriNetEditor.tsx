@@ -68,7 +68,7 @@ import ConditionTemplateNode from '../nodes/ConditionTemplateNode';
 import ResultTemplateNode from '../nodes/ResultTemplateNode';
 import TransitionNode from '../nodes/TransitionNode';
 import { parseMaimlToPetriNet } from '../../utils/maimlParser';
-import { convertToReactFlow } from '../../utils/reactFlowConverter';
+import { convertToReactFlowFormat } from '../../utils/reactFlowConverter';
 
 import 'reactflow/dist/style.css';
 
@@ -672,12 +672,12 @@ const PetriNetEditorInner: React.FC<PetriNetEditorProps> = ({
                 });
               }
               
-              const convertedMethods = methodsData.map((method: any, index: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+              const convertedMethods = methodsData.map((method: MethodData, index: number) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                 // 各methodのデータをparse
                 const methodStructure = parseMaimlToPetriNet(effectiveMaimlData || '', method.methodId);
                 
                 const { nodes: methodNodes, edges: methodEdges } = 
-                  convertToReactFlow(methodStructure);
+                  convertToReactFlowFormat(methodStructure);
                 
                 const styledEdges = methodEdges.map(edge => ({
                   ...edge,

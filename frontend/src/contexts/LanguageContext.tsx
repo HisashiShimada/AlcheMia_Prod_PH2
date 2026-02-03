@@ -132,7 +132,7 @@ export function LanguageProvider({
     } else {
       // 組織IDがない場合はカスタム翻訳をクリア
       // この同期的なsetStateは意図的なもので、パフォーマンス問題は発生しない
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+       
       setCustomTranslations(null);
     }
 

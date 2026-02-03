@@ -1,141 +1,236 @@
-// frontend/src/components/viewer/utils/reactFlowConverter.ts
-// React Flow形式への変換ユーティリティ
+/**
+ * reactFlowConverter.ts - React Flow形式変換ユーティリティ
+ * ペトリネット構造をReact Flowのノード・エッジ形式に変換
+ */
 
-import { Node, Edge, MarkerType } from 'reactflow';
-import { PetriNetStructure, Template } from './maimlParser';
+import { MarkerType, Node, Edge } from 'reactflow';
+import type {
+  PetriNetData,
+  Template,
+  TemplateMap,
+  NodeData,
+  EdgeData,
+  Position,
+  TemplateRef,
+  Place,
+  Transition,
+  PnmlMetadata
+} from '@/components/editorv2/types';
+
+/**
+ * React Flow変換結果の型定義
+ */
+interface ReactFlowFormat {
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+}
+
+/**
+ * フレーム枠線生成結果の型定義
+ */
+interface FrameNodesResult {
+  frameNodes: Node<NodeData>[];
+  adjustedNodes: Node<NodeData>[];
+}
 
 /**
  * ペトリネット構造をReact Flow形式に変換
- * ハイブリッドアプローチ: XML座標がある場合は尊重、ない場合はトポロジカルソート
  */
-export function convertToReactFlow(structure: PetriNetStructure): {
-  nodes: Node[];
-  edges: Edge[];
-} {
-  const nodes: Node[] = [];
-  const edges: Edge[] = [];
-
-  // 1. 座標の有無をチェック
-  const allHavePositions = structure.places.every(
-    (place) => place.x !== undefined && place.y !== undefined
-  ) && structure.transitions.every(
-    (transition) => transition.x !== undefined && transition.y !== undefined
-  );
-
-  console.log('🔍 [convertToReactFlow] 座標チェック:', {
-    allHavePositions,
-    placesWithPosition: structure.places.filter(p => p.x !== undefined).length,
-    totalPlaces: structure.places.length,
-    transitionsWithPosition: structure.transitions.filter(t => t.x !== undefined).length,
-    totalTransitions: structure.transitions.length,
-  });
-
-  // 2. 座標計算
-  let nodePositions: Map<string, { x: number; y: number }>;
-
-  if (allHavePositions) {
-    // すべてに座標がある → XML座標を使用（スケーリングのみ）
-    console.log('📍 [convertToReactFlow] XML座標を使用');
-    nodePositions = new Map();
-    structure.places.forEach(place => {
-      nodePositions.set(place.id, { x: place.x! * 2, y: place.y! * 2 });
-    });
-    structure.transitions.forEach(transition => {
-      nodePositions.set(transition.id, { x: transition.x! * 2, y: transition.y! * 2 });
-    });
-  } else {
-    // 座標なし、または一部のみ → トポロジカルソートで自動配置
-    console.log('🔄 [convertToReactFlow] トポロジカルソートで自動配置');
-    nodePositions = calculateTopologicalLayout(
-      structure.places,
-      structure.transitions,
-      structure.arcs
-    );
+export const convertToReactFlowFormat = (
+  petriNetData: PetriNetData,
+  templateMap: TemplateMap = {}
+): ReactFlowFormat => {
+  const { places, transitions, arcs } = petriNetData;
+  
+  if (!places || !transitions || !arcs) {
+    console.warn('[reactFlowConverter] ペトリネットデータが不完全です');
+    return { nodes: [], edges: [] };
   }
-
-  // 3. Placesをノードに変換（共通テンプレートフラグ付き）
-  structure.places.forEach((place) => {
-    const template = structure.templates[place.id];
-    const nodeType = template
-      ? `${template.type}Template`
-      : 'default';
-
-    const position = nodePositions.get(place.id) || { x: 0, y: 0 };
-
-    // 🎯 共通テンプレートフラグの設定
-    const placeId = place.id;
-    const templateId = template?.id;
+  
+  console.log('🔄 [reactFlowConverter] React Flow形式変換開始:', {
+    places: places.length,
+    transitions: transitions.length,
+    arcs: arcs.length
+  });
+  
+  try {
+    // レイアウト計算
+    const nodePositions = calculateSimpleLayout(places, transitions, arcs);
     
-    // 共通テンプレート参照の場合（このplaceは別のplaceへの参照）
-    const isCommonTemplateRef = structure.commonTemplateRefMap?.[placeId];
-    const commonTemplateRef = isCommonTemplateRef ? structure.commonTemplateRefMap?.[placeId] : undefined;
+    console.log('📐 [reactFlowConverter] レイアウト計算完了:', nodePositions.size);
     
-    // 共通テンプレートの定義元の場合（このplaceは他から参照される）
-    const isCommonTemplate = templateId && structure.commonTemplateIds?.has(templateId);
-
-    if (isCommonTemplateRef) {
-      console.log('🔗 [convertToReactFlow] 共通テンプレート参照設定:', {
-        placeId,
-        referencedPlaceId: commonTemplateRef,
-        templateId
-      });
-    }
-
-    if (isCommonTemplate) {
-      console.log('✅ [convertToReactFlow] 共通テンプレートフラグ設定:', {
-        placeId,
-        templateId
-      });
-    }
-
-    const node: Node = {
-      id: place.id,
-      type: nodeType,
-      position: position,
-      data: {
-        label: place.name || place.id,
+    // Placesをノード化（templateMap使用 - 完全反映版）
+    const placeNodes: Node<NodeData>[] = places.map(place => {
+      const position = nodePositions.get(place.id) || { x: 0, y: 0 };
+      
+      // templateMapからtemplate情報を取得（Place IDをキーとして）
+      const template = templateMap[place.id];
+      
+      if (template) {
+        console.log(`📋 [reactFlowConverter] Place ${place.id} にtemplate完全反映:`, {
+          templateId: template.templateId,
+          name: template.name,
+          uuid: template.uuid,
+          placeRefs: template.placeRefs,
+          placeRefsLength: template.placeRefs?.length,
+          placeRefsDetail: template.placeRefs?.map(pr => ({ id: typeof pr === 'object' ? pr.id : pr, ref: typeof pr === 'object' ? pr.ref : undefined, uuid: typeof pr === 'object' ? pr.uuid : undefined })),
+          templateRefs: template.templateRefs,
+          propertiesType: typeof template.properties,
+          propertiesKeys: template.properties ? Object.keys(template.properties) : [],
+          propertyCount: template.properties ? Object.keys(template.properties).length : 0,
+          hasDescription: !!template.description,
+          hasAnnotation: !!template.annotation
+        });
+      } else {
+        console.warn(`⚠️ [reactFlowConverter] Place ${place.id} のtemplate未検出、templateMapKeys:`, Object.keys(templateMap));
+      }
+      
+      // templateRefはオブジェクト全体を格納
+      if (template && template.placeRefs) {
+        console.log(`🔍 [reactFlowConverter] templateRef作成前 Place ${place.id} template.placeRefs:`, {
+          placeRefsType: Array.isArray(template.placeRefs) ? 'array' : typeof template.placeRefs,
+          placeRefsLength: template.placeRefs?.length,
+          placeRefsDetail: template.placeRefs?.map((pr, i) => ({
+            index: i,
+            type: typeof pr,
+            isObject: typeof pr === 'object' && pr !== null,
+            isString: typeof pr === 'string',
+            value: pr,
+            keys: typeof pr === 'object' && pr !== null ? Object.keys(pr) : null
+          }))
+        });
+      }
+      
+      const templateRef: TemplateRef | undefined = template ? {
+        type: template.stereotype || 'MaterialTemplate',
+        uuid: template.uuid || '',
+        name: template.name || '',
+        placeRefs: template.placeRefs || [],
+        templateRefs: template.templateRefs || [],
+        properties: (Array.isArray(template.properties) 
+          ? template.properties 
+          : template.properties) as Record<string, unknown>
+      } : undefined;
+      
+      if (templateRef && templateRef.placeRefs) {
+        console.log(`🎯 [reactFlowConverter] templateRef作成直後 Place ${place.id} templateRef.placeRefs:`, {
+          placeRefsType: Array.isArray(templateRef.placeRefs) ? 'array' : typeof templateRef.placeRefs,
+          placeRefsLength: templateRef.placeRefs?.length,
+          placeRefsDetail: templateRef.placeRefs?.map((pr, i) => ({
+            index: i,
+            type: typeof pr,
+            isObject: typeof pr === 'object' && pr !== null,
+            isString: typeof pr === 'string',
+            value: pr,
+            keys: typeof pr === 'object' && pr !== null ? Object.keys(pr) : null
+          }))
+        });
+      }
+      
+      const nodeData: NodeData = {
+        // 基本情報
+        id: place.id,
+        name: place.data.name || template?.name || '',
+        nodeId: place.id,
         nodeType: 'place',
-        templateType: template?.type,
-        description: template?.description,
-        properties: template?.properties?.reduce((acc, prop) => {
-          acc[prop.key] = prop.defaultValue || '';
-          return acc;
-        }, {} as Record<string, string>),
-        template,
-        // 🎯 共通テンプレート情報を追加
-        isCommonTemplate: isCommonTemplate || false,
-        commonTemplateRef: commonTemplateRef,
-      },
-    };
-
-    nodes.push(node);
-  });
-
-  // 4. Transitionsをノードに変換
-  structure.transitions.forEach((transition) => {
-    const position = nodePositions.get(transition.id) || { x: 0, y: 0 };
-
-    const node: Node = {
-      id: transition.id,
-      type: 'transition',
-      position: position,
-      data: {
-        label: transition.name || transition.id,
-        nodeType: 'transition',
-        description: transition.description,
-      },
-    };
-
-    nodes.push(node);
-  });
-
-  // 5. Arcsをエッジに変換（reference版互換）
-  structure.arcs.forEach((arc, index) => {
-    const edge: Edge = {
+        stereotype: template?.stereotype || place.data.stereotype || 'MaterialTemplate',
+        
+        // メタデータの完全反映
+        description: place.data.description || template?.description || '',
+        annotation: template?.annotation || place.data.annotation || '',
+        
+        // プロパティの完全反映
+        properties: template?.properties || place.data.properties || [],
+        
+        // テンプレート参照情報
+        templateRef: templateRef,
+        
+        // template全体を保持（後方互換性のため）
+        template: template || undefined,
+        templateId: template?.templateId || template?.id || undefined,
+        
+        // placeType
+        placeType: (template?.stereotype || place.data.stereotype || 'MaterialTemplate')
+          .toLowerCase()
+          .replace('template', '') as 'material' | 'condition' | 'result',
+        
+        // 複数PNML要素対応 - pnmlId
+        pnmlId: place.data.pnmlId || null
+      };
+      
+      if (nodeData.template && nodeData.template.placeRefs) {
+        console.log(`🎨 [reactFlowConverter] nodeData.template.placeRefs (Place ${place.id}):`, {
+          placeRefsType: Array.isArray(nodeData.template.placeRefs) ? 'array' : typeof nodeData.template.placeRefs,
+          placeRefsLength: nodeData.template.placeRefs?.length,
+          placeRefsDetail: nodeData.template.placeRefs?.map((pr, i) => ({
+            index: i,
+            type: typeof pr,
+            isObject: typeof pr === 'object' && pr !== null,
+            isString: typeof pr === 'string',
+            value: pr,
+            keys: typeof pr === 'object' && pr !== null ? Object.keys(pr) : null
+          }))
+        });
+      }
+      
+      if (nodeData.templateRef && nodeData.templateRef.placeRefs) {
+        console.log(`🎨 [reactFlowConverter] nodeData.templateRef.placeRefs (Place ${place.id}):`, {
+          placeRefsType: Array.isArray(nodeData.templateRef.placeRefs) ? 'array' : typeof nodeData.templateRef.placeRefs,
+          placeRefsLength: nodeData.templateRef.placeRefs?.length,
+          placeRefsDetail: nodeData.templateRef.placeRefs?.map((pr, i) => ({
+            index: i,
+            type: typeof pr,
+            isObject: typeof pr === 'object' && pr !== null,
+            isString: typeof pr === 'string',
+            value: pr,
+            keys: typeof pr === 'object' && pr !== null ? Object.keys(pr) : null
+          }))
+        });
+      }
+      
+      return {
+        id: place.id,
+        type: getNodeTypeFromStereotype(template?.stereotype || place.data.stereotype),
+        position: position,
+        data: nodeData
+      };
+    });
+    
+    // Transitionsをノード化
+    const transitionNodes: Node<NodeData>[] = transitions.map(transition => {
+      const position = nodePositions.get(transition.id) || { x: 0, y: 0 };
+      
+      return {
+        id: transition.id,
+        type: 'transition',
+        position: position,
+        data: {
+          id: transition.id,
+          name: transition.data.name || transition.data.description || transition.id,
+          nodeId: transition.id,
+          nodeType: 'transition',
+          
+          // メタデータの完全反映
+          description: transition.data.description || '',
+          hasInstruction: transition.data.hasInstruction || false,
+          
+          // transition全体を保持
+          transition: transition.data.transition || undefined,
+          
+          // 複数PNML要素対応 - pnmlId
+          pnmlId: transition.data.pnmlId || null,
+          
+          // 元のdataも保持
+          ...transition.data
+        }
+      };
+    });
+    
+    // Arcsをエッジ化
+    const edges: Edge<EdgeData>[] = arcs.map((arc, index) => ({
       id: arc.id || `arc-${index}`,
       source: arc.source,
       target: arc.target,
-      label: arc.name,  // アーク名がある場合のみ表示
       type: 'default',
       animated: false,
       style: { 
@@ -145,51 +240,161 @@ export function convertToReactFlow(structure: PetriNetStructure): {
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color: '#555'
-      },
-      data: { name: arc.name },
+      }
+    }));
+    
+    const allNodes = [...placeNodes, ...transitionNodes];
+    
+    // 複数PNML要素対応：フレーム枠線レンダリング
+    const { frameNodes, adjustedNodes } = createPnmlGroupFrames(allNodes, petriNetData);
+    
+    console.log('✅ [reactFlowConverter] React Flow形式変換完了:', {
+      totalNodes: adjustedNodes.length,
+      placeNodes: placeNodes.length,
+      transitionNodes: transitionNodes.length,
+      edges: edges.length,
+      frameNodes: frameNodes.length,
+      placesWithTemplateRef: placeNodes.filter(n => n.data.templateRef).length
+    });
+    
+    return {
+      nodes: [...frameNodes, ...adjustedNodes],
+      edges: edges
     };
-
-    edges.push(edge);
-  });
-
-  console.log('🔄 [convertToReactFlow] 変換結果:', {
-    nodes: nodes.length,
-    edges: edges.length,
-  });
-
-  return { nodes, edges };
-}
+    
+  } catch (error) {
+    console.error('❌ [reactFlowConverter] React Flow形式変換エラー:', error);
+    return { nodes: [], edges: [] };
+  }
+};
 
 /**
- * トポロジカルソートベースのレイアウト計算
- * reference版のcalculateSimpleLayoutを移植
+ * ステレオタイプからノードタイプを判定
  */
-function calculateTopologicalLayout(
-  places: PetriNetStructure['places'],
-  transitions: PetriNetStructure['transitions'],
-  arcs: PetriNetStructure['arcs']
-): Map<string, { x: number; y: number }> {
-  const nodePositions = new Map<string, { x: number; y: number }>();
+const getNodeTypeFromStereotype = (stereotype?: string): string => {
+  if (!stereotype) {
+    console.warn('[reactFlowConverter] stereotypeが空、デフォルトでmaterialTemplateを使用');
+    return 'materialTemplate';
+  }
+  
+  const lower = stereotype.toLowerCase();
+  
+  if (lower.includes('material')) {
+    return 'materialTemplate';
+  }
+  
+  if (lower.includes('condition')) {
+    return 'conditionTemplate';
+  }
+  
+  if (lower.includes('result')) {
+    return 'resultTemplate';
+  }
+  
+  console.warn(`[reactFlowConverter] 未知のstereotype: ${stereotype}、デフォルトでmaterialTemplateを使用`);
+  return 'materialTemplate';
+};
+
+/**
+ * ノードIDからノード情報を取得
+ */
+export const getNodeById = (nodeId: string, nodes: Node<NodeData>[]): Node<NodeData> | null => {
+  if (!nodeId || !nodes) {
+    return null;
+  }
+  
+  return nodes.find(node => node.id === nodeId) || null;
+};
+
+/**
+ * Transitionに接続されているPlaceノードを取得
+ */
+export const getConnectedPlaces = (
+  transitionId: string,
+  edges: Edge<EdgeData>[],
+  nodes: Node<NodeData>[]
+): { inputPlaces: Node<NodeData>[]; outputPlaces: Node<NodeData>[] } => {
+  if (!transitionId || !edges || !nodes) {
+    return { inputPlaces: [], outputPlaces: [] };
+  }
+  
+  // 入力Place（Place → Transition）
+  const inputEdges = edges.filter(edge => edge.target === transitionId);
+  const inputPlaces = inputEdges
+    .map(edge => getNodeById(edge.source, nodes))
+    .filter((node): node is Node<NodeData> => node !== null);
+  
+  // 出力Place（Transition → Place）
+  const outputEdges = edges.filter(edge => edge.source === transitionId);
+  const outputPlaces = outputEdges
+    .map(edge => getNodeById(edge.target, nodes))
+    .filter((node): node is Node<NodeData> => node !== null);
+  
+  return {
+    inputPlaces,
+    outputPlaces
+  };
+};
+
+/**
+ * Placeに接続されているTransitionノードを取得
+ */
+export const getConnectedTransitions = (
+  placeId: string,
+  edges: Edge<EdgeData>[],
+  nodes: Node<NodeData>[]
+): { inputTransitions: Node<NodeData>[]; outputTransitions: Node<NodeData>[] } => {
+  if (!placeId || !edges || !nodes) {
+    return { inputTransitions: [], outputTransitions: [] };
+  }
+  
+  // 入力Transition（Transition → Place）
+  const inputEdges = edges.filter(edge => edge.target === placeId);
+  const inputTransitions = inputEdges
+    .map(edge => getNodeById(edge.source, nodes))
+    .filter((node): node is Node<NodeData> => node !== null);
+  
+  // 出力Transition（Place → Transition）
+  const outputEdges = edges.filter(edge => edge.source === placeId);
+  const outputTransitions = outputEdges
+    .map(edge => getNodeById(edge.target, nodes))
+    .filter((node): node is Node<NodeData> => node !== null);
+  
+  return {
+    inputTransitions,
+    outputTransitions
+  };
+};
+
+/**
+ * WorkerDashboard準拠のレイアウト計算（トポロジカルソート）
+ */
+const calculateSimpleLayout = (
+  places: Place[],
+  transitions: Transition[],
+  arcs: { source: string; target: string }[]
+): Map<string, Position> => {
+  const nodePositions = new Map<string, Position>();
   const horizontalSpacing = 250;
   const nodeSpacing = 80;
   const startX = 50;
-
-  console.log('🔍 [calculateTopologicalLayout] レイアウト計算開始:', {
+  
+  console.log('🔍 [calculateSimpleLayout] レイアウト計算開始:', {
     places: places.length,
     transitions: transitions.length,
     arcs: arcs.length
   });
-
+  
   // トポロジカルソートでTransitionの階層を決定
   const transitionLevels = new Map<string, number>();
   const inDegree = new Map<string, number>();
-
+  
   // 初期化
   transitions.forEach(t => {
     inDegree.set(t.id, 0);
     transitionLevels.set(t.id, 0);
   });
-
+  
   // Transition間の依存関係を計算（Place経由）
   transitions.forEach(t => {
     const inputPlaces = arcs.filter(arc => arc.target === t.id).map(arc => arc.source);
@@ -197,13 +402,13 @@ function calculateTopologicalLayout(
       const sourceTrans = arcs
         .filter(arc => arc.target === placeId && transitions.some(tr => tr.id === arc.source))
         .map(arc => arc.source);
-
+      
       sourceTrans.forEach(sourceTransId => {
         inDegree.set(t.id, (inDegree.get(t.id) || 0) + 1);
       });
     });
   });
-
+  
   // BFSでレベル計算
   const queue: string[] = [];
   transitions.forEach(t => {
@@ -212,71 +417,74 @@ function calculateTopologicalLayout(
       transitionLevels.set(t.id, 0);
     }
   });
-
+  
   while (queue.length > 0) {
-    const currentId = queue.shift()!;
-    const currentLevel = transitionLevels.get(currentId)!;
-
+    const currentId = queue.shift();
+    if (!currentId) continue;
+    
+    const currentLevel = transitionLevels.get(currentId) || 0;
+    
     const outputPlaces = arcs.filter(arc => arc.source === currentId).map(arc => arc.target);
     outputPlaces.forEach(placeId => {
       const nextTrans = arcs
         .filter(arc => arc.source === placeId && transitions.some(t => t.id === arc.target))
         .map(arc => arc.target);
-
+      
       nextTrans.forEach(nextTransId => {
         const nextLevel = currentLevel + 1;
         if (nextLevel > (transitionLevels.get(nextTransId) || 0)) {
           transitionLevels.set(nextTransId, nextLevel);
         }
-
+        
         const degree = (inDegree.get(nextTransId) || 1) - 1;
         inDegree.set(nextTransId, degree);
-
+        
         if (degree === 0 && !queue.includes(nextTransId)) {
           queue.push(nextTransId);
         }
       });
     });
   }
-
+  
   // レベルごとにグループ化
-  const transitionsByLevel = new Map<number, typeof transitions>();
+  const transitionsByLevel = new Map<number, Transition[]>();
   transitions.forEach(t => {
     const level = transitionLevels.get(t.id) || 0;
     if (!transitionsByLevel.has(level)) {
       transitionsByLevel.set(level, []);
     }
-    transitionsByLevel.get(level)!.push(t);
+    transitionsByLevel.get(level)?.push(t);
   });
-
+  
   const maxLevel = Math.max(...Array.from(transitionLevels.values()), 0);
-
+  
   console.log('📊 [Transitions by Level]:', Array.from(transitionsByLevel.entries()).map(([level, trans]) => ({
     level,
     count: trans.length
   })));
-
+  
   // レベルごとに処理
-  for (let level = 0; level <= maxLevel; level++) {
-    const transitionsAtLevel = transitionsByLevel.get(level) || [];
+  Array.from(transitionsByLevel.entries()).forEach(([level, transitionsAtLevel]) => {
+    if (level > maxLevel) return;
+    
     let currentY = 0;
-
-    transitionsAtLevel.forEach((transition) => {
+    
+    (transitionsAtLevel || []).forEach((transition) => {
       // このTransitionの入力Place
       const inputPlaceIds = arcs
         .filter(arc => arc.target === transition.id)
         .map(arc => arc.source);
-
+      
       const inputPlaces = places.filter(p => inputPlaceIds.includes(p.id));
-
+      
       // 従属ノード（他のTransitionの出力）のみ配置
       const dependentInputPlaces = inputPlaces.filter(place => {
-        return arcs.some(arc =>
-          arc.target === place.id &&
+        return arcs.some(arc => 
+          arc.target === place.id && 
           transitions.some(t => t.id === arc.source)
         );
       });
-
+      
       // 従属ノードを配置
       dependentInputPlaces.forEach((place, i) => {
         if (!nodePositions.has(place.id)) {
@@ -285,26 +493,26 @@ function calculateTopologicalLayout(
           nodePositions.set(place.id, { x, y });
         }
       });
-
+      
       // Transitionの位置計算
       const allInputYs = dependentInputPlaces
         .map(p => nodePositions.get(p.id)?.y)
-        .filter(y => y !== undefined) as number[];
-
-      const transitionY = allInputYs.length > 0
+        .filter((y): y is number => y !== undefined);
+      
+      const transitionY = allInputYs.length > 0 
         ? (Math.min(...allInputYs) + Math.max(...allInputYs)) / 2
         : currentY;
-
+      
       const transitionX = startX + (level * horizontalSpacing) + (horizontalSpacing * 0.5);
       nodePositions.set(transition.id, { x: transitionX, y: transitionY });
-
+      
       // 出力Placeを配置
       const outputPlaceIds = arcs
         .filter(arc => arc.source === transition.id)
         .map(arc => arc.target);
-
+      
       const outputPlaces = places.filter(p => outputPlaceIds.includes(p.id));
-
+      
       outputPlaces.forEach((place, i) => {
         if (!nodePositions.has(place.id)) {
           const x = startX + ((level + 1) * horizontalSpacing);
@@ -312,64 +520,199 @@ function calculateTopologicalLayout(
           nodePositions.set(place.id, { x, y });
         }
       });
-
+      
       // 次のTransition用にY座標を更新
       const maxInputY = allInputYs.length > 0 ? Math.max(...allInputYs) : currentY;
       currentY = maxInputY + nodeSpacing * 3;
     });
-  }
-
+  });
+  
   // 独立ノード（入力専用Place）を配置
   places.forEach(place => {
     if (nodePositions.has(place.id)) return;
-
-    const isIndependent = !arcs.some(arc =>
-      arc.target === place.id &&
+    
+    const isIndependent = !arcs.some(arc => 
+      arc.target === place.id && 
       transitions.some(t => t.id === arc.source)
     );
-
+    
     if (!isIndependent) return;
-
+    
     // このPlaceが出力するTransitionを探す
     const outputTransitions = arcs
       .filter(arc => arc.source === place.id)
       .map(arc => transitions.find(t => t.id === arc.target))
-      .filter(t => t);
-
+      .filter((t): t is Transition => !!t);
+    
     if (outputTransitions.length === 0) return;
-
-    const targetTransition = outputTransitions[0]!;
+    
+    const targetTransition = outputTransitions[0];
     const transitionPos = nodePositions.get(targetTransition.id);
     const transitionLevel = transitionLevels.get(targetTransition.id) || 0;
-
+    
     if (!transitionPos) return;
-
+    
     const x = startX + (transitionLevel * horizontalSpacing);
     let y = transitionPos.y;
-
+    
     // 衝突回避
     const minDistance = nodeSpacing * 0.8;
     let attempts = 0;
     while (attempts < 50) {
       let collision = false;
-
-      for (const [, pos] of nodePositions.entries()) {
-        if (Math.abs(pos.x - x) < horizontalSpacing * 0.3 &&
+      
+      Array.from(nodePositions.entries()).forEach(([, pos]) => {
+        if (Math.abs(pos.x - x) < horizontalSpacing * 0.3 && 
             Math.abs(pos.y - y) < minDistance) {
           collision = true;
-          break;
         }
-      }
-
+      });
+      
       if (!collision) break;
       y += nodeSpacing;
       attempts++;
     }
-
+    
     nodePositions.set(place.id, { x, y });
   });
-
-  console.log('✅ [calculateTopologicalLayout] レイアウト計算完了:', nodePositions.size);
-
+  
+  console.log('✅ [calculateSimpleLayout] レイアウト計算完了:', nodePositions.size);
+  
   return nodePositions;
-}
+};
+
+/**
+ * 複数PNML要素対応: PNMLグループのフレーム枠線を生成
+ */
+const createPnmlGroupFrames = (
+  nodes: Node<NodeData>[],
+  petriNetData: PetriNetData
+): FrameNodesResult => {
+  try {
+    console.log('🎯 [createPnmlGroupFrames] フレーム枠線生成開始:', {
+      nodeCount: nodes.length,
+      hasPnmlMetadata: !!petriNetData.pnmlMetadata,
+      pnmlMetadataLength: petriNetData.pnmlMetadata?.length
+    });
+    
+    // pnmlMetadataが存在しない、または単一PNMLの場合はフレームなし
+    if (!petriNetData.pnmlMetadata || petriNetData.pnmlMetadata.length <= 1) {
+      console.log('ℹ️ [createPnmlGroupFrames] 単一PNMLまたはメタデータなし、フレーム不要');
+      return { frameNodes: [], adjustedNodes: nodes };
+    }
+    
+    const frameNodes: Node<NodeData>[] = [];
+    const adjustedNodes: Node<NodeData>[] = [];
+    const framePadding = 15;
+    const labelHeight = 30;
+    const frameMargin = 150;
+    
+    let currentYOffset = 0;
+    
+    // 各PNMLメタデータからフレームを生成
+    petriNetData.pnmlMetadata.forEach((pnmlMeta: PnmlMetadata) => {
+      const pnmlId = pnmlMeta.pnmlId;
+      const description = pnmlMeta.description || pnmlMeta.name || pnmlId;
+      
+      // このpnmlIdに属するノードを取得
+      const groupNodes = nodes.filter(node => node.data.pnmlId === pnmlId);
+      
+      if (groupNodes.length === 0) {
+        console.warn(`⚠️ [createPnmlGroupFrames] PNML ${pnmlId} に属するノードなし`);
+        return;
+      }
+      
+      // グループの境界を計算
+      const nodeWidth = 80;
+      const nodeHeight = 80;
+      
+      const originalMinX = Math.min(...groupNodes.map(node => node.position.x));
+      const originalMinY = Math.min(...groupNodes.map(node => node.position.y));
+      const originalMaxX = Math.max(...groupNodes.map(node => node.position.x));
+      const originalMaxY = Math.max(...groupNodes.map(node => node.position.y));
+      
+      const actualHeight = originalMaxY - originalMinY;
+      const minHeightBasedOnNodes = (groupNodes.length - 1) * 100 + nodeHeight;
+      const effectiveHeight = Math.min(actualHeight, minHeightBasedOnNodes);
+      
+      const normalizedWidth = originalMaxX - originalMinX + nodeWidth + (framePadding * 2);
+      const normalizedHeight = effectiveHeight + nodeHeight + labelHeight + (framePadding * 2);
+      
+      const frameWidth = normalizedWidth;
+      const frameHeight = normalizedHeight;
+      
+      // 親ノード（フレーム）を作成
+      const frameId = `pnml-frame-${pnmlId}`;
+      frameNodes.push({
+        id: frameId,
+        type: 'pnmlGroup',
+        position: { x: originalMinX - framePadding, y: currentYOffset },
+        style: {
+          width: frameWidth,
+          height: frameHeight,
+          border: 'none',
+          background: 'transparent',
+        },
+        data: {
+          id: frameId,
+          name: description,
+          description: description,
+          nodeType: 'place',
+          pnmlId: pnmlId
+        },
+        draggable: true,
+        selectable: false,
+      });
+      
+      // グループ内のノードに親ノード指定
+      groupNodes.forEach(node => {
+        adjustedNodes.push({
+          ...node,
+          parentNode: frameId,
+          extent: 'parent' as const,
+          position: {
+            x: node.position.x - originalMinX + framePadding,
+            y: node.position.y - originalMinY + labelHeight + framePadding
+          }
+        });
+      });
+      
+      console.log(`📦 [createPnmlGroupFrames] フレーム作成: ${description}`, {
+        pnmlId,
+        nodeCount: groupNodes.length,
+        frameWidth,
+        frameHeight,
+        originalBounds: { 
+          minY: originalMinY, 
+          maxY: originalMaxY, 
+          actualHeight: originalMaxY - originalMinY,
+          minHeightBasedOnNodes,
+          effectiveHeight
+        },
+        position: { x: originalMinX - framePadding, y: currentYOffset },
+        yOffset: currentYOffset
+      });
+      
+      // 次のグループのY座標オフセットを更新
+      currentYOffset += frameHeight + frameMargin;
+    });
+    
+    // pnmlIdを持たないノードをそのまま追加
+    const nodesWithoutPnmlId = nodes.filter(node => !node.data.pnmlId);
+    if (nodesWithoutPnmlId.length > 0) {
+      console.log(`📦 [createPnmlGroupFrames] pnmlIdなしノードを追加: ${nodesWithoutPnmlId.length}個`);
+      adjustedNodes.push(...nodesWithoutPnmlId);
+    }
+    
+    console.log(`✅ [createPnmlGroupFrames] フレーム生成完了:`, {
+      frameCount: frameNodes.length,
+      adjustedNodeCount: adjustedNodes.length
+    });
+    
+    return { frameNodes, adjustedNodes };
+    
+  } catch (error) {
+    console.error('❌ [createPnmlGroupFrames] フレーム生成エラー:', error);
+    return { frameNodes: [], adjustedNodes: nodes };
+  }
+};

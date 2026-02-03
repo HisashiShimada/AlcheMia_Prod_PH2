@@ -7,8 +7,8 @@
  * @date 2026-01-28
  */
 
-import { Template, TemplateError } from '@/components/editor/TemplateItem';
-import { CategorizedTemplates } from '@/components/editor/TemplateList';
+import { Template, TemplateError } from '../../editor/TemplateItem';
+import { CategorizedTemplates } from '../../editor/TemplateList';
 
 /**
  * Property型定義（内部使用）

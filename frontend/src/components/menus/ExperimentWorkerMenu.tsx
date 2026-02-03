@@ -112,7 +112,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
 
   // クライアント側フラグ（ハイドレーションエラー防止）
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     setIsClient(true);
   }, []);
 

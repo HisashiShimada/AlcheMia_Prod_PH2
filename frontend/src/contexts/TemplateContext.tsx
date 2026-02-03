@@ -8,8 +8,8 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { Template, TemplateError } from '@/components/editor/TemplateItem';
-import { CategorizedTemplates } from '@/components/editor/TemplateList';
+import { Template, TemplateError } from '../../editor/TemplateItem';
+import { CategorizedTemplates } from '../../editor/TemplateList';
 import {
   extractTemplatesFromMaiML,
   mapValidationErrorsToTemplates,

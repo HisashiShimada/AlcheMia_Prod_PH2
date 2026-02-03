@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Spin, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { ReactFlowProvider } from 'reactflow';
-import PetriNetEditor from '@/components/editor/PetriNetEditor';
+import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
 
 /**
  * PetriNetエディタのフルスクリーン表示画面
@@ -220,12 +220,11 @@ export default function PetriNetEditorScreen({
       {/* エディタ本体（ReactFlowProviderでラップ） */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <ReactFlowProvider>
-          <PetriNetEditor
-            initialContent={maimlContent}
-            projectId={projectId}
-            projectName={projectName}
-            onSave={handleSave}
-            onContentChange={handleContentChange}
+          <PetriNetEditorInner
+            maimlData={maimlContent || null}
+            editingFileName={`${projectName}.maiml`}
+            editMode="project"
+            originalFileName={projectName}
           />
         </ReactFlowProvider>
       </div>

@@ -23,6 +23,7 @@
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
     "@types/papaparse": "^5.5.1",
+    "@types/xml-js": "^0.9.0",
     "antd": "^6.1.0",
     "axios": "^1.13.2",
     "dayjs": "^1.11.19",
@@ -34,7 +35,8 @@
     "react-dom": "19.2.1",
     "react-draggable": "^4.5.0",
     "react-rnd": "^10.5.2",
-    "reactflow": "^11.11.4"
+    "reactflow": "^11.11.4",
+    "xml-js": "^1.6.11"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

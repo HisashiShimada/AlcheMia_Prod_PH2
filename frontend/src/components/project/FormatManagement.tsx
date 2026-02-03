@@ -29,8 +29,8 @@ import FormatUploadDialog from './FormatUploadDialog';
 import CreateFormatFileModal, { CreateFormatFileData } from './CreateFormatFileModal';
 import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatFolderModal';
 import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
-import PetriNetEditor from '../editor/PetriNetEditor';
-import TemplateEditorDialog from '../editor/TemplateEditorDialog';
+import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
+import TemplateEditorDialog from '@/components/editorv2/components/TemplateEditorDialog';
 import mockFormatFilesData from '@/data/mock/mockFormatFiles.json';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
@@ -129,7 +129,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   React.useEffect(() => {
     if (formatsData?.data.folders) {
       // Data synchronization in useEffect is a valid pattern
-      // eslint-disable-next-line
+       
       setFormats(formatsData.data.folders as Format[]);
     }
   }, [formatsData]);
@@ -864,18 +864,10 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
               </div>
             ) : (
               <ReactFlowProvider>
-                <PetriNetEditor
+                <PetriNetEditorInner
+                  maimlData={maimlFileContent}
                   editingFileName={editingMaimlFile.name}
-                  sourceContext="format"
-                  initialContent={maimlFileContent || undefined}
-                  onSave={async (content: string) => {
-                    console.log('💾 [FormatManagement] MAIML保存:', editingMaimlFile.name);
-                    // TODO: 実際の保存処理を実装
-                    message.success('保存しました（モック）');
-                  }}
-                  onContentChange={() => {
-                    console.log('📝 [FormatManagement] MAIML変更検知');
-                  }}
+                  editMode="format"
                 />
               </ReactFlowProvider>
             )}
@@ -895,8 +887,8 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
             id: tempId,
             name: editingXmlFile.name.replace('.xml', ''),
             description: '',
-            placeType: 'material',
-            nodeType: 'place',
+            placeType: 'material' as const,
+            nodeType: 'place' as const,
           },
         };
         
@@ -908,15 +900,20 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
               setEditingXmlFile(null);
             }}
             node={tempNode}
-            onSave={(updatedNode) => {
-              console.log('💾 [FormatManagement] XML保存:', editingXmlFile.name, updatedNode);
+            onSave={(nodeId, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId) => {
+              console.log('💾 [FormatManagement] XML保存:', editingXmlFile.name, {
+                nodeId,
+                templateRef,
+                isNewTemplate,
+                templateCategory,
+                isCommonTemplate,
+                methodId
+              });
               // TODO: 実際の保存処理を実装
               message.success('保存しました（モック）');
               setShowTemplateEditor(false);
               setEditingXmlFile(null);
             }}
-            sourceContext="format"
-            editingFileName={editingXmlFile.name}
           />
         );
       })()}
