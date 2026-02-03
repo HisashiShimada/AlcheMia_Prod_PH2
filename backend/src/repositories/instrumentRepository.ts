@@ -1,6 +1,6 @@
 /**
  * Instrumentマスタリポジトリ
- * instrument_masterテーブルへのデータアクセスを担当
+ * instrumentテーブルへのデータアクセスを担当
  */
 
 import { getPool } from '../database/db';
@@ -36,7 +36,7 @@ export const findAll = async (
       instrument_annotation,
       is_active,
       update_at
-    FROM instrument_master
+    FROM instrument
     WHERE organization_id = $1
     ORDER BY instrument_id
   `;
@@ -66,7 +66,7 @@ export const findById = async (
       instrument_annotation,
       is_active,
       update_at
-    FROM instrument_master
+    FROM instrument
     WHERE organization_id = $1
       AND instrument_id = $2
   `;
@@ -90,13 +90,14 @@ export const create = async (
     instrumentDescription?: string;
     instrumentAnnotation?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<InstrumentMaster> => {
   const pool = getPool();
   const { v4: uuidv4 } = require('uuid');
   
   const query = `
-    INSERT INTO instrument_master (
+    INSERT INTO instrument (
       organization_id,
       instrument_uuid,
       instrument_id,
@@ -104,10 +105,12 @@ export const create = async (
       instrument_description,
       instrument_annotation,
       is_active,
+      create_user_id,
+      update_user_id,
       create_at,
       update_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
     )
     RETURNING 
       instrument_id,
@@ -126,6 +129,8 @@ export const create = async (
     data.instrumentDescription || null,
     data.instrumentAnnotation || null,
     data.isActive !== undefined ? data.isActive : true,
+    userId,
+    userId,
   ];
   
   const result = await pool.query(query, values);
@@ -148,17 +153,19 @@ export const update = async (
     instrumentDescription?: string;
     instrumentAnnotation?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<InstrumentMaster | null> => {
   const pool = getPool();
   
   const query = `
-    UPDATE instrument_master
+    UPDATE instrument
     SET
       instrument_name = COALESCE($3, instrument_name),
       instrument_description = COALESCE($4, instrument_description),
       instrument_annotation = COALESCE($5, instrument_annotation),
       is_active = COALESCE($6, is_active),
+      update_user_id = $7,
       update_at = NOW()
     WHERE organization_id = $1
       AND instrument_id = $2
@@ -178,6 +185,7 @@ export const update = async (
     data.instrumentDescription,
     data.instrumentAnnotation,
     data.isActive,
+    userId,
   ];
   
   const result = await pool.query(query, values);
@@ -195,14 +203,16 @@ export const update = async (
 export const updateStatus = async (
   organizationId: string,
   instrumentId: string,
-  isActive: boolean
+  isActive: boolean,
+  userId: string
 ): Promise<InstrumentMaster | null> => {
   const pool = getPool();
   
   const query = `
-    UPDATE instrument_master
+    UPDATE instrument
     SET
       is_active = $3,
+      update_user_id = $4,
       update_at = NOW()
     WHERE organization_id = $1
       AND instrument_id = $2
@@ -215,7 +225,7 @@ export const updateStatus = async (
       update_at
   `;
   
-  const result = await pool.query(query, [organizationId, instrumentId, isActive]);
+  const result = await pool.query(query, [organizationId, instrumentId, isActive, userId]);
   return result.rows[0] || null;
 };
 
@@ -235,7 +245,7 @@ export const existsById = async (
   const query = `
     SELECT EXISTS (
       SELECT 1
-      FROM instrument_master
+      FROM instrument
       WHERE organization_id = $1
         AND instrument_id = $2
     ) as exists
@@ -293,7 +303,7 @@ export const findAllWithFilters = async (
       instrument_annotation,
       is_active,
       update_at
-    FROM instrument_master
+    FROM instrument
     WHERE ${whereClauses.join(' AND ')}
     ORDER BY instrument_id
   `;

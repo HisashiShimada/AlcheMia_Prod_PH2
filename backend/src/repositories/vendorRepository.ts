@@ -36,7 +36,7 @@ export const findAll = async (
       vendor_annotation,
       is_active,
       update_at
-    FROM vendor_master
+    FROM vendor
     WHERE organization_id = $1
     ORDER BY vendor_id
   `;
@@ -66,7 +66,7 @@ export const findById = async (
       vendor_annotation,
       is_active,
       update_at
-    FROM vendor_master
+    FROM vendor
     WHERE organization_id = $1
       AND vendor_id = $2
   `;
@@ -90,13 +90,14 @@ export const create = async (
     vendorDescription?: string;
     vendorAnnotation?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<VendorMaster> => {
   const pool = getPool();
   const { v4: uuidv4 } = require('uuid');
   
   const query = `
-    INSERT INTO vendor_master (
+    INSERT INTO vendor (
       organization_id,
       vendor_uuid,
       vendor_id,
@@ -104,10 +105,12 @@ export const create = async (
       vendor_description,
       vendor_annotation,
       is_active,
+      create_user_id,
+      update_user_id,
       create_at,
       update_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
     )
     RETURNING 
       vendor_id,
@@ -126,6 +129,8 @@ export const create = async (
     data.vendorDescription || null,
     data.vendorAnnotation || null,
     data.isActive !== undefined ? data.isActive : true,
+    userId,
+    userId,
   ];
   
   const result = await pool.query(query, values);
@@ -148,17 +153,19 @@ export const update = async (
     vendorDescription?: string;
     vendorAnnotation?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<VendorMaster | null> => {
   const pool = getPool();
   
   const query = `
-    UPDATE vendor_master
+    UPDATE vendor
     SET
       vendor_name = COALESCE($3, vendor_name),
       vendor_description = COALESCE($4, vendor_description),
       vendor_annotation = COALESCE($5, vendor_annotation),
       is_active = COALESCE($6, is_active),
+      update_user_id = $7,
       update_at = NOW()
     WHERE organization_id = $1
       AND vendor_id = $2
@@ -178,6 +185,7 @@ export const update = async (
     data.vendorDescription,
     data.vendorAnnotation,
     data.isActive,
+    userId,
   ];
   
   const result = await pool.query(query, values);
@@ -195,14 +203,16 @@ export const update = async (
 export const updateStatus = async (
   organizationId: string,
   vendorId: string,
-  isActive: boolean
+  isActive: boolean,
+  userId: string
 ): Promise<VendorMaster | null> => {
   const pool = getPool();
   
   const query = `
-    UPDATE vendor_master
+    UPDATE vendor
     SET
       is_active = $3,
+      update_user_id = $4,
       update_at = NOW()
     WHERE organization_id = $1
       AND vendor_id = $2
@@ -215,7 +225,7 @@ export const updateStatus = async (
       update_at
   `;
   
-  const result = await pool.query(query, [organizationId, vendorId, isActive]);
+  const result = await pool.query(query, [organizationId, vendorId, isActive, userId]);
   return result.rows[0] || null;
 };
 
@@ -235,7 +245,7 @@ export const existsById = async (
   const query = `
     SELECT EXISTS (
       SELECT 1
-      FROM vendor_master
+      FROM vendor
       WHERE organization_id = $1
         AND vendor_id = $2
     ) as exists
@@ -293,7 +303,7 @@ export const findAllWithFilters = async (
       vendor_annotation,
       is_active,
       update_at
-    FROM vendor_master
+    FROM vendor
     WHERE ${whereClauses.join(' AND ')}
     ORDER BY vendor_id
   `;

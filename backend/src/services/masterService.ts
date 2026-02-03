@@ -1,5 +1,5 @@
 /**
- * マスタ管理サービス
+ * マスタ管理(Creator、Vendor、Instrument)サービス
  * ビジネスロジック層
  */
 
@@ -9,11 +9,6 @@ import * as creatorRepository from '../repositories/creatorRepository';
 import { CreatorSearchFilters } from '../repositories/creatorRepository';
 import * as instrumentRepository from '../repositories/instrumentRepository';
 import * as vendorRepository from '../repositories/vendorRepository';
-import * as corporationRepository from '../repositories/corporationRepository';
-import { CorporationSearchFilters } from '../repositories/corporationRepository';
-import * as departmentRepository from '../repositories/departmentRepository';
-import { DepartmentSearchFilters } from '../repositories/departmentRepository';
-import * as roleRepository from '../repositories/roleRepository';
 import { getPool } from '../database/db';
 
 /**
@@ -53,29 +48,6 @@ export interface VendorMasterResponse {
   vendorDescription: string;
   vendorAnnotation: string;
   isActive: boolean;
-  updatedAt: string;
-}
-
-/**
- * Corporationレスポンス型定義
- */
-export interface CorporationResponse {
-  corporationId: string; // UUID
-  corporationName: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/**
- * Departmentレスポンス型定義
- */
-export interface DepartmentResponse {
-  departmentId: string; // フロントエンド側の期待値: departmentId
-  organizationId: string;
-  displayName: string; // フロントエンド側の期待値: displayName
-  isActive: boolean;
-  createdAt: string;
   updatedAt: string;
 }
 
@@ -193,7 +165,8 @@ export async function createCreatorMaster(
     vendorName?: string;
     instrumentName?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<CreatorMasterResponse> {
   // ID重複チェック
   const exists = await creatorRepository.existsById(organizationId, data.creatorId);
@@ -204,7 +177,7 @@ export async function createCreatorMaster(
     throw error;
   }
   
-  const creator = await creatorRepository.create(organizationId, data);
+  const creator = await creatorRepository.create(organizationId, data, userId);
   
   // 作成後に再取得してvendor/instrumentのis_active情報も含める
   const createdCreator = await creatorRepository.findById(organizationId, creator.creator_id);
@@ -418,7 +391,8 @@ export async function createInstrumentMaster(
     instrumentDescription?: string;
     instrumentAnnotation?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<InstrumentMasterResponse> {
   // ID重複チェック
   const exists = await instrumentRepository.existsById(organizationId, data.instrumentId);
@@ -429,7 +403,7 @@ export async function createInstrumentMaster(
     throw error;
   }
   
-  const instrument = await instrumentRepository.create(organizationId, data);
+  const instrument = await instrumentRepository.create(organizationId, data, userId);
   
   return {
     instrumentId: instrument.instrument_id,
@@ -452,9 +426,10 @@ export async function updateInstrumentMaster(
     instrumentDescription?: string;
     instrumentAnnotation?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<InstrumentMasterResponse | null> {
-  const instrument = await instrumentRepository.update(organizationId, instrumentId, data);
+  const instrument = await instrumentRepository.update(organizationId, instrumentId, data, userId);
   
   if (!instrument) {
     return null;
@@ -476,9 +451,10 @@ export async function updateInstrumentMaster(
 export async function updateInstrumentStatus(
   organizationId: string,
   instrumentId: string,
-  isActive: boolean
+  isActive: boolean,
+  userId: string
 ): Promise<InstrumentMasterResponse | null> {
-  const instrument = await instrumentRepository.updateStatus(organizationId, instrumentId, isActive);
+  const instrument = await instrumentRepository.updateStatus(organizationId, instrumentId, isActive, userId);
   
   if (!instrument) {
     return null;
@@ -505,7 +481,8 @@ export async function createVendorMaster(
     vendorDescription?: string;
     vendorAnnotation?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<VendorMasterResponse> {
   // ID重複チェック
   const exists = await vendorRepository.existsById(organizationId, data.vendorId);
@@ -516,7 +493,7 @@ export async function createVendorMaster(
     throw error;
   }
   
-  const vendor = await vendorRepository.create(organizationId, data);
+  const vendor = await vendorRepository.create(organizationId, data, userId);
   
   return {
     vendorId: vendor.vendor_id,
@@ -539,9 +516,10 @@ export async function updateVendorMaster(
     vendorDescription?: string;
     vendorAnnotation?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<VendorMasterResponse | null> {
-  const vendor = await vendorRepository.update(organizationId, vendorId, data);
+  const vendor = await vendorRepository.update(organizationId, vendorId, data, userId);
   
   if (!vendor) {
     return null;
@@ -563,9 +541,10 @@ export async function updateVendorMaster(
 export async function updateVendorStatus(
   organizationId: string,
   vendorId: string,
-  isActive: boolean
+  isActive: boolean,
+  userId: string
 ): Promise<VendorMasterResponse | null> {
-  const vendor = await vendorRepository.updateStatus(organizationId, vendorId, isActive);
+  const vendor = await vendorRepository.updateStatus(organizationId, vendorId, isActive, userId);
   
   if (!vendor) {
     return null;
@@ -587,12 +566,14 @@ export async function updateVendorStatus(
 export async function updateCreatorMaster(
   organizationId: string,
   creatorId: string,
-  updateData: any
+  updateData: any,
+  userId: string
 ): Promise<any> {
   const updatedCreator = await creatorRepository.update(
     organizationId,
     creatorId,
-    updateData
+    updateData,
+    userId
   );
   
   if (!updatedCreator) {
@@ -608,12 +589,14 @@ export async function updateCreatorMaster(
 export async function updateCreatorStatus(
   organizationId: string,
   creatorId: string,
-  isActive: boolean
+  isActive: boolean,
+  userId: string
 ): Promise<CreatorMasterResponse | null> {
   const creator = await creatorRepository.updateStatus(
     organizationId,
     creatorId,
-    isActive
+    isActive,
+    userId
   );
   
   if (!creator) {
@@ -662,7 +645,8 @@ interface CsvUploadResult {
  */
 export async function uploadCreatorsCsv(
   organizationId: string,
-  csvContent: string
+  csvContent: string,
+  userId: string
 ): Promise<CsvUploadResult> {
   const pool = getPool();
   const client = await pool.connect();
@@ -718,7 +702,7 @@ export async function uploadCreatorsCsv(
             vendorName: row['Vendor名称']?.trim() || '',
             instrumentName: row['Instrument名称']?.trim() || '',
             isActive,
-          });
+          }, userId);
         } else {
           // 新規作成
           await creatorRepository.create(organizationId, {
@@ -729,7 +713,7 @@ export async function uploadCreatorsCsv(
             vendorName: row['Vendor名称']?.trim() || '',
             instrumentName: row['Instrument名称']?.trim() || '',
             isActive,
-          });
+          }, userId);
         }
         
         successCount++;
@@ -757,416 +741,6 @@ export async function uploadCreatorsCsv(
   } finally {
     client.release();
   }
-}
-
-/**
- * Roleレスポンス型定義
- */
-export interface RoleResponse {
-  roleId: string;
-  roleName: string;
-  isActive: boolean;
-  functionName: string;
-  functionWritePermissions: string;
-  updatedAt: string | null;
-}
-
-/**
- * ロール一覧を取得
- * 
- * @param organizationId 組織ID
- * @returns ロールの配列
- */
-export async function getRoles(
-  organizationId: string
-): Promise<RoleResponse[]> {
-  console.log('=== masterService.getRoles called ===');
-  console.log('organizationId:', organizationId);
-  
-  const roles = await roleRepository.getRoles(organizationId);
-  console.log('Repository returned:', roles.length, 'records');
-  
-  // Role型はすでに整形済みなのでそのまま返す
-  return roles;
-}
-
-/**
- * ロールIDで1件取得
- * 
- * @param organizationId 組織ID
- * @param roleId ロールID
- * @returns ロール（見つからない場合はnull）
- */
-export async function getRoleById(
-  organizationId: string,
-  roleId: string
-): Promise<RoleResponse | null> {
-  const role = await roleRepository.getRoleById(organizationId, roleId);
-  
-  if (!role) {
-    return null;
-  }
-  
-  return role;
-}
-
-/**
- * Departmentを取得
- * 
- * @param organizationId 組織ID
- * @param filters 検索フィルター
- * @returns Departmentの配列
- */
-export async function getDepartments(
-  organizationId: string,
-  filters: DepartmentSearchFilters = {}
-): Promise<DepartmentResponse[]> {
-  console.log('=== masterService.getDepartments called ===');
-  console.log('organizationId:', organizationId);
-  console.log('filters:', filters);
-  
-  const departments = await departmentRepository.findAll(organizationId, filters);
-  console.log('Repository returned:', departments.length, 'records');
-  
-  return departments.map(dept => ({
-    departmentId: dept.department_cd,  // department_cd → departmentId
-    organizationId: dept.organization_id,
-    displayName: dept.department_name,  // department_name → displayName
-    isActive: dept.is_active,
-    createdAt: formatDateTime(dept.create_at),
-    updatedAt: formatDateTime(dept.update_at),
-  }));
-}
-
-/**
- * Department CDで1件取得
- * 
- * @param organizationId 組織ID
- * @param departmentCd 部署CD
- * @returns Department（見つからない場合はnull）
- */
-export async function getDepartmentById(
-  organizationId: string,
-  departmentCd: string
-): Promise<DepartmentResponse | null> {
-  const department = await departmentRepository.findById(organizationId, departmentCd);
-  
-  if (!department) {
-    return null;
-  }
-  
-  return {
-    departmentId: department.department_cd,  // department_cd → departmentId
-    organizationId: department.organization_id,
-    displayName: department.department_name,  // department_name → displayName
-    isActive: department.is_active,
-    createdAt: formatDateTime(department.create_at),
-    updatedAt: formatDateTime(department.update_at),
-  };
-}
-
-/**
- * Departmentを新規作成
- */
-export async function createDepartment(
-  organizationId: string,
-  data: {
-    departmentCd: string;
-    departmentName: string;
-    isActive?: boolean;
-  }
-): Promise<DepartmentResponse> {
-  // ID重複チェック
-  const exists = await departmentRepository.existsById(organizationId, data.departmentCd);
-  if (exists) {
-    const error: any = new Error('入力されたIDは既に存在しています');
-    error.statusCode = 409;
-    error.code = 'DUPLICATE_DEPARTMENT_CD';
-    throw error;
-  }
-  
-  const department = await departmentRepository.create(organizationId, data);
-  
-  return {
-    departmentId: department.department_cd,  // department_cd → departmentId
-    organizationId: department.organization_id,
-    displayName: department.department_name,  // department_name → displayName
-    isActive: department.is_active,
-    createdAt: formatDateTime(department.create_at),
-    updatedAt: formatDateTime(department.update_at),
-  };
-}
-
-/**
- * Departmentを更新
- */
-export async function updateDepartment(
-  organizationId: string,
-  departmentCd: string,
-  data: {
-    departmentName?: string;
-    isActive?: boolean;
-  }
-): Promise<DepartmentResponse | null> {
-  const department = await departmentRepository.update(organizationId, departmentCd, data);
-  
-  if (!department) {
-    return null;
-  }
-  
-  return {
-    departmentId: department.department_cd,  // department_cd → departmentId
-    organizationId: department.organization_id,
-    displayName: department.department_name,  // department_name → displayName
-    isActive: department.is_active,
-    createdAt: formatDateTime(department.create_at),
-    updatedAt: formatDateTime(department.update_at),
-  };
-}
-
-/**
- * Departmentのアクティブ状態を更新
- */
-export async function updateDepartmentStatus(
-  organizationId: string,
-  departmentCd: string,
-  isActive: boolean
-): Promise<DepartmentResponse | null> {
-  const department = await departmentRepository.updateStatus(organizationId, departmentCd, isActive);
-  
-  if (!department) {
-    return null;
-  }
-  
-  return {
-    departmentId: department.department_cd,  // department_cd → departmentId
-    organizationId: department.organization_id,
-    displayName: department.department_name,  // department_name → displayName
-    isActive: department.is_active,
-    createdAt: formatDateTime(department.create_at),
-    updatedAt: formatDateTime(department.update_at),
-  };
-}
-
-/**
- * DepartmentCSVアップロード処理
- * 
- * @param organizationId 組織ID
- * @param csvContent CSV文字列
- * @returns アップロード結果
- */
-export async function uploadDepartmentsCsv(
-  organizationId: string,
-  csvContent: string
-): Promise<CsvUploadResult> {
-  const pool = getPool();
-  const client = await pool.connect();
-  
-  try {
-    await client.query('BEGIN');
-    
-    // CSVをパース
-    const parseResult = Papa.parse<CsvRow>(csvContent, {
-      header: true,
-      skipEmptyLines: true,
-    });
-    
-    const errors: CsvValidationError[] = [];
-    let successCount = 0;
-    let failureCount = 0;
-    
-    // 各行を処理
-    for (let i = 0; i < parseResult.data.length; i++) {
-      const row = parseResult.data[i];
-      const rowNumber = i + 2; // ヘッダー行を考慮
-      
-      try {
-        // 必須項目チェック
-        const departmentCd = row['部署CD']?.trim();
-        const departmentName = row['部署名']?.trim();
-        
-        if (!departmentCd) {
-          errors.push({ row: rowNumber, field: '部署CD', message: '部署CDは必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        if (!departmentName) {
-          errors.push({ row: rowNumber, field: '部署名', message: '部署名は必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        // 状態の変換
-        const statusStr = row['状態']?.trim() || 'アクティブ';
-        const isActive = statusStr === 'アクティブ' || statusStr === 'true' || statusStr === '1';
-        
-        // ID重複チェック
-        const exists = await departmentRepository.existsById(organizationId, departmentCd);
-        
-        if (exists) {
-          // 既存レコードを更新
-          await departmentRepository.update(organizationId, departmentCd, {
-            departmentName,
-            isActive,
-          });
-        } else {
-          // 新規作成
-          await departmentRepository.create(organizationId, {
-            departmentCd,
-            departmentName,
-            isActive,
-          });
-        }
-        
-        successCount++;
-      } catch (error) {
-        console.error(`Row ${rowNumber} processing error:`, error);
-        errors.push({
-          row: rowNumber,
-          field: 'general',
-          message: error instanceof Error ? error.message : 'エラーが発生しました',
-        });
-        failureCount++;
-      }
-    }
-    
-    await client.query('COMMIT');
-    
-    return {
-      successCount,
-      failureCount,
-      errors,
-    };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
-/**
- * Corporationを取得
- * 
- * @param filters 検索フィルター
- * @returns Corporationの配列
- */
-export async function getCorporation(
-  filters: CorporationSearchFilters = {}
-): Promise<CorporationResponse[]> {
-  console.log('=== masterService.getCorporation called ===');
-  console.log('filters:', filters);
-  
-  const corporations = await corporationRepository.findAll(filters);
-  console.log('Repository returned:', corporations.length, 'records');
-  
-  return corporations.map(corp => ({
-    corporationId: corp.corporation_id,
-    corporationName: corp.corporation_name,
-    isActive: corp.is_active,
-    createdAt: formatDateTime(corp.create_at),
-    updatedAt: formatDateTime(corp.update_at),
-  }));
-}
-
-/**
- * Corporation IDで1件取得
- * 
- * @param corporationId Corporation ID (UUID)
- * @returns Corporation（見つからない場合はnull）
- */
-export async function getCorporationById(
-  corporationId: string
-): Promise<CorporationResponse | null> {
-  const corporation = await corporationRepository.findById(corporationId);
-  
-  if (!corporation) {
-    return null;
-  }
-  
-  return {
-    corporationId: corporation.corporation_id,
-    corporationName: corporation.corporation_name,
-    isActive: corporation.is_active,
-    createdAt: formatDateTime(corporation.create_at),
-    updatedAt: formatDateTime(corporation.update_at),
-  };
-}
-
-/**
- * Corporationを新規作成
- * UUIDはバックエンドで自動生成
- */
-export async function createCorporation(
-  data: {
-    corporationName: string;
-    isActive?: boolean;
-  }
-): Promise<CorporationResponse> {
-  // UUIDを自動生成
-  const corporationId = uuidv4();
-  
-  const corporation = await corporationRepository.create({
-    corporationId,
-    corporationName: data.corporationName,
-    isActive: data.isActive,
-  });
-  
-  return {
-    corporationId: corporation.corporation_id,
-    corporationName: corporation.corporation_name,
-    isActive: corporation.is_active,
-    createdAt: formatDateTime(corporation.create_at),
-    updatedAt: formatDateTime(corporation.update_at),
-  };
-}
-
-/**
- * Corporationを更新
- */
-export async function updateCorporation(
-  corporationId: string,
-  data: {
-    corporationName?: string;
-    isActive?: boolean;
-  }
-): Promise<CorporationResponse | null> {
-  const corporation = await corporationRepository.update(corporationId, data);
-  
-  if (!corporation) {
-    return null;
-  }
-  
-  return {
-    corporationId: corporation.corporation_id,
-    corporationName: corporation.corporation_name,
-    isActive: corporation.is_active,
-    createdAt: formatDateTime(corporation.create_at),
-    updatedAt: formatDateTime(corporation.update_at),
-  };
-}
-
-/**
- * Corporationのアクティブ状態を更新
- */
-export async function updateCorporationStatus(
-  corporationId: string,
-  isActive: boolean
-): Promise<CorporationResponse | null> {
-  const corporation = await corporationRepository.updateStatus(corporationId, isActive);
-  
-  if (!corporation) {
-    return null;
-  }
-  
-  return {
-    corporationId: corporation.corporation_id,
-    corporationName: corporation.corporation_name,
-    isActive: corporation.is_active,
-    createdAt: formatDateTime(corporation.create_at),
-    updatedAt: formatDateTime(corporation.update_at),
-  };
 }
 
 /**
@@ -1178,7 +752,8 @@ export async function updateCorporationStatus(
  */
 export async function uploadInstrumentsCsv(
   organizationId: string,
-  csvContent: string
+  csvContent: string,
+  userId: string
 ): Promise<CsvUploadResult> {
   const pool = getPool();
   const client = await pool.connect();
@@ -1232,7 +807,7 @@ export async function uploadInstrumentsCsv(
             instrumentDescription: row['説明']?.trim() || '',
             instrumentAnnotation: row['アノテーション']?.trim() || '',
             isActive,
-          });
+          }, userId);
         } else {
           // 新規作成
           await instrumentRepository.create(organizationId, {
@@ -1241,108 +816,7 @@ export async function uploadInstrumentsCsv(
             instrumentDescription: row['説明']?.trim() || '',
             instrumentAnnotation: row['アノテーション']?.trim() || '',
             isActive,
-          });
-        }
-        
-        successCount++;
-      } catch (error) {
-        console.error(`Row ${rowNumber} processing error:`, error);
-        errors.push({
-          row: rowNumber,
-          field: 'general',
-          message: error instanceof Error ? error.message : 'エラーが発生しました',
-        });
-        failureCount++;
-      }
-    }
-    
-    await client.query('COMMIT');
-    
-    return {
-      successCount,
-      failureCount,
-      errors,
-    };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
-/**
- * CorporationCSVアップロード処理
- * 
- * @param csvContent CSV文字列
- * @returns アップロード結果
- */
-export async function uploadCorporationsCsv(
-  csvContent: string
-): Promise<CsvUploadResult> {
-  const pool = getPool();
-  const client = await pool.connect();
-  
-  try {
-    await client.query('BEGIN');
-    
-    // CSVをパース
-    const parseResult = Papa.parse<CsvRow>(csvContent, {
-      header: true,
-      skipEmptyLines: true,
-    });
-    
-    const errors: CsvValidationError[] = [];
-    let successCount = 0;
-    let failureCount = 0;
-    
-    // 各行を処理
-    for (let i = 0; i < parseResult.data.length; i++) {
-      const row = parseResult.data[i];
-      const rowNumber = i + 2; // ヘッダー行を考慮
-      
-      try {
-        // 必須項目チェック
-        const corporationName = row['会社名']?.trim();
-        
-        if (!corporationName) {
-          errors.push({ row: rowNumber, field: '会社名', message: '会社名は必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        // 状態の変換
-        const statusStr = row['状態']?.trim() || 'アクティブ';
-        const isActive = statusStr === 'アクティブ' || statusStr === 'true' || statusStr === '1';
-        
-        // 会社IDがある場合は更新、ない場合は新規作成
-        const corporationId = row['会社ID']?.trim();
-        
-        if (corporationId) {
-          // UUIDが指定されている場合は既存レコード更新を試みる
-          const existing = await corporationRepository.findById(corporationId);
-          
-          if (existing) {
-            // 既存レコードを更新
-            await corporationRepository.update(corporationId, {
-              corporationName,
-              isActive,
-            });
-          } else {
-            // 指定されたUUIDで新規作成
-            await corporationRepository.create({
-              corporationId,
-              corporationName,
-              isActive,
-            });
-          }
-        } else {
-          // UUIDを自動生成して新規作成
-          await corporationRepository.create({
-            corporationId: uuidv4(),
-            corporationName,
-            isActive,
-          });
+          }, userId);
         }
         
         successCount++;
@@ -1381,7 +855,8 @@ export async function uploadCorporationsCsv(
  */
 export async function uploadVendorsCsv(
   organizationId: string,
-  csvContent: string
+  csvContent: string,
+  userId: string
 ): Promise<CsvUploadResult> {
   const pool = getPool();
   const client = await pool.connect();
@@ -1435,7 +910,7 @@ export async function uploadVendorsCsv(
             vendorDescription: row['説明']?.trim() || '',
             vendorAnnotation: row['アノテーション']?.trim() || '',
             isActive,
-          });
+          }, userId);
         } else {
           // 新規作成
           await vendorRepository.create(organizationId, {
@@ -1444,7 +919,7 @@ export async function uploadVendorsCsv(
             vendorDescription: row['説明']?.trim() || '',
             vendorAnnotation: row['アノテーション']?.trim() || '',
             isActive,
-          });
+          }, userId);
         }
         
         successCount++;

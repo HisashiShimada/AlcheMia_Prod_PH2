@@ -28,7 +28,22 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import Papa from 'papaparse';
 import { formatDateTime } from '@/utils/dateFormatter';
-import { getMasterConfigById } from '@/config/masterConfig';
+import { getRoleConfig } from '@/types/roleTypes';
+import type { RoleConfig, FieldConfig } from '@/types/roleTypes';
+import {
+  fetchMasters,
+  createMaster,
+  updateMaster,
+  updateMasterStatus,
+  batchUpdateMasterStatus,
+  uploadCsv,
+  downloadCsv,
+  createRole,
+  updateRole,
+  updateRolePermissions,
+  type MasterRecord as ApiMasterRecord,
+} from '@/services/roleApiService';
+import FunctionPermissionDialog from './FunctionPermissionDialog';
 
 const { Text } = Typography;
 
@@ -77,83 +92,56 @@ interface RoleApiResponse {
  */
 export default function RoleManagementMock() {
   const { token } = theme.useToken();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
 
   // State管理
   const [masters, setMasters] = useState<MasterRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searchText, setSearchText] = useState('');
-  const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>(''); // ロールフィルター
+  const [selectedRoleNameFilter, setSelectedRoleNameFilter] = useState<string>(''); // ロール名フィルター
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingMaster, setEditingMaster] = useState<MasterRecord | null>(null);
   const [form] = Form.useForm();
   
-  // 機能管理モーダル用のステート（一覧から開く用）
+  // 機能管理ダイアログ用のステート
   const [isFunctionModalVisible, setIsFunctionModalVisible] = useState(false);
   const [editingFunctionMaster, setEditingFunctionMaster] = useState<MasterRecord | null>(null);
-  const [selectedFunctions, setSelectedFunctions] = useState<Record<string, boolean>>({});
-  const [selectedWritePermissions, setSelectedWritePermissions] = useState<Record<string, boolean>>({});
+  const [functionDialogMode, setFunctionDialogMode] = useState<'direct' | 'temporary'>('temporary');
   
-  // ロール追加専用の機能管理モーダル用のステート
-  const [isAddFunctionModalVisible, setIsAddFunctionModalVisible] = useState(false);
-  const [addSelectedFunctions, setAddSelectedFunctions] = useState<Record<string, boolean>>({});
-  const [addSelectedWritePermissions, setAddSelectedWritePermissions] = useState<Record<string, boolean>>({});
+  // 機能名と権限を一時保持するステート（保存ボタン押下までメモリに保持）
+  const [tempFunctionData, setTempFunctionData] = useState<{
+    functionName: string;              // 表示用（権限アイコン付き）
+    apiFunctionNames: string;          // API用（権限アイコンなし）
+    functionWritePermissions: string;
+  } | null>(null);
 
   // ロールマスタをAPIから取得する関数
   const fetchRoleMasters = async () => {
     try {
       setLoading(true);
       
-      // APIエンドポイント
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const endpoint = `${apiUrl}/api/v1/master/role`;
+      const data = await fetchMasters();
       
-      console.log('=== Fetching Role Masters ===');
-      console.log('API URL:', apiUrl);
-      console.log('Endpoint:', endpoint);
+      // APIレスポンスをフロントエンド用のデータ形式に変換
+      const convertedData = data.map((item: ApiMasterRecord) => ({
+        masterId: '4',
+        role: item.roleId || item.role,
+        roleName: item.roleName,
+        functionName: item.functionName,
+        initialScreenFunctionName: item.initialScreenFunctionName || null,  // 初期画面機能名
+        functionWritePermissions: item.functionWritePermissions,
+        functions: item.functions || [],  // バックエンドから受け取った機能情報配列
+        functionIds: item.functionIds || [],  // 機能IDリスト（role_permissionテーブルから取得）
+        writableFunctionIds: item.writableFunctionIds || [],  // 書込可能な機能IDリスト
+        isActive: item.isActive,
+        updatedAt: item.updatedAt,
+      }));
       
-      const response = await fetch(endpoint, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          // X-Organization-Idヘッダーは不要（JWTから自動取得）
-        },
-        credentials: 'include',
-      });
-      
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        throw new Error(`API Error: ${response.status} - ${errorText}`);
-      }
-      
-      const result = await response.json();
-      console.log('API Response:', result);
-      
-      if (result.success && Array.isArray(result.data)) {
-        // APIレスポンスをフロントエンド用のデータ形式に変換
-        const convertedData = result.data.map((item: RoleApiResponse) => ({
-          masterId: '4',
-          role: item.roleId,
-          roleName: item.roleName,
-          functionName: item.functionName,
-          functionWritePermissions: item.functionWritePermissions,
-          isActive: item.isActive,
-          updatedAt: item.updatedAt,
-        }));
-        
-        setMasters(convertedData);
-        setSearchText('');
-        setSelectedRowKeys([]);
-        console.log('Loaded from API:', convertedData.length, 'records');
-      } else {
-        console.error('Unexpected API response structure:', result);
-        message.error('ロールマスタの取得に失敗しました（データ形式エラー）');
-        setMasters([]);
-      }
+      setMasters(convertedData);
+      setSearchText('');
+      setSelectedRowKeys([]);
+      console.log('Loaded from API:', convertedData.length, 'records');
     } catch (error) {
       console.error('API fetch error:', error);
       message.error(`ロールマスタの取得に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -163,26 +151,10 @@ export default function RoleManagementMock() {
     }
   };
 
-  // 利用可能な機能一覧（マスタデータ）
-  const availableFunctions = useMemo(() => [
-    { id: 'FUNC001', name: 'システム管理', description: '全システム管理権限', hasWritePermission: true },
-    { id: 'FUNC002', name: 'ユーザー管理', description: 'ユーザーの作成・編集・削除', hasWritePermission: true },
-    { id: 'FUNC003', name: 'データ管理', description: 'データマスタの管理', hasWritePermission: false, isParent: true },
-    { id: 'FUNC003-1', name: '実験装置管理', description: '実験装置の登録・編集・削除', hasWritePermission: true, parentId: 'FUNC003', indent: 1 },
-    { id: 'FUNC003-2', name: '実験装置ベンダー管理', description: '実験装置ベンダーの登録・編集・削除', hasWritePermission: true, parentId: 'FUNC003', indent: 1 },
-    { id: 'FUNC003-3', name: '実験装置タイプ管理', description: '実験装置タイプの登録・編集・削除', hasWritePermission: true, parentId: 'FUNC003', indent: 1 },
-    { id: 'FUNC004', name: '実験管理', description: '実験の管理・制御', hasWritePermission: true },
-    { id: 'FUNC005', name: '作業者管理', description: '作業者の監査・指導', hasWritePermission: true },
-    { id: 'FUNC006', name: '実験作業', description: '実験作業の実行', hasWritePermission: true },
-    { id: 'FUNC007', name: '進捗報告', description: '作業進捗の報告', hasWritePermission: true },
-    { id: 'FUNC008', name: 'データアクセス', description: '実験データのアクセス', hasWritePermission: true },
-    { id: 'FUNC009', name: 'システム監視', description: 'システム状態の監視', hasWritePermission: true },
-  ], []);
 
   // 選択されたマスタ種別の情報を取得（ロール管理固定: masterId="4"）
   const selectedMasterInfo = useMemo(() => {
-    const config = getMasterConfigById('4');
-    if (!config) return undefined;
+    const config = getRoleConfig();
     
     // 古い構造（itemCategories）に変換して互換性を保つ
     const itemCategories: Record<string, ItemCategory | undefined> = {};
@@ -218,16 +190,43 @@ export default function RoleManagementMock() {
     return ['functionName'];
   }, []);
 
-  // ロールフィルター用の選択肢を動的に生成
-  const getRoleOptions = useMemo(() => {
-    const uniqueRoles = Array.from(
+  // ロール名フィルター用の選択肢を動的に生成
+  const getRoleNameOptions = useMemo(() => {
+    // ロール名の表示順序を定義
+    const roleOrder = [
+      'プロバイダー',
+      'システム管理者',
+      'データ管理者',
+      '実験管理者',
+      '実験作業者',
+      'MI技術者',
+    ];
+
+    const uniqueRoleNames = Array.from(
       new Set(
         masters
-          .map(m => m.role)
+          .map(m => m.roleName)
           .filter(v => v !== null && v !== undefined && v !== '')
       )
     );
-    return uniqueRoles.sort().map(v => ({ label: String(v), value: String(v) }));
+
+    // カスタム順序でソート
+    return uniqueRoleNames
+      .sort((a, b) => {
+        const indexA = roleOrder.indexOf(String(a));
+        const indexB = roleOrder.indexOf(String(b));
+        
+        // 両方が定義済みの場合は順序配列に従う
+        if (indexA !== -1 && indexB !== -1) {
+          return indexA - indexB;
+        }
+        // 一方だけが定義済みの場合は定義済みを優先
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        // 両方とも定義外の場合は五十音順
+        return String(a).localeCompare(String(b), 'ja');
+      })
+      .map(v => ({ label: String(v), value: String(v) }));
   }, [masters]);
 
   // フィルタリングされたデータ
@@ -250,12 +249,12 @@ export default function RoleManagementMock() {
         return value && String(value).toLowerCase().includes(searchLower);
       });
 
-      // ロールフィルター
-      const matchesRoleFilter = !selectedRoleFilter || String(master.role) === selectedRoleFilter;
+      // ロール名フィルター
+      const matchesRoleNameFilter = !selectedRoleNameFilter || String(master.roleName) === selectedRoleNameFilter;
 
-      return matchesSearch && matchesRoleFilter;
+      return matchesSearch && matchesRoleNameFilter;
     });
-  }, [masters, searchText, selectedRoleFilter, fuzzySearchFields, selectedMasterInfo]);
+  }, [masters, searchText, selectedRoleNameFilter, fuzzySearchFields, selectedMasterInfo]);
 
   // テーブルカラムを動的に生成
   const columns: ColumnsType<MasterRecord> = useMemo(() => {
@@ -274,10 +273,15 @@ export default function RoleManagementMock() {
         // すべてのフィールドを左寄せ
         const align = 'left' as const;
         
-        // 機能名は幅を広く設定
-        const isFunctionName = /function.*name/i.test(key);
+        // カラム幅の設定
+        const isFunctionName = key === 'functionName';
+        const isInitialScreenFunctionName = key === 'initialScreenFunctionName';
         const isRoleName = /role.*name/i.test(key);
-        const columnWidth = isFunctionName ? 800 : (isRoleName ? 170 : 150);
+        
+        // 初期画面機能名: 225px (150 * 1.5)、機能名: 600px、ロール名: 170px、その他: 150px
+        const columnWidth = isFunctionName ? 600 : 
+                           isInitialScreenFunctionName ? 225 : 
+                           (isRoleName ? 170 : 150);
         
         return {
           title: <div style={{ textAlign: 'center' }}>{category!.headerName}</div>,
@@ -308,35 +312,31 @@ export default function RoleManagementMock() {
             }
             // 機能名列の場合、クリック可能にする
             if (isFunctionName) {
-              const functionNames = String(text || '').split('/').map(name => name.trim()).filter(Boolean);
+              // バックエンドから受け取ったfunctions配列を使用
+              const functions = (record.functions as Array<{ name: string; icon: string; color: string }>) || [];
               
-              // 書込可の機能名を取得（"/"区切り）
-              const writePermissionNames = String(record.functionWritePermissions || '').split('/').map(name => name.trim()).filter(Boolean);
-              
-              // 各機能にアイコンと色を付けてレンダリング
               return (
                 <span
                   style={{ 
                     cursor: 'pointer',
-                    textDecoration: 'underline'
+                    // 機能が設定されている場合のみ下線を表示
+                    textDecoration: functions.length > 0 ? 'underline' : 'none'
                   }}
-                  onClick={() => handleOpenFunctionModal(record)}
+                  onClick={() => handleOpenFunctionModalDirect(record)}
                 >
-                  {functionNames.map((name, idx) => {
-                    // 書込可のリストに含まれているかチェック
-                    const hasWritePermission = writePermissionNames.includes(name);
-                    const icon = hasWritePermission ? 'Ⓦ' : 'Ⓡ';
-                    // アイコンの色：Ⓡは青色、Ⓦは緑色
-                    const iconColor = hasWritePermission ? '#52c41a' : '#1890ff';
-                    
-                    return (
+                  {functions.length === 0 ? (
+                    // 機能が設定されていない場合は「－」を表示（下線なし）
+                    <span style={{ color: token.colorTextSecondary }}>－</span>
+                  ) : (
+                    // 機能が設定されている場合は従来通り表示（下線あり）
+                    functions.map((func, idx) => (
                       <React.Fragment key={idx}>
                         {idx > 0 && <span style={{ color: token.colorText }}> / </span>}
-                        <span style={{ color: iconColor, fontWeight: token.fontWeightStrong }}>{icon}</span>
-                        <span style={{ color: token.colorText, fontWeight: token.fontWeightStrong }}> {name}</span>
+                        <span style={{ color: func.color, fontWeight: token.fontWeightStrong }}>{func.icon}</span>
+                        <span style={{ color: token.colorText, fontWeight: token.fontWeightStrong }}> {func.name}</span>
                       </React.Fragment>
-                    );
-                  })}
+                    ))
+                  )}
                 </span>
               );
             }
@@ -389,15 +389,12 @@ export default function RoleManagementMock() {
   const handleAdd = () => {
     setEditingMaster(null);
     form.resetFields();
-    
-    // デフォルトの機能選択なし
-    setSelectedFunctions({});
-    setSelectedWritePermissions({});
+    setTempFunctionData(null); // メモリをクリア
     
     form.setFieldsValue({
       isActive: true,
       functionId: '',
-      functionName: '',
+      functionName: '－',
       functionWritePermissions: '',
     });
     
@@ -408,73 +405,110 @@ export default function RoleManagementMock() {
   const handleEdit = (master: MasterRecord) => {
     setEditingMaster(master);
     form.setFieldsValue(master);
+    setTempFunctionData(null); // メモリをクリア
     setIsModalVisible(true);
   };
 
+  // 機能名の選択肢を生成（コンポーネントのトップレベルで定義）
+  const functionOptions = useMemo(() => {
+    // 機能管理ダイアログで選択した機能がメモリにある場合、それを使用
+    if (tempFunctionData && tempFunctionData.apiFunctionNames && tempFunctionData.apiFunctionNames !== '－') {
+      // apiFunctionNames（権限アイコンなし）を使用
+      const functionNames = tempFunctionData.apiFunctionNames
+        .split('/')
+        .map(name => name.trim())
+        .filter(name => name !== '');
+      
+      return functionNames.map(name => ({ 
+        label: name, 
+        value: name 
+      }));
+    }
+    
+    // メモリにない場合は、editingMaster.functionsを使用（従来の処理）
+    if (!editingMaster || !editingMaster.functions) return [];
+    const functions = editingMaster.functions as Array<{ name: string }>;
+    return functions.map(func => ({ 
+      label: func.name, 
+      value: func.name 
+    }));
+  }, [editingMaster, tempFunctionData]);
+
   // 一括アクティブ化
-  const handleActivate = () => {
+  const handleActivate = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('アクティブにするロールを選択してください');
       return;
     }
-    Modal.confirm({
+    modal.confirm({
       title: '選択したロールをアクティブにしますか？',
       content: `${selectedRowKeys.length}件のロールがアクティブになります。`,
       okText: 'アクティブ化',
       cancelText: 'キャンセル',
-      onOk: () => {
-        setMasters(masters.map(m => {
-          const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
-          return selectedRowKeys.includes(String(m[idField])) ? { ...m, isActive: true } : m;
-        }));
-        setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件のロールをアクティブにしました`);
+      onOk: async () => {
+        try {
+          await batchUpdateMasterStatus(selectedRowKeys.map(String), true);
+          await fetchRoleMasters();
+          setSelectedRowKeys([]);
+          message.success(`${selectedRowKeys.length}件のロールをアクティブにしました`);
+        } catch (error) {
+          console.error('一括アクティブ化エラー:', error);
+          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+        }
       },
     });
   };
 
   // 一括非アクティブ化
-  const handleDeactivate = () => {
+  const handleDeactivate = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('非アクティブにするロールを選択してください');
       return;
     }
-    Modal.confirm({
+    modal.confirm({
       title: '選択したロールを非アクティブにしますか？',
       content: `${selectedRowKeys.length}件のロールが非アクティブになります。`,
       okText: '非アクティブ化',
       cancelText: 'キャンセル',
       okButtonProps: { danger: true },
-      onOk: () => {
-        setMasters(masters.map(m => {
-          const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
-          return selectedRowKeys.includes(String(m[idField])) ? { ...m, isActive: false } : m;
-        }));
-        setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件のロールを非アクティブにしました`);
+      onOk: async () => {
+        try {
+          await batchUpdateMasterStatus(selectedRowKeys.map(String), false);
+          await fetchRoleMasters();
+          setSelectedRowKeys([]);
+          message.success(`${selectedRowKeys.length}件のロールを非アクティブにしました`);
+        } catch (error) {
+          console.error('エラー:', error);
+          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+        }
       },
     });
   };
 
   // 個別のアクティブ/非アクティブ切り替え
-  const handleToggleActive = (record: MasterRecord) => {
+  const handleToggleActive = async (record: MasterRecord) => {
     const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
     const nameField = Object.keys(selectedMasterInfo?.itemCategories || {})[1];
     const masterName = record[nameField] || 'このロール';
+    const currentStatus = record.isActive !== false;
+    const actionText = currentStatus ? '非アクティブ' : 'アクティブ';
+    const newStatus = !currentStatus;
 
-    const actionText = record.isActive === false ? 'アクティブ' : '非アクティブ';
-
-    Modal.confirm({
+    modal.confirm({
       title: `${masterName}を${actionText}にしますか？`,
-      content: `このロールを${record.isActive === false ? 'アクティブ' : '非アクティブ'}状態に変更します。`,
+      content: `このロールを${actionText}状態に変更します。`,
       okText: actionText,
       cancelText: 'キャンセル',
-      okButtonProps: record.isActive === false ? undefined : { danger: true },
-      onOk: () => {
-        setMasters(masters.map(m => 
-          m[idField] === record[idField] ? { ...m, isActive: !record.isActive } : m
-        ));
-        message.success(`${masterName}を${record.isActive === false ? 'アクティブ' : '非アクティブ'}にしました`);
+      okButtonProps: actionText === '非アクティブ' ? { danger: true } : undefined,
+      onOk: async () => {
+        try {
+          await updateMasterStatus(String(record[idField]), newStatus);
+          await fetchRoleMasters();
+          message.success(`${masterName}を${actionText}にしました`);
+        } catch (error) {
+          console.error('エラー:', error);
+          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+        }
       },
     });
   };
@@ -603,35 +637,160 @@ export default function RoleManagementMock() {
       const values = await form.validateFields();
       
       if (editingMaster) {
-        // 編集の場合
+        // === 編集の場合 ===
         const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
-        setMasters(masters.map(m => 
-          m[idField] === editingMaster[idField] ? { ...m, ...values } : m
-        ));
+        const roleId = String(editingMaster[idField]);
+        
+        // === ケース1・ケース2のチェック（「保存」ボタン用） ===
+        let finalInitialScreenFunctionName = values.initialScreenFunctionName || null;
+        
+        // メモリに機能情報がある場合、チェックを実行
+        if (tempFunctionData) {
+          console.log('=== handleModalOk: Initial Screen Check (Edit Mode) ===');
+          console.log('tempFunctionData:', tempFunctionData);
+          console.log('Current initialScreenFunctionName from form:', values.initialScreenFunctionName);
+          
+          let shouldClearInitialScreen = false;
+          
+          // ケース1: 機能が1つも選択されていない
+          if (!tempFunctionData.apiFunctionNames || 
+              tempFunctionData.apiFunctionNames === '－' ||
+              tempFunctionData.apiFunctionNames.trim() === '') {
+            shouldClearInitialScreen = true;
+            console.log('Case 1: No functions selected');
+          }
+          
+          // ケース2: 初期画面機能名が選択された機能リストに含まれていない
+          if (!shouldClearInitialScreen && values.initialScreenFunctionName) {
+            const selectedFunctionList = tempFunctionData.apiFunctionNames
+              .split('/')
+              .map(name => name.trim())
+              .filter(name => name !== '' && name !== '－');
+            
+            console.log('Selected function list:', selectedFunctionList);
+            console.log('Initial screen function name:', values.initialScreenFunctionName);
+            console.log('Is included:', selectedFunctionList.includes(values.initialScreenFunctionName));
+            
+            if (!selectedFunctionList.includes(values.initialScreenFunctionName)) {
+              shouldClearInitialScreen = true;
+              console.log('Case 2: Initial screen function not in selected list');
+            }
+          }
+          
+          // 初期画面機能名をnullに設定
+          if (shouldClearInitialScreen) {
+            finalInitialScreenFunctionName = null;
+            console.log('Clearing initial screen function name');
+          }
+        }
+        
+        // 1. ロールテーブルを更新
+        await updateRole(roleId, {
+          roleName: values.roleName,
+          initialScreenFunctionName: finalInitialScreenFunctionName,
+          isActive: values.isActive,
+        });
+        
+        // 2. メモリに保存された機能情報があれば権限も更新
+        if (tempFunctionData && tempFunctionData.apiFunctionNames !== '－') {
+          await updateRolePermissions(
+            roleId,
+            tempFunctionData.apiFunctionNames,
+            tempFunctionData.functionWritePermissions
+          );
+        }
+        
+        await fetchRoleMasters();
         message.success('ロール情報を更新しました');
       } else {
-        // 新規追加の場合
-        const newRecord: MasterRecord = { ...values };
+        // === 新規追加の場合 ===
         
-        // ロール管理画面の場合
-        newRecord.masterId = '4';
-        newRecord.isActive = true;
+        // === ケース1・ケース2のチェック（「保存」ボタン用） ===
+        let finalInitialScreenFunctionName = values.initialScreenFunctionName || null;
         
-        // 機能ID、機能名、書込可能機能IDを必ず含める
-        newRecord.functionId = values.functionId || '';
-        newRecord.functionName = values.functionName || '';
-        newRecord.functionWritePermissions = values.functionWritePermissions || '';
+        // メモリに機能情報がある場合、チェックを実行
+        if (tempFunctionData) {
+          console.log('=== handleModalOk: Initial Screen Check (Create Mode) ===');
+          console.log('tempFunctionData:', tempFunctionData);
+          console.log('Current initialScreenFunctionName from form:', values.initialScreenFunctionName);
+          
+          let shouldClearInitialScreen = false;
+          
+          // ケース1: 機能が1つも選択されていない
+          if (!tempFunctionData.apiFunctionNames || 
+              tempFunctionData.apiFunctionNames === '－' ||
+              tempFunctionData.apiFunctionNames.trim() === '') {
+            shouldClearInitialScreen = true;
+            console.log('Case 1: No functions selected');
+          }
+          
+          // ケース2: 初期画面機能名が選択された機能リストに含まれていない
+          if (!shouldClearInitialScreen && values.initialScreenFunctionName) {
+            const selectedFunctionList = tempFunctionData.apiFunctionNames
+              .split('/')
+              .map(name => name.trim())
+              .filter(name => name !== '' && name !== '－');
+            
+            console.log('Selected function list:', selectedFunctionList);
+            console.log('Initial screen function name:', values.initialScreenFunctionName);
+            console.log('Is included:', selectedFunctionList.includes(values.initialScreenFunctionName));
+            
+            if (!selectedFunctionList.includes(values.initialScreenFunctionName)) {
+              shouldClearInitialScreen = true;
+              console.log('Case 2: Initial screen function not in selected list');
+            }
+          }
+          
+          // 初期画面機能名をnullに設定
+          if (shouldClearInitialScreen) {
+            finalInitialScreenFunctionName = null;
+            console.log('Clearing initial screen function name');
+          }
+        }
         
-        setMasters([...masters, newRecord]);
+        // 1. ロールテーブルに追加
+        await createRole({
+          role: values.role,
+          roleName: values.roleName,
+          initialScreenFunctionName: finalInitialScreenFunctionName,
+          isActive: values.isActive !== undefined ? values.isActive : true,
+        });
+        
+        // 2. メモリに保存された機能情報があれば権限も登録
+        if (tempFunctionData && tempFunctionData.apiFunctionNames !== '－') {
+          await updateRolePermissions(
+            values.role,
+            tempFunctionData.apiFunctionNames,
+            tempFunctionData.functionWritePermissions
+          );
+        }
+        
+        await fetchRoleMasters();
         message.success('ロールを追加しました');
       }
       
+      // メモリをクリア
+      setTempFunctionData(null);
+      
       setIsModalVisible(false);
       form.resetFields();
-      setSelectedFunctions({});
-      setSelectedWritePermissions({});
     } catch (error) {
-      console.error('バリデーションエラー:', error);
+      console.error('エラー:', error);
+
+      const errorMessage = error instanceof Error ? error.message : 'エラーが発生しました';
+
+      if (errorMessage.includes('既に存在しています')) {
+        form.setFields([
+          {
+            name: 'role',
+            errors: [errorMessage],
+          },
+        ]);
+        message.error(errorMessage);
+        return;
+      }
+
+      message.error(errorMessage);
     }
   };
 
@@ -639,86 +798,155 @@ export default function RoleManagementMock() {
   const handleModalCancel = () => {
     setIsModalVisible(false);
     form.resetFields();
+    setTempFunctionData(null); // メモリをクリア
   };
 
-  // 機能管理モーダルを開く
-  const handleOpenFunctionModal = (record: MasterRecord) => {
+  // 機能管理モーダルを開く（一覧から直接開く場合）
+  const handleOpenFunctionModalDirect = async (record: MasterRecord) => {
+    try {
+      const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
+      const roleId = String(record[idField] || '');
+
+      // ロールCDが空の場合
+      if (!roleId) {
+        console.log('=== Opening Function Modal (Direct - No Role ID) ===');
+        console.log('Temp Master:', record);
+        setFunctionDialogMode('temporary');
+        setEditingFunctionMaster(record);
+        setIsFunctionModalVisible(true);
+        return;
+      }
+
+      // ロールCDがある場合、DBから取得を試みる
+      try {
+        const { fetchMasterById } = await import('@/services/roleApiService');
+        const latestRoleData = await fetchMasterById(roleId);
+
+        // 取得成功：DBの最新データを使用（direct モード）
+        const convertedData = {
+          masterId: '4',
+          role: latestRoleData.roleId || latestRoleData.role,
+          roleName: latestRoleData.roleName,
+          functionName: latestRoleData.functionName,
+          initialScreenFunctionName: latestRoleData.initialScreenFunctionName || null,  // 初期画面機能名
+          functionWritePermissions: latestRoleData.functionWritePermissions,
+          functionIds: latestRoleData.functionIds || [],
+          writableFunctionIds: latestRoleData.writableFunctionIds || [],
+          isActive: latestRoleData.isActive,
+          updatedAt: latestRoleData.updatedAt,
+        };
+
+        console.log('=== Opening Function Modal (Direct - DB Data) ===');
+        console.log('Role ID:', roleId);
+        console.log('Mode: direct');
+        console.log('Latest Role Data:', latestRoleData);
+
+        setFunctionDialogMode('direct');
+        setEditingFunctionMaster(convertedData);
+        setIsFunctionModalVisible(true);
+      } catch (fetchError) {
+        // DBに存在しない場合：メモリ保存モード
+        console.log('=== Role not found in DB, using temporary mode ===');
+        console.log('Role ID:', roleId);
+        console.log('Temp Master:', record);
+        setFunctionDialogMode('temporary');
+        setEditingFunctionMaster(record);
+        setIsFunctionModalVisible(true);
+      }
+    } catch (error) {
+      // その他のエラー
+      console.error('予期しないエラー:', error);
+      message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+    }
+  };
+
+  // 機能管理モーダルを開く（追加/編集ダイアログから開く場合）
+  const handleOpenFunctionModalTemporary = (record: MasterRecord) => {
+    console.log('=== Opening Function Modal (Temporary Mode) ===');
+    console.log('Record:', record);
+    console.log('Mode: temporary');
+    
+    setFunctionDialogMode('temporary');
     setEditingFunctionMaster(record);
-    
-    // 現在の機能名から選択状態を復元
-    const functionNames = String(record.functionName || '').split('/').map(name => name.trim()).filter(Boolean);
-    
-    // 書込可の機能名を取得（"/"区切り）
-    const writePermissionNames = String(record.functionWritePermissions || '').split('/').map(name => name.trim()).filter(Boolean);
-    
-    // 選択されている機能をマップ化
-    const functionsMap: Record<string, boolean> = {};
-    const writePermissionsMap: Record<string, boolean> = {};
-    
-    availableFunctions.forEach(func => {
-      const isSelected = functionNames.includes(func.name);
-      functionsMap[func.id] = isSelected;
-      // 書込可の状態を復元
-      writePermissionsMap[func.id] = isSelected && writePermissionNames.includes(func.name);
-    });
-    
-    setSelectedFunctions(functionsMap);
-    setSelectedWritePermissions(writePermissionsMap);
     setIsFunctionModalVisible(true);
   };
 
-  // 機能管理モーダルの保存
-  const handleFunctionModalOk = () => {
-    // 選択された機能の名前と書込可の状態を取得
-    const selectedFunctionNames: string[] = [];
-    const writePermissionNames: string[] = [];
-    
-    availableFunctions.forEach(func => {
-      if (selectedFunctions[func.id]) {
-        selectedFunctionNames.push(func.name);
-        // 書込可がONの機能名を記録
-        if (selectedWritePermissions[func.id]) {
-          writePermissionNames.push(func.name);
+  // 機能管理ダイアログの保存
+  const handleFunctionDialogOk = async (
+    functionName: string, 
+    functionWritePermissions: string,
+    apiFunctionNames: string,
+    mode: 'direct' | 'temporary'
+  ) => {
+    if (!editingFunctionMaster || !selectedMasterInfo) {
+      message.error('エラーが発生しました');
+      setIsFunctionModalVisible(false);
+      setEditingFunctionMaster(null);
+      return;
+    }
+
+    console.log('=== handleFunctionDialogOk ===');
+    console.log('Mode:', mode);
+    console.log('Function Name (display):', functionName);
+    console.log('API Function Names:', apiFunctionNames);
+    console.log('Write Permissions:', functionWritePermissions);
+
+    try {
+      if (mode === 'direct') {
+        // パターン1: 一覧から直接開いた場合 → DBに直接更新
+        const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
+        const roleId = String(editingFunctionMaster[idField]);
+        
+        console.log('=== Direct Update to DB ===');
+        console.log('Role ID:', roleId);
+        console.log('API Function Names (no icons):', apiFunctionNames);
+        console.log('Display Function Name (with icons):', functionName);
+        
+        // 機能権限を更新（権限アイコンなしのAPI用データを使用）
+        await updateRolePermissions(roleId, apiFunctionNames, functionWritePermissions);
+        
+        // 機能が選択されていない場合、initial_screen_function_cd をnullにする
+        if (!functionName || functionName === '－') {
+          await updateRole(roleId, {
+            initialScreenFunctionName: null
+          });
         }
-      }
-    });
-    
-    // 機能名を"/"区切りで結合
-    const functionName = selectedFunctionNames.join('/');
-    // 書込可の機能名を"/"区切りで保存
-    const functionWritePermissions = writePermissionNames.join('/');
-    
-    // 既存のマスタを編集している場合
-    if (editingFunctionMaster && selectedMasterInfo) {
-      const idField = Object.keys(selectedMasterInfo.itemCategories)[0];
-      // IDフィールドが存在する場合のみマスタデータを更新（一覧からの編集）
-      if (editingFunctionMaster[idField]) {
-        setMasters(masters.map(m => 
-          m[idField] === editingFunctionMaster[idField] 
-            ? { ...m, functionName, functionWritePermissions } 
-            : m
-        ));
+        
+        await fetchRoleMasters();
         message.success('機能を更新しました');
       } else {
-        // IDフィールドがない場合は、ロール追加モーダルからの呼び出し
-        // フォームの値を更新
-        form.setFieldsValue({
-          functionName,
-          functionWritePermissions,
+        // パターン2,3: 追加/編集ダイアログから開いた場合 → メモリに一時保存
+        console.log('=== Temporary Save to Memory ===');
+        console.log('Display Function Name (with icons):', functionName);
+        console.log('API Function Names (no icons):', apiFunctionNames);
+        
+        setTempFunctionData({
+          functionName,              // 表示用（権限アイコン付き）
+          apiFunctionNames,          // API用（権限アイコンなし）
+          functionWritePermissions
         });
+
+        // フォームの機能名フィールドを更新
+        form.setFieldsValue({
+          functionName: functionName,
+          functionWritePermissions: functionWritePermissions
+        });
+
+        message.success('機能を設定しました（「保存」ボタンでDBに反映されます）');
       }
+    } catch (error) {
+      console.error('Error updating function permissions:', error);
+      message.error(error instanceof Error ? error.message : 'エラーが発生しました');
     }
-    
+
     setIsFunctionModalVisible(false);
     setEditingFunctionMaster(null);
   };
 
-  // 機能管理モーダルのキャンセル
-  const handleFunctionModalCancel = () => {
+  // 機能管理ダイアログのキャンセル
+  const handleFunctionDialogCancel = () => {
     setIsFunctionModalVisible(false);
     setEditingFunctionMaster(null);
-    setSelectedFunctions({});
-    setSelectedWritePermissions({});
   };
 
   // 曖昧検索のプレースホルダーを生成
@@ -798,15 +1026,15 @@ export default function RoleManagementMock() {
             />
           </Col>
           
-          {/* ロールフィルター */}
+          {/* ロール名フィルター */}
           <Col style={{ width: 150 }}>
             <Select
-              placeholder="ロール"
-              value={selectedRoleFilter || undefined}
-              onChange={(value) => setSelectedRoleFilter(value || '')}
+              placeholder="ロール名"
+              value={selectedRoleNameFilter || undefined}
+              onChange={(value) => setSelectedRoleNameFilter(value || '')}
               allowClear
               style={{ width: '100%' }}
-              options={getRoleOptions}
+              options={getRoleNameOptions}
             />
           </Col>
         </Row>
@@ -845,32 +1073,89 @@ export default function RoleManagementMock() {
         cancelText="キャンセル"
       >
         <Form form={form} layout="vertical">
-          {selectedMasterInfo && Object.entries(selectedMasterInfo.itemCategories).map(([key, category], index) => {
-            if (!category || !category.isDisplay) return null;
-            
-            // 機能ID、機能名、書込可能機能IDを除外
-            if (key === 'functionId' || key === 'functionName' || key === 'functionWritePermissions') {
-              return null;
+          {/* 1. ロールCD */}
+          <Form.Item
+            name="role"
+            label="ロールCD"
+            rules={[{ required: true, message: 'ロールCDを入力してください' }]}
+          >
+            <Input 
+              placeholder="ロールCDを入力してください" 
+              disabled={!!editingMaster}
+            />
+          </Form.Item>
+
+          {/* 2. ロール名 */}
+          <Form.Item
+            name="roleName"
+            label="ロール名"
+            rules={[{ required: true, message: 'ロール名を入力してください' }]}
+          >
+            <Input placeholder="ロール名を入力してください" />
+          </Form.Item>
+
+          {/* 3. 機能名（読み取り専用、活性状態、クリック可能） */}
+          <Form.Item
+            name="functionName"
+            label="機能名"
+          >
+            <Input 
+              readOnly={true}
+              placeholder="－"
+              onClick={() => {
+                if (editingMaster) {
+                  // 編集時：既存のマスタデータを使用（メモリ保存モード）
+                  handleOpenFunctionModalTemporary(editingMaster);
+                } else {
+                  // 新規追加時：ロールCDが未入力でもダイアログを開く（メモリ保存モード）
+                  // フォームの値を取得（未入力の場合は空文字列）
+                  const tempMaster = {
+                    role: form.getFieldValue('role') || '',  // 未入力でもOK
+                    roleName: form.getFieldValue('roleName') || '',  // 未入力でもOK
+                    functionName: '－',
+                    functionWritePermissions: '',
+                    functionIds: [],
+                    writableFunctionIds: [],
+                    isActive: true,
+                  };
+                  handleOpenFunctionModalTemporary(tempMaster);
+                }
+              }}
+              style={{ 
+                cursor: 'pointer',
+                backgroundColor: token.colorBgContainer
+              }}
+            />
+          </Form.Item>
+
+          {/* 4. 初期画面機能名（条件付きSelect） */}
+          <Form.Item
+            noStyle
+            shouldUpdate={(prevValues, currentValues) => 
+              prevValues.functionName !== currentValues.functionName
             }
-            
-            // ロールIDとロール名は常に編集可能
-            if (key === 'role' || key === 'roleName') {
+          >
+            {({ getFieldValue }) => {
+              const functionNameValue = getFieldValue('functionName');
+              const isFunctionDisabled = !functionNameValue || functionNameValue === '－';
+
               return (
                 <Form.Item
-                  key={key}
-                  name={key}
-                  label={category.headerName}
-                  rules={[{ required: true, message: `${category.headerName}を入力してください` }]}
+                  name="initialScreenFunctionName"
+                  label="初期画面機能名"
                 >
-                  <Input placeholder={`${category.headerName}を入力してください`} />
+                  <Select
+                    placeholder="選択してください"
+                    disabled={isFunctionDisabled}
+                    options={functionOptions}
+                    allowClear
+                  />
                 </Form.Item>
               );
-            }
+            }}
+          </Form.Item>
 
-            return null;
-          })}
-          
-          {/* 状態フィールドを表示 */}
+          {/* 5. 状態 */}
           <Form.Item name="isActive" label="状態">
             <Select
               options={[
@@ -882,74 +1167,17 @@ export default function RoleManagementMock() {
         </Form>
       </Modal>
 
-      {/* 機能管理モーダル */}
-      <Modal
-        title="機能管理"
+      {/* 機能管理ダイアログ */}
+      <FunctionPermissionDialog
         open={isFunctionModalVisible}
-        onOk={handleFunctionModalOk}
-        onCancel={handleFunctionModalCancel}
-        width={800}
-        okText="保存"
-        cancelText="キャンセル"
-      >
-        <div>
-          {availableFunctions.map(func => {
-            const indent = func.indent || 0;
-            const isParent = func.isParent || false;
-            const hasWritePermission = func.hasWritePermission || false;
-            
-            return (
-              <div key={func.id} style={{ marginBottom: 8, marginLeft: indent * 20 }}>
-                <Checkbox
-                  checked={selectedFunctions[func.id] || false}
-                  onChange={(e) => {
-                    setSelectedFunctions({
-                      ...selectedFunctions,
-                      [func.id]: e.target.checked,
-                    });
-                    // チェックが外れた場合、書込可もOFFにする
-                    if (!e.target.checked) {
-                      setSelectedWritePermissions({
-                        ...selectedWritePermissions,
-                        [func.id]: false,
-                      });
-                    }
-                  }}
-                  disabled={isParent}
-                >
-                  <Text strong={isParent}>{func.name}</Text>
-                  <Text type="secondary" style={{ marginLeft: 8 }}>
-                    {func.description}
-                  </Text>
-                </Checkbox>
-                
-                {hasWritePermission && !isParent && (
-                  <Checkbox
-                    checked={selectedWritePermissions[func.id] || false}
-                    onChange={(e) => {
-                      setSelectedWritePermissions({
-                        ...selectedWritePermissions,
-                        [func.id]: e.target.checked,
-                      });
-                      // 書込可がONになった場合、機能も自動的にONにする
-                      if (e.target.checked && !selectedFunctions[func.id]) {
-                        setSelectedFunctions({
-                          ...selectedFunctions,
-                          [func.id]: true,
-                        });
-                      }
-                    }}
-                    disabled={!selectedFunctions[func.id]}
-                    style={{ marginLeft: 16 }}
-                  >
-                    書込可
-                  </Checkbox>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </Modal>
+        onOk={handleFunctionDialogOk}
+        onCancel={handleFunctionDialogCancel}
+        mode={functionDialogMode}
+        initialFunctionName={editingFunctionMaster?.functionName ? String(editingFunctionMaster.functionName) : ''}
+        initialWritePermissions={editingFunctionMaster?.functionWritePermissions ? String(editingFunctionMaster.functionWritePermissions) : ''}
+        initialFunctionIds={editingFunctionMaster?.functionIds ? (editingFunctionMaster.functionIds as string[]) : []}
+        initialWritableFunctionIds={editingFunctionMaster?.writableFunctionIds ? (editingFunctionMaster.writableFunctionIds as string[]) : []}
+      />
     </div>
   );
 }

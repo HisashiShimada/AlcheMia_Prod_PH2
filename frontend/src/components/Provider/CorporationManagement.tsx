@@ -14,6 +14,7 @@ import {
   Row,
   Col,
   Badge,
+  App,
 } from 'antd';
 import {
   SearchOutlined,
@@ -24,7 +25,7 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import axios from 'axios';
+import { createApiClient } from '@/utils/authUtils';
 import { formatDateTime } from '@/utils/dateFormatter';
 
 const { Text } = Typography;
@@ -44,6 +45,7 @@ interface CorporationData {
  * 会社管理画面コンポーネント（DB連携版）
  */
 export default function CorporationManagement() {
+  const { modal } = App.useApp();
   const [corporations, setCorporations] = useState<CorporationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -51,9 +53,6 @@ export default function CorporationManagement() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingCorporation, setEditingCorporation] = useState<CorporationData | null>(null);
   const [form] = Form.useForm();
-
-  // API Base URL
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   // 初回データ取得
   useEffect(() => {
@@ -64,7 +63,8 @@ export default function CorporationManagement() {
   const fetchCorporations = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/v1/master/corporation`);
+      const client = createApiClient();
+      const response = await client.get('/provider/corporation');
       console.log('Corporation API Response:', response.data);
       
       // 統一APIレスポンス形式 { success, data, meta } に対応
@@ -98,6 +98,11 @@ export default function CorporationManagement() {
     });
   }, [corporations, searchText]);
 
+  // アクティブな会社数をカウント
+  const activeCorporationCount = useMemo(() => {
+    return filteredCorporations.filter(corp => corp.isActive).length;
+  }, [filteredCorporations]);
+
   // テーブルの行選択
   const rowSelection = {
     selectedRowKeys,
@@ -114,7 +119,7 @@ export default function CorporationManagement() {
           <Space size="middle" align="center">
             <span>会社名</span>
             <Badge
-              count={filteredCorporations.length}
+              count={activeCorporationCount}
               style={{
                 backgroundColor: '#4169E1',
                 fontSize: 14,
@@ -196,17 +201,18 @@ export default function CorporationManagement() {
       return;
     }
     
-    Modal.confirm({
+    modal.confirm({
       title: '選択した会社をアクティブにしますか？',
       content: `${selectedRowKeys.length}件の会社がアクティブになります。`,
       okText: 'アクティブ化',
       cancelText: 'キャンセル',
       onOk: async () => {
         try {
+          const client = createApiClient();
           // 選択された各会社を順次アクティブ化
           for (const key of selectedRowKeys) {
-            await axios.patch(
-              `${API_BASE_URL}/api/v1/master/corporation/${key}/status`,
+            await client.patch(
+              `/provider/corporation/${key}/status`,
               { isActive: true }
             );
           }
@@ -229,7 +235,7 @@ export default function CorporationManagement() {
       return;
     }
     
-    Modal.confirm({
+    modal.confirm({
       title: '選択した会社を非アクティブにしますか？',
       content: `${selectedRowKeys.length}件の会社が非アクティブになります。`,
       okText: '非アクティブ化',
@@ -237,10 +243,11 @@ export default function CorporationManagement() {
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
+          const client = createApiClient();
           // 選択された各会社を順次非アクティブ化
           for (const key of selectedRowKeys) {
-            await axios.patch(
-              `${API_BASE_URL}/api/v1/master/corporation/${key}/status`,
+            await client.patch(
+              `/provider/corporation/${key}/status`,
               { isActive: false }
             );
           }
@@ -261,7 +268,7 @@ export default function CorporationManagement() {
     const actionText = corporation.isActive ? '非アクティブ' : 'アクティブ';
     const corporationName = corporation.corporationName;
 
-    Modal.confirm({
+    modal.confirm({
       title: `${corporationName}を${actionText}にしますか？`,
       content: `この会社を${actionText}状態に変更します。`,
       okText: actionText,
@@ -269,8 +276,9 @@ export default function CorporationManagement() {
       okButtonProps: corporation.isActive ? { danger: true } : undefined,
       onOk: async () => {
         try {
-          await axios.patch(
-            `${API_BASE_URL}/api/v1/master/corporation/${corporation.corporationId}/status`,
+          const client = createApiClient();
+          await client.patch(
+            `/provider/corporation/${corporation.corporationId}/status`,
             { isActive: !corporation.isActive }
           );
           
@@ -344,13 +352,14 @@ export default function CorporationManagement() {
 
     setLoading(true);
 
-    axios
-      .post(`${API_BASE_URL}/api/v1/master/corporation/upload-csv`, formData, {
+    const client = createApiClient();
+    client
+      .post('/provider/corporation/upload-csv', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       })
-      .then((response) => {
+      .then((response: any) => {
         const result = response.data.data;
         message.success(
           `CSVアップロードが完了しました。成功: ${result.successCount}件, 失敗: ${result.failureCount}件`
@@ -393,18 +402,19 @@ export default function CorporationManagement() {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
+      const client = createApiClient();
       
       if (editingCorporation) {
         // 更新
-        await axios.put(
-          `${API_BASE_URL}/api/v1/master/corporation/${editingCorporation.corporationId}`,
+        await client.put(
+          `/provider/corporation/${editingCorporation.corporationId}`,
           values
         );
         message.success('会社情報を更新しました');
       } else {
         // 新規作成
-        await axios.post(
-          `${API_BASE_URL}/api/v1/master/corporation`,
+        await client.post(
+          '/provider/corporation',
           values
         );
         message.success('会社を追加しました');
@@ -413,9 +423,9 @@ export default function CorporationManagement() {
       setIsModalVisible(false);
       form.resetFields();
       await fetchCorporations();
-    } catch (error) {
+    } catch (error: any) {
       console.error('保存エラー:', error);
-      if (axios.isAxiosError(error) && error.response?.data?.error) {
+      if (error.response?.data?.error) {
         message.error(error.response.data.error);
       } else {
         message.error('保存に失敗しました');
@@ -445,7 +455,7 @@ export default function CorporationManagement() {
             style={{ display: 'none' }}
             onChange={handleUpload}
           />
-          <Button icon={<UploadOutlined />} as="span" onClick={() => document.getElementById('csv-upload')?.click()}>
+          <Button icon={<UploadOutlined />} onClick={() => document.getElementById('csv-upload')?.click()}>
             CSV<br />アップロード
           </Button>
         </label>
