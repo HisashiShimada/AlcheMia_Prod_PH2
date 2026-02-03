@@ -39,22 +39,6 @@ export async function getCreators(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    if (!req.user) {
-      console.log('ERROR: Organization ID not found');
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
     // 組織IDを取得（req.user.organizationId）
     const organizationId = req.user?.organizationId;
     
@@ -121,21 +105,6 @@ export async function getCreatorById(req: Request, res: Response, next: NextFunc
       return;
     }
 
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
     // 組織IDを取得（req.user.organizationId）
     const organizationId = req.user?.organizationId;
 
@@ -185,21 +154,6 @@ export async function getInstruments(req: Request, res: Response, next: NextFunc
     console.log('Headers:', req.headers);
     console.log('Query:', req.query);
     
-    if (!req.user) {
-      console.log('ERROR: Organization ID not found');
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
     // 組織IDを取得（req.user.organizationId）
     const organizationId = req.user?.organizationId;
     
@@ -231,21 +185,6 @@ export async function getInstruments(req: Request, res: Response, next: NextFunc
  */
 export async function getInstrumentById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
     const organizationId = req.user?.organizationId;
 
     const { instrumentId } = req.params;
@@ -294,21 +233,6 @@ export async function getVendors(req: Request, res: Response, next: NextFunction
     console.log('Headers:', req.headers);
     console.log('Query:', req.query);
     
-    if (!req.user) {
-      console.log('ERROR: Organization ID not found');
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
     // 組織IDを取得（req.user.organizationId）
     const organizationId = req.user?.organizationId;
     
@@ -340,22 +264,6 @@ export async function getVendors(req: Request, res: Response, next: NextFunction
  */
 export async function getVendorById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
     const organizationId = req.user?.organizationId;
 
     const { vendorId } = req.params;
@@ -413,21 +321,6 @@ export async function createInstrument(req: Request, res: Response, next: NextFu
           code: 'VALIDATION_ERROR',
           message: 'Validation failed',
           details: errors.array(),
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -566,21 +459,6 @@ export async function createVendor(req: Request, res: Response, next: NextFuncti
           code: 'VALIDATION_ERROR',
           message: 'Validation failed',
           details: errors.array(),
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -731,21 +609,6 @@ export async function createCreator(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
 
@@ -867,22 +730,6 @@ export async function updateCreatorStatus(req: Request, res: Response, next: Nex
  */
 export async function uploadCreatorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
 
@@ -930,22 +777,6 @@ export async function uploadCreatorsCsv(req: Request, res: Response, next: NextF
  */
 export async function downloadCreatorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
     const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
@@ -1002,22 +833,6 @@ export async function downloadCreatorsCsv(req: Request, res: Response, next: Nex
  */
 export async function uploadInstrumentsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
     if (!req.file) {
       res.status(400).json({
         success: false,
@@ -1065,22 +880,6 @@ export async function uploadInstrumentsCsv(req: Request, res: Response, next: Ne
  */
 export async function downloadInstrumentsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
     const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得
@@ -1135,22 +934,6 @@ export async function downloadInstrumentsCsv(req: Request, res: Response, next: 
  */
 export async function uploadVendorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
     if (!req.file) {
       res.status(400).json({
         success: false,
@@ -1198,22 +981,6 @@ export async function uploadVendorsCsv(req: Request, res: Response, next: NextFu
  */
 export async function downloadVendorsCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
     const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得

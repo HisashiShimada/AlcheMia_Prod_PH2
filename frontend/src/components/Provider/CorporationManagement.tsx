@@ -14,6 +14,7 @@ import {
   Row,
   Col,
   Badge,
+  App,
 } from 'antd';
 import {
   SearchOutlined,
@@ -44,6 +45,7 @@ interface CorporationData {
  * 会社管理画面コンポーネント（DB連携版）
  */
 export default function CorporationManagement() {
+  const { modal } = App.useApp();
   const [corporations, setCorporations] = useState<CorporationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -199,7 +201,7 @@ export default function CorporationManagement() {
       return;
     }
     
-    Modal.confirm({
+    modal.confirm({
       title: '選択した会社をアクティブにしますか？',
       content: `${selectedRowKeys.length}件の会社がアクティブになります。`,
       okText: 'アクティブ化',
@@ -233,7 +235,7 @@ export default function CorporationManagement() {
       return;
     }
     
-    Modal.confirm({
+    modal.confirm({
       title: '選択した会社を非アクティブにしますか？',
       content: `${selectedRowKeys.length}件の会社が非アクティブになります。`,
       okText: '非アクティブ化',
@@ -266,7 +268,7 @@ export default function CorporationManagement() {
     const actionText = corporation.isActive ? '非アクティブ' : 'アクティブ';
     const corporationName = corporation.corporationName;
 
-    Modal.confirm({
+    modal.confirm({
       title: `${corporationName}を${actionText}にしますか？`,
       content: `この会社を${actionText}状態に変更します。`,
       okText: actionText,

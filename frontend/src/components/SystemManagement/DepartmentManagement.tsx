@@ -14,6 +14,7 @@ import {
   Row,
   Col,
   theme,
+  App,
 } from 'antd';
 import {
   SearchOutlined,
@@ -55,6 +56,7 @@ interface DepartmentRecord {
  * 部署管理画面のコンポーネント
  */
 export default function DepartmentManagement() {
+  const { modal } = App.useApp();
   const { token } = theme.useToken();
 
   // State管理
@@ -212,7 +214,7 @@ export default function DepartmentManagement() {
       return;
     }
 
-    Modal.confirm({
+    modal.confirm({
       title: '選択した部署をアクティブにしますか？',
       content: `${selectedRowKeys.length}件の部署がアクティブになります。`,
       okText: 'アクティブ化',
@@ -238,7 +240,7 @@ export default function DepartmentManagement() {
       return;
     }
 
-    Modal.confirm({
+    modal.confirm({
       title: '選択した部署を非アクティブにしますか？',
       content: `${selectedRowKeys.length}件の部署が非アクティブになります。`,
       okText: '非アクティブ化',
@@ -266,7 +268,7 @@ export default function DepartmentManagement() {
     const actionText = currentStatus ? '非アクティブ' : 'アクティブ';
     const newStatus = !currentStatus;
 
-    Modal.confirm({
+    modal.confirm({
       title: `${departmentName}を${actionText}にしますか？`,
       content: `この部署を${actionText}状態に変更します。`,
       okText: actionText,

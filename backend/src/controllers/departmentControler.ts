@@ -21,20 +21,6 @@ export async function getDepartments(req: Request, res: Response, next: NextFunc
     console.log('req.user:', req.user);
     console.log('req.headers:', req.headers);
 
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
     // 組織IDを取得（req.user.organizationId）
     const organizationId = req.user?.organizationId;
     console.log('Extracted organizationId:', organizationId);
@@ -83,21 +69,6 @@ export async function getDepartments(req: Request, res: Response, next: NextFunc
  */
 export async function getDepartmentById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
     const organizationId = req.user?.organizationId;
 
     const { departmentCd } = req.params;
@@ -162,20 +133,6 @@ export async function createDepartment(req: Request, res: Response, next: NextFu
       return;
     }
 
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
 
@@ -297,21 +254,6 @@ export async function updateDepartmentStatus(req: Request, res: Response, next: 
  */
 export async function uploadDepartmentCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
 
@@ -358,22 +300,6 @@ export async function uploadDepartmentCsv(req: Request, res: Response, next: Nex
  */
 export async function downloadDepartmentCsv(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
     const organizationId = req.user?.organizationId;
 
     // クエリパラメータを取得

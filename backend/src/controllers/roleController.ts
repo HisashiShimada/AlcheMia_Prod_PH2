@@ -21,21 +21,6 @@ export async function getRoles(req: Request, res: Response, next: NextFunction):
     console.log('req.user:', req.user);
     console.log('req.headers:', req.headers);
 
-    if (!req.user) {
-      console.log('ERROR: Organization ID not found in req.user');
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
     const organizationId = req.user?.organizationId;
     console.log('Extracted organizationId from req.user:', organizationId);
 
@@ -65,21 +50,6 @@ export async function getRoles(req: Request, res: Response, next: NextFunction):
  */
 export async function getRoleById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_ORGANIZATION_ID',
-          message: 'Organization ID is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
     const organizationId = req.user?.organizationId;
 
     const { roleId } = req.params;
@@ -131,23 +101,8 @@ export async function createRole(
     console.log('=== createRole API called ===');
     console.log('Body:', req.body);
 
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_USER_INFO',
-          message: 'User information is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
-    const organizationId = req.user.organizationId;
-    const userId = req.user.userId;
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
     const { role, roleName, initialScreenFunctionName, isActive } = req.body;
 
     // バリデーション
@@ -208,23 +163,8 @@ export async function updateRole(
     console.log('Params:', req.params);
     console.log('Body:', req.body);
 
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_USER_INFO',
-          message: 'User information is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
-    const organizationId = req.user.organizationId;
-    const userId = req.user.userId;
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
     const { roleId } = req.params;
     const { roleName, initialScreenFunctionName, isActive } = req.body;
 
@@ -270,23 +210,8 @@ export async function updateRolePermissions(
     console.log('Params:', req.params);
     console.log('Body:', req.body);
 
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_USER_INFO',
-          message: 'User information is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
-    const organizationId = req.user.organizationId;
-    const userId = req.user.userId;
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
     const { roleId } = req.params;
     const { functionName, functionWritePermissions } = req.body;
 
@@ -346,23 +271,8 @@ export async function updateRoleStatus(
     console.log('Params:', req.params);
     console.log('Body:', req.body);
 
-    if (!req.user) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_USER_INFO',
-          message: 'User information is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
-    const organizationId = req.user.organizationId;
-    const userId = req.user.userId;
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
     const { roleId } = req.params;
     const { isActive } = req.body;
 
