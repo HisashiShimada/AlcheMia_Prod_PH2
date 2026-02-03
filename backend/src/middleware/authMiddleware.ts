@@ -10,17 +10,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { JwtPayload } from '../types/auth';
 import { JwtService } from '../services/jwtService';
-
-// Request型を拡張してuserプロパティを追加
-declare global {
-  namespace Express {
-    interface Request {
-      user: JwtPayload;
-    }
-  }
-}
 
 /**
  * 認証ミドルウェア
