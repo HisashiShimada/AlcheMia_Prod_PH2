@@ -34,10 +34,13 @@ const demoUsers: Record<string, { password: string; user: User }> = {
       id: '1',
       username: 'provider',
       email: 'provider@example.com',
-      role: 'provider',
+      roleName: 'provider',
+      roleCd: '',
       organizationId: 'org_system',
       organizationName: 'システム管理組織',
       displayName: 'プロバイダー太郎',
+      departmentCd: '',
+      initialScreenFunctionCd: '010000'
     },
   },
   system_admin: {
@@ -46,10 +49,13 @@ const demoUsers: Record<string, { password: string; user: User }> = {
       id: '2',
       username: 'system_admin',
       email: 'system.admin@example.com',
-      role: 'system_admin',
+      roleName: 'system_admin',
+      roleCd: '',
       organizationId: 'org_lab_001',
       organizationName: 'AIML研究所',
       displayName: 'システム管理者 花子',
+      departmentCd: '',
+      initialScreenFunctionCd: '020000'
     },
   },
   data_admin: {
@@ -58,10 +64,13 @@ const demoUsers: Record<string, { password: string; user: User }> = {
       id: '3',
       username: 'data_admin',
       email: 'data.admin@example.com',
-      role: 'data_admin',
+      roleName: 'data_admin',
+      roleCd: '',
       organizationId: 'org_lab_001',
       organizationName: 'AIML研究所',
       displayName: 'データ管理者 次郎',
+      departmentCd: '',
+      initialScreenFunctionCd: '030000'
     },
   },
   experiment_admin: {
@@ -70,10 +79,13 @@ const demoUsers: Record<string, { password: string; user: User }> = {
       id: '4',
       username: 'experiment_admin',
       email: 'exp.admin@example.com',
-      role: 'experiment_admin',
+      roleName: 'experiment_admin',
+      roleCd: '',
       organizationId: 'org_lab_001',
       organizationName: 'AIML研究所',
       displayName: '実験管理者 三郎',
+      departmentCd: '',
+      initialScreenFunctionCd: '040000'
     },
   },
   experiment_worker: {
@@ -82,10 +94,13 @@ const demoUsers: Record<string, { password: string; user: User }> = {
       id: '5',
       username: 'experiment_worker',
       email: 'worker@example.com',
-      role: 'experiment_worker',
+      roleName: 'experiment_worker',
+      roleCd: '',
       organizationId: 'org_lab_001',
       organizationName: 'AIML研究所',
       displayName: '実験作業者 四郎',
+      departmentCd: '',
+      initialScreenFunctionCd: '050000'
     },
   },
 };
@@ -105,7 +120,7 @@ export default function Home() {
 
   // ログイン後のユーザー情報とメニュー表示
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentMenuType, setCurrentMenuType] = useState<UserRole | null>(null);
+  const [currentMenuType, setCurrentMenuType] = useState<string | null>(null);
 
   // 共通状態
   const [error, setError] = useState<string | null>(null);
@@ -183,13 +198,14 @@ export default function Home() {
 
       // ユーザー情報を設定
       setCurrentUser(response.user);
-      setCurrentMenuType(response.user.role as UserRole);
+      // initialScreenFunctionCdを使用して画面を決定
+      setCurrentMenuType(response.user.initialScreenFunctionCd);
       setAuthStep('authenticated');
 
       // ユーザー情報とセッショントークンをSessionStorageに保存
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem('user', JSON.stringify(response.user));
-        sessionStorage.setItem('sessionToken', response.session.token); // ← session.tokenを保存
+        sessionStorage.setItem('sessionToken', response.session.token); // セッショントークンを保存
+        sessionStorage.setItem('userInfo', JSON.stringify(response.user)); // UserInfoを保存
       }
 
       messageApi.success('ログインに成功しました');
@@ -342,7 +358,7 @@ export default function Home() {
           username,
           password: data.password,
           displayName: data.user.displayName,
-          role: data.user.role as UserRole,
+          role: data.user.roleName,
         }))}
       />
     ) : undefined;
@@ -383,8 +399,9 @@ export default function Home() {
   if (authStep === 'authenticated' && currentUser) {
     let MenuComponent: React.ReactNode;
 
+    // initialScreenFunctionCd（数値コード）で分岐
     switch (currentMenuType) {
-      case 'provider':
+      case '010000':  // プロバイダーメニュー
         MenuComponent = (
           <ProviderMenu
             user={currentUser}
@@ -394,7 +411,7 @@ export default function Home() {
           />
         );
         break;
-      case 'system_admin':
+      case '020000':  // システム管理者メニュー
         MenuComponent = (
           <SystemAdminMenu
             user={currentUser}
@@ -404,7 +421,7 @@ export default function Home() {
           />
         );
         break;
-      case 'data_admin':
+      case '030000':  // データ管理者メニュー
         MenuComponent = (
           <DataAdminMenu
             user={currentUser}
@@ -414,7 +431,7 @@ export default function Home() {
           />
         );
         break;
-      case 'experiment_admin':
+      case '040000':  // 実験管理者メニュー
         MenuComponent = (
           <ExperimentAdminMenu
             user={currentUser}
@@ -424,7 +441,7 @@ export default function Home() {
           />
         );
         break;
-      case 'experiment_worker':
+      case '050000':  // 実験作業者メニュー
         MenuComponent = (
           <ExperimentWorkerMenu
             user={currentUser}
@@ -435,7 +452,7 @@ export default function Home() {
         );
         break;
       default:
-        MenuComponent = <div>Unknown role</div>;
+        MenuComponent = <div>未定義の機能コード: {currentMenuType}</div>;
     }
 
     return (

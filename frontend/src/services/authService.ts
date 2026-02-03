@@ -242,9 +242,10 @@ export const authService = {
       );
       
       if (response.data.success) {
-        // 成功したらSessionStorageからトークンを削除
+        // 成功したらSessionStorageからセッション情報を削除
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem('sessionToken');
+          sessionStorage.removeItem('userInfo');
         }
         return response.data.data;
       }

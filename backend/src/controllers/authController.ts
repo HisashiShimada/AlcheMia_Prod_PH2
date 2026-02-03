@@ -4,6 +4,7 @@ import { PasswordService } from '../services/passwordService';
 import { PinCodeService } from '../services/pinCodeService';
 import { EmailService } from '../services/emailService';
 import { JwtService } from '../services/jwtService';
+import { RolePermissionRepository } from '../repositories/rolePermissionRepository';
 import { v4 as uuidv4 } from 'uuid';
 import type { UserRole } from '../types/service';
 import { logError } from '../utils/logger';
@@ -87,10 +88,11 @@ export async function login(req: Request, res: Response): Promise<void> {
         user_id,
         user_name,
         mail_address,
-        role,
+        role_cd,
         organization_id,
         is_active,
-        locked_until
+        locked_until,
+        department_cd
       FROM organization_user
       WHERE user_name = $1 AND organization_id = $2
     `;
@@ -137,7 +139,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     const user = userResult.rows[0];
-    console.log(user.role)
+    console.log(user.role_cd)
 
     // 3. アカウント有効性チェック
     if (!user.is_active) {
@@ -312,30 +314,6 @@ export async function login(req: Request, res: Response): Promise<void> {
     });
   }
 }
-
-/**
- * ロール別リダイレクトURLマッピング
- */
-const REDIRECT_URLS: Record<UserRole, string> = {
-  provider: '/provider',
-  system_admin: '/system-admin',
-  data_admin: '/data-admin',
-  experiment_admin: '/experiment-admin',
-  experiment_worker: '/experiment-worker',
-  mi_engineer: '/mi-engineer',
-};
-
-/**
- * ロール別セッション有効期限（ミリ秒）
- */
-const SESSION_MAX_AGE: Record<UserRole, number> = {
-  provider: 48 * 60 * 60 * 1000,        // 48時間
-  system_admin: 48 * 60 * 60 * 1000,    // 48時間
-  data_admin: 24 * 60 * 60 * 1000,      // 24時間
-  experiment_admin: 24 * 60 * 60 * 1000,// 24時間
-  experiment_worker: 12 * 60 * 60 * 1000,// 12時間
-  mi_engineer: 24 * 60 * 60 * 1000,     // 24時間
-};
 
 /**
  * マスキングされたメールアドレスを生成（外部公開用）
@@ -792,7 +770,7 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
       SELECT 
         user_id,
         organization_id,
-        role,
+        role_cd,
         expires_at,
         is_used
       FROM password_reset_tokens
@@ -853,7 +831,7 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
     }
 
     // 3. パスワードハッシュ化
-    const hashResult = await passwordService.hash(newPassword, tokenData.role as UserRole);
+    const hashResult = await passwordService.hash(newPassword, tokenData.role_cd as UserRole);
 
     if (!hashResult.success) {
       res.status(500).json({
@@ -1049,13 +1027,53 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
 
     const userInfo = verifyResult.data;
 
-    // 3. JWT生成
+    // 2.5. roleテーブルから初期画面機能CDを取得
+    const roleQuery = `
+      SELECT initial_screen_function_cd
+      FROM role
+      WHERE organization_id = $1 AND role_cd = $2
+    `;
+    const roleResult = await pool.query(roleQuery, [userInfo.organizationId, userInfo.roleCd]);
+    
+    // 初期画面機能CDをユーザー情報に追加（取得できた値をそのまま設定）
+    userInfo.initialScreenFunctionCd = roleResult.rows.length > 0 
+      ? roleResult.rows[0].initial_screen_function_cd?.trim() || null
+      : null;
+
+    // 3. req.sessionに部門CDを保存
+    if (req.session) {
+      req.session.departmentCd = userInfo.departmentCd;
+
+      // 明示的にセッションを保存（非同期処理を待つ）
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            logError('Failed to save session', err as Error, {
+              userId: userInfo.id,
+            });
+            reject(err);
+          } else {
+            console.log('Session saved successfully with departmentCd:', userInfo.departmentCd);
+            resolve();
+          }
+        });
+      });
+    }
+
+    // 4. roleCdとorganization_idに基づいて権限情報を取得
+    const rolePermissionRepository = new RolePermissionRepository();
+    const permissions = await rolePermissionRepository.getPermissionsByRoleId(
+      userInfo.roleCd,
+      userInfo.organizationId
+    );
+
+    // 5. JWT生成（権限情報を含める）
     const jwtResult = await jwtService.generate(
       {
         userId: userInfo.id,
         organizationId: userInfo.organizationId,
-        role: userInfo.role,
         sessionId: uuidv4(),
+        permissions,
       }
     );
 
@@ -1076,14 +1094,17 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
 
     const jwtToken = jwtResult.data;
 
-    // 4. セッション有効期限を計算
-    const maxAge = SESSION_MAX_AGE[userInfo.role];
-    const expiresAt = new Date(Date.now() + maxAge);
+    // 6. セッション有効期限を計算（全ロール共通で30分）
+    const maxAge = 30 * 60 * 1000; // 30分
+    const nowTimestamp = Date.now();
+    const expiresAtTimestamp = nowTimestamp + maxAge;
+    const expiresAt = new Date(expiresAtTimestamp);
 
-    // 5. PINコード削除（使用済み処理）
+    // 7. PINコード削除（使用済み処理）
     await pinCodeService.delete(sessionToken);
 
-    // 6. 成功レスポンス（JWTトークンをレスポンスボディで返す）
+    // 8. 成功レスポンス（JWTトークンをレスポンスボディで返す）
+    // initial_screen_function_cdに基づいてフロントエンドで画面遷移を制御
     res.status(200).json({
       success: true,
       data: {
@@ -1091,16 +1112,18 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
           id: userInfo.id,
           username: userInfo.username,
           email: userInfo.email,
-          role: userInfo.role,
+          roleName: userInfo.roleName,
+          roleCd: userInfo.roleCd,
           organizationId: userInfo.organizationId,
           organizationName: userInfo.organizationName,
           displayName: userInfo.displayName,
+          departmentCd: userInfo.departmentCd,
+          initialScreenFunctionCd: userInfo.initialScreenFunctionCd
         },
         session: {
           token: jwtToken,
           expiresAt: expiresAt.toISOString(),
         },
-        redirectUrl: REDIRECT_URLS[userInfo.role],
       },
       meta: {
         timestamp: new Date().toISOString(),

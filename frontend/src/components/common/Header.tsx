@@ -32,9 +32,9 @@ export default function Header({ user, onLogout }: HeaderProps) {
   const { t, locale, setLocale } = useLanguage();
   const { token } = theme.useToken();
 
-  // ロール名の表示
-  const getRoleLabel = (role: string): string => {
-    return t(`roles.${role}`) || role;
+  // ロール名の表示（roleNameはDBから取得される日本語文字列なのでそのまま表示）
+  const getRoleLabel = (roleName: string): string => {
+    return roleName;
   };
 
   // 言語選択サブメニュー
@@ -155,7 +155,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
                 fontSize: token.fontSize,
               }}
             >
-              {getRoleLabel(user.role)} | {user.organizationName}
+              {getRoleLabel(user.roleName)} | {user.organizationName}
             </Text>
           </div>
 

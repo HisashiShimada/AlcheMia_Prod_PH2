@@ -36,7 +36,6 @@ export class JwtService {
    * JWTトークンを生成
    * 
    * @param payload - JWTペイロード（iat, expを除く）
-   * @param role - ユーザーロール（有効期限決定に使用）
    * @returns maiml_session-{sessionId}_{timestamp} 形式のトークン
    */
   async generate(

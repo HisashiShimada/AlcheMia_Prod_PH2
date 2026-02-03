@@ -6,6 +6,9 @@ import dotenv from 'dotenv';
 // Load environment variables FIRST (before any other imports that might use them)
 dotenv.config();
 
+// Import middleware
+import { setupSessionMiddleware } from './middleware/sessionMiddleware';
+
 // Import routes after dotenv is configured
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
@@ -34,6 +37,9 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // Cookie解析ミドルウェア
+
+// Session middleware
+app.use(setupSessionMiddleware());
 
 // Mount routes
 app.use('/api/v1/auth', authRoutes);
