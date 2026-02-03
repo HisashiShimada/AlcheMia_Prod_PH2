@@ -40,7 +40,7 @@ export interface UpdateTaskStatusParams {
   projectId: string;
   methodId: string;
   taskNo: number;
-  status: number; // TaskStatusEnum値
+  status: TaskStatus; // 文字列のステータス値
   currentUpdateAt: string;
   userId: string;
   role: string;

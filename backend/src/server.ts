@@ -44,7 +44,7 @@ app.use(setupSessionMiddleware());
 // Mount routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/projects', projectRoutes);
-app.use('/api/v1/projects', taskRoutes);
+app.use('/api/v1/tasks', taskRoutes); // Task 3.3: タスク一覧取得API
 app.use('/api/v1/projects', fileDownloadRoutes);
 
 // Mount master routes

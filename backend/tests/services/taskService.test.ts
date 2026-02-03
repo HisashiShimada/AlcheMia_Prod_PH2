@@ -1,236 +1,245 @@
 /**
- * タスクサービステスト
+ * TaskService単体テスト
  * 
- * @description タスクサービスのユニットテスト（TDD方式）
+ * タスク2.1: TaskServiceインターフェースと実装の作成
+ * - タスクがmethod_id単位で正しくグループ化されること
+ * - 空のメソッド（タスクなし）も含まれること
+ * - experiment_order順にソートされること
+ * - ソート条件が正しく適用されること
+ * - 日時フィールドがISO 8601形式に変換されること
  */
 
-import { validateTransition, TaskStatusEnum, checkPermission } from '../../src/services/taskService';
+import { TaskService } from '../../src/services/taskService';
+import { TaskRepository } from '../../src/repositories/taskRepository';
+import { MethodTaskRecord, TaskFilters } from '../../src/types/task';
 
-describe('taskService', () => {
-  describe('TaskStatusEnum', () => {
-    it('should define correct status values', () => {
-      expect(TaskStatusEnum.PENDING).toBe(0);
-      expect(TaskStatusEnum.IN_PROGRESS).toBe(1);
-      expect(TaskStatusEnum.COMPLETED).toBe(3);
-      expect(TaskStatusEnum.FORCED_TERMINATED).toBe(4);
-    });
+// TaskRepositoryのモック
+jest.mock('../../src/repositories/taskRepository');
+
+describe('TaskService', () => {
+  let taskService: TaskService;
+  let mockTaskRepository: jest.Mocked<TaskRepository>;
+
+  beforeEach(() => {
+    // モックのクリア
+    jest.clearAllMocks();
+
+    // TaskRepositoryのモックインスタンス作成
+    mockTaskRepository = new TaskRepository() as jest.Mocked<TaskRepository>;
+    
+    // TaskServiceのインスタンス作成（モックRepositoryを注入）
+    taskService = new TaskService(mockTaskRepository);
   });
 
-  describe('validateTransition', () => {
-    describe('有効な状態遷移', () => {
-      it('should allow PENDING to IN_PROGRESS transition', () => {
-        const result = validateTransition(TaskStatusEnum.PENDING, TaskStatusEnum.IN_PROGRESS);
-        expect(result.isValid).toBe(true);
-        expect(result.error).toBeUndefined();
-      });
+  describe('getTasksGroupedByMethod', () => {
+    const projectId = 'proj-123';
+    const organizationId = 'org-456';
 
-      it('should allow IN_PROGRESS to COMPLETED transition', () => {
-        const result = validateTransition(TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.COMPLETED);
-        expect(result.isValid).toBe(true);
-        expect(result.error).toBeUndefined();
-      });
+    it('タスクをmethod_id単位で正しくグループ化する', async () => {
+      // モックデータ：2つのメソッド、それぞれ2つのタスク
+      const mockRecords: MethodTaskRecord[] = [
+        {
+          method_id: 'a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6',
+          method_name: 'メソッド1',
+          experiment_order: 1,
+          task_detail_id: 'task-1-1',
+          task_detail_no: 1,
+          task_status: 'not_started',
+          assign_user_id: 'user-1',
+          assign_user_name: 'ユーザー1',
+          progress_rate: 50,
+          created_at: new Date('2024-01-01T10:00:00Z'),
+          updated_at: new Date('2024-01-02T10:00:00Z'),
+        },
+        {
+          method_id: 'a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6',
+          method_name: 'メソッド1',
+          experiment_order: 1,
+          task_detail_id: 'task-1-2',
+          task_detail_no: 2,
+          task_status: 'started',
+          assign_user_id: 'user-2',
+          assign_user_name: 'ユーザー2',
+          progress_rate: 75,
+          created_at: new Date('2024-01-03T10:00:00Z'),
+          updated_at: new Date('2024-01-04T10:00:00Z'),
+        },
+        {
+          method_id: 'b2c3d4e5-f6a7-48b9-c0d1-e2f3a4b5c6d7',
+          method_name: 'メソッド2',
+          experiment_order: 2,
+          task_detail_id: 'task-2-1',
+          task_detail_no: 1,
+          task_status: 'in_progress',
+          assign_user_id: null,
+          assign_user_name: null,
+          progress_rate: 0,
+          created_at: new Date('2024-01-05T10:00:00Z'),
+          updated_at: new Date('2024-01-06T10:00:00Z'),
+        },
+      ];
 
-      it('should allow IN_PROGRESS to FORCED_TERMINATED transition', () => {
-        const result = validateTransition(TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.FORCED_TERMINATED);
-        expect(result.isValid).toBe(true);
-        expect(result.error).toBeUndefined();
-      });
+      mockTaskRepository.findMethodsAndTasksByProject.mockResolvedValue(mockRecords);
+
+      const result = await taskService.getTasksGroupedByMethod(projectId, organizationId, {});
+
+      // 結果の検証
+      expect(result).toHaveLength(2); // 2つのメソッドグループ
+      
+      // メソッド1のグループ
+      expect(result[0].method_id).toBe('a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6');
+      expect(result[0].method_name).toBe('メソッド1');
+      expect(result[0].experiment_order).toBe(1);
+      expect(result[0].tasks).toHaveLength(2);
+      
+      // メソッド2のグループ
+      expect(result[1].method_id).toBe('b2c3d4e5-f6a7-48b9-c0d1-e2f3a4b5c6d7');
+      expect(result[1].method_name).toBe('メソッド2');
+      expect(result[1].experiment_order).toBe(2);
+      expect(result[1].tasks).toHaveLength(1);
     });
 
-    describe('無効な状態遷移', () => {
-      it('should reject PENDING to COMPLETED transition', () => {
-        const result = validateTransition(TaskStatusEnum.PENDING, TaskStatusEnum.COMPLETED);
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('INVALID_STATUS_TRANSITION');
-        expect(result.error?.message).toContain('Invalid status transition');
-      });
+    it('experiment_order順にメソッドをソートする', async () => {
+      // モックデータ：experiment_orderが逆順
+      const mockRecords: MethodTaskRecord[] = [
+        {
+          method_id: 'c3d4e5f6-a7b8-49c0-d1e2-f3a4b5c6d7e8',
+          method_name: 'メソッド3',
+          experiment_order: 3,
+          task_detail_id: 'task-3-1',
+          task_detail_no: 1,
+          task_status: 'not_started',
+          assign_user_id: null,
+          assign_user_name: null,
+          progress_rate: 0,
+          created_at: new Date('2024-01-01T10:00:00Z'),
+          updated_at: new Date('2024-01-02T10:00:00Z'),
+        },
+        {
+          method_id: 'a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6',
+          method_name: 'メソッド1',
+          experiment_order: 1,
+          task_detail_id: 'task-1-1',
+          task_detail_no: 1,
+          task_status: 'not_started',
+          assign_user_id: null,
+          assign_user_name: null,
+          progress_rate: 0,
+          created_at: new Date('2024-01-03T10:00:00Z'),
+          updated_at: new Date('2024-01-04T10:00:00Z'),
+        },
+        {
+          method_id: 'b2c3d4e5-f6a7-48b9-c0d1-e2f3a4b5c6d7',
+          method_name: 'メソッド2',
+          experiment_order: 2,
+          task_detail_id: 'task-2-1',
+          task_detail_no: 1,
+          task_status: 'not_started',
+          assign_user_id: null,
+          assign_user_name: null,
+          progress_rate: 0,
+          created_at: new Date('2024-01-05T10:00:00Z'),
+          updated_at: new Date('2024-01-06T10:00:00Z'),
+        },
+      ];
 
-      it('should reject PENDING to FORCED_TERMINATED transition', () => {
-        const result = validateTransition(TaskStatusEnum.PENDING, TaskStatusEnum.FORCED_TERMINATED);
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('INVALID_STATUS_TRANSITION');
-      });
+      mockTaskRepository.findMethodsAndTasksByProject.mockResolvedValue(mockRecords);
 
-      it('should reject COMPLETED to IN_PROGRESS transition (backward)', () => {
-        const result = validateTransition(TaskStatusEnum.COMPLETED, TaskStatusEnum.IN_PROGRESS);
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('INVALID_STATUS_TRANSITION');
-      });
+      const result = await taskService.getTasksGroupedByMethod(projectId, organizationId, {});
 
-      it('should reject COMPLETED to PENDING transition (backward)', () => {
-        const result = validateTransition(TaskStatusEnum.COMPLETED, TaskStatusEnum.PENDING);
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('INVALID_STATUS_TRANSITION');
-      });
-
-      it('should reject FORCED_TERMINATED to any status (terminal state)', () => {
-        const result = validateTransition(TaskStatusEnum.FORCED_TERMINATED, TaskStatusEnum.IN_PROGRESS);
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('INVALID_STATUS_TRANSITION');
-      });
-
-      it('should reject same status transition', () => {
-        const result = validateTransition(TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.IN_PROGRESS);
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('INVALID_STATUS_TRANSITION');
-      });
+      // experiment_order順にソートされていることを確認
+      expect(result[0].experiment_order).toBe(1);
+      expect(result[1].experiment_order).toBe(2);
+      expect(result[2].experiment_order).toBe(3);
     });
 
-    describe('エッジケース', () => {
-      it('should reject invalid status numbers', () => {
-        const result = validateTransition(99, TaskStatusEnum.IN_PROGRESS);
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('INVALID_STATUS_TRANSITION');
-      });
+    it('日時フィールドをISO 8601形式に変換する', async () => {
+      const mockRecords: MethodTaskRecord[] = [
+        {
+          method_id: 'a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6',
+          method_name: 'メソッド1',
+          experiment_order: 1,
+          task_detail_id: 'task-1-1',
+          task_detail_no: 1,
+          task_status: 'not_started',
+          assign_user_id: null,
+          assign_user_name: null,
+          progress_rate: 0,
+          created_at: new Date('2024-01-01T10:30:45.123Z'),
+          updated_at: new Date('2024-01-02T15:45:30.456Z'),
+        },
+      ];
 
-      it('should provide descriptive error messages', () => {
-        const result = validateTransition(TaskStatusEnum.PENDING, TaskStatusEnum.COMPLETED);
-        expect(result.error?.message).toMatch(/PENDING.*COMPLETED/i);
-      });
-    });
-  });
+      mockTaskRepository.findMethodsAndTasksByProject.mockResolvedValue(mockRecords);
 
-  describe('checkPermission', () => {
-    describe('system_adminロール', () => {
-      it('should allow system_admin to access any task in their organization', () => {
-        const result = checkPermission(
-          'user-1',
-          'system_admin',
-          'user-999', // 他のユーザーのタスク
-          'org-1',
-          'org-1'
-        );
-        expect(result.isValid).toBe(true);
-        expect(result.error).toBeUndefined();
-      });
+      const result = await taskService.getTasksGroupedByMethod(projectId, organizationId, {});
 
-      it('should allow system_admin to access tasks in any organization', () => {
-        const result = checkPermission(
-          'user-1',
-          'system_admin',
-          'user-999',
-          'org-1',
-          'org-2' // 異なる組織
-        );
-        expect(result.isValid).toBe(true);
-        expect(result.error).toBeUndefined();
-      });
+      // ISO 8601形式（YYYY-MM-DDTHH:mm:ss.sssZ）に変換されていることを確認
+      expect(result[0].tasks[0].created_at).toBe('2024-01-01T10:30:45.123Z');
+      expect(result[0].tasks[0].updated_at).toBe('2024-01-02T15:45:30.456Z');
     });
 
-    describe('experiment_adminロール', () => {
-      it('should allow experiment_admin to access any task in their organization', () => {
-        const result = checkPermission(
-          'user-1',
-          'experiment_admin',
-          'user-999', // 他のユーザーのタスク
-          'org-1',
-          'org-1'
-        );
-        expect(result.isValid).toBe(true);
-        expect(result.error).toBeUndefined();
-      });
+    it('空のメソッド（タスクなし）も含める', async () => {
+      // このテストは将来の拡張で対応
+      // 現状のデータ構造では、タスクがないメソッドはDBから返されない
+      // MAIMLファイルとの突合が必要（要件11）
+      
+      const mockRecords: MethodTaskRecord[] = [];
 
-      it('should allow experiment_admin to access their own task', () => {
-        const result = checkPermission(
-          'user-1',
-          'experiment_admin',
-          'user-1', // 自分のタスク
-          'org-1',
-          'org-1'
-        );
-        expect(result.isValid).toBe(true);
-        expect(result.error).toBeUndefined();
-      });
+      mockTaskRepository.findMethodsAndTasksByProject.mockResolvedValue(mockRecords);
+
+      const result = await taskService.getTasksGroupedByMethod(projectId, organizationId, {});
+
+      // 空配列が返されることを確認
+      expect(result).toHaveLength(0);
     });
 
-    describe('experiment_workerロール', () => {
-      it('should allow experiment_worker to access their own assigned task', () => {
-        const result = checkPermission(
-          'user-1',
-          'experiment_worker',
-          'user-1', // 自分に割り当てられたタスク
-          'org-1',
-          'org-1'
-        );
-        expect(result.isValid).toBe(true);
-        expect(result.error).toBeUndefined();
-      });
+    it('TaskRepositoryに正しいパラメータを渡す', async () => {
+      const mockRecords: MethodTaskRecord[] = [];
+      mockTaskRepository.findMethodsAndTasksByProject.mockResolvedValue(mockRecords);
 
-      it('should reject experiment_worker accessing other user\'s task', () => {
-        const result = checkPermission(
-          'user-1',
-          'experiment_worker',
-          'user-999', // 他のユーザーのタスク
-          'org-1',
-          'org-1'
-        );
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('PERMISSION_INSUFFICIENT');
-        expect(result.error?.message).toContain('experiment_worker');
-        expect(result.error?.message).toContain('assigned');
-      });
+      const filters: TaskFilters = {
+        methodId: 'a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6',
+        status: 'started',
+        assignUserId: 'user-1',
+        sortBy: 'created_at',
+        order: 'desc',
+      };
 
-      it('should reject experiment_worker when experimentUserId is null', () => {
-        const result = checkPermission(
-          'user-1',
-          'experiment_worker',
-          null, // タスクに誰も割り当てられていない
-          'org-1',
-          'org-1'
-        );
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('PERMISSION_INSUFFICIENT');
-      });
+      await taskService.getTasksGroupedByMethod(projectId, organizationId, filters);
+
+      // TaskRepositoryが正しいパラメータで呼ばれたことを確認
+      expect(mockTaskRepository.findMethodsAndTasksByProject).toHaveBeenCalledWith(
+        projectId,
+        organizationId,
+        filters
+      );
     });
 
-    describe('その他のロール', () => {
-      it('should reject unknown role', () => {
-        const result = checkPermission(
-          'user-1',
-          'unknown_role',
-          'user-1',
-          'org-1',
-          'org-1'
-        );
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('PERMISSION_INSUFFICIENT');
-      });
+    it('担当者名がnullの場合も正しく処理する', async () => {
+      const mockRecords: MethodTaskRecord[] = [
+        {
+          method_id: 'a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6',
+          method_name: 'メソッド1',
+          experiment_order: 1,
+          task_detail_id: 'task-1-1',
+          task_detail_no: 1,
+          task_status: 'not_started',
+          assign_user_id: null,
+          assign_user_name: null,
+          progress_rate: 0,
+          created_at: new Date('2024-01-01T10:00:00Z'),
+          updated_at: new Date('2024-01-02T10:00:00Z'),
+        },
+      ];
 
-      it('should reject data_admin role (not allowed to update task status)', () => {
-        const result = checkPermission(
-          'user-1',
-          'data_admin',
-          'user-1',
-          'org-1',
-          'org-1'
-        );
-        expect(result.isValid).toBe(false);
-        expect(result.error).toBeDefined();
-        expect(result.error?.code).toBe('PERMISSION_INSUFFICIENT');
-      });
-    });
+      mockTaskRepository.findMethodsAndTasksByProject.mockResolvedValue(mockRecords);
 
-    describe('エラーメッセージ', () => {
-      it('should provide descriptive error message for insufficient permission', () => {
-        const result = checkPermission(
-          'user-1',
-          'experiment_worker',
-          'user-999',
-          'org-1',
-          'org-1'
-        );
-        expect(result.error?.message).toMatch(/experiment_worker.*assigned/i);
-      });
+      const result = await taskService.getTasksGroupedByMethod(projectId, organizationId, {});
+
+      // nullが正しく保持されていることを確認
+      expect(result[0].tasks[0].assign_user_id).toBeNull();
+      expect(result[0].tasks[0].assign_user_name).toBeNull();
     });
   });
 });

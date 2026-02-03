@@ -1,3 +1,4 @@
+import { JwtPayload } from './auth';
 import 'express';
 import 'express-session';
 import { Session, SessionData } from 'express-session';
@@ -30,3 +31,19 @@ declare module 'express' {
     session: Session & Partial<SessionData>;
   }
 }
+
+/**
+ * Express型定義の拡張
+ * 
+ * @description Request型にuser、organizationIdプロパティを追加
+ */
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JwtPayload;
+      organizationId?: string;
+    }
+  }
+}
+
+export {};
