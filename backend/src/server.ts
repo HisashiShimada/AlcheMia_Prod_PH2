@@ -12,6 +12,7 @@ import projectRoutes from './routes/projectRoutes';
 import taskRoutes from './routes/taskRoutes';
 import fileDownloadRoutes from './routes/fileDownloadRoutes';
 import masterRoutes from './routes/masterRoutes';
+import experimentRoutes from './routes/experimentRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -40,6 +41,9 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/projects', projectRoutes);
 app.use('/api/v1/tasks', taskRoutes); // Task 3.3: タスク一覧取得API
 app.use('/api/v1/projects', fileDownloadRoutes);
+
+// Mount experiment routes
+app.use('/api/v1/experiments', experimentRoutes);
 
 // Mount master routes
 app.use('/api/v1/master', masterRoutes);
