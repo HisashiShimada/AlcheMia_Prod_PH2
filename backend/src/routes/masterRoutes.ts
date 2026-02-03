@@ -1,9 +1,9 @@
 /**
- * マスタ管理ルート
+ * マスタ管理(Creator、Vendor、Instrument)ルート
  */
 
 import { Router } from 'express';
-import { header, query, param, body } from 'express-validator';
+import { query, param, body } from 'express-validator';
 import * as masterController from '../controllers/masterController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import cors from 'cors';
@@ -15,7 +15,7 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
       cb(null, true);
     } else {
@@ -115,7 +115,7 @@ router.get(
 
 /**
  * Instrumentマスタ一覧取得
- * GET /api/v1/master/instrument
+ * GET /master/instrument
  */
 router.get(
   '/instrument',
@@ -126,7 +126,7 @@ router.get(
 
 /**
  * InstrumentマスタCSVダウンロード
- * GET /api/v1/master/instrument/download-csv
+ * GET /master/instrument/download-csv
  * 
  * 注意: このルートは /instrument/:instrumentId より前に定義する必要がある
  */
@@ -139,7 +139,7 @@ router.get(
 
 /**
  * InstrumentマスタCSVアップロード
- * POST /api/v1/master/instrument/upload-csv
+ * POST /master/instrument/upload-csv
  * 
  * 注意: このルートは /instrument/:instrumentId より前に定義する必要がある
  */
@@ -153,7 +153,7 @@ router.post(
 
 /**
  * Instrument ID指定で1件取得
- * GET /api/v1/master/instrument/:instrumentId
+ * GET /master/instrument/:instrumentId
  */
 router.get(
   '/instrument/:instrumentId',
@@ -227,7 +227,7 @@ router.get(
 
 /**
  * Instrumentマスタを新規作成
- * POST /api/v1/master/instrument
+ * POST /master/instrument
  */
 router.post(
   '/instrument',
@@ -237,7 +237,7 @@ router.post(
 
 /**
  * Instrumentマスタを更新
- * PUT /api/v1/master/instrument/:instrumentId
+ * PUT /master/instrument/:instrumentId
  */
 router.put(
   '/instrument/:instrumentId',
@@ -254,7 +254,7 @@ router.put(
 
 /**
  * Instrumentマスタのアクティブ状態を更新
- * PATCH /api/v1/master/instrument/:instrumentId/status
+ * PATCH /master/instrument/:instrumentId/status
  */
 router.patch(
   '/instrument/:instrumentId/status',
@@ -355,312 +355,6 @@ router.patch(
       .withMessage('creatorId must be a string'),
   ],
   masterController.updateCreatorStatus
-);
-
-/**
- * Corporation一覧取得
- * GET /api/v1/master/corporation
- */
-router.get(
-  '/corporation',
-  authMiddleware, // 認証ミドルウェア有効化
-  [
-    query('search')
-      .optional()
-      .isString()
-      .withMessage('search must be a string'),
-    query('is_active')
-      .optional()
-      .isBoolean()
-      .withMessage('is_active must be a boolean'),
-    query('sort_by')
-      .optional()
-      .isString()
-      .withMessage('sort_by must be a string'),
-    query('sort_order')
-      .optional()
-      .isIn(['asc', 'desc'])
-      .withMessage('sort_order must be either "asc" or "desc"'),
-  ],
-  masterController.getCorporation
-);
-
-/**
- * CorporationCSVダウンロード
- * GET /api/v1/master/corporation/download-csv
- * 
- * 注意: このルートは /corporation/:corporationId より前に定義する必要がある
- */
-router.get(
-  '/corporation/download-csv',
-  authMiddleware, // 認証ミドルウェア有効化
-  masterController.downloadCorporationCsv
-);
-
-/**
- * CorporationCSVアップロード
- * POST /api/v1/master/corporation/upload-csv
- * 
- * 注意: このルートは /corporation/:corporationId より前に定義する必要がある
- */
-router.post(
-  '/corporation/upload-csv',
-  authMiddleware, // 認証ミドルウェア有効化
-  upload.single('file'),
-  masterController.uploadCorporationCsv
-);
-
-/**
- * Corporation ID指定で1件取得
- * GET /api/v1/master/corporation/:corporationId
- */
-router.get(
-  '/corporation/:corporationId',
-  authMiddleware,
-  [
-    param('corporationId')
-      .notEmpty()
-      .withMessage('corporationId is required')
-      .isString()
-      .withMessage('corporationId must be a string'),
-  ],
-  masterController.getCorporationById
-);
-
-/**
- * Corporationを新規作成
- * POST /api/v1/master/corporation
- */
-router.post(
-  '/corporation',
-  authMiddleware, // 認証ミドルウェア有効化
-  [
-    body('corporationName')
-      .notEmpty()
-      .withMessage('corporationName is required')
-      .isString()
-      .withMessage('corporationName must be a string'),
-    body('isActive')
-      .optional()
-      .isBoolean()
-      .withMessage('isActive must be a boolean'),
-  ],
-  masterController.createCorporation
-);
-
-/**
- * Corporationを更新
- * PUT /api/v1/master/corporation/:corporationId
- */
-router.put(
-  '/corporation/:corporationId',
-  authMiddleware, // 認証ミドルウェア有効化
-  [
-    param('corporationId')
-      .notEmpty()
-      .withMessage('corporationId is required')
-      .isString()
-      .withMessage('corporationId must be a string'),
-    body('corporationName')
-      .notEmpty()
-      .withMessage('corporationName is required')
-      .isString()
-      .withMessage('corporationName must be a string'),
-    body('isActive')
-      .optional()
-      .isBoolean()
-      .withMessage('isActive must be a boolean'),
-  ],
-  masterController.updateCorporation
-);
-
-/**
- * Corporationのアクティブ状態を更新
- * PATCH /api/v1/master/corporation/:corporationId/status
- */
-router.patch(
-  '/corporation/:corporationId/status',
-  authMiddleware, // 認証ミドルウェア有効化
-  [
-    param('corporationId')
-      .notEmpty()
-      .withMessage('corporationId is required')
-      .isString()
-      .withMessage('corporationId must be a string'),
-  ],
-  masterController.updateCorporationStatus
-);
-
-/**
- * Department一覧取得
- * GET /api/v1/master/department
- */
-router.get(
-  '/department',
-  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
-  [
-    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
-    query('search')
-      .optional()
-      .isString()
-      .withMessage('search must be a string'),
-    query('is_active')
-      .optional()
-      .isBoolean()
-      .withMessage('is_active must be a boolean'),
-    query('sort_by')
-      .optional()
-      .isString()
-      .withMessage('sort_by must be a string'),
-    query('sort_order')
-      .optional()
-      .isIn(['asc', 'desc'])
-      .withMessage('sort_order must be either "asc" or "desc"'),
-  ],
-  masterController.getDepartments
-);
-
-/**
- * DepartmentCSVダウンロード
- * GET /api/v1/master/department/download-csv
- * 
- * 注意: このルートは /department/:departmentCd より前に定義する必要がある
- */
-router.get(
-  '/department/download-csv',
-  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
-  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
-  masterController.downloadDepartmentCsv
-);
-
-/**
- * DepartmentCSVアップロード
- * POST /api/v1/master/department/upload-csv
- * 
- * 注意: このルートは /department/:departmentCd より前に定義する必要がある
- */
-router.post(
-  '/department/upload-csv',
-  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
-  upload.single('file'),
-  // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
-  masterController.uploadDepartmentCsv
-);
-
-/**
- * Department CD指定で1件取得
- * GET /api/v1/master/department/:departmentCd
- */
-router.get(
-  '/department/:departmentCd',
-  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
-  [
-    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
-    param('departmentCd')
-      .notEmpty()
-      .withMessage('departmentCd is required')
-      .isString()
-      .withMessage('departmentCd must be a string'),
-  ],
-  masterController.getDepartmentById
-);
-
-/**
- * Departmentを新規作成
- * POST /api/v1/master/department
- */
-router.post(
-  '/department',
-  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
-  [
-    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
-    body('departmentCd')
-      .notEmpty()
-      .withMessage('departmentCd is required')
-      .isString()
-      .withMessage('departmentCd must be a string'),
-    body('departmentName')
-      .notEmpty()
-      .withMessage('departmentName is required')
-      .isString()
-      .withMessage('departmentName must be a string'),
-    body('isActive')
-      .optional()
-      .isBoolean()
-      .withMessage('isActive must be a boolean'),
-  ],
-  masterController.createDepartment
-);
-
-/**
- * Departmentを更新
- * PUT /api/v1/master/department/:departmentCd
- */
-router.put(
-  '/department/:departmentCd',
-  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
-  [
-    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
-    param('departmentCd')
-      .notEmpty()
-      .withMessage('departmentCd is required')
-      .isString()
-      .withMessage('departmentCd must be a string'),
-    body('departmentName')
-      .optional()
-      .isString()
-      .withMessage('departmentName must be a string'),
-    body('isActive')
-      .optional()
-      .isBoolean()
-      .withMessage('isActive must be a boolean'),
-  ],
-  masterController.updateDepartment
-);
-
-/**
- * Departmentのアクティブ状態を更新
- * PATCH /api/v1/master/department/:departmentCd/status
- */
-router.patch(
-  '/department/:departmentCd/status',
-  authMiddleware, // 認証ミドルウェア有効化（JWTから organizationId を取得）
-  [
-    // validateOrganizationHeader は不要（authMiddleware が organizationId を設定）
-    param('departmentCd')
-      .notEmpty()
-      .withMessage('departmentCd is required')
-      .isString()
-      .withMessage('departmentCd must be a string'),
-  ],
-  masterController.updateDepartmentStatus
-);
-
-/**
- * ロール一覧取得
- * GET /api/v1/master/role
- */
-router.get(
-  '/role',
-  authMiddleware, // 認証ミドルウェア有効化
-  masterController.getRoles
-);
-
-/**
- * ロールID指定で1件取得
- * GET /api/v1/master/role/:roleId
- */
-router.get(
-  '/role/:roleId',
-  authMiddleware, // 認証ミドルウェア有効化
-  [
-    param('roleId')
-      .notEmpty()
-      .withMessage('roleId is required')
-      .isString()
-      .withMessage('roleId must be a string'),
-  ],
-  masterController.getRoleById
 );
 
 export default router;

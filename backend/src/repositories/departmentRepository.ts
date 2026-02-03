@@ -157,6 +157,7 @@ export async function existsById(
  * 
  * @param organizationId 組織ID
  * @param data Department情報
+ * @param userId ログインユーザーID
  * @returns 作成されたDepartment
  */
 export async function create(
@@ -165,7 +166,8 @@ export async function create(
     departmentCd: string;
     departmentName: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<DepartmentRow> {
   const pool: Pool = getPool();
   
@@ -175,10 +177,12 @@ export async function create(
       department_cd,
       department_name,
       is_active,
+      create_user_id,
+      update_user_id,
       create_at,
       update_at
     ) VALUES (
-      $1, $2, $3, $4, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, NOW(), NOW()
     )
     RETURNING 
       organization_id,
@@ -194,6 +198,8 @@ export async function create(
     data.departmentCd,
     data.departmentName,
     data.isActive !== undefined ? data.isActive : true,
+    userId,
+    userId,
   ];
   
   const result = await pool.query<DepartmentRow>(query, values);
@@ -207,6 +213,7 @@ export async function create(
  * @param organizationId 組織ID
  * @param departmentCd 部署CD
  * @param data 更新情報
+ * @param userId ログインユーザーID
  * @returns 更新されたDepartment（見つからない場合はnull）
  */
 export async function update(
@@ -215,7 +222,8 @@ export async function update(
   data: {
     departmentName?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<DepartmentRow | null> {
   const pool: Pool = getPool();
   
@@ -240,6 +248,10 @@ export async function update(
     return await findById(organizationId, departmentCd);
   }
   
+  // update_user_id と update_at は常に更新
+  updates.push(`update_user_id = $${paramIndex}`);
+  values.push(userId);
+  paramIndex++;
   updates.push(`update_at = NOW()`);
   
   const query = `
@@ -271,21 +283,24 @@ export async function update(
  * @param organizationId 組織ID
  * @param departmentCd 部署CD
  * @param isActive アクティブ状態
+ * @param userId ログインユーザーID
  * @returns 更新されたDepartment（見つからない場合はnull）
  */
 export async function updateStatus(
   organizationId: string,
   departmentCd: string,
-  isActive: boolean
+  isActive: boolean,
+  userId: string
 ): Promise<DepartmentRow | null> {
   const pool: Pool = getPool();
   
   const query = `
     UPDATE department
     SET is_active = $1,
+        update_user_id = $2,
         update_at = NOW()
-    WHERE organization_id = $2
-      AND department_cd = $3
+    WHERE organization_id = $3
+      AND department_cd = $4
     RETURNING 
       organization_id,
       department_cd,
@@ -295,7 +310,7 @@ export async function updateStatus(
       update_at
   `;
   
-  const result = await pool.query<DepartmentRow>(query, [isActive, organizationId, departmentCd]);
+  const result = await pool.query<DepartmentRow>(query, [isActive, userId, organizationId, departmentCd]);
   
   if (result.rows.length === 0) {
     return null;

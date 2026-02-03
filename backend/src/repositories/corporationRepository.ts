@@ -171,6 +171,7 @@ export async function existsByName(
  * Corporationを新規作成
  * 
  * @param data Corporation情報
+ * @param userId ログインユーザーID
  * @returns 作成されたCorporation
  */
 export async function create(
@@ -178,7 +179,8 @@ export async function create(
     corporationId: string; // UUID
     corporationName: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<CorporationRow> {
   const pool: Pool = getPool();
   
@@ -187,10 +189,12 @@ export async function create(
       corporation_id,
       corporation_name,
       is_active,
+      create_user_id,
+      update_user_id,
       create_at,
       update_at
     ) VALUES (
-      $1, $2, $3, NOW(), NOW()
+      $1, $2, $3, $4, $5, NOW(), NOW()
     )
     RETURNING 
       corporation_id,
@@ -204,6 +208,8 @@ export async function create(
     data.corporationId,
     data.corporationName,
     data.isActive !== undefined ? data.isActive : true,
+    userId,
+    userId,
   ];
   
   const result = await pool.query<CorporationRow>(query, values);
@@ -216,6 +222,7 @@ export async function create(
  * 
  * @param corporationId Corporation ID (UUID)
  * @param data 更新情報
+ * @param userId ログインユーザーID
  * @returns 更新されたCorporation（見つからない場合はnull）
  */
 export async function update(
@@ -223,7 +230,8 @@ export async function update(
   data: {
     corporationName?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<CorporationRow | null> {
   const pool: Pool = getPool();
   
@@ -248,6 +256,10 @@ export async function update(
     return await findById(corporationId);
   }
   
+  // update_user_id と update_at は常に更新
+  updates.push(`update_user_id = $${paramIndex}`);
+  values.push(userId);
+  paramIndex++;
   updates.push(`update_at = NOW()`);
   
   const query = `
@@ -276,19 +288,22 @@ export async function update(
  * 
  * @param corporationId Corporation ID (UUID)
  * @param isActive アクティブ状態
+ * @param userId ログインユーザーID
  * @returns 更新されたCorporation（見つからない場合はnull）
  */
 export async function updateStatus(
   corporationId: string,
-  isActive: boolean
+  isActive: boolean,
+  userId: string
 ): Promise<CorporationRow | null> {
   const pool: Pool = getPool();
   
   const query = `
     UPDATE corporation
     SET is_active = $1,
+        update_user_id = $2,
         update_at = NOW()
-    WHERE corporation_id = $2
+    WHERE corporation_id = $3
     RETURNING 
       corporation_id,
       corporation_name,
@@ -297,7 +312,7 @@ export async function updateStatus(
       update_at
   `;
   
-  const result = await pool.query<CorporationRow>(query, [isActive, corporationId]);
+  const result = await pool.query<CorporationRow>(query, [isActive, userId, corporationId]);
   
   if (result.rows.length === 0) {
     return null;
