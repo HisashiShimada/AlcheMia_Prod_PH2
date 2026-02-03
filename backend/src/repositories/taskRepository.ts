@@ -6,6 +6,9 @@
 
 import { PoolClient } from 'pg';
 import { TaskInput } from '../types/instruction';
+import { TaskFilters, MethodTaskRecord } from '../types/task';
+import { loadSqlFile } from '../sql/loader';
+import { getPool } from '../database/db';
 
 /**
  * TaskRepositoryクラス
@@ -138,5 +141,99 @@ export class TaskRepository {
     `;
 
     await client.query(query, values);
+  }
+
+  /**
+   * プロジェクト内のメソッドとタスク詳細を取得
+   * 
+   * @param projectId - プロジェクトID
+   * @param organizationId - 組織ID（マルチテナント分離必須）
+   * @param filters - フィルタ条件（methodId, status, assignUserId, sortBy, order）
+   * @returns メソッドとタスク詳細のレコード配列
+   */
+  async findMethodsAndTasksByProject(
+    projectId: string,
+    organizationId: string,
+    filters: TaskFilters
+  ): Promise<MethodTaskRecord[]> {
+    // 外部SQLファイルを読み込む
+    const baseSql = await loadSqlFile('tasks/listMethodsAndTasksByProject.sql');
+
+    // パラメータ配列（$1: projectId, $2: organizationId）
+    const params: any[] = [projectId, organizationId];
+    let paramIndex = 3;
+
+    // 動的WHERE句を構築
+    const whereClauses: string[] = [];
+
+    if (filters.methodId) {
+      whereClauses.push(`AND pt.method_id = $${paramIndex}`);
+      params.push(filters.methodId);
+      paramIndex++;
+    }
+
+    if (filters.status !== undefined) {
+      whereClauses.push(`AND ptd.task_status = $${paramIndex}`);
+      params.push(filters.status);
+      paramIndex++;
+    }
+
+    if (filters.assignUserId) {
+      whereClauses.push(`AND ptd.experiment_user_id = $${paramIndex}`);
+      params.push(filters.assignUserId);
+      paramIndex++;
+    }
+
+    // 動的ORDER BY句を構築
+    let orderByClause = '';
+    if (filters.sortBy) {
+      const sortColumn = this.mapSortFieldToColumn(filters.sortBy);
+      const sortOrder = filters.order?.toUpperCase() || 'ASC';
+      orderByClause = `, ${sortColumn} ${sortOrder}`;
+    }
+
+    // SQLを組み立て（WHERE句とORDER BY句を動的に追加）
+    let finalSql = baseSql;
+
+    // WHERE句に動的フィルタを追加
+    if (whereClauses.length > 0) {
+      // 既存のWHERE句の後に追加
+      finalSql = finalSql.replace(
+        /WHERE pt\.project_id = \$1\s+AND pt\.organization_id = \$2/,
+        `WHERE pt.project_id = $1\n  AND pt.organization_id = $2\n  ${whereClauses.join('\n  ')}`
+      );
+    }
+
+    // ORDER BY句に動的ソートを追加
+    if (orderByClause) {
+      // 既存のORDER BY句を見つけて、動的ソートを挿入
+      finalSql = finalSql.replace(
+        /ORDER BY\s+pt\.experiment_order ASC,/,
+        `ORDER BY\n  pt.experiment_order ASC${orderByClause},`
+      );
+    }
+
+    // クエリを実行
+    const pool = getPool();
+    const result = await pool.query(finalSql, params);
+
+    return result.rows as MethodTaskRecord[];
+  }
+
+  /**
+   * ソートフィールドをデータベースカラムにマッピング
+   * 
+   * @param sortField - ソートフィールド
+   * @returns データベースカラム名
+   */
+  private mapSortFieldToColumn(sortField: string): string {
+    const mapping: Record<string, string> = {
+      task_no: 'ptd.task_no',
+      created_at: 'ptd.experiment_start_at',
+      updated_at: 'ptd.reviewed_at',
+      status: 'ptd.task_status',
+    };
+
+    return mapping[sortField] || 'ptd.task_no';
   }
 }

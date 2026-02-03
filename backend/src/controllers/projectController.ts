@@ -38,8 +38,8 @@ export async function create(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { organizationId, userId } = req.user;
-    const departmentId = (req.user as any).departmentId || null;
+    const { organizationId, userId } = req.user!;
+    const departmentId = req.session?.department_id || null;
     const { projectName, description } = req.body;
 
     // Task 2.2: 詳細バリデーション
@@ -1211,7 +1211,7 @@ export async function requestApproval(req: Request, res: Response): Promise<void
   const requestId = uuidv4();
 
   try {
-    const { organizationId, userId } = req.user;
+    const { organizationId, userId } = req.user!;
     const { projectId } = req.params;
     const { comment } = req.body;
 

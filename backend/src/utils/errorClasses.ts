@@ -71,6 +71,25 @@ export class NotFoundError extends Error {
 }
 
 /**
+ * プロジェクト未検出エラー（HTTP 404）
+ * 
+ * タスク4.1: Worker Task List API用カスタムエラー
+ * Requirements: 8 (エラーハンドリング)
+ */
+export class ProjectNotFoundError extends Error {
+  public readonly statusCode = 404;
+  public readonly code = 'PROJECT_NOT_FOUND';
+  public readonly projectId?: string;
+
+  constructor(message: string = 'Project not found', projectId?: string) {
+    super(message);
+    this.name = 'ProjectNotFoundError';
+    this.projectId = projectId;
+    Object.setPrototypeOf(this, ProjectNotFoundError.prototype);
+  }
+}
+
+/**
  * ストレージエラー（HTTP 500）
  */
 export class StorageError extends Error {
@@ -83,6 +102,44 @@ export class StorageError extends Error {
     this.name = 'StorageError';
     this.originalError = originalError;
     Object.setPrototypeOf(this, StorageError.prototype);
+  }
+}
+
+/**
+ * データベースエラー（HTTP 500）
+ * 
+ * タスク4.1: Worker Task List API用カスタムエラー
+ * Requirements: 8 (エラーハンドリング)
+ */
+export class DatabaseError extends Error {
+  public readonly statusCode = 500;
+  public readonly code = 'DATABASE_ERROR';
+  public readonly originalError?: Error;
+
+  constructor(message: string, originalError?: Error) {
+    super(message);
+    this.name = 'DatabaseError';
+    this.originalError = originalError;
+    Object.setPrototypeOf(this, DatabaseError.prototype);
+  }
+}
+
+/**
+ * MAIMLパースエラー（HTTP 500）
+ * 
+ * タスク4.1: Worker Task List API用カスタムエラー（将来使用）
+ * Requirements: 8 (エラーハンドリング)
+ */
+export class MAIMLParseError extends Error {
+  public readonly statusCode = 500;
+  public readonly code = 'MAIML_PARSE_ERROR';
+  public readonly originalError?: Error;
+
+  constructor(message: string, originalError?: Error) {
+    super(message);
+    this.name = 'MAIMLParseError';
+    this.originalError = originalError;
+    Object.setPrototypeOf(this, MAIMLParseError.prototype);
   }
 }
 
@@ -167,7 +224,10 @@ export function formatErrorResponse(
     error instanceof AuthenticationError ||
     error instanceof AuthorizationError ||
     error instanceof NotFoundError ||
-    error instanceof StorageError
+    error instanceof ProjectNotFoundError ||
+    error instanceof StorageError ||
+    error instanceof DatabaseError ||
+    error instanceof MAIMLParseError
   ) {
     return {
       success: false,
@@ -216,8 +276,11 @@ export function getHttpStatusFromError(error: Error): number {
     error instanceof AuthenticationError ||
     error instanceof AuthorizationError ||
     error instanceof NotFoundError ||
+    error instanceof ProjectNotFoundError ||
     error instanceof ConflictError ||
-    error instanceof StorageError
+    error instanceof StorageError ||
+    error instanceof DatabaseError ||
+    error instanceof MAIMLParseError
   ) {
     return error.statusCode;
   }

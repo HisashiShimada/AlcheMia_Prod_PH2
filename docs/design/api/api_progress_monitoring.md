@@ -802,31 +802,22 @@ const calculateOverallProgress = (transitions: any[]) => {
       {
         "method_id": "method1",
         "method_name": "合成実験",
+        "experiment_order": 1,
         "tasks": [
           {
-            "task_id": "task-uuid-1",
-            "task_name": "材料準備タスク",
             "task_no": 1,
-            "transition_id": "t1",
-            "transition_name": "材料準備",
             "status": "completed",
-            "assigned_to": "worker-uuid-1",
-            "assigned_to_name": "Worker Name 1",
-            "due_date": "2026-01-31T23:59:59Z",
+            "experiment_user_id": "worker-uuid-1",
+            "experiment_user_name": "Worker Name 1",
             "created_at": "2026-01-21T10:00:00Z",
             "updated_at": "2026-01-21T14:00:00Z",
             "progress": 100
           },
           {
-            "task_id": "task-uuid-2",
-            "task_name": "反応実験タスク",
             "task_no": 2,
-            "transition_id": "t2",
-            "transition_name": "反応実験",
             "status": "in_progress",
-            "assigned_to": "worker-uuid-2",
-            "assigned_to_name": "Worker Name 2",
-            "due_date": "2026-02-15T23:59:59Z",
+            "experiment_user_id": "worker-uuid-2",
+            "experiment_user_name": "Worker Name 2",
             "created_at": "2026-01-21T14:00:00Z",
             "updated_at": "2026-01-21T15:30:00Z",
             "progress": 45
@@ -838,15 +829,7 @@ const calculateOverallProgress = (transitions: any[]) => {
         "method_name": "分析実験",
         "tasks": [...]
       }
-    ],
-    "statistics": {
-      "total_tasks": 15,
-      "not_started": 5,
-      "started": 2,
-      "in_progress": 5,
-      "completed": 2,
-      "forced_terminated": 1,
-      "overall_progress": 52.3
+    ]
     }
   },
   "meta": {
@@ -900,15 +883,11 @@ query = query.orderBy(`project_task.${sortBy}`, orderDirection);
 
 const tasks = await query
   .select([
-    'project_task.task_id',
-    'project_task.task_name',
     'project_task.task_no',
     'project_task.method_id',
-    'project_task.transition_id',
     'project_task.task_status as status',
-    'project_task.assign_user_id as assigned_to',
-    'user_authentication.user_name as assigned_to_name',
-    'project_task.due_date',
+    'project_task.assign_user_id as experiment_user_id',
+    'user_authentication.user_name as experiment_user_name',
     'project_task.create_at as created_at',
     'project_task.update_at as updated_at'
   ])
@@ -923,22 +902,22 @@ const maimlContent = await storageService.downloadFile(
 const methods = await parseMultipleMethodsStructure(maimlContent);
 
 // メソッドごとにグループ化
-const groupedTasks = methods.map(method => {
+const groupedTasks = methods.map((method, index) => {
   const methodTasks = tasks.filter(t => t.method_id === method.methodId);
   
   return {
     method_id: method.methodId,
     method_name: method.methodName,
-    tasks: methodTasks.map(task => {
-      const transition = method.petriNet.transitions.find(
-        t => t.id === task.transition_id
-      );
-      return {
-        ...task,
-        transition_name: transition?.name || '',
-        progress: 0 // 後で計算
-      };
-    })
+    experiment_order: index + 1,
+    tasks: methodTasks.map(task => ({
+      task_no: task.task_no,
+      status: task.status,
+      experiment_user_id: task.experiment_user_id,
+      experiment_user_name: task.experiment_user_name,
+      created_at: task.created_at,
+      updated_at: task.updated_at,
+      progress: 0 // 後で計算
+    }))
   };
 });
 ```

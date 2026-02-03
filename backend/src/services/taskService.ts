@@ -8,7 +8,10 @@
  */
 
 import { TaskStatus, TaskStatusResponse, ServiceResult, UpdateTaskStatusParams } from '../types/taskService.types';
+import { MethodGroup, TaskSummary, TaskFilters, MethodTaskRecord } from '../types/task';
+import { TaskRepository } from '../repositories/taskRepository';
 import { getPool } from '../database/db';
+import { logger } from '../utils/logger';
 
 /**
  * タスクステータスのEnum定義（データベース値）
@@ -172,8 +175,28 @@ export function checkPermission(
  * Task 3.3: 楽観的ロック制御実装
  */
 export async function updateTaskStatus(
-  params: UpdateTaskStatusParams
+  organizationId: string,
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  userId: string,
+  role: string,
+  status: TaskStatus,
+  currentUpdateAt: string,
+  comment?: string
 ): Promise<ServiceResult<TaskStatusResponse>> {
+  // パラメータオブジェクトを作成
+  const params: UpdateTaskStatusParams = {
+    organizationId,
+    projectId,
+    methodId,
+    taskNo,
+    userId,
+    role,
+    status,
+    currentUpdateAt,
+    comment
+  };
   const pool = getPool();
   let client;
 
@@ -266,8 +289,28 @@ export async function updateTaskStatus(
       };
     }
 
+    // TaskStatus文字列を数値に変換
+    const statusStringToNumber: Record<TaskStatus, number> = {
+      'pending': TaskStatusEnum.PENDING,
+      'in_progress': TaskStatusEnum.IN_PROGRESS,
+      'completed': TaskStatusEnum.COMPLETED,
+      'forced_terminated': TaskStatusEnum.FORCED_TERMINATED
+    };
+
+    const newStatusNum = statusStringToNumber[params.status];
+    if (newStatusNum === undefined) {
+      await client.query('ROLLBACK');
+      return {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid status value'
+        }
+      };
+    }
+
     // ステータス遷移バリデーション
-    const transitionResult = validateTransition(currentTask.task_status, params.status);
+    const transitionResult = validateTransition(currentTask.task_status, newStatusNum);
     if (!transitionResult.isValid) {
       await client.query('ROLLBACK');
       return {
@@ -326,7 +369,7 @@ export async function updateTaskStatus(
     `;
 
     const updateResult = await client.query(updateQuery, [
-      params.status,
+      newStatusNum,  // 数値のステータスを使用
       params.organizationId,
       params.projectId,
       params.methodId,
@@ -395,5 +438,197 @@ export async function updateTaskStatus(
     if (client) {
       client.release();
     }
+  }
+}
+
+/**
+ * TaskServiceクラス（タスク一覧取得用）
+ * 
+ * タスクの取得、グループ化、変換を担当
+ * Feature: worker-task-list-api
+ */
+export class TaskService {
+  constructor(private taskRepository: TaskRepository) {}
+
+  /**
+   * プロジェクト内のタスクをメソッド単位でグループ化して取得
+   * 
+   * @param projectId - プロジェクトID
+   * @param organizationId - 組織ID（マルチテナント分離必須）
+   * @param filters - フィルタ条件
+   * @returns メソッド単位にグループ化されたタスク一覧
+   */
+  async getTasksGroupedByMethod(
+    projectId: string,
+    organizationId: string,
+    filters: TaskFilters
+  ): Promise<MethodGroup[]> {
+    const startTime = Date.now();
+
+    // INFO: API呼び出し開始ログ
+    logger.info('TaskService.getTasksGroupedByMethod - Start', {
+      action: 'get_tasks_grouped_by_method',
+      projectId,
+      organizationId,
+      filters: {
+        methodId: filters.methodId,
+        status: filters.status,
+        assignUserId: filters.assignUserId,
+        sortBy: filters.sortBy,
+        order: filters.order,
+      },
+    });
+
+    try {
+      // TaskRepositoryからデータ取得
+      const records = await this.taskRepository.findMethodsAndTasksByProject(
+        projectId,
+        organizationId,
+        filters
+      );
+
+      // データ整合性検証（不正なデータを除外）
+      const validRecords = this.validateDataConsistency(records, projectId, organizationId);
+
+      // method_id単位でグループ化
+      const methodMap = new Map<string, MethodGroup>();
+
+      for (const record of validRecords) {
+        // タスクが存在しない場合はスキップ（メソッドのみのレコード）
+        if (!record.task_detail_id) {
+          // メソッド情報のみ保存（タスクなし）
+          if (!methodMap.has(record.method_id)) {
+            methodMap.set(record.method_id, {
+              method_id: record.method_id,
+              method_name: record.method_name,
+              experiment_order: record.experiment_order,
+              tasks: [],
+            });
+          }
+          continue;
+        }
+
+        // メソッドグループがまだない場合は作成
+        if (!methodMap.has(record.method_id)) {
+          methodMap.set(record.method_id, {
+            method_id: record.method_id,
+            method_name: record.method_name,
+            experiment_order: record.experiment_order,
+            tasks: [],
+          });
+        }
+
+        // タスクサマリーを作成して追加
+        const methodGroup = methodMap.get(record.method_id)!;
+        methodGroup.tasks.push(this.convertToTaskSummary(record));
+      }
+
+      // MethodGroupの配列に変換し、experiment_order順にソート
+      const methodGroups = Array.from(methodMap.values());
+      methodGroups.sort((a, b) => a.experiment_order - b.experiment_order);
+
+      // タスク件数の集計
+      const totalTasks = methodGroups.reduce((sum, group) => sum + group.tasks.length, 0);
+
+      // INFO: API呼び出し完了ログ
+      const responseTime = Date.now() - startTime;
+      logger.info('TaskService.getTasksGroupedByMethod - Success', {
+        action: 'get_tasks_grouped_by_method',
+        projectId,
+        organizationId,
+        result: {
+          methodCount: methodGroups.length,
+          taskCount: totalTasks,
+          responseTimeMs: responseTime,
+        },
+      });
+
+      return methodGroups;
+    } catch (error) {
+      // ERROR: データベースエラーまたは予期しない例外
+      const responseTime = Date.now() - startTime;
+      logger.error('TaskService.getTasksGroupedByMethod - Error', {
+        action: 'get_tasks_grouped_by_method',
+        projectId,
+        organizationId,
+        responseTimeMs: responseTime,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined,
+        errorName: error instanceof Error ? error.name : 'Unknown',
+      });
+
+      // エラーを再スロー（Controllerのエラーハンドリングで処理）
+      throw error;
+    }
+  }
+
+  /**
+   * データ整合性を検証し、不正なデータを除外する
+   * 
+   * @param records - DBから取得したレコード配列
+   * @param projectId - プロジェクトID（ログ記録用）
+   * @param organizationId - 組織ID（ログ記録用）
+   * @returns 検証済みのレコード配列
+   */
+  private validateDataConsistency(
+    records: MethodTaskRecord[],
+    projectId: string,
+    organizationId: string
+  ): MethodTaskRecord[] {
+    const validRecords: MethodTaskRecord[] = [];
+    const invalidRecords: MethodTaskRecord[] = [];
+
+    // UUID形式の正規表現（すべてのバージョンを受け入れる: 8-4-4-4-12の形式）
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    for (const record of records) {
+      // method_idの検証
+      if (!record.method_id || 
+          typeof record.method_id !== 'string' || 
+          !uuidRegex.test(record.method_id)) {
+        invalidRecords.push(record);
+        continue;
+      }
+
+      // 検証済み
+      validRecords.push(record);
+    }
+
+    // 不正なデータが見つかった場合、警告ログを出力
+    if (invalidRecords.length > 0) {
+      logger.warn('Data inconsistency detected: Invalid method_id found in project tasks', {
+        projectId,
+        organizationId,
+        invalidCount: invalidRecords.length,
+        totalCount: records.length,
+        invalidMethodIds: invalidRecords.map(r => ({
+          method_id: r.method_id,
+          method_name: r.method_name,
+          task_detail_id: r.task_detail_id,
+        })),
+      });
+    }
+
+    return validRecords;
+  }
+
+  /**
+   * MethodTaskRecordをTaskSummaryに変換
+   * 日時フィールドをISO 8601形式に変換
+   * 
+   * @param record - DBから取得したレコード
+   * @returns TaskSummary
+   */
+  private convertToTaskSummary(record: MethodTaskRecord): TaskSummary {
+    return {
+      task_id: record.task_detail_id!,
+      task_no: record.task_detail_no!,
+      task_status: record.task_status!,
+      assign_user_id: record.assign_user_id,
+      assign_user_name: record.assign_user_name,
+      progress_rate: record.progress_rate,
+      created_at: record.created_at ? record.created_at.toISOString() : '',
+      updated_at: record.updated_at ? record.updated_at.toISOString() : '',
+    };
   }
 }

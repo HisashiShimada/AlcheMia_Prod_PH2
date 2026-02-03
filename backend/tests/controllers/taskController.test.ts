@@ -1,544 +1,381 @@
 /**
- * TaskController ユニットテスト
+ * TaskController Unit Tests
  * 
- * @description タスクステータス更新のリクエスト処理テスト
- * Task: 2.1, 2.2 コントローラー層実装
+ * @description TaskController.listメソッドの単体テスト
+ * Feature: worker-task-list-api
+ * Task: 5.3
  */
 
-import { Request, Response } from 'express';
-import { updateStatus } from '../../src/controllers/taskController';
-import * as taskService from '../../src/services/taskService';
-import * as logger from '../../src/utils/logger';
+import { Request, Response, NextFunction } from 'express';
+import { validationResult } from 'express-validator';
+import { list } from '../../src/controllers/taskController';
+import { MethodGroup } from '../../src/types/task';
 
-// taskServiceをモック
-jest.mock('../../src/services/taskService');
-
-// loggerをモック
-jest.mock('../../src/utils/logger');
-
-// uuidをモック
+// モック設定
+jest.mock('express-validator');
 jest.mock('uuid', () => ({
-  v4: jest.fn(() => 'test-request-id-456')
+  v4: jest.fn(() => 'test-uuid-1234'),
 }));
 
-describe('TaskController - updateStatus', () => {
-  let mockRequest: Partial<Request>;
-  let mockResponse: Partial<Response>;
-  let mockJson: jest.Mock;
-  let mockStatus: jest.Mock;
+// TaskServiceのgetTasksGroupedByMethodをモック化
+jest.mock('../../src/services/taskService', () => {
+  const mockGetTasksGroupedByMethod = jest.fn();
+  return {
+    TaskService: jest.fn().mockImplementation(() => {
+      return {
+        getTasksGroupedByMethod: mockGetTasksGroupedByMethod,
+      };
+    }),
+    mockGetTasksGroupedByMethod,
+  };
+});
+
+// モックされたメソッドへの参照を取得
+const { mockGetTasksGroupedByMethod: actualMockMethod } = jest.requireMock('../../src/services/taskService');
+
+describe('TaskController - list', () => {
+  let mockReq: Partial<Request>;
+  let mockRes: Partial<Response>;
+  let mockNext: NextFunction;
 
   beforeEach(() => {
-    // モックのリセット
-    mockJson = jest.fn();
-    mockStatus = jest.fn().mockReturnValue({ json: mockJson });
+    // モックリクエストの初期化
+    mockReq = {
+      query: {},
+      headers: {},
+    } as any;
 
-    mockRequest = {
-      params: {
-        projectId: 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
-        methodId: 'method1',
-        taskNo: '1'
-      },
-      body: {
-        status: 'in_progress',
-        currentUpdateAt: '2026-01-28T08:00:00Z'
-      },
-      user: {
-        userId: 'user123',
-        organizationId: 'org123',
-        role: 'experiment_worker',
-        sessionId: 'session123',
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 86400
-      }
+    // モックレスポンスの初期化
+    mockRes = {
+      json: jest.fn(),
+      status: jest.fn().mockReturnThis(),
     };
 
-    mockResponse = {
-      status: mockStatus,
-      json: mockJson
-    };
-  });
+    // モックNextの初期化
+    mockNext = jest.fn();
 
-  afterEach(() => {
+    // validationResultのモック
+    (validationResult as unknown as jest.Mock).mockReturnValue({
+      isEmpty: jest.fn().mockReturnValue(true),
+      array: jest.fn().mockReturnValue([]),
+    });
+
+    // モックのクリア
     jest.clearAllMocks();
+    actualMockMethod.mockClear();
   });
 
-  describe('Authentication', () => {
-    it('should return 401 when user is not authenticated', async () => {
+  describe('正常系テスト', () => {
+    it('正常にタスク一覧を取得できる', async () => {
       // Arrange
-      mockRequest.user = undefined;
+      const organizationId = '11111111-1111-1111-1111-111111111111';
+      const projectId = '22222222-2222-2222-2222-222222222222';
+      const requestId = 'test-request-id';
+
+      mockReq.query = { projectId };
+      (mockReq as any).organizationId = organizationId;
+      mockReq.headers = { 'x-request-id': requestId };
+
+      const mockMethodGroups: MethodGroup[] = [
+        {
+          method_id: '33333333-3333-3333-3333-333333333333',
+          method_name: 'Method 1',
+          experiment_order: 1,
+          tasks: [
+            {
+              task_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+              task_no: 1,
+              task_status: 'not_started',
+              assign_user_id: null,
+              assign_user_name: null,
+              progress_rate: 0,
+              created_at: '2026-01-01T00:00:00.000Z',
+              updated_at: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      ];
+
+      actualMockMethod.mockResolvedValue(mockMethodGroups);
 
       // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
+      await list(mockReq as Request, mockRes as Response, mockNext);
 
       // Assert
-      expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'AUTH_TOKEN_INVALID',
-            message: expect.stringContaining('認証が必要です')
-          })
-        })
+      expect(actualMockMethod).toHaveBeenCalledWith(
+        projectId,
+        organizationId,
+        {
+          methodId: undefined,
+          status: undefined,
+          assignUserId: undefined,
+          sortBy: undefined,
+          order: undefined,
+        }
       );
-    });
-  });
 
-  describe('Parameter Validation', () => {
-    it('should return 400 when projectId is not UUID format', async () => {
-      // Arrange
-      mockRequest.params = {
-        ...mockRequest.params,
-        projectId: 'invalid-uuid'
-      };
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'VALIDATION_INVALID_FORMAT',
-            message: expect.stringContaining('UUID形式')
-          })
-        })
-      );
-    });
-
-    it('should return 400 when taskNo is not a number', async () => {
-      // Arrange
-      mockRequest.params = {
-        ...mockRequest.params,
-        taskNo: 'abc'
-      };
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'VALIDATION_INVALID_FORMAT',
-            message: expect.stringContaining('taskNo')
-          })
-        })
-      );
-    });
-
-    it('should return 400 when taskNo is less than 1', async () => {
-      // Arrange
-      mockRequest.params = {
-        ...mockRequest.params,
-        taskNo: '0'
-      };
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'VALIDATION_INVALID_FORMAT',
-            message: expect.stringContaining('taskNo')
-          })
-        })
-      );
-    });
-  });
-
-  describe('Success Cases', () => {
-    it('should return 200 with updated task when service succeeds', async () => {
-      // Arrange
-      const mockTaskData = {
-        organizationId: 'org123',
-        projectId: 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
-        projectName: 'Test Project',
-        methodId: 'method1',
-        taskNo: 1,
-        taskStatus: 'in_progress' as const,
-        experimentUserId: 'user123',
-        experimentUserName: 'Test User',
-        experimentStartAt: '2026-01-28T08:00:00Z',
-        experimentEndAt: null,
-        updateAt: '2026-01-28T08:00:00Z'
-      };
-
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
+      expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
-        data: mockTaskData
-      });
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(taskService.updateTaskStatus).toHaveBeenCalledWith(
-        'org123',
-        'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
-        'method1',
-        1,
-        'user123',
-        'experiment_worker',
-        'in_progress',
-        '2026-01-28T08:00:00Z',
-        undefined
-      );
-
-      expect(mockStatus).toHaveBeenCalledWith(200);
-      expect(mockJson).toHaveBeenCalledWith({
-        success: true,
-        data: mockTaskData,
+        data: mockMethodGroups,
         meta: {
           timestamp: expect.any(String),
-          requestId: 'test-request-id-456'
-        }
+          requestId,
+        },
       });
     });
 
-    it('should pass comment parameter when provided', async () => {
+    it('requestIdがない場合はUUIDを生成する', async () => {
       // Arrange
-      mockRequest.body = {
-        ...mockRequest.body,
-        comment: 'タスクを開始しました'
+      const organizationId = '11111111-1111-1111-1111-111111111111';
+      const projectId = '22222222-2222-2222-2222-222222222222';
+
+      mockReq.query = { projectId };
+      (mockReq as any).organizationId = organizationId;
+      mockReq.headers = {};
+
+      actualMockMethod.mockResolvedValue([]);
+
+      // Act
+      await list(mockReq as Request, mockRes as Response, mockNext);
+
+      // Assert
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: [],
+        meta: {
+          timestamp: expect.any(String),
+          requestId: 'test-uuid-1234', // uuidモックで生成された値
+        },
+      });
+    });
+  });
+
+  describe('パラメータ抽出テスト', () => {
+    it('projectIdが正しく抽出される', async () => {
+      // Arrange
+      const organizationId = '11111111-1111-1111-1111-111111111111';
+      const projectId = '22222222-2222-2222-2222-222222222222';
+
+      mockReq.query = { projectId };
+      (mockReq as any).organizationId = organizationId;
+
+      actualMockMethod.mockResolvedValue([]);
+
+      // Act
+      await list(mockReq as Request, mockRes as Response, mockNext);
+
+      // Assert
+      expect(actualMockMethod).toHaveBeenCalledWith(
+        projectId,
+        organizationId,
+        expect.any(Object)
+      );
+    });
+
+    it('オプションフィルタが正しく抽出される', async () => {
+      // Arrange
+      const organizationId = '11111111-1111-1111-1111-111111111111';
+      const projectId = '22222222-2222-2222-2222-222222222222';
+      const methodId = '33333333-3333-3333-3333-333333333333';
+      const assignUserId = '44444444-4444-4444-4444-444444444444';
+
+      mockReq.query = {
+        projectId,
+        methodId,
+        status: 'in_progress',
+        assignUserId,
+        sortBy: 'task_no',
+        order: 'asc',
       };
+      (mockReq as any).organizationId = organizationId;
 
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
-        success: true,
-        data: {}
-      });
+      actualMockMethod.mockResolvedValue([]);
 
       // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
+      await list(mockReq as Request, mockRes as Response, mockNext);
 
       // Assert
-      expect(taskService.updateTaskStatus).toHaveBeenCalledWith(
-        'org123',
-        'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
-        'method1',
-        1,
-        'user123',
-        'experiment_worker',
-        'in_progress',
-        '2026-01-28T08:00:00Z',
-        'タスクを開始しました'
-      );
-    });
-  });
-
-  describe('Service Error Handling', () => {
-    it('should return 404 when service returns RESOURCE_NOT_FOUND', async () => {
-      // Arrange
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
-        success: false,
-        error: {
-          code: 'RESOURCE_NOT_FOUND',
-          message: 'タスクが見つかりません'
-        }
-      });
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(404);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'RESOURCE_NOT_FOUND'
-          })
-        })
-      );
-    });
-
-    it('should return 403 when service returns PERMISSION_INSUFFICIENT', async () => {
-      // Arrange
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
-        success: false,
-        error: {
-          code: 'PERMISSION_INSUFFICIENT',
-          message: 'このタスクを更新する権限がありません'
-        }
-      });
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(403);
-    });
-
-    it('should return 400 when service returns INVALID_STATUS_TRANSITION', async () => {
-      // Arrange
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
-        success: false,
-        error: {
-          code: 'INVALID_STATUS_TRANSITION',
-          message: '不正な状態遷移です'
-        }
-      });
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(400);
-    });
-
-    it('should return 409 when service returns CONCURRENT_UPDATE_DETECTED', async () => {
-      // Arrange
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
-        success: false,
-        error: {
-          code: 'CONCURRENT_UPDATE_DETECTED',
-          message: 'タスクが他のユーザーによって更新されました'
-        }
-      });
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(409);
-    });
-
-    it('should return 500 when service returns SYSTEM_DATABASE_ERROR', async () => {
-      // Arrange
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
-        success: false,
-        error: {
-          code: 'SYSTEM_DATABASE_ERROR',
-          message: 'データベースエラーが発生しました'
-        }
-      });
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(500);
-    });
-
-    it('should return 500 for unexpected errors', async () => {
-      // Arrange
-      (taskService.updateTaskStatus as jest.Mock).mockRejectedValue(
-        new Error('Unexpected error')
-      );
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(500);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'SYSTEM_ERROR'
-          })
-        })
-      );
-    });
-  });
-
-  describe('Request ID Generation', () => {
-    it('should include requestId in response meta', async () => {
-      // Arrange
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
-        success: true,
-        data: {}
-      });
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          meta: expect.objectContaining({
-            requestId: 'test-request-id-456'
-          })
-        })
-      );
-    });
-  });
-
-  describe('Logging - Task 2.2', () => {
-    beforeEach(() => {
-      // ロガーモックをリセット
-      jest.clearAllMocks();
-    });
-
-    it('should log info when task status update succeeds', async () => {
-      // Arrange
-      const mockTaskData = {
-        organizationId: 'org123',
-        projectId: 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
-        projectName: 'Test Project',
-        methodId: 'method1',
-        taskNo: 1,
-        taskStatus: 'in_progress' as const,
-        experimentUserId: 'user123',
-        experimentUserName: 'Test User',
-        experimentStartAt: '2026-01-28T08:00:00Z',
-        experimentEndAt: null,
-        updateAt: '2026-01-28T08:00:00Z'
-      };
-
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
-        success: true,
-        data: mockTaskData
-      });
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(logger.logger.info).toHaveBeenCalledWith(
-        'Task status updated successfully',
-        expect.objectContaining({
-          organizationId: 'org123',
-          userId: 'user123',
-          projectId: 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
-          methodId: 'method1',
-          taskNo: 1,
+      expect(actualMockMethod).toHaveBeenCalledWith(
+        projectId,
+        organizationId,
+        {
+          methodId,
           status: 'in_progress',
-          requestId: 'test-request-id-456'
-        })
-      );
-    });
-
-    it('should log error when service returns error', async () => {
-      // Arrange
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
-        success: false,
-        error: {
-          code: 'RESOURCE_NOT_FOUND',
-          message: 'タスクが見つかりません'
+          assignUserId,
+          sortBy: 'task_no',
+          order: 'asc',
         }
+      );
+    });
+  });
+
+  describe('バリデーションエラーテスト', () => {
+    it('バリデーションエラー時に400エラーをスローする', async () => {
+      // Arrange
+      const validationErrors = [
+        {
+          type: 'field',
+          msg: 'projectIdはUUID形式である必要があります',
+          path: 'projectId',
+          location: 'query',
+        },
+      ];
+
+      (validationResult as unknown as jest.Mock).mockReturnValue({
+        isEmpty: jest.fn().mockReturnValue(false),
+        array: jest.fn().mockReturnValue(validationErrors),
       });
 
+      mockReq.query = { projectId: 'invalid-uuid' };
+      (mockReq as any).organizationId = '11111111-1111-1111-1111-111111111111';
+
       // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
+      await list(mockReq as Request, mockRes as Response, mockNext);
 
       // Assert
-      expect(logger.logger.error).toHaveBeenCalledWith(
-        'Task status update failed',
+      expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
-          organizationId: 'org123',
-          userId: 'user123',
-          projectId: 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
-          methodId: 'method1',
-          taskNo: 1,
-          errorCode: 'RESOURCE_NOT_FOUND',
-          errorMessage: 'タスクが見つかりません',
-          requestId: 'test-request-id-456'
+          message: 'projectIdはUUID形式である必要があります',
+          statusCode: 400,
+          code: 'VALIDATION_ERROR',
+          details: [
+            {
+              field: 'projectId',
+              message: 'projectIdはUUID形式である必要があります',
+              code: 'INVALID_VALUE',
+            },
+          ],
         })
       );
     });
 
-    it('should log error when unexpected exception occurs', async () => {
+    it('複数のバリデーションエラーがある場合、最初のエラーメッセージを使用する', async () => {
       // Arrange
-      const mockError = new Error('Unexpected database error');
-      (taskService.updateTaskStatus as jest.Mock).mockRejectedValue(mockError);
+      const validationErrors = [
+        {
+          type: 'field',
+          msg: 'projectIdは必須です',
+          path: 'projectId',
+          location: 'query',
+        },
+        {
+          type: 'field',
+          msg: 'statusは不正な値です',
+          path: 'status',
+          location: 'query',
+        },
+      ];
 
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(logger.logger.error).toHaveBeenCalledWith(
-        'Task updateStatus unexpected error',
-        expect.objectContaining({
-          organizationId: 'org123',
-          userId: 'user123',
-          projectId: 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
-          methodId: 'method1',
-          taskNo: 1,
-          requestId: 'test-request-id-456',
-          errorMessage: 'Unexpected database error',
-          errorStack: expect.any(String)
-        })
-      );
-    });
-
-    it('should not expose stack trace in error response', async () => {
-      // Arrange
-      const mockError = new Error('Database connection failed');
-      mockError.stack = 'Error: Database connection failed\n  at someFunction...';
-      (taskService.updateTaskStatus as jest.Mock).mockRejectedValue(mockError);
-
-      // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'SYSTEM_ERROR',
-            message: 'システムエラーが発生しました'
-          })
-        })
-      );
-      
-      // エラーレスポンスにスタックトレースが含まれていないことを確認
-      const responseCall = mockJson.mock.calls[0][0];
-      expect(responseCall.error).not.toHaveProperty('stack');
-      expect(responseCall.error.message).not.toContain('at someFunction');
-    });
-
-    it('should log with comment when provided', async () => {
-      // Arrange
-      mockRequest.body = {
-        ...mockRequest.body,
-        comment: 'タスクを開始しました'
-      };
-
-      (taskService.updateTaskStatus as jest.Mock).mockResolvedValue({
-        success: true,
-        data: {}
+      (validationResult as unknown as jest.Mock).mockReturnValue({
+        isEmpty: jest.fn().mockReturnValue(false),
+        array: jest.fn().mockReturnValue(validationErrors),
       });
 
+      mockReq.query = {};
+      (mockReq as any).organizationId = '11111111-1111-1111-1111-111111111111';
+
       // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
+      await list(mockReq as Request, mockRes as Response, mockNext);
 
       // Assert
-      expect(logger.logger.info).toHaveBeenCalledWith(
-        'Task status updated successfully',
+      expect(mockNext).toHaveBeenCalledWith(
         expect.objectContaining({
-          comment: 'タスクを開始しました'
+          message: 'projectIdは必須です',
+          details: expect.arrayContaining([
+            expect.objectContaining({ field: 'projectId' }),
+            expect.objectContaining({ field: 'status' }),
+          ]),
+        })
+      );
+    });
+  });
+
+  describe('サービスエラーテスト', () => {
+    it('TaskServiceでエラーが発生した場合、nextにエラーを渡す', async () => {
+      // Arrange
+      const organizationId = '11111111-1111-1111-1111-111111111111';
+      const projectId = '22222222-2222-2222-2222-222222222222';
+
+      mockReq.query = { projectId };
+      (mockReq as any).organizationId = organizationId;
+
+      const serviceError = new Error('Database connection failed');
+      actualMockMethod.mockRejectedValue(serviceError);
+
+      // Act
+      await list(mockReq as Request, mockRes as Response, mockNext);
+
+      // Assert
+      expect(mockNext).toHaveBeenCalledWith(serviceError);
+    });
+
+    it('予期しないエラーもnextに渡される', async () => {
+      // Arrange
+      const organizationId = '11111111-1111-1111-1111-111111111111';
+      const projectId = '22222222-2222-2222-2222-222222222222';
+
+      mockReq.query = { projectId };
+      (mockReq as any).organizationId = organizationId;
+
+      const unexpectedError = new Error('Unexpected error');
+      actualMockMethod.mockRejectedValue(unexpectedError);
+
+      // Act
+      await list(mockReq as Request, mockRes as Response, mockNext);
+
+      // Assert
+      expect(mockNext).toHaveBeenCalledWith(unexpectedError);
+    });
+  });
+
+  describe('レスポンス形式テスト', () => {
+    it('統一レスポンス形式（success, data, meta）で返却される', async () => {
+      // Arrange
+      const organizationId = '11111111-1111-1111-1111-111111111111';
+      const projectId = '22222222-2222-2222-2222-222222222222';
+
+      mockReq.query = { projectId };
+      (mockReq as any).organizationId = organizationId;
+
+      const mockMethodGroups: MethodGroup[] = [];
+      actualMockMethod.mockResolvedValue(mockMethodGroups);
+
+      // Act
+      await list(mockReq as Request, mockRes as Response, mockNext);
+
+      // Assert
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: expect.any(Array),
+          meta: expect.objectContaining({
+            timestamp: expect.any(String),
+            requestId: expect.any(String),
+          }),
         })
       );
     });
 
-    it('should log validation errors with error level', async () => {
+    it('metaのtimestampはISO 8601形式である', async () => {
       // Arrange
-      mockRequest.params = {
-        ...mockRequest.params,
-        projectId: 'invalid-uuid'
-      };
+      const organizationId = '11111111-1111-1111-1111-111111111111';
+      const projectId = '22222222-2222-2222-2222-222222222222';
+
+      mockReq.query = { projectId };
+      (mockReq as any).organizationId = organizationId;
+
+      actualMockMethod.mockResolvedValue([]);
 
       // Act
-      await updateStatus(mockRequest as Request, mockResponse as Response);
+      await list(mockReq as Request, mockRes as Response, mockNext);
 
       // Assert
-      expect(logger.logger.error).toHaveBeenCalledWith(
-        'Task status update validation failed',
-        expect.objectContaining({
-          errorCode: 'VALIDATION_INVALID_FORMAT',
-          errorMessage: 'projectIdはUUID形式である必要があります',
-          requestId: 'test-request-id-456'
-        })
-      );
+      const callArgs = (mockRes.json as jest.Mock).mock.calls[0][0];
+      const timestamp = callArgs.meta.timestamp;
+
+      // ISO 8601形式の検証
+      expect(timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(new Date(timestamp).toISOString()).toBe(timestamp);
     });
   });
 });
