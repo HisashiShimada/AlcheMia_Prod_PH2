@@ -1,0 +1,26 @@
+{
+  "feature_name": "transition-status-update",
+  "version": "1.0.0",
+  "status": "requirements",
+  "language": "ja",
+  "created_at": "2026-02-03T02:23:32Z",
+  "updated_at": "2026-02-03T02:23:32Z",
+  "project_description": "実験作業者画面のトランジションステータス更新を行うバックエンドの機能を実装する。\n\n仕様の部分については\n'docs\\design\\api\\api_experiment_data.md' \nの2. トランジションステータス更新APIを確認してください。",
+  "phases": {
+    "requirements": {
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null
+    },
+    "design": {
+      "status": "not_started",
+      "started_at": null,
+      "completed_at": null
+    },
+    "tasks": {
+      "status": "not_started",
+      "started_at": null,
+      "completed_at": null
+    }
+  }
+}

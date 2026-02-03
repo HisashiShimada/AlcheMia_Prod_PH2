@@ -32,7 +32,7 @@
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | 権限 |
 |----|-------------|---------------|------|---------|------|
 | 1 | POST | /api/v1/experiments/:transitionId/data | 実験データ保存 | ⏳ 未実装 | Worker以上 |
-| 2 | PUT | /api/v1/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | Worker以上 |
+| 2 | PUT | /api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | Worker以上 |
 
 ---
 
@@ -374,7 +374,7 @@ COMMIT;
 
 ### エンドポイント
 ```
-PUT /api/v1/transitions/:transitionId/status
+PUT /api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status
 ```
 
 ### HTTPメソッド
@@ -387,7 +387,7 @@ PUT
 
 ### ミドルウェアチェーン
 ```typescript
-router.put('/transitions/:transitionId/status',
+router.put('/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status',
   auth,
   tenantIsolation,
   permissionCheck(['worker', 'manager', 'admin']),
@@ -400,14 +400,14 @@ router.put('/transitions/:transitionId/status',
 #### パスパラメータ
 | パラメータ | 型 | 必須 | 説明 |
 |-----------|----|----|------|
+| projectId | UUID | ○ | プロジェクトID |
+| methodId | string | ○ | メソッドID |
 | transitionId | string | ○ | トランジションID |
 
 #### リクエストボディ
 ```json
 {
-  "projectId": "550e8400-e29b-41d4-a716-446655440000",
-  "methodId": "method_001",
-  "taskId": "660e8400-e29b-41d4-a716-446655440001",
+  "taskNo": 1,
   "status": "running",
   "progressRate": 50,
   "comment": "実験を開始しました。現在50%完了。"
@@ -418,9 +418,7 @@ router.put('/transitions/:transitionId/status',
 
 | パラメータ | 型 | 必須 | 説明 | 制約 |
 |-----------|----|----|------|------|
-| projectId | UUID | ○ | プロジェクトID | UUID形式 |
-| methodId | string | ○ | メソッドID | |
-| taskId | UUID | ○ | タスクID | UUID形式 |
+| taskNo | integer | ○ | タスク連番 | 1以上の整数 |
 | status | string | ○ | トランジションステータス | initial, preparing, ready, running, paused, completed, error |
 | progressRate | integer | △ | 進捗率 | 0-100、statusがcompletedの場合は自動的に100 |
 | comment | string | × | コメント | 最大2000文字 |
@@ -433,7 +431,7 @@ router.put('/transitions/:transitionId/status',
   "success": true,
   "data": {
     "transitionId": "transition_001",
-    "taskId": "660e8400-e29b-41d4-a716-446655440001",
+    "taskNo": 1,
     "methodId": "method_001",
     "projectId": "550e8400-e29b-41d4-a716-446655440000",
     "status": "running",
@@ -492,11 +490,11 @@ router.put('/transitions/:transitionId/status',
    - プロジェクトステータスが編集可能（draft/active/waiting_approval）であることを確認
 
 2. **トランジション存在確認**
-   - transitionIdが指定されたプロジェクト・メソッド・タスクに属することを確認
+   - transitionIdが指定されたプロジェクト・メソッド・タスク連番に属することを確認
    - organization_idでマルチテナント分離
 
 3. **ステータス更新**
-   - transition_statusテーブルを更新
+   - transition_dataテーブルを更新
    - statusが"completed"の場合、progress_rateを自動的に100に設定
    - updated_byに現在のユーザーIDを設定
 
@@ -505,8 +503,8 @@ router.put('/transitions/:transitionId/status',
 
 ### バリデーション
 
-- [ ] projectId はUUID形式
-- [ ] taskId はUUID形式
+- [ ] projectId はUUID形式（パスパラメータ）
+- [ ] taskNo は1以上の整数
 - [ ] status は許可された値のいずれか
 - [ ] progressRate は0-100の整数（指定時）
 - [ ] comment は2000文字以内（指定時）
@@ -514,33 +512,35 @@ router.put('/transitions/:transitionId/status',
 ### データベーステーブル
 
 #### 使用テーブル
-1. **transition_status**（主テーブル）
-   - transition_id, task_id, method_id, project_id
+1. **transition_data**（主テーブル）
+   - organization_id, project_id, method_id, task_no, transition_id
    - status, progress_rate, comment
-   - updated_by, organization_id, updated_at
+   - updated_by, updated_at, created_at
 
 2. **projects**（ステータス確認）
    - id, status, organization_id
 
 3. **project_task**（存在確認）
-   - id, project_id, organization_id
+   - project_id, task_no, organization_id
 
 #### SQL例
 ```sql
 -- トランザクション開始
 BEGIN;
 
--- プロジェクトステータス確認
+-- プロジェクトステータス確認（マルチテナント分離）
 SELECT status FROM projects 
 WHERE id = $1 AND organization_id = $2
 AND status IN ('draft', 'active', 'waiting_approval');
 
 -- タスク存在確認
-SELECT id FROM project_task 
-WHERE id = $3 AND project_id = $1 AND organization_id = $2;
+SELECT task_no FROM project_task 
+WHERE project_id = $1 
+  AND task_no = $3 
+  AND organization_id = $2;
 
 -- トランジションステータス更新
-UPDATE transition_status
+UPDATE transition_data
 SET 
   status = $4,
   progress_rate = CASE 
@@ -550,11 +550,11 @@ SET
   comment = $6,
   updated_by = $7,
   updated_at = NOW()
-WHERE transition_id = $8
-  AND task_id = $3
-  AND method_id = $9
+WHERE organization_id = $2
   AND project_id = $1
-  AND organization_id = $2
+  AND method_id = $8
+  AND task_no = $3
+  AND transition_id = $9
 RETURNING *;
 
 -- タスク進捗率の再計算（オプション）
@@ -562,11 +562,15 @@ UPDATE project_task
 SET 
   progress_rate = (
     SELECT AVG(progress_rate)
-    FROM transition_status
-    WHERE task_id = $3 AND organization_id = $2
+    FROM transition_data
+    WHERE project_id = $1 
+      AND task_no = $3 
+      AND organization_id = $2
   ),
   updated_at = NOW()
-WHERE id = $3 AND organization_id = $2;
+WHERE project_id = $1 
+  AND task_no = $3 
+  AND organization_id = $2;
 
 COMMIT;
 ```
@@ -575,12 +579,13 @@ COMMIT;
 
 - [ ] organization_id フィルタ必須
 - [ ] プロジェクトステータスが編集可能であることを確認
-- [ ] SQLインジェクション対策
+- [ ] SQLインジェクション対策（Parameterized Queries）
+- [ ] パスパラメータの階層構造検証
 
 ### パフォーマンス
 
-- インデックス: transition_status (transition_id, task_id, organization_id)
-- インデックス: transition_status (project_id, organization_id, updated_at)
+- インデックス: transition_data (organization_id, project_id, method_id, task_no, transition_id) - 複合主キー
+- インデックス: transition_data (organization_id, project_id, updated_at)
 - トランザクション: 必須（整合性保証）
 
 ---
