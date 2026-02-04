@@ -13,6 +13,7 @@ import taskRoutes from './routes/taskRoutes';
 import fileDownloadRoutes from './routes/fileDownloadRoutes';
 import masterRoutes from './routes/masterRoutes';
 import experimentRoutes from './routes/experimentRoutes';
+import issueRoutes from './routes/issueRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -47,6 +48,9 @@ app.use('/api/v1/experiments', experimentRoutes);
 
 // Mount master routes
 app.use('/api/v1/master', masterRoutes);
+
+// Mount issue routes
+app.use('/api/v1/issues', issueRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {

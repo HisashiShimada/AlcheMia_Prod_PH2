@@ -21,7 +21,7 @@
     },
     "tasks": {
       "generated": true,
-      "approved": false
+      "approved": true
     },
     "implementation": {
       "started": false,
