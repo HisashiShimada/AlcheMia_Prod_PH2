@@ -1321,6 +1321,167 @@ export async function requestApproval(req: Request, res: Response): Promise<void
 }
 
 /**
+ * 作業指示一覧取得エンドポイント
+ * GET /api/v1/projects/:projectName/worker-instructions
+ * 
+ * @description プロジェクトに関連する作業指示一覧を取得する
+ * Task 3.1: エラーハンドリングの実装
+ * Requirements: REQ-1, REQ-3, REQ-5
+ */
+export async function getWorkerInstructions(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId, userId, role } = req.user!;
+    const { projectName } = req.params;
+
+    // Task 3.1: projectNameバリデーション
+    if (!projectName || projectName.trim() === '') {
+      logError('Worker instructions validation error', new Error('projectName is required'), {
+        action: 'worker_instructions_list',
+        organizationId,
+        projectName: req.params.projectName,
+        requestId,
+      });
+
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'projectNameは必須です',
+          details: [{
+            field: 'projectName',
+            message: 'プロジェクト名が必要です',
+            code: 'REQUIRED_FIELD',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Task 3.1: projectName形式チェック（特殊文字を含まない）
+    const projectNameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!projectNameRegex.test(projectName)) {
+      logError('Worker instructions validation error', new Error('Invalid projectName format'), {
+        action: 'worker_instructions_list',
+        organizationId,
+        projectName,
+        requestId,
+      });
+
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'projectNameに不正な文字が含まれています',
+          details: [{
+            field: 'projectName',
+            message: '英数字、ハイフン、アンダースコアのみ使用できます',
+            code: 'INVALID_FORMAT',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Task 3.1: クエリパラメータのバリデーション（projectIdのみ）
+    const filters: any = {};
+
+    if (req.query.projectId) {
+      filters.projectId = req.query.projectId as string;
+    }
+
+    // Task 3.1: Service層呼び出し
+    const result = await projectService.getWorkerInstructions({
+      projectName,
+      organizationId,
+      userId,
+      userRole: role,
+      filters,
+    });
+
+    // Task 3.1: エラーハンドリング
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode.startsWith('VALIDATION_')) {
+        statusCode = 400;
+      } else if (errorCode === 'PERMISSION_INSUFFICIENT') {
+        statusCode = 403;
+      } else if (errorCode.startsWith('SYSTEM_DATABASE_ERROR')) {
+        statusCode = 500;
+      }
+
+      // Task 3.1: エラーログ記録
+      logError('Worker instructions service error', result.error?.originalError || new Error(result.error?.message), {
+        action: 'worker_instructions_list',
+        organizationId,
+        userId,
+        projectName,
+        errorCode,
+        requestId,
+      });
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    // Task 3.1: 予期しないエラーのログ記録
+    logError('Worker instructions list error', error as Error, {
+      action: 'worker_instructions_list',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
  * 指示確認完了エンドポイント (API 2.14)
  * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
  * 

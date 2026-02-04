@@ -1582,6 +1582,134 @@ export class ProjectService {
   }
 
   /**
+   * 作業指示一覧を取得
+   * 
+   * Task 2.1: Worker Instructions API - Service層実装
+   * @param params - 取得パラメータ
+   * @returns 作業指示一覧
+   */
+  async getWorkerInstructions(params: {
+    projectName: string;
+    organizationId: string;
+    userId: string;
+    userRole: string;
+    filters?: {
+      projectId?: string;
+    };
+  }): Promise<ServiceResult<any[]>> {
+    const pool = getPool();
+    
+    try {
+      const { projectName, organizationId, userId, userRole, filters = {} } = params;
+      
+      // ベースクエリの構築（is_acknowledgedはinstruction_acknowledged_historyから判定）
+      let query = `
+        SELECT 
+          pi.id,
+          pi.project_id,
+          p.project_name,
+          pi.method_id,
+          pi.transition_id,
+          pi.task_no,
+          pi.instruction_target,
+          pi.instructions,
+          pi.priority,
+          pi.type,
+          pi.create_at,
+          pi.created_by,
+          ua.user_name as created_by_name,
+          CASE 
+            WHEN iah.history_id IS NOT NULL THEN true 
+            ELSE false 
+          END as is_acknowledged
+        FROM project_instruction pi
+        INNER JOIN project p ON p.id = pi.project_id
+        LEFT JOIN user_authentication ua ON ua.user_id = pi.created_by
+        LEFT JOIN instruction_acknowledged_history iah 
+          ON iah.instruction_id = pi.id
+          AND iah.organization_id = pi.organization_id
+          AND iah.acknowledged_user_id = $1
+      `;
+      
+      const queryParams: any[] = [userId]; // $1: acknowledged_user_id (LEFT JOIN用)
+      const conditions: string[] = [];
+      let paramIndex = 2; // userIdが$1なので、$2から開始
+      
+      // 実験作業者の場合は、自分に割り当てられたタスクに紐づく指示のみ取得
+      if (userRole === 'experiment_worker') {
+        query += ` INNER JOIN project_task pt ON pt.project_id = pi.project_id`;
+        conditions.push(`pt.assign_user_id = $${paramIndex++}`);
+        queryParams.push(userId);
+        conditions.push(`pt.organization_id = $${paramIndex++}`);
+        queryParams.push(organizationId);
+      }
+      
+      // 必須フィルタ: organization_id（マルチテナント分離）
+      conditions.push(`p.organization_id = $${paramIndex++}`);
+      queryParams.push(organizationId);
+      conditions.push(`pi.organization_id = $${paramIndex++}`);
+      queryParams.push(organizationId);
+      
+      // 必須フィルタ: project_name
+      conditions.push(`p.project_name = $${paramIndex++}`);
+      queryParams.push(projectName);
+      
+      // オプショナルフィルタの適用
+      if (filters.projectId) {
+        conditions.push(`pi.project_id = $${paramIndex++}`);
+        queryParams.push(filters.projectId);
+      }
+      
+      // WHERE句の追加
+      if (conditions.length > 0) {
+        query += ` WHERE ${conditions.join(' AND ')}`;
+      }
+      
+      // ソート: create_atで降順
+      query += ` ORDER BY pi.create_at DESC`;
+      
+      // クエリ実行
+      const result = await pool.query(query, queryParams);
+      
+      // TODO: タスク2.2実装時にMAIMLファイルからメソッド名・トランジション名を取得
+      // 暫定対応: method_name, transition_nameは空文字列を返却
+      const instructions = result.rows.map((row: any) => ({
+        id: row.id,
+        project_id: row.project_id,
+        project_name: row.project_name,
+        method_id: row.method_id,
+        method_name: '', // TODO: タスク2.2で実装
+        transition_id: row.transition_id,
+        transition_name: '', // TODO: タスク2.2で実装
+        task_no: row.task_no,
+        instruction_target: row.instruction_target,
+        instruction_content: row.instructions,
+        priority: row.priority,
+        type: row.type,
+        create_at: row.create_at.toISOString(),
+        created_by: row.created_by,
+        created_by_name: row.created_by_name || '',
+        is_acknowledged: row.is_acknowledged,
+      }));
+      
+      return {
+        success: true,
+        data: instructions,
+      };
+    } catch (error) {
+      console.error('Error in getWorkerInstructions:', error);
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'データベースエラーが発生しました',
+          originalError: error as Error,
+        },
+      };
+    }
+  }
+
+  /**
    * 指示確認を記録する
    * 
    * @description instructionConfirmationService.tsから移植
