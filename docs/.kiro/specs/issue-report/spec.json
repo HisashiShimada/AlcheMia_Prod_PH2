@@ -1,22 +1,37 @@
 ﻿{
-  "feature_name": "issue-report",
-  "created_at": "2026-02-04T08:22:08+09:00",
-  "updated_at": "2026-02-04T08:22:08+09:00",
+  "id": "issue-report",
+  "name": "問題報告機能",
+  "description": "実験中に発生した問題を記録・管理する機能",
   "language": "ja",
-  "phase": "initialized",
+  "created_at": "2026-02-04T00:00:00Z",
+  "updated_at": "2026-02-04T00:34:46Z",
+  "phase": "tasks-generated",
   "approvals": {
     "requirements": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": true,
+      "approved_at": "2026-02-04T00:34:46Z",
+      "approved_by": "auto-approved"
     },
     "design": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": true,
+      "approved_at": "2026-02-04T00:34:46Z",
+      "approved_by": "auto-approved"
     },
     "tasks": {
-      "generated": false,
+      "generated": true,
       "approved": false
+    },
+    "implementation": {
+      "started": false,
+      "completed": false
     }
   },
-  "ready_for_implementation": false
+  "metadata": {
+    "priority": "high",
+    "complexity": "medium",
+    "estimated_hours": 22,
+    "team": "backend + frontend"
+  }
 }
