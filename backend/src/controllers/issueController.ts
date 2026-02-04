@@ -555,7 +555,7 @@ export async function addComment(req: Request, res: Response): Promise<void> {
 
   try {
     // 認証チェック
-    if (!req.user) {
+    if (!req.user || !req.user.userId || !req.user.organizationId) {
       res.status(401).json({
         success: false,
         error: {

@@ -1,22 +1,22 @@
 {
   "feature_name": "issue-comment-post-api",
   "created_at": "2026-02-04T13:41:14+09:00",
-  "updated_at": "2026-02-04T13:41:14+09:00",
+  "updated_at": "2026-02-04T16:10:40+09:00",
   "language": "ja",
-  "phase": "initialized",
+  "phase": "implementation",
   "approvals": {
     "requirements": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": true
     },
     "design": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": true
     },
     "tasks": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": true
     }
   },
-  "ready_for_implementation": false
+  "ready_for_implementation": true
 }

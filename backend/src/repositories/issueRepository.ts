@@ -14,6 +14,8 @@ import {
   IssuePagination,
   IssueStatus,
 } from '../types/issue';
+import { IssueCommentResponse } from '../types/issueComment';
+import { NotFoundError } from '../utils/errorClasses';
 
 /**
  * 定数定義
@@ -377,5 +379,115 @@ export class IssueRepository {
 
     const result = await pool.query(query, [issueId, organizationId]);
     return (result.rowCount || 0) > 0;
+  }
+
+  /**
+   * コメントを追加する（タスク 3.1）
+   * トランザクション制御とFOR UPDATEによる排他制御を実装
+   */
+  async addComment(
+    organizationId: string,
+    issueId: string,
+    userId: string,
+    comment: string
+  ): Promise<IssueCommentResponse> {
+    const pool = getPool();
+    const client = await pool.connect();
+
+    try {
+      // トランザクション開始
+      await client.query('BEGIN');
+
+      // 問題存在確認とロック取得（FOR UPDATE）
+      const issueQuery = `
+        SELECT issue_id, organization_id, project_id
+        FROM issues
+        WHERE issue_id = $1 AND organization_id = $2
+        FOR UPDATE
+      `;
+      const issueResult = await client.query(issueQuery, [issueId, organizationId]);
+
+      if (issueResult.rows.length === 0) {
+        throw new NotFoundError('Issue not found', 'Issue');
+      }
+
+      const issue = issueResult.rows[0];
+
+      // シーケンス番号の採番
+      const seqQuery = `
+        SELECT COALESCE(MAX(sequence_no), 0) + 1 AS next_seq
+        FROM issue_comment
+        WHERE organization_id = $1 AND issue_id = $2
+      `;
+      const seqResult = await client.query(seqQuery, [organizationId, issueId]);
+      const sequenceNo = seqResult.rows[0].next_seq;
+
+      // コメントレコードの挿入
+      const insertQuery = `
+        INSERT INTO issue_comment (
+          organization_id,
+          project_id,
+          issue_id,
+          sequence_no,
+          comment,
+          author_id,
+          commented_at,
+          create_user_id,
+          create_at,
+          update_user_id,
+          update_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, NOW(), $6, NOW(), $6, NOW()
+        )
+        RETURNING 
+          organization_id,
+          project_id,
+          issue_id,
+          sequence_no,
+          comment,
+          author_id,
+          commented_at
+      `;
+      const insertResult = await client.query(insertQuery, [
+        organizationId,
+        issue.project_id,
+        issueId,
+        sequenceNo,
+        comment,
+        userId,
+      ]);
+
+      const insertedComment = insertResult.rows[0];
+
+      // 投稿者名の取得
+      const userQuery = `
+        SELECT user_name
+        FROM organization_user
+        WHERE organization_id = $1 AND user_id = $2
+      `;
+      const userResult = await client.query(userQuery, [organizationId, userId]);
+      const authorName = userResult.rows[0]?.user_name || 'Unknown';
+
+      // トランザクションコミット
+      await client.query('COMMIT');
+
+      // レスポンスの構築
+      return {
+        projectId: insertedComment.project_id,
+        issueId: insertedComment.issue_id,
+        sequenceNo: insertedComment.sequence_no,
+        comment: insertedComment.comment,
+        authorId: insertedComment.author_id,
+        authorName,
+        commentedAt: insertedComment.commented_at,
+      };
+    } catch (error) {
+      // エラー時はロールバック
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      // クライアントを解放
+      client.release();
+    }
   }
 }
