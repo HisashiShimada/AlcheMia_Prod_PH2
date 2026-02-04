@@ -4,7 +4,6 @@
  */
 
 import Papa from 'papaparse';
-import { v4 as uuidv4 } from 'uuid';
 import * as creatorRepository from '../repositories/creatorRepository';
 import { CreatorSearchFilters } from '../repositories/creatorRepository';
 import * as instrumentRepository from '../repositories/instrumentRepository';
@@ -95,6 +94,46 @@ export async function getCreatorMasters(
   console.log('Calling creatorRepository.findAll...');
   const creators = await creatorRepository.findAll(organizationId, filters);
   console.log('Repository returned:', creators.length, 'records');
+  
+  // レスポンス形式に変換
+  return creators.map(creator => ({
+    creatorId: creator.creator_id,
+    creatorName: creator.creator_name,
+    creatorDescription: creator.creator_description || '',
+    creatorAnnotation: creator.creator_annotation || '',
+    isActive: creator.is_active,
+    vendorName: creator.vendor_name || '',
+    vendorIsActive: creator.vendor_is_active,
+    instrumentName: creator.instrument_name || '',
+    instrumentIsActive: creator.instrument_is_active,
+    updatedAt: formatDateTime(creator.update_at),
+  }));
+}
+
+/**
+ * Creatorマスタをフィルタ付きで取得（CSV用）
+ * Repository層のWHERE句フィルタリングを使用
+ * 
+ * @param organizationId 組織ID
+ * @param filters フィルタ条件
+ * @returns Creatorマスタの配列
+ */
+export async function getCreatorMastersWithFilters(
+  organizationId: string,
+  filters: {
+    displayScope?: string;
+    search?: string;
+    isActive?: boolean;
+  } = {}
+): Promise<CreatorMasterResponse[]> {
+  console.log('=== masterService.getCreatorMastersWithFilters called ===');
+  console.log('organizationId:', organizationId);
+  console.log('filters:', filters);
+  
+  // Repository層のWHERE句フィルタリングを使用（効率的）
+  const creators = await creatorRepository.findAllWithFilters(organizationId, filters);
+  
+  console.log('Filtered count (from DB):', creators.length);
   
   // レスポンス形式に変換
   return creators.map(creator => ({
@@ -638,6 +677,8 @@ interface CsvUploadResult {
 
 /**
  * CreatorマスタCSVアップロード処理
+ * All or Nothing方式: 1行でもエラーがあれば全てロールバック
+ * 新規レコードのみ登録可能（既存レコードの更新は不可）
  * 
  * @param organizationId 組織ID
  * @param csvContent CSV文字列
@@ -661,79 +702,129 @@ export async function uploadCreatorsCsv(
     });
     
     const errors: CsvValidationError[] = [];
-    let successCount = 0;
-    let failureCount = 0;
+    const validRows: Array<{
+      creatorId: string;
+      creatorName: string;
+      creatorDescription: string;
+      creatorAnnotation: string;
+      vendorName: string;
+      instrumentName: string;
+      isActive: boolean;
+    }> = [];
     
-    // 各行を処理
+    // ====================================
+    // Phase 1: CSV内の主キー重複チェック
+    // ====================================
+    const creatorIds = new Set<string>();
+    const duplicateIds: string[] = [];
+    
+    for (let i = 0; i < parseResult.data.length; i++) {
+      const row = parseResult.data[i];
+      const creatorId = row['creator_id']?.trim();
+      
+      if (creatorId) {
+        if (creatorIds.has(creatorId)) {
+          if (!duplicateIds.includes(creatorId)) {
+            duplicateIds.push(creatorId);
+          }
+        } else {
+          creatorIds.add(creatorId);
+        }
+      }
+    }
+    
+    // 重複がある場合はエラー
+    if (duplicateIds.length > 0) {
+      throw new Error(
+        `CSV内に重複したcreator_idが存在します: ${duplicateIds.join(', ')}`
+      );
+    }
+    
+    // ====================================
+    // Phase 2: 事前バリデーション（全行スキャン）
+    // ====================================
     for (let i = 0; i < parseResult.data.length; i++) {
       const row = parseResult.data[i];
       const rowNumber = i + 2; // ヘッダー行を考慮
       
-      try {
-        // 必須項目チェック
-        const creatorId = row['CreatorID']?.trim();
-        const creatorName = row['Creator名称']?.trim();
-        
-        if (!creatorId) {
-          errors.push({ row: rowNumber, field: 'CreatorID', message: 'CreatorIDは必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        if (!creatorName) {
-          errors.push({ row: rowNumber, field: 'Creator名称', message: 'Creator名称は必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        // 状態の変換
-        const statusStr = row['状態']?.trim() || 'アクティブ';
-        const isActive = statusStr === 'アクティブ' || statusStr === 'true' || statusStr === '1';
-        
-        // ID重複チェック
-        const exists = await creatorRepository.existsById(organizationId, creatorId);
-        
-        if (exists) {
-          // 既存レコードを更新
-          await creatorRepository.update(organizationId, creatorId, {
-            creatorName,
-            creatorDescription: row['Creator説明']?.trim() || '',
-            creatorAnnotation: row['Creatorアノテーション']?.trim() || '',
-            vendorName: row['Vendor名称']?.trim() || '',
-            instrumentName: row['Instrument名称']?.trim() || '',
-            isActive,
-          }, userId);
-        } else {
-          // 新規作成
-          await creatorRepository.create(organizationId, {
-            creatorId,
-            creatorName,
-            creatorDescription: row['Creator説明']?.trim() || '',
-            creatorAnnotation: row['Creatorアノテーション']?.trim() || '',
-            vendorName: row['Vendor名称']?.trim() || '',
-            instrumentName: row['Instrument名称']?.trim() || '',
-            isActive,
-          }, userId);
-        }
-        
-        successCount++;
-      } catch (error) {
-        console.error(`Row ${rowNumber} processing error:`, error);
+      // 必須項目チェック
+      const creatorId = row['creator_id']?.trim();
+      const creatorName = row['creator_name']?.trim();
+      
+      if (!creatorId) {
+        errors.push({ row: rowNumber, field: 'creator_id', message: 'creator_idは必須です' });
+        continue;
+      }
+      
+      if (!creatorName) {
+        errors.push({ row: rowNumber, field: 'creator_name', message: 'creator_nameは必須です' });
+        continue;
+      }
+      
+      // is_activeの型チェック
+      const isActiveStr = row['is_active']?.trim().toLowerCase();
+      if (isActiveStr && !['true', 'false', '1', '0', ''].includes(isActiveStr)) {
         errors.push({
           row: rowNumber,
-          field: 'general',
-          message: error instanceof Error ? error.message : 'エラーが発生しました',
+          field: 'is_active',
+          message: `is_activeの値が不正です。true、false、1、0のいずれかを指定してください（実際の値: ${row['is_active']}）`
         });
-        failureCount++;
+        continue;
       }
+      
+      // is_active の変換（boolean値として処理）
+      const isActive = isActiveStr === 'true' || isActiveStr === '1';
+      
+      // DB既存チェック（既存レコードはエラー扱い）
+      const exists = await creatorRepository.existsById(organizationId, creatorId);
+      if (exists) {
+        errors.push({
+          row: rowNumber,
+          field: 'creator_id',
+          message: `creator_id: ${creatorId} は既に存在します。既存レコードの編集は一覧から行ってください。`
+        });
+        continue;
+      }
+      
+      // バリデーションOKの行を保存
+      validRows.push({
+        creatorId,
+        creatorName,
+        creatorDescription: row['creator_description']?.trim() || '',
+        creatorAnnotation: row['creator_annotation']?.trim() || '',
+        vendorName: row['vendor_name']?.trim() || '',
+        instrumentName: row['instrument_name']?.trim() || '',
+        isActive,
+      });
+    }
+    
+    // ====================================
+    // Phase 3: エラー判定
+    // ====================================
+    if (errors.length > 0) {
+      await client.query('ROLLBACK');
+      return {
+        successCount: 0,
+        failureCount: parseResult.data.length,
+        errors,
+      };
+    }
+    
+    // ====================================
+    // Phase 4: 全行一括登録（エラーがない場合のみ）
+    // ====================================
+    let successCount = 0;
+    for (const validRow of validRows) {
+      await creatorRepository.create(organizationId, validRow, userId);
+      successCount++;
     }
     
     await client.query('COMMIT');
     
     return {
       successCount,
-      failureCount,
-      errors,
+      failureCount: 0,
+      errors: [],
     };
   } catch (error) {
     await client.query('ROLLBACK');
@@ -745,6 +836,8 @@ export async function uploadCreatorsCsv(
 
 /**
  * InstrumentマスタCSVアップロード処理
+ * All or Nothing方式: 1行でもエラーがあれば全てロールバック
+ * 新規レコードのみ登録可能（既存レコードの更新は不可）
  * 
  * @param organizationId 組織ID
  * @param csvContent CSV文字列
@@ -768,75 +861,125 @@ export async function uploadInstrumentsCsv(
     });
     
     const errors: CsvValidationError[] = [];
-    let successCount = 0;
-    let failureCount = 0;
+    const validRows: Array<{
+      instrumentId: string;
+      instrumentName: string;
+      instrumentDescription: string;
+      instrumentAnnotation: string;
+      isActive: boolean;
+    }> = [];
     
-    // 各行を処理
+    // ====================================
+    // Phase 1: CSV内の主キー重複チェック
+    // ====================================
+    const instrumentIds = new Set<string>();
+    const duplicateIds: string[] = [];
+    
+    for (let i = 0; i < parseResult.data.length; i++) {
+      const row = parseResult.data[i];
+      const instrumentId = row['instrument_id']?.trim();
+      
+      if (instrumentId) {
+        if (instrumentIds.has(instrumentId)) {
+          if (!duplicateIds.includes(instrumentId)) {
+            duplicateIds.push(instrumentId);
+          }
+        } else {
+          instrumentIds.add(instrumentId);
+        }
+      }
+    }
+    
+    // 重複がある場合はエラー
+    if (duplicateIds.length > 0) {
+      throw new Error(
+        `CSV内に重複したinstrument_idが存在します: ${duplicateIds.join(', ')}`
+      );
+    }
+    
+    // ====================================
+    // Phase 2: 事前バリデーション（全行スキャン）
+    // ====================================
     for (let i = 0; i < parseResult.data.length; i++) {
       const row = parseResult.data[i];
       const rowNumber = i + 2; // ヘッダー行を考慮
       
-      try {
-        // 必須項目チェック
-        const instrumentId = row['実験装置ID']?.trim();
-        const instrumentName = row['実験装置名称']?.trim();
-        
-        if (!instrumentId) {
-          errors.push({ row: rowNumber, field: '実験装置ID', message: '実験装置IDは必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        if (!instrumentName) {
-          errors.push({ row: rowNumber, field: '実験装置名称', message: '実験装置名称は必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        // 状態の変換
-        const statusStr = row['状態']?.trim() || 'アクティブ';
-        const isActive = statusStr === 'アクティブ' || statusStr === 'true' || statusStr === '1';
-        
-        // ID重複チェック
-        const exists = await instrumentRepository.existsById(organizationId, instrumentId);
-        
-        if (exists) {
-          // 既存レコードを更新
-          await instrumentRepository.update(organizationId, instrumentId, {
-            instrumentName,
-            instrumentDescription: row['説明']?.trim() || '',
-            instrumentAnnotation: row['アノテーション']?.trim() || '',
-            isActive,
-          }, userId);
-        } else {
-          // 新規作成
-          await instrumentRepository.create(organizationId, {
-            instrumentId,
-            instrumentName,
-            instrumentDescription: row['説明']?.trim() || '',
-            instrumentAnnotation: row['アノテーション']?.trim() || '',
-            isActive,
-          }, userId);
-        }
-        
-        successCount++;
-      } catch (error) {
-        console.error(`Row ${rowNumber} processing error:`, error);
+      // 必須項目チェック
+      const instrumentId = row['instrument_id']?.trim();
+      const instrumentName = row['instrument_name']?.trim();
+      
+      if (!instrumentId) {
+        errors.push({ row: rowNumber, field: 'instrument_id', message: 'instrument_idは必須です' });
+        continue;
+      }
+      
+      if (!instrumentName) {
+        errors.push({ row: rowNumber, field: 'instrument_name', message: 'instrument_nameは必須です' });
+        continue;
+      }
+      
+      // is_activeの型チェック
+      const isActiveStr = row['is_active']?.trim().toLowerCase();
+      if (isActiveStr && !['true', 'false', '1', '0', ''].includes(isActiveStr)) {
         errors.push({
           row: rowNumber,
-          field: 'general',
-          message: error instanceof Error ? error.message : 'エラーが発生しました',
+          field: 'is_active',
+          message: `is_activeの値が不正です。true、false、1、0のいずれかを指定してください（実際の値: ${row['is_active']}）`
         });
-        failureCount++;
+        continue;
       }
+      
+      // is_active の変換（boolean値として処理）
+      const isActive = isActiveStr === 'true' || isActiveStr === '1';
+      
+      // DB既存チェック（既存レコードはエラー扱い）
+      const exists = await instrumentRepository.existsById(organizationId, instrumentId);
+      if (exists) {
+        errors.push({
+          row: rowNumber,
+          field: 'instrument_id',
+          message: `instrument_id: ${instrumentId} は既に存在します。既存レコードの編集は一覧から行ってください。`
+        });
+        continue;
+      }
+      
+      // バリデーションOKの行を保存
+      validRows.push({
+        instrumentId,
+        instrumentName,
+        instrumentDescription: row['instrument_description']?.trim() || '',
+        instrumentAnnotation: row['instrument_annotation']?.trim() || '',
+        isActive,
+      });
+    }
+    
+    // ====================================
+    // Phase 3: エラー判定
+    // ====================================
+    if (errors.length > 0) {
+      await client.query('ROLLBACK');
+      return {
+        successCount: 0,
+        failureCount: parseResult.data.length,
+        errors,
+      };
+    }
+    
+    // ====================================
+    // Phase 4: 全行一括登録（エラーがない場合のみ）
+    // ====================================
+    let successCount = 0;
+    for (const validRow of validRows) {
+      await instrumentRepository.create(organizationId, validRow, userId);
+      successCount++;
     }
     
     await client.query('COMMIT');
     
     return {
       successCount,
-      failureCount,
-      errors,
+      failureCount: 0,
+      errors: [],
     };
   } catch (error) {
     await client.query('ROLLBACK');
@@ -848,6 +991,8 @@ export async function uploadInstrumentsCsv(
 
 /**
  * VendorマスタCSVアップロード処理
+ * All or Nothing方式: 1行でもエラーがあれば全てロールバック
+ * 新規レコードのみ登録可能（既存レコードの更新は不可）
  * 
  * @param organizationId 組織ID
  * @param csvContent CSV文字列
@@ -871,75 +1016,125 @@ export async function uploadVendorsCsv(
     });
     
     const errors: CsvValidationError[] = [];
-    let successCount = 0;
-    let failureCount = 0;
+    const validRows: Array<{
+      vendorId: string;
+      vendorName: string;
+      vendorDescription: string;
+      vendorAnnotation: string;
+      isActive: boolean;
+    }> = [];
     
-    // 各行を処理
+    // ====================================
+    // Phase 1: CSV内の主キー重複チェック
+    // ====================================
+    const vendorIds = new Set<string>();
+    const duplicateIds: string[] = [];
+    
+    for (let i = 0; i < parseResult.data.length; i++) {
+      const row = parseResult.data[i];
+      const vendorId = row['vendor_id']?.trim();
+      
+      if (vendorId) {
+        if (vendorIds.has(vendorId)) {
+          if (!duplicateIds.includes(vendorId)) {
+            duplicateIds.push(vendorId);
+          }
+        } else {
+          vendorIds.add(vendorId);
+        }
+      }
+    }
+    
+    // 重複がある場合はエラー
+    if (duplicateIds.length > 0) {
+      throw new Error(
+        `CSV内に重複したvendor_idが存在します: ${duplicateIds.join(', ')}`
+      );
+    }
+    
+    // ====================================
+    // Phase 2: 事前バリデーション（全行スキャン）
+    // ====================================
     for (let i = 0; i < parseResult.data.length; i++) {
       const row = parseResult.data[i];
       const rowNumber = i + 2; // ヘッダー行を考慮
       
-      try {
-        // 必須項目チェック
-        const vendorId = row['実験装置VendorID']?.trim();
-        const vendorName = row['実験装置Vendor名称']?.trim();
-        
-        if (!vendorId) {
-          errors.push({ row: rowNumber, field: '実験装置VendorID', message: '実験装置VendorIDは必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        if (!vendorName) {
-          errors.push({ row: rowNumber, field: '実験装置Vendor名称', message: '実験装置Vendor名称は必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        // 状態の変換
-        const statusStr = row['状態']?.trim() || 'アクティブ';
-        const isActive = statusStr === 'アクティブ' || statusStr === 'true' || statusStr === '1';
-        
-        // ID重複チェック
-        const exists = await vendorRepository.existsById(organizationId, vendorId);
-        
-        if (exists) {
-          // 既存レコードを更新
-          await vendorRepository.update(organizationId, vendorId, {
-            vendorName,
-            vendorDescription: row['説明']?.trim() || '',
-            vendorAnnotation: row['アノテーション']?.trim() || '',
-            isActive,
-          }, userId);
-        } else {
-          // 新規作成
-          await vendorRepository.create(organizationId, {
-            vendorId,
-            vendorName,
-            vendorDescription: row['説明']?.trim() || '',
-            vendorAnnotation: row['アノテーション']?.trim() || '',
-            isActive,
-          }, userId);
-        }
-        
-        successCount++;
-      } catch (error) {
-        console.error(`Row ${rowNumber} processing error:`, error);
+      // 必須項目チェック
+      const vendorId = row['vendor_id']?.trim();
+      const vendorName = row['vendor_name']?.trim();
+      
+      if (!vendorId) {
+        errors.push({ row: rowNumber, field: 'vendor_id', message: 'vendor_idは必須です' });
+        continue;
+      }
+      
+      if (!vendorName) {
+        errors.push({ row: rowNumber, field: 'vendor_name', message: 'vendor_nameは必須です' });
+        continue;
+      }
+      
+      // is_activeの型チェック
+      const isActiveStr = row['is_active']?.trim().toLowerCase();
+      if (isActiveStr && !['true', 'false', '1', '0', ''].includes(isActiveStr)) {
         errors.push({
           row: rowNumber,
-          field: 'general',
-          message: error instanceof Error ? error.message : 'エラーが発生しました',
+          field: 'is_active',
+          message: `is_activeの値が不正です。true、false、1、0のいずれかを指定してください（実際の値: ${row['is_active']}）`
         });
-        failureCount++;
+        continue;
       }
+      
+      // is_active の変換（boolean値として処理）
+      const isActive = isActiveStr === 'true' || isActiveStr === '1';
+      
+      // DB既存チェック（既存レコードはエラー扱い）
+      const exists = await vendorRepository.existsById(organizationId, vendorId);
+      if (exists) {
+        errors.push({
+          row: rowNumber,
+          field: 'vendor_id',
+          message: `vendor_id: ${vendorId} は既に存在します。既存レコードの編集は一覧から行ってください。`
+        });
+        continue;
+      }
+      
+      // バリデーションOKの行を保存
+      validRows.push({
+        vendorId,
+        vendorName,
+        vendorDescription: row['vendor_description']?.trim() || '',
+        vendorAnnotation: row['vendor_annotation']?.trim() || '',
+        isActive,
+      });
+    }
+    
+    // ====================================
+    // Phase 3: エラー判定
+    // ====================================
+    if (errors.length > 0) {
+      await client.query('ROLLBACK');
+      return {
+        successCount: 0,
+        failureCount: parseResult.data.length,
+        errors,
+      };
+    }
+    
+    // ====================================
+    // Phase 4: 全行一括登録（エラーがない場合のみ）
+    // ====================================
+    let successCount = 0;
+    for (const validRow of validRows) {
+      await vendorRepository.create(organizationId, validRow, userId);
+      successCount++;
     }
     
     await client.query('COMMIT');
     
     return {
       successCount,
-      failureCount,
-      errors,
+      failureCount: 0,
+      errors: [],
     };
   } catch (error) {
     await client.query('ROLLBACK');

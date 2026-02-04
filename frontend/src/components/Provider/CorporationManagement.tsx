@@ -9,7 +9,6 @@ import {
   Modal,
   Form,
   Select,
-  message,
   Typography,
   Row,
   Col,
@@ -45,7 +44,7 @@ interface CorporationData {
  * 会社管理画面コンポーネント（DB連携版）
  */
 export default function CorporationManagement() {
-  const { modal } = App.useApp();
+  const { modal, message: messageApi } = App.useApp();
   const [corporations, setCorporations] = useState<CorporationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -72,12 +71,12 @@ export default function CorporationManagement() {
         setCorporations(response.data.data);
       } else {
         console.error('Unexpected response format:', response.data);
-        message.error('データ形式が不正です');
+        messageApi.error('データ形式が不正です');
         setCorporations([]);
       }
     } catch (error) {
       console.error('Corporation取得エラー:', error);
-      message.error('会社データの取得に失敗しました');
+      messageApi.error('会社データの取得に失敗しました');
       setCorporations([]); // エラー時は空配列を設定
     } finally {
       setLoading(false);
@@ -197,7 +196,7 @@ export default function CorporationManagement() {
   // アクティブ化（一括）
   const handleActivate = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('アクティブにする会社を選択してください');
+      messageApi.warning('アクティブにする会社を選択してください');
       return;
     }
     
@@ -217,12 +216,12 @@ export default function CorporationManagement() {
             );
           }
           
-          message.success(`${selectedRowKeys.length}件の会社をアクティブにしました`);
+          messageApi.success(`${selectedRowKeys.length}件の会社をアクティブにしました`);
           setSelectedRowKeys([]);
           await fetchCorporations();
         } catch (error) {
           console.error('アクティブ化エラー:', error);
-          message.error('アクティブ化に失敗しました');
+          messageApi.error('アクティブ化に失敗しました');
         }
       },
     });
@@ -231,7 +230,7 @@ export default function CorporationManagement() {
   // 非アクティブ化（一括）
   const handleDeactivate = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('非アクティブにする会社を選択してください');
+      messageApi.warning('非アクティブにする会社を選択してください');
       return;
     }
     
@@ -252,12 +251,12 @@ export default function CorporationManagement() {
             );
           }
           
-          message.success(`${selectedRowKeys.length}件の会社を非アクティブにしました`);
+          messageApi.success(`${selectedRowKeys.length}件の会社を非アクティブにしました`);
           setSelectedRowKeys([]);
           await fetchCorporations();
         } catch (error) {
           console.error('非アクティブ化エラー:', error);
-          message.error('非アクティブ化に失敗しました');
+          messageApi.error('非アクティブ化に失敗しました');
         }
       },
     });
@@ -282,11 +281,11 @@ export default function CorporationManagement() {
             { isActive: !corporation.isActive }
           );
           
-          message.success(`${corporationName}を${actionText}にしました`);
+          messageApi.success(`${corporationName}を${actionText}にしました`);
           await fetchCorporations();
         } catch (error) {
           console.error('ステータス変更エラー:', error);
-          message.error(`ステータスの変更に失敗しました`);
+          messageApi.error(`ステータスの変更に失敗しました`);
         }
       },
     });
@@ -297,49 +296,68 @@ export default function CorporationManagement() {
     setSearchText('');
     setSelectedRowKeys([]);
     await fetchCorporations();
-    message.success('データをリロードしました');
+    messageApi.success('データをリロードしました');
   };
 
   // CSVダウンロード
-  const handleDownload = () => {
-    const headers = [
-      '会社名',
-      '更新日時',
-      '状態',
-    ];
-
-    const rows = filteredCorporations.map((corporation) => [
-      corporation.corporationName,
-      formatDateTime(corporation.updatedAt),
-      corporation.isActive ? 'アクティブ' : '非アクティブ',
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-      ),
-    ].join('\n');
-
-    const bom = '\uFEFF';
-    const csvWithBom = bom + csvContent;
-    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, '-')
-      .slice(0, -5);
-    link.href = url;
-    link.download = `corporations_${timestamp}.csv`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    message.success('CSVファイルをダウンロードしました');
+  const handleDownload = async () => {
+    try {
+      setLoading(true);
+      const client = createApiClient();
+      
+      // クエリパラメータを構築
+      const params: Record<string, string> = {};
+      if (searchText.trim()) {
+        params.search = searchText.trim();
+      }
+      
+      const response = await client.get('/provider/corporation/download-csv', {
+        params,
+        responseType: 'blob',
+      });
+      
+      // レスポンスをBlobとして取得
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      
+      // Content-Dispositionヘッダーからファイル名を取得
+      const contentDisposition = 
+        response.headers['content-disposition'] || 
+        response.headers['Content-Disposition'];
+      
+      let filename = 'corporations.csv'; // デフォルト値
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      } else {
+        // Content-Dispositionヘッダーがない場合は、フロントエンド側でタイムスタンプを生成
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/[-:]/g, '')
+          .replace('T', '')
+          .slice(0, 14);
+        filename = `corporations_${timestamp}.csv`;
+      }
+      
+      // ダウンロードリンクを作成
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      messageApi.success('CSVファイルをダウンロードしました');
+    } catch (error) {
+      console.error('CSV download error:', error);
+      messageApi.error('CSVダウンロードに失敗しました');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // CSVアップロード
@@ -347,55 +365,58 @@ export default function CorporationManagement() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append('file', file);
+    handleCSVUpload(file);
+    
+    // input要素をリセット（同じファイルを再度選択できるように）
+    event.target.value = '';
+  };
 
-    setLoading(true);
-
-    const client = createApiClient();
-    client
-      .post('/provider/corporation/upload-csv', formData, {
+  // CSVファイルをAPIにアップロード
+  const handleCSVUpload = async (file: File) => {
+    try {
+      setLoading(true);
+      const client = createApiClient();
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await client.post('/provider/corporation/upload-csv', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-      })
-      .then((response: any) => {
-        const result = response.data.data;
-        message.success(
-          `CSVアップロードが完了しました。成功: ${result.successCount}件, 失敗: ${result.failureCount}件`
-        );
-
-        if (result.errors && result.errors.length > 0) {
-          console.error('CSV Upload Errors:', result.errors);
-          Modal.warning({
-            title: 'アップロードエラー',
-            content: (
-              <div>
-                <p>以下の行でエラーが発生しました:</p>
-                <ul>
-                  {result.errors.slice(0, 5).map((err: any, idx: number) => (
-                    <li key={idx}>
-                      行{err.row}: {err.message}
-                    </li>
-                  ))}
-                </ul>
-                {result.errors.length > 5 && <p>...他 {result.errors.length - 5} 件</p>}
-              </div>
-            ),
-          });
-        }
-
-        fetchCorporations();
-      })
-      .catch((error) => {
-        console.error('CSVアップロードエラー:', error);
-        message.error('CSVアップロードに失敗しました');
-      })
-      .finally(() => {
-        setLoading(false);
-        // input要素をリセット（同じファイルを再度選択できるように）
-        event.target.value = '';
       });
+      
+      // バリデーションエラーのチェック（HTTPステータス200でもエラーの場合がある）
+      if (response.data.success && response.data.data) {
+        const result = response.data.data;
+        
+        if (result.failureCount > 0 && result.errors.length > 0) {
+          // エラーがある場合はメッセージを表示
+          const errorMessage = result.errors[0].message;
+          console.error('CSV validation error:', errorMessage);
+          messageApi.error(errorMessage);
+          return;
+        }
+        
+        // 成功時はログ出力のみ
+        console.log(`CSV upload successful: ${result.successCount} records created`);
+        messageApi.success('CSVファイルをアップロードしました');
+      }
+      
+      await fetchCorporations();
+    } catch (error) {
+      // すでにErrorオブジェクトの場合はそのまま再スロー（バリデーションエラー）
+      if (error instanceof Error && !('isAxiosError' in error)) {
+        messageApi.error(error.message);
+        return;
+      }
+      
+      // HTTPエラーの場合
+      console.error('CSV upload error:', error);
+      messageApi.error('CSVアップロードに失敗しました');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // モーダルOK
@@ -410,14 +431,14 @@ export default function CorporationManagement() {
           `/provider/corporation/${editingCorporation.corporationId}`,
           values
         );
-        message.success('会社情報を更新しました');
+        messageApi.success('会社情報を更新しました');
       } else {
         // 新規作成
         await client.post(
           '/provider/corporation',
           values
         );
-        message.success('会社を追加しました');
+        messageApi.success('会社を追加しました');
       }
       
       setIsModalVisible(false);
@@ -426,9 +447,9 @@ export default function CorporationManagement() {
     } catch (error: any) {
       console.error('保存エラー:', error);
       if (error.response?.data?.error) {
-        message.error(error.response.data.error);
+        messageApi.error(error.response.data.error);
       } else {
-        message.error('保存に失敗しました');
+        messageApi.error('保存に失敗しました');
       }
     }
   };
