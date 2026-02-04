@@ -247,11 +247,17 @@
 - **DDLファイル**: `docs/design/db/ddl/instruction_acknowledged_history.sql`
 - **主キー**: `organization_id` (UUID), `project_id` (UUID), `experiment_instruction_id` (VARCHAR), `experiment_user_id` (UUID)
 - **主要カラム**:
-  - `organization_id` - 組織ID
-  - `project_id` - プロジェクトID
-  - `experiment_instruction_id` - 実験指示ID
-  - `experiment_user_id` - 実験作業者ID
+  - `organization_id` - 組織ID (PK)
+  - `project_id` - プロジェクトID (PK)
+  - `experiment_instruction_id` - 実験指示ID (PK)
+  - `experiment_user_id` - 実験作業者ID (PK)
   - `acknowledged_at` - 確認日時
+  - `create_user_id` - 作成者ユーザーID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザーID
+  - `update_at` - 更新日時
+- **外部キー**:
+  - `(organization_id, project_id, experiment_instruction_id)` → `project_instruction(organization_id, project_id, experiment_instruction_id)`
 
 ---
 
@@ -569,6 +575,7 @@ maiml_event_log
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-01-31 | instruction_acknowledged_historyテーブル詳細情報を更新（ER図に基づく） | Cline |
 | 2026-01-29 17:46 | function, user_notificationテーブル削除（25テーブルに統一） | Cline |
 | 2026-01-29 17:31 | ER図の最新構造に合わせて更新（role, attribute, instrument, vendor） | Cline |
 | 2026-01-29 16:40 | DDLファイル（27個）の現状に合わせて更新完了 | Cline |
