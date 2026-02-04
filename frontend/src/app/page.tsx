@@ -329,8 +329,24 @@ export default function Home() {
   const handleMenuChange = (menuType: UserRole) => {
     if (!currentUser) return;
 
-    // ユーザー情報は一切変更せず、表示するメニューだけを変更
-    setCurrentMenuType(menuType);
+    // UserRoleを数値コード（initialScreenFunctionCd）に変換
+    const functionCodeMap: Record<UserRole, string> = {
+      provider: '010000',
+      system_admin: '020000',
+      data_admin: '030000',
+      experiment_admin: '040000',
+      experiment_worker: '050000',
+      mi_engineer: '060000',
+    };
+
+    const functionCode = functionCodeMap[menuType];
+    if (!functionCode) {
+      messageApi.error(`未定義のメニュータイプ: ${menuType}`);
+      return;
+    }
+
+    // 数値コードで設定（switchケースと一致する形式）
+    setCurrentMenuType(functionCode);
 
     // メニュー名の取得（日本語表示用）
     const menuNames: Record<UserRole, string> = {
