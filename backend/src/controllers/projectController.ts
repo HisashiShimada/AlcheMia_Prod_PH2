@@ -39,7 +39,7 @@ export async function create(req: Request, res: Response): Promise<void> {
     }
 
     const { organizationId, userId } = req.user!;
-    const departmentId = req.session?.department_id || null;
+    const departmentId = null; // req.session?.department_id || null; ToDo プルリク#38待ち
     const { projectName, description } = req.body;
 
     // Task 2.2: 詳細バリデーション
