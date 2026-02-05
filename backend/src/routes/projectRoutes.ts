@@ -231,4 +231,29 @@ router.get(
   projectController.getProjectTasks
 );
 
+/**
+ * 指示確認完了
+ * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description 実験作業者が指示を確認したことを記録する
+ * @note API 2.14: プロジェクト管理APIの一部として実装
+ * @requirements REQ-001, REQ-002
+ */
+router.put(
+  '/:projectName/instructions/:instructionId/confirm',
+  authMiddleware,
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+    param('instructionId')
+      .isUUID()
+      .withMessage('instructionIdはUUID形式である必要があります'),
+  ],
+  projectController.confirmInstruction
+);
+
 export default router;
