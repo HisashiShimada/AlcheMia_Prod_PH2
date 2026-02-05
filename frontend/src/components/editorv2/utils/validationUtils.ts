@@ -10,6 +10,7 @@
 import type { Node, Edge } from 'reactflow';
 import { validateNode } from './nodeUtils';
 import { validateEdge, detectCycle } from './edgeUtils';
+import { NodeData,EdgeData } from '../types';
 
 export interface ValidationResult {
   valid: boolean;
@@ -21,8 +22,8 @@ export interface ValidationResult {
  * ワークフロー全体の検証
  */
 export const validateWorkflow = (
-  nodes: Node<any>[],
-  edges: Edge<any>[]
+  nodes: Node<NodeData>[],
+  edges: Edge<EdgeData>[]
 ): ValidationResult => {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -68,59 +69,6 @@ export const validateWorkflow = (
     if (detectCycle(node.id, edges)) {
       warnings.push(`循環参照が検出されました: ノード ${node.id} から`);
       break;
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
-  };
-};
-
-/**
- * 保存可能かチェック
- */
-export const canSave = (
-  nodes: Node<any>[],
-  edges: Edge<any>[]
-): { canSave: boolean; reason?: string } => {
-  if (nodes.length === 0) {
-    return { canSave: false, reason: 'ノードが存在しません' };
-  }
-
-  const result = validateWorkflow(nodes, edges);
-  
-  if (!result.valid) {
-    return {
-      canSave: false,
-      reason: `エラーが${result.errors.length}件あります`,
-    };
-  }
-
-  return { canSave: true };
-};
-
-/**
- * 必須項目の検証
- */
-export const validateRequiredFields = (data: any): ValidationResult => {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  if (!data.name || data.name.trim() === '') {
-    errors.push('名前は必須です');
-  }
-
-  if (data.placeType) {
-    if (!data.templates || data.templates.length === 0) {
-      warnings.push('テンプレートが設定されていません');
-    }
-  }
-
-  if (data.nodeType === 'transition') {
-    if (!data.method) {
-      warnings.push('メソッドが設定されていません');
     }
   }
 

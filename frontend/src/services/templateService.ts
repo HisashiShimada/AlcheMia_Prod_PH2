@@ -7,8 +7,11 @@
  * @date 2026-01-28
  */
 
-import { Template, TemplateError } from '../../editor/TemplateItem';
-import { CategorizedTemplates } from '../../editor/TemplateList';
+import { TemplatesByCategory } from "@/components/editorv2/components/TemplateViewer/TemplateList";
+import { Template } from "@/types/maiml-unified";
+import { TemplateError } from "@/components/editorv2/components/TemplateViewer/TemplateItem";
+
+import { MaimlParserTyped } from "@/utils/maimlParserTyped";
 
 /**
  * Property型定義（内部使用）
@@ -117,160 +120,161 @@ const extractPropertyRecursive = (propEl: Element): PropertyRecursive => {
  * @param templateEl - テンプレート要素
  * @returns テンプレート情報
  */
-const extractTemplateInfo = (
-  type: 'material' | 'condition' | 'result',
-  templateEl: Element
-): Template => {
-  const id = templateEl.getAttribute('id') || '';
+// const extractTemplateInfo = (
+//   type: 'material' | 'condition' | 'result',
+//   templateEl: Element
+// ): Template => {
+//   const id = templateEl.getAttribute('id') || '';
 
-  // ✅ 新規: 祖先要素からmethodIdを取得
-  let methodId: string | null = null;
-  let parent = templateEl.parentElement;
+//   // ✅ 新規: 祖先要素からmethodIdを取得
+//   let methodId: string | null = null;
+//   let parent = templateEl.parentElement;
 
-  while (parent) {
-    const parentLocalName = parent.localName || parent.tagName;
-    if (parentLocalName === 'method') {
-      methodId = parent.getAttribute('id');
-      break;
-    }
-    parent = parent.parentElement;
-  }
+//   while (parent) {
+//     const parentLocalName = parent.localName || parent.tagName;
+//     if (parentLocalName === 'method') {
+//       methodId = parent.getAttribute('id');
+//       break;
+//     }
+//     parent = parent.parentElement;
+//   }
 
-  // uuid要素（子要素として）
-  const uuidEl = templateEl.querySelector(':scope > uuid');
-  const uuid = uuidEl?.textContent?.trim() || '';
+//   // uuid要素（子要素として）
+//   const uuidEl = templateEl.querySelector(':scope > uuid');
+//   const uuid = uuidEl?.textContent?.trim() || '';
 
-  // name要素（定義値のみ、フォールバックなし）
-  const nameEl = templateEl.querySelector(':scope > name');
-  const name = nameEl?.textContent?.trim() || '';
+//   // name要素（定義値のみ、フォールバックなし）
+//   const nameEl = templateEl.querySelector(':scope > name');
+//   const name = nameEl?.textContent?.trim() || '';
 
-  // description要素
-  const descriptionEl = templateEl.querySelector(':scope > description');
-  const description = descriptionEl?.textContent?.trim() || '';
+//   // description要素
+//   const descriptionEl = templateEl.querySelector(':scope > description');
+//   const description = descriptionEl?.textContent?.trim() || '';
 
-  // ✅ 修正: property要素を完全に抽出（MaiMLParser.js形式）
-  const properties = Array.from(templateEl.querySelectorAll(':scope > property')).map((propEl) => {
-    return extractPropertyRecursive(propEl);
-  });
+//   // ✅ 修正: property要素を完全に抽出（MaiMLParser.js形式）
+//   const properties = Array.from(templateEl.querySelectorAll(':scope > property')).map((propEl) => {
+//     return extractPropertyRecursive(propEl);
+//   });
 
-  // placeRef要素
-  const placeRefs = Array.from(templateEl.querySelectorAll(':scope > placeRef'))
-    .map((refEl) => {
-      return (
-        refEl.getAttribute('ref') ||
-        refEl.getAttribute('idref') ||
-        refEl.getAttribute('href')?.replace('#', '') ||
-        ''
-      );
-    })
-    .filter((ref) => ref);
+//   // placeRef要素
+//   const placeRefs = Array.from(templateEl.querySelectorAll(':scope > placeRef'))
+//     .map((refEl) => {
+//       return (
+//         refEl.getAttribute('ref') ||
+//         refEl.getAttribute('idref') ||
+//         refEl.getAttribute('href')?.replace('#', '') ||
+//         ''
+//       );
+//     })
+//     .filter((ref) => ref);
 
-  // templateRef要素（共有テンプレート参照）
-  const templateRefs = Array.from(templateEl.querySelectorAll(':scope > templateRef'))
-    .map((refEl) => {
-      return (
-        refEl.getAttribute('ref') ||
-        refEl.getAttribute('idref') ||
-        refEl.getAttribute('href')?.replace('#', '') ||
-        ''
-      );
-    })
-    .filter((ref) => ref);
+//   // templateRef要素（共有テンプレート参照）
+//   const templateRefs = Array.from(templateEl.querySelectorAll(':scope > templateRef'))
+//     .map((refEl) => {
+//       return (
+//         refEl.getAttribute('ref') ||
+//         refEl.getAttribute('idref') ||
+//         refEl.getAttribute('href')?.replace('#', '') ||
+//         ''
+//       );
+//     })
+//     .filter((ref) => ref);
 
-  return {
-    id,
-    name,
-    propertiesCount: properties.length,
-    placeRefsCount: placeRefs.length,
-    type,
-    description,
-    data: {
-      id,
-      uuid,
-      name,
-      description,
-      methodId, // ✅ 追加: 所属メソッドID（nullの場合は共通テンプレート）
-      properties: properties as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-      placeRefs,
-      templateRefs,
-      templateRefsCount: templateRefs.length,
-    },
-  };
-};
+//   return {
+//     id,
+//     name,
+//     propertiesCount: properties.length,
+//     placeRefsCount: placeRefs.length,
+//     type,
+//     description,
+//     data: {
+//       id,
+//       uuid,
+//       name,
+//       description,
+//       methodId, // ✅ 追加: 所属メソッドID（nullの場合は共通テンプレート）
+//       properties: properties as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+//       placeRefs,
+//       templateRefs,
+//       templateRefsCount: templateRefs.length,
+//     },
+//   };
+// };
 
 /**
  * MaiMLデータからテンプレート情報を抽出
  * @param maimlData - MaiML XML文字列
  * @returns テンプレート情報 { material: [], condition: [], result: [] }
  */
-export const extractTemplatesFromMaiML = (maimlData: string): CategorizedTemplates => {
-  if (!maimlData) {
-    return { material: [], condition: [], result: [] };
-  }
+// export const extractTemplatesFromMaiML = (maimlData: string): TemplatesByCategory => {
+//   if (!maimlData) {
+//     return { material: [], condition: [], result: [] };
+//   }
 
-  try {
-    // ✅ 修正: 空の名前空間宣言を削除してからパース
-    // "xmlns:xsi=""のような空の名前空間宣言を削除
-    const cleanedMaimlData = maimlData.replace(/xmlns:[a-zA-Z]+=""\s*/g, '');
+//   try {
+//     // ✅ 修正: 空の名前空間宣言を削除してからパース
+//     // "xmlns:xsi=""のような空の名前空間宣言を削除
+//     const cleanedMaimlData = maimlData.replace(/xmlns:[a-zA-Z]+=""\s*/g, '');
 
-    console.log('🔍 [TemplateService] XMLパース前処理:', {
-      originalLength: maimlData.length,
-      cleanedLength: cleanedMaimlData.length,
-      removedBytes: maimlData.length - cleanedMaimlData.length,
-    });
+//     console.log('🔍 [TemplateService] XMLパース前処理:', {
+//       originalLength: maimlData.length,
+//       cleanedLength: cleanedMaimlData.length,
+//       removedBytes: maimlData.length - cleanedMaimlData.length,
+//     });
 
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(cleanedMaimlData, 'text/xml');
+//     // const parser = new DOMParser();
+//     // const xmlDoc = parser.parseFromString(cleanedMaimlData, 'text/xml');
+//     const parser = new MaimlParserTyped(maimlData);
 
-    // パースエラーチェック
-    const parseError = xmlDoc.querySelector('parsererror');
-    if (parseError) {
-      console.error('❌ [TemplateService] XML parse error:', parseError.textContent);
-      console.error(
-        '❌ [TemplateService] Line 335付近:',
-        cleanedMaimlData.split('\n').slice(333, 338).join('\n')
-      );
-      return { material: [], condition: [], result: [] };
-    }
+//     // パースエラーチェック
+//     const parseError = xmlDoc.querySelector('parsererror');
+//     if (parseError) {
+//       console.error('❌ [TemplateService] XML parse error:', parseError.textContent);
+//       console.error(
+//         '❌ [TemplateService] Line 335付近:',
+//         cleanedMaimlData.split('\n').slice(333, 338).join('\n')
+//       );
+//       return { material: [], condition: [], result: [] };
+//     }
 
-    // ✅ 修正: 名前空間を考慮した要素取得
-    // querySelector('materialTemplate')は名前空間付き要素を見つけられない
-    // getElementsByTagName('materialTemplate')または'*'で全要素取得して手動フィルタ
+//     // ✅ 修正: 名前空間を考慮した要素取得
+//     // querySelector('materialTemplate')は名前空間付き要素を見つけられない
+//     // getElementsByTagName('materialTemplate')または'*'で全要素取得して手動フィルタ
 
-    const allElements = xmlDoc.getElementsByTagName('*');
-    const materialTemplates: Template[] = [];
-    const conditionTemplates: Template[] = [];
-    const resultTemplates: Template[] = [];
+//     const allElements = xmlDoc.getElementsByTagName('*');
+//     const materialTemplates: Template[] = [];
+//     const conditionTemplates: Template[] = [];
+//     const resultTemplates: Template[] = [];
 
-    for (let i = 0; i < allElements.length; i++) {
-      const el = allElements[i];
-      const localName = el.localName || el.tagName;
+//     for (let i = 0; i < allElements.length; i++) {
+//       const el = allElements[i];
+//       const localName = el.localName || el.tagName;
 
-      if (localName === 'materialTemplate') {
-        materialTemplates.push(extractTemplateInfo('material', el));
-      } else if (localName === 'conditionTemplate') {
-        conditionTemplates.push(extractTemplateInfo('condition', el));
-      } else if (localName === 'resultTemplate') {
-        resultTemplates.push(extractTemplateInfo('result', el));
-      }
-    }
+//       if (localName === 'materialTemplate') {
+//         materialTemplates.push(extractTemplateInfo('material', el));
+//       } else if (localName === 'conditionTemplate') {
+//         conditionTemplates.push(extractTemplateInfo('condition', el));
+//       } else if (localName === 'resultTemplate') {
+//         resultTemplates.push(extractTemplateInfo('result', el));
+//       }
+//     }
 
-    console.log('✅ [TemplateService] テンプレート抽出完了:', {
-      material: materialTemplates.length,
-      condition: conditionTemplates.length,
-      result: resultTemplates.length,
-    });
+//     console.log('✅ [TemplateService] テンプレート抽出完了:', {
+//       material: materialTemplates.length,
+//       condition: conditionTemplates.length,
+//       result: resultTemplates.length,
+//     });
 
-    return {
-      material: materialTemplates,
-      condition: conditionTemplates,
-      result: resultTemplates,
-    };
-  } catch (error) {
-    console.error('❌ [TemplateService] テンプレート抽出エラー:', error);
-    return { material: [], condition: [], result: [] };
-  }
-};
+//     return {
+//       material: materialTemplates,
+//       condition: conditionTemplates,
+//       result: resultTemplates,
+//     };
+//   } catch (error) {
+//     console.error('❌ [TemplateService] テンプレート抽出エラー:', error);
+//     return { material: [], condition: [], result: [] };
+//   }
+// };
 
 /**
  * バリデーション結果からテンプレート関連エラーを抽出してマッピング
@@ -280,7 +284,7 @@ export const extractTemplatesFromMaiML = (maimlData: string): CategorizedTemplat
  */
 export const mapValidationErrorsToTemplates = (
   validationResult: ValidationResult,
-  templates: CategorizedTemplates
+  templates: TemplatesByCategory
 ): Record<string, TemplateError[]> => {
   if (!validationResult || !validationResult.errors) {
     return {};
@@ -413,24 +417,4 @@ export const mapValidationErrorsToTemplates = (
   });
 
   return errorMap;
-};
-
-/**
- * テンプレートエラーを critical/non-critical に分類
- * @param errors - エラー配列
- * @returns { critical: [], nonCritical: [] }
- */
-export const classifyTemplateErrors = (
-  errors: TemplateError[]
-): { critical: TemplateError[]; nonCritical: TemplateError[] } => {
-  if (!errors || !Array.isArray(errors)) {
-    return { critical: [], nonCritical: [] };
-  }
-
-  const criticalTypes = ['syntax_error', 'invalid_structure'];
-
-  const critical = errors.filter((err) => criticalTypes.includes(err.type || ''));
-  const nonCritical = errors.filter((err) => !criticalTypes.includes(err.type || ''));
-
-  return { critical, nonCritical };
 };

@@ -21,13 +21,11 @@ import {
   Divider,
 } from 'antd';
 import {
-  CloseOutlined,
   SaveOutlined,
   ReloadOutlined,
   DeleteOutlined,
   FolderOpenOutlined,
   SearchOutlined,
-  SortAscendingOutlined,
 } from '@ant-design/icons';
 import useDraftManager, { Draft, EditState } from '../hooks/useDraftManager';
 
@@ -121,8 +119,8 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         originalFileKey: currentEditState?.fileName || '',
         nodes: currentEditState?.nodes || [],
         edges: currentEditState?.edges || [],
-        templates: currentEditState?.templates || {},
-        documentData: currentEditState?.documentData || {},
+        templates: currentEditState?.templates || [],
+        documentData: currentEditState?.documentData,
       });
 
       Modal.success({ title: '保存完了', content: 'Draftを保存しました' });

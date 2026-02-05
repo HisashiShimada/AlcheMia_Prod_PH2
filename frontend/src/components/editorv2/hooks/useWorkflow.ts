@@ -14,24 +14,9 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Node, Edge, Connection, XYPosition, NodeChange, EdgeChange } from 'reactflow';
 import { maimlToReactFlow } from '../utils/converters/maimlToReactFlow';
-
-/**
- * テンプレート情報の型定義
- */
-export interface Template {
-  id: string;
-  placeRef?: string;
-  [key: string]: unknown;
-}
-
-/**
- * テンプレートコレクションの型定義
- */
-export interface Templates {
-  materialTemplates: Record<string, Template>;
-  conditionTemplates: Record<string, Template>;
-  resultTemplates: Record<string, Template>;
-}
+import { Template } from '@/types/maiml-unified';
+import { TemplatesByCategory } from '../components/TemplateViewer/TemplateList';
+import { NodeData } from '../types';
 
 /**
  * ノード境界情報の型定義
@@ -63,7 +48,7 @@ export interface WorkflowAddResult {
   success: boolean;
   nodes?: Node[];
   edges?: Edge[];
-  templates?: Templates;
+  templates?: TemplatesByCategory;
   message?: string;
   error?: string;
 }
@@ -106,7 +91,7 @@ export interface UseWorkflowReturn {
   activeMethodIndex: number;
   nodes: Node[];
   edges: Edge[];
-  templates: Templates;
+  templates: TemplatesByCategory;
   
   // メソッド操作
   setActiveMethodIndex: (index: number) => void;
@@ -160,10 +145,10 @@ export const useWorkflow = ({
   const [activeMethodIndex, setActiveMethodIndex] = useState<number>(0);
   
   // テンプレート情報
-  const [templates, setTemplates] = useState<Templates>({
-    materialTemplates: {},
-    conditionTemplates: {},
-    resultTemplates: {}
+  const [templates, setTemplates] = useState<TemplatesByCategory>({
+    material: [],
+    condition: [],
+    result: []
   });
   
   // ========================
@@ -733,30 +718,20 @@ const generateUniqueId = (baseId: string, existingIds: Set<string>): string => {
 };
 
 /**
- * ノードデータの型定義（テンプレート情報を含む）
- */
-interface NodeDataWithTemplate {
-  template?: Template;
-  templateRef?: Template;
-  placeType?: string;
-  [key: string]: unknown;
-}
-
-/**
  * ノードからテンプレート情報を抽出
  * @param nodes - ノード配列
  * @param idMapping - IDマッピング
  * @returns テンプレート情報
  */
-const extractTemplatesFromNodes = (nodes: Node[], idMapping: Record<string, string>): Templates => {
-  const templates: Templates = {
-    materialTemplates: {},
-    conditionTemplates: {},
-    resultTemplates: {}
+const extractTemplatesFromNodes = (nodes: Node<NodeData>[], idMapping: Record<string, string>): TemplatesByCategory => {
+  const templates: TemplatesByCategory = {
+    material: [],
+    condition: [],
+    result: []
   };
   
   nodes.forEach(node => {
-    const nodeData = node.data as NodeDataWithTemplate;
+    const nodeData = node.data;
     const template = nodeData.template || nodeData.templateRef;
     if (template) {
       const templateType = getTemplateTypeFromNode(node);
@@ -769,10 +744,10 @@ const extractTemplatesFromNodes = (nodes: Node[], idMapping: Record<string, stri
         const updatedTemplate: Template = {
           ...template,
           id: newTemplateId,
-          placeRef: node.id // 新しいノードIDに更新
+          placeRefs: [{id : '', ref : node.id}] // 新しいノードIDに更新
         };
         
-        templates[templateType][newTemplateId] = updatedTemplate;
+        templates[templateType].push(updatedTemplate)
       }
     }
   });
@@ -785,16 +760,16 @@ const extractTemplatesFromNodes = (nodes: Node[], idMapping: Record<string, stri
  * @param node - ノード
  * @returns テンプレートタイプ
  */
-const getTemplateTypeFromNode = (node: Node): keyof Templates | null => {
-  const nodeData = node.data as NodeDataWithTemplate;
+const getTemplateTypeFromNode = (node: Node<NodeData>): keyof TemplatesByCategory | null => {
+  const nodeData = node.data;
   
   // V2のノードタイプに対応
   if (node.type === 'materialTemplate' || nodeData.placeType === 'material') {
-    return 'materialTemplates';
+    return 'material';
   } else if (node.type === 'conditionTemplate' || nodeData.placeType === 'condition') {
-    return 'conditionTemplates';
+    return 'condition';
   } else if (node.type === 'resultTemplate' || nodeData.placeType === 'result') {
-    return 'resultTemplates';
+    return 'result';
   }
   return null;
 };
@@ -805,19 +780,19 @@ const getTemplateTypeFromNode = (node: Node): keyof Templates | null => {
  * @param newTemplates - 新しいテンプレート
  * @returns 統合されたテンプレート
  */
-const mergeTemplates = (existingTemplates: Templates, newTemplates: Templates): Templates => {
+const mergeTemplates = (existingTemplates: TemplatesByCategory, newTemplates: TemplatesByCategory): TemplatesByCategory => {
   return {
-    materialTemplates: {
-      ...existingTemplates.materialTemplates,
-      ...newTemplates.materialTemplates
+    material: {
+      ...existingTemplates.material,
+      ...newTemplates.material
     },
-    conditionTemplates: {
-      ...existingTemplates.conditionTemplates,
-      ...newTemplates.conditionTemplates
+    condition: {
+      ...existingTemplates.condition,
+      ...newTemplates.condition
     },
-    resultTemplates: {
-      ...existingTemplates.resultTemplates,
-      ...newTemplates.resultTemplates
+    result: {
+      ...existingTemplates.result,
+      ...newTemplates.result
     }
   };
 };
@@ -827,11 +802,11 @@ const mergeTemplates = (existingTemplates: Templates, newTemplates: Templates): 
  * @param templates - テンプレート情報
  * @returns テンプレート総数
  */
-const countTemplates = (templates: Templates): number => {
+const countTemplates = (templates: TemplatesByCategory): number => {
   return (
-    Object.keys(templates.materialTemplates || {}).length +
-    Object.keys(templates.conditionTemplates || {}).length +
-    Object.keys(templates.resultTemplates || {}).length
+    Object.keys(templates.material).length +
+    Object.keys(templates.condition).length +
+    Object.keys(templates.result).length
   );
 };
 

@@ -15,11 +15,11 @@ import type {
   Protocol, 
   Method, 
   Transition,
-  MaterialTemplate,
-  ConditionTemplate,
-  ResultTemplate,
+  Template,
   Property,
-  PlaceRef
+  PlaceRef,
+  Reference,
+  Document as MaimlDocument
 } from '@/types/maiml-unified';
 import type { 
   TransitionWithMetadata,
@@ -27,6 +27,7 @@ import type {
   ConditionTemplateInfo,
   ResultTemplateInfo
 } from '@/types/maiml-extended';
+import { TemplatesByCategory } from '@/components/editorv2/components/TemplateViewer/TemplateList';
 
 export interface TransitionsResult {
   success: boolean;
@@ -45,30 +46,12 @@ export interface TransitionsResult {
 }
 
 /**
- * Template結果型
- * 
- * Phase 6-2修正: XSD準拠型を直接使用
- */
-export interface TemplatesResult {
-  materials: MaterialTemplate[];       // Phase 6-2修正: TemplateInfo → MaterialTemplate
-  conditions: ConditionTemplate[];     // Phase 6-2修正: TemplateInfo → ConditionTemplate
-  results: ResultTemplate[];           // Phase 6-2修正: TemplateInfo → ResultTemplate
-}
-
-/**
  * Template メタデータ型定義
  */
 export interface TemplateMetadata {
   uuid: string;
-  placeRefs: Array<{
-    id: string;
-    ref: string;
-    uuid: string;
-  }>;
-  templateRefs: Array<{
-    id: string;
-    href: string;
-  }>;
+  placeRefs: PlaceRef[];
+  templateRefs: Reference[];
 }
 
 /**
@@ -132,6 +115,21 @@ export class MaimlParserTyped {
   }
   
   /**
+   * Documentを取得
+   * 
+   * Phase 3.2追加: Document情報の型安全な取得
+   * 
+   * @returns {MaimlDocument} MAIML Document オブジェクト
+   * @throws {Error} Documentが存在しない場合
+   */
+  getDocument(): MaimlDocument {
+    if (!this.typedMaiml.document) {
+      throw new Error('Document not found in MAIML');
+    }
+    return this.typedMaiml.document;
+  }
+  
+  /**
    * Protocolを取得
    * 
    * @returns {Protocol} Protocol オブジェクト
@@ -153,13 +151,11 @@ export class MaimlParserTyped {
     const protocol = this.getProtocol();
     
     // methodが配列でない場合は配列化
-    if (!protocol.method) {
+    if (!protocol.methods) {
       return [];
     }
     
-    return Array.isArray(protocol.method) 
-      ? protocol.method 
-      : [protocol.method];
+    return protocol.methods;
   }
   
   /**
@@ -180,143 +176,40 @@ export class MaimlParserTyped {
    * 
    * @returns {TransitionsResult} Transition一覧とメタデータ
    */
-  getTransitions(): TransitionsResult {
+  getTransitions(): Transition[] {
     try {
       const methods = this.getMethods();
-      const allTransitions: TransitionWithMetadata[] = [];  // Phase 6-2修正
+      const allTransitions : Transition[] = [];
       
-      methods.forEach((method, methodIndex) => {
-        const methodId = method.id || `method_${methodIndex}`;
-        const methodName = method.name;
+      methods.forEach((method) => {
         
         // pnml取得（配列なので最初の要素を使用）
-        const pnmlArray = method.pnml;
-        if (!pnmlArray || pnmlArray.length === 0) {
-          return;
-        }
-        const pnml = pnmlArray[0];
+        const pnml = method.pnml;
         
         // transition取得
-        const transitions = pnml.transition || [];
-        
-        // arc取得
-        const arcs = pnml.arc || [];
-        
-        transitions.forEach(transition => {
-          const transitionId = transition.id || '';
-          
-          // このtransitionに関連するarcを取得
-          const relatedArcs = arcs.filter(arc => 
-            arc.source === transitionId || arc.target === transitionId
-          ).map(arc => ({
-            id: arc.id || '',
-            source: arc.source,
-            target: arc.target,
-            type: (arc.source === transitionId ? 'output' : 'input') as 'input' | 'output'
-          }));
-          
-          // カテゴリ判定
-          const category = this.determineTransitionCategory(transition, methodIndex, transitions.length);
-          
-          // Phase 3追加: displayName生成
-          const displayName = this.formatTransitionDisplayName(
-            transitionId,
-            transition.name,
-            methodId
-          );
-          
-          // Phase 3追加: isExperimentRelevant判定
-          const isExperimentRelevant = ['experiment', 'preparation'].includes(category);
-          
-          // Phase 4追加: hasInstruction判定
-          const hasInstruction = this.hasInstructionByTransitionId(methodId, transitionId);
-          
-          allTransitions.push({
-            id: transitionId,
-            methodId,
-            methodName,
-            name: transition.name,
-            description: transition.description,
-            hasInstruction,        // Phase 4追加: 実装完了
-            arcCount: relatedArcs.length,
-            arcs: relatedArcs,
-            category,
-            displayName,           // Phase 3追加
-            isExperimentRelevant  // Phase 3追加
-          });
-        });
+        const transitions = pnml.transitions || [];
+
+        allTransitions.concat(transitions);
       });
       
-      // メタデータ生成
-      const categoryCounts = {
-        experiment: allTransitions.filter(t => t.category === 'experiment').length,
-        preparation: allTransitions.filter(t => t.category === 'preparation').length,
-        finalization: allTransitions.filter(t => t.category === 'finalization').length,
-        other: allTransitions.filter(t => t.category === 'other').length
-      };
-      
-      return {
-        success: true,
-        error: null,  // Phase 3追加
-        transitions: allTransitions,
-        metadata: {
-          totalMethods: methods.length,
-          totalTransitions: allTransitions.length,
-          categoryCounts
-        }
-      };
+      return allTransitions;
     } catch (error) {
       // Phase 3追加: エラーハンドリング
       console.error('❌ [MaimlParserTyped] getTransitions() failed:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        transitions: [],
-        metadata: {
-          totalMethods: 0,
-          totalTransitions: 0,
-          categoryCounts: {
-            experiment: 0,
-            preparation: 0,
-            finalization: 0,
-            other: 0
-          }
-        }
-      };
+      return [];
     }
   }
   
   /**
-   * Transitionの表示名をフォーマット
+   * 全Transitionを取得（ExperimentWorker用）
    * 
-   * Phase 3追加: 表示用の整形された名前を生成
+   * Phase 6-2修正: 戻り値型をTransitionWithMetadataに変更
    * 
-   * @param {string} id - Transition ID
-   * @param {string | undefined} name - Transition名
-   * @param {string} methodId - Method ID
-   * @returns {string} 整形された表示名
-   * @private
+   * @returns {TransitionsResult} Transition一覧とメタデータ
    */
-  private formatTransitionDisplayName(
-    id: string,
-    name: string | undefined,
-    methodId: string
-  ): string {
-    // メソッドプレフィックスを追加（method_0以外の場合）
-    const methodPrefix = methodId && methodId !== 'method_0' ? `[${methodId}] ` : '';
-    
-    // 名前が長すぎる場合は省略
-    if (name && name.length > 50) {
-      return `${methodPrefix}${id} - ${name.substring(0, 47)}...`;
-    }
-    
-    // 名前がある場合は "ID - 名前" 形式
-    if (name) {
-      return `${methodPrefix}${id} - ${name}`;
-    }
-    
-    // 名前がない場合はIDのみ
-    return `${methodPrefix}${id}`;
+  getTransition(transitionId: string): Transition | null {
+    const transitions = this.getTransitions();
+    return transitions.find(t => t.id === transitionId) || null;
   }
   
   /**
@@ -328,7 +221,7 @@ export class MaimlParserTyped {
    * @returns {string} カテゴリ名
    * @private
    */
-  private determineTransitionCategory(
+  determineTransitionCategory(
     transition: Transition,
     methodIndex: number,
     totalTransitions: number
@@ -353,26 +246,16 @@ export class MaimlParserTyped {
     return 'other';
   }
   
-  /**
-   * 指定されたTransitionに対するInstructionが存在するか判定
-   * 
-   * Phase 4追加: program/instructionからhasInstructionを判定
-   * 
-   * @param {string} methodId - Method ID
-   * @param {string} transitionId - Transition ID
-   * @returns {boolean} Instructionが存在する場合true
-   * @private
-   */
-  private hasInstructionByTransitionId(
-    methodId: string,
+   getInstructionIdByTransitionId(
     transitionId: string
-  ): boolean {
-    // 1. 該当するMethodを取得
-    const method = this.getMethod(methodId);
-    if (!method || !method.program) {
-      return false;
+  ): string {
+    // 1. 該当するTransitionを取得
+    const methods = this.getMethods();
+    if (methods.length ===0) {
+      return '';
     }
     
+    methods.forEach((method) => {
     // 2. program配列を取得（単一要素と配列の両方に対応）
     const programs = Array.isArray(method.program) 
       ? method.program 
@@ -380,30 +263,26 @@ export class MaimlParserTyped {
     
     // 3. 各programのinstructionを検索
     for (const program of programs) {
-      if (!program.instruction) {
+      if (!program.instructions) {
         continue;
       }
       
       // instruction配列を取得（単一要素と配列の両方に対応）
-      const instructions = Array.isArray(program.instruction)
-        ? program.instruction
-        : [program.instruction];
+      const instructions = program.instructions;
       
       // 4. 該当するtransitionIdを持つinstructionを検索（早期終了）
       // Instruction型はtransitionRef配列を持つので、その中のrefを確認
-      const hasMatch = instructions.some(instruction => {
-        if (!instruction.transitionRef || instruction.transitionRef.length === 0) {
-          return false;
-        }
-        return instruction.transitionRef.some(tRef => tRef.ref === transitionId);
+      const instruction = instructions.find(i => {
+        i.transitionRef.ref === transitionId;
       });
       
-      if (hasMatch) {
-        return true;
+      if (instruction) {
+        return instruction.id;
       }
     }
+    })
     
-    return false;
+    return '';
   }
   
   /**
@@ -411,55 +290,55 @@ export class MaimlParserTyped {
    * 
    * @returns {TemplatesResult} Material/Condition/Result テンプレート一覧
    */
-  getTemplates(): TemplatesResult {
+  getTemplates(): TemplatesByCategory {
     const protocol = this.getProtocol();
     const methods = this.getMethods();
     
-    const materials: MaterialTemplate[] = [];
-    const conditions: ConditionTemplate[] = [];
-    const results: ResultTemplate[] = [];
+    const material: Template[] = [];
+    const condition: Template[] = [];
+    const result: Template[] = [];
     
     // protocol直下のテンプレート
-    if (protocol.materialTemplate) {
-      this.collectTemplates(protocol.materialTemplate, 'material', materials);
+    if (protocol.materialTemplates) {
+      this.collectTemplates(protocol.materialTemplates, 'material', material);
     }
-    if (protocol.conditionTemplate) {
-      this.collectTemplates(protocol.conditionTemplate, 'condition', conditions);
+    if (protocol.conditionTemplates) {
+      this.collectTemplates(protocol.conditionTemplates, 'condition', condition);
     }
-    if (protocol.resultTemplate) {
-      this.collectTemplates(protocol.resultTemplate, 'result', results);
+    if (protocol.resultTemplates) {
+      this.collectTemplates(protocol.resultTemplates, 'result', result);
     }
     
     // 各method内のテンプレート
     methods.forEach(method => {
-      if (method.materialTemplate) {
-        this.collectTemplates(method.materialTemplate, 'material', materials);
+      if (method.materialTemplates) {
+        this.collectTemplates(method.materialTemplates, 'material', material);
       }
-      if (method.conditionTemplate) {
-        this.collectTemplates(method.conditionTemplate, 'condition', conditions);
+      if (method.conditionTemplates) {
+        this.collectTemplates(method.conditionTemplates, 'condition', condition);
       }
-      if (method.resultTemplate) {
-        this.collectTemplates(method.resultTemplate, 'result', results);
+      if (method.resultTemplates) {
+        this.collectTemplates(method.resultTemplates, 'result', result);
       }
       
       // method.program内のテンプレート
       if (method.program) {
         const program = Array.isArray(method.program) ? method.program : [method.program];
         program.forEach(prog => {
-          if (prog.materialTemplate) {
-            this.collectTemplates(prog.materialTemplate, 'material', materials);
+          if (prog.materialTemplates) {
+            this.collectTemplates(prog.materialTemplates, 'material', material);
           }
-          if (prog.conditionTemplate) {
-            this.collectTemplates(prog.conditionTemplate, 'condition', conditions);
+          if (prog.conditionTemplates) {
+            this.collectTemplates(prog.conditionTemplates, 'condition', condition);
           }
-          if (prog.resultTemplate) {
-            this.collectTemplates(prog.resultTemplate, 'result', results);
+          if (prog.resultTemplates) {
+            this.collectTemplates(prog.resultTemplates, 'result', result);
           }
         });
       }
     });
     
-    return { materials, conditions, results };
+    return { material, condition, result };
   }
   
   /**
@@ -471,15 +350,15 @@ export class MaimlParserTyped {
    * @private
    */
   private collectTemplates(
-    templates: MaterialTemplate | ConditionTemplate | ResultTemplate | Array<MaterialTemplate | ConditionTemplate | ResultTemplate>,
+    templates: Template | Array<Template>,
     type: 'material' | 'condition' | 'result',
-    result: Array<MaterialTemplate | ConditionTemplate | ResultTemplate>
+    result: Array<Template>
   ): void {
     const templateArray = Array.isArray(templates) ? templates : [templates];
     
     templateArray.forEach(template => {
       // placeRef から最初の ref 値を取得（配列型なので）
-      const placeRefs = template.placeRef as PlaceRef[] | undefined;
+      const placeRefs = template.placeRefs as PlaceRef[] | undefined;
       const placeRefValue = placeRefs && placeRefs.length > 0 
         ? placeRefs[0].ref 
         : undefined;
@@ -487,8 +366,8 @@ export class MaimlParserTyped {
       // transitionRef は MaterialTemplate のみに存在
       let transitionRefValue: string | undefined = undefined;
       if (type === 'material' && 'templateRef' in template) {
-        const tRefs = (template as MaterialTemplate).templateRef;
-        transitionRefValue = tRefs && tRefs.length > 0 ? tRefs[0].ref : undefined;
+        const tRef = template.templateRef;
+        transitionRefValue = tRef?.ref ? tRef.ref : undefined;
       }
       
       // Phase 6-2修正: XSD準拠型をそのまま使用（追加フィールドは不要）
@@ -535,20 +414,16 @@ export class MaimlParserTyped {
       const methodName = method.name || methodId;
       
       // pnml取得
-      const pnmlArray = method.pnml;
+      const pnml = method.pnml;
       const transitions: Array<{ id: string; name: string }> = [];
+      const transitionArray = pnml.transitions || [];
       
-      if (pnmlArray && pnmlArray.length > 0) {
-        const pnml = pnmlArray[0];
-        const transitionArray = pnml.transition || [];
-        
-        transitionArray.forEach(transition => {
-          transitions.push({
-            id: transition.id || '',
-            name: transition.name || transition.id || ''
-          });
+      transitionArray.forEach(transition => {
+        transitions.push({
+          id: transition.id || '',
+          name: transition.name || transition.id || ''
         });
-      }
+      });
       
       return {
         methodId,
@@ -575,7 +450,7 @@ export class MaimlParserTyped {
   } {
     try {
       const protocol = this.typedMaiml.protocol;
-      const methods = protocol?.method ? (Array.isArray(protocol.method) ? protocol.method : [protocol.method]) : [];
+      const methods = protocol?.methods ? protocol.methods :  [];
       
       return {
         hasProtocol: !!protocol,
@@ -618,14 +493,8 @@ export class MaimlParserTyped {
     
     methods.forEach((method, index) => {
       const methodId = method.id || `method_${index}`;
-      const pnmlArray = method.pnml;
-      
-      if (!pnmlArray || pnmlArray.length === 0) {
-        return;
-      }
-      
-      const pnml = pnmlArray[0];
-      const arcs = pnml.arc || [];
+      const pnml = method.pnml;
+      const arcs = pnml.arcs || [];
       
       arcs.forEach(arc => {
         allArcs.push({
@@ -660,8 +529,7 @@ export class MaimlParserTyped {
       return null;
     }
     
-    const transitionsResult = this.getTransitions();
-    const transitions = transitionsResult.transitions;
+    const transitions = this.getTransitions();
     
     for (const arc of connectedArcs) {
       const transitionId = arc.source === placeId ? arc.target : arc.source;
@@ -672,6 +540,86 @@ export class MaimlParserTyped {
       }
     }
     
+    return null;
+  }
+  
+  /**
+   * Place IDからそのPlaceを保持しているPNML IDを返却
+   * 
+   * @param {string} placeId - Place ID
+   * @returns {string | null} PNML ID、見つからない場合は null
+   * 
+   * @example
+   * const pnmlId = parser.getPnmlIdByPlaceId('place001');
+   * if (pnmlId) {
+   *   console.log(`Place 'place001' is in PNML '${pnmlId}'`);
+   * }
+   */
+  getPnmlIdByPlaceId(placeId: string): string | null {
+    if (!placeId) {
+      return null;
+    }
+    
+    const methods = this.getMethods();
+    
+    for (const method of methods) {
+      const pnml = method.pnml;
+      
+      // pnmlにplaces配列があるか確認
+      if (!pnml.places || pnml.places.length === 0) {
+        continue;
+      }
+      
+      // 該当するplaceIdを持つPlaceが存在するかチェック
+      const hasPlace = pnml.places.some(place => place.id === placeId);
+      
+      if (hasPlace) {
+        // pnmlのIDを返す
+        return pnml.id || null;
+      }
+    }
+    
+    // 見つからなかった場合
+    return null;
+  }
+  
+  /**
+   * Transition IDからそのTransitionを保持しているPNML IDを返却
+   * 
+   * @param {string} transitionId - Transition ID
+   * @returns {string | null} PNML ID、見つからない場合は null
+   * 
+   * @example
+   * const pnmlId = parser.getPnmlIdByTransitionId('transition001');
+   * if (pnmlId) {
+   *   console.log(`Transition 'transition001' is in PNML '${pnmlId}'`);
+   * }
+   */
+  getPnmlIdByTransitionId(transitionId: string): string | null {
+    if (!transitionId) {
+      return null;
+    }
+    
+    const methods = this.getMethods();
+    
+    for (const method of methods) {
+      const pnml = method.pnml;
+      
+      // pnmlにtransitions配列があるか確認
+      if (!pnml.transitions || pnml.transitions.length === 0) {
+        continue;
+      }
+      
+      // 該当するtransitionIdを持つTransitionが存在するかチェック
+      const hasTransition = pnml.transitions.some(transition => transition.id === transitionId);
+      
+      if (hasTransition) {
+        // pnmlのIDを返す
+        return pnml.id || null;
+      }
+    }
+    
+    // 見つからなかった場合
     return null;
   }
   
@@ -709,47 +657,12 @@ export class MaimlParserTyped {
       validation.isValid = false;
     }
     
-    if (!this.typedMaiml.protocol?.method || this.getMethods().length === 0) {
+    if (!this.typedMaiml.protocol?.methods || this.getMethods().length === 0) {
       validation.errors.push('protocol/methodセクションが見つかりません');
       validation.isValid = false;
     }
     
-    // 警告レベルの検証
-    const methods = this.getMethods();
-    if (methods.length > 0) {
-      const hasAnyPnml = methods.some(m => m.pnml && m.pnml.length > 0);
-      if (!hasAnyPnml) {
-        validation.warnings.push('pnmlセクションが見つかりません');
-      }
-    }
-    
     return validation;
-  }
-  
-  /**
-   * ExperimentManager向けTransition取得（互換性ラッパー）
-   * 
-   * Phase 5追加: petriNetExtractor.ts互換性のため
-   * 内部では getTransitions() を呼び出します
-   * 
-   * @returns {TransitionsResult} getTransitions()と同じ結果
-   * @deprecated 新規コードでは getTransitions() を直接使用してください
-   */
-  getTransitionsForExperimentManager(): TransitionsResult {
-    return this.getTransitions();
-  }
-  
-  /**
-   * PetriNetViewer向けTemplate取得（互換性ラッパー）
-   * 
-   * Phase 5追加: petriNetExtractor.ts互換性のため
-   * 内部では getTemplates() を呼び出します
-   * 
-   * @returns {TemplatesResult} getTemplates()と同じ結果
-   * @deprecated 新規コードでは getTemplates() を直接使用してください
-   */
-  getTemplatesForPetriNetViewer(): TemplatesResult {
-    return this.getTemplates();
   }
   
 /**
@@ -775,89 +688,20 @@ getPlaceRefByTemplateId(templateId: string): string {
   
   // Materials/Conditions/Resultsから該当テンプレートを検索
   const allTemplates = [
-    ...templates.materials,
-    ...templates.conditions,
-    ...templates.results
+    ...templates.material,
+    ...templates.condition,
+    ...templates.result
   ];
   
   const template = allTemplates.find(t => t.id === templateId);
   
-  if (template && template.placeRef && template.placeRef.length > 0) {
+  if (template && template.placeRefs && template.placeRefs.length > 0) {
     // ✅ 明示的に最初のplaceRefのrefを返す（既存動作との互換性）
-    return template.placeRef[0].ref || templateId;
+    return template.placeRefs[0].ref || templateId;
   }
   
   // フォールバック: templateId自身を返す
   return templateId;
-}
-
-/**
- * Template要素のメタデータを一括取得
- * 
- * 📌 複数placeRefの詳細情報が必要な場合はこのメソッドを使用してください。
- * uuid, placeRefs配列, templateRefs配列を含むオブジェクトを返します。
- * 
- * @param {string} templateId - テンプレートID
- * @returns {TemplateMetadata} uuid, placeRefs, templateRefsを含むメタデータ
- * 
- * @example
- * const metadata = parser.getTemplateMetadata('mat001');
- * console.log(metadata.placeRefs);
- * // [
- * //   { id: 'pr1', ref: 'place001', uuid: 'uuid1' },
- * //   { id: 'pr2', ref: 'place002', uuid: 'uuid2' },  // ← 複数placeRefがある場合
- * // ]
- */
-getTemplateMetadata(templateId: string): TemplateMetadata {
-  const templates = this.getTemplates();
-  
-  // Materials/Conditions/Resultsから該当テンプレートを検索
-  const allTemplates = [
-    ...templates.materials,
-    ...templates.conditions,
-    ...templates.results
-  ];
-  
-  const template = allTemplates.find(t => t.id === templateId);
-  
-  // デフォルト値
-  const metadata: TemplateMetadata = {
-    uuid: '',
-    placeRefs: [],
-    templateRefs: []
-  };
-  
-  if (!template) {
-    return metadata;
-  }
-  
-  // uuid取得（XSD準拠型から直接取得）
-  if (template.uuid) {
-    metadata.uuid = template.uuid;
-  }
-  
-  // placeRefs取得（配列として取得）
-  if (template.placeRef && Array.isArray(template.placeRef)) {
-    metadata.placeRefs = template.placeRef.map(pr => ({
-      id: pr.id || '',
-      ref: pr.ref || '',
-      uuid: pr.uuid || ''
-    }));
-  }
-  
-  // templateRefs取得（MaterialTemplateのみ持つ）
-  if ('templateRef' in template && template.templateRef) {
-    const templateRefs = Array.isArray(template.templateRef) 
-      ? template.templateRef 
-      : [template.templateRef];
-    
-    metadata.templateRefs = templateRefs.map(tr => ({
-      id: tr.id || '',
-      href: tr.href || ''
-    }));
-  }
-  
-  return metadata;
 }
 
 /**
@@ -872,11 +716,11 @@ getEventLogs(): Array<{
   operatorId?: string;
 }> {
     const eventLog = this.typedMaiml.eventLog;
-    if (!eventLog || !eventLog.log) {
+    if (!eventLog || !eventLog.logs) {
       return [];
     }
     
-    const logs = Array.isArray(eventLog.log) ? eventLog.log : [eventLog.log];
+    const logs =  eventLog.logs;
     const events: Array<{
       id: string;
       transitionRef?: string;
@@ -885,22 +729,22 @@ getEventLogs(): Array<{
     }> = [];
     
     logs.forEach(log => {
-      if (!log.trace) return;
+      if (!log.traces) return;
       
-      const traces = Array.isArray(log.trace) ? log.trace : [log.trace];
+      const traces = log.traces;
       
       traces.forEach(trace => {
-        if (!trace.event) return;
+        if (!trace.events) return;
         
-        const traceEvents = Array.isArray(trace.event) ? trace.event : [trace.event];
+        const traceEvents = trace.events;
         
         traceEvents.forEach(event => {
           // Propertyから必要な情報を抽出
           let timestamp: string | undefined;
           let operatorId: string | undefined;
           
-          if (event.property) {
-            const props = Array.isArray(event.property) ? event.property : [event.property];
+          if (event.properties) {
+            const props = event.properties;
             
             props.forEach(prop => {
               if (prop.key === 'time:timestamp' && 'value' in prop) {

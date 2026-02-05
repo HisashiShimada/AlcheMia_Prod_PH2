@@ -19,8 +19,6 @@ export type {
 export { useWorkflow } from './useWorkflow';
 export type {
   NodeType,
-  Template,
-  Templates,
   WorkflowAddResult,
   UseWorkflowParams,
   UseWorkflowReturn

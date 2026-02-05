@@ -39,16 +39,6 @@ import type { CategorizedTemplates } from './TemplateList';
 import type { TemplateError } from './TemplateItem';
 import { TemplateProvider, useTemplates } from '@/contexts/TemplateContext';
 
-// ✅ window.cline* の型定義
-declare global {
-  interface Window {
-    clineAddTemplate?: (data: { category: string; template: any }) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
-    clineDeleteTemplate?: (templateId: string) => void;
-    clineUpdateTemplate?: (templateId: string, updatedTemplate: any) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
-    clineAllTemplates?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  }
-}
-
 // カスタムフック
 import useHistory from '../../hooks/useHistory';
 import { useWorkflow } from '../../hooks/useWorkflow';

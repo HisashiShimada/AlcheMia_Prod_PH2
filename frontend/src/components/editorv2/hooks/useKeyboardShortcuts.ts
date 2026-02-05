@@ -8,14 +8,15 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
+import { Node } from 'reactflow';
 
 export interface UseKeyboardShortcutsProps {
   // 状態
-  nodes: any[];
+  nodes: Node[];
   clipboard: any;
   canUndo: boolean;
   canRedo: boolean;
-  selectedNodes: any[];
+  selectedNodes: Node[];
   
   // ダイアログ状態
   templateEditorOpen: boolean;

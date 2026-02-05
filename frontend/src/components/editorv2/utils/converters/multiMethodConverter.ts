@@ -17,15 +17,14 @@ import {
 
 import type { 
   NodeData,
-  Property,
-  DocumentData,
-  Template
+  DocumentData,MethodData,EdgeData
 } from '../../types';
 
 import type { Node, Edge } from 'reactflow';
 
-// ✅ Method型をeditorTypes.tsからインポート
-import type { Method, EdgeData } from '../../types/editorTypes';
+import type { Reference,Property, PlaceRef, Template } from '@/types/maiml-unified';
+
+import type { TemplatesByCategory } from '../../components/TemplateViewer/TemplateList';
 
 /**
  * メタデータ
@@ -33,30 +32,6 @@ import type { Method, EdgeData } from '../../types/editorTypes';
 export interface Metadata {
   name?: string;
   [key: string]: unknown;
-}
-
-/**
- * Template情報（TemplateContext）
- */
-export interface TemplateInfo {
-  id: string;
-  uuid?: string;
-  name?: string;
-  description?: string;
-  properties?: Property[];
-  placeRefs?: string[];
-  templateRefs?: string[];
-  methodId?: string | null;
-}
-
-/**
- * 全テンプレート（TemplateMapと互換性を持つ）
- */
-export interface AllTemplates {
-  material?: TemplateInfo[];
-  condition?: TemplateInfo[];
-  result?: TemplateInfo[];
-  [key: string]: TemplateInfo[] | undefined;
 }
 
 /**
@@ -83,11 +58,9 @@ function buildCommonTemplateXMLFromTemplate(
   }
   
   // テンプレート継承（templateRef要素）
-  if (template.templateRefs && template.templateRefs.length > 0) {
-    template.templateRefs.forEach((ref: string) => {
-      const templateRefId = `templateRef_${templateId}_${ref}`;
-      xml += `      <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(ref)}"/>\n`;
-    });
+  if (template.templateRef) {
+    const templateRefId = `templateRef_${templateId}_${template.templateRef.ref}`;
+    xml += `      <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(template.templateRef.ref)}"/>\n`;
   }
   
   // insertion要素
@@ -97,7 +70,7 @@ function buildCommonTemplateXMLFromTemplate(
       xml += `        <uri>${escapeXml(template.insertion.uri || '')}</uri>\n`;
     }
     if (template.insertion.hash !== undefined) {
-      xml += `        <hash>${escapeXml(template.insertion.hash || '')}</hash>\n`;
+      xml += `        <hash>${escapeXml(template.insertion.hash.value || '')}</hash>\n`;
     }
     if (template.insertion.format) {
       xml += `        <format>${escapeXml(template.insertion.format)}</format>\n`;
@@ -118,7 +91,6 @@ function buildCommonTemplateXMLFromTemplate(
   // property要素群
   if (template.properties && template.properties.length > 0) {
     template.properties
-      .filter((prop: Property) => prop.type !== 'insertion')
       .forEach((prop: Property) => {
         xml += buildPropertyXML(prop, 3);
       });
@@ -128,13 +100,13 @@ function buildCommonTemplateXMLFromTemplate(
   const placeRefs = template.placeRefs || [];
   console.log(`📋 共通テンプレート ${templateId}: placeRefs数 ${placeRefs.length}`, placeRefs);
   
-  placeRefs.forEach((placeRefNodeId: string, index: number) => {
+  placeRefs.forEach((placeRef: PlaceRef, index: number) => {
     const placeRefId = index === 0 
-      ? (template.placeRefId || `${templateId}TL`)
+      ? (template.placeRefs[0].id || `${templateId}TL`)
       : `${templateId}TL_ref${index}`;
     
-    xml += `      <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRefNodeId)}"/>\n`;
-    console.log(`  ✅ placeRef追加: id="${placeRefId}" ref="${placeRefNodeId}"`);
+    xml += `      <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
+    console.log(`  ✅ placeRef追加: id="${placeRefId}" ref="${placeRef.ref}"`);
   });
   
   xml += `    </${templateType}>\n`;
@@ -145,10 +117,10 @@ function buildCommonTemplateXMLFromTemplate(
  * 複数methodを含むMaiML XMLを生成
  */
 export function convertMultipleMethodsToMaiML(
-  methods: Method[],
+  methods: MethodData[],
   metadata: Metadata = {},
   documentData: DocumentData | null = null,
-  allTemplates: AllTemplates | null = null
+  allTemplates: TemplatesByCategory | null = null
 ): string {
   if (!methods || methods.length === 0) {
     throw new Error('methodsが空です');
@@ -157,7 +129,7 @@ export function convertMultipleMethodsToMaiML(
   // バリデーション: 全メソッドのノードとエッジを収集
   const allNodesForValidation: Node<NodeData>[] = [];
   const allEdgesForValidation: Edge<EdgeData>[] = [];
-  methods.forEach((method: Method) => {
+  methods.forEach((method: MethodData) => {
     allNodesForValidation.push(...method.nodes);
     allEdgesForValidation.push(...method.edges);
   });
@@ -221,9 +193,9 @@ export function convertMultipleMethodsToMaiML(
     // Material共通テンプレート
     if (allTemplates.material) {
       const commonMaterials = allTemplates.material.filter(
-        (t: TemplateInfo) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0
+        (t: Template) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0
       );
-      commonMaterials.forEach((template: TemplateInfo) => {
+      commonMaterials.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
           id: template.id,
           type: 'materialTemplate',
@@ -239,10 +211,10 @@ export function convertMultipleMethodsToMaiML(
               uuid: template.uuid || '',
               name: template.name || '',
               description: template.description || '',
-              type: 'MaterialTemplate',
+              category: 'material',
               properties: template.properties || [],
               placeRefs: template.placeRefs || [],
-              templateRefs: template.templateRefs || []
+              templateRef: template.templateRef
             },
             isCommonTemplate: true
           }
@@ -255,9 +227,9 @@ export function convertMultipleMethodsToMaiML(
     // Condition共通テンプレート
     if (allTemplates.condition) {
       const commonConditions = allTemplates.condition.filter(
-        (t: TemplateInfo) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0
+        (t: Template) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0
       );
-      commonConditions.forEach((template: TemplateInfo) => {
+      commonConditions.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
           id: template.id,
           type: 'conditionTemplate',
@@ -273,10 +245,10 @@ export function convertMultipleMethodsToMaiML(
               uuid: template.uuid || '',
               name: template.name || '',
               description: template.description || '',
-              type: 'ConditionTemplate',
+              category: 'condition',
               properties: template.properties || [],
               placeRefs: template.placeRefs || [],
-              templateRefs: template.templateRefs || []
+              templateRef: template.templateRef
             },
             isCommonTemplate: true
           }
@@ -289,9 +261,9 @@ export function convertMultipleMethodsToMaiML(
     // Result共通テンプレート
     if (allTemplates.result) {
       const commonResults = allTemplates.result.filter(
-        (t: TemplateInfo) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0
+        (t: Template) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0
       );
-      commonResults.forEach((template: TemplateInfo) => {
+      commonResults.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
           id: template.id,
           type: 'resultTemplate',
@@ -307,10 +279,10 @@ export function convertMultipleMethodsToMaiML(
               uuid: template.uuid || '',
               name: template.name || '',
               description: template.description || '',
-              type: 'ResultTemplate',
+              category: 'result',
               properties: template.properties || [],
               placeRefs: template.placeRefs || [],
-              templateRefs: template.templateRefs || []
+              templateRef: template.templateRef
             },
             isCommonTemplate: true
           }
@@ -353,7 +325,7 @@ export function convertMultipleMethodsToMaiML(
   }
   
   // 各method要素を出力（allTemplatesを渡す）
-  methods.forEach((method: Method, index: number) => {
+  methods.forEach((method: MethodData, index: number) => {
     maiml += buildMethodXML(method, index, fileName, allTemplates);
   });
   
@@ -374,10 +346,10 @@ export function convertMultipleMethodsToMaiML(
  * 単一method要素のXMLを生成
  */
 function buildMethodXML(
-  method: Method,
+  method: MethodData,
   index: number,
   fileName: string,
-  allTemplates: AllTemplates | null = null
+  allTemplates: TemplatesByCategory | null = null
 ): string {
   const { nodes, edges, methodId } = method;
   const methodUuid = generateUUID();
@@ -442,13 +414,13 @@ function buildMethodXML(
   // Template要素群（✅ TemplateContextのmethodIdで判定）
   const templateNodes = places.filter((place: Node<NodeData>) => {
     // テンプレートが存在しない場合は除外
-    if (!place.data.template || !place.data.template.type) {
+    if (!place.data.template) {
       return false;
     }
     
     // テンプレートIDを取得
     const template = place.data.template;
-    const templateId = template.id || template.templateId;
+    const templateId = template.id;
     
     // ✅ TemplateContextから該当テンプレートを検索
     if (allTemplates && templateId) {
@@ -456,10 +428,10 @@ function buildMethodXML(
       const category = placeType === 'material' ? 'material' :
                       placeType === 'condition' ? 'condition' : 'result';
       
-      if (allTemplates[category as keyof AllTemplates]) {
-        const templates = allTemplates[category as keyof AllTemplates];
+      if (allTemplates[category as keyof TemplatesByCategory]) {
+        const templates = allTemplates[category as keyof TemplatesByCategory];
         if (templates) {
-          const templateInContext = templates.find((t: TemplateInfo) => t.id === templateId);
+          const templateInContext = templates.find((t: Template) => t.id === templateId);
           
           if (templateInContext) {
             // methodIdがnullの場合は共通テンプレート → 除外
@@ -524,7 +496,7 @@ function buildTemplateXML(
   
   const prefix = templateType === 'materialTemplate' ? 'MT' :
                  templateType === 'conditionTemplate' ? 'CT' : 'RT';
-  const templateId = template.templateId || template.id || `${prefix}${node.id}`;
+  const templateId = template.id || `${prefix}${node.id}`;
   
   let templateXml = `        <${templateType} id="${templateId}">\n`;
   
@@ -536,11 +508,11 @@ function buildTemplateXML(
   }
   
   // テンプレート継承（templateRef要素）
-  if (template.href) {
-    const inheritNodeId = template.href.startsWith('#') ? template.href.substring(1) : template.href;
+  if (template.templateRef) {
+    const inheritNodeId = template.templateRef.ref;
     const inheritNode = allNodes.find((p: Node<NodeData>) => p.id === inheritNodeId && p.type !== 'transition');
     if (inheritNode && inheritNode.data.template) {
-      const inheritTemplateId = inheritNode.data.template.templateId || inheritNode.data.template.id || `${prefix}${inheritNode.id}`;
+      const inheritTemplateId = inheritNode.data.template.id  || `${prefix}${inheritNode.id}`;
       const templateRefId = `templateRef_${templateId}`;
       templateXml += `          <templateRef id="${templateRefId}" ref="${inheritTemplateId}"/>\n`;
     }
@@ -553,7 +525,7 @@ function buildTemplateXML(
       templateXml += `            <uri>${template.insertion.uri || ''}</uri>\n`;
     }
     if (template.insertion.hash !== undefined) {
-      templateXml += `            <hash>${template.insertion.hash || ''}</hash>\n`;
+      templateXml += `            <hash>${template.insertion.hash.value || ''}</hash>\n`;
     }
     if (template.insertion.format) {
       templateXml += `            <format>${template.insertion.format}</format>\n`;
@@ -574,14 +546,13 @@ function buildTemplateXML(
   // property要素群
   if (template.properties && template.properties.length > 0) {
     template.properties
-      .filter((prop: Property) => prop.type !== 'insertion')
       .forEach((prop: Property) => {
         templateXml += buildPropertyXML(prop, 5);
       });
   }
   
   // placeRef
-  const placeRefId = template.placeRefId || `${templateId}TL`;
+  const placeRefId = template.placeRefs[0].id || `${templateId}TL`;
   templateXml += `          <placeRef id="${placeRefId}" ref="${node.id}"/>\n`;
   templateXml += `        </${templateType}>\n`;
   

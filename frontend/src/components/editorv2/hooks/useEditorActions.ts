@@ -9,18 +9,19 @@
 
 import { useCallback } from 'react';
 import type { Node, Edge } from 'reactflow';
+import { EdgeData, NodeData } from '../types';
 
 export interface UseEditorActionsProps {
-  nodes: Node<any>[];
-  edges: Edge<any>[];
-  selectedNodes: Node<any>[];
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+  selectedNodes: Node<NodeData>[];
   clipboard: any;
-  setNodes: (nodes: any) => void;
-  setEdges: (edges: any) => void;
+  setNodes: (nodes: Node<NodeData>[]) => void;
+  setEdges: (edges: Edge<EdgeData>[]) => void;
   setClipboard: (clipboard: any) => void;
-  setSelectedNode: (node: any) => void;
-  setSelectedEdge: (edge: any) => void;
-  pushState: (state: any) => void;
+  setSelectedNode: (node: Node<NodeData>) => void;
+  setSelectedEdge: (edge: Edge<EdgeData>) => void;
+  pushState: (state: {nodes: Node<NodeData>[], edges: Edge<EdgeData>[]}) => void;
 }
 
 export interface UseEditorActionsResult {
@@ -77,10 +78,10 @@ export const useEditorActions = ({
     
     if (clipboard.multiple) {
       // 複数ノードペースト
-      const newNodes = clipboard.nodes.map((clipNode: any, index: number) => {
+      const newNodes = clipboard.nodes.map((clipNode: Node<NodeData>, index: number) => {
         const timestamp = Date.now() + index;
         const newId = `${clipNode.data.placeType || clipNode.data.nodeType}-${timestamp}`;
-        return {
+        const newNode : Node<NodeData> = {
           id: newId,
           type: clipNode.type,
           position: {
@@ -93,9 +94,11 @@ export const useEditorActions = ({
             name: `${clipNode.data.name} (Copy)`,
           },
         };
+        return newNode;
       });
       
-      setNodes((nds: any) => {
+      const allNodes : Node<NodeData>[] = [...nodes, ...newNodes];
+      setNodes((nds: Node<NodeData>[]) => {
         const updatedNodes = [...nds, ...newNodes];
         pushState({ nodes: updatedNodes, edges });
         return updatedNodes;

@@ -14,6 +14,3 @@ export { default as SaveDialog } from './SaveDialog';
 export { default as DocumentEditDialog } from './DocumentEditDialog';
 export { default as TemplateEditorDialog } from './TemplateEditorDialog';
 export { default as ReactFlowCanvas } from './ReactFlowCanvas';
-
-// 型エクスポート
-export type { TemplateData } from './TemplateEditorDialog';

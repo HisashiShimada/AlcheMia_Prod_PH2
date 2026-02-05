@@ -33,12 +33,14 @@ import dayjs, { Dayjs } from 'dayjs';
 import MultiObjectEditor, { type ComplexObject } from './MultiObjectEditor';
 import type { 
   DocumentData,
-  DocumentEditDialogProps,
+  DocumentEditDialogProps
+} from '../types';
+import {
   Creator,
   Vendor,
   Owner,
-  Instrument
-} from '../types';
+  Instrument,
+} from '../../../types/maiml-unified'
 
 const { Panel } = Collapse;
 const { Title, Text, Paragraph } = Typography;

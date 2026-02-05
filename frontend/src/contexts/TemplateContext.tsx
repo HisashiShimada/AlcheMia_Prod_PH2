@@ -8,12 +8,13 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { Template, TemplateError } from '../../editor/TemplateItem';
-import { CategorizedTemplates } from '../../editor/TemplateList';
+import { TemplateError } from '../components/editorv2/components/TemplateViewer//TemplateItem';
+import { TemplatesByCategory } from '../components/editorv2/components/TemplateViewer/TemplateList';
 import {
-  extractTemplatesFromMaiML,
   mapValidationErrorsToTemplates,
 } from '@/services/templateService';
+import { TemplateData } from '@/components/editorv2';
+import { MaimlParserTyped } from '@/utils/maimlParserTyped';
 
 /**
  * Method型定義
@@ -40,14 +41,14 @@ interface ValidationResult {
  * TemplateContext型定義
  */
 interface TemplateContextType {
-  templates: CategorizedTemplates;
-  allTemplates: CategorizedTemplates;
-  commonTemplates: CategorizedTemplates;
+  templates: TemplatesByCategory;
+  allTemplates: TemplatesByCategory;
+  commonTemplates: TemplatesByCategory;
   templateErrors: Record<string, TemplateError[]>;
   isLoading: boolean;
-  addTemplate: (templateData: { category: 'material' | 'condition' | 'result'; template: Template }) => void;
+  addTemplate: (templateData: { category: 'material' | 'condition' | 'result'; template: TemplateData }) => void;
   deleteTemplate: (templateId: string) => void;
-  updateTemplate: (templateId: string, updatedTemplate: Template) => void;
+  updateTemplate: (templateId: string, updatedTemplate: TemplateData) => void;
 }
 
 const TemplateContext = createContext<TemplateContextType | null>(null);
@@ -86,7 +87,7 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
   activeMethodIndex,
   methods,
 }) => {
-  const [templates, setTemplates] = useState<CategorizedTemplates>({
+  const [templates, setTemplates] = useState<TemplatesByCategory>({
     material: [],
     condition: [],
     result: [],
@@ -104,7 +105,8 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
       setIsLoading(true);
 
       try {
-        const extracted = extractTemplatesFromMaiML(maimlData);
+        const parser = new MaimlParserTyped(maimlData);
+        const extracted = parser.getTemplates();
         setTemplates(extracted);
 
         console.log('✅ [TemplateContext] テンプレート抽出完了:', {
@@ -175,7 +177,7 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
     });
 
     // ✅ reference版: methodIdでフィルタリング（現在のメソッドに属するテンプレートのみ）
-    const filtered: CategorizedTemplates = {
+    const filtered: TemplatesByCategory = {
       material: templates.material.filter((t) => {
         const templateMethodId = (t as any).methodId; // eslint-disable-line @typescript-eslint/no-explicit-any
         const match = templateMethodId === currentMethodId;
@@ -235,7 +237,7 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
 
   // 共通テンプレート（methodIdがnull）
   const commonTemplates = useMemo(() => {
-    const common: CategorizedTemplates = {
+    const common: TemplatesByCategory = {
       material: templates.material.filter((t) => !(t as any).methodId), // eslint-disable-line @typescript-eslint/no-explicit-any
       condition: templates.condition.filter((t) => !(t as any).methodId), // eslint-disable-line @typescript-eslint/no-explicit-any
       result: templates.result.filter((t) => !(t as any).methodId), // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -252,7 +254,7 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
 
   // テンプレート追加メソッド
   const addTemplate = useCallback(
-    (templateData: { category: 'material' | 'condition' | 'result'; template: Template }) => {
+    (templateData: { category: 'material' | 'condition' | 'result'; template: TemplateData }) => {
       console.log('➕ [TemplateContext] テンプレート追加:', templateData);
 
       const { category, template } = templateData;
@@ -287,7 +289,7 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
   }, []);
 
   // テンプレート更新メソッド
-  const updateTemplate = useCallback((templateId: string, updatedTemplate: Template) => {
+  const updateTemplate = useCallback((templateId: string, updatedTemplate: TemplateData) => {
     console.log('🔄 [TemplateContext] テンプレート更新:', {
       templateId,
       updatedTemplate,

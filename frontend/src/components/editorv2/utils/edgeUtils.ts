@@ -9,6 +9,7 @@
 
 import type { Node, Edge } from 'reactflow';
 import { getNodeType } from './nodeUtils';
+import { EdgeData, NodeData } from '../types';
 
 /**
  * エッジの生成
@@ -17,7 +18,7 @@ export const createEdge = (
   sourceId: string,
   targetId: string,
   animated: boolean = false
-): Edge<any> => {
+): Edge<EdgeData> => {
   return {
     id: `${sourceId}-${targetId}`,
     source: sourceId,
@@ -32,8 +33,8 @@ export const createEdge = (
  * エッジ接続の妥当性検証
  */
 export const isValidConnection = (
-  sourceNode: Node<any> | undefined,
-  targetNode: Node<any> | undefined
+  sourceNode: Node<NodeData> | undefined,
+  targetNode: Node<NodeData> | undefined
 ): boolean => {
   if (!sourceNode || !targetNode) {
     return false;
@@ -62,7 +63,7 @@ export const isValidConnection = (
 /**
  * ノードが接続されているか判定
  */
-export const isNodeConnected = (nodeId: string, edges: Edge<any>[]): boolean => {
+export const isNodeConnected = (nodeId: string, edges: Edge<EdgeData>[]): boolean => {
   return edges.some(e => e.source === nodeId || e.target === nodeId);
 };
 
@@ -72,7 +73,7 @@ export const isNodeConnected = (nodeId: string, edges: Edge<any>[]): boolean => 
 export const edgeExists = (
   sourceId: string,
   targetId: string,
-  edges: Edge<any>[]
+  edges: Edge<EdgeData>[]
 ): boolean => {
   return edges.some(
     e => e.source === sourceId && e.target === targetId
@@ -84,8 +85,8 @@ export const edgeExists = (
  */
 export const getConnectedEdges = (
   nodeId: string,
-  edges: Edge<any>[]
-): { incoming: Edge<any>[]; outgoing: Edge<any>[] } => {
+  edges: Edge<EdgeData>[]
+): { incoming: Edge<EdgeData>[]; outgoing: Edge<EdgeData>[] } => {
   const incoming = edges.filter(e => e.target === nodeId);
   const outgoing = edges.filter(e => e.source === nodeId);
   
@@ -96,9 +97,9 @@ export const getConnectedEdges = (
  * ノードIDのリマップ（複数ノードコピー時のエッジ更新用）
  */
 export const remapEdgeIds = (
-  edges: Edge<any>[],
+  edges: Edge<EdgeData>[],
   oldToNewIdMap: Map<string, string>
-): Edge<any>[] => {
+): Edge<EdgeData>[] => {
   return edges
     .map(edge => {
       const newSourceId = oldToNewIdMap.get(edge.source);
@@ -115,15 +116,15 @@ export const remapEdgeIds = (
       }
       return null;
     })
-    .filter((edge): edge is Edge<any> => edge !== null);
+    .filter((edge): edge is Edge<EdgeData> => edge !== null);
 };
 
 /**
  * エッジの検証
  */
 export const validateEdge = (
-  edge: Edge<any>,
-  nodes: Node<any>[]
+  edge: Edge<EdgeData>,
+  nodes: Node<NodeData>[]
 ): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
   
@@ -165,7 +166,7 @@ export const validateEdge = (
  */
 export const detectCycle = (
   nodeId: string,
-  edges: Edge<any>[],
+  edges: Edge<EdgeData>[],
   visited: Set<string> = new Set()
 ): boolean => {
   if (visited.has(nodeId)) {

@@ -12,6 +12,22 @@
 
 import type { Node, Edge, Viewport, Connection } from 'reactflow';
 
+// XSD準拠の型定義をimport
+import type {
+  Creator,
+  Vendor,
+  Owner,
+  Instrument,
+  Place,
+  Arc,
+  Transition,
+  Property,
+  Template,
+  PlaceRef,
+  Reference,
+  Content
+} from '@/types/maiml-unified';
+
 // ============================================
 // 基本型定義
 // ============================================
@@ -29,7 +45,6 @@ export interface Position {
 // ============================================
 
 export type NodeType = 'place' | 'transition';
-export type PlaceType = 'material' | 'condition' | 'result';
 
 /**
  * ノードデータ型 - index.tsとeditorTypes.tsを統合
@@ -39,9 +54,9 @@ export interface NodeData {
   name: string;
   description: string;
   nodeType: NodeType;
-  placeType?: PlaceType;
-  template?: Template | TemplateRef;
-  templateRef?: TemplateRef;
+  placeType?: string;
+  template?: Template;
+  templateRef?: Template;
   // editorTypes.tsから追加（拡張プロパティ）
   isNewTemplate?: boolean;
   templateCategory?: string;
@@ -54,12 +69,12 @@ export interface NodeData {
   nodeId?: string;
   stereotype?: string;
   annotation?: string;
-  properties?: Property[] | Record<string, unknown>;
+  properties?: Property[];
+  contents? : Content[];
   templateId?: string;
   pnmlId?: string | null;
-  transition?: any;
-  hasInstruction?: boolean;
-  [key: string]: any;
+  transition?: Transition;
+  instructionId?: string;
 }
 
 // ============================================
@@ -75,134 +90,58 @@ export interface EdgeData {
   errors?: ValidationError[];
 }
 
-// ============================================
-// テンプレート関連の型定義
-// ============================================
-
-export interface Property {
-  id: string;
-  name: string;
-  type: string;
-  value?: any;
-  unit?: string;
-  description?: string;
-  [key: string]: any;
-}
-
-/**
- * PlaceRef型定義（template内のplace参照）
- */
-export interface PlaceRef {
-  id?: string;
-  ref?: string;
-  uuid?: string;
-}
-
 /**
  * TemplateRef型定義（reactFlowConverter用）
  */
-export interface TemplateRef {
-  type: string;
-  uuid?: string;
-  name?: string;
-  placeRefs?: Array<string | PlaceRef>;
-  templateRefs?: string[] | Array<{ id: string; href: string }>;
-  properties?: Record<string, unknown>;
-  stereotype?: string;
-  description?: string;
-  annotation?: string;
-  templateId?: string;
-  id?: string;
-  [key: string]: any;
-}
+// export interface TemplateRef {
+//   type: string;
+//   uuid?: string;
+//   name?: string;
+//   placeRefs?: Array<string | PlaceRef>;
+//   templateRefs?: string[] | Array<{ id: string; href: string }>;
+//   properties?: Record<string, unknown>;
+//   stereotype?: string;
+//   description?: string;
+//   annotation?: string;
+//   templateId?: string;
+//   id?: string;
+//   [key: string]: any;
+// }
 
-export interface Template {
-  id: string;
-  uuid: string;
-  type: string;
-  name: string;
-  description?: string;
-  properties: Property[] | Record<string, unknown>;
-  placeRefs?: Array<string | PlaceRef>;
-  templateRefs?: string[] | Array<{ id: string; href: string }>;
-  stereotype?: string;
-  annotation?: string;
-  templateId?: string;
-  [key: string]: any;
-}
-
-/**
- * Template データ型定義（拡張版 - TemplateEditorDialog用）
- */
-export interface TemplateData {
-  id: string;
-  uuid?: string;
-  name: string;
-  description?: string;
-  type?: string;
-  properties?: Record<string, unknown>;
-  contents?: Record<string, unknown>;
-  insertion?: {
-    uri?: string;
-    hash?: string;
-    format?: string;
-  };
-  placeRefs?: Array<string | PlaceRef>;
-  templateRefs?: string[];
-  href?: string;
-  stereotype?: string;
-  annotation?: string;
-  templateId?: string;
-}
-
-/**
- * TemplateMap型定義
- */
-export type TemplateMap = Record<string, Template>;
+// export interface Template {
+//   id: string;
+//   uuid: string;
+//   type: string;
+//   name: string;
+//   description?: string;
+//   properties: Property[] | Record<string, unknown>;
+//   placeRefs?: Array<string | PlaceRef>;
+//   templateRefs?: string[] | Array<{ id: string; href: string }>;
+//   stereotype?: string;
+//   annotation?: string;
+//   templateId?: string;
+//   [key: string]: any;
+// }
 
 // ============================================
 // Petri Net データ構造の型定義
 // ============================================
 
-/**
- * Place型定義（reactFlowConverter用）
- */
-export interface Place {
-  id: string;
-  data: {
-    name?: string;
-    description?: string;
-    stereotype?: string;
-    properties?: Property[];
-    annotation?: string;
-    pnmlId?: string | null;
-  };
-}
 
 /**
  * Transition型定義（reactFlowConverter用）
  */
-export interface Transition {
-  id: string;
-  data: {
-    name?: string;
-    description?: string;
-    hasInstruction?: boolean;
-    transition?: any;
-    pnmlId?: string | null;
-    [key: string]: any;
-  };
-}
-
-/**
- * Arc型定義（reactFlowConverter用）
- */
-export interface Arc {
-  id?: string;
-  source: string;
-  target: string;
-  [key: string]: any;
-}
+// export interface Transition {
+//   id: string;
+//   data: {
+//     name?: string;
+//     description?: string;
+//     hasInstruction?: boolean;
+//     transition?: any;
+//     pnmlId?: string | null;
+//     [key: string]: any;
+//   };
+// }
 
 /**
  * PNMLメタデータ型定義
@@ -214,58 +153,17 @@ export interface PnmlMetadata {
   [key: string]: any;
 }
 
-/**
- * Petri Netデータ型定義（reactFlowConverter用）
- */
-export interface PetriNetData {
-  places: Place[];
-  transitions: Transition[];
-  arcs: Arc[];
-  pnmlMetadata?: PnmlMetadata[];
-  [key: string]: any;
-}
-
 // ============================================
 // Document関連の型定義
 // ============================================
 
+/**
+ * 参照オブジェクト型（エディター用）
+ * XSD準拠のReference型とは異なり、エディター固有の参照形式
+ */
 export interface RefObject {
   id?: string;
   ref?: string;
-}
-
-export interface Creator {
-  id: string;
-  name: string;
-  uuid: string;
-  description: string;
-  annotation: string;
-  vendorRef?: RefObject;
-  instrumentRef?: RefObject;
-}
-
-export interface Vendor {
-  id: string;
-  name: string;
-  uuid: string;
-  description: string;
-  annotation: string;
-}
-
-export interface Owner {
-  id: string;
-  name: string;
-  uuid: string;
-  description: string;
-  annotation: string;
-}
-
-export interface Instrument {
-  id: string;
-  name: string;
-  uuid: string;
-  description: string;
-  annotation: string;
 }
 
 /**
@@ -276,32 +174,61 @@ export interface SignatureData {
 }
 
 /**
- * Document情報の型定義 - 統合版
- * 複数形プロパティ（index.ts）+ 単数形プロパティ（editorTypes.ts）
+ * Document情報の型定義 - XSD準拠Document型の拡張版
+ * 
+ * Phase 3.3: maimlParserTyped.getDocument()との互換性を確保
+ * - 基本: XSD準拠のDocument型（maiml-unified.ts）
+ * - 拡張: エディター用の追加プロパティ
+ * 
+ * @see frontend/src/types/maiml-unified.ts Document型
  */
 export interface DocumentData {
+  // ============================================================================
+  // XSD準拠プロパティ（Document型から継承）
+  // ============================================================================
+  
+  /** 要素ID（XML ID属性、必須） */
   id: string;
-  protocolId: string;
-  methodId: string;
-  pnmlId: string;
-  programId: string;
-  name: string;
-  description: string;
-  date: string;
+  /** UUID（RFC 4122準拠、必須） */
   uuid: string;
-  // 複数形プロパティ（基本）
+  /** 要素名（人間可読な名前） */
+  name?: string;
+  /** 説明文 */
+  description?: string;
+  /** 注釈（XSD仕様、実MAIMLでは稀） */
+  annotation?: string;
+  /** 作成者情報（XSD: 配列、実MAIML: 通常1個） */
   creators: Creator[];
+  /** ベンダー情報（XSD: 配列、実MAIML: 通常1個） */
   vendors: Vendor[];
+  /** 所有者情報（XSD: 配列、実MAIML: 通常1個） */
   owners: Owner[];
-  instruments: Instrument[];
-  // 署名情報
+  /** 機器情報（XSD: 配列、実MAIML: 通常1個） */
+  instruments?: Instrument[];
+  /** 作成日時（ISO 8601形式） */
+  date?: string;
+  /** デジタル署名（オプション） */
+  Signature?: any;
+  /** チェーン構造（ブロックチェーン用、オプション） */
+  chain?: any[];
+  /** 親要素参照（オプション） */
+  parent?: any[];
+  
+  // ============================================================================
+  // エディター用拡張プロパティ
+  // ============================================================================
+  
+  /** Protocol要素のID（エディター用、UI表示で使用） */
+  protocolId?: string;
+  /** Method要素のID（エディター用、UI表示で使用） */
+  methodId?: string;
+  /** PNML要素のID（エディター用、UI表示で使用） */
+  pnmlId?: string;
+  /** Program要素のID（エディター用、UI表示で使用） */
+  programId?: string;
+  
+  /** 署名情報（エディター用、下位互換性のため） */
   signature?: SignatureData;
-  // 単数形プロパティ（後方互換性のため）
-  creator?: { id: string; name: string };
-  vendor?: { id: string; name: string };
-  owner?: { id: string; name: string };
-  instrument?: { id: string; name: string };
-  [key: string]: any;
 }
 
 // ============================================
@@ -526,7 +453,7 @@ export interface PetriNetEditorInnerUIProps {
   // ビューモード
   viewMode: 'petriNet' | 'templates';
   handleViewModeChange: (mode: 'petriNet' | 'templates') => void;
-  handleTemplateSelect: (template: TemplateRef) => void;
+  handleTemplateSelect: (template: Template) => void;
   handleTemplateAdd: (category: string) => void;
   handleTemplateDelete: (templateId: string) => void;
   showCommonTemplates: boolean;
@@ -560,7 +487,7 @@ export interface PetriNetEditorInnerUIProps {
   templateEditNode: Node<NodeData> | null;
   handleSaveTemplate: (
     nodeId: string,
-    templateRef: TemplateRef,
+    templateRef: Template,
     isNewTemplate: boolean,
     templateCategory: string,
     isCommonTemplate: boolean,
@@ -656,7 +583,7 @@ export interface MethodTabPanelProps {
 export interface PropertyPanelProps {
   selectedNode: Node<NodeData> | null;
   selectedEdge: Edge<EdgeData> | null;
-  onUpdate: (nodeId: string, data: Record<string, unknown>) => void;
+  onUpdate: (nodeId: string, data: NodeData) => void;
   onUpdateEdge?: (oldEdgeId: string, newEdgeId: string) => void;
   onClose: () => void;
   onOpenTemplateEditor: (node: Node<NodeData>) => void;
@@ -678,7 +605,7 @@ export interface TemplateEditorDialogProps {
   onClose: () => void;
   onSave: (
     nodeId: string,
-    templateRef: TemplateData,
+    templateRef: Template,
     isNewTemplate: boolean,
     templateCategory: string,
     isCommonTemplate: boolean,
@@ -769,37 +696,6 @@ export interface NestedPropertyNode {
 }
 
 /**
- * TemplateMapEntry型定義（buildTemplateMapの戻り値の要素型）
- * 
- * Phase 5-4更新: maimlParserTypedとの互換性のため、nameをオプショナルに変更
- */
-export interface TemplateMapEntry {
-  id: string;
-  uuid?: string;  // オプショナルに変更
-  name?: string;  // オプショナルに変更（maimlParserTyped互換性）
-  description?: string;
-  annotation?: string;
-  properties: Property[];
-  propertiesNested: Record<string, NestedPropertyNode>;
-  insertion?: InsertionData;
-  templateId: string;
-  type: 'material' | 'condition' | 'result';
-  stereotype: 'MaterialTemplate' | 'ConditionTemplate' | 'ResultTemplate';
-  element?: Element | null;
-  placeRefs: PlaceRef[];
-  templateRefs: Array<{ id: string; href: string }>;
-}
-
-/**
- * PetriNetExtractResult型定義（extractPetriNetStructureの戻り値）
- */
-export interface PetriNetExtractResult {
-  places: Place[];
-  transitions: Transition[];
-  arcs: Arc[];
-}
-
-/**
  * MaiMLParserから返されるTemplateアイテムの型定義
  * 
  * Phase 5-4更新: maimlParserTypedとの互換性のため、nameとdescriptionをオプショナルに変更
@@ -847,17 +743,6 @@ export interface PlaceRefObject {
 export interface TemplateRefObject {
   id: string;
   href: string;
-}
-
-/**
- * TransitionNode型定義（generateSubnetData用）
- */
-export interface TransitionNode {
-  data?: {
-    pnmlId?: string | null;
-    [key: string]: any;
-  };
-  [key: string]: any;
 }
 
 // ============================================

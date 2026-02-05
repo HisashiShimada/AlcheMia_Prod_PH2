@@ -6,18 +6,12 @@
 import React from 'react';
 import { Card, Typography, Tag, Tooltip, Button, Badge } from 'antd';
 import { WarningOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Template } from '@/types/maiml-unified';
 
 const { Text } = Typography;
 
-interface Template {
-  id: string;
-  name: string;
-  propertiesCount: number;
-  placeRefsCount?: number;
-  placeRefs?: unknown[];
-}
-
-interface TemplateError {
+export interface TemplateError {
+  level : string;
   message: string;
 }
 
@@ -115,10 +109,10 @@ const TemplateItem: React.FC<TemplateItemProps> = ({
         {/* カウント情報 */}
         <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            プロパティ: {template.propertiesCount}件
+            プロパティ: {template.properties?.length}件
           </Text>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            ノード紐付け: {template.placeRefsCount || 0}件
+            ノード紐付け: {template.placeRefs.length || 0}件
           </Text>
         </div>
 

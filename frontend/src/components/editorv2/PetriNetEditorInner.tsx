@@ -48,29 +48,29 @@ import ResultTemplateNode from '../nodes/ResultTemplateNode';
 import TransitionNode from '../nodes/TransitionNode';
 import { buildTemplateMap } from '../../utils/petriNetExtractor';
 import { convertToReactFlowFormat } from '../../utils/reactFlowConverter';
-import { extractDocumentFromMaiML } from './utils/documentParser';
+// Phase 3.2: documentParser.tsを削除し、maimlParserTyped.getDocument()を使用
+// import { extractDocumentFromMaiML } from './utils/documentParser';
 // import { extractTemplatesFromMaiML, mapValidationErrorsToTemplates } from './utils/templateExtractor';
 import { addEdge } from 'reactflow';
 import 'reactflow/dist/style.css';
+// Phase 2: maimlParserTyped導入
+import { MaimlParserTyped } from '../../utils/maimlParserTyped';
+import type { Template, PlaceRef as XsdPlaceRef, Document,Method, Property } from '../../types/maiml-unified';
 // 型定義をインポート
 import type {
   NodeData,
   EdgeData,
   DocumentData,
-  Method,
   MethodData,
   FileInfo,
   ClipboardData,
-  TemplateData,
-  Template,
   PetriNetEditorInnerProps,
   NodeType,
-  PlaceType,
   ValidationResult,
   ValidationError,
-  Property,
-  DraftData,
+  DraftData
 } from './types';
+import { Draft,EditState } from './hooks/useDraftManager';
 
 // ===== Phase 8: 分離したモジュールをインポート =====
 // Hooks
@@ -80,15 +80,18 @@ import { useEditorActions } from './hooks/useEditorActions';
 // Handlers
 import { createNodeHandlers } from './handlers/nodeHandlers';
 import { createEdgeHandlers } from './handlers/edgeHandlers';
-import { createCanvasHandlers } from './handlers/canvasHandlers';
 
-// Utils
-// import { createNode, updateNodePosition } from './utils/nodeUtils'; // 未使用のためコメントアウト
-// import { createEdge as createEdgeUtil, getEdgeId } from './utils/edgeUtils'; // 未使用のためコメントアウト
-import { validateWorkflow } from './utils/validationUtils';
+import { TemplatesByCategory } from './components/TemplateViewer/TemplateList';
 
-// Loaders
-import { loadMaimlFromXml } from './loaders/maimlLoader';
+// ✅ window.cline* の型定義
+declare global {
+  interface Window {
+    clineAddTemplate: (templateData: { category: 'material' | 'condition' | 'result'; template: Template }) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+    clineDeleteTemplate: (templateId: string) => void;
+    clineUpdateTemplate: (templateId: string, updatedTemplate: Template) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+    clineAllTemplates: TemplatesByCategory; // eslint-disable-line @typescript-eslint/no-explicit-any
+  }
+}
 
 // ===== ユーティリティ関数 =====
 /**
@@ -386,7 +389,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // templates と templateErrors は TemplateContext から取得
   
   // 複数method管理State
-  const [methods, setMethods] = useState<Method[]>([]);
+  const [methods, setMethods] = useState<MethodData[]>([]);
   const [activeMethodIndex, setActiveMethodIndex] = useState<number>(0);
   const [multiMethodMode, setMultiMethodMode] = useState<boolean>(false);
   
@@ -396,11 +399,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const currentUserId = localStorage.getItem('userId') || 'default-user';
   
   // Draft管理フック初期化
-  const currentEditState = useMemo(() => ({
+  const currentEditState : EditState = useMemo(() => ({
     fileName: editingFileName || documentData?.name || 'Untitled',
     nodes: nodes,
     edges: edges,
-    templates: {}, // 簡易実装（将来的にテンプレート情報を含める）
+    templates: [], // 簡易実装（将来的にテンプレート情報を含める）
     documentData: documentData || undefined,
   }), [editingFileName, documentData, nodes, edges]);
   
@@ -441,7 +444,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   
   // 初回読み込み済みフラグ（重複実行防止）
   const hasLoadedRef = useRef(false);
-  const maimlDataRef = useRef(null);
+  const maimlDataRef = useRef('');
   const isLoadingRef = useRef(false); // 🔧 FIX: ローディング中フラグを追加
   const isFirstNodeRef = useRef(true); // Bug Fix: 初回ノード追加フラグ
 
@@ -793,22 +796,24 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           const now = new Date();
           const formattedDate = now.toISOString().split('T')[0]; // YYYY-MM-DD形式
           
-          // ✅ 修正: 固定的なIDを生成（Date.nowを使わず、ファイル名ベース）
-          const initialDocumentData = {
+          // ✅ Phase 4: XSD準拠のDocumentData型に修正（creator/vendor/owner/instrument配列）
+          const initialDocumentData: DocumentData = {
             id: `document_${Date.now()}`,
+            uuid: uuidFull,
+            name: baseFileName || 'document',
+            description: '',
+            date: formattedDate,
+            // XSD準拠プロパティ（配列、必須）
+            creators: [{ id: 'Creator', name: '', uuid: crypto.randomUUID(), description: '', annotation: '' }],
+            vendors: [{ id: 'Vendor', name: '', uuid: crypto.randomUUID(), description: '', annotation: '' }],
+            owners: [{ id: 'Owner', name: '', uuid: crypto.randomUUID(), description: '', annotation: '' }],
+            instruments: [{ id: 'Instrument', name: '', uuid: crypto.randomUUID(), description: '', annotation: '' }],
+            // エディター用拡張プロパティ
             protocolId: `protocol_${Date.now()}`,
             methodId: `method_${Date.now()}`,
             pnmlId: `pnml_${Date.now()}`,
             programId: `program_${Date.now()}`,
-            name: baseFileName || 'document',
-            description: '',
-            date: formattedDate,
-            uuid: uuidFull,
-            creators: [{ id: 'Creator', name: '' }],
-            vendors: [{ id: 'Vendor', name: '' }],
-            owners: [{ id: 'Owner', name: '' }],
-            instruments: [{ id: 'Instrument', name: '' }],
-          } as DocumentData;
+          };
           setDocumentData(initialDocumentData);
           console.log('📄 [PetriNetEditorInner] 新規作成: documentData初期化（ID自動生成）:', {
             documentId: initialDocumentData.id,
@@ -831,7 +836,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           initialMethodId
         });
         
-        const initialMethod = {
+        const initialMethod: MethodData = {
           methodId: initialMethodId,
           methodIndex: 0,
           name: 'Method 1',
@@ -864,487 +869,269 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         
         // 読み込み開始フラグを設定
         hasLoadedRef.current = true;
-        maimlDataRef.current = maimlData as any;
-        
-        // MaiMLデータをBase64エンコード
-        console.log('🔍 [PetriNetEditorInner] maimlData length:', maimlData?.length || 0);
-        console.log('🔍 [PetriNetEditorInner] maimlData preview:', maimlData?.substring(0, 500) || 'EMPTY');
-        
-        const base64Data = btoa(unescape(encodeURIComponent(maimlData)));
-        console.log('🔍 [PetriNetEditorInner] base64Data length:', base64Data?.length || 0);
-        
-        // 🎯 複数method対応: まず複数method構造取得APIを試行
-        const multiMethodResponse = await fetch('/api/worker/multiple-methods-structure-from-content', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ maimlContent: base64Data }),
-          credentials: 'include'
-        });
-        
-        console.log('🔍 [PetriNetEditorInner] API response status:', multiMethodResponse.status);
-        
-        let petriNetData = null;
+        maimlDataRef.current = maimlData;
+
+        const parser = new MaimlParserTyped(maimlData);
         let isMultiMethod = false;
-        
-        if (multiMethodResponse.ok) {
-          const multiMethodResult = await multiMethodResponse.json();
-          console.log('🔍 [PetriNetEditorInner] API response data:', {
-            success: multiMethodResult.success,
-            hasMethods: !!multiMethodResult.data?.methods,
-            methodCount: multiMethodResult.data?.methods?.length || 0,
-            firstMethodPlaces: multiMethodResult.data?.methods?.[0]?.places?.length || 0,
-            firstMethodTransitions: multiMethodResult.data?.methods?.[0]?.transitions?.length || 0
-          });
+        const methodsData = parser.getMethods();
+            
+        // 🎯 複数methodの場合
+        if (methodsData.length > 0) {
+          isMultiMethod = methodsData.length > 1;
+              
+          // テンプレートマップ構築
+          const templateMap = buildTemplateMap(maimlData);
+              
+          // 🎯 Phase 3.1: maimlParserTypedを使用した共通テンプレート検出
+          const parser = new MaimlParserTyped(maimlData);
           
-          if (multiMethodResult.success && multiMethodResult.data.methods) {
-            const methodsData = multiMethodResult.data.methods;
+          const commonTemplateIds = new Set<string>();
+          const commonTemplateRefMap: Record<string, string> = {}; // { placeId: firstPlaceId }
+          
+          // parser.getTemplates()を使用して統一のTemplate型配列を取得
+          const { material, condition, result } = parser.getTemplates();
+          const allTemplates: Template[] = [...material, ...condition, ...result];
+              
+          allTemplates.forEach((template: Template) => {
+            const templateId = template.id;
+            const placeRefs = template.placeRefs || []; // XSD準拠: placeRef（配列）
             
-            console.log('🎯 [PetriNetEditorInner] 複数method構造取得:', {
-              methodCount: methodsData.length,
-              methods: methodsData.map((m: MethodData): { methodId: string; placeCount: number | undefined; transitionCount: number | undefined } => ({
-                methodId: m.methodId,
-                placeCount: m.places?.length,
-                transitionCount: m.transitions?.length
-              }))
-            });
-            
-            // 🎯 複数methodの場合
-            if (methodsData.length > 0) {
-              isMultiMethod = methodsData.length > 1;
+            if (placeRefs.length > 1 && templateId) {
+              commonTemplateIds.add(templateId);
               
-              // テンプレートマップ構築
-              const templateMap = buildTemplateMap(maimlData);
+              // XSD準拠のPlaceRef型から参照IDを取得
+              const getPlaceIdFromRef = (placeRef: XsdPlaceRef): string | null => {
+                return placeRef.ref || null; // XSD準拠: refプロパティのみ
+              };
               
-              // 🎯 共通テンプレート検出: 複数placeRefを持つテンプレートを特定
-              const domParser = new DOMParser();
-              const xmlDoc = domParser.parseFromString(maimlData, "text/xml");
+              // 最初のplaceRef以外のplaceに対して参照関係を設定
+              const firstPlaceId = getPlaceIdFromRef(placeRefs[0]);
               
-              const commonTemplateIds = new Set<string>();
-              const commonTemplateRefMap: Record<string, string> = {}; // { placeId: firstPlaceId }
-              
-              const allTemplates = [
-                ...xmlDoc.querySelectorAll('materialTemplate'),
-                ...xmlDoc.querySelectorAll('conditionTemplate'),
-                ...xmlDoc.querySelectorAll('resultTemplate')
-              ];
-              
-              allTemplates.forEach((templateEl: Element) => {
-                const templateId = templateEl.getAttribute('id');
-                const placeRefs = Array.from(templateEl.querySelectorAll('placeRef'));
-                
-                if (placeRefs.length > 1 && templateId) {
-                  commonTemplateIds.add(templateId);
-                  
-                  // placeRefからplace IDを取得する関数
-                  // MaiMLではplaceRefの`ref`属性が実際のplace要素への参照
-                  const getPlaceId = (placeRefEl: Element): string | null => {
-                    return placeRefEl.getAttribute('ref') ||
-                           placeRefEl.getAttribute('idref') ||
-                           placeRefEl.getAttribute('href')?.replace('#', '');
-                  };
-                  
-                  // 最初のplaceRef以外のplaceに対して参照関係を設定
-                  const firstPlaceId = getPlaceId(placeRefs[0]);
-                  
-                  if (firstPlaceId) {
-                    for (let i = 1; i < placeRefs.length; i++) {
-                      const placeId = getPlaceId(placeRefs[i]);
-                      if (placeId) {
-                        commonTemplateRefMap[placeId] = firstPlaceId;
-                      }
-                    }
-                    
-                    console.log('🔗 [PetriNetEditorInner] 共通テンプレート検出:', {
-                      templateId,
-                      placeRefCount: placeRefs.length,
-                      firstPlaceId,
-                      referencePlaceIds: placeRefs.slice(1).map(ref => getPlaceId(ref)),
-                      placeRefSample: placeRefs[0].outerHTML
-                    });
-                  } else {
-                    console.warn('⚠️ [PetriNetEditorInner] placeRef IDが取得できません:', {
-                      templateId,
-                      placeRefHTML: placeRefs[0].outerHTML
-                    });
+              if (firstPlaceId) {
+                for (let i = 1; i < placeRefs.length; i++) {
+                  const placeId = getPlaceIdFromRef(placeRefs[i]);
+                  if (placeId) {
+                    commonTemplateRefMap[placeId] = firstPlaceId;
                   }
                 }
-              });
-              
-              console.log('📋 [PetriNetEditorInner] 共通テンプレート一覧:', Array.from(commonTemplateIds));
-              console.log('🔗 [PetriNetEditorInner] 参照関係マップ:', commonTemplateRefMap);
-              
-              // Document情報を抽出
-              const extractedDocument = extractDocumentFromMaiML(maimlData);
-      if (extractedDocument) {
-        const documentWithCorrectName = {
-          ...extractedDocument,
-          name: props.originalFileName 
-            ? props.originalFileName.replace('.maiml', '') 
-            : (extractedDocument.name ?? 'document')
-        };
-        setDocumentData(documentWithCorrectName);
-        console.log('📄 [PetriNetEditorInner] Document情報を読み込みました:', documentWithCorrectName);
-      }
-              
-              // 各methodをReact Flow形式に変換
-              const convertedMethods = methodsData.map((method: MethodData, index: number): Method => {
-                const methodPetriNetData = {
-                  metadata: multiMethodResult.data.metadata,
-                  places: method.places || [],
-                  transitions: method.transitions || [],
-                  arcs: method.arcs || [],
-                };
                 
-                // React Flow形式に変換
-                const { nodes: methodNodes, edges: methodEdges } = 
-                  convertToReactFlowFormat(methodPetriNetData, templateMap);
+                console.log('🔗 [PetriNetEditorInner] 共通テンプレート検出 (型安全):', {
+                  templateId,
+                  placeRefCount: placeRefs.length,
+                  firstPlaceId,
+                  referencePlaceIds: placeRefs.slice(1).map((ref) => getPlaceIdFromRef(ref))
+                });
+              } else {
+                console.warn('⚠️ [PetriNetEditorInner] placeRef IDが取得できません:', {
+                  templateId,
+                  placeRef: placeRefs[0]
+                });
+              }
+            }
+          });
+              
+          console.log('📋 [PetriNetEditorInner] 共通テンプレート一覧 (型安全):', Array.from(commonTemplateIds));
+          console.log('🔗 [PetriNetEditorInner] 参照関係マップ:', commonTemplateRefMap);
+              
+          // Phase 3.2: maimlParserTyped.getDocument()を使用してDocument情報を抽出
+          try {
+            const docParser = new MaimlParserTyped(maimlData);
+            const extractedDoc = docParser.getDocument();
+            
+            if (extractedDoc) {
+              const documentWithCorrectName: DocumentData = {
+                ...extractedDoc,
+                name: props.originalFileName 
+                  ? props.originalFileName.replace('.maiml', '') 
+                  : (extractedDoc.name || 'document')
+              };
+              setDocumentData(documentWithCorrectName);
+              console.log('📄 [PetriNetEditorInner] Document情報を読み込みました（型安全）:', documentWithCorrectName);
+            }
+          } catch (docError) {
+            console.warn('⚠️ [PetriNetEditorInner] Document情報の取得に失敗:', docError);
+            // Documentがない場合でもペトリネット表示は続行
+          }
+              
+          // 各methodをReact Flow形式に変換
+          const convertedMethods = methodsData.map((method: Method, index: number): MethodData => {
+            const methodPetriNetData = {
+              methods : methodsData,
+              places: method.pnml.places || [],
+              transitions: method.pnml.transitions || [],
+              arcs: method.pnml.arcs || [],
+            };
+            
+            // React Flow形式に変換
+            const { nodes: methodNodes, edges: methodEdges } = 
+              convertToReactFlowFormat(parser,methodPetriNetData, templateMap);
+            
+            // 🎯 共通テンプレートフラグと参照関係を設定
+            const nodesWithCommonFlag = methodNodes.map((node: Node<NodeData>): Node<NodeData> => {
+              if (node.data.nodeType === 'place') {
+                const placeId = node.id;
                 
-                // 🎯 共通テンプレートフラグと参照関係を設定
-                const nodesWithCommonFlag = methodNodes.map((node: Node<NodeData>): Node<NodeData> => {
-                  if (node.data.nodeType === 'place') {
-                    const placeId = node.id;
-                    
-                    // templateMapからtemplate IDを取得
-                    const templateInfo = templateMap[placeId];
-                    const templateId = templateInfo?.id;
-                    
-                    console.log('🔍 [PetriNetEditorInner] ノード処理:', {
-                      placeId,
-                      templateId,
-                      hasTemplateInfo: !!templateInfo
-                    });
-                    
-                    // 共通テンプレート参照の場合
-                    if (commonTemplateRefMap[placeId]) {
-                      const referencedPlaceId = commonTemplateRefMap[placeId];
-                      console.log('🔗 [PetriNetEditorInner] commonTemplateRef設定:', {
-                        placeId,
-                        referencedPlaceId,
-                        templateId
-                      });
-                      
-                      return {
-                        ...node,
-                        data: {
-                          ...node.data,
-                          commonTemplateRef: referencedPlaceId
-                        }
-                      };
-                    }
-                    
-                    // 共通テンプレートの定義元の場合
-                    if (templateId && commonTemplateIds.has(templateId)) {
-                      console.log('✅ [PetriNetEditorInner] 共通テンプレートフラグ設定:', {
-                        placeId,
-                        templateId
-                      });
-                      
-                      return {
-                        ...node,
-                        data: {
-                          ...node.data,
-                          isCommonTemplate: true
-                        }
-                      };
-                    }
-                  }
-                  return node;
+                // templateMapからtemplate IDを取得
+                const templateInfo = templateMap[placeId];
+                const templateId = templateInfo?.id;
+                
+                console.log('🔍 [PetriNetEditorInner] ノード処理:', {
+                  placeId,
+                  templateId,
+                  hasTemplateInfo: !!templateInfo
                 });
                 
-                // エッジにスタイルとマーカーを追加
-                const styledEdges = methodEdges.map((edge: Edge<EdgeData>): Edge<EdgeData> => ({
-                  ...edge,
-                  type: 'default',
-                  animated: false,
-                  style: { 
-                    stroke: '#333',
-                    strokeWidth: 2,
-                  },
-                  markerEnd: {
-                    type: MarkerType.ArrowClosed,
-                    color: '#333',
-                    width: 20,
-                    height: 20,
-                  },
-                }));
-                
-                return {
-                  methodId: method.methodId,
-                  methodIndex: index,
-                  name: `Method ${index + 1}`,
-                  nodes: nodesWithCommonFlag,
-                  edges: styledEdges,
-                  viewport: { x: 0, y: 0, zoom: 1 }
-                };
-              });
-              
-              console.log('✅ [PetriNetEditorInner] 複数method変換完了:', {
-                methodCount: convertedMethods.length,
-                methods: convertedMethods.map((m: Method) => ({
-                  methodId: m.methodId,
-                  nodeCount: m.nodes.length,
-                  edgeCount: m.edges.length
-                }))
-              });
-              
-              // methods配列を設定
-              setMethods(convertedMethods);
-              setActiveMethodIndex(0);
-              setMultiMethodMode(isMultiMethod);
-              
-              // 最初のmethodを表示
-              const firstMethod = convertedMethods[0];
-              setNodes(firstMethod.nodes);
-              setEdges(firstMethod.edges);
-              
-              // 履歴をリセット
-              reset({ nodes: firstMethod.nodes, edges: firstMethod.edges });
-              
-              // 初期表示でフィットビュー
-              setTimeout(() => {
-                fitView({ padding: 0.2, duration: 300 });
-              }, 100);
-              
-              setIsLoading(false);
-              
-              // 🆕 Phase 3: 複数methodコードパスでも自動バリデーション実行
-              setTimeout(async () => {
-                try {
-                  console.log('🔍 [PetriNetEditorInner] 自動バリデーション実行開始（複数method）');
-                  console.log('🔍 [PetriNetEditorInner] maimlData preview:', maimlData?.substring(0, 200));
-                  
-                  const base64Data = btoa(unescape(encodeURIComponent(maimlData)));
-                  const currentOrgId = localStorage.getItem('currentOrganizationId');
-                  
-                  console.log('🔍 [PetriNetEditorInner] バリデーションリクエスト:', {
-                    base64Length: base64Data.length,
-                    organizationId: currentOrgId
+                // 共通テンプレート参照の場合
+                if (commonTemplateRefMap[placeId]) {
+                  const referencedPlaceId = commonTemplateRefMap[placeId];
+                  console.log('🔗 [PetriNetEditorInner] commonTemplateRef設定:', {
+                    placeId,
+                    referencedPlaceId,
+                    templateId
                   });
                   
-                  const validateResponse = await fetch('/api/s3/validate-maiml-content', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                      maimlContent: base64Data,
-                      organizationId: currentOrgId,
-                    }),
-                  });
-                  
-                  if (validateResponse.ok) {
-                    const validateResult = await validateResponse.json();
-                    console.log('✅ [PetriNetEditorInner] 自動バリデーション完了（複数method）:', {
-                      success: validateResult.success,
-                      errorCount: validateResult.errors?.length || 0,
-                      warningCount: validateResult.warnings?.length || 0,
-                      errorSample: validateResult.errors?.[0] || null
-                    });
-                    
-                    // 🔍 デバッグ: エラー内容を詳細に表示
-                    if (validateResult.errors && validateResult.errors.length > 0) {
-                      console.log('⚠️ [PetriNetEditorInner] バリデーションエラー詳細:', validateResult.errors);
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      commonTemplateRef: referencedPlaceId
                     }
-                    
-                    setValidationResult(validateResult);
-                    console.log('📊 [PetriNetEditorInner] validationResult設定完了');
-                  } else {
-                    const errorText = await validateResponse.text();
-                    console.error('❌ [PetriNetEditorInner] バリデーションAPIエラー:', {
-                      status: validateResponse.status,
-                      statusText: validateResponse.statusText,
-                      errorText: errorText.substring(0, 500)
-                    });
-                  }
-          } catch (validateErr: unknown) {
-            const errorMessage = getErrorMessage(validateErr);
-            console.error('❌ [PetriNetEditorInner] 自動バリデーション例外:', {
-              message: errorMessage
-            });
-          }
-              }, 500);
-              
-              return; // 処理完了
-            }
-          }
-        }
-        
-        // 🔄 フォールバック: 複数method APIが失敗した場合、または単一methodの場合は従来のAPIを使用
-        console.log('🔄 [PetriNetEditorInner] フォールバック: 単一method APIを使用');
-        
-        const response = await fetch('/api/worker/petri-net-structure-from-content', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ maimlContent: base64Data }),
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`APIエラー: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        
-        if (!result.success) {
-          throw new Error(result.error || 'ペトリネット構造の取得に失敗しました');
-        }
-        
-        petriNetData = result.data;
-        
-        console.log('📊 [PetriNetEditorInner] ペトリネット構造取得完了:', {
-          places: petriNetData.places?.length,
-          transitions: petriNetData.transitions?.length,
-          arcs: petriNetData.arcs?.length
-        });
-        
-        // テンプレートマップ構築（maimlData文字列を直接渡す）
-        const templateMap = buildTemplateMap(maimlData);
-        
-        // Document情報を抽出
-        const extractedDocument = extractDocumentFromMaiML(maimlData);
-        if (extractedDocument) {
-          // 既存ファイル名を優先的に使用（originalFileNameが存在する場合）
-          const documentWithCorrectName = {
-            ...extractedDocument,
-            // originalFileNameがある場合はそれを使用（.maimlを除く）
-            name: props.originalFileName 
-              ? props.originalFileName.replace('.maiml', '') 
-              : extractedDocument.name || 'document'
-          };
-          
-          setDocumentData(documentWithCorrectName);
-          console.log('📄 [PetriNetEditorInner] Document情報を読み込みました:', {
-            extractedName: extractedDocument.name,
-            originalFileName: props.originalFileName,
-            finalName: documentWithCorrectName.name,
-            id: extractedDocument.id,
-            name: extractedDocument.name
-          });
-        }
-        
-        // React Flow形式に変換（PetriNetViewerと同じ）
-        const { nodes: convertedNodes, edges: convertedEdges } =
-          convertToReactFlowFormat(petriNetData, templateMap);
-
-        console.log('✅ [PetriNetEditorInner] 変換完了:', {
-          nodesCount: convertedNodes.length,
-          edgesCount: convertedEdges.length,
-          samplePosition: convertedNodes[0]?.position
-        });
-
-        // エッジにスタイルとマーカーを追加
-        const styledEdges = convertedEdges.map((edge: Edge<EdgeData>) => ({
-          ...edge,
-          type: 'default',
-          animated: false,
-          style: { 
-            stroke: '#333',
-            strokeWidth: 2,
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: '#333',
-            width: 20,
-            height: 20,
-          },
-        }));
-
-        setNodes(convertedNodes);
-        setEdges(styledEdges);
-        
-        // Phase 3C: 初期状態を履歴にセット
-        reset({ nodes: convertedNodes, edges: styledEdges });
-        
-        // 複数method対応: 単一methodでもmethods配列を初期化
-        const initialMethod = {
-          methodId: extractedDocument?.methodId || `method_${Date.now()}`,
-          methodIndex: 0,
-          name: 'Method 1',
-          nodes: convertedNodes,
-          edges: styledEdges,
-          viewport: { x: 0, y: 0, zoom: 1 }
-        };
-        setMethods([initialMethod]);
-        setActiveMethodIndex(0);
-        setMultiMethodMode(false); // 単一methodモード
-        
-        console.log('📋 [PetriNetEditorInner] Method配列初期化:', {
-          methodId: initialMethod.methodId,
-          nodesCount: convertedNodes.length,
-          edgesCount: styledEdges.length
-        });
-        
-        // 初期表示でフィットビュー
-        setTimeout(() => {
-          fitView({ padding: 0.2, duration: 300 });
-        }, 100);
-        
-        setIsLoading(false);
-        
-        // Phase 3: ファイル読み込み成功後に自動バリデーション実行
-        setTimeout(async () => {
-          try {
-            console.log('🔍 [PetriNetEditorInner] 自動バリデーション実行開始');
-            const base64Data = btoa(unescape(encodeURIComponent(maimlData)));
-            const currentOrgId = localStorage.getItem('currentOrganizationId');
-            
-            console.log('🔍 [PetriNetEditorInner] バリデーションAPI呼び出し:', {
-              apiUrl: '/api/s3/validate-maiml-content',
-              organizationId: currentOrgId,
-              maimlDataLength: maimlData.length,
-              base64Length: base64Data.length
+                  };
+                }
+                
+                // 共通テンプレートの定義元の場合
+                if (templateId && commonTemplateIds.has(templateId)) {
+                  console.log('✅ [PetriNetEditorInner] 共通テンプレートフラグ設定:', {
+                    placeId,
+                    templateId
+                  });
+                  
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      isCommonTemplate: true
+                    }
+                  };
+                }
+              }
+              return node;
             });
             
-            const validateResponse = await fetch('/api/s3/validate-maiml-content', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
+            // エッジにスタイルとマーカーを追加
+            const styledEdges = methodEdges.map((edge: Edge<EdgeData>): Edge<EdgeData> => ({
+              ...edge,
+              type: 'default',
+              animated: false,
+              style: { 
+                stroke: '#333',
+                strokeWidth: 2,
               },
-              credentials: 'include',
-              body: JSON.stringify({
-                maimlContent: base64Data,
-                organizationId: currentOrgId,
-              }),
-            });
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: '#333',
+                width: 20,
+                height: 20,
+              },
+            }));
             
-            console.log('🔍 [PetriNetEditorInner] バリデーションレスポンス:', {
-              status: validateResponse.status,
-              ok: validateResponse.ok
-            });
-            
-            if (validateResponse.ok) {
-              const validateResult = await validateResponse.json();
-              console.log('✅ [PetriNetEditorInner] 自動バリデーション完了:', {
-                success: validateResult.success,
-                hasErrors: !!validateResult.errors,
-                errorCount: validateResult.errors?.length || 0,
-                warningCount: validateResult.warnings?.length || 0,
-                errorTypes: validateResult.errors?.map((e: ValidationError) => e.type).slice(0, 5) || []
+            return {
+              methodId: method.id,
+              methodIndex: index,
+              name: `Method ${index + 1}`,
+              nodes: nodesWithCommonFlag,
+              edges: styledEdges,
+              viewport: { x: 0, y: 0, zoom: 1 }
+            };
+          });
+              
+          console.log('✅ [PetriNetEditorInner] 複数method変換完了:', {
+            methodCount: convertedMethods.length,
+            methods: convertedMethods.map((m: MethodData) => ({
+              methodId: m.methodId,
+              nodeCount: m.nodes.length,
+              edgeCount: m.edges.length
+            }))
+          });
+              
+          // methods配列を設定
+          setMethods(convertedMethods);
+          setActiveMethodIndex(0);
+          setMultiMethodMode(isMultiMethod);
+          
+          // 最初のmethodを表示
+          const firstMethod = convertedMethods[0];
+          setNodes(firstMethod.nodes);
+          setEdges(firstMethod.edges);
+          
+          // 履歴をリセット
+          reset({ nodes: firstMethod.nodes, edges: firstMethod.edges });
+          
+          // 初期表示でフィットビュー
+          setTimeout(() => {
+            fitView({ padding: 0.2, duration: 300 });
+          }, 100);
+              
+          setIsLoading(false);
+              
+          // 🆕 Phase 3: 複数methodコードパスでも自動バリデーション実行
+          setTimeout(async () => {
+            try {
+              console.log('🔍 [PetriNetEditorInner] 自動バリデーション実行開始（複数method）');
+              console.log('🔍 [PetriNetEditorInner] maimlData preview:', maimlData?.substring(0, 200));
+              
+              const base64Data = btoa(unescape(encodeURIComponent(maimlData)));
+              const currentOrgId = localStorage.getItem('currentOrganizationId');
+              
+              console.log('🔍 [PetriNetEditorInner] バリデーションリクエスト:', {
+                base64Length: base64Data.length,
+                organizationId: currentOrgId
               });
               
-              // validationResultをセット（これによりuseEffectが実行される）
-              setValidationResult(validateResult);
-              console.log('📊 [PetriNetEditorInner] validationResult設定完了');
-            } else {
-              const errorText = await validateResponse.text();
-              console.error('❌ [PetriNetEditorInner] バリデーションAPIエラー:', {
-                status: validateResponse.status,
-                statusText: validateResponse.statusText,
-                errorText: errorText.substring(0, 200)
+              const validateResponse = await fetch('/api/s3/validate-maiml-content', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                  maimlContent: base64Data,
+                  organizationId: currentOrgId,
+                }),
+              });
+              
+              if (validateResponse.ok) {
+                const validateResult = await validateResponse.json();
+                console.log('✅ [PetriNetEditorInner] 自動バリデーション完了（複数method）:', {
+                  success: validateResult.success,
+                  errorCount: validateResult.errors?.length || 0,
+                  warningCount: validateResult.warnings?.length || 0,
+                  errorSample: validateResult.errors?.[0] || null
+                });
+                
+                // 🔍 デバッグ: エラー内容を詳細に表示
+                if (validateResult.errors && validateResult.errors.length > 0) {
+                  console.log('⚠️ [PetriNetEditorInner] バリデーションエラー詳細:', validateResult.errors);
+                }
+                
+                setValidationResult(validateResult);
+                console.log('📊 [PetriNetEditorInner] validationResult設定完了');
+              } else {
+                const errorText = await validateResponse.text();
+                console.error('❌ [PetriNetEditorInner] バリデーションAPIエラー:', {
+                  status: validateResponse.status,
+                  statusText: validateResponse.statusText,
+                  errorText: errorText.substring(0, 500)
+                });
+              }
+            } catch (validateErr: unknown) {
+              const errorMessage = getErrorMessage(validateErr);
+              console.error('❌ [PetriNetEditorInner] 自動バリデーション例外:', {
+                message: errorMessage
               });
             }
-          } catch (validateErr: unknown) {
-            const errorMessage = getErrorMessage(validateErr);
-            console.error('❌ [PetriNetEditorInner] 自動バリデーション例外:', {
-              message: errorMessage
-            });
-          }
-        }, 500);
+          }, 500);
+      }
       } catch (err: unknown) {
         const errorMessage = getErrorMessage(err);
         console.error('❌ [PetriNetEditorInner] 初期化エラー:', errorMessage);
@@ -1393,7 +1180,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         id: `${nodeType}-${Date.now()}`,
         name: '',
         description: '',
-        placeType: nodeType as PlaceType,
+        placeType: nodeType,
         nodeType: (nodeType === 'transition' ? 'transition' : 'place') as NodeType,
         // ✅ 修正: template自動生成を停止（PropertyPanelの編集ボタンで生成）
         // template: null,
@@ -1658,7 +1445,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         id: `${nodeType}-${Date.now()}`,
         name: '',
         description: '',
-        placeType: nodeType as PlaceType,
+        placeType: nodeType,
         nodeType: (nodeType === 'transition' ? 'transition' : 'place') as NodeType,
         // ✅ 修正: template自動生成を停止（PropertyPanelの編集ボタンで生成）
         // template: null,
@@ -1714,11 +1501,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const allTemplates = window.clineAllTemplates;
       
       // 全カテゴリのテンプレートをチェック
-      ['material', 'condition', 'result'].forEach((category: string) => {
-        if (allTemplates[category]) {
-          allTemplates[category].forEach((template: any) => {
+      (['material', 'condition', 'result'] as const).forEach((category) => {
+        const templates : Template[] = allTemplates[category];
+        if (templates.length > 0) {
+          templates.forEach((template: Template) => {
             // このテンプレートのplaceRefsにoldIdが含まれている場合
-            if (template.placeRefs && template.placeRefs.includes(oldId)) {
+            if (template.placeRefs && template.placeRefs.find((r) => r.ref === oldId)) {
               console.log('🔄 [PetriNetEditorInner] テンプレートのplaceRefsを更新:', {
                 templateId: template.id,
                 category,
@@ -1727,14 +1515,16 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
               });
               
               // placeRefsを更新
-              const updatedPlaceRefs = template.placeRefs.map((ref: string) => 
-                ref === oldId ? newId : ref
-              );
+              const updatedPlaceRefs = template.placeRefs;
+              updatedPlaceRefs.forEach(pr => {
+                if (pr.ref === oldId) {
+                  pr.ref = newId;
+                }
+            });
               
               // テンプレートを更新
               window.clineUpdateTemplate(template.id, {
-                ...template,
-                placeRefs: updatedPlaceRefs
+                ...template, placeRefs: updatedPlaceRefs,
               });
             }
           });
@@ -1840,21 +1630,17 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const finalKey = explicitKey || prop.key || 'property';
       
       const result: Property = {
-        id: String(finalKey),  // ✅ Property型に必須のidを追加（string型に変換）
         key: String(finalKey),
-        name: String(finalKey),
-        tagName: prop.tagName || 'property',
-        type: xsiType,
         xsiType: xsiType,
       };
       
       // attributes から units, formatString, scaleFactor を抽出
       if (attributes.units) result.units = String(attributes.units);
       if (attributes.formatString) result.formatString = String(attributes.formatString);
-      if (attributes.scaleFactor) result.scaleFactor = String(attributes.scaleFactor);
+      if (attributes.scaleFactor) result.scaleFactor = Number(attributes.scaleFactor);
       
       // elements から value, description を抽出
-      if (elements.value !== undefined) result.defaultValue = String(elements.value);
+      if (elements.value !== undefined) result.value = String(elements.value);
       if (elements.description !== undefined) result.description = String(elements.description);
       
       // 子要素がある場合（propertyListType）
@@ -1889,11 +1675,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // Phase 4A: テンプレート保存ハンドラー（新規作成対応）
   const handleSaveTemplate = useCallback((
     nodeId: string, 
-    templateRef: TemplateRef, 
+    templateRef: Template, 
     isNewTemplate: boolean, 
     templateCategory: string, 
     isCommonTemplate: boolean, 
-    methodId: string | null
+    methodId: string | undefined
   ) => {
     console.log('💾 [PetriNetEditorInner] Template保存開始:', { 
       nodeId, 
@@ -1924,7 +1710,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const nodeExists = nodes.some(n => n.id === nodeId);
       if (nodeExists) {
         console.log('⚠️ [PetriNetEditorInner] placeRefsが空です、自分自身を追加:', nodeId);
-        convertedTemplateRef.placeRefs = [nodeId];
+        convertedTemplateRef.placeRefs = [{ id: '',ref: nodeId}];
       } else {
         console.log('ℹ️ [PetriNetEditorInner] テンプレート一覧からの追加、placeRefsは空のまま');
         convertedTemplateRef.placeRefs = [];
@@ -1938,13 +1724,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       変換後サンプル: convertedTemplateRef.properties[0],
       保持されたuuid: convertedTemplateRef.uuid,
       保持されたplaceRefs: convertedTemplateRef.placeRefs,
-      保持されたtemplateRefs: convertedTemplateRef.templateRefs
+      保持されたtemplateRef: convertedTemplateRef.templateRef
     });
     
     // 新規テンプレート作成の場合
     if (isNewTemplate) {
       // ✅ 修正: methodIdパラメータを優先的に使用（PropertyPanelから渡される）
-      const correctMethodId = isCommonTemplate ? null : (methodId || documentData?.methodId || methods[activeMethodIndex]?.methodId);
+      const correctMethodId = isCommonTemplate ? undefined : (methodId || documentData?.methodId || methods[activeMethodIndex]?.methodId);
       
       console.log('➕ [PetriNetEditorInner] 新規テンプレート作成:', {
         category: templateCategory,
@@ -1960,19 +1746,17 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       // TemplateContextに追加（window.clineAddTemplateを使用）
       if (window.clineAddTemplate) {
         window.clineAddTemplate({
-          category: templateCategory,
+          category: templateCategory === 'material' ? 'material' : templateCategory === 'condition' ? 'condition' : 'result',
           template: {
             id: templateId,  // ✅ 修正: templateIdを使用
             uuid: convertedTemplateRef.uuid,
-            name: convertedTemplateRef.name,
+            name: convertedTemplateRef.name || '',
             description: convertedTemplateRef.description,
-            type: templateCategory,
-            properties: convertedTemplateRef.properties,
+            category: templateCategory,
+            properties: convertedTemplateRef.properties || [],
             placeRefs: convertedTemplateRef.placeRefs || [],
-            templateRefs: convertedTemplateRef.templateRefs || [],
+            templateRef: convertedTemplateRef.templateRef,
             methodId: correctMethodId,
-            propertiesCount: convertedTemplateRef.properties?.length || 0,
-            placeRefsCount: convertedTemplateRef.placeRefs?.length || 0,
           }
         });
         console.log('✅ [PetriNetEditorInner] 新規テンプレートをContextに追加完了:', { correctMethodId });
@@ -1999,40 +1783,38 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       // ✅ 既存テンプレートの元の情報を取得（TemplateContextから）
       if (window.clineAllTemplates) {
         const allTemplates = window.clineAllTemplates;
-        let originalTemplate: any = null;
+        let originalTemplate: Template = {id: '', name: '', uuid: '', category: '', placeRefs : []};
         
         // 全カテゴリから元のテンプレートを検索（templateIdで検索）
-        ['material', 'condition', 'result'].forEach((category: string) => {
-          if (!originalTemplate && allTemplates[category]) {
-            originalTemplate = allTemplates[category].find((t: any) => t.id === templateId);  // ✅ 修正: templateIdで検索
+        (['material', 'condition', 'result'] as const).forEach((category) => {
+        const templates : Template[] = allTemplates[category];
+          if (!originalTemplate && templates.length > 0) {
+            originalTemplate = templates.find((t: Template) => t.id === templateId)!;  // ✅ 修正: templateIdで検索
           }
         });
         
         console.log('🔍 [PetriNetEditorInner] 元のテンプレート情報:', {
           found: !!originalTemplate,
           originalMethodId: originalTemplate?.methodId,
-          originalType: originalTemplate?.type,
           placeRefsLength: convertedTemplateRef.placeRefs?.length
         });
         
         // ✅ 元のテンプレート情報を優先（methodId、typeを保持）
-        const finalTemplateCategory = originalTemplate?.type || templateCategory;
+        const finalTemplateCategory = originalTemplate?.category || templateCategory;
         const finalMethodId = originalTemplate?.methodId !== undefined ? originalTemplate.methodId : methodId;
       
       // TemplateContextを更新（window.clineUpdateTemplateを使用）
       if (window.clineUpdateTemplate) {
         window.clineUpdateTemplate(templateId, {  // ✅ 修正: templateIdを使用
-          id: templateId,  // ✅ 修正: templateIdを使用
-          uuid: convertedTemplateRef.uuid,
-          name: convertedTemplateRef.name,
-          description: convertedTemplateRef.description,
-          type: finalTemplateCategory,
-          properties: convertedTemplateRef.properties,
-          placeRefs: convertedTemplateRef.placeRefs || [],
-          templateRefs: convertedTemplateRef.templateRefs || [],
-          methodId: finalMethodId,
-          propertiesCount: convertedTemplateRef.properties?.length || 0,
-          placeRefsCount: convertedTemplateRef.placeRefs?.length || 0,
+            id: templateId,  // ✅ 修正: templateIdを使用
+            uuid: convertedTemplateRef.uuid,
+            name: convertedTemplateRef.name || '',
+            description: convertedTemplateRef.description,
+            category: finalTemplateCategory,
+            properties: convertedTemplateRef.properties,
+            placeRefs: convertedTemplateRef.placeRefs || [],
+            templateRef: convertedTemplateRef.templateRef,
+            methodId: finalMethodId,
         });
         console.log('✅ [PetriNetEditorInner] TemplateContext更新完了:', {
           finalTemplateCategory,
@@ -2058,7 +1840,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       const newNodes = nds.map((node: Node<NodeData>) => {
         // placeRefsに含まれるノードにテンプレートを設定
-        if (placeRefsToUpdate.includes(node.id)) {
+        if (placeRefsToUpdate.some((pr) => pr.ref === node.id)) {
           console.log('✅ [PetriNetEditorInner] ノードにテンプレート設定:', {
             nodeId: node.id,
             templateId: templateId,
@@ -2159,47 +1941,38 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }, [viewMode, savedPetriNetViewport, setViewport]);
 
   // テンプレート選択ハンドラー
-  const handleTemplateSelect = useCallback((template: TemplateRef) => {
+  const handleTemplateSelect = useCallback((template: Template) => {
     console.log('📝 [PetriNetEditorInner] テンプレート選択:', template);
     setSelectedTemplate(template);
     
-    // ✅ 修正: newId変数を定義
-    const newId = template.id || `${template.type}Template_${Date.now()}`;
-    
     // ✅ 修正: uuid, placeRefs, templateRefs, descriptionを含めた仮ノードを作成
             const tempNode: Node<NodeData> = {
-              id: newId,
-              type: template.type === 'material' ? 'materialTemplate' :
-                    template.type === 'condition' ? 'conditionTemplate' : 'resultTemplate',
+              id: template.id,
               position: { x: 0, y: 0 }, // ✅ 追加: position必須
               data: {
-                id: newId,
+                id: template.id,
                 name: template.name || '',
                 description: template.description || '',
                 nodeType: 'place' as NodeType,
-                placeType: template.type as PlaceType,
+                placeType: template.category,
                 template: {
-                  id: newId,
+                  id: template.id,
                   name: template.name || '',
                   description: template.description || '',
-                  type: template.type === 'material' ? 'MaterialTemplate' :
-                        template.type === 'condition' ? 'ConditionTemplate' :
-                        'ResultTemplate',
+                  category: template.category,
                   uuid: template.uuid || crypto.randomUUID(),
                   placeRefs: template.placeRefs || [],
-                  templateRefs: template.templateRefs || [],
+                  templateRef: template.templateRef,
                   properties: (template.properties as Property[]) || [],
                 },
                 templateRef: {
-                  id: newId,
+                  id: template.id,
                   name: template.name || '',
                   description: template.description || '',
-                  type: template.type === 'material' ? 'MaterialTemplate' :
-                        template.type === 'condition' ? 'ConditionTemplate' :
-                        'ResultTemplate',
+                  category: template.category,
                   uuid: template.uuid || crypto.randomUUID(),
                   placeRefs: template.placeRefs || [],
-                  templateRefs: template.templateRefs || [],
+                  templateRef: template.templateRef,
                   properties: (template.properties as Property[]) || [],
                 },
               },
@@ -2208,7 +1981,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             console.log('✅ [PetriNetEditorInner] 仮ノード作成完了:', {
               hasUuid: !!tempNode.data.template?.uuid,
               hasPlaceRefs: !!tempNode.data.template?.placeRefs,
-              hasTemplateRefs: !!tempNode.data.template?.templateRefs,
+              hasTemplateRefs: !!tempNode.data.template?.templateRef,
               hasDescription: !!tempNode.data.description,
               templateRefKeys: tempNode.data.templateRef ? Object.keys(tempNode.data.templateRef) : []
             });
@@ -2236,29 +2009,27 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                 name: '',
                 description: '',
                 nodeType: 'place' as NodeType,
-                placeType: category as PlaceType,
+                placeType: category,
                 template: {
                   id: newId,
                   name: '',
                   description: '',
-                  type: category === 'material' ? 'MaterialTemplate' :
-                        category === 'condition' ? 'ConditionTemplate' :
-                        'ResultTemplate',
+                  category: category === 'material' ? 'material' :
+                    category === 'condition' ? 'condition' : 'result',
                   uuid: crypto.randomUUID(),
                   placeRefs: [],
-                  templateRefs: [],
+                  templateRef: undefined,
                   properties: [],
                 },
                 templateRef: {
                   id: newId,
                   name: '',
                   description: '',
-                  type: category === 'material' ? 'MaterialTemplate' :
-                        category === 'condition' ? 'ConditionTemplate' :
-                        'ResultTemplate',
+                  category: category === 'material' ? 'material' :
+                    category === 'condition' ? 'condition' : 'result',
                   uuid: crypto.randomUUID(),
                   placeRefs: [],
-                  templateRefs: [],
+                  templateRef: undefined,
                   properties: [],
                 },
                 // 新規作成フラグ
@@ -3294,7 +3065,7 @@ interface PetriNetEditorInnerUIProps {
   pressedKeys: Set<string>;
   
   // Method管理
-  methods: Method[];
+  methods: MethodData[];
   multiMethodMode: boolean;
   activeMethodIndex: number;
   handleMethodChange: (index: number) => void;
@@ -3320,12 +3091,12 @@ interface PetriNetEditorInnerUIProps {
   handleOpenDraftManager: () => void;
   autoSaveEnabled: boolean;
   setAutoSaveEnabled: (enabled: boolean) => void;
-  lastAutoSaveTime: number | null;
+  lastAutoSaveTime: Date | null;
   
   // ビューモード
   viewMode: 'petriNet' | 'templates';
   handleViewModeChange: (mode: 'petriNet' | 'templates') => void;
-  handleTemplateSelect: (template: TemplateRef) => void;
+  handleTemplateSelect: (template: Template) => void;
   handleTemplateAdd: (category: string) => void;
   handleTemplateDelete: (templateId: string) => void;
   showCommonTemplates: boolean;
@@ -3361,9 +3132,9 @@ interface PetriNetEditorInnerUIProps {
     nodeId: string,
     templateRef: Template,
     isNewTemplate: boolean,
-    templateCategory: string,
+    templateCategory: 'material' | 'category' | 'result',
     isCommonTemplate: boolean,
-    methodId: string | null
+    methodId: string | undefined
   ) => void;
   
   documentDialogOpen: boolean;
@@ -3385,7 +3156,7 @@ interface PetriNetEditorInnerUIProps {
   draftManagerOpen: boolean;
   handleCloseDraftManager: () => void;
   handleLoadDraft: (draft: DraftData) => void;
-  lastSavedDraft: any;
+  lastSavedDraft: Draft | null;
   currentEditState: any;
   currentUserId: string;
   sourceS3Key?: string;
@@ -3665,7 +3436,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
             <PropertyPanel
               selectedNode={selectedNode}
               selectedEdge={selectedEdge}
-              onUpdate={handleUpdateNodeProperty as (nodeId: string, data: Record<string, unknown>) => void}
+              onUpdate={handleUpdateNodeProperty as (nodeId: string, data: NodeData) => void}
               onUpdateNodeId={handleUpdateNodeId}
               onUpdateEdge={handleUpdateEdgeProperty}
               onClose={handleClosePropertyPanel}
@@ -3707,12 +3478,11 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           open={templateEditorOpen}
           onClose={handleCloseTemplateEditor}
           node={templateEditNode ?? { id: '', data: {} as NodeData }}
-          onSave={(nodeId: string, templateRef: TemplateData, isNewTemplate: boolean, templateCategory: string, isCommonTemplate: boolean, methodId: string | null) => handleSaveTemplate(nodeId, templateRef as unknown as Template, isNewTemplate, templateCategory, isCommonTemplate, methodId)}
+          onSave={(nodeId: string, templateRef: Template, isNewTemplate: boolean, templateCategory: string, isCommonTemplate: boolean, methodId: string | null) => handleSaveTemplate(nodeId, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId)}
           allNodes={(() => {
             // 共通テンプレートかどうかを判定
             const isCommonTemplate = 
-              templateEditNode?.data?.isCommonTemplate || 
-              templateEditNode?.data?.template?.isCommonTemplate ||
+              !templateEditNode?.data?.template?.methodId ||
               showCommonTemplates;
             
             // ✅ 共通テンプレート：全methodsのnodesを返す

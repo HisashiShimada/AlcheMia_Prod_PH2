@@ -46,9 +46,9 @@ import { fetchTemplateFiles, fetchTemplateContent, type TemplateFile } from '@/a
 import type { 
   NodeData, 
   ValidationError,
-  TemplateEditorDialogProps,
-  TemplateData
+  TemplateEditorDialogProps
 } from '../types';
+import { Template, Insertion, Property } from '@/types/maiml-unified';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -558,11 +558,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   const [placeRefs, setPlaceRefs] = useState<string[]>([]);
   
   // Insertion State (MaterialTemplate・ResultTemplateのみ)
-  const [insertion, setInsertion] = useState<{
-    uri?: string;
-    hash?: string;
-    format?: string;
-  }>({ uri: '', hash: '', format: '' });
+  const [insertion, setInsertion] = useState<Insertion>({ uri: '', hash: { method: '', value: ''}, format: '' });
 
   // ✅ Phase 2-1: NestedPropertyEditor用State
   const [properties, setProperties] = useState<Record<string, PropertyData>>({});
@@ -585,7 +581,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   // ✅ Phase 3: 高度な名前空間取り込みUI用State
   const [previewContent, setPreviewContent] = useState<{
     xml?: string;
-    properties?: Record<string, PropertyData>;
+    properties?: Property[];
     error?: string;
   }>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -617,38 +613,36 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   /**
    * マージされたテンプレートデータ
    */
-  const mergedTemplate: TemplateData | null = useMemo((): TemplateData | null => {
+  const mergedTemplate: Template | null = useMemo((): Template | null => {
     if (!node) return null;
     
-    const template = (node.data.template || {}) as Partial<TemplateData>;
-    const templateRef = (node.data.templateRef || {}) as Partial<TemplateData>;
+    const template = (node.data.template || {}) as Partial<Template>;
+    const templateRef = (node.data.templateRef || {}) as Partial<Template>;
     
     return {
       id: template.id || templateRef.id || '',
-      uuid: template.uuid || templateRef.uuid,
+      uuid: template.uuid || templateRef.uuid || '',
       name: template.name || templateRef.name || '',
       description: template.description || templateRef.description,
-      type: template.type || templateRef.type,
-      properties: template.properties || templateRef.properties || {},
+      category: template.category || templateRef.category || '',
+      properties: template.properties || templateRef.properties || [],
       contents: template.contents || templateRef.contents,
       insertion: template.insertion || templateRef.insertion,
       placeRefs: template.placeRefs || templateRef.placeRefs || [],
-      href: template.href || templateRef.href,
+      templateRef: template.templateRef,
     };
   }, [node]);
 
   /**
    * ✅ Phase 2-1: 継承元テンプレートの計算
    */
-  const inheritedTemplate = useMemo((): TemplateData | null => {
-    if (!mergedTemplate?.templateRefs || mergedTemplate.templateRefs.length === 0) {
+  const inheritedTemplate = useMemo((): Template | null => {
+    if (!mergedTemplate?.templateRef) {
       return null;
     }
     
     // templateRefsから親テンプレートIDを取得（配列または文字列に対応）
-    const parentTemplateId = Array.isArray(mergedTemplate.templateRefs)
-      ? mergedTemplate.templateRefs[0]
-      : mergedTemplate.templateRefs;
+    const parentTemplateId = mergedTemplate.templateRef.ref;
     
     if (!parentTemplateId || typeof parentTemplateId !== 'string') {
       return null;
@@ -664,7 +658,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         const found = templates.find((t: unknown) => 
           t && typeof t === 'object' && 'id' in t && (t as { id: string }).id === parentTemplateId
         );
-        if (found) return found as TemplateData;
+        if (found) return found as Template;
       }
     }
     
@@ -676,7 +670,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     );
     
     if (parentNode) {
-      return (parentNode.data.template || parentNode.data.templateRef) as TemplateData;
+      return (parentNode.data.template || parentNode.data.templateRef) as Template;
     }
     
     return null;
@@ -777,7 +771,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       setUuid(mergedTemplate.uuid || '');
       setName(mergedTemplate.name || '');
       setDescription(mergedTemplate.description || '');
-      setInsertion(mergedTemplate.insertion || { uri: '', hash: '', format: '' });
+      setInsertion(mergedTemplate.insertion || { uri: '', hash: {method : '', value: ''}, format: '' });
       
       // placeRefsの読み込み（文字列配列に正規化）
       const loadedPlaceRefs = mergedTemplate.placeRefs || [];
@@ -1200,7 +1194,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   /**
    * ✅ Phase 2-2: XMLファイルから名前空間定義を解析
    */
-  const parseNamespacesFromXml = (xmlContent: string): Record<string, PropertyData> => {
+  const parseNamespacesFromXml = (xmlContent: string): Property[] => {
     try {
       const result = xml2js(xmlContent, { compact: true }) as ElementCompact;
       
@@ -1466,25 +1460,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       }
     }
     
-    // templateRefsを正しい型に変換
-    const existingTemplateRefs = (node.data.templateRef as Record<string, unknown>)?.templateRefs;
-    let normalizedTemplateRefs: string[] | undefined = undefined;
-    
-    if (existingTemplateRefs) {
-      if (Array.isArray(existingTemplateRefs)) {
-        normalizedTemplateRefs = existingTemplateRefs.map((ref: unknown) => {
-          if (typeof ref === 'string') {
-            return ref;
-          }
-          if (ref && typeof ref === 'object' && 'id' in ref) {
-            return (ref as { id: string }).id;
-          }
-          return '';
-        }).filter(id => id);
-      }
-    }
-    
-    const templateRef: TemplateData = {
+    const templateRef: Template = {
+      ...(node.data.templateRef || {}),
       id: templateId,
       type: templateType,
       uuid: uuid,

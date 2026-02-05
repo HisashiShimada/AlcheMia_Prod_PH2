@@ -8,18 +8,11 @@ import { Card, Typography, Badge, Spin, Checkbox, Tooltip, Button } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useTemplates } from '../../../../contexts/TemplateContext';
 import TemplateItem from './TemplateItem';
+import { Template } from '@/types/maiml-unified';
 
 const { Title, Text } = Typography;
 
-interface Template {
-  id: string;
-  name: string;
-  propertiesCount: number;
-  placeRefsCount?: number;
-  placeRefs?: unknown[];
-}
-
-interface TemplatesByCategory {
+export interface TemplatesByCategory {
   material: Template[];
   condition: Template[];
   result: Template[];

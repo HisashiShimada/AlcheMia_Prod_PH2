@@ -10,6 +10,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Node, Edge } from 'reactflow';
+import { Arc, Template } from '@/types/maiml-unified';
+import { DocumentData } from '../types';
 
 /**
  * Draft情報の型定義
@@ -21,9 +23,8 @@ export interface Draft {
   last_saved_at: string;
   nodes?: Node[];
   edges?: Edge[];
-  templates?: Record<string, unknown>;
-  documentData?: Record<string, unknown>;
-  [key: string]: unknown;
+  templates?: Template[];
+  documentData?: DocumentData;
 }
 
 /**
@@ -33,8 +34,8 @@ export interface EditState {
   fileName: string;
   nodes: Node[];
   edges: Edge[];
-  templates?: Record<string, unknown>;
-  documentData?: Record<string, unknown>;
+  templates?: Template[];
+  documentData?: DocumentData;
 }
 
 /**
@@ -46,8 +47,8 @@ export interface DraftSaveData {
   originalFileKey?: string;
   nodes: Node[];
   edges: Edge[];
-  templates?: Record<string, unknown>;
-  documentData?: Record<string, unknown>;
+  templates?: Template[];
+  documentData?: DocumentData;
 }
 
 /**
@@ -94,15 +95,6 @@ interface DraftsResponse {
 
 interface SaveDraftResponse {
   draft: Draft;
-}
-
-/**
- * Arc形式（V1互換）の型定義
- */
-interface Arc {
-  id: string;
-  source: string;
-  target: string;
 }
 
 /**
@@ -346,8 +338,8 @@ const useDraftManager = (
           originalFileKey: currentEditState.fileName,
           nodes: currentEditState.nodes || [],
           edges: currentEditState.edges || [],
-          templates: currentEditState.templates || {},
-          documentData: currentEditState.documentData || {}
+          templates: currentEditState.templates || [],
+          documentData: currentEditState.documentData
         };
         
         await saveDraft(draftPayload);

@@ -34,6 +34,157 @@ export type Uuid = string;
 // 各タグで個別にプロパティを定義しています
 
 // ============================================================================
+// Content Types（統一型定義）
+// ============================================================================
+
+/**
+ * Content型の種別（xsi:type属性の値）
+ * 
+ * XSD仕様で定義されるすべてのContent型を網羅（すべてリスト型）
+ */
+export type ContentType =
+  // リスト型
+  | 'contentStringListType'
+  | 'contentIdRefListType'
+  | 'contentQualifiedNameListType'
+  | 'contentDateTimeListType'
+  | 'contentDecimalListType'
+  | 'contentDoubleListType'
+  | 'contentFloatListType'
+  | 'contentIntListType'
+  | 'contentLongListType'
+  | 'contentShortListType'
+  | 'contentByteListType'
+  | 'contentUnsignedIntListType'
+  | 'contentUnsignedLongListType'
+  | 'contentUnsignedShortListType'
+  | 'contentUnsignedByteListType'
+  | 'contentBooleanListType'
+  | 'contentBase64BinaryListType'
+  | 'contentHexBinaryListType'
+  | 'contentUriListType'
+  | 'contentUuidListType'
+  | 'contentLanguageListType'
+  | 'contentStringEnumType';
+
+/**
+ * Content統一型
+ * 
+ * すべてのContentタイプを包括する統一型定義。
+ * xsi:type属性で型を判別し、適切なプロパティにアクセス可能。
+ * 
+ * XSD仕様:
+ * - contentBaseType: uncertaintyBaseTypeから派生
+ * - 固有属性: axis, size, id, ref
+ * - すべての具体型はリスト型のみ（単一値型は存在しない）
+ * 
+ * @example 文字列リスト型
+ * ```xml
+ * <content key="sampleNames" xsi:type="contentStringListType" axis="x" size="3">
+ *   <description>サンプル名リスト</description>
+ *   <value>Sample A Sample B Sample C</value>
+ * </content>
+ * ```
+ * 
+ * @example 数値リスト型（単位付き）
+ * ```xml
+ * <content key="temperatures" units="°C" xsi:type="contentDoubleListType" axis="y" size="5">
+ *   <value>25.5 26.0 25.8 26.2 25.9</value>
+ * </content>
+ * ```
+ * 
+ * @example ネスト構造
+ * ```xml
+ * <content key="dataSet" xsi:type="contentStringListType">
+ *   <property key="source" xsi:type="stringType">
+ *     <value>XRF Analyzer</value>
+ *   </property>
+ *   <content key="channels" xsi:type="contentIntListType">
+ *     <value>1 2 3 4 5</value>
+ *   </content>
+ * </content>
+ * ```
+ */
+export interface Content {
+  /** 不確実性キー（uncertaintyBaseTypeから継承、必須） */
+  key: string;
+  
+  /** Content型（必須） */
+  xsiType: string;
+  
+  // ============================================================================
+  // contentBaseType固有の属性
+  // ============================================================================
+  
+  /** 軸名（例: "x", "y", "z", "time"） */
+  axis?: string;
+  
+  /** データサイズ */
+  size?: number;
+  
+  /** 要素ID（XML ID属性） */
+  id?: string;
+  
+  /** 参照ID（XML IDREF属性） */
+  ref?: string;
+  
+  // ============================================================================
+  // 共通プロパティ
+  // ============================================================================
+  
+  /** Contentの説明（オプション） */
+  description?: string;
+  
+  // ============================================================================
+  // 値プロパティ（すべてリスト型）
+  // ============================================================================
+  
+  /**
+   * リスト値（すべてのContent型で使用）
+   * - contentStringListType: string[]
+   * - contentIntListType, contentDoubleListType等: number[]
+   * - contentBooleanListType: boolean[]
+   */
+  value?: (string | number | boolean);
+  
+  // ============================================================================
+  // ネスト構造（genericDataContainerGroup）
+  // ============================================================================
+  
+  /**
+   * ネストされたProperty（オプション）
+   */
+  properties?: Property[];
+  
+  /**
+   * ネストされたContent（オプション）
+   */
+  contents?: Content[];
+  
+  // ============================================================================
+  // 不確実性情報
+  // ============================================================================
+  
+  /**
+   * 不確実性情報（オプション、配列）
+   */
+  uncertainty?: Content[];
+  
+  // ============================================================================
+  // 数値型オプション（数値リスト型で使用）
+  // ============================================================================
+  
+  /** 単位（例: "s", "mm", "°C", "keV"） */
+  units?: string;
+  
+  /** フォーマット文字列（例: "0", "0.00"） */
+  formatString?: string;
+  
+  /** スケールファクター */
+  scaleFactor?: number;
+}
+
+// ============================================================================
 // Property Types（統一型定義）
 // ============================================================================
 
@@ -138,7 +289,7 @@ export interface Property {
   key: string;
   
   /** プロパティ型（必須） */
-  'xsi:type': PropertyType;
+  xsiType: string;
   
   /** プロパティの説明（オプション） */
   description?: string;
@@ -156,17 +307,11 @@ export interface Property {
   value?: string | number | boolean;
   
   /**
-   * リスト値（*ListType用）
-   * - stringListType: string[]
-   * - intListType, doubleListType等: number[]
-   * - booleanListType: boolean[]
-   */
-  values?: (string | number | boolean)[];
-  
-  /**
    * ネスト構造（propertyListType用）
    */
   properties?: Property[];
+
+  contents? : Content[];
   
   // ============================================================================
   // 数値型オプション
@@ -192,8 +337,6 @@ export interface Property {
 export interface Reference {
   id: string;
   ref: string;
-  name?: string;
-  description?: string;
 }
 
 /**
@@ -203,46 +346,13 @@ export interface PlaceRef extends Reference {
   /** 初期マーキング（Petri Netで使用） */
   initialMarking?: boolean;
 }
-
 /**
- * Transition参照型（基本的な参照型と同じ）
+ * 基本的な参照型
  */
-export type TransitionRef = Reference;
-
-/**
- * Template参照型（基本的な参照型と同じ）
- */
-export type TemplateRef = Reference;
-
-/**
- * Instance参照型（基本的な参照型と同じ）
- */
-export type InstanceRef = Reference;
-
-/**
- * Results参照型（基本的な参照型と同じ）
- */
-export type ResultsRef = Reference;
-
-/**
- * Creator参照型（基本的な参照型と同じ）
- */
-export type CreatorRef = Reference;
-
-/**
- * Vendor参照型（基本的な参照型と同じ）
- */
-export type VendorRef = Reference;
-
-/**
- * Owner参照型（基本的な参照型と同じ）
- */
-export type OwnerRef = Reference;
-
-/**
- * Instrument参照型（基本的な参照型と同じ）
- */
-export type InstrumentRef = Reference;
+export interface InstanceRef extends Reference {
+  name?: string;
+  description?: string;
+}
 
 // ============================================================================
 // Document Section（文書情報）
@@ -289,7 +399,7 @@ export interface Hash {
 export interface Chain {
   uuid: Uuid;
   hash: Hash;
-  chain?: Chain[];
+  chains?: Chain[];
   key?: string;
 }
 
@@ -299,7 +409,7 @@ export interface Chain {
 export interface Parent {
   uuid: Uuid;
   hash: Hash;
-  parent?: Parent[];
+  parents?: Parent[];
   key?: string;
 }
 
@@ -332,8 +442,8 @@ export interface Creator {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
-  vendorRef?: VendorRef[];
-  instrumentRef?: InstrumentRef[];
+  vendorRef?: Reference;
+  instrumentRef?: Reference;
 }
 
 /**
@@ -433,21 +543,21 @@ export interface Document {
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
   /** 作成者情報（XSD: 配列、実MAIML: 通常1個） */
-  creator: Creator[];
+  creators: Creator[];
   /** ベンダー情報（XSD: 配列、実MAIML: 通常1個） */
-  vendor: Vendor[];
+  vendors: Vendor[];
   /** 所有者情報（XSD: 配列、実MAIML: 通常1個） */
-  owner: Owner[];
+  owners: Owner[];
   /** 機器情報（XSD: 配列、実MAIML: 通常1個） */
-  instrument?: Instrument[];
+  instruments?: Instrument[];
   /** 作成日時（ISO 8601形式） */
   date?: string;
   /** デジタル署名（オプション） */
   Signature?: Signature;
   /** チェーン構造（ブロックチェーン用、オプション） */
-  chain?: Chain[];
+  chains?: Chain[];
   /** 親要素参照（オプション） */
-  parent?: Parent[];
+  parents?: Parent[];
 }
 
 // ============================================================================
@@ -566,9 +676,9 @@ export interface PNML {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
-  place: Place[];
-  transition: Transition[];
-  arc: Arc[];
+  places: Place[];
+  transitions: Transition[];
+  arcs: Arc[];
 }
 
 // ============================================================================
@@ -595,7 +705,7 @@ export interface Instruction {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
-  transitionRef: TransitionRef[];
+  transitionRef: Reference;
 }
 
 /**
@@ -619,10 +729,10 @@ export interface Program {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
-  instruction?: Instruction[];
-  materialTemplate?: MaterialTemplate[];
-  conditionTemplate?: ConditionTemplate[];
-  resultTemplate?: ResultTemplate[];
+  instructions?: Instruction[];
+  materialTemplates?: Template[];
+  conditionTemplates?: Template[];
+  resultTemplates?: Template[];
 }
 
 // ============================================================================
@@ -650,7 +760,7 @@ export interface Program {
  * </materialTemplate>
  * ```
  */
-export interface MaterialTemplate {
+export interface Template {
   /** 要素ID（XML ID属性、必須） */
   id: string;
   /** UUID（RFC 4122準拠、必須） */
@@ -661,60 +771,14 @@ export interface MaterialTemplate {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
-  placeRef: PlaceRef[];
-  templateRef?: TemplateRef[];
+  category : string;
+  placeRefs: PlaceRef[];
+  templateRef?: Reference;
   /** 実MAIMLで必須：Propertyの配列 */
-  property?: Property[];
-}
-
-/**
- * ConditionTemplate（条件テンプレート）
- * 
- * XSD仕様:
- * - id: 必須（hasIdAttributeType, use="required"）
- * - uuid: 必須（globalObjectContentGroup）
- * - name, description, annotation: オプション
- */
-export interface ConditionTemplate {
-  /** 要素ID（XML ID属性、必須） */
-  id: string;
-  /** UUID（RFC 4122準拠、必須） */
-  uuid: string;
-  /** 要素名（人間可読な名前） */
-  name?: string;
-  /** 説明文 */
-  description?: string;
-  /** 注釈（XSD仕様、実MAIMLでは稀） */
-  annotation?: string;
-  placeRef: PlaceRef[];
-  templateRef?: TemplateRef[];
-  /** 実MAIMLで必須：Propertyの配列 */
-  property?: Property[];
-}
-
-/**
- * ResultTemplate（結果テンプレート）
- * 
- * XSD仕様:
- * - id: 必須（hasIdAttributeType, use="required"）
- * - uuid: 必須（globalObjectContentGroup）
- * - name, description, annotation: オプション
- */
-export interface ResultTemplate {
-  /** 要素ID（XML ID属性、必須） */
-  id: string;
-  /** UUID（RFC 4122準拠、必須） */
-  uuid: string;
-  /** 要素名（人間可読な名前） */
-  name?: string;
-  /** 説明文 */
-  description?: string;
-  /** 注釈（XSD仕様、実MAIMLでは稀） */
-  annotation?: string;
-  placeRef?: PlaceRef[];
-  templateRef?: TemplateRef[];
-  /** 実MAIMLで必須：Propertyの配列 */
-  property?: Property[];
+  properties?: Property[];
+  contents? : Content[];
+  insertion? : Insertion;
+  methodId? : string;
 }
 
 // ============================================================================
@@ -752,13 +816,13 @@ export interface Method {
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
   /** XSD: 配列、実MAIML: 通常1個 */
-  pnml: PNML[];
+  pnml: PNML;
   /** XSD: 配列、実MAIML: 通常1個 */
   program: Program[];
   /** メソッドレベルのテンプレート（オプション） */
-  materialTemplate?: MaterialTemplate[];
-  conditionTemplate?: ConditionTemplate[];
-  resultTemplate?: ResultTemplate[];
+  materialTemplates?: Template[];
+  conditionTemplates?: Template[];
+  resultTemplates?: Template[];
 }
 
 /**
@@ -791,11 +855,11 @@ export interface Protocol {
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
   /** XSD: 配列、実MAIML: 複数可能 */
-  method: Method[];
+  methods: Method[];
   /** プロトコルレベルのテンプレート（オプション） */
-  materialTemplate?: MaterialTemplate[];
-  conditionTemplate?: ConditionTemplate[];
-  resultTemplate?: ResultTemplate[];
+  materialTemplates?: Template[];
+  conditionTemplates?: Template[];
+  resultTemplates?: Template[];
 }
 
 // ============================================================================
@@ -832,8 +896,9 @@ export interface Material {
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
   ref: string;
-  instanceRef?: InstanceRef[];
-  property?: Property[];
+  instanceRef?: InstanceRef;
+  properties?: Property[];
+  contents? : Content[];
 }
 
 /**
@@ -856,8 +921,9 @@ export interface Condition {
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
   ref: string;
-  instanceRef?: InstanceRef[];
-  property?: Property[];
+  instanceRef?: InstanceRef;
+  properties?: Property[];
+  contents? : Content[];
 }
 
 /**
@@ -880,9 +946,10 @@ export interface Result {
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
   ref: string;
-  instanceRef?: InstanceRef[];
+  instanceRef?: InstanceRef;
   insertion?: Insertion;
-  property?: Property[];
+  properties?: Property[];
+  contents? : Content[];
 }
 
 /**
@@ -904,9 +971,9 @@ export interface Results {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
-  material?: Material[];
-  condition?: Condition[];
-  result?: Result[];
+  materials?: Material[];
+  conditions?: Condition[];
+  results?: Result[];
 }
 
 /**
@@ -949,7 +1016,8 @@ export interface Extension {
  */
 export interface Globals {
   scope: string;
-  property?: Property[];
+  properties?: Property[];
+  contents? : Content[];
 }
 
 /**
@@ -999,13 +1067,14 @@ export interface Event {
   /** 参照するTransitionのID（必須） */
   ref: string;
   /** Results参照（オプション配列） */
-  resultsRef?: ResultsRef[];
+  resultsRefs?: Reference[];
   /** Creator参照（オプション配列） */
-  creatorRef?: CreatorRef[];
+  creatorRefs?: Reference[];
   /** Owner参照（オプション配列） */
-  ownerRef?: OwnerRef[];
+  ownerRefs?: Reference[];
   /** 実MAIMLで多用：Propertyの配列 */
-  property?: Property[];
+  properties?: Property[];
+  contents? : Content[];
 }
 
 /**
@@ -1030,9 +1099,9 @@ export interface Trace {
   annotation?: string;
   /** 参照ID（必須） */
   ref: string;
-  event: Event[];
-  creatorRef?: CreatorRef[];
-  ownerRef?: OwnerRef[];
+  events: Event[];
+  creatorRefs?: Reference[];
+  ownerRefs?: Reference[];
 }
 
 /**
@@ -1057,12 +1126,12 @@ export interface Log {
   annotation?: string;
   /** 参照ID（必須） */
   ref: string;
-  extension?: Extension[];
-  global?: Globals[];
-  classifier?: Classifier[];
-  trace: Trace[];
-  creatorRef?: CreatorRef[];
-  ownerRef?: OwnerRef[];
+  extensions?: Extension[];
+  globals?: Globals[];
+  classifiers?: Classifier[];
+  traces: Trace[];
+  creatorRefs?: Reference[];
+  ownerRefs?: Reference[];
 }
 
 /**
@@ -1085,7 +1154,7 @@ export interface EventLog {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
-  log: Log[];
+  logs: Log[];
 }
 
 // ============================================================================
@@ -1109,14 +1178,14 @@ export interface EventLog {
  */
 export interface MaimlRoot {
   xmlns?: string;
-  'xmlns:concept'?: string;
-  'xmlns:lifecycle'?: string;
-  'xmlns:time'?: string;
-  'xmlns:xsd'?: string;
-  'xmlns:xsi'?: string;
+  xmlnsConcept?: string;
+  xmlnsLifecycle?: string;
+  xmlnsTime?: string;
+  xmlnsXsd?: string;
+  xmlnsXsi?: string;
   features?: string;
   version: string;
-  'xsi:type'?: 'maimlRootType';
+  xsiType?: string;
   
   document: Document;
   protocol: Protocol;

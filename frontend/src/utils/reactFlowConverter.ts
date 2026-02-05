@@ -5,17 +5,35 @@
 
 import { MarkerType, Node, Edge } from 'reactflow';
 import type {
-  PetriNetData,
-  Template,
-  TemplateMap,
   NodeData,
   EdgeData,
   Position,
-  TemplateRef,
-  Place,
-  Transition,
   PnmlMetadata
 } from '@/components/editorv2/types';
+// XSD準拠型（maiml-unified.ts）
+import type {
+  Template,
+  Property,
+  PlaceRef,
+  Reference,
+  Transition,
+  Arc,
+  Place,
+  PNML,
+  Method
+} from '@/types/maiml-unified';
+import { MaimlParserTyped } from './maimlParserTyped';
+
+
+/**
+ * Petri Netデータ型定義（reactFlowConverter用）
+ */
+export interface PetriNetData {
+  methods : Method[];
+  places: Place[];
+  transitions: Transition[];
+  arcs: Arc[];
+}
 
 /**
  * React Flow変換結果の型定義
@@ -37,9 +55,23 @@ interface FrameNodesResult {
  * ペトリネット構造をReact Flow形式に変換
  */
 export const convertToReactFlowFormat = (
+  parserOrData: MaimlParserTyped | string,
   petriNetData: PetriNetData,
-  templateMap: TemplateMap = {}
+  templateMap: Record<string, Template>
 ): ReactFlowFormat => {
+    
+  // MaimlParserTypedインスタンスかmaimlData文字列かを判定
+  let parser: MaimlParserTyped;
+  
+  if (typeof parserOrData === 'string') {
+    // 文字列の場合は新しいparserインスタンスを作成
+    parser = new MaimlParserTyped(parserOrData);
+  } else if (parserOrData instanceof MaimlParserTyped) {
+    // MaimlParserTypedインスタンスの場合はそのまま使用
+    parser = parserOrData;
+  } else {
+    throw new Error('Invalid argument type: expected MaimlParserTyped instance or string');
+  }
   const { places, transitions, arcs } = petriNetData;
   
   if (!places || !transitions || !arcs) {
@@ -68,16 +100,14 @@ export const convertToReactFlowFormat = (
       
       if (template) {
         console.log(`📋 [reactFlowConverter] Place ${place.id} にtemplate完全反映:`, {
-          templateId: template.templateId,
+          templateId: template.id,
           name: template.name,
           uuid: template.uuid,
           placeRefs: template.placeRefs,
           placeRefsLength: template.placeRefs?.length,
-          placeRefsDetail: template.placeRefs?.map(pr => ({ id: typeof pr === 'object' ? pr.id : pr, ref: typeof pr === 'object' ? pr.ref : undefined, uuid: typeof pr === 'object' ? pr.uuid : undefined })),
-          templateRefs: template.templateRefs,
+          placeRefsDetail: template.placeRefs?.map(pr => ({ id: typeof pr === 'object' ? pr.id : pr, ref: typeof pr === 'object' ? pr.ref : undefined, uuid: typeof pr === 'object' })),
+          templateRefs: template.templateRef,
           propertiesType: typeof template.properties,
-          propertiesKeys: template.properties ? Object.keys(template.properties) : [],
-          propertyCount: template.properties ? Object.keys(template.properties).length : 0,
           hasDescription: !!template.description,
           hasAnnotation: !!template.annotation
         });
@@ -101,15 +131,8 @@ export const convertToReactFlowFormat = (
         });
       }
       
-      const templateRef: TemplateRef | undefined = template ? {
-        type: template.stereotype || 'MaterialTemplate',
-        uuid: template.uuid || '',
-        name: template.name || '',
-        placeRefs: template.placeRefs || [],
-        templateRefs: template.templateRefs || [],
-        properties: (Array.isArray(template.properties) 
-          ? template.properties 
-          : template.properties) as Record<string, unknown>
+      const templateRef: Template | undefined = template ? {
+        ...template
       } : undefined;
       
       if (templateRef && templateRef.placeRefs) {
@@ -130,32 +153,29 @@ export const convertToReactFlowFormat = (
       const nodeData: NodeData = {
         // 基本情報
         id: place.id,
-        name: place.data.name || template?.name || '',
+        name: place.name || template?.name || '',
         nodeId: place.id,
         nodeType: 'place',
-        stereotype: template?.stereotype || place.data.stereotype || 'MaterialTemplate',
         
         // メタデータの完全反映
-        description: place.data.description || template?.description || '',
-        annotation: template?.annotation || place.data.annotation || '',
+        description: place.description || template?.description || '',
+        annotation: template?.annotation || place.annotation || '',
         
         // プロパティの完全反映
-        properties: template?.properties || place.data.properties || [],
+        properties: template?.properties || [],
         
         // テンプレート参照情報
         templateRef: templateRef,
         
         // template全体を保持（後方互換性のため）
         template: template || undefined,
-        templateId: template?.templateId || template?.id || undefined,
+        templateId: template?.id ||  undefined,
         
         // placeType
-        placeType: (template?.stereotype || place.data.stereotype || 'MaterialTemplate')
-          .toLowerCase()
-          .replace('template', '') as 'material' | 'condition' | 'result',
+        placeType: template?.category || '',
         
         // 複数PNML要素対応 - pnmlId
-        pnmlId: place.data.pnmlId || null
+        pnmlId: parser.getPnmlIdByPlaceId(place.id) || null
       };
       
       if (nodeData.template && nodeData.template.placeRefs) {
@@ -190,7 +210,7 @@ export const convertToReactFlowFormat = (
       
       return {
         id: place.id,
-        type: getNodeTypeFromStereotype(template?.stereotype || place.data.stereotype),
+        type: getNodeTypeFromCategory(template?.category),
         position: position,
         data: nodeData
       };
@@ -206,22 +226,19 @@ export const convertToReactFlowFormat = (
         position: position,
         data: {
           id: transition.id,
-          name: transition.data.name || transition.data.description || transition.id,
+          name: transition.name || transition.description || transition.id,
           nodeId: transition.id,
           nodeType: 'transition',
           
           // メタデータの完全反映
-          description: transition.data.description || '',
-          hasInstruction: transition.data.hasInstruction || false,
+          description: transition.description || '',
+          instructionId: parser.getInstructionIdByTransitionId(transition.id),
           
           // transition全体を保持
-          transition: transition.data.transition || undefined,
+          transition: transition || undefined,
           
           // 複数PNML要素対応 - pnmlId
-          pnmlId: transition.data.pnmlId || null,
-          
-          // 元のdataも保持
-          ...transition.data
+          pnmlId: parser.getPnmlIdByTransitionId(transition.id) || null 
         }
       };
     });
@@ -269,29 +286,27 @@ export const convertToReactFlowFormat = (
 };
 
 /**
- * ステレオタイプからノードタイプを判定
+ * カテゴリからノードタイプを判定
  */
-const getNodeTypeFromStereotype = (stereotype?: string): string => {
-  if (!stereotype) {
+const getNodeTypeFromCategory = (category?: string): string => {
+  if (!category) {
     console.warn('[reactFlowConverter] stereotypeが空、デフォルトでmaterialTemplateを使用');
     return 'materialTemplate';
   }
   
-  const lower = stereotype.toLowerCase();
-  
-  if (lower.includes('material')) {
+  if (category === 'material') {
     return 'materialTemplate';
   }
   
-  if (lower.includes('condition')) {
+  if (category ==='condition') {
     return 'conditionTemplate';
   }
   
-  if (lower.includes('result')) {
+  if (category ==='result') {
     return 'resultTemplate';
   }
   
-  console.warn(`[reactFlowConverter] 未知のstereotype: ${stereotype}、デフォルトでmaterialTemplateを使用`);
+  console.warn(`[reactFlowConverter] 未知のcategory: ${category}、デフォルトでmaterialTemplateを使用`);
   return 'materialTemplate';
 };
 
@@ -591,12 +606,10 @@ const createPnmlGroupFrames = (
   try {
     console.log('🎯 [createPnmlGroupFrames] フレーム枠線生成開始:', {
       nodeCount: nodes.length,
-      hasPnmlMetadata: !!petriNetData.pnmlMetadata,
-      pnmlMetadataLength: petriNetData.pnmlMetadata?.length
     });
     
     // pnmlMetadataが存在しない、または単一PNMLの場合はフレームなし
-    if (!petriNetData.pnmlMetadata || petriNetData.pnmlMetadata.length <= 1) {
+    if (petriNetData.methods.length <= 1) {
       console.log('ℹ️ [createPnmlGroupFrames] 単一PNMLまたはメタデータなし、フレーム不要');
       return { frameNodes: [], adjustedNodes: nodes };
     }
@@ -610,8 +623,9 @@ const createPnmlGroupFrames = (
     let currentYOffset = 0;
     
     // 各PNMLメタデータからフレームを生成
-    petriNetData.pnmlMetadata.forEach((pnmlMeta: PnmlMetadata) => {
-      const pnmlId = pnmlMeta.pnmlId;
+    petriNetData.methods.forEach((method: Method) => {
+      const pnmlMeta = method.pnml;
+      const pnmlId = pnmlMeta.id;
       const description = pnmlMeta.description || pnmlMeta.name || pnmlId;
       
       // このpnmlIdに属するノードを取得
