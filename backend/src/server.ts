@@ -8,6 +8,7 @@ dotenv.config();
 
 // Import middleware
 import { setupSessionMiddleware } from './middleware/sessionMiddleware';
+import { RedisConnectionService } from './services/redisConnectionService';
 
 // Import routes after dotenv is configured
 import authRoutes from './routes/authRoutes';
@@ -41,25 +42,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser()); // Cookie解析ミドルウェア
 
-// Session middleware
-app.use(setupSessionMiddleware());
-
-// Mount routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/projects', projectRoutes);
-app.use('/api/v1/tasks', taskRoutes); // Task 3.3: タスク一覧取得API
-app.use('/api/v1/projects', fileDownloadRoutes);
-
-// Mount systemManagement routes
-app.use('/api/v1/systemManagement', departmentRoutes);
-app.use('/api/v1/systemManagement', roleRoutes);
-
-// Mount provider routes
-app.use('/api/v1/provider', corporationRoutes);
-
-// Mount master routes
-app.use('/api/v1/master', masterRoutes);
-
 // Health check endpoint
 app.get('/api/health', (_req, res) => {
   res.status(200).json({
@@ -78,12 +60,72 @@ app.get('/', (_req, res) => {
   });
 });
 
+// Session middleware and routes will be set up after Redis initialization in startServer()
 // Start server
+async function startServer() {
+  try {
+    // Redis初期化（リフレッシュトークン管理用）
+    // 開発環境ではRedis未起動でもサーバーを起動可能
+    await RedisConnectionService.initialize();
+    
+    // Setup session middleware after Redis initialization
+    app.use(setupSessionMiddleware());
+    
+    // Mount routes after session middleware
+    app.use('/api/v1/auth', authRoutes);
+    app.use('/api/v1/projects', projectRoutes);
+    app.use('/api/v1/tasks', taskRoutes);
+    app.use('/api/v1/projects', fileDownloadRoutes);
+    
+    // Mount systemManagement routes
+    app.use('/api/v1/systemManagement', departmentRoutes);
+    app.use('/api/v1/systemManagement', roleRoutes);
+    
+    // Mount provider routes
+    app.use('/api/v1/provider', corporationRoutes);
+    
+    // Mount master routes
+    app.use('/api/v1/master', masterRoutes);
+
+    if (process.env.NODE_ENV !== 'test') {
+      const server = app.listen(PORT, () => {
+        console.log(`🚀 Server is running on port ${PORT}`);
+        console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+      });
+
+      // グレースフルシャットダウン
+      const gracefulShutdown = async (signal: string) => {
+        console.log(`\n${signal} signal received: closing HTTP server`);
+        server.close(async () => {
+          console.log('HTTP server closed');
+          
+          // Redis接続のクローズ
+          await RedisConnectionService.disconnect();
+          
+          console.log('Graceful shutdown complete');
+          process.exit(0);
+        });
+
+        // 強制終了タイマー（30秒）
+        setTimeout(() => {
+          console.error('Forced shutdown after timeout');
+          process.exit(1);
+        }, 30000);
+      };
+
+      // シグナルハンドラー登録
+      process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+      process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    }
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+// サーバー起動
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  });
+  startServer();
 }
 
 export default app;

@@ -53,6 +53,40 @@ export interface JwtPayload {
 }
 
 /**
+ * リフレッシュトークンペイロード
+ */
+export interface RefreshTokenPayload {
+  userId: string;
+  organizationId: string;
+  sessionId: string;
+  tokenId: string;       // リフレッシュトークン固有ID
+  iat: number;
+  exp: number;
+}
+
+/**
+ * トークンペア
+ */
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
+/**
+ * Redis保存用リフレッシュトークンデータ
+ */
+export interface StoredRefreshToken {
+  userId: string;
+  organizationId: string;
+  sessionId: string;
+  tokenId: string;
+  issuedAt: number;
+  expiresAt: number;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+/**
  * Result型（エラーハンドリング用）
  */
 export type Result<T, E = ServiceError> =

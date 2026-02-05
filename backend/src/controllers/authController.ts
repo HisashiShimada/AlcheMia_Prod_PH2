@@ -4,6 +4,7 @@ import { PasswordService } from '../services/passwordService';
 import { PinCodeService } from '../services/pinCodeService';
 import { EmailService } from '../services/emailService';
 import { JwtService } from '../services/jwtService';
+import { RefreshTokenService } from '../services/refreshTokenService';
 import { RolePermissionRepository } from '../repositories/rolePermissionRepository';
 import { v4 as uuidv4 } from 'uuid';
 import type { UserRole } from '../types/service';
@@ -12,6 +13,7 @@ import { logError } from '../utils/logger';
 // Services that don't require pool
 const emailService = new EmailService();
 const jwtService = new JwtService();
+const refreshTokenService = new RefreshTokenService();
 
 /**
  * マスキングされたメールアドレスを生成
@@ -473,34 +475,33 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
  * POST /api/v1/auth/logout
  * 
  * @description
- * sessionStorage方式でのログアウト処理
- * - サーバー側では認証チェックのみ実施
- * - クライアント側でsessionStorageをクリアする
+ * ログアウト処理（認証ミドルウェアで保護済み）
+ * - リフレッシュトークンをRedisから削除（無効化）
+ * - クライアント側でtokenStorageをクリアする
  */
 export async function logout(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
 
   try {
-    // 1. 認証チェック（authMiddlewareで設定されたreq.userを確認）
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_UNAUTHORIZED',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
+    // 1. Cookieからリフレッシュトークンを取得
+    const refreshTokenValue = req.cookies?.refreshToken;
+
+    // 2. リフレッシュトークンが存在する場合、Redisから無効化
+    if (refreshTokenValue) {
+      const decoded = jwtService.decode(refreshTokenValue);
+      
+      if (decoded && 'tokenId' in decoded) {
+        // Redisからリフレッシュトークンを削除
+        await refreshTokenService.revoke(decoded.tokenId, req.user!.userId);
+      }
     }
 
-    // 2. sessionStorage方式ではサーバー側で行う処理はない
-    //    クライアント側でsessionStorageをクリアする
+    // 3. Cookieを削除
+    res.clearCookie('refreshToken', {
+      path: '/api/v1/auth',  // 修正: 設定時と同じパスを指定
+    });
 
-    // 3. 成功レスポンス
+    // 4. 成功レスポンス
     res.status(200).json({
       success: true,
       data: {
@@ -514,8 +515,8 @@ export async function logout(req: Request, res: Response): Promise<void> {
   } catch (error) {
     logError('Logout error', error as Error, {
       action: 'logout',
-      userId: req.user?.userId,
-      organizationId: req.user?.organizationId,
+      userId: req.user!.userId,
+      organizationId: req.user!.organizationId,
     });
     res.status(500).json({
       success: false,
@@ -1067,17 +1068,16 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
       userInfo.organizationId
     );
 
-    // 5. JWT生成（権限情報を含める）
-    const jwtResult = await jwtService.generate(
-      {
-        userId: userInfo.id,
-        organizationId: userInfo.organizationId,
-        sessionId: uuidv4(),
-        permissions,
-      }
-    );
+    // 5. トークンペア生成（アクセストークン + リフレッシュトークン）
+    const newSessionId = uuidv4();
+    const tokenPairResult = await jwtService.generateTokenPair({
+      userId: userInfo.id,
+      organizationId: userInfo.organizationId,
+      sessionId: newSessionId,
+      permissions,
+    });
 
-    if (!jwtResult.success) {
+    if (!tokenPairResult.success) {
       res.status(500).json({
         success: false,
         error: {
@@ -1092,18 +1092,40 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const jwtToken = jwtResult.data;
+    const { accessToken, refreshToken: refreshTokenValue } = tokenPairResult.data;
 
-    // 6. セッション有効期限を計算（全ロール共通で30分）
-    const maxAge = 30 * 60 * 1000; // 30分
+    // 6. リフレッシュトークンをRedisに保存
+    // IPアドレスとUser-Agentを取得
+    const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] 
+      || req.ip 
+      || req.socket.remoteAddress 
+      || 'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
+    const refreshPayload = jwtService.decode(refreshTokenValue);
+    if (refreshPayload && 'tokenId' in refreshPayload) {
+      await refreshTokenService.save(refreshPayload, ipAddress, userAgent);
+    }
+
+    // 7. セッション有効期限を計算（アクセストークン: 15分 or 1時間）
+    const maxAge = 30 * 60 * 1000; // 30分（UI表示用）
     const nowTimestamp = Date.now();
     const expiresAtTimestamp = nowTimestamp + maxAge;
     const expiresAt = new Date(expiresAtTimestamp);
 
-    // 7. PINコード削除（使用済み処理）
+    // 8. PINコード削除（使用済み処理）
     await pinCodeService.delete(sessionToken);
 
-    // 8. 成功レスポンス（JWTトークンをレスポンスボディで返す）
+    // 9. リフレッシュトークンをhttpOnly Cookieに設定
+    res.cookie('refreshToken', refreshTokenValue, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // 本番環境ではtrue（HTTPS必須）
+      sameSite: 'lax', // Cross-Origin対応のため'lax'（本番ではstrictも可）
+      maxAge: 30 * 60 * 1000, // 30分
+      path: '/api/v1/auth',
+    });
+
+    // 10. 成功レスポンス（アクセストークンのみレスポンスボディで返す）
     // initial_screen_function_cdに基づいてフロントエンドで画面遷移を制御
     res.status(200).json({
       success: true,
@@ -1121,7 +1143,7 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
           initialScreenFunctionCd: userInfo.initialScreenFunctionCd
         },
         session: {
-          token: jwtToken,
+          token: accessToken,
           expiresAt: expiresAt.toISOString(),
         },
       },
@@ -1134,6 +1156,245 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     logError('Verify PIN error', error as Error, {
       action: 'verify_pin',
       organizationId: req.headers['x-organization-id'] as string,
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
+ * トークン更新エンドポイント
+ * POST /api/v1/auth/refresh
+ * 
+ * @description
+ * リフレッシュトークンを使用してアクセストークンを更新
+ * - リフレッシュトークンを検証
+ * - 新しいトークンペアを生成
+ * - 古いリフレッシュトークンを無効化（トークンローテーション）
+ * - Redis未起動時はJWT検証のみで動作（開発環境用）
+ */
+export async function refreshToken(req: Request, res: Response): Promise<void> {
+  const pool = getPool();
+  const requestId = uuidv4();
+
+  // IPアドレスとUser-Agentを取得
+  const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] 
+    || req.ip 
+    || req.socket.remoteAddress 
+    || 'unknown';
+  const userAgent = req.headers['user-agent'] || 'unknown';
+
+  try {
+    // 1. Cookieからリフレッシュトークンを取得
+    const refreshTokenValue = req.cookies?.refreshToken;
+
+    if (!refreshTokenValue) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTH_TOKEN_MISSING',
+          message: 'リフレッシュトークンが見つかりません。再度ログインしてください',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 2. リフレッシュトークンのJWT検証
+    const verifyResult = await jwtService.verifyRefreshToken(refreshTokenValue);
+
+    if (!verifyResult.success) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: verifyResult.error?.code || 'AUTH_TOKEN_INVALID',
+          message: 
+            verifyResult.error?.code === 'AUTH_TOKEN_EXPIRED'
+              ? 'リフレッシュトークンの有効期限が切れています。再度ログインしてください'
+              : 'リフレッシュトークンが不正です',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const payload = verifyResult.data;
+
+    // 3. Redisでリフレッシュトークンの存在確認（Redis起動時のみ）
+    const existsResult = await refreshTokenService.exists(payload.tokenId);
+
+    if (!existsResult.success) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYSTEM_REDIS_ERROR',
+          message: 'トークン検証に失敗しました',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Redis起動時：トークンが存在しない場合はエラー（無効化済み or 期限切れ）
+    if (!existsResult.data) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTH_TOKEN_INVALID',
+          message: 'リフレッシュトークンが無効です。再度ログインしてください',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 4. ユーザー情報とロール情報を取得
+    const userQuery = `
+      SELECT 
+        ou.user_id,
+        ou.user_name,
+        ou.mail_address,
+        ou.role_cd,
+        ou.organization_id,
+        ou.is_active,
+        ou.department_cd,
+        r.initial_screen_function_cd
+      FROM organization_user ou
+      JOIN role r ON ou.role_cd = r.role_cd AND ou.organization_id = r.organization_id
+      WHERE ou.user_id = $1 AND ou.organization_id = $2
+    `;
+    
+    const userResult = await pool.query(userQuery, [payload.userId, payload.organizationId]);
+
+    if (userResult.rows.length === 0) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTH_USER_NOT_FOUND',
+          message: 'ユーザーが見つかりません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const user = userResult.rows[0];
+
+    // 5. アカウント有効性チェック
+    if (!user.is_active) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'AUTH_ACCOUNT_DISABLED',
+          message: 'アカウントが無効化されています',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 6. 権限情報を取得
+    const rolePermissionRepository = new RolePermissionRepository();
+    const permissions = await rolePermissionRepository.getPermissionsByRoleId(
+      user.role_cd,
+      user.organization_id
+    );
+
+    // 7. 新しいトークンペアを生成
+    const newSessionId = uuidv4();
+    const tokenPairResult = await jwtService.generateTokenPair({
+      userId: user.user_id,
+      organizationId: user.organization_id,
+      sessionId: newSessionId,
+      permissions,
+    });
+
+    if (!tokenPairResult.success) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYSTEM_JWT_GENERATION_FAILED',
+          message: 'トークン生成に失敗しました',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const { accessToken, refreshToken: newRefreshToken } = tokenPairResult.data;
+
+    // 8. 新しいリフレッシュトークンをRedisに保存
+    const newRefreshPayload = jwtService.decode(newRefreshToken);
+    if (newRefreshPayload && 'tokenId' in newRefreshPayload) {
+      await refreshTokenService.save(newRefreshPayload, ipAddress, userAgent);
+    }
+
+    // 9. 古いリフレッシュトークンを無効化（トークンローテーション）
+    await refreshTokenService.revoke(payload.tokenId, payload.userId);
+
+    // 10. 新しいリフレッシュトークンをhttpOnly Cookieに設定
+    res.cookie('refreshToken', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // 本番環境ではtrue（HTTPS必須）
+      sameSite: 'lax', // Cross-Origin対応のため'lax'（本番ではstrictも可）
+      maxAge: 30 * 60 * 1000, // 30分
+      path: '/api/v1/auth',
+    });
+
+    // 11. 成功レスポンス（アクセストークンのみ返す）
+    res.status(200).json({
+      success: true,
+      data: {
+        accessToken,
+        expiresIn: 900, // 15分（秒）- Redis起動時
+        user: {
+          id: user.user_id,
+          username: user.user_name,
+          email: user.mail_address,
+          roleCd: user.role_cd,
+          organizationId: user.organization_id,
+          departmentCd: user.department_cd,
+          initialScreenFunctionCd: user.initial_screen_function_cd?.trim() || null,
+        },
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    logError('Refresh token error', error as Error, {
+      action: 'refresh_token',
     });
     res.status(500).json({
       success: false,

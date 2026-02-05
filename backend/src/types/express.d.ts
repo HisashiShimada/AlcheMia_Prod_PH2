@@ -11,9 +11,6 @@ declare module 'express-session' {
   interface SessionData {
     /** 部門CD（NULL許容） */
     departmentCd?: string | null;
-    
-    // 将来の拡張用（任意のデータを保存可能）
-    [key: string]: any;
   }
   
   interface Session {
@@ -41,7 +38,6 @@ declare global {
   namespace Express {
     interface Request {
       user?: JwtPayload;
-      organizationId?: string;
     }
   }
 }
