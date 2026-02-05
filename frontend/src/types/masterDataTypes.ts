@@ -1,16 +1,11 @@
 /**
- * マスタ管理画面の設定定義
- * 
- * 各マスタの設定を一元管理することで、冗長な処理を削減し、
- * 保守性と拡張性を向上させます。
+ * マスタ管理画面の設定定義（Vendor、Creator、Instrument）
  */
 
 /**
- * マスタタイプの列挙
+ * マスタデータタイプの列挙
  */
-export type MasterType = 
-  | 'department'      // 部署マスタ
-  | 'role'            // ロールマスタ
+export type MasterDataType = 
   | 'instrument'      // 実験装置マスタ
   | 'vendor'          // ベンダーマスタ
   | 'creator';        // Creatorマスタ
@@ -38,13 +33,13 @@ export interface FieldConfig {
 }
 
 /**
- * マスタ設定
+ * マスタデータ設定
  */
-export interface MasterConfig {
+export interface MasterDataConfig {
   /** マスタID */
   masterId: string;
   /** マスタタイプ */
-  type: MasterType;
+  type: MasterDataType;
   /** 表示名 */
   displayName: string;
   /** APIエンドポイント（ベースURL） */
@@ -60,143 +55,9 @@ export interface MasterConfig {
 }
 
 /**
- * 全マスタの設定定義
+ * 全マスタデータの設定定義
  */
-export const MASTER_CONFIGS: Record<MasterType, MasterConfig> = {
-  /**
-   * 部署マスタ
-   */
-  department: {
-    masterId: '2',
-    type: 'department',
-    displayName: '部署マスタ',
-    apiEndpoint: '/api/v1/master/department',
-    primaryKeyField: 'departmentId',
-    supportsCsvUpload: true,
-    supportsCsvDownload: true,
-    fields: [
-      {
-        dbField: 'departmentId',
-        displayName: '部署ID',
-        searchFixed: false,
-        isDisplay: true,
-        addable: true,
-        update: false,
-        width: 150,
-        align: 'left',
-      },
-      {
-        dbField: 'displayName',
-        displayName: '部署名',
-        searchFixed: false,
-        isDisplay: true,
-        addable: true,
-        update: true,
-        width: 200,
-        align: 'left',
-      },
-      {
-        dbField: 'isActive',
-        displayName: 'ステータス',
-        searchFixed: false,
-        isDisplay: false,
-        addable: true,
-        update: true,
-      },
-      {
-        dbField: 'updatedAt',
-        displayName: '更新日時',
-        searchFixed: false,
-        isDisplay: true,
-        addable: false,
-        update: false,
-        width: 150,
-        align: 'right',
-      },
-    ],
-  },
-
-  /**
-   * ロールマスタ
-   */
-  role: {
-    masterId: '4',
-    type: 'role',
-    displayName: 'ロールマスタ',
-    apiEndpoint: '/api/v1/master/role',
-    primaryKeyField: 'role',
-    supportsCsvUpload: false,
-    supportsCsvDownload: true,
-    fields: [
-      {
-        dbField: 'role',
-        displayName: 'ロールID',
-        searchFixed: false,
-        isDisplay: true,
-        addable: true,
-        update: false,
-        width: 150,
-        align: 'left',
-      },
-      {
-        dbField: 'roleName',
-        displayName: 'ロール名',
-        searchFixed: false,
-        isDisplay: true,
-        addable: true,
-        update: true,
-        width: 170,
-        align: 'left',
-      },
-      {
-        dbField: 'functionId',
-        displayName: '機能ID',
-        searchFixed: false,
-        isDisplay: true,
-        addable: false,
-        update: false,
-        width: 460,
-        align: 'left',
-      },
-      {
-        dbField: 'functionName',
-        displayName: '機能名',
-        searchFixed: false,
-        isDisplay: true,
-        addable: false,
-        update: false,
-        width: 500,
-        align: 'left',
-      },
-      {
-        dbField: 'functionWritePermissions',
-        displayName: '書込可能機能ID',
-        searchFixed: false,
-        isDisplay: false,
-        addable: false,
-        update: false,
-      },
-      {
-        dbField: 'isActive',
-        displayName: 'ステータス',
-        searchFixed: false,
-        isDisplay: false,
-        addable: true,
-        update: true,
-      },
-      {
-        dbField: 'updatedAt',
-        displayName: '更新日時',
-        searchFixed: false,
-        isDisplay: true,
-        addable: false,
-        update: false,
-        width: 150,
-        align: 'right',
-      },
-    ],
-  },
-
+export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
   /**
    * 実験装置マスタ
    */
@@ -204,7 +65,7 @@ export const MASTER_CONFIGS: Record<MasterType, MasterConfig> = {
     masterId: '5',
     type: 'instrument',
     displayName: 'Instrument',
-    apiEndpoint: '/api/v1/master/instrument',
+    apiEndpoint: '/master/instrument',
     primaryKeyField: 'instrumentId',
     supportsCsvUpload: true,
     supportsCsvDownload: true,
@@ -277,7 +138,7 @@ export const MASTER_CONFIGS: Record<MasterType, MasterConfig> = {
     masterId: '7',
     type: 'vendor',
     displayName: 'Vendor',
-    apiEndpoint: '/api/v1/master/vendor',
+    apiEndpoint: '/master/vendor',
     primaryKeyField: 'vendorId',
     supportsCsvUpload: true,
     supportsCsvDownload: true,
@@ -350,7 +211,7 @@ export const MASTER_CONFIGS: Record<MasterType, MasterConfig> = {
     masterId: '8',
     type: 'creator',
     displayName: 'Creator',
-    apiEndpoint: '/api/v1/master/creator',
+    apiEndpoint: '/master/creator',
     primaryKeyField: 'creatorId',
     supportsCsvUpload: true,
     supportsCsvDownload: true,
@@ -438,22 +299,15 @@ export const MASTER_CONFIGS: Record<MasterType, MasterConfig> = {
 };
 
 /**
- * マスタIDからマスタ設定を取得
- */
-export function getMasterConfigById(masterId: string): MasterConfig | undefined {
-  return Object.values(MASTER_CONFIGS).find(config => config.masterId === masterId);
-}
-
-/**
  * マスタタイプからマスタ設定を取得
  */
-export function getMasterConfigByType(type: MasterType): MasterConfig {
-  return MASTER_CONFIGS[type];
+export function getMasterDataConfig(type: MasterDataType): MasterDataConfig {
+  return MASTER_DATA_CONFIGS[type];
 }
 
 /**
- * 全てのマスタ設定を取得
+ * 全てのマスタデータ設定を取得
  */
-export function getAllMasterConfigs(): MasterConfig[] {
-  return Object.values(MASTER_CONFIGS);
+export function getAllMasterDataConfigs(): MasterDataConfig[] {
+  return Object.values(MASTER_DATA_CONFIGS);
 }

@@ -14,6 +14,9 @@ import fileDownloadRoutes from './routes/fileDownloadRoutes';
 import masterRoutes from './routes/masterRoutes';
 import experimentRoutes from './routes/experimentRoutes';
 import issueRoutes from './routes/issueRoutes';
+import departmentRoutes from './routes/departmentRoutes';
+import corporationRoutes from './routes/corporationRoutes';
+import roleRoutes from './routes/roleRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -26,7 +29,7 @@ const corsOptions = {
   credentials: true, // Cookie送信を許可
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id'],
-  exposedHeaders: ['Set-Cookie'],
+  exposedHeaders: ['Set-Cookie', 'Content-Disposition'], // Content-Dispositionを追加
   maxAge: 86400, // プリフライトリクエストのキャッシュ時間（24時間）
 };
 
@@ -45,6 +48,13 @@ app.use('/api/v1/projects', fileDownloadRoutes);
 
 // Mount experiment routes
 app.use('/api/v1/experiments', experimentRoutes);
+
+// Mount systemManagement routes
+app.use('/api/v1/systemManagement', departmentRoutes);
+app.use('/api/v1/systemManagement', roleRoutes);
+
+// Mount provider routes
+app.use('/api/v1/provider', corporationRoutes);
 
 // Mount master routes
 app.use('/api/v1/master', masterRoutes);
