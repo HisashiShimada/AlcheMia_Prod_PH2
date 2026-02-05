@@ -9,7 +9,7 @@ import {
   Modal,
   Form,
   Select,
-  message,
+  App,
   Typography,
   Row,
   Col,
@@ -30,11 +30,20 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { getOrganizationId } from '@/utils/sessionStorageHelper';
 import { formatDateTime } from '@/utils/dateFormatter';
-import { getMasterConfigById, getAllMasterConfigs } from '@/config/masterConfig';
-import type { MasterType } from '@/config/masterConfig';
+import { getMasterDataConfig, getAllMasterDataConfigs } from '@/types/masterDataTypes';
+import type { MasterDataType } from '@/types/masterDataTypes';
 import * as masterApi from '@/services/masterApiService';
 
 const { Text } = Typography;
+
+/**
+ * CSVバリデーションエラーの型定義
+ */
+interface CsvValidationError {
+  row: number;
+  field: string;
+  message: string;
+}
 
 /**
  * 項目カテゴリの型定義
@@ -72,10 +81,11 @@ interface MasterManagementMockProps {
 }
 
 /**
- * マスタ管理画面のモックコンポーネント
+ * マスタ管理画面のコンポーネント
  */
 export default function MasterManagementMock({ initialMasterId }: MasterManagementMockProps) {
   const { token } = theme.useToken();
+  const { message, modal } = App.useApp();
 
   // State管理
   const [masters, setMasters] = useState<MasterRecord[]>([]);
@@ -96,27 +106,29 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const [fixedFilters, setFixedFilters] = useState<Record<string, string>>({});
   const [form] = Form.useForm();
   
-  // masterIdをMasterTypeに変換するヘルパー関数
-  const convertMasterIdToType = (masterId: string): MasterType => {
+  // masterIdをMasterDataTypeに変換するヘルパー関数
+  const convertMasterIdToType = (masterId: string): MasterDataType => {
     switch (masterId) {
-      case '2': return 'department';
-      case '4': return 'role';
       case '5': return 'instrument';
       case '7': return 'vendor';
       case '8': return 'creator';
-      default: throw new Error(`Unknown masterId: ${masterId}`);
+      default: 
+        throw new Error(
+          `マスタID ${masterId} はこの画面では管理できません。` +
+          `この画面ではCreator（ID: 8）、Vendor（ID: 7）、Instrument（ID: 5）のみ対応しています。`
+        );
     }
   };
 
   // 統一的なマスタ取得関数
-  const fetchMasterData = async (masterIdOrType: string | MasterType) => {
+  const fetchMasterData = async (masterIdOrType: string | MasterDataType) => {
     try {
       setLoading(true);
       
-      // masterIdの場合はMasterTypeに変換
+      // masterIdの場合はMasterDataTypeに変換
       const masterType = typeof masterIdOrType === 'string' && masterIdOrType.match(/^\d+$/)
         ? convertMasterIdToType(masterIdOrType)
-        : (masterIdOrType as MasterType);
+        : (masterIdOrType as MasterDataType);
       
       const data = await masterApi.fetchMasters(masterType);
       setMasters(data);
@@ -134,9 +146,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   
   // 選択されたマスタ種別の情報を取得
   const selectedMasterInfo = useMemo(() => {
-    // masterConfig.tsから新しい構造を取得
-    const config = getMasterConfigById(selectedMasterType);
-    if (!config) return undefined;
+    // masterDataConfig.tsから新しい構造を取得
+    const masterType = convertMasterIdToType(selectedMasterType);
+    const config = getMasterDataConfig(masterType);
     
     // 古い構造（itemCategories）に変換して互換性を保つ
     const itemCategories: Record<string, ItemCategory | undefined> = {};
@@ -160,14 +172,14 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     };
   }, [selectedMasterType]);
 
-  // マスタ種別の選択肢をmasterConfig.tsから生成（Creator、Vendor、Instrumentの3つのみ）
+  // マスタ種別の選択肢をmasterDataConfig.tsから生成（Creator、Vendor、Instrumentの3つのみ）
   const masterTypes = useMemo(() => {
     // Creator（'8'）、Vendor（'7'）、Instrument（'5'）の順序で表示
-    const targetMasterIds = ['8', '7', '5'];
-    const allConfigs = getAllMasterConfigs();
+    const allConfigs = getAllMasterDataConfigs();
+    const targetOrder: MasterDataType[] = ['creator', 'vendor', 'instrument'];
     
-    return targetMasterIds
-      .map(masterId => allConfigs.find(config => config.masterId === masterId))
+    return targetOrder
+      .map(type => allConfigs.find(config => config.type === type))
       .filter((config): config is NonNullable<typeof config> => config !== undefined)
       .map((config) => ({
         value: config.masterId,
@@ -417,7 +429,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       return;
     }
     
-    Modal.confirm({
+    modal.confirm({
       title: '選択したマスタをアクティブにしますか？',
       content: `${selectedRowKeys.length}件のマスタがアクティブになります。`,
       okText: 'アクティブ化',
@@ -425,7 +437,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       onOk: async () => {
         try {
           // DB連携マスタの場合はAPI経由で更新
-          const DB_CONNECTED_MASTERS = ['2', '4', '5', '7', '8'];
+          const DB_CONNECTED_MASTERS = ['5', '7', '8'];
           if (selectedMasterInfo && DB_CONNECTED_MASTERS.includes(selectedMasterInfo.masterId)) {
             await masterApi.batchUpdateMasterStatus(
               convertMasterIdToType(selectedMasterInfo.masterId),
@@ -457,7 +469,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       message.warning('非アクティブにするマスタを選択してください');
       return;
     }
-    Modal.confirm({
+    modal.confirm({
       title: '選択したマスタを非アクティブにしますか？',
       content: `${selectedRowKeys.length}件のマスタが非アクティブになります。`,
       okText: '非アクティブ化',
@@ -466,7 +478,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       onOk: async () => {
         try {
           // DB連携マスタの場合はAPI経由で更新
-          const DB_CONNECTED_MASTERS = ['2', '4', '5', '7', '8'];
+          const DB_CONNECTED_MASTERS = ['5', '7', '8'];
           if (selectedMasterInfo && DB_CONNECTED_MASTERS.includes(selectedMasterInfo.masterId)) {
             await masterApi.batchUpdateMasterStatus(
               convertMasterIdToType(selectedMasterInfo.masterId),
@@ -513,7 +525,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     const actionText = currentStatus ? '非アクティブ' : 'アクティブ';
     const newStatus = !currentStatus;
 
-    Modal.confirm({
+    modal.confirm({
       title: `${masterName}を${actionText}にしますか？`,
       content: `このマスタを${actionText}状態に変更します。`,
       okText: actionText,
@@ -552,8 +564,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const handleUpload = () => {
     if (!selectedMasterInfo) return;
     
-    // DB連携マスタ（Department, Instrument, Vendor, Creator）のみCSVアップロード可能
-    if (!['2', '5', '7', '8'].includes(selectedMasterInfo.masterId)) {
+    // DB連携マスタ（Instrument, Vendor, Creator）のみCSVアップロード可能
+    if (!['5', '7', '8'].includes(selectedMasterInfo.masterId)) {
       message.warning('このマスタはCSVアップロードに対応していません');
       return;
     }
@@ -586,16 +598,22 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         return;
       }
       
+      // セッショントークンを取得
+      const sessionToken = sessionStorage.getItem('sessionToken');
+      if (!sessionToken) {
+        message.error('セッショントークンが取得できません');
+        setLoading(false);
+        return;
+      }
+      
       // マスタIDに応じたエンドポイントを決定
       let endpoint = '';
       if (selectedMasterInfo.masterId === '5') {
-        endpoint = `${apiUrl}/api/v1/master/instrument/upload-csv`;
+        endpoint = `${apiUrl}/master/instrument/upload-csv`;
       } else if (selectedMasterInfo.masterId === '7') {
-        endpoint = `${apiUrl}/api/v1/master/vendor/upload-csv`;
+        endpoint = `${apiUrl}/master/vendor/upload-csv`;
       } else if (selectedMasterInfo.masterId === '8') {
-        endpoint = `${apiUrl}/api/v1/master/creator/upload-csv`;
-      } else if (selectedMasterInfo.masterId === '2') {
-        endpoint = `${apiUrl}/api/v1/master/department/upload-csv`;
+        endpoint = `${apiUrl}/master/creator/upload-csv`;
       } else {
         message.error('このマスタはCSVアップロードに対応していません');
         return;
@@ -613,6 +631,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         method: 'POST',
         headers: {
           'X-Organization-Id': organizationId,
+          'Authorization': `Bearer ${sessionToken}`,
         },
         body: formData,
       });
@@ -625,10 +644,49 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       const result = await response.json();
       console.log('Upload result:', result);
       
-      message.success('CSVファイルをアップロードしました');
+      // レスポンスからデータを取得
+      const { successCount, failureCount, errors } = result.data;
       
-      // データを再取得
-      await fetchMasterData(selectedMasterInfo.masterId as MasterType);
+      // エラーがある場合（ロールバック）
+      if (errors && errors.length > 0) {
+        // エラーメッセージを構築
+        const errorMessages = errors.map((err: CsvValidationError) => 
+          `${err.row}行目: ${err.message}`
+        ).join('\n');
+        
+        // モーダルでエラー詳細を表示
+        modal.error({
+          title: 'CSVアップロードエラー',
+          content: (
+            <div>
+              <p>以下のエラーにより、全てロールバックされました。</p>
+              <p>エラー内容を確認して、修正後に再度アップロードしてください。</p>
+              <pre style={{ 
+                maxHeight: '300px', 
+                overflow: 'auto', 
+                background: '#f5f5f5', 
+                padding: '8px',
+                whiteSpace: 'pre-wrap',
+                fontSize: '12px',
+              }}>
+                {errorMessages}
+              </pre>
+              <p style={{ marginTop: '8px', fontWeight: 'bold' }}>
+                失敗件数: {failureCount}件
+              </p>
+            </div>
+          ),
+          width: 600,
+        });
+        
+        message.error(`CSVアップロードに失敗しました（${failureCount}件のエラー）`);
+      } else if (successCount > 0) {
+        // 成功の場合
+        message.success(`CSVファイルをアップロードしました（${successCount}件登録）`);
+        
+        // データを再取得
+        await fetchMasterData(selectedMasterInfo.masterId);
+      }
     } catch (error) {
       console.error('CSV upload error:', error);
       message.error(error instanceof Error ? error.message : 'CSVアップロードに失敗しました');
@@ -641,8 +699,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   const handleDownload = async () => {
     if (!selectedMasterInfo) return;
     
-    // DB連携マスタ（Department, Instrument, Vendor, Creator）の場合はAPI経由
-    if (['2', '5', '7', '8'].includes(selectedMasterInfo.masterId)) {
+    // DB連携マスタ（Instrument, Vendor, Creator）の場合はAPI経由
+    if (['5', '7', '8'].includes(selectedMasterInfo.masterId)) {
       try {
         setLoading(true);
         
@@ -656,29 +714,20 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         
         // マスタIDに応じたエンドポイントを決定
         let endpoint = '';
-        let filename = '';
         if (selectedMasterInfo.masterId === '5') {
-          endpoint = `${apiUrl}/api/v1/master/instrument/download-csv`;
-          filename = 'instruments.csv';
+          endpoint = `${apiUrl}/master/instrument/download-csv`;
         } else if (selectedMasterInfo.masterId === '7') {
-          endpoint = `${apiUrl}/api/v1/master/vendor/download-csv`;
-          filename = 'vendors.csv';
+          endpoint = `${apiUrl}/master/vendor/download-csv`;
         } else if (selectedMasterInfo.masterId === '8') {
-          endpoint = `${apiUrl}/api/v1/master/creator/download-csv`;
-          filename = 'creators.csv';
-        } else if (selectedMasterInfo.masterId === '2') {
-          endpoint = `${apiUrl}/api/v1/master/department/download-csv`;
-          filename = 'departments.csv';
+          endpoint = `${apiUrl}/master/creator/download-csv`;
         }
         
-        // フィルタ条件をクエリパラメータに追加
+        // フィルタ条件をクエリパラメータに追加（検索欄のみ）
         const params = new URLSearchParams();
         if (searchText.trim()) {
           params.append('search', searchText.trim());
         }
-        if (displayScope && displayScope !== 'all') {
-          params.append('display_scope', displayScope);
-        }
+        // 表示切替フィルタは除外（後で実装予定のため）
         // 固定フィルター（searchFixed=trueの項目）もクエリパラメータに追加
         Object.entries(fixedFilters).forEach(([key, value]) => {
           if (value) {
@@ -697,13 +746,20 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           fixedFilters,
         });
         
+        const sessionToken = sessionStorage.getItem('sessionToken');
+        if (!sessionToken) {
+          message.error('セッショントークンが取得できません');
+          setLoading(false);
+          return;
+        }
+        
         const response = await fetch(fullUrl, {
           method: 'GET',
           headers: {
             'X-Organization-Id': organizationId,
-            'Authorization': 'Bearer dummy-token-for-development', // 開発用ダミートークン
+            'Authorization': `Bearer ${sessionToken}`,
           },
-          credentials: 'include', // Cookieを含める
+          credentials: 'include',
         });
         
         console.log('Response status:', response.status);
@@ -714,6 +770,19 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           console.error('API Error Response:', errorText);
           throw new Error(`CSVダウンロードに失敗しました: ${response.status} - ${errorText}`);
         }
+        
+        // Content-Dispositionヘッダーからファイル名を取得
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'download.csv'; // デフォルト
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+          if (filenameMatch) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        console.log('Download filename:', filename);
         
         // レスポンスをBlobとして取得
         const blob = await response.blob();
@@ -792,6 +861,13 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         return;
       }
       
+      // セッショントークンを取得
+      const sessionToken = sessionStorage.getItem('sessionToken');
+      if (!sessionToken) {
+        message.error('セッショントークンが取得できません');
+        return;
+      }
+      
       console.log('=== handleModalOk デバッグ ===');
       console.log('選択されたマスタID:', selectedMasterInfo?.masterId);
       console.log('編集中:', editingMaster ? 'はい' : 'いいえ');
@@ -805,11 +881,12 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         if (editingMaster) {
           // 編集の場合 - PUT
           const response = await fetch(
-            `${apiUrl}/api/v1/master/instrument/${editingMaster.instrumentId}`,
+            `${apiUrl}/master/instrument/${editingMaster.instrumentId}`,
             {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionToken}`,
                 'X-Organization-Id': organizationId,
               },
               credentials: 'include',
@@ -830,10 +907,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           message.success('マスタ情報を更新しました');
         } else {
           // 新規追加の場合 - POST
-          const response = await fetch(`${apiUrl}/api/v1/master/instrument`, {
+          const response = await fetch(`${apiUrl}/master/instrument`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionToken}`,
               'X-Organization-Id': organizationId,
             },
             credentials: 'include',
@@ -861,11 +939,12 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         if (editingMaster) {
           // 編集の場合 - PUT
           const response = await fetch(
-            `${apiUrl}/api/v1/master/vendor/${editingMaster.vendorId}`,
+            `${apiUrl}/master/vendor/${editingMaster.vendorId}`,
             {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionToken}`,
                 'X-Organization-Id': organizationId,
               },
               credentials: 'include',
@@ -886,10 +965,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           message.success('マスタ情報を更新しました');
         } else {
           // 新規追加の場合 - POST
-          const response = await fetch(`${apiUrl}/api/v1/master/vendor`, {
+          const response = await fetch(`${apiUrl}/master/vendor`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionToken}`,
               'X-Organization-Id': organizationId,
             },
             credentials: 'include',
@@ -917,11 +997,12 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         if (editingMaster) {
           // 編集の場合 - PUT
           const response = await fetch(
-            `${apiUrl}/api/v1/master/creator/${editingMaster.creatorId}`,
+            `${apiUrl}/master/creator/${editingMaster.creatorId}`,
             {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionToken}`,
                 'X-Organization-Id': organizationId,
               },
               credentials: 'include',
@@ -944,10 +1025,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           message.success('マスタ情報を更新しました');
         } else {
           // 新規追加の場合 - POST
-          const response = await fetch(`${apiUrl}/api/v1/master/creator`, {
+          const response = await fetch(`${apiUrl}/master/creator`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionToken}`,
               'X-Organization-Id': organizationId,
             },
             credentials: 'include',
@@ -972,58 +1054,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           await fetchMasterData('creator');
           message.success('マスタを追加しました');
         }
-      } else if (selectedMasterInfo?.masterId === '2') {
-        // 部署マスタ
-        if (editingMaster) {
-          // 編集の場合 - PUT
-          const response = await fetch(
-            `${apiUrl}/api/v1/master/department/${editingMaster.departmentId}`,
-            {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Organization-Id': organizationId,
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                departmentName: values.displayName,
-                isActive: values.isActive,
-              }),
-            }
-          );
-          
-          if (!response.ok) {
-            throw new Error('更新に失敗しました');
-          }
-          
-          await fetchMasterData('department');
-          message.success('マスタ情報を更新しました');
-        } else {
-          // 新規追加の場合 - POST
-          const response = await fetch(`${apiUrl}/api/v1/master/department`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Organization-Id': organizationId,
-            },
-            credentials: 'include',
-            body: JSON.stringify({
-              departmentCd: values.departmentId,
-              departmentName: values.displayName,
-              isActive: values.isActive !== undefined ? values.isActive : true,
-            }),
-          });
-          
-          if (!response.ok) {
-            if (response.status === 409) {
-              throw new Error('入力されたIDは既に存在しています');
-            }
-            throw new Error('追加に失敗しました');
-          }
-          
-          await fetchMasterData('department');
-          message.success('マスタを追加しました');
-        }
       } else {
         // その他のマスタ（従来のローカル処理）
         if (editingMaster) {
@@ -1039,7 +1069,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           
           // ロール管理画面の場合
           if (selectedMasterInfo?.masterId === '4') {
-            // フォームから入力されたロールIDをそのまま使用
+            // フォームから入力されたロールCDをそのまま使用
             newRecord.masterId = '4';
             newRecord.isActive = true;
             
@@ -1070,9 +1100,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         // IDフィールド名を取得
         const idField = Object.keys(selectedMasterInfo?.itemCategories || {})[0];
         
-        // エラーメッセージのテキスト（部署管理の場合はCD、それ以外はID）
-        const fieldLabel = selectedMasterInfo?.masterId === '2' ? 'CD' : 'ID';
-        const errorMsg = `入力された${fieldLabel}は既に存在しています`;
+        // エラーメッセージのテキスト
+        const errorMsg = '入力されたIDは既に存在しています';
         
         // フォームのIDフィールドにエラーを設定（背景色が薄い赤色になる）
         form.setFields([
@@ -1358,7 +1387,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             
             // ロール管理画面の場合の特別処理
             if (selectedMasterInfo.masterId === '4') {
-              // ロールIDとロール名は常に編集可能
+              // ロールCDとロール名は常に編集可能
               if (key === 'role' || key === 'roleName') {
                 return (
                   <Form.Item

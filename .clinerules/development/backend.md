@@ -421,15 +421,218 @@ export const errorHandler = (
 
 ### バリデーション
 
-#### 入力バリデーション
-- express-validatorを使用
-- すべてのユーザー入力を検証
-- サニタイゼーション処理
+#### バリデーション基本方針
+
+mmdpfプロジェクトでは、バリデーション処理を以下の方針で実装します：
+
+1. **express-validator**をバリデーションライブラリとして使用
+2. **バリデーションミドルウェア**でルートレベルでバリデーションを実施
+3. **コントローラー層**からバリデーション処理を分離し、ビジネスロジックに集中
+4. **統一されたエラーレスポンス形式**を使用
+
+#### バリデーションミドルウェアの使用
+
+**ミドルウェアチェーンの順序:**
+```typescript
+auth → tenantIsolation → [バリデーションルール] → handleValidationErrors → controller
+```
+
+**実装例:**
+```typescript
+// routes/taskRoutes.ts
+import { Router } from 'express';
+import { param, body, query } from 'express-validator';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
+import { authMiddleware } from '../middleware/authMiddleware';
+import * as taskController from '../controllers/taskController';
+
+const router = Router();
+
+router.put(
+  '/:projectId/methods/:methodId/tasks/:taskNo/status',
+  authMiddleware,
+  [
+    // バリデーションルール定義
+    param('projectId').isUUID().withMessage('projectIdはUUID形式である必要があります'),
+    param('methodId').notEmpty().withMessage('methodIdは必須です'),
+    param('taskNo').isInt({ min: 1 }).withMessage('taskNoは1以上の整数である必要があります'),
+    body('status').notEmpty().isIn(['pending', 'in_progress', 'completed', 'forced_terminated']),
+    body('currentUpdateAt').notEmpty().isISO8601(),
+    body('comment').optional().isLength({ max: 500 }),
+  ],
+  handleValidationErrors,  // バリデーションエラーハンドリングミドルウェア
+  taskController.updateStatus
+);
+```
+
+#### コントローラー実装
+
+**DO（推奨）:**
+```typescript
+// ✅ バリデーションはミドルウェアで処理済み
+export async function updateStatus(req: Request, res: Response): Promise<void> {
+  try {
+    // パラメータはバリデーション済みなので直接使用
+    const { projectId, methodId, taskNo } = req.params;
+    const { status, currentUpdateAt, comment } = req.body;
+    const { organizationId, userId } = req.user!;
+    
+    // ビジネスロジックに集中
+    const result = await taskService.updateStatus(
+      organizationId, projectId, methodId, parseInt(taskNo, 10),
+      status, currentUpdateAt, comment
+    );
+    
+    res.json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: req.headers['x-request-id'] as string
+      }
+    });
+  } catch (error) {
+    throw error; // エラーハンドリングミドルウェアで処理
+  }
+}
+```
+
+**DON'T（非推奨）:**
+```typescript
+// ❌ validationResult()をコントローラー内で使用しない
+export async function updateStatus(req: Request, res: Response): Promise<void> {
+  // ❌ この処理はミドルウェアで実施済みなので不要
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  // ...
+}
+```
+
+#### バリデーションエラーレスポンス形式
+
+handleValidationErrorsミドルウェアは、バリデーションエラーを以下の統一形式で返します：
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "バリデーションエラーが発生しました",
+    "details": [
+      {
+        "field": "projectId",
+        "message": "projectIdはUUID形式である必要があります",
+        "code": "INVALID_FORMAT"
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-02-04T20:30:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+#### 共通バリデーター関数
+
+`utils/validators.ts`で提供される共通バリデーター：
+
+```typescript
+// UUID検証
+validateUUID(fieldName, location)
+
+// 列挙型検証
+validateEnum(fieldName, allowedValues, location, options)
+
+// 文字列長検証
+validateStringLength(fieldName, min, max, location, options)
+
+// 日付検証
+validateDate(fieldName, location, options)
+
+// メールアドレス検証
+validateEmail(fieldName, location, options)
+
+// 配列検証
+validateArray(fieldName, location, options)
+
+// オブジェクト検証
+validateObject(fieldName, location, options)
+
+// パスワード検証
+validatePassword(fieldName, location)
+
+// 正規表現パターン検証
+validatePattern(fieldName, pattern, location, options)
+
+// カスタムバリデーター
+validateCustom(fieldName, validatorFn, location, options)
+```
+
+**使用例:**
+```typescript
+import { validateUUID, validateEnum } from '../utils/validators';
+
+router.put(
+  '/:id/status',
+  authMiddleware,
+  [
+    validateUUID('id', 'param'),
+    validateEnum('status', ['active', 'inactive'], 'body', { optional: false }),
+  ],
+  handleValidationErrors,
+  controller.updateStatus
+);
+```
 
 #### ビジネスロジックバリデーション
-- サービス層で実装
+
+サービス層では、以下のビジネスルールバリデーションを実装：
 - データの整合性チェック
 - ドメインルールの適用
+- リソースの存在確認
+- 権限の詳細チェック
+
+**例:**
+```typescript
+// services/taskService.ts
+export async function updateTaskStatus(
+  organizationId: string,
+  projectId: string,
+  taskId: string,
+  status: TaskStatus
+): Promise<Result<Task>> {
+  // ビジネスルールバリデーション
+  const task = await taskRepository.findById(taskId, organizationId);
+  if (!task) {
+    return {
+      success: false,
+      error: {
+        code: 'RESOURCE_NOT_FOUND',
+        message: 'タスクが見つかりません'
+      }
+    };
+  }
+  
+  // ステータス遷移のルールチェック
+  if (!isValidStatusTransition(task.status, status)) {
+    return {
+      success: false,
+      error: {
+        code: 'INVALID_STATUS_TRANSITION',
+        message: `${task.status}から${status}への遷移はできません`
+      }
+    };
+  }
+  
+  // 更新処理
+  const updatedTask = await taskRepository.update(taskId, { status });
+  return { success: true, data: updatedTask };
+}
+```
 
 ### ロギング
 

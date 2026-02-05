@@ -60,10 +60,10 @@ export async function findAll(
       im.instrument_name,
       im.is_active as instrument_is_active,
       cm.update_at
-    FROM creator_master cm
-    LEFT JOIN vendor_master vm ON cm.vendor_uuid = vm.vendor_uuid 
+    FROM creator cm
+    LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
       AND cm.organization_id = vm.organization_id
-    LEFT JOIN instrument_master im ON cm.instrument_uuid = im.instrument_uuid 
+    LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
       AND cm.organization_id = im.organization_id
     WHERE cm.organization_id = $1
   `;
@@ -130,10 +130,10 @@ export async function findById(
       im.instrument_name,
       im.is_active as instrument_is_active,
       cm.update_at
-    FROM creator_master cm
-    LEFT JOIN vendor_master vm ON cm.vendor_uuid = vm.vendor_uuid 
+    FROM creator cm
+    LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
       AND cm.organization_id = vm.organization_id
-    LEFT JOIN instrument_master im ON cm.instrument_uuid = im.instrument_uuid 
+    LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
       AND cm.organization_id = im.organization_id
     WHERE cm.organization_id = $1 AND cm.creator_id = $2
   `;
@@ -154,7 +154,7 @@ export async function count(organizationId: string): Promise<number> {
   
   const query = `
     SELECT COUNT(*) as count
-    FROM creator_master
+    FROM creator
     WHERE organization_id = $1
   `;
   
@@ -178,7 +178,7 @@ export async function existsById(
   const query = `
     SELECT EXISTS (
       SELECT 1
-      FROM creator_master
+      FROM creator
       WHERE organization_id = $1
         AND creator_id = $2
     ) as exists
@@ -205,7 +205,8 @@ export async function create(
     vendorName?: string;
     instrumentName?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<CreatorMasterRow> {
   const pool: Pool = getPool();
   const { v4: uuidv4 } = require('uuid');
@@ -215,7 +216,7 @@ export async function create(
   if (data.vendorName) {
     const vendorQuery = `
       SELECT vendor_uuid
-      FROM vendor_master
+      FROM vendor
       WHERE organization_id = $1 AND vendor_name = $2
       LIMIT 1
     `;
@@ -228,7 +229,7 @@ export async function create(
   if (data.instrumentName) {
     const instrumentQuery = `
       SELECT instrument_uuid
-      FROM instrument_master
+      FROM instrument
       WHERE organization_id = $1 AND instrument_name = $2
       LIMIT 1
     `;
@@ -237,7 +238,7 @@ export async function create(
   }
   
   const query = `
-    INSERT INTO creator_master (
+    INSERT INTO creator (
       organization_id,
       creator_uuid,
       creator_id,
@@ -247,10 +248,12 @@ export async function create(
       vendor_uuid,
       instrument_uuid,
       is_active,
+      create_user_id,
+      update_user_id,
       create_at,
       update_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
     )
     RETURNING 
       creator_id,
@@ -271,6 +274,8 @@ export async function create(
     vendorUuid,
     instrumentUuid,
     data.isActive !== undefined ? data.isActive : true,
+    userId,
+    userId,
   ];
   
   const result = await pool.query(query, values);
@@ -301,7 +306,8 @@ export async function update(
     vendorName?: string;
     instrumentName?: string;
     isActive?: boolean;
-  }
+  },
+  userId: string
 ): Promise<CreatorMasterRow | null> {
   const pool: Pool = getPool();
   
@@ -311,7 +317,7 @@ export async function update(
     if (data.vendorName) {
       const vendorQuery = `
         SELECT vendor_uuid
-        FROM vendor_master
+        FROM vendor
         WHERE organization_id = $1 AND vendor_name = $2
         LIMIT 1
       `;
@@ -326,7 +332,7 @@ export async function update(
     if (data.instrumentName) {
       const instrumentQuery = `
         SELECT instrument_uuid
-        FROM instrument_master
+        FROM instrument
         WHERE organization_id = $1 AND instrument_name = $2
         LIMIT 1
       `;
@@ -380,10 +386,13 @@ export async function update(
     return await findById(organizationId, creatorId);
   }
   
+  updates.push(`update_user_id = $${paramIndex}`);
+  values.push(userId);
+  paramIndex++;
   updates.push(`update_at = NOW()`);
   
   const query = `
-    UPDATE creator_master
+    UPDATE creator
     SET ${updates.join(', ')}
     WHERE organization_id = $1 AND creator_id = $2
     RETURNING 
@@ -420,20 +429,22 @@ export async function update(
 export async function updateStatus(
   organizationId: string,
   creatorId: string,
-  isActive: boolean
+  isActive: boolean,
+  userId: string
 ): Promise<CreatorMasterRow | null> {
   const pool: Pool = getPool();
   
   const query = `
-    UPDATE creator_master
+    UPDATE creator
     SET is_active = $1,
+        update_user_id = $2,
         update_at = NOW()
-    WHERE organization_id = $2
-      AND creator_id = $3
+    WHERE organization_id = $3
+      AND creator_id = $4
     RETURNING *
   `;
   
-  const result = await pool.query(query, [isActive, organizationId, creatorId]);
+  const result = await pool.query(query, [isActive, userId, organizationId, creatorId]);
   
   if (result.rows.length === 0) {
     return null;
@@ -441,4 +452,84 @@ export async function updateStatus(
   
   // vendor_nameとinstrument_nameも取得して返す
   return await findById(organizationId, creatorId);
+}
+
+/**
+ * フィルタ条件付きでCreatorマスタを取得（WHERE句でフィルタリング）
+ * 
+ * @param organizationId 組織ID
+ * @param filters フィルタ条件
+ * @returns Creatorマスタの配列
+ */
+export async function findAllWithFilters(
+  organizationId: string,
+  filters: {
+    displayScope?: string;
+    search?: string;
+    isActive?: boolean;
+  } = {}
+): Promise<CreatorMasterRow[]> {
+  const pool: Pool = getPool();
+  
+  console.log('=== creatorRepository.findAllWithFilters called ===');
+  console.log('organizationId:', organizationId);
+  console.log('filters:', filters);
+  
+  const whereClauses: string[] = ['cm.organization_id = $1'];
+  const values: any[] = [organizationId];
+  let paramIndex = 2;
+  
+  // 検索フィルタ（creator_id, creator_name, creator_description, creator_annotation, vendor_name, instrument_nameの6項目で部分一致検索）
+  if (filters.search) {
+    whereClauses.push(
+      `(cm.creator_id ILIKE $${paramIndex} OR 
+        cm.creator_name ILIKE $${paramIndex} OR 
+        cm.creator_description ILIKE $${paramIndex} OR 
+        cm.creator_annotation ILIKE $${paramIndex} OR 
+        vm.vendor_name ILIKE $${paramIndex} OR 
+        im.instrument_name ILIKE $${paramIndex})`
+    );
+    values.push(`%${filters.search}%`);
+    paramIndex++;
+  }
+  
+  // アクティブ状態フィルタ
+  if (filters.isActive !== undefined) {
+    whereClauses.push(`cm.is_active = $${paramIndex}`);
+    values.push(filters.isActive);
+    paramIndex++;
+  }
+  
+  const query = `
+    SELECT 
+      cm.creator_id,
+      cm.creator_name,
+      cm.creator_description,
+      cm.creator_annotation,
+      cm.is_active,
+      vm.vendor_name,
+      vm.is_active as vendor_is_active,
+      im.instrument_name,
+      im.is_active as instrument_is_active,
+      cm.update_at
+    FROM creator cm
+    LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
+      AND cm.organization_id = vm.organization_id
+    LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
+      AND cm.organization_id = im.organization_id
+    WHERE ${whereClauses.join(' AND ')}
+    ORDER BY cm.creator_id
+  `;
+  
+  console.log('Executing query:', query);
+  console.log('With params:', values);
+  
+  try {
+    const result = await pool.query<CreatorMasterRow>(query, values);
+    console.log('Filtered count (from DB):', result.rows.length);
+    return result.rows;
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw error;
+  }
 }
