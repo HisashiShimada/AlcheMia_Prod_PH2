@@ -14,6 +14,7 @@ import {
   Row,
   Col,
   Badge,
+  App,
 } from 'antd';
 import {
   SearchOutlined,
@@ -51,6 +52,7 @@ interface OrganizationData {
  * 組織管理画面コンポーネント
  */
 export default function OrganizationManagement() {
+  const { modal } = App.useApp();
   const [organizations, setOrganizations] = useState<OrganizationData[]>(
     organizationsData as OrganizationData[]
   );
@@ -315,7 +317,7 @@ export default function OrganizationManagement() {
       message.warning('アクティブにする組織を選択してください');
       return;
     }
-    Modal.confirm({
+    modal.confirm({
       title: '選択した組織をアクティブにしますか？',
       content: `${selectedRowKeys.length}件の組織がアクティブになります。`,
       okText: 'アクティブ化',
@@ -336,7 +338,7 @@ export default function OrganizationManagement() {
       message.warning('非アクティブにする組織を選択してください');
       return;
     }
-    Modal.confirm({
+    modal.confirm({
       title: '選択した組織を非アクティブにしますか？',
       content: `${selectedRowKeys.length}件の組織が非アクティブになります。`,
       okText: '非アクティブ化',
@@ -360,7 +362,7 @@ export default function OrganizationManagement() {
     const actionText = org.status === 'inactive' ? 'アクティブ' : '非アクティブ';
     const orgName = org.organization_name;
 
-    Modal.confirm({
+    modal.confirm({
       title: `${orgName}を${actionText}にしますか？`,
       content: `この組織を${org.status === 'inactive' ? 'アクティブ' : '非アクティブ'}状態に変更します。`,
       okText: actionText,

@@ -22,6 +22,7 @@ import OrganizationStatistics from '../SystemManagement/OrganizationStatistics';
 import SessionManagement from '../SystemManagement/SessionManagement';
 import MasterManagement from '../DataManagement/MasterManagement';
 import RoleManagement from '../SystemManagement/RoleManagement';
+import DepartmentManagement from '../SystemManagement/DepartmentManagement';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -130,7 +131,7 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
         {/* タブ5: 部署管理 */}
         {currentTab === '5' && (
           <div style={{ padding: token.paddingContentVertical }}>
-            <MasterManagement initialMasterId="2" />
+            <DepartmentManagement />
           </div>
         )}
 
