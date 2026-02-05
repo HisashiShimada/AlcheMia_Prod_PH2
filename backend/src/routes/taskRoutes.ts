@@ -11,6 +11,7 @@ import { param, body, query } from 'express-validator';
 import * as taskController from '../controllers/taskController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
 
@@ -101,6 +102,7 @@ router.put(
       .isLength({ max: 500 })
       .withMessage('commentは500文字以内である必要があります'),
   ],
+  handleValidationErrors,
   taskController.updateStatus
 );
 

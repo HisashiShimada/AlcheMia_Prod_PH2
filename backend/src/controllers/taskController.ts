@@ -54,84 +54,16 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
   
   try {
-    // express-validatorのバリデーション結果をチェック
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      const firstError = errors.array()[0];
-      
-      // バリデーションエラーのログ記録
-      logger.error('Task status update validation failed', {
-        errorCode: 'VALIDATION_ERROR',
-        errorMessage: firstError.msg,
-        requestId,
-      });
-      
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: firstError.msg,
-          details: errors.array().map(err => ({
-            field: err.type === 'field' ? (err as any).path : 'unknown',
-            message: err.msg,
-            code: 'INVALID_VALUE',
-          })),
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 2. パラメータ抽出
+    // バリデーションはhandleValidationErrorsミドルウェアで処理済み
+    // パラメータ抽出
     const { projectId, methodId, taskNo } = req.params;
     const { status, currentUpdateAt, comment } = req.body;
     const { organizationId, userId, role } = req.user!; // authミドルウェアで設定済み
 
-    // 3. UUID形式バリデーション（projectId）
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(projectId)) {
-      // バリデーションエラーのログ記録
-      logger.error('Task status update validation failed', {
-        errorCode: 'VALIDATION_INVALID_FORMAT',
-        errorMessage: 'projectIdはUUID形式である必要があります',
-        requestId,
-      });
-      
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'projectIdはUUID形式である必要があります',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 4. taskNo数値バリデーション
+    // バリデーション済みのため、直接数値変換
     const taskNoNum = parseInt(taskNo, 10);
-    if (isNaN(taskNoNum) || taskNoNum < 1) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'taskNoは1以上の数値である必要があります',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
 
-    // 5. サービス層呼び出し
+    // サービス層呼び出し
     const result = await updateTaskStatusService(
       organizationId,
       projectId,
@@ -144,7 +76,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
       comment
     );
 
-    // 6. エラーハンドリング
+    // エラーハンドリング
     if (!result.success) {
       const statusCode = mapErrorCodeToStatus(result.error!.code);
       
@@ -175,7 +107,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 7. 成功レスポンス
+    // 成功レスポンス
     // 成功ログ記録
     logger.info('Task status updated successfully', {
       organizationId,
@@ -198,7 +130,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
     });
 
   } catch (error) {
-    // 8. 予期しないエラーのハンドリング
+    // 予期しないエラーのハンドリング
     const err = error as Error;
     
     // 詳細なエラーログを記録（スタックトレース含む）
