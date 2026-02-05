@@ -17,10 +17,12 @@ import type {
   Transition,
   Template,
   Property,
+  PropertyCustomElement,
   PlaceRef,
   Reference,
   Document as MaimlDocument
 } from '@/types/maiml-unified';
+import { xml2js, Element as XmlJsNonCompactElement } from 'xml-js';
 import type { 
   TransitionWithMetadata,
   MaterialTemplateInfo,
@@ -767,5 +769,261 @@ getEventLogs(): Array<{
     });
     
     return events;
+  }
+  
+  // ============================================================================
+  // 名前空間テンプレートXMLパース機能（Phase 2追加）
+  // ============================================================================
+  
+  /**
+   * 名前空間テンプレートXMLをパース
+   * 
+   * keyDictionary形式のXMLファイルから、Property配列を抽出します。
+   * カスタム要素（wavelength, power等）はcustomElementsとして保持されます。
+   * 
+   * @param {string} xmlContent - 名前空間XML文字列
+   * @returns {Property[]} Property配列
+   * @throws {Error} XML解析エラー
+   * 
+   * @example
+   * ```typescript
+   * const xmlContent = `
+   *   <keyDictionary>
+   *     <property key="LaserParameters" xsi:type="objectType">
+   *       <wavelength units="nm">532</wavelength>
+   *       <power units="mW">10.5</power>
+   *     </property>
+   *   </keyDictionary>
+   * `;
+   * const properties = parser.parseNamespaceXml(xmlContent);
+   * console.log(properties[0].customElements?.wavelength.value); // "532"
+   * ```
+   */
+  parseNamespaceXml(xmlContent: string): Property[] {
+    try {
+      // 1. XML文字列をxml-js Element形式でパース（compact: false）
+      const result = xml2js(xmlContent, {
+        compact: false,
+        ignoreComment: true,
+        alwaysChildren: true
+      }) as XmlJsNonCompactElement;
+      
+      // 2. ルート要素を特定（keyDictionary または property）
+      let rootElement: XmlJsNonCompactElement | undefined;
+      
+      if (result.type === 'element') {
+        if (result.name === 'keyDictionary') {
+          rootElement = result;
+        } else if (result.name === 'property') {
+          // property直下の場合（単一property）
+          return [this.parsePropertyElement(result)];
+        }
+      } else if (result.elements && result.elements.length > 0) {
+        // declaration等が含まれる場合、最初のelement要素を探す
+        rootElement = result.elements.find(
+          (el: XmlJsNonCompactElement) => el.type === 'element' && el.name === 'keyDictionary'
+        );
+      }
+      
+      if (!rootElement) {
+        throw new Error('Root element <keyDictionary> not found in XML');
+      }
+      
+      // 3. property要素を抽出
+      const properties: Property[] = [];
+      
+      if (rootElement.elements) {
+        rootElement.elements.forEach((child: XmlJsNonCompactElement) => {
+          if (child.type === 'element' && child.name === 'property') {
+            properties.push(this.parsePropertyElement(child));
+          }
+        });
+      }
+      
+      return properties;
+    } catch (error) {
+      console.error('❌ [MaimlParserTyped] parseNamespaceXml() failed:', error);
+      throw new Error(`Namespace XML parse error: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  /**
+   * Property要素をパース
+   * 
+   * @param {XmlJsNonCompactElement} element - xml-js Element
+   * @returns {Property} 解析されたProperty
+   * @private
+   */
+  private parsePropertyElement(element: XmlJsNonCompactElement): Property {
+    const prop: Property = {
+      key: element.attributes?.key as string || '',
+      xsiType: element.attributes?.['xsi:type'] as string || 'stringType',
+      customElements: {}
+    };
+    
+    // 属性の抽出
+    if (element.attributes) {
+      if (element.attributes.units) {
+        prop.units = element.attributes.units as string;
+      }
+      if (element.attributes.formatString) {
+        prop.formatString = element.attributes.formatString as string;
+      }
+      if (element.attributes.scaleFactor) {
+        prop.scaleFactor = parseFloat(element.attributes.scaleFactor as string);
+      }
+    }
+    
+    // 子要素の処理
+    if (element.elements) {
+      element.elements.forEach((child: XmlJsNonCompactElement) => {
+        if (child.type !== 'element') return;
+        
+        const tagName = child.name as string;
+        
+        // 標準要素の処理
+        if (this.isStandardPropertyElement(tagName)) {
+          if (tagName === 'description') {
+            prop.description = this.extractTextContent(child);
+          } else if (tagName === 'value') {
+            const valueText = this.extractTextContent(child);
+            // 数値変換を試みる
+            const numValue = parseFloat(valueText);
+            prop.value = isNaN(numValue) ? valueText : numValue;
+          } else if (tagName === 'property') {
+            // ネストされたproperty
+            if (!prop.properties) {
+              prop.properties = [];
+            }
+            prop.properties.push(this.parsePropertyElement(child));
+          }
+        } else {
+          // カスタム要素の処理
+          if (!prop.customElements) {
+            prop.customElements = {};
+          }
+          prop.customElements[tagName] = this.parseCustomElement(child);
+        }
+      });
+    }
+    
+    // customElementsが空の場合は削除
+    if (prop.customElements && Object.keys(prop.customElements).length === 0) {
+      delete prop.customElements;
+    }
+    
+    return prop;
+  }
+  
+  /**
+   * PropertyCustomElementを再帰的に解析
+   * 
+   * @param {XmlJsNonCompactElement} element - xml-js Element
+   * @param {number} depth - 再帰の深さ（最大10階層）
+   * @returns {PropertyCustomElement} 解析されたカスタム要素
+   * @private
+   */
+  private parseCustomElement(
+    element: XmlJsNonCompactElement,
+    depth: number = 0
+  ): PropertyCustomElement {
+    // 深さ制限チェック
+    if (depth > 10) {
+      console.warn('⚠️ [MaimlParserTyped] Max depth exceeded in parseCustomElement');
+      return {};
+    }
+    
+    const customElement: PropertyCustomElement = {};
+    
+    // 属性の抽出
+    if (element.attributes && Object.keys(element.attributes).length > 0) {
+      customElement.attributes = {};
+      Object.entries(element.attributes).forEach(([key, value]) => {
+        customElement.attributes![key] = String(value);
+      });
+    }
+    
+    // 子要素の処理
+    let hasChildren = false;
+    if (element.elements && element.elements.length > 0) {
+      const textContent = this.extractTextContent(element);
+      
+      // テキストノードのみの場合
+      const hasOnlyText = element.elements.every(
+        (el: XmlJsNonCompactElement) => el.type === 'text'
+      );
+      
+      if (hasOnlyText && textContent) {
+        // 数値変換を試みる
+        const numValue = parseFloat(textContent);
+        customElement.value = isNaN(numValue) ? textContent : numValue;
+      } else {
+        // 子要素がある場合
+        customElement.children = {};
+        
+        element.elements.forEach((child: XmlJsNonCompactElement) => {
+          if (child.type === 'element' && child.name) {
+            hasChildren = true;
+            customElement.children![child.name] = this.parseCustomElement(child, depth + 1);
+          }
+        });
+        
+        // children が空の場合は削除
+        if (!hasChildren) {
+          delete customElement.children;
+          // テキストコンテンツがあれば value として設定
+          if (textContent) {
+            const numValue = parseFloat(textContent);
+            customElement.value = isNaN(numValue) ? textContent : numValue;
+          }
+        }
+      }
+    }
+    
+    return customElement;
+  }
+  
+  /**
+   * 標準Property要素かどうかを判定
+   * 
+   * @param {string} tagName - タグ名
+   * @returns {boolean} 標準要素の場合true
+   * @private
+   */
+  private isStandardPropertyElement(tagName: string): boolean {
+    const standardTags = [
+      'description',
+      'value',
+      'values',
+      'property',
+      'content',
+      'uncertainty'
+    ];
+    return standardTags.includes(tagName);
+  }
+  
+  /**
+   * 要素からテキストコンテンツを抽出
+   * 
+   * @param {XmlJsNonCompactElement} element - xml-js Element
+   * @returns {string} 抽出されたテキスト
+   * @private
+   */
+  private extractTextContent(element: XmlJsNonCompactElement): string {
+    if (!element.elements) {
+      return '';
+    }
+    
+    const textParts: string[] = [];
+    
+    element.elements.forEach((child: XmlJsNonCompactElement) => {
+      if (child.type === 'text' && child.text) {
+        textParts.push(String(child.text).trim());
+      } else if (child.type === 'cdata' && child.cdata) {
+        textParts.push(String(child.cdata).trim());
+      }
+    });
+    
+    return textParts.join(' ').trim();
   }
 }

@@ -48,7 +48,7 @@ import type {
   ValidationError,
   TemplateEditorDialogProps
 } from '../types';
-import { Template, Insertion, Property } from '@/types/maiml-unified';
+import { Template, Insertion, Property, PropertyCustomElement, PlaceRef } from '@/types/maiml-unified';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -555,7 +555,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   const [uuid, setUuid] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [placeRefs, setPlaceRefs] = useState<string[]>([]);
+  const [placeRefs, setPlaceRefs] = useState<PlaceRef[]>([]);
   
   // Insertion State (MaterialTemplate・ResultTemplateのみ)
   const [insertion, setInsertion] = useState<Insertion>({ uri: '', hash: { method: '', value: ''}, format: '' });
@@ -581,7 +581,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   // ✅ Phase 3: 高度な名前空間取り込みUI用State
   const [previewContent, setPreviewContent] = useState<{
     xml?: string;
-    properties?: Property[];
+    properties?: Record<string, PropertyData>;
     error?: string;
   }>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -593,11 +593,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   /**
    * テンプレートタイプ判定
    */
-  const templateType = useMemo(() => {
-    if (!node) return 'Template';
-    return node.data.placeType === 'material' ? 'MaterialTemplate' :
-           node.data.placeType === 'condition' ? 'ConditionTemplate' :
-           'ResultTemplate';
+  const nodeCategory = useMemo(() => {
+    if (!node) return '';
+    return node.data.placeType;
   }, [node]);
 
   /**
@@ -649,14 +647,14 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     }
     
     // window.clineAllTemplatesから検索
-    if ((window as unknown as Record<string, unknown>).clineAllTemplates) {
+    if (window.clineAllTemplates) {
       const category = node.data.placeType === 'material' ? 'material' :
                        node.data.placeType === 'condition' ? 'condition' : 'result';
-      const templates = ((window as unknown as Record<string, unknown>).clineAllTemplates as Record<string, unknown>)[category];
+      const templates = window.clineAllTemplates[category];
       
-      if (templates && Array.isArray(templates)) {
-        const found = templates.find((t: unknown) => 
-          t && typeof t === 'object' && 'id' in t && (t as { id: string }).id === parentTemplateId
+      if (templates.length > 0) {
+        const found = templates.find((t: Template) => 
+          t.id === parentTemplateId
         );
         if (found) return found as Template;
       }
@@ -679,15 +677,15 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   /**
    * MaiMLParser形式からNestedPropertyEditor形式への変換（配列版）
    */
-  const convertPropertiesArrayToNestedFormat = (propertiesArray: unknown[]): Record<string, PropertyData> => {
+  const convertPropertiesArrayToNestedFormat = (propertiesArray: Property[]): Record<string, PropertyData> => {
     const result: Record<string, PropertyData> = {};
     
     propertiesArray.forEach((item) => {
-      const prop = item as Record<string, unknown>;
-      const key = (prop.key as string) || (prop.name as string) || `prop_${Date.now()}`;
+      const prop = item;
+      const key = (prop.key as string) ||`prop_${Date.now()}`;
       
       const attributes: Record<string, string> = {
-        'xsi:type': (prop.type as string) || (prop.xsiType as string) || 'stringType'
+        'xsi:type': (prop.xsiType as string) || 'stringType'
       };
       
       if (prop.units !== undefined && prop.units !== '') {
@@ -702,14 +700,14 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       
       result[key] = {
         key: key,
-        tagName: (prop.tagName as string) || 'property',
+        tagName: 'property',
         attributes: attributes,
         elements: {},
         children: []
       };
       
-      if (prop.defaultValue !== undefined && prop.defaultValue !== null && prop.defaultValue !== '') {
-        result[key].elements.value = String(prop.defaultValue);
+      if (prop.value !== undefined && prop.value !== null && prop.value !== '') {
+        result[key].elements.value = String(prop.value);
       }
       
       if (prop.description !== undefined && prop.description !== null && prop.description !== '') {
@@ -775,10 +773,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       
       // placeRefsの読み込み（文字列配列に正規化）
       const loadedPlaceRefs = mergedTemplate.placeRefs || [];
-      const normalizedPlaceRefs = loadedPlaceRefs.map(ref => 
-        typeof ref === 'string' ? ref : (ref.ref || ref.id || '')
-      ).filter(ref => ref);
-      setPlaceRefs(normalizedPlaceRefs);
+      setPlaceRefs(loadedPlaceRefs);
       
       // Properties変換
       let convertedProperties: Record<string, PropertyData> = {};
@@ -1194,7 +1189,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   /**
    * ✅ Phase 2-2: XMLファイルから名前空間定義を解析
    */
-  const parseNamespacesFromXml = (xmlContent: string): Property[] => {
+  const parseNamespacesFromXml = (xmlContent: string): Record<string, PropertyData> => {
     try {
       const result = xml2js(xmlContent, { compact: true }) as ElementCompact;
       
@@ -1265,7 +1260,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   };
 
   /**
-   * ✅ Phase 2-2: 子property要素を再帰的に解析
+   * ✅ Phase 2-2: 子property要素を再帰的に解析（旧実装 - 削除予定）
    */
   const parseChildPropertiesFromXml = (propertyElements: ElementCompact | ElementCompact[]): PropertyData[] => {
     const propertyArray = Array.isArray(propertyElements) ? propertyElements : [propertyElements];
@@ -1434,19 +1429,17 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     
     // ✅ Phase 1-2: 他のテンプレートIDとの重複チェック
     // window.clineAllTemplatesがグローバルに存在する場合のみチェック
-    if ((window as unknown as Record<string, unknown>).clineAllTemplates) {
+    if (window.clineAllTemplates) {
       const allTemplateIds: string[] = [];
-      ['material', 'condition', 'result'].forEach(category => {
-        const templates = ((window as unknown as Record<string, unknown>).clineAllTemplates as Record<string, unknown>)[category];
+      (['material', 'condition', 'result'] as const).forEach(category => {
+        const templates = window.clineAllTemplates[category];
         if (templates && Array.isArray(templates)) {
-          templates.forEach((t: unknown) => {
-            if (t && typeof t === 'object' && 'id' in t) {
-              // 自分自身のテンプレートは除外
-              const currentTemplateId = node.data.template?.id || node.data.templateRef?.id;
-              const templateId = (t as { id: string }).id;
-              if (templateId && templateId !== currentTemplateId) {
-                allTemplateIds.push(templateId);
-              }
+          templates.forEach((t: Template) => {
+            // 自分自身のテンプレートは除外
+            const currentTemplateId = node.data.template?.id || node.data.templateRef?.id;
+            const templateId = t.id;
+            if (templateId && templateId !== currentTemplateId) {
+              allTemplateIds.push(templateId);
             }
           });
         }
@@ -1463,17 +1456,16 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     const templateRef: Template = {
       ...(node.data.templateRef || {}),
       id: templateId,
-      type: templateType,
       uuid: uuid,
       name: name,
+      category : nodeCategory,
       description: description,
       properties: properties,
       placeRefs: placeRefs,
-      templateRefs: normalizedTemplateRefs
     };
     
-    if ((node.data.templateRef as Record<string, unknown>)?.href) {
-      templateRef.href = (node.data.templateRef as Record<string, unknown>).href as string;
+    if (node.data.templateRef?.templateRef) {
+      templateRef.templateRef = node.data.templateRef?.templateRef;
     }
     
     if ((node.data.placeType === 'material' || node.data.placeType === 'result') && 
@@ -1498,7 +1490,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       title={
         <Space>
           {templateIcon}
-          <span>{templateType}を編集</span>
+          <span>{nodeCategory}を編集</span>
         </Space>
       }
       open={open}
@@ -1617,7 +1609,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                       
                       {inheritedTemplate.properties && typeof inheritedTemplate.properties === 'object' && 
                        Object.keys(inheritedTemplate.properties).length > 0 ? (
-                        Object.entries(inheritedTemplate.properties as Record<string, PropertyData>).map(([key, data]) => (
+                        Object.entries(convertPropertiesArrayToNestedFormatRecursive(inheritedTemplate.properties)).map(([key, data]) => (
                           <div
                             key={key}
                             style={{
@@ -1983,7 +1975,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           <Space direction="vertical" style={{ width: '100%' }}>
             {allNodes
               .filter(n => n.data?.nodeType === 'place')
-              .filter(n => !placeRefs.includes(n.id))
+              .filter(n => !placeRefs.some((pr) => pr.ref === n.id))
               .map(place => (
                 <Button
                   key={place.id}
@@ -1994,7 +1986,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                     padding: '12px'
                   }}
                   onClick={() => {
-                    setPlaceRefs([...placeRefs, place.id]);
+                    setPlaceRefs([...placeRefs, {id: '', ref :place.id}]);
                     setShowPlaceRefAddDialog(false);
                     setHasChanges(true);
                     message.success('Place Referenceを追加しました');
@@ -2012,7 +2004,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             
             {allNodes
               .filter(n => n.data?.nodeType === 'place')
-              .filter(n => !placeRefs.includes(n.id))
+              .filter(n => !placeRefs.some((pr) => pr.ref === n.id))
               .length === 0 && (
               <Alert
                 message="追加可能なPlaceがありません"

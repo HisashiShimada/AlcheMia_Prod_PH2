@@ -229,6 +229,7 @@ export const convertToReactFlowFormat = (
           name: transition.name || transition.description || transition.id,
           nodeId: transition.id,
           nodeType: 'transition',
+          placeType: 'transition',
           
           // メタデータの完全反映
           description: transition.description || '',
@@ -672,6 +673,7 @@ const createPnmlGroupFrames = (
           name: description,
           description: description,
           nodeType: 'place',
+          placeType : 'place',
           pnmlId: pnmlId
         },
         draggable: true,

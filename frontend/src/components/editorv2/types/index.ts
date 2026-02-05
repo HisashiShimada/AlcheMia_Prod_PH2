@@ -54,7 +54,7 @@ export interface NodeData {
   name: string;
   description: string;
   nodeType: NodeType;
-  placeType?: string;
+  placeType: string;
   template?: Template;
   templateRef?: Template;
   // editorTypes.tsから追加（拡張プロパティ）

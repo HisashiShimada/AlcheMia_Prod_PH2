@@ -9,11 +9,11 @@
 
 import type { Node, Edge } from 'reactflow';
 import { maimlToReactFlow } from '../utils/converters/maimlToReactFlow';
-import type { NodeData } from '../types';
+import type { NodeData, EdgeData } from '../types';
 
 export interface LoadMaimlResult {
   nodes: Node<NodeData>[];
-  edges: Edge[];
+  edges: Edge<EdgeData>[];
   success: boolean;
   error?: string;
 }
@@ -133,7 +133,7 @@ export const loadMaimlWithValidation = async (
     const nodesWithoutTemplates = result.nodes.filter(
       node =>
         node.data.placeType &&
-        (!node.data.templates || node.data.templates.length === 0)
+        (!node.data.template)
     );
     
     if (nodesWithoutTemplates.length > 0) {

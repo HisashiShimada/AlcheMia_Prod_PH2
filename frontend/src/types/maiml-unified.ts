@@ -248,6 +248,37 @@ export type PropertyType =
   | 'stringEnumType';
 
 /**
+ * Property カスタム要素型
+ * 
+ * 任意のタグ名を持つ子要素を表現（名前空間テンプレートXML用）
+ * 
+ * @example シンプルな値
+ * ```xml
+ * <wavelength units="nm">532</wavelength>
+ * ```
+ * → `{ value: "532", attributes: { units: "nm" } }`
+ * 
+ * @example ネスト構造
+ * ```xml
+ * <calibration>
+ *   <date>2024-11-15</date>
+ *   <certificate>LASER-CAL-2024-089</certificate>
+ * </calibration>
+ * ```
+ * → `{ children: { date: { value: "2024-11-15" }, certificate: { value: "LASER-CAL-2024-089" } } }`
+ */
+export interface PropertyCustomElement {
+  /** 要素の値（テキストノード） */
+  value?: string | number | boolean;
+  
+  /** 要素の属性 */
+  attributes?: Record<string, string>;
+  
+  /** 子要素（ネスト構造） */
+  children?: Record<string, PropertyCustomElement>;
+}
+
+/**
  * Property統一型
  * 
  * すべてのPropertyタイプを包括する統一型定義。
@@ -283,6 +314,18 @@ export type PropertyType =
  *   <values>1 2 3 4 5</values>
  * </property>
  * ```
+ * 
+ * @example カスタム要素（名前空間テンプレート）
+ * ```xml
+ * <property key="LaserParameters" xsi:type="objectType">
+ *   <wavelength units="nm">532</wavelength>
+ *   <power units="mW">10.5</power>
+ *   <calibration>
+ *     <date>2024-11-15</date>
+ *   </calibration>
+ * </property>
+ * ```
+ * → `{ customElements: { wavelength: { value: "532", attributes: { units: "nm" } }, ... } }`
  */
 export interface Property {
   /** プロパティキー（必須） */
@@ -312,6 +355,37 @@ export interface Property {
   properties?: Property[];
 
   contents? : Content[];
+  
+  // ============================================================================
+  // 🆕 カスタム要素（任意のタグ名を持つ子要素）
+  // ============================================================================
+  
+  /**
+   * カスタム要素の辞書（名前空間テンプレートXML用）
+   * 
+   * キー: タグ名（例: "wavelength", "power", "calibration"）
+   * 値: PropertyCustomElement型
+   * 
+   * 標準のProperty仕様外の任意のタグ名を持つ子要素を表現します。
+   * 主に名前空間テンプレート（CTAdvanced.xml等）のパースで使用されます。
+   * 
+   * @example
+   * ```typescript
+   * {
+   *   wavelength: {
+   *     value: "532",
+   *     attributes: { units: "nm" }
+   *   },
+   *   calibration: {
+   *     children: {
+   *       date: { value: "2024-11-15" },
+   *       certificate: { value: "LASER-CAL-2024-089" }
+   *     }
+   *   }
+   * }
+   * ```
+   */
+  customElements?: Record<string, PropertyCustomElement>;
   
   // ============================================================================
   // 数値型オプション

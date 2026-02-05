@@ -153,34 +153,45 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     
     console.log('🔄 [PropertyPanel] テンプレート継承変更:', { href });
     
-    const updatedData = {
+    const updatedData: NodeData = {
       ...selectedNode.data,
-      templateRef: href ? { href } : null,
+      templateRef: href ? {
+        id: href,
+        category: placeType,
+        uuid: ``,
+        name: '',
+        placeRefs: [],
+        templateRef: {id :'', ref: href},
+        properties: [],
+      } : undefined,
     };
     
     if (updatedData.template) {
       updatedData.template = {
         ...updatedData.template,
-        href: href || null,
+        templateRef: {id :'', ref: href},
       };
     } else if (href) {
-      const templateType = placeType === 'material' ? 'MaterialTemplate' :
-                           placeType === 'condition' ? 'ConditionTemplate' :
-                           'ResultTemplate';
       
       // TemplateRef型に準拠
       updatedData.template = {
         id: selectedNode.id,
-        type: templateType,
+        category: placeType,
         uuid: `template-${selectedNode.id}`,
         name: selectedNode.data.name || selectedNode.id,
         placeRefs: [],
-        templateRefs: [],
+        templateRef: {id :'', ref: href},
         properties: [],
       };
       updatedData.templateRef = {
-        href: href,
-      };
+        id: href,
+        category: placeType,
+        uuid: '',
+        name: '',
+        placeRefs: [],
+        templateRef: {id :'', ref: href},
+        properties: [],
+      } ;
     }
     
     onUpdate(selectedNode.id, updatedData);
@@ -423,7 +434,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     </Text>
                     <Select
                       style={{ width: '100%' }}
-                      value={selectedNode.data.templateRef?.href || ''}
+                      value={selectedNode.data.templateRef?.id || ''}
                       onChange={handleTemplateRefChange}
                       options={[
                         { value: '', label: 'なし（独立テンプレート）' },
