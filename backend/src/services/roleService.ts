@@ -4,6 +4,18 @@
  */
 
 import * as roleRepository from '../repositories/roleRepository';
+import Papa from 'papaparse';
+import { getPool } from '../database/db';
+
+/**
+ * 機能情報の型
+ */
+export interface FunctionInfo {
+  name: string;           // 機能名（例: "会社管理"）
+  permission: string;     // 権限（"WRITER" or "READER"）
+  color: string;          // 色コード（"#52c41a" or "#1890ff"）
+  icon: string;           // アイコン（"Ⓦ" or "Ⓡ"）
+}
 
 /**
  * Roleレスポンス型定義
@@ -12,8 +24,12 @@ export interface RoleResponse {
   roleId: string;
   roleName: string;
   isActive: boolean;
+  initialScreenFunctionName: string | null;  // 初期画面機能名
   functionName: string;
   functionWritePermissions: string;
+  functionIds: string[];  // 機能IDのリスト
+  writableFunctionIds: string[];  // 書込可能な機能IDのリスト
+  functions: FunctionInfo[];  // 機能情報の配列（色とアイコン付き）
   updatedAt: string | null;
 }
 
@@ -142,3 +158,322 @@ export async function updateRolePermissions(
   // リポジトリ層で更新
   await roleRepository.updateRolePermissions(organizationId, roleId, permissions, userId);
 }
+
+/**
+ * ロールCSVアップロード
+ */
+export async function uploadRolesCsv(
+  organizationId: string,
+  userId: string,
+  csvContent: string
+): Promise<void> {
+  // CSVパース
+  const parseResult = Papa.parse(csvContent, {
+    header: true,
+    skipEmptyLines: true,
+  });
+
+  if (parseResult.errors.length > 0) {
+    throw {
+      statusCode: 400,
+      code: 'CSV_PARSE_ERROR',
+      message: 'CSVファイルの形式が不正です',
+      details: parseResult.errors,
+    };
+  }
+
+  const rows = parseResult.data as any[];
+
+  if (rows.length === 0) {
+    throw {
+      statusCode: 400,
+      code: 'EMPTY_CSV',
+      message: 'CSVファイルにデータが含まれていません',
+    };
+  }
+
+  // バリデーション
+  const errors: any[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNumber = i + 2; // ヘッダー行を除く
+
+    // 必須項目チェック（role_cd）
+    if (!row['role_cd']?.trim()) {
+      errors.push({
+        row: rowNumber,
+        field: 'role_cd',
+        message: `${rowNumber}行目: role_cdは必須です`,
+      });
+    }
+
+    // 型チェック（is_active）
+    const isActiveStr = row['is_active']?.trim();
+    if (
+      isActiveStr &&
+      !['true', 'TRUE', '1', 'false', 'FALSE', '0', ''].includes(isActiveStr)
+    ) {
+      errors.push({
+        row: rowNumber,
+        field: 'is_active',
+        message: `${rowNumber}行目: is_activeは true/false/1/0 のいずれかである必要があります`,
+      });
+    }
+  }
+
+  // CSV内重複チェック（同じrole_cdで異なるrole_nameがないかチェック）
+  const roleCdMap = new Map<string, string>();
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNumber = i + 2;
+    const roleCd = row['role_cd']?.trim();
+    const roleName = row['role_name']?.trim();
+
+    if (!roleCd) continue; // role_cdがない場合はスキップ（既にエラー登録済み）
+
+    if (roleCdMap.has(roleCd)) {
+      const existingRoleName = roleCdMap.get(roleCd);
+      if (existingRoleName !== roleName) {
+        errors.push({
+          row: rowNumber,
+          field: 'role_cd',
+          message: `${rowNumber}行目: role_cd「${roleCd}」のrole_nameが統一されていません（「${existingRoleName}」と「${roleName}」）`,
+        });
+      }
+    } else {
+      roleCdMap.set(roleCd, roleName);
+    }
+  }
+
+  // initial_screen_function_cdとfunction_cdの整合性チェック
+  // role_cdごとにグループ化して、initial_screen_function_cdがいずれかのfunction_cdに含まれているかチェック
+  const roleGroupMap = new Map<string, any[]>();
+  for (const row of rows) {
+    const roleCd = row['role_cd']?.trim();
+    if (!roleCd) continue;
+
+    if (!roleGroupMap.has(roleCd)) {
+      roleGroupMap.set(roleCd, []);
+    }
+    roleGroupMap.get(roleCd)!.push(row);
+  }
+
+  for (const [roleCd, roleRows] of roleGroupMap) {
+    const firstRow = roleRows[0];
+    const initialScreenFunctionName = firstRow['initial_screen_function_cd']?.trim();
+
+    // initial_screen_function_cdが指定されている場合のみチェック
+    if (initialScreenFunctionName) {
+      // 同じrole_cdの全行のfunction_cdを収集
+      const functionNames = roleRows
+        .map(row => row['function_cd']?.trim())
+        .filter(Boolean);
+
+      // initial_screen_function_cdがいずれかのfunction_cdに含まれているかチェック
+      if (!functionNames.includes(initialScreenFunctionName)) {
+        const rowNumber = rows.indexOf(firstRow) + 2;
+        errors.push({
+          row: rowNumber,
+          field: 'initial_screen_function_cd',
+          message: `${rowNumber}行目: initial_screen_function_cd「${initialScreenFunctionName}」が、role_cd「${roleCd}」のいずれのfunction_cdにも含まれていません`,
+        });
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    throw {
+      statusCode: 400,
+      code: 'VALIDATION_ERROR',
+      message: 'CSVファイルのバリデーションエラー',
+      details: errors,
+    };
+  }
+
+  // DB既存チェック（重複チェックを避けるためSetを使用）
+  const uniqueRoleCds = new Set(rows.map(row => row['role_cd']?.trim()).filter(Boolean));
+  
+  for (const roleCd of uniqueRoleCds) {
+    const exists = await roleRepository.existsById(organizationId, roleCd);
+    if (exists) {
+      throw {
+        statusCode: 400,
+        code: 'DUPLICATE_ROLE_CD',
+        message: `role_cd「${roleCd}」は既に存在します`,
+        details: [
+          {
+            field: 'role_cd',
+            message: `role_cd「${roleCd}」は既に存在します`,
+          },
+        ],
+      };
+    }
+  }
+
+  // role_cdでグループ化
+  const groupedByRole = new Map<string, any[]>();
+  for (const row of rows) {
+    const roleCd = row['role_cd']?.trim();
+    if (!groupedByRole.has(roleCd)) {
+      groupedByRole.set(roleCd, []);
+    }
+    groupedByRole.get(roleCd)!.push(row);
+  }
+
+  console.log('=== CSV Upload Debug ===');
+  console.log('Parsed rows:', JSON.stringify(rows, null, 2));
+  console.log('Grouped by role:', Array.from(groupedByRole.entries()));
+
+  // トランザクション開始
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const now = new Date();
+
+    // 各ロールごとに処理
+    for (const [roleCd, roleRows] of groupedByRole) {
+      const firstRow = roleRows[0];
+      console.log('Processing role:', roleCd);
+      console.log('First row:', JSON.stringify(firstRow, null, 2));
+
+      // initial_screen_function_cd を機能名からCDに変換
+      const initialScreenFunctionName = firstRow['initial_screen_function_cd']?.trim();
+      console.log('Initial screen function name:', initialScreenFunctionName);
+      
+      const initialScreenFunctionCd = roleRepository.getFunctionIdByName(initialScreenFunctionName);
+      console.log('Initial screen function CD:', initialScreenFunctionCd);
+
+      if (initialScreenFunctionName && !initialScreenFunctionCd) {
+        const errorMsg = `初期画面機能「${initialScreenFunctionName}」が見つかりません`;
+        console.error(errorMsg);
+        throw {
+          statusCode: 400,
+          code: 'FUNCTION_NOT_FOUND',
+          message: errorMsg,
+          details: [{
+            field: 'initial_screen_function_cd',
+            message: errorMsg,
+          }],
+        };
+      }
+
+      // is_active の変換
+      const isActiveStr = firstRow['is_active']?.trim().toLowerCase();
+      const isActive =
+        isActiveStr === 'true' || isActiveStr === '1' || isActiveStr === '';
+
+      // roleテーブルにinsert
+      const roleInsertQuery = `
+        INSERT INTO role (
+          organization_id,
+          role_cd,
+          role_name,
+          initial_screen_function_cd,
+          is_active,
+          create_user_id,
+          update_user_id,
+          create_at,
+          update_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `;
+
+      await client.query(roleInsertQuery, [
+        organizationId,
+        roleCd,
+        firstRow['role_name']?.trim(),
+        initialScreenFunctionCd,
+        isActive,
+        userId,
+        userId,
+        now,
+        now,
+      ]);
+
+      // role_permissionテーブルにinsert（各行の権限情報）
+      for (const row of roleRows) {
+        const functionName = row['function_cd']?.trim();
+        
+        // function_cdが空の場合はスキップ（roleテーブルのみ登録）
+        if (!functionName) {
+          console.log('Skipping role_permission insert: function_cd is empty');
+          continue;
+        }
+        
+        console.log('Processing function name:', functionName);
+        
+        const functionCd = roleRepository.getFunctionIdByName(functionName);
+        console.log('Function CD:', functionCd);
+
+        if (!functionCd) {
+          const errorMsg = `機能「${functionName}」が見つかりません`;
+          console.error(errorMsg);
+          throw {
+            statusCode: 400,
+            code: 'FUNCTION_NOT_FOUND',
+            message: errorMsg,
+            details: [{
+              field: 'function_cd',
+              message: errorMsg,
+            }],
+          };
+        }
+
+        const permissionSymbol = row['permission']?.trim();
+        const permission = permissionSymbol === 'Ⓦ' ? 0 : 1;
+
+        const permissionInsertQuery = `
+          INSERT INTO role_permission (
+            organization_id,
+            role_cd,
+            function_cd,
+            permission,
+            create_user_id,
+            update_user_id,
+            create_at,
+            update_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `;
+
+        await client.query(permissionInsertQuery, [
+          organizationId,
+          roleCd,
+          functionCd,
+          permission,
+          userId,
+          userId,
+          now,
+          now,
+        ]);
+      }
+    }
+
+    await client.query('COMMIT');
+    console.log('Transaction committed successfully');
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    console.error('ロールCSVアップロードトランザクションエラー:', error);
+    
+    // カスタムエラーの場合はそのまま投げる
+    if (error.statusCode) {
+      throw error;
+    }
+    
+    // それ以外のエラーは500エラーとして処理
+    throw {
+      statusCode: 500,
+      code: 'TRANSACTION_ERROR',
+      message: 'ロールCSVアップロード処理中にエラーが発生しました',
+      details: [{
+        message: error.message || String(error),
+      }],
+    };
+  } finally {
+    client.release();
+  }
+}
+
+

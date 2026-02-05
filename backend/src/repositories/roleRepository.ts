@@ -498,3 +498,28 @@ export async function updateRolePermissions(
     client.release();
   }
 }
+
+/**
+ * ロールの存在チェック
+ */
+export async function existsById(
+  organizationId: string,
+  roleCd: string
+): Promise<boolean> {
+  const pool = getPool();
+  try {
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM role
+        WHERE organization_id = $1 AND role_cd = $2
+      ) as exists
+    `;
+    const result = await pool.query(query, [organizationId, roleCd]);
+    return result.rows[0].exists;
+  } catch (error) {
+    console.error('ロール存在チェックエラー:', error);
+    throw error;
+  }
+}
+
+

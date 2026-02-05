@@ -6,6 +6,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as masterService from '../services/roleService';
 import { v4 as uuidv4 } from 'uuid';
+import Papa from 'papaparse';
 
 /**
  * ロール一覧取得
@@ -37,6 +38,191 @@ export async function getRoles(req: Request, res: Response, next: NextFunction):
     });
   } catch (error) {
     console.error('Get roles error:', error);
+    next(error);
+  }
+}
+
+/**
+ * ロールCSVダウンロード
+ * 
+ * GET /api/v1/master/role/download-csv
+ */
+export async function downloadRoleCsv(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = req.user?.organizationId;
+
+    if (!organizationId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: '組織IDが取得できません',
+        },
+      });
+      return;
+    }
+
+    // フィルター条件を取得
+    const { searchText, roleNameFilter } = req.query;
+
+    // ロール一覧と権限情報を取得
+    const roles = await masterService.getRoles(String(organizationId));
+
+    // フィルター処理
+    let filteredRoles = roles;
+
+    // ロール名フィルター
+    if (roleNameFilter && typeof roleNameFilter === 'string') {
+      filteredRoles = filteredRoles.filter(
+        (role) => role.roleName === roleNameFilter
+      );
+    }
+
+    // 検索テキストフィルター（機能名に対して）
+    if (searchText && typeof searchText === 'string') {
+      const searchLower = searchText.toLowerCase();
+      filteredRoles = filteredRoles.filter((role) =>
+        role.functionName.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // CSV形式に変換（1ロール=複数行、機能ごとに行を分ける）
+    const csvData = filteredRoles.flatMap((role) => {
+      // 日時フォーマットを共通化
+      const formattedDate = role.updatedAt
+        ? new Date(role.updatedAt)
+            .toLocaleString('ja-JP', {
+              year: 'numeric',
+              month: 'numeric',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })
+            .replace(/\//g, '/')
+        : '';
+
+      // 機能がない場合は1行だけ出力
+      if (!role.functions || role.functions.length === 0) {
+        return [{
+          role_cd: role.roleId,
+          role_name: role.roleName,
+          function_cd: '',
+          permission: '',
+          initial_screen_function_cd: role.initialScreenFunctionName || '',
+          is_active: role.isActive,
+          update_at: formattedDate,
+        }];
+      }
+      
+      // 機能ごとに行を作成
+      return role.functions.map((func) => ({
+        role_cd: role.roleId,
+        role_name: role.roleName,
+        function_cd: func.name,           // 各機能の名前
+        permission: func.icon,             // 各機能のアイコン（Ⓦ or Ⓡ）
+        initial_screen_function_cd: role.initialScreenFunctionName || '',
+        is_active: role.isActive,
+        update_at: formattedDate,
+      }));
+    });
+
+    // CSV文字列生成
+    const csv = Papa.unparse(csvData, {
+      header: true,
+      columns: [
+        'role_cd',
+        'role_name',
+        'function_cd',
+        'permission',
+        'initial_screen_function_cd',
+        'is_active',
+        'update_at',
+      ],
+    });
+
+    // UTF-8 BOM付きで返す
+    const bom = '\uFEFF';
+    const csvWithBom = bom + csv;
+
+    // ファイル名生成（role_yyyyMMddhhmmss.csv）
+    const now = new Date();
+    const timestamp =
+      now.getFullYear().toString() +
+      (now.getMonth() + 1).toString().padStart(2, '0') +
+      now.getDate().toString().padStart(2, '0') +
+      now.getHours().toString().padStart(2, '0') +
+      now.getMinutes().toString().padStart(2, '0') +
+      now.getSeconds().toString().padStart(2, '0');
+    const filename = `role_${timestamp}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.status(200).send(csvWithBom);
+  } catch (error) {
+    console.error('ロールCSVダウンロードエラー:', error);
+    next(error);
+  }
+}
+
+/**
+ * ロールCSVアップロード
+ * 
+ * POST /api/v1/master/role/upload-csv
+ */
+export async function uploadRoleCsv(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const organizationId = req.user?.organizationId;
+    const userId = req.user?.userId;
+
+    if (!organizationId || !userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: '組織IDまたはユーザーIDが取得できません',
+        },
+      });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'CSVファイルがアップロードされていません',
+        },
+      });
+      return;
+    }
+
+    // CSVファイルを文字列として読み込み
+    const csvContent = req.file.buffer.toString('utf-8');
+
+    // サービス層でアップロード処理
+    await masterService.uploadRolesCsv(String(organizationId), String(userId), csvContent);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'ロールCSVのアップロードが完了しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: req.headers['x-request-id'] || uuidv4(),
+      },
+    });
+  } catch (error) {
+    console.error('ロールCSVアップロードエラー:', error);
     next(error);
   }
 }

@@ -347,9 +347,8 @@ export async function updateRolePermissions(
  */
 export async function downloadCsv(
   filters?: {
-    search?: string;
-    displayScope?: string;
-    fixedFilters?: Record<string, string>;
+    searchText?: string;
+    roleNameFilter?: string;
   }
 ): Promise<void> {
   const config = getRoleConfig();
@@ -362,18 +361,11 @@ export async function downloadCsv(
   
   // クエリパラメータを構築
   const params: Record<string, string> = {};
-  if (filters?.search?.trim()) {
-    params.search = filters.search.trim();
+  if (filters?.searchText?.trim()) {
+    params.searchText = filters.searchText.trim();
   }
-  if (filters?.displayScope && filters.displayScope !== 'all') {
-    params.display_scope = filters.displayScope;
-  }
-  if (filters?.fixedFilters) {
-    Object.entries(filters.fixedFilters).forEach(([key, value]) => {
-      if (value) {
-        params[key] = value;
-      }
-    });
+  if (filters?.roleNameFilter?.trim()) {
+    params.roleNameFilter = filters.roleNameFilter.trim();
   }
   
   const endpoint = `${config.apiEndpoint}/download-csv`;
@@ -390,6 +382,19 @@ export async function downloadCsv(
     
     console.log('Response status:', response.status);
     
+    // Content-Dispositionヘッダーからファイル名を抽出
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = 'role.csv'; // デフォルトのファイル名
+    
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+    
+    console.log('Downloaded filename:', filename);
+    
     // レスポンスをBlobとして取得
     const blob = new Blob([response.data], { type: 'text/csv' });
     
@@ -397,7 +402,7 @@ export async function downloadCsv(
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'roles.csv';
+    link.download = filename; // バックエンドから取得したファイル名を使用
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
