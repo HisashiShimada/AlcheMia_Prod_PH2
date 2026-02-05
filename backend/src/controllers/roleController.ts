@@ -4,10 +4,8 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { validationResult } from 'express-validator';
 import * as masterService from '../services/roleService';
 import { v4 as uuidv4 } from 'uuid';
-import Papa from 'papaparse';
 
 /**
  * ロール一覧取得

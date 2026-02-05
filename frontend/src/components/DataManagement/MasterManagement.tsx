@@ -37,6 +37,15 @@ import * as masterApi from '@/services/masterApiService';
 const { Text } = Typography;
 
 /**
+ * CSVバリデーションエラーの型定義
+ */
+interface CsvValidationError {
+  row: number;
+  field: string;
+  message: string;
+}
+
+/**
  * 項目カテゴリの型定義
  */
 interface ItemCategory {
@@ -589,6 +598,14 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         return;
       }
       
+      // セッショントークンを取得
+      const sessionToken = sessionStorage.getItem('sessionToken');
+      if (!sessionToken) {
+        message.error('セッショントークンが取得できません');
+        setLoading(false);
+        return;
+      }
+      
       // マスタIDに応じたエンドポイントを決定
       let endpoint = '';
       if (selectedMasterInfo.masterId === '5') {
@@ -614,6 +631,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         method: 'POST',
         headers: {
           'X-Organization-Id': organizationId,
+          'Authorization': `Bearer ${sessionToken}`,
         },
         body: formData,
       });
@@ -626,11 +644,50 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       const result = await response.json();
       console.log('Upload result:', result);
       
-          message.success('CSVファイルをアップロードしました');
-          
-          // データを再取得
-          await fetchMasterData(selectedMasterInfo.masterId);
-        } catch (error) {
+      // レスポンスからデータを取得
+      const { successCount, failureCount, errors } = result.data;
+      
+      // エラーがある場合（ロールバック）
+      if (errors && errors.length > 0) {
+        // エラーメッセージを構築
+        const errorMessages = errors.map((err: CsvValidationError) => 
+          `${err.row}行目: ${err.message}`
+        ).join('\n');
+        
+        // モーダルでエラー詳細を表示
+        modal.error({
+          title: 'CSVアップロードエラー',
+          content: (
+            <div>
+              <p>以下のエラーにより、全てロールバックされました。</p>
+              <p>エラー内容を確認して、修正後に再度アップロードしてください。</p>
+              <pre style={{ 
+                maxHeight: '300px', 
+                overflow: 'auto', 
+                background: '#f5f5f5', 
+                padding: '8px',
+                whiteSpace: 'pre-wrap',
+                fontSize: '12px',
+              }}>
+                {errorMessages}
+              </pre>
+              <p style={{ marginTop: '8px', fontWeight: 'bold' }}>
+                失敗件数: {failureCount}件
+              </p>
+            </div>
+          ),
+          width: 600,
+        });
+        
+        message.error(`CSVアップロードに失敗しました（${failureCount}件のエラー）`);
+      } else if (successCount > 0) {
+        // 成功の場合
+        message.success(`CSVファイルをアップロードしました（${successCount}件登録）`);
+        
+        // データを再取得
+        await fetchMasterData(selectedMasterInfo.masterId);
+      }
+    } catch (error) {
       console.error('CSV upload error:', error);
       message.error(error instanceof Error ? error.message : 'CSVアップロードに失敗しました');
     } finally {
@@ -657,26 +714,20 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         
         // マスタIDに応じたエンドポイントを決定
         let endpoint = '';
-        let filename = '';
         if (selectedMasterInfo.masterId === '5') {
           endpoint = `${apiUrl}/master/instrument/download-csv`;
-          filename = 'instruments.csv';
         } else if (selectedMasterInfo.masterId === '7') {
           endpoint = `${apiUrl}/master/vendor/download-csv`;
-          filename = 'vendors.csv';
         } else if (selectedMasterInfo.masterId === '8') {
           endpoint = `${apiUrl}/master/creator/download-csv`;
-          filename = 'creators.csv';
         }
         
-        // フィルタ条件をクエリパラメータに追加
+        // フィルタ条件をクエリパラメータに追加（検索欄のみ）
         const params = new URLSearchParams();
         if (searchText.trim()) {
           params.append('search', searchText.trim());
         }
-        if (displayScope && displayScope !== 'all') {
-          params.append('display_scope', displayScope);
-        }
+        // 表示切替フィルタは除外（後で実装予定のため）
         // 固定フィルター（searchFixed=trueの項目）もクエリパラメータに追加
         Object.entries(fixedFilters).forEach(([key, value]) => {
           if (value) {
@@ -719,6 +770,19 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           console.error('API Error Response:', errorText);
           throw new Error(`CSVダウンロードに失敗しました: ${response.status} - ${errorText}`);
         }
+        
+        // Content-Dispositionヘッダーからファイル名を取得
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'download.csv'; // デフォルト
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+          if (filenameMatch) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        console.log('Download filename:', filename);
         
         // レスポンスをBlobとして取得
         const blob = await response.blob();

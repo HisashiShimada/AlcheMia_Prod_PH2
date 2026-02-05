@@ -276,14 +276,14 @@ export const findAllWithFilters = async (
   const values: any[] = [organizationId];
   let paramIndex = 2;
   
-  // 表示切替フィルタ（自組織のみ：IDの末尾2桁が偶数）
-  if (filters.displayScope === 'own') {
-    whereClauses.push(`(RIGHT(instrument_id, 2)::int % 2 = 0)`);
-  }
-  
-  // 検索フィルタ（名称・説明での部分一致、大文字小文字を区別しない）
+  // 検索フィルタ（instrument_id, instrument_name, instrument_description, instrument_annotationの4項目で部分一致検索）
   if (filters.search) {
-    whereClauses.push(`(instrument_name ILIKE $${paramIndex} OR instrument_description ILIKE $${paramIndex})`);
+    whereClauses.push(
+      `(instrument_id ILIKE $${paramIndex} OR 
+        instrument_name ILIKE $${paramIndex} OR 
+        instrument_description ILIKE $${paramIndex} OR 
+        instrument_annotation ILIKE $${paramIndex})`
+    );
     values.push(`%${filters.search}%`);
     paramIndex++;
   }

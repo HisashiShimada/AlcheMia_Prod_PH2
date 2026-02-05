@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import { query, param, body } from 'express-validator';
+import { query, param } from 'express-validator';
 import * as masterController from '../controllers/masterController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import cors from 'cors';

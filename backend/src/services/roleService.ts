@@ -3,10 +3,7 @@
  * ビジネスロジック層
  */
 
-import Papa from 'papaparse';
-import { v4 as uuidv4 } from 'uuid';
 import * as roleRepository from '../repositories/roleRepository';
-import { getPool } from '../database/db';
 
 /**
  * Roleレスポンス型定義
@@ -18,31 +15,6 @@ export interface RoleResponse {
   functionName: string;
   functionWritePermissions: string;
   updatedAt: string | null;
-}
-
-/**
- * 日時を YYYYMMDDhhmmss 形式にフォーマット
- * 
- * @param date 日時オブジェクト
- * @returns フォーマットされた文字列
- */
-function formatDateTime(date: Date | null): string {
-  if (!date) return '-';
-  
-  try {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hour = String(d.getHours()).padStart(2, '0');
-    const minute = String(d.getMinutes()).padStart(2, '0');
-    const second = String(d.getSeconds()).padStart(2, '0');
-    
-    return `${year}${month}${day}${hour}${minute}${second}`;
-  } catch (error) {
-    console.error('Date format error:', error);
-    return '-';
-  }
 }
 
 /**
@@ -169,23 +141,4 @@ export async function updateRolePermissions(
 
   // リポジトリ層で更新
   await roleRepository.updateRolePermissions(organizationId, roleId, permissions, userId);
-}
-
-/**
- * CSV型定義
- */
-interface CsvRow {
-  [key: string]: string;
-}
-
-interface CsvValidationError {
-  row: number;
-  field: string;
-  message: string;
-}
-
-interface CsvUploadResult {
-  successCount: number;
-  failureCount: number;
-  errors: CsvValidationError[];
 }
