@@ -8,8 +8,6 @@
 
 **Users**: 
 - **実験作業者（Worker）**: 自分が担当する実験で発生した問題を確認し、コメントのやり取りを追跡
-- **実験管理者（Manager）**: プロジェクト全体の問題状況を把握し、特定のタスクやトランジションに絞って問題を確認
-- **システム管理者（Admin）**: 全組織の問題を監視（マルチテナント管理）
 
 **Impact**: 既存の問題管理システム（4エンドポイント実装済み）に問題一覧取得機能を追加することで、5エンドポイント中5エンドポイントが完全に実装され、問題管理機能が完成します。
 
@@ -187,8 +185,6 @@ interface IssueListQuery {
   method_id: string;       // 空文字列不可（必須）
   task_no: number;         // 正の整数（必須）
   transition_id: string;   // 空文字列不可（必須）
-  status?: string;         // unresolved | resolved（オプショナル）
-  issue_type?: string;     // IssueType（オプショナル）
 }
 ```
 
@@ -235,7 +231,10 @@ interface IssueComment {
 
 **Implementation Notes**:
 - **Integration**: issueRoutes.tsに新規ルート定義を追加
-- **Validation**: express-validatorでクエリパラメータを検証
+- **Validation**: 
+  - express-validatorのquery()でバリデーションルールを定義
+  - handleValidationErrorsミドルウェア（backend/src/middleware/validationMiddleware.ts）でエラー処理
+  - ミドルウェアチェーン: auth → tenantIsolation → permissionCheck → [validation rules] → handleValidationErrors → controller
 - **Risks**: なし（既存パターンの踏襲）
 
 ### Backend / Controllers Layer
@@ -283,8 +282,14 @@ class IssueController {
 
 **Implementation Notes**:
 - **Integration**: issueController.tsに新規メソッドを追加
-- **Validation**: express-validatorのquery()でバリデーションルールを定義
-- **Risks**: バリデーションエラーメッセージの日本語化が必要
+- **Validation**: 
+  - バリデーションはルート層で実施済み（handleValidationErrorsミドルウェア）
+  - コントローラー内でvalidationResult()を使用しない
+  - バリデーションエラーは自動的に400レスポンスで返却される
+- **Error Handling**:
+  - サービス層のエラーはnext()に渡して統一的に処理
+  - 成功時は200 OK、ApiResponse<IssueWithComments[]>形式でレスポンス
+- **Risks**: なし（既存パターンの踏襲）
 
 ### Backend / Services Layer
 
