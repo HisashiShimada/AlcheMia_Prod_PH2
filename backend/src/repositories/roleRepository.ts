@@ -305,7 +305,7 @@ export async function getRoleById(
 export function getFunctionIdByName(functionName: string): string | null {
   // FunctionListのキーと値を逆引き
   const entries = Object.entries(FunctionList);
-  const found = entries.find(([key, value]) => value === functionName);
+  const found = entries.find(([, value]) => value === functionName);
   return found ? found[0] : null;
 }
 
@@ -498,3 +498,28 @@ export async function updateRolePermissions(
     client.release();
   }
 }
+
+/**
+ * ロールの存在チェック
+ */
+export async function existsById(
+  organizationId: string,
+  roleCd: string
+): Promise<boolean> {
+  const pool = getPool();
+  try {
+    const query = `
+      SELECT EXISTS(
+        SELECT 1 FROM role
+        WHERE organization_id = $1 AND role_cd = $2
+      ) as exists
+    `;
+    const result = await pool.query(query, [organizationId, roleCd]);
+    return result.rows[0].exists;
+  } catch (error) {
+    console.error('ロール存在チェックエラー:', error);
+    throw error;
+  }
+}
+
+

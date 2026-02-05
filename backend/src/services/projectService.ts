@@ -48,6 +48,18 @@ interface ProjectCheckoutInfo {
 }
 
 /**
+ * 指示確認レスポンスデータ
+ * Task: 2.1, 2.2 型定義（instructionConfirmation.tsから移植）
+ */
+interface InstructionConfirmationData {
+  instruction_id: string;
+  is_acknowledged: boolean;
+  acknowledged_at: string;
+  acknowledged_user_id: string;
+  acknowledged_user_name: string;
+}
+
+/**
  * ProjectServiceクラス
  */
 export class ProjectService {
@@ -1564,6 +1576,154 @@ export class ProjectService {
           code: 'SYSTEM_DATABASE_ERROR',
           message: 'データベースエラーが発生しました',
           originalError: error as Error,
+        },
+      };
+    }
+  }
+
+  /**
+   * 指示確認を記録する
+   * 
+   * @description instructionConfirmationService.tsから移植
+   * Task: 2.1, 2.2 Service層実装
+   * @param instructionId - 指示ID
+   * @param userId - ユーザーID
+   * @param organizationId - 組織ID
+   * @param role - ユーザーロール
+   * @returns 確認結果
+   */
+  async confirmInstruction(
+    instructionId: string,
+    userId: string,
+    organizationId: string,
+    role: string
+  ): Promise<ServiceResult<InstructionConfirmationData>> {
+    const pool = getPool();
+
+    try {
+      // 1. 指示の存在確認（organization_idフィルタ付き）
+      const instructionQuery = `
+        SELECT instruction_id, organization_id
+        FROM project_instruction
+        WHERE instruction_id = $1 AND organization_id = $2
+      `;
+      const instructionResult = await pool.query(instructionQuery, [instructionId, organizationId]);
+
+      if (instructionResult.rows.length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: '指示が見つかりません',
+          },
+        };
+      }
+
+      // 2. 既確認チェック
+      const acknowledgedCheckQuery = `
+        SELECT history_id, acknowledged_at
+        FROM instruction_acknowledged_history
+        WHERE instruction_id = $1 AND organization_id = $2
+        ORDER BY acknowledged_at DESC
+        LIMIT 1
+      `;
+      const acknowledgedCheckResult = await pool.query(acknowledgedCheckQuery, [
+        instructionId,
+        organizationId,
+      ]);
+
+      if (acknowledgedCheckResult.rows.length > 0) {
+        return {
+          success: false,
+          error: {
+            code: 'BUSINESS_ALREADY_ACKNOWLEDGED',
+            message: 'この指示は既に確認済みです',
+          },
+        };
+      }
+
+      // 3. 権限チェック（experiment_workerの場合は自分のタスクか確認）
+      if (role === 'experiment_worker') {
+        const taskAssignmentQuery = `
+          SELECT pt.task_id
+          FROM project_task pt
+          INNER JOIN project_instruction pi ON pi.project_id = pt.project_id
+          WHERE pi.instruction_id = $1
+            AND pt.worker_user_id = $2
+            AND pt.organization_id = $3
+            AND pi.organization_id = $3
+        `;
+        const taskAssignmentResult = await pool.query(taskAssignmentQuery, [
+          instructionId,
+          userId,
+          organizationId,
+        ]);
+
+        if (taskAssignmentResult.rows.length === 0) {
+          return {
+            success: false,
+            error: {
+              code: 'PERMISSION_INSUFFICIENT',
+              message: '自分に割り当てられていない指示は確認できません',
+            },
+          };
+        }
+      }
+
+      // 4. 確認履歴の挿入
+      const insertQuery = `
+        INSERT INTO instruction_acknowledged_history (
+          instruction_id,
+          acknowledged_user_id,
+          acknowledged_at,
+          organization_id
+        ) VALUES ($1, $2, NOW(), $3)
+        RETURNING history_id, acknowledged_at
+      `;
+      const insertResult = await pool.query(insertQuery, [
+        instructionId,
+        userId,
+        organizationId,
+      ]);
+
+      const acknowledgedAt = insertResult.rows[0].acknowledged_at.toISOString();
+
+      // 5. ユーザー名の取得
+      const userQuery = `
+        SELECT user_name
+        FROM user_authentication
+        WHERE user_id = $1 AND organization_id = $2
+      `;
+      const userResult = await pool.query(userQuery, [userId, organizationId]);
+
+      const userName = userResult.rows[0]?.user_name || '';
+
+      // 6. レスポンスデータの整形
+      const responseData: InstructionConfirmationData = {
+        instruction_id: instructionId,
+        is_acknowledged: true,
+        acknowledged_at: acknowledgedAt,
+        acknowledged_user_id: userId,
+        acknowledged_user_name: userName,
+      };
+
+      return {
+        success: true,
+        data: responseData,
+      };
+    } catch (error) {
+      const { logError } = require('../utils/logger');
+      logError('Instruction confirmation error', error as Error, {
+        instructionId,
+        userId,
+        organizationId,
+      });
+
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'データベースエラーが発生しました',
         },
       };
     }

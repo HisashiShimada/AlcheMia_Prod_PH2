@@ -324,18 +324,26 @@ export async function downloadDepartmentCsv(req: Request, res: Response, next: N
     console.log('Filtered departments count:', departments.length);
 
     const csvData = departments.map((d: any) => ({
-      '部署CD': d.departmentCd,
-      '部署名': d.departmentName,
-      '更新日時': d.updatedAt,
-      '状態': d.isActive ? 'アクティブ' : '非アクティブ',
+      'department_cd': d.departmentId,
+      'department_name': d.displayName,
+      'update_at': d.updatedAt,
+      'is_active': d.isActive,
     }));
 
     const csv = Papa.unparse(csvData, {
       header: true,
     });
 
+    // タイムスタンプ付きファイル名を生成 (yyyyMMddhhmmss)
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:]/g, '')
+      .replace('T', '')
+      .slice(0, 14);
+    const filename = `departments_${timestamp}.csv`;
+
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="departments.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send('\uFEFF' + csv);
   } catch (error) {
     console.error('Download departments CSV error:', error);

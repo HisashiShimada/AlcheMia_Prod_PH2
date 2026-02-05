@@ -281,9 +281,14 @@ export const findAllWithFilters = async (
     whereClauses.push(`(RIGHT(vendor_id, 2)::int % 2 = 0)`);
   }
   
-  // 検索フィルタ（名称・説明での部分一致、大文字小文字を区別しない）
+  // 検索フィルタ（ID・名称・説明・注釈での部分一致、大文字小文字を区別しない）
   if (filters.search) {
-    whereClauses.push(`(vendor_name ILIKE $${paramIndex} OR vendor_description ILIKE $${paramIndex})`);
+    whereClauses.push(
+      `(vendor_id ILIKE $${paramIndex} OR 
+        vendor_name ILIKE $${paramIndex} OR 
+        vendor_description ILIKE $${paramIndex} OR 
+        vendor_annotation ILIKE $${paramIndex})`
+    );
     values.push(`%${filters.search}%`);
     paramIndex++;
   }

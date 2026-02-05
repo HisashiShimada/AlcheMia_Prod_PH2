@@ -1024,7 +1024,7 @@ for (const instruction of instructions) {
 
 ### 12. 指示確認完了 🔴
 
-**エンドポイント**: `PUT /api/v1/instructions/:instructionId/confirm`
+**エンドポイント**: `PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm`
 
 **説明**: 指示を確認済みに変更
 
@@ -1039,6 +1039,7 @@ for (const instruction of instructions) {
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
 | `instructionId` | UUID | ○ | 指示ID |
 
 #### レスポンス
@@ -1051,8 +1052,7 @@ for (const instruction of instructions) {
     "instruction_id": "instruction-uuid",
     "is_acknowledged": true,
     "acknowledged_at": "2026-01-27T19:00:00Z",
-    "acknowledged_user_id": "worker-uuid",
-    "acknowledged_user_name": "Worker Name"
+    "acknowledged_user_id": "worker-uuid"
   },
   "meta": {
     "timestamp": "2026-01-27T19:00:00Z",

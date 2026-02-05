@@ -3,26 +3,15 @@
  */
 
 import { Router } from 'express';
-import { query, param, body } from 'express-validator';
+import { param, body } from 'express-validator';
 import * as roleController from '../controllers/roleController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import cors from 'cors';
 import multer from 'multer';
 
-// Multer設定（メモリストレージ使用）
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-  },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
-      cb(null, true);
-    } else {
-      cb(new Error('CSVファイルのみアップロード可能です'));
-    }
-  },
-});
+// Multer設定（CSVアップロード用）
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 const router = Router();
 
@@ -44,6 +33,17 @@ router.get(
   '/role',
   authMiddleware, // 認証ミドルウェア有効化
   roleController.getRoles
+);
+
+/**
+ * ロールCSVダウンロード
+ * GET /api/v1/master/role/download-csv
+ * 注意: パラメータなしの具体的なパスは、パラメータ付きパス（/:roleId）より前に定義する必要があります
+ */
+router.get(
+  '/role/download-csv',
+  authMiddleware,
+  roleController.downloadRoleCsv
 );
 
 /**
@@ -91,6 +91,18 @@ router.post(
       .withMessage('isActiveはブール値である必要があります'),
   ],
   roleController.createRole
+);
+
+/**
+ * ロールCSVアップロード
+ * POST /api/v1/master/role/upload-csv
+ * 注意: パラメータなしの具体的なパスは、パラメータ付きパス（/:roleId）より前に定義する必要があります
+ */
+router.post(
+  '/role/upload-csv',
+  authMiddleware,
+  upload.single('file'),
+  roleController.uploadRoleCsv
 );
 
 /**
@@ -171,3 +183,5 @@ router.patch(
 );
 
 export default router;
+
+

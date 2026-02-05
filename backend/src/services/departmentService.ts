@@ -4,7 +4,6 @@
  */
 
 import Papa from 'papaparse';
-import { v4 as uuidv4 } from 'uuid';
 import * as departmentRepository from '../repositories/departmentRepository';
 import { DepartmentSearchFilters } from '../repositories/departmentRepository';
 import { getPool } from '../database/db';
@@ -209,6 +208,10 @@ interface CsvUploadResult {
 /**
  * DepartmentCSVアップロード処理
  * 
+ * 事前バリデーション方式：
+ * 1. 全行をバリデーション（最初のエラーで停止）
+ * 2. エラーがなければ全件をDB登録
+ * 
  * @param organizationId 組織ID
  * @param csvContent CSV文字列
  * @param userId ログインユーザーID
@@ -219,84 +222,124 @@ export async function uploadDepartmentsCsv(
   csvContent: string,
   userId: string
 ): Promise<CsvUploadResult> {
+  // CSVをパース
+  const parseResult = Papa.parse<CsvRow>(csvContent, {
+    header: true,
+    skipEmptyLines: true,
+  });
+  
+  // Phase 1: 事前バリデーション（DBアクセスあり - 既存チェック含む）
+  const validationErrors: CsvValidationError[] = [];
+  const departmentCdSet = new Set<string>(); // CSV内重複チェック用
+  
+  for (let i = 0; i < parseResult.data.length; i++) {
+    const row = parseResult.data[i];
+    const rowNumber = i + 2; // ヘッダー行を考慮
+    
+    // 必須項目チェック
+    const departmentCd = row['department_cd']?.trim();
+    const departmentName = row['department_name']?.trim();
+    
+    if (!departmentCd) {
+      validationErrors.push({
+        row: rowNumber,
+        field: 'department_cd',
+        message: `${rowNumber}行目: department_cdは必須です`
+      });
+      break; // 最初のエラーで停止
+    }
+    
+    if (!departmentName) {
+      validationErrors.push({
+        row: rowNumber,
+        field: 'department_name',
+        message: `${rowNumber}行目: department_nameは必須です`
+      });
+      break; // 最初のエラーで停止
+    }
+    
+    // 型チェック（is_active）
+    const isActiveStr = row['is_active']?.trim();
+    if (isActiveStr && 
+        !['true', 'TRUE', '1', 'false', 'FALSE', '0', ''].includes(isActiveStr)) {
+      validationErrors.push({
+        row: rowNumber,
+        field: 'is_active',
+        message: `${rowNumber}行目: is_activeは true/false/1/0 のいずれかである必要があります`
+      });
+      break; // 最初のエラーで停止
+    }
+    
+    // CSV内重複チェック
+    if (departmentCdSet.has(departmentCd)) {
+      validationErrors.push({
+        row: rowNumber,
+        field: 'department_cd',
+        message: `${rowNumber}行目: department_cd「${departmentCd}」はCSV内で重複しています`
+      });
+      break; // 最初のエラーで停止
+    }
+    departmentCdSet.add(departmentCd);
+    
+    // 既存データチェック（主キー重複チェック）
+    const exists = await departmentRepository.existsById(organizationId, departmentCd);
+    if (exists) {
+      validationErrors.push({
+        row: rowNumber,
+        field: 'department_cd',
+        message: `${rowNumber}行目: department_cd「${departmentCd}」は既に存在します`
+      });
+      break; // 最初のエラーで停止
+    }
+  }
+  
+  // エラーがあれば即座に終了（DB登録は行わない）
+  if (validationErrors.length > 0) {
+    // 例外を投げず、エラー情報を含むレスポンスを返す
+    return {
+      successCount: 0,
+      failureCount: parseResult.data.length,
+      errors: validationErrors,
+    };
+  }
+  
+  // Phase 2: DB登録（バリデーション通過後のみ）
   const pool = getPool();
   const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
     
-    // CSVをパース
-    const parseResult = Papa.parse<CsvRow>(csvContent, {
-      header: true,
-      skipEmptyLines: true,
-    });
-    
-    const errors: CsvValidationError[] = [];
     let successCount = 0;
-    let failureCount = 0;
     
-    // 各行を処理
+    // 全行を新規作成（バリデーションで既存チェック済み）
     for (let i = 0; i < parseResult.data.length; i++) {
       const row = parseResult.data[i];
-      const rowNumber = i + 2; // ヘッダー行を考慮
       
-      try {
-        // 必須項目チェック
-        const departmentCd = row['部署CD']?.trim();
-        const departmentName = row['部署名']?.trim();
-        
-        if (!departmentCd) {
-          errors.push({ row: rowNumber, field: '部署CD', message: '部署CDは必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        if (!departmentName) {
-          errors.push({ row: rowNumber, field: '部署名', message: '部署名は必須です' });
-          failureCount++;
-          continue;
-        }
-        
-        // 状態の変換
-        const statusStr = row['状態']?.trim() || 'アクティブ';
-        const isActive = statusStr === 'アクティブ' || statusStr === 'true' || statusStr === '1';
-        
-        // ID重複チェック
-        const exists = await departmentRepository.existsById(organizationId, departmentCd);
-        
-        if (exists) {
-          // 既存レコードを更新
-          await departmentRepository.update(organizationId, departmentCd, {
-            departmentName,
-            isActive,
-          }, userId);
-        } else {
-          // 新規作成
-          await departmentRepository.create(organizationId, {
-            departmentCd,
-            departmentName,
-            isActive,
-          }, userId);
-        }
-        
-        successCount++;
-      } catch (error) {
-        console.error(`Row ${rowNumber} processing error:`, error);
-        errors.push({
-          row: rowNumber,
-          field: 'general',
-          message: error instanceof Error ? error.message : 'エラーが発生しました',
-        });
-        failureCount++;
-      }
+      // バリデーション済みなのでtrim()のみ実施
+      const departmentCd = row['department_cd'].trim();
+      const departmentName = row['department_name'].trim();
+      
+      // 状態の変換（boolean型対応）
+      const isActiveStr = row['is_active']?.trim();
+      const isActive = isActiveStr === 'true' || isActiveStr === 'TRUE' || isActiveStr === '1';
+      
+      // 新規作成のみ（既存データは事前バリデーションでエラー）
+      await departmentRepository.create(organizationId, {
+        departmentCd,
+        departmentName,
+        isActive,
+      }, userId);
+      
+      successCount++;
     }
     
     await client.query('COMMIT');
     
     return {
       successCount,
-      failureCount,
-      errors,
+      failureCount: 0,
+      errors: [],
     };
   } catch (error) {
     await client.query('ROLLBACK');

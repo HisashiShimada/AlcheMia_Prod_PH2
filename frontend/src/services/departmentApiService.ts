@@ -164,6 +164,19 @@ export async function batchUpdateMasterStatus(
 }
 
 /**
+ * CSVアップロード結果の型定義
+ */
+interface CsvUploadResult {
+  successCount: number;
+  failureCount: number;
+  errors: Array<{
+    row: number;
+    field: string;
+    message: string;
+  }>;
+}
+
+/**
  * CSVファイルをアップロード
  */
 export async function uploadCsv(
@@ -186,7 +199,7 @@ export async function uploadCsv(
   formData.append('file', file);
   
   try {
-    const response = await client.post<ApiResponse<unknown>>(endpoint, formData, {
+    const response = await client.post<ApiResponse<CsvUploadResult>>(endpoint, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -194,8 +207,29 @@ export async function uploadCsv(
     
     console.log('Response status:', response.status);
     console.log('Upload result:', response.data);
+    
+    // バリデーションエラーのチェック（HTTPステータス200でもエラーの場合がある）
+    if (response.data.success && response.data.data) {
+      const result = response.data.data;
+      
+      if (result.failureCount > 0 && result.errors.length > 0) {
+        // エラーがある場合はメッセージを表示
+        const errorMessage = result.errors[0].message;
+        console.error('CSV validation error:', errorMessage);
+        throw new Error(errorMessage);
+      }
+      
+      // 成功時はログ出力のみ
+      console.log(`CSV upload successful: ${result.successCount} records created`);
+    }
   } catch (error) {
-    const axiosError = error as AxiosError<ApiResponse<unknown>>;
+    // すでにErrorオブジェクトの場合はそのまま再スロー（バリデーションエラー）
+    if (error instanceof Error && !('isAxiosError' in error)) {
+      throw error;
+    }
+    
+    // HTTPエラーの場合
+    const axiosError = error as AxiosError<ApiResponse<CsvUploadResult>>;
     const errorMessage = axiosError.response?.data?.error?.message || 'CSVアップロードに失敗しました';
     console.error('API Error:', axiosError.response?.data || axiosError.message);
     throw new Error(errorMessage);
@@ -249,15 +283,47 @@ export async function downloadCsv(
     });
     
     console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
     
     // レスポンスをBlobとして取得
     const blob = new Blob([response.data], { type: 'text/csv' });
+    
+    // Content-Dispositionヘッダーからファイル名を取得（大文字小文字を考慮）
+    const contentDisposition = 
+      response.headers['content-disposition'] || 
+      response.headers['Content-Disposition'];
+    
+    console.log('Content-Disposition header:', contentDisposition);
+    
+    let filename = 'departments.csv'; // デフォルト値
+    
+    if (contentDisposition) {
+      // filename="..." または filename=... の両方に対応
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        // クォートを除去
+        filename = filenameMatch[1].replace(/['"]/g, '');
+        console.log('Extracted filename from Content-Disposition:', filename);
+      } else {
+        console.warn('Content-Disposition header exists but filename not found');
+      }
+    } else {
+      // Content-Dispositionヘッダーがない場合は、フロントエンド側でタイムスタンプを生成
+      console.warn('Content-Disposition header not found, generating timestamp on frontend');
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[-:]/g, '')
+        .replace('T', '')
+        .slice(0, 14);
+      filename = `departments_${timestamp}.csv`;
+      console.log('Generated filename:', filename);
+    }
     
     // ダウンロードリンクを作成
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'departments.csv';
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
