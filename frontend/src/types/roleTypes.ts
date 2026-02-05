@@ -45,14 +45,14 @@ export interface RoleConfig {
 }
 
 /**
- * ロールマスタの設定定義
+ * ロール管理の設定定義
  */
 export const ROLE_CONFIG: RoleConfig = {
   masterId: '4',
-  displayName: 'ロールマスタ',
+  displayName: 'ロール管理',
   apiEndpoint: '/systemManagement/role',
   primaryKeyField: 'role',
-  supportsCsvUpload: false,
+  supportsCsvUpload: true,
   supportsCsvDownload: true,
   fields: [
     {
@@ -77,7 +77,7 @@ export const ROLE_CONFIG: RoleConfig = {
     },
     {
       dbField: 'functionId',
-      displayName: '機能ID',
+      displayName: '機能CD',
       searchFixed: false,
       isDisplay: true,
       addable: false,
@@ -107,7 +107,7 @@ export const ROLE_CONFIG: RoleConfig = {
     },
     {
       dbField: 'functionWritePermissions',
-      displayName: '書込可能機能ID',
+      displayName: '書込可能機能CD',
       searchFixed: false,
       isDisplay: false,
       addable: false,

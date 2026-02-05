@@ -314,26 +314,34 @@ export default function RoleManagementMock() {
             if (isFunctionName) {
               // バックエンドから受け取ったfunctions配列を使用
               const functions = (record.functions as Array<{ name: string; icon: string; color: string }>) || [];
+              const isActive = record.isActive !== false;  // アクティブかどうか判定
               
               return (
                 <span
                   style={{ 
-                    cursor: 'pointer',
-                    // 機能が設定されている場合のみ下線を表示
-                    textDecoration: functions.length > 0 ? 'underline' : 'none'
+                    cursor: isActive ? 'pointer' : 'not-allowed',
+                    // 機能が設定されていて、かつアクティブな場合のみ下線を表示
+                    textDecoration: (functions.length > 0 && isActive) ? 'underline' : 'none',
+                    color: isActive ? undefined : token.colorTextDisabled,
                   }}
-                  onClick={() => handleOpenFunctionModalDirect(record)}
+                  onClick={isActive ? () => handleOpenFunctionModalDirect(record) : undefined}
                 >
                   {functions.length === 0 ? (
                     // 機能が設定されていない場合は「－」を表示（下線なし）
-                    <span style={{ color: token.colorTextSecondary }}>－</span>
+                    <span style={{ color: isActive ? token.colorTextSecondary : token.colorTextDisabled }}>－</span>
                   ) : (
                     // 機能が設定されている場合は従来通り表示（下線あり）
                     functions.map((func, idx) => (
                       <React.Fragment key={idx}>
-                        {idx > 0 && <span style={{ color: token.colorText }}> / </span>}
-                        <span style={{ color: func.color, fontWeight: token.fontWeightStrong }}>{func.icon}</span>
-                        <span style={{ color: token.colorText, fontWeight: token.fontWeightStrong }}> {func.name}</span>
+                        {idx > 0 && <span style={{ color: isActive ? token.colorText : token.colorTextDisabled }}> / </span>}
+                        <span style={{ 
+                          color: isActive ? func.color : token.colorTextDisabled, 
+                          fontWeight: token.fontWeightStrong 
+                        }}>{func.icon}</span>
+                        <span style={{ 
+                          color: isActive ? token.colorText : token.colorTextDisabled, 
+                          fontWeight: token.fontWeightStrong 
+                        }}> {func.name}</span>
                       </React.Fragment>
                     ))
                   )}
@@ -353,25 +361,36 @@ export default function RoleManagementMock() {
       width: 140,
       align: 'right',
       fixed: 'right',
-      render: (_, record) => (
-        <Flex gap="small" justify="end">
-          <Button
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            編集
-          </Button>
-          <Button
-            size="small"
-            onClick={() => handleToggleActive(record)}
-            danger={record.isActive === false}
-            style={{ minWidth: '80px' }}
-          >
-            {record.isActive !== false ? 'アクティブ' : '非アクティブ'}
-          </Button>
-        </Flex>
-      ),
+      onCell: (record) => ({
+        style: {
+          backgroundColor: record.isActive === false ? '#D3D3D3' : undefined,
+        },
+      }),
+      render: (_, record) => {
+        const isActive = record.isActive !== false;
+        return (
+          <Flex gap="small" justify="end">
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            >
+              編集
+            </Button>
+            <Button
+              size="small"
+              onClick={() => handleToggleActive(record)}
+              danger={isActive}
+              style={{ 
+                minWidth: '80px',
+                color: isActive ? token.colorError : token.colorText
+              }}
+            >
+              {isActive ? '非アクティブ' : 'アクティブ'}
+            </Button>
+          </Flex>
+        );
+      },
     });
 
     return dynamicColumns;
@@ -534,101 +553,43 @@ export default function RoleManagementMock() {
     input.click();
   };
 
-  // CSVファイルをパースして一覧に反映
-  const handleCSVUpload = (file: File) => {
+  // CSVファイルをAPIにアップロード
+  const handleCSVUpload = async (file: File) => {
     if (!selectedMasterInfo) return;
 
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      encoding: 'UTF-8',
-      skipEmptyLines: true,
-      complete: (results: Papa.ParseResult<Record<string, string>>) => {
-        try {
-          const newMasters: MasterRecord[] = [];
-
-          results.data.forEach((row: Record<string, string>) => {
-            const newRecord: MasterRecord = {};
-
-            // itemCategoriesに基づいてデータを構築
-            Object.entries(selectedMasterInfo.itemCategories).forEach(([key, category]) => {
-              if (category && row[category.headerName] !== undefined) {
-                newRecord[key] = row[category.headerName].trim();
-              }
-            });
-
-            // isActiveの処理
-            if (row['状態']) {
-              const statusValue = row['状態'];
-              newRecord.isActive = statusValue === 'アクティブ' || statusValue === 'true' || statusValue === '1';
-            } else {
-              newRecord.isActive = true;
-            }
-
-            newMasters.push(newRecord);
-          });
-
-          if (newMasters.length > 0) {
-            setMasters([...masters, ...newMasters]);
-            message.success(`${newMasters.length}件のロールを追加しました`);
-          } else {
-            message.warning('追加するロールデータがありませんでした');
-          }
-        } catch (error) {
-          console.error('CSV処理エラー:', error);
-          message.error('CSVファイルの処理中にエラーが発生しました');
-        }
-      },
-      error: (error: Error) => {
-        console.error('CSVパースエラー:', error);
-        message.error('CSVファイルの読み込みに失敗しました');
-      },
-    });
+    try {
+      setLoading(true);
+      
+      // APIを呼び出してCSVをアップロード
+      await uploadCsv(file);
+      
+      // アップロード成功後、データを再取得
+      await fetchRoleMasters();
+      
+      message.success('CSVをアップロードしました');
+    } catch (error) {
+      console.error('CSVアップロードエラー:', error);
+      message.error(error instanceof Error ? error.message : 'CSVアップロードに失敗しました');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // CSVダウンロード
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!selectedMasterInfo) return;
 
-    const headers = Object.values(selectedMasterInfo.itemCategories)
-      .filter(c => c && c.isDisplay)
-      .map(c => c!.headerName)
-      .concat(['状態']);
-
-    const rows = filteredMasters.map((master) => {
-      const row = Object.entries(selectedMasterInfo.itemCategories)
-        .filter(([_, c]) => c && c.isDisplay)
-        .map(([key, _]) => master[key] || '');
-      row.push(master.isActive === false ? '非アクティブ' : 'アクティブ');
-      return row;
-    });
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-      ),
-    ].join('\n');
-
-    const bom = '\uFEFF';
-    const csvWithBom = bom + csvContent;
-
-    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, '-')
-      .slice(0, -5);
-    link.href = url;
-    link.download = `ロール管理_${timestamp}.csv`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    message.success('CSVファイルをダウンロードしました');
+    try {
+      // APIを通じてCSVダウンロード（バックエンドのファイル名を使用）
+      await downloadCsv({
+        searchText,
+        roleNameFilter: selectedRoleNameFilter,
+      });
+      message.success('CSVファイルをダウンロードしました');
+    } catch (error) {
+      console.error('CSVダウンロードエラー:', error);
+      message.error(error instanceof Error ? error.message : 'CSVダウンロードに失敗しました');
+    }
   };
 
   // モーダルOK
@@ -1051,6 +1012,11 @@ export default function RoleManagementMock() {
             const idField = Object.keys(selectedMasterInfo.itemCategories)[0];
             return String(record[idField] || Math.random());
           }}
+          onRow={(record) => ({
+            style: {
+              backgroundColor: record.isActive === false ? '#D3D3D3' : undefined,
+            },
+          })}
           size="small"
           scroll={{ x: 1400 }}
           pagination={{
