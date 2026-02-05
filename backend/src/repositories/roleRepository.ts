@@ -305,7 +305,7 @@ export async function getRoleById(
 export function getFunctionIdByName(functionName: string): string | null {
   // FunctionListのキーと値を逆引き
   const entries = Object.entries(FunctionList);
-  const found = entries.find(([key, value]) => value === functionName);
+  const found = entries.find(([, value]) => value === functionName);
   return found ? found[0] : null;
 }
 

@@ -304,19 +304,27 @@ export async function downloadCorporationCsv(req: Request, res: Response, next: 
 
     console.log('Filtered corporations count:', corporations.length);
 
+    // 物理名ヘッダーでCSVデータ作成
     const csvData = corporations.map((c: any) => ({
-      '会社ID': c.corporationId,
-      '会社名': c.corporationName,
-      '更新日時': c.updatedAt,
-      '状態': c.isActive ? 'アクティブ' : '非アクティブ',
+      'corporation_name': c.corporationName,
+      'update_at': c.updatedAt,
+      'is_active': c.isActive,
     }));
 
     const csv = Papa.unparse(csvData, {
       header: true,
     });
 
+    // タイムスタンプ付きファイル名を生成 (yyyyMMddhhmmss)
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:]/g, '')
+      .replace('T', '')
+      .slice(0, 14);
+    const filename = `corporations_${timestamp}.csv`;
+
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="corporations.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send('\uFEFF' + csv);
   } catch (error) {
     console.error('Download corporations CSV error:', error);

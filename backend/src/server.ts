@@ -27,7 +27,7 @@ const corsOptions = {
   credentials: true, // Cookie送信を許可
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id'],
-  exposedHeaders: ['Set-Cookie'],
+  exposedHeaders: ['Set-Cookie', 'Content-Disposition'], // Content-Dispositionを追加
   maxAge: 86400, // プリフライトリクエストのキャッシュ時間（24時間）
 };
 

@@ -453,3 +453,83 @@ export async function updateStatus(
   // vendor_nameとinstrument_nameも取得して返す
   return await findById(organizationId, creatorId);
 }
+
+/**
+ * フィルタ条件付きでCreatorマスタを取得（WHERE句でフィルタリング）
+ * 
+ * @param organizationId 組織ID
+ * @param filters フィルタ条件
+ * @returns Creatorマスタの配列
+ */
+export async function findAllWithFilters(
+  organizationId: string,
+  filters: {
+    displayScope?: string;
+    search?: string;
+    isActive?: boolean;
+  } = {}
+): Promise<CreatorMasterRow[]> {
+  const pool: Pool = getPool();
+  
+  console.log('=== creatorRepository.findAllWithFilters called ===');
+  console.log('organizationId:', organizationId);
+  console.log('filters:', filters);
+  
+  const whereClauses: string[] = ['cm.organization_id = $1'];
+  const values: any[] = [organizationId];
+  let paramIndex = 2;
+  
+  // 検索フィルタ（creator_id, creator_name, creator_description, creator_annotation, vendor_name, instrument_nameの6項目で部分一致検索）
+  if (filters.search) {
+    whereClauses.push(
+      `(cm.creator_id ILIKE $${paramIndex} OR 
+        cm.creator_name ILIKE $${paramIndex} OR 
+        cm.creator_description ILIKE $${paramIndex} OR 
+        cm.creator_annotation ILIKE $${paramIndex} OR 
+        vm.vendor_name ILIKE $${paramIndex} OR 
+        im.instrument_name ILIKE $${paramIndex})`
+    );
+    values.push(`%${filters.search}%`);
+    paramIndex++;
+  }
+  
+  // アクティブ状態フィルタ
+  if (filters.isActive !== undefined) {
+    whereClauses.push(`cm.is_active = $${paramIndex}`);
+    values.push(filters.isActive);
+    paramIndex++;
+  }
+  
+  const query = `
+    SELECT 
+      cm.creator_id,
+      cm.creator_name,
+      cm.creator_description,
+      cm.creator_annotation,
+      cm.is_active,
+      vm.vendor_name,
+      vm.is_active as vendor_is_active,
+      im.instrument_name,
+      im.is_active as instrument_is_active,
+      cm.update_at
+    FROM creator cm
+    LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
+      AND cm.organization_id = vm.organization_id
+    LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
+      AND cm.organization_id = im.organization_id
+    WHERE ${whereClauses.join(' AND ')}
+    ORDER BY cm.creator_id
+  `;
+  
+  console.log('Executing query:', query);
+  console.log('With params:', values);
+  
+  try {
+    const result = await pool.query<CreatorMasterRow>(query, values);
+    console.log('Filtered count (from DB):', result.rows.length);
+    return result.rows;
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw error;
+  }
+}

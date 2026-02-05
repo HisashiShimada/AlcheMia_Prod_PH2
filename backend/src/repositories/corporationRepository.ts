@@ -72,11 +72,14 @@ export async function findAll(
     paramIndex++;
   }
   
-  // ソート
-  const sortBy = filters.sortBy || 'corporation_id';
+  // ソート（デフォルト: 作成日時の昇順 - 新規アップロードデータが一番下に表示される）
+  const sortBy = filters.sortBy || 'create_at';
   const sortOrder = filters.sortOrder || 'asc';
   query += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
   
+  console.log('=== Corporation Query Details ===');
+  console.log('Sort By:', sortBy, '(default: create_at)');
+  console.log('Sort Order:', sortOrder.toUpperCase(), '(default: ASC)');
   console.log('Executing query:', query);
   console.log('With params:', params);
   
