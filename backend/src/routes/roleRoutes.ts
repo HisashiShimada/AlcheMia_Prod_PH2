@@ -3,26 +3,10 @@
  */
 
 import { Router } from 'express';
-import { query, param, body } from 'express-validator';
+import { param, body } from 'express-validator';
 import * as roleController from '../controllers/roleController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import cors from 'cors';
-import multer from 'multer';
-
-// Multer設定（メモリストレージ使用）
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-  },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
-      cb(null, true);
-    } else {
-      cb(new Error('CSVファイルのみアップロード可能です'));
-    }
-  },
-});
 
 const router = Router();
 

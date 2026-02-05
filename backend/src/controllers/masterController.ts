@@ -799,26 +799,38 @@ export async function downloadCreatorsCsv(req: Request, res: Response, next: Nex
     console.log('Filters:', filters);
 
     // フィルタ適用してデータ取得
-    const creators = await masterService.getCreatorMasters(String(organizationId), filters);
+    const creators = await masterService.getCreatorMastersWithFilters(String(organizationId), filters);
 
     console.log('Filtered creators count:', creators.length);
 
+    // CSVヘッダーを物理名に変更
     const csvData = creators.map((c: any) => ({
-      'CreatorID': c.creatorId,
-      'Creator名称': c.creatorName,
-      'Creator説明': c.creatorDescription,
-      'Creatorアノテーション': c.creatorAnnotation,
-      'Vendor名称': c.vendorName,
-      'Instrument名称': c.instrumentName,
-      '状態': c.isActive ? 'アクティブ' : '非アクティブ',
+      'creator_id': c.creatorId,
+      'creator_name': c.creatorName,
+      'creator_description': c.creatorDescription,
+      'creator_annotation': c.creatorAnnotation,
+      'vendor_name': c.vendorName,
+      'instrument_name': c.instrumentName,
+      'is_active': c.isActive,
     }));
 
     const csv = Papa.unparse(csvData, {
       header: true,
     });
 
+    // ファイル名を master_creator_yyyyMMddhhssmm.csv 形式に変更
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    const minute = String(now.getMinutes()).padStart(2, '0');
+    const second = String(now.getSeconds()).padStart(2, '0');
+    const timestamp = `${year}${month}${day}${hour}${minute}${second}`;
+    const filename = `master_creator_${timestamp}.csv`;
+
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="creators.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send('\uFEFF' + csv);
   } catch (error) {
     console.error('Download creators CSV error:', error);
@@ -906,20 +918,32 @@ export async function downloadInstrumentsCsv(req: Request, res: Response, next: 
 
     console.log('Filtered instruments count:', instruments.length);
 
+    // CSVヘッダーを物理名に変更
     const csvData = instruments.map((i: any) => ({
-      '実験装置ID': i.instrumentId,
-      '実験装置名称': i.instrumentName,
-      '説明': i.instrumentDescription,
-      'アノテーション': i.instrumentAnnotation,
-      '状態': i.isActive ? 'アクティブ' : '非アクティブ',
+      'instrument_id': i.instrumentId,
+      'instrument_name': i.instrumentName,
+      'instrument_description': i.instrumentDescription,
+      'instrument_annotation': i.instrumentAnnotation,
+      'is_active': i.isActive,
     }));
 
     const csv = Papa.unparse(csvData, {
       header: true,
     });
 
+    // ファイル名を master_instrument_yyyyMMddhhssmm.csv 形式に変更
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    const minute = String(now.getMinutes()).padStart(2, '0');
+    const second = String(now.getSeconds()).padStart(2, '0');
+    const timestamp = `${year}${month}${day}${hour}${minute}${second}`;
+    const filename = `master_instrument_${timestamp}.csv`;
+
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="instruments.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send('\uFEFF' + csv);
   } catch (error) {
     console.error('Download instruments CSV error:', error);
@@ -1007,20 +1031,32 @@ export async function downloadVendorsCsv(req: Request, res: Response, next: Next
 
     console.log('Filtered vendors count:', vendors.length);
 
+    // CSVヘッダーを物理名に変更
     const csvData = vendors.map((v: any) => ({
-      '実験装置VendorID': v.vendorId,
-      '実験装置Vendor名称': v.vendorName,
-      '説明': v.vendorDescription,
-      'アノテーション': v.vendorAnnotation,
-      '状態': v.isActive ? 'アクティブ' : '非アクティブ',
+      'vendor_id': v.vendorId,
+      'vendor_name': v.vendorName,
+      'vendor_description': v.vendorDescription,
+      'vendor_annotation': v.vendorAnnotation,
+      'is_active': v.isActive,
     }));
 
     const csv = Papa.unparse(csvData, {
       header: true,
     });
 
+    // ファイル名を master_vendor_yyyyMMddhhssmm.csv 形式に変更
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    const minute = String(now.getMinutes()).padStart(2, '0');
+    const second = String(now.getSeconds()).padStart(2, '0');
+    const timestamp = `${year}${month}${day}${hour}${minute}${second}`;
+    const filename = `master_vendor_${timestamp}.csv`;
+
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="vendors.csv"');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send('\uFEFF' + csv);
   } catch (error) {
     console.error('Download vendors CSV error:', error);

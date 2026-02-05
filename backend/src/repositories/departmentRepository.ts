@@ -166,6 +166,7 @@ export async function create(
     departmentCd: string;
     departmentName: string;
     isActive?: boolean;
+    updateAt?: string;
   },
   userId: string
 ): Promise<DepartmentRow> {
@@ -182,7 +183,7 @@ export async function create(
       create_at,
       update_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, NOW(), $7
     )
     RETURNING 
       organization_id,
@@ -200,6 +201,7 @@ export async function create(
     data.isActive !== undefined ? data.isActive : true,
     userId,
     userId,
+    data.updateAt || 'NOW()',
   ];
   
   const result = await pool.query<DepartmentRow>(query, values);
@@ -222,6 +224,7 @@ export async function update(
   data: {
     departmentName?: string;
     isActive?: boolean;
+    updateAt?: string;
   },
   userId: string
 ): Promise<DepartmentRow | null> {
@@ -252,7 +255,14 @@ export async function update(
   updates.push(`update_user_id = $${paramIndex}`);
   values.push(userId);
   paramIndex++;
-  updates.push(`update_at = NOW()`);
+  
+  if (data.updateAt !== undefined) {
+    updates.push(`update_at = $${paramIndex}`);
+    values.push(data.updateAt);
+    paramIndex++;
+  } else {
+    updates.push(`update_at = NOW()`);
+  }
   
   const query = `
     UPDATE department

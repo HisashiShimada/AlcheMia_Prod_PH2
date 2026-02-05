@@ -9,7 +9,6 @@ import {
   Modal,
   Form,
   Select,
-  message,
   Typography,
   Row,
   Col,
@@ -56,7 +55,7 @@ interface DepartmentRecord {
  * 部署管理画面のコンポーネント
  */
 export default function DepartmentManagement() {
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
   const { token } = theme.useToken();
 
   // State管理
