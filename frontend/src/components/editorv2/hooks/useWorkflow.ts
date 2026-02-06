@@ -15,8 +15,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { Node, Edge, Connection, XYPosition, NodeChange, EdgeChange } from 'reactflow';
 import { maimlToReactFlow } from '../utils/converters/maimlToReactFlow';
 import { Template } from '@/types/maiml-unified';
-import { TemplatesByCategory } from '../components/TemplateViewer/TemplateList';
-import { NodeData,EdgeData } from '../../../types/editor';
+import { TemplatesByCategory, NodeData, EdgeData } from '@/types/editor';
 
 /**
  * ノード境界情報の型定義

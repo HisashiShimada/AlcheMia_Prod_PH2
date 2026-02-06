@@ -46,8 +46,8 @@ import { fetchTemplateFiles, fetchTemplateContent, type TemplateFile } from '@/a
 import type { 
   NodeData, 
   ValidationError,
+  TemplateError,
 } from '../../../types/editor';
-import { TemplateError } from './TemplateViewer/TemplateItem';
 import { Template, Insertion, Property, PropertyCustomElement, PlaceRef, Content } from '@/types/maiml-unified';
 
 const { Title, Text } = Typography;

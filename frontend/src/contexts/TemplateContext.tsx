@@ -8,34 +8,12 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { TemplateError } from '../components/editorv2/components/TemplateViewer//TemplateItem';
-import { TemplatesByCategory } from '../components/editorv2/components/TemplateViewer/TemplateList';
+import { TemplateError, TemplatesByCategory, MethodData, ValidationResult } from '@/types/editor';
+import { Template } from '@/types/maiml-unified';
 import {
   mapValidationErrorsToTemplates,
 } from '@/services/templateService';
-import { TemplateData } from '@/components/editorv2';
 import { MaimlParserTyped } from '@/utils/maimlParserTyped';
-
-/**
- * Method型定義
- */
-interface Method {
-  methodId: string;
-  name: string;
-  [key: string]: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-}
-
-/**
- * ValidationResult型定義
- */
-interface ValidationResult {
-  errors?: Array<{
-    message: string;
-    path?: string;
-    level?: 'error' | 'warning' | 'info';
-  }>;
-  [key: string]: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-}
 
 /**
  * TemplateContext型定義
@@ -46,9 +24,9 @@ interface TemplateContextType {
   commonTemplates: TemplatesByCategory;
   templateErrors: Record<string, TemplateError[]>;
   isLoading: boolean;
-  addTemplate: (templateData: { category: 'material' | 'condition' | 'result'; template: TemplateData }) => void;
+  addTemplate: (templateData: { category: 'material' | 'condition' | 'result'; template: Template }) => void;
   deleteTemplate: (templateId: string) => void;
-  updateTemplate: (templateId: string, updatedTemplate: TemplateData) => void;
+  updateTemplate: (templateId: string, updatedTemplate: Template) => void;
 }
 
 const TemplateContext = createContext<TemplateContextType | null>(null);
@@ -73,7 +51,7 @@ interface TemplateProviderProps {
   maimlData: string | null;
   validationResult?: ValidationResult | null;
   activeMethodIndex?: number;
-  methods?: Method[];
+  methods?: MethodData[];
 }
 
 /**
@@ -170,16 +148,16 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
       },
       // ✅ reference版: 全テンプレートのmethodIdをログ出力
       allTemplateMethodIds: {
-        material: templates.material.map((t) => ({ id: t.id, methodId: (t as any).methodId })), // eslint-disable-line @typescript-eslint/no-explicit-any
-        condition: templates.condition.map((t) => ({ id: t.id, methodId: (t as any).methodId })), // eslint-disable-line @typescript-eslint/no-explicit-any
-        result: templates.result.map((t) => ({ id: t.id, methodId: (t as any).methodId })), // eslint-disable-line @typescript-eslint/no-explicit-any
+        material: templates.material.map((t : Template) => ({ id: t.id, methodId: t.methodId })), 
+        condition: templates.condition.map((t : Template) => ({ id: t.id, methodId: t.methodId })),
+        result: templates.result.map((t : Template) => ({ id: t.id, methodId: t.methodId })),
       },
     });
 
     // ✅ reference版: methodIdでフィルタリング（現在のメソッドに属するテンプレートのみ）
     const filtered: TemplatesByCategory = {
-      material: templates.material.filter((t) => {
-        const templateMethodId = (t as any).methodId; // eslint-disable-line @typescript-eslint/no-explicit-any
+      material: templates.material.filter((t : Template) => {
+        const templateMethodId = t.methodId;
         const match = templateMethodId === currentMethodId;
         if (!match && templateMethodId) {
           console.log(`⚠️ [TemplateContext] Material template除外:`, {
@@ -191,8 +169,8 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
         }
         return match;
       }),
-      condition: templates.condition.filter((t) => {
-        const templateMethodId = (t as any).methodId; // eslint-disable-line @typescript-eslint/no-explicit-any
+      condition: templates.condition.filter((t: Template) => {
+        const templateMethodId = t.methodId;
         const match = templateMethodId === currentMethodId;
         if (!match && templateMethodId) {
           console.log(`⚠️ [TemplateContext] Condition template除外:`, {
@@ -204,8 +182,8 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
         }
         return match;
       }),
-      result: templates.result.filter((t) => {
-        const templateMethodId = (t as any).methodId; // eslint-disable-line @typescript-eslint/no-explicit-any
+      result: templates.result.filter((t : Template) => {
+        const templateMethodId = t.methodId;
         const match = templateMethodId === currentMethodId;
         if (!match && templateMethodId) {
           console.log(`⚠️ [TemplateContext] Result template除外:`, {
@@ -238,9 +216,9 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
   // 共通テンプレート（methodIdがnull）
   const commonTemplates = useMemo(() => {
     const common: TemplatesByCategory = {
-      material: templates.material.filter((t) => !(t as any).methodId), // eslint-disable-line @typescript-eslint/no-explicit-any
-      condition: templates.condition.filter((t) => !(t as any).methodId), // eslint-disable-line @typescript-eslint/no-explicit-any
-      result: templates.result.filter((t) => !(t as any).methodId), // eslint-disable-line @typescript-eslint/no-explicit-any
+      material: templates.material.filter((t : Template) => !t.methodId),
+      condition: templates.condition.filter((t : Template) => !t.methodId),
+      result: templates.result.filter((t : Template) => !t.methodId),
     };
 
     console.log('🔍 [TemplateContext] 共通テンプレート:', {
@@ -254,7 +232,7 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
 
   // テンプレート追加メソッド
   const addTemplate = useCallback(
-    (templateData: { category: 'material' | 'condition' | 'result'; template: TemplateData }) => {
+    (templateData: { category: 'material' | 'condition' | 'result'; template: Template }) => {
       console.log('➕ [TemplateContext] テンプレート追加:', templateData);
 
       const { category, template } = templateData;
@@ -289,7 +267,7 @@ export const TemplateProvider: React.FC<TemplateProviderProps> = ({
   }, []);
 
   // テンプレート更新メソッド
-  const updateTemplate = useCallback((templateId: string, updatedTemplate: TemplateData) => {
+  const updateTemplate = useCallback((templateId: string, updatedTemplate: Template) => {
     console.log('🔄 [TemplateContext] テンプレート更新:', {
       templateId,
       updatedTemplate,

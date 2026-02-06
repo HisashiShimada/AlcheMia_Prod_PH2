@@ -10,11 +10,10 @@
 
 import React, { memo, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-
 /**
  * EditableTransitionNodeのデータ型
  */
-export interface EditableTransitionNodeData {
+interface EditableTransitionNodeData {
   id: string;
   name?: string;
   description?: string;
@@ -24,17 +23,12 @@ export interface EditableTransitionNodeData {
 }
 
 /**
- * EditableTransitionNode Props型
- */
-export type EditableTransitionNodeProps = NodeProps<EditableTransitionNodeData>;
-
-/**
  * EditableTransitionNode - 編集可能なTransitionノード
  * 
  * 黒塗りつぶしの細い長方形
  * 右クリック・ダブルクリックで編集機能を提供
  */
-const EditableTransitionNode: React.FC<EditableTransitionNodeProps> = memo(({ id, data, selected }) => {
+const EditableTransitionNode: React.FC<NodeProps<EditableTransitionNodeData>> = memo(({ id, data, selected }) => {
   const { name, description, onNodeRightClick, onNodeDoubleClick } = data;
 
   /**

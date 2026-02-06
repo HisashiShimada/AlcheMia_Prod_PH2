@@ -11,80 +11,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Node, Edge } from 'reactflow';
 import { Arc, Template } from '@/types/maiml-unified';
-import { DocumentData,NodeData, EdgeData } from '../../../types/editor';
-
-/**
- * Draft情報の型定義
- */
-export interface Draft {
-  draft_key: string;
-  draft_name: string;
-  original_file_key?: string;
-  last_saved_at: string;
-  nodes?: Node<NodeData>[];
-  edges?: Edge<EdgeData>[];
-  templates?: Template[];
-  documentData?: DocumentData;
-}
-
-/**
- * 編集状態の型定義
- */
-export interface EditState {
-  fileName: string;
-  nodes: Node<NodeData>[];
-  edges: Edge<EdgeData>[];
-  templates?: Template[];
-  documentData?: DocumentData;
-}
-
-/**
- * Draft保存データの型定義
- */
-export interface DraftSaveData {
-  draftKey: string;
-  draftName: string;
-  originalFileKey?: string;
-  nodes: Node<NodeData>[];
-  edges: Edge<EdgeData>[];
-  templates?: Template[];
-  documentData?: DocumentData;
-}
-
-/**
- * useDraftManagerオプションの型定義
- */
-export interface UseDraftManagerOptions {
-  userId?: string;
-  autoSaveInterval?: number;
-  autoSaveGenerations?: number;
-  onAutoSaveSuccess?: (result: { draft_key: string }) => void;
-  onAutoSaveError?: (error: Error) => void;
-}
-
-/**
- * useDraftManagerの返り値型
- */
-export interface UseDraftManagerReturn {
-  // 状態
-  drafts: Draft[];
-  isLoading: boolean;
-  error: string | null;
-  autoSaveEnabled: boolean;
-  lastSavedDraft: Draft | null;
-  lastAutoSaveTime: Date | null;
-  
-  // 操作関数
-  fetchDrafts: () => Promise<Draft[] | undefined>;
-  saveDraft: (draftData: DraftSaveData) => Promise<{ draft: Draft }>;
-  deleteDraft: (draftKey: string) => Promise<unknown>;
-  
-  // 自動保存制御
-  setAutoSaveEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-  startAutoSaveTimer: () => void;
-  stopAutoSaveTimer: () => void;
-  cleanupOldAutoSaves: () => Promise<void>;
-}
+import { 
+  DocumentData,
+  NodeData, 
+  EdgeData,
+  Draft,
+  EditState,
+  DraftSaveData,
+  UseDraftManagerOptions,
+  UseDraftManagerReturn
+} from '../../../types/editor';
 
 /**
  * API レスポンスの型定義

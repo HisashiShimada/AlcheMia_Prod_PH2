@@ -28,7 +28,7 @@ import { xml2js, Element as XmlJsNonCompactElement } from 'xml-js';
 import type { 
   TransitionWithMetadata,
 } from '@/types/maiml-extended';
-import { TemplatesByCategory } from '@/components/editorv2/components/TemplateViewer/TemplateList';
+import { TemplatesByCategory } from '@/types/editor';
 
 export interface TransitionsResult {
   success: boolean;

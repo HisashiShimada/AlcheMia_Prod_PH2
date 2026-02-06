@@ -17,14 +17,15 @@ import {
 
 import type { 
   NodeData,
-  DocumentData,MethodData,EdgeData
+  DocumentData,
+  MethodData,
+  EdgeData,
+  TemplatesByCategory
 } from '../../../../types/editor';
 
 import type { Node, Edge } from 'reactflow';
 
-import type { Reference,Property, PlaceRef, Template } from '@/types/maiml-unified';
-
-import type { TemplatesByCategory } from '../../components/TemplateViewer/TemplateList';
+import type { Reference, Property, PlaceRef, Template } from '@/types/maiml-unified';
 
 /**
  * メタデータ

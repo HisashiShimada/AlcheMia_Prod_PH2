@@ -27,7 +27,8 @@ import {
   FolderOpenOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import useDraftManager, { Draft, EditState } from '../hooks/useDraftManager';
+import useDraftManager from '../hooks/useDraftManager';
+import { Draft, EditState } from '../../../types/editor';
 
 const { Title, Text } = Typography;
 

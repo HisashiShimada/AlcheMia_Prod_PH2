@@ -29,8 +29,6 @@ import type {
   Chain,
   Parent
 } from '@/types/maiml-unified';
-import { TemplateError } from '../components/editorv2/components/TemplateViewer/TemplateItem';
-
 // ============================================
 // 基本型定義
 // ============================================
@@ -48,6 +46,11 @@ export interface Position {
 // ============================================
 
 export type NodeType = 'place' | 'transition';
+
+/**
+ * Place種別
+ */
+export type PlaceType = 'material' | 'condition' | 'result';
 
 /**
  * ノードデータ型 - index.tsとeditorTypes.tsを統合
@@ -287,6 +290,120 @@ export interface DraftData {
   arcs?: Edge<EdgeData>[];
   edges?: Edge<EdgeData>[];
   documentData?: DocumentData;
+}
+
+// ============================================
+// Draft管理関連の型定義 (useDraftManager用)
+// 使用箇所: useDraftManager.ts, DraftManager.tsx, PetriNetEditorInner.tsx
+// ============================================
+
+/**
+ * Draft情報の型定義
+ * S3に保存されるDraftファイルのメタデータと内容
+ */
+export interface Draft {
+  draft_key: string;
+  draft_name: string;
+  original_file_key?: string;
+  last_saved_at: string;
+  nodes?: Node<NodeData>[];
+  edges?: Edge<EdgeData>[];
+  templates?: Template[];
+  documentData?: DocumentData;
+}
+
+/**
+ * 編集状態の型定義
+ * エディタの現在の編集状態を表す
+ */
+export interface EditState {
+  fileName: string;
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+  templates?: Template[];
+  documentData?: DocumentData;
+}
+
+/**
+ * Draft保存データの型定義
+ * Draft保存APIに送信するデータ構造
+ */
+export interface DraftSaveData {
+  draftKey: string;
+  draftName: string;
+  originalFileKey?: string;
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+  templates?: Template[];
+  documentData?: DocumentData;
+}
+
+/**
+ * useDraftManagerオプションの型定義
+ */
+export interface UseDraftManagerOptions {
+  userId?: string;
+  autoSaveInterval?: number;
+  autoSaveGenerations?: number;
+  onAutoSaveSuccess?: (result: { draft_key: string }) => void;
+  onAutoSaveError?: (error: Error) => void;
+}
+
+/**
+ * useDraftManagerの返り値型
+ */
+export interface UseDraftManagerReturn {
+  // 状態
+  drafts: Draft[];
+  isLoading: boolean;
+  error: string | null;
+  autoSaveEnabled: boolean;
+  lastSavedDraft: Draft | null;
+  lastAutoSaveTime: Date | null;
+  
+  // 操作関数
+  fetchDrafts: () => Promise<Draft[] | undefined>;
+  saveDraft: (draftData: DraftSaveData) => Promise<{ draft: Draft }>;
+  deleteDraft: (draftKey: string) => Promise<unknown>;
+  
+  // 自動保存制御
+  setAutoSaveEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  startAutoSaveTimer: () => void;
+  stopAutoSaveTimer: () => void;
+  cleanupOldAutoSaves: () => Promise<void>;
+}
+
+// ============================================
+// Template関連の型定義
+// ============================================
+
+/**
+ * テンプレートエラーの型定義
+ * 使用箇所: TemplateItem.tsx, TemplateList.tsx, TemplateEditorDialog.tsx
+ */
+export interface TemplateError {
+  type?: string;
+  level: string;
+  message: string;
+}
+
+/**
+ * カテゴリ別テンプレートの型定義
+ * 使用箇所: TemplateList.tsx, PetriNetEditorInner.tsx
+ */
+export interface TemplatesByCategory {
+  material: Template[];
+  condition: Template[];
+  result: Template[];
+}
+
+/**
+ * 保存データの型定義
+ * 使用箇所: SaveDialog.tsx, PetriNetEditorInner.tsx
+ */
+export interface SaveData {
+  name: string;
+  description: string;
 }
 
 // ============================================

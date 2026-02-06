@@ -11,16 +11,9 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Input, Button, Alert, Spin, Space, Form } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
+import type { SaveData } from '@/types/editor';
 
 const { TextArea } = Input;
-
-/**
- * 保存データの型定義
- */
-export interface SaveData {
-  name: string;
-  description: string;
-}
 
 /**
  * SaveDialog Props

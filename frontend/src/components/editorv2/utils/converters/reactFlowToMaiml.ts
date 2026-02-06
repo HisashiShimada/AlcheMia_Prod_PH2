@@ -13,12 +13,11 @@ import {
   NodeType,
   DocumentData,
   MethodData,
-  EdgeData
+  EdgeData,
+  TemplatesByCategory
 } from '../../../../types/editor';
 
-import { Property,Content,Template } from '@/types/maiml-unified';
-
-import { TemplatesByCategory } from '../../components/TemplateViewer/TemplateList';
+import { Property, Content, Template } from '@/types/maiml-unified';
 
 /**
  * バリデーション結果の型定義

@@ -10,16 +10,12 @@
 
 import React, { memo, useCallback } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-
-/**
- * Place種別
- */
-export type PlaceType = 'material' | 'condition' | 'result';
+import type { PlaceType } from '@/types/editor';
 
 /**
  * EditablePlaceNodeのデータ型
  */
-export interface EditablePlaceNodeData {
+interface EditablePlaceNodeData {
   id: string;
   placeType: PlaceType;
   name?: string;
@@ -28,11 +24,6 @@ export interface EditablePlaceNodeData {
   onNodeDoubleClick?: (event: React.MouseEvent, nodeId: string) => void;
   [key: string]: unknown;
 }
-
-/**
- * EditablePlaceNode Props型
- */
-export type EditablePlaceNodeProps = NodeProps<EditablePlaceNodeData>;
 
 /**
  * Placeタイプに応じたボーダーラジアスを取得
@@ -61,7 +52,7 @@ const getNodeShape = (placeType: PlaceType): string => {
  * Material/Condition/Resultの3種類のPlaceを1つのコンポーネントで処理
  * placeTypeプロパティで形状を切り替え
  */
-const EditablePlaceNode: React.FC<EditablePlaceNodeProps> = memo(({ id, data, selected }) => {
+const EditablePlaceNode: React.FC<NodeProps<EditablePlaceNodeData>> = memo(({ id, data, selected }) => {
   const { placeType, name, description, onNodeRightClick, onNodeDoubleClick } = data;
 
   /**

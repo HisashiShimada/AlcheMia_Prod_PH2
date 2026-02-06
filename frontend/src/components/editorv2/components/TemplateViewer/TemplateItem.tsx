@@ -7,13 +7,9 @@ import React from 'react';
 import { Card, Typography, Tag, Tooltip, Button, Badge } from 'antd';
 import { WarningOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Template } from '@/types/maiml-unified';
+import type { TemplateError } from '@/types/editor';
 
 const { Text } = Typography;
-
-export interface TemplateError {
-  level : string;
-  message: string;
-}
 
 interface TemplateItemProps {
   template: Template;

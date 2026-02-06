@@ -9,14 +9,9 @@ import { PlusOutlined } from '@ant-design/icons';
 import { useTemplates } from '../../../../contexts/TemplateContext';
 import TemplateItem from './TemplateItem';
 import { Template } from '@/types/maiml-unified';
+import type { TemplatesByCategory } from '@/types/editor';
 
 const { Title, Text } = Typography;
-
-export interface TemplatesByCategory {
-  material: Template[];
-  condition: Template[];
-  result: Template[];
-}
 
 interface TemplateListProps {
   onTemplateSelect: (template: Template) => void;

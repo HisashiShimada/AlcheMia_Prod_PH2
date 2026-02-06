@@ -50,14 +50,11 @@ import ResultTemplateNode from '../nodes/ResultTemplateNode';
 import TransitionNode from '../nodes/TransitionNode';
 import { buildTemplateMap } from '../../utils/petriNetExtractor';
 import { convertToReactFlowFormat } from '../../utils/reactFlowConverter';
-// Phase 3.2: documentParser.tsを削除し、maimlParserTyped.getDocument()を使用
-// import { extractDocumentFromMaiML } from './utils/documentParser';
-// import { extractTemplatesFromMaiML, mapValidationErrorsToTemplates } from './utils/templateExtractor';
 import { addEdge } from 'reactflow';
 import 'reactflow/dist/style.css';
 // Phase 2: maimlParserTyped導入
 import { MaimlParserTyped } from '../../utils/maimlParserTyped';
-import type { Template, PlaceRef as XsdPlaceRef, Document,Method, Property } from '../../types/maiml-unified';
+import type { Template, PlaceRef as XsdPlaceRef,Method, Property } from '../../types/maiml-unified';
 // 型定義をインポート
 import type {
   NodeData,
@@ -73,22 +70,21 @@ import type {
   DraftData
 } from '../../types/editor';
 import type { NodeTypes } from 'reactflow';
-import { Draft,EditState } from './hooks/useDraftManager';
+import { Draft, EditState } from '../../types/editor';
 
 // ===== Phase 8: 分離したモジュールをインポート =====
 // Hooks
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useEditorActions } from './hooks/useEditorActions';
-
-import { TemplatesByCategory } from './components/TemplateViewer/TemplateList';
+import type { TemplatesByCategory } from '@/types/editor';
 
 // ✅ window.cline* の型定義
 declare global {
   interface Window {
-    clineAddTemplate: (templateData: { category: 'material' | 'condition' | 'result'; template: Template }) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
+    clineAddTemplate: (templateData: { category: 'material' | 'condition' | 'result'; template: Template }) => void;
     clineDeleteTemplate: (templateId: string) => void;
-    clineUpdateTemplate: (templateId: string, updatedTemplate: Template) => void; // eslint-disable-line @typescript-eslint/no-explicit-any
-    clineAllTemplates: TemplatesByCategory; // eslint-disable-line @typescript-eslint/no-explicit-any
+    clineUpdateTemplate: (templateId: string, updatedTemplate: Template) => void;
+    clineAllTemplates: TemplatesByCategory;
   }
 }
 
@@ -184,8 +180,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   
   // Phase 3: エラーからノード/アークIDを抽出（改善版）
   const extractAffectedElements = useCallback((errors: ValidationError[]) => {
-    const nodeErrors: Record<string, ValidationError[]> = {};
-    const edgeErrors: Record<string, ValidationError[]> = {};
     const nodeErrorMap: Record<string, ValidationError[]> = {};
     const edgeErrorMap: Record<string, ValidationError[]> = {};
     const affectedNodeIds = new Set<string>();
@@ -2310,96 +2304,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       throw err;
     }
   }, [addWorkflow, pendingClickPosition]);
-
-  // ===== 旧実装（バックアップ - コメントアウト） =====
-  // // Phase 3C-2/3: コピーハンドラー（複数選択対応）
-  // const handleCopy = useCallback(() => {
-  //   if (selectedNodes.length === 0) return;
-  //   
-  //   if (selectedNodes.length === 1) {
-  //     // 単一ノードコピー
-  //     const node = selectedNodes[0];
-  //     setClipboard({
-  //       type: node.type,
-  //       position: node.position,
-  //       data: { ...node.data },
-  //     });
-  //     console.log('📋 [PetriNetEditorInner] コピー:', node.data.name);
-  //   } else {
-  //     // 複数ノードコピー
-  //     setClipboard({
-  //       multiple: true,
-  //       nodes: selectedNodes.map(node => ({
-  //         type: node.type,
-  //         position: node.position,
-  //         data: { ...node.data },
-  //       })),
-  //     });
-  //     console.log('📋 [PetriNetEditorInner] 複数コピー:', selectedNodes.length, 'ノード');
-  //   }
-  // }, [selectedNodes]);
-  //
-  // // Phase 3C-2/3: ペーストハンドラー（複数選択対応）
-  // const handlePaste = useCallback(() => {
-  //   if (!clipboard) return;
-  //   
-  //   if (clipboard.multiple) {
-  //     // 複数ノードペースト
-  //     const newNodes = clipboard.nodes.map((clipNode, index) => {
-  //       const timestamp = Date.now() + index;
-  //       const newId = `${clipNode.data.placeType || clipNode.data.nodeType}-${timestamp}`;
-  //       return {
-  //         id: newId,
-  //         type: clipNode.type,
-  //         position: {
-  //           x: clipNode.position.x + 50,
-  //           y: clipNode.position.y + 50,
-  //         },
-  //         data: {
-  //           ...clipNode.data,
-  //           id: newId,
-  //           name: `${clipNode.data.name} (Copy)`,
-  //         },
-  //       };
-  //     });
-  //     
-  //     setNodes((nds) => {
-  //       const updatedNodes = [...nds, ...newNodes];
-  //       pushState({ nodes: updatedNodes, edges });
-  //       return updatedNodes;
-  //     });
-  //     
-  //     console.log('📋 [PetriNetEditorInner] 複数ペースト:', newNodes.length, 'ノード');
-  //   } else {
-  //     // 単一ノードペースト
-  //     const timestamp = Date.now();
-  //     const newId = `${clipboard.data.placeType || clipboard.data.nodeType}-${timestamp}`;
-  //     
-  //     const newNode = {
-  //       id: newId,
-  //       type: clipboard.type,
-  //       position: {
-  //         x: clipboard.position.x + 50,
-  //         y: clipboard.position.y + 50,
-  //       },
-  //       data: {
-  //         ...clipboard.data,
-  //         id: newId,
-  //         name: `${clipboard.data.name} (Copy)`,
-  //       },
-  //     };
-  //     
-  //     setNodes((nds) => {
-  //       const newNodes = [...nds, newNode];
-  //       pushState({ nodes: newNodes, edges });
-  //       return newNodes;
-  //     });
-  //     
-  //     setSelectedNode(newNode);
-  //     
-  //     console.log('📋 [PetriNetEditorInner] ペースト:', newNode.data.name);
-  //   }
-  // }, [clipboard, edges, pushState, setNodes]);
 
   // Phase 3D: 旧保存ダイアログを開く（互換性のため残す）
   const handleOpenSaveDialog = useCallback(() => {
