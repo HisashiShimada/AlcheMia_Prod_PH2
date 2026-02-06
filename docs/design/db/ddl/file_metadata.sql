@@ -81,8 +81,8 @@ CREATE TABLE IF NOT EXISTS file_metadata (
     uploaded_by VARCHAR(100) NOT NULL,
     
     -- 監査証跡
-    create_user_id UUID,
-    update_user_id UUID,
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
     
     -- 作成日時（自動設定）
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

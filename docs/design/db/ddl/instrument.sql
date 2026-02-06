@@ -21,8 +21,8 @@ CREATE TABLE instrument (
     is_active BOOLEAN,
     
     -- 監査証跡
-    create_user_id UUID,
-    update_user_id UUID,
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
     
     -- タイムスタンプ
     create_at TIMESTAMP,

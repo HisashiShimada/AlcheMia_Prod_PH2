@@ -12,11 +12,11 @@ CREATE TABLE project_instruction (
   , task_no numeric(3,0)
   , transition_id character varying
   , instructions text
-  , instruction_user_id uuid
+  , instruction_user_id VARCHAR(50)
   , instruction_date timestamp
-  , create_user_id uuid
+  , create_user_id VARCHAR(50)
   , create_at timestamp
-  , update_user_id uuid
+  , update_user_id VARCHAR(50)
   , update_at timestamp
   , CONSTRAINT project_instruction_PKC PRIMARY KEY (organization_id,project_id,experiment_instruction_id)
 ) ;
