@@ -26,9 +26,9 @@ CREATE TABLE organization (
   , chief_user_id character varying(50)
   , corporation_id uuid
   , is_active BOOLEAN
-  , create_user_id uuid
+  , create_user_id VARCHAR(50)
   , create_at timestamp
-  , update_user_id uuid
+  , update_user_id VARCHAR(50)
   , update_at timestamp
   , CONSTRAINT organization_PKC PRIMARY KEY (organization_id)
 ) ;

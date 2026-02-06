@@ -7,13 +7,13 @@ CREATE TABLE project (
   , project_name character varying
   , description text
   , department_cd character varying(50)
-  , owner_user_id uuid
+  , owner_user_id VARCHAR(50)
   , project_status numeric(2,0)
   , project_maiml_flg BOOLEAN
   , checkout_status numeric(2,0)
-  , create_user_id uuid
+  , create_user_id VARCHAR(50)
   , create_at timestamp
-  , update_user_id uuid
+  , update_user_id VARCHAR(50)
   , update_at timestamp
   , CONSTRAINT project_PKC PRIMARY KEY (organization_id,project_id)
 ) ;

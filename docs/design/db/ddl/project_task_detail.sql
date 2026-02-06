@@ -9,12 +9,12 @@ CREATE TABLE project_task_detail (
   , task_status numeric(2,0)
   , experiment_start_at timestamp
   , experiment_end_at timestamp
-  , experiment_user_id uuid
+  , experiment_user_id VARCHAR(50)
   , reviewed_at timestamp
-  , review_user_id uuid
-  , create_user_id uuid
+  , review_user_id VARCHAR(50)
+  , create_user_id VARCHAR(50)
   , create_at timestamp
-  , update_user_id uuid
+  , update_user_id VARCHAR(50)
   , update_at timestamp
   , CONSTRAINT project_task_detail_PKC PRIMARY KEY (organization_id,project_id,method_id,task_no)
 ) ;

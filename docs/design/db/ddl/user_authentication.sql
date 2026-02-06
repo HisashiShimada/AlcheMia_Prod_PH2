@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS user_authentication CASCADE;
 
 CREATE TABLE user_authentication (
     -- 主キー
-    user_id UUID NOT NULL,
+    user_id VARCHAR(50) NOT NULL,
     organization_id UUID NOT NULL,
     
     -- 認証情報
@@ -16,8 +16,8 @@ CREATE TABLE user_authentication (
     entry_flg BOOLEAN NOT NULL,
     
     -- 監査証跡
-    create_user_id UUID,
-    update_user_id UUID,
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
     
     -- タイムスタンプ
     create_at TIMESTAMP,
