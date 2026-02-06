@@ -58,16 +58,3 @@ export interface PinCodeSendData {
   expiresAt: Date;
   maskedEmail: string;
 }
-
-/**
- * ユーザー情報
- */
-export interface UserInfo {
-  id: string;
-  username: string;
-  email: string;
-  role: UserRole;
-  organizationId: string;
-  organizationName: string;
-  displayName: string;
-}

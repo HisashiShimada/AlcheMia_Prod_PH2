@@ -5,6 +5,7 @@
 
 import axios, { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
+import { setTokenPair, clearAllTokens } from '@/utils/tokenStorage';
 import type { LoginCredentials } from '@/types/auth';
 import type {
   ApiResponse,
@@ -230,21 +231,68 @@ export const authService = {
   },
 
   /**
+   * リフレッシュトークンを使用してアクセストークンを更新
+   * リフレッシュトークンはhttpOnly Cookieに保存されており、自動的に送信される
+   * 
+   * @returns 新しいアクセストークン（失敗時はnull）
+   * @note リダイレクト処理は呼び出し元（authUtils.tsのインターセプター）で実施
+   */
+  async refreshAccessToken(): Promise<string | null> {
+    try {
+      // リフレッシュトークンはCookieから自動的に送信される
+      const response = await apiClient.post<ApiResponse<{
+        accessToken: string;
+        expiresIn: number;
+      }>>(
+        '/auth/refresh',
+        {} // bodyは空（リフレッシュトークンはCookieから取得）
+      );
+
+      if (response.data.success) {
+        // 新しいアクセストークンを保存
+        setTokenPair(response.data.data.accessToken);
+
+        console.log('[authService] トークン更新成功');
+        return response.data.data.accessToken;
+      } else {
+        // リフレッシュトークンが無効（期限切れなど）
+        console.error('[authService] リフレッシュトークンが無効です');
+        clearAllTokens();
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('userInfo');
+        }
+        return null;
+      }
+    } catch (error) {
+      // API呼び出しエラー（ネットワークエラー、401エラーなど）
+      console.error('[authService] トークン更新エラー:', error);
+      clearAllTokens();
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('userInfo');
+      }
+      return null;
+    }
+  },
+
+  /**
    * ログアウト
+   * リフレッシュトークンはhttpOnly Cookieに保存されており、自動的に送信される
    * @returns ログアウト結果
    */
   async logout(): Promise<LogoutResponseData> {
     try {
       // Authorizationヘッダーはインターセプターで自動付与される
+      // リフレッシュトークンはCookieから自動的に送信され、バックエンドで無効化される
       const response = await apiClient.post<ApiResponse<LogoutResponseData>>(
         '/auth/logout',
-        {}
+        {} // bodyは空（リフレッシュトークンはCookieから取得）
       );
       
       if (response.data.success) {
-        // 成功したらSessionStorageからトークンを削除
+        // 成功したらすべてのトークンとセッション情報を削除
+        clearAllTokens();
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('sessionToken');
+          sessionStorage.removeItem('userInfo');
         }
         return response.data.data;
       }

@@ -2,11 +2,22 @@
  * JWTサービス
  * 
  * @description JWTトークンの生成・検証・デコードを提供
+ * - アクセストークン（15分 or 1時間）
+ * - リフレッシュトークン（30分 or 8時間）
+ * - Redis接続状態に応じて有効期限を自動切り替え
  * Requirements: 2.2, 4.1
  */
 
 import jwt from 'jsonwebtoken';
-import type { JwtPayload, Result, ServiceError } from '../types/auth';
+import { v4 as uuidv4 } from 'uuid';
+import type { 
+  JwtPayload, 
+  RefreshTokenPayload,
+  TokenPair,
+  Result, 
+  ServiceError 
+} from '../types/auth';
+import { RedisConnectionService } from './redisConnectionService';
 
 /**
  * JWTサービスクラス
@@ -33,26 +44,68 @@ export class JwtService {
   }
 
   /**
-   * JWTトークンを生成
+   * Redis起動状態に応じてアクセストークンの有効期限を取得
+   * 
+   * @returns 有効期限（秒）
+   */
+  private getAccessTokenExpiresIn(): number {
+    // Redis起動時: 標準の15分
+    if (RedisConnectionService.isRedisAvailable()) {
+      return parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRES_IN || '900');
+    }
+    
+    // Redis未起動時（開発環境のみ）: 1時間
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    if (isDevelopment) {
+      return parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRES_IN_DEV || '3600');
+    }
+    
+    // 本番環境ではRedis必須（ここには来ない）
+    return parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRES_IN || '900');
+  }
+
+  /**
+   * Redis起動状態に応じてリフレッシュトークンの有効期限を取得
+   * 
+   * @returns 有効期限（秒）
+   */
+  private getRefreshTokenExpiresIn(): number {
+    // Redis起動時: 標準の30分
+    if (RedisConnectionService.isRedisAvailable()) {
+      return parseInt(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN || '1800');
+    }
+    
+    // Redis未起動時（開発環境のみ）: 8時間
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    if (isDevelopment) {
+      return parseInt(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN_DEV || '28800');
+    }
+    
+    // 本番環境ではRedis必須（ここには来ない）
+    return parseInt(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN || '1800');
+  }
+
+  /**
+   * アクセストークンを生成
    * 
    * @param payload - JWTペイロード（iat, expを除く）
-   * @param role - ユーザーロール（有効期限決定に使用）
    * @returns maiml_session-{sessionId}_{timestamp} 形式のトークン
    */
-  async generate(
+  async generateAccessToken(
     payload: Omit<JwtPayload, 'iat' | 'exp'>
   ): Promise<Result<string, ServiceError>> {
     try {
       // 現在時刻
       const now = Math.floor(Date.now() / 1000);
       
+      // 有効期限を取得（Redis接続状態に応じて自動切り替え）
+      const expiresIn = this.getAccessTokenExpiresIn();
+      
       // 完全なペイロードを構築
       const fullPayload: JwtPayload = {
         ...payload,
         iat: now,
-        exp: now + 9999999999
-        // TODO: トークンの有効期限をenvファイルから設定する
-        // exp: now + expiresIn
+        exp: now + expiresIn
       };
 
       // HS256署名でJWT生成
@@ -63,7 +116,6 @@ export class JwtService {
       });
 
       // トークン形式: maiml_session-{sessionId}_{timestamp}.{jwt}
-      // セッションIDとJWT本体を結合して返す
       const sessionToken = `maiml_session-${payload.sessionId}_${now}.${jwtToken}`;
 
       return {
@@ -75,7 +127,7 @@ export class JwtService {
         success: false,
         error: {
           code: 'SYSTEM_JWT_GENERATION_FAILED',
-          message: 'JWT token generation failed',
+          message: 'Access token generation failed',
           originalError: error as Error
         }
       };
@@ -83,7 +135,131 @@ export class JwtService {
   }
 
   /**
-   * JWTトークンを検証
+   * リフレッシュトークンを生成
+   * 
+   * @param userId - ユーザーID
+   * @param organizationId - 組織ID
+   * @param sessionId - セッションID
+   * @returns maiml_refresh-{tokenId}_{timestamp} 形式のトークン
+   */
+  async generateRefreshToken(
+    userId: string,
+    organizationId: string,
+    sessionId: string
+  ): Promise<Result<string, ServiceError>> {
+    try {
+      // 現在時刻
+      const now = Math.floor(Date.now() / 1000);
+      
+      // 有効期限を取得（Redis接続状態に応じて自動切り替え）
+      const expiresIn = this.getRefreshTokenExpiresIn();
+      
+      // リフレッシュトークン固有ID生成
+      const tokenId = uuidv4();
+      
+      // リフレッシュトークンペイロードを構築
+      const payload: RefreshTokenPayload = {
+        userId,
+        organizationId,
+        sessionId,
+        tokenId,
+        iat: now,
+        exp: now + expiresIn
+      };
+
+      // HS256署名でJWT生成
+      const jwtToken = jwt.sign(payload, this.secret, {
+        algorithm: 'HS256',
+        issuer: this.issuer,
+        audience: this.audience
+      });
+
+      // トークン形式: maiml_refresh-{tokenId}_{timestamp}.{jwt}
+      const refreshToken = `maiml_refresh-${tokenId}_${now}.${jwtToken}`;
+
+      return {
+        success: true,
+        data: refreshToken
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_JWT_GENERATION_FAILED',
+          message: 'Refresh token generation failed',
+          originalError: error as Error
+        }
+      };
+    }
+  }
+
+  /**
+   * トークンペアを生成（アクセストークン + リフレッシュトークン）
+   * 
+   * @param payload - JWTペイロード（アクセストークン用）
+   * @returns トークンペア
+   */
+  async generateTokenPair(
+    payload: Omit<JwtPayload, 'iat' | 'exp'>
+  ): Promise<Result<TokenPair, ServiceError>> {
+    try {
+      // アクセストークン生成
+      const accessTokenResult = await this.generateAccessToken(payload);
+      if (!accessTokenResult.success) {
+        return {
+          success: false,
+          error: accessTokenResult.error
+        };
+      }
+
+      // リフレッシュトークン生成
+      const refreshTokenResult = await this.generateRefreshToken(
+        payload.userId,
+        payload.organizationId,
+        payload.sessionId
+      );
+      if (!refreshTokenResult.success) {
+        return {
+          success: false,
+          error: refreshTokenResult.error
+        };
+      }
+
+      return {
+        success: true,
+        data: {
+          accessToken: accessTokenResult.data,
+          refreshToken: refreshTokenResult.data
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_JWT_GENERATION_FAILED',
+          message: 'Token pair generation failed',
+          originalError: error as Error
+        }
+      };
+    }
+  }
+
+  /**
+   * JWTトークンを生成（後方互換性のため残す）
+   * 
+   * @deprecated generateTokenPair() または generateAccessToken() を使用してください
+   * @param payload - JWTペイロード（iat, expを除く）
+   * @returns maiml_session-{sessionId}_{timestamp} 形式のトークン
+   */
+  async generate(
+    payload: Omit<JwtPayload, 'iat' | 'exp'>
+  ): Promise<Result<string, ServiceError>> {
+    // アクセストークンを生成して返す
+    return this.generateAccessToken(payload);
+  }
+
+  /**
+   * アクセストークンを検証
    * 
    * @param token - 検証するトークン
    * @returns 検証されたペイロード
@@ -153,12 +329,82 @@ export class JwtService {
   }
 
   /**
+   * リフレッシュトークンを検証
+   * 
+   * @param token - 検証するリフレッシュトークン
+   * @returns 検証されたリフレッシュトークンペイロード
+   */
+  async verifyRefreshToken(token: string): Promise<Result<RefreshTokenPayload, ServiceError>> {
+    try {
+      // トークンからJWT部分を抽出
+      const parts = token.split('.');
+      
+      if (parts.length < 4) {
+        // maiml_refresh-{tokenId}_{timestamp}.{jwt}の形式でない
+        return {
+          success: false,
+          error: {
+            code: 'AUTH_TOKEN_INVALID',
+            message: 'Invalid refresh token format'
+          }
+        };
+      }
+
+      // JWT部分を抽出
+      const jwtToken = parts.slice(1).join('.');
+
+      // JWT検証
+      const decoded = jwt.verify(jwtToken, this.secret, {
+        algorithms: ['HS256'],
+        issuer: this.issuer,
+        audience: this.audience
+      }) as RefreshTokenPayload;
+
+      return {
+        success: true,
+        data: decoded
+      };
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        return {
+          success: false,
+          error: {
+            code: 'AUTH_TOKEN_EXPIRED',
+            message: 'Refresh token has expired',
+            originalError: error
+          }
+        };
+      }
+
+      if (error instanceof jwt.JsonWebTokenError) {
+        return {
+          success: false,
+          error: {
+            code: 'AUTH_TOKEN_INVALID',
+            message: 'Invalid refresh token',
+            originalError: error
+          }
+        };
+      }
+
+      return {
+        success: false,
+        error: {
+          code: 'AUTH_TOKEN_INVALID',
+          message: 'Refresh token verification failed',
+          originalError: error as Error
+        }
+      };
+    }
+  }
+
+  /**
    * JWTトークンをデコード（検証なし）
    * 
    * @param token - デコードするトークン
    * @returns デコードされたペイロード（検証なし）
    */
-  decode(token: string): JwtPayload | null {
+  decode(token: string): JwtPayload | RefreshTokenPayload | null {
     try {
       // トークンからJWT部分を抽出
       const parts = token.split('.');
@@ -169,7 +415,7 @@ export class JwtService {
       const jwtToken = parts.slice(1).join('.');
 
       // 検証なしでデコード
-      const decoded = jwt.decode(jwtToken) as JwtPayload | null;
+      const decoded = jwt.decode(jwtToken) as JwtPayload | RefreshTokenPayload | null;
       return decoded;
     } catch (error) {
       return null;
