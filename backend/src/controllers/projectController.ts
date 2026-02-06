@@ -1288,7 +1288,7 @@ export async function requestApproval(req: Request, res: Response): Promise<void
  * GET /api/v1/projects/:projectName/worker-instructions
  * 
  * @description プロジェクトに関連する作業指示一覧を取得する
- * Task 3.1: エラーハンドリングの実装
+ * @note バリデーションはミドルウェアで処理済み（バックエンド規約準拠）
  * Requirements: REQ-1, REQ-3, REQ-5
  */
 export async function getWorkerInstructions(req: Request, res: Response): Promise<void> {
@@ -1296,75 +1296,18 @@ export async function getWorkerInstructions(req: Request, res: Response): Promis
   const projectService = new ProjectService();
 
   try {
+    // バリデーションはミドルウェアで処理済み
     const { organizationId, userId } = req.user!;
     const role = (req.user as any).role;
     const { projectName } = req.params;
 
-    // Task 3.1: projectNameバリデーション
-    if (!projectName || projectName.trim() === '') {
-      logError('Worker instructions validation error', new Error('projectName is required'), {
-        action: 'worker_instructions_list',
-        organizationId,
-        projectName: req.params.projectName,
-        requestId,
-      });
-
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'projectNameは必須です',
-          details: [{
-            field: 'projectName',
-            message: 'プロジェクト名が必要です',
-            code: 'REQUIRED_FIELD',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // Task 3.1: projectName形式チェック（特殊文字を含まない）
-    const projectNameRegex = /^[a-zA-Z0-9_-]+$/;
-    if (!projectNameRegex.test(projectName)) {
-      logError('Worker instructions validation error', new Error('Invalid projectName format'), {
-        action: 'worker_instructions_list',
-        organizationId,
-        projectName,
-        requestId,
-      });
-
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'projectNameに不正な文字が含まれています',
-          details: [{
-            field: 'projectName',
-            message: '英数字、ハイフン、アンダースコアのみ使用できます',
-            code: 'INVALID_FORMAT',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // Task 3.1: クエリパラメータのバリデーション（projectIdのみ）
+    // クエリパラメータの取得
     const filters: any = {};
-
     if (req.query.projectId) {
       filters.projectId = req.query.projectId as string;
     }
 
-    // Task 3.1: Service層呼び出し
+    // Service層呼び出し
     const result = await projectService.getWorkerInstructions({
       projectName,
       organizationId,

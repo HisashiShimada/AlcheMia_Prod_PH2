@@ -267,6 +267,7 @@ router.get(
  * @middleware authMiddleware - JWT認証
  * @description プロジェクトに関連する作業指示一覧を取得する
  * @note Task 1.1: 作業指示一覧取得エンドポイント追加
+ * @note バリデーションはミドルウェアで処理済み
  * @requirements REQ-1, REQ-3
  * @roles experiment_worker, experiment_admin, system_admin
  */
@@ -284,6 +285,7 @@ router.get(
       .isUUID()
       .withMessage('projectIdはUUID形式である必要があります'),
   ],
+  handleValidationErrors,
   projectController.getWorkerInstructions
 );
 
