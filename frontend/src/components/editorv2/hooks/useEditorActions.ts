@@ -3,25 +3,26 @@
  * 
  * コピー・ペースト・削除などの編集操作を集約
  * 
- * @version 1.0.0
- * @date 2026-01-30
+ * @version 1.1.0
+ * @date 2026-02-06
  */
 
 import { useCallback } from 'react';
 import type { Node, Edge } from 'reactflow';
-import { EdgeData, NodeData } from '../types';
+import type { NodeData, EdgeData, ClipboardData } from '../types';
+import type { EditorState } from './useHistory';
 
 export interface UseEditorActionsProps {
   nodes: Node<NodeData>[];
   edges: Edge<EdgeData>[];
   selectedNodes: Node<NodeData>[];
-  clipboard: any;
-  setNodes: (nodes: Node<NodeData>[]) => void;
-  setEdges: (edges: Edge<EdgeData>[]) => void;
-  setClipboard: (clipboard: any) => void;
+  clipboard: ClipboardData | null;
+  setNodes: React.Dispatch<React.SetStateAction<Node<NodeData>[]>>;
+  setEdges: React.Dispatch<React.SetStateAction<Edge<EdgeData>[]>>;
+  setClipboard: (clipboard: ClipboardData | null) => void;
   setSelectedNode: (node: Node<NodeData>) => void;
   setSelectedEdge: (edge: Edge<EdgeData>) => void;
-  pushState: (state: {nodes: Node<NodeData>[], edges: Edge<EdgeData>[]}) => void;
+  pushState: (state: EditorState) => void;
 }
 
 export interface UseEditorActionsResult {
@@ -53,7 +54,7 @@ export const useEditorActions = ({
       // 単一ノードコピー
       const node = selectedNodes[0];
       setClipboard({
-        type: node.type,
+        type: node.type || 'place',
         position: node.position,
         data: { ...node.data },
       });
@@ -63,7 +64,7 @@ export const useEditorActions = ({
       setClipboard({
         multiple: true,
         nodes: selectedNodes.map(node => ({
-          type: node.type,
+          type: node.type || 'place',
           position: node.position,
           data: { ...node.data },
         })),
@@ -76,12 +77,12 @@ export const useEditorActions = ({
   const handlePaste = useCallback(() => {
     if (!clipboard) return;
     
-    if (clipboard.multiple) {
+    if (clipboard.multiple && clipboard.nodes) {
       // 複数ノードペースト
-      const newNodes = clipboard.nodes.map((clipNode: Node<NodeData>, index: number) => {
+      const newNodes = clipboard.nodes.map((clipNode, index: number) => {
         const timestamp = Date.now() + index;
         const newId = `${clipNode.data.placeType || clipNode.data.nodeType}-${timestamp}`;
-        const newNode : Node<NodeData> = {
+        const newNode: Node<NodeData> = {
           id: newId,
           type: clipNode.type,
           position: {
@@ -97,7 +98,6 @@ export const useEditorActions = ({
         return newNode;
       });
       
-      const allNodes : Node<NodeData>[] = [...nodes, ...newNodes];
       setNodes((nds: Node<NodeData>[]) => {
         const updatedNodes = [...nds, ...newNodes];
         pushState({ nodes: updatedNodes, edges });
@@ -105,12 +105,12 @@ export const useEditorActions = ({
       });
       
       console.log('📋 [useEditorActions] 複数ペースト:', newNodes.length, 'ノード');
-    } else {
-      // 単一ノードペースト
+    } else if (clipboard.data && clipboard.position && clipboard.type) {
+      // 単一ノードペースト（型ガード追加）
       const timestamp = Date.now();
       const newId = `${clipboard.data.placeType || clipboard.data.nodeType}-${timestamp}`;
       
-      const newNode = {
+      const newNode: Node<NodeData> = {
         id: newId,
         type: clipboard.type,
         position: {
@@ -124,7 +124,7 @@ export const useEditorActions = ({
         },
       };
       
-      setNodes((nds: any) => {
+      setNodes((nds: Node<NodeData>[]) => {
         const newNodes = [...nds, newNode];
         pushState({ nodes: newNodes, edges });
         return newNodes;

@@ -4,12 +4,13 @@
  * Undo/Redo機能のためのCommandパターン実装
  * Phase 3C: Undo/Redo基本機能
  * 
- * @version 2.0.0
- * @date 2026-01-29
+ * @version 2.1.0
+ * @date 2026-02-06
  */
 
 import { useState, useCallback } from 'react';
 import { Node, Edge } from 'reactflow';
+import type { NodeData, EdgeData } from '../types';
 
 /**
  * 最大履歴保持数
@@ -20,8 +21,8 @@ const MAX_HISTORY_SIZE = 50;
  * エディタの状態を表す型
  */
 export interface EditorState {
-  nodes: Node[];
-  edges: Edge[];
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
 }
 
 /**

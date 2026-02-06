@@ -9,14 +9,16 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Node } from 'reactflow';
+import { NodeData, EdgeData } from '../types';
+import { ClipboardData } from '../types';
 
 export interface UseKeyboardShortcutsProps {
   // 状態
-  nodes: Node[];
-  clipboard: any;
+  nodes: Node<NodeData>[];
+  clipboard: ClipboardData | null;
   canUndo: boolean;
   canRedo: boolean;
-  selectedNodes: Node[];
+  selectedNodes: Node<NodeData>[];
   
   // ダイアログ状態
   templateEditorOpen: boolean;

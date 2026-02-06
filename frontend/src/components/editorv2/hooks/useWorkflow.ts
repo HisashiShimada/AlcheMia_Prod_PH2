@@ -16,7 +16,7 @@ import { Node, Edge, Connection, XYPosition, NodeChange, EdgeChange } from 'reac
 import { maimlToReactFlow } from '../utils/converters/maimlToReactFlow';
 import { Template } from '@/types/maiml-unified';
 import { TemplatesByCategory } from '../components/TemplateViewer/TemplateList';
-import { NodeData } from '../types';
+import { NodeData,EdgeData } from '../types';
 
 /**
  * ノード境界情報の型定義
@@ -36,8 +36,8 @@ interface NodeBounds {
  * ID重複解決結果の型定義
  */
 interface IdConflictResolution {
-  mappedNodes: Node[];
-  mappedEdges: Edge[];
+  mappedNodes: Node<NodeData>[];
+  mappedEdges: Edge<EdgeData>[];
   idMapping: Record<string, string>;
 }
 
@@ -46,8 +46,8 @@ interface IdConflictResolution {
  */
 export interface WorkflowAddResult {
   success: boolean;
-  nodes?: Node[];
-  edges?: Edge[];
+  nodes?: Node<NodeData>[];
+  edges?: Edge<EdgeData>[];
   templates?: TemplatesByCategory;
   message?: string;
   error?: string;
@@ -58,8 +58,8 @@ export interface WorkflowAddResult {
  */
 export interface MethodData {
   methodId: string;
-  nodes: Node[];
-  edges: Edge[];
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
 }
 
 /**
@@ -89,8 +89,8 @@ export interface UseWorkflowReturn {
   // 状態
   methods: MethodData[];
   activeMethodIndex: number;
-  nodes: Node[];
-  edges: Edge[];
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
   templates: TemplatesByCategory;
   
   // メソッド操作

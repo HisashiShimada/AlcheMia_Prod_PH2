@@ -27,7 +27,7 @@ import ReactFlow, {
 } from 'reactflow';
 import { Flex, Spin, Alert, Typography, Space, theme } from 'antd';
 import { TemplateProvider, useTemplates } from '../../contexts/TemplateContext';
-import { TemplateList } from './components/TemplateViewer';
+import TemplateList from './components/TemplateViewer/TemplateList';
 import EditorToolbar from './components/EditorToolbar';
 import MethodTabPanel from './components/MethodTabPanel';
 import PropertyPanel from './components/PropertyPanel';
@@ -121,7 +121,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   
   // ✅ Phase 9.10 Step7: error型と saveError型をnullで統一
   const [error, setError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | undefined>();
+  const [saveError, setSaveError] = useState<string | undefined>(undefined);
   
   // エラーマッピング用に TemplateContext を後で取得するため、
   // ここではContextをラップせずにステートのみ管理
@@ -470,7 +470,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     setClipboard,
     setSelectedNode,
     setSelectedEdge,
-    pushState: pushState as any,
+    pushState,
   });
 
   // ===== Phase 8 Step 4 & 5: ハンドラは既に実装済み =====
@@ -2778,7 +2778,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const handleSave = useCallback(async (metadata: { name: string; description: string }) => {
     try {
       setIsSaving(true);
-      setSaveError(null);
+      setSaveError(undefined);
       
       console.log('💾 [PetriNetEditorInner] 保存開始:', {
         name: metadata.name,
@@ -3038,7 +3038,7 @@ interface PetriNetEditorInnerUIProps {
   handleEdgeClick: (event: React.MouseEvent, edge: Edge<EdgeData>) => void;
   handleNodesDelete: (nodes: Node<NodeData>[]) => void;
   handleEdgesDelete: (edges: Edge<EdgeData>[]) => void;
-  handleConnect: (connection: any) => void;
+  handleConnect: (connection: Connection) => void;
   handleNodeDragStop: (event: React.MouseEvent, node: Node<NodeData>) => void;
   handleSelectionChange: (params: { nodes: Node<NodeData>[]; edges: Edge<EdgeData>[] }) => void;
   handlePaneClick: (event: React.MouseEvent) => void;
@@ -3142,7 +3142,7 @@ interface PetriNetEditorInnerUIProps {
   handleCloseDraftManager: () => void;
   handleLoadDraft: (draft: DraftData) => void;
   lastSavedDraft: Draft | null;
-  currentEditState: any;
+  currentEditState: EditState;
   currentUserId: string;
   sourceS3Key?: string;
 }
@@ -3248,10 +3248,10 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
     window.clineUpdateTemplate = updateTemplate;
     window.clineAllTemplates = allTemplates;
     return () => {
-      delete window.clineAddTemplate;
-      delete window.clineDeleteTemplate;
-      delete window.clineUpdateTemplate;
-      delete window.clineAllTemplates;
+      if (window.clineAddTemplate) delete window.clineAddTemplate;
+      if (window.clineDeleteTemplate) delete window.clineDeleteTemplate;
+      if (window.clineUpdateTemplate) delete window.clineUpdateTemplate;
+      if (window.clineAllTemplates) delete window.clineAllTemplates;
     };
   }, [addTemplate, deleteTemplate, updateTemplate, allTemplates]);
   
@@ -3463,7 +3463,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           open={templateEditorOpen}
           onClose={handleCloseTemplateEditor}
           node={templateEditNode ?? { id: '', data: {} as NodeData }}
-          onSave={(nodeId: string, templateRef: Template, isNewTemplate: boolean, templateCategory: string, isCommonTemplate: boolean, methodId: string | null) => handleSaveTemplate(nodeId, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId)}
+          onSave={(nodeId: string, templateRef: Template, isNewTemplate: boolean, templateCategory: string, isCommonTemplate: boolean, methodId: string | null) => handleSaveTemplate(nodeId, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId || undefined)}
           allNodes={(() => {
             // 共通テンプレートかどうかを判定
             const isCommonTemplate = 
