@@ -16,6 +16,7 @@ import projectRoutes from './routes/projectRoutes';
 import taskRoutes from './routes/taskRoutes';
 import fileDownloadRoutes from './routes/fileDownloadRoutes';
 import masterRoutes from './routes/masterRoutes';
+import experimentRoutes from './routes/experimentRoutes';
 import departmentRoutes from './routes/departmentRoutes';
 import corporationRoutes from './routes/corporationRoutes';
 import roleRoutes from './routes/roleRoutes';
@@ -77,6 +78,9 @@ async function startServer() {
     app.use('/api/v1/tasks', taskRoutes);
     app.use('/api/v1/projects', fileDownloadRoutes);
     
+	// Mount experiment routes
+	app.use('/api/v1/experiments', experimentRoutes);
+
     // Mount systemManagement routes
     app.use('/api/v1/systemManagement', departmentRoutes);
     app.use('/api/v1/systemManagement', roleRoutes);
