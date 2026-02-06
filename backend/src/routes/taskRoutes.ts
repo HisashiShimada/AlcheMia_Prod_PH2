@@ -21,6 +21,7 @@ const router = Router();
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware handleValidationErrors - バリデーションエラーハンドリング
  * @description プロジェクト内の全タスクをメソッド単位でグループ化して取得する
  * @note Task 3.3: タスク一覧取得エンドポイント追加
  * @requirements REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7, REQ-9
@@ -58,6 +59,7 @@ router.get(
       .isIn(['asc', 'desc'])
       .withMessage('order must be either asc or desc'),
   ],
+  handleValidationErrors,
   taskController.list
 );
 
