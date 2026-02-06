@@ -11,6 +11,7 @@ import * as projectController from '../controllers/projectController';
 import * as workerProjectController from '../controllers/workerProjectController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
 
@@ -28,6 +29,29 @@ const router = Router();
 router.get(
   '/worker-accessible',
   authMiddleware,
+  [
+    query('page')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('ページ番号は1以上の整数である必要があります'),
+    query('limit')
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage('limitは1〜100の範囲内の整数である必要があります'),
+    query('status')
+      .optional()
+      .isIn(['1', '2', '3'])
+      .withMessage("statusは'1', '2', '3'のいずれかを指定してください"),
+    query('sort_by')
+      .optional()
+      .isIn(['create_at', 'project_name', 'update_at'])
+      .withMessage("sort_byは'create_at', 'project_name', 'update_at'のいずれかを指定してください"),
+    query('order')
+      .optional()
+      .isIn(['asc', 'desc'])
+      .withMessage("orderは'asc'または'desc'を指定してください"),
+  ],
+  handleValidationErrors,
   workerProjectController.listWorkerAccessible
 );
 
