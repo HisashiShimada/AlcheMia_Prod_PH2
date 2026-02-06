@@ -440,14 +440,16 @@ router.get('/issues',
 #### クエリパラメータ
 | パラメータ | 型 | 必須 | デフォルト | 説明 |
 |-----------|----|----|-----------|------|
-| project_id | UUID | ○ | - | プロジェクトIDでフィルタ（必須） |
-| method_id | string | ○ | - | メソッドIDでフィルタ（必須） |
-| task_no | integer | ○ | - | タスク連番でフィルタ（必須） |
-| transition_id | string | ○ | - | トランジションIDでフィルタ（必須） |
+| projectId | UUID | ○ | - | プロジェクトIDでフィルタ（必須） |
+| methodId | string | ○ | - | メソッドIDでフィルタ（必須） |
+| taskNo | integer | ○ | - | タスク連番でフィルタ（必須） |
+| transitionId | string | ○ | - | トランジションIDでフィルタ（必須） |
+| status | string | △ | - | ステータスでフィルタ（オプション: unresolved/resolved） |
+| issueType | string | △ | - | 問題タイプでフィルタ（オプション） |
 
 #### リクエスト例
 ```
-GET /api/v1/issues?project_id=550e8400-e29b-41d4-a716-446655440000&method_id=method_001&task_no=1&transition_id=transition_001&status=unresolved
+GET /api/v1/issues?projectId=550e8400-e29b-41d4-a716-446655440000&methodId=method_001&taskNo=1&transitionId=transition_001&status=unresolved
 ```
 
 ### レスポンス
@@ -523,10 +525,12 @@ GET /api/v1/issues?project_id=550e8400-e29b-41d4-a716-446655440000&method_id=met
 
 ### バリデーション
 
-- [ ] project_id はUUID形式（必須）
-- [ ] method_id は空文字列ではない（必須）
-- [ ] task_no は正の整数（必須）
-- [ ] transition_id は空文字列ではない（必須）
+- [ ] projectId はUUID形式（必須）
+- [ ] methodId は空文字列ではない（必須）
+- [ ] taskNo は正の整数（必須）
+- [ ] transitionId は空文字列ではない（必須）
+- [ ] status は "unresolved" または "resolved"（オプション）
+- [ ] issueType は許可された値のいずれか（オプション）
 
 
 ### データベーステーブル

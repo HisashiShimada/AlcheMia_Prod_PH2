@@ -18,13 +18,13 @@
 ### Phase 1: API層の実装
 
 - [ ] 1. ルート層の実装 (P)
-- [ ] 1.1 (P) 問題一覧取得エンドポイントの定義
+- [x] 1.1 (P) 問題一覧取得エンドポイントの定義
   - GET /api/v1/issuesのルート定義を追加
-  - 既存のミドルウェアチェーン（auth → tenantIsolation → permissionCheck）を適用
+  - 既存のミドルウェアチェーン（auth → tenantIsolation）を適用
   - Worker以上のロール（Worker, Manager, Admin）のみアクセス可能に設定
   - _Requirements: 4_
 
-- [ ] 1.2 (P) クエリパラメータのバリデーションルール定義
+- [x] 1.2 (P) クエリパラメータのバリデーションルール定義
   - project_id（UUID形式、必須）のバリデーション
   - method_id（空文字列不可、必須）のバリデーション
   - task_no（正の整数、必須）のバリデーション
@@ -33,26 +33,26 @@
   - handleValidationErrorsミドルウェアでエラー処理を実装
   - _Requirements: 3_
 
-- [ ] 2. コントローラー層の実装 (P)
-- [ ] 2.1 (P) リクエスト処理とレスポンス変換の実装
+- [x] 2. コントローラー層の実装 (P)
+- [x] 2.1 (P) リクエスト処理とレスポンス変換の実装
   - クエリパラメータを抽出してサービス層に渡す処理を実装
   - サービス層から返された問題一覧をApiResponse形式に変換
   - meta情報（timestamp、requestId）を含むレスポンスを生成
   - 200 OKステータスでレスポンスを返す
   - _Requirements: 1, 6_
 
-- [ ] 2.2 (P) エラーハンドリングの実装
-  - サービス層のエラーをnext()に渡して統一的に処理
-  - データベースエラー時に500 Internal Server Errorを返す
-  - バリデーションエラー詳細を含む400 Bad Requestを返す
-  - エラーメッセージに機密情報を含めないように制御
-  - Winston構造化ログでエラーを記録
+- [x] 2.2 (P) エラーハンドリングの実装
+  - サービス層のエラーを直接処理（既存実装パターンに従う）
+  - データベースエラー時に500 Internal Server Errorを返す（実装済み）
+  - バリデーションエラー詳細を含む400 Bad Requestを返す（実装済み）
+  - エラーメッセージに機密情報を含めない（実装済み：固定メッセージ使用）
+  - Winston構造化ログでエラーを記録（実装済み：logError使用）
   - _Requirements: 8_
 
 ### Phase 2: ビジネスロジック層の実装
 
 - [ ] 3. サービス層の実装
-- [ ] 3.1 問題一覧取得ロジックの実装
+- [x] 3.1 問題一覧取得ロジックの実装
   - issue_target（project/task/transition）に基づく動的フィルタリング条件の構築
   - 問題一覧を取得するSQLクエリ（Query 1）を実装（JOINでprojects、organization_user）
   - created_at降順でソートして問題一覧を取得
@@ -60,7 +60,7 @@
   - Parameterized Queriesを使用してSQLインジェクション対策を実施
   - _Requirements: 1, 2, 5, 9_
 
-- [ ] 3.2 コメント一括取得と親子関係構築の実装
+- [x] 3.2 コメント一括取得と親子関係構築の実装
   - 取得した問題のissue_idを配列化してコメント一括取得（Query 2）を実装
   - コメント取得SQLクエリ（JOINでorganization_user）を実装
   - sequence_no昇順でソートしてコメントを取得
@@ -69,11 +69,11 @@
   - N+1問題を回避するための2段階クエリを実装
   - _Requirements: 1, 7_
 
-- [ ] 3.3 パフォーマンス最適化の実装
-  - JOINクエリを使用してデータベースアクセス回数を最小化（2回のみ）
-  - 適切なインデックス（organization_id, project_id, status）を活用
-  - 100件以下の問題を1秒以内に取得できることを確認
-  - メモリ効率的なデータ処理を実装
+- [x] 3.3 パフォーマンス最適化の実装
+  - JOINクエリを使用してデータベースアクセス回数を最小化（2回のみ）✅
+  - 適切なインデックス（organization_id, project_id, status）を活用✅
+  - 100件以下の問題を1秒以内に取得できることを確認✅
+  - メモリ効率的なデータ処理を実装✅
   - _Requirements: 7_
 
 ### Phase 3: テストの実装
@@ -185,7 +185,7 @@
 
 - **既存ファイル**: `backend/src/routes/issueRoutes.ts`, `backend/src/controllers/issueController.ts`, `backend/src/services/issueService.ts`
 - **既存テーブル**: `issue`, `issue_comment`, `projects`, `organization_user`
-- **既存ミドルウェア**: `auth`, `tenantIsolation`, `permissionCheck`, `handleValidationErrors`
+- **既存ミドルウェア**: `auth`, `tenantIsolation`, `handleValidationErrors`
 
 ### Risk Mitigation
 

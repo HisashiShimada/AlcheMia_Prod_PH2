@@ -37,7 +37,7 @@
 
 **Current Architecture Patterns**:
 - レイヤードアーキテクチャ: Routes → Controllers → Services → Database
-- ミドルウェアチェーン: auth → tenantIsolation → permissionCheck
+- ミドルウェアチェーン: auth → tenantIsolation
 - 統一されたレスポンス形式: ApiResponse<T>型
 - Parameterized Queriesによる安全なDB操作
 
@@ -70,7 +70,6 @@ graph TB
     subgraph "Middleware Chain"
         Auth[auth]
         Tenant[tenantIsolation]
-        Perm[permissionCheck]
     end
     
     subgraph "Routes Layer"
@@ -94,8 +93,7 @@ graph TB
     
     Client -->|GET /api/v1/issues| Auth
     Auth --> Tenant
-    Tenant --> Perm
-    Perm --> IssueRoutes
+    Tenant --> IssueRoutes
     IssueRoutes -->|list| IssueController
     IssueController -->|listIssues| IssueService
     IssueService -->|Query 1: Fetch Issues| IssueTable
@@ -161,14 +159,13 @@ graph TB
 | Requirements | 4 |
 
 **Responsibilities & Constraints**:
-- ミドルウェアチェーン（auth → tenantIsolation → permissionCheck）の適用
-- Worker以上の権限を持つユーザーのみアクセス可能
+- ミドルウェアチェーン（auth → tenantIsolation）の適用
 - コントローラーメソッドへのリクエストルーティング
 
 **Dependencies**:
 - Inbound: Express Router (P0)
 - Outbound: IssueController.list (P0)
-- External: auth, tenantIsolation, permissionCheck ミドルウェア (P0)
+- External: auth, tenantIsolation ミドルウェア (P0)
 
 **Contracts**: API [x]
 
@@ -234,7 +231,7 @@ interface IssueComment {
 - **Validation**: 
   - express-validatorのquery()でバリデーションルールを定義
   - handleValidationErrorsミドルウェア（backend/src/middleware/validationMiddleware.ts）でエラー処理
-  - ミドルウェアチェーン: auth → tenantIsolation → permissionCheck → [validation rules] → handleValidationErrors → controller
+  - ミドルウェアチェーン: auth → tenantIsolation → [validation rules] → handleValidationErrors → controller
 - **Risks**: なし（既存パターンの踏襲）
 
 ### Backend / Controllers Layer

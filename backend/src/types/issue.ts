@@ -195,35 +195,29 @@ export interface IssueQueryParams {
   /** プロジェクトIDでフィルタ */
   projectId?: string;
 
-  /** タスク詳細IDでフィルタ */
-  taskDetailId?: string;
+  /** メソッドIDでフィルタ */
+  methodId?: string;
 
-  /** 報告者IDでフィルタ */
+  /** タスク連番でフィルタ */
+  taskNo?: number;
+
+  /** トランジションIDでフィルタ */
+  transitionId?: string;
+
+  /** 報告者IDでフィルタ（将来の拡張用） */
   reporterId?: string;
 
-  /** 担当者IDでフィルタ */
+  /** 担当者IDでフィルタ（将来の拡張用） */
   assigneeId?: string;
 
-  /** 問題タイプでフィルタ */
-  issueType?: IssueType;
+  /** 問題タイプでフィルタ（文字列または定義済みタイプ） */
+  issueType?: IssueType | string;
 
   /** 重要度でフィルタ */
   severity?: IssueSeverity;
 
-  /** ステータスでフィルタ */
-  status?: IssueStatus;
-
-  /** ページ番号（デフォルト: 1） */
-  page?: number;
-
-  /** 1ページあたりの件数（デフォルト: 20、最大: 100） */
-  limit?: number;
-
-  /** ソート対象のフィールド */
-  sortBy?: 'createdAt' | 'updatedAt' | 'severity' | 'status';
-
-  /** ソート順序（デフォルト: desc） */
-  order?: 'asc' | 'desc';
+  /** ステータスでフィルタ（文字列または定義済みステータス） */
+  status?: IssueStatus | string;
 }
 
 /**
@@ -278,4 +272,106 @@ export interface PaginatedIssues {
 
   /** 総ページ数 */
   totalPages: number;
+}
+
+/**
+ * 問題コメント（Task 3.1用）
+ */
+export interface IssueComment {
+  /** シーケンス番号 */
+  sequenceNo: number;
+
+  /** コメント内容 */
+  comment: string;
+
+  /** 投稿者ユーザーID */
+  authorId: string;
+
+  /** 投稿者名 */
+  authorName: string;
+
+  /** コメント日時 */
+  commentedAt: string;
+}
+
+/**
+ * コメント付き問題（Task 3.1用）
+ */
+export interface IssueWithComments {
+  /** 問題ID */
+  id: string;
+
+  /** 問題タイプ */
+  issueType: string;
+
+  /** 対象種別 */
+  targetType: 'project' | 'task' | 'transition';
+
+  /** プロジェクトID */
+  projectId: string;
+
+  /** プロジェクト名 */
+  projectName: string;
+
+  /** メソッドID */
+  methodId: string;
+
+  /** タスク番号 */
+  taskNo: number | null;
+
+  /** トランジションID */
+  transitionId: string | null;
+
+  /** タイトル */
+  title: string;
+
+  /** 内容 */
+  contents: string;
+
+  /** ステータス */
+  status: 'unresolved' | 'resolved';
+
+  /** 報告者ユーザーID */
+  reportedBy: string;
+
+  /** 報告者名 */
+  reportedByName: string;
+
+  /** 報告日時 */
+  reportedAt: string;
+
+  /** 完了者ユーザーID */
+  completedBy: string | null;
+
+  /** 完了者名 */
+  completedByName: string | null;
+
+  /** 完了日時 */
+  completedAt: string | null;
+
+  /** コメント配列 */
+  comments: IssueComment[];
+}
+
+/**
+ * 問題一覧取得フィルタ（Task 3.1用）
+ */
+export interface IssueListFilters {
+  /** プロジェクトID（必須） */
+  projectId: string;
+
+  /** メソッドID（必須） */
+  methodId: string;
+
+  /** タスク番号（必須） */
+  taskNo: number;
+
+  /** トランジションID（必須） */
+  transitionId: string;
+
+  /** ステータスフィルタ（オプション） */
+  status?: string;
+
+  /** 問題タイプフィルタ（オプション） */
+  issueType?: string;
 }
