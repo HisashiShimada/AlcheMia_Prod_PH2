@@ -22,6 +22,8 @@ import ReactFlow, {
   type Connection,
   type SelectionMode,
   type BackgroundVariant,
+  NodeChange,
+  EdgeChange,
 } from 'reactflow';
 import { Flex, Spin, Alert, Typography, Space, theme } from 'antd';
 import { TemplateProvider, useTemplates } from '../../contexts/TemplateContext';
@@ -123,7 +125,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   
   // ✅ Phase 9.10 Step7: error型と saveError型をnullで統一
   const [error, setError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | undefined>();
   
   // エラーマッピング用に TemplateContext を後で取得するため、
   // ここではContextをラップせずにステートのみ管理
@@ -813,6 +815,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             methodId: `method_${Date.now()}`,
             pnmlId: `pnml_${Date.now()}`,
             programId: `program_${Date.now()}`,
+            chains:[],
+            parents : []
           };
           setDocumentData(initialDocumentData);
           console.log('📄 [PetriNetEditorInner] 新規作成: documentData初期化（ID自動生成）:', {
@@ -943,7 +947,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                 ...extractedDoc,
                 name: props.originalFileName 
                   ? props.originalFileName.replace('.maiml', '') 
-                  : (extractedDoc.name || 'document')
+                  : (extractedDoc.name || 'document'),
               };
               setDocumentData(documentWithCorrectName);
               console.log('📄 [PetriNetEditorInner] Document情報を読み込みました（型安全）:', documentWithCorrectName);
@@ -1632,6 +1636,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const result: Property = {
         key: String(finalKey),
         xsiType: xsiType,
+        properties: [],
+        contents: []
       };
       
       // attributes から units, formatString, scaleFactor を抽出
@@ -1754,6 +1760,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             description: convertedTemplateRef.description,
             category: templateCategory,
             properties: convertedTemplateRef.properties || [],
+            contents: convertedTemplateRef.contents || [],
             placeRefs: convertedTemplateRef.placeRefs || [],
             templateRef: convertedTemplateRef.templateRef,
             methodId: correctMethodId,
@@ -1783,7 +1790,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       // ✅ 既存テンプレートの元の情報を取得（TemplateContextから）
       if (window.clineAllTemplates) {
         const allTemplates = window.clineAllTemplates;
-        let originalTemplate: Template = {id: '', name: '', uuid: '', category: '', placeRefs : []};
+        let originalTemplate: Template = {id: '', name: '', uuid: '', category: '', placeRefs : [], properties: [], contents: []};
         
         // 全カテゴリから元のテンプレートを検索（templateIdで検索）
         (['material', 'condition', 'result'] as const).forEach((category) => {
@@ -1812,6 +1819,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             description: convertedTemplateRef.description,
             category: finalTemplateCategory,
             properties: convertedTemplateRef.properties,
+            contents: convertedTemplateRef.contents || [],
             placeRefs: convertedTemplateRef.placeRefs || [],
             templateRef: convertedTemplateRef.templateRef,
             methodId: finalMethodId,
@@ -1963,7 +1971,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   uuid: template.uuid || crypto.randomUUID(),
                   placeRefs: template.placeRefs || [],
                   templateRef: template.templateRef,
-                  properties: (template.properties as Property[]) || [],
+                  properties: template.properties || [],
+                  contents: template.contents || [],
                 },
                 templateRef: {
                   id: template.id,
@@ -1973,7 +1982,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   uuid: template.uuid || crypto.randomUUID(),
                   placeRefs: template.placeRefs || [],
                   templateRef: template.templateRef,
-                  properties: (template.properties as Property[]) || [],
+                  properties: template.properties || [],
+                  contents: template.contents || [],
                 },
               },
             };
@@ -2020,6 +2030,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   placeRefs: [],
                   templateRef: undefined,
                   properties: [],
+                  contents: []
                 },
                 templateRef: {
                   id: newId,
@@ -2031,6 +2042,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                   placeRefs: [],
                   templateRef: undefined,
                   properties: [],
+                  contents: []
                 },
                 // 新規作成フラグ
                 isNewTemplate: true,
@@ -3045,8 +3057,8 @@ interface PetriNetEditorInnerUIProps {
   edges: Edge<EdgeData>[];
   setNodes: React.Dispatch<React.SetStateAction<Node<NodeData>[]>>;
   setEdges: React.Dispatch<React.SetStateAction<Edge<EdgeData>[]>>;
-  onNodesChange: (changes: any) => void;
-  onEdgesChange: (changes: any) => void;
+  onNodesChange: (changes: NodeChange[]) => void;
+  onEdgesChange: (changes: EdgeChange[]) => void;
   
   // イベントハンドラ
   handleNodeClick: (event: React.MouseEvent, node: Node<NodeData>) => void;
@@ -3117,7 +3129,7 @@ interface PetriNetEditorInnerUIProps {
   saveDialogOpen: boolean;
   handleCloseSaveDialog: () => void;
   handleSave: (metadata: any) => void;
-  saveError: string | null;
+  saveError: string | undefined;
   
   saveConfirmDialogOpen: boolean;
   validationResult: ValidationResult | null;
@@ -3132,7 +3144,7 @@ interface PetriNetEditorInnerUIProps {
     nodeId: string,
     templateRef: Template,
     isNewTemplate: boolean,
-    templateCategory: 'material' | 'category' | 'result',
+    templateCategory: string,
     isCommonTemplate: boolean,
     methodId: string | undefined
   ) => void;
@@ -3542,7 +3554,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
 };
 
 // 外部コンポーネント
-const PetriNetEditorInner = (props: any) => {
+const PetriNetEditorInner = (props: PetriNetEditorInnerProps) => {
   return <PetriNetEditorContent {...props} />;
 };
 

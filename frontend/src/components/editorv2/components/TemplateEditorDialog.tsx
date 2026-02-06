@@ -624,7 +624,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       description: template.description || templateRef.description,
       category: template.category || templateRef.category || '',
       properties: template.properties || templateRef.properties || [],
-      contents: template.contents || templateRef.contents,
+      contents: template.contents || templateRef.contents || [],
       insertion: template.insertion || templateRef.insertion,
       placeRefs: template.placeRefs || templateRef.placeRefs || [],
       templateRef: template.templateRef,
@@ -725,16 +725,16 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   /**
    * 再帰的な子プロパティ変換
    */
-  const convertPropertiesArrayToNestedFormatRecursive = (propertiesArray: unknown[]): PropertyData[] => {
+  const convertPropertiesArrayToNestedFormatRecursive = (propertiesArray: Property[]): PropertyData[] => {
     if (!Array.isArray(propertiesArray)) return [];
     
     return propertiesArray.map((item) => {
-      const prop = item as Record<string, unknown>;
+      const prop = item;
       const converted: PropertyData = {
-        key: (prop.key as string) || (prop.name as string) || `child_${Date.now()}`,
-        tagName: (prop.tagName as string) || 'property',
+        key: (prop.key as string)|| `child_${Date.now()}`,
+        tagName: 'property',
         attributes: {
-          'xsi:type': (prop.type as string) || (prop.xsiType as string) || 'stringType'
+          'xsi:type': (prop.xsiType as string) || 'stringType'
         },
         elements: {},
         children: []
@@ -744,8 +744,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       if (prop.formatString) converted.attributes.formatString = prop.formatString as string;
       if (prop.scaleFactor) converted.attributes.scaleFactor = String(prop.scaleFactor);
       
-      if (prop.defaultValue !== undefined && prop.defaultValue !== '') {
-        converted.elements.value = prop.defaultValue as string;
+      if (prop.value !== undefined && prop.value !== '') {
+        converted.elements.value = prop.value as string;
       }
       
       if (prop.description !== undefined && prop.description !== '') {

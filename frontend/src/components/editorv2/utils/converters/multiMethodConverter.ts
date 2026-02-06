@@ -172,7 +172,9 @@ export function convertMultipleMethodsToMaiML(
       protocolId: 'protocolID',
       methodId: 'methodID',
       pnmlId: 'pnmlID',
-      programId: 'programID'
+      programId: 'programID',
+      chains: [],
+      parents: []
     };
     maiml += buildDocumentXML(defaultDoc);
   }
@@ -213,6 +215,7 @@ export function convertMultipleMethodsToMaiML(
               description: template.description || '',
               category: 'material',
               properties: template.properties || [],
+              contents: template.contents || [],
               placeRefs: template.placeRefs || [],
               templateRef: template.templateRef
             },
@@ -247,6 +250,7 @@ export function convertMultipleMethodsToMaiML(
               description: template.description || '',
               category: 'condition',
               properties: template.properties || [],
+              contents: template.contents || [],
               placeRefs: template.placeRefs || [],
               templateRef: template.templateRef
             },
@@ -281,6 +285,7 @@ export function convertMultipleMethodsToMaiML(
               description: template.description || '',
               category: 'result',
               properties: template.properties || [],
+              contents: template.contents || [],
               placeRefs: template.placeRefs || [],
               templateRef: template.templateRef
             },

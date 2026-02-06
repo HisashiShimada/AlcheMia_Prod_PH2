@@ -25,7 +25,9 @@ import type {
   Template,
   PlaceRef,
   Reference,
-  Content
+  Content,
+  Chain,
+  Parent
 } from '@/types/maiml-unified';
 
 // ============================================
@@ -204,15 +206,15 @@ export interface DocumentData {
   /** 所有者情報（XSD: 配列、実MAIML: 通常1個） */
   owners: Owner[];
   /** 機器情報（XSD: 配列、実MAIML: 通常1個） */
-  instruments?: Instrument[];
+  instruments: Instrument[];
   /** 作成日時（ISO 8601形式） */
   date?: string;
   /** デジタル署名（オプション） */
   Signature?: any;
   /** チェーン構造（ブロックチェーン用、オプション） */
-  chain?: any[];
+  chains: Chain[];
   /** 親要素参照（オプション） */
-  parent?: any[];
+  parents: Parent[];
   
   // ============================================================================
   // エディター用拡張プロパティ

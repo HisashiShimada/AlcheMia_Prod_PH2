@@ -120,7 +120,9 @@ function convertDocument(xmlDoc: XmlJsElement): MaimlDocument {
     creators: convertArray(xmlDoc.creator, convertCreator),
     vendors: convertArray(xmlDoc.vendor, convertVendor),
     owners: convertArray(xmlDoc.owner, convertOwner),
-    instruments: xmlDoc.instrument ? convertArray(xmlDoc.instrument, convertInstrument) : undefined
+    instruments: xmlDoc.instrument ? convertArray(xmlDoc.instrument, convertInstrument) : [],
+    chains:  [],
+    parents:  [],
   };
 }
 
@@ -190,9 +192,9 @@ function convertProtocol(xmlProtocol: XmlJsElement): Protocol {
     name: extractText(xmlProtocol.name as XmlJsElement),
     description: extractText(xmlProtocol.description as XmlJsElement),
     methods: methods.map(convertMethod),
-    materialTemplates: xmlProtocol.materialTemplate ? convertArray(xmlProtocol.materialTemplate, convertMaterialTemplate) : undefined,
-    conditionTemplates: xmlProtocol.conditionTemplate ? convertArray(xmlProtocol.conditionTemplate, convertConditionTemplate) : undefined,
-    resultTemplates: xmlProtocol.resultTemplate ? convertArray(xmlProtocol.resultTemplate, convertResultTemplate) : undefined
+    materialTemplates: xmlProtocol.materialTemplate ? convertArray(xmlProtocol.materialTemplate, convertMaterialTemplate) : [],
+    conditionTemplates: xmlProtocol.conditionTemplate ? convertArray(xmlProtocol.conditionTemplate, convertConditionTemplate) : [],
+    resultTemplates: xmlProtocol.resultTemplate ? convertArray(xmlProtocol.resultTemplate, convertResultTemplate) : []
   };
 }
 
@@ -213,9 +215,9 @@ function convertMethod(xmlMethod: any): Method {
     description: xmlMethod.description?._text,
     pnml: convertPNML(pnml),
     program: program.map(convertProgram),
-    materialTemplates: xmlMethod.materialTemplate ? convertArray(xmlMethod.materialTemplate, convertMaterialTemplate) : undefined,
-    conditionTemplates: xmlMethod.conditionTemplate ? convertArray(xmlMethod.conditionTemplate, convertConditionTemplate) : undefined,
-    resultTemplates: xmlMethod.resultTemplate ? convertArray(xmlMethod.resultTemplate, convertResultTemplate) : undefined
+    materialTemplates: xmlMethod.materialTemplate ? convertArray(xmlMethod.materialTemplate, convertMaterialTemplate) : [],
+    conditionTemplates: xmlMethod.conditionTemplate ? convertArray(xmlMethod.conditionTemplate, convertConditionTemplate) : [],
+    resultTemplates: xmlMethod.resultTemplate ? convertArray(xmlMethod.resultTemplate, convertResultTemplate) : []
   };
 }
 
@@ -281,10 +283,10 @@ function convertProgram(xmlProgram: any): Program {
     uuid: xmlProgram.uuid?._text || '',
     name: xmlProgram.name?._text,
     description: xmlProgram.description?._text,
-    instructions: xmlProgram.instruction ? convertArray(xmlProgram.instruction, convertInstruction) : undefined,
-    materialTemplates: xmlProgram.materialTemplate ? convertArray(xmlProgram.materialTemplate, convertMaterialTemplate) : undefined,
-    conditionTemplates: xmlProgram.conditionTemplate ? convertArray(xmlProgram.conditionTemplate, convertConditionTemplate) : undefined,
-    resultTemplates: xmlProgram.resultTemplate ? convertArray(xmlProgram.resultTemplate, convertResultTemplate) : undefined
+    instructions: xmlProgram.instruction ? convertArray(xmlProgram.instruction, convertInstruction) : [],
+    materialTemplates: xmlProgram.materialTemplate ? convertArray(xmlProgram.materialTemplate, convertMaterialTemplate) : [],
+    conditionTemplates: xmlProgram.conditionTemplate ? convertArray(xmlProgram.conditionTemplate, convertConditionTemplate) : [],
+    resultTemplates: xmlProgram.resultTemplate ? convertArray(xmlProgram.resultTemplate, convertResultTemplate) : []
   };
 }
 
@@ -313,8 +315,8 @@ function convertMaterialTemplate(xmlTemplate: any): Template {
     category: 'material',
     placeRefs: convertArray(xmlTemplate.placeRef, convertPlaceRef),
     templateRef: xmlTemplate.templateRef ? convertRef(xmlTemplate.templateRef) : undefined,
-    properties: xmlTemplate.property ? convertArray(xmlTemplate.property, convertXmlJsProperty) : undefined,
-    contents: xmlTemplate.content ? convertArray(xmlTemplate.content, convertContent) : undefined,
+    properties: xmlTemplate.property ? convertArray(xmlTemplate.property, convertXmlJsProperty) : [],
+    contents: xmlTemplate.content ? convertArray(xmlTemplate.content, convertContent) : [],
     insertion: xmlTemplate.insertion ? convertInsertion(xmlTemplate.insertion) : undefined
   };
 }
@@ -331,8 +333,8 @@ function convertConditionTemplate(xmlTemplate: any): Template {
     category: 'condition',
     placeRefs: convertArray(xmlTemplate.placeRef, convertPlaceRef),
     templateRef: xmlTemplate.templateRef ? convertRef(xmlTemplate.templateRef) : undefined,
-    properties: xmlTemplate.property ? convertArray(xmlTemplate.property, convertXmlJsProperty) : undefined,
-    contents: xmlTemplate.content ? convertArray(xmlTemplate.content, convertContent) : undefined,
+    properties: xmlTemplate.property ? convertArray(xmlTemplate.property, convertXmlJsProperty) : [],
+    contents: xmlTemplate.content ? convertArray(xmlTemplate.content, convertContent) : [],
     insertion: xmlTemplate.insertion ? convertInsertion(xmlTemplate.insertion) : undefined
   };
 }
@@ -349,8 +351,8 @@ function convertResultTemplate(xmlTemplate: any): Template {
     category: 'result',
     placeRefs: convertArray(xmlTemplate.placeRef, convertPlaceRef),
     templateRef: xmlTemplate.templateRef ? convertRef(xmlTemplate.templateRef) : undefined,
-    properties: xmlTemplate.property ? convertArray(xmlTemplate.property, convertXmlJsProperty) : undefined,
-    contents: xmlTemplate.content ? convertArray(xmlTemplate.content, convertContent) : undefined,
+    properties: xmlTemplate.property ? convertArray(xmlTemplate.property, convertXmlJsProperty) : [],
+    contents: xmlTemplate.content ? convertArray(xmlTemplate.content, convertContent) : [],
     insertion: xmlTemplate.insertion ? convertInsertion(xmlTemplate.insertion) : undefined
   };
 }
@@ -377,7 +379,10 @@ export function convertContent(xmlContent: any): Content {
     value: xmlContent.value?._text || xmlContent.values?._text,
     units: xmlContent._attributes?.units,
     formatString: xmlContent._attributes?.formatString,
-    scaleFactor: xmlContent._attributes?.scaleFactor ? parseFloat(xmlContent._attributes.scaleFactor) : undefined
+    scaleFactor: xmlContent._attributes?.scaleFactor ? parseFloat(xmlContent._attributes.scaleFactor) : undefined,
+    properties: xmlContent.property ? convertArray(xmlContent.property, convertXmlJsProperty) : [],
+    contents: xmlContent.content ? convertArray(xmlContent.content, convertContent) : [],
+    uncertainty: [],
   };
   
   // ネストされたProperty
@@ -423,7 +428,7 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       xsiType: 'propertyListType',
       description,
       properties,
-      contents: xmlProp.content ? convertArray(xmlProp.content, convertContent) : undefined
+      contents: xmlProp.content ? convertArray(xmlProp.content, convertContent) : []
     };
     return result;
   }
@@ -449,7 +454,9 @@ export function convertXmlJsProperty(xmlProp: any): Property {
               'unsignedShortType', 'unsignedByteType'].includes(xsiType) ? Math.floor(value) : value),
       units,
       formatString,
-      scaleFactor
+      scaleFactor,
+      properties : [],
+      contents : []
     };
     return result;
   }
@@ -461,7 +468,9 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       key,
       xsiType: 'booleanType',
       description,
-      value: valueText.toLowerCase() === 'true'
+      value: valueText.toLowerCase() === 'true',
+      properties : [],
+      contents : []
     };
     return result;
   }
@@ -473,7 +482,9 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       xsiType: 'dateTimeType',
       description,
       value: xmlProp.value?._text || '',
-      formatString: xmlProp._attributes?.formatString
+      formatString: xmlProp._attributes?.formatString,
+      properties : [],
+      contents : []
     };
     return result;
   }
@@ -485,7 +496,9 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       key,
       xsiType,
       description,
-      value: xmlProp.value?._text || ''
+      value: xmlProp.value?._text || '',
+      properties : [],
+      contents : []
     };
     return result;
   }
@@ -496,7 +509,9 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       key,
       xsiType,
       description,
-      value: xmlProp.value?._text || ''
+      value: xmlProp.value?._text || '',
+      properties : [],
+      contents : []
     };
     return result;
   }
@@ -511,7 +526,9 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       value: valueText,
       units: xmlProp._attributes?.units,
       formatString: xmlProp._attributes?.formatString,
-      scaleFactor: xmlProp._attributes?.scaleFactor ? parseFloat(xmlProp._attributes.scaleFactor) : undefined
+      scaleFactor: xmlProp._attributes?.scaleFactor ? parseFloat(xmlProp._attributes.scaleFactor) : undefined,
+      properties : [],
+      contents : []
     };
     return result;
   }
@@ -522,7 +539,9 @@ export function convertXmlJsProperty(xmlProp: any): Property {
       key,
       xsiType: 'stringEnumType',
       description,
-      value: xmlProp.value?._text || ''
+      value: xmlProp.value?._text || '',
+      properties : [],
+      contents : []
     };
     return result;
   }
@@ -532,7 +551,9 @@ export function convertXmlJsProperty(xmlProp: any): Property {
     key,
     xsiType: 'stringType',
     description,
-    value: xmlProp.value?._text || ''
+    value: xmlProp.value?._text || '',
+    properties : [],
+    contents : []
   };
   return result;
 }
@@ -609,8 +630,8 @@ function convertExtension(xmlExtension: any): Extension {
 function convertGlobals(xmlGlobals: any): Globals {
   return {
     scope: xmlGlobals._attributes?.scope || '',
-    properties: xmlGlobals.property ? convertArray(xmlGlobals.property, convertXmlJsProperty) : undefined,
-    contents: xmlGlobals.content ? convertArray(xmlGlobals.content, convertContent) : undefined
+    properties: xmlGlobals.property ? convertArray(xmlGlobals.property, convertXmlJsProperty) : [],
+    contents: xmlGlobals.content ? convertArray(xmlGlobals.content, convertContent) : []
   };
 }
 
@@ -647,9 +668,9 @@ function convertResults(xmlResults: any): Results {
     uuid: xmlResults.uuid?._text || '',
     name: xmlResults.name?._text,
     description: xmlResults.description?._text,
-    materials: xmlResults.material ? convertArray(xmlResults.material, convertMaterial) : undefined,
-    conditions: xmlResults.condition ? convertArray(xmlResults.condition, convertCondition) : undefined,
-    results: xmlResults.result ? convertArray(xmlResults.result, convertResult) : undefined
+    materials: xmlResults.material ? convertArray(xmlResults.material, convertMaterial) : [],
+    conditions: xmlResults.condition ? convertArray(xmlResults.condition, convertCondition) : [],
+    results: xmlResults.result ? convertArray(xmlResults.result, convertResult) : []
   };
 }
 
@@ -664,8 +685,8 @@ function convertMaterial(xmlMaterial: any): Material {
     description: xmlMaterial.description?._text,
     ref: xmlMaterial._attributes?.ref || '',
     instanceRef: xmlMaterial.instanceRef ? convertInstanceRef(xmlMaterial.instanceRef) : undefined,
-    properties: xmlMaterial.property ? convertArray(xmlMaterial.property, convertXmlJsProperty) : undefined,
-    contents: xmlMaterial.content ? convertArray(xmlMaterial.content, convertContent) : undefined
+    properties: xmlMaterial.property ? convertArray(xmlMaterial.property, convertXmlJsProperty) : [],
+    contents: xmlMaterial.content ? convertArray(xmlMaterial.content, convertContent) : []
   };
 }
 
@@ -680,8 +701,8 @@ function convertCondition(xmlCondition: any): Condition {
     description: xmlCondition.description?._text,
     ref: xmlCondition._attributes?.ref || '',
     instanceRef: xmlCondition.instanceRef ? convertInstanceRef(xmlCondition.instanceRef) : undefined,
-    properties: xmlCondition.property ? convertArray(xmlCondition.property, convertXmlJsProperty) : undefined,
-    contents: xmlCondition.content ? convertArray(xmlCondition.content, convertContent) : undefined
+    properties: xmlCondition.property ? convertArray(xmlCondition.property, convertXmlJsProperty) : [],
+    contents: xmlCondition.content ? convertArray(xmlCondition.content, convertContent) : []
   };
 }
 
@@ -697,8 +718,8 @@ function convertResult(xmlResult: any): Result {
     ref: xmlResult._attributes?.ref || '',
     instanceRef: xmlResult.instanceRef ? convertInstanceRef(xmlResult.instanceRef) : undefined,
     insertion: xmlResult.insertion ? convertInsertion(xmlResult.insertion) : undefined,
-    properties: xmlResult.property ? convertArray(xmlResult.property, convertXmlJsProperty) : undefined,
-    contents: xmlResult.content ? convertArray(xmlResult.content, convertContent) : undefined
+    properties: xmlResult.property ? convertArray(xmlResult.property, convertXmlJsProperty) : [],
+    contents: xmlResult.content ? convertArray(xmlResult.content, convertContent) : []
   };
 }
 
@@ -725,12 +746,12 @@ function convertLog(xmlLog: any): Log {
     name: xmlLog.name?._text,
     description: xmlLog.description?._text,
     ref: xmlLog._attributes?.ref || '',
-    extensions: xmlLog.extension ? convertArray(xmlLog.extension, convertExtension) : undefined,
-    globals: xmlLog.global ? convertArray(xmlLog.global, convertGlobals) : undefined,
-    classifiers: xmlLog.classifier ? convertArray(xmlLog.classifier, convertClassifier) : undefined,
+    extensions: xmlLog.extension ? convertArray(xmlLog.extension, convertExtension) : [],
+    globals: xmlLog.global ? convertArray(xmlLog.global, convertGlobals) : [],
+    classifiers: xmlLog.classifier ? convertArray(xmlLog.classifier, convertClassifier) : [],
     traces: convertArray(xmlLog.trace, convertTrace),
-    creatorRefs: xmlLog.creatorRef ? convertArray(xmlLog.creatorRef, convertRef) : undefined,
-    ownerRefs: xmlLog.ownerRef ? convertArray(xmlLog.ownerRef, convertRef) : undefined
+    creatorRefs: xmlLog.creatorRef ? convertArray(xmlLog.creatorRef, convertRef) : [],
+    ownerRefs: xmlLog.ownerRef ? convertArray(xmlLog.ownerRef, convertRef) : []
   };
 }
 
@@ -745,8 +766,8 @@ function convertTrace(xmlTrace: any): Trace {
     description: xmlTrace.description?._text,
     ref: xmlTrace._attributes?.ref || '',
     events: convertArray(xmlTrace.event, convertEvent),
-    creatorRefs: xmlTrace.creatorRef ? convertArray(xmlTrace.creatorRef, convertRef) : undefined,
-    ownerRefs: xmlTrace.ownerRef ? convertArray(xmlTrace.ownerRef, convertRef) : undefined
+    creatorRefs: xmlTrace.creatorRef ? convertArray(xmlTrace.creatorRef, convertRef) : [],
+    ownerRefs: xmlTrace.ownerRef ? convertArray(xmlTrace.ownerRef, convertRef) : []
   };
 }
 
@@ -760,11 +781,11 @@ function convertEvent(xmlEvent: any): Event {
     name: xmlEvent.name?._text,
     description: xmlEvent.description?._text,
     ref: xmlEvent._attributes?.ref || '',
-    resultsRefs: xmlEvent.resultsRef ? convertArray(xmlEvent.resultsRef, convertRef) : undefined,
-    creatorRefs: xmlEvent.creatorRef ? convertArray(xmlEvent.creatorRef, convertRef) : undefined,
-    ownerRefs: xmlEvent.ownerRef ? convertArray(xmlEvent.ownerRef, convertRef) : undefined,
-    properties: xmlEvent.property ? convertArray(xmlEvent.property, convertXmlJsProperty) : undefined,
-    contents: xmlEvent.content ? convertArray(xmlEvent.content, convertContent) : undefined
+    resultsRefs: xmlEvent.resultsRef ? convertArray(xmlEvent.resultsRef, convertRef) : [],
+    creatorRefs: xmlEvent.creatorRef ? convertArray(xmlEvent.creatorRef, convertRef) : [],
+    ownerRefs: xmlEvent.ownerRef ? convertArray(xmlEvent.ownerRef, convertRef) : [],
+    properties: xmlEvent.property ? convertArray(xmlEvent.property, convertXmlJsProperty) : [],
+    contents: xmlEvent.content ? convertArray(xmlEvent.content, convertContent) : []
   };
 }
 

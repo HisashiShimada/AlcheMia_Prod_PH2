@@ -9,28 +9,19 @@
  */
 
 import { Node, Edge } from 'reactflow';
-import type { NodeData, Template, PlaceType, Property } from '../../types';
-
-// 共通utilsの既存関数をインポート
-import { 
-  parseMaimlToPetriNet, 
-  Template as MaimlTemplate 
-} from '../../../../utils/maimlParser';
+import type { NodeData, EdgeData } from '../../types';
+import { MaimlParserTyped } from '@/utils/maimlParserTyped';
 import { convertToReactFlowFormat } from '../../../../utils/reactFlowConverter';
-
-/**
- * TemplateMap型（PetriNetViewer互換）
- */
-interface TemplateMap {
-  [nodeId: string]: MaimlTemplate;
-}
+import { buildTemplateMap } from '@/utils/petriNetExtractor';
+import { PetriNetData } from '../../../../utils/reactFlowConverter';
+import { Template } from '@/types/maiml-unified';
 
 /**
  * 変換結果型
  */
 export interface ConversionResult {
   nodes: Node<NodeData>[];
-  edges: Edge[];
+  edges: Edge<EdgeData>[];
 }
 
 /**
@@ -62,8 +53,9 @@ export function maimlToReactFlow(maimlData: string): ConversionResult {
 
   try {
     // 1. MaiMLをパース
-    const petriNetData = parseMaimlToPetriNet(maimlData);
-    const templateMap = petriNetData.templates;
+    const parser = new MaimlParserTyped(maimlData);
+    const templateMap = buildTemplateMap(parser);
+    const petriNetData: PetriNetData = {methods: parser.getMethods(), places: parser.getPlaces(), transitions: parser.getTransitions(), arcs: parser.getArcs()}
     
     console.log('📊 [maimlToReactFlow] ペトリネット構造抽出完了:', {
       places: petriNetData.places.length,
@@ -73,7 +65,7 @@ export function maimlToReactFlow(maimlData: string): ConversionResult {
     });
     
     // 2. React Flow形式に変換（レイアウト計算含む）
-    const { nodes, edges } = convertToReactFlowFormat(petriNetData);
+    const { nodes, edges } = convertToReactFlowFormat(parser,petriNetData,templateMap);
     
     // 3. EditorV2用のノードタイプにマッピング
     console.log('🔍 [maimlToReactFlow] ノードマッピング開始:', {
@@ -124,7 +116,7 @@ export function maimlToReactFlow(maimlData: string): ConversionResult {
  */
 function convertPlaceNodeForEditor(
   node: Node<NodeData>, 
-  templateMap: TemplateMap
+  templateMap: Record<string, Template>
 ): Node<NodeData> {
   // ノードタイプをEditorV2形式に変換
   const editorNodeType = mapNodeTypeToEditorType(node.type || 'materialTemplate');
@@ -134,11 +126,10 @@ function convertPlaceNodeForEditor(
   
   // テンプレート情報を取得
   const maimlTemplate = templateMap[node.id] || null;
-  const editorTemplate = maimlTemplate ? convertMaimlTemplateToEditorTemplate(maimlTemplate) : undefined;
   
   console.log('🔍 [convertPlaceNodeForEditor] ノード変換:', {
     nodeId: node.id,
-    hasTemplate: !!editorTemplate,
+    hasTemplate: !!maimlTemplate,
     placeType
   });
   
@@ -148,11 +139,10 @@ function convertPlaceNodeForEditor(
     data: {
       ...node.data,
       placeType: placeType,
-      name: node.data.name || node.data.label || '',
+      name: node.data.name ||'',
       description: node.data.description || '',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      template: editorTemplate as any,  // Template型をTemplateRefとして扱う
-      properties: editorTemplate?.properties || []
+      template: maimlTemplate,  // Template型をTemplateRefとして扱う
+      properties: maimlTemplate?.properties || []
     }
   };
 }
@@ -169,9 +159,9 @@ function convertTransitionNodeForEditor(node: Node<NodeData>): Node<NodeData> {
     type: 'transition',
     data: {
       ...node.data,
-      name: node.data.name || node.data.label || '',
+      name: node.data.name || '',
       description: node.data.description || '',
-      hasInstruction: node.data.hasInstruction || false
+      instructionId: node.data.instructionId || ''
     }
   };
 }
@@ -209,8 +199,8 @@ function mapNodeTypeToEditorType(viewerNodeType: string): string {
  */
 function determinePlaceType(
   node: Node<NodeData>, 
-  templateMap: TemplateMap
-): PlaceType {
+  templateMap: Record<string, Template>
+): string {
   // 1. ノードタイプから判定
   if (node.type === 'materialTemplate') return 'material';
   if (node.type === 'conditionTemplate') return 'condition';
@@ -226,8 +216,8 @@ function determinePlaceType(
   
   // 3. templateMapから判定
   const template = node.data.template || templateMap[node.id];
-  if (template && template.type) {
-    const templateType = template.type.toLowerCase();
+  if (template && template.category) {
+    const templateType = template.category.toLowerCase();
     if (templateType.includes('material')) return 'material';
     if (templateType.includes('condition')) return 'condition';
     if (templateType.includes('result')) return 'result';
@@ -236,34 +226,6 @@ function determinePlaceType(
   // 4. デフォルト
   console.warn(`⚠️ [maimlToReactFlow] Place ${node.id} のタイプ判定不能、デフォルトでmaterialを使用`);
   return 'material';
-}
-
-/**
- * MaimlTemplateをEditorTemplate型に変換
- */
-function convertMaimlTemplateToEditorTemplate(maimlTemplate: MaimlTemplate): Template {
-  // PropertiesをEditorV2形式に変換
-  const editorProperties: Property[] = (maimlTemplate.properties || []).map((prop, index) => ({
-    id: `${maimlTemplate.id}_prop_${index}`,
-    name: prop.key,
-    key: prop.key,
-    defaultValue: prop.defaultValue || '',
-    type: prop.type || 'string',
-    description: prop.description
-  }));
-
-  return {
-    uuid: maimlTemplate.id,
-    id: maimlTemplate.id,
-    type: maimlTemplate.type,
-    name: maimlTemplate.name,
-    description: maimlTemplate.description,
-    placeRefs: maimlTemplate.placeRefs || [],  // 空配列で初期化
-    templateRefs: [],
-    properties: editorProperties,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  } as Template;  // 型アサーションで強制
 }
 
 /**

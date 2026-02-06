@@ -163,6 +163,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         placeRefs: [],
         templateRef: {id :'', ref: href},
         properties: [],
+        contents: []
       } : undefined,
     };
     
@@ -182,6 +183,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         placeRefs: [],
         templateRef: {id :'', ref: href},
         properties: [],
+        contents: []
       };
       updatedData.templateRef = {
         id: href,
@@ -191,6 +193,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         placeRefs: [],
         templateRef: {id :'', ref: href},
         properties: [],
+        contents: []
       } ;
     }
     

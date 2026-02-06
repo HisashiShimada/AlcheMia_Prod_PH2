@@ -57,7 +57,8 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
         name: t.name,
         description: t.description,
         annotation: t.annotation,
-        properties: t.properties ?? [],
+        properties: t.properties || [],
+        contents: t.contents || [],
         category: 'material',
         uuid: t.uuid,
         placeRefs: t.placeRefs,
@@ -76,7 +77,8 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
         name: t.name,
         description: t.description,
         annotation: t.annotation,
-        properties: t.properties ?? [],
+        properties: t.properties || [],
+        contents: t.contents || [],
         category: 'condition',
         uuid: t.uuid,
         placeRefs: t.placeRefs,
@@ -95,7 +97,8 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
         name: t.name,
         description: t.description,
         annotation: t.annotation,
-        properties: t.properties ?? [],
+        properties: t.properties || [],
+        contents: t.contents || [],
         category: 'result',
         uuid: t.uuid,
         placeRefs: t.placeRefs,
@@ -197,7 +200,9 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
       const prop: Property = {
         key: element.attributes?.key as string || '',
         xsiType: element.attributes?.['xsi:type'] as string || 'stringType',
-        customElements: {}
+        customElements: {},
+        properties: [],
+        contents: []
       };
       
       // 属性の抽出

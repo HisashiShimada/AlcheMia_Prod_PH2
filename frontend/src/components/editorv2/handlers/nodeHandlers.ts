@@ -8,14 +8,15 @@
  */
 
 import type { Node, Edge } from 'reactflow';
+import { NodeData, EdgeData } from '../types';
 
 export interface NodeHandlersProps {
-  nodes: Node<any>[];
-  edges: Edge<any>[];
-  setNodes: (nodes: any) => void;
-  setEdges: (edges: any) => void;
-  setSelectedNode: (node: any) => void;
-  setSelectedEdge: (edge: any) => void;
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+  setNodes: (nodes: Node<NodeData>) => void;
+  setEdges: (edges: Edge<EdgeData>[]) => void;
+  setSelectedNode: (node: Node<NodeData>) => void;
+  setSelectedEdge: (edge: Edge<EdgeData>) => void;
   pushState: (state: any) => void;
   setTemplateEditorOpen: (open: boolean) => void;
   setEditingTemplateType: (type: string | null) => void;
@@ -25,12 +26,12 @@ export interface NodeHandlersProps {
 
 export interface NodeHandlersResult {
   handleAddNode: (type: string, position: { x: number; y: number }) => void;
-  handleNodeClick: (_event: any, node: Node<any>) => void;
-  handleNodeDoubleClick: (_event: any, node: Node<any>) => void;
-  handleNodesChange: (changes: any[]) => void;
-  handleNodeDragStop: (_event: any, node: Node<any>) => void;
+  handleNodeClick: (_event: any, node: Node<NodeData>) => void;
+  handleNodeDoubleClick: (_event: any, node: Node<NodeData>) => void;
+  handleNodesChange: (changes: Node<NodeData>[]) => void;
+  handleNodeDragStop: (_event: any, node: Node<NodeData>) => void;
   handleDeleteNode: (nodeId: string) => void;
-  handleOpenPropertyEditor: (node: Node<any>) => void;
+  handleOpenPropertyEditor: (node: Node<NodeData>) => void;
 }
 
 /**
@@ -55,7 +56,7 @@ export const createNodeHandlers = ({
    */
   const handleAddNode = (type: string, position: { x: number; y: number }) => {
     const timestamp = Date.now();
-    let newNode: Node<any> | null = null;
+    let newNode: Node<NodeData> | null = null;
 
     if (type === 'material') {
       const newId = `material-${timestamp}`;
@@ -67,8 +68,8 @@ export const createNodeHandlers = ({
           id: newId,
           name: 'Material',
           placeType: 'material',
-          templates: [],
-          namespaces: [],
+          description: '',
+          nodeType: 'place'
         },
       };
     } else if (type === 'condition') {
@@ -81,8 +82,8 @@ export const createNodeHandlers = ({
           id: newId,
           name: 'Condition',
           placeType: 'condition',
-          templates: [],
-          namespaces: [],
+          description: '',
+          nodeType: 'place'
         },
       };
     } else if (type === 'result') {
@@ -95,8 +96,8 @@ export const createNodeHandlers = ({
           id: newId,
           name: 'Result',
           placeType: 'result',
-          templates: [],
-          namespaces: [],
+          description: '',
+          nodeType: 'place'
         },
       };
     } else if (type === 'transition') {
@@ -108,17 +109,16 @@ export const createNodeHandlers = ({
         data: {
           id: newId,
           name: 'Transition',
+          placeType: '',
           nodeType: 'transition',
-          method: null,
-          document: null,
-          instructionLabels: [],
+          description: '',
         },
       };
     }
 
     if (newNode) {
-      setNodes((nds: any) => {
-        const newNodes = [...nds, newNode as Node<any>];
+      setNodes((nds: Node<NodeData>[]) => {
+        const newNodes = [...nds, newNode as Node<NodeData>];
         pushState({ nodes: newNodes, edges });
         return newNodes;
       });
@@ -130,7 +130,7 @@ export const createNodeHandlers = ({
   /**
    * ノードクリック
    */
-  const handleNodeClick = (_event: any, node: Node<any>) => {
+  const handleNodeClick = (_event: any, node: Node<NodeData>) => {
     setSelectedNode(node);
     setSelectedEdge(null);
     console.log('🖱️ [nodeHandlers] ノード選択:', node.data.name);
@@ -139,17 +139,17 @@ export const createNodeHandlers = ({
   /**
    * ノードダブルクリック
    */
-  const handleNodeDoubleClick = (_event: any, node: Node<any>) => {
+  const handleNodeDoubleClick = (_event: any, node: Node<NodeData>) => {
     handleOpenPropertyEditor(node);
   };
 
   /**
    * ノード変更（ReactFlow組み込み）
    */
-  const handleNodesChange = (changes: any[]) => {
-    setNodes((nds: any) => {
-      const newNodes = nds.map((node: any) => {
-        const change = changes.find((c: any) => c.id === node.id);
+  const handleNodesChange = (changes: Node<NodeData>[]) => {
+    setNodes((nds: Node<NodeData>[]) => {
+      const newNodes = nds.map((node: Node<NodeData>) => {
+        const change = changes.find((c: Node<NodeData>) => c.id === node.id);
         if (!change) return node;
 
         if (change.type === 'position' && change.position) {
@@ -171,8 +171,8 @@ export const createNodeHandlers = ({
   /**
    * ノードドラッグ停止（履歴保存）
    */
-  const handleNodeDragStop = (_event: any, node: Node<any>) => {
-    setNodes((nds: any) => {
+  const handleNodeDragStop = (_event: any, node: Node<NodeData>) => {
+    setNodes((nds: Node<NodeData>[]) => {
       pushState({ nodes: nds, edges });
       return nds;
     });
@@ -183,15 +183,15 @@ export const createNodeHandlers = ({
    * ノード削除
    */
   const handleDeleteNode = (nodeId: string) => {
-    setNodes((nds: any) => {
-      const newNodes = nds.filter((n: any) => n.id !== nodeId);
+    setNodes((nds: Node<NodeData>[]) => {
+      const newNodes = nds.filter((n: Node<NodeData>) => n.id !== nodeId);
       pushState({ nodes: newNodes, edges });
       return newNodes;
     });
 
-    setEdges((eds: any) => {
+    setEdges((eds: Edge<EdgeData>[]) => {
       const newEdges = eds.filter(
-        (e: any) => e.source !== nodeId && e.target !== nodeId
+        (e: Edge<EdgeData>) => e.source !== nodeId && e.target !== nodeId
       );
       return newEdges;
     });
@@ -203,7 +203,7 @@ export const createNodeHandlers = ({
   /**
    * プロパティエディタを開く
    */
-  const handleOpenPropertyEditor = (node: Node<any>) => {
+  const handleOpenPropertyEditor = (node: Node<NodeData>) => {
     const placeType = node.data.placeType;
     
     if (placeType === 'material' || placeType === 'condition' || placeType === 'result') {

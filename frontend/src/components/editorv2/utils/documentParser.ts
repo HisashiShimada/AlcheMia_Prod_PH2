@@ -7,12 +7,14 @@
 
 import type { 
   DocumentData, 
-  Creator, 
-  Vendor, 
-  Owner, 
-  Instrument,
   RefObject 
 } from '../types';
+import {
+  Creator,
+  Vendor,
+  Owner,
+  Instrument
+} from '../../../types/maiml-unified'
 
 /**
  * XMLテキストから特定のタグの内容を抽出
@@ -93,7 +95,9 @@ function parseDocumentElement(documentContent: string): DocumentData {
     protocolId: '',
     methodId: '',
     pnmlId: '',
-    programId: ''
+    programId: '',
+    chains : [],
+    parents: []
   };
   
   // Creator - 複数対応

@@ -8,20 +8,21 @@
  */
 
 import type { Node, Edge, Connection } from 'reactflow';
+import { NodeData, EdgeData } from '../types';
 
 export interface EdgeHandlersProps {
-  nodes: Node<any>[];
-  edges: Edge<any>[];
-  setEdges: (edges: any) => void;
-  setSelectedNode: (node: any) => void;
-  setSelectedEdge: (edge: any) => void;
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+  setEdges: (edges: Edge<EdgeData>) => void;
+  setSelectedNode: (node: Node<NodeData>) => void;
+  setSelectedEdge: (edge: Edge<EdgeData>) => void;
   pushState: (state: any) => void;
 }
 
 export interface EdgeHandlersResult {
   handleConnect: (connection: Connection) => void;
-  handleEdgeClick: (_event: any, edge: Edge<any>) => void;
-  handleEdgesChange: (changes: any[]) => void;
+  handleEdgeClick: (_event: any, edge: Edge<EdgeData>) => void;
+  handleEdgesChange: (changes: Edge<EdgeData>[]) => void;
   handleDeleteEdge: (edgeId: string) => void;
 }
 
@@ -67,7 +68,7 @@ export const createEdgeHandlers = ({
       return;
     }
 
-    const newEdge: Edge<any> = {
+    const newEdge: Edge<EdgeData> = {
       id: `${connection.source}-${connection.target}`,
       source: connection.source,
       target: connection.target,
@@ -76,7 +77,7 @@ export const createEdgeHandlers = ({
       style: { stroke: '#555', strokeWidth: 2 },
     };
 
-    setEdges((eds: any) => {
+    setEdges((eds: Edge<EdgeData>[]) => {
       const newEdges = [...eds, newEdge];
       pushState({ nodes, edges: newEdges });
       return newEdges;
@@ -88,7 +89,7 @@ export const createEdgeHandlers = ({
   /**
    * エッジクリック
    */
-  const handleEdgeClick = (_event: any, edge: Edge<any>) => {
+  const handleEdgeClick = (_event: any, edge: Edge<EdgeData>) => {
     setSelectedEdge(edge);
     setSelectedNode(null);
     console.log('🖱️ [edgeHandlers] エッジ選択:', edge.id);
@@ -97,10 +98,10 @@ export const createEdgeHandlers = ({
   /**
    * エッジ変更（ReactFlow組み込み）
    */
-  const handleEdgesChange = (changes: any[]) => {
-    setEdges((eds: any) => {
-      const newEdges = eds.map((edge: any) => {
-        const change = changes.find((c: any) => c.id === edge.id);
+  const handleEdgesChange = (changes: Edge<EdgeData>[]) => {
+    setEdges((eds: Edge<EdgeData>[]) => {
+      const newEdges = eds.map((edge: Edge<EdgeData>) => {
+        const change = changes.find((c: Edge<EdgeData>) => c.id === edge.id);
         if (!change) return edge;
 
         if (change.type === 'select') {
@@ -120,8 +121,8 @@ export const createEdgeHandlers = ({
    * エッジ削除
    */
   const handleDeleteEdge = (edgeId: string) => {
-    setEdges((eds: any) => {
-      const newEdges = eds.filter((e: any) => e.id !== edgeId);
+    setEdges((eds: Edge<EdgeData>[]) => {
+      const newEdges = eds.filter((e: Edge<EdgeData>) => e.id !== edgeId);
       pushState({ nodes, edges: newEdges });
       return newEdges;
     });

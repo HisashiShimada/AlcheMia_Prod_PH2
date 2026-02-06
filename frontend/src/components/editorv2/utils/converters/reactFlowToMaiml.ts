@@ -12,7 +12,8 @@ import {
   NodeData,
   NodeType,
   DocumentData,
-  MethodData
+  MethodData,
+  EdgeData
 } from '../../types';
 
 import { Property,Content,Template } from '@/types/maiml-unified';
@@ -144,7 +145,7 @@ export function generateUUID(): string {
  */
 export function validatePetriNet(
   nodes: Node<NodeData>[], 
-  edges: Edge[], 
+  edges: Edge<EdgeData>[], 
   allTemplates: TemplatesByCategory | null = null, 
   allMethods: MethodData[] | null = null
 ): ValidationResult {
@@ -488,7 +489,9 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
   }
   // ✅ content要素の処理
   else if (propType === 'content' || propType === 'contentDoubleListType' || propType === 'contentListType') {
-    propertyXml += buildContentXML(prop, indentLevel + 1);
+    prop.contents.forEach((content) => {
+      propertyXml += buildContentXML(content, indentLevel + 1);
+    })
   }
   // ✅ 通常のpropertyの場合：value/description要素を出力（MaiMLParser形式のみ、NestedPropertyEditorは上で処理済み）
   else {
@@ -710,7 +713,9 @@ export async function convertReactFlowToMaiML(
       creators: [],
       vendors: [],
       owners: [],
-      instruments: []
+      instruments: [],
+      chains : [],
+      parents : []
     };
     maiml += buildDocumentXML(defaultDoc);
   }

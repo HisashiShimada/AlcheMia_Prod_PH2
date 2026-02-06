@@ -20,14 +20,13 @@ import type {
   PropertyCustomElement,
   PlaceRef,
   Reference,
-  Document as MaimlDocument
+  Document as MaimlDocument,
+  Arc,
+  Place,
 } from '@/types/maiml-unified';
 import { xml2js, Element as XmlJsNonCompactElement } from 'xml-js';
 import type { 
   TransitionWithMetadata,
-  MaterialTemplateInfo,
-  ConditionTemplateInfo,
-  ResultTemplateInfo
 } from '@/types/maiml-extended';
 import { TemplatesByCategory } from '@/components/editorv2/components/TemplateViewer/TemplateList';
 
@@ -191,7 +190,7 @@ export class MaimlParserTyped {
         // transition取得
         const transitions = pnml.transitions || [];
 
-        allTransitions.concat(transitions);
+        allTransitions.push(...transitions);
       });
       
       return allTransitions;
@@ -479,33 +478,33 @@ export class MaimlParserTyped {
    * 
    * @returns {Array} Arc情報配列
    */
-  getArcs(): Array<{
-    id: string;
-    source: string;
-    target: string;
-    methodId: string;
-  }> {
+  getPlaces(): Place[] {
     const methods = this.getMethods();
-    const allArcs: Array<{
-      id: string;
-      source: string;
-      target: string;
-      methodId: string;
-    }> = [];
+    const allPlaces: Place[] = [];
     
-    methods.forEach((method, index) => {
-      const methodId = method.id || `method_${index}`;
+    methods.forEach((method) => {
+      const pnml = method.pnml;
+      const places = pnml.places || [];
+      
+      allPlaces.push(...places);
+    });
+    
+    return allPlaces;
+  }
+  
+  /**
+   * 全Arcを取得
+   * 
+   * @returns {Array} Arc情報配列
+   */
+  getArcs(): Arc[] {
+    const methods = this.getMethods();
+    const allArcs: Arc[] = [];
+    
+    methods.forEach((method) => {
       const pnml = method.pnml;
       const arcs = pnml.arcs || [];
-      
-      arcs.forEach(arc => {
-        allArcs.push({
-          id: arc.id || '',
-          source: arc.source,
-          target: arc.target,
-          methodId
-        });
-      });
+      allArcs.push(...arcs);
     });
     
     return allArcs;
@@ -858,7 +857,9 @@ getEventLogs(): Array<{
     const prop: Property = {
       key: element.attributes?.key as string || '',
       xsiType: element.attributes?.['xsi:type'] as string || 'stringType',
-      customElements: {}
+      customElements: {},
+      properties:[],
+      contents: [],
     };
     
     // 属性の抽出

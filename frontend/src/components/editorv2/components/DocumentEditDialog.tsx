@@ -117,6 +117,8 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     methodId: 'methodID',
     pnmlId: 'pnmlID',
     programId: 'programID',
+    chains: [],
+    parents: []
   }), []);
 
   /**

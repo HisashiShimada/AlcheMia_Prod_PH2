@@ -8,12 +8,13 @@
  */
 
 import type { Node, Edge } from 'reactflow';
+import { NodeData,EdgeData } from '../types';
 
 export interface CanvasHandlersProps {
-  nodes: Node<any>[];
-  edges: Edge<any>[];
-  setSelectedNode: (node: any) => void;
-  setSelectedEdge: (edge: any) => void;
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+  setSelectedNode: (node: Node<NodeData>) => void;
+  setSelectedEdge: (edge: Edge<EdgeData>) => void;
   setSaveDialogOpen: (open: boolean) => void;
   setWorkflowDialogOpen: (open: boolean) => void;
   pushState: (state: any) => void;
