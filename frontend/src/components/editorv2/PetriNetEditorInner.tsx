@@ -79,10 +79,6 @@ import { Draft,EditState } from './hooks/useDraftManager';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useEditorActions } from './hooks/useEditorActions';
 
-// Handlers
-import { createNodeHandlers } from './handlers/nodeHandlers';
-import { createEdgeHandlers } from './handlers/edgeHandlers';
-
 import { TemplatesByCategory } from './components/TemplateViewer/TemplateList';
 
 // ✅ window.cline* の型定義
@@ -477,32 +473,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     pushState: pushState as any,
   });
 
-  // ===== Phase 8 Step 4: ノードハンドラ統合 =====
-  // createNodeHandlersを使用
-  const nodeHandlers = createNodeHandlers({
-    nodes,
-    edges,
-    setNodes,
-    setEdges,
-    setSelectedNode,
-    setSelectedEdge,
-    pushState,
-    setTemplateEditorOpen,
-    setEditingTemplateType: () => {}, // 未使用（将来の拡張用）
-    setEditingNodeId: () => {},      // 未使用（将来の拡張用）
-    setEditingNodeName: () => {},    // 未使用（将来の拡張用）
-  });
-
-  // ===== Phase 8 Step 5: エッジハンドラ統合 =====
-  // createEdgeHandlersを使用
-  const edgeHandlers = createEdgeHandlers({
-    nodes,
-    edges,
-    setEdges,
-    setSelectedEdge,
-    setSelectedNode,
-    pushState,
-  });
+  // ===== Phase 8 Step 4 & 5: ハンドラは既に実装済み =====
+  // handleNodeClick, handleEdgeClick, handleConnect, handleNodesDelete, handleEdgesDelete等
+  // 既存の実装を使用
 
   // ===== Phase 9.1 Step 1: handleOpenSaveConfirmDialog を useKeyboardShortcuts より前に定義 =====
   // Week1: 新保存ダイアログを開く（バリデーション実行）
@@ -2427,13 +2400,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // Phase 3D: 旧保存ダイアログを開く（互換性のため残す）
   const handleOpenSaveDialog = useCallback(() => {
     setSaveDialogOpen(true);
-    setSaveError(null);
+    setSaveError(undefined);
   }, []);
 
   // Phase 3D: 旧保存ダイアログを閉じる
   const handleCloseSaveDialog = useCallback(() => {
     setSaveDialogOpen(false);
-    setSaveError(null);
+    setSaveError(undefined);
   }, []);
 
 
