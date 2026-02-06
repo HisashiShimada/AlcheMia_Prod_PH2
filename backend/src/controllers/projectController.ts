@@ -1451,6 +1451,7 @@ export async function getWorkerInstructions(req: Request, res: Response): Promis
  * 
  * @description 実験作業者が指示を確認済みとしてマークする
  * @note instructionConfirmationServiceからprojectServiceに統合
+ * @note バリデーションはミドルウェアで処理済み
  * Requirements: REQ-001, REQ-002, REQ-003, REQ-004, REQ-005
  */
 export async function confirmInstruction(req: Request, res: Response): Promise<void> {
@@ -1458,51 +1459,9 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
   const projectService = new ProjectService();
 
   try {
+    // バリデーションはミドルウェアで処理済み
     const { organizationId, userId, role } = req.user as any;
     const { projectName, instructionId } = req.params;
-
-    // projectNameバリデーション
-    if (!projectName || projectName.trim() === '') {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_REQUIRED_FIELD',
-          message: 'projectNameは必須です',
-          details: [{
-            field: 'projectName',
-            message: 'プロジェクト名が必要です',
-            code: 'REQUIRED_FIELD',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // UUID形式バリデーション
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(instructionId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'instructionIdはUUID形式である必要があります',
-          details: [{
-            field: 'instructionId',
-            message: 'UUID形式が必要です',
-            code: 'INVALID_FORMAT',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
 
     // Service層呼び出し（projectServiceに統合済み）
     const result = await projectService.confirmInstruction(

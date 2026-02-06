@@ -309,6 +309,7 @@ router.put(
       .isUUID()
       .withMessage('instructionIdはUUID形式である必要があります'),
   ],
+  handleValidationErrors,
   projectController.confirmInstruction
 );
 
