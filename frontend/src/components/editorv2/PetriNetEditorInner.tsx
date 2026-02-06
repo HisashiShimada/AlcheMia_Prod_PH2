@@ -71,7 +71,7 @@ import type {
   ValidationResult,
   ValidationError,
   DraftData
-} from './types';
+} from './types/editor';
 import type { NodeTypes } from 'reactflow';
 import { Draft,EditState } from './hooks/useDraftManager';
 

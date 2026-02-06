@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Node, Edge } from 'reactflow';
 import { Arc, Template } from '@/types/maiml-unified';
-import { DocumentData } from '../types';
+import { DocumentData,NodeData, EdgeData } from '../types/editor';
 
 /**
  * Draft情報の型定義
@@ -21,8 +21,8 @@ export interface Draft {
   draft_name: string;
   original_file_key?: string;
   last_saved_at: string;
-  nodes?: Node[];
-  edges?: Edge[];
+  nodes?: Node<NodeData>[];
+  edges?: Edge<EdgeData>[];
   templates?: Template[];
   documentData?: DocumentData;
 }
@@ -32,8 +32,8 @@ export interface Draft {
  */
 export interface EditState {
   fileName: string;
-  nodes: Node[];
-  edges: Edge[];
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
   templates?: Template[];
   documentData?: DocumentData;
 }
@@ -45,8 +45,8 @@ export interface DraftSaveData {
   draftKey: string;
   draftName: string;
   originalFileKey?: string;
-  nodes: Node[];
-  edges: Edge[];
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
   templates?: Template[];
   documentData?: DocumentData;
 }

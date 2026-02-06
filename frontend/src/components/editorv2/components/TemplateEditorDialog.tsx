@@ -46,7 +46,7 @@ import { fetchTemplateFiles, fetchTemplateContent, type TemplateFile } from '@/a
 import type { 
   NodeData, 
   ValidationError,
-} from '../types';
+} from '../types/editor';
 import { TemplateError } from './TemplateViewer/TemplateItem';
 import { Template, Insertion, Property, PropertyCustomElement, PlaceRef, Content } from '@/types/maiml-unified';
 

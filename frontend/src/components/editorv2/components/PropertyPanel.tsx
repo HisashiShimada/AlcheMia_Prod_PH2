@@ -36,7 +36,7 @@ import type {
   NodeData, 
   EdgeData, 
   ValidationError,
-} from '../types';
+} from '../types/editor';
 
 /**
  * PropertyPanelProps - PropertyPanelコンポーネントのProps型定義

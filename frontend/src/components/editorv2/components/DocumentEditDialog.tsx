@@ -33,7 +33,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import MultiObjectEditor, { type ComplexObject } from './MultiObjectEditor';
 import type { 
   DocumentData,
-} from '../types';
+} from '../types/editor';
 import {
   Creator,
   Vendor,

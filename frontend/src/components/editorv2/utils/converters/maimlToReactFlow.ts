@@ -9,7 +9,7 @@
  */
 
 import { Node, Edge } from 'reactflow';
-import type { NodeData, EdgeData } from '../../types';
+import type { NodeData, EdgeData } from '../../types/editor';
 import { MaimlParserTyped } from '@/utils/maimlParserTyped';
 import { convertToReactFlowFormat } from '../../../../utils/reactFlowConverter';
 import { buildTemplateMap } from '@/utils/petriNetExtractor';

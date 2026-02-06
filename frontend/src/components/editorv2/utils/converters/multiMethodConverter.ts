@@ -18,7 +18,7 @@ import {
 import type { 
   NodeData,
   DocumentData,MethodData,EdgeData
-} from '../../types';
+} from '../../types/editor';
 
 import type { Node, Edge } from 'reactflow';
 

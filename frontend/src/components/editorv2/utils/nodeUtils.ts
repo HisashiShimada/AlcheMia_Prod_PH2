@@ -8,7 +8,7 @@
  */
 
 import type { Node } from 'reactflow';
-import { NodeData } from '../types';
+import { NodeData } from '../types/editor';
 
 /**
  * ノードタイプの定義

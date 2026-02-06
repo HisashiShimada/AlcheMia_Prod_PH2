@@ -11,7 +11,7 @@ import React, { useState } from 'react';
 import { Tabs, Tag, Button, Tooltip, Modal, Input, Space, message } from 'antd';
 import { PlusOutlined, EditOutlined, CloseOutlined } from '@ant-design/icons';
 import type { Node } from 'reactflow';
-import type { MethodData } from '../types';
+import type { MethodData } from '../types/editor';
 
 /**
  * MethodTabPanelProps - MethodTabPanelコンポーネントのProps型定義

@@ -9,7 +9,7 @@
 
 import type { Node, Edge } from 'reactflow';
 import { maimlToReactFlow } from '../utils/converters/maimlToReactFlow';
-import type { NodeData, EdgeData } from '../types';
+import type { NodeData, EdgeData } from '../types/editor';
 
 export interface LoadMaimlResult {
   nodes: Node<NodeData>[];
