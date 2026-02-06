@@ -12,7 +12,8 @@
 import crypto from 'crypto';
 import type { Pool } from 'pg';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { Result, PinCodeData, PinCodeSendData, UserInfo, UserRole } from '../types/service';
+import type { Result, PinCodeData, PinCodeSendData } from '../types/service';
+import type { UserInfo } from '../types/auth';
 import type { EmailService } from './emailService';
 
 /**
@@ -111,7 +112,7 @@ export class PinCodeService {
     sessionToken: string
   ): Promise<Result<UserInfo>> {
     try {
-      // pin_codesとorganization_userをJOINしてユーザー情報を取得
+      // pin_codesとorganization_user、roleテーブルをJOINしてユーザー情報を取得
       // Parameterized Query使用
       const result = await this.pool.query(
         `SELECT 
@@ -121,11 +122,14 @@ export class PinCodeService {
            pc.attempts_count,
            ou.user_name as username,
            ou.mail_address as email,
-           ou.role,
+           ou.role_cd,
+           r.role_name,
            ou.user_name as display_name,
+           ou.department_cd,
            o.organization_name
          FROM pin_codes pc
          INNER JOIN organization_user ou ON pc.user_id = ou.user_id AND pc.organization_id = ou.organization_id
+         INNER JOIN role r ON ou.role_cd = r.role_cd AND ou.organization_id = r.organization_id
          LEFT JOIN organization o ON pc.organization_id = o.organization_id
          WHERE pc.pin_code = $1 AND pc.session_token = $2`,
         [pinCode, sessionToken]
@@ -168,17 +172,20 @@ export class PinCodeService {
         };
       }
 
-      // ユーザー情報を返す
+      // ユーザー情報を返す（role_nameをroleNameとして設定）
       return {
         success: true,
         data: {
           id: row.user_id,
           username: row.username,
           email: row.email,
-          role: row.role as UserRole,
+          roleName: row.role_name,
+          roleCd: row.role_cd,
           organizationId: row.organization_id,
-          organizationName: row.organization_name || '',
+          organizationName: row.organization_name,
           displayName: row.display_name,
+          departmentCd: row.department_cd,
+          initialScreenFunctionCd: '',  // デフォルト値（authControllerで後から設定）
         },
       };
     } catch (error) {

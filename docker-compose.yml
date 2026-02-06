@@ -44,6 +44,23 @@ services:
       retries: 5
       start_period: 60s
 
+  # Redis (Session Store)
+  redis:
+    image: redis:7-alpine
+    container_name: mmdpf-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - mmdpf-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   # Backend API Server (開発時に使用)
   # backend:
   #   build:
@@ -88,6 +105,8 @@ volumes:
     name: mmdpf_postgres-data
   swift-data:
     name: mmdpf_swift-data
+  redis-data:
+    name: mmdpf_redis-data
 
 networks:
   mmdpf-network:

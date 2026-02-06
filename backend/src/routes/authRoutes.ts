@@ -68,7 +68,17 @@ router.post(
   authController.resendPin
 );
 
-// 4. ログアウトエンドポイント
+// 4. トークン更新エンドポイント
+// POST /api/v1/auth/refresh
+// 注意: 認証ミドルウェアは不要（リフレッシュトークン自体が認証情報）
+// 注意: リフレッシュトークンはhttpOnly CookieからcontrollerIDE取得するため、bodyバリデーション不要
+router.post(
+  '/refresh',
+  pinVerifyRateLimit, // 既存のレート制限を再利用（15分に5回）
+  authController.refreshToken
+);
+
+// 5. ログアウトエンドポイント
 // POST /api/v1/auth/logout
 router.post(
   '/logout',
@@ -76,7 +86,7 @@ router.post(
   authController.logout
 );
 
-// 5. パスワードリセット要求エンドポイント
+// 6. パスワードリセット要求エンドポイント
 // POST /api/v1/auth/reset-password-request
 // 注意: X-Organization-Idは不要（証明書から自動設定）
 router.post(
@@ -92,7 +102,7 @@ router.post(
   authController.resetPasswordRequest
 );
 
-// 6. パスワードリセット実行エンドポイント
+// 7. パスワードリセット実行エンドポイント
 // POST /api/v1/auth/reset-password
 router.post(
   '/reset-password',
