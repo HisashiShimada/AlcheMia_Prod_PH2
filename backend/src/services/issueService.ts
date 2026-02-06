@@ -8,9 +8,6 @@ import { IssueRepository } from '../repositories/issueRepository';
 import {
   Issue,
   NewIssue,
-  IssueUpdateData,
-  IssueType,
-  IssueSeverity,
   IssueStatus,
   IssueWithComments,
   IssueListFilters,
@@ -18,7 +15,6 @@ import {
 import {
   NotFoundError,
   ValidationError,
-  AuthorizationError
 } from '../utils/errorClasses';
 import { logError } from '../utils/logger';
 
