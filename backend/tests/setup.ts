@@ -13,6 +13,10 @@ process.env.DB_NAME = 'mmdpf_test_db';
 process.env.DB_USER = 'test_user';
 process.env.DB_PASSWORD = 'test_password';
 
+// JWT settings for authentication tests
+process.env.JWT_SECRET = 'test-jwt-secret-key-for-integration-tests';
+process.env.SESSION_SECRET = 'test-session-secret-key';
+
 // Mock console methods to reduce test output noise
 global.console = {
   ...console,
