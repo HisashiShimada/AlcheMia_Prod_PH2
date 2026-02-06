@@ -187,7 +187,12 @@ router.post(
     param('projectId')
       .isUUID()
       .withMessage('projectIdはUUID形式である必要があります'),
+    body('comment')
+      .optional()
+      .isLength({ max: 1000 })
+      .withMessage('commentは1000文字以内である必要があります'),
   ],
+  handleValidationErrors,
   projectController.requestApproval
 );
 

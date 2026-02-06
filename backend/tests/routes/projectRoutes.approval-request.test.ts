@@ -117,4 +117,89 @@ describe('POST /api/v1/projects/:projectId/approval-request', () => {
       expect(callOrder).toEqual(['auth', 'tenant', 'controller']);
     });
   });
+
+  describe('バリデーション', () => {
+    describe('projectId パラメータ', () => {
+      it('UUID形式でない場合は400エラーを返す', async () => {
+        const response = await request(app)
+          .post('/api/v1/projects/invalid-uuid/approval-request')
+          .send({ comment: 'テストコメント' });
+
+        expect(response.status).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      });
+
+      it('UUID形式の場合はバリデーションを通過する', async () => {
+        const response = await request(app)
+          .post('/api/v1/projects/550e8400-e29b-41d4-a716-446655440000/approval-request')
+          .send({ comment: 'テストコメント' });
+
+        expect(response.status).toBe(200);
+        expect(projectController.requestApproval).toHaveBeenCalled();
+      });
+    });
+
+    describe('comment パラメータ', () => {
+      it('commentが未指定の場合でもバリデーションを通過する（オプショナル）', async () => {
+        const response = await request(app)
+          .post('/api/v1/projects/550e8400-e29b-41d4-a716-446655440000/approval-request')
+          .send({});
+
+        expect(response.status).toBe(200);
+        expect(projectController.requestApproval).toHaveBeenCalled();
+      });
+
+      it('commentが1000文字以内の場合はバリデーションを通過する', async () => {
+        const validComment = 'あ'.repeat(1000);
+        const response = await request(app)
+          .post('/api/v1/projects/550e8400-e29b-41d4-a716-446655440000/approval-request')
+          .send({ comment: validComment });
+
+        expect(response.status).toBe(200);
+        expect(projectController.requestApproval).toHaveBeenCalled();
+      });
+
+      it('commentが1000文字を超える場合は400エラーを返す', async () => {
+        const invalidComment = 'あ'.repeat(1001);
+        const response = await request(app)
+          .post('/api/v1/projects/550e8400-e29b-41d4-a716-446655440000/approval-request')
+          .send({ comment: invalidComment });
+
+        expect(response.status).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      });
+
+      it('commentが空文字の場合でもバリデーションを通過する', async () => {
+        const response = await request(app)
+          .post('/api/v1/projects/550e8400-e29b-41d4-a716-446655440000/approval-request')
+          .send({ comment: '' });
+
+        expect(response.status).toBe(200);
+        expect(projectController.requestApproval).toHaveBeenCalled();
+      });
+    });
+
+    describe('複合バリデーション', () => {
+      it('projectIdが不正でcommentが正常な場合は400エラーを返す', async () => {
+        const response = await request(app)
+          .post('/api/v1/projects/invalid-uuid/approval-request')
+          .send({ comment: 'テストコメント' });
+
+        expect(response.status).toBe(400);
+        expect(response.body.success).toBe(false);
+        expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      });
+
+      it('すべてのパラメータが正常な場合はバリデーションを通過する', async () => {
+        const response = await request(app)
+          .post('/api/v1/projects/550e8400-e29b-41d4-a716-446655440000/approval-request')
+          .send({ comment: 'すべての実験が完了しました。ご確認をお願いします。' });
+
+        expect(response.status).toBe(200);
+        expect(projectController.requestApproval).toHaveBeenCalled();
+      });
+    });
+  });
 });
