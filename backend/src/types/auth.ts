@@ -16,15 +16,12 @@ export type UserRole =
   | 'mi_engineer';
 
 /**
- * JWTペイロード
+ * JWT権限情報
+ * permission: 0=書込専用, 1=読取権限
  */
-export interface JwtPayload {
-  userId: string;
-  organizationId: string;
-  role: UserRole;
-  sessionId: string;
-  iat: number;
-  exp: number;
+export interface Permission {
+  functionId: string;
+  permission: number;
 }
 
 /**
@@ -34,18 +31,59 @@ export interface UserInfo {
   id: string;
   username: string;
   email: string;
-  role: UserRole;
+  roleName: string;
+  roleCd: string;
   organizationId: string;
   organizationName: string;
   displayName: string;
+  departmentCd: string;
+  initialScreenFunctionCd: string;
 }
 
 /**
- * セッション情報
+ * JWT ペイロード
  */
-export interface SessionInfo {
-  token: string;
-  expiresAt: string;
+export interface JwtPayload {
+  userId: string;
+  organizationId: string;
+  sessionId: string;
+  permissions: Permission[];
+  iat: number;
+  exp: number;
+}
+
+/**
+ * リフレッシュトークンペイロード
+ */
+export interface RefreshTokenPayload {
+  userId: string;
+  organizationId: string;
+  sessionId: string;
+  tokenId: string;       // リフレッシュトークン固有ID
+  iat: number;
+  exp: number;
+}
+
+/**
+ * トークンペア
+ */
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
+/**
+ * Redis保存用リフレッシュトークンデータ
+ */
+export interface StoredRefreshToken {
+  userId: string;
+  organizationId: string;
+  sessionId: string;
+  tokenId: string;
+  issuedAt: number;
+  expiresAt: number;
+  ipAddress?: string;
+  userAgent?: string;
 }
 
 /**
