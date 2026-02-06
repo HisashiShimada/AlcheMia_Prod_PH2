@@ -70,7 +70,7 @@
 | 2.10 | GET | /api/v1/projects/:projectName/instructions | 指示一覧取得 | ⏳ 未実装 | ProjectController.listInstructions |
 | 2.11 | POST | /api/v1/projects/search | プロジェクト詳細検索 | ⏳ 未実装 | ProjectController.search |
 | 2.12 | POST | /api/v1/projects/:projectName/publish | プロジェクト公開 | ⏳ 未実装 | ProjectController.publish |
-| 2.13 | GET | /api/v1/instructions | 指示一覧取得 | ⏳ 未実装 | InstructionController.list |
+| 2.13 | GET | /api/v1/projects/:projectName/worker-instructions | 指示一覧取得（実験作業者用） | ⏳ 未実装 | InstructionController.list |
 | 2.14 | PUT | /api/v1/projects/:projectName/instructions/:instructionId/confirm | 指示確認完了 | ✅ 実装済み | ProjectController.confirmInstruction |
 | 2.15 | POST | /api/v1/projects/:projectId/approval-request | 承認依頼 | ⏳ 未実装 | ProjectController.requestApproval |
 | 2.16 | GET | /api/v1/projects/worker-accessible | 実験作業者用プロジェクト一覧取得 | ⏳ 未実装 | ProjectController.listWorkerAccessible |

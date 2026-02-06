@@ -177,3 +177,74 @@ export function logError(
     errorName: error.name,
   });
 }
+
+/**
+ * APIリクエスト情報のログ記録
+ * タスク3.2: 監査ログとアプリケーションログの実装
+ */
+export interface ApiRequestLog {
+  requestId: string;
+  userId?: string;
+  organizationId?: string;
+  method: string;
+  path: string;
+  query?: any;
+  body?: any;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export function logApiRequest(request: ApiRequestLog): void {
+  logger.info('API request received', {
+    action: 'api_request',
+    ...request,
+  });
+}
+
+/**
+ * APIレスポンス情報のログ記録
+ * タスク3.2: 監査ログとアプリケーションログの実装
+ */
+export interface ApiResponseLog {
+  requestId: string;
+  statusCode: number;
+  duration: number;
+  errorCode?: string;
+}
+
+export function logApiResponse(response: ApiResponseLog): void {
+  const { requestId, statusCode, duration, errorCode } = response;
+  
+  // ステータスコードとパフォーマンスに基づいてログレベルを決定
+  if (statusCode >= 500) {
+    logger.error('API response - server error', {
+      action: 'api_response',
+      requestId,
+      statusCode,
+      duration,
+      errorCode,
+    });
+  } else if (statusCode >= 400) {
+    logger.warn('API response - client error', {
+      action: 'api_response',
+      requestId,
+      statusCode,
+      duration,
+      errorCode,
+    });
+  } else if (duration > 1000) {
+    logger.warn('API response - slow request', {
+      action: 'api_response',
+      requestId,
+      statusCode,
+      duration,
+    });
+  } else {
+    logger.info('API response success', {
+      action: 'api_response',
+      requestId,
+      statusCode,
+      duration,
+    });
+  }
+}

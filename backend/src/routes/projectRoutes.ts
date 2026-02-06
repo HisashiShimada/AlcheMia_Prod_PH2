@@ -232,6 +232,33 @@ router.get(
 );
 
 /**
+ * 作業指示一覧取得
+ * GET /api/v1/projects/:projectName/worker-instructions
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description プロジェクトに関連する作業指示一覧を取得する
+ * @note Task 1.1: 作業指示一覧取得エンドポイント追加
+ * @requirements REQ-1, REQ-3
+ * @roles experiment_worker, experiment_admin, system_admin
+ */
+router.get(
+  '/:projectName/worker-instructions',
+  authMiddleware,
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+    query('projectId')
+      .optional()
+      .isUUID()
+      .withMessage('projectIdはUUID形式である必要があります'),
+  ],
+  projectController.getWorkerInstructions
+);
+
+/**
  * 指示確認完了
  * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
  * 
