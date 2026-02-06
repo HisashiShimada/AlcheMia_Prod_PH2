@@ -10,7 +10,7 @@
 
 import { useState, useCallback } from 'react';
 import { Node, Edge } from 'reactflow';
-import type { NodeData, EdgeData } from '../types/editor';
+import type { NodeData, EdgeData } from '../../../types/editor';
 
 /**
  * 最大履歴保持数

@@ -8,7 +8,7 @@ import type {
   NodeData,
   EdgeData,
   Position,
-} from '@/components/editorv2/types/editor';
+} from '@/types/editor';
 // XSD準拠型（maiml-unified.ts）
 import type {
   Template,

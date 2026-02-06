@@ -9,7 +9,7 @@
 
 import { useCallback } from 'react';
 import type { Node, Edge } from 'reactflow';
-import type { NodeData, EdgeData, ClipboardData } from '../types/editor';
+import type { NodeData, EdgeData, ClipboardData } from '../../../types/editor';
 import type { EditorState } from './useHistory';
 
 export interface UseEditorActionsProps {

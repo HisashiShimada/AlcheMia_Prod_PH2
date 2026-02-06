@@ -11,7 +11,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Node, Edge } from 'reactflow';
 import { Arc, Template } from '@/types/maiml-unified';
-import { DocumentData,NodeData, EdgeData } from '../types/editor';
+import { DocumentData,NodeData, EdgeData } from '../../../types/editor';
 
 /**
  * Draft情報の型定義

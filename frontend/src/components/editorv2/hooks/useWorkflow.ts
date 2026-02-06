@@ -16,7 +16,7 @@ import { Node, Edge, Connection, XYPosition, NodeChange, EdgeChange } from 'reac
 import { maimlToReactFlow } from '../utils/converters/maimlToReactFlow';
 import { Template } from '@/types/maiml-unified';
 import { TemplatesByCategory } from '../components/TemplateViewer/TemplateList';
-import { NodeData,EdgeData } from '../types/editor';
+import { NodeData,EdgeData } from '../../../types/editor';
 
 /**
  * ノード境界情報の型定義

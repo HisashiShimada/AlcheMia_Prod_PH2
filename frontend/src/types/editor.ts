@@ -29,7 +29,7 @@ import type {
   Chain,
   Parent
 } from '@/types/maiml-unified';
-import { TemplateError } from '../components/TemplateViewer/TemplateItem';
+import { TemplateError } from '../components/editorv2/components/TemplateViewer/TemplateItem';
 
 // ============================================
 // 基本型定義

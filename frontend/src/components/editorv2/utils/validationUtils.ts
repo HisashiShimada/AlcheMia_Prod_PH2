@@ -10,7 +10,7 @@
 import type { Node, Edge } from 'reactflow';
 import { validateNode } from './nodeUtils';
 import { validateEdge, detectCycle } from './edgeUtils';
-import { NodeData,EdgeData } from '../types/editor';
+import { NodeData,EdgeData } from '../../../types/editor';
 
 export interface ValidationResult {
   valid: boolean;
