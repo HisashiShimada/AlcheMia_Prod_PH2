@@ -26,7 +26,5 @@ export {
 // 複数メソッド対応変換
 export { 
   convertMultipleMethodsToMaiML,
-  type TemplateInfo,
   type Metadata,
-  type AllTemplates
 } from './multiMethodConverter';

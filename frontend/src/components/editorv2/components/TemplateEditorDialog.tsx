@@ -46,9 +46,9 @@ import { fetchTemplateFiles, fetchTemplateContent, type TemplateFile } from '@/a
 import type { 
   NodeData, 
   ValidationError,
-  TemplateEditorDialogProps
 } from '../types';
-import { Template, Insertion, Property, PropertyCustomElement, PlaceRef } from '@/types/maiml-unified';
+import { TemplateError } from './TemplateViewer/TemplateItem';
+import { Template, Insertion, Property, PropertyCustomElement, PlaceRef, Content } from '@/types/maiml-unified';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -110,6 +110,24 @@ const MAIML_PROPERTY_TYPES = [
   { value: 'stringEnumType', label: 'stringEnumType - 文字列列挙', category: 'List' },
 ];
 
+interface TemplateEditorDialogProps {
+  open: boolean;
+  node: {
+    id: string;
+    data: NodeData;
+  };
+  onClose: () => void;
+  onSave: (
+    nodeId: string,
+    templateRef: Template,
+    isNewTemplate: boolean,
+    templateCategory: string,
+    isCommonTemplate: boolean,
+    methodId: string | null
+  ) => void;
+  allNodes?: Array<{ id: string; data: NodeData }>;
+  templateErrors?: Record<string, TemplateError[]>;
+}
 
 /**
  * PropertyData型定義（NestedPropertyEditor用）
@@ -714,8 +732,39 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         result[key].elements.description = String(prop.description);
       }
       
+      // customElementsの変換（PropertyCustomElement → elements）
+      if (prop.customElements && typeof prop.customElements === 'object') {
+        Object.entries(prop.customElements).forEach(([elemName, elemValue]) => {
+          // PropertyCustomElementは複雑な構造を持つ可能性があるため、
+          // valueプロパティがあればそれを使用、なければ全体をJSON文字列化
+          if (elemValue && typeof elemValue === 'object' && 'value' in elemValue) {
+            result[key].elements[elemName] = String(elemValue.value);
+          } else if (elemValue !== undefined && elemValue !== null) {
+            result[key].elements[elemName] = String(elemValue);
+          }
+        });
+      }
+      
+      // 子要素の変換（properties, contentsの順）
+      const childrenData: PropertyData[] = [];
+      
+      // 子プロパティの変換
       if (prop.properties && Array.isArray(prop.properties) && prop.properties.length > 0) {
-        result[key].children = convertPropertiesArrayToNestedFormatRecursive(prop.properties);
+        childrenData.push(...convertPropertiesArrayToNestedFormatRecursive(prop.properties));
+      }
+      
+      // 子コンテンツの変換
+      if (prop.contents && Array.isArray(prop.contents) && prop.contents.length > 0) {
+        childrenData.push(...convertContentsArrayToNestedFormatRecursive(prop.contents));
+      }
+      
+      // 子要素がある場合は設定
+      if (childrenData.length > 0) {
+        result[key].children = childrenData;
+        // 子要素がある場合、xsi:typeが未設定ならpropertyListTypeに設定
+        if (!result[key].attributes['xsi:type']) {
+          result[key].attributes['xsi:type'] = 'propertyListType';
+        }
       }
     });
     
@@ -745,19 +794,444 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       if (prop.scaleFactor) converted.attributes.scaleFactor = String(prop.scaleFactor);
       
       if (prop.value !== undefined && prop.value !== '') {
-        converted.elements.value = prop.value as string;
+        converted.elements.value = String(prop.value);
       }
       
       if (prop.description !== undefined && prop.description !== '') {
-        converted.elements.description = prop.description as string;
+        converted.elements.description = String(prop.description);
       }
       
+      // customElementsの変換（PropertyCustomElement → elements）
+      if (prop.customElements && typeof prop.customElements === 'object') {
+        Object.entries(prop.customElements).forEach(([elemName, elemValue]) => {
+          // PropertyCustomElementは複雑な構造を持つ可能性があるため、
+          // valueプロパティがあればそれを使用、なければ全体をJSON文字列化
+          if (elemValue && typeof elemValue === 'object' && 'value' in elemValue) {
+            converted.elements[elemName] = String(elemValue.value);
+          } else if (elemValue !== undefined && elemValue !== null) {
+            converted.elements[elemName] = String(elemValue);
+          }
+        });
+      }
+      
+      // 子要素の変換（properties, contentsの順）
+      const childrenData: PropertyData[] = [];
+      
+      // 子プロパティの再帰的変換
       if (prop.properties && Array.isArray(prop.properties) && prop.properties.length > 0) {
-        converted.children = convertPropertiesArrayToNestedFormatRecursive(prop.properties);
+        childrenData.push(...convertPropertiesArrayToNestedFormatRecursive(prop.properties));
+      }
+      
+      // 子コンテンツの再帰的変換
+      if (prop.contents && Array.isArray(prop.contents) && prop.contents.length > 0) {
+        childrenData.push(...convertContentsArrayToNestedFormatRecursive(prop.contents));
+      }
+      
+      // 子要素がある場合は設定
+      if (childrenData.length > 0) {
+        converted.children = childrenData;
+        if (!converted.attributes['xsi:type']) {
+          converted.attributes['xsi:type'] = 'propertyListType';
+        }
       }
       
       return converted;
     });
+  };
+
+  /**
+   * Content配列からNestedPropertyEditor形式への変換
+   * Content型（maiml-unified.ts）を使用してRecord<string, PropertyData>に変換
+   * 
+   * @param contentsArray - Content配列（maiml-unified.tsのContent型）
+   * @returns Record<string, PropertyData> - NestedPropertyEditor用の形式
+   */
+  const convertContentsArrayToNestedFormat = (contentsArray: Content[]): Record<string, PropertyData> => {
+    const result: Record<string, PropertyData> = {};
+    
+    if (!Array.isArray(contentsArray)) return result;
+    
+    contentsArray.forEach((content) => {
+      // keyがない場合はユニークなキーを生成
+      const key = content.key || `content_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // 属性の構築
+      const attributes: Record<string, string> = {};
+      
+      // xsi:type（必須）
+      if (content.xsiType) {
+        attributes['xsi:type'] = content.xsiType;
+      }
+      
+      // Content固有の属性
+      if (content.axis !== undefined && content.axis !== '') {
+        attributes.axis = content.axis;
+      }
+      if (content.size !== undefined) {
+        attributes.size = String(content.size);
+      }
+      if (content.id !== undefined && content.id !== '') {
+        attributes.id = content.id;
+      }
+      if (content.ref !== undefined && content.ref !== '') {
+        attributes.ref = content.ref;
+      }
+      
+      // 数値型オプション
+      if (content.units !== undefined && content.units !== '') {
+        attributes.units = content.units;
+      }
+      if (content.formatString !== undefined && content.formatString !== '') {
+        attributes.formatString = content.formatString;
+      }
+      if (content.scaleFactor !== undefined) {
+        attributes.scaleFactor = String(content.scaleFactor);
+      }
+      
+      // PropertyDataオブジェクトの構築
+      result[key] = {
+        key: key,
+        tagName: 'content',
+        attributes: attributes,
+        elements: {},
+        children: []
+      };
+      
+      // value要素の追加
+      if (content.value !== undefined && content.value !== null && content.value !== '') {
+        result[key].elements.value = String(content.value);
+      }
+      
+      // description要素の追加
+      if (content.description !== undefined && content.description !== null && content.description !== '') {
+        result[key].elements.description = String(content.description);
+      }
+      
+      // 子要素の変換（properties, contents, uncertaintyの順）
+      const childrenData: PropertyData[] = [];
+      
+      // 子プロパティの変換
+      if (content.properties && Array.isArray(content.properties) && content.properties.length > 0) {
+        childrenData.push(...convertPropertiesArrayToNestedFormatRecursive(content.properties));
+      }
+      
+      // 子コンテンツの再帰的変換
+      if (content.contents && Array.isArray(content.contents) && content.contents.length > 0) {
+        childrenData.push(...convertContentsArrayToNestedFormatRecursive(content.contents));
+      }
+      
+      // uncertainty（不確実性情報）の変換
+      if (content.uncertainty && Array.isArray(content.uncertainty) && content.uncertainty.length > 0) {
+        childrenData.push(...convertContentsArrayToNestedFormatRecursive(content.uncertainty));
+      }
+      
+      // 子要素がある場合は設定
+      if (childrenData.length > 0) {
+        result[key].children = childrenData;
+        // 子要素がある場合、xsi:typeが未設定ならpropertyListTypeに設定
+        if (!result[key].attributes['xsi:type']) {
+          result[key].attributes['xsi:type'] = 'propertyListType';
+        }
+      }
+    });
+    
+    return result;
+  };
+
+  /**
+   * 再帰的な子Content変換
+   * Content配列をPropertyData配列に変換（ネスト構造対応）
+   * 
+   * @param contentsArray - Content配列
+   * @returns PropertyData[] - 変換されたPropertyData配列
+   */
+  const convertContentsArrayToNestedFormatRecursive = (contentsArray: Content[]): PropertyData[] => {
+    if (!Array.isArray(contentsArray)) return [];
+    
+    return contentsArray.map((content) => {
+      const key = content.key || `content_child_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // 属性の構築
+      const attributes: Record<string, string> = {};
+      
+      if (content.xsiType) {
+        attributes['xsi:type'] = content.xsiType;
+      }
+      if (content.axis) attributes.axis = content.axis;
+      if (content.size !== undefined) attributes.size = String(content.size);
+      if (content.id) attributes.id = content.id;
+      if (content.ref) attributes.ref = content.ref;
+      if (content.units) attributes.units = content.units;
+      if (content.formatString) attributes.formatString = content.formatString;
+      if (content.scaleFactor !== undefined) attributes.scaleFactor = String(content.scaleFactor);
+      
+      const converted: PropertyData = {
+        key: key,
+        tagName: 'content',
+        attributes: attributes,
+        elements: {},
+        children: []
+      };
+      
+      // value要素
+      if (content.value !== undefined && content.value !== '') {
+        converted.elements.value = String(content.value);
+      }
+      
+      // description要素
+      if (content.description !== undefined && content.description !== '') {
+        converted.elements.description = String(content.description);
+      }
+      
+      // 子要素の変換
+      const childrenData: PropertyData[] = [];
+      
+      if (content.properties && Array.isArray(content.properties) && content.properties.length > 0) {
+        childrenData.push(...convertPropertiesArrayToNestedFormatRecursive(content.properties));
+      }
+      
+      if (content.contents && Array.isArray(content.contents) && content.contents.length > 0) {
+        childrenData.push(...convertContentsArrayToNestedFormatRecursive(content.contents));
+      }
+      
+      if (content.uncertainty && Array.isArray(content.uncertainty) && content.uncertainty.length > 0) {
+        childrenData.push(...convertContentsArrayToNestedFormatRecursive(content.uncertainty));
+      }
+      
+      if (childrenData.length > 0) {
+        converted.children = childrenData;
+        if (!converted.attributes['xsi:type']) {
+          converted.attributes['xsi:type'] = 'propertyListType';
+        }
+      }
+      
+      return converted;
+    });
+  };
+
+  /**
+   * PropertyData形式からProperty配列への逆変換
+   * NestedPropertyEditor形式 → maiml-unified.ts Property型配列
+   */
+  const convertPropertyDataToPropertiesArray = (propertyDataRecord: Record<string, PropertyData>): Property[] => {
+    const result: Property[] = [];
+    
+    Object.values(propertyDataRecord).forEach((propData) => {
+      // tagNameがpropertyのもののみを変換
+      if (propData.tagName !== 'property') {
+        return;
+      }
+      
+      const property: Property = {
+        key: propData.key,
+        xsiType: propData.attributes?.['xsi:type'] || 'stringType',
+        properties: [],
+        contents: [],
+      };
+      
+      // 属性の変換
+      if (propData.attributes?.units) {
+        property.units = propData.attributes.units;
+      }
+      if (propData.attributes?.formatString) {
+        property.formatString = propData.attributes.formatString;
+      }
+      if (propData.attributes?.scaleFactor) {
+        property.scaleFactor = parseFloat(propData.attributes.scaleFactor);
+      }
+      
+      // 要素の変換
+      if (propData.elements?.value) {
+        property.value = propData.elements.value;
+      }
+      if (propData.elements?.description) {
+        property.description = propData.elements.description;
+      }
+      
+      // customElementsの変換（elements内の他の要素）
+      if (propData.elements) {
+        const customElements: Record<string, PropertyCustomElement> = {};
+        Object.entries(propData.elements).forEach(([key, value]) => {
+          // value, description以外をcustomElementsに格納
+          if (key !== 'value' && key !== 'description') {
+            customElements[key] = { value };
+          }
+        });
+        
+        if (Object.keys(customElements).length > 0) {
+          property.customElements = customElements;
+        }
+      }
+      
+      // 子要素の再帰的変換
+      if (propData.children && Array.isArray(propData.children) && propData.children.length > 0) {
+        const { properties, contents } = convertPropertyDataChildrenToArrays(propData.children);
+        property.properties = properties;
+        property.contents = contents;
+      }
+      
+      result.push(property);
+    });
+    
+    return result;
+  };
+
+  /**
+   * PropertyData形式からContent配列への逆変換
+   * NestedPropertyEditor形式 → maiml-unified.ts Content型配列
+   */
+  const convertPropertyDataToContentsArray = (propertyDataRecord: Record<string, PropertyData>): Content[] => {
+    const result: Content[] = [];
+    
+    Object.values(propertyDataRecord).forEach((propData) => {
+      // tagNameがcontentのもののみを変換
+      if (propData.tagName !== 'content') {
+        return;
+      }
+      
+      const content: Content = {
+        key: propData.key,
+        xsiType: propData.attributes?.['xsi:type'] || 'stringType',
+        properties: [],
+        contents: [],
+        uncertainty: [],
+      };
+      
+      // Content固有の属性
+      if (propData.attributes?.axis) {
+        content.axis = propData.attributes.axis;
+      }
+      if (propData.attributes?.size) {
+        content.size = parseInt(propData.attributes.size);
+      }
+      if (propData.attributes?.id) {
+        content.id = propData.attributes.id;
+      }
+      if (propData.attributes?.ref) {
+        content.ref = propData.attributes.ref;
+      }
+      
+      // 数値型オプション
+      if (propData.attributes?.units) {
+        content.units = propData.attributes.units;
+      }
+      if (propData.attributes?.formatString) {
+        content.formatString = propData.attributes.formatString;
+      }
+      if (propData.attributes?.scaleFactor) {
+        content.scaleFactor = parseFloat(propData.attributes.scaleFactor);
+      }
+      
+      // 要素の変換
+      if (propData.elements?.value) {
+        content.value = propData.elements.value;
+      }
+      if (propData.elements?.description) {
+        content.description = propData.elements.description;
+      }
+      
+      // 子要素の再帰的変換
+      if (propData.children && Array.isArray(propData.children) && propData.children.length > 0) {
+        const { properties, contents } = convertPropertyDataChildrenToArrays(propData.children);
+        content.properties = properties;
+        content.contents = contents;
+        // uncertainty は contents と同じ型なので、同様に処理可能
+      }
+      
+      result.push(content);
+    });
+    
+    return result;
+  };
+
+  /**
+   * PropertyDataの子要素配列をProperty配列とContent配列に分離
+   * 
+   * @param children - PropertyData配列
+   * @returns { properties: Property[], contents: Content[] }
+   */
+  const convertPropertyDataChildrenToArrays = (
+    children: PropertyData[]
+  ): { properties: Property[]; contents: Content[] } => {
+    const properties: Property[] = [];
+    const contents: Content[] = [];
+    
+    children.forEach((child) => {
+      if (child.tagName === 'property') {
+        const property: Property = {
+          key: child.key,
+          xsiType: child.attributes?.['xsi:type'] || 'stringType',
+          properties: [],
+          contents: [],
+        };
+        
+        // 属性の変換
+        if (child.attributes?.units) property.units = child.attributes.units;
+        if (child.attributes?.formatString) property.formatString = child.attributes.formatString;
+        if (child.attributes?.scaleFactor) property.scaleFactor = parseFloat(child.attributes.scaleFactor);
+        
+        // 要素の変換
+        if (child.elements?.value) property.value = child.elements.value;
+        if (child.elements?.description) property.description = child.elements.description;
+        
+        // customElements
+        if (child.elements) {
+          const customElements: Record<string, PropertyCustomElement> = {};
+          Object.entries(child.elements).forEach(([key, value]) => {
+            if (key !== 'value' && key !== 'description') {
+              customElements[key] = { value };
+            }
+          });
+          if (Object.keys(customElements).length > 0) {
+            property.customElements = customElements;
+          }
+        }
+        
+        // 子要素の再帰的変換
+        if (child.children && child.children.length > 0) {
+          const childArrays = convertPropertyDataChildrenToArrays(child.children);
+          property.properties = childArrays.properties;
+          property.contents = childArrays.contents;
+        }
+        
+        properties.push(property);
+        
+      } else if (child.tagName === 'content') {
+        const content: Content = {
+          key: child.key,
+          xsiType: child.attributes?.['xsi:type'] || 'stringType',
+          properties: [],
+          contents: [],
+          uncertainty: [],
+        };
+        
+        // Content固有の属性
+        if (child.attributes?.axis) content.axis = child.attributes.axis;
+        if (child.attributes?.size) content.size = parseInt(child.attributes.size);
+        if (child.attributes?.id) content.id = child.attributes.id;
+        if (child.attributes?.ref) content.ref = child.attributes.ref;
+        
+        // 数値型オプション
+        if (child.attributes?.units) content.units = child.attributes.units;
+        if (child.attributes?.formatString) content.formatString = child.attributes.formatString;
+        if (child.attributes?.scaleFactor) content.scaleFactor = parseFloat(child.attributes.scaleFactor);
+        
+        // 要素の変換
+        if (child.elements?.value) content.value = child.elements.value;
+        if (child.elements?.description) content.description = child.elements.description;
+        
+        // 子要素の再帰的変換
+        if (child.children && child.children.length > 0) {
+          const childArrays = convertPropertyDataChildrenToArrays(child.children);
+          content.properties = childArrays.properties;
+          content.contents = childArrays.contents;
+        }
+        
+        contents.push(content);
+      }
+    });
+    
+    return { properties, contents };
   };
 
   /**
@@ -1453,6 +1927,10 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       }
     }
     
+    // PropertyData形式からProperty[]とContent[]に変換
+    const convertedProperties = convertPropertyDataToPropertiesArray(properties);
+    const convertedContents = convertPropertyDataToContentsArray(properties);
+    
     const templateRef: Template = {
       ...(node.data.templateRef || {}),
       id: templateId,
@@ -1460,7 +1938,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       name: name,
       category : nodeCategory,
       description: description,
-      properties: properties,
+      properties: convertedProperties,
+      contents: convertedContents,
       placeRefs: placeRefs,
     };
     

@@ -72,6 +72,7 @@ import type {
   ValidationError,
   DraftData
 } from './types';
+import type { NodeTypes } from 'reactflow';
 import { Draft,EditState } from './hooks/useDraftManager';
 
 // ===== Phase 8: 分離したモジュールをインポート =====
@@ -431,13 +432,16 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   
   // ワークフロー追加フック
   const { addWorkflow } = useWorkflow({
-    nodes,
-    edges,
-    setNodes,
-    setEdges,
-    addToHistory: pushState,
-    templates: { materialTemplates: {}, conditionTemplates: {}, resultTemplates: {} }, // 簡易実装
-    setTemplates: () => {}, // 簡易実装（テンプレート管理は将来対応）
+    projectId: documentData?.id || 'default-project',
+    addToHistory: (action: string, data: unknown) => {
+      // useHistoryのpushStateは{ nodes, edges }形式を期待するため、変換
+      if (action === 'addWorkflow' && typeof data === 'object' && data !== null) {
+        const workflowData = data as { nodes?: Node<NodeData>[]; edges?: Edge<EdgeData>[] };
+        if (workflowData.nodes && workflowData.edges) {
+          pushState({ nodes: workflowData.nodes, edges: workflowData.edges });
+        }
+      }
+    },
   });
   
   // 初回読み込み済みフラグ（重複実行防止）
@@ -733,7 +737,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }, [editMode, draftModeHandled, isLoading]);
 
   // Viewer用ノードを使用（pentagon等の正しい形状）
-  const nodeTypes = useMemo(
+  const nodeTypes: NodeTypes = useMemo(
     () => ({
       materialTemplate: MaterialTemplateNode,
       conditionTemplate: ConditionTemplateNode,
@@ -2508,7 +2512,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }, []);
 
   // Week2: 自動補正実行
-  const handleAutoCorrect = useCallback(async (selectedErrors: ValidationError[]) => {
+  const handleAutoCorrect = useCallback(async (selectedErrors: number[]) => {
     try {
       console.log('🔧 [PetriNetEditorInner] 自動補正実行:', selectedErrors);
       setIsCorrecting(true);
@@ -3044,7 +3048,7 @@ interface PetriNetEditorInnerUIProps {
   handlePaneClick: (event: React.MouseEvent) => void;
   
   // Node Types
-  nodeTypes: Record<string, React.ComponentType<any>>;
+  nodeTypes: NodeTypes;
   
   // キーボード
   pressedKeys: Set<string>;
@@ -3101,7 +3105,7 @@ interface PetriNetEditorInnerUIProps {
   // ダイアログ
   saveDialogOpen: boolean;
   handleCloseSaveDialog: () => void;
-  handleSave: (metadata: any) => void;
+  handleSave: (metadata: { name: string; description: string }) => void;
   saveError: string | undefined;
   
   saveConfirmDialogOpen: boolean;
@@ -3129,13 +3133,13 @@ interface PetriNetEditorInnerUIProps {
   
   validationPanelOpen: boolean;
   handleCloseValidationPanel: () => void;
-  handleAutoCorrect: (selectedErrors: any[]) => void;
+  handleAutoCorrect: (selectedErrors: number[]) => void;
   handleRevalidate: () => void;
   isCorrecting: boolean;
   
   workflowDialogOpen: boolean;
   handleCloseWorkflowDialog: () => void;
-  handleWorkflowFileSelect: (file: any) => void;
+  handleWorkflowFileSelect: (file: FileInfo) => void;
   availableFiles: Array<{ key: string; name: string; lastModified?: string; size?: number }>;
   
   draftManagerOpen: boolean;
@@ -3248,9 +3252,13 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
     window.clineUpdateTemplate = updateTemplate;
     window.clineAllTemplates = allTemplates;
     return () => {
+      // @ts-expect-error - cleanup時のdelete操作
       if (window.clineAddTemplate) delete window.clineAddTemplate;
+      // @ts-expect-error - cleanup時のdelete操作
       if (window.clineDeleteTemplate) delete window.clineDeleteTemplate;
+      // @ts-expect-error - cleanup時のdelete操作
       if (window.clineUpdateTemplate) delete window.clineUpdateTemplate;
+      // @ts-expect-error - cleanup時のdelete操作
       if (window.clineAllTemplates) delete window.clineAllTemplates;
     };
   }, [addTemplate, deleteTemplate, updateTemplate, allTemplates]);
@@ -3513,7 +3521,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
         <DraftManager
           show={draftManagerOpen}
           onClose={handleCloseDraftManager}
-          onLoadDraft={(draft: Record<string, unknown>) => {
+          onLoadDraft={(draft) => {
             handleLoadDraft(draft as unknown as DraftData);
           }}
           currentEditState={currentEditState}

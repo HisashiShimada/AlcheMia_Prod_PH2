@@ -17,7 +17,7 @@ import PetriNetEditorInner from './PetriNetEditorInner';
  */
 interface PetriNetEditorV2Props {
   // MAIMLデータ
-  initialMaiMLData?: string;
+  initialMaiMLData: string;
   maimlData?: string;
   
   // ファイル情報
@@ -26,16 +26,12 @@ interface PetriNetEditorV2Props {
   sourceS3Key?: string;
   
   // 編集モード
-  initialEditMode?: boolean;
-  editMode?: boolean;
+  initialEditMode: string;
   readOnly?: boolean;
   
   // コールバック
   onSave?: (data: string) => void;
   onClose?: () => void;
-  
-  // その他のprops
-  [key: string]: any;
 }
 
 /**

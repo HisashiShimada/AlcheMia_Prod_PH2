@@ -36,8 +36,26 @@ import type {
   NodeData, 
   EdgeData, 
   ValidationError,
-  PropertyPanelProps 
 } from '../types';
+
+/**
+ * PropertyPanelProps - PropertyPanelコンポーネントのProps型定義
+ */
+export interface PropertyPanelProps {
+  selectedNode: Node<NodeData> | null;
+  selectedEdge: Edge<EdgeData> | null;
+  onUpdate: (nodeId: string, data: NodeData) => void;
+  onUpdateEdge?: (oldEdgeId: string, newEdgeId: string) => void;
+  onClose: () => void;
+  onOpenTemplateEditor: (node: Node<NodeData>) => void;
+  onDelete: (nodeId: string) => void;
+  onDeleteEdge?: (edgeId: string) => void;
+  onUpdateNodeId?: (oldId: string, newId: string) => void;
+  nodes: Node<NodeData>[];
+  edges: Edge<EdgeData>[];
+  methods: MethodData[];
+  activeMethodIndex: number;
+}
 
 /**
  * PropertyPanel - プロパティ編集パネル

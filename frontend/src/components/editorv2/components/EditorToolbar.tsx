@@ -25,9 +25,48 @@ import {
   RadiusSettingOutlined,
   SwapOutlined,
 } from '@ant-design/icons';
-import type { EditorToolbarProps } from '../types';
-
 const { Text } = Typography;
+
+/**
+ * EditorToolbarProps - EditorToolbarコンポーネントのProps型定義
+ */
+export interface EditorToolbarProps {
+  // ノード追加
+  onAddNode: (nodeType: 'material' | 'condition' | 'result' | 'transition') => void;
+  
+  // Undo/Redo
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  
+  // 保存
+  onSave: () => void;
+  canSave: boolean;
+  
+  // Document編集
+  onEditDocument: () => void;
+  
+  // バリデーション
+  onValidate: () => void;
+  isValidating: boolean;
+  
+  // ワークフロー追加
+  onAddWorkflow: () => void;
+  workflowModeActive: boolean;
+  
+  // Draft管理
+  onOpenDraftManager?: () => void;
+  
+  // 自動保存
+  autoSaveEnabled?: boolean;
+  onAutoSaveToggle?: (checked: boolean) => void;
+  lastAutoSaveTime?: string | Date | null;
+  
+  // ビューモード切替
+  viewMode?: 'petriNet' | 'templates';
+  onViewModeChange?: (mode: 'petriNet' | 'templates') => void;
+}
 
 /**
  * 最終保存時刻のフォーマット

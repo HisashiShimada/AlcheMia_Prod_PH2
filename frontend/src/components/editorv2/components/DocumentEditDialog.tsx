@@ -33,7 +33,6 @@ import dayjs, { Dayjs } from 'dayjs';
 import MultiObjectEditor, { type ComplexObject } from './MultiObjectEditor';
 import type { 
   DocumentData,
-  DocumentEditDialogProps
 } from '../types';
 import {
   Creator,
@@ -43,6 +42,17 @@ import {
 } from '../../../types/maiml-unified'
 
 const { Panel } = Collapse;
+
+/**
+ * DocumentEditDialogProps - DocumentEditDialogコンポーネントのProps型定義
+ */
+export interface DocumentEditDialogProps {
+  open: boolean;
+  documentData?: DocumentData | null;
+  onClose: () => void;
+  onSave: (document: DocumentData) => void;
+  readOnly?: boolean;
+}
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 

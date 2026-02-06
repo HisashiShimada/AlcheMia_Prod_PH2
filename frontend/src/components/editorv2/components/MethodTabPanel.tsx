@@ -11,7 +11,33 @@ import React, { useState } from 'react';
 import { Tabs, Tag, Button, Tooltip, Modal, Input, Space, message } from 'antd';
 import { PlusOutlined, EditOutlined, CloseOutlined } from '@ant-design/icons';
 import type { Node } from 'reactflow';
-import type { MethodData, MethodTabPanelProps } from '../types';
+import type { MethodData } from '../types';
+
+/**
+ * MethodTabPanelProps - MethodTabPanelコンポーネントのProps型定義
+ */
+export interface MethodTabPanelProps {
+  // methodデータ配列
+  methods: MethodData[];
+  
+  // 現在アクティブなmethodのindex
+  activeMethodIndex: number;
+  
+  // 現在編集中のノード配列（リアルタイム更新用）
+  currentNodes?: Node[];
+  
+  // タブ切り替え時のコールバック
+  onChange?: (index: number) => void;
+  
+  // Method追加時のコールバック
+  onAddMethod?: () => void;
+  
+  // MethodID編集時のコールバック
+  onEditMethodId?: (index: number, newMethodId: string) => void;
+  
+  // Method削除時のコールバック
+  onDeleteMethod?: (index: number) => void;
+}
 
 /**
  * MethodTabPanel - Method切り替えタブUI

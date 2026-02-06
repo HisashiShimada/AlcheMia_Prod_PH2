@@ -8,18 +8,13 @@ import type {
   NodeData,
   EdgeData,
   Position,
-  PnmlMetadata
 } from '@/components/editorv2/types';
 // XSD準拠型（maiml-unified.ts）
 import type {
   Template,
-  Property,
-  PlaceRef,
-  Reference,
   Transition,
   Arc,
   Place,
-  PNML,
   Method
 } from '@/types/maiml-unified';
 import { MaimlParserTyped } from './maimlParserTyped';
