@@ -13,82 +13,10 @@ import ExperimentWorkerMenu from '@/components/menus/ExperimentWorkerMenu';
 import { authService, AuthServiceError } from '@/services/authService';
 import type { LoginCredentials, User, UserRole } from '@/types/auth';
 
-// デバッグ機能のインポート（開発環境専用）
-import DebugLoginPanel from '@/components/common/DebugLoginPanel';
-
-// 開発環境判定
-const isDevelopment = process.env.NODE_ENV === 'development';
-
 /**
  * 認証フロー状態
  */
 type AuthStep = 'login' | 'pin-code' | 'authenticated';
-
-/**
- * デモ用ユーザーデータ（開発環境用）
- */
-const demoUsers: Record<string, { password: string; user: User }> = {
-  provider: {
-    password: 'provider123',
-    user: {
-      id: '1',
-      username: 'provider',
-      email: 'provider@example.com',
-      role: 'provider',
-      organizationId: 'org_system',
-      organizationName: 'システム管理組織',
-      displayName: 'プロバイダー太郎',
-    },
-  },
-  system_admin: {
-    password: 'admin123',
-    user: {
-      id: '2',
-      username: 'system_admin',
-      email: 'system.admin@example.com',
-      role: 'system_admin',
-      organizationId: 'org_lab_001',
-      organizationName: 'AIML研究所',
-      displayName: 'システム管理者 花子',
-    },
-  },
-  data_admin: {
-    password: 'dataadmin123',
-    user: {
-      id: '3',
-      username: 'data_admin',
-      email: 'data.admin@example.com',
-      role: 'data_admin',
-      organizationId: 'org_lab_001',
-      organizationName: 'AIML研究所',
-      displayName: 'データ管理者 次郎',
-    },
-  },
-  experiment_admin: {
-    password: 'expadmin123',
-    user: {
-      id: '4',
-      username: 'experiment_admin',
-      email: 'exp.admin@example.com',
-      role: 'experiment_admin',
-      organizationId: 'org_lab_001',
-      organizationName: 'AIML研究所',
-      displayName: '実験管理者 三郎',
-    },
-  },
-  experiment_worker: {
-    password: 'expworker123',
-    user: {
-      id: '5',
-      username: 'experiment_worker',
-      email: 'worker@example.com',
-      role: 'experiment_worker',
-      organizationId: 'org_lab_001',
-      organizationName: 'AIML研究所',
-      displayName: '実験作業者 四郎',
-    },
-  },
-};
 
 /**
  * ホームページ（統合ログイン画面）
@@ -105,7 +33,7 @@ export default function Home() {
 
   // ログイン後のユーザー情報とメニュー表示
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentMenuType, setCurrentMenuType] = useState<UserRole | null>(null);
+  const [currentMenuType, setCurrentMenuType] = useState<string | null>(null);
 
   // 共通状態
   const [error, setError] = useState<string | null>(null);
@@ -183,13 +111,14 @@ export default function Home() {
 
       // ユーザー情報を設定
       setCurrentUser(response.user);
-      setCurrentMenuType(response.user.role as UserRole);
+      // initialScreenFunctionCdを使用して画面を決定
+      setCurrentMenuType(response.user.initialScreenFunctionCd);
       setAuthStep('authenticated');
 
       // ユーザー情報とセッショントークンをSessionStorageに保存
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem('user', JSON.stringify(response.user));
-        sessionStorage.setItem('sessionToken', response.session.token); // ← session.tokenを保存
+        sessionStorage.setItem('sessionToken', response.session.token); // セッショントークンを保存
+        sessionStorage.setItem('userInfo', JSON.stringify(response.user)); // UserInfoを保存
       }
 
       messageApi.success('ログインに成功しました');
@@ -266,6 +195,71 @@ export default function Home() {
   };
 
   /**
+   * 自動ログアウトイベントのリスナー
+   * authUtils.tsからのカスタムイベントを受信してログイン画面へ遷移
+   */
+  React.useEffect(() => {
+    // 重複実行を防ぐフラグ
+    let isProcessing = false;
+
+    const handleAutoLogout = (event: Event) => {
+      const customEvent = event as CustomEvent<{ reason: string }>;
+      
+      // 既にログイン画面の場合は何もしない
+      if (authStep === 'login') {
+        console.log('[Home] 既にログイン画面です。処理をスキップします。');
+        return;
+      }
+      
+      // 重複実行を防ぐ
+      if (isProcessing) {
+        console.log('[Home] 自動ログアウト処理中です。重複実行を防ぎます。');
+        return;
+      }
+      
+      isProcessing = true;
+      console.log('[Home] 自動ログアウトイベント受信:', customEvent.detail);
+      
+      // 状態をリセット（通常のログアウトと同じ処理）
+      setCurrentUser(null);
+      setCurrentMenuType(null);
+      setAuthStep('login');
+      setSessionToken('');
+      setOrganizationId('');
+      setMaskedEmail('');
+      setError(null);
+      
+      // SessionStorageをクリア
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('sessionToken');
+        sessionStorage.removeItem('userInfo');
+        sessionStorage.removeItem('devPinCode');
+        
+        // Cookieからリフレッシュトークンを削除
+        document.cookie = 'refreshToken=; path=/api/v1/auth; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
+        console.log('[Home] Cookieからリフレッシュトークンを削除しました');
+      }
+      
+      // ユーザーに通知（1回だけ）
+      messageApi.warning('セッションが期限切れになりました。再度ログインしてください。');
+      
+      // 処理完了後、フラグをリセット
+      setTimeout(() => {
+        isProcessing = false;
+      }, 1000);
+    };
+
+    // イベントリスナーを登録
+    window.addEventListener('auth:auto-logout', handleAutoLogout);
+
+    // クリーンアップ
+    return () => {
+      window.removeEventListener('auth:auto-logout', handleAutoLogout);
+    };
+  }, [authStep, messageApi]);
+
+  /**
    * ログアウト処理
    */
   const handleLogout = async () => {
@@ -276,7 +270,12 @@ export default function Home() {
     } catch (error) {
       // エラーが発生してもローカル状態はクリアする
       console.error('Logout API error:', error);
-      if (error instanceof AuthServiceError) {
+      
+      // 401エラーの場合は自動ログアウトイベントで処理されるため、メッセージを表示しない
+      if (error instanceof AuthServiceError && error.code === 'AUTH_TOKEN_EXPIRED') {
+        console.log('[handleLogout] セッション期限切れエラー: 自動ログアウトイベントで処理されます');
+        // メッセージ表示なし（自動ログアウトイベントで表示済み）
+      } else if (error instanceof AuthServiceError) {
         messageApi.warning(`ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました: ${error.message}`);
       } else {
         messageApi.warning('ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました');
@@ -295,6 +294,7 @@ export default function Home() {
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('user');
         sessionStorage.removeItem('sessionToken');
+        sessionStorage.removeItem('userInfo');
         sessionStorage.removeItem('devPinCode');
       }
     }
@@ -313,8 +313,24 @@ export default function Home() {
   const handleMenuChange = (menuType: UserRole) => {
     if (!currentUser) return;
 
-    // ユーザー情報は一切変更せず、表示するメニューだけを変更
-    setCurrentMenuType(menuType);
+    // UserRoleを数値コード（initialScreenFunctionCd）に変換
+    const functionCodeMap: Record<UserRole, string> = {
+      provider: '010000',
+      system_admin: '020000',
+      data_admin: '030000',
+      experiment_admin: '040000',
+      experiment_worker: '050000',
+      mi_engineer: '060000',
+    };
+
+    const functionCode = functionCodeMap[menuType];
+    if (!functionCode) {
+      messageApi.error(`未定義のメニュータイプ: ${menuType}`);
+      return;
+    }
+
+    // 数値コードで設定（switchケースと一致する形式）
+    setCurrentMenuType(functionCode);
 
     // メニュー名の取得（日本語表示用）
     const menuNames: Record<UserRole, string> = {
@@ -333,20 +349,6 @@ export default function Home() {
   
   // Step 1: ログイン画面
   if (authStep === 'login') {
-    // 開発環境ではデバッグパネル付きのLoginPageを表示
-    const debugPanel = isDevelopment ? (
-      <DebugLoginPanel
-        onLogin={(cred) => handleLogin({ ...cred, organizationId: '' })}
-        loading={loading}
-        debugUsers={Object.entries(demoUsers).map(([username, data]) => ({
-          username,
-          password: data.password,
-          displayName: data.user.displayName,
-          role: data.user.role as UserRole,
-        }))}
-      />
-    ) : undefined;
-
     return (
       <>
         {contextHolder}
@@ -354,7 +356,6 @@ export default function Home() {
           onLogin={handleLogin}
           error={error}
           loading={loading}
-          debugPanel={debugPanel}
         />
       </>
     );
@@ -383,8 +384,9 @@ export default function Home() {
   if (authStep === 'authenticated' && currentUser) {
     let MenuComponent: React.ReactNode;
 
+    // initialScreenFunctionCd（数値コード）で分岐
     switch (currentMenuType) {
-      case 'provider':
+      case '010000':  // プロバイダーメニュー
         MenuComponent = (
           <ProviderMenu
             user={currentUser}
@@ -394,7 +396,7 @@ export default function Home() {
           />
         );
         break;
-      case 'system_admin':
+      case '020000':  // システム管理者メニュー
         MenuComponent = (
           <SystemAdminMenu
             user={currentUser}
@@ -404,7 +406,7 @@ export default function Home() {
           />
         );
         break;
-      case 'data_admin':
+      case '030000':  // データ管理者メニュー
         MenuComponent = (
           <DataAdminMenu
             user={currentUser}
@@ -414,7 +416,7 @@ export default function Home() {
           />
         );
         break;
-      case 'experiment_admin':
+      case '040000':  // 実験管理者メニュー
         MenuComponent = (
           <ExperimentAdminMenu
             user={currentUser}
@@ -424,7 +426,7 @@ export default function Home() {
           />
         );
         break;
-      case 'experiment_worker':
+      case '050000':  // 実験作業者メニュー
         MenuComponent = (
           <ExperimentWorkerMenu
             user={currentUser}
@@ -435,7 +437,7 @@ export default function Home() {
         );
         break;
       default:
-        MenuComponent = <div>Unknown role</div>;
+        MenuComponent = <div>未定義の機能コード: {currentMenuType}</div>;
     }
 
     return (
