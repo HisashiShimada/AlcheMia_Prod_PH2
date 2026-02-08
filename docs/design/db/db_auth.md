@@ -36,7 +36,7 @@ CREATE TABLE organization_user (
   user_id VARCHAR(30) NOT NULL,
   organization_id uuid NOT NULL,
   user_name VARCHAR(30) NOT NULL,
-  role VARCHAR(30) NOT NULL,
+  role_id VARCHAR(30) NOT NULL,
   mail_address VARCHAR(50) NOT NULL,
   locked_until TIMESTAMP,
   last_login TIMESTAMP,
@@ -50,7 +50,7 @@ CREATE TABLE organization_user (
 #### 活用方法
 - ユーザー基本情報の管理
 - メールアドレスはPINコード送信先として使用
-- `role`カラムでロールベースアクセス制御（RBAC）
+- `role_id`カラムでロールベースアクセス制御（RBAC）
 - `is_active`でアカウント有効性管理
 
 **変更**: なし（そのまま活用）

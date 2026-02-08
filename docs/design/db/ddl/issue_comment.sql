@@ -15,8 +15,16 @@ CREATE TABLE issue_comment (
     
     -- コメント情報
     comment CHARACTER VARYING,
-    author_id UUID,
+    author_id VARCHAR(50),
     commented_at TIMESTAMP,
+    
+    -- 監査証跡
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
+    
+    -- タイムスタンプ
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
     
     -- 制約
     CONSTRAINT issue_comment_pkey PRIMARY KEY (organization_id, project_id, issue_id, sequence_no)
@@ -31,3 +39,7 @@ COMMENT ON COLUMN issue_comment.sequence_no IS 'シーケンス番号';
 COMMENT ON COLUMN issue_comment.comment IS 'コメント';
 COMMENT ON COLUMN issue_comment.author_id IS '記入者ID';
 COMMENT ON COLUMN issue_comment.commented_at IS '記入日時';
+COMMENT ON COLUMN issue_comment.create_user_id IS '作成者ユーザID';
+COMMENT ON COLUMN issue_comment.update_user_id IS '更新者ユーザID';
+COMMENT ON COLUMN issue_comment.create_at IS '作成日時';
+COMMENT ON COLUMN issue_comment.update_at IS '更新日時';

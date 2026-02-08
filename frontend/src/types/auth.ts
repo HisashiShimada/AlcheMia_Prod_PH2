@@ -14,16 +14,27 @@ export type UserRole =
   | 'mi_engineer';
 
 /**
+ * 権限情報
+ */
+export interface Permission {
+  functionId: string;
+  permission: number;  // 0=書込専用, 1=読取権限
+}
+
+/**
  * ユーザー情報
  */
 export interface User {
   id: string;
   username: string;
   email: string;
-  role: UserRole;
+  roleName: string;
+  roleCd: string;
   organizationId: string;
   organizationName: string;
   displayName: string;
+  departmentCd: string;
+  initialScreenFunctionCd: string;
 }
 
 /**
@@ -87,10 +98,14 @@ export interface VerifyPINResponse {
     id: string;
     username: string;
     email: string;
-    role: UserRole;
+    roleName: string;
+    roleCd: string;
     organizationId: string;
     organizationName: string;
     displayName: string;
+    departmentCd: string;
+    initialScreenFunctionCd: string;
+    permissions: Permission[];
   };
   session: {
     token: string;

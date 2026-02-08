@@ -7,25 +7,33 @@
 DROP TABLE IF EXISTS attribute CASCADE;
 
 CREATE TABLE attribute (
-    -- 複合主キー
+    -- 主キー
     organization_id UUID NOT NULL,
-    attribute_id VARCHAR(255) NOT NULL,
+    attribute_id CHARACTER VARYING NOT NULL,
     
     -- 属性情報
-    attribute_name VARCHAR(255) NOT NULL,
-    attribute_value VARCHAR(500) NOT NULL,
+    attribute_name CHARACTER VARYING NOT NULL,
+    attribute_value CHARACTER VARYING,
+    
+    -- 監査証跡
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
+    
+    -- タイムスタンプ
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
     
     -- 制約
-    CONSTRAINT attribute_pkey PRIMARY KEY (organization_id, attribute_id)
+    CONSTRAINT attribute_PKC PRIMARY KEY (organization_id, attribute_id)
 );
 
--- インデックス
-CREATE INDEX idx_attribute_organization_id ON attribute(organization_id);
-CREATE INDEX idx_attribute_name ON attribute(attribute_name);
-
 -- コメント
-COMMENT ON TABLE attribute IS '属性マスタ';
+COMMENT ON TABLE attribute IS '属性';
 COMMENT ON COLUMN attribute.organization_id IS '組織ID';
 COMMENT ON COLUMN attribute.attribute_id IS '属性ID';
-COMMENT ON COLUMN attribute.attribute_name IS '属性名称';
+COMMENT ON COLUMN attribute.attribute_name IS '属性名';
 COMMENT ON COLUMN attribute.attribute_value IS '属性値';
+COMMENT ON COLUMN attribute.create_user_id IS '作成者ユーザID';
+COMMENT ON COLUMN attribute.update_user_id IS '更新者ユーザID';
+COMMENT ON COLUMN attribute.create_at IS '作成日時';
+COMMENT ON COLUMN attribute.update_at IS '更新日時';

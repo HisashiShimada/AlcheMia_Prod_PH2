@@ -1,0 +1,29 @@
+{
+  "feature_name": "instruction-confirmation-api",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "created_at": "2026-01-30T23:42:00+09:00",
+  "updated_at": "2026-01-31T00:17:00+09:00",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "metadata": {
+    "total_requirements": 5,
+    "total_tasks": 13,
+    "total_subtasks": 13,
+    "estimated_hours": "10-15時間",
+    "parallel_tasks": 7,
+    "sequential_tasks": 6
+  }
+}

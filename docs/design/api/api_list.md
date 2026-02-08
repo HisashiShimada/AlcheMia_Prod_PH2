@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.0.0
-- **最終更新**: 2026-01-23
+- **バージョン**: 2.7.0
+- **最終更新**: 2026-01-31
 - **担当**: Development Team
 
 ---
@@ -53,7 +53,8 @@
 ### 2. プロジェクト管理API（Project Management）
 
 **API設計書**: [api_project_management.md](./api_project_management.md)  
-**ルートファイル**: `backend/src/routes/projectRoutes.ts`
+**ルートファイル**: `backend/src/routes/projectRoutes.ts`  
+**備考**: 2.14 指示確認完了APIを含む
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
@@ -69,8 +70,8 @@
 | 2.10 | GET | /api/v1/projects/:projectName/instructions | 指示一覧取得 | ⏳ 未実装 | ProjectController.listInstructions |
 | 2.11 | POST | /api/v1/projects/search | プロジェクト詳細検索 | ⏳ 未実装 | ProjectController.search |
 | 2.12 | POST | /api/v1/projects/:projectName/publish | プロジェクト公開 | ⏳ 未実装 | ProjectController.publish |
-| 2.13 | GET | /api/v1/instructions | 指示一覧取得 | ⏳ 未実装 | InstructionController.list |
-| 2.14 | PUT | /api/v1/instructions/:instructionId/confirm | 指示確認完了 | ⏳ 未実装 | InstructionController.confirm |
+| 2.13 | GET | /api/v1/projects/:projectName/worker-instructions | 指示一覧取得（実験作業者用） | ⏳ 未実装 | InstructionController.list |
+| 2.14 | PUT | /api/v1/projects/:projectName/instructions/:instructionId/confirm | 指示確認完了 | ✅ 実装済み | ProjectController.confirmInstruction |
 | 2.15 | POST | /api/v1/projects/:projectId/approval-request | 承認依頼 | ⏳ 未実装 | ProjectController.requestApproval |
 | 2.16 | GET | /api/v1/projects/worker-accessible | 実験作業者用プロジェクト一覧取得 | ⏳ 未実装 | ProjectController.listWorkerAccessible |
 
@@ -191,7 +192,6 @@
 | 6.2 | GET | /api/v1/tasks/:taskId | タスク詳細取得 | ⏳ 未実装 | ProgressController.getTaskDetail |
 | 6.3 | GET | /api/v1/progress/:projectId/:methodId/:taskId | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
 | 6.4 | GET | /api/v1/tasks | タスク一覧取得（プロジェクト単位） | ⏳ 未実装 | ProgressController.listAllTasks |
-| 6.5 | PUT | /api/v1/tasks/:taskId/status | タスクステータス更新 | ⏳ 未実装 | ProgressController.updateTaskStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -242,7 +242,7 @@
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
 | 8.1 | POST | /api/v1/experiments/:transitionId/data | 実験データ保存 | ⏳ 未実装 | ExperimentDataController.save |
-| 8.2 | PUT | /api/v1/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | ExperimentDataController.updateStatus |
+| 8.2 | PUT | /api/v1/experiments/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | ExperimentDataController.updateStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -257,6 +257,30 @@
 - ファイルアップロードは共通API（3.1）を使用
 - トランザクション保証により整合性を確保
 - マルチテナント分離により自組織の実験データのみ操作可能
+
+---
+
+### 9. タスク管理API（Task Management）
+
+**API設計書**: [api_task_management.md](./api_task_management.md)（未作成）  
+**ルートファイル**: `backend/src/routes/taskRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 9.1 | PUT | /api/v1/projects/:projectId/methods/:methodId/tasks/:taskNo/status | タスクステータス更新 | ✅ 実装済み | taskController.updateStatus |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`
+- 権限: experiment_worker, experiment_admin, system_admin
+
+**備考:**
+- ✅ 実装完了（2026-01-28）
+- 楽観的ロック（currentUpdateAt）による並行更新制御
+- ステータス遷移バリデーション（pending→in_progress→completed等）
+- マルチテナント分離（organization_id必須）
+- 詳細なログ記録（Winston構造化ログ）
+- エラーハンドリング（バリデーション、権限、排他制御）
+- 統合テスト・単体テスト完備（100%カバレッジ）
 
 ---
 
@@ -305,14 +329,15 @@
 | カテゴリ | 総数 | 実装済み | スタブ | 未実装 | 実装率 |
 |---------|------|---------|-------|--------|--------|
 | 認証API | 6 | 6 | 0 | 0 | 100% |
-| プロジェクト管理API | 16 | 8 | 0 | 8 | 50% |
+| プロジェクト管理API | 16 | 9 | 0 | 7 | 56% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 5 | 0 | 0 | 5 | 0% |
 | Maiml編集API | 11 | 9 | 1 | 1 | 82% |
-| 進捗確認API | 5 | 0 | 0 | 5 | 0% |
+| 進捗確認API | 4 | 0 | 0 | 4 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
 | 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
-| **合計** | **52** | **28** | **1** | **23** | **54%** |
+| タスク管理API | 1 | 1 | 0 | 0 | 100% |
+| **合計** | **52** | **30** | **1** | **21** | **56%** |
 
 ### 優先度別実装状況
 
@@ -343,35 +368,48 @@
 ### ルートファイル
 ```
 backend/src/routes/
-├── authRoutes.ts              # 認証API（6エンドポイント）✅ 実装済み
-├── projectRoutes.ts           # プロジェクト管理API（10エンドポイント、リロードAPI削除済み）✅ 実装済み
-├── fileRoutes.ts              # 共通API（2エンドポイント）⏳ 未実装
-├── formatRoutes.ts            # フォーマット管理API（5エンドポイント）⏳ 未実装
-├── maimlRoutes.ts             # Maiml編集API（8エンドポイント）⏳ 未実装
-└── progressRoutes.ts          # 進捗確認API（2エンドポイント）⏳ 未実装
+├── authRoutes.ts                          # 認証API（6エンドポイント）✅ 実装済み
+├── projectRoutes.ts                       # プロジェクト管理API（9エンドポイント + 指示確認完了）✅ 一部実装済み
+├── fileRoutes.ts                          # 共通API（2エンドポイント）⏳ 未実装
+├── formatRoutes.ts                        # フォーマット管理API（5エンドポイント）⏳ 未実装
+├── maimlRoutes.ts                         # Maiml編集API（11エンドポイント）✅ 実装済み
+├── progressRoutes.ts                      # 進捗確認API（4エンドポイント）⏳ 未実装
+├── issueRoutes.ts                         # 問題管理API（5エンドポイント）✅ 実装済み
+├── experimentDataRoutes.ts                # 実験データ記録API（2エンドポイント）⏳ 未実装
+└── taskRoutes.ts                          # タスク管理API（1エンドポイント）✅ 実装済み
 ```
 
-### コントローラーファイル（推定）
+### コントローラー
 ```
 backend/src/controllers/
-├── authController.ts          # 認証コントローラー ✅
-├── projectController.ts       # プロジェクト管理コントローラー ✅
-├── fileController.ts          # ファイルコントローラー ⏳
-├── formatController.ts        # フォーマット管理コントローラー ⏳
-├── maimlController.ts         # Maiml編集コントローラー ⏳
-└── progressController.ts      # 進捗確認コントローラー ⏳
+├── authController.ts                      # 認証コントローラー
+├── projectController.ts                   # プロジェクト管理コントローラー
+├── maimlController.ts                     # Maiml編集コントローラー
+├── issueController.ts                     # 問題管理コントローラー
+├── taskController.ts                      # タスク管理コントローラー
+└── instructionConfirmationController.ts   # 指示確認コントローラー
 ```
 
-### サービスファイル（推定）
+### サービス層
 ```
 backend/src/services/
-├── authService.ts             # 認証サービス ✅
-├── projectService.ts          # プロジェクトサービス ✅
-├── storageService.ts          # S3操作サービス ✅
-├── emailService.ts            # メール送信サービス ✅
-├── formatService.ts           # フォーマットサービス ⏳
-├── maimlService.ts            # Maimlパースサービス ⏳
-└── progressService.ts         # 進捗サービス ⏳
+├── authService.ts                         # 認証サービス
+├── projectService.ts                      # プロジェクト管理サービス
+├── maimlService.ts                        # Maiml編集サービス
+├── issueService.ts                        # 問題管理サービス
+├── taskService.ts                         # タスク管理サービス
+├── instructionConfirmationService.ts      # 指示確認サービス
+└── storageService.ts                      # ストレージサービス（S3/Swift）
+```
+
+### リポジトリ層
+```
+backend/src/repositories/
+├── authRepository.ts                      # 認証リポジトリ
+├── projectRepository.ts                   # プロジェクト管理リポジトリ
+├── issueRepository.ts                     # 問題管理リポジトリ
+├── taskRepository.ts                      # タスク管理リポジトリ
+└── instructionConfirmationRepository.ts   # 指示確認リポジトリ
 ```
 
 ---
@@ -483,6 +521,14 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.7.0 | 2026-01-31 | 指示確認API実装完了 | Development Team |
+| 2.6.0 | 2026-01-28 14:45 | タスク管理API追加（52→53エンドポイント） | Cline |
+| | | - 新規カテゴリ追加: タスク管理API（1エンドポイント、実装済み100%） | |
+| | | - 進捗確認API: 5→4エンドポイント（6.5タスクステータス更新を削除） | |
+| | | - カテゴリ数: 8→9カテゴリ | |
+| | | - 実装済みAPI総数: 28→29エンドポイント | |
+| | | - 全体実装率: 54%→56%に向上 | |
+| | | - API 9.1: タスクステータス更新（楽観的ロック、並行更新制御実装済み） | |
 | 2.5.2 | 2026-01-27 19:43 | API設計書リンク更新（問題管理・実験データ記録） | Cline |
 | | | - 問題管理API: 設計書リンクをapi_issue_management.mdに更新 | |
 | | | - 実験データ記録API: 設計書リンクをapi_experiment_data.mdに更新 | |

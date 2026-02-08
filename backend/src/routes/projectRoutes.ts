@@ -8,9 +8,28 @@
 import { Router } from 'express';
 import { query, body, param } from 'express-validator';
 import * as projectController from '../controllers/projectController';
+import * as workerProjectController from '../controllers/workerProjectController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { tenantIsolation } from '../middleware/tenantIsolation';
 
 const router = Router();
+
+/**
+ * 実験作業者がアクセス可能なプロジェクト一覧取得
+ * GET /api/v1/projects/worker-accessible
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description 実験作業者が作業可能なプロジェクト一覧を取得する
+ * @note Task 4.1: 実験作業者用プロジェクト一覧APIエンドポイント追加
+ * @note 静的ルートは動的ルート（/:projectId等）より前に定義する必要がある
+ * @requirements REQ-1, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7
+ * @roles experiment_worker, experiment_admin, system_admin
+ */
+router.get(
+  '/worker-accessible',
+  authMiddleware,
+  workerProjectController.listWorkerAccessible
+);
 
 /**
  * プロジェクト一覧取得
@@ -127,6 +146,28 @@ router.post(
 );
 
 /**
+ * 承認依頼
+ * POST /api/v1/projects/:projectId/approval-request
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @middleware tenantIsolation - テナント分離
+ * @description 実験作業者が実験作業完了後に実験管理者へ承認依頼を送信する
+ * @note Task 1.1: 承認依頼エンドポイントのルーティング追加
+ * @requirements REQ-1, REQ-2, REQ-3
+ */
+router.post(
+  '/:projectId/approval-request',
+  authMiddleware,
+  tenantIsolation,
+  [
+    param('projectId')
+      .isUUID()
+      .withMessage('projectIdはUUID形式である必要があります'),
+  ],
+  projectController.requestApproval
+);
+
+/**
  * プロジェクトチェックアウト状態取得
  * GET /api/v1/projects/:projectId/checkout-status
  * 
@@ -188,6 +229,58 @@ router.get(
       .withMessage('statusはall, pending, in_progress, completed, failedのいずれかである必要があります'),
   ],
   projectController.getProjectTasks
+);
+
+/**
+ * 作業指示一覧取得
+ * GET /api/v1/projects/:projectName/worker-instructions
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description プロジェクトに関連する作業指示一覧を取得する
+ * @note Task 1.1: 作業指示一覧取得エンドポイント追加
+ * @requirements REQ-1, REQ-3
+ * @roles experiment_worker, experiment_admin, system_admin
+ */
+router.get(
+  '/:projectName/worker-instructions',
+  authMiddleware,
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+    query('projectId')
+      .optional()
+      .isUUID()
+      .withMessage('projectIdはUUID形式である必要があります'),
+  ],
+  projectController.getWorkerInstructions
+);
+
+/**
+ * 指示確認完了
+ * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description 実験作業者が指示を確認したことを記録する
+ * @note API 2.14: プロジェクト管理APIの一部として実装
+ * @requirements REQ-001, REQ-002
+ */
+router.put(
+  '/:projectName/instructions/:instructionId/confirm',
+  authMiddleware,
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+    param('instructionId')
+      .isUUID()
+      .withMessage('instructionIdはUUID形式である必要があります'),
+  ],
+  projectController.confirmInstruction
 );
 
 export default router;

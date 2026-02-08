@@ -21,6 +21,14 @@ CREATE TABLE login_history (
     ip_address CHARACTER VARYING(45),
     user_agent TEXT,
     
+    -- 監査証跡
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
+    
+    -- タイムスタンプ
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
+    
     -- 制約
     CONSTRAINT login_history_PKC PRIMARY KEY (id)
 );
@@ -38,3 +46,7 @@ COMMENT ON COLUMN login_history.login_sf IS 'ログイン成否';
 COMMENT ON COLUMN login_history.failure_reason IS '失敗原因';
 COMMENT ON COLUMN login_history.ip_address IS 'IPアドレス:セキュリティ監査用（IPv4/IPv6対応）';
 COMMENT ON COLUMN login_history.user_agent IS 'User-Agent:ブラウザ・OS情報';
+COMMENT ON COLUMN login_history.create_user_id IS '作成者ユーザID';
+COMMENT ON COLUMN login_history.update_user_id IS '更新者ユーザID';
+COMMENT ON COLUMN login_history.create_at IS '作成日時';
+COMMENT ON COLUMN login_history.update_at IS '更新日時';

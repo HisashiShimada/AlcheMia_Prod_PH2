@@ -7,11 +7,14 @@ CREATE TABLE project (
   , project_name character varying
   , description text
   , department_cd character varying(50)
-  , owner_user_id uuid
+  , owner_user_id VARCHAR(50)
   , project_status numeric(2,0)
   , project_maiml_flg BOOLEAN
   , checkout_status numeric(2,0)
+  , create_user_id VARCHAR(50)
   , create_at timestamp
+  , update_user_id VARCHAR(50)
+  , update_at timestamp
   , CONSTRAINT project_PKC PRIMARY KEY (organization_id,project_id)
 ) ;
 
@@ -25,4 +28,7 @@ COMMENT ON COLUMN project.owner_user_id IS '所有者ユーザID';
 COMMENT ON COLUMN project.project_status IS 'プロジェクトステータス';
 COMMENT ON COLUMN project.project_maiml_flg IS 'プロジェクトMaiml有無:false:ファイルなし、true:ファイルあり';
 COMMENT ON COLUMN project.checkout_status IS 'チェックアウトステータス';
-COMMENT ON COLUMN project.create_at IS '作成日';
+COMMENT ON COLUMN project.create_user_id IS '作成者ユーザID';
+COMMENT ON COLUMN project.create_at IS '作成日時';
+COMMENT ON COLUMN project.update_user_id IS '更新者ユーザID';
+COMMENT ON COLUMN project.update_at IS '更新日時';

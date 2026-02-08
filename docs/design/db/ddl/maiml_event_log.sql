@@ -15,6 +15,14 @@ CREATE TABLE maiml_event_log (
     -- ログ情報
     log JSONB,
     
+    -- 監査証跡
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
+    
+    -- タイムスタンプ
+    create_at TIMESTAMP,
+    update_at TIMESTAMP,
+    
     -- 制約
     CONSTRAINT maiml_event_log_pkey PRIMARY KEY (organization_id, project_id, sequence_no)
 );
@@ -25,3 +33,7 @@ COMMENT ON COLUMN maiml_event_log.organization_id IS '組織ID';
 COMMENT ON COLUMN maiml_event_log.project_id IS 'プロジェクトID';
 COMMENT ON COLUMN maiml_event_log.sequence_no IS 'シーケンス番号';
 COMMENT ON COLUMN maiml_event_log.log IS 'ログ';
+COMMENT ON COLUMN maiml_event_log.create_user_id IS '作成者ユーザID';
+COMMENT ON COLUMN maiml_event_log.update_user_id IS '更新者ユーザID';
+COMMENT ON COLUMN maiml_event_log.create_at IS '作成日時';
+COMMENT ON COLUMN maiml_event_log.update_at IS '更新日時';

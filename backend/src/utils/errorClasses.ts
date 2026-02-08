@@ -71,6 +71,25 @@ export class NotFoundError extends Error {
 }
 
 /**
+ * プロジェクト未検出エラー（HTTP 404）
+ * 
+ * タスク4.1: Worker Task List API用カスタムエラー
+ * Requirements: 8 (エラーハンドリング)
+ */
+export class ProjectNotFoundError extends Error {
+  public readonly statusCode = 404;
+  public readonly code = 'PROJECT_NOT_FOUND';
+  public readonly projectId?: string;
+
+  constructor(message: string = 'Project not found', projectId?: string) {
+    super(message);
+    this.name = 'ProjectNotFoundError';
+    this.projectId = projectId;
+    Object.setPrototypeOf(this, ProjectNotFoundError.prototype);
+  }
+}
+
+/**
  * ストレージエラー（HTTP 500）
  */
 export class StorageError extends Error {
@@ -83,6 +102,68 @@ export class StorageError extends Error {
     this.name = 'StorageError';
     this.originalError = originalError;
     Object.setPrototypeOf(this, StorageError.prototype);
+  }
+}
+
+/**
+ * データベースエラー（HTTP 500）
+ * 
+ * タスク4.1: Worker Task List API用カスタムエラー
+ * Requirements: 8 (エラーハンドリング)
+ */
+export class DatabaseError extends Error {
+  public readonly statusCode = 500;
+  public readonly code = 'DATABASE_ERROR';
+  public readonly originalError?: Error;
+
+  constructor(message: string, originalError?: Error) {
+    super(message);
+    this.name = 'DatabaseError';
+    this.originalError = originalError;
+    Object.setPrototypeOf(this, DatabaseError.prototype);
+  }
+}
+
+/**
+ * MAIMLパースエラー（HTTP 500）
+ * 
+ * タスク4.1: Worker Task List API用カスタムエラー（将来使用）
+ * Requirements: 8 (エラーハンドリング)
+ */
+export class MAIMLParseError extends Error {
+  public readonly statusCode = 500;
+  public readonly code = 'MAIML_PARSE_ERROR';
+  public readonly originalError?: Error;
+
+  constructor(message: string, originalError?: Error) {
+    super(message);
+    this.name = 'MAIMLParseError';
+    this.originalError = originalError;
+    Object.setPrototypeOf(this, MAIMLParseError.prototype);
+  }
+}
+
+/**
+ * 競合エラー（HTTP 409）
+ * 
+ * ビジネスルール違反やリソース競合状態を示すエラー。
+ * 例: 既に承認依頼中のプロジェクトに再度承認依頼を送信しようとした場合
+ * 
+ * タスク5.1: ConflictErrorクラスの実装
+ * Requirements: 10, 14
+ */
+export class ConflictError extends Error {
+  public readonly statusCode = 409;
+  public readonly code = 'CONFLICT';
+  public readonly details?: any[];
+
+  constructor(message: string = 'Resource conflict', details?: any[]) {
+    super(message);
+    this.name = 'ConflictError';
+    this.details = details;
+    
+    // TypeScript の制約により、Error を継承する場合は必要
+    Object.setPrototypeOf(this, ConflictError.prototype);
   }
 }
 
@@ -122,8 +203,8 @@ export function formatErrorResponse(
 ): ErrorResponse {
   const timestamp = new Date().toISOString();
 
-  // カスタムエラークラスの場合
-  if (error instanceof ValidationError) {
+  // カスタムエラークラスの場合（detailsフィールドを持つエラー）
+  if (error instanceof ValidationError || error instanceof ConflictError) {
     return {
       success: false,
       error: {
@@ -138,11 +219,15 @@ export function formatErrorResponse(
     };
   }
 
+  // カスタムエラークラスの場合（detailsフィールドを持たないエラー）
   if (
     error instanceof AuthenticationError ||
     error instanceof AuthorizationError ||
     error instanceof NotFoundError ||
-    error instanceof StorageError
+    error instanceof ProjectNotFoundError ||
+    error instanceof StorageError ||
+    error instanceof DatabaseError ||
+    error instanceof MAIMLParseError
   ) {
     return {
       success: false,
@@ -191,7 +276,11 @@ export function getHttpStatusFromError(error: Error): number {
     error instanceof AuthenticationError ||
     error instanceof AuthorizationError ||
     error instanceof NotFoundError ||
-    error instanceof StorageError
+    error instanceof ProjectNotFoundError ||
+    error instanceof ConflictError ||
+    error instanceof StorageError ||
+    error instanceof DatabaseError ||
+    error instanceof MAIMLParseError
   ) {
     return error.statusCode;
   }

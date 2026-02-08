@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, App } from 'antd';
 import jaJP from 'antd/locale/ja_JP';
 import enUS from 'antd/locale/en_US';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
@@ -20,7 +20,9 @@ function AntdConfigProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ConfigProvider theme={theme} locale={antdLocale}>
-      {children}
+      <App>
+        {children}
+      </App>
     </ConfigProvider>
   );
 }

@@ -15,13 +15,14 @@ import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
-// モックコンポーネントのインポート
-import SystemOverviewMock from '../../../mock/components/SystemOverviewMock';
-import UserManagement from '../../../mock/components/UserManagement';
-import OrganizationStatisticsMock from '../../../mock/components/OrganizationStatisticsMock';
-import SessionManagementMock from '../../../mock/components/SessionManagementMock';
-import MasterManagementMock from '../../../mock/components/MasterManagementMock';
-import RoleManagementMock from '../../../mock/components/RoleManagementMock';
+// システム管理コンポーネントのインポート
+import SystemOverview from '../SystemManagement/SystemOverview';
+import UserManagement from '../SystemManagement/UserManagement';
+import OrganizationStatistics from '../SystemManagement/OrganizationStatistics';
+import SessionManagement from '../SystemManagement/SessionManagement';
+import MasterManagement from '../DataManagement/MasterManagement';
+import RoleManagement from '../SystemManagement/RoleManagement';
+import DepartmentManagement from '../SystemManagement/DepartmentManagement';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -116,28 +117,28 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
         }}
       >
         {/* タブ1: システム概要 */}
-        {currentTab === '1' && <SystemOverviewMock />}
+        {currentTab === '1' && <SystemOverview />}
 
         {/* タブ2: 組織統計情報 */}
-        {currentTab === '2' && <OrganizationStatisticsMock />}
+        {currentTab === '2' && <OrganizationStatistics />}
 
         {/* タブ3: ユーザー管理 */}
         {currentTab === '3' && <UserManagement />}
 
         {/* タブ4: セッション管理 */}
-        {currentTab === '4' && <SessionManagementMock />}
+        {currentTab === '4' && <SessionManagement />}
 
         {/* タブ5: 部署管理 */}
         {currentTab === '5' && (
           <div style={{ padding: token.paddingContentVertical }}>
-            <MasterManagementMock initialMasterId="2" />
+            <DepartmentManagement />
           </div>
         )}
 
         {/* タブ6: ロール管理 */}
         {currentTab === '6' && (
           <div style={{ padding: token.paddingContentVertical }}>
-            <RoleManagementMock />
+            <RoleManagement />
           </div>
         )}
       </Content>

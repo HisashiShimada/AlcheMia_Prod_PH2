@@ -14,8 +14,12 @@ CREATE TABLE corporation (
     corporation_name CHARACTER VARYING(50) NOT NULL,
     is_active BOOLEAN NOT NULL,
     
+    -- 監査証跡
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
+    
     -- タイムスタンプ
-    create_at BOOLEAN,
+    create_at TIMESTAMP,
     update_at TIMESTAMP,
     
     -- 制約
@@ -27,5 +31,7 @@ COMMENT ON TABLE corporation IS '会社';
 COMMENT ON COLUMN corporation.corporation_id IS '会社ID';
 COMMENT ON COLUMN corporation.corporation_name IS '会社名';
 COMMENT ON COLUMN corporation.is_active IS 'アクティブ判定';
+COMMENT ON COLUMN corporation.create_user_id IS '作成者ユーザID';
+COMMENT ON COLUMN corporation.update_user_id IS '更新者ユーザID';
 COMMENT ON COLUMN corporation.create_at IS '作成日時';
 COMMENT ON COLUMN corporation.update_at IS '更新日時';

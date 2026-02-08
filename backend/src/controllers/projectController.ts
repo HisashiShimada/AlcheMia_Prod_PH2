@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { ProjectService } from '../services/projectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
+import { isValidUUID, createUUIDValidationError } from '../utils/validation';
 
 /**
  * プロジェクト作成エンドポイント
@@ -37,8 +38,8 @@ export async function create(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { organizationId, userId } = req.user;
-    const departmentId = (req.user as any).departmentId || null;
+    const { organizationId, userId } = req.user!;
+    const departmentId = null; // req.session?.department_id || null; ToDo プルリク#38待ち
     const { projectName, description } = req.body;
 
     // Task 2.2: 詳細バリデーション
@@ -1181,6 +1182,420 @@ export async function list(req: Request, res: Response): Promise<void> {
     logError('Project list error', error as Error, {
       action: 'project_list',
       organizationId: req.user?.organizationId,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
+ * 承認依頼エンドポイント
+ * POST /api/v1/projects/:projectId/approval-request
+ * 
+ * @description 実験作業者が実験作業完了後に実験管理者へ承認依頼を送信
+ * Task: 2.1 リクエストバリデーションとパラメータ抽出
+ * Requirements: 1, 4, 10, 14
+ */
+export async function requestApproval(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId, userId } = req.user!;
+    const { projectId } = req.params;
+    const { comment } = req.body;
+
+    // Task 2.1, 5.2.3: projectId UUID形式バリデーション（強化版）
+    if (!isValidUUID(projectId)) {
+      const error = createUUIDValidationError('projectId');
+      res.status(400).json({
+        success: false,
+        error,
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Task 2.1: comment長さバリデーション（オプショナル、1000文字以内）
+    if (comment && comment.length > 1000) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_STRING_TOO_LONG',
+          message: 'commentは1000文字以内である必要があります',
+          details: [{
+            field: 'comment',
+            message: 'commentは1000文字以内です',
+            code: 'STRING_TOO_LONG',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // バリデーション通過後にProjectServiceを初期化
+    const projectService = new ProjectService();
+
+    // Task 2.1: Service層呼び出し（commentがundefinedの場合はnullに変換）
+    const result = await projectService.requestApproval(
+      projectId,
+      comment || null,
+      organizationId,
+      userId
+    );
+
+    // Task 2.2: エラーハンドリング（次のタスクで実装）
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode.startsWith('BUSINESS_')) {
+        statusCode = 409;
+      } else if (errorCode.startsWith('VALIDATION_')) {
+        statusCode = 400;
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Task 2.2: 成功レスポンス（次のタスクで実装）
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    logError('Project requestApproval error', error as Error, {
+      action: 'project_requestApproval',
+      organizationId: req.user?.organizationId,
+      projectId: req.params.projectId,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
+ * 作業指示一覧取得エンドポイント
+ * GET /api/v1/projects/:projectName/worker-instructions
+ * 
+ * @description プロジェクトに関連する作業指示一覧を取得する
+ * Task 3.1: エラーハンドリングの実装
+ * Requirements: REQ-1, REQ-3, REQ-5
+ */
+export async function getWorkerInstructions(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId, userId, role } = req.user!;
+    const { projectName } = req.params;
+
+    // Task 3.1: projectNameバリデーション
+    if (!projectName || projectName.trim() === '') {
+      logError('Worker instructions validation error', new Error('projectName is required'), {
+        action: 'worker_instructions_list',
+        organizationId,
+        projectName: req.params.projectName,
+        requestId,
+      });
+
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'projectNameは必須です',
+          details: [{
+            field: 'projectName',
+            message: 'プロジェクト名が必要です',
+            code: 'REQUIRED_FIELD',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Task 3.1: projectName形式チェック（特殊文字を含まない）
+    const projectNameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!projectNameRegex.test(projectName)) {
+      logError('Worker instructions validation error', new Error('Invalid projectName format'), {
+        action: 'worker_instructions_list',
+        organizationId,
+        projectName,
+        requestId,
+      });
+
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'projectNameに不正な文字が含まれています',
+          details: [{
+            field: 'projectName',
+            message: '英数字、ハイフン、アンダースコアのみ使用できます',
+            code: 'INVALID_FORMAT',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Task 3.1: クエリパラメータのバリデーション（projectIdのみ）
+    const filters: any = {};
+
+    if (req.query.projectId) {
+      filters.projectId = req.query.projectId as string;
+    }
+
+    // Task 3.1: Service層呼び出し
+    const result = await projectService.getWorkerInstructions({
+      projectName,
+      organizationId,
+      userId,
+      userRole: role,
+      filters,
+    });
+
+    // Task 3.1: エラーハンドリング
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode.startsWith('VALIDATION_')) {
+        statusCode = 400;
+      } else if (errorCode === 'PERMISSION_INSUFFICIENT') {
+        statusCode = 403;
+      } else if (errorCode.startsWith('SYSTEM_DATABASE_ERROR')) {
+        statusCode = 500;
+      }
+
+      // Task 3.1: エラーログ記録
+      logError('Worker instructions service error', result.error?.originalError || new Error(result.error?.message), {
+        action: 'worker_instructions_list',
+        organizationId,
+        userId,
+        projectName,
+        errorCode,
+        requestId,
+      });
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    // Task 3.1: 予期しないエラーのログ記録
+    logError('Worker instructions list error', error as Error, {
+      action: 'worker_instructions_list',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
+ * 指示確認完了エンドポイント (API 2.14)
+ * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
+ * 
+ * @description 実験作業者が指示を確認済みとしてマークする
+ * @note instructionConfirmationServiceからprojectServiceに統合
+ * Requirements: REQ-001, REQ-002, REQ-003, REQ-004, REQ-005
+ */
+export async function confirmInstruction(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId, userId, role } = req.user as any;
+    const { projectName, instructionId } = req.params;
+
+    // projectNameバリデーション
+    if (!projectName || projectName.trim() === '') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_REQUIRED_FIELD',
+          message: 'projectNameは必須です',
+          details: [{
+            field: 'projectName',
+            message: 'プロジェクト名が必要です',
+            code: 'REQUIRED_FIELD',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // UUID形式バリデーション
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(instructionId)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_INVALID_FORMAT',
+          message: 'instructionIdはUUID形式である必要があります',
+          details: [{
+            field: 'instructionId',
+            message: 'UUID形式が必要です',
+            code: 'INVALID_FORMAT',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // Service層呼び出し（projectServiceに統合済み）
+    const result = await projectService.confirmInstruction(
+      instructionId,
+      userId,
+      organizationId,
+      role
+    );
+
+    // エラーハンドリング
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      // ステータスコードマッピング
+      if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode === 'BUSINESS_ALREADY_ACKNOWLEDGED') {
+        statusCode = 400;
+      } else if (errorCode === 'PERMISSION_INSUFFICIENT') {
+        statusCode = 403;
+      } else if (errorCode.startsWith('VALIDATION_')) {
+        statusCode = 400;
+      } else if (errorCode === 'SYSTEM_DATABASE_ERROR') {
+        statusCode = 500;
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 成功レスポンス（200 OK）
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    // 予期しないエラーのハンドリング
+    logError('Instruction confirmation error', error as Error, {
+      action: 'instruction_confirmation',
+      organizationId: req.user?.organizationId,
+      instructionId: req.params.instructionId,
       requestId,
     });
 

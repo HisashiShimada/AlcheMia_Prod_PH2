@@ -61,6 +61,14 @@ export interface LoginResponseData {
 }
 
 /**
+ * 権限情報
+ */
+export interface Permission {
+  functionId: string;
+  permission: number;  // 0=書込専用, 1=読取権限
+}
+
+/**
  * PINコード検証レスポンスデータ
  */
 export interface VerifyPinResponseData {
@@ -68,10 +76,13 @@ export interface VerifyPinResponseData {
     id: string;
     username: string;
     email: string;
-    role: 'provider' | 'system_admin' | 'data_admin' | 'experiment_admin' | 'experiment_worker' | 'mi_engineer';
+    roleName: string;
+    roleCd: string;
     organizationId: string;
     organizationName: string;
     displayName: string;
+    departmentCd: string;
+    initialScreenFunctionCd: string;
   };
   session: {
     token: string;
