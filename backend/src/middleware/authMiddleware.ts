@@ -10,7 +10,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { JwtPayload } from '../types/auth';
 import { JwtService } from '../services/jwtService';
 
 /**
@@ -27,7 +26,7 @@ export async function authMiddleware(
 ): Promise<void> {
   try {
     // JwtServiceインスタンスを作成（テスト時にモック可能にするため関数内で作成）
-    /* const jwtService = new JwtService();
+    const jwtService = new JwtService();
     // Authorizationヘッダーからトークンを取得
     const authHeader = req.headers.authorization;
 
@@ -84,18 +83,10 @@ export async function authMiddleware(
         }
       });
       return;
-    } */
+    }
 
     // 検証成功 - req.userにペイロードを格納
-    // req.user = result.data;
-    req.user = {
-      "userId": "686e0a8f-da93-48df-98b4-482fa4eb098b",
-      "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
-      "role": "experiment_admin",
-      "sessionId": "550e8400-e29b-41d4-a716-446655440001",
-      "iat": 1768995240,
-      "exp": 1769081640
-    }
+    req.user = result.data;
 
     // 次のミドルウェアへ
     next();
