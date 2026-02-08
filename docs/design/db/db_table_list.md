@@ -77,6 +77,8 @@
   - `organization_id` - 組織ID (FK: organization_user)
   - `password` - ハッシュパスワード
   - `entry_flg` - 二段階認証アプリ連携フラグ
+  - `is_temporary_flg` - 仮パスワードフラグ（BOOLEAN、NOT NULL、DEFAULT false）
+  - `password_expires_at` - パスワード有効期限（TIMESTAMP、NULL許可）
   - `create_at` - 作成日時
   - `update_at` - 更新日時
 - **外部キー**:

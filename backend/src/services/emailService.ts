@@ -125,6 +125,53 @@ export class EmailService {
   }
 
   /**
+   * 一時パスワードメールを送信
+   * 
+   * @param email - 送信先メールアドレス
+   * @param tempPassword - 一時パスワード（12文字）
+   * @param username - ユーザー名
+   * @returns 送信結果
+   */
+  async sendTempPassword(
+    email: string,
+    tempPassword: string,
+    username: string
+  ): Promise<Result<void, ServiceError>> {
+    // バリデーション
+    if (!this.isValidEmail(email)) {
+      return {
+        success: false,
+        error: {
+          code: 'VALIDATION_INVALID_EMAIL',
+          message: 'Invalid email address format'
+        }
+      };
+    }
+
+    if (tempPassword.length !== 12) {
+      return {
+        success: false,
+        error: {
+          code: 'VALIDATION_INVALID_TEMP_PASSWORD',
+          message: 'Temporary password must be exactly 12 characters'
+        }
+      };
+    }
+
+    // メール内容を構築
+    const mailOptions = {
+      from: `"${this.config.fromName}" <${this.config.fromAddress}>`,
+      to: email,
+      subject: 'MMDPF - 一時パスワード発行のお知らせ',
+      text: this.createTempPasswordTextContent(username, tempPassword),
+      html: this.createTempPasswordHtmlContent(username, tempPassword)
+    };
+
+    // リトライ付きで送信
+    return await this.sendWithRetry(mailOptions);
+  }
+
+  /**
    * リトライロジック付きメール送信
    * 
    * @param mailOptions - メールオプション
@@ -340,6 +387,80 @@ MMDPF Authentication System
       </div>
       <p><strong>このリンクの有効期限は1時間です。</strong></p>
       <p class="warning">パスワードリセットを要求していない場合は、このメールを無視してください。</p>
+    </div>
+    <div class="footer">
+      <p>MMDPF Authentication System</p>
+    </div>
+  </div>
+</body>
+</html>
+    `.trim();
+  }
+
+  /**
+   * 一時パスワードメールのテキスト版コンテンツ
+   */
+  private createTempPasswordTextContent(username: string, tempPassword: string): string {
+    return `
+${username} 様
+
+MMDPFの一時パスワードを発行しました。
+
+以下の一時パスワードを使用してログインしてください：
+
+一時パスワード: ${tempPassword}
+
+このパスワードの有効期限は24時間です。
+ログイン後、必ず新しいパスワードに変更してください。
+
+このメールに心当たりがない場合は、管理者にお問い合わせください。
+
+---
+MMDPF Authentication System
+    `.trim();
+  }
+
+  /**
+   * 一時パスワードメールのHTML版コンテンツ
+   */
+  private createTempPasswordHtmlContent(username: string, tempPassword: string): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #CF0027; color: white; padding: 20px; text-align: center; }
+    .content { background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }
+    .temp-password { font-size: 24px; font-weight: bold; color: #CF0027; text-align: center; 
+                     padding: 20px; background-color: white; border: 2px solid #CF0027; 
+                     margin: 20px 0; letter-spacing: 2px; font-family: monospace; }
+    .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+    .warning { color: #d9534f; font-weight: bold; margin-top: 20px; }
+    .info { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>MMDPF 一時パスワード発行</h1>
+    </div>
+    <div class="content">
+      <p>${username} 様</p>
+      <p>MMDPFの一時パスワードを発行しました。</p>
+      <p>以下の一時パスワードを使用してログインしてください：</p>
+      <div class="temp-password">${tempPassword}</div>
+      <div class="info">
+        <p><strong>⚠️ 重要な注意事項</strong></p>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+          <li>このパスワードの有効期限は<strong>24時間</strong>です</li>
+          <li>ログイン後、<strong>必ず新しいパスワードに変更</strong>してください</li>
+          <li>一時パスワードのままでは、一部の機能が制限されます</li>
+        </ul>
+      </div>
+      <p class="warning">このメールに心当たりがない場合は、管理者にお問い合わせください。</p>
     </div>
     <div class="footer">
       <p>MMDPF Authentication System</p>
