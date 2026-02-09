@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Card, Input, Button, Typography, Alert, Space, Spin, theme } from 'antd';
 import { EyeOutlined, EyeInvisibleOutlined, LoginOutlined } from '@ant-design/icons';
 import { LoginCredentials } from '@/types/auth';
-import { validateUsername, validatePassword } from '@/utils/validation';
+import { validateEmail, validatePassword } from '@/utils/validation';
 
 const { Title, Text } = Typography;
 
@@ -13,6 +13,7 @@ const { Title, Text } = Typography;
  */
 interface LoginPageProps {
   onLogin: (credentials: LoginCredentials) => Promise<void>;
+  onForgotPassword?: () => void;
   error?: string | null;
   loading?: boolean;
   /** デバッグパネル（開発環境でのみ提供） */
@@ -23,24 +24,24 @@ interface LoginPageProps {
  * ログイン画面コンポーネント
  * UIポリシーに基づいたモダンで清潔感のあるデザイン
  */
-export default function LoginPage({ onLogin, error, loading = false, debugPanel }: LoginPageProps) {
+export default function LoginPage({ onLogin, onForgotPassword, error, loading = false, debugPanel }: LoginPageProps) {
   const { token } = theme.useToken();
-  const [username, setUsername] = useState('');
+  const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [userIdError, setUserIdError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [touched, setTouched] = useState({ username: false, password: false });
+  const [touched, setTouched] = useState({ userId: false, password: false });
 
-  // ユーザー名の変更ハンドラ（リアルタイムバリデーション）
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ユーザーIDの変更ハンドラ（リアルタイムバリデーション）
+  const handleUserIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setUsername(value);
+    setUserId(value);
     
     // タッチされている場合のみバリデーション
-    if (touched.username) {
-      const result = validateUsername(value);
-      setUsernameError(result.isValid ? null : result.error || null);
+    if (touched.userId) {
+      const result = validateEmail(value);
+      setUserIdError(result.isValid ? null : result.error || null);
     }
   };
 
@@ -57,10 +58,10 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
   };
 
   // フィールドのフォーカス喪失ハンドラ
-  const handleUsernameBlur = () => {
-    setTouched(prev => ({ ...prev, username: true }));
-    const result = validateUsername(username);
-    setUsernameError(result.isValid ? null : result.error || null);
+  const handleUserIdBlur = () => {
+    setTouched(prev => ({ ...prev, userId: true }));
+    const result = validateEmail(userId);
+    setUserIdError(result.isValid ? null : result.error || null);
   };
 
   const handlePasswordBlur = () => {
@@ -74,19 +75,19 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
     setValidationError(null);
 
     // すべてのフィールドをタッチ済みにする
-    setTouched({ username: true, password: true });
+    setTouched({ userId: true, password: true });
 
     // バリデーション実行
-    const usernameValidation = validateUsername(username);
+    const userIdValidation = validateEmail(userId);
     const passwordValidation = validatePassword(password);
 
     // エラーを設定
-    setUsernameError(usernameValidation.isValid ? null : usernameValidation.error || null);
+    setUserIdError(userIdValidation.isValid ? null : userIdValidation.error || null);
     setPasswordError(passwordValidation.isValid ? null : passwordValidation.error || null);
 
     // バリデーション失敗時は送信しない
-    if (!usernameValidation.isValid) {
-      setValidationError(usernameValidation.error || '入力値を確認してください');
+    if (!userIdValidation.isValid) {
+      setValidationError(userIdValidation.error || '入力値を確認してください');
       return;
     }
 
@@ -97,9 +98,8 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
 
     // ログイン処理
     try {
-      // await onLogin({ username: username.trim(), password });
       //TODO: クライアント証明書を導入するまでの仮実装
-      await onLogin({ username: username.trim(), password , organizationId: ''});
+      await onLogin({ userId: userId.trim(), password, organizationId: ''});
     } catch (err) {
       // エラーは親コンポーネントで処理
       console.error('Login failed:', err);
@@ -169,7 +169,7 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
             <Space orientation="vertical" size="large" style={{ width: '100%' }}>
               <div>
                 <label
-                  htmlFor="username"
+                  htmlFor="userId"
                   style={{
                     display: 'block',
                     marginBottom: token.marginSM,
@@ -178,24 +178,25 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
                     color: token.colorText,
                   }}
                 >
-                  ユーザー名 <span style={{ color: token.colorError }}>*</span>
+                  ユーザーID <span style={{ color: token.colorError }}>*</span>
                 </label>
                 <Input
-                  id="username"
-                  name="username"
+                  id="userId"
+                  name="userId"
+                  type="text"
                   size="large"
-                  placeholder="ユーザー名を入力"
-                  value={username}
-                  onChange={handleUsernameChange}
-                  onBlur={handleUsernameBlur}
+                  placeholder="ユーザーIDを入力"
+                  value={userId}
+                  onChange={handleUserIdChange}
+                  onBlur={handleUserIdBlur}
                   disabled={loading}
-                  status={usernameError ? 'error' : ''}
+                  status={userIdError ? 'error' : ''}
                   autoComplete="username"
                   autoFocus
                 />
-                {usernameError && (
+                {userIdError && (
                   <div style={{ color: token.colorError, fontSize: token.fontSizeSM, marginTop: token.marginXS }}>
-                    {usernameError}
+                    {userIdError}
                   </div>
                 )}
               </div>
@@ -249,6 +250,24 @@ export default function LoginPage({ onLogin, error, loading = false, debugPanel 
               >
                 {loading ? 'ログイン中...' : 'ログイン'}
               </Button>
+
+              {/* パスワードを忘れた場合のリンク */}
+              {onForgotPassword && (
+                <div style={{ textAlign: 'center', marginTop: token.marginSM }}>
+                  <Button
+                    type="link"
+                    onClick={onForgotPassword}
+                    disabled={loading}
+                    style={{
+                      padding: 0,
+                      height: 'auto',
+                      fontSize: token.fontSize,
+                    }}
+                  >
+                    パスワードを忘れた場合
+                  </Button>
+                </div>
+              )}
 
               {/* デバッグパネル（開発環境でのみ渡される） */}
               {debugPanel}

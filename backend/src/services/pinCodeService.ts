@@ -65,18 +65,19 @@ export class PinCodeService {
 
       // pin_codesテーブルに保存（既存レコードがあれば更新）
       // Parameterized Query使用、organization_id含む
-      // DDLのカラム順序に合わせる: organization_id, user_id, pin_code, session_token, expires_at, attempts_count
+      // DDLのカラム順序に合わせる: organization_id, user_id, pin_code, session_token, expires_at, attempts_count, create_user_id, create_at
       const result = await this.pool.query(
         `INSERT INTO pin_codes 
-         (organization_id, user_id, pin_code, session_token, expires_at, attempts_count) 
-         VALUES ($1, $2, $3, $4, $5, 0)
+         (organization_id, user_id, pin_code, session_token, expires_at, attempts_count, create_user_id, create_at) 
+         VALUES ($1, $2, $3, $4, $5, 0, $2, CURRENT_TIMESTAMP)
          ON CONFLICT (organization_id, user_id) 
          DO UPDATE SET 
            pin_code = EXCLUDED.pin_code,
            session_token = EXCLUDED.session_token,
            expires_at = EXCLUDED.expires_at,
            attempts_count = 0,
-           created_at = CURRENT_TIMESTAMP
+           update_user_id = EXCLUDED.user_id,
+           update_at = CURRENT_TIMESTAMP
          RETURNING pin_code, expires_at`,
         [orgId, userId, pinCode, sessionToken, expiresAt]
       );

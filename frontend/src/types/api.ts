@@ -88,6 +88,7 @@ export interface VerifyPinResponseData {
     token: string;
     expiresAt: string;
   };
+  passwordChangeRequired?: boolean;  // 一時パスワードでログインした場合はtrue
   redirectUrl: string;
 }
 

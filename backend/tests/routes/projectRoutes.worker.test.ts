@@ -146,6 +146,198 @@ describe('WorkerProject Route Integration', () => {
     });
   });
 
+  describe('Validation Tests', () => {
+    test('should accept request with no query parameters (defaults)', async () => {
+      const response = await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .expect(200);
+      
+      expect(response.body.success).toBe(true);
+    });
+    
+    test('should accept valid page parameter', async () => {
+      await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ page: '1' })
+        .expect(200);
+      
+      await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ page: '10' })
+        .expect(200);
+    });
+    
+    test('should reject page=0', async () => {
+      const response = await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ page: '0' })
+        .expect(400);
+      
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+      expect(response.body.error.details).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            field: 'page',
+            code: 'INVALID_VALUE',
+          }),
+        ])
+      );
+    });
+    
+    test('should reject negative page number', async () => {
+      const response = await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ page: '-1' })
+        .expect(400);
+      
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+    
+    test('should reject non-integer page', async () => {
+      const response = await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ page: 'abc' })
+        .expect(400);
+      
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+    
+    test('should accept valid limit parameter', async () => {
+      await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ limit: '1' })
+        .expect(200);
+      
+      await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ limit: '100' })
+        .expect(200);
+    });
+    
+    test('should reject limit=0', async () => {
+      const response = await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ limit: '0' })
+        .expect(400);
+      
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+    
+    test('should reject limit > 100', async () => {
+      const response = await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ limit: '101' })
+        .expect(400);
+      
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+    
+    test('should accept valid status values', async () => {
+      const validStatuses = ['1', '2', '3'];
+      
+      for (const status of validStatuses) {
+        await request(app)
+          .get('/api/v1/projects/worker-accessible')
+          .query({ status })
+          .expect(200);
+      }
+    });
+    
+    test('should reject invalid status value', async () => {
+      const response = await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ status: 'invalid_status' })
+        .expect(400);
+      
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+    
+    test('should accept valid sort_by values', async () => {
+      const validSortBy = ['create_at', 'project_name', 'update_at'];
+      
+      for (const sortBy of validSortBy) {
+        await request(app)
+          .get('/api/v1/projects/worker-accessible')
+          .query({ sort_by: sortBy })
+          .expect(200);
+      }
+    });
+    
+    test('should reject invalid sort_by value', async () => {
+      const response = await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ sort_by: 'invalid_field' })
+        .expect(400);
+      
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+    
+    test('should accept valid order values', async () => {
+      await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ order: 'asc' })
+        .expect(200);
+      
+      await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ order: 'desc' })
+        .expect(200);
+    });
+    
+    test('should reject invalid order value', async () => {
+      const response = await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ order: 'invalid_order' })
+        .expect(400);
+      
+      expect(response.body.success).toBe(false);
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    });
+    
+    test('should accept multiple valid query parameters', async () => {
+      await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({
+          page: '2',
+          limit: '50',
+          status: '2',
+          sort_by: 'project_name',
+          order: 'asc',
+        })
+        .expect(200);
+    });
+    
+    test('should return proper error response structure', async () => {
+      const response = await request(app)
+        .get('/api/v1/projects/worker-accessible')
+        .query({ page: '0' })
+        .expect(400);
+      
+      // エラーレスポンスの構造を確認
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toHaveProperty('code');
+      expect(response.body.error).toHaveProperty('message');
+      expect(response.body.error).toHaveProperty('details');
+      expect(response.body).toHaveProperty('meta');
+      expect(response.body.meta).toHaveProperty('timestamp');
+      expect(response.body.meta).toHaveProperty('requestId');
+      
+      // detailsの構造を確認
+      expect(Array.isArray(response.body.error.details)).toBe(true);
+      expect(response.body.error.details[0]).toHaveProperty('field');
+      expect(response.body.error.details[0]).toHaveProperty('message');
+      expect(response.body.error.details[0]).toHaveProperty('code');
+    });
+  });
+
   describe('Task 4.2: エクスポートとserver.ts統合', () => {
     test('projectRoutes.tsがdefault exportしている', () => {
       // projectRoutesがRouter型（function）であることを確認

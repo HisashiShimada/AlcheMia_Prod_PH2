@@ -2,6 +2,7 @@
  * ProjectController.confirmInstruction ユニットテスト
  * 
  * @description 指示確認APIのリクエスト処理テスト
+ * @note バリデーションはミドルウェアで処理済み（コントローラーではバリデーションテスト不要）
  * Task: 4.3 Controller層テスト実装
  * API: 2.14 指示確認完了
  */
@@ -46,7 +47,7 @@ describe('ProjectController - confirmInstruction', () => {
         sessionId: 'session123',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 86400
-      }
+      } as any
     };
 
     mockResponse = {
@@ -95,54 +96,6 @@ describe('ProjectController - confirmInstruction', () => {
           requestId: 'test-request-id-123'
         })
       });
-    });
-  });
-
-  describe('バリデーションエラー', () => {
-    it('should return 400 when projectName is missing', async () => {
-      // Arrange
-      mockRequest.params = { projectName: '', instructionId: '123e4567-e89b-12d3-a456-426614174000' };
-
-      // Act
-      await confirmInstruction(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'VALIDATION_REQUIRED_FIELD',
-            message: 'projectNameは必須です'
-          })
-        })
-      );
-    });
-
-    it('should return 400 when instructionId is not UUID format', async () => {
-      // Arrange
-      mockRequest.params = { projectName: 'test-project', instructionId: 'invalid-uuid' };
-
-      // Act
-      await confirmInstruction(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'VALIDATION_INVALID_FORMAT',
-            message: 'instructionIdはUUID形式である必要があります',
-            details: expect.arrayContaining([
-              expect.objectContaining({
-                field: 'instructionId',
-                code: 'INVALID_FORMAT'
-              })
-            ])
-          })
-        })
-      );
     });
   });
 
@@ -281,7 +234,7 @@ describe('ProjectController - confirmInstruction', () => {
         sessionId: 'session123',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 86400
-      };
+      } as any;
       mockRequest.params = {
         projectName: 'my-project',
         instructionId: '987e6543-e21b-12d3-a456-426614174999'

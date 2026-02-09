@@ -46,6 +46,7 @@ frontend/coverage/
 # Output
 backend/output/*.json
 !backend/output/.gitkeep
+md-to-pdf/output/
 
 # Temporary files
 *.tmp

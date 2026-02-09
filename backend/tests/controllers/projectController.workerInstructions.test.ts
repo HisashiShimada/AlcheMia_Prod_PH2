@@ -190,48 +190,6 @@ describe('projectController.getWorkerInstructions', () => {
       expect(mockStatus).not.toHaveBeenCalledWith(400);
     });
 
-    it('should reject missing project name', async () => {
-      // Arrange
-      mockRequest.params = { projectName: '' };
-
-      // Act
-      await projectController.getWorkerInstructions(
-        mockRequest as Request,
-        mockResponse as Response
-      );
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith({
-        success: false,
-        error: expect.objectContaining({
-          code: 'VALIDATION_ERROR',
-        }),
-        meta: expect.any(Object),
-      });
-    });
-
-    it('should reject project name with invalid characters', async () => {
-      // Arrange
-      mockRequest.params = { projectName: 'project@#$%' };
-
-      // Act
-      await projectController.getWorkerInstructions(
-        mockRequest as Request,
-        mockResponse as Response
-      );
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith({
-        success: false,
-        error: expect.objectContaining({
-          code: 'VALIDATION_ERROR',
-        }),
-        meta: expect.any(Object),
-      });
-    });
-
     it('should accept valid query parameters', async () => {
       // Arrange
       mockRequest.query = {

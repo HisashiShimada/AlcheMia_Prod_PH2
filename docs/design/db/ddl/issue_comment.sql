@@ -15,12 +15,12 @@ CREATE TABLE issue_comment (
     
     -- コメント情報
     comment CHARACTER VARYING,
-    author_id UUID,
+    author_id VARCHAR(50),
     commented_at TIMESTAMP,
     
     -- 監査証跡
-    create_user_id UUID,
-    update_user_id UUID,
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
     
     -- タイムスタンプ
     create_at TIMESTAMP,
