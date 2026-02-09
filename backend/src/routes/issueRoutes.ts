@@ -97,9 +97,10 @@ router.post(
   tenantIsolation,
   [
     param('issueId')
-      .isUUID()
+      .notEmpty()
       .withMessage('issueIdはUUID形式である必要があります'),
     body('comment')
+      .trim()
       .notEmpty()
       .withMessage('commentは必須です')
       .isLength({ min: 1, max: 2000 })
