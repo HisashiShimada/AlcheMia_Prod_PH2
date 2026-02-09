@@ -48,8 +48,8 @@ router.get(
       .withMessage('status must be one of: not_started, started, in_progress, completed, forced_terminated'),
     query('assignUserId')
       .optional()
-      .isUUID()
-      .withMessage('assignUserId must be a valid UUID'),
+      .isLength({ min: 1, max: 50 })
+      .withMessage('assignUserId must be 1-50 characters'),
     query('sortBy')
       .optional()
       .isIn(['task_no', 'created_at', 'updated_at', 'status'])

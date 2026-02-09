@@ -57,7 +57,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
     // パラメータ抽出
     const { projectId, methodId, taskNo } = req.params;
     const { status, currentUpdateAt, comment } = req.body;
-    const { organizationId, userId, role } = req.user!; // authミドルウェアで設定済み
+    const { organizationId, userId } = req.user!; // authミドルウェアで設定済み
 
     // バリデーション済みのため、直接数値変換
     const taskNoNum = parseInt(taskNo, 10);
@@ -69,7 +69,6 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
       methodId,
       taskNoNum,
       userId,
-      role,
       status as TaskStatus,
       currentUpdateAt,
       comment
@@ -171,7 +170,7 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
   try {
     // バリデーションはhandleValidationErrorsミドルウェアで処理済み
     // パラメータ抽出
-    const { organizationId, userId } = req.user!;
+    const { organizationId } = req.user!;
     const projectId = req.query.projectId as string;
 
     // オプションパラメータの抽出
