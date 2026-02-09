@@ -8,14 +8,14 @@ DROP TABLE IF EXISTS pin_codes CASCADE;
 
 CREATE TABLE pin_codes (
   organization_id uuid NOT NULL
-  , user_id uuid NOT NULL
+  , user_id VARCHAR(50) NOT NULL
   , pin_code character varying(6) NOT NULL
   , session_token character varying(255) NOT NULL
   , expires_at timestamp NOT NULL
   , attempts_count integer DEFAULT 0 NOT NULL
-  , create_user_id uuid
+  , create_user_id VARCHAR(50)
   , create_at timestamp
-  , update_user_id uuid
+  , update_user_id VARCHAR(50)
   , update_at timestamp
   , CONSTRAINT pin_codes_PKC PRIMARY KEY (organization_id,user_id)
 ) ;

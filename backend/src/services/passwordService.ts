@@ -11,7 +11,7 @@ import bcrypt from 'bcrypt';
 import type { Pool } from 'pg';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Result, UserRole } from '../types/service';
-import { BCRYPT_ROUNDS } from '../types/service';
+import { BCRYPT_ROUNDS, DEFAULT_BCRYPT_ROUNDS } from '../types/service';
 
 /**
  * PasswordService クラス
@@ -23,10 +23,10 @@ export class PasswordService {
    * パスワードをハッシュ化
    * 
    * @param password - ハッシュ化するパスワード（8-255文字）
-   * @param role - ユーザーロール（rounds数の決定に使用）
+   * @param role - ユーザーロール（オプショナル、rounds数の決定に使用）
    * @returns ハッシュ化されたパスワード
    */
-  async hash(password: string, role: UserRole): Promise<Result<string>> {
+  async hash(password: string, role?: string): Promise<Result<string>> {
     try {
       // バリデーション
       if (!password || password.length === 0) {
@@ -60,7 +60,11 @@ export class PasswordService {
       }
 
       // ロール別のrounds数を取得
-      const rounds = BCRYPT_ROUNDS[role];
+      // roleが指定されている場合はBCRYPT_ROUNDSから取得
+      // 指定されていない場合はデフォルト値を使用
+      const rounds = role && role in BCRYPT_ROUNDS 
+        ? BCRYPT_ROUNDS[role as UserRole] 
+        : DEFAULT_BCRYPT_ROUNDS;
 
       // bcryptでハッシュ化（非同期版）
       const hash = await bcrypt.hash(password, rounds);
@@ -154,7 +158,7 @@ export class PasswordService {
       // Parameterized Query使用、organization_idフィルタ必須
       const result = await this.pool.query(
         `UPDATE user_authentication 
-         SET password = $1, updated_at = CURRENT_TIMESTAMP 
+         SET password = $1, update_at = CURRENT_TIMESTAMP 
          WHERE user_id = $2 AND organization_id = $3`,
         [newPasswordHash, userId, orgId]
       );

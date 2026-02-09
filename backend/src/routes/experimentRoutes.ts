@@ -5,11 +5,11 @@
  */
 
 import { Router } from 'express';
-import { param } from 'express-validator';
+import { param, body } from 'express-validator';
 import * as experimentController from '../controllers/experimentController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
-import { updateStatusValidator } from '../middleware/validators/transitionStatusValidator';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
 
@@ -19,7 +19,6 @@ const router = Router();
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
- * @middleware updateStatusValidator - ステータス値のバリデーション
  * @description トランジションの実行状態を更新する
  * @note Task 7: ルート定義実装
  * @requirements REQ-1, REQ-3, REQ-9
@@ -30,6 +29,7 @@ router.put(
   authMiddleware,
   tenantIsolation,
   [
+    // パスパラメータのバリデーション
     param('projectId')
       .isUUID()
       .withMessage('projectIdはUUID形式である必要があります'),
@@ -43,8 +43,30 @@ router.put(
       .withMessage('transitionIdは必須です')
       .isLength({ min: 1, max: 255 })
       .withMessage('transitionIdは1〜255文字である必要があります'),
-    ...updateStatusValidator,
+    
+    // ボディパラメータのバリデーション
+    body('taskNo')
+      .notEmpty()
+      .withMessage('taskNoは必須です')
+      .isInt({ min: 1 })
+      .withMessage('taskNoは1以上の整数である必要があります'),
+    body('status')
+      .trim()
+      .notEmpty()
+      .withMessage('statusは必須です')
+      .isIn(['initial', 'preparing', 'ready', 'running', 'paused', 'completed', 'error'])
+      .withMessage('statusは initial, preparing, ready, running, paused, completed, error のいずれかである必要があります'),
+    body('progressRate')
+      .optional()
+      .isInt({ min: 0, max: 100 })
+      .withMessage('progressRateは0-100の整数である必要があります'),
+    body('comment')
+      .optional()
+      .trim()
+      .isLength({ max: 2000 })
+      .withMessage('commentは2000文字以内で入力してください'),
   ],
+  handleValidationErrors,
   experimentController.updateTransitionStatus
 );
 

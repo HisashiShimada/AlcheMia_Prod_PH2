@@ -50,11 +50,11 @@ export async function login(req: Request, res: Response): Promise<void> {
 
   try {
     // 1. バリデーション
-    const { username, password } = req.body;
+    const { userId, password } = req.body;
     const organizationId = req.query.orgId as string | undefined;
 
     // 必須パラメータチェック
-    if (!username || !password) {
+    if (!userId || !password) {
       res.status(400).json({
         success: false,
         error: {
@@ -84,7 +84,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 2. ユーザー検索
+    // 2. ユーザー検索（ユーザーIDで検索）
     const userQuery = `
       SELECT 
         user_id,
@@ -96,10 +96,10 @@ export async function login(req: Request, res: Response): Promise<void> {
         locked_until,
         department_cd
       FROM organization_user
-      WHERE user_name = $1 AND organization_id = $2
+      WHERE user_id = $1 AND organization_id = $2
     `;
     
-    const userResult = await pool.query(userQuery, [username, organizationId]);
+    const userResult = await pool.query(userQuery, [userId, organizationId]);
     console.log(userResult.rows.length)
 
     if (userResult.rows.length === 0) {
@@ -112,17 +112,20 @@ export async function login(req: Request, res: Response): Promise<void> {
           login_sf, 
           failure_reason,
           ip_address,
-          user_agent
+          user_agent,
+          create_user_id,
+          create_at
         )
-        VALUES ($1, $2, NOW(), $3, $4, $5, $6)
+        VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
       `;
       await pool.query(historyQuery, [
-        username,
+        userId,
         organizationId,
         false,
         'User not found',
         ipAddress,
         userAgent,
+        'SYSTEM',
       ]);
 
       // ユーザーが存在しない場合も同じエラーメッセージ（情報漏洩防止）
@@ -130,7 +133,7 @@ export async function login(req: Request, res: Response): Promise<void> {
         success: false,
         error: {
           code: 'AUTH_INVALID_CREDENTIALS',
-          message: 'ユーザー名またはパスワードが正しくありません',
+          message: 'ユーザーIDまたはパスワードが正しくありません',
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -154,9 +157,11 @@ export async function login(req: Request, res: Response): Promise<void> {
           login_sf, 
           failure_reason,
           ip_address,
-          user_agent
+          user_agent,
+          create_user_id,
+          create_at
         )
-        VALUES ($1, $2, NOW(), $3, $4, $5, $6)
+        VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
       `;
       await pool.query(historyQuery, [
         user.user_name,
@@ -165,6 +170,7 @@ export async function login(req: Request, res: Response): Promise<void> {
         'Account disabled',
         ipAddress,
         userAgent,
+        'SYSTEM',
       ]);
 
       res.status(403).json({
@@ -198,9 +204,11 @@ export async function login(req: Request, res: Response): Promise<void> {
           login_sf, 
           failure_reason,
           ip_address,
-          user_agent
+          user_agent,
+          create_user_id,
+          create_at
         )
-        VALUES ($1, $2, NOW(), $3, $4, $5, $6)
+        VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
       `;
       await pool.query(historyQuery, [
         user.user_name,
@@ -209,13 +217,14 @@ export async function login(req: Request, res: Response): Promise<void> {
         'Invalid password',
         ipAddress,
         userAgent,
+        'SYSTEM',
       ]);
 
       res.status(401).json({
         success: false,
         error: {
           code: 'AUTH_INVALID_CREDENTIALS',
-          message: 'ユーザー名またはパスワードが正しくありません',
+          message: 'ユーザーIDまたはパスワードが正しくありません',
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -264,9 +273,11 @@ export async function login(req: Request, res: Response): Promise<void> {
         login_at, 
         login_sf,
         ip_address,
-        user_agent
+        user_agent,
+        create_user_id,
+        create_at
       )
-      VALUES ($1, $2, NOW(), $3, $4, $5)
+      VALUES ($1, $2, NOW(), $3, $4, $5, $1, CURRENT_TIMESTAMP)
     `;
     await pool.query(successHistoryQuery, [
       user.user_name,
@@ -325,27 +336,58 @@ export function maskEmailPublic(email: string): string {
 }
 
 /**
- * パスワードリセット要求エンドポイント
+ * 一時パスワード生成関数
+ * 12文字、大小英数字+特殊文字
+ */
+function generateTempPassword(): string {
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const numbers = '0123456789';
+  const special = '!@#$%^&*';
+  const allChars = lowercase + uppercase + numbers + special;
+
+  let password = '';
+  
+  // 最低1文字ずつ各種類を含める
+  password += lowercase[Math.floor(Math.random() * lowercase.length)];
+  password += uppercase[Math.floor(Math.random() * uppercase.length)];
+  password += numbers[Math.floor(Math.random() * numbers.length)];
+  password += special[Math.floor(Math.random() * special.length)];
+
+  // 残り8文字をランダムに
+  for (let i = 4; i < 12; i++) {
+    password += allChars[Math.floor(Math.random() * allChars.length)];
+  }
+
+  // シャッフル
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+}
+
+/**
+ * パスワードリセット要求エンドポイント（一時パスワード方式）
  * POST /api/v1/auth/reset-password-request
  */
 export async function resetPasswordRequest(req: Request, res: Response): Promise<void> {
   const pool = getPool();
   const requestId = uuidv4();
 
+  // Initialize services with pool
+  const passwordService = new PasswordService(pool);
+
   try {
     // 1. バリデーション
-    const { username } = req.body;
+    const { email } = req.body;
     const organizationId = req.query.orgId as string | undefined;
 
     // 必須パラメータチェック
-    if (!username) {
+    if (!email) {
       res.status(400).json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
           message: '必須パラメータが不足しています',
           details: [
-            { field: 'username', message: 'ユーザー名は必須です', code: 'REQUIRED_FIELD' },
+            { field: 'email', message: 'メールアドレスは必須です', code: 'REQUIRED_FIELD' },
           ],
         },
         meta: {
@@ -375,14 +417,14 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
     }
 
     // 入力値バリデーション
-    if (username.length > 100) {
+    if (email.length > 100) {
       res.status(400).json({
         success: false,
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'ユーザー名は100文字以内である必要があります',
+          message: 'メールアドレスは100文字以内である必要があります',
           details: [
-            { field: 'username', message: 'ユーザー名は100文字以内です', code: 'MAX_LENGTH_EXCEEDED' },
+            { field: 'email', message: 'メールアドレスは100文字以内です', code: 'MAX_LENGTH_EXCEEDED' },
           ],
         },
         meta: {
@@ -393,42 +435,40 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
       return;
     }
 
-    // 2. ユーザー検索
+    // 2. ユーザー検索（メールアドレスで検索）
     const userQuery = `
       SELECT 
         user_id,
         user_name,
         mail_address,
+        role_cd,
         organization_id
       FROM organization_user
-      WHERE user_name = $1 AND organization_id = $2
+      WHERE mail_address = $1 AND organization_id = $2
     `;
     
-    const userResult = await pool.query(userQuery, [username, organizationId]);
+    const userResult = await pool.query(userQuery, [email, organizationId]);
 
-    // 3. リセットトークン生成（ユーザーが存在する場合のみ）
+    // 3. 一時パスワード発行（ユーザーが存在する場合のみ）
     let maskedEmail = 'use***@example.com'; // デフォルト値（情報漏洩防止）
+    let tempPassword = ''; // 一時パスワード（開発環境で返却用）
 
     if (userResult.rows.length > 0) {
       const user = userResult.rows[0];
       maskedEmail = maskEmail(user.mail_address);
 
-      // リセットトークン生成: reset_{uuid}_{timestamp}
-      const resetToken = `reset_${uuidv4()}_${Date.now()}`;
+      // 一時パスワード生成
+      tempPassword = generateTempPassword();
 
-      // 4. メール送信
-      const emailResult = await emailService.sendPasswordReset(
-        user.mail_address,
-        resetToken,
-        user.user_name
-      );
+      // パスワードハッシュ化
+      const hashResult = await passwordService.hash(tempPassword, user.role_cd);
 
-      if (!emailResult.success) {
+      if (!hashResult.success) {
         res.status(500).json({
           success: false,
           error: {
-            code: 'SYSTEM_EMAIL_SEND_FAILED',
-            message: 'メール送信に失敗しました。しばらく待ってから再試行してください',
+            code: hashResult.error?.code || 'SYSTEM_ERROR',
+            message: 'パスワードのハッシュ化に失敗しました',
           },
           meta: {
             timestamp: new Date().toISOString(),
@@ -437,15 +477,65 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
         });
         return;
       }
+
+      // user_authenticationテーブルを更新（一時パスワードフラグをtrueに設定）
+      const updateQuery = `
+        UPDATE user_authentication
+        SET password = $1,
+            password_expires_at = NOW() + INTERVAL '24 hours',
+            is_temporary_flg = true,
+            update_at = NOW()
+        WHERE user_id = $2 AND organization_id = $3
+      `;
+      
+      await pool.query(updateQuery, [
+        hashResult.data,
+        user.user_id,
+        user.organization_id,
+      ]);
+
+      // 4. メール送信（開発環境ではスキップ）
+      if (process.env.NODE_ENV !== 'development') {
+        const emailResult = await emailService.sendTempPassword(
+          user.mail_address,
+          tempPassword,
+          user.user_name
+        );
+
+        if (!emailResult.success) {
+          res.status(500).json({
+            success: false,
+            error: {
+              code: 'SYSTEM_EMAIL_SEND_FAILED',
+              message: 'メール送信に失敗しました。しばらく待ってから再試行してください',
+            },
+            meta: {
+              timestamp: new Date().toISOString(),
+              requestId,
+            },
+          });
+          return;
+        }
+      }
+
+      console.log(`[INFO] 一時パスワード発行: user_id=${user.user_id}, expires_at=${new Date(Date.now() + 24*60*60*1000).toISOString()}`);
     }
 
     // 5. 成功レスポンス（ユーザーが存在しない場合も同じレスポンス - 情報漏洩防止）
+    const responseData: any = {
+      message: '一時パスワードをメールで送信しました',
+      email: maskedEmail,
+    };
+
+    // 開発環境の場合のみ一時パスワードを含める（開発効率化のため）
+    if (process.env.NODE_ENV === 'development' && userResult.rows.length > 0) {
+      responseData.tempPassword = tempPassword;
+      responseData.devMode = true;
+    }
+
     res.status(200).json({
       success: true,
-      data: {
-        message: 'パスワードリセットのご案内をメールで送信しました',
-        email: maskedEmail,
-      },
+      data: responseData,
       meta: {
         timestamp: new Date().toISOString(),
         requestId,
@@ -1041,6 +1131,40 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
       ? roleResult.rows[0].initial_screen_function_cd?.trim() || null
       : null;
 
+    // 2.6. パスワード期限と種別のチェック
+    const authQuery = `
+      SELECT is_temporary_flg, password_expires_at
+      FROM user_authentication
+      WHERE user_id = $1 AND organization_id = $2
+    `;
+    const authResult = await pool.query(authQuery, [userInfo.id, userInfo.organizationId]);
+    
+    let passwordChangeRequired = false;
+    let isPasswordExpired = false;
+    let isTemporaryPassword = false;
+
+    if (authResult.rows.length > 0) {
+      const authData = authResult.rows[0];
+      isTemporaryPassword = authData.is_temporary_flg || false;
+      
+      const now = new Date();
+      const expiresAt = authData.password_expires_at ? new Date(authData.password_expires_at) : null;
+      
+      if (expiresAt && now > expiresAt) {
+        // パスワード期限切れ
+        isPasswordExpired = true;
+        passwordChangeRequired = true;
+        console.log(`[WARN] パスワード期限切れ: user_id=${userInfo.id}, expired_at=${authData.password_expires_at}, is_temporary=${isTemporaryPassword}`);
+      } else if (isTemporaryPassword) {
+        // 一時パスワード（期限内）
+        passwordChangeRequired = true;
+        console.log(`[INFO] 一時パスワードでログイン: user_id=${userInfo.id}, expires_at=${authData.password_expires_at}`);
+      }
+      
+      // 判定結果のログ出力
+      console.log(`[INFO] ログイン判定: user_id=${userInfo.id}, requiresChange=${passwordChangeRequired}, expired=${isPasswordExpired}, temporary=${isTemporaryPassword}`);
+    }
+
     // 3. req.sessionに部門CDを保存
     if (req.session) {
       req.session.departmentCd = userInfo.departmentCd;
@@ -1146,6 +1270,10 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
           token: accessToken,
           expiresAt: expiresAt.toISOString(),
         },
+        // パスワード状態フラグ
+        passwordChangeRequired,     // パスワード変更が必要か（一時パスワード or 期限切れ）
+        isPasswordExpired,          // パスワードが期限切れか
+        isTemporaryPassword,        // 一時パスワードか
       },
       meta: {
         timestamp: new Date().toISOString(),
@@ -1156,6 +1284,176 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     logError('Verify PIN error', error as Error, {
       action: 'verify_pin',
       organizationId: req.headers['x-organization-id'] as string,
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
+ * パスワード変更エンドポイント（認証済みユーザー用）
+ * POST /api/v1/auth/change-password
+ */
+export async function changePassword(req: Request, res: Response): Promise<void> {
+  const pool = getPool();
+  const requestId = uuidv4();
+
+  // Initialize services with pool
+  const passwordService = new PasswordService(pool);
+
+  try {
+    // 1. バリデーション
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user!.userId;
+    const organizationId = req.user!.organizationId;
+
+    // 必須パラメータチェック
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: '必須パラメータが不足しています',
+          details: [
+            { field: 'currentPassword', message: '現在のパスワードは必須です', code: 'REQUIRED_FIELD' },
+            { field: 'newPassword', message: '新しいパスワードは必須です', code: 'REQUIRED_FIELD' },
+          ],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 新しいパスワードのバリデーション
+    if (newPassword.length < 8) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: '新しいパスワードは8文字以上である必要があります',
+          details: [
+            { field: 'newPassword', message: 'パスワードは8文字以上です', code: 'MIN_LENGTH' },
+          ],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 2. 現在のパスワードを検証
+    const verifyResult = await passwordService.verify(
+      userId,
+      organizationId,
+      currentPassword
+    );
+
+    if (!verifyResult.success || !verifyResult.data) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTH_INVALID_CURRENT_PASSWORD',
+          message: '現在のパスワードが正しくありません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 3. ユーザーのrole_cdを取得
+    const userQuery = `
+      SELECT role_cd
+      FROM organization_user
+      WHERE user_id = $1 AND organization_id = $2
+    `;
+    const userResult = await pool.query(userQuery, [userId, organizationId]);
+
+    if (userResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'ユーザーが見つかりません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const roleCd = userResult.rows[0].role_cd;
+
+    // 4. 新しいパスワードをハッシュ化
+    const hashResult = await passwordService.hash(newPassword, roleCd as UserRole);
+
+    if (!hashResult.success) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: hashResult.error?.code || 'SYSTEM_ERROR',
+          message: 'パスワードのハッシュ化に失敗しました',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 5. パスワードを更新（password_expires_atをNULL、is_temporary_flgをfalseに設定）
+    const updateQuery = `
+      UPDATE user_authentication
+      SET password = $1,
+          password_expires_at = NULL,
+          is_temporary_flg = false,
+          update_at = NOW()
+      WHERE user_id = $2 AND organization_id = $3
+    `;
+    
+    await pool.query(updateQuery, [
+      hashResult.data,
+      userId,
+      organizationId,
+    ]);
+
+    console.log(`[INFO] パスワード変更成功: user_id=${userId}`);
+
+    // 6. 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'パスワードを変更しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    logError('Change password error', error as Error, {
+      action: 'change_password',
+      userId: req.user!.userId,
+      organizationId: req.user!.organizationId,
     });
     res.status(500).json({
       success: false,
