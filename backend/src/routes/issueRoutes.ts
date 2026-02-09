@@ -106,6 +106,7 @@ router.post(
       .isLength({ min: 1, max: 2000 })
       .withMessage('commentは1〜2000文字である必要があります'),
   ],
+  handleValidationErrors,
   issueController.addComment
 );
 
