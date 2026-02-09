@@ -37,15 +37,6 @@ export interface User {
   initialScreenFunctionCd: string;
 }
 
-/**
- * ログイン資格情報
- */
-export interface LoginCredentials {
-  username: string;
-  password: string;
-  // TODO: クライアント証明書を導入するまでの仮実装
-  organizationId: string;
-}
 
 /**
  * 認証状態
@@ -111,22 +102,38 @@ export interface VerifyPINResponse {
     token: string;
     expiresAt: string;  // ISO 8601
   };
+  passwordChangeRequired: boolean;  // 一時パスワードでログインした場合はtrue
   redirectUrl: string;  // ロール別遷移先
 }
 
 /**
- * POST /api/v1/auth/resend-pin レスポンス
+ * ログイン認証情報
  */
-export interface ResendPINResponse {
-  message: string;
-  email: string;
-  expiresIn: number;
+export interface LoginCredentials {
+  userId: string;
+  password: string;
+  organizationId: string;
 }
 
 /**
  * 汎用メッセージレスポンス
  */
 export interface MessageResponse {
+  message: string;
+}
+
+/**
+ * POST /api/v1/auth/change-password リクエスト
+ */
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * POST /api/v1/auth/change-password レスポンス
+ */
+export interface ChangePasswordResponse {
   message: string;
 }
 

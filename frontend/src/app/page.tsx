@@ -5,6 +5,9 @@ import { useSearchParams } from 'next/navigation';
 import { message } from 'antd';
 import LoginPage from '@/components/LoginPage';
 import PinCodeInputPage from '@/components/PinCodeInputPage';
+import PasswordResetRequest from '@/components/PasswordResetRequest';
+import PasswordResetExecute from '@/components/PasswordResetExecute';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
 import ProviderMenu from '@/components/menus/ProviderMenu';
 import SystemAdminMenu from '@/components/menus/SystemAdminMenu';
 import DataAdminMenu from '@/components/menus/DataAdminMenu';
@@ -16,7 +19,7 @@ import type { LoginCredentials, User, UserRole } from '@/types/auth';
 /**
  * 認証フロー状態
  */
-type AuthStep = 'login' | 'pin-code' | 'authenticated';
+type AuthStep = 'login' | 'pin-code' | 'password-reset-request' | 'password-reset-execute' | 'authenticated';
 
 /**
  * ホームページ（統合ログイン画面）
@@ -43,6 +46,16 @@ export default function Home() {
   const [sessionToken, setSessionToken] = useState<string>('');
   const [organizationId, setOrganizationId] = useState<string>('');
   const [maskedEmail, setMaskedEmail] = useState<string>('');
+
+  // パスワードリセット用の状態
+  const [resetToken, setResetToken] = useState<string>('');
+
+  // パスワード変更モーダル用の状態
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [pendingRedirectData, setPendingRedirectData] = useState<{
+    user: User;
+    menuType: string | null;
+  } | null>(null);
 
   /**
    * ログイン処理（第1段階）
@@ -109,19 +122,32 @@ export default function Home() {
       // 検証成功
       console.log('PIN verification successful:', response);
 
-      // ユーザー情報を設定
-      setCurrentUser(response.user);
-      // initialScreenFunctionCdを使用して画面を決定
-      setCurrentMenuType(response.user.initialScreenFunctionCd);
-      setAuthStep('authenticated');
-
       // ユーザー情報とセッショントークンをSessionStorageに保存
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('sessionToken', response.session.token); // セッショントークンを保存
         sessionStorage.setItem('userInfo', JSON.stringify(response.user)); // UserInfoを保存
       }
 
-      messageApi.success('ログインに成功しました');
+      // 一時パスワードでログインした場合
+      if (response.passwordChangeRequired) {
+        console.log('[INFO] 一時パスワードでログイン - パスワード変更モーダルを表示');
+        
+        // メニュー遷移に必要な情報を保存
+        setPendingRedirectData({
+          user: response.user,
+          menuType: response.user.initialScreenFunctionCd,
+        });
+        
+        // パスワード変更モーダルを表示
+        setShowChangePasswordModal(true);
+      } else {
+        // 通常のパスワードでログイン - メニュー画面へ遷移
+        setCurrentUser(response.user);
+        setCurrentMenuType(response.user.initialScreenFunctionCd);
+        setAuthStep('authenticated');
+        
+        messageApi.success('ログインに成功しました');
+      }
     } catch (err) {
       // エラーハンドリング
       if (err instanceof AuthServiceError) {
@@ -192,6 +218,100 @@ export default function Home() {
     setSessionToken('');
     setOrganizationId('');
     setMaskedEmail('');
+    setResetToken('');
+  };
+
+  /**
+   * パスワードを忘れた場合のリンククリック処理
+   */
+  const handleForgotPassword = (): void => {
+    setError(null);
+    setAuthStep('password-reset-request');
+  };
+
+  /**
+   * パスワードリセット要求処理
+   */
+  const handlePasswordResetRequest = async (email: string): Promise<void> => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const response = await authService.resetPasswordRequest(email, orgIdFromUrl);
+      console.log('Password reset request successful:', response);
+      
+      messageApi.success(
+        'パスワードリセットのご案内をメールで送信しました。メールをご確認ください。',
+        5
+      );
+    } catch (err) {
+      if (err instanceof AuthServiceError) {
+        setError(err.message);
+        console.error('Password reset request error:', {
+          code: err.code,
+          message: err.message,
+          details: err.details,
+        });
+      } else {
+        setError('予期しないエラーが発生しました');
+        console.error('Unexpected error:', err);
+      }
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * パスワードリセット実行処理
+   */
+  const handlePasswordResetExecute = async (resetToken: string, newPassword: string): Promise<void> => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const response = await authService.resetPassword(resetToken, newPassword);
+      console.log('Password reset successful:', response);
+      
+      messageApi.success('パスワードを変更しました。新しいパスワードでログインしてください。', 5);
+    } catch (err) {
+      if (err instanceof AuthServiceError) {
+        setError(err.message);
+        console.error('Password reset error:', {
+          code: err.code,
+          message: err.message,
+          details: err.details,
+        });
+      } else {
+        setError('予期しないエラーが発生しました');
+        console.error('Unexpected error:', err);
+      }
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * パスワード変更成功ハンドラ
+   */
+  const handleChangePasswordSuccess = (): void => {
+    console.log('[INFO] パスワード変更成功 - メニュー画面へ遷移');
+    
+    // パスワード変更モーダルを閉じる
+    setShowChangePasswordModal(false);
+    
+    // 保存しておいたリダイレクト情報を使用してメニュー画面へ遷移
+    if (pendingRedirectData) {
+      setCurrentUser(pendingRedirectData.user);
+      setCurrentMenuType(pendingRedirectData.menuType);
+      setAuthStep('authenticated');
+      
+      // リダイレクトデータをクリア
+      setPendingRedirectData(null);
+      
+      messageApi.success('ログインに成功しました');
+    }
   };
 
   /**
@@ -354,6 +474,7 @@ export default function Home() {
         {contextHolder}
         <LoginPage
           onLogin={handleLogin}
+          onForgotPassword={handleForgotPassword}
           error={error}
           loading={loading}
         />
@@ -380,7 +501,39 @@ export default function Home() {
     );
   }
 
-  // Step 3: ログイン済み - メニュー表示
+  // Step 3: パスワードリセット要求画面
+  if (authStep === 'password-reset-request') {
+    return (
+      <>
+        {contextHolder}
+        <PasswordResetRequest
+          onBack={handleBackToLogin}
+          onSuccess={handlePasswordResetRequest}
+          organizationId={orgIdFromUrl}
+          error={error}
+          loading={loading}
+        />
+      </>
+    );
+  }
+
+  // Step 4: パスワードリセット実行画面
+  if (authStep === 'password-reset-execute') {
+    return (
+      <>
+        {contextHolder}
+        <PasswordResetExecute
+          resetToken={resetToken}
+          onSuccess={handleBackToLogin}
+          onSubmit={handlePasswordResetExecute}
+          error={error}
+          loading={loading}
+        />
+      </>
+    );
+  }
+
+  // Step 5: ログイン済み - メニュー表示
   if (authStep === 'authenticated' && currentUser) {
     let MenuComponent: React.ReactNode;
 
@@ -449,5 +602,14 @@ export default function Home() {
   }
 
   // フォールバック
-  return null;
+  return (
+    <>
+      {contextHolder}
+      {/* パスワード変更モーダル（一時パスワードでログイン時に表示） */}
+      <ChangePasswordModal
+        open={showChangePasswordModal}
+        onSuccess={handleChangePasswordSuccess}
+      />
+    </>
+  );
 }
