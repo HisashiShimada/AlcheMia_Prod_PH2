@@ -65,16 +65,19 @@ router.post(
       .isString()
       .withMessage('transitionIdは文字列である必要があります'),
     body('title')
+      .trim()
       .notEmpty()
       .withMessage('titleは必須です')
       .isLength({ min: 1, max: 200 })
       .withMessage('titleは1〜200文字である必要があります'),
     body('description')
+      .trim()
       .notEmpty()
       .withMessage('descriptionは必須です')
       .isLength({ min: 1, max: 2000 })
       .withMessage('descriptionは1〜2000文字である必要があります'),
   ],
+  handleValidationErrors,
   issueController.create
 );
 
@@ -94,9 +97,10 @@ router.post(
   tenantIsolation,
   [
     param('issueId')
-      .isUUID()
+      .notEmpty()
       .withMessage('issueIdはUUID形式である必要があります'),
     body('comment')
+      .trim()
       .notEmpty()
       .withMessage('commentは必須です')
       .isLength({ min: 1, max: 2000 })
