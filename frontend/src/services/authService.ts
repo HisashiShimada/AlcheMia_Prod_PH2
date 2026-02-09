@@ -305,14 +305,19 @@ export const authService = {
 
   /**
    * パスワードリセット要求
-   * @param username ユーザー名
+   * @param email メールアドレス
+   * @param orgId 組織ID（ログイン画面ではURLクエリパラメータから取得）
    * @returns リセット要求結果
    */
-  async resetPasswordRequest(username: string): Promise<ResetPasswordRequestResponseData> {
+  async resetPasswordRequest(email: string, orgId?: string): Promise<ResetPasswordRequestResponseData> {
     try {
+      // ログイン画面では組織IDをクエリパラメータで送信
+      const params = orgId ? { orgId } : {};
+      
       const response = await apiClient.post<ApiResponse<ResetPasswordRequestResponseData>>(
         '/auth/reset-password-request',
-        { username }
+        { email },
+        { params }
       );
       
       if (response.data.success) {
@@ -343,6 +348,30 @@ export const authService = {
       }
       
       throw new AuthServiceError('パスワードリセットに失敗しました', 'RESET_FAILED');
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  /**
+   * パスワード変更（認証済みユーザー用）
+   * @param currentPassword 現在のパスワード
+   * @param newPassword 新しいパスワード
+   * @returns 変更結果
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    try {
+      // Authorizationヘッダーはインターセプターで自動付与される
+      const response = await apiClient.post<ApiResponse<{ message: string }>>(
+        '/auth/change-password',
+        { currentPassword, newPassword }
+      );
+      
+      if (response.data.success) {
+        return response.data.data;
+      }
+      
+      throw new AuthServiceError('パスワード変更に失敗しました', 'CHANGE_PASSWORD_FAILED');
     } catch (error) {
       throw handleApiError(error);
     }

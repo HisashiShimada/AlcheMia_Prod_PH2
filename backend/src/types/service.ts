@@ -31,6 +31,12 @@ export type UserRole =
   | 'mi_engineer';
 
 /**
+ * デフォルトbcrypt rounds設定
+ * role情報が不明な場合に使用（標準的なセキュリティ強度）
+ */
+export const DEFAULT_BCRYPT_ROUNDS = 12;
+
+/**
  * ロール別bcrypt rounds設定
  */
 export const BCRYPT_ROUNDS: Record<UserRole, number> = {

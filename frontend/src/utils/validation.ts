@@ -172,13 +172,13 @@ export function validatePasswordConfirmation(
 }
 
 /**
- * メールアドレスバリデーション（基本的な形式チェック）
+ * メールアドレス/ユーザーIDバリデーション（基本的な形式チェック）
  * 
  * ルール:
  * - 必須
  * - 基本的なメール形式（@を含む）
  * 
- * @param email - 検証するメールアドレス
+ * @param email - 検証するメールアドレスまたはユーザーID
  * @returns バリデーション結果
  */
 export function validateEmail(email: string): ValidationResult {
@@ -186,7 +186,7 @@ export function validateEmail(email: string): ValidationResult {
   if (!email || email.trim().length === 0) {
     return {
       isValid: false,
-      error: 'メールアドレスを入力してください',
+      error: 'ユーザーIDを入力してください',
     };
   }
 
@@ -195,7 +195,7 @@ export function validateEmail(email: string): ValidationResult {
   if (!emailPattern.test(email)) {
     return {
       isValid: false,
-      error: '有効なメールアドレスを入力してください',
+      error: '有効なユーザーIDを入力してください',
     };
   }
 
