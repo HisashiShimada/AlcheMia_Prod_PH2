@@ -1,0 +1,21 @@
+{
+  "name": "mmdpf-md-to-pdf",
+  "version": "1.0.0",
+  "description": "Markdown to PDF conversion tool for mmdpf design documents",
+  "main": "convert.js",
+  "scripts": {
+    "convert": "node convert.js",
+    "test": "node convert.js ../docs/design/viewer_layout_logic.md ./output/test.pdf"
+  },
+  "keywords": [
+    "markdown",
+    "pdf",
+    "converter",
+    "documentation"
+  ],
+  "author": "mmdpf team",
+  "license": "ISC",
+  "dependencies": {
+    "md-to-pdf": "^5.2.5"
+  }
+}
