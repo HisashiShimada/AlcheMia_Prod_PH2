@@ -10,6 +10,7 @@ import { body, param, query } from 'express-validator';
 import * as issueController from '../controllers/issueController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
 
@@ -64,16 +65,19 @@ router.post(
       .isString()
       .withMessage('transitionIdは文字列である必要があります'),
     body('title')
+      .trim()
       .notEmpty()
       .withMessage('titleは必須です')
       .isLength({ min: 1, max: 200 })
       .withMessage('titleは1〜200文字である必要があります'),
     body('description')
+      .trim()
       .notEmpty()
       .withMessage('descriptionは必須です')
       .isLength({ min: 1, max: 2000 })
       .withMessage('descriptionは1〜2000文字である必要があります'),
   ],
+  handleValidationErrors,
   issueController.create
 );
 
