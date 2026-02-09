@@ -33,7 +33,7 @@ export const updateTransitionStatus = async (
   try {
     // リクエストパラメータとボディの抽出
     const { projectId, methodId, transitionId } = req.params;
-    const { status, comment: _comment } = req.body;
+    const { taskNo: _taskNo, status, progressRate, comment: _comment } = req.body;
 
     // 認証・認可情報の取得
     const organizationId = (req as any).organizationId;
@@ -56,10 +56,11 @@ export const updateTransitionStatus = async (
     const updateData: TransitionDataUpdate = {
       status,
       updated_by: updatedBy,
+      ...(progressRate !== undefined && { progress_rate: progressRate }),
     };
 
-    // TODO: commentはmaiml_event_logテーブルに格納する処理を実装予定
-    // 現在はリクエストボディから受け取るのみ（_commentとして保持）
+    // TODO: _taskNo、_commentはmaiml_event_logテーブルに格納する処理を実装予定
+    // 現在はリクエストボディから受け取るのみ（バリデーション済み）
 
     // サービス層を呼び出してステータス更新
     const updatedTransitionData = await experimentDataService.updateStatus(

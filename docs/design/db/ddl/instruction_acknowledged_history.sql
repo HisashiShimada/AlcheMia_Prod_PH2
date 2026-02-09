@@ -15,7 +15,7 @@ CREATE TABLE instruction_acknowledged_history (
     instruction_id UUID NOT NULL,
     
     -- 確認情報
-    acknowledged_user_id UUID NOT NULL,
+    acknowledged_user_id VARCHAR(50) NOT NULL,
     acknowledged_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     
     -- マルチテナント分離

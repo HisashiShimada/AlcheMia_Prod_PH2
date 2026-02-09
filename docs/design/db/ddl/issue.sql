@@ -23,14 +23,14 @@ CREATE TABLE issue (
     status NUMERIC(2,0),
     
     -- 報告・完了情報
-    issue_reporter_id UUID,
+    issue_reporter_id VARCHAR(50),
     issue_report_at TIMESTAMP,
-    issue_completer_id UUID,
+    issue_completer_id VARCHAR(50),
     issue_complate_at TIMESTAMP,
     
     -- 監査証跡
-    create_user_id UUID,
-    update_user_id UUID,
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
     
     -- タイムスタンプ
     create_at TIMESTAMP,

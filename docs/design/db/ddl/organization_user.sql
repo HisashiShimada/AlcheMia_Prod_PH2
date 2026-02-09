@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS organization_user CASCADE;
 
 CREATE TABLE organization_user (
     -- 主キー
-    user_id UUID NOT NULL,
+    user_id VARCHAR(50) NOT NULL,
     organization_id UUID NOT NULL,
     
     -- ユーザー情報
@@ -22,8 +22,8 @@ CREATE TABLE organization_user (
     is_active BOOLEAN,
     
     -- 監査証跡
-    create_user_id UUID,
-    update_user_id UUID,
+    create_user_id VARCHAR(50),
+    update_user_id VARCHAR(50),
     
     -- タイムスタンプ
     create_at TIMESTAMP,

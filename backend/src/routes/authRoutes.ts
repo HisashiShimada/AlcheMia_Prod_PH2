@@ -29,13 +29,11 @@ router.post(
   '/login',
   loginRateLimit,
   [
-    body('username')
+    body('userId')
       .notEmpty()
-      .withMessage('Username is required')
+      .withMessage('User ID is required')
       .isLength({ min: 1, max: 100 })
-      .withMessage('Username must be between 1 and 100 characters')
-      .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('Username must contain only alphanumeric characters, underscores, and hyphens'),
+      .withMessage('User ID must be between 1 and 100 characters'),
     body('password')
       .notEmpty()
       .withMessage('Password is required')
@@ -93,11 +91,13 @@ router.post(
   '/reset-password-request',
   passwordResetRequestRateLimit,
   [
-    body('username')
+    body('email')
       .notEmpty()
-      .withMessage('Username is required')
+      .withMessage('Email is required')
+      .isEmail()
+      .withMessage('Valid email is required')
       .isLength({ min: 1, max: 100 })
-      .withMessage('Username must be between 1 and 100 characters'),
+      .withMessage('Email must be between 1 and 100 characters'),
   ],
   authController.resetPasswordRequest
 );
@@ -117,6 +117,24 @@ router.post(
       .withMessage('Password must be between 8 and 255 characters'),
   ],
   authController.resetPassword
+);
+
+// 8. パスワード変更エンドポイント（認証済みユーザー用）
+// POST /api/v1/auth/change-password
+router.post(
+  '/change-password',
+  authMiddleware,
+  [
+    body('currentPassword')
+      .notEmpty()
+      .withMessage('Current password is required'),
+    body('newPassword')
+      .notEmpty()
+      .withMessage('New password is required')
+      .isLength({ min: 8, max: 255 })
+      .withMessage('Password must be between 8 and 255 characters'),
+  ],
+  authController.changePassword
 );
 
 export default router;
