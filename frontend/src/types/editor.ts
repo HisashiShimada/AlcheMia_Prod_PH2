@@ -14,20 +14,13 @@ import type { Node, Edge, Viewport, Connection, NodeTypes } from 'reactflow';
 
 // XSD準拠の型定義をimport
 import type {
-  Creator,
-  Vendor,
-  Owner,
-  Instrument,
   Place,
   Arc,
   Transition,
   Property,
   Template,
-  PlaceRef,
-  Reference,
   Content,
-  Chain,
-  Parent
+  Document
 } from '@/types/maiml-unified';
 // ============================================
 // 基本型定義
@@ -117,37 +110,7 @@ export interface SignatureData {
  * 
  * @see frontend/src/types/maiml-unified.ts Document型
  */
-export interface DocumentData {
-  // ============================================================================
-  // XSD準拠プロパティ（Document型から継承）
-  // ============================================================================
-  
-  /** 要素ID（XML ID属性、必須） */
-  id: string;
-  /** UUID（RFC 4122準拠、必須） */
-  uuid: string;
-  /** 要素名（人間可読な名前） */
-  name?: string;
-  /** 説明文 */
-  description?: string;
-  /** 注釈（XSD仕様、実MAIMLでは稀） */
-  annotation?: string;
-  /** 作成者情報（XSD: 配列、実MAIML: 通常1個） */
-  creators: Creator[];
-  /** ベンダー情報（XSD: 配列、実MAIML: 通常1個） */
-  vendors: Vendor[];
-  /** 所有者情報（XSD: 配列、実MAIML: 通常1個） */
-  owners: Owner[];
-  /** 機器情報（XSD: 配列、実MAIML: 通常1個） */
-  instruments: Instrument[];
-  /** 作成日時（ISO 8601形式） */
-  date?: string;
-  /** デジタル署名（オプション） */
-  Signature?: any;
-  /** チェーン構造（ブロックチェーン用、オプション） */
-  chains: Chain[];
-  /** 親要素参照（オプション） */
-  parents: Parent[];
+export interface DocumentData extends Document {
   
   // ============================================================================
   // エディター用拡張プロパティ
@@ -186,17 +149,6 @@ export interface MethodData {
   transitions?: Transition[];
   arcs?: Arc[];
 }
-
-/**
- * MethodInfo型（互換性のため残す）
- * @deprecated MethodDataを使用してください
- */
-export type MethodInfo = MethodData;
-
-/**
- * Method定義（エイリアス）
- */
-export type Method = MethodData;
 
 // ============================================
 // バリデーション関連の型定義

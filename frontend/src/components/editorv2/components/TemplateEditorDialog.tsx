@@ -150,7 +150,7 @@ interface NestedPropertyEditorProps {
   expandedNodes: Set<string>;
   onToggleExpanded: (nodeId: string) => void;
   onAddNestedChild: (parentKey: string, childTagName: string, specifiedKey?: string) => void;
-  onAddSameLevelCopy: (sourceKey: string, sourceData: PropertyData, newKey: string, level: number) => void;
+  onAddSameLevelCopy: (sourceData: PropertyData, newKey: string) => void;
   onUpdateNestedAttribute: (propertyKey: string, attrName: string, attrValue: string) => void;
   onUpdateNestedElement: (propertyKey: string, elemName: string, elemValue: string) => void;
   onDeleteNestedAttribute: (propertyKey: string, attrName: string) => void;
@@ -535,7 +535,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
         onCancel={() => setShowCopyModal(false)}
         onOk={() => {
           if (copyKey.trim()) {
-            onAddSameLevelCopy(propertyKey, propertyData, copyKey.trim(), level);
+            onAddSameLevelCopy(propertyData, copyKey.trim());
             setCopyKey('');
             setShowCopyModal(false);
           }
@@ -580,11 +580,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   // ✅ Phase 2-1: NestedPropertyEditor用State
   const [properties, setProperties] = useState<Record<string, PropertyData>>({});
+  const [contents, setContents] = useState<Record<string, PropertyData>>({});
   const [expandedNodes, setExpandedNodes] = useState(new Set<string>());
+  const [expandedContentNodes, setExpandedContentNodes] = useState(new Set<string>());
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showContentAddModal, setShowContentAddModal] = useState(false);
   const [newPropertyKey, setNewPropertyKey] = useState('');
   const [newPropertyTagName, setNewPropertyTagName] = useState('property');
+  const [newContentKey, setNewContentKey] = useState('');
+  const [newContentTagName, setNewContentTagName] = useState('content');
   const [forceRenderKey, setForceRenderKey] = useState(0);
+  // Bug Fix: V1のforceRenderKeyパターンを適用（Contents用）
+  const [forceContentRenderKey, setForceContentRenderKey] = useState(0);
 
   // ✅ Phase 1-1: Place References編集用State
   const [showPlaceRefAddDialog, setShowPlaceRefAddDialog] = useState(false);
@@ -1375,7 +1382,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     };
     
     setProperties(prevProperties => {
-      const updated = JSON.parse(JSON.stringify(prevProperties));
+      const updated : Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
       findAndUpdateParent(updated, parentKey);
       return updated;
     });
@@ -1389,7 +1396,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     setHasChanges(true);
   };
 
-  const handleAddSameLevelCopy = (sourceKey: string, sourceData: PropertyData, newKey: string) => {
+  const handleAddSameLevelCopy = (sourceData: PropertyData, newKey: string) => {
     if (properties[newKey]) {
       message.error('同じキーのプロパティが既に存在します');
       return;
@@ -1439,7 +1446,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     };
     
     setProperties(prevProperties => {
-      const updated = JSON.parse(JSON.stringify(prevProperties));
+      const updated : Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
       findAndUpdate(updated, propertyKey);
       return updated;
     });
@@ -1482,7 +1489,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     };
     
     setProperties(prevProperties => {
-      const updated = JSON.parse(JSON.stringify(prevProperties));
+      const updated : Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
       findAndUpdate(updated, propertyKey);
       return updated;
     });
@@ -1519,7 +1526,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     };
     
     setProperties(prevProperties => {
-      const updated = JSON.parse(JSON.stringify(prevProperties));
+      const updated : Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
       findAndDelete(updated, propertyKey);
       return updated;
     });
@@ -1556,7 +1563,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     };
     
     setProperties(prevProperties => {
-      const updated = JSON.parse(JSON.stringify(prevProperties));
+      const updated : Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
       findAndDelete(updated, propertyKey);
       return updated;
     });
@@ -1566,12 +1573,149 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   };
 
   const handleDeleteProperty = (propertyKey: string) => {
-    const updated = { ...properties };
+    const updated : Record<string, PropertyData> = { ...properties };
     delete updated[propertyKey];
     setProperties(updated);
     setHasChanges(true);
   };
 
+  // Phase 3.2: Contents用ハンドラー群
+  const handleToggleContentExpanded = (nodeId : string) => {
+    setExpandedContentNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  };
+
+  const handleAddContent = () => {
+    if (!newContentKey.trim()) {
+      alert('Contentキーを入力してください');
+      return;
+    }
+
+    if (contents[newContentKey.trim()]) {
+      alert('同じキーのContentが既に存在します');
+      return;
+    }
+
+    setContents({
+      ...contents,
+      [newContentKey.trim()]: {
+        key: newContentKey.trim(),
+        tagName: newContentTagName,
+        attributes: {},
+        elements: {},
+        children: []
+      }
+    });
+
+    setNewContentKey('');
+    setNewContentTagName('content');
+    setShowContentAddModal(false);
+  };
+
+  const handleAddNestedContentChild = (parentKey : string, childTagName : string) => {
+    const childKey = `${childTagName}_${Date.now()}`;
+    
+    // Bug Fix: 深いコピー + 関数型setStateで不変性を保持
+    setContents(prevContents => {
+      const updated = JSON.parse(JSON.stringify(prevContents));
+      if (updated[parentKey]) {
+        if (!updated[parentKey].children) {
+          updated[parentKey].children = [];
+        }
+        updated[parentKey].children.push({
+          key: childKey,
+          tagName: childTagName,
+          attributes: {},
+          elements: {},
+          children: []
+        });
+        if (!updated[parentKey].attributes) {
+          updated[parentKey].attributes = {};
+        }
+        updated[parentKey].attributes['xsi:type'] = 'propertyListType';
+      }
+      return updated;
+    });
+    
+    // UX改善: 子要素追加後、自動的に展開
+    setExpandedContentNodes(prev => {
+      const next = new Set(prev);
+      next.add(parentKey);
+      return next;
+    });
+  };
+
+  const handleAddContentSameLevelCopy = (sourceData: PropertyData, newKey: string) => {
+    if (contents[newKey]) {
+      alert('同じキーのContentが既に存在します');
+      return;
+    }
+
+    const deepCopy = JSON.parse(JSON.stringify(sourceData));
+    deepCopy.key = newKey;
+    
+    setContents({
+      ...contents,
+      [newKey]: deepCopy
+    });
+  };
+
+  const handleUpdateContentAttribute = (contentKey : string, attrName: string, attrValue: string) => {
+    // Bug Fix: 深いコピーで不変性を保持
+    setContents(prevContents => {
+      const updated : Record<string, PropertyData> = JSON.parse(JSON.stringify(prevContents));
+      if (updated[contentKey]) {
+        if (!updated[contentKey].attributes) {
+          updated[contentKey].attributes = {};
+        }
+        updated[contentKey].attributes[attrName] = attrValue;
+      }
+      return updated;
+    });
+  };
+
+  const handleUpdateContentElement = (contentKey: string, elemName : string, elemValue: string) => {
+    // Bug Fix: 深いコピーで不変性を保持
+    setContents(prevContents => {
+      const updated : Record<string, PropertyData> = JSON.parse(JSON.stringify(prevContents));
+      if (updated[contentKey]) {
+        if (!updated[contentKey].elements) {
+          updated[contentKey].elements = {};
+        }
+        updated[contentKey].elements[elemName] = elemValue;
+      }
+      return updated;
+    });
+  };
+
+  const handleDeleteContentAttribute = (contentKey: string, attrName: string) => {
+    const updated : Record<string, PropertyData> = { ...contents };
+    if (updated[contentKey]?.attributes) {
+      delete updated[contentKey].attributes[attrName];
+      setContents(updated);
+    }
+  };
+
+  const handleDeleteContentElement = (contentKey: string, elemName: string) => {
+    const updated : Record<string, PropertyData> = { ...contents };
+    if (updated[contentKey]?.elements) {
+      delete updated[contentKey].elements[elemName];
+      setContents(updated);
+    }
+  };
+
+  const handleDeleteContent = (contentKey : string) => {
+    const updated : Record<string, PropertyData> = { ...contents };
+    delete updated[contentKey];
+    setContents(updated);
+  };
   /**
    * UUID生成
    */
@@ -2058,6 +2202,165 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             />
           </Form.Item>
         </div>
+        
+        {/* ✅ Place References編集セクション */}
+        <div style={{ marginBottom: 24 }}>
+          <Divider />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <Title level={5}>
+              🔗 Place References
+            </Title>
+            <Button
+              size="small"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setShowPlaceRefAddDialog(true)}
+            >
+              追加
+            </Button>
+          </div>
+          
+          {placeRefs.length === 0 ? (
+            <Alert
+              message="Place Referenceが登録されていません。「追加」ボタンから登録してください。"
+              type="info"
+              showIcon
+            />
+          ) : (
+            placeRefs.map((placeRef, index) => (
+              <div 
+                key={index} 
+                style={{ 
+                  padding: 12, 
+                  marginBottom: 8, 
+                  backgroundColor: '#f0f8ff', 
+                  borderRadius: 4, 
+                  border: '1px solid #90caf9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div>
+                  <Text strong style={{ marginBottom: 4, display: 'block' }}>
+                    Place Ref #{index + 1}
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    <strong>Ref:</strong> {placeRef.ref}
+                  </Text>
+                </div>
+                <Button
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => {
+                    const updated = placeRefs.filter((_, i) => i !== index);
+                    setPlaceRefs(updated);
+                    setHasChanges(true);
+                  }}
+                />
+              </div>
+            ))
+          )}
+        </div>
+        
+        {/* Insertion（MaterialTemplate・ResultTemplateの場合表示） */}
+        {(node.data.placeType === 'material' || node.data.placeType === 'result') && (
+          <div style={{ marginBottom: 24 }}>
+            <Divider />
+            <Title level={5} style={{ marginBottom: 16 }}>
+              📎 Insertion情報
+            </Title>
+            
+            <Form.Item label="URI">
+              <Input
+                value={insertion.uri}
+                onChange={(e) => {
+                  setInsertion({ ...insertion, uri: e.target.value });
+                  setHasChanges(true);
+                }}
+                placeholder="例: s3://bucket/path/to/file"
+              />
+            </Form.Item>
+
+            <Form.Item label="Hash Method">
+              <Input
+                value={insertion.hash?.method || ''}
+                onChange={(e) => {
+                  setInsertion({ 
+                    ...insertion, 
+                    hash: { ...insertion.hash, method: e.target.value } 
+                  });
+                  setHasChanges(true);
+                }}
+                placeholder="例: sha256"
+              />
+            </Form.Item>
+
+            <Form.Item label="Hash Value">
+              <Input
+                value={insertion.hash?.value || ''}
+                onChange={(e) => {
+                  setInsertion({ 
+                    ...insertion, 
+                    hash: { ...insertion.hash, value: e.target.value } 
+                  });
+                  setHasChanges(true);
+                }}
+                placeholder="例: abc123..."
+              />
+            </Form.Item>
+
+            <Form.Item label="Format">
+              <Input
+                value={insertion.format}
+                onChange={(e) => {
+                  setInsertion({ ...insertion, format: e.target.value });
+                  setHasChanges(true);
+                }}
+                placeholder="例: application/xml"
+              />
+            </Form.Item>
+          </div>
+        )}
+      </div>
+
+        {/* Properties編集セクション */}
+        <Divider />
+        <div style={{ marginBottom: 16 }}>
+          <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
+            <Title level={5}>🏷️ Properties</Title>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowAddModal(true)}>
+              新規プロパティ追加
+            </Button>
+            <Button icon={<DownloadOutlined />} onClick={handleOpenNamespaceImport}>
+              テンプレートから取り込み
+            </Button>
+          </Space>
+
+          {Object.keys(properties).length === 0 ? (
+            <Alert message="プロパティがありません。「新規プロパティ追加」ボタンから追加してください。" type="info" />
+          ) : (
+            Object.entries(properties).map(([key, data]) => (
+              <NestedPropertyEditor
+                key={`${key}_${forceRenderKey}`}
+                propertyData={data}
+                propertyKey={key}
+                level={0}
+                expandedNodes={expandedNodes}
+                onToggleExpanded={handleToggleExpanded}
+                onAddNestedChild={handleAddNestedChild}
+                onAddSameLevelCopy={handleAddSameLevelCopy}
+                onUpdateNestedAttribute={handleUpdateNestedAttribute}
+                onUpdateNestedElement={handleUpdateNestedElement}
+                onDeleteNestedAttribute={handleDeleteNestedAttribute}
+                onDeleteNestedElement={handleDeleteNestedElement}
+                onDeleteProperty={handleDeleteProperty}
+                forceRenderKey={forceRenderKey}
+              />
+            ))
+          )}
+        </div>
 
         {/* ✅ Phase 2-1: 継承元プロパティ表示セクション */}
         {inheritedTemplate && (
@@ -2150,64 +2453,47 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             />
           </>
         )}
+        
+        {/* Phase 3.2: Contents編集セクション（ResultTemplateのみ） */}
+        {node.data.placeType === 'result' && (
+          <>
+            <Divider />
+            <div style={{ marginBottom: 16 }}>
+              <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
+                <Title level={5}>🏷️ Contents</Title>
+                <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowContentAddModal(true)}>
+                  新規Content追加
+                </Button>
+                <Button icon={<DownloadOutlined />} onClick={handleOpenNamespaceImport}>
+                  テンプレートから取り込み
+                </Button>
+              </Space>
 
-        {/* Properties編集セクション */}
-        <Divider />
-        <div style={{ marginBottom: 16 }}>
-          <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
-            <Title level={5}>🏷️ Properties</Title>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowAddModal(true)}>
-              新規プロパティ追加
-            </Button>
-            <Button icon={<DownloadOutlined />} onClick={handleOpenNamespaceImport}>
-              テンプレートから取り込み
-            </Button>
-          </Space>
-
-          {/* 取り込み済みファイル表示 */}
-          {importedNamespaces.length > 0 && (
-            <Alert
-              message={
-                <Space direction="vertical" size="small">
-                  <Text strong>📥 取り込み済みテンプレート ({importedNamespaces.length}件)</Text>
-                  <div>
-                    {importedNamespaces.map((fileName, index) => (
-                      <Tag key={index} color="blue" style={{ marginBottom: 4 }}>
-                        {fileName}
-                      </Tag>
-                    ))}
-                  </div>
-                </Space>
-              }
-              type="info"
-              style={{ marginBottom: 16 }}
-            />
-          )}
-
-          {Object.keys(properties).length === 0 ? (
-            <Alert message="プロパティがありません。「新規プロパティ追加」ボタンから追加してください。" type="info" />
-          ) : (
-            Object.entries(properties).map(([key, data]) => (
-              <NestedPropertyEditor
-                key={`${key}_${forceRenderKey}`}
-                propertyData={data}
-                propertyKey={key}
-                level={0}
-                expandedNodes={expandedNodes}
-                onToggleExpanded={handleToggleExpanded}
-                onAddNestedChild={handleAddNestedChild}
-                onAddSameLevelCopy={handleAddSameLevelCopy}
-                onUpdateNestedAttribute={handleUpdateNestedAttribute}
-                onUpdateNestedElement={handleUpdateNestedElement}
-                onDeleteNestedAttribute={handleDeleteNestedAttribute}
-                onDeleteNestedElement={handleDeleteNestedElement}
-                onDeleteProperty={handleDeleteProperty}
-                forceRenderKey={forceRenderKey}
-              />
-            ))
-          )}
-        </div>
-      </div>
+              {Object.keys(properties).length === 0 ? (
+                <Alert message="Contentがありません。「新規Contentを追加」ボタンから追加してください。" type="info" />
+              ) : (
+                Object.entries(properties).map(([key, data]) => (
+                  <NestedPropertyEditor
+                    key={`${key}_${forceRenderKey}`}
+                    propertyData={data}
+                    propertyKey={key}
+                    level={0}
+                    expandedNodes={expandedContentNodes}
+                    onToggleExpanded={handleToggleContentExpanded}
+                    onAddNestedChild={handleAddNestedContentChild}
+                    onAddSameLevelCopy={handleAddContentSameLevelCopy}
+                    onUpdateNestedAttribute={handleUpdateContentAttribute}
+                    onUpdateNestedElement={handleUpdateContentElement}
+                    onDeleteNestedAttribute={handleDeleteContentAttribute}
+                    onDeleteNestedElement={handleDeleteContentElement}
+                    onDeleteProperty={handleDeleteContent}
+                    forceRenderKey={forceContentRenderKey}
+                  />
+                ))
+              )}
+            </div>
+          </>
+        )}
 
       {/* ✅ Phase 2-2: 名前空間取り込みモーダル */}
       <Modal
@@ -2428,6 +2714,32 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               </div>
             </div>
           )}
+        </Space>
+      </Modal>
+      
+      {/* Phase 3.2: Content追加モーダル */}
+      <Modal
+        title="新規Content追加"
+        open={showContentAddModal}
+        onCancel={() => setShowContentAddModal(false)}
+        onOk={handleAddContent}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Input
+            placeholder="プロパティキー（例: compound, concentration）"
+            value={newContentKey}
+            onChange={(e) => setNewContentKey(e.target.value)}
+          />
+          <Select
+            style={{ width: '100%' }}
+            placeholder="タグ名を選択"
+            value={newContentTagName}
+            onChange={setNewContentTagName}
+          >
+            <Option value="property">property</Option>
+            <Option value="content">content</Option>
+            <Option value="parameter">parameter</Option>
+          </Select>
         </Space>
       </Modal>
 
