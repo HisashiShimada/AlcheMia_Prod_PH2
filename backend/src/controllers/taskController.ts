@@ -6,7 +6,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
 import { updateTaskStatus as updateTaskStatusService, TaskService } from '../services/taskService';
 import { TaskStatus } from '../types/taskService.types';
@@ -58,7 +57,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
     // パラメータ抽出
     const { projectId, methodId, taskNo } = req.params;
     const { status, currentUpdateAt, comment } = req.body;
-    const { organizationId, userId, role } = req.user!; // authミドルウェアで設定済み
+    const { organizationId, userId } = req.user!; // authミドルウェアで設定済み
 
     // バリデーション済みのため、直接数値変換
     const taskNoNum = parseInt(taskNo, 10);
@@ -70,7 +69,6 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
       methodId,
       taskNoNum,
       userId,
-      role,
       status as TaskStatus,
       currentUpdateAt,
       comment
@@ -170,33 +168,12 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
  */
 export async function list(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // 1. バリデーション結果をチェック
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      const firstError = errors.array()[0];
-      const error: any = new Error(firstError.msg);
-      error.statusCode = 400;
-      error.code = 'VALIDATION_ERROR';
-      error.details = errors.array().map(err => ({
-        field: err.type === 'field' ? (err as any).path : 'unknown',
-        message: err.msg,
-        code: 'INVALID_VALUE',
-      }));
-      throw error;
-    }
-
-    // 2. organizationIdの検証（tenantIsolationミドルウェアから取得）
-    const organizationId = (req as any).organizationId as string | undefined;
-    if (!organizationId) {
-      const error: any = new Error('Organization ID is required');
-      error.statusCode = 401;
-      throw error;
-    }
-
-    // 3. 必須パラメータ（projectId）の抽出
+    // バリデーションはhandleValidationErrorsミドルウェアで処理済み
+    // パラメータ抽出
+    const { organizationId } = req.user!;
     const projectId = req.query.projectId as string;
 
-    // 4. オプションパラメータの抽出
+    // オプションパラメータの抽出
     const filters: TaskFilters = {
       methodId: req.query.methodId as string | undefined,
       status: req.query.status as any,
@@ -205,17 +182,15 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
       order: req.query.order as any,
     };
 
-    // 5. TaskServiceを呼び出してタスク一覧を取得
+    // TaskServiceを呼び出してタスク一覧を取得
     const methodGroups = await taskServiceInstance.getTasksGroupedByMethod(
       projectId,
       organizationId,
       filters
     );
 
-    // 6. requestIdを取得または生成
+    // 統一レスポンス形式で返却
     const requestId = (req.headers['x-request-id'] as string) || uuidv4();
-
-    // 7. 統一レスポンス形式で返却
     res.json({
       success: true,
       data: methodGroups,
@@ -225,7 +200,7 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
       },
     });
   } catch (error) {
-    // 8. エラーハンドリングミドルウェアにスロー
+    // エラーハンドリングミドルウェアに委譲
     next(error);
   }
 }
