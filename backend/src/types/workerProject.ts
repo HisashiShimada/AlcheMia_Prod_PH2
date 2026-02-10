@@ -56,7 +56,10 @@ export interface WorkerAccessibleProject {
  * 
  * @property {number} page - ページ番号 (1以上の整数)
  * @property {number} limit - 1ページあたりの件数 (1-100の範囲)
- * @property {'pending' | 'in_progress' | 'review_waiting'} [status] - ステータスフィルタ (オプション)
+ * @property {'1' | '2' | '3'} [status] - ステータスフィルタ (オプション)
+ *   - '1': タスク実行待ち (project_status = 1)
+ *   - '2': タスク実行中 (project_status = 2)
+ *   - '3': タスク結果レビュー待ち (project_status = 3)
  * @property {'create_at' | 'project_name' | 'update_at'} sortBy - ソート項目
  * @property {'asc' | 'desc'} order - ソート順序
  * 
@@ -65,7 +68,7 @@ export interface WorkerAccessibleProject {
  * const params: ListWorkerProjectsParams = {
  *   page: 1,
  *   limit: 20,
- *   status: 'pending',
+ *   status: '1',
  *   sortBy: 'create_at',
  *   order: 'desc'
  * };
@@ -74,7 +77,7 @@ export interface WorkerAccessibleProject {
 export interface ListWorkerProjectsParams {
   page: number;
   limit: number;
-  status?: 'pending' | 'in_progress' | 'review_waiting';
+  status?: '1' | '2' | '3';
   sortBy: 'create_at' | 'project_name' | 'update_at';
   order: 'asc' | 'desc';
 }
@@ -180,13 +183,10 @@ export interface WorkerProjectService {
    * 実験作業者がアクセス可能なプロジェクト一覧を取得
    * 
    * @description
-   * ユーザーのロールに応じてアクセス可能なプロジェクトを返却。
-   * - experiment_worker: 自分に割り当てられたタスクがあるプロジェクトのみ
-   * - experiment_admin: 所属組織内の全プロジェクト
-   * - system_admin: システム管理目的で全プロジェクト（現在の組織コンテキストに限定）
+   * 実験作業者に割り当てられたタスクがあるプロジェクトのみを返却。
+   * 権限チェックはミドルウェア層（permissionCheck）で実施済み。
    * 
    * @param {string} userId - ユーザーID (UUID形式)
-   * @param {UserRole} role - ユーザーロール
    * @param {string} organizationId - 組織ID (UUID形式)
    * @param {ListWorkerProjectsParams} params - 取得パラメータ
    * 
@@ -197,34 +197,26 @@ export interface WorkerProjectService {
    * 
    * @precondition
    * - userIdとorganizationIdは有効なUUID形式である
-   * - paramsはバリデーション済みである（コントローラー層で保証）
-   * - ユーザーは認証済みである（ミドルウェアで保証）
+   * - paramsはバリデーション済みである（Routes層のバリデーションミドルウェアで保証）
+   * - ユーザーは認証済みである（authミドルウェアで保証）
+   * - ユーザーはexperiment_workerロールである（permissionCheckミドルウェアで保証）
    * 
    * @postcondition
    * - 返却されるプロジェクトは指定されたorganizationIdに属する
-   * - experiment_workerの場合、自分に割り当てられたタスクを持つプロジェクトのみ
-   * - ステータスがpending, in_progress, review_waitingのプロジェクトのみ
+   * - 自分に割り当てられたタスクを持つプロジェクトのみ
+   * - ステータスが1（タスク実行待ち）, 2（タスク実行中）, 3（タスク結果レビュー待ち）のプロジェクトのみ
    * 
    * @invariant
    * - すべてのクエリにorganization_idフィルタが含まれる
-   * - experiment_workerの場合、project_task_detailテーブルとのJOINが必須
+   * - project_task_detailテーブルとのJOINが必須
+   * - experiment_user_idフィルタが含まれる
    * 
    * @example
    * ```typescript
-   * // experiment_workerの場合
    * const result = await service.listWorkerAccessible(
    *   'user-id-123',
-   *   'experiment_worker',
    *   'org-id-456',
-   *   { page: 1, limit: 20, status: 'pending', sortBy: 'create_at', order: 'desc' }
-   * );
-   * 
-   * // experiment_adminの場合
-   * const result = await service.listWorkerAccessible(
-   *   'user-id-789',
-   *   'experiment_admin',
-   *   'org-id-456',
-   *   { page: 1, limit: 20, sortBy: 'project_name', order: 'asc' }
+   *   { page: 1, limit: 20, status: '1', sortBy: 'create_at', order: 'desc' }
    * );
    * ```
    * 
@@ -234,7 +226,6 @@ export interface WorkerProjectService {
    */
   listWorkerAccessible(
     userId: string,
-    role: UserRole,
     organizationId: string,
     params: ListWorkerProjectsParams
   ): Promise<WorkerProjectListResult>;

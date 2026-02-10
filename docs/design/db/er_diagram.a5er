@@ -1,7 +1,7 @@
-﻿# A5:ER FORMAT:21
+﻿# A5:ER FORMAT:19
 # A5:ER ENCODING:UTF8
 # A5:ER Mk-1 Copyright © 2007 m.matsubara
-# A5:SQL Mk-2 Version 2.21.0 Copyright © 1997 - 2026 m.matsubara
+# A5:SQL Mk-2 Version 2.20.4 Copyright © 1997 - 2025 m.matsubara
 #  https://a5m2.mmatsubara.com
 
 [Manager]
@@ -9,13 +9,20 @@ ProjectName=
 Author=
 MaxEntityRowShow=1000
 ReadOnlyRecommend=0
+Page=Main
 PageInfo="Main",2,"A2Landscape",$FFFFFF
+Page=材料開発データ管理システム_認証関連_ER図.a5er
 PageInfo="材料開発データ管理システム_認証関連_ER図.a5er",7,"A3Landscape",$FFFFDD
+Page=材料開発データ管理システム_共通_ER図.a5er
 PageInfo="材料開発データ管理システム_共通_ER図.a5er",7,"A3Landscape",$FFFFDD
+Page=実験管理者
 PageInfo="実験管理者",2,"A3Landscape",$FFFFDD
+Page=実験作業者
 PageInfo="実験作業者",3,"A3Landscape",$FFFFDD
 LogicalView=1
 DecodeDomain=0
+ViewModePageIndividually=1
+ViewMode=2
 ViewFormat=0
 UseNondependenceDashLine=0
 FontName=Tahoma
@@ -40,7 +47,6 @@ SqlSeparator=0
 UpperCaseKeyword=1
 ShowTag=1
 ShowCommonAttributes=0
-ShowDisableAttributes=0
 BugFixEntityWidth=1
 
 [Entity]
@@ -60,15 +66,15 @@ Field="組織E-mail","organization_email","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="代表者ユーザID","chief_user_id","@VARCHAR(50)",,,"","",$00000000,""
 Field="会社ID","corporation_id","uuid",,,"","",$FFFFFFFF,""
 Field="アクティブ判定","is_active","@BOOLEAN",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129112013
-Position="材料開発データ管理システム_認証関連_ER図.a5er",100,100,588,503
+ModifiedDateTime=20260206092048
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,100,588,503
 ZOrder=4
 
 [Entity]
@@ -88,17 +94,16 @@ Field="ログイン成否","login_sf","@VARCHAR(10)",,,"","",$FFFFFFFF,""
 Field="失敗原因","failure_reason","@VARCHAR(100)",,,"","",$FFFFFFFF,""
 Field="IPアドレス","ip_address","@VARCHAR(45)",,,"","セキュリティ監査用（IPv4/IPv6対応）",$FFFFFFFF,""
 Field="User-Agent","user_agent","text",,,"","ブラウザ・OS情報",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
-IndexInfo="idx_login_history_rate_limit",0,"login_at,login_sf",""
 Index=idx_login_history_rate_limit=0,login_at,login_sf
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260107144933
-Position="材料開発データ管理システム_認証関連_ER図.a5er",100,1450,594,448
+ModifiedDateTime=20260206092202
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,1450,594,448
 ZOrder=8
 
 [Comment]
@@ -128,22 +133,21 @@ Page=材料開発データ管理システム_認証関連_ER図.A5ER
 Left=1000
 Top=1450
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
-Field="ユーザID","user_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
+Field="ユーザID","user_id","@VARCHAR(50)","NOT NULL",1,"","",$FFFFFFFF,""
 Field="PINコード","pin_code","@VARCHAR(6)","NOT NULL",,"","6桁数字（000000-999999）",$FFFFFFFF,""
 Field="セッショントークン","session_token","@VARCHAR(255)","NOT NULL",,"","temp_session-{id}_{timestamp}",$FFFFFFFF,""
 Field="有効期限","expires_at","@DATETIME","NOT NULL",,"","作成時刻 + 5分",$FFFFFFFF,""
 Field="試行回数","attempts_count","@INT","NOT NULL",,"0","0-3",$00000000,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
-IndexInfo="idx_pin_codes_token",0,"session_token",""
 Index=idx_pin_codes_token=0,session_token
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129140626
-Position="材料開発データ管理システム_認証関連_ER図.a5er",1000,1450,590,448
+ModifiedDateTime=20260206092236
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,1450,590,448
 ZOrder=115
 
 [Entity]
@@ -155,19 +159,21 @@ TableOption=
 Page=材料開発データ管理システム_認証関連_ER図.A5ER
 Left=1000
 Top=800
-Field="ユーザID","user_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
+Field="ユーザID","user_id","@VARCHAR(50)","NOT NULL",0,"","",$FFFFFFFF,""
 Field="組織ID","organization_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
-Field="ハッシュパスワード","password","@VARCHAR(50)","NOT NULL",,"","",$FFFFFFFF,""
+Field="ハッシュパスワード","password","@VARCHAR(255)","NOT NULL",,"","",$FFFFFFFF,""
 Field="二段階認証アプリ連携フラグ","entry_flg","@BOOLEAN","NOT NULL",,"","",$00000000,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="仮パスワードフラグ","is_temporary_flg","@BOOLEAN","NOT NULL",,"","",$FFFFFFFF,""
+Field="パスワード有効期限","password_expires_at","timestamp",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260107140353
-Position="材料開発データ管理システム_認証関連_ER図.a5er",1000,800,590,503
+ModifiedDateTime=20260209105723
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,800,590,503
 ZOrder=38
 
 [Entity]
@@ -187,15 +193,15 @@ Field="メールアドレス","mail_address","@VARCHAR(50)","NOT NULL",,"","",$F
 Field="所属部署CD","department_cd","@VARCHAR(50)",,,"","",$00000000,""
 Field="有効期限","locked_until","@DATETIME",,,"","",$FFFFFFFF,""
 Field="アクティブ判定","is_active","@BOOLEAN",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260205141009
-Position="材料開発データ管理システム_認証関連_ER図.a5er",100,800,590,503
+ModifiedDateTime=20260206092352
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,800,590,503
 ZOrder=39
 
 [Comment]
@@ -227,15 +233,15 @@ Top=100
 Field="会社ID","corporation_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="会社名","corporation_name","@VARCHAR(50)","NOT NULL",,"","",$FFFFFFFF,""
 Field="アクティブ判定","is_active","@BOOLEAN","NOT NULL",,"","",$00000000,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260115163745
-Position="材料開発データ管理システム_認証関連_ER図.a5er",1000,100,588,503
+ModifiedDateTime=20260206092059
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,100,588,503
 ZOrder=45
 
 [Relation]
@@ -339,15 +345,15 @@ Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="ロールCD","role_cd","@VARCHAR(30)","NOT NULL",1,"","",$FFFFFFFF,""
 Field="機能CD","function_cd","@VARCHAR(30)","NOT NULL",2,"","機能名はソースで管理",$FFFFFFFF,""
 Field="権限","permission","@INT","NOT NULL",,"","0:書込可 1:読取専用",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129104824
-Position="材料開発データ管理システム_認証関連_ER図.a5er",1000,2100,594,503
+ModifiedDateTime=20260206092255
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,2100,594,503
 ZOrder=52
 
 [Entity]
@@ -418,47 +424,26 @@ Field="folder_level","folder_level","integer",,,"0","",$FFFFFFFF,""
 Field="is_folder_placeholder","is_folder_placeholder","boolean",,,"false","",$FFFFFFFF,""
 Field="upload_timestamp","upload_timestamp","timestamp(6) without time zone",,,"CURRENT_TIMESTAMP","",$FFFFFFFF,""
 Field="permissions","permissions","jsonb",,,"\q{}\q","",$FFFFFFFF,""
-IndexInfo="file_metadata_file_key_key",2,"file_key",""
 Index=file_metadata_file_key_key=2,file_key
-IndexInfo="idx_file_metadata_access_level",0,"access_level",""
 Index=idx_file_metadata_access_level=0,access_level
-IndexInfo="idx_file_metadata_created_at",0,"created_at",""
 Index=idx_file_metadata_created_at=0,created_at
-IndexInfo="idx_file_metadata_custom_metadata_gin",0,"custom_metadata",""
 Index=idx_file_metadata_custom_metadata_gin=0,custom_metadata
-IndexInfo="idx_file_metadata_data_layer",0,"data_layer",""
 Index=idx_file_metadata_data_layer=0,data_layer
-IndexInfo="idx_file_metadata_draft_metadata_gin",0,"draft_metadata",""
 Index=idx_file_metadata_draft_metadata_gin=0,draft_metadata
-IndexInfo="idx_file_metadata_file_category",0,"file_category",""
 Index=idx_file_metadata_file_category=0,file_category
-IndexInfo="idx_file_metadata_file_key",0,"file_key",""
 Index=idx_file_metadata_file_key=0,file_key
-IndexInfo="idx_file_metadata_file_type",0,"file_type",""
 Index=idx_file_metadata_file_type=0,file_type
-IndexInfo="idx_file_metadata_folder_structure_gin",0,"folder_structure",""
 Index=idx_file_metadata_folder_structure_gin=0,folder_structure
-IndexInfo="idx_file_metadata_is_draft",0,"is_draft",""
 Index=idx_file_metadata_is_draft=0,is_draft
-IndexInfo="idx_file_metadata_is_maiml",0,"is_maiml_file",""
 Index=idx_file_metadata_is_maiml=0,is_maiml_file
-IndexInfo="idx_file_metadata_is_maiml_file",0,"is_maiml_file",""
 Index=idx_file_metadata_is_maiml_file=0,is_maiml_file
-IndexInfo="idx_file_metadata_maiml_errors",0,"maiml_error_count",""
 Index=idx_file_metadata_maiml_errors=0,maiml_error_count
-IndexInfo="idx_file_metadata_maiml_status",0,"maiml_analysis_status",""
 Index=idx_file_metadata_maiml_status=0,maiml_analysis_status
-IndexInfo="idx_file_metadata_processing_status",0,"processing_status",""
 Index=idx_file_metadata_processing_status=0,processing_status
-IndexInfo="idx_file_metadata_tags_gin",0,"tags",""
 Index=idx_file_metadata_tags_gin=0,tags
-IndexInfo="idx_file_metadata_upload_batch_id",0,"upload_batch_id",""
 Index=idx_file_metadata_upload_batch_id=0,upload_batch_id
-IndexInfo="idx_file_metadata_uploaded_by",0,"uploaded_by",""
 Index=idx_file_metadata_uploaded_by=0,uploaded_by
-IndexInfo="idx_file_metadata_user_draft",0,"uploaded_by,is_draft,last_edit_timestamp",""
 Index=idx_file_metadata_user_draft=0,uploaded_by,is_draft,last_edit_timestamp
-IndexInfo="idx_file_metadata_version",0,"parent_version_id",""
 Index=idx_file_metadata_version=0,parent_version_id
 EffectMode=None
 Color=$000000
@@ -499,14 +484,14 @@ Field="フォーマットフォルダ名","format_folder_name","@VARCHAR",,,"","
 Field="部門ID","department_id","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="ファイル種別","file_type","numeric(2,0)",,,"","1:MAIML、2:XML",$FFFFFFFF,""
 Field="概要","description","",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260106163456
+ModifiedDateTime=20260206094223
 Position="実験管理者",300,1150
 ZOrder=105
 
@@ -566,14 +551,14 @@ Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="フォーマットID","format_id","@VARCHAR","NOT NULL",1,"","",$FFFFFFFF,""
 Field="親フォルダ名","parent_folder_name","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="サブフォルダ名","sub_folder_name","@VARCHAR",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260105135154
+ModifiedDateTime=20260206094232
 Position="実験管理者",900,1300
 ZOrder=107
 
@@ -593,14 +578,14 @@ Field="タスク名","task_name","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="実験順序","experiment_order","numeric(2,0)",,,"","",$FFFFFFFF,""
 Field="実験条件","experiment_condition","numeric(2,0)",,,"","",$FFFFFFFF,""
 Field="試行回数","attempts_count","numeric(3,0)",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260108101410
+ModifiedDateTime=20260206094126
 Position="実験管理者",800,300
 Position="実験作業者",650,300
 ZOrder=99
@@ -624,16 +609,16 @@ Field="タイプ","type","numeric(2,0)",,,"","",$FFFFFFFF,""
 Field="タスク連番","task_no","numeric(3,0)",,,"","",$FFFFFFFF,""
 Field="トランジションID","transition_id","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="指示内容","instructions","text",,,"","",$FFFFFFFF,""
-Field="実験指示ユーザID","instruction_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="実験指示ユーザID","instruction_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="指示送信日","instruction_date","@DATETIME",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129111150
+ModifiedDateTime=20260206094206
 Position="実験管理者",700,700
 Position="実験作業者",650,650
 ZOrder=98
@@ -652,18 +637,18 @@ Field="プロジェクトID","project_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
 Field="プロジェクト名","project_name","@VARCHAR",,,"","プロジェクト名かつフォルダ名",$FFFFFFFF,""
 Field="概要","description","text",,,"","",$FFFFFFFF,""
 Field="部署CD","department_cd","@VARCHAR(50)",,,"","",$FFFFFFFF,""
-Field="所有者ユーザID","owner_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="所有者ユーザID","owner_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="プロジェクトステータス","project_status","numeric(2,0)",,,"","",$FFFFFFFF,""
 Field="プロジェクトMaiml有無","project_maiml_flg","@BOOLEAN",,,"","false:ファイルなし、true:ファイルあり",$FFFFFFFF,""
 Field="チェックアウトステータス","checkout_status","numeric(2,0)",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260121100548
+ModifiedDateTime=20260206094248
 Position="実験管理者",200,200
 Position="実験作業者",150,650
 ZOrder=97
@@ -729,17 +714,17 @@ Field="タスク連番","task_no","numeric(3,0)","NOT NULL",3,"","",$FFFFFFFF,""
 Field="タスクステータス","task_status","numeric(2,0)",,,"","",$FFFFFFFF,""
 Field="実験開始日","experiment_start_at","@DATETIME",,,"","",$FFFFFFFF,""
 Field="実験終了日","experiment_end_at","@DATETIME",,,"","",$FFFFFFFF,""
-Field="実験作業者ID","experiment_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="実験作業者ID","experiment_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="レビュー完了日","reviewed_at","@DATETIME",,,"","",$FFFFFFFF,""
-Field="レビュアーID","review_user_id","uuid",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="レビュアーID","review_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260108142528
+ModifiedDateTime=20260206094431
 Position="実験管理者",1250,300
 Position="実験作業者",1150,250
 ZOrder=100
@@ -759,15 +744,15 @@ Field="コード値","code_value","@VARCHAR(30)","NOT NULL",2,"","",$FFFFFFFF,""
 Field="コード概要","code_description","text",,,"","",$FFFFFFFF,""
 Field="コード名称","code_name","@VARCHAR(30)","NOT NULL",,"","",$FFFFFFFF,""
 Field="備考","code_remark","text",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260105140821
-Position="材料開発データ管理システム_共通_ER図.a5er",1900,900,594,503
+ModifiedDateTime=20260206093437
+Position="材料開発データ管理システム_共通_ER図.A5ER",1900,900,594,503
 ZOrder=109
 
 [Entity]
@@ -786,15 +771,15 @@ Field="名称","vendor_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
 Field="説明","vendor_description","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="注釈","vendor_annotation","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="アクティブ判定","is_active","@BOOLEAN",,,"","",$00000000,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129155441
-Position="材料開発データ管理システム_共通_ER図.a5er",1000,100,596,501
+ModifiedDateTime=20260206093400
+Position="材料開発データ管理システム_共通_ER図.A5ER",1000,100,596,501
 ZOrder=114
 
 [Entity]
@@ -813,15 +798,15 @@ Field="名称","instrument_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
 Field="説明","instrument_description","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="注釈","instrument_annotation","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="アクティブ判定","is_active","@BOOLEAN",,,"","",$00000000,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129155455
-Position="材料開発データ管理システム_共通_ER図.a5er",100,900,593,496
+ModifiedDateTime=20260206093408
+Position="材料開発データ管理システム_共通_ER図.A5ER",100,900,593,496
 ZOrder=113
 
 [Entity]
@@ -843,15 +828,15 @@ Field="名称","creator_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
 Field="説明","creator_description","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="注釈","creator_annotation","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="アクティブ判定","is_active","@BOOLEAN",,,"","",$00000000,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129155502
-Position="材料開発データ管理システム_共通_ER図.a5er",100,100,596,503
+ModifiedDateTime=20260206093348
+Position="材料開発データ管理システム_共通_ER図.A5ER",100,100,596,503
 ZOrder=111
 
 [Entity]
@@ -867,15 +852,15 @@ Field="組織ID","organization_id","uuid","NOT NULL",0,"","9eea5300-db8b-4b2d-8e
 Field="部署CD","department_cd","@VARCHAR(50)","NOT NULL",1,"","",$FFFFFFFF,""
 Field="部署名","department_name","@VARCHAR(50)","NOT NULL",,"","",$FFFFFFFF,""
 Field="アクティブ判定","is_active","@BOOLEAN","NOT NULL",,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129155322
-Position="材料開発データ管理システム_認証関連_ER図.a5er",1900,450,588,503
+ModifiedDateTime=20260206092140
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",1900,450,588,503
 ZOrder=117
 
 [Relation]
@@ -936,15 +921,15 @@ Field="ロールCD","role_cd","@VARCHAR(30)","NOT NULL",1,"","ユーザのロー
 Field="ロール名","role_name","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="初期画面機能CD","initial_screen_function_cd","@VARCHAR(30)",,,"","",$FFFFFFFF,""
 Field="アクティブ判定","is_active","@BOOLEAN","NOT NULL",,"","",$00000000,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129171657
-Position="材料開発データ管理システム_認証関連_ER図.a5er",100,2100,594,503
+ModifiedDateTime=20260206092247
+Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,2100,594,503
 ZOrder=122
 
 [Relation]
@@ -979,7 +964,7 @@ Fields1=organization_id,instrument_uuid
 Fields2=organization_id,instrument_uuid
 Cardinarity1=
 Cardinarity2=
-Position="材料開発データ管理システム_共通_ER図.A5ER",0,4749,4861,4773,R,R,""
+Position="材料開発データ管理システム_共通_ER図.A5ER",0,4749,4861,4722,R,R,""
 Dependence=0
 Caption=
 PName=
@@ -988,7 +973,7 @@ ModifiedDateTime=20260116140754
 LineMode=0
 Bar1=475
 Bar2=486
-Bar3=477
+Bar3=472
 TermPos1=R
 TermPos2=R
 ZOrder=127
@@ -1029,14 +1014,14 @@ Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="プロジェクトID","project_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
 Field="シーケンス番号","sequence_no","numeric(5,0)","NOT NULL",2,"","",$FFFFFFFF,""
 Field="ログ","log","jsonb",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260120153349
+ModifiedDateTime=20260206094348
 Position="実験作業者",1600,1000
 ZOrder=138
 
@@ -1056,14 +1041,14 @@ Field="タスク連番","task_no","numeric(3,0)","NOT NULL",3,"","",$FFFFFFFF,""
 Field="トランジションID","transition_id","@VARCHAR","NOT NULL",4,"","",$FFFFFFFF,""
 Field="ステータス","status","numeric(2,0)",,,"","",$FFFFFFFF,""
 Field="進捗率","progress_rate","numeric(3,0)",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260119111834
+ModifiedDateTime=20260206094359
 Position="実験作業者",1600,600
 ZOrder=129
 
@@ -1082,14 +1067,14 @@ Field="メソッドID","method_id","@VARCHAR","NOT NULL",2,"","",$FFFFFFFF,""
 Field="タスク連番","task_no","numeric(3,0)","NOT NULL",3,"","",$FFFFFFFF,""
 Field="プレースID","place_id","@VARCHAR","NOT NULL",4,"","",$FFFFFFFF,""
 Field="プロパティセット","property_set","jsonb",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260120170721
+ModifiedDateTime=20260206094441
 Position="実験作業者",1600,250
 ZOrder=130
 
@@ -1105,16 +1090,16 @@ Top=700
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="プロジェクトID","project_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
 Field="実験指示ID","experiment_instruction_id","@VARCHAR","NOT NULL",2,"","",$FFFFFFFF,""
-Field="実験作業者ID","experiment_user_id","uuid","NOT NULL",3,"","",$FFFFFFFF,""
+Field="実験作業者ID","experiment_user_id","@VARCHAR(50)","NOT NULL",3,"","",$FFFFFFFF,""
 Field="確認日時","acknowledged_at","timestamp",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260121110913
+ModifiedDateTime=20260206094618
 Position="実験作業者",1150,700
 ZOrder=131
 
@@ -1138,18 +1123,18 @@ Field="問題タイトル","issue_title","@VARCHAR",,,"","",$FFFFFFFF,""
 Field="問題タイプ","issue_type","numeric(2,0)",,,"","",$FFFFFFFF,""
 Field="問題内容","issue_contents","text",,,"","",$FFFFFFFF,""
 Field="ステータス","status","numeric(2,0)",,,"","",$FFFFFFFF,""
-Field="問題報告者ID","issue_reporter_id","uuid",,,"","",$FFFFFFFF,""
+Field="問題報告者ID","issue_reporter_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="問題報告日時","issue_report_at","timestamp",,,"","",$FFFFFFFF,""
-Field="問題完了者ID","issue_completer_id","uuid",,,"","",$FFFFFFFF,""
+Field="問題完了者ID","issue_completer_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="問題完了日時","issue_complate_at","timestamp",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129111247
+ModifiedDateTime=20260206094325
 Position="実験作業者",650,1200
 ZOrder=132
 
@@ -1167,16 +1152,16 @@ Field="プロジェクトID","project_id","uuid","NOT NULL",1,"","",$FFFFFFFF,""
 Field="問題ID","issue_id","@VARCHAR","NOT NULL",2,"","",$FFFFFFFF,""
 Field="シーケンス番号","sequence_no","numeric(3,0)","NOT NULL",3,"","",$FFFFFFFF,""
 Field="コメント","comment","@VARCHAR",,,"","",$FFFFFFFF,""
-Field="記入者ID","author_id","uuid",,,"","",$FFFFFFFF,""
+Field="記入者ID","author_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="記入日時","commented_at","timestamp",,,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260119111857
+ModifiedDateTime=20260206094601
 Position="実験作業者",1150,1150
 ZOrder=133
 
@@ -1288,13 +1273,13 @@ Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="属性ID","attribute_id","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
 Field="属性名","attribute_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
 Field="属性値","attribute_value","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
-Field="作成者ユーザID","create_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
-Field="更新者ユーザID","update_user_id","uuid",,,"","",$FFFFFFFF,""
+Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260129172443
-Position="材料開発データ管理システム_共通_ER図.a5er",1000,900,593,496
+ModifiedDateTime=20260206093426
+Position="材料開発データ管理システム_共通_ER図.A5ER",1000,900,593,496
 ZOrder=143
