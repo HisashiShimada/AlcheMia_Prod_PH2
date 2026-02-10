@@ -43,6 +43,5 @@ export interface UpdateTaskStatusParams {
   status: TaskStatus; // 文字列のステータス値
   currentUpdateAt: string;
   userId: string;
-  role: string;
   comment?: string;
 }
