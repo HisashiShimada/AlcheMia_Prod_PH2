@@ -135,6 +135,7 @@
   - `login_at` - ログイン日時
   - `login_sf` - ログイン成否
   - `failure_reason` - 失敗原因
+  - `entry_execute_flg` - 二段階認証実行フラグ
   - `ip_address` - IPアドレス（セキュリティ監査用、IPv4/IPv6対応）
   - `user_agent` - User-Agent（ブラウザ・OS情報）
   - `create_user_id` - 作成者ユーザID
@@ -143,6 +144,7 @@
   - `update_at` - 更新日時
 - **インデックス**:
   - `idx_login_history_rate_limit` - login_at, login_sf
+  - `idx_login_history_query` - organization_id, user_name, entry_execute_flg
 
 ---
 
@@ -649,6 +651,8 @@ maiml_event_log
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-02-10 | login_history.login_sfカラムをCHARACTER VARYING(10)からBOOLEANに変更（型整合性確保） | Cline |
+| 2026-02-10 | login_historyテーブルにentry_execute_flg、idx_login_history_queryを追加（ER図更新に伴う） | Cline |
 | 2026-02-09 | ER図更新に合わせて全テーブルの監査カラム（create_user_id, update_user_id等）を追加 | Cline |
 | 2026-01-31 | instruction_acknowledged_historyテーブル詳細情報を更新（ER図に基づく） | Cline |
 | 2026-01-29 17:46 | function, user_notificationテーブル削除（25テーブルに統一） | Cline |

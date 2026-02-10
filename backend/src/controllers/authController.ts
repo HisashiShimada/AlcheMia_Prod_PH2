@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { getPool } from '../database/db';
 import { PasswordService } from '../services/passwordService';
 import { PinCodeService } from '../services/pinCodeService';
+import { PinExemptionService } from '../services/pinExemptionService';
 import { EmailService } from '../services/emailService';
 import { JwtService } from '../services/jwtService';
 import { RefreshTokenService } from '../services/refreshTokenService';
@@ -9,6 +10,8 @@ import { RolePermissionRepository } from '../repositories/rolePermissionReposito
 import { v4 as uuidv4 } from 'uuid';
 import type { UserRole } from '../types/service';
 import { logError } from '../utils/logger';
+import { issueSessionTokens } from './authHelpers';
+import * as loginHistoryRepository from '../repositories/loginHistoryRepository';
 
 // Services that don't require pool
 const emailService = new EmailService();
@@ -196,29 +199,15 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     if (!passwordResult.success || !passwordResult.data) {
       // パスワード不一致 - ログイン履歴に記録
-      const historyQuery = `
-        INSERT INTO login_history (
-          user_name, 
-          organization_id, 
-          login_at, 
-          login_sf, 
-          failure_reason,
-          ip_address,
-          user_agent,
-          create_user_id,
-          create_at
-        )
-        VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
-      `;
-      await pool.query(historyQuery, [
+      await loginHistoryRepository.recordLogin(
+        pool,
         user.user_name,
         user.organization_id,
         false,
         'Invalid password',
         ipAddress,
-        userAgent,
-        'SYSTEM',
-      ]);
+        userAgent
+      );
 
       res.status(401).json({
         success: false,
@@ -233,6 +222,39 @@ export async function login(req: Request, res: Response): Promise<void> {
       });
       return;
     }
+
+    // 4.5. PIN免除判定
+    const pinExemptionService = new PinExemptionService(pool);
+    const exemptionCheck = await pinExemptionService.isExemptionApplicable(
+      user.user_name,
+      user.organization_id
+    );
+
+    if (exemptionCheck.success && exemptionCheck.data.isExempt) {
+      // 免除適用 - ログイン履歴を記録して直接トークン発行
+      await loginHistoryRepository.recordLogin(
+        pool,
+        user.user_name,
+        user.organization_id,
+        true,
+        null,
+        ipAddress,
+        userAgent,
+        false  // entry_execute_flg: false（二段階認証未実施・免除）
+      );
+
+      console.log(`[INFO] PIN exemption applied: user_id=${user.user_id}, reason=${exemptionCheck.data.reason}`);
+
+      // 共通ヘルパーでトークン発行
+      await issueSessionTokens(pool, user, req, res, requestId, true);
+      return;
+    }
+
+    // 免除非適用 - 通常のPINコード認証フロー
+    const reason = exemptionCheck.success 
+      ? exemptionCheck.data.reason 
+      : 'check failed';
+    console.log(`[INFO] PIN exemption not applied: user_id=${user.user_id}, reason=${reason}`);
 
     // 5. PINコード生成と仮セッショントークン作成＋メール送信（共通処理）
     const sessionToken = `temp_session-${uuidv4()}_${Date.now()}`;
@@ -1237,10 +1259,22 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     const expiresAtTimestamp = nowTimestamp + maxAge;
     const expiresAt = new Date(expiresAtTimestamp);
 
-    // 8. PINコード削除（使用済み処理）
+    // 8. ログイン履歴を記録（二段階認証実施）
+    await loginHistoryRepository.recordLogin(
+      pool,
+      userInfo.username,
+      userInfo.organizationId,
+      true,
+      null,
+      ipAddress,
+      userAgent,
+      true  // entry_execute_flg: true（二段階認証実施）
+    );
+
+    // 9. PINコード削除（使用済み処理）
     await pinCodeService.delete(sessionToken);
 
-    // 9. リフレッシュトークンをhttpOnly Cookieに設定
+    // 10. リフレッシュトークンをhttpOnly Cookieに設定
     res.cookie('refreshToken', refreshTokenValue, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // 本番環境ではtrue（HTTPS必須）

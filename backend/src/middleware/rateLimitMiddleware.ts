@@ -87,7 +87,7 @@ export function rateLimitMiddleware(config: RateLimitConfig) {
           SELECT COUNT(*) as count 
           FROM login_history 
           WHERE login_at > $1 
-          AND login_sf != 'success'
+          AND login_sf = false
           AND user_name = $2 
           AND organization_id = $3
         `;
