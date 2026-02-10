@@ -90,16 +90,18 @@ export async function login(req: Request, res: Response): Promise<void> {
     // 2. ユーザー検索（ユーザーIDで検索）
     const userQuery = `
       SELECT 
-        user_id,
-        user_name,
-        mail_address,
-        role_cd,
-        organization_id,
-        is_active,
-        locked_until,
-        department_cd
-      FROM organization_user
-      WHERE user_id = $1 AND organization_id = $2
+        ou.user_id,
+        ou.user_name,
+        ou.mail_address,
+        ou.role_cd,
+        ou.organization_id,
+        ou.is_active,
+        ou.locked_until,
+        ou.department_cd,
+        o.corporation_id
+      FROM organization_user ou
+      LEFT JOIN organization o ON ou.organization_id = o.organization_id
+      WHERE ou.user_id = $1 AND ou.organization_id = $2
     `;
     
     const userResult = await pool.query(userQuery, [userId, organizationId]);
@@ -540,6 +542,11 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
         }
       }
 
+      // 開発環境の場合、コンソールに一時パスワードを出力（テスト・デバッグ用）
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[INFO] 一時パスワード: ${tempPassword} (user_id=${user.user_id})`);
+      }
+      
       console.log(`[INFO] 一時パスワード発行: user_id=${user.user_id}, expires_at=${new Date(Date.now() + 24*60*60*1000).toISOString()}`);
     }
 
@@ -1187,9 +1194,10 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
       console.log(`[INFO] ログイン判定: user_id=${userInfo.id}, requiresChange=${passwordChangeRequired}, expired=${isPasswordExpired}, temporary=${isTemporaryPassword}`);
     }
 
-    // 3. req.sessionに部門CDを保存
+    // 3. req.sessionに部門CDと会社IDを保存
     if (req.session) {
       req.session.departmentCd = userInfo.departmentCd;
+      req.session.corporationId = userInfo.corporationId || null;
 
       // 明示的にセッションを保存（非同期処理を待つ）
       await new Promise<void>((resolve, reject) => {
@@ -1200,7 +1208,7 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
             });
             reject(err);
           } else {
-            console.log('Session saved successfully with departmentCd:', userInfo.departmentCd);
+            console.log('Session saved successfully with departmentCd:', req.session.departmentCd, 'corporationId:', req.session.corporationId);
             resolve();
           }
         });
@@ -1253,8 +1261,8 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
       await refreshTokenService.save(refreshPayload, ipAddress, userAgent);
     }
 
-    // 7. セッション有効期限を計算（アクセストークン: 15分 or 1時間）
-    const maxAge = 30 * 60 * 1000; // 30分（UI表示用）
+    // 7. セッション有効期限を計算（環境変数から動的に取得）
+    const maxAge = jwtService.getRefreshTokenMaxAge(); // ミリ秒単位（Redis起動時: 30分、未起動時: 8時間）
     const nowTimestamp = Date.now();
     const expiresAtTimestamp = nowTimestamp + maxAge;
     const expiresAt = new Date(expiresAtTimestamp);
@@ -1279,7 +1287,7 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // 本番環境ではtrue（HTTPS必須）
       sameSite: 'lax', // Cross-Origin対応のため'lax'（本番ではstrictも可）
-      maxAge: 30 * 60 * 1000, // 30分
+      maxAge, // 環境変数と同期（Redis起動時: 30分、未起動時: 8時間）
       path: '/api/v1/auth',
     });
 
@@ -1601,7 +1609,7 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 4. ユーザー情報とロール情報を取得
+    // 4. ユーザー情報とロール情報、組織名を取得
     const userQuery = `
       SELECT 
         ou.user_id,
@@ -1611,9 +1619,11 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
         ou.organization_id,
         ou.is_active,
         ou.department_cd,
-        r.initial_screen_function_cd
+        r.initial_screen_function_cd,
+        o.organization_name
       FROM organization_user ou
       JOIN role r ON ou.role_cd = r.role_cd AND ou.organization_id = r.organization_id
+      LEFT JOIN organization o ON ou.organization_id = o.organization_id
       WHERE ou.user_id = $1 AND ou.organization_id = $2
     `;
     
@@ -1695,11 +1705,12 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
     await refreshTokenService.revoke(payload.tokenId, payload.userId);
 
     // 10. 新しいリフレッシュトークンをhttpOnly Cookieに設定
+    const refreshMaxAge = jwtService.getRefreshTokenMaxAge(); // ミリ秒単位（環境変数から取得）
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // 本番環境ではtrue（HTTPS必須）
       sameSite: 'lax', // Cross-Origin対応のため'lax'（本番ではstrictも可）
-      maxAge: 30 * 60 * 1000, // 30分
+      maxAge: refreshMaxAge, // 環境変数と同期（Redis起動時: 30分、未起動時: 8時間）
       path: '/api/v1/auth',
     });
 
@@ -1715,6 +1726,7 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
           email: user.mail_address,
           roleCd: user.role_cd,
           organizationId: user.organization_id,
+          organizationName: user.organization_name || user.organization_id,
           departmentCd: user.department_cd,
           initialScreenFunctionCd: user.initial_screen_function_cd?.trim() || null,
         },

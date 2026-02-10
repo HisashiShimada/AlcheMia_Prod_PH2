@@ -517,6 +517,11 @@ export default function Home() {
           error={error}
           loading={loading}
         />
+        {/* パスワード変更モーダル（一時パスワードでログイン時に表示） */}
+        <ChangePasswordModal
+          open={showChangePasswordModal}
+          onSuccess={handleChangePasswordSuccess}
+        />
       </>
     );
   }
@@ -535,6 +540,11 @@ export default function Home() {
           onResend={handleResendPin}
           error={error}
           loading={loading}
+        />
+        {/* パスワード変更モーダル（一時パスワードでログイン時に表示） */}
+        <ChangePasswordModal
+          open={showChangePasswordModal}
+          onSuccess={handleChangePasswordSuccess}
         />
       </>
     );

@@ -86,6 +86,15 @@ export class JwtService {
   }
 
   /**
+   * リフレッシュトークンCookie用のmaxAgeを取得（ミリ秒単位）
+   * 
+   * @returns 有効期限（ミリ秒）
+   */
+  public getRefreshTokenMaxAge(): number {
+    return this.getRefreshTokenExpiresIn() * 1000;
+  }
+
+  /**
    * アクセストークンを生成
    * 
    * @param payload - JWTペイロード（iat, expを除く）
@@ -396,6 +405,26 @@ export class JwtService {
         }
       };
     }
+  }
+
+  /**
+   * アクセストークンの有効期限を取得（秒単位）
+   * 外部から有効期限を参照する場合に使用
+   * 
+   * @returns 有効期限（秒）
+   */
+  public getAccessTokenExpiresInSeconds(): number {
+    return this.getAccessTokenExpiresIn();
+  }
+
+  /**
+   * リフレッシュトークンの有効期限を取得（秒単位）
+   * 外部から有効期限を参照する場合に使用
+   * 
+   * @returns 有効期限（秒）
+   */
+  public getRefreshTokenExpiresInSeconds(): number {
+    return this.getRefreshTokenExpiresIn();
   }
 
   /**

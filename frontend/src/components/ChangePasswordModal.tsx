@@ -36,15 +36,9 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       // パスワード変更API呼び出し
       await authService.changePassword(values.currentPassword, values.newPassword);
 
-      // 成功メッセージを表示してモーダルを閉じる
-      Modal.success({
-        title: 'パスワード変更完了',
-        content: 'パスワードを変更しました。',
-        onOk: () => {
-          form.resetFields();
-          onSuccess();
-        },
-      });
+      // フォームをリセットして成功コールバックを呼び出す
+      form.resetFields();
+      onSuccess();
     } catch (err) {
       if (err instanceof AuthServiceError) {
         setError(err.message);
