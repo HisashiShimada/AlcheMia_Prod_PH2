@@ -42,7 +42,7 @@
 ## 1. 問題報告API
 
 ### 概要
-タスクまたはトランジション単位で問題を報告します。
+プロジェクト、タスクまたはトランジション単位で問題を報告します。
 
 ### エンドポイント
 ```
@@ -72,14 +72,14 @@ router.post('/issues',
 #### リクエストボディ
 ```json
 {
+  "projectId": "550e8400-e29b-41d4-a716-446655440000",
+  "methodId": "method_001",
   "issueType": "material_shortage",
   "targetType": "transition",
-  "projectId": "550e8400-e29b-41d4-a716-446655440000",
-  "taskId": "660e8400-e29b-41d4-a716-446655440001",
+  "taskNo": 1,
   "transitionId": "transition_001",
   "title": "試薬Aの在庫不足",
-  "description": "実験に必要な試薬Aの在庫が不足しています。追加発注が必要です。",
-  "severity": "high"
+  "description": "実験に必要な試薬Aの在庫が不足しています。追加発注が必要です。"
 }
 ```
 
@@ -87,14 +87,14 @@ router.post('/issues',
 
 | パラメータ | 型 | 必須 | 説明 | 制約 |
 |-----------|----|----|------|------|
+| projectId | UUID | ○ | プロジェクトID | UUID形式 |
+| methodId | string | △ | メソッドID | メソッド識別子（例: method_001）　tagetTypeがtaskの場合 |
 | issueType | string | ○ | 問題の種類 | material_shortage, equipment_failure, procedure_unclear, safety_concern, quality_issue, time_constraint, other |
 | targetType | string | ○ | 対象種別 | project, task, transition |
-| projectId | UUID | ○ | プロジェクトID | UUID形式 |
-| taskId | UUID | △ | タスクID | targetTypeがtask/transitionの場合必須 |
+| taskNo | integer | △ | タスク番号 | targetTypeがtask/transitionの場合必須、1以上の整数 |
 | transitionId | string | △ | トランジションID | targetTypeがtransitionの場合必須 |
 | title | string | ○ | 問題タイトル | 1-200文字 |
 | description | string | ○ | 問題詳細 | 1-2000文字 |
-| severity | string | ○ | 重要度 | low, medium, high, critical |
 
 ### レスポンス
 
@@ -104,20 +104,17 @@ router.post('/issues',
   "success": true,
   "data": {
     "id": "770e8400-e29b-41d4-a716-446655440002",
+    "projectId": "550e8400-e29b-41d4-a716-446655440000",
+    "methodId": "method_001",
     "issueType": "material_shortage",
     "targetType": "transition",
-    "projectId": "550e8400-e29b-41d4-a716-446655440000",
-    "taskId": "660e8400-e29b-41d4-a716-446655440001",
+    "taskNo": 1,
     "transitionId": "transition_001",
     "title": "試薬Aの在庫不足",
     "description": "実験に必要な試薬Aの在庫が不足しています。追加発注が必要です。",
-    "severity": "high",
     "status": "unresolved",
     "reportedBy": "880e8400-e29b-41d4-a716-446655440003",
     "reportedAt": "2026-01-27T10:30:00Z",
-    "organizationId": "org_maiml_lab_001",
-    "createdAt": "2026-01-27T10:30:00Z",
-    "updatedAt": "2026-01-27T10:30:00Z"
   },
   "meta": {
     "timestamp": "2026-01-27T10:30:00Z",
@@ -166,41 +163,45 @@ router.post('/issues',
 ### ビジネスロジック
 
 1. **バリデーション**
+   - methodIdが指定されたプロジェクトに存在することを確認
    - issueTypeが許可された値であることを確認
    - targetTypeに応じて必須パラメータを確認
    - projectIdが自組織に属することを確認
-   - taskId/transitionIdが指定されたプロジェクトに属することを確認
+   - taskNo/transitionIdが指定されたプロジェクトに属することを確認
 
-2. **問題登録**
+2. **タスクID取得**
+   - taskNoが指定された場合、project_taskテーブルからtask_idを取得
+   - projectIdとtaskNoでタスクを特定
+
+3. **問題登録**
    - issuesテーブルに新規レコードを挿入
    - reported_by に現在のユーザーIDを設定
    - status を "unresolved" で初期化
+   - severity を "medium" で初期化（デフォルト値）
    - organization_id を設定（マルチテナント分離）
-
-3. **通知処理（オプション）**
-   - 重要度がhigh/criticalの場合、実験管理者に通知
 
 ### バリデーション
 
 #### 必須チェック
+- [ ] projectId はUUID形式
+- [ ] methodId は空文字列ではない
 - [ ] issueType は許可された値のいずれか
 - [ ] targetType は "project", "task", "transition" のいずれか
-- [ ] projectId はUUID形式
 - [ ] title は1-200文字
 - [ ] description は1-2000文字
-- [ ] severity は "low", "medium", "high", "critical" のいずれか
 
 #### 関連性チェック
-- [ ] targetTypeが"task"の場合、taskIdが必須
-- [ ] targetTypeが"transition"の場合、taskIdとtransitionIdが必須
-- [ ] projectIdは自組織に属するプロジェクト
-- [ ] taskIdは指定されたprojectIdに属するタスク
+- [ ] methodIdは指定されたprojectIdに存在するメソッド
+- [ ] targetTypeが"task"の場合、taskNoが必須
+- [ ] targetTypeが"transition"の場合、taskNoとtransitionIdが必須
+- [ ] taskNoは正の整数（1以上）
+- [ ] taskNoは指定されたprojectIdに存在するタスク番号
 
 ### データベーステーブル
 
 #### 使用テーブル
 1. **issues**（主テーブル）
-   - id, issue_type, target_type, project_id, task_id, transition_id
+   - id, issue_type, target_type, project_id, method_id, task_id, transition_id
    - title, description, severity, status
    - reported_by, reported_at, resolved_at, resolved_by
    - organization_id, created_at, updated_at
@@ -208,31 +209,32 @@ router.post('/issues',
 2. **projects**（存在確認）
    - id, organization_id
 
-3. **project_task**（存在確認、targetType=task/transitionの場合）
+3. **project_task_detail**（メソッド存在確認）
+   - project_id, method_id, organization_id
+
+4. **project_task**（存在確認、targetType=task/transitionの場合）
    - id, project_id, organization_id
 
 #### SQL例
 ```sql
--- 問題登録
-INSERT INTO issues (
-  id, issue_type, target_type, project_id, task_id, transition_id,
-  title, description, severity, status,
-  reported_by, reported_at, organization_id,
-  created_at, updated_at
-) VALUES (
-  $1, $2, $3, $4, $5, $6,
-  $7, $8, $9, 'unresolved',
-  $10, NOW(), $11,
-  NOW(), NOW()
-) RETURNING *;
-
 -- プロジェクト存在確認（マルチテナント分離）
-SELECT id FROM projects 
-WHERE id = $1 AND organization_id = $2;
+SELECT project_id FROM projects 
+WHERE project_id = $1 AND organization_id = $2;
 
--- タスク存在確認（マルチテナント分離）
-SELECT id FROM project_task 
-WHERE id = $1 AND project_id = $2 AND organization_id = $3;
+-- メソッド存在確認（マルチテナント分離）
+SELECT DISTINCT method_id FROM project_task 
+WHERE project_id = $1 AND method_id = $2 AND organization_id = $3;
+
+-- 問題登録（severityはデフォルト値'medium'を使用）
+INSERT INTO issues (
+  organization_id, project_id, issue_id, method_id, issue_target, task_no, transition_id, issue_title, issue_type, issue_contents, status,
+  issue_reporter_id, issue_report_at, issue_completer_id, issue_complate_at,
+  create_user_id, create_at, update_user_id, update_at
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'unresolved',
+  $11, NOW(), null, null,
+  $11, NOW(), $11, NOW()
+) RETURNING *;
 ```
 
 ### セキュリティ
