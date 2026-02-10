@@ -190,7 +190,7 @@
 |----|-------------|---------------|------|---------|--------------|
 | 6.1 | GET | /api/v1/projects/:projectId/methods/:methodId/tasks | メソッド別タスク一覧取得 | ⏳ 未実装 | ProgressController.listTasks |
 | 6.2 | GET | /api/v1/tasks/:taskId | タスク詳細取得 | ⏳ 未実装 | ProgressController.getTaskDetail |
-| 6.3 | GET | /api/v1/progress/:projectId/:methodId/:taskId | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
+| 6.3 | GET | /api/v1/progress/:projectId/:methodId/:taskNo | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
 | 6.4 | GET | /api/v1/tasks | タスク一覧取得（プロジェクト単位） | ⏳ 未実装 | ProgressController.listAllTasks |
 
 **ミドルウェアチェーン:**
