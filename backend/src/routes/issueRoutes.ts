@@ -194,6 +194,7 @@ router.get(
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware validationMiddleware - バリデーション
  * @description 問題のステータスを「未解決」または「解決済」に変更
  * @requirements REQ-010, REQ-011
  * @roles manager, admin （workerは不可）
@@ -204,8 +205,8 @@ router.patch(
   tenantIsolation,
   [
     param('issueId')
-      .isUUID()
-      .withMessage('issueIdはUUID形式である必要があります'),
+      .notEmpty()
+      .withMessage('commentは必須です'),
     body('status')
       .notEmpty()
       .withMessage('statusは必須です')
