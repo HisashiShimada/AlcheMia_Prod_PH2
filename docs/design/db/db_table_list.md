@@ -45,6 +45,7 @@
   - `organization_email` - 組織E-mail
   - `chief_user_id` - 代表者ユーザID
   - `corporation_id` - 会社ID (FK: corporation)
+  - `is_entry` - 二段階認証判定
   - `is_active` - アクティブ判定
   - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時

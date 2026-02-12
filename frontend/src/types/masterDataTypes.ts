@@ -6,8 +6,8 @@
  * マスタデータタイプの列挙
  */
 export type MasterDataType = 
-  | 'instrument'      // 実験装置マスタ
-  | 'vendor'          // ベンダーマスタ
+  | 'instrument'      // Instrumentマスタ
+  | 'vendor'          // Vendorマスタ
   | 'creator';        // Creatorマスタ
 
 /**
@@ -59,7 +59,7 @@ export interface MasterDataConfig {
  */
 export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
   /**
-   * 実験装置マスタ
+   * Instrumentマスタ
    */
   instrument: {
     masterId: '5',
@@ -132,7 +132,7 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
   },
 
   /**
-   * ベンダーマスタ
+   * Vendorマスタ
    */
   vendor: {
     masterId: '7',
