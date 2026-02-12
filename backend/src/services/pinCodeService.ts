@@ -127,7 +127,8 @@ export class PinCodeService {
            r.role_name,
            ou.user_name as display_name,
            ou.department_cd,
-           o.organization_name
+           o.organization_name,
+           o.corporation_id
          FROM pin_codes pc
          INNER JOIN organization_user ou ON pc.user_id = ou.user_id AND pc.organization_id = ou.organization_id
          INNER JOIN role r ON ou.role_cd = r.role_cd AND ou.organization_id = r.organization_id
@@ -186,6 +187,7 @@ export class PinCodeService {
           organizationName: row.organization_name,
           displayName: row.display_name,
           departmentCd: row.department_cd,
+          corporationId: row.corporation_id || null,  // 会社ID
           initialScreenFunctionCd: '',  // デフォルト値（authControllerで後から設定）
         },
       };
