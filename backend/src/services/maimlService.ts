@@ -10,6 +10,8 @@ import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 import { getStorageService } from './storageService';
 import * as crypto from 'crypto';
 import * as validationHistoryRepository from '../repositories/validationHistoryRepository';
+import { EditSession, ParseResult,AnalysisResult  } from '../types/maimlValidation';
+import * as maimlParser from '../utils/maimlParser';
 
 const storageService = getStorageService();
 
@@ -17,51 +19,6 @@ const storageService = getStorageService();
  * 編集セッション管理用Map
  */
 const editSessions = new Map<string, EditSession>();
-
-/**
- * 編集セッション型定義
- */
-interface EditSession {
-  sessionId: string;
-  fileKey: string;
-  fileName: string;
-  userId: string;
-  startTime: Date;
-  lastActivity: Date;
-  changes: any[];
-  locked: boolean;
-}
-
-/**
- * MAIML解析結果型定義
- */
-interface ParseResult {
-  metadata: Record<string, any>;
-  places: any[];
-  transitions: any[];
-  arcs: any[];
-  statistics: {
-    placeCount: number;
-    transitionCount: number;
-    arcCount: number;
-  };
-}
-
-/**
- * バリデーション結果型定義
- */
-interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
-  info: string[];
-  statistics?: {
-    places: number;
-    transitions: number;
-    arcs: number;
-    totalNodes: number;
-  };
-}
 
 /**
  * MAIMLファイル解析
@@ -121,7 +78,7 @@ export async function saveMaiML(
     console.log('💾 [maimlService] MAIML保存開始:', projectId);
 
     // 1. バリデーション
-    const validation = await validateMaiML(content);
+    const validation = await validateMaiML(content, '');
     if (!validation.isValid && options.strictValidation !== false) {
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
@@ -222,191 +179,24 @@ export async function listMaiMLFiles(projectId: string, organizationId: string):
  * MAIMLバリデーション（強化版）
  * Reference版のロジックを移植 + 重複ID検証追加
  */
-export async function validateMaiML(content: string): Promise<ValidationResult> {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  const info: string[] = [];
+export async function validateMaiML(organizationId : string, content: string, fileKey: string = '', skipAnalysisSave: boolean = true): Promise<AnalysisResult> {
 
-  try {
     console.log('✔️ [maimlService] MAIMLバリデーション開始');
-
-    // XML構文チェック
-    const parser = new DOMParser({
-      errorHandler: {
-        warning: (msg: string) => warnings.push(`XML警告: ${msg}`),
-        error: (msg: string) => errors.push(`XML構文エラー: ${msg}`),
-        fatalError: (msg: string) => errors.push(`XML致命的エラー: ${msg}`),
-      },
-    });
-
-    const doc = parser.parseFromString(content, 'text/xml');
-
-    // maiml要素チェック
-    const maimlElement = doc.getElementsByTagName('maiml')[0];
-    if (!maimlElement) {
-      errors.push('maiml要素が見つかりません');
-      return { isValid: false, errors, warnings, info };
+    // Base64デコード
+    let decodedContent = Buffer.from(content, 'base64').toString('utf-8');
+    console.log(decodedContent);
+      
+    // UTF-8 BOM除去（XMLパーサーとの互換性のため）
+    if (decodedContent.charCodeAt(0) === 0xFEFF) {
+      decodedContent = decodedContent.substring(1);
+      console.log('🔧 [Real-time Validation] BOM removed from decoded content');
     }
+    
+    const analysisResult = await maimlParser.analyzeMaiMLFile(organizationId,decodedContent, fileKey ||(skipAnalysisSave ? 'realtime-validation' : 'temp-validation'));
+    // Generate quick suggestions for real-time feedback
+    analysisResult.autoCorrections = maimlParser.generateAutoCorrections(analysisResult);
 
-    // pnml構造チェック
-    const pnmlElements = doc.getElementsByTagName('pnml');
-    if (pnmlElements.length === 0) {
-      warnings.push('pnml要素が見つかりません');
-    }
-
-    // 🆕 重複ID検証（詳細版）
-    const duplicateValidation = validateDuplicateIds(doc);
-    errors.push(...duplicateValidation.errors);
-    warnings.push(...duplicateValidation.warnings);
-
-    // ノード参照チェック
-    const nodeIds = new Set<string>();
-    const places = doc.getElementsByTagName('place');
-    const transitions = doc.getElementsByTagName('transition');
-
-    // ID収集
-    for (let i = 0; i < places.length; i++) {
-      const place = places[i];
-      const id = place.getAttribute('id');
-      if (id) {
-        nodeIds.add(id);
-      }
-    }
-
-    for (let i = 0; i < transitions.length; i++) {
-      const transition = transitions[i];
-      const id = transition.getAttribute('id');
-      if (id) {
-        nodeIds.add(id);
-      }
-    }
-
-    // アーク参照チェック
-    const arcs = doc.getElementsByTagName('arc');
-    for (let i = 0; i < arcs.length; i++) {
-      const arc = arcs[i];
-      const source = arc.getAttribute('source');
-      const target = arc.getAttribute('target');
-
-      if (source && !nodeIds.has(source)) {
-        errors.push(`存在しないソースノード参照: ${source}`);
-      }
-      if (target && !nodeIds.has(target)) {
-        errors.push(`存在しないターゲットノード参照: ${target}`);
-      }
-    }
-
-    // 統計情報
-    info.push(`プレース数: ${places.length}`);
-    info.push(`トランジション数: ${transitions.length}`);
-    info.push(`アーク数: ${arcs.length}`);
-    info.push(`ユニークID数: ${duplicateValidation.info[0] || '0'}`);
-
-    const isValid = errors.length === 0;
-
-    console.log('✅ [maimlService] MAIMLバリデーション完了:', isValid ? '有効' : '無効');
-
-    return {
-      isValid,
-      errors,
-      warnings,
-      info,
-      statistics: {
-        places: places.length,
-        transitions: transitions.length,
-        arcs: arcs.length,
-        totalNodes: places.length + transitions.length,
-      },
-    };
-  } catch (error) {
-    console.error('❌ [maimlService] MAIMLバリデーションエラー:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    errors.push(`検証エラー: ${errorMessage}`);
-    return { isValid: false, errors, warnings, info };
-  }
-}
-
-/**
- * 重複ID検証機能
- * Reference版のvalidateDuplicateIdsロジックを移植
- * 
- * @param doc XMLドキュメント
- * @returns バリデーション結果
- */
-export function validateDuplicateIds(doc: Document): ValidationResult {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  const info: string[] = [];
-
-  try {
-    console.log('🔍 [maimlService] 重複ID検証開始');
-
-    // IDマップ: id -> [{ elementType, path }]
-    const idMap = new Map<string, Array<{ elementType: string; path: string }>>();
-
-    /**
-     * 全要素をトラバースしてID収集
-     */
-    const collectIds = (element: Element, path: string = ''): void => {
-      const id = element.getAttribute('id');
-      if (id) {
-        const elementType = element.tagName;
-
-        if (!idMap.has(id)) {
-          idMap.set(id, []);
-        }
-        idMap.get(id)!.push({ elementType, path });
-      }
-
-      // 子要素を再帰的に処理
-      for (let i = 0; i < element.children.length; i++) {
-        const child = element.children[i];
-        const newPath = path ? `${path}.${child.tagName}[${i}]` : `${child.tagName}[${i}]`;
-        collectIds(child, newPath);
-      }
-    };
-
-    // ルート要素から開始
-    collectIds(doc.documentElement);
-
-    // 重複チェック
-    let duplicateCount = 0;
-    for (const [id, occurrences] of idMap) {
-      if (occurrences.length > 1) {
-        duplicateCount++;
-        const elementTypes = occurrences.map((o) => o.elementType).join(', ');
-        const paths = occurrences.map((o) => o.path).join('; ');
-
-        errors.push(
-          `重複ID "${id}" が ${occurrences.length} 箇所で使用されています (${elementTypes})`
-        );
-
-        console.log(`⚠️ [maimlService] 重複ID検出: ${id} (${occurrences.length}回, 要素: ${elementTypes})`);
-      }
-    }
-
-    info.push(`${idMap.size}`);
-
-    console.log(`✅ [maimlService] 重複ID検証完了: ${duplicateCount}個の重複を検出（全${idMap.size}個のID）`);
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
-      info,
-    };
-  } catch (error) {
-    console.error('❌ [maimlService] 重複ID検証エラー:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    warnings.push(`重複ID検証が部分的に失敗しました: ${errorMessage}`);
-
-    return {
-      isValid: true, // 検証失敗は警告として扱う
-      errors: [],
-      warnings,
-      info,
-    };
-  }
+    return analysisResult;
 }
 
 /**
@@ -426,14 +216,14 @@ export async function validateMaiMLWithHistory(
     fileKey?: string;
     validationMode?: 'basic' | 'full';
   }
-): Promise<ValidationResult & { validationId?: string }> {
+): Promise<AnalysisResult & { validationId?: string }> {
   const startTime = Date.now();
 
   try {
     console.log('✔️ [maimlService] MAIMLバリデーション（履歴保存付き）開始');
 
     // バリデーション実行
-    const validation = await validateMaiML(content);
+    const validation = await validateMaiML(content, '');
 
     // バリデーション時間計算
     const duration = Date.now() - startTime;
@@ -468,8 +258,8 @@ export async function validateMaiMLWithHistory(
       validation_duration_ms: duration,
       elements_validated: null, // XML要素数（必要に応じて実装）
       attributes_validated: null, // 属性数（必要に応じて実装）
-      nodes_validated: validation.statistics?.totalNodes || null,
-      arcs_validated: validation.statistics?.arcs || null,
+      nodes_validated: validation.statistics?.totalElements || null,
+      arcs_validated: validation.statistics?.arcsCount || null,
     });
 
     console.log('✅ [maimlService] バリデーション履歴保存完了:', historyRecord.validation_id);
@@ -483,7 +273,7 @@ export async function validateMaiMLWithHistory(
     console.error('❌ [maimlService] バリデーション履歴保存エラー:', error);
 
     // エラーが発生してもバリデーション結果は返す
-    const validation = await validateMaiML(content);
+    const validation = await validateMaiML(content, '');
     return validation;
   }
 }

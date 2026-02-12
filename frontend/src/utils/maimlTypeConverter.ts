@@ -46,10 +46,7 @@ import type {
   Log,
   Trace,
   Event,
-  Creator,
-  Vendor,
-  Owner,
-  Instrument,
+  DocumentTagData,
   PlaceRef,
   Reference,
   Insertion,
@@ -129,8 +126,9 @@ function convertDocument(xmlDoc: XmlJsElement): MaimlDocument {
 /**
  * Creator変換
  */
-function convertCreator(xmlCreator: XmlJsElement): Creator {
+function convertCreator(xmlCreator: XmlJsElement): DocumentTagData {
   return {
+    tagName : 'Creator',
     id: getAttribute(xmlCreator, 'id') || '',
     uuid: extractText(xmlCreator.uuid as XmlJsElement) || '',
     name: extractText(xmlCreator.name as XmlJsElement),
@@ -143,8 +141,9 @@ function convertCreator(xmlCreator: XmlJsElement): Creator {
 /**
  * Vendor変換
  */
-function convertVendor(xmlVendor: XmlJsElement): Vendor {
+function convertVendor(xmlVendor: XmlJsElement): DocumentTagData {
   return {
+    tagName : 'Vendor',
     id: getAttribute(xmlVendor, 'id') || '',
     uuid: extractText(xmlVendor.uuid as XmlJsElement) || '',
     name: extractText(xmlVendor.name as XmlJsElement),
@@ -155,8 +154,9 @@ function convertVendor(xmlVendor: XmlJsElement): Vendor {
 /**
  * Owner変換
  */
-function convertOwner(xmlOwner: XmlJsElement): Owner {
+function convertOwner(xmlOwner: XmlJsElement): DocumentTagData {
   return {
+    tagName : 'Owner',
     id: getAttribute(xmlOwner, 'id') || '',
     uuid: extractText(xmlOwner.uuid as XmlJsElement) || '',
     name: extractText(xmlOwner.name as XmlJsElement),
@@ -167,8 +167,9 @@ function convertOwner(xmlOwner: XmlJsElement): Owner {
 /**
  * Instrument変換
  */
-function convertInstrument(xmlInstrument: XmlJsElement): Instrument {
+function convertInstrument(xmlInstrument: XmlJsElement): DocumentTagData {
   return {
+    tagName : 'Instrument',
     id: getAttribute(xmlInstrument, 'id') || '',
     uuid: extractText(xmlInstrument.uuid as XmlJsElement) || '',
     name: extractText(xmlInstrument.name as XmlJsElement),

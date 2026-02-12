@@ -370,8 +370,8 @@ export class ProjectService {
         isCheckedOut: row.checkout_status === 1,
         checkedOutBy: row.checkout_status === 1 ? row.checkout_user_id : null,
         checkedOutAt: row.checkout_status === 1 ? new Date().toISOString() : null,
-        createdAt: row.create_at.toISOString(),
-        updatedAt: row.create_at.toISOString(), // 後で実装予定
+        createdAt: row.create_at ? row.create_at.toISOString() : '',
+        updatedAt: row.update_at ? row.update_at.toISOString() : '', // 後で実装予定
         totalTasks: parseInt(row.task_count, 10),
         completedTasks: parseInt(row.completed_task_count, 10)
       }));
@@ -394,6 +394,7 @@ export class ProjectService {
         }
       };
     } catch (error) {
+      console.log(error);
       return {
         success: false,
         error: {

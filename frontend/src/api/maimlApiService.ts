@@ -5,11 +5,8 @@
  * API設計書: docs/design/api/api_maiml_editor.md
  */
 
-import { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
-
-// API Base URL（環境変数から取得、デフォルトは相対パス）
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+import { AnalysisResult } from '@/types/maimlValidation';
 
 /**
  * 統一レスポンス形式
@@ -25,24 +22,6 @@ export interface ApiResponse<T> {
   meta: {
     timestamp: string;
     requestId: string;
-  };
-}
-
-
-/**
- * MAIMLバリデーション結果の型定義
- * バックエンドの実際のレスポンス形式に合わせて修正
- */
-export interface MaimlValidationResult {
-  isValid: boolean;  // バックエンドは isValid
-  errors: string[];  // バックエンドは文字列配列
-  warnings: string[]; // バックエンドは文字列配列
-  info: string[];    // バックエンドは文字列配列
-  statistics?: {
-    places: number;
-    transitions: number;
-    arcs: number;
-    totalNodes: number;
   };
 }
 
@@ -69,7 +48,7 @@ export interface MaimlCorrectionResult {
 
 /**
  * MAIMLバリデーション
- * POST /api/v1/maiml/validate
+ * POST /maiml/validate
  * 
  * @param content MAIMLコンテンツ（XML文字列）
  * @param strict 厳密モード（デフォルト: false）
@@ -78,14 +57,14 @@ export interface MaimlCorrectionResult {
 export const validateMaiml = async (
   content: string,
   strict: boolean = false
-): Promise<ApiResponse<MaimlValidationResult>> => {
+): Promise<ApiResponse<AnalysisResult>> => {
   const client = createApiClient();
   
   try {
     console.log('🔍 [maimlApiService] MAIMLバリデーション実行');
     
-    const response = await client.post<ApiResponse<MaimlValidationResult>>(
-      '/api/v1/maiml/validate',
+    const response = await client.post<ApiResponse<AnalysisResult>>(
+      '/maiml/validate',
       { content, strict }
     );
     
@@ -98,7 +77,7 @@ export const validateMaiml = async (
 
 /**
  * MAIML自動補正
- * POST /api/v1/maiml/correct
+ * POST /maiml/correct
  * 
  * @param content MAIMLコンテンツ（XML文字列）
  * @param correctionLevel 補正レベル（safe, moderate, aggressive）
@@ -114,7 +93,7 @@ export const correctMaiml = async (
     console.log('🔧 [maimlApiService] MAIML自動補正実行');
     
     const response = await client.post<ApiResponse<MaimlCorrectionResult>>(
-      '/api/v1/maiml/correct',
+      '/maiml/correct',
       { content, correctionLevel }
     );
     
@@ -123,108 +102,6 @@ export const correctMaiml = async (
     console.error('❌ [maimlApiService] 自動補正エラー:', error);
     throw error;
   }
-};
-
-/**
- * MAIMLバリデーション（モック版）
- * 実際のAPIが未実装の場合に使用
- */
-export const validateMaimlMock = async (
-  content: string,
-  strict: boolean = false
-): Promise<ApiResponse<MaimlValidationResult>> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  console.log('🔍 [maimlApiService] MAIMLバリデーション実行（モック）');
-  
-  // 簡易的なバリデーション
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  const info: string[] = [];
-  
-  // XMLパースチェック
-  try {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(content, 'text/xml');
-    const parseError = xmlDoc.querySelector('parsererror');
-    
-    if (parseError) {
-      errors.push('XML形式が不正です');
-    }
-  } catch {
-    errors.push('XMLのパースに失敗しました');
-  }
-  
-  // ルート要素チェック
-  if (!content.includes('<document') && !content.includes('<maiml')) {
-    warnings.push('document要素またはmaiml要素が見つかりません');
-  }
-  
-  // method要素チェック
-  if (!content.includes('<method')) {
-    warnings.push('method要素が見つかりません');
-  }
-  
-  // 統計情報を info 配列に追加
-  const methodCount = (content.match(/<method/g) || []).length;
-  const placeCount = (content.match(/<place/g) || []).length;
-  const transitionCount = (content.match(/<transition/g) || []).length;
-  const arcCount = (content.match(/<arc/g) || []).length;
-  
-  info.push(`メソッド数: ${methodCount}`);
-  info.push(`プレース数: ${placeCount}`);
-  info.push(`トランジション数: ${transitionCount}`);
-  info.push(`アーク数: ${arcCount}`);
-  
-  return {
-    success: true,
-    data: {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
-      info,
-      statistics: {
-        places: placeCount,
-        transitions: transitionCount,
-        arcs: arcCount,
-        totalNodes: placeCount + transitionCount
-      }
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      requestId: `req_${Date.now()}`
-    }
-  };
-};
-
-/**
- * MAIML自動補正（モック版）
- * 実際のAPIが未実装の場合に使用
- */
-export const correctMaimlMock = async (
-  content: string,
-  correctionLevel: 'safe' | 'moderate' | 'aggressive' = 'safe'
-): Promise<ApiResponse<MaimlCorrectionResult>> => {
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  console.log('🔧 [maimlApiService] MAIML自動補正実行（モック）');
-  
-  // モックでは元のコンテンツをそのまま返す
-  // 実際のAPIでは、エラーを修正したMAIMLを返す
-  return {
-    success: true,
-    data: {
-      corrected: false, // モックでは補正なし
-      originalContent: content,
-      correctedContent: content,
-      corrections: [],
-      warnings: []
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      requestId: `req_${Date.now()}`
-    }
-  };
 };
 
 // ============================================================================
@@ -313,7 +190,7 @@ export interface MaimlFileInfo {
 
 /**
  * MAIMLパース（複数メソッド対応）
- * POST /api/v1/maiml/parse
+ * POST /maiml/parse
  * 
  * @param content MAIMLコンテンツ（XML文字列またはBase64）
  * @returns Petri Net構造データ
@@ -327,7 +204,7 @@ export const parseMaiml = async (
     console.log('📊 [maimlApiService] MAIMLパース実行');
     
     const response = await client.post<ApiResponse<PetriNetStructure>>(
-      '/api/v1/maiml/parse',
+      '/maiml/parse',
       { content }
     );
     
@@ -447,8 +324,8 @@ export const parseMaimlMock = async (
 
 /**
  * MAIMLファイル保存
- * PUT /api/v1/projects/:projectId/maiml
- * PUT /api/v1/formats/:formatId/maiml
+ * PUT /projects/:projectId/maiml
+ * PUT /formats/:formatId/maiml
  * 
  * @param context プロジェクトまたはフォーマット
  * @param id プロジェクトIDまたはフォーマットID
@@ -466,8 +343,8 @@ export const saveMaiml = async (
     console.log(`💾 [maimlApiService] MAIMLファイル保存 (${context}: ${id})`);
     
     const endpoint = context === 'project' 
-      ? `/api/v1/projects/${id}/maiml`
-      : `/api/v1/formats/${id}/maiml`;
+      ? `/projects/${id}/maiml`
+      : `/formats/${id}/maiml`;
     
     const response = await client.put<ApiResponse<SaveMaimlResult>>(
       endpoint,
@@ -483,8 +360,8 @@ export const saveMaiml = async (
 
 /**
  * MAIMLファイル取得
- * GET /api/v1/projects/:projectId/maiml
- * GET /api/v1/formats/:formatId/maiml
+ * GET /projects/:projectId/maiml
+ * GET /formats/:formatId/maiml
  * 
  * @param context プロジェクトまたはフォーマット
  * @param id プロジェクトIDまたはフォーマットID
@@ -500,8 +377,8 @@ export const loadMaiml = async (
     console.log(`📂 [maimlApiService] MAIMLファイル取得 (${context}: ${id})`);
     
     const endpoint = context === 'project' 
-      ? `/api/v1/projects/${id}/maiml`
-      : `/api/v1/formats/${id}/maiml`;
+      ? `/projects/${id}/maiml`
+      : `/formats/${id}/maiml`;
     
     const response = await client.get<ApiResponse<{ content: string }>>(endpoint);
     
@@ -514,7 +391,7 @@ export const loadMaiml = async (
 
 /**
  * MAIMLファイル一覧取得
- * GET /api/v1/maiml-files
+ * GET /maiml-files
  * 
  * @param context プロジェクトまたはフォーマット（オプション）
  * @param includeArchive アーカイブを含むか（オプション）
@@ -534,7 +411,7 @@ export const listMaimlFiles = async (
     if (includeArchive !== undefined) params.append('include_archive', String(includeArchive));
     
     const response = await client.get<ApiResponse<{ files: MaimlFileInfo[] }>>(
-      `/api/v1/maiml-files?${params.toString()}`
+      `/maiml-files?${params.toString()}`
     );
     
     return response.data;

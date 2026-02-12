@@ -9,6 +9,7 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import * as maimlService from '../services/maimlService';
+import { JwtPayload } from '../types/auth';
 
 /**
  * 共通エラーハンドラ
@@ -236,12 +237,13 @@ export async function validate(req: Request, res: Response): Promise<void> {
   try {
     if (checkValidationErrors(req, res)) return;
 
-    const { content } = req.body;
-    const result = await maimlService.validateMaiML(content);
+    const { content, fileKey, skipAnalysisSave = true } = req.body;
+    const authUser = req.user as JwtPayload;
+    const result = await maimlService.validateMaiML(authUser.organizationId, content, fileKey, skipAnalysisSave);
 
     res.json({
       success: true,
-      ...result,
+      data : {...result},
       meta: {
         timestamp: new Date().toISOString(),
       },

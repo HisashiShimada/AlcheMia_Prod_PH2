@@ -30,16 +30,14 @@ import {
   SecurityScanOutlined,
 } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
-import MultiObjectEditor, { type ComplexObject } from './MultiObjectEditor';
+import MultiObjectEditor from './MultiObjectEditor';
 import type { 
   DocumentData,
 } from '../../../types/editor';
 import {
-  Creator,
-  Vendor,
-  Owner,
-  Instrument,
+  DocumentTagData,
 } from '../../../types/maiml-unified'
+import { fetchMasters } from '@/services/masterApiService';
 
 const { Panel } = Collapse;
 
@@ -69,7 +67,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   onSave,
 }) => {
   const [form] = Form.useForm();
-  const [hasChanges, setHasChanges] = useState(false);
+  const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     basic: true,
@@ -88,6 +86,13 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   const isNewDocument = useMemo(() => {
     return !documentData || Object.keys(documentData).length <= 4;
   }, [documentData]);
+  
+  // マスタデータの状態管理
+  const [creators, setCreators] = useState<DocumentTagData[]>([]);
+  const [vendors, setVendors] = useState<DocumentTagData[]>([]);
+  const [owners, setOwners] = useState<DocumentTagData[]>([]);
+  const [instruments, setInstruments] = useState<DocumentTagData[]>([]);
+  const [isLoadingMasters, setIsLoadingMasters] = useState(false);
 
   /**
    * 初期データ生成
@@ -98,27 +103,9 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     name: 'document',
     description: '',
     date: new Date().toISOString(),
-    creators: [{
-      id: 'Creator1',
-      uuid: '',
-      name: '',
-      description: '',
-      annotation: ''
-    }],
-    vendors: [{
-      id: 'Vendor1',
-      uuid: '',
-      name: '',
-      description: '',
-      annotation: ''
-    }],
-    owners: [{
-      id: 'Owner1',
-      uuid: '',
-      name: '',
-      description: '',
-      annotation: ''
-    }],
+    creators: [],
+    vendors: [],
+    owners: [],
     instruments: [],
     signature: {
       enabled: false
@@ -179,10 +166,10 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     
     // ID重複チェック（配列対応）
     const ids: string[] = [data.id];
-    if (data.creators) data.creators.forEach((c: Creator) => c.id && ids.push(c.id));
-    if (data.vendors) data.vendors.forEach((v: Vendor) => v.id && ids.push(v.id));
-    if (data.owners) data.owners.forEach((o: Owner) => o.id && ids.push(o.id));
-    if (data.instruments) data.instruments.forEach((i: Instrument) => i.id && ids.push(i.id));
+    if (data.creators) data.creators.forEach((c: DocumentTagData) => c.id && ids.push(c.id));
+    if (data.vendors) data.vendors.forEach((v: DocumentTagData) => v.id && ids.push(v.id));
+    if (data.owners) data.owners.forEach((o: DocumentTagData) => o.id && ids.push(o.id));
+    if (data.instruments) data.instruments.forEach((i: DocumentTagData) => i.id && ids.push(i.id));
     
     const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
     if (duplicateIds.length > 0) {
@@ -192,16 +179,47 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     return errors;
   }, []);
 
+
+  // マスタデータの取得
+  useEffect(() => {
+    const loadMasterData = async () => {
+      if (!open) return;
+      
+      setIsLoadingMasters(true);
+      try {
+        // const [creatorsResponse, vendorsResponse, instrumentsResponse] = await Promise.all([
+        //   fetchMasters('creator'),
+        //   fetchMasters('vendor'),
+        //   fetchMasters('instrument'),
+        // ]);
+        
+        // setCreators(creatorsResponse.data.items);
+      
+        // setVendors(vendorsResponse.data.items);
+      
+        // setOwners([]);
+      
+        // setInstruments(instrumentsResponse.data.items);
+        
+        console.log('✅ [DocumentEditDialog] マスタデータ取得完了');
+      } catch (error) {
+        console.error('❌ [DocumentEditDialog] マスタデータ取得エラー:', error);
+      } finally {
+        setIsLoadingMasters(false);
+      }
+    };
+    
+    loadMasterData();
+  }, [open]);
   /**
    * ダイアログ開閉時のフォーム初期化
    */
   useEffect(() => {
     if (open) {
       // stateリセット（ダイアログオープン時の初期化は妥当なパターン）
-      /* eslint-disable-next-line */
-      setHasChanges(false);
+      // setHasChanges(false);
        
-      setValidationErrors([]);
+      // setValidationErrors([]);
       
       // フォーム初期化
       if (!isNewDocument && documentData) {
@@ -256,7 +274,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   /**
    * MultiObjectEditor用データ変更ハンドラー
    */
-  const handleMultiObjectDataChange = useCallback((objectKey: string, objectsArray: ComplexObject[]) => {
+  const handleMultiObjectDataChange = useCallback((objectKey: string, objectsArray: DocumentTagData[]) => {
     form.setFieldValue(objectKey, objectsArray);
     setHasChanges(true);
     
@@ -276,12 +294,12 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
    */
   const vendorIds = useMemo(() => {
     const vendors = form.getFieldValue('vendors') || [];
-    return vendors.map((v: Vendor) => v.id).filter(Boolean);
+    return vendors.map((v: DocumentTagData) => v.id).filter(Boolean);
   }, [form]);
 
   const instrumentIds = useMemo(() => {
     const instruments = form.getFieldValue('instruments') || [];
-    return instruments.map((i: Instrument) => i.id).filter(Boolean);
+    return instruments.map((i: DocumentTagData) => i.id).filter(Boolean);
   }, [form]);
 
   /**
@@ -582,6 +600,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             onToggleExpanded={handleToggleSection}
             vendorIds={vendorIds}
             instrumentIds={instrumentIds}
+            masterData={creators}
           />
 
           {/* Vendor編集 */}
@@ -595,6 +614,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             minItems={1}
             isExpanded={expandedSections.vendors}
             onToggleExpanded={handleToggleSection}
+            masterData={vendors}
           />
 
           {/* Owner編集 */}
@@ -608,6 +628,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             minItems={1}
             isExpanded={expandedSections.owners}
             onToggleExpanded={handleToggleSection}
+            masterData={owners}
           />
 
           {/* Instrument編集 */}
@@ -621,6 +642,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             minItems={0}
             isExpanded={expandedSections.instruments}
             onToggleExpanded={handleToggleSection}
+            masterData={instruments}
           />
 
           {/* ヒント */}

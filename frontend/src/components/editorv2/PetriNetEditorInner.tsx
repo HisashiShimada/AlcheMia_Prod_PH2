@@ -65,8 +65,6 @@ import type {
   ClipboardData,
   PetriNetEditorInnerProps,
   NodeType,
-  ValidationResult,
-  ValidationError,
   DraftData
 } from '../../types/editor';
 import type { NodeTypes } from 'reactflow';
@@ -77,6 +75,8 @@ import { Draft, EditState } from '../../types/editor';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useEditorActions } from './hooks/useEditorActions';
 import type { TemplatesByCategory } from '@/types/editor';
+import  * as maimlService from '../../api/maimlApiService';
+import { AnalysisResult, ErrorContent } from '@/types/maimlValidation';
 
 // ✅ window.cline* の型定義
 declare global {
@@ -114,7 +114,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
   const [saveDialogOpen, setSaveDialogOpen] = useState<boolean>(false);
   const [saveConfirmDialogOpen, setSaveConfirmDialogOpen] = useState<boolean>(false);
-  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [validationResult, setValidationResult] = useState<AnalysisResult | null>(null);
   
   // ✅ Phase 9.10 Step7: error型と saveError型をnullで統一
   const [error, setError] = useState<string | null>(null);
@@ -128,8 +128,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const [isSaving, setIsSaving] = useState<boolean>(false);
   
   // Phase 3 (Error Handling Enhancement): エラー分類
-  const [criticalErrors, setCriticalErrors] = useState<ValidationError[]>([]);
-  const [nonCriticalErrors, setNonCriticalErrors] = useState<ValidationError[]>([]);
+  const [criticalErrors, setCriticalErrors] = useState<ErrorContent[]>([]);
+  const [nonCriticalErrors, setNonCriticalErrors] = useState<ErrorContent[]>([]);
   
   // Phase 3: エラー分類ロジック
   useEffect(() => {
@@ -179,13 +179,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }, [validationResult]);
   
   // Phase 3: エラーからノード/アークIDを抽出（改善版）
-  const extractAffectedElements = useCallback((errors: ValidationError[]) => {
-    const nodeErrorMap: Record<string, ValidationError[]> = {};
-    const edgeErrorMap: Record<string, ValidationError[]> = {};
+  const extractAffectedElements = useCallback((errors: ErrorContent[]) => {
+    const nodeErrorMap: Record<string, ErrorContent[]> = {};
+    const edgeErrorMap: Record<string, ErrorContent[]> = {};
     const affectedNodeIds = new Set<string>();
     const affectedEdgeIds = new Set<string>();
 
-    errors.forEach((error: ValidationError) => {
+    errors.forEach((error: ErrorContent) => {
       // duplicate_idエラーの場合
       if (error.type === 'duplicate_id' && error.duplicateId) {
         // pathsからノード/アークを特定
@@ -214,16 +214,16 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       }
       
       // missing_attribute, invalid_valueなどの場合
-      else if (error.xpath) {
+      else if (error.path) {
         // xpathからID抽出を試みる
-        const match = error.xpath.match(/@id='([^']+)'/);
+        const match = error.path.match(/@id='([^']+)'/);
         if (match) {
           const elementId = match[1];
           
           // pathsまたはxpathから要素タイプを判定
-          const isArc = error.xpath.includes('arc[') || error.paths?.some(p => p.includes('arc['));
-          const isPlace = error.xpath.includes('place[') || error.paths?.some(p => p.includes('place['));
-          const isTransition = error.xpath.includes('transition[') || error.paths?.some(p => p.includes('transition['));
+          const isArc = error.path.includes('arc[') || error.paths?.some(p => p.includes('arc['));
+          const isPlace = error.path.includes('place[') || error.paths?.some(p => p.includes('place['));
+          const isTransition = error.path.includes('transition[') || error.paths?.some(p => p.includes('transition['));
           
           if (isArc) {
             affectedEdgeIds.add(elementId);
@@ -245,32 +245,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       edgeErrorMap
     };
   }, []);
-  
-  // テンプレート抽出（maimlData読み込み時）- 一時的に無効化
-  // useEffect(() => {
-  //   if (maimlData) {
-  //     console.log('🔍 [PetriNetEditorInner] テンプレート抽出開始');
-  //     const extractedTemplates = extractTemplatesFromMaiML(maimlData);
-  //     setTemplates(extractedTemplates);
-  //     console.log('✅ [PetriNetEditorInner] テンプレート抽出完了:', {
-  //       material: extractedTemplates.material.length,
-  //       condition: extractedTemplates.condition.length,
-  //       result: extractedTemplates.result.length
-  //     });
-  //   }
-  // }, [maimlData]);
-  
-  // エラーマッピング（validationResult更新時）- 一時的に無効化
-  // useEffect(() => {
-  //   if (validationResult && templates) {
-  //     console.log('🔍 [PetriNetEditorInner] エラーマッピング開始');
-  //     const errorMap = mapValidationErrorsToTemplates(validationResult, templates);
-  //     setTemplateErrors(errorMap);
-  //     console.log('✅ [PetriNetEditorInner] エラーマッピング完了:', {
-  //       templatesWithErrors: Object.keys(errorMap).length
-  //     });
-  //   }
-  // }, [validationResult, templates]);
   
   // Phase 3: エラーノード/アークの視覚化
   useEffect(() => {
@@ -471,10 +445,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     pushState,
   });
 
-  // ===== Phase 8 Step 4 & 5: ハンドラは既に実装済み =====
-  // handleNodeClick, handleEdgeClick, handleConnect, handleNodesDelete, handleEdgesDelete等
-  // 既存の実装を使用
-
   // ===== Phase 9.1 Step 1: handleOpenSaveConfirmDialog を useKeyboardShortcuts より前に定義 =====
   // Week1: 新保存ダイアログを開く（バリデーション実行）
   const handleOpenSaveConfirmDialog = useCallback(async () => {
@@ -537,23 +507,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       // バリデーションAPI呼び出し
       const currentOrgId = localStorage.getItem('currentOrganizationId');
       console.log('🔍 [handleOpenSaveConfirmDialog] バリデーションAPI呼び出し');
-      const response = await fetch('/api/s3/validate-maiml-content', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          maimlContent: base64Data,
-          organizationId: currentOrgId,
-        }),
-      });
+      const response = await maimlService.validateMaiml(base64Data);
       
-      if (!response.ok) {
-        throw new Error(`バリデーションエラー: ${response.status}`);
+      if (!response.success) {
+        throw new Error(`バリデーションエラー: ${response.error?.message}`);
       }
       
-      const result = await response.json();
+      const result = response.data as AnalysisResult;
       
       console.log('✅ [PetriNetEditorInner] バリデーション完了:', {
         errors: result.errors?.length || 0,
@@ -595,131 +555,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   useEffect(() => {
     setPressedKeys(keysPressedFromHook);
   }, [keysPressedFromHook]);
-
-  // ===== 旧実装（バックアップ - コメントアウト） =====
-  // // Phase 3C/3D: キーボードショートカット（Ctrl+Z/Y/C/V/S + M/C/R/T）
-  // useEffect(() => {
-  //   const handleKeyDown = (event: KeyboardEvent) => {
-  //     // Bug Fix: Dialogやモーダルが開いている場合はキーボードショートカットを無効化
-  //     if (templateEditorOpen || saveDialogOpen || workflowDialogOpen) {
-  //       return;
-  //     }
-  //     
-  //     // Bug Fix: event.keyがundefinedの場合は処理しない
-  //     if (!event.key) {
-  //       return;
-  //     }
-  //     
-  //     // ✅ 修正: テキストBOX（input/textarea）にフォーカスがある場合、Ctrl+C/Ctrl+Vは無効化しない
-  //     const target = event.target as HTMLElement | null;
-  //     const isTextInput = target && (
-  //       target.tagName === 'INPUT' || 
-  //       target.tagName === 'TEXTAREA' || 
-  //       target.isContentEditable
-  //     );
-  //     
-  //     // Ctrl (Windows/Linux) または Cmd (Mac)
-  //     if (event.ctrlKey || event.metaKey) {
-  //       if (event.key === 's') {
-  //         // Ctrl+S → Save (Week1: 新保存ダイアログ)
-  //         event.preventDefault();
-  //         if (nodes.length > 0) {
-  //           handleOpenSaveConfirmDialog();
-  //           console.log('⌨️ [PetriNetEditorInner] キーボードショートカット: Save (新ダイアログ)');
-  //         }
-  //       } else if (event.key === 'z') {
-  //         event.preventDefault();
-  //         if (event.shiftKey) {
-  //           // Ctrl+Shift+Z → Redo
-  //           if (canRedo) {
-  //             redo();
-  //             console.log('⌨️ [PetriNetEditorInner] キーボードショートカット: Redo');
-  //           }
-  //         } else {
-  //           // Ctrl+Z → Undo
-  //           if (canUndo) {
-  //             undo();
-  //             console.log('⌨️ [PetriNetEditorInner] キーボードショートカット: Undo');
-  //           }
-  //         }
-  //       } else if (event.key === 'y') {
-  //         // Ctrl+Y → Redo
-  //         event.preventDefault();
-  //         if (canRedo) {
-  //           redo();
-  //           console.log('⌨️ [PetriNetEditorInner] キーボードショートカット: Redo');
-  //         }
-  //       } else if (event.key === 'c') {
-  //         // Ctrl+C → Copy
-  //         // ✅ 修正: テキストBOXにフォーカスがある場合はスキップ
-  //         if (!isTextInput) {
-  //           event.preventDefault();
-  //           if (selectedNodes.length > 0) {
-  //             handleCopy();
-  //             console.log('⌨️ [PetriNetEditorInner] キーボードショートカット: Copy');
-  //           }
-  //         }
-  //       } else if (event.key === 'v') {
-  //         // Ctrl+V → Paste
-  //         // ✅ 修正: テキストBOXにフォーカスがある場合はスキップ
-  //         if (!isTextInput) {
-  //           event.preventDefault();
-  //           if (clipboard) {
-  //             handlePaste();
-  //             console.log('⌨️ [PetriNetEditorInner] キーボードショートカット: Paste');
-  //           }
-  //         }
-  //       }
-  //     } else if (!event.ctrlKey && !event.metaKey) {
-  //       // Phase 3C-3: ノード追加キー（押されている間有効）
-  //       const key = event.key.toLowerCase();
-  //       if (key === 'm' || key === 'c' || key === 'r' || key === 't') {
-  //         setPressedKeys(prev => new Set(prev).add(key));
-  //         console.log('⌨️ [PetriNetEditorInner] キー押下:', key);
-  //       }
-  //     }
-  //   };
-  //
-  //   const handleKeyUp = (event: KeyboardEvent) => {
-  //     // Bug Fix: Dialogやモーダルが開いている場合は処理しない
-  //     if (templateEditorOpen || saveDialogOpen || workflowDialogOpen) {
-  //       return;
-  //     }
-  //     
-  //     // Bug Fix: event.keyがundefinedの場合は処理しない
-  //     if (!event.key) {
-  //       return;
-  //     }
-  //     
-  //     const key = event.key.toLowerCase();
-  //     if (key === 'm' || key === 'c' || key === 'r' || key === 't') {
-  //       setPressedKeys(prev => {
-  //         const newSet = new Set(prev);
-  //         newSet.delete(key);
-  //         return newSet;
-  //       });
-  //       console.log('⌨️ [PetriNetEditorInner] キー解放:', key);
-  //     }
-  //   };
-  //
-  //   window.addEventListener('keydown', handleKeyDown);
-  //   window.addEventListener('keyup', handleKeyUp);
-  //   return () => {
-  //     window.removeEventListener('keydown', handleKeyDown);
-  //     window.removeEventListener('keyup', handleKeyUp);
-  //   };
-  // }, [undo, redo, canUndo, canRedo, selectedNodes, clipboard, nodes]);
-  //
-  // // Phase 3C-3: ウィンドウフォーカス時にキー状態をクリア
-  // useEffect(() => {
-  //   const handleBlur = () => {
-  //     setPressedKeys(new Set());
-  //     console.log('⌨️ [PetriNetEditorInner] フォーカス喪失: キー状態クリア');
-  //   };
-  //
-  //   window.addEventListener('blur', handleBlur);
-  //   return () => window.removeEventListener('blur', handleBlur);
-  // }, []);
 
   // ✅ UX改善2: editMode='draft'時の自動DraftManager表示
   useEffect(() => {
@@ -777,10 +612,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             description: '',
             date: formattedDate,
             // XSD準拠プロパティ（配列、必須）
-            creators: [{ id: 'Creator', name: '', uuid: crypto.randomUUID(), description: '', annotation: '' }],
-            vendors: [{ id: 'Vendor', name: '', uuid: crypto.randomUUID(), description: '', annotation: '' }],
-            owners: [{ id: 'Owner', name: '', uuid: crypto.randomUUID(), description: '', annotation: '' }],
-            instruments: [{ id: 'Instrument', name: '', uuid: crypto.randomUUID(), description: '', annotation: '' }],
+            creators: [],
+            vendors: [],
+            owners: [],
+            instruments: [],
             // エディター用拡張プロパティ
             protocolId: `protocol_${Date.now()}`,
             methodId: `method_${Date.now()}`,
@@ -1063,22 +898,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                 organizationId: currentOrgId
               });
               
-              const validateResponse = await fetch('/api/s3/validate-maiml-content', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                  maimlContent: base64Data,
-                  organizationId: currentOrgId,
-                }),
-              });
+              const validateResponse = await maimlService.validateMaiml(base64Data);
               
-              if (validateResponse.ok) {
-                const validateResult = await validateResponse.json();
+              if (validateResponse.success) {
+                const validateResult = validateResponse.data as AnalysisResult;
                 console.log('✅ [PetriNetEditorInner] 自動バリデーション完了（複数method）:', {
-                  success: validateResult.success,
+                  success: validateResponse.success,
                   errorCount: validateResult.errors?.length || 0,
                   warningCount: validateResult.warnings?.length || 0,
                   errorSample: validateResult.errors?.[0] || null
@@ -1092,11 +917,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
                 setValidationResult(validateResult);
                 console.log('📊 [PetriNetEditorInner] validationResult設定完了');
               } else {
-                const errorText = await validateResponse.text();
+                const errorText = validateResponse.error ;
                 console.error('❌ [PetriNetEditorInner] バリデーションAPIエラー:', {
-                  status: validateResponse.status,
-                  statusText: validateResponse.statusText,
-                  errorText: errorText.substring(0, 500)
+                  // status: errorText.code,
+                  // statusText: validateResponse.statusText,
+                  // errorText: errorText.substring(0, 500)
                 });
               }
             } catch (validateErr: unknown) {
@@ -1112,8 +937,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         console.error('❌ [PetriNetEditorInner] 初期化エラー:', errorMessage);
         
         // Phase 3: エラーをvalidationResultに変換
-        const errorValidationResult: ValidationResult = {
-          success: false,
+        const errorValidationResult: AnalysisResult = {
+          fileKey : '',
           isValid: false,
           errors: [{
             type: 'syntax_error',
@@ -1121,7 +946,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
             message: errorMessage || 'ペトリネット構造の読み込みに失敗しました',
             details: err instanceof Error ? err.stack : undefined
           }],
-          warnings: []
+          warnings: [],
+          autoCorrections: [],
         };
         setValidationResult(errorValidationResult);
         setError(errorMessage || 'ペトリネット構造の読み込みに失敗しました');
@@ -2366,27 +2192,18 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       }
       
       // Base64エンコード
-      const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
+      const bytes = new TextEncoder().encode(maimlXml);
+      const base64Data = btoa(String.fromCharCode(...bytes));
       const currentOrgId = localStorage.getItem('currentOrganizationId');
       
       console.log('🔍 [handleOpenValidationPanel] バリデーションAPI呼び出し');
-      const response = await fetch('/api/s3/validate-maiml-content', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          maimlContent: base64Data,
-          organizationId: currentOrgId,
-        }),
-      });
+      const response = await maimlService.validateMaiml(base64Data);
       
-      if (!response.ok) {
-        throw new Error(`バリデーションエラー: ${response.status}`);
+      if (!response.success) {
+        throw new Error(`バリデーションエラー: ${response.error}`);
       }
       
-      const result = await response.json();
+      const result = response.data as AnalysisResult;
       
       console.log('✅ [handleOpenValidationPanel] バリデーション完了:', {
         errors: result.errors?.length || 0,
@@ -2401,7 +2218,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         setValidationPanelOpen(true);
       }, 0);
       
-    } catch (err: unknown) {
+    } catch (err) {
       const errorMessage = getErrorMessage(err);
       console.error('❌ [handleOpenValidationPanel] バリデーションエラー:', errorMessage);
       alert(`バリデーション実行に失敗しました: ${errorMessage}`);
@@ -2967,7 +2784,7 @@ interface PetriNetEditorInnerUIProps {
   handleDeleteMethod: (index: number) => void;
   
   // バリデーション
-  nonCriticalErrors: ValidationError[];
+  nonCriticalErrors: ErrorContent[];
   handleOpenValidationPanel: () => void;
   
   // ツールバー
@@ -3013,7 +2830,7 @@ interface PetriNetEditorInnerUIProps {
   saveError: string | undefined;
   
   saveConfirmDialogOpen: boolean;
-  validationResult: ValidationResult | null;
+  validationResult: AnalysisResult | null;
   handleCloseSaveConfirmDialog: () => void;
   handleSaveConfirmAction: (action: string, saveDestination: string, folder?: string) => void;
   isSaving: boolean;

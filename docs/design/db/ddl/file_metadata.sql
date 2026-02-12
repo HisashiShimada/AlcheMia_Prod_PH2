@@ -72,6 +72,17 @@ CREATE TABLE IF NOT EXISTS file_metadata (
     -- 例: "application/xml", "text/plain"
     file_type VARCHAR(100),
     
+    file_extension VARCHAR(10),
+    is_maiml_file BOOLEAN DEFAULT FALSE,
+    maiml_analysis_status VARCHAR(20) DEFAULT 'not_analyzed',
+    maiml_error_count INTEGER DEFAULT 0,
+    maiml_warning_count INTEGER DEFAULT 0,
+    maiml_version VARCHAR(20),
+    maiml_transitions_count INTEGER,
+    maiml_places_count INTEGER,
+    maiml_validation_result JSONB DEFAULT '{}'::jsonb,
+    maiml_last_analyzed TIMESTAMP WITH TIME ZONE,
+    
     -- ============================================
     -- 管理情報
     -- ============================================
@@ -128,8 +139,7 @@ CREATE TABLE IF NOT EXISTS file_metadata (
     
     -- アップロード元
     -- 許可値: web_upload, bulk_upload, folder_upload, api_upload
-    upload_source VARCHAR(50) DEFAULT 'web_upload'
-      CHECK (upload_source IN ('web_upload', 'bulk_upload', 'folder_upload', 'api_upload')),
+    upload_source VARCHAR(50) DEFAULT 'web_upload',
     
     -- アップロード方法
     -- 許可値: single, multipart, resumable

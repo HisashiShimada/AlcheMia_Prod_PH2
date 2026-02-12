@@ -8,7 +8,7 @@
  * @date 2026-01-29
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Modal,
   Card,
@@ -19,7 +19,6 @@ import {
   Button,
   Progress,
   List,
-  Divider,
   Checkbox,
   Space,
   Spin,
@@ -33,8 +32,8 @@ import {
   ToolOutlined,
   ReloadOutlined,
   CloseOutlined,
-  RightOutlined,
 } from '@ant-design/icons';
+import { AnalysisResult } from '@/types/maimlValidation';
 
 const { Text, Title, Paragraph } = Typography;
 const { Panel } = Collapse;
@@ -53,33 +52,11 @@ const convertToString = (value: unknown): string => {
 };
 
 /**
- * エラー/警告の型定義
- */
-interface ValidationIssue {
-  severity?: 'critical' | 'error' | 'warning';
-  message: string;
-  xpath?: string;
-  element?: unknown;
-  line?: number;
-  suggestion?: unknown;
-}
-
-/**
- * バリデーション結果の型定義
- */
-interface ValidationResult {
-  isValid: boolean;
-  schemaVersion?: string;
-  errors?: ValidationIssue[];
-  warnings?: ValidationIssue[];
-}
-
-/**
  * ValidationPanel Props
  */
 export interface ValidationPanelProps {
   show: boolean;
-  validationResult: ValidationResult | null;
+  validationResult: AnalysisResult | null;
   onClose: () => void;
   onAutoCorrect?: (selectedErrors: number[]) => void;
   onRevalidate?: () => void;
@@ -111,7 +88,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
   // State管理
   const [selectedErrors, setSelectedErrors] = useState<number[]>([]);
   const [activeKeys, setActiveKeys] = useState<string[]>(['errors']);
-  const [prevValidationResult, setPrevValidationResult] = useState<ValidationResult | null>(null);
+  const [prevValidationResult, setPrevValidationResult] = useState<AnalysisResult | null>(null);
 
   // validationResult変更検知（ESLintエラー回避のため手動比較）
   if (validationResult !== prevValidationResult) {
@@ -188,7 +165,7 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                 {isValid ? '✅ バリデーション成功' : '❌ バリデーション失敗'}
               </Title>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                スキーマバージョン: {validationResult.schemaVersion || '不明'}
+                スキーマバージョン: {validationResult.version || '不明'}
               </Text>
             </div>
           </Space>
@@ -257,9 +234,9 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                         <Text>{err.message}</Text>
                       </Space>
                       <div style={{ marginTop: 4 }}>
-                        {err.xpath && (
+                        {err.path && (
                           <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                            XPath: {err.xpath}
+                            XPath: {err.path}
                           </Text>
                         )}
                         {elementStr && (
@@ -327,9 +304,9 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({
                       <Text>{warn.message}</Text>
                     </Space>
                     <div style={{ marginTop: 4 }}>
-                      {warn.xpath && (
+                      {warn.path && (
                         <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-                          XPath: {warn.xpath}
+                          XPath: {warn.path}
                         </Text>
                       )}
                       {elementStr && (

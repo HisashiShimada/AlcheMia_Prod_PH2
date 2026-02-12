@@ -646,7 +646,7 @@ function buildCommonTemplateXML(
  */
 export async function convertReactFlowToMaiML(
   nodes: Node<NodeData>[], 
-  edges: Edge[], 
+  edges: Edge<EdgeData>[], 
   metadata: Record<string, string> = {}, 
   documentData: DocumentData | null = null, 
   originalStructure: OriginalStructure | null = null, 

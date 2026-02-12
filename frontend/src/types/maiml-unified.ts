@@ -505,7 +505,8 @@ export interface Parent {
  * </creator>
  * ```
  */
-export interface Creator {
+export interface DocumentTagData {
+  tagName : string;
   /** 要素ID（XML ID属性、必須） */
   id: string;
   /** UUID（RFC 4122準拠、必須） */
@@ -518,69 +519,6 @@ export interface Creator {
   annotation?: string;
   vendorRef?: Reference;
   instrumentRef?: Reference;
-}
-
-/**
- * Vendor（ベンダー情報）
- * 
- * XSD仕様:
- * - id: 必須（hasIdAttributeType, use="required"）
- * - uuid: 必須（globalObjectContentGroup）
- * - name, description, annotation: オプション
- */
-export interface Vendor {
-  /** 要素ID（XML ID属性、必須） */
-  id: string;
-  /** UUID（RFC 4122準拠、必須） */
-  uuid: string;
-  /** 要素名（人間可読な名前） */
-  name?: string;
-  /** 説明文 */
-  description?: string;
-  /** 注釈（XSD仕様、実MAIMLでは稀） */
-  annotation?: string;
-}
-
-/**
- * Owner（所有者情報）
- * 
- * XSD仕様:
- * - id: 必須（hasIdAttributeType, use="required"）
- * - uuid: 必須（globalObjectContentGroup）
- * - name, description, annotation: オプション
- */
-export interface Owner {
-  /** 要素ID（XML ID属性、必須） */
-  id: string;
-  /** UUID（RFC 4122準拠、必須） */
-  uuid: string;
-  /** 要素名（人間可読な名前） */
-  name?: string;
-  /** 説明文 */
-  description?: string;
-  /** 注釈（XSD仕様、実MAIMLでは稀） */
-  annotation?: string;
-}
-
-/**
- * Instrument（機器情報）
- * 
- * XSD仕様:
- * - id: 必須（hasIdAttributeType, use="required"）
- * - uuid: 必須（globalObjectContentGroup）
- * - name, description, annotation: オプション
- */
-export interface Instrument {
-  /** 要素ID（XML ID属性、必須） */
-  id: string;
-  /** UUID（RFC 4122準拠、必須） */
-  uuid: string;
-  /** 要素名（人間可読な名前） */
-  name?: string;
-  /** 説明文 */
-  description?: string;
-  /** 注釈（XSD仕様、実MAIMLでは稀） */
-  annotation?: string;
 }
 
 /**
@@ -617,13 +555,13 @@ export interface Document {
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
   /** 作成者情報（XSD: 配列、実MAIML: 通常1個） */
-  creators: Creator[];
+  creators: DocumentTagData[];
   /** ベンダー情報（XSD: 配列、実MAIML: 通常1個） */
-  vendors: Vendor[];
+  vendors: DocumentTagData[];
   /** 所有者情報（XSD: 配列、実MAIML: 通常1個） */
-  owners: Owner[];
+  owners: DocumentTagData[];
   /** 機器情報（XSD: 配列、実MAIML: 通常1個） */
-  instruments: Instrument[];
+  instruments: DocumentTagData[];
   /** 作成日時（ISO 8601形式） */
   date?: string;
   /** デジタル署名（オプション） */

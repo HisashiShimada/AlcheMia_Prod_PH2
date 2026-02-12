@@ -22,6 +22,9 @@ import type {
   Content,
   Document
 } from '@/types/maiml-unified';
+import { 
+  ErrorContent
+} from '../types/maimlValidation'
 // ============================================
 // 基本型定義
 // ============================================
@@ -61,7 +64,7 @@ export interface NodeData {
   templateCategory?: string;
   methodId?: string | null;
   hasError?: boolean;
-  errors?: ValidationError[];
+  errors?: ErrorContent[];
   isCommonTemplate?: boolean;
   commonTemplateRef?: string;
   // reactFlowConverterで使用される追加プロパティ
@@ -86,7 +89,7 @@ export interface NodeData {
 export interface EdgeData {
   id?: string;
   hasError?: boolean;
-  errors?: ValidationError[];
+  errors?: ErrorContent[];
 }
 
 // ============================================
@@ -148,37 +151,6 @@ export interface MethodData {
   places?: Place[];
   transitions?: Transition[];
   arcs?: Arc[];
-}
-
-// ============================================
-// バリデーション関連の型定義
-// ============================================
-
-export type ValidationSeverity = 'error' | 'warning';
-
-export interface ValidationError {
-  type: string;
-  severity: ValidationSeverity;
-  message: string;
-  xpath?: string;
-  paths?: string[];
-  duplicateId?: string;
-  ref?: string;
-  details?: any;
-}
-
-export interface ValidationWarning {
-  type: string;
-  message: string;
-  xpath?: string;
-  details?: any;
-}
-
-export interface ValidationResult {
-  success: boolean;
-  errors: ValidationError[];
-  warnings: ValidationWarning[];
-  isValid: boolean; // 必須プロパティ
 }
 
 // ============================================
@@ -373,14 +345,6 @@ export interface HistoryState {
 // コンポーネントProps型定義
 // ============================================
 
-export interface PetriNetEditorV2Props {
-  maimlFilePath?: string;
-  onSave?: (data: any) => void;
-  onClose?: () => void;
-  readOnly?: boolean;
-  initialData?: string;
-}
-
 /**
  * PetriNetEditorInner Props型定義
  */
@@ -392,130 +356,4 @@ export interface PetriNetEditorInnerProps {
   originalFileName?: string;
   sourceS3Key?: string;
   [key: string]: unknown;
-}
-
-/**
- * PetriNetEditorInnerUI Props型定義
- */
-export interface PetriNetEditorInnerUIProps {
-  // React Flow関連
-  nodes: Node<NodeData>[];
-  edges: Edge<EdgeData>[];
-  setNodes: React.Dispatch<React.SetStateAction<Node<NodeData>[]>>;
-  setEdges: React.Dispatch<React.SetStateAction<Edge<EdgeData>[]>>;
-  onNodesChange: (changes: any) => void;
-  onEdgesChange: (changes: any) => void;
-  
-  // イベントハンドラ
-  handleNodeClick: (event: React.MouseEvent, node: Node<NodeData>) => void;
-  handleEdgeClick: (event: React.MouseEvent, edge: Edge<EdgeData>) => void;
-  handleNodesDelete: (nodes: Node<NodeData>[]) => void;
-  handleEdgesDelete: (edges: Edge<EdgeData>[]) => void;
-  handleConnect: (connection: Connection) => void;
-  handleNodeDragStop: (event: React.MouseEvent, node: Node<NodeData>) => void;
-  handleSelectionChange: (params: { nodes: Node<NodeData>[]; edges: Edge<EdgeData>[] }) => void;
-  handlePaneClick: (event: React.MouseEvent) => void;
-  
-  // Node Types
-  nodeTypes: NodeTypes;
-  
-  // キーボード
-  pressedKeys: Set<string>;
-  
-  // Method管理
-  methods: MethodData[];
-  multiMethodMode: boolean;
-  activeMethodIndex: number;
-  handleMethodChange: (index: number) => void;
-  handleAddMethod: () => void;
-  handleEditMethodId: (index: number, newMethodId: string) => void;
-  handleDeleteMethod: (index: number) => void;
-  
-  // バリデーション
-  nonCriticalErrors: ValidationError[];
-  handleOpenValidationPanel: () => void;
-  
-  // ツールバー
-  handleAddNode: (nodeType: string) => void;
-  undo: () => void;
-  redo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
-  handleOpenSaveConfirmDialog: () => void;
-  handleOpenDocumentEditor: () => void;
-  isValidating: boolean;
-  handleWorkflowModeToggle: () => void;
-  selectedTool: 'select' | 'workflow';
-  handleOpenDraftManager: () => void;
-  autoSaveEnabled: boolean;
-  setAutoSaveEnabled: (enabled: boolean) => void;
-  lastAutoSaveTime: number | null;
-  
-  // ビューモード
-  viewMode: 'petriNet' | 'templates';
-  handleViewModeChange: (mode: 'petriNet' | 'templates') => void;
-  handleTemplateSelect: (template: Template) => void;
-  handleTemplateAdd: (category: string) => void;
-  handleTemplateDelete: (templateId: string) => void;
-  showCommonTemplates: boolean;
-  setShowCommonTemplates: (show: boolean) => void;
-  
-  // PropertyPanel
-  selectedNode: Node<NodeData> | null;
-  selectedEdge: Edge<EdgeData> | null;
-  handleUpdateNodeProperty: (nodeId: string, newData: NodeData) => void;
-  handleUpdateNodeId: (oldId: string, newId: string) => void;
-  handleUpdateEdgeProperty: (edgeId: string, newId: string) => void;
-  handleClosePropertyPanel: () => void;
-  handleOpenTemplateEditor: (node: Node<NodeData>) => void;
-  handleDeleteNode: (nodeId: string) => void;
-  handleDeleteEdge: (edgeId: string) => void;
-  
-  // ダイアログ
-  saveDialogOpen: boolean;
-  handleCloseSaveDialog: () => void;
-  handleSave: (metadata: any) => void;
-  saveError: string | null;
-  
-  saveConfirmDialogOpen: boolean;
-  validationResult: ValidationResult | null;
-  handleCloseSaveConfirmDialog: () => void;
-  handleSaveConfirmAction: (action: string, saveDestination: string, folder?: string) => void;
-  isSaving: boolean;
-  
-  templateEditorOpen: boolean;
-  handleCloseTemplateEditor: () => void;
-  templateEditNode: Node<NodeData> | null;
-  handleSaveTemplate: (
-    nodeId: string,
-    templateRef: Template,
-    isNewTemplate: boolean,
-    templateCategory: string,
-    isCommonTemplate: boolean,
-    methodId: string | null
-  ) => void;
-  
-  documentDialogOpen: boolean;
-  documentData: DocumentData | null;
-  handleCloseDocumentEditor: () => void;
-  handleSaveDocument: (newDocumentData: DocumentData) => void;
-  
-  validationPanelOpen: boolean;
-  handleCloseValidationPanel: () => void;
-  handleAutoCorrect: (selectedErrors: any[]) => void;
-  handleRevalidate: () => void;
-  isCorrecting: boolean;
-  
-  workflowDialogOpen: boolean;
-  handleCloseWorkflowDialog: () => void;
-  handleWorkflowFileSelect: (file: FileInfo) => Promise<void>;
-  availableFiles: FileInfo[];
-  
-  draftManagerOpen: boolean;
-  handleCloseDraftManager: () => void;
-  handleLoadDraft: (draft: any) => void;
-  lastSavedDraft: any;
-  currentEditState: any;
-  currentUserId: string;
-  sourceS3Key?: string;
 }

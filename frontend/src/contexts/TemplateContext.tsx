@@ -8,12 +8,13 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { TemplateError, TemplatesByCategory, MethodData, ValidationResult } from '@/types/editor';
+import { TemplateError, TemplatesByCategory, MethodData } from '@/types/editor';
 import { Template } from '@/types/maiml-unified';
 import {
   mapValidationErrorsToTemplates,
 } from '@/services/templateService';
 import { MaimlParserTyped } from '@/utils/maimlParserTyped';
+import { AnalysisResult } from '@/types/maimlValidation';
 
 /**
  * TemplateContext型定義
@@ -49,7 +50,7 @@ export const useTemplates = (): TemplateContextType => {
 interface TemplateProviderProps {
   children: React.ReactNode;
   maimlData: string | null;
-  validationResult?: ValidationResult | null;
+  validationResult?: AnalysisResult | null;
   activeMethodIndex?: number;
   methods?: MethodData[];
 }

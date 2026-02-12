@@ -31,35 +31,17 @@ import {
   ArrowDownOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
+import { DocumentTagData, Reference } from '@/types/maiml-unified';
 
 const { TextArea } = Input;
 const { Panel } = Collapse;
 
-// ========================================
-// Type Definitions
-// ========================================
-
-interface ComplexObjectReference {
-  id?: string;
-  ref?: string;
-}
-
-interface ComplexObject {
-  id: string;
-  uuid?: string;
-  name: string;
-  description?: string;
-  annotation?: string;
-  vendorRef?: ComplexObjectReference;
-  instrumentRef?: ComplexObjectReference;
-}
-
 interface SingleObjectEditorProps {
   index: number;
-  objectData: ComplexObject;
+  objectData: DocumentTagData;
   objectKey: string;
   includeReferences?: boolean;
-  onUpdate: (index: number, property: string, value: string | ComplexObjectReference | null, type?: string) => void;
+  onUpdate: (index: number, property: string, value: string | Reference | null, type?: string) => void;
   onDelete: (index: number) => void;
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
@@ -77,13 +59,14 @@ interface MultiObjectEditorProps {
   title: string;
   icon: React.ReactNode;
   includeReferences?: boolean;
-  initialData: ComplexObject[];
-  onDataChange: (key: string, data: ComplexObject[]) => void;
+  initialData: DocumentTagData[];
+  onDataChange: (key: string, data: DocumentTagData[]) => void;
   minItems?: number;
   isExpanded: boolean;
   onToggleExpanded: (key: string) => void;
   vendorIds?: string[];
   instrumentIds?: string[];
+  masterData: DocumentTagData[],
 }
 
 // ========================================
@@ -107,7 +90,7 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
   vendorIds = [],
   instrumentIds = [],
 }) => {
-  const [internalData, setInternalData] = useState<ComplexObject>(objectData);
+  const [internalData, setInternalData] = useState<DocumentTagData>(objectData);
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 親からの初期データ同期（Ref使用で変更検出）
@@ -155,11 +138,11 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
         const newData = { ...prev };
         if (newData[refKey]) {
           // プロパティを削除するのではなく、undefinedを設定
-          const updatedRef = { ...newData[refKey] };
+          const updatedRef : Reference= { ...newData[refKey] };
           if (property === 'id') {
-            updatedRef.id = undefined;
+            updatedRef.id = '';
           } else {
-            updatedRef.ref = undefined;
+            updatedRef.ref = '';
           }
           
           // 両方undefinedなら、refKeyごと削除
@@ -195,7 +178,7 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
       clearTimeout(updateTimeoutRef.current);
     }
     updateTimeoutRef.current = setTimeout(() => {
-      const updatedRef: ComplexObjectReference = {
+      const updatedRef: Reference = {
         ...(internalData[refKey] || { id: '', ref: '' }),
         [property]: value
       };
@@ -489,7 +472,7 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
   vendorIds = [],
   instrumentIds = [],
 }) => {
-  const [objects, setObjects] = useState<ComplexObject[]>(initialData);
+  const [objects, setObjects] = useState<DocumentTagData[]>(initialData);
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
 
   // 親からの初期データ同期（Ref使用で変更検出）
@@ -509,7 +492,8 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
 
   // オブジェクト追加
   const handleAdd = useCallback(() => {
-    const newObject: ComplexObject = {
+    const newObject: DocumentTagData = {
+      tagName: objectKey === 'creators' ? 'Creator' : objectKey === 'vendors' ? 'Vendor' : objectKey === 'owners' ? 'Owner' : 'Instrument',
       id: `${objectKey}${objects.length + 1}`,
       uuid: '',
       name: '',
@@ -536,12 +520,12 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
   }, [objects, objectKey, onDataChange]);
 
   // オブジェクト更新
-  const handleUpdate = useCallback((index: number, property: string, value: string | ComplexObjectReference | null, type: string = 'simple') => {
+  const handleUpdate = useCallback((index: number, property: string, value: string | Reference | null, type: string = 'simple') => {
     const newObjects = [...objects];
     
     if (type === 'reference_delete') {
-      if (newObjects[index][property as keyof ComplexObject]) {
-        delete newObjects[index][property as keyof ComplexObject];
+      if (newObjects[index][property as keyof DocumentTagData]) {
+        delete newObjects[index][property as keyof DocumentTagData];
       }
     } else if (type === 'reference') {
       newObjects[index] = {
@@ -654,4 +638,4 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
 };
 
 export default MultiObjectEditor;
-export type { ComplexObject, ComplexObjectReference, MultiObjectEditorProps };
+export type { DocumentTagData, Reference, MultiObjectEditorProps };

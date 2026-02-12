@@ -10,9 +10,6 @@ import { createApiClient } from '@/utils/authUtils';
 import type { ProjectFile } from '@/types/file';
 import type { Task, TaskStatistics, Project } from '@/types/project';
 
-// API Base URL（環境変数から取得、デフォルトは相対パス）
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
 /**
  * プロジェクト一覧レスポンス型
  * バックエンドの実際のレスポンス構造に合わせる
