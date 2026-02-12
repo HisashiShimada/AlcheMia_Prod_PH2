@@ -25,6 +25,7 @@ CREATE TABLE organization (
   , organization_email character varying(50)
   , chief_user_id character varying(50)
   , corporation_id uuid
+  , is_entry INTEGER
   , is_active BOOLEAN
   , create_user_id VARCHAR(50)
   , create_at timestamp
@@ -41,6 +42,7 @@ COMMENT ON COLUMN organization.organization_prefix IS '組織_S3プレフィッ�
 COMMENT ON COLUMN organization.organization_email IS '組織E-mail';
 COMMENT ON COLUMN organization.chief_user_id IS '代表者ユーザID';
 COMMENT ON COLUMN organization.corporation_id IS '会社ID';
+COMMENT ON COLUMN organization.is_entry IS '二段階認証判定';
 COMMENT ON COLUMN organization.is_active IS 'アクティブ判定';
 COMMENT ON COLUMN organization.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN organization.create_at IS '作成日時';

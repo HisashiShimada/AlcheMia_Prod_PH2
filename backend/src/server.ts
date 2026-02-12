@@ -18,6 +18,7 @@ import fileDownloadRoutes from './routes/fileDownloadRoutes';
 import maimlRoutes from './routes/maimlRoutes';
 import masterRoutes from './routes/masterRoutes';
 import experimentRoutes from './routes/experimentRoutes';
+import issueRoutes from './routes/issueRoutes';
 import departmentRoutes from './routes/departmentRoutes';
 import corporationRoutes from './routes/corporationRoutes';
 import roleRoutes from './routes/roleRoutes';
@@ -97,6 +98,9 @@ async function startServer() {
     
     // Mount master routes
     app.use('/api/v1/master', masterRoutes);
+
+	// Mount issue routes
+	app.use('/api/v1/issues', issueRoutes);
 
     if (process.env.NODE_ENV !== 'test') {
       const server = app.listen(PORT, () => {

@@ -51,10 +51,32 @@ export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
  * ログインレスポンスデータ
  */
 export interface LoginResponseData {
-  sessionToken: string;
-  message: string;
-  email: string;
-  expiresIn: number;
+  // PIN免除非適用時のフィールド
+  sessionToken?: string;
+  message?: string;
+  email?: string;
+  expiresIn?: number;
+  
+  // PIN免除適用時のフィールド（session.tokenが存在する場合は直接認証完了）
+  session?: {
+    token: string;
+    expiresAt: string;
+  };
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+    roleName: string;
+    roleCd: string;
+    organizationId: string;
+    organizationName: string;
+    displayName: string;
+    departmentCd: string;
+    initialScreenFunctionCd: string;
+  };
+  passwordChangeRequired?: boolean;  // 一時パスワードでログインした場合はtrue
+  redirectUrl?: string;
+  
   // 開発環境専用フィールド（NODE_ENV=developmentの場合のみ含まれる）
   pinCode?: string;
   devMode?: boolean;

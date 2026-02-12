@@ -37,6 +37,7 @@ export interface UserInfo {
   organizationName: string;
   displayName: string;
   departmentCd: string;
+  corporationId?: string;
   initialScreenFunctionCd: string;
 }
 
