@@ -289,12 +289,12 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
   const issueService = new IssueService();
 
   try {
-    const { organizationId } = req.user!;
+    const { organizationId, userId } = req.user!;
     const { issueId } = req.params;
     const { status } = req.body;
 
     // Service層呼び出し
-    const result = await issueService.updateStatus(organizationId, issueId, status);
+    const result = await issueService.updateStatus(organizationId, issueId, userId, status);
 
     // エラーハンドリング
     if (!result.success) {

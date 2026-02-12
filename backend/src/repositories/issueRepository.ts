@@ -12,7 +12,6 @@ import {
   IssueQueryParams,
   IssueListResponse,
   IssuePagination,
-  IssueStatus,
   IssueWithComments,
   IssueListFilters,
   IssueComment,
@@ -344,18 +343,23 @@ export class IssueRepository {
   async updateStatus(
     issueId: string,
     organizationId: string,
-    status: IssueStatus
+    userId: string,
+    statusNumber: Number
   ): Promise<Issue | null> {
     const pool = getPool();
 
     const query = `
       UPDATE issues
-      SET status = $1, update_at = CURRENT_TIMESTAMP
-      WHERE issue_id = $2 AND organization_id = $3
+      SET status = $1, 
+        issue_completer_id = CASE WHEN $1 = 0 THEN NULL WHEN $1 = 1 THEN $2 ELSE issue_completer_id
+        issue_complete_at = CASE WHEN $1 = 0 THEN NULL WHEN $1 = 1 THEN CURRENT_TIMESTAMP ELSE issue_complete_at
+        update_user_id = $2, 
+        update_at = CURRENT_TIMESTAMP
+        WHERE issue_id = $3 AND organization_id = $4
       RETURNING ${SELECT_COLUMNS}
     `;
 
-    const result = await pool.query(query, [status, issueId, organizationId]);
+    const result = await pool.query(query, [statusNumber, userId, issueId, organizationId]);
     return result.rows[0] || null;
   }
 
