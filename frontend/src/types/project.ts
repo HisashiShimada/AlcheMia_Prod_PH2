@@ -191,4 +191,5 @@ export interface ProjectEditParams {
   projectId: string;
   projectName: string;
   projectOverview?: string;
+  sourceS3Key: string;
 }

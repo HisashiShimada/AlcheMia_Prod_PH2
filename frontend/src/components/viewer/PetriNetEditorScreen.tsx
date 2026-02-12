@@ -21,6 +21,7 @@ interface PetriNetEditorScreenProps {
   projectOverview?: string;
   /** 画面を閉じるコールバック */
   onClose: () => void;
+  sourceS3Key: string;
 }
 
 /**
@@ -30,7 +31,8 @@ export default function PetriNetEditorScreen({
   projectId,
   projectName,
   projectOverview,
-  onClose
+  onClose,
+  sourceS3Key
 }: PetriNetEditorScreenProps) {
   // ステート管理
   const [isLoading, setIsLoading] = useState(true);
@@ -225,6 +227,7 @@ export default function PetriNetEditorScreen({
             editingFileName={`${projectName}.maiml`}
             editMode="project"
             originalFileName={projectName}
+            sourceS3Key={sourceS3Key}
           />
         </ReactFlowProvider>
       </div>

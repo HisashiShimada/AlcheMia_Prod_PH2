@@ -11,32 +11,39 @@ import { getPool } from '../database/db';
  * ファイルメタデータ型定義
  */
 export interface FileMetadata {
-  fileId: string;
-  fileName: string;
-  filePath: string;
-  fileSize: number;
-  contentType: string;
-  lastModified: Date;
-  organizationId: string;
-}
-
-/**
- * 拡張ファイルメタデータ型定義（リロードAPI用）
- * Task 1.1: file_metadataテーブルアクセス機能の実装
- */
-export interface FileMetadataExtended {
-  fileId: string;
-  organizationId: string;
-  projectId: string;
-  bucketName: string;
-  objectKey: string;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  contentType: string;
-  lastModified: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  file_key:string;
+  s3_bucket:string;
+  organization_id:string;
+  original_filename:string;
+  file_size:number;
+  file_type?:string;
+  file_extension?:string;
+  is_maiml_file?:boolean;
+  maiml_analysis_status?:string;
+  maiml_error_count?:number;
+  maiml_warning_count?:number;
+  maiml_version?:string;
+  maiml_transitions_count?:number;
+  maiml_places_count?:number;
+  maiml_validation_result?:string;
+  maiml_last_analyzed?:Date;
+  uploaded_by:string;
+  create_user_id?:string;
+  update_user_id?:string;
+  created_at?:Date;
+  updated_at?:Date;
+  custom_metadata?:string;
+  tags?:string;
+  search_keywords?:string[];
+  description?:string;
+  file_hash?:string;
+  parent_folder_path?:string;
+  upload_batch_id?:string;
+  upload_source?:string;
+  upload_method?:string;
+  s3_storage_class?:string;
+  s3_etag?:string;
+  last_edit_timestamp?: Date;
 }
 
 /**
@@ -109,15 +116,7 @@ export class FileMetadataRepository {
     // organization_idフィルタを必須とすることでマルチテナント分離を保証
     const query = `
       SELECT
-        organization_id,
-        file_id,
-        bucket_name,
-        object_key,
-        file_name,
-        file_type,
-        file_size,
-        content_type,
-        last_modified
+        *
       FROM file_metadata
       WHERE organization_id = $1
         AND file_name = $2
@@ -138,14 +137,71 @@ export class FileMetadataRepository {
 
       // データベースのスネークケースからキャメルケースに変換
       return {
-        fileId: row.file_id,
-        fileName: row.file_name,
-        filePath: row.object_key,
-        fileSize: row.file_size,
-        contentType: row.content_type,
-        lastModified: row.last_modified,
-        organizationId: row.organization_id,
+        file_key:row.file_key,
+        s3_bucket:row.s3_bucket,
+        organization_id:row.organization_id,
+        original_filename:row.original_filename,
+        file_size:row.file_size,
+        file_type:row.file_type,
+        file_extension:row.file_extension,
+        is_maiml_file:row.is_maiml_file,
+        maiml_analysis_status:row.maiml_analysis_status,
+        maiml_error_count:row.maiml_error_count,
+        maiml_warning_count:row.maiml_warning_count,
+        maiml_version:row.maiml_version,
+        maiml_transitions_count:row.maiml_transitions_count,
+        maiml_places_count:row.maiml_places_count,
+        maiml_validation_result:row.maiml_validation_result,
+        maiml_last_analyzed:row.maiml_last_analyzed,
+        uploaded_by:row.uploaded_by,
+        create_user_id:row.create_user_id,
+        update_user_id:row.update_user_id,
+        created_at:row.created_at,
+        updated_at:row.updated_at,
+        custom_metadata:row.custom_metadata,
+        tags:row.tags,
+        search_keywords:row.search_keywords,
+        description:row.description,
+        file_hash:row.file_hash,
+        parent_folder_path:row.parent_folder_path,
+        upload_batch_id:row.upload_batch_id,
+        upload_source:row.upload_source,
+        upload_method:row.upload_method,
+        s3_storage_class:row.s3_storage_class,
+        s3_etag:row.s3_etag,
+        last_edit_timestamp:row.last_edit_timestamp,
       };
+    } catch (error) {
+      // データベースエラーをそのままスロー（上位層でハンドリング）
+      throw error;
+    }
+  }
+  async getFileMetadataByFileKey(
+    fileKey: string
+  ): Promise<FileMetadata | null> {
+    const pool = getPool();
+
+    // Parameterized Queryを使用してSQLインジェクション対策
+    // organization_idフィルタを必須とすることでマルチテナント分離を保証
+    const query = `
+      SELECT
+        *
+      FROM file_metadata
+      WHERE file_key = $1
+    `;
+
+    const params = [fileKey];
+
+    try {
+      const result = await pool.query(query, params);
+
+      // レコードが存在しない場合はnullを返却
+      if (result.rowCount === 0 || !result.rows[0]) {
+        return null;
+      }
+
+      const row = result.rows[0];
+      return row as FileMetadata;
     } catch (error) {
       // データベースエラーをそのままスロー（上位層でハンドリング）
       throw error;
@@ -169,7 +225,7 @@ export class FileMetadataRepository {
   async getByProject(
     organizationId: string,
     projectId: string
-  ): Promise<FileMetadataExtended[]> {
+  ): Promise<FileMetadata[]> {
     const pool = getPool();
 
     // Parameterized Queryを使用してSQLインジェクション対策
@@ -177,18 +233,7 @@ export class FileMetadataRepository {
     // deleted_at IS NULLで論理削除されていないレコードのみ取得
     const query = `
       SELECT
-        file_id,
-        organization_id,
-        project_id,
-        bucket_name,
-        object_key,
-        file_name,
-        file_type,
-        file_size,
-        content_type,
-        last_modified,
-        created_at,
-        updated_at
+        *
       FROM file_metadata
       WHERE organization_id = $1
         AND project_id = $2
@@ -202,20 +247,7 @@ export class FileMetadataRepository {
       const result = await pool.query(query, params);
 
       // データベースのスネークケースからキャメルケースに変換
-      return result.rows.map((row) => ({
-        fileId: row.file_id,
-        organizationId: row.organization_id,
-        projectId: row.project_id,
-        bucketName: row.bucket_name,
-        objectKey: row.object_key,
-        fileName: row.file_name,
-        fileType: row.file_type,
-        fileSize: row.file_size,
-        contentType: row.content_type,
-        lastModified: row.last_modified,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      }));
+      return result.rows as FileMetadata[]
     } catch (error) {
       // データベースエラーをそのままスロー（上位層でハンドリング）
       throw error;
@@ -464,15 +496,7 @@ export class FileMetadataRepository {
       // 2. ファイル一覧を取得（ページネーション + ソート）
       const selectQuery = `
         SELECT
-          organization_id,
-          file_id,
-          bucket_name,
-          object_key,
-          file_name,
-          file_type,
-          file_size,
-          content_type,
-          last_modified
+          *
         FROM file_metadata
         WHERE organization_id = $1
           AND object_key LIKE $2
@@ -483,15 +507,7 @@ export class FileMetadataRepository {
       const selectResult = await pool.query(selectQuery, selectParams);
 
       // データベースのスネークケースからキャメルケースに変換
-      const files: FileMetadata[] = selectResult.rows.map((row) => ({
-        fileId: row.file_id,
-        fileName: row.file_name,
-        filePath: row.object_key,
-        fileSize: row.file_size,
-        contentType: row.content_type,
-        lastModified: row.last_modified,
-        organizationId: row.organization_id,
-      }));
+      const files: FileMetadata[] = selectResult.rows as FileMetadata[]
 
       return {
         files,
@@ -499,6 +515,51 @@ export class FileMetadataRepository {
       };
     } catch (error) {
       // データベースエラーをそのままスロー（上位層でハンドリング）
+      throw error;
+    }
+  }
+  
+  async updateFileMetadata(fileKey:string, updates : FileMetadata) {
+    const pool = getPool();
+    const setClause = [];
+    const values = [];
+    let paramIndex = 1;
+
+    // ✅ 修正: updated_atを除外してから処理
+    const filteredUpdates = { ...updates };
+    filteredUpdates.updated_at = undefined;
+
+    for (const [key, value] of Object.entries(filteredUpdates)) {
+      if (key === 'draft_metadata' || key === 'custom_metadata' || key === 'tags') {
+        setClause.push(`${key} = $${paramIndex}::jsonb`);
+        values.push(JSON.stringify(value));
+      } else {
+        setClause.push(`${key} = $${paramIndex}`);
+        values.push(value);
+      }
+      paramIndex++;
+    }
+
+    // updated_atは常に現在時刻で更新
+    setClause.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(fileKey);
+
+    const queryText = `
+      UPDATE file_metadata 
+      SET ${setClause.join(', ')}
+      WHERE file_key = $${paramIndex}
+      RETURNING *
+    `;
+
+    try {
+      const result = await pool.query(queryText, values);
+      if (result.rows.length === 0) {
+        throw new Error(`ファイルが見つかりません: ${fileKey}`);
+      }
+      console.log('✅ [dbOperations] ファイルメタデータ更新:', fileKey);
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ [dbOperations] ファイルメタデータ更新エラー:', error);
       throw error;
     }
   }

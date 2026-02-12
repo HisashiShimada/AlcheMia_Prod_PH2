@@ -129,8 +129,8 @@ export async function save(req: Request, res: Response): Promise<void> {
   try {
     if (checkValidationErrors(req, res)) return;
 
-    const { projectId, content, options = {} } = req.body;
-    const organizationId = (req as any).organizationId;
+    const { fileKey, content } = req.body;
+    const organizationId = req.user?.organizationId;
 
     if (!organizationId) {
       res.status(401).json({
@@ -143,7 +143,7 @@ export async function save(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const result = await maimlService.saveMaiML(projectId, content, organizationId, options);
+    const result = await maimlService.saveMaiML(fileKey, content, organizationId);
 
     res.json({
       success: true,

@@ -23,7 +23,10 @@ import {
   CopyObjectCommandInput,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { DatabaseError } from 'pg';
 import { Readable } from 'stream';
+import { parseStringPromise } from 'xml2js';
+import { getPool } from '../database/db';
 
 // ストレージ設定の型定義
 interface StorageConfig {
@@ -50,6 +53,28 @@ interface UploadOptions {
   contentType?: string;
   metadata?: Record<string, string>;
   acl?: string;
+}
+
+interface MetaData {
+  document_uuid: string;
+  document_name: string;
+  document_description: string;
+  measurement_values: string[];
+  units: string[];
+  section_types: string[];
+  ids: string[];
+  refs: string[];
+  keys: string[];
+  elements: string[];
+  values: string[];
+}
+
+interface ExtractSingleFileResult {
+  success: boolean;
+  fileKey : string;
+  metadata? : MetaData;
+  error?: string;
+  stack?: string;
 }
 
 /**
@@ -383,6 +408,315 @@ export class StorageService {
    */
   getBucketName(): string {
     return this.bucketName;
+  }
+  
+  /**
+   * 単一ファイルのメタデータ抽出処理
+   */
+  async extractSingleFile(fileKey: string, organizationId : string) :Promise<ExtractSingleFileResult> {
+    console.log(`[🔍 Metadata Extractor] ファイル処理開始: ${fileKey}`);
+    
+    try {
+      // S3からファイル内容取得
+      const xmlContent = await this.getMaiMLContent(fileKey);
+      
+      // メタデータ抽出
+      const metadata = await this.extractMetadata(xmlContent);
+      
+      // DBに保存
+      const updated = await this.updateFileMetadata(fileKey, organizationId, metadata);
+      
+      if (updated) {
+        console.log(`[✅ Metadata Extractor] 成功: ${fileKey}`);
+        return { success: true, fileKey, metadata };
+      } else {
+        console.log(`[⚠️ Metadata Extractor] DBレコードなし: ${fileKey}`);
+        return { success: false, fileKey, error: 'No matching database record' };
+      }
+    } catch (error : any) {
+      console.error(`[❌ Metadata Extractor] エラー: ${fileKey}`);
+      console.error(`[❌ Metadata Extractor] エラーメッセージ:`, error.message);
+      console.error(`[❌ Metadata Extractor] エラースタック:`, error.stack);
+      console.error(`[❌ Metadata Extractor] エラー詳細:`, JSON.stringify(error, null, 2));
+      
+      // エラー状態を記録
+      try {
+        const pool = getPool();
+        await pool.query(
+          `UPDATE file_metadata 
+            SET maiml_metadata_extraction_status = 'failed',
+                maiml_metadata_extracted_at = CURRENT_TIMESTAMP
+            WHERE file_key = $1 AND organization_id = $2`,
+          [fileKey, organizationId]
+        );
+      } catch (dbError) {
+        if (dbError instanceof DatabaseError) {
+          console.error('[❌ Metadata Extractor] DB更新エラー:', dbError.message);
+          console.error('[❌ Metadata Extractor] DB更新エラースタック:', dbError.stack);
+        }
+      }
+      
+      return { success: false, fileKey, error: error.message, stack: error.stack };
+    }
+  }
+  
+  /**
+   * S3からMaiMLファイル内容を取得
+   */
+  async getMaiMLContent(key : string) {
+    const bucketName = process.env.S3_BUCKET_NAME;
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: key
+    });
+
+    const response = await this.s3Client.send(command);
+    const content = await response.Body!.transformToString();
+    return content;
+  }
+  
+  /**
+   * MaiML XMLをパースしてメタデータ抽出
+   */
+  async extractMetadata(xmlContent: string) : Promise<MetaData> {
+    try {
+      const parsedXML = await parseStringPromise(xmlContent, {
+        explicitArray: false,
+        mergeAttrs: true,
+        ignoreAttrs: false
+      });
+
+      const metadata : MetaData = {
+        document_uuid: '',
+        document_name: '',
+        document_description: '',
+        measurement_values: [],
+        units: [],
+        section_types: [],
+        ids: [],
+        refs: [],
+        keys: [],
+        elements: [],
+        values: []
+      };
+
+      // Document情報抽出
+      if (parsedXML.maiml?.document) {
+        const doc = parsedXML.maiml.document;
+        metadata.document_uuid = doc.uuid || doc['@_uuid'] || null;
+        metadata.document_name = doc.name || doc['@_name'] || null;
+        metadata.document_description = doc.description || null;
+      }
+
+      // 再帰的にXML全体を走査してメタデータ収集
+      this._extractFromNode(parsedXML, metadata);
+
+      // 重複削除
+      metadata.measurement_values = [...new Set(metadata.measurement_values)];
+      metadata.units = [...new Set(metadata.units)];
+      metadata.section_types = [...new Set(metadata.section_types)];
+      metadata.ids = [...new Set(metadata.ids)];
+      metadata.refs = [...new Set(metadata.refs)];
+      metadata.keys = [...new Set(metadata.keys)];
+      metadata.elements = [...new Set(metadata.elements)];
+      metadata.values = [...new Set(metadata.values)];
+
+      return metadata;
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error('[❌ Metadata Extractor] XMLパースエラー:', error.message);
+        console.error('[❌ Metadata Extractor] スタックトレース:', error.stack);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 再帰的にXMLノードを走査してメタデータ収集
+   */
+  _extractFromNode(node : any, metadata : MetaData, parentKey = '') {
+    if (!node || typeof node !== 'object') {
+      // プリミティブ値の場合、valuesに追加
+      if (node && String(node).trim()) {
+        metadata.values.push(String(node).trim());
+      }
+      return;
+    }
+
+    // 配列の場合
+    if (Array.isArray(node)) {
+      node.forEach(item => this._extractFromNode(item, metadata, parentKey));
+      return;
+    }
+
+    // オブジェクトの場合、各プロパティを処理
+    Object.keys(node).forEach(key => {
+      const value = node[key];
+
+      // Element名を収集（@_で始まらないキー）
+      if (!key.startsWith('@_') && !key.startsWith('$')) {
+        metadata.elements.push(key);
+      }
+
+      // 属性情報を収集
+      if (key === '@_id' && value) {
+        metadata.ids.push(String(value));
+      }
+      if (key === '@_ref' && value) {
+        metadata.refs.push(String(value));
+      }
+      if (key === '@_key' && value) {
+        metadata.keys.push(String(value));
+      }
+
+      // 測定値・単位を収集
+      if ((key === 'value' || key === '@_value' || parentKey === 'measurement') && value) {
+        const strValue = String(value).trim();
+        if (strValue && !isNaN(parseInt(strValue))) {
+          metadata.measurement_values.push(strValue);
+        }
+      }
+      if ((key === 'unit' || key === '@_unit' || key === 'units') && value) {
+        metadata.units.push(String(value));
+      }
+
+      // セクション種別を収集
+      if ((key === 'section' || key === 'sectionType' || key === '@_type') && value) {
+        metadata.section_types.push(String(value));
+      }
+
+      // 再帰的に子ノードを処理
+      if (typeof value === 'object') {
+        this._extractFromNode(value, metadata, key);
+      }
+    });
+  }
+  
+  /**
+   * file_metadataテーブルを更新（UPSERT）
+   */
+  async updateFileMetadata(fileKey: string, organizationId: string, metadata: MetaData) {
+    const pool = getPool();
+    // まず既存レコードを確認（file_keyのみで検索）
+    // 理由: file_keyにユニーク制約があり、organization_idが異なる可能性があるため
+    const checkQuery = `
+      SELECT id, organization_id FROM file_metadata 
+      WHERE file_key = $1
+    `;
+    const checkResult = await pool.query(checkQuery, [fileKey]);
+
+    if (checkResult.rows.length > 0) {
+      // 既存レコードのorganization_idをログ出力
+      const existingOrgId = checkResult.rows[0].organization_id;
+      if (existingOrgId !== organizationId) {
+        console.log(`[⚠️ Metadata Extractor] organization_id不一致: ${fileKey}`);
+        console.log(`[⚠️ Metadata Extractor] 既存=${existingOrgId}, 新=${organizationId}`);
+      }
+      
+      // レコードが存在する場合はUPDATE
+      // organization_idも更新対象に含める（ファイルの所属組織が変更された場合に対応）
+      const updateQuery = `
+        UPDATE file_metadata
+        SET 
+          organization_id = $1,
+          maiml_document_uuid = $2,
+          maiml_document_name = $3,
+          maiml_document_description = $4,
+          maiml_measurement_values = $5,
+          maiml_units = $6,
+          maiml_section_types = $7,
+          maiml_ids = $8,
+          maiml_refs = $9,
+          maiml_keys = $10,
+          maiml_elements = $11,
+          maiml_values = $12,
+          maiml_metadata_extracted_at = CURRENT_TIMESTAMP,
+          maiml_metadata_extraction_status = 'success'
+        WHERE file_key = $13
+        RETURNING id
+      `;
+
+      const values = [
+        organizationId,
+        metadata.document_uuid,
+        metadata.document_name,
+        metadata.document_description,
+        JSON.stringify(metadata.measurement_values),
+        JSON.stringify(metadata.units),
+        JSON.stringify(metadata.section_types),
+        JSON.stringify(metadata.ids),
+        JSON.stringify(metadata.refs),
+        JSON.stringify(metadata.keys),
+        JSON.stringify(metadata.elements),
+        JSON.stringify(metadata.values),
+        fileKey
+      ];
+
+      const result = await pool.query(updateQuery, values);
+      console.log(`[✅ Metadata Extractor] レコード更新: ${fileKey}`);
+      return  result.rowCount ? result.rowCount > 0 : false;
+    } else {
+      // レコードが存在しない場合はINSERT
+      const insertQuery = `
+        INSERT INTO file_metadata (
+          file_key,
+          organization_id,
+          s3_bucket,
+          original_filename,
+          file_size,
+          file_type,
+          uploaded_by,
+          is_maiml_file,
+          maiml_document_uuid,
+          maiml_document_name,
+          maiml_document_description,
+          maiml_measurement_values,
+          maiml_units,
+          maiml_section_types,
+          maiml_ids,
+          maiml_refs,
+          maiml_keys,
+          maiml_elements,
+          maiml_values,
+          maiml_metadata_extracted_at,
+          maiml_metadata_extraction_status,
+          created_at,
+          updated_at
+        ) VALUES (
+          $1, $2, $3, $4, 0, 'application/xml', 'system-metadata-extractor', true,
+          $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+          CURRENT_TIMESTAMP, 'success',
+          CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+        RETURNING id
+      `;
+
+      // ファイル名を抽出
+      const fileName = fileKey.split('/').pop();
+      const s3Bucket = process.env.S3_BUCKET_NAME || 'maiml-storage';
+
+      const values = [
+        fileKey,
+        organizationId,
+        s3Bucket,
+        fileName,
+        metadata.document_uuid,
+        metadata.document_name,
+        metadata.document_description,
+        JSON.stringify(metadata.measurement_values),
+        JSON.stringify(metadata.units),
+        JSON.stringify(metadata.section_types),
+        JSON.stringify(metadata.ids),
+        JSON.stringify(metadata.refs),
+        JSON.stringify(metadata.keys),
+        JSON.stringify(metadata.elements),
+        JSON.stringify(metadata.values)
+      ];
+
+      const result = await pool.query(insertQuery, values);
+      console.log(`[✅ Metadata Extractor] レコード新規作成: ${fileKey}`);
+      return  result.rowCount ? result.rowCount > 0 : false;
+    }
   }
 }
 

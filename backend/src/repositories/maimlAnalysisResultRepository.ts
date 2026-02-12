@@ -9,16 +9,16 @@ import { AnalysisResult } from '../types/maimlValidation';
 
 interface maimlAnalysysResult {
   id: number;
-  fileKey : string;
-  isValid : boolean;
+  file_key : string;
+  is_valid : boolean;
   version: number;
   namespace: string;
   errors : string;
   warnings: string;
   suggestions: string;
   statistics : string;
-  processingTime: number;
-  analysysTimestamp:string;
+  processing_time: number;
+  analysys_timestamp:string;
 }
 
 export async function insert(analysisResult : AnalysisResult) : Promise<maimlAnalysysResult> {

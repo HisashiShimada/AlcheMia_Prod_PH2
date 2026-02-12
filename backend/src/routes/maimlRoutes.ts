@@ -76,20 +76,11 @@ router.post(
   '/save',
   authMiddleware,
   [
-    body('projectId')
-      .notEmpty()
-      .withMessage('projectIdは必須です')
-      .isString()
-      .withMessage('projectIdは文字列である必要があります'),
     body('content')
       .notEmpty()
       .withMessage('contentは必須です')
       .isString()
       .withMessage('contentは文字列である必要があります'),
-    body('options')
-      .optional()
-      .isObject()
-      .withMessage('optionsはオブジェクトである必要があります'),
   ],
   maimlController.save
 );

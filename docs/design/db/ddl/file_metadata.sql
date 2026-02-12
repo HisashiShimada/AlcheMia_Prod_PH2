@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS file_metadata (
     maiml_places_count INTEGER,
     maiml_validation_result JSONB DEFAULT '{}'::jsonb,
     maiml_last_analyzed TIMESTAMP WITH TIME ZONE,
+    last_edit_timestamp TIMESTAMP WITH TIME ZONE,
     
     -- ============================================
     -- 管理情報

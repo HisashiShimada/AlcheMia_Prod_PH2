@@ -9,12 +9,13 @@ import {
 } from '@ant-design/icons';
 import Header from '../common/Header';
 import SubHeader, { MenuType } from '../common/SubHeader';
-import ProjectManagement, { ProjectEditParams } from '../project/ProjectManagement';
+import ProjectManagement from '../project/ProjectManagement';
 import FormatManagement from '../project/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
 import PetriNetEditorScreen from '../viewer/PetriNetEditorScreen';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ProjectEditParams } from '@/types/project';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -107,6 +108,7 @@ export default function ExperimentAdminMenu({
         projectName={editorProjectParams.projectName}
         projectOverview={editorProjectParams.projectOverview}
         onClose={handleCloseEditor}
+        sourceS3Key={editorProjectParams.sourceS3Key}
       />
     );
   }

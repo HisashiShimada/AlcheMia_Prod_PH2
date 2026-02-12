@@ -12,6 +12,8 @@ import * as crypto from 'crypto';
 import * as validationHistoryRepository from '../repositories/validationHistoryRepository';
 import { EditSession, ParseResult,AnalysisResult  } from '../types/maimlValidation';
 import * as maimlParser from '../utils/maimlParser';
+import { maimlSaveResult} from '../types/maimlEditor';
+import { FileMetadataRepository,FileMetadata } from '../repositories/fileMetadataRepository';
 
 const storageService = getStorageService();
 
@@ -69,30 +71,23 @@ export async function parseMaiML(content: string): Promise<ParseResult> {
  * Reference版のロジックを統合
  */
 export async function saveMaiML(
-  projectId: string,
+  fileKey: string,
   content: string,
   organizationId: string,
-  options: any = {}
-): Promise<any> {
+): Promise<maimlSaveResult> {
   try {
-    console.log('💾 [maimlService] MAIML保存開始:', projectId);
 
     // 1. バリデーション
     const validation = await validateMaiML(content, '');
-    if (!validation.isValid && options.strictValidation !== false) {
+    if (!validation.isValid) {
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
 
-    // 2. ファイルパス生成
-    const filePath = `projects/${projectId}/${projectId}.maiml`;
-
-    // 3. バックアップ作成（既存ファイルがあれば）
-    if (options.createBackup !== false) {
-      await createBackup(filePath, organizationId);
-    }
+    // ファイルのバックアップ
+    await createBackup(fileKey, organizationId);
 
     // 4. S3/Swiftアップロード
-    await storageService.uploadFile(organizationId, filePath, Buffer.from(content, 'utf-8'), {
+    await storageService.uploadFile(organizationId, fileKey, Buffer.from(content, 'utf-8'), {
       contentType: 'application/xml',
       metadata: {
         'edit-timestamp': new Date().toISOString(),
@@ -103,10 +98,48 @@ export async function saveMaiML(
     // 5. コンテンツハッシュ計算
     const contentHash = calculateContentHash(content);
 
-    console.log('✅ [maimlService] MAIML保存完了:', filePath);
+    console.log('✅ [maimlService] MAIML保存完了:', fileKey);
+
+    const fileMetadataRepository = new FileMetadataRepository();
+
+    const existingMetadata = await fileMetadataRepository.getFileMetadataByFileKey(fileKey);
+    if (existingMetadata) {
+      const updateData : FileMetadata = {
+        ...existingMetadata,
+        file_size: Buffer.byteLength(content, 'utf-8'),
+        updated_at: new Date(),
+        last_edit_timestamp: new Date()
+      };
+      await fileMetadataRepository.updateFileMetadata(fileKey,updateData);
+    } else {
+      // 新規ファイル: 作成（maimlMetadataExtractorが後で作成するのでスキップ）
+      console.log('ℹ️ [S3 Save] 新規ファイルのためDB作成はメタデータ抽出時に実行');
+    }
+    
+    // MaiMLファイルの場合、メタデータ自動抽出
+    let metadataExtracted = false;
+    if (fileKey.toLowerCase().endsWith('.maiml')) {
+      try {
+        console.log('🔍 [S3 Save] MaiMLメタデータ抽出開始:', fileKey);
+        
+        const extractResult = await storageService.extractSingleFile(fileKey, organizationId);
+        metadataExtracted = extractResult.success;
+        
+        if (metadataExtracted) {
+          console.log('✅ [S3 Save] MaiMLメタデータ抽出成功');
+        } else {
+          console.warn('⚠️ [S3 Save] MaiMLメタデータ抽出失敗:', extractResult.error);
+        }
+      } catch (metadataError) {
+        if (metadataError instanceof Error) {
+          console.error('❌ [S3 Save] MaiMLメタデータ抽出エラー:', metadataError.message);
+          // メタデータ抽出失敗しても保存は成功とする
+        }
+      }
+    }
 
     return {
-      filePath,
+      fileKey,
       size: Buffer.byteLength(content, 'utf-8'),
       lastModified: new Date().toISOString(),
       contentHash,
