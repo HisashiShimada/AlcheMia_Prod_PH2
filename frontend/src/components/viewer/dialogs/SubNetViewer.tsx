@@ -92,6 +92,22 @@ interface SubNetViewerProps {
     }>;
   };
   onClose: () => void;
+  // 複数method対応（Reference版から追加）
+  arcsData?: Array<{
+    id: string;
+    source: string;
+    target: string;
+  }> | null;
+  placesData?: Array<{
+    id: string;
+    data: {
+      label?: string;
+      stereotype?: string;
+      template?: { id: string };
+      templateId?: string;
+    };
+  }> | null;
+  multiMethodMode?: boolean;
 }
 
 /**
@@ -104,6 +120,9 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
   templateMap,
   petriNetData,
   onClose,
+  arcsData = null,
+  placesData = null,
+  multiMethodMode = false,
 }) => {
   const { token } = theme.useToken();
   
@@ -142,6 +161,79 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
   });
 
 
+  // テンプレート要素からプロパティを抽出する関数（Reference版から追加）
+  const extractTemplateProperties = useCallback((templateElement: Element | null, templateType: string) => {
+    if (!templateElement) {
+      console.error('❌ [SubNetViewer] テンプレート要素がありません');
+      return { id: 'unknown', type: templateType, name: '不明' };
+    }
+    
+    const properties: Record<string, unknown> = {
+      id: templateElement.getAttribute('id'),
+      type: templateType.charAt(0).toUpperCase() + templateType.slice(1),
+      name: templateElement.getAttribute('name') || '名称未設定',
+    };
+    
+    // 他の属性を追加
+    for (let i = 0; i < templateElement.attributes.length; i++) {
+      const attr = templateElement.attributes[i];
+      if (!['id', 'name'].includes(attr.name)) {
+        properties[attr.name] = attr.value;
+      }
+    }
+    
+    // 子要素をプロパティに追加
+    for (let i = 0; i < templateElement.children.length; i++) {
+      const child = templateElement.children[i];
+      const tagName = child.tagName;
+      
+      if (tagName === 'placeRef') {
+        if (!properties.placeRefs) {
+          properties.placeRefs = [];
+        }
+        (properties.placeRefs as string[]).push(child.getAttribute('ref') || '');
+        continue;
+      }
+      
+      let value: unknown = child.textContent?.trim() || '';
+      
+      // 数値変換を試行
+      if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value)) {
+        try {
+          value = parseFloat(value);
+        } catch (e) {
+          // パース失敗時は文字列のまま
+        }
+      }
+      
+      // Boolean変換
+      if (value === 'true') value = true;
+      if (value === 'false') value = false;
+      
+      // 子要素に属性がある場合はオブジェクト化
+      if (child.attributes.length > 0) {
+        const childObj: Record<string, unknown> = { _value: value };
+        for (let j = 0; j < child.attributes.length; j++) {
+          const childAttr = child.attributes[j];
+          childObj[childAttr.name] = childAttr.value;
+        }
+        value = childObj;
+      }
+      
+      // 同じタグ名が複数ある場合は配列化
+      if (properties[tagName]) {
+        if (!Array.isArray(properties[tagName])) {
+          properties[tagName] = [properties[tagName]];
+        }
+        (properties[tagName] as unknown[]).push(value);
+      } else {
+        properties[tagName] = value;
+      }
+    }
+    
+    return properties;
+  }, []);
+
   // MAIMLデータからサブネット情報を抽出
   useEffect(() => {
     if (!nodeName || !open) {
@@ -155,8 +247,18 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
         
         console.log(`🔍 [SubNetViewer] トランジション "${nodeName}" のサブネット抽出開始`);
         
+        // 複数method対応: arcsDataとplacesDataが渡された場合はそれを使用（Reference版ロジック）
+        let currentArcs = petriNetData.arcs;
+        let currentPlaces = petriNetData.places;
+        
+        if (multiMethodMode && arcsData && placesData) {
+          console.log(`🎯 [SubNetViewer] 渡されたデータを使用（複数methodモード）`);
+          currentArcs = arcsData;
+          currentPlaces = placesData;
+        }
+        
         // トランジションに接続されたアークをフィルタリング
-        const transitionArcs = petriNetData.arcs.filter((arc) => 
+        const transitionArcs = currentArcs.filter((arc) => 
           arc.source === nodeName || arc.target === nodeName
         );
         
@@ -278,54 +380,88 @@ const SubNetViewerInner: React.FC<SubNetViewerProps> = ({
     };
     
     fetchSubnetData();
-  }, [maimlData, nodeName, templateMap, petriNetData, setNodes, setEdges, open]);
+  }, [maimlData, nodeName, templateMap, petriNetData, setNodes, setEdges, open, multiMethodMode, arcsData, placesData]);
 
-  // ノードクリックハンドラー
+  // ノードクリックハンドラー（Reference版の extractTemplateProperties を使用）
   const handleNodeClick: NodeMouseHandler = useCallback((event, node) => {
     console.log('👆 [SubNetViewer] ノードクリック:', node.id, node.data.nodeType);
     
     setSelectedNodeId(node.id);
     setSelectedNode(node);
 
-    // 基本情報
-    const basicProperties: Record<string, PropertyObject> = {
-      id: { key: 'id', value: String(node.id), type: 'string', description: 'ノードID' },
-      type: { key: 'type', value: String(node.data.templateType || node.data.nodeType || 'place'), type: 'string', description: 'ノード種別' },
-      name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: 'ノード名' },
-    };
+    // PlaceノードかつTemplateの場合はextractTemplatePropertiesを使用
+    if (node.data.nodeType === 'place' && node.data.isTemplate && node.data.template) {
+      const extractedProps = extractTemplateProperties(
+        node.data.template.element,
+        node.data.templateType as string
+      );
+      
+      // 抽出されたプロパティを構造化形式に変換
+      const basicProperties: Record<string, PropertyObject> = {
+        id: { key: 'id', value: extractedProps.id, type: 'string', description: 'テンプレートID' },
+        type: { key: 'type', value: extractedProps.type, type: 'string', description: 'テンプレート種別' },
+        name: { key: 'name', value: extractedProps.name, type: 'string', description: 'テンプレート名' },
+      };
 
-    // テンプレートプロパティ
-    const templateProperties: Record<string, PropertyObject> = {};
-    if (node.data.properties && typeof node.data.properties === 'object') {
-      Object.entries(node.data.properties).forEach(([key, value]) => {
-        templateProperties[key] = {
-          key,
-          value: value || '値なし',
-          type: 'string',
-          description: '説明なし'
-        };
+      const templateProperties: Record<string, PropertyObject> = {};
+      Object.entries(extractedProps).forEach(([key, value]) => {
+        if (!['id', 'type', 'name'].includes(key)) {
+          templateProperties[key] = {
+            key,
+            value: value ?? '値なし',
+            type: typeof value,
+            description: key,
+          };
+        }
+      });
+
+      const dataProperties: Record<string, PropertyObject> = {
+        coordinates: {
+          key: 'coordinates',
+          value: `(${node.position.x.toFixed(2)}, ${node.position.y.toFixed(2)})`,
+          type: 'coordinates',
+          description: 'ノード座標',
+        },
+      };
+
+      setStructuredProperties({
+        basic: basicProperties,
+        template: templateProperties,
+        data: dataProperties,
       });
     }
+    // Transitionノードの場合
+    else if (node.data.nodeType === 'transition') {
+      const basicProperties: Record<string, PropertyObject> = {
+        id: { key: 'id', value: String(node.id), type: 'string', description: 'トランジションID' },
+        type: { key: 'type', value: 'Transition', type: 'string', description: 'ノード種別' },
+        name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: 'トランジション名' },
+      };
 
-    // データプロパティ
-    const dataProperties: Record<string, PropertyObject> = {
-      coordinates: {
-        key: 'coordinates',
-        value: `(${node.position.x.toFixed(2)}, ${node.position.y.toFixed(2)})`,
-        type: 'coordinates',
-        description: 'ノード座標'
-      }
-    };
+      setStructuredProperties({
+        basic: basicProperties,
+        template: {},
+        data: {},
+      });
+    }
+    // その他のノード
+    else {
+      const basicProperties: Record<string, PropertyObject> = {
+        id: { key: 'id', value: String(node.id), type: 'string', description: 'ノードID' },
+        type: { key: 'type', value: String(node.data.templateType || node.data.nodeType || 'place'), type: 'string', description: 'ノード種別' },
+        name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: 'ノード名' },
+      };
 
-    setStructuredProperties({
-      basic: basicProperties,
-      template: templateProperties,
-      data: dataProperties
-    });
+      setStructuredProperties({
+        basic: basicProperties,
+        template: {},
+        data: {},
+      });
+    }
     
     // 右ペインを開く
     setRightPanelOpen(true);
-  }, []);
+  }, [extractTemplateProperties]);
 
   // ビューポートリセット
   const handleResetView = useCallback(() => {

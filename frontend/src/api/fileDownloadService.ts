@@ -5,10 +5,7 @@
  * Requirements: 10
  */
 
-import axios, { AxiosError } from 'axios';
-
-// API Base URL（環境変数から取得、デフォルトは相対パス）
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+import { createApiClient } from '@/utils/authUtils';
 
 /**
  * ファイルダウンロードレスポンス型
@@ -35,73 +32,6 @@ export interface BulkDownloadResponse {
 }
 
 /**
- * APIエラーレスポンス型
- */
-interface ApiErrorResponse {
-  success: false;
-  error: {
-    code: string;
-    message: string;
-    details?: any[];
-  };
-  meta: {
-    timestamp: string;
-    requestId: string;
-  };
-}
-
-/**
- * Axiosインスタンスの作成
- * - 認証トークンとX-Organization-Idヘッダーを自動付与
- * - タイムアウト設定: 30秒
- */
-const createApiClient = () => {
-  const client = axios.create({
-    baseURL: API_BASE_URL,
-    timeout: 30000, // 30秒
-    withCredentials: true, // Cookie送信を有効化
-  });
-
-  // リクエストインターセプター
-  client.interceptors.request.use(
-    (config) => {
-      // 認証トークン（Cookie経由で自動送信）
-
-      // X-Organization-Idヘッダーを取得（localStorageから）
-      if (typeof window !== 'undefined') {
-        const organizationId = localStorage.getItem('organizationId');
-        if (organizationId && config.headers) {
-          config.headers['X-Organization-Id'] = organizationId;
-        }
-      }
-
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
-  );
-
-  // レスポンスインターセプター（エラーハンドリング）
-  client.interceptors.response.use(
-    (response) => response,
-    (error: AxiosError<ApiErrorResponse>) => {
-      // エラーレスポンスの整形
-      if (error.response?.data) {
-        const apiError = error.response.data;
-        throw new Error(apiError.error.message || 'APIエラーが発生しました');
-      } else if (error.request) {
-        throw new Error('サーバーに接続できませんでした');
-      } else {
-        throw new Error('リクエストの送信に失敗しました');
-      }
-    }
-  );
-
-  return client;
-};
-
-/**
  * 単一ファイルのダウンロード用署名付きURLを取得
  * 
  * @param projectId プロジェクトID
@@ -123,7 +53,7 @@ export const downloadFile = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/api/v1/projects/${projectId}/files/${encodeURIComponent(fileName)}/download`);
+    }>(`/projects/${projectId}/files/${encodeURIComponent(fileName)}/download`);
 
     return response.data.data;
   } catch (error) {
@@ -156,7 +86,7 @@ export const downloadAllFiles = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/api/v1/projects/${projectId}/files/download-all`, {
+    }>(`/projects/${projectId}/files/download-all`, {
       params: {
         page,
         limit,

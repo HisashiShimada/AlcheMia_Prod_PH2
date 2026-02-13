@@ -167,6 +167,8 @@
 |--------|--------|--------------|-----------|
 | DocumentEditDialog.tsx | ドキュメント編集ダイアログ | frontend/src/components/editor/DocumentEditDialog.tsx | MAIMLドキュメント編集ダイアログ |
 | TemplateEditorDialog.tsx | テンプレート編集ダイアログ | frontend/src/components/editor/TemplateEditorDialog.tsx | テンプレート編集ダイアログ（Material/Condition/Result） |
+| TemplateListView.tsx | テンプレート一覧ビュー | frontend/src/components/editor/TemplateListView.tsx | テンプレート一覧表示（カテゴリ別・エラーバッジ付き） |
+| TemplateListItem.tsx | テンプレート一覧アイテム | frontend/src/components/editor/TemplateListItem.tsx | テンプレート詳細表示アイテム |
 | MultiObjectEditor.tsx | 複数オブジェクトエディタ | frontend/src/components/editor/MultiObjectEditor.tsx | 複数オブジェクト一括編集エディタ |
 | DraftManager.tsx | ドラフト管理 | frontend/src/components/editor/DraftManager.tsx | 編集内容の一時保存・復元機能 |
 | DraftRestoreDialog.tsx | ドラフト復元ダイアログ | frontend/src/components/viewer/DraftRestoreDialog.tsx | ドラフト復元ダイアログ |
@@ -311,10 +313,12 @@
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
-| 2026-01-09 | 初版作成 - 全コンポーネントファイルをロール別に登録 | Cline |
-| 2026-01-09 | システム管理者用・データ管理者用・プロバイダ用のモックコンポーネントを追加 | Cline |
-| 2026-01-16 | 実装ファイルとの差分を更新 - ExperimentWorker実験記録関連コンポーネント追加（InstructionFlowDialog、TransitionFlowDiagram、TransitionFlowNode、TaskListTable）、System Admin用モック追加（CompanyManagement、RoleManagement） | Cline |
+| 2026-01-27 | MAIML編集機能統合完了 - TemplateListView.tsx, TemplateListItem.tsx追加 | Cline |
+| | | Phase 4-7完了により、PetriNetEditor関連コンポーネントが完全統合 | |
 | 2026-01-21 | TaskSelector.tsx を未使用として明記、MethodTaskSelector.tsx が代替コンポーネントであることを明示 | Cline |
+| 2026-01-16 | 実装ファイルとの差分を更新 - ExperimentWorker実験記録関連コンポーネント追加（InstructionFlowDialog、TransitionFlowDiagram、TransitionFlowNode、TaskListTable）、System Admin用モック追加（CompanyManagement、RoleManagement） | Cline |
+| 2026-01-09 | システム管理者用・データ管理者用・プロバイダ用のモックコンポーネントを追加 | Cline |
+| 2026-01-09 | 初版作成 - 全コンポーネントファイルをロール別に登録 | Cline |
 
 ---
 

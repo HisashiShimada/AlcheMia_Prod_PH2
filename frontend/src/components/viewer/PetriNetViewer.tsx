@@ -38,7 +38,7 @@ import { Drawer } from 'antd';
 
 // ユーティリティ
 import { parseMaimlToPetriNet } from '../../utils/maimlParser';
-import { convertToReactFlow } from '../../utils/reactFlowConverter';
+import { convertToReactFlowFormat } from '../../utils/reactFlowConverter';
 
 const { Title, Text } = Typography;
 
@@ -216,7 +216,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
       setTemplateMap(newTemplateMap);
       
       // React Flow形式に変換
-      const { nodes: flowNodes, edges: flowEdges } = convertToReactFlow(structure);
+      const { nodes: flowNodes, edges: flowEdges } = convertToReactFlowFormat(structure);
       
       setNodes(flowNodes);
       setEdges(flowEdges);

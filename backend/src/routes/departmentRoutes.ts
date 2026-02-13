@@ -38,7 +38,7 @@ router.use(cors(corsOptions));
 
 /**
  * Department一覧取得
- * GET /api/v1/systemManagement/department
+ * GET /systemManagement/department
  */
 router.get(
   '/department',
@@ -67,7 +67,7 @@ router.get(
 
 /**
  * DepartmentCSVダウンロード
- * GET /api/v1/systemManagement/department/download-csv
+ * GET /systemManagement/department/download-csv
  * 
  * 注意: このルートは /department/:departmentCd より前に定義する必要がある
  */
@@ -80,7 +80,7 @@ router.get(
 
 /**
  * DepartmentCSVアップロード
- * POST /api/v1/systemManagement/department/upload-csv
+ * POST /systemManagement/department/upload-csv
  * 
  * 注意: このルートは /department/:departmentCd より前に定義する必要がある
  */
@@ -94,7 +94,7 @@ router.post(
 
 /**
  * Department CD指定で1件取得
- * GET /api/v1/systemManagement/department/:departmentCd
+ * GET /systemManagement/department/:departmentCd
  */
 router.get(
   '/department/:departmentCd',
@@ -112,7 +112,7 @@ router.get(
 
 /**
  * Departmentを新規作成
- * POST /api/v1/systemManagement/department
+ * POST /systemManagement/department
  */
 router.post(
   '/department',
@@ -139,7 +139,7 @@ router.post(
 
 /**
  * Departmentを更新
- * PUT /api/v1/systemManagement/department/:departmentCd
+ * PUT /systemManagement/department/:departmentCd
  */
 router.put(
   '/department/:departmentCd',
@@ -165,7 +165,7 @@ router.put(
 
 /**
  * Departmentのアクティブ状態を更新
- * PATCH /api/v1/systemManagement/department/:departmentCd/status
+ * PATCH /systemManagement/department/:departmentCd/status
  */
 router.patch(
   '/department/:departmentCd/status',

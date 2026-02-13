@@ -68,28 +68,67 @@ export default function Home() {
       // バックエンドAPIにログインリクエスト（開発環境用: URLのorgIdを渡す）
       const response = await authService.login(credentials, orgIdFromUrl);
 
-      // ログイン成功 - PINコード送信完了
+      // ログイン成功
       console.log('Login successful:', response);
 
-      // 仮セッショントークンと組織IDを保存
-      setSessionToken(response.sessionToken);
-      setOrganizationId(credentials.organizationId);
-      setMaskedEmail(response.email);
-
-      // SessionStorageに保存（authServiceのインターセプターが参照）
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('sessionToken', response.sessionToken);
-      }
-
-      // 開発環境の場合、PINコードをsessionStorageに保存
-      if (response.devMode && response.pinCode) {
+      // 免除適用チェック: session.token が存在する場合は免除適用（直接認証完了）
+      if (response.session?.token && response.user) {
+        console.log('[INFO] PIN免除適用 - 直接認証完了');
+        
+        // ユーザー情報とセッショントークンをSessionStorageに保存
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('devPinCode', response.pinCode);
+          sessionStorage.setItem('sessionToken', response.session.token);
+          sessionStorage.setItem('userInfo', JSON.stringify(response.user));
         }
-      }
 
-      // PINコード入力画面へ遷移
-      setAuthStep('pin-code');
+        // 一時パスワードでログインした場合
+        if (response.passwordChangeRequired) {
+          console.log('[INFO] 一時パスワードでログイン - パスワード変更モーダルを表示');
+          
+          // メニュー遷移に必要な情報を保存
+          setPendingRedirectData({
+            user: response.user,
+            menuType: response.user.initialScreenFunctionCd,
+          });
+          
+          // パスワード変更モーダルを表示
+          setShowChangePasswordModal(true);
+        } else {
+          // 通常のパスワードでログイン - メニュー画面へ遷移
+          setCurrentUser(response.user);
+          setCurrentMenuType(response.user.initialScreenFunctionCd);
+          setAuthStep('authenticated');
+          
+          messageApi.success('ログインに成功しました');
+        }
+      } else if (response.sessionToken && response.email) {
+        // 免除非適用 - PINコード認証フロー
+        console.log('[INFO] PIN免除非適用 - PINコード入力画面へ遷移');
+        
+        // 仮セッショントークンと組織IDを保存
+        setSessionToken(response.sessionToken);
+        setOrganizationId(credentials.organizationId);
+        setMaskedEmail(response.email);
+
+        // SessionStorageに保存（authServiceのインターセプターが参照）
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('sessionToken', response.sessionToken);
+        }
+
+        // 開発環境の場合、PINコードをsessionStorageに保存
+        if (response.devMode && response.pinCode) {
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('devPinCode', response.pinCode);
+          }
+        }
+
+        // PINコード入力画面へ遷移
+        setAuthStep('pin-code');
+      } else {
+        // 予期しないレスポンス形式
+        console.error('[ERROR] 予期しないレスポンス形式:', response);
+        setError('予期しないレスポンスが返されました');
+      }
     } catch (err) {
       // エラーハンドリング
       if (err instanceof AuthServiceError) {
@@ -478,6 +517,11 @@ export default function Home() {
           error={error}
           loading={loading}
         />
+        {/* パスワード変更モーダル（一時パスワードでログイン時に表示） */}
+        <ChangePasswordModal
+          open={showChangePasswordModal}
+          onSuccess={handleChangePasswordSuccess}
+        />
       </>
     );
   }
@@ -496,6 +540,11 @@ export default function Home() {
           onResend={handleResendPin}
           error={error}
           loading={loading}
+        />
+        {/* パスワード変更モーダル（一時パスワードでログイン時に表示） */}
+        <ChangePasswordModal
+          open={showChangePasswordModal}
+          onSuccess={handleChangePasswordSuccess}
         />
       </>
     );
