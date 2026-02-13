@@ -1,0 +1,1 @@
+../../docs/references/db_structure.md
