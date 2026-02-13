@@ -78,9 +78,9 @@ export async function issueSessionTokens(
     ? userInfoResult.rows[0].corporation_id || null
     : null;
 
-  // 2. roleテーブルから初期画面機能CDを取得
+  // 2. roleテーブルから初期画面機能CDとロール名を取得
   const roleQuery = `
-    SELECT initial_screen_function_cd
+    SELECT initial_screen_function_cd, role_name
     FROM role
     WHERE organization_id = $1 AND role_cd = $2
   `;
@@ -89,6 +89,10 @@ export async function issueSessionTokens(
   const initialScreenFunctionCd = roleResult.rows.length > 0 
     ? roleResult.rows[0].initial_screen_function_cd?.trim() || null
     : null;
+  
+  const roleName = roleResult.rows.length > 0 
+    ? roleResult.rows[0].role_name?.trim() || user.role_cd
+    : user.role_cd;
 
   // 3. パスワード期限と種別のチェック
   const authQuery = `
@@ -193,7 +197,7 @@ export async function issueSessionTokens(
         id: user.user_id,
         username: user.user_name,
         email: user.mail_address,
-        roleName: user.role_cd,
+        roleName: roleName,
         roleCd: user.role_cd,
         organizationId: user.organization_id,
         organizationName: organizationName,

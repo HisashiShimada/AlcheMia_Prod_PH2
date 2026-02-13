@@ -7,6 +7,10 @@ import { EmailService } from '../services/emailService';
 import { JwtService } from '../services/jwtService';
 import { RefreshTokenService } from '../services/refreshTokenService';
 import { RolePermissionRepository } from '../repositories/rolePermissionRepository';
+import { OrganizationUserRepository } from '../repositories/organizationUserRepository';
+import { UserAuthenticationRepository } from '../repositories/userAuthenticationRepository';
+import { PasswordResetTokenRepository } from '../repositories/passwordResetTokenRepository';
+import { getInitialScreenFunctionCd } from '../repositories/roleRepository';
 import { v4 as uuidv4 } from 'uuid';
 import type { UserRole } from '../types/service';
 import { logError } from '../utils/logger';
@@ -38,8 +42,9 @@ export async function login(req: Request, res: Response): Promise<void> {
   const pool = getPool();
   const requestId = uuidv4();
 
-  // Initialize services with pool
+  // Initialize services and repositories with pool
   const passwordService = new PasswordService(pool);
+  const organizationUserRepository = new OrganizationUserRepository();
   // 開発環境ではメール送信をスキップ
   const emailServiceForPin = process.env.NODE_ENV === 'development' ? undefined : emailService;
   const pinCodeService = new PinCodeService(pool, emailServiceForPin);
@@ -52,86 +57,28 @@ export async function login(req: Request, res: Response): Promise<void> {
   const userAgent = req.headers['user-agent'] || 'unknown';
 
   try {
-    // 1. バリデーション
+    // 1. パラメータ取得（バリデーションはミドルウェアで処理済み）
     const { userId, password } = req.body;
-    const organizationId = req.query.orgId as string | undefined;
+    const organizationId = req.query.orgId as string;
 
-    // 必須パラメータチェック
-    if (!userId || !password) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '必須パラメータが不足しています',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
+    // 2. ユーザー検索（Repository経由）
+    const userResult = await organizationUserRepository.findByUserId(
+      pool,
+      userId,
+      organizationId
+    );
 
-    if (!organizationId) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '組織IDヘッダーが必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 2. ユーザー検索（ユーザーIDで検索）
-    const userQuery = `
-      SELECT 
-        ou.user_id,
-        ou.user_name,
-        ou.mail_address,
-        ou.role_cd,
-        ou.organization_id,
-        ou.is_active,
-        ou.locked_until,
-        ou.department_cd,
-        o.corporation_id
-      FROM organization_user ou
-      LEFT JOIN organization o ON ou.organization_id = o.organization_id
-      WHERE ou.user_id = $1 AND ou.organization_id = $2
-    `;
-    
-    const userResult = await pool.query(userQuery, [userId, organizationId]);
-    console.log(userResult.rows.length)
-
-    if (userResult.rows.length === 0) {
-      // ユーザー不存在 - ログイン履歴に記録
-      const historyQuery = `
-        INSERT INTO login_history (
-          user_name, 
-          organization_id, 
-          login_at, 
-          login_sf, 
-          failure_reason,
-          ip_address,
-          user_agent,
-          create_user_id,
-          create_at
-        )
-        VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
-      `;
-      await pool.query(historyQuery, [
+    if (!userResult.success) {
+      // ユーザー不存在 - ログイン履歴に記録（Repository経由）
+      await loginHistoryRepository.recordLogin(
+        pool,
         userId,
         organizationId,
         false,
         'User not found',
         ipAddress,
-        userAgent,
-        'SYSTEM',
-      ]);
+        userAgent
+      );
 
       // ユーザーが存在しない場合も同じエラーメッセージ（情報漏洩防止）
       res.status(401).json({
@@ -148,35 +95,21 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const user = userResult.rows[0];
+    const user = userResult.data;
     console.log(user.role_cd)
 
     // 3. アカウント有効性チェック
     if (!user.is_active) {
-      // アカウント無効 - ログイン履歴に記録
-      const historyQuery = `
-        INSERT INTO login_history (
-          user_name, 
-          organization_id, 
-          login_at, 
-          login_sf, 
-          failure_reason,
-          ip_address,
-          user_agent,
-          create_user_id,
-          create_at
-        )
-        VALUES ($1, $2, NOW(), $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
-      `;
-      await pool.query(historyQuery, [
+      // アカウント無効 - ログイン履歴に記録（Repository経由）
+      await loginHistoryRepository.recordLogin(
+        pool,
         user.user_name,
         user.organization_id,
         false,
         'Account disabled',
         ipAddress,
-        userAgent,
-        'SYSTEM',
-      ]);
+        userAgent
+      );
 
       res.status(403).json({
         success: false,
@@ -247,8 +180,13 @@ export async function login(req: Request, res: Response): Promise<void> {
 
       console.log(`[INFO] PIN exemption applied: user_id=${user.user_id}, reason=${exemptionCheck.data.reason}`);
 
-      // 共通ヘルパーでトークン発行
-      await issueSessionTokens(pool, user, req, res, requestId, true);
+      // 共通ヘルパーでトークン発行（nullをundefined/空文字に変換）
+      const userDataForToken = {
+        ...user,
+        department_cd: user.department_cd ?? '',
+        corporation_id: user.corporation_id ?? undefined,
+      };
+      await issueSessionTokens(pool, userDataForToken, req, res, requestId, true);
       return;
     }
 
@@ -289,27 +227,16 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 6. ログイン成功履歴記録
-    const successHistoryQuery = `
-      INSERT INTO login_history (
-        user_name, 
-        organization_id, 
-        login_at, 
-        login_sf,
-        ip_address,
-        user_agent,
-        create_user_id,
-        create_at
-      )
-      VALUES ($1, $2, NOW(), $3, $4, $5, $1, CURRENT_TIMESTAMP)
-    `;
-    await pool.query(successHistoryQuery, [
+    // 6. ログイン成功履歴記録（Repository経由）
+    await loginHistoryRepository.recordLogin(
+      pool,
       user.user_name,
       user.organization_id,
       true,
+      null,
       ipAddress,
-      userAgent,
-    ]);
+      userAgent
+    );
 
     // 8. 成功レスポンス
     const responseData: any = {
@@ -395,90 +322,28 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
   const pool = getPool();
   const requestId = uuidv4();
 
-  // Initialize services with pool
+  // Initialize services and repositories with pool
   const passwordService = new PasswordService(pool);
+  const organizationUserRepository = new OrganizationUserRepository();
 
   try {
-    // 1. バリデーション
+    // 1. パラメータ取得（バリデーションはミドルウェアで処理済み）
     const { email } = req.body;
-    const organizationId = req.query.orgId as string | undefined;
+    const organizationId = req.query.orgId as string;
 
-    // 必須パラメータチェック
-    if (!email) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '必須パラメータが不足しています',
-          details: [
-            { field: 'email', message: 'メールアドレスは必須です', code: 'REQUIRED_FIELD' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    if (!organizationId) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '組織IDヘッダーが必要です',
-          details: [
-            { field: 'X-Organization-Id', message: '組織IDヘッダーは必須です', code: 'REQUIRED_HEADER' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 入力値バリデーション
-    if (email.length > 100) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'メールアドレスは100文字以内である必要があります',
-          details: [
-            { field: 'email', message: 'メールアドレスは100文字以内です', code: 'MAX_LENGTH_EXCEEDED' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 2. ユーザー検索（メールアドレスで検索）
-    const userQuery = `
-      SELECT 
-        user_id,
-        user_name,
-        mail_address,
-        role_cd,
-        organization_id
-      FROM organization_user
-      WHERE mail_address = $1 AND organization_id = $2
-    `;
-    
-    const userResult = await pool.query(userQuery, [email, organizationId]);
+    // 2. ユーザー検索（Repository経由）
+    const userResult = await organizationUserRepository.findByEmail(
+      pool,
+      email,
+      organizationId
+    );
 
     // 3. 一時パスワード発行（ユーザーが存在する場合のみ）
     let maskedEmail = 'use***@example.com'; // デフォルト値（情報漏洩防止）
     let tempPassword = ''; // 一時パスワード（開発環境で返却用）
 
-    if (userResult.rows.length > 0) {
-      const user = userResult.rows[0];
+    if (userResult.success) {
+      const user = userResult.data;
       maskedEmail = maskEmail(user.mail_address);
 
       // 一時パスワード生成
@@ -502,21 +367,14 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
         return;
       }
 
-      // user_authenticationテーブルを更新（一時パスワードフラグをtrueに設定）
-      const updateQuery = `
-        UPDATE user_authentication
-        SET password = $1,
-            password_expires_at = NOW() + INTERVAL '24 hours',
-            is_temporary_flg = true,
-            update_at = NOW()
-        WHERE user_id = $2 AND organization_id = $3
-      `;
-      
-      await pool.query(updateQuery, [
-        hashResult.data,
+      // user_authenticationテーブルを更新（Repository経由）
+      const userAuthenticationRepository = new UserAuthenticationRepository();
+      await userAuthenticationRepository.updateAsTemporary(
+        pool,
         user.user_id,
         user.organization_id,
-      ]);
+        hashResult.data
+      );
 
       // 4. メール送信（開発環境ではスキップ）
       if (process.env.NODE_ENV !== 'development') {
@@ -557,7 +415,7 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
     };
 
     // 開発環境の場合のみ一時パスワードを含める（開発効率化のため）
-    if (process.env.NODE_ENV === 'development' && userResult.rows.length > 0) {
+    if (process.env.NODE_ENV === 'development' && userResult.success) {
       responseData.tempPassword = tempPassword;
       responseData.devMode = true;
     }
@@ -659,90 +517,29 @@ export async function resendPin(req: Request, res: Response): Promise<void> {
   const pool = getPool();
   const requestId = uuidv4();
 
-  // Initialize services with pool
+  // Initialize services and repositories with pool
   // 開発環境ではメール送信をスキップ
   const emailServiceForPin = process.env.NODE_ENV === 'development' ? undefined : emailService;
   const pinCodeService = new PinCodeService(pool, emailServiceForPin);
+  const organizationUserRepository = new OrganizationUserRepository();
 
   try {
-    // 1. バリデーション
+    // 1. パラメータ取得（バリデーションはミドルウェアで処理済み）
     const authHeader = req.headers.authorization as string;
-    const organizationId = req.query.orgId as string | undefined;
-
-    // 必須ヘッダーチェック
-    if (!authHeader) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Authorizationヘッダーが必要です',
-          details: [
-            { field: 'Authorization', message: 'Authorizationヘッダーは必須です', code: 'REQUIRED_HEADER' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    if (!organizationId) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '組織IDヘッダーが必要です',
-          details: [
-            { field: 'X-Organization-Id', message: '組織IDヘッダーは必須です', code: 'REQUIRED_HEADER' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
+    const organizationId = req.query.orgId as string;
 
     // Authorizationヘッダーからトークン抽出
     const tokenMatch = authHeader.match(/^Bearer (.+)$/);
-    if (!tokenMatch) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Authorizationヘッダーの形式が不正です',
-          details: [
-            { field: 'Authorization', message: 'Bearer スキームが必要です', code: 'INVALID_FORMAT' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
+    const sessionToken = tokenMatch![1];
 
-    const sessionToken = tokenMatch[1];
+    // 2. セッショントークンからユーザー情報を取得（Repository経由）
+    const userInfoResult = await organizationUserRepository.findBySessionToken(
+      pool,
+      sessionToken,
+      organizationId
+    );
 
-    // 2. pin_codesテーブルからユーザー情報を取得
-    const userInfoQuery = `
-      SELECT 
-        pc.user_id,
-        pc.organization_id,
-        ou.user_name,
-        ou.mail_address
-      FROM pin_codes pc
-      JOIN organization_user ou ON pc.user_id = ou.user_id AND pc.organization_id = ou.organization_id
-      WHERE pc.session_token = $1 AND pc.organization_id = $2
-    `;
-
-    const userInfoResult = await pool.query(userInfoQuery, [sessionToken, organizationId]);
-
-    if (userInfoResult.rows.length === 0) {
+    if (!userInfoResult.success) {
       res.status(401).json({
         success: false,
         error: {
@@ -757,7 +554,7 @@ export async function resendPin(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const userInfo = userInfoResult.rows[0];
+    const userInfo = userInfoResult.data;
 
     // 3. 既存のPINコード削除
     await pinCodeService.delete(sessionToken);
@@ -831,75 +628,18 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
   const pool = getPool();
   const requestId = uuidv4();
 
-  // Initialize services with pool
+  // Initialize services and repositories with pool
   const passwordService = new PasswordService(pool);
+  const passwordResetTokenRepository = new PasswordResetTokenRepository();
 
   try {
-    // 1. バリデーション
+    // 1. パラメータ取得（バリデーションはミドルウェアで処理済み）
     const { resetToken, newPassword } = req.body;
 
-    // 必須パラメータチェック
-    if (!resetToken) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Reset token is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
+    // 2. リセットトークン検証（Repository経由）
+    const tokenResult = await passwordResetTokenRepository.findByToken(pool, resetToken);
 
-    if (!newPassword) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'New password is required',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // パスワード長チェック
-    if (newPassword.length < 8) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Password must be at least 8 characters',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 2. リセットトークン検証
-    const tokenQuery = `
-      SELECT 
-        user_id,
-        organization_id,
-        role_cd,
-        expires_at,
-        is_used
-      FROM password_reset_tokens
-      WHERE reset_token = $1
-    `;
-
-    const tokenResult = await pool.query(tokenQuery, [resetToken]);
-
-    if (tokenResult.rows.length === 0) {
+    if (!tokenResult.success) {
       res.status(400).json({
         success: false,
         error: {
@@ -914,7 +654,7 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const tokenData = tokenResult.rows[0];
+    const tokenData = tokenResult.data;
 
     // 有効期限チェック
     const now = new Date();
@@ -990,12 +730,8 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // 5. リセットトークン削除
-    const deleteQuery = `
-      DELETE FROM password_reset_tokens
-      WHERE reset_token = $1
-    `;
-    await pool.query(deleteQuery, [resetToken]);
+    // 5. リセットトークン削除（Repository経由）
+    await passwordResetTokenRepository.deleteByToken(pool, resetToken);
 
     // 6. 成功レスポンス
     res.status(200).json({
@@ -1038,78 +774,13 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
   const pinCodeService = new PinCodeService(pool);
 
   try {
-    // 1. バリデーション
+    // 1. パラメータ取得（バリデーションはミドルウェアで処理済み）
     const { pinCode } = req.body;
     const authHeader = req.headers.authorization as string;
-    const organizationId = req.query.orgId as string | undefined;
-
-    // 必須パラメータチェック
-    if (!pinCode) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '必須パラメータが不足しています',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    if (!authHeader) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Authorizationヘッダーが必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    if (!organizationId) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '組織IDヘッダーが必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
 
     // Authorizationヘッダーからトークン抽出
     const tokenMatch = authHeader.match(/^Bearer (.+)$/);
-    if (!tokenMatch) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Authorizationヘッダーの形式が不正です',
-          details: [
-            { field: 'Authorization', message: 'Bearer スキームが必要です', code: 'INVALID_FORMAT' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const sessionToken = tokenMatch[1];
+    const sessionToken = tokenMatch![1];
 
     // 2. PINコード検証（ユーザー情報を含む）
     const verifyResult = await pinCodeService.verify(pinCode, sessionToken);
@@ -1147,33 +818,28 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
 
     const userInfo = verifyResult.data;
 
-    // 2.5. roleテーブルから初期画面機能CDを取得
-    const roleQuery = `
-      SELECT initial_screen_function_cd
-      FROM role
-      WHERE organization_id = $1 AND role_cd = $2
-    `;
-    const roleResult = await pool.query(roleQuery, [userInfo.organizationId, userInfo.roleCd]);
-    
-    // 初期画面機能CDをユーザー情報に追加（取得できた値をそのまま設定）
-    userInfo.initialScreenFunctionCd = roleResult.rows.length > 0 
-      ? roleResult.rows[0].initial_screen_function_cd?.trim() || null
-      : null;
+    // 2.5. roleテーブルから初期画面機能CDを取得（Repository経由）
+    const initialScreenFunctionCd = await getInitialScreenFunctionCd(
+      userInfo.organizationId,
+      userInfo.roleCd
+    );
+    // nullの場合は空文字に変換
+    userInfo.initialScreenFunctionCd = initialScreenFunctionCd ?? '';
 
-    // 2.6. パスワード期限と種別のチェック
-    const authQuery = `
-      SELECT is_temporary_flg, password_expires_at
-      FROM user_authentication
-      WHERE user_id = $1 AND organization_id = $2
-    `;
-    const authResult = await pool.query(authQuery, [userInfo.id, userInfo.organizationId]);
+    // 2.6. パスワード期限と種別のチェック（Repository経由）
+    const userAuthenticationRepository = new UserAuthenticationRepository();
+    const authResult = await userAuthenticationRepository.getPasswordStatus(
+      pool,
+      userInfo.id,
+      userInfo.organizationId
+    );
     
     let passwordChangeRequired = false;
     let isPasswordExpired = false;
     let isTemporaryPassword = false;
 
-    if (authResult.rows.length > 0) {
-      const authData = authResult.rows[0];
+    if (authResult.success) {
+      const authData = authResult.data;
       isTemporaryPassword = authData.is_temporary_flg || false;
       
       const now = new Date();
@@ -1349,53 +1015,16 @@ export async function changePassword(req: Request, res: Response): Promise<void>
   const pool = getPool();
   const requestId = uuidv4();
 
-  // Initialize services with pool
+  // Initialize services and repositories with pool
   const passwordService = new PasswordService(pool);
+  const organizationUserRepository = new OrganizationUserRepository();
+  const userAuthenticationRepository = new UserAuthenticationRepository();
 
   try {
-    // 1. バリデーション
+    // 1. パラメータ取得（バリデーションはミドルウェアで処理済み）
     const { currentPassword, newPassword } = req.body;
     const userId = req.user!.userId;
     const organizationId = req.user!.organizationId;
-
-    // 必須パラメータチェック
-    if (!currentPassword || !newPassword) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '必須パラメータが不足しています',
-          details: [
-            { field: 'currentPassword', message: '現在のパスワードは必須です', code: 'REQUIRED_FIELD' },
-            { field: 'newPassword', message: '新しいパスワードは必須です', code: 'REQUIRED_FIELD' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 新しいパスワードのバリデーション
-    if (newPassword.length < 8) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: '新しいパスワードは8文字以上である必要があります',
-          details: [
-            { field: 'newPassword', message: 'パスワードは8文字以上です', code: 'MIN_LENGTH' },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
 
     // 2. 現在のパスワードを検証
     const verifyResult = await passwordService.verify(
@@ -1419,15 +1048,14 @@ export async function changePassword(req: Request, res: Response): Promise<void>
       return;
     }
 
-    // 3. ユーザーのrole_cdを取得
-    const userQuery = `
-      SELECT role_cd
-      FROM organization_user
-      WHERE user_id = $1 AND organization_id = $2
-    `;
-    const userResult = await pool.query(userQuery, [userId, organizationId]);
+    // 3. ユーザーのrole_cdを取得（Repository経由）
+    const userResult = await organizationUserRepository.findByUserId(
+      pool,
+      userId,
+      organizationId
+    );
 
-    if (userResult.rows.length === 0) {
+    if (!userResult.success) {
       res.status(404).json({
         success: false,
         error: {
@@ -1442,7 +1070,7 @@ export async function changePassword(req: Request, res: Response): Promise<void>
       return;
     }
 
-    const roleCd = userResult.rows[0].role_cd;
+    const roleCd = userResult.data.role_cd;
 
     // 4. 新しいパスワードをハッシュ化
     const hashResult = await passwordService.hash(newPassword, roleCd as UserRole);
@@ -1462,21 +1090,13 @@ export async function changePassword(req: Request, res: Response): Promise<void>
       return;
     }
 
-    // 5. パスワードを更新（password_expires_atをNULL、is_temporary_flgをfalseに設定）
-    const updateQuery = `
-      UPDATE user_authentication
-      SET password = $1,
-          password_expires_at = NULL,
-          is_temporary_flg = false,
-          update_at = NOW()
-      WHERE user_id = $2 AND organization_id = $3
-    `;
-    
-    await pool.query(updateQuery, [
-      hashResult.data,
+    // 5. パスワードを更新（Repository経由）
+    await userAuthenticationRepository.clearPasswordExpiry(
+      pool,
       userId,
       organizationId,
-    ]);
+      hashResult.data
+    );
 
     console.log(`[INFO] パスワード変更成功: user_id=${userId}`);
 
@@ -1525,6 +1145,9 @@ export async function changePassword(req: Request, res: Response): Promise<void>
 export async function refreshToken(req: Request, res: Response): Promise<void> {
   const pool = getPool();
   const requestId = uuidv4();
+
+  // Initialize repositories
+  const organizationUserRepository = new OrganizationUserRepository();
 
   // IPアドレスとUser-Agentを取得
   const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0] 
@@ -1609,27 +1232,14 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 4. ユーザー情報とロール情報、組織名を取得
-    const userQuery = `
-      SELECT 
-        ou.user_id,
-        ou.user_name,
-        ou.mail_address,
-        ou.role_cd,
-        ou.organization_id,
-        ou.is_active,
-        ou.department_cd,
-        r.initial_screen_function_cd,
-        o.organization_name
-      FROM organization_user ou
-      JOIN role r ON ou.role_cd = r.role_cd AND ou.organization_id = r.organization_id
-      LEFT JOIN organization o ON ou.organization_id = o.organization_id
-      WHERE ou.user_id = $1 AND ou.organization_id = $2
-    `;
-    
-    const userResult = await pool.query(userQuery, [payload.userId, payload.organizationId]);
+    // 4. ユーザー情報とロール情報を取得（Repository経由）
+    const userResult = await organizationUserRepository.findByUserIdWithRole(
+      pool,
+      payload.userId,
+      payload.organizationId
+    );
 
-    if (userResult.rows.length === 0) {
+    if (!userResult.success) {
       res.status(401).json({
         success: false,
         error: {
@@ -1644,7 +1254,13 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const user = userResult.rows[0];
+    const user = userResult.data;
+
+    // initial_screen_function_cdを取得（Repository経由）
+    const initialScreenFunctionCd = await getInitialScreenFunctionCd(
+      user.organization_id,
+      user.role_cd
+    );
 
     // 5. アカウント有効性チェック
     if (!user.is_active) {
@@ -1726,9 +1342,9 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
           email: user.mail_address,
           roleCd: user.role_cd,
           organizationId: user.organization_id,
-          organizationName: user.organization_name || user.organization_id,
-          departmentCd: user.department_cd,
-          initialScreenFunctionCd: user.initial_screen_function_cd?.trim() || null,
+          organizationName: user.organization_id, // organization_nameは取得していないためidを使用
+          departmentCd: user.department_cd || '',
+          initialScreenFunctionCd: initialScreenFunctionCd,
         },
       },
       meta: {
