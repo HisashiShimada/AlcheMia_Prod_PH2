@@ -22,9 +22,63 @@ export interface ApiResponse<T> {
 }
 
 /**
- * マスタデータの汎用型
+ * マスタレコード共通基底型（インデックスシグネチャ付き）
  */
-export type MasterRecord = Record<string, unknown>;
+export interface BaseMasterRecord {
+  // 共通フィールド
+  organizationId: string;
+  corporationId: string;
+  isActive: boolean;
+  createUserId: string;
+  updateUserId: string;
+  createdAt: string;  // ISO 8601形式の文字列
+  updatedAt: string;  // ISO 8601形式の文字列
+  
+  // 動的プロパティアクセス用のインデックスシグネチャ
+  [key: string]: unknown;
+}
+
+/**
+ * Creatorマスタのレコード型
+ */
+export interface CreatorRecord extends BaseMasterRecord {
+  // Creator固有フィールド
+  creatorId: string;
+  creatorName: string;
+  creatorDescription: string;
+  creatorAnnotation: string;
+  vendorName?: string;      // JOIN時に含まれる（オプショナル）
+  instrumentName?: string;  // JOIN時に含まれる（オプショナル）
+  vendorIsActive?: boolean; // JOIN時のVendorのアクティブ状態（オプショナル）
+  instrumentIsActive?: boolean; // JOIN時のInstrumentのアクティブ状態（オプショナル）
+}
+
+/**
+ * Instrumentマスタのレコード型
+ */
+export interface InstrumentRecord extends BaseMasterRecord {
+  // Instrument固有フィールド
+  instrumentId: string;
+  instrumentName: string;
+  instrumentDescription: string;
+  instrumentAnnotation: string;
+}
+
+/**
+ * Vendorマスタのレコード型
+ */
+export interface VendorRecord extends BaseMasterRecord {
+  // Vendor固有フィールド
+  vendorId: string;
+  vendorName: string;
+  vendorDescription: string;
+  vendorAnnotation: string;
+}
+
+/**
+ * マスタデータの汎用型（Union型）
+ */
+export type MasterRecord = CreatorRecord | InstrumentRecord | VendorRecord;
 
 /**
  * マスタ一覧を取得

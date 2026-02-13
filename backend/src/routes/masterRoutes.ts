@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { query, param } from 'express-validator';
 import * as masterController from '../controllers/masterController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 import cors from 'cors';
 import multer from 'multer';
 
@@ -65,6 +66,7 @@ router.get(
       .isBoolean()
       .withMessage('is_active must be a boolean'),
   ],
+  handleValidationErrors,
   masterController.getCreators
 );
 
@@ -110,6 +112,7 @@ router.get(
       .isString()
       .withMessage('creatorId must be a string'),
   ],
+  handleValidationErrors,
   masterController.getCreatorById
 );
 
@@ -166,6 +169,7 @@ router.get(
       .isString()
       .withMessage('instrumentId must be a string'),
   ],
+  handleValidationErrors,
   masterController.getInstrumentById
 );
 
@@ -222,6 +226,7 @@ router.get(
       .isString()
       .withMessage('vendorId must be a string'),
   ],
+  handleValidationErrors,
   masterController.getVendorById
 );
 
@@ -249,6 +254,7 @@ router.put(
       .isString()
       .withMessage('instrumentId must be a string'),
   ],
+  handleValidationErrors,
   masterController.updateInstrument
 );
 
@@ -266,6 +272,7 @@ router.patch(
       .isString()
       .withMessage('instrumentId must be a string'),
   ],
+  handleValidationErrors,
   masterController.updateInstrumentStatus
 );
 
@@ -293,6 +300,7 @@ router.put(
       .isString()
       .withMessage('vendorId must be a string'),
   ],
+  handleValidationErrors,
   masterController.updateVendor
 );
 
@@ -310,6 +318,7 @@ router.patch(
       .isString()
       .withMessage('vendorId must be a string'),
   ],
+  handleValidationErrors,
   masterController.updateVendorStatus
 );
 
@@ -337,6 +346,7 @@ router.put(
       .isString()
       .withMessage('creatorId must be a string'),
   ],
+  handleValidationErrors,
   masterController.updateCreator
 );
 
@@ -354,6 +364,7 @@ router.patch(
       .isString()
       .withMessage('creatorId must be a string'),
   ],
+  handleValidationErrors,
   masterController.updateCreatorStatus
 );
 

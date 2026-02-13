@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { validationResult } from 'express-validator';
 import * as masterService from '../services/masterService';
 import { v4 as uuidv4 } from 'uuid';
 import Papa from 'papaparse';
@@ -20,25 +19,7 @@ export async function getCreators(req: Request, res: Response, next: NextFunctio
     console.log('Headers:', req.headers);
     console.log('Query:', req.query);
     
-    // バリデーションエラーチェック
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: errors.array(),
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
+    // バリデーションはミドルウェアで処理済み
     // 組織IDを取得（req.user.organizationId）
     const organizationId = req.user?.organizationId;
     
@@ -87,24 +68,7 @@ export async function getCreators(req: Request, res: Response, next: NextFunctio
  */
 export async function getCreatorById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // バリデーションエラーチェック
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: errors.array(),
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
+    // バリデーションはミドルウェアで処理済み
     // 組織IDを取得（req.user.organizationId）
     const organizationId = req.user?.organizationId;
 
@@ -312,24 +276,7 @@ export async function createInstrument(req: Request, res: Response, next: NextFu
     console.log('Request body:', req.body);
     console.log('Headers:', req.headers);
     
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: errors.array(),
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
+    // バリデーションはミドルウェアで処理済み
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
 
@@ -451,23 +398,7 @@ export async function updateInstrumentStatus(req: Request, res: Response, next: 
  */
 export async function createVendor(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: errors.array(),
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
+    // バリデーションはミドルウェアで処理済み
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
 
@@ -592,23 +523,7 @@ export async function createCreator(req: Request, res: Response, next: NextFunct
     console.log('=== createCreator API called ===');
     console.log('Request body:', req.body);
     
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: errors.array(),
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
+    // バリデーションはミドルウェアで処理済み
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
 

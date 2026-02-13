@@ -46,8 +46,6 @@ export interface MasterDataConfig {
   apiEndpoint: string;
   /** フィールド設定 */
   fields: FieldConfig[];
-  /** 主キーフィールド名 */
-  primaryKeyField: string;
   /** CSVアップロード対応 */
   supportsCsvUpload: boolean;
   /** CSVダウンロード対応 */
@@ -62,11 +60,10 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
    * Instrumentマスタ
    */
   instrument: {
-    masterId: '5',
+    masterId: '3',
     type: 'instrument',
     displayName: 'Instrument',
     apiEndpoint: '/master/instrument',
-    primaryKeyField: 'instrumentId',
     supportsCsvUpload: true,
     supportsCsvDownload: true,
     fields: [
@@ -135,11 +132,10 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
    * Vendorマスタ
    */
   vendor: {
-    masterId: '7',
+    masterId: '2',
     type: 'vendor',
     displayName: 'Vendor',
     apiEndpoint: '/master/vendor',
-    primaryKeyField: 'vendorId',
     supportsCsvUpload: true,
     supportsCsvDownload: true,
     fields: [
@@ -208,11 +204,10 @@ export const MASTER_DATA_CONFIGS: Record<MasterDataType, MasterDataConfig> = {
    * Creatorマスタ
    */
   creator: {
-    masterId: '8',
+    masterId: '1',
     type: 'creator',
     displayName: 'Creator',
     apiEndpoint: '/master/creator',
-    primaryKeyField: 'creatorId',
     supportsCsvUpload: true,
     supportsCsvDownload: true,
     fields: [

@@ -21,9 +21,41 @@ export interface ApiResponse<T> {
 }
 
 /**
+ * ロールデータの型（インデックスシグネチャ付き）
+ */
+export interface RoleRecord {
+  // role
+  roleName: string;
+  initialScreenFunctionCd: string | null;
+  initialScreenFunctionName: string;
+  isActive: boolean;
+  // permission
+  functionCd: string | null;
+  functionName: string;
+  functionIds: string;
+  functions: string;
+  functionWritePermissions: string;
+  permission: number | null;
+  writableFunctionIds: string;
+  // 共通部品
+  roleCd: string;
+  roleId: string;
+  role: string;
+  organizationId: string; // UUID
+  corporationId: string; // UUID
+  createUserId: string;
+  updateUserId: string;
+  createAt: Date;
+  updatedAt: Date | null;
+  
+  // 動的プロパティアクセス用のインデックスシグネチャ
+  [key: string]: unknown;
+}
+
+/**
  * ロールデータの汎用型
  */
-export type MasterRecord = Record<string, unknown>;
+export type MasterRecord = RoleRecord;
 
 /**
  * ロール一覧を取得

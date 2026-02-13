@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { query, param, body } from 'express-validator';
 import * as departmentController from '../controllers/departmentControler';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 import cors from 'cors';
 import multer from 'multer';
 
@@ -62,6 +63,7 @@ router.get(
       .isIn(['asc', 'desc'])
       .withMessage('sort_order must be either "asc" or "desc"'),
   ],
+  handleValidationErrors,
   departmentController.getDepartments
 );
 
@@ -107,6 +109,7 @@ router.get(
       .isString()
       .withMessage('departmentCd must be a string'),
   ],
+  handleValidationErrors,
   departmentController.getDepartmentById
 );
 
@@ -134,6 +137,7 @@ router.post(
       .isBoolean()
       .withMessage('isActive must be a boolean'),
   ],
+  handleValidationErrors,
   departmentController.createDepartment
 );
 
@@ -160,6 +164,7 @@ router.put(
       .isBoolean()
       .withMessage('isActive must be a boolean'),
   ],
+  handleValidationErrors,
   departmentController.updateDepartment
 );
 
@@ -178,6 +183,7 @@ router.patch(
       .isString()
       .withMessage('departmentCd must be a string'),
   ],
+  handleValidationErrors,
   departmentController.updateDepartmentStatus
 );
 
