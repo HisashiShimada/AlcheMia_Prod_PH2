@@ -199,6 +199,10 @@ export function shouldUseMockAPI(): boolean {
 /**
  * 複数メソッドのペトリネット構造データを取得（モック）
  * POST /api/worker/multiple-methods-structure-from-content 相当
+ * 
+ * @deprecated この関数は非推奨です。代わりに `maimlApiService.parseMaiml` または `maimlApiService.parseMaimlMock` を使用してください。
+ * @see {@link frontend/src/api/maimlApiService.ts#parseMaiml}
+ * @see {@link frontend/src/api/maimlApiService.ts#parseMaimlMock}
  */
 export async function fetchMultipleMethodsStructureFromContent(maimlContent: string): Promise<unknown> {
   await simulateApiDelay();
@@ -392,6 +396,10 @@ export async function fetchExperimentRecords(workId: string): Promise<unknown> {
 /**
  * MAIMLコンテンツのバリデーション（モック）
  * POST /api/s3/validate-maiml-content 相当
+ * 
+ * @deprecated この関数は非推奨です。代わりに `maimlApiService.validateMaiml` または `maimlApiService.validateMaimlMock` を使用してください。
+ * @see {@link frontend/src/api/maimlApiService.ts#validateMaiml}
+ * @see {@link frontend/src/api/maimlApiService.ts#validateMaimlMock}
  */
 export async function validateMaimlContent(
   maimlContent: string,
@@ -444,6 +452,10 @@ export async function validateMaimlContent(
 /**
  * MAIML自動補正（モック）
  * POST /api/s3/maiml-auto-correct-realtime 相当
+ * 
+ * @deprecated この関数は非推奨です。代わりに `maimlApiService.correctMaiml` または `maimlApiService.correctMaimlMock` を使用してください。
+ * @see {@link frontend/src/api/maimlApiService.ts#correctMaiml}
+ * @see {@link frontend/src/api/maimlApiService.ts#correctMaimlMock}
  */
 export async function autoCorrectMaiml(
   maimlContent: string,

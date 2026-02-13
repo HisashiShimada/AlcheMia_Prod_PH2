@@ -18,7 +18,7 @@ import ErrorBoundary from './ErrorBoundary';
 import TiffViewer from './TiffViewer';
 import ImageViewer from './ImageViewer';
 import PetriNetViewer from './PetriNetViewer';
-import PetriNetEditor from '../editor/PetriNetEditor';
+import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
 import { fetchMultipleMethodsStructureFromContent } from '@/utils/apiClient';
 
 const { Title, Text, Paragraph } = Typography;
@@ -462,10 +462,11 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
         <ErrorBoundary>
           <ReactFlowProvider>
-            <PetriNetEditor
-              maimlData={fileContent || undefined}
+            <PetriNetEditorInner
+              maimlData={fileContent || null}
               editingFileName={selectedFile?.name}
-              onError={(error) => {
+              editMode="view"
+              onError={(error: Error) => {
                 console.error('❌ [ViewRenderer] PetriNetEditor error:', error);
                 message.error('エディタの初期化に失敗しました');
               }}

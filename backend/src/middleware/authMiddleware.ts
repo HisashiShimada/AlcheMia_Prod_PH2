@@ -25,6 +25,7 @@ export async function authMiddleware(
   next: NextFunction
 ): Promise<void> {
   try {
+    console.log('test');
     // JwtServiceインスタンスを作成（テスト時にモック可能にするため関数内で作成）
     const jwtService = new JwtService();
     // Authorizationヘッダーからトークンを取得

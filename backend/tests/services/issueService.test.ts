@@ -504,4 +504,105 @@ describe('IssueService', () => {
       ).rejects.toThrow(AuthorizationError);
     });
   });
+
+  // タスク 4.1: addComment - 入力バリデーションテスト
+  describe('addComment - Input Validation', () => {
+    const mockIssue: Issue = {
+      id: 'issue-001',
+      organizationId: 'org-123',
+      projectId: 'proj-456',
+      taskDetailId: null,
+      reporterId: 'user-789',
+      title: 'Test Issue',
+      description: 'Test Description',
+      issueType: 'bug',
+      severity: 'high',
+      status: 'open',
+      assigneeId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    beforeEach(() => {
+      // 問題が存在する前提でモック設定
+      mockIssueRepository.findById.mockResolvedValue(mockIssue);
+    });
+
+    // 注: 空文字列チェックはController層で実施されるため、Service層のテストからは削除
+
+    it('should reject comment exceeding 2000 characters', async () => {
+      const longComment = 'a'.repeat(2001);
+      
+      const result = await issueService.addComment(
+        'org-123',
+        'issue-001',
+        'user-123',
+        longComment
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('VALIDATION_ERROR');
+      expect(result.error?.message).toContain('2000');
+    });
+
+    it('should accept valid comment (1 character)', async () => {
+      mockIssueRepository.addComment = jest.fn().mockResolvedValue({
+        projectId: 'proj-456',
+        issueId: 'issue-001',
+        sequenceNo: 1,
+        comment: 'a',
+        authorId: 'user-123',
+        authorName: 'Test User',
+        commentedAt: new Date().toISOString()
+      });
+
+      const result = await issueService.addComment(
+        'org-123',
+        'issue-001',
+        'user-123',
+        'a'
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+    });
+
+    it('should accept valid comment (2000 characters)', async () => {
+      const maxLengthComment = 'a'.repeat(2000);
+      
+      mockIssueRepository.addComment = jest.fn().mockResolvedValue({
+        projectId: 'proj-456',
+        issueId: 'issue-001',
+        sequenceNo: 1,
+        comment: maxLengthComment,
+        authorId: 'user-123',
+        authorName: 'Test User',
+        commentedAt: new Date().toISOString()
+      });
+
+      const result = await issueService.addComment(
+        'org-123',
+        'issue-001',
+        'user-123',
+        maxLengthComment
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+    });
+
+    it('should return RESOURCE_NOT_FOUND when issue does not exist', async () => {
+      mockIssueRepository.findById.mockResolvedValue(null);
+
+      const result = await issueService.addComment(
+        'org-123',
+        'non-existent',
+        'user-123',
+        'Valid comment'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('RESOURCE_NOT_FOUND');
+    });
+  });
 });

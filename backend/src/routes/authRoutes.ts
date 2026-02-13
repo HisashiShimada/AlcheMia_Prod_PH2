@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
+import { body, header, query } from 'express-validator';
 import * as authController from '../controllers/authController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 import {
   loginRateLimit,
   pinVerifyRateLimit,
@@ -39,7 +40,11 @@ router.post(
       .withMessage('Password is required')
       .isLength({ min: 8, max: 255 })
       .withMessage('Password must be between 8 and 255 characters'),
+    query('orgId')
+      .notEmpty()
+      .withMessage('Organization ID is required'),
   ],
+  handleValidationErrors,
   authController.login
 );
 
@@ -54,7 +59,16 @@ router.post(
       .withMessage('PIN code is required')
       .matches(/^\d{6}$/)
       .withMessage('PIN code must be exactly 6 digits'),
+    header('authorization')
+      .notEmpty()
+      .withMessage('Authorization header is required')
+      .matches(/^Bearer .+$/)
+      .withMessage('Bearer scheme is required'),
+    query('orgId')
+      .notEmpty()
+      .withMessage('Organization ID is required'),
   ],
+  handleValidationErrors,
   authController.verifyPin
 );
 
@@ -63,6 +77,17 @@ router.post(
 router.post(
   '/resend-pin',
   pinResendRateLimit,
+  [
+    header('authorization')
+      .notEmpty()
+      .withMessage('Authorization header is required')
+      .matches(/^Bearer .+$/)
+      .withMessage('Bearer scheme is required'),
+    query('orgId')
+      .notEmpty()
+      .withMessage('Organization ID is required'),
+  ],
+  handleValidationErrors,
   authController.resendPin
 );
 
@@ -98,7 +123,11 @@ router.post(
       .withMessage('Valid email is required')
       .isLength({ min: 1, max: 100 })
       .withMessage('Email must be between 1 and 100 characters'),
+    query('orgId')
+      .notEmpty()
+      .withMessage('Organization ID is required'),
   ],
+  handleValidationErrors,
   authController.resetPasswordRequest
 );
 
@@ -116,6 +145,7 @@ router.post(
       .isLength({ min: 8, max: 255 })
       .withMessage('Password must be between 8 and 255 characters'),
   ],
+  handleValidationErrors,
   authController.resetPassword
 );
 
@@ -134,6 +164,7 @@ router.post(
       .isLength({ min: 8, max: 255 })
       .withMessage('Password must be between 8 and 255 characters'),
   ],
+  handleValidationErrors,
   authController.changePassword
 );
 

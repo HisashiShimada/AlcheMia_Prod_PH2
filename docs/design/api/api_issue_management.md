@@ -296,7 +296,7 @@ router.post('/issues/:issueId/comments',
 #### パスパラメータ
 | パラメータ | 型 | 必須 | 説明 |
 |-----------|----|----|------|
-| issueId | UUID | ○ | 問題ID |
+| issueId | string | ○ | 問題ID |
 
 #### リクエストボディ
 ```json
@@ -316,12 +316,13 @@ router.post('/issues/:issueId/comments',
 {
   "success": true,
   "data": {
-    "id": "990e8400-e29b-41d4-a716-446655440004",
+    "projectId": "990e8400-e29b-41d4-a716-446655440004",
     "issueId": "770e8400-e29b-41d4-a716-446655440002",
+    "sequenceNo": 1,
     "comment": "在庫管理システムを確認したところ、試薬Aは明日入荷予定です。",
-    "userId": "880e8400-e29b-41d4-a716-446655440003",
-    "userName": "山田太郎",
-    "createdAt": "2026-01-27T11:00:00Z"
+    "authorId": "880e8400-e29b-41d4-a716-446655440003",
+    "authorName": "山田太郎",
+    "commentedAt": "2026-01-27T11:00:00Z"
   },
   "meta": {
     "timestamp": "2026-01-27T11:00:00Z",
@@ -351,28 +352,22 @@ router.post('/issues/:issueId/comments',
    - issueIdが自組織に属する問題であることを確認
 
 2. **コメント登録**
-   - issue_commentsテーブルに新規レコードを挿入
-   - user_idに現在のユーザーIDを設定
-
-3. **問題の更新日時更新**
-   - issuesテーブルのupdated_atを更新（コメント投稿を問題の活動として記録）
+   - issue_commentテーブルに新規レコードを挿入
+   - sequence_noを自動採番
+   - author_idに現在のユーザーIDを設定
 
 ### バリデーション
 
-- [ ] issueId はUUID形式
 - [ ] comment は1-2000文字
 - [ ] 問題は自組織に属するもの
 
 ### データベーステーブル
 
 #### 使用テーブル
-1. **issue_comments**（主テーブル）
-   - id, issue_id, comment, user_id, created_at
+1. **issue_comment**（主テーブル）
+   - organization_id, project_id, issue_id, sequence_no, comment, author_id, commented_at, create_user_id, create_at, update_user_id, update_at
 
-2. **issues**（更新対象）
-   - updated_at
-
-3. **organization_user**（ユーザー名取得用JOIN）
+2. **organization_user**（ユーザー名取得用JOIN）
    - user_id, organization_id, user_name
 
 #### SQL例
@@ -381,18 +376,13 @@ router.post('/issues/:issueId/comments',
 BEGIN;
 
 -- 問題存在確認（マルチテナント分離）
-SELECT id FROM issues 
-WHERE id = $1 AND organization_id = $2 FOR UPDATE;
+SELECT id FROM issue
+WHERE issue_id = $1 AND organization_id = $2 FOR UPDATE;
 
 -- コメント登録
-INSERT INTO issue_comments (id, issue_id, comment, user_id, created_at)
-VALUES ($1, $2, $3, $4, NOW())
+INSERT INTO issue_comment (organization_id, project_id, issue_id, sequence_no, comment, author_id, commented_at, create_user_id, create_at, update_user_id, update_at)
+VALUES ($1, $2, $3, $4, $5,, $6, NOW(), $6, NOW(), $6, NOW())
 RETURNING *;
-
--- 問題の更新日時を更新
-UPDATE issues 
-SET updated_at = NOW() 
-WHERE id = $2;
 
 -- ユーザー名取得
 SELECT u.user_name 
@@ -412,7 +402,7 @@ COMMIT;
 
 ### パフォーマンス
 
-- インデックス: issue_comments (issue_id, created_at)
+- インデックス: issue_comment (issue_id, created_at)
 - トランザクション: 必須（問題の更新日時更新を含む）
 
 ---

@@ -1005,6 +1005,7 @@ export async function list(req: Request, res: Response): Promise<void> {
   const projectService = new ProjectService();
 
   try {
+    console.log('一覧取得－開始');
     // 1. 認証チェック
     if (!req.user) {
       res.status(401).json({
@@ -1020,6 +1021,7 @@ export async function list(req: Request, res: Response): Promise<void> {
       });
       return;
     }
+    console.log('認証チェック－完了');
 
     const { organizationId } = req.user;
 
@@ -1030,6 +1032,7 @@ export async function list(req: Request, res: Response): Promise<void> {
     const sortBy = (req.query.sort_by as string) || 'create_at';
     const order = (req.query.order as string) || 'desc';
 
+    console.log('バリデーション－開始');
     // バリデーション: page
     if (page < 1 || !Number.isInteger(page)) {
       res.status(400).json({
@@ -1123,6 +1126,7 @@ export async function list(req: Request, res: Response): Promise<void> {
       });
       return;
     }
+    console.log('バリデーション－完了');
 
     // 3. Service層の呼び出し
     const result = await projectService.list(organizationId, {
@@ -1132,6 +1136,7 @@ export async function list(req: Request, res: Response): Promise<void> {
       sortBy,
       order: order as 'asc' | 'desc',
     });
+    console.log('Service層呼び出し' + result.success);
 
     // 4. エラーハンドリング
     if (!result.success) {
