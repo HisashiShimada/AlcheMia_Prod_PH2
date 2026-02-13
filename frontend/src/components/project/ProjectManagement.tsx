@@ -650,10 +650,14 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
 
     // Draftがない場合は直接エディタへ
     console.log('➡️ [ProjectManagement] No draft, opening editor directly');
+    const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '');
+    // const sourceS3Key = userInfo ? `/org_${userInfo.organizationPrefix}/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
+    const sourceS3Key = userInfo ? `org_maiml_lab_001/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
     const params: ProjectEditParams = {
       projectId: selectedProject.id,
       projectName: selectedProject.name,
-      projectOverview: selectedProject.description
+      projectOverview: selectedProject.description,
+      sourceS3Key: sourceS3Key
     };
     onEdit?.(params);
   }, [selectedProject, onEdit]);
@@ -663,10 +667,13 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     console.log('💾 [ProjectManagement] Restoring draft');
     setDraftRestoreDialogOpen(false);
     if (selectedProject) {
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '');
+      const sourceS3Key = userInfo ? `/org_${userInfo.organizationPrefix}/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
       const params: ProjectEditParams = {
         projectId: selectedProject.id,
         projectName: selectedProject.name,
-        projectOverview: selectedProject.description
+        projectOverview: selectedProject.description,
+        sourceS3Key: sourceS3Key
       };
       onEdit?.(params);
     }
@@ -680,10 +687,13 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
       // Draftを削除してから開く
       const draftKey = `petri-net-draft-${selectedProject.id}`;
       localStorage.removeItem(draftKey);
+      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '');
+      const sourceS3Key = userInfo ? `/org_${userInfo.organizationPrefix}/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
       const params: ProjectEditParams = {
         projectId: selectedProject.id,
         projectName: selectedProject.name,
-        projectOverview: selectedProject.description
+        projectOverview: selectedProject.description,
+        sourceS3Key: sourceS3Key
       };
       onEdit?.(params);
     }

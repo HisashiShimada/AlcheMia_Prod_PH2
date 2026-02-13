@@ -19,6 +19,8 @@
     "test:swift": "ts-node scripts/test-swift-connection.ts",
     "check:env": "ts-node scripts/check-env.ts",
     "setup:swift-folders": "ts-node scripts/setup-swift-folders.ts",
+    "generate:types": "ts-node scripts/generate-types-from-xsd.ts",
+    "generate:types:watch": "nodemon --watch reference/schemas --exec npm run generate:types",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write \"src/**/*.ts\""
@@ -38,6 +40,7 @@
     "@aws-sdk/s3-request-presigner": "^3.948.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/nodemailer": "^7.0.4",
+    "@xmldom/xmldom": "^0.8.11",
     "aws-sdk": "^2.1693.0",
     "bcrypt": "^6.0.0",
     "compression": "^1.8.1",
@@ -49,6 +52,7 @@
     "express-rate-limit": "^8.2.1",
     "express-session": "^1.18.2",
     "express-validator": "^7.3.1",
+    "fast-xml-parser": "^5.3.5",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^1.4.5-lts.1",
@@ -61,7 +65,8 @@
     "uuid": "^13.0.0",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "xml-js": "^1.6.11"
+    "xml-js": "^1.6.11",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
@@ -81,6 +86,7 @@
     "@types/supertest": "^6.0.3",
     "@types/uuid": "^11.0.0",
     "@types/winston": "^2.4.4",
+    "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^8.49.0",
     "@typescript-eslint/parser": "^8.49.0",
     "eslint": "^9.39.1",

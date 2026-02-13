@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Spin, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { ReactFlowProvider } from 'reactflow';
-import PetriNetEditor from '@/components/editor/PetriNetEditor';
+import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
 
 /**
  * PetriNetエディタのフルスクリーン表示画面
@@ -21,6 +21,7 @@ interface PetriNetEditorScreenProps {
   projectOverview?: string;
   /** 画面を閉じるコールバック */
   onClose: () => void;
+  sourceS3Key: string;
 }
 
 /**
@@ -30,7 +31,8 @@ export default function PetriNetEditorScreen({
   projectId,
   projectName,
   projectOverview,
-  onClose
+  onClose,
+  sourceS3Key
 }: PetriNetEditorScreenProps) {
   // ステート管理
   const [isLoading, setIsLoading] = useState(true);
@@ -220,12 +222,12 @@ export default function PetriNetEditorScreen({
       {/* エディタ本体（ReactFlowProviderでラップ） */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <ReactFlowProvider>
-          <PetriNetEditor
-            initialContent={maimlContent}
-            projectId={projectId}
-            projectName={projectName}
-            onSave={handleSave}
-            onContentChange={handleContentChange}
+          <PetriNetEditorInner
+            maimlData={maimlContent || null}
+            editingFileName={`${projectName}.maiml`}
+            editMode="project"
+            originalFileName={projectName}
+            sourceS3Key={sourceS3Key}
           />
         </ReactFlowProvider>
       </div>

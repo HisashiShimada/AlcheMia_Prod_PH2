@@ -11,13 +11,13 @@
 export interface DocumentData {
   id: string;
   name: string;
-  uuid: string;
-  description: string;
+  uuid?: string;  // オプショナル
+  description?: string;  // オプショナル
   date: string;
-  protocolId: string;
-  methodId: string;
-  pnmlId: string;
-  programId: string;
+  protocolId?: string;  // オプショナルに変更
+  methodId?: string;  // オプショナルに変更
+  pnmlId?: string;  // オプショナルに変更
+  programId?: string;  // オプショナルに変更
   creators: CreatorData[];
   vendors: VendorData[];
   owners: OwnerData[];
@@ -29,10 +29,10 @@ export interface DocumentData {
  */
 export interface CreatorData {
   id: string;
-  name: string;
-  uuid: string;
-  description: string;
-  annotation: string;
+  name?: string;  // オプショナルに変更
+  uuid?: string;  // オプショナルに変更
+  description?: string;  // オプショナルに変更
+  annotation?: string;  // オプショナルに変更
   vendorRef?: {
     id: string;
     ref: string;
@@ -48,10 +48,10 @@ export interface CreatorData {
  */
 export interface VendorData {
   id: string;
-  name: string;
-  uuid: string;
-  description: string;
-  annotation: string;
+  name?: string;  // オプショナルに変更
+  uuid?: string;  // オプショナルに変更
+  description?: string;  // オプショナルに変更
+  annotation?: string;  // オプショナルに変更
 }
 
 /**
@@ -59,10 +59,10 @@ export interface VendorData {
  */
 export interface OwnerData {
   id: string;
-  name: string;
-  uuid: string;
-  description: string;
-  annotation: string;
+  name?: string;  // オプショナルに変更
+  uuid?: string;  // オプショナルに変更
+  description?: string;  // オプショナルに変更
+  annotation?: string;  // オプショナルに変更
 }
 
 /**
@@ -70,10 +70,10 @@ export interface OwnerData {
  */
 export interface InstrumentData {
   id: string;
-  name: string;
-  uuid: string;
-  description: string;
-  annotation: string;
+  name?: string;  // オプショナルに変更
+  uuid?: string;  // オプショナルに変更
+  description?: string;  // オプショナルに変更
+  annotation?: string;  // オプショナルに変更
 }
 
 /**

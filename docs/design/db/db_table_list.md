@@ -6,7 +6,7 @@
 
 **重要**: DDLファイルを変更した際は、必ずこのファイルも更新してください。
 
-**最終更新**: 2026-01-29
+**最終更新**: 2026-02-09
 **ER図ファイル**: `docs/design/db/er_diagram.a5er`
 **DDLディレクトリ**: `docs/design/db/ddl/`
 
@@ -14,16 +14,21 @@
 
 ## 📋 テーブル一覧（カテゴリ別）
 
-### 1. 認証関連テーブル（8テーブル）
+### 1. 認証関連テーブル（9テーブル）
 
 #### 1.1 corporation（会社）
 - **物理名**: `corporation`
 - **論理名**: 会社
 - **DDLファイル**: `docs/design/db/ddl/corporation.sql`
-- **主キー**: `corporation_code` (VARCHAR(30))
+- **主キー**: `corporation_id` (UUID)
 - **主要カラム**:
-  - `corporation_code` - 会社CD
+  - `corporation_id` - 会社ID
   - `corporation_name` - 会社名
+  - `is_active` - アクティブ判定
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 
 ---
 
@@ -36,13 +41,18 @@
   - `organization_id` - 組織ID
   - `organization_name` - 組織名
   - `organization_display_name` - 組織表示名
+  - `organization_prefix` - 組織_S3プレフィックス
   - `organization_email` - 組織E-mail
-  - `corporation_code` - 会社CD (FK: corporation)
+  - `chief_user_id` - 代表者ユーザID
+  - `corporation_id` - 会社ID (FK: corporation)
+  - `is_entry` - 二段階認証判定
   - `is_active` - アクティブ判定
+  - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
   - `update_at` - 更新日時
 - **外部キー**: 
-  - `corporation_code` → `corporation(corporation_code)`
+  - `corporation_id` → `corporation(corporation_id)`
 
 ---
 
@@ -50,17 +60,19 @@
 - **物理名**: `organization_user`
 - **論理名**: 組織利用者
 - **DDLファイル**: `docs/design/db/ddl/organization_user.sql`
-- **主キー**: `user_id` (UUID), `organization_id` (UUID)
+- **主キー**: `user_id` (VARCHAR(50)), `organization_id` (UUID)
 - **主要カラム**:
   - `user_id` - ユーザID
   - `organization_id` - 組織ID (FK: organization)
   - `user_name` - ユーザ名
-  - `role` - ロール
+  - `role_cd` - ロールCD
   - `mail_address` - メールアドレス
+  - `department_cd` - 所属部署CD
   - `locked_until` - 有効期限
-  - `last_login` - 最終ログイン日時
   - `is_active` - アクティブ判定
+  - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
   - `update_at` - 更新日時
 - **外部キー**:
   - `organization_id` → `organization(organization_id)`
@@ -71,15 +83,17 @@
 - **物理名**: `user_authentication`
 - **論理名**: 利用者認証
 - **DDLファイル**: `docs/design/db/ddl/user_authentication.sql`
-- **主キー**: `user_id` (UUID), `organization_id` (UUID)
+- **主キー**: `user_id` (VARCHAR(50)), `organization_id` (UUID)
 - **主要カラム**:
   - `user_id` - ユーザID (FK: organization_user)
   - `organization_id` - 組織ID (FK: organization_user)
   - `password` - ハッシュパスワード
   - `entry_flg` - 二段階認証アプリ連携フラグ
-  - `is_temporary_flg` - 仮パスワードフラグ（BOOLEAN、NOT NULL、DEFAULT false）
-  - `password_expires_at` - パスワード有効期限（TIMESTAMP、NULL許可）
+  - `is_temporary_flg` - 仮パスワードフラグ
+  - `password_expires_at` - パスワード有効期限
+  - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
   - `update_at` - 更新日時
 - **外部キー**:
   - `(user_id, organization_id)` → `organization_user(user_id, organization_id)`
@@ -91,7 +105,7 @@
 - **論理名**: PINコード
 - **DDLファイル**: `docs/design/db/ddl/pin_codes.sql`
 - **説明**: メールPINコード二段階認証用の一時データ
-- **主キー**: `organization_id` (UUID), `user_id` (UUID)
+- **主キー**: `organization_id` (UUID), `user_id` (VARCHAR(50))
 - **主要カラム**:
   - `organization_id` - 組織ID
   - `user_id` - ユーザID
@@ -99,9 +113,14 @@
   - `session_token` - セッショントークン（temp_session-{id}_{timestamp}）
   - `expires_at` - 有効期限（作成時刻 + 5分）
   - `attempts_count` - 試行回数（0-3、デフォルト: 0）
-  - `created_at` - 作成日時
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 - **インデックス**:
   - `idx_pin_codes_token` - session_token
+- **外部キー**:
+  - `(user_id, organization_id)` → `organization_user(user_id, organization_id)`
 
 ---
 
@@ -117,10 +136,16 @@
   - `login_at` - ログイン日時
   - `login_sf` - ログイン成否
   - `failure_reason` - 失敗原因
+  - `entry_execute_flg` - 二段階認証実行フラグ
   - `ip_address` - IPアドレス（セキュリティ監査用、IPv4/IPv6対応）
   - `user_agent` - User-Agent（ブラウザ・OS情報）
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 - **インデックス**:
   - `idx_login_history_rate_limit` - login_at, login_sf
+  - `idx_login_history_query` - organization_id, user_name, entry_execute_flg
 
 ---
 
@@ -135,7 +160,9 @@
   - `role_name` - ロール名
   - `initial_screen_function_cd` - 初期画面機能CD
   - `is_active` - アクティブ判定
+  - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
   - `update_at` - 更新日時
 
 ---
@@ -144,13 +171,35 @@
 - **物理名**: `role_permission`
 - **論理名**: ロール権限
 - **DDLファイル**: `docs/design/db/ddl/role_permission.sql`
-- **主キー**: `role` (VARCHAR(30)), `function_id` (VARCHAR(30))
+- **主キー**: `organization_id` (UUID), `role_cd` (VARCHAR(30)), `function_cd` (VARCHAR(30))
 - **主要カラム**:
-  - `role` - ロール（ユーザのロールと同一）
-  - `function_id` - 機能ID（画面単位の機能ID）(FK: function)
-  - `permission` - 権限（CRUDの権限）
+  - `organization_id` - 組織ID
+  - `role_cd` - ロールCD
+  - `function_cd` - 機能CD（機能名はソースで管理）
+  - `permission` - 権限（0:書込可 1:読取専用）
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
+
+---
+
+#### 1.9 department（部署）
+- **物理名**: `department`
+- **論理名**: 部署
+- **DDLファイル**: `docs/design/db/ddl/department.sql`
+- **主キー**: `organization_id` (UUID), `department_cd` (VARCHAR(50))
+- **主要カラム**:
+  - `organization_id` - 組織ID
+  - `department_cd` - 部署CD
+  - `department_name` - 部署名
+  - `is_active` - アクティブ判定
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 - **外部キー**:
-  - `function_id` → `function(function_id)`
+  - `organization_id` → `organization(organization_id)`
 
 ---
 
@@ -166,19 +215,17 @@
   - `project_id` - プロジェクトID
   - `project_name` - プロジェクト名（プロジェクト名かつフォルダ名）
   - `description` - 概要
-  - `department_id` - 部門ID
+  - `department_cd` - 部署CD
   - `owner_user_id` - 所有者ユーザID
   - `project_status` - プロジェクトステータス
   - `project_maiml_flg` - プロジェクトMaiml有無（false:ファイルなし、true:ファイルあり）
   - `checkout_status` - チェックアウトステータス
-  - `create_at` - 作成日
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 - **外部キー**:
   - `organization_id` → `organization(organization_id)`
-- **インデックス**:
-  - `idx_project_organization_id` - organization_id
-  - `idx_project_owner_user_id` - owner_user_id
-  - `idx_project_status` - project_status
-  - `idx_project_department_id` - department_id
 
 ---
 
@@ -195,6 +242,10 @@
   - `experiment_order` - 実験順序
   - `experiment_condition` - 実験条件
   - `attempts_count` - 試行回数
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 - **外部キー**:
   - `(organization_id, project_id)` → `project(organization_id, project_id)`
 
@@ -216,6 +267,10 @@
   - `experiment_user_id` - 実験作業者ID
   - `reviewed_at` - レビュー完了日
   - `review_user_id` - レビュアーID
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 - **外部キー**:
   - `(organization_id, project_id, method_id)` → `project_task(organization_id, project_id, method_id)`
 
@@ -230,6 +285,7 @@
   - `organization_id` - 組織ID (FK: project)
   - `project_id` - プロジェクトID (FK: project)
   - `experiment_instruction_id` - 実験指示ID
+  - `method_id` - メソッドID
   - `instruction_target` - 指示対象（1:ファイル全体、2:タスク、3:トランジション）
   - `priority` - 優先度
   - `type` - タイプ
@@ -238,6 +294,10 @@
   - `instructions` - 指示内容
   - `instruction_user_id` - 実験指示ユーザID
   - `instruction_date` - 指示送信日
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 - **外部キー**:
   - `(organization_id, project_id)` → `project(organization_id, project_id)`
 
@@ -275,6 +335,10 @@
   - `task_no` - タスク連番
   - `place_id` - プレースID
   - `property_set` - プロパティセット（JSONB形式）
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 
 ---
 
@@ -291,20 +355,9 @@
   - `transition_id` - トランジションID
   - `status` - ステータス
   - `progress_rate` - 進捗率
-
----
-
-#### 2.8 department（部署）
-- **物理名**: `department`
-- **論理名**: 部署
-- **DDLファイル**: `docs/design/db/ddl/department.sql`
-- **主キー**: `organization_id` (UUID), `department_cd` (VARCHAR(50))
-- **主要カラム**:
-  - `organization_id` - 組織ID
-  - `department_cd` - 部署CD
-  - `department_name` - 部署名
-  - `is_active` - アクティブ判定
+  - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
   - `update_at` - 更新日時
 
 ---
@@ -331,6 +384,10 @@
   - `issue_report_at` - 問題報告日時
   - `issue_completer_id` - 問題完了者ID
   - `issue_complate_at` - 問題完了日時
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 
 ---
 
@@ -347,6 +404,10 @@
   - `comment` - コメント
   - `author_id` - 記入者ID
   - `commented_at` - 記入日時
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 
 ---
 
@@ -364,6 +425,10 @@
   - `code_description` - コード概要
   - `code_name` - コード名称
   - `code_remark` - 備考
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 
 ---
 
@@ -383,7 +448,9 @@
   - `creator_description` - 説明
   - `creator_annotation` - 注釈
   - `is_active` - アクティブ判定
+  - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
   - `update_at` - 更新日時
 
 ---
@@ -401,7 +468,9 @@
   - `instrument_description` - 説明
   - `instrument_annotation` - 注釈
   - `is_active` - アクティブ判定
+  - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
   - `update_at` - 更新日時
 
 ---
@@ -419,7 +488,9 @@
   - `vendor_description` - 説明
   - `vendor_annotation` - 注釈
   - `is_active` - アクティブ判定
+  - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
   - `update_at` - 更新日時
 
 ---
@@ -453,6 +524,10 @@
   - `project_id` - プロジェクトID
   - `sequence_no` - シーケンス番号
   - `log` - ログ（JSONB形式）
+  - `create_user_id` - 作成者ユーザID
+  - `create_at` - 作成日時
+  - `update_user_id` - 更新者ユーザID
+  - `update_at` - 更新日時
 
 ---
 
@@ -577,6 +652,9 @@ maiml_event_log
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-02-10 | login_history.login_sfカラムをCHARACTER VARYING(10)からBOOLEANに変更（型整合性確保） | Cline |
+| 2026-02-10 | login_historyテーブルにentry_execute_flg、idx_login_history_queryを追加（ER図更新に伴う） | Cline |
+| 2026-02-09 | ER図更新に合わせて全テーブルの監査カラム（create_user_id, update_user_id等）を追加 | Cline |
 | 2026-01-31 | instruction_acknowledged_historyテーブル詳細情報を更新（ER図に基づく） | Cline |
 | 2026-01-29 17:46 | function, user_notificationテーブル削除（25テーブルに統一） | Cline |
 | 2026-01-29 17:31 | ER図の最新構造に合わせて更新（role, attribute, instrument, vendor） | Cline |

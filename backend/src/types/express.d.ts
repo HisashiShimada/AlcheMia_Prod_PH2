@@ -11,11 +11,15 @@ declare module 'express-session' {
   interface SessionData {
     /** 部門CD（NULL許容） */
     departmentCd?: string | null;
+    /** 会社ID */
+    corporationId?: string | null;
   }
   
   interface Session {
     /** 部門CD（NULL許容） */
     departmentCd?: string | null;
+    /** 会社ID */
+    corporationId?: string | null;
   }
 }
 
