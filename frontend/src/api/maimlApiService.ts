@@ -215,109 +215,6 @@ export const parseMaiml = async (
   }
 };
 
-/**
- * MAIMLパース（モック版）
- */
-export const parseMaimlMock = async (
-  content: string
-): Promise<ApiResponse<PetriNetStructure>> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  console.log('📊 [maimlApiService] MAIMLパース実行（モック）');
-  
-  // Base64デコード
-  let decodedContent: string;
-  try {
-    decodedContent = decodeURIComponent(escape(atob(content)));
-  } catch {
-    decodedContent = content;
-  }
-  
-  // test_omori11の場合のみモックデータを返す
-  if (decodedContent.includes('test_omori11')) {
-    return {
-      success: true,
-      data: {
-        metadata: {
-          documentId: 'document_test_omori11_7fbcc8ec',
-          documentName: 'test_omori11'
-        },
-        methods: [
-          {
-            methodId: 'method_1764899170484',
-            methodIndex: 0,
-            name: 'test_omori11_method_1764899170484',
-            places: [
-              { id: 'material-1764899172116', type: 'material', description: 'material 1' },
-              { id: 'condition-1764899304242', type: 'condition', description: '条件1' },
-              { id: 'material-1764899356810', type: 'material', description: 'マテリアル' },
-              { id: 'result-1764899430825', type: 'result', description: '途中結果' },
-              { id: 'material-1764899481970', type: 'material', description: 'material 04 hoge' },
-              { id: 'material-1764899487787', type: 'material', description: '' },
-              { id: 'result-1764899593844', type: 'result', description: '最終結果' }
-            ],
-            transitions: [
-              { id: 'transition-1764899405147', description: '混ぜ合わせる' },
-              { id: 'transition-1764899498618', description: 'New transition' }
-            ],
-            arcs: [
-              { id: 'edge-1764899410688', source: 'material-1764899356810', target: 'transition-1764899405147' },
-              { id: 'edge-1764899412630', source: 'material-1764899172116', target: 'transition-1764899405147' },
-              { id: 'edge-1764899414482', source: 'condition-1764899304242', target: 'transition-1764899405147' },
-              { id: 'edge-1764899435475', source: 'transition-1764899405147', target: 'result-1764899430825' },
-              { id: 'edge-1764899507077', source: 'result-1764899430825', target: 'transition-1764899498618' },
-              { id: 'edge-1764899517278', source: 'material-1764899487787', target: 'transition-1764899498618' },
-              { id: 'edge-1764899519948', source: 'material-1764899481970', target: 'transition-1764899498618' },
-              { id: 'edge-1764899597452', source: 'transition-1764899498618', target: 'result-1764899593844' }
-            ]
-          },
-          {
-            methodId: 'method_1764899692529',
-            methodIndex: 1,
-            name: 'test_omori11_method_1764899692529',
-            places: [
-              { id: 'material-1764899770318', type: 'material', description: '素材1' },
-              { id: 'condition-1764899772859', type: 'condition', description: '条件2' },
-              { id: 'result-1764899779265', type: 'result', description: '最終結果' }
-            ],
-            transitions: [
-              { id: 'transition-1764899776281', description: 'New transition' }
-            ],
-            arcs: [
-              { id: 'edge-1764899783329', source: 'material-1764899770318', target: 'transition-1764899776281' },
-              { id: 'edge-1764899785122', source: 'condition-1764899772859', target: 'transition-1764899776281' },
-              { id: 'edge-1764899786809', source: 'transition-1764899776281', target: 'result-1764899779265' }
-            ]
-          }
-        ],
-        statistics: {
-          totalPlaces: 10,
-          totalTransitions: 3,
-          totalArcs: 11
-        }
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: `req_${Date.now()}`
-      }
-    };
-  }
-  
-  // その他は空データ
-  return {
-    success: false,
-    error: {
-      code: 'MOCK_DATA_ONLY',
-      message: '複数メソッド対応はtest_omori11.maimlのみです（モック）',
-      details: []
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      requestId: `req_${Date.now()}`
-    }
-  };
-};
-
 // ============================================================================
 // MAIMLファイル操作API
 // ============================================================================
@@ -333,22 +230,17 @@ export const parseMaimlMock = async (
  * @returns 保存結果
  */
 export const saveMaiml = async (
-  context: 'project' | 'format',
-  id: string,
+  fileKey : string,
   content: string
 ): Promise<ApiResponse<SaveMaimlResult>> => {
   const client = createApiClient();
   
   try {
-    console.log(`💾 [maimlApiService] MAIMLファイル保存 (${context}: ${id})`);
+    console.log(`💾 [maimlApiService] MAIMLファイル保存 (${fileKey})`);
     
-    const endpoint = context === 'project' 
-      ? `/projects/${id}/maiml`
-      : `/formats/${id}/maiml`;
-    
-    const response = await client.put<ApiResponse<SaveMaimlResult>>(
-      endpoint,
-      { content }
+    const response = await client.post<ApiResponse<SaveMaimlResult>>(
+      '/maiml/save',
+      { fileKey, content }
     );
     
     return response.data;

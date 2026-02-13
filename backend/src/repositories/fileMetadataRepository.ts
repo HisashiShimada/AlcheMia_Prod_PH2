@@ -519,7 +519,7 @@ export class FileMetadataRepository {
     }
   }
   
-  async updateFileMetadata(fileKey:string, updates : FileMetadata) {
+  async updateFileMetadata(fileKey:string, updates : any) {
     const pool = getPool();
     const setClause = [];
     const values = [];
@@ -527,7 +527,7 @@ export class FileMetadataRepository {
 
     // ✅ 修正: updated_atを除外してから処理
     const filteredUpdates = { ...updates };
-    filteredUpdates.updated_at = undefined;
+    delete filteredUpdates.updated_at;
 
     for (const [key, value] of Object.entries(filteredUpdates)) {
       if (key === 'draft_metadata' || key === 'custom_metadata' || key === 'tags') {

@@ -2418,26 +2418,18 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         }
         
         console.log('💾 [PetriNetEditorInner] S3保存先:', { fileName, fileKey });
+
+        const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
         
         // S3ファイル保存API（uploadRoutes.jsの/saveエンドポイント）
-        const response = await fetch('/api/s3/save', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            fileKey: fileKey,
-            content: maimlXml,
-          }),
-        });
+        const response = await maimlService.saveMaiml(fileKey, base64Data)
         
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || `S3保存に失敗しました (${response.status})`);
+        if (!response.success) {
+          const errorData = response.error;
+          throw new Error(errorData?.message || `S3保存に失敗しました ()`);
         }
         
-        const result = await response.json();
+        const result = response.data;
         console.log('✅ [PetriNetEditorInner] S3保存完了:', result);
         
         alert(`ペトリネット "${metadata.name}" をS3に保存しました`);

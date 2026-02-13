@@ -96,14 +96,6 @@ export interface EdgeData {
 // Document関連の型定義
 // ============================================
 
-
-/**
- * SignatureData型定義（DocumentEditDialog用）
- */
-export interface SignatureData {
-  enabled: boolean;
-}
-
 /**
  * Document情報の型定義 - XSD準拠Document型の拡張版
  * 
@@ -129,7 +121,7 @@ export interface DocumentData extends Document {
   programId?: string;
   
   /** 署名情報（エディター用、下位互換性のため） */
-  signature?: SignatureData;
+  signatureEnabled?: boolean;
 }
 
 // ============================================

@@ -92,7 +92,6 @@ export async function analyzeMaiMLFile(organaizationId: string, maimlContent : s
       };
 
       console.log('syntaxValidation');
-      console.log(maimlContent);
       // Phase 1: Basic XML syntax validation
       const syntaxValidation = validateXMLSyntax(maimlContent);
       if (!syntaxValidation.isValid) {

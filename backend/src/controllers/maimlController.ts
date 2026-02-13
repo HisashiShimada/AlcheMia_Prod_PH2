@@ -143,6 +143,7 @@ export async function save(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    console.log(fileKey);
     const result = await maimlService.saveMaiML(fileKey, content, organizationId);
 
     res.json({

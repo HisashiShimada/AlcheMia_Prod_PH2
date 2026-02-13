@@ -60,7 +60,7 @@ interface MultiObjectEditorProps {
   icon: React.ReactNode;
   includeReferences?: boolean;
   initialData: DocumentTagData[];
-  onDataChange: (key: string, data: DocumentTagData[]) => void;
+  onDataChange: (key: 'creators' | 'vendors' | 'owners' | 'instruments', data: DocumentTagData[]) => void;
   minItems?: number;
   isExpanded: boolean;
   onToggleExpanded: (key: string) => void;

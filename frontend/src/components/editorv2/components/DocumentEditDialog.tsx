@@ -102,14 +102,12 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     uuid: '',
     name: 'document',
     description: '',
-    date: new Date().toISOString(),
+    date: new Date().toISOString().split('T')[0],
     creators: [],
     vendors: [],
     owners: [],
     instruments: [],
-    signature: {
-      enabled: false
-    },
+    signatureEnabled: false,
     protocolId: 'protocolID',
     methodId: 'methodID',
     pnmlId: 'pnmlID',
@@ -217,16 +215,16 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   useEffect(() => {
     if (open) {
       // stateリセット（ダイアログオープン時の初期化は妥当なパターン）
-      // setHasChanges(false);
+      setHasChanges(false);
        
-      // setValidationErrors([]);
+      setValidationErrors([]);
       
       // フォーム初期化
       if (!isNewDocument && documentData) {
         form.setFieldsValue({
           ...documentData,
           date: documentData.date ? dayjs(documentData.date) : dayjs(),
-          signatureEnabled: documentData.signature?.enabled || false,
+          signatureEnabled: documentData.signatureEnabled || false,
         });
       } else {
         const initial = getInitialDocumentData();
@@ -243,7 +241,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
    * UUID一括生成
    */
   const handleAutoGenerateUUIDs = useCallback(() => {
-    const values = form.getFieldsValue();
+    const values = form.getFieldsValue(true);
     form.setFieldsValue({
       ...values,
       uuid: generateUUID(),
@@ -274,8 +272,9 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   /**
    * MultiObjectEditor用データ変更ハンドラー
    */
-  const handleMultiObjectDataChange = useCallback((objectKey: string, objectsArray: DocumentTagData[]) => {
-    form.setFieldValue(objectKey, objectsArray);
+  const handleMultiObjectDataChange = useCallback((objectKey: 'creators' | 'vendors' | 'owners' | 'instruments', objectsArray: DocumentTagData[]) => {
+    form.setFieldsValue({ [objectKey]: objectsArray });
+
     setHasChanges(true);
     
     // バリデーション
@@ -283,8 +282,8 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       clearTimeout(validationTimeoutRef.current);
     }
     validationTimeoutRef.current = setTimeout(() => {
-      const values = form.getFieldsValue();
-      const errors = validateDocumentData(values as DocumentData);
+      const values = form.getFieldsValue(true);
+      const errors = validateDocumentData(values);
       setValidationErrors(errors);
     }, 500);
   }, [form, validateDocumentData]);
@@ -313,8 +312,8 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     }
 
     validationTimeoutRef.current = setTimeout(() => {
-      const values = form.getFieldsValue();
-      const errors = validateDocumentData(values as DocumentData);
+      const values = form.getFieldsValue(true);
+      const errors = validateDocumentData(values);
       setValidationErrors(errors);
     }, 500);
   }, [form, validateDocumentData]);
@@ -324,14 +323,14 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
    */
   const handleSave = useCallback(async () => {
     try {
-      const values = await form.validateFields();
+      await form.validateFields();
       
+      const values = form.getFieldsValue(true);
+
       const documentToSave: DocumentData = {
         ...values,
-        date: values.date ? (values.date as Dayjs).toISOString() : new Date().toISOString(),
-        signature: {
-          enabled: values.signatureEnabled || false,
-        },
+        date: values.date ? values.date : new Date(),
+        signatureEnabled: values.signatureEnabled,
       };
 
       const errors = validateDocumentData(documentToSave);
@@ -484,20 +483,21 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                     <Input />
                   </Form.Item>
 
-                  <Form.Item label="UUID" name="uuid">
-                    <Space.Compact style={{ width: '100%' }}>
-                      <Input />
-                      <Button
-                        icon={<ThunderboltOutlined />}
-                        onClick={() => {
-                          form.setFieldValue('uuid', generateUUID());
-                          setHasChanges(true);
-                        }}
-                      >
-                        生成
-                      </Button>
-                    </Space.Compact>
-                  </Form.Item>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Form.Item label="UUID" name="uuid" noStyle>
+                        <Input />
+                    </Form.Item>
+                    <Button
+                      icon={<ThunderboltOutlined />}
+                      onClick={() => {
+                        const uuid = generateUUID();
+                        form.setFieldValue('uuid', uuid);
+                        setHasChanges(true);
+                      }}
+                    >
+                      生成
+                    </Button>
+                  </Space.Compact>
 
                   <Form.Item
                     label="Name"
@@ -511,22 +511,22 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                     <TextArea rows={2} />
                   </Form.Item>
 
-                  <Form.Item label="Date" name="date">
-                    <Space.Compact style={{ width: '100%' }}>
-                      <DatePicker
-                        showTime
-                        style={{ width: '100%' }}
-                        format="YYYY-MM-DD HH:mm:ss"
-                      />
-                      <Button
-                        icon={<ClockCircleOutlined />}
-                        onClick={handleSetCurrentDateTime}
-                        title="現在時刻を設定"
-                      >
-                        現在
-                      </Button>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Form.Item label="Date" name="date" noStyle>
+                        <DatePicker
+                          showTime
+                          style={{ width: '100%' }}
+                          format="YYYY-MM-DD HH:mm:ss"
+                        />
+                    </Form.Item>
+                    <Button
+                      icon={<ClockCircleOutlined />}
+                      onClick={handleSetCurrentDateTime}
+                      title="現在時刻を設定"
+                    >
+                      現在
+                    </Button>
                     </Space.Compact>
-                  </Form.Item>
                 </Space>
               </Panel>
 

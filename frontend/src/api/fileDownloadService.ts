@@ -5,11 +5,7 @@
  * Requirements: 10
  */
 
-import { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
-
-// API Base URL（環境変数から取得、デフォルトは相対パス）
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 /**
  * ファイルダウンロードレスポンス型
@@ -36,23 +32,6 @@ export interface BulkDownloadResponse {
 }
 
 /**
- * APIエラーレスポンス型
- */
-interface ApiErrorResponse {
-  success: false;
-  error: {
-    code: string;
-    message: string;
-    details?: unknown[];
-  };
-  meta: {
-    timestamp: string;
-    requestId: string;
-  };
-}
-
-
-/**
  * 単一ファイルのダウンロード用署名付きURLを取得
  * 
  * @param projectId プロジェクトID
@@ -74,7 +53,7 @@ export const downloadFile = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/api/v1/projects/${projectId}/files/${encodeURIComponent(fileName)}/download`);
+    }>(`/projects/${projectId}/files/${encodeURIComponent(fileName)}/download`);
 
     return response.data.data;
   } catch (error) {
@@ -107,7 +86,7 @@ export const downloadAllFiles = async (
         timestamp: string;
         requestId: string;
       };
-    }>(`/api/v1/projects/${projectId}/files/download-all`, {
+    }>(`/projects/${projectId}/files/download-all`, {
       params: {
         page,
         limit,

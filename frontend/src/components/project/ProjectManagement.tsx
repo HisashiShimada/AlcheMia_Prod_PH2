@@ -651,7 +651,8 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     // Draftがない場合は直接エディタへ
     console.log('➡️ [ProjectManagement] No draft, opening editor directly');
     const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '');
-    const sourceS3Key = userInfo ? `/org_${userInfo.organizationPrefix}/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
+    // const sourceS3Key = userInfo ? `/org_${userInfo.organizationPrefix}/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
+    const sourceS3Key = userInfo ? `org_maiml_lab_001/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
     const params: ProjectEditParams = {
       projectId: selectedProject.id,
       projectName: selectedProject.name,

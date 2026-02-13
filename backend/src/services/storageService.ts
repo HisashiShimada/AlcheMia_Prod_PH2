@@ -172,11 +172,11 @@ export class StorageService {
     fileContent: Buffer | Readable | string,
     options?: UploadOptions
   ): Promise<string> {
-    const key = this.buildKey(organizationId, filePath);
+    // const key = this.buildKey(organizationId, filePath);
 
     const params: PutObjectCommandInput = {
       Bucket: this.bucketName,
-      Key: key,
+      Key: filePath,
       Body: fileContent,
       ContentType: options?.contentType || 'application/octet-stream',
       Metadata: options?.metadata,
@@ -185,8 +185,8 @@ export class StorageService {
     const command = new PutObjectCommand(params);
     await this.s3Client.send(command);
 
-    console.log(`File uploaded: ${key}`);
-    return key;
+    console.log(`File uploaded: ${filePath}`);
+    return filePath;
   }
 
   /**
@@ -196,11 +196,11 @@ export class StorageService {
    * @returns ファイル内容（Buffer）
    */
   async downloadFile(organizationId: string, filePath: string): Promise<Buffer> {
-    const key = this.buildKey(organizationId, filePath);
+    // const key = this.buildKey(organizationId, filePath);
 
     const params: GetObjectCommandInput = {
       Bucket: this.bucketName,
-      Key: key,
+      Key: filePath,
     };
 
     const command = new GetObjectCommand(params);
@@ -283,11 +283,11 @@ export class StorageService {
    */
   async fileExists(organizationId: string, filePath: string): Promise<boolean> {
     try {
-      const key = this.buildKey(organizationId, filePath);
+      // const key = this.buildKey(organizationId, filePath);
 
       const params: HeadObjectCommandInput = {
         Bucket: this.bucketName,
-        Key: key,
+        Key: filePath,
       };
 
       const command = new HeadObjectCommand(params);

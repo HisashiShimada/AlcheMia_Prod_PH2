@@ -78,7 +78,7 @@ export async function saveMaiML(
   try {
 
     // 1. バリデーション
-    const validation = await validateMaiML(content, '');
+    const validation = await validateMaiML(organizationId,content, '');
     if (!validation.isValid) {
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
@@ -104,8 +104,7 @@ export async function saveMaiML(
 
     const existingMetadata = await fileMetadataRepository.getFileMetadataByFileKey(fileKey);
     if (existingMetadata) {
-      const updateData : FileMetadata = {
-        ...existingMetadata,
+      const updateData = {
         file_size: Buffer.byteLength(content, 'utf-8'),
         updated_at: new Date(),
         last_edit_timestamp: new Date()
@@ -217,7 +216,6 @@ export async function validateMaiML(organizationId : string, content: string, fi
     console.log('✔️ [maimlService] MAIMLバリデーション開始');
     // Base64デコード
     let decodedContent = Buffer.from(content, 'base64').toString('utf-8');
-    console.log(decodedContent);
       
     // UTF-8 BOM除去（XMLパーサーとの互換性のため）
     if (decodedContent.charCodeAt(0) === 0xFEFF) {
@@ -474,6 +472,7 @@ async function createBackup(filePath: string, organizationId: string): Promise<s
     // 既存ファイル確認
     const exists = await storageService.fileExists(organizationId, filePath);
 
+    console.log(filePath, exists);
     if (exists) {
       // 既存ファイルを取得
       const buffer = await storageService.downloadFile(organizationId, filePath);
