@@ -1,0 +1,23 @@
+{
+  "name": "issue-list-retrieval-api",
+  "title": "問題一覧取得API実装",
+  "description": "実験作業者画面における問題一覧取得APIのバックエンド実装",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "created_at": "2026-02-05T02:41:00Z",
+  "updated_at": "2026-02-05T19:10:36+09:00",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  }
+}

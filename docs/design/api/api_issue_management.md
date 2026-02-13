@@ -410,7 +410,7 @@ COMMIT;
 ## 3. 問題一覧取得API
 
 ### 概要
-問題一覧を取得します。複合フィルタリング、ソート、ページネーションに対応します。
+問題一覧を取得します。プロジェクト・メソッド・タスク・トランジション単位でのフィルタリングに対応し、問題に紐づくコメントも親子関係で取得します。
 
 ### エンドポイント
 ```
@@ -440,20 +440,16 @@ router.get('/issues',
 #### クエリパラメータ
 | パラメータ | 型 | 必須 | デフォルト | 説明 |
 |-----------|----|----|-----------|------|
-| project_id | UUID | × | - | プロジェクトIDでフィルタ |
-| task_id | UUID | × | - | タスクIDでフィルタ |
-| transition_id | string | × | - | トランジションIDでフィルタ |
-| status | string | × | - | ステータスでフィルタ（unresolved/resolved） |
-| issue_type | string | × | - | 問題種別でフィルタ |
-| severity | string | × | - | 重要度でフィルタ |
-| sort_by | string | × | created_at | ソート項目（created_at/updated_at/severity） |
-| order | string | × | desc | ソート順（asc/desc） |
-| page | integer | × | 1 | ページ番号 |
-| limit | integer | × | 20 | 1ページあたりの件数（最大100） |
+| projectId | UUID | ○ | - | プロジェクトIDでフィルタ（必須） |
+| methodId | string | ○ | - | メソッドIDでフィルタ（必須） |
+| taskNo | integer | ○ | - | タスク連番でフィルタ（必須） |
+| transitionId | string | ○ | - | トランジションIDでフィルタ（必須） |
+| status | string | △ | - | ステータスでフィルタ（オプション: unresolved/resolved） |
+| issueType | string | △ | - | 問題タイプでフィルタ（オプション） |
 
 #### リクエスト例
 ```
-GET /api/v1/issues?project_id=550e8400-e29b-41d4-a716-446655440000&status=unresolved&sort_by=severity&order=desc&page=1&limit=20
+GET /api/v1/issues?projectId=550e8400-e29b-41d4-a716-446655440000&methodId=method_001&taskNo=1&transitionId=transition_001&status=unresolved
 ```
 
 ### レスポンス
@@ -469,29 +465,36 @@ GET /api/v1/issues?project_id=550e8400-e29b-41d4-a716-446655440000&status=unreso
       "targetType": "transition",
       "projectId": "550e8400-e29b-41d4-a716-446655440000",
       "projectName": "Sample Project",
-      "taskId": "660e8400-e29b-41d4-a716-446655440001",
+      "methodId": "method_001",
       "taskNo": 1,
       "transitionId": "transition_001",
       "title": "試薬Aの在庫不足",
-      "description": "実験に必要な試薬Aの在庫が不足しています。",
-      "severity": "high",
+      "contents": "実験に必要な試薬Aの在庫が不足しています。",
       "status": "unresolved",
       "reportedBy": "880e8400-e29b-41d4-a716-446655440003",
       "reportedByName": "山田太郎",
       "reportedAt": "2026-01-27T10:30:00Z",
-      "commentCount": 3,
-      "createdAt": "2026-01-27T10:30:00Z",
-      "updatedAt": "2026-01-27T11:00:00Z"
+      "completedBy": "880e8400-e29b-41d4-a716-446655440003",
+      "completedByName": "山田太郎",
+      "completedAt": "2026-01-27T10:30:00Z",
+      "comments": [
+        {
+          "sequenceNo": 1,
+          "comment": "在庫管理システムを確認したところ、試薬Aは明日入荷予定です。",
+          "authorId": "880e8400-e29b-41d4-a716-446655440005",
+          "authorName": "佐藤花子",
+          "commentedAt": "2026-01-27T11:00:00Z"
+        },
+        {
+          "sequenceNo": 2,
+          "comment": "承知しました。入荷次第、実験を再開します。",
+          "authorId": "880e8400-e29b-41d4-a716-446655440003",
+          "authorName": "山田太郎",
+          "commentedAt": "2026-01-27T11:30:00Z"
+        }
+      ]
     }
   ],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "totalItems": 45,
-    "totalPages": 3,
-    "hasNext": true,
-    "hasPrev": false
-  },
   "meta": {
     "timestamp": "2026-01-27T12:00:00Z",
     "requestId": "req_ghi789"
@@ -503,96 +506,94 @@ GET /api/v1/issues?project_id=550e8400-e29b-41d4-a716-446655440000&status=unreso
 
 1. **フィルタリング**
    - organization_idで必ずフィルタ（マルチテナント分離）
-   - 指定されたクエリパラメータで追加フィルタ
-   - 複数条件はAND条件で結合
+   - project_idは必須パラメータ
+   - issue_target（問題対象）に基づく条件分岐:
+     - `issue_target = 'project'`: project_idのみで一致判定
+     - `issue_target = 'task'`: project_id、method_id、task_noで一致判定
+     - `issue_target = 'transition'`: project_id、method_id、transition_idで一致判定
 
 2. **ソート**
-   - デフォルト: created_at DESC
-   - severityでソートする場合: critical > high > medium > low
+   - 固定: created_at DESC（最新の問題を先に表示）
 
-3. **ページネーション**
-   - デフォルト: 20件/ページ
-   - 最大: 100件/ページ
+3. **コメント取得**
+   - 各問題に紐づくissue_commentテーブルのレコードを取得
+   - sequence_noの昇順でソート
+   - 親子関係として各問題のcommentsプロパティに設定
 
-4. **コメント数集計**
-   - LEFT JOIN で issue_comments を集約
-   - COUNT でコメント数を取得
-
-5. **ユーザー名取得**
-   - JOIN で organization_user から報告者名を取得
+4. **ユーザー名取得**
+   - JOIN で organization_user から報告者名・コメント投稿者名を取得
 
 ### バリデーション
 
-- [ ] project_id はUUID形式（指定時）
-- [ ] task_id はUUID形式（指定時）
-- [ ] status は "unresolved" または "resolved"（指定時）
-- [ ] sort_by は許可された値（created_at/updated_at/severity）
-- [ ] order は "asc" または "desc"
-- [ ] page は正の整数
-- [ ] limit は1-100の整数
+- [ ] projectId はUUID形式（必須）
+- [ ] methodId は空文字列ではない（必須）
+- [ ] taskNo は正の整数（必須）
+- [ ] transitionId は空文字列ではない（必須）
+- [ ] status は "unresolved" または "resolved"（オプション）
+- [ ] issueType は許可された値のいずれか（オプション）
+
 
 ### データベーステーブル
 
 #### 使用テーブル
-1. **issues**（主テーブル）
-2. **projects**（JOIN: プロジェクト名取得）
-3. **project_task**（JOIN: タスク番号取得）
-4. **organization_user**（JOIN: 報告者名取得）
-5. **issue_comments**（LEFT JOIN: コメント数集計）
+1. **issue**（主テーブル）
+2. **issue_comment**（コメント取得）
+3. **projects**（JOIN: プロジェクト名取得）
+4. **organization_user**（JOIN: 報告者名・コメント投稿者名取得）
 
 #### SQL例
 ```sql
+-- 問題一覧取得（issue_targetに基づくフィルタリング）
 SELECT 
-  i.id,
+  i.issue_id AS id,
   i.issue_type,
-  i.target_type,
+  i.issue_target AS target_type,
   i.project_id,
   p.project_name,
-  i.task_id,
-  pt.task_no,
+  i.method_id,
+  i.task_no,
   i.transition_id,
-  i.title,
-  i.description,
-  i.severity,
+  i.issue_title AS title,
+  i.issue_contents AS description,
   i.status,
-  i.reported_by,
+  i.issue_reporter_id AS reported_by,
   ou.user_name AS reported_by_name,
-  i.reported_at,
-  COUNT(ic.id) AS comment_count,
-  i.created_at,
-  i.updated_at
-FROM issues i
-JOIN projects p ON i.project_id = p.id
-LEFT JOIN project_task pt ON i.task_id = pt.id
-JOIN organization_user ou ON i.reported_by = ou.user_id AND ou.organization_id = i.organization_id
-LEFT JOIN issue_comments ic ON i.id = ic.issue_id
+  i.issue_report_at AS reported_at,
+  i.create_at AS created_at,
+  i.update_at AS updated_at
+FROM issue i
+JOIN projects p ON i.project_id = p.project_id AND p.organization_id = i.organization_id
+JOIN organization_user ou ON i.issue_reporter_id = ou.user_id AND ou.organization_id = i.organization_id
 WHERE i.organization_id = $1
-  AND ($2::uuid IS NULL OR i.project_id = $2)
-  AND ($3::uuid IS NULL OR i.task_id = $3)
-  AND ($4::text IS NULL OR i.transition_id = $4)
-  AND ($5::text IS NULL OR i.status = $5)
-  AND ($6::text IS NULL OR i.issue_type = $6)
-  AND ($7::text IS NULL OR i.severity = $7)
-GROUP BY i.id, p.project_name, pt.task_no, ou.user_name
-ORDER BY 
-  CASE WHEN $8 = 'severity' THEN
-    CASE i.severity
-      WHEN 'critical' THEN 1
-      WHEN 'high' THEN 2
-      WHEN 'medium' THEN 3
-      WHEN 'low' THEN 4
-    END
-  END,
-  CASE WHEN $8 = 'created_at' THEN i.created_at END DESC,
-  CASE WHEN $8 = 'updated_at' THEN i.updated_at END DESC
-LIMIT $9 OFFSET $10;
+  AND i.project_id = $2  -- 必須
+  AND i.method_id = $3    -- 必須
+  AND (
+    -- プロジェクト単位の問題
+    (i.issue_target = 'project')
+    OR
+    -- タスク単位の問題（task_noで一致）
+    (i.issue_target = 'task' AND i.task_no = $4)
+    OR
+    -- トランジション単位の問題（transition_idで一致）
+    (i.issue_target = 'transition' AND i.transition_id = $5)
+  )
+  AND ($6::text IS NULL OR i.status = $6)
+  AND ($7::text IS NULL OR i.issue_type = $7)
+ORDER BY i.create_at DESC;
 
--- 総件数取得
-SELECT COUNT(DISTINCT i.id)
-FROM issues i
-WHERE i.organization_id = $1
-  AND ($2::uuid IS NULL OR i.project_id = $2)
-  -- ... (同じフィルタ条件);
+-- 各問題に紐づくコメント取得
+SELECT 
+  ic.issue_id,
+  ic.sequence_no,
+  ic.comment,
+  ic.author_id,
+  ou.user_name AS author_name,
+  ic.commented_at
+FROM issue_comment ic
+JOIN organization_user ou ON ic.author_id = ou.user_id AND ou.organization_id = ic.organization_id
+WHERE ic.issue_id = ANY($1)  -- 取得した問題IDの配列
+  AND ic.organization_id = $2
+ORDER BY ic.issue_id, ic.sequence_no ASC;
 ```
 
 ### セキュリティ
