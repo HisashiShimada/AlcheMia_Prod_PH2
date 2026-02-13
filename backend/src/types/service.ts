@@ -64,3 +64,20 @@ export interface PinCodeSendData {
   expiresAt: Date;
   maskedEmail: string;
 }
+
+/**
+ * PINコード免除設定
+ */
+export interface PinExemptionSettings {
+  periodDays: number;
+}
+
+/**
+ * PINコード免除判定結果
+ */
+export interface PinExemptionCheck {
+  isExempt: boolean;
+  daysSinceLastLogin: number | null;
+  exemptionPeriodDays: number;
+  reason: string;
+}

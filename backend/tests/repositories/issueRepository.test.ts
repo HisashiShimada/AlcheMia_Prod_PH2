@@ -518,4 +518,94 @@ describe('IssueRepository', () => {
       expect(mockQuery.mock.calls[0][0]).toContain('organization_id');
     });
   });
+
+  describe('addComment() - タスク 3.1', () => {
+    let mockClient: any;
+    let mockConnect: jest.Mock;
+
+    beforeEach(() => {
+      // トランザクション用のクライアントモック
+      const mockClientQuery = jest.fn();
+      mockClient = {
+        query: mockClientQuery,
+        release: jest.fn(),
+      };
+
+      mockConnect = jest.fn().mockResolvedValue(mockClient);
+      (getPool as jest.Mock).mockReturnValue({
+        connect: mockConnect,
+        query: jest.fn(),
+      });
+    });
+
+    it('コメントを正常に追加できる', async () => {
+      // Arrange
+      const organizationId = 'org-123';
+      const issueId = 'issue-123';
+      const userId = 'user-123';
+      const comment = 'これはテストコメントです';
+
+      // 問題存在確認のモック（FOR UPDATE付き）
+      const mockIssue = {
+        issue_id: issueId,
+        organization_id: organizationId,
+        project_id: 'proj-123',
+      };
+      mockClient.query.mockResolvedValueOnce({ rows: [] }); // BEGIN
+      mockClient.query.mockResolvedValueOnce({ rows: [mockIssue] }); // SELECT FOR UPDATE
+
+      // シーケンス番号採番のモック
+      mockClient.query.mockResolvedValueOnce({ rows: [{ next_seq: 1 }] });
+
+      // コメント挿入のモック
+      const mockInsertedComment = {
+        organization_id: organizationId,
+        project_id: 'proj-123',
+        issue_id: issueId,
+        sequence_no: 1,
+        comment,
+        author_id: userId,
+        commented_at: '2026-02-04T10:00:00Z',
+      };
+      mockClient.query.mockResolvedValueOnce({ rows: [mockInsertedComment] });
+
+      // 投稿者名取得のモック
+      mockClient.query.mockResolvedValueOnce({ rows: [{ user_name: 'テストユーザー' }] });
+      mockClient.query.mockResolvedValueOnce({}); // COMMIT
+
+      // Act
+      const result = await repository.addComment(organizationId, issueId, userId, comment);
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(result.projectId).toBe('proj-123');
+      expect(result.issueId).toBe(issueId);
+      expect(result.sequenceNo).toBe(1);
+      expect(result.comment).toBe(comment);
+      expect(result.authorId).toBe(userId);
+      expect(result.authorName).toBe('テストユーザー');
+
+      // トランザクション制御の確認
+      expect(mockConnect).toHaveBeenCalledTimes(1);
+      expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
+      expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+      expect(mockClient.release).toHaveBeenCalledTimes(1);
+    });
+
+    it('問題が存在しない場合はエラーをスローする', async () => {
+      // Arrange
+      mockClient.query.mockResolvedValueOnce({ rows: [] }); // BEGIN
+      mockClient.query.mockResolvedValueOnce({ rows: [] }); // SELECT FOR UPDATE - 問題なし
+      mockClient.query.mockResolvedValueOnce({}); // ROLLBACK
+
+      // Act & Assert
+      await expect(
+        repository.addComment('org-123', 'not-exist', 'user-123', 'コメント')
+      ).rejects.toThrow();
+
+      // ROLLBACKが呼ばれることを確認
+      expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+      expect(mockClient.release).toHaveBeenCalledTimes(1);
+    });
+  });
 });

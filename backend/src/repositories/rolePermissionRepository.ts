@@ -16,28 +16,28 @@ export class RolePermissionRepository {
    * 
    * @param roleId - ロールID
    * @param organizationId - 組織ID
-   * @returns 権限情報の配列（function_idとpermissionを含む）
+   * @returns 権限情報の配列（function_cdとpermissionを含む）
    */
   async getPermissionsByRoleId(
-    roleId: string,
+    roleCd: string,
     organizationId: string
   ): Promise<Permission[]> {
     const pool = getPool();
     
     try {
       // role_permissionテーブルから権限情報を取得
-      const result = await pool.query<{ function_id: string; permission: number }>(
-        `SELECT function_id, permission
+      const result = await pool.query<{ function_cd: string; permission: number }>(
+        `SELECT function_cd, permission
          FROM role_permission 
-         WHERE role_id = $1 
-           AND REPLACE(REPLACE(organization_id::text, '{', ''), '}', '') = $2
-         ORDER BY function_id`,
-        [roleId, organizationId]
+         WHERE role_cd = $1 
+           AND organization_id = $2
+         ORDER BY function_cd`,
+        [roleCd, organizationId]
       );
 
       // Permission型の配列に変換して返す
       return result.rows.map(row => ({
-        functionId: row.function_id,
+        functionId: row.function_cd,
         permission: row.permission
       }));
     } catch (error) {
@@ -66,9 +66,9 @@ export class RolePermissionRepository {
       const result = await pool.query<{ exists: boolean }>(
         `SELECT EXISTS(
           SELECT 1 FROM role_permission 
-          WHERE role_id = $1 
-            AND REPLACE(REPLACE(organization_id::text, '{', ''), '}', '') = $2 
-            AND function_id = $3
+          WHERE role_cd = $1 
+            AND organization_id = $2 
+            AND function_cd = $3
          ) as exists`,
         [roleId, organizationId, functionId]
       );

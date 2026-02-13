@@ -226,7 +226,13 @@
 - ✅ 実装完了（テスト103件すべてPASS）
 - 問題の種類: material_shortage, equipment_failure, procedure_unclear, safety_concern, quality_issue, time_constraint, other
 - 対象種別: project, task, transition
-- 複合フィルタリング対応（プロジェクト・タスク・トランジション・ステータス・種別等）
+- 問題一覧取得（API 7.3）の仕様:
+  - issue_target（問題対象）に基づく条件分岐フィルタリング
+    - `project`: project_idのみで一致判定
+    - `task`: project_id + method_id + task_noで一致判定
+    - `transition`: project_id + method_id + transition_idで一致判定
+  - 各問題に紐づくコメント（issue_comment）を親子関係で取得
+  - レスポンスの各問題オブジェクトに`comments`配列を含める
 - コメント投稿時に自動的に `issues.updated_at` を更新
 - トランザクション保証により整合性を確保
 - Winston構造化ログによる監査証跡を記録

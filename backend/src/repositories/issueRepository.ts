@@ -13,7 +13,12 @@ import {
   IssueListResponse,
   IssuePagination,
   IssueStatus,
+  IssueWithComments,
+  IssueListFilters,
+  IssueComment,
 } from '../types/issue';
+import { IssueCommentResponse } from '../types/issueComment';
+import { NotFoundError } from '../utils/errorClasses';
 
 /**
  * 定数定義
@@ -123,10 +128,21 @@ export class IssueRepository {
 
   /**
    * 組織の問題一覧を取得する（フィルタ・ソート・ページネーション対応）
+   * 
+   * @deprecated このメソッドはページネーション機能付きですが、
+   * 現在のAPI設計書ではページネーションなしの仕様となっています。
+   * 代わりに listIssuesWithComments() を使用してください。
+   * 
+   * このメソッドは将来的な拡張のために残されています。
    */
   async findByOrganization(
     organizationId: string,
-    params: IssueQueryParams
+    params: IssueQueryParams & {
+      page?: number;
+      limit?: number;
+      sortBy?: 'createdAt' | 'updatedAt' | 'severity' | 'status';
+      order?: 'asc' | 'desc';
+    }
   ): Promise<IssueListResponse> {
     const pool = getPool();
 
@@ -148,21 +164,21 @@ export class IssueRepository {
       paramIndex++;
     }
 
-    if (params.taskDetailId) {
-      conditions.push(`task_detail_id = $${paramIndex}`);
-      values.push(params.taskDetailId);
+    if (params.methodId) {
+      conditions.push(`method_id = $${paramIndex}`);
+      values.push(params.methodId);
       paramIndex++;
     }
 
-    if (params.reporterId) {
-      conditions.push(`reporter_id = $${paramIndex}`);
-      values.push(params.reporterId);
+    if (params.taskNo) {
+      conditions.push(`task_no = $${paramIndex}`);
+      values.push(params.taskNo);
       paramIndex++;
     }
 
-    if (params.assigneeId) {
-      conditions.push(`assignee_id = $${paramIndex}`);
-      values.push(params.assigneeId);
+    if (params.transitionId) {
+      conditions.push(`transition_id = $${paramIndex}`);
+      values.push(params.transitionId);
       paramIndex++;
     }
 
@@ -377,5 +393,259 @@ export class IssueRepository {
 
     const result = await pool.query(query, [issueId, organizationId]);
     return (result.rowCount || 0) > 0;
+  }
+
+  /**
+   * コメント付き問題一覧を取得する（タスク 3.1）
+   * 2段階クエリでN+1問題を回避
+   */
+  async listIssuesWithComments(
+    organizationId: string,
+    filters: IssueListFilters
+  ): Promise<IssueWithComments[]> {
+    const pool = getPool();
+
+    // Query 1: 問題一覧を取得（JOINでprojects、organization_userと結合）
+    const conditions: string[] = ['i.organization_id = $1'];
+    const values: any[] = [organizationId];
+    let paramIndex = 2;
+
+    // 必須フィルタ: projectId, methodId
+    conditions.push(`i.project_id = $${paramIndex}`);
+    values.push(filters.projectId);
+    paramIndex++;
+
+    conditions.push(`i.method_id = $${paramIndex}`);
+    values.push(filters.methodId);
+    paramIndex++;
+
+    // issue_target別の動的フィルタリング
+    // issue_target: 1=project, 2=task, 3=transition
+    const targetConditions: string[] = [];
+    
+    // project: issue_target = 1
+    targetConditions.push('(i.issue_target = 1)');
+    
+    // task: issue_target = 2 AND task_no = ?
+    targetConditions.push(`(i.issue_target = 2 AND i.task_no = $${paramIndex})`);
+    values.push(filters.taskNo);
+    paramIndex++;
+    
+    // transition: issue_target = 3 AND transition_id = ?
+    targetConditions.push(`(i.issue_target = 3 AND i.transition_id = $${paramIndex})`);
+    values.push(filters.transitionId);
+    paramIndex++;
+
+    conditions.push(`(${targetConditions.join(' OR ')})`);
+
+    // オプショナルフィルタ: status
+    if (filters.status) {
+      conditions.push(`i.status = $${paramIndex}`);
+      values.push(filters.status);
+      paramIndex++;
+    }
+
+    // オプショナルフィルタ: issueType
+    if (filters.issueType) {
+      conditions.push(`i.issue_type = $${paramIndex}`);
+      values.push(filters.issueType);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.join(' AND ');
+
+    const issuesQuery = `
+      SELECT
+        i.issue_id AS id,
+        i.issue_type AS "issueType",
+        CASE 
+          WHEN i.issue_target = 1 THEN 'project'
+          WHEN i.issue_target = 2 THEN 'task'
+          WHEN i.issue_target = 3 THEN 'transition'
+        END AS "targetType",
+        i.project_id AS "projectId",
+        p.project_name AS "projectName",
+        i.method_id AS "methodId",
+        i.task_no AS "taskNo",
+        i.transition_id AS "transitionId",
+        i.issue_title AS title,
+        i.issue_contents AS contents,
+        i.status,
+        i.issue_reporter_id AS "reportedBy",
+        reporter.user_name AS "reportedByName",
+        i.issue_report_at AS "reportedAt",
+        i.issue_completer_id AS "completedBy",
+        completer.user_name AS "completedByName",
+        i.issue_complate_at AS "completedAt"
+      FROM issues i
+      INNER JOIN projects p ON p.organization_id = i.organization_id AND p.project_id = i.project_id
+      INNER JOIN organization_user reporter ON reporter.organization_id = i.organization_id AND reporter.user_id = i.issue_reporter_id
+      LEFT JOIN organization_user completer ON completer.organization_id = i.organization_id AND completer.user_id = i.issue_completer_id
+      WHERE ${whereClause}
+      ORDER BY i.issue_report_at DESC
+    `;
+
+    const issuesResult = await pool.query(issuesQuery, values);
+    const issues: IssueWithComments[] = issuesResult.rows.map(row => ({
+      ...row,
+      comments: [], // 初期化
+    }));
+
+    // 問題が0件の場合は空配列を返す
+    if (issues.length === 0) {
+      return [];
+    }
+
+    // Query 2: 全問題のコメントを一括取得（N+1問題回避）
+    const issueIds = issues.map(issue => issue.id);
+    
+    const commentsQuery = `
+      SELECT
+        c.issue_id AS "issueId",
+        c.sequence_no AS "sequenceNo",
+        c.comment,
+        c.author_id AS "authorId",
+        u.user_name AS "authorName",
+        c.commented_at AS "commentedAt"
+      FROM issue_comment c
+      INNER JOIN organization_user u ON u.organization_id = c.organization_id AND u.user_id = c.author_id
+      WHERE c.organization_id = $1 AND c.issue_id = ANY($2)
+      ORDER BY c.issue_id, c.sequence_no ASC
+    `;
+
+    const commentsResult = await pool.query(commentsQuery, [organizationId, issueIds]);
+
+    // コメントをissue_idでグループ化して各問題に追加
+    const commentsByIssueId: Record<string, IssueComment[]> = {};
+    
+    for (const row of commentsResult.rows) {
+      if (!commentsByIssueId[row.issueId]) {
+        commentsByIssueId[row.issueId] = [];
+      }
+      commentsByIssueId[row.issueId].push({
+        sequenceNo: row.sequenceNo,
+        comment: row.comment,
+        authorId: row.authorId,
+        authorName: row.authorName,
+        commentedAt: row.commentedAt,
+      });
+    }
+
+    // 各問題にコメントを追加
+    for (const issue of issues) {
+      issue.comments = commentsByIssueId[issue.id] || [];
+    }
+
+    return issues;
+  }
+
+  /**
+   * コメントを追加する（タスク 3.1）
+   * トランザクション制御とFOR UPDATEによる排他制御を実装
+   */
+  async addComment(
+    organizationId: string,
+    issueId: string,
+    userId: string,
+    comment: string
+  ): Promise<IssueCommentResponse> {
+    const pool = getPool();
+    const client = await pool.connect();
+
+    try {
+      // トランザクション開始
+      await client.query('BEGIN');
+
+      // 問題存在確認とロック取得（FOR UPDATE）
+      const issueQuery = `
+        SELECT issue_id, organization_id, project_id
+        FROM issues
+        WHERE issue_id = $1 AND organization_id = $2
+        FOR UPDATE
+      `;
+      const issueResult = await client.query(issueQuery, [issueId, organizationId]);
+
+      if (issueResult.rows.length === 0) {
+        throw new NotFoundError('Issue not found', 'Issue');
+      }
+
+      const issue = issueResult.rows[0];
+
+      // シーケンス番号の採番
+      const seqQuery = `
+        SELECT COALESCE(MAX(sequence_no), 0) + 1 AS next_seq
+        FROM issue_comment
+        WHERE organization_id = $1 AND issue_id = $2
+      `;
+      const seqResult = await client.query(seqQuery, [organizationId, issueId]);
+      const sequenceNo = seqResult.rows[0].next_seq;
+
+      // コメントレコードの挿入
+      const insertQuery = `
+        INSERT INTO issue_comment (
+          organization_id,
+          project_id,
+          issue_id,
+          sequence_no,
+          comment,
+          author_id,
+          commented_at,
+          create_user_id,
+          create_at,
+          update_user_id,
+          update_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, NOW(), $6, NOW(), $6, NOW()
+        )
+        RETURNING 
+          organization_id,
+          project_id,
+          issue_id,
+          sequence_no,
+          comment,
+          author_id,
+          commented_at
+      `;
+      const insertResult = await client.query(insertQuery, [
+        organizationId,
+        issue.project_id,
+        issueId,
+        sequenceNo,
+        comment,
+        userId,
+      ]);
+
+      const insertedComment = insertResult.rows[0];
+
+      // 投稿者名の取得
+      const userQuery = `
+        SELECT user_name
+        FROM organization_user
+        WHERE organization_id = $1 AND user_id = $2
+      `;
+      const userResult = await client.query(userQuery, [organizationId, userId]);
+      const authorName = userResult.rows[0]?.user_name || 'Unknown';
+
+      // トランザクションコミット
+      await client.query('COMMIT');
+
+      // レスポンスの構築
+      return {
+        projectId: insertedComment.project_id,
+        issueId: insertedComment.issue_id,
+        sequenceNo: insertedComment.sequence_no,
+        comment: insertedComment.comment,
+        authorId: insertedComment.author_id,
+        authorName,
+        commentedAt: insertedComment.commented_at,
+      };
+    } catch (error) {
+      // エラー時はロールバック
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      // クライアントを解放
+      client.release();
+    }
   }
 }

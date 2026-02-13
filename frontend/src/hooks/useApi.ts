@@ -58,7 +58,7 @@ export function useApi<T>(
   useEffect(() => {
     if (enabled) {
       // Data fetching in useEffect is a valid pattern
-      // eslint-disable-next-line
+       
       fetchData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -199,7 +199,7 @@ export function useMultipleApi<T extends unknown[]>(
   useEffect(() => {
     if (enabled) {
       // Data fetching in useEffect is a valid pattern
-      // eslint-disable-next-line
+       
       fetchData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
