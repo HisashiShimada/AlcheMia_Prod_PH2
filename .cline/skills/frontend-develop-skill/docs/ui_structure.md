@@ -1,1 +1,0 @@
-../../docs/references/ui_structure.md
