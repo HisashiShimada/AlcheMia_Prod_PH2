@@ -453,68 +453,9 @@ export async function addComment(req: Request, res: Response): Promise<void> {
   const issueService = new IssueService();
 
   try {
-    // 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId, userId } = req.user;
+    const { organizationId, userId } = req.user!;
     const { issueId } = req.params;
     const { comment } = req.body;
-
-    // UUID形式バリデーション
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(issueId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'issueIdはUUID形式である必要があります',
-          details: [{
-            field: 'issueId',
-            message: 'UUID形式が必要です',
-            code: 'INVALID_FORMAT',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // コメントバリデーション
-    if (!comment || comment.trim() === '') {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_REQUIRED_FIELD',
-          message: 'commentは必須です',
-          details: [{
-            field: 'comment',
-            message: 'commentは必須です',
-            code: 'REQUIRED_FIELD',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
 
     // Service層呼び出し
     const result = await issueService.addComment(organizationId, issueId, userId, comment);

@@ -522,4 +522,34 @@ export async function existsById(
   }
 }
 
+/**
+ * 初期画面機能CDを取得（authController用）
+ * 
+ * @param organizationId - 組織ID
+ * @param roleCd - ロールコード
+ * @returns 初期画面機能CD（nullの可能性あり）
+ */
+export async function getInitialScreenFunctionCd(
+  organizationId: string,
+  roleCd: string
+): Promise<string | null> {
+  const pool = getPool();
+  try {
+    const query = `
+      SELECT initial_screen_function_cd
+      FROM role
+      WHERE organization_id = $1 AND role_cd = $2
+    `;
+    const result = await pool.query(query, [organizationId, roleCd]);
+    
+    if (result.rows.length === 0) {
+      return null;
+    }
 
+    // initial_screen_function_cdをtrim()して返す（nullの場合はnull）
+    return result.rows[0].initial_screen_function_cd?.trim() || null;
+  } catch (error) {
+    console.error('初期画面機能CD取得エラー:', error);
+    throw error;
+  }
+}

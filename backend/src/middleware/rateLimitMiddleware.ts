@@ -34,6 +34,13 @@ export interface RateLimitConfig {
  */
 export function rateLimitMiddleware(config: RateLimitConfig) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // 開発環境ではレート制限をスキップ
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Rate Limit] Skipped in ${process.env.NODE_ENV || 'development'} environment for ${config.errorCode}`);
+      next();
+      return;
+    }
+
     try {
       const key = config.keyGenerator(req);
       const pool = getPool();
