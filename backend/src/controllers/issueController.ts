@@ -8,7 +8,7 @@
 import { Request, Response } from 'express';
 import { IssueService } from '../services/issueService';
 import { v4 as uuidv4 } from 'uuid';
-import { logError } from '../utils/logger';
+import { logger, logError } from '../utils/logger';
 
 /**
  * 問題作成エンドポイント
@@ -132,6 +132,7 @@ export async function list(req: Request, res: Response): Promise<void> {
         error: {
           code: errorCode,
           message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -293,6 +294,16 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
     const { issueId } = req.params;
     const { status } = req.body;
 
+    // リクエスト受信ログ記録（Task 4.1）
+    logger.info('Issue status update request received', {
+      action: 'issue_updateStatus',
+      requestId,
+      userId,
+      organizationId,
+      issueId,
+      status,
+    });
+
     // Service層呼び出し
     const result = await issueService.updateStatus(organizationId, issueId, userId, status);
 
@@ -314,6 +325,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
         error: {
           code: errorCode,
           message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -322,6 +334,18 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
       });
       return;
     }
+
+    // 成功ログ記録（Task 4.1）
+    logger.info('Issue status update successful', {
+      action: 'issue_updateStatus',
+      requestId,
+      userId,
+      organizationId,
+      issueId,
+      status,
+      newStatus: result.data?.status,
+      resolvedBy: (result.data as any)?.resolvedBy,
+    });
 
     // 成功レスポンス
     res.status(200).json({

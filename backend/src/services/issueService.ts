@@ -4,7 +4,6 @@
  * @description 問題報告機能のビジネスロジック
  */
 
-import { integer } from 'aws-sdk/clients/cloudfront';
 import { IssueRepository } from '../repositories/issueRepository';
 import {
   Issue,

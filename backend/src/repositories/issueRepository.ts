@@ -344,18 +344,18 @@ export class IssueRepository {
     issueId: string,
     organizationId: string,
     userId: string,
-    statusNumber: Number
+    statusNumber: number
   ): Promise<Issue | null> {
     const pool = getPool();
 
     const query = `
       UPDATE issues
       SET status = $1, 
-        issue_completer_id = CASE WHEN $1 = 0 THEN NULL WHEN $1 = 1 THEN $2 ELSE issue_completer_id
-        issue_complete_at = CASE WHEN $1 = 0 THEN NULL WHEN $1 = 1 THEN CURRENT_TIMESTAMP ELSE issue_complete_at
+        issue_completer_id = CASE WHEN $1 = 0 THEN NULL WHEN $1 = 1 THEN $2 ELSE issue_completer_id END,
+        issue_complate_at = CASE WHEN $1 = 0 THEN NULL WHEN $1 = 1 THEN CURRENT_TIMESTAMP ELSE issue_complate_at END,
         update_user_id = $2, 
         update_at = CURRENT_TIMESTAMP
-        WHERE issue_id = $3 AND organization_id = $4
+      WHERE issue_id = $3 AND organization_id = $4
       RETURNING ${SELECT_COLUMNS}
     `;
 

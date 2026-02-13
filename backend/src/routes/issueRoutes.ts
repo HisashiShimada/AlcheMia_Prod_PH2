@@ -207,13 +207,18 @@ router.patch(
   [
     param('issueId')
       .notEmpty()
-      .withMessage('commentは必須です'),
+      .withMessage('issueIdは必須です')
+      .isString()
+      .withMessage('issueIdは文字列である必要があります')
+      .isLength({ min: 1, max: 50 })
+      .withMessage('issueIdは1〜50文字である必要があります'),
     body('status')
       .notEmpty()
       .withMessage('statusは必須です')
       .isIn(ISSUE_STATUS_VALUES)
       .withMessage('statusは"unresolved"または"resolved"である必要があります'),
   ],
+  handleValidationErrors,
   issueController.updateStatus
 );
 
