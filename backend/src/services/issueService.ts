@@ -111,7 +111,7 @@ export class IssueService {
     }
 
     // 権限確認（報告者または管理者のみ更新可能）
-    if (!isAdmin && existingIssue.reporterId !== userId) {
+    if (!isAdmin && existingIssue.issueReporterId !== userId) {
       throw new AuthorizationError('この問題報告を更新する権限がありません');
     }
 
@@ -150,7 +150,7 @@ export class IssueService {
     this.validateStatus(status);
 
     // ステータス遷移のバリデーション
-    this.validateStatusTransition(existingIssue.status, status);
+    this.validateStatusTransition(existingIssue.status as IssueStatus, status);
 
     // ステータスを更新
     const updatedIssue = await this.issueRepository.updateStatus(
@@ -218,7 +218,7 @@ export class IssueService {
     }
 
     // 権限確認（報告者または管理者のみ削除可能）
-    if (!isAdmin && existingIssue.reporterId !== userId) {
+    if (!isAdmin && existingIssue.issueReporterId !== userId) {
       throw new AuthorizationError('この問題報告を削除する権限がありません');
     }
 
@@ -238,14 +238,15 @@ export class IssueService {
       const newIssue: NewIssue = {
         organizationId,
         projectId: data.projectId,
+        issueId: data.issueId || `issue_${Date.now()}`,
         methodId: data.methodId,
-        taskDetailId: data.taskDetailId,
-        reporterId: userId,
-        title: data.title,
-        description: data.description,
+        issueTarget: data.issueTarget,
+        taskNo: data.taskNo,
+        transitionId: data.transitionId,
+        issueTitle: data.issueTitle,
         issueType: data.issueType,
-        severity: data.severity || 'medium',
-        status: 'open',
+        issueContents: data.issueContents,
+        issueReporterId: userId,
       };
 
       const issue = await this.createIssue(newIssue);
@@ -408,6 +409,7 @@ export class IssueService {
 
   /**
    * Controller層用: コメントを追加する（ServiceResult形式）
+   * タスク 4.1 & 8.2: 入力バリデーション実装
    */
   async addComment(
     organizationId: string,
@@ -416,22 +418,39 @@ export class IssueService {
     comment: string
   ): Promise<ServiceResult<any>> {
     try {
+      // タスク 8.2: 空文字・空白のみのバリデーション
+      if (!comment || comment.trim() === '') {
+        throw new ValidationError('コメントを入力してください');
+      }
+
+      // タスク 4.1: 最大文字数チェック (2000文字) - ビジネスルール
+      if (comment.length > 2000) {
+        throw new ValidationError('コメントは2000文字以内で入力してください');
+      }
+
       // 問題が存在するか確認
       await this.getIssueById(issueId, organizationId);
       
-      // コメント追加のロジックは将来実装
-      // 現在はモックレスポンスを返す
-      const mockComment = {
-        id: 'comment-' + Date.now(),
+      // リポジトリ層を呼び出してコメントを追加
+      const commentResponse = await this.issueRepository.addComment(
+        organizationId,
         issueId,
-        comment,
         userId,
-        userName: 'Test User',
-        createdAt: new Date().toISOString(),
-      };
+        comment
+      );
       
-      return { success: true, data: mockComment };
+      return { success: true, data: commentResponse };
     } catch (error) {
+      if (error instanceof ValidationError) {
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: error.message,
+            originalError: error,
+          },
+        };
+      }
       if (error instanceof NotFoundError) {
         return {
           success: false,
@@ -458,50 +477,28 @@ export class IssueService {
    */
   private validateIssueData(data: Partial<NewIssue>): void {
     // 必須項目チェック
-    if (!data.title || data.title.trim() === '') {
+    if (!data.issueTitle || data.issueTitle.trim() === '') {
       throw new ValidationError('タイトルは必須です');
     }
 
-    if (!data.description || data.description.trim() === '') {
+    if (!data.issueContents || data.issueContents.trim() === '') {
       throw new ValidationError('説明は必須です');
     }
 
-    if (!data.issueType) {
+    if (!data.issueType && data.issueType !== 0) {
       throw new ValidationError('問題タイプは必須です');
     }
 
-    if (!data.severity) {
-      throw new ValidationError('重要度は必須です');
-    }
-
     // 文字数制限チェック
-    if (data.title.length > 200) {
+    if (data.issueTitle.length > 200) {
       throw new ValidationError('タイトルは200文字以内で入力してください');
     }
 
-    // issueTypeの妥当性チェック
-    const validIssueTypes: IssueType[] = [
-      'bug',
-      'feature_request',
-      'question',
-      'improvement'
-    ];
-    if (!validIssueTypes.includes(data.issueType as IssueType)) {
+    // issueTypeの妥当性チェック（数値型）
+    const validIssueTypeNumbers = [1, 2, 3, 4, 5]; // bug, feature_request, question, improvement, other
+    if (!validIssueTypeNumbers.includes(data.issueType as number)) {
       throw new ValidationError(
-        '無効な問題タイプです。bug, feature_request, question, improvement のいずれかを指定してください'
-      );
-    }
-
-    // severityの妥当性チェック
-    const validSeverities: IssueSeverity[] = [
-      'critical',
-      'high',
-      'medium',
-      'low'
-    ];
-    if (!validSeverities.includes(data.severity as IssueSeverity)) {
-      throw new ValidationError(
-        '無効な重要度です。critical, high, medium, low のいずれかを指定してください'
+        '無効な問題タイプです。1-5のいずれかを指定してください'
       );
     }
   }

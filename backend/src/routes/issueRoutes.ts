@@ -88,7 +88,7 @@ router.post(
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
  * @description 既存の問題にコメントを追加
- * @requirements REQ-005, REQ-006
+ * @requirements REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006
  * @roles worker, manager, admin
  */
 router.post(
@@ -97,14 +97,16 @@ router.post(
   tenantIsolation,
   [
     param('issueId')
-      .isUUID()
+      .notEmpty()
       .withMessage('issueIdはUUID形式である必要があります'),
     body('comment')
+      .trim()
       .notEmpty()
       .withMessage('commentは必須です')
       .isLength({ min: 1, max: 2000 })
       .withMessage('commentは1〜2000文字である必要があります'),
   ],
+  handleValidationErrors,
   issueController.addComment
 );
 
