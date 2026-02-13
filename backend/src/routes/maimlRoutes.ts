@@ -238,4 +238,92 @@ router.post(
  */
 router.get('/health', maimlController.health);
 
+// ========== Draft機能ルート ==========
+
+/**
+ * Draft保存
+ * POST /api/v1/maiml/draft
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description Draft（編集中データ）をDBに保存
+ * @requirements FR-DRAFT-1, SEC-1
+ */
+router.post(
+  '/draft',
+  authMiddleware,
+  [
+    body('draftKey')
+      .notEmpty()
+      .withMessage('draftKeyは必須です')
+      .isString()
+      .withMessage('draftKeyは文字列である必要があります'),
+    body('draftName')
+      .notEmpty()
+      .withMessage('draftNameは必須です')
+      .isString()
+      .withMessage('draftNameは文字列である必要があります'),
+    body('originalFileKey')
+      .optional()
+      .isString()
+      .withMessage('originalFileKeyは文字列である必要があります'),
+  ],
+  maimlController.saveDraft
+);
+
+/**
+ * Draft読み込み
+ * GET /api/v1/maiml/draft/:draftKey
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description 指定されたdraftKeyのDraftをDBから読み込む
+ * @requirements FR-DRAFT-2, SEC-1
+ */
+router.get(
+  '/draft/:draftKey',
+  authMiddleware,
+  [
+    param('draftKey')
+      .notEmpty()
+      .withMessage('draftKeyは必須です')
+      .isString()
+      .withMessage('draftKeyは文字列である必要があります'),
+  ],
+  maimlController.loadDraft
+);
+
+/**
+ * Draft一覧取得
+ * GET /api/v1/maiml/drafts
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description ユーザーの全Draft一覧を取得
+ * @requirements FR-DRAFT-3, SEC-1
+ */
+router.get(
+  '/drafts',
+  authMiddleware,
+  maimlController.listDrafts
+);
+
+/**
+ * Draft削除
+ * DELETE /api/v1/maiml/draft/:draftKey
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description 指定されたdraftKeyのDraftをDBから削除
+ * @requirements FR-DRAFT-4, SEC-1
+ */
+router.delete(
+  '/draft/:draftKey',
+  authMiddleware,
+  [
+    param('draftKey')
+      .notEmpty()
+      .withMessage('draftKeyは必須です')
+      .isString()
+      .withMessage('draftKeyは文字列である必要があります'),
+  ],
+  maimlController.deleteDraft
+);
+
 export default router;

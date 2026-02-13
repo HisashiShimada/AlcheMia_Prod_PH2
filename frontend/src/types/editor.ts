@@ -10,7 +10,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import type { Node, Edge, Viewport, Connection, NodeTypes } from 'reactflow';
+import type { Node, Edge, Viewport } from 'reactflow';
 
 // XSD準拠の型定義をimport
 import type {
@@ -190,25 +190,6 @@ export interface ClipboardData {
 }
 
 // ============================================
-// ドラフト関連の型定義
-// ============================================
-
-export interface DraftData {
-  id: string;
-  timestamp: number;
-  name: string;
-  description?: string;
-  methods: MethodData[];
-  document: DocumentData;
-  templates: Template[];
-  // 簡易版プロパティ（後方互換性のため）
-  nodes?: Node<NodeData>[];
-  arcs?: Edge<EdgeData>[];
-  edges?: Edge<EdgeData>[];
-  documentData?: DocumentData;
-}
-
-// ============================================
 // Draft管理関連の型定義 (useDraftManager用)
 // 使用箇所: useDraftManager.ts, DraftManager.tsx, PetriNetEditorInner.tsx
 // ============================================
@@ -218,10 +199,10 @@ export interface DraftData {
  * S3に保存されるDraftファイルのメタデータと内容
  */
 export interface Draft {
-  draft_key: string;
-  draft_name: string;
-  original_file_key?: string;
-  last_saved_at: string;
+  draftKey: string;
+  draftName: string;
+  originalFileKey?: string;
+  lastSavedAt: string;
   nodes?: Node<NodeData>[];
   edges?: Edge<EdgeData>[];
   templates?: Template[];
@@ -238,55 +219,6 @@ export interface EditState {
   edges: Edge<EdgeData>[];
   templates?: Template[];
   documentData?: DocumentData;
-}
-
-/**
- * Draft保存データの型定義
- * Draft保存APIに送信するデータ構造
- */
-export interface DraftSaveData {
-  draftKey: string;
-  draftName: string;
-  originalFileKey?: string;
-  nodes: Node<NodeData>[];
-  edges: Edge<EdgeData>[];
-  templates?: Template[];
-  documentData?: DocumentData;
-}
-
-/**
- * useDraftManagerオプションの型定義
- */
-export interface UseDraftManagerOptions {
-  userId?: string;
-  autoSaveInterval?: number;
-  autoSaveGenerations?: number;
-  onAutoSaveSuccess?: (result: { draft_key: string }) => void;
-  onAutoSaveError?: (error: Error) => void;
-}
-
-/**
- * useDraftManagerの返り値型
- */
-export interface UseDraftManagerReturn {
-  // 状態
-  drafts: Draft[];
-  isLoading: boolean;
-  error: string | null;
-  autoSaveEnabled: boolean;
-  lastSavedDraft: Draft | null;
-  lastAutoSaveTime: Date | null;
-  
-  // 操作関数
-  fetchDrafts: () => Promise<Draft[] | undefined>;
-  saveDraft: (draftData: DraftSaveData) => Promise<{ draft: Draft }>;
-  deleteDraft: (draftKey: string) => Promise<unknown>;
-  
-  // 自動保存制御
-  setAutoSaveEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-  startAutoSaveTimer: () => void;
-  stopAutoSaveTimer: () => void;
-  cleanupOldAutoSaves: () => Promise<void>;
 }
 
 // ============================================
@@ -320,32 +252,4 @@ export interface TemplatesByCategory {
 export interface SaveData {
   name: string;
   description: string;
-}
-
-// ============================================
-// 履歴関連の型定義
-// ============================================
-
-export interface HistoryState {
-  methods: MethodData[];
-  document: DocumentData;
-  templates: Template[];
-}
-
-
-// ============================================
-// コンポーネントProps型定義
-// ============================================
-
-/**
- * PetriNetEditorInner Props型定義
- */
-export interface PetriNetEditorInnerProps {
-  maimlData: string | null;
-  onError?: (error: Error) => void;
-  editingFileName?: string;
-  editMode: string;
-  originalFileName?: string;
-  sourceS3Key?: string;
-  [key: string]: unknown;
 }

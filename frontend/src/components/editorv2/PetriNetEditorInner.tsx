@@ -63,12 +63,11 @@ import type {
   MethodData,
   FileInfo,
   ClipboardData,
-  PetriNetEditorInnerProps,
   NodeType,
-  DraftData
+  Draft, 
+  EditState
 } from '../../types/editor';
 import type { NodeTypes } from 'reactflow';
-import { Draft, EditState } from '../../types/editor';
 
 // ===== Phase 8: 分離したモジュールをインポート =====
 // Hooks
@@ -1880,13 +1879,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }, []);
 
   // Draft読み込みハンドラー
-  const handleLoadDraft = useCallback((draft: DraftData) => {
+  const handleLoadDraft = useCallback((draft: Draft) => {
     console.log('📖 [PetriNetEditorInner] Draft読み込み:', draft);
     
     try {
       // Draftからノードとエッジを復元
       const loadedNodes = draft.nodes || [];
-      const loadedArcs = draft.arcs || draft.edges || []; // arcsキーを優先、後方互換のためedgesもチェック
+      const loadedArcs = draft.edges || []; // arcsキーを優先、後方互換のためedgesもチェック
       
       console.log('🔍 [PetriNetEditorInner] Draft読み込みデータ:', {
         nodesCount: loadedNodes.length,
@@ -1895,7 +1894,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       });
       
       // エッジにスタイルとマーカーを追加
-      const styledEdges = loadedArcs.map(edge => ({
+      const styledEdges : Edge<EdgeData>[] = loadedArcs.map(edge => ({
         ...edge,
         type: 'default',
         animated: false,
@@ -2857,7 +2856,7 @@ interface PetriNetEditorInnerUIProps {
   
   draftManagerOpen: boolean;
   handleCloseDraftManager: () => void;
-  handleLoadDraft: (draft: DraftData) => void;
+  handleLoadDraft: (draft: Draft) => void;
   lastSavedDraft: Draft | null;
   currentEditState: EditState;
   currentUserId: string;
@@ -3235,17 +3234,27 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           show={draftManagerOpen}
           onClose={handleCloseDraftManager}
           onLoadDraft={(draft) => {
-            handleLoadDraft(draft as unknown as DraftData);
+            handleLoadDraft(draft as unknown as Draft);
           }}
           currentEditState={currentEditState}
           userId={currentUserId}
           autoSaveEnabled={autoSaveEnabled}
           onAutoSaveToggle={() => setAutoSaveEnabled(!autoSaveEnabled)}
-          currentDraftKey={lastSavedDraft?.draft_key || null}
+          currentDraftKey={lastSavedDraft?.draftKey || null}
         />
       </Flex>
   );
 };
+
+export interface PetriNetEditorInnerProps {
+  maimlData: string | null;
+  onError?: (error: Error) => void;
+  editingFileName?: string;
+  editMode: string;
+  originalFileName?: string;
+  sourceS3Key?: string;
+  [key: string]: unknown;
+}
 
 // 外部コンポーネント
 const PetriNetEditorInner = (props: PetriNetEditorInnerProps) => {

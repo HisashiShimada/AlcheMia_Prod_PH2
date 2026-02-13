@@ -916,7 +916,7 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
       return;
     }
 
-    const organizationPrefix = orgResult.rows[0].organization_prefix;
+    const organizationPrefix = organizationId;
     
     console.log('[DEBUG] getProjectFiles - Organization prefix', { organizationPrefix });
 
