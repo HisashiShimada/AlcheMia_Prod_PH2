@@ -12,6 +12,10 @@ description: フロントエンドの設計・実装時に使用する
 - UIを設計する際は`docs\document-structure.md`を参照する
 - フロントエンドを実装する際は`docs\frontend.md`を参照する
 - UIを実装する際は`docs\ui_design_policy.md`を参照する
+- UIを設計する際は`docs\ui_policy.md`を参照する
+- UIを設計する際は`docs\ui_structure.md`を参照する
+- UIを実装する際は`docs\ui_policy.md`を参照する
+- UIを実装する際は`docs\ui_structure.md`を参照する
 
 ## Steps
 
