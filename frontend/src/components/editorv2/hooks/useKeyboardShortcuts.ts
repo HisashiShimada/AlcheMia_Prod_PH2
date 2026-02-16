@@ -22,7 +22,7 @@ export interface UseKeyboardShortcutsProps {
   
   // ダイアログ状態
   templateEditorOpen: boolean;
-  saveDialogOpen: boolean;
+  saveConfirmDialogOpen: boolean;
   workflowDialogOpen: boolean;
   
   // ハンドラー
@@ -47,7 +47,7 @@ export const useKeyboardShortcuts = ({
   canRedo,
   selectedNodes,
   templateEditorOpen,
-  saveDialogOpen,
+  saveConfirmDialogOpen,
   workflowDialogOpen,
   undo,
   redo,
@@ -61,7 +61,7 @@ export const useKeyboardShortcuts = ({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Dialogやモーダルが開いている場合はキーボードショートカットを無効化
-      if (templateEditorOpen || saveDialogOpen || workflowDialogOpen) {
+      if (templateEditorOpen || saveConfirmDialogOpen || workflowDialogOpen) {
         return;
       }
       
@@ -140,7 +140,7 @@ export const useKeyboardShortcuts = ({
 
     const handleKeyUp = (event: KeyboardEvent) => {
       // Dialogやモーダルが開いている場合は処理しない
-      if (templateEditorOpen || saveDialogOpen || workflowDialogOpen) {
+      if (templateEditorOpen || saveConfirmDialogOpen || workflowDialogOpen) {
         return;
       }
       
@@ -175,7 +175,7 @@ export const useKeyboardShortcuts = ({
     clipboard, 
     nodes,
     templateEditorOpen,
-    saveDialogOpen,
+    saveConfirmDialogOpen,
     workflowDialogOpen,
     handleCopy,
     handlePaste,

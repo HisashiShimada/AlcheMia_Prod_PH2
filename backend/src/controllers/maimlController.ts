@@ -555,3 +555,185 @@ export async function deleteDraft(req: Request, res: Response): Promise<void> {
     handleError(res, error, 'Draft削除エラー');
   }
 }
+
+// ========== S3/Swiftファイル操作コントローラー ==========
+
+/**
+ * ファイル一覧取得
+ * GET /api/v1/maiml/files
+ * 
+ * @description S3/Swiftから組織別のファイル一覧を取得
+ * @reference Reference版: GET /api/s3/files (listingRoutes.js)
+ * @features マルチテナント対応、チェックアウト状態、キャッシュ機能
+ */
+export async function listFiles(req: Request, res: Response): Promise<void> {
+  try {
+    if (checkValidationErrors(req, res)) return;
+
+    const { organizationId } = req.query;
+    const authUser = req.user as JwtPayload;
+
+    // 認証ユーザーの組織ID検証
+    if (!authUser?.organizationId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Organization ID not found in auth token',
+        },
+      });
+      return;
+    }
+
+    // マルチテナント検証：リクエストされた組織IDがユーザーの組織と一致するか
+    if (organizationId !== authUser.organizationId) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Access denied to requested organization',
+        },
+      });
+      return;
+    }
+
+    console.log('📁 [maimlController] ファイル一覧取得リクエスト受信:', {
+      organizationId,
+      userId: authUser.userId,
+    });
+
+    const result = await maimlService.listMaimlFilesFromStorage(organizationId as string);
+
+    console.log('✅ [maimlController] ファイル一覧取得完了:', {
+      fileCount: result.files?.length || 0,
+      cached: result.cached,
+    });
+
+    res.json({
+      success: true,
+      ...result,
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    handleError(res, error, 'ファイル一覧取得エラー');
+  }
+}
+
+/**
+ * ファイル内容取得
+ * GET /api/v1/maiml/file-content
+ * 
+ * @description S3/Swiftから指定されたキーのファイル内容を取得
+ * @reference Reference版: GET /api/s3/file-content (retrievalRoutes.js)
+ */
+export async function getFileContent(req: Request, res: Response): Promise<void> {
+  try {
+    if (checkValidationErrors(req, res)) return;
+
+    const { key } = req.query;
+    const authUser = req.user as JwtPayload;
+
+    if (!authUser?.organizationId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Organization ID not found in auth token',
+        },
+      });
+      return;
+    }
+
+    console.log('📄 [maimlController] ファイル内容取得リクエスト受信:', {
+      key,
+      organizationId: authUser.organizationId,
+    });
+
+    const result = await maimlService.getMaimlFileContent(key as string);
+
+    console.log('✅ [maimlController] ファイル内容取得完了:', {
+      fileKey: result.data.fileKey,
+      contentLength: result.data.contentLength,
+    });
+
+    res.json({
+      success: true,
+      ...result,
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    handleError(res, error, 'ファイル内容取得エラー');
+  }
+}
+
+/**
+ * MAIML自動補正（リアルタイム）
+ * POST /api/v1/maiml/auto-correct
+ * 
+ * @description MAIMLコンテンツのエラーを自動補正
+ * @reference Reference版: POST /api/s3/maiml-auto-correct-realtime (validationRoutes.js)
+ * @features Base64デコード、選択エラー補正、補正履歴
+ */
+export async function autoCorrect(req: Request, res: Response): Promise<void> {
+  try {
+    if (checkValidationErrors(req, res)) return;
+
+    const { maimlContent, selectedErrors = [], organizationId } = req.body;
+    const authUser = req.user as JwtPayload;
+
+    // 認証ユーザーの組織ID検証
+    if (!authUser?.organizationId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Organization ID not found in auth token',
+        },
+      });
+      return;
+    }
+
+    // マルチテナント検証
+    if (organizationId !== authUser.organizationId) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Access denied to requested organization',
+        },
+      });
+      return;
+    }
+
+    console.log('🔧 [maimlController] 自動補正リクエスト受信:', {
+      contentLength: maimlContent.length,
+      selectedErrorCount: selectedErrors.length,
+      organizationId,
+    });
+
+    const result = await maimlService.autoCorrectMaiml(
+      maimlContent,
+      selectedErrors,
+      organizationId
+    );
+
+    console.log('✅ [maimlController] 自動補正完了:', {
+      correctionCount: result.correctionCount,
+      totalAttempted: result.totalAttempted,
+    });
+
+    res.json({
+      success: true,
+      ...result,
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    handleError(res, error, '自動補正エラー');
+  }
+}

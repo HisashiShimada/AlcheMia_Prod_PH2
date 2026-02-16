@@ -6,7 +6,7 @@
  * @task Phase 6 Step 3: サービス層実装
  */
 
-import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
+import { DOMParser } from '@xmldom/xmldom';
 import { getStorageService } from './storageService';
 import * as crypto from 'crypto';
 import * as validationHistoryRepository from '../repositories/validationHistoryRepository';
@@ -16,6 +16,13 @@ import { maimlSaveResult} from '../types/maimlEditor';
 import { FileMetadataRepository,FileMetadata } from '../repositories/fileMetadataRepository';
 import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraftsRepository';
 import type { Draft } from '../types/editor';
+import {
+  ListFilesResponse,
+  StorageFile,
+  FileContentResponse,
+  AutoCorrectResponse,
+  CorrectionResult,
+} from '../types/storage';
 
 const storageService = getStorageService();
 const maimlDraftsRepository = new MaimlDraftsRepository();
@@ -1251,5 +1258,258 @@ export async function parsePetriNetStructure(content: string): Promise<any> {
       metadata: {},
       error: error instanceof Error ? error.message : 'Unknown error',
     };
+  }
+}
+
+// ========== S3/Swiftファイル操作 ==========
+
+/**
+ * S3/Swiftからファイル一覧取得
+ * Reference版: listingRoutes.js - GET /api/s3/files
+ * 
+ * @param organizationId - 組織ID
+ * @returns ファイル一覧とメタデータ
+ */
+export async function listMaimlFilesFromStorage(
+  organizationId: string
+): Promise<ListFilesResponse> {
+  try {
+    console.log('📁 [maimlService] S3/Swiftファイル一覧取得開始:', organizationId);
+
+    // storageService.listFiles()を使用（組織プレフィックス自動付与）
+    const files = await storageService.listFiles(organizationId, '');
+
+    // ファイル情報をStorageFile型にマッピング
+    const processedFiles: StorageFile[] = files.map((file: any) => ({
+      key: file.key,
+      name: file.key.split('/').pop() || file.key,
+      size: file.size,
+      lastModified: file.lastModified,
+      isFolder: file.isFolder || false,
+      organizationId: organizationId,
+      isCheckedOut: false, // TODO: チェックアウト状態の取得（Phase 7で実装）
+      checkedOutBy: null,
+      managerId: null,
+      checkoutTime: null,
+      workId: null,
+      workUuid: null,
+      workerId: null,
+      assignedWorkerId: null,
+      assignedTo: null,
+    }));
+
+    console.log('✅ [maimlService] ファイル一覧取得完了:', processedFiles.length);
+
+    const response: ListFilesResponse = {
+      files: processedFiles,
+      hierarchicalData: [], // TODO: 階層構造の構築（Phase 7で実装）
+      totalCount: processedFiles.length,
+      organizationId: organizationId,
+      cached: false,
+      timestamp: new Date().toISOString(),
+    };
+
+    return response;
+  } catch (error) {
+    console.error('❌ [maimlService] ファイル一覧取得エラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * S3/Swiftからファイル内容取得
+ * Reference版: retrievalRoutes.js - GET /api/s3/file-content
+ * 
+ * @param fileKey - ファイルキー
+ * @returns ファイル内容
+ */
+export async function getMaimlFileContent(fileKey: string): Promise<FileContentResponse> {
+  try {
+    console.log('📄 [maimlService] ファイル内容取得開始:', fileKey);
+
+    // fileKeyから組織IDを抽出（org_xxx/ プレフィックスから）
+    const orgMatch = fileKey.match(/^org_([^/]+)\//);
+    if (!orgMatch) {
+      throw new Error('Invalid file key format: organization prefix not found');
+    }
+
+    const organizationPrefix = orgMatch[0]; // org_xxx/
+    const relativePath = fileKey.substring(organizationPrefix.length); // org_xxx/を除いた相対パス
+
+    // TODO: DBからorganization_idを取得する処理が必要
+    // 現時点では組織プレフィックスをそのまま使用
+    const buffer = await storageService.downloadFile(organizationPrefix.replace('/', ''), relativePath);
+
+    const content = buffer.toString('utf-8');
+
+    if (!content || content.trim().length === 0) {
+      throw new Error('File content is empty');
+    }
+
+    console.log('✅ [maimlService] ファイル内容取得完了:', {
+      fileKey,
+      contentLength: content.length,
+    });
+
+    // TODO: Content-Typeの自動判定（Phase 7で実装）
+    const contentType = fileKey.endsWith('.maiml') ? 'application/xml' : 'text/plain';
+
+    const response: FileContentResponse = {
+      data: {
+        content: content,
+        fileKey: fileKey,
+        contentLength: content.length,
+        lastModified: new Date().toISOString(),
+        contentType: contentType,
+      },
+    };
+
+    return response;
+  } catch (error) {
+    console.error('❌ [maimlService] ファイル内容取得エラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * MAIML自動補正（リアルタイム版）
+ * Reference版: validationRoutes.js - POST /api/s3/maiml-auto-correct-realtime
+ * 
+ * @param maimlContent - Base64エンコードされたMAIMLコンテンツ
+ * @param selectedErrors - 選択されたエラーのインデックス配列
+ * @param organizationId - 組織ID
+ * @returns 補正結果
+ */
+export async function autoCorrectMaiml(
+  maimlContent: string,
+  selectedErrors: number[],
+  organizationId: string
+): Promise<AutoCorrectResponse> {
+  try {
+    console.log('🔧 [maimlService] 自動補正開始:', {
+      contentLength: maimlContent.length,
+      selectedErrorCount: selectedErrors.length,
+    });
+
+    // 1. Base64デコード
+    let decodedContent: string;
+    try {
+      decodedContent = Buffer.from(maimlContent, 'base64').toString('utf-8');
+
+      // UTF-8 BOM除去
+      if (decodedContent.charCodeAt(0) === 0xFEFF) {
+        decodedContent = decodedContent.substring(1);
+        console.log('🔧 [maimlService] BOM removed from decoded content');
+      }
+
+      console.log('🔍 [maimlService] Decoded content preview:', {
+        length: decodedContent.length,
+        firstChars: decodedContent.substring(0, 100),
+      });
+    } catch (decodeError) {
+      console.error('❌ [maimlService] Base64 decode error:', decodeError);
+      throw new Error(`Failed to decode Base64 content: ${decodeError instanceof Error ? decodeError.message : 'Unknown error'}`);
+    }
+
+    // 2. バリデーション実行してエラーを取得
+    const analysisResult = await maimlParser.analyzeMaiMLFile(
+      organizationId,
+      decodedContent,
+      'realtime-autocorrect'
+    );
+
+    if (!analysisResult || !analysisResult.errors) {
+      throw new Error('Failed to analyze MaiML content');
+    }
+
+    // 3. 自動修正可能なエラーをフィルタリング
+    const correctableErrors: Array<{ index: number; error: any }> = [];
+    for (const errorIndex of selectedErrors) {
+      if (errorIndex >= 0 && errorIndex < analysisResult.errors.length) {
+        const error = analysisResult.errors[errorIndex];
+        if (error && error.suggestion) {
+          correctableErrors.push({ index: errorIndex, error });
+        }
+      }
+    }
+
+    if (correctableErrors.length === 0) {
+      const response: AutoCorrectResponse = {
+        correctedContent: decodedContent,
+        appliedCorrections: [],
+        correctionCount: 0,
+        totalAttempted: 0,
+        message: '自動修正可能なエラーがありません',
+        timestamp: new Date().toISOString(),
+      };
+      return response;
+    }
+
+    // 4. 自動修正を適用
+    let correctedContent = decodedContent;
+    const appliedCorrections: CorrectionResult[] = [];
+
+    for (const { index, error } of correctableErrors) {
+      try {
+        // エラータイプに応じた修正ロジック
+        if (error.type === 'missing_attribute' && error.element && error.attribute) {
+          // 属性追加の修正
+          const elementPattern = new RegExp(
+            `<${error.element}([^>]*)>`,
+            'g'
+          );
+          const replacement = `<${error.element}$1 ${error.attribute}="${error.value || ''}">`;
+
+          const newContent = correctedContent.replace(elementPattern, replacement);
+
+          if (newContent !== correctedContent) {
+            correctedContent = newContent;
+            appliedCorrections.push({
+              errorIndex: index,
+              type: error.type,
+              description: `${error.element}要素に${error.attribute}属性を追加`,
+              applied: true,
+            });
+          }
+        } else if (error.type === 'invalid_value' && error.xpath) {
+          // 値の修正（簡易版）
+          console.log(`⚠️ [maimlService] Value correction not fully implemented for: ${error.xpath}`);
+          appliedCorrections.push({
+            errorIndex: index,
+            type: error.type,
+            description: error.message,
+            applied: false,
+            reason: '値の自動修正は未実装',
+          });
+        }
+      } catch (correctionError) {
+        console.error(`❌ [maimlService] Error applying correction ${index}:`, correctionError);
+        appliedCorrections.push({
+          errorIndex: index,
+          type: error.type,
+          description: error.message,
+          applied: false,
+          reason: correctionError instanceof Error ? correctionError.message : 'Unknown error',
+        });
+      }
+    }
+
+    const successCount = appliedCorrections.filter((c) => c.applied).length;
+
+    console.log(`✅ [maimlService] 自動補正完了: ${successCount}/${correctableErrors.length} corrections applied`);
+
+    const response: AutoCorrectResponse = {
+      correctedContent,
+      appliedCorrections,
+      correctionCount: successCount,
+      totalAttempted: correctableErrors.length,
+      message: `${successCount}件の修正を適用しました`,
+      timestamp: new Date().toISOString(),
+    };
+
+    return response;
+  } catch (error) {
+    console.error('❌ [maimlService] 自動補正エラー:', error);
+    throw error;
   }
 }

@@ -7,6 +7,11 @@
 
 import { createApiClient } from '@/utils/authUtils';
 import { AnalysisResult } from '@/types/maimlValidation';
+import type { 
+  ListFilesResponse, 
+  FileContentResponse, 
+  AutoCorrectResponse 
+} from '@/types/storage';
 
 /**
  * 統一レスポンス形式
@@ -309,6 +314,97 @@ export const listMaimlFiles = async (
     return response.data;
   } catch (error) {
     console.error('❌ [maimlApiService] 一覧取得エラー:', error);
+    throw error;
+  }
+};
+
+// ============================================================================
+// S3/Swiftストレージ操作API（新規追加）
+// ============================================================================
+
+/**
+ * ストレージファイル一覧取得
+ * GET /maiml/files
+ * 
+ * @param organizationId 組織ID
+ * @returns ファイル一覧とメタデータ
+ */
+export const listStorageFiles = async (
+  organizationId: string
+): Promise<ApiResponse<ListFilesResponse>> => {
+  const client = createApiClient();
+  
+  try {
+    console.log('📁 [maimlApiService] ストレージファイル一覧取得');
+    
+    const response = await client.get<ApiResponse<ListFilesResponse>>(
+      `/maiml/files?organizationId=${organizationId}`
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ [maimlApiService] ストレージファイル一覧取得エラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * ストレージファイル内容取得
+ * GET /maiml/file-content
+ * 
+ * @param fileKey ファイルキー
+ * @returns ファイル内容
+ */
+export const getStorageFileContent = async (
+  fileKey: string
+): Promise<ApiResponse<FileContentResponse>> => {
+  const client = createApiClient();
+  
+  try {
+    console.log('📄 [maimlApiService] ストレージファイル内容取得:', fileKey);
+    
+    const response = await client.get<ApiResponse<FileContentResponse>>(
+      `/maiml/file-content?key=${encodeURIComponent(fileKey)}`
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ [maimlApiService] ストレージファイル内容取得エラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * MAIML自動補正（リアルタイム版）
+ * POST /maiml/auto-correct
+ * 
+ * @param maimlContent Base64エンコード済みMAIMLコンテンツ
+ * @param selectedErrors 選択されたエラーインデックス配列
+ * @param organizationId 組織ID
+ * @returns 補正結果
+ */
+export const autoCorrectMaimlRealtime = async (
+  maimlContent: string,
+  selectedErrors: number[],
+  organizationId: string
+): Promise<ApiResponse<AutoCorrectResponse>> => {
+  const client = createApiClient();
+  
+  try {
+    console.log('🔧 [maimlApiService] MAIML自動補正（リアルタイム）実行');
+    
+    const response = await client.post<ApiResponse<AutoCorrectResponse>>(
+      '/maiml/auto-correct',
+      {
+        maimlContent,
+        selectedErrors,
+        organizationId
+      }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ [maimlApiService] MAIML自動補正エラー:', error);
     throw error;
   }
 };

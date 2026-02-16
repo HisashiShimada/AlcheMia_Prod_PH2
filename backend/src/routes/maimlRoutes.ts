@@ -150,6 +150,83 @@ router.post(
 );
 
 /**
+ * ファイル一覧取得
+ * GET /api/v1/maiml/files
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description S3/Swiftから組織別のMAIMLファイル一覧を取得
+ * @reference Reference版: GET /api/s3/files (listingRoutes.js)
+ * @requirements FR-MAIML-9, SEC-1
+ * @features マルチテナント対応、チェックアウト状態、キャッシュ機能
+ */
+router.get(
+  '/files',
+  authMiddleware,
+  [
+    query('organizationId')
+      .notEmpty()
+      .withMessage('organizationIdは必須です')
+      .isString()
+      .withMessage('organizationIdは文字列である必要があります'),
+  ],
+  maimlController.listFiles
+);
+
+/**
+ * ファイル内容取得
+ * GET /api/v1/maiml/file-content
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description S3/Swiftから指定されたキーのファイル内容を取得
+ * @reference Reference版: GET /api/s3/file-content (retrievalRoutes.js)
+ * @requirements FR-MAIML-10, SEC-1
+ */
+router.get(
+  '/file-content',
+  authMiddleware,
+  [
+    query('key')
+      .notEmpty()
+      .withMessage('keyは必須です')
+      .isString()
+      .withMessage('keyは文字列である必要があります'),
+  ],
+  maimlController.getFileContent
+);
+
+/**
+ * MAIML自動補正（リアルタイム）
+ * POST /api/v1/maiml/auto-correct
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @description MAIMLコンテンツのエラーを自動補正
+ * @reference Reference版: POST /api/s3/maiml-auto-correct-realtime (validationRoutes.js)
+ * @requirements FR-MAIML-11, SEC-1
+ * @features Base64デコード、選択エラー補正、補正履歴
+ */
+router.post(
+  '/auto-correct',
+  authMiddleware,
+  [
+    body('maimlContent')
+      .notEmpty()
+      .withMessage('maimlContentは必須です')
+      .isString()
+      .withMessage('maimlContentは文字列である必要があります'),
+    body('organizationId')
+      .notEmpty()
+      .withMessage('organizationIdは必須です')
+      .isString()
+      .withMessage('organizationIdは文字列である必要があります'),
+    body('selectedErrors')
+      .optional()
+      .isArray()
+      .withMessage('selectedErrorsは配列である必要があります'),
+  ],
+  maimlController.autoCorrect
+);
+
+/**
  * MAIML自動補正
  * POST /api/v1/maiml/correct
  * 

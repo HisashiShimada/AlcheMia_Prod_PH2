@@ -37,11 +37,10 @@ import WorkflowSelectorDialog from './components/WorkflowSelectorDialog';
 import useHistory from './hooks/useHistory';
 import { useWorkflow } from './hooks/useWorkflow';
 import useDraftManager from './hooks/useDraftManager';
-import SaveDialog from './components/SaveDialog';
 import DraftManager from './components/DraftManager';
 import SaveConfirmDialog from './components/SaveConfirmDialog';
 import ValidationPanel from './components/ValidationPanel';
-import { convertReactFlowToMaiML, validatePetriNet } from './utils/converters/reactFlowToMaiml';
+import { convertReactFlowToMaiML } from './utils/converters/reactFlowToMaiml';
 import { convertMultipleMethodsToMaiML } from './utils/converters/multiMethodConverter';
 // Viewer用ノードをインポート（既存の正しいノード描画）
 import MaterialTemplateNode from '../nodes/MaterialTemplateNode';
@@ -74,8 +73,9 @@ import type { NodeTypes } from 'reactflow';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useEditorActions } from './hooks/useEditorActions';
 import type { TemplatesByCategory } from '@/types/editor';
-import  * as maimlService from '../../api/maimlApiService';
+import * as maimlService from '../../api/maimlApiService';
 import { AnalysisResult, ErrorContent } from '@/types/maimlValidation';
+import type { StorageFile } from '@/types/storage';
 
 // ✅ window.cline* の型定義
 declare global {
@@ -111,7 +111,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   const [selectedNodes, setSelectedNodes] = useState<Node<NodeData>[]>([]);
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
-  const [saveDialogOpen, setSaveDialogOpen] = useState<boolean>(false);
   const [saveConfirmDialogOpen, setSaveConfirmDialogOpen] = useState<boolean>(false);
   const [validationResult, setValidationResult] = useState<AnalysisResult | null>(null);
   
@@ -522,7 +521,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       });
       
       // バリデーションAPI呼び出し
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
       console.log('🔍 [handleOpenSaveConfirmDialog] バリデーションAPI呼び出し');
       const response = await maimlService.validateMaiml(base64Data);
       
@@ -559,7 +557,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     canRedo,
     selectedNodes,
     templateEditorOpen,
-    saveDialogOpen,
+    saveConfirmDialogOpen,
     workflowDialogOpen,
     undo,
     redo,
@@ -1172,25 +1170,29 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     setIsLoadingFiles(true);
     
     try {
-      // S3ファイル一覧取得
+      // ストレージファイル一覧取得（新APIエンドポイント使用）
       const currentOrgId = localStorage.getItem('currentOrganizationId');
-      const response = await fetch(`/api/s3/files?organizationId=${currentOrgId}`, {
-        credentials: 'include',
-      });
       
-      if (!response.ok) {
-        throw new Error(`ファイル一覧取得エラー: ${response.status}`);
+      if (!currentOrgId) {
+        throw new Error('組織IDが取得できません');
       }
       
-      const result = await response.json();
+      // ✅ 修正: maimlServiceのlistStorageFilesを使用
+      const response = await maimlService.listStorageFiles(currentOrgId);
       
-              // .maimlファイルのみフィルタリング
-              const maimlFiles = (result.files || []).filter((file: { key: string; name?: string }) => 
-                file.key && file.key.endsWith('.maiml')
-              ).map((file: { key: string; name?: string; lastModified?: string; size?: number }) => ({
-                ...file,
-                name: file.name || file.key.split('/').pop(),
-              }));
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'ファイル一覧取得に失敗しました');
+      }
+      
+      // .maimlファイルのみフィルタリング
+      const maimlFiles = response.data.files
+        .filter((file: StorageFile) => file.key && file.key.endsWith('.maiml'))
+        .map((file: StorageFile) => ({
+          key: file.key,
+          name: file.name || file.key.split('/').pop() || '',
+          lastModified: file.lastModified,
+          size: file.size,
+        }));
       
       setAvailableFiles(maimlFiles);
       console.log('✅ [PetriNetEditorInner] ファイル一覧取得完了:', maimlFiles.length);
@@ -2102,17 +2104,15 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     console.log('📂 [PetriNetEditorInner] ワークフローファイル選択:', file);
     
     try {
-      // S3からMaiMLファイル取得
-      const response = await fetch(`/api/s3/file-content?key=${encodeURIComponent(file.key)}`, {
-        credentials: 'include',
-      });
+      // ✅ 修正: maimlServiceのgetStorageFileContentを使用
+      const response = await maimlService.getStorageFileContent(file.key);
       
-      if (!response.ok) {
-        throw new Error(`ファイル取得エラー: ${response.status}`);
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || 'ファイル内容取得に失敗しました');
       }
       
-      const result = await response.json();
-      const maimlContent = result.data.content;
+      // ✅ 修正: FileContentResponseはdataプロパティにネストされている
+      const maimlContent = response.data.data.content;
       
       console.log('✅ [PetriNetEditorInner] MaiMLファイル取得完了:', {
         fileKey: file.key,
@@ -2151,18 +2151,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       throw err;
     }
   }, [addWorkflow, pendingClickPosition]);
-
-  // Phase 3D: 旧保存ダイアログを開く（互換性のため残す）
-  const handleOpenSaveDialog = useCallback(() => {
-    setSaveDialogOpen(true);
-    setSaveError(undefined);
-  }, []);
-
-  // Phase 3D: 旧保存ダイアログを閉じる
-  const handleCloseSaveDialog = useCallback(() => {
-    setSaveDialogOpen(false);
-    setSaveError(undefined);
-  }, []);
 
 
   // Week1: 新保存ダイアログを閉じる
@@ -2215,7 +2203,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       // Base64エンコード
       const bytes = new TextEncoder().encode(maimlXml);
       const base64Data = btoa(String.fromCharCode(...bytes));
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
       
       console.log('🔍 [handleOpenValidationPanel] バリデーションAPI呼び出し');
       const response = await maimlService.validateMaiml(base64Data);
@@ -2266,26 +2253,25 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       };
       const maimlXml = await convertReactFlowToMaiML(nodes, edges, metadata, documentData);
       
-      // 自動補正API呼び出し
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
-      const response = await fetch('/api/s3/maiml-auto-correct-realtime', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          maimlContent: maimlXml,
-          organizationId: currentOrgId,
-          selectedErrors,
-        }),
-      });
+      // Base64エンコード
+      const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
       
-      if (!response.ok) {
-        throw new Error(`自動補正エラー: ${response.status}`);
+      // 自動補正API呼び出し（新APIエンドポイント使用）
+      const currentOrgId = localStorage.getItem('currentOrganizationId');
+      
+      if (!currentOrgId) {
+        throw new Error('組織IDが取得できません');
       }
       
-      const result = await response.json();
+      const response = await maimlService.autoCorrectMaimlRealtime(
+        base64Data,
+        selectedErrors,
+        currentOrgId
+      );
+      
+      if (!response.success || !response.data) {
+        throw new Error(response.error?.message || '自動補正に失敗しました');
+      }
       
       console.log('✅ [PetriNetEditorInner] 自動補正完了');
       
@@ -2384,28 +2370,29 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       if (action === 'auto-correct') {
         console.log('🔧 [PetriNetEditorInner] 自動補正実行');
         
-        // 自動補正API呼び出し
-        const currentOrgId = localStorage.getItem('currentOrganizationId');
-        const response = await fetch('/api/s3/maiml-auto-correct-realtime', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            maimlContent: maimlXml,
-            organizationId: currentOrgId,
-          }),
-        });
+        // Base64エンコード
+        const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
         
-        if (!response.ok) {
-          throw new Error(`自動補正エラー: ${response.status}`);
+        // 自動補正API呼び出し（新APIエンドポイント使用）
+        const currentOrgId = localStorage.getItem('currentOrganizationId');
+        
+        if (!currentOrgId) {
+          throw new Error('組織IDが取得できません');
         }
         
-        const result = await response.json();
+        const response = await maimlService.autoCorrectMaimlRealtime(
+          base64Data,
+          [], // selectedErrors: 空配列（全エラーを補正）
+          currentOrgId
+        );
         
-        if (result.correctedMaiml) {
-          maimlXml = result.correctedMaiml;
+        if (!response.success || !response.data) {
+          throw new Error(response.error?.message || '自動補正に失敗しました');
+        }
+        
+        // 補正されたMAIMLを取得（Base64デコード）
+        if (response.data.correctedContent) {
+          maimlXml = atob(response.data.correctedContent);
           console.log('✅ [PetriNetEditorInner] 自動補正完了');
         }
       }
@@ -2511,69 +2498,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       setIsSaving(false);
     }
   }, [nodes, edges, documentData, handleCloseSaveConfirmDialog]);
-
-  // Phase 3D: 保存ハンドラー
-  const handleSave = useCallback(async (metadata: { name: string; description: string }) => {
-    try {
-      setIsSaving(true);
-      setSaveError(undefined);
-      
-      console.log('💾 [PetriNetEditorInner] 保存開始:', {
-        name: metadata.name,
-        nodesCount: nodes.length,
-        edgesCount: edges.length
-      });
-      
-      // バリデーション
-      const validation = validatePetriNet(nodes, edges);
-      if (!validation.valid) {
-        throw new Error(`バリデーションエラー:\n${validation.errors.join('\n')}`);
-      }
-      
-      // MaiML変換（Document情報を含む）
-      const maimlXml = await convertReactFlowToMaiML(nodes, edges, metadata, documentData);
-      
-      console.log('📄 [PetriNetEditorInner] MaiML生成完了:', {
-        xmlLength: maimlXml.length,
-        hasDocument: !!documentData
-      });
-      
-      // Draft API呼び出し
-      const response = await fetch('/api/s3/maiml-drafts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: metadata.name,
-          description: metadata.description,
-          content: maimlXml,
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `保存に失敗しました (${response.status})`);
-      }
-      
-      const result = await response.json();
-      
-      setSaveDialogOpen(false);
-      
-      console.log('✅ [PetriNetEditorInner] Draft保存完了:', result);
-      
-      // 成功通知（将来的にSnackbarなどを使用）
-      alert(`ペトリネット "${metadata.name}" を保存しました`);
-      
-    } catch (err: unknown) {
-      const errorMessage = getErrorMessage(err);
-      console.error('❌ [PetriNetEditorInner] Draft保存エラー:', errorMessage);
-      setSaveError(errorMessage);
-    } finally {
-      setIsSaving(false);
-    }
-  }, [nodes, edges]);
 
   // エッジ選択ハンドラー（Phase 3: エッジ選択でPropertyPanel表示）
   const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge<EdgeData>) => {
@@ -2723,10 +2647,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         handleOpenTemplateEditor={handleOpenTemplateEditor}
         handleDeleteNode={handleDeleteNode}
         handleDeleteEdge={handleDeleteEdge}
-        saveDialogOpen={saveDialogOpen}
-        handleCloseSaveDialog={handleCloseSaveDialog}
-        handleSave={handleSave}
-        saveError={saveError}
         saveConfirmDialogOpen={saveConfirmDialogOpen}
         validationResult={validationResult}
         handleCloseSaveConfirmDialog={handleCloseSaveConfirmDialog}
@@ -2837,11 +2757,6 @@ interface PetriNetEditorInnerUIProps {
   handleDeleteEdge: (edgeId: string) => void;
   
   // ダイアログ
-  saveDialogOpen: boolean;
-  handleCloseSaveDialog: () => void;
-  handleSave: (metadata: { name: string; description: string }) => void;
-  saveError: string | undefined;
-  
   saveConfirmDialogOpen: boolean;
   validationResult: AnalysisResult | null;
   handleCloseSaveConfirmDialog: () => void;
@@ -2942,10 +2857,6 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   handleOpenTemplateEditor,
   handleDeleteNode,
   handleDeleteEdge,
-  saveDialogOpen,
-  handleCloseSaveDialog,
-  handleSave,
-  saveError,
   saveConfirmDialogOpen,
   validationResult,
   handleCloseSaveConfirmDialog,
@@ -3177,15 +3088,6 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
             />
           )}
         </div>
-
-        {/* Phase 3D: 保存ダイアログ（旧版） */}
-        <SaveDialog
-          open={saveDialogOpen}
-          onClose={handleCloseSaveDialog}
-          onSave={handleSave}
-          isLoading={isSaving}
-          error={saveError}
-        />
 
         {/* Week1: 新保存確認ダイアログ */}
         <SaveConfirmDialog
