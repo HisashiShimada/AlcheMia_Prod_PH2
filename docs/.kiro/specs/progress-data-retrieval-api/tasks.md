@@ -39,12 +39,14 @@
 ### Phase 2: データアクセス層の実装
 
 - [ ] 2. TaskRepositoryの拡張
-- [ ] 2.1 (P) getTaskByProjectMethodTaskNoメソッドの実装
+- [x] 2.1 (P) getTaskByProjectMethodTaskNoメソッドの実装
   - project_taskテーブルとprojectテーブルをJOIN
   - projectId、methodId、taskNo、organizationIdでフィルタリング
   - task_id、task_name、project_id、project_name、method_id、task_noを取得
   - organization_idによるマルチテナント分離を実装
   - Kyselyクエリビルダーを使用した型安全なクエリ構築
+  - **実装完了**: 2026-02-16
+  - **テスト結果**: 6テスト全て成功（正常系4、異常系1、セキュリティ1）
   - _Requirements: 1, 3_
 
 - [ ] 3. ExperimentRecordRepositoryの拡張
