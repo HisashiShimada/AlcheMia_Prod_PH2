@@ -23,7 +23,7 @@ export async function login(req: Request, res: Response): Promise<void> {
 
   try {
     const { userId, password } = req.body;
-    const organizationId = req.query.orgId as string;
+    const organizationId = (req.headers['x-organization-id'] || req.query.orgId) as string;
 
     const result = await authService.processLogin({
       userId,
@@ -100,7 +100,7 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
 
   try {
     const { email } = req.body;
-    const organizationId = req.query.orgId as string;
+    const organizationId = (req.headers['x-organization-id'] || req.query.orgId) as string;
 
     const result = await authService.processPasswordResetRequest({
       email,
@@ -228,7 +228,7 @@ export async function resendPin(req: Request, res: Response): Promise<void> {
 
   try {
     const authHeader = req.headers.authorization as string;
-    const organizationId = req.query.orgId as string;
+    const organizationId = (req.headers['x-organization-id'] || req.query.orgId) as string;
 
     // Authorizationヘッダーからトークン抽出
     const tokenMatch = authHeader.match(/^Bearer (.+)$/);
