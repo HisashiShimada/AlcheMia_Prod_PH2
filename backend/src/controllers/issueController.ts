@@ -8,7 +8,7 @@
 import { Request, Response } from 'express';
 import { IssueService } from '../services/issueService';
 import { v4 as uuidv4 } from 'uuid';
-import { logError } from '../utils/logger';
+import { logger, logError } from '../utils/logger';
 
 /**
  * 問題作成エンドポイント
@@ -132,6 +132,7 @@ export async function list(req: Request, res: Response): Promise<void> {
         error: {
           code: errorCode,
           message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -289,71 +290,22 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
   const issueService = new IssueService();
 
   try {
-    // 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId } = req.user;
+    const { organizationId, userId } = req.user!;
     const { issueId } = req.params;
     const { status } = req.body;
 
-    // UUID形式バリデーション
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(issueId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'issueIdはUUID形式である必要があります',
-          details: [{
-            field: 'issueId',
-            message: 'UUID形式が必要です',
-            code: 'INVALID_FORMAT',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // ステータスバリデーション
-    if (!status || (status !== 'unresolved' && status !== 'resolved')) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_VALUE',
-          message: 'statusは "unresolved" または "resolved" である必要があります',
-          details: [{
-            field: 'status',
-            message: '許可された値: unresolved, resolved',
-            code: 'INVALID_VALUE',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
+    // リクエスト受信ログ記録（Task 4.1）
+    logger.info('Issue status update request received', {
+      action: 'issue_updateStatus',
+      requestId,
+      userId,
+      organizationId,
+      issueId,
+      status,
+    });
 
     // Service層呼び出し
-    const result = await issueService.updateStatus(organizationId, issueId, status);
+    const result = await issueService.updateStatus(organizationId, issueId, userId, status);
 
     // エラーハンドリング
     if (!result.success) {
@@ -373,6 +325,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
         error: {
           code: errorCode,
           message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
         },
         meta: {
           timestamp: new Date().toISOString(),
@@ -381,6 +334,18 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
       });
       return;
     }
+
+    // 成功ログ記録（Task 4.1）
+    logger.info('Issue status update successful', {
+      action: 'issue_updateStatus',
+      requestId,
+      userId,
+      organizationId,
+      issueId,
+      status,
+      newStatus: result.data?.status,
+      resolvedBy: (result.data as any)?.resolvedBy,
+    });
 
     // 成功レスポンス
     res.status(200).json({
