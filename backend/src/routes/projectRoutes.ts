@@ -117,6 +117,30 @@ router.post(
 );
 
 /**
+ * プロジェクトMAIML取得
+ * GET /api/v1/projects/:projectId/maiml
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @middleware tenantIsolation - テナント分離
+ * @description プロジェクトの最新MAIMLファイルをXML形式で取得する
+ * @note Task 1.1: MAIML取得エンドポイント追加
+ * @requirements REQ-1, REQ-2, REQ-3, REQ-8
+ * @roles experiment_worker, experiment_admin, system_admin
+ */
+router.get(
+  '/:projectId/maiml',
+  authMiddleware,
+  tenantIsolation,
+  [
+    param('projectId')
+      .isUUID()
+      .withMessage('projectIdはUUID形式である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.getProjectMaiml
+);
+
+/**
  * プロジェクト詳細取得
  * GET /api/v1/projects/:projectId
  * 

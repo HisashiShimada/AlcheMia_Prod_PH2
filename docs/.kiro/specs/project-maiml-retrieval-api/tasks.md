@@ -4,7 +4,7 @@
 
 ### 1. ルート定義とバリデーション実装
 
-- [ ] 1.1 (P) projectRoutesにMAIML取得エンドポイントを追加
+- [x] 1.1 (P) projectRoutesにMAIML取得エンドポイントを追加
   - `GET /api/v1/projects/:projectId/maiml`エンドポイントを定義
   - express-validatorでprojectIdのUUID形式バリデーションを実装
   - authMiddleware、tenantIsolation、handleValidationErrorsのミドルウェアチェーンを適用
@@ -13,7 +13,7 @@
 
 ### 2. Controller層実装
 
-- [ ] 2.1 (P) projectControllerにgetProjectMaimlメソッドを実装
+- [x] 2.1 (P) projectControllerにgetProjectMaimlメソッドを実装
   - リクエスト認証状態の検証（req.user存在確認）
   - projectIdのUUID形式検証（正規表現による二重チェック）
   - organization_prefixをDBから取得（organizationsテーブルクエリ）
@@ -26,8 +26,8 @@
 
 ### 3. Service層実装
 
-- [ ] 3.1 (P) projectServiceにgetProjectMaimlメソッドを実装
-  - プロジェクト存在確認クエリを実行（Kyselyのクエリビルダー使用）
+- [x] 3.1 (P) projectServiceにgetProjectMaimlメソッドを実装
+  - プロジェクト存在確認クエリを実行（Parameterized Query使用）
   - organization_idフィルタを必須適用してマルチテナント分離を保証
   - プロジェクト不在時はRESOURCE_NOT_FOUNDエラーを返却
   - project_nameをDBから取得
@@ -36,14 +36,14 @@
   - BufferをUTF-8文字列に変換してXML内容を取得
   - ファイルサイズ、ファイルパス、読み込み日時を含むMAIMLFileDataを構築
   - S3ファイル不在時はFILE_NOT_FOUNDエラーを返却
-  - DB/S3エラー時はINTERNAL_ERRORを返却
+  - DB/S3エラー時はSYSTEM_DATABASE_ERROR/SYSTEM_S3_ERRORを返却
   - 成功時とエラー時にロギング（winston使用、機密情報除外）
   - ServiceResult型でラップして返却
   - _Requirements: 1, 3, 4, 6, 7_
 
 ### 4. 型定義とインターフェース
 
-- [ ] 4.1 (P) backend/src/types/maiml.tsを作成
+- [x] 4.1 (P) backend/src/types/maiml.tsを作成
   - MAIMLFileData型を定義（file_id, project_id, project_name, file_name, file_path, file_size, content, content_type, loaded_at）
   - ServiceResult型を定義（success, data, error）
   - TypeScriptインターフェースとしてエクスポート

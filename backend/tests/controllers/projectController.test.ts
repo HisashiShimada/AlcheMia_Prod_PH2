@@ -6,11 +6,18 @@
  */
 
 import { Request, Response } from 'express';
-import { list } from '../../src/controllers/projectController';
+import { list, getProjectMaiml } from '../../src/controllers/projectController';
 import { ProjectService } from '../../src/services/projectService';
 
 // ProjectServiceをモック
 jest.mock('../../src/services/projectService');
+
+// データベースモジュールをモック
+jest.mock('../../src/database/db', () => ({
+  getPool: jest.fn(() => ({
+    query: jest.fn()
+  }))
+}));
 
 // uuidをモック
 jest.mock('uuid', () => ({
@@ -34,11 +41,11 @@ describe('ProjectController', () => {
       user: {
         userId: 'user123',
         organizationId: 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
-        role: 'experiment_admin',
         sessionId: 'session123',
+        permissions: [],
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 86400
-      }
+      } as any
     };
 
     mockResponse = {
@@ -280,6 +287,276 @@ describe('ProjectController', () => {
       expect(ProjectService.prototype.list).toHaveBeenCalledWith(
         'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
         expect.any(Object)
+      );
+    });
+  });
+
+  describe('getProjectMaiml', () => {
+    beforeEach(() => {
+      mockRequest.params = {
+        projectId: '550e8400-e29b-41d4-a716-446655440000'
+      };
+    });
+
+    it('should return 401 when user is not authenticated', async () => {
+      // Arrange
+      mockRequest.user = undefined;
+
+      // Act
+      await getProjectMaiml(mockRequest as Request, mockResponse as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(401);
+      expect(mockJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          error: expect.objectContaining({
+            code: 'AUTH_TOKEN_INVALID',
+            message: '認証が必要です'
+          })
+        })
+      );
+    });
+
+    it('should return 404 when organization_prefix retrieval fails', async () => {
+      // Arrange
+      const { getPool } = require('../../src/database/db');
+      const mockPool = {
+        query: jest.fn().mockResolvedValue({ rows: [] })
+      };
+      (getPool as jest.Mock).mockReturnValue(mockPool);
+
+      // Act
+      await getProjectMaiml(mockRequest as Request, mockResponse as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(404);
+      expect(mockJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          error: expect.objectContaining({
+            code: 'RESOURCE_NOT_FOUND',
+            message: '組織情報が見つかりません'
+          })
+        })
+      );
+    });
+
+    it('should return 404 when service returns RESOURCE_NOT_FOUND error', async () => {
+      // Arrange
+      const { getPool } = require('../../src/database/db');
+      const mockPool = {
+        query: jest.fn().mockResolvedValue({
+          rows: [{ organization_prefix: 'maiml_lab_001' }]
+        })
+      };
+      (getPool as jest.Mock).mockReturnValue(mockPool);
+
+      (ProjectService.prototype.getProjectMaiml as jest.Mock).mockResolvedValue({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'プロジェクトが見つかりません'
+        }
+      });
+
+      // Act
+      await getProjectMaiml(mockRequest as Request, mockResponse as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(404);
+      expect(mockJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          error: expect.objectContaining({
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'プロジェクトが見つかりません'
+          })
+        })
+      );
+    });
+
+    it('should return 404 when service returns FILE_NOT_FOUND error', async () => {
+      // Arrange
+      const { getPool } = require('../../src/database/db');
+      const mockPool = {
+        query: jest.fn().mockResolvedValue({
+          rows: [{ organization_prefix: 'maiml_lab_001' }]
+        })
+      };
+      (getPool as jest.Mock).mockReturnValue(mockPool);
+
+      (ProjectService.prototype.getProjectMaiml as jest.Mock).mockResolvedValue({
+        success: false,
+        error: {
+          code: 'FILE_NOT_FOUND',
+          message: 'MAIMLファイルが見つかりません'
+        }
+      });
+
+      // Act
+      await getProjectMaiml(mockRequest as Request, mockResponse as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(404);
+      expect(mockJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          error: expect.objectContaining({
+            code: 'FILE_NOT_FOUND',
+            message: 'MAIMLファイルが見つかりません'
+          })
+        })
+      );
+    });
+
+    it('should return 500 when service returns SYSTEM_ERROR', async () => {
+      // Arrange
+      const { getPool } = require('../../src/database/db');
+      const mockPool = {
+        query: jest.fn().mockResolvedValue({
+          rows: [{ organization_prefix: 'maiml_lab_001' }]
+        })
+      };
+      (getPool as jest.Mock).mockReturnValue(mockPool);
+
+      (ProjectService.prototype.getProjectMaiml as jest.Mock).mockResolvedValue({
+        success: false,
+        error: {
+          code: 'SYSTEM_ERROR',
+          message: 'システムエラーが発生しました'
+        }
+      });
+
+      // Act
+      await getProjectMaiml(mockRequest as Request, mockResponse as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(500);
+      expect(mockJson).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          error: expect.objectContaining({
+            code: 'SYSTEM_ERROR'
+          })
+        })
+      );
+    });
+
+    it('should return 200 with MAIML file data when service succeeds', async () => {
+      // Arrange
+      const { getPool } = require('../../src/database/db');
+      const mockPool = {
+        query: jest.fn().mockResolvedValue({
+          rows: [{ organization_prefix: 'maiml_lab_001' }]
+        })
+      };
+      (getPool as jest.Mock).mockReturnValue(mockPool);
+
+      const mockMAIMLData = {
+        file_id: 'org_maiml_lab_001/projects/test_project/test_project.maiml',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        file_name: 'test_project.maiml',
+        file_path: 'projects/test_project/test_project.maiml',
+        file_size: 1024,
+        content: '<?xml version="1.0"?><MAIML></MAIML>',
+        content_type: 'application/xml',
+        loaded_at: '2026-02-16T13:00:00.000Z'
+      };
+
+      (ProjectService.prototype.getProjectMaiml as jest.Mock).mockResolvedValue({
+        success: true,
+        data: mockMAIMLData
+      });
+
+      // Act
+      await getProjectMaiml(mockRequest as Request, mockResponse as Response);
+
+      // Assert
+      expect(mockStatus).toHaveBeenCalledWith(200);
+      expect(mockJson).toHaveBeenCalledWith({
+        success: true,
+        data: mockMAIMLData,
+        meta: expect.objectContaining({
+          timestamp: expect.any(String),
+          requestId: 'test-request-id-123'
+        })
+      });
+    });
+
+    it('should include requestId and timestamp in response meta', async () => {
+      // Arrange
+      const { getPool } = require('../../src/database/db');
+      const mockPool = {
+        query: jest.fn().mockResolvedValue({
+          rows: [{ organization_prefix: 'maiml_lab_001' }]
+        })
+      };
+      (getPool as jest.Mock).mockReturnValue(mockPool);
+
+      const mockMAIMLData = {
+        file_id: 'org_maiml_lab_001/projects/test_project/test_project.maiml',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        file_name: 'test_project.maiml',
+        file_path: 'projects/test_project/test_project.maiml',
+        file_size: 1024,
+        content: '<?xml version="1.0"?><MAIML></MAIML>',
+        content_type: 'application/xml',
+        loaded_at: '2026-02-16T13:00:00.000Z'
+      };
+
+      (ProjectService.prototype.getProjectMaiml as jest.Mock).mockResolvedValue({
+        success: true,
+        data: mockMAIMLData
+      });
+
+      // Act
+      await getProjectMaiml(mockRequest as Request, mockResponse as Response);
+
+      // Assert
+      const jsonCall = mockJson.mock.calls[0][0];
+      expect(jsonCall.meta).toBeDefined();
+      expect(jsonCall.meta.requestId).toBe('test-request-id-123');
+      expect(jsonCall.meta.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    });
+
+    it('should call service with correct parameters', async () => {
+      // Arrange
+      const { getPool } = require('../../src/database/db');
+      const mockPool = {
+        query: jest.fn().mockResolvedValue({
+          rows: [{ organization_prefix: 'maiml_lab_001' }]
+        })
+      };
+      (getPool as jest.Mock).mockReturnValue(mockPool);
+
+      const mockMAIMLData = {
+        file_id: 'org_maiml_lab_001/projects/test_project/test_project.maiml',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        file_name: 'test_project.maiml',
+        file_path: 'projects/test_project/test_project.maiml',
+        file_size: 1024,
+        content: '<?xml version="1.0"?><MAIML></MAIML>',
+        content_type: 'application/xml',
+        loaded_at: '2026-02-16T13:00:00.000Z'
+      };
+
+      (ProjectService.prototype.getProjectMaiml as jest.Mock).mockResolvedValue({
+        success: true,
+        data: mockMAIMLData
+      });
+
+      // Act
+      await getProjectMaiml(mockRequest as Request, mockResponse as Response);
+
+      // Assert
+      expect(ProjectService.prototype.getProjectMaiml).toHaveBeenCalledWith(
+        'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
+        '550e8400-e29b-41d4-a716-446655440000',
+        'maiml_lab_001'
       );
     });
   });

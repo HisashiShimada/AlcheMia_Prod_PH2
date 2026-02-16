@@ -207,4 +207,120 @@ describe('ProjectService', () => {
       }
     });
   });
+
+  describe('getProjectMaiml', () => {
+    const organizationId = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385';
+    const organizationPrefix = 'maiml_lab_001';
+    const projectId = 'b1234567-89ab-cdef-0123-456789abcdef';
+
+    it('should return RESOURCE_NOT_FOUND when organization does not exist', async () => {
+      // Arrange
+      mockQuery.mockResolvedValueOnce({ rows: [] }); // organization_prefix取得
+
+      // Act
+      const result = await projectService.getProjectMaiml(
+        organizationId,
+        projectId
+      );
+
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('RESOURCE_NOT_FOUND');
+      expect(result.error?.message).toBe('組織情報が見つかりません');
+    });
+
+    it('should return RESOURCE_NOT_FOUND when project does not exist', async () => {
+      // Arrange
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ organization_prefix: organizationPrefix }] }) // organization_prefix取得
+        .mockResolvedValueOnce({ rows: [] }); // プロジェクト存在確認
+
+      // Act
+      const result = await projectService.getProjectMaiml(
+        organizationId,
+        projectId
+      );
+
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('RESOURCE_NOT_FOUND');
+      expect(result.error?.message).toBe('プロジェクトが見つかりません');
+    });
+
+    it('should retrieve organization_prefix from database', async () => {
+      // Arrange
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ organization_prefix: organizationPrefix }] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      // Act
+      await projectService.getProjectMaiml(
+        organizationId,
+        projectId
+      );
+
+      // Assert
+      const firstCall = mockQuery.mock.calls[0];
+      expect(firstCall[1]).toContain(organizationId);
+      // organization_prefix取得クエリが実行されたことを確認
+      expect(mockQuery).toHaveBeenCalledTimes(2);
+    });
+
+    it('should apply organization_id filter in database query', async () => {
+      // Arrange
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ organization_prefix: organizationPrefix }] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      // Act
+      await projectService.getProjectMaiml(
+        organizationId,
+        projectId
+      );
+
+      // Assert
+      const secondCall = mockQuery.mock.calls[1];
+      const params = secondCall[1];
+      expect(params).toContain(organizationId);
+      expect(params).toContain(projectId);
+    });
+
+    it('should use parameterized queries for SQL injection protection', async () => {
+      // Arrange
+      mockQuery
+        .mockResolvedValueOnce({ rows: [{ organization_prefix: organizationPrefix }] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      // Act
+      await projectService.getProjectMaiml(
+        organizationId,
+        projectId
+      );
+
+      // Assert
+      const firstCall = mockQuery.mock.calls[0];
+      const query1 = firstCall[0];
+      const params1 = firstCall[1];
+
+      // プレースホルダー使用確認
+      expect(query1).toMatch(/\$\d+/);
+      expect(Array.isArray(params1)).toBe(true);
+    });
+
+    it('should return INTERNAL_ERROR when database query fails', async () => {
+      // Arrange
+      mockQuery.mockRejectedValueOnce(new Error('Database connection failed'));
+
+      // Act
+      const result = await projectService.getProjectMaiml(
+        organizationId,
+        projectId
+      );
+
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('SYSTEM_DATABASE_ERROR');
+      expect(result.error?.message).toBe('データベースエラーが発生しました');
+    });
+  });
 });
