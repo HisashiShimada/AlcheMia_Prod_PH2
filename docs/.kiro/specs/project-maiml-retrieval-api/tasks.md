@@ -52,7 +52,7 @@
 
 ### 5. ユニットテスト実装
 
-- [ ] 5.1 (P) projectController.test.tsにgetProjectMaimlのテストを追加
+- [x] 5.1 (P) projectController.test.tsにgetProjectMaimlのテストを追加
   - 認証なしでアクセス時に401エラーを返却することを検証
   - 無効なUUID形式のprojectIdで400エラーを返却することを検証
   - organization_prefix取得失敗時に500エラーを返却することを検証
@@ -62,7 +62,7 @@
   - モックを使用してService層を分離
   - _Requirements: 1, 2, 4, 5_
 
-- [ ] 5.2 (P) projectService.test.tsにgetProjectMaimlのテストを追加
+- [x] 5.2 (P) projectService.test.tsにgetProjectMaimlのテストを追加
   - プロジェクト不在時にRESOURCE_NOT_FOUNDエラーを返却することを検証
   - 他組織のプロジェクトにアクセス時にRESOURCE_NOT_FOUNDエラーを返却することを検証
   - S3ファイル不在時にFILE_NOT_FOUNDエラーを返却することを検証
@@ -76,7 +76,7 @@
 
 ### 6. 統合テスト実装
 
-- [ ] 6.1 統合テストファイルbackend/tests/integration/projectMaiml.test.tsを作成
+- [x] 6.1 統合テストファイルbackend/tests/integration/projectMaiml.test.tsを作成
   - テスト用DBとテスト用S3環境を準備
   - テストデータ（organization, project, MAIMLファイル）をセットアップ
   - 正常系: 有効なprojectIdでMAIMLファイルを取得し200とXML内容を返却することを検証

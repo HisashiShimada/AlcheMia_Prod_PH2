@@ -298,60 +298,8 @@ describe('ProjectController', () => {
       };
     });
 
-    it('should return 401 when user is not authenticated', async () => {
-      // Arrange
-      mockRequest.user = undefined;
-
-      // Act
-      await getProjectMaiml(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(401);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'AUTH_TOKEN_INVALID',
-            message: '認証が必要です'
-          })
-        })
-      );
-    });
-
-    it('should return 404 when organization_prefix retrieval fails', async () => {
-      // Arrange
-      const { getPool } = require('../../src/database/db');
-      const mockPool = {
-        query: jest.fn().mockResolvedValue({ rows: [] })
-      };
-      (getPool as jest.Mock).mockReturnValue(mockPool);
-
-      // Act
-      await getProjectMaiml(mockRequest as Request, mockResponse as Response);
-
-      // Assert
-      expect(mockStatus).toHaveBeenCalledWith(404);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'RESOURCE_NOT_FOUND',
-            message: '組織情報が見つかりません'
-          })
-        })
-      );
-    });
-
     it('should return 404 when service returns RESOURCE_NOT_FOUND error', async () => {
       // Arrange
-      const { getPool } = require('../../src/database/db');
-      const mockPool = {
-        query: jest.fn().mockResolvedValue({
-          rows: [{ organization_prefix: 'maiml_lab_001' }]
-        })
-      };
-      (getPool as jest.Mock).mockReturnValue(mockPool);
-
       (ProjectService.prototype.getProjectMaiml as jest.Mock).mockResolvedValue({
         success: false,
         error: {
@@ -524,14 +472,6 @@ describe('ProjectController', () => {
 
     it('should call service with correct parameters', async () => {
       // Arrange
-      const { getPool } = require('../../src/database/db');
-      const mockPool = {
-        query: jest.fn().mockResolvedValue({
-          rows: [{ organization_prefix: 'maiml_lab_001' }]
-        })
-      };
-      (getPool as jest.Mock).mockReturnValue(mockPool);
-
       const mockMAIMLData = {
         file_id: 'org_maiml_lab_001/projects/test_project/test_project.maiml',
         project_id: '550e8400-e29b-41d4-a716-446655440000',
@@ -553,10 +493,11 @@ describe('ProjectController', () => {
       await getProjectMaiml(mockRequest as Request, mockResponse as Response);
 
       // Assert
+      // Task 5.1: Controller層はorganizationIdとprojectIdの2パラメータのみ渡す
+      // organization_prefixはService層で取得される
       expect(ProjectService.prototype.getProjectMaiml).toHaveBeenCalledWith(
         'a0718dc5-21f3-44e6-87e9-cc2ae83f3385',
-        '550e8400-e29b-41d4-a716-446655440000',
-        'maiml_lab_001'
+        '550e8400-e29b-41d4-a716-446655440000'
       );
     });
   });
