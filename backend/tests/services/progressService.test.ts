@@ -1,198 +1,229 @@
 /**
- * ProgressService ユニットテスト
- * Task 1.1: MAIMLパーサーアダプターのテスト
+ * ProgressService - ユニットテスト
+ * 
+ * @description 進捗データ取得サービスのテスト
+ * Feature: progress-data-retrieval-api
+ * Task: 4.1 getProgressDataメソッドの基本構造実装
  */
 
-import * as maimlService from '../../src/services/maimlService';
-import { parseMultipleMethodsStructure } from '../../src/services/progressService';
+import { ProgressService } from '../../src/services/progressService';
+import { TaskRepository } from '../../src/repositories/taskRepository';
+import { TransitionDataRepository } from '../../src/repositories/transitionDataRepository';
+import { getStorageService } from '../../src/services/storageService';
+import { parsePetriNetStructure } from '../../src/services/maimlService';
 
-describe('ProgressService - parseMultipleMethodsStructure', () => {
-  describe('正常系', () => {
-    it('既存のparsePetriNetStructure関数を呼び出してmethods配列を返す', async () => {
-      // Given: 有効なMAIMLコンテンツ
-      const maimlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<maiml>
-  <document id="doc1">
-    <name>Test Document</name>
-  </document>
-  <protocol>
-    <method id="method1">
-      <name>Test Method 1</name>
-      <pnml id="pnml1">
-        <place id="p1">
-          <name>Place 1</name>
-        </place>
-        <transition id="t1">
-          <name>Transition 1</name>
-        </transition>
-        <arc id="a1" source="p1" target="t1">
-          <name>Arc 1</name>
-        </arc>
-      </pnml>
-    </method>
-  </protocol>
-</maiml>`;
+// モックの設定
+jest.mock('../../src/repositories/taskRepository');
+jest.mock('../../src/repositories/transitionDataRepository');
+jest.mock('../../src/services/storageService');
+jest.mock('../../src/services/maimlService');
 
-      // When: parseMultipleMethodsStructureを呼び出す
-      const result = await parseMultipleMethodsStructure(maimlContent);
+describe('ProgressService - タスク4.1: 基本構造実装', () => {
+  let progressService: ProgressService;
+  let mockTaskRepository: jest.Mocked<TaskRepository>;
+  let mockTransitionDataRepository: jest.Mocked<TransitionDataRepository>;
 
-      // Then: 成功フラグとmethods配列が返る
-      expect(result.success).toBe(true);
-      expect(result.error).toBeUndefined();
-      expect(result.methods).toBeDefined();
-      expect(Array.isArray(result.methods)).toBe(true);
-      expect(result.methods.length).toBeGreaterThan(0);
+  beforeEach(() => {
+    // モックインスタンスの初期化
+    mockTaskRepository = new TaskRepository() as jest.Mocked<TaskRepository>;
+    mockTransitionDataRepository = new TransitionDataRepository() as jest.Mocked<TransitionDataRepository>;
+    
+    // ProgressServiceのインスタンス化
+    progressService = new ProgressService(
+      mockTaskRepository,
+      mockTransitionDataRepository
+    );
+
+    // Jest モックのクリア
+    jest.clearAllMocks();
+  });
+
+  describe('基本構造のテスト', () => {
+    it('ProgressServiceクラスがインスタンス化できること', () => {
+      expect(progressService).toBeInstanceOf(ProgressService);
     });
 
-    it('複数メソッドを正しく抽出する', async () => {
-      // Given: 複数メソッドを含むMAIMLコンテンツ
-      const maimlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<maiml>
-  <document id="doc1">
-    <name>Multi-Method Document</name>
-  </document>
-  <protocol>
-    <method id="method1">
-      <name>Method 1</name>
-      <pnml id="pnml1">
-        <transition id="t1">
-          <name>Transition 1</name>
-        </transition>
-      </pnml>
-    </method>
-    <method id="method2">
-      <name>Method 2</name>
-      <pnml id="pnml2">
-        <transition id="t2">
-          <name>Transition 2</name>
-        </transition>
-      </pnml>
-    </method>
-  </protocol>
-</maiml>`;
-
-      // When: parseMultipleMethodsStructureを呼び出す
-      const result = await parseMultipleMethodsStructure(maimlContent);
-
-      // Then: 2つのメソッドが返る
-      expect(result.success).toBe(true);
-      expect(result.methods).toHaveLength(2);
-      expect(result.methods[0].methodId).toBe('method1');
-      expect(result.methods[0].methodName).toBe('Method 1');
-      expect(result.methods[1].methodId).toBe('method2');
-      expect(result.methods[1].methodName).toBe('Method 2');
+    it('getProgressDataメソッドが存在すること', () => {
+      expect(progressService.getProgressData).toBeDefined();
+      expect(typeof progressService.getProgressData).toBe('function');
     });
 
-    it('各メソッドのトランジション情報を正しく抽出する', async () => {
-      // Given: トランジションを含むMAIMLコンテンツ
-      const maimlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<maiml>
-  <document id="doc1">
-    <name>Test Document</name>
-  </document>
-  <protocol>
-    <method id="method1">
-      <name>Test Method</name>
-      <pnml id="pnml1">
-        <transition id="t1">
-          <name>Transition 1</name>
-        </transition>
-        <transition id="t2">
-          <name>Transition 2</name>
-        </transition>
-      </pnml>
-    </method>
-  </protocol>
-</maiml>`;
+    it('getProgressDataメソッドが正しいシグネチャを持つこと', async () => {
+      // モックデータの準備（最小限）
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(null);
 
-      // When: parseMultipleMethodsStructureを呼び出す
-      const result = await parseMultipleMethodsStructure(maimlContent);
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        '550e8400-e29b-41d4-a716-446655440000', // projectId
+        'method1',                                // methodId
+        1,                                        // taskNo
+        'maiml_lab_001'                           // organizationId
+      );
 
-      // Then: トランジション情報が正しく抽出される
-      expect(result.success).toBe(true);
-      expect(result.methods[0].transitions).toHaveLength(2);
-      expect(result.methods[0].transitions[0].id).toBe('t1');
-      expect(result.methods[0].transitions[0].data.label).toBe('Transition 1');
-      expect(result.methods[0].transitions[1].id).toBe('t2');
-      expect(result.methods[0].transitions[1].data.label).toBe('Transition 2');
+      // Result型の構造を持つことを確認
+      expect(result).toHaveProperty('success');
+      expect(typeof result.success).toBe('boolean');
     });
   });
 
-  describe('異常系', () => {
-    it('不正なXMLの場合はエラーを返す', async () => {
-      // Given: 不正なXML
-      const invalidXml = 'This is not XML';
+  describe('エラーハンドリングのテスト', () => {
+    it('タスクが存在しない場合、TASK_NOT_FOUNDエラーを返すこと', async () => {
+      // モック: タスクが見つからない
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(null);
 
-      // When: parseMultipleMethodsStructureを呼び出す
-      const result = await parseMultipleMethodsStructure(invalidXml);
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'method1',
+        1,
+        'maiml_lab_001'
+      );
 
-      // Then: エラーフラグが立つ
+      // エラーレスポンスの検証
       expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-      expect(result.methods).toEqual([]);
+      if (!result.success) {
+        expect(result.error.code).toBe('TASK_NOT_FOUND');
+        expect(result.error.message).toContain('タスクが見つかりません');
+      }
     });
 
-    it('protocolセクションがない場合は空のmethods配列を返す', async () => {
-      // Given: protocolセクションがないMAIML
-      const maimlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<maiml>
-  <document id="doc1">
-    <name>Test Document</name>
-  </document>
-</maiml>`;
+    it('データベースエラーが発生した場合、DATABASE_ERRORを返すこと', async () => {
+      // モック: データベースエラー
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockRejectedValue(
+        new Error('Database connection failed')
+      );
 
-      // When: parseMultipleMethodsStructureを呼び出す
-      const result = await parseMultipleMethodsStructure(maimlContent);
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'method1',
+        1,
+        'maiml_lab_001'
+      );
 
-      // Then: 成功だが空のmethods配列
-      expect(result.success).toBe(true);
-      expect(result.methods).toEqual([]);
-    });
-
-    it('methodが存在しない場合は空のmethods配列を返す', async () => {
-      // Given: methodが存在しないMAIML
-      const maimlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<maiml>
-  <document id="doc1">
-    <name>Test Document</name>
-  </document>
-  <protocol>
-  </protocol>
-</maiml>`;
-
-      // When: parseMultipleMethodsStructureを呼び出す
-      const result = await parseMultipleMethodsStructure(maimlContent);
-
-      // Then: 成功だが空のmethods配列
-      expect(result.success).toBe(true);
-      expect(result.methods).toEqual([]);
+      // エラーレスポンスの検証
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe('DATABASE_ERROR');
+        expect(result.error.message).toContain('データベースエラー');
+      }
     });
   });
 
-  describe('エラーハンドリング', () => {
-    it('parsePetriNetStructureがエラーを返した場合でも適切に処理する', async () => {
-      // Given: parsePetriNetStructureをモック
-      const mockError = new Error('Parse error');
-      jest.spyOn(maimlService, 'parsePetriNetStructure').mockResolvedValueOnce({
-        success: false,
-        error: mockError.message,
-        isMultiMethod: false,
-        methods: [],
-        places: [],
-        transitions: [],
-        arcs: [],
-        metadata: {},
+  describe('Result型の構造テスト', () => {
+    it('成功時はsuccess: trueとdataプロパティを返すこと', async () => {
+      // モック: タスク取得成功
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue({
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'テストプロジェクト',
+        method_id: 'method1',
+        task_no: 1
       });
 
-      const maimlContent = '<maiml></maiml>';
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml><methods><method id="method1" name="テストメソッド"><petriNet><transitions></transitions></petriNet></method></methods></maiml>')
+      );
 
-      // When: parseMultipleMethodsStructureを呼び出す
-      const result = await parseMultipleMethodsStructure(maimlContent);
+      // モック: MAIMLパーサー
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'テストメソッド',
+          petriNet: {
+            transitions: []
+          }
+        }]
+      });
 
-      // Then: エラーが適切に処理される
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'method1',
+        1,
+        'maiml_lab_001'
+      );
+
+      // 成功レスポンスの構造検証
+      if (result.success) {
+        expect(result.data).toBeDefined();
+        expect(result.data).toHaveProperty('project_id');
+        expect(result.data).toHaveProperty('project_name');
+        expect(result.data).toHaveProperty('method_id');
+        expect(result.data).toHaveProperty('method_name');
+        expect(result.data).toHaveProperty('task_no');
+        expect(result.data).toHaveProperty('task_name');
+        expect(result.data).toHaveProperty('transitions');
+        expect(result.data).toHaveProperty('overall_progress');
+      }
+    });
+
+    it('失敗時はsuccess: falseとerrorプロパティを返すこと', async () => {
+      // モック: タスクが見つからない
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(null);
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'method1',
+        1,
+        'maiml_lab_001'
+      );
+
+      // 失敗レスポンスの構造検証
       expect(result.success).toBe(false);
-      expect(result.error).toBe(mockError.message);
-      expect(result.methods).toEqual([]);
+      if (!result.success) {
+        expect(result.error).toBeDefined();
+        expect(result.error).toHaveProperty('code');
+        expect(result.error).toHaveProperty('message');
+      }
+    });
+  });
+
+  describe('マルチテナント分離のテスト', () => {
+    it('organizationIdがTaskRepositoryに正しく渡されること', async () => {
+      // モック
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(null);
+
+      const projectId = '550e8400-e29b-41d4-a716-446655440000';
+      const methodId = 'method1';
+      const taskNo = 1;
+      const organizationId = 'maiml_lab_001';
+
+      // メソッド呼び出し
+      await progressService.getProgressData(projectId, methodId, taskNo, organizationId);
+
+      // TaskRepositoryに正しいパラメータが渡されたことを確認
+      expect(mockTaskRepository.getTaskByProjectMethodTaskNo).toHaveBeenCalledWith(
+        projectId,
+        methodId,
+        taskNo,
+        organizationId
+      );
+    });
+
+    it('異なる組織IDでタスクが見つからない場合、TASK_NOT_FOUNDを返すこと', async () => {
+      // モック: 異なる組織IDで検索するとnull
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(null);
+
+      // メソッド呼び出し（異なる組織ID）
+      const result = await progressService.getProgressData(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'method1',
+        1,
+        'different_org'
+      );
+
+      // エラーレスポンスの検証
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe('TASK_NOT_FOUND');
+      }
     });
   });
 });

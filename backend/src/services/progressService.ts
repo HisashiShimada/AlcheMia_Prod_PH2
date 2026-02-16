@@ -1,135 +1,418 @@
 /**
- * Progress Service
- * 進捗データ取得のビジネスロジック
+ * ProgressService
  * 
- * Task 1.1: MAIMLパーサーアダプターの実装
+ * @description 進捗データ取得サービス
+ * Feature: progress-data-retrieval-api
+ * Task: 4.1 getProgressDataメソッドの基本構造実装
  */
 
-import * as maimlService from './maimlService';
+import { TaskRepository } from '../repositories/taskRepository';
+import { TransitionDataRepository } from '../repositories/transitionDataRepository';
+import { getStorageService } from './storageService';
+import { parsePetriNetStructure } from './maimlService';
+import { Result } from '../types/service';
+import { Status } from '../types/transitionData';
+import {
+  ProgressData,
+  ProgressServiceError,
+  TaskWithProject,
+  ParsedMethod,
+  TransitionProgress,
+  OverallProgress,
+  TransitionStatus
+} from '../types/progress';
 
 /**
- * 解析結果の型定義
- */
-export interface ParsedMethod {
-  methodId: string;
-  methodName: string;
-  methodIndex: number;
-  transitions: PetriNetTransition[];
-  places: PetriNetPlace[];
-  arcs: PetriNetArc[];
-  metadata: {
-    uuid: string;
-    name: string;
-    description: string;
-    [key: string]: any;
-  };
-  statistics: {
-    placeCount: number;
-    transitionCount: number;
-    arcCount: number;
-  };
-}
-
-export interface PetriNetTransition {
-  id: string;
-  type: 'transition';
-  data: {
-    label: string;
-    methodId: string;
-    stereotype?: string;
-    description?: string;
-    program?: string;
-    instructionId?: string;
-    [key: string]: any;
-  };
-}
-
-export interface PetriNetPlace {
-  id: string;
-  type: 'place';
-  data: {
-    name: string;
-    label: string;
-    methodId: string;
-    stereotype?: string;
-    description?: string;
-    initialMarking?: string;
-    [key: string]: any;
-  };
-}
-
-export interface PetriNetArc {
-  id: string;
-  source: string;
-  target: string;
-  type: 'arc';
-  methodId: string;
-  data: {
-    methodId: string;
-    name: string;
-    arcType?: string;
-    weight?: string;
-    [key: string]: any;
-  };
-}
-
-export interface ParseResult {
-  success: boolean;
-  methods: ParsedMethod[];
-  error?: string;
-}
-
-/**
- * MAIMLファイルから複数メソッド構造を抽出するアダプター関数
- * 既存のparsePetriNetStructure関数をラップし、統一されたインターフェースを提供
+ * ProgressServiceクラス
  * 
- * @param xmlContent MAIMLファイルのXML文字列
- * @returns 解析結果（成功フラグ、methods配列、エラー情報）
- * 
- * @requirements Requirement 4: MAIMLファイルとの連携
+ * @description 進捗データ取得のビジネスロジックを統合
+ * @requirements Requirement 1, 4, 5, 8, 9
  */
-export async function parseMultipleMethodsStructure(
-  xmlContent: string
-): Promise<ParseResult> {
-  try {
-    console.log('🔍 [progressService] parseMultipleMethodsStructure 開始');
+export class ProgressService {
+  constructor(
+    private taskRepository: TaskRepository,
+    private transitionDataRepository: TransitionDataRepository
+  ) {}
 
-    // 既存のparsePetriNetStructure関数を呼び出す
-    const parseResult = await maimlService.parsePetriNetStructure(xmlContent);
+  /**
+   * 進捗データ取得
+   * 
+   * @param projectId プロジェクトID
+   * @param methodId メソッドID
+   * @param taskNo タスク連番
+   * @param organizationId 組織ID（マルチテナント分離）
+   * @returns 進捗データまたはエラー
+   * @requirements Requirement 1: 進捗データ取得機能
+   */
+  async getProgressData(
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    organizationId: string
+  ): Promise<Result<ProgressData, ProgressServiceError>> {
+    try {
+      // Step 1: タスク基本情報取得
+      const task = await this.getTaskBasicInfo(
+        projectId,
+        methodId,
+        taskNo,
+        organizationId
+      );
 
-    // エラーチェック
-    if (!parseResult.success) {
-      console.error('❌ [progressService] MAIML解析失敗:', parseResult.error);
+      if (!task) {
+        return {
+          success: false,
+          error: {
+            code: 'TASK_NOT_FOUND',
+            message: 'タスクが見つかりません'
+          }
+        };
+      }
+
+      // Step 2: MAIMLファイルのダウンロードとパース
+      const maimlResult = await this.downloadAndParseMAIML(
+        task.project_name,
+        organizationId
+      );
+
+      if (!maimlResult.success) {
+        return {
+          success: false,
+          error: maimlResult.error
+        };
+      }
+
+      // Step 3: メソッド検索
+      const method = this.findMethodById(maimlResult.methods, methodId);
+
+      if (!method) {
+        return {
+          success: false,
+          error: {
+            code: 'METHOD_NOT_FOUND',
+            message: `メソッドが見つかりません: ${methodId}`
+          }
+        };
+      }
+
+      // Step 4: トランジション進捗データの取得（並列処理）
+      const transitions = await this.getTransitionsProgress(
+        method.petriNet.transitions,
+        organizationId,
+        projectId,
+        methodId,
+        taskNo
+      );
+
+      // Step 5: 全体進捗の計算
+      const overallProgress = this.calculateOverallProgress(transitions);
+
+      // Step 6: レスポンスデータの構築
+      const progressData: ProgressData = {
+        project_id: task.project_id,
+        project_name: task.project_name,
+        method_id: task.method_id,
+        method_name: method.methodName,
+        task_no: task.task_no,
+        task_name: task.task_name,
+        transitions,
+        overall_progress: overallProgress
+      };
+
+      return {
+        success: true,
+        data: progressData
+      };
+
+    } catch (error) {
+      console.error('[ProgressService] エラー:', error);
+      
       return {
         success: false,
-        methods: [],
-        error: parseResult.error || 'MAIML解析に失敗しました',
+        error: {
+          code: 'DATABASE_ERROR',
+          message: 'データベースエラーが発生しました'
+        }
+      };
+    }
+  }
+
+  /**
+   * タスク基本情報取得
+   * 
+   * @private
+   * @requirements Requirement 1, 3: 進捗データ取得、マルチテナント分離
+   */
+  private async getTaskBasicInfo(
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    organizationId: string
+  ): Promise<TaskWithProject | null> {
+    return await this.taskRepository.getTaskByProjectMethodTaskNo(
+      projectId,
+      methodId,
+      taskNo,
+      organizationId
+    );
+  }
+
+  /**
+   * MAIMLファイルのダウンロードとパース
+   * 
+   * @private
+   * @requirements Requirement 4: MAIMLファイルとの連携
+   */
+  private async downloadAndParseMAIML(
+    projectName: string,
+    organizationId: string
+  ): Promise<{ success: true; methods: ParsedMethod[] } | { success: false; error: ProgressServiceError }> {
+    try {
+      // MAIMLファイルパスを構築
+      const filePath = `projects/${projectName}/${projectName}.maiml`;
+      
+      // ストレージサービスでダウンロード
+      const storageService = getStorageService();
+      const buffer = await storageService.downloadFile(organizationId, filePath);
+      
+      // Buffer を文字列に変換
+      const xmlContent = buffer.toString('utf-8');
+      
+      // MAIMLパーサーで構造を抽出
+      const parseResult = await parsePetriNetStructure(xmlContent);
+      
+      if (!parseResult.success || !parseResult.methods) {
+        return {
+          success: false,
+          error: {
+            code: 'MAIML_PARSE_FAILED',
+            message: 'MAIMLファイルの解析に失敗しました'
+          }
+        };
+      }
+
+      return {
+        success: true,
+        methods: parseResult.methods
+      };
+
+    } catch (error) {
+      console.error('[ProgressService] MAIMLダウンロードエラー:', error);
+      
+      return {
+        success: false,
+        error: {
+          code: 'MAIML_DOWNLOAD_FAILED',
+          message: 'MAIMLファイルのダウンロードに失敗しました'
+        }
+      };
+    }
+  }
+
+  /**
+   * メソッドID検索
+   * 
+   * @private
+   * @requirements Requirement 4: MAIMLファイルとの連携
+   */
+  private findMethodById(
+    methods: ParsedMethod[],
+    methodId: string
+  ): ParsedMethod | undefined {
+    return methods.find(m => m.methodId === methodId);
+  }
+
+  /**
+   * トランジション進捗データ取得（並列処理）
+   * 
+   * @private
+   * @requirements Requirement 1, 5, 8: 進捗データ取得、並列処理
+   */
+  private async getTransitionsProgress(
+    transitions: any[],
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number
+  ): Promise<TransitionProgress[]> {
+    // Promise.allで並列処理
+    return await Promise.all(
+      transitions.map(async (transition) => {
+        return await this.getSingleTransitionProgress(
+          transition,
+          organizationId,
+          projectId,
+          methodId,
+          taskNo
+        );
+      })
+    );
+  }
+
+  /**
+   * 単一トランジションの進捗データ取得
+   * 
+   * @private
+   * @requirements Requirement 1: 進捗データ取得機能
+   */
+  private async getSingleTransitionProgress(
+    transition: any,
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number
+  ): Promise<TransitionProgress> {
+    try {
+      // 最新レコード取得
+      const latestRecord = await this.transitionDataRepository.getLatestRecordByTransition(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transition.id
+      );
+
+      // データ件数取得
+      const dataCount = await this.transitionDataRepository.countRecordsByTransition(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transition.id
+      );
+
+      // レコードが存在しない場合
+      if (!latestRecord) {
+        return {
+          transition_id: transition.id,
+          transition_name: transition.name || transition.id,
+          status: 'not_started',
+          progress: 0,
+          last_updated: null,
+          has_data: false,
+          data_count: 0
+        };
+      }
+
+      // Status型をTransitionStatus型に変換
+      const transitionStatus = this.convertStatusToTransitionStatus(latestRecord.status);
+      
+      // ステータスと進捗率の整合性チェック
+      const progress = this.normalizeProgress(transitionStatus, latestRecord.progress_rate);
+
+      return {
+        transition_id: transition.id,
+        transition_name: transition.name || transition.id,
+        status: transitionStatus,
+        progress,
+        last_updated: latestRecord.updated_at.toISOString(),
+        has_data: dataCount > 0,
+        data_count: dataCount
+      };
+
+    } catch (error) {
+      console.error(`[ProgressService] トランジション進捗取得エラー: ${transition.id}`, error);
+      
+      // エラー時はnot_startedとして扱う
+      return {
+        transition_id: transition.id,
+        transition_name: transition.name || transition.id,
+        status: 'not_started',
+        progress: 0,
+        last_updated: null,
+        has_data: false,
+        data_count: 0
+      };
+    }
+  }
+
+  /**
+   * Status型をTransitionStatus型に変換
+   * 
+   * @private
+   * @requirements Requirement 9: データ整合性
+   */
+  private convertStatusToTransitionStatus(status: Status): TransitionStatus {
+    // Status型からTransitionStatus型へのマッピング
+    switch (status) {
+      case 'completed':
+        return 'completed';
+      
+      case 'initial':
+        return 'not_started';
+      
+      case 'preparing':
+      case 'ready':
+      case 'running':
+      case 'paused':
+        return 'in_progress';
+      
+      case 'error':
+        // エラーの場合は進行中として扱う（エラー後も作業継続可能）
+        return 'in_progress';
+      
+      default:
+        return 'not_started';
+    }
+  }
+
+  /**
+   * ステータスと進捗率の正規化
+   * 
+   * @private
+   * @requirements Requirement 9: データ整合性
+   */
+  private normalizeProgress(status: TransitionStatus, progressRate: number): number {
+    // ステータスに応じて進捗率を補正
+    if (status === 'completed') {
+      return 100;
+    }
+    
+    if (status === 'not_started') {
+      return 0;
+    }
+
+    // in_progressの場合は0-100の範囲に制限
+    return Math.max(0, Math.min(100, progressRate));
+  }
+
+  /**
+   * 全体進捗計算
+   * 
+   * @private
+   * @requirements Requirement 1, 9: 進捗データ取得、データ整合性
+   */
+  private calculateOverallProgress(
+    transitions: TransitionProgress[]
+  ): OverallProgress {
+    const totalTransitions = transitions.length;
+
+    // トランジション数が0の場合
+    if (totalTransitions === 0) {
+      return {
+        total_transitions: 0,
+        completed: 0,
+        in_progress: 0,
+        not_started: 0,
+        overall_percentage: 0
       };
     }
 
-    // methods配列を取得
-    const methods = parseResult.methods || [];
+    // ステータスごとのカウント
+    const completed = transitions.filter(t => t.status === 'completed').length;
+    const inProgress = transitions.filter(t => t.status === 'in_progress').length;
+    const notStarted = transitions.filter(t => t.status === 'not_started').length;
 
-    console.log(
-      `✅ [progressService] MAIML解析成功: ${methods.length}個のメソッド検出`
-    );
-
-    // 既存の返却データ構造をそのまま使用
-    return {
-      success: true,
-      methods: methods as ParsedMethod[],
-    };
-  } catch (error) {
-    console.error('❌ [progressService] parseMultipleMethodsStructure エラー:', error);
-
-    // 予期しない例外をキャッチ
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error occurred';
+    // 全体進捗率の計算（全トランジションの進捗率の平均値）
+    const totalProgress = transitions.reduce((sum, t) => sum + t.progress, 0);
+    const overallPercentage = parseFloat((totalProgress / totalTransitions).toFixed(1));
 
     return {
-      success: false,
-      methods: [],
-      error: errorMessage,
+      total_transitions: totalTransitions,
+      completed,
+      in_progress: inProgress,
+      not_started: notStarted,
+      overall_percentage: overallPercentage
     };
   }
 }

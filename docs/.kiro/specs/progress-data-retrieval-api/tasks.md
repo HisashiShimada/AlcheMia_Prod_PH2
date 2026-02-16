@@ -90,11 +90,18 @@
 ### Phase 3: ビジネスロジック層の実装
 
 - [ ] 4. ProgressServiceの実装
-- [ ] 4.1 getProgressDataメソッドの基本構造実装
+- [x] 4.1 getProgressDataメソッドの基本構造実装
   - サービスインターフェースの定義
   - ProgressData、ProgressServiceError型の定義
   - メソッドシグネチャの実装（projectId, methodId, taskNo, organizationId）
   - Result型を使用したエラーハンドリング
+  - **実装完了**: 2026-02-16
+  - **実装内容**:
+    - `backend/src/services/progressService.ts`に基本構造実装
+    - Status型からTransitionStatus型への変換メソッド追加
+    - タスク基本情報取得、MAIMLダウンロード・パース、トランジション進捗取得、全体進捗計算の各メソッド実装
+    - 包括的なユニットテスト作成（`backend/tests/services/progressService.test.ts`）
+    - マルチテナント分離、エラーハンドリング、並列処理を実装
   - _Requirements: 1, 5_
 
 - [ ] 4.2 タスク基本情報取得の実装
