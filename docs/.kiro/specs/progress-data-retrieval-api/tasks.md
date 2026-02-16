@@ -224,12 +224,28 @@
 ### Phase 4: API層の実装
 
 - [ ] 5. ProgressControllerの実装
-- [ ] 5.1 getProgressDataメソッドの実装
+- [x] 5.1 getProgressDataメソッドの実装
   - リクエストパラメータの取得（projectId, methodId, taskNo）
   - req.userからorganizationIdを取得
   - パラメータバリデーション（UUID形式、整数型、文字列型）
   - バリデーション失敗時は400 VALIDATION_ERRORを返却
   - ProgressServiceのgetProgressDataを呼び出し
+  - **実装完了**: 2026-02-16
+  - **実装内容**:
+    - `backend/src/controllers/progressController.ts`にgetProgressDataメソッドを実装
+    - UUID形式バリデーション（projectId）、正の整数バリデーション（taskNo）、空文字列チェック（methodId）
+    - 認証チェック（req.user存在確認）
+    - TaskRepositoryとTransitionDataRepositoryをインスタンス化してProgressServiceに渡す
+    - エラーコードからHTTPステータスコードへのマッピング実装
+    - 統一レスポンス形式（success, data/error, meta）の実装
+    - Content-TypeヘッダーとX-Request-Idヘッダーの設定
+    - 予期しない例外のキャッチとSYSTEM_ERRORへの変換
+    - 包括的なユニットテスト作成（22テスト、全て成功）
+      - 正常系: 3テスト（進捗データ取得、ヘッダー設定、taskNo変換）
+      - パラメータバリデーション: 5テスト（UUID形式、整数型、正の整数、空文字列、認証）
+      - エラーハンドリング: 6テスト（TASK_NOT_FOUND、METHOD_NOT_FOUND、MAIML_DOWNLOAD_FAILED、MAIML_PARSE_FAILED、DATABASE_ERROR、予期しない例外）
+      - レスポンス形式検証: 3テスト（成功時形式、エラー時形式、ISO 8601タイムスタンプ）
+      - HTTPステータスコード検証: 5テスト（404、500のエラーコード別検証）
   - _Requirements: 1, 6, 10_
 
 - [ ] 5.2 統一レスポンス形式への変換
