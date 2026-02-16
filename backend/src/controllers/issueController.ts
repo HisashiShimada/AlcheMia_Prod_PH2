@@ -101,50 +101,20 @@ export async function list(req: Request, res: Response): Promise<void> {
   const issueService = new IssueService();
 
   try {
-    // 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
+    const { organizationId } = req.user!;
 
-    const { organizationId } = req.user;
-
-    // クエリパラメータの取得
+    // クエリパラメータの取得（API設計書に準拠）
     const filters = {
-      projectId: req.query.projectId as string | undefined,
-      taskId: req.query.taskId as string | undefined,
-      transitionId: req.query.transitionId as string | undefined,
-      status: req.query.status as 'unresolved' | 'resolved' | undefined,
+      projectId: req.query.projectId as string,
+      methodId: req.query.methodId as string,
+      taskNo: parseInt(req.query.taskNo as string, 10),
+      transitionId: req.query.transitionId as string,
+      status: req.query.status as string | undefined,
       issueType: req.query.issueType as string | undefined,
-      severity: req.query.severity as 'low' | 'medium' | 'high' | 'critical' | undefined,
     };
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const sortBy = (req.query.sortBy as string) || 'created_at';
-    const order = (req.query.order as string) || 'desc';
-
-    // Service層呼び出し
-    const result = await issueService.list(
-      organizationId,
-      filters,
-      {
-        page,
-        limit,
-        sortBy,
-        order: order as 'asc' | 'desc',
-      }
-    );
+    // Service層呼び出し（フィルタのみ渡す）
+    const result = await issueService.list(organizationId, filters);
 
     // エラーハンドリング
     if (!result.success) {
@@ -171,11 +141,10 @@ export async function list(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 成功レスポンス
+    // 成功レスポンス（ページネーションなし）
     res.status(200).json({
       success: true,
-      data: result.data?.issues,
-      pagination: result.data?.pagination,
+      data: result.data,
       meta: {
         timestamp: new Date().toISOString(),
         requestId,

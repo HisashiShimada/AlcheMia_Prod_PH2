@@ -155,7 +155,7 @@ export class StorageService {
     const normalizedPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
 
     // プレフィックスベース分離
-    return `org_${organizationId}/${normalizedPath}`;
+    return `${organizationId}/${normalizedPath}`;
   }
 
   /**
@@ -172,11 +172,11 @@ export class StorageService {
     fileContent: Buffer | Readable | string,
     options?: UploadOptions
   ): Promise<string> {
-    // const key = this.buildKey(organizationId, filePath);
+    const key = this.buildKey(organizationId, filePath);
 
     const params: PutObjectCommandInput = {
       Bucket: this.bucketName,
-      Key: filePath,
+      Key: key,
       Body: fileContent,
       ContentType: options?.contentType || 'application/octet-stream',
       Metadata: options?.metadata,
@@ -196,11 +196,11 @@ export class StorageService {
    * @returns ファイル内容（Buffer）
    */
   async downloadFile(organizationId: string, filePath: string): Promise<Buffer> {
-    // const key = this.buildKey(organizationId, filePath);
+    const key = this.buildKey(organizationId, filePath);
 
     const params: GetObjectCommandInput = {
       Bucket: this.bucketName,
-      Key: filePath,
+      Key: key,
     };
 
     const command = new GetObjectCommand(params);
@@ -283,11 +283,11 @@ export class StorageService {
    */
   async fileExists(organizationId: string, filePath: string): Promise<boolean> {
     try {
-      // const key = this.buildKey(organizationId, filePath);
+      const key = this.buildKey(organizationId, filePath);
 
       const params: HeadObjectCommandInput = {
         Bucket: this.bucketName,
-        Key: filePath,
+        Key: key,
       };
 
       const command = new HeadObjectCommand(params);

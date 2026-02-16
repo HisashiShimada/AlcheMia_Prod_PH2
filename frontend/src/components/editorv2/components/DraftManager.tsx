@@ -29,6 +29,7 @@ import {
 } from '@ant-design/icons';
 import useDraftManager from '../hooks/useDraftManager';
 import { Draft, EditState } from '../../../types/editor';
+import * as draftService from '@/api/draftService';
 
 const { Title, Text } = Typography;
 
@@ -85,20 +86,17 @@ const DraftManager: React.FC<DraftManagerProps> = ({
     }
   }, [show, fetchDrafts]);
 
-  // 新規保存ダイアログを開く際に初期値を設定
-  useEffect(() => {
-    if (showSaveDialog && currentEditState?.fileName) {
-      const defaultName = `Draft - ${currentEditState.fileName} - ${new Date().toLocaleString('ja-JP')}`;
-      setNewDraftName(defaultName);
-    }
-  }, [showSaveDialog, currentEditState]);
-
   // イベントハンドラー
 
   /**
    * 新規保存ダイアログを開く
    */
   const handleOpenSaveDialog = () => {
+    // ダイアログを開く際に初期値を設定
+    if (currentEditState?.fileName) {
+      const defaultName = `Draft - ${currentEditState.fileName} - ${new Date().toLocaleString('ja-JP')}`;
+      setNewDraftName(defaultName);
+    }
     setShowSaveDialog(true);
   };
 
@@ -122,6 +120,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         edges: currentEditState?.edges || [],
         templates: currentEditState?.templates || [],
         documentData: currentEditState?.documentData,
+        lastSavedAt : new Date().toISOString(),
       });
 
       Modal.success({ title: '保存完了', content: 'Draftを保存しました' });
@@ -160,24 +159,24 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         content: `現在のキャンバスには以下が存在します：\n${objectCounts}\n\n現在の編集内容は失われます。`,
         onOk: async () => {
           try {
-            console.log('📖 [DraftManager V2] Draft読み込み:', draft.draft_key);
+            const data = await draftService.fetchDraftById(draft.draftKey);
 
-            const currentOrgId = localStorage.getItem('currentOrganizationId');
-            const response = await fetch(
-              `/api/s3/drafts/${encodeURIComponent(draft.draft_key)}?userId=${encodeURIComponent(userId)}&organizationId=${currentOrgId}`,
-              { credentials: 'include' }
-            );
-
-            if (!response.ok) {
-              throw new Error(`Draft読み込み失敗: ${response.status}`);
-            }
-
-            const data = await response.json();
-
-            onLoadDraft({
-              ...data.draft,
-              fileName: data.draft.original_file_key || data.draft.draft_name,
+            console.log('🔍 [DraftManager V2] Draft読み込みデータ:', {
+              data,
+              nodes長さ: data.nodes?.length,
+              edges長さ: data.edges?.length,
+              templates: data.templates,
+              fileName: data.originalFileKey || data.draftName,
             });
+
+            const loadData = {
+              ...data,
+              fileName: data.originalFileKey || data.draftName,
+            };
+
+            console.log('📤 [DraftManager V2] 親コンポーネントに渡すデータ:', loadData);
+
+            onLoadDraft(loadData);
 
             onClose();
           } catch (err) {
@@ -189,24 +188,24 @@ const DraftManager: React.FC<DraftManagerProps> = ({
     } else {
       // コンテンツがない場合はそのまま読み込み
       try {
-        console.log('📖 [DraftManager V2] Draft読み込み:', draft.draft_key);
+        const data = await draftService.fetchDraftById(draft.draftKey);
 
-        const currentOrgId = localStorage.getItem('currentOrganizationId');
-        const response = await fetch(
-          `/api/s3/drafts/${encodeURIComponent(draft.draft_key)}?userId=${encodeURIComponent(userId)}&organizationId=${currentOrgId}`,
-          { credentials: 'include' }
-        );
-
-        if (!response.ok) {
-          throw new Error(`Draft読み込み失敗: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        onLoadDraft({
-          ...data.draft,
-          fileName: data.draft.original_file_key || data.draft.draft_name,
+        console.log('🔍 [DraftManager V2] Draft読み込みデータ:', {
+          data,
+          nodes長さ: data.nodes?.length,
+          edges長さ: data.edges?.length,
+          templates: data.templates,
+          fileName: data.originalFileKey || data.draftName,
         });
+
+        const loadData = {
+          ...data,
+          fileName: data.originalFileKey || data.draftName,
+        };
+
+        console.log('📤 [DraftManager V2] 親コンポーネントに渡すデータ:', loadData);
+
+        onLoadDraft(loadData);
 
         onClose();
       } catch (err) {
@@ -240,35 +239,44 @@ const DraftManager: React.FC<DraftManagerProps> = ({
 
   // フィルタリング・ソート
   const { autoSaveDrafts, manualDrafts } = useMemo(() => {
-    let filtered = drafts;
+    // 🔧 修正: drafts が配列であることを保証
+    const draftArray = Array.isArray(drafts) ? drafts : [];
+    
+    console.log('🔍 [DraftManager V2] フィルタリング実行:', {
+      drafts配列: draftArray,
+      drafts長さ: draftArray.length,
+      drafts型: typeof drafts,
+      drafts配列判定: Array.isArray(drafts)
+    });
+    
+    let filtered = draftArray;
 
     // 検索フィルター
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = drafts.filter(
+      filtered = draftArray.filter(
         (draft) =>
-          draft.draft_name.toLowerCase().includes(query) ||
-          draft.original_file_key?.toLowerCase().includes(query)
+          draft.draftName.toLowerCase().includes(query) ||
+          draft.originalFileKey?.toLowerCase().includes(query)
       );
     }
 
     // 自動保存と手動保存に分ける
-    const autoSaves = filtered
-      .filter((d) => d.draft_name && d.draft_name.includes('自動保存'))
-      .sort((a, b) => new Date(b.last_saved_at).getTime() - new Date(a.last_saved_at).getTime());
+    const autoSaves = filtered.filter((d : Draft) => d.draftName && d.draftName.includes('自動保存'))
+      .sort((a, b) => new Date(b.lastSavedAt).getTime() - new Date(a.lastSavedAt).getTime());
 
-    const manuals = filtered.filter((d) => !d.draft_name || !d.draft_name.includes('自動保存'));
+    const manuals = filtered.filter((d) => !d.draftName || !d.draftName.includes('自動保存'));
 
     // 手動保存をソート
     const sortedManuals = [...manuals].sort((a, b) => {
       switch (sortBy) {
         case 'name':
-          return a.draft_name.localeCompare(b.draft_name);
+          return a.draftName.localeCompare(b.draftName);
         case 'nodeCount':
           return ((b.nodes?.length || 0) - (a.nodes?.length || 0));
         case 'date':
         default:
-          return new Date(b.last_saved_at).getTime() - new Date(a.last_saved_at).getTime();
+          return new Date(b.lastSavedAt || new Date()).getTime() - new Date(a.lastSavedAt || new Date()).getTime();
       }
     });
 
@@ -382,7 +390,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                     onChange={setSelectedAutoSaveGeneration}
                     style={{ width: '100%', maxWidth: 300 }}
                     options={autoSaveDrafts.slice(0, 3).map((draft, index) => ({
-                      label: `${index === 0 ? '最新' : `${index}世代前`} - ${new Date(draft.last_saved_at).toLocaleString('ja-JP', {
+                      label: `${index === 0 ? '最新' : `${index}世代前`} - ${new Date(draft.lastSavedAt || new Date()).toLocaleString('ja-JP', {
                         month: '2-digit',
                         day: '2-digit',
                         hour: '2-digit',
@@ -425,9 +433,9 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                   renderItem={(draft) => (
                     <Card size="small" style={{ marginBottom: 8 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                        <Text strong>{draft.draft_name}</Text>
+                        <Text strong>{draft.draftName}</Text>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          {new Date(draft.last_saved_at).toLocaleString('ja-JP')}
+                          {new Date(draft.lastSavedAt || new Date()).toLocaleString('ja-JP')}
                         </Text>
                       </div>
 
@@ -437,10 +445,10 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                         <Tag>📋 {Object.keys(draft.templates || {}).length} テンプレート</Tag>
                       </Space>
 
-                      {draft.original_file_key && (
+                      {draft.originalFileKey && (
                         <div style={{ marginBottom: 8 }}>
                           <Text type="secondary" style={{ fontSize: 12 }}>
-                            📄 {draft.original_file_key}
+                            📄 {draft.originalFileKey}
                           </Text>
                         </div>
                       )}
@@ -457,8 +465,8 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                         </Button>
                         <Popconfirm
                           title="Draft削除確認"
-                          description={`"${draft.draft_name}" を削除しますか？`}
-                          onConfirm={() => handleDelete(draft.draft_key, draft.draft_name)}
+                          description={`"${draft.draftName}" を削除しますか？`}
+                          onConfirm={() => handleDelete(draft.draftKey, draft.draftName)}
                           okText="削除"
                           cancelText="キャンセル"
                         >

@@ -1061,6 +1061,7 @@ export class ProjectService {
 
         // archive配下のファイルと.keepファイルを除外してフィルタリング
         const rootFiles = currentFiles.filter((file: any) => {
+          console.log(file.key);
           // archive/配下のファイルは除外
           if (file.key.includes('/archive/')) {
             return false;
@@ -1068,7 +1069,7 @@ export class ProjectService {
           
           // .keepファイルを除外
           const fileName = file.key.split('/').pop() || '';
-          if (fileName === '.keep') {
+          if (fileName === '' || fileName === '.keep') {
             return false;
           }
           
@@ -1086,7 +1087,7 @@ export class ProjectService {
             chunk.map(async (file: any) => {
               const signedUrl = await storageService.getSignedUrl(
                 organizationPrefix,
-                file.key.replace(`org_${organizationPrefix}/`, ''),
+                file.key.replace(`${organizationPrefix}/`, ''),
                 3600
               );
 

@@ -343,6 +343,215 @@ export function health(_req: Request, res: Response): void {
       'maiml-validate',
       'maiml-correct',
       'session-management',
+      'draft-management', // Draft機能を追加
     ],
   });
+}
+
+// ========== Draft機能コントローラー ==========
+
+/**
+ * Draft保存
+ * POST /api/v1/maiml/draft
+ */
+export async function saveDraft(req: Request, res: Response): Promise<void> {
+  try {
+    if (checkValidationErrors(req, res)) return;
+
+    const draft = req.body;
+    const authUser = req.user as JwtPayload;
+
+    if (!authUser?.organizationId || !authUser?.userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Organization ID or User ID not found',
+        },
+      });
+      return;
+    }
+
+    console.log('💾 [maimlController] Draft保存リクエスト受信:', draft.draftKey);
+
+    const result = await maimlService.saveDraft(
+      draft,
+      authUser.organizationId,
+      authUser.userId
+    );
+
+    console.log('✅ [maimlController] Draft保存完了:', result.draftKey);
+
+    res.json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    handleError(res, error, 'Draft保存エラー');
+  }
+}
+
+/**
+ * Draft読み込み
+ * GET /api/v1/maiml/draft/:draftKey
+ */
+export async function loadDraft(req: Request, res: Response): Promise<void> {
+  try {
+    if (checkValidationErrors(req, res)) return;
+
+    const { draftKey } = req.params;
+    const authUser = req.user as JwtPayload;
+
+    if (!authUser?.organizationId || !authUser?.userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Organization ID or User ID not found',
+        },
+      });
+      return;
+    }
+
+    console.log('📂 [maimlController] Draft読み込みリクエスト受信:', draftKey);
+
+    const result = await maimlService.loadDraft(
+      draftKey,
+      authUser.organizationId,
+      authUser.userId
+    );
+
+    if (!result) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'DRAFT_NOT_FOUND',
+          message: `Draft not found: ${draftKey}`,
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+        },
+      });
+      return;
+    }
+
+    console.log('✅ [maimlController] Draft読み込み完了:', result.draftKey);
+
+    res.json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    handleError(res, error, 'Draft読み込みエラー');
+  }
+}
+
+/**
+ * Draft一覧取得
+ * GET /api/v1/maiml/drafts
+ */
+export async function listDrafts(req: Request, res: Response): Promise<void> {
+  try {
+    if (checkValidationErrors(req, res)) return;
+
+    const authUser = req.user as JwtPayload;
+
+    if (!authUser?.organizationId || !authUser?.userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Organization ID or User ID not found',
+        },
+      });
+      return;
+    }
+
+    console.log('📋 [maimlController] Draft一覧取得リクエスト受信');
+
+    const result = await maimlService.listDrafts(
+      authUser.organizationId,
+      authUser.userId
+    );
+
+    console.log('✅ [maimlController] Draft一覧取得完了:', result.length);
+
+    res.json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        count: result.length,
+      },
+    });
+  } catch (error) {
+    handleError(res, error, 'Draft一覧取得エラー');
+  }
+}
+
+/**
+ * Draft削除
+ * DELETE /api/v1/maiml/draft/:draftKey
+ */
+export async function deleteDraft(req: Request, res: Response): Promise<void> {
+  try {
+    if (checkValidationErrors(req, res)) return;
+
+    const { draftKey } = req.params;
+    const authUser = req.user as JwtPayload;
+
+    if (!authUser?.organizationId || !authUser?.userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'Organization ID or User ID not found',
+        },
+      });
+      return;
+    }
+
+    console.log('🗑️ [maimlController] Draft削除リクエスト受信:', draftKey);
+
+    const deletedCount = await maimlService.deleteDraft(
+      draftKey,
+      authUser.organizationId,
+      authUser.userId
+    );
+
+    if (deletedCount === 0) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'DRAFT_NOT_FOUND',
+          message: `Draft not found: ${draftKey}`,
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+        },
+      });
+      return;
+    }
+
+    console.log('✅ [maimlController] Draft削除完了:', draftKey);
+
+    res.json({
+      success: true,
+      data: {
+        draftKey,
+        deletedCount,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    handleError(res, error, 'Draft削除エラー');
+  }
 }

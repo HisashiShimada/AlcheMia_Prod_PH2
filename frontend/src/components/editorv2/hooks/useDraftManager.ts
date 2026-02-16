@@ -9,28 +9,45 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Node, Edge } from 'reactflow';
-import { Arc, Template } from '@/types/maiml-unified';
 import { 
-  DocumentData,
-  NodeData, 
-  EdgeData,
   Draft,
   EditState,
-  DraftSaveData,
-  UseDraftManagerOptions,
-  UseDraftManagerReturn
 } from '../../../types/editor';
+import * as draftService from '@/api/draftService';
 
 /**
- * API レスポンスの型定義
+ * useDraftManagerオプションの型定義
  */
-interface DraftsResponse {
-  drafts: Draft[];
+export interface UseDraftManagerOptions {
+  userId?: string;
+  autoSaveInterval?: number;
+  autoSaveGenerations?: number;
+  onAutoSaveSuccess?: (result: { draft_key: string }) => void;
+  onAutoSaveError?: (error: Error) => void;
 }
 
-interface SaveDraftResponse {
-  draft: Draft;
+/**
+ * useDraftManagerの返り値型
+ */
+export interface UseDraftManagerReturn {
+  // 状態
+  drafts: Draft[];
+  isLoading: boolean;
+  error: string | null;
+  autoSaveEnabled: boolean;
+  lastSavedDraft: Draft | null;
+  lastAutoSaveTime: Date | null;
+  
+  // 操作関数
+  fetchDrafts: () => Promise<Draft[] | undefined>;
+  saveDraft: (draftData: Draft) => Promise<Draft>;
+  deleteDraft: (draftKey: string) => Promise<unknown>;
+  
+  // 自動保存制御
+  setAutoSaveEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  startAutoSaveTimer: () => void;
+  stopAutoSaveTimer: () => void;
+  cleanupOldAutoSaves: () => Promise<void>;
 }
 
 /**
@@ -82,22 +99,10 @@ const useDraftManager = (
     setError(null);
     
     try {
-      console.log('📂 [useDraftManager V2] Draft一覧取得開始');
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
-      const response = await fetch(
-        `/api/s3/drafts?userId=${encodeURIComponent(userId)}&organizationId=${currentOrgId}`,
-        { credentials: 'include' }
-      );
+      const data = await draftService.fetchDrafts();
       
-      if (!response.ok) {
-        throw new Error(`Draft取得失敗: ${response.status} ${response.statusText}`);
-      }
-      
-      const data: DraftsResponse = await response.json();
-      console.log(`✅ [useDraftManager V2] Draft取得成功: ${data.drafts?.length || 0}件`);
-      
-      setDrafts(data.drafts || []);
-      return data.drafts;
+      setDrafts(data || []);
+      return data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error('❌ [useDraftManager V2] Draft取得エラー:', err);
@@ -107,54 +112,24 @@ const useDraftManager = (
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, []);
 
   /**
    * Draft保存
    */
-  const saveDraft = useCallback(async (draftData: DraftSaveData): Promise<{ draft: Draft }> => {
+  const saveDraft = useCallback(async (draftData: Draft): Promise<Draft> => {
     setIsLoading(true);
     setError(null);
     
     try {
-      console.log('💾 [useDraftManager V2] Draft保存開始:', draftData.draftName);
+      const data = await draftService.saveDraft(draftData);
       
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
-      
-      // V1互換のためarcsに変換
-      const arcs: Arc[] = draftData.edges?.map(edge => ({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-      })) || [];
-      
-      const response = await fetch('/api/s3/drafts/save', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json' 
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...draftData,
-          userId,
-          organizationId: currentOrgId,
-          arcs: arcs,
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Draft保存失敗: ${response.status}`);
-      }
-      
-      const result: SaveDraftResponse = await response.json();
-      console.log('✅ [useDraftManager V2] Draft保存成功:', result.draft?.draft_key);
-      
-      setLastSavedDraft(result.draft);
+      setLastSavedDraft(data);
       
       // 保存後にDraft一覧を再取得
       await fetchDrafts();
       
-      return result;
+      return data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error('❌ [useDraftManager V2] Draft保存エラー:', err);
@@ -163,7 +138,7 @@ const useDraftManager = (
     } finally {
       setIsLoading(false);
     }
-  }, [userId, fetchDrafts]);
+  }, [fetchDrafts]);
 
   /**
    * Draft削除
@@ -173,27 +148,11 @@ const useDraftManager = (
     setError(null);
     
     try {
-      console.log('🗑️ [useDraftManager V2] Draft削除開始:', draftKey);
-      
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
-      const response = await fetch(
-        `/api/s3/drafts/${encodeURIComponent(draftKey)}?userId=${encodeURIComponent(userId)}&organizationId=${currentOrgId}`,
-        { 
-          method: 'DELETE',
-          credentials: 'include'
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Draft削除失敗: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('✅ [useDraftManager V2] Draft削除成功');
+      const data = await draftService.deleteDraft(draftKey);
       
       await fetchDrafts();
       
-      return result;
+      return data;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error('❌ [useDraftManager V2] Draft削除エラー:', err);
@@ -202,7 +161,7 @@ const useDraftManager = (
     } finally {
       setIsLoading(false);
     }
-  }, [userId, fetchDrafts]);
+  }, [fetchDrafts]);
 
   /**
    * 古い自動保存を削除（3世代より古いものを削除）
@@ -217,8 +176,8 @@ const useDraftManager = (
       
       // 自動保存のみフィルタ（draft_nameに「自動保存」を含む）
       const autoSaves = currentDrafts
-        .filter(d => d.draft_name && d.draft_name.includes('自動保存'))
-        .sort((a, b) => new Date(b.last_saved_at).getTime() - new Date(a.last_saved_at).getTime());
+        .filter(d => d.draftName && d.draftName.includes('自動保存'))
+        .sort((a, b) => new Date(b.lastSavedAt || new Date()).getTime() - new Date(a.lastSavedAt || new Date()).getTime());
       
       console.log(`🧹 [useDraftManager V2] 自動保存クリーンアップ: 総数${autoSaves.length}, 保持世代${autoSaveGenerations}`);
       
@@ -228,7 +187,7 @@ const useDraftManager = (
         console.log(`🗑️ [useDraftManager V2] ${toDelete.length}件の古い自動保存を削除`);
         
         for (const draft of toDelete) {
-          await deleteDraft(draft.draft_key);
+          await deleteDraft(draft.draftKey);
         }
       }
     } catch (err) {
@@ -268,14 +227,15 @@ const useDraftManager = (
         
         const draftKey = `draft_auto_${Date.now()}`;
         
-        const draftPayload: DraftSaveData = {
+        const draftPayload: Draft = {
           draftKey,
           draftName: `自動保存 - ${currentEditState.fileName}`,
           originalFileKey: currentEditState.fileName,
           nodes: currentEditState.nodes || [],
           edges: currentEditState.edges || [],
           templates: currentEditState.templates || [],
-          documentData: currentEditState.documentData
+          documentData: currentEditState.documentData,
+          lastSavedAt : new Date().toISOString()
         };
         
         await saveDraft(draftPayload);

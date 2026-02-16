@@ -14,8 +14,11 @@ import { EditSession, ParseResult,AnalysisResult  } from '../types/maimlValidati
 import * as maimlParser from '../utils/maimlParser';
 import { maimlSaveResult} from '../types/maimlEditor';
 import { FileMetadataRepository,FileMetadata } from '../repositories/fileMetadataRepository';
+import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraftsRepository';
+import type { Draft } from '../types/editor';
 
 const storageService = getStorageService();
+const maimlDraftsRepository = new MaimlDraftsRepository();
 
 /**
  * 編集セッション管理用Map
@@ -466,29 +469,72 @@ export async function endEditSession(sessionData: any): Promise<any> {
 
 /**
  * バックアップ作成
+ * archive/サブフォルダに連番形式で保存
  */
 async function createBackup(filePath: string, organizationId: string): Promise<string | null> {
   try {
-    // 既存ファイル確認
+    // 1. ファイル存在確認
     const exists = await storageService.fileExists(organizationId, filePath);
-
+    
     console.log(filePath, exists);
-    if (exists) {
-      // 既存ファイルを取得
-      const buffer = await storageService.downloadFile(organizationId, filePath);
-
-      // バックアップパス生成
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const backupPath = filePath.replace('.maiml', `.backup.${timestamp}.maiml`);
-
-      // バックアップ保存
-      await storageService.uploadFile(organizationId, backupPath, buffer);
-
-      console.log('📋 [maimlService] バックアップ作成:', backupPath);
-      return backupPath;
+    if (!exists) {
+      return null;
     }
 
-    return null;
+    // 2. パス解析
+    const pathParts = filePath.split('/');
+    const fileName = pathParts.pop(); // sample_project.maiml
+    const dirPath = pathParts.join('/'); // projects/sample_project
+    
+    if (!fileName) {
+      console.warn('⚠️ [maimlService] ファイル名が取得できません:', filePath);
+      return null;
+    }
+    
+    const baseName = fileName.replace('.maiml', ''); // sample_project
+    
+    // 3. archiveフォルダパス生成
+    const archivePath = `${dirPath}/archive`;
+
+    // 4. archive内の既存バックアップファイルを取得して最大連番を算出
+    let maxNumber = 0;
+    try {
+      const files = await storageService.listFiles(organizationId, archivePath);
+      
+      // baseName_数字.maiml パターンのファイルから最大連番を取得
+      const pattern = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_(\\d{3})\\.maiml$`);
+      files.forEach((file: any) => {
+        const name = file.key.split('/').pop();
+        if (name) {
+          const match = name.match(pattern);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNumber) {
+              maxNumber = num;
+            }
+          }
+        }
+      });
+      
+      console.log(`📊 [maimlService] archive内の既存バックアップ最大連番: ${maxNumber}`);
+    } catch (error) {
+      // archiveフォルダが存在しない場合は0から開始
+      console.log('📁 [maimlService] archiveフォルダが存在しないため、001から開始');
+    }
+
+    // 5. 新しいバックアップファイル名生成（連番を3桁にゼロパディング）
+    const newNumber = maxNumber + 1;
+    const backupFileName = `${baseName}_${String(newNumber).padStart(3, '0')}.maiml`;
+    const backupPath = `${archivePath}/${backupFileName}`;
+
+    // 6. 既存ファイルを取得
+    const buffer = await storageService.downloadFile(organizationId, filePath);
+
+    // 7. バックアップ保存
+    await storageService.uploadFile(organizationId, backupPath, buffer);
+
+    console.log('📋 [maimlService] バックアップ作成:', backupPath);
+    return backupPath;
   } catch (error) {
     console.warn('⚠️ [maimlService] バックアップ作成失敗:', error);
     // バックアップ失敗は警告のみ（保存処理は継続）
@@ -578,6 +624,223 @@ function extractArcs(doc: Document): any[] {
 
   return arcs;
 }
+
+// ========== Draft機能 ==========
+
+/**
+ * Draft保存
+ * 
+ * @param draft - 保存するDraftデータ
+ * @param organizationId - 組織ID
+ * @param userId - ユーザーID
+ * @returns 保存されたDraft情報
+ */
+export async function saveDraft(
+  draft: Draft,
+  organizationId: string,
+  userId: string
+): Promise<Draft> {
+  try {
+    console.log('💾 [maimlService] Draft保存開始:', draft.draftKey);
+
+    // Repository呼び出し
+    const savedRow = await maimlDraftsRepository.save(draft, organizationId, userId);
+
+    // DB行をDraft型に変換
+    const result = convertRowToDraft(savedRow);
+
+    console.log('✅ [maimlService] Draft保存完了:', result.draftKey);
+
+    return result;
+  } catch (error) {
+    console.error('❌ [maimlService] Draft保存エラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * Draft削除
+ * 
+ * @param draftKey - 削除するDraftのキーID
+ * @param organizationId - 組織ID
+ * @param userId - ユーザーID
+ * @returns 削除された行数
+ */
+export async function deleteDraft(
+  draftKey: string,
+  organizationId: string,
+  userId: string
+): Promise<number> {
+  try {
+    console.log('🗑️ [maimlService] Draft削除開始:', draftKey);
+
+    // Repository呼び出し
+    const deletedCount = await maimlDraftsRepository.delete(draftKey, organizationId, userId);
+
+    if (deletedCount === 0) {
+      console.warn('⚠️ [maimlService] 削除対象のDraftが見つかりません:', draftKey);
+    } else {
+      console.log('✅ [maimlService] Draft削除完了:', draftKey);
+    }
+
+    return deletedCount;
+  } catch (error) {
+    console.error('❌ [maimlService] Draft削除エラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * Draft読み込み
+ * 孤立アーククリーニング処理を含む
+ * 
+ * @param draftKey - DraftのキーID
+ * @param organizationId - 組織ID
+ * @param userId - ユーザーID
+ * @returns Draft情報、存在しない場合はnull
+ */
+export async function loadDraft(
+  draftKey: string,
+  organizationId: string,
+  userId: string
+): Promise<Draft | null> {
+  try {
+    console.log('📂 [maimlService] Draft読み込み開始:', draftKey);
+
+    // Repository呼び出し
+    const row = await maimlDraftsRepository.findByKey(draftKey, organizationId, userId);
+
+    if (!row) {
+      console.warn('⚠️ [maimlService] Draftが見つかりません:', draftKey);
+      return null;
+    }
+
+    // DB行をDraft型に変換
+    const draft = convertRowToDraft(row);
+
+    // 孤立アーククリーニング
+    const cleanedDraft = cleanOrphanedArcs(draft);
+
+    console.log('✅ [maimlService] Draft読み込み完了:', cleanedDraft.draftKey);
+
+    return cleanedDraft;
+  } catch (error) {
+    console.error('❌ [maimlService] Draft読み込みエラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * Draft一覧取得
+ * 
+ * @param organizationId - 組織ID
+ * @param userId - ユーザーID
+ * @returns Draft一覧
+ */
+export async function listDrafts(
+  organizationId: string,
+  userId: string
+): Promise<Draft[]> {
+  try {
+    console.log('📋 [maimlService] Draft一覧取得開始');
+
+    // Repository呼び出し
+    const rows = await maimlDraftsRepository.findAll(organizationId, userId);
+
+    // DB行をDraft型に変換
+    const drafts = rows.map(row => convertRowToDraft(row));
+
+    console.log('✅ [maimlService] Draft一覧取得完了:', drafts.length);
+
+    return drafts;
+  } catch (error) {
+    console.error('❌ [maimlService] Draft一覧取得エラー:', error);
+    throw error;
+  }
+}
+
+/**
+ * DB行（MaimlDraftsRow）をDraft型に変換
+ * 
+ * @param row - DB検索結果
+ * @returns Draft型オブジェクト
+ * 
+ * @note PostgreSQLのJSONB型は自動的にパースされる場合があるため、
+ * 文字列の場合のみJSON.parse()を実行する
+ */
+function convertRowToDraft(row: MaimlDraftsRow): Draft {
+  // JSONB型カラムの安全なパース
+  // - すでにオブジェクトの場合: そのまま使用
+  // - 文字列の場合: JSON.parse()を実行
+  const safeParseJson = (data: string | any): any => {
+    if (typeof data === 'string') {
+      try {
+        return JSON.parse(data);
+      } catch (error) {
+        console.error('❌ [maimlService] JSON parse error:', error);
+        return data; // パース失敗時は元データを返す
+      }
+    }
+    return data; // すでにオブジェクトの場合はそのまま返す
+  };
+
+  return {
+    draftKey: row.draft_key,
+    draftName: row.draft_name,
+    originalFileKey: row.original_file_key || undefined,
+    lastSavedAt: row.last_saved_at.toISOString(),
+    nodes: safeParseJson(row.nodes),
+    edges: safeParseJson(row.arcs), // arcs → edges
+    templates: safeParseJson(row.templates),
+    documentData: safeParseJson(row.document_data),
+  };
+}
+
+/**
+ * 孤立アーク（edges）のクリーニング
+ * ノードが削除された際にアークが残っている場合を想定
+ * 
+ * @param draft - Draft情報
+ * @returns クリーニング済みDraft
+ */
+function cleanOrphanedArcs(draft: Draft): Draft {
+  if (!draft.edges || draft.edges.length === 0) {
+    return draft;
+  }
+
+  if (!draft.nodes || draft.nodes.length === 0) {
+    // ノードがない場合はすべてのアークを削除
+    console.log('🧹 [maimlService] ノードが存在しないため、すべてのアークを削除');
+    return {
+      ...draft,
+      edges: [],
+    };
+  }
+
+  // 存在するノードIDのセットを作成
+  const nodeIds = new Set(draft.nodes.map(node => node.id));
+
+  // 有効なアークのみをフィルタ
+  const validEdges = draft.edges.filter(edge => {
+    const isValid = nodeIds.has(edge.source) && nodeIds.has(edge.target);
+    if (!isValid) {
+      console.log(`🧹 [maimlService] 孤立アークを削除: ${edge.id} (source: ${edge.source}, target: ${edge.target})`);
+    }
+    return isValid;
+  });
+
+  const removedCount = draft.edges.length - validEdges.length;
+  if (removedCount > 0) {
+    console.log(`✅ [maimlService] 孤立アーククリーニング完了: ${removedCount}個削除`);
+  }
+
+  return {
+    ...draft,
+    edges: validEdges,
+  };
+}
+
+// ========== 既存の関数 ==========
 
 /**
  * 複数method対応のペトリネット構造解析
