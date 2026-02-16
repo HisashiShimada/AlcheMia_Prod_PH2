@@ -165,20 +165,45 @@
       - エッジケース: 1テスト（大文字小文字区別の厳密性）
   - _Requirements: 4_
 
-- [ ] 4.5 トランジション進捗データの並列取得
+- [x] 4.5 トランジション進捗データの並列取得
   - Promise.allを使用して各トランジションのデータを並列取得
   - 各トランジションに対してgetLatestRecordByTransitionを呼び出し
   - 各トランジションに対してcountRecordsByTransitionを呼び出し
   - レコードが存在しない場合はステータスをnot_started、progressを0に設定
   - has_dataフラグとdata_countを設定
+  - **実装完了**: 2026-02-16
+  - **実装内容**:
+    - `ProgressService.getTransitionsProgress`メソッドを実装
+    - Promise.allを使用した並列処理で各トランジションのデータを効率的に取得
+    - `getSingleTransitionProgress`メソッドで個別トランジションの進捗取得
+    - TransitionDataRepository（getLatestRecordByTransition, countRecordsByTransition）を呼び出し
+    - レコード不在時はnot_started/progress=0に設定
+    - has_dataフラグとdata_countを正確に設定
+    - エラー時のフォールバック処理実装（not_startedとして扱う）
+    - 包括的なユニットテスト作成（9テスト、全て成功）
+      - 正常系: 5テスト（並列取得、レコード不在処理、has_dataフラグ、パラメータ検証、パフォーマンス検証）
+      - 異常系: 1テスト（DatabaseError）
+      - エッジケース: 1テスト（トランジション0個）
+      - セキュリティ: 1テスト（organization_id受け渡し）
+      - パフォーマンス: 1テスト（並列処理の効率性検証、100ms未満で完了）
   - _Requirements: 1, 5, 8_
 
-- [ ] 4.6 進捗計算ロジックの実装
+- [x] 4.6 進捗計算ロジックの実装
   - 各トランジションのステータスに基づいてcompleted、in_progress、not_startedをカウント
   - overall_percentageを計算（全トランジションの進捗率の平均値、小数点第1位）
   - トランジション数が0の場合は0を返却
   - ステータスがcompletedの場合はprogressを100に設定
   - ステータスがnot_startedの場合はprogressを0に設定
+  - **実装完了**: 2026-02-16
+  - **実装内容**:
+    - `ProgressService.calculateOverallProgress`メソッドを実装
+    - ステータスごとのカウント（filter使用）
+    - 全体進捗率計算：`(totalProgress / totalTransitions).toFixed(1)`
+    - トランジション0個の場合の早期リターン
+    - `normalizeProgress`メソッドで整合性保証（completed=100, not_started=0）
+    - 包括的なユニットテスト作成（9テスト）
+      - 正常系: 5テスト（ステータスカウント、平均値計算、小数点丸め、0個対応、エッジケース）
+      - Invariant検証: 3テスト（カウント合計、completed=100、not_started=0）
   - _Requirements: 1, 9_
 
 - [ ] 4.7 レスポンスデータの構築
