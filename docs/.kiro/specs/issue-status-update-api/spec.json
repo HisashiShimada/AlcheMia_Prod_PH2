@@ -1,0 +1,22 @@
+{
+  "feature_name": "issue-status-update-api",
+  "created_at": "2026-02-13T03:00:00Z",
+  "updated_at": "2026-02-13T04:53:50Z",
+  "language": "ja",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "ready_for_implementation": false
+}

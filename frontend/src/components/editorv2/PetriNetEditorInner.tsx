@@ -429,6 +429,24 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     }
   }, [history.present, setNodes, setEdges]);
 
+  // ✅ Bug Fix: nodes/edges更新時にmethods配列も自動同期
+  useEffect(() => {
+    if (methods.length > 0 && activeMethodIndex < methods.length) {
+      const currentViewport = getViewport();
+      setMethods(prev => {
+        const updated = [...prev];
+        // 現在のmethodのnodesとedgesを最新の状態に更新
+        updated[activeMethodIndex] = {
+          ...updated[activeMethodIndex],
+          nodes: nodes,
+          edges: edges,
+          viewport: currentViewport
+        };
+        return updated;
+      });
+    }
+  }, [nodes, edges]); // nodesとedgesの変更を監視
+
   // ===== Phase 8 Step 3: エディタアクション統合 =====
   // useEditorActionsフックを使用
   const { handleCopy, handlePaste } = useEditorActions({
@@ -1576,7 +1594,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     // 既存テンプレートの更新
     console.log('🔄 [PetriNetEditorInner] 既存テンプレート更新:', {
       nodeId,
+      templateId: templateId,
       placeRefs: convertedTemplateRef.placeRefs,
+      placeRefsLength: convertedTemplateRef.placeRefs?.length,
+      placeRefIds: convertedTemplateRef.placeRefs?.map(pr => pr.ref),
       isNewTemplate,
       templateCategory,
       isCommonTemplate,
@@ -1591,7 +1612,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         // 全カテゴリから元のテンプレートを検索（templateIdで検索）
         (['material', 'condition', 'result'] as const).forEach((category) => {
         const templates : Template[] = allTemplates[category];
-          if (!originalTemplate && templates.length > 0) {
+          if (!originalTemplate.id && templates.length > 0) {
             originalTemplate = templates.find((t: Template) => t.id === templateId)!;  // ✅ 修正: templateIdで検索
           }
         });
@@ -1599,7 +1620,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         console.log('🔍 [PetriNetEditorInner] 元のテンプレート情報:', {
           found: !!originalTemplate,
           originalMethodId: originalTemplate?.methodId,
-          placeRefsLength: convertedTemplateRef.placeRefs?.length
+          originalPlaceRefsLength: originalTemplate?.placeRefs?.length,
+          newPlaceRefsLength: convertedTemplateRef.placeRefs?.length
         });
         
         // ✅ 元のテンプレート情報を優先（methodId、typeを保持）

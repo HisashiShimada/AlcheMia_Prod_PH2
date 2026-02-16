@@ -41,74 +41,25 @@ import {
   FolderOutlined,
   FileOutlined,
 } from '@ant-design/icons';
-import { xml2js, ElementCompact } from 'xml-js';
 import { fetchTemplateFiles, fetchTemplateContent, type TemplateFile } from '@/api/templateApi';
 import type { 
   NodeData, 
-  ValidationError,
   TemplateError,
 } from '../../../types/editor';
-import { Template, Insertion, Property, PropertyCustomElement, PlaceRef, Content } from '@/types/maiml-unified';
+import { Template, Insertion, PlaceRef} from '@/types/maiml-unified';
+import NestedPropertyEditor, { type PropertyData } from './NestedPropertyEditor';
+import {
+  convertPropertiesArrayToNestedFormat,
+  convertPropertiesArrayToNestedFormatRecursive,
+  convertPropertyDataToPropertiesArray,
+  convertPropertyDataToContentsArray,
+  parseNamespacesFromXml,
+  buildTreeData,
+} from '../utils/templateConverter';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
-
-/**
- * MaiMLスキーマで定義されているpropertyタイプ一覧
- * @see specification/MaiML-Schema-1_0/maiml-property.xsd
- */
-const MAIML_PROPERTY_TYPES = [
-  // Simple Types
-  { value: 'stringType', label: 'stringType - 文字列', category: 'Simple' },
-  { value: 'tokenType', label: 'tokenType - トークン', category: 'Simple' },
-  { value: 'idType', label: 'idType - ID', category: 'Simple' },
-  { value: 'idRefType', label: 'idRefType - ID参照', category: 'Simple' },
-  { value: 'qualifiedNameType', label: 'qualifiedNameType - 修飾名', category: 'Simple' },
-  { value: 'dateTimeType', label: 'dateTimeType - 日時', category: 'Simple' },
-  { value: 'decimalType', label: 'decimalType - 10進数', category: 'Simple' },
-  { value: 'doubleType', label: 'doubleType - 倍精度実数', category: 'Simple' },
-  { value: 'floatType', label: 'floatType - 単精度実数', category: 'Simple' },
-  { value: 'intType', label: 'intType - 整数', category: 'Simple' },
-  { value: 'longType', label: 'longType - 長整数', category: 'Simple' },
-  { value: 'shortType', label: 'shortType - 短整数', category: 'Simple' },
-  { value: 'byteType', label: 'byteType - バイト', category: 'Simple' },
-  { value: 'unsignedIntType', label: 'unsignedIntType - 符号なし整数', category: 'Simple' },
-  { value: 'unsignedLongType', label: 'unsignedLongType - 符号なし長整数', category: 'Simple' },
-  { value: 'unsignedShortType', label: 'unsignedShortType - 符号なし短整数', category: 'Simple' },
-  { value: 'unsignedByteType', label: 'unsignedByteType - 符号なしバイト', category: 'Simple' },
-  { value: 'booleanType', label: 'booleanType - 真偽値', category: 'Simple' },
-  { value: 'base64BinaryType', label: 'base64BinaryType - Base64バイナリ', category: 'Simple' },
-  { value: 'hexBinaryType', label: 'hexBinaryType - 16進バイナリ', category: 'Simple' },
-  { value: 'uriType', label: 'uriType - URI', category: 'Simple' },
-  { value: 'uuidType', label: 'uuidType - UUID', category: 'Simple' },
-  { value: 'languageType', label: 'languageType - 言語', category: 'Simple' },
-  
-  // List Types
-  { value: 'propertyListType', label: 'propertyListType - プロパティリスト（子要素を持つ）', category: 'List' },
-  { value: 'stringListType', label: 'stringListType - 文字列リスト', category: 'List' },
-  { value: 'idRefListType', label: 'idRefListType - ID参照リスト', category: 'List' },
-  { value: 'qualifiedNameListType', label: 'qualifiedNameListType - 修飾名リスト', category: 'List' },
-  { value: 'dateTimeListType', label: 'dateTimeListType - 日時リスト', category: 'List' },
-  { value: 'decimalListType', label: 'decimalListType - 10進数リスト', category: 'List' },
-  { value: 'doubleListType', label: 'doubleListType - 倍精度実数リスト', category: 'List' },
-  { value: 'floatListType', label: 'floatListType - 単精度実数リスト', category: 'List' },
-  { value: 'intListType', label: 'intListType - 整数リスト', category: 'List' },
-  { value: 'longListType', label: 'longListType - 長整数リスト', category: 'List' },
-  { value: 'shortListType', label: 'shortListType - 短整数リスト', category: 'List' },
-  { value: 'byteListType', label: 'byteListType - バイトリスト', category: 'List' },
-  { value: 'unsignedIntListType', label: 'unsignedIntListType - 符号なし整数リスト', category: 'List' },
-  { value: 'unsignedLongListType', label: 'unsignedLongListType - 符号なし長整数リスト', category: 'List' },
-  { value: 'unsignedShortListType', label: 'unsignedShortListType - 符号なし短整数リスト', category: 'List' },
-  { value: 'unsignedByteListType', label: 'unsignedByteListType - 符号なしバイトリスト', category: 'List' },
-  { value: 'booleanListType', label: 'booleanListType - 真偽値リスト', category: 'List' },
-  { value: 'base64BinaryListType', label: 'base64BinaryListType - Base64バイナリリスト', category: 'List' },
-  { value: 'hexBinaryListType', label: 'hexBinaryListType - 16進バイナリリスト', category: 'List' },
-  { value: 'uriListType', label: 'uriListType - URIリスト', category: 'List' },
-  { value: 'uuidListType', label: 'uuidListType - UUIDリスト', category: 'List' },
-  { value: 'languageListType', label: 'languageListType - 言語リスト', category: 'List' },
-  { value: 'stringEnumType', label: 'stringEnumType - 文字列列挙', category: 'List' },
-];
 
 interface TemplateEditorDialogProps {
   open: boolean;
@@ -130,431 +81,6 @@ interface TemplateEditorDialogProps {
 }
 
 /**
- * PropertyData型定義（NestedPropertyEditor用）
- */
-interface PropertyData {
-  key: string;
-  tagName: string;
-  attributes: Record<string, string>;
-  elements: Record<string, string>;
-  children: PropertyData[];
-}
-
-/**
- * NestedPropertyEditor Props
- */
-interface NestedPropertyEditorProps {
-  propertyData: PropertyData;
-  propertyKey: string;
-  level?: number;
-  expandedNodes: Set<string>;
-  onToggleExpanded: (nodeId: string) => void;
-  onAddNestedChild: (parentKey: string, childTagName: string, specifiedKey?: string) => void;
-  onAddSameLevelCopy: (sourceData: PropertyData, newKey: string) => void;
-  onUpdateNestedAttribute: (propertyKey: string, attrName: string, attrValue: string) => void;
-  onUpdateNestedElement: (propertyKey: string, elemName: string, elemValue: string) => void;
-  onDeleteNestedAttribute: (propertyKey: string, attrName: string) => void;
-  onDeleteNestedElement: (propertyKey: string, elemName: string) => void;
-  onDeleteProperty: (propertyKey: string) => void;
-  forceRenderKey: number;
-}
-
-/**
- * NestedPropertyEditor - ネスト構造プロパティ編集（Ant Design版）
- */
-const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
-  propertyData,
-  propertyKey,
-  level = 0,
-  expandedNodes,
-  onToggleExpanded,
-  onAddNestedChild,
-  onAddSameLevelCopy,
-  onUpdateNestedAttribute,
-  onUpdateNestedElement,
-  onDeleteNestedAttribute,
-  onDeleteNestedElement,
-  onDeleteProperty,
-  forceRenderKey
-}) => {
-  const [showAttributeAddModal, setShowAttributeAddModal] = useState(false);
-  const [showElementAddModal, setShowElementAddModal] = useState(false);
-  const [showChildAddModal, setShowChildAddModal] = useState(false);
-  const [showCopyModal, setShowCopyModal] = useState(false);
-  const [newAttributeName, setNewAttributeName] = useState('');
-  const [newAttributeValue, setNewAttributeValue] = useState('');
-  const [newElementName, setNewElementName] = useState('');
-  const [newElementValue, setNewElementValue] = useState('');
-  const [newChildTagName, setNewChildTagName] = useState('property');
-  const [copyKey, setCopyKey] = useState('');
-  
-  // ✅ Phase 2-2: カスタム属性名用State
-  const [customAttributeName, setCustomAttributeName] = useState('');
-
-  const nodeId = useMemo(() => propertyKey, [propertyKey]);
-  const isExpanded = useMemo(() => expandedNodes.has(nodeId), [expandedNodes, nodeId]);
-
-  const hasChildren = useMemo(() => {
-    const children = propertyData.children;
-    const parentXsiType = propertyData.attributes?.['xsi:type'] || '';
-    const isParentPropertyListType = parentXsiType === 'propertyListType';
-    const isValidArray = children && Array.isArray(children);
-    const hasLength = isValidArray && children.length > 0;
-    const hasValidChildren = hasLength && children.some(child => 
-      child && typeof child === 'object' && (child.key || child.tagName)
-    );
-    
-    return isParentPropertyListType && hasValidChildren;
-  }, [propertyData.children, propertyData.attributes]);
-
-  const hasAttributes = useMemo(() => 
-    propertyData.attributes && Object.keys(propertyData.attributes).length > 0, 
-    [propertyData.attributes]
-  );
-  
-  const hasElements = useMemo(() => 
-    propertyData.elements && Object.keys(propertyData.elements).length > 0, 
-    [propertyData.elements]
-  );
-
-  const indentLevel = level * 12;
-
-  return (
-    <div style={{ marginLeft: `${indentLevel}px`, marginBottom: 4 }}>
-      <div
-        style={{
-          border: `2px solid ${level === 0 ? '#1890ff' : '#d9d9d9'}`,
-          borderRadius: 8,
-          padding: 12,
-          backgroundColor: level % 2 === 0 ? '#fafafa' : '#ffffff'
-        }}
-      >
-        {/* ヘッダー */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <Space>
-            {hasChildren && (
-              <Button
-                type="text"
-                size="small"
-                icon={isExpanded ? <DownOutlined /> : <RightOutlined />}
-                onClick={() => onToggleExpanded(nodeId)}
-              />
-            )}
-            <Text strong>
-              {propertyData.tagName || 'property'}: {propertyKey}
-            </Text>
-            <Tag>Level {level}</Tag>
-            {propertyData.attributes?.['xsi:type'] && (
-              <Tag color={propertyData.attributes['xsi:type'] === 'propertyListType' ? 'blue' : 'default'}>
-                {propertyData.attributes['xsi:type']}
-              </Tag>
-            )}
-          </Space>
-
-          {/* 操作ボタン */}
-          <Space size="small">
-            <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setShowAttributeAddModal(true)}>
-              属性
-            </Button>
-            <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setShowElementAddModal(true)}>
-              要素
-            </Button>
-            <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setShowChildAddModal(true)}>
-              子要素
-            </Button>
-            <Button size="small" icon={<CopyOutlined />} onClick={() => setShowCopyModal(true)}>
-              コピー
-            </Button>
-            <Button
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => {
-                Modal.confirm({
-                  title: `プロパティ「${propertyKey}」を削除しますか？`,
-                  onOk: () => onDeleteProperty(propertyKey),
-                });
-              }}
-            />
-          </Space>
-        </div>
-
-        {/* 属性セクション */}
-        {hasAttributes && (
-          <div style={{ marginBottom: 8 }}>
-            <Text type="success" strong style={{ fontSize: 12 }}>📋 属性</Text>
-            {Object.entries(propertyData.attributes).map(([attrName, attrValue]) => (
-              <div key={attrName} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <Text style={{ minWidth: 100, fontSize: 12 }}>{attrName}:</Text>
-                <Input
-                  size="small"
-                  value={attrValue || ''}
-                  onChange={(e) => onUpdateNestedAttribute(propertyKey, attrName, e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  size="small"
-                  type="text"
-                  danger
-                  icon={<CloseOutlined />}
-                  onClick={() => onDeleteNestedAttribute(propertyKey, attrName)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* 要素セクション */}
-        {hasElements && (
-          <div style={{ marginBottom: 8 }}>
-            <Text type="secondary" strong style={{ fontSize: 12 }}>📄 要素</Text>
-            {Object.entries(propertyData.elements).map(([elemName, elemValue]) => (
-              <div key={elemName} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <Text style={{ minWidth: 100, fontSize: 12 }}>{elemName}:</Text>
-                <Input
-                  size="small"
-                  value={elemValue || ''}
-                  onChange={(e) => onUpdateNestedElement(propertyKey, elemName, e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  size="small"
-                  type="text"
-                  danger
-                  icon={<CloseOutlined />}
-                  onClick={() => onDeleteNestedElement(propertyKey, elemName)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* 子要素セクション */}
-        {hasChildren && isExpanded && (
-          <div style={{ marginTop: 8 }}>
-            <Text style={{ fontSize: 12, color: '#722ed1', fontWeight: 'bold' }}>
-              🌿 子要素 ({propertyData.children?.length || 0}件)
-            </Text>
-            {propertyData.children.map((child, index) => {
-              const childKey = child.key || `${child.tagName || 'child'}_${index}`;
-              return (
-                <NestedPropertyEditor
-                  key={`${childKey}_${index}_${forceRenderKey}`}
-                  propertyData={child}
-                  propertyKey={childKey}
-                  level={level + 1}
-                  expandedNodes={expandedNodes}
-                  onToggleExpanded={onToggleExpanded}
-                  onAddNestedChild={onAddNestedChild}
-                  onAddSameLevelCopy={onAddSameLevelCopy}
-                  onUpdateNestedAttribute={onUpdateNestedAttribute}
-                  onUpdateNestedElement={onUpdateNestedElement}
-                  onDeleteNestedAttribute={onDeleteNestedAttribute}
-                  onDeleteNestedElement={onDeleteNestedElement}
-                  onDeleteProperty={onDeleteProperty}
-                  forceRenderKey={forceRenderKey}
-                />
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* モーダル群 */}
-      {/* 属性追加モーダル */}
-      <Modal
-        title="➕ 属性追加"
-        open={showAttributeAddModal}
-        onCancel={() => {
-          setShowAttributeAddModal(false);
-          setNewAttributeName('');
-          setNewAttributeValue('');
-          setCustomAttributeName('');
-        }}
-        onOk={() => {
-          // ✅ Phase 2-2: カスタム属性名対応
-          const finalAttributeName = newAttributeName === '__custom__'
-            ? customAttributeName.trim()
-            : newAttributeName.trim();
-            
-          if (!finalAttributeName) {
-            message.error('属性名を入力してください');
-            return;
-          }
-          
-          if (!newAttributeValue.trim()) {
-            message.error('属性値を入力してください');
-            return;
-          }
-          
-          onUpdateNestedAttribute(propertyKey, finalAttributeName, newAttributeValue.trim());
-          setNewAttributeName('');
-          setNewAttributeValue('');
-          setCustomAttributeName('');
-          setShowAttributeAddModal(false);
-        }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Select
-            style={{ width: '100%' }}
-            placeholder="属性名を選択"
-            value={newAttributeName}
-            onChange={(value) => {
-              setNewAttributeName(value);
-              if (value === 'xsi:type' && !newAttributeValue) {
-                setNewAttributeValue('stringType');
-              }
-              if (value === '__custom__') {
-                setCustomAttributeName('');
-              }
-            }}
-          >
-            <Option value="xsi:type">xsi:type (MaiML型定義)</Option>
-            <Option value="units">units (単位)</Option>
-            <Option value="formatString">formatString (書式文字列)</Option>
-            <Option value="scaleFactor">scaleFactor (スケール係数)</Option>
-            <Option value="key">key (キー)</Option>
-            <Option value="id">id (ID)</Option>
-            <Option value="ref">ref (参照)</Option>
-            <Option value="__custom__">🔧 カスタム属性名を入力...</Option>
-          </Select>
-
-          {/* ✅ Phase 2-2: カスタム属性名入力フィールド */}
-          {newAttributeName === '__custom__' && (
-            <Input
-              placeholder="カスタム属性名を入力（例: customField, myAttribute）"
-              value={customAttributeName}
-              onChange={(e) => setCustomAttributeName(e.target.value)}
-            />
-          )}
-
-          {newAttributeName === 'xsi:type' ? (
-            <Select
-              style={{ width: '100%' }}
-              placeholder="MaiML Property Type"
-              value={newAttributeValue}
-              onChange={setNewAttributeValue}
-            >
-              <Option disabled>--- Simple Types ---</Option>
-              {MAIML_PROPERTY_TYPES.filter(t => t.category === 'Simple').map(type => (
-                <Option key={type.value} value={type.value}>
-                  {type.label}
-                </Option>
-              ))}
-              <Option disabled>--- List Types ---</Option>
-              {MAIML_PROPERTY_TYPES.filter(t => t.category === 'List').map(type => (
-                <Option key={type.value} value={type.value}>
-                  {type.label}
-                </Option>
-              ))}
-            </Select>
-          ) : (
-            <Input
-              placeholder="属性値を入力"
-              value={newAttributeValue}
-              onChange={(e) => setNewAttributeValue(e.target.value)}
-            />
-          )}
-        </Space>
-      </Modal>
-
-      {/* 要素追加モーダル */}
-      <Modal
-        title="➕ 要素追加"
-        open={showElementAddModal}
-        onCancel={() => setShowElementAddModal(false)}
-        onOk={() => {
-          if (newElementName.trim() && newElementValue.trim()) {
-            onUpdateNestedElement(propertyKey, newElementName.trim(), newElementValue.trim());
-            setNewElementName('');
-            setNewElementValue('');
-            setShowElementAddModal(false);
-          }
-        }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Input
-            placeholder="要素名（例: value, description）"
-            value={newElementName}
-            onChange={(e) => setNewElementName(e.target.value)}
-          />
-          <TextArea
-            rows={3}
-            placeholder="要素値を入力"
-            value={newElementValue}
-            onChange={(e) => setNewElementValue(e.target.value)}
-          />
-        </Space>
-      </Modal>
-
-      {/* 子要素追加モーダル */}
-      <Modal
-        title="➕ 子要素追加"
-        open={showChildAddModal}
-        onCancel={() => {
-          setShowChildAddModal(false);
-          setCopyKey('');
-          setNewChildTagName('property');
-        }}
-        onOk={() => {
-          if (copyKey.trim() && newChildTagName.trim()) {
-            onAddNestedChild(propertyKey, newChildTagName.trim(), copyKey.trim());
-            setCopyKey('');
-            setNewChildTagName('property');
-            setShowChildAddModal(false);
-          }
-        }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Alert
-            message={`親要素: ${propertyKey} | 現在の子要素数: ${propertyData.children?.length || 0}件`}
-            type="info"
-          />
-          <Input
-            placeholder="要素キー（必須）"
-            value={copyKey}
-            onChange={(e) => setCopyKey(e.target.value)}
-          />
-          <Select
-            style={{ width: '100%' }}
-            placeholder="タグ名を選択"
-            value={newChildTagName}
-            onChange={setNewChildTagName}
-          >
-            <Option value="property">property</Option>
-            <Option value="content">content</Option>
-            <Option value="parameter">parameter</Option>
-          </Select>
-        </Space>
-      </Modal>
-
-      {/* 同階層コピーモーダル */}
-      <Modal
-        title="📋 同階層コピー"
-        open={showCopyModal}
-        onCancel={() => setShowCopyModal(false)}
-        onOk={() => {
-          if (copyKey.trim()) {
-            onAddSameLevelCopy(propertyData, copyKey.trim());
-            setCopyKey('');
-            setShowCopyModal(false);
-          }
-        }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Alert message={`コピー元: ${propertyKey}`} type="info" />
-          <Input
-            placeholder={`新しいキー名（例: ${propertyKey}_copy）`}
-            value={copyKey}
-            onChange={(e) => setCopyKey(e.target.value)}
-          />
-        </Space>
-      </Modal>
-    </div>
-  );
-};
-
-/**
  * TemplateEditorDialog - メインコンポーネント
  */
 const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
@@ -565,7 +91,6 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   allNodes = [],
   templateErrors = {},
 }) => {
-  const [form] = Form.useForm();
   const [hasChanges, setHasChanges] = useState(false);
 
   // 基本情報State
@@ -596,15 +121,16 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   // ✅ Phase 1-1: Place References編集用State
   const [showPlaceRefAddDialog, setShowPlaceRefAddDialog] = useState(false);
 
-  // ✅ Phase 2-2: 名前空間取り込み用State
-  const [showNamespaceImportModal, setShowNamespaceImportModal] = useState(false);
+  // ✅ Phase 2-2: 名前空間取り込み用State（Reference版に統一）
+  const [showNamespaceDialog, setShowNamespaceDialog] = useState(false);
   const [templateFiles, setTemplateFiles] = useState<TemplateFile[]>([]);
-  const [selectedTemplateFile, setSelectedTemplateFile] = useState<string>('');
+  const [selectedNamespaceFile, setSelectedNamespaceFile] = useState<string>('');
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [importedNamespaces, setImportedNamespaces] = useState<string[]>([]);
+  const [namespaceImportMode, setNamespaceImportMode] = useState<'replace_all_properties' | 'replace_all_contents'>('replace_all_properties');
 
-  // ✅ Phase 3: 高度な名前空間取り込みUI用State
-  const [previewContent, setPreviewContent] = useState<{
+  // ✅ Phase 3: 高度な名前空間取り込みUI用State（Reference版に統一）
+  const [namespaceData, setNamespaceData] = useState<{
     xml?: string;
     properties?: Record<string, PropertyData>;
     error?: string;
@@ -700,548 +226,6 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   }, [mergedTemplate, allNodes, node]);
 
   /**
-   * MaiMLParser形式からNestedPropertyEditor形式への変換（配列版）
-   */
-  const convertPropertiesArrayToNestedFormat = (propertiesArray: Property[]): Record<string, PropertyData> => {
-    const result: Record<string, PropertyData> = {};
-    
-    propertiesArray.forEach((item) => {
-      const prop = item;
-      const key = (prop.key as string) ||`prop_${Date.now()}`;
-      
-      const attributes: Record<string, string> = {
-        'xsi:type': (prop.xsiType as string) || 'stringType'
-      };
-      
-      if (prop.units !== undefined && prop.units !== '') {
-        attributes.units = prop.units as string;
-      }
-      if (prop.formatString !== undefined && prop.formatString !== '') {
-        attributes.formatString = prop.formatString as string;
-      }
-      if (prop.scaleFactor !== undefined) {
-        attributes.scaleFactor = String(prop.scaleFactor);
-      }
-      
-      result[key] = {
-        key: key,
-        tagName: 'property',
-        attributes: attributes,
-        elements: {},
-        children: []
-      };
-      
-      if (prop.value !== undefined && prop.value !== null && prop.value !== '') {
-        result[key].elements.value = String(prop.value);
-      }
-      
-      if (prop.description !== undefined && prop.description !== null && prop.description !== '') {
-        result[key].elements.description = String(prop.description);
-      }
-      
-      // customElementsの変換（PropertyCustomElement → elements）
-      if (prop.customElements && typeof prop.customElements === 'object') {
-        Object.entries(prop.customElements).forEach(([elemName, elemValue]) => {
-          // PropertyCustomElementは複雑な構造を持つ可能性があるため、
-          // valueプロパティがあればそれを使用、なければ全体をJSON文字列化
-          if (elemValue && typeof elemValue === 'object' && 'value' in elemValue) {
-            result[key].elements[elemName] = String(elemValue.value);
-          } else if (elemValue !== undefined && elemValue !== null) {
-            result[key].elements[elemName] = String(elemValue);
-          }
-        });
-      }
-      
-      // 子要素の変換（properties, contentsの順）
-      const childrenData: PropertyData[] = [];
-      
-      // 子プロパティの変換
-      if (prop.properties && Array.isArray(prop.properties) && prop.properties.length > 0) {
-        childrenData.push(...convertPropertiesArrayToNestedFormatRecursive(prop.properties));
-      }
-      
-      // 子コンテンツの変換
-      if (prop.contents && Array.isArray(prop.contents) && prop.contents.length > 0) {
-        childrenData.push(...convertContentsArrayToNestedFormatRecursive(prop.contents));
-      }
-      
-      // 子要素がある場合は設定
-      if (childrenData.length > 0) {
-        result[key].children = childrenData;
-        // 子要素がある場合、xsi:typeが未設定ならpropertyListTypeに設定
-        if (!result[key].attributes['xsi:type']) {
-          result[key].attributes['xsi:type'] = 'propertyListType';
-        }
-      }
-    });
-    
-    return result;
-  };
-
-  /**
-   * 再帰的な子プロパティ変換
-   */
-  const convertPropertiesArrayToNestedFormatRecursive = (propertiesArray: Property[]): PropertyData[] => {
-    if (!Array.isArray(propertiesArray)) return [];
-    
-    return propertiesArray.map((item) => {
-      const prop = item;
-      const converted: PropertyData = {
-        key: (prop.key as string)|| `child_${Date.now()}`,
-        tagName: 'property',
-        attributes: {
-          'xsi:type': (prop.xsiType as string) || 'stringType'
-        },
-        elements: {},
-        children: []
-      };
-      
-      if (prop.units) converted.attributes.units = prop.units as string;
-      if (prop.formatString) converted.attributes.formatString = prop.formatString as string;
-      if (prop.scaleFactor) converted.attributes.scaleFactor = String(prop.scaleFactor);
-      
-      if (prop.value !== undefined && prop.value !== '') {
-        converted.elements.value = String(prop.value);
-      }
-      
-      if (prop.description !== undefined && prop.description !== '') {
-        converted.elements.description = String(prop.description);
-      }
-      
-      // customElementsの変換（PropertyCustomElement → elements）
-      if (prop.customElements && typeof prop.customElements === 'object') {
-        Object.entries(prop.customElements).forEach(([elemName, elemValue]) => {
-          // PropertyCustomElementは複雑な構造を持つ可能性があるため、
-          // valueプロパティがあればそれを使用、なければ全体をJSON文字列化
-          if (elemValue && typeof elemValue === 'object' && 'value' in elemValue) {
-            converted.elements[elemName] = String(elemValue.value);
-          } else if (elemValue !== undefined && elemValue !== null) {
-            converted.elements[elemName] = String(elemValue);
-          }
-        });
-      }
-      
-      // 子要素の変換（properties, contentsの順）
-      const childrenData: PropertyData[] = [];
-      
-      // 子プロパティの再帰的変換
-      if (prop.properties && Array.isArray(prop.properties) && prop.properties.length > 0) {
-        childrenData.push(...convertPropertiesArrayToNestedFormatRecursive(prop.properties));
-      }
-      
-      // 子コンテンツの再帰的変換
-      if (prop.contents && Array.isArray(prop.contents) && prop.contents.length > 0) {
-        childrenData.push(...convertContentsArrayToNestedFormatRecursive(prop.contents));
-      }
-      
-      // 子要素がある場合は設定
-      if (childrenData.length > 0) {
-        converted.children = childrenData;
-        if (!converted.attributes['xsi:type']) {
-          converted.attributes['xsi:type'] = 'propertyListType';
-        }
-      }
-      
-      return converted;
-    });
-  };
-
-  /**
-   * Content配列からNestedPropertyEditor形式への変換
-   * Content型（maiml-unified.ts）を使用してRecord<string, PropertyData>に変換
-   * 
-   * @param contentsArray - Content配列（maiml-unified.tsのContent型）
-   * @returns Record<string, PropertyData> - NestedPropertyEditor用の形式
-   */
-  const convertContentsArrayToNestedFormat = (contentsArray: Content[]): Record<string, PropertyData> => {
-    const result: Record<string, PropertyData> = {};
-    
-    if (!Array.isArray(contentsArray)) return result;
-    
-    contentsArray.forEach((content) => {
-      // keyがない場合はユニークなキーを生成
-      const key = content.key || `content_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // 属性の構築
-      const attributes: Record<string, string> = {};
-      
-      // xsi:type（必須）
-      if (content.xsiType) {
-        attributes['xsi:type'] = content.xsiType;
-      }
-      
-      // Content固有の属性
-      if (content.axis !== undefined && content.axis !== '') {
-        attributes.axis = content.axis;
-      }
-      if (content.size !== undefined) {
-        attributes.size = String(content.size);
-      }
-      if (content.id !== undefined && content.id !== '') {
-        attributes.id = content.id;
-      }
-      if (content.ref !== undefined && content.ref !== '') {
-        attributes.ref = content.ref;
-      }
-      
-      // 数値型オプション
-      if (content.units !== undefined && content.units !== '') {
-        attributes.units = content.units;
-      }
-      if (content.formatString !== undefined && content.formatString !== '') {
-        attributes.formatString = content.formatString;
-      }
-      if (content.scaleFactor !== undefined) {
-        attributes.scaleFactor = String(content.scaleFactor);
-      }
-      
-      // PropertyDataオブジェクトの構築
-      result[key] = {
-        key: key,
-        tagName: 'content',
-        attributes: attributes,
-        elements: {},
-        children: []
-      };
-      
-      // value要素の追加
-      if (content.value !== undefined && content.value !== null && content.value !== '') {
-        result[key].elements.value = String(content.value);
-      }
-      
-      // description要素の追加
-      if (content.description !== undefined && content.description !== null && content.description !== '') {
-        result[key].elements.description = String(content.description);
-      }
-      
-      // 子要素の変換（properties, contents, uncertaintyの順）
-      const childrenData: PropertyData[] = [];
-      
-      // 子プロパティの変換
-      if (content.properties && Array.isArray(content.properties) && content.properties.length > 0) {
-        childrenData.push(...convertPropertiesArrayToNestedFormatRecursive(content.properties));
-      }
-      
-      // 子コンテンツの再帰的変換
-      if (content.contents && Array.isArray(content.contents) && content.contents.length > 0) {
-        childrenData.push(...convertContentsArrayToNestedFormatRecursive(content.contents));
-      }
-      
-      // uncertainty（不確実性情報）の変換
-      if (content.uncertainty && Array.isArray(content.uncertainty) && content.uncertainty.length > 0) {
-        childrenData.push(...convertContentsArrayToNestedFormatRecursive(content.uncertainty));
-      }
-      
-      // 子要素がある場合は設定
-      if (childrenData.length > 0) {
-        result[key].children = childrenData;
-        // 子要素がある場合、xsi:typeが未設定ならpropertyListTypeに設定
-        if (!result[key].attributes['xsi:type']) {
-          result[key].attributes['xsi:type'] = 'propertyListType';
-        }
-      }
-    });
-    
-    return result;
-  };
-
-  /**
-   * 再帰的な子Content変換
-   * Content配列をPropertyData配列に変換（ネスト構造対応）
-   * 
-   * @param contentsArray - Content配列
-   * @returns PropertyData[] - 変換されたPropertyData配列
-   */
-  const convertContentsArrayToNestedFormatRecursive = (contentsArray: Content[]): PropertyData[] => {
-    if (!Array.isArray(contentsArray)) return [];
-    
-    return contentsArray.map((content) => {
-      const key = content.key || `content_child_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // 属性の構築
-      const attributes: Record<string, string> = {};
-      
-      if (content.xsiType) {
-        attributes['xsi:type'] = content.xsiType;
-      }
-      if (content.axis) attributes.axis = content.axis;
-      if (content.size !== undefined) attributes.size = String(content.size);
-      if (content.id) attributes.id = content.id;
-      if (content.ref) attributes.ref = content.ref;
-      if (content.units) attributes.units = content.units;
-      if (content.formatString) attributes.formatString = content.formatString;
-      if (content.scaleFactor !== undefined) attributes.scaleFactor = String(content.scaleFactor);
-      
-      const converted: PropertyData = {
-        key: key,
-        tagName: 'content',
-        attributes: attributes,
-        elements: {},
-        children: []
-      };
-      
-      // value要素
-      if (content.value !== undefined && content.value !== '') {
-        converted.elements.value = String(content.value);
-      }
-      
-      // description要素
-      if (content.description !== undefined && content.description !== '') {
-        converted.elements.description = String(content.description);
-      }
-      
-      // 子要素の変換
-      const childrenData: PropertyData[] = [];
-      
-      if (content.properties && Array.isArray(content.properties) && content.properties.length > 0) {
-        childrenData.push(...convertPropertiesArrayToNestedFormatRecursive(content.properties));
-      }
-      
-      if (content.contents && Array.isArray(content.contents) && content.contents.length > 0) {
-        childrenData.push(...convertContentsArrayToNestedFormatRecursive(content.contents));
-      }
-      
-      if (content.uncertainty && Array.isArray(content.uncertainty) && content.uncertainty.length > 0) {
-        childrenData.push(...convertContentsArrayToNestedFormatRecursive(content.uncertainty));
-      }
-      
-      if (childrenData.length > 0) {
-        converted.children = childrenData;
-        if (!converted.attributes['xsi:type']) {
-          converted.attributes['xsi:type'] = 'propertyListType';
-        }
-      }
-      
-      return converted;
-    });
-  };
-
-  /**
-   * PropertyData形式からProperty配列への逆変換
-   * NestedPropertyEditor形式 → maiml-unified.ts Property型配列
-   */
-  const convertPropertyDataToPropertiesArray = (propertyDataRecord: Record<string, PropertyData>): Property[] => {
-    const result: Property[] = [];
-    
-    Object.values(propertyDataRecord).forEach((propData) => {
-      // tagNameがpropertyのもののみを変換
-      if (propData.tagName !== 'property') {
-        return;
-      }
-      
-      const property: Property = {
-        key: propData.key,
-        xsiType: propData.attributes?.['xsi:type'] || 'stringType',
-        properties: [],
-        contents: [],
-      };
-      
-      // 属性の変換
-      if (propData.attributes?.units) {
-        property.units = propData.attributes.units;
-      }
-      if (propData.attributes?.formatString) {
-        property.formatString = propData.attributes.formatString;
-      }
-      if (propData.attributes?.scaleFactor) {
-        property.scaleFactor = parseFloat(propData.attributes.scaleFactor);
-      }
-      
-      // 要素の変換
-      if (propData.elements?.value) {
-        property.value = propData.elements.value;
-      }
-      if (propData.elements?.description) {
-        property.description = propData.elements.description;
-      }
-      
-      // customElementsの変換（elements内の他の要素）
-      if (propData.elements) {
-        const customElements: Record<string, PropertyCustomElement> = {};
-        Object.entries(propData.elements).forEach(([key, value]) => {
-          // value, description以外をcustomElementsに格納
-          if (key !== 'value' && key !== 'description') {
-            customElements[key] = { value };
-          }
-        });
-        
-        if (Object.keys(customElements).length > 0) {
-          property.customElements = customElements;
-        }
-      }
-      
-      // 子要素の再帰的変換
-      if (propData.children && Array.isArray(propData.children) && propData.children.length > 0) {
-        const { properties, contents } = convertPropertyDataChildrenToArrays(propData.children);
-        property.properties = properties;
-        property.contents = contents;
-      }
-      
-      result.push(property);
-    });
-    
-    return result;
-  };
-
-  /**
-   * PropertyData形式からContent配列への逆変換
-   * NestedPropertyEditor形式 → maiml-unified.ts Content型配列
-   */
-  const convertPropertyDataToContentsArray = (propertyDataRecord: Record<string, PropertyData>): Content[] => {
-    const result: Content[] = [];
-    
-    Object.values(propertyDataRecord).forEach((propData) => {
-      // tagNameがcontentのもののみを変換
-      if (propData.tagName !== 'content') {
-        return;
-      }
-      
-      const content: Content = {
-        key: propData.key,
-        xsiType: propData.attributes?.['xsi:type'] || 'stringType',
-        properties: [],
-        contents: [],
-        uncertainty: [],
-      };
-      
-      // Content固有の属性
-      if (propData.attributes?.axis) {
-        content.axis = propData.attributes.axis;
-      }
-      if (propData.attributes?.size) {
-        content.size = parseInt(propData.attributes.size);
-      }
-      if (propData.attributes?.id) {
-        content.id = propData.attributes.id;
-      }
-      if (propData.attributes?.ref) {
-        content.ref = propData.attributes.ref;
-      }
-      
-      // 数値型オプション
-      if (propData.attributes?.units) {
-        content.units = propData.attributes.units;
-      }
-      if (propData.attributes?.formatString) {
-        content.formatString = propData.attributes.formatString;
-      }
-      if (propData.attributes?.scaleFactor) {
-        content.scaleFactor = parseFloat(propData.attributes.scaleFactor);
-      }
-      
-      // 要素の変換
-      if (propData.elements?.value) {
-        content.value = propData.elements.value;
-      }
-      if (propData.elements?.description) {
-        content.description = propData.elements.description;
-      }
-      
-      // 子要素の再帰的変換
-      if (propData.children && Array.isArray(propData.children) && propData.children.length > 0) {
-        const { properties, contents } = convertPropertyDataChildrenToArrays(propData.children);
-        content.properties = properties;
-        content.contents = contents;
-        // uncertainty は contents と同じ型なので、同様に処理可能
-      }
-      
-      result.push(content);
-    });
-    
-    return result;
-  };
-
-  /**
-   * PropertyDataの子要素配列をProperty配列とContent配列に分離
-   * 
-   * @param children - PropertyData配列
-   * @returns { properties: Property[], contents: Content[] }
-   */
-  const convertPropertyDataChildrenToArrays = (
-    children: PropertyData[]
-  ): { properties: Property[]; contents: Content[] } => {
-    const properties: Property[] = [];
-    const contents: Content[] = [];
-    
-    children.forEach((child) => {
-      if (child.tagName === 'property') {
-        const property: Property = {
-          key: child.key,
-          xsiType: child.attributes?.['xsi:type'] || 'stringType',
-          properties: [],
-          contents: [],
-        };
-        
-        // 属性の変換
-        if (child.attributes?.units) property.units = child.attributes.units;
-        if (child.attributes?.formatString) property.formatString = child.attributes.formatString;
-        if (child.attributes?.scaleFactor) property.scaleFactor = parseFloat(child.attributes.scaleFactor);
-        
-        // 要素の変換
-        if (child.elements?.value) property.value = child.elements.value;
-        if (child.elements?.description) property.description = child.elements.description;
-        
-        // customElements
-        if (child.elements) {
-          const customElements: Record<string, PropertyCustomElement> = {};
-          Object.entries(child.elements).forEach(([key, value]) => {
-            if (key !== 'value' && key !== 'description') {
-              customElements[key] = { value };
-            }
-          });
-          if (Object.keys(customElements).length > 0) {
-            property.customElements = customElements;
-          }
-        }
-        
-        // 子要素の再帰的変換
-        if (child.children && child.children.length > 0) {
-          const childArrays = convertPropertyDataChildrenToArrays(child.children);
-          property.properties = childArrays.properties;
-          property.contents = childArrays.contents;
-        }
-        
-        properties.push(property);
-        
-      } else if (child.tagName === 'content') {
-        const content: Content = {
-          key: child.key,
-          xsiType: child.attributes?.['xsi:type'] || 'stringType',
-          properties: [],
-          contents: [],
-          uncertainty: [],
-        };
-        
-        // Content固有の属性
-        if (child.attributes?.axis) content.axis = child.attributes.axis;
-        if (child.attributes?.size) content.size = parseInt(child.attributes.size);
-        if (child.attributes?.id) content.id = child.attributes.id;
-        if (child.attributes?.ref) content.ref = child.attributes.ref;
-        
-        // 数値型オプション
-        if (child.attributes?.units) content.units = child.attributes.units;
-        if (child.attributes?.formatString) content.formatString = child.attributes.formatString;
-        if (child.attributes?.scaleFactor) content.scaleFactor = parseFloat(child.attributes.scaleFactor);
-        
-        // 要素の変換
-        if (child.elements?.value) content.value = child.elements.value;
-        if (child.elements?.description) content.description = child.elements.description;
-        
-        // 子要素の再帰的変換
-        if (child.children && child.children.length > 0) {
-          const childArrays = convertPropertyDataChildrenToArrays(child.children);
-          content.properties = childArrays.properties;
-          content.contents = childArrays.contents;
-        }
-        
-        contents.push(content);
-      }
-    });
-    
-    return { properties, contents };
-  };
-
-  /**
    * 初期化: ノードデータからStateを設定
    */
   useEffect(() => {
@@ -1321,15 +305,64 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     setNewPropertyKey('');
     setNewPropertyTagName('property');
     setShowAddModal(false);
-    setHasChanges(true);
   };
 
   const handleAddNestedChild = (parentKey: string, childTagName: string, specifiedKey?: string) => {
+    // Bug Fix: ユーザー指定のkeyを優先、なければランダム生成
     const childKey = specifiedKey && specifiedKey.trim() 
       ? specifiedKey.trim() 
       : `${childTagName}_${Date.now()}`;
     
+    console.log('🔧 [handleAddNestedChild] 開始:', {
+      parentKey,
+      childTagName,
+      specifiedKey,
+      childKey,
+      currentPropertiesKeys: Object.keys(properties)
+    });
+    
+    // ✅ バリデーション: 同一階層での重複keyチェック
+    const checkDuplicateKey = (obj: Record<string, PropertyData>, targetKey: string, newKey: string): boolean | null => {
+      // トップレベルで見つかった場合
+      if (obj[targetKey]) {
+        const existingKeys = obj[targetKey].children?.map(child => child.key) || [];
+        return existingKeys.includes(newKey);
+      }
+      
+      // 再帰的に子要素を探索
+      for (const key in obj) {
+        if (obj[key] && obj[key].children && Array.isArray(obj[key].children)) {
+          for (let i = 0; i < obj[key].children.length; i++) {
+            const child = obj[key].children[i];
+            if (child.key === targetKey) {
+              const existingKeys = child.children?.map(c => c.key) || [];
+              return existingKeys.includes(newKey);
+            }
+            // さらに深く探索
+            if (child.children && Array.isArray(child.children) && child.children.length > 0) {
+              const tempObj = { [child.key]: child };
+              const hasDuplicate = checkDuplicateKey(tempObj, targetKey, newKey);
+              if (hasDuplicate !== null) {
+                return hasDuplicate;
+              }
+            }
+          }
+        }
+      }
+      return null;
+    };
+    
+    // 重複チェック実行
+    const hasDuplicate = checkDuplicateKey(properties, parentKey, childKey);
+    if (hasDuplicate) {
+      message.error(`エラー: 同じ階層に既に「${childKey}」というキーの子要素が存在します。\n別のキー名を指定してください。`);
+      console.error('❌ [handleAddNestedChild] 重複キーエラー:', { parentKey, childKey });
+      return;
+    }
+    
+    // Bug Fix: 再帰的検索で深いネストに対応
     const findAndUpdateParent = (obj: Record<string, PropertyData>, targetKey: string): boolean => {
+      // トップレベルで見つかった場合
       if (obj[targetKey]) {
         if (!obj[targetKey].children) {
           obj[targetKey].children = [];
@@ -1348,11 +381,13 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         return true;
       }
       
+      // 再帰的に子要素を探索
       for (const key in obj) {
         if (obj[key] && obj[key].children && Array.isArray(obj[key].children)) {
           for (let i = 0; i < obj[key].children.length; i++) {
             const child = obj[key].children[i];
             if (child.key === targetKey) {
+              // 見つかった！
               if (!child.children) {
                 child.children = [];
               }
@@ -1369,6 +404,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               child.attributes['xsi:type'] = 'propertyListType';
               return true;
             }
+            // さらに深く探索（再帰）
             if (child.children && Array.isArray(child.children) && child.children.length > 0) {
               const tempObj = { [child.key]: child };
               if (findAndUpdateParent(tempObj, targetKey)) {
@@ -1383,11 +419,21 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     
     setProperties(prevProperties => {
       const updated : Record<string, PropertyData> = JSON.parse(JSON.stringify(prevProperties));
-      findAndUpdateParent(updated, parentKey);
+      const found = findAndUpdateParent(updated, parentKey);
+      
+      if (found) {
+        console.log('✅ [handleAddNestedChild] 子要素追加成功');
+      } else {
+        console.error('❌ [handleAddNestedChild] 親が見つかりません:', parentKey);
+      }
+      
       return updated;
     });
     
+    // Bug Fix: V1パターン - 強制再レンダリング
     setForceRenderKey(Date.now());
+    
+    // UX改善: 子要素追加後、自動的に展開
     setExpandedNodes(prev => {
       const next = new Set(prev);
       next.add(parentKey);
@@ -1726,59 +772,10 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   };
 
   /**
-   * ✅ Phase 3-1: フォルダツリー構築関数
-   */
-  interface TreeNode {
-    title: string;
-    value: string;
-    key: string;
-    isLeaf?: boolean;
-    children?: TreeNode[];
-    icon?: React.ReactNode;
-  }
-
-  const buildTreeData = (files: TemplateFile[]): TreeNode[] => {
-    const tree: Record<string, TreeNode> = {};
-    
-    files.forEach(file => {
-      const parts = file.filePath.split('/');
-      let currentPath = '';
-      
-      parts.forEach((part, index) => {
-        const previousPath = currentPath;
-        currentPath = currentPath ? `${currentPath}/${part}` : part;
-        
-        if (!tree[currentPath]) {
-          const isFile = index === parts.length - 1;
-          tree[currentPath] = {
-            title: isFile ? `${part} (${(file.size / 1024).toFixed(1)}KB)` : part,
-            value: currentPath,
-            key: currentPath,
-            isLeaf: isFile,
-            children: [],
-            icon: isFile ? <FileOutlined /> : <FolderOutlined />
-          };
-        }
-        
-        // 親ノードに子を追加
-        if (previousPath && tree[previousPath]) {
-          const existingChild = tree[previousPath].children?.find(c => c.key === currentPath);
-          if (!existingChild && tree[previousPath].children) {
-            tree[previousPath].children.push(tree[currentPath]);
-          }
-        }
-      });
-    });
-    
-    // ルートレベルのノードのみを返す
-    const rootNodes = Object.values(tree).filter(node => !node.value.includes('/'));
-    return rootNodes;
-  };
-
-  /**
    * ✅ Phase 2-2: テンプレートファイル一覧を取得
+   * @param mode - 'replace_all_properties' または 'replace_all_contents'
    */
-  const handleOpenNamespaceImport = async () => {
+  const handleOpenNamespaceImport = async (mode: 'replace_all_properties' | 'replace_all_contents' = 'replace_all_properties') => {
     const organizationId = localStorage.getItem('organizationPrefix') || '';
     if (!organizationId) {
       message.error('組織IDが取得できません');
@@ -1789,8 +786,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     const category = node.data.placeType === 'material' ? 'material' :
                      node.data.placeType === 'condition' ? 'condition' : 'result';
 
+    setNamespaceImportMode(mode);
     setIsLoadingTemplates(true);
-    setShowNamespaceImportModal(true);
+    setShowNamespaceDialog(true);
 
     try {
       const files = await fetchTemplateFiles(organizationId, category);
@@ -1805,129 +803,19 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   };
 
   /**
-   * ✅ Phase 2-2: XMLファイルから名前空間定義を解析
+   * ✅ Phase 3-2: ファイル選択時のプレビュー取得（Reference版に統一）
    */
-  const parseNamespacesFromXml = (xmlContent: string): Record<string, PropertyData> => {
-    try {
-      const result = xml2js(xmlContent, { compact: true }) as ElementCompact;
-      
-      // ルート要素を特定（MaterialTemplate, ConditionTemplate, ResultTemplate）
-      const rootKey = Object.keys(result).find(key => 
-        key.includes('Template') || key === 'maiml:MaterialTemplate' || 
-        key === 'maiml:ConditionTemplate' || key === 'maiml:ResultTemplate'
-      );
-
-      if (!rootKey || !result[rootKey]) {
-        throw new Error('テンプレートルート要素が見つかりません');
-      }
-
-      const templateRoot = result[rootKey] as ElementCompact;
-      const propertiesElement = templateRoot['properties'];
-
-      if (!propertiesElement) {
-        return {};
-      }
-
-      // property要素を抽出
-      const propertyElements = propertiesElement['property'];
-      if (!propertyElements) {
-        return {};
-      }
-
-      // 配列化
-      const propertyArray = Array.isArray(propertyElements) ? propertyElements : [propertyElements];
-
-      // PropertyData形式に変換
-      const parsedProperties: Record<string, PropertyData> = {};
-
-      propertyArray.forEach((prop: ElementCompact) => {
-        const attributes = (prop['_attributes'] || {}) as Record<string, string>;
-        const key = attributes['key'] || `property_${Date.now()}`;
-
-        const propertyData: PropertyData = {
-          key,
-          tagName: 'property',
-          attributes: { ...attributes },
-          elements: {},
-          children: []
-        };
-
-        // value要素を抽出
-        if (prop['value'] && prop['value']['_text']) {
-          propertyData.elements.value = String(prop['value']['_text']);
-        }
-
-        // description要素を抽出
-        if (prop['description'] && prop['description']['_text']) {
-          propertyData.elements.description = String(prop['description']['_text']);
-        }
-
-        // 子property要素を再帰的に解析
-        if (prop['property']) {
-          propertyData.children = parseChildPropertiesFromXml(prop['property']);
-        }
-
-        parsedProperties[key] = propertyData;
-      });
-
-      return parsedProperties;
-    } catch (error) {
-      console.error('XML解析エラー:', error);
-      throw error;
-    }
-  };
-
-  /**
-   * ✅ Phase 2-2: 子property要素を再帰的に解析（旧実装 - 削除予定）
-   */
-  const parseChildPropertiesFromXml = (propertyElements: ElementCompact | ElementCompact[]): PropertyData[] => {
-    const propertyArray = Array.isArray(propertyElements) ? propertyElements : [propertyElements];
-
-    return propertyArray.map((prop: ElementCompact) => {
-      const attributes = (prop['_attributes'] || {}) as Record<string, string>;
-      const key = attributes['key'] || `child_${Date.now()}`;
-
-      const propertyData: PropertyData = {
-        key,
-        tagName: 'property',
-        attributes: { ...attributes },
-        elements: {},
-        children: []
-      };
-
-      // value要素を抽出
-      if (prop['value'] && prop['value']['_text']) {
-        propertyData.elements.value = String(prop['value']['_text']);
-      }
-
-      // description要素を抽出
-      if (prop['description'] && prop['description']['_text']) {
-        propertyData.elements.description = String(prop['description']['_text']);
-      }
-
-      // 子property要素を再帰的に解析
-      if (prop['property']) {
-        propertyData.children = parseChildPropertiesFromXml(prop['property']);
-      }
-
-      return propertyData;
-    });
-  };
-
-  /**
-   * ✅ Phase 3-2: ファイル選択時のプレビュー取得
-   */
-  const handleFileSelect = async (filePath: string) => {
-    setSelectedTemplateFile(filePath);
+  const handleSelectNamespaceFile = async (filePath: string) => {
+    setSelectedNamespaceFile(filePath);
     
     if (!filePath) {
-      setPreviewContent({});
+      setNamespaceData({});
       return;
     }
     
     const organizationId = localStorage.getItem('organizationPrefix') || '';
     if (!organizationId) {
-      setPreviewContent({ error: '組織IDが取得できません' });
+      setNamespaceData({ error: '組織IDが取得できません' });
       return;
     }
     
@@ -1944,29 +832,29 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         ? xmlLines.slice(0, 500).join('\n') + '\n\n... (残り省略)'
         : xmlContent;
       
-      setPreviewContent({
+      setNamespaceData({
         xml: limitedXml,
         properties: parsedProperties
       });
     } catch (error) {
       console.error('プレビュー読み込みエラー:', error);
-      setPreviewContent({
+      setNamespaceData({
         error: 'プレビューの読み込みに失敗しました'
       });
     }
   };
 
   /**
-   * ✅ Phase 3-3: テンプレートファイルから名前空間を取り込み（重複チェック付き）
+   * ✅ Phase 3-3: テンプレートファイルから名前空間を取り込み（重複チェック付き）（Reference版に統一）
    */
-  const handleImportNamespace = async () => {
-    if (!selectedTemplateFile) {
+  const handleConfirmImportWithDuplicateCheck = async () => {
+    if (!selectedNamespaceFile) {
       message.error('テンプレートファイルを選択してください');
       return;
     }
 
     // プレビュー内容がある場合はそれを使用、なければ再取得
-    let parsedNamespaces = previewContent.properties;
+    let parsedNamespaces = namespaceData.properties;
     
     if (!parsedNamespaces) {
       const organizationId = localStorage.getItem('organizationPrefix') || '';
@@ -1976,7 +864,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       }
 
       try {
-        const xmlContent = await fetchTemplateContent(organizationId, selectedTemplateFile);
+        const xmlContent = await fetchTemplateContent(organizationId, selectedNamespaceFile);
         parsedNamespaces = parseNamespacesFromXml(xmlContent);
       } catch (error) {
         console.error('名前空間取り込みエラー:', error);
@@ -1994,36 +882,82 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   };
 
   /**
-   * ✅ Phase 3-3: 取り込み確認後の実行
+   * ✅ Phase 3-3: 取り込み確認後の実行（Reference版に統一）
    */
-  const handleConfirmImport = () => {
-    if (!previewContent.properties) {
+  const handleImportNamespace = () => {
+    if (!namespaceData.properties) {
       message.error('取り込むプロパティがありません');
       return;
     }
 
-    // 既存のプロパティにマージ（重複キーは上書き）
-    setProperties(prev => ({
-      ...prev,
-      ...previewContent.properties
-    }));
+    try {
+      const fileName = selectedNamespaceFile.split('/').pop() || selectedNamespaceFile;
+      
+      // ✅ Reference版の機能を統合: namespaceOrigin/namespaceSourceメタデータを追加
+      if (namespaceImportMode === 'replace_all_properties') {
+        const processedProperties: Record<string, PropertyData> = {};
+        
+        Object.entries(namespaceData.properties).forEach(([key, propData]) => {
+          processedProperties[key] = {
+            ...propData,
+            namespaceOrigin: true,
+            namespaceSource: {
+              fileName: fileName,
+              importedAt: new Date().toISOString()
+            }
+          };
+        });
+        
+        // 既存のプロパティにマージ（重複キーは上書き）
+        setProperties(prev => ({
+          ...prev,
+          ...processedProperties
+        }));
+        
+        setForceRenderKey(Date.now());
+        message.success(
+          `${fileName} から ${Object.keys(processedProperties).length} 個のプロパティを取り込みました`
+        );
+      } else if (namespaceImportMode === 'replace_all_contents') {
+        // ✅ Contents取り込み処理を追加
+        const processedContents: Record<string, PropertyData> = {};
+        
+        Object.entries(namespaceData.properties).forEach(([key, contentData]) => {
+          processedContents[key] = {
+            ...contentData,
+            namespaceOrigin: true,
+            namespaceSource: {
+              fileName: fileName,
+              importedAt: new Date().toISOString()
+            }
+          };
+        });
+        
+        setContents(prev => ({
+          ...prev,
+          ...processedContents
+        }));
+        
+        setForceContentRenderKey(Date.now());
+        message.success(
+          `${fileName} から ${Object.keys(processedContents).length} 個のContentsを取り込みました`
+        );
+      }
 
-    // 取り込み済みリストに追加
-    const fileName = selectedTemplateFile.split('/').pop() || selectedTemplateFile;
-    setImportedNamespaces(prev => [...prev, fileName]);
-
-    message.success(
-      `${fileName} から ${Object.keys(previewContent.properties).length} 個のプロパティを取り込みました`
-    );
-    
-    // 状態をクリア
-    setShowConfirmDialog(false);
-    setShowNamespaceImportModal(false);
-    setSelectedTemplateFile('');
-    setPreviewContent({});
-    setDuplicateKeys([]);
-    setHasChanges(true);
-    setForceRenderKey(Date.now());
+      // 取り込み済みリストに追加
+      setImportedNamespaces(prev => [...prev, fileName]);
+      
+      // 状態をクリア
+      setShowConfirmDialog(false);
+      setShowNamespaceDialog(false);
+      setSelectedNamespaceFile('');
+      setNamespaceData({});
+      setDuplicateKeys([]);
+      setHasChanges(true);
+    } catch (error) {
+      console.error('[名前空間取り込み] エラー:', error);
+      message.error(`取り込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    }
   };
 
   /**
@@ -2148,8 +1082,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           />
         )}
 
-        {/* 基本情報 */}
+        {/* 基本情報・PlaceRef・Insertion を1つの枠で囲む */}
         <div style={{ marginBottom: 24, padding: 16, backgroundColor: '#f0f5ff', borderRadius: 8 }}>
+          {/* 基本情報 */}
           <Title level={5}>📋 基本情報</Title>
           
           <Form.Item label="テンプレートID">
@@ -2201,10 +1136,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               placeholder="例: Sample description"
             />
           </Form.Item>
-        </div>
-        
-        {/* ✅ Place References編集セクション */}
-        <div style={{ marginBottom: 24 }}>
+          
+          {/* ✅ Place References編集セクション */}
           <Divider />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <Title level={5}>
@@ -2262,78 +1195,78 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               </div>
             ))
           )}
+          
+          {/* Insertion（MaterialTemplate・ResultTemplateの場合表示） */}
+          {(node.data.placeType === 'material' || node.data.placeType === 'result') && (
+            <>
+              <Divider />
+              <Title level={5} style={{ marginBottom: 16 }}>
+                📎 Insertion情報
+              </Title>
+              
+              <Form.Item label="URI">
+                <Input
+                  value={insertion.uri}
+                  onChange={(e) => {
+                    setInsertion({ ...insertion, uri: e.target.value });
+                    setHasChanges(true);
+                  }}
+                  placeholder="例: s3://bucket/path/to/file"
+                />
+              </Form.Item>
+
+              <Form.Item label="Hash Method">
+                <Input
+                  value={insertion.hash?.method || ''}
+                  onChange={(e) => {
+                    setInsertion({ 
+                      ...insertion, 
+                      hash: { ...insertion.hash, method: e.target.value } 
+                    });
+                    setHasChanges(true);
+                  }}
+                  placeholder="例: sha256"
+                />
+              </Form.Item>
+
+              <Form.Item label="Hash Value">
+                <Input
+                  value={insertion.hash?.value || ''}
+                  onChange={(e) => {
+                    setInsertion({ 
+                      ...insertion, 
+                      hash: { ...insertion.hash, value: e.target.value } 
+                    });
+                    setHasChanges(true);
+                  }}
+                  placeholder="例: abc123..."
+                />
+              </Form.Item>
+
+              <Form.Item label="Format">
+                <Input
+                  value={insertion.format}
+                  onChange={(e) => {
+                    setInsertion({ ...insertion, format: e.target.value });
+                    setHasChanges(true);
+                  }}
+                  placeholder="例: application/xml"
+                />
+              </Form.Item>
+            </>
+          )}
         </div>
-        
-        {/* Insertion（MaterialTemplate・ResultTemplateの場合表示） */}
-        {(node.data.placeType === 'material' || node.data.placeType === 'result') && (
-          <div style={{ marginBottom: 24 }}>
-            <Divider />
-            <Title level={5} style={{ marginBottom: 16 }}>
-              📎 Insertion情報
-            </Title>
-            
-            <Form.Item label="URI">
-              <Input
-                value={insertion.uri}
-                onChange={(e) => {
-                  setInsertion({ ...insertion, uri: e.target.value });
-                  setHasChanges(true);
-                }}
-                placeholder="例: s3://bucket/path/to/file"
-              />
-            </Form.Item>
-
-            <Form.Item label="Hash Method">
-              <Input
-                value={insertion.hash?.method || ''}
-                onChange={(e) => {
-                  setInsertion({ 
-                    ...insertion, 
-                    hash: { ...insertion.hash, method: e.target.value } 
-                  });
-                  setHasChanges(true);
-                }}
-                placeholder="例: sha256"
-              />
-            </Form.Item>
-
-            <Form.Item label="Hash Value">
-              <Input
-                value={insertion.hash?.value || ''}
-                onChange={(e) => {
-                  setInsertion({ 
-                    ...insertion, 
-                    hash: { ...insertion.hash, value: e.target.value } 
-                  });
-                  setHasChanges(true);
-                }}
-                placeholder="例: abc123..."
-              />
-            </Form.Item>
-
-            <Form.Item label="Format">
-              <Input
-                value={insertion.format}
-                onChange={(e) => {
-                  setInsertion({ ...insertion, format: e.target.value });
-                  setHasChanges(true);
-                }}
-                placeholder="例: application/xml"
-              />
-            </Form.Item>
-          </div>
-        )}
       </div>
 
-        {/* Properties編集セクション */}
-        <Divider />
+      {/* Properties編集セクション */}
+      <Divider />
         <div style={{ marginBottom: 16 }}>
           <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
             <Title level={5}>🏷️ Properties</Title>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowAddModal(true)}>
               新規プロパティ追加
             </Button>
-            <Button icon={<DownloadOutlined />} onClick={handleOpenNamespaceImport}>
+            <Button icon={<DownloadOutlined />} onClick={() => handleOpenNamespaceImport('replace_all_properties')}>
               テンプレートから取り込み
             </Button>
           </Space>
@@ -2464,7 +1397,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowContentAddModal(true)}>
                   新規Content追加
                 </Button>
-                <Button icon={<DownloadOutlined />} onClick={handleOpenNamespaceImport}>
+                <Button icon={<DownloadOutlined />} onClick={() => handleOpenNamespaceImport('replace_all_contents')}>
                   テンプレートから取り込み
                 </Button>
               </Space>
@@ -2503,16 +1436,16 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             <span>テンプレートから名前空間を取り込み</span>
           </Space>
         }
-        open={showNamespaceImportModal}
+        open={showNamespaceDialog}
         onCancel={() => {
-          setShowNamespaceImportModal(false);
-          setSelectedTemplateFile('');
+          setShowNamespaceDialog(false);
+          setSelectedNamespaceFile('');
         }}
-        onOk={handleImportNamespace}
+        onOk={handleConfirmImportWithDuplicateCheck}
         width={800}
         okText="取り込み"
         cancelText="キャンセル"
-        okButtonProps={{ disabled: !selectedTemplateFile }}
+        okButtonProps={{ disabled: !selectedNamespaceFile }}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Alert
@@ -2531,8 +1464,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           <Form.Item label="テンプレートファイル">
             <TreeSelect
               placeholder="テンプレートファイルを選択してください"
-              value={selectedTemplateFile}
-              onChange={handleFileSelect}
+              value={selectedNamespaceFile}
+              onChange={handleSelectNamespaceFile}
               loading={isLoadingTemplates}
               style={{ width: '100%' }}
               showSearch
@@ -2545,24 +1478,24 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           </Form.Item>
 
           {/* ✅ Phase 3-2: プレビュー表示 */}
-          {selectedTemplateFile && (
+          {selectedNamespaceFile && (
             <>
-              {previewContent.error && (
+              {namespaceData.error && (
                 <Alert
                   message="プレビューエラー"
-                  description={previewContent.error}
+                  description={namespaceData.error}
                   type="error"
                   style={{ marginBottom: 16 }}
                 />
               )}
               
-              {previewContent.properties && (
+              {namespaceData.properties && (
                 <Alert
                   message={
                     <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                      <Text strong>📊 プロパティプレビュー ({Object.keys(previewContent.properties).length}件)</Text>
+                      <Text strong>📊 プロパティプレビュー ({Object.keys(namespaceData.properties).length}件)</Text>
                       <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                        {Object.entries(previewContent.properties).map(([key, data]) => (
+                        {Object.entries(namespaceData.properties).map(([key, data]) => (
                           <div key={key} style={{ marginBottom: 8, padding: 8, backgroundColor: '#f0f5ff', borderRadius: 4 }}>
                             <Text strong>{key}</Text>
                             {data.attributes?.['xsi:type'] && (
@@ -2585,7 +1518,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 />
               )}
               
-              {previewContent.xml && (
+              {namespaceData.xml && (
                 <Collapse
                   items={[
                     {
@@ -2600,7 +1533,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                           borderRadius: 4,
                           fontSize: 12
                         }}>
-                          {previewContent.xml}
+                          {namespaceData.xml}
                         </pre>
                       )
                     }
@@ -2655,7 +1588,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           setShowConfirmDialog(false);
           setDuplicateKeys([]);
         }}
-        onOk={handleConfirmImport}
+        onOk={handleImportNamespace}
         okText="取り込む"
         cancelText="キャンセル"
         width={600}
@@ -2688,9 +1621,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             />
           )}
           
-          {previewContent.properties && (
+          {namespaceData.properties && (
             <div>
-              <Text strong>取り込むプロパティ: {Object.keys(previewContent.properties).length}件</Text>
+              <Text strong>取り込むプロパティ: {Object.keys(namespaceData.properties).length}件</Text>
               <div style={{ 
                 maxHeight: 300, 
                 overflowY: 'auto', 
@@ -2699,7 +1632,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 backgroundColor: '#f5f5f5',
                 borderRadius: 4
               }}>
-                {Object.keys(previewContent.properties).map(key => (
+                {Object.keys(namespaceData.properties).map(key => (
                   <div key={key} style={{ marginBottom: 4 }}>
                     <Tag color={duplicateKeys.includes(key) ? 'orange' : 'blue'}>
                       {key}

@@ -802,7 +802,7 @@ PATCH
 
 ### 認証要件
 - JWT認証必須
-- ロール: Manager以上（Workerは不可）
+- ロール: Worker以上
 - テナント分離必須
 
 ### ミドルウェアチェーン
@@ -810,7 +810,7 @@ PATCH
 router.patch('/issues/:issueId/status',
   auth,
   tenantIsolation,
-  permissionCheck(['manager', 'admin']),  // Workerは不可
+  validationMiddleware,
   issueController.updateStatus
 );
 ```
@@ -820,7 +820,7 @@ router.patch('/issues/:issueId/status',
 #### パスパラメータ
 | パラメータ | 型 | 必須 | 説明 |
 |-----------|----|----|------|
-| issueId | UUID | ○ | 問題ID |
+| issueId | string | ○ | 問題ID |
 
 #### リクエストボディ
 ```json
@@ -840,9 +840,9 @@ router.patch('/issues/:issueId/status',
 {
   "success": true,
   "data": {
-    "id": "770e8400-e29b-41d4-a716-446655440002",
+    "id": "issue-001",
     "status": "resolved",
-    "resolvedBy": "880e8400-e29b-41d4-a716-446655440007",
+    "resolvedBy": "ichiro.suzuki@test.com",
     "resolvedByName": "鈴木一郎",
     "resolvedAt": "2026-01-27T15:00:00Z",
     "updatedAt": "2026-01-27T15:00:00Z"
@@ -854,6 +854,23 @@ router.patch('/issues/:issueId/status',
 }
 ```
 
+```json
+{
+  "success": true,
+  "data": {
+    "id": "issue-001",
+    "status": "unresolved",
+    "resolvedBy": "",
+    "resolvedByName": "",
+    "resolvedAt": "",
+    "updatedAt": "2026-01-27T15:00:00Z"
+  },
+  "meta": {
+    "timestamp": "2026-01-27T15:00:00Z",
+    "requestId": "req_mno345"
+  }
+}
+```
 #### エラー時（403 Forbidden）
 ```json
 {
@@ -902,16 +919,14 @@ router.patch('/issues/:issueId/status',
 
 ### バリデーション
 
-- [ ] issueId はUUID形式
 - [ ] status は "unresolved" または "resolved"
 - [ ] 問題は自組織に属するもの
-- [ ] 現在のユーザーはManager以上
 
 ### データベーステーブル
 
 #### 使用テーブル
-1. **issues**（更新対象）
-   - status, resolved_by, resolved_at, updated_at
+1. **issue**（更新対象）
+   - status, issue_completer_id, issue_complate_at, updated_at
 
 2. **organization_user**（ユーザー名取得用JOIN）
    - user_id, organization_id, user_name
@@ -922,15 +937,15 @@ router.patch('/issues/:issueId/status',
 BEGIN;
 
 -- 問題存在確認（マルチテナント分離）
-SELECT id FROM issues 
+SELECT id FROM issue 
 WHERE id = $1 AND organization_id = $2 FOR UPDATE;
 
 -- ステータス更新（resolved の場合）
 UPDATE issues 
 SET 
   status = $3,
-  resolved_by = $4,
-  resolved_at = NOW(),
+  issue_completer_id = $4,
+  issue_complate_at = NOW(),
   updated_at = NOW()
 WHERE id = $1 AND organization_id = $2
 RETURNING *;
@@ -969,7 +984,7 @@ COMMIT;
 
 ### パフォーマンス
 
-- インデックス: issues (id, organization_id)
+- インデックス: issue (id, organization_id)
 - トランザクション: 必須（整合性保証）
 
 ---
