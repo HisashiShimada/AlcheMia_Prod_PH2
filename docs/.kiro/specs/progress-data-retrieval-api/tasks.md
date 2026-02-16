@@ -104,10 +104,22 @@
     - マルチテナント分離、エラーハンドリング、並列処理を実装
   - _Requirements: 1, 5_
 
-- [ ] 4.2 タスク基本情報取得の実装
+- [x] 4.2 タスク基本情報取得の実装
   - TaskRepositoryのgetTaskByProjectMethodTaskNoを呼び出し
   - タスクが存在しない場合はTASK_NOT_FOUNDエラーを返却
   - project_name、task_nameを取得
+  - **実装完了**: 2026-02-16
+  - **実装内容**:
+    - `ProgressService.getTaskBasicInfo`メソッドを実装（既存）
+    - TaskRepositoryを呼び出してタスク情報を取得
+    - organization_idによるマルチテナント分離を保証
+    - タスクが見つからない場合はnullを返却
+    - 詳細なユニットテスト作成（5テスト、タスク4.2セクション）
+      - 正常系: タスク基本情報の正しい取得
+      - 異常系: タスクが存在しない場合のエラーハンドリング
+      - project_nameとtask_nameの存在確認
+      - パラメータの正確性検証
+      - マルチテナント分離の検証
   - _Requirements: 1, 3_
 
 - [ ] 4.3 MAIMLファイルのダウンロードとパース（既存実装活用）

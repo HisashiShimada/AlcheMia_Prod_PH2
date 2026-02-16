@@ -185,8 +185,121 @@ describe('ProgressService - タスク4.1: 基本構造実装', () => {
     });
   });
 
-  describe('マルチテナント分離のテスト', () => {
-    it('organizationIdがTaskRepositoryに正しく渡されること', async () => {
+  describe('タスク4.2: タスク基本情報取得の実装', () => {
+    it('正常系: タスク基本情報を正しく取得できること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'テストプロジェクト',
+        method_id: 'method1',
+        task_no: 1
+      };
+      
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージとパーサー
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml><methods><method id="method1" name="テストメソッド"><petriNet><transitions></transitions></petriNet></method></methods></maiml>')
+      );
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'テストメソッド',
+          petriNet: { transitions: [] }
+        }]
+      });
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // タスク基本情報が正しく取得されていることを確認
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.project_id).toBe(mockTask.project_id);
+        expect(result.data.project_name).toBe(mockTask.project_name);
+        expect(result.data.task_no).toBe(mockTask.task_no);
+        expect(result.data.task_name).toBe(mockTask.task_name);
+      }
+    });
+
+    it('異常系: タスクが存在しない場合、TASK_NOT_FOUNDエラーを返すこと', async () => {
+      // モック: タスクが見つからない
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(null);
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'method1',
+        1,
+        'maiml_lab_001'
+      );
+
+      // エラーレスポンスの検証
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe('TASK_NOT_FOUND');
+        expect(result.error.message).toContain('タスクが見つかりません');
+      }
+
+      // TaskRepositoryが呼ばれたことを確認
+      expect(mockTaskRepository.getTaskByProjectMethodTaskNo).toHaveBeenCalledTimes(1);
+    });
+
+    it('タスク取得時にproject_nameとtask_nameが含まれること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'サンプルタスク名',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'サンプルプロジェクト名',
+        method_id: 'method1',
+        task_no: 1
+      };
+      
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージとパーサー
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml><methods><method id="method1" name="メソッド名"><petriNet><transitions></transitions></petriNet></method></methods></maiml>')
+      );
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'メソッド名',
+          petriNet: { transitions: [] }
+        }]
+      });
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // project_nameとtask_nameが正しく含まれていることを確認
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.project_name).toBe('サンプルプロジェクト名');
+        expect(result.data.task_name).toBe('サンプルタスク名');
+      }
+    });
+
+    it('TaskRepositoryに正しいパラメータが渡されること', async () => {
       // モック
       mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(null);
 
@@ -207,6 +320,31 @@ describe('ProgressService - タスク4.1: 基本構造実装', () => {
       );
     });
 
+    it('マルチテナント分離: organizationIdがTaskRepositoryに渡されること', async () => {
+      // モック
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(null);
+
+      const organizationId = 'org_test_123';
+
+      // メソッド呼び出し
+      await progressService.getProgressData(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'method1',
+        1,
+        organizationId
+      );
+
+      // organizationIdが正しく渡されたことを確認
+      expect(mockTaskRepository.getTaskByProjectMethodTaskNo).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        expect.any(Number),
+        organizationId
+      );
+    });
+  });
+
+  describe('マルチテナント分離のテスト', () => {
     it('異なる組織IDでタスクが見つからない場合、TASK_NOT_FOUNDを返すこと', async () => {
       // モック: 異なる組織IDで検索するとnull
       mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(null);
