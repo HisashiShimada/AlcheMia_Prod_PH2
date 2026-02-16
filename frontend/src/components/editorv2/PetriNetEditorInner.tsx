@@ -1612,7 +1612,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         // 全カテゴリから元のテンプレートを検索（templateIdで検索）
         (['material', 'condition', 'result'] as const).forEach((category) => {
         const templates : Template[] = allTemplates[category];
-          if (!originalTemplate && templates.length > 0) {
+          if (!originalTemplate.id && templates.length > 0) {
             originalTemplate = templates.find((t: Template) => t.id === templateId)!;  // ✅ 修正: templateIdで検索
           }
         });
