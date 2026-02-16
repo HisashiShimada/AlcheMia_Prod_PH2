@@ -11,6 +11,7 @@ import { getPool } from '../database/db';
  */
 export interface CreatorMasterRow {
   creator_id: string;
+  creator_uuid: string;
   creator_name: string;
   creator_description: string | null;
   creator_annotation: string | null;
@@ -51,6 +52,7 @@ export async function findAll(
   let query = `
     SELECT 
       cm.creator_id,
+      cm.creator_uuid,
       cm.creator_name,
       cm.creator_description,
       cm.creator_annotation,
@@ -135,6 +137,7 @@ export async function findById(
     query = `
       SELECT 
         cm.creator_id,
+        cm.creator_uuid,
         cm.creator_name,
         cm.creator_description,
         cm.creator_annotation,
@@ -163,6 +166,7 @@ export async function findById(
     query = `
       SELECT 
         cm.creator_id,
+        cm.creator_uuid,
         cm.creator_name,
         cm.creator_description,
         cm.creator_annotation,
@@ -760,6 +764,7 @@ export async function findAllWithFilters(
   const query = `
     SELECT 
       cm.creator_id,
+      cm.creator_uuid,
       cm.creator_name,
       cm.creator_description,
       cm.creator_annotation,

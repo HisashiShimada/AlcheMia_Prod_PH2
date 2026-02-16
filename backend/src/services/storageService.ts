@@ -418,7 +418,7 @@ export class StorageService {
     
     try {
       // S3からファイル内容取得
-      const xmlContent = await this.getMaiMLContent(fileKey);
+      const xmlContent = await this.getMaiMLContent(organizationId, fileKey);
       
       // メタデータ抽出
       const metadata = await this.extractMetadata(xmlContent);
@@ -463,8 +463,9 @@ export class StorageService {
   /**
    * S3からMaiMLファイル内容を取得
    */
-  async getMaiMLContent(key : string) {
+  async getMaiMLContent(organizationId: string, fileKey : string) {
     const bucketName = process.env.S3_BUCKET_NAME;
+    const key = this.buildKey(organizationId,fileKey);
     const command = new GetObjectCommand({
       Bucket: bucketName,
       Key: key

@@ -15,6 +15,7 @@ import { getPool } from '../database/db';
  */
 export interface CreatorMasterResponse {
   creatorId: string;
+  creatorUuid: string;
   creatorName: string;
   creatorDescription: string;
   creatorAnnotation: string;
@@ -31,6 +32,7 @@ export interface CreatorMasterResponse {
  */
 export interface InstrumentMasterResponse {
   instrumentId: string;
+  instrumentUuid: string;
   instrumentName: string;
   instrumentDescription: string;
   instrumentAnnotation: string;
@@ -43,6 +45,7 @@ export interface InstrumentMasterResponse {
  */
 export interface VendorMasterResponse {
   vendorId: string;
+  vendorUuid: string;
   vendorName: string;
   vendorDescription: string;
   vendorAnnotation: string;
@@ -98,6 +101,7 @@ export async function getCreatorMasters(
   // レスポンス形式に変換
   return creators.map(creator => ({
     creatorId: creator.creator_id,
+    creatorUuid: creator.creator_uuid,
     creatorName: creator.creator_name,
     creatorDescription: creator.creator_description || '',
     creatorAnnotation: creator.creator_annotation || '',
@@ -141,6 +145,7 @@ export async function getCreatorMastersWithFilters(
   // レスポンス形式に変換
   return creators.map(creator => ({
     creatorId: creator.creator_id,
+    creatorUuid: creator.creator_uuid,
     creatorName: creator.creator_name,
     creatorDescription: creator.creator_description || '',
     creatorAnnotation: creator.creator_annotation || '',
@@ -172,6 +177,7 @@ export async function getCreatorById(
   
   return {
     creatorId: creator.creator_id,
+    creatorUuid: creator.creator_uuid,
     creatorName: creator.creator_name,
     creatorDescription: creator.creator_description || '',
     creatorAnnotation: creator.creator_annotation || '',
@@ -233,6 +239,7 @@ export async function createCreatorMaster(
   
   return {
     creatorId: createdCreator.creator_id,
+    creatorUuid: createdCreator.creator_uuid,
     creatorName: createdCreator.creator_name,
     creatorDescription: createdCreator.creator_description || '',
     creatorAnnotation: createdCreator.creator_annotation || '',
@@ -264,6 +271,7 @@ export async function getInstrumentMasters(
   // レスポンス形式に変換
   return instruments.map(instrument => ({
     instrumentId: instrument.instrument_id,
+    instrumentUuid: instrument.instrument_uuid,
     instrumentName: instrument.instrument_name,
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
@@ -303,6 +311,7 @@ export async function getInstrumentMastersWithFilters(
   // レスポンス形式に変換
   return instruments.map(instrument => ({
     instrumentId: instrument.instrument_id,
+    instrumentUuid: instrument.instrument_uuid,
     instrumentName: instrument.instrument_name,
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
@@ -330,6 +339,7 @@ export async function getInstrumentById(
   
   return {
     instrumentId: instrument.instrument_id,
+    instrumentUuid: instrument.instrument_uuid,
     instrumentName: instrument.instrument_name,
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
@@ -357,6 +367,7 @@ export async function getVendorMasters(
   // レスポンス形式に変換
   return vendors.map(vendor => ({
     vendorId: vendor.vendor_id,
+    vendorUuid: vendor.vendor_uuid,
     vendorName: vendor.vendor_name,
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
@@ -396,6 +407,7 @@ export async function getVendorMastersWithFilters(
   // レスポンス形式に変換
   return vendors.map(vendor => ({
     vendorId: vendor.vendor_id,
+    vendorUuid: vendor.vendor_uuid,
     vendorName: vendor.vendor_name,
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
@@ -423,6 +435,7 @@ export async function getVendorById(
   
   return {
     vendorId: vendor.vendor_id,
+    vendorUuid: vendor.vendor_uuid,
     vendorName: vendor.vendor_name,
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
@@ -459,6 +472,7 @@ export async function createInstrumentMaster(
   
   return {
     instrumentId: instrument.instrument_id,
+    instrumentUuid: instrument.instrument_uuid,
     instrumentName: instrument.instrument_name,
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
@@ -490,6 +504,7 @@ export async function updateInstrumentMaster(
   
   return {
     instrumentId: instrument.instrument_id,
+    instrumentUuid: instrument.instrument_uuid,
     instrumentName: instrument.instrument_name,
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
@@ -516,6 +531,7 @@ export async function updateInstrumentStatus(
   
   return {
     instrumentId: instrument.instrument_id,
+    instrumentUuid: instrument.instrument_uuid,
     instrumentName: instrument.instrument_name,
     instrumentDescription: instrument.instrument_description || '',
     instrumentAnnotation: instrument.instrument_annotation || '',
@@ -552,6 +568,7 @@ export async function createVendorMaster(
   
   return {
     vendorId: vendor.vendor_id,
+    vendorUuid: vendor.vendor_uuid,
     vendorName: vendor.vendor_name,
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
@@ -583,6 +600,7 @@ export async function updateVendorMaster(
   
   return {
     vendorId: vendor.vendor_id,
+    vendorUuid: vendor.vendor_uuid,
     vendorName: vendor.vendor_name,
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
@@ -609,6 +627,7 @@ export async function updateVendorStatus(
   
   return {
     vendorId: vendor.vendor_id,
+    vendorUuid: vendor.vendor_uuid,
     vendorName: vendor.vendor_name,
     vendorDescription: vendor.vendor_description || '',
     vendorAnnotation: vendor.vendor_annotation || '',
@@ -678,6 +697,7 @@ export async function updateCreatorStatus(
   
   return {
     creatorId: creator.creator_id,
+    creatorUuid: creator.creator_uuid,
     creatorName: creator.creator_name,
     creatorDescription: creator.creator_description || '',
     creatorAnnotation: creator.creator_annotation || '',

@@ -44,6 +44,7 @@ export interface BaseMasterRecord {
 export interface CreatorRecord extends BaseMasterRecord {
   // Creator固有フィールド
   creatorId: string;
+  creatorUuid: string;
   creatorName: string;
   creatorDescription: string;
   creatorAnnotation: string;
@@ -59,6 +60,7 @@ export interface CreatorRecord extends BaseMasterRecord {
 export interface InstrumentRecord extends BaseMasterRecord {
   // Instrument固有フィールド
   instrumentId: string;
+  instrumentUuid: string;
   instrumentName: string;
   instrumentDescription: string;
   instrumentAnnotation: string;
@@ -70,6 +72,7 @@ export interface InstrumentRecord extends BaseMasterRecord {
 export interface VendorRecord extends BaseMasterRecord {
   // Vendor固有フィールド
   vendorId: string;
+  vendorUuid: string;
   vendorName: string;
   vendorDescription: string;
   vendorAnnotation: string;

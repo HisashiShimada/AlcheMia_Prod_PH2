@@ -267,6 +267,17 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
       style={{ marginBottom: 8 }}
     >
       <Panel header={panelHeader} key="1">
+        {/* マスタから追加された項目のAlert */}
+        {internalData.fromMaster && (
+          <Alert
+            message="📌 マスタデータから追加された項目"
+            description="この項目はマスタデータから追加されたため、編集できません。"
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12}>
             <div>
@@ -276,6 +287,7 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
                 onChange={(e) => handleInternalUpdate('id', e.target.value)}
                 size="small"
                 style={{ marginTop: 4 }}
+                disabled={internalData.fromMaster}
               />
             </div>
           </Col>
@@ -288,12 +300,14 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
                   value={internalData.uuid || ''}
                   onChange={(e) => handleInternalUpdate('uuid', e.target.value)}
                   size="small"
+                  disabled={internalData.fromMaster}
                 />
                 <Button
                   icon={<ReloadOutlined />}
                   onClick={handleUUIDGenerate}
                   size="small"
                   title="Generate UUID"
+                  disabled={internalData.fromMaster}
                 />
               </Space.Compact>
             </div>
@@ -307,6 +321,7 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
                 onChange={(e) => handleInternalUpdate('name', e.target.value)}
                 size="small"
                 style={{ marginTop: 4 }}
+                disabled={internalData.fromMaster}
               />
             </div>
           </Col>
@@ -319,6 +334,7 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
                 onChange={(e) => handleInternalUpdate('description', e.target.value)}
                 size="small"
                 style={{ marginTop: 4 }}
+                disabled={internalData.fromMaster}
               />
             </div>
           </Col>
@@ -332,6 +348,7 @@ const SingleObjectEditor: React.FC<SingleObjectEditorProps> = ({
                 rows={2}
                 size="small"
                 style={{ marginTop: 4 }}
+                disabled={internalData.fromMaster}
               />
             </div>
           </Col>
@@ -471,9 +488,11 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
   onToggleExpanded,
   vendorIds = [],
   instrumentIds = [],
+  masterData = [],
 }) => {
   const [objects, setObjects] = useState<DocumentTagData[]>(initialData);
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
+  const [selectedMasterId, setSelectedMasterId] = useState<string | undefined>(undefined);
 
   // 親からの初期データ同期（Ref使用で変更検出）
   const prevInitialDataRef = useRef<string>('');
@@ -490,7 +509,38 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
     }
   }, [initialData, expandedItems]);
 
-  // オブジェクト追加
+  // マスタデータから追加
+  const handleAddFromMaster = useCallback(() => {
+    if (!selectedMasterId) return;
+    
+    const masterItem = masterData.find(m => m.id === selectedMasterId);
+    if (!masterItem) return;
+    
+    const newObject: DocumentTagData = {
+      tagName: objectKey === 'creators' ? 'Creator' : objectKey === 'vendors' ? 'Vendor' : objectKey === 'owners' ? 'Owner' : 'Instrument',
+      id: masterItem.id,
+      uuid: masterItem.uuid || '',
+      name: masterItem.name || '',
+      description: masterItem.description || '',
+      annotation: masterItem.annotation || '',
+      fromMaster: true  // マスタから追加されたことをマーク
+    };
+    
+    const newObjects = [...objects, newObject];
+    setObjects(newObjects);
+    onDataChange(objectKey, newObjects);
+    
+    // 新しいアイテムを展開
+    setExpandedItems(prev => ({
+      ...prev,
+      [objects.length]: true
+    }));
+    
+    // 選択をリセット
+    setSelectedMasterId(undefined);
+  }, [selectedMasterId, masterData, objects, objectKey, onDataChange]);
+
+  // 空のオブジェクト追加
   const handleAdd = useCallback(() => {
     const newObject: DocumentTagData = {
       tagName: objectKey === 'creators' ? 'Creator' : objectKey === 'vendors' ? 'Vendor' : objectKey === 'owners' ? 'Owner' : 'Instrument',
@@ -592,6 +642,36 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
     >
       <Panel header={panelHeader} key="1">
         <div>
+          {/* マスタデータから追加 */}
+          {masterData.length > 0 && (
+            <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
+              <Typography.Text type="secondary">
+                マスタデータから{title}を追加:
+              </Typography.Text>
+              <Space.Compact style={{ width: '100%' }}>
+                <Select
+                  style={{ flex: 1 }}
+                  placeholder={`${title}を選択してください`}
+                  value={selectedMasterId}
+                  onChange={setSelectedMasterId}
+                  options={masterData.map(item => ({
+                    label: `${item.name}${item.description ? ` (${item.description})` : ''}`,
+                    value: item.id,
+                  }))}
+                  allowClear
+                />
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddFromMaster}
+                  disabled={!selectedMasterId}
+                >
+                  追加
+                </Button>
+              </Space.Compact>
+            </Space>
+          )}
+
           {objects.length === 0 && (
             <Alert
               message={`${title}が登録されていません。最低${minItems}件必要です。`}
@@ -623,13 +703,13 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
           ))}
           
           <Button
-            type="primary"
+            type="dashed"
             icon={<PlusOutlined />}
             onClick={handleAdd}
             block
             style={{ marginTop: 16 }}
           >
-            {title}を追加
+            空の{title}を追加
           </Button>
         </div>
       </Panel>
