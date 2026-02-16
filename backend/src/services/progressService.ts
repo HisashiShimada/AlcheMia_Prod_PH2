@@ -21,6 +21,7 @@ import {
   OverallProgress,
   TransitionStatus
 } from '../types/progress';
+import { logger } from '../utils/logger';
 
 /**
  * ProgressServiceクラス
@@ -50,16 +51,56 @@ export class ProgressService {
     taskNo: number,
     organizationId: string
   ): Promise<Result<ProgressData, ProgressServiceError>> {
+    const startTime = Date.now();
+    
+    // APIリクエスト受信時のログ記録
+    logger.info('[ProgressService] 進捗データ取得開始', {
+      projectId,
+      methodId,
+      taskNo,
+      organizationId,
+      timestamp: new Date().toISOString()
+    });
+
     try {
       // Step 1: タスク基本情報取得
+      const queryStartTime = Date.now();
       const task = await this.getTaskBasicInfo(
         projectId,
         methodId,
         taskNo,
         organizationId
       );
+      const queryDuration = Date.now() - queryStartTime;
+
+      // データベースクエリ実行時間のログ記録
+      logger.debug('[ProgressService] データベースクエリ実行', {
+        operation: 'getTaskBasicInfo',
+        duration: queryDuration
+      });
+
+      // クエリ実行時間が閾値を超える場合は警告
+      if (queryDuration > 100) {
+        logger.warn('[ProgressService] クエリ実行時間が閾値を超過', {
+          operation: 'getTaskBasicInfo',
+          duration: queryDuration,
+          threshold: 100
+        });
+      }
 
       if (!task) {
+        const duration = Date.now() - startTime;
+        
+        logger.warn('[ProgressService] タスクが見つかりません', {
+          projectId,
+          methodId,
+          taskNo,
+          organizationId,
+          success: false,
+          errorCode: 'TASK_NOT_FOUND',
+          duration
+        });
+        
         return {
           success: false,
           error: {
@@ -76,6 +117,16 @@ export class ProgressService {
       );
 
       if (!maimlResult.success) {
+        const duration = Date.now() - startTime;
+        
+        logger.warn('[ProgressService] MAIMLファイル処理失敗', {
+          projectName: task.project_name,
+          organizationId,
+          errorCode: maimlResult.error.code,
+          success: false,
+          duration
+        });
+        
         return {
           success: false,
           error: maimlResult.error
@@ -86,6 +137,17 @@ export class ProgressService {
       const method = this.findMethodById(maimlResult.methods, methodId);
 
       if (!method) {
+        const duration = Date.now() - startTime;
+        const availableMethods = maimlResult.methods.map(m => m.methodId);
+        
+        logger.warn('[ProgressService] メソッドが見つかりません', {
+          methodId,
+          availableMethods,
+          success: false,
+          errorCode: 'METHOD_NOT_FOUND',
+          duration
+        });
+        
         return {
           success: false,
           error: {
@@ -96,6 +158,7 @@ export class ProgressService {
       }
 
       // Step 4: トランジション進捗データの取得（並列処理）
+      const transitionStartTime = Date.now();
       const transitions = await this.getTransitionsProgress(
         method.petriNet.transitions,
         organizationId,
@@ -103,6 +166,13 @@ export class ProgressService {
         methodId,
         taskNo
       );
+      const transitionDuration = Date.now() - transitionStartTime;
+
+      // 並列処理の実行時間をデバッグログに記録
+      logger.debug('[ProgressService] トランジション進捗取得完了', {
+        transitionCount: transitions.length,
+        duration: transitionDuration
+      });
 
       // Step 5: 全体進捗の計算
       const overallProgress = this.calculateOverallProgress(transitions);
@@ -119,13 +189,43 @@ export class ProgressService {
         overall_progress: overallProgress
       };
 
+      const totalDuration = Date.now() - startTime;
+
+      // 成功時のレスポンス情報と処理時間をログ記録
+      logger.info('[ProgressService] 進捗データ取得完了', {
+        success: true,
+        transitionCount: transitions.length,
+        duration: totalDuration
+      });
+
+      // 処理時間が閾値を超える場合は警告
+      if (totalDuration > 1000) {
+        logger.warn('[ProgressService] 処理時間が閾値を超過', {
+          duration: totalDuration,
+          threshold: 1000
+        });
+      }
+
       return {
         success: true,
         data: progressData
       };
 
     } catch (error) {
-      console.error('[ProgressService] エラー:', error);
+      const duration = Date.now() - startTime;
+      const err = error as Error;
+
+      // エラー発生時にエラー詳細とスタックトレースをログ記録
+      logger.error('[ProgressService] エラー', {
+        projectId,
+        methodId,
+        taskNo,
+        organizationId,
+        error: err,
+        errorMessage: err.message,
+        errorStack: err.stack,
+        duration
+      });
       
       return {
         success: false,
@@ -174,6 +274,13 @@ export class ProgressService {
       // ストレージサービスでダウンロード
       const storageService = getStorageService();
       const buffer = await storageService.downloadFile(organizationId, filePath);
+
+      // MAIMLファイルダウンロード成功時のログ記録
+      logger.info('[ProgressService] MAIMLファイルダウンロード成功', {
+        filePath,
+        fileSize: buffer.length,
+        organizationId
+      });
       
       // Buffer を文字列に変換
       const xmlContent = buffer.toString('utf-8');
@@ -197,7 +304,15 @@ export class ProgressService {
       };
 
     } catch (error) {
-      console.error('[ProgressService] MAIMLダウンロードエラー:', error);
+      const err = error as Error;
+      
+      // MAIMLファイルダウンロード失敗時のエラーログ記録
+      logger.error('[ProgressService] MAIMLダウンロードエラー', {
+        error: err,
+        projectName,
+        organizationId,
+        errorMessage: err.message
+      });
       
       return {
         success: false,
