@@ -50,12 +50,23 @@
   - _Requirements: 1, 3_
 
 - [ ] 3. ExperimentRecordRepositoryの拡張
-- [ ] 3.1 (P) getLatestRecordByTransitionメソッドの実装
+- [x] 3.1 (P) getLatestRecordByTransitionメソッドの実装
   - task_id、transition_id、organization_idでフィルタリング
   - update_atでDESCソート、LIMIT 1で最新レコードのみ取得
   - record_id、status、progress、update_atを返却
   - レコードが存在しない場合はnullを返却
   - organization_idによるマルチテナント分離を実装
+  - **実装完了**: 2026-02-16
+  - **実装内容**:
+    - `TransitionDataRepository.getLatestRecordByTransition`メソッドを実装
+    - Parameterized Queryを使用してSQLインジェクション対策
+    - ORDER BY updated_at DESC LIMIT 1で最新レコード取得
+    - organization_idによるマルチテナント分離を保証
+    - 包括的なユニットテスト作成（8テスト、全て成功）
+      - 正常系: 3テスト（データ取得、null返却、最新レコード選択）
+      - 異常系: 1テスト（DatabaseError）
+      - セキュリティ: 2テスト（organization_idフィルタ、Parameterized Query）
+      - データ整合性: 2テスト（必須フィールド、SELECT句検証）
   - _Requirements: 1, 3, 5_
 
 - [ ] 3.2 (P) countRecordsByTransitionメソッドの実装
