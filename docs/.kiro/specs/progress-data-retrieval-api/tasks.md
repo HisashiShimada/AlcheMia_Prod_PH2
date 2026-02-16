@@ -20,11 +20,20 @@
   - **実装完了**: 2026-02-16
   - _Requirements: 4_
 
-- [ ] 1.2 (P) 型定義の整備
+- [x] 1.2 (P) 型定義の整備
   - 既存の`maimlService.ts`の型を再利用
   - 必要に応じてProgressService用のインターフェース追加
   - Result型を使用したエラーハンドリング
   - **推定工数**: 0.5時間
+  - **実装完了**: 2026-02-16
+  - **実装内容**:
+    - `backend/src/types/progress.ts`に型定義を作成
+    - TransitionProgress, OverallProgress, ProgressData型を定義
+    - ProgressServiceError型（5種類のエラーコード対応）
+    - ParsedMethod, PetriNetTransition型（MAIML連携用）
+    - TaskWithProject, ExperimentRecord型（Repository層用）
+    - 既存のResult型（service.ts）を活用
+    - 包括的なユニットテスト作成（20テスト、全て成功）
   - _Requirements: 4_
 
 ### Phase 2: データアクセス層の実装
