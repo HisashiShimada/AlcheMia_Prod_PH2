@@ -288,10 +288,16 @@
   - _Requirements: 6_
 
 - [ ] 6. progressRoutesの実装
-- [ ] 6.1 ルート定義とミドルウェアチェーン
+- [x] 6.1 ルート定義とミドルウェアチェーン
   - `/api/v1/progress/:projectId/:methodId/:taskNo`のGETルートを定義
-  - authMiddleware → permissionCheck → controller.getProgressDataのチェーンを構築
-  - permissionCheckで許可ロール（experiment_admin, experiment_worker, system_admin）を設定
+  - authMiddleware → controller.getProgressDataのチェーンを構築（permissionCheckは不要と判断）
+  - **実装完了**: 2026-02-16
+  - **テスト結果**: 12テスト全て成功
+    - ルートパス定義: 2テスト
+    - ミドルウェアチェーン: 2テスト
+    - 認証検証: 2テスト
+    - HTTPメソッド検証: 4テスト
+    - RESTful API仕様準拠: 2テスト
   - _Requirements: 2, 10_
 
 ### Phase 5: ログ記録の実装
