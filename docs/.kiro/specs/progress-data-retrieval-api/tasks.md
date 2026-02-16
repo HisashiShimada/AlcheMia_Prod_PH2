@@ -146,11 +146,23 @@
       - 対応: 別タスクでstorageService.tsの修正が必要
   - _Requirements: 4_
 
-- [ ] 4.4 メソッド検索とトランジション抽出
+- [x] 4.4 メソッド検索とトランジション抽出
   - methods配列から指定されたmethodIdを検索
   - メソッドが見つからない場合はMETHOD_NOT_FOUNDエラーを返却
   - method_nameをMAIMLから取得
   - petriNet.transitionsを抽出
+  - **実装完了**: 2026-02-16
+  - **実装内容**:
+    - `ProgressService.findMethodById`メソッドを実装（既存）
+    - Array.findを使用してmethodIdで検索
+    - メソッド未検出時はundefinedを返却
+    - getProgressData内でundefinedチェック→METHOD_NOT_FOUNDエラー
+    - method.methodNameを使用してmethod_nameを設定
+    - method.petriNet.transitionsを抽出してトランジション進捗取得に渡す
+    - 包括的なユニットテスト追加（8テスト、タスク4.4セクション）
+      - 正常系: 5テスト（複数メソッド検索、トランジション抽出、method_name取得、大文字小文字区別、空配列対応）
+      - 異常系: 2テスト（メソッド未検出、空methods配列）
+      - エッジケース: 1テスト（大文字小文字区別の厳密性）
   - _Requirements: 4_
 
 - [ ] 4.5 トランジション進捗データの並列取得
