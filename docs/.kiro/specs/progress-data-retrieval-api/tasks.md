@@ -265,13 +265,26 @@
     - **テスト結果**: 35テスト全て成功
   - _Requirements: 6, 10_
 
-- [ ] 5.3 エラーハンドリングの実装
+- [x] 5.3 エラーハンドリングの実装
   - TASK_NOT_FOUND → 404エラー
   - METHOD_NOT_FOUND → 404エラー
   - MAIML_DOWNLOAD_FAILED → 500エラー
   - MAIML_PARSE_FAILED → 500エラー
   - DATABASE_ERROR → 500エラー
   - 予期しない例外はSYSTEM_ERRORとして処理し、スタックトレースをクライアントに公開しない
+  - **実装完了**: 2026-02-16
+  - **テスト結果**: 13テスト全て成功（404エラー処理、500エラー処理、予期しない例外処理、統合検証）
+  - **実装内容**:
+    - getHttpStatusFromErrorCode関数でエラーコードからHTTPステータスコードへのマッピング実装
+    - 5種類のエラーコード（TASK_NOT_FOUND、METHOD_NOT_FOUND、MAIML_DOWNLOAD_FAILED、MAIML_PARSE_FAILED、DATABASE_ERROR）を適切なHTTPステータスコードに変換
+    - 予期しない例外をキャッチしてSYSTEM_ERRORとして処理
+    - スタックトレースと機密情報（データベース接続文字列、内部パス等）をクライアントに公開しない
+    - すべてのエラーレスポンスに統一形式（success: false, error, meta）を適用
+    - 包括的なユニットテスト作成（13テスト、全て成功）
+      - 404エラー: 3テスト（TASK_NOT_FOUND処理、詳細情報含む、METHOD_NOT_FOUND処理）
+      - 500エラー: 4テスト（MAIML_DOWNLOAD_FAILED、MAIML_PARSE_FAILED、DATABASE_ERROR、統一形式検証）
+      - 予期しない例外: 4テスト（SYSTEM_ERROR変換、スタックトレース非公開、機密情報非公開、非Error値対応）
+      - 統合検証: 2テスト（全エラーコードのHTTPステータスマッピング、meta情報の一貫性）
   - _Requirements: 6_
 
 - [ ] 6. progressRoutesの実装

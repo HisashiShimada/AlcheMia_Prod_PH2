@@ -852,4 +852,301 @@ describe('ProgressController.getProgressData', () => {
       });
     });
   });
+
+  describe('Task 5.3: エラーハンドリングの実装', () => {
+    describe('TASK_NOT_FOUND → 404エラー', () => {
+      it('should return 404 status code for TASK_NOT_FOUND error', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: false,
+          error: {
+            code: 'TASK_NOT_FOUND',
+            message: 'タスクが見つかりません'
+          }
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        expect(mockStatus).toHaveBeenCalledWith(404);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({
+            success: false,
+            error: expect.objectContaining({
+              code: 'TASK_NOT_FOUND'
+            })
+          })
+        );
+      });
+
+      it('should include error details in response for TASK_NOT_FOUND', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: false,
+          error: {
+            code: 'TASK_NOT_FOUND',
+            message: 'タスクが見つかりません',
+            details: ['projectId: 550e8400-e29b-41d4-a716-446655440000']
+          }
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        const response = mockJson.mock.calls[0][0];
+        expect(response.error).toEqual({
+          code: 'TASK_NOT_FOUND',
+          message: 'タスクが見つかりません',
+          details: ['projectId: 550e8400-e29b-41d4-a716-446655440000']
+        });
+      });
+    });
+
+    describe('METHOD_NOT_FOUND → 404エラー', () => {
+      it('should return 404 status code for METHOD_NOT_FOUND error', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: false,
+          error: {
+            code: 'METHOD_NOT_FOUND',
+            message: 'メソッドが見つかりません'
+          }
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        expect(mockStatus).toHaveBeenCalledWith(404);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({
+            success: false,
+            error: expect.objectContaining({
+              code: 'METHOD_NOT_FOUND',
+              message: 'メソッドが見つかりません'
+            })
+          })
+        );
+      });
+    });
+
+    describe('MAIML_DOWNLOAD_FAILED → 500エラー', () => {
+      it('should return 500 status code for MAIML_DOWNLOAD_FAILED error', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: false,
+          error: {
+            code: 'MAIML_DOWNLOAD_FAILED',
+            message: 'MAIMLファイルのダウンロードに失敗しました'
+          }
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        expect(mockStatus).toHaveBeenCalledWith(500);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({
+            success: false,
+            error: expect.objectContaining({
+              code: 'MAIML_DOWNLOAD_FAILED',
+              message: 'MAIMLファイルのダウンロードに失敗しました'
+            })
+          })
+        );
+      });
+
+      it('should include error message in unified format for MAIML_DOWNLOAD_FAILED', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: false,
+          error: {
+            code: 'MAIML_DOWNLOAD_FAILED',
+            message: 'MAIMLファイルのダウンロードに失敗しました'
+          }
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        const response = mockJson.mock.calls[0][0];
+        expect(response).toHaveProperty('success', false);
+        expect(response).toHaveProperty('error');
+        expect(response).toHaveProperty('meta');
+        expect(response.meta).toHaveProperty('timestamp');
+        expect(response.meta).toHaveProperty('requestId');
+      });
+    });
+
+    describe('MAIML_PARSE_FAILED → 500エラー', () => {
+      it('should return 500 status code for MAIML_PARSE_FAILED error', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: false,
+          error: {
+            code: 'MAIML_PARSE_FAILED',
+            message: 'MAIMLファイルの解析に失敗しました'
+          }
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        expect(mockStatus).toHaveBeenCalledWith(500);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({
+            success: false,
+            error: expect.objectContaining({
+              code: 'MAIML_PARSE_FAILED',
+              message: 'MAIMLファイルの解析に失敗しました'
+            })
+          })
+        );
+      });
+    });
+
+    describe('DATABASE_ERROR → 500エラー', () => {
+      it('should return 500 status code for DATABASE_ERROR', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: false,
+          error: {
+            code: 'DATABASE_ERROR',
+            message: 'データベースエラーが発生しました'
+          }
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        expect(mockStatus).toHaveBeenCalledWith(500);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({
+            success: false,
+            error: expect.objectContaining({
+              code: 'DATABASE_ERROR',
+              message: 'データベースエラーが発生しました'
+            })
+          })
+        );
+      });
+    });
+
+    describe('予期しない例外はSYSTEM_ERRORとして処理', () => {
+      it('should catch unexpected exceptions and return SYSTEM_ERROR', async () => {
+        mockProgressService.getProgressData = jest.fn().mockRejectedValue(
+          new Error('Unexpected runtime error')
+        );
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        expect(mockStatus).toHaveBeenCalledWith(500);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({
+            success: false,
+            error: expect.objectContaining({
+              code: 'SYSTEM_ERROR',
+              message: 'システムエラーが発生しました'
+            })
+          })
+        );
+      });
+
+      it('should not expose stack trace to client', async () => {
+        const errorWithStack = new Error('Internal error with sensitive data');
+        errorWithStack.stack = 'Error: Internal error with sensitive data\n    at /app/backend/src/services/progressService.ts:123:45\n    at Object.getProgressData';
+
+        mockProgressService.getProgressData = jest.fn().mockRejectedValue(errorWithStack);
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        const response = mockJson.mock.calls[0][0];
+        
+        // スタックトレースが含まれていないことを確認
+        expect(JSON.stringify(response)).not.toContain('at /app/backend/src/services');
+        expect(JSON.stringify(response)).not.toContain('.ts:');
+        
+        // 汎用的なエラーメッセージのみが返されることを確認
+        expect(response.error.message).toBe('システムエラーが発生しました');
+        expect(response.error.code).toBe('SYSTEM_ERROR');
+      });
+
+      it('should not expose internal error messages to client', async () => {
+        mockProgressService.getProgressData = jest.fn().mockRejectedValue(
+          new Error('Connection failed: postgresql://username:secretpassword@internal-db-host:5432/maiml_db')
+        );
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        const response = mockJson.mock.calls[0][0];
+        
+        // 機密情報が含まれていないことを確認
+        expect(JSON.stringify(response)).not.toContain('postgresql://');
+        expect(JSON.stringify(response)).not.toContain('secretpassword');
+        expect(JSON.stringify(response)).not.toContain('internal-db-host');
+        
+        // 汎用的なエラーメッセージのみ
+        expect(response.error.message).toBe('システムエラーが発生しました');
+      });
+
+      it('should handle non-Error thrown values', async () => {
+        mockProgressService.getProgressData = jest.fn().mockRejectedValue('String error message');
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        expect(mockStatus).toHaveBeenCalledWith(500);
+        expect(mockJson).toHaveBeenCalledWith(
+          expect.objectContaining({
+            success: false,
+            error: expect.objectContaining({
+              code: 'SYSTEM_ERROR',
+              message: 'システムエラーが発生しました'
+            })
+          })
+        );
+      });
+    });
+
+    describe('エラーハンドリング統合検証', () => {
+      it('should map all error codes to correct HTTP status codes', async () => {
+        const errorCodeMappings = [
+          { code: 'TASK_NOT_FOUND', expectedStatus: 404 },
+          { code: 'METHOD_NOT_FOUND', expectedStatus: 404 },
+          { code: 'MAIML_DOWNLOAD_FAILED', expectedStatus: 500 },
+          { code: 'MAIML_PARSE_FAILED', expectedStatus: 500 },
+          { code: 'DATABASE_ERROR', expectedStatus: 500 }
+        ];
+
+        for (const mapping of errorCodeMappings) {
+          jest.clearAllMocks();
+          
+          mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+            success: false,
+            error: {
+              code: mapping.code,
+              message: `Error: ${mapping.code}`
+            }
+          });
+
+          await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+          expect(mockStatus).toHaveBeenCalledWith(mapping.expectedStatus);
+        }
+      });
+
+      it('should always include meta information in error responses', async () => {
+        const errorCodes = [
+          'TASK_NOT_FOUND',
+          'METHOD_NOT_FOUND',
+          'MAIML_DOWNLOAD_FAILED',
+          'MAIML_PARSE_FAILED',
+          'DATABASE_ERROR'
+        ];
+
+        for (const errorCode of errorCodes) {
+          jest.clearAllMocks();
+          
+          mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+            success: false,
+            error: {
+              code: errorCode,
+              message: `Error: ${errorCode}`
+            }
+          });
+
+          await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+          const response = mockJson.mock.calls[0][0];
+          expect(response.meta).toBeDefined();
+          expect(response.meta.timestamp).toBeDefined();
+          expect(response.meta.requestId).toBe('test-request-id-123');
+        }
+      });
+    });
+  });
 });
