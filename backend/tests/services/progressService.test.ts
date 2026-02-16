@@ -364,4 +364,429 @@ describe('ProgressService - タスク4.1: 基本構造実装', () => {
       }
     });
   });
+
+  describe('タスク4.3: MAIMLファイルのダウンロードとパース', () => {
+    it('正常系: MAIMLファイルを正しくダウンロードし、パースできること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス（MAIMLダウンロード）
+      const mockMAIMLContent = `<maiml>
+        <methods>
+          <method id="method1" name="テストメソッド">
+            <petriNet>
+              <transitions>
+                <transition id="t1" name="トランジション1" />
+              </transitions>
+            </petriNet>
+          </method>
+        </methods>
+      </maiml>`;
+      
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from(mockMAIMLContent, 'utf-8')
+      );
+
+      // モック: MAIMLパーサー
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'テストメソッド',
+          petriNet: {
+            transitions: [
+              { id: 't1', name: 'トランジション1' }
+            ]
+          }
+        }]
+      });
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // 成功レスポンスの検証
+      expect(result.success).toBe(true);
+
+      // storageService.downloadFileが正しいパラメータで呼ばれたことを確認
+      expect(mockStorageService.downloadFile).toHaveBeenCalledWith(
+        'maiml_lab_001',
+        'projects/test_project/test_project.maiml'
+      );
+
+      // parsePetriNetStructureが呼ばれたことを確認
+      expect(parsePetriNetStructure).toHaveBeenCalledWith(mockMAIMLContent);
+    });
+
+    it('正常系: MAIMLファイルからmethod_nameを正しく取得できること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'sample_project',
+        method_id: 'method_abc',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー（特定のメソッド名を返す）
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: true,
+        methods: [{
+          methodId: 'method_abc',
+          methodName: '合成実験メソッド',
+          petriNet: {
+            transitions: []
+          }
+        }]
+      });
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // method_nameが正しく設定されていることを確認
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.method_name).toBe('合成実験メソッド');
+      }
+    });
+
+    it('正常系: 複数メソッドのMAIMLファイルから指定メソッドを抽出できること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'multi_method_project',
+        method_id: 'method2',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー（複数メソッド）
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: true,
+        methods: [
+          {
+            methodId: 'method1',
+            methodName: 'メソッド1',
+            petriNet: { transitions: [] }
+          },
+          {
+            methodId: 'method2',
+            methodName: 'メソッド2',
+            petriNet: { transitions: [] }
+          },
+          {
+            methodId: 'method3',
+            methodName: 'メソッド3',
+            petriNet: { transitions: [] }
+          }
+        ]
+      });
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // 正しいメソッドが抽出されていることを確認
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.method_id).toBe('method2');
+        expect(result.data.method_name).toBe('メソッド2');
+      }
+    });
+
+    it('異常系: MAIMLファイルダウンロード失敗時、MAIML_DOWNLOAD_FAILEDエラーを返すこと', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス（ダウンロード失敗）
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockRejectedValue(
+        new Error('S3 GetObject failed')
+      );
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // エラーレスポンスの検証
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe('MAIML_DOWNLOAD_FAILED');
+        expect(result.error.message).toContain('MAIMLファイルのダウンロードに失敗');
+      }
+    });
+
+    it('異常系: MAIMLパース失敗時、MAIML_PARSE_FAILEDエラーを返すこと', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス（ダウンロード成功）
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<invalid-xml', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー（パース失敗）
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: false,
+        methods: null
+      });
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // エラーレスポンスの検証
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe('MAIML_PARSE_FAILED');
+        expect(result.error.message).toContain('MAIMLファイルの解析に失敗');
+      }
+    });
+
+    it('異常系: 指定されたメソッドIDが存在しない場合、METHOD_NOT_FOUNDエラーを返すこと', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'nonexistent_method',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー（異なるメソッドIDのみ）
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'メソッド1',
+          petriNet: { transitions: [] }
+        }]
+      });
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // エラーレスポンスの検証
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe('METHOD_NOT_FOUND');
+        expect(result.error.message).toContain('メソッドが見つかりません');
+        expect(result.error.message).toContain('nonexistent_method');
+      }
+    });
+
+    it('マルチテナント分離: organization prefixを使用してMAIMLファイルをダウンロードすること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'secure_project',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'メソッド1',
+          petriNet: { transitions: [] }
+        }]
+      });
+
+      const organizationId = 'org_secure_123';
+
+      // メソッド呼び出し
+      await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        organizationId
+      );
+
+      // organizationIdが正しく渡されたことを確認
+      expect(mockStorageService.downloadFile).toHaveBeenCalledWith(
+        organizationId,
+        expect.stringContaining('projects/secure_project/secure_project.maiml')
+      );
+    });
+
+    it('MAIMLファイルパスが正しい形式で構築されること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'my_project_name',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'メソッド1',
+          petriNet: { transitions: [] }
+        }]
+      });
+
+      // メソッド呼び出し
+      await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // ファイルパスが正しい形式であることを確認
+      expect(mockStorageService.downloadFile).toHaveBeenCalledWith(
+        'maiml_lab_001',
+        'projects/my_project_name/my_project_name.maiml'
+      );
+    });
+
+    it('BufferをUTF-8文字列に変換してパーサーに渡すこと', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      const mockMAIMLContent = '<maiml><methods><method id="method1" name="Test"><petriNet><transitions></transitions></petriNet></method></methods></maiml>';
+
+      // モック: ストレージサービス（Bufferを返す）
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from(mockMAIMLContent, 'utf-8')
+      );
+
+      // モック: MAIMLパーサー
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'Test',
+          petriNet: { transitions: [] }
+        }]
+      });
+
+      // メソッド呼び出し
+      await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // parsePetriNetStructureに文字列が渡されたことを確認
+      expect(parsePetriNetStructure).toHaveBeenCalledWith(mockMAIMLContent);
+      expect(typeof (parsePetriNetStructure as jest.Mock).mock.calls[0][0]).toBe('string');
+    });
+  });
 });
