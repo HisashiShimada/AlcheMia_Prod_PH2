@@ -10,6 +10,7 @@ import { getPool } from '../database/db';
  */
 export interface VendorMaster {
   vendor_id: string;
+  vendor_uuid: string;
   vendor_name: string;
   vendor_description: string | null;
   vendor_annotation: string | null;
@@ -31,6 +32,7 @@ export const findAll = async (
   const query = `
     SELECT 
       vendor_id,
+      vendor_uuid,
       vendor_name,
       vendor_description,
       vendor_annotation,
@@ -61,6 +63,7 @@ export const findById = async (
   const query = `
     SELECT 
       vendor_id,
+      vendor_uuid,
       vendor_name,
       vendor_description,
       vendor_annotation,
@@ -303,6 +306,7 @@ export const findAllWithFilters = async (
   const query = `
     SELECT 
       vendor_id,
+      vendor_uuid,
       vendor_name,
       vendor_description,
       vendor_annotation,

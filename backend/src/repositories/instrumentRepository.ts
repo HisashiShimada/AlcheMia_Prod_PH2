@@ -10,6 +10,7 @@ import { getPool } from '../database/db';
  */
 export interface InstrumentMaster {
   instrument_id: string;
+  instrument_uuid: string;
   instrument_name: string;
   instrument_description: string | null;
   instrument_annotation: string | null;
@@ -31,6 +32,7 @@ export const findAll = async (
   const query = `
     SELECT 
       instrument_id,
+      instrument_uuid,
       instrument_name,
       instrument_description,
       instrument_annotation,
@@ -61,6 +63,7 @@ export const findById = async (
   const query = `
     SELECT 
       instrument_id,
+      instrument_uuid,
       instrument_name,
       instrument_description,
       instrument_annotation,
@@ -298,6 +301,7 @@ export const findAllWithFilters = async (
   const query = `
     SELECT 
       instrument_id,
+      instrument_uuid,
       instrument_name,
       instrument_description,
       instrument_annotation,
