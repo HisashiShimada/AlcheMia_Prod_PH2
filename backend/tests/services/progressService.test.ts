@@ -1218,6 +1218,552 @@ describe('ProgressService - タスク4.1: 基本構造実装', () => {
     });
   });
 
+  describe('タスク4.7: レスポンスデータの構築', () => {
+    it('正常系: ProgressData型の全フィールドが正しく設定されること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-123',
+        task_name: 'サンプルタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'sample_project',
+        method_id: 'method_abc',
+        task_no: 5
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method_abc',
+          methodName: '実験メソッド名',
+          petriNet: {
+            transitions: [
+              { id: 't1', name: 'トランジション1' },
+              { id: 't2', name: 'トランジション2' }
+            ]
+          }
+        }]
+      });
+
+      // モック: TransitionDataRepository
+      mockTransitionDataRepository.getLatestRecordByTransition = jest.fn()
+        .mockResolvedValueOnce({
+          record_id: 'r1',
+          status: 'completed',
+          progress_rate: 100,
+          updated_at: new Date('2026-02-10T10:00:00Z')
+        })
+        .mockResolvedValueOnce({
+          record_id: 'r2',
+          status: 'running',
+          progress_rate: 50,
+          updated_at: new Date('2026-02-15T15:30:00Z')
+        });
+
+      mockTransitionDataRepository.countRecordsByTransition = jest.fn()
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(5);
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // ProgressData型の全フィールドが存在することを確認
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const data = result.data;
+        
+        // 全フィールドの存在確認
+        expect(data).toHaveProperty('project_id');
+        expect(data).toHaveProperty('project_name');
+        expect(data).toHaveProperty('method_id');
+        expect(data).toHaveProperty('method_name');
+        expect(data).toHaveProperty('task_no');
+        expect(data).toHaveProperty('task_name');
+        expect(data).toHaveProperty('transitions');
+        expect(data).toHaveProperty('overall_progress');
+        
+        // 各フィールドの値検証
+        expect(data.project_id).toBe('550e8400-e29b-41d4-a716-446655440000');
+        expect(data.project_name).toBe('sample_project');
+        expect(data.method_id).toBe('method_abc');
+        expect(data.method_name).toBe('実験メソッド名');
+        expect(data.task_no).toBe(5);
+        expect(data.task_name).toBe('サンプルタスク');
+        expect(Array.isArray(data.transitions)).toBe(true);
+        expect(typeof data.overall_progress).toBe('object');
+      }
+    });
+
+    it('正常系: project情報がTaskRepositoryから取得した値と一致すること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'タスクA',
+        project_id: 'project-uuid-999',
+        project_name: 'Project Alpha',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'Method Name',
+          petriNet: { transitions: [] }
+        }]
+      });
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // project情報の検証
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.project_id).toBe('project-uuid-999');
+        expect(result.data.project_name).toBe('Project Alpha');
+      }
+    });
+
+    it('正常系: method情報がMAIMLパースで取得した値と一致すること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'タスクB',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'synthesis_001',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー（特定のmethod_name）
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'synthesis_001',
+          methodName: '有機化合物合成プロセス',
+          petriNet: { transitions: [] }
+        }]
+      });
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // method情報の検証
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.method_id).toBe('synthesis_001');
+        expect(result.data.method_name).toBe('有機化合物合成プロセス');
+      }
+    });
+
+    it('正常系: task情報がTaskRepositoryから取得した値と一致すること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: '材料準備タスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'method1',
+        task_no: 42
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'Test Method',
+          petriNet: { transitions: [] }
+        }]
+      });
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // task情報の検証
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.task_no).toBe(42);
+        expect(result.data.task_name).toBe('材料準備タスク');
+      }
+    });
+
+    it('正常系: transitions配列に各トランジションの全フィールドが含まれること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'Test Method',
+          petriNet: {
+            transitions: [
+              { id: 'transition_a', name: 'トランジションA' }
+            ]
+          }
+        }]
+      });
+
+      // モック: TransitionDataRepository
+      mockTransitionDataRepository.getLatestRecordByTransition = jest.fn()
+        .mockResolvedValue({
+          record_id: 'r1',
+          status: 'running',
+          progress_rate: 75,
+          updated_at: new Date('2026-02-16T10:00:00Z')
+        });
+
+      mockTransitionDataRepository.countRecordsByTransition = jest.fn()
+        .mockResolvedValue(8);
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // transitions配列のフィールド検証
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.transitions).toHaveLength(1);
+        
+        const transition = result.data.transitions[0];
+        
+        // 全フィールドの存在確認
+        expect(transition).toHaveProperty('transition_id');
+        expect(transition).toHaveProperty('transition_name');
+        expect(transition).toHaveProperty('status');
+        expect(transition).toHaveProperty('progress');
+        expect(transition).toHaveProperty('last_updated');
+        expect(transition).toHaveProperty('has_data');
+        expect(transition).toHaveProperty('data_count');
+        
+        // 値の検証
+        expect(transition.transition_id).toBe('transition_a');
+        expect(transition.transition_name).toBe('トランジションA');
+        expect(transition.status).toBe('in_progress');
+        expect(transition.progress).toBe(75);
+        expect(transition.last_updated).toBe('2026-02-16T10:00:00.000Z');
+        expect(transition.has_data).toBe(true);
+        expect(transition.data_count).toBe(8);
+      }
+    });
+
+    it('正常系: overall_progress情報に全フィールドが含まれること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー（3つのトランジション）
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'Test Method',
+          petriNet: {
+            transitions: [
+              { id: 't1', name: 'T1' },
+              { id: 't2', name: 'T2' },
+              { id: 't3', name: 'T3' }
+            ]
+          }
+        }]
+      });
+
+      // モック: TransitionDataRepository
+      // t1: completed(100), t2: in_progress(60), t3: not_started(0)
+      mockTransitionDataRepository.getLatestRecordByTransition = jest.fn()
+        .mockResolvedValueOnce({
+          record_id: 'r1',
+          status: 'completed',
+          progress_rate: 100,
+          updated_at: new Date('2026-02-16T10:00:00Z')
+        })
+        .mockResolvedValueOnce({
+          record_id: 'r2',
+          status: 'running',
+          progress_rate: 60,
+          updated_at: new Date('2026-02-16T11:00:00Z')
+        })
+        .mockResolvedValueOnce(null);
+
+      mockTransitionDataRepository.countRecordsByTransition = jest.fn()
+        .mockResolvedValue(1);
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // overall_progress情報の検証
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const overallProgress = result.data.overall_progress;
+        
+        // 全フィールドの存在確認
+        expect(overallProgress).toHaveProperty('total_transitions');
+        expect(overallProgress).toHaveProperty('completed');
+        expect(overallProgress).toHaveProperty('in_progress');
+        expect(overallProgress).toHaveProperty('not_started');
+        expect(overallProgress).toHaveProperty('overall_percentage');
+        
+        // 値の検証
+        expect(overallProgress.total_transitions).toBe(3);
+        expect(overallProgress.completed).toBe(1);
+        expect(overallProgress.in_progress).toBe(1);
+        expect(overallProgress.not_started).toBe(1);
+        // (100 + 60 + 0) / 3 = 53.3
+        expect(overallProgress.overall_percentage).toBe(53.3);
+      }
+    });
+
+    it('データ整合性: transitions配列の長さとoverall_progress.total_transitionsが一致すること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー（5つのトランジション）
+      const transitions = Array.from({ length: 5 }, (_, i) => ({
+        id: `t${i + 1}`,
+        name: `トランジション${i + 1}`
+      }));
+
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'Test Method',
+          petriNet: { transitions }
+        }]
+      });
+
+      // モック: TransitionDataRepository
+      mockTransitionDataRepository.getLatestRecordByTransition = jest.fn()
+        .mockResolvedValue(null);
+      mockTransitionDataRepository.countRecordsByTransition = jest.fn()
+        .mockResolvedValue(0);
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // データ整合性の検証
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const transitionsLength = result.data.transitions.length;
+        const totalTransitions = result.data.overall_progress.total_transitions;
+        
+        expect(transitionsLength).toBe(totalTransitions);
+        expect(transitionsLength).toBe(5);
+      }
+    });
+
+    it('型検証: 各フィールドが正しい型であること', async () => {
+      // モック: タスク取得成功
+      const mockTask = {
+        task_id: 'task-uuid-1',
+        task_name: 'テストタスク',
+        project_id: '550e8400-e29b-41d4-a716-446655440000',
+        project_name: 'test_project',
+        method_id: 'method1',
+        task_no: 1
+      };
+      mockTaskRepository.getTaskByProjectMethodTaskNo = jest.fn().mockResolvedValue(mockTask);
+
+      // モック: ストレージサービス
+      const mockStorageService = getStorageService();
+      (mockStorageService.downloadFile as jest.Mock) = jest.fn().mockResolvedValue(
+        Buffer.from('<maiml></maiml>', 'utf-8')
+      );
+
+      // モック: MAIMLパーサー
+      (parsePetriNetStructure as jest.Mock).mockResolvedValue({
+        success: true,
+        isMultiMethod: false,
+        methods: [{
+          methodId: 'method1',
+          methodName: 'Test Method',
+          petriNet: {
+            transitions: [
+              { id: 't1', name: 'T1' }
+            ]
+          }
+        }]
+      });
+
+      // モック: TransitionDataRepository
+      mockTransitionDataRepository.getLatestRecordByTransition = jest.fn()
+        .mockResolvedValue({
+          record_id: 'r1',
+          status: 'completed',
+          progress_rate: 100,
+          updated_at: new Date('2026-02-16T10:00:00Z')
+        });
+
+      mockTransitionDataRepository.countRecordsByTransition = jest.fn()
+        .mockResolvedValue(5);
+
+      // メソッド呼び出し
+      const result = await progressService.getProgressData(
+        mockTask.project_id,
+        mockTask.method_id,
+        mockTask.task_no,
+        'maiml_lab_001'
+      );
+
+      // 型検証
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const data = result.data;
+        
+        // 文字列型
+        expect(typeof data.project_id).toBe('string');
+        expect(typeof data.project_name).toBe('string');
+        expect(typeof data.method_id).toBe('string');
+        expect(typeof data.method_name).toBe('string');
+        expect(typeof data.task_name).toBe('string');
+        
+        // 数値型
+        expect(typeof data.task_no).toBe('number');
+        
+        // 配列型
+        expect(Array.isArray(data.transitions)).toBe(true);
+        
+        // オブジェクト型
+        expect(typeof data.overall_progress).toBe('object');
+        expect(data.overall_progress).not.toBeNull();
+        
+        // transitions配列の各要素の型
+        if (data.transitions.length > 0) {
+          const transition = data.transitions[0];
+          expect(typeof transition.transition_id).toBe('string');
+          expect(typeof transition.transition_name).toBe('string');
+          expect(typeof transition.status).toBe('string');
+          expect(typeof transition.progress).toBe('number');
+          expect(typeof transition.has_data).toBe('boolean');
+          expect(typeof transition.data_count).toBe('number');
+          // last_updatedは文字列またはnull
+          expect(typeof transition.last_updated === 'string' || transition.last_updated === null).toBe(true);
+        }
+        
+        // overall_progressの各フィールドの型
+        expect(typeof data.overall_progress.total_transitions).toBe('number');
+        expect(typeof data.overall_progress.completed).toBe('number');
+        expect(typeof data.overall_progress.in_progress).toBe('number');
+        expect(typeof data.overall_progress.not_started).toBe('number');
+        expect(typeof data.overall_progress.overall_percentage).toBe('number');
+      }
+    });
+  });
+
   describe('タスク4.6: 進捗計算ロジックの実装', () => {
     it('正常系: 各トランジションのステータスを正しくカウントできること', async () => {
       // モック: タスク取得成功
