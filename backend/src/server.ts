@@ -43,12 +43,6 @@ app.use(cors(corsOptions));
 // Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Mount routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/projects', projectRoutes);
-app.use('/api/v1/projects', fileDownloadRoutes);
-app.use('/api/v1/maiml', maimlRoutes);
 app.use(cookieParser()); // Cookie解析ミドルウェア
 
 // Health check endpoint
@@ -85,6 +79,7 @@ async function startServer() {
     app.use('/api/v1/projects', projectRoutes);
     app.use('/api/v1/tasks', taskRoutes);
     app.use('/api/v1/projects', fileDownloadRoutes);
+    app.use('/api/v1/maiml', maimlRoutes);
     
 	// Mount experiment routes
 	app.use('/api/v1/experiments', experimentRoutes);
@@ -107,6 +102,16 @@ async function startServer() {
         console.log(`🚀 Server is running on port ${PORT}`);
         console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       });
+
+      // タイムアウト設定（大量ファイルの署名付きURL生成に対応）
+      server.timeout = 180000; // 3分（180秒）
+      server.headersTimeout = 240000; // 4分（240秒）
+      server.keepAliveTimeout = 65000; // 65秒
+
+      console.log('Server timeout settings:');
+      console.log(`  - Request timeout: ${server.timeout}ms (${server.timeout / 1000}s)`);
+      console.log(`  - Headers timeout: ${server.headersTimeout}ms (${server.headersTimeout / 1000}s)`);
+      console.log(`  - Keep-Alive timeout: ${server.keepAliveTimeout}ms (${server.keepAliveTimeout / 1000}s)`);
 
       // グレースフルシャットダウン
       const gracefulShutdown = async (signal: string) => {
@@ -140,20 +145,6 @@ async function startServer() {
 
 // サーバー起動
 if (process.env.NODE_ENV !== 'test') {
-  const server = app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  });
-
-  // タイムアウト設定（大量ファイルの署名付きURL生成に対応）
-  server.timeout = 180000; // 3分（180秒）
-  server.headersTimeout = 240000; // 4分（240秒）
-  server.keepAliveTimeout = 65000; // 65秒
-
-  console.log('Server timeout settings:');
-  console.log(`  - Request timeout: ${server.timeout}ms (${server.timeout / 1000}s)`);
-  console.log(`  - Headers timeout: ${server.headersTimeout}ms (${server.headersTimeout / 1000}s)`);
-  console.log(`  - Keep-Alive timeout: ${server.keepAliveTimeout}ms (${server.keepAliveTimeout / 1000}s)`);
   startServer();
 }
 
