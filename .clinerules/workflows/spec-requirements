@@ -33,6 +33,15 @@ Generate complete requirements for feature **$1** based on the project descripti
    - Read `docs/.kiro/settings/rules/ears-format.md` for EARS syntax rules
    - Read `docs/.kiro/settings/templates/specs/requirements.md` for document structure
 
+   **Skills & Guidelines Reference**:
+   - Determine feature domain from project description:
+     - If backend/API feature: Read `.cline/skills/backend-develop-skill/skill.md`
+     - If frontend/UI feature: Read `.cline/skills/frontend-develop-skill/skill.md`
+     - If testing focus: Read `.cline/skills/test-skill/skill.md`
+   - Extract referenced documentation paths from selected skill
+   - Read skill-recommended documents as supplementary context
+   - **Priority**: `.clinerules/` documents take precedence; skills provide additional insights
+
 3. **Generate Requirements**:
    - Create initial requirements based on project description
    - Group related functionality into logical requirement areas
