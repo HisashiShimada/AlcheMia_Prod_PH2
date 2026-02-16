@@ -284,7 +284,7 @@ const projectStatus: ProjectStatus | null = selectedProject
 |-----|---------|--------------|------|---------|
 | 指示一覧取得API | GET | `/api/v1/instructions` | 作業指示一覧の取得 | TODO |
 | 指示確認API | PUT | `/api/v1/instructions/{instructionId}/confirm` | 指示の確認完了 | TODO |
-| MAIMLファイル取得API | GET | `/api/files/maiml/{fileId}` | フロー図表示用のMAIMLファイル取得 | モックデータ使用中 |
+| MAIMLファイル取得API | GET | `/api/v1/projects/:projectId/maiml` | フロー図表示用のMAIMLファイル取得 | TODO |
 
 **指示一覧取得API詳細:**
 - **クエリパラメータ**: 
@@ -295,6 +295,12 @@ const projectStatus: ProjectStatus | null = selectedProject
   - `isAcknowledged` (optional): 確認済フラグ
 - **レスポンス**: 指示一覧（配列）
 - **詳細仕様**: `docs/design/api/API一覧_実験作業者画面.md` 参照
+
+**MAIMLファイル取得API詳細:**
+- **パスパラメータ**: 
+  - `projectId` (required): プロジェクトID（UUID）
+- **レスポンス**: MAIMLファイルの内容（XMLコンテンツ）
+- **詳細仕様**: `docs/design/api/api_project_management.md` API #15を参照
 
 ### 5.5 データソース
 

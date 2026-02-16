@@ -4,8 +4,8 @@
 **最終更新**: 2026-01-26 15:42  
 **バージョン**: 2.3.0  
 **対象画面**: 実験管理者 - プロジェクト管理画面  
-**総API数**: 10個  
-**実装状況**: 8個実装済み、2個未実装
+**総API数**: 15個  
+**実装状況**: 8個実装済み、7個未実装
 
 ---
 
@@ -15,13 +15,13 @@
 |---------|---------|--------|------|
 | 基本CRUD | 2 | 0 | 2 |
 | チェックイン/チェックアウト | 2 | 0 | 2 |
-| データ取得 | 2 | 0 | 2 |
+| データ取得 | 2 | 1 | 3 |
 | 指示管理 | 0 | 4 | 4 |
 | その他 | 2 | 0 | 2 |
 | 実験作業者用 | 0 | 2 | 2 |
-| **合計** | **8** | **6** | **14** |
+| **合計** | **8** | **7** | **15** |
 
-**完了率**: 57% (8/14)
+**完了率**: 53% (8/15)
 
 ---
 
@@ -43,6 +43,148 @@
 | 12 | 指示確認完了 | PUT | `/api/v1/instructions/:instructionId/confirm` | 🔴 未実装 | ⭐⭐ 中 |
 | 13 | 承認依頼 | POST | `/api/v1/projects/:projectId/approval-request` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 14 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 15 | MAIMLファイル取得（プロジェクト） | GET | `/api/v1/projects/:projectId/maiml` | 🔴 未実装 | ⭐⭐⭐ 高 |
+
+---
+
+### 15. MAIMLファイル取得（プロジェクト） 🔴
+
+**エンドポイント**: `GET /api/v1/projects/:projectId/maiml`
+
+**説明**: プロジェクトの最新MAIMLファイルを取得（指示確認タブのフロー図表示で使用）
+
+**認証**: 必須
+
+**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+**重要**: 実験作業者も閲覧可能（指示確認タブで使用するため）
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectId` | UUID | ○ | プロジェクトID |
+
+**クエリパラメータ**:
+なし（最新版のMAIMLファイルを常に返却）
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "file_id": "file-uuid-generated",
+    "project_id": "project-uuid",
+    "project_name": "Sample Project",
+    "file_name": "Sample_Project.maiml",
+    "file_path": "org_maiml_lab_001/projects/Sample_Project/Sample_Project.maiml",
+    "file_size": 12345,
+    "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<maiml xmlns=\"http://www.example.org/maiml\">...</maiml>",
+    "content_type": "application/xml",
+    "loaded_at": "2026-02-16T14:40:00Z"
+  },
+  "meta": {
+    "timestamp": "2026-02-16T14:40:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー（projectId不正）
+- 401: 認証エラー
+- 403: 権限不足（他組織のプロジェクト）
+- 404: プロジェクトまたはファイルが存在しない
+- 500: システムエラー（S3接続エラー等）
+
+#### 実装要件
+
+**マルチテナント分離（必須）**:
+```typescript
+// プロジェクトの存在確認 & organization_idチェック
+const project = await db
+  .selectFrom('project')
+  .where('project_id', '=', projectId)
+  .where('organization_id', '=', req.user.organizationId)  // ⭐ 必須チェック
+  .select(['project_id', 'project_name', 'organization_id'])
+  .executeTakeFirstOrThrow();
+```
+
+**S3から直接取得**:
+```typescript
+// organization_prefixを取得
+const organizationPrefix = await getOrganizationPrefix(project.organization_id);
+
+// S3パスを構築
+const filePath = `projects/${project.project_name}/${project.project_name}.maiml`;
+
+// S3からファイルを取得
+const content = await storageService.downloadFile(
+  organizationPrefix,  // ⭐ organization_prefix必須
+  filePath
+);
+```
+
+**エラーハンドリング**:
+```typescript
+try {
+  // ファイル取得処理
+} catch (error) {
+  if (error.name === 'NoResultError') {
+    // プロジェクトが存在しない or 他組織
+    return res.status(404).json({
+      success: false,
+      error: {
+        code: 'NOT_FOUND',
+        message: 'プロジェクトが見つかりません'
+      }
+    });
+  }
+  
+  if (error.code === 'NoSuchKey') {
+    // S3にファイルが存在しない
+    return res.status(404).json({
+      success: false,
+      error: {
+        code: 'FILE_NOT_FOUND',
+        message: 'MAIMLファイルが見つかりません'
+      }
+    });
+  }
+  
+  // その他のエラー
+  logger.error('MAIML file retrieval failed', { error, projectId });
+  return res.status(500).json({
+    success: false,
+    error: {
+      code: 'INTERNAL_ERROR',
+      message: 'システムエラーが発生しました'
+    }
+  });
+}
+```
+
+#### 設計方針
+
+**特徴**:
+- ✅ **プロジェクトのみ対応**（フォーマットは非対応）
+- ✅ **最新版のみ取得**（アーカイブ非対応）
+- ✅ **S3から直接取得**（file_metadataテーブル不使用）
+- ✅ **実験作業者も閲覧可能**（指示確認タブで使用）
+
+**使用箇所**:
+- 実験作業者 - 指示確認タブ - フロー図表示機能
+- InstructionConfirmationTab → InstructionFlowDialog → ViewRenderer
+
+**実装ファイル**:
+- **ルート**: `backend/src/routes/projectRoutes.ts`（追加予定）
+- **コントローラー**: `backend/src/controllers/projectController.ts` (`getProjectMaiml`)
+- **サービス**: `backend/src/services/projectService.ts` (`getProjectMaiml`)
 
 ---
 
