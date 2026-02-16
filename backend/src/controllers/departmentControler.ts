@@ -4,7 +4,6 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { validationResult } from 'express-validator';
 import * as masterService from '../services/departmentService';
 import { v4 as uuidv4 } from 'uuid';
 import Papa from 'papaparse';
@@ -116,23 +115,7 @@ export async function createDepartment(req: Request, res: Response, next: NextFu
     console.log('=== createDepartment API called ===');
     console.log('Request body:', req.body);
 
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Validation failed',
-          details: errors.array(),
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
-
+    // バリデーションはミドルウェアで処理済み
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
 

@@ -17,7 +17,6 @@ import type {
   Result, 
   ServiceError 
 } from '../types/auth';
-import { RedisConnectionService } from './redisConnectionService';
 
 /**
  * JWTサービスクラス
@@ -49,18 +48,7 @@ export class JwtService {
    * @returns 有効期限（秒）
    */
   private getAccessTokenExpiresIn(): number {
-    // Redis起動時: 標準の15分
-    if (RedisConnectionService.isRedisAvailable()) {
-      return parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRES_IN || '900');
-    }
-    
-    // Redis未起動時（開発環境のみ）: 1時間
-    const isDevelopment = process.env.NODE_ENV !== 'production';
-    if (isDevelopment) {
-      return parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRES_IN_DEV || '3600');
-    }
-    
-    // 本番環境ではRedis必須（ここには来ない）
+    // 本番環境ではRedis必須
     return parseInt(process.env.JWT_ACCESS_TOKEN_EXPIRES_IN || '900');
   }
 
@@ -70,18 +58,7 @@ export class JwtService {
    * @returns 有効期限（秒）
    */
   private getRefreshTokenExpiresIn(): number {
-    // Redis起動時: 標準の30分
-    if (RedisConnectionService.isRedisAvailable()) {
-      return parseInt(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN || '1800');
-    }
-    
-    // Redis未起動時（開発環境のみ）: 8時間
-    const isDevelopment = process.env.NODE_ENV !== 'production';
-    if (isDevelopment) {
-      return parseInt(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN_DEV || '28800');
-    }
-    
-    // 本番環境ではRedis必須（ここには来ない）
+    // 本番環境ではRedis必須
     return parseInt(process.env.JWT_REFRESH_TOKEN_EXPIRES_IN || '1800');
   }
 

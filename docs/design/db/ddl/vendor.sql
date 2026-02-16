@@ -10,6 +10,9 @@ CREATE TABLE vendor (
     -- 主キー
     organization_id UUID NOT NULL,
     vendor_uuid UUID NOT NULL,
+
+    -- 関連情報
+    corporation_id UUID,
     
     -- vendor情報
     vendor_id CHARACTER VARYING NOT NULL,
@@ -36,6 +39,7 @@ CREATE TABLE vendor (
 COMMENT ON TABLE vendor IS 'vendor';
 COMMENT ON COLUMN vendor.organization_id IS '組織ID';
 COMMENT ON COLUMN vendor.vendor_uuid IS 'uuid';
+COMMENT ON COLUMN vendor.corporation_id IS '会社ID';
 COMMENT ON COLUMN vendor.vendor_id IS 'ID';
 COMMENT ON COLUMN vendor.vendor_name IS '名称';
 COMMENT ON COLUMN vendor.vendor_description IS '説明';

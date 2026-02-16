@@ -116,8 +116,8 @@ router.post(
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
- * @description 問題一覧を取得（複合フィルタリング、ソート、ページネーション対応）
- * @requirements REQ-007, REQ-008
+ * @description プロジェクト・メソッド・タスク・トランジション単位で発生した問題一覧とコメントを取得
+ * @requirements REQ-001, REQ-003, REQ-004
  * @roles worker, manager, admin
  */
 router.get(
@@ -126,15 +126,23 @@ router.get(
   tenantIsolation,
   [
     query('project_id')
-      .optional()
+      .notEmpty()
+      .withMessage('project_idは必須です')
       .isUUID()
       .withMessage('project_idはUUID形式である必要があります'),
-    query('task_id')
-      .optional()
-      .isUUID()
-      .withMessage('task_idはUUID形式である必要があります'),
+    query('method_id')
+      .notEmpty()
+      .withMessage('method_idは必須です')
+      .isString()
+      .withMessage('method_idは文字列である必要があります'),
+    query('task_no')
+      .notEmpty()
+      .withMessage('task_noは必須です')
+      .isInt({ min: 1 })
+      .withMessage('task_noは1以上の整数である必要があります'),
     query('transition_id')
-      .optional()
+      .notEmpty()
+      .withMessage('transition_idは必須です')
       .isString()
       .withMessage('transition_idは文字列である必要があります'),
     query('status')
@@ -153,27 +161,8 @@ router.get(
         'other'
       ])
       .withMessage('issue_typeは許可された値である必要があります'),
-    query('severity')
-      .optional()
-      .isIn(['critical', 'high', 'medium', 'low'])
-      .withMessage('severityは"critical", "high", "medium", "low"のいずれかである必要があります'),
-    query('sort_by')
-      .optional()
-      .isIn(['created_at', 'updated_at', 'severity'])
-      .withMessage('sort_byは"created_at", "updated_at", "severity"のいずれかである必要があります'),
-    query('order')
-      .optional()
-      .isIn(['asc', 'desc'])
-      .withMessage('orderは"asc"または"desc"である必要があります'),
-    query('page')
-      .optional()
-      .isInt({ min: 1 })
-      .withMessage('pageは1以上の整数である必要があります'),
-    query('limit')
-      .optional()
-      .isInt({ min: 1, max: 100 })
-      .withMessage('limitは1〜100の整数である必要があります'),
   ],
+  handleValidationErrors,
   issueController.list
 );
 

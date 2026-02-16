@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { body, header, query } from 'express-validator';
+import { body, header, query, oneOf } from 'express-validator';
 import * as authController from '../controllers/authController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
@@ -23,6 +23,18 @@ const corsOptions = {
 
 router.use(cors(corsOptions));
 
+// 共通バリデータ関数: queryまたはheaderにorgIdがあればOK
+const validateOrgId = () => {
+  return oneOf([
+    query('orgId')
+      .notEmpty()
+      .withMessage('Organization ID is required in query parameter'),
+    header('x-organization-id')
+      .notEmpty()
+      .withMessage('Organization ID is required in header'),
+  ], { message: 'Organization ID is required in either query parameter (orgId) or header (X-Organization-Id)' });
+};
+
 // 1. ログインエンドポイント
 // POST /api/v1/auth/login
 // 注意: X-Organization-Idは不要（証明書から自動設定）
@@ -40,9 +52,7 @@ router.post(
       .withMessage('Password is required')
       .isLength({ min: 8, max: 255 })
       .withMessage('Password must be between 8 and 255 characters'),
-    query('orgId')
-      .notEmpty()
-      .withMessage('Organization ID is required'),
+    validateOrgId(),
   ],
   handleValidationErrors,
   authController.login
@@ -64,9 +74,7 @@ router.post(
       .withMessage('Authorization header is required')
       .matches(/^Bearer .+$/)
       .withMessage('Bearer scheme is required'),
-    query('orgId')
-      .notEmpty()
-      .withMessage('Organization ID is required'),
+    validateOrgId(),
   ],
   handleValidationErrors,
   authController.verifyPin
@@ -83,9 +91,7 @@ router.post(
       .withMessage('Authorization header is required')
       .matches(/^Bearer .+$/)
       .withMessage('Bearer scheme is required'),
-    query('orgId')
-      .notEmpty()
-      .withMessage('Organization ID is required'),
+    validateOrgId(),
   ],
   handleValidationErrors,
   authController.resendPin
@@ -123,9 +129,7 @@ router.post(
       .withMessage('Valid email is required')
       .isLength({ min: 1, max: 100 })
       .withMessage('Email must be between 1 and 100 characters'),
-    query('orgId')
-      .notEmpty()
-      .withMessage('Organization ID is required'),
+    validateOrgId(),
   ],
   handleValidationErrors,
   authController.resetPasswordRequest

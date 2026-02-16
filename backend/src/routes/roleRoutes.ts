@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { param, body } from 'express-validator';
 import * as roleController from '../controllers/roleController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 import cors from 'cors';
 import multer from 'multer';
 
@@ -60,6 +61,7 @@ router.get(
       .isString()
       .withMessage('roleId must be a string'),
   ],
+  handleValidationErrors,
   roleController.getRoleById
 );
 
@@ -82,7 +84,7 @@ router.post(
       .isString()
       .withMessage('ロール名は文字列である必要があります'),
     body('initialScreenFunctionName')
-      .optional()
+      .optional({ nullable: true })
       .isString()
       .withMessage('初期画面機能名は文字列である必要があります'),
     body('isActive')
@@ -90,6 +92,7 @@ router.post(
       .isBoolean()
       .withMessage('isActiveはブール値である必要があります'),
   ],
+  handleValidationErrors,
   roleController.createRole
 );
 
@@ -123,7 +126,7 @@ router.put(
       .isString()
       .withMessage('ロール名は文字列である必要があります'),
     body('initialScreenFunctionName')
-      .optional()
+      .optional({ nullable: true })
       .isString()
       .withMessage('初期画面機能名は文字列である必要があります'),
     body('isActive')
@@ -131,6 +134,7 @@ router.put(
       .isBoolean()
       .withMessage('isActiveはブール値である必要があります'),
   ],
+  handleValidationErrors,
   roleController.updateRole
 );
 
@@ -148,8 +152,6 @@ router.put(
       .isString()
       .withMessage('roleId must be a string'),
     body('functionName')
-      .notEmpty()
-      .withMessage('functionName is required')
       .isString()
       .withMessage('functionName must be a string'),
     body('functionWritePermissions')
@@ -157,6 +159,7 @@ router.put(
       .isString()
       .withMessage('functionWritePermissions must be a string'),
   ],
+  handleValidationErrors,
   roleController.updateRolePermissions
 );
 
@@ -179,6 +182,7 @@ router.patch(
       .isBoolean()
       .withMessage('isActive must be a boolean'),
   ],
+  handleValidationErrors,
   roleController.updateRoleStatus
 );
 
