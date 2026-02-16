@@ -25,7 +25,6 @@ import {
   EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getOrganizationId } from '@/utils/sessionStorageHelper';
 import { formatDateTime } from '@/utils/dateFormatter';
 import { getDepartmentConfig } from '@/types/departmentTypes';
 import {
@@ -36,7 +35,6 @@ import {
   batchUpdateMasterStatus,
   uploadCsv,
   downloadCsv,
-  type MasterRecord,
 } from '@/services/departmentApiService';
 
 const { Text } = Typography;

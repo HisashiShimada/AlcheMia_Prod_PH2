@@ -14,8 +14,6 @@ import {
   Row,
   Col,
   theme,
-  Checkbox,
-  Tooltip,
   Alert,
 } from 'antd';
 import {
@@ -28,11 +26,11 @@ import {
   EditOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getOrganizationId } from '@/utils/sessionStorageHelper';
 import { formatDateTime } from '@/utils/dateFormatter';
 import { getMasterDataConfig, getAllMasterDataConfigs } from '@/types/masterDataTypes';
 import type { MasterDataType } from '@/types/masterDataTypes';
 import * as masterApi from '@/services/masterApiService';
+import type { MasterRecord } from '@/services/masterApiService';
 
 const { Text } = Typography;
 
@@ -55,23 +53,6 @@ interface ItemCategory {
   addable: boolean;
   update: boolean;
 }
-
-/**
- * マスタ種別の型定義
- */
-interface MasterTypeData {
-  masterId: string;
-  role: string;
-  relationData: string;
-  displayName: string;
-  itemCategories: Record<string, ItemCategory | undefined>;
-  isActive: boolean;
-}
-
-/**
- * 汎用マスタデータの型定義
- */
-type MasterRecord = Record<string, unknown>;
 
 /**
  * マスタ管理画面のProps
@@ -100,7 +81,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       return initialMasterId;
     }
     // 指定がない場合はCreatorマスタ（masterId='8'）を選択
-    return '8';
+    return '1';
   });
   const [displayScope, setDisplayScope] = useState<string>('all'); // 表示切替: 'all' | 'own'
   const [fixedFilters, setFixedFilters] = useState<Record<string, string>>({});
@@ -109,13 +90,13 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   // masterIdをMasterDataTypeに変換するヘルパー関数
   const convertMasterIdToType = (masterId: string): MasterDataType => {
     switch (masterId) {
-      case '5': return 'instrument';
-      case '7': return 'vendor';
-      case '8': return 'creator';
+      case '3': return 'instrument';
+      case '2': return 'vendor';
+      case '1': return 'creator';
       default: 
         throw new Error(
           `マスタID ${masterId} はこの画面では管理できません。` +
-          `この画面ではCreator（ID: 8）、Vendor（ID: 7）、Instrument（ID: 5）のみ対応しています。`
+          `この画面ではCreator（ID: 1）、Vendor（ID: 2）、Instrument（ID: 3）のみ対応しています。`
         );
     }
   };
@@ -174,7 +155,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
   // マスタ種別の選択肢をmasterDataConfig.tsから生成（Creator、Vendor、Instrumentの3つのみ）
   const masterTypes = useMemo(() => {
-    // Creator（'8'）、Vendor（'7'）、Instrument（'5'）の順序で表示
+    // Creator（'1'）、Vendor（'2'）、Instrument（'3'）の順序で表示
     const allConfigs = getAllMasterDataConfigs();
     const targetOrder: MasterDataType[] = ['creator', 'vendor', 'instrument'];
     
@@ -437,7 +418,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       onOk: async () => {
         try {
           // DB連携マスタの場合はAPI経由で更新
-          const DB_CONNECTED_MASTERS = ['5', '7', '8'];
+          const DB_CONNECTED_MASTERS = ['3', '2', '1'];
           if (selectedMasterInfo && DB_CONNECTED_MASTERS.includes(selectedMasterInfo.masterId)) {
             await masterApi.batchUpdateMasterStatus(
               convertMasterIdToType(selectedMasterInfo.masterId),
@@ -478,7 +459,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       onOk: async () => {
         try {
           // DB連携マスタの場合はAPI経由で更新
-          const DB_CONNECTED_MASTERS = ['5', '7', '8'];
+          const DB_CONNECTED_MASTERS = ['3', '2', '1'];
           if (selectedMasterInfo && DB_CONNECTED_MASTERS.includes(selectedMasterInfo.masterId)) {
             await masterApi.batchUpdateMasterStatus(
               convertMasterIdToType(selectedMasterInfo.masterId),
@@ -513,7 +494,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     
     // マスタ名の取得
     let masterName: string;
-    if (selectedMasterInfo.masterId === '2') {
+    if (selectedMasterInfo.masterId === '0') {
       masterName = String(record.displayName || 'この部署');
     } else {
       const nameField = Object.keys(selectedMasterInfo.itemCategories)[1];
@@ -565,7 +546,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     if (!selectedMasterInfo) return;
     
     // DB連携マスタ（Instrument, Vendor, Creator）のみCSVアップロード可能
-    if (!['5', '7', '8'].includes(selectedMasterInfo.masterId)) {
+    if (!['3', '2', '1'].includes(selectedMasterInfo.masterId)) {
       message.warning('このマスタはCSVアップロードに対応していません');
       return;
     }
@@ -589,14 +570,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     
     try {
       setLoading(true);
-      
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const organizationId = getOrganizationId();
-      if (!organizationId) {
-        message.error('組織IDが取得できません');
-        setLoading(false);
-        return;
-      }
       
       // セッショントークンを取得
       const sessionToken = sessionStorage.getItem('sessionToken');
@@ -608,11 +582,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       
       // マスタIDに応じたエンドポイントを決定
       let endpoint = '';
-      if (selectedMasterInfo.masterId === '5') {
+      if (selectedMasterInfo.masterId === '3') {
         endpoint = `${apiUrl}/master/instrument/upload-csv`;
-      } else if (selectedMasterInfo.masterId === '7') {
+      } else if (selectedMasterInfo.masterId === '2') {
         endpoint = `${apiUrl}/master/vendor/upload-csv`;
-      } else if (selectedMasterInfo.masterId === '8') {
+      } else if (selectedMasterInfo.masterId === '1') {
         endpoint = `${apiUrl}/master/creator/upload-csv`;
       } else {
         message.error('このマスタはCSVアップロードに対応していません');
@@ -630,7 +604,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          'X-Organization-Id': organizationId,
           'Authorization': `Bearer ${sessionToken}`,
         },
         body: formData,
@@ -700,25 +673,18 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     if (!selectedMasterInfo) return;
     
     // DB連携マスタ（Instrument, Vendor, Creator）の場合はAPI経由
-    if (['5', '7', '8'].includes(selectedMasterInfo.masterId)) {
+    if (['3', '2', '1'].includes(selectedMasterInfo.masterId)) {
       try {
         setLoading(true);
-        
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        const organizationId = getOrganizationId();
-        if (!organizationId) {
-          message.error('組織IDが取得できません');
-          setLoading(false);
-          return;
-        }
         
         // マスタIDに応じたエンドポイントを決定
         let endpoint = '';
-        if (selectedMasterInfo.masterId === '5') {
+        if (selectedMasterInfo.masterId === '3') {
           endpoint = `${apiUrl}/master/instrument/download-csv`;
-        } else if (selectedMasterInfo.masterId === '7') {
+        } else if (selectedMasterInfo.masterId === '2') {
           endpoint = `${apiUrl}/master/vendor/download-csv`;
-        } else if (selectedMasterInfo.masterId === '8') {
+        } else if (selectedMasterInfo.masterId === '1') {
           endpoint = `${apiUrl}/master/creator/download-csv`;
         }
         
@@ -756,7 +722,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         const response = await fetch(fullUrl, {
           method: 'GET',
           headers: {
-            'X-Organization-Id': organizationId,
             'Authorization': `Bearer ${sessionToken}`,
           },
           credentials: 'include',
@@ -830,11 +795,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
     const bom = '\uFEFF';
     const csvWithBom = bom + csvContent;
-
     const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-
     const timestamp = new Date()
       .toISOString()
       .replace(/[:.]/g, '-')
@@ -855,11 +818,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     try {
       const values = await form.validateFields();
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const organizationId = getOrganizationId();
-      if (!organizationId) {
-        message.error('組織IDが取得できません');
-        return;
-      }
       
       // セッショントークンを取得
       const sessionToken = sessionStorage.getItem('sessionToken');
@@ -873,10 +831,9 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       console.log('編集中:', editingMaster ? 'はい' : 'いいえ');
       console.log('フォーム値:', values);
       console.log('API URL:', apiUrl);
-      console.log('Organization ID:', organizationId);
       
       // Instrument/Vendorマスタの場合はAPI経由で更新
-      if (selectedMasterInfo?.masterId === '5') {
+      if (selectedMasterInfo?.masterId === '3') {
         // Instrumentマスタ
         if (editingMaster) {
           // 編集の場合 - PUT
@@ -887,7 +844,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${sessionToken}`,
-                'X-Organization-Id': organizationId,
               },
               credentials: 'include',
               body: JSON.stringify({
@@ -912,7 +868,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${sessionToken}`,
-              'X-Organization-Id': organizationId,
             },
             credentials: 'include',
             body: JSON.stringify({
@@ -934,7 +889,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           await fetchMasterData('instrument');
           message.success('マスタを追加しました');
         }
-      } else if (selectedMasterInfo?.masterId === '7') {
+      } else if (selectedMasterInfo?.masterId === '2') {
         // Vendorマスタ
         if (editingMaster) {
           // 編集の場合 - PUT
@@ -945,7 +900,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${sessionToken}`,
-                'X-Organization-Id': organizationId,
               },
               credentials: 'include',
               body: JSON.stringify({
@@ -970,7 +924,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${sessionToken}`,
-              'X-Organization-Id': organizationId,
             },
             credentials: 'include',
             body: JSON.stringify({
@@ -992,7 +945,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           await fetchMasterData('vendor');
           message.success('マスタを追加しました');
         }
-      } else if (selectedMasterInfo?.masterId === '8') {
+      } else if (selectedMasterInfo?.masterId === '1') {
         // Creatorマスタ
         if (editingMaster) {
           // 編集の場合 - PUT
@@ -1003,7 +956,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${sessionToken}`,
-                'X-Organization-Id': organizationId,
               },
               credentials: 'include',
               body: JSON.stringify({
@@ -1030,7 +982,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${sessionToken}`,
-              'X-Organization-Id': organizationId,
             },
             credentials: 'include',
             body: JSON.stringify({
@@ -1066,22 +1017,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         } else {
           // 新規追加の場合
           const newRecord: MasterRecord = { ...values };
-          
-          // ロール管理画面の場合
-          if (selectedMasterInfo?.masterId === '4') {
-            // フォームから入力されたロールCDをそのまま使用
-            newRecord.masterId = '4';
-            newRecord.isActive = true;
-            
-            // 機能ID、機能名、書込可能機能IDを必ず含める
-            newRecord.functionId = values.functionId || '';
-            newRecord.functionName = values.functionName || '';
-            newRecord.functionWritePermissions = values.functionWritePermissions || '';
-          } else {
-            // その他のマスタの場合はisActiveをデフォルトでtrueに設定
-            newRecord.isActive = values.isActive !== undefined ? values.isActive : true;
-          }
-          
+  
+          newRecord.isActive = values.isActive !== undefined ? values.isActive : true;
           setMasters([...masters, newRecord]);
           message.success('マスタを追加しました');
         }
@@ -1146,7 +1083,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
   // Creatorマスタ選択時にVendor/Instrument選択肢を取得
   useEffect(() => {
-    if (selectedMasterInfo?.masterId !== '8') return;
+    if (selectedMasterInfo?.masterId !== '1') return;
 
     const fetchOptions = async () => {
       try {
@@ -1295,7 +1232,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         </Row>
 
         {/* Creatorマスタの場合のみ注意書きを表示 */}
-        {selectedMasterInfo?.masterId === '8' && (
+        {selectedMasterInfo?.masterId === '1' && (
           <Alert
             title={<strong>Creatorに紐づくVendorまたはInstrumentに不備がある場合、該当レコードは強調表示されます。</strong>}
             type="warning"
@@ -1326,8 +1263,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             showTotal: (total) => `全 ${total} 件`,
           }}
           rowClassName={(record) => {
-            // Creatorマスタ（masterId="8"）の場合、VendorとInstrumentの状態チェック
-            if (selectedMasterInfo?.masterId === '8') {
+            // Creatorマスタ（masterId="1"）の場合、VendorとInstrumentの状態チェック
+            if (selectedMasterInfo?.masterId === '1') {
               const vendorName = record.vendorName as string | undefined;
               const instrumentName = record.instrumentName as string | undefined;
               const vendorIsActive = record.vendorIsActive as boolean | null | undefined;
@@ -1356,12 +1293,15 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       {/* マスタ追加/編集モーダル */}
       <Modal
         title={
-          selectedMasterInfo?.masterId === '4' 
-            ? (editingMaster ? 'ロール編集' : 'ロール追加')
-            : selectedMasterInfo?.masterId === '2'
-            ? (editingMaster ? '部署編集' : '部署追加')
+          selectedMasterInfo?.masterId === '0' 
+            ? ''
             : (editingMaster ? 'マスタ編集' : 'マスタ追加')
         }
+        // title={
+        //   selectedMasterInfo?.masterId === '2' 
+        //     ? (editingMaster ? 'マスタ編集' : 'マスタ追加')
+        //     : ''
+        // }
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
@@ -1377,30 +1317,6 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             // （両方falseの場合は表示しない、例: updatedAt）
             const shouldShowInDialog = editingMaster ? category.update : category.addable;
             if (!shouldShowInDialog) return null;
-            
-            // ロール管理画面（masterId="4"）の場合、機能ID、機能名、書込可能機能IDを除外
-            if (selectedMasterInfo.masterId === '4') {
-              if (key === 'functionId' || key === 'functionName' || key === 'functionWritePermissions') {
-                return null;
-              }
-            }
-            
-            // ロール管理画面の場合の特別処理
-            if (selectedMasterInfo.masterId === '4') {
-              // ロールCDとロール名は常に編集可能
-              if (key === 'role' || key === 'roleName') {
-                return (
-                  <Form.Item
-                    key={key}
-                    name={key}
-                    label={category.headerName}
-                    rules={[{ required: true, message: `${category.headerName}を入力してください` }]}
-                  >
-                    <Input placeholder={`${category.headerName}を入力してください`} />
-                  </Form.Item>
-                );
-              }
-            }
             
             // IDフィールド（最初のフィールド）の判定
             const isIdField = index === 0;
@@ -1418,8 +1334,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             // 必須項目の判定（IDフィールドは追加時に必須）
             const isRequired = isIdField ? !editingMaster : (category.addable && !editingMaster);
 
-            // Creatorマスタ（masterId="8"）の場合、vendorNameとinstrumentNameはSelectを使用（選択のみ）
-            if (selectedMasterInfo.masterId === '8') {
+            // Creatorマスタ（masterId="1"）の場合、vendorNameとinstrumentNameはSelectを使用（選択のみ）
+            if (selectedMasterInfo.masterId === '1') {
               if (key === 'vendorName') {
                 return (
                   <Form.Item

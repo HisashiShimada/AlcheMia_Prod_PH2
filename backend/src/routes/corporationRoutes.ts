@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { query, param, body } from 'express-validator';
 import * as corporationController from '../controllers/corporationController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 import cors from 'cors';
 import multer from 'multer';
 
@@ -38,7 +39,7 @@ router.use(cors(corsOptions));
 
 /**
  * Corporation一覧取得
- * GET /api/v1/master/corporation
+ * GET /provider/corporation
  */
 router.get(
   '/corporation',
@@ -61,12 +62,13 @@ router.get(
       .isIn(['asc', 'desc'])
       .withMessage('sort_order must be either "asc" or "desc"'),
   ],
+  handleValidationErrors,
   corporationController.getCorporation
 );
 
 /**
  * CorporationCSVダウンロード
- * GET /api/v1/master/corporation/download-csv
+ * GET /provider/corporation/download-csv
  * 
  * 注意: このルートは /corporation/:corporationId より前に定義する必要がある
  */
@@ -78,7 +80,7 @@ router.get(
 
 /**
  * CorporationCSVアップロード
- * POST /api/v1/master/corporation/upload-csv
+ * POST /provider/corporation/upload-csv
  * 
  * 注意: このルートは /corporation/:corporationId より前に定義する必要がある
  */
@@ -91,7 +93,7 @@ router.post(
 
 /**
  * Corporation ID指定で1件取得
- * GET /api/v1/master/corporation/:corporationId
+ * GET /provider/corporation/:corporationId
  */
 router.get(
   '/corporation/:corporationId',
@@ -103,12 +105,13 @@ router.get(
       .isString()
       .withMessage('corporationId must be a string'),
   ],
+  handleValidationErrors,
   corporationController.getCorporationById
 );
 
 /**
  * Corporationを新規作成
- * POST /api/v1/master/corporation
+ * POST /provider/corporation
  */
 router.post(
   '/corporation',
@@ -124,12 +127,13 @@ router.post(
       .isBoolean()
       .withMessage('isActive must be a boolean'),
   ],
+  handleValidationErrors,
   corporationController.createCorporation
 );
 
 /**
  * Corporationを更新
- * PUT /api/v1/master/corporation/:corporationId
+ * PUT /provider/corporation/:corporationId
  */
 router.put(
   '/corporation/:corporationId',
@@ -150,12 +154,13 @@ router.put(
       .isBoolean()
       .withMessage('isActive must be a boolean'),
   ],
+  handleValidationErrors,
   corporationController.updateCorporation
 );
 
 /**
  * Corporationのアクティブ状態を更新
- * PATCH /api/v1/master/corporation/:corporationId/status
+ * PATCH /provider/corporation/:corporationId/status
  */
 router.patch(
   '/corporation/:corporationId/status',
@@ -167,6 +172,7 @@ router.patch(
       .isString()
       .withMessage('corporationId must be a string'),
   ],
+  handleValidationErrors,
   corporationController.updateCorporationStatus
 );
 

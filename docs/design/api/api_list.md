@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.7.0
-- **最終更新**: 2026-01-31
+- **バージョン**: 2.8.0
+- **最終更新**: 2026-02-13
 - **担当**: Development Team
 
 ---
@@ -290,6 +290,149 @@
 
 ---
 
+### 10. 部署管理API（Department Management）
+
+**API設計書**: [api_department_management.md](./api_department_management.md)
+**ルートファイル**: `backend/src/routes/departmentRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 10.1 | GET | /api/v1/systemManagement/department | 部署一覧取得 | ✅ 実装済み | departmentController.getDepartments |
+| 10.2 | GET | /api/v1/systemManagement/department/download-csv | 部署CSVダウンロード | ✅ 実装済み | departmentController.downloadDepartmentCsv |
+| 10.3 | POST | /api/v1/systemManagement/department/upload-csv | 部署CSVアップロード | ✅ 実装済み | departmentController.uploadDepartmentCsv |
+| 10.4 | GET | /api/v1/systemManagement/department/:departmentCd | 部署詳細取得 | ✅ 実装済み | departmentController.getDepartmentById |
+| 10.5 | POST | /api/v1/systemManagement/department | 部署新規作成 | ✅ 実装済み | departmentController.createDepartment |
+| 10.6 | PUT | /api/v1/systemManagement/department/:departmentCd | 部署更新 | ✅ 実装済み | departmentController.updateDepartment |
+| 10.7 | PATCH | /api/v1/systemManagement/department/:departmentCd/status | 部署アクティブ状態更新 | ✅ 実装済み | departmentController.updateDepartmentStatus |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`（JWTからorganizationIdを取得）
+- 権限: system_admin
+
+**備考:**
+- ✅ 全エンドポイント実装完了
+- マルチテナント分離（authMiddlewareがorganization_idを設定）
+- 検索・フィルタリング機能（search, is_active）
+- ソート機能（sort_by, sort_order）
+- CSVアップロード時のバリデーション
+- ファイルサイズ制限: 10MB
+
+---
+
+### 11. ロール管理API（Role Management）
+
+**API設計書**: [api_role_management.md](./api_role_management.md)
+**ルートファイル**: `backend/src/routes/roleRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 11.1 | GET | /api/v1/master/role | ロール一覧取得 | ✅ 実装済み | roleController.getRoles |
+| 11.2 | GET | /api/v1/master/role/download-csv | ロールCSVダウンロード | ✅ 実装済み | roleController.downloadRoleCsv |
+| 11.3 | GET | /api/v1/master/role/:roleId | ロール詳細取得 | ✅ 実装済み | roleController.getRoleById |
+| 11.4 | POST | /api/v1/master/role | ロール新規追加 | ✅ 実装済み | roleController.createRole |
+| 11.5 | POST | /api/v1/master/role/upload-csv | ロールCSVアップロード | ✅ 実装済み | roleController.uploadRoleCsv |
+| 11.6 | PUT | /api/v1/master/role/:roleId | ロール更新 | ✅ 実装済み | roleController.updateRole |
+| 11.7 | PUT | /api/v1/master/role/:roleId/permissions | ロール権限更新 | ✅ 実装済み | roleController.updateRolePermissions |
+| 11.8 | PATCH | /api/v1/master/role/:roleId/status | ロールアクティブ状態更新 | ✅ 実装済み | roleController.updateRoleStatus |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`
+- 権限: system_admin, data_admin
+
+**備考:**
+- ✅ 全エンドポイント実装完了
+- ロール権限管理機能（機能名、書き込み権限の設定）
+- 初期画面機能名の設定
+- マルチテナント分離
+- CSVアップロード時のバリデーション
+
+---
+
+### 12. マスタ管理API（Master Data Management）
+
+**API設計書**: [api_master_management.md](./api_master_management.md)
+**ルートファイル**: `backend/src/routes/masterRoutes.ts`
+
+#### 12.1 Creatorマスタ（7エンドポイント）
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 12.1.1 | GET | /api/v1/master/creator | Creator一覧取得 | ✅ 実装済み | masterController.getCreators |
+| 12.1.2 | GET | /api/v1/master/creator/download-csv | CreatorCSVダウンロード | ✅ 実装済み | masterController.downloadCreatorsCsv |
+| 12.1.3 | POST | /api/v1/master/creator/upload-csv | CreatorCSVアップロード | ✅ 実装済み | masterController.uploadCreatorsCsv |
+| 12.1.4 | GET | /api/v1/master/creator/:creatorId | Creator詳細取得 | ✅ 実装済み | masterController.getCreatorById |
+| 12.1.5 | POST | /api/v1/master/creator | Creator新規作成 | ✅ 実装済み | masterController.createCreator |
+| 12.1.6 | PUT | /api/v1/master/creator/:creatorId | Creator更新 | ✅ 実装済み | masterController.updateCreator |
+| 12.1.7 | PATCH | /api/v1/master/creator/:creatorId/status | Creatorアクティブ状態更新 | ✅ 実装済み | masterController.updateCreatorStatus |
+
+#### 12.2 Vendorマスタ（7エンドポイント）
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 12.2.1 | GET | /api/v1/master/vendor | Vendor一覧取得 | ✅ 実装済み | masterController.getVendors |
+| 12.2.2 | GET | /api/v1/master/vendor/download-csv | VendorCSVダウンロード | ✅ 実装済み | masterController.downloadVendorsCsv |
+| 12.2.3 | POST | /api/v1/master/vendor/upload-csv | VendorCSVアップロード | ✅ 実装済み | masterController.uploadVendorsCsv |
+| 12.2.4 | GET | /api/v1/master/vendor/:vendorId | Vendor詳細取得 | ✅ 実装済み | masterController.getVendorById |
+| 12.2.5 | POST | /api/v1/master/vendor | Vendor新規作成 | ✅ 実装済み | masterController.createVendor |
+| 12.2.6 | PUT | /api/v1/master/vendor/:vendorId | Vendor更新 | ✅ 実装済み | masterController.updateVendor |
+| 12.2.7 | PATCH | /api/v1/master/vendor/:vendorId/status | Vendorアクティブ状態更新 | ✅ 実装済み | masterController.updateVendorStatus |
+
+#### 12.3 Instrumentマスタ（7エンドポイント）
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 12.3.1 | GET | /api/v1/master/instrument | Instrument一覧取得 | ✅ 実装済み | masterController.getInstruments |
+| 12.3.2 | GET | /api/v1/master/instrument/download-csv | InstrumentCSVダウンロード | ✅ 実装済み | masterController.downloadInstrumentsCsv |
+| 12.3.3 | POST | /api/v1/master/instrument/upload-csv | InstrumentCSVアップロード | ✅ 実装済み | masterController.uploadInstrumentsCsv |
+| 12.3.4 | GET | /api/v1/master/instrument/:instrumentId | Instrument詳細取得 | ✅ 実装済み | masterController.getInstrumentById |
+| 12.3.5 | POST | /api/v1/master/instrument | Instrument新規作成 | ✅ 実装済み | masterController.createInstrument |
+| 12.3.6 | PUT | /api/v1/master/instrument/:instrumentId | Instrument更新 | ✅ 実装済み | masterController.updateInstrument |
+| 12.3.7 | PATCH | /api/v1/master/instrument/:instrumentId/status | Instrumentアクティブ状態更新 | ✅ 実装済み | masterController.updateInstrumentStatus |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`（JWTからorganizationIdを取得）
+- 権限: system_admin, data_admin
+
+**備考:**
+- ✅ 全21エンドポイント実装完了
+- マルチテナント分離（authMiddlewareがorganization_idを設定）
+- Creatorマスタ: 表示スコープ設定（all: 全組織、own: 自組織のみ）
+- 検索・フィルタリング機能（search, is_active, display_scope）
+- CSVアップロード時のバリデーション
+- ファイルサイズ制限: 10MB
+- ⚠️ Instrumentマスタのみ `/api/v1` プレフィックスなし
+
+---
+
+### 13. 会社管理API（Corporation Management）
+
+**API設計書**: [api_corporation_management.md](./api_corporation_management.md) 
+**ルートファイル**: `backend/src/routes/corporationRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 13.1 | GET | /api/v1/provider/corporation | 会社一覧取得 | ✅ 実装済み | corporationController.getCorporation |
+| 13.2 | GET | /api/v1/provider/corporation/download-csv | 会社CSVダウンロード | ✅ 実装済み | corporationController.downloadCorporationCsv |
+| 13.3 | POST | /api/v1/provider/corporation/upload-csv | 会社CSVアップロード | ✅ 実装済み | corporationController.uploadCorporationCsv |
+| 13.4 | GET | /api/v1/provider/corporation/:corporationId | 会社詳細取得 | ✅ 実装済み | corporationController.getCorporationById |
+| 13.5 | POST | /api/v1/provider/corporation | 会社新規作成 | ✅ 実装済み | corporationController.createCorporation |
+| 13.6 | PUT | /api/v1/provider/corporation/:corporationId | 会社更新 | ✅ 実装済み | corporationController.updateCorporation |
+| 13.7 | PATCH | /api/v1/provider/corporation/:corporationId/status | 会社アクティブ状態更新 | ✅ 実装済み | corporationController.updateCorporationStatus |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`
+- 権限: provider（システムプロバイダー）
+
+**備考:**
+- ✅ 全エンドポイント実装完了
+- プロバイダー専用のマスタ管理API
+- 検索・フィルタリング機能（search, is_active）
+- ソート機能（sort_by, sort_order）
+- CSVアップロード時のバリデーション
+- ファイルサイズ制限: 10MB
+
+---
+
 ## 🔍 API検索ガイド
 
 ### API名で検索する
@@ -343,7 +486,11 @@
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
 | 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
 | タスク管理API | 1 | 1 | 0 | 0 | 100% |
-| **合計** | **52** | **30** | **1** | **21** | **56%** |
+| 部署管理API | 7 | 7 | 0 | 0 | 100% |
+| ロール管理API | 8 | 8 | 0 | 0 | 100% |
+| マスタ管理API | 21 | 21 | 0 | 0 | 100% |
+| 会社管理API | 7 | 7 | 0 | 0 | 100% |
+| **合計** | **95** | **73** | **1** | **21** | **77%** |
 
 ### 優先度別実装状況
 
@@ -527,6 +674,15 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.8.0 | 2026-02-13 | 部署・ロール・マスタ・会社管理API追加（95エンドポイント） | Cline |
+| | | - 部署管理API: 新規カテゴリ追加、7エンドポイント（実装済み100%） | |
+| | | - ロール管理API: 新規カテゴリ追加、8エンドポイント（実装済み100%） | |
+| | | - マスタ管理API: 新規カテゴリ追加、21エンドポイント（実装済み100%） | |
+| | |   - Creator: 7エンドポイント、Vendor: 7エンドポイント、Instrument: 7エンドポイント | |
+| | | - 会社管理API: 新規カテゴリ追加、7エンドポイント（実装済み100%） | |
+| | | - カテゴリ数: 9→13カテゴリ | |
+| | | - 実装済みAPI総数: 30→73エンドポイント（+43エンドポイント） | |
+| | | - 全体実装率: 56%→77%に大幅向上 | |
 | 2.7.0 | 2026-01-31 | 指示確認API実装完了 | Development Team |
 | 2.6.0 | 2026-01-28 14:45 | タスク管理API追加（52→53エンドポイント） | Cline |
 | | | - 新規カテゴリ追加: タスク管理API（1エンドポイント、実装済み100%） | |

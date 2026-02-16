@@ -285,25 +285,10 @@ export async function createRole(
     console.log('=== createRole API called ===');
     console.log('Body:', req.body);
 
+    // バリデーションはミドルウェアで処理済み
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
     const { role, roleName, initialScreenFunctionName, isActive } = req.body;
-
-    // バリデーション
-    if (!role || !roleName) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_REQUIRED_FIELDS',
-          message: 'ロールCDとロール名は必須です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] || uuidv4(),
-        },
-      });
-      return;
-    }
 
     // サービス層で作成
     await masterService.createRole(

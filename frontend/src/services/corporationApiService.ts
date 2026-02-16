@@ -22,9 +22,26 @@ export interface ApiResponse<T> {
 }
 
 /**
+ * 会社データの型（インデックスシグネチャ付き）
+ */
+export interface CorporationRecord {
+  corporationId: string; // UUID
+  corporationName: string;
+  isActive: boolean;
+  is_active: boolean;
+  create_user_id: string;
+  update_user_id: string;
+  create_at: Date;
+  update_at: Date;
+  
+  // 動的プロパティアクセス用のインデックスシグネチャ
+  [key: string]: unknown;
+}
+
+/**
  * 会社データの汎用型
  */
-export type MasterRecord = Record<string, unknown>;
+export type MasterRecord = CorporationRecord;
 
 /**
  * 会社一覧を取得

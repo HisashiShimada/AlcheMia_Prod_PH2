@@ -463,6 +463,7 @@
 - **主要カラム**:
   - `organization_id` - 組織ID
   - `instrument_uuid` - uuid
+  - `corporation_id` - 会社ID
   - `instrument_id` - ID
   - `instrument_name` - 名称
   - `instrument_description` - 説明
@@ -483,6 +484,7 @@
 - **主要カラム**:
   - `organization_id` - 組織ID
   - `vendor_uuid` - uuid
+  - `corporation_id` - 会社ID
   - `vendor_id` - ID
   - `vendor_name` - 名称
   - `vendor_description` - 説明
