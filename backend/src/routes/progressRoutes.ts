@@ -8,6 +8,8 @@
 import { Router } from 'express';
 import * as progressController from '../controllers/progressController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
+import { validateUUID, validateParamString, validateParamInt } from '../utils/validators';
 
 const router = Router();
 
@@ -16,6 +18,8 @@ const router = Router();
  * GET /api/v1/progress/:projectId/:methodId/:taskNo
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware バリデーションルール - パラメータ検証
+ * @middleware handleValidationErrors - バリデーションエラーハンドリング
  * @description 指定されたプロジェクト・メソッド・タスクに紐づくトランジションレベルの進捗情報を取得
  * @note Task 6.1: ルート定義とミドルウェアチェーン
  * @requirements REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7, REQ-8, REQ-9, REQ-10
@@ -24,6 +28,12 @@ const router = Router();
 router.get(
   '/:projectId/:methodId/:taskNo',
   authMiddleware,
+  [
+    validateUUID('projectId', 'param'),
+    validateParamString('methodId', 1, 255),
+    validateParamInt('taskNo', 1),
+  ],
+  handleValidationErrors,
   progressController.getProgressData
 );
 

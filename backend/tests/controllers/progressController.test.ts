@@ -198,74 +198,10 @@ describe('ProgressController.getProgressData', () => {
     });
   });
 
-  describe('Task 5.1: パラメータバリデーション', () => {
-    it('should return 400 for invalid projectId (not UUID)', async () => {
-      mockRequest.params!.projectId = 'invalid-uuid';
-
-      await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
-
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'VALIDATION_ERROR',
-            message: expect.stringContaining('UUID')
-          })
-        })
-      );
-    });
-
-    it('should return 400 for invalid taskNo (not integer)', async () => {
-      mockRequest.params!.taskNo = 'abc';
-
-      await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
-
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'VALIDATION_ERROR',
-            message: expect.stringContaining('整数')
-          })
-        })
-      );
-    });
-
-    it('should return 400 for negative taskNo', async () => {
-      mockRequest.params!.taskNo = '-5';
-
-      await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
-
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'VALIDATION_ERROR',
-            message: expect.stringContaining('正の整数')
-          })
-        })
-      );
-    });
-
-    it('should return 400 for empty methodId', async () => {
-      mockRequest.params!.methodId = '';
-
-      await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
-
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      expect(mockJson).toHaveBeenCalledWith(
-        expect.objectContaining({
-          success: false,
-          error: expect.objectContaining({
-            code: 'VALIDATION_ERROR',
-            message: expect.stringContaining('methodId')
-          })
-        })
-      );
-    });
+  describe('Task 5.1: 認証チェック', () => {
+    // Note: パラメータバリデーションはミドルウェア層（progressRoutes.ts）で実施されるため、
+    // コントローラーレベルではバリデーション済みのパラメータを受け取る前提でテストします。
+    // バリデーションエラーのテストは、routes/progressRoutes.test.ts で実施してください。
 
     it('should return 401 when user is not authenticated', async () => {
       mockRequest.user = undefined;
@@ -686,33 +622,6 @@ describe('ProgressController.getProgressData', () => {
         expect(response.success).toBe(false);
         expect(response.error.code).toBe('DATABASE_ERROR');
         expect(response.error.message).toBe('データベースエラーが発生しました');
-      });
-
-      it('should return 400 with unified error response format for validation errors', async () => {
-        mockRequest.params!.projectId = 'invalid-uuid';
-
-        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
-
-        // HTTPステータスコード検証
-        expect(mockStatus).toHaveBeenCalledWith(400);
-        
-        // レスポンス構造検証
-        const response = mockJson.mock.calls[0][0];
-        expect(response).toEqual({
-          success: false,
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: expect.any(String),
-            details: expect.any(Array)
-          },
-          meta: {
-            timestamp: expect.any(String),
-            requestId: 'test-request-id-123'
-          }
-        });
-
-        // エラーメッセージにUUIDに関する情報が含まれることを確認
-        expect(response.error.message).toContain('UUID');
       });
 
       it('should not expose internal errors in response', async () => {

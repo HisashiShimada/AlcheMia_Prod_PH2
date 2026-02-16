@@ -19,22 +19,6 @@ import { TransitionDataRepository } from '../repositories/transitionDataReposito
 import { logger } from '../utils/logger';
 
 /**
- * UUID形式の検証
- */
-function isValidUUID(uuid: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
-}
-
-/**
- * 整数形式の検証
- */
-function isValidInteger(value: string): boolean {
-  const num = parseInt(value, 10);
-  return !isNaN(num) && num.toString() === value && num > 0;
-}
-
-/**
  * エラーコードからHTTPステータスコードへのマッピング
  */
 function getHttpStatusFromErrorCode(errorCode: string): number {
@@ -73,78 +57,9 @@ export async function getProgressData(req: Request, res: Response): Promise<void
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('X-Request-Id', requestId);
 
-    // 認証チェック
-    if (!req.user) {
-      logger.error('Authentication required', { requestId });
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_MISSING',
-          message: '認証トークンが提供されていません'
-        },
-        meta: {
-          timestamp,
-          requestId
-        }
-      });
-      return;
-    }
-
-    // パラメータの取得
+    // パラメータの取得（バリデーションミドルウェアで検証済み）
     const { projectId, methodId, taskNo: taskNoStr } = req.params;
-    const { organizationId } = req.user;
-
-    // パラメータバリデーション
-    if (!isValidUUID(projectId)) {
-      logger.error('Invalid projectId format', { projectId, requestId });
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'projectIdはUUID形式である必要があります',
-          details: [`projectId: ${projectId}`]
-        },
-        meta: {
-          timestamp,
-          requestId
-        }
-      });
-      return;
-    }
-
-    if (!methodId || methodId.trim() === '') {
-      logger.error('Empty methodId', { methodId, requestId });
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'methodIdは空でない文字列である必要があります'
-        },
-        meta: {
-          timestamp,
-          requestId
-        }
-      });
-      return;
-    }
-
-    if (!isValidInteger(taskNoStr)) {
-      logger.error('Invalid taskNo format', { taskNo: taskNoStr, requestId });
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'taskNoは正の整数である必要があります',
-          details: [`taskNo: ${taskNoStr}`]
-        },
-        meta: {
-          timestamp,
-          requestId
-        }
-      });
-      return;
-    }
-
+    const { organizationId } = req.user!;
     const taskNo = parseInt(taskNoStr, 10);
 
     logger.info('Progress data request received', {
