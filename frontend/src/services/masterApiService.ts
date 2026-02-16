@@ -84,16 +84,37 @@ export type MasterRecord = CreatorRecord | InstrumentRecord | VendorRecord;
  * マスタ一覧を取得
  */
 export async function fetchMasters(
-  type: MasterDataType
+  type: MasterDataType,
+  filters?: {
+    displayScope?: 'all' | 'own';
+    search?: string;
+    isActive?: boolean;
+  }
 ): Promise<MasterRecord[]> {
   const config = getMasterDataConfig(type);
   const client = createApiClient();
   
+  // クエリパラメータを構築
+  const params: Record<string, string> = {};
+  if (filters?.displayScope) {
+    params.display_scope = filters.displayScope;
+  }
+  if (filters?.search?.trim()) {
+    params.search = filters.search.trim();
+  }
+  if (filters?.isActive !== undefined) {
+    params.is_active = String(filters.isActive);
+  }
+  
   console.log(`=== Fetching ${config.displayName} ===`);
   console.log('Endpoint:', config.apiEndpoint);
+  console.log('Filters:', filters);
+  console.log('Params:', params);
   
   try {
-    const response = await client.get<ApiResponse<MasterRecord[]>>(config.apiEndpoint);
+    const response = await client.get<ApiResponse<MasterRecord[]>>(config.apiEndpoint, {
+      params,
+    });
     
     console.log('Response status:', response.status);
     console.log('API Response:', response.data);

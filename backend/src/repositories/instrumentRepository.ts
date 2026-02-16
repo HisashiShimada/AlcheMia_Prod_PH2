@@ -91,7 +91,8 @@ export const create = async (
     instrumentAnnotation?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<InstrumentMaster> => {
   const pool = getPool();
   const { v4: uuidv4 } = require('uuid');
@@ -104,13 +105,14 @@ export const create = async (
       instrument_name,
       instrument_description,
       instrument_annotation,
+      corporation_id,
       is_active,
       create_user_id,
       update_user_id,
       create_at,
       update_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
     )
     RETURNING 
       instrument_id,
@@ -128,6 +130,7 @@ export const create = async (
     data.instrumentName,
     data.instrumentDescription || null,
     data.instrumentAnnotation || null,
+    corporationId,
     data.isActive !== undefined ? data.isActive : true,
     userId,
     userId,
@@ -143,6 +146,8 @@ export const create = async (
  * @param organizationId 組織ID
  * @param instrumentId Instrument ID
  * @param data 更新データ
+ * @param userId ユーザーID
+ * @param corporationId 会社ID
  * @returns 更新されたInstrumentマスタ
  */
 export const update = async (
@@ -154,39 +159,76 @@ export const update = async (
     instrumentAnnotation?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<InstrumentMaster | null> => {
   const pool = getPool();
   
-  const query = `
-    UPDATE instrument
-    SET
-      instrument_name = COALESCE($3, instrument_name),
-      instrument_description = COALESCE($4, instrument_description),
-      instrument_annotation = COALESCE($5, instrument_annotation),
-      is_active = COALESCE($6, is_active),
-      update_user_id = $7,
-      update_at = NOW()
-    WHERE organization_id = $1
-      AND instrument_id = $2
-    RETURNING 
-      instrument_id,
-      instrument_name,
-      instrument_description,
-      instrument_annotation,
-      is_active,
-      update_at
-  `;
+  // WHERE句の条件を構築
+  let query: string;
+  let values: any[];
   
-  const values = [
-    organizationId,
-    instrumentId,
-    data.instrumentName,
-    data.instrumentDescription,
-    data.instrumentAnnotation,
-    data.isActive,
-    userId,
-  ];
+  if (corporationId !== null && corporationId !== undefined) {
+    // corporation_idが存在する場合：corporation_idで照合
+    query = `
+      UPDATE instrument
+      SET
+        instrument_name = COALESCE($3, instrument_name),
+        instrument_description = COALESCE($4, instrument_description),
+        instrument_annotation = COALESCE($5, instrument_annotation),
+        is_active = COALESCE($6, is_active),
+        update_user_id = $7,
+        update_at = NOW()
+      WHERE corporation_id = $1
+        AND instrument_id = $2
+      RETURNING 
+        instrument_id,
+        instrument_name,
+        instrument_description,
+        instrument_annotation,
+        is_active,
+        update_at
+    `;
+    values = [
+      corporationId,
+      instrumentId,
+      data.instrumentName,
+      data.instrumentDescription,
+      data.instrumentAnnotation,
+      data.isActive,
+      userId,
+    ];
+  } else {
+    // corporation_idがNULLの場合：organization_idで照合
+    query = `
+      UPDATE instrument
+      SET
+        instrument_name = COALESCE($3, instrument_name),
+        instrument_description = COALESCE($4, instrument_description),
+        instrument_annotation = COALESCE($5, instrument_annotation),
+        is_active = COALESCE($6, is_active),
+        update_user_id = $7,
+        update_at = NOW()
+      WHERE organization_id = $1
+        AND instrument_id = $2
+      RETURNING 
+        instrument_id,
+        instrument_name,
+        instrument_description,
+        instrument_annotation,
+        is_active,
+        update_at
+    `;
+    values = [
+      organizationId,
+      instrumentId,
+      data.instrumentName,
+      data.instrumentDescription,
+      data.instrumentAnnotation,
+      data.isActive,
+      userId,
+    ];
+  }
   
   const result = await pool.query(query, values);
   return result.rows[0] || null;
@@ -198,34 +240,64 @@ export const update = async (
  * @param organizationId 組織ID
  * @param instrumentId Instrument ID
  * @param isActive アクティブ状態
+ * @param userId ユーザーID
+ * @param corporationId 会社ID
  * @returns 更新されたInstrumentマスタ
  */
 export const updateStatus = async (
   organizationId: string,
   instrumentId: string,
   isActive: boolean,
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<InstrumentMaster | null> => {
   const pool = getPool();
   
-  const query = `
-    UPDATE instrument
-    SET
-      is_active = $3,
-      update_user_id = $4,
-      update_at = NOW()
-    WHERE organization_id = $1
-      AND instrument_id = $2
-    RETURNING 
-      instrument_id,
-      instrument_name,
-      instrument_description,
-      instrument_annotation,
-      is_active,
-      update_at
-  `;
+  // WHERE句の条件を構築
+  let query: string;
+  let values: any[];
   
-  const result = await pool.query(query, [organizationId, instrumentId, isActive, userId]);
+  if (corporationId !== null && corporationId !== undefined) {
+    // corporation_idが存在する場合：corporation_idで照合
+    query = `
+      UPDATE instrument
+      SET
+        is_active = $3,
+        update_user_id = $4,
+        update_at = NOW()
+      WHERE corporation_id = $1
+        AND instrument_id = $2
+      RETURNING 
+        instrument_id,
+        instrument_name,
+        instrument_description,
+        instrument_annotation,
+        is_active,
+        update_at
+    `;
+    values = [corporationId, instrumentId, isActive, userId];
+  } else {
+    // corporation_idがNULLの場合：organization_idで照合
+    query = `
+      UPDATE instrument
+      SET
+        is_active = $3,
+        update_user_id = $4,
+        update_at = NOW()
+      WHERE organization_id = $1
+        AND instrument_id = $2
+      RETURNING 
+        instrument_id,
+        instrument_name,
+        instrument_description,
+        instrument_annotation,
+        is_active,
+        update_at
+    `;
+    values = [organizationId, instrumentId, isActive, userId];
+  }
+  
+  const result = await pool.query(query, values);
   return result.rows[0] || null;
 };
 
@@ -259,11 +331,13 @@ export const existsById = async (
  * フィルタ条件付きでInstrumentマスタを取得（WHERE句でフィルタリング）
  * 
  * @param organizationId 組織ID
+ * @param corporationId 会社ID
  * @param filters フィルタ条件
  * @returns Instrumentマスタの配列
  */
 export const findAllWithFilters = async (
   organizationId: string,
+  corporationId: string | null,
   filters: {
     displayScope?: string;
     search?: string;
@@ -272,9 +346,22 @@ export const findAllWithFilters = async (
 ): Promise<InstrumentMaster[]> => {
   const pool = getPool();
   
-  const whereClauses: string[] = ['organization_id = $1'];
-  const values: any[] = [organizationId];
-  let paramIndex = 2;
+  const whereClauses: string[] = [];
+  const values: any[] = [];
+  let paramIndex = 1;
+  
+  // 表示切替フィルタ（display_scope）
+  if (filters.displayScope === 'all') {
+    // 全体選択: corporation_idのみでフィルタ（organization_idは照合しない）
+    whereClauses.push(`corporation_id = $${paramIndex}`);
+    values.push(corporationId);
+    paramIndex++;
+  } else {
+    // 自組織選択: organization_idのみでフィルタ
+    whereClauses.push(`organization_id = $${paramIndex}`);
+    values.push(organizationId);
+    paramIndex++;
+  }
   
   // 検索フィルタ（instrument_id, instrument_name, instrument_description, instrument_annotationの4項目で部分一致検索）
   if (filters.search) {

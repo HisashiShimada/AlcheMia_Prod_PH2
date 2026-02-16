@@ -22,8 +22,10 @@ export async function getCreators(req: Request, res: Response, next: NextFunctio
     // バリデーションはミドルウェアで処理済み
     // 組織IDを取得（req.user.organizationId）
     const organizationId = req.user?.organizationId;
+    const corporationId = req.session.corporationId || null;
     
     console.log('Organization ID:', organizationId);
+    console.log('Corporation ID:', corporationId);
     console.log('req.organizationId:', (req as any).organizationId);
 
     // クエリパラメータを取得
@@ -41,9 +43,9 @@ export async function getCreators(req: Request, res: Response, next: NextFunctio
       filters.isActive = is_active === 'true' || is_active === '1';
     }
 
-    // サービス層でデータ取得
-    console.log('Calling masterService.getCreatorMasters with:', { organizationId, filters });
-    const creators = await masterService.getCreatorMasters(String(organizationId), filters);
+    // サービス層でデータ取得（フィルタ対応版を使用）
+    console.log('Calling masterService.getCreatorMastersWithFilters with:', { organizationId, corporationId, filters });
+    const creators = await masterService.getCreatorMastersWithFilters(String(organizationId), corporationId, filters);
     console.log('Retrieved creators:', creators.length, 'records');
 
     // 成功レスポンス
@@ -118,13 +120,31 @@ export async function getInstruments(req: Request, res: Response, next: NextFunc
     console.log('Headers:', req.headers);
     console.log('Query:', req.query);
     
-    // 組織IDを取得（req.user.organizationId）
+    // 組織IDとcorporation IDを取得
     const organizationId = req.user?.organizationId;
+    const corporationId = req.session.corporationId || null;
     
     console.log('Organization ID:', organizationId);
+    console.log('Corporation ID:', corporationId);
 
-    // サービス層でデータ取得
-    const instruments = await masterService.getInstrumentMasters(String(organizationId));
+    // クエリパラメータを取得
+    const { display_scope, search, is_active } = req.query;
+
+    // フィルター構築
+    const filters: any = {};
+    if (display_scope) {
+      filters.displayScope = String(display_scope);
+    }
+    if (search) {
+      filters.search = String(search);
+    }
+    if (is_active !== undefined) {
+      filters.isActive = is_active === 'true' || is_active === '1';
+    }
+
+    // サービス層でデータ取得（フィルタ対応版を使用）
+    console.log('Calling masterService.getInstrumentMastersWithFilters with:', { organizationId, corporationId, filters });
+    const instruments = await masterService.getInstrumentMastersWithFilters(String(organizationId), corporationId, filters);
     console.log('Retrieved instruments:', instruments.length, 'records');
 
     // 成功レスポンス
@@ -197,13 +217,31 @@ export async function getVendors(req: Request, res: Response, next: NextFunction
     console.log('Headers:', req.headers);
     console.log('Query:', req.query);
     
-    // 組織IDを取得（req.user.organizationId）
+    // 組織IDとcorporation IDを取得
     const organizationId = req.user?.organizationId;
+    const corporationId = req.session.corporationId || null;
     
     console.log('Organization ID:', organizationId);
+    console.log('Corporation ID:', corporationId);
 
-    // サービス層でデータ取得
-    const vendors = await masterService.getVendorMasters(String(organizationId));
+    // クエリパラメータを取得
+    const { display_scope, search, is_active } = req.query;
+
+    // フィルター構築
+    const filters: any = {};
+    if (display_scope) {
+      filters.displayScope = String(display_scope);
+    }
+    if (search) {
+      filters.search = String(search);
+    }
+    if (is_active !== undefined) {
+      filters.isActive = is_active === 'true' || is_active === '1';
+    }
+
+    // サービス層でデータ取得（フィルタ対応版を使用）
+    console.log('Calling masterService.getVendorMastersWithFilters with:', { organizationId, corporationId, filters });
+    const vendors = await masterService.getVendorMastersWithFilters(String(organizationId), corporationId, filters);
     console.log('Retrieved vendors:', vendors.length, 'records');
 
     // 成功レスポンス
@@ -279,8 +317,9 @@ export async function createInstrument(req: Request, res: Response, next: NextFu
     // バリデーションはミドルウェアで処理済み
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
 
-    const instrument = await masterService.createInstrumentMaster(String(organizationId), req.body, String(userId));
+    const instrument = await masterService.createInstrumentMaster(String(organizationId), req.body, String(userId), corporationId);
 
     res.status(201).json({
       success: true,
@@ -305,13 +344,15 @@ export async function updateInstrument(req: Request, res: Response, next: NextFu
   try {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
     const { instrumentId } = req.params;
 
     const instrument = await masterService.updateInstrumentMaster(
       String(organizationId),
       instrumentId,
       req.body,
-      String(userId)
+      String(userId),
+      corporationId
     );
 
     if (!instrument) {
@@ -352,6 +393,7 @@ export async function updateInstrumentStatus(req: Request, res: Response, next: 
   try {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
     const { instrumentId } = req.params;
     const { isActive } = req.body;
 
@@ -359,7 +401,8 @@ export async function updateInstrumentStatus(req: Request, res: Response, next: 
       String(organizationId),
       instrumentId,
       isActive,
-      String(userId)
+      String(userId),
+      corporationId
     );
 
     if (!instrument) {
@@ -401,8 +444,9 @@ export async function createVendor(req: Request, res: Response, next: NextFuncti
     // バリデーションはミドルウェアで処理済み
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
 
-    const vendor = await masterService.createVendorMaster(String(organizationId), req.body, String(userId));
+    const vendor = await masterService.createVendorMaster(String(organizationId), req.body, String(userId), corporationId);
 
     res.status(201).json({
       success: true,
@@ -427,13 +471,15 @@ export async function updateVendor(req: Request, res: Response, next: NextFuncti
   try {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
     const { vendorId } = req.params;
 
     const vendor = await masterService.updateVendorMaster(
       String(organizationId),
       vendorId,
       req.body,
-      String(userId)
+      String(userId),
+      corporationId
     );
 
     if (!vendor) {
@@ -474,6 +520,7 @@ export async function updateVendorStatus(req: Request, res: Response, next: Next
   try {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
     const { vendorId } = req.params;
     const { isActive } = req.body;
 
@@ -481,7 +528,8 @@ export async function updateVendorStatus(req: Request, res: Response, next: Next
       String(organizationId),
       vendorId,
       isActive,
-      String(userId)
+      String(userId),
+      corporationId
     );
 
     if (!vendor) {
@@ -526,8 +574,9 @@ export async function createCreator(req: Request, res: Response, next: NextFunct
     // バリデーションはミドルウェアで処理済み
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
 
-    const creator = await masterService.createCreatorMaster(String(organizationId), req.body, String(userId));
+    const creator = await masterService.createCreatorMaster(String(organizationId), req.body, String(userId), corporationId);
 
     res.status(201).json({
       success: true,
@@ -552,13 +601,15 @@ export async function updateCreator(req: Request, res: Response, next: NextFunct
   try {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
     const { creatorId } = req.params;
 
     const creator = await masterService.updateCreatorMaster(
       String(organizationId),
       creatorId,
       req.body,
-      String(userId)
+      String(userId),
+      corporationId
     );
 
     if (!creator) {
@@ -599,6 +650,7 @@ export async function updateCreatorStatus(req: Request, res: Response, next: Nex
   try {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
     const { creatorId } = req.params;
     const { isActive } = req.body;
 
@@ -606,7 +658,8 @@ export async function updateCreatorStatus(req: Request, res: Response, next: Nex
       String(organizationId),
       creatorId,
       isActive,
-      String(userId)
+      String(userId),
+      corporationId
     );
 
     if (!creator) {
@@ -647,6 +700,7 @@ export async function uploadCreatorsCsv(req: Request, res: Response, next: NextF
   try {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
 
     if (!req.file) {
       res.status(400).json({
@@ -664,7 +718,7 @@ export async function uploadCreatorsCsv(req: Request, res: Response, next: NextF
     }
 
     const csvContent = req.file.buffer.toString('utf-8');
-    const result = await masterService.uploadCreatorsCsv(String(organizationId), csvContent, String(userId));
+    const result = await masterService.uploadCreatorsCsv(String(organizationId), csvContent, String(userId), corporationId);
 
     res.json({
       success: true,
@@ -709,12 +763,16 @@ export async function downloadCreatorsCsv(req: Request, res: Response, next: Nex
       filters.isActive = is_active === 'true' || is_active === '1';
     }
 
+    // セッションからcorporationIdを取得
+    const corporationId = req.session.corporationId || null;
+
     console.log('=== CSV Download - Creator ===');
     console.log('Organization ID:', organizationId);
+    console.log('Corporation ID:', corporationId);
     console.log('Filters:', filters);
 
     // フィルタ適用してデータ取得
-    const creators = await masterService.getCreatorMastersWithFilters(String(organizationId), filters);
+    const creators = await masterService.getCreatorMastersWithFilters(String(organizationId), corporationId, filters);
 
     console.log('Filtered creators count:', creators.length);
 
@@ -777,9 +835,10 @@ export async function uploadInstrumentsCsv(req: Request, res: Response, next: Ne
 
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
 
     const csvContent = req.file.buffer.toString('utf-8');
-    const result = await masterService.uploadInstrumentsCsv(String(organizationId), csvContent, String(userId));
+    const result = await masterService.uploadInstrumentsCsv(String(organizationId), csvContent, String(userId), corporationId);
 
     res.json({
       success: true,
@@ -824,12 +883,16 @@ export async function downloadInstrumentsCsv(req: Request, res: Response, next: 
       filters.isActive = is_active === 'true' || is_active === '1';
     }
 
+    // セッションからcorporationIdを取得
+    const corporationId = req.session.corporationId || null;
+
     console.log('=== CSV Download - Instrument ===');
     console.log('Organization ID:', organizationId);
+    console.log('Corporation ID:', corporationId);
     console.log('Filters:', filters);
 
     // フィルタ適用してデータ取得
-    const instruments = await masterService.getInstrumentMastersWithFilters(String(organizationId), filters);
+    const instruments = await masterService.getInstrumentMastersWithFilters(String(organizationId), corporationId, filters);
 
     console.log('Filtered instruments count:', instruments.length);
 
@@ -890,9 +953,10 @@ export async function uploadVendorsCsv(req: Request, res: Response, next: NextFu
 
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
+    const corporationId = req.session.corporationId || null;
 
     const csvContent = req.file.buffer.toString('utf-8');
-    const result = await masterService.uploadVendorsCsv(String(organizationId), csvContent, String(userId));
+    const result = await masterService.uploadVendorsCsv(String(organizationId), csvContent, String(userId), corporationId);
 
     res.json({
       success: true,
@@ -937,12 +1001,16 @@ export async function downloadVendorsCsv(req: Request, res: Response, next: Next
       filters.isActive = is_active === 'true' || is_active === '1';
     }
 
+    // セッションからcorporationIdを取得
+    const corporationId = req.session.corporationId || null;
+
     console.log('=== CSV Download - Vendor ===');
     console.log('Organization ID:', organizationId);
+    console.log('Corporation ID:', corporationId);
     console.log('Filters:', filters);
 
     // フィルタ適用してデータ取得
-    const vendors = await masterService.getVendorMastersWithFilters(String(organizationId), filters);
+    const vendors = await masterService.getVendorMastersWithFilters(String(organizationId), corporationId, filters);
 
     console.log('Filtered vendors count:', vendors.length);
 

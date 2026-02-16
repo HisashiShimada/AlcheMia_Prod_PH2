@@ -115,11 +115,13 @@ export async function getCreatorMasters(
  * Repository層のWHERE句フィルタリングを使用
  * 
  * @param organizationId 組織ID
+ * @param corporationId 会社ID
  * @param filters フィルタ条件
  * @returns Creatorマスタの配列
  */
 export async function getCreatorMastersWithFilters(
   organizationId: string,
+  corporationId: string | null,
   filters: {
     displayScope?: string;
     search?: string;
@@ -128,10 +130,11 @@ export async function getCreatorMastersWithFilters(
 ): Promise<CreatorMasterResponse[]> {
   console.log('=== masterService.getCreatorMastersWithFilters called ===');
   console.log('organizationId:', organizationId);
+  console.log('corporationId:', corporationId);
   console.log('filters:', filters);
   
   // Repository層のWHERE句フィルタリングを使用（効率的）
-  const creators = await creatorRepository.findAllWithFilters(organizationId, filters);
+  const creators = await creatorRepository.findAllWithFilters(organizationId, corporationId, filters);
   
   console.log('Filtered count (from DB):', creators.length);
   
@@ -201,11 +204,14 @@ export async function createCreatorMaster(
     creatorName: string;
     creatorDescription?: string;
     creatorAnnotation?: string;
+    vendorId?: string;
     vendorName?: string;
+    instrumentId?: string;
     instrumentName?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<CreatorMasterResponse> {
   // ID重複チェック
   const exists = await creatorRepository.existsById(organizationId, data.creatorId);
@@ -216,7 +222,7 @@ export async function createCreatorMaster(
     throw error;
   }
   
-  const creator = await creatorRepository.create(organizationId, data, userId);
+  const creator = await creatorRepository.create(organizationId, data, userId, corporationId);
   
   // 作成後に再取得してvendor/instrumentのis_active情報も含める
   const createdCreator = await creatorRepository.findById(organizationId, creator.creator_id);
@@ -271,11 +277,13 @@ export async function getInstrumentMasters(
  * Repository層のWHERE句フィルタリングを使用
  * 
  * @param organizationId 組織ID
+ * @param corporationId 会社ID
  * @param filters フィルタ条件
  * @returns Instrumentマスタの配列
  */
 export async function getInstrumentMastersWithFilters(
   organizationId: string,
+  corporationId: string | null,
   filters: {
     displayScope?: string;
     search?: string;
@@ -284,10 +292,11 @@ export async function getInstrumentMastersWithFilters(
 ): Promise<InstrumentMasterResponse[]> {
   console.log('=== masterService.getInstrumentMastersWithFilters called ===');
   console.log('organizationId:', organizationId);
+  console.log('corporationId:', corporationId);
   console.log('filters:', filters);
   
   // Repository層のWHERE句フィルタリングを使用（効率的）
-  const instruments = await instrumentRepository.findAllWithFilters(organizationId, filters);
+  const instruments = await instrumentRepository.findAllWithFilters(organizationId, corporationId, filters);
   
   console.log('Filtered count (from DB):', instruments.length);
   
@@ -361,11 +370,13 @@ export async function getVendorMasters(
  * Repository層のWHERE句フィルタリングを使用
  * 
  * @param organizationId 組織ID
+ * @param corporationId 会社ID
  * @param filters フィルタ条件
  * @returns Vendorマスタの配列
  */
 export async function getVendorMastersWithFilters(
   organizationId: string,
+  corporationId: string | null,
   filters: {
     displayScope?: string;
     search?: string;
@@ -374,10 +385,11 @@ export async function getVendorMastersWithFilters(
 ): Promise<VendorMasterResponse[]> {
   console.log('=== masterService.getVendorMastersWithFilters called ===');
   console.log('organizationId:', organizationId);
+  console.log('corporationId:', corporationId);
   console.log('filters:', filters);
   
   // Repository層のWHERE句フィルタリングを使用（効率的）
-  const vendors = await vendorRepository.findAllWithFilters(organizationId, filters);
+  const vendors = await vendorRepository.findAllWithFilters(organizationId, corporationId, filters);
   
   console.log('Filtered count (from DB):', vendors.length);
   
@@ -431,7 +443,8 @@ export async function createInstrumentMaster(
     instrumentAnnotation?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<InstrumentMasterResponse> {
   // ID重複チェック
   const exists = await instrumentRepository.existsById(organizationId, data.instrumentId);
@@ -442,7 +455,7 @@ export async function createInstrumentMaster(
     throw error;
   }
   
-  const instrument = await instrumentRepository.create(organizationId, data, userId);
+  const instrument = await instrumentRepository.create(organizationId, data, userId, corporationId);
   
   return {
     instrumentId: instrument.instrument_id,
@@ -466,9 +479,10 @@ export async function updateInstrumentMaster(
     instrumentAnnotation?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<InstrumentMasterResponse | null> {
-  const instrument = await instrumentRepository.update(organizationId, instrumentId, data, userId);
+  const instrument = await instrumentRepository.update(organizationId, instrumentId, data, userId, corporationId);
   
   if (!instrument) {
     return null;
@@ -491,9 +505,10 @@ export async function updateInstrumentStatus(
   organizationId: string,
   instrumentId: string,
   isActive: boolean,
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<InstrumentMasterResponse | null> {
-  const instrument = await instrumentRepository.updateStatus(organizationId, instrumentId, isActive, userId);
+  const instrument = await instrumentRepository.updateStatus(organizationId, instrumentId, isActive, userId, corporationId);
   
   if (!instrument) {
     return null;
@@ -521,7 +536,8 @@ export async function createVendorMaster(
     vendorAnnotation?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<VendorMasterResponse> {
   // ID重複チェック
   const exists = await vendorRepository.existsById(organizationId, data.vendorId);
@@ -532,7 +548,7 @@ export async function createVendorMaster(
     throw error;
   }
   
-  const vendor = await vendorRepository.create(organizationId, data, userId);
+  const vendor = await vendorRepository.create(organizationId, data, userId, corporationId);
   
   return {
     vendorId: vendor.vendor_id,
@@ -556,9 +572,10 @@ export async function updateVendorMaster(
     vendorAnnotation?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<VendorMasterResponse | null> {
-  const vendor = await vendorRepository.update(organizationId, vendorId, data, userId);
+  const vendor = await vendorRepository.update(organizationId, vendorId, data, userId, corporationId);
   
   if (!vendor) {
     return null;
@@ -581,9 +598,10 @@ export async function updateVendorStatus(
   organizationId: string,
   vendorId: string,
   isActive: boolean,
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<VendorMasterResponse | null> {
-  const vendor = await vendorRepository.updateStatus(organizationId, vendorId, isActive, userId);
+  const vendor = await vendorRepository.updateStatus(organizationId, vendorId, isActive, userId, corporationId);
   
   if (!vendor) {
     return null;
@@ -606,20 +624,34 @@ export async function updateCreatorMaster(
   organizationId: string,
   creatorId: string,
   updateData: any,
-  userId: string
-): Promise<any> {
+  userId: string,
+  corporationId?: string | null
+): Promise<CreatorMasterResponse> {
   const updatedCreator = await creatorRepository.update(
     organizationId,
     creatorId,
     updateData,
-    userId
+    userId,
+    corporationId
   );
   
   if (!updatedCreator) {
-    throw new Error('入力されたIDは既に存在しています');
+    throw new Error('Creatorマスタが見つかりません');
   }
   
-  return updatedCreator;
+  // 更新後のデータを完全な形式で返す
+  return {
+    creatorId: updatedCreator.creator_id,
+    creatorName: updatedCreator.creator_name,
+    creatorDescription: updatedCreator.creator_description || '',
+    creatorAnnotation: updatedCreator.creator_annotation || '',
+    isActive: updatedCreator.is_active,
+    vendorName: updatedCreator.vendor_name || '',
+    vendorIsActive: updatedCreator.vendor_is_active,
+    instrumentName: updatedCreator.instrument_name || '',
+    instrumentIsActive: updatedCreator.instrument_is_active,
+    updatedAt: formatDateTime(updatedCreator.update_at),
+  };
 }
 
 /**
@@ -629,13 +661,15 @@ export async function updateCreatorStatus(
   organizationId: string,
   creatorId: string,
   isActive: boolean,
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<CreatorMasterResponse | null> {
   const creator = await creatorRepository.updateStatus(
     organizationId,
     creatorId,
     isActive,
-    userId
+    userId,
+    corporationId
   );
   
   if (!creator) {
@@ -687,7 +721,8 @@ interface CsvUploadResult {
 export async function uploadCreatorsCsv(
   organizationId: string,
   csvContent: string,
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<CsvUploadResult> {
   const pool = getPool();
   const client = await pool.connect();
@@ -815,7 +850,7 @@ export async function uploadCreatorsCsv(
     // ====================================
     let successCount = 0;
     for (const validRow of validRows) {
-      await creatorRepository.create(organizationId, validRow, userId);
+      await creatorRepository.create(organizationId, validRow, userId, corporationId);
       successCount++;
     }
     
@@ -846,7 +881,8 @@ export async function uploadCreatorsCsv(
 export async function uploadInstrumentsCsv(
   organizationId: string,
   csvContent: string,
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<CsvUploadResult> {
   const pool = getPool();
   const client = await pool.connect();
@@ -970,7 +1006,7 @@ export async function uploadInstrumentsCsv(
     // ====================================
     let successCount = 0;
     for (const validRow of validRows) {
-      await instrumentRepository.create(organizationId, validRow, userId);
+      await instrumentRepository.create(organizationId, validRow, userId, corporationId);
       successCount++;
     }
     
@@ -1001,7 +1037,8 @@ export async function uploadInstrumentsCsv(
 export async function uploadVendorsCsv(
   organizationId: string,
   csvContent: string,
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<CsvUploadResult> {
   const pool = getPool();
   const client = await pool.connect();
@@ -1125,7 +1162,7 @@ export async function uploadVendorsCsv(
     // ====================================
     let successCount = 0;
     for (const validRow of validRows) {
-      await vendorRepository.create(organizationId, validRow, userId);
+      await vendorRepository.create(organizationId, validRow, userId, corporationId);
       successCount++;
     }
     
