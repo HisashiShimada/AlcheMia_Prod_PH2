@@ -186,6 +186,53 @@ export class TransitionDataRepository {
   }
 
   /**
+   * トランジションのレコード数を取得
+   * 
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param methodId - メソッドID
+   * @param taskNo - タスク番号
+   * @param transitionId - トランジションID
+   * @returns データ件数
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async countRecordsByTransition(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    transitionId: string
+  ): Promise<number> {
+    try {
+      const pool = getPool();
+      
+      // Parameterized Queryを使用してSQLインジェクション対策
+      // organization_idフィルタを必須とし、マルチテナント分離を保証
+      const query = `
+        SELECT COUNT(*) as count
+        FROM transition_data
+        WHERE organization_id = $1
+          AND project_id = $2
+          AND method_id = $3
+          AND task_no = $4
+          AND transition_id = $5
+      `;
+
+      const params = [organizationId, projectId, methodId, taskNo, transitionId];
+      const result = await pool.query(query, params);
+
+      // PostgreSQLはCOUNTの結果を文字列で返すため、数値に変換
+      const count = parseInt(result.rows[0].count, 10);
+      return count;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while counting transition records',
+        error as Error
+      );
+    }
+  }
+
+  /**
    * トランジションのステータスを更新
    * 
    * @param organizationId - 組織ID（マルチテナント分離）

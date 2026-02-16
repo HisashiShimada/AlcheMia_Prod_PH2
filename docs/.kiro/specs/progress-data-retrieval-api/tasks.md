@@ -69,11 +69,22 @@
       - データ整合性: 2テスト（必須フィールド、SELECT句検証）
   - _Requirements: 1, 3, 5_
 
-- [ ] 3.2 (P) countRecordsByTransitionメソッドの実装
+- [x] 3.2 (P) countRecordsByTransitionメソッドの実装
   - task_id、transition_id、organization_idでフィルタリング
   - db.fn.countを使用してデータ件数を取得
   - 削除済みレコードを除外
   - organization_idによるマルチテナント分離を実装
+  - **実装完了**: 2026-02-16
+  - **実装内容**:
+    - `TransitionDataRepository.countRecordsByTransition`メソッドを実装
+    - Parameterized Queryを使用してSQLインジェクション対策
+    - SELECT COUNT(*)でレコード数を取得
+    - organization_idによるマルチテナント分離を保証
+    - 包括的なユニットテスト作成（6テスト、全て成功）
+      - 正常系: 2テスト（データ取得、0件返却）
+      - 異常系: 1テスト（DatabaseError）
+      - セキュリティ: 2テスト（organization_idフィルタ、Parameterized Query）
+      - データ整合性: 1テスト（数値型返却）
   - _Requirements: 1, 3, 5_
 
 ### Phase 3: ビジネスロジック層の実装
