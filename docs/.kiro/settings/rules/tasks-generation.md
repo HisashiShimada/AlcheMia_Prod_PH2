@@ -63,6 +63,18 @@ Focus on capabilities and outcomes, not code structure.
 - User testing
 - Marketing/business activities
 
+### 6. Skills & Guidelines Reference
+
+**Skill File Locations**:
+- スキルファイルは `.cline/skills/` 配下に存在します（`.clinerules/` ではありません）
+- パス例: `.cline/skills/backend-develop-skill/SKILL.md`
+- `.clinerules/` は主要な規約とリファレンスを格納（最優先）
+- `.cline/skills/` は補足的なガイドラインを提供（追加情報）
+
+**Usage Priority**:
+1. **Primary**: `.clinerules/` のドキュメント（必須）
+2. **Secondary**: `.cline/skills/` のスキルファイル（補足）
+
 ### Optional Test Coverage Tasks
 
 - When the design already guarantees functional coverage and rapid MVP delivery is prioritized, mark purely test-oriented follow-up work (e.g., baseline rendering/unit tests) as **optional** using the `- [ ]*` checkbox form.

@@ -35,12 +35,13 @@ Generate complete requirements for feature **$1** based on the project descripti
 
    **Skills & Guidelines Reference**:
    - Determine feature domain from project description:
-     - If backend/API feature: Read `.cline/skills/backend-develop-skill/skill.md`
-     - If frontend/UI feature: Read `.cline/skills/frontend-develop-skill/skill.md`
-     - If testing focus: Read `.cline/skills/test-skill/skill.md`
+     - If backend/API feature: Read `.cline/skills/backend-develop-skill/SKILL.md`
+     - If frontend/UI feature: Read `.cline/skills/frontend-develop-skill/SKILL.md`
+     - If testing focus: Read `.cline/skills/test-skill/SKILL.md`
    - Extract referenced documentation paths from selected skill
    - Read skill-recommended documents as supplementary context
    - **Priority**: `.clinerules/` documents take precedence; skills provide additional insights
+   - **Error Handling**: If skill file not found, log the error but continue with requirements generation using `.clinerules/` documents as primary source
 
 3. **Generate Requirements**:
    - Create initial requirements based on project description
