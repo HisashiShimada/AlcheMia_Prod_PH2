@@ -528,4 +528,328 @@ describe('ProgressController.getProgressData', () => {
       });
     });
   });
+
+  describe('Task 5.2: 統一レスポンス形式への変換', () => {
+    describe('成功時のレスポンス形式', () => {
+      it('should return 200 OK with unified success response format', async () => {
+        const mockProgressData: ProgressData = {
+          project_id: '550e8400-e29b-41d4-a716-446655440000',
+          project_name: 'Test Project',
+          method_id: 'method1',
+          method_name: 'Test Method',
+          task_no: 5,
+          task_name: 'Test Task',
+          transitions: [
+            {
+              transition_id: 't1',
+              transition_name: 'Transition 1',
+              status: 'completed',
+              progress: 100,
+              last_updated: '2026-02-16T12:00:00Z',
+              has_data: true,
+              data_count: 3
+            }
+          ],
+          overall_progress: {
+            total_transitions: 1,
+            completed: 1,
+            in_progress: 0,
+            not_started: 0,
+            overall_percentage: 100.0
+          }
+        };
+
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: true,
+          data: mockProgressData
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        // HTTPステータスコード検証
+        expect(mockStatus).toHaveBeenCalledWith(200);
+        
+        // レスポンス構造検証
+        const response = mockJson.mock.calls[0][0];
+        expect(response).toEqual({
+          success: true,
+          data: mockProgressData,
+          meta: {
+            timestamp: expect.any(String),
+            requestId: 'test-request-id-123'
+          }
+        });
+
+        // success フィールドが true であることを明示的に確認
+        expect(response.success).toBe(true);
+        
+        // data フィールドにプログレスデータが含まれることを確認
+        expect(response.data).toEqual(mockProgressData);
+        
+        // meta フィールドに必須項目が含まれることを確認
+        expect(response.meta).toHaveProperty('timestamp');
+        expect(response.meta).toHaveProperty('requestId');
+      });
+
+      it('should include ISO 8601 timestamp in meta', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: true,
+          data: expect.any(Object)
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        const response = mockJson.mock.calls[0][0];
+        const timestamp = response.meta.timestamp;
+        
+        // ISO 8601形式の検証: YYYY-MM-DDTHH:mm:ss.sssZ
+        expect(timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+        
+        // 有効な日付であることを確認
+        const date = new Date(timestamp);
+        expect(date.toISOString()).toBe(timestamp);
+      });
+
+      it('should include requestId in meta', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: true,
+          data: expect.any(Object)
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        const response = mockJson.mock.calls[0][0];
+        
+        expect(response.meta.requestId).toBe('test-request-id-123');
+        expect(typeof response.meta.requestId).toBe('string');
+        expect(response.meta.requestId.length).toBeGreaterThan(0);
+      });
+    });
+
+    describe('エラー時のレスポンス形式', () => {
+      it('should return 404 with unified error response format for TASK_NOT_FOUND', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: false,
+          error: {
+            code: 'TASK_NOT_FOUND',
+            message: 'タスクが見つかりません'
+          }
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        // HTTPステータスコード検証
+        expect(mockStatus).toHaveBeenCalledWith(404);
+        
+        // レスポンス構造検証
+        const response = mockJson.mock.calls[0][0];
+        expect(response).toEqual({
+          success: false,
+          error: {
+            code: 'TASK_NOT_FOUND',
+            message: 'タスクが見つかりません'
+          },
+          meta: {
+            timestamp: expect.any(String),
+            requestId: 'test-request-id-123'
+          }
+        });
+
+        // success フィールドが false であることを明示的に確認
+        expect(response.success).toBe(false);
+        
+        // error フィールドに必須項目が含まれることを確認
+        expect(response.error).toHaveProperty('code');
+        expect(response.error).toHaveProperty('message');
+        
+        // meta フィールドに必須項目が含まれることを確認
+        expect(response.meta).toHaveProperty('timestamp');
+        expect(response.meta).toHaveProperty('requestId');
+      });
+
+      it('should return 500 with unified error response format for system errors', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: false,
+          error: {
+            code: 'DATABASE_ERROR',
+            message: 'データベースエラーが発生しました'
+          }
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        // HTTPステータスコード検証
+        expect(mockStatus).toHaveBeenCalledWith(500);
+        
+        // レスポンス構造検証
+        const response = mockJson.mock.calls[0][0];
+        expect(response.success).toBe(false);
+        expect(response.error.code).toBe('DATABASE_ERROR');
+        expect(response.error.message).toBe('データベースエラーが発生しました');
+      });
+
+      it('should return 400 with unified error response format for validation errors', async () => {
+        mockRequest.params!.projectId = 'invalid-uuid';
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        // HTTPステータスコード検証
+        expect(mockStatus).toHaveBeenCalledWith(400);
+        
+        // レスポンス構造検証
+        const response = mockJson.mock.calls[0][0];
+        expect(response).toEqual({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: expect.any(String),
+            details: expect.any(Array)
+          },
+          meta: {
+            timestamp: expect.any(String),
+            requestId: 'test-request-id-123'
+          }
+        });
+
+        // エラーメッセージにUUIDに関する情報が含まれることを確認
+        expect(response.error.message).toContain('UUID');
+      });
+
+      it('should not expose internal errors in response', async () => {
+        mockProgressService.getProgressData = jest.fn().mockRejectedValue(
+          new Error('Internal database connection string: postgresql://user:password@localhost/db')
+        );
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        const response = mockJson.mock.calls[0][0];
+        
+        // 汎用的なエラーメッセージのみが返されることを確認
+        expect(response.error.message).toBe('システムエラーが発生しました');
+        expect(response.error.code).toBe('SYSTEM_ERROR');
+        
+        // 内部エラー詳細（データベース接続文字列など）が含まれていないことを確認
+        expect(JSON.stringify(response)).not.toContain('postgresql://');
+        expect(JSON.stringify(response)).not.toContain('password');
+      });
+    });
+
+    describe('HTTPヘッダー設定', () => {
+      it('should set Content-Type header to application/json', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: true,
+          data: expect.any(Object)
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json');
+      });
+
+      it('should set X-Request-Id header', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: true,
+          data: expect.any(Object)
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        expect(mockResponse.setHeader).toHaveBeenCalledWith('X-Request-Id', 'test-request-id-123');
+      });
+
+      it('should set headers before processing request', async () => {
+        const setHeaderCalls: string[] = [];
+        mockResponse.setHeader = jest.fn((name: string) => {
+          setHeaderCalls.push(name);
+          return mockResponse as Response;
+        }) as any;
+
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: true,
+          data: expect.any(Object)
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        // ヘッダーが設定されていることを確認
+        expect(setHeaderCalls).toContain('Content-Type');
+        expect(setHeaderCalls).toContain('X-Request-Id');
+        expect(setHeaderCalls.length).toBeGreaterThanOrEqual(2);
+      });
+
+      it('should set headers even when error occurs', async () => {
+        mockRequest.params!.projectId = 'invalid-uuid';
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        // エラー時でもヘッダーが設定されることを確認
+        expect(mockResponse.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json');
+        expect(mockResponse.setHeader).toHaveBeenCalledWith('X-Request-Id', 'test-request-id-123');
+      });
+    });
+
+    describe('レスポンスフィールドの完全性検証', () => {
+      it('should ensure success response has all required fields and no extra fields', async () => {
+        const mockProgressData: ProgressData = {
+          project_id: '550e8400-e29b-41d4-a716-446655440000',
+          project_name: 'Test Project',
+          method_id: 'method1',
+          method_name: 'Test Method',
+          task_no: 5,
+          task_name: 'Test Task',
+          transitions: [],
+          overall_progress: {
+            total_transitions: 0,
+            completed: 0,
+            in_progress: 0,
+            not_started: 0,
+            overall_percentage: 0.0
+          }
+        };
+
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: true,
+          data: mockProgressData
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        const response = mockJson.mock.calls[0][0];
+        const keys = Object.keys(response);
+        
+        // 必須フィールドのみが存在することを確認
+        expect(keys).toEqual(expect.arrayContaining(['success', 'data', 'meta']));
+        expect(keys.length).toBe(3);
+        
+        // meta の必須フィールドを確認
+        const metaKeys = Object.keys(response.meta);
+        expect(metaKeys).toEqual(expect.arrayContaining(['timestamp', 'requestId']));
+        expect(metaKeys.length).toBe(2);
+      });
+
+      it('should ensure error response has all required fields and no extra fields', async () => {
+        mockProgressService.getProgressData = jest.fn().mockResolvedValue({
+          success: false,
+          error: {
+            code: 'TASK_NOT_FOUND',
+            message: 'タスクが見つかりません'
+          }
+        });
+
+        await progressController.getProgressData(mockRequest as Request, mockResponse as Response);
+
+        const response = mockJson.mock.calls[0][0];
+        const keys = Object.keys(response);
+        
+        // 必須フィールドのみが存在することを確認
+        expect(keys).toEqual(expect.arrayContaining(['success', 'error', 'meta']));
+        expect(keys.length).toBe(3);
+        
+        // error の必須フィールドを確認
+        const errorKeys = Object.keys(response.error);
+        expect(errorKeys).toContain('code');
+        expect(errorKeys).toContain('message');
+      });
+    });
+  });
 });
