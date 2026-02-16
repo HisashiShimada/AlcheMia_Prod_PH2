@@ -10,13 +10,14 @@
 ### Phase 1: 基盤実装（既存実装活用により簡略化）
 
 - [ ] 1. MAIMLパーサーアダプターの実装
-- [ ] 1.1 (P) 既存parsePetriNetStructure関数のラッパー作成
+- [x] 1.1 (P) 既存parsePetriNetStructure関数のラッパー作成
   - `maimlService.parsePetriNetStructure()`を呼び出し
   - 既存の返却データ構造（methods配列）をそのまま使用
   - 必要に応じて軽微なデータ変換を実装
   - エラーハンドリングを統一形式に変換
   - **既存実装**: `backend/src/services/maimlService.ts`の`parsePetriNetStructure`
   - **推定工数**: 0.5-1時間（既存実装活用により大幅削減）
+  - **実装完了**: 2026-02-16
   - _Requirements: 4_
 
 - [ ] 1.2 (P) 型定義の整備
