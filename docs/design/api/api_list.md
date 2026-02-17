@@ -400,7 +400,6 @@
 - 検索・フィルタリング機能（search, is_active, display_scope）
 - CSVアップロード時のバリデーション
 - ファイルサイズ制限: 10MB
-- ⚠️ Instrumentマスタのみ `/api/v1` プレフィックスなし
 
 ---
 

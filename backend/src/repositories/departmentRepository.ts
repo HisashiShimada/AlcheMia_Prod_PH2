@@ -4,7 +4,8 @@
  */
 
 import { Pool } from 'pg';
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * Departmentのデータ型定義
@@ -39,56 +40,59 @@ export async function findAll(
   organizationId: string,
   filters: DepartmentSearchFilters = {}
 ): Promise<DepartmentRow[]> {
-  const pool: Pool = getPool();
+  const pgp = getPgp();
   
   console.log('=== departmentRepository.findAll called ===');
   console.log('organizationId:', organizationId);
   console.log('filters:', filters);
   
-  let query = `
-    SELECT 
-      organization_id,
-      department_cd,
-      department_name,
-      is_active,
-      create_at,
-      update_at
-    FROM department
-    WHERE organization_id = $1
-  `;
+  // 外部SQLファイルを読み込み
+  let sqlQuery = await loadSqlFile('departments/findAll.sql');
   
   const params: any[] = [organizationId];
   let paramIndex = 2;
   
-  // 検索フィルター
+  // 動的フィルター追加（WHERE句に条件を追加）
   if (filters.search) {
-    query += ` AND (
-      department_cd ILIKE $${paramIndex} OR
-      department_name ILIKE $${paramIndex}
-    )`;
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND (
+        department_cd ILIKE $${paramIndex} OR
+        department_name ILIKE $${paramIndex}
+      )
+ORDER BY`
+    );
     params.push(`%${filters.search}%`);
     paramIndex++;
   }
   
-  // アクティブフィルター
   if (filters.isActive !== undefined) {
-    query += ` AND is_active = $${paramIndex}`;
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND is_active = $${paramIndex}
+ORDER BY`
+    );
     params.push(filters.isActive);
     paramIndex++;
   }
   
-  // ソート
-  const sortBy = filters.sortBy || 'department_cd';
-  const sortOrder = filters.sortOrder || 'asc';
-  query += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
+  // ソート順を置換
+  if (filters.sortBy || filters.sortOrder) {
+    const sortBy = filters.sortBy || 'department_cd';
+    const sortOrder = (filters.sortOrder || 'asc').toUpperCase();
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY department_cd ASC',
+      `ORDER BY ${sortBy} ${sortOrder}`
+    );
+  }
   
-  console.log('Executing query:', query);
+  console.log('Executing SQL query from file: departments/findAll.sql');
   console.log('With params:', params);
   
   try {
-    const result = await pool.query<DepartmentRow>(query, params);
-    console.log('Query executed successfully, rows:', result.rows.length);
-    return result.rows;
+    const result = await pgp.any<DepartmentRow>(sqlQuery, params);
+    console.log('Query executed successfully, rows:', result.length);
+    return result;
   } catch (error) {
     console.error('Database query error:', error);
     throw error;
