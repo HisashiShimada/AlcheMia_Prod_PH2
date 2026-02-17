@@ -78,7 +78,7 @@ async function startServer() {
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/projects', projectRoutes);
     app.use('/api/v1/tasks', taskRoutes);
-    app.use('/api/v1/projects', fileAccessRoutes);
+    app.use('/api/v1/files', fileAccessRoutes); // 汎用ファイルアクセスAPI（共通化後）
     app.use('/api/v1/maiml', maimlRoutes);
     
 	// Mount experiment routes

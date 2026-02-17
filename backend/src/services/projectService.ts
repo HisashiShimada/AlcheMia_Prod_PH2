@@ -412,13 +412,11 @@ export class ProjectService {
    * Task 1.1, 1.2, 1.3: プロジェクト詳細取得API実装
    * @param organizationId - 組織ID
    * @param projectId - プロジェクトID
-   * @param organizationPrefix - 組織プレフィックス
    * @returns プロジェクト詳細情報
    */
   async getById(
     organizationId: string,
-    projectId: string,
-    organizationPrefix: string
+    projectId: string
   ): Promise<ServiceResult<any>> {
     try {
       const pool = getPool();
@@ -480,8 +478,8 @@ export class ProjectService {
         const storageService = getStorageService();
 
         const [currentFiles, archiveFiles] = await Promise.all([
-          storageService.listFiles(organizationPrefix, `projects/${projectName}/`).catch(() => []),
-          storageService.listFiles(organizationPrefix, `projects/${projectName}/archive/`).catch(() => [])
+          storageService.listFiles(organizationId, `projects/${projectName}/`).catch(() => []),
+          storageService.listFiles(organizationId, `projects/${projectName}/archive/`).catch(() => [])
         ]);
 
         const allFiles = [...currentFiles, ...archiveFiles];
@@ -489,8 +487,8 @@ export class ProjectService {
         files = await Promise.all(
           allFiles.map(async (file: any) => {
             const signedUrl = await storageService.getSignedUrl(
-              organizationPrefix,
-              file.key.replace(`org_${organizationPrefix}/`, ''),
+              organizationId,
+              file.key.replace(`${organizationId}/`, ''),
               3600
             );
 
@@ -1009,13 +1007,11 @@ export class ProjectService {
    * 
    * @param organizationId - 組織ID
    * @param projectId - プロジェクトID
-   * @param organizationPrefix - 組織プレフィックス
    * @returns ファイル一覧（archiveファイルは常に取得）
    */
   async getProjectFiles(
     organizationId: string,
-    projectId: string,
-    organizationPrefix: string
+    projectId: string
   ): Promise<ServiceResult<{
     projectId: string;
     projectName: string;
@@ -1055,7 +1051,7 @@ export class ProjectService {
 
         // 現在のファイル一覧を取得
         const currentFiles = await storageService.listFiles(
-          organizationPrefix,
+          organizationId,
           `projects/${projectName}/`
         ).catch(() => []);
 
@@ -1086,8 +1082,8 @@ export class ProjectService {
           const chunkResults = await Promise.all(
             chunk.map(async (file: any) => {
               const signedUrl = await storageService.getSignedUrl(
-                organizationPrefix,
-                file.key.replace(`${organizationPrefix}/`, ''),
+                organizationId,
+                file.key.replace(`${organizationId}/`, ''),
                 3600
               );
 
@@ -1117,7 +1113,7 @@ export class ProjectService {
 
         // archiveファイルを常に取得（include_archiveパラメータ削除）
         const archiveFilesList = await storageService.listFiles(
-          organizationPrefix,
+          organizationId,
           `projects/${projectName}/archive/`
         ).catch(() => []);
 
@@ -1137,8 +1133,8 @@ export class ProjectService {
             const chunkResults = await Promise.all(
               chunk.map(async (file: any) => {
                 const signedUrl = await storageService.getSignedUrl(
-                  organizationPrefix,
-                  file.key.replace(`org_${organizationPrefix}/`, ''),
+                  organizationId,
+                  file.key.replace(`${organizationId}/`, ''),
                   3600
                 );
 

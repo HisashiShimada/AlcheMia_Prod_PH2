@@ -87,30 +87,7 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 3. organization_prefix取得
-    const { getPool } = require('../database/db');
-    const pool = getPool();
-    const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
-    const orgResult = await pool.query(orgQuery, [organizationId]);
-    
-    if (orgResult.rows.length === 0) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'RESOURCE_NOT_FOUND',
-          message: '組織情報が見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const organizationPrefix = orgResult.rows[0].organization_prefix;
-
-    // 4. Service層の初期化と呼び出し
+    // 3. Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
@@ -119,7 +96,6 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
       userId,
       projectId,
       organizationId,
-      organizationPrefix,
       fileName
     );
 
@@ -269,37 +245,13 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
       return;
     }
 
-    // 3. organization_prefix取得
-    const { getPool } = require('../database/db');
-    const pool = getPool();
-    const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
-    const orgResult = await pool.query(orgQuery, [organizationId]);
-    
-    if (orgResult.rows.length === 0) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'RESOURCE_NOT_FOUND',
-          message: '組織情報が見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const organizationPrefix = orgResult.rows[0].organization_prefix;
-
-    // 4. Service層の初期化と呼び出し
+    // 3. Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
 
     const result = await service.getFileDownloadUrl(
       organizationId,
-      organizationPrefix,
       fileKey
     );
 
@@ -467,30 +419,7 @@ export async function downloadAllFiles(req: Request, res: Response): Promise<voi
       return;
     }
 
-    // 3. organization_prefix取得
-    const { getPool } = require('../database/db');
-    const pool = getPool();
-    const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
-    const orgResult = await pool.query(orgQuery, [organizationId]);
-    
-    if (orgResult.rows.length === 0) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'RESOURCE_NOT_FOUND',
-          message: '組織情報が見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const organizationPrefix = orgResult.rows[0].organization_prefix;
-
-    // 4. Service層の初期化と呼び出し
+    // 3. Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
@@ -499,7 +428,6 @@ export async function downloadAllFiles(req: Request, res: Response): Promise<voi
       userId,
       projectId,
       organizationId,
-      organizationPrefix,
       page,
       limit
     );

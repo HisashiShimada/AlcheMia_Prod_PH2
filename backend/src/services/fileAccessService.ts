@@ -83,7 +83,6 @@ export class FileAccessService {
    * - メタデータはあるがS3上にない場合はStorageErrorをスロー
    * 
    * @param organizationId 組織ID
-   * @param organizationPrefix 組織プレフィックス
    * @param projectId プロジェクトID
    * @param fileName ファイル名
    * @returns ファイルメタデータ
@@ -92,7 +91,6 @@ export class FileAccessService {
    */
   async verifyFileExists(
     organizationId: string,
-    organizationPrefix: string,
     projectId: string,
     fileName: string
   ) {
@@ -115,7 +113,7 @@ export class FileAccessService {
     // 3. S3/Swift上のファイル存在を確認
     const filePath = fileMetadata.file_key;
     const existsInStorage = await this.storageService.fileExists(
-      organizationPrefix,
+      organizationId,
       filePath
     );
 
@@ -135,7 +133,6 @@ export class FileAccessService {
     userId: string,
     projectId: string,
     organizationId: string,
-    organizationPrefix: string,
     fileName: string
   ): Promise<FileDownloadResponse> {
     // 1. プロジェクトアクセス権限の検証
@@ -148,7 +145,6 @@ export class FileAccessService {
     // 2. ファイル存在確認（メタデータとストレージ両方）
     const fileMetadata = await this.verifyFileExists(
       organizationId,
-      organizationPrefix,
       projectId,
       fileName
     );
@@ -158,7 +154,7 @@ export class FileAccessService {
 
     // 4. 署名付きURLの生成（有効期限: 3600秒 = 1時間）
     const signedUrl = await this.storageService.getSignedUrl(
-      organizationPrefix,
+      organizationId,
       filePath,
       3600
     );
@@ -190,7 +186,6 @@ export class FileAccessService {
    * - プロジェクト、フォーマット、その他のファイルで共通利用可能
    * 
    * @param organizationId 組織ID
-   * @param organizationPrefix 組織プレフィックス
    * @param fileKey ファイルキー（相対パス）
    * @returns ファイルダウンロード情報
    * @throws ValidationError ファイルキーが不正な場合
@@ -199,7 +194,6 @@ export class FileAccessService {
    */
   async getFileDownloadUrl(
     organizationId: string,
-    organizationPrefix: string,
     fileKey: string
   ): Promise<FileAccessResponse> {
     // 1. ファイルキーのバリデーション
@@ -214,7 +208,7 @@ export class FileAccessService {
 
     // 2. ストレージ上のファイル存在確認
     const existsInStorage = await this.storageService.fileExists(
-      organizationPrefix,
+      organizationId,
       fileKey
     );
 
@@ -228,7 +222,7 @@ export class FileAccessService {
     let fileMetadata;
     try {
       fileMetadata = await this.storageService.getFileMetadata(
-        organizationPrefix,
+        organizationId,
         fileKey
       );
     } catch (error) {
@@ -239,7 +233,7 @@ export class FileAccessService {
 
     // 4. 署名付きURLの生成（有効期限: 3600秒 = 1時間）
     const signedUrl = await this.storageService.getSignedUrl(
-      organizationPrefix,
+      organizationId,
       fileKey,
       3600
     );
@@ -264,7 +258,6 @@ export class FileAccessService {
    * @param userId ユーザーID
    * @param projectId プロジェクトID
    * @param organizationId 組織ID
-   * @param organizationPrefix 組織プレフィックス
    * @param page ページ番号（1から開始）
    * @param limit 1ページあたりの件数（最大100）
    * @returns ファイル一覧とページネーション情報
@@ -273,7 +266,6 @@ export class FileAccessService {
     userId: string,
     projectId: string,
     organizationId: string,
-    organizationPrefix: string,
     page: number = 1,
     limit: number = 20
   ): Promise<BulkDownloadResponse> {
@@ -317,7 +309,7 @@ export class FileAccessService {
 
       // 署名付きURL生成（有効期限: 3600秒 = 1時間）
       const signedUrl = await this.storageService.getSignedUrl(
-        organizationPrefix,
+        organizationId,
         filePath,
         3600
       );

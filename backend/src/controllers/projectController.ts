@@ -399,31 +399,8 @@ export async function getById(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // organization_prefix取得
-    const { getPool } = require('../database/db');
-    const pool = getPool();
-    const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
-    const orgResult = await pool.query(orgQuery, [organizationId]);
-    
-    if (orgResult.rows.length === 0) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'RESOURCE_NOT_FOUND',
-          message: '組織情報が見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const organizationPrefix = orgResult.rows[0].organization_prefix;
-
     // Service層呼び出し
-    const result = await projectService.getById(organizationId, projectId, organizationPrefix);
+    const result = await projectService.getById(organizationId, projectId);
 
     // エラーハンドリング
     if (!result.success) {
@@ -897,35 +874,11 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
     const projectId = projectResult.rows[0].project_id;
     console.log('[DEBUG] getProjectFiles - Project ID resolved', { projectName, projectId });
 
-    // organization_prefix取得
-    const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
-    const orgResult = await pool.query(orgQuery, [organizationId]);
-    
-    if (orgResult.rows.length === 0) {
-      res.status(404).json({
-        success: false,
-        error: {
-          code: 'RESOURCE_NOT_FOUND',
-          message: '組織情報が見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const organizationPrefix = organizationId;
-    
-    console.log('[DEBUG] getProjectFiles - Organization prefix', { organizationPrefix });
-
     // Service層呼び出し（archiveファイルは常に取得）
     console.log('[DEBUG] getProjectFiles - Calling service...');
     const result = await projectService.getProjectFiles(
       organizationId,
-      projectId,
-      organizationPrefix
+      projectId
     );
     
     console.log('[DEBUG] getProjectFiles - Service result', { 
