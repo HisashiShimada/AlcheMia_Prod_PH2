@@ -234,14 +234,14 @@ const filteredTransitions = useMemo(() => {
 
 ### 6.3 使用するAPI
 
-| API | メソッド | 用途 | 実装状況 |
-|-----|---------|------|---------|
-| データ保存API | POST | 実験データの保存 | TODO |
-| 問題報告API | POST | 問題報告の送信 | TODO |
-| コメント投稿API | POST | 問題へのコメント投稿 | ✅ 完了 |
-| 問題報告API | POST | 問題報告の送信 | ✅ 完了 |
-| 問題一覧取得API | GET | 問題一覧取得 | ✅ 完了 |
-| 問題詳細取得API | GET | 問題詳細とコメント一覧取得 | ✅ 完了 |
+| API | メソッド | エンドポイント | 用途 | 実装状況 |
+|-----|---------|--------------|------|---------|
+| 実験データ保存API | POST | `/api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data` | 実験データの一括保存 | TODO |
+| ステータス更新API | PUT | `/api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status` | トランジションステータスの更新 | TODO |
+| 問題報告API | POST | `/api/v1/issues` | 問題報告の送信 | ✅ 完了 |
+| コメント投稿API | POST | `/api/v1/issues/:issueId/comments` | 問題へのコメント投稿 | ✅ 完了 |
+| 問題一覧取得API | GET | `/api/v1/issues` | 問題一覧取得 | ✅ 完了 |
+| 問題詳細取得API | GET | `/api/v1/issues/:issueId` | 問題詳細とコメント一覧取得 | ✅ 完了 |
 
 ---
 
@@ -446,4 +446,9 @@ pagination={{
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-02-17 | API仕様v2.1.0に準拠した修正 | Cline |
+| | | - API一覧にエンドポイント列を追加 | |
+| | | - 実験データ保存APIのエンドポイント更新 | |
+| | | - ステータス更新APIのエンドポイント更新 | |
+| | | - 重複していた問題報告APIの削除 | |
 | 1.0.0 | 2026-01-19 | 初版作成 | Cline |
