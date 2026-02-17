@@ -1,7 +1,7 @@
-﻿# A5:ER FORMAT:19
+﻿# A5:ER FORMAT:21
 # A5:ER ENCODING:UTF8
 # A5:ER Mk-1 Copyright © 2007 m.matsubara
-# A5:SQL Mk-2 Version 2.20.4 Copyright © 1997 - 2025 m.matsubara
+# A5:SQL Mk-2 Version 2.21.0 Copyright © 1997 - 2026 m.matsubara
 #  https://a5m2.mmatsubara.com
 
 [Manager]
@@ -9,20 +9,13 @@ ProjectName=
 Author=
 MaxEntityRowShow=1000
 ReadOnlyRecommend=0
-Page=Main
 PageInfo="Main",2,"A2Landscape",$FFFFFF
-Page=材料開発データ管理システム_認証関連_ER図.a5er
-PageInfo="材料開発データ管理システム_認証関連_ER図.a5er",7,"A3Landscape",$FFFFDD
-Page=材料開発データ管理システム_共通_ER図.a5er
-PageInfo="材料開発データ管理システム_共通_ER図.a5er",7,"A3Landscape",$FFFFDD
-Page=実験管理者
+PageInfo="材料開発データ管理システム_認証関連_ER図.A5ER",7,"A3Landscape",$FFFFDD
+PageInfo="材料開発データ管理システム_共通_ER図.A5ER",7,"A3Landscape",$FFFFDD
 PageInfo="実験管理者",2,"A3Landscape",$FFFFDD
-Page=実験作業者
 PageInfo="実験作業者",3,"A3Landscape",$FFFFDD
 LogicalView=1
 DecodeDomain=0
-ViewModePageIndividually=1
-ViewMode=2
 ViewFormat=0
 UseNondependenceDashLine=0
 FontName=Tahoma
@@ -47,6 +40,7 @@ SqlSeparator=0
 UpperCaseKeyword=1
 ShowTag=1
 ShowCommonAttributes=0
+ShowDisableAttributes=0
 BugFixEntityWidth=1
 
 [Entity]
@@ -100,6 +94,7 @@ Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,"
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
 Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
+IndexInfo="idx_login_history_rate_limit",0,"login_at,login_sf",""
 Index=idx_login_history_rate_limit=0,login_at,login_sf
 Index=idx_login_history_query=0,organization_id,user_name,entry_execute_flg
 EffectMode=None
@@ -119,7 +114,7 @@ FontSize=9
 FontColor=$000000
 LineColor=$000000
 BkColor=$C0DCC0
-Page=材料開発データ管理システム_認証関連_ER図.a5er
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
 Left=2853
 Top=507
 ZOrder=30
@@ -145,6 +140,7 @@ Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,"
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
 Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
+IndexInfo="idx_pin_codes_token",0,"session_token",""
 Index=idx_pin_codes_token=0,session_token
 EffectMode=None
 Color=$000000
@@ -217,7 +213,7 @@ FontSize=9
 FontColor=$000000
 LineColor=$000000
 BkColor=$FFCC66
-Page=材料開発データ管理システム_認証関連_ER図.a5er
+Page=材料開発データ管理システム_認証関連_ER図.A5ER
 Left=2392
 Top=37
 ZOrder=44
@@ -427,26 +423,47 @@ Field="folder_level","folder_level","integer",,,"0","",$FFFFFFFF,""
 Field="is_folder_placeholder","is_folder_placeholder","boolean",,,"false","",$FFFFFFFF,""
 Field="upload_timestamp","upload_timestamp","timestamp(6) without time zone",,,"CURRENT_TIMESTAMP","",$FFFFFFFF,""
 Field="permissions","permissions","jsonb",,,"\q{}\q","",$FFFFFFFF,""
+IndexInfo="file_metadata_file_key_key",2,"file_key",""
 Index=file_metadata_file_key_key=2,file_key
+IndexInfo="idx_file_metadata_access_level",0,"access_level",""
 Index=idx_file_metadata_access_level=0,access_level
+IndexInfo="idx_file_metadata_created_at",0,"created_at",""
 Index=idx_file_metadata_created_at=0,created_at
+IndexInfo="idx_file_metadata_custom_metadata_gin",0,"custom_metadata",""
 Index=idx_file_metadata_custom_metadata_gin=0,custom_metadata
+IndexInfo="idx_file_metadata_data_layer",0,"data_layer",""
 Index=idx_file_metadata_data_layer=0,data_layer
+IndexInfo="idx_file_metadata_draft_metadata_gin",0,"draft_metadata",""
 Index=idx_file_metadata_draft_metadata_gin=0,draft_metadata
+IndexInfo="idx_file_metadata_file_category",0,"file_category",""
 Index=idx_file_metadata_file_category=0,file_category
+IndexInfo="idx_file_metadata_file_key",0,"file_key",""
 Index=idx_file_metadata_file_key=0,file_key
+IndexInfo="idx_file_metadata_file_type",0,"file_type",""
 Index=idx_file_metadata_file_type=0,file_type
+IndexInfo="idx_file_metadata_folder_structure_gin",0,"folder_structure",""
 Index=idx_file_metadata_folder_structure_gin=0,folder_structure
+IndexInfo="idx_file_metadata_is_draft",0,"is_draft",""
 Index=idx_file_metadata_is_draft=0,is_draft
+IndexInfo="idx_file_metadata_is_maiml",0,"is_maiml_file",""
 Index=idx_file_metadata_is_maiml=0,is_maiml_file
+IndexInfo="idx_file_metadata_is_maiml_file",0,"is_maiml_file",""
 Index=idx_file_metadata_is_maiml_file=0,is_maiml_file
+IndexInfo="idx_file_metadata_maiml_errors",0,"maiml_error_count",""
 Index=idx_file_metadata_maiml_errors=0,maiml_error_count
+IndexInfo="idx_file_metadata_maiml_status",0,"maiml_analysis_status",""
 Index=idx_file_metadata_maiml_status=0,maiml_analysis_status
+IndexInfo="idx_file_metadata_processing_status",0,"processing_status",""
 Index=idx_file_metadata_processing_status=0,processing_status
+IndexInfo="idx_file_metadata_tags_gin",0,"tags",""
 Index=idx_file_metadata_tags_gin=0,tags
+IndexInfo="idx_file_metadata_upload_batch_id",0,"upload_batch_id",""
 Index=idx_file_metadata_upload_batch_id=0,upload_batch_id
+IndexInfo="idx_file_metadata_uploaded_by",0,"uploaded_by",""
 Index=idx_file_metadata_uploaded_by=0,uploaded_by
+IndexInfo="idx_file_metadata_user_draft",0,"uploaded_by,is_draft,last_edit_timestamp",""
 Index=idx_file_metadata_user_draft=0,uploaded_by,is_draft,last_edit_timestamp
+IndexInfo="idx_file_metadata_version",0,"parent_version_id",""
 Index=idx_file_metadata_version=0,parent_version_id
 EffectMode=None
 Color=$000000
@@ -769,6 +786,7 @@ Left=1000
 Top=100
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="uuid","vendor_uuid","uuid","NOT NULL",1,"","",$FFFFFFFF,""
+Field="会社ID","corporation_id","uuid",,,"","",$FFFFFFFF,""
 Field="ID","vendor_id","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
 Field="名称","vendor_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
 Field="説明","vendor_description","@VARCHAR",,,"","",$FFFFFFFF,""
@@ -781,7 +799,7 @@ Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260206093400
+ModifiedDateTime=20260212103215
 Position="材料開発データ管理システム_共通_ER図.A5ER",1000,100,596,501
 ZOrder=114
 
@@ -796,6 +814,7 @@ Left=100
 Top=900
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="uuid","instrument_uuid","uuid","NOT NULL",1,"","",$FFFFFFFF,""
+Field="会社ID","corporation_id","uuid",,,"","",$FFFFFFFF,""
 Field="ID","instrument_id","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
 Field="名称","instrument_name","@VARCHAR","NOT NULL",,"","",$FFFFFFFF,""
 Field="説明","instrument_description","@VARCHAR",,,"","",$FFFFFFFF,""
@@ -808,7 +827,7 @@ Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260206093408
+ModifiedDateTime=20260212103235
 Position="材料開発データ管理システム_共通_ER図.A5ER",100,900,593,496
 ZOrder=113
 

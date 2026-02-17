@@ -521,6 +521,8 @@ export interface DocumentTagData {
   annotation?: string;
   vendorRef?: Reference;
   instrumentRef?: Reference;
+  /** マスタから追加されたことを示すフラグ（UI用） */
+  fromMaster?: boolean;
 }
 
 /**

@@ -4,8 +4,8 @@
  * ノード/エッジ選択時に表示される右側パネル
  * Material-UI → Ant Design変換版
  * 
- * @version 2.0.0
- * @date 2026-01-29
+ * @version 2.0.2
+ * @date 2026-02-16
  */
 
 import React, { useState, useMemo } from 'react';
@@ -34,9 +34,11 @@ const { TextArea } = Input;
 import type { 
   MethodData, 
   NodeData, 
-  EdgeData, 
-  ValidationError,
+  EdgeData,
 } from '../../../types/editor';
+import type { ErrorContent } from '../../../types/maimlValidation';
+import { useTemplates } from '../../../contexts/TemplateContext';
+import { Reference, Template } from '@/types/maiml-unified';
 
 /**
  * PropertyPanelProps - PropertyPanelコンポーネントのProps型定義
@@ -77,6 +79,9 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 }) => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteEdgeConfirmOpen, setDeleteEdgeConfirmOpen] = useState(false);
+
+  // ✅ TemplateContextから allTemplates を取得
+  const { allTemplates } = useTemplates();
 
   // ノード/エッジの基本判定
   const isPlace = selectedNode?.data?.nodeType === 'place';
@@ -221,7 +226,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
   /**
    * エラー表示コンポーネント
    */
-  const renderErrors = (errors?: ValidationError[]) => {
+  const renderErrors = (errors?: ErrorContent[]) => {
     if (!errors || errors.length === 0) return null;
     
     return (
@@ -518,7 +523,125 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                   </Card>
                   <Button
                     type="default"
-                    onClick={() => onOpenTemplateEditor(selectedNode)}
+                    onClick={() => {
+                      console.log('🔍 [PropertyPanel] テンプレート編集ボタンクリック:', {
+                        nodeId: selectedNode.id,
+                        hasTemplate: !!selectedNode.data.template,
+                        hasTemplateRef: !!selectedNode.data.templateRef,
+                      });
+                      
+                      // ✅ reference版と同様: allTemplatesからテンプレートを復元
+                      let latestTemplate = null;
+                      const nodeId = selectedNode.id;
+                      
+                      const category = placeType as 'material' | 'condition' | 'result';
+                      if (allTemplates && allTemplates[category]) {
+                        // このノードをplaceRefsで参照しているテンプレートを検索
+                        latestTemplate = allTemplates[category].find((t: Template) =>
+                          t.placeRefs && t.placeRefs.some((ref: Reference) => ref.ref === nodeId)
+                        );
+                        
+                        console.log('🔍 [PropertyPanel] TemplateContext検索:', {
+                          placeType,
+                          nodeId,
+                          allTemplatesCount: allTemplates[category].length,
+                          foundTemplate: !!latestTemplate,
+                          templateId: latestTemplate?.id,
+                        });
+                      }
+                      
+                      // 最新のテンプレート情報をノードデータにマージ
+                      const updatedNode: Node<NodeData> = {
+                        ...selectedNode,
+                        data: {
+                          ...selectedNode.data,
+                        }
+                      };
+                      
+                      // ✅ latestTemplateが見つかった場合は、それを使用
+                      if (latestTemplate) {
+                        console.log('✅ [PropertyPanel] 復元されたテンプレートを使用');
+                        updatedNode.data.template = {
+                          ...latestTemplate
+                        };
+                        updatedNode.data.templateRef = {
+                          ...latestTemplate
+                        };
+                      }
+                      
+                      // 既存テンプレートがあるかチェック（ノード自身のtemplateまたは復元されたtemplate）
+                      let hasExistingTemplate = false;
+                      if (updatedNode.data.template && updatedNode.data.template.id) {
+                        console.log('✅ [PropertyPanel] 既存テンプレートあり:', {
+                          templateId: updatedNode.data.template.id,
+                          uuid: updatedNode.data.template.uuid,
+                        });
+                        hasExistingTemplate = true;
+                        
+                        // ✅ 既存テンプレートの場合は、そのままデータを使用（ID・UUIDを保持）
+                        updatedNode.data.template = {
+                          ...updatedNode.data.template
+                        };
+                        if (updatedNode.data.templateRef) {
+                          updatedNode.data.templateRef = {
+                            ...updatedNode.data.templateRef
+                          };
+                        }
+                      }
+                      
+                      // 新規テンプレートの場合のみ、初期データを設定
+                      if (!hasExistingTemplate) {
+                        console.log('⚠️ [PropertyPanel] 新規テンプレートとして初期データを設定');
+                        
+                        // ✅ テンプレートIDをノードIDとは異なるIDにする（重複ID回避）
+                        const templateId = `${placeType}Template_${Date.now()}`;
+                        
+                        // ✅ 修正: ID、UUID、PlaceRefを明示的に設定
+                        updatedNode.data.template = {
+                          id: templateId,  // ✅ ノードIDとは異なる専用ID
+                          category: placeType,
+                          uuid: updatedNode.data.template?.uuid || crypto.randomUUID(),  // ✅ UUID生成
+                          name: selectedNode.data.name || '',
+                          description: selectedNode.data.description || '',
+                          placeRefs: [{ id: '', ref: nodeId }],  // ✅ PlaceRef型で自ノードIDを設定
+                          properties: updatedNode.data.template?.properties || [],
+                          contents: []
+                        };
+                        
+                        updatedNode.data.templateRef = {
+                          ...updatedNode.data.template
+                        };
+                        
+                        // 新規テンプレートフラグを設定
+                        updatedNode.data.isNewTemplate = true;
+                        updatedNode.data.templateCategory = placeType;
+                        
+                        // 共通テンプレートかメソッド内テンプレートかを判定
+                        const isCommon = selectedNode.data.isCommonTemplate || false;
+                        updatedNode.data.isCommonTemplate = isCommon;
+                        
+                        // methodIdを設定（共通テンプレートでない場合のみ）
+                        if (!isCommon && methods && methods[activeMethodIndex]) {
+                          updatedNode.data.methodId = methods[activeMethodIndex].methodId;
+                          console.log('📋 [PropertyPanel] methodIdを設定:', {
+                            methodId: updatedNode.data.methodId,
+                            activeMethodIndex
+                          });
+                        } else {
+                          updatedNode.data.methodId = null;
+                          console.log('📋 [PropertyPanel] 共通テンプレートとして設定');
+                        }
+                        
+                        console.log('✅ [PropertyPanel] 初期データ設定完了:', {
+                          templateId: updatedNode.data.template.id,
+                          uuid: updatedNode.data.template.uuid,
+                          placeRefs: updatedNode.data.template.placeRefs,
+                        });
+                      }
+                      
+                      console.log('✅ [PropertyPanel] テンプレート編集画面を開く');
+                      onOpenTemplateEditor(updatedNode);
+                    }}
                     block
                   >
                     テンプレート編集

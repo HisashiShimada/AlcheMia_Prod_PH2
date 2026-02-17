@@ -11,6 +11,7 @@ import * as issueController from '../controllers/issueController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
+import { ISSUE_STATUS_VALUES } from '../types/issue'
 
 const router = Router();
 
@@ -194,6 +195,7 @@ router.get(
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware validationMiddleware - バリデーション
  * @description 問題のステータスを「未解決」または「解決済」に変更
  * @requirements REQ-010, REQ-011
  * @roles manager, admin （workerは不可）
@@ -204,14 +206,19 @@ router.patch(
   tenantIsolation,
   [
     param('issueId')
-      .isUUID()
-      .withMessage('issueIdはUUID形式である必要があります'),
+      .notEmpty()
+      .withMessage('issueIdは必須です')
+      .isString()
+      .withMessage('issueIdは文字列である必要があります')
+      .isLength({ min: 1, max: 50 })
+      .withMessage('issueIdは1〜50文字である必要があります'),
     body('status')
       .notEmpty()
       .withMessage('statusは必須です')
-      .isIn(['unresolved', 'resolved'])
+      .isIn(ISSUE_STATUS_VALUES)
       .withMessage('statusは"unresolved"または"resolved"である必要があります'),
   ],
+  handleValidationErrors,
   issueController.updateStatus
 );
 

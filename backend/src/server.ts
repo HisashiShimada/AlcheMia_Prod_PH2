@@ -23,6 +23,7 @@ import departmentRoutes from './routes/departmentRoutes';
 import corporationRoutes from './routes/corporationRoutes';
 import roleRoutes from './routes/roleRoutes';
 import sessionRoutes from './routes/sessionRoutes';
+import progressRoutes from './routes/progressRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -100,6 +101,9 @@ async function startServer() {
 
 	// Mount issue routes
 	app.use('/api/v1/issues', issueRoutes);
+
+    // Mount progress routes
+    app.use('/api/v1/progress', progressRoutes);
 
     if (process.env.NODE_ENV !== 'test') {
       const server = app.listen(PORT, () => {

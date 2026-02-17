@@ -4,8 +4,10 @@
  */
 
 import { Pool } from 'pg';
+import pgPromise from 'pg-promise';
 
 let pool: Pool | null = null;
+let pgp: pgPromise.IDatabase<any> | null = null;
 
 /**
  * 必須の環境変数をチェックする
@@ -111,4 +113,35 @@ export async function closePool(): Promise<void> {
  */
 export function resetPool(): void {
   pool = null;
+  pgp = null;
+}
+
+/**
+ * pg-promiseインスタンスを取得
+ * 
+ * @returns pg-promise IDatabase インスタンス
+ */
+export function getPgp(): pgPromise.IDatabase<any> {
+  if (!pgp) {
+    // Poolがなければ初期化
+    if (!pool) {
+      initializePool();
+    }
+    
+    // pg-promiseインスタンスを作成（Poolの接続情報を使用）
+    const pgpLib = pgPromise();
+    const config = pool!.options;
+    
+    pgp = pgpLib({
+      host: config.host as string,
+      port: config.port as number,
+      database: config.database as string,
+      user: config.user as string,
+      password: config.password as string | undefined,
+      max: config.max,
+      idleTimeoutMillis: config.idleTimeoutMillis ?? undefined,
+      connectionTimeoutMillis: config.connectionTimeoutMillis ?? undefined,
+    });
+  }
+  return pgp!;
 }

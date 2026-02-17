@@ -147,8 +147,245 @@ describe('TransitionDataRepository', () => {
       const [query, params] = mockQuery.mock.calls[0];
       expect(query).toContain('WHERE organization_id = $1');
       expect(params[0]).toBe(organizationId);
+  });
+
+  describe('getLatestRecordByTransition', () => {
+    const organizationId = 'org-123';
+    const projectId = 'proj-456';
+    const methodId = 'method-789';
+    const taskNo = 1;
+    const transitionId = 'trans-001';
+
+    test('正常系: 最新のトランジションレコードを取得できる', async () => {
+      // Arrange
+      const expectedRow = {
+        organization_id: organizationId,
+        project_id: projectId,
+        method_id: methodId,
+        task_no: taskNo,
+        transition_id: transitionId,
+        status: 'running',
+        progress_rate: 75,
+        comment: 'Latest record',
+        updated_by: 'user-123',
+        updated_at: new Date('2026-02-03T12:00:00Z'),
+        created_at: new Date('2026-02-03T09:00:00Z')
+      };
+
+      mockQuery.mockResolvedValue({
+        rows: [expectedRow]
+      });
+
+      // Act
+      const result = await repository.getLatestRecordByTransition(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transitionId
+      );
+
+      // Assert
+      expect(result).toEqual(expectedRow);
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+      
+      // ORDER BY updated_at DESC LIMIT 1 の確認
+      const [query, params] = mockQuery.mock.calls[0];
+      expect(query).toContain('ORDER BY updated_at DESC');
+      expect(query).toContain('LIMIT 1');
+      expect(params).toEqual([organizationId, projectId, methodId, taskNo, transitionId]);
+    });
+
+    test('正常系: レコードが存在しない場合、nullを返す', async () => {
+      // Arrange
+      mockQuery.mockResolvedValue({
+        rows: []
+      });
+
+      // Act
+      const result = await repository.getLatestRecordByTransition(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transitionId
+      );
+
+      // Assert
+      expect(result).toBeNull();
+    });
+
+    test('異常系: データベースエラーが発生した場合、DatabaseErrorをスローする', async () => {
+      // Arrange
+      const dbError = new Error('Query timeout');
+      mockQuery.mockRejectedValue(dbError);
+
+      // Act & Assert
+      await expect(
+        repository.getLatestRecordByTransition(
+          organizationId,
+          projectId,
+          methodId,
+          taskNo,
+          transitionId
+        )
+      ).rejects.toThrow(DatabaseError);
     });
   });
+
+  describe('countRecordsByTransition', () => {
+    const organizationId = 'org-123';
+    const projectId = 'proj-456';
+    const methodId = 'method-789';
+    const taskNo = 1;
+    const transitionId = 'trans-001';
+
+    test('正常系: トランジションのレコード数を取得できる', async () => {
+      // Arrange
+      mockQuery.mockResolvedValue({
+        rows: [{ count: '5' }]
+      });
+
+      // Act
+      const result = await repository.countRecordsByTransition(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transitionId
+      );
+
+      // Assert
+      expect(result).toBe(5);
+      expect(mockQuery).toHaveBeenCalledTimes(1);
+      
+      // COUNT文の確認
+      const [query, params] = mockQuery.mock.calls[0];
+      expect(query).toContain('SELECT COUNT(*)');
+      expect(query).toContain('FROM transition_data');
+      expect(query).toContain('WHERE organization_id = $1');
+      expect(params).toEqual([organizationId, projectId, methodId, taskNo, transitionId]);
+    });
+
+    test('正常系: レコードが0件の場合、0を返す', async () => {
+      // Arrange
+      mockQuery.mockResolvedValue({
+        rows: [{ count: '0' }]
+      });
+
+      // Act
+      const result = await repository.countRecordsByTransition(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transitionId
+      );
+
+      // Assert
+      expect(result).toBe(0);
+    });
+
+    test('異常系: データベースエラーが発生した場合、DatabaseErrorをスローする', async () => {
+      // Arrange
+      const dbError = new Error('Connection lost');
+      mockQuery.mockRejectedValue(dbError);
+
+      // Act & Assert
+      await expect(
+        repository.countRecordsByTransition(
+          organizationId,
+          projectId,
+          methodId,
+          taskNo,
+          transitionId
+        )
+      ).rejects.toThrow(DatabaseError);
+
+      await expect(
+        repository.countRecordsByTransition(
+          organizationId,
+          projectId,
+          methodId,
+          taskNo,
+          transitionId
+        )
+      ).rejects.toThrow('Database error occurred while counting transition records');
+    });
+
+    test('セキュリティ: organization_idフィルタが必須であることを確認', async () => {
+      // Arrange
+      mockQuery.mockResolvedValue({
+        rows: [{ count: '3' }]
+      });
+
+      // Act
+      await repository.countRecordsByTransition(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transitionId
+      );
+
+      // Assert
+      const [query, params] = mockQuery.mock.calls[0];
+      expect(query).toContain('WHERE organization_id = $1');
+      expect(params[0]).toBe(organizationId);
+    });
+
+    test('セキュリティ: Parameterized Queryを使用していることを確認', async () => {
+      // Arrange
+      mockQuery.mockResolvedValue({
+        rows: [{ count: '2' }]
+      });
+
+      // Act
+      await repository.countRecordsByTransition(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transitionId
+      );
+
+      // Assert
+      const [query, params] = mockQuery.mock.calls[0];
+      
+      // プレースホルダー($1, $2, etc.)が使用されていることを確認
+      expect(query).toMatch(/\$\d+/);
+      
+      // パラメータ配列が渡されていることを確認
+      expect(Array.isArray(params)).toBe(true);
+      expect(params.length).toBe(5);
+      
+      // 値が直接SQL文に埋め込まれていないことを確認（SQLインジェクション対策）
+      expect(query).not.toContain(organizationId);
+      expect(query).not.toContain(projectId);
+      expect(query).not.toContain(transitionId);
+    });
+
+    test('データ整合性: 数値型で結果を返すことを確認', async () => {
+      // Arrange - PostgreSQLはCOUNTの結果を文字列で返す
+      mockQuery.mockResolvedValue({
+        rows: [{ count: '42' }]
+      });
+
+      // Act
+      const result = await repository.countRecordsByTransition(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transitionId
+      );
+
+      // Assert
+      expect(typeof result).toBe('number');
+      expect(result).toBe(42);
+    });
+  });
+});
 
   describe('updateStatus', () => {
     const organizationId = 'org-123';

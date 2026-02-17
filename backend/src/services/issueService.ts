@@ -11,6 +11,7 @@ import {
   IssueStatus,
   IssueWithComments,
   IssueListFilters,
+  ISSUE_STATUS_VALUES,
 } from '../types/issue';
 import {
   NotFoundError,
@@ -185,7 +186,8 @@ export class IssueService {
   async updateStatus(
     organizationId: string,
     issueId: string,
-    status: string
+    userId: string,
+    status: IssueStatus
   ): Promise<ServiceResult<Issue>> {
     try {
       const existingIssue = await this.issueRepository.findById(
@@ -200,10 +202,14 @@ export class IssueService {
       // ステータスバリデーション
       this.validateStatus(status);
 
+      // ステータスを数値変換
+      const statusNumber = this.convertStatusToNumber(status);
+
       const updatedIssue = await this.issueRepository.updateStatus(
         issueId,
         organizationId,
-        status as IssueStatus
+        userId,
+        statusNumber
       );
 
       if (!updatedIssue) {
@@ -338,12 +344,28 @@ export class IssueService {
   /**
    * ステータスのバリデーション
    */
-  private validateStatus(status: string): void {
-    const validStatuses = ['unresolved', 'resolved', 'open', 'in_progress', 'closed', 'rejected'];
-    if (!validStatuses.includes(status)) {
+  private validateStatus(status: IssueStatus): void {
+    if (!ISSUE_STATUS_VALUES.includes(status)) {
       throw new ValidationError(
-        `無効なステータスです。許可された値: ${validStatuses.join(', ')}`
+        `無効なステータスです。許可された値: ${ISSUE_STATUS_VALUES.join(', ')}`
       );
     }
+  }
+
+  /**
+   * ステータスを文字列から数値に変換
+   */
+  private convertStatusToNumber(status: IssueStatus): number{
+      switch(status){
+        case ISSUE_STATUS_VALUES[0]:
+          return 0;
+        case ISSUE_STATUS_VALUES[1]:
+          return 1;
+        default:
+          throw new ValidationError(
+            `無効なステータスです。許可された値: ${ISSUE_STATUS_VALUES.join(', ')}`
+          );
+      }
+
   }
 }

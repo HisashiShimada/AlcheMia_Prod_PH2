@@ -10,6 +10,7 @@ import { getPool } from '../database/db';
  */
 export interface VendorMaster {
   vendor_id: string;
+  vendor_uuid: string;
   vendor_name: string;
   vendor_description: string | null;
   vendor_annotation: string | null;
@@ -31,6 +32,7 @@ export const findAll = async (
   const query = `
     SELECT 
       vendor_id,
+      vendor_uuid,
       vendor_name,
       vendor_description,
       vendor_annotation,
@@ -61,6 +63,7 @@ export const findById = async (
   const query = `
     SELECT 
       vendor_id,
+      vendor_uuid,
       vendor_name,
       vendor_description,
       vendor_annotation,
@@ -91,7 +94,8 @@ export const create = async (
     vendorAnnotation?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<VendorMaster> => {
   const pool = getPool();
   const { v4: uuidv4 } = require('uuid');
@@ -104,13 +108,14 @@ export const create = async (
       vendor_name,
       vendor_description,
       vendor_annotation,
+      corporation_id,
       is_active,
       create_user_id,
       update_user_id,
       create_at,
       update_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
     )
     RETURNING 
       vendor_id,
@@ -128,6 +133,7 @@ export const create = async (
     data.vendorName,
     data.vendorDescription || null,
     data.vendorAnnotation || null,
+    corporationId,
     data.isActive !== undefined ? data.isActive : true,
     userId,
     userId,
@@ -143,6 +149,8 @@ export const create = async (
  * @param organizationId 組織ID
  * @param vendorId Vendor ID
  * @param data 更新データ
+ * @param userId ユーザーID
+ * @param corporationId 会社ID
  * @returns 更新されたVendorマスタ
  */
 export const update = async (
@@ -154,39 +162,76 @@ export const update = async (
     vendorAnnotation?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<VendorMaster | null> => {
   const pool = getPool();
   
-  const query = `
-    UPDATE vendor
-    SET
-      vendor_name = COALESCE($3, vendor_name),
-      vendor_description = COALESCE($4, vendor_description),
-      vendor_annotation = COALESCE($5, vendor_annotation),
-      is_active = COALESCE($6, is_active),
-      update_user_id = $7,
-      update_at = NOW()
-    WHERE organization_id = $1
-      AND vendor_id = $2
-    RETURNING 
-      vendor_id,
-      vendor_name,
-      vendor_description,
-      vendor_annotation,
-      is_active,
-      update_at
-  `;
+  // WHERE句の条件を構築
+  let query: string;
+  let values: any[];
   
-  const values = [
-    organizationId,
-    vendorId,
-    data.vendorName,
-    data.vendorDescription,
-    data.vendorAnnotation,
-    data.isActive,
-    userId,
-  ];
+  if (corporationId !== null && corporationId !== undefined) {
+    // corporation_idが存在する場合：corporation_idで照合
+    query = `
+      UPDATE vendor
+      SET
+        vendor_name = COALESCE($3, vendor_name),
+        vendor_description = COALESCE($4, vendor_description),
+        vendor_annotation = COALESCE($5, vendor_annotation),
+        is_active = COALESCE($6, is_active),
+        update_user_id = $7,
+        update_at = NOW()
+      WHERE corporation_id = $1
+        AND vendor_id = $2
+      RETURNING 
+        vendor_id,
+        vendor_name,
+        vendor_description,
+        vendor_annotation,
+        is_active,
+        update_at
+    `;
+    values = [
+      corporationId,
+      vendorId,
+      data.vendorName,
+      data.vendorDescription,
+      data.vendorAnnotation,
+      data.isActive,
+      userId,
+    ];
+  } else {
+    // corporation_idがNULLの場合：organization_idで照合
+    query = `
+      UPDATE vendor
+      SET
+        vendor_name = COALESCE($3, vendor_name),
+        vendor_description = COALESCE($4, vendor_description),
+        vendor_annotation = COALESCE($5, vendor_annotation),
+        is_active = COALESCE($6, is_active),
+        update_user_id = $7,
+        update_at = NOW()
+      WHERE organization_id = $1
+        AND vendor_id = $2
+      RETURNING 
+        vendor_id,
+        vendor_name,
+        vendor_description,
+        vendor_annotation,
+        is_active,
+        update_at
+    `;
+    values = [
+      organizationId,
+      vendorId,
+      data.vendorName,
+      data.vendorDescription,
+      data.vendorAnnotation,
+      data.isActive,
+      userId,
+    ];
+  }
   
   const result = await pool.query(query, values);
   return result.rows[0] || null;
@@ -198,34 +243,64 @@ export const update = async (
  * @param organizationId 組織ID
  * @param vendorId Vendor ID
  * @param isActive アクティブ状態
+ * @param userId ユーザーID
+ * @param corporationId 会社ID
  * @returns 更新されたVendorマスタ
  */
 export const updateStatus = async (
   organizationId: string,
   vendorId: string,
   isActive: boolean,
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<VendorMaster | null> => {
   const pool = getPool();
   
-  const query = `
-    UPDATE vendor
-    SET
-      is_active = $3,
-      update_user_id = $4,
-      update_at = NOW()
-    WHERE organization_id = $1
-      AND vendor_id = $2
-    RETURNING 
-      vendor_id,
-      vendor_name,
-      vendor_description,
-      vendor_annotation,
-      is_active,
-      update_at
-  `;
+  // WHERE句の条件を構築
+  let query: string;
+  let values: any[];
   
-  const result = await pool.query(query, [organizationId, vendorId, isActive, userId]);
+  if (corporationId !== null && corporationId !== undefined) {
+    // corporation_idが存在する場合：corporation_idで照合
+    query = `
+      UPDATE vendor
+      SET
+        is_active = $3,
+        update_user_id = $4,
+        update_at = NOW()
+      WHERE corporation_id = $1
+        AND vendor_id = $2
+      RETURNING 
+        vendor_id,
+        vendor_name,
+        vendor_description,
+        vendor_annotation,
+        is_active,
+        update_at
+    `;
+    values = [corporationId, vendorId, isActive, userId];
+  } else {
+    // corporation_idがNULLの場合：organization_idで照合
+    query = `
+      UPDATE vendor
+      SET
+        is_active = $3,
+        update_user_id = $4,
+        update_at = NOW()
+      WHERE organization_id = $1
+        AND vendor_id = $2
+      RETURNING 
+        vendor_id,
+        vendor_name,
+        vendor_description,
+        vendor_annotation,
+        is_active,
+        update_at
+    `;
+    values = [organizationId, vendorId, isActive, userId];
+  }
+  
+  const result = await pool.query(query, values);
   return result.rows[0] || null;
 };
 
@@ -259,11 +334,13 @@ export const existsById = async (
  * フィルタ条件付きでVendorマスタを取得（WHERE句でフィルタリング）
  * 
  * @param organizationId 組織ID
+ * @param corporationId 会社ID
  * @param filters フィルタ条件
  * @returns Vendorマスタの配列
  */
 export const findAllWithFilters = async (
   organizationId: string,
+  corporationId: string | null,
   filters: {
     displayScope?: string;
     search?: string;
@@ -272,13 +349,21 @@ export const findAllWithFilters = async (
 ): Promise<VendorMaster[]> => {
   const pool = getPool();
   
-  const whereClauses: string[] = ['organization_id = $1'];
-  const values: any[] = [organizationId];
-  let paramIndex = 2;
+  const whereClauses: string[] = [];
+  const values: any[] = [];
+  let paramIndex = 1;
   
-  // 表示切替フィルタ（自組織のみ：IDの末尾2桁が偶数）
-  if (filters.displayScope === 'own') {
-    whereClauses.push(`(RIGHT(vendor_id, 2)::int % 2 = 0)`);
+  // 表示切替フィルタ（display_scope）
+  if (filters.displayScope === 'all') {
+    // 全体選択: corporation_idのみでフィルタ（organization_idは照合しない）
+    whereClauses.push(`corporation_id = $${paramIndex}`);
+    values.push(corporationId);
+    paramIndex++;
+  } else {
+    // 自組織選択: organization_idのみでフィルタ
+    whereClauses.push(`organization_id = $${paramIndex}`);
+    values.push(organizationId);
+    paramIndex++;
   }
   
   // 検索フィルタ（ID・名称・説明・注釈での部分一致、大文字小文字を区別しない）
@@ -303,6 +388,7 @@ export const findAllWithFilters = async (
   const query = `
     SELECT 
       vendor_id,
+      vendor_uuid,
       vendor_name,
       vendor_description,
       vendor_annotation,

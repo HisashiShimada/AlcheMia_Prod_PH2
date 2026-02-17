@@ -47,6 +47,7 @@ export interface UserInfo {
 export interface JwtPayload {
   userId: string;
   organizationId: string;
+  corporationId?: string;
   sessionId: string;
   permissions: Permission[];
   iat: number;

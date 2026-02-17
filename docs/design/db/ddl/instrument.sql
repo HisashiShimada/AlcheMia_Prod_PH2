@@ -10,6 +10,9 @@ CREATE TABLE instrument (
     -- 主キー
     organization_id UUID NOT NULL,
     instrument_uuid UUID NOT NULL,
+
+    --関連情報
+    corporation_id UUID,
     
     -- instrument情報
     instrument_id CHARACTER VARYING NOT NULL,
@@ -36,6 +39,7 @@ CREATE TABLE instrument (
 COMMENT ON TABLE instrument IS 'instrument';
 COMMENT ON COLUMN instrument.organization_id IS '組織ID';
 COMMENT ON COLUMN instrument.instrument_uuid IS 'uuid';
+COMMENT ON COLUMN instrument.corporation_id IS '会社ID';
 COMMENT ON COLUMN instrument.instrument_id IS 'ID';
 COMMENT ON COLUMN instrument.instrument_name IS '名称';
 COMMENT ON COLUMN instrument.instrument_description IS '説明';

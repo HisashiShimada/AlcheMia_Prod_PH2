@@ -37,7 +37,7 @@ import type {
 import {
   DocumentTagData,
 } from '../../../types/maiml-unified'
-import { fetchMasters } from '@/services/masterApiService';
+import { fetchMasters, type CreatorRecord, type VendorRecord, type InstrumentRecord } from '@/services/masterApiService';
 
 const { Panel } = Collapse;
 
@@ -79,6 +79,36 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     instruments: false,
   });
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  /**
+   * マスタデータ変換関数
+   */
+  const convertCreatorToDocumentTag = useCallback((creator: CreatorRecord): DocumentTagData => ({
+    tagName: 'Creator',
+    id: creator.creatorId,
+    uuid: creator.creatorUuid,
+    name: creator.creatorName,
+    description: creator.creatorDescription,
+    annotation: creator.creatorAnnotation,
+  }), []);
+
+  const convertVendorToDocumentTag = useCallback((vendor: VendorRecord): DocumentTagData => ({
+    tagName: 'Vendor',
+    id: vendor.vendorId,
+    uuid: vendor.vendorUuid,
+    name: vendor.vendorName,
+    description: vendor.vendorDescription,
+    annotation: vendor.vendorAnnotation,
+  }), []);
+
+  const convertInstrumentToDocumentTag = useCallback((instrument: InstrumentRecord): DocumentTagData => ({
+    tagName: 'Instrument',
+    id: instrument.instrumentId,
+    uuid: instrument.instrumentUuid,
+    name: instrument.instrumentName,
+    description: instrument.instrumentDescription,
+    annotation: instrument.instrumentAnnotation,
+  }), []);
 
   /**
    * 新規ドキュメント判定（計算プロパティ）
@@ -185,30 +215,32 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       
       setIsLoadingMasters(true);
       try {
-        // const [creatorsResponse, vendorsResponse, instrumentsResponse] = await Promise.all([
-        //   fetchMasters('creator'),
-        //   fetchMasters('vendor'),
-        //   fetchMasters('instrument'),
-        // ]);
+        const [creatorsData, vendorsData, instrumentsData] = await Promise.all([
+          fetchMasters('creator') as Promise<CreatorRecord[]>,
+          fetchMasters('vendor') as Promise<VendorRecord[]>,
+          fetchMasters('instrument') as Promise<InstrumentRecord[]>,
+        ]);
         
-        // setCreators(creatorsResponse.data.items);
-      
-        // setVendors(vendorsResponse.data.items);
-      
-        // setOwners([]);
-      
-        // setInstruments(instrumentsResponse.data.items);
+        setCreators(creatorsData.map(convertCreatorToDocumentTag));
+        setVendors(vendorsData.map(convertVendorToDocumentTag));
+        setOwners([]); // ownerマスタは保留
+        setInstruments(instrumentsData.map(convertInstrumentToDocumentTag));
         
-        console.log('✅ [DocumentEditDialog] マスタデータ取得完了');
+        console.log('✅ [DocumentEditDialog] マスタデータ取得完了', {
+          creators: creatorsData.length,
+          vendors: vendorsData.length,
+          instruments: instrumentsData.length,
+        });
       } catch (error) {
         console.error('❌ [DocumentEditDialog] マスタデータ取得エラー:', error);
+        message.error('マスタデータの取得に失敗しました');
       } finally {
         setIsLoadingMasters(false);
       }
     };
     
     loadMasterData();
-  }, [open]);
+  }, [open, convertCreatorToDocumentTag, convertVendorToDocumentTag, convertInstrumentToDocumentTag]);
   /**
    * ダイアログ開閉時のフォーム初期化
    */

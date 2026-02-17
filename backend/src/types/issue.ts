@@ -48,21 +48,15 @@ export const ISSUE_SEVERITY_VALUES: readonly IssueSeverity[] = [
  * ステータス（statusカラムの値）
  */
 export type IssueStatus =
-  | 'open'        // 未対応
-  | 'in_progress' // 対応中
-  | 'resolved'    // 解決済み
-  | 'closed'      // 終了
-  | 'rejected';   // 却下
+  | 'unresolved'      // 未解決
+  | 'resolved';       // 解決済
 
 /**
  * ステータスの有効な値（バリデーション用）
  */
 export const ISSUE_STATUS_VALUES: readonly IssueStatus[] = [
-  'open',
-  'in_progress',
+  'unresolved',
   'resolved',
-  'closed',
-  'rejected',
 ] as const;
 
 /**

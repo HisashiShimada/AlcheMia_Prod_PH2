@@ -243,3 +243,52 @@ export const validatePassword = (
     .isLength({ min: minLength, max: maxLength })
     .withMessage(`パスワードは${minLength}〜${maxLength}文字である必要があります`);
 };
+
+/**
+ * URLパラメータの文字列検証
+ * 
+ * @param field - フィールド名
+ * @param minLength - 最小文字数
+ * @param maxLength - 最大文字数
+ * @returns ValidationChain
+ */
+export const validateParamString = (
+  field: string,
+  minLength: number = 1,
+  maxLength: number = 255
+): ValidationChain => {
+  return param(field)
+    .notEmpty()
+    .withMessage(`${field}は空でない文字列である必要があります`)
+    .isString()
+    .withMessage(`${field}は文字列である必要があります`)
+    .isLength({ min: minLength, max: maxLength })
+    .withMessage(`${field}は${minLength}〜${maxLength}文字である必要があります`);
+};
+
+/**
+ * URLパラメータの整数検証
+ * 
+ * @param field - フィールド名
+ * @param min - 最小値
+ * @param max - 最大値（オプション）
+ * @returns ValidationChain
+ */
+export const validateParamInt = (
+  field: string,
+  min: number = 1,
+  max?: number
+): ValidationChain => {
+  let chain = param(field)
+    .notEmpty()
+    .withMessage(`${field}は必須です`)
+    .isInt({ min, ...(max !== undefined && { max }) });
+
+  if (max !== undefined) {
+    chain = chain.withMessage(`${field}は${min}〜${max}の範囲の整数である必要があります`);
+  } else {
+    chain = chain.withMessage(`${field}は${min}以上の整数である必要があります`);
+  }
+
+  return chain;
+};
