@@ -26,7 +26,9 @@
 ### 1. 認証API（Authentication）
 
 **API設計書**: [api_auth.md](./api_auth.md)  
-**ルートファイル**: `backend/src/routes/authRoutes.ts`
+**ルートファイル**: 
+- `backend/src/routes/authRoutes.ts` - 認証関連API
+- `backend/src/routes/sessionRoutes.ts` - セッション管理API
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
@@ -36,17 +38,23 @@
 | 1.4 | POST | /api/v1/auth/reset-password-request | パスワードリセット要求 | ✅ 実装済み | AuthController.resetPasswordRequest |
 | 1.5 | POST | /api/v1/auth/reset-password | パスワードリセット実行 | ✅ 実装済み | AuthController.resetPassword |
 | 1.6 | POST | /api/v1/auth/logout | ログアウト | ✅ 実装済み | AuthController.logout |
+| 1.7 | GET | /api/v1/sessions | セッション一覧取得 | ✅ 実装済み | SessionController.list |
+| 1.8 | DELETE | /api/v1/sessions/:tokenId | セッション強制終了 | ✅ 実装済み | SessionController.terminate |
 
 **ミドルウェアチェーン:**
 - 1.1, 1.4: 認証不要
 - 1.2, 1.3: 仮セッショントークン必須
 - 1.5: リセットトークン必須
-- 1.6: JWT認証 + テナント分離
+- 1.6, 1.7, 1.8: JWT認証 + テナント分離
+- 1.7, 1.8: System Admin権限必須
 
 **備考:**
 - JWT + Session Hybrid認証を使用
 - PINコードは6桁数字、有効期限5分
 - セッション有効期限はロール別（12〜48時間）
+- セッション管理API（1.7, 1.8）はSystem Admin専用機能
+- セッション一覧はマルチテナント分離により自組織のみ取得可能
+- セッション強制終了は自分自身のセッションは不可
 
 ---
 
@@ -334,7 +342,7 @@
 
 | カテゴリ | 総数 | 実装済み | スタブ | 未実装 | 実装率 |
 |---------|------|---------|-------|--------|--------|
-| 認証API | 6 | 6 | 0 | 0 | 100% |
+| 認証API | 8 | 8 | 0 | 0 | 100% |
 | プロジェクト管理API | 16 | 9 | 0 | 7 | 56% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 5 | 0 | 0 | 5 | 0% |
@@ -343,7 +351,7 @@
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
 | 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
 | タスク管理API | 1 | 1 | 0 | 0 | 100% |
-| **合計** | **52** | **30** | **1** | **21** | **56%** |
+| **合計** | **54** | **32** | **1** | **21** | **59%** |
 
 ### 優先度別実装状況
 
@@ -375,6 +383,7 @@
 ```
 backend/src/routes/
 ├── authRoutes.ts                          # 認証API（6エンドポイント）✅ 実装済み
+├── sessionRoutes.ts                       # セッション管理API（2エンドポイント）✅ 実装済み
 ├── projectRoutes.ts                       # プロジェクト管理API（9エンドポイント + 指示確認完了）✅ 一部実装済み
 ├── fileRoutes.ts                          # 共通API（2エンドポイント）⏳ 未実装
 ├── formatRoutes.ts                        # フォーマット管理API（5エンドポイント）⏳ 未実装
@@ -389,6 +398,7 @@ backend/src/routes/
 ```
 backend/src/controllers/
 ├── authController.ts                      # 認証コントローラー
+├── sessionController.ts                   # セッション管理コントローラー
 ├── projectController.ts                   # プロジェクト管理コントローラー
 ├── maimlController.ts                     # Maiml編集コントローラー
 ├── issueController.ts                     # 問題管理コントローラー
@@ -400,6 +410,7 @@ backend/src/controllers/
 ```
 backend/src/services/
 ├── authService.ts                         # 認証サービス
+├── sessionService.ts                      # セッション管理サービス
 ├── projectService.ts                      # プロジェクト管理サービス
 ├── maimlService.ts                        # Maiml編集サービス
 ├── issueService.ts                        # 問題管理サービス
@@ -527,6 +538,15 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.8.0 | 2026-02-17 | セッション管理API追加（54エンドポイント） | Cline |
+| | | - 認証API: 6→8エンドポイント（+2: セッション管理API） | |
+| | | - 実装済みAPI総数: 30→32エンドポイント | |
+| | | - 全体実装率: 56%→59%に向上 | |
+| | | - API 1.7: GET /api/v1/sessions（セッション一覧取得） | |
+| | | - API 1.8: DELETE /api/v1/sessions/:tokenId（セッション強制終了） | |
+| | | - System Admin専用機能、マルチテナント分離対応 | |
+| | | - 実装ファイル追加: sessionRoutes.ts, sessionController.ts, sessionService.ts | |
+| | | - API設計書更新: api_auth.mdにセッション管理APIセクション追加 | |
 | 2.7.0 | 2026-01-31 | 指示確認API実装完了 | Development Team |
 | 2.6.0 | 2026-01-28 14:45 | タスク管理API追加（52→53エンドポイント） | Cline |
 | | | - 新規カテゴリ追加: タスク管理API（1エンドポイント、実装済み100%） | |

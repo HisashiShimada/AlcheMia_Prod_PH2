@@ -535,10 +535,16 @@ export class AuthService {
 
       const { accessToken, refreshToken: refreshTokenValue } = tokenPairResult.data;
 
-      // 7. リフレッシュトークンをRedisに保存
+      // 7. リフレッシュトークンをRedisに保存（userName, emailを含める）
       const refreshPayload = this.jwtService.decode(refreshTokenValue);
       if (refreshPayload && 'tokenId' in refreshPayload) {
-        await this.refreshTokenService.save(refreshPayload, ipAddress, userAgent);
+        await this.refreshTokenService.save(
+          refreshPayload,
+          ipAddress,
+          userAgent,
+          userInfo.username,
+          userInfo.email
+        );
       }
 
       // 8. セッション有効期限を計算
@@ -567,7 +573,7 @@ export class AuthService {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge,
-        path: '/api/v1/auth',
+        path: '/api/v1',
       });
 
       // 12. 成功レスポンス
@@ -715,10 +721,16 @@ export class AuthService {
 
       const { accessToken, refreshToken: newRefreshToken } = tokenPairResult.data;
 
-      // 7. 新しいリフレッシュトークンをRedisに保存
+      // 7. 新しいリフレッシュトークンをRedisに保存（userName, emailを含める）
       const newRefreshPayload = this.jwtService.decode(newRefreshToken);
       if (newRefreshPayload && 'tokenId' in newRefreshPayload) {
-        await this.refreshTokenService.save(newRefreshPayload, ipAddress, userAgent);
+        await this.refreshTokenService.save(
+          newRefreshPayload,
+          ipAddress,
+          userAgent,
+          user.user_name,
+          user.mail_address
+        );
       }
 
       // 8. 古いリフレッシュトークンを無効化（トークンローテーション）

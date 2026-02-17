@@ -170,10 +170,16 @@ export async function issueSessionTokens(
 
   const { accessToken, refreshToken: refreshTokenValue } = tokenPairResult.data;
 
-  // 7. リフレッシュトークンをRedisに保存
+  // 7. リフレッシュトークンをRedisに保存（userName, emailを含める）
   const refreshPayload = jwtService.decode(refreshTokenValue);
   if (refreshPayload && 'tokenId' in refreshPayload) {
-    await refreshTokenService.save(refreshPayload, ipAddress, userAgent);
+    await refreshTokenService.save(
+      refreshPayload,
+      ipAddress,
+      userAgent,
+      user.user_name,
+      user.mail_address
+    );
   }
 
   // 8. セッション有効期限を計算（環境変数から動的に取得）
@@ -186,7 +192,7 @@ export async function issueSessionTokens(
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge, // 環境変数と同期（Redis起動時: 30分、未起動時: 8時間）
-    path: '/api/v1/auth',
+    path: '/api/v1',
   });
 
   // 10. 成功レスポンス

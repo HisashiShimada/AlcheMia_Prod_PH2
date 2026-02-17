@@ -22,6 +22,7 @@ import issueRoutes from './routes/issueRoutes';
 import departmentRoutes from './routes/departmentRoutes';
 import corporationRoutes from './routes/corporationRoutes';
 import roleRoutes from './routes/roleRoutes';
+import sessionRoutes from './routes/sessionRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -87,6 +88,9 @@ async function startServer() {
     // Mount systemManagement routes
     app.use('/api/v1/systemManagement', departmentRoutes);
     app.use('/api/v1/systemManagement', roleRoutes);
+    
+    // Mount session management routes
+    app.use('/api/v1/sessions', sessionRoutes);
     
     // Mount provider routes
     app.use('/api/v1/provider', corporationRoutes);
