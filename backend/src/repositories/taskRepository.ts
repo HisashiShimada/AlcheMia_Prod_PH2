@@ -7,6 +7,7 @@
 import { PoolClient } from 'pg';
 import { TaskInput } from '../types/instruction';
 import { TaskFilters, MethodTaskRecord } from '../types/task';
+import { TaskWithProject } from '../types/progress';
 import { loadSqlFile } from '../sql/loader';
 import { getPool } from '../database/db';
 
@@ -218,6 +219,55 @@ export class TaskRepository {
     const result = await pool.query(finalSql, params);
 
     return result.rows as MethodTaskRecord[];
+  }
+
+  /**
+   * プロジェクト・メソッド・タスク番号でタスク基本情報を取得
+   * 
+   * @param projectId - プロジェクトID
+   * @param methodId - メソッドID
+   * @param taskNo - タスク連番
+   * @param organizationId - 組織ID（マルチテナント分離必須）
+   * @returns タスク基本情報（プロジェクト名を含む）、存在しない場合はnull
+   */
+  async getTaskByProjectMethodTaskNo(
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    organizationId: string
+  ): Promise<TaskWithProject | null> {
+    // Parameterized Query（SQLインジェクション対策）
+    // project_taskとprojectテーブルをJOIN
+    // organization_idフィルタ必須（マルチテナント分離）
+    const query = `
+      SELECT 
+        pt.task_id,
+        pt.task_name,
+        pt.project_id,
+        p.project_name,
+        pt.method_id,
+        pt.task_no
+      FROM project_task pt
+      LEFT JOIN project p ON pt.project_id = p.project_id 
+        AND pt.organization_id = p.organization_id
+      WHERE pt.project_id = $1
+        AND pt.method_id = $2
+        AND pt.task_no = $3
+        AND pt.organization_id = $4
+      LIMIT 1
+    `;
+
+    const params = [projectId, methodId, taskNo, organizationId];
+
+    const pool = getPool();
+    const result = await pool.query(query, params);
+
+    // レコードが存在しない場合はnullを返却
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    return result.rows[0] as TaskWithProject;
   }
 
   /**

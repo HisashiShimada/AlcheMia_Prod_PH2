@@ -185,8 +185,8 @@ export class StorageService {
     const command = new PutObjectCommand(params);
     await this.s3Client.send(command);
 
-    console.log(`File uploaded: ${filePath}`);
-    return filePath;
+    console.log(`File uploaded: ${key}`);
+    return key;
   }
 
   /**
