@@ -404,4 +404,151 @@ describe('TaskRepository', () => {
       ).rejects.toThrow('Insert failed');
     });
   });
+
+  describe('getTaskByProjectMethodTaskNo', () => {
+    const projectId = 'proj-123';
+    const methodId = 'method_001';
+    const taskNo = 1;
+    const organizationId = 'org-456';
+
+    test('正常系: タスクとプロジェクト情報を取得できる', async () => {
+      const mockTaskData = {
+        task_id: 'task-789',
+        task_name: 'テスト実験タスク',
+        project_id: projectId,
+        project_name: 'テストプロジェクト',
+        method_id: methodId,
+        task_no: taskNo,
+      };
+
+      mockPool.query.mockResolvedValueOnce({
+        rows: [mockTaskData],
+        rowCount: 1,
+      });
+
+      const result = await repository.getTaskByProjectMethodTaskNo(
+        projectId,
+        methodId,
+        taskNo,
+        organizationId
+      );
+
+      expect(result).toEqual(mockTaskData);
+      expect(mockPool.query).toHaveBeenCalledTimes(1);
+
+      const queryCall = mockPool.query.mock.calls[0];
+      const sql = queryCall[0];
+      const params = queryCall[1];
+
+      // JOINが含まれることを確認
+      expect(sql).toContain('JOIN');
+      expect(sql).toContain('project_task');
+      expect(sql).toContain('project');
+
+      // パラメータが正しく渡されることを確認
+      expect(params).toContain(projectId);
+      expect(params).toContain(methodId);
+      expect(params).toContain(taskNo);
+      expect(params).toContain(organizationId);
+    });
+
+    test('正常系: organization_idフィルタが適用される', async () => {
+      mockPool.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+      });
+
+      await repository.getTaskByProjectMethodTaskNo(
+        projectId,
+        methodId,
+        taskNo,
+        organizationId
+      );
+
+      const queryCall = mockPool.query.mock.calls[0];
+      const sql = queryCall[0];
+      const params = queryCall[1];
+
+      // organization_idでフィルタリングされることを確認
+      expect(sql).toContain('organization_id');
+      expect(params).toContain(organizationId);
+    });
+
+    test('正常系: タスクが存在しない場合はnullを返す', async () => {
+      mockPool.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+      });
+
+      const result = await repository.getTaskByProjectMethodTaskNo(
+        projectId,
+        methodId,
+        taskNo,
+        organizationId
+      );
+
+      expect(result).toBeNull();
+    });
+
+    test('正常系: 必要なカラムのみをSELECTする', async () => {
+      mockPool.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+      });
+
+      await repository.getTaskByProjectMethodTaskNo(
+        projectId,
+        methodId,
+        taskNo,
+        organizationId
+      );
+
+      const queryCall = mockPool.query.mock.calls[0];
+      const sql = queryCall[0];
+
+      // 必要なカラムがSELECTされることを確認
+      expect(sql).toContain('task_id');
+      expect(sql).toContain('task_name');
+      expect(sql).toContain('project_id');
+      expect(sql).toContain('project_name');
+      expect(sql).toContain('method_id');
+      expect(sql).toContain('task_no');
+    });
+
+    test('異常系: データベースエラーが発生した場合、エラーをスローする', async () => {
+      const dbError = new Error('Database connection failed');
+      mockPool.query.mockRejectedValueOnce(dbError);
+
+      await expect(
+        repository.getTaskByProjectMethodTaskNo(
+          projectId,
+          methodId,
+          taskNo,
+          organizationId
+        )
+      ).rejects.toThrow('Database connection failed');
+    });
+
+    test('セキュリティ: Parameterized Queryを使用してSQLインジェクションを防ぐ', async () => {
+      mockPool.query.mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+      });
+
+      await repository.getTaskByProjectMethodTaskNo(
+        projectId,
+        methodId,
+        taskNo,
+        organizationId
+      );
+
+      const queryCall = mockPool.query.mock.calls[0];
+      const params = queryCall[1];
+
+      // Parameterized Queryであることを確認
+      expect(params).toBeDefined();
+      expect(Array.isArray(params)).toBe(true);
+      expect(params.length).toBeGreaterThan(0);
+    });
+  });
 });

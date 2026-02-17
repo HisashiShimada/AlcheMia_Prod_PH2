@@ -6,9 +6,9 @@ description: Brief description of what this skill does
 # deploy-skill
 
 ## Usage
-- 開発環境を構築する際は`docs\deploy.md`を参照する
-- 本番環境を構築する際は`docs\deploy.md`を参照する
-- デプロイ手順を構築する際は`docs\deploy.md`を参照する
+- 開発環境を構築する際は`docs\deploy.md`（このスキルディレクトリ内）を参照する
+- 本番環境を構築する際は`docs\deploy.md`（このスキルディレクトリ内）を参照する
+- デプロイ手順を構築する際は`docs\deploy.md`（このスキルディレクトリ内）を参照する
 
 ## Steps
 

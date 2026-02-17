@@ -20,6 +20,17 @@ Conduct comprehensive research and analysis to ensure the technical design is ba
 - Document integration points and dependencies
 - Determine approach: extend vs refactor vs wrap
 
+**Skills & Guidelines Reference**:
+- Determine feature domain from requirements:
+  - If backend/API feature: Read `.cline/skills/backend-develop-skill/skill.md`
+  - If frontend/UI feature: Read `.cline/skills/frontend-develop-skill/skill.md`
+  - If testing focus: Read `.cline/skills/test-skill/skill.md`
+  - If documentation: Read `.cline/skills/document-skill/skill.md`
+- Extract referenced documentation paths from selected skill
+- Read skill-recommended documents as supplementary context
+- **Priority**: `.clinerules/` documents take precedence; skills provide additional insights
+- Document skill-based findings in `research.md` under "Skills & Guidelines Review"
+
 ### 3. Technology Research
 **Investigate Best Practices and Solutions**:
 - **Use WebSearch** to find:

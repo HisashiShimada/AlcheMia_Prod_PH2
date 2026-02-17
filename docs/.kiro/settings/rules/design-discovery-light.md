@@ -12,6 +12,13 @@ Quickly analyze existing system and integration requirements for feature extensi
 - Check for existing patterns to follow
 - Identify backward compatibility requirements
 
+**Quick Skills Check**:
+- Identify primary domain (backend/frontend/test)
+- Load corresponding skill file from `.cline/skills/`
+- Scan for critical guidelines relevant to extension
+- Note skill-recommended documents (optional read)
+- **Priority**: `.clinerules/` rules are authoritative; skills are advisory
+
 ### 2. Dependency Check
 **Verify Compatibility**:
 - Check version compatibility of new dependencies

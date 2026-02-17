@@ -13,8 +13,7 @@ import * as validationHistoryRepository from '../repositories/validationHistoryR
 import { EditSession, ParseResult,AnalysisResult  } from '../types/maimlValidation';
 import * as maimlParser from '../utils/maimlParser';
 import { maimlSaveResult} from '../types/maimlEditor';
-import { FileMetadataRepository,FileMetadata } from '../repositories/fileMetadataRepository';
-import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraftsRepository';
+import { FileMetadataRepository } from '../repositories/fileMetadataRepository';import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraftsRepository';
 import type { Draft } from '../types/editor';
 import {
   ListFilesResponse,
