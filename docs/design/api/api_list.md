@@ -74,6 +74,7 @@
 | 2.14 | PUT | /api/v1/projects/:projectName/instructions/:instructionId/confirm | 指示確認完了 | ✅ 実装済み | ProjectController.confirmInstruction |
 | 2.15 | POST | /api/v1/projects/:projectId/approval-request | 承認依頼 | ⏳ 未実装 | ProjectController.requestApproval |
 | 2.16 | GET | /api/v1/projects/worker-accessible | 実験作業者用プロジェクト一覧取得 | ⏳ 未実装 | ProjectController.listWorkerAccessible |
+| 2.17 | GET | /api/v1/projects/:projectId/maiml | MAIMLファイル取得（プロジェクト） | ⏳ 未実装 | ProjectController.getProjectMaiml |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -86,6 +87,12 @@
 - トランザクション管理が必要な操作: 2.2, 2.9
 - API 2.3, 2.6: 実装追加（設計書には未記載、後日設計書に追記予定）
 - パスパラメータ: 一部APIで`:projectId`（UUID）、一部で`:projectName`（文字列）を使用
+- **API 2.17: MAIMLファイル取得（プロジェクト）**
+  - 指示確認タブのフロー図表示で使用
+  - 実験作業者も閲覧可能（experiment_worker権限）
+  - S3から直接取得（file_metadataテーブル不使用）
+  - 最新版のみ取得（アーカイブ非対応）
+  - 詳細仕様: [api_project_management.md](./api_project_management.md) API #15を参照
 
 ---
 
@@ -153,7 +160,6 @@
 | 5.8 | POST | /api/v1/maiml/session/start | 編集セッション開始 | ✅ 実装済み | maimlController.startSession |
 | 5.9 | POST | /api/v1/maiml/session/end | 編集セッション終了 | ✅ 実装済み | maimlController.endSession |
 | 5.10 | GET | /api/v1/maiml/health | ヘルスチェック | ✅ 実装済み | maimlController.health |
-| 5.11 | GET | /api/v1/files/maiml/:fileId | MAIMLファイル取得 | ⏳ 未実装 | maimlController.getFile |
 
 **ミドルウェアチェーン:**
 - 5.1-5.9: `auth` → バリデーション
@@ -477,10 +483,10 @@
 | カテゴリ | 総数 | 実装済み | スタブ | 未実装 | 実装率 |
 |---------|------|---------|-------|--------|--------|
 | 認証API | 6 | 6 | 0 | 0 | 100% |
-| プロジェクト管理API | 16 | 9 | 0 | 7 | 56% |
+| プロジェクト管理API | 17 | 9 | 0 | 8 | 53% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 5 | 0 | 0 | 5 | 0% |
-| Maiml編集API | 11 | 9 | 1 | 1 | 82% |
+| Maiml編集API | 10 | 9 | 1 | 0 | 90% |
 | 進捗確認API | 4 | 0 | 0 | 4 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
 | 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
