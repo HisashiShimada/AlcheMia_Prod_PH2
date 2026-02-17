@@ -124,6 +124,116 @@ export class TransitionDataRepository {
   }
 
   /**
+   * トランジションの最新実験記録を取得
+   * 
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param methodId - メソッドID
+   * @param taskNo - タスク番号
+   * @param transitionId - トランジションID
+   * @returns 最新のトランジションデータ、見つからない場合はnull
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async getLatestRecordByTransition(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    transitionId: string
+  ): Promise<TransitionDataRow | null> {
+    try {
+      const pool = getPool();
+      
+      // Parameterized Queryを使用してSQLインジェクション対策
+      // organization_idフィルタを必須とし、マルチテナント分離を保証
+      // ORDER BY updated_at DESC LIMIT 1で最新レコードのみを取得
+      const query = `
+        SELECT
+          organization_id,
+          project_id,
+          method_id,
+          task_no,
+          transition_id,
+          status,
+          progress_rate,
+          comment,
+          updated_by,
+          updated_at,
+          created_at
+        FROM transition_data
+        WHERE organization_id = $1
+          AND project_id = $2
+          AND method_id = $3
+          AND task_no = $4
+          AND transition_id = $5
+        ORDER BY updated_at DESC
+        LIMIT 1
+      `;
+
+      const params = [organizationId, projectId, methodId, taskNo, transitionId];
+      const result = await pool.query(query, params);
+
+      if (result.rows.length === 0) {
+        return null;
+      }
+
+      return result.rows[0] as TransitionDataRow;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while getting latest transition record',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * トランジションのレコード数を取得
+   * 
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param methodId - メソッドID
+   * @param taskNo - タスク番号
+   * @param transitionId - トランジションID
+   * @returns データ件数
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async countRecordsByTransition(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    transitionId: string
+  ): Promise<number> {
+    try {
+      const pool = getPool();
+      
+      // Parameterized Queryを使用してSQLインジェクション対策
+      // organization_idフィルタを必須とし、マルチテナント分離を保証
+      const query = `
+        SELECT COUNT(*) as count
+        FROM transition_data
+        WHERE organization_id = $1
+          AND project_id = $2
+          AND method_id = $3
+          AND task_no = $4
+          AND transition_id = $5
+      `;
+
+      const params = [organizationId, projectId, methodId, taskNo, transitionId];
+      const result = await pool.query(query, params);
+
+      // PostgreSQLはCOUNTの結果を文字列で返すため、数値に変換
+      const count = parseInt(result.rows[0].count, 10);
+      return count;
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while counting transition records',
+        error as Error
+      );
+    }
+  }
+
+  /**
    * トランジションのステータスを更新
    * 
    * @param organizationId - 組織ID（マルチテナント分離）

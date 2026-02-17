@@ -14,7 +14,7 @@ const parserOptions : X2jOptions = {
     parseAttributeValue: true,
     trimValues: true,
     preserveOrder: false,
-    isArray: (tagName, jPath) => {
+    isArray: (tagName, _jPath) => {
     // 🔧 FIX: methodとplaceRef要素は常に配列として扱う
     if (tagName === 'method' || tagName === 'placeRef') {
         return true;
@@ -33,35 +33,6 @@ const errorTypes = {
     REFERENCE_ERROR: 'reference_error',
     DUPLICATE_ID: 'duplicate_id',  // 🆕 追加: 重複IDエラー
     VALIDATION_WARNING: 'validation_warning'
-};
-
-const criticalErrorTypes = [
-    'syntax_error',
-    'invalid_structure',
-    'missing_required'
-];
-
-const requiredElements = {
-    maiml: {
-    attributes: ['version'],
-    children: ['document']
-    },
-    document: {
-    attributes: ['id'],
-    children: ['uuid', 'creator', 'vendor', 'owner', 'date']
-    },
-    protocol: {
-    attributes: ['id'], 
-    children: ['uuid', 'method']
-    },
-    method: {
-    attributes: ['id'],
-    children: ['uuid', 'pnml', 'program']
-    },
-    pnml: {
-    attributes: ['id'],
-    children: ['uuid', 'place', 'transition', 'arc']
-    }
 };
 
 export async function analyzeMaiMLFile(organaizationId: string, maimlContent : string, fileKey: string)  {

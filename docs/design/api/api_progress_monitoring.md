@@ -26,6 +26,7 @@
 |---|------|---------|---------------|------|--------|
 | 1 | メソッド別タスク一覧取得 | GET | `/api/v1/projects/:projectId/methods/:methodId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 2 | タスク詳細取得 | GET | `/api/v1/tasks/:taskId` | 🔴 未実装 | ⭐⭐ 中 |
+| 3 | 進捗データ取得 | GET | `/api/v1/progress/:projectId/:methodId/:taskNo` | 🔴 未実装 | ⭐⭐ 中 |
 
 ---
 
@@ -582,7 +583,7 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
 
 ### 3. 進捗データ取得API 🔴
 
-**エンドポイント**: `GET /api/v1/progress/:projectId/:methodId/:taskId`
+**エンドポイント**: `GET /api/v1/progress/:projectId/:methodId/:taskNo`
 
 **説明**: 指定タスクに紐づくトランジションの進捗データを取得
 
@@ -599,7 +600,7 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
 |----------|---|------|------|
 | `projectId` | UUID | ○ | プロジェクトID |
 | `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
-| `taskId` | UUID | ○ | タスクID |
+| `taskNo` | Integer | ○ | タスク連番 |
 
 #### レスポンス
 
@@ -612,7 +613,7 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
     "project_name": "Sample Project",
     "method_id": "method1",
     "method_name": "合成実験",
-    "task_id": "task-uuid",
+    "task_no": "task-001",
     "task_name": "反応実験タスク",
     "transitions": [
       {
@@ -620,30 +621,21 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
         "transition_name": "材料準備",
         "status": "completed",
         "progress": 100,
-        "last_updated": "2026-01-21T14:00:00Z",
-        "comment": "完了しました",
-        "has_data": true,
-        "data_count": 3
+        "last_updated": "2026-01-21T14:00:00Z"
       },
       {
         "transition_id": "t2",
         "transition_name": "反応実験",
         "status": "in_progress",
         "progress": 45,
-        "last_updated": "2026-01-21T15:30:00Z",
-        "comment": "進行中",
-        "has_data": true,
-        "data_count": 2
+        "last_updated": "2026-01-21T15:30:00Z"
       },
       {
         "transition_id": "t3",
         "transition_name": "結果測定",
         "status": "not_started",
         "progress": 0,
-        "last_updated": null,
-        "comment": null,
-        "has_data": false,
-        "data_count": 0
+        "last_updated": null
       }
     ],
     "overall_progress": {

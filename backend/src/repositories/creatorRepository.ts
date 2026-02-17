@@ -64,9 +64,15 @@ export async function findAll(
       cm.update_at
     FROM creator cm
     LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
-      AND cm.organization_id = vm.organization_id
+      AND (
+        (cm.corporation_id IS NOT NULL AND cm.corporation_id = vm.corporation_id) OR
+        (cm.corporation_id IS NULL AND cm.organization_id = vm.organization_id)
+      )
     LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
-      AND cm.organization_id = im.organization_id
+      AND (
+        (cm.corporation_id IS NOT NULL AND cm.corporation_id = im.corporation_id) OR
+        (cm.corporation_id IS NULL AND cm.organization_id = im.organization_id)
+      )
     WHERE cm.organization_id = $1
   `;
   
@@ -112,36 +118,81 @@ export async function findAll(
  * 
  * @param organizationId 組織ID
  * @param creatorId Creator ID
+ * @param corporationId 会社ID
  * @returns Creatorマスタ（見つからない場合はnull）
  */
 export async function findById(
   organizationId: string,
-  creatorId: string
+  creatorId: string,
+  corporationId?: string | null
 ): Promise<CreatorMasterRow | null> {
   const pool: Pool = getPool();
   
-  const query = `
-    SELECT 
-      cm.creator_id,
-      cm.creator_uuid,
-      cm.creator_name,
-      cm.creator_description,
-      cm.creator_annotation,
-      cm.is_active,
-      vm.vendor_name,
-      vm.is_active as vendor_is_active,
-      im.instrument_name,
-      im.is_active as instrument_is_active,
-      cm.update_at
-    FROM creator cm
-    LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
-      AND cm.organization_id = vm.organization_id
-    LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
-      AND cm.organization_id = im.organization_id
-    WHERE cm.organization_id = $1 AND cm.creator_id = $2
-  `;
+  // WHERE句の条件を構築
+  let query: string;
+  let values: any[];
   
-  const result = await pool.query<CreatorMasterRow>(query, [organizationId, creatorId]);
+  if (corporationId !== null && corporationId !== undefined) {
+    // corporation_idが存在する場合：corporation_idで照合
+    query = `
+      SELECT 
+        cm.creator_id,
+        cm.creator_uuid,
+        cm.creator_name,
+        cm.creator_description,
+        cm.creator_annotation,
+        cm.is_active,
+        vm.vendor_name,
+        vm.is_active as vendor_is_active,
+        im.instrument_name,
+        im.is_active as instrument_is_active,
+        cm.update_at
+      FROM creator cm
+      LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
+        AND (
+          (cm.corporation_id IS NOT NULL AND cm.corporation_id = vm.corporation_id) OR
+          (cm.corporation_id IS NULL AND cm.organization_id = vm.organization_id)
+        )
+      LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
+        AND (
+          (cm.corporation_id IS NOT NULL AND cm.corporation_id = im.corporation_id) OR
+          (cm.corporation_id IS NULL AND cm.organization_id = im.organization_id)
+        )
+      WHERE cm.corporation_id = $1 AND cm.creator_id = $2
+    `;
+    values = [corporationId, creatorId];
+  } else {
+    // corporation_idがNULLの場合：organization_idで照合
+    query = `
+      SELECT 
+        cm.creator_id,
+        cm.creator_uuid,
+        cm.creator_name,
+        cm.creator_description,
+        cm.creator_annotation,
+        cm.is_active,
+        vm.vendor_name,
+        vm.is_active as vendor_is_active,
+        im.instrument_name,
+        im.is_active as instrument_is_active,
+        cm.update_at
+      FROM creator cm
+      LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
+        AND (
+          (cm.corporation_id IS NOT NULL AND cm.corporation_id = vm.corporation_id) OR
+          (cm.corporation_id IS NULL AND cm.organization_id = vm.organization_id)
+        )
+      LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
+        AND (
+          (cm.corporation_id IS NOT NULL AND cm.corporation_id = im.corporation_id) OR
+          (cm.corporation_id IS NULL AND cm.organization_id = im.organization_id)
+        )
+      WHERE cm.organization_id = $1 AND cm.creator_id = $2
+    `;
+    values = [organizationId, creatorId];
+  }
+  
+  const result = await pool.query<CreatorMasterRow>(query, values);
   
   return result.rows.length > 0 ? result.rows[0] : null;
 }
@@ -205,38 +256,115 @@ export async function create(
     creatorName: string;
     creatorDescription?: string;
     creatorAnnotation?: string;
+    vendorId?: string;
     vendorName?: string;
+    instrumentId?: string;
     instrumentName?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<CreatorMasterRow> {
   const pool: Pool = getPool();
   const { v4: uuidv4 } = require('uuid');
   
-  // vendor_nameからvendor_uuidを取得（存在する場合）
+  // vendor_idとvendor_nameからvendor_uuidを取得（存在する場合）
   let vendorUuid: string | null = null;
   if (data.vendorName) {
-    const vendorQuery = `
-      SELECT vendor_uuid
-      FROM vendor
-      WHERE organization_id = $1 AND vendor_name = $2
-      LIMIT 1
-    `;
-    const vendorResult = await pool.query(vendorQuery, [organizationId, data.vendorName]);
+    let vendorQuery: string;
+    let vendorParams: any[];
+
+    if (corporationId !== null && corporationId !== undefined) {
+      // corporation_idが存在する場合：corporation_id、vendor_id、vendor_nameで照合
+      if (data.vendorId) {
+        vendorQuery = `
+          SELECT vendor_uuid
+          FROM vendor
+          WHERE corporation_id = $1 AND vendor_id = $2 AND vendor_name = $3
+          LIMIT 1
+        `;
+        vendorParams = [corporationId, data.vendorId, data.vendorName];
+      } else {
+        vendorQuery = `
+          SELECT vendor_uuid
+          FROM vendor
+          WHERE corporation_id = $1 AND vendor_name = $2
+          LIMIT 1
+        `;
+        vendorParams = [corporationId, data.vendorName];
+      }
+    } else {
+      // corporation_idがNULLの場合：organization_id、vendor_id、vendor_nameで照合
+      if (data.vendorId) {
+        vendorQuery = `
+          SELECT vendor_uuid
+          FROM vendor
+          WHERE organization_id = $1 AND vendor_id = $2 AND vendor_name = $3
+          LIMIT 1
+        `;
+        vendorParams = [organizationId, data.vendorId, data.vendorName];
+      } else {
+        vendorQuery = `
+          SELECT vendor_uuid
+          FROM vendor
+          WHERE organization_id = $1 AND vendor_name = $2
+          LIMIT 1
+        `;
+        vendorParams = [organizationId, data.vendorName];
+      }
+    }
+
+    const vendorResult = await pool.query(vendorQuery, vendorParams);
     vendorUuid = vendorResult.rows[0]?.vendor_uuid || null;
   }
   
-  // instrument_nameからinstrument_uuidを取得（存在する場合）
+  // instrument_idとinstrument_nameからinstrument_uuidを取得（存在する場合）
   let instrumentUuid: string | null = null;
   if (data.instrumentName) {
-    const instrumentQuery = `
-      SELECT instrument_uuid
-      FROM instrument
-      WHERE organization_id = $1 AND instrument_name = $2
-      LIMIT 1
-    `;
-    const instrumentResult = await pool.query(instrumentQuery, [organizationId, data.instrumentName]);
+    let instrumentQuery: string;
+    let instrumentParams: any[];
+
+    if (corporationId !== null && corporationId !== undefined) {
+      // corporation_idが存在する場合：corporation_id、instrument_id、instrument_nameで照合
+      if (data.instrumentId) {
+        instrumentQuery = `
+          SELECT instrument_uuid
+          FROM instrument
+          WHERE corporation_id = $1 AND instrument_id = $2 AND instrument_name = $3
+          LIMIT 1
+        `;
+        instrumentParams = [corporationId, data.instrumentId, data.instrumentName];
+      } else {
+        instrumentQuery = `
+          SELECT instrument_uuid
+          FROM instrument
+          WHERE corporation_id = $1 AND instrument_name = $2
+          LIMIT 1
+        `;
+        instrumentParams = [corporationId, data.instrumentName];
+      }
+    } else {
+      // corporation_idがNULLの場合：organization_id、instrument_id、instrument_nameで照合
+      if (data.instrumentId) {
+        instrumentQuery = `
+          SELECT instrument_uuid
+          FROM instrument
+          WHERE organization_id = $1 AND instrument_id = $2 AND instrument_name = $3
+          LIMIT 1
+        `;
+        instrumentParams = [organizationId, data.instrumentId, data.instrumentName];
+      } else {
+        instrumentQuery = `
+          SELECT instrument_uuid
+          FROM instrument
+          WHERE organization_id = $1 AND instrument_name = $2
+          LIMIT 1
+        `;
+        instrumentParams = [organizationId, data.instrumentName];
+      }
+    }
+
+    const instrumentResult = await pool.query(instrumentQuery, instrumentParams);
     instrumentUuid = instrumentResult.rows[0]?.instrument_uuid || null;
   }
   
@@ -250,13 +378,14 @@ export async function create(
       creator_annotation,
       vendor_uuid,
       instrument_uuid,
+      corporation_id,
       is_active,
       create_user_id,
       update_user_id,
       create_at,
       update_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
     )
     RETURNING 
       creator_id,
@@ -276,6 +405,7 @@ export async function create(
     data.creatorAnnotation || null,
     vendorUuid,
     instrumentUuid,
+    corporationId,
     data.isActive !== undefined ? data.isActive : true,
     userId,
     userId,
@@ -297,6 +427,8 @@ export async function create(
  * @param organizationId 組織ID
  * @param creatorId Creator ID
  * @param data 更新情報
+ * @param userId ユーザーID
+ * @param corporationId 会社ID
  * @returns 更新されたCreatorマスタ（見つからない場合はnull）
  */
 export async function update(
@@ -306,47 +438,144 @@ export async function update(
     creatorName?: string;
     creatorDescription?: string;
     creatorAnnotation?: string;
+    vendorId?: string;
     vendorName?: string;
+    instrumentId?: string;
     instrumentName?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<CreatorMasterRow | null> {
   const pool: Pool = getPool();
   
-  // vendor_nameからvendor_uuidを取得（存在する場合）
+  // vendor_idとvendor_nameからvendor_uuidを取得（存在する場合）
   let vendorUuid: string | null = null;
   if (data.vendorName !== undefined) {
     if (data.vendorName) {
-      const vendorQuery = `
-        SELECT vendor_uuid
-        FROM vendor
-        WHERE organization_id = $1 AND vendor_name = $2
-        LIMIT 1
-      `;
-      const vendorResult = await pool.query(vendorQuery, [organizationId, data.vendorName]);
+      let vendorQuery: string;
+      let vendorParams: any[];
+
+      if (corporationId !== null && corporationId !== undefined) {
+        // corporation_idが存在する場合：corporation_id、vendor_id、vendor_nameで照合
+        if (data.vendorId) {
+          vendorQuery = `
+            SELECT vendor_uuid
+            FROM vendor
+            WHERE corporation_id = $1 AND vendor_id = $2 AND vendor_name = $3
+            LIMIT 1
+          `;
+          vendorParams = [corporationId, data.vendorId, data.vendorName];
+        } else {
+          vendorQuery = `
+            SELECT vendor_uuid
+            FROM vendor
+            WHERE corporation_id = $1 AND vendor_name = $2
+            LIMIT 1
+          `;
+          vendorParams = [corporationId, data.vendorName];
+        }
+      } else {
+        // corporation_idがNULLの場合：organization_id、vendor_id、vendor_nameで照合
+        if (data.vendorId) {
+          vendorQuery = `
+            SELECT vendor_uuid
+            FROM vendor
+            WHERE organization_id = $1 AND vendor_id = $2 AND vendor_name = $3
+            LIMIT 1
+          `;
+          vendorParams = [organizationId, data.vendorId, data.vendorName];
+        } else {
+          vendorQuery = `
+            SELECT vendor_uuid
+            FROM vendor
+            WHERE organization_id = $1 AND vendor_name = $2
+            LIMIT 1
+          `;
+          vendorParams = [organizationId, data.vendorName];
+        }
+      }
+
+      const vendorResult = await pool.query(vendorQuery, vendorParams);
       vendorUuid = vendorResult.rows[0]?.vendor_uuid || null;
     }
   }
   
-  // instrument_nameからinstrument_uuidを取得（存在する場合）
+  // instrument_idとinstrument_nameからinstrument_uuidを取得（存在する場合）
   let instrumentUuid: string | null = null;
   if (data.instrumentName !== undefined) {
     if (data.instrumentName) {
-      const instrumentQuery = `
-        SELECT instrument_uuid
-        FROM instrument
-        WHERE organization_id = $1 AND instrument_name = $2
-        LIMIT 1
-      `;
-      const instrumentResult = await pool.query(instrumentQuery, [organizationId, data.instrumentName]);
+      let instrumentQuery: string;
+      let instrumentParams: any[];
+
+      if (corporationId !== null && corporationId !== undefined) {
+        // corporation_idが存在する場合：corporation_id、instrument_id、instrument_nameで照合
+        if (data.instrumentId) {
+          instrumentQuery = `
+            SELECT instrument_uuid
+            FROM instrument
+            WHERE corporation_id = $1 AND instrument_id = $2 AND instrument_name = $3
+            LIMIT 1
+          `;
+          instrumentParams = [corporationId, data.instrumentId, data.instrumentName];
+        } else {
+          instrumentQuery = `
+            SELECT instrument_uuid
+            FROM instrument
+            WHERE corporation_id = $1 AND instrument_name = $2
+            LIMIT 1
+          `;
+          instrumentParams = [corporationId, data.instrumentName];
+        }
+      } else {
+        // corporation_idがNULLの場合：organization_id、instrument_id、instrument_nameで照合
+        if (data.instrumentId) {
+          instrumentQuery = `
+            SELECT instrument_uuid
+            FROM instrument
+            WHERE organization_id = $1 AND instrument_id = $2 AND instrument_name = $3
+            LIMIT 1
+          `;
+          instrumentParams = [organizationId, data.instrumentId, data.instrumentName];
+        } else {
+          instrumentQuery = `
+            SELECT instrument_uuid
+            FROM instrument
+            WHERE organization_id = $1 AND instrument_name = $2
+            LIMIT 1
+          `;
+          instrumentParams = [organizationId, data.instrumentName];
+        }
+      }
+
+      const instrumentResult = await pool.query(instrumentQuery, instrumentParams);
       instrumentUuid = instrumentResult.rows[0]?.instrument_uuid || null;
     }
   }
   
   const updates: string[] = [];
-  const values: any[] = [organizationId, creatorId];
-  let paramIndex = 3;
+  const values: any[] = [];
+  let paramIndex = 1;
+  
+  // WHERE句の条件を構築
+  let whereClause: string;
+  let whereParam1: any;
+  let whereParam2: any;
+  
+  if (corporationId !== null && corporationId !== undefined) {
+    // corporation_idが存在する場合：corporation_idで照合
+    whereClause = 'WHERE corporation_id = $1 AND creator_id = $2';
+    whereParam1 = corporationId;
+    whereParam2 = creatorId;
+  } else {
+    // corporation_idがNULLの場合：organization_idで照合
+    whereClause = 'WHERE organization_id = $1 AND creator_id = $2';
+    whereParam1 = organizationId;
+    whereParam2 = creatorId;
+  }
+  
+  values.push(whereParam1, whereParam2);
+  paramIndex = 3;
   
   if (data.creatorName !== undefined) {
     updates.push(`creator_name = $${paramIndex}`);
@@ -386,7 +615,7 @@ export async function update(
   
   if (updates.length === 0) {
     // 更新対象がない場合は現在のデータを返す
-    return await findById(organizationId, creatorId);
+    return await findById(organizationId, creatorId, corporationId);
   }
   
   updates.push(`update_user_id = $${paramIndex}`);
@@ -397,14 +626,8 @@ export async function update(
   const query = `
     UPDATE creator
     SET ${updates.join(', ')}
-    WHERE organization_id = $1 AND creator_id = $2
-    RETURNING 
-      creator_id,
-      creator_name,
-      creator_description,
-      creator_annotation,
-      is_active,
-      update_at
+    ${whereClause}
+    RETURNING creator_id
   `;
   
   const result = await pool.query(query, values);
@@ -413,12 +636,8 @@ export async function update(
     return null;
   }
   
-  // 返却データにvendor_nameとinstrument_nameを含める
-  return {
-    ...result.rows[0],
-    vendor_name: data.vendorName !== undefined ? (data.vendorName || null) : null,
-    instrument_name: data.instrumentName !== undefined ? (data.instrumentName || null) : null,
-  };
+  // 更新後に再取得して、vendor_name と instrument_name を含む完全なデータを返す
+  return await findById(organizationId, creatorId, corporationId);
 }
 
 /**
@@ -427,45 +646,70 @@ export async function update(
  * @param organizationId 組織ID
  * @param creatorId Creator ID
  * @param isActive アクティブ状態
+ * @param userId ユーザーID
+ * @param corporationId 会社ID
  * @returns 更新されたCreatorマスタ（見つからない場合はnull）
  */
 export async function updateStatus(
   organizationId: string,
   creatorId: string,
   isActive: boolean,
-  userId: string
+  userId: string,
+  corporationId?: string | null
 ): Promise<CreatorMasterRow | null> {
   const pool: Pool = getPool();
   
-  const query = `
-    UPDATE creator
-    SET is_active = $1,
-        update_user_id = $2,
-        update_at = NOW()
-    WHERE organization_id = $3
-      AND creator_id = $4
-    RETURNING *
-  `;
+  // WHERE句の条件を構築
+  let query: string;
+  let values: any[];
   
-  const result = await pool.query(query, [isActive, userId, organizationId, creatorId]);
+  if (corporationId !== null && corporationId !== undefined) {
+    // corporation_idが存在する場合：corporation_idで照合
+    query = `
+      UPDATE creator
+      SET is_active = $1,
+          update_user_id = $2,
+          update_at = NOW()
+      WHERE corporation_id = $3
+        AND creator_id = $4
+      RETURNING *
+    `;
+    values = [isActive, userId, corporationId, creatorId];
+  } else {
+    // corporation_idがNULLの場合：organization_idで照合
+    query = `
+      UPDATE creator
+      SET is_active = $1,
+          update_user_id = $2,
+          update_at = NOW()
+      WHERE organization_id = $3
+        AND creator_id = $4
+      RETURNING *
+    `;
+    values = [isActive, userId, organizationId, creatorId];
+  }
+  
+  const result = await pool.query(query, values);
   
   if (result.rows.length === 0) {
     return null;
   }
   
   // vendor_nameとinstrument_nameも取得して返す
-  return await findById(organizationId, creatorId);
+  return await findById(organizationId, creatorId, corporationId);
 }
 
 /**
  * フィルタ条件付きでCreatorマスタを取得（WHERE句でフィルタリング）
  * 
  * @param organizationId 組織ID
+ * @param corporationId 会社ID
  * @param filters フィルタ条件
  * @returns Creatorマスタの配列
  */
 export async function findAllWithFilters(
   organizationId: string,
+  corporationId: string | null,
   filters: {
     displayScope?: string;
     search?: string;
@@ -476,11 +720,25 @@ export async function findAllWithFilters(
   
   console.log('=== creatorRepository.findAllWithFilters called ===');
   console.log('organizationId:', organizationId);
+  console.log('corporationId:', corporationId);
   console.log('filters:', filters);
   
-  const whereClauses: string[] = ['cm.organization_id = $1'];
-  const values: any[] = [organizationId];
-  let paramIndex = 2;
+  const whereClauses: string[] = [];
+  const values: any[] = [];
+  let paramIndex = 1;
+  
+  // 表示切替フィルタ（display_scope）
+  if (filters.displayScope === 'all') {
+    // 全体選択: corporation_idのみでフィルタ（organization_idは照合しない）
+    whereClauses.push(`cm.corporation_id = $${paramIndex}`);
+    values.push(corporationId);
+    paramIndex++;
+  } else {
+    // 自組織選択: organization_idのみでフィルタ
+    whereClauses.push(`cm.organization_id = $${paramIndex}`);
+    values.push(organizationId);
+    paramIndex++;
+  }
   
   // 検索フィルタ（creator_id, creator_name, creator_description, creator_annotation, vendor_name, instrument_nameの6項目で部分一致検索）
   if (filters.search) {
@@ -518,9 +776,15 @@ export async function findAllWithFilters(
       cm.update_at
     FROM creator cm
     LEFT JOIN vendor vm ON cm.vendor_uuid = vm.vendor_uuid 
-      AND cm.organization_id = vm.organization_id
+      AND (
+        (cm.corporation_id IS NOT NULL AND cm.corporation_id = vm.corporation_id) OR
+        (cm.corporation_id IS NULL AND cm.organization_id = vm.organization_id)
+      )
     LEFT JOIN instrument im ON cm.instrument_uuid = im.instrument_uuid 
-      AND cm.organization_id = im.organization_id
+      AND (
+        (cm.corporation_id IS NOT NULL AND cm.corporation_id = im.corporation_id) OR
+        (cm.corporation_id IS NULL AND cm.organization_id = im.organization_id)
+      )
     WHERE ${whereClauses.join(' AND ')}
     ORDER BY cm.creator_id
   `;

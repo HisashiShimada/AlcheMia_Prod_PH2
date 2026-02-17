@@ -6,15 +6,14 @@
  * @task Phase 6 Step 3: サービス層実装
  */
 
-import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
+import { DOMParser } from '@xmldom/xmldom';
 import { getStorageService } from './storageService';
 import * as crypto from 'crypto';
 import * as validationHistoryRepository from '../repositories/validationHistoryRepository';
 import { EditSession, ParseResult,AnalysisResult  } from '../types/maimlValidation';
 import * as maimlParser from '../utils/maimlParser';
 import { maimlSaveResult} from '../types/maimlEditor';
-import { FileMetadataRepository,FileMetadata } from '../repositories/fileMetadataRepository';
-import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraftsRepository';
+import { FileMetadataRepository } from '../repositories/fileMetadataRepository';import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraftsRepository';
 import type { Draft } from '../types/editor';
 
 const storageService = getStorageService();
