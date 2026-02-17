@@ -10,6 +10,7 @@ import { Router } from 'express';
 import { body, query, param } from 'express-validator';
 import * as maimlController from '../controllers/maimlController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
 
@@ -31,6 +32,7 @@ router.post(
       .isString()
       .withMessage('contentは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.parse
 );
 
@@ -60,6 +62,7 @@ router.post(
       .isString()
       .withMessage('contentは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.parsePetriNetStructure
 );
 
@@ -82,6 +85,7 @@ router.post(
       .isString()
       .withMessage('contentは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.save
 );
 
@@ -103,6 +107,7 @@ router.post(
       .isString()
       .withMessage('filePathは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.load
 );
 
@@ -124,6 +129,7 @@ router.get(
       .isString()
       .withMessage('projectIdは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.list
 );
 
@@ -146,6 +152,7 @@ router.post(
       .isString()
       .withMessage('contentは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.validate
 );
 
@@ -169,6 +176,7 @@ router.get(
       .isString()
       .withMessage('organizationIdは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.listFiles
 );
 
@@ -191,6 +199,7 @@ router.get(
       .isString()
       .withMessage('keyは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.getFileContent
 );
 
@@ -223,6 +232,7 @@ router.post(
       .isArray()
       .withMessage('selectedErrorsは配列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.autoCorrect
 );
 
@@ -245,6 +255,7 @@ router.post(
       .isString()
       .withMessage('contentは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.correct
 );
 
@@ -281,6 +292,7 @@ router.post(
       .isString()
       .withMessage('userIdは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.startSession
 );
 
@@ -303,6 +315,7 @@ router.post(
       .isString()
       .withMessage('sessionIdは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.endSession
 );
 
@@ -344,6 +357,7 @@ router.post(
       .isString()
       .withMessage('originalFileKeyは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.saveDraft
 );
 
@@ -365,6 +379,7 @@ router.get(
       .isString()
       .withMessage('draftKeyは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.loadDraft
 );
 
@@ -400,6 +415,7 @@ router.delete(
       .isString()
       .withMessage('draftKeyは文字列である必要があります'),
   ],
+  handleValidationErrors,
   maimlController.deleteDraft
 );
 

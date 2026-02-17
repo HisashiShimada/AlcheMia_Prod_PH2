@@ -7,7 +7,6 @@
  */
 
 import { Request, Response } from 'express';
-import { validationResult } from 'express-validator';
 import * as maimlService from '../services/maimlService';
 import { JwtPayload } from '../types/auth';
 
@@ -35,35 +34,11 @@ function handleError(res: Response, error: unknown, defaultMessage: string): voi
 }
 
 /**
- * バリデーションエラーチェック
- */
-function checkValidationErrors(req: Request, res: Response): boolean {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    res.status(400).json({
-      success: false,
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Validation failed',
-        details: errors.array(),
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-      },
-    });
-    return true;
-  }
-  return false;
-}
-
-/**
  * MAIMLファイル解析（基本）
  * POST /api/v1/maiml/parse
  */
 export async function parse(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { content } = req.body;
     const result = await maimlService.parseMaiML(content);
 
@@ -92,8 +67,6 @@ export async function parse(req: Request, res: Response): Promise<void> {
  */
 export async function parsePetriNetStructure(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { content } = req.body;
 
     console.log('🔍 [maimlController] ペトリネット構造解析リクエスト受信');
@@ -127,21 +100,8 @@ export async function parsePetriNetStructure(req: Request, res: Response): Promi
  */
 export async function save(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { fileKey, content } = req.body;
-    const organizationId = req.user?.organizationId;
-
-    if (!organizationId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Organization ID not found',
-        },
-      });
-      return;
-    }
+    const organizationId = req.user!.organizationId;
 
     console.log(fileKey);
     const result = await maimlService.saveMaiML(fileKey, content, organizationId);
@@ -164,21 +124,8 @@ export async function save(req: Request, res: Response): Promise<void> {
  */
 export async function load(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { filePath } = req.body;
-    const organizationId = (req as any).organizationId;
-
-    if (!organizationId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Organization ID not found',
-        },
-      });
-      return;
-    }
+    const organizationId = req.user!.organizationId;
 
     const result = await maimlService.loadMaiML(filePath, organizationId);
 
@@ -200,21 +147,8 @@ export async function load(req: Request, res: Response): Promise<void> {
  */
 export async function list(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { projectId } = req.query;
-    const organizationId = (req as any).organizationId;
-
-    if (!organizationId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Organization ID not found',
-        },
-      });
-      return;
-    }
+    const organizationId = req.user!.organizationId;
 
     const result = await maimlService.listMaiMLFiles(projectId as string, organizationId);
 
@@ -236,8 +170,6 @@ export async function list(req: Request, res: Response): Promise<void> {
  */
 export async function validate(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { content, fileKey, skipAnalysisSave = true } = req.body;
     const authUser = req.user as JwtPayload;
     const result = await maimlService.validateMaiML(authUser.organizationId, content, fileKey, skipAnalysisSave);
@@ -262,8 +194,6 @@ export async function validate(req: Request, res: Response): Promise<void> {
  */
 export async function correct(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { content } = req.body;
     const result = await maimlService.correctMaiML(content);
 
@@ -285,8 +215,6 @@ export async function correct(req: Request, res: Response): Promise<void> {
  */
 export async function startSession(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const sessionData = req.body;
     const result = await maimlService.startEditSession(sessionData);
 
@@ -308,8 +236,6 @@ export async function startSession(req: Request, res: Response): Promise<void> {
  */
 export async function endSession(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const sessionData = req.body;
     const result = await maimlService.endEditSession(sessionData);
 
@@ -356,21 +282,8 @@ export function health(_req: Request, res: Response): void {
  */
 export async function saveDraft(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const draft = req.body;
     const authUser = req.user as JwtPayload;
-
-    if (!authUser?.organizationId || !authUser?.userId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Organization ID or User ID not found',
-        },
-      });
-      return;
-    }
 
     console.log('💾 [maimlController] Draft保存リクエスト受信:', draft.draftKey);
 
@@ -400,21 +313,8 @@ export async function saveDraft(req: Request, res: Response): Promise<void> {
  */
 export async function loadDraft(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { draftKey } = req.params;
     const authUser = req.user as JwtPayload;
-
-    if (!authUser?.organizationId || !authUser?.userId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Organization ID or User ID not found',
-        },
-      });
-      return;
-    }
 
     console.log('📂 [maimlController] Draft読み込みリクエスト受信:', draftKey);
 
@@ -458,20 +358,7 @@ export async function loadDraft(req: Request, res: Response): Promise<void> {
  */
 export async function listDrafts(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const authUser = req.user as JwtPayload;
-
-    if (!authUser?.organizationId || !authUser?.userId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Organization ID or User ID not found',
-        },
-      });
-      return;
-    }
 
     console.log('📋 [maimlController] Draft一覧取得リクエスト受信');
 
@@ -501,21 +388,8 @@ export async function listDrafts(req: Request, res: Response): Promise<void> {
  */
 export async function deleteDraft(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { draftKey } = req.params;
     const authUser = req.user as JwtPayload;
-
-    if (!authUser?.organizationId || !authUser?.userId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Organization ID or User ID not found',
-        },
-      });
-      return;
-    }
 
     console.log('🗑️ [maimlController] Draft削除リクエスト受信:', draftKey);
 
@@ -568,22 +442,8 @@ export async function deleteDraft(req: Request, res: Response): Promise<void> {
  */
 export async function listFiles(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { organizationId } = req.query;
     const authUser = req.user as JwtPayload;
-
-    // 認証ユーザーの組織ID検証
-    if (!authUser?.organizationId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Organization ID not found in auth token',
-        },
-      });
-      return;
-    }
 
     // マルチテナント検証：リクエストされた組織IDがユーザーの組織と一致するか
     if (organizationId !== authUser.organizationId) {
@@ -630,21 +490,8 @@ export async function listFiles(req: Request, res: Response): Promise<void> {
  */
 export async function getFileContent(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { key } = req.query;
     const authUser = req.user as JwtPayload;
-
-    if (!authUser?.organizationId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Organization ID not found in auth token',
-        },
-      });
-      return;
-    }
 
     console.log('📄 [maimlController] ファイル内容取得リクエスト受信:', {
       key,
@@ -680,22 +527,8 @@ export async function getFileContent(req: Request, res: Response): Promise<void>
  */
 export async function autoCorrect(req: Request, res: Response): Promise<void> {
   try {
-    if (checkValidationErrors(req, res)) return;
-
     const { maimlContent, selectedErrors = [], organizationId } = req.body;
     const authUser = req.user as JwtPayload;
-
-    // 認証ユーザーの組織ID検証
-    if (!authUser?.organizationId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Organization ID not found in auth token',
-        },
-      });
-      return;
-    }
 
     // マルチテナント検証
     if (organizationId !== authUser.organizationId) {

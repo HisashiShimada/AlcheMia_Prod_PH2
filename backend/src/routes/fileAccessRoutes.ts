@@ -11,6 +11,7 @@ import { Router } from 'express';
 import { param, query, body } from 'express-validator';
 import * as fileAccessController from '../controllers/fileAccessController';
 import { authMiddleware } from '../middleware/authMiddleware';
+import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
 
@@ -37,6 +38,7 @@ router.post(
       .isLength({ min: 1, max: 1024 })
       .withMessage('folderPathは1〜1024文字である必要があります'),
   ],
+  handleValidationErrors,
   fileAccessController.downloadFolderAsZip
 );
 
@@ -63,6 +65,7 @@ router.post(
       .isLength({ min: 1, max: 1024 })
       .withMessage('fileKeyは1〜1024文字である必要があります'),
   ],
+  handleValidationErrors,
   fileAccessController.getFileDownloadUrl
 );
 
@@ -87,6 +90,7 @@ router.get(
       .isLength({ min: 1, max: 255 })
       .withMessage('fileNameは1〜255文字である必要があります'),
   ],
+  handleValidationErrors,
   fileAccessController.downloadFile
 );
 

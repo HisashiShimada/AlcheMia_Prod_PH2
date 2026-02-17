@@ -24,70 +24,10 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
   
   try {
-    // 1. 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId, userId } = req.user;
+    const { organizationId, userId } = req.user!;
     const { projectId, fileName } = req.params;
 
-    // 2. パラメータバリデーション
-    // UUID形式バリデーション
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(projectId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'projectIdはUUID形式である必要があります',
-          details: [{
-            field: 'projectId',
-            message: 'UUID形式が必要です',
-            code: 'INVALID_FORMAT',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // ファイル名の基本バリデーション
-    if (!fileName || fileName.trim().length === 0) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_REQUIRED_FIELD',
-          message: 'fileNameは必須です',
-          details: [{
-            field: 'fileName',
-            message: 'fileNameは必須です',
-            code: 'REQUIRED_FIELD',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 3. Service層の初期化と呼び出し
+    // Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
@@ -182,68 +122,10 @@ export async function downloadFolderAsZip(req: Request, res: Response): Promise<
   const requestId = uuidv4();
   
   try {
-    // 1. 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId } = req.user;
+    const { organizationId } = req.user!;
     const { folderPath } = req.body;
 
-    // 2. パラメータバリデーション
-    if (!folderPath || typeof folderPath !== 'string' || folderPath.trim().length === 0) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_REQUIRED_FIELD',
-          message: 'folderPathは必須です',
-          details: [{
-            field: 'folderPath',
-            message: 'folderPathは必須です',
-            code: 'REQUIRED_FIELD',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // フォルダパスの最大長チェック
-    if (folderPath.length > 1024) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'folderPathが長すぎます（最大1024文字）',
-          details: [{
-            field: 'folderPath',
-            message: 'folderPathは1024文字以内である必要があります',
-            code: 'INVALID_LENGTH',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 3. Service層の初期化と呼び出し
+    // Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
@@ -329,68 +211,10 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
   const requestId = uuidv4();
   
   try {
-    // 1. 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId, userId } = req.user;
+    const { organizationId, userId } = req.user!;
     const { fileKey } = req.body;
 
-    // 2. パラメータバリデーション
-    if (!fileKey || typeof fileKey !== 'string' || fileKey.trim().length === 0) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_REQUIRED_FIELD',
-          message: 'fileKeyは必須です',
-          details: [{
-            field: 'fileKey',
-            message: 'fileKeyは必須です',
-            code: 'REQUIRED_FIELD',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // ファイルキーの最大長チェック
-    if (fileKey.length > 1024) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'fileKeyが長すぎます（最大1024文字）',
-          details: [{
-            field: 'fileKey',
-            message: 'fileKeyは1024文字以内である必要があります',
-            code: 'INVALID_LENGTH',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 3. Service層の初期化と呼び出し
+    // Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);

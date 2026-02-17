@@ -21,109 +21,11 @@ export async function create(req: Request, res: Response): Promise<void> {
   const projectService = new ProjectService();
 
   try {
-    // Task 2.1: 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
     const { organizationId, userId } = req.user!;
     const departmentId = null; // req.session?.department_id || null; ToDo プルリク#38待ち
     const { projectName, description } = req.body;
 
-    // Task 2.2: 詳細バリデーション
-    if (!projectName) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_REQUIRED_FIELD',
-          message: 'projectNameは必須です',
-          details: [{
-            field: 'projectName',
-            message: 'projectNameは必須です',
-            code: 'REQUIRED_FIELD',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    if (projectName.length > 255) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_STRING_LENGTH',
-          message: 'projectNameは255文字以内である必要があります',
-          details: [{
-            field: 'projectName',
-            message: 'projectNameは1-255文字です',
-            code: 'STRING_TOO_LONG',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 制御文字チェック
-    if (/[\x00-\x1F\x7F]/.test(projectName)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'projectNameに制御文字を含めることはできません',
-          details: [{
-            field: 'projectName',
-            message: '制御文字は使用できません',
-            code: 'INVALID_CHARACTERS',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    if (description && description.length > 1000) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_STRING_TOO_LONG',
-          message: 'descriptionは1000文字以内である必要があります',
-          details: [{
-            field: 'description',
-            message: 'descriptionは1000文字以内です',
-            code: 'STRING_TOO_LONG',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // Task 4.1: 権限チェック（Workerは403）
+    // 権限チェック（Workerは403）
     if ((req.user as any).role === 'experiment_worker') {
       res.status(403).json({
         success: false,
@@ -214,23 +116,7 @@ export async function getProjectTasks(req: Request, res: Response): Promise<void
   try {
     console.log('[DEBUG] getProjectTasks - Start', { requestId, params: req.params, query: req.query });
     
-    // 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId } = req.user;
+    const { organizationId } = req.user!;
     const { projectName } = req.params;
     
     console.log('[DEBUG] getProjectTasks - Auth OK', { organizationId, projectName });
@@ -260,29 +146,7 @@ export async function getProjectTasks(req: Request, res: Response): Promise<void
     const projectId = projectResult.rows[0].project_id;
     console.log('[DEBUG] getProjectTasks - Project ID resolved', { projectName, projectId });
 
-    // statusパラメータの取得とバリデーション
     const status = (req.query.status as string) || 'all';
-    const allowedStatus = ['all', 'pending', 'in_progress', 'completed', 'failed'];
-    
-    if (!allowedStatus.includes(status)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: `statusは次のいずれかである必要があります: ${allowedStatus.join(', ')}`,
-          details: [{
-            field: 'status',
-            message: `許可された値: ${allowedStatus.join(', ')}`,
-            code: 'INVALID_VALUE',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
 
     // Service層呼び出し
     const result = await projectService.getProjectTasks(
@@ -358,46 +222,8 @@ export async function getById(req: Request, res: Response): Promise<void> {
   const projectService = new ProjectService();
 
   try {
-    // 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId } = req.user;
+    const { organizationId } = req.user!;
     const { projectId } = req.params;
-
-    // UUID形式バリデーション
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(projectId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'projectIdはUUID形式である必要があります',
-          details: [{
-            field: 'projectId',
-            message: 'UUID形式が必要です',
-            code: 'INVALID_FORMAT',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
 
     // Service層呼び出し
     const result = await projectService.getById(organizationId, projectId);
@@ -470,47 +296,8 @@ export async function checkout(req: Request, res: Response): Promise<void> {
   const projectService = new ProjectService();
 
   try {
-    // 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId } = req.user;
-    const userId = req.user.userId;
+    const { organizationId, userId } = req.user!;
     const { projectId } = req.params;
-
-    // UUID形式バリデーション
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(projectId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'projectIdはUUID形式である必要があります',
-          details: [{
-            field: 'projectId',
-            message: 'UUID形式が必要です',
-            code: 'INVALID_FORMAT',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
 
     // Service層呼び出し
     const result = await projectService.checkout(organizationId, projectId, userId);
@@ -592,46 +379,8 @@ export async function checkin(req: Request, res: Response): Promise<void> {
   const projectService = new ProjectService();
 
   try {
-    // 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId, userId } = req.user;
+    const { organizationId, userId } = req.user!;
     const { projectId } = req.params;
-
-    // UUID形式バリデーション
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(projectId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'projectIdはUUID形式である必要があります',
-          details: [{
-            field: 'projectId',
-            message: 'UUID形式が必要です',
-            code: 'INVALID_FORMAT',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
 
     // Service層呼び出し
     const result = await projectService.checkin(organizationId, projectId, userId);
@@ -711,46 +460,8 @@ export async function getCheckoutStatus(req: Request, res: Response): Promise<vo
   const projectService = new ProjectService();
 
   try {
-    // 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId } = req.user;
+    const { organizationId } = req.user!;
     const { projectId } = req.params;
-
-    // UUID形式バリデーション
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(projectId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'projectIdはUUID形式である必要があります',
-          details: [{
-            field: 'projectId',
-            message: 'UUID形式が必要です',
-            code: 'INVALID_FORMAT',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
 
     // Service層呼び出し
     const result = await projectService.getCheckoutStatus(organizationId, projectId);
@@ -827,27 +538,10 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
   try {
     console.log('[DEBUG] getProjectFiles - Start', { requestId, params: req.params, query: req.query });
     
-    // 認証チェック
-    if (!req.user) {
-      console.log('[DEBUG] getProjectFiles - No user authentication');
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId } = req.user;
+    const { organizationId } = req.user!;
     const { projectName } = req.params;
     
-    console.log('[DEBUG] getProjectFiles - Auth OK', { organizationId, projectName, userId: req.user.userId });
+    console.log('[DEBUG] getProjectFiles - Auth OK', { organizationId, projectName, userId: req.user!.userId });
 
     // projectNameからprojectIdを取得
     const { getPool } = require('../database/db');
@@ -959,129 +653,17 @@ export async function list(req: Request, res: Response): Promise<void> {
 
   try {
     console.log('一覧取得－開始');
-    // 1. 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-    console.log('認証チェック－完了');
+    
+    const { organizationId } = req.user!;
 
-    const { organizationId } = req.user;
-
-    // 2. クエリパラメータの取得とバリデーション
+    // クエリパラメータの取得
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const includeCompleted = req.query.include_completed === 'true';
     const sortBy = (req.query.sort_by as string) || 'create_at';
     const order = (req.query.order as string) || 'desc';
 
-    console.log('バリデーション－開始');
-    // バリデーション: page
-    if (page < 1 || !Number.isInteger(page)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'ページ番号は1以上の整数である必要があります',
-          details: [
-            {
-              field: 'page',
-              message: 'ページ番号は正の整数です',
-              code: 'INVALID_VALUE',
-            },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // バリデーション: limit
-    if (limit < 1 || limit > 100 || !Number.isInteger(limit)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'limitは1〜100の範囲内の整数である必要があります',
-          details: [
-            {
-              field: 'limit',
-              message: 'limitは1〜100の範囲です',
-              code: 'OUT_OF_RANGE',
-            },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // バリデーション: sort_by
-    const allowedSortBy = ['create_at', 'project_name'];
-    if (!allowedSortBy.includes(sortBy)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: `sort_byは次のいずれかである必要があります: ${allowedSortBy.join(', ')}`,
-          details: [
-            {
-              field: 'sort_by',
-              message: `許可された値: ${allowedSortBy.join(', ')}`,
-              code: 'INVALID_VALUE',
-            },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // バリデーション: order
-    const allowedOrder = ['asc', 'desc'];
-    if (!allowedOrder.includes(order)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: `orderは次のいずれかである必要があります: ${allowedOrder.join(', ')}`,
-          details: [
-            {
-              field: 'order',
-              message: `許可された値: ${allowedOrder.join(', ')}`,
-              code: 'INVALID_VALUE',
-            },
-          ],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-    console.log('バリデーション－完了');
-
-    // 3. Service層の呼び出し
+    // Service層の呼び出し
     const result = await projectService.list(organizationId, {
       page,
       limit,

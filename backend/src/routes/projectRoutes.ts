@@ -87,6 +87,7 @@ router.get(
       .isIn(['asc', 'desc'])
       .withMessage('orderはascまたはdescである必要があります'),
   ],
+  handleValidationErrors,
   projectController.list
 );
 
@@ -113,6 +114,7 @@ router.post(
       .isLength({ max: 1000 })
       .withMessage('descriptionは1000文字以内である必要があります'),
   ],
+  handleValidationErrors,
   projectController.create
 );
 
@@ -126,6 +128,12 @@ router.post(
 router.get(
   '/:projectId',
   authMiddleware,
+  [
+    param('projectId')
+      .isUUID()
+      .withMessage('projectIdはUUID形式である必要があります'),
+  ],
+  handleValidationErrors,
   projectController.getById
 );
 
@@ -146,6 +154,7 @@ router.post(
       .isUUID()
       .withMessage('projectIdはUUID形式である必要があります'),
   ],
+  handleValidationErrors,
   projectController.checkout
 );
 
@@ -166,6 +175,7 @@ router.post(
       .isUUID()
       .withMessage('projectIdはUUID形式である必要があります'),
   ],
+  handleValidationErrors,
   projectController.checkin
 );
 
@@ -213,6 +223,7 @@ router.get(
       .isUUID()
       .withMessage('projectIdはUUID形式である必要があります'),
   ],
+  handleValidationErrors,
   projectController.getCheckoutStatus
 );
 
@@ -233,6 +244,7 @@ router.get(
       .notEmpty()
       .withMessage('projectNameは必須です'),
   ],
+  handleValidationErrors,
   projectController.getProjectFiles
 );
 
@@ -257,6 +269,7 @@ router.get(
       .isIn(['all', 'pending', 'in_progress', 'completed', 'failed'])
       .withMessage('statusはall, pending, in_progress, completed, failedのいずれかである必要があります'),
   ],
+  handleValidationErrors,
   projectController.getProjectTasks
 );
 
