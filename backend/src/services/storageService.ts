@@ -143,7 +143,7 @@ export class StorageService {
    * マルチテナント対応のキーを生成
    * @param organizationId 組織ID
    * @param filePath ファイルパス
-   * @returns org_{organizationId}/{filePath} 形式のキー
+   * @returns {organizationId}/{filePath} 形式のキー
    */
   private buildKey(organizationId: string, filePath: string): string {
     // organizationIdの検証
@@ -153,6 +153,11 @@ export class StorageService {
 
     // filePathの正規化（先頭のスラッシュを除去）
     const normalizedPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+
+    // 既にorganizationIdで始まっている場合はそのまま返す（二重設定を防ぐ）
+    if (normalizedPath.startsWith(`${organizationId}/`)) {
+      return normalizedPath;
+    }
 
     // プレフィックスベース分離
     return `${organizationId}/${normalizedPath}`;

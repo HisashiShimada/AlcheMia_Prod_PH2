@@ -40,6 +40,7 @@ import { fetchFormats } from '@/utils/apiClient';
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
 import { getFileDownloadUrlByKey } from '@/api/fileAccessService';
+import { createApiClient } from '@/utils/authUtils';
 
 const { Title, Text } = Typography;
 
@@ -331,31 +332,30 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           console.log('📂 [FormatManagement] ファイル内容読み込み開始:', file.path);
           
           try {
-            // 共通関数で署名付きURLを取得
-            const fileInfo = await getFileDownloadUrlByKey(file.path);
-            console.log('✅ [FormatManagement] 署名付きURL取得成功');
+            // プロキシ方式: バックエンド経由でファイル内容を取得
+            console.log('📂 [FormatManagement] ファイル内容取得開始（プロキシ方式）:', file.path);
+            const client = createApiClient();
             
-            // 署名付きURLからファイル内容を取得
-            const response = await fetch(fileInfo.downloadUrl);
+            // responseType: 'blob'でファイル内容をBlobとして取得
+            const response = await client.post('/files/download-url', 
+              { fileKey: file.path },
+              { responseType: 'blob' }
+            );
             
-            if (response.ok) {
-              const maimlContent = await response.text();
-              
-              // 中身が実質空（空白のみ、非常に短い）の場合は新規扱い
-              if (maimlContent.trim().length > 0) {
-                console.log('✅ [FormatManagement] ファイル内容読み込み完了（既存ファイル）');
-                setMaimlFileContent(maimlContent);
-              } else {
-                console.log('🆕 [FormatManagement] ファイルは存在するが中身が空 - 新規扱い');
-                setMaimlFileContent(null);
-              }
+            // BlobをTextに変換
+            const blob = response.data as Blob;
+            const maimlContent = await blob.text();
+            
+            // 中身が実質空（空白のみ、非常に短い）の場合は新規扱い
+            if (maimlContent.trim().length > 0) {
+              console.log('✅ [FormatManagement] ファイル内容読み込み完了（既存ファイル）');
+              setMaimlFileContent(maimlContent);
             } else {
-              // ファイルが存在しない、または読み込みエラーの場合は新規扱い
-              console.log('🆕 [FormatManagement] ファイル読み込み失敗 - 新規扱い:', response.status);
+              console.log('🆕 [FormatManagement] ファイルは存在するが中身が空 - 新規扱い');
               setMaimlFileContent(null);
             }
           } catch (fetchError) {
-            // ネットワークエラーなどの場合は新規扱い
+            // ネットワークエラーまたはファイルが存在しない場合は新規扱い
             console.log('🆕 [FormatManagement] ファイル読み込みエラー - 新規扱い:', fetchError);
             setMaimlFileContent(null);
           }

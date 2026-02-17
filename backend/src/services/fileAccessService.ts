@@ -24,35 +24,18 @@ import {
 } from '../utils/errorClasses';
 
 /**
- * ファイルアクセスレスポンス（ダウンロード用）
+ * ファイルストリームレスポンス（プロキシ方式）
  */
-export interface FileAccessResponse {
-  fileName: string;
-  downloadUrl: string;
-  fileSize: number;
-  contentType: string;
-  uploadedAt: Date;
-  uploadedBy: string;
+export interface FileStreamResponse {
+  buffer: Buffer;
+  metadata: {
+    fileName: string;
+    contentType: string;
+    fileSize: number;
+    uploadedAt: Date;
+    uploadedBy: string;
+  };
 }
-
-/**
- * 一括ファイルアクセスレスポンス
- */
-export interface BulkFileAccessResponse {
-  files: FileAccessResponse[];
-  totalFiles: number;
-  totalSize: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-// 後方互換性のためのエイリアス
-/** @deprecated Use FileAccessResponse instead */
-export type FileDownloadResponse = FileAccessResponse;
-
-/** @deprecated Use BulkFileAccessResponse instead */
-export type BulkDownloadResponse = BulkFileAccessResponse;
 
 /**
  * ファイルアクセスサービスクラス
@@ -126,15 +109,26 @@ export class FileAccessService {
     return fileMetadata;
   }
 
+
   /**
-   * 単一ファイルのダウンロード用署名付きURLを生成
+   * 単一ファイルをストリームとして取得（プロキシ方式）
+   * 
+   * @param userId ユーザーID
+   * @param projectId プロジェクトID
+   * @param organizationId 組織ID
+   * @param fileName ファイル名
+   * @returns ファイルストリーム情報（Buffer + メタデータ）
+   * @throws ValidationError バリデーションエラー
+   * @throws AuthorizationError 権限不足
+   * @throws NotFoundError ファイルが存在しない場合
+   * @throws StorageError ストレージエラーの場合
    */
-  async downloadFile(
+  async streamFile(
     userId: string,
     projectId: string,
     organizationId: string,
     fileName: string
-  ): Promise<FileDownloadResponse> {
+  ): Promise<FileStreamResponse> {
     // 1. プロジェクトアクセス権限の検証
     await this.accessValidator.validateAccess(
       userId,
@@ -152,11 +146,10 @@ export class FileAccessService {
     // 3. S3パスの取得
     const filePath = fileMetadata.file_key;
 
-    // 4. 署名付きURLの生成（有効期限: 3600秒 = 1時間）
-    const signedUrl = await this.storageService.getSignedUrl(
+    // 4. ストレージからファイルをダウンロード（Buffer取得）
+    const buffer = await this.storageService.downloadFile(
       organizationId,
-      filePath,
-      3600
+      filePath
     );
 
     // 5. ダウンロード履歴のログ記録
@@ -169,33 +162,35 @@ export class FileAccessService {
 
     // 6. レスポンスオブジェクトの構築
     return {
-      fileName: fileMetadata.original_filename,
-      downloadUrl: signedUrl,
-      fileSize: fileMetadata.file_size,
-      contentType: fileMetadata.file_type || 'application/octet-stream',
-      uploadedAt: fileMetadata.updated_at || fileMetadata.created_at || new Date(),
-      uploadedBy: userId, // FileMetadataにはuploadedByがないため、現在のuserIdを使用
+      buffer,
+      metadata: {
+        fileName: fileMetadata.original_filename,
+        contentType: fileMetadata.file_type || 'application/octet-stream',
+        fileSize: fileMetadata.file_size,
+        uploadedAt: fileMetadata.updated_at || fileMetadata.created_at || new Date(),
+        uploadedBy: userId, // FileMetadataにはuploadedByがないため、現在のuserIdを使用
+      },
     };
   }
 
   /**
-   * ファイルキーベースの汎用ダウンロード用署名付きURL生成
+   * ファイルキーベースでファイルをストリームとして取得（プロキシ方式）
    * 
-   * Task: S3ファイルダウンロード共通化
-   * - ファイルキーを直接指定して署名付きURLを取得
+   * Task: S3ファイルダウンロード共通化 - プロキシ版
+   * - ファイルキーを直接指定してファイルをストリームで取得
    * - プロジェクト、フォーマット、その他のファイルで共通利用可能
    * 
    * @param organizationId 組織ID
    * @param fileKey ファイルキー（相対パス）
-   * @returns ファイルダウンロード情報
+   * @returns ファイルストリーム情報（Buffer + メタデータ）
    * @throws ValidationError ファイルキーが不正な場合
    * @throws NotFoundError ファイルが存在しない場合
    * @throws StorageError ストレージエラーの場合
    */
-  async getFileDownloadUrl(
+  async streamFileByKey(
     organizationId: string,
     fileKey: string
-  ): Promise<FileAccessResponse> {
+  ): Promise<FileStreamResponse> {
     // 1. ファイルキーのバリデーション
     if (!fileKey || fileKey.trim().length === 0) {
       throw new ValidationError('ファイルキーは必須です');
@@ -231,11 +226,10 @@ export class FileAccessService {
       );
     }
 
-    // 4. 署名付きURLの生成（有効期限: 3600秒 = 1時間）
-    const signedUrl = await this.storageService.getSignedUrl(
+    // 4. ストレージからファイルをダウンロード（Buffer取得）
+    const buffer = await this.storageService.downloadFile(
       organizationId,
-      fileKey,
-      3600
+      fileKey
     );
 
     // 5. ファイル名を抽出
@@ -243,108 +237,14 @@ export class FileAccessService {
 
     // 6. レスポンスオブジェクトの構築
     return {
-      fileName,
-      downloadUrl: signedUrl,
-      fileSize: fileMetadata.size,
-      contentType: fileMetadata.contentType || 'application/octet-stream',
-      uploadedAt: fileMetadata.lastModified,
-      uploadedBy: 'system', // メタデータにuploadedByがないため固定値
-    };
-  }
-
-  /**
-   * プロジェクト内全ファイルの一括ダウンロード用署名付きURLリスト生成
-   * 
-   * @param userId ユーザーID
-   * @param projectId プロジェクトID
-   * @param organizationId 組織ID
-   * @param page ページ番号（1から開始）
-   * @param limit 1ページあたりの件数（最大100）
-   * @returns ファイル一覧とページネーション情報
-   */
-  async downloadAllFiles(
-    userId: string,
-    projectId: string,
-    organizationId: string,
-    page: number = 1,
-    limit: number = 20
-  ): Promise<BulkDownloadResponse> {
-    // 1. パラメータバリデーション
-    if (page < 1) {
-      throw new ValidationError('ページ番号は1以上である必要があります');
-    }
-
-    if (limit < 1) {
-      throw new ValidationError('limit値は1以上である必要があります');
-    }
-
-    if (limit > 100) {
-      throw new ValidationError('limit値は100以下である必要があります');
-    }
-
-    // 2. プロジェクトアクセス権限の検証
-    await this.accessValidator.validateAccess(
-      userId,
-      projectId,
-      organizationId
-    );
-
-    // 3. プロジェクト内全ファイルのメタデータを取得
-    const result = await this.repository.listProjectFiles(
-      organizationId,
-      projectId,
-      page,
-      limit
-    );
-
-    // 4. totalPagesを計算
-    const totalPages = Math.ceil(result.totalCount / limit);
-
-    // 5. 各ファイルに対して署名付きURLを生成
-    const filesWithUrls: FileDownloadResponse[] = [];
-    let totalSize = 0;
-
-    for (const fileMetadata of result.files) {
-      const filePath = fileMetadata.file_key;
-
-      // 署名付きURL生成（有効期限: 3600秒 = 1時間）
-      const signedUrl = await this.storageService.getSignedUrl(
-        organizationId,
-        filePath,
-        3600
-      );
-
-      filesWithUrls.push({
-        fileName: fileMetadata.original_filename,
-        downloadUrl: signedUrl,
-        fileSize: fileMetadata.file_size,
-        contentType: fileMetadata.file_type || 'application/octet-stream',
-        uploadedAt: fileMetadata.updated_at || fileMetadata.created_at || new Date(),
-        uploadedBy: userId, // FileMetadataにはuploadedByがないため、現在のuserIdを使用
-      });
-
-      totalSize += fileMetadata.file_size;
-    }
-
-    // 6. 一括ダウンロード履歴のログ記録
-    if (filesWithUrls.length > 0) {
-      logBulkDownloadHistory({
-        userId,
-        organizationId,
-        projectId,
-        fileCount: result.totalCount,
-        totalSize,
-      });
-    }
-
-    // 7. レスポンスオブジェクトの構築
-    return {
-      files: filesWithUrls,
-      totalFiles: result.totalCount,
-      totalSize,
-      page,
-      limit,
-      totalPages,
+      buffer,
+      metadata: {
+        fileName,
+        contentType: fileMetadata.contentType || 'application/octet-stream',
+        fileSize: fileMetadata.size,
+        uploadedAt: fileMetadata.lastModified,
+        uploadedBy: 'system', // メタデータにuploadedByがないため固定値
+      },
     };
   }
 }

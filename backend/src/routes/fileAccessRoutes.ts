@@ -64,31 +64,5 @@ router.get(
   fileAccessController.downloadFile
 );
 
-/**
- * プロジェクト一括ダウンロード用署名付きURLリスト取得
- * GET /api/v1/projects/:projectId/files/download-all
- * 
- * @middleware authMiddleware - JWT認証
- * @note Manager、System Adminがアクセス可能（Workerは権限不足）
- * @requirements 1, 4, 7, 8, 9, 12
- */
-router.get(
-  '/:projectId/files/download-all',
-  authMiddleware,
-  [
-    param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
-    query('page')
-      .optional()
-      .isInt({ min: 1 })
-      .withMessage('ページ番号は1以上の整数である必要があります'),
-    query('limit')
-      .optional()
-      .isInt({ min: 1, max: 100 })
-      .withMessage('limitは1〜100の範囲内の整数である必要があります'),
-  ],
-  fileAccessController.downloadAllFiles
-);
 
 export default router;

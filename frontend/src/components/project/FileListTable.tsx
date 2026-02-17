@@ -21,9 +21,7 @@ import {
 } from '@ant-design/icons';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import {
-  downloadFile,
   getFileDownloadUrlByKey,
-  executeFileDownload,
 } from '@/api/fileAccessService';
 import type { ProjectFile } from '@/types/file';
 
@@ -49,8 +47,8 @@ const FileListTable: React.FC<FileListTableProps> = ({
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
   /**
-   * ファイルダウンロード処理
-   * 共通関数を使用してファイルキーベースでダウンロード
+   * ファイルダウンロード処理（プロキシ方式）
+   * バックエンド経由でファイルを直接ダウンロード
    */
   const handleDownloadFile = async (file: ProjectFile) => {
     try {
@@ -61,11 +59,8 @@ const FileListTable: React.FC<FileListTableProps> = ({
         throw new Error('ファイルパスが指定されていません');
       }
 
-      // 共通関数: ファイルキーで署名付きURLを取得
-      const fileDownloadInfo = await getFileDownloadUrlByKey(file.path);
-
-      // ファイルダウンロード実行
-      executeFileDownload(fileDownloadInfo.downloadUrl, fileDownloadInfo.fileName);
+      // ファイルキーベースで直接ダウンロード（プロキシ方式）
+      await getFileDownloadUrlByKey(file.path);
 
       // 成功メッセージ表示
       message.success(`「${file.name}」のダウンロードを開始しました`);

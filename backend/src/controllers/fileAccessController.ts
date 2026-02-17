@@ -92,22 +92,21 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
 
-    const result = await service.downloadFile(
+    const result = await service.streamFile(
       userId,
       projectId,
       organizationId,
       fileName
     );
 
-    // 5. 成功レスポンス
-    res.status(200).json({
-      success: true,
-      data: result,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
-    });
+    // 4. レスポンスヘッダーを設定
+    const encodedFileName = encodeURIComponent(result.metadata.fileName);
+    res.setHeader('Content-Type', result.metadata.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFileName}`);
+    res.setHeader('Content-Length', result.buffer.length.toString());
+
+    // 5. ファイルバッファをレスポンスとして送信
+    res.status(200).send(result.buffer);
 
   } catch (error: any) {
     // 6. エラーハンドリング
@@ -250,20 +249,19 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
 
-    const result = await service.getFileDownloadUrl(
+    const result = await service.streamFileByKey(
       organizationId,
       fileKey
     );
 
-    // 5. 成功レスポンス
-    res.status(200).json({
-      success: true,
-      data: result,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
-    });
+    // 4. レスポンスヘッダーを設定
+    const encodedFileName = encodeURIComponent(result.metadata.fileName);
+    res.setHeader('Content-Type', result.metadata.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFileName}`);
+    res.setHeader('Content-Length', result.buffer.length.toString());
+
+    // 5. ファイルバッファをレスポンスとして送信
+    res.status(200).send(result.buffer);
 
   } catch (error: any) {
     // 6. エラーハンドリング
@@ -320,184 +318,3 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
   }
 }
 
-/**
- * プロジェクト一括ダウンロード用署名付きURLリスト取得エンドポイント
- * GET /api/v1/projects/:projectId/files/download-all
- * 
- * Task 4.2: Controller層実装
- * Requirements: 1, 4, 7, 8, 9, 12
- */
-export async function downloadAllFiles(req: Request, res: Response): Promise<void> {
-  const requestId = uuidv4();
-  
-  try {
-    // 1. 認証チェック
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_TOKEN_INVALID',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    const { organizationId, userId } = req.user;
-    const { projectId } = req.params;
-
-    // 2. パラメータバリデーション
-    // UUID形式バリデーション
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(projectId)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_INVALID_FORMAT',
-          message: 'projectIdはUUID形式である必要があります',
-          details: [{
-            field: 'projectId',
-            message: 'UUID形式が必要です',
-            code: 'INVALID_FORMAT',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // クエリパラメータの取得とバリデーション
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-
-    // ページ番号バリデーション
-    if (page < 1 || !Number.isInteger(page)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'ページ番号は1以上の整数である必要があります',
-          details: [{
-            field: 'page',
-            message: 'ページ番号は正の整数です',
-            code: 'INVALID_VALUE',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // limit値バリデーション
-    if (limit < 1 || limit > 100 || !Number.isInteger(limit)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'limitは1〜100の範囲内の整数である必要があります',
-          details: [{
-            field: 'limit',
-            message: 'limitは1〜100の範囲です',
-            code: 'OUT_OF_RANGE',
-          }],
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId,
-        },
-      });
-      return;
-    }
-
-    // 3. Service層の初期化と呼び出し
-    const repository = new FileMetadataRepository();
-    const accessValidator = new ProjectAccessValidator();
-    const service = new FileAccessService(repository, accessValidator);
-
-    const result = await service.downloadAllFiles(
-      userId,
-      projectId,
-      organizationId,
-      page,
-      limit
-    );
-
-    // 5. 成功レスポンス
-    res.status(200).json({
-      success: true,
-      data: result,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
-    });
-
-  } catch (error: any) {
-    // 6. エラーハンドリング
-    logError('File download all error', error, {
-      action: 'file_download_all',
-      organizationId: req.user?.organizationId,
-      projectId: req.params.projectId,
-      requestId,
-    });
-
-    // エラータイプに応じたステータスコードとレスポンス
-    let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
-    let errorMessage = 'システムエラーが発生しました';
-
-    if (error.message) {
-      // ValidationErrorのチェック
-      if (error.message.includes('ページ') || 
-          error.message.includes('limit') ||
-          error.message.includes('無効な')) {
-        statusCode = 400;
-        errorCode = 'VALIDATION_ERROR';
-        errorMessage = error.message;
-      }
-      // AuthorizationErrorのチェック
-      else if (error.message.includes('アクセス権限') || 
-               error.message.includes('権限がありません')) {
-        statusCode = 403;
-        errorCode = 'PERMISSION_INSUFFICIENT';
-        errorMessage = error.message;
-      }
-      // NotFoundErrorのチェック
-      else if (error.message.includes('見つかりません') || 
-               error.message.includes('存在しません')) {
-        statusCode = 404;
-        errorCode = 'RESOURCE_NOT_FOUND';
-        errorMessage = error.message;
-      }
-      // StorageErrorのチェック
-      else if (error.message.includes('署名付きURL') || 
-               error.message.includes('ストレージ')) {
-        statusCode = 500;
-        errorCode = 'STORAGE_ERROR';
-        errorMessage = error.message;
-      }
-    }
-
-    res.status(statusCode).json({
-      success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId,
-      },
-    });
-  }
-}
