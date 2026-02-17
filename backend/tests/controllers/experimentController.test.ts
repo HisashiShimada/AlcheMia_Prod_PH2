@@ -5,10 +5,10 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { updateTransitionStatus } from '../../src/controllers/experimentController';
+import { updateTransitionStatus, saveBatchData } from '../../src/controllers/experimentController';
 import * as experimentDataService from '../../src/services/experimentDataService';
 import { TransitionData } from '../../src/types/transitionData';
-import { InvalidStatusTransitionError } from '../../src/services/experimentDataService';
+import { InvalidStatusTransitionError, ProjectNotEditableError, TaskNotFoundError } from '../../src/services/experimentDataService';
 
 // experimentDataServiceをモック
 jest.mock('../../src/services/experimentDataService');
@@ -44,14 +44,16 @@ describe('ExperimentController', () => {
           status: 'running',
           comment: 'Test comment',
         },
-        user: {
-          userId: 'test-user-id',
-          organizationId: 'test-org-id',
-          role: 'experiment_worker',
-          sessionId: 'session123',
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 86400
-        }
+      } as any;
+
+      // userオブジェクトを追加
+      (mockRequest as any).user = {
+        userId: 'test-user-id',
+        organizationId: 'test-org-id',
+        role: 'experiment_worker',
+        sessionId: 'session123',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 86400
       };
 
       // organizationIdをrequestオブジェクトに追加（ミドルウェアで設定される）
@@ -239,6 +241,275 @@ describe('ExperimentController', () => {
         // Assert
         expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
         expect(experimentDataService.updateStatus).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('saveBatchData', () => {
+    let mockRequest: Partial<Request>;
+    let mockResponse: Partial<Response>;
+    let mockNext: NextFunction;
+    let jsonMock: jest.Mock;
+    let statusMock: jest.Mock;
+
+    beforeEach(() => {
+      // Reset all mocks
+      jest.clearAllMocks();
+
+      // Setup response mocks
+      jsonMock = jest.fn();
+      statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+
+      mockRequest = {
+        params: {
+          projectId: 'test-project-id',
+          methodId: 'test-method-id',
+          taskNo: '1',
+        },
+        body: {
+          records: [
+            {
+              placeId: 'place-1',
+              templateType: 'material',
+              templateId: 'material-template-1',
+              data: { name: 'Test Material', weight: 100 },
+              status: 'ready',
+              comment: 'Test comment',
+            },
+            {
+              placeId: 'place-2',
+              templateType: 'condition',
+              templateId: 'condition-template-1',
+              data: { temperature: 25, humidity: 50 },
+            },
+          ],
+        },
+      } as any;
+
+      // userオブジェクトを追加
+      (mockRequest as any).user = {
+        userId: 'test-user-id',
+        organizationId: 'test-org-id',
+        role: 'experiment_worker',
+        sessionId: 'session123',
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 86400
+      };
+
+      // organizationIdをrequestオブジェクトに追加（ミドルウェアで設定される）
+      (mockRequest as any).organizationId = 'test-org-id';
+
+      mockResponse = {
+        status: statusMock,
+        json: jsonMock,
+      };
+
+      mockNext = jest.fn();
+    });
+
+    describe('Success Cases', () => {
+      it('should return 201 Created with saved records', async () => {
+        // Arrange
+        const mockSavedRecords = [
+          {
+            id: 'record-1',
+            projectId: 'test-project-id',
+            methodId: 'test-method-id',
+            taskNo: 1,
+            placeId: 'place-1',
+            templateType: 'material',
+            templateId: 'material-template-1',
+            data: { name: 'Test Material', weight: 100 },
+            status: 'ready',
+            comment: 'Test comment',
+            recordedBy: 'test-user-id',
+            recordedAt: new Date().toISOString(),
+            organizationId: 'test-org-id',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: 'record-2',
+            projectId: 'test-project-id',
+            methodId: 'test-method-id',
+            taskNo: 1,
+            placeId: 'place-2',
+            templateType: 'condition',
+            templateId: 'condition-template-1',
+            data: { temperature: 25, humidity: 50 },
+            recordedBy: 'test-user-id',
+            recordedAt: new Date().toISOString(),
+            organizationId: 'test-org-id',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ];
+
+        (experimentDataService.saveBatchData as jest.Mock).mockResolvedValue(mockSavedRecords);
+
+        // Act
+        await saveBatchData(
+          mockRequest as Request,
+          mockResponse as Response,
+          mockNext
+        );
+
+        // Assert
+        expect(experimentDataService.saveBatchData).toHaveBeenCalledWith(
+          'test-org-id',
+          'test-project-id',
+          'test-method-id',
+          1,
+          mockRequest.body.records,
+          'test-user-id'
+        );
+
+        expect(statusMock).toHaveBeenCalledWith(201);
+        expect(jsonMock).toHaveBeenCalledWith({
+          success: true,
+          data: {
+            saved: 2,
+            records: mockSavedRecords,
+          },
+          meta: {
+            timestamp: expect.any(String),
+            requestId: expect.any(String),
+          },
+        });
+      });
+
+      it('should handle single record save', async () => {
+        // Arrange
+        mockRequest.body = {
+          records: [
+            {
+              placeId: 'place-1',
+              templateType: 'result',
+              templateId: 'result-template-1',
+              data: { value: 42 },
+            },
+          ],
+        };
+
+        const mockSavedRecords = [
+          {
+            id: 'record-1',
+            projectId: 'test-project-id',
+            methodId: 'test-method-id',
+            taskNo: 1,
+            placeId: 'place-1',
+            templateType: 'result',
+            templateId: 'result-template-1',
+            data: { value: 42 },
+            recordedBy: 'test-user-id',
+            recordedAt: new Date().toISOString(),
+            organizationId: 'test-org-id',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ];
+
+        (experimentDataService.saveBatchData as jest.Mock).mockResolvedValue(mockSavedRecords);
+
+        // Act
+        await saveBatchData(
+          mockRequest as Request,
+          mockResponse as Response,
+          mockNext
+        );
+
+        // Assert
+        expect(statusMock).toHaveBeenCalledWith(201);
+        expect(jsonMock).toHaveBeenCalledWith({
+          success: true,
+          data: {
+            saved: 1,
+            records: mockSavedRecords,
+          },
+          meta: expect.any(Object),
+        });
+      });
+    });
+
+    describe('Error Cases', () => {
+      it('should handle project not editable error', async () => {
+        // Arrange
+        const error = new ProjectNotEditableError('archived');
+        (experimentDataService.saveBatchData as jest.Mock).mockRejectedValue(error);
+
+        // Act
+        await saveBatchData(
+          mockRequest as Request,
+          mockResponse as Response,
+          mockNext
+        );
+
+        // Assert
+        expect(mockNext).toHaveBeenCalledWith(error);
+      });
+
+      it('should handle task not found error', async () => {
+        // Arrange
+        const error = new TaskNotFoundError(1);
+        (experimentDataService.saveBatchData as jest.Mock).mockRejectedValue(error);
+
+        // Act
+        await saveBatchData(
+          mockRequest as Request,
+          mockResponse as Response,
+          mockNext
+        );
+
+        // Assert
+        expect(mockNext).toHaveBeenCalledWith(error);
+      });
+
+      it('should handle database error', async () => {
+        // Arrange
+        const error = new Error('Database connection failed');
+        (experimentDataService.saveBatchData as jest.Mock).mockRejectedValue(error);
+
+        // Act
+        await saveBatchData(
+          mockRequest as Request,
+          mockResponse as Response,
+          mockNext
+        );
+
+        // Assert
+        expect(mockNext).toHaveBeenCalledWith(error);
+      });
+
+      it('should handle missing organization_id', async () => {
+        // Arrange
+        delete (mockRequest as any).organizationId;
+
+        // Act
+        await saveBatchData(
+          mockRequest as Request,
+          mockResponse as Response,
+          mockNext
+        );
+
+        // Assert
+        expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+        expect(experimentDataService.saveBatchData).not.toHaveBeenCalled();
+      });
+
+      it('should handle missing user information', async () => {
+        // Arrange
+        delete mockRequest.user;
+
+        // Act
+        await saveBatchData(
+          mockRequest as Request,
+          mockResponse as Response,
+          mockNext
+        );
+
+        // Assert
+        expect(mockNext).toHaveBeenCalledWith(expect.any(Error));
+        expect(experimentDataService.saveBatchData).not.toHaveBeenCalled();
       });
     });
   });
