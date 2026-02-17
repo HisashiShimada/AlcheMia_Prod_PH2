@@ -22,6 +22,7 @@ import {
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import {
   downloadFile,
+  getFileDownloadUrlByKey,
   executeFileDownload,
 } from '@/api/fileAccessService';
 import type { ProjectFile } from '@/types/file';
@@ -49,13 +50,19 @@ const FileListTable: React.FC<FileListTableProps> = ({
 
   /**
    * ファイルダウンロード処理
+   * 共通関数を使用してファイルキーベースでダウンロード
    */
   const handleDownloadFile = async (file: ProjectFile) => {
     try {
       setDownloadingFileId(file.id);
 
-      // API通信: 署名付きURLを取得
-      const fileDownloadInfo = await downloadFile(projectId, file.name);
+      // ファイルパスが存在するか確認
+      if (!file.path || file.path.trim() === '') {
+        throw new Error('ファイルパスが指定されていません');
+      }
+
+      // 共通関数: ファイルキーで署名付きURLを取得
+      const fileDownloadInfo = await getFileDownloadUrlByKey(file.path);
 
       // ファイルダウンロード実行
       executeFileDownload(fileDownloadInfo.downloadUrl, fileDownloadInfo.fileName);
