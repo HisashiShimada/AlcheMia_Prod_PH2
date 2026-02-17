@@ -1733,6 +1733,160 @@ export class ProjectService {
   }
 
   /**
+   * プロジェクトMAIMLファイル取得
+   * 
+   * Task 3.1 (P): Service層実装
+   * Requirements: 1, 3, 4, 6, 7
+   * 
+   * @param organizationId - 組織ID
+   * @param projectId - プロジェクトID
+   * @returns MAIMLファイルデータ
+   */
+  async getProjectMaiml(
+    organizationId: string,
+    projectId: string
+  ): Promise<ServiceResult<any>> {
+    const pool = getPool();
+    
+    try {
+      // organization_prefix取得
+      const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
+      const orgResult = await pool.query(orgQuery, [organizationId]);
+      
+      if (orgResult.rows.length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: '組織情報が見つかりません',
+          },
+        };
+      }
+      
+      const organizationPrefix = orgResult.rows[0].organization_prefix;
+      
+      // Task 3.1: プロジェクト存在確認（organization_idフィルタ必須）
+      const projectQuery = `
+        SELECT project_id, project_name
+        FROM project
+        WHERE organization_id = $1 AND project_id = $2
+      `;
+      
+      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
+      
+      // プロジェクト存在確認
+      if (projectResult.rows.length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'プロジェクトが見つかりません',
+          },
+        };
+      }
+      
+      const projectName = projectResult.rows[0].project_name;
+      
+      // Task 3.1: S3パスを構築
+      const filePath = `projects/${projectName}/${projectName}.maiml`;
+      
+      // Task 3.1: storageService経由でS3からファイルを取得
+      try {
+        const storageService = getStorageService();
+        const fileBuffer = await storageService.downloadFile(organizationPrefix, filePath);
+        
+        // Task 3.1: BufferをUTF-8文字列に変換
+        const content = fileBuffer.toString('utf-8');
+        
+        // Task 3.1: ファイルメタデータを取得
+        const fileMetadata = await storageService.getFileMetadata(organizationPrefix, filePath);
+        
+        // Task 3.1: レスポンスデータ構築
+        const maimlFileData = {
+          file_id: fileMetadata.key,
+          project_id: projectId,
+          project_name: projectName,
+          file_name: `${projectName}.maiml`,
+          file_path: filePath,
+          file_size: fileMetadata.size,
+          content: content,
+          content_type: 'application/xml' as const,
+          loaded_at: new Date().toISOString(),
+        };
+        
+        // Task 3.1: 成功ログ記録
+        winston.info('MAIML file retrieved successfully', {
+          projectId,
+          projectName,
+          organizationId,
+          fileSize: fileMetadata.size,
+          filePath,
+          timestamp: new Date().toISOString(),
+        });
+        
+        return {
+          success: true,
+          data: maimlFileData,
+        };
+      } catch (s3Error: any) {
+        // Task 3.1: S3ファイル不在時の処理
+        if (s3Error.name === 'NotFound' || s3Error.$metadata?.httpStatusCode === 404) {
+          winston.warn('MAIML file not found in S3', {
+            projectId,
+            projectName,
+            organizationId,
+            filePath,
+            timestamp: new Date().toISOString(),
+          });
+          
+          return {
+            success: false,
+            error: {
+              code: 'FILE_NOT_FOUND',
+              message: 'MAIMLファイルが見つかりません',
+            },
+          };
+        }
+        
+        // Task 3.1: その他のS3エラー
+        winston.error('S3 error during MAIML file retrieval', {
+          projectId,
+          projectName,
+          organizationId,
+          error: sanitizeErrorForLog(s3Error),
+          timestamp: new Date().toISOString(),
+        });
+        
+        return {
+          success: false,
+          error: {
+            code: 'SYSTEM_S3_ERROR',
+            message: 'ファイル取得に失敗しました',
+            originalError: s3Error,
+          },
+        };
+      }
+    } catch (error) {
+      // Task 3.1: データベースエラー
+      winston.error('Database error during MAIML file retrieval', {
+        projectId,
+        organizationId,
+        error: sanitizeErrorForLog(error as Error),
+        timestamp: new Date().toISOString(),
+      });
+      
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'データベースエラーが発生しました',
+          originalError: error as Error,
+        },
+      };
+    }
+  }
+
+  /**
    * 指示確認を記録する
    * 
    * @description instructionConfirmationService.tsから移植

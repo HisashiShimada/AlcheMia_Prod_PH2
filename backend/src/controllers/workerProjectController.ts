@@ -12,7 +12,6 @@ import { Request, Response, NextFunction } from 'express';
 import { WorkerProjectService } from '../services/workerProjectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
-import type { ProjectStatus } from '../types/workerProject';
 
 /**
  * 実験作業者用プロジェクトコントローラー
