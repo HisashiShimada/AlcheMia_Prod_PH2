@@ -4,7 +4,7 @@
 
 このドキュメントは、mmdpfプロジェクトにおけるS3（本番環境）およびOpenStack Swift（開発環境）のフォルダ構成を定義します。
 
-**重要**: マルチテナント分離のため、すべてのファイルパスは `org_{organization_prefix}` プレフィックスが必須です。
+**重要**: マルチテナント分離のため、すべてのファイルパスは `{organization_id}` プレフィックスが必須です。
 
 ---
 
@@ -14,7 +14,7 @@
 
 ```
 {bucket_name}/
-└── org_{organization_prefix}/
+└── {organization_id}/         # 組織ID（UUID形式）
     ├── projects/              # プロジェクトフォルダ
     │   └── {project_name}/
     │       ├── {project_name}.maiml
@@ -32,10 +32,10 @@
 - バケット名: 組織ごとに設定
 - 環境変数: `AWS_S3_BUCKET`
 
-**組織プレフィックス:**
-- 形式: `org_{organization_prefix}`
-- `organization_prefix` は `organization` テーブルの `organization_name` から生成
-- 例: `org_maiml_lab_001`, `org_research_center_a`
+**組織ID:**
+- 形式: UUID（`{organization_id}`）
+- `organization_id` は `organization` テーブルの主キー
+- 例: `550e8400-e29b-41d4-a716-446655440000`, `6ba7b810-9dad-11d1-80b4-00c04fd430c8`
 
 ---
 
@@ -44,7 +44,7 @@
 ### 1. projects/ - プロジェクトフォルダ
 
 ```
-org_{organization_prefix}/projects/
+{organization_id}/projects/
 └── {project_name}/
     ├── {project_name}.maiml       # 現在のMAIMLファイル
     └── archive/
@@ -55,9 +55,9 @@ org_{organization_prefix}/projects/
 
 **パス例:**
 ```
-org_maiml_lab_001/projects/sample_project/sample_project.maiml
-org_maiml_lab_001/projects/sample_project/archive/sample_project_v1.maiml
-org_maiml_lab_001/projects/sample_project/archive/sample_project_v2.maiml
+550e8400-e29b-41d4-a716-446655440000/projects/sample_project/sample_project.maiml
+550e8400-e29b-41d4-a716-446655440000/projects/sample_project/archive/sample_project_v1.maiml
+550e8400-e29b-41d4-a716-446655440000/projects/sample_project/archive/sample_project_v2.maiml
 ```
 
 **用途:**
@@ -76,7 +76,7 @@ org_maiml_lab_001/projects/sample_project/archive/sample_project_v2.maiml
 ### 2. formats/ - フォーマット定義
 
 ```
-org_{organization_prefix}/formats/
+{organization_id}/formats/
 └── {format_prefix}/
     ├── file.maiml または file.xml  # プレフィックス直下に配置可能
     └── {subfolder_name}/             # サブフォルダ（任意の階層構造）
@@ -85,12 +85,12 @@ org_{organization_prefix}/formats/
 
 **パス例:**
 ```
-org_maiml_lab_001/formats/chemistry/synthesis_workflow.maiml
-org_maiml_lab_001/formats/chemistry/analysis/analysis_workflow.maiml
-org_maiml_lab_001/formats/materials/material_template.xml
-org_maiml_lab_001/formats/materials/conditions/condition_template.xml
-org_maiml_lab_001/formats/biology/cell_culture.maiml
-org_maiml_lab_001/formats/reagents/reagent_template.xml
+550e8400-e29b-41d4-a716-446655440000/formats/chemistry/synthesis_workflow.maiml
+550e8400-e29b-41d4-a716-446655440000/formats/chemistry/analysis/analysis_workflow.maiml
+550e8400-e29b-41d4-a716-446655440000/formats/materials/material_template.xml
+550e8400-e29b-41d4-a716-446655440000/formats/materials/conditions/condition_template.xml
+550e8400-e29b-41d4-a716-446655440000/formats/biology/cell_culture.maiml
+550e8400-e29b-41d4-a716-446655440000/formats/reagents/reagent_template.xml
 ```
 
 **用途:**
@@ -122,13 +122,13 @@ org_maiml_lab_001/formats/reagents/reagent_template.xml
 // ✅ 正しい例
 const projectName = 'sample_project';
 const filePath = storageService.uploadFile(
-  organizationPrefix,          // organization_prefixを必須指定
+  organizationId,          // organization_idを必須指定
   `projects/${projectName}/${projectName}.maiml`,
   fileContent
 );
-// 実際のS3キー: org_maiml_lab_001/projects/sample_project/sample_project.maiml
+// 実際のS3キー: 550e8400-e29b-41d4-a716-446655440000/projects/sample_project/sample_project.maiml
 
-// ❌ 間違った例（organization_prefixなし）
+// ❌ 間違った例（organization_idなし）
 const filePath = s3Client.putObject({
   Key: `projects/${projectName}/${projectName}.maiml`  // プレフィックスなし
 });
@@ -136,7 +136,7 @@ const filePath = s3Client.putObject({
 
 #### 2. アクセス権限の検証
 
-- すべてのS3操作でorganization_prefixを必須とする
+- すべてのS3操作でorganization_idを必須とする
 - ユーザーは自組織のファイルのみアクセス可能
 - クロステナントアクセスは厳禁（System Admin除く）
 
@@ -146,7 +146,7 @@ const filePath = s3Client.putObject({
 // ✅ 推奨: 署名付きURLを使用
 const projectName = 'sample_project';
 const signedUrl = await storageService.getSignedUrl(
-  organizationPrefix,
+  organizationId,
   `projects/${projectName}/${projectName}.maiml`,
   3600  // 有効期限: 1時間
 );
@@ -169,15 +169,15 @@ const storageService = getStorageService();
 await storageService.uploadFile(organizationId, filePath, content);
 ```
 
-✅ **organization_prefixを必ず指定する**
+✅ **organization_idを必ず指定する**
 ```typescript
-// すべての操作でorganization_prefixを指定
-await storageService.listFiles(organizationPrefix, 'projects/archive');
+// すべての操作でorganization_idを指定
+await storageService.listFiles(organizationId, 'projects/archive');
 ```
 
 ✅ **相対パスを使用する**
 ```typescript
-// プレフィックスは自動付与されるため、相対パスで指定
+// organization_idは自動付与されるため、相対パスで指定
 const projectName = 'sample_project';
 const path = `projects/${projectName}/${projectName}.maiml`;
 ```
@@ -185,7 +185,7 @@ const path = `projects/${projectName}/${projectName}.maiml`;
 ✅ **署名付きURLを使用する**
 ```typescript
 // フロントエンドへはPre-signed URLを返す
-const url = await storageService.getSignedUrl(organizationPrefix, path, 3600);
+const url = await storageService.getSignedUrl(organizationId, path, 3600);
 res.json({ url });
 ```
 
@@ -197,16 +197,16 @@ res.json({ url });
 import { S3Client } from '@aws-sdk/client-s3';  // 直接使用禁止
 ```
 
-❌ **organization_prefixなしでファイル操作しない**
+❌ **organization_idなしでファイル操作しない**
 ```typescript
-// organization_prefixは必須
+// organization_idは必須
 await storageService.uploadFile('', filePath, content);  // NG
 ```
 
 ❌ **絶対パスを使用しない**
 ```typescript
-// プレフィックスを含めない
-const path = 'org_maiml_lab_001/projects/...';  // NG
+// organization_idを含めない
+const path = '550e8400-e29b-41d4-a716-446655440000/projects/...';  // NG
 ```
 
 ❌ **直接URLをクライアントに返さない**
@@ -246,7 +246,7 @@ const url = `https://s3.amazonaws.com/${bucket}/${key}`;  // NG
 // プロジェクトMAIMLファイルの新規作成・更新
 const projectName = 'sample_project';
 await storageService.uploadFile(
-  'maiml_lab_001',  // organization_prefix
+  '550e8400-e29b-41d4-a716-446655440000',  // organization_id
   `projects/${projectName}/${projectName}.maiml`,
   maimlContent,
   { contentType: 'application/xml' }
@@ -255,20 +255,20 @@ await storageService.uploadFile(
 // 現在のファイルをアーカイブに移動（バージョン番号付き）
 // まず既存ファイルを取得
 const existingFile = await storageService.downloadFile(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/${projectName}.maiml`
 );
 
 // アーカイブファイル一覧を取得して次のバージョン番号を決定
 const archiveFiles = await storageService.listFiles(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/archive`
 );
 const nextVersion = archiveFiles.length + 1;
 
 // アーカイブに保存
 await storageService.uploadFile(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/archive/${projectName}_v${nextVersion}.maiml`,
   existingFile,
   { contentType: 'application/xml' }
@@ -276,7 +276,7 @@ await storageService.uploadFile(
 
 // フォーマット - ワークフローのアップロード
 await storageService.uploadFile(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   'formats/chemistry/synthesis/synthesis_workflow.maiml',
   workflowContent,
   { contentType: 'application/xml' }
@@ -284,7 +284,7 @@ await storageService.uploadFile(
 
 // フォーマット - テンプレートのアップロード
 await storageService.uploadFile(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   'formats/materials/conditions/condition_template.xml',
   templateContent,
   { contentType: 'application/xml' }
@@ -297,27 +297,27 @@ await storageService.uploadFile(
 // 現在のプロジェクトMAIMLファイルを取得
 const projectName = 'sample_project';
 const maimlBuffer = await storageService.downloadFile(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/${projectName}.maiml`
 );
 
 // 特定バージョンのアーカイブファイルを取得
 const version = 2;
 const archivedMaimlBuffer = await storageService.downloadFile(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/archive/${projectName}_v${version}.maiml`
 );
 
 // 署名付きURLの取得（フロントエンド用）
 const signedUrl = await storageService.getSignedUrl(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/${projectName}.maiml`,
   3600  // 1時間有効
 );
 
 // アーカイブファイルの署名付きURL
 const archivedSignedUrl = await storageService.getSignedUrl(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/archive/${projectName}_v${version}.maiml`,
   3600
 );
@@ -328,14 +328,14 @@ const archivedSignedUrl = await storageService.getSignedUrl(
 ```typescript
 // プロジェクト一覧を取得
 const projectFolders = await storageService.listFiles(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   'projects'
 );
 
 // 特定プロジェクトのアーカイブファイル一覧を取得
 const projectName = 'sample_project';
 const archiveFiles = await storageService.listFiles(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/archive`
 );
 
@@ -351,19 +351,19 @@ const sortedArchives = archiveFiles
 
 // フォーマット - ワークフロー一覧を取得
 const workflowFiles = await storageService.listFiles(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   'formats/chemistry'
 );
 
 // フォーマット - テンプレート一覧を取得
 const templateFiles = await storageService.listFiles(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   'formats/materials'
 );
 
 // 特定サブフォルダのファイル一覧を取得
 const synthesisWorkflows = await storageService.listFiles(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   'formats/chemistry/synthesis'
 );
 ```
@@ -374,22 +374,22 @@ const synthesisWorkflows = await storageService.listFiles(
 // 古いアーカイブファイルの削除
 const projectName = 'sample_project';
 await storageService.deleteFile(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/archive/${projectName}_v1.maiml`
 );
 
 // プロジェクト全体の削除（注意: 現在のファイルとアーカイブすべて）
 // まずアーカイブファイルを削除
 const archiveFiles = await storageService.listFiles(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/archive`
 );
 for (const file of archiveFiles) {
-  await storageService.deleteFile('maiml_lab_001', file.key);
+  await storageService.deleteFile('550e8400-e29b-41d4-a716-446655440000', file.key);
 }
 // 現在のファイルを削除
 await storageService.deleteFile(
-  'maiml_lab_001',
+  '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/${projectName}.maiml`
 );
 
@@ -405,11 +405,11 @@ await storageService.deleteFile(
 
 **症状:**
 ```
-Error: File not found: org_maiml_lab_001/projects/sample_project/sample_project.maiml
+Error: File not found: 550e8400-e29b-41d4-a716-446655440000/projects/sample_project/sample_project.maiml
 ```
 
 **原因:**
-- organization_prefixが間違っている
+- organization_idが間違っている
 - project_nameが間違っている
 - ファイルパスが間違っている
 - ファイルがまだアップロードされていない
@@ -419,7 +419,7 @@ Error: File not found: org_maiml_lab_001/projects/sample_project/sample_project.
 // ファイルの存在確認
 const projectName = 'sample_project';
 const filePath = `projects/${projectName}/${projectName}.maiml`;
-const exists = await storageService.fileExists(organizationPrefix, filePath);
+const exists = await storageService.fileExists(organizationId, filePath);
 if (!exists) {
   throw new Error('File not found');
 }
@@ -434,13 +434,13 @@ Error: Access Denied
 
 **原因:**
 - 異なる組織のファイルにアクセスしようとしている
-- organization_prefixが指定されていない
+- organization_idが指定されていない
 
 **解決方法:**
 ```typescript
-// 必ずリクエストユーザーのorganization_prefixを使用
-const organizationPrefix = req.organizationPrefix;  // ミドルウェアで設定
-await storageService.downloadFile(organizationPrefix, filePath);
+// 必ずリクエストユーザーのorganization_idを使用
+const organizationId = req.organizationId;  // ミドルウェアで設定
+await storageService.downloadFile(organizationId, filePath);
 ```
 
 #### 3. 署名付きURLの有効期限切れ
@@ -457,7 +457,7 @@ Error: Request has expired
 ```typescript
 // 必要に応じて有効期限を延長
 const signedUrl = await storageService.getSignedUrl(
-  organizationPrefix,
+  organizationId,
   filePath,
   7200  // 2時間
 );
@@ -477,4 +477,5 @@ const signedUrl = await storageService.getSignedUrl(
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-02-17 | 組織プレフィックス形式から組織ID（UUID）形式に変更 | Cline |
 | 2026-01-09 | 初版作成 | Cline |
