@@ -23,7 +23,7 @@ import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import {
   downloadFile,
   executeFileDownload,
-} from '@/api/fileDownloadService';
+} from '@/api/fileAccessService';
 import type { ProjectFile } from '@/types/file';
 
 interface FileListTableProps {

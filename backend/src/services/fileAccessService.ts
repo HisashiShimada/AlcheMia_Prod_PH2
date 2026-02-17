@@ -1,5 +1,11 @@
 /**
- * ファイルダウンロードサービス
+ * ファイルアクセスサービス
+ * 
+ * ファイルのダウンロード、アップロード、削除などのファイルアクセス処理を提供
+ * - プロジェクトアクセス権限チェック
+ * - file_metadataテーブルとの連携
+ * - ダウンロード履歴記録
+ * - ファイル存在確認（メタデータ + ストレージ）
  * 
  * Task 3.1: 単一ファイルダウンロード用署名付きURL生成機能
  * Task 3.3: プロジェクト一括ダウンロード用署名付きURLリスト生成機能
@@ -18,9 +24,9 @@ import {
 } from '../utils/errorClasses';
 
 /**
- * ファイルダウンロードレスポンス
+ * ファイルアクセスレスポンス（ダウンロード用）
  */
-export interface FileDownloadResponse {
+export interface FileAccessResponse {
   fileName: string;
   downloadUrl: string;
   fileSize: number;
@@ -30,10 +36,10 @@ export interface FileDownloadResponse {
 }
 
 /**
- * 一括ダウンロードレスポンス
+ * 一括ファイルアクセスレスポンス
  */
-export interface BulkDownloadResponse {
-  files: FileDownloadResponse[];
+export interface BulkFileAccessResponse {
+  files: FileAccessResponse[];
   totalFiles: number;
   totalSize: number;
   page: number;
@@ -41,10 +47,19 @@ export interface BulkDownloadResponse {
   totalPages: number;
 }
 
+// 後方互換性のためのエイリアス
+/** @deprecated Use FileAccessResponse instead */
+export type FileDownloadResponse = FileAccessResponse;
+
+/** @deprecated Use BulkFileAccessResponse instead */
+export type BulkDownloadResponse = BulkFileAccessResponse;
+
 /**
- * ファイルダウンロードサービスクラス
+ * ファイルアクセスサービスクラス
+ * 
+ * ファイルのダウンロード、アップロード、削除などのアクセス処理を統合管理
  */
-export class FileDownloadService {
+export class FileAccessService {
   private repository: FileMetadataRepository;
   private storageService: any;
   private accessValidator: ProjectAccessValidator;
@@ -98,7 +113,7 @@ export class FileDownloadService {
     }
 
     // 3. S3/Swift上のファイル存在を確認
-    const filePath = fileMetadata.filePath;
+    const filePath = fileMetadata.file_key;
     const existsInStorage = await this.storageService.fileExists(
       organizationPrefix,
       filePath
@@ -139,7 +154,7 @@ export class FileDownloadService {
     );
 
     // 3. S3パスの取得
-    const filePath = fileMetadata.filePath;
+    const filePath = fileMetadata.file_key;
 
     // 4. 署名付きURLの生成（有効期限: 3600秒 = 1時間）
     const signedUrl = await this.storageService.getSignedUrl(
@@ -153,16 +168,16 @@ export class FileDownloadService {
       userId,
       organizationId,
       projectId,
-      fileName: fileMetadata.fileName,
+      fileName: fileMetadata.original_filename,
     });
 
     // 6. レスポンスオブジェクトの構築
     return {
-      fileName: fileMetadata.fileName,
+      fileName: fileMetadata.original_filename,
       downloadUrl: signedUrl,
-      fileSize: fileMetadata.fileSize,
-      contentType: fileMetadata.contentType,
-      uploadedAt: fileMetadata.lastModified,
+      fileSize: fileMetadata.file_size,
+      contentType: fileMetadata.file_type || 'application/octet-stream',
+      uploadedAt: fileMetadata.updated_at || fileMetadata.created_at || new Date(),
       uploadedBy: userId, // FileMetadataにはuploadedByがないため、現在のuserIdを使用
     };
   }
@@ -222,7 +237,7 @@ export class FileDownloadService {
     let totalSize = 0;
 
     for (const fileMetadata of result.files) {
-      const filePath = fileMetadata.filePath;
+      const filePath = fileMetadata.file_key;
 
       // 署名付きURL生成（有効期限: 3600秒 = 1時間）
       const signedUrl = await this.storageService.getSignedUrl(
@@ -232,15 +247,15 @@ export class FileDownloadService {
       );
 
       filesWithUrls.push({
-        fileName: fileMetadata.fileName,
+        fileName: fileMetadata.original_filename,
         downloadUrl: signedUrl,
-        fileSize: fileMetadata.fileSize,
-        contentType: fileMetadata.contentType,
-        uploadedAt: fileMetadata.lastModified,
+        fileSize: fileMetadata.file_size,
+        contentType: fileMetadata.file_type || 'application/octet-stream',
+        uploadedAt: fileMetadata.updated_at || fileMetadata.created_at || new Date(),
         uploadedBy: userId, // FileMetadataにはuploadedByがないため、現在のuserIdを使用
       });
 
-      totalSize += fileMetadata.fileSize;
+      totalSize += fileMetadata.file_size;
     }
 
     // 6. 一括ダウンロード履歴のログ記録

@@ -1,6 +1,7 @@
 /**
- * ファイルダウンロードAPI通信サービス
+ * ファイルアクセスAPI通信サービス
  * 
+ * ファイルのダウンロード、アップロード、削除などのファイルアクセス処理を提供
  * Task 5.3: ファイルダウンロードAPI通信関数の実装
  * Requirements: 10
  */
@@ -8,9 +9,9 @@
 import { createApiClient } from '@/utils/authUtils';
 
 /**
- * ファイルダウンロードレスポンス型
+ * ファイルアクセスレスポンス型（ダウンロード用）
  */
-export interface FileDownloadResponse {
+export interface FileAccessResponse {
   fileName: string;
   downloadUrl: string;
   fileSize: number;
@@ -20,16 +21,23 @@ export interface FileDownloadResponse {
 }
 
 /**
- * 一括ダウンロードレスポンス型
+ * 一括ファイルアクセスレスポンス型
  */
-export interface BulkDownloadResponse {
-  files: FileDownloadResponse[];
+export interface BulkFileAccessResponse {
+  files: FileAccessResponse[];
   totalFiles: number;
   totalSize: number;
   page: number;
   limit: number;
   totalPages: number;
 }
+
+// 後方互換性のためのエイリアス
+/** @deprecated Use FileAccessResponse instead */
+export type FileDownloadResponse = FileAccessResponse;
+
+/** @deprecated Use BulkFileAccessResponse instead */
+export type BulkDownloadResponse = BulkFileAccessResponse;
 
 /**
  * 単一ファイルのダウンロード用署名付きURLを取得

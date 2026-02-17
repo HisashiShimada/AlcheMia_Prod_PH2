@@ -7,7 +7,7 @@
  */
 
 import { Request, Response } from 'express';
-import { FileDownloadService } from '../services/fileDownloadService';
+import { FileAccessService } from '../services/fileAccessService';
 import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { ProjectAccessValidator } from '../services/projectAccessValidator';
 import { v4 as uuidv4 } from 'uuid';
@@ -113,14 +113,14 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
     // 4. Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
-    const service = new FileDownloadService(repository, accessValidator);
+    const service = new FileAccessService(repository, accessValidator);
 
     const result = await service.downloadFile(
       userId,
       projectId,
-      fileName,
       organizationId,
-      organizationPrefix
+      organizationPrefix,
+      fileName
     );
 
     // 5. 成功レスポンス
@@ -320,7 +320,7 @@ export async function downloadAllFiles(req: Request, res: Response): Promise<voi
     // 4. Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
-    const service = new FileDownloadService(repository, accessValidator);
+    const service = new FileAccessService(repository, accessValidator);
 
     const result = await service.downloadAllFiles(
       userId,

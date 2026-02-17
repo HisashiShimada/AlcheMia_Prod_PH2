@@ -1,5 +1,5 @@
 /**
- * ファイルダウンロード関連ルート
+ * ファイルアクセス関連ルート
  * 
  * @description 単一ファイルダウンロードとプロジェクト一括ダウンロードのエンドポイント定義
  * Task 4.1: 単一ファイルダウンロードAPIエンドポイントの実装
@@ -9,7 +9,7 @@
 
 import { Router } from 'express';
 import { param, query } from 'express-validator';
-import * as fileDownloadController from '../controllers/fileDownloadController';
+import * as fileAccessController from '../controllers/fileAccessController';
 import { authMiddleware } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -35,7 +35,7 @@ router.get(
       .isLength({ min: 1, max: 255 })
       .withMessage('fileNameは1〜255文字である必要があります'),
   ],
-  fileDownloadController.downloadFile
+  fileAccessController.downloadFile
 );
 
 /**
@@ -62,7 +62,7 @@ router.get(
       .isInt({ min: 1, max: 100 })
       .withMessage('limitは1〜100の範囲内の整数である必要があります'),
   ],
-  fileDownloadController.downloadAllFiles
+  fileAccessController.downloadAllFiles
 );
 
 export default router;

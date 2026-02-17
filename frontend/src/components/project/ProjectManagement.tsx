@@ -41,7 +41,7 @@ import { useApi } from '@/hooks/useApi';
 import {
   downloadAllFiles,
   executeMultipleDownloads,
-} from '@/api/fileDownloadService';
+} from '@/api/fileAccessService';
 import { getProjects } from '@/api/projectApiService';
 import {
   getProjectFiles, 
