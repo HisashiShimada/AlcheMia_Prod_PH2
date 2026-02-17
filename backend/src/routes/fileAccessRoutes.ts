@@ -8,11 +8,37 @@
  */
 
 import { Router } from 'express';
-import { param, query } from 'express-validator';
+import { param, query, body } from 'express-validator';
 import * as fileAccessController from '../controllers/fileAccessController';
 import { authMiddleware } from '../middleware/authMiddleware';
 
 const router = Router();
+
+/**
+ * ファイルキーベースの汎用ダウンロード用署名付きURL取得
+ * POST /api/v1/files/download-url
+ * 
+ * Task: S3ファイルダウンロード共通化
+ * - ファイルキーを直接指定して署名付きURLを取得
+ * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @note すべてのロールがアクセス可能（マルチテナント分離で保護）
+ */
+router.post(
+  '/download-url',
+  authMiddleware,
+  [
+    body('fileKey')
+      .notEmpty()
+      .withMessage('fileKeyは必須です')
+      .isString()
+      .withMessage('fileKeyは文字列である必要があります')
+      .isLength({ min: 1, max: 1024 })
+      .withMessage('fileKeyは1〜1024文字である必要があります'),
+  ],
+  fileAccessController.getFileDownloadUrl
+);
 
 /**
  * 単一ファイルダウンロード用署名付きURL取得

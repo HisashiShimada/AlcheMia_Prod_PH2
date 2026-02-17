@@ -170,6 +170,49 @@ export const executeMultipleDownloads = async (
 };
 
 /**
+ * ファイルキーベースの汎用ダウンロード用署名付きURLを取得
+ * 
+ * Task: S3ファイルダウンロード共通化
+ * - ファイルキーを直接指定して署名付きURLを取得
+ * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+ * - organization_idは認証情報から自動取得
+ * 
+ * @param fileKey ファイルキー（相対パス）
+ * @returns ファイルダウンロード情報
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * // プロジェクトファイル
+ * const info = await getFileDownloadUrlByKey('projects/sample_project/sample.maiml');
+ * 
+ * // フォーマットファイル
+ * const info = await getFileDownloadUrlByKey('formats/chemistry/workflow.maiml');
+ */
+export const getFileDownloadUrlByKey = async (
+  fileKey: string
+): Promise<FileAccessResponse> => {
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<{
+      success: true;
+      data: FileAccessResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>('/files/download-url', {
+      fileKey,
+    });
+
+    return response.data.data;
+  } catch (error) {
+    console.error('ファイルダウンロードURLを取得エラー:', error);
+    throw error;
+  }
+};
+
+/**
  * ファイルサイズをフォーマット（バイト → KB/MB/GB）
  * 
  * @param bytes ファイルサイズ（バイト）

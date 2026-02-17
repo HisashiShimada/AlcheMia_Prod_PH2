@@ -196,6 +196,179 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * ファイルキーベースの汎用ダウンロード用署名付きURL取得エンドポイント
+ * POST /api/v1/files/download-url
+ * 
+ * Task: S3ファイルダウンロード共通化
+ * - ファイルキーを直接指定して署名付きURLを取得
+ * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+ * Requirements: 認証、マルチテナント分離、ファイル存在確認、署名付きURL生成
+ */
+export async function getFileDownloadUrl(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  
+  try {
+    // 1. 認証チェック
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTH_TOKEN_INVALID',
+          message: '認証が必要です',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const { organizationId, userId } = req.user;
+    const { fileKey } = req.body;
+
+    // 2. パラメータバリデーション
+    if (!fileKey || typeof fileKey !== 'string' || fileKey.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_REQUIRED_FIELD',
+          message: 'fileKeyは必須です',
+          details: [{
+            field: 'fileKey',
+            message: 'fileKeyは必須です',
+            code: 'REQUIRED_FIELD',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // ファイルキーの最大長チェック
+    if (fileKey.length > 1024) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_INVALID_FORMAT',
+          message: 'fileKeyが長すぎます（最大1024文字）',
+          details: [{
+            field: 'fileKey',
+            message: 'fileKeyは1024文字以内である必要があります',
+            code: 'INVALID_LENGTH',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 3. organization_prefix取得
+    const { getPool } = require('../database/db');
+    const pool = getPool();
+    const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
+    const orgResult = await pool.query(orgQuery, [organizationId]);
+    
+    if (orgResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: '組織情報が見つかりません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const organizationPrefix = orgResult.rows[0].organization_prefix;
+
+    // 4. Service層の初期化と呼び出し
+    const repository = new FileMetadataRepository();
+    const accessValidator = new ProjectAccessValidator();
+    const service = new FileAccessService(repository, accessValidator);
+
+    const result = await service.getFileDownloadUrl(
+      organizationId,
+      organizationPrefix,
+      fileKey
+    );
+
+    // 5. 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+
+  } catch (error: any) {
+    // 6. エラーハンドリング
+    logError('Generic file download error', error, {
+      action: 'file_download_by_key',
+      organizationId: req.user?.organizationId,
+      fileKey: req.body?.fileKey,
+      requestId,
+    });
+
+    // エラータイプに応じたステータスコードとレスポンス
+    let statusCode = 500;
+    let errorCode = 'SYSTEM_ERROR';
+    let errorMessage = 'システムエラーが発生しました';
+
+    if (error.message) {
+      // ValidationErrorのチェック
+      if (error.message.includes('パストラバーサル') || 
+          error.message.includes('不正なファイルパス') ||
+          error.message.includes('ファイルキー') ||
+          error.message.includes('無効な')) {
+        statusCode = 400;
+        errorCode = 'VALIDATION_ERROR';
+        errorMessage = error.message;
+      }
+      // NotFoundErrorのチェック
+      else if (error.message.includes('見つかりません') || 
+               error.message.includes('存在しません')) {
+        statusCode = 404;
+        errorCode = 'RESOURCE_NOT_FOUND';
+        errorMessage = error.message;
+      }
+      // StorageErrorのチェック
+      else if (error.message.includes('署名付きURL') || 
+               error.message.includes('ストレージ') ||
+               error.message.includes('メタデータ')) {
+        statusCode = 500;
+        errorCode = 'STORAGE_ERROR';
+        errorMessage = error.message;
+      }
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        code: errorCode,
+        message: errorMessage,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
  * プロジェクト一括ダウンロード用署名付きURLリスト取得エンドポイント
  * GET /api/v1/projects/:projectId/files/download-all
  * 

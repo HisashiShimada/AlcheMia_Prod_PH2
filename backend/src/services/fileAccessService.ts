@@ -183,7 +183,83 @@ export class FileAccessService {
   }
 
   /**
-   * プロジェクト内全ファイルの一括ダウンロード用署名付きURLリストを生成
+   * ファイルキーベースの汎用ダウンロード用署名付きURL生成
+   * 
+   * Task: S3ファイルダウンロード共通化
+   * - ファイルキーを直接指定して署名付きURLを取得
+   * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+   * 
+   * @param organizationId 組織ID
+   * @param organizationPrefix 組織プレフィックス
+   * @param fileKey ファイルキー（相対パス）
+   * @returns ファイルダウンロード情報
+   * @throws ValidationError ファイルキーが不正な場合
+   * @throws NotFoundError ファイルが存在しない場合
+   * @throws StorageError ストレージエラーの場合
+   */
+  async getFileDownloadUrl(
+    organizationId: string,
+    organizationPrefix: string,
+    fileKey: string
+  ): Promise<FileAccessResponse> {
+    // 1. ファイルキーのバリデーション
+    if (!fileKey || fileKey.trim().length === 0) {
+      throw new ValidationError('ファイルキーは必須です');
+    }
+
+    // パストラバーサル攻撃対策
+    if (fileKey.includes('..') || fileKey.includes('//')) {
+      throw new ValidationError('不正なファイルパスが検出されました');
+    }
+
+    // 2. ストレージ上のファイル存在確認
+    const existsInStorage = await this.storageService.fileExists(
+      organizationPrefix,
+      fileKey
+    );
+
+    if (!existsInStorage) {
+      throw new NotFoundError(
+        `ファイルが見つかりません: ${fileKey}`
+      );
+    }
+
+    // 3. ファイルメタデータを取得
+    let fileMetadata;
+    try {
+      fileMetadata = await this.storageService.getFileMetadata(
+        organizationPrefix,
+        fileKey
+      );
+    } catch (error) {
+      throw new StorageError(
+        `ファイルメタデータの取得に失敗しました: ${fileKey}`
+      );
+    }
+
+    // 4. 署名付きURLの生成（有効期限: 3600秒 = 1時間）
+    const signedUrl = await this.storageService.getSignedUrl(
+      organizationPrefix,
+      fileKey,
+      3600
+    );
+
+    // 5. ファイル名を抽出
+    const fileName = fileKey.split('/').pop() || fileKey;
+
+    // 6. レスポンスオブジェクトの構築
+    return {
+      fileName,
+      downloadUrl: signedUrl,
+      fileSize: fileMetadata.size,
+      contentType: fileMetadata.contentType || 'application/octet-stream',
+      uploadedAt: fileMetadata.lastModified,
+      uploadedBy: 'system', // メタデータにuploadedByがないため固定値
+    };
+  }
+
+  /**
+   * プロジェクト内全ファイルの一括ダウンロード用署名付きURLリスト生成
    * 
    * @param userId ユーザーID
    * @param projectId プロジェクトID

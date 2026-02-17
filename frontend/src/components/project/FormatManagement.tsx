@@ -39,6 +39,7 @@ import { useApi } from '@/hooks/useApi';
 import { fetchFormats } from '@/utils/apiClient';
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
+import { getFileDownloadUrlByKey } from '@/api/fileAccessService';
 
 const { Title, Text } = Typography;
 
@@ -330,35 +331,22 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           console.log('📂 [FormatManagement] ファイル内容読み込み開始:', file.path);
           
           try {
-            const response = await fetch('/api/worker/load-maiml-file', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                s3Key: file.path,
-              }),
-            });
+            // 共通関数で署名付きURLを取得
+            const fileInfo = await getFileDownloadUrlByKey(file.path);
+            console.log('✅ [FormatManagement] 署名付きURL取得成功');
+            
+            // 署名付きURLからファイル内容を取得
+            const response = await fetch(fileInfo.downloadUrl);
             
             if (response.ok) {
-              const result = await response.json();
+              const maimlContent = await response.text();
               
-              // 成功かつ中身がある場合のみ、既存ファイルとして扱う
-              if (result.success && result.data?.content) {
-                const maimlContent = atob(result.data.content);
-                
-                // 中身が実質空（空白のみ、非常に短い）の場合は新規扱い
-                if (maimlContent.trim().length > 0) {
-                  console.log('✅ [FormatManagement] ファイル内容読み込み完了（既存ファイル）');
-                  setMaimlFileContent(maimlContent);
-                } else {
-                  console.log('🆕 [FormatManagement] ファイルは存在するが中身が空 - 新規扱い');
-                  setMaimlFileContent(null);
-                }
+              // 中身が実質空（空白のみ、非常に短い）の場合は新規扱い
+              if (maimlContent.trim().length > 0) {
+                console.log('✅ [FormatManagement] ファイル内容読み込み完了（既存ファイル）');
+                setMaimlFileContent(maimlContent);
               } else {
-                // APIは成功したがコンテンツがない場合は新規扱い
-                console.log('🆕 [FormatManagement] ファイルは存在するが中身が取得できない - 新規扱い');
+                console.log('🆕 [FormatManagement] ファイルは存在するが中身が空 - 新規扱い');
                 setMaimlFileContent(null);
               }
             } else {
