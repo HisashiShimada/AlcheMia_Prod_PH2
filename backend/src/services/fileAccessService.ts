@@ -287,6 +287,14 @@ export class FileAccessService {
         organizationId,
         normalizedFolderPath
       );
+      
+      console.log(`📋 [ZIP] フォルダパス: ${normalizedFolderPath}`);
+      console.log(`📋 [ZIP] 取得ファイル数: ${files.length}`);
+      console.log(`📋 [ZIP] ファイル一覧:`, files.map((f: { key: string; size: number }) => ({
+        key: f.key,
+        size: f.size,
+        isFolder: f.key.endsWith('/')
+      })));
     } catch (error) {
       throw new StorageError(
         `フォルダ内のファイル一覧取得に失敗しました: ${normalizedFolderPath}`
@@ -313,21 +321,55 @@ export class FileAccessService {
     // 5. 各ファイルをZIPに追加
     for (const file of files) {
       try {
+        // フォルダは除外（ファイルのみ追加）
+        if (file.key.endsWith('/')) {
+          console.log(`📁 [ZIP] フォルダをスキップ: ${file.key}`);
+          continue;
+        }
+
+        // サイズが0のファイルもスキップ（空のフォルダマーカーの可能性）
+        if (file.size === 0) {
+          console.log(`⚠️ [ZIP] サイズ0のファイルをスキップ: ${file.key}`);
+          continue;
+        }
+
+        console.log(`📦 [ZIP] 処理開始: ${file.key}`);
+        console.log(`   - normalizedFolderPath: ${normalizedFolderPath}`);
+        console.log(`   - organizationId: ${organizationId}`);
+
+        // organizationIdプレフィックスを除去
+        // 例: 550e8400-e29b-41d4-a716-446655440000/projects/sample_project/file.maiml
+        //  → projects/sample_project/file.maiml
+        let keyWithoutOrgPrefix = file.key;
+        if (file.key.startsWith(`${organizationId}/`)) {
+          keyWithoutOrgPrefix = file.key.substring(organizationId.length + 1);
+          console.log(`   - organizationIdを除去: ${keyWithoutOrgPrefix}`);
+        }
+
+        // フォルダパスを除いた相対パスを生成
+        // 例: projects/sample_project/archive/file_v1.maiml → archive/file_v1.maiml
+        let relativeFileName: string;
+        if (keyWithoutOrgPrefix.startsWith(normalizedFolderPath + '/')) {
+          relativeFileName = keyWithoutOrgPrefix.substring(normalizedFolderPath.length + 1);
+          console.log(`   - 相対パス生成成功: ${relativeFileName}`);
+        } else {
+          // フォールバック: 最後のファイル名のみ
+          relativeFileName = keyWithoutOrgPrefix.split('/').pop() || keyWithoutOrgPrefix;
+          console.log(`   - フォールバック（ファイル名のみ）: ${relativeFileName}`);
+        }
+
         // ファイルをダウンロード
         const buffer = await this.storageService.downloadFile(
           organizationId,
           file.key
         );
 
-        // フォルダパスを除いたファイル名のみをZIPに含める
-        const relativeFileName = file.key.startsWith(normalizedFolderPath + '/')
-          ? file.key.substring(normalizedFolderPath.length + 1)
-          : file.key.split('/').pop() || file.key;
+        console.log(`✅ [ZIP] ZIP追加: ${relativeFileName} (${buffer.length} bytes)`);
 
         // ZIPにファイルを追加
         archive.append(buffer, { name: relativeFileName });
       } catch (error) {
-        console.error(`ファイル追加エラー: ${file.key}`, error);
+        console.error(`❌ [ZIP] ファイル追加エラー: ${file.key}`, error);
         // 個別ファイルのエラーは警告してスキップ
         continue;
       }

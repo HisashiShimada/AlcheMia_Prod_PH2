@@ -39,8 +39,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
 import { useApi } from '@/hooks/useApi';
 import {
-  downloadAllFiles,
-  executeMultipleDownloads,
+  downloadFolderAsZip,
 } from '@/api/fileAccessService';
 import { getProjects } from '@/api/projectApiService';
 import {
@@ -140,7 +139,6 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
 
   // ダウンロード状態管理
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
   
   // プロジェクトリロード状態管理
   const [isReloadingProject, setIsReloadingProject] = useState(false);
@@ -791,7 +789,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     setNextZIndex(prev => prev + 1);
   }, [openDialogs, nextZIndex]);
 
-  // プロジェクト一括ダウンロードハンドラ
+  // プロジェクト一括ダウンロードハンドラ（ZIP形式）
   const handleProjectDownload = useCallback(async () => {
     if (!selectedProject) {
       message.warning('プロジェクトを選択してください');
@@ -800,35 +798,21 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
 
     try {
       setIsDownloading(true);
-      setDownloadProgress({ current: 0, total: 0 });
-
-      // プロジェクト一括ダウンロードAPI呼び出し
-      const bulkDownloadInfo = await downloadAllFiles(selectedProject.id);
       
-      setDownloadProgress({ current: 0, total: bulkDownloadInfo.files.length });
-
-      // 複数ファイルを順次ダウンロード
-      await executeMultipleDownloads(
-        bulkDownloadInfo.files,
-        (current, total) => {
-          // 進捗更新
-          setDownloadProgress({ current, total });
-          message.info(`ダウンロード中: ${current} / ${total} ファイル`);
-        },
-        (fileName, error) => {
-          // エラー通知
-          console.error(`Failed to download ${fileName}:`, error);
-          message.error(`「${fileName}」のダウンロードに失敗しました`);
-        }
-      );
-
-      message.success(`プロジェクト「${selectedProject.name}」の全ファイルをダウンロードしました`);
+      // フォルダパスを構築（projects/プロジェクト名）
+      const folderPath = `projects/${selectedProject.name}`;
+      
+      console.log('📦 [ProjectManagement] ZIPダウンロード開始:', folderPath);
+      
+      // ZIPダウンロード実行
+      await downloadFolderAsZip(folderPath);
+      
+      message.success(`プロジェクト「${selectedProject.name}」をZIPファイルでダウンロードしました`);
     } catch (error) {
-      console.error('Project download failed:', error);
+      console.error('❌ [ProjectManagement] ZIP download failed:', error);
       message.error('プロジェクトのダウンロードに失敗しました');
     } finally {
       setIsDownloading(false);
-      setDownloadProgress({ current: 0, total: 0 });
     }
   }, [selectedProject]);
 
@@ -1186,7 +1170,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                     disabled={!selectedProject || isDownloading}
                   >
                     {isDownloading 
-                      ? `ダウンロード中: ${downloadProgress.current} / ${downloadProgress.total}`
+                      ? 'ZIPダウンロード中...'
                       : t('projectManagement.project_download')
                     }
                   </Button>
