@@ -27,6 +27,16 @@ Execute implementation tasks for feature **$1** using Test-Driven Development.
 - `.kiro/specs/$1/spec.json`, `requirements.md`, `design.md`, `tasks.md`
 - **Entire `.kiro/steering/` directory** for complete project memory
 
+**Skills & Guidelines Reference**:
+- Determine feature domain from design/tasks:
+  - If backend/API feature: Read `.cline/skills/backend-develop-skill/SKILL.md`
+  - If frontend/UI feature: Read `.cline/skills/frontend-develop-skill/SKILL.md`
+  - If testing focus: Read `.cline/skills/test-skill/SKILL.md`
+- Extract referenced documentation paths from selected skill
+- Read skill-recommended documents as supplementary context
+- **Priority**: `.clinerules/` documents take precedence; skills provide additional insights
+- **Error Handling**: If skill file not found, log the error but continue with implementation using `.clinerules/` documents as primary source
+
 **Validate approvals**:
 - Verify tasks are approved in spec.json (stop if not, see Safety & Fallback)
 

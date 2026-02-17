@@ -28,6 +28,26 @@ Document notable investigation steps and their outcomes. Group entries by topic 
 
 _Repeat the subsection for each major topic._
 
+## Skills & Guidelines Review
+
+**Context**: Skills consulted during discovery phase for domain-specific guidelines
+
+**Skills Loaded**:
+- [Skill name] — [reason for loading this skill]
+
+**Key Guidelines**:
+- Guideline 1 from [skill name]
+- Guideline 2 from [skill name]
+
+**Referenced Documents**:
+- [Document path] — from [skill name]
+- [Document path] — from [skill name]
+
+**Alignment Check**:
+- ✅ Confirmed: [guideline aligned with .clinerules]
+- ⚠️ Noted: [additional insight from skill not covered by .clinerules]
+- ❌ Conflict: [if any conflict exists, note that .clinerules takes precedence]
+
 ## Architecture Pattern Evaluation
 List candidate patterns or approaches that were considered. Use the table format where helpful.
 

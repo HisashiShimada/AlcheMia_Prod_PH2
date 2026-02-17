@@ -2,16 +2,37 @@
 
 このディレクトリには、mmdpfプロジェクトの開発規約が階層化されて格納されています。
 
-## 📂 ディレクトリ構造
+## 📂 ディレクトリ構造の概要
+
+### .clinerules/ (プロジェクト規約)
+プロジェクト固有の開発規約、セキュリティルール、参照資料を格納
 
 ```
 .clinerules/
 ├── 00_INDEX.md                    # このファイル
 ├── core/                          # コア規約（常に適用）
 ├── development/                   # 開発規約
-├── operations/                    # 運用規約
 └── references/                    # 参照資料
 ```
+
+### .cline/skills/ (Clineスキル定義)
+Clineの動作を制御するスキル定義ファイルを格納
+
+**⚠️ 重要**: `.clinerules/` とは別のディレクトリです
+
+```
+.cline/skills/
+├── backend-develop-skill/
+│   └── SKILL.md
+├── frontend-develop-skill/
+│   └── SKILL.md
+└── test-skill/
+    └── SKILL.md
+```
+
+### 関係性
+- **`.clinerules/`** → 主要な規約とリファレンス（最優先）
+- **`.cline/skills/`** → 補足的なガイドライン（追加情報）
 
 ---
 
@@ -37,6 +58,12 @@
 - 承認プロセス
 - 完了報告手順
 
+### [core/workflow-spec-impl.md](core/workflow-spec-impl.md)
+- spec-implワークフロー実行時の注意事項
+- ソースコード実装の必須化
+- 実装確認チェックポイント
+- 誤った実行パターンの回避方法
+
 ---
 
 ## 💻 開発規約（Development Rules）
@@ -49,39 +76,11 @@
 - ファイル命名規則
 - インポート順序、コメント規約
 
-### [development/frontend.md](development/config.md#フロントエンド規約)
-- React 18.2.0 + Next.js 15 + Ant Design v6
-- コンポーネント設計原則
-- Hooks使用順序
-- スタイリング規約
-
-### [development/backend.md](development/config.md#バックエンド規約)
-- Node.js 18+ + Express.js + TypeScript
-- レイヤードアーキテクチャ
-- データベース操作規約
-- セキュリティベストプラクティス
-
-### [development/api.md](development/api.md)
-- RESTful API設計原則
-- URL設計規約（命名規則、バージョニング）
-- HTTPメソッド使用ガイド
-- リクエスト・レスポンス形式
-- ページネーション、フィルタリング、ソート
-- エラーハンドリング、ステータスコード体系
-- セキュリティ（認証・認可・レート制限）
-- OpenAPI/Swaggerドキュメント化
-
 ### [development/security.md](development/security.md)
 - 機密ファイル管理
 - ユーザー認証（JWT + Session Hybrid）
 - マルチテナント分離
 - ロールベースアクセス制御（RBAC）
-
-### [development/test.md](development/test.md)
-- テストコード配置
-- テスト実行方法
-- カバレッジ目標（70%以上）
-- ベストプラクティス
 
 ### [development/file-writing.md](development/file-writing.md)
 - ファイル書き込みツールの使い分け
@@ -101,51 +100,9 @@
 
 ---
 
-## 🚀 運用規約（Operations Rules）
-
-**デプロイ・インフラに関する規約**
-
-### [operations/deploy.md](operations/deploy.md)
-- Docker / AWS ECS デプロイメント
-- 環境変数管理
-- ロールバック手順
-- モニタリング・トラブルシューティング
-
----
-
 ## 📚 参照資料（References）
 
 **詳細な仕様・ガイドライン（必要時に参照）**
-
-### [references/ui_policy.md](references/ui_policy.md)
-- Ant Design v6 デザイントークン使用規約
-- コンポーネント使用ガイドライン詳細
-- レイアウト原則
-- アクセシビリティ対応
-
-### [references/document-structure.md](references/document-structure.md)
-- ドキュメント構造ガイドライン
-- ファイル分割ルール
-- 相互参照の原則
-- メタデータ・バージョン管理
-
-### [references/a5er_specification.md](references/a5er_specification.md)
-- A5:SQL Mk-2 ER図ファイル形式仕様書
-- `.a5er` ファイルフォーマット詳細
-
-### [references/db_structure.md](references/db_structure.md)
-- データベース構造定義
-- 全テーブルの物理名・論理名・主要カラム一覧
-- DDLファイルとの対応表
-- テーブル間の外部キー関係
-- マルチテナント分離の設計原則
-
-### [references/ui_structure.md](references/ui_structure.md)
-- 画面構成定義（ロール別）
-- 全画面の物理名・論理名・ファイルパス一覧
-- 7ロールカテゴリで110+コンポーネントを管理
-- 画面一覧ファイル（docs/design/ui/ui_screen_list.md）への参照
-- コンポーネント命名規則・配置ルール
 
 ### [references/s3_structure.md](references/s3_structure.md)
 - S3/Swiftフォルダ構成定義
@@ -163,25 +120,14 @@
 2. `core/base.md` でロール・期待値を確認
 3. 必要に応じて `development/` の該当ファイルを参照
 
-### フロントエンド開発時
-1. `development/frontend.md` でコンポーネント設計を確認
-2. `references/ui_policy.md` でAnt Design使用方法を確認
-3. `references/ui_structure.md` で画面構成を確認（画面名からファイルパスを特定）
-
-### バックエンド開発時
-1. `development/backend.md` でアーキテクチャを確認
-2. `development/security.md` でセキュリティ対策を確認
-3. `development/test.md` でテスト方針を確認
-
-### デプロイ時
-1. `operations/deploy.md` でデプロイ手順を確認
-
 ---
 
 ## 📝 更新履歴
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-02-16 | skillsに移動したドキュメントを削除 | yukihiro.omori |
+| 2026-02-03 | workflow-spec-impl.md追加（spec-implワークフロー実行時の注意事項） | Cline |
 | 2026-01-14 | command-execution.md追加（コマンド実行ベストプラクティス） | Cline |
 | 2026-01-09 | s3_structure.md追加（S3/Swiftフォルダ構成定義） | Cline |
 | 2026-01-09 | ui_structure.md追加（画面構成定義・110+コンポーネント管理） | Cline |
@@ -195,7 +141,6 @@
 ### DO（推奨）
 ✅ タスク開始時は必ず `core/workflow.md` を確認
 ✅ 開発中は該当する `development/` のファイルを参照
-✅ 詳細なUI仕様が必要な時は `references/ui_policy.md` を参照
 ✅ 規約に不明点があれば ask_followup_question を使用
 
 ### DON'T（非推奨）
