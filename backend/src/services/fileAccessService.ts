@@ -22,6 +22,7 @@ import {
   NotFoundError,
   StorageError,
 } from '../utils/errorClasses';
+import archiver from 'archiver';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -245,6 +246,102 @@ export class FileAccessService {
         uploadedAt: fileMetadata.lastModified,
         uploadedBy: 'system', // メタデータにuploadedByがないため固定値
       },
+    };
+  }
+
+  /**
+   * フォルダ配下のすべてのファイルをZIP形式でダウンロード
+   * 
+   * Task: 汎用フォルダZIPダウンロード機能
+   * - 指定されたフォルダパス配下のファイルをZIPアーカイブに圧縮
+   * - プロジェクト、フォーマット、その他あらゆるフォルダで利用可能
+   * 
+   * @param organizationId 組織ID
+   * @param folderPath フォルダパス（相対パス、例: "projects/sample_project"）
+   * @returns ZIPストリームとフォルダ名
+   * @throws ValidationError フォルダパスが不正な場合
+   * @throws NotFoundError フォルダが存在しない、またはファイルがない場合
+   * @throws StorageError ストレージエラーの場合
+   */
+  async downloadFolderAsZip(
+    organizationId: string,
+    folderPath: string
+  ): Promise<{ zipStream: archiver.Archiver; folderName: string }> {
+    // 1. フォルダパスのバリデーション
+    if (!folderPath || folderPath.trim().length === 0) {
+      throw new ValidationError('フォルダパスは必須です');
+    }
+
+    // パストラバーサル攻撃対策
+    if (folderPath.includes('..') || folderPath.includes('//')) {
+      throw new ValidationError('不正なフォルダパスが検出されました');
+    }
+
+    // 末尾のスラッシュを削除
+    const normalizedFolderPath = folderPath.replace(/\/$/, '');
+
+    // 2. フォルダ配下のファイル一覧を取得
+    let files;
+    try {
+      files = await this.storageService.listFiles(
+        organizationId,
+        normalizedFolderPath
+      );
+    } catch (error) {
+      throw new StorageError(
+        `フォルダ内のファイル一覧取得に失敗しました: ${normalizedFolderPath}`
+      );
+    }
+
+    // 3. ファイルが存在しない場合はエラー
+    if (!files || files.length === 0) {
+      throw new NotFoundError(
+        `フォルダにファイルが見つかりません: ${normalizedFolderPath}`
+      );
+    }
+
+    // 4. ZIPアーカイブを作成
+    const archive = archiver('zip', {
+      zlib: { level: 6 }, // 圧縮レベル（0-9、6=デフォルト）
+    });
+
+    // エラーハンドリング
+    archive.on('error', (err) => {
+      throw new StorageError(`ZIP生成エラー: ${err.message}`);
+    });
+
+    // 5. 各ファイルをZIPに追加
+    for (const file of files) {
+      try {
+        // ファイルをダウンロード
+        const buffer = await this.storageService.downloadFile(
+          organizationId,
+          file.key
+        );
+
+        // フォルダパスを除いたファイル名のみをZIPに含める
+        const relativeFileName = file.key.startsWith(normalizedFolderPath + '/')
+          ? file.key.substring(normalizedFolderPath.length + 1)
+          : file.key.split('/').pop() || file.key;
+
+        // ZIPにファイルを追加
+        archive.append(buffer, { name: relativeFileName });
+      } catch (error) {
+        console.error(`ファイル追加エラー: ${file.key}`, error);
+        // 個別ファイルのエラーは警告してスキップ
+        continue;
+      }
+    }
+
+    // 6. ZIPを確定
+    archive.finalize();
+
+    // 7. フォルダ名を抽出（最後のフォルダ名）
+    const folderName = normalizedFolderPath.split('/').pop() || 'download';
+
+    return {
+      zipStream: archive,
+      folderName,
     };
   }
 }

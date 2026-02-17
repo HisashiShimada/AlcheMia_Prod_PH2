@@ -171,6 +171,152 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * フォルダZIPダウンロードエンドポイント
+ * POST /api/v1/files/download-folder-as-zip
+ * 
+ * Task: 汎用フォルダZIPダウンロード機能
+ * - 指定されたフォルダパス配下のファイルをZIP形式でダウンロード
+ * - プロジェクト、フォーマット、その他あらゆるフォルダで利用可能
+ */
+export async function downloadFolderAsZip(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  
+  try {
+    // 1. 認証チェック
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'AUTH_TOKEN_INVALID',
+          message: '認証が必要です',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const { organizationId } = req.user;
+    const { folderPath } = req.body;
+
+    // 2. パラメータバリデーション
+    if (!folderPath || typeof folderPath !== 'string' || folderPath.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_REQUIRED_FIELD',
+          message: 'folderPathは必須です',
+          details: [{
+            field: 'folderPath',
+            message: 'folderPathは必須です',
+            code: 'REQUIRED_FIELD',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // フォルダパスの最大長チェック
+    if (folderPath.length > 1024) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_INVALID_FORMAT',
+          message: 'folderPathが長すぎます（最大1024文字）',
+          details: [{
+            field: 'folderPath',
+            message: 'folderPathは1024文字以内である必要があります',
+            code: 'INVALID_LENGTH',
+          }],
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 3. Service層の初期化と呼び出し
+    const repository = new FileMetadataRepository();
+    const accessValidator = new ProjectAccessValidator();
+    const service = new FileAccessService(repository, accessValidator);
+
+    const { zipStream, folderName } = await service.downloadFolderAsZip(
+      organizationId,
+      folderPath
+    );
+
+    // 4. レスポンスヘッダーを設定
+    const encodedFileName = encodeURIComponent(`${folderName}.zip`);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFileName}`);
+
+    // 5. ZIPストリームをレスポンスとしてパイプ
+    zipStream.pipe(res);
+
+  } catch (error: any) {
+    // 6. エラーハンドリング
+    logError('Folder ZIP download error', error, {
+      action: 'folder_zip_download',
+      organizationId: req.user?.organizationId,
+      folderPath: req.body?.folderPath,
+      requestId,
+    });
+
+    // エラータイプに応じたステータスコードとレスポンス
+    let statusCode = 500;
+    let errorCode = 'SYSTEM_ERROR';
+    let errorMessage = 'システムエラーが発生しました';
+
+    if (error.message) {
+      // ValidationErrorのチェック
+      if (error.message.includes('パストラバーサル') || 
+          error.message.includes('不正なフォルダパス') ||
+          error.message.includes('フォルダパス') ||
+          error.message.includes('無効な')) {
+        statusCode = 400;
+        errorCode = 'VALIDATION_ERROR';
+        errorMessage = error.message;
+      }
+      // NotFoundErrorのチェック
+      else if (error.message.includes('見つかりません') || 
+               error.message.includes('存在しません')) {
+        statusCode = 404;
+        errorCode = 'RESOURCE_NOT_FOUND';
+        errorMessage = error.message;
+      }
+      // StorageErrorのチェック
+      else if (error.message.includes('ZIP生成') || 
+               error.message.includes('ストレージ') ||
+               error.message.includes('ファイル一覧')) {
+        statusCode = 500;
+        errorCode = 'STORAGE_ERROR';
+        errorMessage = error.message;
+      }
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        code: errorCode,
+        message: errorMessage,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
  * ファイルキーベースの汎用ダウンロード用署名付きURL取得エンドポイント
  * POST /api/v1/files/download-url
  * 

@@ -111,6 +111,53 @@ export const getFileDownloadUrlByKey = async (
 };
 
 /**
+ * フォルダZIPダウンロード（汎用）
+ * 
+ * Task: 汎用フォルダZIPダウンロード機能
+ * - 指定されたフォルダパス配下のファイルをZIP形式でダウンロード
+ * - プロジェクト、フォーマット、その他あらゆるフォルダで利用可能
+ * - organization_idは認証情報から自動取得
+ * 
+ * @param folderPath フォルダパス（相対パス）
+ * @returns Promise<void> ダウンロード完了後に解決
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * // プロジェクトフォルダ全体をダウンロード
+ * await downloadFolderAsZip('projects/sample_project');
+ * // → sample_project.zip
+ * 
+ * // フォーマットフォルダ全体をダウンロード
+ * await downloadFolderAsZip('formats/chemistry');
+ * // → chemistry.zip
+ * 
+ * // サブフォルダをダウンロード
+ * await downloadFolderAsZip('formats/materials/conditions');
+ * // → conditions.zip
+ */
+export const downloadFolderAsZip = async (
+  folderPath: string
+): Promise<void> => {
+  const client = createApiClient();
+
+  try {
+    const response = await client.post('/files/download-folder-as-zip', 
+      { folderPath },
+      { responseType: 'blob' } // 重要: Blobとして受信
+    );
+
+    // フォルダ名をfolderPathから抽出（最後のフォルダ名）
+    const folderName = folderPath.split('/').pop() || 'download';
+
+    // BlobからZIPファイルをダウンロード
+    downloadBlobAsFile(response.data, `${folderName}.zip`);
+  } catch (error) {
+    console.error('フォルダZIPダウンロードエラー:', error);
+    throw error;
+  }
+};
+
+/**
  * ファイルサイズをフォーマット（バイト → KB/MB/GB）
  * 
  * @param bytes ファイルサイズ（バイト）

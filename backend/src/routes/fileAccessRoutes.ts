@@ -15,6 +15,32 @@ import { authMiddleware } from '../middleware/authMiddleware';
 const router = Router();
 
 /**
+ * フォルダZIPダウンロード
+ * POST /api/v1/files/download-folder-as-zip
+ * 
+ * Task: 汎用フォルダZIPダウンロード機能
+ * - 指定されたフォルダパス配下のファイルをZIP形式でダウンロード
+ * - プロジェクト、フォーマット、その他あらゆるフォルダで利用可能
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @note すべてのロールがアクセス可能（マルチテナント分離で保護）
+ */
+router.post(
+  '/download-folder-as-zip',
+  authMiddleware,
+  [
+    body('folderPath')
+      .notEmpty()
+      .withMessage('folderPathは必須です')
+      .isString()
+      .withMessage('folderPathは文字列である必要があります')
+      .isLength({ min: 1, max: 1024 })
+      .withMessage('folderPathは1〜1024文字である必要があります'),
+  ],
+  fileAccessController.downloadFolderAsZip
+);
+
+/**
  * ファイルキーベースの汎用ダウンロード用署名付きURL取得
  * POST /api/v1/files/download-url
  * 
