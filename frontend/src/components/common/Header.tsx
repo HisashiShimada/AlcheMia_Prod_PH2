@@ -103,7 +103,7 @@ export default function Header({ user, onLogout }: HeaderProps) {
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
-        padding: `0 ${token.paddingXL * 2}px`,
+        padding: '0 12px',
         background: token.colorBgContainer,
         borderBottom: `1px solid ${token.colorBorderSecondary}`,
         height: 64,

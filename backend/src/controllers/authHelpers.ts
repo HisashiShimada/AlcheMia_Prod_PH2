@@ -210,6 +210,7 @@ export async function issueSessionTokens(
         displayName: user.user_name,
         departmentCd: user.department_cd,
         initialScreenFunctionCd: initialScreenFunctionCd,
+        permissions: permissions,  // 権限情報を追加（メニューアクセス制御用）
       },
       session: {
         token: accessToken,

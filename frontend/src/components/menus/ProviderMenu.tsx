@@ -11,9 +11,10 @@ import {
   BarChartOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
-import SubHeader, { MenuType } from '../common/SubHeader';
-import { User } from '@/types/auth';
+import SubHeader from '../common/SubHeader';
+import { User, MenuType } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import dynamic from 'next/dynamic';
 
 // Providerコンポーネントの動的インポート
@@ -53,6 +54,9 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
+  
+  // sessionStorageからpermissionsを取得（userInfo経由）
+  const permissions = getPermissionsFromToken();
 
   const tabItems = [
     {
@@ -97,6 +101,7 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
         onTabChange={handleTabChange}
         currentMenu="provider"
         onMenuChange={handleMenuChange}
+        userPermissions={permissions}
       />
 
       {/* コンテンツエリア */}

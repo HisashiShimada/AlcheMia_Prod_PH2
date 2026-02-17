@@ -14,11 +14,46 @@ export type UserRole =
   | 'mi_engineer';
 
 /**
+ * メニュータイプ定義
+ */
+export type MenuType = 
+  | 'provider'
+  | 'system_admin'
+  | 'data_admin'
+  | 'experiment_admin'
+  | 'experiment_worker'
+  | 'mi_engineer';
+
+/**
+ * メニュータイプとfunctionIdのマッピング
+ */
+export const MENU_FUNCTION_IDS: Record<MenuType, string> = {
+  provider: '010000',
+  system_admin: '020000',
+  data_admin: '030000',
+  experiment_admin: '040000',
+  experiment_worker: '050000',
+  mi_engineer: '060000',
+} as const;
+
+/**
  * 権限情報
  */
 export interface Permission {
   functionId: string;
   permission: number;  // 0=書込専用, 1=読取権限
+}
+
+/**
+ * JWTペイロードの型定義
+ */
+export interface JwtPayload {
+  userId: string;
+  organizationId: string;
+  sessionId: string;
+  permissions: Permission[];
+  iat: number;
+  exp: number;
 }
 
 /**
@@ -35,6 +70,7 @@ export interface User {
   displayName: string;
   departmentCd: string;
   initialScreenFunctionCd: string;
+  permissions?: Permission[];  // ユーザーの権限情報（メニューアクセス制御用）
 }
 
 
@@ -96,7 +132,7 @@ export interface VerifyPINResponse {
     displayName: string;
     departmentCd: string;
     initialScreenFunctionCd: string;
-    permissions: Permission[];
+    permissions?: Permission[];  // ユーザーの権限情報
   };
   session: {
     token: string;

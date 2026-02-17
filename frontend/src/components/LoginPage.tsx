@@ -134,7 +134,7 @@ export default function LoginPage({ onLogin, onForgotPassword, error, loading = 
               level={1}
               style={{
                 margin: 0,
-                color: token.colorPrimary,
+                color: 'var(--color-primary)',
                 fontWeight: token.fontWeightStrong,
               }}
             >
