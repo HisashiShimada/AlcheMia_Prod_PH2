@@ -227,11 +227,11 @@
 | 7.2 | POST | /api/v1/issues/comments | コメント投稿 | ✅ 実装済み | IssueController.addComment |
 | 7.3 | GET | /api/v1/issues | 問題一覧取得 | ✅ 実装済み | IssueController.list |
 | 7.4 | GET | /api/v1/issues/:issueId | 問題詳細取得 | ✅ 実装済み | IssueController.getById |
-| 7.5 | PATCH | /api/v1/issues/:issueId/status | 問題ステータス変更 | ✅ 実装済み | IssueController.updateStatus |
+| 7.5 | PATCH | /api/v1/issues/status | 問題ステータス変更 | ✅ 実装済み | IssueController.updateStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
-- 権限: 7.1（全ユーザー）、7.2（experiment_worker のみ書込可）、7.3-7.4（全ユーザー）、7.5（Manager/Admin のみ）
+- 権限: 7.1（全ユーザー）、7.2（experiment_worker のみ書込可）、7.3-7.4（全ユーザー）、7.5（experiment_worker のみ書込可）
 
 **備考:**
 - ✅ 実装完了（テスト103件すべてPASS）

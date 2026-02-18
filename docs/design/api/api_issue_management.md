@@ -799,7 +799,7 @@ ORDER BY ic.created_at ASC;
 
 ### エンドポイント
 ```
-PATCH /api/v1/issues/:issueId/status
+PATCH /api/v1/issues/status
 ```
 
 ### HTTPメソッド
@@ -807,35 +807,34 @@ PATCH
 
 ### 認証要件
 - JWT認証必須
-- ロール: Worker以上
+- ロール: experiment_worker のみ書込可
 - テナント分離必須
 
 ### ミドルウェアチェーン
 ```typescript
-router.patch('/issues/:issueId/status',
+router.patch('/issues/status',
   auth,
   tenantIsolation,
-  validationMiddleware,
+  permissionCheck(['experiment_worker']),
   issueController.updateStatus
 );
 ```
 
 ### リクエスト
 
-#### パスパラメータ
-| パラメータ | 型 | 必須 | 説明 |
-|-----------|----|----|------|
-| issueId | string | ○ | 問題ID |
-
 #### リクエストボディ
 ```json
 {
+  "projectName": "sample_project",
+  "issueId": "770e8400-e29b-41d4-a716-446655440002",
   "status": "resolved"
 }
 ```
 
 | パラメータ | 型 | 必須 | 説明 | 制約 |
 |-----------|----|----|------|------|
+| projectName | string | ○ | プロジェクト名 | 空文字列ではない |
+| issueId | string | ○ | 問題ID | 空文字列ではない |
 | status | string | ○ | ステータス | unresolved, resolved |
 
 ### レスポンス
