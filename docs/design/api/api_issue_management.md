@@ -270,7 +270,7 @@ INSERT INTO issues (
 
 ### エンドポイント
 ```
-POST /api/v1/issues/:issueId/comments
+POST /api/v1/issues/comments
 ```
 
 ### HTTPメソッド
@@ -278,35 +278,34 @@ POST
 
 ### 認証要件
 - JWT認証必須
-- ロール: Worker以上
+- ロール: experiment_worker のみ書込可
 - テナント分離必須
 
 ### ミドルウェアチェーン
 ```typescript
-router.post('/issues/:issueId/comments',
+router.post('/issues/comments',
   auth,
   tenantIsolation,
-  permissionCheck(['worker', 'manager', 'admin']),
+  permissionCheck(['experiment_worker']),
   issueController.addComment
 );
 ```
 
 ### リクエスト
 
-#### パスパラメータ
-| パラメータ | 型 | 必須 | 説明 |
-|-----------|----|----|------|
-| issueId | string | ○ | 問題ID |
-
 #### リクエストボディ
 ```json
 {
+  "projectName": "sample_project",
+  "issueId": "770e8400-e29b-41d4-a716-446655440002",
   "comment": "在庫管理システムを確認したところ、試薬Aは明日入荷予定です。"
 }
 ```
 
 | パラメータ | 型 | 必須 | 説明 | 制約 |
 |-----------|----|----|------|------|
+| projectName | string | ○ | プロジェクト名 | 空文字列ではない |
+| issueId | string | ○ | 問題ID | 空文字列ではない |
 | comment | string | ○ | コメント内容 | 1-2000文字 |
 
 ### レスポンス
@@ -358,6 +357,8 @@ router.post('/issues/:issueId/comments',
 
 ### バリデーション
 
+- [ ] projectName は空文字列ではない
+- [ ] issueId は空文字列ではない
 - [ ] comment は1-2000文字
 - [ ] 問題は自組織に属するもの
 
@@ -375,20 +376,24 @@ router.post('/issues/:issueId/comments',
 -- トランザクション開始
 BEGIN;
 
+-- プロジェクト名からプロジェクトID取得（マルチテナント分離）
+SELECT project_id FROM projects
+WHERE project_name = $1 AND organization_id = $2;
+
 -- 問題存在確認（マルチテナント分離）
 SELECT id FROM issue
-WHERE issue_id = $1 AND organization_id = $2 FOR UPDATE;
+WHERE issue_id = $3 AND organization_id = $2 FOR UPDATE;
 
 -- コメント登録
 INSERT INTO issue_comment (organization_id, project_id, issue_id, sequence_no, comment, author_id, commented_at, create_user_id, create_at, update_user_id, update_at)
-VALUES ($1, $2, $3, $4, $5,, $6, NOW(), $6, NOW(), $6, NOW())
+VALUES ($2, $4, $3, $5, $6, $7, NOW(), $7, NOW(), $7, NOW())
 RETURNING *;
 
 -- ユーザー名取得
 SELECT u.user_name 
 FROM organization_user ou
 JOIN users u ON ou.user_id = u.id
-WHERE ou.user_id = $4 AND ou.organization_id = $2;
+WHERE ou.user_id = $7 AND ou.organization_id = $2;
 
 COMMIT;
 ```

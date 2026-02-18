@@ -224,14 +224,14 @@
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
 | 7.1 | POST | /api/v1/issues | 問題報告 | ✅ 実装済み | IssueController.create |
-| 7.2 | POST | /api/v1/issues/:issueId/comments | コメント投稿 | ✅ 実装済み | IssueController.addComment |
+| 7.2 | POST | /api/v1/issues/comments | コメント投稿 | ✅ 実装済み | IssueController.addComment |
 | 7.3 | GET | /api/v1/issues | 問題一覧取得 | ✅ 実装済み | IssueController.list |
 | 7.4 | GET | /api/v1/issues/:issueId | 問題詳細取得 | ✅ 実装済み | IssueController.getById |
 | 7.5 | PATCH | /api/v1/issues/:issueId/status | 問題ステータス変更 | ✅ 実装済み | IssueController.updateStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
-- 権限: 7.1-7.4（全ユーザー）、7.5（Manager/Admin のみ）
+- 権限: 7.1（全ユーザー）、7.2（experiment_worker のみ書込可）、7.3-7.4（全ユーザー）、7.5（Manager/Admin のみ）
 
 **備考:**
 - ✅ 実装完了（テスト103件すべてPASS）
