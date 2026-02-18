@@ -6,9 +6,11 @@
  */
 
 import { Router } from 'express';
+import { body } from 'express-validator';
 import * as progressController from '../controllers/progressController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
+import { checkPermission } from '../middleware/permissionCheckMiddleware';
 import { validateUUID, validateParamString, validateParamInt } from '../utils/validators';
 
 const router = Router();
@@ -35,6 +37,49 @@ router.get(
   ],
   handleValidationErrors,
   progressController.getProgressData
+);
+
+/**
+ * タスクステータス更新
+ * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
+ * @middleware バリデーションルール - パラメータ・ボディ検証
+ * @middleware handleValidationErrors - バリデーションエラーハンドリング
+ * @description プロジェクト名、メソッドID、タスク連番でタスクを特定してステータスを更新
+ * @note API #5: タスクステータス更新API（新エンドポイント）
+ * @requirements REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7, REQ-8, REQ-9
+ * @roles experiment_worker（書込可）
+ */
+router.patch(
+  '/projects/:projectName/methods/:methodId/tasks/:taskNo/status',
+  authMiddleware,
+  checkPermission('050000', 1),
+  [
+    // パスパラメータバリデーション
+    validateParamString('projectName', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamInt('taskNo', 1),
+    
+    // リクエストボディバリデーション
+    body('status')
+      .notEmpty()
+      .withMessage('statusは必須です')
+      .isIn(['not_started', 'started', 'in_progress', 'completed', 'forced_terminated'])
+      .withMessage('statusはnot_started, started, in_progress, completed, forced_terminatedのいずれかである必要があります'),
+    body('currentUpdatedAt')
+      .notEmpty()
+      .withMessage('currentUpdatedAtは必須です')
+      .isISO8601()
+      .withMessage('currentUpdatedAtはISO8601形式のタイムスタンプである必要があります'),
+    body('comment')
+      .optional()
+      .isLength({ max: 500 })
+      .withMessage('commentは500文字以内である必要があります'),
+  ],
+  handleValidationErrors,
+  progressController.updateTaskStatus
 );
 
 export default router;
