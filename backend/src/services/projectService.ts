@@ -1277,7 +1277,7 @@ export class ProjectService {
       // Task 3.2: トランザクション管理とステータス更新（pg-promiseのtx使用）
       const currentTimestamp = new Date().toISOString();
       
-      await pgp.tx(async (t) => {
+      await pgp.tx(async () => {
         // プロジェクトステータス更新（リポジトリ層使用）
         const rowCount = await projectRepository.updateApprovalStatus(
           organizationId,
@@ -1585,39 +1585,14 @@ export class ProjectService {
       projectId?: string;
     };
   }): Promise<ServiceResult<any[]>> {
-    const pool = getPool();
+    const pgp = getPgp();
+    const { loadSqlFile } = require('../sql/loader');
     
     try {
       const { projectName, organizationId, userId, userRole, filters = {} } = params;
       
-      // ベースクエリの構築（is_acknowledgedはinstruction_acknowledged_historyから判定）
-      let query = `
-        SELECT 
-          pi.id,
-          pi.project_id,
-          p.project_name,
-          pi.method_id,
-          pi.transition_id,
-          pi.task_no,
-          pi.instruction_target,
-          pi.instructions,
-          pi.priority,
-          pi.type,
-          pi.create_at,
-          pi.created_by,
-          ua.user_name as created_by_name,
-          CASE 
-            WHEN iah.history_id IS NOT NULL THEN true 
-            ELSE false 
-          END as is_acknowledged
-        FROM project_instruction pi
-        INNER JOIN project p ON p.id = pi.project_id
-        LEFT JOIN user_authentication ua ON ua.user_id = pi.created_by
-        LEFT JOIN instruction_acknowledged_history iah 
-          ON iah.instruction_id = pi.id
-          AND iah.organization_id = pi.organization_id
-          AND iah.acknowledged_user_id = $1
-      `;
+      // 外部SQLファイルからベースクエリを読み込み
+      let query = await loadSqlFile('instructions/findWorkerInstructions.sql');
       
       const queryParams: any[] = [userId]; // $1: acknowledged_user_id (LEFT JOIN用)
       const conditions: string[] = [];
@@ -1625,7 +1600,10 @@ export class ProjectService {
       
       // 実験作業者の場合は、自分に割り当てられたタスクに紐づく指示のみ取得
       if (userRole === 'experiment_worker') {
-        query += ` INNER JOIN project_task pt ON pt.project_id = pi.project_id`;
+        // FROM句とWHERE句の間にINNER JOINを挿入
+        query = query.trim(); // 末尾の改行を削除
+        query += `\nINNER JOIN project_task pt ON pt.project_id = pi.project_id`;
+        
         conditions.push(`pt.assign_user_id = $${paramIndex++}`);
         queryParams.push(userId);
         conditions.push(`pt.organization_id = $${paramIndex++}`);
@@ -1650,18 +1628,18 @@ export class ProjectService {
       
       // WHERE句の追加
       if (conditions.length > 0) {
-        query += ` WHERE ${conditions.join(' AND ')}`;
+        query += `\nWHERE ${conditions.join(' AND ')}`;
       }
       
       // ソート: create_atで降順
-      query += ` ORDER BY pi.create_at DESC`;
+      query += `\nORDER BY pi.create_at DESC`;
       
-      // クエリ実行
-      const result = await pool.query(query, queryParams);
+      // pg-promiseを使用してクエリ実行
+      const result = await pgp.any(query, queryParams);
       
       // TODO: タスク2.2実装時にMAIMLファイルからメソッド名・トランジション名を取得
       // 暫定対応: method_name, transition_nameは空文字列を返却
-      const instructions = result.rows.map((row: any) => ({
+      const instructions = result.map((row: any) => ({
         id: row.id,
         project_id: row.project_id,
         project_name: row.project_name,
