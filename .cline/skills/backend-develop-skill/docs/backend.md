@@ -98,10 +98,12 @@ backend/
 - req.organizationIdへの格納
 - クロステナントアクセスの防止
 
-#### 権限チェックミドルウェア（permissionCheck.js）
+#### 権限チェックミドルウェア（permissionCheckMiddleware.ts）
 - ユーザーロールの検証
 - 必要な権限の確認
 - アクセス拒否の処理
+
+**詳細は [permission_check.md](permission_check.md) を参照してください。**
 
 ### SQL管理方法
 
