@@ -196,14 +196,14 @@
 |----|-------------|---------------|------|---------|--------------|
 | 6.1 | GET | /api/v1/projects/:projectId/methods/:methodId/tasks | メソッド別タスク一覧取得 | ⏳ 未実装 | ProgressController.listTasks |
 | 6.2 | GET | /api/v1/tasks/:taskId | タスク詳細取得 | ⏳ 未実装 | ProgressController.getTaskDetail |
-| 6.3 | GET | /api/v1/progress/:projectId/:methodId/:taskNo | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
+| 6.3 | GET | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
 | 6.4 | GET | /api/v1/progress/projects/:projectName/worker-tasks | タスク一覧取得（実験作業者用） | ⏳ 未実装 | ProgressController.getWorkerTasks |
 | 6.5 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | タスクステータス更新 | ⏳ 未実装 | ProgressController.updateTaskStatus |
 | 6.6 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | ProgressController.updateTransitionStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
-- 権限: 6.1-6.3（Manager以上）、6.4（experiment_worker読取専用）、6.5-6.6（experiment_worker書込可）
+- 権限: 6.1-6.2（Manager以上）、6.3-6.4（experiment_worker読取専用）、6.5-6.6（experiment_worker書込可）
 
 **備考:**
 - メソッド別進捗集約

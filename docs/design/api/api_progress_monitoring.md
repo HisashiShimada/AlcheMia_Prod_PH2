@@ -586,13 +586,13 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
 
 ### 3. 進捗データ取得API 🔴
 
-**エンドポイント**: `GET /api/v1/progress/:projectId/:methodId/:taskNo`
+**エンドポイント**: `GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions`
 
 **説明**: 指定タスクに紐づくトランジションの進捗データを取得
 
 **認証**: 必須
 
-**権限**: `experiment_admin`, `experiment_worker`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -601,7 +601,7 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 | `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
 | `taskNo` | Integer | ○ | タスク連番 |
 
