@@ -133,4 +133,50 @@ router.get(
   progressController.getWorkerTasks
 );
 
+/**
+ * トランジションステータス更新
+ * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
+ * @middleware handleValidationErrors - バリデーションエラーハンドリング
+ * @description プロジェクト名、メソッドID、トランジションIDでトランジションを特定してステータスを更新
+ * @note API #6: トランジションステータス更新API（旧: PUT /api/v1/experiments/...から移動）
+ * @requirements REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7, REQ-8, REQ-9
+ * @roles experiment_worker（書込可）
+ */
+router.patch(
+  '/projects/:projectName/methods/:methodId/transitions/:transitionId/status',
+  authMiddleware,
+  checkPermission('050000', 1),
+  [
+    // パスパラメータバリデーション
+    validateParamString('projectName', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamString('transitionId', 1, 255),
+
+    // リクエストボディバリデーション
+    body('taskNo')
+      .notEmpty()
+      .withMessage('taskNoは必須です')
+      .isInt({ min: 1 })
+      .withMessage('taskNoは1以上の整数である必要があります'),
+    body('status')
+      .notEmpty()
+      .withMessage('statusは必須です')
+      .isIn(['initial', 'preparing', 'ready', 'running', 'paused', 'completed', 'error'])
+      .withMessage('statusはinitial, preparing, ready, running, paused, completed, errorのいずれかである必要があります'),
+    body('progressRate')
+      .optional()
+      .isInt({ min: 0, max: 100 })
+      .withMessage('progressRateは0-100の整数である必要があります'),
+    body('comment')
+      .optional()
+      .isLength({ max: 2000 })
+      .withMessage('commentは2000文字以内である必要があります'),
+  ],
+  handleValidationErrors,
+  progressController.updateTransitionStatus
+);
+
 export default router;

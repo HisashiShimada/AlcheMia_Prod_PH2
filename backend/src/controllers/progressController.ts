@@ -22,6 +22,7 @@ import { TaskStatus } from '../types/taskService.types';
 import { TaskFilters } from '../types/task';
 import { getPool } from '../database/db';
 import { logger } from '../utils/logger';
+import { TransitionDataUpdate } from '../types/transitionData';
 
 /**
  * エラーコードからHTTPステータスコードへのマッピング
@@ -148,6 +149,117 @@ export async function getProgressData(req: Request, res: Response): Promise<void
         requestId
       }
     });
+  }
+}
+
+/**
+ * トランジションステータス更新API
+ * 
+ * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ * 
+ * @description プロジェクト名、メソッドID、トランジションIDでトランジションを特定してステータスを更新
+ * @note 旧エンドポイント（PUT /api/v1/experiments/...）から移動
+ * @requirements API #6: トランジションステータス更新API（api_progress_monitoring.md）
+ * @roles experiment_worker（書込可）
+ */
+export async function updateTransitionStatus(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    // リクエストパラメータとボディの抽出
+    const { projectName, methodId, transitionId } = req.params;
+    const { taskNo: _taskNo, status, progressRate, comment: _comment } = req.body;
+
+    // 認証・認可情報の取得
+    const organizationId = (req as any).organizationId;
+    const updatedBy = req.user?.userId || (req.user as any)?.id;
+
+    // 必須パラメータの検証
+    if (!organizationId) {
+      const error: any = new Error('Organization ID is required');
+      error.name = 'ValidationError';
+      throw error;
+    }
+
+    if (!updatedBy) {
+      const error: any = new Error('User authentication required');
+      error.name = 'AuthenticationError';
+      throw error;
+    }
+
+    // プロジェクト名からプロジェクトIDとステータスを取得
+    const pool = getPool();
+    const projectQuery = `
+      SELECT project_id, project_name, project_status
+      FROM project
+      WHERE project_name = $1 AND organization_id = $2
+    `;
+    const projectResult = await pool.query(projectQuery, [projectName, organizationId]);
+
+    if (projectResult.rowCount === 0) {
+      const error: any = new Error('Project not found');
+      error.name = 'ProjectNotFoundError';
+      throw error;
+    }
+
+    const project = projectResult.rows[0];
+    const projectId = project.project_id;
+
+    // プロジェクトステータスが編集可能かチェック
+    const editableStatuses = ['draft', 'active', 'waiting_approval'];
+    if (!editableStatuses.includes(project.project_status)) {
+      const error: any = new Error('Project is not editable');
+      error.name = 'ProjectNotEditableError';
+      throw error;
+    }
+
+    // ステータス更新パラメータの作成
+    const updateData: TransitionDataUpdate = {
+      status,
+      updated_by: updatedBy,
+      ...(progressRate !== undefined && { progress_rate: progressRate }),
+    };
+
+    // TODO: _taskNo、_commentはmaiml_event_logテーブルに格納する処理を実装予定
+    // 現在はリクエストボディから受け取るのみ（バリデーション済み）
+
+    // サービス層を呼び出してステータス更新
+    const taskRepository = new TaskRepository();
+    const transitionDataRepository = new TransitionDataRepository();
+    const progressService = new ProgressService(taskRepository, transitionDataRepository);
+    
+    const updatedTransitionData = await progressService.updateTransitionStatus(
+      organizationId,
+      projectId,
+      methodId,
+      transitionId,
+      updateData
+    );
+
+    // 成功レスポンスを返す
+    res.status(200).json({
+      success: true,
+      data: {
+        transitionId: transitionId,
+        taskNo: _taskNo,
+        methodId: methodId,
+        projectName: projectName,
+        status: updatedTransitionData.status,
+        progressRate: updatedTransitionData.progress_rate,
+        comment: _comment || null,
+        updatedBy: updatedBy,
+        updatedAt: updatedTransitionData.updated_at
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4(),
+      },
+    });
+  } catch (error) {
+    // エラーハンドリングミドルウェアに委譲
+    next(error);
   }
 }
 
