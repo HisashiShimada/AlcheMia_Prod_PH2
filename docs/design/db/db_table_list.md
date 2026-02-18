@@ -39,9 +39,8 @@
 - **主キー**: `organization_id` (UUID)
 - **主要カラム**:
   - `organization_id` - 組織ID
-  - `organization_name` - 組織名
+  - `organization_cd` - 組織CD
   - `organization_display_name` - 組織表示名
-  - `organization_prefix` - 組織_S3プレフィックス
   - `organization_email` - 組織E-mail
   - `chief_user_id` - 代表者ユーザID
   - `corporation_id` - 会社ID (FK: corporation)
@@ -176,7 +175,7 @@
   - `organization_id` - 組織ID
   - `role_cd` - ロールCD
   - `function_cd` - 機能CD（機能名はソースで管理）
-  - `permission` - 権限（0:書込可 1:読取専用）
+  - `permission` - 権限（0:読取専用 1:書込可）
   - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
   - `update_user_id` - 更新者ユーザID

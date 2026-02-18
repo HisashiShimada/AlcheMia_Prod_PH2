@@ -53,9 +53,8 @@ Page=材料開発データ管理システム_認証関連_ER図.A5ER
 Left=100
 Top=100
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","9eea5300-db8b-4b2d-8e9e-ec306c476b12",$FFFFFFFF,""
-Field="組織名","organization_name","@VARCHAR(50)",,,"","",$FFFFFFFF,""
+Field="組織CD","organization_cd","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="組織表示名","organization_display_name","@VARCHAR(50)",,,"","",$FFFFFFFF,""
-Field="組織_S3プレフィックス","organization_prefix","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="組織E-mail","organization_email","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="代表者ユーザID","chief_user_id","@VARCHAR(50)",,,"","",$00000000,""
 Field="会社ID","corporation_id","uuid",,,"","",$FFFFFFFF,""
@@ -68,7 +67,7 @@ Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260206092048
+ModifiedDateTime=20260217171434
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,100,588,503
 ZOrder=4
 
@@ -96,7 +95,6 @@ Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,"
 Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 IndexInfo="idx_login_history_rate_limit",0,"login_at,login_sf",""
 Index=idx_login_history_rate_limit=0,login_at,login_sf
-Index=idx_login_history_query=0,organization_id,user_name,entry_execute_flg
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
@@ -343,7 +341,7 @@ Top=2100
 Field="組織ID","organization_id","uuid","NOT NULL",0,"","",$FFFFFFFF,""
 Field="ロールCD","role_cd","@VARCHAR(30)","NOT NULL",1,"","",$FFFFFFFF,""
 Field="機能CD","function_cd","@VARCHAR(30)","NOT NULL",2,"","機能名はソースで管理",$FFFFFFFF,""
-Field="権限","permission","@INT","NOT NULL",,"","0:書込可 1:読取専用",$FFFFFFFF,""
+Field="権限","permission","@INT","NOT NULL",,"","0:読取専用 1:書込可",$FFFFFFFF,""
 Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
 Field="更新者ユーザID","update_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
@@ -351,7 +349,7 @@ Field="更新日時","update_at","timestamp",,,"","",$FFFFFFFF,""
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260206092255
+ModifiedDateTime=20260217140000
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",1000,2100,594,503
 ZOrder=52
 
