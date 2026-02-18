@@ -54,9 +54,11 @@ Clineの動作を制御するスキル定義ファイルを格納
 
 ### [core/workflow.md](core/workflow.md)
 - タスク実行ワークフロー
+- タスク専用フォルダの作成ルール
 - タスク計画書の作成ルール
 - 承認プロセス
 - 完了報告手順
+- レポート管理（docs/直下の.mdファイル参照禁止）
 
 ### [core/workflow-spec-impl.md](core/workflow-spec-impl.md)
 - spec-implワークフロー実行時の注意事項
@@ -98,6 +100,20 @@ Clineの動作を制御するスキル定義ファイルを格納
 - 長時間実行プロセスの対応
 - コマンドテンプレート集
 
+### [development/database.md](development/database.md)
+- データベース操作の統一化
+- Repository層のInsert/Update処理の標準化
+- テーブル型を活用した汎用的なDB操作メソッド
+- トランザクション処理のベストプラクティス
+- SQLインジェクション対策
+
+### [development/typescript.md](development/typescript.md)
+- TypeScript型定義の作成・管理・利用規約
+- 型定義ファイルへの集約ルール
+- Object型の明示的な型定義
+- 型の再利用性とネーミング規則
+- ジェネリック型の活用
+
 ---
 
 ## 📚 参照資料（References）
@@ -126,6 +142,9 @@ Clineの動作を制御するスキル定義ファイルを格納
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-02-18 | database.md追加（Repository層のDB操作統一化規約） | Cline |
+| 2026-02-18 | typescript.md追加（TypeScript型定義管理規約） | Cline |
+| 2026-02-18 | workflow.md更新（タスク専用フォルダ作成ルール・レポート管理追加） | Cline |
 | 2026-02-17 | s3_structure.md更新（組織プレフィックス形式から組織ID（UUID）形式に変更） | Cline |
 | 2026-02-16 | skillsに移動したドキュメントを削除 | yukihiro.omori |
 | 2026-02-03 | workflow-spec-impl.md追加（spec-implワークフロー実行時の注意事項） | Cline |
