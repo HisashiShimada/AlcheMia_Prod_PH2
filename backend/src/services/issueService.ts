@@ -254,6 +254,7 @@ export class IssueService {
    */
   async addComment(
     organizationId: string,
+    projectName: string,
     issueId: string,
     userId: string,
     comment: string
@@ -267,6 +268,12 @@ export class IssueService {
         throw new ValidationError('コメントは2000文字以内で入力してください');
       }
 
+      // プロジェクト名からプロジェクトID取得
+      const projectId = await this.issueRepository.getProjectIdByName(organizationId, projectName);
+      if (!projectId) {
+        throw new NotFoundError('プロジェクトが見つかりません');
+      }
+
       // 問題存在確認
       const issue = await this.issueRepository.findById(issueId, organizationId);
       if (!issue) {
@@ -275,6 +282,7 @@ export class IssueService {
       
       const commentResponse = await this.issueRepository.addComment(
         organizationId,
+        projectId,
         issueId,
         userId,
         comment

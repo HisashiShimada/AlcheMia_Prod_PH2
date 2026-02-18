@@ -86,22 +86,33 @@ router.post(
 
 /**
  * コメント投稿
- * POST /api/v1/issues/:issueId/comments
+ * POST /api/v1/issues/comments
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック（experiment_workerのみ）
  * @description 既存の問題にコメントを追加
  * @requirements REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006
- * @roles worker, manager, admin
+ * @roles experiment_worker
  */
 router.post(
-  '/:issueId/comments',
+  '/comments',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 1),
   [
-    param('issueId')
+    body('projectName')
+      .trim()
       .notEmpty()
-      .withMessage('issueIdはUUID形式である必要があります'),
+      .withMessage('projectNameは必須です')
+      .isString()
+      .withMessage('projectNameは文字列である必要があります'),
+    body('issueId')
+      .trim()
+      .notEmpty()
+      .withMessage('issueIdは必須です')
+      .isString()
+      .withMessage('issueIdは文字列である必要があります'),
     body('comment')
       .trim()
       .notEmpty()

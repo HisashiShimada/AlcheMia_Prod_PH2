@@ -380,7 +380,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
 
 /**
  * コメント追加エンドポイント
- * POST /api/v1/issues/:issueId/comments
+ * POST /api/v1/issues/comments
  */
 export async function addComment(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
@@ -388,11 +388,10 @@ export async function addComment(req: Request, res: Response): Promise<void> {
 
   try {
     const { organizationId, userId } = req.user!;
-    const { issueId } = req.params;
-    const { comment } = req.body;
+    const { projectName, issueId, comment } = req.body;
 
     // Service層呼び出し
-    const result = await issueService.addComment(organizationId, issueId, userId, comment);
+    const result = await issueService.addComment(organizationId, projectName, issueId, userId, comment);
 
     // エラーハンドリング
     if (!result.success) {

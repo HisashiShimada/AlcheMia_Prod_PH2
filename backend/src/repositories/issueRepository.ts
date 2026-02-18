@@ -544,11 +544,31 @@ export class IssueRepository {
   }
 
   /**
+   * プロジェクト名からプロジェクトIDを取得する
+   */
+  async getProjectIdByName(
+    organizationId: string,
+    projectName: string
+  ): Promise<string | null> {
+    const pool = getPool();
+
+    const query = `
+      SELECT project_id
+      FROM projects
+      WHERE project_name = $1 AND organization_id = $2
+    `;
+
+    const result = await pool.query(query, [projectName, organizationId]);
+    return result.rows[0]?.project_id || null;
+  }
+
+  /**
    * コメントを追加する（タスク 3.1）
    * トランザクション制御とFOR UPDATEによる排他制御を実装
    */
   async addComment(
     organizationId: string,
+    projectId: string,
     issueId: string,
     userId: string,
     comment: string
