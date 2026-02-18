@@ -1868,18 +1868,14 @@ export class ProjectService {
     organizationId: string,
     role: string
   ): Promise<ServiceResult<InstructionConfirmationData>> {
-    const pool = getPool();
+    // リポジトリ層のインポート
+    const instructionRepository = require('../repositories/instructionRepository');
 
     try {
       // 1. 指示の存在確認（organization_idフィルタ付き）
-      const instructionQuery = `
-        SELECT instruction_id, organization_id
-        FROM project_instruction
-        WHERE instruction_id = $1 AND organization_id = $2
-      `;
-      const instructionResult = await pool.query(instructionQuery, [instructionId, organizationId]);
+      const instruction = await instructionRepository.findById(instructionId, organizationId);
 
-      if (instructionResult.rows.length === 0) {
+      if (!instruction) {
         return {
           success: false,
           error: {
@@ -1890,19 +1886,12 @@ export class ProjectService {
       }
 
       // 2. 既確認チェック
-      const acknowledgedCheckQuery = `
-        SELECT history_id, acknowledged_at
-        FROM instruction_acknowledged_history
-        WHERE instruction_id = $1 AND organization_id = $2
-        ORDER BY acknowledged_at DESC
-        LIMIT 1
-      `;
-      const acknowledgedCheckResult = await pool.query(acknowledgedCheckQuery, [
+      const acknowledgedHistory = await instructionRepository.checkAcknowledged(
         instructionId,
-        organizationId,
-      ]);
+        organizationId
+      );
 
-      if (acknowledgedCheckResult.rows.length > 0) {
+      if (acknowledgedHistory) {
         return {
           success: false,
           error: {
@@ -1914,22 +1903,13 @@ export class ProjectService {
 
       // 3. 権限チェック（experiment_workerの場合は自分のタスクか確認）
       if (role === 'experiment_worker') {
-        const taskAssignmentQuery = `
-          SELECT pt.task_id
-          FROM project_task pt
-          INNER JOIN project_instruction pi ON pi.project_id = pt.project_id
-          WHERE pi.instruction_id = $1
-            AND pt.worker_user_id = $2
-            AND pt.organization_id = $3
-            AND pi.organization_id = $3
-        `;
-        const taskAssignmentResult = await pool.query(taskAssignmentQuery, [
+        const taskAssignments = await instructionRepository.checkWorkerAssignment(
           instructionId,
           userId,
-          organizationId,
-        ]);
+          organizationId
+        );
 
-        if (taskAssignmentResult.rows.length === 0) {
+        if (taskAssignments.length === 0) {
           return {
             success: false,
             error: {
@@ -1941,32 +1921,16 @@ export class ProjectService {
       }
 
       // 4. 確認履歴の挿入
-      const insertQuery = `
-        INSERT INTO instruction_acknowledged_history (
-          instruction_id,
-          acknowledged_user_id,
-          acknowledged_at,
-          organization_id
-        ) VALUES ($1, $2, NOW(), $3)
-        RETURNING history_id, acknowledged_at
-      `;
-      const insertResult = await pool.query(insertQuery, [
+      const insertedHistory = await instructionRepository.insertAcknowledged(
         instructionId,
         userId,
-        organizationId,
-      ]);
+        organizationId
+      );
 
-      const acknowledgedAt = insertResult.rows[0].acknowledged_at.toISOString();
+      const acknowledgedAt = insertedHistory.acknowledged_at.toISOString();
 
       // 5. ユーザー名の取得
-      const userQuery = `
-        SELECT user_name
-        FROM user_authentication
-        WHERE user_id = $1 AND organization_id = $2
-      `;
-      const userResult = await pool.query(userQuery, [userId, organizationId]);
-
-      const userName = userResult.rows[0]?.user_name || '';
+      const userName = await instructionRepository.findUserNameFromAuth(userId, organizationId);
 
       // 6. レスポンスデータの整形
       const responseData: InstructionConfirmationData = {
@@ -1974,7 +1938,7 @@ export class ProjectService {
         is_acknowledged: true,
         acknowledged_at: acknowledgedAt,
         acknowledged_user_id: userId,
-        acknowledged_user_name: userName,
+        acknowledged_user_name: userName || '',
       };
 
       return {
