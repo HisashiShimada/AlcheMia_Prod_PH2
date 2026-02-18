@@ -8,13 +8,15 @@ import {
   FolderAddOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
-import SubHeader, { MenuType } from '../common/SubHeader';
+import SubHeader from '../common/SubHeader';
+import { MenuType } from '@/types/auth';
 import ProjectManagement from '../project/ProjectManagement';
 import FormatManagement from '../project/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
 import PetriNetEditorScreen from '../viewer/PetriNetEditorScreen';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import { ProjectEditParams } from '@/types/project';
 
 const { Content } = Layout;
@@ -43,6 +45,9 @@ export default function ExperimentAdminMenu({
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
+  
+  // localStorageからpermissionsを取得（userInfo経由）
+  const permissions = getPermissionsFromToken();
   
   // Phase 6追加: エディタ表示用のステート
   const [showEditor, setShowEditor] = useState(false);
@@ -124,6 +129,7 @@ export default function ExperimentAdminMenu({
         onTabChange={handleTabChange}
         currentMenu="experiment_admin"
         onMenuChange={handleMenuChange}
+        userPermissions={permissions}
       />
 
       {/* コンテンツエリア */}

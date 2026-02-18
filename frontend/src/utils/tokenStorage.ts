@@ -5,6 +5,8 @@
  * - アクセストークン（sessionToken）
  * - リフレッシュトークン
  * - トークン有効期限
+ * 
+ * ※ ブラウザを閉じてもデータが残るようにLocal Storageを使用
  */
 
 /**
@@ -20,7 +22,7 @@ export function setTokenPair(
   }
 
   try {
-    sessionStorage.setItem('sessionToken', accessToken);
+    localStorage.setItem('sessionToken', accessToken);
   } catch (error) {
     console.error('Failed to set token pair:', error);
   }
@@ -37,7 +39,7 @@ export function getAccessToken(): string | null {
   }
 
   try {
-    return sessionStorage.getItem('sessionToken');
+    return localStorage.getItem('sessionToken');
   } catch (error) {
     console.error('Failed to get access token:', error);
     return null;
@@ -56,7 +58,7 @@ export function getTokenExpiresAt(): string | null {
   }
 
   try {
-    return sessionStorage.getItem('tokenExpiresAt');
+    return localStorage.getItem('tokenExpiresAt');
   } catch (error) {
     console.error('Failed to get token expires at:', error);
     return null;
@@ -98,8 +100,8 @@ export function clearAllTokens(): void {
   }
 
   try {
-    sessionStorage.removeItem('sessionToken');
-    sessionStorage.removeItem('tokenExpiresAt');
+    localStorage.removeItem('sessionToken');
+    localStorage.removeItem('tokenExpiresAt');
   } catch (error) {
     console.error('Failed to clear tokens:', error);
   }

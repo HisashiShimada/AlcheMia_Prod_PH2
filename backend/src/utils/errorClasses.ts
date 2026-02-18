@@ -90,6 +90,88 @@ export class ProjectNotFoundError extends Error {
 }
 
 /**
+ * プロジェクト編集不可エラー（HTTP 403）
+ * 
+ * タスク6.1: experiment-data-save-api用カスタムエラー
+ * Requirements: 7 (エラーハンドリング)
+ * 
+ * プロジェクトが編集不可能な状態（archived, completedなど）の場合にスローされる。
+ */
+export class ProjectNotEditableError extends Error {
+  public readonly statusCode = 403;
+  public readonly code = 'PROJECT_NOT_EDITABLE';
+  public readonly projectId?: string;
+  public readonly currentStatus?: string;
+
+  constructor(
+    message: string = 'プロジェクトが編集可能な状態ではありません',
+    projectId?: string,
+    currentStatus?: string
+  ) {
+    super(message);
+    this.name = 'ProjectNotEditableError';
+    this.projectId = projectId;
+    this.currentStatus = currentStatus;
+    Object.setPrototypeOf(this, ProjectNotEditableError.prototype);
+  }
+}
+
+/**
+ * タスク未検出エラー（HTTP 404）
+ * 
+ * タスク6.1: experiment-data-save-api用カスタムエラー
+ * Requirements: 7 (エラーハンドリング)
+ * 
+ * 指定されたタスク番号のタスクが存在しない場合にスローされる。
+ */
+export class TaskNotFoundError extends Error {
+  public readonly statusCode = 404;
+  public readonly code = 'TASK_NOT_FOUND';
+  public readonly taskNo?: number;
+  public readonly projectId?: string;
+
+  constructor(
+    message: string = '指定されたタスクが見つかりません',
+    taskNo?: number,
+    projectId?: string
+  ) {
+    super(message);
+    this.name = 'TaskNotFoundError';
+    this.taskNo = taskNo;
+    this.projectId = projectId;
+    Object.setPrototypeOf(this, TaskNotFoundError.prototype);
+  }
+}
+
+/**
+ * 不正なステータス遷移エラー（HTTP 422）
+ * 
+ * タスク6.1: experiment-data-save-api用カスタムエラー
+ * Requirements: 7 (エラーハンドリング)
+ * 
+ * トランジションのステータス遷移が許可されていない場合にスローされる。
+ * 例: completed → running への遷移は不可
+ */
+export class InvalidStatusTransitionError extends Error {
+  public readonly statusCode = 422;
+  public readonly code = 'INVALID_STATUS_TRANSITION';
+  public readonly currentStatus?: string;
+  public readonly targetStatus?: string;
+
+  constructor(
+    message: string = '不正なステータス遷移です',
+    currentStatus?: string,
+    targetStatus?: string
+  ) {
+    super(message);
+    this.name = 'InvalidStatusTransitionError';
+    this.currentStatus = currentStatus;
+    this.targetStatus = targetStatus;
+    Object.setPrototypeOf(this, InvalidStatusTransitionError.prototype);
+  }
+}
+
+/**
  * ストレージエラー（HTTP 500）
  */
 export class StorageError extends Error {
@@ -225,6 +307,9 @@ export function formatErrorResponse(
     error instanceof AuthorizationError ||
     error instanceof NotFoundError ||
     error instanceof ProjectNotFoundError ||
+    error instanceof ProjectNotEditableError ||
+    error instanceof TaskNotFoundError ||
+    error instanceof InvalidStatusTransitionError ||
     error instanceof StorageError ||
     error instanceof DatabaseError ||
     error instanceof MAIMLParseError
@@ -277,6 +362,9 @@ export function getHttpStatusFromError(error: Error): number {
     error instanceof AuthorizationError ||
     error instanceof NotFoundError ||
     error instanceof ProjectNotFoundError ||
+    error instanceof ProjectNotEditableError ||
+    error instanceof TaskNotFoundError ||
+    error instanceof InvalidStatusTransitionError ||
     error instanceof ConflictError ||
     error instanceof StorageError ||
     error instanceof DatabaseError ||

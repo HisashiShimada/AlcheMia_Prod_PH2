@@ -212,6 +212,83 @@ export async function getProjectTasks(req: Request, res: Response): Promise<void
 }
 
 /**
+ * プロジェクトMAIML取得エンドポイント
+ * GET /api/v1/projects/:projectId/maiml
+ * 
+ * Task 1.1 (P): projectRoutesにMAIML取得エンドポイントを追加
+ * Requirements: REQ-1, REQ-2, REQ-4, REQ-5, REQ-7
+ */
+export async function getProjectMaiml(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    // バリデーションはミドルウェアで処理済み
+    const { organizationId } = req.user!;
+    const { projectId } = req.params;
+
+    // Service層呼び出し
+    const result = await projectService.getProjectMaiml(organizationId, projectId);
+
+    // エラーハンドリング
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode === 'FILE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode.startsWith('VALIDATION_')) {
+        statusCode = 400;
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    // 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    logError('Project getProjectMaiml error', error as Error, {
+      action: 'project_getProjectMaiml',
+      organizationId: req.user?.organizationId,
+      projectId: req.params.projectId,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
  * プロジェクト詳細取得エンドポイント
  * GET /api/v1/projects/:projectId
  * 
@@ -944,7 +1021,7 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
   try {
     // バリデーションはミドルウェアで処理済み
     const { organizationId, userId, role } = req.user as any;
-    const { projectName, instructionId } = req.params;
+    const { instructionId } = req.params;
 
     // Service層呼び出し（projectServiceに統合済み）
     const result = await projectService.confirmInstruction(

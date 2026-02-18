@@ -11,9 +11,10 @@ import {
   BarChartOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
-import SubHeader, { MenuType } from '../common/SubHeader';
-import { User } from '@/types/auth';
+import SubHeader from '../common/SubHeader';
+import { User, MenuType } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import MasterManagement from '../DataManagement/MasterManagement';
 
 const { Content } = Layout;
@@ -37,6 +38,9 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
+  
+  // localStorageからpermissionsを取得（userInfo経由）
+  const permissions = getPermissionsFromToken();
 
   const tabItems = [
     {
@@ -71,6 +75,7 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
         onTabChange={handleTabChange}
         currentMenu="data_admin"
         onMenuChange={handleMenuChange}
+        userPermissions={permissions}
       />
 
       {/* コンテンツエリア */}

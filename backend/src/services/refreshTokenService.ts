@@ -30,12 +30,16 @@ export class RefreshTokenService {
    * @param payload - リフレッシュトークンペイロード
    * @param ipAddress - IPアドレス（オプション）
    * @param userAgent - User-Agent（オプション）
+   * @param userName - ユーザー名（オプション、セッション管理画面用）
+   * @param email - メールアドレス（オプション、セッション管理画面用）
    * @returns 保存結果
    */
   async save(
     payload: RefreshTokenPayload,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
+    userName?: string,
+    email?: string
   ): Promise<Result<void, ServiceError>> {
     // Redis未起動時はスキップ（開発環境のみ）
     if (!RedisConnectionService.isRedisAvailable()) {
@@ -64,7 +68,9 @@ export class RefreshTokenService {
         issuedAt: payload.iat,
         expiresAt: payload.exp,
         ipAddress,
-        userAgent
+        userAgent,
+        userName,
+        email
       };
 
       // TTL計算（有効期限まで）
@@ -273,6 +279,86 @@ export class RefreshTokenService {
         error: {
           code: 'SYSTEM_REDIS_ERROR',
           message: 'Failed to revoke all refresh tokens',
+          originalError: error as Error
+        }
+      };
+    }
+  }
+
+  /**
+   * 全アクティブなリフレッシュトークンを取得（セッション管理画面用）
+   * 
+   * @returns 全アクティブなトークンメタデータの配列
+   */
+  async getAllActiveTokens(): Promise<Result<StoredRefreshToken[], ServiceError>> {
+    // Redis未起動時は空配列を返す
+    if (!RedisConnectionService.isRedisAvailable()) {
+      console.warn('⚠️  Redis未起動: セッション一覧取得をスキップ');
+      return { success: true, data: [] };
+    }
+
+    try {
+      const client = RedisConnectionService.getClient();
+      if (!client) {
+        return {
+          success: false,
+          error: {
+            code: 'SYSTEM_REDIS_ERROR',
+            message: 'Redis client is not available'
+          }
+        };
+      }
+
+      // SCAN で全トークンキーを取得
+      const pattern = `${this.keyPrefix}*`;
+      const tokens: StoredRefreshToken[] = [];
+      let cursor = 0;
+
+      do {
+        const result = await client.scan(cursor, {
+          MATCH: pattern,
+          COUNT: 100
+        });
+
+        cursor = result.cursor;
+        const keys = result.keys;
+
+        // 各キーからトークンデータを取得
+        for (const key of keys) {
+          // userTokensPrefixのキー（Set型）はスキップ
+          if (key.startsWith(this.userTokensPrefix)) {
+            continue;
+          }
+
+          try {
+            const data = await client.get(key);
+            if (data) {
+              const token: StoredRefreshToken = JSON.parse(data);
+              tokens.push(token);
+            }
+          } catch (error) {
+            // WRONGTYPE エラー（Set型キーに対するGET）やパースエラーをログに記録して続行
+            logError('Failed to get or parse token data', error as Error, {
+              action: 'get_all_active_tokens',
+              key
+            });
+          }
+        }
+      } while (cursor !== 0);
+
+      return {
+        success: true,
+        data: tokens
+      };
+    } catch (error) {
+      logError('Failed to get all active tokens', error as Error, {
+        action: 'get_all_active_tokens'
+      });
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_REDIS_ERROR',
+          message: 'Failed to get all active tokens',
           originalError: error as Error
         }
       };
