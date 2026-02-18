@@ -30,7 +30,7 @@
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | 権限 |
 |----|-------------|---------------|------|---------|------|
-| 1 | POST | /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | Worker以上 |
+| 1 | POST | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | experiment_worker のみ書込可 |
 
 ---
 
@@ -41,7 +41,7 @@
 
 ### エンドポイント
 ```
-POST /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data
+POST /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
 ```
 
 ### HTTPメソッド
@@ -49,15 +49,15 @@ POST
 
 ### 認証要件
 - JWT認証必須
-- ロール: Worker以上
+- ロール: experiment_worker のみ書込可
 - テナント分離必須
 
 ### ミドルウェアチェーン
 ```typescript
-router.post('/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data',
+router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data',
   auth,                        // JWT認証
   tenantIsolation,            // テナント分離
-  permissionCheck(['worker', 'manager', 'admin']), // 権限チェック
+  permissionCheck(['experiment_worker']), // 権限チェック
   experimentDataController.saveBatch
 );
 ```
@@ -67,7 +67,7 @@ router.post('/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/da
 #### パスパラメータ
 | パラメータ | 型 | 必須 | 説明 |
 |-----------|----|----|------|
-| projectId | UUID | ○ | プロジェクトID |
+| projectName | string | ○ | プロジェクト名 |
 | methodId | string | ○ | メソッドID |
 | taskNo | integer | ○ | タスク連番 |
 
@@ -281,7 +281,7 @@ router.post('/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/da
 ### バリデーション
 
 #### リクエスト全体のチェック
-- [ ] projectId はUUID形式
+- [ ] projectName は文字列
 - [ ] methodId は文字列
 - [ ] taskNo は1以上の整数
 - [ ] records は配列で1件以上
@@ -295,8 +295,8 @@ router.post('/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/da
 - [ ] comment は2000文字以内（指定時）
 
 #### 関連性チェック
-- [ ] projectIdは自組織に属するプロジェクト
-- [ ] taskNoは指定されたprojectIdに属するタスク
+- [ ] projectNameは自組織に属するプロジェクト
+- [ ] taskNoは指定されたprojectNameに属するタスク
 - [ ] placeIdは指定されたtaskNoに属するプレース（オプション）
 - [ ] templateIdは指定されたtemplateTypeに対応するテンプレート（オプション）
 
@@ -426,7 +426,7 @@ $13: template_type (string) - record 2
 
 #### 認証・認可
 - [ ] JWT認証必須
-- [ ] Worker以上の権限が必要
+- [ ] experiment_worker のみ書込可
 - [ ] 編集可能なプロジェクトステータスのみデータ保存可能
 
 #### 入力検証
@@ -500,7 +500,7 @@ backend/tests/controllers/experimentDataController.test.ts
 - [ ] すべてのエンドポイントでJWT認証が必須
 - [ ] tenantIsolationミドルウェアが適用されている
 - [ ] permissionCheckで適切な権限が設定されている
-- [ ] Worker以上の権限でデータ保存可能
+- [ ] experiment_worker のみ書込可
 
 ### マルチテナント分離
 - [ ] すべてのDBクエリにorganization_idフィルタが含まれる
@@ -533,6 +533,10 @@ backend/tests/controllers/experimentDataController.test.ts
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 3.1.0 | 2026-02-18 | エンドポイントと権限の仕様変更 | Cline |
+| | | - エンドポイント: `:projectId` → `:projectName` に変更 | |
+| | | - 権限: `Worker以上` → `experiment_worker のみ書込可` に変更 | |
+| | | - パスパラメータ、バリデーション、セキュリティセクションを修正 | |
 | 3.0.0 | 2026-02-18 | API構成変更（1エンドポイント化） | Cline |
 | | | - API #2（トランジションステータス更新API）を削除 | |
 | | | - 進捗確認API（api_progress_monitoring.md）に移動 | |
