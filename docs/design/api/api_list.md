@@ -198,6 +198,7 @@
 | 6.2 | GET | /api/v1/tasks/:taskId | タスク詳細取得 | ⏳ 未実装 | ProgressController.getTaskDetail |
 | 6.3 | GET | /api/v1/progress/:projectId/:methodId/:taskNo | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
 | 6.4 | GET | /api/v1/tasks | タスク一覧取得（プロジェクト単位） | ⏳ 未実装 | ProgressController.listAllTasks |
+| 6.5 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | タスクステータス更新 | ⏳ 未実装 | ProgressController.updateTaskStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -208,6 +209,7 @@
 - タスク詳細情報（担当者、ステータス、実験記録）
 - リアルタイム進捗反映
 - 進捗情報キャッシュ（5分間）
+- API 6.5: プロジェクト名、メソッドID、タスク連番でタスクを特定してステータス更新
 
 ---
 
@@ -272,31 +274,7 @@
 
 ---
 
-### 9. タスク管理API（Task Management）
-
-**API設計書**: [api_task_management.md](./api_task_management.md)（未作成）  
-**ルートファイル**: `backend/src/routes/taskRoutes.ts`
-
-| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
-|----|-------------|---------------|------|---------|--------------|
-| 9.1 | PUT | /api/v1/projects/:projectId/methods/:methodId/tasks/:taskNo/status | タスクステータス更新 | ✅ 実装済み | taskController.updateStatus |
-
-**ミドルウェアチェーン:**
-- すべて: `authMiddleware`
-- 権限: experiment_worker, experiment_admin, system_admin
-
-**備考:**
-- ✅ 実装完了（2026-01-28）
-- 楽観的ロック（currentUpdateAt）による並行更新制御
-- ステータス遷移バリデーション（pending→in_progress→completed等）
-- マルチテナント分離（organization_id必須）
-- 詳細なログ記録（Winston構造化ログ）
-- エラーハンドリング（バリデーション、権限、排他制御）
-- 統合テスト・単体テスト完備（100%カバレッジ）
-
----
-
-### 10. 部署管理API（Department Management）
+### 9. 部署管理API（Department Management）
 
 **API設計書**: [api_department_management.md](./api_department_management.md)
 **ルートファイル**: `backend/src/routes/departmentRoutes.ts`
@@ -325,7 +303,7 @@
 
 ---
 
-### 11. ロール管理API（Role Management）
+### 10. ロール管理API（Role Management）
 
 **API設計書**: [api_role_management.md](./api_role_management.md)
 **ルートファイル**: `backend/src/routes/roleRoutes.ts`
@@ -354,46 +332,46 @@
 
 ---
 
-### 12. マスタ管理API（Master Data Management）
+### 11. マスタ管理API（Master Data Management）
 
 **API設計書**: [api_master_management.md](./api_master_management.md)
 **ルートファイル**: `backend/src/routes/masterRoutes.ts`
 
-#### 12.1 Creatorマスタ（7エンドポイント）
+#### 11.1 Creatorマスタ（7エンドポイント）
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 12.1.1 | GET | /api/v1/master/creator | Creator一覧取得 | ✅ 実装済み | masterController.getCreators |
-| 12.1.2 | GET | /api/v1/master/creator/download-csv | CreatorCSVダウンロード | ✅ 実装済み | masterController.downloadCreatorsCsv |
-| 12.1.3 | POST | /api/v1/master/creator/upload-csv | CreatorCSVアップロード | ✅ 実装済み | masterController.uploadCreatorsCsv |
-| 12.1.4 | GET | /api/v1/master/creator/:creatorId | Creator詳細取得 | ✅ 実装済み | masterController.getCreatorById |
-| 12.1.5 | POST | /api/v1/master/creator | Creator新規作成 | ✅ 実装済み | masterController.createCreator |
-| 12.1.6 | PUT | /api/v1/master/creator/:creatorId | Creator更新 | ✅ 実装済み | masterController.updateCreator |
-| 12.1.7 | PATCH | /api/v1/master/creator/:creatorId/status | Creatorアクティブ状態更新 | ✅ 実装済み | masterController.updateCreatorStatus |
+| 11.1.1 | GET | /api/v1/master/creator | Creator一覧取得 | ✅ 実装済み | masterController.getCreators |
+| 11.1.2 | GET | /api/v1/master/creator/download-csv | CreatorCSVダウンロード | ✅ 実装済み | masterController.downloadCreatorsCsv |
+| 11.1.3 | POST | /api/v1/master/creator/upload-csv | CreatorCSVアップロード | ✅ 実装済み | masterController.uploadCreatorsCsv |
+| 11.1.4 | GET | /api/v1/master/creator/:creatorId | Creator詳細取得 | ✅ 実装済み | masterController.getCreatorById |
+| 11.1.5 | POST | /api/v1/master/creator | Creator新規作成 | ✅ 実装済み | masterController.createCreator |
+| 11.1.6 | PUT | /api/v1/master/creator/:creatorId | Creator更新 | ✅ 実装済み | masterController.updateCreator |
+| 11.1.7 | PATCH | /api/v1/master/creator/:creatorId/status | Creatorアクティブ状態更新 | ✅ 実装済み | masterController.updateCreatorStatus |
 
-#### 12.2 Vendorマスタ（7エンドポイント）
-
-| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
-|----|-------------|---------------|------|---------|--------------|
-| 12.2.1 | GET | /api/v1/master/vendor | Vendor一覧取得 | ✅ 実装済み | masterController.getVendors |
-| 12.2.2 | GET | /api/v1/master/vendor/download-csv | VendorCSVダウンロード | ✅ 実装済み | masterController.downloadVendorsCsv |
-| 12.2.3 | POST | /api/v1/master/vendor/upload-csv | VendorCSVアップロード | ✅ 実装済み | masterController.uploadVendorsCsv |
-| 12.2.4 | GET | /api/v1/master/vendor/:vendorId | Vendor詳細取得 | ✅ 実装済み | masterController.getVendorById |
-| 12.2.5 | POST | /api/v1/master/vendor | Vendor新規作成 | ✅ 実装済み | masterController.createVendor |
-| 12.2.6 | PUT | /api/v1/master/vendor/:vendorId | Vendor更新 | ✅ 実装済み | masterController.updateVendor |
-| 12.2.7 | PATCH | /api/v1/master/vendor/:vendorId/status | Vendorアクティブ状態更新 | ✅ 実装済み | masterController.updateVendorStatus |
-
-#### 12.3 Instrumentマスタ（7エンドポイント）
+#### 11.2 Vendorマスタ（7エンドポイント）
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 12.3.1 | GET | /api/v1/master/instrument | Instrument一覧取得 | ✅ 実装済み | masterController.getInstruments |
-| 12.3.2 | GET | /api/v1/master/instrument/download-csv | InstrumentCSVダウンロード | ✅ 実装済み | masterController.downloadInstrumentsCsv |
-| 12.3.3 | POST | /api/v1/master/instrument/upload-csv | InstrumentCSVアップロード | ✅ 実装済み | masterController.uploadInstrumentsCsv |
-| 12.3.4 | GET | /api/v1/master/instrument/:instrumentId | Instrument詳細取得 | ✅ 実装済み | masterController.getInstrumentById |
-| 12.3.5 | POST | /api/v1/master/instrument | Instrument新規作成 | ✅ 実装済み | masterController.createInstrument |
-| 12.3.6 | PUT | /api/v1/master/instrument/:instrumentId | Instrument更新 | ✅ 実装済み | masterController.updateInstrument |
-| 12.3.7 | PATCH | /api/v1/master/instrument/:instrumentId/status | Instrumentアクティブ状態更新 | ✅ 実装済み | masterController.updateInstrumentStatus |
+| 11.2.1 | GET | /api/v1/master/vendor | Vendor一覧取得 | ✅ 実装済み | masterController.getVendors |
+| 11.2.2 | GET | /api/v1/master/vendor/download-csv | VendorCSVダウンロード | ✅ 実装済み | masterController.downloadVendorsCsv |
+| 11.2.3 | POST | /api/v1/master/vendor/upload-csv | VendorCSVアップロード | ✅ 実装済み | masterController.uploadVendorsCsv |
+| 11.2.4 | GET | /api/v1/master/vendor/:vendorId | Vendor詳細取得 | ✅ 実装済み | masterController.getVendorById |
+| 11.2.5 | POST | /api/v1/master/vendor | Vendor新規作成 | ✅ 実装済み | masterController.createVendor |
+| 11.2.6 | PUT | /api/v1/master/vendor/:vendorId | Vendor更新 | ✅ 実装済み | masterController.updateVendor |
+| 11.2.7 | PATCH | /api/v1/master/vendor/:vendorId/status | Vendorアクティブ状態更新 | ✅ 実装済み | masterController.updateVendorStatus |
+
+#### 11.3 Instrumentマスタ（7エンドポイント）
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 11.3.1 | GET | /api/v1/master/instrument | Instrument一覧取得 | ✅ 実装済み | masterController.getInstruments |
+| 11.3.2 | GET | /api/v1/master/instrument/download-csv | InstrumentCSVダウンロード | ✅ 実装済み | masterController.downloadInstrumentsCsv |
+| 11.3.3 | POST | /api/v1/master/instrument/upload-csv | InstrumentCSVアップロード | ✅ 実装済み | masterController.uploadInstrumentsCsv |
+| 11.3.4 | GET | /api/v1/master/instrument/:instrumentId | Instrument詳細取得 | ✅ 実装済み | masterController.getInstrumentById |
+| 11.3.5 | POST | /api/v1/master/instrument | Instrument新規作成 | ✅ 実装済み | masterController.createInstrument |
+| 11.3.6 | PUT | /api/v1/master/instrument/:instrumentId | Instrument更新 | ✅ 実装済み | masterController.updateInstrument |
+| 11.3.7 | PATCH | /api/v1/master/instrument/:instrumentId/status | Instrumentアクティブ状態更新 | ✅ 実装済み | masterController.updateInstrumentStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`（JWTからorganizationIdを取得）
@@ -409,7 +387,7 @@
 
 ---
 
-### 13. 会社管理API（Corporation Management）
+### 12. 会社管理API（Corporation Management）
 
 **API設計書**: [api_corporation_management.md](./api_corporation_management.md) 
 **ルートファイル**: `backend/src/routes/corporationRoutes.ts`
@@ -487,15 +465,14 @@
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 5 | 0 | 0 | 5 | 0% |
 | Maiml編集API | 10 | 9 | 1 | 0 | 90% |
-| 進捗確認API | 4 | 0 | 0 | 4 | 0% |
+| 進捗確認API | 5 | 0 | 0 | 5 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
 | 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
-| タスク管理API | 1 | 1 | 0 | 0 | 100% |
 | 部署管理API | 7 | 7 | 0 | 0 | 100% |
 | ロール管理API | 8 | 8 | 0 | 0 | 100% |
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
 | 会社管理API | 7 | 7 | 0 | 0 | 100% |
-| **合計** | **95** | **73** | **1** | **21** | **77%** |
+| **合計** | **95** | **72** | **1** | **22** | **76%** |
 
 ### 優先度別実装状況
 
@@ -679,6 +656,17 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.8.2 | 2026-02-18 | タスク管理APIセクション削除（95エンドポイント） | Cline |
+| | | - タスク管理API（セクション9）を完全削除 | |
+| | | - 後続セクションを繰り上げ（10→9、11→10、12→11、13→12） | |
+| | | - 総エンドポイント数: 96→95（-1: タスクステータス更新旧API削除） | |
+| | | - 実装済みAPI数: 73→72 | |
+| | | - 進捗確認API 6.5が新しいタスクステータス更新APIとして機能 | |
+| 2.8.1 | 2026-02-18 | タスクステータス更新APIを進捗確認APIに追加（96エンドポイント） | Cline |
+| | | - 進捗確認API: 4→5エンドポイント（+1: タスクステータス更新） | |
+| | | - API 6.5: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | |
+| | | - タスク管理API 9.1は旧エンドポイントとして非推奨化 | |
+| | | - 全体実装率: 77%→76%（分母増加により一時的に低下） | |
 | 2.8.0 | 2026-02-13 | 部署・ロール・マスタ・会社管理API追加（95エンドポイント） | Cline |
 | | | - 部署管理API: 新規カテゴリ追加、7エンドポイント（実装済み100%） | |
 | | | - ロール管理API: 新規カテゴリ追加、8エンドポイント（実装済み100%） | |

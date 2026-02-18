@@ -1,11 +1,11 @@
 # 進捗確認API仕様書
 
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-01-21 16:45  
-**バージョン**: 1.0.0  
+**最終更新**: 2026-02-18 11:44  
+**バージョン**: 1.1.0  
 **対象画面**: 実験管理者 - 進捗確認画面  
-**総API数**: 2個  
-**実装状況**: 0個実装済み、2個未実装
+**総API数**: 5個  
+**実装状況**: 0個実装済み、5個未実装
 
 ---
 
@@ -13,10 +13,10 @@
 
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
-| 進捗確認 | 0 | 2 | 2 |
-| **合計** | **0** | **2** | **2** |
+| 進捗確認 | 0 | 5 | 5 |
+| **合計** | **0** | **5** | **5** |
 
-**完了率**: 0% (0/2)
+**完了率**: 0% (0/5)
 
 ---
 
@@ -27,6 +27,8 @@
 | 1 | メソッド別タスク一覧取得 | GET | `/api/v1/projects/:projectId/methods/:methodId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 2 | タスク詳細取得 | GET | `/api/v1/tasks/:taskId` | 🔴 未実装 | ⭐⭐ 中 |
 | 3 | 進捗データ取得 | GET | `/api/v1/progress/:projectId/:methodId/:taskNo` | 🔴 未実装 | ⭐⭐ 中 |
+| 4 | タスク一覧取得 | GET | `/api/v1/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 5 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
 
 ---
 
@@ -941,11 +943,269 @@ const calculateStatistics = (tasks: any[]) => {
 
 ---
 
-### 5. タスクステータス更新API 🔴
+### 5. タスクステータス更新API（新エンドポイント） 🔴
+
+**エンドポイント**: `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status`
+
+**説明**: プロジェクト名、メソッドID、タスク連番でタスクを特定してステータスを更新
+
+**認証**: 必須
+
+**権限**: `experiment_worker`（書込可）
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
+| `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
+| `taskNo` | Integer | ○ | タスク連番 |
+
+**リクエストボディ**:
+```json
+{
+  "status": "not_started" | "started" | "in_progress" | "completed" | "forced_terminated",
+  "comment": "string (最大500文字, optional)",
+  "currentUpdatedAt": "2026-02-18T10:00:00Z (ISO 8601形式, 楽観的ロック用, optional)"
+}
+```
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "task_no": 1,
+    "project_name": "Sample Project",
+    "method_id": "method1",
+    "previous_status": "in_progress",
+    "new_status": "completed",
+    "updated_by": "user-uuid",
+    "updated_by_name": "User Name",
+    "updated_at": "2026-02-18T11:00:00Z",
+    "comment": "実験完了しました"
+  },
+  "meta": {
+    "timestamp": "2026-02-18T11:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー、または無効なステータス遷移
+- 401: 認証エラー
+- 403: 権限不足（担当者以外が更新しようとした）
+- 404: プロジェクト、メソッド、またはタスクが存在しない
+- 409: プロジェクトステータスが編集不可、または楽観的ロックエラー（currentUpdatedAtが一致しない）
+- 500: システムエラー
+
+#### ビジネスロジック
+
+**ステータス遷移ルール**:
+```typescript
+const validTransitions: Record<string, string[]> = {
+  'not_started': ['started', 'forced_terminated'],
+  'started': ['in_progress', 'forced_terminated'],
+  'in_progress': ['completed', 'forced_terminated'],
+  'completed': ['in_progress'], // 再開可能
+  'forced_terminated': ['started'] // 再開可能
+};
+
+const canTransition = (from: string, to: string): boolean => {
+  return validTransitions[from]?.includes(to) || false;
+};
+```
+
+**前提条件チェック**:
+```typescript
+// プロジェクトステータスが編集可能かチェック
+const project = await db
+  .selectFrom('project')
+  .where('project_name', '=', projectName)
+  .where('organization_id', '=', organizationId)
+  .select(['project_id', 'project_status'])
+  .executeTakeFirstOrThrow();
+
+const editableStatuses = ['draft', 'active'];
+if (!editableStatuses.includes(project.project_status)) {
+  throw new ConflictError(
+    'プロジェクトステータスが編集可能な状態ではありません'
+  );
+}
+```
+
+**楽観的ロック制御**:
+```typescript
+// タスク情報取得
+const task = await db
+  .selectFrom('project_task')
+  .where('project_id', '=', project.project_id)
+  .where('method_id', '=', methodId)
+  .where('task_no', '=', taskNo)
+  .where('organization_id', '=', organizationId)
+  .select([
+    'task_id',
+    'task_status',
+    'update_at',
+    'assign_user_id'
+  ])
+  .executeTakeFirstOrThrow();
+
+// 楽観的ロックチェック（currentUpdatedAtが指定されている場合）
+if (currentUpdatedAt && task.update_at !== currentUpdatedAt) {
+  throw new ConflictError(
+    'タスクが他のユーザーによって更新されています。最新の情報を取得してください。'
+  );
+}
+```
+
+#### 実装要件
+
+**DBクエリ（トランザクション）**:
+```typescript
+await db.transaction().execute(async (trx) => {
+  // プロジェクト情報取得
+  const project = await trx
+    .selectFrom('project')
+    .where('project_name', '=', projectName)
+    .where('organization_id', '=', organizationId)
+    .select(['project_id', 'project_status'])
+    .executeTakeFirstOrThrow();
+
+  // 編集可能チェック
+  const editableStatuses = ['draft', 'active'];
+  if (!editableStatuses.includes(project.project_status)) {
+    throw new ConflictError('プロジェクトステータスが編集不可です');
+  }
+
+  // タスク情報取得
+  const task = await trx
+    .selectFrom('project_task')
+    .where('project_id', '=', project.project_id)
+    .where('method_id', '=', methodId)
+    .where('task_no', '=', taskNo)
+    .where('organization_id', '=', organizationId)
+    .select([
+      'task_id',
+      'task_status',
+      'update_at',
+      'assign_user_id'
+    ])
+    .executeTakeFirstOrThrow();
+
+  // 楽観的ロックチェック
+  if (currentUpdatedAt && task.update_at !== currentUpdatedAt) {
+    throw new ConflictError('他のユーザーによって更新されています');
+  }
+
+  // 権限チェック（実験作業者は自分に割り当てられたタスクのみ更新可能）
+  if (task.assign_user_id !== req.user.userId) {
+    throw new ForbiddenError(
+      '自分に割り当てられたタスクのみ更新できます'
+    );
+  }
+
+  // ステータス遷移チェック
+  if (!canTransition(task.task_status, status)) {
+    throw new BadRequestError(
+      `ステータスを ${task.task_status} から ${status} に変更できません`
+    );
+  }
+
+  // ステータス更新
+  const now = new Date().toISOString();
+  await trx
+    .updateTable('project_task')
+    .set({
+      task_status: status,
+      update_at: now,
+      update_user_id: req.user.userId
+    })
+    .where('task_id', '=', task.task_id)
+    .where('organization_id', '=', organizationId)
+    .execute();
+
+  // コメントがある場合は記録
+  if (comment) {
+    await trx
+      .insertInto('task_comment')
+      .values({
+        comment_id: uuidv4(),
+        task_id: task.task_id,
+        user_id: req.user.userId,
+        comment: comment,
+        organization_id: organizationId,
+        create_at: now
+      })
+      .execute();
+  }
+
+  // 監査ログ記録
+  logger.info('Task status updated', {
+    projectName,
+    methodId,
+    taskNo,
+    previousStatus: task.task_status,
+    newStatus: status,
+    updatedBy: req.user.userId,
+    organizationId
+  });
+});
+```
+
+**バリデーション**:
+```typescript
+const validateStatusUpdate = (body: any) => {
+  const validStatuses = [
+    'not_started',
+    'started',
+    'in_progress',
+    'completed',
+    'forced_terminated'
+  ];
+
+  if (!body.status) {
+    throw new BadRequestError('status is required');
+  }
+
+  if (!validStatuses.includes(body.status)) {
+    throw new BadRequestError(
+      `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+    );
+  }
+
+  if (body.comment && body.comment.length > 500) {
+    throw new BadRequestError('comment must be 500 characters or less');
+  }
+
+  if (body.currentUpdatedAt && !isValidISODate(body.currentUpdatedAt)) {
+    throw new BadRequestError('currentUpdatedAt must be valid ISO 8601 format');
+  }
+};
+```
+
+**備考**:
+- プロジェクト名、メソッドID、タスク連番の組み合わせでタスクを一意に特定
+- 楽観的ロック（currentUpdatedAt）による並行更新制御（オプション）
+- ステータス遷移バリデーション実装
+- **権限**: 実験作業者（experiment_worker）のみが自分に割り当てられたタスクのステータスを更新可能
+- 実験管理者（experiment_admin）やシステム管理者（system_admin）はこのAPIを使用不可
+
+---
+
+### 6. タスクステータス更新API（旧エンドポイント・参考用） 🔴
+
+**⚠️ 注意**: このエンドポイントは参考用です。新規実装では **API #5** の `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` を使用してください。
 
 **エンドポイント**: `PUT /api/v1/tasks/:taskId/status`
 
-**説明**: タスクのステータスを更新（開始、完了、強制終了など）
+**説明**: タスクIDでタスクを特定してステータスを更新（旧仕様）
 
 **認証**: 必須
 
@@ -1154,10 +1414,15 @@ const validateStatusUpdate = (body: any) => {
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-02-18 | タスクステータス更新API追加（5エンドポイント） | Cline |
+| | | - API #5: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | |
+| | | - プロジェクト名+メソッドID+タスク連番でタスク特定 | |
+| | | - 楽観的ロック（currentUpdatedAt）実装（オプション） | |
+| | | - 旧エンドポイント（PUT /api/v1/tasks/:taskId/status）はAPI #6として参考情報化 | |
 | 1.0.0 | 2026-01-21 | 新規作成 | Cline |
 
 ---
 
 **作成者**: Cline  
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-01-21 16:45
+**最終更新**: 2026-02-18 11:44
