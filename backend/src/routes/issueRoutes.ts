@@ -130,6 +130,7 @@ router.post(
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック
  * @description プロジェクト・メソッド・タスク・トランジション単位で発生した問題一覧とコメントを取得
  * @requirements REQ-001, REQ-003, REQ-004
  * @roles worker, manager, admin
@@ -138,6 +139,7 @@ router.get(
   '/',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 0),
   [
     query('project_id')
       .notEmpty()
