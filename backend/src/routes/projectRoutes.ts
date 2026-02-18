@@ -126,15 +126,17 @@ router.post(
  * GET /api/v1/projects/:projectId/maiml
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（実験作業者のみ）
  * @middleware tenantIsolation - テナント分離
- * @description プロジェクトの最新MAIMLファイルをXML形式で取得する
- * @note Task 1.1: MAIML取得エンドポイント追加
+ * @description プロジェクトの最新MAIMLファイルをXML形式で取得する（指示確認タブのフロー図表示で使用）
+ * @note API 15: プロジェクトMAIMLファイル取得
  * @requirements REQ-1, REQ-2, REQ-3, REQ-8
- * @roles experiment_worker, experiment_admin, system_admin
+ * @roles experiment_worker（読み取り専用）
  */
 router.get(
   '/:projectId/maiml',
   authMiddleware,
+  checkPermission('050000', 0),
   tenantIsolation,
   [
     param('projectId')
