@@ -39,7 +39,7 @@ export default function DataAdminMenu({ user, onLogout, onNavigate, onMenuChange
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
   
-  // sessionStorageからpermissionsを取得（userInfo経由）
+  // localStorageからpermissionsを取得（userInfo経由）
   const permissions = getPermissionsFromToken();
 
   const tabItems = [

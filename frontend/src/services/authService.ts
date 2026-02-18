@@ -264,7 +264,17 @@ export const authService = {
         return null;
       }
     } catch (error) {
-      // API呼び出しエラー（ネットワークエラー、401エラーなど）
+      // 401エラー（リフレッシュトークンなし/期限切れ）は正常ケースなのでログ出力しない
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        // 通常ログイン時の初回アクセスなので、静かに処理
+        clearAllTokens();
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('userInfo');
+        }
+        return null;
+      }
+      
+      // その他のエラー（ネットワークエラーなど）はログ出力
       console.error('[authService] トークン更新エラー:', error);
       clearAllTokens();
       if (typeof window !== 'undefined') {

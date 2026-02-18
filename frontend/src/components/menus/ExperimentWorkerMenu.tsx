@@ -92,7 +92,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // sessionStorageからpermissionsを取得（userInfo経由）
+  // localStorageからpermissionsを取得（userInfo経由）
   const permissions = getPermissionsFromToken();
 
   // 承認依頼ハンドラー
