@@ -157,7 +157,7 @@ DataGrid編集画面:
 | 項目名 | タイプ | 必須 | 初期値 | 説明 |
 |--------|--------|------|--------|------|
 | selectedStatus | Select | ○ | 'initial' | トランジションステータス |
-| progress | Slider | - | 0 | 進捗率（0-100%） |
+| progressRate | Slider | - | 0 | 進捗率（0-100%） |
 | comment | TextArea | - | '' | コメント |
 
 #### テンプレート一覧フィルタ
@@ -374,28 +374,45 @@ const selectedTemplate = useMemo(() => {
 
 | API | メソッド | エンドポイント | 用途 | 実装状況 |
 |-----|---------|--------------|------|---------|
-| 実験データ保存API | POST | `/api/v1/experiments/{transitionId}/data` | 実験データの保存 | TODO |
-| ステータス更新API | PUT | `/api/v1/transitions/{transitionId}/status` | トランジションステータスの更新 | TODO |
+| 実験データ保存API | POST | `/api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data` | 実験データの一括保存 | TODO |
+| ステータス更新API | PUT | `/api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status` | トランジションステータスの更新 | TODO |
 | ファイルアップロードAPI | POST | `/api/v1/files/upload` | 実験データファイルのアップロード | TODO |
 
 **実験データ保存API詳細:**
-- **リクエストボディ**:
-  ```json
-  {
-    "transitionId": "string",
-    "templateId": "string",
-    "status": "initial|preparing|ready|running|paused|completed|error",
-    "progress": 0,
-    "comment": "string",
-    "experimentData": {
-      "templateId": "string",
-      "category": "Materials|Conditions|Results",
-      "property1": "value1",
-      "property2": 123.45,
-      ...
+
+パスパラメータ:
+- `projectId`: プロジェクトID（UUID）
+- `methodId`: メソッドID（文字列）
+- `taskNo`: タスク連番（整数）
+
+リクエストボディ:
+```json
+{
+  "records": [
+    {
+      "placeId": "place_001",
+      "templateType": "material",
+      "templateId": "mat_001",
+      "data": {
+        "property1": "value1",
+        "property2": 123.45,
+        "temperature": {
+          "value": 25.5,
+          "unit": "°C"
+        }
+      },
+      "status": "completed",
+      "comment": "材料データ記録完了"
     }
-  }
-  ```
+  ]
+}
+```
+
+**注記:** 
+- `records`配列形式で複数プレースのデータを一括保存可能
+- `placeId`は必須フィールド
+- `data`フィールド内にプロパティ値を格納
+- DataGrid形式の場合、`data`内に2次元配列として保存
 
 ### 5.5 データソース
 
@@ -579,4 +596,9 @@ DataRecordDialog
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-02-17 | API仕様v2.1.0に準拠した修正 | Cline |
+| | | - APIエンドポイント更新（パスパラメータ化） | |
+| | | - リクエストボディをrecords配列形式に変更 | |
+| | | - パラメータ名統一（progress → progressRate） | |
+| | | - placeId必須化の注記追加 | |
 | 1.0.0 | 2026-01-21 | 初版作成 | Cline |
