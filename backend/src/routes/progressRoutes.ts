@@ -1,12 +1,12 @@
 /**
  * 進捗データ取得関連ルート
- * 
+ *
  * @description 進捗データ取得エンドポイント定義
  * Task: 6.1 ルート定義とミドルウェアチェーン
  */
 
 import { Router } from 'express';
-import { body } from 'express-validator';
+import { body, param, query } from 'express-validator';
 import * as progressController from '../controllers/progressController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
@@ -18,7 +18,7 @@ const router = Router();
 /**
  * 進捗データ取得
  * GET /api/v1/progress/:projectId/:methodId/:taskNo
- * 
+ *
  * @middleware authMiddleware - JWT認証
  * @middleware バリデーションルール - パラメータ検証
  * @middleware handleValidationErrors - バリデーションエラーハンドリング
@@ -42,7 +42,7 @@ router.get(
 /**
  * タスクステータス更新
  * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status
- * 
+ *
  * @middleware authMiddleware - JWT認証
  * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
  * @middleware バリデーションルール - パラメータ・ボディ検証
@@ -61,7 +61,7 @@ router.patch(
     validateParamString('projectName', 1, 255),
     validateParamString('methodId', 1, 255),
     validateParamInt('taskNo', 1),
-    
+
     // リクエストボディバリデーション
     body('status')
       .notEmpty()
@@ -80,6 +80,55 @@ router.patch(
   ],
   handleValidationErrors,
   progressController.updateTaskStatus
+);
+
+/**
+ * タスク一覧取得（実験作業者用）
+ * GET /api/v1/progress/projects/:projectName/worker-tasks
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @middleware handleValidationErrors - バリデーションエラーハンドリング
+ * @description 実験作業者が自分に割り当てられたタスクの一覧をメソッド単位でグループ化して取得
+ * @note API #4: タスク一覧取得（実験作業者用）
+ * @requirements REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7, REQ-9
+ * @roles experiment_worker (読取専用)
+ */
+router.get(
+  '/projects/:projectName/worker-tasks',
+  authMiddleware,
+  [
+    // パスパラメータバリデーション
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectName is required')
+      .isString()
+      .withMessage('projectName must be a string')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectName must be 1-255 characters'),
+    
+    // クエリパラメータバリデーション（オプション）
+    query('status')
+      .optional()
+      .isIn(['not_started', 'started', 'in_progress', 'completed', 'forced_terminated'])
+      .withMessage('status must be one of: not_started, started, in_progress, completed, forced_terminated'),
+    
+    query('assignedTo')
+      .optional()
+      .isUUID()
+      .withMessage('assignedTo must be a valid UUID'),
+    
+    query('sortBy')
+      .optional()
+      .isIn(['task_no', 'created_at', 'updated_at', 'status'])
+      .withMessage('sortBy must be one of: task_no, created_at, updated_at, status'),
+    
+    query('order')
+      .optional()
+      .isIn(['asc', 'desc'])
+      .withMessage('order must be either asc or desc'),
+  ],
+  handleValidationErrors,
+  progressController.getWorkerTasks
 );
 
 export default router;

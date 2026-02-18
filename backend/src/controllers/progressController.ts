@@ -11,13 +11,15 @@
  * - HTTPステータスコードの設定（200, 400, 401, 403, 404, 500）
  */
 
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { ProgressService } from '../services/progressService';
 import { TaskRepository } from '../repositories/taskRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
+import { TaskService } from '../services/taskService';
 import { updateTaskStatus as updateTaskStatusService } from '../services/taskService';
 import { TaskStatus } from '../types/taskService.types';
+import { TaskFilters } from '../types/task';
 import { getPool } from '../database/db';
 import { logger } from '../utils/logger';
 
@@ -146,6 +148,142 @@ export async function getProgressData(req: Request, res: Response): Promise<void
         requestId
       }
     });
+  }
+}
+
+/**
+ * タスク一覧取得（実験作業者用）ハンドラー
+ * 
+ * GET /api/v1/progress/projects/:projectName/worker-tasks
+ * 
+ * @description プロジェクト内の全タスクをメソッド単位でグループ化して取得
+ * API: api_progress_monitoring.md - API #4
+ * @roles experiment_worker (読取専用)
+ */
+export async function getWorkerTasks(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const startTime = Date.now();
+  const requestId = (req.headers['x-request-id'] as string) || uuidv4();
+
+  try {
+    // バリデーションはhandleValidationErrorsミドルウェアで処理済み
+    const { organizationId } = req.user!;
+    const { projectName } = req.params;
+
+    // オプションクエリパラメータの抽出
+    const filters: TaskFilters = {
+      methodId: req.query.methodId as string | undefined,
+      status: req.query.status as any,
+      assignUserId: req.query.assignedTo as string | undefined,
+      sortBy: req.query.sortBy as any,
+      order: req.query.order as any,
+    };
+
+    // INFO: API呼び出し開始ログ
+    logger.info('ProgressController.getWorkerTasks - Start', {
+      action: 'get_worker_tasks',
+      projectName,
+      organizationId,
+      filters,
+      requestId,
+    });
+
+    const pool = getPool();
+
+    // ステップ1: プロジェクト名からプロジェクトIDを取得
+    const projectQuery = `
+      SELECT project_id, project_name
+      FROM project
+      WHERE project_name = $1
+        AND organization_id = $2
+    `;
+
+    const projectResult = await pool.query(projectQuery, [projectName, organizationId]);
+
+    if (projectResult.rowCount === 0) {
+      logger.warn('ProgressController.getWorkerTasks - Project not found', {
+        action: 'get_worker_tasks',
+        projectName,
+        organizationId,
+        requestId,
+      });
+
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'Project not found',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    const project = projectResult.rows[0];
+    const projectId = project.project_id;
+
+    // ステップ2: TaskServiceを使用してタスク一覧を取得
+    const taskRepository = new TaskRepository();
+    const taskService = new TaskService(taskRepository);
+    const methodGroups = await taskService.getTasksGroupedByMethod(
+      projectId,
+      organizationId,
+      filters
+    );
+
+    // レスポンス作成
+    const responseData = {
+      project_id: projectId,
+      project_name: projectName,
+      methods: methodGroups,
+    };
+
+    // INFO: API呼び出し完了ログ
+    const responseTime = Date.now() - startTime;
+    const totalTasks = methodGroups.reduce((sum, group) => sum + group.tasks.length, 0);
+    
+    logger.info('ProgressController.getWorkerTasks - Success', {
+      action: 'get_worker_tasks',
+      projectName,
+      organizationId,
+      result: {
+        methodCount: methodGroups.length,
+        taskCount: totalTasks,
+        responseTimeMs: responseTime,
+      },
+      requestId,
+    });
+
+    // 統一レスポンス形式で返却
+    res.json({
+      success: true,
+      data: responseData,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    // ERROR: データベースエラーまたは予期しない例外
+    const responseTime = Date.now() - startTime;
+    logger.error('ProgressController.getWorkerTasks - Error', {
+      action: 'get_worker_tasks',
+      projectName: req.params.projectName,
+      organizationId: req.user?.organizationId,
+      responseTimeMs: responseTime,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined,
+      requestId,
+    });
+
+    // エラーハンドリングミドルウェアに委譲
+    next(error);
   }
 }
 
