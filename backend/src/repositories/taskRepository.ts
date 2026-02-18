@@ -236,27 +236,9 @@ export class TaskRepository {
     taskNo: number,
     organizationId: string
   ): Promise<TaskWithProject | null> {
-    // Parameterized Query（SQLインジェクション対策）
-    // project_taskとprojectテーブルをJOIN
-    // organization_idフィルタ必須（マルチテナント分離）
-    const query = `
-      SELECT 
-        pt.task_id,
-        pt.task_name,
-        pt.project_id,
-        p.project_name,
-        pt.method_id,
-        pt.task_no
-      FROM project_task pt
-      LEFT JOIN project p ON pt.project_id = p.project_id 
-        AND pt.organization_id = p.organization_id
-      WHERE pt.project_id = $1
-        AND pt.method_id = $2
-        AND pt.task_no = $3
-        AND pt.organization_id = $4
-      LIMIT 1
-    `;
-
+    // 外部SQLファイルを読み込み
+    const query = await loadSqlFile('tasks/findByProjectMethodTaskNo.sql');
+    
     const params = [projectId, methodId, taskNo, organizationId];
 
     const pool = getPool();

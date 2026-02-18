@@ -4,7 +4,8 @@
  * transition_dataテーブルへのデータアクセスを担当するリポジトリ
  */
 
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import { Status } from '../types/transitionData';
 
 /**
@@ -82,39 +83,17 @@ export class TransitionDataRepository {
     transitionId: string
   ): Promise<TransitionDataRow | null> {
     try {
-      const pool = getPool();
+      const pgp = getPgp();
       
-      // Parameterized Queryを使用してSQLインジェクション対策
-      // organization_idフィルタを必須とし、マルチテナント分離を保証
-      const query = `
-        SELECT
-          organization_id,
-          project_id,
-          method_id,
-          task_no,
-          transition_id,
-          status,
-          progress_rate,
-          comment,
-          updated_by,
-          updated_at,
-          created_at
-        FROM transition_data
-        WHERE organization_id = $1
-          AND project_id = $2
-          AND method_id = $3
-          AND task_no = $4
-          AND transition_id = $5
-      `;
-
+      // 外部SQLファイルを読み込み
+      const query = await loadSqlFile('transition_data/findById.sql');
+      
       const params = [organizationId, projectId, methodId, taskNo, transitionId];
-      const result = await pool.query(query, params);
+      
+      // pg-promiseのoneOrNoneメソッドを使用（0または1件の結果を期待）
+      const result = await pgp.oneOrNone<TransitionDataRow>(query, params);
 
-      if (result.rows.length === 0) {
-        return null;
-      }
-
-      return result.rows[0] as TransitionDataRow;
+      return result;
     } catch (error) {
       throw new DatabaseError(
         'Database error occurred while finding transition',
@@ -142,42 +121,17 @@ export class TransitionDataRepository {
     transitionId: string
   ): Promise<TransitionDataRow | null> {
     try {
-      const pool = getPool();
+      const pgp = getPgp();
       
-      // Parameterized Queryを使用してSQLインジェクション対策
-      // organization_idフィルタを必須とし、マルチテナント分離を保証
-      // ORDER BY updated_at DESC LIMIT 1で最新レコードのみを取得
-      const query = `
-        SELECT
-          organization_id,
-          project_id,
-          method_id,
-          task_no,
-          transition_id,
-          status,
-          progress_rate,
-          comment,
-          updated_by,
-          updated_at,
-          created_at
-        FROM transition_data
-        WHERE organization_id = $1
-          AND project_id = $2
-          AND method_id = $3
-          AND task_no = $4
-          AND transition_id = $5
-        ORDER BY updated_at DESC
-        LIMIT 1
-      `;
+      // 外部SQLファイルを読み込み
+      const query = await loadSqlFile('transition_data/getLatestRecord.sql');
 
       const params = [organizationId, projectId, methodId, taskNo, transitionId];
-      const result = await pool.query(query, params);
+      
+      // pg-promiseのoneOrNoneメソッドを使用（0または1件の結果を期待）
+      const result = await pgp.oneOrNone<TransitionDataRow>(query, params);
 
-      if (result.rows.length === 0) {
-        return null;
-      }
-
-      return result.rows[0] as TransitionDataRow;
+      return result;
     } catch (error) {
       throw new DatabaseError(
         'Database error occurred while getting latest transition record',
@@ -205,25 +159,18 @@ export class TransitionDataRepository {
     transitionId: string
   ): Promise<number> {
     try {
-      const pool = getPool();
+      const pgp = getPgp();
       
-      // Parameterized Queryを使用してSQLインジェクション対策
-      // organization_idフィルタを必須とし、マルチテナント分離を保証
-      const query = `
-        SELECT COUNT(*) as count
-        FROM transition_data
-        WHERE organization_id = $1
-          AND project_id = $2
-          AND method_id = $3
-          AND task_no = $4
-          AND transition_id = $5
-      `;
+      // 外部SQLファイルを読み込み
+      const query = await loadSqlFile('transition_data/countRecordsByTransition.sql');
 
       const params = [organizationId, projectId, methodId, taskNo, transitionId];
-      const result = await pool.query(query, params);
+      
+      // pg-promiseのoneメソッドを使用（必ず1件の結果を期待）
+      const result = await pgp.one<{ count: string }>(query, params);
 
       // PostgreSQLはCOUNTの結果を文字列で返すため、数値に変換
-      const count = parseInt(result.rows[0].count, 10);
+      const count = parseInt(result.count, 10);
       return count;
     } catch (error) {
       throw new DatabaseError(
@@ -255,35 +202,10 @@ export class TransitionDataRepository {
     updateData: TransitionDataUpdate
   ): Promise<TransitionDataRow> {
     try {
-      const pool = getPool();
+      const pgp = getPgp();
 
-      // Parameterized Queryを使用してSQLインジェクション対策
-      // organization_idフィルタを必須とし、マルチテナント分離を保証
-      const query = `
-        UPDATE transition_data
-        SET
-          status = $1,
-          progress_rate = $2,
-          updated_by = $3,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE organization_id = $4
-          AND project_id = $5
-          AND method_id = $6
-          AND task_no = $7
-          AND transition_id = $8
-        RETURNING
-          organization_id,
-          project_id,
-          method_id,
-          task_no,
-          transition_id,
-          status,
-          progress_rate,
-          comment,
-          updated_by,
-          updated_at,
-          created_at
-      `;
+      // 外部SQLファイルを読み込み
+      const query = await loadSqlFile('transition_data/updateStatus.sql');
 
       const params = [
         updateData.status,
@@ -296,15 +218,16 @@ export class TransitionDataRepository {
         transitionId
       ];
 
-      const result = await pool.query(query, params);
+      // pg-promiseのoneOrNoneメソッドを使用（0または1件の結果を期待）
+      const result = await pgp.oneOrNone<TransitionDataRow>(query, params);
 
-      if (result.rows.length === 0) {
+      if (!result) {
         throw new TransitionNotFoundError(
           `Transition not found: organizationId=${organizationId}, projectId=${projectId}, methodId=${methodId}, taskNo=${taskNo}, transitionId=${transitionId}`
         );
       }
 
-      return result.rows[0] as TransitionDataRow;
+      return result;
     } catch (error) {
       // TransitionNotFoundErrorはそのままスロー
       if (error instanceof TransitionNotFoundError) {

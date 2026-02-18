@@ -283,7 +283,7 @@ export async function getById(req: Request, res: Response): Promise<void> {
 
 /**
  * 問題ステータス更新エンドポイント
- * PATCH /api/v1/issues/:issueId/status
+ * PATCH /api/v1/issues/status
  */
 export async function updateStatus(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
@@ -291,8 +291,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
 
   try {
     const { organizationId, userId } = req.user!;
-    const { issueId } = req.params;
-    const { status } = req.body;
+    const { projectName, issueId, status } = req.body;
 
     // リクエスト受信ログ記録（Task 4.1）
     logger.info('Issue status update request received', {
@@ -300,12 +299,13 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
       requestId,
       userId,
       organizationId,
+      projectName,
       issueId,
       status,
     });
 
     // Service層呼び出し
-    const result = await issueService.updateStatus(organizationId, issueId, userId, status);
+    const result = await issueService.updateStatus(organizationId, projectName, issueId, userId, status);
 
     // エラーハンドリング
     if (!result.success) {
@@ -380,7 +380,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
 
 /**
  * コメント追加エンドポイント
- * POST /api/v1/issues/:issueId/comments
+ * POST /api/v1/issues/comments
  */
 export async function addComment(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
@@ -388,11 +388,10 @@ export async function addComment(req: Request, res: Response): Promise<void> {
 
   try {
     const { organizationId, userId } = req.user!;
-    const { issueId } = req.params;
-    const { comment } = req.body;
+    const { projectName, issueId, comment } = req.body;
 
     // Service層呼び出し
-    const result = await issueService.addComment(organizationId, issueId, userId, comment);
+    const result = await issueService.addComment(organizationId, projectName, issueId, userId, comment);
 
     // エラーハンドリング
     if (!result.success) {

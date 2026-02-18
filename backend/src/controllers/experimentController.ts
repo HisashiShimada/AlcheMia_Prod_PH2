@@ -7,92 +7,55 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import * as experimentDataService from '../services/experimentDataService';
-import { TransitionDataUpdate } from '../types/transitionData';
 import { TemplateDataRecord } from '../repositories/templateDataRepository';
 
 /**
- * トランジションの状態を更新する
+ * @deprecated このエンドポイントは progressRoutes.ts に移動しました
+ * 
+ * トランジションの状態を更新する（廃止予定）
+ * 
+ * 旧エンドポイント: PUT /api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status
+ * 新エンドポイント: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ * 
+ * 移動先: progressController.updateTransitionStatus
+ * 移動日: 2026-02-18
+ * 参照: docs/20260218_1730_トランジションステータス更新API移動_PLAN.md
+ * API仕様: docs/design/api/api_progress_monitoring.md - API #6
  * 
  * @route PUT /api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status
- * @group Experiments - 実験管理
- * @param {string} projectId.path.required - プロジェクトID
- * @param {string} methodId.path.required - メソッドID
- * @param {string} transitionId.path.required - トランジションID
- * @param {string} status.body.required - 新しいステータス
- * @param {string} comment.body.optional - コメント（maiml_event_logに格納）
- * @returns {TransitionData} 200 - 更新されたトランジションデータ
- * @returns {Error} 404 - トランジションが見つからない
- * @returns {Error} 422 - 不正なステータス遷移
- * @returns {Error} 500 - サーバーエラー
+ * @group Experiments - 実験管理（廃止予定）
  * @security JWT
  */
 export const updateTransitionStatus = async (
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): Promise<void> => {
-  try {
-    // リクエストパラメータとボディの抽出
-    const { projectId, methodId, transitionId } = req.params;
-    const { taskNo: _taskNo, status, progressRate, comment: _comment } = req.body;
-
-    // 認証・認可情報の取得
-    const organizationId = (req as any).organizationId;
-    const updatedBy = req.user?.userId || (req.user as any)?.id;
-
-    // 必須パラメータの検証
-    if (!organizationId) {
-      const error: any = new Error('Organization ID is required');
-      error.name = 'ValidationError';
-      throw error;
-    }
-
-    if (!updatedBy) {
-      const error: any = new Error('User authentication required');
-      error.name = 'AuthenticationError';
-      throw error;
-    }
-
-    // ステータス更新パラメータの作成
-    const updateData: TransitionDataUpdate = {
-      status,
-      updated_by: updatedBy,
-      ...(progressRate !== undefined && { progress_rate: progressRate }),
-    };
-
-    // TODO: _taskNo、_commentはmaiml_event_logテーブルに格納する処理を実装予定
-    // 現在はリクエストボディから受け取るのみ（バリデーション済み）
-
-    // サービス層を呼び出してステータス更新
-    const updatedTransitionData = await experimentDataService.updateStatus(
-      organizationId,
-      projectId,
-      methodId,
-      transitionId,
-      updateData
-    );
-
-    // 成功レスポンスを返す
-    res.status(200).json({
-      success: true,
-      data: updatedTransitionData,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: uuidv4(),
-      },
-    });
-  } catch (error) {
-    // エラーハンドリングミドルウェアに委譲
-    next(error);
-  }
+  // この関数は使用されていません。progressController.updateTransitionStatusを使用してください。
+  res.status(410).json({
+    success: false,
+    error: {
+      code: 'ENDPOINT_DEPRECATED',
+      message: 'このエンドポイントは廃止されました。新しいエンドポイントを使用してください。',
+      details: {
+        deprecated_endpoint: 'PUT /api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status',
+        new_endpoint: 'PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status',
+        migration_guide: 'docs/20260218_1730_トランジションステータス更新API移動_PLAN.md'
+      }
+    },
+    meta: {
+      timestamp: new Date().toISOString(),
+      requestId: uuidv4(),
+    },
+  });
 };
 
 /**
  * 実験データ一括保存
  * 
- * @route POST /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data
+ * @route POST /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
  * @group Experiments - 実験管理
- * @param {string} projectId.path.required - プロジェクトID (UUID)
+ * @param {string} projectName.path.required - プロジェクト名
  * @param {string} methodId.path.required - メソッドID
  * @param {number} taskNo.path.required - タスク番号
  * @param {TemplateDataRecord[]} records.body.required - 保存するレコード配列
@@ -110,7 +73,7 @@ export const saveBatchData = async (
 ): Promise<void> => {
   try {
     // パスパラメータの抽出
-    const { projectId, methodId, taskNo } = req.params;
+    const { projectName, methodId, taskNo } = req.params;
     const taskNoNum = parseInt(taskNo, 10);
 
     // リクエストボディの抽出
@@ -136,7 +99,7 @@ export const saveBatchData = async (
     // サービス層を呼び出して一括保存
     const savedRecords = await experimentDataService.saveBatchData(
       organizationId,
-      projectId,
+      projectName,
       methodId,
       taskNoNum,
       records,

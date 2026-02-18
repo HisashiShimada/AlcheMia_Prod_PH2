@@ -1,92 +1,181 @@
 /**
- * InstructionRepository
- * 
- * project_instructionテーブルへのデータアクセス層
+ * Instruction（指示）リポジトリ
+ * データベースアクセス層
  */
 
-import { PoolClient } from 'pg';
-import { randomUUID } from 'crypto';
-import { InstructionInput } from '../types/instruction';
+import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 
 /**
- * InstructionRepositoryクラス
+ * Instructionのデータ型定義
  */
-export class InstructionRepository {
-  /**
-   * 複数の指示を一括作成
-   * 
-   * @param instructions - 指示入力データの配列
-   * @param projectId - プロジェクトID
-   * @param organizationId - 組織ID（マルチテナント分離必須）
-   * @param userId - 指示作成者のユーザーID
-   * @param client - トランザクション用のPoolClient（必須）
-   */
-  async createInstructions(
-    instructions: InstructionInput[],
-    projectId: string,
-    organizationId: string,
-    userId: string,
-    client: PoolClient
-  ): Promise<void> {
-    // 空配列の場合は何もしない
-    if (instructions.length === 0) {
-      return;
-    }
+export interface InstructionRow {
+  instruction_id: string;
+  organization_id: string;
+}
 
-    // 一括INSERT用のVALUES句を構築
-    const values: any[] = [];
-    const valuePlaceholders: string[] = [];
-    let paramIndex = 1;
+/**
+ * 確認履歴のデータ型定義
+ */
+export interface AcknowledgedHistoryRow {
+  history_id: string;
+  acknowledged_at: Date;
+}
 
-    for (const instruction of instructions) {
-      // UUID v4生成（Node.js 18+のcrypto.randomUUID使用）
-      const instructionId = randomUUID();
-      
-      // 現在日時
-      const now = new Date();
+/**
+ * タスク割り当てのデータ型定義
+ */
+export interface TaskAssignmentRow {
+  task_id: string;
+}
 
-      // パラメータを追加
-      values.push(
-        organizationId,           // $1, $11, $21...
-        projectId,                // $2, $12, $22...
-        instructionId,            // $3, $13, $23...
-        instruction.targetType,   // $4, $14, $24... (instruction_target)
-        instruction.priority,     // $5, $15, $25...
-        instruction.type,         // $6, $16, $26...
-        instruction.taskNumber,   // $7, $17, $27... (task_no)
-        instruction.transitionId, // $8, $18, $28... (transition_id)
-        instruction.content,      // $9, $19, $29... (instructions)
-        userId,                   // $10, $20, $30... (instruction_user_id)
-        now                       // $11, $21, $31... (instruction_date)
-      );
+/**
+ * ユーザー名のデータ型定義
+ */
+export interface UserNameRow {
+  user_name: string;
+}
 
-      // プレースホルダーを作成 ($1, $2, $3, ...)
-      const placeholders = [];
-      for (let i = 0; i < 11; i++) {
-        placeholders.push(`$${paramIndex++}`);
-      }
-      valuePlaceholders.push(`(${placeholders.join(', ')})`);
-    }
+/**
+ * 指示の存在確認
+ * 
+ * @param instructionId 指示ID
+ * @param organizationId 組織ID
+ * @returns Instruction（見つからない場合はnull）
+ */
+export async function findById(
+  instructionId: string,
+  organizationId: string
+): Promise<InstructionRow | null> {
+  const pgp = getPgp();
+  
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('instructions/findById.sql');
+  
+  try {
+    const result = await pgp.oneOrNone<InstructionRow>(
+      sqlQuery,
+      [instructionId, organizationId]
+    );
+    return result;
+  } catch (error) {
+    console.error('Database query error in findById:', error);
+    throw error;
+  }
+}
 
-    // Parameterized Query（SQLインジェクション対策）
-    // organization_idフィルタ必須（マルチテナント分離）
-    const query = `
-      INSERT INTO project_instruction (
-        organization_id,
-        project_id,
-        experiment_instruction_id,
-        instruction_target,
-        priority,
-        type,
-        task_no,
-        transition_id,
-        instructions,
-        instruction_user_id,
-        instruction_date
-      )
-      VALUES ${valuePlaceholders.join(', ')}
-    `;
+/**
+ * 既確認チェック
+ * 
+ * @param instructionId 指示ID
+ * @param organizationId 組織ID
+ * @returns 確認履歴（見つからない場合はnull）
+ */
+export async function checkAcknowledged(
+  instructionId: string,
+  organizationId: string
+): Promise<AcknowledgedHistoryRow | null> {
+  const pgp = getPgp();
+  
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('instructions/checkAcknowledged.sql');
+  
+  try {
+    const result = await pgp.oneOrNone<AcknowledgedHistoryRow>(
+      sqlQuery,
+      [instructionId, organizationId]
+    );
+    return result;
+  } catch (error) {
+    console.error('Database query error in checkAcknowledged:', error);
+    throw error;
+  }
+}
 
-    await client.query(query, values);
+/**
+ * 権限チェック（experiment_worker用）
+ * 
+ * @param instructionId 指示ID
+ * @param userId ユーザーID
+ * @param organizationId 組織ID
+ * @returns タスク割り当て（見つからない場合は空配列）
+ */
+export async function checkWorkerAssignment(
+  instructionId: string,
+  userId: string,
+  organizationId: string
+): Promise<TaskAssignmentRow[]> {
+  const pgp = getPgp();
+  
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('instructions/checkWorkerAssignment.sql');
+  
+  try {
+    const result = await pgp.any<TaskAssignmentRow>(
+      sqlQuery,
+      [instructionId, userId, organizationId]
+    );
+    return result;
+  } catch (error) {
+    console.error('Database query error in checkWorkerAssignment:', error);
+    throw error;
+  }
+}
+
+/**
+ * 確認履歴の挿入
+ * 
+ * @param instructionId 指示ID
+ * @param userId ユーザーID
+ * @param organizationId 組織ID
+ * @returns 挿入された確認履歴
+ */
+export async function insertAcknowledged(
+  instructionId: string,
+  userId: string,
+  organizationId: string
+): Promise<AcknowledgedHistoryRow> {
+  const pgp = getPgp();
+  
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('instructions/insertAcknowledged.sql');
+  
+  try {
+    const result = await pgp.one<AcknowledgedHistoryRow>(
+      sqlQuery,
+      [instructionId, userId, organizationId]
+    );
+    return result;
+  } catch (error) {
+    console.error('Database query error in insertAcknowledged:', error);
+    throw error;
+  }
+}
+
+/**
+ * ユーザー名の取得（user_authenticationテーブル使用）
+ * 
+ * @param userId ユーザーID
+ * @param organizationId 組織ID
+ * @returns ユーザー名（見つからない場合はnull）
+ */
+export async function findUserNameFromAuth(
+  userId: string,
+  organizationId: string
+): Promise<string | null> {
+  const pgp = getPgp();
+  
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('instructions/findUserName.sql');
+  
+  try {
+    const result = await pgp.oneOrNone<UserNameRow>(
+      sqlQuery,
+      [userId, organizationId]
+    );
+    return result ? result.user_name : null;
+  } catch (error) {
+    console.error('Database query error in findUserNameFromAuth:', error);
+    throw error;
   }
 }

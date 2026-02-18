@@ -6,6 +6,7 @@
  */
 
 import { PoolClient } from 'pg';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * テンプレートタイプ
@@ -96,57 +97,8 @@ export class TemplateDataRepository {
     client: PoolClient
   ): Promise<TemplateDataRow> {
     try {
-      // Parameterized Queryを使用してSQLインジェクション対策
-      // ON CONFLICT ... DO UPDATEでUPSERT操作を実現
-      // organization_idフィルタを含め、マルチテナント分離を保証
-      const query = `
-        INSERT INTO template_data (
-          organization_id,
-          project_id,
-          method_id,
-          task_no,
-          place_id,
-          template_type,
-          template_id,
-          data,
-          status,
-          comment,
-          recorded_by,
-          recorded_at,
-          created_at,
-          updated_at
-        )
-        VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11,
-          CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-        )
-        ON CONFLICT (organization_id, project_id, method_id, task_no, place_id)
-        DO UPDATE SET
-          template_type = EXCLUDED.template_type,
-          template_id = EXCLUDED.template_id,
-          data = EXCLUDED.data,
-          status = EXCLUDED.status,
-          comment = EXCLUDED.comment,
-          recorded_by = EXCLUDED.recorded_by,
-          recorded_at = CURRENT_TIMESTAMP,
-          updated_at = CURRENT_TIMESTAMP
-        RETURNING
-          id,
-          organization_id,
-          project_id,
-          method_id,
-          task_no,
-          place_id,
-          template_type,
-          template_id,
-          data,
-          status,
-          comment,
-          recorded_by,
-          recorded_at,
-          created_at,
-          updated_at
-      `;
+      // 外部SQLファイルを読み込み
+      const query = await loadSqlFile('template_data/upsert.sql');
 
       const params = [
         organizationId,
@@ -191,32 +143,8 @@ export class TemplateDataRepository {
     client: PoolClient
   ): Promise<TemplateDataRow[]> {
     try {
-      // Parameterized Queryを使用してSQLインジェクション対策
-      // organization_idフィルタを必須とし、マルチテナント分離を保証
-      const query = `
-        SELECT
-          id,
-          organization_id,
-          project_id,
-          method_id,
-          task_no,
-          place_id,
-          template_type,
-          template_id,
-          data,
-          status,
-          comment,
-          recorded_by,
-          recorded_at,
-          created_at,
-          updated_at
-        FROM template_data
-        WHERE organization_id = $1
-          AND project_id = $2
-          AND method_id = $3
-          AND task_no = $4
-        ORDER BY place_id
-      `;
+      // 外部SQLファイルを読み込み
+      const query = await loadSqlFile('template_data/findByTaskNo.sql');
 
       const params = [organizationId, projectId, methodId, taskNo];
       const result = await client.query(query, params);
@@ -251,32 +179,8 @@ export class TemplateDataRepository {
     client: PoolClient
   ): Promise<TemplateDataRow | null> {
     try {
-      // Parameterized Queryを使用してSQLインジェクション対策
-      // organization_idフィルタを必須とし、マルチテナント分離を保証
-      const query = `
-        SELECT
-          id,
-          organization_id,
-          project_id,
-          method_id,
-          task_no,
-          place_id,
-          template_type,
-          template_id,
-          data,
-          status,
-          comment,
-          recorded_by,
-          recorded_at,
-          created_at,
-          updated_at
-        FROM template_data
-        WHERE organization_id = $1
-          AND project_id = $2
-          AND method_id = $3
-          AND task_no = $4
-          AND place_id = $5
-      `;
+      // 外部SQLファイルを読み込み
+      const query = await loadSqlFile('template_data/findByPlaceId.sql');
 
       const params = [organizationId, projectId, methodId, taskNo, placeId];
       const result = await client.query(query, params);
