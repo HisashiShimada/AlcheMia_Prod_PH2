@@ -10,6 +10,7 @@ import { body, param, query } from 'express-validator';
 import * as issueController from '../controllers/issueController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
+import { checkPermission } from '../middleware/permissionCheckMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import { ISSUE_STATUS_VALUES } from '../types/issue'
 
@@ -29,6 +30,7 @@ router.post(
   '/',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 1),
   [
     body('projectId')
       .notEmpty()
