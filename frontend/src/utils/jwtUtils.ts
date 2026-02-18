@@ -48,13 +48,13 @@ export function decodeJwt(token: string): JwtPayload | null {
 }
 
 /**
- * sessionStorageからpermissionsを取得
+ * localStorageからpermissionsを取得
  * 
  * メニュー切り替え機能で使用され、ユーザーの権限に基づいて
  * アクセス可能なメニューをフィルタリングする。
  * 
  * 優先順位:
- * 1. sessionStorageの`userInfo.permissions`から取得（推奨）
+ * 1. localStorageの`userInfo.permissions`から取得（推奨）
  * 2. フォールバック: JWTトークンをデコードして取得（後方互換性）
  * 
  * @returns ユーザーの権限配列、または取得失敗時はundefined
@@ -73,8 +73,8 @@ export function getPermissionsFromToken(): Permission[] | undefined {
     return undefined;
   }
   
-  // 1. sessionStorageのuserInfoから優先的に取得（推奨方式）
-  const userInfoStr = sessionStorage.getItem('userInfo');
+  // 1. localStorageのuserInfoから優先的に取得（推奨方式）
+  const userInfoStr = localStorage.getItem('userInfo');
   if (userInfoStr) {
     try {
       const userInfo = JSON.parse(userInfoStr);
@@ -90,7 +90,7 @@ export function getPermissionsFromToken(): Permission[] | undefined {
   // 2. フォールバック: JWTトークンをデコードして取得（後方互換性）
   console.log('[jwtUtils] Fallback to JWT decode (後方互換性)');
   
-  const token = sessionStorage.getItem('sessionToken');
+  const token = localStorage.getItem('sessionToken');
   if (!token) {
     // トークンがない場合はundefinedを返す（ログイン前など）
     return undefined;

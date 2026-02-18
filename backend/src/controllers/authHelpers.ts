@@ -61,7 +61,7 @@ export async function issueSessionTokens(
       ou.role_cd,
       ou.organization_id,
       ou.department_cd,
-      o.organization_name,
+      o.organization_display_name,
       o.corporation_id
     FROM organization_user ou
     LEFT JOIN organization o ON ou.organization_id = o.organization_id
@@ -70,8 +70,8 @@ export async function issueSessionTokens(
   const userInfoResult = await pool.query(userInfoQuery, [user.user_id, user.organization_id]);
   
   // 組織名と会社IDを取得（存在しない場合はデフォルト値）
-  const organizationName = userInfoResult.rows.length > 0 && userInfoResult.rows[0].organization_name
-    ? userInfoResult.rows[0].organization_name
+  const organizationName = userInfoResult.rows.length > 0 && userInfoResult.rows[0].organization_display_name
+    ? userInfoResult.rows[0].organization_display_name
     : user.organization_id;
   
   const corporationId = userInfoResult.rows.length > 0 
@@ -192,7 +192,7 @@ export async function issueSessionTokens(
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge, // 環境変数と同期（Redis起動時: 30分、未起動時: 8時間）
-    path: '/api/v1',
+    path: '/',
   });
 
   // 10. 成功レスポンス

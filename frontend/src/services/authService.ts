@@ -259,7 +259,7 @@ export const authService = {
         console.error('[authService] リフレッシュトークンが無効です');
         clearAllTokens();
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('userInfo');
+          localStorage.removeItem('userInfo');
         }
         return null;
       }
@@ -268,9 +268,75 @@ export const authService = {
       console.error('[authService] トークン更新エラー:', error);
       clearAllTokens();
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('userInfo');
+        localStorage.removeItem('userInfo');
       }
       return null;
+    }
+  },
+
+  /**
+   * リフレッシュトークンを使用してログイン状態を復元（自動ログイン用）
+   * リフレッシュトークンはhttpOnly Cookieに保存されており、自動的に送信される
+   * 
+   * @returns ユーザー情報とセッション情報（失敗時はエラーをスロー）
+   * @note 自動ログイン機能で使用
+   */
+  async refreshToken(): Promise<VerifyPinResponseData> {
+    try {
+      // リフレッシュトークンはCookieから自動的に送信される
+      const response = await apiClient.post<ApiResponse<{
+        accessToken: string;
+        expiresIn: number;
+        user: {
+          id: string;
+          username: string;
+          email: string;
+          roleName: string;
+          roleCd: string;
+          organizationId: string;
+          organizationName: string;
+          displayName: string;
+          departmentCd: string;
+          initialScreenFunctionCd: string;
+        };
+      }>>(
+        '/auth/refresh',
+        {} // bodyは空（リフレッシュトークンはCookieから取得）
+      );
+
+      if (response.data.success) {
+        const { accessToken, user } = response.data.data;
+        
+        // 新しいアクセストークンを保存
+        setTokenPair(accessToken);
+        
+        // VerifyPinResponseDataと同じ形式で返す
+        return {
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            roleName: user.roleName,  // バックエンドから返されたroleNameを使用
+            roleCd: user.roleCd,
+            organizationId: user.organizationId,
+            organizationName: user.organizationName,
+            displayName: user.displayName,
+            departmentCd: user.departmentCd,
+            initialScreenFunctionCd: user.initialScreenFunctionCd,
+          },
+          session: {
+            token: accessToken,
+            expiresAt: new Date(Date.now() + response.data.data.expiresIn * 1000).toISOString(),
+          },
+          passwordChangeRequired: false,
+          redirectUrl: '/', // デフォルトのリダイレクト先
+        };
+      } else {
+        // リフレッシュトークンが無効（期限切れなど）
+        throw new AuthServiceError('リフレッシュトークンが無効です', 'AUTH_TOKEN_INVALID');
+      }
+    } catch (error) {
+      throw handleApiError(error);
     }
   },
 
@@ -292,7 +358,7 @@ export const authService = {
         // 成功したらすべてのトークンとセッション情報を削除
         clearAllTokens();
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('userInfo');
+          localStorage.removeItem('userInfo');
         }
         return response.data.data;
       }

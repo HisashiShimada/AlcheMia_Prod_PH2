@@ -20,7 +20,8 @@ export interface OrganizationUser {
 
 export interface OrganizationUserWithRole extends OrganizationUser {
   initial_screen_function_cd: string | null;
-  organization_name: string;
+  organization_display_name: string;
+  role_name: string | null;
 }
 
 export class OrganizationUserRepository {
@@ -165,7 +166,8 @@ export class OrganizationUserRepository {
           ou.department_cd,
           o.corporation_id,
           r.initial_screen_function_cd,
-          o.organization_name
+          r.role_name,
+          o.organization_display_name
         FROM organization_user ou
         JOIN role r ON ou.role_cd = r.role_cd AND ou.organization_id = r.organization_id
         LEFT JOIN organization o ON ou.organization_id = o.organization_id
