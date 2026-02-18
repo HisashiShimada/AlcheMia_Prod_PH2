@@ -9,30 +9,36 @@ import { param, body } from 'express-validator';
 import * as experimentController from '../controllers/experimentController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
+import { checkPermission } from '../middleware/permissionCheckMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
 
 /**
  * 実験データ一括保存
- * POST /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data
+ * POST /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック (experiment_worker のみ書込可)
  * @description 複数プレースの実験データを一括保存
  * @note Task 5.1: バリデーションルール定義
  * @requirements REQ-1, REQ-5
- * @roles experiment_worker, experiment_admin, system_admin
+ * @roles experiment_worker のみ
  */
 router.post(
-  '/projects/:projectId/methods/:methodId/tasks/:taskNo/data',
+  '/projects/:projectName/methods/:methodId/tasks/:taskNo/data',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 1), // 実験作業者メニュー（experiment_worker）のみ書込可
   [
     // パスパラメータのバリデーション
-    param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+    param('projectName')
+      .trim()
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
     param('methodId')
       .trim()
       .notEmpty()

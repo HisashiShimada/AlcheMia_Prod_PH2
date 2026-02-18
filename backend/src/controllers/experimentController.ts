@@ -53,9 +53,9 @@ export const updateTransitionStatus = async (
 /**
  * 実験データ一括保存
  * 
- * @route POST /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data
+ * @route POST /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
  * @group Experiments - 実験管理
- * @param {string} projectId.path.required - プロジェクトID (UUID)
+ * @param {string} projectName.path.required - プロジェクト名
  * @param {string} methodId.path.required - メソッドID
  * @param {number} taskNo.path.required - タスク番号
  * @param {TemplateDataRecord[]} records.body.required - 保存するレコード配列
@@ -73,7 +73,7 @@ export const saveBatchData = async (
 ): Promise<void> => {
   try {
     // パスパラメータの抽出
-    const { projectId, methodId, taskNo } = req.params;
+    const { projectName, methodId, taskNo } = req.params;
     const taskNoNum = parseInt(taskNo, 10);
 
     // リクエストボディの抽出
@@ -99,7 +99,7 @@ export const saveBatchData = async (
     // サービス層を呼び出して一括保存
     const savedRecords = await experimentDataService.saveBatchData(
       organizationId,
-      projectId,
+      projectName,
       methodId,
       taskNoNum,
       records,

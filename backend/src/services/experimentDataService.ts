@@ -47,7 +47,7 @@ export class ExperimentDataService {
    * 実験データを一括保存
    * 
    * @param organizationId 組織ID
-   * @param projectId プロジェクトID
+   * @param projectName プロジェクト名
    * @param methodId メソッドID
    * @param taskNo タスク番号
    * @param records 保存するレコード配列
@@ -56,7 +56,7 @@ export class ExperimentDataService {
    */
   async saveBatchData(
     organizationId: string,
-    projectId: string,
+    projectName: string,
     methodId: string,
     taskNo: number,
     records: TemplateDataRecord[],
@@ -69,19 +69,20 @@ export class ExperimentDataService {
       // トランザクション開始
       await client.query('BEGIN');
 
-      // 1. プロジェクトステータスを確認
+      // 1. プロジェクト名からプロジェクトIDとステータスを取得
       const projectResult = await client.query(
-        `SELECT status FROM projects 
-         WHERE organization_id = $1 AND id = $2`,
-        [organizationId, projectId]
+        `SELECT id, status FROM projects 
+         WHERE organization_id = $1 AND project_name = $2`,
+        [organizationId, projectName]
       );
 
       if (projectResult.rows.length === 0) {
-        const error: any = new Error('Project not found');
+        const error: any = new Error('Project not found or does not belong to your organization');
         error.name = 'ProjectNotFoundError';
         throw error;
       }
 
+      const projectId = projectResult.rows[0].id;
       const projectStatus = projectResult.rows[0].status;
 
       // 編集可能なステータスかチェック（draft, active, waiting_approval）
@@ -134,12 +135,12 @@ export class ExperimentDataService {
  */
 export async function saveBatchData(
   organizationId: string,
-  projectId: string,
+  projectName: string,
   methodId: string,
   taskNo: number,
   records: TemplateDataRecord[],
   recordedBy: string
 ): Promise<TemplateDataRow[]> {
   const service = new ExperimentDataService();
-  return service.saveBatchData(organizationId, projectId, methodId, taskNo, records, recordedBy);
+  return service.saveBatchData(organizationId, projectName, methodId, taskNo, records, recordedBy);
 }
