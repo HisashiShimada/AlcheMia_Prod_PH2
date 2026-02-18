@@ -86,6 +86,25 @@ export interface StoredRefreshToken {
   expiresAt: number;
   ipAddress?: string;
   userAgent?: string;
+  userName?: string;
+  email?: string;
+}
+
+/**
+ * セッション情報（レスポンス用）
+ */
+export interface SessionInfo {
+  tokenId: string;
+  userId: string;
+  userName: string;
+  email: string;
+  sessionDuration: string;        // "1日2時間30分" 形式
+  durationMinutes: number;        // 分単位の継続時間
+  loginTime: string;              // ISO 8601形式
+  lastActivity: string;           // ISO 8601形式（現在はログイン時刻と同じ）
+  ipAddress: string;
+  userAgent: string;
+  isCurrentUser: boolean;
 }
 
 /**

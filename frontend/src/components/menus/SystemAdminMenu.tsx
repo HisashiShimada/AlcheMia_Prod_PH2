@@ -12,9 +12,10 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import Header from '../common/Header';
-import SubHeader, { MenuType } from '../common/SubHeader';
-import { User } from '@/types/auth';
+import SubHeader from '../common/SubHeader';
+import { User, MenuType } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getPermissionsFromToken } from '@/utils/jwtUtils';
 // システム管理コンポーネントのインポート
 import SystemOverview from '../SystemManagement/SystemOverview';
 import UserManagement from '../SystemManagement/UserManagement';
@@ -45,6 +46,9 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('1');
+  
+  // localStorageからpermissionsを取得（userInfo経由）
+  const permissions = getPermissionsFromToken();
 
   const tabItems = [
     {
@@ -104,6 +108,7 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
         onTabChange={handleTabChange}
         currentMenu="system_admin"
         onMenuChange={handleMenuChange}
+        userPermissions={permissions}
       />
 
       {/* コンテンツエリア */}

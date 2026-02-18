@@ -610,7 +610,200 @@ const pinCode = crypto.randomInt(100000, 999999).toString();
 
 ---
 
-## 6. 関連ドキュメント
+## 6. セッション管理API
+
+### 6.1. GET /api/v1/sessions
+
+#### 概要
+System Adminが自組織のアクティブセッション一覧を取得します。
+
+#### リクエスト
+
+**HTTPメソッド**: `GET`
+
+**URL**: `/api/v1/sessions`
+
+**ヘッダー**:
+```http
+Content-Type: application/json
+Authorization: Bearer maiml_session-abc123_1735185000
+X-Organization-Id: org_maiml_lab_001
+```
+
+**クエリパラメータ**: なし
+
+#### レスポンス
+
+**成功時（200 OK）**:
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [
+      {
+        "tokenId": "550e8400-e29b-41d4-a716-446655440000",
+        "userId": "660e8400-e29b-41d4-a716-446655440001",
+        "username": "user001",
+        "email": "user001@example.com",
+        "role": "experiment_admin",
+        "loginAt": "2025-12-26T10:00:00.000Z",
+        "expiresAt": "2025-12-27T10:00:00.000Z",
+        "ipAddress": "192.168.1.100",
+        "userAgent": "Mozilla/5.0...",
+        "isCurrentSession": true
+      },
+      {
+        "tokenId": "770e8400-e29b-41d4-a716-446655440002",
+        "userId": "880e8400-e29b-41d4-a716-446655440003",
+        "username": "user002",
+        "email": "user002@example.com",
+        "role": "experiment_worker",
+        "loginAt": "2025-12-26T09:30:00.000Z",
+        "expiresAt": "2025-12-26T21:30:00.000Z",
+        "ipAddress": "192.168.1.101",
+        "userAgent": "Mozilla/5.0...",
+        "isCurrentSession": false
+      }
+    ],
+    "count": 2
+  },
+  "meta": {
+    "timestamp": "2025-12-26T10:30:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**フィールド定義**:
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| sessions | array | セッション一覧 |
+| sessions[].tokenId | string | セッションのトークンID（UUID） |
+| sessions[].userId | string | ユーザーID（UUID） |
+| sessions[].username | string | ユーザー名 |
+| sessions[].email | string | メールアドレス |
+| sessions[].role | string | ロール |
+| sessions[].loginAt | string | ログイン日時（ISO 8601） |
+| sessions[].expiresAt | string | セッション有効期限（ISO 8601） |
+| sessions[].ipAddress | string | IPアドレス |
+| sessions[].userAgent | string | User-Agent文字列 |
+| sessions[].isCurrentSession | boolean | 現在のセッションかどうか |
+| count | number | セッション数 |
+
+**エラー時**:
+
+| HTTPステータス | エラーコード | 説明 |
+|---------------|-------------|------|
+| 401 | `AUTH_TOKEN_INVALID` | セッショントークンが不正 |
+| 403 | `PERMISSION_INSUFFICIENT` | System Admin権限が必要 |
+| 500 | `SYSTEM_ERROR` | システムエラー |
+| 503 | `SYSTEM_REDIS_ERROR` | Redisエラー |
+
+#### 実装詳細
+
+**権限**:
+- System Admin権限必須
+
+**セキュリティ**:
+- マルチテナント分離: organization_idで自組織のセッションのみ取得
+- 現在のセッションには `isCurrentSession: true` フラグを付与
+
+**データソース**:
+- Redisから取得（refreshTokenService経由）
+- `user`テーブルと結合してユーザー情報を補完
+
+---
+
+### 6.2. DELETE /api/v1/sessions/:tokenId
+
+#### 概要
+System Adminが特定のセッションを強制終了します。
+
+#### リクエスト
+
+**HTTPメソッド**: `DELETE`
+
+**URL**: `/api/v1/sessions/:tokenId`
+
+**ヘッダー**:
+```http
+Content-Type: application/json
+Authorization: Bearer maiml_session-abc123_1735185000
+X-Organization-Id: org_maiml_lab_001
+```
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| tokenId | string | ○ | 終了するセッションのトークンID（UUID） |
+
+#### レスポンス
+
+**成功時（200 OK）**:
+```json
+{
+  "success": true,
+  "data": {
+    "message": "セッションを終了しました",
+    "tokenId": "770e8400-e29b-41d4-a716-446655440002"
+  },
+  "meta": {
+    "timestamp": "2025-12-26T10:30:00.000Z",
+    "requestId": "req_abc124"
+  }
+}
+```
+
+**エラー時**:
+
+| HTTPステータス | エラーコード | 説明 |
+|---------------|-------------|------|
+| 400 | `VALIDATION_ERROR` | 自分自身のセッションは終了不可 |
+| 401 | `AUTH_TOKEN_INVALID` | セッショントークンが不正 |
+| 403 | `PERMISSION_INSUFFICIENT` | System Admin権限が必要 |
+| 404 | `RESOURCE_NOT_FOUND` | 指定されたセッションが存在しない |
+| 500 | `SYSTEM_ERROR` | システムエラー |
+| 503 | `SYSTEM_REDIS_ERROR` | Redisエラー |
+
+**エラーレスポンス例（自分自身のセッション終了）**:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "自分自身のセッションは終了できません",
+    "details": []
+  },
+  "meta": {
+    "timestamp": "2025-12-26T10:30:00.000Z",
+    "requestId": "req_abc124"
+  }
+}
+```
+
+#### 実装詳細
+
+**バリデーション**:
+- tokenId: 必須、UUID形式
+- 自分自身のセッションは終了不可
+
+**権限**:
+- System Admin権限必須
+
+**セキュリティ**:
+- マルチテナント分離: organization_idで自組織のセッションのみ終了可能
+- 監査ログ記録（admin_audit_log）
+
+**処理フロー**:
+1. tokenIdでセッションを検索
+2. セッションの組織IDが一致するか検証
+3. 現在のセッションでないか検証
+4. Redisからリフレッシュトークンを削除
+5. 成功レスポンスを返却
+
+---
+
+## 7. 関連ドキュメント
 
 - [データベース設計書](../db/db_auth.md)
 - [セキュリティ規約](../../.clinerules/development/security.md)
@@ -619,8 +812,9 @@ const pinCode = crypto.randomInt(100000, 999999).toString();
 
 ---
 
-## 7. 変更履歴
+## 8. 変更履歴
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-02-17 | セッション管理API追加（6.1, 6.2） | Cline |
 | 1.0.0 | 2025-12-26 | 初版作成 | Backend Development Team |

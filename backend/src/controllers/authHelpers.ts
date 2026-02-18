@@ -61,7 +61,7 @@ export async function issueSessionTokens(
       ou.role_cd,
       ou.organization_id,
       ou.department_cd,
-      o.organization_name,
+      o.organization_display_name,
       o.corporation_id
     FROM organization_user ou
     LEFT JOIN organization o ON ou.organization_id = o.organization_id
@@ -70,8 +70,8 @@ export async function issueSessionTokens(
   const userInfoResult = await pool.query(userInfoQuery, [user.user_id, user.organization_id]);
   
   // 組織名と会社IDを取得（存在しない場合はデフォルト値）
-  const organizationName = userInfoResult.rows.length > 0 && userInfoResult.rows[0].organization_name
-    ? userInfoResult.rows[0].organization_name
+  const organizationName = userInfoResult.rows.length > 0 && userInfoResult.rows[0].organization_display_name
+    ? userInfoResult.rows[0].organization_display_name
     : user.organization_id;
   
   const corporationId = userInfoResult.rows.length > 0 
@@ -170,10 +170,16 @@ export async function issueSessionTokens(
 
   const { accessToken, refreshToken: refreshTokenValue } = tokenPairResult.data;
 
-  // 7. リフレッシュトークンをRedisに保存
+  // 7. リフレッシュトークンをRedisに保存（userName, emailを含める）
   const refreshPayload = jwtService.decode(refreshTokenValue);
   if (refreshPayload && 'tokenId' in refreshPayload) {
-    await refreshTokenService.save(refreshPayload, ipAddress, userAgent);
+    await refreshTokenService.save(
+      refreshPayload,
+      ipAddress,
+      userAgent,
+      user.user_name,
+      user.mail_address
+    );
   }
 
   // 8. セッション有効期限を計算（環境変数から動的に取得）
@@ -186,7 +192,7 @@ export async function issueSessionTokens(
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge, // 環境変数と同期（Redis起動時: 30分、未起動時: 8時間）
-    path: '/api/v1/auth',
+    path: '/',
   });
 
   // 10. 成功レスポンス
@@ -204,6 +210,7 @@ export async function issueSessionTokens(
         displayName: user.user_name,
         departmentCd: user.department_cd,
         initialScreenFunctionCd: initialScreenFunctionCd,
+        permissions: permissions,  // 権限情報を追加（メニューアクセス制御用）
       },
       session: {
         token: accessToken,

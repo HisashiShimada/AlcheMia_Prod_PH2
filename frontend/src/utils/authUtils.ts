@@ -51,9 +51,9 @@ export const createApiClient = (): AxiosInstance => {
   // リクエストインターセプター: 全てのAPIリクエストに自動的にAuthorizationヘッダーを付与
   client.interceptors.request.use(
     (config) => {
-      // SessionStorageからセッショントークンを自動取得
+      // LocalStorageからセッショントークンを自動取得
       if (typeof window !== 'undefined') {
-        const sessionToken = sessionStorage.getItem('sessionToken');
+        const sessionToken = localStorage.getItem('sessionToken');
         if (sessionToken) {
           // Authorizationヘッダーに自動設定
           config.headers.Authorization = `Bearer ${sessionToken}`;
@@ -93,13 +93,13 @@ export const createApiClient = (): AxiosInstance => {
 
       // /auth/refresh への401エラーは無限ループ防止のため特別処理
       if (error.response?.status === 401 && originalRequest?.url?.includes('/auth/refresh')) {
-        console.error('[authUtils] リフレッシュトークンが期限切れです');
+        console.log('[authUtils] リフレッシュトークンが期限切れまたは無効です - ログイン画面を表示します');
         
         // セッション情報をクリア
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('sessionToken');
-          sessionStorage.removeItem('tokenExpiresAt');
-          sessionStorage.removeItem('userInfo');
+          localStorage.removeItem('sessionToken');
+          localStorage.removeItem('tokenExpiresAt');
+          localStorage.removeItem('userInfo');
           
           // カスタムイベントを発行してReactの状態遷移を促す
           const event = new CustomEvent('auth:auto-logout', {
@@ -168,9 +168,9 @@ export const createApiClient = (): AxiosInstance => {
             
             // セッション情報をクリア
             if (typeof window !== 'undefined') {
-              sessionStorage.removeItem('sessionToken');
-              sessionStorage.removeItem('tokenExpiresAt');
-              sessionStorage.removeItem('userInfo');
+              localStorage.removeItem('sessionToken');
+              localStorage.removeItem('tokenExpiresAt');
+              localStorage.removeItem('userInfo');
               
               // カスタムイベントを発行してReactの状態遷移を促す
               const event = new CustomEvent('auth:auto-logout', {
@@ -197,9 +197,9 @@ export const createApiClient = (): AxiosInstance => {
           
           // トークン更新自体が失敗した場合
           if (typeof window !== 'undefined') {
-            sessionStorage.removeItem('sessionToken');
-            sessionStorage.removeItem('tokenExpiresAt');
-            sessionStorage.removeItem('userInfo');
+            localStorage.removeItem('sessionToken');
+            localStorage.removeItem('tokenExpiresAt');
+            localStorage.removeItem('userInfo');
             
             // カスタムイベントを発行してReactの状態遷移を促す
             const event = new CustomEvent('auth:auto-logout', {

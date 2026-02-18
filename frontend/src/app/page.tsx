@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { message } from 'antd';
+import { message, Spin } from 'antd';
 import LoginPage from '@/components/LoginPage';
 import PinCodeInputPage from '@/components/PinCodeInputPage';
 import PasswordResetRequest from '@/components/PasswordResetRequest';
@@ -41,6 +41,9 @@ export default function Home() {
   // 共通状態
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  
+  // 自動ログイン判定中の状態
+  const [isCheckingAutoLogin, setIsCheckingAutoLogin] = useState(true);
 
   // PINコード入力に必要な情報
   const [sessionToken, setSessionToken] = useState<string>('');
@@ -58,6 +61,58 @@ export default function Home() {
   } | null>(null);
 
   /**
+   * ログイン成功後の共通処理
+   * 通常ログイン（PIN免除/PIN検証成功）、自動ログインで共通の処理
+   * @param user ユーザー情報
+   * @param sessionToken セッショントークン
+   * @param passwordChangeRequired パスワード変更が必要かどうか
+   * @param context ログインコンテキスト（ログ出力用）
+   * @param showSuccessMessage 成功メッセージを表示するか（自動ログイン時はfalse）
+   */
+  const handleLoginSuccess = (
+    user: User,
+    sessionToken: string,
+    passwordChangeRequired: boolean,
+    context: string,
+    showSuccessMessage = true
+  ): void => {
+    // ユーザー情報とセッショントークンをLocal Storageに保存
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sessionToken', sessionToken);
+      localStorage.setItem('userInfo', JSON.stringify(user));
+    }
+
+    // 一時パスワードでログインした場合
+    if (passwordChangeRequired) {
+      console.log(`[${context}] 一時パスワードでログイン - パスワード変更モーダルを表示`);
+      
+      // メニュー遷移に必要な情報を保存
+      setPendingRedirectData({
+        user,
+        menuType: user.initialScreenFunctionCd,
+      });
+      
+      // パスワード変更モーダルを表示
+      setShowChangePasswordModal(true);
+    } else {
+      // 通常のパスワードでログイン - メニュー画面へ遷移
+      setCurrentUser(user);
+      setCurrentMenuType(user.initialScreenFunctionCd);
+      setAuthStep('authenticated');
+      
+      console.log(`[${context}] ログイン成功 - メニュー画面へ遷移`);
+      
+      // 通常ログイン時のみメッセージを表示（自動ログイン時は表示しない）
+      if (showSuccessMessage) {
+        // useEffectでメッセージを表示するため、次のティックで実行
+        setTimeout(() => {
+          messageApi.success('ログインに成功しました');
+        }, 0);
+      }
+    }
+  };
+
+  /**
    * ログイン処理（第1段階）
    */
   const handleLogin = async (credentials: LoginCredentials): Promise<void> => {
@@ -68,57 +123,31 @@ export default function Home() {
       // バックエンドAPIにログインリクエスト（開発環境用: URLのorgIdを渡す）
       const response = await authService.login(credentials, orgIdFromUrl);
 
-      // ログイン成功
-      console.log('Login successful:', response);
-
       // 免除適用チェック: session.token が存在する場合は免除適用（直接認証完了）
       if (response.session?.token && response.user) {
-        console.log('[INFO] PIN免除適用 - 直接認証完了');
-        
-        // ユーザー情報とセッショントークンをSessionStorageに保存
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('sessionToken', response.session.token);
-          sessionStorage.setItem('userInfo', JSON.stringify(response.user));
-        }
-
-        // 一時パスワードでログインした場合
-        if (response.passwordChangeRequired) {
-          console.log('[INFO] 一時パスワードでログイン - パスワード変更モーダルを表示');
-          
-          // メニュー遷移に必要な情報を保存
-          setPendingRedirectData({
-            user: response.user,
-            menuType: response.user.initialScreenFunctionCd,
-          });
-          
-          // パスワード変更モーダルを表示
-          setShowChangePasswordModal(true);
-        } else {
-          // 通常のパスワードでログイン - メニュー画面へ遷移
-          setCurrentUser(response.user);
-          setCurrentMenuType(response.user.initialScreenFunctionCd);
-          setAuthStep('authenticated');
-          
-          messageApi.success('ログインに成功しました');
-        }
+        // 共通処理を呼び出し
+        handleLoginSuccess(
+          response.user,
+          response.session.token,
+          response.passwordChangeRequired || false,
+          'PIN免除ログイン'
+        );
       } else if (response.sessionToken && response.email) {
         // 免除非適用 - PINコード認証フロー
-        console.log('[INFO] PIN免除非適用 - PINコード入力画面へ遷移');
-        
         // 仮セッショントークンと組織IDを保存
         setSessionToken(response.sessionToken);
         setOrganizationId(credentials.organizationId);
         setMaskedEmail(response.email);
 
-        // SessionStorageに保存（authServiceのインターセプターが参照）
+        // Local Storageに保存（authServiceのインターセプターが参照）
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('sessionToken', response.sessionToken);
+          localStorage.setItem('sessionToken', response.sessionToken);
         }
 
-        // 開発環境の場合、PINコードをsessionStorageに保存
+        // 開発環境の場合、PINコードをlocalStorageに保存
         if (response.devMode && response.pinCode) {
           if (typeof window !== 'undefined') {
-            sessionStorage.setItem('devPinCode', response.pinCode);
+            localStorage.setItem('devPinCode', response.pinCode);
           }
         }
 
@@ -126,8 +155,8 @@ export default function Home() {
         setAuthStep('pin-code');
       } else {
         // 予期しないレスポンス形式
-        console.error('[ERROR] 予期しないレスポンス形式:', response);
         setError('予期しないレスポンスが返されました');
+        console.error('Unexpected response format:', response);
       }
     } catch (err) {
       // エラーハンドリング
@@ -158,35 +187,13 @@ export default function Home() {
       // PINコード検証API呼び出し
       const response = await authService.verifyPin(pinCode, sessionToken, orgIdFromUrl);
 
-      // 検証成功
-      console.log('PIN verification successful:', response);
-
-      // ユーザー情報とセッショントークンをSessionStorageに保存
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('sessionToken', response.session.token); // セッショントークンを保存
-        sessionStorage.setItem('userInfo', JSON.stringify(response.user)); // UserInfoを保存
-      }
-
-      // 一時パスワードでログインした場合
-      if (response.passwordChangeRequired) {
-        console.log('[INFO] 一時パスワードでログイン - パスワード変更モーダルを表示');
-        
-        // メニュー遷移に必要な情報を保存
-        setPendingRedirectData({
-          user: response.user,
-          menuType: response.user.initialScreenFunctionCd,
-        });
-        
-        // パスワード変更モーダルを表示
-        setShowChangePasswordModal(true);
-      } else {
-        // 通常のパスワードでログイン - メニュー画面へ遷移
-        setCurrentUser(response.user);
-        setCurrentMenuType(response.user.initialScreenFunctionCd);
-        setAuthStep('authenticated');
-        
-        messageApi.success('ログインに成功しました');
-      }
+      // 共通処理を呼び出し
+      handleLoginSuccess(
+        response.user,
+        response.session.token,
+        response.passwordChangeRequired || false,
+        'PIN検証ログイン'
+      );
     } catch (err) {
       // エラーハンドリング
       if (err instanceof AuthServiceError) {
@@ -218,8 +225,6 @@ export default function Home() {
       // PINコード再送信API呼び出し（ログイン画面では組織IDをURLから取得）
       const response = await authService.resendPin(sessionToken, orgIdFromUrl);
 
-      console.log('PIN resend successful:', response);
-
       // マスキングメールを更新
       if (response.email) {
         setMaskedEmail(response.email);
@@ -247,9 +252,9 @@ export default function Home() {
    * ログイン画面に戻る処理
    */
   const handleBackToLogin = (): void => {
-    // SessionStorageをクリア
+    // Local Storageをクリア
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('sessionToken');
+      localStorage.removeItem('sessionToken');
     }
     
     setAuthStep('login');
@@ -335,8 +340,6 @@ export default function Home() {
    * パスワード変更成功ハンドラ
    */
   const handleChangePasswordSuccess = (): void => {
-    console.log('[INFO] パスワード変更成功 - メニュー画面へ遷移');
-    
     // パスワード変更モーダルを閉じる
     setShowChangePasswordModal(false);
     
@@ -354,30 +357,89 @@ export default function Home() {
   };
 
   /**
+   * 自動ログイン機能（ページロード時）
+   * Redisのリフレッシュトークン確認 + Local Storageのユーザー情報で復元
+   */
+  React.useEffect(() => {
+    // 既にログイン済み、またはPINコード入力中の場合はスキップ
+    if (authStep !== 'login') {
+      setIsCheckingAutoLogin(false);
+      return;
+    }
+
+    // 初回のみ実行（無限ループ防止）
+    let hasAttempted = false;
+
+    const attemptAutoLogin = async () => {
+      if (hasAttempted) {
+        return;
+      }
+      hasAttempted = true;
+
+      try {
+        // 1. refreshAccessToken()でRedisのリフレッシュトークンを確認
+        // （httpOnly Cookieが自動送信される）
+        // DB負荷を避けるため、アクセストークンのみ取得（ユーザー情報は取得しない）
+        const accessToken = await authService.refreshAccessToken();
+        
+        if (accessToken) {
+          // 2. Redisにリフレッシュトークンが存在 → 新しいアクセストークンを取得
+          // 3. Local Storageから既存のユーザー情報を取得（必須）
+          if (typeof window !== 'undefined') {
+            const existingUserInfo = localStorage.getItem('userInfo');
+            
+            if (existingUserInfo) {
+              try {
+                const user = JSON.parse(existingUserInfo);
+                
+                // バリデーション: 必須フィールドの確認
+                if (user.id && user.username && user.initialScreenFunctionCd) {
+                  // 4. Local Storageのユーザー情報 + 新しいアクセストークンでログイン
+                  handleLoginSuccess(user, accessToken, false, 'Auto-Login', false);
+                  return;
+                }
+              } catch (parseError) {
+                // パースエラー: 通常ログイン画面を表示
+                console.log('[Auto-Login] userInfo parse error:', parseError);
+              }
+            }
+          }
+        }
+      } catch {
+        // 失敗: 静かにログイン画面を表示（エラーメッセージなし）
+        // エラー状態は設定しない（ユーザーに通知しない）
+      } finally {
+        // チェック完了
+        setIsCheckingAutoLogin(false);
+      }
+    };
+
+    attemptAutoLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 依存配列を空にして初回のみ実行（authStepとhandleLoginSuccessは意図的に除外）
+
+  /**
    * 自動ログアウトイベントのリスナー
    * authUtils.tsからのカスタムイベントを受信してログイン画面へ遷移
    */
   React.useEffect(() => {
-    // 重複実行を防ぐフラグ
     let isProcessing = false;
 
     const handleAutoLogout = (event: Event) => {
       const customEvent = event as CustomEvent<{ reason: string }>;
+      console.log('[Auto-Logout] Session expired:', customEvent.detail);
       
       // 既にログイン画面の場合は何もしない
       if (authStep === 'login') {
-        console.log('[Home] 既にログイン画面です。処理をスキップします。');
         return;
       }
       
       // 重複実行を防ぐ
       if (isProcessing) {
-        console.log('[Home] 自動ログアウト処理中です。重複実行を防ぎます。');
         return;
       }
       
       isProcessing = true;
-      console.log('[Home] 自動ログアウトイベント受信:', customEvent.detail);
       
       // 状態をリセット（通常のログアウトと同じ処理）
       setCurrentUser(null);
@@ -388,19 +450,15 @@ export default function Home() {
       setMaskedEmail('');
       setError(null);
       
-      // SessionStorageをクリア
+      // Local Storageをクリア
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('user');
-        sessionStorage.removeItem('sessionToken');
-        sessionStorage.removeItem('userInfo');
-        sessionStorage.removeItem('devPinCode');
-        
-        // Cookieからリフレッシュトークンを削除
-        document.cookie = 'refreshToken=; path=/api/v1/auth; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
-        console.log('[Home] Cookieからリフレッシュトークンを削除しました');
+        localStorage.removeItem('user');
+        localStorage.removeItem('sessionToken');
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('devPinCode');
       }
       
-      // ユーザーに通知（1回だけ）
+      // ユーザーに通知
       messageApi.warning('セッションが期限切れになりました。再度ログインしてください。');
       
       // 処理完了後、フラグをリセット
@@ -432,7 +490,6 @@ export default function Home() {
       
       // 401エラーの場合は自動ログアウトイベントで処理されるため、メッセージを表示しない
       if (error instanceof AuthServiceError && error.code === 'AUTH_TOKEN_EXPIRED') {
-        console.log('[handleLogout] セッション期限切れエラー: 自動ログアウトイベントで処理されます');
         // メッセージ表示なし（自動ログアウトイベントで表示済み）
       } else if (error instanceof AuthServiceError) {
         messageApi.warning(`ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました: ${error.message}`);
@@ -449,12 +506,12 @@ export default function Home() {
       setMaskedEmail('');
       setError(null);
       
-      // SessionStorageをクリア
+      // Local Storageをクリア
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('user');
-        sessionStorage.removeItem('sessionToken');
-        sessionStorage.removeItem('userInfo');
-        sessionStorage.removeItem('devPinCode');
+        localStorage.removeItem('user');
+        localStorage.removeItem('sessionToken');
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('devPinCode');
       }
     }
   };
@@ -505,6 +562,28 @@ export default function Home() {
   };
 
   // 条件分岐レンダリング
+  
+  // ローディング画面: 自動ログイン判定中
+  if (isCheckingAutoLogin) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          flexDirection: 'column',
+          gap: '16px',
+          backgroundColor: '#f0f2f5',
+        }}
+      >
+        <Spin size="large" />
+        <div style={{ fontSize: '16px', color: '#595959' }}>
+          ログイン状態を確認中...
+        </div>
+      </div>
+    );
+  }
   
   // Step 1: ログイン画面
   if (authStep === 'login') {

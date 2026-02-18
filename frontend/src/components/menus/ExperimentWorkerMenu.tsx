@@ -12,9 +12,10 @@ import {
 } from '@ant-design/icons';
 import styled from '@emotion/styled';
 import Header from '../common/Header';
-import SubHeader, { MenuType } from '../common/SubHeader';
-import { User } from '@/types/auth';
+import SubHeader from '../common/SubHeader';
+import { User, MenuType } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getPermissionsFromToken } from '@/utils/jwtUtils';
 import { useInstructions } from '@/hooks/useInstructions';
 import { useExpandState } from '@/hooks/useExpandState';
 import InstructionConfirmationTab from '../ExperimentWorker/InstructionConfirmationTab';
@@ -90,6 +91,9 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // localStorageからpermissionsを取得（userInfo経由）
+  const permissions = getPermissionsFromToken();
 
   // 承認依頼ハンドラー
   const handleApprovalRequest = () => {
@@ -246,6 +250,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
         title={t('menu.experiment_worker.title')}
         currentMenu="experiment_worker"
         onMenuChange={handleMenuChange}
+        userPermissions={permissions}
       />
 
       {/* コンテンツエリア */}

@@ -12,6 +12,8 @@ import {
   UserOutlined,
   SwapOutlined,
 } from '@ant-design/icons';
+import { Permission, MenuType } from '@/types/auth';
+import { hasMenuPermission } from '@/utils/menuPermissions';
 
 const { Title } = Typography;
 
@@ -19,6 +21,8 @@ const { Title } = Typography;
 interface ThemeToken {
   colorInfo: string;
   colorBorderSecondary: string;
+  paddingXS: number;
+  paddingLG: number;
   paddingXL: number;
   marginLG: number;
   fontSizeHeading4: number;
@@ -46,7 +50,7 @@ const SubHeaderContainer = styled.div<{ token: ThemeToken }>`
  */
 const SubHeaderInner = styled.div<{ token: ThemeToken }>`
   margin: 0 auto;
-  padding: 0 ${props => props.token.paddingXL * 2}px;
+  padding: 0 12px;
 `;
 
 /**
@@ -65,6 +69,7 @@ const SubHeaderContent = styled.div<{ token: ThemeToken }>`
  * タイトル領域
  */
 const TitleWrapper = styled.div<{ hasTabs: boolean; token: ThemeToken }>`
+  align-self: center;
   margin-bottom: ${(props: { hasTabs: boolean; token: ThemeToken }) => props.hasTabs ? '0' : `${props.token.paddingXL / 4}px`};
   flex-shrink: 0;
 `;
@@ -162,11 +167,6 @@ interface TabItem {
 }
 
 /**
- * メニュー種別
- */
-export type MenuType = 'provider' | 'system_admin' | 'data_admin' | 'experiment_admin' | 'experiment_worker';
-
-/**
  * サブヘッダーコンポーネントのProps
  */
 interface SubHeaderProps {
@@ -187,6 +187,7 @@ interface SubHeaderProps {
   // メニュー切り替え機能
   currentMenu?: MenuType;
   onMenuChange?: (menuType: MenuType) => void;
+  userPermissions?: Permission[];
 }
 
 /**
@@ -202,6 +203,7 @@ export default function SubHeader({
   onTabChange,
   currentMenu,
   onMenuChange,
+  userPermissions,
 }: SubHeaderProps) {
   const { token } = theme.useToken();
   const hasTabs = tabs && tabs.length > 0;
@@ -214,44 +216,52 @@ export default function SubHeader({
     disabled: tab.disabled,
   }));
 
-  // メニュー切り替えドロップダウンのアイテム
-  const menuItems: MenuProps['items'] = [
+  // すべてのメニュー定義
+  const allMenuItems = [
     {
       key: 'provider',
+      menuType: 'provider' as MenuType,
       label: 'プロバイダーメニュー',
       icon: <AppstoreOutlined />,
-      disabled: currentMenu === 'provider',
-      onClick: () => onMenuChange?.('provider'),
     },
     {
       key: 'system_admin',
+      menuType: 'system_admin' as MenuType,
       label: 'システム管理者メニュー',
       icon: <TeamOutlined />,
-      disabled: currentMenu === 'system_admin',
-      onClick: () => onMenuChange?.('system_admin'),
     },
     {
       key: 'data_admin',
+      menuType: 'data_admin' as MenuType,
       label: 'データ管理者メニュー',
       icon: <DatabaseOutlined />,
-      disabled: currentMenu === 'data_admin',
-      onClick: () => onMenuChange?.('data_admin'),
     },
     {
       key: 'experiment_admin',
+      menuType: 'experiment_admin' as MenuType,
       label: '実験管理者メニュー',
       icon: <ExperimentOutlined />,
-      disabled: currentMenu === 'experiment_admin',
-      onClick: () => onMenuChange?.('experiment_admin'),
     },
     {
       key: 'experiment_worker',
+      menuType: 'experiment_worker' as MenuType,
       label: '実験作業者メニュー',
       icon: <UserOutlined />,
-      disabled: currentMenu === 'experiment_worker',
-      onClick: () => onMenuChange?.('experiment_worker'),
     },
   ];
+
+  // 権限のあるメニューのみをフィルタリング & 現在のメニューを除外
+  const menuItems: MenuProps['items'] = allMenuItems
+    .filter(item => 
+      hasMenuPermission(userPermissions, item.menuType) &&
+      currentMenu !== item.menuType
+    )
+    .map(item => ({
+      key: item.key,
+      label: item.label,
+      icon: item.icon,
+      onClick: () => onMenuChange?.(item.menuType),
+    }));
 
   return (
     <SubHeaderContainer token={token}>
@@ -286,11 +296,11 @@ export default function SubHeader({
           )}
 
           {/* 右側: アクションボタン + メニュー切り替え */}
-          {(actions || onMenuChange) && (
+          {(actions || (onMenuChange && menuItems.length > 0)) && (
             <ActionsWrapper hasTabs={!!hasTabs} token={token}>
               <Space size="small">
                 {actions}
-                {onMenuChange && (
+                {onMenuChange && menuItems.length > 0 && (
                   <Dropdown
                     menu={{ items: menuItems }}
                     trigger={['click']}

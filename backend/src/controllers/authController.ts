@@ -183,7 +183,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
 
     // Cookieを削除
     res.clearCookie('refreshToken', {
-      path: '/api/v1/auth',
+      path: '/',
     });
 
     // 成功レスポンス
@@ -559,7 +559,7 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: result.data.refreshMaxAge,
-      path: '/api/v1/auth',
+      path: '/',
     });
 
     // 成功レスポンス（アクセストークンのみ返す）
