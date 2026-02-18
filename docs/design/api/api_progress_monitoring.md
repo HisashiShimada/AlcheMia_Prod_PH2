@@ -1,11 +1,11 @@
 # 進捗確認API仕様書
 
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-02-18 14:00  
-**バージョン**: 1.4.0  
+**最終更新**: 2026-02-18 17:58  
+**バージョン**: 1.4.1  
 **対象画面**: 実験管理者 - 進捗確認画面、実験作業者 - 実験記録画面  
 **総API数**: 6個  
-**実装状況**: 0個実装済み、6個未実装
+**実装状況**: 1個実装済み、5個未実装
 
 ---
 
@@ -13,10 +13,10 @@
 
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
-| 進捗確認 | 0 | 6 | 6 |
-| **合計** | **0** | **6** | **6** |
+| 進捗確認 | 1 | 5 | 6 |
+| **合計** | **1** | **5** | **6** |
 
-**完了率**: 0% (0/6)
+**完了率**: 16.7% (1/6)
 
 ---
 
@@ -29,7 +29,7 @@
 | 3 | 進捗データ取得 | GET | `/api/v1/progress/:projectId/:methodId/:taskNo` | 🔴 未実装 | ⭐⭐ 中 |
 | 4 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 5 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 6 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 6 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
 
 ---
 
@@ -1484,6 +1484,35 @@ $10: transition_id (string) - パスパラメータ
 - **変更点**: taskNoをパスパラメータからリクエストボディパラメータに変更
 - **権限**: experiment_worker（書込可）のみが使用可能
 - **用途**: 進捗確認の一環としてトランジション単位の進捗を記録
+
+#### 実装状況
+
+**実装済み箇所**:
+- ✅ ルート定義: `backend/src/routes/progressRoutes.ts` (L120-L157)
+  - `checkPermission('050000', 1)` による権限チェック実装済み
+  - 機能CD: `050000` (実験作業者メニュー)、権限レベル: `1` (書込可)
+- ✅ バリデーション: パスパラメータ、リクエストボディの検証実装済み
+- ✅ コントローラー: `backend/src/controllers/progressController.ts` (L241-L324)
+  - `updateTransitionStatus()` 関数実装済み
+- ✅ プロジェクトステータス編集可能チェック実装済み
+
+**実装詳細**:
+- **権限チェックミドルウェア**: `backend/src/middleware/permissionCheckMiddleware.ts`
+  - `checkPermission(functionId, permission)` 関数を使用
+  - JWT認証後の `req.user.permissions` から権限情報を取得
+  - 403エラーハンドリング実装済み
+
+**ミドルウェアチェーン**:
+```typescript
+router.patch(
+  '/projects/:projectName/methods/:methodId/transitions/:transitionId/status',
+  authMiddleware,                    // 1. JWT認証
+  checkPermission('050000', 1),      // 2. 権限チェック（実装済み）
+  [/* バリデーション */],             // 3. バリデーション
+  handleValidationErrors,            // 4. エラーハンドリング
+  progressController.updateTransitionStatus  // 5. コントローラー
+);
+```
 
 ---
 
