@@ -568,7 +568,6 @@ export class IssueRepository {
    */
   async addComment(
     organizationId: string,
-    projectId: string,
     issueId: string,
     userId: string,
     comment: string

@@ -206,21 +206,30 @@ router.get(
 
 /**
  * 問題ステータス変更
- * PATCH /api/v1/issues/:issueId/status
+ * PATCH /api/v1/issues/status
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック（experiment_workerのみ）
  * @middleware validationMiddleware - バリデーション
  * @description 問題のステータスを「未解決」または「解決済」に変更
  * @requirements REQ-010, REQ-011
- * @roles manager, admin （workerは不可）
+ * @roles experiment_worker
  */
 router.patch(
-  '/:issueId/status',
+  '/status',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 1),
   [
-    param('issueId')
+    body('projectName')
+      .trim()
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isString()
+      .withMessage('projectNameは文字列である必要があります'),
+    body('issueId')
+      .trim()
       .notEmpty()
       .withMessage('issueIdは必須です')
       .isString()

@@ -185,11 +185,18 @@ export class IssueService {
    */
   async updateStatus(
     organizationId: string,
+    projectName: string,
     issueId: string,
     userId: string,
     status: IssueStatus
   ): Promise<ServiceResult<Issue>> {
     try {
+      // プロジェクト名からプロジェクトID取得
+      const projectId = await this.issueRepository.getProjectIdByName(organizationId, projectName);
+      if (!projectId) {
+        throw new NotFoundError('プロジェクトが見つかりません');
+      }
+
       const existingIssue = await this.issueRepository.findById(
         issueId,
         organizationId
@@ -282,7 +289,6 @@ export class IssueService {
       
       const commentResponse = await this.issueRepository.addComment(
         organizationId,
-        projectId,
         issueId,
         userId,
         comment
