@@ -4,7 +4,8 @@
  * 問題報告のデータベース操作を担当するリポジトリクラス
  */
 
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import {
   Issue,
   NewIssue,
@@ -60,36 +61,8 @@ export class IssueRepository {
    * API設計書とER図のissueテーブル構造に基づく
    */
   async create(newIssue: NewIssue): Promise<Issue> {
-    const pool = getPool();
-
-    const query = `
-      INSERT INTO issues (
-        organization_id,
-        project_id,
-        issue_id,
-        method_id,
-        issue_target,
-        task_no,
-        transition_id,
-        issue_title,
-        issue_type,
-        issue_contents,
-        status,
-        issue_reporter_id,
-        issue_report_at,
-        issue_completer_id,
-        issue_complate_at,
-        create_user_id,
-        create_at,
-        update_user_id,
-        update_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'unresolved',
-        $11, NOW(), null, null,
-        $11, NOW(), $11, NOW()
-      )
-      RETURNING ${SELECT_COLUMNS}
-    `;
+    const pgp = getPgp();
+    const query = await loadSqlFile('issues/create.sql');
 
     const values = [
       newIssue.organizationId,
@@ -105,24 +78,17 @@ export class IssueRepository {
       newIssue.issueReporterId,
     ];
 
-    const result = await pool.query(query, values);
-    return result.rows[0];
+    return await pgp.one<Issue>(query, values);
   }
 
   /**
    * IDで問題を取得する（マルチテナント分離必須）
    */
   async findById(issueId: string, organizationId: string): Promise<Issue | null> {
-    const pool = getPool();
+    const pgp = getPgp();
+    const query = await loadSqlFile('issues/findById.sql');
 
-    const query = `
-      SELECT ${SELECT_COLUMNS}
-      FROM issues
-      WHERE issue_id = $1 AND organization_id = $2
-    `;
-
-    const result = await pool.query(query, [issueId, organizationId]);
-    return result.rows[0] || null;
+    return await pgp.oneOrNone<Issue>(query, [issueId, organizationId]);
   }
 
   /**
@@ -346,21 +312,10 @@ export class IssueRepository {
     userId: string,
     statusNumber: number
   ): Promise<Issue | null> {
-    const pool = getPool();
+    const pgp = getPgp();
+    const query = await loadSqlFile('issues/updateStatus.sql');
 
-    const query = `
-      UPDATE issues
-      SET status = $1, 
-        issue_completer_id = CASE WHEN $1 = 0 THEN NULL WHEN $1 = 1 THEN $2 ELSE issue_completer_id END,
-        issue_complate_at = CASE WHEN $1 = 0 THEN NULL WHEN $1 = 1 THEN CURRENT_TIMESTAMP ELSE issue_complate_at END,
-        update_user_id = $2, 
-        update_at = CURRENT_TIMESTAMP
-      WHERE issue_id = $3 AND organization_id = $4
-      RETURNING ${SELECT_COLUMNS}
-    `;
-
-    const result = await pool.query(query, [statusNumber, userId, issueId, organizationId]);
-    return result.rows[0] || null;
+    return await pgp.oneOrNone<Issue>(query, [statusNumber, userId, issueId, organizationId]);
   }
 
   /**
@@ -371,32 +326,21 @@ export class IssueRepository {
     organizationId: string,
     assigneeId: string | null
   ): Promise<Issue | null> {
-    const pool = getPool();
+    const pgp = getPgp();
+    const query = await loadSqlFile('issues/updateAssignee.sql');
 
-    const query = `
-      UPDATE issues
-      SET assignee_id = $1, update_at = CURRENT_TIMESTAMP
-      WHERE issue_id = $2 AND organization_id = $3
-      RETURNING ${SELECT_COLUMNS}
-    `;
-
-    const result = await pool.query(query, [assigneeId, issueId, organizationId]);
-    return result.rows[0] || null;
+    return await pgp.oneOrNone<Issue>(query, [assigneeId, issueId, organizationId]);
   }
 
   /**
    * 問題を削除する（物理削除）
    */
   async delete(issueId: string, organizationId: string): Promise<boolean> {
-    const pool = getPool();
+    const pgp = getPgp();
+    const query = await loadSqlFile('issues/delete.sql');
 
-    const query = `
-      DELETE FROM issues
-      WHERE issue_id = $1 AND organization_id = $2
-    `;
-
-    const result = await pool.query(query, [issueId, organizationId]);
-    return (result.rowCount || 0) > 0;
+    const result = await pgp.result(query, [issueId, organizationId]);
+    return result.rowCount > 0;
   }
 
   /**
@@ -407,93 +351,39 @@ export class IssueRepository {
     organizationId: string,
     filters: IssueListFilters
   ): Promise<IssueWithComments[]> {
-    const pool = getPool();
+    const pgp = getPgp();
 
-    // Query 1: 問題一覧を取得（JOINでprojects、organization_userと結合）
-    const conditions: string[] = ['i.organization_id = $1'];
-    const values: any[] = [organizationId];
-    let paramIndex = 2;
-
-    // 必須フィルタ: projectId, methodId
-    conditions.push(`i.project_id = $${paramIndex}`);
-    values.push(filters.projectId);
-    paramIndex++;
-
-    conditions.push(`i.method_id = $${paramIndex}`);
-    values.push(filters.methodId);
-    paramIndex++;
-
-    // issue_target別の動的フィルタリング
-    // issue_target: 1=project, 2=task, 3=transition
-    const targetConditions: string[] = [];
-    
-    // project: issue_target = 1
-    targetConditions.push('(i.issue_target = 1)');
-    
-    // task: issue_target = 2 AND task_no = ?
-    targetConditions.push(`(i.issue_target = 2 AND i.task_no = $${paramIndex})`);
-    values.push(filters.taskNo);
-    paramIndex++;
-    
-    // transition: issue_target = 3 AND transition_id = ?
-    targetConditions.push(`(i.issue_target = 3 AND i.transition_id = $${paramIndex})`);
-    values.push(filters.transitionId);
-    paramIndex++;
-
-    conditions.push(`(${targetConditions.join(' OR ')})`);
+    // Query 1: 問題一覧を取得（外部SQLファイル + 動的フィルタ）
+    let issuesQuery = await loadSqlFile('issues/listIssuesWithCommentsIssues.sql');
+    const values: any[] = [organizationId, filters.projectId, filters.methodId, filters.taskNo, filters.transitionId];
+    let paramIndex = 6;
 
     // オプショナルフィルタ: status
     if (filters.status) {
-      conditions.push(`i.status = $${paramIndex}`);
+      issuesQuery = issuesQuery.replace(
+        'ORDER BY',
+        `AND i.status = $${paramIndex}\nORDER BY`
+      );
       values.push(filters.status);
       paramIndex++;
     }
 
     // オプショナルフィルタ: issueType
     if (filters.issueType) {
-      conditions.push(`i.issue_type = $${paramIndex}`);
+      issuesQuery = issuesQuery.replace(
+        'ORDER BY',
+        `AND i.issue_type = $${paramIndex}\nORDER BY`
+      );
       values.push(filters.issueType);
       paramIndex++;
     }
 
-    const whereClause = conditions.join(' AND ');
-
-    const issuesQuery = `
-      SELECT
-        i.issue_id AS id,
-        i.issue_type AS "issueType",
-        CASE 
-          WHEN i.issue_target = 1 THEN 'project'
-          WHEN i.issue_target = 2 THEN 'task'
-          WHEN i.issue_target = 3 THEN 'transition'
-        END AS "targetType",
-        i.project_id AS "projectId",
-        p.project_name AS "projectName",
-        i.method_id AS "methodId",
-        i.task_no AS "taskNo",
-        i.transition_id AS "transitionId",
-        i.issue_title AS title,
-        i.issue_contents AS contents,
-        i.status,
-        i.issue_reporter_id AS "reportedBy",
-        reporter.user_name AS "reportedByName",
-        i.issue_report_at AS "reportedAt",
-        i.issue_completer_id AS "completedBy",
-        completer.user_name AS "completedByName",
-        i.issue_complate_at AS "completedAt"
-      FROM issues i
-      INNER JOIN projects p ON p.organization_id = i.organization_id AND p.project_id = i.project_id
-      INNER JOIN organization_user reporter ON reporter.organization_id = i.organization_id AND reporter.user_id = i.issue_reporter_id
-      LEFT JOIN organization_user completer ON completer.organization_id = i.organization_id AND completer.user_id = i.issue_completer_id
-      WHERE ${whereClause}
-      ORDER BY i.issue_report_at DESC
-    `;
-
-    const issuesResult = await pool.query(issuesQuery, values);
-    const issues: IssueWithComments[] = issuesResult.rows.map(row => ({
-      ...row,
-      comments: [], // 初期化
-    }));
+    const issues: IssueWithComments[] = await pgp.any(issuesQuery, values);
+    
+    // 初期化：各問題にcommentsプロパティを追加
+    issues.forEach(issue => {
+      issue.comments = [];
+    });
 
     // 問題が0件の場合は空配列を返す
     if (issues.length === 0) {
@@ -502,27 +392,13 @@ export class IssueRepository {
 
     // Query 2: 全問題のコメントを一括取得（N+1問題回避）
     const issueIds = issues.map(issue => issue.id);
-    
-    const commentsQuery = `
-      SELECT
-        c.issue_id AS "issueId",
-        c.sequence_no AS "sequenceNo",
-        c.comment,
-        c.author_id AS "authorId",
-        u.user_name AS "authorName",
-        c.commented_at AS "commentedAt"
-      FROM issue_comment c
-      INNER JOIN organization_user u ON u.organization_id = c.organization_id AND u.user_id = c.author_id
-      WHERE c.organization_id = $1 AND c.issue_id = ANY($2)
-      ORDER BY c.issue_id, c.sequence_no ASC
-    `;
-
-    const commentsResult = await pool.query(commentsQuery, [organizationId, issueIds]);
+    const commentsQuery = await loadSqlFile('issues/listIssuesWithCommentsComments.sql');
+    const commentsResult = await pgp.any(commentsQuery, [organizationId, issueIds]);
 
     // コメントをissue_idでグループ化して各問題に追加
     const commentsByIssueId: Record<string, IssueComment[]> = {};
     
-    for (const row of commentsResult.rows) {
+    for (const row of commentsResult) {
       if (!commentsByIssueId[row.issueId]) {
         commentsByIssueId[row.issueId] = [];
       }
@@ -550,21 +426,17 @@ export class IssueRepository {
     organizationId: string,
     projectName: string
   ): Promise<string | null> {
-    const pool = getPool();
+    const pgp = getPgp();
+    const query = await loadSqlFile('issues/getProjectIdByName.sql');
 
-    const query = `
-      SELECT project_id
-      FROM projects
-      WHERE project_name = $1 AND organization_id = $2
-    `;
-
-    const result = await pool.query(query, [projectName, organizationId]);
-    return result.rows[0]?.project_id || null;
+    const result = await pgp.oneOrNone<{ project_id: string }>(query, [projectName, organizationId]);
+    return result?.project_id || null;
   }
 
   /**
    * コメントを追加する（タスク 3.1）
    * トランザクション制御とFOR UPDATEによる排他制御を実装
+   * pg-promiseのtx()を使用
    */
   async addComment(
     organizationId: string,
@@ -572,85 +444,56 @@ export class IssueRepository {
     userId: string,
     comment: string
   ): Promise<IssueCommentResponse> {
-    const pool = getPool();
-    const client = await pool.connect();
+    const pgp = getPgp();
 
-    try {
-      // トランザクション開始
-      await client.query('BEGIN');
+    // 外部SQLファイルを読み込み
+    const checkIssueQuery = await loadSqlFile('issue_comment/addCommentCheckIssue.sql');
+    const getNextSeqQuery = await loadSqlFile('issue_comment/addCommentGetNextSeq.sql');
+    const insertCommentQuery = await loadSqlFile('issue_comment/addCommentInsert.sql');
+    const getAuthorNameQuery = await loadSqlFile('issue_comment/addCommentGetAuthorName.sql');
 
+    return await pgp.tx(async (t) => {
       // 問題存在確認とロック取得（FOR UPDATE）
-      const issueQuery = `
-        SELECT issue_id, organization_id, project_id
-        FROM issues
-        WHERE issue_id = $1 AND organization_id = $2
-        FOR UPDATE
-      `;
-      const issueResult = await client.query(issueQuery, [issueId, organizationId]);
+      const issue = await t.oneOrNone(
+        checkIssueQuery,
+        [issueId, organizationId]
+      ) as { issue_id: string; organization_id: string; project_id: string } | null;
 
-      if (issueResult.rows.length === 0) {
+      if (!issue) {
         throw new NotFoundError('Issue not found', 'Issue');
       }
 
-      const issue = issueResult.rows[0];
-
       // シーケンス番号の採番
-      const seqQuery = `
-        SELECT COALESCE(MAX(sequence_no), 0) + 1 AS next_seq
-        FROM issue_comment
-        WHERE organization_id = $1 AND issue_id = $2
-      `;
-      const seqResult = await client.query(seqQuery, [organizationId, issueId]);
-      const sequenceNo = seqResult.rows[0].next_seq;
+      const seqResult = await t.one(
+        getNextSeqQuery,
+        [organizationId, issueId]
+      ) as { next_seq: number };
+      const sequenceNo = seqResult.next_seq;
 
       // コメントレコードの挿入
-      const insertQuery = `
-        INSERT INTO issue_comment (
-          organization_id,
-          project_id,
-          issue_id,
-          sequence_no,
-          comment,
-          author_id,
-          commented_at,
-          create_user_id,
-          create_at,
-          update_user_id,
-          update_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, NOW(), $6, NOW(), $6, NOW()
-        )
-        RETURNING 
-          organization_id,
-          project_id,
-          issue_id,
-          sequence_no,
-          comment,
-          author_id,
-          commented_at
-      `;
-      const insertResult = await client.query(insertQuery, [
+      const insertedComment = await t.one(insertCommentQuery, [
         organizationId,
         issue.project_id,
         issueId,
         sequenceNo,
         comment,
         userId,
-      ]);
-
-      const insertedComment = insertResult.rows[0];
+      ]) as {
+        organization_id: string;
+        project_id: string;
+        issue_id: string;
+        sequence_no: number;
+        comment: string;
+        author_id: string;
+        commented_at: Date;
+      };
 
       // 投稿者名の取得
-      const userQuery = `
-        SELECT user_name
-        FROM organization_user
-        WHERE organization_id = $1 AND user_id = $2
-      `;
-      const userResult = await client.query(userQuery, [organizationId, userId]);
-      const authorName = userResult.rows[0]?.user_name || 'Unknown';
-
-      // トランザクションコミット
-      await client.query('COMMIT');
+      const userResult = await t.oneOrNone(
+        getAuthorNameQuery,
+        [organizationId, userId]
+      ) as { user_name: string } | null;
+      const authorName = userResult?.user_name || 'Unknown';
 
       // レスポンスの構築
       return {
@@ -660,15 +503,8 @@ export class IssueRepository {
         comment: insertedComment.comment,
         authorId: insertedComment.author_id,
         authorName,
-        commentedAt: insertedComment.commented_at,
+        commentedAt: insertedComment.commented_at.toISOString(),
       };
-    } catch (error) {
-      // エラー時はロールバック
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      // クライアントを解放
-      client.release();
-    }
+    });
   }
 }
