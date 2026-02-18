@@ -205,13 +205,15 @@ export async function downloadFolderAsZip(req: Request, res: Response): Promise<
  * Task: S3ファイルアップロード統一化
  * - 各画面で生成された完全なパスを使用してファイルをアップロード
  * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+ * 
+ * Phase1-3: 空フォルダプレースホルダー対応（2026-02-18）
  */
 export async function uploadFiles(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
   
   try {
     const { organizationId, userId } = req.user!;
-    const { uploadMode, targetPath, metadata } = req.body;
+    const { uploadMode, targetPath, metadata, emptyFolders } = req.body;
     const files = req.files as Express.Multer.File[];
 
     // Service層の初期化と呼び出し
@@ -225,7 +227,8 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
       uploadMode,
       targetPath,
       files,
-      metadata
+      metadata,
+      emptyFolders  // Phase1-3: 空フォルダプレースホルダー
     );
 
     // 成功レスポンス

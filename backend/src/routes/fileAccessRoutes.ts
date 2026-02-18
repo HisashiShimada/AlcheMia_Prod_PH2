@@ -17,10 +17,12 @@ import { handleValidationErrors } from '../middleware/validationMiddleware';
 const router = Router();
 
 // Multer設定（メモリストレージ）
+// Phase1-2: ファイルサイズ上限を500MBに引き上げ（2026-02-18）
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB
+    fileSize: 500 * 1024 * 1024, // 500MB（Reference版に合わせて引き上げ）
+    fieldSize: 50 * 1024 * 1024,  // 50MB（フィールドサイズ）
     files: 100, // 最大100ファイル
   },
 });
@@ -58,6 +60,19 @@ router.post(
       .optional()
       .isObject()
       .withMessage('metadataはオブジェクトである必要があります'),
+    // Phase1-3: 空フォルダプレースホルダー機能（2026-02-18）
+    body('emptyFolders')
+      .optional()
+      .isArray()
+      .withMessage('emptyFoldersは配列である必要があります')
+      .custom((value) => {
+        if (Array.isArray(value)) {
+          // 配列内の各要素が文字列であることを確認
+          return value.every((item) => typeof item === 'string');
+        }
+        return true;
+      })
+      .withMessage('emptyFoldersの各要素は文字列である必要があります'),
   ],
   handleValidationErrors,
   fileAccessController.uploadFiles

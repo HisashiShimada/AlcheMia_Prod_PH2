@@ -27,6 +27,7 @@ import {
   UploadMetadata,
   FileUploadResult,
   MulterFile,
+  PlaceholderResult,
 } from '../types/file';
 
 /**
@@ -261,12 +262,15 @@ export class FileAccessService {
    * - 各画面で生成された完全なパスを使用してファイルをアップロード
    * - プロジェクト、フォーマット、その他のファイルで共通利用可能
    * 
+   * Phase1-3: 空フォルダプレースホルダー対応（2026-02-18）
+   * 
    * @param organizationId 組織ID
    * @param userId ユーザーID
    * @param uploadMode アップロードモード（single, bulk, folder）
    * @param targetPath ターゲットパス（各画面で完全なパスを生成、相対パス）
    * @param files アップロードするファイル配列
    * @param metadata 追加メタデータ
+   * @param emptyFolders 空フォルダパスの配列（Phase1-3）
    * @returns アップロード結果
    * @throws ValidationError バリデーションエラー
    * @throws StorageError ストレージエラー
@@ -277,7 +281,8 @@ export class FileAccessService {
     uploadMode: 'single' | 'bulk' | 'folder',
     targetPath: string,
     files: MulterFile[],
-    metadata?: UploadMetadata
+    metadata?: UploadMetadata,
+    emptyFolders?: string[]
   ): Promise<FileUploadResult> {
     // 1. バリデーション
     if (!files || files.length === 0) {
@@ -356,6 +361,10 @@ export class FileAccessService {
         failedFiles: files.length - uploadedFiles.length,
         totalSize,
       },
+      // Phase1-3: 空フォルダプレースホルダー結果を追加
+      emptyFolders: emptyFolders && emptyFolders.length > 0 
+        ? await this.createEmptyFolderPlaceholders(organizationId, emptyFolders)
+        : undefined,
     };
   }
 
@@ -399,6 +408,105 @@ export class FileAccessService {
     const result = await this.repository.insertFileMetadata(fileMetadata);
     
     return result.file_key;
+  }
+
+  /**
+   * 空フォルダにプレースホルダーファイルを作成
+   * 
+   * Phase1-3: 空フォルダプレースホルダー機能（2026-02-18）
+   * - S3/Swiftは空フォルダを保持できないため、.folder_placeholderファイルを作成
+   * - フォルダ構造の完全な再現が可能になる
+   * 
+   * @param organizationId 組織ID
+   * @param emptyFolders 空フォルダパスの配列
+   * @returns プレースホルダー作成結果の配列
+   */
+  async createEmptyFolderPlaceholders(
+    organizationId: string,
+    emptyFolders: string[]
+  ): Promise<PlaceholderResult[]> {
+    const results: PlaceholderResult[] = [];
+
+    if (!emptyFolders || emptyFolders.length === 0) {
+      return results;
+    }
+
+    console.log(`📁 [Placeholder] 空フォルダプレースホルダー作成開始: ${emptyFolders.length}個`);
+
+    for (const folderPath of emptyFolders) {
+      try {
+        // 1. プレースホルダーファイルキーを生成
+        const placeholderKey = `${folderPath}/.folder_placeholder`;
+
+        console.log(`📝 [Placeholder] 処理中: ${placeholderKey}`);
+
+        // 2. 既存ファイルの重複チェック
+        const exists = await this.storageService.fileExists(
+          organizationId,
+          placeholderKey
+        );
+
+        if (exists) {
+          console.log(`⚠️ [Placeholder] スキップ（既存）: ${placeholderKey}`);
+          results.push({
+            folderPath,
+            placeholderKey,
+            success: true,
+            skipped: true,
+          });
+          continue;
+        }
+
+        // 3. プレースホルダーファイル内容を生成
+        const placeholderContent = Buffer.from(
+          `# Folder Placeholder\nCreated: ${new Date().toISOString()}\nFolder: ${folderPath}\n\nThis file is a placeholder to preserve empty folder structure in S3/Swift storage.`,
+          'utf-8'
+        );
+
+        // 4. S3/Swiftにプレースホルダーファイルを作成
+        await this.storageService.uploadFile(
+          organizationId,
+          placeholderKey,
+          placeholderContent,
+          { contentType: 'text/plain' }
+        );
+
+        // 5. file_metadataテーブルに保存
+        try {
+          await this.saveFileMetadata({
+            organizationId,
+            userId: 'system', // システム自動作成
+            fileName: '.folder_placeholder',
+            filePath: placeholderKey,
+            s3Key: placeholderKey,
+            fileSize: placeholderContent.length,
+            contentType: 'text/plain',
+            batchName: 'empty_folder_placeholder',
+          });
+        } catch (dbError) {
+          // DBエラーは警告のみ（S3上にファイルは作成されているので続行）
+          console.warn(`⚠️ [Placeholder] DB保存エラー（続行）: ${placeholderKey}`, dbError);
+        }
+
+        console.log(`✅ [Placeholder] 作成成功: ${placeholderKey}`);
+        results.push({
+          folderPath,
+          placeholderKey,
+          success: true,
+        });
+      } catch (error) {
+        console.error(`❌ [Placeholder] 作成失敗: ${folderPath}`, error);
+        results.push({
+          folderPath,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    console.log(`📊 [Placeholder] 完了: 成功=${results.filter(r => r.success).length}/${results.length}`);
+
+    return results;
   }
 
   /**

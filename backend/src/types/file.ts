@@ -75,6 +75,24 @@ export interface FileUploadResult {
   uploadMode: string;
   files: UploadedFileInfo[];
   summary: UploadSummary;
+  // Phase1-3: 空フォルダプレースホルダー結果（2026-02-18）
+  emptyFolders?: PlaceholderResult[];
+}
+
+/**
+ * プレースホルダー作成結果（Phase1-3: 空フォルダプレースホルダー機能）
+ */
+export interface PlaceholderResult {
+  /** フォルダパス */
+  folderPath: string;
+  /** プレースホルダーファイルキー（作成された場合） */
+  placeholderKey?: string;
+  /** 作成成功フラグ */
+  success: boolean;
+  /** スキップされた場合（既に存在する） */
+  skipped?: boolean;
+  /** エラーメッセージ（失敗時） */
+  error?: string;
 }
 
 /**
