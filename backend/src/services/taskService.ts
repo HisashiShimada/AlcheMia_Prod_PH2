@@ -10,8 +10,9 @@
 import { TaskStatus, TaskStatusResponse, ServiceResult, UpdateTaskStatusParams } from '../types/taskService.types';
 import { MethodGroup, TaskSummary, TaskFilters, MethodTaskRecord } from '../types/task';
 import { TaskRepository } from '../repositories/taskRepository';
-import { getPool } from '../database/db';
+import { getPgp } from '../database/db';
 import { logger } from '../utils/logger';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * タスクステータスのEnum定義（データベース値）
@@ -196,8 +197,6 @@ export async function updateTaskStatus(
     currentUpdateAt,
     comment
   };
-  const pool = getPool();
-  let client;
 
   try {
     // 入力バリデーション
@@ -223,71 +222,6 @@ export async function updateTaskStatus(
       };
     }
 
-    // データベース接続とトランザクション開始
-    client = await pool.connect();
-    await client.query('BEGIN');
-
-    // SELECT FOR UPDATE - タスクを排他ロック（JOINでproject_nameとuser_nameを取得）
-    const selectQuery = `
-      SELECT 
-        pt.organization_id,
-        pt.project_id,
-        p.project_name,
-        pt.method_id,
-        pt.task_no,
-        pt.task_status,
-        pt.update_at,
-        pt.experiment_user_id,
-        ou.user_name as experiment_user_name
-      FROM project_task pt
-      LEFT JOIN project p 
-        ON p.project_id = pt.project_id 
-        AND p.organization_id = pt.organization_id
-      LEFT JOIN organization_user ou
-        ON ou.user_id = pt.experiment_user_id
-        AND ou.organization_id = pt.organization_id
-      WHERE pt.organization_id = $1
-        AND pt.project_id = $2
-        AND pt.method_id = $3
-        AND pt.task_no = $4
-      FOR UPDATE
-    `;
-
-    const selectResult = await client.query(selectQuery, [
-      params.organizationId,
-      params.projectId,
-      params.methodId,
-      params.taskNo
-    ]);
-
-    // タスクが存在しない場合
-    if (selectResult.rowCount === 0) {
-      await client.query('ROLLBACK');
-      return {
-        success: false,
-        error: {
-          code: 'RESOURCE_NOT_FOUND',
-          message: 'Task not found'
-        }
-      };
-    }
-
-    const currentTask = selectResult.rows[0];
-
-    // マルチテナント分離: organization_idの一致を検証
-    // system_admin以外は同じ組織のタスクのみアクセス可能
-    // 403ではなく404を返すことで他組織のデータ存在を隠蔽
-    if ( currentTask.organization_id !== params.organizationId) {
-      await client.query('ROLLBACK');
-      return {
-        success: false,
-        error: {
-          code: 'RESOURCE_NOT_FOUND',
-          message: 'Task not found'
-        }
-      };
-    }
-
     // TaskStatus文字列を数値に変換
     const statusStringToNumber: Record<TaskStatus, number> = {
       'pending': TaskStatusEnum.PENDING,
@@ -298,7 +232,6 @@ export async function updateTaskStatus(
 
     const newStatusNum = statusStringToNumber[params.status];
     if (newStatusNum === undefined) {
-      await client.query('ROLLBACK');
       return {
         success: false,
         error: {
@@ -308,90 +241,71 @@ export async function updateTaskStatus(
       };
     }
 
-    // ステータス遷移バリデーション
-    const transitionResult = validateTransition(currentTask.task_status, newStatusNum);
-    if (!transitionResult.isValid) {
-      await client.query('ROLLBACK');
-      return {
-        success: false,
-        error: transitionResult.error
-      };
-    }
+    // pg-promiseインスタンスを取得してトランザクション実行
+    const pgp = getPgp();
+    
+    // SQLファイルを事前に読み込み
+    const selectQuery = await loadSqlFile('tasks/findByIdForUpdate.sql');
+    const updateQuery = await loadSqlFile('tasks/updateStatus.sql');
 
-    // // 権限チェック
-    // const permissionResult = checkPermission(
-    //   params.userId,
-    //   params.role,
-    //   currentTask.experiment_user_id,
-    //   params.organizationId,
-    //   currentTask.organization_id
-    // );
-    // if (!permissionResult.isValid) {
-    //   await client.query('ROLLBACK');
-    //   return {
-    //     success: false,
-    //     error: permissionResult.error
-    //   };
-    // }
+    // トランザクション処理
+    const result = await pgp.tx(async t => {
+      // SELECT FOR UPDATE - タスクを排他ロック
+      const currentTask = await t.oneOrNone(selectQuery, [
+        params.organizationId,
+        params.projectId,
+        params.methodId,
+        params.taskNo
+      ]);
 
-    // 楽観的ロックチェック: UPDATE文にupdate_at条件を追加
-    const updateQuery = `
-      UPDATE project_task
-      SET 
-        task_status = $1,
-        experiment_start_at = CASE 
-          WHEN $1 = ${TaskStatusEnum.IN_PROGRESS} AND experiment_start_at IS NULL 
-          THEN NOW() 
-          ELSE experiment_start_at 
-        END,
-        experiment_end_at = CASE 
-          WHEN $1 = ${TaskStatusEnum.COMPLETED} 
-          THEN NOW() 
-          ELSE experiment_end_at 
-        END,
-        update_at = NOW()
-      WHERE organization_id = $2
-        AND project_id = $3
-        AND method_id = $4
-        AND task_no = $5
-        AND update_at = $6
-      RETURNING 
-        organization_id,
-        project_id,
-        method_id,
-        task_no,
-        task_status,
-        experiment_user_id,
-        experiment_start_at,
-        experiment_end_at,
-        update_at
-    `;
+      // タスクが存在しない場合
+      if (!currentTask) {
+        throw {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'Task not found'
+        };
+      }
 
-    const updateResult = await client.query(updateQuery, [
-      newStatusNum,  // 数値のステータスを使用
-      params.organizationId,
-      params.projectId,
-      params.methodId,
-      params.taskNo,
-      params.currentUpdateAt
-    ]);
+      // マルチテナント分離: organization_idの一致を検証
+      if (currentTask.organization_id !== params.organizationId) {
+        throw {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'Task not found'
+        };
+      }
 
-    // 楽観的ロック失敗: update_atが一致せず更新できなかった
-    if (updateResult.rowCount === 0) {
-      await client.query('ROLLBACK');
-      return {
-        success: false,
-        error: {
+      // ステータス遷移バリデーション
+      const transitionResult = validateTransition(currentTask.task_status, newStatusNum);
+      if (!transitionResult.isValid) {
+        throw transitionResult.error;
+      }
+
+      // UPDATE実行（楽観的ロックチェック含む）
+      const updatedTask = await t.oneOrNone(updateQuery, [
+        newStatusNum,
+        params.organizationId,
+        params.projectId,
+        params.methodId,
+        params.taskNo,
+        params.currentUpdateAt,
+        TaskStatusEnum.IN_PROGRESS,  // $7: CASE文用
+        TaskStatusEnum.COMPLETED     // $8: CASE文用
+      ]);
+
+      // 楽観的ロック失敗: update_atが一致せず更新できなかった
+      if (!updatedTask) {
+        throw {
           code: 'CONCURRENT_UPDATE_DETECTED',
           message: 'Concurrent update detected. Please fetch the latest data and retry.'
-        }
+        };
+      }
+
+      // 成功時のレスポンスデータを返す
+      return {
+        currentTask,
+        updatedTask
       };
-    }
-
-    // トランザクションコミット
-    await client.query('COMMIT');
-
-    const updatedTask = updateResult.rows[0];
+    });
 
     // レスポンス作成（TaskStatusResponseに変換）
     const statusMap: Record<number, TaskStatus> = {
@@ -404,24 +318,30 @@ export async function updateTaskStatus(
     return {
       success: true,
       data: {
-        organizationId: updatedTask.organization_id,
-        projectId: updatedTask.project_id,
-        projectName: currentTask.project_name || '',
-        methodId: updatedTask.method_id,
-        taskNo: updatedTask.task_no,
-        taskStatus: statusMap[updatedTask.task_status] || 'pending',
-        experimentUserId: updatedTask.experiment_user_id,
-        experimentUserName: currentTask.experiment_user_name || null,
-        experimentStartAt: updatedTask.experiment_start_at,
-        experimentEndAt: updatedTask.experiment_end_at,
-        updateAt: updatedTask.update_at
+        organizationId: result.updatedTask.organization_id,
+        projectId: result.updatedTask.project_id,
+        projectName: result.currentTask.project_name || '',
+        methodId: result.updatedTask.method_id,
+        taskNo: result.updatedTask.task_no,
+        taskStatus: statusMap[result.updatedTask.task_status] || 'pending',
+        experimentUserId: result.updatedTask.experiment_user_id,
+        experimentUserName: result.currentTask.experiment_user_name || null,
+        experimentStartAt: result.updatedTask.experiment_start_at,
+        experimentEndAt: result.updatedTask.experiment_end_at,
+        updateAt: result.updatedTask.update_at
       }
     };
 
-  } catch (error) {
-    // エラー発生時はロールバック
-    if (client) {
-      await client.query('ROLLBACK');
+  } catch (error: any) {
+    // pg-promiseのトランザクションエラーまたはカスタムエラー
+    if (error.code) {
+      return {
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message
+        }
+      };
     }
 
     return {
@@ -432,11 +352,6 @@ export async function updateTaskStatus(
         originalError: error as Error
       }
     };
-  } finally {
-    // 接続を必ずリリース
-    if (client) {
-      client.release();
-    }
   }
 }
 

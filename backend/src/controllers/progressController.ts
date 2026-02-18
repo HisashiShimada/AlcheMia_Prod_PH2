@@ -20,9 +20,10 @@ import { TaskService } from '../services/taskService';
 import { updateTaskStatus as updateTaskStatusService } from '../services/taskService';
 import { TaskStatus } from '../types/taskService.types';
 import { TaskFilters } from '../types/task';
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
 import { logger } from '../utils/logger';
 import { TransitionDataUpdate } from '../types/transitionData';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * エラーコードからHTTPステータスコードへのマッピング
@@ -464,15 +465,11 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
     });
 
     // Step 1: プロジェクト名からプロジェクトIDと編集可能ステータスを取得
-    const pool = getPool();
-    const projectQuery = `
-      SELECT project_id, project_name, project_status
-      FROM project
-      WHERE project_name = $1 AND organization_id = $2
-    `;
-    const projectResult = await pool.query(projectQuery, [projectName, organizationId]);
+    const pgp = getPgp();
+    const projectQuery = await loadSqlFile('projects/findByName.sql');
+    const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
 
-    if (projectResult.rowCount === 0) {
+    if (!project) {
       logger.warn('Project not found', {
         projectName,
         organizationId,
@@ -493,7 +490,6 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const project = projectResult.rows[0];
     const projectId = project.project_id;
 
     // Step 2: プロジェクトステータスが編集可能かチェック
