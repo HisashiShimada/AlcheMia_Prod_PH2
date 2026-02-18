@@ -1689,14 +1689,15 @@ export class ProjectService {
     organizationId: string,
     projectId: string
   ): Promise<ServiceResult<any>> {
-    const pool = getPool();
+    const pgp = getPgp();
+    const { loadSqlFile } = require('../sql/loader');
     
     try {
-      // organization_prefix取得
-      const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
-      const orgResult = await pool.query(orgQuery, [organizationId]);
+      // organization_prefix取得（外部SQLファイル使用）
+      const orgSql = await loadSqlFile('projects/getOrganizationPrefix.sql');
+      const orgResult = await pgp.oneOrNone(orgSql, [organizationId]);
       
-      if (orgResult.rows.length === 0) {
+      if (!orgResult) {
         return {
           success: false,
           error: {
@@ -1706,19 +1707,14 @@ export class ProjectService {
         };
       }
       
-      const organizationPrefix = orgResult.rows[0].organization_prefix;
+      const organizationPrefix = orgResult.organization_prefix;
       
-      // Task 3.1: プロジェクト存在確認（organization_idフィルタ必須）
-      const projectQuery = `
-        SELECT project_id, project_name
-        FROM project
-        WHERE organization_id = $1 AND project_id = $2
-      `;
-      
-      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
+      // Task 3.1: プロジェクト存在確認（organization_idフィルタ必須、外部SQLファイル使用）
+      const projectSql = await loadSqlFile('projects/findByIdForMaiml.sql');
+      const projectResult = await pgp.oneOrNone(projectSql, [organizationId, projectId]);
       
       // プロジェクト存在確認
-      if (projectResult.rows.length === 0) {
+      if (!projectResult) {
         return {
           success: false,
           error: {
@@ -1728,7 +1724,7 @@ export class ProjectService {
         };
       }
       
-      const projectName = projectResult.rows[0].project_name;
+      const projectName = projectResult.project_name;
       
       // Task 3.1: S3パスを構築
       const filePath = `projects/${projectName}/${projectName}.maiml`;
