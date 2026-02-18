@@ -23,6 +23,11 @@ import {
   StorageError,
 } from '../utils/errorClasses';
 import archiver from 'archiver';
+import {
+  UploadMetadata,
+  FileUploadResult,
+  MulterFile,
+} from '../types/file';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -247,6 +252,153 @@ export class FileAccessService {
         uploadedBy: 'system', // メタデータにuploadedByがないため固定値
       },
     };
+  }
+
+  /**
+   * ファイルをアップロード（単一または複数）
+   * 
+   * Task: S3ファイルアップロード統一化
+   * - 各画面で生成された完全なパスを使用してファイルをアップロード
+   * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+   * 
+   * @param organizationId 組織ID
+   * @param userId ユーザーID
+   * @param uploadMode アップロードモード（single, bulk, folder）
+   * @param targetPath ターゲットパス（各画面で完全なパスを生成、相対パス）
+   * @param files アップロードするファイル配列
+   * @param metadata 追加メタデータ
+   * @returns アップロード結果
+   * @throws ValidationError バリデーションエラー
+   * @throws StorageError ストレージエラー
+   */
+  async uploadFiles(
+    organizationId: string,
+    userId: string,
+    uploadMode: 'single' | 'bulk' | 'folder',
+    targetPath: string,
+    files: MulterFile[],
+    metadata?: UploadMetadata
+  ): Promise<FileUploadResult> {
+    // 1. バリデーション
+    if (!files || files.length === 0) {
+      throw new ValidationError('ファイルが選択されていません');
+    }
+
+    if (uploadMode === 'single' && files.length > 1) {
+      throw new ValidationError('単一ファイルモードでは1つのファイルのみアップロード可能です');
+    }
+
+    // パストラバーサル攻撃対策
+    if (targetPath.includes('..') || targetPath.includes('//')) {
+      throw new ValidationError('不正なファイルパスが検出されました');
+    }
+
+    // 2. ターゲットパスの正規化
+    const normalizedPath = targetPath.replace(/^\/+|\/+$/g, '');
+
+    // 3. 各ファイルをアップロード
+    const uploadedFiles = [];
+    let totalSize = 0;
+
+    for (const file of files) {
+      try {
+        // ファイル名のサニタイゼーション
+        const sanitizedFileName = sanitizeFileName(file.originalname);
+        
+        // ファイルパスの構築
+        const filePath = `${normalizedPath}/${sanitizedFileName}`;
+
+        // storageServiceを使用してS3/Swiftにアップロード
+        const s3Key = await this.storageService.uploadFile(
+          organizationId,
+          filePath,
+          file.buffer,
+          { contentType: file.mimetype }
+        );
+
+        // file_metadataテーブルに保存
+        const fileId = await this.saveFileMetadata({
+          organizationId,
+          userId,
+          fileName: sanitizedFileName,
+          filePath,
+          s3Key,
+          fileSize: file.size,
+          contentType: file.mimetype,
+          projectId: metadata?.projectId,
+          formatId: metadata?.formatId,
+          batchName: metadata?.batchName,
+        });
+
+        uploadedFiles.push({
+          fileId,
+          fileName: sanitizedFileName,
+          filePath,
+          s3Key,
+          fileSize: file.size,
+          contentType: file.mimetype,
+          uploadedAt: new Date().toISOString(),
+        });
+
+        totalSize += file.size;
+      } catch (error) {
+        console.error(`File upload failed: ${file.originalname}`, error);
+        // エラーハンドリング: 個別ファイルの失敗は記録して継続
+      }
+    }
+
+    return {
+      uploadMode,
+      files: uploadedFiles,
+      summary: {
+        totalFiles: files.length,
+        successfulFiles: uploadedFiles.length,
+        failedFiles: files.length - uploadedFiles.length,
+        totalSize,
+      },
+    };
+  }
+
+  /**
+   * ファイルメタデータをDBに保存
+   * 
+   * @param data ファイルメタデータ
+   * @returns 保存されたファイルキー
+   */
+  private async saveFileMetadata(data: {
+    organizationId: string;
+    userId: string;
+    fileName: string;
+    filePath: string;
+    s3Key: string;
+    fileSize: number;
+    contentType: string;
+    projectId?: string;
+    formatId?: string;
+    batchName?: string;
+  }): Promise<string> {
+    const now = new Date();
+    
+    // FileMetadata型に従ってオブジェクトを構築
+    const fileMetadata = {
+      organization_id: data.organizationId,
+      file_key: data.s3Key,
+      original_filename: data.fileName,
+      file_size: data.fileSize,
+      file_type: data.contentType,
+      uploaded_by: data.userId,
+      is_maiml_file: data.contentType === 'application/xml' || data.fileName.endsWith('.maiml'),
+      s3_bucket: this.storageService.getBucketName(),
+      upload_batch_id: data.batchName,
+      upload_method: 'web_upload',
+      created_at: now,
+      updated_at: now,
+    };
+
+    // repositoryのinsertFileMetadataを使用してINSERT
+    const result = await this.repository.insertFileMetadata(fileMetadata);
+    
+    return result.file_key;
   }
 
   /**

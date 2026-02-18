@@ -34,3 +34,57 @@ export interface ProjectFile {
 export interface FileListResponse {
   files: ProjectFile[];
 }
+
+/**
+ * ファイルアップロードメタデータ
+ */
+export interface UploadMetadata {
+  projectId?: string;
+  formatId?: string;
+  batchName?: string;
+  preserveFolderStructure?: boolean;
+}
+
+/**
+ * アップロードファイル情報
+ */
+export interface UploadedFileInfo {
+  fileId: string;
+  fileName: string;
+  filePath: string;
+  s3Key: string;
+  fileSize: number;
+  contentType: string;
+  uploadedAt: string;
+}
+
+/**
+ * アップロードサマリー
+ */
+export interface UploadSummary {
+  totalFiles: number;
+  successfulFiles: number;
+  failedFiles: number;
+  totalSize: number;
+}
+
+/**
+ * ファイルアップロード結果
+ */
+export interface FileUploadResult {
+  uploadMode: string;
+  files: UploadedFileInfo[];
+  summary: UploadSummary;
+}
+
+/**
+ * Multerファイル型（Express.Multer.File）
+ */
+export interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}

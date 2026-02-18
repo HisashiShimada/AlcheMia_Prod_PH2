@@ -61,15 +61,23 @@ export interface UploadResponse {
 }
 
 /**
+ * アップロードメタデータ
+ */
+export interface UploadMetadata {
+  projectId?: string;
+  formatId?: string;
+  batchName?: string;
+  preserveFolderStructure?: boolean;
+}
+
+/**
  * アップロードパラメータ
  */
 export interface UploadFilesParams {
-  projectId: string;
   uploadMode: UploadMode;
-  targetFolder: string;
+  targetPath: string;
   files: File[];
-  batchName?: string;
-  preserveFolderStructure?: boolean;
+  metadata?: UploadMetadata;
   onProgress?: (progress: UploadProgress) => void;
 }
 
@@ -234,18 +242,16 @@ const handleApiError = (error: unknown): FileServiceError => {
  */
 export const fileService = {
   /**
-   * ファイルアップロード
+   * ファイルアップロード（統一API）
    * @param params アップロードパラメータ
    * @returns アップロード結果
    */
   async uploadFiles(params: UploadFilesParams): Promise<UploadResponse> {
     const {
-      projectId,
       uploadMode,
-      targetFolder,
+      targetPath,
       files,
-      batchName,
-      preserveFolderStructure,
+      metadata,
       onProgress,
     } = params;
 
@@ -253,24 +259,21 @@ export const fileService = {
       // FormDataの構築
       const formData = new FormData();
       formData.append('uploadMode', uploadMode);
-      formData.append('targetFolder', targetFolder);
+      formData.append('targetPath', targetPath);
 
       // ファイルを追加
       files.forEach((file) => {
         formData.append('files', file);
       });
 
-      // オプショナルパラメータの追加
-      if (batchName) {
-        formData.append('batchName', batchName);
-      }
-      if (preserveFolderStructure !== undefined) {
-        formData.append('preserveFolderStructure', String(preserveFolderStructure));
+      // メタデータの追加（JSON文字列として送信）
+      if (metadata) {
+        formData.append('metadata', JSON.stringify(metadata));
       }
 
-      // アップロード実行
+      // アップロード実行（統一エンドポイント）
       const response = await fileApiClient.post<ApiResponse<UploadResponseData>>(
-        `/projects/${projectId}/files/upload`,
+        `/files/upload`,
         formData,
         {
           headers: {

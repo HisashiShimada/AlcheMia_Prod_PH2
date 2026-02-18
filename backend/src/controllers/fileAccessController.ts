@@ -199,6 +199,96 @@ export async function downloadFolderAsZip(req: Request, res: Response): Promise<
 }
 
 /**
+ * ファイルアップロードエンドポイント
+ * POST /api/v1/files/upload
+ * 
+ * Task: S3ファイルアップロード統一化
+ * - 各画面で生成された完全なパスを使用してファイルをアップロード
+ * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+ */
+export async function uploadFiles(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  
+  try {
+    const { organizationId, userId } = req.user!;
+    const { uploadMode, targetPath, metadata } = req.body;
+    const files = req.files as Express.Multer.File[];
+
+    // Service層の初期化と呼び出し
+    const repository = new FileMetadataRepository();
+    const accessValidator = new ProjectAccessValidator();
+    const service = new FileAccessService(repository, accessValidator);
+
+    const result = await service.uploadFiles(
+      organizationId,
+      userId,
+      uploadMode,
+      targetPath,
+      files,
+      metadata
+    );
+
+    // 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+
+  } catch (error: any) {
+    // エラーハンドリング
+    logError('File upload error', error, {
+      action: 'file_upload',
+      organizationId: req.user?.organizationId,
+      uploadMode: req.body?.uploadMode,
+      targetPath: req.body?.targetPath,
+      requestId,
+    });
+
+    // エラータイプに応じたステータスコードとレスポンス
+    let statusCode = 500;
+    let errorCode = 'SYSTEM_ERROR';
+    let errorMessage = 'システムエラーが発生しました';
+
+    if (error.message) {
+      // ValidationErrorのチェック
+      if (error.message.includes('パストラバーサル') || 
+          error.message.includes('不正なファイルパス') ||
+          error.message.includes('ファイルが選択されていません') ||
+          error.message.includes('単一ファイルモード') ||
+          error.message.includes('無効な')) {
+        statusCode = 400;
+        errorCode = 'VALIDATION_ERROR';
+        errorMessage = error.message;
+      }
+      // StorageErrorのチェック
+      else if (error.message.includes('アップロード') || 
+               error.message.includes('ストレージ') ||
+               error.message.includes('メタデータの保存')) {
+        statusCode = 500;
+        errorCode = 'STORAGE_ERROR';
+        errorMessage = error.message;
+      }
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        code: errorCode,
+        message: errorMessage,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
  * ファイルキーベースの汎用ダウンロード用署名付きURL取得エンドポイント
  * POST /api/v1/files/download-url
  * 

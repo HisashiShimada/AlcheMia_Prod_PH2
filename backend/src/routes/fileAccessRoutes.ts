@@ -9,11 +9,59 @@
 
 import { Router } from 'express';
 import { param, query, body } from 'express-validator';
+import multer from 'multer';
 import * as fileAccessController from '../controllers/fileAccessController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
+
+// Multer設定（メモリストレージ）
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB
+    files: 100, // 最大100ファイル
+  },
+});
+
+/**
+ * ファイルアップロード
+ * POST /api/v1/files/upload
+ * 
+ * Task: S3ファイルアップロード統一化
+ * - 各画面で生成された完全なパスを使用してファイルをアップロード
+ * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @middleware upload.array('files') - Multerファイルアップロード
+ * @note すべてのロールがアクセス可能（マルチテナント分離で保護）
+ */
+router.post(
+  '/upload',
+  authMiddleware,
+  upload.array('files'),
+  [
+    body('uploadMode')
+      .notEmpty()
+      .withMessage('uploadModeは必須です')
+      .isIn(['single', 'bulk', 'folder'])
+      .withMessage('uploadModeはsingle, bulk, folderのいずれかである必要があります'),
+    body('targetPath')
+      .notEmpty()
+      .withMessage('targetPathは必須です')
+      .isString()
+      .withMessage('targetPathは文字列である必要があります')
+      .isLength({ min: 1, max: 1024 })
+      .withMessage('targetPathは1〜1024文字である必要があります'),
+    body('metadata')
+      .optional()
+      .isObject()
+      .withMessage('metadataはオブジェクトである必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.uploadFiles
+);
 
 /**
  * フォルダZIPダウンロード
