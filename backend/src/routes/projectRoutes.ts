@@ -212,14 +212,17 @@ router.post(
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
  * @description 実験作業者が実験作業完了後に実験管理者へ承認依頼を送信する
  * @note Task 1.1: 承認依頼エンドポイントのルーティング追加
  * @requirements REQ-1, REQ-2, REQ-3
+ * @roles experiment_worker（書込可）
  */
 router.patch(
   '/:projectName/approval-request',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 1),
   [
     param('projectName')
       .notEmpty()
