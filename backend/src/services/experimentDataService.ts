@@ -8,6 +8,7 @@
 
 import { TemplateDataRepository, TemplateDataRecord, TemplateDataRow } from '../repositories/templateDataRepository';
 import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * プロジェクト編集不可エラー
@@ -69,10 +70,10 @@ export class ExperimentDataService {
       // トランザクション開始
       await client.query('BEGIN');
 
-      // 1. プロジェクト名からプロジェクトIDとステータスを取得
+      // 1. プロジェクト名からプロジェクトIDとステータスを取得（外部SQLファイル使用）
+      const projectQuery = await loadSqlFile('projects/findByNameWithStatus.sql');
       const projectResult = await client.query(
-        `SELECT id, status FROM projects 
-         WHERE organization_id = $1 AND project_name = $2`,
+        projectQuery,
         [organizationId, projectName]
       );
 
@@ -91,10 +92,10 @@ export class ExperimentDataService {
         throw new ProjectNotEditableError(projectStatus);
       }
 
-      // 2. タスクが存在することを確認
+      // 2. タスクが存在することを確認（外部SQLファイル使用）
+      const taskQuery = await loadSqlFile('tasks/checkExists.sql');
       const taskResult = await client.query(
-        `SELECT task_no FROM project_task 
-         WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+        taskQuery,
         [organizationId, projectId, methodId, taskNo]
       );
 
