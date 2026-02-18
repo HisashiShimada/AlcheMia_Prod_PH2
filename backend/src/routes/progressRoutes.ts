@@ -87,6 +87,7 @@ router.patch(
  * GET /api/v1/progress/projects/:projectName/worker-tasks
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
  * @middleware handleValidationErrors - バリデーションエラーハンドリング
  * @description 実験作業者が自分に割り当てられたタスクの一覧をメソッド単位でグループ化して取得
  * @note API #4: タスク一覧取得（実験作業者用）
@@ -96,6 +97,7 @@ router.patch(
 router.get(
   '/projects/:projectName/worker-tasks',
   authMiddleware,
+  checkPermission('050000', 0),
   [
     // パスパラメータバリデーション
     param('projectName')
