@@ -12,6 +12,7 @@ import * as taskController from '../controllers/taskController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
+import { checkPermission } from '../middleware/permissionCheckMiddleware';
 
 const router = Router();
 
@@ -68,6 +69,7 @@ router.get(
  * PUT /api/v1/projects/:projectId/methods/:methodId/tasks/:taskNo/status
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー）
  * @description 実験タスクのステータスを更新する
  * @note Task 1.1: タスクステータス更新エンドポイント追加
  * @requirements REQ-1.1, REQ-4.1, REQ-4.2, REQ-4.3, REQ-4.4, REQ-8.1, REQ-8.2, REQ-8.4
@@ -76,6 +78,7 @@ router.get(
 router.put(
   '/:projectId/methods/:methodId/tasks/:taskNo/status',
   authMiddleware,
+  checkPermission('050000', 1),
   [
     // パラメータバリデーション
     param('projectId')
