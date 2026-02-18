@@ -47,7 +47,7 @@ function getHttpStatusFromErrorCode(errorCode: string): number {
 /**
  * 進捗データ取得API
  * 
- * GET /api/v1/progress/:projectId/:methodId/:taskNo
+ * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
  * 
  * Requirements:
  * - Requirement 1: 進捗データ取得機能
@@ -64,19 +64,52 @@ export async function getProgressData(req: Request, res: Response): Promise<void
     res.setHeader('X-Request-Id', requestId);
 
     // パラメータの取得（バリデーションミドルウェアで検証済み）
-    const { projectId, methodId, taskNo: taskNoStr } = req.params;
+    const { projectName, methodId, taskNo: taskNoStr } = req.params;
     const { organizationId } = req.user!;
     const taskNo = parseInt(taskNoStr, 10);
 
     logger.info('Progress data request received', {
-      projectId,
+      projectName,
       methodId,
       taskNo,
       organizationId,
       requestId
     });
 
-    // ProgressServiceの呼び出し
+    // Step 1: プロジェクト名からプロジェクトIDを取得
+    const pool = getPool();
+    const projectQuery = `
+      SELECT project_id, project_name
+      FROM project
+      WHERE project_name = $1 AND organization_id = $2
+    `;
+    const projectResult = await pool.query(projectQuery, [projectName, organizationId]);
+
+    if (projectResult.rowCount === 0) {
+      logger.warn('Project not found', {
+        projectName,
+        organizationId,
+        requestId
+      });
+
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'プロジェクトが見つかりません'
+        },
+        meta: {
+          timestamp,
+          requestId
+        }
+      });
+      return;
+    }
+
+    const project = projectResult.rows[0];
+    const projectId = project.project_id;
+
+    // Step 2: ProgressServiceの呼び出し
     const taskRepository = new TaskRepository();
     const transitionDataRepository = new TransitionDataRepository();
     const progressService = new ProgressService(taskRepository, transitionDataRepository);
@@ -90,6 +123,7 @@ export async function getProgressData(req: Request, res: Response): Promise<void
     // 成功時のレスポンス
     if (result.success) {
       logger.info('Progress data retrieved successfully', {
+        projectName,
         projectId,
         methodId,
         taskNo,
@@ -115,6 +149,7 @@ export async function getProgressData(req: Request, res: Response): Promise<void
     logger.error('Progress data retrieval failed', {
       errorCode,
       message: result.error.message,
+      projectName,
       projectId,
       methodId,
       taskNo,

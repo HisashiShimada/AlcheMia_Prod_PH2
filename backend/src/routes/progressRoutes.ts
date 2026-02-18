@@ -17,21 +17,23 @@ const router = Router();
 
 /**
  * 進捗データ取得
- * GET /api/v1/progress/:projectId/:methodId/:taskNo
+ * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
  *
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
  * @middleware バリデーションルール - パラメータ検証
  * @middleware handleValidationErrors - バリデーションエラーハンドリング
- * @description 指定されたプロジェクト・メソッド・タスクに紐づくトランジションレベルの進捗情報を取得
- * @note Task 6.1: ルート定義とミドルウェアチェーン
+ * @description 指定されたプロジェクト名・メソッド・タスク連番に紐づくトランジションレベルの進捗情報を取得
+ * @note API #3: 進捗データ取得API（api_progress_monitoring.md）
  * @requirements REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7, REQ-8, REQ-9, REQ-10
- * @roles experiment_admin, experiment_worker, system_admin (authMiddlewareで認証済みユーザーに限定)
+ * @roles experiment_worker（読取専用）
  */
 router.get(
-  '/:projectId/:methodId/:taskNo',
+  '/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions',
   authMiddleware,
+  checkPermission('050000', 0),
   [
-    validateUUID('projectId', 'param'),
+    validateParamString('projectName', 1, 255),
     validateParamString('methodId', 1, 255),
     validateParamInt('taskNo', 1),
   ],
