@@ -14,7 +14,7 @@
  * router.put(
  *   '/path',
  *   authMiddleware,
- *   checkPermission('050000', 1),  // 実験作業者メニュー、読取権限以上
+ *   checkPermission('050000', 1),  // 実験作業者メニュー、書き込み権限
  *   controller.action
  * );
  * ```
@@ -39,7 +39,7 @@ export interface PermissionPair {
  * 指定された機能へのアクセス権限をチェックするミドルウェア
  * 
  * @param requiredFunctionId - 必要な機能CD（function_cd）
- * @param requiredPermission - 必要な権限レベル（0=書込専用, 1=読取権限）
+ * @param requiredPermission - 必要な権限レベル（0=読み取り専用, 1=書き込み可（読み取り含む））
  * @returns ミドルウェア関数
  * 
  * @description
@@ -113,8 +113,8 @@ export function checkPermission(
  *   '/path',
  *   authMiddleware,
  *   checkPermissionPairs([
- *     { functionId: '050000', permission: 1 },  // 実験作業者メニュー、読取権限
- *     { functionId: '040000', permission: 0 }   // 実験管理者メニュー、書込専用
+ *     { functionId: '050000', permission: 1 },  // 実験作業者メニュー、書き込み権限
+ *     { functionId: '040000', permission: 0 }   // 実験管理者メニュー、読み取り専用
  *   ]),
  *   controller.action
  * );
