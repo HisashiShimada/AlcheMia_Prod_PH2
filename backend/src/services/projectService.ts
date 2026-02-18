@@ -5,7 +5,7 @@
  * Task: 1.1 データベースクエリ機能の実装
  */
 
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
 import { getStorageService } from './storageService';
 import { escapeHtml } from '../utils/sanitize';
 import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
@@ -1212,8 +1212,10 @@ export class ProjectService {
     organizationId: string,
     userId: string
   ): Promise<ServiceResult<any>> {
-    const pool = getPool();
-    let client;
+    const pgp = getPgp();
+    
+    // リポジトリ層のインポート
+    const projectRepository = require('../repositories/projectRepository');
 
     // Task 5.2.4: ログ記録開始（機密情報フィルタリング）
     winston.info('Approval request initiated', {
@@ -1226,21 +1228,11 @@ export class ProjectService {
 
     try {
       // Task 3.1: プロジェクト存在確認とステータス検証（トランザクション外）
-      // organization_idフィルタ必須でプロジェクト情報を取得
-      const projectQuery = `
-        SELECT 
-          project_id,
-          project_name,
-          project_status,
-          organization_id
-        FROM project
-        WHERE organization_id = $1 AND project_id = $2
-      `;
-
-      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
+      // リポジトリ層を使用してプロジェクト情報を取得
+      const project = await projectRepository.findByIdWithOrganization(organizationId, projectId);
 
       // プロジェクト存在確認
-      if (projectResult.rows.length === 0) {
+      if (!project) {
         return {
           success: false,
           error: {
@@ -1249,8 +1241,6 @@ export class ProjectService {
           },
         };
       }
-
-      const project = projectResult.rows[0];
 
       // プロジェクトステータスマップ（数値 → 文字列）
       const PROJECT_STATUS_MAP: { [key: number]: string } = {
@@ -1284,33 +1274,26 @@ export class ProjectService {
         };
       }
 
-      // Task 3.2: トランザクション管理とステータス更新
-      client = await pool.connect();
-      await client.query('BEGIN');
-
-      // プロジェクトステータス更新（Parameterized Query）
-      const updateQuery = `
-        UPDATE project
-        SET project_status = $1,
-            update_at = $2,
-            update_user_id = $3
-        WHERE organization_id = $4 AND project_id = $5
-      `;
-
+      // Task 3.2: トランザクション管理とステータス更新（pg-promiseのtx使用）
       const currentTimestamp = new Date().toISOString();
-      await client.query(updateQuery, [
-        2, // waiting_approval
-        currentTimestamp,
-        userId,
-        organizationId,
-        projectId,
-      ]);
+      
+      await pgp.tx(async (t) => {
+        // プロジェクトステータス更新（リポジトリ層使用）
+        const rowCount = await projectRepository.updateApprovalStatus(
+          organizationId,
+          projectId,
+          2, // waiting_approval
+          currentTimestamp,
+          userId
+        );
+        
+        if (rowCount === 0) {
+          throw new Error('Failed to update project status');
+        }
+      });
 
       // commentをエスケープしてXSS攻撃を防ぐ（通知削除後も保持）
       const escapedComment = escapeHtml(comment);
-
-      // トランザクションコミット
-      await client.query('COMMIT');
 
       // Task 5.2.4: 承認依頼成功ログ
       winston.info('Approval request completed successfully', {
@@ -1323,20 +1306,14 @@ export class ProjectService {
         timestamp: currentTimestamp,
       });
 
-      // Task 3.4.1: ユーザー名を取得（トランザクション後）
+      // Task 3.4.1: ユーザー名を取得（トランザクション後、リポジトリ層使用）
       let requestedByName = userId; // デフォルトはuserIdをフォールバック
       
       try {
-        const userQuery = `
-          SELECT user_name
-          FROM organization_user
-          WHERE organization_id = $1 AND user_id = $2
-        `;
+        const userName = await projectRepository.findUserNameById(organizationId, userId);
         
-        const userResult = await pool.query(userQuery, [organizationId, userId]);
-        
-        if (userResult.rows.length > 0 && userResult.rows[0].user_name) {
-          requestedByName = userResult.rows[0].user_name;
+        if (userName) {
+          requestedByName = userName;
         }
       } catch (userError) {
         // ユーザー名取得失敗時はフォールバック値を使用（ログのみ）
@@ -1357,10 +1334,6 @@ export class ProjectService {
         },
       };
     } catch (error) {
-      if (client) {
-        await client.query('ROLLBACK');
-      }
-      
       // Task 5.2.4: エラーログ記録（機密情報フィルタリング）
       winston.error('Approval request failed', {
         projectId,
@@ -1378,10 +1351,6 @@ export class ProjectService {
           originalError: error as Error,
         },
       };
-    } finally {
-      if (client) {
-        client.release();
-      }
     }
   }
 

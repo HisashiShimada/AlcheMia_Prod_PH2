@@ -833,13 +833,11 @@ export async function requestApproval(req: Request, res: Response): Promise<void
     const { projectName } = req.params;
     const { comment } = req.body;
 
-    // projectNameからprojectIdを取得
-    const { getPool } = require('../database/db');
-    const pool = getPool();
-    const projectQuery = 'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2';
-    const projectResult = await pool.query(projectQuery, [organizationId, projectName]);
+    // projectNameからprojectIdを取得（リポジトリ層を使用）
+    const projectRepository = require('../repositories/projectRepository');
+    const project = await projectRepository.findProjectIdByName(organizationId, projectName);
     
-    if (projectResult.rows.length === 0) {
+    if (!project) {
       res.status(404).json({
         success: false,
         error: {
@@ -854,7 +852,7 @@ export async function requestApproval(req: Request, res: Response): Promise<void
       return;
     }
     
-    const projectId = projectResult.rows[0].project_id;
+    const projectId = project.project_id;
 
     // Service層呼び出し（commentがundefinedの場合はnullに変換）
     const result = await projectService.requestApproval(
