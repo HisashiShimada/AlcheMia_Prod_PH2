@@ -78,15 +78,11 @@ export async function getProgressData(req: Request, res: Response): Promise<void
     });
 
     // Step 1: プロジェクト名からプロジェクトIDを取得
-    const pool = getPool();
-    const projectQuery = `
-      SELECT project_id, project_name
-      FROM project
-      WHERE project_name = $1 AND organization_id = $2
-    `;
-    const projectResult = await pool.query(projectQuery, [projectName, organizationId]);
+    const pgp = getPgp();
+    const projectQuery = await loadSqlFile('projects/findByName.sql');
+    const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
 
-    if (projectResult.rowCount === 0) {
+    if (!project) {
       logger.warn('Project not found', {
         projectName,
         organizationId,
@@ -107,7 +103,6 @@ export async function getProgressData(req: Request, res: Response): Promise<void
       return;
     }
 
-    const project = projectResult.rows[0];
     const projectId = project.project_id;
 
     // Step 2: ProgressServiceの呼び出し
