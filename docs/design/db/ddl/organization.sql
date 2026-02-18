@@ -19,9 +19,8 @@ DROP TABLE if exists organization CASCADE;
 -- * RestoreFromTempTable
 CREATE TABLE organization (
   organization_id uuid NOT NULL
-  , organization_name character varying(50)
+  , organization_cd character varying(50)
   , organization_display_name character varying(50)
-  , organization_prefix character varying(50)
   , organization_email character varying(50)
   , chief_user_id character varying(50)
   , corporation_id uuid
@@ -34,11 +33,16 @@ CREATE TABLE organization (
   , CONSTRAINT organization_PKC PRIMARY KEY (organization_id)
 ) ;
 
+-- インデックス作成
+CREATE INDEX idx_organization_organization_cd ON organization(organization_cd);
+
+-- テーブルコメント
 COMMENT ON TABLE organization IS '組織';
+
+-- カラムコメント
 COMMENT ON COLUMN organization.organization_id IS '組織ID:9eea5300-db8b-4b2d-8e9e-ec306c476b12';
-COMMENT ON COLUMN organization.organization_name IS '組織名';
+COMMENT ON COLUMN organization.organization_cd IS '組織CD';
 COMMENT ON COLUMN organization.organization_display_name IS '組織表示名';
-COMMENT ON COLUMN organization.organization_prefix IS '組織_S3プレフィックス';
 COMMENT ON COLUMN organization.organization_email IS '組織E-mail';
 COMMENT ON COLUMN organization.chief_user_id IS '代表者ユーザID';
 COMMENT ON COLUMN organization.corporation_id IS '会社ID';

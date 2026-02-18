@@ -47,12 +47,12 @@ function getFunctionName(functionId: string): string {
 
 /**
  * 権限コードから権限記号を取得
- * @param permission 権限コード (0=書込, 1=読取)
+ * @param permission 権限コード (0=読取専用, 1=書込可)
  * @returns 権限記号 (例: "Ⓦ", "Ⓡ")
  */
 function getPermissionSymbol(permission: number): string {
-  if (permission === 0) return PermissionList.WRITER; // Ⓦ
-  if (permission === 1) return PermissionList.READER; // Ⓡ
+  if (permission === 0) return PermissionList.READER; // Ⓡ
+  if (permission === 1) return PermissionList.WRITER; // Ⓦ
   return '';
 }
 
@@ -161,7 +161,7 @@ export async function getRoles(organizationId: string): Promise<Role[]> {
       }
 
       // 機能情報の配列に追加（色とアイコン付き）
-      const isWriter = row.permission === 0;
+      const isWriter = row.permission === 1;
       role.functions.push({
         name: funcName,
         permission: isWriter ? 'WRITER' : 'READER',
@@ -170,8 +170,8 @@ export async function getRoles(organizationId: string): Promise<Role[]> {
       });
 
       // functionWritePermissionsに追加（書き込み権限のみ）
-      // permission === 0 が書き込み権限
-      if (row.permission === 0) {
+      // permission === 1 が書き込み権限
+      if (row.permission === 1) {
         // writableFunctionIdsに機能IDを追加
         role.writableFunctionIds.push(row.function_cd);
         
@@ -271,7 +271,7 @@ export async function getRoleById(
       }
 
       // 機能情報の配列に追加（色とアイコン付き）
-      const isWriter = row.permission === 0;
+      const isWriter = row.permission === 1;
       role.functions.push({
         name: funcName,
         permission: isWriter ? 'WRITER' : 'READER',
@@ -280,8 +280,8 @@ export async function getRoleById(
       });
 
       // functionWritePermissionsに追加（書き込み権限のみ）
-      // permission === 0 が書き込み権限
-      if (row.permission === 0) {
+      // permission === 1 が書き込み権限
+      if (row.permission === 1) {
         // writableFunctionIdsに機能IDを追加
         role.writableFunctionIds.push(row.function_cd);
         
@@ -475,8 +475,8 @@ export async function updateRolePermissions(
           VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, CURRENT_TIMESTAMP);
         `;
         
-        // permission: 0=書込可、1=読取のみ
-        const permissionValue = perm.writable ? 0 : 1;
+        // permission: 0=読取専用、1=書込可
+        const permissionValue = perm.writable ? 1 : 0;
         
         await client.query(insertQuery, [
           organizationId,
