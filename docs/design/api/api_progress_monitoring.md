@@ -1,11 +1,11 @@
 # 進捗確認API仕様書
 
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-02-18 11:44  
-**バージョン**: 1.1.0  
-**対象画面**: 実験管理者 - 進捗確認画面  
-**総API数**: 5個  
-**実装状況**: 0個実装済み、5個未実装
+**最終更新**: 2026-02-18 14:00  
+**バージョン**: 1.4.0  
+**対象画面**: 実験管理者 - 進捗確認画面、実験作業者 - 実験記録画面  
+**総API数**: 6個  
+**実装状況**: 0個実装済み、6個未実装
 
 ---
 
@@ -13,10 +13,10 @@
 
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
-| 進捗確認 | 0 | 5 | 5 |
-| **合計** | **0** | **5** | **5** |
+| 進捗確認 | 0 | 6 | 6 |
+| **合計** | **0** | **6** | **6** |
 
-**完了率**: 0% (0/5)
+**完了率**: 0% (0/6)
 
 ---
 
@@ -27,8 +27,9 @@
 | 1 | メソッド別タスク一覧取得 | GET | `/api/v1/projects/:projectId/methods/:methodId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 2 | タスク詳細取得 | GET | `/api/v1/tasks/:taskId` | 🔴 未実装 | ⭐⭐ 中 |
 | 3 | 進捗データ取得 | GET | `/api/v1/progress/:projectId/:methodId/:taskNo` | 🔴 未実装 | ⭐⭐ 中 |
-| 4 | タスク一覧取得 | GET | `/api/v1/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 4 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 5 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 6 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
 
 ---
 
@@ -759,25 +760,24 @@ const calculateOverallProgress = (transitions: any[]) => {
 
 ---
 
-### 4. タスク一覧取得API 🔴
+### 4. タスク一覧取得（実験作業者用）API 🔴
 
-**エンドポイント**: `GET /api/v1/tasks`
+**エンドポイント**: `GET /api/v1/progress/projects/:projectName/worker-tasks`
 
-**説明**: プロジェクト内の全タスク一覧を取得（メソッド単位でグループ化）
+**説明**: 実験作業者が自分に割り当てられたタスクの一覧を取得
 
 **認証**: 必須
 
-**権限**: `experiment_admin`, `experiment_worker`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
 #### リクエストパラメータ
 
-**クエリパラメータ**:
-| パラメータ | 型 | 必須 | デフォルト | 説明 |
-|----------|---|------|-----------|------|
-| `projectId` | UUID | ○ | - | プロジェクトID |
-| `methodId` | string | × | - | メソッドIDでフィルタリング |
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
 | `status` | string | × | - | タスクステータスでフィルタリング（`not_started`, `started`, `in_progress`, `completed`, `forced_terminated`） |
 | `assignedTo` | UUID | × | - | 担当者でフィルタリング |
 | `sortBy` | string | × | `task_no` | ソート基準（`task_no`, `created_at`, `updated_at`, `status`） |
@@ -847,7 +847,7 @@ const calculateOverallProgress = (transitions: any[]) => {
 // プロジェクト情報を取得
 const project = await db
   .selectFrom('project')
-  .where('project_id', '=', projectId)
+  .where('project_name', '=', projectName)
   .where('organization_id', '=', organizationId)
   .select(['project_id', 'project_name'])
   .executeTakeFirstOrThrow();
@@ -861,9 +861,6 @@ let query = db
   .where('project_task.organization_id', '=', organizationId);
 
 // フィルタリング
-if (methodId) {
-  query = query.where('project_task.method_id', '=', methodId);
-}
 if (status) {
   query = query.where('project_task.task_status', '=', status);
 }
@@ -885,6 +882,8 @@ const tasks = await query
     'project_task.create_at as created_at',
     'project_task.update_at as updated_at'
   ])
+  .orderBy('project_task.method_id', 'asc')
+  .orderBy('project_task.task_no', 'asc')
   .execute();
 
 // MAIMLファイルからメソッド情報を取得
@@ -1199,7 +1198,296 @@ const validateStatusUpdate = (body: any) => {
 
 ---
 
-### 6. タスクステータス更新API（旧エンドポイント・参考用） 🔴
+### 6. トランジションステータス更新API 🔴
+
+**エンドポイント**: `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status`
+
+**説明**: トランジションのステータスを手動で更新します。進捗確認の一環としてトランジション単位の進捗を記録します。
+
+**認証**: 必須
+
+**権限**: `experiment_worker`（書込可）
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
+| `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
+| `transitionId` | string | ○ | トランジションID |
+
+**リクエストボディ**:
+```json
+{
+  "taskNo": 1,
+  "status": "running",
+  "progressRate": 50,
+  "comment": "実験を開始しました。現在50%完了。"
+}
+```
+
+**リクエストボディのパラメータ詳細**:
+
+| パラメータ | 型 | 必須 | 説明 | 制約 |
+|-----------|----|----|------|------|
+| taskNo | integer | ○ | タスク連番 | 1以上の整数 |
+| status | string | ○ | トランジションステータス | initial, preparing, ready, running, paused, completed, error |
+| progressRate | integer | △ | 進捗率 | 0-100、statusがcompletedの場合は自動的に100 |
+| comment | string | × | コメント | 最大2000文字 |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "transitionId": "transition_001",
+    "taskNo": 1,
+    "methodId": "method_001",
+    "projectName": "Sample Project",
+    "status": "running",
+    "progressRate": 50,
+    "comment": "実験を開始しました。現在50%完了。",
+    "updatedBy": "880e8400-e29b-41d4-a716-446655440003",
+    "updatedAt": "2026-01-27T11:00:00Z"
+  },
+  "meta": {
+    "timestamp": "2026-01-27T11:00:00Z",
+    "requestId": "req_def456"
+  }
+}
+```
+
+**エラー時 (400 Bad Request)**:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": [
+      {
+        "field": "status",
+        "message": "Invalid status value",
+        "code": "INVALID_VALUE"
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-01-27T11:00:00Z",
+    "requestId": "req_def456"
+  }
+}
+```
+
+**エラー時 (403 Forbidden)**:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "PERMISSION_INSUFFICIENT",
+    "message": "Project is not in editable status"
+  },
+  "meta": {
+    "timestamp": "2026-01-27T11:00:00Z",
+    "requestId": "req_def456"
+  }
+}
+```
+
+**エラー時 (404 Not Found)**:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "Transition not found or does not belong to your organization"
+  },
+  "meta": {
+    "timestamp": "2026-01-27T11:00:00Z",
+    "requestId": "req_def456"
+  }
+}
+```
+
+#### ビジネスロジック
+
+1. **プロジェクトステータス確認**
+   - プロジェクトステータスが編集可能（draft/active/waiting_approval）であることを確認
+
+2. **トランジション存在確認**
+   - transitionIdが指定されたプロジェクト・メソッド・タスク連番に属することを確認
+   - organization_idでマルチテナント分離
+
+3. **ステータス更新**
+   - transition_dataテーブルを更新
+   - statusが"completed"の場合、progress_rateを自動的に100に設定
+   - updated_byに現在のユーザーIDを設定
+
+4. **イベントログ記録**
+   - maiml_event_logテーブルに変更履歴を記録
+   - 組織ID、プロジェクトIDはリクエストデータから取得
+   - シーケンス番号は自動採番（organization_id、project_id単位で連番）
+   - APIリクエストデータをJSON形式でlogカラムに格納
+
+5. **タスク進捗の再計算（オプション）**
+   - タスク内の全トランジションの進捗率から、タスク全体の進捗率を再計算
+
+#### バリデーション
+
+- [ ] projectName は文字列（パスパラメータ）
+- [ ] methodId は文字列（パスパラメータ）
+- [ ] transitionId は文字列（パスパラメータ）
+- [ ] taskNo は1以上の整数（リクエストボディ）
+- [ ] status は許可された値のいずれか
+- [ ] progressRate は0-100の整数（指定時）
+- [ ] comment は2000文字以内（指定時）
+
+#### データベーステーブル
+
+**使用テーブル**:
+
+1. **transition_data**（主テーブル）
+   - organization_id, project_id, method_id, task_no, transition_id
+   - status, progress_rate, comment
+   - updated_by, updated_at, created_at
+
+2. **maiml_event_log**（イベントログ）
+   - organization_id, project_id, sequence_no
+   - log (JSONB)
+   - created_at
+
+3. **projects**（ステータス確認）
+   - id, status, organization_id
+
+4. **project_task**（存在確認）
+   - project_id, task_no, organization_id
+
+#### SQL例
+
+```sql
+-- トランザクション開始
+BEGIN;
+
+-- 1. プロジェクト情報取得
+SELECT project_id, project_status FROM project
+WHERE project_name = $1 AND organization_id = $2;
+
+-- 2. プロジェクトステータス確認（編集可能）
+-- draft, active, waiting_approval のいずれかであること
+
+-- 3. タスク存在確認
+SELECT task_no FROM project_task 
+WHERE project_id = $3 
+  AND task_no = $4 
+  AND organization_id = $2;
+
+-- 4. トランジションステータス更新
+UPDATE transition_data
+SET 
+  status = $5,
+  progress_rate = CASE 
+    WHEN $5 = 'completed' THEN 100 
+    ELSE $6 
+  END,
+  comment = $7,
+  updated_by = $8,
+  updated_at = NOW()
+WHERE organization_id = $2
+  AND project_id = $3
+  AND method_id = $9
+  AND task_no = $4
+  AND transition_id = $10
+RETURNING *;
+
+-- 5. イベントログ記録
+INSERT INTO maiml_event_log (
+  organization_id,
+  project_id,
+  sequence_no,
+  log,
+  created_at
+) VALUES (
+  $2,  -- organization_id
+  $3,  -- project_id
+  (
+    SELECT COALESCE(MAX(sequence_no), 0) + 1
+    FROM maiml_event_log
+    WHERE organization_id = $2 AND project_id = $3
+  ),  -- 自動採番されたsequence_no
+  jsonb_build_object(
+    'event_type', 'transition_status_update',
+    'method_id', $9,
+    'task_no', $4,
+    'transition_id', $10,
+    'status', $5,
+    'progress_rate', CASE WHEN $5 = 'completed' THEN 100 ELSE $6 END,
+    'comment', $7,
+    'updated_by', $8,
+    'timestamp', NOW()
+  ),  -- APIデータをJSON形式で格納
+  NOW()
+);
+
+-- 6. タスク進捗率の再計算（オプション）
+UPDATE project_task
+SET 
+  progress_rate = (
+    SELECT AVG(progress_rate)
+    FROM transition_data
+    WHERE project_id = $3 
+      AND task_no = $4 
+      AND organization_id = $2
+  ),
+  updated_at = NOW()
+WHERE project_id = $3 
+  AND task_no = $4 
+  AND organization_id = $2;
+
+COMMIT;
+```
+
+**パラメータ説明**:
+```
+$1: project_name (string)
+$2: organization_id (string)
+$3: project_id (UUID) - プロジェクト名から取得
+$4: task_no (integer) - リクエストボディ
+$5: status (string) - リクエストボディ
+$6: progress_rate (integer) - リクエストボディ
+$7: comment (string) - リクエストボディ
+$8: updated_by (UUID) - 現在のユーザーID
+$9: method_id (string) - パスパラメータ
+$10: transition_id (string) - パスパラメータ
+```
+
+#### セキュリティ
+
+- [ ] organization_id フィルタ必須
+- [ ] プロジェクトステータスが編集可能であることを確認
+- [ ] SQLインジェクション対策（Parameterized Queries）
+- [ ] パスパラメータの階層構造検証
+
+#### パフォーマンス
+
+- インデックス: transition_data (organization_id, project_id, method_id, task_no, transition_id) - 複合主キー
+- インデックス: transition_data (organization_id, project_id, updated_at)
+- トランザクション: 必須（整合性保証）
+
+#### 備考
+
+- **旧エンドポイント**: この仕様は実験データ記録API（api_experiment_data.md）から移動
+- **変更点**: taskNoをパスパラメータからリクエストボディパラメータに変更
+- **権限**: experiment_worker（書込可）のみが使用可能
+- **用途**: 進捗確認の一環としてトランジション単位の進捗を記録
+
+---
+
+### 参考: タスクステータス更新API（旧エンドポイント） 🔴
 
 **⚠️ 注意**: このエンドポイントは参考用です。新規実装では **API #5** の `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` を使用してください。
 
@@ -1414,6 +1702,23 @@ const validateStatusUpdate = (body: any) => {
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.4.0 | 2026-02-18 | トランジションステータス更新API追加（6エンドポイント） | Cline |
+| | | - API #6: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status | |
+| | | - 実験データ記録APIから進捗確認APIに移動 | |
+| | | - taskNoをリクエストボディパラメータ化 | |
+| | | - 権限: experiment_worker（書込可） | |
+| | | - トランジション単位の進捗更新 | |
+| | | - イベントログ記録とタスク進捗率再計算 | |
+| 1.3.0 | 2026-02-18 | タスク一覧取得（実験作業者用）API仕様変更（5エンドポイント） | Cline |
+| | | - API #4: GET /api/v1/progress/projects/:projectName/worker-tasks（エンドポイント変更） | |
+| | | - タスク一覧取得（プロジェクト単位）からタスク一覧取得（実験作業者用）に変更 | |
+| | | - プロジェクト名のみで特定（methodIdパラメータ削除） | |
+| | | - メソッドごとにグループ化したレスポンス | |
+| | | - 総API数: 6→5（-1: 重複削除） | |
+| 1.2.0 | 2026-02-18 | タスク一覧取得（実験作業者用）API追加（6エンドポイント） | Cline |
+| | | - API #6: GET /api/v1/progress/projects/:projectName/methods/:methodId/worker-tasks | |
+| | | - 実験作業者が自分に割り当てられたタスクの一覧を取得 | |
+| | | - 権限: experiment_worker（読取専用） | |
 | 1.1.0 | 2026-02-18 | タスクステータス更新API追加（5エンドポイント） | Cline |
 | | | - API #5: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | |
 | | | - プロジェクト名+メソッドID+タスク連番でタスク特定 | |
@@ -1425,4 +1730,4 @@ const validateStatusUpdate = (body: any) => {
 
 **作成者**: Cline  
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-02-18 11:44
+**最終更新**: 2026-02-18 14:00

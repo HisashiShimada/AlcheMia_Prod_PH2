@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.8.0
-- **最終更新**: 2026-02-13
+- **バージョン**: 2.9.0
+- **最終更新**: 2026-02-18
 - **担当**: Development Team
 
 ---
@@ -189,7 +189,7 @@
 
 ### 6. 進捗確認API（Progress Monitoring）
 
-**API設計書**: [api_progress_monitoring.md](./api_progress_check.md)  
+**API設計書**: [api_progress_monitoring.md](./api_progress_monitoring.md)  
 **ルートファイル**: `backend/src/routes/progressRoutes.ts`（推定）
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
@@ -197,19 +197,22 @@
 | 6.1 | GET | /api/v1/projects/:projectId/methods/:methodId/tasks | メソッド別タスク一覧取得 | ⏳ 未実装 | ProgressController.listTasks |
 | 6.2 | GET | /api/v1/tasks/:taskId | タスク詳細取得 | ⏳ 未実装 | ProgressController.getTaskDetail |
 | 6.3 | GET | /api/v1/progress/:projectId/:methodId/:taskNo | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
-| 6.4 | GET | /api/v1/tasks | タスク一覧取得（プロジェクト単位） | ⏳ 未実装 | ProgressController.listAllTasks |
+| 6.4 | GET | /api/v1/progress/projects/:projectName/worker-tasks | タスク一覧取得（実験作業者用） | ⏳ 未実装 | ProgressController.getWorkerTasks |
 | 6.5 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | タスクステータス更新 | ⏳ 未実装 | ProgressController.updateTaskStatus |
+| 6.6 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | ProgressController.updateTransitionStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
-- 権限: Manager以上
+- 権限: 6.1-6.3（Manager以上）、6.4（experiment_worker読取専用）、6.5-6.6（experiment_worker書込可）
 
 **備考:**
 - メソッド別進捗集約
 - タスク詳細情報（担当者、ステータス、実験記録）
 - リアルタイム進捗反映
 - 進捗情報キャッシュ（5分間）
+- API 6.4: 実験作業者が自分に割り当てられたタスクの一覧を取得（プロジェクト名で特定）
 - API 6.5: プロジェクト名、メソッドID、タスク連番でタスクを特定してステータス更新
+- API 6.6: トランジションステータス更新（実験データ記録APIから移動、taskNoはリクエストボディで指定）
 
 ---
 
@@ -256,7 +259,6 @@
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
 | 8.1 | POST | /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | ExperimentDataController.saveBatch |
-| 8.2 | PUT | /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | ExperimentDataController.updateStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -264,13 +266,12 @@
 
 **備考:**
 - 実験データのテンプレート単位保存
-- ステータス: initial, preparing, ready, running, paused, completed, error
 - DataGrid（2次元配列）、ネストプロパティに対応
-- みなし進捗更新機能をサポート（保存時に自動でステータス判定）
 - プロジェクトステータスが編集可能な場合のみ保存可能
 - ファイルアップロードは共通API（3.1）を使用
 - トランザクション保証により整合性を確保
 - マルチテナント分離により自組織の実験データのみ操作可能
+- **トランジションステータス更新APIは進捗確認API（6.6）に移動**
 
 ---
 
@@ -465,14 +466,14 @@
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 5 | 0 | 0 | 5 | 0% |
 | Maiml編集API | 10 | 9 | 1 | 0 | 90% |
-| 進捗確認API | 5 | 0 | 0 | 5 | 0% |
+| 進捗確認API | 6 | 0 | 0 | 6 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
-| 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
+| 実験データ記録API | 1 | 0 | 0 | 1 | 0% |
 | 部署管理API | 7 | 7 | 0 | 0 | 100% |
 | ロール管理API | 8 | 8 | 0 | 0 | 100% |
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
 | 会社管理API | 7 | 7 | 0 | 0 | 100% |
-| **合計** | **95** | **72** | **1** | **22** | **76%** |
+| **合計** | **96** | **72** | **1** | **23** | **75%** |
 
 ### 優先度別実装状況
 
@@ -656,6 +657,30 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.9.0 | 2026-02-18 | トランジションステータス更新API移動（96エンドポイント） | Cline |
+| | | - 進捗確認API: 5→6エンドポイント（+1: トランジションステータス更新） | |
+| | | - API 6.6: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status | |
+| | | - 実験データ記録API: 2→1エンドポイント（-1: トランジションステータス更新を進捗確認APIに移動） | |
+| | | - taskNoをリクエストボディパラメータ化 | |
+| | | - 権限: experiment_worker（書込可） | |
+| | | - 総エンドポイント数: 95→96（+1） | |
+| | | - 未実装API数: 22→23（+1） | |
+| | | - 全体実装率: 76%→75%（分母増加により一時的に低下） | |
+| 2.8.4 | 2026-02-18 | タスク一覧取得（実験作業者用）API仕様変更（95エンドポイント） | Cline |
+| | | - 進捗確認API: 6→5エンドポイント（置き換え） | |
+| | | - API 6.4: GET /api/v1/progress/projects/:projectName/worker-tasks（エンドポイント変更） | |
+| | | - タスク一覧取得（プロジェクト単位）からタスク一覧取得（実験作業者用）に変更 | |
+| | | - プロジェクト名のみで特定（methodIdパラメータ削除） | |
+| | | - 総エンドポイント数: 96→95（-1） | |
+| | | - 実装率: 75%→76%に向上 | |
+| 2.8.3 | 2026-02-18 | タスク一覧取得（実験作業者用）API追加（96エンドポイント） | Cline |
+| | | - 進捗確認API: 5→6エンドポイント（+1: タスク一覧取得（実験作業者用）） | |
+| | | - API 6.6: GET /api/v1/progress/projects/:projectName/methods/:methodId/worker-tasks | |
+| | | - 実験作業者が自分に割り当てられたタスクの一覧を取得 | |
+| | | - 権限: experiment_worker（読取専用） | |
+| | | - 総エンドポイント数: 95→96（+1） | |
+| | | - 未実装API数: 22→23（+1） | |
+| | | - 全体実装率: 76%→75%（分母増加により一時的に低下） | |
 | 2.8.2 | 2026-02-18 | タスク管理APIセクション削除（95エンドポイント） | Cline |
 | | | - タスク管理API（セクション9）を完全削除 | |
 | | | - 後続セクションを繰り上げ（10→9、11→10、12→11、13→12） | |
