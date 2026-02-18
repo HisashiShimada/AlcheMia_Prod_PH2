@@ -438,6 +438,37 @@
 
 ---
 
+### 14. 組織管理API（Organization Management）
+
+**API設計書**: [api_organization_management.md](./api_organization_management.md)
+**ルートファイル**: `backend/src/routes/organizationRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 14.1 | GET | /api/v1/provider/organization | 組織一覧取得 | ✅ 実装済み | organizationController.getOrganizations |
+| 14.2 | GET | /api/v1/provider/organization/download-csv | 組織CSVダウンロード | ✅ 実装済み | organizationController.downloadOrganizationCsv |
+| 14.3 | POST | /api/v1/provider/organization/upload-csv | 組織CSVアップロード | ✅ 実装済み | organizationController.uploadOrganizationCsv |
+| 14.4 | GET | /api/v1/provider/organization/:organizationId | 組織詳細取得 | ✅ 実装済み | organizationController.getOrganizationById |
+| 14.5 | GET | /api/v1/provider/organization/:organizationId/system-admins | システム管理者一覧取得 | ✅ 実装済み | organizationController.getSystemAdminsByOrganizationId |
+| 14.6 | POST | /api/v1/provider/organization | 組織新規作成 | ✅ 実装済み | organizationController.createOrganization |
+| 14.7 | PUT | /api/v1/provider/organization/:organizationId | 組織更新 | ✅ 実装済み | organizationController.updateOrganization |
+| 14.8 | PATCH | /api/v1/provider/organization/:organizationId/status | 組織アクティブ状態更新 | ✅ 実装済み | organizationController.updateOrganizationStatus |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`
+- 権限: provider（システムプロバイダー）
+
+**備考:**
+- ✅ 全エンドポイント実装完了
+- プロバイダー専用の組織管理API
+- 組織新規作成時に関連4テーブルへ自動挿入（organization, organization_user, role, role_permission）
+- 検索・フィルタリング機能（search, is_active, organization_cd, organization_display_name, corporation_name）
+- ソート機能（sort_by, sort_order）
+- CSVアップロード：組織追加ダイアログと同じ処理を各レコードごとに実行
+- ファイルサイズ制限: 10MB
+
+---
+
 ## 🔍 API検索ガイド
 
 ### API名で検索する
@@ -495,7 +526,8 @@
 | ロール管理API | 8 | 8 | 0 | 0 | 100% |
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
 | 会社管理API | 7 | 7 | 0 | 0 | 100% |
-| **合計** | **95** | **73** | **1** | **21** | **77%** |
+| 組織管理API | 8 | 8 | 0 | 0 | 100% |
+| **合計** | **103** | **81** | **1** | **21** | **79%** |
 
 ### 優先度別実装状況
 
