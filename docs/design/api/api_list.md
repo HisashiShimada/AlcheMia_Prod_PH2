@@ -281,13 +281,13 @@
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 10.1 | GET | /api/v1/systemManagement/department | 部署一覧取得 | ✅ 実装済み | departmentController.getDepartments |
-| 10.2 | GET | /api/v1/systemManagement/department/download-csv | 部署CSVダウンロード | ✅ 実装済み | departmentController.downloadDepartmentCsv |
-| 10.3 | POST | /api/v1/systemManagement/department/upload-csv | 部署CSVアップロード | ✅ 実装済み | departmentController.uploadDepartmentCsv |
-| 10.4 | GET | /api/v1/systemManagement/department/:departmentCd | 部署詳細取得 | ✅ 実装済み | departmentController.getDepartmentById |
-| 10.5 | POST | /api/v1/systemManagement/department | 部署新規作成 | ✅ 実装済み | departmentController.createDepartment |
-| 10.6 | PUT | /api/v1/systemManagement/department/:departmentCd | 部署更新 | ✅ 実装済み | departmentController.updateDepartment |
-| 10.7 | PATCH | /api/v1/systemManagement/department/:departmentCd/status | 部署アクティブ状態更新 | ✅ 実装済み | departmentController.updateDepartmentStatus |
+| 9.1 | GET | /api/v1/systemManagement/department | 部署一覧取得 | ✅ 実装済み | departmentController.getDepartments |
+| 9.2 | GET | /api/v1/systemManagement/department/download-csv | 部署CSVダウンロード | ✅ 実装済み | departmentController.downloadDepartmentCsv |
+| 9.3 | POST | /api/v1/systemManagement/department/upload-csv | 部署CSVアップロード | ✅ 実装済み | departmentController.uploadDepartmentCsv |
+| 9.4 | GET | /api/v1/systemManagement/department/:departmentCd | 部署詳細取得 | ✅ 実装済み | departmentController.getDepartmentById |
+| 9.5 | POST | /api/v1/systemManagement/department | 部署新規作成 | ✅ 実装済み | departmentController.createDepartment |
+| 9.6 | PUT | /api/v1/systemManagement/department/:departmentCd | 部署更新 | ✅ 実装済み | departmentController.updateDepartment |
+| 9.7 | PATCH | /api/v1/systemManagement/department/:departmentCd/status | 部署アクティブ状態更新 | ✅ 実装済み | departmentController.updateDepartmentStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`（JWTからorganizationIdを取得）
@@ -310,14 +310,14 @@
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 11.1 | GET | /api/v1/master/role | ロール一覧取得 | ✅ 実装済み | roleController.getRoles |
-| 11.2 | GET | /api/v1/master/role/download-csv | ロールCSVダウンロード | ✅ 実装済み | roleController.downloadRoleCsv |
-| 11.3 | GET | /api/v1/master/role/:roleId | ロール詳細取得 | ✅ 実装済み | roleController.getRoleById |
-| 11.4 | POST | /api/v1/master/role | ロール新規追加 | ✅ 実装済み | roleController.createRole |
-| 11.5 | POST | /api/v1/master/role/upload-csv | ロールCSVアップロード | ✅ 実装済み | roleController.uploadRoleCsv |
-| 11.6 | PUT | /api/v1/master/role/:roleId | ロール更新 | ✅ 実装済み | roleController.updateRole |
-| 11.7 | PUT | /api/v1/master/role/:roleId/permissions | ロール権限更新 | ✅ 実装済み | roleController.updateRolePermissions |
-| 11.8 | PATCH | /api/v1/master/role/:roleId/status | ロールアクティブ状態更新 | ✅ 実装済み | roleController.updateRoleStatus |
+| 10.1 | GET | /api/v1/master/role | ロール一覧取得 | ✅ 実装済み | roleController.getRoles |
+| 10.2 | GET | /api/v1/master/role/download-csv | ロールCSVダウンロード | ✅ 実装済み | roleController.downloadRoleCsv |
+| 10.3 | GET | /api/v1/master/role/:roleId | ロール詳細取得 | ✅ 実装済み | roleController.getRoleById |
+| 10.4 | POST | /api/v1/master/role | ロール新規追加 | ✅ 実装済み | roleController.createRole |
+| 10.5 | POST | /api/v1/master/role/upload-csv | ロールCSVアップロード | ✅ 実装済み | roleController.uploadRoleCsv |
+| 10.6 | PUT | /api/v1/master/role/:roleId | ロール更新 | ✅ 実装済み | roleController.updateRole |
+| 10.7 | PUT | /api/v1/master/role/:roleId/permissions | ロール権限更新 | ✅ 実装済み | roleController.updateRolePermissions |
+| 10.8 | PATCH | /api/v1/master/role/:roleId/status | ロールアクティブ状態更新 | ✅ 実装済み | roleController.updateRoleStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`
@@ -394,13 +394,13 @@
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 13.1 | GET | /api/v1/provider/corporation | 会社一覧取得 | ✅ 実装済み | corporationController.getCorporation |
-| 13.2 | GET | /api/v1/provider/corporation/download-csv | 会社CSVダウンロード | ✅ 実装済み | corporationController.downloadCorporationCsv |
-| 13.3 | POST | /api/v1/provider/corporation/upload-csv | 会社CSVアップロード | ✅ 実装済み | corporationController.uploadCorporationCsv |
-| 13.4 | GET | /api/v1/provider/corporation/:corporationId | 会社詳細取得 | ✅ 実装済み | corporationController.getCorporationById |
-| 13.5 | POST | /api/v1/provider/corporation | 会社新規作成 | ✅ 実装済み | corporationController.createCorporation |
-| 13.6 | PUT | /api/v1/provider/corporation/:corporationId | 会社更新 | ✅ 実装済み | corporationController.updateCorporation |
-| 13.7 | PATCH | /api/v1/provider/corporation/:corporationId/status | 会社アクティブ状態更新 | ✅ 実装済み | corporationController.updateCorporationStatus |
+| 12.1 | GET | /api/v1/provider/corporation | 会社一覧取得 | ✅ 実装済み | corporationController.getCorporation |
+| 12.2 | GET | /api/v1/provider/corporation/download-csv | 会社CSVダウンロード | ✅ 実装済み | corporationController.downloadCorporationCsv |
+| 12.3 | POST | /api/v1/provider/corporation/upload-csv | 会社CSVアップロード | ✅ 実装済み | corporationController.uploadCorporationCsv |
+| 12.4 | GET | /api/v1/provider/corporation/:corporationId | 会社詳細取得 | ✅ 実装済み | corporationController.getCorporationById |
+| 12.5 | POST | /api/v1/provider/corporation | 会社新規作成 | ✅ 実装済み | corporationController.createCorporation |
+| 12.6 | PUT | /api/v1/provider/corporation/:corporationId | 会社更新 | ✅ 実装済み | corporationController.updateCorporation |
+| 12.7 | PATCH | /api/v1/provider/corporation/:corporationId/status | 会社アクティブ状態更新 | ✅ 実装済み | corporationController.updateCorporationStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`
