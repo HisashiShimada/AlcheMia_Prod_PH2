@@ -339,13 +339,16 @@ router.get(
  * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
  * @description 実験作業者が指示を確認したことを記録する
  * @note API 2.14: プロジェクト管理APIの一部として実装
  * @requirements REQ-001, REQ-002
+ * @roles experiment_worker（書込可）
  */
 router.put(
   '/:projectName/instructions/:instructionId/confirm',
   authMiddleware,
+  checkPermission('050000', 1),
   [
     param('projectName')
       .notEmpty()
