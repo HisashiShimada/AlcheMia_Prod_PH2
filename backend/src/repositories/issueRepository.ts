@@ -4,7 +4,7 @@
  * 問題報告のデータベース操作を担当するリポジトリクラス
  */
 
-import { getPool, getPgp } from '../database/db';
+import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import {
   Issue,
@@ -25,32 +25,6 @@ import { NotFoundError } from '../utils/errorClasses';
  */
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
-
-/**
- * SELECT句の共通カラムリスト（AS句を含む）
- * ER図のissueテーブル構造に基づく
- */
-const SELECT_COLUMNS = `
-  organization_id AS "organizationId",
-  project_id AS "projectId",
-  issue_id AS "issueId",
-  method_id AS "methodId",
-  issue_target AS "issueTarget",
-  task_no AS "taskNo",
-  transition_id AS "transitionId",
-  issue_title AS "issueTitle",
-  issue_type AS "issueType",
-  issue_contents AS "issueContents",
-  status,
-  issue_reporter_id AS "issueReporterId",
-  issue_report_at AS "issueReportAt",
-  issue_completer_id AS "issueCompleterId",
-  issue_complate_at AS "issueComplateAt",
-  create_user_id AS "createUserId",
-  create_at AS "createAt",
-  update_user_id AS "updateUserId",
-  update_at AS "updateAt"
-`;
 
 /**
  * IssueRepositoryクラス
@@ -109,7 +83,7 @@ export class IssueRepository {
       order?: 'asc' | 'desc';
     }
   ): Promise<IssueListResponse> {
-    const pool = getPool();
+    const pgp = getPgp();
 
     // デフォルト値
     const page = params.page || 1;
@@ -118,104 +92,155 @@ export class IssueRepository {
     const sortBy = params.sortBy || 'createdAt';
     const order = params.order || 'desc';
 
-    // WHERE句の構築
-    const conditions: string[] = ['organization_id = $1'];
+    // 外部SQLファイルを読み込み
+    let dataQuery = await loadSqlFile('issues/findByOrganizationData.sql');
+    let countQuery = await loadSqlFile('issues/findByOrganizationCount.sql');
+    
     const values: any[] = [organizationId];
     let paramIndex = 2;
 
+    // 動的フィルター追加（WHERE句に条件を追加）
     if (params.projectId) {
-      conditions.push(`project_id = $${paramIndex}`);
+      dataQuery = dataQuery.replace(
+        'ORDER BY',
+        `AND project_id = $${paramIndex}\nORDER BY`
+      );
+      countQuery = countQuery.replace(
+        /$/,
+        `\nAND project_id = $${paramIndex}`
+      );
       values.push(params.projectId);
       paramIndex++;
     }
 
     if (params.methodId) {
-      conditions.push(`method_id = $${paramIndex}`);
+      dataQuery = dataQuery.replace(
+        'ORDER BY',
+        `AND method_id = $${paramIndex}\nORDER BY`
+      );
+      countQuery = countQuery.replace(
+        /$/,
+        `\nAND method_id = $${paramIndex}`
+      );
       values.push(params.methodId);
       paramIndex++;
     }
 
     if (params.taskNo) {
-      conditions.push(`task_no = $${paramIndex}`);
+      dataQuery = dataQuery.replace(
+        'ORDER BY',
+        `AND task_no = $${paramIndex}\nORDER BY`
+      );
+      countQuery = countQuery.replace(
+        /$/,
+        `\nAND task_no = $${paramIndex}`
+      );
       values.push(params.taskNo);
       paramIndex++;
     }
 
     if (params.transitionId) {
-      conditions.push(`transition_id = $${paramIndex}`);
+      dataQuery = dataQuery.replace(
+        'ORDER BY',
+        `AND transition_id = $${paramIndex}\nORDER BY`
+      );
+      countQuery = countQuery.replace(
+        /$/,
+        `\nAND transition_id = $${paramIndex}`
+      );
       values.push(params.transitionId);
       paramIndex++;
     }
 
     if (params.issueType) {
-      conditions.push(`issue_type = $${paramIndex}`);
+      dataQuery = dataQuery.replace(
+        'ORDER BY',
+        `AND issue_type = $${paramIndex}\nORDER BY`
+      );
+      countQuery = countQuery.replace(
+        /$/,
+        `\nAND issue_type = $${paramIndex}`
+      );
       values.push(params.issueType);
       paramIndex++;
     }
 
     if (params.severity) {
-      conditions.push(`severity = $${paramIndex}`);
+      dataQuery = dataQuery.replace(
+        'ORDER BY',
+        `AND severity = $${paramIndex}\nORDER BY`
+      );
+      countQuery = countQuery.replace(
+        /$/,
+        `\nAND severity = $${paramIndex}`
+      );
       values.push(params.severity);
       paramIndex++;
     }
 
     if (params.status) {
-      conditions.push(`status = $${paramIndex}`);
+      dataQuery = dataQuery.replace(
+        'ORDER BY',
+        `AND status = $${paramIndex}\nORDER BY`
+      );
+      countQuery = countQuery.replace(
+        /$/,
+        `\nAND status = $${paramIndex}`
+      );
       values.push(params.status);
       paramIndex++;
     }
 
-    const whereClause = conditions.join(' AND ');
-
     // ソートカラムのマッピング
     const sortColumnMap: Record<string, string> = {
-      createdAt: 'created_at',
-      updatedAt: 'updated_at',
+      createdAt: 'create_at',
+      updatedAt: 'update_at',
       severity: 'severity',
       status: 'status',
     };
-    const sortColumn = sortColumnMap[sortBy] || 'created_at';
+    const sortColumn = sortColumnMap[sortBy] || 'create_at';
     const orderClause = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
-    // データ取得クエリ
-    const dataQuery = `
-      SELECT ${SELECT_COLUMNS}
-      FROM issues
-      WHERE ${whereClause}
-      ORDER BY ${sortColumn} ${orderClause}
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
+    // ソート順を置換
+    dataQuery = dataQuery.replace(
+      'ORDER BY create_at DESC',
+      `ORDER BY ${sortColumn} ${orderClause}`
+    );
 
-    const dataResult = await pool.query(dataQuery, [
-      ...values,
-      limit,
-      offset,
-    ]);
+    // LIMIT/OFFSETパラメータを追加
+    const dataValues = [...values, limit, offset];
 
-    // 総件数取得クエリ
-    const countQuery = `
-      SELECT COUNT(*) as count
-      FROM issues
-      WHERE ${whereClause}
-    `;
+    console.log('Executing findByOrganization with query from file: issues/findByOrganizationData.sql');
+    console.log('With params:', dataValues);
 
-    const countResult = await pool.query(countQuery, values);
-    const totalItems = parseInt(countResult.rows[0].count, 10);
-    const totalPages = Math.ceil(totalItems / limit);
+    try {
+      // データ取得
+      const issues = await pgp.any<Issue>(dataQuery, dataValues);
 
-    const pagination: IssuePagination = {
-      page,
-      limit,
-      totalItems,
-      totalPages,
-      hasNext: page < totalPages,
-      hasPrev: page > 1,
-    };
+      // 総件数取得
+      const countResult = await pgp.one<{ count: string }>(countQuery, values);
+      const totalItems = parseInt(countResult.count, 10);
+      const totalPages = Math.ceil(totalItems / limit);
 
-    return {
-      issues: dataResult.rows,
-      pagination,
-    };
+      const pagination: IssuePagination = {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      };
+
+      console.log('Query executed successfully, rows:', issues.length);
+
+      return {
+        issues,
+        pagination,
+      };
+    } catch (error) {
+      console.error('Database query error in findByOrganization:', error);
+      throw error;
+    }
   }
 
   /**
@@ -240,7 +265,7 @@ export class IssueRepository {
     organizationId: string,
     updateData: IssueUpdateData
   ): Promise<Issue | null> {
-    const pool = getPool();
+    const pgp = getPgp();
 
     const updates: string[] = [];
     const values: any[] = [];
@@ -287,20 +312,33 @@ export class IssueRepository {
       return this.findById(issueId, organizationId);
     }
 
-    // update_atを自動更新
-    updates.push(`update_at = CURRENT_TIMESTAMP`);
+    // 外部SQLファイルを読み込み
+    let query = await loadSqlFile('issues/updatePartial.sql');
 
-    const query = `
-      UPDATE issues
-      SET ${updates.join(', ')}
-      WHERE issue_id = $${paramIndex} AND organization_id = $${paramIndex + 1}
-      RETURNING ${SELECT_COLUMNS}
-    `;
+    // SET句に更新項目を追加（update_at = CURRENT_TIMESTAMPの前に挿入）
+    const setSql = updates.join(', ') + ',\n  ';
+    query = query.replace(
+      'SET update_at = CURRENT_TIMESTAMP',
+      `SET ${setSql}update_at = CURRENT_TIMESTAMP`
+    );
 
+    // WHERE句のパラメータインデックスを更新
+    query = query.replace('$1', `$${paramIndex}`);
+    query = query.replace('$2', `$${paramIndex + 1}`);
+    
     values.push(issueId, organizationId);
 
-    const result = await pool.query(query, values);
-    return result.rows[0] || null;
+    console.log('Executing update with query from file: issues/updatePartial.sql');
+    console.log('With params:', values);
+
+    try {
+      const result = await pgp.oneOrNone<Issue>(query, values);
+      console.log('Update executed successfully');
+      return result;
+    } catch (error) {
+      console.error('Database query error in update:', error);
+      throw error;
+    }
   }
 
   /**
