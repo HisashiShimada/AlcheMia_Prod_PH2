@@ -29,6 +29,11 @@ import {
   MulterFile,
   PlaceholderResult,
 } from '../types/file';
+import uploadBatchRepository from '../repositories/UploadBatchRepository';
+import { UploadType, BatchStatus } from '../types/uploadBatch';
+import { processConcurrently, getConcurrency } from '../utils/concurrencyControl';
+import { analyzeMaimlFile, isMaimlFile } from '../utils/maimlAnalyzer';
+import { truncateField, FILE_METADATA_MAX_LENGTHS } from '../utils/stringValidator';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -263,6 +268,7 @@ export class FileAccessService {
    * - プロジェクト、フォーマット、その他のファイルで共通利用可能
    * 
    * Phase1-3: 空フォルダプレースホルダー対応（2026-02-18）
+   * Phase2-1: バッチ管理機能統合（2026-02-18）
    * 
    * @param organizationId 組織ID
    * @param userId ユーザーID
@@ -298,15 +304,30 @@ export class FileAccessService {
       throw new ValidationError('不正なファイルパスが検出されました');
     }
 
-    // 2. ターゲットパスの正規化
+    // 2. Phase2-1: バッチ作成
+    const uploadType: UploadType = uploadMode as UploadType;
+    const batchName = metadata?.batchName || `${uploadMode} upload - ${new Date().toISOString()}`;
+    
+    const batch = await uploadBatchRepository.create({
+      batchName,
+      uploadType,
+      organizationId,
+      uploadedBy: userId,
+      totalFiles: files.length,
+    });
+
+    console.log(`📦 [Upload] バッチ作成完了: ${batch.batchId}`);
+
+    // 3. ターゲットパスの正規化
     const normalizedPath = targetPath.replace(/^\/+|\/+$/g, '');
 
-    // 3. 各ファイルをアップロード
-    const uploadedFiles = [];
-    let totalSize = 0;
+    // 4. Phase2-2: 並列処理制御でファイルをアップロード
+    const concurrency = getConcurrency();
+    console.log(`🔄 [Upload] 並列処理開始: ${files.length}ファイル (並列数: ${concurrency})`);
 
-    for (const file of files) {
-      try {
+    const uploadResults = await processConcurrently(
+      files,
+      async (file, index) => {
         // ファイル名のサニタイゼーション
         const sanitizedFileName = sanitizeFileName(file.originalname);
         
@@ -321,7 +342,7 @@ export class FileAccessService {
           { contentType: file.mimetype }
         );
 
-        // file_metadataテーブルに保存
+        // file_metadataテーブルに保存（Phase2-1: バッチIDを紐付け）
         const fileId = await this.saveFileMetadata({
           organizationId,
           userId,
@@ -332,10 +353,27 @@ export class FileAccessService {
           contentType: file.mimetype,
           projectId: metadata?.projectId,
           formatId: metadata?.formatId,
-          batchName: metadata?.batchName,
+          batchName: batch.batchId, // Phase2-1: バッチIDを設定
         });
 
-        uploadedFiles.push({
+        // Phase2-3: MAIMLファイルの場合は簡易解析
+        let maimlAnalysis;
+        if (isMaimlFile(sanitizedFileName, file.mimetype)) {
+          try {
+            const content = file.buffer.toString('utf-8');
+            maimlAnalysis = analyzeMaimlFile(content);
+            console.log(`📊 [MAIML Analysis] ${sanitizedFileName}:`, {
+              isValid: maimlAnalysis.isValid,
+              transitions: maimlAnalysis.transitionsCount,
+              places: maimlAnalysis.placesCount,
+            });
+          } catch (error) {
+            console.warn(`⚠️ [MAIML Analysis] 解析失敗: ${sanitizedFileName}`, error);
+            // 解析失敗してもアップロードは成功とする
+          }
+        }
+
+        return {
           fileId,
           fileName: sanitizedFileName,
           filePath,
@@ -343,28 +381,52 @@ export class FileAccessService {
           fileSize: file.size,
           contentType: file.mimetype,
           uploadedAt: new Date().toISOString(),
-        });
+          maimlAnalysis, // Phase2-3: MAIML解析結果を追加
+        };
+      },
+      concurrency
+    );
 
-        totalSize += file.size;
-      } catch (error) {
-        console.error(`File upload failed: ${file.originalname}`, error);
-        // エラーハンドリング: 個別ファイルの失敗は記録して継続
-      }
-    }
+    // 5. 結果を集計
+    const uploadedFiles = uploadResults
+      .filter(r => r.success)
+      .map(r => r.data!);
+    
+    const successCount = uploadResults.filter(r => r.success).length;
+    const failCount = uploadResults.filter(r => !r.success).length;
+    const totalSize = uploadedFiles.reduce((sum, f) => sum + f.fileSize, 0);
+
+    // 5. Phase2-1: バッチ完了
+    const finalStatus: BatchStatus = 
+      failCount === 0 ? 'completed' :
+      successCount === 0 ? 'failed' : 'completed_with_errors';
+
+    await uploadBatchRepository.update(batch.batchId, {
+      status: finalStatus,
+      endTime: new Date(),
+    });
+
+    console.log(`🎉 [Upload] バッチ完了: ${batch.batchId} (成功: ${successCount}, 失敗: ${failCount})`);
 
     return {
       uploadMode,
       files: uploadedFiles,
       summary: {
         totalFiles: files.length,
-        successfulFiles: uploadedFiles.length,
-        failedFiles: files.length - uploadedFiles.length,
+        successfulFiles: successCount,
+        failedFiles: failCount,
         totalSize,
       },
       // Phase1-3: 空フォルダプレースホルダー結果を追加
       emptyFolders: emptyFolders && emptyFolders.length > 0 
         ? await this.createEmptyFolderPlaceholders(organizationId, emptyFolders)
         : undefined,
+      // Phase2-1: バッチ情報を追加
+      batch: {
+        batchId: batch.batchId,
+        batchName: batch.batchName,
+        status: finalStatus,
+      },
     };
   }
 
@@ -388,11 +450,20 @@ export class FileAccessService {
   }): Promise<string> {
     const now = new Date();
     
+    // Phase3-4: VARCHAR長制限対応
     // FileMetadata型に従ってオブジェクトを構築
     const fileMetadata = {
       organization_id: data.organizationId,
-      file_key: data.s3Key,
-      original_filename: data.fileName,
+      file_key: truncateField(
+        data.s3Key,
+        FILE_METADATA_MAX_LENGTHS.file_key,
+        'file_key'
+      ) || data.s3Key, // nullの場合は元の値を使用
+      original_filename: truncateField(
+        data.fileName,
+        FILE_METADATA_MAX_LENGTHS.original_filename,
+        'original_filename'
+      ) || data.fileName, // nullの場合は元の値を使用
       file_size: data.fileSize,
       file_type: data.contentType,
       uploaded_by: data.userId,

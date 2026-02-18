@@ -2,6 +2,9 @@
  * ファイル関連の型定義（フロントエンドと共通）
  */
 
+import { BatchSummary } from './uploadBatch';
+import { MaimlAnalysisResult } from './maimlAnalysis';
+
 /**
  * プロジェクトファイル（APIレスポンス用）
  */
@@ -56,6 +59,8 @@ export interface UploadedFileInfo {
   fileSize: number;
   contentType: string;
   uploadedAt: string;
+  // Phase2-3: MAIML解析統合（2026-02-18）
+  maimlAnalysis?: MaimlAnalysisResult;
 }
 
 /**
@@ -77,6 +82,8 @@ export interface FileUploadResult {
   summary: UploadSummary;
   // Phase1-3: 空フォルダプレースホルダー結果（2026-02-18）
   emptyFolders?: PlaceholderResult[];
+  // Phase2-1: バッチ情報（2026-02-18）
+  batch?: BatchSummary;
 }
 
 /**

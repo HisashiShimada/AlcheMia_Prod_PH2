@@ -381,3 +381,136 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
   }
 }
 
+
+/**
+ * バッチ履歴取得
+ * GET /api/v1/files/batches
+ * 
+ * Phase2-1: バッチ管理機能（2026-02-18）
+ */
+export async function getBatchHistory(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  
+  try {
+    console.log(`📦 [Batch History] リクエスト開始:`, {
+      organizationId: req.organizationId,
+      query: req.query,
+      requestId,
+    });
+
+    const { organizationId } = req as any;
+    const { status, startDate, endDate, limit, offset } = req.query;
+
+    // uploadBatchRepositoryを直接使用
+    const uploadBatchRepository = (await import('../repositories/UploadBatchRepository')).default;
+    
+    const batches = await uploadBatchRepository.search({
+      organizationId,
+      status: status as any,
+      startDate: startDate ? new Date(startDate as string) : undefined,
+      endDate: endDate ? new Date(endDate as string) : undefined,
+      limit: limit ? parseInt(limit as string) : 50,
+      offset: offset ? parseInt(offset as string) : 0,
+    });
+
+    console.log(`✅ [Batch History] 取得成功: ${batches.length}件`);
+
+    res.json({
+      success: true,
+      data: batches,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+        count: batches.length,
+      },
+    });
+
+  } catch (error: any) {
+    console.error(`❌ [Batch History] エラー:`, {
+      error: error.message,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'BATCH_FETCH_ERROR',
+        message: 'バッチ履歴の取得に失敗しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
+ * バッチ進捗取得
+ * GET /api/v1/files/batches/:batchId/progress
+ * 
+ * Phase2-1: バッチ管理機能（2026-02-18）
+ */
+export async function getBatchProgress(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  
+  try {
+    const { batchId } = req.params;
+
+    console.log(`📊 [Batch Progress] リクエスト開始:`, {
+      batchId,
+      requestId,
+    });
+
+    // uploadBatchRepositoryを直接使用
+    const uploadBatchRepository = (await import('../repositories/UploadBatchRepository')).default;
+    
+    const progress = await uploadBatchRepository.getProgress(batchId);
+
+    if (!progress) {
+      console.log(`⚠️ [Batch Progress] バッチが見つかりません: ${batchId}`);
+      
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'BATCH_NOT_FOUND',
+          message: 'バッチが見つかりません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    console.log(`✅ [Batch Progress] 取得成功:`, progress);
+
+    res.json({
+      success: true,
+      data: progress,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+
+  } catch (error: any) {
+    console.error(`❌ [Batch Progress] エラー:`, {
+      error: error.message,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'BATCH_PROGRESS_ERROR',
+        message: 'バッチ進捗の取得に失敗しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
