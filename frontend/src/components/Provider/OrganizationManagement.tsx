@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   Button,
@@ -9,110 +9,153 @@ import {
   Modal,
   Form,
   Select,
-  message,
   Typography,
   Row,
   Col,
   Badge,
   App,
+  Divider,
 } from 'antd';
 import {
   SearchOutlined,
   PlusOutlined,
   EditOutlined,
-  DeleteOutlined,
   ReloadOutlined,
   UploadOutlined,
   DownloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import Papa from 'papaparse';
-import organizationsData from '../../../mock/data/organizations-management.json';
+import { createApiClient } from '@/utils/authUtils';
+import { formatDateTime } from '@/utils/dateFormatter';
 
 const { Text } = Typography;
 
 /**
- * 組織データの型定義
+ * 組織データの型定義（DB連携版）
  */
 interface OrganizationData {
-  id: string;
-  organization_id: string;
-  organization_name: string;
-  display_name: string;
-  email: string;
-  representative_admin: string;
-  company_code: string;
-  company_name: string;
-  certificate_url: string;
-  updated_at: string;
-  status: 'active' | 'inactive';
+  organizationId: string;           // UUID
+  organizationCd: string;            // 組織CD
+  organizationDisplayName: string;   // 組織表示名
+  organizationEmail: string;         // 組織E-mail
+  chiefUserId: string;               // 代表者ユーザーID
+  chiefUserName: string;             // 代表システム管理者名（JOIN結果）
+  corporationName: string;           // 会社名（JOIN結果）
+  isEntry: number;                   // 二段階認証判定
+  isActive: boolean;                 // アクティブ/非アクティブ
+  updatedAt: string;                 // 更新日時
 }
 
 /**
- * 組織管理画面コンポーネント
+ * 会社データの型定義
+ */
+interface CorporationData {
+  corporationId: string;
+  corporationName: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 選択肢の型定義
+ */
+interface OptionType {
+  label: string;
+  value: string;
+}
+
+/**
+ * 組織管理画面コンポーネント（DB連携版）
  */
 export default function OrganizationManagement() {
-  const { modal } = App.useApp();
-  const [organizations, setOrganizations] = useState<OrganizationData[]>(
-    organizationsData as OrganizationData[]
-  );
+  const { modal, message: messageApi } = App.useApp();
+  const [organizations, setOrganizations] = useState<OrganizationData[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingOrg, setEditingOrg] = useState<OrganizationData | null>(null);
-  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string>('');
+  const [selectedOrganizationDisplayName, setSelectedOrganizationDisplayName] = useState<string>('');
   const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('');
   const [form] = Form.useForm();
+  const [companyOptions, setCompanyOptions] = useState<OptionType[]>([]);
+  const [systemAdminOptions, setSystemAdminOptions] = useState<OptionType[]>([]);
 
-  // 日時フォーマット関数
-  const formatDateTime = (dateTimeStr: string): string => {
-    if (!dateTimeStr || dateTimeStr === '-') return '-';
-    // YYYYMMDDhhmmss 形式を yyyy/MM/dd hh:mm に変換
-    const year = dateTimeStr.substring(0, 4);
-    const month = dateTimeStr.substring(4, 6);
-    const day = dateTimeStr.substring(6, 8);
-    const hour = dateTimeStr.substring(8, 10);
-    const minute = dateTimeStr.substring(10, 12);
-    return `${year}/${month}/${day} ${hour}:${minute}`;
+  // 初回データ取得
+  useEffect(() => {
+    fetchOrganizations();
+  }, []);
+
+  // 組織データ取得
+  const fetchOrganizations = async () => {
+    setLoading(true);
+    try {
+      const client = createApiClient();
+      const response = await client.get('/provider/organization');
+      console.log('Organization API Response:', response.data);
+      
+      // 統一APIレスポンス形式 { success, data, meta } に対応
+      if (response.data.success && Array.isArray(response.data.data)) {
+        setOrganizations(response.data.data);
+      } else {
+        console.error('Unexpected response format:', response.data);
+        messageApi.error('データ形式が不正です');
+        setOrganizations([]);
+      }
+    } catch (error) {
+      console.error('Organization取得エラー:', error);
+      messageApi.error('組織データの取得に失敗しました');
+      setOrganizations([]); // エラー時は空配列を設定
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 組織IDの選択肢を動的に取得
-  const organizationIds = useMemo(() => {
-    const uniqueIds = Array.from(new Set(organizations.map(o => o.organization_id).filter(id => id)));
-    return uniqueIds.sort();
+  // 組織CDの選択肢を動的に取得
+  const organizationCds = useMemo(() => {
+    const uniqueCds = Array.from(new Set(organizations.map(o => o.organizationCd).filter(cd => cd)));
+    return uniqueCds.sort();
   }, [organizations]);
 
-  // 会社CDの選択肢を動的に取得
-  const companyCodes = useMemo(() => {
-    const uniqueCodes = Array.from(new Set(organizations.map(o => o.company_code).filter(code => code)));
-    return uniqueCodes.sort();
+  // 組織表示名の選択肢を動的に取得
+  const organizationDisplayNames = useMemo(() => {
+    const uniqueNames = Array.from(new Set(organizations.map(o => o.organizationDisplayName).filter(name => name)));
+    return uniqueNames.sort();
+  }, [organizations]);
+
+  // 会社名の選択肢を動的に取得
+  const companyNames = useMemo(() => {
+    const uniqueNames = Array.from(new Set(organizations.map(o => o.corporationName).filter(name => name)));
+    return uniqueNames.sort();
   }, [organizations]);
 
   // フィルタリングされた組織
   const filteredOrganizations = useMemo(() => {
     return organizations.filter(org => {
-      // テキスト検索フィルター
+      // テキスト検索フィルター（組織CD、組織e-mail、代表システム管理者、更新日時のみ）
       const searchLower = searchText.toLowerCase();
       const matchesSearch = !searchText.trim() || (
-        org.organization_id.toLowerCase().includes(searchLower) ||
-        org.organization_name.toLowerCase().includes(searchLower) ||
-        org.display_name.toLowerCase().includes(searchLower) ||
-        org.email.toLowerCase().includes(searchLower) ||
-        org.representative_admin.toLowerCase().includes(searchLower) ||
-        org.company_code.toLowerCase().includes(searchLower) ||
-        org.company_name.toLowerCase().includes(searchLower) ||
-        formatDateTime(org.updated_at).toLowerCase().includes(searchLower)
+        org.organizationCd.toLowerCase().includes(searchLower) ||
+        org.organizationEmail.toLowerCase().includes(searchLower) ||
+        org.chiefUserName.toLowerCase().includes(searchLower) ||
+        formatDateTime(org.updatedAt).toLowerCase().includes(searchLower)
       );
 
-      // 組織IDフィルター
-      const matchesOrganizationId = !selectedOrganizationId || org.organization_id === selectedOrganizationId;
+      // 組織表示名フィルター
+      const matchesOrganizationDisplayName = !selectedOrganizationDisplayName || org.organizationDisplayName === selectedOrganizationDisplayName;
 
-      // 会社CDフィルター
-      const matchesCompanyCode = !selectedCompanyCode || org.company_code === selectedCompanyCode;
+      // 会社名フィルター
+      const matchesCompanyName = !selectedCompanyCode || org.corporationName === selectedCompanyCode;
 
-      return matchesSearch && matchesOrganizationId && matchesCompanyCode;
+      return matchesSearch && matchesOrganizationDisplayName && matchesCompanyName;
     });
-  }, [organizations, searchText, selectedOrganizationId, selectedCompanyCode]);
+  }, [organizations, searchText, selectedOrganizationDisplayName, selectedCompanyCode]);
+
+  // アクティブな組織数をカウント
+  const activeOrganizationCount = useMemo(() => {
+    return filteredOrganizations.filter(org => org.isActive).length;
+  }, [filteredOrganizations]);
 
   // テーブルの行選択
   const rowSelection = {
@@ -128,9 +171,9 @@ export default function OrganizationManagement() {
       title: (
         <div style={{ textAlign: 'center' }}>
           <Space size="middle" align="center">
-            <span>組織名</span>
+            <span>組織CD</span>
             <Badge
-              count={filteredOrganizations.filter(org => org.status === 'active').length}
+              count={activeOrganizationCount}
               style={{
                 backgroundColor: '#4169E1',
                 fontSize: 14,
@@ -143,28 +186,29 @@ export default function OrganizationManagement() {
           </Space>
         </div>
       ),
-      key: 'organization',
+      dataIndex: 'organizationCd',
+      key: 'organizationCd',
       width: 180,
-      sorter: (a, b) => a.organization_name.localeCompare(b.organization_name),
-      render: (_, record) => (
+      sorter: (a, b) => a.organizationCd.localeCompare(b.organizationCd),
+      render: (text: string, record) => (
         <Text style={{ 
           fontWeight: 500, 
-          color: record.status === 'inactive' ? 'rgba(0, 0, 0, 0.45)' : '#0093CF'
+          color: !record.isActive ? 'rgba(0, 0, 0, 0.45)' : '#0093CF'
         }}>
-          {record.organization_name}
+          {text}
         </Text>
       ),
     },
     {
       title: <div style={{ textAlign: 'center' }}>組織表示名</div>,
-      dataIndex: 'display_name',
-      key: 'display_name',
+      dataIndex: 'organizationDisplayName',
+      key: 'organizationDisplayName',
       width: 150,
-      sorter: (a, b) => a.display_name.localeCompare(b.display_name),
+      sorter: (a, b) => a.organizationDisplayName.localeCompare(b.organizationDisplayName),
       render: (text: string, record) => (
         <Text style={{ 
           fontSize: 13,
-          color: record.status === 'inactive' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
+          color: !record.isActive ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
         }}>
           {text}
         </Text>
@@ -172,14 +216,14 @@ export default function OrganizationManagement() {
     },
     {
       title: <div style={{ textAlign: 'center' }}>組織e-mail</div>,
-      dataIndex: 'email',
-      key: 'email',
+      dataIndex: 'organizationEmail',
+      key: 'organizationEmail',
       width: 250,
-      sorter: (a, b) => a.email.localeCompare(b.email),
+      sorter: (a, b) => a.organizationEmail.localeCompare(b.organizationEmail),
       render: (text: string, record) => (
         <Text style={{ 
           fontSize: 13,
-          color: record.status === 'inactive' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
+          color: !record.isActive ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
         }}>
           {text}
         </Text>
@@ -187,14 +231,14 @@ export default function OrganizationManagement() {
     },
     {
       title: <div style={{ textAlign: 'center' }}>代表システム管理者</div>,
-      dataIndex: 'representative_admin',
-      key: 'representative_admin',
+      dataIndex: 'chiefUserName',
+      key: 'chiefUserName',
       width: 150,
-      sorter: (a, b) => a.representative_admin.localeCompare(b.representative_admin),
+      sorter: (a, b) => a.chiefUserName.localeCompare(b.chiefUserName),
       render: (text: string, record) => (
         <Text style={{ 
           fontSize: 13,
-          color: record.status === 'inactive' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
+          color: !record.isActive ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
         }}>
           {text}
         </Text>
@@ -202,27 +246,43 @@ export default function OrganizationManagement() {
     },
     {
       title: <div style={{ textAlign: 'center' }}>会社名</div>,
-      dataIndex: 'company_name',
-      key: 'company_name',
+      dataIndex: 'corporationName',
+      key: 'corporationName',
       width: 250,
       align: 'left',
-      sorter: (a, b) => a.company_name.localeCompare(b.company_name),
+      sorter: (a, b) => a.corporationName.localeCompare(b.corporationName),
       render: (text: string, record) => (
         <Text style={{ 
           fontSize: 13,
-          color: record.status === 'inactive' ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
+          color: !record.isActive ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
         }}>
           {text}
         </Text>
       ),
     },
     {
+      title: <div style={{ textAlign: 'center' }}>二段階認証判定</div>,
+      dataIndex: 'isEntry',
+      key: 'isEntry',
+      width: 140,
+      align: 'center',
+      sorter: (a, b) => a.isEntry - b.isEntry,
+      render: (value: number, record) => (
+        <Text style={{ 
+          fontSize: 13,
+          color: !record.isActive ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
+        }}>
+          {value === 1 ? 'あり' : 'なし'}
+        </Text>
+      ),
+    },
+    {
       title: <div style={{ textAlign: 'center' }}>更新日時</div>,
-      dataIndex: 'updated_at',
-      key: 'updated_at',
+      dataIndex: 'updatedAt',
+      key: 'updatedAt',
       width: 160,
       align: 'right',
-      sorter: (a, b) => a.updated_at.localeCompare(b.updated_at),
+      sorter: (a, b) => a.updatedAt.localeCompare(b.updatedAt),
       render: (text: string) => formatDateTime(text),
     },
     {
@@ -237,7 +297,7 @@ export default function OrganizationManagement() {
             size="small"
             icon={<DownloadOutlined />}
             onClick={() => handleDownloadCertificate(record)}
-            disabled={record.status === 'inactive'}
+            disabled={!record.isActive}
           >
             証明書DL
           </Button>
@@ -250,11 +310,11 @@ export default function OrganizationManagement() {
           </Button>
           <Button
             size="small"
-            onClick={() => handleToggleActive(record.id)}
-            danger={record.status === 'active'}
+            onClick={() => handleToggleActive(record)}
+            danger={record.isActive}
             style={{ width: '100px' }}
           >
-            {record.status === 'inactive' ? 'アクティブ' : '非アクティブ'}
+            {!record.isActive ? 'アクティブ' : '非アクティブ'}
           </Button>
         </Space>
       ),
@@ -279,7 +339,7 @@ export default function OrganizationManagement() {
       
       // ファイル名を設定（組織IDを使用）
       link.href = url;
-      link.download = `${org.organization_id}_certificate.crt`;
+      link.download = `${org.organizationId}_certificate.crt`;
       
       // ダウンロード実行
       document.body.appendChild(link);
@@ -287,10 +347,10 @@ export default function OrganizationManagement() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      message.success(`${org.organization_name}の証明書をダウンロードしました`);
+      messageApi.success(`${org.organizationCd}の証明書をダウンロードしました`);
     } catch (error) {
       console.error('証明書ダウンロードエラー:', error);
-      message.error('証明書のダウンロードに失敗しました');
+      messageApi.error('証明書のダウンロードに失敗しました');
     }
   };
 
@@ -299,263 +359,286 @@ export default function OrganizationManagement() {
     setEditingOrg(null);
     form.resetFields();
     form.setFieldsValue({
-      status: 'active',
+      isActive: true,
+      isEntry: 1,  // デフォルト値を「あり」に設定
     });
     setIsModalVisible(true);
   };
 
+  // システム管理者一覧を取得
+  const fetchSystemAdmins = async (organizationId: string) => {
+    try {
+      const client = createApiClient();
+      const response = await client.get(
+        `/provider/organization/${organizationId}/system-admins`
+      );
+      
+      if (response.data.success && Array.isArray(response.data.data)) {
+        const options = response.data.data.map((user: any) => ({
+          label: user.userName,    // 表示: ユーザー名
+          value: user.userId,      // 値: ユーザーID
+        }));
+        setSystemAdminOptions(options);
+      }
+    } catch (error) {
+      console.error('システム管理者取得エラー:', error);
+      messageApi.error('システム管理者の取得に失敗しました');
+      setSystemAdminOptions([]);
+    }
+  };
+
   // 組織編集
-  const handleEdit = (org: OrganizationData) => {
+  const handleEdit = async (org: OrganizationData) => {
     setEditingOrg(org);
-    form.setFieldsValue(org);
+    
+    // システム管理者一覧を取得
+    await fetchSystemAdmins(org.organizationId);
+    
+    // corporationNameからcorporationIdに変換
+    const corporationId = companyOptions.find(
+      option => option.label === org.corporationName
+    )?.value || undefined;
+    
+    form.setFieldsValue({
+      ...org,
+      corporationId,  // 会社IDに変換
+      chiefUserId: org.chiefUserId,  // chiefUserIdを設定
+    });
     setIsModalVisible(true);
   };
 
-  // アクティブ化
+  // アクティブ化（一括）
   const handleActivate = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('アクティブにする組織を選択してください');
+      messageApi.warning('アクティブにする組織を選択してください');
       return;
     }
+    
     modal.confirm({
       title: '選択した組織をアクティブにしますか？',
       content: `${selectedRowKeys.length}件の組織がアクティブになります。`,
       okText: 'アクティブ化',
       cancelText: 'キャンセル',
-      onOk: () => {
-        setOrganizations(organizations.map(o => 
-          selectedRowKeys.includes(o.id) ? { ...o, status: 'active' } : o
-        ));
-        setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件の組織をアクティブにしました`);
+      onOk: async () => {
+        try {
+          const client = createApiClient();
+          // 選択された各組織を順次アクティブ化
+          for (const key of selectedRowKeys) {
+            await client.patch(
+              `/provider/organization/${key}/status`,
+              { isActive: true }
+            );
+          }
+          
+          messageApi.success(`${selectedRowKeys.length}件の組織をアクティブにしました`);
+          setSelectedRowKeys([]);
+          await fetchOrganizations();
+        } catch (error) {
+          console.error('アクティブ化エラー:', error);
+          messageApi.error('アクティブ化に失敗しました');
+        }
       },
     });
   };
 
-  // 非アクティブ化
+  // 非アクティブ化（一括）
   const handleDeactivate = () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('非アクティブにする組織を選択してください');
+      messageApi.warning('非アクティブにする組織を選択してください');
       return;
     }
+    
     modal.confirm({
       title: '選択した組織を非アクティブにしますか？',
       content: `${selectedRowKeys.length}件の組織が非アクティブになります。`,
       okText: '非アクティブ化',
       cancelText: 'キャンセル',
       okButtonProps: { danger: true },
-      onOk: () => {
-        setOrganizations(organizations.map(o => 
-          selectedRowKeys.includes(o.id) ? { ...o, status: 'inactive' } : o
-        ));
-        setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件の組織を非アクティブにしました`);
+      onOk: async () => {
+        try {
+          const client = createApiClient();
+          // 選択された各組織を順次非アクティブ化
+          for (const key of selectedRowKeys) {
+            await client.patch(
+              `/provider/organization/${key}/status`,
+              { isActive: false }
+            );
+          }
+          
+          messageApi.success(`${selectedRowKeys.length}件の組織を非アクティブにしました`);
+          setSelectedRowKeys([]);
+          await fetchOrganizations();
+        } catch (error) {
+          console.error('非アクティブ化エラー:', error);
+          messageApi.error('非アクティブ化に失敗しました');
+        }
       },
     });
   };
 
-  // アクティブ/非アクティブ切り替え
-  const handleToggleActive = (id: string) => {
-    const org = organizations.find(o => o.id === id);
-    if (!org) return;
-
-    const actionText = org.status === 'inactive' ? 'アクティブ' : '非アクティブ';
-    const orgName = org.organization_name;
+  // アクティブ/非アクティブ切り替え（個別）
+  const handleToggleActive = (org: OrganizationData) => {
+    const actionText = org.isActive ? '非アクティブ' : 'アクティブ';
+    const organizationCd = org.organizationCd;
 
     modal.confirm({
-      title: `${orgName}を${actionText}にしますか？`,
-      content: `この組織を${org.status === 'inactive' ? 'アクティブ' : '非アクティブ'}状態に変更します。`,
+      title: `${organizationCd}を${actionText}にしますか？`,
+      content: `この組織を${actionText}状態に変更します。`,
       okText: actionText,
       cancelText: 'キャンセル',
-      okButtonProps: org.status === 'inactive' ? undefined : { danger: true },
-      onOk: () => {
-        setOrganizations(organizations.map(o => 
-          o.id === id ? { ...o, status: o.status === 'active' ? 'inactive' : 'active' } : o
-        ));
-        message.success(`${orgName}を${org.status === 'inactive' ? 'アクティブ' : '非アクティブ'}にしました`);
+      okButtonProps: org.isActive ? { danger: true } : undefined,
+      onOk: async () => {
+        try {
+          const client = createApiClient();
+          await client.patch(
+            `/provider/organization/${org.organizationId}/status`,
+            { isActive: !org.isActive }
+          );
+          
+          messageApi.success(`${organizationCd}を${actionText}にしました`);
+          await fetchOrganizations();
+        } catch (error) {
+          console.error('ステータス変更エラー:', error);
+          messageApi.error(`ステータスの変更に失敗しました`);
+        }
       },
     });
   };
 
   // リロード
-  const handleReload = () => {
-    setOrganizations(organizationsData as OrganizationData[]);
+  const handleReload = async () => {
     setSearchText('');
     setSelectedRowKeys([]);
-    setSelectedOrganizationId('');
+    setSelectedOrganizationDisplayName('');
     setSelectedCompanyCode('');
-    message.success('データをリロードしました');
+    await fetchOrganizations();
+    messageApi.success('データをリロードしました');
   };
 
   // CSVアップロード処理
-  const handleUpload = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv';
-    input.onchange = (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      if (file) {
-        handleCSVUpload(file);
-      }
-    };
-    input.click();
+  const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    handleCSVUpload(file);
+    
+    // input要素をリセット（同じファイルを再度選択できるように）
+    event.target.value = '';
   };
 
-  // CSVファイルをパースして一覧に反映
-  const handleCSVUpload = (file: File) => {
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      encoding: 'UTF-8',
-      skipEmptyLines: true,
-      complete: (results: Papa.ParseResult<Record<string, string>>) => {
-        try {
-          const newOrgs: OrganizationData[] = [];
-          const errors: string[] = [];
-          const existingIds = new Set(organizations.map(o => o.organization_id.toLowerCase()));
-
-          results.data.forEach((row: Record<string, string>, index: number) => {
-            const rowNumber = index + 2;
-
-            if (!row['組織ID'] || !row['組織名'] || !row['組織e-mail']) {
-              errors.push(`${rowNumber}行目: 組織ID、組織名、組織e-mailは必須です`);
-              return;
-            }
-
-            const orgId = row['組織ID'].trim().toLowerCase();
-            if (existingIds.has(orgId)) {
-              errors.push(`${rowNumber}行目: 組織ID「${row['組織ID']}」は既に登録されています`);
-              return;
-            }
-
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(row['組織e-mail'])) {
-              errors.push(`${rowNumber}行目: 組織e-mailの形式が不正です`);
-              return;
-            }
-
-            const statusValue = row['状態'] || 'アクティブ';
-            const status: 'active' | 'inactive' = 
-              (statusValue === 'アクティブ' || statusValue === 'active') ? 'active' : 'inactive';
-
-            const newOrg: OrganizationData = {
-              id: row['組織ID'].trim(),
-              organization_id: row['組織ID'].trim(),
-              organization_name: row['組織名'].trim(),
-              display_name: row['組織表示名']?.trim() || row['組織名'].trim(),
-              email: row['組織e-mail'].trim(),
-              representative_admin: row['代表システム管理者']?.trim() || '',
-              company_code: row['会社CD']?.trim() || '',
-              company_name: row['会社名']?.trim() || '',
-              certificate_url: `/api/certificates/${row['組織ID'].trim()}`,
-              updated_at: new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14),
-              status: status,
-            };
-
-            newOrgs.push(newOrg);
-            existingIds.add(orgId);
-          });
-
-          if (errors.length > 0) {
-            Modal.error({
-              title: 'CSVファイルにエラーがあります',
-              content: (
-                <div>
-                  <p>以下のエラーを修正してください：</p>
-                  <ul style={{ maxHeight: '300px', overflow: 'auto' }}>
-                    {errors.slice(0, 10).map((error, i) => (
-                      <li key={i}>{error}</li>
-                    ))}
-                    {errors.length > 10 && <li>...他 {errors.length - 10} 件のエラー</li>}
-                  </ul>
-                </div>
-              ),
-              width: 600,
-            });
-
-            if (newOrgs.length > 0) {
-              Modal.confirm({
-                title: '一部のデータを追加しますか？',
-                content: `${newOrgs.length}件の有効な組織データが見つかりました。これらを追加しますか？`,
-                okText: '追加',
-                cancelText: 'キャンセル',
-                onOk: () => {
-                  setOrganizations([...organizations, ...newOrgs]);
-                  message.success(`${newOrgs.length}件の組織を追加しました`);
-                },
-              });
-            }
-            return;
-          }
-
-          if (newOrgs.length > 0) {
-            setOrganizations([...organizations, ...newOrgs]);
-            message.success(`${newOrgs.length}件の組織を追加しました`);
-          } else {
-            message.warning('追加する組織データがありませんでした');
-          }
-        } catch (error) {
-          console.error('CSV処理エラー:', error);
-          message.error('CSVファイルの処理中にエラーが発生しました');
+  // CSVファイルをAPIにアップロード
+  const handleCSVUpload = async (file: File) => {
+    try {
+      setLoading(true);
+      const client = createApiClient();
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await client.post('/provider/organization/upload-csv', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
+      // バリデーションエラーのチェック（HTTPステータス200でもエラーの場合がある）
+      if (response.data.success && response.data.data) {
+        const result = response.data.data;
+        
+        if (result.failureCount > 0 && result.errors.length > 0) {
+          // エラーがある場合はメッセージを表示
+          const errorMessage = result.errors[0].message;
+          console.error('CSV validation error:', errorMessage);
+          messageApi.error(errorMessage);
+          return;
         }
-      },
-      error: (error: Error) => {
-        console.error('CSVパースエラー:', error);
-        message.error('CSVファイルの読み込みに失敗しました');
-      },
-    });
+        
+        // 成功時はログ出力のみ
+        console.log(`CSV upload successful: ${result.successCount} records created`);
+        messageApi.success('CSVファイルをアップロードしました');
+      }
+      
+      await fetchOrganizations();
+    } catch (error) {
+      // すでにErrorオブジェクトの場合はそのまま再スロー（バリデーションエラー）
+      if (error instanceof Error && !('isAxiosError' in error)) {
+        messageApi.error(error.message);
+        return;
+      }
+      
+      // HTTPエラーの場合
+      console.error('CSV upload error:', error);
+      messageApi.error('CSVアップロードに失敗しました');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // CSVダウンロード
-  const handleDownload = () => {
-    const headers = [
-      '組織ID',
-      '組織名',
-      '組織表示名',
-      '組織e-mail',
-      '代表システム管理者',
-      '会社名',
-      '更新日時',
-      '状態',
-    ];
-
-    const rows = filteredOrganizations.map((org) => [
-      org.organization_id,
-      org.organization_name,
-      org.display_name,
-      org.email,
-      org.representative_admin,
-      org.company_name,
-      formatDateTime(org.updated_at),
-      org.status === 'active' ? 'アクティブ' : '非アクティブ',
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-      ),
-    ].join('\n');
-
-    const bom = '\uFEFF';
-    const csvWithBom = bom + csvContent;
-    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, '-')
-      .slice(0, -5);
-    link.href = url;
-    link.download = `organizations_${timestamp}.csv`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    message.success('CSVファイルをダウンロードしました');
+  const handleDownload = async () => {
+    try {
+      setLoading(true);
+      const client = createApiClient();
+      
+      // クエリパラメータを構築
+      const params: Record<string, string> = {};
+      if (searchText.trim()) {
+        params.search = searchText.trim();
+      }
+      if (selectedOrganizationDisplayName) {
+        params.organization_display_name = selectedOrganizationDisplayName;
+      }
+      if (selectedCompanyCode) {
+        params.corporation_name = selectedCompanyCode;
+      }
+      
+      const response = await client.get('/provider/organization/download-csv', {
+        params,
+        responseType: 'blob',
+      });
+      
+      // レスポンスをBlobとして取得
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      
+      // Content-Dispositionヘッダーからファイル名を取得
+      const contentDisposition = 
+        response.headers['content-disposition'] || 
+        response.headers['Content-Disposition'];
+      
+      let filename = 'organizations.csv'; // デフォルト値
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      } else {
+        // Content-Dispositionヘッダーがない場合は、フロントエンド側でタイムスタンプを生成
+        const timestamp = new Date()
+          .toISOString()
+          .replace(/[-:]/g, '')
+          .replace('T', '')
+          .slice(0, 14);
+        filename = `organizations_${timestamp}.csv`;
+      }
+      
+      // ダウンロードリンクを作成
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      messageApi.success('CSVファイルをダウンロードしました');
+    } catch (error) {
+      console.error('CSV download error:', error);
+      messageApi.error('CSVダウンロードに失敗しました');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // モーダルOK
@@ -563,32 +646,44 @@ export default function OrganizationManagement() {
     try {
       const values = await form.validateFields();
       
+      const client = createApiClient();
+      
       if (editingOrg) {
-        setOrganizations(organizations.map(o => 
-          o.id === editingOrg.id 
-            ? { 
-                ...o, 
-                ...values,
-                updated_at: new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14),
-              } 
-            : o
-        ));
-        message.success('組織情報を更新しました');
+        // 更新時は代表者メールアドレスをフォームデータから除外（編集では使用しない）
+        const { chiefUserEmail, ...saveData } = values;
+        
+        // 更新
+        await client.put(
+          `/provider/organization/${editingOrg.organizationId}`,
+          saveData
+        );
+        messageApi.success('組織情報を更新しました');
       } else {
-        const newOrg: OrganizationData = {
-          ...values,
-          id: values.organization_id,
-          certificate_url: `/api/certificates/${values.organization_id}`,
-          updated_at: new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14),
-        };
-        setOrganizations([...organizations, newOrg]);
-        message.success('組織を追加しました');
+        // 新規作成: organizationIdを生成して追加
+        const organizationId = crypto.randomUUID();  // UUIDを生成
+        
+        await client.post('/provider/organization', {
+          organizationId,  // 生成したUUIDを追加
+          ...values,  // chiefUserEmailを含む全データを送信
+        });
+        messageApi.success('組織を追加しました');
       }
       
       setIsModalVisible(false);
       form.resetFields();
+      await fetchOrganizations();
     } catch (error) {
-      console.error('バリデーションエラー:', error);
+      console.error('保存エラー:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { error?: string } } };
+        if (axiosError.response?.data?.error) {
+          messageApi.error(axiosError.response.data.error);
+        } else {
+          messageApi.error('保存に失敗しました');
+        }
+      } else {
+        messageApi.error('保存に失敗しました');
+      }
     }
   };
 
@@ -598,6 +693,38 @@ export default function OrganizationManagement() {
     form.resetFields();
   };
 
+  // 会社データ取得
+  useEffect(() => {
+    const fetchCorporations = async () => {
+      try {
+        const client = createApiClient();
+        const response = await client.get('/provider/corporation');
+        console.log('Corporation API Response:', response.data);
+
+        // 統一APIレスポンス形式 { success, data, meta } に対応
+        if (response.data.success && Array.isArray(response.data.data)) {
+          // AntD Select 用の format に変換
+          const options = response.data.data
+            .filter((corp: CorporationData) => corp.isActive)  // アクティブな会社のみ
+            .map((corp: CorporationData) => ({
+              label: corp.corporationName,
+              value: corp.corporationId,        // ← 会社ID（UUID）に変更
+            }));
+
+          setCompanyOptions(options);
+        } else {
+          console.error('Unexpected corporation response format:', response.data);
+          messageApi.error('会社データの形式が不正です');
+        }
+      } catch (error) {
+        console.error('会社名の取得に失敗:', error);
+        messageApi.error('会社データの取得に失敗しました');
+      }
+    };
+
+    fetchCorporations();
+  }, [messageApi]);
+
   return (
     <div style={{ padding: '0 15px' }}>
       <div style={{ 
@@ -606,9 +733,18 @@ export default function OrganizationManagement() {
         marginBottom: 16,
         gap: 8,
       }}>
-        <Button icon={<UploadOutlined />} onClick={handleUpload}>
-          CSV<br />アップロード
-        </Button>
+        <label htmlFor="csv-upload">
+          <input
+            id="csv-upload"
+            type="file"
+            accept=".csv"
+            style={{ display: 'none' }}
+            onChange={handleUpload}
+          />
+          <Button icon={<UploadOutlined />} onClick={() => document.getElementById('csv-upload')?.click()}>
+            CSV<br />アップロード
+          </Button>
+        </label>
         <Button icon={<DownloadOutlined />} onClick={handleDownload}>
           CSV<br />ダウンロード
         </Button>
@@ -616,7 +752,6 @@ export default function OrganizationManagement() {
           追加
         </Button>
         <Button
-          icon={<DeleteOutlined />}
           onClick={handleActivate}
           disabled={selectedRowKeys.length === 0}
           style={{
@@ -630,7 +765,6 @@ export default function OrganizationManagement() {
         </Button>
         <Button
           danger
-          icon={<DeleteOutlined />}
           onClick={handleDeactivate}
           disabled={selectedRowKeys.length === 0}
           style={{
@@ -658,7 +792,7 @@ export default function OrganizationManagement() {
         <Row gutter={16} style={{ marginBottom: 8 }}>
           <Col style={{ width: 400 }}>
             <Input
-              placeholder="組織ID、組織名、組織表示名、組織e-mail、代表システム管理者、会社ID、更新日時で検索"
+              placeholder="組織CD、組織e-mail、代表システム管理者、更新日時で検索"
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -667,22 +801,22 @@ export default function OrganizationManagement() {
           </Col>
           <Col style={{ width: 150 }}>
             <Select
-              placeholder="組織ID"
-              value={selectedOrganizationId || undefined}
-              onChange={(value) => setSelectedOrganizationId(value || '')}
+              placeholder="組織表示名"
+              value={selectedOrganizationDisplayName || undefined}
+              onChange={(value) => setSelectedOrganizationDisplayName(value || '')}
               allowClear
               style={{ width: '100%' }}
-              options={organizationIds.map(id => ({ label: id, value: id }))}
+              options={organizationDisplayNames.map(name => ({ label: name, value: name }))}
             />
           </Col>
           <Col style={{ width: 150 }}>
             <Select
-              placeholder="会社ID"
+              placeholder="会社名"
               value={selectedCompanyCode || undefined}
               onChange={(value) => setSelectedCompanyCode(value || '')}
               allowClear
               style={{ width: '100%' }}
-              options={companyCodes.map(code => ({ label: code, value: code }))}
+              options={companyNames.map(name => ({ label: name, value: name }))}
             />
           </Col>
         </Row>
@@ -691,16 +825,17 @@ export default function OrganizationManagement() {
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredOrganizations}
-          rowKey="id"
+          rowKey="organizationId"
           size="small"
-          scroll={{ x: 1400 }}
+          loading={loading}
+          scroll={{ x: 1540 }}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100'],
             showTotal: (total) => `全 ${total} 件`,
           }}
-          rowClassName={(record) => (record.status === 'inactive' ? 'active-row' : 'inactive-row')}
+          rowClassName={(record) => (!record.isActive ? 'inactive-row' : '')}
         />
       </div>
 
@@ -714,84 +849,184 @@ export default function OrganizationManagement() {
         cancelText="キャンセル"
       >
         <Form form={form} layout="vertical">
-          <Form.Item
-            name="organization_id"
-            label="組織ID"
-            rules={[{ required: true, message: '組織IDを入力してください' }]}
-          >
-            <Input placeholder="A182" disabled={!!editingOrg} />
-          </Form.Item>
+          {editingOrg ? (
+            // 編集モーダル: 組織CDは編集不可
+            <>
+              <Form.Item
+                name="organizationCd"
+                label="組織CD"
+                rules={[{ required: true, message: '組織CDを入力してください' }]}
+              >
+                <Input placeholder="maiml_lab_001" disabled />
+              </Form.Item>
 
-          <Form.Item
-            name="organization_name"
-            label="組織名"
-            rules={[{ required: true, message: '組織名を入力してください' }]}
-          >
-            <Input placeholder="Alpha研究所" />
-          </Form.Item>
+              <Form.Item
+                name="organizationDisplayName"
+                label="組織表示名"
+                rules={[{ required: true, message: '組織表示名を入力してください' }]}
+              >
+                <Input placeholder="MAIML研究所" />
+              </Form.Item>
 
-          <Form.Item
-            name="display_name"
-            label="組織表示名"
-            rules={[{ required: true, message: '組織表示名を入力してください' }]}
-          >
-            <Input placeholder="αβγ" />
-          </Form.Item>
+              <Form.Item
+                name="organizationEmail"
+                label="組織e-mail"
+                rules={[{ required: true, message: '組織e-mailを入力してください' }]}
+              >
+                <Input placeholder="sample@sample.co.jp" />
+              </Form.Item>
 
-          <Form.Item
-            name="email"
-            label="組織e-mail"
-            rules={[
-              { required: true, message: '組織e-mailを入力してください' },
-              { type: 'email', message: '正しいメールアドレスを入力してください' }
-            ]}
-          >
-            <Input placeholder="alpha@aist.go.jp" />
-          </Form.Item>
+              <Form.Item
+                name="chiefUserId"
+                label="代表システム管理者"
+                rules={[{ required: true, message: '代表システム管理者を選択してください' }]}
+              >
+                <Select
+                  options={systemAdminOptions}
+                  placeholder="代表システム管理者を選択してください"
+                  showSearch
+                  filterOption={(input, option) => {
+                    if (!option?.label) return false;
+                    return option.label.toLowerCase().includes(input.toLowerCase());
+                  }}
+                />
+              </Form.Item>
 
-          <Form.Item
-            name="representative_admin"
-            label="代表システム管理者"
-            rules={[{ required: true, message: '代表システム管理者を入力してください' }]}
-          >
-            <Input placeholder="山田 太郎" />
-          </Form.Item>
+              <Form.Item name="corporationId" label="会社名">
+                <Select
+                  options={companyOptions}
+                  placeholder="会社名を選択してください"
+                  showSearch
+                  filterOption={(input, option) => {
+                    if (!option?.label) return false;
+                    return option.label.toLowerCase().includes(input.toLowerCase());
+                  }}
+                />
+              </Form.Item>
 
-          <Form.Item
-            name="company_code"
-            label="会社ID"
-            rules={[{ required: true, message: '会社IDを入力してください' }]}
-          >
-            <Input placeholder="K001" />
-          </Form.Item>
+              <Form.Item
+                name="isEntry"
+                label="二段階認証判定"
+                rules={[{ required: true, message: '二段階認証判定を選択してください' }]}
+              >
+                <Select
+                  placeholder="二段階認証判定を選択してください"
+                  options={[
+                    { value: 0, label: 'なし' },
+                    { value: 1, label: 'あり' },
+                  ]}
+                />
+              </Form.Item>
 
-          <Form.Item
-            name="status"
-            label="状態"
-            rules={[{ required: true }]}
-          >
-            <Select
-              options={[
-                { value: 'active', label: 'アクティブ' },
-                { value: 'inactive', label: '非アクティブ' },
-              ]}
-            />
-          </Form.Item>
+              <Form.Item
+                name="isActive"
+                label="状態"
+                rules={[{ required: true }]}
+              >
+                <Select
+                  options={[
+                    { value: true, label: 'アクティブ' },
+                    { value: false, label: '非アクティブ' },
+                  ]}
+                />
+              </Form.Item>
+            </>
+          ) : (
+            // 追加モーダル: 組織CDは編集可能
+            <>
+              <Divider>組織情報</Divider>
+
+              <Form.Item
+                name="organizationCd"
+                label="組織CD"
+                rules={[{ required: true, message: '組織CDを入力してください' }]}
+              >
+                <Input placeholder="maiml_lab_001" />
+              </Form.Item>
+
+              <Form.Item
+                name="organizationDisplayName"
+                label="組織表示名"
+                rules={[{ required: true, message: '組織表示名を入力してください' }]}
+              >
+                <Input placeholder="MAIML研究所" />
+              </Form.Item>
+
+              <Form.Item
+                name="organizationEmail"
+                label="組織e-mail"
+                rules={[{ required: true, message: '組織e-mailを入力してください' }]}
+              >
+                <Input placeholder="sample@sample.co.jp" />
+              </Form.Item>
+
+              <Form.Item name="corporationId" label="会社名">
+                <Select
+                  options={companyOptions}
+                  placeholder="会社名を選択してください"
+                  showSearch
+                  filterOption={(input, option) => {
+                    if (!option?.label) return false;
+                    return option.label.toLowerCase().includes(input.toLowerCase());
+                  }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="isEntry"
+                label="二段階認証判定"
+                rules={[{ required: true, message: '二段階認証判定を選択してください' }]}
+              >
+                <Select
+                  placeholder="なし"
+                  options={[
+                    { value: 0, label: 'なし' },
+                    { value: 1, label: 'あり' },
+                  ]}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="isActive"
+                label="状態"
+                rules={[{ required: true }]}
+              >
+                <Select
+                  options={[
+                    { value: true, label: 'アクティブ' },
+                    { value: false, label: '非アクティブ' },
+                  ]}
+                />
+              </Form.Item>
+
+              <Divider>代表者情報</Divider>
+
+              <Form.Item
+                name="chiefUserName"
+                label="代表システム管理者"
+                rules={[{ required: true, message: '代表システム管理者を入力してください' }]}
+              >
+                <Input placeholder="サンプル　太郎" />
+              </Form.Item>
+
+              <Form.Item
+                name="chiefUserEmail"
+                label="代表者メールアドレス"
+                rules={[{ required: true, message: '代表者メールアドレスを入力してください' }]}
+              >
+                <Input placeholder="sample@sample.co.jp" />
+              </Form.Item>
+            </>
+          )}
         </Form>
       </Modal>
 
       <style jsx global>{`
-        .active-row td {
+        .inactive-row td {
           background-color: #d3d3d3 !important;
         }
-        .active-row:hover td {
-          background-color: #c0c0c0 !important;
-        }
-        .inactive-row td {
-          background-color: #fff !important;
-        }
         .inactive-row:hover td {
-          background-color: #f5f5f5 !important;
+          background-color: #c0c0c0 !important;
         }
       `}</style>
     </div>

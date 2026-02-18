@@ -23,6 +23,7 @@ import departmentRoutes from './routes/departmentRoutes';
 import corporationRoutes from './routes/corporationRoutes';
 import roleRoutes from './routes/roleRoutes';
 import progressRoutes from './routes/progressRoutes';
+import organizationRoutes from './routes/organizationRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -82,8 +83,8 @@ async function startServer() {
     app.use('/api/v1/files', fileAccessRoutes); // 汎用ファイルアクセスAPI（共通化後）
     app.use('/api/v1/maiml', maimlRoutes);
     
-	// Mount experiment routes
-	app.use('/api/v1/experiments', experimentRoutes);
+    // Mount experiment routes
+    app.use('/api/v1/experiments', experimentRoutes);
 
     // Mount systemManagement routes
     app.use('/api/v1/systemManagement', departmentRoutes);
@@ -91,6 +92,7 @@ async function startServer() {
     
     // Mount provider routes
     app.use('/api/v1/provider', corporationRoutes);
+    app.use('/api/v1/provider', organizationRoutes);
     
     // Mount master routes
     app.use('/api/v1/master', masterRoutes);
