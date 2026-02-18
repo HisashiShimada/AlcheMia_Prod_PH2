@@ -24,6 +24,7 @@ import {
 } from '../types/progress';
 import { logger } from '../utils/logger';
 import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * ステータス遷移マトリクス
@@ -615,10 +616,9 @@ export class ProgressService {
       await client.query('BEGIN');
 
       // 1. トランジションIDからmethod_idとtask_noを取得
+      const findSql = await loadSqlFile('transition_data/findByTransitionId.sql');
       const findResult = await client.query(
-        `SELECT method_id, task_no, status 
-         FROM transition_data 
-         WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND transition_id = $4`,
+        findSql,
         [organizationId, projectId, methodId, transitionId]
       );
 
@@ -673,28 +673,25 @@ export class ProgressService {
       );
 
       // 6. タスク進捗率を再計算
+      const countSql = await loadSqlFile('transition_data/countByTask.sql');
       const countResult = await client.query(
-        `SELECT COUNT(*) as count 
-         FROM transition_data 
-         WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+        countSql,
         [organizationId, projectId, method_id, task_no]
       );
       const transitionCount = parseInt(countResult.rows[0].count, 10);
 
+      const sumSql = await loadSqlFile('transition_data/sumProgressRateByTask.sql');
       const sumResult = await client.query(
-        `SELECT COALESCE(SUM(progress_rate), 0) as sum 
-         FROM transition_data 
-         WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+        sumSql,
         [organizationId, projectId, method_id, task_no]
       );
       const progressSum = parseInt(sumResult.rows[0].sum, 10);
 
       const taskProgressRate = transitionCount > 0 ? Math.round(progressSum / transitionCount) : 0;
 
+      const updateProgressSql = await loadSqlFile('project_tasks/updateProgressRate.sql');
       await client.query(
-        `UPDATE project_task 
-         SET progress_rate = $1, updated_at = CURRENT_TIMESTAMP 
-         WHERE organization_id = $2 AND project_id = $3 AND method_id = $4 AND task_no = $5`,
+        updateProgressSql,
         [taskProgressRate, organizationId, projectId, method_id, task_no]
       );
 
