@@ -208,7 +208,7 @@ router.post(
 
 /**
  * 承認依頼
- * POST /api/v1/projects/:projectId/approval-request
+ * PATCH /api/v1/projects/:projectName/approval-request
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
@@ -216,14 +216,16 @@ router.post(
  * @note Task 1.1: 承認依頼エンドポイントのルーティング追加
  * @requirements REQ-1, REQ-2, REQ-3
  */
-router.post(
-  '/:projectId/approval-request',
+router.patch(
+  '/:projectName/approval-request',
   authMiddleware,
   tenantIsolation,
   [
-    param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
     body('comment')
       .optional()
       .isLength({ max: 1000 })
