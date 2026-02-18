@@ -14,11 +14,11 @@
 このドキュメントは、実験作業者が実験データを記録するためのAPI仕様を定義します。
 
 ### 主な機能
-- 実験データ保存（テンプレート単位）
+- 実験データ一括保存（複数プレースのテンプレートデータ）
 - トランジションステータス更新
-- みなし進捗更新（自動ステータス判定）
 - DataGrid（2次元配列）対応
 - ネストプロパティ対応
+- All or Nothing方式のトランザクション保証
 
 ### 対象ユーザー
 - 実験作業者（Worker）: 実験データ記録、ステータス更新
@@ -31,19 +31,19 @@
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | 権限 |
 |----|-------------|---------------|------|---------|------|
-| 1 | POST | /api/v1/experiments/:transitionId/data | 実験データ保存 | ⏳ 未実装 | Worker以上 |
-| 2 | PUT | /api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | Worker以上 |
+| 1 | POST | /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | Worker以上 |
+| 2 | PUT | /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | Worker以上 |
 
 ---
 
-## 1. 実験データ保存API
+## 1. 実験データ一括保存API
 
 ### 概要
-トランジション単位で実験データを保存します。テンプレート（Material, Condition, Result）ごとにデータを記録できます。
+タスク内の複数プレースの実験データを一括で保存します。テンプレート（Material, Condition, Result）ごとにデータを記録でき、All or Nothing方式のトランザクション保証により、すべてのデータが正常に保存されるか、すべて失敗するかのいずれかになります。
 
 ### エンドポイント
 ```
-POST /api/v1/experiments/:transitionId/data
+POST /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data
 ```
 
 ### HTTPメソッド
@@ -56,11 +56,11 @@ POST
 
 ### ミドルウェアチェーン
 ```typescript
-router.post('/experiments/:transitionId/data',
+router.post('/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data',
   auth,                        // JWT認証
   tenantIsolation,            // テナント分離
   permissionCheck(['worker', 'manager', 'admin']), // 権限チェック
-  experimentDataController.save
+  experimentDataController.saveBatch
 );
 ```
 
@@ -69,55 +69,70 @@ router.post('/experiments/:transitionId/data',
 #### パスパラメータ
 | パラメータ | 型 | 必須 | 説明 |
 |-----------|----|----|------|
-| transitionId | string | ○ | トランジションID |
+| projectId | UUID | ○ | プロジェクトID |
+| methodId | string | ○ | メソッドID |
+| taskNo | integer | ○ | タスク連番 |
 
 #### リクエストボディ
 ```json
 {
-  "projectId": "550e8400-e29b-41d4-a716-446655440000",
-  "methodId": "method_001",
-  "taskId": "660e8400-e29b-41d4-a716-446655440001",
-  "templateType": "condition",
-  "templateId": "condition_template_001",
-  "data": {
-    "temperature": {
-      "value": 25.5,
-      "unit": "°C"
+  "records": [
+    {
+      "placeId": "place_001",
+      "templateType": "material",
+      "templateId": "mat_001",
+      "data": {
+        "temperature": {
+          "value": 25.5,
+          "unit": "°C"
+        },
+        "pressure": {
+          "value": 1013,
+          "unit": "hPa"
+        }
+      },
+      "status": "completed",
+      "comment": "材料データ記録完了"
     },
-    "pressure": {
-      "value": 1013,
-      "unit": "hPa"
-    },
-    "humidity": {
-      "value": 60,
-      "unit": "%"
-    },
-    "dataGrid": [
-      ["時刻", "温度", "圧力"],
-      ["10:00", "25.5", "1013"],
-      ["11:00", "26.0", "1012"],
-      ["12:00", "26.5", "1011"]
-    ]
-  },
-  "status": "completed",
-  "comment": "実験条件を正常に設定しました。",
-  "autoProgressUpdate": true
+    {
+      "placeId": "place_002",
+      "templateType": "condition",
+      "templateId": "cond_001",
+      "data": {
+        "humidity": {
+          "value": 60,
+          "unit": "%"
+        },
+        "dataGrid": [
+          ["時刻", "温度", "圧力"],
+          ["10:00", "25.5", "1013"],
+          ["11:00", "26.0", "1012"],
+          ["12:00", "26.5", "1011"]
+        ]
+      },
+      "status": "running",
+      "comment": "条件データ記録中"
+    }
+  ]
 }
 ```
 
-#### パラメータ詳細
+#### リクエストボディのパラメータ詳細
 
 | パラメータ | 型 | 必須 | 説明 | 制約 |
 |-----------|----|----|------|------|
-| projectId | UUID | ○ | プロジェクトID | UUID形式 |
-| methodId | string | ○ | メソッドID | |
-| taskId | UUID | ○ | タスクID | UUID形式 |
+| records | array | ○ | 実験データ配列 | 1件以上の配列 |
+
+#### records配列の各要素
+
+| パラメータ | 型 | 必須 | 説明 | 制約 |
+|-----------|----|----|------|------|
+| placeId | string | ○ | プレースID | |
 | templateType | string | ○ | テンプレート種別 | material, condition, result |
 | templateId | string | ○ | テンプレートID | |
 | data | object | ○ | 実験データ | ネストプロパティ、DataGrid対応 |
-| status | string | △ | トランジションステータス | initial, preparing, ready, running, paused, completed, error |
+| status | string | △ | ステータス | initial, preparing, ready, running, paused, completed, error |
 | comment | string | × | コメント | 最大2000文字 |
-| autoProgressUpdate | boolean | × | みなし進捗更新フラグ | デフォルト: true |
 
 ### レスポンス
 
@@ -126,31 +141,57 @@ router.post('/experiments/:transitionId/data',
 {
   "success": true,
   "data": {
-    "id": "770e8400-e29b-41d4-a716-446655440002",
-    "projectId": "550e8400-e29b-41d4-a716-446655440000",
-    "methodId": "method_001",
-    "taskId": "660e8400-e29b-41d4-a716-446655440001",
-    "transitionId": "transition_001",
-    "templateType": "condition",
-    "templateId": "condition_template_001",
-    "data": {
-      "temperature": {
-        "value": 25.5,
-        "unit": "°C"
+    "saved": 2,
+    "records": [
+      {
+        "id": "770e8400-e29b-41d4-a716-446655440002",
+        "projectId": "550e8400-e29b-41d4-a716-446655440000",
+        "methodId": "method_001",
+        "taskNo": 1,
+        "placeId": "place_001",
+        "templateType": "material",
+        "templateId": "mat_001",
+        "data": {
+          "temperature": {
+            "value": 25.5,
+            "unit": "°C"
+          },
+          "pressure": {
+            "value": 1013,
+            "unit": "hPa"
+          }
+        },
+        "status": "completed",
+        "comment": "材料データ記録完了",
+        "recordedBy": "880e8400-e29b-41d4-a716-446655440003",
+        "recordedAt": "2026-01-27T10:30:00Z",
+        "organizationId": "org_maiml_lab_001",
+        "createdAt": "2026-01-27T10:30:00Z",
+        "updatedAt": "2026-01-27T10:30:00Z"
       },
-      "pressure": {
-        "value": 1013,
-        "unit": "hPa"
+      {
+        "id": "880e8400-e29b-41d4-a716-446655440003",
+        "projectId": "550e8400-e29b-41d4-a716-446655440000",
+        "methodId": "method_001",
+        "taskNo": 1,
+        "placeId": "place_002",
+        "templateType": "condition",
+        "templateId": "cond_001",
+        "data": {
+          "humidity": {
+            "value": 60,
+            "unit": "%"
+          }
+        },
+        "status": "running",
+        "comment": "条件データ記録中",
+        "recordedBy": "880e8400-e29b-41d4-a716-446655440003",
+        "recordedAt": "2026-01-27T10:30:00Z",
+        "organizationId": "org_maiml_lab_001",
+        "createdAt": "2026-01-27T10:30:00Z",
+        "updatedAt": "2026-01-27T10:30:00Z"
       }
-    },
-    "status": "completed",
-    "progressRate": 100,
-    "comment": "実験条件を正常に設定しました。",
-    "recordedBy": "880e8400-e29b-41d4-a716-446655440003",
-    "recordedAt": "2026-01-27T10:30:00Z",
-    "organizationId": "org_maiml_lab_001",
-    "createdAt": "2026-01-27T10:30:00Z",
-    "updatedAt": "2026-01-27T10:30:00Z"
+    ]
   },
   "meta": {
     "timestamp": "2026-01-27T10:30:00Z",
@@ -165,12 +206,13 @@ router.post('/experiments/:transitionId/data',
   "success": false,
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "Validation failed",
+    "message": "Validation failed for record 1",
     "details": [
       {
-        "field": "templateType",
-        "message": "Invalid template type",
-        "code": "INVALID_VALUE"
+        "index": 0,
+        "field": "placeId",
+        "message": "Place not found",
+        "code": "RESOURCE_NOT_FOUND"
       }
     ]
   },
@@ -202,7 +244,7 @@ router.post('/experiments/:transitionId/data',
   "success": false,
   "error": {
     "code": "RESOURCE_NOT_FOUND",
-    "message": "Transition not found or does not belong to your organization"
+    "message": "Task not found or does not belong to your organization"
   },
   "meta": {
     "timestamp": "2026-01-27T10:30:00Z",
@@ -217,43 +259,48 @@ router.post('/experiments/:transitionId/data',
    - プロジェクトステータスが編集可能（draft/active/waiting_approval）であることを確認
    - archived/completedの場合はエラー
 
-2. **トランジション存在確認**
-   - transitionIdが指定されたプロジェクト・メソッド・タスクに属することを確認
+2. **タスク存在確認**
+   - taskNoが指定されたproject_id、method_idに属することを確認
    - organization_idでマルチテナント分離
 
-3. **実験データ保存**
-   - experiment_recordsテーブルに新規レコードを挿入（初回）
-   - 既存レコードがある場合は更新（上書き）
+3. **リクエストバリデーション**
+   - records配列の各要素をバリデーション
+   - 1件でもエラーがあれば全体を拒否（All or Nothing）
+
+4. **実験データ一括保存（ループ処理）**
+   - records配列の各要素に対して処理
+   - template_dataテーブルにUPSERT（INSERT or UPDATE）
+   - 一意キー: (organization_id, project_id, method_id, task_no, place_id)
+   - 既存レコードがある場合、template_type、template_id、dataなどを上書き
    - dataフィールドにJSONB形式で保存
    - recorded_byに現在のユーザーIDを設定
 
-4. **みなし進捗更新（autoProgressUpdate=trueの場合）**
-   - statusが指定されている場合、そのまま使用
-   - statusが未指定の場合、以下のルールで自動判定:
-     - dataが空 → initial
-     - dataに値があり、一部のテンプレートのみ → in_progress
-     - すべてのテンプレートにデータがある → completed
-   - progress_rateを自動計算（0-100%）
-
-5. **トランザクション保証**
-   - トランジションステータス更新と実験データ保存を1トランザクションで実行
-   - 整合性を確保
+5. **トランザクション保証（All or Nothing）**
+   - すべてのINSERT/UPDATEを1トランザクションで実行
+   - 1件でも失敗したら全体をロールバック
+   - すべて成功した場合のみコミット
 
 ### バリデーション
 
-#### 必須チェック
+#### リクエスト全体のチェック
 - [ ] projectId はUUID形式
-- [ ] taskId はUUID形式
+- [ ] methodId は文字列
+- [ ] taskNo は1以上の整数
+- [ ] records は配列で1件以上
+
+#### records配列の各要素のチェック
+- [ ] placeId は必須
 - [ ] templateType は "material", "condition", "result" のいずれか
+- [ ] templateId は必須
 - [ ] data はオブジェクト形式
 - [ ] status は許可された値のいずれか（指定時）
 - [ ] comment は2000文字以内（指定時）
 
 #### 関連性チェック
 - [ ] projectIdは自組織に属するプロジェクト
-- [ ] taskIdは指定されたprojectIdに属するタスク
-- [ ] transitionIdは指定されたtaskIdに属するトランジション
-- [ ] templateIdは指定されたtemplateTypeに対応するテンプレート
+- [ ] taskNoは指定されたprojectIdに属するタスク
+- [ ] placeIdは指定されたtaskNoに属するプレース（オプション）
+- [ ] templateIdは指定されたtemplateTypeに対応するテンプレート（オプション）
 
 #### プロジェクトステータスチェック
 - [ ] プロジェクトステータスが編集可能（draft/active/waiting_approval）
@@ -261,84 +308,116 @@ router.post('/experiments/:transitionId/data',
 ### データベーステーブル
 
 #### 使用テーブル
-1. **experiment_records**（主テーブル）
-   - id, project_id, method_id, task_id, transition_id
+1. **template_data**（主テーブル）
+   - id, organization_id, project_id, method_id, task_no, place_id
    - template_type, template_id, data (JSONB)
-   - status, progress_rate, comment
+   - status, comment
    - recorded_by, recorded_at
-   - organization_id, created_at, updated_at
+   - created_at, updated_at
+   - **一意キー**: (organization_id, project_id, method_id, task_no, place_id)
 
 2. **projects**（ステータス確認）
    - id, status, organization_id
 
 3. **project_task**（存在確認）
-   - id, project_id, organization_id
+   - project_id, task_no, organization_id
 
-4. **transition_status**（ステータス更新）
-   - transition_id, task_id, status, progress_rate
-   - organization_id, updated_at
-
-#### SQL例
+#### SQL例（一括保存）
 ```sql
 -- トランザクション開始
 BEGIN;
 
--- プロジェクトステータス確認（マルチテナント分離）
+-- 1. プロジェクトステータス確認（マルチテナント分離）
 SELECT status FROM projects 
 WHERE id = $1 AND organization_id = $2
 AND status IN ('draft', 'active', 'waiting_approval');
 
--- タスク存在確認
-SELECT id FROM project_task 
-WHERE id = $3 AND project_id = $1 AND organization_id = $2;
-
--- 既存レコード確認（UPSERT用）
-SELECT id FROM experiment_records
+-- 2. タスク存在確認
+SELECT task_no FROM project_task 
 WHERE project_id = $1 
-  AND method_id = $4
-  AND task_id = $3
-  AND transition_id = $5
-  AND template_type = $6
-  AND template_id = $7
+  AND task_no = $3 
   AND organization_id = $2;
 
--- 実験データ保存（INSERT or UPDATE）
-INSERT INTO experiment_records (
-  id, project_id, method_id, task_id, transition_id,
+-- 3. records配列の各要素に対してUPSERT（ループ処理）
+-- (record 1)
+INSERT INTO template_data (
+  id, organization_id, project_id, method_id, task_no, place_id,
   template_type, template_id, data,
-  status, progress_rate, comment,
-  recorded_by, recorded_at, organization_id,
+  status, comment,
+  recorded_by, recorded_at,
   created_at, updated_at
 ) VALUES (
-  $1, $2, $3, $4, $5,
+  gen_random_uuid(), $2, $1, $4, $3, $5,
   $6, $7, $8::jsonb,
-  $9, $10, $11,
-  $12, NOW(), $13,
+  $9, $10,
+  $11, NOW(),
   NOW(), NOW()
 )
-ON CONFLICT (project_id, method_id, task_id, transition_id, template_type, template_id, organization_id)
+ON CONFLICT (organization_id, project_id, method_id, task_no, place_id)
 DO UPDATE SET
-  data = $8::jsonb,
-  status = $9,
-  progress_rate = $10,
-  comment = $11,
-  recorded_by = $12,
+  template_type = EXCLUDED.template_type,
+  template_id = EXCLUDED.template_id,
+  data = EXCLUDED.data,
+  status = EXCLUDED.status,
+  comment = EXCLUDED.comment,
+  recorded_by = EXCLUDED.recorded_by,
   recorded_at = NOW(),
   updated_at = NOW()
 RETURNING *;
 
--- トランジションステータス更新（みなし進捗更新）
-UPDATE transition_status
-SET 
-  status = $9,
-  progress_rate = $10,
+-- (record 2)
+INSERT INTO template_data (
+  id, organization_id, project_id, method_id, task_no, place_id,
+  template_type, template_id, data,
+  status, comment,
+  recorded_by, recorded_at,
+  created_at, updated_at
+) VALUES (
+  gen_random_uuid(), $2, $1, $4, $3, $12,
+  $13, $14, $15::jsonb,
+  $16, $17,
+  $11, NOW(),
+  NOW(), NOW()
+)
+ON CONFLICT (organization_id, project_id, method_id, task_no, place_id)
+DO UPDATE SET
+  template_type = EXCLUDED.template_type,
+  template_id = EXCLUDED.template_id,
+  data = EXCLUDED.data,
+  status = EXCLUDED.status,
+  comment = EXCLUDED.comment,
+  recorded_by = EXCLUDED.recorded_by,
+  recorded_at = NOW(),
   updated_at = NOW()
-WHERE transition_id = $5 
-  AND task_id = $4
-  AND organization_id = $13;
+RETURNING *;
+
+-- (以降、records配列の要素数だけ繰り返し)
 
 COMMIT;
 ```
+
+#### パラメータ説明
+```
+$1: project_id (UUID)
+$2: organization_id (string)
+$3: task_no (integer)
+$4: method_id (string)
+$5: place_id (string) - record 1
+$6: template_type (string) - record 1
+$7: template_id (string) - record 1
+$8: data (JSONB) - record 1
+$9: status (string) - record 1
+$10: comment (string) - record 1
+$11: recorded_by (UUID) - 全レコード共通
+$12: place_id (string) - record 2
+$13: template_type (string) - record 2
+... (以降、record数に応じて続く)
+```
+
+#### トランザクションの重要性
+- **All or Nothing**: すべてのINSERT/UPDATEが成功するか、すべて失敗するかのいずれか
+- **整合性保証**: 1件でも失敗したら全体をロールバック
+- **ロック**: プロジェクトステータスチェックからコミットまで一貫性を保証
 
 ### セキュリティ
 
@@ -359,10 +438,12 @@ COMMIT;
 
 ### パフォーマンス
 
-- インデックス: experiment_records (project_id, method_id, task_id, transition_id, organization_id)
-- インデックス: experiment_records (organization_id, recorded_at)
+- インデックス: template_data (organization_id, project_id, method_id, task_no, place_id) - 一意キー（主キー）
+- インデックス: template_data (organization_id, recorded_at) - 時系列検索用
+- インデックス: template_data (project_id, task_no) - タスク単位の検索用
 - JSONB型: GINインデックスを使用（data列）
-- トランザクション: 必須（整合性保証）
+- トランザクション: 必須（All or Nothing保証）
+- バッチ処理: records配列のサイズに応じて複数のINSERTを実行
 - キャッシュ: 不要（リアルタイム性重視）
 
 ---
@@ -374,7 +455,7 @@ COMMIT;
 
 ### エンドポイント
 ```
-PUT /api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status
+PUT /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status
 ```
 
 ### HTTPメソッド
@@ -387,7 +468,7 @@ PUT
 
 ### ミドルウェアチェーン
 ```typescript
-router.put('/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status',
+router.put('/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status',
   auth,
   tenantIsolation,
   permissionCheck(['worker', 'manager', 'admin']),
@@ -402,23 +483,22 @@ router.put('/experiments/projects/:projectId/methods/:methodId/transitions/:tran
 |-----------|----|----|------|
 | projectId | UUID | ○ | プロジェクトID |
 | methodId | string | ○ | メソッドID |
+| taskNo | integer | ○ | タスク連番 |
 | transitionId | string | ○ | トランジションID |
 
 #### リクエストボディ
 ```json
 {
-  "taskNo": 1,
   "status": "running",
   "progressRate": 50,
   "comment": "実験を開始しました。現在50%完了。"
 }
 ```
 
-#### パラメータ詳細
+#### リクエストボディのパラメータ詳細
 
 | パラメータ | 型 | 必須 | 説明 | 制約 |
 |-----------|----|----|------|------|
-| taskNo | integer | ○ | タスク連番 | 1以上の整数 |
 | status | string | ○ | トランジションステータス | initial, preparing, ready, running, paused, completed, error |
 | progressRate | integer | △ | 進捗率 | 0-100、statusがcompletedの場合は自動的に100 |
 | comment | string | × | コメント | 最大2000文字 |
@@ -716,6 +796,21 @@ backend/tests/controllers/experimentDataController.test.ts
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.1.0 | 2026-02-17 | エンドポイントパラメータ変更 | Cline |
+| | | - API 1: projectId, methodId, taskNoをパスパラメータ化 | |
+| | | - API 1: エンドポイント変更 `/experiments/data` → `/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data` | |
+| | | - API 2: taskNoをパスパラメータ化 | |
+| | | - API 2: エンドポイント変更 `/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status` → `/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status` | |
+| | | - リクエストボディからパスパラメータ化した項目を削除 | |
+| 2.0.0 | 2026-02-17 | 大規模仕様変更 | Cline |
+| | | - テーブル変更: experiment_records → template_data | |
+| | | - パラメータ変更: taskId (UUID) → taskNo (integer) | |
+| | | - パラメータ追加: placeId（必須） | |
+| | | - 一括保存対応: records配列による複数データ保存 | |
+| | | - 一意キー変更: (org_id, proj_id, method_id, task_no, place_id) | |
+| | | - autoProgressUpdate機能削除 | |
+| | | - transitionId削除（不要） | |
+| | | - All or Nothing方式のトランザクション保証 | |
 | 1.0.0 | 2026-01-27 | 初版作成 | Cline |
 | | | - 実験データ記録API 2エンドポイントの設計書作成 | |
 | | | - 実装未着手 | |

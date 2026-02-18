@@ -253,8 +253,8 @@
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 8.1 | POST | /api/v1/experiments/:transitionId/data | 実験データ保存 | ⏳ 未実装 | ExperimentDataController.save |
-| 8.2 | PUT | /api/v1/experiments/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | ExperimentDataController.updateStatus |
+| 8.1 | POST | /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | ExperimentDataController.saveBatch |
+| 8.2 | PUT | /api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | ExperimentDataController.updateStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`

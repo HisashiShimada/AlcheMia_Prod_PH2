@@ -4,7 +4,9 @@
  * トランジション状態更新のビジネスロジックを提供します。
  */
 
-import { TransitionDataRepository } from '../repositories/transitionDataRepository';
+import { TransitionDataRepository, TransitionDataRow } from '../repositories/transitionDataRepository';
+import { TemplateDataRepository, TemplateDataRecord, TemplateDataRow } from '../repositories/templateDataRepository';
+import { EventLogRepository } from '../repositories/eventLogRepository';
 import { Status, TransitionData, TransitionDataUpdate } from '../types/transitionData';
 import { getPool } from '../database/db';
 
@@ -39,15 +41,43 @@ export class InvalidStatusTransitionError extends Error {
 }
 
 /**
+ * プロジェクト編集不可エラー
+ */
+export class ProjectNotEditableError extends Error {
+  constructor(projectStatus: string) {
+    super(`Project is not editable. Current status: ${projectStatus}. Editable statuses are: draft, active, waiting_approval.`);
+    this.name = 'ProjectNotEditableError';
+  }
+}
+
+/**
+ * タスク不存在エラー
+ */
+export class TaskNotFoundError extends Error {
+  constructor(taskNo: number) {
+    super(`Task not found: task_no=${taskNo}`);
+    this.name = 'TaskNotFoundError';
+  }
+}
+
+/**
  * ExperimentDataService
  * 
- * トランジション状態管理のビジネスロジック
+ * 実験データとトランジション状態管理のビジネスロジック
  */
 export class ExperimentDataService {
-  private repository: TransitionDataRepository;
+  private transitionRepository: TransitionDataRepository;
+  private templateRepository: TemplateDataRepository;
+  private eventLogRepository: EventLogRepository;
 
-  constructor(repository?: TransitionDataRepository) {
-    this.repository = repository || new TransitionDataRepository();
+  constructor(
+    transitionRepository?: TransitionDataRepository,
+    templateRepository?: TemplateDataRepository,
+    eventLogRepository?: EventLogRepository
+  ) {
+    this.transitionRepository = transitionRepository || new TransitionDataRepository();
+    this.templateRepository = templateRepository || new TemplateDataRepository();
+    this.eventLogRepository = eventLogRepository || new EventLogRepository();
   }
 
   /**
@@ -135,7 +165,7 @@ export class ExperimentDataService {
       };
 
       // 4. トランジションステータスを更新
-      const updatedTransition = await this.repository.updateStatus(
+      const updatedTransition: TransitionDataRow = await this.transitionRepository.updateStatus(
         organizationId,
         projectId,
         method_id,
@@ -144,7 +174,25 @@ export class ExperimentDataService {
         finalUpdate
       );
 
-      // 5. タスク進捗率を再計算
+      // 5. イベントログを記録
+      await this.eventLogRepository.logEvent(
+        organizationId,
+        projectId,
+        {
+          event_type: 'transition_status_update',
+          method_id: method_id,
+          task_no: task_no,
+          transition_id: transitionId,
+          status: update.status,
+          progress_rate: finalProgressRate,
+          comment: updatedTransition.comment || undefined,
+          updated_by: update.updated_by,
+          timestamp: new Date()
+        },
+        client
+      );
+
+      // 6. タスク進捗率を再計算
       const countResult = await client.query(
         `SELECT COUNT(*) as count 
          FROM transition_data 
@@ -181,6 +229,91 @@ export class ExperimentDataService {
       client.release();
     }
   }
+
+  /**
+   * 実験データを一括保存
+   * 
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @param methodId メソッドID
+   * @param taskNo タスク番号
+   * @param records 保存するレコード配列
+   * @param recordedBy 記録者のユーザーID
+   * @returns 保存されたレコード配列
+   */
+  async saveBatchData(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    records: TemplateDataRecord[],
+    recordedBy: string
+  ): Promise<TemplateDataRow[]> {
+    const pool = getPool();
+    const client = await pool.connect();
+
+    try {
+      // トランザクション開始
+      await client.query('BEGIN');
+
+      // 1. プロジェクトステータスを確認
+      const projectResult = await client.query(
+        `SELECT status FROM projects 
+         WHERE organization_id = $1 AND id = $2`,
+        [organizationId, projectId]
+      );
+
+      if (projectResult.rows.length === 0) {
+        const error: any = new Error('Project not found');
+        error.name = 'ProjectNotFoundError';
+        throw error;
+      }
+
+      const projectStatus = projectResult.rows[0].status;
+
+      // 編集可能なステータスかチェック（draft, active, waiting_approval）
+      const editableStatuses = ['draft', 'active', 'waiting_approval'];
+      if (!editableStatuses.includes(projectStatus)) {
+        throw new ProjectNotEditableError(projectStatus);
+      }
+
+      // 2. タスクが存在することを確認
+      const taskResult = await client.query(
+        `SELECT task_no FROM project_task 
+         WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+        [organizationId, projectId, methodId, taskNo]
+      );
+
+      if (taskResult.rows.length === 0) {
+        throw new TaskNotFoundError(taskNo);
+      }
+
+      // 3. records配列の各要素をUPSERT
+      const savedRecords: TemplateDataRow[] = [];
+      for (const record of records) {
+        const savedRecord = await this.templateRepository.upsert(
+          organizationId,
+          projectId,
+          methodId,
+          taskNo,
+          record,
+          recordedBy,
+          client
+        );
+        savedRecords.push(savedRecord);
+      }
+
+      // トランザクションコミット
+      await client.query('COMMIT');
+
+      return savedRecords;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 /**
@@ -195,4 +328,19 @@ export async function updateStatus(
 ): Promise<TransitionData> {
   const service = new ExperimentDataService();
   return service.updateStatus(organizationId, projectId, methodId, transitionId, update);
+}
+
+/**
+ * 実験データを一括保存する（関数版）
+ */
+export async function saveBatchData(
+  organizationId: string,
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  records: TemplateDataRecord[],
+  recordedBy: string
+): Promise<TemplateDataRow[]> {
+  const service = new ExperimentDataService();
+  return service.saveBatchData(organizationId, projectId, methodId, taskNo, records, recordedBy);
 }

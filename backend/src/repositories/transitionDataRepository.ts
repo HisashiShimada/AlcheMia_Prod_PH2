@@ -18,6 +18,7 @@ export interface TransitionDataRow {
   transition_id: string;
   status: Status;
   progress_rate: number;
+  comment?: string | null;
   updated_by: string;
   updated_at: Date;
   created_at: Date;
