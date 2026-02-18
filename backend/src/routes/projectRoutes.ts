@@ -12,6 +12,7 @@ import * as workerProjectController from '../controllers/workerProjectController
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
+import { checkPermission } from '../middleware/permissionCheckMiddleware';
 
 const router = Router();
 
@@ -20,15 +21,17 @@ const router = Router();
  * GET /api/v1/projects/worker-accessible
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
  * @description 実験作業者が作業可能なプロジェクト一覧を取得する
  * @note Task 4.1: 実験作業者用プロジェクト一覧APIエンドポイント追加
  * @note 静的ルートは動的ルート（/:projectId等）より前に定義する必要がある
  * @requirements REQ-1, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7
- * @roles experiment_worker, experiment_admin, system_admin
+ * @roles experiment_worker（読取専用）
  */
 router.get(
   '/worker-accessible',
   authMiddleware,
+  checkPermission('050000', 0),
   [
     query('page')
       .optional()
