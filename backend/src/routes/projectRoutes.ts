@@ -310,15 +310,17 @@ router.get(
  * GET /api/v1/projects/:projectName/worker-instructions
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
  * @description プロジェクトに関連する作業指示一覧を取得する
  * @note Task 1.1: 作業指示一覧取得エンドポイント追加
  * @note バリデーションはミドルウェアで処理済み
  * @requirements REQ-1, REQ-3
- * @roles experiment_worker, experiment_admin, system_admin
+ * @roles experiment_worker（読取専用）
  */
 router.get(
   '/:projectName/worker-instructions',
   authMiddleware,
+  checkPermission('050000', 0),
   [
     param('projectName')
       .notEmpty()

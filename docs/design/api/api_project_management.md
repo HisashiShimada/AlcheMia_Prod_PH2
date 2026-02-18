@@ -863,7 +863,7 @@ router.METHOD('/path',
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
