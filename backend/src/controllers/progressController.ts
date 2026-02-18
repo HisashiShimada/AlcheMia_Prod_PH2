@@ -339,19 +339,13 @@ export async function getWorkerTasks(
       requestId,
     });
 
-    const pool = getPool();
+    const pgp = getPgp();
 
     // ステップ1: プロジェクト名からプロジェクトIDを取得
-    const projectQuery = `
-      SELECT project_id, project_name
-      FROM project
-      WHERE project_name = $1
-        AND organization_id = $2
-    `;
+    const projectQuery = await loadSqlFile('projects/findByName.sql');
+    const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
 
-    const projectResult = await pool.query(projectQuery, [projectName, organizationId]);
-
-    if (projectResult.rowCount === 0) {
+    if (!project) {
       logger.warn('ProgressController.getWorkerTasks - Project not found', {
         action: 'get_worker_tasks',
         projectName,
@@ -373,7 +367,6 @@ export async function getWorkerTasks(
       return;
     }
 
-    const project = projectResult.rows[0];
     const projectId = project.project_id;
 
     // ステップ2: TaskServiceを使用してタスク一覧を取得

@@ -1,5 +1,7 @@
 -- プロジェクト名からプロジェクト情報を取得
--- 使用箇所: progressController.ts - updateTaskStatus()
+-- 使用箇所: 
+--   - progressController.ts - updateTaskStatus()
+--   - progressController.ts - getWorkerTasks()
 -- パラメータ: $1=projectName, $2=organizationId
 
 SELECT 
