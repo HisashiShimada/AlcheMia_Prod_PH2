@@ -133,7 +133,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     }
 
     // 選択されたプロジェクトの情報を取得
-    const selectedProjectData = projects.find(p => p.project_id === selectedProject);
+    const selectedProjectData = projects.find(p => p.projectId === selectedProject);
     if (!selectedProjectData) {
       message.error('プロジェクト情報が見つかりません');
       return;
@@ -141,7 +141,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
 
     setApprovalLoading(true);
     try {
-      const result = await requestApproval(selectedProjectData.project_name);
+      const result = await requestApproval(selectedProjectData.projectName);
       if (result.success) {
         message.success('承認依頼を送信しました');
         // プロジェクト一覧を再取得してステータスを更新
@@ -350,10 +350,10 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                 options={[
                   { value: null, label: '-' },
                   ...projects.map((project) => ({
-                    value: project.project_id,
-                    label: `${project.project_name} - ${
-                      project.status === 1 ? '作業中' : 
-                      project.status === 2 ? '承認待ち' : 
+                    value: project.projectId,
+                    label: `${project.projectName} - ${
+                      project.projectStatus === 'in_progress' ? '作業中' : 
+                      project.projectStatus === 'review_waiting' ? '承認待ち' : 
                       '承認済み'
                     }`
                   }))

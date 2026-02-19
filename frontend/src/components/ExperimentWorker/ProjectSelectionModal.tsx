@@ -28,8 +28,8 @@ interface ProjectTableData {
   key: string;
   projectId: string;
   projectName: string;
-  projectCd: string;
-  status: 1 | 2 | 3;
+  projectCd?: string;
+  projectStatus: string;
   isCurrentlySelected: boolean;
 }
 
@@ -66,12 +66,12 @@ export default function ProjectSelectionModal({
   // テーブルデータの作成
   const allTableData: ProjectTableData[] = useMemo(() => {
     return projects.map((project) => ({
-      key: project.project_id,
-      projectId: project.project_id,
-      projectName: project.project_name,
-      projectCd: project.project_cd,
-      status: project.status,
-      isCurrentlySelected: selectedProject === project.project_id,
+      key: project.projectId,
+      projectId: project.projectId,
+      projectName: project.projectName,
+      projectCd: project.projectCd,
+      projectStatus: project.projectStatus,
+      isCurrentlySelected: selectedProject === project.projectId,
     }));
   }, [projects, selectedProject]);
 
@@ -87,7 +87,7 @@ export default function ProjectSelectionModal({
       // あいまい検索（プロジェクト名、プロジェクトコード）
       const matchesSearch = !searchText || 
         item.projectName.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.projectCd.toLowerCase().includes(searchText.toLowerCase());
+        (item.projectCd && item.projectCd.toLowerCase().includes(searchText.toLowerCase()));
       
       // プロジェクト名フィルター
       const matchesProjectName = !selectedProjectName || item.projectName === selectedProjectName;
@@ -121,13 +121,15 @@ export default function ProjectSelectionModal({
     },
     {
       title: '状態',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'projectStatus',
+      key: 'projectStatus',
       width: 120,
       align: 'center',
-      render: (status: 1 | 2 | 3) => (
+      render: (projectStatus: string) => (
         <Text>
-          {status === 1 ? '作業中' : status === 2 ? '承認待ち' : '承認済み'}
+          {projectStatus === 'in_progress' ? '作業中' : 
+           projectStatus === 'review_waiting' ? '承認待ち' : 
+           '承認済み'}
         </Text>
       ),
     },

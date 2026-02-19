@@ -87,14 +87,16 @@ export interface CreateProjectResponse {
 
 /**
  * 実験作業者用プロジェクト型
+ * APIレスポンス: GET /api/v1/projects/worker-accessible
  */
 export interface WorkerProject {
-  project_id: string;
-  project_name: string;
-  project_cd: string;
-  status: 1 | 2 | 3;  // 1: 作業中, 2: 承認待ち, 3: 承認済み
-  create_at: string;
-  update_at: string;
+  projectId: string;           // プロジェクトID（UUID）
+  projectName: string;         // プロジェクト名
+  projectCd?: string;          // プロジェクトCD（APIレスポンスに含まれない場合がある）
+  projectStatus: string;       // プロジェクトステータス（"in_progress", "review_waiting", "approved"）
+  description: string;         // プロジェクトの説明
+  createdAt: string;           // 作成日時（ISO 8601）
+  updatedAt: string;           // 更新日時（ISO 8601）
 }
 
 /**
