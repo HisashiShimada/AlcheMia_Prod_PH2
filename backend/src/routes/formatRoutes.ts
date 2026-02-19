@@ -13,7 +13,7 @@ const router = Router();
  * 権限: 実験管理者メニュー（040000）、読み取り専用（0）
  */
 router.get(
-  '/formats',
+  '/',
   authMiddleware,
   checkPermission('040000', 0),  // 実験管理者メニュー、読み取り専用
   formatController.getFormats
@@ -32,7 +32,7 @@ router.get(
  *   - path: サブフォルダパス（オプション、例: displayTest）
  */
 router.get(
-  '/formats/:folderName/files',
+  '/:folderName/files',
   authMiddleware,
   checkPermission('040000', 0),  // 実験管理者メニュー、読み取り専用
   formatController.getFormatFiles

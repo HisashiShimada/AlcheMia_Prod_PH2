@@ -109,7 +109,7 @@ async function startServer() {
     app.use('/api/v1/progress', progressRoutes);
 
     // Mount format routes
-    app.use('/api/v1', formatRoutes);
+    app.use('/api/v1/formats', formatRoutes);
 
     if (process.env.NODE_ENV !== 'test') {
       const server = app.listen(PORT, () => {
