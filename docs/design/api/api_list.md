@@ -2,7 +2,7 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.9.0
+- **バージョン**: 2.9.1
 - **最終更新**: 2026-02-19
 - **担当**: Development Team
 
@@ -477,6 +477,37 @@
 
 ---
 
+### 15. 組織管理API（Organization Management）
+
+**API設計書**: [api_organization_management.md](./api_organization_management.md)
+**ルートファイル**: `backend/src/routes/organizationRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 15.1 | GET | /api/v1/provider/organization | 組織一覧取得 | ✅ 実装済み | organizationController.getOrganizations |
+| 15.2 | GET | /api/v1/provider/organization/download-csv | 組織CSVダウンロード | ✅ 実装済み | organizationController.downloadOrganizationCsv |
+| 15.3 | POST | /api/v1/provider/organization/upload-csv | 組織CSVアップロード | ✅ 実装済み | organizationController.uploadOrganizationCsv |
+| 15.4 | GET | /api/v1/provider/organization/:organizationId | 組織詳細取得 | ✅ 実装済み | organizationController.getOrganizationById |
+| 15.5 | GET | /api/v1/provider/organization/:organizationId/system-admins | システム管理者一覧取得 | ✅ 実装済み | organizationController.getSystemAdminsByOrganizationId |
+| 15.6 | POST | /api/v1/provider/organization | 組織新規作成 | ✅ 実装済み | organizationController.createOrganization |
+| 15.7 | PUT | /api/v1/provider/organization/:organizationId | 組織更新 | ✅ 実装済み | organizationController.updateOrganization |
+| 15.8 | PATCH | /api/v1/provider/organization/:organizationId/status | 組織アクティブ状態更新 | ✅ 実装済み | organizationController.updateOrganizationStatus |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`
+- 権限: provider（システムプロバイダー）
+
+**備考:**
+- ✅ 全エンドポイント実装完了
+- プロバイダー専用の組織管理API
+- 組織新規作成時に関連4テーブルへ自動挿入（organization, organization_user, role, role_permission）
+- 検索・フィルタリング機能（search, is_active, organization_cd, organization_display_name, corporation_name）
+- ソート機能（sort_by, sort_order）
+- CSVアップロード：組織追加ダイアログと同じ処理を各レコードごとに実行
+- ファイルサイズ制限: 10MB
+
+---
+
 ## 🔍 API検索ガイド
 
 ### API名で検索する
@@ -535,7 +566,8 @@
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
 | 会社管理API | 7 | 7 | 0 | 0 | 100% |
 | ファイルアクセスAPI | 6 | 6 | 0 | 0 | 100% |
-| **合計** | **107** | **91** | **0** | **16** | **85%** |
+| 組織管理API | 8 | 8 | 0 | 0 | 100% |
+| **合計** | **115** | **99** | **0** | **16** | **86%** |
 
 ### 優先度別実装状況
 
@@ -719,6 +751,11 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.9.1 | 2026-02-19 17:20 | 14番項番のAPI競合を整理（115エンドポイント） | Cline |
+| | | - 組織管理APIを14番から15番に移動（API番号14.1-14.8→15.1-15.8） | |
+| | | - カテゴリ数: 14→15カテゴリ | |
+| | | - 合計エンドポイント数: 107→115（組織管理API 8エンドポイントを追加計上） | |
+| | | - 全体実装率: 85%→86%に微増 | |
 | 2.9.0 | 2026-02-19 17:10 | routeファイル実装状況を反映（107エンドポイント） | Cline |
 | | | - プロジェクト管理API: 17→16エンドポイント、実装済み13個（81%） | |
 | | | - Maiml編集API: 10→17エンドポイント、実装済み17個（100%完了） | |

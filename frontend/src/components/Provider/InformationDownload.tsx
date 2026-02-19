@@ -4,7 +4,6 @@ import React from 'react';
 import { Card, Button, Space, message } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import informationDownloadData from '../../../mock/data/information-download.json';
-import organizationsData from '../../../mock/data/organizations.json';
 
 /**
  * 組織データの型定義
