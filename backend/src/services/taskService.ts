@@ -401,8 +401,26 @@ export class TaskService {
         filters
       );
 
+      // DEBUG: レコード数をログ出力
+      logger.info('TaskService.getTasksGroupedByMethod - Records fetched', {
+        action: 'get_tasks_grouped_by_method',
+        projectId,
+        organizationId,
+        recordCount: records.length,
+        sampleRecord: records.length > 0 ? records[0] : null,
+      });
+
       // データ整合性検証（不正なデータを除外）
       const validRecords = this.validateDataConsistency(records, projectId, organizationId);
+
+      // DEBUG: 検証後のレコード数をログ出力
+      logger.info('TaskService.getTasksGroupedByMethod - After validation', {
+        action: 'get_tasks_grouped_by_method',
+        projectId,
+        organizationId,
+        validRecordCount: validRecords.length,
+        invalidRecordCount: records.length - validRecords.length,
+      });
 
       // method_id単位でグループ化
       const methodMap = new Map<string, MethodGroup>();
@@ -492,14 +510,11 @@ export class TaskService {
     const validRecords: MethodTaskRecord[] = [];
     const invalidRecords: MethodTaskRecord[] = [];
 
-    // UUID形式の正規表現（すべてのバージョンを受け入れる: 8-4-4-4-12の形式）
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
     for (const record of records) {
-      // method_idの検証
+      // method_idの検証（character varying型なので文字列であればOK）
       if (!record.method_id || 
-          typeof record.method_id !== 'string' || 
-          !uuidRegex.test(record.method_id)) {
+          typeof record.method_id !== 'string' ||
+          record.method_id.trim() === '') {
         invalidRecords.push(record);
         continue;
       }

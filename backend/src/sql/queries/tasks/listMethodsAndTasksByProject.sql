@@ -32,7 +32,7 @@ SELECT
   COALESCE(AVG(td.progress_rate), 0) AS progress_rate,
   
   -- 担当者名（organization_user + user_authentication）
-  ua.user_name AS assign_user_name
+  ou.user_name AS assign_user_name
 
 FROM project_task pt
 
@@ -75,7 +75,7 @@ GROUP BY
   ptd.experiment_start_at,
   ptd.reviewed_at,
   -- 担当者名
-  ua.user_name
+  ou.user_name
 
 ORDER BY 
   pt.experiment_order ASC,  -- メソッドの実験順序（必須）
