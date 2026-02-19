@@ -31,6 +31,8 @@ import ProjectSearchModal from './ProjectSearchModal';
 import TaskResultsTable from './TaskResultsTable';
 import BulkUploadDialog from './BulkUploadDialog';
 import InstructionDialog from './InstructionDialog';
+import TaskRegistrationTab from './TaskRegistrationTab';
+import InstructionRegistrationTab from './InstructionRegistrationTab';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import DraftRestoreDialog from '../viewer/DraftRestoreDialog';
@@ -54,6 +56,8 @@ import {
 } from '@/api/projectApiService';
 import type { Project, Task, ProjectEditParams } from '@/types/project';
 import type { ProjectFile } from '@/types/file';
+import type { TaskDetail } from '@/types/taskRegistration';
+import type { InstructionData } from '@/types/instructionRegistration';
 
 const { Title, Text } = Typography;
 
@@ -100,10 +104,30 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     methodCount: number;
     nodeCount: number;
   } | null>(null);
-  const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
+  const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results' | 'task_registration' | 'instruction_registration'>('file_management');
   const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
   const [projectTasksData, setProjectTasksData] = useState<Record<string, { tasks: Task[]; statistics: unknown }>>({});
   const [isLoadingTabData, setIsLoadingTabData] = useState(false);
+  
+  // タスク登録・指示登録用の状態
+  const [registeredTasks, setRegisteredTasks] = useState<TaskDetail[]>([]);
+  
+  /**
+   * タスク登録タブからのタスク変更ハンドラ
+   */
+  const handleTasksChange = useCallback((tasks: TaskDetail[]) => {
+    setRegisteredTasks(tasks);
+    console.log('📝 [ProjectManagement] Tasks updated:', tasks);
+  }, []);
+  
+  /**
+   * 指示登録タブからの指示送信ハンドラ
+   */
+  const handleInstructionsSubmit = useCallback((instructions: InstructionData[]) => {
+    console.log('📤 [ProjectManagement] Instructions submitted:', instructions);
+    message.success(`${instructions.length}件の指示を送信しました`);
+    // TODO: 実際のAPI実装時に置き換え
+  }, []);
   
   // 複数ダイアログ管理
   interface OpenDialog {
@@ -1271,11 +1295,34 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                     ),
                   },
                   {
+                    key: 'task_registration',
+                    label: 'タスク登録',
+                    children: (
+                      <TaskRegistrationTab
+                        projectId={selectedProject.id}
+                        projectName={selectedProject.name}
+                        onTasksChange={handleTasksChange}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'instruction_registration',
+                    label: '指示送信',
+                    children: (
+                      <InstructionRegistrationTab
+                        projectId={selectedProject.id}
+                        projectName={selectedProject.name}
+                        tasks={registeredTasks}
+                        onInstructionsSubmit={handleInstructionsSubmit}
+                      />
+                    ),
+                  },
+                  {
                     key: 'task_results',
                     label: t('projectManagement.tabs.task_results'),
                     children: (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    {/* 統計カード */}
+                        {/* 統計カード */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: token.margin }}>
                       <Card
                         variant="borderless"
