@@ -6,7 +6,7 @@
 --   $3: organization_id (string) - project_task_detail側のorganization_id（マルチテナント分離）
 -- 
 -- 動的フィルタ（文字列置換で設定）:
---   {STATUS_FILTER} - ステータスフィルタ条件
+--   STATUS_FILTER - ステータスフィルタ条件
 -- 
 -- 使用箇所: WorkerProjectRepository.countWorkerAccessible()
 -- 作成日: 2026-02-18
