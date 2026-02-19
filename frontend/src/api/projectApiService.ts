@@ -86,6 +86,41 @@ export interface CreateProjectResponse {
 }
 
 /**
+ * 実験作業者用プロジェクト型
+ */
+export interface WorkerProject {
+  project_id: string;
+  project_name: string;
+  project_cd: string;
+  status: 1 | 2 | 3;  // 1: 作業中, 2: 承認待ち, 3: 承認済み
+  create_at: string;
+  update_at: string;
+}
+
+/**
+ * 実験作業者用プロジェクト一覧レスポンス型
+ */
+export interface WorkerProjectListResponse {
+  projects: WorkerProject[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+  };
+}
+
+/**
+ * 承認依頼レスポンス型
+ */
+export interface ApprovalRequestResponse {
+  project_id: string;
+  project_name: string;
+  status: 2;  // 承認待ち
+  update_at: string;
+}
+
+/**
  * APIエラーレスポンス型
  */
 interface ApiErrorResponse {
@@ -104,7 +139,6 @@ interface ApiErrorResponse {
     requestId: string;
   };
 }
-
 
 /**
  * プロジェクト一覧APIレスポンス型
@@ -383,6 +417,151 @@ export const getProjectData = async (
     return { files, tasks };
   } catch (error) {
     console.error('プロジェクトデータ取得エラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * 実験作業者がアクセス可能なプロジェクト一覧を取得
+ * GET /api/v1/projects/worker-accessible
+ * 
+ * @param page ページ番号（デフォルト: 1）
+ * @param limit 1ページあたりの件数（デフォルト: 100）
+ * @param status ステータスフィルタ（省略可）
+ * @param sortBy ソート項目（デフォルト: 'project_name'）
+ * @param order ソート順（デフォルト: 'asc'）
+ * @returns 実験作業者用プロジェクト一覧とページネーション情報
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * // 全プロジェクトを取得
+ * const result = await getWorkerAccessibleProjects();
+ * console.log(result.data.projects);
+ * 
+ * // 作業中プロジェクトのみ取得
+ * const activeProjects = await getWorkerAccessibleProjects(1, 100, '1');
+ * ```
+ */
+export const getWorkerAccessibleProjects = async (
+  page: number = 1,
+  limit: number = 100,
+  status?: '1' | '2' | '3',
+  sortBy: 'create_at' | 'project_name' | 'update_at' = 'project_name',
+  order: 'asc' | 'desc' = 'asc'
+): Promise<ApiResponse<WorkerProjectListResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] getWorkerAccessibleProjects - Start', { page, limit, status, sortBy, order });
+    
+    const params: Record<string, string | number> = { 
+      page, 
+      limit,
+      sort_by: sortBy,
+      order
+    };
+    
+    if (status) {
+      params.status = status;
+    }
+    
+    const response = await client.get<{
+      success: boolean;
+      data: WorkerProject[];
+      pagination: {
+        currentPage: number;
+        totalPages: number;
+        totalItems: number;
+        itemsPerPage: number;
+      };
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>('/projects/worker-accessible', { params });
+
+    console.log('[DEBUG] getWorkerAccessibleProjects - Success', {
+      projectCount: response.data.data.length,
+      totalItems: response.data.pagination.totalItems
+    });
+    
+    return {
+      success: response.data.success,
+      data: {
+        projects: response.data.data,
+        pagination: response.data.pagination
+      },
+      meta: response.data.meta
+    };
+  } catch (error) {
+    console.error('[DEBUG] getWorkerAccessibleProjects - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data
+    });
+    throw error;
+  }
+};
+
+/**
+ * 承認依頼を送信
+ * PATCH /api/v1/projects/:projectName/approval-request
+ * 
+ * @param projectName プロジェクト名
+ * @param comment コメント（任意、最大1000文字）
+ * @returns 更新されたプロジェクト情報
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * // コメントなしで承認依頼
+ * await requestApproval('sample_project');
+ * 
+ * // コメント付きで承認依頼
+ * await requestApproval('sample_project', '実験作業が完了しました。ご確認をお願いします。');
+ * ```
+ */
+export const requestApproval = async (
+  projectName: string,
+  comment?: string
+): Promise<ApiResponse<ApprovalRequestResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] requestApproval - Start', { projectName, hasComment: !!comment });
+    
+    const requestBody: { comment?: string } = {};
+    if (comment) {
+      requestBody.comment = comment;
+    }
+    
+    const response = await client.patch<{
+      success: boolean;
+      data: ApprovalRequestResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/approval-request`, requestBody);
+
+    console.log('[DEBUG] requestApproval - Success', {
+      projectId: response.data.data.project_id,
+      status: response.data.data.status
+    });
+    
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta
+    };
+  } catch (error) {
+    console.error('[DEBUG] requestApproval - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status
+    });
     throw error;
   }
 };
