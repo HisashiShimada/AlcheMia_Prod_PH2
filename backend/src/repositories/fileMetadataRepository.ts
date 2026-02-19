@@ -519,6 +519,58 @@ export class FileMetadataRepository {
     }
   }
   
+  /**
+   * ファイルメタデータを新規作成（動的INSERT）
+   * 呼び出し元で設定されたフィールドのみをINSERTする
+   * 
+   * @param data - ファイルメタデータ（必要なフィールドのみ設定）
+   * @returns 作成されたファイルメタデータ
+   */
+  async insertFileMetadata(data: Partial<FileMetadata>): Promise<FileMetadata> {
+    const pool = getPool();
+
+    // 動的にカラムとプレースホルダーを構築
+    const columns: string[] = [];
+    const placeholders: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    // データの各フィールドを処理
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        columns.push(key);
+        
+        // JSON型のカラムは特別処理
+        if (key === 'custom_metadata' || key === 'tags' || key === 'search_keywords') {
+          placeholders.push(`$${paramIndex}::jsonb`);
+          values.push(typeof value === 'string' ? value : JSON.stringify(value));
+        } else {
+          placeholders.push(`$${paramIndex}`);
+          values.push(value);
+        }
+        paramIndex++;
+      }
+    }
+
+    const query = `
+      INSERT INTO file_metadata (
+        ${columns.join(', ')}
+      ) VALUES (
+        ${placeholders.join(', ')}
+      )
+      RETURNING *
+    `;
+
+    try {
+      const result = await pool.query(query, values);
+      console.log(`✅ [FileMetadataRepository] ファイルメタデータ作成: ${data.original_filename} (${columns.length}カラム)`);
+      return result.rows[0] as FileMetadata;
+    } catch (error) {
+      console.error(`❌ [FileMetadataRepository] ファイルメタデータ作成エラー: ${data.original_filename}`, error);
+      throw error;
+    }
+  }
+
   async updateFileMetadata(fileKey:string, updates : any) {
     const pool = getPool();
     const setClause = [];
