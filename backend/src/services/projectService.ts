@@ -5,7 +5,7 @@
  * Task: 1.1 データベースクエリ機能の実装
  */
 
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
 import { getStorageService } from './storageService';
 import { escapeHtml } from '../utils/sanitize';
 import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
@@ -1212,8 +1212,10 @@ export class ProjectService {
     organizationId: string,
     userId: string
   ): Promise<ServiceResult<any>> {
-    const pool = getPool();
-    let client;
+    const pgp = getPgp();
+    
+    // リポジトリ層のインポート
+    const projectRepository = require('../repositories/projectRepository');
 
     // Task 5.2.4: ログ記録開始（機密情報フィルタリング）
     winston.info('Approval request initiated', {
@@ -1226,21 +1228,11 @@ export class ProjectService {
 
     try {
       // Task 3.1: プロジェクト存在確認とステータス検証（トランザクション外）
-      // organization_idフィルタ必須でプロジェクト情報を取得
-      const projectQuery = `
-        SELECT 
-          project_id,
-          project_name,
-          project_status,
-          organization_id
-        FROM project
-        WHERE organization_id = $1 AND project_id = $2
-      `;
-
-      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
+      // リポジトリ層を使用してプロジェクト情報を取得
+      const project = await projectRepository.findByIdWithOrganization(organizationId, projectId);
 
       // プロジェクト存在確認
-      if (projectResult.rows.length === 0) {
+      if (!project) {
         return {
           success: false,
           error: {
@@ -1249,8 +1241,6 @@ export class ProjectService {
           },
         };
       }
-
-      const project = projectResult.rows[0];
 
       // プロジェクトステータスマップ（数値 → 文字列）
       const PROJECT_STATUS_MAP: { [key: number]: string } = {
@@ -1284,33 +1274,26 @@ export class ProjectService {
         };
       }
 
-      // Task 3.2: トランザクション管理とステータス更新
-      client = await pool.connect();
-      await client.query('BEGIN');
-
-      // プロジェクトステータス更新（Parameterized Query）
-      const updateQuery = `
-        UPDATE project
-        SET project_status = $1,
-            update_at = $2,
-            update_user_id = $3
-        WHERE organization_id = $4 AND project_id = $5
-      `;
-
+      // Task 3.2: トランザクション管理とステータス更新（pg-promiseのtx使用）
       const currentTimestamp = new Date().toISOString();
-      await client.query(updateQuery, [
-        2, // waiting_approval
-        currentTimestamp,
-        userId,
-        organizationId,
-        projectId,
-      ]);
+      
+      await pgp.tx(async () => {
+        // プロジェクトステータス更新（リポジトリ層使用）
+        const rowCount = await projectRepository.updateApprovalStatus(
+          organizationId,
+          projectId,
+          2, // waiting_approval
+          currentTimestamp,
+          userId
+        );
+        
+        if (rowCount === 0) {
+          throw new Error('Failed to update project status');
+        }
+      });
 
       // commentをエスケープしてXSS攻撃を防ぐ（通知削除後も保持）
       const escapedComment = escapeHtml(comment);
-
-      // トランザクションコミット
-      await client.query('COMMIT');
 
       // Task 5.2.4: 承認依頼成功ログ
       winston.info('Approval request completed successfully', {
@@ -1323,20 +1306,14 @@ export class ProjectService {
         timestamp: currentTimestamp,
       });
 
-      // Task 3.4.1: ユーザー名を取得（トランザクション後）
+      // Task 3.4.1: ユーザー名を取得（トランザクション後、リポジトリ層使用）
       let requestedByName = userId; // デフォルトはuserIdをフォールバック
       
       try {
-        const userQuery = `
-          SELECT user_name
-          FROM organization_user
-          WHERE organization_id = $1 AND user_id = $2
-        `;
+        const userName = await projectRepository.findUserNameById(organizationId, userId);
         
-        const userResult = await pool.query(userQuery, [organizationId, userId]);
-        
-        if (userResult.rows.length > 0 && userResult.rows[0].user_name) {
-          requestedByName = userResult.rows[0].user_name;
+        if (userName) {
+          requestedByName = userName;
         }
       } catch (userError) {
         // ユーザー名取得失敗時はフォールバック値を使用（ログのみ）
@@ -1357,10 +1334,6 @@ export class ProjectService {
         },
       };
     } catch (error) {
-      if (client) {
-        await client.query('ROLLBACK');
-      }
-      
       // Task 5.2.4: エラーログ記録（機密情報フィルタリング）
       winston.error('Approval request failed', {
         projectId,
@@ -1378,10 +1351,6 @@ export class ProjectService {
           originalError: error as Error,
         },
       };
-    } finally {
-      if (client) {
-        client.release();
-      }
     }
   }
 
@@ -1616,39 +1585,14 @@ export class ProjectService {
       projectId?: string;
     };
   }): Promise<ServiceResult<any[]>> {
-    const pool = getPool();
+    const pgp = getPgp();
+    const { loadSqlFile } = require('../sql/loader');
     
     try {
       const { projectName, organizationId, userId, userRole, filters = {} } = params;
       
-      // ベースクエリの構築（is_acknowledgedはinstruction_acknowledged_historyから判定）
-      let query = `
-        SELECT 
-          pi.id,
-          pi.project_id,
-          p.project_name,
-          pi.method_id,
-          pi.transition_id,
-          pi.task_no,
-          pi.instruction_target,
-          pi.instructions,
-          pi.priority,
-          pi.type,
-          pi.create_at,
-          pi.created_by,
-          ua.user_name as created_by_name,
-          CASE 
-            WHEN iah.history_id IS NOT NULL THEN true 
-            ELSE false 
-          END as is_acknowledged
-        FROM project_instruction pi
-        INNER JOIN project p ON p.id = pi.project_id
-        LEFT JOIN user_authentication ua ON ua.user_id = pi.created_by
-        LEFT JOIN instruction_acknowledged_history iah 
-          ON iah.instruction_id = pi.id
-          AND iah.organization_id = pi.organization_id
-          AND iah.acknowledged_user_id = $1
-      `;
+      // 外部SQLファイルからベースクエリを読み込み
+      let query = await loadSqlFile('instructions/findWorkerInstructions.sql');
       
       const queryParams: any[] = [userId]; // $1: acknowledged_user_id (LEFT JOIN用)
       const conditions: string[] = [];
@@ -1656,7 +1600,10 @@ export class ProjectService {
       
       // 実験作業者の場合は、自分に割り当てられたタスクに紐づく指示のみ取得
       if (userRole === 'experiment_worker') {
-        query += ` INNER JOIN project_task pt ON pt.project_id = pi.project_id`;
+        // FROM句とWHERE句の間にINNER JOINを挿入
+        query = query.trim(); // 末尾の改行を削除
+        query += `\nINNER JOIN project_task pt ON pt.project_id = pi.project_id`;
+        
         conditions.push(`pt.assign_user_id = $${paramIndex++}`);
         queryParams.push(userId);
         conditions.push(`pt.organization_id = $${paramIndex++}`);
@@ -1681,18 +1628,18 @@ export class ProjectService {
       
       // WHERE句の追加
       if (conditions.length > 0) {
-        query += ` WHERE ${conditions.join(' AND ')}`;
+        query += `\nWHERE ${conditions.join(' AND ')}`;
       }
       
       // ソート: create_atで降順
-      query += ` ORDER BY pi.create_at DESC`;
+      query += `\nORDER BY pi.create_at DESC`;
       
-      // クエリ実行
-      const result = await pool.query(query, queryParams);
+      // pg-promiseを使用してクエリ実行
+      const result = await pgp.any(query, queryParams);
       
       // TODO: タスク2.2実装時にMAIMLファイルからメソッド名・トランジション名を取得
       // 暫定対応: method_name, transition_nameは空文字列を返却
-      const instructions = result.rows.map((row: any) => ({
+      const instructions = result.map((row: any) => ({
         id: row.id,
         project_id: row.project_id,
         project_name: row.project_name,
@@ -1742,14 +1689,15 @@ export class ProjectService {
     organizationId: string,
     projectId: string
   ): Promise<ServiceResult<any>> {
-    const pool = getPool();
+    const pgp = getPgp();
+    const { loadSqlFile } = require('../sql/loader');
     
     try {
-      // organization_prefix取得
-      const orgQuery = 'SELECT organization_prefix FROM organization WHERE organization_id = $1';
-      const orgResult = await pool.query(orgQuery, [organizationId]);
+      // organization_prefix取得（外部SQLファイル使用）
+      const orgSql = await loadSqlFile('projects/getOrganizationPrefix.sql');
+      const orgResult = await pgp.oneOrNone(orgSql, [organizationId]);
       
-      if (orgResult.rows.length === 0) {
+      if (!orgResult) {
         return {
           success: false,
           error: {
@@ -1759,19 +1707,14 @@ export class ProjectService {
         };
       }
       
-      const organizationPrefix = orgResult.rows[0].organization_prefix;
+      const organizationPrefix = orgResult.organization_prefix;
       
-      // Task 3.1: プロジェクト存在確認（organization_idフィルタ必須）
-      const projectQuery = `
-        SELECT project_id, project_name
-        FROM project
-        WHERE organization_id = $1 AND project_id = $2
-      `;
-      
-      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
+      // Task 3.1: プロジェクト存在確認（organization_idフィルタ必須、外部SQLファイル使用）
+      const projectSql = await loadSqlFile('projects/findByIdForMaiml.sql');
+      const projectResult = await pgp.oneOrNone(projectSql, [organizationId, projectId]);
       
       // プロジェクト存在確認
-      if (projectResult.rows.length === 0) {
+      if (!projectResult) {
         return {
           success: false,
           error: {
@@ -1781,7 +1724,7 @@ export class ProjectService {
         };
       }
       
-      const projectName = projectResult.rows[0].project_name;
+      const projectName = projectResult.project_name;
       
       // Task 3.1: S3パスを構築
       const filePath = `projects/${projectName}/${projectName}.maiml`;
@@ -1899,18 +1842,14 @@ export class ProjectService {
     organizationId: string,
     role: string
   ): Promise<ServiceResult<InstructionConfirmationData>> {
-    const pool = getPool();
+    // リポジトリ層のインポート
+    const instructionRepository = require('../repositories/instructionRepository');
 
     try {
       // 1. 指示の存在確認（organization_idフィルタ付き）
-      const instructionQuery = `
-        SELECT instruction_id, organization_id
-        FROM project_instruction
-        WHERE instruction_id = $1 AND organization_id = $2
-      `;
-      const instructionResult = await pool.query(instructionQuery, [instructionId, organizationId]);
+      const instruction = await instructionRepository.findById(instructionId, organizationId);
 
-      if (instructionResult.rows.length === 0) {
+      if (!instruction) {
         return {
           success: false,
           error: {
@@ -1921,19 +1860,12 @@ export class ProjectService {
       }
 
       // 2. 既確認チェック
-      const acknowledgedCheckQuery = `
-        SELECT history_id, acknowledged_at
-        FROM instruction_acknowledged_history
-        WHERE instruction_id = $1 AND organization_id = $2
-        ORDER BY acknowledged_at DESC
-        LIMIT 1
-      `;
-      const acknowledgedCheckResult = await pool.query(acknowledgedCheckQuery, [
+      const acknowledgedHistory = await instructionRepository.checkAcknowledged(
         instructionId,
-        organizationId,
-      ]);
+        organizationId
+      );
 
-      if (acknowledgedCheckResult.rows.length > 0) {
+      if (acknowledgedHistory) {
         return {
           success: false,
           error: {
@@ -1945,22 +1877,13 @@ export class ProjectService {
 
       // 3. 権限チェック（experiment_workerの場合は自分のタスクか確認）
       if (role === 'experiment_worker') {
-        const taskAssignmentQuery = `
-          SELECT pt.task_id
-          FROM project_task pt
-          INNER JOIN project_instruction pi ON pi.project_id = pt.project_id
-          WHERE pi.instruction_id = $1
-            AND pt.worker_user_id = $2
-            AND pt.organization_id = $3
-            AND pi.organization_id = $3
-        `;
-        const taskAssignmentResult = await pool.query(taskAssignmentQuery, [
+        const taskAssignments = await instructionRepository.checkWorkerAssignment(
           instructionId,
           userId,
-          organizationId,
-        ]);
+          organizationId
+        );
 
-        if (taskAssignmentResult.rows.length === 0) {
+        if (taskAssignments.length === 0) {
           return {
             success: false,
             error: {
@@ -1972,32 +1895,16 @@ export class ProjectService {
       }
 
       // 4. 確認履歴の挿入
-      const insertQuery = `
-        INSERT INTO instruction_acknowledged_history (
-          instruction_id,
-          acknowledged_user_id,
-          acknowledged_at,
-          organization_id
-        ) VALUES ($1, $2, NOW(), $3)
-        RETURNING history_id, acknowledged_at
-      `;
-      const insertResult = await pool.query(insertQuery, [
+      const insertedHistory = await instructionRepository.insertAcknowledged(
         instructionId,
         userId,
-        organizationId,
-      ]);
+        organizationId
+      );
 
-      const acknowledgedAt = insertResult.rows[0].acknowledged_at.toISOString();
+      const acknowledgedAt = insertedHistory.acknowledged_at.toISOString();
 
       // 5. ユーザー名の取得
-      const userQuery = `
-        SELECT user_name
-        FROM user_authentication
-        WHERE user_id = $1 AND organization_id = $2
-      `;
-      const userResult = await pool.query(userQuery, [userId, organizationId]);
-
-      const userName = userResult.rows[0]?.user_name || '';
+      const userName = await instructionRepository.findUserNameFromAuth(userId, organizationId);
 
       // 6. レスポンスデータの整形
       const responseData: InstructionConfirmationData = {
@@ -2005,7 +1912,7 @@ export class ProjectService {
         is_acknowledged: true,
         acknowledged_at: acknowledgedAt,
         acknowledged_user_id: userId,
-        acknowledged_user_name: userName,
+        acknowledged_user_name: userName || '',
       };
 
       return {

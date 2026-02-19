@@ -1,8 +1,8 @@
 # プロジェクト管理API仕様書
 
 **作成日**: 2026-01-21 16:30  
-**最終更新**: 2026-02-19 17:02  
-**バージョン**: 2.5.0  
+**最終更新**: 2026-02-19 18:00  
+**バージョン**: 2.6.0  
 **対象画面**: 実験管理者 - プロジェクト管理画面  
 **総API数**: 16個  
 **実装状況**: 13個実装済み、3個未実装
@@ -15,10 +15,10 @@
 |---------|---------|--------|------|
 | 基本CRUD | 2 | 0 | 2 |
 | チェックイン/チェックアウト | 3 | 0 | 3 |
-| データ取得 | 4 | 0 | 4 |
+| データ取得 | 2 | 0 | 2 |
 | 指示管理 | 2 | 2 | 4 |
-| その他 | 0 | 1 | 1 |
-| 実験作業者用 | 2 | 0 | 2 |
+| プロジェクト検索 | 0 | 1 | 1 |
+| 実験作業者用 | 4 | 0 | 4 |
 | **合計** | **13** | **3** | **16** |
 
 **完了率**: 81% (13/16)
@@ -31,20 +31,20 @@
 |---|------|---------|---------------|------|--------|
 | 1 | プロジェクト一覧取得 | GET | `/api/v1/projects` | ✅ 実装済み | - |
 | 2 | プロジェクト作成 | POST | `/api/v1/projects` | ✅ 実装済み | - |
-| 3 | チェックアウト | POST | `/api/v1/projects/:projectName/checkout` | ✅ 実装済み | - |
-| 4 | チェックイン | POST | `/api/v1/projects/:projectName/checkin` | ✅ 実装済み | - |
+| 3 | チェックアウト | POST | `/api/v1/projects/:projectId/checkout` | ✅ 実装済み | - |
+| 4 | チェックイン | POST | `/api/v1/projects/:projectId/checkin` | ✅ 実装済み | - |
 | 5 | ファイル一覧取得 | GET | `/api/v1/projects/:projectName/files` | ✅ 実装済み | - |
 | 6 | タスク一覧取得 | GET | `/api/v1/projects/:projectName/tasks` | ✅ 実装済み | - |
 | 7 | プロジェクト詳細取得 | GET | `/api/v1/projects/:projectId` | ✅ 実装済み | - |
 | 8 | チェックアウト状態取得 | GET | `/api/v1/projects/:projectId/checkout-status` | ✅ 実装済み | - |
-| 9 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 10 | 指示一覧取得 | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
-| 11 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐ 低 |
-| 12 | 指示一覧取得（実験作業者用） | GET | `/api/v1/projects/:projectName/worker-instructions` | ✅ 実装済み | - |
-| 13 | 指示確認完了 | PUT | `/api/v1/projects/:projectName/instructions/:instructionId/confirm` | ✅ 実装済み | - |
-| 14 | 承認依頼 | POST | `/api/v1/projects/:projectId/approval-request` | ✅ 実装済み | - |
-| 15 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | ✅ 実装済み | - |
-| 16 | MAIMLファイル取得（プロジェクト） | GET | `/api/v1/projects/:projectId/maiml` | ✅ 実装済み | - |
+| 9 | 指示一覧取得（実験作業者用） | GET | `/api/v1/projects/:projectName/worker-instructions` | ✅ 実装済み | - |
+| 10 | 指示確認完了 | PUT | `/api/v1/projects/:projectName/instructions/:instructionId/confirm` | ✅ 実装済み | - |
+| 11 | 承認依頼 | PATCH | `/api/v1/projects/:projectName/approval-request` | ✅ 実装済み | - |
+| 12 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | ✅ 実装済み | - |
+| 13 | MAIMLファイル取得（プロジェクト） | GET | `/api/v1/projects/:projectId/maiml` | ✅ 実装済み | - |
+| 14 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 15 | 指示一覧取得（実験管理者用） | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
+| 16 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐ 低 |
 
 ---
 
@@ -864,7 +864,7 @@ router.METHOD('/path',
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1014,7 +1014,7 @@ for (const instruction of instructions) {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（書込可）
 
 **優先度**: ⭐⭐ 中
 
@@ -1114,13 +1114,13 @@ const user = await db
 
 ### 13. 承認依頼 🔴
 
-**エンドポイント**: `POST /api/v1/projects/:projectId/approval-request`
+**エンドポイント**: `PATCH /api/v1/projects/:projectName/approval-request`
 
 **説明**: 実験作業完了後に実験管理者へ承認依頼を送信
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（書込可）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1129,7 +1129,7 @@ const user = await db
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 **ボディ（JSON）**:
 ```json
@@ -1283,7 +1283,7 @@ await db.transaction().execute(async (trx) => {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1465,7 +1465,7 @@ return {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1663,6 +1663,11 @@ const projects = await db
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.6.0 | 2026-02-19 18:00 | API一覧の競合を修正し実態に即した内容に更新 | Cline |
+| | | - API一覧テーブルの重複エントリを削除（#7-15の重複を解消） | |
+| | | - 実装状況サマリーを修正（カテゴリ分類を実態に合わせて更新） | |
+| | | - チェックアウト/チェックインのエンドポイントを修正（:projectId形式に統一） | |
+| | | - 総API数: 16個、実装済み: 13個、未実装: 3個 | |
 | 2.5.0 | 2026-02-19 17:02 | routeファイルの実装状況を反映 | Cline |
 | | | - projectRoutes.tsの全エンドポイントを確認 | |
 | | | - 実装済み: 13個（81%）、未実装: 3個 | |

@@ -817,7 +817,7 @@ export async function list(req: Request, res: Response): Promise<void> {
 
 /**
  * 承認依頼エンドポイント
- * POST /api/v1/projects/:projectId/approval-request
+ * PATCH /api/v1/projects/:projectName/approval-request
  * 
  * @description 実験作業者が実験作業完了後に実験管理者へ承認依頼を送信
  * @note バリデーションはルート定義のミドルウェアで処理済み
@@ -830,8 +830,29 @@ export async function requestApproval(req: Request, res: Response): Promise<void
   try {
     // バリデーションはミドルウェアで処理済み
     const { organizationId, userId } = req.user!;
-    const { projectId } = req.params;
+    const { projectName } = req.params;
     const { comment } = req.body;
+
+    // projectNameからprojectIdを取得（リポジトリ層を使用）
+    const projectRepository = require('../repositories/projectRepository');
+    const project = await projectRepository.findProjectIdByName(organizationId, projectName);
+    
+    if (!project) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'プロジェクトが見つかりません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+    
+    const projectId = project.project_id;
 
     // Service層呼び出し（commentがundefinedの場合はnullに変換）
     const result = await projectService.requestApproval(

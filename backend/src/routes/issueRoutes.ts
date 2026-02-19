@@ -10,6 +10,7 @@ import { body, param, query } from 'express-validator';
 import * as issueController from '../controllers/issueController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
+import { checkPermission } from '../middleware/permissionCheckMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import { ISSUE_STATUS_VALUES } from '../types/issue'
 
@@ -29,6 +30,7 @@ router.post(
   '/',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 1),
   [
     body('projectId')
       .notEmpty()
@@ -84,22 +86,33 @@ router.post(
 
 /**
  * コメント投稿
- * POST /api/v1/issues/:issueId/comments
+ * POST /api/v1/issues/comments
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック（experiment_workerのみ）
  * @description 既存の問題にコメントを追加
  * @requirements REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006
- * @roles worker, manager, admin
+ * @roles experiment_worker
  */
 router.post(
-  '/:issueId/comments',
+  '/comments',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 1),
   [
-    param('issueId')
+    body('projectName')
+      .trim()
       .notEmpty()
-      .withMessage('issueIdはUUID形式である必要があります'),
+      .withMessage('projectNameは必須です')
+      .isString()
+      .withMessage('projectNameは文字列である必要があります'),
+    body('issueId')
+      .trim()
+      .notEmpty()
+      .withMessage('issueIdは必須です')
+      .isString()
+      .withMessage('issueIdは文字列である必要があります'),
     body('comment')
       .trim()
       .notEmpty()
@@ -117,6 +130,7 @@ router.post(
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック
  * @description プロジェクト・メソッド・タスク・トランジション単位で発生した問題一覧とコメントを取得
  * @requirements REQ-001, REQ-003, REQ-004
  * @roles worker, manager, admin
@@ -125,6 +139,7 @@ router.get(
   '/',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 0),
   [
     query('project_id')
       .notEmpty()
@@ -191,21 +206,30 @@ router.get(
 
 /**
  * 問題ステータス変更
- * PATCH /api/v1/issues/:issueId/status
+ * PATCH /api/v1/issues/status
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック（experiment_workerのみ）
  * @middleware validationMiddleware - バリデーション
  * @description 問題のステータスを「未解決」または「解決済」に変更
  * @requirements REQ-010, REQ-011
- * @roles manager, admin （workerは不可）
+ * @roles experiment_worker
  */
 router.patch(
-  '/:issueId/status',
+  '/status',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 1),
   [
-    param('issueId')
+    body('projectName')
+      .trim()
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isString()
+      .withMessage('projectNameは文字列である必要があります'),
+    body('issueId')
+      .trim()
       .notEmpty()
       .withMessage('issueIdは必須です')
       .isString()
