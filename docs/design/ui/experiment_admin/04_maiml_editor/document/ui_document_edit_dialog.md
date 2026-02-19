@@ -327,7 +327,7 @@ interface ObjectData {
 ### 6.1. ソースファイルパス
 
 ```
-frontend/src/components/editor/DocumentEditDialog.tsx
+frontend/src/components/editorv2/components/DocumentEditDialog.tsx
 ```
 
 ### 6.2. 関連コンポーネント
@@ -359,8 +359,9 @@ frontend/src/components/editor/DocumentEditDialog.tsx
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 4.0.0 | 2025-12-23 | Ant Design v6対応 | Development Team |
 | 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| 4.0.0 | 2025-12-23 | Ant Design v6対応 | Development Team |
+| 4.1.0 | 2026-02-19 | editorv2版に更新 | Cline |
 
 ---
 

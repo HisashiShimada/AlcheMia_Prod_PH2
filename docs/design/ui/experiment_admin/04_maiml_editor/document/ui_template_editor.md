@@ -372,7 +372,7 @@ interface NestedPropertyEditorProps {
 ### 6.1. ソースファイルパス
 
 ```
-frontend/src/components/editor/TemplateEditorDialog.tsx
+frontend/src/components/editorv2/components/TemplateEditorDialog.tsx
 ```
 
 ### 6.2. 関連コンポーネント
@@ -405,8 +405,9 @@ frontend/src/components/editor/TemplateEditorDialog.tsx
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 3.0.0 | 2025-12-23 | Next.js + TypeScript + Ant Design v6対応 | Development Team |
 | 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| 3.0.0 | 2025-12-23 | Next.js + TypeScript + Ant Design v6対応 | Development Team |
+| 3.1.0 | 2026-02-19 | 最新ソース（editorv2）に基づいてファイルパス更新 | Cline |
 
 ---
 

@@ -185,8 +185,14 @@ interface PetriNetEditorScreenProps {
   projectName: string;       // プロジェクト名
   projectOverview?: string;  // プロジェクト概要
   onClose: () => void;       // 画面を閉じるコールバック
+  sourceS3Key: string;       // S3のファイルキー（読み込み元のパス）
 }
 ```
+
+**sourceS3Key の用途:**
+- MAIMLファイルの読み込み元S3パスを指定
+- 例: `/org_maiml_lab_001/projects/sample_project/sample_project.maiml`
+- PetriNetEditorInnerに渡されてファイル読み込みに使用される
 
 ### 4.2. State型定義
 

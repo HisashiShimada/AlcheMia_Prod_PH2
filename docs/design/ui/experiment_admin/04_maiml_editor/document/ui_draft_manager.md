@@ -355,7 +355,7 @@ interface State {
 ### 6.1. ソースファイルパス
 
 ```
-frontend/src/components/editor/DraftManager.tsx
+frontend/src/components/editorv2/components/DraftManager.tsx
 ```
 
 ### 6.2. 関連コンポーネント・フック

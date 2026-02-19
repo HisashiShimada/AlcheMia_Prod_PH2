@@ -85,6 +85,8 @@
 
 **C. タブコンテンツ**
 - **ファイル管理タブ**: `<FileListTable />` コンポーネント
+- **タスク登録タブ**: `<TaskRegistrationTab />` コンポーネント（タスクの作成・編集）
+- **指示送信タブ**: `<InstructionRegistrationTab />` コンポーネント（ワーカーへの指示送信）
 - **タスク結果タブ**: 統計カード + `<TaskResultsTable />` コンポーネント
 
 ### 2.3 画面遷移
@@ -236,10 +238,10 @@ useEffect(() => {
 }, [selectedProjectId]);
 ```
 
-**使用API:** 🔴
-- GET `/api/v1/projects/:projectId/files` - プロジェクトファイル一覧取得 🔴
+**使用API:** ✅
+- GET `/api/v1/projects/:projectId/files` - プロジェクトファイル一覧取得 ✅
 
-**優先度:** ⭐⭐⭐ 高
+**実装状況:** 実装済み - `getProjectFiles()` 関数を使用
 
 **詳細:** [プロジェクト管理API仕様書](../../api/api_project_management.md#34-ファイル一覧取得-)（セクション5.2.3参照）
 
@@ -725,15 +727,16 @@ interface ProjectFilesData {
 |---|------|---------|---------------|------|--------|------|
 | 1 | プロジェクト一覧取得 | GET | `/api/v1/projects` | ✅ 実装済み | - | プロジェクト一覧を取得 |
 | 2 | プロジェクト作成 | POST | `/api/v1/projects` | ✅ 実装済み | - | 新規プロジェクトを作成 |
-| 3 | チェックアウト | POST | `/api/v1/projects/:projectId/checkout` | ✅ 実装済み | - | プロジェクトをチェックアウト |
-| 4 | チェックイン | POST | `/api/v1/projects/:projectId/checkin` | ✅ 実装済み | - | プロジェクトをチェックイン |
-| 5 | プロジェクトリロード | POST | `/api/v1/projects/:projectId/reload` | ✅ 実装済み | - | S3からファイル情報を再取得して同期 |
-| 6 | ファイル一覧取得 | GET | `/api/v1/projects/:projectId/files` | 🔴 未実装 | ⭐⭐⭐ 高 | プロジェクトのファイル一覧を取得 |
-| 7 | タスク一覧取得 | GET | `/api/v1/projects/:projectId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 | プロジェクトのタスク一覧を取得 |
-| 8 | 指示送信 | POST | `/api/v1/projects/:projectId/instructions` | 🔴 未実装 | ⭐⭐ 中 | ワーカーへの作業指示を送信 |
-| 9 | 指示一覧取得 | GET | `/api/v1/projects/:projectId/instructions` | 🔴 未実装 | ⭐⭐ 中 | プロジェクトの指示一覧を取得 |
-| 10 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐⭐ 中 | 高度な検索条件でプロジェクトを検索 |
-| 11 | プロジェクト公開 | POST | `/api/v1/projects/:projectId/publish` | 🔴 未実装 | ⭐ 低 | プロジェクトを公開 |
+| 3 | ファイル一覧取得 | GET | `/api/v1/projects/:projectId/files` | ✅ 実装済み | - | プロジェクトのファイル一覧を取得（`getProjectFiles()`使用） |
+| 4 | タスク一覧取得 | GET | `/api/v1/projects/:projectId/tasks` | ✅ 実装済み | - | プロジェクトのタスク一覧を取得（`getProjectTasks()`使用） |
+| 5 | フォルダZIPダウンロード | POST | `/api/v1/files/download-folder-zip` | ✅ 実装済み | - | フォルダをZIP形式でダウンロード（`downloadFolderAsZip()`使用） |
+| 6 | プロジェクトリロード | GET | `/api/v1/projects` | ✅ 実装済み | - | プロジェクト一覧を再取得して最新化（`refetchProjects()`使用） |
+| 7 | チェックアウト | POST | `/api/v1/projects/:projectId/checkout` | 🔴 未実装 | ⭐⭐⭐ 高 | プロジェクトをチェックアウト（ローカルステート更新のみ） |
+| 8 | チェックイン | POST | `/api/v1/projects/:projectId/checkin` | 🔴 未実装 | ⭐⭐⭐ 高 | プロジェクトをチェックイン（ローカルステート更新のみ） |
+| 9 | 指示送信 | POST | `/api/v1/projects/:projectId/instructions` | 🔴 未実装 | ⭐⭐ 中 | ワーカーへの作業指示を送信（console.log出力のみ） |
+| 10 | 指示一覧取得 | GET | `/api/v1/projects/:projectId/instructions` | 🔴 未実装 | ⭐⭐ 中 | プロジェクトの指示一覧を取得 |
+| 11 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐⭐ 中 | 高度な検索条件でプロジェクトを検索 |
+| 12 | プロジェクト公開 | POST | `/api/v1/projects/:projectId/publish` | 🔴 未実装 | ⭐ 低 | プロジェクトを公開 |
 
 **共通API:**
 - [ファイルアップロード](../../api/api_common.md#1-ファイルアップロード-) - context=project

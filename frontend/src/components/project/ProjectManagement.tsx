@@ -30,7 +30,6 @@ import ProjectDetailModal from './ProjectDetailModal';
 import ProjectSearchModal from './ProjectSearchModal';
 import TaskResultsTable from './TaskResultsTable';
 import BulkUploadDialog from './BulkUploadDialog';
-import InstructionDialog from './InstructionDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
@@ -92,7 +91,6 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [instructionDialogOpen, setInstructionDialogOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [issueManagementModalOpen, setIssueManagementModalOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
@@ -584,39 +582,6 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
       // TODO: 実際のAPI呼び出しを実装
     }
   }, [selectedProject, isProjectCheckedOut]);
-
-  // 指示送信ダイアログを開く
-  const handleOpenInstructionDialog = useCallback(() => {
-    setInstructionDialogOpen(true);
-  }, []);
-
-  // 指示送信ダイアログを閉じる
-  const handleCloseInstructionDialog = useCallback(() => {
-    setInstructionDialogOpen(false);
-  }, []);
-
-  // 指示送信ハンドラ
-  const handleInstructionSubmit = useCallback((data: {
-    instructions: Array<{
-      instructionId: string;
-      content: string;
-      priority: string;
-      instructionType: string;
-      type: string;
-      timestamp: string;
-      targetType: string;
-      transitionId: string | null;
-      targetTransitionId?: string;
-      taskNumber?: number;
-    }>;
-    fileKey: string;
-    managerId: string;
-    assignedWorkerId: string | null;
-  }) => {
-    console.log('指示データ送信:', data);
-    // TODO: チェックアウトAPIを呼び出す
-    // TODO: 成功時にプロジェクトをチェックアウト状態に更新
-  }, []);
 
   // 問題確認モーダルを開く
   const handleOpenIssueManagement = useCallback(() => {
@@ -1223,13 +1188,6 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                   </Button>
                   <Button
                     type="primary"
-                    icon={<SendOutlined />}
-                    onClick={handleOpenInstructionDialog}
-                  >
-                    {t('projectManagement.send_instruction')}
-                  </Button>
-                  <Button
-                    type="primary"
                     style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
                   >
                     {t('projectManagement.publish')}
@@ -1473,38 +1431,6 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
         projectId={selectedProject?.id || ''}
         preselectedFolder={selectedProject?.folderName || ''}
       />
-
-      {/* 指示送信ダイアログ */}
-      {selectedProject && (
-        <InstructionDialog
-          open={instructionDialogOpen}
-          onClose={handleCloseInstructionDialog}
-          onSubmit={handleInstructionSubmit}
-          fileKey={selectedProject.folderName}
-          managerId="current_manager_id"
-          projectName={selectedProject.name}
-          projectOwner={selectedProject.owner}
-          projectStatus={(() => {
-            switch (selectedProject.status) {
-              case 'planning':
-                return t('projectManagement.status_planning');
-              case 'pending':
-                return t('projectManagement.status_pending');
-              case 'in_progress':
-                return t('projectManagement.status_in_progress');
-              case 'review_waiting':
-                return t('projectManagement.status_review_waiting');
-              case 'completed':
-                return t('projectManagement.status_completed');
-              case 'error':
-                return t('projectManagement.status_error');
-              default:
-                return selectedProject.status;
-            }
-          })()}
-          availableWorkers={[]}
-        />
-      )}
 
       {/* 新規プロジェクト作成モーダル */}
       <CreateProjectModal
