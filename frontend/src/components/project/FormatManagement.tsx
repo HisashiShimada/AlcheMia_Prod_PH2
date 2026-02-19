@@ -36,7 +36,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { message } from 'antd';
 import { User } from '@/types/auth';
 import { useApi } from '@/hooks/useApi';
-import { fetchFormats } from '@/utils/apiClient';
+import { fetchFormats, fetchFormatFiles } from '@/utils/apiClient';
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
 import { getFileDownloadUrlByKey } from '@/api/fileAccessService';
@@ -102,7 +102,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const [createFolderModalOpen, setCreateFolderModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FormatFileDetailData | null>(null);
-  const [sortBy, setSortBy] = useState<'name' | 'category' | 'updatedAt'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'category' | 'updatedAt' | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentFolderPath, setCurrentFolderPath] = useState<string[]>([]);
   
@@ -201,7 +201,11 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       return matchesSearch && matchesCategory && matchesFileType;
     });
 
-    // ソート処理
+    // ソート処理（sortByがnullの場合はバックエンドの順序をそのまま使用）
+    if (!sortBy) {
+      return filtered;
+    }
+
     const sorted = [...filtered].sort((a, b) => {
       let comparison = 0;
       
@@ -468,89 +472,45 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     setCurrentFolderPath([]);
   }, []);
 
+  // フォーマットファイル一覧を取得（APIから）
+  const { 
+    data: formatFilesData, 
+    isLoading: isLoadingFiles, 
+    error: filesError, 
+    refetch: refetchFiles 
+  } = useApi(
+    async () => {
+      if (!selectedFormatId) {
+        return { success: true, data: { files: [] } };
+      }
+      const subPath = currentFolderPath.length > 0 ? currentFolderPath.join('/') : undefined;
+      return fetchFormatFiles(selectedFormatId, subPath);
+    },
+    [selectedFormatId, currentFolderPath]
+  );
+
   const formatFiles = useMemo(() => {
-    if (!selectedFormatId) return [];
+    if (!formatFilesData?.data.files) return [];
     
-    const formatData = mockFormatFilesData.files as Record<string, {
-      root: Array<{
-        id: string;
-        name: string;
-        path: string;
-        size: number;
-        lastModified: string;
-        type: string;
-      }>;
-      subfolders?: Record<string, {
-        name: string;
-        files: Array<{
-          id: string;
-          name: string;
-          path: string;
-          size: number;
-          lastModified: string;
-          type: string;
-        }>;
-      }>;
-    }>;
-    const data = formatData[selectedFormatId];
-    if (!data) return [];
-
-    // ルートの場合
-    if (currentFolderPath.length === 0) {
-      const rootFiles = data.root || [];
-      const result: Array<{
-        id: string;
-        name: string;
-        path: string;
-        size: number;
-        lastModified: string;
-        type: string;
-        isFolder?: boolean;
-        fileCount?: number;
-      }> = [...rootFiles];
-
-      // サブフォルダを追加
-      if (data.subfolders) {
-        Object.entries(data.subfolders).forEach(([key, subfolder]) => {
-          result.push({
-            id: key,
-            name: key,
-            path: `${selectedFormat?.folderName}/${key}`,
-            size: 0,
-            lastModified: new Date().toISOString(),
-            type: 'folder',
-            isFolder: true,
-            fileCount: subfolder.files?.length || 0,
-          });
-        });
-      }
-
-      return result;
+    // 戻るボタンを追加（サブフォルダ内の場合）
+    if (currentFolderPath.length > 0) {
+      return [
+        {
+          id: 'back',
+          name: '↑ 戻る',
+          path: '',
+          size: 0,
+          lastModified: '',
+          type: 'folder',
+          isFolder: true,
+          fileCount: undefined,
+        },
+        ...formatFilesData.data.files,
+      ];
     }
-
-    // サブフォルダ内の場合 - 戻るボタンを先頭に追加
-    if (currentFolderPath.length === 1 && data.subfolders) {
-      const subfolderId = currentFolderPath[0];
-      const subfolder = data.subfolders[subfolderId];
-      if (subfolder && subfolder.files) {
-        return [
-          {
-            id: 'back',
-            name: '↑ 戻る',
-            path: '',
-            size: 0,
-            lastModified: '',
-            type: 'folder',
-            isFolder: true,
-            fileCount: undefined,
-          },
-          ...subfolder.files,
-        ];
-      }
-    }
-
-    return [];
-  }, [selectedFormatId, selectedFormat, currentFolderPath]);
+    
+    return formatFilesData.data.files;
+  }, [formatFilesData, currentFolderPath]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: token.colorBgLayout }}>

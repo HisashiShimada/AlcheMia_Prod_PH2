@@ -25,6 +25,7 @@ import roleRoutes from './routes/roleRoutes';
 import sessionRoutes from './routes/sessionRoutes';
 import progressRoutes from './routes/progressRoutes';
 import organizationRoutes from './routes/organizationRoutes';
+import formatRoutes from './routes/formatRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -106,6 +107,9 @@ async function startServer() {
 
     // Mount progress routes
     app.use('/api/v1/progress', progressRoutes);
+
+    // Mount format routes
+    app.use('/api/v1', formatRoutes);
 
     if (process.env.NODE_ENV !== 'test') {
       const server = app.listen(PORT, () => {
