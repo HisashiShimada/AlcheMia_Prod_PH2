@@ -213,8 +213,32 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
   
   try {
     const { organizationId, userId } = req.user!;
-    const { uploadMode, targetPath, metadata, emptyFolders } = req.body;
+    const { uploadMode, targetPath, emptyFolders } = req.body;
     const files = req.files as Express.Multer.File[];
+    files.forEach((file) => {
+      console.log(file.originalname);
+    })
+
+    // metadataがJSON文字列の場合はパース
+    let metadata = req.body.metadata;
+    if (typeof metadata === 'string') {
+      try {
+        metadata = JSON.parse(metadata);
+      } catch (error) {
+        throw new Error('metadataのパースに失敗しました');
+      }
+    }
+
+    // filePathsがJSON文字列の場合はパース
+    let filePaths: string[] | undefined;
+    if (req.body.filePaths) {
+      try {
+        filePaths = JSON.parse(req.body.filePaths);
+        console.log('📁 [FilePaths] パース成功:', filePaths);
+      } catch (error) {
+        throw new Error('ファイルパス情報のパースに失敗しました');
+      }
+    }
 
     // Service層の初期化と呼び出し
     const repository = new FileMetadataRepository();
@@ -228,7 +252,8 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
       targetPath,
       files,
       metadata,
-      emptyFolders  // Phase1-3: 空フォルダプレースホルダー
+      emptyFolders,  // Phase1-3: 空フォルダプレースホルダー
+      filePaths      // フォルダ構造を保持するためのパス情報
     );
 
     // 成功レスポンス

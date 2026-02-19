@@ -38,9 +38,9 @@ export class UploadBatchRepository {
     const query = `
       INSERT INTO upload_batch (
         batch_id, batch_name, upload_type, organization_id, 
-        uploaded_by, total_files, status
+        upload_by, total_files, status, start_time, create_at, update_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, 'in_progress')
+      VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', NOW(), NOW(), NOW())
       RETURNING *
     `;
 
@@ -90,7 +90,7 @@ export class UploadBatchRepository {
     }
 
     // 常に更新日時を更新
-    setClauses.push(`updated_at = NOW()`);
+    setClauses.push(`update_at = NOW()`);
     
     // バッチIDを最後のパラメータとして追加
     values.push(batchId);
@@ -153,12 +153,12 @@ export class UploadBatchRepository {
     }
 
     if (params.startDate) {
-      conditions.push(`created_at >= $${paramIndex++}`);
+      conditions.push(`create_at >= $${paramIndex++}`);
       values.push(params.startDate);
     }
 
     if (params.endDate) {
-      conditions.push(`created_at <= $${paramIndex++}`);
+      conditions.push(`create_at <= $${paramIndex++}`);
       values.push(params.endDate);
     }
 
@@ -168,7 +168,7 @@ export class UploadBatchRepository {
     const query = `
       SELECT * FROM upload_batch
       WHERE ${conditions.join(' AND ')}
-      ORDER BY created_at DESC
+      ORDER BY create_at DESC
       LIMIT $${paramIndex++} OFFSET $${paramIndex}
     `;
 
@@ -271,7 +271,7 @@ export class UploadBatchRepository {
     const query = `
       SELECT * FROM upload_batch
       WHERE organization_id = $1 AND status = 'in_progress'
-      ORDER BY created_at DESC
+      ORDER BY create_at DESC
     `;
 
     const pool = getPool();
@@ -284,23 +284,23 @@ export class UploadBatchRepository {
 
   /**
    * DB行をUploadBatch型にマッピング
+   * Version: 2.0 (Reference版準拠)
    */
   private mapRowToBatch(row: any): UploadBatch {
     return {
-      id: row.id,
       batchId: row.batch_id,
       batchName: row.batch_name,
       uploadType: row.upload_type,
       organizationId: row.organization_id,
-      uploadedBy: row.uploaded_by,
+      uploadBy: row.upload_by,
       totalFiles: row.total_files,
       completedFiles: row.completed_files,
       failedFiles: row.failed_files,
       status: row.status,
       startTime: row.start_time,
       endTime: row.end_time,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
+      createAt: row.create_at,
+      updateAt: row.update_at
     };
   }
 }

@@ -216,6 +216,10 @@ export const uploadFiles = async (
     formData.append('uploadMode', uploadMode);
     formData.append('targetPath', targetPath);
 
+    // ファイルパス情報を配列として送信（フォルダ構造を保持するため）
+    const filePaths = files.map(file => file.name);
+    formData.append('filePaths', JSON.stringify(filePaths));
+
     // ファイルを追加
     files.forEach((file) => {
       formData.append('files', file);

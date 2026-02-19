@@ -58,8 +58,20 @@ router.post(
       .withMessage('targetPathは1〜1024文字である必要があります'),
     body('metadata')
       .optional()
-      .isObject()
-      .withMessage('metadataはオブジェクトである必要があります'),
+      .custom((value) => {
+        // metadataはJSON文字列として送信されるため、パース可能かチェック
+        if (typeof value === 'string') {
+          try {
+            const parsed = JSON.parse(value);
+            return typeof parsed === 'object' && parsed !== null;
+          } catch {
+            return false;
+          }
+        }
+        // すでにオブジェクトの場合もOK
+        return typeof value === 'object' && value !== null;
+      })
+      .withMessage('metadataは有効なJSONオブジェクトである必要があります'),
     // Phase1-3: 空フォルダプレースホルダー機能（2026-02-18）
     body('emptyFolders')
       .optional()

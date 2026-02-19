@@ -19,11 +19,10 @@ export type BatchStatus =
 
 /**
  * アップロードバッチ情報
+ * Version: 2.0 (Reference版準拠)
  */
 export interface UploadBatch {
-  /** 主キー（UUID） */
-  id: string;
-  /** バッチ識別子（batch_YYYYMMDD_HHMMSS_random） */
+  /** バッチ識別子（batch_YYYYMMDD_HHMMSS_random）主キー */
   batchId: string;
   /** バッチ名 */
   batchName: string;
@@ -31,8 +30,8 @@ export interface UploadBatch {
   uploadType: UploadType;
   /** 組織ID */
   organizationId: string;
-  /** アップロード実行ユーザーID */
-  uploadedBy: string;
+  /** アップロード実行者（VARCHAR(50)） */
+  uploadBy: string;
   /** 合計ファイル数 */
   totalFiles: number;
   /** 完了ファイル数 */
@@ -46,9 +45,9 @@ export interface UploadBatch {
   /** 終了時刻 */
   endTime?: Date;
   /** 作成日時 */
-  createdAt: Date;
+  createAt: Date;
   /** 更新日時 */
-  updatedAt: Date;
+  updateAt: Date;
 }
 
 /**

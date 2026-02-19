@@ -288,7 +288,8 @@ export class FileAccessService {
     targetPath: string,
     files: MulterFile[],
     metadata?: UploadMetadata,
-    emptyFolders?: string[]
+    emptyFolders?: string[],
+    filePaths?: string[]
   ): Promise<FileUploadResult> {
     // 1. バリデーション
     if (!files || files.length === 0) {
@@ -328,11 +329,25 @@ export class FileAccessService {
     const uploadResults = await processConcurrently(
       files,
       async (file, index) => {
-        // ファイル名のサニタイゼーション
-        const sanitizedFileName = sanitizeFileName(file.originalname);
+        // filePathsが提供されている場合はそちらを優先使用（フォルダアップロード対応）
+        const originalPath = filePaths && filePaths[index] ? filePaths[index] : file.originalname;
+        
+        console.log(`📁 [Upload] ファイル${index}: ${originalPath}`);
+        
+        // パスとファイル名を分離してサニタイズ
+        const pathParts = originalPath.split('/');
+        const sanitizedParts = pathParts.map(part => {
+          // 各パート（フォルダ名/ファイル名）を個別にサニタイズ
+          return sanitizeFileName(part);
+        });
+        const sanitizedRelativePath = sanitizedParts.join('/');
+        
+        // ファイル名を抽出（パスの最後の要素）
+        const sanitizedFileName = sanitizedParts[sanitizedParts.length - 1];
         
         // ファイルパスの構築
-        const filePath = `${normalizedPath}/${sanitizedFileName}`;
+        const filePath = `${normalizedPath}/${sanitizedRelativePath}`;
+        console.log(`✅ [Upload] アップロード先: ${filePath}`);
 
         // storageServiceを使用してS3/Swiftにアップロード
         const s3Key = await this.storageService.uploadFile(
@@ -470,7 +485,8 @@ export class FileAccessService {
       is_maiml_file: data.contentType === 'application/xml' || data.fileName.endsWith('.maiml'),
       s3_bucket: this.storageService.getBucketName(),
       upload_batch_id: data.batchName,
-      upload_method: 'web_upload',
+      upload_source: 'web_upload',  // アップロード元
+      upload_method: 'single',      // アップロード方法: single, multipart, resumable
       created_at: now,
       updated_at: now,
     };
