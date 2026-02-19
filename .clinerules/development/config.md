@@ -48,7 +48,7 @@ Clineがタスクを実行する際は、必ず事前にタスク計画書を作
 
 ## バックエンド規約
 
-詳細は [backend.md](backend.md) を参照してください。
+詳細は [database.md](database.md) を参照してください。
 
 ### 主要なポイント
 - Node.js 18+ + Express.js 4.18.3を使用
@@ -57,6 +57,13 @@ Clineがタスクを実行する際は、必ず事前にタスク計画書を作
 - すべてのクエリに organization_id フィルタを含める
 - エラーハンドリングは統一された形式で行う
 - ログは winston を使用して記録
+
+### Repository層のSQL管理
+- **新規実装**: pg-promiseライブラリを使用し、SQLファイルで外部管理
+- **ファイル配置**: `backend/src/sql/queries/{ドメイン名}/{操作名}.sql`
+- **動的フィルタ**: ベースクエリは外部ファイル、動的条件はTypeScript側で処理
+- **参照モデル**: `backend/src/repositories/departmentRepository.ts` の `findAll()` メソッド
+- 詳細は [database.md](database.md) の「Repository層のSQL管理規約」セクションを参照
 
 ## レビュー依頼時の注意点
 
