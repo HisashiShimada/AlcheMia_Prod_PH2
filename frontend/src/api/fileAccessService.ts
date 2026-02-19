@@ -3,10 +3,20 @@
  * 
  * ファイルのダウンロード、アップロード、削除などのファイルアクセス処理を提供
  * Task 5.3: ファイルダウンロードAPI通信関数の実装
+ * Task: ファイルアップロード統一化
  * Requirements: 10
  */
 
 import { createApiClient } from '@/utils/authUtils';
+import type { ApiResponse } from '@/types/api';
+import type { AxiosProgressEvent } from 'axios';
+import type {
+  UploadProgress,
+  UploadedFileInfo,
+  UploadResponseData,
+  UploadMetadata,
+  UploadFilesParams,
+} from '@/types/file';
 
 
 /**
@@ -153,6 +163,106 @@ export const downloadFolderAsZip = async (
     downloadBlobAsFile(response.data, `${folderName}.zip`);
   } catch (error) {
     console.error('フォルダZIPダウンロードエラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * ファイルアップロード（統一API）
+ * 
+ * Task: S3ファイルアップロード統一化
+ * - 各画面で生成された完全なパスを使用してファイルをアップロード
+ * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+ * - organization_idは認証情報から自動取得
+ * 
+ * @param params アップロードパラメータ
+ * @returns Promise<UploadResponseData> アップロード結果
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * // プロジェクトファイルアップロード
+ * await uploadFiles({
+ *   uploadMode: 'bulk',
+ *   targetPath: `projects/${project.name}`,
+ *   files: selectedFiles,
+ *   metadata: { projectId: project.id, batchName: 'batch_001' },
+ *   onProgress: (progress) => console.log(`${progress.percentage}%`),
+ * });
+ * 
+ * // フォーマットファイルアップロード
+ * await uploadFiles({
+ *   uploadMode: 'single',
+ *   targetPath: `formats/${baseFolder.name}/${subFolder}`,
+ *   files: [selectedFile],
+ *   metadata: { formatId: format.id },
+ * });
+ */
+export const uploadFiles = async (
+  params: UploadFilesParams
+): Promise<UploadResponseData> => {
+  const {
+    uploadMode,
+    targetPath,
+    files,
+    metadata,
+    onProgress,
+  } = params;
+
+  const client = createApiClient();
+
+  try {
+    // FormDataの構築
+    const formData = new FormData();
+    formData.append('uploadMode', uploadMode);
+    formData.append('targetPath', targetPath);
+
+    // ファイルパス情報を配列として送信（フォルダ構造を保持するため）
+    const filePaths = files.map(file => file.name);
+    formData.append('filePaths', JSON.stringify(filePaths));
+
+    // ファイルを追加
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+
+    // メタデータの追加（JSON文字列として送信）
+    if (metadata) {
+      formData.append('metadata', JSON.stringify(metadata));
+    }
+
+    // アップロード実行
+    const response = await client.post<ApiResponse<UploadResponseData>>(
+      '/files/upload',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent: AxiosProgressEvent) => {
+          if (onProgress && progressEvent.total) {
+            const percentage = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            
+            onProgress({
+              uploadedBytes: progressEvent.loaded,
+              totalBytes: progressEvent.total,
+              percentage,
+              uploadedCount: 0,
+              totalCount: files.length,
+            });
+          }
+        },
+      }
+    );
+
+    if (response.data.success) {
+      return response.data.data;
+    }
+
+    throw new Error('アップロードに失敗しました');
+  } catch (error) {
+    console.error('ファイルアップロードエラー:', error);
     throw error;
   }
 };

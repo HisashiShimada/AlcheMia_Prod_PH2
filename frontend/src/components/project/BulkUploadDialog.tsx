@@ -5,15 +5,14 @@
  */
 
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { fileService } from '@/services/fileService';
+import { uploadFiles } from '@/api/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import {
   Modal,
   Segmented,
   Upload,
   Button,
-  Cascader,
-  Checkbox,
+  Input,
   Alert,
   Progress,
   Space,
@@ -31,7 +30,6 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
-import type { DefaultOptionType } from 'antd/es/cascader';
 
 const { Title, Text, Paragraph } = Typography;
 const { Dragger } = Upload;
@@ -84,55 +82,6 @@ const formatFileSize = (bytes: number): string => {
 };
 
 /**
- * フォルダ構造のモックデータ
- * 部門 → プロジェクト の2階層構造
- * 組織は所属組織に固定されるため、部門から選択
- */
-const folderStructureOptions: DefaultOptionType[] = [
-  {
-    value: 'dept_research',
-    label: 'dept_research (研究部門)',
-    children: [
-      { value: 'project_001', label: 'project_001 (合金開発プロジェクト)' },
-      { value: 'project_002', label: 'project_002 (セラミックス研究)' },
-      { value: 'project_003', label: 'project_003 (複合材料開発)' },
-    ],
-  },
-  {
-    value: 'dept_analysis',
-    label: 'dept_analysis (分析部門)',
-    children: [
-      { value: 'project_101', label: 'project_101 (構造解析)' },
-      { value: 'project_102', label: 'project_102 (物性測定)' },
-    ],
-  },
-  {
-    value: 'dept_synthesis',
-    label: 'dept_synthesis (合成部門)',
-    children: [
-      { value: 'project_201', label: 'project_201 (有機合成)' },
-      { value: 'project_202', label: 'project_202 (無機合成)' },
-    ],
-  },
-  {
-    value: 'dept_catalysis',
-    label: 'dept_catalysis (触媒部門)',
-    children: [
-      { value: 'project_301', label: 'project_301 (触媒開発)' },
-      { value: 'project_302', label: 'project_302 (反応解析)' },
-    ],
-  },
-  {
-    value: 'dept_quantum',
-    label: 'dept_quantum (量子物理部門)',
-    children: [
-      { value: 'project_401', label: 'project_401 (量子材料)' },
-      { value: 'project_402', label: 'project_402 (超伝導研究)' },
-    ],
-  },
-];
-
-/**
  * 一括アップロードダイアログコンポーネント
  */
 const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
@@ -145,16 +94,8 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
   // 状態管理
   const [uploadMode, setUploadMode] = useState<UploadMode>('single');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
-  const [selectedFolderPath, setSelectedFolderPath] = useState<(string | number)[]>(() => {
-    // preselectedFolderから初期値を計算
-    if (preselectedFolder) {
-      const pathParts = preselectedFolder.split('/').filter(part => part.length > 0);
-      return pathParts.length > 0 ? pathParts : [];
-    }
-    return [];
-  });
+  const [subFolderPath, setSubFolderPath] = useState<string>('');
   const [batchName, setBatchName] = useState<string>('');
-  const [preserveFolderStructure, setPreserveFolderStructure] = useState<boolean>(true);
   const [uploadState, setUploadState] = useState<UploadState>({
     isUploading: false,
     progress: 0,
@@ -163,14 +104,25 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
     error: null,
   });
 
-  // 所属組織（実際のアプリケーションではログイン情報から取得）
-  const userOrganization = useMemo(() => ({
-    id: 'org_materials',
-    name: 'org_materials (材料科学組織)',
-  }), []);
-
   // Refs
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * アップロード先パスを構築
+   */
+  const getTargetPath = useCallback(() => {
+    if (!preselectedFolder) {
+      return '';
+    }
+    
+    // projects/{projectName} または projects/{projectName}/{subFolder}
+    const basePath = `projects/${preselectedFolder}`;
+    
+    // サブフォルダパスから先頭・末尾のスラッシュを削除
+    const cleanSubFolder = subFolderPath.trim().replace(/^\/+|\/+$/g, '');
+    
+    return cleanSubFolder ? `${basePath}/${cleanSubFolder}` : basePath;
+  }, [preselectedFolder, subFolderPath]);
 
   /**
    * モード変更時のファイルリストクリア
@@ -248,22 +200,16 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
   );
 
   /**
-   * 選択されたフォルダパスを文字列に変換（組織を含む完全パス）
-   */
-  const selectedFolderPathString = useMemo(() => {
-    if (selectedFolderPath.length === 0) {
-      return '';
-    }
-    // 組織を先頭に追加
-    return `${userOrganization.id}/${selectedFolderPath.join('/')}`;
-  }, [selectedFolderPath, userOrganization.id]);
-
-  /**
    * アップロード実行
    */
   const handleUpload = useCallback(async () => {
     if (fileList.length === 0) {
       message.warning('ファイルを選択してください');
+      return;
+    }
+
+    if (!preselectedFolder) {
+      message.error('プロジェクトが選択されていません');
       return;
     }
 
@@ -277,19 +223,38 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
 
     try {
       // originFileObjを抽出してFile型に変換
+      // フォルダアップロードの場合、nameにパスを含む新しいFileオブジェクトを作成
       const files = fileList
-        .map(f => f.originFileObj)
-        .filter((f): f is RcFile => !!f)
-        .map(f => f as unknown as File);
+        .map(f => {
+          const originFile = f.originFileObj;
+          if (!originFile) return null;
+          
+          // フォルダモードで、かつnameにパスが含まれている場合
+          if (uploadMode === 'folder' && f.name.includes('/')) {
+            // nameにパスを含む新しいFileオブジェクトを作成
+            // これによりバックエンドでfile.originalnameからパスを取得できる
+            return new File([originFile], f.name, {
+              type: originFile.type,
+              lastModified: originFile.lastModified,
+            });
+          }
+          
+          // フォルダモード以外はそのまま返す
+          return originFile as File;
+        })
+        .filter((f): f is File => !!f);
 
-      // API呼び出し
-      const response = await fileService.uploadFiles({
-        projectId,
+      const targetPath = getTargetPath();
+
+      // API呼び出し（正しいパラメータ構造）
+      const response = await uploadFiles({
         uploadMode,
-        targetFolder: selectedFolderPathString,
+        targetPath,
         files,
-        batchName: batchName || undefined,
-        preserveFolderStructure: uploadMode !== 'single' && preserveFolderStructure,
+        metadata: {
+          projectId,
+          batchName: batchName || undefined,
+        },
         onProgress: (progress) => {
           setUploadState(prev => ({
             ...prev,
@@ -299,7 +264,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         },
       });
 
-      if (response.success) {
+      if (response) {
         message.success('アップロードが完了しました');
         
         if (onUploadComplete) {
@@ -314,6 +279,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         setTimeout(() => {
           setFileList([]);
           setBatchName('');
+          setSubFolderPath('');
           setUploadState({
             isUploading: false,
             progress: 100,
@@ -332,7 +298,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       }));
       message.error(errorMessage);
     }
-  }, [fileList, uploadMode, projectId, selectedFolderPathString, batchName, preserveFolderStructure, onUploadComplete]);
+  }, [fileList, uploadMode, projectId, preselectedFolder, getTargetPath, batchName, onUploadComplete]);
 
   /**
    * ダイアログを閉じる
@@ -350,32 +316,6 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       onClose();
     }
   }, [uploadState.isUploading, onClose]);
-
-  /**
-   * フォルダパス選択ハンドラ
-   */
-  const handleFolderPathChange = useCallback((value: (string | number | null)[]) => {
-    // nullを除外してstateに保存
-    const filteredValue = value.filter((v): v is string | number => v !== null);
-    setSelectedFolderPath(filteredValue);
-  }, []);
-
-  /**
-   * Cascaderのプレースホルダー（モードに応じて変更）
-   */
-  const cascaderPlaceholder = useMemo(() => {
-    if (uploadMode === 'single') {
-      return 'プロジェクトを選択';
-    }
-    return '部門 または プロジェクト を選択';
-  }, [uploadMode]);
-
-  /**
-   * 部門レベルで選択可能かどうか（一括ファイル・フォルダタブのみ）
-   */
-  const changeOnSelect = useMemo(() => {
-    return uploadMode === 'bulk' || uploadMode === 'folder';
-  }, [uploadMode]);
 
   /**
    * ファイルリストの合計サイズ計算
@@ -550,63 +490,71 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
 
         <Divider style={{ margin: '12px 0' }} />
 
-        {/* オプション設定 */}
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+        {/* アップロード先プロジェクト表示 */}
+        {preselectedFolder && (
+          <div
+            style={{
+              padding: '12px 16px',
+              backgroundColor: '#E6F7FC',
+              borderRadius: 8,
+              border: '1px solid #0093CF',
+            }}
+          >
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Text strong style={{ color: '#007AB3', fontSize: 13 }}>
+                アップロード先プロジェクト
+              </Text>
+              <Text style={{ fontSize: 15, fontWeight: 500 }}>
+                {preselectedFolder}
+              </Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                パス: {getTargetPath() || `projects/${preselectedFolder}`}
+              </Text>
+            </Space>
+          </div>
+        )}
+
+        {!preselectedFolder && (
+          <Alert
+            message="プロジェクトが選択されていません"
+            description="プロジェクトを選択してからアップロードしてください"
+            type="warning"
+            showIcon
+          />
+        )}
+
+        {/* サブフォルダパス入力（オプション） */}
+        {preselectedFolder && (
           <div>
             <Text strong style={{ display: 'block', marginBottom: 8 }}>
-              アップロード先フォルダ
+              サブフォルダパス（オプション）
             </Text>
-            {/* 所属組織表示 */}
-            <div
-              style={{
-                marginBottom: 8,
-                padding: '8px 12px',
-                backgroundColor: '#F0F0F0',
-                borderRadius: 6,
-                border: '1px solid #D9D9D9',
-              }}
-            >
-              <Text style={{ fontSize: 13, color: '#595959' }}>
-                所属組織: <Text strong>{userOrganization.name}</Text>
-              </Text>
-            </div>
-            <Cascader
-              options={folderStructureOptions}
-              value={selectedFolderPath}
-              onChange={handleFolderPathChange}
-              placeholder={cascaderPlaceholder}
+            <Input
+              value={subFolderPath}
+              onChange={(e) => setSubFolderPath(e.target.value)}
+              placeholder="例: data/experiment01 （空欄の場合はプロジェクトルート）"
               disabled={uploadState.isUploading}
-              expandTrigger="hover"
-              showSearch
-              changeOnSelect={changeOnSelect}
-              style={{ width: '100%' }}
             />
-            {selectedFolderPathString && (
-              <div
-                style={{
-                  marginTop: 8,
-                  padding: '8px 12px',
-                  backgroundColor: '#E6F7FC',
-                  borderRadius: 6,
-                }}
-              >
-                <Text style={{ fontSize: 12, color: '#007AB3' }}>
-                  選択パス: {selectedFolderPathString}
-                </Text>
-              </div>
-            )}
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+              サブフォルダを指定しない場合は、プロジェクト直下にアップロードされます
+            </Text>
           </div>
+        )}
 
-          {(uploadMode === 'bulk' || uploadMode === 'folder') && (
-            <Checkbox
-              checked={preserveFolderStructure}
-              onChange={(e) => setPreserveFolderStructure(e.target.checked)}
+        {/* バッチ名入力（オプション） */}
+        {uploadMode !== 'single' && fileList.length > 0 && (
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 8 }}>
+              バッチ名（オプション）
+            </Text>
+            <Input
+              value={batchName}
+              onChange={(e) => setBatchName(e.target.value)}
+              placeholder="例: 実験データ2024-01-15"
               disabled={uploadState.isUploading}
-            >
-              フォルダ構造を保持する
-            </Checkbox>
-          )}
-        </Space>
+            />
+          </div>
+        )}
 
         {/* アップロード進行状況 */}
         {uploadState.isUploading && (

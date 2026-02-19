@@ -6,7 +6,7 @@
 
 import { PoolClient } from 'pg';
 import { getPool } from '../database/db';
-import { ProjectRepository } from '../repositories/projectRepository';
+import * as projectRepository from '../repositories/projectRepository';
 import { InstructionRepository } from '../repositories/instructionRepository';
 import { TaskRepository } from '../repositories/taskRepository';
 import {
@@ -19,7 +19,6 @@ import {
  */
 export class InstructionService {
   constructor(
-    private projectRepo: ProjectRepository,
     private instructionRepo: InstructionRepository,
     private taskRepo: TaskRepository
   ) {}
@@ -41,7 +40,7 @@ export class InstructionService {
     userId: string
   ): Promise<InstructionCreationSummary> {
     // 1. プロジェクト存在確認（トランザクション開始前）
-    const project = await this.projectRepo.findById(projectId, organizationId);
+    const project = await projectRepository.getById(projectId, organizationId);
 
     if (!project) {
       throw new Error('Project not found');
@@ -86,10 +85,11 @@ export class InstructionService {
       );
 
       // 7. プロジェクトステータスを更新（0 → 1: タスク実行待ち）
-      await this.projectRepo.updateStatus(
+      await projectRepository.updateStatus(
         projectId,
         1,
         organizationId,
+        userId,
         client
       );
 
