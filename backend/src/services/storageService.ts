@@ -400,6 +400,37 @@ export class StorageService {
   }
 
   /**
+   * 組織の基本フォルダ構造を作成（空フォルダとして）
+   * 
+   * S3/Swiftコンソールで「フォルダ」として表示されるよう、
+   * トレーリングスラッシュ付きの0バイトオブジェクトを作成
+   * 
+   * @param organizationId 組織ID
+   */
+  async createOrganizationFolders(organizationId: string): Promise<void> {
+    const folders = [
+      'projects/',   // トレーリングスラッシュ付き
+      'formats/',    // トレーリングスラッシュ付き
+    ];
+    
+    for (const folder of folders) {
+      const key = this.buildKey(organizationId, folder);
+      
+      const params: PutObjectCommandInput = {
+        Bucket: this.bucketName,
+        Key: key,
+        Body: '',  // 空の内容
+        ContentType: 'application/x-directory',  // フォルダを示すContent-Type
+      };
+      
+      const command = new PutObjectCommand(params);
+      await this.s3Client.send(command);
+      
+      console.log(`Empty folder created: ${key}`);
+    }
+  }
+
+  /**
    * ストレージタイプを取得
    * @returns 'swift' または 's3'
    */

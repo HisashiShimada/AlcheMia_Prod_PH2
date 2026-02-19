@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from 'express';
 import * as organizationService from '../services/organizationService';
 import { v4 as uuidv4 } from 'uuid';
 import Papa from 'papaparse';
+import { getCertificateFromStorage } from '../services/certificateService';
 
 /**
  * Organization一覧取得
@@ -278,6 +279,54 @@ export async function uploadOrganizationCsv(req: Request, res: Response, next: N
     });
   } catch (error) {
     console.error('Upload corporations CSV error:', error);
+    next(error);
+  }
+}
+
+/**
+ * クライアント証明書をダウンロード
+ * 
+ * GET /api/v1/provider/organization/:organizationId/certificate
+ */
+export async function downloadCertificate(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { organizationId } = req.params;
+
+    console.log('=== downloadCertificate API called ===');
+    console.log('organizationId:', organizationId);
+
+    // 証明書を取得
+    const p12Buffer = await getCertificateFromStorage(organizationId);
+
+    // ファイル名: {organizationId}.p12
+    const filename = `${organizationId}.p12`;
+
+    // レスポンスヘッダー設定
+    res.setHeader('Content-Type', 'application/x-pkcs12');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', p12Buffer.length.toString());
+
+    // バイナリデータを送信
+    res.send(p12Buffer);
+  } catch (error) {
+    console.error('Download certificate error:', error);
+    
+    // 証明書が見つからない場合は404を返す
+    if (error instanceof Error && error.message.includes('not found')) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'CERTIFICATE_NOT_FOUND',
+          message: '証明書が見つかりません',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId: req.headers['x-request-id'] || uuidv4(),
+        },
+      });
+      return;
+    }
+    
     next(error);
   }
 }

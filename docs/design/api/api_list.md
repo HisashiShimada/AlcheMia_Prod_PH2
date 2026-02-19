@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.8.0
-- **最終更新**: 2026-02-13
+- **バージョン**: 2.9.0
+- **最終更新**: 2026-02-19
 - **担当**: Development Team
 
 ---
@@ -453,6 +453,7 @@
 | 14.6 | POST | /api/v1/provider/organization | 組織新規作成 | ✅ 実装済み | organizationController.createOrganization |
 | 14.7 | PUT | /api/v1/provider/organization/:organizationId | 組織更新 | ✅ 実装済み | organizationController.updateOrganization |
 | 14.8 | PATCH | /api/v1/provider/organization/:organizationId/status | 組織アクティブ状態更新 | ✅ 実装済み | organizationController.updateOrganizationStatus |
+| 14.9 | GET | /api/v1/provider/organization/:organizationId/certificate | クライアント証明書ダウンロード | ✅ 実装済み | organizationController.downloadCertificate |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`
@@ -526,8 +527,8 @@
 | ロール管理API | 8 | 8 | 0 | 0 | 100% |
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
 | 会社管理API | 7 | 7 | 0 | 0 | 100% |
-| 組織管理API | 8 | 8 | 0 | 0 | 100% |
-| **合計** | **103** | **81** | **1** | **21** | **79%** |
+| 組織管理API | 9 | 9 | 0 | 0 | 100% |
+| **合計** | **104** | **82** | **1** | **21** | **79%** |
 
 ### 優先度別実装状況
 
@@ -711,6 +712,13 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.9.0 | 2026-02-19 | 組織管理API - クライアント証明書ダウンロード機能追加 | Cline |
+| | | - API 14.9: GET /organization/:organizationId/certificate 追加 | |
+| | | - PKCS#12形式の証明書ダウンロード | |
+| | | - 組織管理API: 8→9エンドポイント | |
+| | | - 実装済みAPI総数: 81→82エンドポイント（+1） | |
+| | | - 全体: 103→104エンドポイント | |
+| | | - 実装率: 79%維持 | |
 | 2.8.0 | 2026-02-13 | 部署・ロール・マスタ・会社管理API追加（95エンドポイント） | Cline |
 | | | - 部署管理API: 新規カテゴリ追加、7エンドポイント（実装済み100%） | |
 | | | - ロール管理API: 新規カテゴリ追加、8エンドポイント（実装済み100%） | |
