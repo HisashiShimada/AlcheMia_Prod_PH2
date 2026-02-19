@@ -171,3 +171,62 @@ export interface FileStats {
   byType: Record<string, number>;
   byFolder: Record<string, number>;
 }
+
+/**
+ * アップロード進捗情報
+ */
+export interface UploadProgress {
+  uploadedBytes: number;
+  totalBytes: number;
+  percentage: number;
+  uploadedCount: number;
+  totalCount: number;
+}
+
+/**
+ * アップロードファイル情報
+ */
+export interface UploadedFileInfo {
+  fileId: string;
+  fileName: string;
+  filePath: string;
+  s3Key: string;
+  fileSize: number;
+  contentType: string;
+  uploadedAt: string;
+}
+
+/**
+ * アップロードレスポンスデータ
+ */
+export interface UploadResponseData {
+  uploadMode: string;
+  files: UploadedFileInfo[];
+  summary: {
+    totalFiles: number;
+    successfulFiles: number;
+    failedFiles: number;
+    totalSize: number;
+  };
+}
+
+/**
+ * アップロードメタデータ
+ */
+export interface UploadMetadata {
+  projectId?: string;
+  formatId?: string;
+  batchName?: string;
+  preserveFolderStructure?: boolean;
+}
+
+/**
+ * アップロードパラメータ
+ */
+export interface UploadFilesParams {
+  uploadMode: 'single' | 'bulk' | 'folder';
+  targetPath: string;
+  files: File[];
+  metadata?: UploadMetadata;
+  onProgress?: (progress: UploadProgress) => void;
+}

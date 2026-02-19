@@ -23,6 +23,17 @@ import {
   StorageError,
 } from '../utils/errorClasses';
 import archiver from 'archiver';
+import {
+  UploadMetadata,
+  FileUploadResult,
+  MulterFile,
+  PlaceholderResult,
+} from '../types/file';
+import uploadBatchRepository from '../repositories/UploadBatchRepository';
+import { UploadType, BatchStatus } from '../types/uploadBatch';
+import { processConcurrently, getConcurrency } from '../utils/concurrencyControl';
+import { analyzeMaimlFile, isMaimlFile } from '../utils/maimlAnalyzer';
+import { truncateField, FILE_METADATA_MAX_LENGTHS } from '../utils/stringValidator';
 
 /**
  * ファイルストリームレスポンス（プロキシ方式）
@@ -247,6 +258,342 @@ export class FileAccessService {
         uploadedBy: 'system', // メタデータにuploadedByがないため固定値
       },
     };
+  }
+
+  /**
+   * ファイルをアップロード（単一または複数）
+   * 
+   * Task: S3ファイルアップロード統一化
+   * - 各画面で生成された完全なパスを使用してファイルをアップロード
+   * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+   * 
+   * Phase1-3: 空フォルダプレースホルダー対応（2026-02-18）
+   * Phase2-1: バッチ管理機能統合（2026-02-18）
+   * 
+   * @param organizationId 組織ID
+   * @param userId ユーザーID
+   * @param uploadMode アップロードモード（single, bulk, folder）
+   * @param targetPath ターゲットパス（各画面で完全なパスを生成、相対パス）
+   * @param files アップロードするファイル配列
+   * @param metadata 追加メタデータ
+   * @param emptyFolders 空フォルダパスの配列（Phase1-3）
+   * @returns アップロード結果
+   * @throws ValidationError バリデーションエラー
+   * @throws StorageError ストレージエラー
+   */
+  async uploadFiles(
+    organizationId: string,
+    userId: string,
+    uploadMode: 'single' | 'bulk' | 'folder',
+    targetPath: string,
+    files: MulterFile[],
+    metadata?: UploadMetadata,
+    emptyFolders?: string[],
+    filePaths?: string[]
+  ): Promise<FileUploadResult> {
+    // 1. バリデーション
+    if (!files || files.length === 0) {
+      throw new ValidationError('ファイルが選択されていません');
+    }
+
+    if (uploadMode === 'single' && files.length > 1) {
+      throw new ValidationError('単一ファイルモードでは1つのファイルのみアップロード可能です');
+    }
+
+    // パストラバーサル攻撃対策
+    if (targetPath.includes('..') || targetPath.includes('//')) {
+      throw new ValidationError('不正なファイルパスが検出されました');
+    }
+
+    // 2. Phase2-1: バッチ作成
+    const uploadType: UploadType = uploadMode as UploadType;
+    const batchName = metadata?.batchName || `${uploadMode} upload - ${new Date().toISOString()}`;
+    
+    const batch = await uploadBatchRepository.create({
+      batchName,
+      uploadType,
+      organizationId,
+      uploadedBy: userId,
+      totalFiles: files.length,
+    });
+
+    console.log(`📦 [Upload] バッチ作成完了: ${batch.batchId}`);
+
+    // 3. ターゲットパスの正規化
+    const normalizedPath = targetPath.replace(/^\/+|\/+$/g, '');
+
+    // 4. Phase2-2: 並列処理制御でファイルをアップロード
+    const concurrency = getConcurrency();
+    console.log(`🔄 [Upload] 並列処理開始: ${files.length}ファイル (並列数: ${concurrency})`);
+
+    const uploadResults = await processConcurrently(
+      files,
+      async (file, index) => {
+        // filePathsが提供されている場合はそちらを優先使用（フォルダアップロード対応）
+        const originalPath = filePaths && filePaths[index] ? filePaths[index] : file.originalname;
+        
+        console.log(`📁 [Upload] ファイル${index}: ${originalPath}`);
+        
+        // パスとファイル名を分離してサニタイズ
+        const pathParts = originalPath.split('/');
+        const sanitizedParts = pathParts.map(part => {
+          // 各パート（フォルダ名/ファイル名）を個別にサニタイズ
+          return sanitizeFileName(part);
+        });
+        const sanitizedRelativePath = sanitizedParts.join('/');
+        
+        // ファイル名を抽出（パスの最後の要素）
+        const sanitizedFileName = sanitizedParts[sanitizedParts.length - 1];
+        
+        // ファイルパスの構築
+        const filePath = `${normalizedPath}/${sanitizedRelativePath}`;
+        console.log(`✅ [Upload] アップロード先: ${filePath}`);
+
+        // storageServiceを使用してS3/Swiftにアップロード
+        const s3Key = await this.storageService.uploadFile(
+          organizationId,
+          filePath,
+          file.buffer,
+          { contentType: file.mimetype }
+        );
+
+        // file_metadataテーブルに保存（Phase2-1: バッチIDを紐付け）
+        const fileId = await this.saveFileMetadata({
+          organizationId,
+          userId,
+          fileName: sanitizedFileName,
+          filePath,
+          s3Key,
+          fileSize: file.size,
+          contentType: file.mimetype,
+          projectId: metadata?.projectId,
+          formatId: metadata?.formatId,
+          batchName: batch.batchId, // Phase2-1: バッチIDを設定
+        });
+
+        // Phase2-3: MAIMLファイルの場合は簡易解析
+        let maimlAnalysis;
+        if (isMaimlFile(sanitizedFileName, file.mimetype)) {
+          try {
+            const content = file.buffer.toString('utf-8');
+            maimlAnalysis = analyzeMaimlFile(content);
+            console.log(`📊 [MAIML Analysis] ${sanitizedFileName}:`, {
+              isValid: maimlAnalysis.isValid,
+              transitions: maimlAnalysis.transitionsCount,
+              places: maimlAnalysis.placesCount,
+            });
+          } catch (error) {
+            console.warn(`⚠️ [MAIML Analysis] 解析失敗: ${sanitizedFileName}`, error);
+            // 解析失敗してもアップロードは成功とする
+          }
+        }
+
+        return {
+          fileId,
+          fileName: sanitizedFileName,
+          filePath,
+          s3Key,
+          fileSize: file.size,
+          contentType: file.mimetype,
+          uploadedAt: new Date().toISOString(),
+          maimlAnalysis, // Phase2-3: MAIML解析結果を追加
+        };
+      },
+      concurrency
+    );
+
+    // 5. 結果を集計
+    const uploadedFiles = uploadResults
+      .filter(r => r.success)
+      .map(r => r.data!);
+    
+    const successCount = uploadResults.filter(r => r.success).length;
+    const failCount = uploadResults.filter(r => !r.success).length;
+    const totalSize = uploadedFiles.reduce((sum, f) => sum + f.fileSize, 0);
+
+    // 5. Phase2-1: バッチ完了
+    const finalStatus: BatchStatus = 
+      failCount === 0 ? 'completed' :
+      successCount === 0 ? 'failed' : 'completed_with_errors';
+
+    await uploadBatchRepository.update(batch.batchId, {
+      status: finalStatus,
+      endTime: new Date(),
+    });
+
+    console.log(`🎉 [Upload] バッチ完了: ${batch.batchId} (成功: ${successCount}, 失敗: ${failCount})`);
+
+    return {
+      uploadMode,
+      files: uploadedFiles,
+      summary: {
+        totalFiles: files.length,
+        successfulFiles: successCount,
+        failedFiles: failCount,
+        totalSize,
+      },
+      // Phase1-3: 空フォルダプレースホルダー結果を追加
+      emptyFolders: emptyFolders && emptyFolders.length > 0 
+        ? await this.createEmptyFolderPlaceholders(organizationId, emptyFolders)
+        : undefined,
+      // Phase2-1: バッチ情報を追加
+      batch: {
+        batchId: batch.batchId,
+        batchName: batch.batchName,
+        status: finalStatus,
+      },
+    };
+  }
+
+  /**
+   * ファイルメタデータをDBに保存
+   * 
+   * @param data ファイルメタデータ
+   * @returns 保存されたファイルキー
+   */
+  private async saveFileMetadata(data: {
+    organizationId: string;
+    userId: string;
+    fileName: string;
+    filePath: string;
+    s3Key: string;
+    fileSize: number;
+    contentType: string;
+    projectId?: string;
+    formatId?: string;
+    batchName?: string;
+  }): Promise<string> {
+    const now = new Date();
+    
+    // Phase3-4: VARCHAR長制限対応
+    // FileMetadata型に従ってオブジェクトを構築
+    const fileMetadata = {
+      organization_id: data.organizationId,
+      file_key: truncateField(
+        data.s3Key,
+        FILE_METADATA_MAX_LENGTHS.file_key,
+        'file_key'
+      ) || data.s3Key, // nullの場合は元の値を使用
+      original_filename: truncateField(
+        data.fileName,
+        FILE_METADATA_MAX_LENGTHS.original_filename,
+        'original_filename'
+      ) || data.fileName, // nullの場合は元の値を使用
+      file_size: data.fileSize,
+      file_type: data.contentType,
+      uploaded_by: data.userId,
+      is_maiml_file: data.contentType === 'application/xml' || data.fileName.endsWith('.maiml'),
+      s3_bucket: this.storageService.getBucketName(),
+      upload_batch_id: data.batchName,
+      upload_source: 'web_upload',  // アップロード元
+      upload_method: 'single',      // アップロード方法: single, multipart, resumable
+      created_at: now,
+      updated_at: now,
+    };
+
+    // repositoryのinsertFileMetadataを使用してINSERT
+    const result = await this.repository.insertFileMetadata(fileMetadata);
+    
+    return result.file_key;
+  }
+
+  /**
+   * 空フォルダにプレースホルダーファイルを作成
+   * 
+   * Phase1-3: 空フォルダプレースホルダー機能（2026-02-18）
+   * - S3/Swiftは空フォルダを保持できないため、.folder_placeholderファイルを作成
+   * - フォルダ構造の完全な再現が可能になる
+   * 
+   * @param organizationId 組織ID
+   * @param emptyFolders 空フォルダパスの配列
+   * @returns プレースホルダー作成結果の配列
+   */
+  async createEmptyFolderPlaceholders(
+    organizationId: string,
+    emptyFolders: string[]
+  ): Promise<PlaceholderResult[]> {
+    const results: PlaceholderResult[] = [];
+
+    if (!emptyFolders || emptyFolders.length === 0) {
+      return results;
+    }
+
+    console.log(`📁 [Placeholder] 空フォルダプレースホルダー作成開始: ${emptyFolders.length}個`);
+
+    for (const folderPath of emptyFolders) {
+      try {
+        // 1. プレースホルダーファイルキーを生成
+        const placeholderKey = `${folderPath}/.folder_placeholder`;
+
+        console.log(`📝 [Placeholder] 処理中: ${placeholderKey}`);
+
+        // 2. 既存ファイルの重複チェック
+        const exists = await this.storageService.fileExists(
+          organizationId,
+          placeholderKey
+        );
+
+        if (exists) {
+          console.log(`⚠️ [Placeholder] スキップ（既存）: ${placeholderKey}`);
+          results.push({
+            folderPath,
+            placeholderKey,
+            success: true,
+            skipped: true,
+          });
+          continue;
+        }
+
+        // 3. プレースホルダーファイル内容を生成
+        const placeholderContent = Buffer.from(
+          `# Folder Placeholder\nCreated: ${new Date().toISOString()}\nFolder: ${folderPath}\n\nThis file is a placeholder to preserve empty folder structure in S3/Swift storage.`,
+          'utf-8'
+        );
+
+        // 4. S3/Swiftにプレースホルダーファイルを作成
+        await this.storageService.uploadFile(
+          organizationId,
+          placeholderKey,
+          placeholderContent,
+          { contentType: 'text/plain' }
+        );
+
+        // 5. file_metadataテーブルに保存
+        try {
+          await this.saveFileMetadata({
+            organizationId,
+            userId: 'system', // システム自動作成
+            fileName: '.folder_placeholder',
+            filePath: placeholderKey,
+            s3Key: placeholderKey,
+            fileSize: placeholderContent.length,
+            contentType: 'text/plain',
+            batchName: 'empty_folder_placeholder',
+          });
+        } catch (dbError) {
+          // DBエラーは警告のみ（S3上にファイルは作成されているので続行）
+          console.warn(`⚠️ [Placeholder] DB保存エラー（続行）: ${placeholderKey}`, dbError);
+        }
+
+        console.log(`✅ [Placeholder] 作成成功: ${placeholderKey}`);
+        results.push({
+          folderPath,
+          placeholderKey,
+          success: true,
+        });
+      } catch (error) {
+        console.error(`❌ [Placeholder] 作成失敗: ${folderPath}`, error);
+        results.push({
+          folderPath,
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    console.log(`📊 [Placeholder] 完了: 成功=${results.filter(r => r.success).length}/${results.length}`);
+
+    return results;
   }
 
   /**
