@@ -42,8 +42,8 @@ import { message } from 'antd';
 import { useApi } from '@/hooks/useApi';
 import {
   downloadFolderAsZip,
-} from '@/api/fileAccessService';
-import { getProjects } from '@/api/projectApiService';
+} from '@/services/fileAccessService';
+import { getProjects } from '@/services/projectApiService';
 import {
   getProjectFiles, 
   getProjectTasks,
@@ -53,7 +53,7 @@ import {
   type ProjectListResponse,
   type FileListResponse,
   type TaskListResponse
-} from '@/api/projectApiService';
+} from '@/services/projectApiService';
 import type { Project, Task, ProjectEditParams } from '@/types/project';
 import type { ProjectFile } from '@/types/file';
 import type { TaskDetail } from '@/types/taskRegistration';

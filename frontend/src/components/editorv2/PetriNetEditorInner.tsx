@@ -73,7 +73,7 @@ import type { NodeTypes } from 'reactflow';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useEditorActions } from './hooks/useEditorActions';
 import type { TemplatesByCategory } from '@/types/editor';
-import * as maimlService from '../../api/maimlApiService';
+import * as maimlService from '../../services/maimlApiService';
 import { AnalysisResult, ErrorContent } from '@/types/maimlValidation';
 import type { StorageFile } from '@/types/storage';
 

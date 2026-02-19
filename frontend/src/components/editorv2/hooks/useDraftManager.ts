@@ -13,7 +13,7 @@ import {
   Draft,
   EditState,
 } from '../../../types/editor';
-import * as draftService from '@/api/draftService';
+import * as draftService from '@/services/draftService';
 
 /**
  * useDraftManagerオプションの型定義

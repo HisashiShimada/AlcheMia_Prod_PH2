@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { uploadFiles } from '@/api/fileAccessService';
+import { uploadFiles } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import {
   Modal,
