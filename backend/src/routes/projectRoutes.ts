@@ -12,6 +12,7 @@ import * as workerProjectController from '../controllers/workerProjectController
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
+import { checkPermission } from '../middleware/permissionCheckMiddleware';
 
 const router = Router();
 
@@ -20,15 +21,17 @@ const router = Router();
  * GET /api/v1/projects/worker-accessible
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
  * @description 実験作業者が作業可能なプロジェクト一覧を取得する
  * @note Task 4.1: 実験作業者用プロジェクト一覧APIエンドポイント追加
  * @note 静的ルートは動的ルート（/:projectId等）より前に定義する必要がある
  * @requirements REQ-1, REQ-3, REQ-4, REQ-5, REQ-6, REQ-7
- * @roles experiment_worker, experiment_admin, system_admin
+ * @roles experiment_worker（読取専用）
  */
 router.get(
   '/worker-accessible',
   authMiddleware,
+  checkPermission('050000', 0),
   [
     query('page')
       .optional()
@@ -123,15 +126,17 @@ router.post(
  * GET /api/v1/projects/:projectId/maiml
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（実験作業者のみ）
  * @middleware tenantIsolation - テナント分離
- * @description プロジェクトの最新MAIMLファイルをXML形式で取得する
- * @note Task 1.1: MAIML取得エンドポイント追加
+ * @description プロジェクトの最新MAIMLファイルをXML形式で取得する（指示確認タブのフロー図表示で使用）
+ * @note API 15: プロジェクトMAIMLファイル取得
  * @requirements REQ-1, REQ-2, REQ-3, REQ-8
- * @roles experiment_worker, experiment_admin, system_admin
+ * @roles experiment_worker（読み取り専用）
  */
 router.get(
   '/:projectId/maiml',
   authMiddleware,
+  checkPermission('050000', 0),
   tenantIsolation,
   [
     param('projectId')
@@ -205,22 +210,27 @@ router.post(
 
 /**
  * 承認依頼
- * POST /api/v1/projects/:projectId/approval-request
+ * PATCH /api/v1/projects/:projectName/approval-request
  * 
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
  * @description 実験作業者が実験作業完了後に実験管理者へ承認依頼を送信する
  * @note Task 1.1: 承認依頼エンドポイントのルーティング追加
  * @requirements REQ-1, REQ-2, REQ-3
+ * @roles experiment_worker（書込可）
  */
-router.post(
-  '/:projectId/approval-request',
+router.patch(
+  '/:projectName/approval-request',
   authMiddleware,
   tenantIsolation,
+  checkPermission('050000', 1),
   [
-    param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
     body('comment')
       .optional()
       .isLength({ max: 1000 })
@@ -302,15 +312,17 @@ router.get(
  * GET /api/v1/projects/:projectName/worker-instructions
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、読取専用）
  * @description プロジェクトに関連する作業指示一覧を取得する
  * @note Task 1.1: 作業指示一覧取得エンドポイント追加
  * @note バリデーションはミドルウェアで処理済み
  * @requirements REQ-1, REQ-3
- * @roles experiment_worker, experiment_admin, system_admin
+ * @roles experiment_worker（読取専用）
  */
 router.get(
   '/:projectName/worker-instructions',
   authMiddleware,
+  checkPermission('050000', 0),
   [
     param('projectName')
       .notEmpty()
@@ -331,13 +343,16 @@ router.get(
  * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
  * 
  * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 050000 実験作業者メニュー、書込可）
  * @description 実験作業者が指示を確認したことを記録する
  * @note API 2.14: プロジェクト管理APIの一部として実装
  * @requirements REQ-001, REQ-002
+ * @roles experiment_worker（書込可）
  */
 router.put(
   '/:projectName/instructions/:instructionId/confirm',
   authMiddleware,
+  checkPermission('050000', 1),
   [
     param('projectName')
       .notEmpty()

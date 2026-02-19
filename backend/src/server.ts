@@ -13,7 +13,6 @@ import { RedisConnectionService } from './services/redisConnectionService';
 // Import routes after dotenv is configured
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
-import taskRoutes from './routes/taskRoutes';
 import fileAccessRoutes from './routes/fileAccessRoutes';
 import maimlRoutes from './routes/maimlRoutes';
 import masterRoutes from './routes/masterRoutes';
@@ -80,7 +79,6 @@ async function startServer() {
     // Mount routes after session middleware
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/projects', projectRoutes);
-    app.use('/api/v1/tasks', taskRoutes);
     app.use('/api/v1/files', fileAccessRoutes); // 汎用ファイルアクセスAPI（共通化後）
     app.use('/api/v1/maiml', maimlRoutes);
     

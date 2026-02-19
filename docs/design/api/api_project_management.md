@@ -41,7 +41,7 @@
 | 10 | プロジェクト公開 | POST | `/api/v1/projects/:projectName/publish` | ✅ 実装済み | - |
 | 11 | 指示一覧取得（実験作業者用） | GET | `/api/v1/projects/:projectName/worker-instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 12 | 指示確認完了 | PUT | `/api/v1/instructions/:instructionId/confirm` | 🔴 未実装 | ⭐⭐ 中 |
-| 13 | 承認依頼 | POST | `/api/v1/projects/:projectId/approval-request` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 13 | 承認依頼 | PATCH | `/api/v1/projects/:projectName/approval-request` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 14 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 15 | MAIMLファイル取得（プロジェクト） | GET | `/api/v1/projects/:projectId/maiml` | 🔴 未実装 | ⭐⭐⭐ 高 |
 
@@ -863,7 +863,7 @@ router.METHOD('/path',
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1013,7 +1013,7 @@ for (const instruction of instructions) {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（書込可）
 
 **優先度**: ⭐⭐ 中
 
@@ -1113,13 +1113,13 @@ const user = await db
 
 ### 13. 承認依頼 🔴
 
-**エンドポイント**: `POST /api/v1/projects/:projectId/approval-request`
+**エンドポイント**: `PATCH /api/v1/projects/:projectName/approval-request`
 
 **説明**: 実験作業完了後に実験管理者へ承認依頼を送信
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（書込可）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1128,7 +1128,7 @@ const user = await db
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 **ボディ（JSON）**:
 ```json
@@ -1282,7 +1282,7 @@ await db.transaction().execute(async (trx) => {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1464,7 +1464,7 @@ return {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 

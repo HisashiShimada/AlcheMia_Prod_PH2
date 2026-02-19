@@ -29,13 +29,18 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 app.use('/api/v1/issues', issueRoutes);
 
 describe('Issue Status Validation - Task 1.1', () => {
-  const validIssueId = '550e8400-e29b-41d4-a716-446655440001';
+  const validIssueId = 'issue-001';
+  const validProjectName = 'sample_project';
 
   describe('正常なステータス値', () => {
     test('status="unresolved"が受け入れられること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({ status: 'unresolved' });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: validIssueId,
+          status: 'unresolved' 
+        });
 
       // 認証後のレスポンス（400以外）が返ることを期待
       // 実際のデータベースエラーは500または404になる
@@ -44,8 +49,12 @@ describe('Issue Status Validation - Task 1.1', () => {
 
     test('status="resolved"が受け入れられること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({ status: 'resolved' });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: validIssueId,
+          status: 'resolved' 
+        });
 
       // 認証後のレスポンス（400以外）が返ることを期待
       expect(response.status).not.toBe(400);
@@ -55,8 +64,12 @@ describe('Issue Status Validation - Task 1.1', () => {
   describe('不正なステータス値 - 400エラーを返すこと', () => {
     test('空文字列でバリデーションエラーが返ること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({ status: '' });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: validIssueId,
+          status: '' 
+        });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('success', false);
@@ -67,8 +80,12 @@ describe('Issue Status Validation - Task 1.1', () => {
 
     test('nullでバリデーションエラーが返ること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({ status: null });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: validIssueId,
+          status: null 
+        });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('success', false);
@@ -77,8 +94,11 @@ describe('Issue Status Validation - Task 1.1', () => {
 
     test('undefinedでバリデーションエラーが返ること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({});
+        .patch('/api/v1/issues/status')
+        .send({
+          projectName: validProjectName,
+          issueId: validIssueId
+        });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('success', false);
@@ -87,8 +107,12 @@ describe('Issue Status Validation - Task 1.1', () => {
 
     test('不正な文字列"invalid"でバリデーションエラーが返ること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({ status: 'invalid' });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: validIssueId,
+          status: 'invalid' 
+        });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('success', false);
@@ -98,8 +122,12 @@ describe('Issue Status Validation - Task 1.1', () => {
 
     test('数値でバリデーションエラーが返ること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({ status: 123 });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: validIssueId,
+          status: 123 
+        });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('success', false);
@@ -107,8 +135,12 @@ describe('Issue Status Validation - Task 1.1', () => {
 
     test('オブジェクトでバリデーションエラーが返ること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({ status: { value: 'resolved' } });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: validIssueId,
+          status: { value: 'resolved' } 
+        });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('success', false);
@@ -116,8 +148,12 @@ describe('Issue Status Validation - Task 1.1', () => {
 
     test('配列でバリデーションエラーが返ること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({ status: ['resolved'] });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: validIssueId,
+          status: ['resolved'] 
+        });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('success', false);
@@ -127,8 +163,12 @@ describe('Issue Status Validation - Task 1.1', () => {
   describe('エラーレスポンス形式の統一性', () => {
     test('バリデーションエラーレスポンスが統一形式であること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({ status: 'invalid_status' });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: validIssueId,
+          status: 'invalid_status' 
+        });
 
       expect(response.status).toBe(400);
       
@@ -152,7 +192,7 @@ describe('Issue Status Validation - Task 1.1', () => {
 
     test('複数のバリデーションエラーがdetails配列に含まれること', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
+        .patch('/api/v1/issues/status')
         .send({});
 
       expect(response.status).toBe(400);
@@ -168,8 +208,12 @@ describe('Issue Status Validation - Task 1.1', () => {
 
     test('エラーメッセージに機密情報が含まれないこと', async () => {
       const response = await request(app)
-        .patch(`/api/v1/issues/${validIssueId}/status`)
-        .send({ status: 'invalid' });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: validIssueId,
+          status: 'invalid' 
+        });
 
       expect(response.status).toBe(400);
       
@@ -206,8 +250,12 @@ describe('Issue Status Validation - Task 1.1', () => {
 
       for (const status of invalidStatuses) {
         const response = await request(app)
-          .patch(`/api/v1/issues/${validIssueId}/status`)
-          .send({ status });
+          .patch('/api/v1/issues/status')
+          .send({ 
+            projectName: validProjectName,
+            issueId: validIssueId,
+            status 
+          });
 
         expect(response.status).toBe(400);
         expect(response.body.success).toBe(false);
@@ -215,22 +263,70 @@ describe('Issue Status Validation - Task 1.1', () => {
     });
   });
 
-  describe('issueIdパラメータのバリデーション', () => {
-    test('issueIdが空文字列の場合、404エラーが返ること', async () => {
+  describe('projectNameパラメータのバリデーション', () => {
+    test('projectNameが空文字列の場合、バリデーションエラーが返ること', async () => {
       const response = await request(app)
-        .patch('/api/v1/issues//status')
-        .send({ status: 'resolved' });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: '',
+          issueId: validIssueId,
+          status: 'resolved' 
+        });
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
     });
 
-    test('issueIdが不正な形式の場合、バリデーションエラーまたは404が返ること', async () => {
+    test('projectNameがundefinedの場合、バリデーションエラーが返ること', async () => {
       const response = await request(app)
-        .patch('/api/v1/issues/invalid-id/status')
-        .send({ status: 'resolved' });
+        .patch('/api/v1/issues/status')
+        .send({ 
+          issueId: validIssueId,
+          status: 'resolved' 
+        });
 
-      // バリデーションエラー(400)またはルートマッチせず(404)
-      expect([400, 404]).toContain(response.status);
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('issueIdパラメータのバリデーション', () => {
+    test('issueIdが空文字列の場合、バリデーションエラーが返ること', async () => {
+      const response = await request(app)
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: '',
+          status: 'resolved' 
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    test('issueIdがundefinedの場合、バリデーションエラーが返ること', async () => {
+      const response = await request(app)
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          status: 'resolved' 
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    test('issueIdが50文字を超える場合、バリデーションエラーが返ること', async () => {
+      const response = await request(app)
+        .patch('/api/v1/issues/status')
+        .send({ 
+          projectName: validProjectName,
+          issueId: 'a'.repeat(51),
+          status: 'resolved' 
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
     });
   });
 });
