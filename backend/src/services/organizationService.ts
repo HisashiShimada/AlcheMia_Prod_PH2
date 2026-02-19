@@ -304,7 +304,14 @@ export async function createOrganization(
     try {
       logger.info(`[organizationService] 基本フォルダ構造を作成: organizationId=${data.organizationId}`);
       const storageService = getStorageService();
-      await storageService.createOrganizationFolders(data.organizationId);
+      
+      // 組織の基本フォルダ構造を定義（ビジネスロジック）
+      const organizationFolders = [
+        'projects/',
+        'formats/',
+      ];
+      
+      await storageService.createFolders(data.organizationId, organizationFolders);
       logger.info(`[organizationService] 基本フォルダ構造作成完了: organizationId=${data.organizationId}`);
     } catch (folderError) {
       // フォルダ作成エラーはログに記録するが、組織作成自体は成功とする

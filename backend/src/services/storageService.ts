@@ -400,34 +400,54 @@ export class StorageService {
   }
 
   /**
-   * 組織の基本フォルダ構造を作成（空フォルダとして）
+   * 単一フォルダを作成
    * 
    * S3/Swiftコンソールで「フォルダ」として表示されるよう、
    * トレーリングスラッシュ付きの0バイトオブジェクトを作成
    * 
    * @param organizationId 組織ID
+   * @param folderPath フォルダパス（トレーリングスラッシュ付き推奨）
+   * 
+   * @example
+   * // プロジェクトフォルダ作成
+   * await storageService.createFolder(organizationId, 'projects/my_project/');
+   * 
+   * // フォーマットフォルダ作成
+   * await storageService.createFolder(organizationId, 'formats/chemistry/');
    */
-  async createOrganizationFolders(organizationId: string): Promise<void> {
-    const folders = [
-      'projects/',   // トレーリングスラッシュ付き
-      'formats/',    // トレーリングスラッシュ付き
-    ];
+  async createFolder(organizationId: string, folderPath: string): Promise<void> {
+    // トレーリングスラッシュが無ければ追加
+    const normalizedPath = folderPath.endsWith('/') ? folderPath : `${folderPath}/`;
     
-    for (const folder of folders) {
-      const key = this.buildKey(organizationId, folder);
-      
-      const params: PutObjectCommandInput = {
-        Bucket: this.bucketName,
-        Key: key,
-        Body: '',  // 空の内容
-        ContentType: 'application/x-directory',  // フォルダを示すContent-Type
-      };
-      
-      const command = new PutObjectCommand(params);
-      await this.s3Client.send(command);
-      
-      console.log(`Empty folder created: ${key}`);
+    await this.uploadFile(
+      organizationId,
+      normalizedPath,
+      '',
+      { contentType: 'application/x-directory' }
+    );
+    
+    console.log(`Folder created: ${normalizedPath}`);
+  }
+
+  /**
+   * 複数フォルダを一括作成
+   * 
+   * @param organizationId 組織ID
+   * @param folderPaths フォルダパスの配列
+   * 
+   * @example
+   * // プロジェクトとアーカイブフォルダを一括作成
+   * await storageService.createFolders(organizationId, [
+   *   'projects/my_project/',
+   *   'projects/my_project/archive/',
+   * ]);
+   */
+  async createFolders(organizationId: string, folderPaths: string[]): Promise<void> {
+    for (const folderPath of folderPaths) {
+      await this.createFolder(organizationId, folderPath);
     }
+    
+    console.log(`${folderPaths.length} folder(s) created`);
   }
 
   /**
