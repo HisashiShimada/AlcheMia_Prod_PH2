@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
-import { Card, Typography, Space, theme, Divider, Button } from 'antd';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Card, Typography, Space, theme, Divider, Button, message } from 'antd';
 import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, AimOutlined, CheckCircleOutlined, NodeIndexOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
@@ -10,8 +10,9 @@ import InstructionGroup from './InstructionGroup';
 import InstructionFlowDialog from './InstructionFlowDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
 import type { FileData, SubnetData } from './InstructionFlowDialog';
-import { Stats, Instruction, ProjectStatus, isEditableStatus } from '@/types/experimentWorker';
-import { projectsData } from '@/data/projectsData';
+import { Stats, Instruction, ProjectStatus, isEditableStatus, Method, Task } from '@/types/experimentWorker';
+import { getWorkerTasks } from '@/api/projectApiService';
+import type { WorkerMethod, WorkerTask } from '@/api/projectApiService';
 
 const { Title, Text } = Typography;
 
@@ -37,10 +38,6 @@ interface InstructionConfirmationTabProps {
   toggleGroup: (groupKey: string) => void;
 }
 
-// プロジェクトの状態を取得するヘルパー関数
-function getProjectStatus(projectId: string): ProjectStatus | null {
-  return projectsData[projectId]?.status ?? null;
-}
 
 /**
  * 指示確認タブのコンテンツ
@@ -61,6 +58,12 @@ export default function InstructionConfirmationTab({
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
 
+  // API連携の状態管理
+  const [loading, setLoading] = useState<boolean>(false);
+  const [methods, setMethods] = useState<Method[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  
   // ViewRendererDialogの管理
   const [viewerDialogs, setViewerDialogs] = useState<Array<{
     id: string;
@@ -75,35 +78,102 @@ export default function InstructionConfirmationTab({
   // メソッド・タスク選択モーダルの表示状態
   const [isModalVisible, setIsModalVisible] = useState(false);
   
-  // プロジェクトの状態を取得
-  const projectStatus: ProjectStatus | null = selectedProject 
-    ? getProjectStatus(selectedProject)
-    : null;
+  // プロジェクトの状態を取得（暫定: APIから取得できるまでnull）
+  const projectStatus: ProjectStatus | null = null;
 
-  // 選択されたプロジェクト・メソッドの情報を取得
-  const projectInfo = useMemo(() => {
-    if (!selectedProject) return null;
-    return projectsData[selectedProject];
+  // プロジェクト選択時にAPI呼び出し
+  useEffect(() => {
+    const fetchWorkerTasks = async () => {
+      if (!selectedProject) {
+        setMethods([]);
+        setTasks([]);
+        setProjectId(null);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        console.log('[DEBUG] InstructionConfirmationTab - Fetching worker tasks', { selectedProject });
+        
+        const result = await getWorkerTasks(selectedProject);
+        
+        if (result.success && result.data) {
+          const apiData = result.data;
+          
+          console.log('[DEBUG] InstructionConfirmationTab - API response', {
+            project_id: apiData.project_id,
+            methodCount: apiData.methods.length
+          });
+          
+          // プロジェクトIDを保存
+          setProjectId(apiData.project_id);
+          
+          // メソッド一覧を変換
+          const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
+            methodId: method.method_id,
+            methodName: method.method_name,
+            experimentOrder: method.experiment_order,
+            description: '',
+            category: 'experiment',
+            transitions: [],
+          }));
+          
+          // 全タスクを変換
+          const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
+            method.tasks.map((task: WorkerTask) => ({
+              taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
+              taskNo: task.task_no,
+              taskName: task.task_no.toString(),
+              methodId: method.method_id,
+              methodName: method.method_name,
+              status: task.status as Task['status'],
+              assignedUserId: task.experiment_user_id,
+              assignedUserName: task.experiment_user_name,
+              createdAt: task.created_at,
+              updatedAt: task.updated_at,
+              progress: task.progress,
+              projectId: apiData.project_id,
+              sampleNumber: '',
+              notes: '',
+              progressRate: task.progress,
+              transitionStatuses: [],
+              progressReport: '',
+              recordNumber: '',
+            }))
+          );
+          
+          console.log('[DEBUG] InstructionConfirmationTab - Converted data', {
+            methodCount: methodsData.length,
+            taskCount: allTasks.length
+          });
+          
+          setMethods(methodsData);
+          setTasks(allTasks);
+        } else {
+          console.error('[DEBUG] InstructionConfirmationTab - API returned unsuccessful', result);
+          message.error('タスク一覧の取得に失敗しました');
+          setMethods([]);
+          setTasks([]);
+        }
+      } catch (error) {
+        console.error('[DEBUG] InstructionConfirmationTab - Error fetching tasks', error);
+        message.error('タスク一覧の取得中にエラーが発生しました');
+        setMethods([]);
+        setTasks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkerTasks();
   }, [selectedProject]);
 
-  const methodInfo = useMemo(() => {
-    if (!selectedMethodId || !projectInfo) return null;
-    return projectInfo.methods?.find((m) => m.methodId === selectedMethodId);
-  }, [selectedMethodId, projectInfo]);
+  // 選択されたメソッドに紐づくタスクをフィルタリング
+  const filteredTasks = useMemo(() => {
+    if (!selectedMethodId) return tasks;
+    return tasks.filter(task => task.methodId === selectedMethodId);
+  }, [tasks, selectedMethodId]);
 
-  // タスクデータ: 選択されたプロジェクトとメソッドに紐づくタスクを取得
-  const tasks = selectedProject && methodInfo
-    ? methodInfo.tasks || []
-    : [];
-
-  // Selectコンポーネント用のオプションを生成
-  const taskOptions = [
-    { label: '-', value: '' },
-    ...tasks.map((task) => ({
-      label: task.taskName,
-      value: task.taskId,
-    })),
-  ];
 
   // タスクIDに紐づく指示のみをフィルタリング
   const filteredInstructions = useMemo(() => {
@@ -242,13 +312,13 @@ export default function InstructionConfirmationTab({
             selectedProject={selectedProject}
             selectedMethodId={selectedMethodId}
             onSelectMethod={onSelectMethod}
-            methods={projectInfo?.methods || []}
+            methods={methods}
             selectedTaskId={selectedTaskId}
             onSelectTask={onSelectTask}
-            tasks={tasks}
+            tasks={filteredTasks}
             onOpenModal={() => setIsModalVisible(true)}
-            methodDisabled={!selectedProject}
-            taskDisabled={!methodInfo}
+            methodDisabled={!selectedProject || loading}
+            taskDisabled={!selectedMethodId || loading}
           />
 
           {/* 作業指示サマリー */}

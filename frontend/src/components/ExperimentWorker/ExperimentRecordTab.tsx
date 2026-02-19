@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Card, Space, Typography, theme, Button, Empty } from 'antd';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Card, Space, Typography, theme, Button, Empty, message } from 'antd';
 import { 
   ExperimentOutlined, 
   CheckSquareOutlined, 
@@ -15,8 +15,10 @@ import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
-import { projectsData, getIssuesByTransitionId } from '@/data/projectsData';
-import { Method, ProjectStatus, Transition, Issue, IssueReportFormData } from '@/types/experimentWorker';
+import { getIssuesByTransitionId } from '@/data/projectsData';
+import { Method, ProjectStatus, Transition, Issue, IssueReportFormData, Task } from '@/types/experimentWorker';
+import { getWorkerTasks } from '@/api/projectApiService';
+import type { WorkerMethod, WorkerTask } from '@/api/projectApiService';
 
 const { Title, Text } = Typography;
 
@@ -71,12 +73,108 @@ export default function ExperimentRecordTab({
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
 
-  // 選択中のプロジェクト情報を取得
-  const selectedProjectData = selectedProject ? projectsData[selectedProject] : null;
+  // API連携の状態管理
+  const [loading, setLoading] = useState<boolean>(false);
+  const [methods, setMethods] = useState<Method[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [projectId, setProjectId] = useState<string | null>(null);
   
-  // プロジェクトの状態を取得
-  const projectStatus: ProjectStatus | null = selectedProjectData?.status ?? null;
+  // プロジェクトの状態を取得（暫定: APIから取得できるまでnull）
+  const projectStatus: ProjectStatus | null = null;
   
+  // プロジェクト選択時にAPI呼び出し
+  useEffect(() => {
+    const fetchWorkerTasks = async () => {
+      if (!selectedProject) {
+        setMethods([]);
+        setTasks([]);
+        setProjectId(null);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        console.log('[DEBUG] ExperimentRecordTab - Fetching worker tasks', { selectedProject });
+        
+        const result = await getWorkerTasks(selectedProject);
+        
+        if (result.success && result.data) {
+          const apiData = result.data;
+          
+          console.log('[DEBUG] ExperimentRecordTab - API response', {
+            project_id: apiData.project_id,
+            methodCount: apiData.methods.length
+          });
+          
+          // プロジェクトIDを保存
+          setProjectId(apiData.project_id);
+          
+          // メソッド一覧を変換
+          const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
+            methodId: method.method_id,
+            methodName: method.method_name,
+            experimentOrder: method.experiment_order,
+            description: '',
+            category: 'experiment',
+            transitions: [],
+          }));
+          
+          // 全タスクを変換
+          const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
+            method.tasks.map((task: WorkerTask) => ({
+              taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
+              taskNo: task.task_no,
+              taskName: task.task_no.toString(),
+              methodId: method.method_id,
+              methodName: method.method_name,
+              status: task.status as Task['status'],
+              assignedUserId: task.experiment_user_id,
+              assignedUserName: task.experiment_user_name,
+              createdAt: task.created_at,
+              updatedAt: task.updated_at,
+              progress: task.progress,
+              projectId: apiData.project_id,
+              sampleNumber: '',
+              notes: '',
+              progressRate: task.progress,
+              transitionStatuses: [],
+              progressReport: '',
+              recordNumber: '',
+            }))
+          );
+          
+          console.log('[DEBUG] ExperimentRecordTab - Converted data', {
+            methodCount: methodsData.length,
+            taskCount: allTasks.length
+          });
+          
+          setMethods(methodsData);
+          setTasks(allTasks);
+        } else {
+          console.error('[DEBUG] ExperimentRecordTab - API returned unsuccessful', result);
+          message.error('タスク一覧の取得に失敗しました');
+          setMethods([]);
+          setTasks([]);
+        }
+      } catch (error) {
+        console.error('[DEBUG] ExperimentRecordTab - Error fetching tasks', error);
+        message.error('タスク一覧の取得中にエラーが発生しました');
+        setMethods([]);
+        setTasks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkerTasks();
+  }, [selectedProject]);
+
+  // 選択されたメソッドに紐づくタスクをフィルタリング
+  const filteredTasks = useMemo(() => {
+    if (!selectedMethodId) return tasks;
+    return tasks.filter(task => task.methodId === selectedMethodId);
+  }, [tasks, selectedMethodId]);
+
   // プロジェクトの状態が記録可能かどうか
   // waiting_approval（承認待ち）とwaiting_task（タスク待ち）は記録不可
   const isProjectRecordable = projectStatus 
@@ -129,40 +227,13 @@ export default function ExperimentRecordTab({
     // TODO: バックエンドAPIへの送信処理を実装
   };
 
-  // タスクデータ: 選択されたプロジェクトとメソッドに紐づくタスクを取得
-  const tasks = selectedProject && selectedMethod
-    ? selectedMethod.tasks || []
-    : [];
-
-  // 進捗データをトランジションにマージ
-  const transitionsWithProgress = React.useMemo(() => {
-    if (!selectedMethod || !selectedTaskId || !selectedProjectData?.progressData) {
-      return selectedMethod?.transitions || [];
+  // 進捗データをトランジションにマージ（暫定: 進捗データはAPIから取得できないため空配列）
+  const transitionsWithProgress = useMemo(() => {
+    if (!selectedMethod) {
+      return [];
     }
 
-    // 選択されたタスク名を取得
-    const selectedTask = tasks.find(t => t.taskId === selectedTaskId);
-    const selectedTaskName = selectedTask?.taskName;
-
     return selectedMethod.transitions.map(transition => {
-      // 該当するトランジションの進捗データを検索
-      const progress = selectedProjectData.progressData?.find(
-        p => p.transitionId === transition.transitionId && 
-             p.taskName === selectedTaskName
-      );
-      
-      if (progress) {
-        // 進捗データが見つかった場合、マージする
-        return {
-          ...transition,
-          status: progress.status,
-          progressRate: progress.progressRate,
-          inputMaterialsCount: progress.inputMaterialsCount || 0,
-          inputIngredientsCount: progress.inputIngredientsCount || 0,
-          inputResultsCount: progress.inputResultsCount || 0
-        };
-      }
-      
       // 進捗データが見つからない場合、デフォルト値を設定
       return {
         ...transition,
@@ -173,16 +244,7 @@ export default function ExperimentRecordTab({
         inputResultsCount: 0
       };
     });
-  }, [selectedMethod, selectedTaskId, selectedProjectData, tasks]);
-
-  // Selectコンポーネント用のオプションを生成
-  const taskOptions = [
-    { label: '-', value: '' }, // 未選択状態を表す
-    ...tasks.map((task) => ({
-      label: task.taskName,
-      value: task.taskId,
-    })),
-  ];
+  }, [selectedMethod]);
 
   // フロー図に切り替え
   const handleSwitchToFlow = () => {
@@ -206,13 +268,13 @@ export default function ExperimentRecordTab({
         selectedProject={selectedProject}
         selectedMethodId={selectedMethodId}
         onSelectMethod={onSelectMethod}
-        methods={selectedProjectData?.methods || []}
+        methods={methods}
         selectedTaskId={selectedTaskId}
         onSelectTask={onSelectTask}
-        tasks={tasks}
+        tasks={filteredTasks}
         onOpenModal={() => setModalOpen(true)}
-        methodDisabled={!selectedProject}
-        taskDisabled={!selectedMethod}
+        methodDisabled={!selectedProject || loading}
+        taskDisabled={!selectedMethodId || loading}
       />
 
       {/* 表示切り替えボタン */}

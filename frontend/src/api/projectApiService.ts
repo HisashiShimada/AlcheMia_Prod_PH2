@@ -123,6 +123,39 @@ export interface ApprovalRequestResponse {
 }
 
 /**
+ * 実験作業者用タスク一覧レスポンス型
+ * API: GET /api/v1/progress/projects/:projectName/worker-tasks
+ */
+export interface WorkerTasksResponse {
+  project_id: string;
+  project_name: string;
+  methods: WorkerMethod[];
+}
+
+/**
+ * 実験作業者用メソッド型
+ */
+export interface WorkerMethod {
+  method_id: string;
+  method_name: string;
+  experiment_order: number;
+  tasks: WorkerTask[];
+}
+
+/**
+ * 実験作業者用タスク型
+ */
+export interface WorkerTask {
+  task_no: number;
+  status: 'not_started' | 'started' | 'in_progress' | 'completed' | 'forced_terminated';
+  experiment_user_id: string;
+  experiment_user_name: string;
+  created_at: string;
+  updated_at: string;
+  progress: number;
+}
+
+/**
  * APIエラーレスポンス型
  */
 interface ApiErrorResponse {
@@ -559,6 +592,77 @@ export const requestApproval = async (
     };
   } catch (error) {
     console.error('[DEBUG] requestApproval - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status
+    });
+    throw error;
+  }
+};
+
+/**
+ * 実験作業者用タスク一覧を取得
+ * GET /api/v1/progress/projects/:projectName/worker-tasks
+ * 
+ * @param projectName プロジェクト名
+ * @param filters フィルター条件（オプション）
+ * @returns タスク一覧（メソッド単位でグループ化）
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * // 全タスクを取得
+ * const result = await getWorkerTasks('sample_project');
+ * console.log(result.data.methods); // メソッド配列
+ * 
+ * // ステータスフィルタ付きで取得
+ * const inProgressTasks = await getWorkerTasks('sample_project', { status: 'in_progress' });
+ * ```
+ */
+export const getWorkerTasks = async (
+  projectName: string,
+  filters?: {
+    status?: string;
+    assignedTo?: string;
+    sortBy?: 'task_no' | 'created_at' | 'updated_at' | 'status';
+    order?: 'asc' | 'desc';
+  }
+): Promise<ApiResponse<WorkerTasksResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] getWorkerTasks - Start', { projectName, filters });
+    
+    const params: Record<string, string> = {};
+    if (filters?.status) params.status = filters.status;
+    if (filters?.assignedTo) params.assignedTo = filters.assignedTo;
+    if (filters?.sortBy) params.sortBy = filters.sortBy;
+    if (filters?.order) params.order = filters.order;
+    
+    const response = await client.get<{
+      success: boolean;
+      data: WorkerTasksResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/progress/projects/${encodeURIComponent(projectName)}/worker-tasks`, {
+      params
+    });
+
+    console.log('[DEBUG] getWorkerTasks - Success', {
+      methodCount: response.data.data.methods.length,
+      totalTasks: response.data.data.methods.reduce((sum, m) => sum + m.tasks.length, 0)
+    });
+    
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta
+    };
+  } catch (error) {
+    console.error('[DEBUG] getWorkerTasks - Error', {
       error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,

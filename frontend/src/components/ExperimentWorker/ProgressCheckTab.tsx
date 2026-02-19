@@ -7,11 +7,8 @@ import type { BadgeProps } from 'antd';
 import ProgressCheckTable from './ProgressCheckTable';
 import IssueReportModal from './IssueReportModal';
 import IssueManagementModal from './IssueManagementModal';
-import {
-  getTasksByProjectAndMethod,
-  updateTaskStatus,
-  projectsData
-} from '@/data/projectsData';
+import { getWorkerTasks } from '@/api/projectApiService';
+import type { WorkerTasksResponse, WorkerMethod, WorkerTask } from '@/api/projectApiService';
 import type { Task, Method, ProjectStatus, Issue, IssueStatus } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;
@@ -45,17 +42,102 @@ export default function ProgressCheckTab({
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
   
-  // タスクデータの取得
+  // API連携の状態管理
+  const [loading, setLoading] = useState<boolean>(false);
+  const [methods, setMethods] = useState<Method[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [projectId, setProjectId] = useState<string | null>(null);
   
-  // プロジェクトの状態を取得
-  const projectStatus: ProjectStatus | null = selectedProject 
-    ? projectsData[selectedProject]?.status ?? null
-    : null;
+  // プロジェクトの状態を取得（暫定: APIから取得できるまでnull）
+  const projectStatus: ProjectStatus | null = null;
   
-  // メソッド一覧の取得
-  const methods = useMemo<Method[]>(() => {
-    return selectedProject ? projectsData[selectedProject]?.methods || [] : [];
+  // プロジェクト選択時にAPI呼び出し
+  useEffect(() => {
+    const fetchWorkerTasks = async () => {
+      if (!selectedProject) {
+        setMethods([]);
+        setTasks([]);
+        setProjectId(null);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        console.log('[DEBUG] ProgressCheckTab - Fetching worker tasks', { selectedProject });
+        
+        const result = await getWorkerTasks(selectedProject);
+        
+        if (result.success && result.data) {
+          const apiData = result.data;
+          
+          console.log('[DEBUG] ProgressCheckTab - API response', {
+            project_id: apiData.project_id,
+            methodCount: apiData.methods.length
+          });
+          
+          // プロジェクトIDを保存
+          setProjectId(apiData.project_id);
+          
+          // メソッド一覧を変換（UI用の型に必須プロパティを補完）
+          const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
+            methodId: method.method_id,
+            methodName: method.method_name,
+            experimentOrder: method.experiment_order,
+            description: '', // APIには存在しないためデフォルト値
+            category: 'experiment', // APIには存在しないためデフォルト値
+            transitions: [], // APIには存在しないためデフォルト値
+          }));
+          
+          // 全タスクを変換（UI用の型に必須プロパティを補完）
+          const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
+            method.tasks.map((task: WorkerTask) => ({
+              taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
+              taskNo: task.task_no,
+              taskName: task.task_no.toString(), // task_name = task_no
+              methodId: method.method_id,
+              methodName: method.method_name, // メソッド名を追加
+              status: task.status as Task['status'],
+              assignedUserId: task.experiment_user_id,
+              assignedUserName: task.experiment_user_name,
+              createdAt: task.created_at,
+              updatedAt: task.updated_at,
+              progress: task.progress,
+              projectId: apiData.project_id,
+              sampleNumber: '', // APIには存在しないためデフォルト値（string型）
+              notes: '', // APIには存在しないためデフォルト値
+              progressRate: task.progress, // progressと同じ値を使用
+              transitionStatuses: [], // APIには存在しないためデフォルト値
+              progressReport: '', // APIには存在しないためデフォルト値
+              recordNumber: '', // APIには存在しないためデフォルト値（string型）
+            }))
+          );
+          
+          console.log('[DEBUG] ProgressCheckTab - Converted data', {
+            methodCount: methodsData.length,
+            taskCount: allTasks.length
+          });
+          
+          setMethods(methodsData);
+          setTasks(allTasks);
+          
+          message.success('タスク一覧を取得しました');
+        } else {
+          console.error('[DEBUG] ProgressCheckTab - API returned unsuccessful', result);
+          message.error('タスク一覧の取得に失敗しました');
+          setMethods([]);
+          setTasks([]);
+        }
+      } catch (error) {
+        console.error('[DEBUG] ProgressCheckTab - Error fetching tasks', error);
+        message.error('タスク一覧の取得中にエラーが発生しました');
+        setMethods([]);
+        setTasks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkerTasks();
   }, [selectedProject]);
   
   // プロジェクト変更時に最初のメソッドを自動選択
@@ -97,31 +179,6 @@ export default function ProgressCheckTab({
     setSelectedTaskForIssueCheck(null);
   }, []);
 
-  // プロジェクト内の全メソッドのタスクを取得
-  useEffect(() => {
-    if (selectedProject) {
-      const projectData = projectsData[selectedProject];
-      const allTasks: Task[] = [];
-      
-      if (projectData?.methods) {
-        projectData.methods.forEach((method: Method) => {
-          if (method.tasks) {
-            // プロジェクトIDとメソッドIDを各タスクに付与
-            const tasksWithIds = method.tasks.map((task: Task) => ({
-              ...task,
-              projectId: selectedProject,
-              methodId: method.methodId,
-            }));
-            allTasks.push(...tasksWithIds);
-          }
-        });
-      }
-      
-      setTasks(allTasks);
-    } else {
-      setTasks([]);
-    }
-  }, [selectedProject]);
 
   // タスクアクション処理
   const handleTaskAction = useCallback((taskId: string, action: string) => {
@@ -223,8 +280,8 @@ export default function ProgressCheckTab({
     return [
       {
         issueId: 'issue_001',
-        projectId: selectedProject,
-        projectName: projectsData[selectedProject]?.projectName || '',
+        projectId: projectId || '',
+        projectName: selectedProject,
         taskId: tasks[0]?.taskId || '',
         taskName: tasks[0]?.taskName || '',
         transitionId: 'trans_001',
@@ -252,7 +309,7 @@ export default function ProgressCheckTab({
         ]
       }
     ];
-  }, [selectedProject, tasks]);
+  }, [selectedProject, projectId, tasks]);
 
   // メソッドのステータスを計算する関数
   const getMethodStatus = useCallback((methodTasks: Task[]): {
@@ -346,7 +403,28 @@ export default function ProgressCheckTab({
 
   return (
     <div style={{ padding: 0 }}>
-      {!selectedProject ? (
+      {loading ? (
+        <Card
+          style={{
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+          }}
+        >
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+            <div className="ant-spin ant-spin-spinning">
+              <span className="ant-spin-dot ant-spin-dot-spin">
+                <i className="ant-spin-dot-item"></i>
+                <i className="ant-spin-dot-item"></i>
+                <i className="ant-spin-dot-item"></i>
+                <i className="ant-spin-dot-item"></i>
+              </span>
+            </div>
+            <Text type="secondary" style={{ marginTop: token.margin }}>
+              タスク一覧を読み込んでいます...
+            </Text>
+          </Space>
+        </Card>
+      ) : !selectedProject ? (
         <Card
           style={{
             borderRadius: '8px',
