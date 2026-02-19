@@ -22,7 +22,7 @@ import type {
 } from './maiml-unified';
 import { 
   ErrorContent
-} from '../types/maimlValidation'
+} from './maimlValidation'
 // ============================================
 // 基本型定義
 // ============================================
