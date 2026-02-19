@@ -92,6 +92,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedProjectName, setSelectedProjectName] = useState<string>('');
 
   // プロジェクト一覧の状態管理
   const [projects, setProjects] = useState<WorkerProject[]>([]);
@@ -193,6 +194,14 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     const projectValue = value || '';
     originalHandleProjectChange(projectValue);
     
+    // プロジェクト名を取得して保存
+    if (projectValue) {
+      const selectedProjectData = projects.find(p => p.projectId === projectValue);
+      setSelectedProjectName(selectedProjectData?.projectName || '');
+    } else {
+      setSelectedProjectName('');
+    }
+    
     // プロジェクトが変更された場合、メソッドとタスクをリセット
     setSelectedMethodId(null);
     setSelectedTaskId('');
@@ -251,6 +260,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       children: (
         <ProgressCheckTab
           selectedProject={selectedProject}
+          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
@@ -266,6 +276,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       children: (
         <InstructionConfirmationTab
           selectedProject={selectedProject}
+          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
@@ -286,6 +297,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       children: (
         <ExperimentRecordTab
           selectedProject={selectedProject}
+          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}

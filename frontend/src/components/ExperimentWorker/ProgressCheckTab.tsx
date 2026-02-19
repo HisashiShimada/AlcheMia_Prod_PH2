@@ -20,6 +20,7 @@ const EMPTY_ICON_SIZE = 48;
 
 interface ProgressCheckTabProps {
   selectedProject: string | null;
+  selectedProjectName: string;
   onProjectChange: (projectId: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string) => void;
@@ -33,6 +34,7 @@ interface ProgressCheckTabProps {
  */
 export default function ProgressCheckTab({
   selectedProject,
+  selectedProjectName,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
@@ -54,7 +56,7 @@ export default function ProgressCheckTab({
   // プロジェクト選択時にAPI呼び出し
   useEffect(() => {
     const fetchWorkerTasks = async () => {
-      if (!selectedProject) {
+      if (!selectedProject || !selectedProjectName) {
         setMethods([]);
         setTasks([]);
         setProjectId(null);
@@ -63,9 +65,9 @@ export default function ProgressCheckTab({
 
       setLoading(true);
       try {
-        console.log('[DEBUG] ProgressCheckTab - Fetching worker tasks', { selectedProject });
+        console.log('[DEBUG] ProgressCheckTab - Fetching worker tasks', { selectedProject, selectedProjectName });
         
-        const result = await getWorkerTasks(selectedProject);
+        const result = await getWorkerTasks(selectedProjectName);
         
         if (result.success && result.data) {
           const apiData = result.data;
@@ -138,7 +140,7 @@ export default function ProgressCheckTab({
     };
 
     fetchWorkerTasks();
-  }, [selectedProject]);
+  }, [selectedProject, selectedProjectName]);
   
   // プロジェクト変更時に最初のメソッドを自動選択
   useEffect(() => {
