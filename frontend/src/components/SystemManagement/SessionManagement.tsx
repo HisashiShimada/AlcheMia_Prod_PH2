@@ -18,7 +18,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { getActiveSessions, terminateSession } from '@/api/sessionApiService';
+import { getActiveSessions, terminateSession } from '@/services/sessionApiService';
 import type { SessionInfo } from '@/types/session';
 
 const { Text } = Typography;

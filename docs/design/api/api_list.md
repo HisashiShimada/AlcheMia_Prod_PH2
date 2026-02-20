@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.9.0
-- **最終更新**: 2026-02-18
+- **バージョン**: 2.9.1
+- **最終更新**: 2026-02-19
 - **担当**: Development Team
 
 ---
@@ -54,15 +54,15 @@
 
 **API設計書**: [api_project_management.md](./api_project_management.md)  
 **ルートファイル**: `backend/src/routes/projectRoutes.ts`  
-**備考**: 2.14 指示確認完了APIを含む
+**備考**: 実装済み13/16エンドポイント（81%）
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
 | 2.1 | GET | /api/v1/projects | プロジェクト一覧取得 | ✅ 実装済み | ProjectController.list |
 | 2.2 | POST | /api/v1/projects | プロジェクト作成 | ✅ 実装済み | ProjectController.create |
 | 2.3 | GET | /api/v1/projects/:projectId | プロジェクト詳細取得 | ✅ 実装済み | ProjectController.getById |
-| 2.4 | POST | /api/v1/projects/:projectId/checkout | チェックアウト | ✅ 実装済み | ProjectController.checkout |
-| 2.5 | POST | /api/v1/projects/:projectId/checkin | チェックイン | ✅ 実装済み | ProjectController.checkin |
+| 2.4 | POST | /api/v1/projects/:projectName/checkout | チェックアウト | ✅ 実装済み | ProjectController.checkout |
+| 2.5 | POST | /api/v1/projects/:projectName/checkin | チェックイン | ✅ 実装済み | ProjectController.checkin |
 | 2.6 | GET | /api/v1/projects/:projectId/checkout-status | チェックアウト状態取得 | ✅ 実装済み | ProjectController.getCheckoutStatus |
 | 2.7 | GET | /api/v1/projects/:projectName/files | ファイル一覧取得 | ✅ 実装済み | ProjectController.getProjectFiles |
 | 2.8 | GET | /api/v1/projects/:projectName/tasks | タスク一覧取得 | ✅ 実装済み | ProjectController.getProjectTasks |
@@ -145,21 +145,29 @@
 
 ### 5. Maiml編集API（MAIML Editor）
 
-**API設計書**: [api_maiml_editor.md](./api_maiml_edit.md)  
-**ルートファイル**: `backend/src/routes/maimlRoutes.ts`
+**API設計書**: [api_maiml_editor.md](./api_maiml_editor.md)  
+**ルートファイル**: `backend/src/routes/maimlRoutes.ts`  
+**備考**: 実装済み20/20エンドポイント（100%）、Draft機能追加
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
 | 5.1 | POST | /api/v1/maiml/parse | MAIML解析（基本） | ✅ 実装済み | maimlController.parse |
-| 5.2 | POST | /api/v1/maiml/parse-petri-net-structure | ペトリネット構造解析（複数method対応・強化版） | ✅ 実装済み | maimlController.parsePetriNetStructure |
+| 5.2 | POST | /api/v1/maiml/parse-petri-net-structure | ペトリネット構造解析（複数method対応） | ✅ 実装済み | maimlController.parsePetriNetStructure |
 | 5.3 | POST | /api/v1/maiml/save | MAIMLファイル保存 | ✅ 実装済み | maimlController.save |
 | 5.4 | POST | /api/v1/maiml/load | MAIMLファイル読込 | ✅ 実装済み | maimlController.load |
 | 5.5 | GET | /api/v1/maiml/list | MAIMLファイル一覧取得 | ✅ 実装済み | maimlController.list |
 | 5.6 | POST | /api/v1/maiml/validate | MAIMLバリデーション | ✅ 実装済み | maimlController.validate |
-| 5.7 | POST | /api/v1/maiml/correct | MAIML自動補正 | ⚠️ スタブ実装 | maimlController.correct |
-| 5.8 | POST | /api/v1/maiml/session/start | 編集セッション開始 | ✅ 実装済み | maimlController.startSession |
-| 5.9 | POST | /api/v1/maiml/session/end | 編集セッション終了 | ✅ 実装済み | maimlController.endSession |
-| 5.10 | GET | /api/v1/maiml/health | ヘルスチェック | ✅ 実装済み | maimlController.health |
+| 5.7 | POST | /api/v1/maiml/auto-correct | MAIML自動補正（リアルタイム） | ✅ 実装済み | maimlController.autoCorrect |
+| 5.8 | POST | /api/v1/maiml/correct | MAIML自動補正（基本） | ✅ 実装済み | maimlController.correct |
+| 5.9 | POST | /api/v1/maiml/session/start | 編集セッション開始 | ✅ 実装済み | maimlController.startSession |
+| 5.10 | POST | /api/v1/maiml/session/end | 編集セッション終了 | ✅ 実装済み | maimlController.endSession |
+| 5.11 | GET | /api/v1/maiml/files | ファイル一覧取得 | ✅ 実装済み | maimlController.getFiles |
+| 5.12 | GET | /api/v1/maiml/file-content | ファイル内容取得 | ✅ 実装済み | maimlController.getFileContent |
+| 5.13 | GET | /api/v1/maiml/health | ヘルスチェック | ✅ 実装済み | maimlController.health |
+| 5.14 | POST | /api/v1/maiml/draft | Draft保存 | ✅ 実装済み | maimlController.saveDraft |
+| 5.15 | GET | /api/v1/maiml/draft/:draftKey | Draft読み込み | ✅ 実装済み | maimlController.loadDraft |
+| 5.16 | GET | /api/v1/maiml/drafts | Draft一覧取得 | ✅ 実装済み | maimlController.listDrafts |
+| 5.17 | DELETE | /api/v1/maiml/draft/:draftKey | Draft削除 | ✅ 実装済み | maimlController.deleteDraft |
 
 **ミドルウェアチェーン:**
 - 5.1-5.9: `auth` → バリデーション
@@ -390,7 +398,7 @@
 
 ### 12. 会社管理API（Corporation Management）
 
-**API設計書**: [api_corporation_management.md](./api_corporation_management.md) 
+**API設計書**: [api_corporation_management.md](./api_corporation_management.md)  
 **ルートファイル**: `backend/src/routes/corporationRoutes.ts`
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
@@ -417,21 +425,53 @@
 
 ---
 
-### 14. 組織管理API（Organization Management）
+### 14. ファイルアクセスAPI（File Access）
+
+**API設計書**: [api_file_access.md](./api_file_access.md)  
+**ルートファイル**: `backend/src/routes/fileAccessRoutes.ts`  
+**備考**: 実装済み7/7エンドポイント（100%）、全画面共通で使用
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 14.1 | POST | /api/v1/files/upload | ファイルアップロード | ✅ 実装済み | fileAccessController.uploadFiles |
+| 14.2 | POST | /api/v1/files/download-folder-as-zip | フォルダZIPダウンロード | ✅ 実装済み | fileAccessController.downloadFolderAsZip |
+| 14.3 | POST | /api/v1/files/download-url | 署名付きURL取得 | ✅ 実装済み | fileAccessController.getFileDownloadUrl |
+| 14.4 | GET | /api/v1/projects/:projectId/files/:fileName/download | 単一ファイルダウンロード（レガシー） | ✅ 実装済み | fileAccessController.downloadFile |
+| 14.5 | GET | /api/v1/files/batches | バッチ履歴取得 | ✅ 実装済み | fileAccessController.getBatchHistory |
+| 14.6 | GET | /api/v1/files/batches/:batchId/progress | バッチ進捗取得 | ✅ 実装済み | fileAccessController.getBatchProgress |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`（JWTからorganizationIdを取得）
+- upload.array('files'): ファイルアップロード用（14.1のみ）
+- 権限: すべてのロール（マルチテナント分離で保護）
+
+**備考:**
+- ✅ 全エンドポイント実装完了
+- Phase1-2: ファイルサイズ上限500MBに引き上げ（2026-02-18）
+- Phase1-3: 空フォルダプレースホルダー機能追加（2026-02-18）
+- Phase2-1: バッチ管理機能追加（2026-02-18）
+- マルチテナント分離（organization_prefix必須）
+- 汎用性: プロジェクト、フォーマット、その他あらゆるファイルで利用可能
+- バッチ処理: 最大100ファイル/バッチ、500MB/ファイル
+- 署名付きURL: 有効期限1時間（最大7日間）
+
+---
+
+### 15. 組織管理API（Organization Management）
 
 **API設計書**: [api_organization_management.md](./api_organization_management.md)
 **ルートファイル**: `backend/src/routes/organizationRoutes.ts`
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 14.1 | GET | /api/v1/provider/organization | 組織一覧取得 | ✅ 実装済み | organizationController.getOrganizations |
-| 14.2 | GET | /api/v1/provider/organization/download-csv | 組織CSVダウンロード | ✅ 実装済み | organizationController.downloadOrganizationCsv |
-| 14.3 | POST | /api/v1/provider/organization/upload-csv | 組織CSVアップロード | ✅ 実装済み | organizationController.uploadOrganizationCsv |
-| 14.4 | GET | /api/v1/provider/organization/:organizationId | 組織詳細取得 | ✅ 実装済み | organizationController.getOrganizationById |
-| 14.5 | GET | /api/v1/provider/organization/:organizationId/system-admins | システム管理者一覧取得 | ✅ 実装済み | organizationController.getSystemAdminsByOrganizationId |
-| 14.6 | POST | /api/v1/provider/organization | 組織新規作成 | ✅ 実装済み | organizationController.createOrganization |
-| 14.7 | PUT | /api/v1/provider/organization/:organizationId | 組織更新 | ✅ 実装済み | organizationController.updateOrganization |
-| 14.8 | PATCH | /api/v1/provider/organization/:organizationId/status | 組織アクティブ状態更新 | ✅ 実装済み | organizationController.updateOrganizationStatus |
+| 15.1 | GET | /api/v1/provider/organization | 組織一覧取得 | ✅ 実装済み | organizationController.getOrganizations |
+| 15.2 | GET | /api/v1/provider/organization/download-csv | 組織CSVダウンロード | ✅ 実装済み | organizationController.downloadOrganizationCsv |
+| 15.3 | POST | /api/v1/provider/organization/upload-csv | 組織CSVアップロード | ✅ 実装済み | organizationController.uploadOrganizationCsv |
+| 15.4 | GET | /api/v1/provider/organization/:organizationId | 組織詳細取得 | ✅ 実装済み | organizationController.getOrganizationById |
+| 15.5 | GET | /api/v1/provider/organization/:organizationId/system-admins | システム管理者一覧取得 | ✅ 実装済み | organizationController.getSystemAdminsByOrganizationId |
+| 15.6 | POST | /api/v1/provider/organization | 組織新規作成 | ✅ 実装済み | organizationController.createOrganization |
+| 15.7 | PUT | /api/v1/provider/organization/:organizationId | 組織更新 | ✅ 実装済み | organizationController.updateOrganization |
+| 15.8 | PATCH | /api/v1/provider/organization/:organizationId/status | 組織アクティブ状態更新 | ✅ 実装済み | organizationController.updateOrganizationStatus |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`
@@ -493,19 +533,20 @@
 | カテゴリ | 総数 | 実装済み | スタブ | 未実装 | 実装率 |
 |---------|------|---------|-------|--------|--------|
 | 認証API | 6 | 6 | 0 | 0 | 100% |
-| プロジェクト管理API | 17 | 9 | 0 | 8 | 53% |
+| プロジェクト管理API | 16 | 13 | 0 | 3 | 81% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 5 | 0 | 0 | 5 | 0% |
-| Maiml編集API | 10 | 9 | 1 | 0 | 90% |
-| 進捗確認API | 6 | 0 | 0 | 6 | 0% |
+| Maiml編集API | 17 | 17 | 0 | 0 | 100% |
+| 進捗確認API | 4 | 0 | 0 | 4 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
 | 実験データ記録API | 1 | 0 | 0 | 1 | 0% |
 | 部署管理API | 7 | 7 | 0 | 0 | 100% |
 | ロール管理API | 8 | 8 | 0 | 0 | 100% |
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
 | 会社管理API | 7 | 7 | 0 | 0 | 100% |
+| ファイルアクセスAPI | 6 | 6 | 0 | 0 | 100% |
 | 組織管理API | 8 | 8 | 0 | 0 | 100% |
-| **合計** | **103** | **80** | **1** | **22** | **79%** |
+| **合計** | **115** | **99** | **0** | **16** | **86%** |
 
 ### 優先度別実装状況
 
@@ -689,7 +730,21 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 2.9.0 | 2026-02-18 | トランジションステータス更新API移動（96エンドポイント） | Cline |
+| 2.9.1 | 2026-02-19 17:20 | 14番項番のAPI競合を整理（115エンドポイント） | Cline |
+| | | - 組織管理APIを14番から15番に移動（API番号14.1-14.8→15.1-15.8） | |
+| | | - カテゴリ数: 14→15カテゴリ | |
+| | | - 合計エンドポイント数: 107→115（組織管理API 8エンドポイントを追加計上） | |
+| | | - 全体実装率: 85%→86%に微増 | |
+| 2.9.0 | 2026-02-19 17:10 | routeファイル実装状況を反映（107エンドポイント）トランジションステータス更新API移動（96エンドポイント） | Cline |
+| | | - プロジェクト管理API: 17→16エンドポイント、実装済み13個（81%） | |
+| | | - Maiml編集API: 10→17エンドポイント、実装済み17個（100%完了） | |
+| | |   - Draft機能追加（4エンドポイント）、ファイル管理追加（3エンドポイント） | |
+| | | - ファイルアクセスAPI: 新規カテゴリ追加、6エンドポイント（実装済み100%） | |
+| | |   - ファイルアップロード、フォルダZIPダウンロード、署名付きURL取得 | |
+| | |   - バッチ管理機能（履歴・進捗取得） | |
+| | | - カテゴリ数: 13→14カテゴリ | |
+| | | - 実装済みAPI総数: 73→91エンドポイント（+18エンドポイント） | |
+| | | - 全体実装率: 77%→85%に向上 | |
 | | | - 進捗確認API: 5→6エンドポイント（+1: トランジションステータス更新） | |
 | | | - API 6.6: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status | |
 | | | - 実験データ記録API: 2→1エンドポイント（-1: トランジションステータス更新を進捗確認APIに移動） | |

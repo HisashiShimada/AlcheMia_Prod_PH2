@@ -12,7 +12,7 @@ import React from 'react';
 import { Property, Content, PropertyCustomElement } from '@/types/maiml-unified';
 import { xml2js, ElementCompact } from 'xml-js';
 import type { PropertyData } from '../components/NestedPropertyEditor';
-import type { TemplateFile } from '@/api/templateApi';
+import type { TemplateFile } from '@/services/templateApi';
 import { FileOutlined, FolderOutlined } from '@ant-design/icons';
 
 // ===== Property変換系 =====

@@ -1,11 +1,11 @@
 # プロジェクト管理API仕様書
 
 **作成日**: 2026-01-21 16:30  
-**最終更新**: 2026-01-26 15:42  
-**バージョン**: 2.3.0  
+**最終更新**: 2026-02-19 18:00  
+**バージョン**: 2.6.0  
 **対象画面**: 実験管理者 - プロジェクト管理画面  
-**総API数**: 15個  
-**実装状況**: 8個実装済み、7個未実装
+**総API数**: 16個  
+**実装状況**: 13個実装済み、3個未実装
 
 ---
 
@@ -14,14 +14,14 @@
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
 | 基本CRUD | 2 | 0 | 2 |
-| チェックイン/チェックアウト | 2 | 0 | 2 |
-| データ取得 | 2 | 1 | 3 |
-| 指示管理 | 0 | 4 | 4 |
-| その他 | 2 | 0 | 2 |
-| 実験作業者用 | 0 | 2 | 2 |
-| **合計** | **8** | **7** | **15** |
+| チェックイン/チェックアウト | 3 | 0 | 3 |
+| データ取得 | 2 | 0 | 2 |
+| 指示管理 | 2 | 2 | 4 |
+| プロジェクト検索 | 0 | 1 | 1 |
+| 実験作業者用 | 4 | 0 | 4 |
+| **合計** | **13** | **3** | **16** |
 
-**完了率**: 53% (8/15)
+**完了率**: 81% (13/16)
 
 ---
 
@@ -31,19 +31,20 @@
 |---|------|---------|---------------|------|--------|
 | 1 | プロジェクト一覧取得 | GET | `/api/v1/projects` | ✅ 実装済み | - |
 | 2 | プロジェクト作成 | POST | `/api/v1/projects` | ✅ 実装済み | - |
-| 3 | チェックアウト | POST | `/api/v1/projects/:projectName/checkout` | ✅ 実装済み | - |
-| 4 | チェックイン | POST | `/api/v1/projects/:projectName/checkin` | ✅ 実装済み | - |
+| 3 | チェックアウト | POST | `/api/v1/projects/:projectId/checkout` | ✅ 実装済み | - |
+| 4 | チェックイン | POST | `/api/v1/projects/:projectId/checkin` | ✅ 実装済み | - |
 | 5 | ファイル一覧取得 | GET | `/api/v1/projects/:projectName/files` | ✅ 実装済み | - |
 | 6 | タスク一覧取得 | GET | `/api/v1/projects/:projectName/tasks` | ✅ 実装済み | - |
-| 7 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 8 | 指示一覧取得 | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
-| 9 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | ✅ 実装済み | - |
-| 10 | プロジェクト公開 | POST | `/api/v1/projects/:projectName/publish` | ✅ 実装済み | - |
-| 11 | 指示一覧取得（実験作業者用） | GET | `/api/v1/projects/:projectName/worker-instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 12 | 指示確認完了 | PUT | `/api/v1/instructions/:instructionId/confirm` | 🔴 未実装 | ⭐⭐ 中 |
-| 13 | 承認依頼 | PATCH | `/api/v1/projects/:projectName/approval-request` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 14 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 15 | MAIMLファイル取得（プロジェクト） | GET | `/api/v1/projects/:projectId/maiml` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 7 | プロジェクト詳細取得 | GET | `/api/v1/projects/:projectId` | ✅ 実装済み | - |
+| 8 | チェックアウト状態取得 | GET | `/api/v1/projects/:projectId/checkout-status` | ✅ 実装済み | - |
+| 9 | 指示一覧取得（実験作業者用） | GET | `/api/v1/projects/:projectName/worker-instructions` | ✅ 実装済み | - |
+| 10 | 指示確認完了 | PUT | `/api/v1/projects/:projectName/instructions/:instructionId/confirm` | ✅ 実装済み | - |
+| 11 | 承認依頼 | PATCH | `/api/v1/projects/:projectName/approval-request` | ✅ 実装済み | - |
+| 12 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | ✅ 実装済み | - |
+| 13 | MAIMLファイル取得（プロジェクト） | GET | `/api/v1/projects/:projectId/maiml` | ✅ 実装済み | - |
+| 14 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 15 | 指示一覧取得（実験管理者用） | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
+| 16 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐ 低 |
 
 ---
 
@@ -1662,6 +1663,20 @@ const projects = await db
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.6.0 | 2026-02-19 18:00 | API一覧の競合を修正し実態に即した内容に更新 | Cline |
+| | | - API一覧テーブルの重複エントリを削除（#7-15の重複を解消） | |
+| | | - 実装状況サマリーを修正（カテゴリ分類を実態に合わせて更新） | |
+| | | - チェックアウト/チェックインのエンドポイントを修正（:projectId形式に統一） | |
+| | | - 総API数: 16個、実装済み: 13個、未実装: 3個 | |
+| 2.5.0 | 2026-02-19 17:02 | routeファイルの実装状況を反映 | Cline |
+| | | - projectRoutes.tsの全エンドポイントを確認 | |
+| | | - 実装済み: 13個（81%）、未実装: 3個 | |
+| | | - 新規追加: プロジェクト詳細取得、チェックアウト状態取得 | |
+| | | - 実装ファイル情報を追加 | |
+| 2.4.0 | 2026-02-19 15:00 | フロントエンド実装状況を反映 | Cline |
+| | | - ProjectManagement.tsxの実装状況を確認 | |
+| | | - API一覧テーブルのコメントを詳細化 | |
+| | | - フロントエンド実装: getProjectFiles(), getProjectTasks(), downloadFolderAsZip()使用確認 | |
 | 2.3.0 | 2026-01-26 15:42 | プロジェクト管理APIの実装状況を更新 | Cline |
 | | | - 実装状況: 4→8個に更新（80%完了） | |
 | | | - 新規実装確認: ファイル一覧取得、タスク一覧取得 | |
@@ -1679,4 +1694,4 @@ const projects = await db
 
 **作成者**: Cline  
 **作成日**: 2026-01-21 16:30  
-**最終更新**: 2026-01-26 15:35
+**最終更新**: 2026-02-19 17:02
