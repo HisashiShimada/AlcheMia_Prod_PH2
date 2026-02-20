@@ -111,11 +111,21 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           const uiTasks: TaskDetail[] = data.tasks.map((task, index) => ({
             id: index + 1,
             methodId: task.methodId,
-            experimentCondition: task.experimentCondition,
+            experimentCondition: Number(task.experimentCondition), // DBから取得した値を明示的に数値型に変換
             trialCount: task.trialCount,
             experimentOrder: task.experimentOrder,
             taskNumberOptions: Array.from({ length: task.trialCount }, (_, i) => i + 1),
           }));
+
+          // デバッグログ：型を確認
+          console.log('[DEBUG] TaskRegistrationTab - Converted tasks:', {
+            originalTasks: data.tasks,
+            uiTasks,
+            experimentConditionTypes: uiTasks.map(t => ({
+              value: t.experimentCondition,
+              type: typeof t.experimentCondition
+            }))
+          });
 
           setTaskDetails(uiTasks);
           onTasksChange?.(uiTasks);
