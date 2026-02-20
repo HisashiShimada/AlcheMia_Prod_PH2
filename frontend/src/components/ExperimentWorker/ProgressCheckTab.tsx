@@ -98,7 +98,7 @@ export default function ProgressCheckTab({
               taskName: task.task_no.toString(), // task_name = task_no
               methodId: method.method_id,
               methodName: method.method_name, // メソッド名を追加
-              status: task.status as Task['status'],
+              status: task.task_status as Task['status'],
               assignedUserId: task.experiment_user_id,
               assignedUserName: task.experiment_user_name,
               createdAt: task.created_at,

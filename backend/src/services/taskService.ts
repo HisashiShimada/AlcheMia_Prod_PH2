@@ -224,7 +224,7 @@ export async function updateTaskStatus(
 
     // TaskStatus文字列を数値に変換
     const statusStringToNumber: Record<TaskStatus, number> = {
-      'pending': TaskStatusEnum.PENDING,
+      'not_started': TaskStatusEnum.PENDING,
       'in_progress': TaskStatusEnum.IN_PROGRESS,
       'completed': TaskStatusEnum.COMPLETED,
       'forced_terminated': TaskStatusEnum.FORCED_TERMINATED
@@ -309,7 +309,7 @@ export async function updateTaskStatus(
 
     // レスポンス作成（TaskStatusResponseに変換）
     const statusMap: Record<number, TaskStatus> = {
-      [TaskStatusEnum.PENDING]: 'pending',
+      [TaskStatusEnum.PENDING]: 'not_started',
       [TaskStatusEnum.IN_PROGRESS]: 'in_progress',
       [TaskStatusEnum.COMPLETED]: 'completed',
       [TaskStatusEnum.FORCED_TERMINATED]: 'forced_terminated'
@@ -544,15 +544,74 @@ export class TaskService {
   /**
    * MethodTaskRecordをTaskSummaryに変換
    * 日時フィールドをISO 8601形式に変換
+   * データベースの数値ステータスを文字列ステータスに変換
    * 
    * @param record - DBから取得したレコード
    * @returns TaskSummary
    */
   private convertToTaskSummary(record: MethodTaskRecord): TaskSummary {
+    // データベースの数値ステータスを文字列ステータスに変換
+    const statusMap: Record<number, TaskStatus> = {
+      0: 'not_started',      // PENDING → not_started
+      1: 'in_progress',      // IN_PROGRESS → in_progress
+      3: 'completed',        // COMPLETED → completed
+      4: 'forced_terminated' // FORCED_TERMINATED → forced_terminated
+    };
+    
+    // デバッグログ: 受け取ったステータス値を出力
+    logger.debug('convertToTaskSummary - status conversion', {
+      task_detail_id: record.task_detail_id,
+      task_status_raw: record.task_status,
+      task_status_type: typeof record.task_status,
+      task_status_is_null: record.task_status === null
+    });
+    
+    // record.task_statusがnullの場合はデフォルト値を使用
+    let taskStatus: TaskStatus = 'not_started';
+    
+    if (record.task_status !== null && record.task_status !== undefined) {
+      if (typeof record.task_status === 'number') {
+        // 数値の場合
+        const mapped = statusMap[record.task_status];
+        if (mapped) {
+          taskStatus = mapped;
+        } else {
+          logger.warn('Unknown task_status value (number)', {
+            task_detail_id: record.task_detail_id,
+            task_status: record.task_status
+          });
+        }
+      } else if (typeof record.task_status === 'string') {
+        // 文字列の場合：数値文字列("0", "1", "3", "4")を数値に変換してマッピング
+        const numericStatus = parseInt(record.task_status, 10);
+        if (!isNaN(numericStatus)) {
+          const mapped = statusMap[numericStatus];
+          if (mapped) {
+            taskStatus = mapped;
+          } else {
+            logger.warn('Unknown task_status value (string numeric)', {
+              task_detail_id: record.task_detail_id,
+              task_status: record.task_status,
+              parsed_value: numericStatus
+            });
+          }
+        } else {
+          // 数値に変換できない文字列の場合はそのままTaskStatusとして使用
+          taskStatus = record.task_status as TaskStatus;
+        }
+      }
+    }
+    
+    // デバッグログ: 変換後のステータスを出力
+    logger.debug('convertToTaskSummary - converted status', {
+      task_detail_id: record.task_detail_id,
+      converted_status: taskStatus
+    });
+
     return {
       task_id: record.task_detail_id!,
       task_no: record.task_detail_no!,
-      task_status: record.task_status!,
+      task_status: taskStatus,
       assign_user_id: record.assign_user_id,
       assign_user_name: record.assign_user_name,
       progress_rate: record.progress_rate,

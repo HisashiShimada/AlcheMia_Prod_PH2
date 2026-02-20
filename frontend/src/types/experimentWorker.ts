@@ -247,11 +247,9 @@ export interface TransitionProgress {
 // タスクステータス（実験作業タブ用）
 export type TaskStatus = 
   | 'not_started'       // 開始前
-  | 'started'           // 開始
   | 'in_progress'       // 作業中
   | 'completed'         // 完了
-  | 'forced_terminated' // 強制終了
-  | 'suspended';        // 中断
+  | 'forced_terminated'; // 強制終了
 
 // タスクデータ（実験作業タブ用）
 export interface Task {
