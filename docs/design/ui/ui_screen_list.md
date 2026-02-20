@@ -35,27 +35,28 @@
 
 **共通ビューアコンポーネント:**
 
-| 物理名 | 論理名 | ファイルパス | 用途・説明 |
-|--------|--------|--------------|-----------|
-| ViewRenderer.tsx | ビューレンダラー | frontend/src/components/viewer/ViewRenderer.tsx | 汎用ビューレンダラー |
-| ViewRendererDialog.tsx | ビューレンダラーダイアログ | frontend/src/components/viewer/ViewRendererDialog.tsx | ダイアログ形式ビューレンダラー |
-| ImageViewer.tsx | 画像ビューア | frontend/src/components/viewer/ImageViewer.tsx | 画像表示ビューア |
-| TiffViewer.tsx | TIFFビューア | frontend/src/components/viewer/TiffViewer.tsx | TIFF画像表示ビューア |
-| ErrorBoundary.tsx | エラーバウンダリ | frontend/src/components/viewer/ErrorBoundary.tsx | エラーハンドリング用コンポーネント |
-| PropertyViewer.tsx | プロパティビューア | frontend/src/components/viewer/dialogs/PropertyViewer.tsx | プロパティ表示ビューア |
-| PropertyViewerWithSelection.tsx | 選択機能付きプロパティビューア | frontend/src/components/viewer/dialogs/PropertyViewerWithSelection.tsx | ノード選択機能付きプロパティビューア |
-| StructuredPropertySelector.tsx | 構造化プロパティセレクタ | frontend/src/components/viewer/dialogs/StructuredPropertySelector.tsx | 構造化プロパティ選択コンポーネント |
-| SubNetViewer.tsx | サブネットビューア | frontend/src/components/viewer/dialogs/SubNetViewer.tsx | サブネット表示ビューア |
-| PetriNetVisualization.tsx | PetriNet可視化 | frontend/src/components/progress/PetriNetVisualization.tsx | PetriNetの可視化コンポーネント |
+| 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
+|--------|--------|--------------|----------|-----------|
+| ViewRenderer.tsx | ビューレンダラー | frontend/src/components/viewer/ViewRenderer.tsx | [ui_view_renderer.md](experiment_admin/05_Viewer/ui_view_renderer.md) | 汎用ビューレンダラー |
+| ViewRendererDialog.tsx | ビューレンダラーダイアログ | frontend/src/components/viewer/ViewRendererDialog.tsx | [ui_view_renderer_dialog.md](experiment_admin/05_Viewer/ui_view_renderer_dialog.md) | ダイアログ形式ビューレンダラー |
+| ImageViewer.tsx | 画像ビューア | frontend/src/components/viewer/ImageViewer.tsx | [ui_image_viewer.md](experiment_admin/05_Viewer/ui_image_viewer.md) | 画像表示ビューア |
+| TiffViewer.tsx | TIFFビューア | frontend/src/components/viewer/TiffViewer.tsx | [ui_tiff_viewer.md](experiment_admin/05_Viewer/ui_tiff_viewer.md) | TIFF画像表示ビューア |
+| PetriNetViewer.tsx | PetriNetビューア | frontend/src/components/viewer/PetriNetViewer.tsx | [ui_petri_net_viewer.md](experiment_admin/05_Viewer/ui_petri_net_viewer.md) | PetriNet閲覧専用ビューア |
+| ErrorBoundary.tsx | エラーバウンダリ | frontend/src/components/viewer/ErrorBoundary.tsx | [ui_error_boundary.md](experiment_admin/05_Viewer/ui_error_boundary.md) | エラーハンドリング用コンポーネント |
+| PropertyViewer.tsx | プロパティビューア | frontend/src/components/viewer/dialogs/PropertyViewer.tsx | [ui_property_viewer.md](experiment_admin/05_Viewer/dialogs/ui_property_viewer.md) | プロパティ表示ビューア |
+| PropertyViewerWithSelection.tsx | 選択機能付きプロパティビューア | frontend/src/components/viewer/dialogs/PropertyViewerWithSelection.tsx | [ui_property_viewer_with_selection.md](experiment_admin/05_Viewer/dialogs/ui_property_viewer_with_selection.md) | ノード選択機能付きプロパティビューア |
+| StructuredPropertySelector.tsx | 構造化プロパティセレクタ | frontend/src/components/viewer/dialogs/StructuredPropertySelector.tsx | [ui_structured_property_selector.md](experiment_admin/05_Viewer/dialogs/ui_structured_property_selector.md) | 構造化プロパティ選択コンポーネント |
+| SubNetViewer.tsx | サブネットビューア | frontend/src/components/viewer/dialogs/SubNetViewer.tsx | [ui_sub_net_viewer.md](experiment_admin/05_Viewer/dialogs/ui_sub_net_viewer.md) | サブネット表示ビューア |
+| PetriNetVisualization.tsx | PetriNet可視化 | frontend/src/components/progress/PetriNetVisualization.tsx | [ui_petri_net_visualization.md](experiment_admin/03_progress_monitoring/ui_petri_net_visualization.md) | PetriNetの可視化コンポーネント |
 
-**共通ノードコンポーネント:**
+**共通ノードコンポーネント（editorv2）:**
 
-| 物理名 | 論理名 | ファイルパス | 用途・説明 |
-|--------|--------|--------------|-----------|
-| TransitionNode.tsx | トランジションノード | frontend/src/components/nodes/TransitionNode.tsx | PetriNetのトランジションノード |
-| MaterialTemplateNode.tsx | Materialテンプレートノード | frontend/src/components/nodes/MaterialTemplateNode.tsx | Materialテンプレートノード |
-| ConditionTemplateNode.tsx | Conditionテンプレートノード | frontend/src/components/nodes/ConditionTemplateNode.tsx | Conditionテンプレートノード |
-| ResultTemplateNode.tsx | Resultテンプレートノード | frontend/src/components/nodes/ResultTemplateNode.tsx | Resultテンプレートノード |
+| 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
+|--------|--------|--------------|----------|-----------|
+| TransitionNode.tsx | トランジションノード | frontend/src/components/editorv2/components/nodes/TransitionNode.tsx | [ui_transition_node.md](experiment_admin/04_maiml_editor/petri_net/nodes/ui_transition_node.md) | PetriNetのトランジションノード |
+| MaterialPlaceNode.tsx | Materialプレースノード | frontend/src/components/editorv2/components/nodes/MaterialPlaceNode.tsx | [ui_place_nodes.md](experiment_admin/04_maiml_editor/petri_net/nodes/ui_place_nodes.md) | Materialプレースノード |
+| ConditionPlaceNode.tsx | Conditionプレースノード | frontend/src/components/editorv2/components/nodes/ConditionPlaceNode.tsx | [ui_place_nodes.md](experiment_admin/04_maiml_editor/petri_net/nodes/ui_place_nodes.md) | Conditionプレースノード |
+| ResultPlaceNode.tsx | Resultプレースノード | frontend/src/components/editorv2/components/nodes/ResultPlaceNode.tsx | [ui_place_nodes.md](experiment_admin/04_maiml_editor/petri_net/nodes/ui_place_nodes.md) | Resultプレースノード |
 
 ---
 
@@ -126,15 +127,20 @@
 
 **プロジェクト管理:**
 
-| 物理名 | 論理名 | ファイルパス | 用途・説明 |
-|--------|--------|--------------|-----------|
-| ProjectManagement.tsx | プロジェクト管理 | frontend/src/components/project/ProjectManagement.tsx | プロジェクト管理メイン画面 |
-| CreateProjectModal.tsx | プロジェクト作成モーダル | frontend/src/components/project/CreateProjectModal.tsx | プロジェクト作成モーダル |
-| ProjectDetailModal.tsx | プロジェクト詳細モーダル | frontend/src/components/project/ProjectDetailModal.tsx | プロジェクト詳細モーダル |
-| ProjectSearchModal.tsx | プロジェクト検索モーダル | frontend/src/components/project/ProjectSearchModal.tsx | プロジェクト検索モーダル |
-| ProjectFolderTree.tsx | プロジェクトフォルダツリー | frontend/src/components/project/ProjectFolderTree.tsx | プロジェクトフォルダツリー表示 |
-| FileListTable.tsx | ファイル一覧テーブル | frontend/src/components/project/FileListTable.tsx | ファイル一覧テーブル |
-| BulkUploadDialog.tsx | 一括アップロードダイアログ | frontend/src/components/project/BulkUploadDialog.tsx | ファイル一括アップロードダイアログ |
+| 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
+|--------|--------|--------------|----------|-----------|
+| ProjectManagement.tsx | プロジェクト管理 | frontend/src/components/project/ProjectManagement.tsx | - | プロジェクト管理メイン画面 |
+| CreateProjectModal.tsx | プロジェクト作成モーダル | frontend/src/components/project/CreateProjectModal.tsx | - | プロジェクト作成モーダル |
+| ProjectDetailModal.tsx | プロジェクト詳細モーダル | frontend/src/components/project/ProjectDetailModal.tsx | - | プロジェクト詳細モーダル |
+| ProjectSearchModal.tsx | プロジェクト検索モーダル | frontend/src/components/project/ProjectSearchModal.tsx | - | プロジェクト検索モーダル |
+| ProjectFolderTree.tsx | プロジェクトフォルダツリー | frontend/src/components/project/ProjectFolderTree.tsx | - | プロジェクトフォルダツリー表示 |
+| FileListTable.tsx | ファイル一覧テーブル | frontend/src/components/project/FileListTable.tsx | - | ファイル一覧テーブル |
+| BulkUploadDialog.tsx | 一括アップロードダイアログ | frontend/src/components/project/BulkUploadDialog.tsx | - | ファイル一括アップロードダイアログ |
+| InstructionRegistrationTab.tsx | 指示登録タブ | frontend/src/components/project/InstructionRegistrationTab.tsx | [InstructionRegistrationTab.md](experiment_admin/01_project_management/InstructionRegistrationTab.md) | 指示一覧表示・追加・編集・削除・一括送信 |
+| TaskRegistrationTab.tsx | タスク登録タブ | frontend/src/components/project/TaskRegistrationTab.tsx | [TaskRegistrationTab.md](experiment_admin/01_project_management/TaskRegistrationTab.md) | タスク順序設定・試行回数設定（ドラッグ&ドロップ対応） |
+| InstructionEditDialog.tsx | 指示編集ダイアログ | frontend/src/components/project/InstructionEditDialog.tsx | [InstructionEditDialog.md](experiment_admin/01_project_management/InstructionEditDialog.md) | 単一指示の追加・編集ダイアログ（連続指示機能付き） |
+| InstructionDialog.tsx | 作業指示送信ダイアログ | frontend/src/components/project/InstructionDialog.tsx | [InstructionDialog.md](experiment_admin/01_project_management/InstructionDialog.md) | タスク詳細設定と複数指示入力の統合ダイアログ |
+| TaskResultsTable.tsx | タスク結果一覧テーブル | frontend/src/components/project/TaskResultsTable.tsx | [TaskResultsTable.md](experiment_admin/01_project_management/TaskResultsTable.md) | タスク実行結果の一覧表示 |
 
 **フォーマット管理:**
 
@@ -149,31 +155,29 @@
 | FormatSearchModal.tsx | フォーマット検索モーダル | frontend/src/components/project/FormatSearchModal.tsx | フォーマット検索モーダル |
 | FormatUploadDialog.tsx | フォーマットアップロードダイアログ | frontend/src/components/project/FormatUploadDialog.tsx | フォーマットアップロードダイアログ |
 
-**PetriNetエディタ:**
+**PetriNetエディタ（editorv2）:**
 
-| 物理名 | 論理名 | ファイルパス | 用途・説明 |
-|--------|--------|--------------|-----------|
-| PetriNetEditor.tsx | PetriNetエディタ | frontend/src/components/editor/PetriNetEditor.tsx | PetriNet形式の実験ワークフロー編集エディタ |
-| PetriNetEditorScreen.tsx | PetriNetエディタ画面 | frontend/src/components/viewer/PetriNetEditorScreen.tsx | PetriNetエディタ画面コンテナ |
-| PetriNetViewer.tsx | PetriNetビューア | frontend/src/components/viewer/PetriNetViewer.tsx | PetriNet閲覧専用ビューア |
-| EditorToolbar.tsx | エディタツールバー | frontend/src/components/editor/EditorToolbar.tsx | エディタ操作用ツールバー |
-| PropertyPanel.tsx | プロパティパネル | frontend/src/components/editor/PropertyPanel.tsx | ノード・エッジのプロパティ表示・編集パネル |
-| ValidationPanel.tsx | バリデーションパネル | frontend/src/components/editor/ValidationPanel.tsx | バリデーション結果表示パネル |
-| MethodTabPanel.tsx | メソッドタブパネル | frontend/src/components/editor/MethodTabPanel.tsx | 複数メソッドのタブ切り替えパネル |
+| 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
+|--------|--------|--------------|----------|-----------|
+| PetriNetEditor.tsx | PetriNetエディタ | frontend/src/components/editorv2/PetriNetEditor.tsx | [ui_petri_net_editor.md](experiment_admin/04_maiml_editor/petri_net/ui_petri_net_editor.md) | PetriNet形式の実験ワークフロー編集エディタ |
+| PetriNetEditorScreen.tsx | PetriNetエディタ画面 | frontend/src/components/editorv2/PetriNetEditorScreen.tsx | [ui_petri_net_editor_screen.md](experiment_admin/04_maiml_editor/petri_net/ui_petri_net_editor_screen.md) | PetriNetエディタ画面コンテナ |
+| EditorToolbar.tsx | エディタツールバー | frontend/src/components/editorv2/components/EditorToolbar.tsx | [ui_editor_toolbar.md](experiment_admin/04_maiml_editor/petri_net/ui_editor_toolbar.md) | エディタ操作用ツールバー |
+| PropertyPanel.tsx | プロパティパネル | frontend/src/components/editorv2/components/PropertyPanel.tsx | [ui_property_panel.md](experiment_admin/04_maiml_editor/petri_net/ui_property_panel.md) | ノード・エッジのプロパティ表示・編集パネル |
+| ValidationPanel.tsx | バリデーションパネル | frontend/src/components/editorv2/components/ValidationPanel.tsx | [ui_validation_panel.md](experiment_admin/04_maiml_editor/petri_net/ui_validation_panel.md) | バリデーション結果表示パネル |
+| MethodTabPanel.tsx | メソッドタブパネル | frontend/src/components/editorv2/components/MethodTabPanel.tsx | [ui_method_tab_panel.md](experiment_admin/04_maiml_editor/petri_net/ui_method_tab_panel.md) | 複数メソッドのタブ切り替えパネル |
+| SaveDialog.tsx | 保存ダイアログ | frontend/src/components/editorv2/components/SaveDialog.tsx | [ui_save_dialog.md](experiment_admin/04_maiml_editor/petri_net/ui_save_dialog.md) | 保存ダイアログ（Draft機能付き） |
+| SaveConfirmDialog.tsx | 保存確認ダイアログ | frontend/src/components/editorv2/components/SaveConfirmDialog.tsx | [ui_save_confirm_dialog.md](experiment_admin/04_maiml_editor/petri_net/ui_save_confirm_dialog.md) | 保存確認ダイアログ |
+| WorkflowSelectorDialog.tsx | ワークフロー選択ダイアログ | frontend/src/components/editorv2/components/WorkflowSelectorDialog.tsx | [ui_workflow_selector_dialog.md](experiment_admin/04_maiml_editor/petri_net/ui_workflow_selector_dialog.md) | ワークフロー選択ダイアログ |
+| NestedPropertyEditor.tsx | ネストプロパティエディタ | frontend/src/components/editorv2/components/NestedPropertyEditor.tsx | [ui_nested_property_editor.md](experiment_admin/04_maiml_editor/petri_net/ui_nested_property_editor.md) | ネスト構造プロパティ編集 |
 
-**ドキュメント編集:**
+**ドキュメント編集（editorv2）:**
 
-| 物理名 | 論理名 | ファイルパス | 用途・説明 |
-|--------|--------|--------------|-----------|
-| DocumentEditDialog.tsx | ドキュメント編集ダイアログ | frontend/src/components/editor/DocumentEditDialog.tsx | MAIMLドキュメント編集ダイアログ |
-| TemplateEditorDialog.tsx | テンプレート編集ダイアログ | frontend/src/components/editor/TemplateEditorDialog.tsx | テンプレート編集ダイアログ（Material/Condition/Result） |
-| TemplateListView.tsx | テンプレート一覧ビュー | frontend/src/components/editor/TemplateListView.tsx | テンプレート一覧表示（カテゴリ別・エラーバッジ付き） |
-| TemplateListItem.tsx | テンプレート一覧アイテム | frontend/src/components/editor/TemplateListItem.tsx | テンプレート詳細表示アイテム |
-| MultiObjectEditor.tsx | 複数オブジェクトエディタ | frontend/src/components/editor/MultiObjectEditor.tsx | 複数オブジェクト一括編集エディタ |
-| DraftManager.tsx | ドラフト管理 | frontend/src/components/editor/DraftManager.tsx | 編集内容の一時保存・復元機能 |
-| DraftRestoreDialog.tsx | ドラフト復元ダイアログ | frontend/src/components/viewer/DraftRestoreDialog.tsx | ドラフト復元ダイアログ |
-| SaveConfirmDialog.tsx | 保存確認ダイアログ | frontend/src/components/editor/SaveConfirmDialog.tsx | 保存確認ダイアログ |
-| WorkflowSelectorDialog.tsx | ワークフロー選択ダイアログ | frontend/src/components/editor/WorkflowSelectorDialog.tsx | ワークフロー選択ダイアログ |
+| 物理名 | 論理名 | ファイルパス | UI仕様書 | 用途・説明 |
+|--------|--------|--------------|----------|-----------|
+| DocumentEditDialog.tsx | ドキュメント編集ダイアログ | frontend/src/components/editorv2/components/DocumentEditDialog.tsx | [ui_document_edit_dialog.md](experiment_admin/04_maiml_editor/document/ui_document_edit_dialog.md) | MAIMLドキュメント編集ダイアログ |
+| TemplateEditor.tsx | テンプレートエディタ | frontend/src/components/editorv2/components/TemplateEditor.tsx | [ui_template_editor.md](experiment_admin/04_maiml_editor/document/ui_template_editor.md) | テンプレート編集（Material/Condition/Result） |
+| MultiObjectEditor.tsx | 複数オブジェクトエディタ | frontend/src/components/editorv2/components/MultiObjectEditor.tsx | [ui_multi_object_editor.md](experiment_admin/04_maiml_editor/document/ui_multi_object_editor.md) | 複数オブジェクト一括編集エディタ |
+| DraftManager.tsx | ドラフト管理 | frontend/src/components/editorv2/components/DraftManager.tsx | [ui_draft_manager.md](experiment_admin/04_maiml_editor/document/ui_draft_manager.md) | 編集内容の一時保存・復元機能 |
 
 **進捗管理:**
 
@@ -261,27 +265,72 @@
 
 ## 📝 使用API一覧（主要なもの）
 
+**詳細は各API設計書を参照**:
+- [認証API](../api/api_auth.md)
+- [プロジェクト管理API](../api/api_project_management.md)
+- [MAIML編集API](../api/api_maiml_editor.md)
+- [ファイルアクセスAPI](../api/api_file_access.md)
+- [問題管理API](../api/api_issue_management.md)
+- [API一覧対応表](../api/api_list.md)
+
 ### 認証API
-- POST /api/auth/login - ログイン
-- POST /api/auth/logout - ログアウト
-- GET /api/auth/verify-session - セッション検証
+- POST /api/v1/auth/login - ログイン（PINコード送信）
+- POST /api/v1/auth/verify-pin - PINコード検証
+- POST /api/v1/auth/logout - ログアウト
 
-### プロジェクト管理API
-- GET /api/projects - プロジェクト一覧取得
-- POST /api/projects - プロジェクト作成
-- GET /api/projects/:id - プロジェクト詳細取得
-- PUT /api/projects/:id - プロジェクト更新
-- DELETE /api/projects/:id - プロジェクト削除
+### プロジェクト管理API（実装済み13/16）
+- GET /api/v1/projects - プロジェクト一覧取得 ✅
+- POST /api/v1/projects - プロジェクト作成 ✅
+- GET /api/v1/projects/:projectId - プロジェクト詳細取得 ✅
+- POST /api/v1/projects/:projectName/checkout - チェックアウト ✅
+- POST /api/v1/projects/:projectName/checkin - チェックイン ✅
+- GET /api/v1/projects/:projectId/checkout-status - チェックアウト状態取得 ✅
+- GET /api/v1/projects/:projectName/files - ファイル一覧取得 ✅
+- GET /api/v1/projects/:projectName/tasks - タスク一覧取得 ✅
+- GET /api/v1/projects/:projectName/worker-instructions - 指示一覧取得（実験作業者用） ✅
+- PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm - 指示確認完了 ✅
+- POST /api/v1/projects/:projectId/approval-request - 承認依頼 ✅
+- GET /api/v1/projects/worker-accessible - 実験作業者用プロジェクト一覧取得 ✅
+- GET /api/v1/projects/:projectId/maiml - MAIMLファイル取得（プロジェクト） ✅
 
-### フォーマット管理API
-- GET /api/formats - フォーマット一覧取得
-- POST /api/formats - フォーマット作成
-- GET /api/formats/:id - フォーマット詳細取得
+### MAIML編集API（実装済み17/17、100%完了）
+- POST /api/v1/maiml/parse - MAIML解析（基本） ✅
+- POST /api/v1/maiml/parse-petri-net-structure - ペトリネット構造解析（複数method対応） ✅
+- POST /api/v1/maiml/save - MAIMLファイル保存 ✅
+- POST /api/v1/maiml/load - MAIMLファイル読込 ✅
+- GET /api/v1/maiml/list - MAIMLファイル一覧取得 ✅
+- POST /api/v1/maiml/validate - MAIMLバリデーション ✅
+- POST /api/v1/maiml/auto-correct - MAIML自動補正（リアルタイム） ✅
+- POST /api/v1/maiml/correct - MAIML自動補正（基本） ✅
+- POST /api/v1/maiml/session/start - 編集セッション開始 ✅
+- POST /api/v1/maiml/session/end - 編集セッション終了 ✅
+- GET /api/v1/maiml/files - ファイル一覧取得 ✅
+- GET /api/v1/maiml/file-content - ファイル内容取得 ✅
+- GET /api/v1/maiml/health - ヘルスチェック ✅
+- POST /api/v1/maiml/draft - Draft保存 ✅
+- GET /api/v1/maiml/draft/:draftKey - Draft読み込み ✅
+- GET /api/v1/maiml/drafts - Draft一覧取得 ✅
+- DELETE /api/v1/maiml/draft/:draftKey - Draft削除 ✅
 
-### 実験記録API
-- GET /api/experiments - 実験一覧取得
-- POST /api/experiments - 実験記録作成
-- PUT /api/experiments/:id - 実験記録更新
+### ファイルアクセスAPI（実装済み6/6、100%完了）
+- POST /api/v1/files/upload - ファイルアップロード ✅
+- POST /api/v1/files/download-folder-as-zip - フォルダZIPダウンロード ✅
+- POST /api/v1/files/download-url - 署名付きURL取得 ✅
+- GET /api/v1/projects/:projectId/files/:fileName/download - 単一ファイルダウンロード（レガシー） ✅
+- GET /api/v1/files/batches - バッチ履歴取得 ✅
+- GET /api/v1/files/batches/:batchId/progress - バッチ進捗取得 ✅
+
+### フォーマット管理API（未実装）
+- GET /api/v1/formats - フォーマット一覧取得
+- GET /api/v1/formats/:formatId/files - フォーマットファイル一覧取得
+- POST /api/v1/formats/:formatId/files - 新規ファイル作成
+
+### 問題管理API（実装済み5/5、100%完了）
+- POST /api/v1/issues - 問題報告 ✅
+- POST /api/v1/issues/:issueId/comments - コメント投稿 ✅
+- GET /api/v1/issues - 問題一覧取得 ✅
+- GET /api/v1/issues/:issueId - 問題詳細取得 ✅
+- PATCH /api/v1/issues/:issueId/status - 問題ステータス変更 ✅
 
 ---
 
@@ -313,6 +362,8 @@
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-02-19 17:12 | 使用API一覧を更新 - プロジェクト管理API（13/16実装済み）、MAIML編集API（17/17、100%完了）、ファイルアクセスAPI（6/6、100%完了）を反映 | Cline |
+| 2026-02-19 | editorv2対応完了 - 全ファイルパスをeditorv2配下に更新、UI仕様書リンク追加、ノード名をPlaceNodeに変更 | Cline |
 | 2026-01-27 | MAIML編集機能統合完了 - TemplateListView.tsx, TemplateListItem.tsx追加 | Cline |
 | | | Phase 4-7完了により、PetriNetEditor関連コンポーネントが完全統合 | |
 | 2026-01-21 | TaskSelector.tsx を未使用として明記、MethodTaskSelector.tsx が代替コンポーネントであることを明示 | Cline |

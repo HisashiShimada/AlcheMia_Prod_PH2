@@ -29,7 +29,7 @@ import {
 } from '@ant-design/icons';
 import useDraftManager from '../hooks/useDraftManager';
 import { Draft, EditState } from '../../../types/editor';
-import * as draftService from '@/api/draftService';
+import * as draftService from '@/services/draftService';
 
 const { Title, Text } = Typography;
 
