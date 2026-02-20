@@ -11,8 +11,8 @@ import InstructionFlowDialog from './InstructionFlowDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
 import type { FileData, SubnetData } from './InstructionFlowDialog';
 import { Stats, Instruction, ProjectStatus, isEditableStatus, Method, Task } from '@/types/experimentWorker';
-import { getWorkerTasks } from '@/api/projectApiService';
-import type { WorkerMethod, WorkerTask } from '@/api/projectApiService';
+import { getWorkerTasks } from '@/services/projectApiService';
+import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 
 const { Title, Text } = Typography;
 

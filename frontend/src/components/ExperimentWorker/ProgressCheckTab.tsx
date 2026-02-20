@@ -7,8 +7,8 @@ import type { BadgeProps } from 'antd';
 import ProgressCheckTable from './ProgressCheckTable';
 import IssueReportModal from './IssueReportModal';
 import IssueManagementModal from './IssueManagementModal';
-import { getWorkerTasks } from '@/api/projectApiService';
-import type { WorkerTasksResponse, WorkerMethod, WorkerTask } from '@/api/projectApiService';
+import { getWorkerTasks } from '@/services/projectApiService';
+import type { WorkerTasksResponse, WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import type { Task, Method, ProjectStatus, Issue, IssueStatus } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;

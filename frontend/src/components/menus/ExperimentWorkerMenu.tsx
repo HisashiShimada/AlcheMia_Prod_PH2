@@ -23,7 +23,7 @@ import InstructionConfirmationTab from '../ExperimentWorker/InstructionConfirmat
 import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
 import ProgressCheckTab from '../ExperimentWorker/ProgressCheckTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
-import { getWorkerAccessibleProjects, requestApproval, type WorkerProject } from '@/api/projectApiService';
+import { getWorkerAccessibleProjects, requestApproval, type WorkerProject } from '@/services/projectApiService';
 import { AxiosError } from 'axios';
 
 const { Content } = Layout;

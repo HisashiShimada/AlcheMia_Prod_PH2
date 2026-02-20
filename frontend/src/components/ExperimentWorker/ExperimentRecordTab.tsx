@@ -17,8 +17,8 @@ import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
 import { getIssuesByTransitionId } from '@/data/projectsData';
 import { Method, ProjectStatus, Transition, Issue, IssueReportFormData, Task } from '@/types/experimentWorker';
-import { getWorkerTasks } from '@/api/projectApiService';
-import type { WorkerMethod, WorkerTask } from '@/api/projectApiService';
+import { getWorkerTasks } from '@/services/projectApiService';
+import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 
 const { Title, Text } = Typography;
 

@@ -5,7 +5,7 @@ import { Modal, Table, Typography, Space, Button, theme, Input, Select, Row, Col
 import { FolderOutlined, CheckOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useLanguage } from '@/contexts/LanguageContext';
-import type { WorkerProject } from '@/api/projectApiService';
+import type { WorkerProject } from '@/services/projectApiService';
 
 const { Text } = Typography;
 
