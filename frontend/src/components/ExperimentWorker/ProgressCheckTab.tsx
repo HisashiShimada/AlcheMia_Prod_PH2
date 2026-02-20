@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { Card, Space, Button, Typography, message, Tabs, theme, Badge } from 'antd';
 import { RightOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import type { BadgeProps } from 'antd';
@@ -122,6 +122,16 @@ export default function ProgressCheckTab({
           setMethods(methodsData);
           setTasks(allTasks);
           
+          // API取得完了後、最初のメソッドを自動選択
+          if (methodsData.length > 0) {
+            const sortedMethods = [...methodsData].sort((a, b) => a.experimentOrder - b.experimentOrder);
+            console.log('[DEBUG] ProgressCheckTab - Auto-selecting after API fetch', {
+              methodId: sortedMethods[0].methodId,
+              methodName: sortedMethods[0].methodName
+            });
+            onSelectMethod(sortedMethods[0].methodId);
+          }
+          
           message.success('タスク一覧を取得しました');
         } else {
           console.error('[DEBUG] ProgressCheckTab - API returned unsuccessful', result);
@@ -142,14 +152,49 @@ export default function ProgressCheckTab({
     fetchWorkerTasks();
   }, [selectedProject, selectedProjectName]);
   
-  // プロジェクト変更時に実験順序が最も小さいメソッドを自動選択
+  // 前回のプロジェクトIDを保持（プロジェクト変更検知用）
+  const prevProjectRef = useRef<string | null>(null);
+  const [needsAutoSelect, setNeedsAutoSelect] = useState<boolean>(false);
+  
+  // プロジェクト変更を検知
   useEffect(() => {
-    if (methods.length > 0) {
-      // 実験順序でソートして最も小さいメソッドを選択
+    if (selectedProject !== prevProjectRef.current) {
+      console.log('[DEBUG] ProgressCheckTab - Project changed detected', {
+        from: prevProjectRef.current,
+        to: selectedProject
+      });
+      prevProjectRef.current = selectedProject;
+      setNeedsAutoSelect(true); // 自動選択フラグをセット
+    }
+  }, [selectedProject]);
+  
+  // メソッドが更新されたら自動選択
+  useEffect(() => {
+    console.log('[DEBUG] ProgressCheckTab - Auto-select effect', {
+      methodsCount: methods.length,
+      selectedMethodId,
+      needsAutoSelect
+    });
+    
+    // プロジェクト変更後の自動選択（needsAutoSelectフラグで判定、selectedMethodIdは無視）
+    if (methods.length > 0 && needsAutoSelect) {
       const sortedMethods = [...methods].sort((a, b) => a.experimentOrder - b.experimentOrder);
+      console.log('[DEBUG] ProgressCheckTab - Auto-selecting first method (after project change)', {
+        methodId: sortedMethods[0].methodId,
+        methodName: sortedMethods[0].methodName
+      });
+      onSelectMethod(sortedMethods[0].methodId);
+      setNeedsAutoSelect(false); // フラグをクリア
+    } else if (methods.length > 0 && !selectedMethodId && !needsAutoSelect) {
+      // 通常の自動選択ロジック（初回表示時など）
+      const sortedMethods = [...methods].sort((a, b) => a.experimentOrder - b.experimentOrder);
+      console.log('[DEBUG] ProgressCheckTab - Auto-selecting first method (normal)', {
+        methodId: sortedMethods[0].methodId,
+        methodName: sortedMethods[0].methodName
+      });
       onSelectMethod(sortedMethods[0].methodId);
     }
-  }, [methods, onSelectMethod]);
+  }, [methods, needsAutoSelect, selectedMethodId, onSelectMethod]);
   
   // 問題報告モーダルの状態管理
   const [issueReportModalVisible, setIssueReportModalVisible] = useState<boolean>(false);
