@@ -6,7 +6,7 @@
 
 import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
-import { Status } from '../types/transitionData';
+import { TransitionStatus } from '../types/transitionData';
 
 /**
  * トランジションデータのデータベース行型
@@ -17,7 +17,7 @@ export interface TransitionDataRow {
   method_id: string;
   task_no: number;
   transition_id: string;
-  status: Status;
+  status: TransitionStatus; // 数値型（0-6）
   progress_rate: number;
   comment?: string | null;
   updated_by: string;
@@ -29,7 +29,7 @@ export interface TransitionDataRow {
  * トランジションステータス更新用データ
  */
 export interface TransitionDataUpdate {
-  status: Status;
+  status: TransitionStatus; // 数値型（0-6）
   progress_rate: number;
   updated_by: string;
 }
