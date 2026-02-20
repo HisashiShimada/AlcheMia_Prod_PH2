@@ -122,7 +122,7 @@ const filteredTasks = useMemo(() => {
   return tasks.filter(task => {
     // あいまい検索（タスクNo、ステータスラベル、進捗率）
     const matchesSearch = searchText === '' || 
-      task.taskName.toLowerCase().includes(searchText.toLowerCase()) ||
+      task.taskNo.toLowerCase().includes(searchText.toLowerCase()) ||
       getStatusLabel(task.status).includes(searchText) ||
       task.progressRate.toString().includes(searchText);
     
@@ -369,7 +369,7 @@ interface Task {
   projectId?: string;          // プロジェクトID
   methodId?: string;           // メソッドID
   methodName: string;          // メソッド名
-  taskName: string;            // タスク名
+  taskNo: string;              // タスクNo
   sampleNumber: string;        // サンプル番号
   notes: string;               // 備考
   status: TaskStatus;          // ステータス
@@ -588,7 +588,6 @@ aria-label="タスクを開始"
 
 1. **カラムタイトル「タスクNo」について**
    - ドキュメントでは「タスクNo」として統一
-   - 実際に表示されるのはtaskNameフィールド（タスク名）
    - カラム幅は95px
 
 2. **tasksのフィルタリング**
