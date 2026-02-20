@@ -77,7 +77,7 @@ export default function TaskListTable({
       
       // あいまい検索
       const matchesSearch = searchText === '' || 
-        task.taskName.toLowerCase().includes(searchText.toLowerCase()) ||
+        task.taskNo.toLowerCase().includes(searchText.toLowerCase()) ||
         getStatusLabel(task.status).includes(searchText) ||
         task.progressRate.toString().includes(searchText);
       
@@ -92,12 +92,12 @@ export default function TaskListTable({
   const columns: ColumnsType<Task> = useMemo(() => {
     const baseColumns: ColumnsType<Task> = [
       {
-        title: 'タスクの名称',
-        dataIndex: 'taskName',
-        key: 'taskName',
-        width: 200,
+        title: 'タスクNo',
+        dataIndex: 'taskNo',
+        key: 'taskNo',
+        width: 95,
         ellipsis: true,
-        sorter: (a, b) => a.taskName.localeCompare(b.taskName),
+        sorter: (a, b) => a.taskNo.localeCompare(b.taskNo),
         render: (text: string) => (
           <Text style={{ fontSize: '14px' }}>{text}</Text>
         )
@@ -293,7 +293,7 @@ export default function TaskListTable({
           page: ''
         }
       }}
-      scroll={{ x: 855 }}
+      scroll={{ x: 750 }}
       size="middle"
       bordered
       aria-label="タスク一覧"

@@ -259,6 +259,7 @@ export interface Task {
   projectId?: string;          // プロジェクトID（Phase 7追加: プロジェクト選択連動用）
   methodId?: string;           // メソッドID（Phase 7追加: プロジェクト選択連動用）
   methodName: string;          // メソッド名（Phase 1追加: グループ化・折りたたみ用）
+  taskNo: string;              // タスクNo（Phase 8追加: タスク一覧テーブル表示用）
   taskName: string;            // タスク名
   sampleNumber: string;        // サンプル番号
   notes: string;               // 備考
