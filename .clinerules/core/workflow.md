@@ -42,11 +42,63 @@ Clineがタスクを実行する際は、必ず事前にタスク計画書を`do
 - 修正が必要な場合は計画書を更新して再提示
 - 承認後、作業開始
 
+### 4.5. 実装開始前の規約確認（必須）
+
+**承認後、実装を開始する前に、以下の規約ファイルを必ず確認すること：**
+
+#### 共通規約（必須）
+
+- [ ] `.clinerules/core/workflow.md` - タスク実行の基本フロー
+- [ ] `.clinerules/development/config.md` - コーディング規約
+- [ ] **`.clinerules/development/typescript.md`** - TypeScript型定義規約（特に重要）
+- [ ] `.clinerules/development/database.md` - DB操作規約（DB関連の場合）
+- [ ] `.clinerules/development/security.md` - セキュリティ規約
+
+#### 専門領域別規約（該当する場合は必須）
+
+- [ ] `.cline/skills/backend-develop-skill/docs/backend.md` - バックエンド実装時
+- [ ] `.cline/skills/frontend-develop-skill/docs/frontend.md` - フロントエンド実装時
+- [ ] `.cline/skills/test-skill/docs/test.md` - テスト実装時
+
+**重要**: `.cline/skills/`は専門領域別の詳細規約で、コンテキスト圧迫を防ぐために分離されています。該当する領域のskillのみを確認してください。
+
+#### 設計ドキュメント
+
+- [ ] 該当する画面・機能の設計ドキュメント
+
+**特に注意すべきポイント:**
+- ✅ TypeScript型定義は専用ファイルに集約（**インライン型定義禁止**）
+- ✅ バリデーションはミドルウェアで実施（**コントローラーに書かない** - backend）
+- ✅ DB操作はRepository層に集約
+- ✅ organization_idを必ず含める（マルチテナント分離）
+- ✅ 既存コードのパターンを参照する
+
 ### 5. 実装作業
 
 - 承認された計画書に従って実装
 - 進捗をtask_progressパラメータで更新
 - 計画からの逸脱が必要な場合は、その都度ユーザーに報告
+
+#### 実装中の規約再確認タイミング
+
+以下のタイミングで、関連規約を再確認すること：
+
+1. **新しい型定義を作成する前**
+   - → `.clinerules/development/typescript.md` を確認
+   - → 型定義ファイル（`types/`）に作成しているか確認
+   - → インライン型定義になっていないか確認
+
+2. **API/関数の引数を定義する前**
+   - → インライン型定義になっていないか確認
+   - → 既存の型定義を再利用できないか確認
+
+3. **DB操作を実装する前**
+   - → `.clinerules/development/database.md` を確認
+   - → Repository層を使用しているか確認
+
+4. **長時間タスク（2時間以上）の途中**
+   - → 関連規約ファイルを再読み込み
+   - → 規約に準拠しているか自己チェック
 
 ### 6. 完了報告
 

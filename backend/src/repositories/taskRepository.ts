@@ -8,8 +8,44 @@ import { PoolClient } from 'pg';
 import { TaskInput } from '../types/instruction';
 import { TaskFilters, MethodTaskRecord } from '../types/task';
 import { TaskWithProject } from '../types/progress';
+import { ProjectTask } from '../types/database';
 import { loadSqlFile } from '../sql/loader';
 import { getPool } from '../database/db';
+
+/**
+ * プロジェクト内のタスク一覧を取得
+ * 
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @returns タスク配列
+ */
+export async function findByProject(
+  organizationId: string,
+  projectId: string
+): Promise<ProjectTask[]> {
+  const pool = getPool();
+  
+  const query = `
+    SELECT
+      organization_id,
+      project_id,
+      method_id,
+      experiment_order,
+      experiment_condition,
+      attempts_count,
+      create_user_id,
+      create_at,
+      update_user_id,
+      update_at
+    FROM project_task
+    WHERE organization_id = $1
+      AND project_id = $2
+    ORDER BY experiment_order ASC, method_id ASC
+  `;
+  
+  const result = await pool.query(query, [organizationId, projectId]);
+  return result.rows as ProjectTask[];
+}
 
 /**
  * TaskRepositoryクラス

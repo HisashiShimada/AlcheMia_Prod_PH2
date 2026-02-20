@@ -9,6 +9,7 @@ import { Router } from 'express';
 import { query, body, param } from 'express-validator';
 import * as projectController from '../controllers/projectController';
 import * as workerProjectController from '../controllers/workerProjectController';
+import * as taskRegistrationController from '../controllers/taskRegistrationController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
@@ -365,6 +366,70 @@ router.put(
   ],
   handleValidationErrors,
   projectController.confirmInstruction
+);
+
+/**
+ * タスク登録情報取得
+ * GET /api/v1/projects/:projectName/task-registration
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
+ * @description プロジェクトのタスク登録情報を取得する
+ * @note タスク登録タブで使用
+ * @requirements REQ-1, REQ-2
+ * @roles experiment_admin（読取専用）
+ */
+router.get(
+  '/:projectName/task-registration',
+  authMiddleware,
+  checkPermission('040000', 0),
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  taskRegistrationController.getTaskRegistration
+);
+
+/**
+ * タスク登録情報保存
+ * POST /api/v1/projects/:projectName/task-registration
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description プロジェクトのタスク登録情報を保存する
+ * @note タスク登録タブで使用
+ * @requirements REQ-1, REQ-2
+ * @roles experiment_admin（書込可）
+ */
+router.post(
+  '/:projectName/task-registration',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+    body('tasks')
+      .isArray({ min: 1 })
+      .withMessage('tasksは1要素以上の配列である必要があります'),
+    body('tasks.*.methodId')
+      .notEmpty()
+      .withMessage('methodIdは必須です'),
+    body('tasks.*.experimentCondition')
+      .isInt({ min: 0 })
+      .withMessage('experimentConditionは0以上の整数である必要があります'),
+    body('tasks.*.trialCount')
+      .isInt({ min: 1, max: 999 })
+      .withMessage('trialCountは1〜999の範囲内の整数である必要があります'),
+  ],
+  handleValidationErrors,
+  taskRegistrationController.saveTaskRegistration
 );
 
 export default router;

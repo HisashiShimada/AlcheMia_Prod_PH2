@@ -34,6 +34,29 @@ function handleError(res: Response, error: unknown, defaultMessage: string): voi
 }
 
 /**
+ * Base64デコードヘルパー
+ * 
+ * @param content - Base64エンコードされた文字列
+ * @returns デコードされたUTF-8文字列
+ */
+function decodeBase64Content(content: string): string {
+  try {
+    let decodedContent = Buffer.from(content, 'base64').toString('utf-8');
+    
+    // UTF-8 BOM除去
+    if (decodedContent.charCodeAt(0) === 0xFEFF) {
+      decodedContent = decodedContent.substring(1);
+      console.log('🔧 [maimlController] BOM removed from decoded content');
+    }
+    
+    return decodedContent;
+  } catch (error) {
+    console.error('❌ [maimlController] Base64デコードエラー:', error);
+    throw new Error(`Failed to decode Base64 content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * MAIMLファイル解析（基本）
  * POST /api/v1/maiml/parse
  */
@@ -103,8 +126,16 @@ export async function save(req: Request, res: Response): Promise<void> {
     const { fileKey, content } = req.body;
     const organizationId = req.user!.organizationId;
 
-    console.log(fileKey);
-    const result = await maimlService.saveMaiML(fileKey, content, organizationId);
+    console.log('🔍 [maimlController] MAIML保存リクエスト受信:', fileKey);
+    
+    // Base64デコード
+    const decodedContent = decodeBase64Content(content);
+    console.log('✅ [maimlController] Base64デコード完了:', {
+      fileKey,
+      decodedLength: decodedContent.length,
+    });
+
+    const result = await maimlService.saveMaiML(fileKey, decodedContent, organizationId);
 
     res.json({
       success: true,
@@ -172,7 +203,14 @@ export async function validate(req: Request, res: Response): Promise<void> {
   try {
     const { content, fileKey, skipAnalysisSave = true } = req.body;
     const authUser = req.user as JwtPayload;
-    const result = await maimlService.validateMaiML(authUser.organizationId, content, fileKey, skipAnalysisSave);
+    
+    // Base64デコード
+    const decodedContent = decodeBase64Content(content);
+    console.log('✅ [maimlController] バリデーション用Base64デコード完了:', {
+      decodedLength: decodedContent.length,
+    });
+    
+    const result = await maimlService.validateMaiML(authUser.organizationId, decodedContent, fileKey, skipAnalysisSave);
 
     res.json({
       success: true,
@@ -548,8 +586,14 @@ export async function autoCorrect(req: Request, res: Response): Promise<void> {
       organizationId,
     });
 
+    // Base64デコード
+    const decodedContent = decodeBase64Content(maimlContent);
+    console.log('✅ [maimlController] 自動補正用Base64デコード完了:', {
+      decodedLength: decodedContent.length,
+    });
+
     const result = await maimlService.autoCorrectMaiml(
-      maimlContent,
+      decodedContent,
       selectedErrors,
       organizationId
     );

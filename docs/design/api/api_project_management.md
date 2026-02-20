@@ -45,6 +45,8 @@
 | 14 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 15 | 指示一覧取得（実験管理者用） | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
 | 16 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐ 低 |
+| 17 | タスク登録情報取得 | GET | `/api/v1/projects/:projectName/task-registration` | ✅ 実装済み | ⭐⭐⭐ 高 |
+| 18 | タスク登録保存 | POST | `/api/v1/projects/:projectName/task-registration` | ✅ 実装済み | ⭐⭐⭐ 高 |
 
 ---
 
@@ -1595,6 +1597,223 @@ try {
 - **ルート**: `backend/src/routes/projectRoutes.ts`（追加予定）
 - **コントローラー**: `backend/src/controllers/projectController.ts` (`getProjectMaiml`)
 - **サービス**: `backend/src/services/projectService.ts` (`getProjectMaiml`)
+
+---
+
+### 17. タスク登録情報取得 ✅
+
+**エンドポイント**: `GET /api/v1/projects/:projectName/task-registration`
+
+**説明**: プロジェクトのタスク登録情報を取得。DBにデータがない場合はMAIMLファイルから解析。
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "tasks": [
+      {
+        "methodId": "method_001",
+        "experimentCondition": 0,
+        "trialCount": 1,
+        "experimentOrder": 1
+      },
+      {
+        "methodId": "method_002",
+        "experimentCondition": 1,
+        "trialCount": 3,
+        "experimentOrder": 2
+      }
+    ],
+    "isCheckoutLocked": false,
+    "isMaimlRegistered": true,
+    "experimentConditionOptions": [
+      {
+        "value": 0,
+        "label": "全て同一条件"
+      },
+      {
+        "value": 1,
+        "label": "実験ごとに条件変更"
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-02-20T09:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**レスポンスフィールド説明**:
+| フィールド | 型 | 説明 |
+|----------|---|------|
+| `tasks` | array | タスク一覧 |
+| `tasks[].methodId` | string | メソッドID |
+| `tasks[].experimentCondition` | number | 実験条件（code_masterから取得） |
+| `tasks[].trialCount` | number | 試行回数（1-999） |
+| `tasks[].experimentOrder` | number | 実験順序 |
+| `isCheckoutLocked` | boolean | チェックアウト状態（true: 編集不可） |
+| `isMaimlRegistered` | boolean | MAIMLファイル登録状態（false: 保存不可） |
+| `experimentConditionOptions` | array | 実験条件の選択肢（code_masterから取得） |
+
+**エラー時**:
+- 400: バリデーションエラー
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない
+- 500: システムエラー
+
+#### ビジネスロジック
+
+**取得処理のフロー**:
+1. プロジェクト存在確認（organization_idでフィルタ）
+2. project_taskテーブルからデータ取得
+   - データあり → タスク一覧を返却
+   - データなし → 3へ
+3. MAIMLファイルをS3から取得
+4. MAIMLParserTypedでメソッドID一覧を抽出
+5. デフォルト値でタスク一覧を生成
+   - experimentCondition: 0（全て同一条件）
+   - trialCount: 1
+   - experimentOrder: 1, 2, 3...
+6. code_masterから実験条件オプションを取得
+7. チェックアウト状態とMAIML登録状態を取得
+8. レスポンスを返却
+
+**初期値**:
+- `experimentCondition`: 0（全て同一条件）
+- `trialCount`: 1
+- `experimentOrder`: メソッド出現順（1, 2, 3...）
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/taskRegistrationController.ts` (`getTaskRegistration`)
+- **サービス**: `backend/src/services/taskRegistrationService.ts` (`getTaskRegistration`)
+- **リポジトリ**: 
+  - `backend/src/repositories/taskRepository.ts` (`findByProject`)
+  - `backend/src/repositories/projectRepository.ts` (`findByName`)
+  - `backend/src/repositories/codeMasterRepository.ts` (`findByDivision`)
+- **ユーティリティ**: `backend/src/utils/maimlParserTyped.ts` (`getMethods`)
+
+---
+
+### 18. タスク登録保存 ✅
+
+**エンドポイント**: `POST /api/v1/projects/:projectName/task-registration`
+
+**説明**: タスク登録情報を保存。project_taskとproject_task_detailテーブルに登録。
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
+
+**ボディ（JSON）**:
+```json
+{
+  "tasks": [
+    {
+      "methodId": "method_001",
+      "experimentCondition": 0,
+      "trialCount": 1
+    },
+    {
+      "methodId": "method_002",
+      "experimentCondition": 1,
+      "trialCount": 3
+    }
+  ]
+}
+```
+
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `tasks` | array | ○ | 1個以上 |
+| `tasks[].methodId` | string | ○ | 1-255文字 |
+| `tasks[].experimentCondition` | number | ○ | code_masterに存在する値 |
+| `tasks[].trialCount` | number | ○ | 1-999 |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "タスク登録情報を保存しました"
+  },
+  "meta": {
+    "timestamp": "2026-02-20T09:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー、試行回数が範囲外
+- 401: 認証エラー
+- 403: 権限不足、チェックアウト済み
+- 404: プロジェクトが存在しない
+- 409: MAIMLファイル未登録
+- 500: システムエラー
+
+#### ビジネスロジック
+
+**保存処理のフロー**:
+1. プロジェクト存在確認（organization_idでフィルタ）
+2. チェックアウト状態確認
+   - checkout_status = 1 → エラー（編集不可）
+3. MAIML登録状態確認
+   - project_maiml_flg = false → エラー（保存不可）
+4. トランザクション開始
+5. project_taskテーブルにUPSERT
+   - organization_id, project_id, method_id が主キー
+   - experiment_order（配列のインデックス + 1）
+   - experiment_condition
+   - attempts_count（trialCount）
+   - create_user_id, update_user_id（ログインユーザ）
+6. project_task_detailテーブルから既存レコード削除
+   - organization_id, project_idで削除
+7. project_task_detailテーブルにINSERT
+   - 試行回数分のレコードを生成
+   - task_no: 1から連番
+   - task_status: 0（初期状態）
+8. トランザクションコミット
+9. レスポンスを返却
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/taskRegistrationController.ts` (`saveTaskRegistration`)
+- **サービス**: `backend/src/services/taskRegistrationService.ts` (`saveTaskRegistration`)
+- **リポジトリ**: 
+  - `backend/src/repositories/taskRepository.ts` (`upsertTask`, `deleteTaskDetails`, `insertTaskDetail`)
+  - `backend/src/repositories/projectRepository.ts` (`findByName`)
 
 ---
 

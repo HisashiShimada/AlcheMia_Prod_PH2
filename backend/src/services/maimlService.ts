@@ -13,7 +13,10 @@ import * as validationHistoryRepository from '../repositories/validationHistoryR
 import { EditSession, ParseResult,AnalysisResult  } from '../types/maimlValidation';
 import * as maimlParser from '../utils/maimlParser';
 import { maimlSaveResult} from '../types/maimlEditor';
-import { FileMetadataRepository } from '../repositories/fileMetadataRepository';import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraftsRepository';
+import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
+import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraftsRepository';
+import * as projectRepository from '../repositories/projectRepository';
+import { Project } from '../types/database';
 import type { Draft } from '../types/editor';
 import {
   ListFilesResponse,
@@ -144,6 +147,71 @@ export async function saveMaiML(
           // メタデータ抽出失敗しても保存は成功とする
         }
       }
+      
+      // project_maiml_flgをtrueに更新（必須処理）
+      console.log('🔍 [MAIML Save] project_maiml_flg更新開始:', fileKey);
+      
+      // fileKeyからproject_nameを抽出
+      // 想定形式: projects/sample_project/sample_project.maiml
+      const pathParts = fileKey.split('/');
+      console.log('🔍 [MAIML Save] pathParts:', pathParts);
+      
+      // 'projects'の位置を探す
+      const projectsIndex = pathParts.findIndex(part => part === 'projects');
+      
+      if (projectsIndex !== -1 && pathParts.length > projectsIndex + 1) {
+        const projectName = pathParts[projectsIndex + 1];
+        console.log('🔍 [MAIML Save] 抽出されたプロジェクト名:', projectName);
+        
+        // プロジェクト情報を取得
+        const existingProject = await projectRepository.findByName(organizationId, projectName);
+        
+        if (!existingProject) {
+          // プロジェクトが見つからない場合はエラー
+          const errorMsg = `Project not found: ${projectName} (organizationId: ${organizationId})`;
+          console.error('❌ [MAIML Save] プロジェクトが見つかりません:', {
+            projectName,
+            organizationId,
+            fileKey,
+            pathParts,
+          });
+          throw new Error(errorMsg);
+        }
+        
+        // project_maiml_flgがfalseまたはnullの場合のみ更新
+        if (!existingProject.project_maiml_flg) {
+          // 既存のプロジェクトObjectのproject_maiml_flgをtrueに更新
+          // 注: update_atはprojectRepository.update()内で自動設定されるため、明示的に設定しない
+          const updatedProject: Project = {
+            ...existingProject,
+            project_maiml_flg: true,
+          };
+          
+          try {
+            // 共通のupdateメソッドで更新
+            await projectRepository.update(updatedProject);
+            console.log('✅ [MAIML Save] project_maiml_flg更新完了:', projectName);
+          } catch (updateError) {
+            // フラグ更新失敗時はエラーをthrow（保存処理全体が失敗）
+            console.error('❌ [MAIML Save] project_maiml_flg更新失敗:', {
+              projectName,
+              error: updateError,
+            });
+            throw new Error(`Failed to update project_maiml_flg: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);
+          }
+        } else {
+          console.log('ℹ️ [MAIML Save] project_maiml_flgは既にtrue:', projectName);
+        }
+      } else {
+        // fileKeyの形式が不正な場合はエラー
+        const errorMsg = `Invalid fileKey format: ${fileKey} (pathParts: ${JSON.stringify(pathParts)})`;
+        console.error('❌ [MAIML Save] fileKeyからproject_nameを抽出できません:', {
+          fileKey,
+          pathParts,
+          projectsIndex,
+        });
+        throw new Error(errorMsg);
+      }
     }
 
     return {
@@ -219,20 +287,22 @@ export async function listMaiMLFiles(projectId: string, organizationId: string):
 /**
  * MAIMLバリデーション（強化版）
  * Reference版のロジックを移植 + 重複ID検証追加
+ * 
+ * @param organizationId - 組織ID
+ * @param content - デコード済みXML文字列（コントローラー層でbase64デコード済み）
+ * @param fileKey - ファイルキー
+ * @param skipAnalysisSave - 分析結果保存をスキップするか
+ * @returns バリデーション結果
  */
 export async function validateMaiML(organizationId : string, content: string, fileKey: string = '', skipAnalysisSave: boolean = true): Promise<AnalysisResult> {
-
     console.log('✔️ [maimlService] MAIMLバリデーション開始');
-    // Base64デコード
-    let decodedContent = Buffer.from(content, 'base64').toString('utf-8');
-      
-    // UTF-8 BOM除去（XMLパーサーとの互換性のため）
-    if (decodedContent.charCodeAt(0) === 0xFEFF) {
-      decodedContent = decodedContent.substring(1);
-      console.log('🔧 [Real-time Validation] BOM removed from decoded content');
-    }
     
-    const analysisResult = await maimlParser.analyzeMaiMLFile(organizationId,decodedContent, fileKey ||(skipAnalysisSave ? 'realtime-validation' : 'temp-validation'));
+    const analysisResult = await maimlParser.analyzeMaiMLFile(
+      organizationId,
+      content,
+      fileKey || (skipAnalysisSave ? 'realtime-validation' : 'temp-validation')
+    );
+    
     // Generate quick suggestions for real-time feedback
     analysisResult.autoCorrections = maimlParser.generateAutoCorrections(analysisResult);
 
@@ -1374,7 +1444,7 @@ export async function getMaimlFileContent(fileKey: string): Promise<FileContentR
  * MAIML自動補正（リアルタイム版）
  * Reference版: validationRoutes.js - POST /api/s3/maiml-auto-correct-realtime
  * 
- * @param maimlContent - Base64エンコードされたMAIMLコンテンツ
+ * @param maimlContent - デコード済みMAIMLコンテンツ（コントローラー層でbase64デコード済み）
  * @param selectedErrors - 選択されたエラーのインデックス配列
  * @param organizationId - 組織ID
  * @returns 補正結果
@@ -1390,30 +1460,10 @@ export async function autoCorrectMaiml(
       selectedErrorCount: selectedErrors.length,
     });
 
-    // 1. Base64デコード
-    let decodedContent: string;
-    try {
-      decodedContent = Buffer.from(maimlContent, 'base64').toString('utf-8');
-
-      // UTF-8 BOM除去
-      if (decodedContent.charCodeAt(0) === 0xFEFF) {
-        decodedContent = decodedContent.substring(1);
-        console.log('🔧 [maimlService] BOM removed from decoded content');
-      }
-
-      console.log('🔍 [maimlService] Decoded content preview:', {
-        length: decodedContent.length,
-        firstChars: decodedContent.substring(0, 100),
-      });
-    } catch (decodeError) {
-      console.error('❌ [maimlService] Base64 decode error:', decodeError);
-      throw new Error(`Failed to decode Base64 content: ${decodeError instanceof Error ? decodeError.message : 'Unknown error'}`);
-    }
-
-    // 2. バリデーション実行してエラーを取得
+    // バリデーション実行してエラーを取得
     const analysisResult = await maimlParser.analyzeMaiMLFile(
       organizationId,
-      decodedContent,
+      maimlContent,
       'realtime-autocorrect'
     );
 
@@ -1434,7 +1484,7 @@ export async function autoCorrectMaiml(
 
     if (correctableErrors.length === 0) {
       const response: AutoCorrectResponse = {
-        correctedContent: decodedContent,
+        correctedContent: maimlContent,
         appliedCorrections: [],
         correctionCount: 0,
         totalAttempted: 0,
@@ -1444,8 +1494,8 @@ export async function autoCorrectMaiml(
       return response;
     }
 
-    // 4. 自動修正を適用
-    let correctedContent = decodedContent;
+    // 自動修正を適用
+    let correctedContent = maimlContent;
     const appliedCorrections: CorrectionResult[] = [];
 
     for (const { index, error } of correctableErrors) {
