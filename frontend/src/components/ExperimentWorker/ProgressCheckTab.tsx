@@ -142,12 +142,14 @@ export default function ProgressCheckTab({
     fetchWorkerTasks();
   }, [selectedProject, selectedProjectName]);
   
-  // プロジェクト変更時に最初のメソッドを自動選択
+  // プロジェクト変更時に実験順序が最も小さいメソッドを自動選択
   useEffect(() => {
-    if (methods.length > 0 && !selectedMethodId) {
-      onSelectMethod(methods[0].methodId);
+    if (methods.length > 0) {
+      // 実験順序でソートして最も小さいメソッドを選択
+      const sortedMethods = [...methods].sort((a, b) => a.experimentOrder - b.experimentOrder);
+      onSelectMethod(sortedMethods[0].methodId);
     }
-  }, [methods, selectedMethodId, onSelectMethod]);
+  }, [methods, onSelectMethod]);
   
   // 問題報告モーダルの状態管理
   const [issueReportModalVisible, setIssueReportModalVisible] = useState<boolean>(false);

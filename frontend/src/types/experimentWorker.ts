@@ -95,6 +95,7 @@ export interface Transition {
 export interface Method {
   methodId: string;
   methodName: string;
+  experimentOrder: number; // 実験順序（1から開始）
   description: string;
   category: string;
   transitions: Transition[];

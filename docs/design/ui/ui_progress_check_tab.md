@@ -202,13 +202,18 @@ interface ProgressCheckTabProps {
 ### 5.2 State（内部状態）
 
 ```typescript
-// タスクデータ
-const [tasks, setTasks] = useState<Task[]>([]);
-
-// 問題確認モーダル状態
-const [issueCheckModalVisible, setIssueCheckModalVisible] = useState<boolean>(false);
-const [selectedTaskForIssueCheck, setSelectedTaskForIssueCheck] = useState<Task | null>(null);
+// プロジェクト変更時に実験順序が最も小さいメソッドを自動選択
+useEffect(() => {
+  if (methods.length > 0) {
+    // 実験順序でソートして最も小さいメソッドを選択
+    const sortedMethods = [...methods].sort((a, b) => a.experimentOrder - b.experimentOrder);
+    onSelectMethod(sortedMethods[0].methodId);
+  }
+}, [methods, onSelectMethod]);
 ```
+
+**注意**: `!selectedMethodId`条件と依存配列の`selectedMethodId`を削除しています。
+これにより、プロジェクト切り替え時（methodsが変わるとき）に確実にメソッドが自動選択されます。
 
 ### 5.3 算出データ
 
