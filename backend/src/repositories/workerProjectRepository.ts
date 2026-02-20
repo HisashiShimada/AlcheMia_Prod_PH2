@@ -57,8 +57,8 @@ export async function findWorkerAccessible(
   // 外部SQLファイルを読み込み
   let sqlQuery = await loadSqlFile('projects/findWorkerAccessible.sql');
   
-  // パラメータ配列
-  const params: any[] = [organizationId, userId, organizationId];
+  // パラメータ配列（userIdは使用しない - 組織内全プロジェクトを表示）
+  const params: any[] = [organizationId, organizationId];
   
   // ステータスフィルタの構築
   let statusFilter = '';
@@ -124,8 +124,8 @@ export async function countWorkerAccessible(
   // 外部SQLファイルを読み込み
   let sqlQuery = await loadSqlFile('projects/countWorkerAccessible.sql');
   
-  // パラメータ配列
-  const params: any[] = [organizationId, userId, organizationId];
+  // パラメータ配列（userIdは使用しない - 組織内全プロジェクトを表示）
+  const params: any[] = [organizationId, organizationId];
   
   // ステータスフィルタの構築
   let statusFilter = '';
