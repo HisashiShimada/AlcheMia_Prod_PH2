@@ -805,11 +805,156 @@ export interface Project {
 
 ---
 
+## よくある違反パターンと対処法
+
+### 違反パターン1: 関数引数にインライン型定義
+
+```typescript
+// ❌ 悪い例: インライン型定義
+export async function createProject(data: {
+  name: string;
+  description: string;
+  metadata: {
+    tags: string[];
+    priority: string;
+  }
+}): Promise<void> {
+  // ...
+}
+
+// ✅ 正しい例: 型定義ファイルに集約
+import { CreateProjectRequest } from '../types/api';
+
+export async function createProject(
+  data: CreateProjectRequest
+): Promise<void> {
+  // ...
+}
+```
+
+**対処法:**
+1. `backend/src/types/api.ts` または `frontend/src/types/api.ts` に型定義を作成
+2. 必要な箇所でimportして使用
+3. 他の場所でも再利用できる形で命名
+
+---
+
+### 違反パターン2: コンポーネントPropsにインライン型定義
+
+```typescript
+// ❌ 悪い例: インライン型定義
+const TaskList: React.FC<{
+  tasks: Array<{
+    id: string;
+    name: string;
+    status: string;
+  }>;
+  onTaskClick: (taskId: string) => void;
+}> = ({ tasks, onTaskClick }) => {
+  // ...
+};
+
+// ✅ 正しい例: 型定義ファイルに集約
+import { TaskListProps, Task } from '@/types/components';
+
+const TaskList: React.FC<TaskListProps> = ({ tasks, onTaskClick }) => {
+  // ...
+};
+```
+
+**対処法:**
+1. `frontend/src/types/components.ts` に型定義を作成
+2. Props型とデータ型を分離して定義
+3. 他のコンポーネントでも再利用できる形で命名
+
+---
+
+### 違反パターン3: API型定義の重複
+
+```typescript
+// ❌ 悪い例: 各ファイルで型定義を重複
+// file1.ts
+interface Project {
+  id: string;
+  name: string;
+}
+
+// file2.ts
+interface Project {
+  id: string;
+  name: string;
+}
+
+// ✅ 正しい例: 型定義ファイルに一元化
+// backend/src/types/database.ts
+export interface Project {
+  id: string;
+  name: string;
+  // ...
+}
+
+// file1.ts
+import { Project } from '../types/database';
+
+// file2.ts
+import { Project } from '../types/database';
+```
+
+**対処法:**
+1. 既存の型定義ファイルを検索（`grep -r "interface Project" src/types/`）
+2. 既に定義されている場合は、それを再利用
+3. 定義されていない場合は、適切な型定義ファイルに作成
+
+---
+
+## 実装前のセルフチェックリスト
+
+型定義を作成する前に、以下を必ず確認すること：
+
+- [ ] この型定義は既に存在しないか？（`src/types/` を検索）
+- [ ] インライン型定義になっていないか？
+- [ ] 型定義ファイル（`types/`）に作成しているか？
+- [ ] 他の場所でも再利用できる命名か？
+- [ ] Object型を明示的な型で定義しているか？（`any` を使っていないか？）
+- [ ] JSDocコメントを追加しているか？
+
+---
+
+## 型定義作成フローチャート
+
+```
+型定義が必要になった
+  ↓
+既存の型定義ファイルを検索
+  ↓
+存在する？
+  ├─ Yes → その型定義をimportして使用
+  └─ No  → 新規作成
+              ↓
+        適切な型定義ファイルを選択
+          - database.ts（DBテーブル）
+          - api.ts（API型）
+          - components.ts（コンポーネントProps）
+          - common.ts（共通型）
+              ↓
+        型定義を作成
+          - interface または type で定義
+          - JSDocコメント追加
+          - export を忘れない
+              ↓
+        必要な箇所でimport
+              ↓
+        ✅ 完了
+```
+
+---
+
 ## 関連ドキュメント
 
 - [データベース操作規約](database.md) - データベース型の使用方法
 - [コーディング規約](config.md) - インポート順序とファイル命名規則
 - [セキュリティ規約](security.md) - 型安全性とセキュリティ
+- [ワークフロー規約](../core/workflow.md) - 実装中の規約確認タイミング
 
 ---
 

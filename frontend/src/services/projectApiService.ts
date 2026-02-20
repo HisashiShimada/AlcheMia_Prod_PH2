@@ -9,6 +9,11 @@ import { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
 import type { ProjectFile } from '@/types/file';
 import type { Task, TaskStatistics, Project } from '@/types/project';
+import type {
+  GetTaskRegistrationResponse,
+  SaveTaskRegistrationRequest,
+  SaveTaskRegistrationResponse
+} from '@/types/taskRegistration';
 
 /**
  * プロジェクト一覧レスポンス型
@@ -383,6 +388,92 @@ export const getProjectData = async (
     return { files, tasks };
   } catch (error) {
     console.error('プロジェクトデータ取得エラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * タスク登録情報を取得
+ * GET /api/v1/projects/:projectName/task-registration
+ * 
+ * @param projectName プロジェクト名
+ * @returns タスク登録情報
+ * @throws Error APIエラー時
+ */
+export const getTaskRegistration = async (
+  projectName: string
+): Promise<GetTaskRegistrationResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] getTaskRegistration - Request', { projectName });
+    
+    const response = await client.get<{
+      success: true;
+      data: GetTaskRegistrationResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/task-registration`);
+
+    console.log('[DEBUG] getTaskRegistration - Success', {
+      tasksCount: response.data.data.tasks.length,
+      isCheckoutLocked: response.data.data.isCheckoutLocked,
+      isMaimlRegistered: response.data.data.isMaimlRegistered,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] getTaskRegistration - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * タスク登録情報を保存
+ * POST /api/v1/projects/:projectName/task-registration
+ * 
+ * @param projectName プロジェクト名
+ * @param request タスク登録保存リクエスト
+ * @returns 保存結果
+ * @throws Error APIエラー時
+ */
+export const saveTaskRegistration = async (
+  projectName: string,
+  request: SaveTaskRegistrationRequest
+): Promise<SaveTaskRegistrationResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] saveTaskRegistration - Request', { projectName, tasksCount: request.tasks.length });
+    
+    const response = await client.post<{
+      success: true;
+      data: SaveTaskRegistrationResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/task-registration`, request);
+
+    console.log('[DEBUG] saveTaskRegistration - Success', {
+      message: response.data.data.message,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] saveTaskRegistration - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
     throw error;
   }
 };

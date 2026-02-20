@@ -58,6 +58,71 @@ Clineがタスクを実行する際は、必ず事前にタスク計画書を作
 - エラーハンドリングは統一された形式で行う
 - ログは winston を使用して記録
 
+## TypeScript型定義の必須ルール
+
+詳細は [typescript.md](typescript.md) を参照してください。
+
+### すべての型定義は専用ファイルに集約
+
+**禁止事項:**
+```typescript
+// ❌ インライン型定義（禁止）
+function createUser(data: { name: string; email: string }) { }
+
+// ❌ ファイル内に型定義（再利用不可）
+interface User {
+  name: string;
+  email: string;
+}
+function createUser(data: User) { }
+```
+
+**推奨事項:**
+```typescript
+// ✅ 型定義ファイルに集約
+// types/user.ts
+export interface User {
+  name: string;
+  email: string;
+}
+
+// service.ts
+import { User } from './types/user';
+function createUser(data: User) { }
+```
+
+### 型定義作成時の確認ポイント
+
+1. **既存の型定義を検索する**
+   ```bash
+   # バックエンド
+   grep -r "interface Project" backend/src/types/
+   
+   # フロントエンド
+   grep -r "interface Project" frontend/src/types/
+   ```
+
+2. **適切な型定義ファイルを選択する**
+   - `database.ts` - DBテーブルの型
+   - `api.ts` - API リクエスト/レスポンス
+   - `components.ts` - コンポーネントProps
+   - `common.ts` - 共通型
+
+3. **JSDocコメントを追加する**
+   ```typescript
+   /**
+    * ユーザー情報の型定義
+    * 
+    * @remarks
+    * user テーブルのスキーマに対応
+    */
+   export interface User {
+     // ...
+   }
+   ```
+
+詳細は `.clinerules/development/typescript.md` を参照してください。
+
 ## レビュー依頼時の注意点
 
 ### コミット前の確認事項
