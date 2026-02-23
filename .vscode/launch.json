@@ -4,10 +4,22 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "node",
-            "program": "${workspaceFolder}/backend/server.js",
-            "envFile": "${workspaceFolder}/backend/.env", // ← ココ！！
-            "sourceMaps": true
+            "name": "Debug Backend (TypeScript)",
+            "runtimeArgs": [
+                "-r",
+                "ts-node/register"
+            ],
+            "args": [
+                "${workspaceFolder}/backend/src/server.ts"
+            ],
+            "cwd": "${workspaceFolder}/backend",
+            "envFile": "${workspaceFolder}/backend/.env",
+            "sourceMaps": true,
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std"
         }
-    ],
+    ]
 }

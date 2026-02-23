@@ -4,7 +4,7 @@
  * transition_dataテーブルへのデータアクセスを担当するリポジトリ
  */
 
-import { getPool, getPgp } from '../database/db';
+import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { TransitionStatus } from '../types/transitionData';
 
