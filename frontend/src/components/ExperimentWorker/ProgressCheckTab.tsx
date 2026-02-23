@@ -103,11 +103,10 @@ export default function ProgressCheckTab({
               assignedUserName: task.experiment_user_name,
               createdAt: task.created_at,
               updatedAt: task.updated_at,
-              progress: task.progress,
               projectId: apiData.project_id,
               sampleNumber: '', // APIには存在しないためデフォルト値（string型）
               notes: '', // APIには存在しないためデフォルト値
-              progressRate: task.progress, // progressと同じ値を使用
+              progressRate: parseFloat(task.progress_rate) || 0, // APIのprogress_rateを数値変換
               transitionStatuses: [], // APIには存在しないためデフォルト値
               progressReport: '', // APIには存在しないためデフォルト値
               recordNumber: '', // APIには存在しないためデフォルト値（string型）
@@ -381,9 +380,9 @@ export default function ProgressCheckTab({
       return { status: 'success', label: '完了' };
     }
 
-    // 作業中・開始済みのタスクがあれば作業中
+    // 作業中のタスクがあれば作業中
     const hasInProgress = methodTasks.some(
-      t => t.status === 'in_progress' || t.status === 'started'
+      t => t.status === 'in_progress'
     );
     if (hasInProgress) {
       return { status: 'processing', label: '作業中' };

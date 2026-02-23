@@ -147,12 +147,13 @@ export interface WorkerMethod {
  */
 export interface WorkerTask {
   task_no: number;
-  status: 'not_started' | 'started' | 'in_progress' | 'completed' | 'forced_terminated';
+  task_status: 'not_started' | 'started' | 'in_progress' | 'completed' | 'forced_terminated';
   experiment_user_id: string;
   experiment_user_name: string;
   created_at: string;
   updated_at: string;
   progress: number;
+  progress_rate: string;  // APIレスポンスでは文字列型（例: "50.0000000000000000"）
 }
 
 /**
