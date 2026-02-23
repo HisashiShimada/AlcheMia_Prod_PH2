@@ -16,7 +16,7 @@ import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { getStorageService } from './storageService';
 import { ProjectAccessValidator } from './projectAccessValidator';
 import { sanitizeFileName } from '../utils/filePathValidator';
-import { logDownloadHistory, logBulkDownloadHistory } from '../utils/downloadLogger';
+import { logDownloadHistory } from '../utils/downloadLogger';
 import {
   ValidationError,
   NotFoundError,

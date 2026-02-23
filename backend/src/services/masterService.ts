@@ -661,6 +661,7 @@ export async function updateCreatorMaster(
   // 更新後のデータを完全な形式で返す
   return {
     creatorId: updatedCreator.creator_id,
+    creatorUuid: updatedCreator.creator_uuid,
     creatorName: updatedCreator.creator_name,
     creatorDescription: updatedCreator.creator_description || '',
     creatorAnnotation: updatedCreator.creator_annotation || '',

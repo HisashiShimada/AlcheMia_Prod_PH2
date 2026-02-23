@@ -1,3 +1,4 @@
+/// <reference types="../types/express" />
 import { Request, Response } from 'express';
 import { getPool } from '../database/db';
 import { AuthService } from '../services/authService';
