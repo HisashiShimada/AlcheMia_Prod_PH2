@@ -48,7 +48,7 @@ Clineがタスクを実行する際は、必ず事前にタスク計画書を作
 
 ## バックエンド規約
 
-詳細は [backend.md](backend.md) を参照してください。
+詳細は [database.md](database.md) を参照してください。
 
 ### 主要なポイント
 - Node.js 18+ + Express.js 4.18.3を使用

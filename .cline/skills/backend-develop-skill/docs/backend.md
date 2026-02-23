@@ -118,6 +118,45 @@ backend/
 
 詳細は `docs/SQL管理方法選定_提案書.md` を参照してください。
 
+#### 代替方法: pg-promise + SQLファイル外部管理
+
+**採用パッケージ**: pg-promise
+
+新規実装では、以下の方針でpg-promiseを使用することも可能です：
+
+- **SQLファイル外部管理**: 複雑なクエリは外部SQLファイルで管理
+- **ファイル配置**: `backend/src/sql/queries/{ドメイン名}/{操作名}.sql`
+- **動的フィルタ**: ベースクエリは外部ファイル、動的条件はTypeScript側で処理
+- **参照モデル**: `backend/src/repositories/departmentRepository.ts` の `findAll()` メソッド
+
+詳細は `.clinerules/development/database.md` の「Repository層のSQL管理規約」セクションを参照してください。
+
+**使用例:**
+```typescript
+import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
+
+export async function findAll(organizationId: string): Promise<DepartmentRow[]> {
+  const pgp = getPgp();
+  const sqlQuery = await loadSqlFile('departments/findAll.sql');
+  return await pgp.any<DepartmentRow>(sqlQuery, [organizationId]);
+}
+```
+
+**SQLファイル例 (backend/src/sql/queries/departments/findAll.sql):**
+```sql
+SELECT 
+  organization_id,
+  department_cd,
+  department_name,
+  is_active,
+  create_at,
+  update_at
+FROM department
+WHERE organization_id = $1
+ORDER BY department_cd ASC
+```
+
 #### SQL記述の使い分けルール
 
 ##### 1. 簡単なクエリ: Kyselyのクエリビルダーを使用

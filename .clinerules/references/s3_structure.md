@@ -19,7 +19,8 @@
     │   └── {project_name}/
     │       ├── {project_name}.maiml
     │       └── archive/
-    └── formats/               # フォーマット定義
+    ├── formats/               # フォーマット定義
+    └── certificates/          # クライアント証明書
 ```
 
 ### バケット名とプレフィックス
@@ -107,6 +108,59 @@
   - 例: `chemistry`, `biology`, `materials`, `reagents`, `material_science`
 - **サブフォルダ**: 任意の名前（作成時に指定、階層化可能）
 - **ファイル名**: 用途を表す名前 + `.maiml` または `.xml`
+
+---
+
+### 3. certificates/ - クライアント証明書
+
+```
+{organization_id}/certificates/
+└── {organization_id}.p12       # PKCS#12形式のクライアント証明書
+```
+
+**パス例:**
+```
+550e8400-e29b-41d4-a716-446655440000/certificates/550e8400-e29b-41d4-a716-446655440000.p12
+6ba7b810-9dad-11d1-80b4-00c04fd430c8/certificates/6ba7b810-9dad-11d1-80b4-00c04fd430c8.p12
+```
+
+**用途:**
+- 組織ごとのクライアント証明書（PKCS#12形式）
+- ブラウザにインポートして使用
+- クライアント証明書認証に使用
+- 組織作成時に自動生成
+
+**証明書の構成:**
+- **クライアント秘密鍵**: RSA 2048bit
+- **クライアント証明書**: Subject CN=組織ID（UUID）
+- **CA証明書**: 発行元CA証明書（チェーン）
+- **パスワード**: 環境変数 `CERT_P12_PASSWORD`（デフォルト: `mmdpf123`）
+- **有効期限**: 365日（環境変数 `CERT_VALIDITY_DAYS` で変更可能）
+
+**命名規則:**
+- ファイル名: `{organization_id}.p12`
+- 拡張子: `.p12`（PKCS#12形式）
+- サイズ: 約4-6KB
+
+**自動生成タイミング:**
+- 組織作成時（`POST /api/v1/provider/organization`）
+- `certificateService.generateAndSaveCertificate()` が自動実行
+- 生成失敗時はログに記録されるが、組織作成は続行される
+
+**手動再生成:**
+```bash
+# 既存組織の証明書を再生成
+npx ts-node backend/scripts/regenerate-certificate.ts <organization_id>
+
+# 例
+npx ts-node backend/scripts/regenerate-certificate.ts 550e8400-e29b-41d4-a716-446655440000
+```
+
+**証明書のダウンロード:**
+- API: `GET /api/v1/provider/organization/:organizationId/certificate`
+- 署名付きURL有効期限: 5分間（短期間を推奨）
+- Content-Type: `application/x-pkcs12`
+- ブラウザで自動的にダウンロードが開始される
 
 ---
 
@@ -392,7 +446,42 @@ await storageService.deleteFile(
   '550e8400-e29b-41d4-a716-446655440000',
   `projects/${projectName}/${projectName}.maiml`
 );
+```
 
+### 証明書のダウンロード
+
+```typescript
+// クライアント証明書をダウンロード
+const p12Buffer = await storageService.downloadFile(
+  '550e8400-e29b-41d4-a716-446655440000',
+  'certificates/550e8400-e29b-41d4-a716-446655440000.p12'
+);
+
+// フロントエンドへ提供（署名付きURL）
+const signedUrl = await storageService.getSignedUrl(
+  '550e8400-e29b-41d4-a716-446655440000',
+  'certificates/550e8400-e29b-41d4-a716-446655440000.p12',
+  300  // 5分間有効（短い有効期限を推奨）
+);
+res.json({ certificateUrl: signedUrl });
+
+// またはcertificateService経由（推奨）
+import { getCertificateFromStorage } from '@/services/certificateService';
+
+const p12Buffer = await getCertificateFromStorage(organizationId);
+```
+
+### 証明書の存在確認
+
+```typescript
+import { certificateExists } from '@/services/certificateService';
+
+// 証明書の存在確認
+const exists = await certificateExists(organizationId);
+if (!exists) {
+  // 証明書を再生成
+  await generateAndSaveCertificate(organizationId);
+}
 ```
 
 ---
@@ -463,6 +552,37 @@ const signedUrl = await storageService.getSignedUrl(
 );
 ```
 
+#### 4. 証明書が見つからない
+
+**症状:**
+```
+Error: Certificate not found: 550e8400-e29b-41d4-a716-446655440000/certificates/550e8400-e29b-41d4-a716-446655440000.p12
+```
+
+**原因:**
+- 組織作成時に証明書生成が失敗した
+- CA証明書（nginx/certs/ca/）が存在しない
+- 証明書が手動で削除された
+
+**解決方法:**
+```bash
+# 1. CA証明書の存在確認
+ls -la backend/certs/ca/ca.crt
+ls -la backend/certs/ca/ca.key
+
+# 2. CA証明書がない場合は生成
+npx ts-node backend/scripts/generate-ca-certificate.ts
+
+# 3. バックエンドを再起動
+docker restart mmdpf-backend-1
+
+# 4. クライアント証明書を再生成
+npx ts-node backend/scripts/regenerate-certificate.ts 550e8400-e29b-41d4-a716-446655440000
+
+# 5. ログで確認
+docker logs mmdpf-backend-1 | grep "certificateService"
+```
+
 ---
 
 ## 📚 関連ドキュメント
@@ -470,6 +590,7 @@ const signedUrl = await storageService.getSignedUrl(
 - [セキュリティ規約](../development/security.md) - マルチテナント分離の詳細
 - [バックエンド規約](../development/backend.md) - ファイル操作の実装ガイド
 - [データベース構造](./db_structure.md) - file_metadataテーブルとの連携
+- [組織管理API](../../docs/design/api/api_organization_management.md) - 証明書ダウンロードAPI
 
 ---
 
@@ -477,5 +598,6 @@ const signedUrl = await storageService.getSignedUrl(
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-02-19 | certificates/フォルダ構成定義を追加（クライアント証明書） | Cline |
 | 2026-02-17 | 組織プレフィックス形式から組織ID（UUID）形式に変更 | Cline |
 | 2026-01-09 | 初版作成 | Cline |

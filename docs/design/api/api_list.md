@@ -2,7 +2,7 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.9.1
+- **バージョン**: 2.11.0
 - **最終更新**: 2026-02-19
 - **担当**: Development Team
 
@@ -425,7 +425,7 @@
 
 ---
 
-### 14. ファイルアクセスAPI（File Access）
+### 13. ファイルアクセスAPI（File Access）
 
 **API設計書**: [api_file_access.md](./api_file_access.md)  
 **ルートファイル**: `backend/src/routes/fileAccessRoutes.ts`  
@@ -457,21 +457,22 @@
 
 ---
 
-### 15. 組織管理API（Organization Management）
+### 14. 組織管理API（Organization Management）
 
 **API設計書**: [api_organization_management.md](./api_organization_management.md)
 **ルートファイル**: `backend/src/routes/organizationRoutes.ts`
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 15.1 | GET | /api/v1/provider/organization | 組織一覧取得 | ✅ 実装済み | organizationController.getOrganizations |
-| 15.2 | GET | /api/v1/provider/organization/download-csv | 組織CSVダウンロード | ✅ 実装済み | organizationController.downloadOrganizationCsv |
-| 15.3 | POST | /api/v1/provider/organization/upload-csv | 組織CSVアップロード | ✅ 実装済み | organizationController.uploadOrganizationCsv |
-| 15.4 | GET | /api/v1/provider/organization/:organizationId | 組織詳細取得 | ✅ 実装済み | organizationController.getOrganizationById |
-| 15.5 | GET | /api/v1/provider/organization/:organizationId/system-admins | システム管理者一覧取得 | ✅ 実装済み | organizationController.getSystemAdminsByOrganizationId |
-| 15.6 | POST | /api/v1/provider/organization | 組織新規作成 | ✅ 実装済み | organizationController.createOrganization |
-| 15.7 | PUT | /api/v1/provider/organization/:organizationId | 組織更新 | ✅ 実装済み | organizationController.updateOrganization |
-| 15.8 | PATCH | /api/v1/provider/organization/:organizationId/status | 組織アクティブ状態更新 | ✅ 実装済み | organizationController.updateOrganizationStatus |
+| 14.1 | GET | /api/v1/provider/organization | 組織一覧取得 | ✅ 実装済み | organizationController.getOrganizations |
+| 14.2 | GET | /api/v1/provider/organization/download-csv | 組織CSVダウンロード | ✅ 実装済み | organizationController.downloadOrganizationCsv |
+| 14.3 | POST | /api/v1/provider/organization/upload-csv | 組織CSVアップロード | ✅ 実装済み | organizationController.uploadOrganizationCsv |
+| 14.4 | GET | /api/v1/provider/organization/:organizationId | 組織詳細取得 | ✅ 実装済み | organizationController.getOrganizationById |
+| 14.5 | GET | /api/v1/provider/organization/:organizationId/system-admins | システム管理者一覧取得 | ✅ 実装済み | organizationController.getSystemAdminsByOrganizationId |
+| 14.6 | POST | /api/v1/provider/organization | 組織新規作成 | ✅ 実装済み | organizationController.createOrganization |
+| 14.7 | PUT | /api/v1/provider/organization/:organizationId | 組織更新 | ✅ 実装済み | organizationController.updateOrganization |
+| 14.8 | PATCH | /api/v1/provider/organization/:organizationId/status | 組織アクティブ状態更新 | ✅ 実装済み | organizationController.updateOrganizationStatus |
+| 14.9 | GET | /api/v1/provider/organization/:organizationId/certificate | クライアント証明書ダウンロード | ✅ 実装済み | organizationController.downloadCertificate |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`
@@ -730,12 +731,19 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 2.9.1 | 2026-02-19 17:20 | 14番項番のAPI競合を整理（115エンドポイント） | Cline |
+| 2.11.0 | 2026-02-19 | 組織管理API - クライアント証明書ダウンロード機能追加 | Cline |
+| | | - API 14.9: GET /organization/:organizationId/certificate 追加 | |
+| | | - PKCS#12形式の証明書ダウンロード | |
+| | | - 組織管理API: 8→9エンドポイント | |
+| | | - 実装済みAPI総数: 81→82エンドポイント（+1） | |
+| | | - 全体: 103→104エンドポイント | |
+| | | - 実装率: 79%維持 | |
+| 2.10.1 | 2026-02-19 17:20 | 14番項番のAPI競合を整理（115エンドポイント） | Cline |
 | | | - 組織管理APIを14番から15番に移動（API番号14.1-14.8→15.1-15.8） | |
 | | | - カテゴリ数: 14→15カテゴリ | |
 | | | - 合計エンドポイント数: 107→115（組織管理API 8エンドポイントを追加計上） | |
 | | | - 全体実装率: 85%→86%に微増 | |
-| 2.9.0 | 2026-02-19 17:10 | routeファイル実装状況を反映（107エンドポイント）トランジションステータス更新API移動（96エンドポイント） | Cline |
+| 2.10.0 | 2026-02-19 17:10 | routeファイル実装状況を反映（107エンドポイント）トランジションステータス更新API移動（96エンドポイント） | Cline |
 | | | - プロジェクト管理API: 17→16エンドポイント、実装済み13個（81%） | |
 | | | - Maiml編集API: 10→17エンドポイント、実装済み17個（100%完了） | |
 | | |   - Draft機能追加（4エンドポイント）、ファイル管理追加（3エンドポイント） | |
@@ -753,6 +761,7 @@ const path = `projects/${projectName}/file.maiml`;
 | | | - 総エンドポイント数: 95→96（+1） | |
 | | | - 未実装API数: 22→23（+1） | |
 | | | - 全体実装率: 76%→75%（分母増加により一時的に低下） | |
+| 2.9.0 | 2026-02-18 | トランジションステータス更新API移動（96エンドポイント） | Cline |
 | 2.8.4 | 2026-02-18 | タスク一覧取得（実験作業者用）API仕様変更（95エンドポイント） | Cline |
 | | | - 進捗確認API: 6→5エンドポイント（置き換え） | |
 | | | - API 6.4: GET /api/v1/progress/projects/:projectName/worker-tasks（エンドポイント変更） | |

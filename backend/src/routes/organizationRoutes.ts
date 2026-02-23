@@ -112,6 +112,26 @@ router.get(
 );
 
 /**
+ * クライアント証明書をダウンロード
+ * GET /api/v1/provider/organization/:organizationId/certificate
+ * 
+ * 注意: このルートは /organization/:organizationId より前に定義する必要がある
+ */
+router.get(
+  '/organization/:organizationId/certificate',
+  authMiddleware,
+  [
+    param('organizationId')
+      .notEmpty()
+      .withMessage('organizationId is required')
+      .isUUID()
+      .withMessage('organizationId must be a valid UUID'),
+  ],
+  handleValidationErrors,
+  organizationController.downloadCertificate
+);
+
+/**
  * Organization ID指定で1件取得
  * GET /api/v1/provider/organization/:organizationId
  */
