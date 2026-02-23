@@ -7,11 +7,12 @@
  */
 
 import { TaskRepository } from '../repositories/taskRepository';
-import { TransitionDataRepository } from '../repositories/transitionDataRepository';
+import { TransitionDataRepository, TransitionDataRow } from '../repositories/transitionDataRepository';
+import { EventLogRepository } from '../repositories/eventLogRepository';
 import { getStorageService } from './storageService';
 import { parsePetriNetStructure } from './maimlService';
 import { Result } from '../types/service';
-import { Status } from '../types/transitionData';
+import { Status, TransitionData, TransitionDataUpdate } from '../types/transitionData';
 import {
   ProgressData,
   ProgressServiceError,
@@ -22,6 +23,35 @@ import {
   TransitionStatus
 } from '../types/progress';
 import { logger } from '../utils/logger';
+import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
+
+/**
+ * ステータス遷移マトリクス
+ */
+export const ALLOWED_TRANSITIONS: Record<Status, Status[]> = {
+  initial: ['preparing', 'completed', 'error'],
+  preparing: ['ready', 'completed', 'error'],
+  ready: ['ready', 'running', 'completed', 'error'],
+  running: ['paused', 'completed', 'error'],
+  paused: ['running', 'completed', 'error'],
+  completed: [],
+  error: []
+};
+
+/**
+ * ステータス遷移エラー
+ */
+export class InvalidStatusTransitionError extends Error {
+  constructor(fromStatus: Status, toStatus: Status) {
+    if (fromStatus === 'completed' || fromStatus === 'error') {
+      super(`Cannot change status from terminal state '${fromStatus}'. Terminal states (completed, error) cannot be changed.`);
+    } else {
+      super(`Invalid status transition from '${fromStatus}' to '${toStatus}'. Allowed transitions from '${fromStatus}': ${ALLOWED_TRANSITIONS[fromStatus].join(', ')}`);
+    }
+    this.name = 'InvalidStatusTransitionError';
+  }
+}
 
 /**
  * ProgressServiceクラス
@@ -30,10 +60,15 @@ import { logger } from '../utils/logger';
  * @requirements Requirement 1, 4, 5, 8, 9
  */
 export class ProgressService {
+  private eventLogRepository: EventLogRepository;
+
   constructor(
     private taskRepository: TaskRepository,
-    private transitionDataRepository: TransitionDataRepository
-  ) {}
+    private transitionDataRepository: TransitionDataRepository,
+    eventLogRepository?: EventLogRepository
+  ) {
+    this.eventLogRepository = eventLogRepository || new EventLogRepository();
+  }
 
   /**
    * 進捗データ取得
@@ -529,5 +564,145 @@ export class ProgressService {
       not_started: notStarted,
       overall_percentage: overallPercentage
     };
+  }
+
+  /**
+   * ステータス遷移の妥当性を検証
+   * 
+   * @param fromStatus 現在のステータス
+   * @param toStatus 新しいステータス
+   * @throws InvalidStatusTransitionError 不正な遷移の場合
+   */
+  validateStatusTransition(fromStatus: Status, toStatus: Status): void {
+    if (!fromStatus || !toStatus) {
+      throw new Error('Source and target status are required');
+    }
+
+    if (!(fromStatus in ALLOWED_TRANSITIONS)) {
+      throw new Error(`Unknown status: ${fromStatus}`);
+    }
+    if (!(toStatus in ALLOWED_TRANSITIONS)) {
+      throw new Error(`Unknown status: ${toStatus}`);
+    }
+
+    const allowedTransitions = ALLOWED_TRANSITIONS[fromStatus];
+
+    if (!allowedTransitions.includes(toStatus)) {
+      throw new InvalidStatusTransitionError(fromStatus, toStatus);
+    }
+  }
+
+  /**
+   * トランジションステータスを更新
+   * 
+   * @param organizationId 組織ID
+   * @param projectId プロジェクトID
+   * @param methodId メソッドID
+   * @param transitionId トランジションID
+   * @param update 更新内容
+   * @returns 更新後のトランジションデータ
+   */
+  async updateTransitionStatus(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    transitionId: string,
+    update: TransitionDataUpdate
+  ): Promise<TransitionData> {
+    const pool = getPool();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. トランジションIDからmethod_idとtask_noを取得
+      const findSql = await loadSqlFile('transition_data/findByTransitionId.sql');
+      const findResult = await client.query(
+        findSql,
+        [organizationId, projectId, methodId, transitionId]
+      );
+
+      if (findResult.rows.length === 0) {
+        const error: any = new Error('Transition not found');
+        error.name = 'TransitionNotFoundError';
+        throw error;
+      }
+
+      const { method_id, task_no, status: currentStatus } = findResult.rows[0];
+
+      // 2. ステータス遷移ルールの検証
+      this.validateStatusTransition(currentStatus, update.status);
+
+      // 3. completedステータス時は進捗率を100%に自動設定
+      const finalProgressRate = update.status === 'completed' 
+        ? 100 
+        : (update.progress_rate ?? 0);
+
+      const finalUpdate = {
+        status: update.status,
+        progress_rate: finalProgressRate,
+        updated_by: update.updated_by
+      };
+
+      // 4. トランジションステータスを更新
+      const updatedTransition: TransitionDataRow = await this.transitionDataRepository.updateStatus(
+        organizationId,
+        projectId,
+        method_id,
+        task_no,
+        transitionId,
+        finalUpdate
+      );
+
+      // 5. イベントログを記録
+      await this.eventLogRepository.logEvent(
+        organizationId,
+        projectId,
+        {
+          event_type: 'transition_status_update',
+          method_id: method_id,
+          task_no: task_no,
+          transition_id: transitionId,
+          status: update.status,
+          progress_rate: finalProgressRate,
+          comment: updatedTransition.comment || undefined,
+          updated_by: update.updated_by,
+          timestamp: new Date()
+        },
+        client
+      );
+
+      // 6. タスク進捗率を再計算
+      const countSql = await loadSqlFile('transition_data/countByTask.sql');
+      const countResult = await client.query(
+        countSql,
+        [organizationId, projectId, method_id, task_no]
+      );
+      const transitionCount = parseInt(countResult.rows[0].count, 10);
+
+      const sumSql = await loadSqlFile('transition_data/sumProgressRateByTask.sql');
+      const sumResult = await client.query(
+        sumSql,
+        [organizationId, projectId, method_id, task_no]
+      );
+      const progressSum = parseInt(sumResult.rows[0].sum, 10);
+
+      const taskProgressRate = transitionCount > 0 ? Math.round(progressSum / transitionCount) : 0;
+
+      const updateProgressSql = await loadSqlFile('project_tasks/updateProgressRate.sql');
+      await client.query(
+        updateProgressSql,
+        [taskProgressRate, organizationId, projectId, method_id, task_no]
+      );
+
+      await client.query('COMMIT');
+
+      return updatedTransition as unknown as TransitionData;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 }

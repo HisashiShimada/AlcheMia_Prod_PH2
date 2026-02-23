@@ -13,7 +13,7 @@ import { MenuType } from '@/types/auth';
 import ProjectManagement from '../project/ProjectManagement';
 import FormatManagement from '../project/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
-import PetriNetEditorScreen from '../viewer/PetriNetEditorScreen';
+import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getPermissionsFromToken } from '@/utils/jwtUtils';

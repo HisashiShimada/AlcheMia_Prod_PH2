@@ -423,5 +423,69 @@
     "actions": {
       "viewDetails": "View Details"
     }
+  },
+  "taskRegistration": {
+    "title": "Task Registration",
+    "loading": "Loading method information...",
+    "noMethods": "No methods available",
+    "dragHint": "🔀 Drag rows or enter order directly to change sequence",
+    "saveButton": "Save Task Information",
+    "saving": "Saving...",
+    "columns": {
+      "order": "Work Order",
+      "method": "Method Name",
+      "condition": "Experiment Condition",
+      "trialCount": "Trial Count"
+    },
+    "condition": {
+      "same": "Same conditions for all",
+      "different": "Change conditions"
+    },
+    "trialCountPlaceholder": "Trial count",
+    "emptyState": "No tasks available",
+    "messages": {
+      "restored": "Restored saved task information",
+      "saved": "Task information saved successfully",
+      "selectAllMethods": "Please select all methods",
+      "invalidTrialCount": "Trial count must be between 1 and 999",
+      "invalidOrder": "Order must be between 1 and {max}"
+    }
+  },
+  "instructionRegistration": {
+    "title": "Send Instructions",
+    "listTitle": "📋 Instruction List ({count} items)",
+    "addButton": "Add Instruction",
+    "sendButton": "Send Instructions",
+    "columns": {
+      "target": "Instruction Target",
+      "priority": "Priority",
+      "type": "Type",
+      "content": "Instruction Content",
+      "action": "Action"
+    },
+    "priority": {
+      "high": "High",
+      "medium": "Medium",
+      "normal": "Normal",
+      "low": "Low"
+    },
+    "type": {
+      "general": "General",
+      "setup": "Setup",
+      "measurement": "Measurement",
+      "safety": "Safety",
+      "cleanup": "Cleanup"
+    },
+    "emptyState": "No instructions registered",
+    "editButton": "Edit",
+    "deleteButton": "Delete",
+    "detailButton": "Detail",
+    "messages": {
+      "restored": "Restored saved instruction information",
+      "added": "Instruction added successfully",
+      "updated": "Instruction updated successfully",
+      "sent": "Instructions sent successfully",
+      "noInstructions": "No instructions to send"
+    }
   }
 }

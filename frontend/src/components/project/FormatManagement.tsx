@@ -39,7 +39,7 @@ import { useApi } from '@/hooks/useApi';
 import { fetchFormats, fetchFormatFiles } from '@/utils/apiClient';
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
-import { getFileDownloadUrlByKey } from '@/api/fileAccessService';
+import { getFileDownloadUrlByKey } from '@/services/fileAccessService';
 import { createApiClient } from '@/utils/authUtils';
 
 const { Title, Text } = Typography;

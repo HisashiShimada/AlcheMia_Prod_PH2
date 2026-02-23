@@ -185,11 +185,18 @@ export class IssueService {
    */
   async updateStatus(
     organizationId: string,
+    projectName: string,
     issueId: string,
     userId: string,
     status: IssueStatus
   ): Promise<ServiceResult<Issue>> {
     try {
+      // プロジェクト名からプロジェクトID取得
+      const projectId = await this.issueRepository.getProjectIdByName(organizationId, projectName);
+      if (!projectId) {
+        throw new NotFoundError('プロジェクトが見つかりません');
+      }
+
       const existingIssue = await this.issueRepository.findById(
         issueId,
         organizationId
@@ -254,6 +261,7 @@ export class IssueService {
    */
   async addComment(
     organizationId: string,
+    projectName: string,
     issueId: string,
     userId: string,
     comment: string
@@ -265,6 +273,12 @@ export class IssueService {
 
       if (comment.length > 2000) {
         throw new ValidationError('コメントは2000文字以内で入力してください');
+      }
+
+      // プロジェクト名からプロジェクトID取得
+      const projectId = await this.issueRepository.getProjectIdByName(organizationId, projectName);
+      if (!projectId) {
+        throw new NotFoundError('プロジェクトが見つかりません');
       }
 
       // 問題存在確認

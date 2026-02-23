@@ -324,22 +324,22 @@ export default function OrganizationManagement() {
   // 証明書ダウンロード
   const handleDownloadCertificate = async (org: OrganizationData) => {
     try {
-      // publicフォルダの証明書ファイルにアクセス（Next.jsは/publicを/でアクセス可能）
-      const certPath = '/certs/rootCA.crt';
+      const client = createApiClient();
       
-      // fetchでファイルを取得
-      const response = await fetch(certPath);
-      if (!response.ok) {
-        throw new Error('証明書ファイルの取得に失敗しました');
-      }
+      // バックエンドAPIからクライアント証明書（.p12）を取得
+      const response = await client.get(
+        `/provider/organization/${org.organizationId}/certificate`,
+        { responseType: 'blob' }  // バイナリデータとして取得
+      );
       
-      const blob = await response.blob();
-      const link = document.createElement('a');
+      // Blobからダウンロードリンクを作成
+      const blob = new Blob([response.data], { type: 'application/x-pkcs12' });
       const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
       
-      // ファイル名を設定（組織IDを使用）
+      // ファイル名を設定（組織CD + .p12拡張子）
       link.href = url;
-      link.download = `${org.organizationId}_certificate.crt`;
+      link.download = `${org.organizationCd}_certificate.p12`;
       
       // ダウンロード実行
       document.body.appendChild(link);

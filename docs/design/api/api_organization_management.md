@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-02-18
-- **バージョン**: 1.0.0
-- **最終更新**: 2026-02-18
+- **バージョン**: 1.1.0
+- **最終更新**: 2026-02-19
 - **担当**: Development Team
 - **実装状況**: ✅ 実装済み（100%）
 
@@ -40,6 +40,7 @@
 | 6 | POST | /api/v1/provider/organization | 組織新規作成 | ✅ 実装済み | Provider |
 | 7 | PUT | /api/v1/provider/organization/:organizationId | 組織更新 | ✅ 実装済み | Provider |
 | 8 | PATCH | /api/v1/provider/organization/:organizationId/status | 組織アクティブ状態更新 | ✅ 実装済み | Provider |
+| 9 | GET | /api/v1/provider/organization/:organizationId/certificate | クライアント証明書ダウンロード | ✅ 実装済み | Provider |
 
 ---
 
@@ -640,6 +641,171 @@ PATCH
 
 ---
 
+## 9. クライアント証明書ダウンロードAPI
+
+### 概要
+組織のクライアント証明書（PKCS#12形式）をダウンロードします。組織作成時に自動生成された証明書をSwift/S3から取得します。
+
+### エンドポイント
+```
+GET /api/v1/provider/organization/:organizationId/certificate
+```
+
+### HTTPメソッド
+GET
+
+### 認証要件
+- JWT認証必須
+- ロール: Provider
+
+### ミドルウェアチェーン
+```typescript
+router.get(
+  '/organization/:organizationId/certificate',
+  authMiddleware,
+  [
+    param('organizationId')
+      .notEmpty()
+      .withMessage('organizationId is required')
+      .isUUID()
+      .withMessage('organizationId must be a valid UUID'),
+  ],
+  handleValidationErrors,
+  organizationController.downloadCertificate
+);
+```
+
+### リクエスト
+
+#### パスパラメータ
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|----|----|------|
+| organizationId | UUID | ○ | 組織ID |
+
+#### リクエスト例
+```
+GET /api/v1/provider/organization/550e8400-e29b-41d4-a716-446655440000/certificate
+```
+
+### レスポンス
+
+#### 成功時（200 OK）
+**Content-Type**: `application/x-pkcs12`
+**Content-Disposition**: `attachment; filename="{organizationId}.p12"`
+
+**ファイル形式**: PKCS#12（バイナリデータ）
+**ファイルサイズ**: 約4-6KB
+
+**証明書の内容:**
+- **クライアント秘密鍵**: RSA 2048bit
+- **クライアント証明書**: 有効期限1年、組織IDをCNに設定
+- **CA証明書**: 証明書チェーン（10年有効）
+
+**パスワード:**
+- デフォルト: `mmdpf123`
+- 環境変数 `CERT_P12_PASSWORD` で変更可能
+
+#### エラー時（404 Not Found）
+```json
+{
+  "success": false,
+  "error": {
+    "code": "CERTIFICATE_NOT_FOUND",
+    "message": "証明書が見つかりません"
+  },
+  "meta": {
+    "timestamp": "2026-02-19T09:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+### ビジネスロジック
+
+1. **認証チェック**
+   - JWT認証でuserIdを取得
+   - Providerの権限を確認
+
+2. **証明書取得**
+   - certificateService.getCertificateFromStorage() を呼び出し
+   - Swift/S3から証明書ファイルを取得
+   - パス: `{organizationId}/certificates/{organizationId}.p12`
+
+3. **レスポンス生成**
+   - Content-Typeを`application/x-pkcs12`に設定
+   - Content-Dispositionでファイル名を指定
+   - バイナリデータを送信
+
+### バリデーション
+
+#### パラメータチェック
+- organizationIdは必須
+- organizationIdはUUID形式である必要あり
+
+#### 存在確認
+- 組織がデータベースに存在すること
+- 証明書ファイルがSwift/S3に存在すること
+
+### データベーステーブル
+
+**使用テーブル:**
+- **organization**（組織の存在確認）
+
+**ストレージ:**
+- **Swift/S3**: `{organizationId}/certificates/{organizationId}.p12`
+
+### 証明書の使用方法
+
+#### ブラウザへのインポート
+
+**Firefox:**
+1. 設定 → プライバシーとセキュリティ → 証明書 → 証明書を表示
+2. あなたの証明書 → インポート
+3. ダウンロードした.p12ファイルを選択
+4. パスワード（mmdpf123）を入力
+
+**Chrome/Edge:**
+1. 設定 → プライバシーとセキュリティ → セキュリティ → 証明書の管理
+2. 個人 → インポート
+3. ダウンロードした.p12ファイルを選択
+4. パスワード（mmdpf123）を入力
+
+#### クライアント証明書認証
+
+インポートした証明書は以下の用途で使用できます：
+- クライアント証明書認証が必要なWebサイトへのアクセス
+- セキュアなAPI通信
+- VPN接続
+
+### セキュリティ
+
+#### 証明書の保護
+- PKCS#12ファイルはパスワードで暗号化
+- パスワードは環境変数で管理（本番環境では強力なパスワードに変更推奨）
+- 証明書の有効期限は1年（定期的な更新が必要）
+
+#### アクセス制御
+- Provider権限のユーザーのみダウンロード可能
+- 組織がアクティブ状態でなくてもダウンロード可能（証明書再発行のため）
+- Swift/S3のマルチテナント分離により他組織の証明書にはアクセス不可
+
+#### 監査ログ
+- ダウンロード操作はアプリケーションログに記録
+- 組織ID、ユーザーID、タイムスタンプを含む
+
+### 関連機能
+
+#### 証明書の自動生成
+- 組織作成時（POST /api/v1/provider/organization）に自動的に証明書を生成
+- organizationService.createOrganization() → certificateService.generateAndSaveCertificate()
+- 生成失敗時も組織作成は成功（後から再生成可能）
+
+#### 証明書の再生成
+- 証明書生成失敗や更新が必要な場合、再生成スクリプトを使用
+- コマンド: `npx ts-node backend/scripts/regenerate-certificate.ts {organizationId}`
+
+---
+
 ## 🔗 関連ドキュメント
 
 ### API設計書
@@ -720,6 +886,12 @@ frontend/src/components/Provider/OrganizationManagement.tsx
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-02-19 | クライアント証明書ダウンロードAPI追加 | Cline |
+| | | - API #9: GET /organization/:organizationId/certificate 追加 | |
+| | | - PKCS#12形式の証明書ダウンロード機能 | |
+| | | - 組織作成時に自動生成された証明書を取得 | |
+| | | - certificateService統合 | |
+| | | - 実装済み（9/9エンドポイント、100%） | |
 | 1.0.0 | 2026-02-18 | 初版作成 | Cline |
 | | | - 組織管理API 8エンドポイントの設計書作成 | |
 | | | - 実装済み（100%） | |

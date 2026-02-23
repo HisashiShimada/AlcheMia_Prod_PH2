@@ -400,6 +400,57 @@ export class StorageService {
   }
 
   /**
+   * 単一フォルダを作成
+   * 
+   * S3/Swiftコンソールで「フォルダ」として表示されるよう、
+   * トレーリングスラッシュ付きの0バイトオブジェクトを作成
+   * 
+   * @param organizationId 組織ID
+   * @param folderPath フォルダパス（トレーリングスラッシュ付き推奨）
+   * 
+   * @example
+   * // プロジェクトフォルダ作成
+   * await storageService.createFolder(organizationId, 'projects/my_project/');
+   * 
+   * // フォーマットフォルダ作成
+   * await storageService.createFolder(organizationId, 'formats/chemistry/');
+   */
+  async createFolder(organizationId: string, folderPath: string): Promise<void> {
+    // トレーリングスラッシュが無ければ追加
+    const normalizedPath = folderPath.endsWith('/') ? folderPath : `${folderPath}/`;
+    
+    await this.uploadFile(
+      organizationId,
+      normalizedPath,
+      '',
+      { contentType: 'application/x-directory' }
+    );
+    
+    console.log(`Folder created: ${normalizedPath}`);
+  }
+
+  /**
+   * 複数フォルダを一括作成
+   * 
+   * @param organizationId 組織ID
+   * @param folderPaths フォルダパスの配列
+   * 
+   * @example
+   * // プロジェクトとアーカイブフォルダを一括作成
+   * await storageService.createFolders(organizationId, [
+   *   'projects/my_project/',
+   *   'projects/my_project/archive/',
+   * ]);
+   */
+  async createFolders(organizationId: string, folderPaths: string[]): Promise<void> {
+    for (const folderPath of folderPaths) {
+      await this.createFolder(organizationId, folderPath);
+    }
+    
+    console.log(`${folderPaths.length} folder(s) created`);
+  }
+
+  /**
    * ストレージタイプを取得
    * @returns 'swift' または 's3'
    */

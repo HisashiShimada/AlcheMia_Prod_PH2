@@ -8,8 +8,44 @@ import { PoolClient } from 'pg';
 import { TaskInput } from '../types/instruction';
 import { TaskFilters, MethodTaskRecord } from '../types/task';
 import { TaskWithProject } from '../types/progress';
+import { ProjectTask } from '../types/database';
 import { loadSqlFile } from '../sql/loader';
 import { getPool } from '../database/db';
+
+/**
+ * プロジェクト内のタスク一覧を取得
+ * 
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @returns タスク配列
+ */
+export async function findByProject(
+  organizationId: string,
+  projectId: string
+): Promise<ProjectTask[]> {
+  const pool = getPool();
+  
+  const query = `
+    SELECT
+      organization_id,
+      project_id,
+      method_id,
+      experiment_order,
+      experiment_condition,
+      attempts_count,
+      create_user_id,
+      create_at,
+      update_user_id,
+      update_at
+    FROM project_task
+    WHERE organization_id = $1
+      AND project_id = $2
+    ORDER BY experiment_order ASC, method_id ASC
+  `;
+  
+  const result = await pool.query(query, [organizationId, projectId]);
+  return result.rows as ProjectTask[];
+}
 
 /**
  * TaskRepositoryクラス
@@ -236,27 +272,9 @@ export class TaskRepository {
     taskNo: number,
     organizationId: string
   ): Promise<TaskWithProject | null> {
-    // Parameterized Query（SQLインジェクション対策）
-    // project_taskとprojectテーブルをJOIN
-    // organization_idフィルタ必須（マルチテナント分離）
-    const query = `
-      SELECT 
-        pt.task_id,
-        pt.task_name,
-        pt.project_id,
-        p.project_name,
-        pt.method_id,
-        pt.task_no
-      FROM project_task pt
-      LEFT JOIN project p ON pt.project_id = p.project_id 
-        AND pt.organization_id = p.organization_id
-      WHERE pt.project_id = $1
-        AND pt.method_id = $2
-        AND pt.task_no = $3
-        AND pt.organization_id = $4
-      LIMIT 1
-    `;
-
+    // 外部SQLファイルを読み込み
+    const query = await loadSqlFile('tasks/findByProjectMethodTaskNo.sql');
+    
     const params = [projectId, methodId, taskNo, organizationId];
 
     const pool = getPool();

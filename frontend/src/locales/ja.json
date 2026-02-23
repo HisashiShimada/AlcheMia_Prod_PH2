@@ -532,5 +532,69 @@
       "issueReported": "問題を報告しました",
       "commentPosted": "コメントを投稿しました"
     }
+  },
+  "taskRegistration": {
+    "title": "タスク登録",
+    "loading": "メソッド情報を読み込み中...",
+    "noMethods": "利用可能なメソッドがありません",
+    "dragHint": "🔀 行をドラッグまたは作業順序を直接入力して順序を変更できます",
+    "saveButton": "タスク情報を保存",
+    "saving": "保存中...",
+    "columns": {
+      "order": "作業順序",
+      "method": "メソッド名",
+      "condition": "実験条件",
+      "trialCount": "試行回数"
+    },
+    "condition": {
+      "same": "全て同一条件",
+      "different": "条件を変更"
+    },
+    "trialCountPlaceholder": "試行回数",
+    "emptyState": "タスクがありません",
+    "messages": {
+      "restored": "保存されたタスク情報を復元しました",
+      "saved": "タスク情報を保存しました",
+      "selectAllMethods": "すべてのメソッドを選択してください",
+      "invalidTrialCount": "試行回数は1〜999の範囲で入力してください",
+      "invalidOrder": "順序は1〜{max}の範囲で入力してください"
+    }
+  },
+  "instructionRegistration": {
+    "title": "指示送信",
+    "listTitle": "📋 指示一覧 ({count}件)",
+    "addButton": "指示を追加",
+    "sendButton": "指示送信",
+    "columns": {
+      "target": "指示対象",
+      "priority": "優先度",
+      "type": "タイプ",
+      "content": "指示内容",
+      "action": "操作"
+    },
+    "priority": {
+      "high": "高",
+      "medium": "中",
+      "normal": "通常",
+      "low": "低"
+    },
+    "type": {
+      "general": "一般",
+      "setup": "セットアップ",
+      "measurement": "測定",
+      "safety": "安全",
+      "cleanup": "清掃"
+    },
+    "emptyState": "指示が登録されていません",
+    "editButton": "編集",
+    "deleteButton": "削除",
+    "detailButton": "詳細",
+    "messages": {
+      "restored": "保存された指示情報を復元しました",
+      "added": "指示を追加しました",
+      "updated": "指示を更新しました",
+      "sent": "指示を送信しました",
+      "noInstructions": "送信する指示がありません"
+    }
   }
 }

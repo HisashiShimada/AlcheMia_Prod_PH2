@@ -13,7 +13,6 @@ import { RedisConnectionService } from './services/redisConnectionService';
 // Import routes after dotenv is configured
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
-import taskRoutes from './routes/taskRoutes';
 import fileAccessRoutes from './routes/fileAccessRoutes';
 import maimlRoutes from './routes/maimlRoutes';
 import masterRoutes from './routes/masterRoutes';
@@ -26,6 +25,7 @@ import sessionRoutes from './routes/sessionRoutes';
 import progressRoutes from './routes/progressRoutes';
 import organizationRoutes from './routes/organizationRoutes';
 import formatRoutes from './routes/formatRoutes';
+import codeMasterRoutes from './routes/codeMasterRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -81,7 +81,6 @@ async function startServer() {
     // Mount routes after session middleware
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/projects', projectRoutes);
-    app.use('/api/v1/tasks', taskRoutes);
     app.use('/api/v1/files', fileAccessRoutes); // 汎用ファイルアクセスAPI（共通化後）
     app.use('/api/v1/maiml', maimlRoutes);
     
@@ -110,6 +109,9 @@ async function startServer() {
 
     // Mount format routes
     app.use('/api/v1/formats', formatRoutes);
+    
+    // Mount code master routes
+    app.use('/api/v1/code-master', codeMasterRoutes);
 
     if (process.env.NODE_ENV !== 'test') {
       const server = app.listen(PORT, () => {

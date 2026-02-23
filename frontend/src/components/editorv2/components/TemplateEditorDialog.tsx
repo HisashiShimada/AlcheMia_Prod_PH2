@@ -41,7 +41,7 @@ import {
   FolderOutlined,
   FileOutlined,
 } from '@ant-design/icons';
-import { fetchTemplateFiles, fetchTemplateContent, type TemplateFile } from '@/api/templateApi';
+import { fetchTemplateFiles, fetchTemplateContent, type TemplateFile } from '@/services/templateApi';
 import type { 
   NodeData, 
   TemplateError,

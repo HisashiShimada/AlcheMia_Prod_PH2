@@ -17,6 +17,8 @@
  * @date 2026-02-02
  */
 
+import { Dayjs } from "dayjs";
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 // ============================================================================
@@ -519,6 +521,8 @@ export interface DocumentTagData {
   annotation?: string;
   vendorRef?: Reference;
   instrumentRef?: Reference;
+  /** マスタから追加されたことを示すフラグ（UI用） */
+  fromMaster?: boolean;
 }
 
 /**

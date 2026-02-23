@@ -1,11 +1,11 @@
 # プロジェクト管理API仕様書
 
 **作成日**: 2026-01-21 16:30  
-**最終更新**: 2026-01-26 15:42  
-**バージョン**: 2.3.0  
+**最終更新**: 2026-02-19 18:00  
+**バージョン**: 2.6.0  
 **対象画面**: 実験管理者 - プロジェクト管理画面  
-**総API数**: 15個  
-**実装状況**: 8個実装済み、7個未実装
+**総API数**: 16個  
+**実装状況**: 13個実装済み、3個未実装
 
 ---
 
@@ -14,14 +14,14 @@
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
 | 基本CRUD | 2 | 0 | 2 |
-| チェックイン/チェックアウト | 2 | 0 | 2 |
-| データ取得 | 2 | 1 | 3 |
-| 指示管理 | 0 | 4 | 4 |
-| その他 | 2 | 0 | 2 |
-| 実験作業者用 | 0 | 2 | 2 |
-| **合計** | **8** | **7** | **15** |
+| チェックイン/チェックアウト | 3 | 0 | 3 |
+| データ取得 | 2 | 0 | 2 |
+| 指示管理 | 2 | 2 | 4 |
+| プロジェクト検索 | 0 | 1 | 1 |
+| 実験作業者用 | 4 | 0 | 4 |
+| **合計** | **13** | **3** | **16** |
 
-**完了率**: 53% (8/15)
+**完了率**: 81% (13/16)
 
 ---
 
@@ -31,19 +31,22 @@
 |---|------|---------|---------------|------|--------|
 | 1 | プロジェクト一覧取得 | GET | `/api/v1/projects` | ✅ 実装済み | - |
 | 2 | プロジェクト作成 | POST | `/api/v1/projects` | ✅ 実装済み | - |
-| 3 | チェックアウト | POST | `/api/v1/projects/:projectName/checkout` | ✅ 実装済み | - |
-| 4 | チェックイン | POST | `/api/v1/projects/:projectName/checkin` | ✅ 実装済み | - |
+| 3 | チェックアウト | POST | `/api/v1/projects/:projectId/checkout` | ✅ 実装済み | - |
+| 4 | チェックイン | POST | `/api/v1/projects/:projectId/checkin` | ✅ 実装済み | - |
 | 5 | ファイル一覧取得 | GET | `/api/v1/projects/:projectName/files` | ✅ 実装済み | - |
 | 6 | タスク一覧取得 | GET | `/api/v1/projects/:projectName/tasks` | ✅ 実装済み | - |
-| 7 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 8 | 指示一覧取得 | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
-| 9 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | ✅ 実装済み | - |
-| 10 | プロジェクト公開 | POST | `/api/v1/projects/:projectName/publish` | ✅ 実装済み | - |
-| 11 | 指示一覧取得（実験作業者用） | GET | `/api/v1/projects/:projectName/worker-instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 12 | 指示確認完了 | PUT | `/api/v1/instructions/:instructionId/confirm` | 🔴 未実装 | ⭐⭐ 中 |
-| 13 | 承認依頼 | POST | `/api/v1/projects/:projectId/approval-request` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 14 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 15 | MAIMLファイル取得（プロジェクト） | GET | `/api/v1/projects/:projectId/maiml` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 7 | プロジェクト詳細取得 | GET | `/api/v1/projects/:projectId` | ✅ 実装済み | - |
+| 8 | チェックアウト状態取得 | GET | `/api/v1/projects/:projectId/checkout-status` | ✅ 実装済み | - |
+| 9 | 指示一覧取得（実験作業者用） | GET | `/api/v1/projects/:projectName/worker-instructions` | ✅ 実装済み | - |
+| 10 | 指示確認完了 | PUT | `/api/v1/projects/:projectName/instructions/:instructionId/confirm` | ✅ 実装済み | - |
+| 11 | 承認依頼 | PATCH | `/api/v1/projects/:projectName/approval-request` | ✅ 実装済み | - |
+| 12 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | ✅ 実装済み | - |
+| 13 | MAIMLファイル取得（プロジェクト） | GET | `/api/v1/projects/:projectId/maiml` | ✅ 実装済み | - |
+| 14 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 15 | 指示一覧取得（実験管理者用） | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
+| 16 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐ 低 |
+| 17 | タスク登録情報取得 | GET | `/api/v1/projects/:projectName/task-registration` | ✅ 実装済み | ⭐⭐⭐ 高 |
+| 18 | タスク登録保存 | POST | `/api/v1/projects/:projectName/task-registration` | ✅ 実装済み | ⭐⭐⭐ 高 |
 
 ---
 
@@ -863,7 +866,7 @@ router.METHOD('/path',
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1013,7 +1016,7 @@ for (const instruction of instructions) {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（書込可）
 
 **優先度**: ⭐⭐ 中
 
@@ -1113,13 +1116,13 @@ const user = await db
 
 ### 13. 承認依頼 🔴
 
-**エンドポイント**: `POST /api/v1/projects/:projectId/approval-request`
+**エンドポイント**: `PATCH /api/v1/projects/:projectName/approval-request`
 
 **説明**: 実験作業完了後に実験管理者へ承認依頼を送信
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（書込可）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1128,7 +1131,7 @@ const user = await db
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 
 **ボディ（JSON）**:
 ```json
@@ -1282,7 +1285,7 @@ await db.transaction().execute(async (trx) => {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1464,7 +1467,7 @@ return {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`, `experiment_admin`, `system_admin`
+**権限**: `experiment_worker`（読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -1597,6 +1600,223 @@ try {
 
 ---
 
+### 17. タスク登録情報取得 ✅
+
+**エンドポイント**: `GET /api/v1/projects/:projectName/task-registration`
+
+**説明**: プロジェクトのタスク登録情報を取得。DBにデータがない場合はMAIMLファイルから解析。
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "tasks": [
+      {
+        "methodId": "method_001",
+        "experimentCondition": 0,
+        "trialCount": 1,
+        "experimentOrder": 1
+      },
+      {
+        "methodId": "method_002",
+        "experimentCondition": 1,
+        "trialCount": 3,
+        "experimentOrder": 2
+      }
+    ],
+    "isCheckoutLocked": false,
+    "isMaimlRegistered": true,
+    "experimentConditionOptions": [
+      {
+        "value": 0,
+        "label": "全て同一条件"
+      },
+      {
+        "value": 1,
+        "label": "実験ごとに条件変更"
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-02-20T09:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**レスポンスフィールド説明**:
+| フィールド | 型 | 説明 |
+|----------|---|------|
+| `tasks` | array | タスク一覧 |
+| `tasks[].methodId` | string | メソッドID |
+| `tasks[].experimentCondition` | number | 実験条件（code_masterから取得） |
+| `tasks[].trialCount` | number | 試行回数（1-999） |
+| `tasks[].experimentOrder` | number | 実験順序 |
+| `isCheckoutLocked` | boolean | チェックアウト状態（true: 編集不可） |
+| `isMaimlRegistered` | boolean | MAIMLファイル登録状態（false: 保存不可） |
+| `experimentConditionOptions` | array | 実験条件の選択肢（code_masterから取得） |
+
+**エラー時**:
+- 400: バリデーションエラー
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない
+- 500: システムエラー
+
+#### ビジネスロジック
+
+**取得処理のフロー**:
+1. プロジェクト存在確認（organization_idでフィルタ）
+2. project_taskテーブルからデータ取得
+   - データあり → タスク一覧を返却
+   - データなし → 3へ
+3. MAIMLファイルをS3から取得
+4. MAIMLParserTypedでメソッドID一覧を抽出
+5. デフォルト値でタスク一覧を生成
+   - experimentCondition: 0（全て同一条件）
+   - trialCount: 1
+   - experimentOrder: 1, 2, 3...
+6. code_masterから実験条件オプションを取得
+7. チェックアウト状態とMAIML登録状態を取得
+8. レスポンスを返却
+
+**初期値**:
+- `experimentCondition`: 0（全て同一条件）
+- `trialCount`: 1
+- `experimentOrder`: メソッド出現順（1, 2, 3...）
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/taskRegistrationController.ts` (`getTaskRegistration`)
+- **サービス**: `backend/src/services/taskRegistrationService.ts` (`getTaskRegistration`)
+- **リポジトリ**: 
+  - `backend/src/repositories/taskRepository.ts` (`findByProject`)
+  - `backend/src/repositories/projectRepository.ts` (`findByName`)
+  - `backend/src/repositories/codeMasterRepository.ts` (`findByDivision`)
+- **ユーティリティ**: `backend/src/utils/maimlParserTyped.ts` (`getMethods`)
+
+---
+
+### 18. タスク登録保存 ✅
+
+**エンドポイント**: `POST /api/v1/projects/:projectName/task-registration`
+
+**説明**: タスク登録情報を保存。project_taskとproject_task_detailテーブルに登録。
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
+
+**ボディ（JSON）**:
+```json
+{
+  "tasks": [
+    {
+      "methodId": "method_001",
+      "experimentCondition": 0,
+      "trialCount": 1
+    },
+    {
+      "methodId": "method_002",
+      "experimentCondition": 1,
+      "trialCount": 3
+    }
+  ]
+}
+```
+
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `tasks` | array | ○ | 1個以上 |
+| `tasks[].methodId` | string | ○ | 1-255文字 |
+| `tasks[].experimentCondition` | number | ○ | code_masterに存在する値 |
+| `tasks[].trialCount` | number | ○ | 1-999 |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "タスク登録情報を保存しました"
+  },
+  "meta": {
+    "timestamp": "2026-02-20T09:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー、試行回数が範囲外
+- 401: 認証エラー
+- 403: 権限不足、チェックアウト済み
+- 404: プロジェクトが存在しない
+- 409: MAIMLファイル未登録
+- 500: システムエラー
+
+#### ビジネスロジック
+
+**保存処理のフロー**:
+1. プロジェクト存在確認（organization_idでフィルタ）
+2. チェックアウト状態確認
+   - checkout_status = 1 → エラー（編集不可）
+3. MAIML登録状態確認
+   - project_maiml_flg = false → エラー（保存不可）
+4. トランザクション開始
+5. project_taskテーブルにUPSERT
+   - organization_id, project_id, method_id が主キー
+   - experiment_order（配列のインデックス + 1）
+   - experiment_condition
+   - attempts_count（trialCount）
+   - create_user_id, update_user_id（ログインユーザ）
+6. project_task_detailテーブルから既存レコード削除
+   - organization_id, project_idで削除
+7. project_task_detailテーブルにINSERT
+   - 試行回数分のレコードを生成
+   - task_no: 1から連番
+   - task_status: 0（初期状態）
+8. トランザクションコミット
+9. レスポンスを返却
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/taskRegistrationController.ts` (`saveTaskRegistration`)
+- **サービス**: `backend/src/services/taskRegistrationService.ts` (`saveTaskRegistration`)
+- **リポジトリ**: 
+  - `backend/src/repositories/taskRepository.ts` (`upsertTask`, `deleteTaskDetails`, `insertTaskDetail`)
+  - `backend/src/repositories/projectRepository.ts` (`findByName`)
+
+---
+
 ## 🔒 セキュリティ考慮事項
 
 ### マルチテナント分離の徹底
@@ -1662,6 +1882,20 @@ const projects = await db
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.6.0 | 2026-02-19 18:00 | API一覧の競合を修正し実態に即した内容に更新 | Cline |
+| | | - API一覧テーブルの重複エントリを削除（#7-15の重複を解消） | |
+| | | - 実装状況サマリーを修正（カテゴリ分類を実態に合わせて更新） | |
+| | | - チェックアウト/チェックインのエンドポイントを修正（:projectId形式に統一） | |
+| | | - 総API数: 16個、実装済み: 13個、未実装: 3個 | |
+| 2.5.0 | 2026-02-19 17:02 | routeファイルの実装状況を反映 | Cline |
+| | | - projectRoutes.tsの全エンドポイントを確認 | |
+| | | - 実装済み: 13個（81%）、未実装: 3個 | |
+| | | - 新規追加: プロジェクト詳細取得、チェックアウト状態取得 | |
+| | | - 実装ファイル情報を追加 | |
+| 2.4.0 | 2026-02-19 15:00 | フロントエンド実装状況を反映 | Cline |
+| | | - ProjectManagement.tsxの実装状況を確認 | |
+| | | - API一覧テーブルのコメントを詳細化 | |
+| | | - フロントエンド実装: getProjectFiles(), getProjectTasks(), downloadFolderAsZip()使用確認 | |
 | 2.3.0 | 2026-01-26 15:42 | プロジェクト管理APIの実装状況を更新 | Cline |
 | | | - 実装状況: 4→8個に更新（80%完了） | |
 | | | - 新規実装確認: ファイル一覧取得、タスク一覧取得 | |
@@ -1679,4 +1913,4 @@ const projects = await db
 
 **作成者**: Cline  
 **作成日**: 2026-01-21 16:30  
-**最終更新**: 2026-01-26 15:35
+**最終更新**: 2026-02-19 17:02

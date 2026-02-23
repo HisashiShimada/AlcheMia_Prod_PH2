@@ -7,6 +7,9 @@ import { v4 as uuidv4 } from 'uuid';
 import * as organizationRepository from '../repositories/organizationManagementRepository';
 import { OrganizationSearchFilters } from '../repositories/organizationManagementRepository';
 import { getPool } from '../database/db';
+import { generateAndSaveCertificate } from './certificateService';
+import { getStorageService } from './storageService';
+import { logger } from '../utils/logger';
 
 /**
  * Organizationレスポンス型定義（API型）
@@ -264,6 +267,61 @@ export async function createOrganization(
     
     if (!fullOrganization) {
       throw new Error('Created organization not found');
+    }
+    
+    // 組織作成成功後、クライアント証明書を自動生成
+    // 注意: トランザクション完了後に実行（DB整合性を保つため）
+    // 証明書生成失敗時でも組織作成自体は成功とする
+    try {
+      logger.info(`[organizationService] 組織作成成功、証明書生成を開始: organizationId=${data.organizationId}`);
+      const certResult = await generateAndSaveCertificate(data.organizationId);
+      
+      if (certResult.success) {
+        logger.info(`[organizationService] 証明書生成成功: organizationId=${data.organizationId}`);
+      } else {
+        logger.warn(
+          `[organizationService] 証明書生成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
+          {
+            error: certResult.errorMessage,
+            organizationId: data.organizationId,
+          }
+        );
+      }
+    } catch (certError) {
+      // 証明書生成エラーはログに記録するが、組織作成自体は成功とする
+      logger.error(
+        `[organizationService] 証明書生成で例外発生（組織作成は成功）: organizationId=${data.organizationId}`,
+        {
+          error: certError instanceof Error ? certError.message : String(certError),
+          organizationId: data.organizationId,
+        }
+      );
+    }
+    
+    // 基本フォルダ構造の作成
+    // 注意: トランザクション完了後に実行（DB整合性を保つため）
+    // フォルダ作成失敗時でも組織作成自体は成功とする
+    try {
+      logger.info(`[organizationService] 基本フォルダ構造を作成: organizationId=${data.organizationId}`);
+      const storageService = getStorageService();
+      
+      // 組織の基本フォルダ構造を定義（ビジネスロジック）
+      const organizationFolders = [
+        'projects/',
+        'formats/',
+      ];
+      
+      await storageService.createFolders(data.organizationId, organizationFolders);
+      logger.info(`[organizationService] 基本フォルダ構造作成完了: organizationId=${data.organizationId}`);
+    } catch (folderError) {
+      // フォルダ作成エラーはログに記録するが、組織作成自体は成功とする
+      logger.warn(
+        `[organizationService] フォルダ作成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
+        {
+          error: folderError instanceof Error ? folderError.message : String(folderError),
+          organizationId: data.organizationId,
+        }
+      );
     }
     
     return {
