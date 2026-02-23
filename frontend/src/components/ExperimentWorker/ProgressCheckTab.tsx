@@ -7,8 +7,9 @@ import type { BadgeProps } from 'antd';
 import ProgressCheckTable from './ProgressCheckTable';
 import IssueReportModal from './IssueReportModal';
 import IssueManagementModal from './IssueManagementModal';
-import { getWorkerTasks } from '@/services/projectApiService';
+import { getWorkerTasks, updateTaskStatus } from '@/services/projectApiService';
 import type { WorkerTasksResponse, WorkerMethod, WorkerTask } from '@/services/projectApiService';
+import { AxiosError } from 'axios';
 import type { Task, Method, ProjectStatus, Issue, IssueStatus } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;
@@ -92,25 +93,35 @@ export default function ProgressCheckTab({
           
           // 全タスクを変換（UI用の型に必須プロパティを補完）
           const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
-            method.tasks.map((task: WorkerTask) => ({
-              taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
-              taskNo: task.task_no.toString(), // string型に変換
-              taskName: task.task_no.toString(), // task_name = task_no
-              methodId: method.method_id,
-              methodName: method.method_name, // メソッド名を追加
-              status: task.task_status as Task['status'],
-              assignedUserId: task.experiment_user_id,
-              assignedUserName: task.experiment_user_name,
-              createdAt: task.created_at,
-              updatedAt: task.updated_at,
-              projectId: apiData.project_id,
-              sampleNumber: '', // APIには存在しないためデフォルト値（string型）
-              notes: '', // APIには存在しないためデフォルト値
-              progressRate: parseFloat(task.progress_rate) || 0, // APIのprogress_rateを数値変換
-              transitionStatuses: [], // APIには存在しないためデフォルト値
-              progressReport: '', // APIには存在しないためデフォルト値
-              recordNumber: '', // APIには存在しないためデフォルト値（string型）
-            }))
+            method.tasks.map((task: WorkerTask) => {
+              console.log('[DEBUG] Converting task from API', {
+                task_no: task.task_no,
+                created_at: task.created_at,
+                updated_at: task.updated_at,
+                updated_at_type: typeof task.updated_at,
+                full_api_task: task
+              });
+              
+              return {
+                taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
+                taskNo: task.task_no.toString(), // string型に変換
+                taskName: task.task_no.toString(), // task_name = task_no
+                methodId: method.method_id,
+                methodName: method.method_name, // メソッド名を追加
+                status: task.task_status as Task['status'],
+                assignedUserId: task.experiment_user_id,
+                assignedUserName: task.experiment_user_name,
+                createdAt: task.created_at,
+                updatedAt: task.updated_at,
+                projectId: apiData.project_id,
+                sampleNumber: '', // APIには存在しないためデフォルト値（string型）
+                notes: '', // APIには存在しないためデフォルト値
+                progressRate: parseFloat(task.progress_rate) || 0, // APIのprogress_rateを数値変換
+                transitionStatuses: [], // APIには存在しないためデフォルト値
+                progressReport: '', // APIには存在しないためデフォルト値
+                recordNumber: '', // APIには存在しないためデフォルト値（string型）
+              };
+            })
           );
           
           console.log('[DEBUG] ProgressCheckTab - Converted data', {
@@ -229,7 +240,7 @@ export default function ProgressCheckTab({
 
 
   // タスクアクション処理
-  const handleTaskAction = useCallback((taskId: string, action: string) => {
+  const handleTaskAction = useCallback(async (taskId: string, action: string) => {
     if (!selectedProject) {
       message.warning('プロジェクトを選択してください');
       return;
@@ -245,8 +256,167 @@ export default function ProgressCheckTab({
     try {
       switch (action) {
         case 'start':
-          // 開始処理（今後実装予定）
-          message.info('タスク開始機能は今後実装予定です');
+          // タスク開始処理
+          try {
+            console.log('[DEBUG] handleTaskAction - Start task', {
+              taskId,
+              taskNo: task.taskNo,
+              methodId: task.methodId,
+              projectName: selectedProjectName,
+              taskUpdatedAt: task.updatedAt,
+              taskUpdatedAtType: typeof task.updatedAt,
+              fullTask: task
+            });
+            
+            // task.updatedAtの検証
+            if (!task.updatedAt) {
+              console.error('[DEBUG] handleTaskAction - task.updatedAt is missing!', { task });
+              message.error('タスクの更新日時が取得できません。画面を再読み込みしてください。');
+              return;
+            }
+            
+            // タスクステータスを'in_progress'に更新
+            // 楽観的ロック用に現在のupdatedAtを送信
+            const result = await updateTaskStatus(
+              selectedProjectName,
+              task.methodId,
+              task.taskNo,
+              'in_progress',
+              undefined,      // comment（オプショナル）
+              task.updatedAt  // currentUpdatedAt（楽観的ロック用・必須）
+            );
+            
+            if (result.success && result.data) {
+              console.log('[DEBUG] handleTaskAction - Task status updated successfully', {
+                taskNo: result.data.task_no,
+                previousStatus: result.data.previous_status,
+                newStatus: result.data.new_status
+              });
+              
+              message.success('タスクを開始しました');
+              
+              // タスク一覧を再取得して最新の状態を反映
+              const tasksResult = await getWorkerTasks(selectedProjectName);
+              if (tasksResult.success && tasksResult.data) {
+                const apiData = tasksResult.data;
+                
+                // メソッド一覧を変換
+                const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
+                  methodId: method.method_id,
+                  methodName: method.method_name,
+                  experimentOrder: method.experiment_order,
+                  description: '',
+                  category: 'experiment',
+                  transitions: [],
+                }));
+                
+                // 全タスクを変換
+                const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
+                  method.tasks.map((apiTask: WorkerTask) => ({
+                    taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
+                    taskNo: apiTask.task_no.toString(),
+                    taskName: apiTask.task_no.toString(),
+                    methodId: method.method_id,
+                    methodName: method.method_name,
+                    status: apiTask.task_status as Task['status'],
+                    assignedUserId: apiTask.experiment_user_id,
+                    assignedUserName: apiTask.experiment_user_name,
+                    createdAt: apiTask.created_at,
+                    updatedAt: apiTask.updated_at,
+                    projectId: apiData.project_id,
+                    sampleNumber: '',
+                    notes: '',
+                    progressRate: parseFloat(apiTask.progress_rate) || 0,
+                    transitionStatuses: [],
+                    progressReport: '',
+                    recordNumber: '',
+                  }))
+                );
+                
+                setMethods(methodsData);
+                setTasks(allTasks);
+                
+                console.log('[DEBUG] handleTaskAction - Tasks refreshed', {
+                  methodCount: methodsData.length,
+                  taskCount: allTasks.length
+                });
+              }
+            } else {
+              console.error('[DEBUG] handleTaskAction - Update failed', result);
+              message.error('タスクの開始に失敗しました');
+            }
+          } catch (error) {
+            console.error('[DEBUG] handleTaskAction - Error starting task', {
+              error,
+              errorMessage: error instanceof Error ? error.message : 'Unknown error',
+              errorResponse: (error as AxiosError)?.response?.data,
+              errorStatus: (error as AxiosError)?.response?.status
+            });
+            
+            // エラーメッセージの詳細表示
+            if ((error as AxiosError)?.response?.status === 403) {
+              message.error('このタスクを開始する権限がありません');
+            } else if ((error as AxiosError)?.response?.status === 409) {
+              // 楽観的ロック競合エラー: 他のユーザーが先に更新した可能性
+              message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています...');
+              
+              // タスク一覧を再取得して最新の状態を反映
+              try {
+                const tasksResult = await getWorkerTasks(selectedProjectName);
+                if (tasksResult.success && tasksResult.data) {
+                  const apiData = tasksResult.data;
+                  
+                  // メソッド一覧を変換
+                  const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
+                    methodId: method.method_id,
+                    methodName: method.method_name,
+                    experimentOrder: method.experiment_order,
+                    description: '',
+                    category: 'experiment',
+                    transitions: [],
+                  }));
+                  
+                  // 全タスクを変換
+                  const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
+                    method.tasks.map((apiTask: WorkerTask) => ({
+                      taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
+                      taskNo: apiTask.task_no.toString(),
+                      taskName: apiTask.task_no.toString(),
+                      methodId: method.method_id,
+                      methodName: method.method_name,
+                      status: apiTask.task_status as Task['status'],
+                      assignedUserId: apiTask.experiment_user_id,
+                      assignedUserName: apiTask.experiment_user_name,
+                      createdAt: apiTask.created_at,
+                      updatedAt: apiTask.updated_at,
+                      projectId: apiData.project_id,
+                      sampleNumber: '',
+                      notes: '',
+                      progressRate: parseFloat(apiTask.progress_rate) || 0,
+                      transitionStatuses: [],
+                      progressReport: '',
+                      recordNumber: '',
+                    }))
+                  );
+                  
+                  setMethods(methodsData);
+                  setTasks(allTasks);
+                  
+                  console.log('[DEBUG] handleTaskAction - Tasks refreshed after 409 conflict', {
+                    methodCount: methodsData.length,
+                    taskCount: allTasks.length
+                  });
+                }
+              } catch (refreshError) {
+                console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
+                message.warning('最新の情報取得に失敗しました。画面を再読み込みしてください。');
+              }
+            } else if ((error as AxiosError)?.response?.status === 404) {
+              message.error('タスクが見つかりません');
+            } else {
+              message.error('タスクの開始中にエラーが発生しました');
+            }
+          }
           break;
 
         case 'instruction':

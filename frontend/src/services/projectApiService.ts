@@ -157,6 +157,22 @@ export interface WorkerTask {
 }
 
 /**
+ * タスクステータス更新レスポンス型
+ * API: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status
+ */
+export interface TaskStatusUpdateResponse {
+  task_no: number;
+  project_name: string;
+  method_id: string;
+  previous_status: string;
+  new_status: string;
+  updated_by: string;
+  updated_by_name: string;
+  updated_at: string;
+  comment?: string;
+}
+
+/**
  * APIエラーレスポンス型
  */
 interface ApiErrorResponse {
@@ -664,6 +680,95 @@ export const getWorkerTasks = async (
     };
   } catch (error) {
     console.error('[DEBUG] getWorkerTasks - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status
+    });
+    throw error;
+  }
+};
+
+/**
+ * タスクステータスを更新
+ * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status
+ * 
+ * @param projectName プロジェクト名
+ * @param methodId メソッドID
+ * @param taskNo タスク連番（文字列）
+ * @param status 新しいステータス
+ * @param comment コメント（任意、最大500文字）
+ * @param currentUpdatedAt 楽観的ロック用（任意）
+ * @returns 更新されたタスク情報
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * // タスクを作業中に更新
+ * const result = await updateTaskStatus('sample_project', 'method1', '1', 'in_progress');
+ * console.log(result.data.new_status); // 'in_progress'
+ * 
+ * // コメント付きで更新
+ * await updateTaskStatus('sample_project', 'method1', '1', 'completed', '実験完了しました');
+ * ```
+ */
+export const updateTaskStatus = async (
+  projectName: string,
+  methodId: string,
+  taskNo: string,
+  status: 'not_started' | 'started' | 'in_progress' | 'completed' | 'forced_terminated',
+  comment?: string,
+  currentUpdatedAt?: string
+): Promise<ApiResponse<TaskStatusUpdateResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] updateTaskStatus - Start', {
+      projectName,
+      methodId,
+      taskNo,
+      status,
+      hasComment: !!comment
+    });
+    
+    const requestBody: {
+      status: string;
+      comment?: string;
+      currentUpdatedAt?: string;
+    } = { status };
+    
+    if (comment) {
+      requestBody.comment = comment;
+    }
+    if (currentUpdatedAt) {
+      requestBody.currentUpdatedAt = currentUpdatedAt;
+    }
+    
+    const response = await client.patch<{
+      success: boolean;
+      data: TaskStatusUpdateResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(
+      `/progress/projects/${encodeURIComponent(projectName)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/status`,
+      requestBody
+    );
+
+    console.log('[DEBUG] updateTaskStatus - Success', {
+      previousStatus: response.data.data.previous_status,
+      newStatus: response.data.data.new_status,
+      updatedAt: response.data.data.updated_at
+    });
+    
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta
+    };
+  } catch (error) {
+    console.error('[DEBUG] updateTaskStatus - Error', {
       error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,

@@ -262,7 +262,12 @@ export interface Task {
   sampleNumber: string;        // サンプル番号
   notes: string;               // 備考
   status: TaskStatus;          // ステータス
+  assignedUserId?: string;     // 割り当てユーザーID
+  assignedUserName?: string;   // 割り当てユーザー名
+  createdAt?: string;          // 作成日時（ISO8601形式）
+  updatedAt: string;           // 更新日時（ISO8601形式、楽観的ロック用に必須）
   progressRate: number;        // 進捗率（0-100）
+  transitionStatuses?: TransitionStatus[]; // トランジションステータス一覧
   progressReport: string;      // 進捗報告の状態（例: "実験記録報告"）
   recordNumber: string;        // 実験記録番号
 }

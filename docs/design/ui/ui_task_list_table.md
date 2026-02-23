@@ -162,7 +162,7 @@ const filteredTasks = useMemo(() => {
 | ボタン名 | アクション | 処理内容 | 有効条件 |
 |---------|-----------|---------|---------|
 | 指示 | `instruction` | onTaskAction(taskId, 'instruction')を呼び出し | 常に有効 |
-| 開始 | `start` | onTaskAction(taskId, 'start')を呼び出し | status === 'not_started' かつ isEditableStatus(projectStatus) |
+| 開始 | `start` | onTaskAction(taskId, 'start')を呼び出し。タスクステータス更新API(`PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status`)でステータスを'in_progress'に更新。**楽観的ロック用に現在の`updatedAt`を`currentUpdatedAt`パラメータとして送信**。成功時はタスク一覧を再取得して最新の状態を反映。競合エラー（409 Conflict）発生時は最新のタスク一覧を再取得してユーザーに通知。 | status === 'not_started' かつ isEditableStatus(projectStatus) |
 | 問題確認 | `issueCheck` | onTaskAction(taskId, 'issueCheck')を呼び出し | 常に有効 |
 | 記録 | `record` | onTaskAction(taskId, 'record')を呼び出し | 常に有効 |
 | 強制終了 | `forceTerminate` | onTaskAction(taskId, 'forceTerminate')を呼び出し | status !== 'completed' かつ status !== 'forced_terminated' かつ isEditableStatus(projectStatus) |
@@ -608,6 +608,7 @@ aria-label="タスクを開始"
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.0.1 | 2026-02-23 | 開始ボタンの説明を更新（楽観的ロック用currentUpdatedAtパラメータ、409 Conflict処理を追加） | Cline |
 | 1.0.0 | 2026-02-20 | 初版作成 | Cline |
 
 ---
