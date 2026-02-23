@@ -241,7 +241,8 @@ export async function updateTransitionStatus(
     // プロジェクトステータスが編集可能かチェック
     // 1: pending (タスク実行待ち), 2: in_progress (タスク実行中)
     const editableStatuses = [1, 2];
-    if (!editableStatuses.includes(project.project_status)) {
+    const projectStatus = Number(project.project_status); // 文字列から数値に変換
+    if (!editableStatuses.includes(projectStatus)) {
       const error: any = new Error('Project is not editable');
       error.name = 'ProjectNotEditableError';
       throw error;
@@ -484,11 +485,13 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
     // Step 2: プロジェクトステータスが編集可能かチェック
     // 1: pending (タスク実行待ち), 2: in_progress (タスク実行中)
     const editableStatuses = [1, 2];
-    if (!editableStatuses.includes(project.project_status)) {
+    const projectStatus = Number(project.project_status); // 文字列から数値に変換
+    if (!editableStatuses.includes(projectStatus)) {
       logger.warn('Project is not in editable status', {
         projectName,
         projectId,
         projectStatus: project.project_status,
+        projectStatusType: typeof project.project_status,
         requestId
       });
 

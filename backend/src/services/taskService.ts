@@ -280,6 +280,19 @@ export async function updateTaskStatus(
         throw transitionResult.error;
       }
 
+      // デバッグログ: 楽観的ロック用の比較値を出力
+      logger.info('updateTaskStatus - Optimistic lock comparison', {
+        currentUpdateAt_from_request: params.currentUpdateAt,
+        currentUpdateAt_from_db: currentTask.update_at,
+        currentUpdateAt_db_iso: currentTask.update_at ? new Date(currentTask.update_at).toISOString() : null,
+        taskInfo: {
+          organizationId: params.organizationId,
+          projectId: params.projectId,
+          methodId: params.methodId,
+          taskNo: params.taskNo
+        }
+      });
+
       // UPDATE実行（楽観的ロックチェック含む）
       const updatedTask = await t.oneOrNone(updateQuery, [
         newStatusNum,
@@ -289,11 +302,23 @@ export async function updateTaskStatus(
         params.taskNo,
         params.currentUpdateAt,
         TaskStatusEnum.IN_PROGRESS,  // $7: CASE文用
-        TaskStatusEnum.COMPLETED     // $8: CASE文用
+        TaskStatusEnum.COMPLETED,    // $8: CASE文用
+        params.userId                // $9: 実験作業者ID
       ]);
 
       // 楽観的ロック失敗: update_atが一致せず更新できなかった
       if (!updatedTask) {
+        logger.error('updateTaskStatus - Optimistic lock failed', {
+          currentUpdateAt_sent: params.currentUpdateAt,
+          currentUpdateAt_in_db: currentTask.update_at,
+          taskInfo: {
+            organizationId: params.organizationId,
+            projectId: params.projectId,
+            methodId: params.methodId,
+            taskNo: params.taskNo
+          }
+        });
+        
         throw {
           code: 'CONCURRENT_UPDATE_DETECTED',
           message: 'Concurrent update detected. Please fetch the latest data and retry.'
