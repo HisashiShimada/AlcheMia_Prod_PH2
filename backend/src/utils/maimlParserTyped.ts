@@ -55,7 +55,6 @@ export interface TemplateMetadata {
  */
 export class MaimlParserTyped {
   private typedMaiml: MaimlRoot;
-  private maimlString: string | null = null;
   
   /**
    * コンストラクタ
@@ -64,10 +63,6 @@ export class MaimlParserTyped {
    * @throws {Error} XML解析エラー、型変換エラー
    */
   constructor(maimlData: string | XmlJsMaimlRoot | XmlJsElement) {
-    // 1. XML文字列を保存
-    if (typeof maimlData === 'string') {
-      this.maimlString = maimlData;
-    }
     
     // 2. xml-js形式に変換
     let xmlData: XmlJsMaimlRoot | XmlJsElement;
@@ -206,15 +201,15 @@ export class MaimlParserTyped {
    * Transitionのカテゴリを判定
    * 
    * @param {Transition} transition - Transitionオブジェクト
-   * @param {number} methodIndex - Method インデックス
-   * @param {number} totalTransitions - 総Transition数
+   * @param {number} _methodIndex - Method インデックス（未使用）
+   * @param {number} _totalTransitions - 総Transition数（未使用）
    * @returns {string} カテゴリ名
    * @private
    */
   determineTransitionCategory(
     transition: Transition,
-    methodIndex: number,
-    totalTransitions: number
+    _methodIndex: number,
+    _totalTransitions: number
   ): 'experiment' | 'preparation' | 'finalization' | 'other' {
     const name = (transition.name || '').toLowerCase();
     
@@ -241,37 +236,39 @@ export class MaimlParserTyped {
   ): string {
     // 1. 該当するTransitionを取得
     const methods = this.getMethods();
-    if (methods.length ===0) {
+    if (methods.length === 0) {
       return '';
     }
     
-    methods.forEach((method) => {
-    // 2. program配列を取得（単一要素と配列の両方に対応）
-    const programs = Array.isArray(method.program) 
-      ? method.program 
-      : [method.program];
-    
-    // 3. 各programのinstructionを検索
-    for (const program of programs) {
-      if (!program.instructions) {
-        continue;
-      }
+    // 2. forEachをfor...ofに変更して早期リターンを可能にする
+    for (const method of methods) {
+      // 3. program配列を取得（単一要素と配列の両方に対応）
+      const programs = Array.isArray(method.program) 
+        ? method.program 
+        : [method.program];
       
-      // instruction配列を取得（単一要素と配列の両方に対応）
-      const instructions = program.instructions;
-      
-      // 4. 該当するtransitionIdを持つinstructionを検索（早期終了）
-      // Instruction型はtransitionRef配列を持つので、その中のrefを確認
-      const instruction = instructions.find(i => {
-        i.transitionRef.ref === transitionId;
-      });
-      
-      if (instruction) {
-        return instruction.id;
+      // 4. 各programのinstructionを検索
+      for (const program of programs) {
+        if (!program.instructions) {
+          continue;
+        }
+        
+        // instruction配列を取得（単一要素と配列の両方に対応）
+        const instructions = program.instructions;
+        
+        // 5. 該当するtransitionIdを持つinstructionを検索（早期終了）
+        // Instruction型はtransitionRef配列を持つので、その中のrefを確認
+        const instruction = instructions.find(i => 
+          i.transitionRef.ref === transitionId
+        );
+        
+        if (instruction) {
+          return instruction.id;
+        }
       }
     }
-    })
     
+    // 6. 見つからなかった場合は空文字を返す
     return '';
   }
   
@@ -335,52 +332,21 @@ export class MaimlParserTyped {
    * テンプレートを収集
    * 
    * @param {any} templates - Template オブジェクトまたは配列
-   * @param {string} type - テンプレートタイプ
+   * @param {string} _type - テンプレートタイプ（未使用）
    * @param {TemplateInfo[]} result - 収集結果を格納する配列
    * @private
    */
   private collectTemplates(
     templates: Template | Array<Template>,
-    type: 'material' | 'condition' | 'result',
+    _type: 'material' | 'condition' | 'result',
     result: Array<Template>
   ): void {
     const templateArray = Array.isArray(templates) ? templates : [templates];
     
     templateArray.forEach(template => {
-      // placeRef から最初の ref 値を取得（配列型なので）
-      const placeRefs = template.placeRefs as PlaceRef[] | undefined;
-      const placeRefValue = placeRefs && placeRefs.length > 0 
-        ? placeRefs[0].ref 
-        : undefined;
-      
-      // transitionRef は MaterialTemplate のみに存在
-      let transitionRefValue: string | undefined = undefined;
-      if (type === 'material' && 'templateRef' in template) {
-        const tRef = template.templateRef;
-        transitionRefValue = tRef?.ref ? tRef.ref : undefined;
-      }
-      
-      // Phase 6-2修正: XSD準拠型をそのまま使用（追加フィールドは不要）
+      // XSD準拠型をそのまま使用（追加フィールドは不要）
       result.push(template);
     });
-  }
-  
-  /**
-   * Propertyを解析
-   * 
-   * @param {Property | Property[] | undefined} properties - Property オブジェクトまたは配列
-   * @returns {PropertyInfo[]} 解析されたProperty情報配列
-   * @private
-   */
-  private parseProperties(properties: Property | Property[] | undefined): Property[] {
-    if (!properties) {
-      return [];
-    }
-    
-    const propArray = Array.isArray(properties) ? properties : [properties];
-    
-    // Phase 6-2修正: Property型をそのまま返す（型変換不要）
-    return propArray;
   }
   
   /**
