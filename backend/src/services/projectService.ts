@@ -1642,7 +1642,7 @@ export class ProjectService {
         transition_name: '', // TODO: タスク2.2で実装
         task_no: row.task_no,
         instruction_target: row.instruction_target,
-        instruction_content: row.instructions,
+        instruction_content: row.instruction_content,
         priority: row.priority,
         type: row.type,
         create_at: row.create_at.toISOString(),
