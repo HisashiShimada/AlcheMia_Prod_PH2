@@ -75,7 +75,7 @@ export class JwtService {
    * アクセストークンを生成
    * 
    * @param payload - JWTペイロード（iat, expを除く）
-   * @returns maiml_session-{sessionId}_{timestamp} 形式のトークン
+   * @returns maiml_session-{tokenId}_{timestamp} 形式のトークン
    */
   async generateAccessToken(
     payload: Omit<JwtPayload, 'iat' | 'exp'>
@@ -101,8 +101,8 @@ export class JwtService {
         audience: this.audience
       });
 
-      // トークン形式: maiml_session-{sessionId}_{timestamp}.{jwt}
-      const sessionToken = `maiml_session-${payload.sessionId}_${now}.${jwtToken}`;
+      // トークン形式: maiml_session-{tokenId}_{timestamp}.{jwt}
+      const sessionToken = `maiml_session-${payload.tokenId}_${now}.${jwtToken}`;
 
       return {
         success: true,
@@ -125,13 +125,13 @@ export class JwtService {
    * 
    * @param userId - ユーザーID
    * @param organizationId - 組織ID
-   * @param sessionId - セッションID
+   * @param tokenId - トークンID（アクセストークンと共通）
    * @returns maiml_refresh-{tokenId}_{timestamp} 形式のトークン
    */
   async generateRefreshToken(
     userId: string,
     organizationId: string,
-    sessionId: string
+    tokenId: string
   ): Promise<Result<string, ServiceError>> {
     try {
       // 現在時刻
@@ -140,14 +140,11 @@ export class JwtService {
       // 有効期限を取得（Redis接続状態に応じて自動切り替え）
       const expiresIn = this.getRefreshTokenExpiresIn();
       
-      // リフレッシュトークン固有ID生成
-      const tokenId = uuidv4();
-      
       // リフレッシュトークンペイロードを構築
       const payload: RefreshTokenPayload = {
         userId,
         organizationId,
-        sessionId,
+        sessionId: tokenId,  // sessionIdとtokenIdを同じ値に
         tokenId,
         iat: now,
         exp: now + expiresIn
@@ -198,11 +195,11 @@ export class JwtService {
         };
       }
 
-      // リフレッシュトークン生成
+      // リフレッシュトークン生成（tokenIdを使用）
       const refreshTokenResult = await this.generateRefreshToken(
         payload.userId,
         payload.organizationId,
-        payload.sessionId
+        payload.tokenId
       );
       if (!refreshTokenResult.success) {
         return {

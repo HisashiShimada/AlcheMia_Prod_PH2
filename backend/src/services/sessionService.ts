@@ -9,6 +9,7 @@
 
 import type { Result, ServiceError, SessionInfo } from '../types/auth';
 import { RefreshTokenService } from './refreshTokenService';
+import { TokenBlacklistService } from './tokenBlacklistService';
 import { logError } from '../utils/logger';
 
 /**
@@ -184,7 +185,7 @@ export class SessionService {
         };
       }
 
-      // 4. Redisからトークンを削除（セッション無効化）
+      // 4. Redisからリフレッシュトークンを削除（セッション無効化）
       const revokeResult = await this.refreshTokenService.revoke(tokenId, token.userId);
 
       if (!revokeResult.success) {
@@ -192,6 +193,19 @@ export class SessionService {
           success: false,
           error: revokeResult.error
         };
+      }
+
+      // 5. アクセストークンをブラックリストに追加（タイムスタンプ付き）
+      const blacklistService = new TokenBlacklistService();
+      const blacklistResult = await blacklistService.add(tokenId);
+
+      if (!blacklistResult.success) {
+        // ブラックリスト追加失敗時はログ出力のみ（リフレッシュトークンは削除済みのため続行）
+        logError('Failed to add token to blacklist', new Error('Blacklist add failed'), {
+          action: 'terminate_session',
+          tokenId,
+          error: blacklistResult.error
+        });
       }
 
       console.log(`[INFO] セッション強制終了: tokenId=${tokenId}, userId=${token.userId}, by=${currentUserId}`);

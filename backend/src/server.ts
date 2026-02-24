@@ -9,6 +9,7 @@ dotenv.config();
 // Import middleware
 import { setupSessionMiddleware } from './middleware/sessionMiddleware';
 import { RedisConnectionService } from './services/redisConnectionService';
+import { TokenBlacklistService } from './services/tokenBlacklistService';
 
 // Import routes after dotenv is configured
 import authRoutes from './routes/authRoutes';
@@ -128,6 +129,27 @@ async function startServer() {
       console.log(`  - Request timeout: ${server.timeout}ms (${server.timeout / 1000}s)`);
       console.log(`  - Headers timeout: ${server.headersTimeout}ms (${server.headersTimeout / 1000}s)`);
       console.log(`  - Keep-Alive timeout: ${server.keepAliveTimeout}ms (${server.keepAliveTimeout / 1000}s)`);
+
+      // ブラックリストクリーンアップジョブの起動
+      const cleanupInterval = parseInt(
+        process.env.TOKEN_BLACKLIST_CLEANUP_INTERVAL || '1800',
+        10
+      ) * 1000; // ミリ秒に変換
+
+      console.log(`🧹 Token blacklist cleanup job started (interval: ${cleanupInterval / 1000}s)`);
+
+      setInterval(async () => {
+        try {
+          const blacklistService = new TokenBlacklistService();
+          const result = await blacklistService.cleanup();
+          
+          if (result.success && result.data > 0) {
+            console.log(`[INFO] Blacklist cleanup: ${result.data} tokens removed`);
+          }
+        } catch (error) {
+          console.error('[ERROR] Blacklist cleanup job failed:', error);
+        }
+      }, cleanupInterval);
 
       // グレースフルシャットダウン
       const gracefulShutdown = async (signal: string) => {

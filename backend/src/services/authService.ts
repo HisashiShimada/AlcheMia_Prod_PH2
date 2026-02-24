@@ -7,6 +7,7 @@ import { PinExemptionService } from './pinExemptionService';
 import { JwtService } from './jwtService';
 import { EmailService } from './emailService';
 import { RefreshTokenService } from './refreshTokenService';
+import { TokenBlacklistService } from './tokenBlacklistService';
 import { OrganizationUserRepository } from '../repositories/organizationUserRepository';
 import { UserAuthenticationRepository } from '../repositories/userAuthenticationRepository';
 import { RolePermissionRepository } from '../repositories/rolePermissionRepository';
@@ -515,11 +516,12 @@ export class AuthService {
       );
 
       // 6. トークンペア生成
-      const newSessionId = uuidv4();
+      const newTokenId = uuidv4();
       const tokenPairResult = await this.jwtService.generateTokenPair({
         userId: userInfo.id,
         organizationId: userInfo.organizationId,
-        sessionId: newSessionId,
+        sessionId: newTokenId,  // 後方互換性のため
+        tokenId: newTokenId,     // アクセストークンとリフレッシュトークンで共通
         permissions,
       });
 
@@ -701,11 +703,12 @@ export class AuthService {
       );
 
       // 6. 新しいトークンペアを生成
-      const newSessionId = uuidv4();
+      const newTokenId = uuidv4();
       const tokenPairResult = await this.jwtService.generateTokenPair({
         userId: user.user_id,
         organizationId: user.organization_id,
-        sessionId: newSessionId,
+        sessionId: newTokenId,  // 後方互換性のため
+        tokenId: newTokenId,     // アクセストークンとリフレッシュトークンで共通
         permissions,
       });
 
@@ -786,6 +789,10 @@ export class AuthService {
         if (decoded && 'tokenId' in decoded) {
           // Redisからリフレッシュトークンを削除
           await this.refreshTokenService.revoke(decoded.tokenId, userId);
+
+          // アクセストークンをブラックリストに追加
+          const blacklistService = new TokenBlacklistService();
+          await blacklistService.add(decoded.tokenId);
         }
       }
 

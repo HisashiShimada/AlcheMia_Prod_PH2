@@ -11,6 +11,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { JwtService } from '../services/jwtService';
+import { TokenBlacklistService } from '../services/tokenBlacklistService';
 
 /**
  * 認証ミドルウェア
@@ -85,8 +86,39 @@ export async function authMiddleware(
       return;
     }
 
-    // 検証成功 - req.userにペイロードを格納
-    req.user = result.data;
+    // 検証成功 - ペイロードを取得
+    const decoded = result.data;
+
+    // ブラックリストチェック（tokenIdが存在する場合のみ）
+    if (decoded.tokenId) {
+      const blacklistService = new TokenBlacklistService();
+      const blacklistResult = await blacklistService.isBlacklisted(decoded.tokenId);
+
+      if (blacklistResult.success && blacklistResult.data) {
+        // ブラックリスト登録済み - トークンは無効化されている
+        res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTH_TOKEN_BLACKLISTED',
+            message: 'このトークンは無効化されています'
+          },
+          meta: {
+            timestamp: new Date().toISOString()
+          }
+        });
+        return;
+      }
+
+      // ブラックリストチェックでエラーが発生した場合
+      if (!blacklistResult.success) {
+        console.error('Blacklist check error:', blacklistResult.error);
+        // Redis障害時はフェイルセーフ: JWT検証が成功しているため通す
+        // （本番環境では厳格モードにすることも検討）
+      }
+    }
+
+    // req.userにペイロードを格納
+    req.user = decoded;
 
     // 次のミドルウェアへ
     next();

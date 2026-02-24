@@ -145,11 +145,12 @@ export async function issueSessionTokens(
   );
 
   // 6. トークンペア生成
-  const newSessionId = uuidv4();
+  const newTokenId = uuidv4();
   const tokenPairResult = await jwtService.generateTokenPair({
     userId: user.user_id,
     organizationId: user.organization_id,
-    sessionId: newSessionId,
+    sessionId: newTokenId,
+    tokenId: newTokenId,
     permissions,
   });
 
