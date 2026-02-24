@@ -36,7 +36,7 @@ function StatCard({ icon, label, value, borderColor, iconColor }: StatCardProps)
         height: '100%',
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
       }}
-      bodyStyle={{ padding: '8px 24px' }}
+      styles={{ body: { padding: '8px 24px' } }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div

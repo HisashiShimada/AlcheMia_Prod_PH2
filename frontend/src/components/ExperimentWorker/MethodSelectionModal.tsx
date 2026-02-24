@@ -217,7 +217,7 @@ export default function MethodSelectionModal({
         </Space>
       }
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         {/* フィルタリングコントロール */}
         <Row gutter={16}>
           <Col flex="400px">

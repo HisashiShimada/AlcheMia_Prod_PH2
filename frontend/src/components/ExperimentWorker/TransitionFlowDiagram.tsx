@@ -163,7 +163,7 @@ export default function TransitionFlowDiagram({
           image={<PartitionOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />}
           imageStyle={{ height: 48 }}
           description={
-            <Space direction="vertical" align="center" size="small">
+            <Space orientation="vertical" align="center" size="small">
               <Title level={4} type="secondary" style={{ margin: 0 }}>
                 トランジションがありません
               </Title>
@@ -262,7 +262,7 @@ export default function TransitionFlowDiagram({
               boxShadow: token.boxShadow,
             }}
           >
-            <Space direction="vertical" size="small">
+            <Space orientation="vertical" size="small">
               {methodName && (
                 <Text strong style={{ fontSize: 14 }}>
                   {methodName}

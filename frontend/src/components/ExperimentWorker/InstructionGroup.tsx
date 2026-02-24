@@ -116,7 +116,7 @@ export default function InstructionGroup({
             <Empty description={noDataMessages[title] || '作業指示がありません'} />
           </Card>
         ) : (
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             {groupInstructions.map((instruction) => (
               <InstructionCard
                 key={instruction.instructionId}
@@ -148,7 +148,7 @@ export default function InstructionGroup({
 
     return (
       <div style={{ marginBottom: 32 }}>
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={8} style={{ width: '100%' }}>
           {taskIds.map((taskId) => {
             const taskInstructions = taskGroups[taskId];
             const taskName = taskInstructions[0]?.taskName || `タスク ${taskId}`;
@@ -229,7 +229,7 @@ export default function InstructionGroup({
 
                 {/* 展開時のみ指示カードを表示 */}
                 {isExpanded && (
-                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+                  <Space orientation="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
                     {taskInstructions.map((instruction) => (
                       <InstructionCard
                         key={instruction.instructionId}
@@ -265,7 +265,7 @@ export default function InstructionGroup({
 
     return (
       <div style={{ marginBottom: 32 }}>
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={8} style={{ width: '100%' }}>
           {methodIds.map((methodId) => {
             const methodInstructions = methodGroups[methodId];
             const methodName = methodInstructions[0]?.methodName || `メソッド ${methodId}`;
@@ -346,7 +346,7 @@ export default function InstructionGroup({
 
                 {/* 展開時のみ指示カードを表示 */}
                 {isExpanded && (
-                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+                  <Space orientation="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
                     {methodInstructions.map((instruction) => (
                       <InstructionCard
                         key={instruction.instructionId}
@@ -382,7 +382,7 @@ export default function InstructionGroup({
 
     return (
       <div style={{ marginBottom: 32 }}>
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={8} style={{ width: '100%' }}>
           {transitionIds.map((transitionId) => {
             const transitionInstructions = transitionGroups[transitionId];
             const transitionName = transitionInstructions[0]?.transitionName || `トランジション ${transitionId}`;
@@ -463,7 +463,7 @@ export default function InstructionGroup({
 
                 {/* 展開時のみ指示カードを表示 */}
                 {isExpanded && (
-                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+                  <Space orientation="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
                     {transitionInstructions.map((instruction) => (
                       <InstructionCard
                         key={instruction.instructionId}

@@ -280,7 +280,6 @@ export default function TaskListTable({
         showQuickJumper: false,
         showTotal: (total) => `全${total}件`,
         pageSizeOptions: ['10', '20', '50', '100'],
-        position: ['bottomRight'],
         locale: {
           items_per_page: '件/ページ',
           jump_to: 'ページ',

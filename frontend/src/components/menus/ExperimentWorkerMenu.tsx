@@ -190,8 +190,8 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   }, []);
 
   // プロジェクト変更時のハンドラー（メソッドとタスクをリセット）
-  const handleProjectChange = (value: string | null) => {
-    // nullは空文字列として扱う
+  const handleProjectChange = (value: string | undefined | null) => {
+    // undefined/nullは空文字列として扱う
     const projectValue = value || '';
     
     // プロジェクト名を取得
@@ -256,6 +256,11 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     }
   };
 
+  // 子コンポーネント用のプロジェクト変更ハンドラー（string型のみを受け取る）
+  const handleProjectChangeForChild = (projectId: string) => {
+    handleProjectChange(projectId);
+  };
+
   // タブアイテムの定義
   const tabItems = [
     {
@@ -266,7 +271,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
         <ProgressCheckTab
           selectedProject={selectedProject}
           selectedProjectName={selectedProjectName}
-          onProjectChange={handleProjectChange}
+          onProjectChange={handleProjectChangeForChild}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
           onTabChange={handleTabChange}
@@ -282,7 +287,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
         <InstructionConfirmationTab
           selectedProject={selectedProject}
           selectedProjectName={selectedProjectName}
-          onProjectChange={handleProjectChange}
+          onProjectChange={handleProjectChangeForChild}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
           selectedTaskId={selectedTaskId}
@@ -303,7 +308,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       children: (
         <ExperimentRecordTab
           selectedProject={selectedProject}
-          onProjectChange={handleProjectChange}
+          onProjectChange={handleProjectChangeForChild}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
           selectedTaskId={selectedTaskId}
@@ -357,7 +362,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
               <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
               <Text strong>{t('experimentWork.labels.project')}:</Text>
               <Select
-                value={selectedProject === '' ? null : selectedProject}
+                value={selectedProject === '' ? undefined : selectedProject}
                 placeholder="-"
                 style={{ width: 280 }}
                 onChange={handleProjectChange}
@@ -365,7 +370,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                 disabled={projectsLoading}
                 notFoundContent={projectsLoading ? <Spin size="small" /> : 'プロジェクトがありません'}
                 options={[
-                  { value: null, label: '-' },
+                  { value: '', label: '-' },
                   ...projects.map((project) => ({
                     value: project.projectId,
                     label: `${project.projectName} - ${t(`experimentWork.projectStatus.${project.projectStatus}`)}`

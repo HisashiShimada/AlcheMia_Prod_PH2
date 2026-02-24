@@ -475,7 +475,7 @@ export default function InstructionConfirmationTab({
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+          <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
             <FileTextOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
               <FileTextOutlined style={{ marginRight: token.marginXS }} />
@@ -534,9 +534,11 @@ export default function InstructionConfirmationTab({
               borderRadius: '8px',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
             }}
-            bodyStyle={{
-              paddingTop: '8px',
-              paddingBottom: '8px',
+            styles={{
+              body: {
+                paddingTop: '8px',
+                paddingBottom: '8px',
+              },
             }}
           >
             {/* 全体指示グループ */}
