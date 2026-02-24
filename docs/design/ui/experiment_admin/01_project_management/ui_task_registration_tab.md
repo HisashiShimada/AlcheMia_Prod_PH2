@@ -442,29 +442,136 @@ frontend/src/components/project/TaskRegistrationTab.tsx
 
 ---
 
-## 9. 既知の課題・TODO
+## 9. API連携（2026-02-20追加）
 
-### 9.1 API未実装
-- [ ] メソッド情報取得API
+### 9.1 タスク登録情報取得
 
-### 9.2 将来の改善案
+**関数**: `projectApiService.getTaskRegistration(projectName)`
+
+**エンドポイント**: `GET /api/v1/projects/:projectName/task-registration`
+
+**レスポンス:**
+```typescript
+interface GetTaskRegistrationResponse {
+  tasks: Array<{
+    methodId: string;
+    experimentCondition: number;
+    trialCount: number;
+    experimentOrder: number;
+  }>;
+  isCheckoutLocked: boolean;
+  isMaimlRegistered: boolean;
+  experimentConditionOptions: Array<{
+    value: number;
+    label: string;
+  }>;
+}
+```
+
+**使用例:**
+```typescript
+const data = await getTaskRegistration(projectName);
+setIsCheckoutLocked(data.isCheckoutLocked);
+setIsMaimlRegistered(data.isMaimlRegistered);
+setExperimentConditionOptions(data.experimentConditionOptions);
+setTaskDetails(data.tasks.map((task, index) => ({
+  id: index + 1,
+  methodId: task.methodId,
+  experimentCondition: task.experimentCondition,
+  trialCount: task.trialCount,
+  experimentOrder: task.experimentOrder,
+  taskNumberOptions: Array.from({ length: task.trialCount }, (_, i) => i + 1),
+})));
+```
+
+### 9.2 タスク登録保存
+
+**関数**: `projectApiService.saveTaskRegistration(projectName, requestData)`
+
+**エンドポイント**: `POST /api/v1/projects/:projectName/task-registration`
+
+**リクエスト:**
+```typescript
+interface SaveTaskRegistrationRequest {
+  tasks: Array<{
+    methodId: string;
+    experimentCondition: number;
+    trialCount: number;
+  }>;
+}
+```
+
+**レスポンス:**
+```typescript
+interface SaveTaskRegistrationResponse {
+  success: boolean;
+  message: string;
+}
+```
+
+**使用例:**
+```typescript
+const requestData = {
+  tasks: taskDetails.map((task) => ({
+    methodId: task.methodId,
+    experimentCondition: task.experimentCondition,
+    trialCount: task.trialCount,
+  })),
+};
+
+const response = await saveTaskRegistration(projectName, requestData);
+message.success(response.message || 'タスク設定を保存しました');
+```
+
+---
+
+## 10. 実装完了状況（2026-02-20更新）
+
+### 10.1 実装済み機能
+- [x] 初期表示（API連携）
+- [x] タスク一覧表示（テーブル形式）
+- [x] ドラッグ&ドロップによる順序変更
+- [x] 作業順序の手動変更
+- [x] 実験条件の設定（code_masterから動的取得）
+- [x] 試行回数の設定
+- [x] 保存機能（API連携）
+- [x] チェックアウト状態での編集制御
+- [x] MAIML未登録時の編集制御
+- [x] バリデーション
+- [x] エラーハンドリング
+
+### 10.2 実装の変更点
+- **メソッド表示**: メソッド名 → メソッドIDに変更（MAIMLファイルにメソッド名を設定する処理がないため）
+- **データ保存**: LocalStorage → DB保存（project_task、project_task_detailテーブル）
+- **実験条件**: 固定値 → code_masterテーブルから動的取得
+- **編集制御**: チェックアウト状態・MAIML登録状態による保存制御を追加
+
+### 10.3 将来の改善案
 - [ ] タスクの追加・削除機能
 - [ ] タスクのコピー機能
 - [ ] タスクのエクスポート・インポート機能
 - [ ] 一括編集機能
 - [ ] プリセット機能
+- [ ] メソッド名の表示（MAIML仕様変更後）
 
 ---
 
-## 10. 変更履歴
+## 11. 変更履歴
 
 | 日付 | バージョン | 変更内容 | 担当者 |
 |------|-----------|---------|--------|
+| 2026-02-20 | 2.0.0 | API連携実装、仕様書大幅更新 | Cline |
+| | | - メソッド名表示 → メソッドID表示に変更 | |
+| | | - API連携実装（取得・保存） | |
+| | | - code_masterから実験条件を動的取得 | |
+| | | - チェックアウト状態・MAIML登録状態の制御追加 | |
+| | | - LocalStorage保存を廃止してDB保存に変更 | |
 | 2026-02-19 | 1.0.0 | 初版作成 | Cline |
 
 ---
 
-## 11. 関連ドキュメント
+## 12. 関連ドキュメント
 
-- [ProjectManagement仕様](./ProjectManagement.md) - 親コンポーネント
-- [InstructionRegistrationTab仕様](./InstructionRegistrationTab.md) - 指示登録タブ
+- [タスク登録API仕様書](../../../api/api_project_management.md#17-タスク登録情報取得-) - API仕様
+- [ProjectManagement仕様](./ui_project_management.md) - 親コンポーネント
+- [プロジェクト管理API仕様書](../../../api/api_project_management.md) - API全体仕様

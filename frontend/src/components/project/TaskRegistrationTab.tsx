@@ -39,8 +39,15 @@ import {
 } from '@dnd-kit/sortable';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { TaskDetail, MethodInfo, TaskRegistrationData } from '@/types/taskRegistration';
+import type { 
+  TaskDetail, 
+  MethodInfo, 
+  TaskRegistrationData
+} from '@/types/taskRegistration';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getTaskRegistration, saveTaskRegistration } from '@/services/projectApiService';
+import { createSelectOptionsFromCodeMaster, createRangeOptions } from '@/utils/selectUtils';
+import { useCodeMaster } from '@/hooks/useCodeMaster';
 
 const { Text } = Typography;
 const { useToken } = theme;
@@ -77,87 +84,77 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   const [loadingMethods, setLoadingMethods] = useState<boolean>(false);
   const [taskDetails, setTaskDetails] = useState<TaskDetail[]>([]);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isCheckoutLocked, setIsCheckoutLocked] = useState<boolean>(false);
+  const [isMaimlRegistered, setIsMaimlRegistered] = useState<boolean>(false);
+
+  // コードマスターから実験条件オプションを取得
+  const { options: experimentConditionOptions, loading: loadingCodeMaster } = useCodeMaster('experiment_condition');
 
   /**
-   * ローカルストレージのキー
-   */
-  const storageKey = useMemo(() => `task-registration-${projectId}`, [projectId]);
-
-  /**
-   * MAIMLファイルからメソッド情報を取得
+   * タスク登録情報を取得
    */
   useEffect(() => {
-    const fetchMethods = async () => {
-      if (!projectId) return;
+    const fetchTaskRegistration = async () => {
+      if (!projectName) return;
 
       setLoadingMethods(true);
 
       try {
-        // TODO: 実際のAPI実装時に置き換え
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        const data = await getTaskRegistration(projectName);
 
-        // モックのメソッド情報
-        const mockMethods: MethodInfo[] = [
-          {
-            id: 'method_001',
-            name: 'sample_preparation',
-            displayName: 'サンプル準備',
-            description: '実験サンプルの準備プロセス',
-          },
-          {
-            id: 'method_002',
-            name: 'measurement',
-            displayName: '測定実行',
-            description: '測定機器による測定プロセス',
-          },
-          {
-            id: 'method_003',
-            name: 'data_analysis',
-            displayName: 'データ分析',
-            description: 'データの分析プロセス',
-          },
-        ];
+        // チェックアウト状態とMAIML登録状態を保存
+        setIsCheckoutLocked(data.isCheckoutLocked);
+        setIsMaimlRegistered(data.isMaimlRegistered);
 
-        setAvailableMethods(mockMethods);
+        // タスク情報をUI用の形式に変換
+        if (data.tasks && data.tasks.length > 0) {
+          const uiTasks: TaskDetail[] = data.tasks.map((task, index) => ({
+            id: index + 1,
+            methodId: task.methodId,
+            experimentCondition: Number(task.experimentCondition), // DBから取得した値を明示的に数値型に変換
+            trialCount: task.trialCount,
+            experimentOrder: task.experimentOrder,
+            taskNumberOptions: Array.from({ length: task.trialCount }, (_, i) => i + 1),
+          }));
 
-        // 保存されたデータがあれば復元
-        const savedData = localStorage.getItem(storageKey);
-        if (savedData) {
-          try {
-            const parsed: TaskRegistrationData = JSON.parse(savedData);
-            if (parsed.projectId === projectId && parsed.tasks.length > 0) {
-              setTaskDetails(parsed.tasks);
-              message.success(t('taskRegistration.messages.restored'));
-              onTasksChange?.(parsed.tasks);
-              return;
-            }
-          } catch (error) {
-            console.error('Failed to parse saved task data:', error);
-          }
+          // デバッグログ：型を確認
+          console.log('[DEBUG] TaskRegistrationTab - Converted tasks:', {
+            originalTasks: data.tasks,
+            uiTasks,
+            experimentConditionTypes: uiTasks.map(t => ({
+              value: t.experimentCondition,
+              type: typeof t.experimentCondition
+            }))
+          });
+
+          setTaskDetails(uiTasks);
+          onTasksChange?.(uiTasks);
+
+          // メソッド情報を抽出（簡易版：methodIdから生成）
+          const methods: MethodInfo[] = data.tasks.map((task) => ({
+            id: task.methodId,
+            name: task.methodId,
+            displayName: task.methodId,
+            description: undefined,
+          }));
+          setAvailableMethods(methods);
+        } else {
+          // タスクがない場合は空配列
+          setTaskDetails([]);
+          setAvailableMethods([]);
         }
-
-        // 保存データがない場合、初期化
-        const initialTasks: TaskDetail[] = mockMethods.map((method, index) => ({
-          id: index + 1,
-          methodId: method.id,
-          experimentCondition: 0,
-          trialCount: 1,
-          taskNumberOptions: [1],
-        }));
-
-        setTaskDetails(initialTasks);
-        onTasksChange?.(initialTasks);
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : 'メソッド取得エラー';
+          error instanceof Error ? error.message : 'タスク登録情報の取得に失敗しました';
         message.error(errorMessage);
+        console.error('Failed to fetch task registration:', error);
       } finally {
         setLoadingMethods(false);
       }
     };
 
-    fetchMethods();
-  }, [projectId, storageKey, onTasksChange]);
+    fetchTaskRegistration();
+  }, [projectName, onTasksChange]);
 
   /**
    * タスク詳細を更新
@@ -193,6 +190,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
    */
   const handleSave = useCallback(async () => {
     try {
+      // バリデーション
       const emptyMethod = taskDetails.find((task) => !task.methodId);
       if (emptyMethod) {
         message.warning(t('taskRegistration.messages.selectAllMethods'));
@@ -207,27 +205,43 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         return;
       }
 
+      // チェックアウト状態チェック
+      if (isCheckoutLocked) {
+        message.warning('プロジェクトがチェックアウトされています。保存できません。');
+        return;
+      }
+
+      // MAIML登録状態チェック
+      if (!isMaimlRegistered) {
+        message.warning('MAIMLファイルが登録されていません。保存できません。');
+        return;
+      }
+
       setIsSaving(true);
 
-      const dataToSave: TaskRegistrationData = {
-        projectId,
-        projectName,
-        tasks: taskDetails,
-        savedAt: new Date().toISOString(),
+      // API用のリクエストデータを作成
+      const requestData = {
+        tasks: taskDetails.map((task) => ({
+          methodId: task.methodId,
+          experimentCondition: task.experimentCondition,
+          trialCount: task.trialCount,
+        })),
       };
 
-      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-      onTasksChange?.(taskDetails);
+      // APIを呼び出し
+      const response = await saveTaskRegistration(projectName, requestData);
 
-      message.success(t('taskRegistration.messages.saved'));
+      onTasksChange?.(taskDetails);
+      message.success(response.message || t('taskRegistration.messages.saved'));
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'タスク保存エラー';
       message.error(errorMessage);
+      console.error('Failed to save task registration:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [taskDetails, projectId, projectName, storageKey, onTasksChange, t]);
+  }, [taskDetails, projectName, isCheckoutLocked, isMaimlRegistered, onTasksChange, t]);
 
   /**
    * ドラッグ&ドロップセンサーの設定
@@ -282,6 +296,20 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       return arrayMove(prev, currentIndex, newIndex);
     });
   }, [t]);
+
+  /**
+   * 実験条件のSelectオプション（useMemoでメモ化）
+   */
+  const experimentConditionSelectOptions = useMemo(() => {
+    return createSelectOptionsFromCodeMaster(experimentConditionOptions);
+  }, [experimentConditionOptions]);
+
+  /**
+   * 作業順序のSelectオプション（useMemoでメモ化）
+   */
+  const orderSelectOptions = useMemo(() => {
+    return createRangeOptions(1, taskDetails.length);
+  }, [taskDetails.length]);
 
   /**
    * ドラッグ可能な行コンポーネント
@@ -345,10 +373,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           disabled={isSaving || loadingMethods}
           size="small"
           style={{ width: '100%' }}
-          options={Array.from({ length: taskDetails.length }, (_, i) => ({
-            value: i + 1,
-            label: `${i + 1}`,
-          }))}
+          options={orderSelectOptions}
         />
       ),
     },
@@ -382,10 +407,8 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           disabled={isSaving || loadingMethods}
           size="small"
           style={{ width: '100%' }}
-        >
-          <Select.Option value={0}>{t('taskRegistration.condition.same')}</Select.Option>
-          <Select.Option value={1}>{t('taskRegistration.condition.different')}</Select.Option>
-        </Select>
+          options={experimentConditionSelectOptions}
+        />
       ),
     },
     {

@@ -72,9 +72,10 @@ export async function update(
   const whereColumns = ['project_id', 'organization_id'];
   const whereValues = whereColumns.map(col => data[col as keyof Project]);
   
-  // 更新するカラム（WHERE句で使用するカラムを除外）
+  // 更新するカラム（WHERE句で使用するカラムとupdate_atを除外）
+  // 注: update_atはSQLで自動的にCURRENT_TIMESTAMPが設定されるため除外
   const updateColumns = Object.keys(data).filter(
-    key => !whereColumns.includes(key) && data[key as keyof Project] !== undefined
+    key => !whereColumns.includes(key) && key !== 'update_at' && data[key as keyof Project] !== undefined
   );
   const updateValues = updateColumns.map(col => data[col as keyof Project]);
   
@@ -239,6 +240,34 @@ export async function findProjectIdByName(
     console.error('Database query error:', error);
     throw error;
   }
+}
+
+/**
+ * プロジェクト名からプロジェクト全体情報を取得
+ * 
+ * @param organizationId 組織ID
+ * @param projectName プロジェクト名
+ * @returns プロジェクト情報（見つからない場合はnull）
+ */
+export async function findByName(
+  organizationId: string,
+  projectName: string
+): Promise<Project | null> {
+  const pool = getPool();
+  
+  const query = `
+    SELECT * FROM project
+    WHERE organization_id = $1
+      AND project_name = $2
+  `;
+  
+  const result = await pool.query(query, [organizationId, projectName]);
+  
+  if (result.rows.length === 0) {
+    return null;
+  }
+  
+  return result.rows[0] as Project;
 }
 
 /**

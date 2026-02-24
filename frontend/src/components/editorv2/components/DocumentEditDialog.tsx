@@ -110,41 +110,12 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     annotation: instrument.instrumentAnnotation,
   }), []);
 
-  /**
-   * 新規ドキュメント判定（計算プロパティ）
-   */
-  const isNewDocument = useMemo(() => {
-    return !documentData || Object.keys(documentData).length <= 4;
-  }, [documentData]);
-  
   // マスタデータの状態管理
   const [creators, setCreators] = useState<DocumentTagData[]>([]);
   const [vendors, setVendors] = useState<DocumentTagData[]>([]);
   const [owners, setOwners] = useState<DocumentTagData[]>([]);
   const [instruments, setInstruments] = useState<DocumentTagData[]>([]);
   const [isLoadingMasters, setIsLoadingMasters] = useState(false);
-
-  /**
-   * 初期データ生成
-   */
-  const getInitialDocumentData = useCallback((): DocumentData => ({
-    id: 'documentID',
-    uuid: '',
-    name: 'document',
-    description: '',
-    date: new Date().toISOString().split('T')[0],
-    creators: [],
-    vendors: [],
-    owners: [],
-    instruments: [],
-    signatureEnabled: false,
-    protocolId: 'protocolID',
-    methodId: 'methodID',
-    pnmlId: 'pnmlID',
-    programId: 'programID',
-    chains: [],
-    parents: []
-  }), []);
 
   /**
    * UUID v4生成
@@ -243,31 +214,23 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   }, [open, convertCreatorToDocumentTag, convertVendorToDocumentTag, convertInstrumentToDocumentTag]);
   /**
    * ダイアログ開閉時のフォーム初期化
+   * 注: PetriNetEditorInnerから初期化済みのdocumentDataが渡されるため、
+   * DocumentEditDialog側での初期化は不要
    */
   useEffect(() => {
-    if (open) {
-      // stateリセット（ダイアログオープン時の初期化は妥当なパターン）
+    if (open && documentData) {
+      // stateリセット
       setHasChanges(false);
-       
       setValidationErrors([]);
       
-      // フォーム初期化
-      if (!isNewDocument && documentData) {
-        form.setFieldsValue({
-          ...documentData,
-          date: documentData.date ? dayjs(documentData.date) : dayjs(),
-          signatureEnabled: documentData.signatureEnabled || false,
-        });
-      } else {
-        const initial = getInitialDocumentData();
-        form.setFieldsValue({
-          ...initial,
-          date: dayjs(initial.date),
-          signatureEnabled: false,
-        });
-      }
+      // フォーム初期化（PetriNetEditorInnerから渡されたデータを使用）
+      form.setFieldsValue({
+        ...documentData,
+        date: documentData.date ? dayjs(documentData.date) : dayjs(),
+        signatureEnabled: documentData.signatureEnabled || false,
+      });
     }
-  }, [open, documentData, form, getInitialDocumentData, isNewDocument]);
+  }, [open, documentData, form]);
 
   /**
    * UUID一括生成
@@ -412,12 +375,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
 
   return (
     <Modal
-      title={
-        <Space>
-          <span>📄 Document編集</span>
-          {isNewDocument && <Tag color="success">新規作成</Tag>}
-        </Space>
-      }
+      title="📄 Document編集"
       open={open}
       onCancel={handleCancel}
       width={900}
@@ -425,7 +383,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       footer={[
         <Space key="status" style={{ marginRight: 'auto' }}>
           {hasChanges && <Tag color="warning">⚠️ 未保存の変更があります</Tag>}
-          {isNewDocument && !hasChanges && <Tag color="success">🆕 新規Document作成モード</Tag>}
         </Space>,
         <Button key="cancel" onClick={handleCancel}>
           キャンセル
@@ -436,8 +393,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
           onClick={handleSave}
           disabled={validationErrors.length > 0}
           icon={<SaveOutlined />}
-          danger={!isNewDocument}
-          style={isNewDocument ? { backgroundColor: '#52c41a', borderColor: '#52c41a' } : undefined}
         >
           💾 Document保存
         </Button>,
@@ -457,16 +412,6 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                 </ul>
               }
               type="error"
-              showIcon
-            />
-          )}
-
-          {/* 新規作成モード通知 */}
-          {isNewDocument && (
-            <Alert
-              message="🆕 新規Document作成モード"
-              description="必要最小限の情報から開始します。参照プロパティは必要に応じて追加できます。"
-              type="success"
               showIcon
             />
           )}

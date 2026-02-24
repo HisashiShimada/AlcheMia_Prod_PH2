@@ -56,3 +56,43 @@ export interface Project {
   /** 更新日時 */
   update_at?: Date;
 }
+
+/**
+ * project_taskテーブルの型定義
+ * 
+ * @remarks
+ * この型は project_task テーブルのスキーマに対応しています。
+ * DDL: docs/design/db/ddl/project_task.sql
+ * 主キー: (organization_id, project_id, method_id)
+ */
+export interface ProjectTask {
+  /** 組織ID（主キー） */
+  organization_id: string;
+  
+  /** プロジェクトID（主キー） */
+  project_id: string;
+  
+  /** メソッドID（主キー） */
+  method_id: string;
+  
+  /** 実験順序 */
+  experiment_order?: number | null;
+  
+  /** 実験条件 */
+  experiment_condition?: number | null;
+  
+  /** 試行回数 */
+  attempts_count?: number | null;
+  
+  /** 作成者ユーザID */
+  create_user_id?: string;
+  
+  /** 作成日時 */
+  create_at?: Date;
+  
+  /** 更新者ユーザID */
+  update_user_id?: string;
+  
+  /** 更新日時 */
+  update_at?: Date;
+}
