@@ -6,16 +6,12 @@
  */
 
 import { PoolClient } from 'pg';
+import { TransitionStatus } from '../types/transitionData';
 
 /**
  * イベントタイプ
  */
 export type EventType = 'transition_status_update' | 'template_data_saved';
-
-/**
- * ステータス
- */
-export type Status = 'initial' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
 
 /**
  * イベントログデータ
@@ -26,7 +22,7 @@ export interface EventLogData {
   task_no: number;
   transition_id?: string;
   place_id?: string;
-  status?: Status;
+  status?: TransitionStatus; // 数値型（0-6）
   progress_rate?: number;
   comment?: string | null;
   updated_by: string;

@@ -95,6 +95,7 @@ export interface Transition {
 export interface Method {
   methodId: string;
   methodName: string;
+  experimentOrder: number; // 実験順序（1から開始）
   description: string;
   category: string;
   transitions: Transition[];
@@ -246,11 +247,9 @@ export interface TransitionProgress {
 // タスクステータス（実験作業タブ用）
 export type TaskStatus = 
   | 'not_started'       // 開始前
-  | 'started'           // 開始
   | 'in_progress'       // 作業中
   | 'completed'         // 完了
-  | 'forced_terminated' // 強制終了
-  | 'suspended';        // 中断
+  | 'forced_terminated'; // 強制終了
 
 // タスクデータ（実験作業タブ用）
 export interface Task {
@@ -258,11 +257,17 @@ export interface Task {
   projectId?: string;          // プロジェクトID（Phase 7追加: プロジェクト選択連動用）
   methodId?: string;           // メソッドID（Phase 7追加: プロジェクト選択連動用）
   methodName: string;          // メソッド名（Phase 1追加: グループ化・折りたたみ用）
+  taskNo: string;              // タスクNo（Phase 8追加: タスク一覧テーブル表示用）
   taskName: string;            // タスク名
   sampleNumber: string;        // サンプル番号
   notes: string;               // 備考
   status: TaskStatus;          // ステータス
+  assignedUserId?: string;     // 割り当てユーザーID
+  assignedUserName?: string;   // 割り当てユーザー名
+  createdAt?: string;          // 作成日時（ISO8601形式）
+  updatedAt: string;           // 更新日時（ISO8601形式、楽観的ロック用に必須）
   progressRate: number;        // 進捗率（0-100）
+  transitionStatuses?: TransitionStatus[]; // トランジションステータス一覧
   progressReport: string;      // 進捗報告の状態（例: "実験記録報告"）
   recordNumber: string;        // 実験記録番号
 }

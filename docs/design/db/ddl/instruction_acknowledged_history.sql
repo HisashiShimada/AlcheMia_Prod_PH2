@@ -22,18 +22,7 @@ CREATE TABLE instruction_acknowledged_history (
     organization_id UUID NOT NULL,
     
     -- タイムスタンプ
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- 外部キー制約
-    CONSTRAINT fk_instruction 
-        FOREIGN KEY (instruction_id) 
-        REFERENCES project_instruction(instruction_id) 
-        ON DELETE CASCADE,
-    
-    CONSTRAINT fk_organization 
-        FOREIGN KEY (organization_id) 
-        REFERENCES organization(organization_id) 
-        ON DELETE CASCADE
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- インデックス作成（パフォーマンス最適化）

@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, Table, Typography, Space, Button, theme, Input, Select, Row, Col } from 'antd';
+import { Modal, Table, Typography, Space, Button, theme, Input, Select, Row, Col, Spin } from 'antd';
 import { FolderOutlined, CheckOutlined, CloseOutlined, SearchOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { projectsData } from '@/data/projectsData';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { isSelectableStatus, ProjectStatus } from '@/types/experimentWorker';
+import type { WorkerProject } from '@/services/projectApiService';
 
 const { Text } = Typography;
 
@@ -18,6 +17,8 @@ interface ProjectSelectionModalProps {
   onClose: () => void;
   selectedProject: string;
   onProjectChange: (value: string | null) => void;
+  projects: WorkerProject[];
+  loading: boolean;
 }
 
 /**
@@ -27,9 +28,8 @@ interface ProjectTableData {
   key: string;
   projectId: string;
   projectName: string;
-  status: ProjectStatus;
-  description: string;
-  owner: string;
+  projectCd?: string;
+  projectStatus: string;
   isCurrentlySelected: boolean;
 }
 
@@ -42,6 +42,8 @@ export default function ProjectSelectionModal({
   onClose,
   selectedProject,
   onProjectChange,
+  projects,
+  loading,
 }: ProjectSelectionModalProps) {
   const { token } = theme.useToken();
   const { t } = useLanguage();
@@ -50,7 +52,6 @@ export default function ProjectSelectionModal({
   // フィルター状態
   const [searchText, setSearchText] = useState<string>('');
   const [selectedProjectName, setSelectedProjectName] = useState<string | undefined>(undefined);
-  const [selectedOwner, setSelectedOwner] = useState<string | undefined>(undefined);
 
   // ダイアログが開かれた時に現在の選択状態とフィルターをリセット
   useEffect(() => {
@@ -58,30 +59,21 @@ export default function ProjectSelectionModal({
       setTempProject(selectedProject);
       setSearchText('');
       setSelectedProjectName(undefined);
-      setSelectedOwner(undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // テーブルデータの作成（選択可能な状態のプロジェクトのみ）
+  // テーブルデータの作成
   const allTableData: ProjectTableData[] = useMemo(() => {
-    return Object.keys(projectsData)
-      .map((projectId) => {
-        const project = projectsData[projectId];
-        const owner = project.workAssignment?.assignedBy?.userName || t('experimentWork.projectSelection.unknownOwner');
-        
-        return {
-          key: projectId,
-          projectId,
-          projectName: project.projectName,
-          status: project.status,
-          description: project.description || '',
-          owner,
-          isCurrentlySelected: selectedProject === projectId,
-        };
-      })
-      .filter((project) => isSelectableStatus(project.status)); // 選択可能な状態のみ
-  }, [selectedProject, t]);
+    return projects.map((project) => ({
+      key: project.projectId,
+      projectId: project.projectId,
+      projectName: project.projectName,
+      projectCd: project.projectCd,
+      projectStatus: project.projectStatus,
+      isCurrentlySelected: selectedProject === project.projectId,
+    }));
+  }, [projects, selectedProject]);
 
   // プロジェクト名の選択肢
   const projectNameOptions = useMemo(() => {
@@ -89,38 +81,28 @@ export default function ProjectSelectionModal({
     return uniqueNames.sort().map(name => ({ label: name, value: name }));
   }, [allTableData]);
 
-  // 所有者の選択肢
-  const ownerOptions = useMemo(() => {
-    const uniqueOwners = Array.from(new Set(allTableData.map(item => item.owner)));
-    return uniqueOwners.sort().map(owner => ({ label: owner, value: owner }));
-  }, [allTableData]);
-
   // フィルタリングされたデータ
   const filteredData = useMemo(() => {
     return allTableData.filter(item => {
-      // あいまい検索（プロジェクト名、説明、所有者）
+      // あいまい検索（プロジェクト名、プロジェクトコード）
       const matchesSearch = !searchText || 
         item.projectName.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchText.toLowerCase()) ||
-        item.owner.toLowerCase().includes(searchText.toLowerCase());
+        (item.projectCd && item.projectCd.toLowerCase().includes(searchText.toLowerCase()));
       
       // プロジェクト名フィルター
       const matchesProjectName = !selectedProjectName || item.projectName === selectedProjectName;
       
-      // 所有者フィルター
-      const matchesOwner = !selectedOwner || item.owner === selectedOwner;
-      
-      return matchesSearch && matchesProjectName && matchesOwner;
+      return matchesSearch && matchesProjectName;
     });
-  }, [allTableData, searchText, selectedProjectName, selectedOwner]);
+  }, [allTableData, searchText, selectedProjectName]);
 
   // テーブルカラムの定義
   const columns: ColumnsType<ProjectTableData> = [
     {
-      title: t('experimentWork.projectSelection.projectName'),
+      title: 'プロジェクト名',
       dataIndex: 'projectName',
       key: 'projectName',
-      width: 200,
+      width: 250,
       render: (text: string) => (
         <Space>
           <FolderOutlined style={{ color: token.colorPrimary }} />
@@ -129,31 +111,24 @@ export default function ProjectSelectionModal({
       ),
     },
     {
-      title: '状態',
-      dataIndex: 'status',
-      key: 'status',
-      width: 140,
-      align: 'center',
-      render: (status: ProjectStatus) => (
-        <Text>{t(`experimentWork.projectStatus.${status}`)}</Text>
-      ),
-    },
-    {
-      title: t('experimentWork.projectSelection.description'),
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-      render: (text: string) => (
-        <Text type="secondary">{text || '-'}</Text>
-      ),
-    },
-    {
-      title: t('experimentWork.projectSelection.owner'),
-      dataIndex: 'owner',
-      key: 'owner',
+      title: 'プロジェクトCD',
+      dataIndex: 'projectCd',
+      key: 'projectCd',
       width: 150,
       render: (text: string) => (
         <Text>{text}</Text>
+      ),
+    },
+    {
+      title: '状態',
+      dataIndex: 'projectStatus',
+      key: 'projectStatus',
+      width: 120,
+      align: 'center',
+      render: (projectStatus: string) => (
+        <Text>
+          {t(`experimentWork.projectStatus.${projectStatus}`)}
+        </Text>
       ),
     },
   ];
@@ -226,31 +201,23 @@ export default function ProjectSelectionModal({
         <Row gutter={16}>
           <Col flex="400px">
             <Input
-              placeholder={t('experimentWork.projectSelection.searchPlaceholder')}
+              placeholder="プロジェクト名またはコードで検索"
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
+              disabled={loading}
             />
           </Col>
           <Col flex="200px">
             <Select
-              placeholder={t('experimentWork.projectSelection.projectNameFilter')}
+              placeholder="プロジェクト名でフィルタ"
               value={selectedProjectName}
               onChange={setSelectedProjectName}
               allowClear
               style={{ width: '100%' }}
               options={projectNameOptions}
-            />
-          </Col>
-          <Col flex="150px">
-            <Select
-              placeholder={t('experimentWork.projectSelection.ownerFilter')}
-              value={selectedOwner}
-              onChange={setSelectedOwner}
-              allowClear
-              style={{ width: '100%' }}
-              options={ownerOptions}
+              disabled={loading}
             />
           </Col>
         </Row>
@@ -260,15 +227,19 @@ export default function ProjectSelectionModal({
           columns={columns}
           dataSource={filteredData}
           rowSelection={rowSelection}
+          loading={loading}
           pagination={{
             pageSize: 10,
             showSizeChanger: true,
-            showTotal: (total) => `${t('common.total')}: ${total} ${t('common.items')}`,
+            showTotal: (total) => `合計: ${total} 件`,
             pageSizeOptions: ['10', '20', '50', '100'],
             showQuickJumper: true,
           }}
           scroll={{ y: 350 }}
           size="middle"
+          locale={{
+            emptyText: loading ? <Spin /> : 'プロジェクトがありません'
+          }}
         />
       </Space>
     </Modal>

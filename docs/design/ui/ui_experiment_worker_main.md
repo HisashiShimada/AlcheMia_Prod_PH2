@@ -773,15 +773,17 @@ t(`experimentWork.projectStatus.${project.status}`)  // 各種ステータス
 
 ### 15.1. プロジェクト一覧取得API
 
-**エンドポイント**: `GET /api/v1/projects`
+**エンドポイント**: `GET /api/v1/projects/worker-accessible`
 
-**用途**: プロジェクト選択コンボボックスの選択肢を取得
+**用途**: 実験作業者がアクセス可能なプロジェクト選択コンボボックスの選択肢を取得
 
 **クエリパラメータ**:
 ```
-status: string (optional) - ステータスでフィルタリング
-sortBy: "created_at" | "project_name" (default: "project_name")
-order: "asc" | "desc" (default: "asc")
+page: number (optional, default: 1) - ページ番号
+limit: number (optional, default: 100) - 1ページあたりの件数
+status: "1" | "2" | "3" (optional) - ステータスフィルタ（1: 作業中, 2: 承認待ち, 3: 承認済み）
+sort_by: "create_at" | "project_name" | "update_at" (default: "project_name") - ソート項目
+order: "asc" | "desc" (default: "asc") - ソート順
 ```
 
 **レスポンス**:
@@ -792,16 +794,60 @@ order: "asc" | "desc" (default: "asc")
     {
       "projectId": "string (UUID)",
       "projectName": "string",
-      "fileName": "string",
-      "status": "draft" | "active" | "waiting_approval" | "approved" | "archived",
+      "description": "string",
+      "projectStatus": "in_progress" | "review_waiting" | "approved",
       "createdAt": "string (ISO 8601)",
-      "updatedAt": "string (ISO 8601)",
-      "methodCount": number
+      "updatedAt": "string (ISO 8601)"
     }
   ],
+  "pagination": {
+    "page": number,
+    "limit": number,
+    "totalItems": number,
+    "totalPages": number,
+    "hasNext": boolean,
+    "hasPrev": boolean
+  },
   "meta": {
     "timestamp": "string (ISO 8601)",
     "requestId": "string (UUID)"
+  }
+}
+```
+
+**レスポンス例**:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "projectId": "435b0667-af37-49e9-bc21-58f748587e49",
+      "projectName": "GrapheneComposite",
+      "description": "グラフェン複合材料の合成と物性評価",
+      "projectStatus": "in_progress",
+      "createdAt": "1970-01-01T00:00:00.000Z",
+      "updatedAt": "1970-01-01T00:00:00.000Z"
+    },
+    {
+      "projectId": "9a92873d-9deb-471d-8ccf-bce2a2cd216b",
+      "projectName": "HighTempSuperconductor",
+      "description": "YBCO系高温超伝導体の合成条件最適化プロジェクト",
+      "projectStatus": "review_waiting",
+      "createdAt": "1970-01-01T00:00:00.000Z",
+      "updatedAt": "1970-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 100,
+    "totalItems": 4,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  },
+  "meta": {
+    "timestamp": "2026-02-19T08:45:13.397Z",
+    "requestId": "d6351ea7-b296-4867-b793-3a8858e46dac"
   }
 }
 ```
