@@ -26,6 +26,7 @@ const EMPTY_ICON_SIZE = 48;
  */
 interface InstructionConfirmationTabProps {
   selectedProject: string;
+  selectedProjectName: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string | null) => void;
@@ -44,6 +45,7 @@ interface InstructionConfirmationTabProps {
  */
 export default function InstructionConfirmationTab({
   selectedProject,
+  selectedProjectName,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
@@ -84,7 +86,7 @@ export default function InstructionConfirmationTab({
   // プロジェクト選択時にAPI呼び出し
   useEffect(() => {
     const fetchWorkerTasks = async () => {
-      if (!selectedProject) {
+      if (!selectedProjectName) {
         setMethods([]);
         setTasks([]);
         setProjectId(null);
@@ -93,9 +95,12 @@ export default function InstructionConfirmationTab({
 
       setLoading(true);
       try {
-        console.log('[DEBUG] InstructionConfirmationTab - Fetching worker tasks', { selectedProject });
+        console.log('[DEBUG] InstructionConfirmationTab - Fetching worker tasks', { 
+          selectedProject, 
+          selectedProjectName 
+        });
         
-        const result = await getWorkerTasks(selectedProject);
+        const result = await getWorkerTasks(selectedProjectName);
         
         if (result.success && result.data) {
           const apiData = result.data;
@@ -122,11 +127,11 @@ export default function InstructionConfirmationTab({
           const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
             method.tasks.map((task: WorkerTask) => ({
               taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
-              taskNo: task.task_no,
+              taskNo: task.task_no.toString(),
               taskName: task.task_no.toString(),
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.status as Task['status'],
+              status: task.task_status as Task['status'],
               assignedUserId: task.experiment_user_id,
               assignedUserName: task.experiment_user_name,
               createdAt: task.created_at,
@@ -166,7 +171,7 @@ export default function InstructionConfirmationTab({
     };
 
     fetchWorkerTasks();
-  }, [selectedProject]);
+  }, [selectedProject, selectedProjectName]);
 
   // 選択されたメソッドに紐づくタスクをフィルタリング
   const filteredTasks = useMemo(() => {
@@ -287,7 +292,7 @@ export default function InstructionConfirmationTab({
 
   return (
     <div style={{ height: '100%', overflow: 'auto' }}>
-      {!selectedProject ? (
+      {!selectedProjectName ? (
         <Card
           style={{
             borderRadius: '8px',
