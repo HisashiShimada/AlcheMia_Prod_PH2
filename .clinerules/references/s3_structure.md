@@ -78,34 +78,49 @@
 
 ```
 {organization_id}/formats/
-└── {format_prefix}/
-    ├── file.maiml または file.xml  # プレフィックス直下に配置可能
-    └── {subfolder_name}/             # サブフォルダ（任意の階層構造）
-        └── file.maiml または file.xml
+└── {department_cd}/              # 部門フォルダ
+    ├── material/                 # Materialテンプレート（XML）
+    │   ├── template1.xml
+    │   └── subfolder/
+    │       └── template2.xml
+    ├── condition/                # Conditionテンプレート（XML）
+    │   └── template1.xml
+    ├── result/                   # Resultテンプレート（XML）
+    │   └── template1.xml
+    └── {workflow_folder}/        # MAIMLワークフローフォルダ
+        ├── workflow1.maiml
+        └── subfolder/
+            └── workflow2.maiml
 ```
 
 **パス例:**
 ```
-550e8400-e29b-41d4-a716-446655440000/formats/chemistry/synthesis_workflow.maiml
-550e8400-e29b-41d4-a716-446655440000/formats/chemistry/analysis/analysis_workflow.maiml
-550e8400-e29b-41d4-a716-446655440000/formats/materials/material_template.xml
-550e8400-e29b-41d4-a716-446655440000/formats/materials/conditions/condition_template.xml
-550e8400-e29b-41d4-a716-446655440000/formats/biology/cell_culture.maiml
-550e8400-e29b-41d4-a716-446655440000/formats/reagents/reagent_template.xml
+550e8400-e29b-41d4-a716-446655440000/formats/dept_001/material/template1.xml
+550e8400-e29b-41d4-a716-446655440000/formats/dept_001/condition/template1.xml
+550e8400-e29b-41d4-a716-446655440000/formats/dept_001/result/template1.xml
+550e8400-e29b-41d4-a716-446655440000/formats/dept_001/chemistry/synthesis_workflow.maiml
+550e8400-e29b-41d4-a716-446655440000/formats/dept_002/biology/cell_culture.maiml
 ```
 
 **用途:**
-- **各プレフィックスは「ワークフロー用（.maiml）」または「テンプレート用（.xml）」のどちらか**を保持
-- どちらのファイル種別を保持するかは**データベースで定義・管理**される
-- **ワークフローMAIMLファイル（.maiml）**: Petri Net形式の実験手順、メソッド定義
-- **テンプレートファイル（.xml）**: Material（材料）、Condition（条件）、Result（結果）テンプレート
-- プレフィックス直下にもファイルを配置可能
-- サブフォルダを作成して階層化も可能（作成時に指定）
-- 複数プロジェクトで再利用可能
+- **部門ごとにフォーマットを管理**
+- 各部門配下に以下のフォルダが配置される：
+  - **material/**: Materialテンプレート（XML）
+  - **condition/**: Conditionテンプレート（XML）
+  - **result/**: Resultテンプレート（XML）
+  - **その他のフォルダ**: MAIMLワークフロー（.maiml）
+- サブフォルダを作成して階層化も可能
+- 同じ組織内の複数部門で独立したフォーマットを管理
+
+**フォルダ種別の判定:**
+- `material/`, `condition/`, `result/` → XMLテンプレートフォルダ
+- その他のフォルダ名 → MAIMLワークフローフォルダ
 
 **命名規則:**
-- **format_prefix**: 任意の名前（作成時に指定、DBで管理）
-  - 例: `chemistry`, `biology`, `materials`, `reagents`, `material_science`
+- **department_cd**: departmentテーブルの`department_cd`カラムの値
+  - 例: `dept_001`, `dept_002`, `research_01`
+- **テンプレートフォルダ**: `material`, `condition`, `result`（固定）
+- **ワークフローフォルダ**: 任意の名前（例: `chemistry`, `biology`, `materials_science`）
 - **サブフォルダ**: 任意の名前（作成時に指定、階層化可能）
 - **ファイル名**: 用途を表す名前 + `.maiml` または `.xml`
 
@@ -328,18 +343,18 @@ await storageService.uploadFile(
   { contentType: 'application/xml' }
 );
 
-// フォーマット - ワークフローのアップロード
+// フォーマット - ワークフローのアップロード（部門cd必須）
 await storageService.uploadFile(
   '550e8400-e29b-41d4-a716-446655440000',
-  'formats/chemistry/synthesis/synthesis_workflow.maiml',
+  'formats/dept_001/chemistry/synthesis/synthesis_workflow.maiml',
   workflowContent,
   { contentType: 'application/xml' }
 );
 
-// フォーマット - テンプレートのアップロード
+// フォーマット - テンプレートのアップロード（部門cd必須）
 await storageService.uploadFile(
   '550e8400-e29b-41d4-a716-446655440000',
-  'formats/materials/conditions/condition_template.xml',
+  'formats/dept_001/condition/condition_template.xml',
   templateContent,
   { contentType: 'application/xml' }
 );
@@ -403,22 +418,28 @@ const sortedArchives = archiveFiles
     return versionB - versionA; // 降順（最新が先頭）
   });
 
-// フォーマット - ワークフロー一覧を取得
-const workflowFiles = await storageService.listFiles(
+// 特定部門のフォーマットフォルダ一覧を取得
+const departmentFormats = await storageService.listFiles(
   '550e8400-e29b-41d4-a716-446655440000',
-  'formats/chemistry'
+  'formats/dept_001'
 );
 
-// フォーマット - テンプレート一覧を取得
+// フォーマット - ワークフロー一覧を取得（部門cd必須）
+const workflowFiles = await storageService.listFiles(
+  '550e8400-e29b-41d4-a716-446655440000',
+  'formats/dept_001/chemistry'
+);
+
+// フォーマット - テンプレート一覧を取得（部門cd必須）
 const templateFiles = await storageService.listFiles(
   '550e8400-e29b-41d4-a716-446655440000',
-  'formats/materials'
+  'formats/dept_001/material'
 );
 
 // 特定サブフォルダのファイル一覧を取得
 const synthesisWorkflows = await storageService.listFiles(
   '550e8400-e29b-41d4-a716-446655440000',
-  'formats/chemistry/synthesis'
+  'formats/dept_001/chemistry/synthesis'
 );
 ```
 
@@ -599,5 +620,6 @@ docker logs mmdpf-backend-1 | grep "certificateService"
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
 | 2026-02-19 | certificates/フォルダ構成定義を追加（クライアント証明書） | Cline |
+| 2026-02-19 | formatsフォルダに部門cd階層を追加 | Cline |
 | 2026-02-17 | 組織プレフィックス形式から組織ID（UUID）形式に変更 | Cline |
 | 2026-01-09 | 初版作成 | Cline |
