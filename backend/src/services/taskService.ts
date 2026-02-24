@@ -35,7 +35,7 @@ export type TaskStatusEnumType = typeof TaskStatusEnum[keyof typeof TaskStatusEn
  * @description キー: 現在のステータス、値: 遷移可能なステータスの配列
  */
 const VALID_TRANSITIONS: Record<number, number[]> = {
-  [TaskStatusEnum.PENDING]: [TaskStatusEnum.IN_PROGRESS],
+  [TaskStatusEnum.PENDING]: [TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.FORCED_TERMINATED],
   [TaskStatusEnum.IN_PROGRESS]: [TaskStatusEnum.COMPLETED, TaskStatusEnum.FORCED_TERMINATED],
   [TaskStatusEnum.COMPLETED]: [],
   [TaskStatusEnum.FORCED_TERMINATED]: []
@@ -224,7 +224,7 @@ export async function updateTaskStatus(
 
     // TaskStatus文字列を数値に変換
     const statusStringToNumber: Record<TaskStatus, number> = {
-      'pending': TaskStatusEnum.PENDING,
+      'not_started': TaskStatusEnum.PENDING,
       'in_progress': TaskStatusEnum.IN_PROGRESS,
       'completed': TaskStatusEnum.COMPLETED,
       'forced_terminated': TaskStatusEnum.FORCED_TERMINATED
@@ -280,6 +280,19 @@ export async function updateTaskStatus(
         throw transitionResult.error;
       }
 
+      // デバッグログ: 楽観的ロック用の比較値を出力
+      logger.info('updateTaskStatus - Optimistic lock comparison', {
+        currentUpdateAt_from_request: params.currentUpdateAt,
+        currentUpdateAt_from_db: currentTask.update_at,
+        currentUpdateAt_db_iso: currentTask.update_at ? new Date(currentTask.update_at).toISOString() : null,
+        taskInfo: {
+          organizationId: params.organizationId,
+          projectId: params.projectId,
+          methodId: params.methodId,
+          taskNo: params.taskNo
+        }
+      });
+
       // UPDATE実行（楽観的ロックチェック含む）
       const updatedTask = await t.oneOrNone(updateQuery, [
         newStatusNum,
@@ -289,11 +302,23 @@ export async function updateTaskStatus(
         params.taskNo,
         params.currentUpdateAt,
         TaskStatusEnum.IN_PROGRESS,  // $7: CASE文用
-        TaskStatusEnum.COMPLETED     // $8: CASE文用
+        TaskStatusEnum.COMPLETED,    // $8: CASE文用
+        params.userId                // $9: 実験作業者ID
       ]);
 
       // 楽観的ロック失敗: update_atが一致せず更新できなかった
       if (!updatedTask) {
+        logger.error('updateTaskStatus - Optimistic lock failed', {
+          currentUpdateAt_sent: params.currentUpdateAt,
+          currentUpdateAt_in_db: currentTask.update_at,
+          taskInfo: {
+            organizationId: params.organizationId,
+            projectId: params.projectId,
+            methodId: params.methodId,
+            taskNo: params.taskNo
+          }
+        });
+        
         throw {
           code: 'CONCURRENT_UPDATE_DETECTED',
           message: 'Concurrent update detected. Please fetch the latest data and retry.'
@@ -309,7 +334,7 @@ export async function updateTaskStatus(
 
     // レスポンス作成（TaskStatusResponseに変換）
     const statusMap: Record<number, TaskStatus> = {
-      [TaskStatusEnum.PENDING]: 'pending',
+      [TaskStatusEnum.PENDING]: 'not_started',
       [TaskStatusEnum.IN_PROGRESS]: 'in_progress',
       [TaskStatusEnum.COMPLETED]: 'completed',
       [TaskStatusEnum.FORCED_TERMINATED]: 'forced_terminated'
@@ -401,8 +426,26 @@ export class TaskService {
         filters
       );
 
+      // DEBUG: レコード数をログ出力
+      logger.info('TaskService.getTasksGroupedByMethod - Records fetched', {
+        action: 'get_tasks_grouped_by_method',
+        projectId,
+        organizationId,
+        recordCount: records.length,
+        sampleRecord: records.length > 0 ? records[0] : null,
+      });
+
       // データ整合性検証（不正なデータを除外）
       const validRecords = this.validateDataConsistency(records, projectId, organizationId);
+
+      // DEBUG: 検証後のレコード数をログ出力
+      logger.info('TaskService.getTasksGroupedByMethod - After validation', {
+        action: 'get_tasks_grouped_by_method',
+        projectId,
+        organizationId,
+        validRecordCount: validRecords.length,
+        invalidRecordCount: records.length - validRecords.length,
+      });
 
       // method_id単位でグループ化
       const methodMap = new Map<string, MethodGroup>();
@@ -492,14 +535,11 @@ export class TaskService {
     const validRecords: MethodTaskRecord[] = [];
     const invalidRecords: MethodTaskRecord[] = [];
 
-    // UUID形式の正規表現（すべてのバージョンを受け入れる: 8-4-4-4-12の形式）
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
     for (const record of records) {
-      // method_idの検証
+      // method_idの検証（character varying型なので文字列であればOK）
       if (!record.method_id || 
-          typeof record.method_id !== 'string' || 
-          !uuidRegex.test(record.method_id)) {
+          typeof record.method_id !== 'string' ||
+          record.method_id.trim() === '') {
         invalidRecords.push(record);
         continue;
       }
@@ -529,15 +569,74 @@ export class TaskService {
   /**
    * MethodTaskRecordをTaskSummaryに変換
    * 日時フィールドをISO 8601形式に変換
+   * データベースの数値ステータスを文字列ステータスに変換
    * 
    * @param record - DBから取得したレコード
    * @returns TaskSummary
    */
   private convertToTaskSummary(record: MethodTaskRecord): TaskSummary {
+    // データベースの数値ステータスを文字列ステータスに変換
+    const statusMap: Record<number, TaskStatus> = {
+      0: 'not_started',      // PENDING → not_started
+      1: 'in_progress',      // IN_PROGRESS → in_progress
+      3: 'completed',        // COMPLETED → completed
+      4: 'forced_terminated' // FORCED_TERMINATED → forced_terminated
+    };
+    
+    // デバッグログ: 受け取ったステータス値を出力
+    logger.debug('convertToTaskSummary - status conversion', {
+      task_detail_id: record.task_detail_id,
+      task_status_raw: record.task_status,
+      task_status_type: typeof record.task_status,
+      task_status_is_null: record.task_status === null
+    });
+    
+    // record.task_statusがnullの場合はデフォルト値を使用
+    let taskStatus: TaskStatus = 'not_started';
+    
+    if (record.task_status !== null && record.task_status !== undefined) {
+      if (typeof record.task_status === 'number') {
+        // 数値の場合
+        const mapped = statusMap[record.task_status];
+        if (mapped) {
+          taskStatus = mapped;
+        } else {
+          logger.warn('Unknown task_status value (number)', {
+            task_detail_id: record.task_detail_id,
+            task_status: record.task_status
+          });
+        }
+      } else if (typeof record.task_status === 'string') {
+        // 文字列の場合：数値文字列("0", "1", "3", "4")を数値に変換してマッピング
+        const numericStatus = parseInt(record.task_status, 10);
+        if (!isNaN(numericStatus)) {
+          const mapped = statusMap[numericStatus];
+          if (mapped) {
+            taskStatus = mapped;
+          } else {
+            logger.warn('Unknown task_status value (string numeric)', {
+              task_detail_id: record.task_detail_id,
+              task_status: record.task_status,
+              parsed_value: numericStatus
+            });
+          }
+        } else {
+          // 数値に変換できない文字列の場合はそのままTaskStatusとして使用
+          taskStatus = record.task_status as TaskStatus;
+        }
+      }
+    }
+    
+    // デバッグログ: 変換後のステータスを出力
+    logger.debug('convertToTaskSummary - converted status', {
+      task_detail_id: record.task_detail_id,
+      converted_status: taskStatus
+    });
+
     return {
       task_id: record.task_detail_id!,
       task_no: record.task_detail_no!,
-      task_status: record.task_status!,
+      task_status: taskStatus,
       assign_user_id: record.assign_user_id,
       assign_user_name: record.assign_user_name,
       progress_rate: record.progress_rate,

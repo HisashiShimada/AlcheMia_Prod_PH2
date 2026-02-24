@@ -25,14 +25,14 @@ SELECT
   ptd.task_no AS task_detail_no,
   ptd.task_status,
   ptd.experiment_user_id AS assign_user_id,
-  ptd.experiment_start_at AS created_at,
-  ptd.reviewed_at AS updated_at,
+  ptd.create_at AS created_at,
+  ptd.update_at AS updated_at,
   
   -- 進捗率（transition_dataテーブルから平均値を計算）
   COALESCE(AVG(td.progress_rate), 0) AS progress_rate,
   
   -- 担当者名（organization_user + user_authentication）
-  ua.user_name AS assign_user_name
+  ou.user_name AS assign_user_name
 
 FROM project_task pt
 
@@ -72,10 +72,10 @@ GROUP BY
   ptd.task_no,
   ptd.task_status,
   ptd.experiment_user_id,
-  ptd.experiment_start_at,
-  ptd.reviewed_at,
+  ptd.create_at,
+  ptd.update_at,
   -- 担当者名
-  ua.user_name
+  ou.user_name
 
 ORDER BY 
   pt.experiment_order ASC,  -- メソッドの実験順序（必須）

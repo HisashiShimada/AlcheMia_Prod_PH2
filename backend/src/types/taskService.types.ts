@@ -5,7 +5,7 @@
  * Task: 2.1 コントローラー層実装
  */
 
-export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'forced_terminated';
+export type TaskStatus = 'not_started' | 'in_progress' | 'completed' | 'forced_terminated';
 
 export interface TaskStatusResponse {
   organizationId: string;
