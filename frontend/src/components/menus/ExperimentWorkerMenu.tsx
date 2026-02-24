@@ -192,15 +192,19 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const handleProjectChange = (value: string | null) => {
     // nullは空文字列として扱う
     const projectValue = value || '';
-    originalHandleProjectChange(projectValue);
     
-    // プロジェクト名を取得して保存
+    // プロジェクト名を取得
+    let projectName = '';
     if (projectValue) {
       const selectedProjectData = projects.find(p => p.projectId === projectValue);
-      setSelectedProjectName(selectedProjectData?.projectName || '');
+      projectName = selectedProjectData?.projectName || '';
+      setSelectedProjectName(projectName);
     } else {
       setSelectedProjectName('');
     }
+    
+    // useInstructionsフックを呼び出し（プロジェクトIDとプロジェクト名の両方を渡す）
+    originalHandleProjectChange(projectValue, projectName);
     
     // プロジェクトが変更された場合、メソッドとタスクをリセット
     setSelectedMethodId(null);
@@ -297,7 +301,6 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       children: (
         <ExperimentRecordTab
           selectedProject={selectedProject}
-          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
