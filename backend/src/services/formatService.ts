@@ -15,18 +15,7 @@ export async function getFormatFolders(
     // 1. S3の formats/{department_cd}/ 直下のすべてのファイル/フォルダを取得
     const basePath = `formats/${departmentCd}`;
     
-    console.log('[formatService] getFormatFolders called:', {
-      organizationId,
-      departmentCd,
-      basePath,
-    });
-    
     const allItems = await storageService.listFiles(organizationId, basePath);
-    
-    console.log('[formatService] listFiles result:', {
-      itemCount: allItems.length,
-      sampleItems: allItems.slice(0, 5).map(item => item.key),
-    });
 
     // 2. フォルダのみを抽出（重複排除）
     const folderSet = new Set<string>();
@@ -45,11 +34,6 @@ export async function getFormatFolders(
       ) {
         folderSet.add(pathParts[3]);
       }
-    });
-    
-    console.log('[formatService] Extracted folders:', {
-      folderCount: folderSet.size,
-      folders: Array.from(folderSet),
     });
 
     // 3. 各フォルダの情報を取得
@@ -259,7 +243,331 @@ export async function getFormatFiles(
   }
 }
 
+/**
+ * 新規フォーマットフォルダ作成
+ * 
+ * @param organizationId 組織ID
+ * @param departmentCd 部門コード
+ * @param folderName フォルダ名
+ * @returns 作成されたフォルダ情報
+ */
+export async function createFormatFolder(
+  organizationId: string,
+  departmentCd: string,
+  folderName: string
+): Promise<{
+  folder_name: string;
+  folder_path: string;
+  department_cd: string;
+  created_at: string;
+}> {
+  const storageService = getStorageService();
+
+  try {
+    // 1. フォルダ名のバリデーション
+    const folderNameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!folderNameRegex.test(folderName)) {
+      throw new Error('フォルダ名は英数字とアンダースコアのみ使用できます');
+    }
+
+    if (folderName.length < 1 || folderName.length > 255) {
+      throw new Error('フォルダ名は1〜255文字で指定してください');
+    }
+
+    // 2. 重複チェック
+    const basePath = `formats/${departmentCd}`;
+    const existingFolders = await storageService.listFiles(organizationId, basePath);
+    
+    const folderExists = existingFolders.some(file => {
+      const pathParts = file.key.split('/');
+      // pathParts[0] = organizationId
+      // pathParts[1] = 'formats'
+      // pathParts[2] = departmentCd
+      // pathParts[3] = folderName (重複チェック対象)
+      return pathParts.length >= 4 && pathParts[3] === folderName;
+    });
+
+    if (folderExists) {
+      throw new Error('同じ名前のフォルダが既に存在します');
+    }
+
+    // 3. フォルダパスを生成
+    const folderPath = `formats/${departmentCd}/${folderName}`;
+    const fullPath = `${organizationId}/${folderPath}`;
+
+    console.log('[formatService] createFormatFolder:', {
+      organizationId,
+      departmentCd,
+      folderName,
+      folderPath,
+      fullPath,
+    });
+
+    // 4. Swiftに空のフォルダを作成（ディレクトリマーカー）
+    // Cyberduckと同じ方式: 末尾にスラッシュを付けた0バイトのオブジェクト
+    const directoryMarker = `${folderPath}/`; // 末尾にスラッシュ
+    try {
+      await storageService.uploadFile(
+        organizationId,
+        directoryMarker,
+        Buffer.from('', 'utf-8'),
+        { contentType: 'application/directory' }
+      );
+      console.log('[formatService] 空フォルダ作成成功:', directoryMarker);
+    } catch (uploadError) {
+      console.error('[formatService] フォルダ作成エラー:', uploadError);
+      throw new Error('フォルダの作成に失敗しました');
+    }
+
+    // 5. レスポンスを返す
+    return {
+      folder_name: folderName,
+      folder_path: fullPath,
+      department_cd: departmentCd,
+      created_at: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('[formatService] Failed to create format folder:', error);
+    throw error;
+  }
+}
+
+/**
+ * フォーマット内にサブフォルダを作成
+ * 
+ * @param organizationId 組織ID
+ * @param departmentCd 部門コード
+ * @param formatName フォーマット名（chemistry, materials等）
+ * @param subfolderName サブフォルダ名
+ * @param parentPath 親フォルダのパス（オプション）
+ * @returns 作成されたサブフォルダ情報
+ */
+export async function createFormatSubfolder(
+  organizationId: string,
+  departmentCd: string,
+  formatName: string,
+  subfolderName: string,
+  parentPath?: string
+): Promise<{
+  folder_name: string;
+  folder_path: string;
+  full_swift_path: string;
+  created_at: string;
+}> {
+  const storageService = getStorageService();
+
+  try {
+    // 1. サブフォルダ名のバリデーション
+    const subfolderNameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!subfolderNameRegex.test(subfolderName)) {
+      throw new Error('フォルダ名は英数字、アンダースコア、ハイフンのみ使用できます');
+    }
+
+    if (subfolderName.length < 1 || subfolderName.length > 255) {
+      throw new Error('フォルダ名は1〜255文字で指定してください');
+    }
+
+    // 2. フォーマット名のバリデーション
+    if (!formatName || formatName.length === 0) {
+      throw new Error('フォーマット名が指定されていません');
+    }
+
+    // 3. パスを構築
+    const folderPath = parentPath 
+      ? `${parentPath}/${subfolderName}`
+      : `${subfolderName}`;
+    
+    const fullFormatPath = `formats/${departmentCd}/${formatName}/${folderPath}`;
+
+    // 4. 重複チェック（同じパスに既にフォルダが存在するか）
+    const existingFiles = await storageService.listFiles(
+      organizationId, 
+      `formats/${departmentCd}/${formatName}`
+    );
+    
+    const folderExists = existingFiles.some(file => {
+      const pathParts = file.key.split('/');
+      // pathParts[0] = organizationId
+      // pathParts[1] = 'formats'
+      // pathParts[2] = departmentCd
+      // pathParts[3] = formatName
+      // pathParts[4以降] = サブフォルダパス
+      
+      if (pathParts.length < 5) return false;
+      
+      const subPath = pathParts.slice(4).join('/');
+      // フォルダパスまたはフォルダマーカー（末尾に/がある）と一致するか
+      return subPath === folderPath || subPath.startsWith(`${folderPath}/`);
+    });
+
+    if (folderExists) {
+      throw new Error('同じ名前のフォルダが既に存在します');
+    }
+
+    // 5. 親フォルダの存在確認（parentPathが指定されている場合）
+    if (parentPath && parentPath.length > 0) {
+      const parentExists = existingFiles.some(file => {
+        const pathParts = file.key.split('/');
+        if (pathParts.length < 5) return false;
+        const subPath = pathParts.slice(4).join('/');
+        return subPath === parentPath || subPath.startsWith(`${parentPath}/`);
+      });
+
+      if (!parentExists) {
+        throw new Error('親フォルダが存在しません');
+      }
+    }
+
+    const fullSwiftPath = `${organizationId}/${fullFormatPath}`;
+
+    console.log('[formatService] createFormatSubfolder:', {
+      organizationId,
+      departmentCd,
+      formatName,
+      subfolderName,
+      parentPath,
+      folderPath,
+      fullFormatPath,
+      fullSwiftPath,
+    });
+
+    // 6. Swiftに空のフォルダマーカーを作成
+    const directoryMarker = `${fullFormatPath}/`; // 末尾にスラッシュ
+    try {
+      await storageService.uploadFile(
+        organizationId,
+        directoryMarker,
+        Buffer.from('', 'utf-8'),
+        { contentType: 'application/directory' }
+      );
+      console.log('[formatService] サブフォルダ作成成功:', directoryMarker);
+    } catch (uploadError) {
+      console.error('[formatService] サブフォルダ作成エラー:', uploadError);
+      throw new Error('サブフォルダの作成に失敗しました');
+    }
+
+    // 7. レスポンスを返す
+    return {
+      folder_name: subfolderName,
+      folder_path: folderPath,
+      full_swift_path: fullSwiftPath,
+      created_at: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('[formatService] Failed to create format subfolder:', error);
+    throw error;
+  }
+}
+
+/**
+ * フォーマットファイルを作成
+ * 
+ * @param organizationId 組織ID
+ * @param departmentCd 部門コード
+ * @param folderName フォーマットフォルダ名
+ * @param fileName ファイル名（拡張子なし）
+ * @param fileType ファイルタイプ（'xml' | 'maiml'）
+ * @param templateType テンプレートタイプ（'material' | 'condition' | 'result'、xmlの場合のみ）
+ * @param description 概要（オプション）
+ * @returns 作成されたファイル情報
+ */
+export async function createFormatFile(
+  organizationId: string,
+  departmentCd: string,
+  folderName: string,
+  fileName: string,
+  fileType: 'xml' | 'maiml',
+  templateType?: 'material' | 'condition' | 'result',
+  description?: string
+): Promise<{
+  filePath: string;
+  fileName: string;
+  fileType: string;
+  size: number;
+  createdAt: string;
+}> {
+  const storageService = getStorageService();
+  
+  // formatFileUtilsをimport
+  const { generateDefaultXmlContent, generateDefaultMaimlContent, sanitizeFileName } = await import('../utils/formatFileUtils');
+
+  try {
+    // 1. ファイル名のサニタイゼーション
+    const sanitizedFileName = sanitizeFileName(fileName);
+
+    // 2. ファイルパスの構築
+    let filePath: string;
+    const extension = fileType === 'xml' ? '.xml' : '.maiml';
+    const fullFileName = `${sanitizedFileName}${extension}`;
+
+    if (fileType === 'xml' && templateType) {
+      // XMLファイルの場合、templateTypeに応じたフォルダに配置
+      filePath = `formats/${departmentCd}/${templateType}/${fullFileName}`;
+    } else {
+      // MAIMLファイルの場合、folderNameの配下に配置
+      filePath = `formats/${departmentCd}/${folderName}/${fullFileName}`;
+    }
+
+    console.log('[formatService] createFormatFile:', {
+      organizationId,
+      departmentCd,
+      folderName,
+      fileName,
+      sanitizedFileName,
+      fileType,
+      templateType,
+      filePath,
+    });
+
+    // 3. ファイルの重複チェック
+    const exists = await storageService.fileExists(organizationId, filePath);
+    if (exists) {
+      throw new Error('同じ名前のファイルが既に存在します');
+    }
+
+    // 4. ファイルコンテンツの生成
+    let content: string;
+
+    if (fileType === 'xml' && templateType) {
+      // XMLファイル: デフォルトXMLコンテンツを生成
+      content = generateDefaultXmlContent(templateType, sanitizedFileName, description);
+    } else if (fileType === 'maiml') {
+      // MAIMLファイル: デフォルトMAIMLコンテンツを生成
+      content = generateDefaultMaimlContent(sanitizedFileName, description);
+    } else {
+      throw new Error('無効なファイルタイプです');
+    }
+
+    // 5. S3へアップロード
+    await storageService.uploadFile(
+      organizationId,
+      filePath,
+      Buffer.from(content, 'utf-8'),
+      { contentType: 'application/xml' }
+    );
+
+    console.log('[formatService] File upload success:', filePath);
+
+    // 6. レスポンスを返す
+    const fileSize = Buffer.from(content, 'utf-8').length;
+
+    return {
+      filePath,
+      fileName: fullFileName,
+      fileType,
+      size: fileSize,
+      createdAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('[formatService] Failed to create format file:', error);
+    throw error;
+  }
+}
+
 export const formatService = {
   getFormatFolders,
   getFormatFiles,
+  createFormatFolder,
+  createFormatSubfolder,
+  createFormatFile,
 };

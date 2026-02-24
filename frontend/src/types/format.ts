@@ -178,6 +178,27 @@ export interface FormatUploadResult {
 }
 
 /**
+ * フォーマットファイル作成リクエスト
+ */
+export interface CreateFormatFileRequest {
+  fileName: string;
+  fileType: 'xml' | 'maiml';
+  templateType?: 'material' | 'condition' | 'result';
+  description?: string;
+}
+
+/**
+ * フォーマットファイル作成レスポンス
+ */
+export interface CreateFormatFileResponse {
+  filePath: string;
+  fileName: string;
+  fileType: string;
+  size: number;
+  createdAt: string;
+}
+
+/**
  * 名前空間関連の型定義
  */
 

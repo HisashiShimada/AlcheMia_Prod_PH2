@@ -554,6 +554,28 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // セッションに部門CDと会社IDを保存（トークン更新時も必要）
+    if (req.session && result.data.user) {
+      req.session.departmentCd = result.data.user.departmentCd;
+      req.session.corporationId = result.data.user.corporationId || null;
+      
+      // セッションを明示的に保存
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error('[refreshToken] Session save error:', err);
+            reject(err);
+          } else {
+            console.log('[refreshToken] Session saved:', {
+              departmentCd: req.session.departmentCd,
+              corporationId: req.session.corporationId,
+            });
+            resolve();
+          }
+        });
+      });
+    }
+
     // 新しいリフレッシュトークンをhttpOnly Cookieに設定
     res.cookie('refreshToken', result.data.newRefreshToken, {
       httpOnly: true,

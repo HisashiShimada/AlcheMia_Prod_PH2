@@ -8,9 +8,16 @@
 
 import type { ApiResponse } from '@/types/api';
 import type { ProjectListResponse, ProjectDetailResponse, Project } from '@/types/project';
-import type { FormatListResponse, FormatDetailResponse, Format } from '@/types/format';
+import type { 
+  FormatListResponse, 
+  FormatDetailResponse, 
+  Format,
+  FormatFile,
+  CreateFormatFileRequest,
+  CreateFormatFileResponse,
+  FileInfo
+} from '@/types/format';
 import type { ProjectFile } from '@/types/file';
-import type { FormatFile } from '@/types/format';
 
 /**
  * マスタデータアイテムの型定義
@@ -108,29 +115,6 @@ export async function fetchProjectById(projectId: string): Promise<ApiResponse<P
 }
 
 /**
- * プロジェクトのファイル一覧を取得
- */
-export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>> {
-  await simulateApiDelay();
-  
-  const allFiles = filesData.files as Record<string, { root: ProjectFile[]; archive?: ProjectFile[] }>;
-  const projectFiles = allFiles[projectId];
-  
-  if (!projectFiles) {
-    throw new Error(`プロジェクトのファイルが見つかりません: ${projectId}`);
-  }
-  
-  return {
-    success: true,
-    data: {
-      files: projectFiles.root || [],
-      archiveFiles: projectFiles.archive || [],
-    },
-    message: 'ファイル一覧の取得に成功しました',
-  };
-}
-
-/**
  * フォーマット一覧を取得
  * GET /api/v1/formats
  * 
@@ -193,24 +177,85 @@ export async function fetchFormatFiles(
 }
 
 /**
- * フォーマット詳細を取得
+ * フォーマット内にサブフォルダを作成
+ * POST /api/v1/formats/subfolders
+ * 
+ * @param formatName - フォーマット名（例: chemistry, materials）
+ * @param subfolderName - サブフォルダ名（1-255文字、英数字・アンダースコア・ハイフン）
+ * @param parentPath - 親フォルダのパス（オプション、空文字列=ルート直下）
  */
-export async function fetchFormatById(formatId: string): Promise<ApiResponse<FormatDetailResponse>> {
-  await simulateApiDelay();
-  
-  const format = (formatsData.folders as unknown as Format[]).find((f) => f.id === formatId);
-  
-  if (!format) {
-    throw new Error(`フォーマットが見つかりません: ${formatId}`);
+export async function createFormatSubfolder(
+  formatName: string,
+  subfolderName: string,
+  parentPath?: string
+): Promise<ApiResponse<{
+  folder_name: string;
+  folder_path: string;
+  full_swift_path: string;
+  created_at: string;
+}>> {
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<ApiResponse<{
+      folder_name: string;
+      folder_path: string;
+      full_swift_path: string;
+      created_at: string;
+    }>>(
+      '/formats/subfolders',
+      {
+        formatName,
+        subfolderName,
+        parentPath: parentPath || '',
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || 'サブフォルダの作成に失敗しました'
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('createFormatSubfolder error:', error);
+    throw error;
   }
-  
-  return {
-    success: true,
-    data: {
-      format,
-    },
-    message: 'フォーマット詳細の取得に成功しました',
-  };
+}
+
+/**
+ * フォーマットファイルを作成
+ * POST /api/v1/formats/:folderName/files
+ * 
+ * @param folderName - フォーマットフォルダ名（例: chemistry）
+ * @param data - ファイル作成データ
+ */
+export async function createFormatFile(
+  folderName: string,
+  data: CreateFormatFileRequest
+): Promise<ApiResponse<CreateFormatFileResponse>> {
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<ApiResponse<CreateFormatFileResponse>>(
+      `/formats/${folderName}/files`,
+      data
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || 'ファイルの作成に失敗しました'
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('createFormatFile error:', error);
+    throw error;
+  }
 }
 
 
@@ -689,6 +734,3 @@ export async function fetchFileContent(fileKey: string): Promise<string> {
     throw new Error(`ファイルの読み込みに失敗しました: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
-
-// 型定義のインポート（ファイル末尾に追加）
-import type { FileInfo } from '@/types/format';
