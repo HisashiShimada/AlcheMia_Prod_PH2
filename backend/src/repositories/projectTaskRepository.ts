@@ -13,6 +13,8 @@
 
 import { getPool } from '../database/db';
 import { ProjectTask } from '../types/database';
+import type { TaskWithProject } from '../types/progress';
+import type { MethodTaskRecord, TaskFilters } from '../types/task';
 
 /**
  * プロジェクト内のタスク一覧を取得
@@ -204,4 +206,131 @@ export async function bulkInsert(tasks: ProjectTask[]): Promise<number> {
   } finally {
     client.release();
   }
+}
+
+/**
+ * プロジェクト、メソッド、タスク番号でタスク基本情報を取得（進捗管理用）
+ * 
+ * @param projectId プロジェクトID
+ * @param methodId メソッドID
+ * @param taskNo タスク番号
+ * @param organizationId 組織ID
+ * @returns タスク基本情報（プロジェクト名を含む）
+ */
+export async function getTaskByProjectMethodTaskNo(
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  organizationId: string
+): Promise<TaskWithProject | null> {
+  const pool = getPool();
+  
+  const query = `
+    SELECT 
+      ptd.task_detail_id as task_id,
+      COALESCE(ptd.task_name, 'Task ' || ptd.task_no) as task_name,
+      pt.project_id,
+      p.project_name,
+      pt.method_id,
+      ptd.task_no
+    FROM project_task_detail ptd
+    INNER JOIN project_task pt 
+      ON ptd.organization_id = pt.organization_id
+      AND ptd.project_id = pt.project_id
+      AND ptd.method_id = pt.method_id
+    INNER JOIN project p
+      ON pt.organization_id = p.organization_id
+      AND pt.project_id = p.project_id
+    WHERE ptd.organization_id = $1
+      AND ptd.project_id = $2
+      AND ptd.method_id = $3
+      AND ptd.task_no = $4
+  `;
+  
+  const result = await pool.query<TaskWithProject>(query, [
+    organizationId,
+    projectId,
+    methodId,
+    taskNo
+  ]);
+  
+  return result.rows[0] || null;
+}
+
+/**
+ * プロジェクト内のメソッドとタスクを取得（実験作業者用タスク一覧）
+ * 
+ * @param projectId プロジェクトID
+ * @param organizationId 組織ID
+ * @param filters フィルタ条件
+ * @returns メソッドとタスクのレコード配列
+ */
+export async function findMethodsAndTasksByProject(
+  projectId: string,
+  organizationId: string,
+  filters: TaskFilters
+): Promise<MethodTaskRecord[]> {
+  const pool = getPool();
+  
+  let query = `
+    SELECT 
+      pt.method_id,
+      pt.method_name,
+      pt.experiment_order,
+      ptd.task_detail_id,
+      ptd.task_no as task_detail_no,
+      ptd.task_status,
+      ptd.assign_user_id,
+      u.user_name as assign_user_name,
+      ptd.progress_rate,
+      ptd.create_at as created_at,
+      ptd.update_at as updated_at
+    FROM project_task pt
+    LEFT JOIN project_task_detail ptd
+      ON pt.organization_id = ptd.organization_id
+      AND pt.project_id = ptd.project_id
+      AND pt.method_id = ptd.method_id
+    LEFT JOIN users u
+      ON ptd.assign_user_id = u.user_id
+      AND ptd.organization_id = u.organization_id
+    WHERE pt.organization_id = $1
+      AND pt.project_id = $2
+  `;
+  
+  const params: any[] = [organizationId, projectId];
+  let paramIndex = 3;
+  
+  // フィルター条件の追加
+  if (filters.methodId) {
+    query += ` AND pt.method_id = $${paramIndex}`;
+    params.push(filters.methodId);
+    paramIndex++;
+  }
+  
+  if (filters.status !== undefined) {
+    query += ` AND ptd.task_status = $${paramIndex}`;
+    params.push(filters.status);
+    paramIndex++;
+  }
+  
+  if (filters.assignUserId) {
+    query += ` AND ptd.assign_user_id = $${paramIndex}`;
+    params.push(filters.assignUserId);
+    paramIndex++;
+  }
+  
+  // ソート順の追加
+  const sortBy = filters.sortBy || 'experiment_order';
+  const order = filters.order || 'asc';
+  
+  if (sortBy === 'task_no') {
+    query += ` ORDER BY pt.experiment_order ${order.toUpperCase()}, ptd.task_no ${order.toUpperCase()}`;
+  } else if (sortBy === 'created_at' || sortBy === 'updated_at' || sortBy === 'status') {
+    query += ` ORDER BY pt.experiment_order ASC, ptd.${sortBy} ${order.toUpperCase()} NULLS LAST`;
+  } else {
+    query += ` ORDER BY pt.experiment_order ${order.toUpperCase()}, ptd.task_no ASC`;
+  }
+  
+  const result = await pool.query<MethodTaskRecord>(query, params);
+  return result.rows;
 }

@@ -37,6 +37,7 @@ import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import DraftRestoreDialog from '../viewer/DraftRestoreDialog';
 import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ProjectMaimlProvider, useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { message } from 'antd';
 import { useApi } from '@/hooks/useApi';
 import {
@@ -69,15 +70,18 @@ interface ProjectFilesData {
 }
 
 /**
- * プロジェクト管理画面メインコンポーネント
+ * プロジェクト管理画面メインコンポーネント（内部実装）
  */
-interface ProjectManagementProps {
+interface ProjectManagementInnerProps {
   onEdit?: (params: ProjectEditParams) => void;
 }
 
-const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
+const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
+  
+  // ProjectMaimlContextを使用
+  const { loadMaiml, reloadMaiml, maimlRoot, isLoading: isMaimlLoading } = useProjectMaiml();
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [ownerFilter, setOwnerFilter] = useState<string>('my_only'); // my_only, all
@@ -106,26 +110,6 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
   const [projectTasksData, setProjectTasksData] = useState<Record<string, { tasks: Task[]; statistics: unknown }>>({});
   const [isLoadingTabData, setIsLoadingTabData] = useState(false);
-  
-  // タスク登録・指示登録用の状態
-  const [registeredTasks, setRegisteredTasks] = useState<TaskDetail[]>([]);
-  
-  /**
-   * タスク登録タブからのタスク変更ハンドラ
-   */
-  const handleTasksChange = useCallback((tasks: TaskDetail[]) => {
-    setRegisteredTasks(tasks);
-    console.log('📝 [ProjectManagement] Tasks updated:', tasks);
-  }, []);
-  
-  /**
-   * 指示登録タブからの指示送信ハンドラ
-   */
-  const handleInstructionsSubmit = useCallback((instructions: InstructionData[]) => {
-    console.log('📤 [ProjectManagement] Instructions submitted:', instructions);
-    message.success(`${instructions.length}件の指示を送信しました`);
-    // TODO: 実際のAPI実装時に置き換え
-  }, []);
   
   // 複数ダイアログ管理
   interface OpenDialog {
@@ -357,10 +341,23 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   }, []);
 
   // プロジェクト選択時
-  const handleProjectSelect = useCallback((projectId: string) => {
+  const handleProjectSelect = useCallback(async (projectId: string) => {
     setSelectedProjectId(projectId);
     setCurrentFolder('root'); // プロジェクト切り替え時はルートフォルダを表示
-  }, []);
+    
+    // 選択したプロジェクトのMAIMLを読み込み
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      console.log('🎯 [ProjectManagement] プロジェクト選択 - MAIML読み込み開始:', project.name);
+      try {
+        await loadMaiml(project.name);
+        console.log('✅ [ProjectManagement] MAIML読み込み完了');
+      } catch (error) {
+        console.error('❌ [ProjectManagement] MAIML読み込み失敗:', error);
+        // エラーはContextで処理済み（メッセージ表示済み）
+      }
+    }
+  }, [projects, loadMaiml]);
 
   // フォルダクリック時
   const handleFolderClick = useCallback((folderId: string) => {
@@ -388,6 +385,27 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
   const handleRefresh = useCallback(() => {
     console.log('Refreshing project list...');
     refetchProjects();
+  }, [refetchProjects]);
+
+  /**
+   * 指示登録タブからの指示送信ハンドラ
+   * 
+   * @remarks
+   * 指示送信後にプロジェクト一覧を再取得して、
+   * プロジェクトステータスの更新を反映します。
+   */
+  const handleInstructionsSubmit = useCallback(async (instructions: InstructionData[]) => {
+    console.log('📤 [ProjectManagement] Instructions submitted:', instructions);
+    
+    try {
+      // プロジェクト一覧を再取得してステータス更新を反映
+      console.log('🔄 [ProjectManagement] プロジェクト一覧を再取得中...');
+      await refetchProjects();
+      console.log('✅ [ProjectManagement] プロジェクト一覧の再取得完了');
+    } catch (error) {
+      console.error('❌ [ProjectManagement] プロジェクト一覧の再取得に失敗:', error);
+      // エラーメッセージは表示しない（指示送信自体は成功しているため）
+    }
   }, [refetchProjects]);
 
   // アップロードダイアログを開く
@@ -811,6 +829,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
    * 1. プロジェクト一覧を最新化
    * 2. 選択中のプロジェクトを復元
    * 3. 選択中のタブのデータを最新化
+   * 4. MAIMLデータを最新化
    */
   const handleProjectReload = useCallback(async () => {
     if (!selectedProject) {
@@ -840,7 +859,17 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
       console.log('🎯 [ProjectManagement] プロジェクト選択を復元:', currentProjectId);
       setSelectedProjectId(currentProjectId);
       
-      // 4. 選択中のタブに応じてデータを最新化
+      // 4. MAIMLデータを最新化
+      console.log('📄 [ProjectManagement] MAIMLデータを最新化');
+      try {
+        await reloadMaiml();
+        console.log('✅ [ProjectManagement] MAIML更新完了');
+      } catch (error) {
+        console.error('❌ [ProjectManagement] MAIML更新失敗:', error);
+        // エラーはContextで処理済み（メッセージ表示済み）
+      }
+      
+      // 5. 選択中のタブに応じてデータを最新化
       if (currentTabKey === 'file_management') {
         console.log('📂 [ProjectManagement] ファイル一覧を最新化');
         const fileResponse = await getProjectFiles(currentProjectName, true);
@@ -879,7 +908,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
     } finally {
       setIsReloadingProject(false);
     }
-  }, [selectedProject, currentTab, refetchProjects]);
+  }, [selectedProject, currentTab, refetchProjects, reloadMaiml]);
 
   // 新規プロジェクト作成ハンドラ
   const handleCreateProject = useCallback(async (data: CreateProjectData) => {
@@ -1259,7 +1288,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                       <TaskRegistrationTab
                         projectId={selectedProject.id}
                         projectName={selectedProject.name}
-                        onTasksChange={handleTasksChange}
+                        isActive={currentTab === 'task_registration'}
                       />
                     ),
                   },
@@ -1270,7 +1299,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
                       <InstructionRegistrationTab
                         projectId={selectedProject.id}
                         projectName={selectedProject.name}
-                        tasks={registeredTasks}
+                        isActive={currentTab === 'instruction_registration'}
                         onInstructionsSubmit={handleInstructionsSubmit}
                       />
                     ),
@@ -1478,6 +1507,21 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ onEdit }) => {
         />
       )}
     </div>
+  );
+};
+
+/**
+ * プロジェクト管理画面メインコンポーネント（Provider付き）
+ */
+interface ProjectManagementProps {
+  onEdit?: (params: ProjectEditParams) => void;
+}
+
+const ProjectManagement: React.FC<ProjectManagementProps> = (props) => {
+  return (
+    <ProjectMaimlProvider>
+      <ProjectManagementInner {...props} />
+    </ProjectMaimlProvider>
   );
 };
 

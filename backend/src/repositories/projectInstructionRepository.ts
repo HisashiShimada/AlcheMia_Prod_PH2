@@ -21,23 +21,19 @@ import { v4 as uuidv4 } from 'uuid';
  * 指示をInsert（規約準拠: テーブル型Objectから動的にクエリ構築）
  * 
  * @param data 指示データ（テーブル型Object）
+ * @param projectName プロジェクト名（IDの生成に使用）
  * @returns Insertされた指示
  */
-export async function insert(data: ProjectInstruction): Promise<ProjectInstruction> {
+export async function insert(
+  data: ProjectInstruction
+): Promise<ProjectInstruction> {
   const pool = getPool();
   
-  // experiment_instruction_idが未指定の場合はUUID生成
-  const dataWithId = {
-    ...data,
-    experiment_instruction_id: data.experiment_instruction_id || uuidv4(),
-    instruction_status: data.instruction_status ?? 0  // デフォルト: 未送信
-  };
-  
   // データからカラム名と値を抽出
-  const columns = Object.keys(dataWithId).filter(
-    key => dataWithId[key as keyof ProjectInstruction] !== undefined
+  const columns = Object.keys(data).filter(
+    key => data[key as keyof ProjectInstruction] !== undefined
   );
-  const values = columns.map(col => dataWithId[col as keyof ProjectInstruction]);
+  const values = columns.map(col => data[col as keyof ProjectInstruction]);
   
   // プレースホルダーを生成 ($1, $2, $3, ...)
   const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
@@ -48,6 +44,9 @@ export async function insert(data: ProjectInstruction): Promise<ProjectInstructi
     VALUES (${placeholders})
     RETURNING *
   `;
+
+  console.log(query);
+  console.log(values);
   
   const result = await pool.query<ProjectInstruction>(query, values);
   return result.rows[0];

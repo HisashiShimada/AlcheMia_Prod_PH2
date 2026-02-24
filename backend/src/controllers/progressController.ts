@@ -14,7 +14,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { ProgressService } from '../services/progressService';
-import { TaskRepository } from '../repositories/taskRepository';
+
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { TaskService } from '../services/taskService';
 import { updateTaskStatus as updateTaskStatusService } from '../services/taskService';
@@ -106,9 +106,9 @@ export async function getProgressData(req: Request, res: Response): Promise<void
     const projectId = project.project_id;
 
     // Step 2: ProgressServiceの呼び出し
-    const taskRepository = new TaskRepository();
+    
     const transitionDataRepository = new TransitionDataRepository();
-    const progressService = new ProgressService(taskRepository, transitionDataRepository);
+    const progressService = new ProgressService(transitionDataRepository);
     const result = await progressService.getProgressData(
       projectId,
       methodId,
@@ -257,9 +257,9 @@ export async function updateTransitionStatus(
     // 現在はリクエストボディから受け取るのみ（バリデーション済み）
 
     // サービス層を呼び出してステータス更新
-    const taskRepository = new TaskRepository();
+    
     const transitionDataRepository = new TransitionDataRepository();
-    const progressService = new ProgressService(taskRepository, transitionDataRepository);
+    const progressService = new ProgressService(transitionDataRepository);
     
     const updatedTransitionData = await progressService.updateTransitionStatus(
       organizationId,
@@ -365,8 +365,8 @@ export async function getWorkerTasks(
     const projectId = project.project_id;
 
     // ステップ2: TaskServiceを使用してタスク一覧を取得
-    const taskRepository = new TaskRepository();
-    const taskService = new TaskService(taskRepository);
+    
+    const taskService = new TaskService();
     const methodGroups = await taskService.getTasksGroupedByMethod(
       projectId,
       organizationId,

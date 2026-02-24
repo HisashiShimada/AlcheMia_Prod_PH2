@@ -10,6 +10,7 @@ import { Request, Response, NextFunction } from 'express';
 import * as projectInstructionService from '../services/projectInstructionService';
 import * as projectRepository from '../repositories/projectRepository';
 import { logger } from '../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
 import {
   SaveInstructionRequest,
   UpdateInstructionRequest,
@@ -140,7 +141,14 @@ export async function saveInstruction(
       requestBody
     );
     
-    res.status(201).json(result);
+    res.status(201).json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4()
+      }
+    });
   } catch (error) {
     logger.error('指示の保存に失敗しました', {
       error,
@@ -189,7 +197,14 @@ export async function updateInstruction(
       requestBody
     );
     
-    res.json(result);
+    res.json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4()
+      }
+    });
   } catch (error) {
     logger.error('指示の更新に失敗しました', {
       error,
@@ -235,13 +250,14 @@ export async function deleteInstruction(
       instructionId
     );
     
-    if (result.deleted) {
-      res.json(result);
-    } else {
-      res.status(404).json({
-        error: '指示が見つからないか、既に送信済です'
-      });
-    }
+    res.json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4()
+      }
+    });
   } catch (error) {
     logger.error('指示の削除に失敗しました', {
       error,
@@ -288,7 +304,14 @@ export async function sendInstructions(
       requestBody
     );
     
-    res.json(result);
+    res.json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4()
+      }
+    });
   } catch (error) {
     logger.error('指示の送信に失敗しました', {
       error,

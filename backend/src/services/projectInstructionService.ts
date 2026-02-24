@@ -7,11 +7,9 @@
  */
 
 import * as projectRepository from '../repositories/projectRepository';
-import * as projectTaskRepository from '../repositories/projectTaskRepository';
-import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import { getPool } from '../database/db';
-import { Project, ProjectInstruction, ProjectTask, ProjectTaskDetail } from '../types/database';
+import { Project, ProjectInstruction } from '../types/database';
 import {
   TaskRegistrationStatusResponse,
   SaveInstructionRequest,
@@ -21,7 +19,6 @@ import {
   DeleteInstructionResponse,
   SendInstructionsRequest,
   SendInstructionsResponse,
-  TaskInput,
   InstructionData
 } from '../types/api';
 import { logger } from '../utils/logger';
@@ -77,6 +74,11 @@ export async function getInstructions(
  * @param organizationId 組織ID
  * @param projectId プロジェクトID
  * @returns タスク登録状況
+ * 
+ * @remarks
+ * タスク数のカウントは削除しました。
+ * タスク登録は別途タスク登録タブで管理されるため、
+ * ここではプロジェクトステータスのみを確認します。
  */
 export async function getTaskRegistrationStatus(
   organizationId: string,
@@ -89,16 +91,13 @@ export async function getTaskRegistrationStatus(
     throw new Error('プロジェクトが見つかりません');
   }
   
-  // タスク数を取得
-  const taskCount = await projectTaskRepository.countByProject(organizationId, projectId);
-  
-  const hasRegisteredTasks = taskCount > 0;
   const projectStatus = project.project_status ?? 0;
-  const canSendInstructions = hasRegisteredTasks && projectStatus === 0;
+  // タスク登録有無に関わらず、プロジェクトステータスが0なら送信可能
+  const canSendInstructions = projectStatus === 0;
   
   return {
-    hasRegisteredTasks,
-    taskCount,
+    hasRegisteredTasks: true, // 常にtrue（タスク登録タブで管理されるため）
+    taskCount: 0, // 使用しない
     projectStatus,
     canSendInstructions
   };
@@ -126,20 +125,44 @@ export async function saveInstruction(
     throw new Error('プロジェクトが見つかりません');
   }
   
+  const projectName = project.project_name || '';
+  
+  // 既存の指示数を取得して次のIDを生成
+  const existingInstructions = await projectInstructionRepository.findByProject(
+    organizationId,
+    projectId
+  );
+  const nextNumber = existingInstructions.length + 1;
+  const instructionId = `${projectName}_${String(nextNumber).padStart(3, '0')}`;
+  
+  // instruction_targetを決定（数値型）
+  let instructionTarget = 0; // デフォルト: ファイル全体
+  if (request.taskNumber !== null && request.taskNumber !== undefined) {
+    instructionTarget = 3; // タスク
+  } else if (request.transitionId) {
+    instructionTarget = 2; // トランジション
+  } else if (request.methodId) {
+    instructionTarget = 1; // メソッド
+  }
+  
   // 指示データを作成
   const instructionData: ProjectInstruction = {
     organization_id: organizationId,
     project_id: projectId,
-    experiment_instruction_id: '', // Repository内でUUID生成
+    experiment_instruction_id: instructionId,
     method_id: request.methodId,
     transition_id: request.transitionId ?? null,
     task_no: request.taskNumber ?? null,
     priority: request.priority,
     type: request.type,
     instructions: request.content,
+    instruction_target: instructionTarget,
     instruction_status: 0, // 未送信
+    instruction_user_id: userId,
     create_user_id: userId,
-    update_user_id: userId
+    update_user_id: userId,
+    create_at: new Date(),
+    update_at: new Date()
   };
   
   // 指示を保存
@@ -153,7 +176,7 @@ export async function saveInstruction(
   });
   
   return {
-    instructionId: savedInstruction.experiment_instruction_id,
+    instructionId: savedInstruction.experiment_instruction_id || '',
     instruction_status: savedInstruction.instruction_status ?? 0
   };
 }
@@ -257,14 +280,14 @@ export async function deleteInstruction(
  * @remarks
  * トランザクション処理:
  * 1. 未送信指示のステータスを送信済に更新
- * 2. タスク（project_task）をUPSERT
- * 3. タスク詳細（project_task_detail）を作成
- * 4. プロジェクトステータスを0→1に更新
+ * 2. プロジェクトステータスを0→1に更新
+ * 
+ * タスク作成は別途タスク登録タブで実施されるため、このAPIでは行いません。
  * 
  * @param organizationId 組織ID
  * @param projectId プロジェクトID
  * @param userId ユーザーID
- * @param request 指示送信リクエスト
+ * @param request 指示送信リクエスト（空のリクエストボディ）
  * @returns 送信結果
  */
 export async function sendInstructions(
@@ -285,7 +308,7 @@ export async function sendInstructions(
     if (!project) {
       throw new Error('プロジェクトが見つかりません');
     }
-    
+
     // プロジェクトステータスが0（計画中）でない場合はエラー
     if (project.project_status !== 0) {
       throw new Error('プロジェクトステータスが計画中ではありません');
@@ -315,85 +338,8 @@ export async function sendInstructions(
       sentCount
     });
     
-    // 2. タスク（project_task）をUPSERT（規約準拠: Service層でupsertロジック実装）
-    let createdTasksCount = 0;
-    
-    for (const task of request.tasks) {
-      const taskData: ProjectTask = {
-        organization_id: organizationId,
-        project_id: projectId,
-        method_id: task.methodId,
-        experiment_order: task.experimentOrder ?? null,
-        experiment_condition: task.experimentCondition ?? null,
-        attempts_count: task.attemptsCount ?? null,
-        create_user_id: userId,
-        update_user_id: userId
-      };
-      
-      // 既存タスクを確認
-      const existingTask = await projectTaskRepository.findByPrimaryKey(
-        organizationId,
-        projectId,
-        task.methodId
-      );
-      
-      if (existingTask) {
-        // 既存レコードがあればupdate
-        const updatedTask: ProjectTask = {
-          ...existingTask,
-          experiment_order: task.experimentOrder ?? existingTask.experiment_order,
-          experiment_condition: task.experimentCondition ?? existingTask.experiment_condition,
-          attempts_count: task.attemptsCount ?? existingTask.attempts_count,
-          update_user_id: userId,
-          update_at: new Date()
-        };
-        await projectTaskRepository.update(updatedTask);
-      } else {
-        // 新規レコードはinsert
-        await projectTaskRepository.insert(taskData);
-      }
-      
-      createdTasksCount++;
-    }
-    
-    logger.info('タスクをUPSERTしました', {
-      organizationId,
-      projectId,
-      createdTasksCount
-    });
-    
-    // 3. タスク詳細（project_task_detail）を作成
-    const taskDetails: ProjectTaskDetail[] = [];
-    
-    for (const task of request.tasks) {
-      const attemptsCount = task.attemptsCount ?? 1;
-      
-      for (let i = 1; i <= attemptsCount; i++) {
-        taskDetails.push({
-          organization_id: organizationId,
-          project_id: projectId,
-          method_id: task.methodId,
-          task_no: i,
-          task_status: 0, // 実行待ち
-          create_user_id: userId,
-          update_user_id: userId
-        });
-      }
-    }
-    
-    if (taskDetails.length > 0) {
-      await projectTaskDetailRepository.bulkInsert(taskDetails);
-      
-      logger.info('タスク詳細を作成しました', {
-        organizationId,
-        projectId,
-        taskDetailCount: taskDetails.length
-      });
-    }
-    
-    // 4. プロジェクトステータスを0→1（タスク実行待ち）に更新
-    // 規約に従い: 既存レコード取得 → 更新パラメータ反映 → updateメソッド呼び出し
-    const existingProject = await projectRepository.findByIdWithOrganization(organizationId, projectId);
+    // 2. プロジェクトステータスを0→1（タスク実行待ち）に更新
+    const existingProject = await projectRepository.getById(projectId, organizationId);
     
     if (!existingProject) {
       throw new Error('プロジェクトが見つかりません');
@@ -417,8 +363,7 @@ export async function sendInstructions(
     await client.query('COMMIT');
     
     return {
-      sentInstructionsCount: sentCount,
-      createdTasksCount
+      sentInstructionsCount: sentCount
     };
     
   } catch (error) {

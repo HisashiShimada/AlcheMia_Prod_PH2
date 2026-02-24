@@ -125,25 +125,23 @@ router.post(
 
 /**
  * プロジェクトMAIML取得
- * GET /api/v1/projects/:projectId/maiml
+ * GET /api/v1/projects/:projectName/maiml
  * 
  * @middleware authMiddleware - JWT認証
- * @middleware checkPermission - 権限チェック（実験作業者のみ）
- * @middleware tenantIsolation - テナント分離
- * @description プロジェクトの最新MAIMLファイルをXML形式で取得する（指示確認タブのフロー図表示で使用）
- * @note API 15: プロジェクトMAIMLファイル取得
+ * @description プロジェクトの最新MAIMLファイルをXML形式で取得する（プロジェクト管理画面で使用）
+ * @note フロントエンドProjectMaimlContext用エンドポイント
  * @requirements REQ-1, REQ-2, REQ-3, REQ-8
- * @roles experiment_worker（読み取り専用）
+ * @roles 全ロール（読み取り専用）
  */
 router.get(
-  '/:projectId/maiml',
+  '/:projectName/maiml',
   authMiddleware,
-  checkPermission('050000', 0),
-  tenantIsolation,
   [
-    param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.getProjectMaiml
@@ -506,9 +504,6 @@ router.post(
       .withMessage('projectNameは必須です')
       .isLength({ min: 1, max: 255 })
       .withMessage('projectNameは1〜255文字である必要があります'),
-    body('methodId')
-      .notEmpty()
-      .withMessage('methodIdは必須です'),
     body('priority')
       .isInt({ min: 0, max: 3 })
       .withMessage('priorityは0〜3の範囲内の整数である必要があります'),
@@ -533,6 +528,7 @@ router.post(
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
  * @description 未送信の指示を更新する（送信済は更新不可）
  * @note 指示送信タブで使用
+ * @note instructionIdは「プロジェクト名_XXX」形式（例: sample_project_001）
  * @requirements REQ-1, REQ-2
  * @roles experiment_admin（書込可）
  */
@@ -547,8 +543,10 @@ router.put(
       .isLength({ min: 1, max: 255 })
       .withMessage('projectNameは1〜255文字である必要があります'),
     param('instructionId')
-      .isUUID()
-      .withMessage('instructionIdはUUID形式である必要があります'),
+      .notEmpty()
+      .withMessage('instructionIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('instructionIdは1〜255文字である必要があります'),
     body('methodId')
       .notEmpty()
       .withMessage('methodIdは必須です'),
@@ -576,6 +574,7 @@ router.put(
  * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
  * @description 未送信の指示を削除する（送信済は削除不可）
  * @note 指示送信タブで使用
+ * @note instructionIdは「プロジェクト名_XXX」形式（例: sample_project_001）
  * @requirements REQ-1, REQ-2
  * @roles experiment_admin（書込可）
  */
@@ -590,8 +589,10 @@ router.delete(
       .isLength({ min: 1, max: 255 })
       .withMessage('projectNameは1〜255文字である必要があります'),
     param('instructionId')
-      .isUUID()
-      .withMessage('instructionIdはUUID形式である必要があります'),
+      .notEmpty()
+      .withMessage('instructionIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('instructionIdは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectInstructionController.deleteInstruction
@@ -618,24 +619,6 @@ router.post(
       .withMessage('projectNameは必須です')
       .isLength({ min: 1, max: 255 })
       .withMessage('projectNameは1〜255文字である必要があります'),
-    body('tasks')
-      .isArray({ min: 1 })
-      .withMessage('tasksは1要素以上の配列である必要があります'),
-    body('tasks.*.methodId')
-      .notEmpty()
-      .withMessage('methodIdは必須です'),
-    body('tasks.*.experimentOrder')
-      .optional()
-      .isInt({ min: 0 })
-      .withMessage('experimentOrderは0以上の整数である必要があります'),
-    body('tasks.*.experimentCondition')
-      .optional()
-      .isInt({ min: 0 })
-      .withMessage('experimentConditionは0以上の整数である必要があります'),
-    body('tasks.*.attemptsCount')
-      .optional()
-      .isInt({ min: 1, max: 999 })
-      .withMessage('attemptsCountは1〜999の範囲内の整数である必要があります'),
   ],
   handleValidationErrors,
   projectInstructionController.sendInstructions

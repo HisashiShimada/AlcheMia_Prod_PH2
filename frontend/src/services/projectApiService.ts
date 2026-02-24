@@ -761,19 +761,17 @@ export const deleteInstruction = async (
  * POST /api/v1/projects/:projectName/instructions/send
  * 
  * @param projectName プロジェクト名
- * @param request 指示送信リクエスト
+ * @param request 指示送信リクエスト（空のオブジェクト）
  * @returns 指示送信結果
  * @throws Error APIエラー時
  * 
+ * @remarks
+ * タスク作成は別途タスク登録タブで実施されるため、このAPIではタスク情報を送信しません。
+ * 
  * @example
  * ```typescript
- * const result = await sendInstructions('sample_project', {
- *   tasks: [
- *     { methodId: 'method_001', experimentOrder: 1, experimentCondition: 1, attemptsCount: 3 },
- *     { methodId: 'method_002', experimentOrder: 2, experimentCondition: 1, attemptsCount: 3 }
- *   ]
- * });
- * console.log(`${result.sentInstructionsCount}件の指示を送信、${result.createdTasksCount}件のタスクを作成`);
+ * const result = await sendInstructions('sample_project', {});
+ * console.log(`${result.sentInstructionsCount}件の指示を送信しました`);
  * ```
  */
 export const sendInstructions = async (
@@ -783,7 +781,7 @@ export const sendInstructions = async (
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] sendInstructions - Request', { projectName, tasksCount: request.tasks.length });
+    console.log('[DEBUG] sendInstructions - Request', { projectName });
     
     const response = await client.post<{
       success: true;
@@ -796,7 +794,6 @@ export const sendInstructions = async (
 
     console.log('[DEBUG] sendInstructions - Success', {
       sentInstructionsCount: response.data.data.sentInstructionsCount,
-      createdTasksCount: response.data.data.createdTasksCount,
     });
     
     return response.data.data;
@@ -805,6 +802,62 @@ export const sendInstructions = async (
       error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+// ========================================
+// MAIML関連API関数
+// ========================================
+
+/**
+ * プロジェクトMAIMLレスポンス型
+ */
+export interface ProjectMaimlResponse {
+  maimlContent: string;
+  projectName: string;
+  lastModified?: string;
+}
+
+/**
+ * プロジェクトのMAIMLファイルを取得
+ * GET /api/v1/projects/:projectName/maiml
+ * 
+ * @param projectName プロジェクト名
+ * @returns MAIMLファイルの内容（XML文字列）
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * const maimlData = await getProjectMaiml('sample_project');
+ * console.log('MAIML Content Length:', maimlData.maimlContent.length);
+ * ```
+ */
+export const getProjectMaiml = async (
+  projectName: string
+): Promise<ApiResponse<ProjectMaimlResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] getProjectMaiml - Request', { projectName });
+    
+    const response = await client.get<ApiResponse<ProjectMaimlResponse>>(
+      `/projects/${encodeURIComponent(projectName)}/maiml`
+    );
+
+    console.log('[DEBUG] getProjectMaiml - Success', {
+      contentLength: response.data.data?.maimlContent?.length || 0,
+      projectName: response.data.data?.projectName,
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('[DEBUG] getProjectMaiml - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError<ApiErrorResponse>)?.response?.data,
       errorStatus: (error as AxiosError)?.response?.status,
     });
     throw error;

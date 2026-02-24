@@ -9,7 +9,7 @@
 
 import { TaskStatus, TaskStatusResponse, ServiceResult, UpdateTaskStatusParams } from '../types/taskService.types';
 import { MethodGroup, TaskSummary, TaskFilters, MethodTaskRecord } from '../types/task';
-import { TaskRepository } from '../repositories/taskRepository';
+import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import { getPgp } from '../database/db';
 import { logger } from '../utils/logger';
 import { loadSqlFile } from '../sql/loader';
@@ -362,8 +362,6 @@ export async function updateTaskStatus(
  * Feature: worker-task-list-api
  */
 export class TaskService {
-  constructor(private taskRepository: TaskRepository) {}
-
   /**
    * プロジェクト内のタスクをメソッド単位でグループ化して取得
    * 
@@ -394,8 +392,8 @@ export class TaskService {
     });
 
     try {
-      // TaskRepositoryからデータ取得
-      const records = await this.taskRepository.findMethodsAndTasksByProject(
+      // projectTaskRepositoryから直接データ取得
+      const records = await projectTaskRepository.findMethodsAndTasksByProject(
         projectId,
         organizationId,
         filters

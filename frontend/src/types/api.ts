@@ -269,11 +269,9 @@ export interface TaskInput {
  * 
  * @remarks
  * POST /api/v1/projects/:projectName/instructions/send
+ * タスク作成は別途タスク登録タブで実施されるため、このAPIではパラメータ不要
  */
-export interface SendInstructionsRequest {
-  /** タスクデータ配列 */
-  tasks: TaskInput[];
-}
+export type SendInstructionsRequest = Record<string, never>;
 
 /**
  * 指示送信レスポンス
@@ -281,8 +279,5 @@ export interface SendInstructionsRequest {
 export interface SendInstructionsResponse {
   /** 送信された指示数 */
   sentInstructionsCount: number;
-  
-  /** 作成されたタスク数 */
-  createdTasksCount: number;
 }
 
