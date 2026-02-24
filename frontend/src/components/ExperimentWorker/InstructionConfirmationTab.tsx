@@ -113,7 +113,7 @@ export default function InstructionConfirmationTab({
           // プロジェクトIDを保存
           setProjectId(apiData.project_id);
           
-          // メソッド一覧を変換
+          // メソッド一覧を変換（タスクも含める）
           const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
             methodId: method.method_id,
             methodName: method.method_name,
@@ -121,6 +121,26 @@ export default function InstructionConfirmationTab({
             description: '',
             category: 'experiment',
             transitions: [],
+            tasks: method.tasks.map((task: WorkerTask) => ({
+              taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
+              taskNo: task.task_no.toString(),
+              taskName: task.task_no.toString(),
+              methodId: method.method_id,
+              methodName: method.method_name,
+              status: task.task_status as Task['status'],
+              assignedUserId: task.experiment_user_id || undefined,
+              assignedUserName: task.experiment_user_name || undefined,
+              createdAt: task.created_at,
+              updatedAt: task.updated_at,
+              progress: parseFloat(task.progress_rate),
+              projectId: apiData.project_id,
+              sampleNumber: '',
+              notes: '',
+              progressRate: parseFloat(task.progress_rate),
+              transitionStatuses: [],
+              progressReport: '',
+              recordNumber: '',
+            }))
           }));
           
           // 全タスクを変換
@@ -586,6 +606,7 @@ export default function InstructionConfirmationTab({
               onSelectMethod(methodId);
               onSelectTask(taskId);
             }}
+            methods={methods}
           />
         </>
       )}

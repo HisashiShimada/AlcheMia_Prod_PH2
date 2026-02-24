@@ -5,7 +5,6 @@ import { Modal, Table, Tag, Typography, Input, Select, Space, Row, Col, Button, 
 import { SearchOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Task, TaskStatus, Method } from '@/types/experimentWorker';
-import { projectsData } from '@/data/projectsData';
 
 const { Text } = Typography;
 
@@ -19,6 +18,7 @@ interface MethodTaskSelectionModalProps {
   selectedMethodId: string | null;
   selectedTaskId: string | null;
   onSelect: (methodId: string, taskId: string) => void;
+  methods: Method[];  // APIから取得したメソッド一覧
 }
 
 /**
@@ -32,6 +32,7 @@ export default function MethodTaskSelectionModal({
   selectedMethodId,
   selectedTaskId,
   onSelect,
+  methods: propsMethods,
 }: MethodTaskSelectionModalProps) {
   const { token } = theme.useToken();
   
@@ -61,13 +62,10 @@ export default function MethodTaskSelectionModal({
     }
   }, [open, selectedMethodId, selectedTaskId]);
   
-  // プロジェクトデータを取得
-  const projectData = selectedProject ? projectsData[selectedProject] : null;
-  
-  // メソッド一覧の取得
+  // メソッド一覧の取得（propsから）
   const methods = useMemo<Method[]>(() => {
-    return projectData?.methods || [];
-  }, [projectData]);
+    return propsMethods || [];
+  }, [propsMethods]);
   
   // 初期化時に最初のメソッドを選択
   useEffect(() => {
@@ -78,9 +76,9 @@ export default function MethodTaskSelectionModal({
   
   // 選択されたメソッドに紐づくタスクを取得
   const allTasks = useMemo(() => {
-    if (!activeMethodId || !projectData?.methods) return [];
+    if (!activeMethodId || !methods) return [];
     
-    const method = projectData.methods.find((m: Method) => m.methodId === activeMethodId);
+    const method = methods.find((m: Method) => m.methodId === activeMethodId);
     if (!method || !method.tasks) return [];
     
     // プロジェクトIDとメソッドIDを各タスクに付与
@@ -90,7 +88,7 @@ export default function MethodTaskSelectionModal({
       methodId: method.methodId,
       methodName: method.methodName,
     }));
-  }, [projectData, selectedProject, activeMethodId]);
+  }, [methods, selectedProject, activeMethodId]);
   
   // タスク名の選択肢を生成
   const taskNameOptions = useMemo(() => {
