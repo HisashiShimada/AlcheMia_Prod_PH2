@@ -7,6 +7,10 @@ INSERT INTO instruction_acknowledged_history (
   project_id,
   experiment_user_id,
   organization_id,
-  acknowledged_at
-) VALUES ($1, $2, $3, $4, NOW())
+  acknowledged_at,
+  create_user_id,
+  create_at,
+  update_user_id,
+  update_at
+) VALUES ($1, $2, $3, $4, NOW(), $3, NOW(), $3, NOW())
 RETURNING acknowledged_at
