@@ -37,6 +37,7 @@
     "react-draggable": "^4.5.0",
     "react-rnd": "^10.5.2",
     "reactflow": "^11.11.4",
+    "uuid": "^13.0.0",
     "xml-js": "^1.6.11"
   },
   "devDependencies": {
@@ -47,6 +48,7 @@
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "axios-mock-adapter": "^2.1.0",
     "baseline-browser-mapping": "^2.9.19",
     "eslint": "^9",

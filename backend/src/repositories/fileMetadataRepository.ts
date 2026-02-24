@@ -44,6 +44,21 @@ export interface FileMetadata {
   s3_storage_class?:string;
   s3_etag?:string;
   last_edit_timestamp?: Date;
+  
+  // Phase 2.5: MAIML検索用メタデータ（2026-02-20追加）
+  maiml_document_uuid?: string;
+  maiml_document_name?: string;
+  maiml_document_description?: string;
+  maiml_measurement_values?: string; // JSONB
+  maiml_units?: string; // JSONB
+  maiml_section_types?: string; // JSONB
+  maiml_ids?: string; // JSONB
+  maiml_refs?: string; // JSONB
+  maiml_keys?: string; // JSONB
+  maiml_elements?: string; // JSONB
+  maiml_values?: string; // JSONB
+  maiml_metadata_extracted_at?: Date;
+  maiml_metadata_extraction_status?: string;
 }
 
 /**

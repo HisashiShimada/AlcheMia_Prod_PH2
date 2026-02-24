@@ -131,6 +131,37 @@ CREATE TABLE IF NOT EXISTS file_metadata (
     parent_folder_path VARCHAR(500),
     
     -- ============================================
+    -- Phase 2.5: MAIML検索用メタデータ（2026-02-20追加）
+    -- ============================================
+    
+    -- MAIML Document情報（検索用）
+    -- maimlMetadataExtractor.jsによって自動抽出
+    maiml_document_uuid VARCHAR(255),
+    maiml_document_name TEXT,
+    maiml_document_description TEXT,
+    
+    -- MAIML測定データ情報（JSONB配列で複数値対応）
+    -- maimlMetadataExtractor.jsによって自動抽出
+    maiml_measurement_values JSONB DEFAULT '[]'::jsonb,
+    maiml_units JSONB DEFAULT '[]'::jsonb,
+    
+    -- MAIML構造情報（JSONB配列で複数値対応）
+    -- maimlMetadataExtractor.jsによって自動抽出
+    maiml_section_types JSONB DEFAULT '[]'::jsonb,
+    
+    -- MAIML属性情報（JSONB配列で複数値対応）
+    -- maimlMetadataExtractor.jsによって自動抽出
+    maiml_ids JSONB DEFAULT '[]'::jsonb,
+    maiml_refs JSONB DEFAULT '[]'::jsonb,
+    maiml_keys JSONB DEFAULT '[]'::jsonb,
+    maiml_elements JSONB DEFAULT '[]'::jsonb,
+    maiml_values JSONB DEFAULT '[]'::jsonb,
+    
+    -- メタデータ抽出状態管理
+    maiml_metadata_extracted_at TIMESTAMP WITH TIME ZONE,
+    maiml_metadata_extraction_status VARCHAR(50) DEFAULT 'pending',
+    
+    -- ============================================
     -- Phase 3: アップロード管理（2026-01-19統合）
     -- ============================================
     
@@ -198,6 +229,49 @@ CREATE INDEX idx_file_metadata_file_hash
 -- parent_folder_path用B-treeインデックス（階層管理用）
 CREATE INDEX idx_file_metadata_parent_folder 
   ON file_metadata(parent_folder_path);
+
+-- ============================================
+-- Phase 2.5: MAIML検索用メタデータインデックス（2026-02-20追加）
+-- ============================================
+
+-- maiml_document_uuid用B-treeインデックス（Document UUID検索用）
+CREATE INDEX idx_file_metadata_maiml_doc_uuid 
+  ON file_metadata(maiml_document_uuid) 
+  WHERE maiml_document_uuid IS NOT NULL;
+
+-- maiml_document_name用B-treeインデックス（Document名検索用）
+CREATE INDEX idx_file_metadata_maiml_doc_name 
+  ON file_metadata(maiml_document_name) 
+  WHERE maiml_document_name IS NOT NULL;
+
+-- MAIML属性情報用GINインデックス（JSONB配列検索用）
+CREATE INDEX idx_file_metadata_maiml_measurement_values_gin 
+  ON file_metadata USING GIN (maiml_measurement_values);
+
+CREATE INDEX idx_file_metadata_maiml_units_gin 
+  ON file_metadata USING GIN (maiml_units);
+
+CREATE INDEX idx_file_metadata_maiml_section_types_gin 
+  ON file_metadata USING GIN (maiml_section_types);
+
+CREATE INDEX idx_file_metadata_maiml_ids_gin 
+  ON file_metadata USING GIN (maiml_ids);
+
+CREATE INDEX idx_file_metadata_maiml_refs_gin 
+  ON file_metadata USING GIN (maiml_refs);
+
+CREATE INDEX idx_file_metadata_maiml_keys_gin 
+  ON file_metadata USING GIN (maiml_keys);
+
+CREATE INDEX idx_file_metadata_maiml_elements_gin 
+  ON file_metadata USING GIN (maiml_elements);
+
+CREATE INDEX idx_file_metadata_maiml_values_gin 
+  ON file_metadata USING GIN (maiml_values);
+
+-- maiml_metadata_extraction_status用B-treeインデックス（抽出状態検索用）
+CREATE INDEX idx_file_metadata_maiml_extraction_status 
+  ON file_metadata(maiml_metadata_extraction_status);
 
 -- ============================================
 -- Phase 3: アップロード管理インデックス（2026-01-19統合）
@@ -277,6 +351,21 @@ COMMENT ON COLUMN file_metadata.search_keywords IS '検索キーワード（自�
 COMMENT ON COLUMN file_metadata.description IS 'ファイル説明（ユーザー入力）- 自由記述テキスト';
 COMMENT ON COLUMN file_metadata.file_hash IS 'SHA-256ハッシュ（重複検出用）- ファイル内容の一意性を保証';
 COMMENT ON COLUMN file_metadata.parent_folder_path IS '親フォルダパス（階層管理用）- 例: "org_maiml_lab_001/projects/sample_project"';
+
+-- Phase 2.5: MAIML検索用メタデータカラム（2026-02-20追加）
+COMMENT ON COLUMN file_metadata.maiml_document_uuid IS 'MAIML Document UUID（検索用）- maimlMetadataExtractor.jsによって自動抽出';
+COMMENT ON COLUMN file_metadata.maiml_document_name IS 'MAIML Document名（検索用）- maimlMetadataExtractor.jsによって自動抽出';
+COMMENT ON COLUMN file_metadata.maiml_document_description IS 'MAIML Document説明（検索用）- maimlMetadataExtractor.jsによって自動抽出';
+COMMENT ON COLUMN file_metadata.maiml_measurement_values IS 'MAIML測定値配列（検索用）- maimlMetadataExtractor.jsによって自動抽出、JSONB形式';
+COMMENT ON COLUMN file_metadata.maiml_units IS 'MAIML単位配列（検索用）- maimlMetadataExtractor.jsによって自動抽出、JSONB形式';
+COMMENT ON COLUMN file_metadata.maiml_section_types IS 'MAIMLセクション種別配列（検索用）- maimlMetadataExtractor.jsによって自動抽出、JSONB形式';
+COMMENT ON COLUMN file_metadata.maiml_ids IS 'MAIML ID属性配列（検索用）- maimlMetadataExtractor.jsによって自動抽出、JSONB形式';
+COMMENT ON COLUMN file_metadata.maiml_refs IS 'MAIML Ref属性配列（検索用）- maimlMetadataExtractor.jsによって自動抽出、JSONB形式';
+COMMENT ON COLUMN file_metadata.maiml_keys IS 'MAIML Key属性配列（検索用）- maimlMetadataExtractor.jsによって自動抽出、JSONB形式';
+COMMENT ON COLUMN file_metadata.maiml_elements IS 'MAIML Element名配列（検索用）- maimlMetadataExtractor.jsによって自動抽出、JSONB形式';
+COMMENT ON COLUMN file_metadata.maiml_values IS 'MAIML汎用Value配列（検索用）- maimlMetadataExtractor.jsによって自動抽出、JSONB形式';
+COMMENT ON COLUMN file_metadata.maiml_metadata_extracted_at IS 'MAIMLメタデータ抽出日時 - 最終抽出実行時刻';
+COMMENT ON COLUMN file_metadata.maiml_metadata_extraction_status IS 'MAIMLメタデータ抽出状態 - pending/success/failed';
 
 -- Phase 3: アップロード管理カラム（2026-01-19統合）
 COMMENT ON COLUMN file_metadata.upload_batch_id IS '一括アップロード時のバッチID（UUID形式）- バッチ単位でのファイル操作に使用';

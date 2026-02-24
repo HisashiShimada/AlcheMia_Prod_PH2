@@ -54,6 +54,8 @@ import 'reactflow/dist/style.css';
 // Phase 2: maimlParserTyped導入
 import { MaimlParserTyped } from '../../utils/maimlParserTyped';
 import type { Template, PlaceRef as XsdPlaceRef,Method, Property } from '../../types/maiml-unified';
+// Owner初期値生成用
+import { generateInitialDocumentData, generateInitialMethod } from '../../utils/documentInitializer';
 // 型定義をインポート
 import type {
   NodeData,
@@ -604,49 +606,21 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       if (!maimlData) {
         console.log('🆕 [PetriNetEditorInner] 新規作成モード: 空の状態で起動');
         
-        // 新規作成時: editingFileNameからdocumentDataを初期化
-        let initialMethodId = `method_${Date.now()}`;  // デフォルト値
-        
         if (editingFileName && !documentData) {
-          const baseFileName = editingFileName.replace('.maiml', '');
-          const uuidFull = crypto.randomUUID();
-          const uuidPrefix = uuidFull.substring(0, 8);
-          
-          // ✅ 修正: methodIdを先に生成
-          initialMethodId = `method_${baseFileName}_${uuidPrefix}`;
-          
-          // ✅ 修正: 日付フォーマット生成
-          const now = new Date();
-          const formattedDate = now.toISOString().split('T')[0]; // YYYY-MM-DD形式
-          
-          // ✅ Phase 4: XSD準拠のDocumentData型に修正（creator/vendor/owner/instrument配列）
-          const initialDocumentData: DocumentData = {
-            id: `document_${Date.now()}`,
-            uuid: uuidFull,
-            name: baseFileName || 'document',
-            description: '',
-            date: formattedDate,
-            // XSD準拠プロパティ（配列、必須）
-            creators: [],
-            vendors: [],
-            owners: [],
-            instruments: [],
-            // エディター用拡張プロパティ
-            protocolId: `protocol_${Date.now()}`,
-            methodId: `method_${Date.now()}`,
-            pnmlId: `pnml_${Date.now()}`,
-            programId: `program_${Date.now()}`,
-            chains:[],
-            parents : []
-          };
+          // ✅ Util関数でDocumentDataとMethodIDを生成
+          const { documentData: initialDocumentData, methodIdForInitialMethod } = generateInitialDocumentData(editingFileName);
           setDocumentData(initialDocumentData);
-          console.log('📄 [PetriNetEditorInner] 新規作成: documentData初期化（ID自動生成）:', {
-            documentId: initialDocumentData.id,
-            protocolId: initialDocumentData.protocolId,
-            methodId: initialDocumentData.methodId,
-            pnmlId: initialDocumentData.pnmlId,
-            programId: initialDocumentData.programId
-          });
+          
+          // ✅ Util関数でMethodDataを生成
+          const initialMethod = generateInitialMethod(methodIdForInitialMethod);
+          setMethods([initialMethod]);
+        } else {
+          // editingFileNameがない場合のフォールバック
+          const { documentData: initialDocumentData, methodIdForInitialMethod } = generateInitialDocumentData();
+          setDocumentData(initialDocumentData);
+          
+          const initialMethod = generateInitialMethod(methodIdForInitialMethod);
+          setMethods([initialMethod]);
         }
         
         setIsLoading(false);
@@ -654,26 +628,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         setNodes([]);
         setEdges([]);
         reset({ nodes: [], edges: [] });
-        
-        // ✅ 修正: 新規作成時もmethods配列を初期化（MethodTabPanelを表示するため）
-        // 上で生成したinitialMethodIdを使用
-        console.log('🆕 [PetriNetEditorInner] 新規作成: Method配列初期化:', {
-          initialMethodId
-        });
-        
-        const initialMethod: MethodData = {
-          methodId: initialMethodId,
-          methodIndex: 0,
-          name: 'Method 1',
-          nodes: [],
-          edges: [],
-          viewport: { x: 0, y: 0, zoom: 1 }
-        };
-        setMethods([initialMethod]);
         setActiveMethodIndex(0);
         setMultiMethodMode(false);
         
-        console.log('📋 [PetriNetEditorInner] 新規作成: Method配列初期化');
+        console.log('📋 [PetriNetEditorInner] 新規作成: 初期化完了');
         
         return;
       }
