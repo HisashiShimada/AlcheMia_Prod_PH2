@@ -370,9 +370,9 @@ export default function InstructionConfirmationTab({
    * プロジェクト指示グループの確認完了ハンドラ
    */
   const handleConfirmProjectInstructions = () => {
-    // プロジェクト指示（targetType === 'file'）の未読をフィルタ
+    // プロジェクト指示（targetType === 'file'）の未確認をフィルタ
     const projectInstructions = filteredInstructions.filter(
-      (i) => i.targetType === 'file' && !i.isRead
+      (i) => i.targetType === 'file' && !i.isAcknowledged
     );
 
     if (projectInstructions.length === 0) {
@@ -396,7 +396,7 @@ export default function InstructionConfirmationTab({
    * タスク単位指示の確認完了ハンドラー
    */
   const handleConfirmTaskInstructions = (taskInstructions: Instruction[]) => {
-    const unreadInstructions = taskInstructions.filter((i) => !i.isRead);
+    const unreadInstructions = taskInstructions.filter((i) => !i.isAcknowledged);
     
     if (unreadInstructions.length === 0) {
       message.info('確認が必要な指示はありません');
@@ -421,7 +421,7 @@ export default function InstructionConfirmationTab({
    * トランジション単位指示の確認完了ハンドラー
    */
   const handleConfirmTransitionInstructions = (transitionInstructions: Instruction[]) => {
-    const unreadInstructions = transitionInstructions.filter((i) => !i.isRead);
+    const unreadInstructions = transitionInstructions.filter((i) => !i.isAcknowledged);
     
     if (unreadInstructions.length === 0) {
       message.info('確認が必要な指示はありません');
@@ -446,8 +446,8 @@ export default function InstructionConfirmationTab({
    * 全ての指示の確認完了ハンドラ
    */
   const handleConfirmAllInstructions = () => {
-    // 未読の指示をフィルタ
-    const unreadInstructions = filteredInstructions.filter((i) => !i.isRead);
+    // 未確認の指示をフィルタ
+    const unreadInstructions = filteredInstructions.filter((i) => !i.isAcknowledged);
 
     if (unreadInstructions.length === 0) {
       message.info('確認が必要な指示はありません');
@@ -457,7 +457,7 @@ export default function InstructionConfirmationTab({
     // 確認ダイアログを表示
     Modal.confirm({
       title: '全ての指示の確認完了',
-      content: `全ての指示（${filteredStats.total}件中${unreadInstructions.length}件未読）を確認完了にしますか？`,
+      content: `全ての指示（${filteredStats.total}件中${unreadInstructions.length}件未確認）を確認完了にしますか？`,
       okText: '確認完了',
       cancelText: 'キャンセル',
       onOk: async () => {
@@ -586,7 +586,12 @@ export default function InstructionConfirmationTab({
                       handleConfirmProjectInstructions();
                     }}
                     loading={confirmLoading}
-                    disabled={confirmLoading}
+                    disabled={
+                      confirmLoading || 
+                      filteredInstructions
+                        .filter((i) => i.targetType === 'file')
+                        .every((i) => i.isAcknowledged)
+                    }
                     style={{ 
                       backgroundColor: token.colorSuccess, 
                       borderColor: token.colorSuccess 
@@ -715,14 +720,26 @@ export default function InstructionConfirmationTab({
                 icon={<CheckCircleOutlined />}
                 onClick={handleConfirmAllInstructions}
                 loading={confirmLoading}
-                disabled={filteredStats.total === 0 || confirmLoading}
+                disabled={
+                  filteredStats.total === 0 || 
+                  confirmLoading || 
+                  filteredInstructions.every((i) => i.isAcknowledged)
+                }
                 style={{
                   minWidth: 300,
                   height: 48,
                   fontSize: 16,
                   fontWeight: 600,
-                  backgroundColor: filteredStats.total === 0 ? undefined : token.colorSuccess,
-                  borderColor: filteredStats.total === 0 ? undefined : token.colorSuccess,
+                  backgroundColor: 
+                    (filteredStats.total === 0 || 
+                     filteredInstructions.every((i) => i.isAcknowledged)) 
+                      ? undefined 
+                      : token.colorSuccess,
+                  borderColor: 
+                    (filteredStats.total === 0 || 
+                     filteredInstructions.every((i) => i.isAcknowledged)) 
+                      ? undefined 
+                      : token.colorSuccess,
                 }}
               >
                 全ての指示の確認完了

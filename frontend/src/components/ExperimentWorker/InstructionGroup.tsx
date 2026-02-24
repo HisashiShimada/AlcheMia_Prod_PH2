@@ -213,7 +213,10 @@ export default function InstructionGroup({
                         onConfirmInstructions(taskInstructions);
                       }}
                       loading={confirmLoading}
-                      disabled={confirmLoading}
+                      disabled={
+                        confirmLoading || 
+                        taskInstructions.every((i) => i.isAcknowledged)
+                      }
                       style={{ 
                         backgroundColor: token.colorSuccess, 
                         borderColor: token.colorSuccess 
@@ -327,7 +330,10 @@ export default function InstructionGroup({
                         onConfirmInstructions(methodInstructions);
                       }}
                       loading={confirmLoading}
-                      disabled={confirmLoading}
+                      disabled={
+                        confirmLoading || 
+                        methodInstructions.every((i) => i.isAcknowledged)
+                      }
                       style={{ 
                         backgroundColor: token.colorSuccess, 
                         borderColor: token.colorSuccess 
@@ -441,7 +447,10 @@ export default function InstructionGroup({
                         onConfirmInstructions(transitionInstructions);
                       }}
                       loading={confirmLoading}
-                      disabled={confirmLoading}
+                      disabled={
+                        confirmLoading || 
+                        transitionInstructions.every((i) => i.isAcknowledged)
+                      }
                       style={{ 
                         backgroundColor: token.colorSuccess, 
                         borderColor: token.colorSuccess 

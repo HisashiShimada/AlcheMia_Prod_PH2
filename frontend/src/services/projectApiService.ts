@@ -1086,6 +1086,11 @@ export function convertApiToInstruction(apiData: WorkerInstruction): Instruction
       userId: apiData.created_by,
       userName: apiData.created_by_name
     },
-    isRead: apiData.is_acknowledged
+    isRead: apiData.is_acknowledged,
+    // API仕様に基づく確認済みフラグ
+    isAcknowledged: apiData.is_acknowledged,
+    acknowledgedAt: undefined,
+    acknowledgedBy: undefined,
+    acknowledgedByName: undefined
   };
 }

@@ -46,6 +46,11 @@ export interface Instruction {
   updatedAt: string | null;
   createdBy: User;
   isRead: boolean;
+  // API仕様に基づく確認済みフラグ（API: is_acknowledged）
+  isAcknowledged: boolean;           // 確認済みフラグ
+  acknowledgedAt?: string;            // 確認日時（ISO 8601）
+  acknowledgedBy?: string;            // 確認者ID
+  acknowledgedByName?: string;        // 確認者名
 }
 
 // 作業割り当て
