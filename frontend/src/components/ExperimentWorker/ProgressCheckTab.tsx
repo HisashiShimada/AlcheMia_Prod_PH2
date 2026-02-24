@@ -458,8 +458,167 @@ export default function ProgressCheckTab({
           break;
 
         case 'forceTerminate':
-          // 強制終了（今後実装予定）
-          message.info('強制終了機能は今後実装予定です');
+          // 強制終了処理
+          try {
+            console.log('[DEBUG] handleTaskAction - Force terminate task', {
+              taskId,
+              taskNo: task.taskNo,
+              methodId: task.methodId,
+              projectName: selectedProjectName,
+              taskUpdatedAt: task.updatedAt,
+              taskUpdatedAtType: typeof task.updatedAt,
+              fullTask: task
+            });
+            
+            // task.updatedAtの検証
+            if (!task.updatedAt) {
+              console.error('[DEBUG] handleTaskAction - task.updatedAt is missing!', { task });
+              message.error('タスクの更新日時が取得できません。画面を再読み込みしてください。');
+              return;
+            }
+            
+            // タスクステータスを'forced_terminated'に更新
+            // 楽観的ロック用に現在のupdatedAtを送信
+            const result = await updateTaskStatus(
+              selectedProjectName,
+              task.methodId,
+              task.taskNo,
+              'forced_terminated',
+              undefined,      // comment（オプショナル）
+              task.updatedAt  // currentUpdatedAt（楽観的ロック用・必須）
+            );
+            
+            if (result.success && result.data) {
+              console.log('[DEBUG] handleTaskAction - Task force terminated successfully', {
+                taskNo: result.data.task_no,
+                previousStatus: result.data.previous_status,
+                newStatus: result.data.new_status
+              });
+              
+              message.success('タスクを強制終了しました');
+              
+              // タスク一覧を再取得して最新の状態を反映
+              const tasksResult = await getWorkerTasks(selectedProjectName);
+              if (tasksResult.success && tasksResult.data) {
+                const apiData = tasksResult.data;
+                
+                // メソッド一覧を変換
+                const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
+                  methodId: method.method_id,
+                  methodName: method.method_name,
+                  experimentOrder: method.experiment_order,
+                  description: '',
+                  category: 'experiment',
+                  transitions: [],
+                }));
+                
+                // 全タスクを変換
+                const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
+                  method.tasks.map((apiTask: WorkerTask) => ({
+                    taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
+                    taskNo: apiTask.task_no.toString(),
+                    taskName: apiTask.task_no.toString(),
+                    methodId: method.method_id,
+                    methodName: method.method_name,
+                    status: apiTask.task_status as Task['status'],
+                    assignedUserId: apiTask.experiment_user_id,
+                    assignedUserName: apiTask.experiment_user_name,
+                    createdAt: apiTask.created_at,
+                    updatedAt: apiTask.updated_at,
+                    projectId: apiData.project_id,
+                    sampleNumber: '',
+                    notes: '',
+                    progressRate: parseFloat(apiTask.progress_rate) || 0,
+                    transitionStatuses: [],
+                    progressReport: '',
+                    recordNumber: '',
+                  }))
+                );
+                
+                setMethods(methodsData);
+                setTasks(allTasks);
+                
+                console.log('[DEBUG] handleTaskAction - Tasks refreshed', {
+                  methodCount: methodsData.length,
+                  taskCount: allTasks.length
+                });
+              }
+            } else {
+              console.error('[DEBUG] handleTaskAction - Force terminate failed', result);
+              message.error('タスクの強制終了に失敗しました');
+            }
+          } catch (error) {
+            console.error('[DEBUG] handleTaskAction - Error force terminating task', {
+              error,
+              errorMessage: error instanceof Error ? error.message : 'Unknown error',
+              errorResponse: (error as AxiosError)?.response?.data,
+              errorStatus: (error as AxiosError)?.response?.status
+            });
+            
+            // エラーメッセージの詳細表示
+            if ((error as AxiosError)?.response?.status === 403) {
+              message.error('このタスクを強制終了する権限がありません');
+            } else if ((error as AxiosError)?.response?.status === 409) {
+              // 楽観的ロック競合エラー: 他のユーザーが先に更新した可能性
+              message.error('このタスクは他のユーザーによって更新されました。最新の情報を取得しています...');
+              
+              // タスク一覧を再取得して最新の状態を反映
+              try {
+                const tasksResult = await getWorkerTasks(selectedProjectName);
+                if (tasksResult.success && tasksResult.data) {
+                  const apiData = tasksResult.data;
+                  
+                  // メソッド一覧を変換
+                  const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
+                    methodId: method.method_id,
+                    methodName: method.method_name,
+                    experimentOrder: method.experiment_order,
+                    description: '',
+                    category: 'experiment',
+                    transitions: [],
+                  }));
+                  
+                  // 全タスクを変換
+                  const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
+                    method.tasks.map((apiTask: WorkerTask) => ({
+                      taskId: `${apiData.project_id}-${method.method_id}-${apiTask.task_no}`,
+                      taskNo: apiTask.task_no.toString(),
+                      taskName: apiTask.task_no.toString(),
+                      methodId: method.method_id,
+                      methodName: method.method_name,
+                      status: apiTask.task_status as Task['status'],
+                      assignedUserId: apiTask.experiment_user_id,
+                      assignedUserName: apiTask.experiment_user_name,
+                      createdAt: apiTask.created_at,
+                      updatedAt: apiTask.updated_at,
+                      projectId: apiData.project_id,
+                      sampleNumber: '',
+                      notes: '',
+                      progressRate: parseFloat(apiTask.progress_rate) || 0,
+                      transitionStatuses: [],
+                      progressReport: '',
+                      recordNumber: '',
+                    }))
+                  );
+                  
+                  setMethods(methodsData);
+                  setTasks(allTasks);
+                  
+                  console.log('[DEBUG] handleTaskAction - Tasks refreshed after 409 conflict', {
+                    methodCount: methodsData.length,
+                    taskCount: allTasks.length
+                  });
+                }
+              } catch (refreshError) {
+                console.error('[DEBUG] handleTaskAction - Failed to refresh tasks after 409', refreshError);
+                message.warning('最新の情報取得に失敗しました。画面を再読み込みしてください。');
+              }
+            } else if ((error as AxiosError)?.response?.status === 404) {
+              message.error('タスクが見つかりません');
+            } else {
+              message.error('タスクの強制終了中にエラーが発生しました');
+            }
+          }
           break;
 
         default:

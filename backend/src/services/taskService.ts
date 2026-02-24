@@ -35,7 +35,7 @@ export type TaskStatusEnumType = typeof TaskStatusEnum[keyof typeof TaskStatusEn
  * @description キー: 現在のステータス、値: 遷移可能なステータスの配列
  */
 const VALID_TRANSITIONS: Record<number, number[]> = {
-  [TaskStatusEnum.PENDING]: [TaskStatusEnum.IN_PROGRESS],
+  [TaskStatusEnum.PENDING]: [TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.FORCED_TERMINATED],
   [TaskStatusEnum.IN_PROGRESS]: [TaskStatusEnum.COMPLETED, TaskStatusEnum.FORCED_TERMINATED],
   [TaskStatusEnum.COMPLETED]: [],
   [TaskStatusEnum.FORCED_TERMINATED]: []
