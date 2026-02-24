@@ -363,11 +363,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                   { value: null, label: '-' },
                   ...projects.map((project) => ({
                     value: project.projectId,
-                    label: `${project.projectName} - ${
-                      project.projectStatus === 'in_progress' ? '作業中' : 
-                      project.projectStatus === 'review_waiting' ? '承認待ち' : 
-                      '承認済み'
-                    }`
+                    label: `${project.projectName} - ${t(`experimentWork.projectStatus.${project.projectStatus}`)}`
                   }))
                 ]}
                 size="middle"

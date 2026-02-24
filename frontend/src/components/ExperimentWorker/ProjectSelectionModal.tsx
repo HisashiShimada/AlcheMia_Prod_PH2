@@ -127,9 +127,7 @@ export default function ProjectSelectionModal({
       align: 'center',
       render: (projectStatus: string) => (
         <Text>
-          {projectStatus === 'in_progress' ? '作業中' : 
-           projectStatus === 'review_waiting' ? '承認待ち' : 
-           '承認済み'}
+          {t(`experimentWork.projectStatus.${projectStatus}`)}
         </Text>
       ),
     },
