@@ -7,6 +7,7 @@ import Papa from 'papaparse';
 import * as departmentRepository from '../repositories/departmentRepository';
 import { DepartmentSearchFilters } from '../repositories/departmentRepository';
 import { getPool } from '../database/db';
+import { getStorageService } from './storageService';
 
 /**
  * Departmentレスポンス型定義
@@ -122,6 +123,21 @@ export async function createDepartment(
   }
   
   const department = await departmentRepository.create(organizationId, data, userId);
+  
+  // Swift/S3フォルダ自動生成
+  try {
+    const storageService = getStorageService();
+    await storageService.createFolders(organizationId, [
+      `formats/${data.departmentCd}/condition/`,
+      `formats/${data.departmentCd}/material/`,
+      `formats/${data.departmentCd}/result/`,
+    ]);
+    console.log(`✅ Department folders created: formats/${data.departmentCd}/ (condition, material, result)`);
+  } catch (storageError) {
+    // フォルダ作成失敗してもエラーとせず、ログ記録のみ
+    // 理由: 部署データは既にDBに登録済みで、フォルダは後から手動で作成可能
+    console.error(`⚠️ Failed to create department folders for ${data.departmentCd}:`, storageError);
+  }
   
   return {
     departmentId: department.department_cd,  // department_cd → departmentId
@@ -311,6 +327,7 @@ export async function uploadDepartmentsCsv(
     await client.query('BEGIN');
     
     let successCount = 0;
+    const createdDepartments: string[] = []; // 作成した部署CDを保存
     
     // 全行を新規作成（バリデーションで既存チェック済み）
     for (let i = 0; i < parseResult.data.length; i++) {
@@ -331,10 +348,28 @@ export async function uploadDepartmentsCsv(
         isActive,
       }, userId);
       
+      createdDepartments.push(departmentCd); // 作成した部署CDを記録
       successCount++;
     }
     
     await client.query('COMMIT');
+    
+    // Swift/S3フォルダ一括生成（同期的）
+    try {
+      const storageService = getStorageService();
+      for (const departmentCd of createdDepartments) {
+        await storageService.createFolders(organizationId, [
+          `formats/${departmentCd}/condition/`,
+          `formats/${departmentCd}/material/`,
+          `formats/${departmentCd}/result/`,
+        ]);
+      }
+      console.log(`✅ CSV upload: Created folders for ${createdDepartments.length} departments`);
+    } catch (storageError) {
+      // フォルダ作成失敗してもエラーとせず、ログ記録のみ
+      // 理由: 部署データは既にDBに登録済みで、フォルダは後から手動で作成可能
+      console.error('⚠️ CSV upload: Failed to create some department folders:', storageError);
+    }
     
     return {
       successCount,

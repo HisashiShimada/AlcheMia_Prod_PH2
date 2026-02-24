@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, Typography, Space, Button, Tabs, theme, Select } from 'antd';
+import { Layout, Card, Typography, Space, Button, Tabs, theme, Select, message, Spin } from 'antd';
 import {
   FileTextOutlined,
   FormOutlined,
@@ -9,6 +9,7 @@ import {
   FolderOutlined,
   ToolOutlined,
   CheckOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 import styled from '@emotion/styled';
 import Header from '../common/Header';
@@ -22,8 +23,8 @@ import InstructionConfirmationTab from '../ExperimentWorker/InstructionConfirmat
 import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
 import ProgressCheckTab from '../ExperimentWorker/ProgressCheckTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
-import { projectsData } from '@/data/projectsData';
-import { isSelectableStatus } from '@/types/experimentWorker';
+import { getWorkerAccessibleProjects, requestApproval, type WorkerProject } from '@/services/projectApiService';
+import { AxiosError } from 'axios';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -91,14 +92,82 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string>('new');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedProjectName, setSelectedProjectName] = useState<string>('');
+
+  // プロジェクト一覧の状態管理
+  const [projects, setProjects] = useState<WorkerProject[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [approvalLoading, setApprovalLoading] = useState(false);
 
   // localStorageからpermissionsを取得（userInfo経由）
   const permissions = getPermissionsFromToken();
 
+  // プロジェクト一覧を取得
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setProjectsLoading(true);
+      try {
+        const result = await getWorkerAccessibleProjects();
+        if (result.success && result.data) {
+          setProjects(result.data.projects);
+        }
+      } catch (error) {
+        console.error('プロジェクト一覧取得エラー:', error);
+        const axiosError = error as AxiosError<{ error: { message: string } }>;
+        message.error(
+          axiosError.response?.data?.error?.message || 
+          'プロジェクト一覧の取得に失敗しました'
+        );
+      } finally {
+        setProjectsLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
   // 承認依頼ハンドラー
-  const handleApprovalRequest = () => {
-    // TODO: 承認依頼処理を実装
-    console.log('承認依頼ボタンがクリックされました');
+  const handleApprovalRequest = async () => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+
+    // 選択されたプロジェクトの情報を取得
+    const selectedProjectData = projects.find(p => p.projectId === selectedProject);
+    if (!selectedProjectData) {
+      message.error('プロジェクト情報が見つかりません');
+      return;
+    }
+
+    setApprovalLoading(true);
+    try {
+      const result = await requestApproval(selectedProjectData.projectName);
+      if (result.success) {
+        message.success('承認依頼を送信しました');
+        // プロジェクト一覧を再取得してステータスを更新
+        const projectsResult = await getWorkerAccessibleProjects();
+        if (projectsResult.success && projectsResult.data) {
+          setProjects(projectsResult.data.projects);
+        }
+      }
+    } catch (error) {
+      console.error('承認依頼エラー:', error);
+      const axiosError = error as AxiosError<{ error: { code: string; message: string } }>;
+      
+      if (axiosError.response?.status === 409) {
+        message.error('既に承認依頼が送信されています');
+      } else if (axiosError.response?.status === 404) {
+        message.error('プロジェクトが見つかりません');
+      } else {
+        message.error(
+          axiosError.response?.data?.error?.message || 
+          '承認依頼の送信に失敗しました'
+        );
+      }
+    } finally {
+      setApprovalLoading(false);
+    }
   };
 
   // カスタムフック
@@ -116,7 +185,6 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
 
   // クライアント側フラグ（ハイドレーションエラー防止）
   useEffect(() => {
-     
     setIsClient(true);
   }, []);
 
@@ -125,6 +193,14 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     // nullは空文字列として扱う
     const projectValue = value || '';
     originalHandleProjectChange(projectValue);
+    
+    // プロジェクト名を取得して保存
+    if (projectValue) {
+      const selectedProjectData = projects.find(p => p.projectId === projectValue);
+      setSelectedProjectName(selectedProjectData?.projectName || '');
+    } else {
+      setSelectedProjectName('');
+    }
     
     // プロジェクトが変更された場合、メソッドとタスクをリセット
     setSelectedMethodId(null);
@@ -152,20 +228,9 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
 
   // タスク選択とタブ切り替えを同時に実行するハンドラー
   const handleSelectTaskAndTab = (taskId: string, tabKey: string) => {
-    // タスクからメソッドIDを取得
-    if (selectedProject) {
-      const projectData = projectsData[selectedProject];
-      if (projectData?.methods) {
-        for (const method of projectData.methods) {
-          const task = method.tasks?.find(t => t.taskId === taskId);
-          if (task) {
-            // メソッドIDを設定
-            setSelectedMethodId(method.methodId);
-            break;
-          }
-        }
-      }
-    }
+    // TODO: API化後、タスクからメソッドIDを取得するロジックを実装
+    // 現在はモックデータを使用していないため、メソッドIDの取得は省略
+    
     // タスクを選択
     setSelectedTaskId(taskId);
     // タブを切り替え
@@ -173,9 +238,8 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   };
 
   // 選択されたメソッドを取得
-  const selectedMethod = (selectedProject && selectedMethodId
-    ? projectsData[selectedProject]?.methods?.find((m) => m.methodId === selectedMethodId)
-    : null) ?? null;
+  // TODO: API化後、メソッド情報を取得するロジックを実装
+  const selectedMethod = null;
 
   const handleTabChange = (key: string) => {
     setCurrentTab(key);
@@ -196,6 +260,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       children: (
         <ProgressCheckTab
           selectedProject={selectedProject}
+          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
@@ -211,6 +276,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       children: (
         <InstructionConfirmationTab
           selectedProject={selectedProject}
+          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
@@ -231,6 +297,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       children: (
         <ExperimentRecordTab
           selectedProject={selectedProject}
+          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChange}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
@@ -289,14 +356,15 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                 placeholder="-"
                 style={{ width: 280 }}
                 onChange={handleProjectChange}
+                loading={projectsLoading}
+                disabled={projectsLoading}
+                notFoundContent={projectsLoading ? <Spin size="small" /> : 'プロジェクトがありません'}
                 options={[
                   { value: null, label: '-' },
-                  ...Object.entries(projectsData)
-                    .filter(([, project]) => isSelectableStatus(project.status))
-                    .map(([id, project]) => ({
-                      value: id,
-                      label: `${project.projectName} - ${t(`experimentWork.projectStatus.${project.status}`)}`
-                    }))
+                  ...projects.map((project) => ({
+                    value: project.projectId,
+                    label: `${project.projectName} - ${t(`experimentWork.projectStatus.${project.projectStatus}`)}`
+                  }))
                 ]}
                 size="middle"
               />
@@ -315,7 +383,9 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                   type="default"
                   onClick={handleApprovalRequest}
                   size="large"
-                  disabled={!selectedProject || selectedProject === ''}
+                  disabled={!selectedProject || selectedProject === '' || approvalLoading}
+                  loading={approvalLoading}
+                  icon={approvalLoading ? <LoadingOutlined /> : undefined}
                 >
                   承認依頼
                 </Button>
@@ -353,6 +423,8 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
             onClose={() => setDialogOpen(false)}
             selectedProject={selectedProject}
             onProjectChange={handleProjectChange}
+            projects={projects}
+            loading={projectsLoading}
           />
         </div>
       </Content>

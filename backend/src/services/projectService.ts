@@ -15,6 +15,7 @@ import type {
   Pagination, 
   ProjectListResponse
 } from '../types/project';
+import { PROJECT_STATUS_MAP } from '../types/project';
 
 interface ListOptions {
   page: number;
@@ -1242,18 +1243,10 @@ export class ProjectService {
         };
       }
 
-      // プロジェクトステータスマップ（数値 → 文字列）
-      const PROJECT_STATUS_MAP: { [key: number]: string } = {
-        0: 'draft',
-        1: 'active',
-        2: 'waiting_approval',
-        3: 'approved',
-        4: 'archived',
-      };
-
+      // 統一されたPROJECT_STATUS_MAPを使用（types/project.tsからimport済み）
       const currentStatus = PROJECT_STATUS_MAP[project.project_status] || 'unknown';
 
-      // プロジェクトステータス検証: active (1) のみ許可
+      // プロジェクトステータス検証: waiting_task (1) のみ許可
       if (project.project_status !== 1) {
         // waiting_approval の場合は特別なメッセージ
         const message =
