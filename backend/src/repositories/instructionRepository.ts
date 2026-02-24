@@ -11,6 +11,7 @@ import { loadSqlFile } from '../sql/loader';
  */
 export interface InstructionRow {
   instruction_id: string;
+  project_id: string;
   organization_id: string;
 }
 
@@ -18,7 +19,6 @@ export interface InstructionRow {
  * 確認履歴のデータ型定義
  */
 export interface AcknowledgedHistoryRow {
-  history_id: string;
   acknowledged_at: Date;
 }
 
@@ -40,11 +40,13 @@ export interface UserNameRow {
  * 指示の存在確認
  * 
  * @param instructionId 指示ID
+ * @param projectId プロジェクトID
  * @param organizationId 組織ID
  * @returns Instruction（見つからない場合はnull）
  */
 export async function findById(
   instructionId: string,
+  projectId: string,
   organizationId: string
 ): Promise<InstructionRow | null> {
   const pgp = getPgp();
@@ -55,7 +57,7 @@ export async function findById(
   try {
     const result = await pgp.oneOrNone<InstructionRow>(
       sqlQuery,
-      [instructionId, organizationId]
+      [instructionId, projectId, organizationId]
     );
     return result;
   } catch (error) {
@@ -68,11 +70,13 @@ export async function findById(
  * 既確認チェック
  * 
  * @param instructionId 指示ID
+ * @param projectId プロジェクトID
  * @param organizationId 組織ID
  * @returns 確認履歴（見つからない場合はnull）
  */
 export async function checkAcknowledged(
   instructionId: string,
+  projectId: string,
   organizationId: string
 ): Promise<AcknowledgedHistoryRow | null> {
   const pgp = getPgp();
@@ -83,7 +87,7 @@ export async function checkAcknowledged(
   try {
     const result = await pgp.oneOrNone<AcknowledgedHistoryRow>(
       sqlQuery,
-      [instructionId, organizationId]
+      [instructionId, projectId, organizationId]
     );
     return result;
   } catch (error) {
@@ -96,12 +100,14 @@ export async function checkAcknowledged(
  * 権限チェック（experiment_worker用）
  * 
  * @param instructionId 指示ID
+ * @param projectId プロジェクトID
  * @param userId ユーザーID
  * @param organizationId 組織ID
  * @returns タスク割り当て（見つからない場合は空配列）
  */
 export async function checkWorkerAssignment(
   instructionId: string,
+  projectId: string,
   userId: string,
   organizationId: string
 ): Promise<TaskAssignmentRow[]> {
@@ -113,7 +119,7 @@ export async function checkWorkerAssignment(
   try {
     const result = await pgp.any<TaskAssignmentRow>(
       sqlQuery,
-      [instructionId, userId, organizationId]
+      [instructionId, projectId, userId, organizationId]
     );
     return result;
   } catch (error) {
@@ -126,12 +132,14 @@ export async function checkWorkerAssignment(
  * 確認履歴の挿入
  * 
  * @param instructionId 指示ID
+ * @param projectId プロジェクトID
  * @param userId ユーザーID
  * @param organizationId 組織ID
  * @returns 挿入された確認履歴
  */
 export async function insertAcknowledged(
   instructionId: string,
+  projectId: string,
   userId: string,
   organizationId: string
 ): Promise<AcknowledgedHistoryRow> {
@@ -143,7 +151,7 @@ export async function insertAcknowledged(
   try {
     const result = await pgp.one<AcknowledgedHistoryRow>(
       sqlQuery,
-      [instructionId, userId, organizationId]
+      [instructionId, projectId, userId, organizationId]
     );
     return result;
   } catch (error) {
