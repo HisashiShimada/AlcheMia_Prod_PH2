@@ -42,7 +42,7 @@ interface FormatFolderTreeProps {
   formats: Format[];
   selectedFormatId: string | null;
   onFormatSelect: (formatId: string) => void;
-  sortBy: 'name' | 'category' | 'updatedAt';
+  sortBy: 'name' | 'category' | 'updatedAt' | null;
   sortOrder: 'asc' | 'desc';
   onSortChange: (sortBy: 'name' | 'category' | 'updatedAt') => void;
 }
@@ -180,19 +180,10 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
                 </Tag>
               </Space>
               <Space size="small" wrap>
-                <Tag
-                  color={getCategoryTagColor(format.category)}
-                  style={{ fontSize: token.fontSizeSM, margin: 0 }}
-                >
-                  {getCategoryLabel(format.category)}
-                </Tag>
                 <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                   {format.fileCount} ファイル
                 </Text>
               </Space>
-              <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                部門: {format.department}
-              </Text>
               <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                 更新: {new Date(format.updatedAt).toLocaleDateString('ja-JP')}
               </Text>

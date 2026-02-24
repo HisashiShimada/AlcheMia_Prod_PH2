@@ -2,8 +2,8 @@ import { XMLParser, XMLValidator} from 'fast-xml-parser';
 import { AnalysisResult} from '../types/maimlValidation';
 import { X2jOptions } from 'fast-xml-parser';
 import { ErrorContent,statistics, Correction } from '../types/maimlValidation';
-import { DatabaseError, Pool } from 'pg';
-import { getPool } from '../database/db';
+import * as maimlAnalysisResultRepository from '../repositories/maimlAnalysisResultRepository';
+import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 
 const defaultNameSpace = 'http://www.maiml.org/schemas';
 const supportedVersion = '1.0';
@@ -165,193 +165,117 @@ export async function analyzeMaiMLFile(organaizationId: string, maimlContent : s
     }
   }
   
-    /**
-     * 🎯 CRITICAL FIX: Enhanced saveAnalysisResults with correct pool usage
-     */
-    async function saveAnalysisResults(organaizationId: string, analysisResult : AnalysisResult) {
-      try {
-        console.log(`💾 [MaiMLParser] Starting database save for ${analysisResult.fileKey}`);
+/**
+ * 分析結果をデータベースに保存（Repository層使用）
+ * database.md規約に従った実装
+ * 
+ * @param organizationId - 組織ID
+ * @param analysisResult - 分析結果
+ * @returns 保存された分析結果ID
+ */
+async function saveAnalysisResults(organizationId: string, analysisResult: AnalysisResult): Promise<number> {
+  try {
+    console.log(`💾 [MaiMLParser] Starting database save for ${analysisResult.fileKey}`);
 
-        const pool : Pool = getPool();
-        
-        // Step 1: Save to maiml_analysis_results table
-        const analysisQuery = `
-          INSERT INTO maiml_analysis_results (
-            file_key, is_valid, version, namespace, 
-            errors, warnings, suggestions, statistics,
-            processing_time, analysis_timestamp
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-          ON CONFLICT (file_key) 
-          DO UPDATE SET
-            is_valid = EXCLUDED.is_valid,
-            version = EXCLUDED.version,
-            namespace = EXCLUDED.namespace,
-            errors = EXCLUDED.errors,
-            warnings = EXCLUDED.warnings,
-            suggestions = EXCLUDED.suggestions,
-            statistics = EXCLUDED.statistics,
-            processing_time = EXCLUDED.processing_time,
-            analysis_timestamp = EXCLUDED.analysis_timestamp,
-            updated_at = CURRENT_TIMESTAMP
-          RETURNING id;
-        `;
-  
-        const analysisValues = [
-          analysisResult.fileKey,
-          analysisResult.isValid,
-          analysisResult.version,
-          analysisResult.namespace,
-          JSON.stringify(analysisResult.errors),
-          JSON.stringify(analysisResult.warnings),
-          JSON.stringify(analysisResult.suggestions),
-          JSON.stringify(analysisResult.statistics),
-          analysisResult.processingTime,
-          analysisResult.timestamp
-        ];
-  
-        const analysisInsertResult = await pool.query(analysisQuery, analysisValues);
-        const analysisId = analysisInsertResult.rows[0].id;
-        
-        console.log(`📊 [MaiMLParser] Analysis saved to maiml_analysis_results, ID: ${analysisId}`);
-        
-        // Step 2: Determine analysis status
-        const errorCount = analysisResult.errors.length;
-        const warningCount = analysisResult.warnings.length;
-        
-        let analysisStatus;
-        if (errorCount > 0) {
-          analysisStatus = 'has_errors';
-        } else if (warningCount > 0) {
-          analysisStatus = 'has_warnings';
-        } else if (analysisResult.isValid) {
-          analysisStatus = 'valid';
-        } else {
-          analysisStatus = 'analyzed';
-        }
-  
-        console.log(`📈 [MaiMLParser] Determined status: ${analysisStatus} (E:${errorCount}, W:${warningCount})`);
-  
-        // Step 3: Check if file exists in file_metadata first
-        const checkFileQuery = `
-          SELECT file_key, original_filename, is_maiml_file, created_at 
-          FROM file_metadata 
-          WHERE file_key = $1
-        `;
-        
-        const checkResult = await pool.query(checkFileQuery, [analysisResult.fileKey]);
-        
-        if (checkResult.rows.length === 0) {
-          console.warn(`⚠️ [MaiMLParser] File not found in file_metadata: ${analysisResult.fileKey}`);
-          
-          // Create missing file_metadata entry
-          const insertMetadataQuery = `
-            INSERT INTO file_metadata (
-              file_key, organization_id, original_filename, file_size, file_type, file_extension,
-              is_maiml_file, maiml_analysis_status, maiml_error_count, maiml_warning_count,
-              maiml_transitions_count, maiml_places_count, maiml_version, maiml_last_analyzed,
-              uploaded_by, upload_source, s3_bucket, created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, $14, $15, $16, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            RETURNING file_key;
-          `;
-          
-          const filename = analysisResult.fileKey.split('/').pop();
-          const insertValues = [
-            analysisResult.fileKey,
-            organaizationId,
-            filename,
-            0, // Unknown size
-            'application/xml',
-            'maiml',
-            true, // is_maiml_file
-            analysisStatus,
-            errorCount,
-            warningCount,
-            analysisResult.statistics?.transitionsCount || 0,
-            analysisResult.statistics?.placesCount || 0,
-            analysisResult.version,
-            'system', // uploaded_by
-            'analysis_repair', // upload_source
-            process.env.S3_BUCKET_NAME // s3_bucket (環境変数から取得)
-          ];
-          
-          await pool.query(insertMetadataQuery, insertValues);
-          console.log(`🔧 [MaiMLParser] Created missing file_metadata entry for: ${analysisResult.fileKey}`);
-        } else {
-          console.log(`📋 [MaiMLParser] File exists in file_metadata:`, checkResult.rows[0]);
-        }
-  
-        // Step 4: Update file_metadata with analysis results
-        const updateQuery = `
-          UPDATE file_metadata 
-          SET 
-            maiml_analysis_status = $1,
-            maiml_error_count = $2,
-            maiml_warning_count = $3,
-            maiml_transitions_count = $4,
-            maiml_places_count = $5,
-            maiml_version = $6,
-            maiml_last_analyzed = CURRENT_TIMESTAMP,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE file_key = $7
-          RETURNING file_key, maiml_analysis_status, maiml_error_count, maiml_warning_count, maiml_last_analyzed;
-        `;
-  
-        const updateValues = [
-          analysisStatus,
-          errorCount,
-          warningCount,
-          analysisResult.statistics?.transitionsCount || 0,
-          analysisResult.statistics?.placesCount || 0,
-          analysisResult.version,
-          analysisResult.fileKey
-        ];
-  
-        console.log(`📄 [MaiMLParser] Executing file_metadata update for ${analysisResult.fileKey}`);
-        
-        const updateResult = await pool.query(updateQuery, updateValues);
-  
-        if (updateResult.rows.length > 0) {
-          const updated = updateResult.rows[0];
-          console.log(`✅ [MaiMLParser] file_metadata updated successfully:`);
-          console.log(`   - file_key: ${updated.file_key}`);
-          console.log(`   - status: ${updated.maiml_analysis_status}`);
-          console.log(`   - errors: ${updated.maiml_error_count}`);
-          console.log(`   - warnings: ${updated.maiml_warning_count}`);
-          console.log(`   - last_analyzed: ${updated.maiml_last_analyzed}`);
-        } else {
-          throw new Error(`file_metadata update failed - no rows affected for: ${analysisResult.fileKey}`);
-        }
-        
-        // Step 5: Final verification
-        const verifyQuery = `
-          SELECT file_key, maiml_analysis_status, maiml_error_count, maiml_warning_count, maiml_last_analyzed
-          FROM file_metadata 
-          WHERE file_key = $1
-        `;
-        const verifyResult = await pool.query(verifyQuery, [analysisResult.fileKey]);
-        
-        if (verifyResult.rows.length > 0) {
-          console.log(`🔍 [MaiMLParser] Final verification successful:`, verifyResult.rows[0]);
-        } else {
-          console.error(`❌ [MaiMLParser] Final verification failed for: ${analysisResult.fileKey}`);
-        }
-        
-        console.log(`✅ [MaiMLParser] Database save completed successfully for ${analysisResult.fileKey}`);
-        return analysisId;
-  
-      } catch (error) {
-        if (error instanceof DatabaseError) {
-            console.error(`❌ [MaiMLParser] Database save failed for ${analysisResult.fileKey}:`, error);
-            console.error('Error details:', {
-            message: error.message,
-            code: error.code,
-            detail: error.detail,
-            hint: error.hint
-            });
-        }
-        throw error;
-      }
+    // Step 1: 分析ステータスを決定
+    const errorCount = analysisResult.errors.length;
+    const warningCount = analysisResult.warnings.length;
+    
+    let analysisStatus: string;
+    if (errorCount > 0) {
+      analysisStatus = 'has_errors';
+    } else if (warningCount > 0) {
+      analysisStatus = 'has_warnings';
+    } else if (analysisResult.isValid) {
+      analysisStatus = 'valid';
+    } else {
+      analysisStatus = 'analyzed';
     }
+
+    console.log(`📈 [MaiMLParser] Determined status: ${analysisStatus} (E:${errorCount}, W:${warningCount})`);
+
+    // Step 2: maiml_analysis_resultsテーブルに保存（Repository使用）
+    const analysisData = {
+      file_key: analysisResult.fileKey,
+      is_valid: analysisResult.isValid,
+      version: analysisResult.version || null,
+      namespace: analysisResult.namespace || null,
+      errors: JSON.stringify(analysisResult.errors),
+      warnings: JSON.stringify(analysisResult.warnings),
+      suggestions: JSON.stringify(analysisResult.suggestions || []),
+      statistics: JSON.stringify(analysisResult.statistics || {}),
+      processing_time: analysisResult.processingTime || null,
+      analysis_timestamp: analysisResult.timestamp || new Date().toISOString()
+    };
+
+    const savedAnalysis = await maimlAnalysisResultRepository.upsert(analysisData);
+    console.log(`📊 [MaiMLParser] Analysis saved to maiml_analysis_results, ID: ${savedAnalysis.id}`);
+
+    // Step 3: file_metadataテーブルの確認と更新（Repository使用）
+    const fileMetadataRepository = new FileMetadataRepository();
+    const existingMetadata = await fileMetadataRepository.getFileMetadataByFileKey(analysisResult.fileKey);
+
+    if (!existingMetadata) {
+      // ファイルメタデータが存在しない場合は新規作成
+      console.warn(`⚠️ [MaiMLParser] File not found in file_metadata: ${analysisResult.fileKey}`);
+      
+      const filename = analysisResult.fileKey.split('/').pop() || 'unknown.maiml';
+      const newMetadata = {
+        file_key: analysisResult.fileKey,
+        organization_id: organizationId,
+        original_filename: filename,
+        file_size: 0, // Unknown size
+        file_type: 'application/xml',
+        file_extension: 'maiml',
+        is_maiml_file: true,
+        maiml_analysis_status: analysisStatus,
+        maiml_error_count: errorCount,
+        maiml_warning_count: warningCount,
+        maiml_transitions_count: analysisResult.statistics?.transitionsCount || 0,
+        maiml_places_count: analysisResult.statistics?.placesCount || 0,
+        maiml_version: String(analysisResult.version || ''),
+        maiml_last_analyzed: new Date(),
+        uploaded_by: 'system',
+        upload_source: 'analysis_repair',
+        s3_bucket: process.env.S3_BUCKET_NAME || 'mmdpf-files'
+      };
+
+      await fileMetadataRepository.insertFileMetadata(newMetadata);
+      console.log(`🔧 [MaiMLParser] Created missing file_metadata entry for: ${analysisResult.fileKey}`);
+    } else {
+      // 既存のfile_metadataを更新
+      console.log(`📋 [MaiMLParser] File exists in file_metadata, updating...`);
+      
+      const updateData = {
+        maiml_analysis_status: analysisStatus,
+        maiml_error_count: errorCount,
+        maiml_warning_count: warningCount,
+        maiml_transitions_count: analysisResult.statistics?.transitionsCount || 0,
+        maiml_places_count: analysisResult.statistics?.placesCount || 0,
+        maiml_version: String(analysisResult.version || ''),
+        maiml_last_analyzed: new Date()
+      };
+
+      const updated = await fileMetadataRepository.updateFileMetadata(
+        analysisResult.fileKey,
+        updateData
+      );
+
+      console.log(`✅ [MaiMLParser] file_metadata updated successfully:`);
+      console.log(`   - file_key: ${updated.file_key}`);
+      console.log(`   - status: ${updated.maiml_analysis_status}`);
+      console.log(`   - errors: ${updated.maiml_error_count}`);
+      console.log(`   - warnings: ${updated.maiml_warning_count}`);
+    }
+
+    console.log(`✅ [MaiMLParser] Database save completed successfully for ${analysisResult.fileKey}`);
+    return savedAnalysis.id || 0;
+
+  } catch (error) {
+    console.error(`❌ [MaiMLParser] Database save failed for ${analysisResult.fileKey}:`, error);
+    throw error;
+  }
+}
   
     /**
      * Validate basic XML syntax

@@ -121,25 +121,34 @@
 ### 4. フォーマット管理API（Format Management）
 
 **API設計書**: [api_format_management.md](./api_format_management.md)  
-**ルートファイル**: `backend/src/routes/formatRoutes.ts`（推定）
+**ルートファイル**: `backend/src/routes/formatRoutes.ts`
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 4.1 | GET | /api/v1/formats | フォーマット一覧取得 | ⏳ 未実装 | FormatController.list |
-| 4.2 | GET | /api/v1/formats/:formatId/files | フォーマットファイル一覧取得 | ⏳ 未実装 | FormatController.listFiles |
+| 4.1 | GET | /api/v1/formats | フォーマット一覧取得 | ✅ 実装済み | FormatController.getFormats |
+| 4.2 | GET | /api/v1/formats/:folderName/files | フォーマットファイル一覧取得 | ✅ 実装済み | FormatController.getFormatFiles |
 | 4.3 | POST | /api/v1/formats/:formatId/files | 新規ファイル作成 | ⏳ 未実装 | FormatController.createFile |
 | 4.4 | POST | /api/v1/formats/:formatId/folders | 新規フォルダ作成 | ⏳ 未実装 | FormatController.createFolder |
 | 4.5 | PUT | /api/v1/formats/:formatId/files/:fileId | ファイル編集（保存） | ⏳ 未実装 | FormatController.updateFile |
 
 **ミドルウェアチェーン:**
-- すべて: `auth` → `tenantIsolation` → `permissionCheck`
-- 権限: Manager以上
+- すべて: `authMiddleware` → `checkPermission('040000', 0)`
+- 権限: 実験管理者メニュー（040000）、読み取り専用（0）
 
 **備考:**
 - ワークフローMAIML（.maiml）とテンプレートXML（.xml）を管理
-- S3パス: `org_{organization_prefix}/formats/{format_prefix}/`
-- バックアップ機能（.backupフォルダ）
+- S3パス: `{organizationId}/formats/{departmentCd}/`
+- API 4.1: フォーマット一覧取得
+  - セッションから部門CD（departmentCd）を取得
+  - 部門配下のフォルダ一覧を取得（material, condition, result優先ソート）
+  - file_typeクエリパラメータでフィルタリング可能（all/xml/maiml）
+- API 4.2: フォーマットファイル一覧取得（2026-02-19実装）
+  - サブフォルダ対応（pathクエリパラメータでサブパス指定）
+  - ファイルとフォルダを区別して返却
+  - フォルダには配下のファイル数（fileCount）を含む
+  - 「↑ 戻る」ボタン用の特殊フォルダをフロントエンドで追加
 - XMLバリデーション必須（XXE攻撃対策）
+- マルチテナント分離必須（organization_id強制付与）
 
 ---
 
@@ -536,7 +545,7 @@
 | 認証API | 6 | 6 | 0 | 0 | 100% |
 | プロジェクト管理API | 16 | 13 | 0 | 3 | 81% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
-| フォーマット管理API | 5 | 0 | 0 | 5 | 0% |
+| フォーマット管理API | 5 | 2 | 0 | 3 | 40% |
 | Maiml編集API | 17 | 17 | 0 | 0 | 100% |
 | 進捗確認API | 4 | 0 | 0 | 4 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
@@ -547,7 +556,7 @@
 | 会社管理API | 7 | 7 | 0 | 0 | 100% |
 | ファイルアクセスAPI | 6 | 6 | 0 | 0 | 100% |
 | 組織管理API | 8 | 8 | 0 | 0 | 100% |
-| **合計** | **115** | **99** | **0** | **16** | **86%** |
+| **合計** | **115** | **101** | **0** | **14** | **87%** |
 
 ### 優先度別実装状況
 
@@ -762,6 +771,14 @@ const path = `projects/${projectName}/file.maiml`;
 | | | - 未実装API数: 22→23（+1） | |
 | | | - 全体実装率: 76%→75%（分母増加により一時的に低下） | |
 | 2.9.0 | 2026-02-18 | トランジションステータス更新API移動（96エンドポイント） | Cline |
+| 2.9.1 | 2026-02-19 | フォーマット管理API一部実装（103エンドポイント） | Cline |
+| | | - フォーマット管理API: 0→2エンドポイント実装済み（40%） | |
+| | | - API 4.2: フォーマットファイル一覧取得を実装 | |
+| | |   - サブフォルダ対応（pathクエリパラメータ） | |
+| | |   - ファイルとフォルダを区別して返却 | |
+| | |   - フォルダには配下のファイル数（fileCount）を含む | |
+| | | - 実装済みAPI総数: 81→83エンドポイント（+2エンドポイント） | |
+| | | - 全体実装率: 79%→81%に向上 | |
 | 2.8.4 | 2026-02-18 | タスク一覧取得（実験作業者用）API仕様変更（95エンドポイント） | Cline |
 | | | - 進捗確認API: 6→5エンドポイント（置き換え） | |
 | | | - API 6.4: GET /api/v1/progress/projects/:projectName/worker-tasks（エンドポイント変更） | |
