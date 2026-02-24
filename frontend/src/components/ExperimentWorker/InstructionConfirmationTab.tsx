@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { Card, Typography, Space, theme, Divider, Button, message } from 'antd';
+import { Card, Typography, Space, theme, Divider, Button, message, Modal } from 'antd';
 import { FileTextOutlined, DownOutlined, RightOutlined, FileOutlined, AimOutlined, CheckCircleOutlined, NodeIndexOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
@@ -11,7 +11,7 @@ import InstructionFlowDialog from './InstructionFlowDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
 import type { FileData, SubnetData } from './InstructionFlowDialog';
 import { Stats, Instruction, ProjectStatus, isEditableStatus, Method, Task } from '@/types/experimentWorker';
-import { getWorkerTasks } from '@/services/projectApiService';
+import { getWorkerTasks, confirmInstruction } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 
 const { Title, Text } = Typography;
@@ -26,6 +26,7 @@ const EMPTY_ICON_SIZE = 48;
  */
 interface InstructionConfirmationTabProps {
   selectedProject: string;
+  selectedProjectName: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string | null) => void;
@@ -36,6 +37,7 @@ interface InstructionConfirmationTabProps {
   isClient: boolean;
   expandedGroups: Record<string, boolean>;
   toggleGroup: (groupKey: string) => void;
+  onInstructionsUpdated: () => Promise<void>;
 }
 
 
@@ -44,6 +46,7 @@ interface InstructionConfirmationTabProps {
  */
 export default function InstructionConfirmationTab({
   selectedProject,
+  selectedProjectName,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
@@ -54,12 +57,14 @@ export default function InstructionConfirmationTab({
   isClient,
   expandedGroups,
   toggleGroup,
+  onInstructionsUpdated,
 }: InstructionConfirmationTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
 
   // API連携の状態管理
   const [loading, setLoading] = useState<boolean>(false);
+  const [confirmLoading, setConfirmLoading] = useState<boolean>(false);
   const [methods, setMethods] = useState<Method[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -84,7 +89,7 @@ export default function InstructionConfirmationTab({
   // プロジェクト選択時にAPI呼び出し
   useEffect(() => {
     const fetchWorkerTasks = async () => {
-      if (!selectedProject) {
+      if (!selectedProjectName) {
         setMethods([]);
         setTasks([]);
         setProjectId(null);
@@ -93,9 +98,12 @@ export default function InstructionConfirmationTab({
 
       setLoading(true);
       try {
-        console.log('[DEBUG] InstructionConfirmationTab - Fetching worker tasks', { selectedProject });
+        console.log('[DEBUG] InstructionConfirmationTab - Fetching worker tasks', { 
+          selectedProject, 
+          selectedProjectName 
+        });
         
-        const result = await getWorkerTasks(selectedProject);
+        const result = await getWorkerTasks(selectedProjectName);
         
         if (result.success && result.data) {
           const apiData = result.data;
@@ -108,7 +116,7 @@ export default function InstructionConfirmationTab({
           // プロジェクトIDを保存
           setProjectId(apiData.project_id);
           
-          // メソッド一覧を変換
+          // メソッド一覧を変換（タスクも含める）
           const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
             methodId: method.method_id,
             methodName: method.method_name,
@@ -116,17 +124,37 @@ export default function InstructionConfirmationTab({
             description: '',
             category: 'experiment',
             transitions: [],
+            tasks: method.tasks.map((task: WorkerTask) => ({
+              taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
+              taskNo: task.task_no.toString(),
+              taskName: task.task_no.toString(),
+              methodId: method.method_id,
+              methodName: method.method_name,
+              status: task.task_status as Task['status'],
+              assignedUserId: task.experiment_user_id || undefined,
+              assignedUserName: task.experiment_user_name || undefined,
+              createdAt: task.created_at,
+              updatedAt: task.updated_at,
+              progress: parseFloat(task.progress_rate),
+              projectId: apiData.project_id,
+              sampleNumber: '',
+              notes: '',
+              progressRate: parseFloat(task.progress_rate),
+              transitionStatuses: [],
+              progressReport: '',
+              recordNumber: '',
+            }))
           }));
           
           // 全タスクを変換
           const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
             method.tasks.map((task: WorkerTask) => ({
               taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
-              taskNo: task.task_no,
+              taskNo: task.task_no.toString(),
               taskName: task.task_no.toString(),
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.status as Task['status'],
+              status: task.task_status as Task['status'],
               assignedUserId: task.experiment_user_id,
               assignedUserName: task.experiment_user_name,
               createdAt: task.created_at,
@@ -166,7 +194,7 @@ export default function InstructionConfirmationTab({
     };
 
     fetchWorkerTasks();
-  }, [selectedProject]);
+  }, [selectedProject, selectedProjectName]);
 
   // 選択されたメソッドに紐づくタスクをフィルタリング
   const filteredTasks = useMemo(() => {
@@ -264,37 +292,190 @@ export default function InstructionConfirmationTab({
     setSubnetData(null);
   };
 
-  // 全ての指示の確認完了ハンドラ
-  const handleConfirmAllInstructions = () => {
-    // 未読の指示数を確認（フィルタ済みの統計を使用）
-    const unreadCount = filteredStats.unread;
-    
-    if (unreadCount === 0) {
-      alert('全ての指示は既に確認済みです');
+  /**
+   * 指示を確認完了にする共通処理
+   * @param instructions 確認完了にする指示一覧
+   * @param groupName グループ名（メッセージ表示用）
+   */
+  const confirmInstructions = async (instructions: Instruction[], groupName: string) => {
+    if (!selectedProjectName) {
+      message.error('プロジェクトが選択されていません');
       return;
     }
-    
-    // モック実装：実際にはAPIを呼び出して全指示を確認済みに更新
-    const confirmed = window.confirm(
-      `全ての指示（${filteredStats.total}件中${unreadCount}件未読）を確認完了にしますか？`
-    );
-    
-    if (confirmed) {
-      alert(`全ての指示の確認完了処理を実行しました（モック）`);
-      // TODO: 実際のAPI実装時には、ここで全指示を確認済みにする処理を呼び出す
+
+    if (instructions.length === 0) {
+      message.warning('確認する指示がありません');
+      return;
     }
+
+    setConfirmLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    try {
+      // 各指示を順番にAPI呼び出し
+      for (const instruction of instructions) {
+        try {
+          const result = await confirmInstruction(
+            selectedProjectName,
+            instruction.instructionId
+          );
+
+          if (result.success) {
+            successCount++;
+          } else {
+            failCount++;
+            errors.push(
+              `指示ID ${instruction.instructionId}: ${result.error?.message || '不明なエラー'}`
+            );
+          }
+        } catch (error) {
+          failCount++;
+          errors.push(`指示ID ${instruction.instructionId}: API呼び出しエラー`);
+          console.error('指示確認エラー:', error);
+        }
+      }
+
+      // 結果メッセージ表示
+      if (failCount === 0) {
+        message.success(`${groupName}を確認完了しました（${successCount}件）`);
+      } else if (successCount === 0) {
+        message.error(`${groupName}の確認に失敗しました（${failCount}件）`);
+        if (errors.length > 0) {
+          console.error('確認失敗の詳細:', errors);
+        }
+      } else {
+        message.warning(
+          `${groupName}の確認が一部失敗しました（成功: ${successCount}件、失敗: ${failCount}件）`
+        );
+        if (errors.length > 0) {
+          console.error('確認失敗の詳細:', errors);
+        }
+      }
+
+      // 指示一覧を再取得
+      if (successCount > 0) {
+        await onInstructionsUpdated();
+      }
+    } catch (error) {
+      console.error('指示確認処理エラー:', error);
+      message.error('指示の確認処理中にエラーが発生しました');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  /**
+   * プロジェクト指示グループの確認完了ハンドラ
+   */
+  const handleConfirmProjectInstructions = () => {
+    // プロジェクト指示（targetType === 'file'）の未確認をフィルタ
+    const projectInstructions = filteredInstructions.filter(
+      (i) => i.targetType === 'file' && !i.isAcknowledged
+    );
+
+    if (projectInstructions.length === 0) {
+      message.info('確認が必要なプロジェクト指示はありません');
+      return;
+    }
+
+    // 確認ダイアログを表示
+    Modal.confirm({
+      title: 'プロジェクト指示の確認完了',
+      content: `プロジェクト指示（${projectInstructions.length}件）を確認完了にしますか？`,
+      okText: '確認完了',
+      cancelText: 'キャンセル',
+      onOk: async () => {
+        await confirmInstructions(projectInstructions, 'プロジェクト指示');
+      },
+    });
+  };
+
+  /**
+   * タスク単位指示の確認完了ハンドラー
+   */
+  const handleConfirmTaskInstructions = (taskInstructions: Instruction[]) => {
+    const unreadInstructions = taskInstructions.filter((i) => !i.isAcknowledged);
+    
+    if (unreadInstructions.length === 0) {
+      message.info('確認が必要な指示はありません');
+      return;
+    }
+
+    const taskName = taskInstructions[0]?.taskName || 'タスク';
+    
+    // 確認ダイアログを表示
+    Modal.confirm({
+      title: 'タスク指示の確認完了',
+      content: `${taskName}の指示（${unreadInstructions.length}件）を確認完了にしますか？`,
+      okText: '確認完了',
+      cancelText: 'キャンセル',
+      onOk: async () => {
+        await confirmInstructions(unreadInstructions, `${taskName}の指示`);
+      },
+    });
+  };
+
+  /**
+   * トランジション単位指示の確認完了ハンドラー
+   */
+  const handleConfirmTransitionInstructions = (transitionInstructions: Instruction[]) => {
+    const unreadInstructions = transitionInstructions.filter((i) => !i.isAcknowledged);
+    
+    if (unreadInstructions.length === 0) {
+      message.info('確認が必要な指示はありません');
+      return;
+    }
+
+    const transitionName = transitionInstructions[0]?.transitionName || 'トランジション';
+    
+    // 確認ダイアログを表示
+    Modal.confirm({
+      title: 'トランジション指示の確認完了',
+      content: `${transitionName}の指示（${unreadInstructions.length}件）を確認完了にしますか？`,
+      okText: '確認完了',
+      cancelText: 'キャンセル',
+      onOk: async () => {
+        await confirmInstructions(unreadInstructions, `${transitionName}の指示`);
+      },
+    });
+  };
+
+  /**
+   * 全ての指示の確認完了ハンドラ
+   */
+  const handleConfirmAllInstructions = () => {
+    // 未確認の指示をフィルタ
+    const unreadInstructions = filteredInstructions.filter((i) => !i.isAcknowledged);
+
+    if (unreadInstructions.length === 0) {
+      message.info('確認が必要な指示はありません');
+      return;
+    }
+
+    // 確認ダイアログを表示
+    Modal.confirm({
+      title: '全ての指示の確認完了',
+      content: `全ての指示（${filteredStats.total}件中${unreadInstructions.length}件未確認）を確認完了にしますか？`,
+      okText: '確認完了',
+      cancelText: 'キャンセル',
+      onOk: async () => {
+        await confirmInstructions(unreadInstructions, '全ての指示');
+      },
+    });
   };
 
   return (
     <div style={{ height: '100%', overflow: 'auto' }}>
-      {!selectedProject ? (
+      {!selectedProjectName ? (
         <Card
           style={{
             borderRadius: '8px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+          <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
             <FileTextOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
               <FileTextOutlined style={{ marginRight: token.marginXS }} />
@@ -353,9 +534,11 @@ export default function InstructionConfirmationTab({
               borderRadius: '8px',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
             }}
-            bodyStyle={{
-              paddingTop: '8px',
-              paddingBottom: '8px',
+            styles={{
+              body: {
+                paddingTop: '8px',
+                paddingBottom: '8px',
+              },
             }}
           >
             {/* 全体指示グループ */}
@@ -402,8 +585,15 @@ export default function InstructionConfirmationTab({
                     icon={<CheckCircleOutlined />}
                     onClick={(e) => {
                       e.stopPropagation();
-                      alert('全体指示の確認完了（モック）');
+                      handleConfirmProjectInstructions();
                     }}
+                    loading={confirmLoading}
+                    disabled={
+                      confirmLoading || 
+                      filteredInstructions
+                        .filter((i) => i.targetType === 'file')
+                        .every((i) => i.isAcknowledged)
+                    }
                     style={{ 
                       backgroundColor: token.colorSuccess, 
                       borderColor: token.colorSuccess 
@@ -468,6 +658,8 @@ export default function InstructionConfirmationTab({
                     )}
                     projectStatus={projectStatus}
                     isClient={isClient}
+                    onConfirmInstructions={handleConfirmTaskInstructions}
+                    confirmLoading={confirmLoading}
                   />
                 </div>
               )}
@@ -514,6 +706,8 @@ export default function InstructionConfirmationTab({
                     )}
                     projectStatus={projectStatus}
                     isClient={isClient}
+                    onConfirmInstructions={handleConfirmTransitionInstructions}
+                    confirmLoading={confirmLoading}
                   />
                 </div>
               )}
@@ -527,14 +721,27 @@ export default function InstructionConfirmationTab({
                 size="large"
                 icon={<CheckCircleOutlined />}
                 onClick={handleConfirmAllInstructions}
-                disabled={filteredStats.total === 0}
+                loading={confirmLoading}
+                disabled={
+                  filteredStats.total === 0 || 
+                  confirmLoading || 
+                  filteredInstructions.every((i) => i.isAcknowledged)
+                }
                 style={{
                   minWidth: 300,
                   height: 48,
                   fontSize: 16,
                   fontWeight: 600,
-                  backgroundColor: filteredStats.total === 0 ? undefined : token.colorSuccess,
-                  borderColor: filteredStats.total === 0 ? undefined : token.colorSuccess,
+                  backgroundColor: 
+                    (filteredStats.total === 0 || 
+                     filteredInstructions.every((i) => i.isAcknowledged)) 
+                      ? undefined 
+                      : token.colorSuccess,
+                  borderColor: 
+                    (filteredStats.total === 0 || 
+                     filteredInstructions.every((i) => i.isAcknowledged)) 
+                      ? undefined 
+                      : token.colorSuccess,
                 }}
               >
                 全ての指示の確認完了
@@ -581,6 +788,7 @@ export default function InstructionConfirmationTab({
               onSelectMethod(methodId);
               onSelectTask(taskId);
             }}
+            methods={methods}
           />
         </>
       )}

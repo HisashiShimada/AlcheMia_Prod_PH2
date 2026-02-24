@@ -32,7 +32,7 @@ export default function ProjectSelector({
         borderColor: selectedProject ? token.colorPrimary : token.colorBorder,
       }}
     >
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%' }}>
         {/* ヘッダー */}
         <Space>
           <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
@@ -41,7 +41,7 @@ export default function ProjectSelector({
 
         {/* 選択中の情報 */}
         {selectedProjectData ? (
-          <Space direction="vertical" size={0} style={{ paddingLeft: 24 }}>
+          <Space orientation="vertical" size={0} style={{ paddingLeft: 24 }}>
             <Text strong style={{ fontSize: 14 }}>
               {selectedProjectData.projectName}
             </Text>

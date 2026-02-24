@@ -1,8 +1,9 @@
 -- 指示の存在確認
 -- 使用箇所: instructionRepository.ts - findById()
--- パラメータ: $1=instructionId, $2=organizationId
+-- パラメータ: $1=instructionId, $2=projectId, $3=organizationId
 
-SELECT instruction_id, organization_id
+SELECT experiment_instruction_id as instruction_id, project_id, organization_id
 FROM project_instruction
-WHERE instruction_id = $1 
-  AND organization_id = $2
+WHERE experiment_instruction_id = $1 
+  AND project_id = $2
+  AND organization_id = $3

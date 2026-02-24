@@ -14,6 +14,12 @@ import type {
   SaveTaskRegistrationRequest,
   SaveTaskRegistrationResponse
 } from '@/types/taskRegistration';
+import type {
+  Instruction,
+  TargetType,
+  Priority,
+  InstructionType
+} from '@/types/experimentWorker';
 
 /**
  * プロジェクト一覧レスポンス型
@@ -175,6 +181,41 @@ export interface TaskStatusUpdateResponse {
   updated_by_name: string;
   updated_at: string;
   comment?: string;
+}
+
+/**
+ * 作業指示型（バックエンドAPIレスポンス）
+ * API: GET /api/v1/projects/:projectName/worker-instructions
+ */
+export interface WorkerInstruction {
+  id: string;
+  project_id: string;
+  project_name: string;
+  method_id: string;
+  method_name: string;
+  transition_id: string;
+  transition_name: string;
+  task_no: string | null; // タスク連番（文字列またはnull）
+  instruction_target: string; // "1": file, "2": task, "3": transition
+  instruction_content: string;
+  priority: string; // "0": low, "1": normal, "2": medium, "3": high
+  type: string; // "0": general, "1": setup, "2": measurement, "3": safety, "4": cleanup
+  create_at: string;
+  created_by: string;
+  created_by_name: string;
+  is_acknowledged: boolean;
+}
+
+/**
+ * 指示確認データ型（バックエンドAPIレスポンス）
+ * API: PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
+ */
+export interface InstructionConfirmationData {
+  instruction_id: string;
+  is_acknowledged: boolean;
+  acknowledged_at: string;
+  acknowledged_user_id: string;
+  acknowledged_user_name: string;
 }
 
 /**
@@ -868,3 +909,188 @@ export const updateTaskStatus = async (
     throw error;
   }
 };
+
+/**
+ * 作業指示一覧を取得
+ * GET /api/v1/projects/:projectName/worker-instructions
+ * 
+ * @param projectName プロジェクト名
+ * @param filters フィルター条件（オプション）
+ * @returns 作業指示一覧
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * // 全指示を取得
+ * const result = await getWorkerInstructions('sample_project');
+ * console.log(result.data); // 指示配列
+ * 
+ * // プロジェクトIDでフィルタ
+ * const filtered = await getWorkerInstructions('sample_project', { projectId: 'uuid' });
+ * ```
+ */
+export const getWorkerInstructions = async (
+  projectName: string,
+  filters?: {
+    projectId?: string;
+  }
+): Promise<ApiResponse<WorkerInstruction[]>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] getWorkerInstructions - Start', { projectName, filters });
+    
+    const params: Record<string, string> = {};
+    if (filters?.projectId) {
+      params.projectId = filters.projectId;
+    }
+    
+    const response = await client.get<{
+      success: boolean;
+      data: WorkerInstruction[];
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/worker-instructions`, {
+      params
+    });
+
+    console.log('[DEBUG] getWorkerInstructions - Success', {
+      instructionCount: response.data.data.length
+    });
+    
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta
+    };
+  } catch (error) {
+    console.error('[DEBUG] getWorkerInstructions - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status
+    });
+    throw error;
+  }
+};
+
+/**
+ * 指示を確認済みとしてマークする
+ * PUT /api/v1/projects/:projectName/instructions/:instructionId/confirm
+ * 
+ * @param projectName プロジェクト名
+ * @param instructionId 指示ID
+ * @returns 確認結果
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * // 指示を確認
+ * const result = await confirmInstruction('sample_project', 'instruction-id-123');
+ * console.log(result.data.is_acknowledged); // true
+ * ```
+ */
+export const confirmInstruction = async (
+  projectName: string,
+  instructionId: string
+): Promise<ApiResponse<InstructionConfirmationData>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] confirmInstruction - Start', { projectName, instructionId });
+    
+    const response = await client.put<{
+      success: boolean;
+      data: InstructionConfirmationData;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/instructions/${instructionId}/confirm`);
+
+    console.log('[DEBUG] confirmInstruction - Success', {
+      instructionId: response.data.data.instruction_id,
+      isAcknowledged: response.data.data.is_acknowledged
+    });
+    
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta
+    };
+  } catch (error) {
+    console.error('[DEBUG] confirmInstruction - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status
+    });
+    throw error;
+  }
+};
+
+/**
+ * バックエンドAPIレスポンス（WorkerInstruction）をフロントエンド型（Instruction）に変換
+ * 
+ * @param apiData バックエンドAPIレスポンス
+ * @returns フロントエンド型の指示データ
+ * 
+ * @example
+ * ```typescript
+ * const apiInstruction: WorkerInstruction = { ... };
+ * const instruction: Instruction = convertApiToInstruction(apiInstruction);
+ * ```
+ */
+export function convertApiToInstruction(apiData: WorkerInstruction): Instruction {
+  // instruction_target → targetType 変換マップ（文字列キー）
+  const targetTypeMap: Record<string, TargetType> = {
+    '1': 'file',       // プロジェクト指示
+    '2': 'task',       // タスク指示
+    '3': 'transition'  // トランジション指示
+  };
+  
+  // priority → Priority 変換マップ（文字列キー）
+  const priorityMap: Record<string, Priority> = {
+    '0': 'low',
+    '1': 'normal',
+    '2': 'medium',
+    '3': 'high'
+  };
+  
+  // type → InstructionType 変換マップ（文字列キー）
+  const instructionTypeMap: Record<string, InstructionType> = {
+    '0': 'general',
+    '1': 'setup',
+    '2': 'measurement',
+    '3': 'safety',
+    '4': 'cleanup'
+  };
+  
+  return {
+    instructionId: apiData.id,
+    targetType: targetTypeMap[apiData.instruction_target] || 'file',
+    transitionId: apiData.transition_id || undefined,
+    transitionName: apiData.transition_name || undefined,
+    methodId: apiData.method_id || undefined,
+    methodName: apiData.method_name || undefined,
+    taskId: apiData.task_no ? `${apiData.project_id}-${apiData.method_id}-${apiData.task_no}` : undefined,
+    taskName: apiData.task_no ? `Task ${apiData.task_no}` : undefined,
+    content: apiData.instruction_content,
+    priority: priorityMap[apiData.priority] || 'normal',
+    instructionType: instructionTypeMap[apiData.type] || 'general',
+    createdAt: apiData.create_at,
+    updatedAt: null,
+    createdBy: {
+      userId: apiData.created_by,
+      userName: apiData.created_by_name
+    },
+    isRead: apiData.is_acknowledged,
+    // API仕様に基づく確認済みフラグ
+    isAcknowledged: apiData.is_acknowledged,
+    acknowledgedAt: undefined,
+    acknowledgedBy: undefined,
+    acknowledgedByName: undefined
+  };
+}

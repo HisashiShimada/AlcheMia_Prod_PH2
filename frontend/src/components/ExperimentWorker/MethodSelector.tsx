@@ -37,7 +37,7 @@ export default function MethodSelector({
         opacity: disabled ? 0.6 : 1,
       }}
     >
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%' }}>
         {/* ヘッダー */}
         <Space>
           <ToolOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
@@ -46,7 +46,7 @@ export default function MethodSelector({
 
         {/* 選択中の情報 */}
         {selectedMethod ? (
-          <Space direction="vertical" size={0} style={{ paddingLeft: 24 }}>
+          <Space orientation="vertical" size={0} style={{ paddingLeft: 24 }}>
             <Text strong style={{ fontSize: 14 }}>
               {selectedMethod.methodName}
             </Text>
