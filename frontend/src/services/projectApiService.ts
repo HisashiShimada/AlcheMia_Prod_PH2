@@ -195,11 +195,11 @@ export interface WorkerInstruction {
   method_name: string;
   transition_id: string;
   transition_name: string;
-  task_no: number;
-  instruction_target: number; // 0: file, 1: task, 2: transition
+  task_no: string | null; // タスク連番（文字列またはnull）
+  instruction_target: string; // "1": file, "2": task, "3": transition
   instruction_content: string;
-  priority: number; // 0: low, 1: normal, 2: medium, 3: high
-  type: number; // 0: general, 1: setup, 2: measurement, 3: safety, 4: cleanup
+  priority: string; // "0": low, "1": normal, "2": medium, "3": high
+  type: string; // "0": general, "1": setup, "2": measurement, "3": safety, "4": cleanup
   create_at: string;
   created_by: string;
   created_by_name: string;
@@ -1044,28 +1044,28 @@ export const confirmInstruction = async (
  * ```
  */
 export function convertApiToInstruction(apiData: WorkerInstruction): Instruction {
-  // instruction_target → targetType 変換マップ
-  const targetTypeMap: Record<number, TargetType> = {
-    0: 'file',
-    1: 'task',
-    2: 'transition'
+  // instruction_target → targetType 変換マップ（文字列キー）
+  const targetTypeMap: Record<string, TargetType> = {
+    '1': 'file',       // プロジェクト指示
+    '2': 'task',       // タスク指示
+    '3': 'transition'  // トランジション指示
   };
   
-  // priority → Priority 変換マップ
-  const priorityMap: Record<number, Priority> = {
-    0: 'low',
-    1: 'normal',
-    2: 'medium',
-    3: 'high'
+  // priority → Priority 変換マップ（文字列キー）
+  const priorityMap: Record<string, Priority> = {
+    '0': 'low',
+    '1': 'normal',
+    '2': 'medium',
+    '3': 'high'
   };
   
-  // type → InstructionType 変換マップ
-  const instructionTypeMap: Record<number, InstructionType> = {
-    0: 'general',
-    1: 'setup',
-    2: 'measurement',
-    3: 'safety',
-    4: 'cleanup'
+  // type → InstructionType 変換マップ（文字列キー）
+  const instructionTypeMap: Record<string, InstructionType> = {
+    '0': 'general',
+    '1': 'setup',
+    '2': 'measurement',
+    '3': 'safety',
+    '4': 'cleanup'
   };
   
   return {
@@ -1075,7 +1075,7 @@ export function convertApiToInstruction(apiData: WorkerInstruction): Instruction
     transitionName: apiData.transition_name || undefined,
     methodId: apiData.method_id || undefined,
     methodName: apiData.method_name || undefined,
-    taskId: apiData.task_no ? `task_${apiData.task_no}` : undefined,
+    taskId: apiData.task_no ? `${apiData.project_id}-${apiData.method_id}-${apiData.task_no}` : undefined,
     taskName: apiData.task_no ? `Task ${apiData.task_no}` : undefined,
     content: apiData.instruction_content,
     priority: priorityMap[apiData.priority] || 'normal',
