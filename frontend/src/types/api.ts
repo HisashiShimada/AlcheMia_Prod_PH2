@@ -144,3 +144,145 @@ export interface ResetPasswordRequestResponseData {
 export interface ResetPasswordResponseData {
   message: string;
 }
+
+/**
+ * タスク登録状況レスポンス
+ * 
+ * @remarks
+ * 指示送信タブの初期表示時にボタンの活性/非活性を制御するために使用
+ */
+export interface TaskRegistrationStatusResponse {
+  /** タスクが登録されているか */
+  hasRegisteredTasks: boolean;
+  
+  /** 登録されているタスク数 */
+  taskCount: number;
+  
+  /** プロジェクトステータス（0=計画中） */
+  projectStatus: number;
+  
+  /** 指示送信可能か（タスク登録済 && projectStatus=0） */
+  canSendInstructions: boolean;
+}
+
+/**
+ * 指示保存リクエスト
+ * 
+ * @remarks
+ * POST /api/v1/projects/:projectName/instructions
+ */
+export interface SaveInstructionRequest {
+  /** メソッドID */
+  methodId: string;
+  
+  /** トランジションID（省略可） */
+  transitionId?: string | null;
+  
+  /** タスク連番（省略可） */
+  taskNumber?: number | null;
+  
+  /** 優先度: 0=低, 1=通常, 2=中, 3=高 */
+  priority: number;
+  
+  /** タイプ: 0=一般, 1=セットアップ, 2=測定, 3=安全, 4=清掃 */
+  type: number;
+  
+  /** 指示内容 */
+  content: string;
+}
+
+/**
+ * 指示保存レスポンス
+ */
+export interface SaveInstructionResponse {
+  /** 生成された指示ID */
+  instructionId: string;
+  
+  /** 指示送信ステータス（常に0=未送信） */
+  instruction_status: number;
+}
+
+/**
+ * 指示更新リクエスト
+ * 
+ * @remarks
+ * PUT /api/v1/projects/:projectName/instructions/:instructionId
+ */
+export interface UpdateInstructionRequest {
+  /** メソッドID */
+  methodId: string;
+  
+  /** トランジションID（省略可） */
+  transitionId?: string | null;
+  
+  /** タスク連番（省略可） */
+  taskNumber?: number | null;
+  
+  /** 優先度 */
+  priority: number;
+  
+  /** タイプ */
+  type: number;
+  
+  /** 指示内容 */
+  content: string;
+}
+
+/**
+ * 指示更新レスポンス
+ */
+export interface UpdateInstructionResponse {
+  /** 更新された指示ID */
+  instructionId: string;
+  
+  /** 更新成功フラグ */
+  updated: boolean;
+}
+
+/**
+ * 指示削除レスポンス
+ */
+export interface DeleteInstructionResponse {
+  /** 削除成功フラグ */
+  deleted: boolean;
+}
+
+/**
+ * タスク入力データ（タスク登録タブと共通）
+ */
+export interface TaskInput {
+  /** メソッドID */
+  methodId: string;
+  
+  /** 実験順序 */
+  experimentOrder?: number | null;
+  
+  /** 実験条件 */
+  experimentCondition?: number | null;
+  
+  /** 試行回数 */
+  attemptsCount?: number | null;
+}
+
+/**
+ * 指示送信リクエスト
+ * 
+ * @remarks
+ * POST /api/v1/projects/:projectName/instructions/send
+ */
+export interface SendInstructionsRequest {
+  /** タスクデータ配列 */
+  tasks: TaskInput[];
+}
+
+/**
+ * 指示送信レスポンス
+ */
+export interface SendInstructionsResponse {
+  /** 送信された指示数 */
+  sentInstructionsCount: number;
+  
+  /** 作成されたタスク数 */
+  createdTasksCount: number;
+}
+

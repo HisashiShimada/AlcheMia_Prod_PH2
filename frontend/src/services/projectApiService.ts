@@ -14,6 +14,17 @@ import type {
   SaveTaskRegistrationRequest,
   SaveTaskRegistrationResponse
 } from '@/types/taskRegistration';
+import type {
+  TaskRegistrationStatusResponse,
+  SaveInstructionRequest,
+  SaveInstructionResponse,
+  UpdateInstructionRequest,
+  UpdateInstructionResponse,
+  DeleteInstructionResponse,
+  SendInstructionsRequest,
+  SendInstructionsResponse
+} from '@/types/api';
+import type { InstructionData } from '@/types/instructionRegistration';
 
 /**
  * プロジェクト一覧レスポンス型
@@ -469,6 +480,328 @@ export const saveTaskRegistration = async (
     return response.data.data;
   } catch (error) {
     console.error('[DEBUG] saveTaskRegistration - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+// ========================================
+// 指示送信タブ用API関数
+// ========================================
+
+/**
+ * 指示一覧を取得
+ * GET /api/v1/projects/:projectName/instructions
+ * 
+ * @param projectName プロジェクト名
+ * @returns 指示一覧
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * const instructions = await getInstructions('sample_project');
+ * console.log(`${instructions.length}件の指示を取得`);
+ * ```
+ */
+export const getInstructions = async (
+  projectName: string
+): Promise<InstructionData[]> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] getInstructions - Request', { projectName });
+    
+    const response = await client.get<{
+      success: true;
+      data: {
+        instructions: InstructionData[];
+      };
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/instructions`);
+
+    console.log('[DEBUG] getInstructions - Success', {
+      instructionsCount: response.data.data.instructions.length,
+    });
+    
+    return response.data.data.instructions;
+  } catch (error) {
+    console.error('[DEBUG] getInstructions - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * タスク登録状況を取得（ボタン活性制御用）
+ * GET /api/v1/projects/:projectName/instructions/status
+ * 
+ * @param projectName プロジェクト名
+ * @returns タスク登録状況
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * const status = await getTaskRegistrationStatus('sample_project');
+ * if (status.canSendInstructions) {
+ *   // 指示送信ボタンを活性化
+ * }
+ * ```
+ */
+export const getTaskRegistrationStatus = async (
+  projectName: string
+): Promise<TaskRegistrationStatusResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] getTaskRegistrationStatus - Request', { projectName });
+    
+    const response = await client.get<{
+      success: true;
+      data: TaskRegistrationStatusResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/instructions/status`);
+
+    console.log('[DEBUG] getTaskRegistrationStatus - Success', {
+      hasRegisteredTasks: response.data.data.hasRegisteredTasks,
+      taskCount: response.data.data.taskCount,
+      canSendInstructions: response.data.data.canSendInstructions,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] getTaskRegistrationStatus - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * 指示を保存（未送信）
+ * POST /api/v1/projects/:projectName/instructions
+ * 
+ * @param projectName プロジェクト名
+ * @param request 指示保存リクエスト
+ * @returns 指示保存結果
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * const result = await saveInstruction('sample_project', {
+ *   methodId: 'method_001',
+ *   transitionId: 'trans_001',
+ *   taskNumber: 1,
+ *   priority: 1,
+ *   type: 0,
+ *   content: '実験手順を実施してください'
+ * });
+ * console.log('Instruction ID:', result.instructionId);
+ * ```
+ */
+export const saveInstruction = async (
+  projectName: string,
+  request: SaveInstructionRequest
+): Promise<SaveInstructionResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] saveInstruction - Request', { projectName, request });
+    
+    const response = await client.post<{
+      success: true;
+      data: SaveInstructionResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/instructions`, request);
+
+    console.log('[DEBUG] saveInstruction - Success', {
+      instructionId: response.data.data.instructionId,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] saveInstruction - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * 指示を更新（未送信のみ）
+ * PUT /api/v1/projects/:projectName/instructions/:instructionId
+ * 
+ * @param projectName プロジェクト名
+ * @param instructionId 指示ID
+ * @param request 指示更新リクエスト
+ * @returns 指示更新結果
+ * @throws Error APIエラー時（送信済の指示を更新しようとした場合はエラー）
+ * 
+ * @example
+ * ```typescript
+ * const result = await updateInstruction('sample_project', 'inst_001', {
+ *   methodId: 'method_001',
+ *   priority: 2,
+ *   type: 0,
+ *   content: '更新された指示内容'
+ * });
+ * ```
+ */
+export const updateInstruction = async (
+  projectName: string,
+  instructionId: string,
+  request: UpdateInstructionRequest
+): Promise<UpdateInstructionResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] updateInstruction - Request', { projectName, instructionId, request });
+    
+    const response = await client.put<{
+      success: true;
+      data: UpdateInstructionResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/instructions/${encodeURIComponent(instructionId)}`, request);
+
+    console.log('[DEBUG] updateInstruction - Success', {
+      instructionId: response.data.data.instructionId,
+      updated: response.data.data.updated,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] updateInstruction - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * 指示を削除（未送信のみ）
+ * DELETE /api/v1/projects/:projectName/instructions/:instructionId
+ * 
+ * @param projectName プロジェクト名
+ * @param instructionId 指示ID
+ * @returns 指示削除結果
+ * @throws Error APIエラー時（送信済の指示を削除しようとした場合はエラー）
+ * 
+ * @example
+ * ```typescript
+ * const result = await deleteInstruction('sample_project', 'inst_001');
+ * if (result.deleted) {
+ *   console.log('指示を削除しました');
+ * }
+ * ```
+ */
+export const deleteInstruction = async (
+  projectName: string,
+  instructionId: string
+): Promise<DeleteInstructionResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] deleteInstruction - Request', { projectName, instructionId });
+    
+    const response = await client.delete<{
+      success: true;
+      data: DeleteInstructionResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/instructions/${encodeURIComponent(instructionId)}`);
+
+    console.log('[DEBUG] deleteInstruction - Success', {
+      deleted: response.data.data.deleted,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] deleteInstruction - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * 未送信指示を一括送信
+ * POST /api/v1/projects/:projectName/instructions/send
+ * 
+ * @param projectName プロジェクト名
+ * @param request 指示送信リクエスト
+ * @returns 指示送信結果
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * const result = await sendInstructions('sample_project', {
+ *   tasks: [
+ *     { methodId: 'method_001', experimentOrder: 1, experimentCondition: 1, attemptsCount: 3 },
+ *     { methodId: 'method_002', experimentOrder: 2, experimentCondition: 1, attemptsCount: 3 }
+ *   ]
+ * });
+ * console.log(`${result.sentInstructionsCount}件の指示を送信、${result.createdTasksCount}件のタスクを作成`);
+ * ```
+ */
+export const sendInstructions = async (
+  projectName: string,
+  request: SendInstructionsRequest
+): Promise<SendInstructionsResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] sendInstructions - Request', { projectName, tasksCount: request.tasks.length });
+    
+    const response = await client.post<{
+      success: true;
+      data: SendInstructionsResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/instructions/send`, request);
+
+    console.log('[DEBUG] sendInstructions - Success', {
+      sentInstructionsCount: response.data.data.sentInstructionsCount,
+      createdTasksCount: response.data.data.createdTasksCount,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] sendInstructions - Error', {
       error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,

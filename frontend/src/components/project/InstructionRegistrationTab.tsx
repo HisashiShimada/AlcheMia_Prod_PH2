@@ -35,6 +35,15 @@ import type {
 } from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import { useLanguage } from '@/contexts/LanguageContext';
+import {
+  getTaskRegistrationStatus,
+  sendInstructions,
+  getInstructions,
+  saveInstruction,
+  updateInstruction,
+  deleteInstruction,
+} from '@/services/projectApiService';
+import type { TaskInput } from '@/types/api';
 
 const { Text } = Typography;
 const { useToken } = theme;
@@ -72,9 +81,24 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   const [isSending, setIsSending] = useState<boolean>(false);
 
   /**
-   * ローカルストレージのキー
+   * 初期表示時に指示一覧を取得
    */
-  const storageKey = useMemo(() => `instruction-registration-${projectId}`, [projectId]);
+  useEffect(() => {
+    const fetchInstructions = async () => {
+      if (!projectName) return;
+
+      try {
+        const instructionList = await getInstructions(projectName);
+        setInstructions(instructionList);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : '指示一覧の取得に失敗しました';
+        message.error(errorMessage);
+      }
+    };
+
+    fetchInstructions();
+  }, [projectName]);
 
   /**
    * MAIMLファイルからメソッド情報とトランジション情報を取得
@@ -138,20 +162,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
 
         setAvailableMethods(mockMethods);
         setAvailableTransitions(mockTransitions);
-
-        // 保存されたデータがあれば復元
-        const savedData = localStorage.getItem(storageKey);
-        if (savedData) {
-          try {
-            const parsed: InstructionRegistrationData = JSON.parse(savedData);
-            if (parsed.projectId === projectId && parsed.instructions.length > 0) {
-              setInstructions(parsed.instructions);
-              message.success(t('instructionRegistration.messages.restored'));
-            }
-          } catch (error) {
-            console.error('Failed to parse saved instruction data:', error);
-          }
-        }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : 'データ取得エラー';
@@ -162,7 +172,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     };
 
     fetchData();
-  }, [projectId, storageKey]);
+  }, [projectId, t]);
 
   /**
    * 新規指示追加ダイアログを開く
@@ -193,58 +203,82 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   /**
    * 指示を保存
    */
-  const handleSaveInstruction = useCallback((instruction: InstructionData, keepDialogOpen: boolean = false) => {
-    if (editMode === 'create') {
-      // 新規作成
-      setInstructions((prev) => [...prev, instruction]);
-      message.success(t('instructionRegistration.messages.added'));
-    } else {
-      // 編集
-      setInstructions((prev) =>
-        prev.map((inst) => (inst.id === instruction.id ? instruction : inst))
-      );
-      message.success(t('instructionRegistration.messages.updated'));
-    }
+  const handleSaveInstruction = useCallback(async (instruction: InstructionData, keepDialogOpen: boolean = false) => {
+    try {
+      if (editMode === 'create') {
+        // 新規作成：API呼び出し
+        const result = await saveInstruction(projectName, {
+          methodId: instruction.methodId,
+          transitionId: instruction.transitionId || null,
+          taskNumber: instruction.taskNumber,
+          priority: instruction.priority,
+          type: instruction.type,
+          content: instruction.content,
+        });
+        
+        // APIから返されたIDで新しい指示を追加
+        const newInstruction: InstructionData = {
+          ...instruction,
+          id: result.instructionId,
+          isSent: false,
+        };
+        
+        setInstructions((prev) => [...prev, newInstruction]);
+        message.success(t('instructionRegistration.messages.added'));
+      } else {
+        // 編集：API呼び出し
+        await updateInstruction(projectName, String(instruction.id), {
+          methodId: instruction.methodId,
+          transitionId: instruction.transitionId || null,
+          taskNumber: instruction.taskNumber,
+          priority: instruction.priority,
+          type: instruction.type,
+          content: instruction.content,
+        });
+        
+        // ローカル状態を更新
+        setInstructions((prev) =>
+          prev.map((inst) => (inst.id === instruction.id ? instruction : inst))
+        );
+        message.success(t('instructionRegistration.messages.updated'));
+      }
 
-    // localStorageに保存
-    const dataToSave: InstructionRegistrationData = {
-      projectId,
-      projectName,
-      instructions: editMode === 'create'
-        ? [...instructions, instruction]
-        : instructions.map((inst) => (inst.id === instruction.id ? instruction : inst)),
-      savedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-
-    // 連続指示の場合はダイアログを閉じない
-    if (!keepDialogOpen) {
-      handleCloseDialog();
-    } else {
-      // 連続指示モード：新規作成モードに切り替え
-      setEditMode('create');
-      setEditingInstruction(undefined);
+      // 連続指示の場合はダイアログを閉じない
+      if (!keepDialogOpen) {
+        handleCloseDialog();
+      } else {
+        // 連続指示モード：新規作成モードに切り替え
+        setEditMode('create');
+        setEditingInstruction(undefined);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : '指示の保存に失敗しました';
+      message.error(errorMessage);
     }
-  }, [editMode, instructions, projectId, projectName, storageKey, handleCloseDialog, t]);
+  }, [editMode, projectName, handleCloseDialog, t]);
 
   /**
    * 指示を削除
    */
-  const handleDeleteInstruction = useCallback((id: string | number) => {
-    setInstructions((prev) => prev.filter((inst) => inst.id !== id));
-    
-    // localStorageを更新
-    const updatedInstructions = instructions.filter((inst) => inst.id !== id);
-    const dataToSave: InstructionRegistrationData = {
-      projectId,
-      projectName,
-      instructions: updatedInstructions,
-      savedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-    
-    message.success('指示を削除しました');
-  }, [instructions, projectId, projectName, storageKey]);
+  const handleDeleteInstruction = useCallback(async (id: string | number) => {
+    try {
+      // API呼び出し
+      const result = await deleteInstruction(projectName, String(id));
+      
+      if (result.deleted) {
+        // ローカル状態を更新
+        setInstructions((prev) => prev.filter((inst) => inst.id !== id));
+        message.success('指示を削除しました');
+      } else {
+        message.error('指示の削除に失敗しました（送信済の可能性があります）');
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : '指示の削除に失敗しました';
+      message.error(errorMessage);
+    }
+  }, [projectName]);
 
   /**
    * 指示を一括送信
@@ -255,11 +289,26 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       return;
     }
 
+    if (tasks.length === 0) {
+      message.error('タスクが登録されていません。タスク登録タブでタスクを登録してください。');
+      return;
+    }
+
     try {
       setIsSending(true);
 
-      // TODO: 実際のAPI実装時に置き換え
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // タスク登録情報をTaskInput形式に変換
+      const taskInputs: TaskInput[] = tasks.map(task => ({
+        methodId: task.methodId,
+        experimentOrder: task.experimentOrder,
+        experimentCondition: task.experimentCondition,
+        attemptsCount: task.trialCount, // TaskDetailのtrialCountをattemptsCountにマッピング
+      }));
+
+      // 指示を一括送信
+      const result = await sendInstructions(projectName, {
+        tasks: taskInputs,
+      });
 
       // 送信済フラグを立てる
       const sentInstructions = instructions.map(inst => ({
@@ -270,19 +319,12 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       // 親コンポーネントに通知
       onInstructionsSubmit?.(sentInstructions);
 
-      message.success(t('instructionRegistration.messages.sent'));
+      message.success(
+        `${result.sentInstructionsCount}件の指示を送信し、${result.createdTasksCount}件のタスクを作成しました`
+      );
 
       // 送信後、送信済フラグを立てて表示を継続
       setInstructions(sentInstructions);
-      
-      // localStorageを更新
-      const dataToSave: InstructionRegistrationData = {
-        projectId,
-        projectName,
-        instructions: sentInstructions,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : '指示送信エラー';
@@ -290,7 +332,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     } finally {
       setIsSending(false);
     }
-  }, [instructions, storageKey, onInstructionsSubmit, t, projectId, projectName]);
+  }, [instructions, tasks, projectName, onInstructionsSubmit, t]);
 
   /**
    * 優先度のタグカラー（code_valueベース）
