@@ -51,6 +51,34 @@ export function useInstructions() {
     }
   };
 
+  /**
+   * 指示一覧を再取得する関数（確認完了後に呼び出し）
+   */
+  const refetchInstructions = async () => {
+    if (!selectedProjectName) {
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await getWorkerInstructions(selectedProjectName);
+      
+      if (result.success && result.data) {
+        const convertedInstructions: Instruction[] = result.data.map(convertApiToInstruction);
+        setInstructions(convertedInstructions);
+      } else {
+        setError(result.error?.message || '指示の取得に失敗しました');
+      }
+    } catch (err) {
+      console.error('指示取得エラー:', err);
+      setError('指示の取得に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 優先度順でソート
   const sortedInstructions = useMemo(() => {
     const priorityOrder: Record<Priority, number> = {
@@ -84,5 +112,8 @@ export function useInstructions() {
     sortedInstructions,
     stats,
     handleProjectChange,
+    refetchInstructions,
+    loading,
+    error,
   };
 }

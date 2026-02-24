@@ -12,6 +12,8 @@ interface InstructionGroupProps {
   emoji: string;
   projectStatus: ProjectStatus | null;
   isClient: boolean;
+  onConfirmInstructions?: (instructions: Instruction[]) => void;
+  confirmLoading?: boolean;
 }
 
 // アイコン
@@ -39,6 +41,8 @@ export default function InstructionGroup({
   emoji,
   projectStatus,
   isClient,
+  onConfirmInstructions,
+  confirmLoading,
 }: InstructionGroupProps) {
   const { token } = theme.useToken();
 
@@ -101,15 +105,6 @@ export default function InstructionGroup({
       groups[key].push(instruction);
     });
     return groups;
-  };
-
-  // 確認完了ボタンのクリックハンドラ
-  const handleConfirmation = (groupType: string, targetName?: string) => {
-    if (targetName) {
-      alert(`${targetName}の確認完了（モック）`);
-    } else {
-      alert(`${groupType}の確認完了（モック）`);
-    }
   };
 
   // プロジェクト指示の場合（カードなしで表示）
@@ -209,14 +204,16 @@ export default function InstructionGroup({
                   </div>
                   
                   {/* 確認完了ボタン（展開時のみ表示） */}
-                  {isExpanded && (
+                  {isExpanded && onConfirmInstructions && (
                     <Button
                       type="primary"
                       icon={<CheckCircleOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleConfirmation('タスク単位指示', taskName);
+                        onConfirmInstructions(taskInstructions);
                       }}
+                      loading={confirmLoading}
+                      disabled={confirmLoading}
                       style={{ 
                         backgroundColor: token.colorSuccess, 
                         borderColor: token.colorSuccess 
@@ -321,14 +318,16 @@ export default function InstructionGroup({
                   </div>
                   
                   {/* 確認完了ボタン（展開時のみ表示） */}
-                  {isExpanded && (
+                  {isExpanded && onConfirmInstructions && (
                     <Button
                       type="primary"
                       icon={<CheckCircleOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleConfirmation('メソッド単位指示', methodName);
+                        onConfirmInstructions(methodInstructions);
                       }}
+                      loading={confirmLoading}
+                      disabled={confirmLoading}
                       style={{ 
                         backgroundColor: token.colorSuccess, 
                         borderColor: token.colorSuccess 
@@ -432,15 +431,17 @@ export default function InstructionGroup({
                     </Title>
                   </div>
                   
-                  {/* 確認完了ボタン（常に表示） */}
-                  {isExpanded && (
+                  {/* 確認完了ボタン（展開時のみ表示） */}
+                  {isExpanded && onConfirmInstructions && (
                     <Button
                       type="primary"
                       icon={<CheckCircleOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleConfirmation('トランジション単位指示', transitionName);
+                        onConfirmInstructions(transitionInstructions);
                       }}
+                      loading={confirmLoading}
+                      disabled={confirmLoading}
                       style={{ 
                         backgroundColor: token.colorSuccess, 
                         borderColor: token.colorSuccess 

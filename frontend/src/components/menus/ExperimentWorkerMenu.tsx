@@ -176,6 +176,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     sortedInstructions,
     stats,
     handleProjectChange: originalHandleProjectChange,
+    refetchInstructions,
   } = useInstructions();
 
   const {
@@ -291,6 +292,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
           isClient={isClient}
           expandedGroups={expandedGroups}
           toggleGroup={toggleGroup}
+          onInstructionsUpdated={refetchInstructions}
         />
       ),
     },
