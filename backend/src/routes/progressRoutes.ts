@@ -11,7 +11,7 @@ import * as progressController from '../controllers/progressController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import { checkPermission } from '../middleware/permissionCheckMiddleware';
-import { validateUUID, validateParamString, validateParamInt } from '../utils/validators';
+import { validateParamString, validateParamInt } from '../utils/validators';
 
 const router = Router();
 

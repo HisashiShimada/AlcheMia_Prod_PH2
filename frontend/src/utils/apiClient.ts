@@ -132,17 +132,64 @@ export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<
 
 /**
  * フォーマット一覧を取得
+ * GET /api/v1/formats
+ * 
+ * @param fileType - ファイルタイプフィルタ（'all' | 'xml' | 'maiml'）
  */
-export async function fetchFormats(): Promise<ApiResponse<FormatListResponse>> {
-  await simulateApiDelay();
-  
-  return {
-    success: true,
-    data: {
-      folders: formatsData.folders as unknown as Format[],
-    },
-    message: 'フォーマット一覧の取得に成功しました',
-  };
+export async function fetchFormats(
+  fileType: 'all' | 'xml' | 'maiml' = 'all'
+): Promise<ApiResponse<FormatListResponse>> {
+  // createApiClient()を使用して認証トークンを自動付与
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
+  try {
+    const queryParams = fileType !== 'all' ? `?file_type=${fileType}` : '';
+    const response = await client.get<ApiResponse<FormatListResponse>>(
+      `/formats${queryParams}`
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || 'フォーマット一覧の取得に失敗しました'
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('fetchFormats error:', error);
+    throw error;
+  }
+}
+
+/**
+ * フォーマットファイル一覧を取得
+ * GET /api/v1/formats/:folderName/files
+ */
+export async function fetchFormatFiles(
+  folderName: string,
+  subPath?: string
+): Promise<ApiResponse<{ files: unknown[] }>> {
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
+  try {
+    const queryParams = subPath ? `?path=${encodeURIComponent(subPath)}` : '';
+    const response = await client.get<ApiResponse<{ files: unknown[] }>>(
+      `/formats/${folderName}/files${queryParams}`
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || 'ファイル一覧の取得に失敗しました'
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('fetchFormatFiles error:', error);
+    throw error;
+  }
 }
 
 /**
@@ -166,27 +213,6 @@ export async function fetchFormatById(formatId: string): Promise<ApiResponse<For
   };
 }
 
-/**
- * フォーマットのファイル一覧を取得
- */
-export async function fetchFormatFiles(formatId: string): Promise<ApiResponse<{ files: FormatFile[] }>> {
-  await simulateApiDelay();
-  
-  const allFormatFiles = formatFilesData.files as Record<string, { root: FormatFile[]; subfolders?: Record<string, { name: string; files: FormatFile[] }> }>;
-  const formatFiles = allFormatFiles[formatId];
-  
-  if (!formatFiles) {
-    throw new Error(`フォーマットのファイルが見つかりません: ${formatId}`);
-  }
-  
-  return {
-    success: true,
-    data: {
-      files: formatFiles.root || [],
-    },
-    message: 'ファイル一覧の取得に成功しました',
-  };
-}
 
 /**
  * モックAPIを使用するかどうかを判定

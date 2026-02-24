@@ -129,7 +129,6 @@ export async function saveMaiML(
     }
     
     // MaiMLファイルの場合、メタデータ自動抽出
-    let metadataExtracted = false;
     if (fileKey.toLowerCase().endsWith('.maiml')) {
       try {
         console.log('🔍 [MAIML Save] MaiMLメタデータ抽出開始:', fileKey);
@@ -165,7 +164,6 @@ export async function saveMaiML(
           };
           
           await fileMetadataRepository.updateFileMetadata(fileKey, updateData);
-          metadataExtracted = true;
           console.log('✅ [MAIML Save] MaiMLメタデータ抽出成功（更新）');
         } else {
           // 新規レコードの作成（既存のinsertFileMetadataを使用）
@@ -196,7 +194,6 @@ export async function saveMaiML(
           };
           
           await fileMetadataRepository.insertFileMetadata(insertData);
-          metadataExtracted = true;
           console.log('✅ [MAIML Save] MaiMLメタデータ抽出成功（新規作成）');
         }
       } catch (metadataError) {
@@ -217,7 +214,6 @@ export async function saveMaiML(
         }
         
         // メタデータ抽出失敗しても保存は成功とする
-        metadataExtracted = false;
       }
       
       // project_maiml_flgをtrueに更新（必須処理）

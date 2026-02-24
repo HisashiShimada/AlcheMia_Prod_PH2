@@ -329,7 +329,7 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
   const requestId = uuidv4();
   
   try {
-    const { organizationId, userId } = req.user!;
+    const { organizationId } = req.user!;
     const { fileKey } = req.body;
 
     // Service層の初期化と呼び出し

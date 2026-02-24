@@ -171,7 +171,7 @@ export async function generateClientCertificate(
 
     // 4. CA秘密鍵で署名
     logger.info(`[certificateService] Step 4: クライアント証明書を署名中...`);
-    cert.sign(caKey, forge.md.sha256.create());
+    cert.sign(caKey as forge.pki.rsa.PrivateKey, forge.md.sha256.create());
 
     // 5. PKCS#12形式に変換
     logger.info(`[certificateService] Step 5: PKCS#12形式に変換中...`);
