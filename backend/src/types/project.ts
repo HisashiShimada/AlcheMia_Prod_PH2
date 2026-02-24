@@ -6,12 +6,12 @@
  * プロジェクトステータス
  */
 export type ProjectStatus = 
-  | 'planning'        // 0: プロジェクト計画中
-  | 'pending'         // 1: タスク実行待ち
-  | 'in_progress'     // 2: タスク実行中
-  | 'review_waiting'  // 3: タスク結果レビュー待ち
-  | 'completed'       // 4: プロジェクト完了
-  | 'error';          // 5: タスク異常終了
+  | 'planning'           // 0: プロジェクト計画中
+  | 'waiting_task'       // 1: タスク実行待ち
+  | 'executing_task'     // 2: タスク実行中
+  | 'waiting_approval'   // 3: 承認待ち
+  | 'completed'          // 4: プロジェクト完了
+  | 'error';             // 5: タスク異常終了
 
 /**
  * プロジェクト（APIレスポンス用）
@@ -92,9 +92,9 @@ export interface ProjectListResponse {
  */
 export const PROJECT_STATUS_MAP: Record<number, ProjectStatus> = {
   0: 'planning',
-  1: 'pending',
-  2: 'in_progress',
-  3: 'review_waiting',
+  1: 'waiting_task',
+  2: 'executing_task',
+  3: 'waiting_approval',
   4: 'completed',
   5: 'error'
 };

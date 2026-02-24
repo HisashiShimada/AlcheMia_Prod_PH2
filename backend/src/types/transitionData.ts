@@ -5,15 +5,44 @@
  */
 
 /**
- * トランジションのステータス
+ * トランジションステータスのEnum定義
+ * データベースのnumeric(2,0)型に対応
  * 
- * - initial: 初期状態（未開始）
- * - preparing: 準備中
- * - ready: 準備完了
- * - running: 実行中
- * - paused: 一時停止
- * - completed: 完了
- * - error: エラー発生
+ * @remarks
+ * データベース定義: docs/design/db/er_diagram.a5er
+ * カラム: status numeric(2,0)
+ */
+export enum TransitionStatusEnum {
+  /** 初期状態（未開始） */
+  INITIAL = 0,
+  
+  /** 準備中 */
+  PREPARING = 1,
+  
+  /** 準備完了 */
+  READY = 2,
+  
+  /** 実行中 */
+  IN_PROGRESS = 3,
+  
+  /** 一時停止 */
+  PAUSED = 4,
+  
+  /** 完了 */
+  COMPLETED = 5,
+  
+  /** エラー発生 */
+  ERROR = 6
+}
+
+/**
+ * TransitionStatusEnumの型定義
+ */
+export type TransitionStatus = typeof TransitionStatusEnum[keyof typeof TransitionStatusEnum];
+
+/**
+ * 旧Status型（文字列型）- 後方互換性のため一時的に保持
+ * @deprecated 数値型のTransitionStatusEnumを使用してください
  */
 export type Status = 'initial' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
 
@@ -26,7 +55,7 @@ export interface TransitionData {
   method_id: string;
   task_no: number;
   transition_id: string;
-  status: Status;
+  status: TransitionStatus; // 数値型（0-6）
   progress_rate: number; // 0-100
   updated_by: string;
   updated_at: Date;
@@ -42,7 +71,7 @@ export interface NewTransitionData {
   method_id: string;
   task_no: number;
   transition_id: string;
-  status?: Status; // オプショナル（デフォルト: 'initial'）
+  status?: TransitionStatus; // オプショナル（デフォルト: TransitionStatusEnum.INITIAL）
   progress_rate?: number; // オプショナル（デフォルト: 0）
   updated_by: string;
 }
@@ -51,37 +80,86 @@ export interface NewTransitionData {
  * トランジションデータ更新用の型
  */
 export interface TransitionDataUpdate {
-  status: Status;
+  status: TransitionStatus; // 数値型（0-6）
   progress_rate?: number;
   updated_by: string;
 }
 
 /**
- * 有効なステータス値のセット
+ * 有効なステータス値のセット（数値型）
  */
-const VALID_STATUSES: ReadonlySet<string> = new Set<Status>([
-  'initial',
-  'preparing',
-  'ready',
-  'running',
-  'paused',
-  'completed',
-  'error'
+const VALID_STATUSES: ReadonlySet<number> = new Set<TransitionStatus>([
+  TransitionStatusEnum.INITIAL,
+  TransitionStatusEnum.PREPARING,
+  TransitionStatusEnum.READY,
+  TransitionStatusEnum.IN_PROGRESS,
+  TransitionStatusEnum.PAUSED,
+  TransitionStatusEnum.COMPLETED,
+  TransitionStatusEnum.ERROR
 ]);
 
 /**
- * 値が有効なStatusかどうかを検証する型ガード関数
+ * 値が有効なTransitionStatusかどうかを検証する型ガード関数
  * 
  * @param value - 検証する値
- * @returns 有効なStatusの場合true、それ以外はfalse
+ * @returns 有効なTransitionStatusの場合true、それ以外はfalse
  * 
  * @example
- * const status = 'completed';
- * if (isValidStatus(status)) {
- *   // statusはStatus型として扱える
+ * const status = 5;
+ * if (isValidTransitionStatus(status)) {
+ *   // statusはTransitionStatus型として扱える
  *   console.log('有効なステータス:', status);
  * }
  */
+export function isValidTransitionStatus(value: any): value is TransitionStatus {
+  return typeof value === 'number' && VALID_STATUSES.has(value);
+}
+
+/**
+ * ステータス値から日本語ラベルを取得
+ * 
+ * @param status - ステータス値（数値）
+ * @returns 日本語ラベル
+ * 
+ * @example
+ * const label = getTransitionStatusLabel(TransitionStatusEnum.COMPLETED);
+ * console.log(label); // "完了"
+ */
+export function getTransitionStatusLabel(status: TransitionStatus): string {
+  const labels: Record<TransitionStatus, string> = {
+    [TransitionStatusEnum.INITIAL]: '未開始',
+    [TransitionStatusEnum.PREPARING]: '準備中',
+    [TransitionStatusEnum.READY]: '準備完了',
+    [TransitionStatusEnum.IN_PROGRESS]: '実行中',
+    [TransitionStatusEnum.PAUSED]: '一時停止',
+    [TransitionStatusEnum.COMPLETED]: '完了',
+    [TransitionStatusEnum.ERROR]: 'エラー'
+  };
+  return labels[status] || '不明';
+}
+
+/**
+ * 旧Status型（文字列型）から新TransitionStatus型（数値型）への変換
+ * @deprecated 後方互換性のためのヘルパー関数
+ */
+export function convertLegacyStatusToNumber(legacyStatus: Status): TransitionStatus {
+  const map: Record<Status, TransitionStatus> = {
+    'initial': TransitionStatusEnum.INITIAL,
+    'preparing': TransitionStatusEnum.PREPARING,
+    'ready': TransitionStatusEnum.READY,
+    'running': TransitionStatusEnum.IN_PROGRESS,
+    'paused': TransitionStatusEnum.PAUSED,
+    'completed': TransitionStatusEnum.COMPLETED,
+    'error': TransitionStatusEnum.ERROR
+  };
+  return map[legacyStatus];
+}
+
+/**
+ * 旧Status型（文字列型）検証関数 - 後方互換性のため保持
+ * @deprecated isValidTransitionStatusを使用してください
+ */
 export function isValidStatus(value: any): value is Status {
-  return typeof value === 'string' && VALID_STATUSES.has(value);
+  const validStrings = ['initial', 'preparing', 'ready', 'running', 'paused', 'completed', 'error'];
+  return typeof value === 'string' && validStrings.includes(value);
 }

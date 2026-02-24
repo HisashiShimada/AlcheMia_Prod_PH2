@@ -11,7 +11,6 @@
  */
 export type TaskStatus = 
   | 'not_started' 
-  | 'started' 
   | 'in_progress' 
   | 'completed' 
   | 'forced_terminated';
@@ -59,7 +58,7 @@ export interface MethodTaskRecord {
   // タスク詳細情報（project_task_detail）
   task_detail_id: string | null;
   task_detail_no: number | null;
-  task_status: TaskStatus | null;
+  task_status: number | null;  // DBから返される値は数値（0, 1, 3, 4）
   assign_user_id: string | null;
   assign_user_name: string | null;
   progress_rate: number;

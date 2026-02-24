@@ -12,7 +12,13 @@ import { EventLogRepository } from '../repositories/eventLogRepository';
 import { getStorageService } from './storageService';
 import { parsePetriNetStructure } from './maimlService';
 import { Result } from '../types/service';
-import { Status, TransitionData, TransitionDataUpdate } from '../types/transitionData';
+import { 
+  TransitionStatusEnum, 
+  TransitionStatus as TransitionStatusNumber, 
+  TransitionData, 
+  TransitionDataUpdate,
+  getTransitionStatusLabel 
+} from '../types/transitionData';
 import {
   ProgressData,
   ProgressServiceError,
@@ -20,34 +26,43 @@ import {
   ParsedMethod,
   TransitionProgress,
   OverallProgress,
-  TransitionStatus
+  TransitionStatus as TransitionStatusString
 } from '../types/progress';
 import { logger } from '../utils/logger';
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 
 /**
- * ステータス遷移マトリクス
+ * ステータス遷移マトリクス（数値型）
+ * 
+ * @remarks
+ * データベース定義に基づく遷移ルール
  */
-export const ALLOWED_TRANSITIONS: Record<Status, Status[]> = {
-  initial: ['preparing', 'completed', 'error'],
-  preparing: ['ready', 'completed', 'error'],
-  ready: ['ready', 'running', 'completed', 'error'],
-  running: ['paused', 'completed', 'error'],
-  paused: ['running', 'completed', 'error'],
-  completed: [],
-  error: []
+export const ALLOWED_TRANSITIONS: Record<TransitionStatusNumber, TransitionStatusNumber[]> = {
+  [TransitionStatusEnum.INITIAL]: [TransitionStatusEnum.PREPARING, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.PREPARING]: [TransitionStatusEnum.READY, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.READY]: [TransitionStatusEnum.READY, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.IN_PROGRESS]: [TransitionStatusEnum.PAUSED, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.PAUSED]: [TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.COMPLETED]: [],
+  [TransitionStatusEnum.ERROR]: []
 };
 
 /**
  * ステータス遷移エラー
  */
 export class InvalidStatusTransitionError extends Error {
-  constructor(fromStatus: Status, toStatus: Status) {
-    if (fromStatus === 'completed' || fromStatus === 'error') {
-      super(`Cannot change status from terminal state '${fromStatus}'. Terminal states (completed, error) cannot be changed.`);
+  constructor(fromStatus: TransitionStatusNumber, toStatus: TransitionStatusNumber) {
+    const fromLabel = getTransitionStatusLabel(fromStatus);
+    const toLabel = getTransitionStatusLabel(toStatus);
+    
+    if (fromStatus === TransitionStatusEnum.COMPLETED || fromStatus === TransitionStatusEnum.ERROR) {
+      super(`Cannot change status from terminal state '${fromLabel}' (${fromStatus}). Terminal states (completed, error) cannot be changed.`);
     } else {
-      super(`Invalid status transition from '${fromStatus}' to '${toStatus}'. Allowed transitions from '${fromStatus}': ${ALLOWED_TRANSITIONS[fromStatus].join(', ')}`);
+      const allowedLabels = ALLOWED_TRANSITIONS[fromStatus]
+        .map(s => `${getTransitionStatusLabel(s)} (${s})`)
+        .join(', ');
+      super(`Invalid status transition from '${fromLabel}' (${fromStatus}) to '${toLabel}' (${toStatus}). Allowed transitions: ${allowedLabels}`);
     }
     this.name = 'InvalidStatusTransitionError';
   }
@@ -476,27 +491,27 @@ export class ProgressService {
   }
 
   /**
-   * Status型をTransitionStatus型に変換
+   * TransitionStatus型（数値）をTransitionStatus型（表示用文字列）に変換
    * 
    * @private
    * @requirements Requirement 9: データ整合性
    */
-  private convertStatusToTransitionStatus(status: Status): TransitionStatus {
-    // Status型からTransitionStatus型へのマッピング
+  private convertStatusToTransitionStatus(status: TransitionStatusNumber): TransitionStatusString {
+    // TransitionStatus（数値）からTransitionStatus（表示用文字列）へのマッピング
     switch (status) {
-      case 'completed':
+      case TransitionStatusEnum.COMPLETED:
         return 'completed';
       
-      case 'initial':
+      case TransitionStatusEnum.INITIAL:
         return 'not_started';
       
-      case 'preparing':
-      case 'ready':
-      case 'running':
-      case 'paused':
+      case TransitionStatusEnum.PREPARING:
+      case TransitionStatusEnum.READY:
+      case TransitionStatusEnum.IN_PROGRESS:
+      case TransitionStatusEnum.PAUSED:
         return 'in_progress';
       
-      case 'error':
+      case TransitionStatusEnum.ERROR:
         // エラーの場合は進行中として扱う（エラー後も作業継続可能）
         return 'in_progress';
       
@@ -511,7 +526,7 @@ export class ProgressService {
    * @private
    * @requirements Requirement 9: データ整合性
    */
-  private normalizeProgress(status: TransitionStatus, progressRate: number): number {
+  private normalizeProgress(status: TransitionStatusString, progressRate: number): number {
     // ステータスに応じて進捗率を補正
     if (status === 'completed') {
       return 100;
@@ -568,20 +583,20 @@ export class ProgressService {
   /**
    * ステータス遷移の妥当性を検証
    * 
-   * @param fromStatus 現在のステータス
-   * @param toStatus 新しいステータス
+   * @param fromStatus 現在のステータス（数値）
+   * @param toStatus 新しいステータス（数値）
    * @throws InvalidStatusTransitionError 不正な遷移の場合
    */
-  validateStatusTransition(fromStatus: Status, toStatus: Status): void {
-    if (!fromStatus || !toStatus) {
+  validateStatusTransition(fromStatus: TransitionStatusNumber, toStatus: TransitionStatusNumber): void {
+    if (fromStatus === undefined || fromStatus === null || toStatus === undefined || toStatus === null) {
       throw new Error('Source and target status are required');
     }
 
     if (!(fromStatus in ALLOWED_TRANSITIONS)) {
-      throw new Error(`Unknown status: ${fromStatus}`);
+      throw new Error(`Unknown status: ${fromStatus} (${getTransitionStatusLabel(fromStatus)})`);
     }
     if (!(toStatus in ALLOWED_TRANSITIONS)) {
-      throw new Error(`Unknown status: ${toStatus}`);
+      throw new Error(`Unknown status: ${toStatus} (${getTransitionStatusLabel(toStatus)})`);
     }
 
     const allowedTransitions = ALLOWED_TRANSITIONS[fromStatus];
@@ -633,7 +648,7 @@ export class ProgressService {
       this.validateStatusTransition(currentStatus, update.status);
 
       // 3. completedステータス時は進捗率を100%に自動設定
-      const finalProgressRate = update.status === 'completed' 
+      const finalProgressRate = update.status === TransitionStatusEnum.COMPLETED 
         ? 100 
         : (update.progress_rate ?? 0);
 
