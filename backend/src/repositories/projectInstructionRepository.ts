@@ -225,3 +225,30 @@ export async function deleteById(
   const result = await pool.query(query, [organizationId, projectId, experimentInstructionId]);
   return (result.rowCount ?? 0) > 0;
 }
+
+/**
+ * 未送信指示の存在確認（チェックアウト前バリデーション用）
+ * 
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @returns 未送信指示が存在する場合true
+ */
+export async function hasUnsentInstructions(
+  organizationId: string,
+  projectId: string
+): Promise<boolean> {
+  const pool = getPool();
+  
+  // Parameterized Query使用（SQLインジェクション対策）
+  // organization_idフィルタ必須（マルチテナント分離）
+  // instruction_status = 0 が未送信
+  const query = `
+    SELECT COUNT(*) as count
+    FROM project_instruction
+    WHERE organization_id = $1 AND project_id = $2 AND instruction_status = 0
+  `;
+  
+  const result = await pool.query<{ count: string }>(query, [organizationId, projectId]);
+  const count = parseInt(result.rows[0].count, 10);
+  return count > 0;
+}

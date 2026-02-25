@@ -24,6 +24,7 @@ import ExperimentRecordTab from '../ExperimentWorker/ExperimentRecordTab';
 import ProgressCheckTab from '../ExperimentWorker/ProgressCheckTab';
 import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import { getWorkerAccessibleProjects, requestApproval, type WorkerProject } from '@/services/projectApiService';
+import { useCodeMaster } from '@/hooks/useCodeMaster';
 import { AxiosError } from 'axios';
 
 const { Content } = Layout;
@@ -98,6 +99,9 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   const [projects, setProjects] = useState<WorkerProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [approvalLoading, setApprovalLoading] = useState(false);
+
+  // コードマスタ: プロジェクトステータス
+  const { options: projectStatusOptions } = useCodeMaster('project_status');
 
   // localStorageからpermissionsを取得（userInfo経由）
   const permissions = getPermissionsFromToken();
@@ -371,10 +375,13 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
                 notFoundContent={projectsLoading ? <Spin size="small" /> : 'プロジェクトがありません'}
                 options={[
                   { value: '', label: '-' },
-                  ...projects.map((project) => ({
-                    value: project.projectId,
-                    label: `${project.projectName} - ${t(`experimentWork.projectStatus.${project.projectStatus}`)}`
-                  }))
+                  ...projects.map((project) => {
+                    const statusLabel = projectStatusOptions.find(opt => opt.value === project.projectStatus)?.label ?? String(project.projectStatus);
+                    return {
+                      value: project.projectId,
+                      label: `${project.projectName} - ${statusLabel}`
+                    };
+                  })
                 ]}
                 size="middle"
               />

@@ -60,6 +60,7 @@ interface TaskRegistrationTabProps {
   projectId: string;
   projectName: string;
   isActive: boolean;
+  isCheckoutLocked?: boolean;
   onTasksChange?: (tasks: TaskDetail[]) => void;
 }
 
@@ -77,6 +78,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   projectId,
   projectName,
   isActive,
+  isCheckoutLocked: isCheckoutLockedProp,
   onTasksChange,
 }) => {
   const { token } = useToken();
@@ -88,8 +90,10 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   const [loadingMethods, setLoadingMethods] = useState<boolean>(false);
   const [taskDetails, setTaskDetails] = useState<TaskDetail[]>([]);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isCheckoutLocked, setIsCheckoutLocked] = useState<boolean>(false);
   const [isMaimlRegistered, setIsMaimlRegistered] = useState<boolean>(false);
+  
+  // チェックアウト状態はPropsを優先し、なければAPI取得結果を使用
+  const isCheckoutLocked = isCheckoutLockedProp ?? false;
 
   // コードマスターから実験条件オプションを取得
   const { options: experimentConditionOptions, loading: loadingCodeMaster } = useCodeMaster('experiment_condition');
@@ -107,8 +111,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       try {
         const data = await getTaskRegistration(projectName);
 
-        // チェックアウト状態とMAIML登録状態を保存
-        setIsCheckoutLocked(data.isCheckoutLocked);
+        // MAIML登録状態を保存（チェックアウト状態はPropsから取得）
         setIsMaimlRegistered(data.isMaimlRegistered);
 
         // タスク情報をUI用の形式に変換
@@ -376,7 +379,14 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         {React.Children.map(children, (child) => {
           if ((child as React.ReactElement).key === 'sort') {
             return React.cloneElement(child as React.ReactElement, {}, (
-              <div {...listeners} style={{ cursor: 'grab', padding: '8px' }}>
+              <div 
+                {...(isCheckoutLocked ? {} : listeners)} 
+                style={{ 
+                  cursor: isCheckoutLocked ? 'not-allowed' : 'grab', 
+                  padding: '8px',
+                  opacity: isCheckoutLocked ? 0.5 : 1
+                }}
+              >
                 <HolderOutlined />
               </div>
             ));
@@ -407,7 +417,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           onChange={(value) => {
             handleOrderChange(record.id, value);
           }}
-          disabled={isSaving || loadingMethods}
+          disabled={isSaving || loadingMethods || isCheckoutLocked}
           size="small"
           style={{ width: '100%' }}
           options={orderSelectOptions}
@@ -441,7 +451,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           onChange={(value) =>
             handleUpdateTaskDetail(record.id, 'experimentCondition', value.toString())
           }
-          disabled={isSaving || loadingMethods}
+          disabled={isSaving || loadingMethods || isCheckoutLocked}
           size="small"
           style={{ width: '100%' }}
           options={experimentConditionSelectOptions}
@@ -468,7 +478,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             }
           }}
           placeholder={t('taskRegistration.trialCountPlaceholder')}
-          disabled={isSaving || loadingMethods}
+          disabled={isSaving || loadingMethods || isCheckoutLocked}
           size="small"
           min={1}
           max={999}
@@ -505,7 +515,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           icon={<SaveOutlined />}
           onClick={handleSave}
           loading={isSaving}
-          disabled={loadingMethods}
+          disabled={loadingMethods || isCheckoutLocked}
         >
           {isSaving ? t('taskRegistration.saving') : t('taskRegistration.saveButton')}
         </Button>

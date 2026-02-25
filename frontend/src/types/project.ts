@@ -3,17 +3,6 @@
  */
 
 /**
- * プロジェクトステータス
- */
-export type ProjectStatus = 
-  | 'planning'        // プロジェクト計画中
-  | 'pending'         // タスク実行待ち
-  | 'in_progress'     // タスク実行中
-  | 'review_waiting'  // タスク結果レビュー待ち
-  | 'completed'       // プロジェクト完了
-  | 'error';          // タスク異常終了
-
-/**
  * プロジェクト
  */
 export interface Project {
@@ -21,7 +10,8 @@ export interface Project {
   name: string;
   folderName: string;
   description: string;
-  status: ProjectStatus;
+  status: number; // プロジェクトステータス（数値コード: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了）
+  statusName?: string; // code_masterから取得したステータス名（日本語）
   fileCount: number;
   totalSize: number;
   owner: string;
@@ -122,7 +112,7 @@ export interface CreateProjectData {
 export interface UpdateProjectData {
   name?: string;
   description?: string;
-  status?: ProjectStatus;
+  status?: number;
   tags?: string[];
   members?: string[];
 }
@@ -134,7 +124,7 @@ export interface ProjectFilterParams {
   search?: string;
   ownerFilter?: 'my_only' | 'all';
   checkoutFilter?: 'all' | 'checked_in' | 'checked_out';
-  projectStatusFilter?: 'all' | ProjectStatus;
+  projectStatusFilter?: 'all' | number;
   departmentFilter?: string;
   showMaimlOnly?: boolean;
   sortBy?: 'name' | 'status' | 'createdAt';
@@ -146,7 +136,7 @@ export interface ProjectFilterParams {
  */
 export interface ProjectStats {
   total: number;
-  byStatus: Record<ProjectStatus, number>;
+  byStatus: Record<number, number>;
   byDepartment: Record<string, number>;
   checkedOut: number;
   checkedIn: number;

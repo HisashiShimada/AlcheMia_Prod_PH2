@@ -115,7 +115,7 @@ export interface WorkerProject {
   projectId: string;           // プロジェクトID（UUID）
   projectName: string;         // プロジェクト名
   projectCd?: string;          // プロジェクトCD（APIレスポンスに含まれない場合がある）
-  projectStatus: string;       // プロジェクトステータス（"in_progress", "review_waiting", "approved"）
+  projectStatus: number;       // プロジェクトステータス（0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了）
   description: string;         // プロジェクトの説明
   createdAt: string;           // 作成日時（ISO 8601）
   updatedAt: string;           // 更新日時（ISO 8601）
@@ -1421,6 +1421,127 @@ export const sendInstructions = async (
       error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+// ========================================
+// チェックアウト関連API関数
+// ========================================
+
+/**
+ * チェックアウトレスポンス型
+ */
+export interface CheckoutResponse {
+  projectId: string;
+  projectName: string;
+  isCheckedOut: boolean;
+  checkedOutBy: string | null;
+  checkedOutAt: string | null;
+}
+
+/**
+ * プロジェクトをチェックアウト
+ * POST /api/v1/projects/:projectName/checkout
+ * 
+ * @param projectName プロジェクト名
+ * @returns チェックアウト結果
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * try {
+ *   const result = await checkoutProject('sample_project');
+ *   console.log('チェックアウト成功:', result.projectName);
+ * } catch (error) {
+ *   console.error('チェックアウト失敗:', error);
+ * }
+ * ```
+ */
+export const checkoutProject = async (
+  projectName: string
+): Promise<CheckoutResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] checkoutProject - Request', { projectName });
+    
+    const response = await client.post<{
+      success: true;
+      data: CheckoutResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/checkout`);
+
+    console.log('[DEBUG] checkoutProject - Success', {
+      projectId: response.data.data.projectId,
+      projectName: response.data.data.projectName,
+      isCheckedOut: response.data.data.isCheckedOut,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] checkoutProject - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError<ApiErrorResponse>)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * プロジェクトをチェックイン
+ * POST /api/v1/projects/:projectName/checkin
+ * 
+ * @param projectName プロジェクト名
+ * @returns チェックイン結果
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * ```typescript
+ * try {
+ *   const result = await checkinProject('sample_project');
+ *   console.log('チェックイン成功:', result.projectName);
+ * } catch (error) {
+ *   console.error('チェックイン失敗:', error);
+ * }
+ * ```
+ */
+export const checkinProject = async (
+  projectName: string
+): Promise<CheckoutResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] checkinProject - Request', { projectName });
+    
+    const response = await client.post<{
+      success: true;
+      data: CheckoutResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/checkin`);
+
+    console.log('[DEBUG] checkinProject - Success', {
+      projectId: response.data.data.projectId,
+      projectName: response.data.data.projectName,
+      isCheckedOut: response.data.data.isCheckedOut,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] checkinProject - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError<ApiErrorResponse>)?.response?.data,
       errorStatus: (error as AxiosError)?.response?.status,
     });
     throw error;

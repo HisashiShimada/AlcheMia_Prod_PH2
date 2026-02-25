@@ -57,6 +57,7 @@ interface InstructionRegistrationTabProps {
   projectId: string;
   projectName: string;
   isActive: boolean;
+  isCheckoutLocked?: boolean;
   onInstructionsSubmit?: (instructions: InstructionData[]) => void;
 }
 
@@ -67,6 +68,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   projectId,
   projectName,
   isActive,
+  isCheckoutLocked,
   onInstructionsSubmit,
 }) => {
   const { token } = useToken();
@@ -481,7 +483,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleOpenCreateDialog}
-            disabled={isMaimlLoading || isSending}
+            disabled={isMaimlLoading || isSending || isCheckoutLocked}
           >
             {t('instructionRegistration.addButton')}
           </Button>
@@ -489,7 +491,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             type="primary"
             icon={<SendOutlined />}
             onClick={handleSubmitInstructions}
-            disabled={instructions.length === 0 || isSending}
+            disabled={instructions.length === 0 || isSending || isCheckoutLocked}
             loading={isSending}
             style={{
               backgroundColor: instructions.length > 0 ? token.colorSuccess : undefined,

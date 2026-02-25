@@ -4,6 +4,72 @@
  * このファイルはAPIエンドポイントで使用する型定義を集約します。
  */
 
+// ============================================================
+// プロジェクト関連のリクエスト/レスポンス型
+// ============================================================
+
+/**
+ * プロジェクト作成リクエスト
+ * POST /api/v1/projects
+ */
+export interface CreateProjectRequest {
+  /** プロジェクト名 */
+  projectName: string;
+  
+  /** プロジェクト説明（オプション） */
+  description?: string;
+}
+
+/**
+ * プロジェクト一覧取得パラメータ
+ * GET /api/v1/projects
+ */
+export interface ListProjectsParams {
+  /** ページ番号（デフォルト: 1） */
+  page?: number;
+  
+  /** 1ページあたりの件数（デフォルト: 20） */
+  limit?: number;
+  
+  /** 完了済みプロジェクトを含めるか（デフォルト: false） */
+  include_completed?: boolean;
+  
+  /** ソート項目（デフォルト: create_at） */
+  sort_by?: string;
+  
+  /** ソート順（デフォルト: desc） */
+  order?: 'asc' | 'desc';
+}
+
+/**
+ * プロジェクトタスク一覧取得パラメータ
+ * GET /api/v1/projects/:projectName/tasks
+ */
+export interface GetProjectTasksParams {
+  /** タスクステータスフィルタ（デフォルト: all） */
+  status?: 'all' | 'pending' | 'in_progress' | 'completed' | 'failed';
+}
+
+/**
+ * プロジェクトファイル一覧取得パラメータ
+ * GET /api/v1/projects/:projectName/files
+ */
+export interface GetProjectFilesParams {
+  // 現在はパラメータなし（将来の拡張用に定義）
+}
+
+/**
+ * プロジェクトチェックアウトパラメータ
+ * POST /api/v1/projects/:projectName/checkout
+ */
+export interface CheckoutParams {
+  // リクエストボディなし（パスパラメータのみ）
+}
+
+// ============================================================
+// 指示管理関連のリクエスト/レスポンス型
+// ============================================================
+
 /**
  * タスク登録状況レスポンス
  * 

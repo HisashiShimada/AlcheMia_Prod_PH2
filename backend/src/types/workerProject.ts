@@ -9,7 +9,6 @@
  * @see {@link ../../docs/.kiro/specs/experiment-worker-project-list-api/design.md}
  */
 
-import type { ProjectStatus } from './project';
 import type { UserRole } from './auth';
 
 /**
@@ -42,7 +41,7 @@ export interface WorkerAccessibleProject {
   projectId: string;
   projectName: string;
   description: string;
-  projectStatus: ProjectStatus;
+  projectStatus: number; // 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
   createdAt: string;
   updatedAt: string;
 }
@@ -237,4 +236,4 @@ export interface WorkerProjectService {
  * @description
  * 他のモジュールで使用する型を再エクスポート。
  */
-export type { UserRole, ProjectStatus };
+export type { UserRole };
