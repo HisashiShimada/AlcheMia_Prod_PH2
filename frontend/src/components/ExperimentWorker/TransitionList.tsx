@@ -6,7 +6,7 @@ import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCi
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue, ProjectStatus, isRecordableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
-import { getIssuesByTransitionId } from '@/data/projectsData';
+import { getIssues } from '@/services/issueApiService';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
@@ -31,6 +31,7 @@ interface TransitionListProps {
 export default function TransitionList({
   transitions,
   projectStatus,
+  selectedTaskId,
   projectId,
   methodId,
 }: TransitionListProps) {
@@ -43,8 +44,8 @@ export default function TransitionList({
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
 
-  // TODO: モックデータ - 実際はpropsまたはAPIから取得
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [issueLoading, setIssueLoading] = useState<boolean>(false);
 
   // トランジション名の選択肢を生成
   const transitionNameOptions = useMemo(() => {
@@ -111,12 +112,38 @@ export default function TransitionList({
   };
 
   // 問題報告ボタンクリックハンドラ
-  const handleIssueReport = (transition: Transition) => {
+  const handleIssueReport = async (transition: Transition) => {
     setSelectedTransition(transition);
-    // トランジションIDに関連する問題を取得
-    const transitionIssues = getIssuesByTransitionId(transition.transitionId);
-    setIssues(transitionIssues);
+    setIssues([]);
     setIssueModalOpen(true);
+
+    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
+    // projectId は UUID（ハイフン含む）のため split('-') の末尾要素を取得する
+    const parts = (selectedTaskId ?? '').split('-');
+    const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
+
+    if (!projectId || !methodId || !selectedTaskId || isNaN(taskNo)) {
+      console.warn('[handleIssueReport] 必要なパラメータが不足しています', {
+        projectId, methodId, selectedTaskId, taskNo,
+      });
+      return;
+    }
+
+    setIssueLoading(true);
+    try {
+      const fetchedIssues = await getIssues({
+        projectId,
+        methodId,
+        taskNo,
+        transitionId: transition.transitionId,
+      });
+      setIssues(fetchedIssues);
+    } catch (error) {
+      console.error('[handleIssueReport] 問題一覧取得エラー', error);
+      message.error('問題一覧の取得に失敗しました');
+    } finally {
+      setIssueLoading(false);
+    }
   };
 
   // 問題報告モーダルを閉じる
