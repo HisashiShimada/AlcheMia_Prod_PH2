@@ -1,0 +1,462 @@
+/**
+ * User（ユーザー）リポジトリ
+ * データベースアクセス層
+ * 
+ * ※注意: 既存のorganizationUserRepository.tsとは別のファイル
+ * こちらはユーザー管理画面専用のリポジトリ
+ */
+
+import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
+import bcrypt from 'bcrypt';
+import { User, UserSearchFilters } from '../types/database';
+
+/**
+ * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）
+ */
+function generateRandomPassword(): string {
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const digits = '0123456789';
+  const symbols = '!@#$%^&*';
+  const all = upper + lower + digits + symbols;
+  let password =
+    upper.charAt(Math.floor(Math.random() * upper.length)) +
+    lower.charAt(Math.floor(Math.random() * lower.length)) +
+    digits.charAt(Math.floor(Math.random() * digits.length)) +
+    symbols.charAt(Math.floor(Math.random() * symbols.length));
+  for (let i = 0; i < 8; i++) {
+    password += all.charAt(Math.floor(Math.random() * all.length));
+  }
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+}
+
+/**
+ * Userのデータ型定義（互換性のためのエイリアス）
+ * @deprecated User型を直接使用してください
+ */
+export type UserRow = User;
+
+/**
+ * User一覧を取得
+ * 
+ * @param organizationId 組織ID
+ * @param filters 検索フィルター
+ * @returns Userの配列
+ */
+export async function findAll(
+  organizationId: string,
+  filters: UserSearchFilters = {}
+): Promise<UserRow[]> {
+  const pgp = getPgp();
+  
+  // 動的条件を構築
+  const conditions: string[] = ['ou.organization_id = $1'];
+  const params: any[] = [organizationId];
+  
+  // 検索フィルター
+  if (filters.search) {
+    conditions.push(`(ou.user_name ILIKE $${params.length + 1} OR ou.mail_address ILIKE $${params.length + 1})`);
+    params.push(`%${filters.search}%`);
+  }
+  
+  // アクティブ状態フィルター
+  if (filters.isActive !== undefined) {
+    conditions.push(`ou.is_active = $${params.length + 1}`);
+    params.push(filters.isActive);
+  }
+  
+  // 部署フィルター
+  if (filters.departmentCd) {
+    conditions.push(`ou.department_cd = $${params.length + 1}`);
+    params.push(filters.departmentCd);
+  }
+  
+  // ロールフィルター
+  if (filters.roleCd) {
+    conditions.push(`ou.role_cd = $${params.length + 1}`);
+    params.push(filters.roleCd);
+  }
+  
+  // ソート順
+  const sortBy = filters.sortBy === 'user_name' ? 'ou.user_name' : 
+                 filters.sortBy === 'update_at' ? 'ou.update_at' : 
+                 'ou.user_id';
+  const sortOrder = (filters.sortOrder || 'asc').toUpperCase();
+  
+  // SQLクエリを動的に構築
+  const sqlQuery = `
+    SELECT 
+      ou.user_id,
+      ou.user_name,
+      ou.mail_address,
+      ou.department_cd,
+      d.department_name,
+      ou.role_cd,
+      r.role_name,
+      ou.is_active,
+      last_login.last_login_at,
+      ou.create_at,
+      ou.update_at
+    FROM organization_user ou
+    LEFT JOIN department d 
+      ON ou.organization_id = d.organization_id 
+      AND ou.department_cd = d.department_cd
+    LEFT JOIN role r 
+      ON ou.organization_id = r.organization_id 
+      AND ou.role_cd = r.role_cd
+    LEFT JOIN user_authentication ua 
+      ON ou.user_id = ua.user_id 
+      AND ou.organization_id = ua.organization_id
+    LEFT JOIN (
+      SELECT 
+        lh.organization_id,
+        lh.user_name,
+        MAX(lh.login_at) as last_login_at
+      FROM login_history lh
+      WHERE lh.login_sf = true
+      GROUP BY lh.organization_id, lh.user_name
+    ) last_login 
+      ON ou.organization_id = last_login.organization_id 
+      AND ou.user_name = last_login.user_name
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY ${sortBy} ${sortOrder}
+  `;
+  
+  return await pgp.any<UserRow>(sqlQuery, params);
+}
+
+/**
+ * ユーザーIDで1件取得
+ * 
+ * @param organizationId 組織ID
+ * @param userId ユーザーID
+ * @returns User（見つからない場合はnull）
+ */
+export async function findById(
+  organizationId: string,
+  userId: string
+): Promise<UserRow | null> {
+  const pgp = getPgp();
+  
+  // 外部SQLファイルを読み込み
+  const query = await loadSqlFile('users/findById.sql');
+  
+  return await pgp.oneOrNone<UserRow>(query, [organizationId, userId]);
+}
+
+/**
+ * ユーザーIDが既に存在するかチェック
+ * 
+ * @param organizationId 組織ID
+ * @param userId ユーザーID
+ * @returns 存在する場合true
+ */
+export async function existsById(
+  organizationId: string,
+  userId: string
+): Promise<boolean> {
+  const pgp = getPgp();
+  
+  // 外部SQLファイルを読み込み
+  const query = await loadSqlFile('users/existsById.sql');
+  
+  const result = await pgp.one<{ exists: boolean }>(query, [organizationId, userId]);
+  return result.exists;
+}
+
+/**
+ * Userを新規作成（トランザクション内で実行）
+ * 
+ * @param organizationId 組織ID
+ * @param data User情報
+ * @param password 初期パスワード（平文）
+ * @param createUserId 作成者ユーザーID
+ * @returns 作成されたUser
+ */
+export async function create(
+  organizationId: string,
+  data: {
+    userId: string;
+    userName: string;
+    mailAddress: string;
+    departmentCd?: string | null;
+    roleCd: string;
+    isActive?: boolean;
+  },
+  passwordOrUserId: string,
+  createUserIdOrUndefined?: string
+): Promise<UserRow> {
+  // 引数の解釈: password が省略された場合（旧インターフェース互換）
+  const password = createUserIdOrUndefined !== undefined ? passwordOrUserId : generateRandomPassword();
+  const createUserId = createUserIdOrUndefined !== undefined ? createUserIdOrUndefined : passwordOrUserId;
+  const pgp = getPgp();
+  
+  return await pgp.tx(async (t) => {
+    try {
+      // 1. organization_userテーブルにINSERT
+      const userQuery = `
+        INSERT INTO organization_user (
+          user_id,
+          organization_id,
+          user_name,
+          mail_address,
+          department_cd,
+          role_cd,
+          is_active,
+          create_user_id,
+          update_user_id,
+          create_at,
+          update_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+        )
+        RETURNING *
+      `;
+      
+      const userValues = [
+        data.userId,
+        organizationId,
+        data.userName,
+        data.mailAddress,
+        data.departmentCd || null,
+        data.roleCd,
+        data.isActive !== undefined ? data.isActive : true,
+        createUserId,
+        createUserId,
+      ];
+      
+      console.log('=== organization_user INSERT ===');
+      console.log('Query:', userQuery);
+      console.log('Values:', userValues);
+      
+      // RETURNING句があるのでt.one()を使用
+      await t.one(userQuery, userValues);
+      
+      // 2. user_authenticationテーブルにINSERT（パスワードハッシュ化）
+      // 生成したパスワードをコンソールに出力（開発・確認用）
+      console.log(`Password：${password}`);
+      const saltRounds = 12;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+      
+      // パスワード有効期限：保存/CSVアップロード時のタイムスタンプ（現在日時）
+      const passwordExpiresAt = new Date();
+      
+      const authQuery = `
+        INSERT INTO user_authentication (
+          user_id,
+          organization_id,
+          password,
+          is_temporary_flg,
+          password_expires_at,
+          create_user_id,
+          update_user_id,
+          create_at,
+          update_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+        )
+      `;
+      
+      const authValues = [
+        data.userId,
+        organizationId,
+        passwordHash,
+        true,             // is_temporary_flg（仮パスワード）
+        passwordExpiresAt,
+        createUserId,
+        createUserId,
+      ];
+      
+      console.log('=== user_authentication INSERT ===');
+      console.log('Query:', authQuery);
+      console.log('Values (パスワードハッシュは除外):', [
+        authValues[0],
+        authValues[1],
+        '***',
+        authValues[3],
+        authValues[4],
+        authValues[5],
+        authValues[6],
+      ]);
+      
+      await t.none(authQuery, authValues);
+      
+      // 作成したユーザーを取得して返す（トランザクション内で実行）
+      const selectQuery = await loadSqlFile('users/findById.sql') as string;
+      const result = await t.oneOrNone(selectQuery, [organizationId, data.userId]) as UserRow | null;
+      
+      if (!result) {
+        throw new Error('Failed to retrieve created user');
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('=== DB挿入エラー（詳細） ===');
+      console.error('エラー:', error);
+      console.error('エラーコード:', (error as any).code);
+      console.error('エラーメッセージ:', (error as any).message);
+      console.error('エラー詳細:', (error as any).detail);
+      console.error('エラーテーブル:', (error as any).table);
+      console.error('エラーカラム:', (error as any).column);
+      console.error('エラー制約:', (error as any).constraint);
+      
+      // PostgreSQLエラーコードに応じた処理
+      if ((error as any).code === '23505') {  // unique_violation
+        throw new Error('ユーザーIDが既に存在します');
+      } else if ((error as any).code === '23503') {  // foreign_key_violation
+        const constraint = (error as any).constraint || '';
+        if (constraint.includes('department')) {
+          throw new Error(`指定された部署CD「${data.departmentCd}」が存在しません`);
+        } else if (constraint.includes('role')) {
+          throw new Error(`指定されたロールCD「${data.roleCd}」が存在しません`);
+        }
+        throw new Error('参照先のデータが存在しません');
+      } else if ((error as any).code === '22001') {  // string_data_right_truncation
+        throw new Error('入力データが最大長を超えています');
+      }
+      
+      throw error;  // その他のエラーはそのまま
+    }
+  });
+}
+
+/**
+ * Userを更新
+ * 
+ * @param organizationId 組織ID
+ * @param userId ユーザーID
+ * @param data 更新情報
+ * @param updateUserId 更新者ユーザーID
+ * @returns 更新されたUser（見つからない場合はnull）
+ */
+export async function update(
+  organizationId: string,
+  userId: string,
+  data: {
+    userName?: string;
+    departmentCd?: string | null;
+    roleCd?: string;
+    isActive?: boolean;
+  },
+  updateUserId: string
+): Promise<UserRow | null> {
+  const pgp = getPgp();
+  
+  const updates: string[] = [];
+  const values: any[] = [organizationId, userId];
+  let paramIndex = 3;
+  
+  if (data.userName !== undefined) {
+    updates.push(`user_name = $${paramIndex}`);
+    values.push(data.userName);
+    paramIndex++;
+  }
+  
+  if (data.departmentCd !== undefined) {
+    updates.push(`department_cd = $${paramIndex}`);
+    values.push(data.departmentCd);
+    paramIndex++;
+  }
+  
+  if (data.roleCd !== undefined) {
+    updates.push(`role_cd = $${paramIndex}`);
+    values.push(data.roleCd);
+    paramIndex++;
+  }
+  
+  if (data.isActive !== undefined) {
+    updates.push(`is_active = $${paramIndex}`);
+    values.push(data.isActive);
+    paramIndex++;
+  }
+  
+  if (updates.length === 0) {
+    // 更新対象がない場合は現在のデータを返す
+    return await findById(organizationId, userId);
+  }
+  
+  // update_user_id と update_at は常に更新
+  updates.push(`update_user_id = $${paramIndex}`);
+  values.push(updateUserId);
+  paramIndex++;
+  updates.push(`update_at = NOW()`);
+  
+  const query = `
+    UPDATE organization_user
+    SET ${updates.join(', ')}
+    WHERE organization_id = $1
+      AND user_id = $2
+    RETURNING *
+  `;
+  
+  const result = await pgp.oneOrNone(query, values);
+  
+  if (!result) {
+    return null;
+  }
+  
+  // 更新後のユーザー情報を取得（JOINで全情報を取得）
+  return await findById(organizationId, userId);
+}
+
+/**
+ * Userのアクティブ状態を更新
+ * 
+ * @param organizationId 組織ID
+ * @param userId ユーザーID
+ * @param isActive アクティブ状態
+ * @param updateUserId 更新者ユーザーID
+ * @returns 更新されたUser（見つからない場合はnull）
+ */
+export async function updateStatus(
+  organizationId: string,
+  userId: string,
+  isActive: boolean,
+  updateUserId: string
+): Promise<UserRow | null> {
+  const pgp = getPgp();
+  
+  // 外部SQLファイルを読み込み
+  const query = await loadSqlFile('users/updateStatus.sql');
+  
+  const result = await pgp.oneOrNone(query, [isActive, updateUserId, organizationId, userId]);
+  
+  if (!result) {
+    return null;
+  }
+  
+  // 更新後のユーザー情報を取得（JOINで全情報を取得）
+  return await findById(organizationId, userId);
+}
+
+/**
+ * Userを削除（物理削除）
+ * ※通常はupdateStatusで論理削除を使用することを推奨
+ * 
+ * @param organizationId 組織ID
+ * @param userId ユーザーID
+ * @returns 削除された場合true
+ */
+export async function deleteById(
+  organizationId: string,
+  userId: string
+): Promise<boolean> {
+  const pgp = getPgp();
+  
+  return await pgp.tx(async (t) => {
+    // 1. user_authenticationから削除
+    await t.none(
+      'DELETE FROM user_authentication WHERE organization_id = $1 AND user_id = $2',
+      [organizationId, userId]
+    );
+    
+    // 2. organization_userから削除
+    const result = await t.result(
+      'DELETE FROM organization_user WHERE organization_id = $1 AND user_id = $2',
+      [organizationId, userId]
+    );
+    
+    return (result.rowCount ?? 0) > 0;
+  });
+}

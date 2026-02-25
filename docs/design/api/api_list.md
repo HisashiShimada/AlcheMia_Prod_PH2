@@ -511,6 +511,38 @@
 
 ---
 
+### 15. ユーザー管理API（User Management）
+
+**API設計書**: [api_user_management.md](./api_user_management.md)  
+**ルートファイル**: `backend/src/routes/userRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 15.1 | GET | /api/v1/systemManagement/user | ユーザー一覧取得 | ✅ 実装済み | userController.getUsers |
+| 15.2 | GET | /api/v1/systemManagement/user/:userId | ユーザー詳細取得 | ✅ 実装済み | userController.getUserById |
+| 15.3 | POST | /api/v1/systemManagement/user | ユーザー新規作成 | ✅ 実装済み | userController.createUser |
+| 15.4 | PUT | /api/v1/systemManagement/user/:userId | ユーザー更新 | ✅ 実装済み | userController.updateUser |
+| 15.5 | PATCH | /api/v1/systemManagement/user/:userId/status | アクティブ状態更新 | ✅ 実装済み | userController.updateUserStatus |
+| 15.6 | GET | /api/v1/systemManagement/user/download-csv | CSVダウンロード | ✅ 実装済み | userController.downloadUsersCsv |
+| 15.7 | POST | /api/v1/systemManagement/user/upload-csv | CSVアップロード | ✅ 実装済み | userController.uploadUsersCsv |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`（JWTからorganizationIdを取得）
+- 権限: system_admin
+
+**備考:**
+- ✅ 全エンドポイント実装完了（100%）
+- パスワード管理: bcryptハッシュ化、8文字以上必須
+- 最終ログイン表示: login_historyテーブルから最新ログイン日時を取得
+- CSVダウンロード: パスワード欄は空白で出力
+- CSVアップロード: パスワード必須（user_authenticationテーブルに登録）
+- マルチテナント分離（authMiddlewareがorganization_idを設定）
+- 検索・フィルタリング機能（search, is_active, department_cd, role_cd）
+- ソート機能（sort_by, sort_order）
+- ファイルサイズ制限: 10MB
+
+---
+
 ## 🔍 API検索ガイド
 
 ### API名で検索する
@@ -568,8 +600,9 @@
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
 | 会社管理API | 7 | 7 | 0 | 0 | 100% |
 | ファイルアクセスAPI | 6 | 6 | 0 | 0 | 100% |
-| 組織管理API | 8 | 8 | 0 | 0 | 100% |
-| **合計** | **116** | **104** | **0** | **12** | **90%** |
+| 組織管理API | 9 | 9 | 0 | 0 | 100% |
+| ユーザー管理API | 7 | 7 | 0 | 0 | 100% |
+| **合計** | **122** | **108** | **0** | **14** | **88%** |
 
 ### 優先度別実装状況
 

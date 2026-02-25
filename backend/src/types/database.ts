@@ -211,3 +211,71 @@ export interface ProjectTask {
   /** 更新日時 */
   update_at?: Date;
 }
+
+/**
+ * organization_userテーブルの型定義（JOINデータ含む）
+ * 
+ * @remarks
+ * この型は organization_user テーブルと関連テーブル（department, role）を
+ * JOINした結果に対応しています。
+ * DDL: docs/design/db/ddl/organization_user.sql
+ * 主キー: (organization_id, user_id)
+ */
+export interface User {
+  /** ユーザーID（主キー、メールアドレス） */
+  user_id: string;
+  
+  /** ユーザー名 */
+  user_name: string;
+  
+  /** メールアドレス */
+  mail_address: string;
+  
+  /** 部署CD（外部キー） */
+  department_cd: string | null;
+  
+  /** 部署名（JOIN結果） */
+  department_name: string | null;
+  
+  /** ロールCD（外部キー） */
+  role_cd: string;
+  
+  /** ロール名（JOIN結果） */
+  role_name: string | null;
+  
+  
+  /** アクティブ状態 */
+  is_active: boolean;
+  
+  /** 最終ログイン日時（login_historyテーブルのMAX(login_at)、ログイン成功のみ） */
+  last_login_at?: Date | null;
+  
+  /** 作成日時 */
+  create_at: Date;
+  
+  /** 更新日時 */
+  update_at: Date;
+}
+
+/**
+ * User検索フィルター型定義
+ */
+export interface UserSearchFilters {
+  /** 検索キーワード（ユーザー名、メールアドレス） */
+  search?: string;
+  
+  /** アクティブ状態フィルター */
+  isActive?: boolean;
+  
+  /** 部署CDフィルター */
+  departmentCd?: string;
+  
+  /** ロールCDフィルター */
+  roleCd?: string;
+  
+  /** ソートキー */
+  sortBy?: 'user_id' | 'user_name' | 'update_at';
+  
+  /** ソート順 */
+  sortOrder?: 'asc' | 'desc';
+}
