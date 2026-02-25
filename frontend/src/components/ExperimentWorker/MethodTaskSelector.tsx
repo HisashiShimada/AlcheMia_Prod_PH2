@@ -88,7 +88,7 @@ export default function MethodTaskSelector({
               value={selectedMethodId || undefined}
               onChange={(value) => onSelectMethod(value || null)}
               options={[
-                { label: '-', value: null },
+                { label: '-', value: '' },
                 ...methods.map((method) => ({
                   label: method.methodName,
                   value: method.methodId,

@@ -33,6 +33,8 @@ import type {
   TARGET_TYPES,
 } from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
+import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
+import { getMultipleSelectOptions, type SelectOption } from '@/services/codeMasterApiService';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -118,11 +120,64 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
 }) => {
   const { token } = useToken();
   const [form] = Form.useForm();
+  const { maimlRoot } = useProjectMaiml();
 
   // 状態管理
   const [selectedMethodId, setSelectedMethodId] = useState<string>('');
   const [selectedTaskNumber, setSelectedTaskNumber] = useState<number | undefined>(undefined);
   const [selectedTransitionId, setSelectedTransitionId] = useState<string>('');
+  const [priorityOptions, setPriorityOptions] = useState<SelectOption[]>([]);
+  const [typeOptions, setTypeOptions] = useState<SelectOption[]>([]);
+  const [isLoadingCodeMaster, setIsLoadingCodeMaster] = useState<boolean>(false);
+
+  /**
+   * コードマスタから優先度・タイプを取得
+   */
+  useEffect(() => {
+    const fetchCodeMasterOptions = async () => {
+      try {
+        setIsLoadingCodeMaster(true);
+        const options = await getMultipleSelectOptions([
+          'instruction_priority',
+          'instruction_type'
+        ]);
+        
+        setPriorityOptions(options.instruction_priority || []);
+        setTypeOptions(options.instruction_type || []);
+      } catch (error) {
+        console.error('コードマスタ取得エラー:', error);
+        // フォールバック: 空配列（ハードコードされた値を使用）
+        setPriorityOptions([]);
+        setTypeOptions([]);
+      } finally {
+        setIsLoadingCodeMaster(false);
+      }
+    };
+
+    fetchCodeMasterOptions();
+  }, []);
+
+  /**
+   * メソッド選択時にトランジションを動的にフィルタリング
+   */
+  const filteredTransitions = React.useMemo((): TransitionInfo[] => {
+    if (!selectedMethodId || !maimlRoot?.protocol?.methods) {
+      return [];
+    }
+    
+    const method = maimlRoot.protocol.methods.find(m => m.id === selectedMethodId);
+    if (!method?.pnml?.transitions) {
+      return [];
+    }
+    
+    return method.pnml.transitions.map((transition) => ({
+      id: transition.id,
+      displayName: transition.name || transition.id,
+      category: 'other',
+      description: transition.description,
+      isExperimentRelevant: true,
+    }));
+  }, [selectedMethodId, maimlRoot]);
 
   /**
    * ダイアログが開かれたときの初期化
@@ -176,9 +231,16 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   }, [form]);
 
   /**
-   * 選択されたタスクの情報を取得
+   * 選択されたメソッドに対応するタスク一覧を取得
    */
-  const selectedTask = tasks.find(t => t.methodId === selectedMethodId);
+  const methodTasks = React.useMemo(() => {
+    return tasks.filter(t => t.methodId === selectedMethodId);
+  }, [tasks, selectedMethodId]);
+
+  /**
+   * 選択されたタスクの情報を取得（最初のタスクを使用）
+   */
+  const selectedTask = methodTasks.length > 0 ? methodTasks[0] : undefined;
 
   /**
    * 選択されたメソッド情報を取得
@@ -188,7 +250,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   /**
    * 選択されたトランジション情報を取得
    */
-  const selectedTransition = availableTransitions.find(t => t.id === selectedTransitionId);
+  const selectedTransition = filteredTransitions.find(t => t.id === selectedTransitionId);
 
   /**
    * 保存ハンドラ（共通処理）
@@ -375,11 +437,26 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
             label="優先度"
             rules={[{ required: true, message: '優先度を選択してください' }]}
           >
-            <Select style={{ width: '100%' }} disabled={isSentInstruction}>
-              <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.HIGH}>高</Select.Option>
-              <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.MEDIUM}>中</Select.Option>
-              <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.NORMAL}>通常</Select.Option>
-              <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.LOW}>低</Select.Option>
+            <Select 
+              style={{ width: '100%' }} 
+              disabled={isSentInstruction}
+              loading={isLoadingCodeMaster}
+            >
+              {priorityOptions.length > 0 ? (
+                priorityOptions.map((option) => (
+                  <Select.Option key={option.value} value={option.value}>
+                    {option.label}
+                  </Select.Option>
+                ))
+              ) : (
+                // フォールバック: ハードコードされた値
+                <>
+                  <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.HIGH}>高</Select.Option>
+                  <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.MEDIUM}>中</Select.Option>
+                  <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.NORMAL}>通常</Select.Option>
+                  <Select.Option value={INSTRUCTION_PRIORITIES_LOCAL.LOW}>低</Select.Option>
+                </>
+              )}
             </Select>
           </Form.Item>
 
@@ -389,12 +466,27 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
             label="タイプ"
             rules={[{ required: true, message: 'タイプを選択してください' }]}
           >
-            <Select style={{ width: '100%' }} disabled={isSentInstruction}>
-              <Select.Option value={INSTRUCTION_TYPES_LOCAL.GENERAL}>一般</Select.Option>
-              <Select.Option value={INSTRUCTION_TYPES_LOCAL.SETUP}>セットアップ</Select.Option>
-              <Select.Option value={INSTRUCTION_TYPES_LOCAL.MEASUREMENT}>測定</Select.Option>
-              <Select.Option value={INSTRUCTION_TYPES_LOCAL.SAFETY}>安全</Select.Option>
-              <Select.Option value={INSTRUCTION_TYPES_LOCAL.CLEANUP}>清掃</Select.Option>
+            <Select 
+              style={{ width: '100%' }} 
+              disabled={isSentInstruction}
+              loading={isLoadingCodeMaster}
+            >
+              {typeOptions.length > 0 ? (
+                typeOptions.map((option) => (
+                  <Select.Option key={option.value} value={option.value}>
+                    {option.label}
+                  </Select.Option>
+                ))
+              ) : (
+                // フォールバック: ハードコードされた値
+                <>
+                  <Select.Option value={INSTRUCTION_TYPES_LOCAL.GENERAL}>一般</Select.Option>
+                  <Select.Option value={INSTRUCTION_TYPES_LOCAL.SETUP}>セットアップ</Select.Option>
+                  <Select.Option value={INSTRUCTION_TYPES_LOCAL.MEASUREMENT}>測定</Select.Option>
+                  <Select.Option value={INSTRUCTION_TYPES_LOCAL.SAFETY}>安全</Select.Option>
+                  <Select.Option value={INSTRUCTION_TYPES_LOCAL.CLEANUP}>清掃</Select.Option>
+                </>
+              )}
             </Select>
           </Form.Item>
 
@@ -427,7 +519,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               onChange={(value) => setSelectedTransitionId(value)}
               allowClear
             >
-              {availableTransitions.map((transition) => (
+              {filteredTransitions.map((transition) => (
                 <Select.Option key={transition.id} value={transition.id}>
                   {transition.isExperimentRelevant && '⭐ '}
                   {transition.displayName}

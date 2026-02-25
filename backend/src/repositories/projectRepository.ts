@@ -225,15 +225,15 @@ export async function findProjectIdByName(
   console.log('organizationId:', organizationId);
   console.log('projectName:', projectName);
   
-  // 外部SQLファイルを読み込み（既存のfindByName.sqlを活用）
-  const sqlQuery = await loadSqlFile('projects/findByName.sql');
+  // 外部SQLファイルを読み込み（新規作成のfindIdByName.sqlを使用）
+  const sqlQuery = await loadSqlFile('projects/findIdByName.sql');
   
-  console.log('Executing SQL query from file: projects/findByName.sql');
-  console.log('With params:', [projectName, organizationId]);
+  console.log('Executing SQL query from file: projects/findIdByName.sql');
+  console.log('With params:', [organizationId, projectName]);
   
   try {
-    // findByName.sqlはprojectName, organizationIdの順なので注意
-    const result = await pgp.oneOrNone<ProjectRow>(sqlQuery, [projectName, organizationId]);
+    // findIdByName.sqlはorganizationId, projectNameの順
+    const result = await pgp.oneOrNone<ProjectRow>(sqlQuery, [organizationId, projectName]);
     console.log('Query executed successfully, result:', result ? 'found' : 'not found');
     return result;
   } catch (error) {

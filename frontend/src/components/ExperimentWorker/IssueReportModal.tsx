@@ -163,7 +163,7 @@ export default function IssueReportModal({
       onCancel={handleCancel}
       footer={null}
       width={600}
-      destroyOnClose
+      destroyOnHidden
     >
       {/* タスク情報表示 */}
       {task && (
@@ -175,7 +175,7 @@ export default function IssueReportModal({
             marginBottom: '24px',
           }}
         >
-          <Space direction="vertical" size={4} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={4} style={{ width: '100%' }}>
             <Text strong style={{ fontSize: '14px' }}>
               メソッド: {task.methodName}
             </Text>

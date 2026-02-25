@@ -317,7 +317,7 @@ export default function IssueManagementModal({
             title="問題一覧"
             size="small"
             style={{ height: 'calc(70vh - 100px)' }}
-            bodyStyle={{ padding: 12, overflow: 'auto', height: 'calc(100% - 38px)' }}
+            styles={{ body: { padding: 12, overflow: 'auto', height: 'calc(100% - 38px)' } }}
           >
             {/* フィルタUI */}
             <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 12 }}>
@@ -373,7 +373,7 @@ export default function IssueManagementModal({
             title={showNewIssueForm ? '新規問題報告' : '問題詳細'}
             size="small"
             style={{ height: 'calc(70vh - 100px)' }}
-            bodyStyle={{ padding: 16, overflow: 'auto', height: 'calc(100% - 38px)' }}
+            styles={{ body: { padding: 16, overflow: 'auto', height: 'calc(100% - 38px)' } }}
           >
             {/* 新規問題報告フォーム */}
             {showNewIssueForm && (

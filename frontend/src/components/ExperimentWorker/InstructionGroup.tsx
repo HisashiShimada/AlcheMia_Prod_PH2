@@ -12,6 +12,8 @@ interface InstructionGroupProps {
   emoji: string;
   projectStatus: ProjectStatus | null;
   isClient: boolean;
+  onConfirmInstructions?: (instructions: Instruction[]) => void;
+  confirmLoading?: boolean;
 }
 
 // アイコン
@@ -39,6 +41,8 @@ export default function InstructionGroup({
   emoji,
   projectStatus,
   isClient,
+  onConfirmInstructions,
+  confirmLoading,
 }: InstructionGroupProps) {
   const { token } = theme.useToken();
 
@@ -103,15 +107,6 @@ export default function InstructionGroup({
     return groups;
   };
 
-  // 確認完了ボタンのクリックハンドラ
-  const handleConfirmation = (groupType: string, targetName?: string) => {
-    if (targetName) {
-      alert(`${targetName}の確認完了（モック）`);
-    } else {
-      alert(`${groupType}の確認完了（モック）`);
-    }
-  };
-
   // プロジェクト指示の場合（カードなしで表示）
   if (title === 'プロジェクト指示' || title === '全体指示') {
     return (
@@ -121,7 +116,7 @@ export default function InstructionGroup({
             <Empty description={noDataMessages[title] || '作業指示がありません'} />
           </Card>
         ) : (
-          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
             {groupInstructions.map((instruction) => (
               <InstructionCard
                 key={instruction.instructionId}
@@ -153,7 +148,7 @@ export default function InstructionGroup({
 
     return (
       <div style={{ marginBottom: 32 }}>
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={8} style={{ width: '100%' }}>
           {taskIds.map((taskId) => {
             const taskInstructions = taskGroups[taskId];
             const taskName = taskInstructions[0]?.taskName || `タスク ${taskId}`;
@@ -209,14 +204,19 @@ export default function InstructionGroup({
                   </div>
                   
                   {/* 確認完了ボタン（展開時のみ表示） */}
-                  {isExpanded && (
+                  {isExpanded && onConfirmInstructions && (
                     <Button
                       type="primary"
                       icon={<CheckCircleOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleConfirmation('タスク単位指示', taskName);
+                        onConfirmInstructions(taskInstructions);
                       }}
+                      loading={confirmLoading}
+                      disabled={
+                        confirmLoading || 
+                        taskInstructions.every((i) => i.isAcknowledged)
+                      }
                       style={{ 
                         backgroundColor: token.colorSuccess, 
                         borderColor: token.colorSuccess 
@@ -229,7 +229,7 @@ export default function InstructionGroup({
 
                 {/* 展開時のみ指示カードを表示 */}
                 {isExpanded && (
-                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+                  <Space orientation="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
                     {taskInstructions.map((instruction) => (
                       <InstructionCard
                         key={instruction.instructionId}
@@ -265,7 +265,7 @@ export default function InstructionGroup({
 
     return (
       <div style={{ marginBottom: 32 }}>
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={8} style={{ width: '100%' }}>
           {methodIds.map((methodId) => {
             const methodInstructions = methodGroups[methodId];
             const methodName = methodInstructions[0]?.methodName || `メソッド ${methodId}`;
@@ -321,14 +321,19 @@ export default function InstructionGroup({
                   </div>
                   
                   {/* 確認完了ボタン（展開時のみ表示） */}
-                  {isExpanded && (
+                  {isExpanded && onConfirmInstructions && (
                     <Button
                       type="primary"
                       icon={<CheckCircleOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleConfirmation('メソッド単位指示', methodName);
+                        onConfirmInstructions(methodInstructions);
                       }}
+                      loading={confirmLoading}
+                      disabled={
+                        confirmLoading || 
+                        methodInstructions.every((i) => i.isAcknowledged)
+                      }
                       style={{ 
                         backgroundColor: token.colorSuccess, 
                         borderColor: token.colorSuccess 
@@ -341,7 +346,7 @@ export default function InstructionGroup({
 
                 {/* 展開時のみ指示カードを表示 */}
                 {isExpanded && (
-                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+                  <Space orientation="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
                     {methodInstructions.map((instruction) => (
                       <InstructionCard
                         key={instruction.instructionId}
@@ -377,7 +382,7 @@ export default function InstructionGroup({
 
     return (
       <div style={{ marginBottom: 32 }}>
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={8} style={{ width: '100%' }}>
           {transitionIds.map((transitionId) => {
             const transitionInstructions = transitionGroups[transitionId];
             const transitionName = transitionInstructions[0]?.transitionName || `トランジション ${transitionId}`;
@@ -432,15 +437,20 @@ export default function InstructionGroup({
                     </Title>
                   </div>
                   
-                  {/* 確認完了ボタン（常に表示） */}
-                  {isExpanded && (
+                  {/* 確認完了ボタン（展開時のみ表示） */}
+                  {isExpanded && onConfirmInstructions && (
                     <Button
                       type="primary"
                       icon={<CheckCircleOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleConfirmation('トランジション単位指示', transitionName);
+                        onConfirmInstructions(transitionInstructions);
                       }}
+                      loading={confirmLoading}
+                      disabled={
+                        confirmLoading || 
+                        transitionInstructions.every((i) => i.isAcknowledged)
+                      }
                       style={{ 
                         backgroundColor: token.colorSuccess, 
                         borderColor: token.colorSuccess 
@@ -453,7 +463,7 @@ export default function InstructionGroup({
 
                 {/* 展開時のみ指示カードを表示 */}
                 {isExpanded && (
-                  <Space direction="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+                  <Space orientation="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
                     {transitionInstructions.map((instruction) => (
                       <InstructionCard
                         key={instruction.instructionId}

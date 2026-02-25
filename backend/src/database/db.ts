@@ -3,8 +3,18 @@
  * PostgreSQL接続プールの管理
  */
 
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 import pgPromise from 'pg-promise';
+
+// PostgreSQLの数値型を自動的にJavaScriptのnumberに変換する設定
+// OID 21: SMALLINT (INT2)
+// OID 23: INTEGER (INT4)
+// OID 20: BIGINT (INT8)
+// OID 1700: NUMERIC
+types.setTypeParser(21, (val: string) => parseInt(val, 10)); // SMALLINT
+types.setTypeParser(23, (val: string) => parseInt(val, 10)); // INTEGER
+types.setTypeParser(20, (val: string) => parseInt(val, 10)); // BIGINT
+types.setTypeParser(1700, (val: string) => parseFloat(val)); // NUMERIC
 
 let pool: Pool | null = null;
 let pgp: pgPromise.IDatabase<any> | null = null;

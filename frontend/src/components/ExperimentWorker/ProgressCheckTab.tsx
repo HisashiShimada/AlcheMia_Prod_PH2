@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
-import { Card, Space, Button, Typography, message, Tabs, theme, Badge } from 'antd';
+import { Card, Space, Button, Typography, Tabs, theme, Badge, App } from 'antd';
 import { RightOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import type { BadgeProps } from 'antd';
 import ProgressCheckTable from './ProgressCheckTable';
@@ -44,6 +44,9 @@ export default function ProgressCheckTab({
 }: ProgressCheckTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
+  
+  // Ant Design App コンテキストからmessageを取得
+  const { message } = App.useApp();
   
   // API連携の状態管理
   const [loading, setLoading] = useState<boolean>(false);
@@ -787,7 +790,7 @@ export default function ProgressCheckTab({
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+          <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
             <div className="ant-spin ant-spin-spinning">
               <span className="ant-spin-dot ant-spin-dot-spin">
                 <i className="ant-spin-dot-item"></i>
@@ -808,7 +811,7 @@ export default function ProgressCheckTab({
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+          <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
             <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
               <CheckSquareOutlined style={{ marginRight: token.marginXS }} />
@@ -826,7 +829,7 @@ export default function ProgressCheckTab({
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
           }}
         >
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
+          <Space orientation="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
             <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
             <Title level={3} type="secondary">
               メソッドが見つかりません
@@ -842,7 +845,7 @@ export default function ProgressCheckTab({
             borderRadius: '8px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
           }}
-          bodyStyle={{ padding: 0 }}
+          styles={{ body: { padding: 0 } }}
         >
           {/* メソッドタブ */}
           <Tabs

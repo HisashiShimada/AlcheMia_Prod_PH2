@@ -10,27 +10,28 @@
  *   - ORDER BY: pi.create_at DESC
  */
 SELECT 
-  pi.id,
+  pi.experiment_instruction_id as id,
   pi.project_id,
   p.project_name,
   pi.method_id,
   pi.transition_id,
   pi.task_no,
   pi.instruction_target,
-  pi.instructions,
+  pi.instructions as instruction_content,
   pi.priority,
   pi.type,
   pi.create_at,
-  pi.created_by,
-  ua.user_name as created_by_name,
+  pi.create_user_id as created_by,
+  ou.user_name as created_by_name,
   CASE 
-    WHEN iah.history_id IS NOT NULL THEN true 
+    WHEN iah.experiment_user_id IS NOT NULL THEN true 
     ELSE false 
   END as is_acknowledged
 FROM project_instruction pi
-INNER JOIN project p ON p.id = pi.project_id
-LEFT JOIN user_authentication ua ON ua.user_id = pi.created_by
+INNER JOIN project p ON p.project_id = pi.project_id AND p.organization_id = pi.organization_id
+LEFT JOIN organization_user ou ON ou.user_id = pi.create_user_id AND ou.organization_id = pi.organization_id
 LEFT JOIN instruction_acknowledged_history iah 
-  ON iah.instruction_id = pi.id
+  ON iah.experiment_instruction_id = pi.experiment_instruction_id
   AND iah.organization_id = pi.organization_id
-  AND iah.acknowledged_user_id = $1
+  AND iah.project_id = pi.project_id
+  AND iah.experiment_user_id = $1

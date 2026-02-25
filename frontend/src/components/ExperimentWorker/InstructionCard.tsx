@@ -40,7 +40,7 @@ export default function InstructionCard({
         },
       }}
     >
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%' }}>
         {/* 優先度・タイプと日付を横並びに配置 */}
         <Flex justify="space-between" align="center">
           <Space size="small" wrap>
