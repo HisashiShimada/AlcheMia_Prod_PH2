@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, Space, Typography, theme, Button, Empty, message } from 'antd';
 import { 
   ExperimentOutlined, 
@@ -16,7 +16,7 @@ import IssueManagementModal from './IssueManagementModal';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
 import { getIssues, createIssue, addComment } from '@/services/issueApiService';
-import { Method, ProjectStatus, Transition, Issue, IssueReportFormData, Task } from '@/types/experimentWorker';
+import { Method, ProjectStatus, ProgressStatus, Transition, Issue, IssueReportFormData, Task, ExperimentDataValue } from '@/types/experimentWorker';
 import { getWorkerTasks, getProjectDetail } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { createApiClient } from '@/utils/authUtils';
@@ -82,7 +82,7 @@ export default function ExperimentRecordTab({
   const [methods, setMethods] = useState<Method[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
-  const [progressData, setProgressData] = useState<any[]>([]);
+  const [progressData, setProgressData] = useState<Record<string, unknown>[]>([]);
   
   // プロジェクトのステータス（APIから取得）
   const [projectStatus, setProjectStatus] = useState<ProjectStatus | null>(null);
@@ -239,57 +239,59 @@ export default function ExperimentRecordTab({
     return tasks.filter(task => task.methodId === selectedMethodId);
   }, [tasks, selectedMethodId]);
 
+  /**
+   * 進捗データを取得してstateを更新する
+   * handleDataSave からも呼び出せるよう useCallback で定義
+   */
+  const fetchProgress = useCallback(async () => {
+    if (!selectedProjectName || !selectedMethodId || !selectedTaskId) {
+      setProgressData([]);
+      return;
+    }
+
+    // selectedTaskIdからtaskNoを抽出（形式: projectId-methodId-taskNo）
+    const parts = selectedTaskId.split('-');
+    const taskNo = parts.length > 2 ? parseInt(parts[2], 10) : null;
+
+    if (taskNo === null || isNaN(taskNo)) {
+      console.error('[DEBUG] ExperimentRecordTab - Invalid taskNo', { selectedTaskId });
+      setProgressData([]);
+      return;
+    }
+
+    try {
+      console.log('[DEBUG] ExperimentRecordTab - Fetching progress data', {
+        selectedProjectName,
+        selectedMethodId,
+        taskNo,
+      });
+
+      // GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
+      const client = createApiClient();
+      const response = await client.get(
+        `/progress/projects/${encodeURIComponent(selectedProjectName)}/methods/${encodeURIComponent(selectedMethodId)}/tasks/${taskNo}/transitions`
+      );
+
+      if (response.data.success && response.data.data && response.data.data.transitions) {
+        console.log('[DEBUG] ExperimentRecordTab - Progress data fetched', {
+          count: response.data.data.transitions.length,
+        });
+        setProgressData(response.data.data.transitions);
+      } else {
+        console.warn('[DEBUG] ExperimentRecordTab - Invalid response structure', response.data);
+        setProgressData([]);
+      }
+    } catch (error) {
+      console.error('[DEBUG] ExperimentRecordTab - Error fetching progress', error);
+      // エラー時は空配列を設定（デフォルト値で表示）
+      setProgressData([]);
+    }
+  }, [selectedProjectName, selectedMethodId, selectedTaskId]);
+
   // タスク選択時に進捗データを取得
   useEffect(() => {
-    const fetchProgress = async () => {
-      if (!selectedProjectName || !selectedMethodId || !selectedTaskId) {
-        setProgressData([]);
-        return;
-      }
-
-      // selectedTaskIdからtaskNoを抽出（形式: projectId-methodId-taskNo）
-      const parts = selectedTaskId.split('-');
-      const taskNo = parts.length > 2 ? parseInt(parts[2], 10) : null;
-
-      if (taskNo === null || isNaN(taskNo)) {
-        console.error('[DEBUG] ExperimentRecordTab - Invalid taskNo', { selectedTaskId });
-        setProgressData([]);
-        return;
-      }
-
-      try {
-        console.log('[DEBUG] ExperimentRecordTab - Fetching progress data', {
-          selectedProjectName,
-          selectedMethodId,
-          taskNo,
-        });
-
-        // 既存のProgress APIを呼び出し
-        // GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
-        const client = createApiClient();
-        const response = await client.get(
-          `/progress/projects/${encodeURIComponent(selectedProjectName)}/methods/${encodeURIComponent(selectedMethodId)}/tasks/${taskNo}/transitions`
-        );
-
-        if (response.data.success && response.data.data && response.data.data.transitions) {
-          console.log('[DEBUG] ExperimentRecordTab - Progress data fetched', {
-            count: response.data.data.transitions.length,
-          });
-          
-          setProgressData(response.data.data.transitions);
-        } else {
-          console.warn('[DEBUG] ExperimentRecordTab - Invalid response structure', response.data);
-          setProgressData([]);
-        }
-      } catch (error) {
-        console.error('[DEBUG] ExperimentRecordTab - Error fetching progress', error);
-        // エラー時は空配列を設定（デフォルト値で表示）
-        setProgressData([]);
-      }
-    };
-
     fetchProgress();
-  }, [selectedProjectName, selectedMethodId, selectedTaskId]);
+  }, [fetchProgress]);
 
   // プロジェクトの状態が記録可能かどうか
   // executing_task（作業中）のみ記録可能
@@ -354,12 +356,17 @@ export default function ExperimentRecordTab({
     setSelectedTransition(null);
   };
 
-  // データ保存ハンドラ
-  const handleDataSave = (data: unknown) => {
-    console.log('保存されたデータ:', data);
-    // TODO: バックエンドAPIへの保存処理を実装
+  /**
+   * データ保存コールバック（DataRecordDialog の onSave から呼ばれる）
+   * ※ 実際のAPI呼び出しは DataRecordDialog.handleSaveTemplate 内で完結している
+   */
+  const handleDataSave = (_data: ExperimentDataValue[]) => {
+    // モーダルを閉じ、選択状態をリセット
     setDataRecordModalOpen(false);
     setSelectedTransition(null);
+
+    // 保存後に進捗データを再取得してトランジション一覧を最新状態に更新
+    fetchProgress();
   };
   
   // 新規問題報告送信ハンドラ
@@ -466,8 +473,8 @@ export default function ExperimentRecordTab({
         // APIレスポンスのstatusは既に文字列（'not_started' | 'in_progress' | 'completed'）
         return {
           ...transition,
-          status: progress.status || 'not_started',
-          progressRate: progress.progress ?? 0,
+          status: ((progress.status as string) || 'not_started') as ProgressStatus,
+          progressRate: (progress.progress as number) ?? 0,
           inputMaterialsCount: 0, // TODO: 将来的にAPI追加
           inputIngredientsCount: 0, // TODO: 将来的にAPI追加
           inputResultsCount: 0, // TODO: 将来的にAPI追加
