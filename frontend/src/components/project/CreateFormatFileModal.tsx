@@ -25,7 +25,6 @@ export interface CreateFormatFileData {
   formatName: string;
   fileType: 'xml' | 'maiml';
   templateType?: 'material' | 'condition' | 'result';
-  description: string;
   createdBy: string;
   createdByName: string;
 }
@@ -110,7 +109,6 @@ export default function CreateFormatFileModal({
         formatName: formatName || '',
         fileType: fileType || 'xml',
         templateType: templateType,
-        description: values.description || '',
         createdBy: createdBy,
         createdByName: createdByName,
       };
@@ -253,26 +251,6 @@ export default function CreateFormatFileModal({
                 style={{ width: 80, textAlign: 'center' }}
               />
             </Space.Compact>
-          </Form.Item>
-
-          {/* 概要 */}
-          <Form.Item
-            name="description"
-            label={t('formatManagement.create.description') || '概要'}
-            extra={t('formatManagement.create.descriptionExtra') || 'ファイルの目的や内容を記述してください'}
-            rules={[
-              {
-                max: 500,
-                message: t('formatManagement.create.descriptionMaxLength') || '概要は500文字以内で入力してください',
-              },
-            ]}
-          >
-            <Input.TextArea
-              placeholder={t('formatManagement.create.descriptionPlaceholder') || 'ファイルの概要を入力（オプション）'}
-              maxLength={500}
-              showCount
-              rows={4}
-            />
           </Form.Item>
         </Form>
       </Space>

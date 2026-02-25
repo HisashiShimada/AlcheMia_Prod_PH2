@@ -1,13 +1,12 @@
 import { getStorageService } from './storageService';
-import { FormatFolder, FormatFile, FileTypeFilter } from '../types/format';
+import { FormatFolder, FormatFile } from '../types/format';
 
 /**
  * フォーマットフォルダ一覧を取得
  */
 export async function getFormatFolders(
   organizationId: string,
-  departmentCd: string,
-  fileTypeFilter?: FileTypeFilter
+  departmentCd: string
 ): Promise<FormatFolder[]> {
   const storageService = getStorageService();
 
@@ -89,14 +88,8 @@ export async function getFormatFolders(
       })
     );
 
-    // 4. ファイルタイプでフィルタリング
-    let filteredFolders = folders;
-    if (fileTypeFilter && fileTypeFilter !== 'all') {
-      filteredFolders = folders.filter((f) => f.fileType === fileTypeFilter);
-    }
-
-    // 5. ソート（material, condition, result を先頭、その後は名前順）
-    filteredFolders.sort((a, b) => {
+    // 4. ソート（material, condition, result を先頭、その後は名前順）
+    folders.sort((a, b) => {
       // 優先順位を定義
       const priorityOrder: Record<string, number> = {
         'material': 1,
@@ -116,7 +109,7 @@ export async function getFormatFolders(
       return a.name.localeCompare(b.name);
     });
 
-    return filteredFolders;
+    return folders;
   } catch (error) {
     console.error('Failed to get format folders:', error);
     throw new Error('フォーマットフォルダ一覧の取得に失敗しました');
@@ -140,21 +133,8 @@ export async function getFormatFiles(
       ? `formats/${departmentCd}/${folderName}/${subPath}`
       : `formats/${departmentCd}/${folderName}`;
 
-    console.log('[formatService] getFormatFiles called:', {
-      organizationId,
-      departmentCd,
-      folderName,
-      subPath,
-      basePath,
-    });
-
     // S3からファイル一覧を取得
     const allItems = await storageService.listFiles(organizationId, basePath);
-
-    console.log('[formatService] listFiles result:', {
-      itemCount: allItems.length,
-      sampleItems: allItems.slice(0, 5).map(item => item.key),
-    });
 
     // ファイルとフォルダを抽出
     const filesAndFolders: FormatFile[] = [];
@@ -230,12 +210,6 @@ export async function getFormatFiles(
       return a.name.localeCompare(b.name);
     });
 
-    console.log('[formatService] Extracted files and folders:', {
-      count: filesAndFolders.length,
-      folders: filesAndFolders.filter(f => f.isFolder).length,
-      files: filesAndFolders.filter(f => !f.isFolder).length,
-    });
-
     return filesAndFolders;
   } catch (error) {
     console.error('Failed to get format files:', error);
@@ -294,14 +268,6 @@ export async function createFormatFolder(
     // 3. フォルダパスを生成
     const folderPath = `formats/${departmentCd}/${folderName}`;
     const fullPath = `${organizationId}/${folderPath}`;
-
-    console.log('[formatService] createFormatFolder:', {
-      organizationId,
-      departmentCd,
-      folderName,
-      folderPath,
-      fullPath,
-    });
 
     // 4. Swiftに空のフォルダを作成（ディレクトリマーカー）
     // Cyberduckと同じ方式: 末尾にスラッシュを付けた0バイトのオブジェクト
@@ -420,17 +386,6 @@ export async function createFormatSubfolder(
 
     const fullSwiftPath = `${organizationId}/${fullFormatPath}`;
 
-    console.log('[formatService] createFormatSubfolder:', {
-      organizationId,
-      departmentCd,
-      formatName,
-      subfolderName,
-      parentPath,
-      folderPath,
-      fullFormatPath,
-      fullSwiftPath,
-    });
-
     // 6. Swiftに空のフォルダマーカーを作成
     const directoryMarker = `${fullFormatPath}/`; // 末尾にスラッシュ
     try {
@@ -465,20 +420,14 @@ export async function createFormatSubfolder(
  * @param organizationId 組織ID
  * @param departmentCd 部門コード
  * @param folderName フォーマットフォルダ名
- * @param fileName ファイル名（拡張子なし）
- * @param fileType ファイルタイプ（'xml' | 'maiml'）
- * @param templateType テンプレートタイプ（'material' | 'condition' | 'result'、xmlの場合のみ）
- * @param description 概要（オプション）
+ * @param fileName ファイル名（拡張子を含む。例: "test.xml", "workflow.maiml"）
  * @returns 作成されたファイル情報
  */
 export async function createFormatFile(
   organizationId: string,
   departmentCd: string,
   folderName: string,
-  fileName: string,
-  fileType: 'xml' | 'maiml',
-  templateType?: 'material' | 'condition' | 'result',
-  description?: string
+  fileName: string
 ): Promise<{
   filePath: string;
   fileName: string;
@@ -487,58 +436,33 @@ export async function createFormatFile(
   createdAt: string;
 }> {
   const storageService = getStorageService();
-  
-  // formatFileUtilsをimport
-  const { generateDefaultXmlContent, generateDefaultMaimlContent, sanitizeFileName } = await import('../utils/formatFileUtils');
 
   try {
-    // 1. ファイル名のサニタイゼーション
-    const sanitizedFileName = sanitizeFileName(fileName);
-
-    // 2. ファイルパスの構築
-    let filePath: string;
-    const extension = fileType === 'xml' ? '.xml' : '.maiml';
-    const fullFileName = `${sanitizedFileName}${extension}`;
-
-    if (fileType === 'xml' && templateType) {
-      // XMLファイルの場合、templateTypeに応じたフォルダに配置
-      filePath = `formats/${departmentCd}/${templateType}/${fullFileName}`;
-    } else {
-      // MAIMLファイルの場合、folderNameの配下に配置
-      filePath = `formats/${departmentCd}/${folderName}/${fullFileName}`;
+    // 1. ファイル名から拡張子を判定
+    const fileExtension = fileName.split('.').pop()?.toLowerCase();
+    if (!fileExtension || !['xml', 'maiml'].includes(fileExtension)) {
+      throw new Error('ファイル名は.xmlまたは.maimlで終わる必要があります');
     }
+    const fileType = fileExtension as 'xml' | 'maiml';
 
-    console.log('[formatService] createFormatFile:', {
-      organizationId,
-      departmentCd,
-      folderName,
-      fileName,
-      sanitizedFileName,
-      fileType,
-      templateType,
-      filePath,
-    });
+    // 2. ファイル名のサニタイゼーション（拡張子を除く）
+    const fileNameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'));
+    const sanitizedFileName = sanitizeFileName(fileNameWithoutExt);
+    const fullFileName = `${sanitizedFileName}.${fileExtension}`;
 
-    // 3. ファイルの重複チェック
+    // 3. ファイルパスの構築（folderName配下に配置）
+    const filePath = `formats/${departmentCd}/${folderName}/${fullFileName}`;
+
+    // 4. ファイルの重複チェック
     const exists = await storageService.fileExists(organizationId, filePath);
     if (exists) {
       throw new Error('同じ名前のファイルが既に存在します');
     }
 
-    // 4. ファイルコンテンツの生成
-    let content: string;
+    // 5. 空のファイルコンテンツを生成
+    const content = '';
 
-    if (fileType === 'xml' && templateType) {
-      // XMLファイル: デフォルトXMLコンテンツを生成
-      content = generateDefaultXmlContent(templateType, sanitizedFileName, description);
-    } else if (fileType === 'maiml') {
-      // MAIMLファイル: デフォルトMAIMLコンテンツを生成
-      content = generateDefaultMaimlContent(sanitizedFileName, description);
-    } else {
-      throw new Error('無効なファイルタイプです');
-    }
-
-    // 5. S3へアップロード
+    // 6. S3へアップロード
     await storageService.uploadFile(
       organizationId,
       filePath,
@@ -548,8 +472,8 @@ export async function createFormatFile(
 
     console.log('[formatService] File upload success:', filePath);
 
-    // 6. レスポンスを返す
-    const fileSize = Buffer.from(content, 'utf-8').length;
+    // 7. レスポンスを返す
+    const fileSize = 0; // 空のファイル
 
     return {
       filePath,
@@ -562,6 +486,19 @@ export async function createFormatFile(
     console.error('[formatService] Failed to create format file:', error);
     throw error;
   }
+}
+
+/**
+ * ファイル名をサニタイズ
+ * 不正な文字を_に変換
+ * 
+ * @param fileName サニタイズするファイル名
+ * @returns サニタイズされたファイル名
+ */
+function sanitizeFileName(fileName: string): string {
+  return fileName
+    .replace(/\s+/g, '_')          // スペースを_に変換
+    .replace(/[^a-zA-Z0-9_-]/g, '_'); // 英数字・_・-以外を_に変換
 }
 
 export const formatService = {

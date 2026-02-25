@@ -8,16 +8,9 @@
 
 import type { ApiResponse } from '@/types/api';
 import type { ProjectListResponse, ProjectDetailResponse, Project } from '@/types/project';
-import type { 
-  FormatListResponse, 
-  FormatDetailResponse, 
-  Format,
-  FormatFile,
-  CreateFormatFileRequest,
-  CreateFormatFileResponse,
-  FileInfo
-} from '@/types/format';
+import type { FormatListResponse, FormatDetailResponse, Format } from '@/types/format';
 import type { ProjectFile } from '@/types/file';
+import type { FormatFile } from '@/types/format';
 
 /**
  * マスタデータアイテムの型定義
@@ -38,6 +31,37 @@ export interface MasterDataResponse {
   data: {
     items: MasterDataItem[];
   };
+}
+
+/**
+ * フォーマットファイル作成リクエストの型定義
+ */
+export interface CreateFormatFileRequest {
+  fileName: string;
+  fileType: 'xml' | 'maiml';
+  templateType?: 'material' | 'condition' | 'result';
+  description?: string;
+}
+
+/**
+ * フォーマットファイル作成レスポンスの型定義
+ */
+export interface CreateFormatFileResponse {
+  filePath: string;
+  fileName: string;
+  fileType: string;
+  size: number;
+  createdAt: string;
+}
+
+/**
+ * ファイル情報の型定義
+ */
+export interface FileInfo {
+  key: string;
+  name: string;
+  size?: number;
+  lastModified?: string;
 }
 
 // データソースのインポート（内部実装として一時的にモックJSONを使用）
@@ -112,6 +136,56 @@ export async function fetchProjectById(projectId: string): Promise<ApiResponse<P
     console.error('fetchProjectById error:', error);
     throw error;
   }
+}
+
+/**
+ * フォーマット詳細を取得
+ */
+export async function fetchFormatById(formatId: string): Promise<ApiResponse<FormatDetailResponse>> {
+  await simulateApiDelay();
+  
+  const format = (formatsData.folders as unknown as Format[]).find((f) => f.id === formatId);
+  
+  if (!format) {
+    throw new Error(`フォーマットが見つかりません: ${formatId}`);
+  }
+  
+  return {
+    success: true,
+    data: {
+      format,
+    },
+    meta: {
+      timestamp: new Date().toISOString(),
+      requestId: 'mock-request-id',
+    },
+  };
+}
+
+/**
+ * プロジェクトのファイル一覧を取得
+ */
+export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>> {
+  await simulateApiDelay();
+  
+  const allFiles = filesData.files as Record<string, { root: ProjectFile[]; archive?: ProjectFile[] }>;
+  const projectFiles = allFiles[projectId];
+  
+  if (!projectFiles) {
+    throw new Error(`プロジェクトのファイルが見つかりません: ${projectId}`);
+  }
+  
+  return {
+    success: true,
+    data: {
+      files: projectFiles.root || [],
+      archiveFiles: projectFiles.archive || [],
+    },
+    meta: {
+      timestamp: new Date().toISOString(),
+      requestId: 'mock-request-id',
+    },
+  };
 }
 
 /**

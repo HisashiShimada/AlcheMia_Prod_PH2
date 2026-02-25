@@ -37,7 +37,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { App } from 'antd';
 import { User } from '@/types/auth';
 import { useApi } from '@/hooks/useApi';
-import { fetchFormats, fetchFormatFiles } from '@/utils/apiClient';
+import { fetchFormats, fetchFormatFiles, createFormatFile, createFormatSubfolder } from '@/utils/formatApi';
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
 import { getFileDownloadUrlByKey } from '@/services/fileAccessService';
@@ -395,14 +395,9 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         console.log(`✅ [FormatManagement] テンプレートタイプ: ${data.templateType}`);
       }
       
-      // API呼び出しを実装
-      const { createFormatFile } = await import('@/utils/apiClient');
-      
+      // formatApi.tsから直接呼び出し
       const response = await createFormatFile(data.formatId, {
-        fileName: data.fileName,
-        fileType: data.fileType,
-        templateType: data.templateType,
-        description: data.description,
+        fileName: data.fileNameWithExtension,
       });
       
       // 型ガード: success === true の場合のみ data にアクセス
@@ -462,9 +457,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     try {
       console.log('📁 [FormatManagement] フォーマット内サブフォルダ作成:', data);
       
-      // createFormatSubfolder API を呼び出し
-      const { createFormatSubfolder } = await import('@/utils/apiClient');
-      
+      // formatApi.tsから直接呼び出し
       const response = await createFormatSubfolder(
         data.formatId,        // formatName
         data.folderName,      // subfolderName

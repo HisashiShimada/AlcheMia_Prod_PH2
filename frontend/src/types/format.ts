@@ -158,13 +158,11 @@ export interface FormatFilesResponse {
 }
 
 /**
- * フォーマットアップロード情報
+ * フォーマットファイル作成リクエストの型定義
  */
-export interface FormatUploadInfo {
-  formatId: string;
-  formatName: string;
-  folderName: string;
-  subFolder?: string;
+export interface CreateFormatFileRequest {
+  fileName: string;  // 拡張子を含むファイル名（例: "test.xml", "workflow.maiml"）
+  description?: string;
 }
 
 /**
@@ -175,16 +173,6 @@ export interface FormatUploadResult {
   fileCount: number;
   uploadedFiles: string[];
   errors?: string[];
-}
-
-/**
- * フォーマットファイル作成リクエスト
- */
-export interface CreateFormatFileRequest {
-  fileName: string;
-  fileType: 'xml' | 'maiml';
-  templateType?: 'material' | 'condition' | 'result';
-  description?: string;
 }
 
 /**

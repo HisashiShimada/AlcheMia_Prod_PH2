@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { formatService } from '../services/formatService';
-import { FileTypeFilter } from '../types/format';
 
 /**
  * フォーマット一覧取得
@@ -9,34 +8,18 @@ import { FileTypeFilter } from '../types/format';
 export async function getFormats(req: Request, res: Response): Promise<void> {
   try {
     // 1. ユーザー情報から組織IDを取得（authMiddlewareで検証済み）
-    const organizationId = req.user!.organizationId;
+    const organizationId = req.user!.organizationId!;
 
     // 2. セッションから部門CDを取得
-    const departmentCd = req.session?.departmentCd;
+    const departmentCd = req.session!.departmentCd!;
 
-    // 3. department_cdの検証
-    if (!departmentCd) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'SESSION_EXPIRED',
-          message: 'セッションが無効です。再ログインしてください。',
-        },
-      });
-      return;
-    }
-
-    // 4. クエリパラメータ取得
-    const fileType = (req.query.file_type as FileTypeFilter) || 'all';
-
-    // 5. S3からフォーマットフォルダ一覧を取得
+    // 3. S3からフォーマットフォルダ一覧を取得
     const folders = await formatService.getFormatFolders(
       organizationId,
-      departmentCd,
-      fileType
+      departmentCd
     );
 
-    // 6. レスポンス返却
+    // 5. レスポンス返却
     res.json({
       success: true,
       data: {
@@ -80,44 +63,8 @@ async function getFormatFiles(
   try {
     const { folderName } = req.params;
     const { path: subPath } = req.query;
-    const organizationId = req.user?.organizationId;
-    const departmentCd = req.session?.departmentCd;
-
-    console.log('[formatController] getFormatFiles called:', {
-      organizationId,
-      departmentCd,
-      folderName,
-      subPath,
-      sessionExists: !!req.session,
-      sessionKeys: req.session ? Object.keys(req.session) : [],
-    });
-
-    // organizationIdの検証
-    if (!organizationId) {
-      res.status(401).json({
-        success: false,
-        message: '認証が必要です',
-      });
-      return;
-    }
-
-    // departmentCdの検証
-    if (!departmentCd) {
-      res.status(400).json({
-        success: false,
-        message: '部門コードが見つかりません',
-      });
-      return;
-    }
-
-    // folderNameの検証
-    if (!folderName || typeof folderName !== 'string') {
-      res.status(400).json({
-        success: false,
-        message: 'フォルダ名が無効です',
-      });
-      return;
-    }
+    const organizationId = req.user!.organizationId!;
+    const departmentCd = req.session!.departmentCd!;
 
     // サービスを呼び出してファイル一覧を取得
     const files = await formatService.getFormatFiles(
@@ -150,63 +97,8 @@ async function createFormatFolder(
 ): Promise<void> {
   try {
     const { folderName } = req.body;
-    const organizationId = req.user?.organizationId;
-    const departmentCd = req.session?.departmentCd;
-
-    console.log('[formatController] createFormatFolder called:', {
-      organizationId,
-      departmentCd,
-      folderName,
-      sessionExists: !!req.session,
-    });
-
-    // organizationIdの検証
-    if (!organizationId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // departmentCdの検証
-    if (!departmentCd) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'DEPARTMENT_NOT_FOUND',
-          message: '部門コードが見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // folderNameの検証
-    if (!folderName || typeof folderName !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_FOLDER_NAME',
-          message: 'フォルダ名が無効です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
+    const organizationId = req.user!.organizationId!;
+    const departmentCd = req.session!.departmentCd!;
 
     // サービスを呼び出してフォルダを作成
     const result = await formatService.createFormatFolder(
@@ -267,81 +159,8 @@ async function createFormatSubfolder(
 ): Promise<void> {
   try {
     const { formatName, subfolderName, parentPath } = req.body;
-    const organizationId = req.user?.organizationId;
-    const departmentCd = req.session?.departmentCd;
-
-    console.log('[formatController] createFormatSubfolder called:', {
-      organizationId,
-      departmentCd,
-      formatName,
-      subfolderName,
-      parentPath,
-      sessionExists: !!req.session,
-    });
-
-    // organizationIdの検証
-    if (!organizationId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // departmentCdの検証
-    if (!departmentCd) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'DEPARTMENT_NOT_FOUND',
-          message: '部門コードが見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // formatNameの検証
-    if (!formatName || typeof formatName !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_FORMAT_NAME',
-          message: 'フォーマット名が無効です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // subfolderNameの検証
-    if (!subfolderName || typeof subfolderName !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_SUBFOLDER_NAME',
-          message: 'サブフォルダ名が無効です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
+    const organizationId = req.user!.organizationId!;
+    const departmentCd = req.session!.departmentCd!;
 
     // サービスを呼び出してサブフォルダを作成
     const result = await formatService.createFormatSubfolder(
@@ -410,158 +229,26 @@ async function createFormatFile(
 ): Promise<void> {
   try {
     const { folderName } = req.params;
-    const { fileName, fileType, templateType, description } = req.body;
-    const organizationId = req.user?.organizationId;
-    const departmentCd = req.session?.departmentCd;
+    const { fileName } = req.body;
+    
+    // 型アサーション（ミドルウェアで検証済みと想定）
+    const organizationId = req.user!.organizationId;
+    const departmentCd = req.session!.departmentCd!;
 
     console.log('[formatController] createFormatFile called:', {
       organizationId,
       departmentCd,
       folderName,
       fileName,
-      fileType,
-      templateType,
-      description,
       sessionExists: !!req.session,
     });
-
-    // organizationIdの検証
-    if (!organizationId) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: '認証が必要です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // departmentCdの検証
-    if (!departmentCd) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'DEPARTMENT_NOT_FOUND',
-          message: '部門コードが見つかりません',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // fileNameの検証
-    if (!fileName || typeof fileName !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_FILE_NAME',
-          message: 'ファイル名が無効です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // ファイル名の長さチェック
-    if (fileName.length < 1 || fileName.length > 100) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_FILE_NAME_LENGTH',
-          message: 'ファイル名は1〜100文字で入力してください',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // fileTypeの検証
-    if (!fileType || !['xml', 'maiml'].includes(fileType)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_FILE_TYPE',
-          message: 'ファイルタイプが無効です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // XMLファイルの場合、templateTypeが必須
-    if (fileType === 'xml' && !templateType) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'TEMPLATE_TYPE_REQUIRED',
-          message: 'XMLファイルの場合、テンプレートタイプが必須です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // templateTypeの検証（XMLの場合）
-    if (fileType === 'xml' && !['material', 'condition', 'result'].includes(templateType)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_TEMPLATE_TYPE',
-          message: 'テンプレートタイプが無効です',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
-
-    // descriptionの長さチェック（オプション）
-    if (description && description.length > 500) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'DESCRIPTION_TOO_LONG',
-          message: '概要は500文字以内で入力してください',
-        },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: req.headers['x-request-id'] as string || 'unknown',
-        },
-      });
-      return;
-    }
 
     // サービスを呼び出してファイルを作成
     const result = await formatService.createFormatFile(
       organizationId,
       departmentCd,
       folderName,
-      fileName,
-      fileType,
-      templateType,
-      description
+      fileName
     );
 
     res.status(201).json({
