@@ -48,6 +48,19 @@ export interface ApiErrorResponse {
 export type ApiResponse<T> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 /**
+ * データ取得状態の共通型
+ * useApi フック等で使用するローディング・エラー・データを統合した状態型
+ */
+export interface DataState<T> {
+  /** 取得したデータ（取得前またはエラー時は null） */
+  data: T | null;
+  /** ローディング中かどうか */
+  isLoading: boolean;
+  /** エラー情報（正常時は null） */
+  error: Error | null;
+}
+
+/**
  * ログインレスポンスデータ
  */
 export interface LoginResponseData {
@@ -143,4 +156,108 @@ export interface ResetPasswordRequestResponseData {
  */
 export interface ResetPasswordResponseData {
   message: string;
+}
+
+// ===== 実験データ保存API =====
+
+/**
+ * 実験データ保存リクエスト - records配列の1要素
+ *
+ * @remarks
+ * API: POST /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+ * DDL: docs/design/db/ddl/template_data.sql
+ */
+export interface ExperimentDataRecord {
+  /** プレースID（一意キーに使用） */
+  placeId: string;
+  /** テンプレート種別 */
+  templateType: 'material' | 'condition' | 'result';
+  /** テンプレートID */
+  templateId: string;
+  /** 実験データ（JSONB形式） */
+  data: Record<string, unknown>;
+  /** ステータス（省略可） */
+  status?: 'initial' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
+  /** コメント（省略可、最大2000文字） */
+  comment?: string;
+}
+
+/**
+ * 実験データ一括保存リクエストボディ
+ */
+export interface SaveBatchExperimentDataRequest {
+  records: ExperimentDataRecord[];
+}
+
+/**
+ * 実験データ保存レスポンス - 保存された1レコード
+ */
+export interface SavedExperimentRecord {
+  id: string;
+  projectId: string;
+  methodId: string;
+  taskNo: number;
+  placeId: string;
+  templateType: string;
+  templateId: string;
+  data: Record<string, unknown>;
+  status: string;
+  comment: string | null;
+  recordedBy: string;
+  recordedAt: string;
+  organizationId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * 実験データ一括保存レスポンス
+ */
+export interface SaveBatchExperimentDataResponse {
+  success: boolean;
+  data: {
+    saved: number;
+    records: SavedExperimentRecord[];
+  };
+  meta: {
+    timestamp: string;
+    requestId: string;
+  };
+}
+
+// ===== トランジションステータス更新API =====
+
+/**
+ * トランジションステータス更新リクエストボディ
+ *
+ * @remarks
+ * API: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ */
+export interface UpdateTransitionStatusRequest {
+  /** タスク連番（1以上の整数） */
+  taskNo: number;
+  /** トランジションステータス */
+  status: 'initial' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
+  /** 進捗率（0〜100、statusがcompletedの場合は自動的に100） */
+  progressRate?: number;
+  /** コメント（最大2000文字） */
+  comment?: string;
+}
+
+/**
+ * トランジションステータス更新レスポンスデータ
+ *
+ * @remarks
+ * API: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ */
+export interface UpdateTransitionStatusResponse {
+  transitionId: string;
+  taskNo: number;
+  methodId: string;
+  projectName: string;
+  status: string;
+  progressRate: number;
+  comment: string | null;
+  updatedBy: string;
+  updatedAt: string;
 }

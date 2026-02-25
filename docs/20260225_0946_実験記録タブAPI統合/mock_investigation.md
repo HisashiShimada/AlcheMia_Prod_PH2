@@ -355,7 +355,7 @@ const handleSubmitComment = (issueId: string, comment: string) => {
 | 7 | ExperimentRecordTab.tsx | `projectStatus` の null 固定 → APIから取得 | `GET /api/v1/projects/:projectId` | ✅ 実装済み | 中 |
 | 8 | DataRecordDialog.tsx | `templatesList` モック → APIから取得 | テンプレート一覧取得API | ⏳ 未実装 | 中 |
 | 9 | DataRecordDialog.tsx | `handleSaveTemplate` → 実験データ保存API呼び出し | `POST /api/v1/experiments/...` |  ✅ 実装済み | 中 |
-| 10 | DataRecordDialog.tsx | ステータス更新ボタン → ステータス更新API呼び出し | `PATCH /api/v1/progress/.../transitions/:id/status` | ⏳ 未実装 | 中 |
+| 10 | DataRecordDialog.tsx | ステータス更新ボタン → ステータス更新API呼び出し | `PATCH /api/v1/progress/.../transitions/:id/status` | ✅ 実装済み | 中 |
 | 11 | ExperimentRecordTab.tsx | `handleDataSave` → 実験データ保存API呼び出し | `POST /api/v1/experiments/...` |  ✅ 実装済み | 中 |
 | 12 | TransitionList.tsx | `handleDataSave` → 実験データ保存API呼び出し | `POST /api/v1/experiments/...` |  ✅ 実装済み | 中 |
 

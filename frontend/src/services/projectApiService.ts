@@ -8,6 +8,10 @@
 import { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
 import type { ProjectFile } from '@/types/file';
+import type {
+  UpdateTransitionStatusRequest,
+  UpdateTransitionStatusResponse,
+} from '@/types/api';
 import type { Task, TaskStatistics, Project } from '@/types/project';
 import type {
   GetTaskRegistrationResponse,
@@ -1095,6 +1099,79 @@ export const confirmInstruction = async (
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,
       errorStatus: (error as AxiosError)?.response?.status
+    });
+    throw error;
+  }
+};
+
+/**
+ * トランジションステータスを更新
+ * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ *
+ * @param projectName プロジェクト名
+ * @param methodId メソッドID
+ * @param transitionId トランジションID
+ * @param request リクエストボディ（taskNo, status, progressRate, comment）
+ * @returns 更新されたトランジション情報
+ * @throws Error APIエラー時
+ *
+ * @example
+ * ```typescript
+ * await updateTransitionStatus('sample_project', 'method1', 't1', {
+ *   taskNo: 1,
+ *   status: 'running',
+ *   progressRate: 50,
+ *   comment: '実験を開始しました',
+ * });
+ * ```
+ */
+export const updateTransitionStatus = async (
+  projectName: string,
+  methodId: string,
+  transitionId: string,
+  request: UpdateTransitionStatusRequest
+): Promise<ApiResponse<UpdateTransitionStatusResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] updateTransitionStatus - Start', {
+      projectName,
+      methodId,
+      transitionId,
+      taskNo: request.taskNo,
+      status: request.status,
+    });
+
+    const response = await client.patch<{
+      success: boolean;
+      data: UpdateTransitionStatusResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(
+      `/progress/projects/${encodeURIComponent(projectName)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/status`,
+      request
+    );
+
+    console.log('[DEBUG] updateTransitionStatus - Success', {
+      transitionId: response.data.data.transitionId,
+      status: response.data.data.status,
+      progressRate: response.data.data.progressRate,
+      updatedAt: response.data.data.updatedAt,
+    });
+
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta,
+    };
+  } catch (error) {
+    console.error('[DEBUG] updateTransitionStatus - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
     });
     throw error;
   }

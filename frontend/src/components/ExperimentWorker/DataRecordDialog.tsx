@@ -51,6 +51,7 @@ import {
 } from '@/types/experimentWorker';
 import { templatesList } from '@/data/projectsData';
 import { saveBatchExperimentData } from '@/services/experimentDataApiService';
+import { updateTransitionStatus } from '@/services/projectApiService';
 import { ExperimentDataRecord } from '@/types/api';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 
@@ -877,19 +878,46 @@ export default function DataRecordDialog({
                     <Button
                       type="primary"
                       icon={<SaveOutlined />}
-                      onClick={() => {
-                        // ステータス更新の保存処理
-                        console.log('ステータス更新保存:', {
-                          transitionId: transition?.transitionId,
-                          status: selectedStatus,
-                          progress: progress,
-                          comment: comment,
-                        });
-                        message.success(
-                          `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}、進捗: ${progress}%）`
-                        );
-                      }}
+                      loading={loading}
                       disabled={!isProjectEditable}
+                      onClick={async () => {
+                        // パスパラメータのガードチェック
+                        if (!projectName || !methodId || !transition?.transitionId || taskNo === undefined) {
+                          message.error('更新に必要なプロジェクト情報が不足しています');
+                          console.error('ステータス更新: projectName / methodId / transitionId / taskNo が未設定', {
+                            projectName,
+                            methodId,
+                            transitionId: transition?.transitionId,
+                            taskNo,
+                          });
+                          return;
+                        }
+                        try {
+                          setLoading(true);
+                          await updateTransitionStatus(projectName, methodId, transition.transitionId, {
+                            taskNo,
+                            status: selectedStatus,
+                            progressRate: progress,
+                            comment: comment || undefined,
+                          });
+                          message.success(
+                            `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}、進捗: ${progress}%）`
+                          );
+                        } catch (error: unknown) {
+                          console.error('ステータス更新エラー:', error);
+                          const axiosError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
+                          const serverMessage = axiosError?.response?.data?.error?.message;
+                          if (serverMessage) {
+                            message.error(`更新に失敗しました: ${serverMessage}`);
+                          } else if (axiosError?.message) {
+                            message.error(`更新に失敗しました: ${axiosError.message}`);
+                          } else {
+                            message.error('ステータスの更新に失敗しました');
+                          }
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
                     >
                       保存
                     </Button>
