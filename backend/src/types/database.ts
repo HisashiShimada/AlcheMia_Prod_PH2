@@ -58,6 +58,121 @@ export interface Project {
 }
 
 /**
+ * project_task_detailテーブルの型定義
+ * 
+ * @remarks
+ * この型は project_task_detail テーブルのスキーマに対応しています。
+ * DDL: docs/design/db/ddl/project_task_detail.sql
+ * 主キー: (organization_id, project_id, method_id, task_no)
+ */
+export interface ProjectTaskDetail {
+  /** 組織ID（主キー） */
+  organization_id: string;
+  
+  /** プロジェクトID（主キー） */
+  project_id: string;
+  
+  /** メソッドID（主キー） */
+  method_id: string;
+  
+  /** タスク連番（主キー） */
+  task_no: number;
+  
+  /** タスクステータス */
+  task_status?: number | null;
+  
+  /** 実験開始日 */
+  experiment_start_at?: Date | null;
+  
+  /** 実験終了日 */
+  experiment_end_at?: Date | null;
+  
+  /** 実験作業者ID */
+  experiment_user_id?: string | null;
+  
+  /** レビュー完了日 */
+  reviewed_at?: Date | null;
+  
+  /** レビュアーID */
+  review_user_id?: string | null;
+  
+  /** 作成者ユーザID */
+  create_user_id?: string;
+  
+  /** 作成日時 */
+  create_at?: Date;
+  
+  /** 更新者ユーザID */
+  update_user_id?: string;
+  
+  /** 更新日時 */
+  update_at?: Date;
+}
+
+/**
+ * project_instructionテーブルの型定義
+ * 
+ * @remarks
+ * この型は project_instruction テーブルのスキーマに対応しています。
+ * DDL: docs/design/db/ddl/project_instruction.sql
+ * 主キー: (organization_id, project_id, experiment_instruction_id)
+ * 
+ * instruction_status カラムは 20260224_add_instruction_status.sql マイグレーションで追加
+ */
+export interface ProjectInstruction {
+  /** 組織ID（主キー） */
+  organization_id: string;
+  
+  /** プロジェクトID（主キー） */
+  project_id: string;
+  
+  /** 実験指示ID（主キー） */
+  experiment_instruction_id: string;
+  
+  /** メソッドID */
+  method_id?: string | null;
+  
+  /** 指示対象: 1=ファイル全体、2=タスク、3=トランジション */
+  instruction_target?: number | null;
+  
+  /** 優先度 */
+  priority?: number | null;
+  
+  /** タイプ */
+  type?: number | null;
+  
+  /** タスク連番 */
+  task_no?: number | null;
+  
+  /** トランジションID */
+  transition_id?: string | null;
+  
+  /** 指示内容 */
+  instructions?: string | null;
+  
+  /** 指示送信ステータス: 0=未送信、1=送信済 */
+  instruction_status?: number;
+  
+  /** 実験指示ユーザID */
+  instruction_user_id?: string | null;
+  
+  /** 指示送信日 */
+  instruction_date?: Date | null;
+  
+  /** 作成者ユーザID */
+  create_user_id?: string;
+  
+  /** 作成日時 */
+  create_at?: Date;
+  
+  /** 更新者ユーザID */
+  update_user_id?: string;
+  
+  /** 更新日時 */
+  update_at?: Date;
+}
+
+/**
  * project_taskテーブルの型定義
  * 
  * @remarks
@@ -178,4 +293,70 @@ export interface TemplateData {
   
   /** 更新日時 */
   update_at?: Date;
+
+ * organization_userテーブルの型定義（JOINデータ含む）
+ * 
+ * @remarks
+ * この型は organization_user テーブルと関連テーブル（department, role）を
+ * JOINした結果に対応しています。
+ * DDL: docs/design/db/ddl/organization_user.sql
+ * 主キー: (organization_id, user_id)
+ */
+export interface User {
+  /** ユーザーID（主キー、メールアドレス） */
+  user_id: string;
+  
+  /** ユーザー名 */
+  user_name: string;
+  
+  /** メールアドレス */
+  mail_address: string;
+  
+  /** 部署CD（外部キー） */
+  department_cd: string | null;
+  
+  /** 部署名（JOIN結果） */
+  department_name: string | null;
+  
+  /** ロールCD（外部キー） */
+  role_cd: string;
+  
+  /** ロール名（JOIN結果） */
+  role_name: string | null;
+  
+  
+  /** アクティブ状態 */
+  is_active: boolean;
+  
+  /** 最終ログイン日時（login_historyテーブルのMAX(login_at)、ログイン成功のみ） */
+  last_login_at?: Date | null;
+  
+  /** 作成日時 */
+  create_at: Date;
+  
+  /** 更新日時 */
+  update_at: Date;
+}
+
+/**
+ * User検索フィルター型定義
+ */
+export interface UserSearchFilters {
+  /** 検索キーワード（ユーザー名、メールアドレス） */
+  search?: string;
+  
+  /** アクティブ状態フィルター */
+  isActive?: boolean;
+  
+  /** 部署CDフィルター */
+  departmentCd?: string;
+  
+  /** ロールCDフィルター */
+  roleCd?: string;
+  
+  /** ソートキー */
+  sortBy?: 'user_id' | 'user_name' | 'update_at';
+  
+  /** ソート順 */
+  sortOrder?: 'asc' | 'desc';
 }

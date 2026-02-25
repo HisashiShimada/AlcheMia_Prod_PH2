@@ -45,6 +45,7 @@ import type {
   TaskRegistrationData
 } from '@/types/taskRegistration';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { getTaskRegistration, saveTaskRegistration } from '@/services/projectApiService';
 import { createSelectOptionsFromCodeMaster, createRangeOptions } from '@/utils/selectUtils';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
@@ -58,6 +59,8 @@ const { useToken } = theme;
 interface TaskRegistrationTabProps {
   projectId: string;
   projectName: string;
+  isActive: boolean;
+  isCheckoutLocked?: boolean;
   onTasksChange?: (tasks: TaskDetail[]) => void;
 }
 
@@ -74,40 +77,46 @@ interface DraggableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
 const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   projectId,
   projectName,
+  isActive,
+  isCheckoutLocked: isCheckoutLockedProp,
   onTasksChange,
 }) => {
   const { token } = useToken();
   const { t } = useLanguage();
+  const { maimlRoot } = useProjectMaiml();
 
   // 状態管理
   const [availableMethods, setAvailableMethods] = useState<MethodInfo[]>([]);
   const [loadingMethods, setLoadingMethods] = useState<boolean>(false);
   const [taskDetails, setTaskDetails] = useState<TaskDetail[]>([]);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isCheckoutLocked, setIsCheckoutLocked] = useState<boolean>(false);
   const [isMaimlRegistered, setIsMaimlRegistered] = useState<boolean>(false);
+  
+  // チェックアウト状態はPropsを優先し、なければAPI取得結果を使用
+  const isCheckoutLocked = isCheckoutLockedProp ?? false;
 
   // コードマスターから実験条件オプションを取得
   const { options: experimentConditionOptions, loading: loadingCodeMaster } = useCodeMaster('experiment_condition');
 
   /**
-   * タスク登録情報を取得
+   * タブがアクティブになった時にタスク登録情報を再取得
    */
   useEffect(() => {
     const fetchTaskRegistration = async () => {
-      if (!projectName) return;
+      if (!projectName || !isActive) return;
 
+      console.log('[DEBUG] TaskRegistrationTab - Tab activated, fetching task registration');
       setLoadingMethods(true);
 
       try {
         const data = await getTaskRegistration(projectName);
 
-        // チェックアウト状態とMAIML登録状態を保存
-        setIsCheckoutLocked(data.isCheckoutLocked);
+        // MAIML登録状態を保存（チェックアウト状態はPropsから取得）
         setIsMaimlRegistered(data.isMaimlRegistered);
 
         // タスク情報をUI用の形式に変換
         if (data.tasks && data.tasks.length > 0) {
+          // DBにデータがある場合
           const uiTasks: TaskDetail[] = data.tasks.map((task, index) => ({
             id: index + 1,
             methodId: task.methodId,
@@ -118,7 +127,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           }));
 
           // デバッグログ：型を確認
-          console.log('[DEBUG] TaskRegistrationTab - Converted tasks:', {
+          console.log('[DEBUG] TaskRegistrationTab - Converted tasks from DB:', {
             originalTasks: data.tasks,
             uiTasks,
             experimentConditionTypes: uiTasks.map(t => ({
@@ -138,8 +147,39 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             description: undefined,
           }));
           setAvailableMethods(methods);
+        } else if (data.tasks && data.tasks.length === 0 && maimlRoot?.protocol?.methods) {
+          // DBにデータがない場合、コンテキストのMAIMLから初期値を生成
+          console.log('[DEBUG] TaskRegistrationTab - Generating initial tasks from MAIML context');
+          
+          const methods = maimlRoot.protocol.methods;
+          const initialTasks: TaskDetail[] = methods.map((method, index) => ({
+            id: index + 1,
+            methodId: method.id,
+            experimentCondition: 0, // デフォルト値
+            trialCount: 1, // デフォルト値
+            experimentOrder: index + 1,
+            taskNumberOptions: [1],
+          }));
+          
+          setTaskDetails(initialTasks);
+          onTasksChange?.(initialTasks);
+          
+          // メソッド情報も設定
+          const methodInfos: MethodInfo[] = methods.map((method) => ({
+            id: method.id,
+            name: method.name || method.id,
+            displayName: method.name || method.id,
+            description: undefined,
+          }));
+          setAvailableMethods(methodInfos);
+          
+          console.log('[DEBUG] TaskRegistrationTab - Initial tasks generated:', {
+            taskCount: initialTasks.length,
+            methodCount: methodInfos.length,
+          });
         } else {
-          // タスクがない場合は空配列
+          // MAIMLもない場合は空配列
+          console.log('[DEBUG] TaskRegistrationTab - No tasks and no MAIML data');
           setTaskDetails([]);
           setAvailableMethods([]);
         }
@@ -154,7 +194,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     };
 
     fetchTaskRegistration();
-  }, [projectName, onTasksChange]);
+  }, [projectName, isActive, onTasksChange, maimlRoot]);
 
   /**
    * タスク詳細を更新
@@ -339,7 +379,14 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         {React.Children.map(children, (child) => {
           if ((child as React.ReactElement).key === 'sort') {
             return React.cloneElement(child as React.ReactElement, {}, (
-              <div {...listeners} style={{ cursor: 'grab', padding: '8px' }}>
+              <div 
+                {...(isCheckoutLocked ? {} : listeners)} 
+                style={{ 
+                  cursor: isCheckoutLocked ? 'not-allowed' : 'grab', 
+                  padding: '8px',
+                  opacity: isCheckoutLocked ? 0.5 : 1
+                }}
+              >
                 <HolderOutlined />
               </div>
             ));
@@ -370,7 +417,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           onChange={(value) => {
             handleOrderChange(record.id, value);
           }}
-          disabled={isSaving || loadingMethods}
+          disabled={isSaving || loadingMethods || isCheckoutLocked}
           size="small"
           style={{ width: '100%' }}
           options={orderSelectOptions}
@@ -404,7 +451,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           onChange={(value) =>
             handleUpdateTaskDetail(record.id, 'experimentCondition', value.toString())
           }
-          disabled={isSaving || loadingMethods}
+          disabled={isSaving || loadingMethods || isCheckoutLocked}
           size="small"
           style={{ width: '100%' }}
           options={experimentConditionSelectOptions}
@@ -431,7 +478,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             }
           }}
           placeholder={t('taskRegistration.trialCountPlaceholder')}
-          disabled={isSaving || loadingMethods}
+          disabled={isSaving || loadingMethods || isCheckoutLocked}
           size="small"
           min={1}
           max={999}
@@ -468,7 +515,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           icon={<SaveOutlined />}
           onClick={handleSave}
           loading={isSaving}
-          disabled={loadingMethods}
+          disabled={loadingMethods || isCheckoutLocked}
         >
           {isSaving ? t('taskRegistration.saving') : t('taskRegistration.saveButton')}
         </Button>

@@ -10,12 +10,15 @@ import { getStorageService } from './storageService';
 import { escapeHtml } from '../utils/sanitize';
 import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
 import winston from 'winston';
+import * as projectRepository from '../repositories/projectRepository';
+import * as projectTaskRepository from '../repositories/projectTaskRepository';
+import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
+import { loadSqlFile } from '../sql/loader';
 import type { 
   Project, 
   Pagination, 
   ProjectListResponse
 } from '../types/project';
-import { PROJECT_STATUS_MAP } from '../types/project';
 
 interface ListOptions {
   page: number;
@@ -110,27 +113,6 @@ export class ProjectService {
         };
       }
 
-      // Task 3.5: organization_prefix取得
-      const orgQuery = `
-        SELECT organization_prefix
-        FROM organization
-        WHERE organization_id = $1
-      `;
-      const orgResult = await client.query(orgQuery, [organizationId]);
-      
-      if (orgResult.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return {
-          success: false,
-          error: {
-            code: 'SYSTEM_DATABASE_ERROR',
-            message: '組織情報が見つかりません',
-          },
-        };
-      }
-
-      const organizationPrefix = orgResult.rows[0].organization_prefix;
-
       // Task 3.4: プロジェクトレコード登録
       const { v4: uuidv4 } = require('uuid');
       const projectId = uuidv4();
@@ -172,7 +154,7 @@ export class ProjectService {
 
       try {
         await storageService.uploadFile(
-          organizationPrefix,
+          organizationId,
           s3Path,
           '',
           { contentType: 'text/plain' }
@@ -192,16 +174,13 @@ export class ProjectService {
       // トランザクションコミット
       await client.query('COMMIT');
 
-      // PROJECT_STATUS_MAPをインポート
-      const { PROJECT_STATUS_MAP } = require('../types/project');
-
       // レスポンスデータ構築（フロントエンドの型に合わせる）
       const projectData: Project = {
         id: insertResult.rows[0].project_id,
         name: insertResult.rows[0].project_name,
         folderName: insertResult.rows[0].project_name,
         description: insertResult.rows[0].description || '',
-        status: PROJECT_STATUS_MAP[insertResult.rows[0].project_status] || 'planning',
+        status: insertResult.rows[0].project_status, // 数値のまま返す
         fileCount: 0,
         totalSize: 0,
         owner: insertResult.rows[0].owner_user_id,
@@ -270,6 +249,7 @@ export class ProjectService {
           ou.user_name as owner_user_name,
           ou.mail_address as owner_email,
           p.project_status,
+          ps.code_name as project_status_name,
           p.project_maiml_flg,
           p.checkout_status,
           p.create_at,
@@ -294,6 +274,10 @@ export class ProjectService {
         LEFT JOIN department d
           ON d.department_cd = p.department_cd
           AND d.organization_id = p.organization_id
+        LEFT JOIN code_master ps
+          ON ps.code_division = 'project_status'
+          AND ps.code_value = CAST(p.project_status AS VARCHAR)
+          AND ps.organization_id = p.organization_id
         LEFT JOIN organization_user checkout_user
           ON checkout_user.user_id = p.owner_user_id
           AND checkout_user.organization_id = p.organization_id
@@ -312,6 +296,7 @@ export class ProjectService {
           ou.user_name,
           ou.mail_address,
           p.project_status,
+          ps.code_name,
           p.project_maiml_flg,
           p.checkout_status,
           p.create_at,
@@ -349,16 +334,14 @@ export class ProjectService {
       const totalItems = parseInt(countResult.rows[0].total, 10);
       const totalPages = Math.ceil(totalItems / limit);
 
-      // PROJECT_STATUS_MAPをインポート
-      const { PROJECT_STATUS_MAP } = require('../types/project');
-
       // データを変換（フロントエンドの型に合わせる）
       const formattedProjects: Project[] = projects.map((row: any) => ({
         id: row.project_id,
         name: row.project_name,
         folderName: row.project_name, // プロジェクト名をフォルダ名としても使用
         description: row.description || '',
-        status: PROJECT_STATUS_MAP[row.project_status] || 'planning',
+        status: row.project_status, // 数値のまま返す
+        statusName: row.project_status_name || undefined, // code_masterから取得した日本語名
         fileCount: 0, // 後で実装予定
         totalSize: 0, // 後で実装予定
         owner: row.owner_user_id,
@@ -408,221 +391,6 @@ export class ProjectService {
   }
 
   /**
-   * プロジェクト詳細を取得
-   * 
-   * Task 1.1, 1.2, 1.3: プロジェクト詳細取得API実装
-   * @param organizationId - 組織ID
-   * @param projectId - プロジェクトID
-   * @returns プロジェクト詳細情報
-   */
-  async getById(
-    organizationId: string,
-    projectId: string
-  ): Promise<ServiceResult<any>> {
-    try {
-      const pool = getPool();
-
-      // Task 1.1: プロジェクト基本情報取得
-      const projectQuery = `
-        SELECT 
-          p.organization_id,
-          p.project_id,
-          p.project_name,
-          p.description,
-          p.department_cd,
-          d.department_name,
-          p.owner_user_id,
-          ou.user_name as owner_user_name,
-          p.project_status,
-          ps.code_name as project_status_name,
-          p.checkout_status,
-          cs.code_name as checkout_status_name,
-          p.project_maiml_flg,
-          p.create_at
-        FROM project p
-        LEFT JOIN organization_user ou 
-          ON ou.user_id = p.owner_user_id 
-          AND ou.organization_id = p.organization_id
-        LEFT JOIN department d
-          ON d.department_cd = p.department_cd
-          AND d.organization_id = p.organization_id
-        LEFT JOIN code_master ps 
-          ON ps.code_division = 'project_status' 
-          AND ps.code_value = CAST(p.project_status AS VARCHAR)
-          AND ps.organization_id = p.organization_id
-        LEFT JOIN code_master cs 
-          ON cs.code_division = 'checkout_status' 
-          AND cs.code_value = CAST(p.checkout_status AS VARCHAR)
-          AND cs.organization_id = p.organization_id
-        WHERE p.organization_id = $1 AND p.project_id = $2
-      `;
-
-      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
-
-      if (projectResult.rows.length === 0) {
-        return {
-          success: false,
-          error: {
-            code: 'RESOURCE_NOT_FOUND',
-            message: 'プロジェクトが見つかりません',
-          },
-        };
-      }
-
-      const projectRow = projectResult.rows[0];
-      const projectName = projectRow.project_name;
-
-      // Task 1.2: S3ファイル一覧取得（グレースフル処理）
-      let files: any[] = [];
-      try {
-        const { getStorageService } = require('./storageService');
-        const storageService = getStorageService();
-
-        const [currentFiles, archiveFiles] = await Promise.all([
-          storageService.listFiles(organizationId, `projects/${projectName}/`).catch(() => []),
-          storageService.listFiles(organizationId, `projects/${projectName}/archive/`).catch(() => [])
-        ]);
-
-        const allFiles = [...currentFiles, ...archiveFiles];
-
-        files = await Promise.all(
-          allFiles.map(async (file: any) => {
-            const signedUrl = await storageService.getSignedUrl(
-              organizationId,
-              file.key.replace(`${organizationId}/`, ''),
-              3600
-            );
-
-            const versionMatch = file.key.match(/_v(\d+)\.maiml$/);
-            const version = versionMatch ? parseInt(versionMatch[1], 10) : null;
-
-            return {
-              key: file.key,
-              size: file.size,
-              lastModified: file.lastModified.toISOString(),
-              signedUrl,
-              version,
-            };
-          })
-        );
-      } catch (s3Error) {
-        console.error('S3 file listing failed:', s3Error);
-        // S3エラーは無視してfilesは空配列のまま
-      }
-
-      // Task 1.3: タスク存在チェック
-      const taskExistsQuery = `
-        SELECT EXISTS(
-          SELECT 1 
-          FROM project_task_detail 
-          WHERE organization_id = $1 AND project_id = $2
-        ) as has_tasks
-      `;
-
-      const taskExistsResult = await pool.query(taskExistsQuery, [organizationId, projectId]);
-      const hasTasks = taskExistsResult.rows[0].has_tasks;
-
-      // Task 1.4: タスク詳細一覧取得（has_tasks=trueの場合のみ）
-      let tasks: any[] = [];
-      if (hasTasks) {
-        const tasksQuery = `
-          SELECT 
-            ptd.organization_id,
-            ptd.project_id,
-            ptd.method_id,
-            ptd.task_no,
-            ptd.task_status,
-            ts.code_name as task_status_name,
-            ptd.experiment_start_at,
-            ptd.experiment_end_at,
-            ptd.experiment_user_id,
-            eu.user_name as experiment_user_name,
-            ptd.reviewed_at,
-            ptd.review_user_id,
-            ru.user_name as review_user_name
-          FROM project_task_detail ptd
-          LEFT JOIN organization_user eu 
-            ON eu.user_id = ptd.experiment_user_id 
-            AND eu.organization_id = ptd.organization_id
-          LEFT JOIN organization_user ru 
-            ON ru.user_id = ptd.review_user_id 
-            AND ru.organization_id = ptd.organization_id
-          LEFT JOIN code_master ts 
-            ON ts.code_division = 'task_status' 
-            AND ts.code_value = CAST(ptd.task_status AS VARCHAR)
-            AND ts.organization_id = ptd.organization_id
-          WHERE ptd.organization_id = $1 AND ptd.project_id = $2
-          ORDER BY ptd.method_id, ptd.task_no
-        `;
-
-        const tasksResult = await pool.query(tasksQuery, [organizationId, projectId]);
-
-        tasks = tasksResult.rows.map((row: any) => ({
-          organizationId: row.organization_id,
-          projectId: row.project_id,
-          methodId: row.method_id,
-          taskNo: row.task_no,
-          taskStatus: row.task_status,
-          taskStatusName: row.task_status_name,
-          experimentStartAt: row.experiment_start_at ? new Date(row.experiment_start_at).toISOString() : null,
-          experimentEndAt: row.experiment_end_at ? new Date(row.experiment_end_at).toISOString() : null,
-          experimentUserId: row.experiment_user_id,
-          experimentUserName: row.experiment_user_name,
-          reviewedAt: row.reviewed_at ? new Date(row.reviewed_at).toISOString() : null,
-          reviewUserId: row.review_user_id,
-          reviewUserName: row.review_user_name,
-        }));
-      }
-
-      // レスポンスデータ構築（キャメルケース変換）
-      const projectData = {
-        organizationId: projectRow.organization_id,
-        projectId: projectRow.project_id,
-        projectName: projectRow.project_name,
-        description: projectRow.description,
-        departmentCd: projectRow.department_cd,
-        departmentName: projectRow.department_name || '',
-        ownerUserId: projectRow.owner_user_id,
-        ownerUserName: projectRow.owner_user_name,
-        projectStatus: projectRow.project_status,
-        projectStatusName: projectRow.project_status_name,
-        checkoutStatus: projectRow.checkout_status,
-        checkoutStatusName: projectRow.checkout_status_name,
-        projectMaimlFlg: projectRow.project_maiml_flg,
-        createAt: new Date(projectRow.create_at).toISOString(),
-      };
-
-      // Task 1.5: サマリー情報生成
-      const summary = {
-        totalFiles: files.length,
-        totalTasks: tasks.length,
-        completedTasks: tasks.filter((t: any) => t.taskStatus === 3).length,
-        inProgressTasks: tasks.filter((t: any) => t.taskStatus === 1).length,
-        pendingTasks: tasks.filter((t: any) => t.taskStatus === 0).length,
-      };
-
-      return {
-        success: true,
-        data: {
-          project: projectData,
-          files,
-          tasks,
-          summary,
-        },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'SYSTEM_DATABASE_ERROR',
-          message: 'データベースエラーが発生しました',
-          originalError: error as Error,
-        },
-      };
-    }
-  }
-
-  /**
    * プロジェクトチェックアウト
    * 
    * Task 3.1: チェックアウトビジネスロジックの実装
@@ -635,23 +403,45 @@ export class ProjectService {
    */
   async checkout(
     organizationId: string,
-    projectId: string,
+    projectNameOrId: string,
     userId: string
   ): Promise<ServiceResult<ProjectCheckoutInfo>> {
     const pool = getPool();
     let client;
 
     try {
+      // projectNameからprojectIdを取得（Repository層経由）
+      let projectId: string;
+      
+      // UUIDの場合はそのまま使用、それ以外はprojectNameとして扱う
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(projectNameOrId)) {
+        projectId = projectNameOrId;
+      } else {
+        const projectRow = await projectRepository.findProjectIdByName(organizationId, projectNameOrId);
+        if (!projectRow) {
+          return {
+            success: false,
+            error: {
+              code: 'RESOURCE_NOT_FOUND',
+              message: 'プロジェクトが見つかりません',
+            },
+          };
+        }
+        projectId = projectRow.project_id;
+      }
+      
       // トランザクション開始
       client = await pool.connect();
       await client.query('BEGIN');
 
-      // SELECT ... FOR UPDATEで排他ロック取得
+      // SELECT ... FOR UPDATEで排他ロック取得（project_maiml_flgを追加）
       const selectQuery = `
-        SELECT 
+        SELECT
           project_id,
           project_name,
           project_status,
+          project_maiml_flg,
           checkout_status,
           owner_user_id
         FROM project
@@ -675,36 +465,86 @@ export class ProjectService {
 
       const project = selectResult.rows[0];
 
-      // 前提条件チェック: project_status != 0
-      if (project.project_status === 0) {
+      // バリデーション1: MAIMLファイル存在チェック
+      if (!project.project_maiml_flg) {
         await client.query('ROLLBACK');
         return {
           success: false,
           error: {
-            code: 'PROJECT_STATUS_INVALID',
-            message: 'プロジェクトが計画中のため、チェックアウトできません',
+            code: 'CHECKOUT_NO_MAIML_FILE',
+            message: 'MAIMLファイルが存在しません',
+            details: {
+              projectId,
+              projectName: project.project_name,
+              maimlFlg: project.project_maiml_flg,
+            },
           },
         };
       }
 
-      // 前提条件チェック: project_instructionレコード存在確認
-      const instructionQuery = `
-        SELECT EXISTS(
-          SELECT 1 
-          FROM project_instruction 
-          WHERE organization_id = $1 AND project_id = $2
-        ) as has_instruction
-      `;
+      // バリデーション2: プロジェクトステータスチェック（タスク実行待ち = 1 のみ許可）
+      if (project.project_status !== 1) {
+        await client.query('ROLLBACK');
+        const statusNames: { [key: number]: string } = {
+          0: 'プロジェクト計画中',
+          1: 'タスク実行待ち',
+          2: 'タスク実行中',
+          3: 'タスク結果レビュー待ち',
+          4: 'プロジェクト完了',
+          5: 'タスク異常終了',
+        };
+        const currentStatusName = statusNames[project.project_status] || '不明';
+        
+        return {
+          success: false,
+          error: {
+            code: 'CHECKOUT_INVALID_STATUS',
+            message: `プロジェクトステータスがタスク実行待ちではありません（現在: ${currentStatusName}）`,
+            details: {
+              projectId,
+              projectName: project.project_name,
+              currentStatus: project.project_status,
+              currentStatusName,
+              requiredStatus: 1,
+              requiredStatusName: 'タスク実行待ち',
+            },
+          },
+        };
+      }
 
-      const instructionResult = await client.query(instructionQuery, [organizationId, projectId]);
+      // バリデーション3: タスク登録完了チェック（Repository層経由）
+      const taskCount = await projectTaskRepository.countByProject(organizationId, projectId);
 
-      if (!instructionResult.rows[0].has_instruction) {
+      if (taskCount === 0) {
         await client.query('ROLLBACK');
         return {
           success: false,
           error: {
-            code: 'PROJECT_INSTRUCTION_NOT_FOUND',
-            message: 'プロジェクト指示が登録されていません',
+            code: 'CHECKOUT_NO_TASKS',
+            message: 'タスクが登録されていません',
+            details: {
+              projectId,
+              projectName: project.project_name,
+              taskCount: 0,
+            },
+          },
+        };
+      }
+
+      // バリデーション4: 未送信指示チェック（Repository層経由）
+      const hasUnsent = await projectInstructionRepository.hasUnsentInstructions(organizationId, projectId);
+
+      if (hasUnsent) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          error: {
+            code: 'CHECKOUT_UNSENT_INSTRUCTIONS',
+            message: '未送信の指示が存在します',
+            details: {
+              projectId,
+              projectName: project.project_name,
+            },
           },
         };
       }
@@ -801,19 +641,32 @@ export class ProjectService {
    * Requirements: FR-2.1, NFR-1, NFR-2
    * 
    * @param organizationId - 組織ID
-   * @param projectId - プロジェクトID
+   * @param projectName - プロジェクト名
    * @param userId - ユーザーID
    * @returns チェックイン結果
    */
   async checkin(
     organizationId: string,
-    projectId: string,
+    projectName: string,
     _userId: string
   ): Promise<ServiceResult<ProjectCheckoutInfo>> {
     const pool = getPool();
     let client;
 
     try {
+      // projectNameからprojectIdを取得
+      const projectRow = await projectRepository.findProjectIdByName(organizationId, projectName);
+      if (!projectRow) {
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'プロジェクトが見つかりません',
+          },
+        };
+      }
+      const projectId = projectRow.project_id;
+
       // トランザクション開始
       client = await pool.connect();
       await client.query('BEGIN');
@@ -846,26 +699,16 @@ export class ProjectService {
 
       const project = selectResult.rows[0];
 
-      // 前提条件チェック: task_status = 1のタスク存在確認
-      const taskQuery = `
-        SELECT COUNT(*) as count
-        FROM project_task_detail
-        WHERE organization_id = $1 AND project_id = $2 AND task_status = 1
-      `;
+      // 前提条件チェック: task_status = 1のタスク存在確認（Repository層経由）
+      const hasRunning = await projectTaskRepository.hasRunningTasks(organizationId, projectId);
 
-      const taskResult = await client.query(taskQuery, [organizationId, projectId]);
-      const runningTasksCount = parseInt(taskResult.rows[0].count, 10);
-
-      if (runningTasksCount > 0) {
+      if (hasRunning) {
         await client.query('ROLLBACK');
         return {
           success: false,
           error: {
             code: 'TASK_IN_PROGRESS',
             message: '実行中のタスクが存在するため、チェックインできません',
-            details: {
-              runningTasksCount,
-            },
           },
         };
       }
@@ -1020,18 +863,10 @@ export class ProjectService {
     archiveFiles: any[];
   }>> {
     try {
-      const pool = getPool();
+      // Repository層経由でプロジェクト情報を取得
+      const project = await projectRepository.findProjectBasicInfo(organizationId, projectId);
 
-      // プロジェクト存在確認（WHERE organization_id = $1 AND project_id = $2）
-      const projectQuery = `
-        SELECT project_id, project_name
-        FROM project
-        WHERE organization_id = $1 AND project_id = $2
-      `;
-
-      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
-
-      if (projectResult.rows.length === 0) {
+      if (!project) {
         return {
           success: false,
           error: {
@@ -1041,7 +876,7 @@ export class ProjectService {
         };
       }
 
-      const projectName = projectResult.rows[0].project_name;
+      const projectName = project.project_name;
 
       // S3からファイル一覧を取得（グレースフル処理）
       let files: any[] = [];
@@ -1243,16 +1078,24 @@ export class ProjectService {
         };
       }
 
-      // 統一されたPROJECT_STATUS_MAPを使用（types/project.tsからimport済み）
-      const currentStatus = PROJECT_STATUS_MAP[project.project_status] || 'unknown';
-
       // プロジェクトステータス検証: waiting_task (1) のみ許可
       if (project.project_status !== 1) {
+        // ステータス名のマッピング
+        const statusNames: { [key: number]: string } = {
+          0: 'プロジェクト計画中',
+          1: 'タスク実行待ち',
+          2: 'タスク実行中',
+          3: 'タスク結果レビュー待ち',
+          4: 'プロジェクト完了',
+          5: 'タスク異常終了',
+        };
+        const currentStatusName = statusNames[project.project_status] || '不明';
+        
         // waiting_approval の場合は特別なメッセージ
         const message =
           project.project_status === 2
             ? '既に承認依頼が送信されています'
-            : `プロジェクトステータスがactiveではありません。現在のステータス: ${currentStatus}`;
+            : `プロジェクトステータスがタスク実行待ちではありません。現在のステータス: ${currentStatusName}`;
 
         return {
           success: false,
@@ -1260,8 +1103,10 @@ export class ProjectService {
             code: 'BUSINESS_STATUS_INVALID',
             message,
             details: {
-              currentStatus,
-              requiredStatus: 'active',
+              currentStatus: project.project_status,
+              currentStatusName,
+              requiredStatus: 1,
+              requiredStatusName: 'タスク実行待ち',
             },
           },
         };
@@ -1375,18 +1220,10 @@ export class ProjectService {
     };
   }>> {
     try {
-      const pool = getPool();
+      // Repository層経由でプロジェクト情報を取得
+      const project = await projectRepository.findProjectBasicInfo(organizationId, projectId);
 
-      // プロジェクト存在確認（WHERE organization_id = $1 AND project_id = $2）
-      const projectQuery = `
-        SELECT project_id, project_name
-        FROM project
-        WHERE organization_id = $1 AND project_id = $2
-      `;
-
-      const projectResult = await pool.query(projectQuery, [organizationId, projectId]);
-
-      if (projectResult.rows.length === 0) {
+      if (!project) {
         return {
           success: false,
           error: {
@@ -1396,7 +1233,14 @@ export class ProjectService {
         };
       }
 
-      const projectName = projectResult.rows[0].project_name;
+      const projectName = project.project_name;
+
+      // Repository層経由でタスク一覧を取得
+      const tasksResult = await projectRepository.findProjectTasks(
+        organizationId,
+        projectId,
+        status
+      );
 
       // タスクステータスマップ（数値 → 文字列）
       const TASK_STATUS_MAP: { [key: number]: string } = {
@@ -1406,53 +1250,8 @@ export class ProjectService {
         3: 'completed',
       };
 
-      // statusパラメータに応じた動的WHERE条件を生成
-      let taskQuery = `
-        SELECT 
-          ptd.organization_id,
-          ptd.project_id,
-          ptd.method_id,
-          ptd.task_no,
-          ptd.task_status,
-          ptd.experiment_start_at,
-          ptd.experiment_end_at,
-          ptd.experiment_user_id,
-          ou.user_name as experiment_user_name,
-          ptd.reviewed_at,
-          ptd.review_user_id,
-          ru.user_name as review_user_name
-        FROM project_task_detail ptd
-        LEFT JOIN organization_user ou
-          ON ou.user_id = ptd.experiment_user_id
-          AND ou.organization_id = ptd.organization_id
-        LEFT JOIN organization_user ru
-          ON ru.user_id = ptd.review_user_id
-          AND ru.organization_id = ptd.organization_id
-        WHERE ptd.organization_id = $1
-          AND ptd.project_id = $2
-      `;
-
-      const taskParams: any[] = [organizationId, projectId];
-
-      // statusパラメータに応じてWHERE条件を追加
-      if (status !== 'all') {
-        const statusValue = Object.entries(TASK_STATUS_MAP).find(
-          ([_, v]) => v === status
-        )?.[0];
-        
-        if (statusValue) {
-          taskQuery += ` AND ptd.task_status = $3`;
-          taskParams.push(parseInt(statusValue, 10));
-        }
-      }
-
-      taskQuery += ` ORDER BY ptd.method_id, ptd.task_no`;
-
-      // タスク一覧を取得
-      const tasksResult = await pool.query(taskQuery, taskParams);
-
       // タスクデータをフロントエンドの型に合わせて変換
-      const tasks = tasksResult.rows.map((row: any) => {
+      const tasks = tasksResult.map((row: any) => {
         const taskStatus = TASK_STATUS_MAP[row.task_status] || 'pending';
         const taskId = `${row.method_id}_${row.task_no}`;
         
@@ -1462,7 +1261,7 @@ export class ProjectService {
           workerId: row.experiment_user_id || '',
           workerName: row.experiment_user_name || '',
           transitionId: `${row.method_id}_${row.task_no}`,
-          transitionName: `Task ${row.task_no}`, // 実際のトランジション名が必要な場合は別途取得
+          transitionName: `Task ${row.task_no}`,
           workStatus: taskStatus as any,
           assignedAt: row.experiment_start_at
             ? new Date(row.experiment_start_at).toISOString()
@@ -1500,17 +1299,11 @@ export class ProjectService {
         };
       });
 
-      // 統計情報を取得（GROUP BY + COUNT）
-      const statsQuery = `
-        SELECT 
-          task_status,
-          COUNT(*) as count
-        FROM project_task_detail
-        WHERE organization_id = $1 AND project_id = $2
-        GROUP BY task_status
-      `;
-
-      const statsResult = await pool.query(statsQuery, [organizationId, projectId]);
+      // Repository層経由で統計情報を取得
+      const statsResult = await projectRepository.countProjectTasksByStatus(
+        organizationId,
+        projectId
+      );
 
       // 統計情報を集計
       const statistics = {
@@ -1521,7 +1314,7 @@ export class ProjectService {
         failed: 0,
       };
 
-      statsResult.rows.forEach((row: any) => {
+      statsResult.forEach((row: any) => {
         const count = parseInt(row.count, 10);
         statistics.total += count;
 
@@ -1671,43 +1464,28 @@ export class ProjectService {
   /**
    * プロジェクトMAIMLファイル取得
    * 
-   * Task 3.1 (P): Service層実装
+   * Task 3.1 (P): Service層実装（projectName版）
    * Requirements: 1, 3, 4, 6, 7
    * 
    * @param organizationId - 組織ID
-   * @param projectId - プロジェクトID
+   * @param projectName - プロジェクト名
    * @returns MAIMLファイルデータ
    */
   async getProjectMaiml(
     organizationId: string,
-    projectId: string
+    projectName: string
   ): Promise<ServiceResult<any>> {
-    const pgp = getPgp();
-    const { loadSqlFile } = require('../sql/loader');
+    let projectId: string | undefined; // スコープを拡大
     
     try {
-      // organization_prefix取得（外部SQLファイル使用）
-      const orgSql = await loadSqlFile('projects/getOrganizationPrefix.sql');
-      const orgResult = await pgp.oneOrNone(orgSql, [organizationId]);
+      console.log('[DEBUG] getProjectMaiml - Service層開始', { organizationId, projectName });
       
-      if (!orgResult) {
-        return {
-          success: false,
-          error: {
-            code: 'RESOURCE_NOT_FOUND',
-            message: '組織情報が見つかりません',
-          },
-        };
-      }
-      
-      const organizationPrefix = orgResult.organization_prefix;
-      
-      // Task 3.1: プロジェクト存在確認（organization_idフィルタ必須、外部SQLファイル使用）
-      const projectSql = await loadSqlFile('projects/findByIdForMaiml.sql');
-      const projectResult = await pgp.oneOrNone(projectSql, [organizationId, projectId]);
+      // Repository層を使用してprojectNameからprojectIdを取得
+      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
       
       // プロジェクト存在確認
-      if (!projectResult) {
+      if (!project) {
+        console.log('[DEBUG] getProjectMaiml - プロジェクトが見つかりません', { projectName });
         return {
           success: false,
           error: {
@@ -1717,33 +1495,49 @@ export class ProjectService {
         };
       }
       
-      const projectName = projectResult.project_name;
+      projectId = project.project_id;
+      console.log('[DEBUG] getProjectMaiml - プロジェクトID取得完了', { projectId, projectName });
       
       // Task 3.1: S3パスを構築
       const filePath = `projects/${projectName}/${projectName}.maiml`;
+      console.log('[DEBUG] getProjectMaiml - S3パス構築完了', { filePath });
       
-      // Task 3.1: storageService経由でS3からファイルを取得
+      // Task 3.1: storageService経由でファイル存在確認
+      const storageService = getStorageService();
+      const exists = await storageService.fileExists(organizationId, filePath);
+      
+      // ファイルが存在しない場合は空のcontentで成功レスポンスを返す（新規プロジェクト等）
+      if (!exists) {
+        console.log('[DEBUG] getProjectMaiml - ファイル不在、空のcontentを返却', { filePath });
+        winston.info('MAIML file not found (new project), returning empty content', {
+          projectId,
+          projectName,
+          organizationId,
+          filePath,
+          timestamp: new Date().toISOString(),
+        });
+        
+        return {
+          success: true,
+          data: {
+            maimlContent: '', // 空のcontentを返す
+          },
+        };
+      }
+      
+      // Task 3.1: ファイルが存在する場合はS3から取得
       try {
-        const storageService = getStorageService();
-        const fileBuffer = await storageService.downloadFile(organizationPrefix, filePath);
+        console.log('[DEBUG] getProjectMaiml - S3からファイル取得開始');
+        
+        const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+        console.log('[DEBUG] getProjectMaiml - S3からファイル取得完了', { size: fileBuffer.length });
         
         // Task 3.1: BufferをUTF-8文字列に変換
         const content = fileBuffer.toString('utf-8');
         
-        // Task 3.1: ファイルメタデータを取得
-        const fileMetadata = await storageService.getFileMetadata(organizationPrefix, filePath);
-        
-        // Task 3.1: レスポンスデータ構築
+        // Task 3.1: レスポンスデータ構築（フロントエンドのProjectMaimlResponse型に合わせる）
         const maimlFileData = {
-          file_id: fileMetadata.key,
-          project_id: projectId,
-          project_name: projectName,
-          file_name: `${projectName}.maiml`,
-          file_path: filePath,
-          file_size: fileMetadata.size,
-          content: content,
-          content_type: 'application/xml' as const,
-          loaded_at: new Date().toISOString(),
+          maimlContent: content, // フロントエンドが期待するプロパティ名
         };
         
         // Task 3.1: 成功ログ記録
@@ -1751,23 +1545,34 @@ export class ProjectService {
           projectId,
           projectName,
           organizationId,
-          fileSize: fileMetadata.size,
+          fileSize: fileBuffer.length,
           filePath,
           timestamp: new Date().toISOString(),
         });
         
+        console.log('[DEBUG] getProjectMaiml - 成功レスポンス返却');
         return {
           success: true,
           data: maimlFileData,
         };
       } catch (s3Error: any) {
         // Task 3.1: S3ファイル不在時の処理
-        if (s3Error.name === 'NotFound' || s3Error.$metadata?.httpStatusCode === 404) {
+        // ファイルが見つからない場合の判定を拡張（NotFound, NoSuchKey, 404ステータス, エラーメッセージに"not found"を含む）
+        const isNotFound = 
+          s3Error.name === 'NotFound' ||
+          s3Error.name === 'NoSuchKey' ||
+          s3Error.code === 'NoSuchKey' ||
+          s3Error.$metadata?.httpStatusCode === 404 ||
+          (s3Error.message && s3Error.message.toLowerCase().includes('not found')) ||
+          (s3Error.message && s3Error.message.toLowerCase().includes('does not exist'));
+        
+        if (isNotFound) {
           winston.warn('MAIML file not found in S3', {
             projectId,
             projectName,
             organizationId,
             filePath,
+            errorType: s3Error.name || s3Error.code || 'Unknown',
             timestamp: new Date().toISOString(),
           });
           

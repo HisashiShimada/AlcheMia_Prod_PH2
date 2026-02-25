@@ -9,12 +9,14 @@ import {
   Modal,
   Form,
   Select,
+  Radio,
   Typography,
   Row,
   Col,
   Badge,
   App,
   Divider,
+  theme,
 } from 'antd';
 import {
   SearchOutlined,
@@ -29,6 +31,7 @@ import { createApiClient } from '@/utils/authUtils';
 import { formatDateTime } from '@/utils/dateFormatter';
 
 const { Text } = Typography;
+const { useToken } = theme;
 
 /**
  * 組織データの型定義（DB連携版）
@@ -70,6 +73,7 @@ interface OptionType {
  */
 export default function OrganizationManagement() {
   const { modal, message: messageApi } = App.useApp();
+  const { token } = useToken();
   const [organizations, setOrganizations] = useState<OrganizationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -81,6 +85,9 @@ export default function OrganizationManagement() {
   const [form] = Form.useForm();
   const [companyOptions, setCompanyOptions] = useState<OptionType[]>([]);
   const [systemAdminOptions, setSystemAdminOptions] = useState<OptionType[]>([]);
+  const [isDuplicateChecking, setIsDuplicateChecking] = useState(false);
+  const [isDuplicate, setIsDuplicate] = useState(false);
+  const [organizationCdValue, setOrganizationCdValue] = useState('');
 
   // 初回データ取得
   useEffect(() => {
@@ -354,14 +361,70 @@ export default function OrganizationManagement() {
     }
   };
 
+  // 組織CD重複チェック（デバウンス付き）
+  useEffect(() => {
+    // 編集モードの場合はチェックしない
+    if (editingOrg || !organizationCdValue || organizationCdValue.length === 0) {
+      setIsDuplicate(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsDuplicateChecking(true);
+      try {
+        const client = createApiClient();
+        const response = await client.get(
+          `/provider/organization/check-cd/${organizationCdValue}`
+        );
+        
+        // 既に存在する場合
+        if (response.data.exists) {
+          setIsDuplicate(true);
+          form.setFields([
+            {
+              name: 'organizationCd',
+              errors: ['この組織CDは既に使用されています']
+            }
+          ]);
+        } else {
+          setIsDuplicate(false);
+          form.setFields([
+            {
+              name: 'organizationCd',
+              errors: []
+            }
+          ]);
+        }
+      } catch (_error) {
+        // エラー時は重複なしとして扱う
+        setIsDuplicate(false);
+      } finally {
+        setIsDuplicateChecking(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [organizationCdValue, form, editingOrg]);
+
   // 組織追加
   const handleAdd = () => {
     setEditingOrg(null);
+    setIsDuplicate(false);
+    setOrganizationCdValue('');
     form.resetFields();
+    
+    // 明示的にすべてのフィールドをリセット
     form.setFieldsValue({
-      isActive: true,
-      isEntry: 1,  // デフォルト値を「あり」に設定
+      organizationCd: '',
+      organizationDisplayName: '',
+      organizationEmail: '',
+      corporationId: undefined,
+      isEntry: 0,                    // デフォルトは「無効」
+      isActive: true,                // デフォルトは「アクティブ」
+      chiefUserName: '',             // 空欄
+      chiefUserEmail: '',            // 空欄
     });
+    
     setIsModalVisible(true);
   };
 
@@ -374,7 +437,7 @@ export default function OrganizationManagement() {
       );
       
       if (response.data.success && Array.isArray(response.data.data)) {
-        const options = response.data.data.map((user: any) => ({
+        const options = response.data.data.map((user: { userName: string; userId: string }) => ({
           label: user.userName,    // 表示: ユーザー名
           value: user.userId,      // 値: ユーザーID
         }));
@@ -670,6 +733,7 @@ export default function OrganizationManagement() {
       }
       
       setIsModalVisible(false);
+      setOrganizationCdValue('');
       form.resetFields();
       await fetchOrganizations();
     } catch (error) {
@@ -690,6 +754,7 @@ export default function OrganizationManagement() {
   // モーダルキャンセル
   const handleModalCancel = () => {
     setIsModalVisible(false);
+    setIsDuplicate(false);
     form.resetFields();
   };
 
@@ -841,6 +906,7 @@ export default function OrganizationManagement() {
 
       <Modal
         title={editingOrg ? '組織編集' : '組織追加'}
+        forceRender
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
@@ -941,7 +1007,10 @@ export default function OrganizationManagement() {
                 label="組織CD"
                 rules={[{ required: true, message: '組織CDを入力してください' }]}
               >
-                <Input placeholder="maiml_lab_001" />
+                <Input
+                  placeholder="maiml_lab_001"
+                  onChange={(e) => setOrganizationCdValue(e.target.value)}
+                />
               </Form.Item>
 
               <Form.Item
@@ -1006,7 +1075,7 @@ export default function OrganizationManagement() {
                 label="代表システム管理者"
                 rules={[{ required: true, message: '代表システム管理者を入力してください' }]}
               >
-                <Input placeholder="サンプル　太郎" />
+                <Input placeholder="サンプル　太郎" autoComplete="off" />
               </Form.Item>
 
               <Form.Item
@@ -1014,8 +1083,9 @@ export default function OrganizationManagement() {
                 label="代表者メールアドレス"
                 rules={[{ required: true, message: '代表者メールアドレスを入力してください' }]}
               >
-                <Input placeholder="sample@sample.co.jp" />
+                <Input placeholder="sample@sample.co.jp" autoComplete="off" />
               </Form.Item>
+
             </>
           )}
         </Form>

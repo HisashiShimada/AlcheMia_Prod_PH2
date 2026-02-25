@@ -25,35 +25,7 @@ import type {
   Place,
 } from '@/types/maiml-unified';
 import { xml2js, Element as XmlJsNonCompactElement } from 'xml-js';
-import type { 
-  TransitionWithMetadata,
-} from '@/types/maiml-extended';
 import { TemplatesByCategory } from '@/types/editor';
-
-export interface TransitionsResult {
-  success: boolean;
-  error?: string | null;             // Phase 3追加: エラーメッセージ
-  transitions: TransitionWithMetadata[];  // Phase 6-2修正: TransitionInfo → TransitionWithMetadata
-  metadata: {
-    totalMethods: number;
-    totalTransitions: number;
-    categoryCounts: {
-      experiment: number;
-      preparation: number;
-      finalization: number;
-      other: number;
-    };
-  };
-}
-
-/**
- * Template メタデータ型定義
- */
-export interface TemplateMetadata {
-  uuid: string;
-  placeRefs: PlaceRef[];
-  templateRefs: Reference[];
-}
 
 /**
  * 型安全なMAIMLパーサークラス
@@ -96,10 +68,28 @@ export class MaimlParserTyped {
       xmlData = maimlData;
     }
     
-    // 3. XSD準拠型に変換
+    // 3. XSD準拠型に変換（エラーハンドリング付き）
     try {
-      this.typedMaiml = convertXmlJsToMaimlRoot(xmlData);
-      console.log('✅ [MaimlParserTyped] 型変換成功');
+      const conversionResult = convertXmlJsToMaimlRoot(xmlData);
+      this.typedMaiml = conversionResult.data;
+      
+      // 変換エラーをログ出力
+      if (conversionResult.hasErrors) {
+        console.warn('⚠️ [MaimlParserTyped] 型変換中にエラーが発生しました:', conversionResult.errors);
+        conversionResult.errors.forEach(err => {
+          console.warn(`  - ${err.level.toUpperCase()}: ${err.path}.${err.element} - ${err.message}`);
+        });
+      }
+      
+      if (conversionResult.hasWarnings && !conversionResult.hasErrors) {
+        console.info('ℹ️ [MaimlParserTyped] 型変換中に警告が発生しました:', conversionResult.errors.filter(e => e.level === 'warning'));
+      }
+      
+      if (!conversionResult.hasErrors) {
+        console.log('✅ [MaimlParserTyped] 型変換成功');
+      } else {
+        console.log('⚠️ [MaimlParserTyped] 型変換完了（部分的にエラー）');
+      }
     } catch (error) {
       console.error('❌ [MaimlParserTyped] 型変換失敗:', error);
       throw new Error(`MAIML type conversion error: ${error instanceof Error ? error.message : String(error)}`);

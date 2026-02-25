@@ -33,3 +33,39 @@ export interface FormatFile {
   isFolder: boolean;
   fileCount?: number; // フォルダの場合のみ
 }
+
+/**
+ * フォーマットフォルダ作成リクエストの型定義（部門直下）
+ */
+export interface CreateFormatFolderRequest {
+  folderName: string; // 1-255文字、英数字・アンダースコアのみ
+}
+
+/**
+ * フォーマットフォルダ作成レスポンスの型定義（部門直下）
+ */
+export interface CreateFormatFolderResponse {
+  folder_name: string;
+  folder_path: string; // {organization_id}/formats/{department_cd}/{folder_name}
+  department_cd: string;
+  created_at: string;
+}
+
+/**
+ * フォーマット内サブフォルダ作成リクエストの型定義
+ */
+export interface CreateFormatSubfolderRequest {
+  formatName: string; // フォーマット名（chemistry, materials等）
+  subfolderName: string; // サブフォルダ名（1-255文字、英数字・アンダースコア・ハイフンのみ）
+  parentPath?: string; // 親フォルダのパス（オプション、空文字列=ルート直下）
+}
+
+/**
+ * フォーマット内サブフォルダ作成レスポンスの型定義
+ */
+export interface CreateFormatSubfolderResponse {
+  folder_name: string;
+  folder_path: string; // formatName/subfolderName または formatName/parentPath/subfolderName
+  full_swift_path: string; // {organization_id}/formats/{department_cd}/formatName/subfolderName
+  created_at: string;
+}

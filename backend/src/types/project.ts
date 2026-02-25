@@ -3,17 +3,6 @@
  */
 
 /**
- * プロジェクトステータス
- */
-export type ProjectStatus = 
-  | 'planning'           // 0: プロジェクト計画中
-  | 'waiting_task'       // 1: タスク実行待ち
-  | 'executing_task'     // 2: タスク実行中
-  | 'waiting_approval'   // 3: 承認待ち
-  | 'completed'          // 4: プロジェクト完了
-  | 'error';             // 5: タスク異常終了
-
-/**
  * プロジェクト（APIレスポンス用）
  */
 export interface Project {
@@ -21,13 +10,15 @@ export interface Project {
   name: string;
   folderName: string;
   description: string;
-  status: ProjectStatus;
+  status: number; // プロジェクトステータス（数値コード: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了）
+  statusName?: string; // code_masterから取得したステータス名（日本語）
   fileCount: number;
   totalSize: number;
   owner: string;
   ownerName?: string;
   ownerEmail?: string;
   department: string;
+  departmentName?: string; // 部署名（日本語）
   members: string[];
   tags: string[];
   isCheckedOut: boolean;
@@ -86,18 +77,6 @@ export interface ProjectListResponse {
   projects: Project[];
   pagination: Pagination;
 }
-
-/**
- * プロジェクトステータスマッピング（DB数値 → 文字列）
- */
-export const PROJECT_STATUS_MAP: Record<number, ProjectStatus> = {
-  0: 'planning',
-  1: 'waiting_task',
-  2: 'executing_task',
-  3: 'waiting_approval',
-  4: 'completed',
-  5: 'error'
-};
 
 /**
  * タスクステータスマッピング（DB数値 → 文字列）

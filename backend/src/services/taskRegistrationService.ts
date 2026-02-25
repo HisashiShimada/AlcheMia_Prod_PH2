@@ -8,10 +8,9 @@
  * @date 2026-02-20
  */
 
-import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import * as projectRepository from '../repositories/projectRepository';
-import * as taskRepository from '../repositories/taskRepository';
-import { getStorageService } from '../services/storageService';
+import * as projectTaskRepository from '../repositories/projectTaskRepository';
+import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import type {
   GetTaskRegistrationResponse,
   TaskRegistrationData,
@@ -20,6 +19,7 @@ import type {
 } from '../types/taskRegistration';
 import { getPool } from '../database/db';
 import type { PoolClient } from 'pg';
+import type { ProjectTask } from '../types/database';
 
 /**
  * タスク登録情報を取得
@@ -43,35 +43,22 @@ export async function getTaskRegistration(
   const isCheckoutLocked = project.checkout_status === 1;
   const isMaimlRegistered = project.project_maiml_flg === true;
   
-  // 3. タスク情報を取得（DB or MAIML解析）
+  // 3. タスク情報を取得（DBのみ）
   let tasks: TaskRegistrationData[] = [];
   
-  // 4.1. project_taskテーブルから取得を試みる
-  const dbTasks = await taskRepository.findByProject(organizationId, project.project_id);
+  // 4. project_taskテーブルから取得
+  const dbTasks = await projectTaskRepository.findByProject(organizationId, project.project_id);
   
   if (dbTasks && dbTasks.length > 0) {
-    // DBにデータがある場合
-    tasks = dbTasks.map((task, index): TaskRegistrationData => ({
+    // DBにデータがある場合のみtasksを設定
+    tasks = dbTasks.map((task: ProjectTask, index: number): TaskRegistrationData => ({
       methodId: task.method_id,
       experimentCondition: task.experiment_condition || 0,
       trialCount: task.attempts_count || 1,
       experimentOrder: task.experiment_order || index + 1
     }));
-  } else if (isMaimlRegistered) {
-    // DBにデータがない場合、MAIMLファイルから解析
-    try {
-      const methodIds = await getMethodIdsFromMaiml(organizationId, projectName);
-      tasks = methodIds.map((methodId, index) => ({
-        methodId,
-        experimentCondition: 0, // デフォルト値
-        trialCount: 1, // デフォルト値
-        experimentOrder: index + 1
-      }));
-    } catch (error) {
-      console.error('Failed to parse MAIML file:', error);
-      // MAIMLファイル解析失敗時は空配列を返す
-    }
   }
+  // DBにデータがない場合は空配列のまま（フロントエンドで処理）
   
   return {
     tasks,
@@ -163,34 +150,6 @@ export async function saveTaskRegistration(
   } finally {
     client.release();
   }
-}
-
-/**
- * MAIMLファイルからメソッドIDを取得
- * 
- * @param organizationId - 組織ID
- * @param projectName - プロジェクト名
- * @returns {Promise<string[]>} メソッドID配列
- * @private
- */
-async function getMethodIdsFromMaiml(
-  organizationId: string,
-  projectName: string
-): Promise<string[]> {
-  const storageService = getStorageService();
-  
-  // MAIMLファイルのパス
-  const maimlPath = `projects/${projectName}/${projectName}.maiml`;
-  
-  // S3/Swiftからファイルを取得
-  const maimlBuffer = await storageService.downloadFile(organizationId, maimlPath);
-  const maimlContent = maimlBuffer.toString('utf-8');
-  
-  // MaimlParserTypedでパース
-  const parser = new MaimlParserTyped(maimlContent);
-  const methods = parser.getMethods();
-  
-  return methods.map(method => method.id);
 }
 
 /**

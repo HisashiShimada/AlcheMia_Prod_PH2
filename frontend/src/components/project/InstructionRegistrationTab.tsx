@@ -35,6 +35,17 @@ import type {
 } from '@/types/instructionRegistration';
 import type { TaskDetail, MethodInfo } from '@/types/taskRegistration';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
+import {
+  getTaskRegistrationStatus,
+  sendInstructions,
+  getInstructions,
+  saveInstruction,
+  updateInstruction,
+  deleteInstruction,
+  getTaskRegistration,
+} from '@/services/projectApiService';
+import type { TaskInput } from '@/types/api';
 
 const { Text } = Typography;
 const { useToken } = theme;
@@ -45,7 +56,8 @@ const { useToken } = theme;
 interface InstructionRegistrationTabProps {
   projectId: string;
   projectName: string;
-  tasks: TaskDetail[];
+  isActive: boolean;
+  isCheckoutLocked?: boolean;
   onInstructionsSubmit?: (instructions: InstructionData[]) => void;
 }
 
@@ -55,114 +67,121 @@ interface InstructionRegistrationTabProps {
 const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   projectId,
   projectName,
-  tasks,
+  isActive,
+  isCheckoutLocked,
   onInstructionsSubmit,
 }) => {
   const { token } = useToken();
   const { t } = useLanguage();
+  const { maimlRoot, isLoading: isMaimlLoading } = useProjectMaiml();
 
   // 状態管理
   const [instructions, setInstructions] = useState<InstructionData[]>([]);
-  const [availableMethods, setAvailableMethods] = useState<MethodInfo[]>([]);
-  const [availableTransitions, setAvailableTransitions] = useState<TransitionInfo[]>([]);
-  const [loadingTransitions, setLoadingTransitions] = useState<boolean>(false);
+  const [registeredTasks, setRegisteredTasks] = useState<TaskDetail[]>([]);
   const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
   const [editMode, setEditMode] = useState<'create' | 'edit'>('create');
   const [editingInstruction, setEditingInstruction] = useState<InstructionData | undefined>(undefined);
   const [isSending, setIsSending] = useState<boolean>(false);
 
   /**
-   * ローカルストレージのキー
-   */
-  const storageKey = useMemo(() => `instruction-registration-${projectId}`, [projectId]);
-
-  /**
-   * MAIMLファイルからメソッド情報とトランジション情報を取得
+   * タブがアクティブになった時にタスク登録情報を再取得
    */
   useEffect(() => {
-    const fetchData = async () => {
-      if (!projectId) return;
+    const fetchTaskRegistration = async () => {
+      if (!projectName || !isActive) return;
 
-      setLoadingTransitions(true);
-
+      console.log('[DEBUG] InstructionRegistrationTab - Tab activated, fetching tasks');
+      
       try {
-        // TODO: 実際のAPI実装時に置き換え
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        const data = await getTaskRegistration(projectName);
 
-        // モックのメソッド情報
-        const mockMethods: MethodInfo[] = [
-          {
-            id: 'method_001',
-            name: 'sample_preparation',
-            displayName: 'サンプル準備',
-            description: '実験サンプルの準備プロセス',
-          },
-          {
-            id: 'method_002',
-            name: 'measurement',
-            displayName: '測定実行',
-            description: '測定機器による測定プロセス',
-          },
-          {
-            id: 'method_003',
-            name: 'data_analysis',
-            displayName: 'データ分析',
-            description: 'データの分析プロセス',
-          },
-        ];
+        // タスク情報をUI用の形式に変換
+        if (data.tasks && data.tasks.length > 0) {
+          const uiTasks: TaskDetail[] = data.tasks.map((task, index) => ({
+            id: index + 1,
+            methodId: task.methodId,
+            experimentCondition: Number(task.experimentCondition),
+            trialCount: task.trialCount,
+            experimentOrder: task.experimentOrder,
+            taskNumberOptions: Array.from({ length: task.trialCount }, (_, i) => i + 1),
+          }));
 
-        // モックのトランジション情報
-        const mockTransitions: TransitionInfo[] = [
-          {
-            id: 'transition_001',
-            displayName: 'サンプル準備',
-            category: 'preparation',
-            description: '実験サンプルの準備プロセス',
-            isExperimentRelevant: true,
-          },
-          {
-            id: 'transition_002',
-            displayName: '測定実行',
-            category: 'measurement',
-            description: '測定機器による測定プロセス',
-            isExperimentRelevant: true,
-          },
-          {
-            id: 'transition_003',
-            displayName: 'データ分析',
-            category: 'analysis',
-            description: 'データの分析プロセス',
-            isExperimentRelevant: true,
-          },
-        ];
-
-        setAvailableMethods(mockMethods);
-        setAvailableTransitions(mockTransitions);
-
-        // 保存されたデータがあれば復元
-        const savedData = localStorage.getItem(storageKey);
-        if (savedData) {
-          try {
-            const parsed: InstructionRegistrationData = JSON.parse(savedData);
-            if (parsed.projectId === projectId && parsed.instructions.length > 0) {
-              setInstructions(parsed.instructions);
-              message.success(t('instructionRegistration.messages.restored'));
-            }
-          } catch (error) {
-            console.error('Failed to parse saved instruction data:', error);
-          }
+          console.log('[DEBUG] InstructionRegistrationTab - Tasks loaded from DB:', uiTasks);
+          setRegisteredTasks(uiTasks);
+        } else {
+          console.log('[DEBUG] InstructionRegistrationTab - No tasks found in DB');
+          setRegisteredTasks([]);
         }
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : 'データ取得エラー';
-        message.error(errorMessage);
-      } finally {
-        setLoadingTransitions(false);
+        console.error('タスク登録情報の取得に失敗しました:', error);
+        setRegisteredTasks([]);
       }
     };
 
-    fetchData();
-  }, [projectId, storageKey]);
+    fetchTaskRegistration();
+  }, [projectName, isActive]);
+
+  /**
+   * タブがアクティブになった時に指示一覧を再取得
+   */
+  useEffect(() => {
+    const fetchInstructions = async () => {
+      if (!projectName || !isActive) return;
+
+      console.log('[DEBUG] InstructionRegistrationTab - Tab activated, fetching instructions');
+
+      try {
+        const instructionList = await getInstructions(projectName);
+        setInstructions(instructionList);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : '指示一覧の取得に失敗しました';
+        message.error(errorMessage);
+      }
+    };
+
+    fetchInstructions();
+  }, [projectName, isActive]);
+
+  /**
+   * MAIMLコンテキストからメソッド一覧を取得
+   */
+  const availableMethods = useMemo((): MethodInfo[] => {
+    if (!maimlRoot?.protocol?.methods) return [];
+    
+    return maimlRoot.protocol.methods.map((method) => ({
+      id: method.id,
+      name: method.name || method.id,
+      displayName: method.name || method.id,
+      description: method.description,
+    }));
+  }, [maimlRoot]);
+
+  /**
+   * MAIMLコンテキストから全トランジション一覧を取得（表示用）
+   * 注: InstructionEditDialogではメソッド選択時に動的にフィルタリングされます
+   */
+  const availableTransitions = useMemo((): TransitionInfo[] => {
+    if (!maimlRoot?.protocol?.methods) return [];
+    
+    // 全メソッドのトランジションを集約
+    const allTransitions: TransitionInfo[] = [];
+    maimlRoot.protocol.methods.forEach((method) => {
+      if (method.pnml?.transitions) {
+        method.pnml.transitions.forEach((transition) => {
+          allTransitions.push({
+            id: transition.id,
+            displayName: transition.name || transition.id,
+            category: 'other',
+            description: transition.description,
+            isExperimentRelevant: true,
+          });
+        });
+      }
+    });
+    
+    return allTransitions;
+  }, [maimlRoot]);
 
   /**
    * 新規指示追加ダイアログを開く
@@ -193,58 +212,82 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   /**
    * 指示を保存
    */
-  const handleSaveInstruction = useCallback((instruction: InstructionData, keepDialogOpen: boolean = false) => {
-    if (editMode === 'create') {
-      // 新規作成
-      setInstructions((prev) => [...prev, instruction]);
-      message.success(t('instructionRegistration.messages.added'));
-    } else {
-      // 編集
-      setInstructions((prev) =>
-        prev.map((inst) => (inst.id === instruction.id ? instruction : inst))
-      );
-      message.success(t('instructionRegistration.messages.updated'));
-    }
+  const handleSaveInstruction = useCallback(async (instruction: InstructionData, keepDialogOpen: boolean = false) => {
+    try {
+      if (editMode === 'create') {
+        // 新規作成：API呼び出し
+        const result = await saveInstruction(projectName, {
+          methodId: instruction.methodId,
+          transitionId: instruction.transitionId || null,
+          taskNumber: instruction.taskNumber,
+          priority: instruction.priority,
+          type: instruction.type,
+          content: instruction.content,
+        });
+        
+        // APIから返されたIDで新しい指示を追加
+        const newInstruction: InstructionData = {
+          ...instruction,
+          id: result.instructionId,
+          isSent: false,
+        };
+        
+        setInstructions((prev) => [...prev, newInstruction]);
+        message.success(t('instructionRegistration.messages.added'));
+      } else {
+        // 編集：API呼び出し
+        await updateInstruction(projectName, String(instruction.id), {
+          methodId: instruction.methodId,
+          transitionId: instruction.transitionId || null,
+          taskNumber: instruction.taskNumber,
+          priority: instruction.priority,
+          type: instruction.type,
+          content: instruction.content,
+        });
+        
+        // ローカル状態を更新
+        setInstructions((prev) =>
+          prev.map((inst) => (inst.id === instruction.id ? instruction : inst))
+        );
+        message.success(t('instructionRegistration.messages.updated'));
+      }
 
-    // localStorageに保存
-    const dataToSave: InstructionRegistrationData = {
-      projectId,
-      projectName,
-      instructions: editMode === 'create'
-        ? [...instructions, instruction]
-        : instructions.map((inst) => (inst.id === instruction.id ? instruction : inst)),
-      savedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-
-    // 連続指示の場合はダイアログを閉じない
-    if (!keepDialogOpen) {
-      handleCloseDialog();
-    } else {
-      // 連続指示モード：新規作成モードに切り替え
-      setEditMode('create');
-      setEditingInstruction(undefined);
+      // 連続指示の場合はダイアログを閉じない
+      if (!keepDialogOpen) {
+        handleCloseDialog();
+      } else {
+        // 連続指示モード：新規作成モードに切り替え
+        setEditMode('create');
+        setEditingInstruction(undefined);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : '指示の保存に失敗しました';
+      message.error(errorMessage);
     }
-  }, [editMode, instructions, projectId, projectName, storageKey, handleCloseDialog, t]);
+  }, [editMode, projectName, handleCloseDialog, t]);
 
   /**
    * 指示を削除
    */
-  const handleDeleteInstruction = useCallback((id: string | number) => {
-    setInstructions((prev) => prev.filter((inst) => inst.id !== id));
-    
-    // localStorageを更新
-    const updatedInstructions = instructions.filter((inst) => inst.id !== id);
-    const dataToSave: InstructionRegistrationData = {
-      projectId,
-      projectName,
-      instructions: updatedInstructions,
-      savedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-    
-    message.success('指示を削除しました');
-  }, [instructions, projectId, projectName, storageKey]);
+  const handleDeleteInstruction = useCallback(async (id: string | number) => {
+    try {
+      // API呼び出し
+      const result = await deleteInstruction(projectName, String(id));
+      
+      if (result.deleted) {
+        // ローカル状態を更新
+        setInstructions((prev) => prev.filter((inst) => inst.id !== id));
+        message.success('指示を削除しました');
+      } else {
+        message.error('指示の削除に失敗しました（送信済の可能性があります）');
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : '指示の削除に失敗しました';
+      message.error(errorMessage);
+    }
+  }, [projectName]);
 
   /**
    * 指示を一括送信
@@ -258,8 +301,8 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     try {
       setIsSending(true);
 
-      // TODO: 実際のAPI実装時に置き換え
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // 指示を一括送信（タスク作成は別途タスク登録タブで実施済み）
+      const result = await sendInstructions(projectName, {});
 
       // 送信済フラグを立てる
       const sentInstructions = instructions.map(inst => ({
@@ -270,19 +313,10 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       // 親コンポーネントに通知
       onInstructionsSubmit?.(sentInstructions);
 
-      message.success(t('instructionRegistration.messages.sent'));
+      message.success(`${result.sentInstructionsCount}件の指示を送信しました`);
 
       // 送信後、送信済フラグを立てて表示を継続
       setInstructions(sentInstructions);
-      
-      // localStorageを更新
-      const dataToSave: InstructionRegistrationData = {
-        projectId,
-        projectName,
-        instructions: sentInstructions,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : '指示送信エラー';
@@ -290,7 +324,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     } finally {
       setIsSending(false);
     }
-  }, [instructions, storageKey, onInstructionsSubmit, t, projectId, projectName]);
+  }, [instructions, projectName, onInstructionsSubmit, t]);
 
   /**
    * 優先度のタグカラー（code_valueベース）
@@ -449,7 +483,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleOpenCreateDialog}
-            disabled={loadingTransitions || isSending}
+            disabled={isMaimlLoading || isSending || isCheckoutLocked}
           >
             {t('instructionRegistration.addButton')}
           </Button>
@@ -457,7 +491,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             type="primary"
             icon={<SendOutlined />}
             onClick={handleSubmitInstructions}
-            disabled={instructions.length === 0 || isSending}
+            disabled={instructions.length === 0 || isSending || isCheckoutLocked}
             loading={isSending}
             style={{
               backgroundColor: instructions.length > 0 ? token.colorSuccess : undefined,
@@ -476,7 +510,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
         rowKey="id"
         size="small"
         pagination={false}
-        loading={loadingTransitions}
+        loading={isMaimlLoading}
         locale={{
           emptyText: (
             <Empty
@@ -492,7 +526,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
         open={editDialogOpen}
         mode={editMode}
         instruction={editingInstruction}
-        tasks={tasks}
+        tasks={registeredTasks}
         availableMethods={availableMethods}
         availableTransitions={availableTransitions}
         onClose={handleCloseDialog}

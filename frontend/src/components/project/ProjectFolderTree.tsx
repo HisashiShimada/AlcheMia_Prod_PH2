@@ -16,21 +16,9 @@ import {
   SortAscendingOutlined as SortIcon,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
+import type { Project } from '@/types/project';
 
 const { Text } = Typography;
-
-interface Project {
-  id: string;
-  name: string;
-  folderName: string;
-  fileCount: number;
-  status: string;
-  department: string;
-  departmentName?: string;
-  owner: string;
-  ownerName?: string;
-  createdAt: string;
-}
 
 interface ProjectFolderTreeProps {
   projects: Project[];
@@ -60,32 +48,16 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
   const { t } = useLanguage();
   const { token } = theme.useToken();
   
-  const getStatusChipColor = (status: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
-    const colors: Record<string, 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
-      planning: 'default',
-      pending: 'info',
-      in_progress: 'primary',
-      completed: 'success',
-    };
-    return colors[status] || 'default';
-  };
-
-  const getStatusLabel = (status: string): string => {
+  const getStatusChipColor = (status: number): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
+    // status: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
     switch (status) {
-      case 'planning':
-        return t('projectManagement.status_planning');
-      case 'pending':
-        return t('projectManagement.status_pending');
-      case 'in_progress':
-        return t('projectManagement.status_in_progress');
-      case 'review_waiting':
-        return t('projectManagement.status_review_waiting');
-      case 'completed':
-        return t('projectManagement.status_completed');
-      case 'error':
-        return t('projectManagement.status_error');
-      default:
-        return status;
+      case 0: return 'default';  // プロジェクト計画中
+      case 1: return 'info';     // タスク実行待ち
+      case 2: return 'primary';  // タスク実行中
+      case 3: return 'warning';  // 承認待ち
+      case 4: return 'success';  // プロジェクト完了
+      case 5: return 'error';    // タスク異常終了
+      default: return 'default';
     }
   };
 
@@ -189,12 +161,14 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
                 {project.name}
               </Text>
               <Space size="small" wrap>
-                <Tag
-                  color={getStatusChipColor(project.status) === 'primary' ? 'cyan' : getStatusChipColor(project.status)}
-                  style={{ fontSize: token.fontSizeSM, margin: 0 }}
-                >
-                  {getStatusLabel(project.status)}
-                </Tag>
+                {project.statusName && (
+                  <Tag
+                    color={getStatusChipColor(project.status) === 'primary' ? 'cyan' : getStatusChipColor(project.status)}
+                    style={{ fontSize: token.fontSizeSM, margin: 0 }}
+                  >
+                    {project.statusName}
+                  </Tag>
+                )}
                 <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
                   {project.fileCount} {t('projectManagement.folder_tree.files')}
                 </Text>

@@ -127,13 +127,15 @@
 |----|-------------|---------------|------|---------|--------------|
 | 4.1 | GET | /api/v1/formats | フォーマット一覧取得 | ✅ 実装済み | FormatController.getFormats |
 | 4.2 | GET | /api/v1/formats/:folderName/files | フォーマットファイル一覧取得 | ✅ 実装済み | FormatController.getFormatFiles |
-| 4.3 | POST | /api/v1/formats/:formatId/files | 新規ファイル作成 | ⏳ 未実装 | FormatController.createFile |
-| 4.4 | POST | /api/v1/formats/:formatId/folders | 新規フォルダ作成 | ⏳ 未実装 | FormatController.createFolder |
-| 4.5 | PUT | /api/v1/formats/:formatId/files/:fileId | ファイル編集（保存） | ⏳ 未実装 | FormatController.updateFile |
+| 4.3 | POST | /api/v1/formats/:folderName/files | 新規ファイル作成 | ✅ 実装済み | FormatController.createFormatFile |
+| 4.4 | POST | /api/v1/formats/folders | 新規フォーマットフォルダ作成（部門直下） | ✅ 実装済み | FormatController.createFormatFolder |
+| 4.5 | POST | /api/v1/formats/subfolders | フォーマット内サブフォルダ作成 | ✅ 実装済み | FormatController.createFormatSubfolder |
+| 4.6 | PUT | /api/v1/formats/:formatId/files/:fileId | ファイル編集（保存） | ⏳ 未実装 | FormatController.updateFile |
 
 **ミドルウェアチェーン:**
-- すべて: `authMiddleware` → `checkPermission('040000', 0)`
-- 権限: 実験管理者メニュー（040000）、読み取り専用（0）
+- 4.1-4.2: `authMiddleware` → `checkPermission('040000', 0)`（読み取り専用）
+- 4.3-4.5: `authMiddleware` → `checkPermission('040000', 1)`（書込可）
+- 権限: 実験管理者メニュー（040000）
 
 **備考:**
 - ワークフローMAIML（.maiml）とテンプレートXML（.xml）を管理
@@ -147,6 +149,17 @@
   - ファイルとフォルダを区別して返却
   - フォルダには配下のファイル数（fileCount）を含む
   - 「↑ 戻る」ボタン用の特殊フォルダをフロントエンドで追加
+- API 4.3: 新規ファイル作成（2026-02-24実装）
+  - XMLファイル: templateType自動判定（material/condition/result）
+  - MAIMLファイル: 空のMAIMLテンプレート生成
+  - S3に空ファイルをプレースホルダーとして作成
+- API 4.4: 新規フォーマットフォルダ作成（2026-02-24実装）
+  - 部門直下にフォーマットフォルダを作成
+  - S3にプレースホルダーファイル（.placeholder）を作成
+- API 4.5: フォーマット内サブフォルダ作成（2026-02-24実装）
+  - 既存フォーマットフォルダ内にサブフォルダを作成
+  - parentPath指定でネストしたサブフォルダも作成可能
+  - S3にプレースホルダーファイル（.placeholder）を作成
 - XMLバリデーション必須（XXE攻撃対策）
 - マルチテナント分離必須（organization_id強制付与）
 
@@ -506,6 +519,38 @@
 
 ---
 
+### 15. ユーザー管理API（User Management）
+
+**API設計書**: [api_user_management.md](./api_user_management.md)  
+**ルートファイル**: `backend/src/routes/userRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 15.1 | GET | /api/v1/systemManagement/user | ユーザー一覧取得 | ✅ 実装済み | userController.getUsers |
+| 15.2 | GET | /api/v1/systemManagement/user/:userId | ユーザー詳細取得 | ✅ 実装済み | userController.getUserById |
+| 15.3 | POST | /api/v1/systemManagement/user | ユーザー新規作成 | ✅ 実装済み | userController.createUser |
+| 15.4 | PUT | /api/v1/systemManagement/user/:userId | ユーザー更新 | ✅ 実装済み | userController.updateUser |
+| 15.5 | PATCH | /api/v1/systemManagement/user/:userId/status | アクティブ状態更新 | ✅ 実装済み | userController.updateUserStatus |
+| 15.6 | GET | /api/v1/systemManagement/user/download-csv | CSVダウンロード | ✅ 実装済み | userController.downloadUsersCsv |
+| 15.7 | POST | /api/v1/systemManagement/user/upload-csv | CSVアップロード | ✅ 実装済み | userController.uploadUsersCsv |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`（JWTからorganizationIdを取得）
+- 権限: system_admin
+
+**備考:**
+- ✅ 全エンドポイント実装完了（100%）
+- パスワード管理: bcryptハッシュ化、8文字以上必須
+- 最終ログイン表示: login_historyテーブルから最新ログイン日時を取得
+- CSVダウンロード: パスワード欄は空白で出力
+- CSVアップロード: パスワード必須（user_authenticationテーブルに登録）
+- マルチテナント分離（authMiddlewareがorganization_idを設定）
+- 検索・フィルタリング機能（search, is_active, department_cd, role_cd）
+- ソート機能（sort_by, sort_order）
+- ファイルサイズ制限: 10MB
+
+---
+
 ## 🔍 API検索ガイド
 
 ### API名で検索する
@@ -553,7 +598,7 @@
 | 認証API | 6 | 6 | 0 | 0 | 100% |
 | プロジェクト管理API | 16 | 13 | 0 | 3 | 81% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
-| フォーマット管理API | 5 | 2 | 0 | 3 | 40% |
+| フォーマット管理API | 6 | 5 | 0 | 1 | 83% |
 | Maiml編集API | 17 | 17 | 0 | 0 | 100% |
 | 進捗確認API | 4 | 0 | 0 | 4 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
@@ -563,8 +608,9 @@
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
 | 会社管理API | 7 | 7 | 0 | 0 | 100% |
 | ファイルアクセスAPI | 6 | 6 | 0 | 0 | 100% |
-| 組織管理API | 8 | 8 | 0 | 0 | 100% |
-| **合計** | **115** | **101** | **0** | **14** | **87%** |
+| 組織管理API | 9 | 9 | 0 | 0 | 100% |
+| ユーザー管理API | 7 | 7 | 0 | 0 | 100% |
+| **合計** | **122** | **108** | **0** | **14** | **88%** |
 
 ### 優先度別実装状況
 
@@ -756,6 +802,14 @@ const path = `projects/${projectName}/file.maiml`;
 | | | - 実装状況サマリー: 実験データ記録API 総数 1→2 | |
 | | | - 全体: 115→116エンドポイント | |
 | | | - 詳細仕様: api_experiment_data.md セクション2 を参照 | |
+| 2.12.0 | 2026-02-24 | フォーマット管理API - 新規作成機能実装完了 | Cline |
+| | | - API 4.3: 新規ファイル作成（XMLファイル・MAIMLファイル対応） | |
+| | | - API 4.4: 新規フォーマットフォルダ作成（部門直下） | |
+| | | - API 4.5: フォーマット内サブフォルダ作成 | |
+| | | - テンプレートタイプ自動判定機能実装 | |
+| | | - フォーマット管理API: 5→6エンドポイント、実装済み2→5（83%） | |
+| | | - 実装済みAPI総数: 101→104エンドポイント（+3） | |
+| | | - 全体実装率: 87%→90%に向上 | |
 | 2.11.0 | 2026-02-19 | 組織管理API - クライアント証明書ダウンロード機能追加 | Cline |
 | | | - API 14.9: GET /organization/:organizationId/certificate 追加 | |
 | | | - PKCS#12形式の証明書ダウンロード | |
