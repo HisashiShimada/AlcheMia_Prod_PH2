@@ -11,7 +11,7 @@ CREATE TABLE login_history (
     id SERIAL NOT NULL,
     
     -- ログイン情報
-    user_name CHARACTER VARYING(30) NOT NULL,
+    user_id CHARACTER VARYING(50) NOT NULL,
     organization_id UUID NOT NULL,
     login_at TIMESTAMP,
     login_sf BOOLEAN,
@@ -41,7 +41,7 @@ CREATE INDEX idx_login_history_query ON login_history(organization_id,user_name,
 -- コメント
 COMMENT ON TABLE login_history IS 'ログイン履歴';
 COMMENT ON COLUMN login_history.id IS 'ID';
-COMMENT ON COLUMN login_history.user_name IS 'ユーザ名';
+COMMENT ON COLUMN login_history.user_id IS 'ユーザID';
 COMMENT ON COLUMN login_history.organization_id IS '組織ID';
 COMMENT ON COLUMN login_history.login_at IS 'ログイン日時';
 COMMENT ON COLUMN login_history.login_sf IS 'ログイン成否';
