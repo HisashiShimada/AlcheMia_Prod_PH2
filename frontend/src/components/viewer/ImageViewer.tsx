@@ -3,7 +3,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Space, Typography, Alert, Spin, Flex, Image as AntImage } from 'antd';
 import { 
   ZoomInOutlined, 
@@ -12,6 +12,7 @@ import {
   FileImageOutlined,
   LoadingOutlined
 } from '@ant-design/icons';
+import { getFileViewUrl } from '@/services/fileAccessService';
 
 const { Title, Text } = Typography;
 
@@ -29,6 +30,7 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState<number>(1);
+  const [reloadTrigger, setReloadTrigger] = useState<number>(0);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number }>({ 
     width: 0, 
     height: 0 
@@ -37,93 +39,68 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
   useEffect(() => {
     if (!fileKey) return;
 
-    // クリーンアップ関数
-    const cleanup = () => {
-      setImageUrl(null);
+    let isMounted = true;
+
+    const load = async () => {
       setLoading(true);
       setError(null);
+      setImageUrl(null);
+
+      try {
+        console.log('🔍 [ImageViewer] 署名付きURLを取得中:', fileKey);
+        const url = await getFileViewUrl(fileKey);
+        if (!isMounted) return;
+
+        // 画像読み込み確認
+        const img = new Image();
+        img.onload = () => {
+          if (!isMounted) return;
+          console.log('✅ [ImageViewer] 画像読み込み成功:', img.width, 'x', img.height);
+          setImageUrl(url);
+          setImageDimensions({ width: img.width, height: img.height });
+          setLoading(false);
+        };
+        img.onerror = (e) => {
+          if (!isMounted) return;
+          console.error('❌ [ImageViewer] 画像読み込みエラー:', e);
+          setError('画像の読み込みに失敗しました。サポートされていない形式かもしれません。');
+          setLoading(false);
+        };
+        img.src = url;
+      } catch (err) {
+        if (!isMounted) return;
+        console.error('❌ [ImageViewer] URL取得エラー:', err);
+        setError(`画像URLの取得に失敗しました: ${err instanceof Error ? err.message : '不明なエラー'}`);
+        setLoading(false);
+      }
     };
 
-    cleanup(); // 初期化
+    load();
 
-    // ✅ API呼び出しをコメントアウト - モック用
-    // const timestamp = new Date().getTime();
-    // const stableUrl = `/api/s3/file-binary?key=${encodeURIComponent(fileKey)}&t=${timestamp}`;
-    
-    // モック画像URL（実際のAPIエンドポイントはコメントアウト）
-    const stableUrl = 'https://via.placeholder.com/800x600.png?text=Mock+Image';
-    
-    console.log('画像URL生成（モック）:', stableUrl);
-
-    // 画像読み込み
-    const img = new Image();
-    
-    img.onload = () => {
-      console.log('画像読み込み成功:', img.width, 'x', img.height);
-      setImageUrl(stableUrl);
-      setImageDimensions({ width: img.width, height: img.height });
-      setLoading(false);
+    return () => {
+      isMounted = false;
     };
-    
-    img.onerror = (e) => {
-      console.error('画像読み込みエラー:', e);
-      setError('画像の読み込みに失敗しました。サポートされていない形式かもしれません。');
-      setLoading(false);
-    };
-    
-    img.src = stableUrl;
-    console.log('画像読み込み開始:', stableUrl);
+  }, [fileKey, reloadTrigger]);
 
-    return cleanup; // クリーンアップ関数を返す
-  }, [fileKey]);
-
-  /**
-   * 拡大
-   */
-  const handleZoomIn = (): void => {
+  /** 拡大 */
+  const handleZoomIn = useCallback((): void => {
     setScale(prevScale => Math.min(prevScale * 1.2, 5));
-  };
+  }, []);
 
-  /**
-   * 縮小
-   */
-  const handleZoomOut = (): void => {
+  /** 縮小 */
+  const handleZoomOut = useCallback((): void => {
     setScale(prevScale => Math.max(prevScale / 1.2, 0.1));
-  };
+  }, []);
 
-  /**
-   * リセット
-   */
-  const handleReset = (): void => {
+  /** リセット */
+  const handleReset = useCallback((): void => {
     setScale(1);
-  };
+  }, []);
 
-  /**
-   * 再読み込み
-   */
-  const handleReload = (): void => {
-    setLoading(true);
-    setError(null);
-    
-    // ✅ モック: 実際のAPI呼び出しはコメントアウト
-    // const timestamp = new Date().getTime();
-    // const reloadUrl = `/api/s3/file-binary?key=${encodeURIComponent(fileKey)}&t=${timestamp}`;
-    const reloadUrl = 'https://via.placeholder.com/800x600.png?text=Reloaded+Image';
-    
-    const img = new Image();
-    img.onload = () => {
-      setImageUrl(reloadUrl);
-      setImageDimensions({ width: img.width, height: img.height });
-      setLoading(false);
-    };
-    
-    img.onerror = () => {
-      setError('画像の再読み込みに失敗しました');
-      setLoading(false);
-    };
-    
-    img.src = reloadUrl;
-  };
+  /** 再読み込み */
+  const handleReload = useCallback((): void => {
+    setReloadTrigger(prev => prev + 1);
+  }, []);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -250,9 +227,6 @@ const ImageViewer: React.FC<ImageViewerProps> = ({ fileKey, fileName }) => {
                 )}
                 <Text type="secondary">
                   ズーム倍率: {scale.toFixed(2)}x
-                </Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  <strong>モックモード:</strong> API呼び出しはコメントアウトされています
                 </Text>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   ファイルキー: {fileKey}

@@ -1,11 +1,11 @@
 # ファイルアクセスAPI仕様書
 
 **作成日**: 2026-02-19 17:05  
-**最終更新**: 2026-02-19 17:05  
-**バージョン**: 1.0.0  
+**最終更新**: 2026-02-25 15:49  
+**バージョン**: 1.1.0  
 **対象画面**: 全画面共通  
-**総API数**: 7個  
-**実装状況**: 7個実装済み、0個未実装
+**総API数**: 8個  
+**実装状況**: 8個実装済み、0個未実装
 
 ---
 
@@ -14,12 +14,12 @@
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
 | ファイルアップロード | 1 | 0 | 1 |
-| ファイルダウンロード | 3 | 0 | 3 |
+| ファイルダウンロード | 4 | 0 | 4 |
 | バッチ管理 | 2 | 0 | 2 |
 | レガシー | 1 | 0 | 1 |
-| **合計** | **7** | **0** | **7** |
+| **合計** | **8** | **0** | **8** |
 
-**完了率**: 100% (7/7)
+**完了率**: 100% (8/8)
 
 ---
 
@@ -29,10 +29,11 @@
 |---|------|---------|---------------|------|--------|
 | 1 | ファイルアップロード | POST | `/api/v1/files/upload` | ✅ 実装済み | - |
 | 2 | フォルダZIPダウンロード | POST | `/api/v1/files/download-folder-as-zip` | ✅ 実装済み | - |
-| 3 | 署名付きURL取得 | POST | `/api/v1/files/download-url` | ✅ 実装済み | - |
-| 4 | 単一ファイルダウンロード（レガシー） | GET | `/api/v1/projects/:projectId/files/:fileName/download` | ✅ 実装済み | - |
-| 5 | バッチ履歴取得 | GET | `/api/v1/files/batches` | ✅ 実装済み | - |
-| 6 | バッチ進捗取得 | GET | `/api/v1/files/batches/:batchId/progress` | ✅ 実装済み | - |
+| 3 | 署名付きURL取得（ダウンロード用） | POST | `/api/v1/files/download-url` | ✅ 実装済み | - |
+| 4 | 署名付きURL取得（表示用） | POST | `/api/v1/files/view-url` | ✅ 実装済み | - |
+| 5 | 単一ファイルダウンロード（レガシー） | GET | `/api/v1/projects/:projectId/files/:fileName/download` | ✅ 実装済み | - |
+| 6 | バッチ履歴取得 | GET | `/api/v1/files/batches` | ✅ 実装済み | - |
+| 7 | バッチ進捗取得 | GET | `/api/v1/files/batches/:batchId/progress` | ✅ 実装済み | - |
 
 ---
 
@@ -456,7 +457,91 @@ const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
 
 ---
 
-### 4. 単一ファイルダウンロード（レガシー） ✅
+### 4. 署名付きURL取得（表示用） ✅
+
+**エンドポイント**: `POST /api/v1/files/view-url`
+
+**説明**: ビューアでのファイル表示用に署名付きURLを取得する。`download-url` との違いは `Content-Disposition: attachment` ヘッダーを付与しない点（ブラウザ上での表示を優先）。
+
+**認証**: 必須
+
+**権限**: すべてのロール
+
+**追加日**: 2026-02-25（ビューアボタン修正タスク）
+
+#### リクエスト
+
+**ボディ（JSON）**:
+```json
+{
+  "fileKey": "projects/Sample_Project/image.png"
+}
+```
+
+**バリデーション**:
+| フィールド | 型 | 必須 | 制約 |
+|----------|---|------|------|
+| `fileKey` | string | ○ | 1-1024文字（organization_prefixなし） |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "url": "https://swift.example.com/org_maiml_lab_001/projects/Sample_Project/image.png?temp_url_sig=...",
+    "expiresAt": "2026-02-25T16:45:00Z",
+    "expiresIn": 3600
+  },
+  "meta": {
+    "timestamp": "2026-02-25T15:45:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 400: バリデーションエラー（fileKeyが空 / 1024文字超）
+- 401: 認証エラー
+- 404: ファイルが存在しない
+- 500: システムエラー
+
+#### 実装ファイル
+- **ルート**: `backend/src/routes/fileAccessRoutes.ts`
+- **コントローラー**: `backend/src/controllers/fileAccessController.ts` (`getFileViewUrl`)
+- **サービス**: `backend/src/services/fileAccessService.ts` (`getSignedViewUrl`)
+
+#### フロントエンド使用箇所
+
+| コンポーネント | 用途 |
+|-------------|------|
+| `ImageViewer.tsx` | 画像ファイル表示用URL取得 |
+| `TiffViewer.tsx` | TIFFファイルダウンロード用URL取得 |
+| `ViewRendererDialog.tsx` | MAIMLテキスト取得（URL経由でfetch） |
+
+**フロントエンドサービス呼び出し例**:
+```typescript
+// frontend/src/services/fileAccessService.ts
+
+// 署名付きURLをそのまま返す（ImageViewer / TiffViewer用）
+export async function getFileViewUrl(fileKey: string): Promise<string> {
+  const response = await apiClient.post('/files/view-url', { fileKey });
+  return response.data.data.url;
+}
+
+// テキストとして取得（MAIMLファイル用）
+export async function getFileContentAsText(fileKey: string): Promise<string> {
+  const url = await getFileViewUrl(fileKey);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`ファイル取得失敗: ${res.status}`);
+  return res.text();
+}
+```
+
+---
+
+### 5. 単一ファイルダウンロード（レガシー） ✅
 
 **エンドポイント**: `GET /api/v1/projects/:projectId/files/:fileName/download`
 
@@ -505,7 +590,7 @@ const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
 
 ---
 
-### 5. バッチ履歴取得 ✅
+### 6. バッチ履歴取得 ✅
 
 **エンドポイント**: `GET /api/v1/files/batches`
 
@@ -606,7 +691,7 @@ const totalCount = await query
 
 ---
 
-### 6. バッチ進捗取得 ✅
+### 7. バッチ進捗取得 ✅
 
 **エンドポイント**: `GET /api/v1/files/batches/:batchId/progress`
 
