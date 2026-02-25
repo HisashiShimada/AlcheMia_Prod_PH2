@@ -37,6 +37,7 @@ type ViewMode = 'list' | 'flow';
  */
 interface ExperimentRecordTabProps {
   selectedProject: string;
+  selectedProjectName: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string | null) => void;
@@ -51,6 +52,7 @@ interface ExperimentRecordTabProps {
  */
 export default function ExperimentRecordTab({
   selectedProject,
+  selectedProjectName,
   onProjectChange,
   selectedMethodId,
   onSelectMethod,
@@ -85,7 +87,7 @@ export default function ExperimentRecordTab({
   // プロジェクト選択時にAPI呼び出し
   useEffect(() => {
     const fetchWorkerTasks = async () => {
-      if (!selectedProject) {
+      if (!selectedProjectName) {
         setMethods([]);
         setTasks([]);
         setProjectId(null);
@@ -94,9 +96,12 @@ export default function ExperimentRecordTab({
 
       setLoading(true);
       try {
-        console.log('[DEBUG] ExperimentRecordTab - Fetching worker tasks', { selectedProject });
+        console.log('[DEBUG] ExperimentRecordTab - Fetching worker tasks', { 
+          selectedProject, 
+          selectedProjectName 
+        });
         
-        const result = await getWorkerTasks(selectedProject);
+        const result = await getWorkerTasks(selectedProjectName);
         
         if (result.success && result.data) {
           const apiData = result.data;
@@ -123,20 +128,20 @@ export default function ExperimentRecordTab({
           const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
             method.tasks.map((task: WorkerTask) => ({
               taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
-              taskNo: task.task_no,
+              taskNo: task.task_no.toString(),
               taskName: task.task_no.toString(),
               methodId: method.method_id,
               methodName: method.method_name,
-              status: task.status as Task['status'],
-              assignedUserId: task.experiment_user_id,
-              assignedUserName: task.experiment_user_name,
+              status: task.task_status as Task['status'],
+              assignedUserId: task.experiment_user_id || undefined,
+              assignedUserName: task.experiment_user_name || undefined,
               createdAt: task.created_at,
               updatedAt: task.updated_at,
-              progress: task.progress,
+              progress: parseFloat(task.progress_rate),
               projectId: apiData.project_id,
               sampleNumber: '',
               notes: '',
-              progressRate: task.progress,
+              progressRate: parseFloat(task.progress_rate),
               transitionStatuses: [],
               progressReport: '',
               recordNumber: '',
@@ -167,7 +172,7 @@ export default function ExperimentRecordTab({
     };
 
     fetchWorkerTasks();
-  }, [selectedProject]);
+  }, [selectedProject, selectedProjectName]);
 
   // 選択されたメソッドに紐づくタスクをフィルタリング
   const filteredTasks = useMemo(() => {
@@ -396,6 +401,7 @@ export default function ExperimentRecordTab({
           onSelectMethod(methodId);
           onSelectTask(taskId);
         }}
+        methods={methods}
       />
 
       {/* データ記録モーダル */}

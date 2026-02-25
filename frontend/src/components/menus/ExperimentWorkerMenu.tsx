@@ -308,6 +308,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       children: (
         <ExperimentRecordTab
           selectedProject={selectedProject}
+          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChangeForChild}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
