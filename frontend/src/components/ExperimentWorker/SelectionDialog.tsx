@@ -134,7 +134,7 @@ export default function SelectionDialog({
                   </Space>
                 }
                 description={
-                  <Space direction="vertical" size={0}>
+                  <Space orientation="vertical" size={0}>
                     {item.subtitle && (
                       <Text type="secondary" style={{ fontSize: 12 }}>
                         {item.subtitle}

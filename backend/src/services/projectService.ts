@@ -1643,7 +1643,7 @@ export class ProjectService {
         transition_name: '', // TODO: タスク2.2で実装
         task_no: row.task_no,
         instruction_target: row.instruction_target,
-        instruction_content: row.instructions,
+        instruction_content: row.instruction_content,
         priority: row.priority,
         type: row.type,
         create_at: row.create_at.toISOString(),
@@ -1805,6 +1805,7 @@ export class ProjectService {
    * @description instructionConfirmationService.tsから移植
    * Task: 2.1, 2.2 Service層実装
    * @param instructionId - 指示ID
+   * @param projectName - プロジェクト名
    * @param userId - ユーザーID
    * @param organizationId - 組織ID
    * @param role - ユーザーロール
@@ -1812,16 +1813,33 @@ export class ProjectService {
    */
   async confirmInstruction(
     instructionId: string,
+    projectName: string,
     userId: string,
     organizationId: string,
     role: string
   ): Promise<ServiceResult<InstructionConfirmationData>> {
     // リポジトリ層のインポート
     const instructionRepository = require('../repositories/instructionRepository');
+    const projectRepository = require('../repositories/projectRepository');
 
     try {
+      // 0. projectNameからprojectIdを取得
+      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
+      
+      if (!project) {
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'プロジェクトが見つかりません',
+          },
+        };
+      }
+      
+      const projectId = project.project_id;
+
       // 1. 指示の存在確認（organization_idフィルタ付き）
-      const instruction = await instructionRepository.findById(instructionId, organizationId);
+      const instruction = await instructionRepository.findById(instructionId, projectId, organizationId);
 
       if (!instruction) {
         return {
@@ -1836,6 +1854,7 @@ export class ProjectService {
       // 2. 既確認チェック
       const acknowledgedHistory = await instructionRepository.checkAcknowledged(
         instructionId,
+        projectId,
         organizationId
       );
 
@@ -1853,6 +1872,7 @@ export class ProjectService {
       if (role === 'experiment_worker') {
         const taskAssignments = await instructionRepository.checkWorkerAssignment(
           instructionId,
+          projectId,
           userId,
           organizationId
         );
@@ -1871,6 +1891,7 @@ export class ProjectService {
       // 4. 確認履歴の挿入
       const insertedHistory = await instructionRepository.insertAcknowledged(
         instructionId,
+        projectId,
         userId,
         organizationId
       );

@@ -3,6 +3,6 @@
 -- パラメータ: $1=userId, $2=organizationId
 
 SELECT user_name
-FROM user_authentication
+FROM organization_user
 WHERE user_id = $1 
   AND organization_id = $2

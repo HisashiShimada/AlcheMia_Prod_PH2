@@ -27,7 +27,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
       <Row gutter={[16, 8]} align="middle">
         {/* 開始前のトランジション */}
         <Col xs={24} sm={12} md={6}>
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               開始前のトランジション
             </Text>
@@ -39,7 +39,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
 
         {/* 開始 */}
         <Col xs={12} sm={6} md={4}>
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               開始
             </Text>
@@ -51,7 +51,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
 
         {/* 作業中 */}
         <Col xs={12} sm={6} md={4}>
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               作業中
             </Text>
@@ -63,7 +63,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
 
         {/* 完了 */}
         <Col xs={12} sm={6} md={4}>
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               完了
             </Text>
@@ -75,7 +75,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
 
         {/* 進捗率 */}
         <Col xs={12} sm={6} md={6}>
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               進捗率
             </Text>

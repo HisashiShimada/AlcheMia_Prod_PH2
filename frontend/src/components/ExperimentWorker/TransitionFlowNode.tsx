@@ -118,9 +118,9 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
           transition: 'all 0.2s',
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
         }}
-        bodyStyle={{ padding: token.paddingSM }}
+        styles={{ body: { padding: token.paddingSM } }}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="small">
+        <Space orientation="vertical" style={{ width: '100%' }} size="small">
           {/* ステータスタグ */}
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <Tag

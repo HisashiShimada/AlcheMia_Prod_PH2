@@ -43,7 +43,7 @@ export default function TaskSelector({
         opacity: disabled ? 0.6 : 1,
       }}
     >
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%' }}>
         {/* ヘッダー */}
         <Space>
           <AimOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
@@ -52,7 +52,7 @@ export default function TaskSelector({
 
         {/* 選択中の情報 */}
         {selectedTask ? (
-          <Space direction="vertical" size={0} style={{ paddingLeft: 24 }}>
+          <Space orientation="vertical" size={0} style={{ paddingLeft: 24 }}>
             <Text strong style={{ fontSize: 14 }}>
               {selectedTask.taskName}
             </Text>

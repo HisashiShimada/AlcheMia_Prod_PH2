@@ -1055,11 +1055,12 @@ export async function confirmInstruction(req: Request, res: Response): Promise<v
   try {
     // バリデーションはミドルウェアで処理済み
     const { organizationId, userId, role } = req.user as any;
-    const { instructionId } = req.params;
+    const { projectName, instructionId } = req.params;
 
-    // Service層呼び出し（projectServiceに統合済み）
+    // Service層呼び出し（projectNameからprojectId取得もService層で実施）
     const result = await projectService.confirmInstruction(
       instructionId,
+      projectName,
       userId,
       organizationId,
       role

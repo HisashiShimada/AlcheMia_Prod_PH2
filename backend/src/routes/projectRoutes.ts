@@ -360,8 +360,10 @@ router.put(
       .isLength({ min: 1, max: 255 })
       .withMessage('projectNameは1〜255文字である必要があります'),
     param('instructionId')
-      .isUUID()
-      .withMessage('instructionIdはUUID形式である必要があります'),
+      .notEmpty()
+      .withMessage('instructionIdは必須です')
+      .isString()
+      .withMessage('instructionIdは文字列である必要があります'),
   ],
   handleValidationErrors,
   projectController.confirmInstruction

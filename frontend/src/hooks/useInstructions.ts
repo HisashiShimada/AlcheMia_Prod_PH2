@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { Instruction, Priority, WorkAssignment } from '@/types/experimentWorker';
-import { projectsData } from '@/data/projectsData';
+import { getWorkerInstructions, convertApiToInstruction } from '@/services/projectApiService';
 
 /**
  * 指示管理のカスタムフック
@@ -8,26 +8,74 @@ import { projectsData } from '@/data/projectsData';
  */
 export function useInstructions() {
   const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedProjectName, setSelectedProjectName] = useState<string>('');
   const [instructions, setInstructions] = useState<Instruction[]>([]);
   const [workAssignment, setWorkAssignment] = useState<WorkAssignment | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   // プロジェクト選択ハンドラー
-  const handleProjectChange = (value: string) => {
+  const handleProjectChange = async (value: string, projectName: string) => {
     setSelectedProject(value);
+    setSelectedProjectName(projectName);
+    
     // 空文字列またはundefinedの場合は、データをクリア
-    if (!value) {
+    if (!value || !projectName) {
       setInstructions([]);
       setWorkAssignment(null);
+      setError(null);
       return;
     }
     
-    const projectData = projectsData[value];
-    if (projectData) {
-      setInstructions(projectData.instructions);
-      setWorkAssignment(projectData.workAssignment);
-    } else {
+    // API呼び出しで指示一覧を取得
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await getWorkerInstructions(projectName);
+      
+      if (result.success && result.data) {
+        // バックエンドレスポンスをフロントエンド型に変換
+        const convertedInstructions: Instruction[] = result.data.map(convertApiToInstruction);
+        setInstructions(convertedInstructions);
+      } else {
+        setError(result.error?.message || '指示の取得に失敗しました');
+        setInstructions([]);
+      }
+    } catch (err) {
+      console.error('指示取得エラー:', err);
+      setError('指示の取得に失敗しました');
       setInstructions([]);
-      setWorkAssignment(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * 指示一覧を再取得する関数（確認完了後に呼び出し）
+   */
+  const refetchInstructions = async () => {
+    if (!selectedProjectName) {
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const result = await getWorkerInstructions(selectedProjectName);
+      
+      if (result.success && result.data) {
+        const convertedInstructions: Instruction[] = result.data.map(convertApiToInstruction);
+        setInstructions(convertedInstructions);
+      } else {
+        setError(result.error?.message || '指示の取得に失敗しました');
+      }
+    } catch (err) {
+      console.error('指示取得エラー:', err);
+      setError('指示の取得に失敗しました');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,5 +112,8 @@ export function useInstructions() {
     sortedInstructions,
     stats,
     handleProjectChange,
+    refetchInstructions,
+    loading,
+    error,
   };
 }
