@@ -15,7 +15,7 @@ import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
-import { getIssues, createIssue } from '@/services/issueApiService';
+import { getIssues, createIssue, addComment } from '@/services/issueApiService';
 import { Method, ProjectStatus, Transition, Issue, IssueReportFormData, Task } from '@/types/experimentWorker';
 import { getWorkerTasks } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
@@ -358,9 +358,41 @@ export default function ExperimentRecordTab({
   };
   
   // コメント送信ハンドラ
-  const handleSubmitComment = (issueId: string, comment: string) => {
-    console.log('コメント投稿:', { issueId, comment });
-    // TODO: バックエンドAPIへの送信処理を実装
+  const handleSubmitComment = async (issueId: string, comment: string) => {
+    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
+    // projectId は UUID（ハイフン含む）のため末尾要素を取得する
+    const parts = selectedTaskId.split('-');
+    const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
+
+    try {
+      await addComment({
+        projectName: selectedProjectName,
+        issueId,
+        comment,
+      });
+
+      // コメント投稿成功後に問題一覧を再取得して表示に反映
+      if (projectId && selectedMethodId && taskNo !== null && !isNaN(taskNo) && selectedTransition) {
+        setIssueLoading(true);
+        try {
+          const fetchedIssues = await getIssues({
+            projectId,
+            methodId: selectedMethodId,
+            taskNo,
+            transitionId: selectedTransition.transitionId,
+          });
+          setIssues(fetchedIssues);
+        } catch (fetchError) {
+          console.error('[handleSubmitComment] 問題一覧再取得エラー', fetchError);
+          // 再取得失敗はサイレントに処理（コメント投稿自体は成功しているため）
+        } finally {
+          setIssueLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('[handleSubmitComment] コメント投稿エラー', error);
+      message.error('コメントの投稿に失敗しました');
+    }
   };
 
   // 進捗データをトランジションにマージ

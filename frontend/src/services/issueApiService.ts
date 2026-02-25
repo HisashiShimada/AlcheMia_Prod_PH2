@@ -37,6 +37,19 @@ export interface CreateIssueParams {
 }
 
 /**
+ * コメント追加APIのリクエストパラメータ
+ * POST /api/v1/issues/comments
+ */
+export interface AddCommentParams {
+  /** プロジェクト名（必須） */
+  projectName: string;
+  /** 問題ID（UUID、必須） */
+  issueId: string;
+  /** コメント内容（必須） */
+  comment: string;
+}
+
+/**
  * 問題一覧取得APIのクエリパラメータ
  * GET /api/v1/issues
  */
@@ -75,6 +88,18 @@ interface CreateIssueApiData {
   reportedByName: string;
   reportedAt: string;
   comments: IssueCommentApiData[];
+}
+
+/**
+ * コメント追加APIのレスポンスデータ（1件分）
+ * バックエンドAPIレスポンスの構造（POST /api/v1/issues/comments）
+ */
+interface AddCommentApiData {
+  sequenceNo: number;
+  comment: string;
+  authorId: string;
+  authorName: string;
+  commentedAt: string;
 }
 
 /**
@@ -244,30 +269,54 @@ export async function getIssues(params: GetIssuesParams): Promise<Issue[]> {
 }
 
 /**
- * 問題を報告する
- * POST /api/v1/issues
+ * コメントを追加する
+ * POST /api/v1/issues/comments
  *
- * 問題報告フォームの送信内容をバックエンドに送信し、
- * 作成された問題データをフロントエンドの Issue 型にマッピングして返す。
+ * 指定した問題にコメントを追加する。
  *
- * @param params リクエストボディ（projectId, issueType, targetType, title, description は必須）
- * @returns 作成された Issue（フロントエンド型にマッピング済み）
+ * @param params リクエストパラメータ（projectName, issueId, comment は必須）
+ * @returns 作成されたコメントデータ
  * @throws Error API呼び出し失敗時
- *
- * @example
- * ```typescript
- * const created = await createIssue({
- *   projectId: '550e8400-e29b-41d4-a716-446655440000',
- *   methodId: 'method_001',
- *   issueType: 'material_shortage',
- *   targetType: 'transition',
- *   taskNo: 1,
- *   transitionId: 'transition_001',
- *   title: '試薬Aの在庫不足',
- *   description: '実験に必要な試薬Aが不足しています。',
- * });
- * ```
  */
+export async function addComment(params: AddCommentParams): Promise<AddCommentApiData> {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] addComment - Start', {
+      issueId: params.issueId,
+      projectName: params.projectName,
+    });
+
+    const response = await client.post<{
+      success: boolean;
+      data: AddCommentApiData;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>('/issues/comments', params);
+
+    if (!response.data.success) {
+      throw new Error('コメントの追加に失敗しました');
+    }
+
+    console.log('[DEBUG] addComment - Success', {
+      issueId: params.issueId,
+      sequenceNo: response.data.data.sequenceNo,
+    });
+
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] addComment - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+}
+
 export async function createIssue(params: CreateIssueParams): Promise<Issue> {
   const client = createApiClient();
 
