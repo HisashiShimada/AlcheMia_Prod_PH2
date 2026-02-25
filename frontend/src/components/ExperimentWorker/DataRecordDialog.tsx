@@ -24,6 +24,7 @@ import {
   Card,
   Layout,
   Slider,
+  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -50,7 +51,7 @@ import {
   isEditableStatus,
 } from '@/types/experimentWorker';
 import { templatesList } from '@/data/projectsData';
-import { saveBatchExperimentData } from '@/services/experimentDataApiService';
+import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
 import { updateTransitionStatus } from '@/services/projectApiService';
 import { ExperimentDataRecord } from '@/types/api';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
@@ -92,6 +93,8 @@ export default function DataRecordDialog({
   const [dataGrids, setDataGrids] = useState<Record<string, number[][]>>({});
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  // テンプレート実績データのローディング状態
+  const [templateDataLoading, setTemplateDataLoading] = useState(false);
   
   // 作業指示モーダルの状態
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
@@ -207,20 +210,20 @@ export default function DataRecordDialog({
     }
   };
 
-  // ダイアログを開いたときにフォームをリセット
+  // ダイアログを開いたときにフォームをリセット＆テンプレート実績データを取得
   useEffect(() => {
     if (open && transition) {
       form.resetFields();
       setFormData({});
       setDataGrids({});
-      setSelectedStatus('initial'); // ステータスをリセット
-      setComment(''); // コメントをリセット
-      setProgress(0); // 進捗をリセット
-      setSelectedTemplateId(null); // テンプレート選択状態をリセット
-      
+      setSelectedStatus('initial');
+      setComment('');
+      setProgress(0);
+      setSelectedTemplateId(null);
+
       // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
       setStatusUpdateExpanded(isProjectEditable);
-      
+
       // 各テンプレートのDataGridを初期化
       transition.templates?.forEach((template) => {
         template.properties.forEach((prop) => {
@@ -232,8 +235,49 @@ export default function DataRecordDialog({
           }
         });
       });
+
+      // テンプレート実績データをAPIから取得してフォームの初期値を復元
+      // 必須パスパラメータが揃っている場合のみ実行
+      if (projectName && methodId && taskNo !== undefined && transition.transitionId) {
+        (async () => {
+          try {
+            setTemplateDataLoading(true);
+            const response = await getTemplateData(
+              projectName,
+              methodId,
+              taskNo,
+              transition.transitionId
+            );
+
+            if (response.success && response.data.templates.length > 0) {
+              // 取得した実績データをフォームフィールドに反映（既存値の復元）
+              const initialValues: Record<string, unknown> = {};
+              for (const item of response.data.templates) {
+                // templateId（= placeId）でテンプレート定義を検索
+                for (const [fieldKey, fieldValue] of Object.entries(item.data)) {
+                  const formKey = `${item.templateId}_${fieldKey}`;
+                  initialValues[formKey] = fieldValue;
+                }
+              }
+              form.setFieldsValue(initialValues);
+
+              // templateId でサイドバー選択状態を復元（最初の実績データのテンプレートを選択）
+              const firstItem = response.data.templates[0];
+              if (firstItem) {
+                setSelectedTemplateId(firstItem.templateId);
+              }
+            }
+          } catch (error) {
+            // 実績データ取得失敗は非致命的（初回記録時は404になる）
+            // エラーメッセージは表示しない（フォームは空の状態で開く）
+            console.warn('テンプレート実績データの取得に失敗しました（初回記録の場合は正常）:', error);
+          } finally {
+            setTemplateDataLoading(false);
+          }
+        })();
+      }
     }
-  }, [open, transition, form, isProjectEditable]);
+  }, [open, transition, form, isProjectEditable, projectName, methodId, taskNo]);
 
   // テンプレート保存ハンドラ
   const handleSaveTemplate = async () => {
@@ -982,8 +1026,9 @@ export default function DataRecordDialog({
                 />
               </Space>
 
-              {/* テーブル */}
+              {/* テーブル（実績データ読み込み中はSpinを表示） */}
               <div style={{ flex: 1, overflow: 'auto' }}>
+                <Spin spinning={templateDataLoading} tip="実績データ読み込み中...">
                 <Table
                   size="small"
                   dataSource={filteredTemplates}
@@ -1038,6 +1083,7 @@ export default function DataRecordDialog({
                     },
                   ]}
                 />
+                </Spin>
               </div>
             </div>
           </Sider>

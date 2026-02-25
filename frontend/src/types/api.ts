@@ -225,6 +225,56 @@ export interface SaveBatchExperimentDataResponse {
   };
 }
 
+// ===== テンプレート実績一覧取得API =====
+
+/**
+ * テンプレート実績データの1要素
+ *
+ * @remarks
+ * API: GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+ */
+export interface TemplateDataItem {
+  /** プレースID（テンプレートとプレースの紐付けに使用） */
+  placeId: string;
+  /** テンプレート種別（material / condition / result） */
+  templateType: 'material' | 'condition' | 'result';
+  /** テンプレートID（テンプレート定義の特定に使用） */
+  templateId: string;
+  /** 実験データ本体（フォームの既存値復元に使用） */
+  data: Record<string, unknown>;
+  /** 記録者のユーザーID（UUID） */
+  recordedBy: string;
+  /** 記録日時（ISO 8601 形式） */
+  recordedAt: string;
+}
+
+/**
+ * テンプレート実績一覧取得レスポンスの data オブジェクト
+ */
+export interface GetTemplateDataResponseData {
+  projectName: string;
+  methodId: string;
+  taskNo: number;
+  transitionId: string;
+  /** MaiML から特定した隣接プレースIDの一覧 */
+  adjacentPlaceIds: string[];
+  /** 実績データ配列（0件の場合は空配列） */
+  templates: TemplateDataItem[];
+  totalCount: number;
+}
+
+/**
+ * テンプレート実績一覧取得レスポンス全体
+ */
+export interface GetTemplateDataResponse {
+  success: boolean;
+  data: GetTemplateDataResponseData;
+  meta: {
+    timestamp: string;
+    requestId: string;
+  };
+}
+
 // ===== トランジションステータス更新API =====
 
 /**
