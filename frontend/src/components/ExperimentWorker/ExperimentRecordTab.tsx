@@ -15,10 +15,11 @@ import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
-import { getIssuesByTransitionId } from '@/data/projectsData';
+import { getIssues } from '@/services/issueApiService';
 import { Method, ProjectStatus, Transition, Issue, IssueReportFormData, Task } from '@/types/experimentWorker';
 import { getWorkerTasks } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
+import { createApiClient } from '@/utils/authUtils';
 
 const { Title, Text } = Typography;
 
@@ -74,12 +75,14 @@ export default function ExperimentRecordTab({
   // 問題報告モーダルの状態管理
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [issueLoading, setIssueLoading] = useState<boolean>(false);
 
   // API連携の状態管理
   const [loading, setLoading] = useState<boolean>(false);
   const [methods, setMethods] = useState<Method[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [progressData, setProgressData] = useState<any[]>([]);
   
   // プロジェクトの状態を取得（暫定: APIから取得できるまでnull）
   const projectStatus: ProjectStatus | null = null;
@@ -180,6 +183,58 @@ export default function ExperimentRecordTab({
     return tasks.filter(task => task.methodId === selectedMethodId);
   }, [tasks, selectedMethodId]);
 
+  // タスク選択時に進捗データを取得
+  useEffect(() => {
+    const fetchProgress = async () => {
+      if (!selectedProjectName || !selectedMethodId || !selectedTaskId) {
+        setProgressData([]);
+        return;
+      }
+
+      // selectedTaskIdからtaskNoを抽出（形式: projectId-methodId-taskNo）
+      const parts = selectedTaskId.split('-');
+      const taskNo = parts.length > 2 ? parseInt(parts[2], 10) : null;
+
+      if (taskNo === null || isNaN(taskNo)) {
+        console.error('[DEBUG] ExperimentRecordTab - Invalid taskNo', { selectedTaskId });
+        setProgressData([]);
+        return;
+      }
+
+      try {
+        console.log('[DEBUG] ExperimentRecordTab - Fetching progress data', {
+          selectedProjectName,
+          selectedMethodId,
+          taskNo,
+        });
+
+        // 既存のProgress APIを呼び出し
+        // GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
+        const client = createApiClient();
+        const response = await client.get(
+          `/progress/projects/${encodeURIComponent(selectedProjectName)}/methods/${encodeURIComponent(selectedMethodId)}/tasks/${taskNo}/transitions`
+        );
+
+        if (response.data.success && response.data.data && response.data.data.transitions) {
+          console.log('[DEBUG] ExperimentRecordTab - Progress data fetched', {
+            count: response.data.data.transitions.length,
+          });
+          
+          setProgressData(response.data.data.transitions);
+        } else {
+          console.warn('[DEBUG] ExperimentRecordTab - Invalid response structure', response.data);
+          setProgressData([]);
+        }
+      } catch (error) {
+        console.error('[DEBUG] ExperimentRecordTab - Error fetching progress', error);
+        // エラー時は空配列を設定（デフォルト値で表示）
+        setProgressData([]);
+      }
+    };
+
+    fetchProgress();
+  }, [selectedProjectName, selectedMethodId, selectedTaskId]);
+
   // プロジェクトの状態が記録可能かどうか
   // waiting_approval（承認待ち）とwaiting_task（タスク待ち）は記録不可
   const isProjectRecordable = projectStatus 
@@ -193,11 +248,42 @@ export default function ExperimentRecordTab({
   };
   
   // 問題報告ボタンクリックハンドラ
-  const handleIssueClick = (transition: Transition) => {
+  const handleIssueClick = async (transition: Transition) => {
+    // まずモーダルを開き、ローディング状態で待機させる
     setSelectedTransition(transition);
-    const transitionIssues = getIssuesByTransitionId(transition.transitionId);
-    setIssues(transitionIssues);
+    setIssues([]);
     setIssueModalOpen(true);
+
+    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
+    // projectId は UUID（ハイフン含む）のため末尾要素を取得する
+    const parts = selectedTaskId.split('-');
+    const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
+
+    if (!projectId || !selectedMethodId || taskNo === null || isNaN(taskNo)) {
+      console.warn('[handleIssueClick] 必要なパラメータが不足しています', {
+        projectId,
+        selectedMethodId,
+        selectedTaskId,
+        taskNo,
+      });
+      return;
+    }
+
+    setIssueLoading(true);
+    try {
+      const fetchedIssues = await getIssues({
+        projectId,
+        methodId: selectedMethodId,
+        taskNo,
+        transitionId: transition.transitionId,
+      });
+      setIssues(fetchedIssues);
+    } catch (error) {
+      console.error('[handleIssueClick] 問題一覧取得エラー', error);
+      message.error('問題一覧の取得に失敗しました');
+    } finally {
+      setIssueLoading(false);
+    }
   };
 
   // データ記録モーダルを閉じる
@@ -232,13 +318,29 @@ export default function ExperimentRecordTab({
     // TODO: バックエンドAPIへの送信処理を実装
   };
 
-  // 進捗データをトランジションにマージ（暫定: 進捗データはAPIから取得できないため空配列）
+  // 進捗データをトランジションにマージ
   const transitionsWithProgress = useMemo(() => {
     if (!selectedMethod) {
       return [];
     }
 
     return selectedMethod.transitions.map(transition => {
+      // APIから取得した進捗データを検索
+      const progress = progressData.find(p => p.transition_id === transition.transitionId);
+
+      if (progress) {
+        // 進捗データが見つかった場合、ステータスと進捗率をマージ
+        // APIレスポンスのstatusは既に文字列（'not_started' | 'in_progress' | 'completed'）
+        return {
+          ...transition,
+          status: progress.status || 'not_started',
+          progressRate: progress.progress ?? 0,
+          inputMaterialsCount: 0, // TODO: 将来的にAPI追加
+          inputIngredientsCount: 0, // TODO: 将来的にAPI追加
+          inputResultsCount: 0, // TODO: 将来的にAPI追加
+        };
+      }
+
       // 進捗データが見つからない場合、デフォルト値を設定
       return {
         ...transition,
@@ -249,7 +351,7 @@ export default function ExperimentRecordTab({
         inputResultsCount: 0
       };
     });
-  }, [selectedMethod]);
+  }, [selectedMethod, progressData]);
 
   // フロー図に切り替え
   const handleSwitchToFlow = () => {
