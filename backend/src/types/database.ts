@@ -293,7 +293,9 @@ export interface TemplateData {
   
   /** 更新日時 */
   update_at?: Date;
+}
 
+/**
  * organization_userテーブルの型定義（JOINデータ含む）
  * 
  * @remarks

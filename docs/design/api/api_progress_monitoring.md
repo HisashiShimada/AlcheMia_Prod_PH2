@@ -26,7 +26,7 @@
 |---|------|---------|---------------|------|--------|
 | 1 | メソッド別タスク一覧取得 | GET | `/api/v1/projects/:projectId/methods/:methodId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 2 | タスク詳細取得 | GET | `/api/v1/tasks/:taskId` | 🔴 未実装 | ⭐⭐ 中 |
-| 3 | 進捗データ取得 | GET | `/api/v1/progress/:projectId/:methodId/:taskNo` | 🔴 未実装 | ⭐⭐ 中 |
+| 3 | 進捗データ取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 4 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 5 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 6 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
@@ -617,7 +617,6 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
     "method_id": "method1",
     "method_name": "合成実験",
     "task_no": "task-001",
-    "task_name": "反応実験タスク",
     "transitions": [
       {
         "transition_id": "t1",

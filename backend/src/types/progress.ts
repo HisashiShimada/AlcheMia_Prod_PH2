@@ -150,13 +150,13 @@ export interface ParsedMethod {
  * タスク基本情報（Repository層で使用）
  * 
  * @description TaskRepositoryのgetTaskByProjectMethodTaskNoメソッドの返却型
+ * @remarks
+ * - task_name: project_task.task_name（メソッド名として使用）
+ * - task_no: project_task_detail.task_no（タスク連番）
  * @requirements Requirement 1: 進捗データ取得機能
  */
 export interface TaskWithProject {
-  /** タスクID */
-  task_id: string;
-  
-  /** タスク名 */
+  /** タスク名（project_task.task_name） */
   task_name: string;
   
   /** プロジェクトID */
@@ -168,7 +168,7 @@ export interface TaskWithProject {
   /** メソッドID */
   method_id: string;
   
-  /** タスク連番 */
+  /** タスク連番（project_task_detail.task_no） */
   task_no: number;
 }
 

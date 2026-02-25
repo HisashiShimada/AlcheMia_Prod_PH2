@@ -231,8 +231,8 @@ export class ProgressService {
         project_id: task.project_id,
         project_name: task.project_name,
         method_id: task.method_id,
-        method_name: method.methodName,
-        task_no: task.task_no,
+        method_name: task.task_name,  // project_task.task_name をメソッド名として使用
+        task_no: task.task_no,        // project_task_detail.task_no
         task_name: task.task_name,
         transitions,
         overall_progress: overallProgress
