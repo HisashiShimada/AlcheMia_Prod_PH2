@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.12.0
-- **最終更新**: 2026-02-24
+- **バージョン**: 2.13.0
+- **最終更新**: 2026-02-25
 - **担当**: Development Team
 
 ---
@@ -543,6 +543,30 @@
 
 ---
 
+### 16. 組織統計情報API（Organization Statistics）
+
+**API設計書**: [api_organization_statistics.md](./api_organization_statistics.md)  
+**ルートファイル**: `backend/src/routes/organizationStatisticsRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 16.1 | GET | /api/v1/systemManagement/organization_statistics | 組織統計情報取得 | ✅ 実装済み | organizationStatisticsController.getStatistics |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`（JWTからorganizationIdを取得）
+- 権限: system_admin
+
+**備考:**
+- ✅ 全エンドポイント実装完了
+- 3つのデータソース（StorageService・PostgreSQL・Redis）から `Promise.all` で並列取得
+- ストレージ使用量: Swift/S3の全ファイルサイズ合計（最大10,000件）、エラー時は 0 で続行
+- プロジェクト数: `project` テーブルのCOUNT、エラー時は 500 を返す
+- アクティブユーザー数（分子）: Redisからアクティブトークンを取得し組織IDでフィルタ、エラー時は 0 で続行
+- 全ユーザー数（分母）: `organization_user` テーブルのCOUNT、エラー時は 500 を返す
+- 上限値は環境変数で設定（`MAX_STORAGE_GB_PER_ORG` デフォルト: 999.0、`MAX_PROJECTS_PER_ORG` デフォルト: 999）
+
+---
+
 ## 🔍 API検索ガイド
 
 ### API名で検索する
@@ -602,7 +626,8 @@
 | ファイルアクセスAPI | 6 | 6 | 0 | 0 | 100% |
 | 組織管理API | 9 | 9 | 0 | 0 | 100% |
 | ユーザー管理API | 7 | 7 | 0 | 0 | 100% |
-| **合計** | **122** | **108** | **0** | **14** | **88%** |
+| 組織統計情報API | 1 | 1 | 0 | 0 | 100% |
+| **合計** | **123** | **109** | **0** | **14** | **89%** |
 
 ### 優先度別実装状況
 
@@ -786,6 +811,14 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.13.0 | 2026-02-25 | 組織統計情報API追加 | Cline |
+| | | - セクション16: 組織統計情報API（1エンドポイント、実装済み100%） | |
+| | | - API 16.1: GET /api/v1/systemManagement/organization_statistics | |
+| | | - 3データソース並列取得（StorageService・PostgreSQL・Redis） | |
+| | | - カテゴリ数: 15→16カテゴリ | |
+| | | - 合計エンドポイント数: 122→123（+1） | |
+| | | - 実装済みAPI総数: 108→109エンドポイント（+1） | |
+| | | - 全体実装率: 88%→89%に向上 | |
 | 2.12.0 | 2026-02-24 | フォーマット管理API - 新規作成機能実装完了 | Cline |
 | | | - API 4.3: 新規ファイル作成（XMLファイル・MAIMLファイル対応） | |
 | | | - API 4.4: 新規フォーマットフォルダ作成（部門直下） | |

@@ -258,6 +258,40 @@ export interface User {
 }
 
 /**
+ * 組織統計情報レスポンス型定義
+ *
+ * @remarks
+ * GET /api/v1/systemManagement/organization/statistics のレスポンスデータ型
+ */
+export interface OrganizationStatistics {
+  /** ストレージ使用量 */
+  storage: {
+    /** 使用中ストレージ量（GB） */
+    used: number;
+    /** 最大ストレージ量（GB）: 環境変数 MAX_STORAGE_GB_PER_ORG */
+    total: number;
+    /** 単位（GB固定） */
+    unit: string;
+    /** 使用率（0〜1） */
+    usageRate: number;
+  };
+  /** プロジェクト数 */
+  projects: {
+    /** 現在のプロジェクト数 */
+    count: number;
+    /** 上限値: 環境変数 MAX_PROJECTS_PER_ORG */
+    total: number;
+  };
+  /** アクティブユーザー */
+  activeUsers: {
+    /** Redisでセッションが有効なユーザー数（組織IDでフィルタ） */
+    count: number;
+    /** 組織利用者テーブルのレコード数 */
+    total: number;
+  };
+}
+
+/**
  * User検索フィルター型定義
  */
 export interface UserSearchFilters {

@@ -26,6 +26,7 @@ import userRoutes from './routes/userRoutes';
 import sessionRoutes from './routes/sessionRoutes';
 import progressRoutes from './routes/progressRoutes';
 import organizationRoutes from './routes/organizationRoutes';
+import organizationStatisticsRoutes from './routes/organizationStatisticsRoutes';
 import formatRoutes from './routes/formatRoutes';
 import codeMasterRoutes from './routes/codeMasterRoutes';
 
@@ -93,6 +94,7 @@ async function startServer() {
     app.use('/api/v1/systemManagement', departmentRoutes);
     app.use('/api/v1/systemManagement', roleRoutes);
     app.use('/api/v1/systemManagement', userRoutes);
+    app.use('/api/v1/systemManagement', organizationStatisticsRoutes);
     
     // Mount session management routes
     app.use('/api/v1/sessions', sessionRoutes);
