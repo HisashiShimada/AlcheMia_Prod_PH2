@@ -6,6 +6,7 @@ import { FolderOutlined, CheckOutlined, CloseOutlined, SearchOutlined } from '@a
 import type { ColumnsType } from 'antd/es/table';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { WorkerProject } from '@/services/projectApiService';
+import { useCodeMaster } from '@/hooks/useCodeMaster';
 
 const { Text } = Typography;
 
@@ -29,7 +30,7 @@ interface ProjectTableData {
   projectId: string;
   projectName: string;
   projectCd?: string;
-  projectStatus: string;
+  projectStatus: number;
   isCurrentlySelected: boolean;
 }
 
@@ -47,6 +48,7 @@ export default function ProjectSelectionModal({
 }: ProjectSelectionModalProps) {
   const { token } = theme.useToken();
   const { t } = useLanguage();
+  const { options: projectStatusOptions } = useCodeMaster('project_status');
   const [tempProject, setTempProject] = useState<string>(selectedProject);
   
   // フィルター状態
@@ -125,11 +127,10 @@ export default function ProjectSelectionModal({
       key: 'projectStatus',
       width: 120,
       align: 'center',
-      render: (projectStatus: string) => (
-        <Text>
-          {t(`experimentWork.projectStatus.${projectStatus}`)}
-        </Text>
-      ),
+      render: (projectStatus: number) => {
+        const label = projectStatusOptions.find(opt => opt.value === projectStatus)?.label ?? String(projectStatus);
+        return <Text>{label}</Text>;
+      },
     },
   ];
 

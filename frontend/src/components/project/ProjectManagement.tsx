@@ -21,12 +21,10 @@ import {
   EditOutlined,
   DownloadOutlined,
   FileTextOutlined,
-  SendOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
-import ProjectDetailModal from './ProjectDetailModal';
 import ProjectSearchModal from './ProjectSearchModal';
 import TaskResultsTable from './TaskResultsTable';
 import BulkUploadDialog from './BulkUploadDialog';
@@ -48,15 +46,15 @@ import {
   getProjectFiles, 
   getProjectTasks,
   createProject as createProjectApi,
+  checkoutProject,
+  checkinProject,
   type CreateProjectRequest,
   type ApiResponse,
   type ProjectListResponse,
-  type FileListResponse,
-  type TaskListResponse
 } from '@/services/projectApiService';
+import { AxiosError } from 'axios';
 import type { Project, Task, ProjectEditParams } from '@/types/project';
 import type { ProjectFile } from '@/types/file';
-import type { TaskDetail } from '@/types/taskRegistration';
 import type { InstructionData } from '@/types/instructionRegistration';
 
 const { Title, Text } = Typography;
@@ -92,7 +90,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt'); // ソート項目
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // ソート順序
   const [currentFolder, setCurrentFolder] = useState<string>('root');
-  const [modalOpen, setModalOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -219,26 +216,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
     }
     
     return projects.filter((project) => {
-      // プロジェクトステータスの表示名を取得
-      const getProjectStatusLabel = (status: string) => {
-        switch (status) {
-          case 'planning':
-            return t('projectManagement.status_planning');
-          case 'pending':
-            return t('projectManagement.status_pending');
-          case 'in_progress':
-            return t('projectManagement.status_in_progress');
-          case 'review_waiting':
-            return t('projectManagement.status_review_waiting');
-          case 'completed':
-            return t('projectManagement.status_completed');
-          case 'error':
-            return t('projectManagement.status_error');
-          default:
-            return status;
-        }
-      };
-
       // チェックアウトステータスの表示名を取得
       const getCheckoutStatusLabel = (isCheckedOut: boolean) => {
         if (isCheckedOut) {
@@ -248,10 +225,9 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
         }
       };
 
-      const projectStatusLabel = getProjectStatusLabel(project.status);
       const checkoutStatusLabel = getCheckoutStatusLabel(project.isCheckedOut);
 
-      // 検索クエリでフィルタリング - すべての項目を対象（表示名も含む）
+      // 検索クエリでフィルタリング - すべての項目を対象（statusNameも含む）
       const matchesSearch =
         searchQuery === '' ||
         project.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -260,8 +236,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
         project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         project.owner.toLowerCase().includes(searchQuery.toLowerCase()) ||
         project.department.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        projectStatusLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (project.statusName && project.statusName.toLowerCase().includes(searchQuery.toLowerCase())) ||
         checkoutStatusLabel.toLowerCase().includes(searchQuery.toLowerCase()) ||
         project.createdAt.toLowerCase().includes(searchQuery.toLowerCase()) ||
         project.updatedAt.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -279,10 +254,13 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
         }
       }
 
-      // プロジェクトステータスでフィルタリング
+      // プロジェクトステータスでフィルタリング（数値で比較）
       let matchesProjectStatus = true;
       if (projectStatusFilter !== 'all') {
-        matchesProjectStatus = project.status === projectStatusFilter;
+        const filterStatusNum = parseInt(projectStatusFilter, 10);
+        if (!isNaN(filterStatusNum)) {
+          matchesProjectStatus = project.status === filterStatusNum;
+        }
       }
 
       // 部門でフィルタリング
@@ -304,8 +282,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
       if (sortBy === 'name') {
         comparison = a.name.localeCompare(b.name);
       } else if (sortBy === 'status') {
-        const statusOrder = { planning: 0, pending: 1, in_progress: 2, review_waiting: 3, completed: 4, error: 5 };
-        comparison = (statusOrder[a.status as keyof typeof statusOrder] || 0) - (statusOrder[b.status as keyof typeof statusOrder] || 0);
+        // statusは数値なので直接比較
+        comparison = a.status - b.status;
       } else if (sortBy === 'createdAt') {
         comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       }
@@ -369,18 +347,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
     }
   }, []);
 
-  // モーダルを閉じる
-  const handleCloseModal = useCallback(() => {
-    setModalOpen(false);
-  }, []);
-
-  // プロジェクト詳細を開く
-  const handleOpenProjectDetail = useCallback(() => {
-    if (selectedProjectId) {
-      setModalOpen(true);
-    }
-  }, [selectedProjectId]);
-
   // リフレッシュ
   const handleRefresh = useCallback(() => {
     console.log('Refreshing project list...');
@@ -425,7 +391,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
     success: boolean;
   }) => {
     console.log('Upload completed:', result);
-    // TODO: ファイル一覧を更新
     handleRefresh();
   }, [handleRefresh]);
 
@@ -575,31 +540,80 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
   }, [selectedProject]);
 
   // チェックイン/チェックアウト切り替えハンドラ
-  const handleToggleCheckout = useCallback(() => {
+  const handleToggleCheckout = useCallback(async () => {
     if (!selectedProject) return;
 
-    // プロジェクトのチェックアウトステータスを切り替え
-    setProjects((prev) =>
-      prev.map((project) => {
-        if (project.id === selectedProject.id) {
-          return {
-            ...project,
-            isCheckedOut: !project.isCheckedOut,
-          };
+    try {
+      if (isProjectCheckedOut) {
+        // チェックイン処理
+        console.log('🔓 [ProjectManagement] チェックイン開始:', selectedProject.name);
+        
+        const result = await checkinProject(selectedProject.name);
+        
+        // チェックイン成功
+        console.log('✅ [ProjectManagement] チェックイン成功:', result);
+        
+        // プロジェクト一覧を再取得してステータス更新を反映
+        await refetchProjects();
+        
+        message.success(`プロジェクト「${selectedProject.name}」をチェックインしました`);
+      } else {
+        // チェックアウト処理
+        console.log('🔒 [ProjectManagement] チェックアウト開始:', selectedProject.name);
+        
+        const result = await checkoutProject(selectedProject.name);
+        
+        // チェックアウト成功
+        console.log('✅ [ProjectManagement] チェックアウト成功:', result);
+        
+        // プロジェクト一覧を再取得してステータス更新を反映
+        await refetchProjects();
+        
+        message.success(`プロジェクト「${selectedProject.name}」をチェックアウトしました`);
+      }
+    } catch (error) {
+      console.error('❌ [ProjectManagement] チェックイン/チェックアウトエラー:', error);
+      
+      // AxiosErrorからエラーレスポンスを取得
+      if (error instanceof AxiosError && error.response?.data) {
+        const errorData = error.response.data;
+        const errorCode = errorData.error?.code || 'UNKNOWN_ERROR';
+        const errorMessage = errorData.error?.message || 'チェックイン/チェックアウトに失敗しました';
+        const errorDetails = errorData.error?.details;
+        
+        // エラーコード別のメッセージ表示
+        switch (errorCode) {
+          case 'TASK_IN_PROGRESS':
+            message.error('実行中のタスクが存在するため、チェックインできません');
+            break;
+          case 'CHECKOUT_NO_MAIML_FILE':
+            message.error('MAIMLファイルが存在しません。先にプロジェクトを編集してMAIMLファイルを作成してください。');
+            break;
+          case 'CHECKOUT_INVALID_STATUS':
+            const currentStatus = errorDetails?.currentStatusName || '不明';
+            message.error(`プロジェクトステータスがタスク実行待ちではありません（現在: ${currentStatus}）`);
+            break;
+          case 'CHECKOUT_NO_TASKS':
+            message.error('タスクが登録されていません。先にタスク登録タブからタスクを登録してください。');
+            break;
+          case 'CHECKOUT_UNSENT_INSTRUCTIONS':
+            message.error('未送信の指示が存在します。先に指示送信タブから指示を送信してください。');
+            break;
+          case 'PROJECT_ALREADY_CHECKED_OUT':
+            const checkedOutBy = errorDetails?.checkedOutBy || '他のユーザー';
+            message.warning(`このプロジェクトは既に${checkedOutBy}によってチェックアウトされています。`);
+            break;
+          case 'RESOURCE_NOT_FOUND':
+            message.error('プロジェクトが見つかりません');
+            break;
+          default:
+            message.error(errorMessage);
         }
-        return project;
-      })
-    );
-
-    // メッセージ表示
-    if (isProjectCheckedOut) {
-      console.log('チェックイン:', selectedProject.name);
-      // TODO: 実際のAPI呼び出しを実装
-    } else {
-      console.log('チェックアウト:', selectedProject.name);
-      // TODO: 実際のAPI呼び出しを実装
+      } else {
+        message.error('チェックイン/チェックアウト処理中にエラーが発生しました');
+      }
     }
-  }, [selectedProject, isProjectCheckedOut]);
+  }, [selectedProject, isProjectCheckedOut, refetchProjects]);
 
   // 問題確認モーダルを開く
   const handleOpenIssueManagement = useCallback(() => {
@@ -1019,12 +1033,12 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
               onChange={setProjectStatusFilter}
               options={[
                 { value: 'all', label: t('projectManagement.all') },
-                { value: 'planning', label: t('projectManagement.status_planning') },
-                { value: 'pending', label: t('projectManagement.status_pending') },
-                { value: 'in_progress', label: t('projectManagement.status_in_progress') },
-                { value: 'review_waiting', label: t('projectManagement.status_review_waiting') },
-                { value: 'completed', label: t('projectManagement.status_completed') },
-                { value: 'error', label: t('projectManagement.status_error') },
+                { value: '0', label: t('projectManagement.status_planning') },
+                { value: '1', label: t('projectManagement.status_pending') },
+                { value: '2', label: t('projectManagement.status_in_progress') },
+                { value: '3', label: t('projectManagement.status_review_waiting') },
+                { value: '4', label: t('projectManagement.status_completed') },
+                { value: '5', label: t('projectManagement.status_error') },
               ]}
             />
           </Space>
@@ -1136,24 +1150,21 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
                     <Title level={5} style={{ margin: 0, fontWeight: token.fontWeightStrong }}>
                       {selectedProject.name}
                     </Title>
-                    {/* プロジェクトステータス表示 */}
-                    {selectedProject.status === 'planning' && (
-                      <Tag>{t('projectManagement.status_planning')}</Tag>
-                    )}
-                    {selectedProject.status === 'pending' && (
-                      <Tag color="blue">{t('projectManagement.status_pending')}</Tag>
-                    )}
-                    {selectedProject.status === 'in_progress' && (
-                      <Tag color="cyan">{t('projectManagement.status_in_progress')}</Tag>
-                    )}
-                    {selectedProject.status === 'review_waiting' && (
-                      <Tag color="purple">{t('projectManagement.status_review_waiting')}</Tag>
-                    )}
-                    {selectedProject.status === 'completed' && (
-                      <Tag color="success">{t('projectManagement.status_completed')}</Tag>
-                    )}
-                    {selectedProject.status === 'error' && (
-                      <Tag color="error">{t('projectManagement.status_error')}</Tag>
+                    {/* プロジェクトステータス表示（statusNameを使用） */}
+                    {selectedProject.statusName && (
+                      <Tag 
+                        color={
+                          selectedProject.status === 0 ? 'default' : // プロジェクト計画中
+                          selectedProject.status === 1 ? 'blue' :     // タスク実行待ち
+                          selectedProject.status === 2 ? 'cyan' :     // タスク実行中
+                          selectedProject.status === 3 ? 'purple' :   // 承認待ち
+                          selectedProject.status === 4 ? 'success' :  // プロジェクト完了
+                          selectedProject.status === 5 ? 'error' :    // タスク異常終了
+                          'default'
+                        }
+                      >
+                        {selectedProject.statusName}
+                      </Tag>
                     )}
                     {/* チェックアウト状態表示 - プロジェクト単位 */}
                     {selectedProject.isCheckedOut && (
@@ -1289,6 +1300,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
                         projectId={selectedProject.id}
                         projectName={selectedProject.name}
                         isActive={currentTab === 'task_registration'}
+                        isCheckoutLocked={isProjectCheckedOut}
                       />
                     ),
                   },
@@ -1300,6 +1312,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
                         projectId={selectedProject.id}
                         projectName={selectedProject.name}
                         isActive={currentTab === 'instruction_registration'}
+                        isCheckoutLocked={isProjectCheckedOut}
                         onInstructionsSubmit={handleInstructionsSubmit}
                       />
                     ),

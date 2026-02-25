@@ -349,3 +349,122 @@ export async function findUserNameById(
     throw error;
   }
 }
+
+/**
+ * プロジェクトに紐づくタスク一覧を取得
+ * 
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param status タスクステータスフィルタ（'all'の場合はフィルタなし）
+ * @returns タスク一覧
+ */
+export async function findProjectTasks(
+  organizationId: string,
+  projectId: string,
+  status?: 'all' | 'pending' | 'in_progress' | 'completed' | 'failed'
+): Promise<any[]> {
+  const pool = getPool();
+  
+  // タスクステータスマップ（文字列 → 数値）
+  const TASK_STATUS_MAP: { [key: string]: number } = {
+    'pending': 0,
+    'in_progress': 1,
+    'failed': 2,
+    'completed': 3,
+  };
+  
+  let query = `
+    SELECT 
+      ptd.organization_id,
+      ptd.project_id,
+      ptd.method_id,
+      ptd.task_no,
+      ptd.task_status,
+      ptd.experiment_start_at,
+      ptd.experiment_end_at,
+      ptd.experiment_user_id,
+      ou.user_name as experiment_user_name,
+      ptd.reviewed_at,
+      ptd.review_user_id,
+      ru.user_name as review_user_name
+    FROM project_task_detail ptd
+    LEFT JOIN organization_user ou
+      ON ou.user_id = ptd.experiment_user_id
+      AND ou.organization_id = ptd.organization_id
+    LEFT JOIN organization_user ru
+      ON ru.user_id = ptd.review_user_id
+      AND ru.organization_id = ptd.organization_id
+    WHERE ptd.organization_id = $1
+      AND ptd.project_id = $2
+  `;
+  
+  const params: any[] = [organizationId, projectId];
+  
+  // statusパラメータに応じてWHERE条件を追加
+  if (status && status !== 'all') {
+    const statusValue = TASK_STATUS_MAP[status];
+    if (statusValue !== undefined) {
+      query += ` AND ptd.task_status = $3`;
+      params.push(statusValue);
+    }
+  }
+  
+  query += ` ORDER BY ptd.method_id, ptd.task_no`;
+  
+  const result = await pool.query(query, params);
+  return result.rows;
+}
+
+/**
+ * プロジェクトのタスク統計情報を取得
+ * 
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @returns タスク統計情報（ステータス別のタスク数）
+ */
+export async function countProjectTasksByStatus(
+  organizationId: string,
+  projectId: string
+): Promise<any[]> {
+  const pool = getPool();
+  
+  const query = `
+    SELECT 
+      task_status,
+      COUNT(*) as count
+    FROM project_task_detail
+    WHERE organization_id = $1 AND project_id = $2
+    GROUP BY task_status
+  `;
+  
+  const result = await pool.query(query, [organizationId, projectId]);
+  return result.rows;
+}
+
+/**
+ * プロジェクト情報を取得（IDと名前のみ）
+ * 
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @returns プロジェクト情報（見つからない場合はnull）
+ */
+export async function findProjectBasicInfo(
+  organizationId: string,
+  projectId: string
+): Promise<{ project_id: string; project_name: string } | null> {
+  const pool = getPool();
+  
+  const query = `
+    SELECT project_id, project_name
+    FROM project
+    WHERE organization_id = $1 AND project_id = $2
+  `;
+  
+  const result = await pool.query(query, [organizationId, projectId]);
+  
+  if (result.rows.length === 0) {
+    return null;
+  }
+  
+  return result.rows[0];
+}

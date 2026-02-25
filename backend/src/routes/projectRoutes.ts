@@ -148,40 +148,23 @@ router.get(
 );
 
 /**
- * プロジェクト詳細取得
- * GET /api/v1/projects/:projectId
- * 
- * @middleware authMiddleware - JWT認証
- * @note Task 2.2: プロジェクト詳細取得エンドポイント追加
- */
-router.get(
-  '/:projectId',
-  authMiddleware,
-  [
-    param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
-  ],
-  handleValidationErrors,
-  projectController.getById
-);
-
-/**
  * プロジェクトチェックアウト
- * POST /api/v1/projects/:projectId/checkout
+ * POST /api/v1/projects/:projectName/checkout
  * 
  * @middleware authMiddleware - JWT認証
  * @description プロジェクトをチェックアウトし、排他編集を開始する
- * @note Task 1.1: チェックアウトエンドポイント追加
+ * @note Task 1.1: チェックアウトエンドポイント追加（projectName受け取りに変更）
  * @requirements FR-1.1
  */
 router.post(
-  '/:projectId/checkout',
+  '/:projectName/checkout',
   authMiddleware,
   [
-    param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.checkout
@@ -189,20 +172,22 @@ router.post(
 
 /**
  * プロジェクトチェックイン
- * POST /api/v1/projects/:projectId/checkin
+ * POST /api/v1/projects/:projectName/checkin
  * 
  * @middleware authMiddleware - JWT認証
  * @description プロジェクトをチェックインし、排他編集を終了する
- * @note Task 1.2: チェックインエンドポイント追加
+ * @note Task 1.2: チェックインエンドポイント追加（projectName受け取りに変更）
  * @requirements FR-2.1
  */
 router.post(
-  '/:projectId/checkin',
+  '/:projectName/checkin',
   authMiddleware,
   [
-    param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
   ],
   handleValidationErrors,
   projectController.checkin
