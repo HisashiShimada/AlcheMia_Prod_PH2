@@ -44,15 +44,26 @@ export async function getFormatFolders(
         );
         const fileType: 'xml' | 'maiml' = isTemplateFolder ? 'xml' : 'maiml';
 
-        // ファイル数を取得
+        // ファイル数を取得（サブフォルダ内のファイルも含む）
         let fileCount = 0;
         try {
           const files = await storageService.listFiles(
             organizationId,
             `formats/${departmentCd}/${folderName}`
           );
-          // フォルダ自体のパス（末尾が'/'で終わるもの）を除外してカウント
-          fileCount = files.filter(file => !file.key.endsWith('/')).length;
+          // ディレクトリマーカー（末尾が'/'で終わるもの）を除外してカウント
+          // 実際のファイルのみをカウント
+          fileCount = files.filter(file => {
+            // 末尾が'/'の場合はディレクトリマーカーなので除外
+            if (file.key.endsWith('/')) return false;
+            
+            // ファイル名がない場合も除外（パスのみの場合）
+            const pathParts = file.key.split('/');
+            const fileName = pathParts[pathParts.length - 1];
+            if (!fileName || fileName === '') return false;
+            
+            return true;
+          }).length;
         } catch (error) {
           console.error(`Failed to count files in ${folderName}:`, error);
           fileCount = 0;
@@ -128,7 +139,7 @@ export async function getFormatFiles(
   const storageService = getStorageService();
 
   try {
-    // パスを構築
+    // パスを構築（subPathが指定されている場合はそれを含める）
     const basePath = subPath
       ? `formats/${departmentCd}/${folderName}/${subPath}`
       : `formats/${departmentCd}/${folderName}`;
@@ -136,7 +147,12 @@ export async function getFormatFiles(
     // S3からファイル一覧を取得
     const allItems = await storageService.listFiles(organizationId, basePath);
 
-    // ファイルとフォルダを抽出
+    console.log('[formatService] Retrieved items:', {
+      total: allItems.length,
+      sampleKeys: allItems.slice(0, 5).map(item => item.key),
+    });
+
+    // ファイルとフォルダを抽出（直下のみ）
     const filesAndFolders: FormatFile[] = [];
     const processedFolders = new Set<string>();
 
@@ -145,7 +161,7 @@ export async function getFormatFiles(
       const pathParts = item.key.split('/');
       const basePathParts = `${organizationId}/${basePath}`.split('/');
 
-      // basePath以降の部分を取得
+      // basePath以降の部分を取得（現在のフォルダ配下の相対パス）
       const relativeParts = pathParts.slice(basePathParts.length);
 
       if (relativeParts.length === 0 || relativeParts[0] === '') {
@@ -153,30 +169,31 @@ export async function getFormatFiles(
         continue;
       }
 
-      const firstPart = relativeParts[0];
-
-      // フォルダの場合
-      if (relativeParts.length > 1 || item.key.endsWith('/')) {
-        if (!processedFolders.has(firstPart)) {
-          processedFolders.add(firstPart);
+      // ディレクトリマーカー（末尾が'/'）の場合はフォルダとして処理
+      if (item.key.endsWith('/')) {
+        // 直下のフォルダのみを対象
+        const subFolderName = relativeParts[0]; // 直下のフォルダ名
+        
+        if (subFolderName && !processedFolders.has(subFolderName)) {
+          processedFolders.add(subFolderName);
 
           // サブフォルダ内のファイル数をカウント
           const subFolderPath = subPath
-            ? `formats/${departmentCd}/${folderName}/${subPath}/${firstPart}`
-            : `formats/${departmentCd}/${folderName}/${firstPart}`;
-
-          let fileCount = 0;
-          try {
-            const subFiles = await storageService.listFiles(organizationId, subFolderPath);
-            fileCount = subFiles.filter(f => !f.key.endsWith('/')).length;
-          } catch (error) {
-            console.error(`Failed to count files in ${firstPart}:`, error);
-          }
+            ? `${subPath}/${subFolderName}`
+            : subFolderName;
+          const subFolderFullPath = `formats/${departmentCd}/${folderName}/${subFolderPath}`;
+          const subFolderPrefix = `${organizationId}/${subFolderFullPath}/`;
+          
+          const fileCount = allItems.filter(f => {
+            if (!f.key.startsWith(subFolderPrefix)) return false;
+            if (f.key.endsWith('/')) return false;
+            return true;
+          }).length;
 
           filesAndFolders.push({
-            id: firstPart,
-            name: firstPart,
-            path: subPath ? `${subPath}/${firstPart}` : firstPart,
+            id: subFolderName,
+            name: subFolderName,
+            path: subFolderName,
             size: 0,
             lastModified: new Date().toISOString(),
             type: 'folder',
@@ -185,21 +202,23 @@ export async function getFormatFiles(
           });
         }
       } else {
-        // ファイルの場合
-        const fileName = relativeParts[0];
-        const fileExtension = fileName.split('.').pop() || '';
+        // ファイルの場合 - 直下のファイルのみ
+        if (relativeParts.length === 1) {
+          const fileName = relativeParts[0];
+          const fileExtension = fileName.split('.').pop() || '';
 
-        filesAndFolders.push({
-          id: item.key,
-          name: fileName,
-          path: item.key,
-          size: item.size || 0,
-          lastModified: item.lastModified 
-            ? (typeof item.lastModified === 'string' ? item.lastModified : new Date(item.lastModified).toISOString())
-            : new Date().toISOString(),
-          type: fileExtension,
-          isFolder: false,
-        });
+          filesAndFolders.push({
+            id: item.key,
+            name: fileName,
+            path: item.key,
+            size: item.size || 0,
+            lastModified: item.lastModified 
+              ? (typeof item.lastModified === 'string' ? item.lastModified : new Date(item.lastModified).toISOString())
+              : new Date().toISOString(),
+            type: fileExtension,
+            isFolder: false,
+          });
+        }
       }
     }
 
@@ -421,13 +440,15 @@ export async function createFormatSubfolder(
  * @param departmentCd 部門コード
  * @param folderName フォーマットフォルダ名
  * @param fileName ファイル名（拡張子を含む。例: "test.xml", "workflow.maiml"）
+ * @param subPath サブフォルダパス（オプション）
  * @returns 作成されたファイル情報
  */
 export async function createFormatFile(
   organizationId: string,
   departmentCd: string,
   folderName: string,
-  fileName: string
+  fileName: string,
+  subPath?: string
 ): Promise<{
   filePath: string;
   fileName: string;
@@ -451,7 +472,9 @@ export async function createFormatFile(
     const fullFileName = `${sanitizedFileName}.${fileExtension}`;
 
     // 3. ファイルパスの構築（folderName配下に配置）
-    const filePath = `formats/${departmentCd}/${folderName}/${fullFileName}`;
+    const filePath = subPath
+      ? `formats/${departmentCd}/${folderName}/${subPath}/${fullFileName}`
+      : `formats/${departmentCd}/${folderName}/${fullFileName}`;
 
     // 4. ファイルの重複チェック
     const exists = await storageService.fileExists(organizationId, filePath);
