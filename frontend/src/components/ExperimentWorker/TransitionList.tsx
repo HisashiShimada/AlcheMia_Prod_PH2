@@ -22,6 +22,8 @@ interface TransitionListProps {
   projectId?: string;
   methodId?: string;
   projectName?: string;
+  /** 実験データ保存完了後のコールバック（親コンポーネントの進捗データ再取得に使用） */
+  onDataSaveComplete?: () => void;
 }
 
 /**
@@ -36,6 +38,7 @@ export default function TransitionList({
   projectId,
   methodId,
   projectName,
+  onDataSaveComplete,
 }: TransitionListProps) {
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
@@ -77,12 +80,12 @@ export default function TransitionList({
   };
 
   // データ保存ハンドラ
-  const handleDataSave = (data: ExperimentDataValue[]) => {
-    console.log('保存されたデータ:', data);
-    // TODO: バックエンドAPIへの保存処理を実装
+  const handleDataSave = (_data: ExperimentDataValue[]) => {
     message.success('実験データを保存しました');
     setDataRecordModalOpen(false);
     setSelectedTransition(null);
+    // 保存後に親コンポーネントの進捗データを再取得してトランジション一覧を最新状態に更新
+    onDataSaveComplete?.();
   };
 
   // ステータス表示用のヘルパー関数

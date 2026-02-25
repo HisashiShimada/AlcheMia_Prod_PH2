@@ -608,6 +608,7 @@ export default function ExperimentRecordTab({
                     projectId={selectedProject}
                     methodId={selectedMethodId || undefined}
                     projectName={selectedProjectName}
+                    onDataSaveComplete={fetchProgress}
                   />
                 </div>
               </div>
