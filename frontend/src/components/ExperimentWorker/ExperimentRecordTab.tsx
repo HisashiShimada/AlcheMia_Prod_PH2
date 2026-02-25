@@ -15,7 +15,7 @@ import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
-import { getIssues } from '@/services/issueApiService';
+import { getIssues, createIssue } from '@/services/issueApiService';
 import { Method, ProjectStatus, Transition, Issue, IssueReportFormData, Task } from '@/types/experimentWorker';
 import { getWorkerTasks } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
@@ -307,9 +307,54 @@ export default function ExperimentRecordTab({
   };
   
   // 新規問題報告送信ハンドラ
-  const handleSubmitIssue = (issue: IssueReportFormData) => {
-    console.log('新規問題報告:', issue);
-    // TODO: バックエンドAPIへの送信処理を実装
+  const handleSubmitIssue = async (issue: IssueReportFormData) => {
+    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
+    // projectId は UUID（ハイフン含む）のため末尾要素を取得する
+    const parts = selectedTaskId.split('-');
+    const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
+
+    if (!projectId) {
+      console.warn('[handleSubmitIssue] projectId が未設定です');
+      message.error('プロジェクトが選択されていません');
+      return;
+    }
+
+    try {
+      await createIssue({
+        projectId,
+        methodId: selectedMethodId ?? undefined,
+        issueType: issue.issueType,
+        targetType: issue.targetType,
+        taskNo: (taskNo !== null && !isNaN(taskNo)) ? taskNo : undefined,
+        transitionId: selectedTransition?.transitionId ?? undefined,
+        title: issue.title,
+        description: issue.content,
+      });
+
+      message.success('問題を報告しました');
+
+      // 問題一覧を再取得して最新状態を反映
+      if (projectId && selectedMethodId && taskNo !== null && !isNaN(taskNo) && selectedTransition) {
+        setIssueLoading(true);
+        try {
+          const fetchedIssues = await getIssues({
+            projectId,
+            methodId: selectedMethodId,
+            taskNo,
+            transitionId: selectedTransition.transitionId,
+          });
+          setIssues(fetchedIssues);
+        } catch (fetchError) {
+          console.error('[handleSubmitIssue] 問題一覧再取得エラー', fetchError);
+          // 再取得失敗はサイレントに処理（報告自体は成功しているため）
+        } finally {
+          setIssueLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('[handleSubmitIssue] 問題報告エラー', error);
+      message.error('問題の報告に失敗しました');
+    }
   };
   
   // コメント送信ハンドラ
