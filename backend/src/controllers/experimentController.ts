@@ -10,6 +10,53 @@ import * as experimentDataService from '../services/experimentDataService';
 import { TemplateDataRecord } from '../repositories/templateDataRepository';
 
 /**
+ * テンプレート実績一覧取得
+ *
+ * @route GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+ * @group Experiments - 実験管理
+ * @param {string} projectName.path.required - プロジェクト名
+ * @param {string} methodId.path.required - メソッドID
+ * @param {number} taskNo.path.required - タスク番号
+ * @param {string} transitionId.query.required - トランジションID
+ * @returns {Object} 200 - 隣接プレースのテンプレート実績一覧
+ * @returns {Error} 400 - バリデーションエラー
+ * @returns {Error} 404 - プロジェクト / メソッド / トランジションが見つからない
+ * @returns {Error} 500 - サーバーエラー
+ * @security JWT
+ */
+export const getTemplateData = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { projectName, methodId, taskNo } = req.params;
+    const { transitionId } = req.query as { transitionId: string };
+    const taskNoNum = parseInt(taskNo, 10);
+    const organizationId = (req as any).organizationId as string;
+
+    const result = await experimentDataService.getTemplateData(
+      organizationId,
+      projectName,
+      methodId,
+      taskNoNum,
+      transitionId
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4(),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * @deprecated このエンドポイントは progressRoutes.ts に移動しました
  * 
  * トランジションの状態を更新する（廃止予定）

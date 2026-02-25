@@ -96,3 +96,86 @@ export interface ProjectTask {
   /** 更新日時 */
   update_at?: Date;
 }
+
+/**
+ * transition_dataテーブルの型定義
+ * 
+ * @remarks
+ * この型は transition_data テーブルのスキーマに対応しています。
+ * DDL: docs/design/db/ddl/transition_data.sql
+ * 主キー: (organization_id, project_id, method_id, task_no, transition_id)
+ */
+export interface TransitionData {
+  /** 組織ID（主キー） */
+  organization_id: string;
+  
+  /** プロジェクトID（主キー） */
+  project_id: string;
+  
+  /** メソッドID（主キー） */
+  method_id: string;
+  
+  /** タスク連番（主キー） */
+  task_no: number;
+  
+  /** トランジションID（主キー） */
+  transition_id: string;
+  
+  /** ステータス（数値、2桁） */
+  status?: number | null;
+  
+  /** 進捗率（数値、3桁） */
+  progress_rate?: number | null;
+  
+  /** 作成者ユーザID */
+  create_user_id?: string;
+  
+  /** 更新者ユーザID */
+  update_user_id?: string;
+  
+  /** 作成日時 */
+  create_at?: Date;
+  
+  /** 更新日時 */
+  update_at?: Date;
+}
+
+/**
+ * template_dataテーブルの型定義
+ * 
+ * @remarks
+ * この型は template_data テーブルのスキーマに対応しています。
+ * DDL: docs/design/db/ddl/template_data.sql
+ * 主キー: (organization_id, project_id, method_id, task_no, place_id)
+ */
+export interface TemplateData {
+  /** 組織ID（主キー） */
+  organization_id: string;
+  
+  /** プロジェクトID（主キー） */
+  project_id: string;
+  
+  /** メソッドID（主キー） */
+  method_id: string;
+  
+  /** タスク連番（主キー） */
+  task_no: number;
+  
+  /** プレースID（主キー） */
+  place_id: string;
+  
+  /** プロパティセット（JSON） */
+  property_set?: Record<string, any> | null;
+  
+  /** 作成者ユーザID */
+  create_user_id?: string;
+  
+  /** 更新者ユーザID */
+  update_user_id?: string;
+  
+  /** 作成日時 */
+  create_at?: Date;
+  
+  /** 更新日時 */
+  update_at?: Date;
+}

@@ -353,7 +353,7 @@ const handleSubmitComment = (issueId: string, comment: string) => {
 | 5 | ExperimentRecordTab.tsx | `handleSubmitComment` → API呼び出し | `POST /api/v1/issues/comments` | ✅ 実装済み | 高 |
 | 6 | TransitionList.tsx | `handleSubmitComment` → API呼び出し | `POST /api/v1/issues/comments` | ✅ 実装済み | 高 |
 | 7 | ExperimentRecordTab.tsx | `projectStatus` の null 固定 → APIから取得 | `GET /api/v1/projects/:projectId` | ✅ 実装済み | 中 |
-| 8 | DataRecordDialog.tsx | `templatesList` モック → APIから取得 | テンプレート一覧取得API | ⏳ 未実装 | 中 |
+| 8 | DataRecordDialog.tsx | `templatesList` モック → APIから取得 | `GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data?transitionId=xxx`（API 8.2） | ✅ 設計完了（実装待ち） | 中 |
 | 9 | DataRecordDialog.tsx | `handleSaveTemplate` → 実験データ保存API呼び出し | `POST /api/v1/experiments/...` |  ✅ 実装済み | 中 |
 | 10 | DataRecordDialog.tsx | ステータス更新ボタン → ステータス更新API呼び出し | `PATCH /api/v1/progress/.../transitions/:id/status` | ✅ 実装済み | 中 |
 | 11 | ExperimentRecordTab.tsx | `handleDataSave` → 実験データ保存API呼び出し | `POST /api/v1/experiments/...` |  ✅ 実装済み | 中 |
@@ -389,10 +389,18 @@ const handleSubmitComment = (issueId: string, comment: string) => {
 4. **No.7**: `projectStatus` を `GET /api/v1/projects/:projectId` から取得
    - `ExperimentRecordTab.tsx`
 
-### Phase B: バックエンドAPI新規実装が必要な対応
+### Phase B: バックエンドAPI実装が必要な対応
 
-1. **No.8**: テンプレート一覧取得API（新規設計・実装が必要）
-   - DataRecordDialog のテンプレート一覧を `template_data` テーブルまたは S3 フォーマットから取得
+1. **No.8**: テンプレート実績一覧取得API（設計完了・バックエンド実装待ち）
+   - **エンドポイント**: `GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data`
+   - **クエリパラメータ**: `transitionId`（必須）
+   - **処理概要**:
+     1. `template_data` テーブルから対象タスクのレコードを全件取得
+     2. S3/Swift の MaiML ファイルをパースしてペトリネット構造を解析
+     3. 指定 `transitionId` に隣接するプレースID（入力・出力の両方）を特定
+     4. 隣接プレースIDでフィルタリングしたレコードを返却
+   - **設計書**: [api_experiment_data.md](../../design/api/api_experiment_data.md) API #2（テンプレート実績一覧取得）を参照
+   - **API番号**: 8.2（api_list.md）
 
 ---
 

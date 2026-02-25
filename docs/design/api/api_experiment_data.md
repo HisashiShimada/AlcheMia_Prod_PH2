@@ -31,6 +31,7 @@
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | 権限 |
 |----|-------------|---------------|------|---------|------|
 | 1 | POST | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | experiment_worker のみ書込可 |
+| 2 | GET | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | テンプレート実績一覧取得 | ⏳ 未実装 | experiment_worker 読取専用 |
 
 ---
 
@@ -446,6 +447,244 @@ $13: template_type (string) - record 2
 
 ---
 
+
+## 2. テンプレート実績一覧取得API
+
+### 概要
+トランジションIDに隣接するプレースの実験実績データを取得します。  
+`DataRecordDialog` を開いた際に既存の入力済みデータを復元するために使用します。
+
+処理は以下の2段階で行います：
+1. `template_data` テーブルから対象タスクのレコードを全件取得
+2. S3/Swift の MaiML ファイルをパースしてペトリネット構造を解析し、指定トランジションに隣接するプレースIDでフィルタリング
+
+### エンドポイント
+```
+GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+```
+
+### HTTPメソッド
+GET
+
+### 認証要件
+- JWT認証必須
+- ロール: experiment_worker 読取専用
+- テナント分離必須
+
+### ミドルウェアチェーン
+```typescript
+router.get('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data',
+  auth,                                    // JWT認証
+  tenantIsolation,                         // テナント分離
+  checkPermission('050000', 0),            // experiment_worker 読取専用
+  [ query('transitionId').notEmpty().isString().isLength({ min: 1, max: 255 }) ],
+  handleValidationErrors,
+  experimentDataController.getTemplateData
+);
+```
+
+### リクエスト
+
+#### パスパラメータ
+| パラメータ | 型 | 必須 | 説明 | 制約 |
+|-----------|----|----|------|------|
+| projectName | string | ○ | プロジェクト名 | 1〜255文字 |
+| methodId | string | ○ | メソッドID | 1〜255文字 |
+| taskNo | integer | ○ | タスク連番 | 1以上の整数 |
+
+#### クエリパラメータ
+| パラメータ | 型 | 必須 | 説明 | 制約 |
+|-----------|----|----|------|------|
+| transitionId | string | ○ | トランジションID | 1〜255文字 |
+
+#### リクエスト例
+```
+GET /api/v1/experiments/projects/sample_project/methods/method_001/tasks/1/data?transitionId=t1
+```
+
+### 処理フロー
+1. パスパラメータ・クエリパラメータのバリデーション
+2. JWT から organizationId を取得（tenantIsolation ミドルウェア）
+3. `projects` テーブルから projectName → project_id を解決（organization_id でフィルタ）
+4. `template_data` テーブルから `organization_id` + `project_id` + `method_id` + `task_no` が一致するレコードを全件取得
+5. S3/Swift から MaiML ファイルをダウンロード（パス: `projects/{projectName}/{projectName}.maiml`）
+6. `parsePetriNetStructure()` でペトリネット構造を解析
+7. 指定 `transitionId` の存在確認（存在しない場合 404）
+8. arcs から隣接プレースIDを特定（入力プレース・出力プレースの両方）
+   - `arc.source === transitionId` → `arc.target`（出力プレース）
+   - `arc.target === transitionId` → `arc.source`（入力プレース）
+9. Step 4 で取得したレコードを隣接プレースIDでフィルタリング
+10. レスポンスを返却（0件の場合も 200 OK で空配列を返す）
+
+### レスポンス
+
+#### 成功時（200 OK）
+```json
+{
+  "success": true,
+  "data": {
+    "projectName": "sample_project",
+    "methodId": "method_001",
+    "taskNo": 1,
+    "transitionId": "t1",
+    "adjacentPlaceIds": ["p1", "p2"],
+    "templates": [
+      {
+        "placeId": "p1",
+        "templateType": "material",
+        "templateId": "template-mat-001",
+        "data": { "key": "value" },
+        "recordedBy": "880e8400-e29b-41d4-a716-446655440003",
+        "recordedAt": "2026-02-25T10:00:00.000Z"
+      },
+      {
+        "placeId": "p2",
+        "templateType": "condition",
+        "templateId": "template-cond-001",
+        "data": { "temperature": 25 },
+        "recordedBy": "880e8400-e29b-41d4-a716-446655440003",
+        "recordedAt": "2026-02-25T11:00:00.000Z"
+      }
+    ],
+    "totalCount": 2
+  },
+  "meta": {
+    "timestamp": "2026-02-25T17:00:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+#### 隣接プレースの実績データが 0 件の場合（200 OK）
+```json
+{
+  "success": true,
+  "data": {
+    "projectName": "sample_project",
+    "methodId": "method_001",
+    "taskNo": 1,
+    "transitionId": "t1",
+    "adjacentPlaceIds": ["p1", "p2"],
+    "templates": [],
+    "totalCount": 0
+  },
+  "meta": {
+    "timestamp": "2026-02-25T17:00:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+#### エラーレスポンス
+
+| HTTPステータス | エラーコード | 説明 |
+|--------------|-------------|------|
+| 400 | VALIDATION_ERROR | パラメータ不正（transitionId 未指定など） |
+| 404 | PROJECT_NOT_FOUND | 指定したプロジェクトが存在しない |
+| 404 | MAIML_NOT_FOUND | MaiML ファイルが S3/Swift に存在しない |
+| 404 | TRANSITION_NOT_FOUND | MaiML 内に指定トランジションIDが存在しない |
+| 500 | MAIML_PARSE_FAILED | MaiML のパース処理に失敗 |
+| 500 | DATABASE_ERROR | DB エラー |
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "TRANSITION_NOT_FOUND",
+    "message": "Transition 't999' not found in MaiML method 'method_001'"
+  },
+  "meta": {
+    "timestamp": "2026-02-25T17:00:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+### レスポンスフィールド詳細
+
+#### data オブジェクト
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| projectName | string | リクエストのプロジェクト名 |
+| methodId | string | リクエストのメソッドID |
+| taskNo | integer | リクエストのタスク連番 |
+| transitionId | string | リクエストのトランジションID |
+| adjacentPlaceIds | string[] | MaiML から特定した隣接プレースIDの一覧 |
+| templates | array | 実績データ配列（0件の場合は空配列） |
+| totalCount | integer | templates 配列の件数 |
+
+#### templates 配列の各要素
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| placeId | string | プレースID（テンプレートとプレースの紐付けに使用） |
+| templateType | string | テンプレート種別（material / condition / result） |
+| templateId | string | テンプレートID（テンプレート定義の特定に使用） |
+| data | object | 実験データ本体（フォームの既存値復元に使用） |
+| recordedBy | string | 記録者のユーザーID（UUID） |
+| recordedAt | string | 記録日時（ISO 8601 形式） |
+
+### バリデーション
+
+- [ ] projectName は文字列（1〜255文字）
+- [ ] methodId は文字列（1〜255文字）
+- [ ] taskNo は1以上の整数
+- [ ] transitionId は文字列（1〜255文字）、必須
+
+### データベーステーブル
+
+#### 使用テーブル
+1. **projects**（project_id の解決）
+   - project_name, id, organization_id
+
+2. **template_data**（実績データ取得）
+   - organization_id, project_id, method_id, task_no, place_id
+   - template_type, template_id, data (JSONB)
+   - recorded_by, recorded_at
+
+#### SQL例（実績データ取得）
+```sql
+-- 1. project_id の解決
+SELECT id FROM projects
+WHERE project_name = $1
+  AND organization_id = $2;
+
+-- 2. 対象タスクの template_data を全件取得（プレースIDフィルタはアプリ層で実施）
+SELECT
+  place_id,
+  template_type,
+  template_id,
+  data,
+  recorded_by,
+  recorded_at
+FROM template_data
+WHERE organization_id = $1
+  AND project_id      = $2
+  AND method_id       = $3
+  AND task_no         = $4
+ORDER BY place_id ASC;
+```
+
+### セキュリティ
+
+#### マルチテナント分離
+- [ ] organization_id フィルタ必須（projects テーブル・template_data テーブル両方）
+- [ ] クロステナントアクセス不可
+
+#### 認証・認可
+- [ ] JWT認証必須
+- [ ] experiment_worker 読取専用
+
+#### 入力検証
+- [ ] SQLインジェクション対策（Parameterized Queries）
+- [ ] パスパラメータの長さ制限
+
+### パフォーマンス
+
+- インデックス: `template_data (organization_id, project_id, method_id, task_no)` を使用
+- MaiML パース: S3/Swift からのダウンロードを最小化（1回のみ）
+- キャッシュ: 不要（リアルタイム性重視）
+
+---
 
 ## 🔗 関連ドキュメント
 

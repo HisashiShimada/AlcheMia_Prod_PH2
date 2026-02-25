@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express';
-import { param, body } from 'express-validator';
+import { param, body, query } from 'express-validator';
 import * as experimentController from '../controllers/experimentController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
@@ -13,6 +13,48 @@ import { checkPermission } from '../middleware/permissionCheckMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 
 const router = Router();
+
+/**
+ * テンプレート実績一覧取得
+ * GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック (experiment_worker 読取可)
+ * @description 指定トランジションに隣接するプレースのテンプレート実績一覧を返す
+ * @roles experiment_worker 以上
+ */
+router.get(
+  '/projects/:projectName/methods/:methodId/tasks/:taskNo/data',
+  authMiddleware,
+  tenantIsolation,
+  checkPermission('050000', 0), // 実験作業者メニュー（experiment_worker）読取可
+  [
+    param('projectName')
+      .trim()
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+    param('methodId')
+      .trim()
+      .notEmpty()
+      .withMessage('methodIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('methodIdは1〜255文字である必要があります'),
+    param('taskNo')
+      .isInt({ min: 1 })
+      .withMessage('taskNoは1以上の整数である必要があります'),
+    query('transitionId')
+      .trim()
+      .notEmpty()
+      .withMessage('transitionIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('transitionIdは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  experimentController.getTemplateData
+);
 
 /**
  * 実験データ一括保存

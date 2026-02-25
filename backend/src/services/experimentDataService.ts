@@ -9,6 +9,8 @@
 import { TemplateDataRepository, TemplateDataRecord, TemplateDataRow } from '../repositories/templateDataRepository';
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
+import { getStorageService } from './storageService';
+import { parsePetriNetStructure } from './maimlService';
 
 /**
  * プロジェクト編集不可エラー
@@ -128,6 +130,163 @@ export class ExperimentDataService {
     } finally {
       client.release();
     }
+  }
+}
+
+/**
+ * テンプレート実績一覧取得レスポンス
+ */
+export interface TemplateDataItem {
+  placeId: string;
+  templateType: string;
+  templateId: string;
+  data: Record<string, unknown>;
+  recordedBy: string;
+  recordedAt: string;
+}
+
+export interface GetTemplateDataResult {
+  projectName: string;
+  methodId: string;
+  taskNo: number;
+  transitionId: string;
+  adjacentPlaceIds: string[];
+  templates: TemplateDataItem[];
+  totalCount: number;
+}
+
+/**
+ * テンプレート実績一覧を取得する
+ * 
+ * @description
+ * 指定したタスクの template_data を全件取得し、
+ * MaiML ファイルのペトリネット構造を解析して
+ * transitionId に隣接するプレースのレコードのみ返す。
+ *
+ * @param organizationId 組織ID
+ * @param projectName プロジェクト名
+ * @param methodId メソッドID
+ * @param taskNo タスク番号
+ * @param transitionId トランジションID
+ * @returns 隣接プレースの実績データ
+ */
+export async function getTemplateData(
+  organizationId: string,
+  projectName: string,
+  methodId: string,
+  taskNo: number,
+  transitionId: string
+): Promise<GetTemplateDataResult> {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    // 1. project_id を解決
+    const projectIdQuery = await loadSqlFile('projects/findIdByName.sql');
+    const projectResult = await client.query(projectIdQuery, [organizationId, projectName]);
+
+    if (projectResult.rows.length === 0) {
+      const error: any = new Error(`Project not found: ${projectName}`);
+      error.name = 'ProjectNotFoundError';
+      throw error;
+    }
+    const projectId: string = projectResult.rows[0].project_id;
+
+    // 2. template_data テーブルから対象タスクの全レコードを取得
+    const repository = new TemplateDataRepository();
+    const allRecords = await repository.findByTaskNo(
+      organizationId,
+      projectId,
+      methodId,
+      taskNo,
+      client
+    );
+
+    // 3. S3/Swift から MaiML ファイルをダウンロード
+    const storageService = getStorageService();
+    const maimlPath = `projects/${projectName}/${projectName}.maiml`;
+    let maimlBuffer: Buffer;
+    try {
+      maimlBuffer = await storageService.downloadFile(organizationId, maimlPath);
+    } catch {
+      const error: any = new Error(`MaiML file not found: ${maimlPath}`);
+      error.name = 'MaimlNotFoundError';
+      throw error;
+    }
+    const maimlContent = maimlBuffer.toString('utf-8');
+
+    // 4. ペトリネット構造解析
+    let parseResult: any;
+    try {
+      parseResult = await parsePetriNetStructure(maimlContent);
+    } catch {
+      const error: any = new Error('Failed to parse MaiML file');
+      error.name = 'MaimlParseFailedError';
+      throw error;
+    }
+
+    // 5. 指定 methodId の method を特定し transitionId の存在確認
+    const methods: any[] = parseResult.methods || [];
+    const targetMethod = methods.find((m: any) => m.methodId === methodId);
+    if (!targetMethod) {
+      const error: any = new Error(`Method '${methodId}' not found in MaiML`);
+      error.name = 'TransitionNotFoundError';
+      throw error;
+    }
+
+    const transitions: any[] = targetMethod.transitions || [];
+    const transitionExists = transitions.some((t: any) => t.transitionId === transitionId);
+    if (!transitionExists) {
+      const error: any = new Error(`Transition '${transitionId}' not found in MaiML method '${methodId}'`);
+      error.name = 'TransitionNotFoundError';
+      throw error;
+    }
+
+    // 6. arcs から隣接プレースID を特定（入力プレース・出力プレースの両方）
+    const arcs: any[] = targetMethod.arcs || [];
+    const adjacentPlaceIds: string[] = [];
+    for (const arc of arcs) {
+      if (arc.source === transitionId && arc.target) {
+        // トランジション → プレース（出力プレース）
+        if (!adjacentPlaceIds.includes(arc.target)) {
+          adjacentPlaceIds.push(arc.target);
+        }
+      } else if (arc.target === transitionId && arc.source) {
+        // プレース → トランジション（入力プレース）
+        if (!adjacentPlaceIds.includes(arc.source)) {
+          adjacentPlaceIds.push(arc.source);
+        }
+      }
+    }
+
+    // 7. template_data レコードを隣接プレースIDでフィルタリング
+    const filteredRecords = allRecords.filter((r: TemplateDataRow) =>
+      adjacentPlaceIds.includes(r.place_id)
+    );
+
+    // 8. レスポンス用に整形
+    const templates: TemplateDataItem[] = filteredRecords.map((r: TemplateDataRow) => ({
+      placeId: r.place_id,
+      templateType: r.template_type,
+      templateId: r.template_id,
+      data: r.data,
+      recordedBy: r.recorded_by,
+      recordedAt: r.recorded_at instanceof Date
+        ? r.recorded_at.toISOString()
+        : String(r.recorded_at),
+    }));
+
+    return {
+      projectName,
+      methodId,
+      taskNo,
+      transitionId,
+      adjacentPlaceIds,
+      templates,
+      totalCount: templates.length,
+    };
+  } finally {
+    client.release();
   }
 }
 

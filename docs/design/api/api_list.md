@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.11.0
-- **最終更新**: 2026-02-19
+- **バージョン**: 2.12.0
+- **最終更新**: 2026-02-25
 - **担当**: Development Team
 
 ---
@@ -276,10 +276,11 @@
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
 | 8.1 | POST | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | ExperimentDataController.saveBatch |
+| 8.2 | GET | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | テンプレート実績一覧取得 | ⏳ 未実装 | ExperimentDataController.getTemplateData |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
-- 権限: experiment_worker のみ書込可
+- 権限: 8.1（experiment_worker のみ書込可）、8.2（experiment_worker 読取専用）
 
 **備考:**
 - 実験データのテンプレート単位保存
@@ -289,6 +290,13 @@
 - トランザクション保証により整合性を確保
 - マルチテナント分離により自組織の実験データのみ操作可能
 - **トランジションステータス更新APIは進捗確認API（6.6）に移動**
+- **API 8.2: テンプレート実績一覧取得**
+  - DataRecordDialog でダイアログを開いた際に既存入力済みデータを復元するために使用
+  - クエリパラメータ `transitionId` を必須とする
+  - S3/Swift の MaiML ファイルをパースしてペトリネット構造を解析
+  - 指定トランジションに隣接するプレース（入力・出力の両方）のレコードを返却
+  - 隣接プレースの実績データが 0 件の場合も 200 OK（空配列）
+  - 詳細仕様: [api_experiment_data.md](./api_experiment_data.md) API #2 を参照
 
 ---
 
@@ -549,7 +557,7 @@
 | Maiml編集API | 17 | 17 | 0 | 0 | 100% |
 | 進捗確認API | 4 | 0 | 0 | 4 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
-| 実験データ記録API | 1 | 0 | 0 | 1 | 0% |
+| 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
 | 部署管理API | 7 | 7 | 0 | 0 | 100% |
 | ロール管理API | 8 | 8 | 0 | 0 | 100% |
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
@@ -740,6 +748,14 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.12.0 | 2026-02-25 | 実験データ記録API - テンプレート実績一覧取得API追加 | Cline |
+| | | - API 8.2: GET .../tasks/:taskNo/data 追加 | |
+| | | - DataRecordDialog でのモックデータ（templatesList）置き換え用 | |
+| | | - transitionId（クエリ）で MaiML ペトリネット解析し隣接プレースを特定 | |
+| | | - 実験データ記録API: 1→2エンドポイント（+1: テンプレート実績一覧取得） | |
+| | | - 実装状況サマリー: 実験データ記録API 総数 1→2 | |
+| | | - 全体: 115→116エンドポイント | |
+| | | - 詳細仕様: api_experiment_data.md セクション2 を参照 | |
 | 2.11.0 | 2026-02-19 | 組織管理API - クライアント証明書ダウンロード機能追加 | Cline |
 | | | - API 14.9: GET /organization/:organizationId/certificate 追加 | |
 | | | - PKCS#12形式の証明書ダウンロード | |
