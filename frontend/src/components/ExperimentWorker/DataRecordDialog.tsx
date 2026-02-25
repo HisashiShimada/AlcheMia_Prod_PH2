@@ -50,6 +50,8 @@ import {
   isEditableStatus,
 } from '@/types/experimentWorker';
 import { templatesList } from '@/data/projectsData';
+import { saveBatchExperimentData } from '@/services/experimentDataApiService';
+import { ExperimentDataRecord } from '@/types/api';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 
 const { Title, Text } = Typography;
@@ -63,7 +65,9 @@ interface DataRecordDialogProps {
   onClose: () => void;
   onSave: (data: ExperimentDataValue[]) => void;
   projectId?: string;
+  projectName?: string;
   methodId?: string;
+  taskNo?: number;
 }
 
 /**
@@ -77,7 +81,9 @@ export default function DataRecordDialog({
   onClose,
   onSave,
   projectId,
+  projectName,
   methodId,
+  taskNo,
 }: DataRecordDialogProps) {
   const { token } = theme.useToken();
   const [form] = Form.useForm();
@@ -172,6 +178,20 @@ export default function DataRecordDialog({
     }
   };
 
+  /**
+   * TemplateCategory（フロント）→ templateType（API）へのマッピング
+   * Materials → material, Conditions → condition, Results → result
+   */
+  const mapTemplateCategoryToApiType = (
+    category: TemplateCategory
+  ): 'material' | 'condition' | 'result' => {
+    switch (category) {
+      case 'Materials':  return 'material';
+      case 'Conditions': return 'condition';
+      case 'Results':    return 'result';
+    }
+  };
+
   // テンプレート種別のタグ色
   const getTemplateCategoryColor = (category: TemplateCategory): string => {
     switch (category) {
@@ -221,45 +241,75 @@ export default function DataRecordDialog({
       return;
     }
 
+    // APIに必要なパスパラメータのガードチェック
+    if (!projectName || !methodId || taskNo === undefined) {
+      message.error('保存に必要なプロジェクト情報が不足しています');
+      console.error('handleSaveTemplate: projectName / methodId / taskNo が未設定', {
+        projectName,
+        methodId,
+        taskNo,
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       const values = await form.validateFields();
-      
+
       const template = selectedTemplate;
 
+      // フォームデータをExperimentDataValue形式に変換
       const templateData: ExperimentDataValue = {
         templateId: template.templateId,
         category: template.category,
       };
-      
+
       template.properties.forEach((prop) => {
         const key = `${template.templateId}_${prop.key}`;
         if (prop.type === 'contentDoubleListType') {
           templateData[prop.key] = dataGrids[key] || [[0, 0, 0]];
         } else if (prop.type === 'dateType' || prop.type === 'dateTimeType') {
           const dateValue = values[key];
-          templateData[prop.key] = dateValue ? dayjs(dateValue).format(
-            prop.type === 'dateType' ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'
-          ) : null;
+          templateData[prop.key] = dateValue
+            ? dayjs(dateValue).format(
+                prop.type === 'dateType' ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'
+              )
+            : null;
         } else {
           templateData[prop.key] = values[key] ?? null;
         }
       });
-      
-      // ステータスとコメントをログ出力（バックエンド実装時に使用）
-      console.log('保存データ:', {
-        transitionId: transition?.transitionId,
+
+      // APIリクエスト用レコードを構築
+      // placeId は現状 templateId で代替（将来 Transition.templates に placeId が追加された際に修正）
+      const record: ExperimentDataRecord = {
+        placeId: template.templateId,
+        templateType: mapTemplateCategoryToApiType(template.category),
         templateId: template.templateId,
+        data: templateData as Record<string, unknown>,
         status: selectedStatus,
-        comment: comment,
-        experimentData: templateData,
-      });
-      
+        comment: comment || undefined,
+      };
+
+      // バックエンドAPIへ保存
+      await saveBatchExperimentData(projectName, methodId, taskNo, { records: [record] });
+
       onSave([templateData]);
-      message.success(`「${template.name}」を保存しました（ステータス: ${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`);
-    } catch (error) {
-      console.error('Validation failed:', error);
-      message.error('入力内容を確認してください');
+      message.success(
+        `「${template.name}」を保存しました（ステータス: ${statusOptions.find((opt) => opt.value === selectedStatus)?.label}）`
+      );
+    } catch (error: unknown) {
+      console.error('handleSaveTemplate error:', error);
+      // axios エラーの場合はサーバーメッセージを優先表示
+      const axiosError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
+      const serverMessage = axiosError?.response?.data?.error?.message;
+      if (serverMessage) {
+        message.error(`保存に失敗しました: ${serverMessage}`);
+      } else if (axiosError?.message) {
+        message.error(`保存に失敗しました: ${axiosError.message}`);
+      } else {
+        message.error('入力内容を確認してください');
+      }
     } finally {
       setLoading(false);
     }

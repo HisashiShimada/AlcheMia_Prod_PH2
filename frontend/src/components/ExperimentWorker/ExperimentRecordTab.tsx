@@ -648,7 +648,9 @@ export default function ExperimentRecordTab({
         onClose={handleDataRecordModalClose}
         onSave={handleDataSave}
         projectId={selectedProject}
+        projectName={selectedProjectName || undefined}
         methodId={selectedMethodId || undefined}
+        taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
       />
 
       {/* 問題報告モーダル */}

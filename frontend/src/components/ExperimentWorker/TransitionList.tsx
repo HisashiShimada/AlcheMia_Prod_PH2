@@ -512,7 +512,9 @@ export default function TransitionList({
         onClose={handleDataRecordModalClose}
         onSave={handleDataSave}
         projectId={projectId}
+        projectName={projectName}
         methodId={methodId}
+        taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
       />
 
       {/* 問題管理モーダル */}
