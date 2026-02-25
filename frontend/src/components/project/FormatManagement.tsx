@@ -28,15 +28,16 @@ import FormatSearchModal from './FormatSearchModal';
 import FormatUploadDialog from './FormatUploadDialog';
 import CreateFormatFileModal, { CreateFormatFileData } from './CreateFormatFileModal';
 import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatFolderModal';
+import CreateFormatModal from './CreateFormatModal';
 import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
 import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
 import TemplateEditorDialog from '@/components/editorv2/components/TemplateEditorDialog';
 import mockFormatFilesData from '@/data/mock/mockFormatFiles.json';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { message } from 'antd';
+import { App } from 'antd';
 import { User } from '@/types/auth';
 import { useApi } from '@/hooks/useApi';
-import { fetchFormats, fetchFormatFiles } from '@/utils/apiClient';
+import { fetchFormats, fetchFormatFiles, createFormatFile, createFormatSubfolder } from '@/utils/formatApi';
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
 import { getFileDownloadUrlByKey } from '@/services/fileAccessService';
@@ -91,6 +92,7 @@ interface FormatManagementProps {
 const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
+  const { message } = App.useApp();
   const [formats, setFormats] = useState<Format[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -100,6 +102,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createFileModalOpen, setCreateFileModalOpen] = useState(false);
   const [createFolderModalOpen, setCreateFolderModalOpen] = useState(false);
+  const [createFormatModalOpen, setCreateFormatModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<FormatFileDetailData | null>(null);
   const [sortBy, setSortBy] = useState<'name' | 'category' | 'updatedAt' | null>(null);
@@ -252,52 +255,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     setCreateFileModalOpen(false);
   }, []);
 
-  // 新規ファイル作成ハンドラ
-  const handleCreateFormatFile = useCallback(async (data: CreateFormatFileData) => {
-    try {
-      console.log('📝 [FormatManagement] 新規フォーマットファイル作成:', data);
-      
-      // XMLファイルの場合、templateTypeに応じたメッセージ
-      if (data.fileType === 'xml' && data.templateType) {
-        console.log(`✅ [FormatManagement] テンプレートタイプ: ${data.templateType}`);
-        
-        // TODO: Phase 6 - templateTypeに応じたデフォルトXML生成
-        // const xmlContent = generateDefaultXmlContent(data.templateType, data.fileName);
-        // console.log('生成されたXML:', xmlContent);
-      }
-      
-      // TODO: 実際のAPI呼び出しを実装
-      // await apiService.post(`/api/formats/${data.formatId}/files`, {
-      //   ...data,
-      //   // XMLファイルの場合、生成したコンテンツを含める
-      //   // content: data.fileType === 'xml' ? xmlContent : undefined
-      // });
-      
-      // 成功メッセージを表示（テンプレートタイプを含む）
-      const successMessage = data.fileType === 'xml' && data.templateType
-        ? `${data.templateType}テンプレートが作成されました`
-        : 'ファイルが正常に作成されました';
-      
-      message.success({
-        content: t('formatManagement.create.success') || successMessage,
-        duration: 3,
-      });
-      
-      // モーダルを閉じる
-      handleCloseCreateFileModal();
-      
-      // ファイル一覧を更新
-      handleRefresh();
-    } catch (error) {
-      console.error('❌ [FormatManagement] ファイル作成エラー:', error);
-      message.error({
-        content: t('formatManagement.create.error') || 'ファイルの作成に失敗しました',
-        duration: 3,
-      });
-      throw error;
-    }
-  }, [t, handleCloseCreateFileModal, handleRefresh]);
-
   // 新規フォルダ作成モーダルを開く
   const handleOpenCreateFolderModal = useCallback(() => {
     if (!selectedFormatId) {
@@ -408,13 +365,109 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     setSelectedFile(null);
   }, []);
 
-  // 新規フォルダ作成ハンドラ
+  // フォーマットファイル一覧取得関数をuseCallbackで定義
+  const fetchFormatFilesCallback = React.useCallback(async () => {
+    if (!selectedFormatId) {
+      return { success: true, data: { files: [] } };
+    }
+    const subPath = currentFolderPath.length > 0 ? currentFolderPath.join('/') : undefined;
+    return fetchFormatFiles(selectedFormatId, subPath);
+  }, [selectedFormatId, currentFolderPath]);
+
+  // フォーマットファイル一覧を取得（APIから）
+  const { 
+    data: formatFilesData, 
+    isLoading: isLoadingFiles, 
+    error: filesError, 
+    refetch: refetchFiles 
+  } = useApi(
+    fetchFormatFilesCallback,
+    [selectedFormatId, currentFolderPath]
+  );
+
+  // 新規ファイル作成ハンドラ
+  const handleCreateFormatFile = useCallback(async (data: CreateFormatFileData) => {
+    try {
+      console.log('📝 [FormatManagement] 新規フォーマットファイル作成:', data);
+      
+      // XMLファイルの場合、templateTypeに応じたメッセージ
+      if (data.fileType === 'xml' && data.templateType) {
+        console.log(`✅ [FormatManagement] テンプレートタイプ: ${data.templateType}`);
+      }
+      
+      // formatApi.tsから直接呼び出し
+      const response = await createFormatFile(data.formatId, {
+        fileName: data.fileNameWithExtension,
+      });
+      
+      // 型ガード: success === true の場合のみ data にアクセス
+      if (response.success) {
+        console.log('✅ [FormatManagement] ファイル作成成功:', response.data);
+      }
+      
+      // 成功メッセージを表示（テンプレートタイプを含む）
+      const successMessage = data.fileType === 'xml' && data.templateType
+        ? `${data.templateType}テンプレートが作成されました`
+        : 'ファイルが正常に作成されました';
+      
+      message.success({
+        content: t('formatManagement.create.success') || successMessage,
+        duration: 3,
+      });
+      
+      // モーダルを閉じる
+      handleCloseCreateFileModal();
+      
+      // ファイル一覧とフォーマット一覧を更新
+      await refetchFiles();
+      handleRefresh();
+    } catch (error) {
+      console.error('❌ [FormatManagement] ファイル作成エラー:', error);
+      
+      // Axiosエラーからメッセージを抽出
+      let errorMessage = 'ファイルの作成に失敗しました';
+      
+      // 型ガードでAxiosエラーかチェック
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { error?: { code?: string; message?: string } } }; message?: string };
+        if (axiosError.response?.data?.error?.message) {
+          // バックエンドからのエラーメッセージ（error.message）
+          errorMessage = axiosError.response.data.error.message;
+        } else if (axiosError.message) {
+          // その他のエラー
+          errorMessage = axiosError.message;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      message.error({
+        content: errorMessage,
+        duration: 3,
+      });
+      
+      // エラーオブジェクトにメッセージを設定してthrow
+      const enrichedError = new Error(errorMessage);
+      throw enrichedError;
+    }
+  }, [t, handleCloseCreateFileModal, handleRefresh, refetchFiles]);
+
+  // 新規フォルダ作成ハンドラ（フォーマット内サブフォルダ作成）
   const handleCreateFormatFolder = useCallback(async (data: CreateFormatFolderData) => {
     try {
-      console.log('新規フォーマットフォルダ作成:', data);
+      console.log('📁 [FormatManagement] フォーマット内サブフォルダ作成:', data);
       
-      // TODO: 実際のAPI呼び出しを実装
-      // await apiService.post(`/api/formats/${data.formatId}/folders`, data);
+      // formatApi.tsから直接呼び出し
+      const response = await createFormatSubfolder(
+        data.formatId,        // formatName
+        data.folderName,      // subfolderName
+        ''                    // parentPath（空文字列=ルート直下）
+      );
+      
+      // 型ガード: success === true の場合のみ data にアクセス
+      if (response.success) {
+        console.log('✅ [FormatManagement] サブフォルダ作成成功:', response.data);
+      }
       
       // 成功メッセージを表示
       message.success({
@@ -426,16 +479,43 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       handleCloseCreateFolderModal();
       
       // ファイル一覧を更新
-      handleRefresh();
+      refetchFiles();
     } catch (error) {
-      console.error('フォルダ作成エラー:', error);
+      console.error('❌ [FormatManagement] フォルダ作成エラー:', error);
       message.error({
-        content: t('formatManagement.folder_create_error') || 'フォルダの作成に失敗しました',
+        content: (error as Error).message || t('formatManagement.folder_create_error') || 'フォルダの作成に失敗しました',
         duration: 3,
       });
       throw error;
     }
-  }, [t, handleCloseCreateFolderModal, handleRefresh]);
+  }, [t, handleCloseCreateFolderModal, refetchFiles]);
+
+  // 新規フォーマットフォルダ作成ハンドラ（部門直下）
+  const handleCreateFormat = useCallback(async (folderName: string) => {
+    try {
+      console.log('📁 [FormatManagement] 新規フォーマットフォルダ作成（部門直下）:', folderName);
+      
+      const client = createApiClient();
+      
+      // API呼び出し（createApiClientは既に/api/v1をbaseURLに含んでいる）
+      const response = await client.post('/formats/folders', {
+        folderName,
+      });
+      
+      console.log('✅ [FormatManagement] フォルダ作成成功:', response.data);
+      
+      // モーダルを閉じる
+      setCreateFormatModalOpen(false);
+      
+      // フォーマット一覧を更新（成功はモーダルが閉じて一覧が更新されることで確認できる）
+      handleRefresh();
+    } catch (error) {
+      console.error('❌ [FormatManagement] フォルダ作成エラー:', error);
+      
+      // エラーをthrow（CreateFormatModalでcatchされる）
+      throw error;
+    }
+  }, [handleRefresh]);
 
   // 選択したフォーマットとそのファイル一覧を取得
   const selectedFormat = useMemo(() => {
@@ -472,23 +552,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     setCurrentFolderPath([]);
   }, []);
 
-  // フォーマットファイル一覧を取得（APIから）
-  const { 
-    data: formatFilesData, 
-    isLoading: isLoadingFiles, 
-    error: filesError, 
-    refetch: refetchFiles 
-  } = useApi(
-    async () => {
-      if (!selectedFormatId) {
-        return { success: true, data: { files: [] } };
-      }
-      const subPath = currentFolderPath.length > 0 ? currentFolderPath.join('/') : undefined;
-      return fetchFormatFiles(selectedFormatId, subPath);
-    },
-    [selectedFormatId, currentFolderPath]
-  );
-
   const formatFiles = useMemo(() => {
     if (!formatFilesData?.data.files) return [];
     
@@ -523,81 +586,94 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         }}
         styles={{ body: { padding: `${token.margin}px ${token.paddingLG}px` } }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        {/* 検索・フィルタ */}
-        <Space orientation="horizontal" size="small" wrap>
-          {/* カテゴリ絞込 */}
-          {/* カテゴリ絞込 */}
-          <Space size={4} orientation="horizontal">
-            <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
-              {t('formatManagement.filter_labels.category')}
-            </Text>
-            <Select
-              style={{ width: 150 }}
-              value={categoryFilter}
-              onChange={setCategoryFilter}
-              options={[
-                { value: 'all', label: t('formatManagement.all') },
-                { value: 'protocol', label: t('formatManagement.protocol') },
-                { value: 'material', label: t('formatManagement.material') },
-                { value: 'measurement', label: t('formatManagement.measurement') },
-                { value: 'analysis', label: t('formatManagement.analysis') },
-                { value: 'sample', label: t('formatManagement.sample') },
-                { value: 'device', label: t('formatManagement.device') },
-              ]}
-            />
-          </Space>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* 上段: 検索・フィルタ */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <Space orientation="horizontal" size="small" wrap>
+              {/* カテゴリ絞込 */}
+              <Space size={4} orientation="horizontal">
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                  {t('formatManagement.filter_labels.category')}
+                </Text>
+                <Select
+                  style={{ width: 150 }}
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                  options={[
+                    { value: 'all', label: t('formatManagement.all') },
+                    { value: 'protocol', label: t('formatManagement.protocol') },
+                    { value: 'material', label: t('formatManagement.material') },
+                    { value: 'measurement', label: t('formatManagement.measurement') },
+                    { value: 'analysis', label: t('formatManagement.analysis') },
+                    { value: 'sample', label: t('formatManagement.sample') },
+                    { value: 'device', label: t('formatManagement.device') },
+                  ]}
+                />
+              </Space>
 
-          {/* ファイルタイプ絞込 */}
-          <Space size={4} orientation="horizontal">
-            <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
-              {t('formatManagement.filter_labels.file_type')}
-            </Text>
-            <Select
-              style={{ width: 150 }}
-              value={fileTypeFilter}
-              onChange={(value) => setFileTypeFilter(value as 'all' | 'xml' | 'maiml')}
-              options={[
-                { value: 'all', label: t('formatManagement.all') },
-                { value: 'xml', label: 'XML' },
-                { value: 'maiml', label: 'MaiML' },
-              ]}
-            />
-          </Space>
+              {/* ファイルタイプ絞込 */}
+              <Space size={4} orientation="horizontal">
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                  {t('formatManagement.filter_labels.file_type')}
+                </Text>
+                <Select
+                  style={{ width: 150 }}
+                  value={fileTypeFilter}
+                  onChange={(value) => setFileTypeFilter(value as 'all' | 'xml' | 'maiml')}
+                  options={[
+                    { value: 'all', label: t('formatManagement.all') },
+                    { value: 'xml', label: 'XML' },
+                    { value: 'maiml', label: 'MaiML' },
+                  ]}
+                />
+              </Space>
 
-          {/* 検索バー */}
-          <Space size={4} orientation="horizontal">
-            <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
-              {t('formatManagement.filter_labels.search')}
-            </Text>
-            <Input
-              prefix={<SearchOutlined />}
-              placeholder={t('formatManagement.filter_placeholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ width: 250 }}
-              allowClear
-            />
-          </Space>
+              {/* 検索バー */}
+              <Space size={4} orientation="horizontal">
+                <Text type="secondary" style={{ fontSize: token.fontSizeSM, fontWeight: token.fontWeightStrong }}>
+                  {t('formatManagement.filter_labels.search')}
+                </Text>
+                <Input
+                  prefix={<SearchOutlined />}
+                  placeholder={t('formatManagement.filter_placeholder')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ width: 250 }}
+                  allowClear
+                />
+              </Space>
 
-          {/* 詳細検索ボタン */}
-          <Button 
-            type="primary"
-            icon={<SearchOutlined />}
-            onClick={() => setSearchModalOpen(true)}
-          >
-            {t('formatManagement.advanced_search')}
-          </Button>
-        </Space>
+              {/* 詳細検索ボタン */}
+              <Button 
+                type="primary"
+                icon={<SearchOutlined />}
+                onClick={() => setSearchModalOpen(true)}
+              >
+                {t('formatManagement.advanced_search')}
+              </Button>
+            </Space>
 
-        {/* 右側のアクションボタン */}
-        <Button
-          type="primary"
-          icon={<ReloadOutlined />}
-          onClick={handleRefresh}
-        >
-          {t('progress.refresh')}
-        </Button>
+            {/* 右側: リフレッシュボタン */}
+            <Button
+              type="primary"
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+            >
+              {t('progress.refresh')}
+            </Button>
+          </div>
+
+          {/* 下段: 新規フォーマットフォルダボタン */}
+          <div>
+            <Button
+              type="primary"
+              icon={<FolderAddOutlined />}
+              style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+              onClick={() => setCreateFormatModalOpen(true)}
+            >
+              新規フォーマットフォルダ
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -662,7 +738,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                     style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     onClick={handleOpenCreateFolderModal}
                   >
-                    {t('formatManagement.new_folder')}
+                    新規サブフォルダ
                   </Button>
                   <Button
                     type="primary"
@@ -755,6 +831,14 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         onSubmit={handleCreateFormatFolder}
         formatId={selectedFormatId}
         formatName={selectedFormat?.name || null}
+      />
+
+      {/* 新規フォーマットフォルダ作成モーダル（部門直下） */}
+      <CreateFormatModal
+        open={createFormatModalOpen}
+        onCancel={() => setCreateFormatModalOpen(false)}
+        onSubmit={handleCreateFormat}
+        departmentName={user.departmentCd}
       />
 
       {/* ファイル詳細表示モーダル */}

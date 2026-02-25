@@ -10,6 +10,7 @@ import { getStorageService } from './storageService';
 import { escapeHtml } from '../utils/sanitize';
 import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
 import winston from 'winston';
+import * as projectRepository from '../repositories/projectRepository';
 import type { 
   Project, 
   Pagination, 
@@ -1671,43 +1672,28 @@ export class ProjectService {
   /**
    * プロジェクトMAIMLファイル取得
    * 
-   * Task 3.1 (P): Service層実装
+   * Task 3.1 (P): Service層実装（projectName版）
    * Requirements: 1, 3, 4, 6, 7
    * 
    * @param organizationId - 組織ID
-   * @param projectId - プロジェクトID
+   * @param projectName - プロジェクト名
    * @returns MAIMLファイルデータ
    */
   async getProjectMaiml(
     organizationId: string,
-    projectId: string
+    projectName: string
   ): Promise<ServiceResult<any>> {
-    const pgp = getPgp();
-    const { loadSqlFile } = require('../sql/loader');
+    let projectId: string | undefined; // スコープを拡大
     
     try {
-      // organization_prefix取得（外部SQLファイル使用）
-      const orgSql = await loadSqlFile('projects/getOrganizationPrefix.sql');
-      const orgResult = await pgp.oneOrNone(orgSql, [organizationId]);
+      console.log('[DEBUG] getProjectMaiml - Service層開始', { organizationId, projectName });
       
-      if (!orgResult) {
-        return {
-          success: false,
-          error: {
-            code: 'RESOURCE_NOT_FOUND',
-            message: '組織情報が見つかりません',
-          },
-        };
-      }
-      
-      const organizationPrefix = orgResult.organization_prefix;
-      
-      // Task 3.1: プロジェクト存在確認（organization_idフィルタ必須、外部SQLファイル使用）
-      const projectSql = await loadSqlFile('projects/findByIdForMaiml.sql');
-      const projectResult = await pgp.oneOrNone(projectSql, [organizationId, projectId]);
+      // Repository層を使用してprojectNameからprojectIdを取得
+      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
       
       // プロジェクト存在確認
-      if (!projectResult) {
+      if (!project) {
+        console.log('[DEBUG] getProjectMaiml - プロジェクトが見つかりません', { projectName });
         return {
           success: false,
           error: {
@@ -1717,33 +1703,27 @@ export class ProjectService {
         };
       }
       
-      const projectName = projectResult.project_name;
+      projectId = project.project_id;
+      console.log('[DEBUG] getProjectMaiml - プロジェクトID取得完了', { projectId, projectName });
       
       // Task 3.1: S3パスを構築
       const filePath = `projects/${projectName}/${projectName}.maiml`;
+      console.log('[DEBUG] getProjectMaiml - S3パス構築完了', { filePath });
       
       // Task 3.1: storageService経由でS3からファイルを取得
       try {
         const storageService = getStorageService();
-        const fileBuffer = await storageService.downloadFile(organizationPrefix, filePath);
+        console.log('[DEBUG] getProjectMaiml - S3からファイル取得開始');
+        
+        const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+        console.log('[DEBUG] getProjectMaiml - S3からファイル取得完了', { size: fileBuffer.length });
         
         // Task 3.1: BufferをUTF-8文字列に変換
         const content = fileBuffer.toString('utf-8');
         
-        // Task 3.1: ファイルメタデータを取得
-        const fileMetadata = await storageService.getFileMetadata(organizationPrefix, filePath);
-        
-        // Task 3.1: レスポンスデータ構築
+        // Task 3.1: レスポンスデータ構築（フロントエンドのProjectMaimlResponse型に合わせる）
         const maimlFileData = {
-          file_id: fileMetadata.key,
-          project_id: projectId,
-          project_name: projectName,
-          file_name: `${projectName}.maiml`,
-          file_path: filePath,
-          file_size: fileMetadata.size,
-          content: content,
-          content_type: 'application/xml' as const,
-          loaded_at: new Date().toISOString(),
+          maimlContent: content, // フロントエンドが期待するプロパティ名
         };
         
         // Task 3.1: 成功ログ記録
@@ -1751,11 +1731,12 @@ export class ProjectService {
           projectId,
           projectName,
           organizationId,
-          fileSize: fileMetadata.size,
+          fileSize: fileBuffer.length,
           filePath,
           timestamp: new Date().toISOString(),
         });
         
+        console.log('[DEBUG] getProjectMaiml - 成功レスポンス返却');
         return {
           success: true,
           data: maimlFileData,

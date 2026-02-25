@@ -213,9 +213,10 @@ export async function getProjectTasks(req: Request, res: Response): Promise<void
 
 /**
  * プロジェクトMAIML取得エンドポイント
- * GET /api/v1/projects/:projectId/maiml
+ * GET /api/v1/projects/:projectName/maiml
  * 
- * Task 1.1 (P): projectRoutesにMAIML取得エンドポイントを追加
+ * @description プロジェクトの最新MAIMLファイルをXML形式で取得する（プロジェクト管理画面で使用）
+ * @note フロントエンドProjectMaimlContext用エンドポイント
  * Requirements: REQ-1, REQ-2, REQ-4, REQ-5, REQ-7
  */
 export async function getProjectMaiml(req: Request, res: Response): Promise<void> {
@@ -223,12 +224,22 @@ export async function getProjectMaiml(req: Request, res: Response): Promise<void
   const projectService = new ProjectService();
 
   try {
+    console.log('[DEBUG] getProjectMaiml - Start', { requestId, params: req.params });
+    
     // バリデーションはミドルウェアで処理済み
     const { organizationId } = req.user!;
-    const { projectId } = req.params;
+    const { projectName } = req.params;
+    
+    console.log('[DEBUG] getProjectMaiml - Auth OK', { organizationId, projectName });
 
-    // Service層呼び出し
-    const result = await projectService.getProjectMaiml(organizationId, projectId);
+    // Service層呼び出し（projectNameを直接渡す）
+    const result = await projectService.getProjectMaiml(organizationId, projectName);
+    
+    console.log('[DEBUG] getProjectMaiml - Service result', { 
+      success: result.success, 
+      hasData: !!result.data,
+      errorCode: result.error?.code 
+    });
 
     // エラーハンドリング
     if (!result.success) {
@@ -258,6 +269,7 @@ export async function getProjectMaiml(req: Request, res: Response): Promise<void
     }
 
     // 成功レスポンス
+    console.log('[DEBUG] getProjectMaiml - Success response');
     res.status(200).json({
       success: true,
       data: result.data,
@@ -267,10 +279,11 @@ export async function getProjectMaiml(req: Request, res: Response): Promise<void
       },
     });
   } catch (error) {
+    console.error('[DEBUG] getProjectMaiml - Exception caught', error);
     logError('Project getProjectMaiml error', error as Error, {
       action: 'project_getProjectMaiml',
       organizationId: req.user?.organizationId,
-      projectId: req.params.projectId,
+      projectName: req.params.projectName,
       requestId,
     });
 

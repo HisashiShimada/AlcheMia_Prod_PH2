@@ -4,11 +4,14 @@
  * xml-js形式のデータをXSD準拠の型安全な構造に変換するユーティリティ
  * 
  * @module maimlTypeConverter
- * @version 1.0.0
- * @date 2026-02-02
+ * @version 2.0.0
+ * @date 2026-02-24
  * 
  * @note xml-js形式の動的な構造を扱うため、一部の関数でany型を使用しています。
  *       主要な入出力（エントリーポイントとProperty変換）は型安全に保たれています。
+ * 
+ * @changelog
+ * - v2.0.0 (2026-02-24): エラーハンドリング機能追加。変換失敗時もMaimlRootを返却。
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -58,66 +61,283 @@ import type {
 } from '@/types/maiml-unified';
 
 /**
- * xml-jsからMaimlRootへの変換（エントリーポイント）
+ * 変換エラー情報
  */
-export function convertXmlJsToMaimlRoot(xmlData: XmlJsMaimlRoot | XmlJsElement): MaimlRoot {
-  console.log('🔄 [convertXmlJsToMaimlRoot] 型変換開始');
-  
-  // XmlJsMaimlRootの場合はmaimlを取得、XmlJsElementの場合はそのまま使用
-  const maimlElement = (xmlData as XmlJsMaimlRoot).maiml || xmlData as XmlJsElement;
-  
-  if (!maimlElement) {
-    throw new Error('Invalid MAIML data: no maiml element found');
+export interface ConversionError {
+  /** エラー発生箇所のパス（例: "protocol.method[0].pnml"） */
+  path: string;
+  /** エラー対象の要素名 */
+  element: string;
+  /** エラーメッセージ */
+  message: string;
+  /** エラーレベル */
+  level: 'warning' | 'error';
+  /** 元のエラーオブジェクト */
+  originalError?: Error;
+}
+
+/**
+ * 変換結果
+ */
+export interface ConversionResult {
+  /** 変換されたデータ（部分的でも可） */
+  data: MaimlRoot;
+  /** 発生したエラーのリスト */
+  errors: ConversionError[];
+  /** エラーが発生したかどうか */
+  hasErrors: boolean;
+  /** 警告が発生したかどうか */
+  hasWarnings: boolean;
+}
+
+/**
+ * エラーコンテキスト（エラー収集用）
+ */
+class ErrorContext {
+  private errors: ConversionError[] = [];
+  private pathStack: string[] = [];
+
+  pushPath(segment: string): void {
+    this.pathStack.push(segment);
   }
-  
-  const attrs = maimlElement._attributes || {};
-  
-  // documentとprotocolは必須
-  const docElement = maimlElement.document as XmlJsElement | undefined;
-  const protocolElement = maimlElement.protocol as XmlJsElement | undefined;
-  
-  if (!docElement || !protocolElement) {
-    throw new Error('Document and Protocol elements are required');
+
+  popPath(): void {
+    this.pathStack.pop();
   }
+
+  getCurrentPath(): string {
+    return this.pathStack.join('.');
+  }
+
+  addError(element: string, message: string, level: 'warning' | 'error' = 'error', originalError?: Error): void {
+    this.errors.push({
+      path: this.getCurrentPath(),
+      element,
+      message,
+      level,
+      originalError
+    });
+    console.warn(`⚠️ [ConversionError] ${this.getCurrentPath()}.${element}: ${message}`);
+  }
+
+  getErrors(): ConversionError[] {
+    return this.errors;
+  }
+
+  hasErrors(): boolean {
+    return this.errors.some(e => e.level === 'error');
+  }
+
+  hasWarnings(): boolean {
+    return this.errors.some(e => e.level === 'warning');
+  }
+}
+
+/**
+ * xml-jsからMaimlRootへの変換（エントリーポイント・エラーハンドリング付き）
+ * 
+ * @param xmlData - 変換元のxml-jsデータ
+ * @returns 変換結果（データ + エラー情報）
+ */
+export function convertXmlJsToMaimlRoot(xmlData: XmlJsMaimlRoot | XmlJsElement): ConversionResult {
+  console.log('🔄 [convertXmlJsToMaimlRoot] 型変換開始（エラーハンドリング有効）');
   
-  const result: MaimlRoot = {
-    xmlns: attrs.xmlns,
-    xmlnsConcept: attrs['xmlns:concept'],
-    xmlnsLifecycle: attrs['xmlns:lifecycle'],
-    xmlnsTime: attrs['xmlns:time'],
-    xmlnsXsd: attrs['xmlns:xsd'],
-    xmlnsXsi: attrs['xmlns:xsi'],
-    features: attrs.features,
-    version: attrs.version || '1.0',
-    xsiType: 'maimlRootType',
-    document: convertDocument(docElement),
-    protocol: convertProtocol(protocolElement),
-    data: maimlElement.data ? convertData(maimlElement.data as XmlJsElement) : undefined,
-    eventLog: maimlElement.eventLog ? convertEventLog(maimlElement.eventLog as XmlJsElement) : undefined
+  const errorContext = new ErrorContext();
+  errorContext.pushPath('maiml');
+  
+  try {
+    // XmlJsMaimlRootの場合はmaimlを取得、XmlJsElementの場合はそのまま使用
+    const maimlElement = (xmlData as XmlJsMaimlRoot).maiml || xmlData as XmlJsElement;
+    
+    if (!maimlElement) {
+      errorContext.addError('root', 'Invalid MAIML data: no maiml element found', 'error');
+      return createErrorResult(errorContext);
+    }
+    
+    const attrs = maimlElement._attributes || {};
+    
+    // documentとprotocolは必須
+    const docElement = maimlElement.document as XmlJsElement | undefined;
+    const protocolElement = maimlElement.protocol as XmlJsElement | undefined;
+    
+    // documentの変換
+    let document: MaimlDocument;
+    if (!docElement) {
+      errorContext.addError('document', 'Document element is required but missing', 'error');
+      document = createEmptyDocument();
+    } else {
+      try {
+        errorContext.pushPath('document');
+        document = convertDocument(docElement, errorContext);
+        errorContext.popPath();
+      } catch (error) {
+        errorContext.addError('document', 'Failed to convert document', 'error', error as Error);
+        document = createEmptyDocument();
+        errorContext.popPath();
+      }
+    }
+    
+    // protocolの変換
+    let protocol: Protocol;
+    if (!protocolElement) {
+      errorContext.addError('protocol', 'Protocol element is required but missing', 'error');
+      protocol = createEmptyProtocol();
+    } else {
+      try {
+        errorContext.pushPath('protocol');
+        protocol = convertProtocol(protocolElement, errorContext);
+        errorContext.popPath();
+      } catch (error) {
+        errorContext.addError('protocol', 'Failed to convert protocol', 'error', error as Error);
+        protocol = createEmptyProtocol();
+        errorContext.popPath();
+      }
+    }
+    
+    // dataの変換（オプション）
+    let data: Data | undefined;
+    if (maimlElement.data) {
+      try {
+        errorContext.pushPath('data');
+        data = convertData(maimlElement.data as XmlJsElement, errorContext);
+        errorContext.popPath();
+      } catch (error) {
+        errorContext.addError('data', 'Failed to convert data', 'warning', error as Error);
+        data = undefined;
+        errorContext.popPath();
+      }
+    }
+    
+    // eventLogの変換（オプション）
+    let eventLog: EventLog | undefined;
+    if (maimlElement.eventLog) {
+      try {
+        errorContext.pushPath('eventLog');
+        eventLog = convertEventLog(maimlElement.eventLog as XmlJsElement, errorContext);
+        errorContext.popPath();
+      } catch (error) {
+        errorContext.addError('eventLog', 'Failed to convert eventLog', 'warning', error as Error);
+        eventLog = undefined;
+        errorContext.popPath();
+      }
+    }
+    
+    const result: MaimlRoot = {
+      xmlns: attrs.xmlns,
+      xmlnsConcept: attrs['xmlns:concept'],
+      xmlnsLifecycle: attrs['xmlns:lifecycle'],
+      xmlnsTime: attrs['xmlns:time'],
+      xmlnsXsd: attrs['xmlns:xsd'],
+      xmlnsXsi: attrs['xmlns:xsi'],
+      features: attrs.features,
+      version: attrs.version || '1.0',
+      xsiType: 'maimlRootType',
+      document,
+      protocol,
+      data,
+      eventLog
+    };
+    
+    console.log('✅ [convertXmlJsToMaimlRoot] 型変換完了');
+    
+    return {
+      data: result,
+      errors: errorContext.getErrors(),
+      hasErrors: errorContext.hasErrors(),
+      hasWarnings: errorContext.hasWarnings()
+    };
+    
+  } catch (error) {
+    errorContext.addError('root', 'Fatal error during conversion', 'error', error as Error);
+    return createErrorResult(errorContext);
+  } finally {
+    errorContext.popPath();
+  }
+}
+
+/**
+ * エラー時の結果を作成
+ */
+function createErrorResult(errorContext: ErrorContext): ConversionResult {
+  return {
+    data: createEmptyMaimlRoot(),
+    errors: errorContext.getErrors(),
+    hasErrors: true,
+    hasWarnings: errorContext.hasWarnings()
   };
-  
-  console.log('✅ [convertXmlJsToMaimlRoot] 型変換完了');
-  return result;
+}
+
+/**
+ * 空のMaimlRootを作成
+ */
+function createEmptyMaimlRoot(): MaimlRoot {
+  return {
+    version: '1.0',
+    xsiType: 'maimlRootType',
+    document: createEmptyDocument(),
+    protocol: createEmptyProtocol()
+  };
+}
+
+/**
+ * 空のDocumentを作成
+ */
+function createEmptyDocument(): MaimlDocument {
+  return {
+    id: 'error-document',
+    uuid: '',
+    creators: [],
+    vendors: [],
+    owners: [],
+    instruments: [],
+    chains: [],
+    parents: []
+  };
+}
+
+/**
+ * 空のProtocolを作成
+ */
+function createEmptyProtocol(): Protocol {
+  return {
+    id: 'error-protocol',
+    uuid: '',
+    methods: [],
+    materialTemplates: [],
+    conditionTemplates: [],
+    resultTemplates: []
+  };
 }
 
 /**
  * Document変換
  */
-function convertDocument(xmlDoc: XmlJsElement): MaimlDocument {
+function convertDocument(xmlDoc: XmlJsElement, errorContext?: ErrorContext): MaimlDocument {
   if (!xmlDoc) {
     throw new Error('Document element is required');
   }
   
+  // 必須フィールドの検証
+  const id = getAttribute(xmlDoc, 'id');
+  if (!id && errorContext) {
+    errorContext.addError('id', 'Document id is missing', 'warning');
+  }
+  
+  const uuid = extractText(xmlDoc.uuid as XmlJsElement);
+  if (!uuid && errorContext) {
+    errorContext.addError('uuid', 'Document uuid is missing', 'warning');
+  }
+  
   return {
-    id: getAttribute(xmlDoc, 'id') || '',
-    uuid: extractText(xmlDoc.uuid as XmlJsElement) || '',
+    id: id || '',
+    uuid: uuid || '',
     name: extractText(xmlDoc.name as XmlJsElement),
     description: extractText(xmlDoc.description as XmlJsElement),
     date: extractText(xmlDoc.date as XmlJsElement),
-    creators: convertArray(xmlDoc.creator, convertCreator),
-    vendors: convertArray(xmlDoc.vendor, convertVendor),
-    owners: convertArray(xmlDoc.owner, convertOwner),
-    instruments: xmlDoc.instrument ? convertArray(xmlDoc.instrument, convertInstrument) : [],
+    creators: convertArraySafe(xmlDoc.creator, convertCreator, errorContext, 'creator'),
+    vendors: convertArraySafe(xmlDoc.vendor, convertVendor, errorContext, 'vendor'),
+    owners: convertArraySafe(xmlDoc.owner, convertOwner, errorContext, 'owner'),
+    instruments: xmlDoc.instrument ? convertArraySafe(xmlDoc.instrument, convertInstrument, errorContext, 'instrument') : [],
     chains:  [],
     parents:  [],
   };
@@ -180,45 +400,71 @@ function convertInstrument(xmlInstrument: XmlJsElement): DocumentTagData {
 /**
  * Protocol変換
  */
-function convertProtocol(xmlProtocol: XmlJsElement): Protocol {
+function convertProtocol(xmlProtocol: XmlJsElement, errorContext?: ErrorContext): Protocol {
   if (!xmlProtocol) {
     throw new Error('Protocol element is required');
+  }
+  
+  // 必須フィールドの検証
+  const id = getAttribute(xmlProtocol, 'id');
+  if (!id && errorContext) {
+    errorContext.addError('id', 'Protocol id is missing', 'warning');
+  }
+  
+  const uuid = extractText(xmlProtocol.uuid as XmlJsElement);
+  if (!uuid && errorContext) {
+    errorContext.addError('uuid', 'Protocol uuid is missing', 'warning');
   }
   
   const methods = normalizeXmlJsArray(xmlProtocol.method as XmlJsElement);
   
   return {
-    id: getAttribute(xmlProtocol, 'id') || '',
-    uuid: extractText(xmlProtocol.uuid as XmlJsElement) || '',
+    id: id || '',
+    uuid: uuid || '',
     name: extractText(xmlProtocol.name as XmlJsElement),
     description: extractText(xmlProtocol.description as XmlJsElement),
-    methods: methods.map(convertMethod),
-    materialTemplates: xmlProtocol.materialTemplate ? convertArray(xmlProtocol.materialTemplate, convertMaterialTemplate) : [],
-    conditionTemplates: xmlProtocol.conditionTemplate ? convertArray(xmlProtocol.conditionTemplate, convertConditionTemplate) : [],
-    resultTemplates: xmlProtocol.resultTemplate ? convertArray(xmlProtocol.resultTemplate, convertResultTemplate) : []
+    methods: convertArraySafe(methods, convertMethod, errorContext, 'method'),
+    materialTemplates: xmlProtocol.materialTemplate ? convertArraySafe(xmlProtocol.materialTemplate, convertMaterialTemplate, errorContext, 'materialTemplate') : [],
+    conditionTemplates: xmlProtocol.conditionTemplate ? convertArraySafe(xmlProtocol.conditionTemplate, convertConditionTemplate, errorContext, 'conditionTemplate') : [],
+    resultTemplates: xmlProtocol.resultTemplate ? convertArraySafe(xmlProtocol.resultTemplate, convertResultTemplate, errorContext, 'resultTemplate') : []
   };
 }
 
 /**
  * Method変換
  */
-function convertMethod(xmlMethod: any): Method {
+function convertMethod(xmlMethod: any, errorContext?: ErrorContext): Method {
   const pnml = xmlMethod.pnml as XmlJsElement | undefined;
   if (!pnml) {
+    if (errorContext) {
+      errorContext.addError('pnml', 'pnml element is required but missing', 'error');
+    }
     throw new Error('pnml element is required');
   }
+  
+  // 必須フィールドの検証
+  const id = xmlMethod._attributes?.id;
+  if (!id && errorContext) {
+    errorContext.addError('id', 'Method id is missing', 'warning');
+  }
+  
+  const uuid = xmlMethod.uuid?._text;
+  if (!uuid && errorContext) {
+    errorContext.addError('uuid', 'Method uuid is missing', 'warning');
+  }
+  
   const program = normalizeArray(xmlMethod.program);
   
   return {
-    id: xmlMethod._attributes?.id || '',
-    uuid: xmlMethod.uuid?._text || '',
+    id: id || '',
+    uuid: uuid || '',
     name: xmlMethod.name?._text,
     description: xmlMethod.description?._text,
     pnml: convertPNML(pnml),
-    program: program.map(convertProgram),
-    materialTemplates: xmlMethod.materialTemplate ? convertArray(xmlMethod.materialTemplate, convertMaterialTemplate) : [],
-    conditionTemplates: xmlMethod.conditionTemplate ? convertArray(xmlMethod.conditionTemplate, convertConditionTemplate) : [],
-    resultTemplates: xmlMethod.resultTemplate ? convertArray(xmlMethod.resultTemplate, convertResultTemplate) : []
+    program: convertArraySafe(program, convertProgram, errorContext, 'program'),
+    materialTemplates: xmlMethod.materialTemplate ? convertArraySafe(xmlMethod.materialTemplate, convertMaterialTemplate, errorContext, 'materialTemplate') : [],
+    conditionTemplates: xmlMethod.conditionTemplate ? convertArraySafe(xmlMethod.conditionTemplate, convertConditionTemplate, errorContext, 'conditionTemplate') : [],
+    resultTemplates: xmlMethod.resultTemplate ? convertArraySafe(xmlMethod.resultTemplate, convertResultTemplate, errorContext, 'resultTemplate') : []
   };
 }
 
@@ -650,13 +896,24 @@ function convertClassifier(xmlClassifier: any): Classifier {
 /**
  * Data変換
  */
-function convertData(xmlData: any): Data {
+function convertData(xmlData: any, errorContext?: ErrorContext): Data {
+  // 必須フィールドの検証
+  const id = xmlData._attributes?.id;
+  if (!id && errorContext) {
+    errorContext.addError('id', 'Data id is missing', 'warning');
+  }
+  
+  const uuid = xmlData.uuid?._text;
+  if (!uuid && errorContext) {
+    errorContext.addError('uuid', 'Data uuid is missing', 'warning');
+  }
+  
   return {
-    id: xmlData._attributes?.id || '',
-    uuid: xmlData.uuid?._text || '',
+    id: id || '',
+    uuid: uuid || '',
     name: xmlData.name?._text,
     description: xmlData.description?._text,
-    results: convertArray(xmlData.results, convertResults)
+    results: convertArraySafe(xmlData.results, convertResults, errorContext, 'results')
   };
 }
 
@@ -727,13 +984,24 @@ function convertResult(xmlResult: any): Result {
 /**
  * EventLog変換
  */
-function convertEventLog(xmlEventLog: any): EventLog {
+function convertEventLog(xmlEventLog: any, errorContext?: ErrorContext): EventLog {
+  // 必須フィールドの検証
+  const id = xmlEventLog._attributes?.id;
+  if (!id && errorContext) {
+    errorContext.addError('id', 'EventLog id is missing', 'warning');
+  }
+  
+  const uuid = xmlEventLog.uuid?._text;
+  if (!uuid && errorContext) {
+    errorContext.addError('uuid', 'EventLog uuid is missing', 'warning');
+  }
+  
   return {
-    id: xmlEventLog._attributes?.id || '',
-    uuid: xmlEventLog.uuid?._text || '',
+    id: id || '',
+    uuid: uuid || '',
     name: xmlEventLog.name?._text,
     description: xmlEventLog.description?._text,
-    logs: convertArray(xmlEventLog.log, convertLog)
+    logs: convertArraySafe(xmlEventLog.log, convertLog, errorContext, 'log')
   };
 }
 
@@ -804,4 +1072,37 @@ function normalizeArray(value: any): any[] {
 function convertArray<T, R>(value: any, converter: (item: T) => R): R[] {
   const arr = normalizeArray(value);
   return arr.map(converter);
+}
+
+/**
+ * ヘルパー: エラーハンドリング付き配列変換
+ * 
+ * 配列の各要素を変換し、エラーが発生した要素はスキップする
+ */
+function convertArraySafe<T, R>(
+  value: any,
+  converter: (item: T) => R,
+  errorContext?: ErrorContext,
+  elementName?: string
+): R[] {
+  const arr = normalizeArray(value);
+  const results: R[] = [];
+  
+  arr.forEach((item, index) => {
+    try {
+      results.push(converter(item));
+    } catch (error) {
+      if (errorContext && elementName) {
+        errorContext.addError(
+          `${elementName}[${index}]`,
+          `Failed to convert ${elementName} at index ${index}`,
+          'warning',
+          error as Error
+        );
+      }
+      // エラーが発生した要素はスキップ
+    }
+  });
+  
+  return results;
 }

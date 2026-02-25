@@ -111,17 +111,6 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
       ),
     },
     {
-      title: '作成者',
-      dataIndex: 'creator',
-      key: 'creator',
-      width: 120,
-      sorter: (a, b) => (a.creator || '').localeCompare(b.creator || '', 'ja'),
-      render: (text: string, record: FormatFileData) =>
-        !record.isFolder && text ? (
-          <Text type="secondary">{text}</Text>
-        ) : null,
-    },
-    {
       title: 'サイズ',
       key: 'size',
       width: 120,

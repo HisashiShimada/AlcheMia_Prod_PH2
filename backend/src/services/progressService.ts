@@ -6,7 +6,7 @@
  * Task: 4.1 getProgressDataメソッドの基本構造実装
  */
 
-import { TaskRepository } from '../repositories/taskRepository';
+import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import { TransitionDataRepository, TransitionDataRow } from '../repositories/transitionDataRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
 import { getStorageService } from './storageService';
@@ -78,7 +78,6 @@ export class ProgressService {
   private eventLogRepository: EventLogRepository;
 
   constructor(
-    private taskRepository: TaskRepository,
     private transitionDataRepository: TransitionDataRepository,
     eventLogRepository?: EventLogRepository
   ) {
@@ -299,7 +298,7 @@ export class ProgressService {
     taskNo: number,
     organizationId: string
   ): Promise<TaskWithProject | null> {
-    return await this.taskRepository.getTaskByProjectMethodTaskNo(
+    return await projectTaskRepository.getTaskByProjectMethodTaskNo(
       projectId,
       methodId,
       taskNo,

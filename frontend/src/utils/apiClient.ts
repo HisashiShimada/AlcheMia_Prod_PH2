@@ -33,6 +33,37 @@ export interface MasterDataResponse {
   };
 }
 
+/**
+ * フォーマットファイル作成リクエストの型定義
+ */
+export interface CreateFormatFileRequest {
+  fileName: string;
+  fileType: 'xml' | 'maiml';
+  templateType?: 'material' | 'condition' | 'result';
+  description?: string;
+}
+
+/**
+ * フォーマットファイル作成レスポンスの型定義
+ */
+export interface CreateFormatFileResponse {
+  filePath: string;
+  fileName: string;
+  fileType: string;
+  size: number;
+  createdAt: string;
+}
+
+/**
+ * ファイル情報の型定義
+ */
+export interface FileInfo {
+  key: string;
+  name: string;
+  size?: number;
+  lastModified?: string;
+}
+
 // データソースのインポート（内部実装として一時的にモックJSONを使用）
 import projectsData from '@/data/mock/mockProjects.json';
 import formatsData from '@/data/mock/mockFormats.json';
@@ -108,6 +139,30 @@ export async function fetchProjectById(projectId: string): Promise<ApiResponse<P
 }
 
 /**
+ * フォーマット詳細を取得
+ */
+export async function fetchFormatById(formatId: string): Promise<ApiResponse<FormatDetailResponse>> {
+  await simulateApiDelay();
+  
+  const format = (formatsData.folders as unknown as Format[]).find((f) => f.id === formatId);
+  
+  if (!format) {
+    throw new Error(`フォーマットが見つかりません: ${formatId}`);
+  }
+  
+  return {
+    success: true,
+    data: {
+      format,
+    },
+    meta: {
+      timestamp: new Date().toISOString(),
+      requestId: 'mock-request-id',
+    },
+  };
+}
+
+/**
  * プロジェクトのファイル一覧を取得
  */
 export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>> {
@@ -126,7 +181,10 @@ export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<
       files: projectFiles.root || [],
       archiveFiles: projectFiles.archive || [],
     },
-    message: 'ファイル一覧の取得に成功しました',
+    meta: {
+      timestamp: new Date().toISOString(),
+      requestId: 'mock-request-id',
+    },
   };
 }
 
@@ -193,24 +251,85 @@ export async function fetchFormatFiles(
 }
 
 /**
- * フォーマット詳細を取得
+ * フォーマット内にサブフォルダを作成
+ * POST /api/v1/formats/subfolders
+ * 
+ * @param formatName - フォーマット名（例: chemistry, materials）
+ * @param subfolderName - サブフォルダ名（1-255文字、英数字・アンダースコア・ハイフン）
+ * @param parentPath - 親フォルダのパス（オプション、空文字列=ルート直下）
  */
-export async function fetchFormatById(formatId: string): Promise<ApiResponse<FormatDetailResponse>> {
-  await simulateApiDelay();
-  
-  const format = (formatsData.folders as unknown as Format[]).find((f) => f.id === formatId);
-  
-  if (!format) {
-    throw new Error(`フォーマットが見つかりません: ${formatId}`);
+export async function createFormatSubfolder(
+  formatName: string,
+  subfolderName: string,
+  parentPath?: string
+): Promise<ApiResponse<{
+  folder_name: string;
+  folder_path: string;
+  full_swift_path: string;
+  created_at: string;
+}>> {
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<ApiResponse<{
+      folder_name: string;
+      folder_path: string;
+      full_swift_path: string;
+      created_at: string;
+    }>>(
+      '/formats/subfolders',
+      {
+        formatName,
+        subfolderName,
+        parentPath: parentPath || '',
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || 'サブフォルダの作成に失敗しました'
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('createFormatSubfolder error:', error);
+    throw error;
   }
-  
-  return {
-    success: true,
-    data: {
-      format,
-    },
-    message: 'フォーマット詳細の取得に成功しました',
-  };
+}
+
+/**
+ * フォーマットファイルを作成
+ * POST /api/v1/formats/:folderName/files
+ * 
+ * @param folderName - フォーマットフォルダ名（例: chemistry）
+ * @param data - ファイル作成データ
+ */
+export async function createFormatFile(
+  folderName: string,
+  data: CreateFormatFileRequest
+): Promise<ApiResponse<CreateFormatFileResponse>> {
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<ApiResponse<CreateFormatFileResponse>>(
+      `/formats/${folderName}/files`,
+      data
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || 'ファイルの作成に失敗しました'
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('createFormatFile error:', error);
+    throw error;
+  }
 }
 
 
@@ -689,6 +808,3 @@ export async function fetchFileContent(fileKey: string): Promise<string> {
     throw new Error(`ファイルの読み込みに失敗しました: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
-
-// 型定義のインポート（ファイル末尾に追加）
-import type { FileInfo } from '@/types/format';
