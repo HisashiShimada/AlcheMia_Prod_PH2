@@ -544,6 +544,7 @@ export default function ExperimentRecordTab({
                     onTaskCreated={onTaskCreated}
                     projectId={selectedProject}
                     methodId={selectedMethodId || undefined}
+                    projectName={selectedProjectName}
                   />
                 </div>
               </div>

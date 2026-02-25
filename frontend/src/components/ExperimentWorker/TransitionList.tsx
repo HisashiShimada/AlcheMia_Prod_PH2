@@ -6,7 +6,7 @@ import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCi
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue, ProjectStatus, isRecordableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
-import { getIssues, createIssue } from '@/services/issueApiService';
+import { getIssues, createIssue, addComment } from '@/services/issueApiService';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
@@ -21,6 +21,7 @@ interface TransitionListProps {
   onTaskCreated?: (taskId: string) => void;
   projectId?: string;
   methodId?: string;
+  projectName?: string;
 }
 
 /**
@@ -34,6 +35,7 @@ export default function TransitionList({
   selectedTaskId,
   projectId,
   methodId,
+  projectName,
 }: TransitionListProps) {
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
@@ -204,10 +206,45 @@ export default function TransitionList({
   };
 
   // コメント送信ハンドラ
-  const handleSubmitComment = (issueId: string, comment: string) => {
-    console.log('コメント投稿:', { issueId, comment });
-    // TODO: バックエンドAPIへの送信処理を実装
-    message.success('コメントを投稿しました');
+  const handleSubmitComment = async (issueId: string, comment: string) => {
+    if (!projectName) {
+      console.warn('[handleSubmitComment] projectName が未設定です');
+      message.error('プロジェクトが選択されていません');
+      return;
+    }
+
+    try {
+      await addComment({
+        projectName,
+        issueId,
+        comment,
+      });
+
+      // コメント投稿後に問題一覧を再取得して表示に反映
+      const parts = (selectedTaskId ?? '').split('-');
+      const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
+
+      if (projectId && methodId && !isNaN(taskNo) && selectedTransition) {
+        setIssueLoading(true);
+        try {
+          const fetchedIssues = await getIssues({
+            projectId,
+            methodId,
+            taskNo,
+            transitionId: selectedTransition.transitionId,
+          });
+          setIssues(fetchedIssues);
+        } catch (fetchError) {
+          console.error('[handleSubmitComment] 問題一覧再取得エラー', fetchError);
+          // 再取得失敗はサイレントに処理（コメント投稿自体は成功しているため）
+        } finally {
+          setIssueLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('[handleSubmitComment] コメント投稿エラー', error);
+      message.error('コメントの投稿に失敗しました');
+    }
   };
 
   // テーブルの列定義
