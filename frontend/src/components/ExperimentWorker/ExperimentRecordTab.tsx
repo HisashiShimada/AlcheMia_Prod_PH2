@@ -17,7 +17,7 @@ import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
 import { getIssues, createIssue, addComment } from '@/services/issueApiService';
 import { Method, ProjectStatus, Transition, Issue, IssueReportFormData, Task } from '@/types/experimentWorker';
-import { getWorkerTasks } from '@/services/projectApiService';
+import { getWorkerTasks, getProjectDetail } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { createApiClient } from '@/utils/authUtils';
 
@@ -84,9 +84,65 @@ export default function ExperimentRecordTab({
   const [projectId, setProjectId] = useState<string | null>(null);
   const [progressData, setProgressData] = useState<any[]>([]);
   
-  // プロジェクトの状態を取得（暫定: APIから取得できるまでnull）
-  const projectStatus: ProjectStatus | null = null;
+  // プロジェクトのステータス（APIから取得）
+  const [projectStatus, setProjectStatus] = useState<ProjectStatus | null>(null);
   
+  /**
+   * バックエンドの project_status 値をフロントエンドの ProjectStatus 型にマッピング
+   */
+  const mapBackendStatusToProjectStatus = (backendStatus: string): ProjectStatus | null => {
+    switch (backendStatus) {
+      case 'active':
+      case 'in_progress':
+        return 'executing_task';
+      case 'created':
+      case 'checked_in':
+        return 'waiting_task';
+      case 'waiting_approval':
+        return 'waiting_approval';
+      case 'approved':
+        return 'completed';
+      default:
+        console.warn('[mapBackendStatusToProjectStatus] 未知のステータス:', backendStatus);
+        return null;
+    }
+  };
+
+  // projectId が確定したらプロジェクトステータスを取得
+  useEffect(() => {
+    const fetchProjectStatus = async () => {
+      if (!projectId) {
+        setProjectStatus(null);
+        return;
+      }
+
+      try {
+        console.log('[DEBUG] ExperimentRecordTab - Fetching project status', { projectId });
+
+        const result = await getProjectDetail(projectId);
+
+        if (result.success && result.data) {
+          const mappedStatus = mapBackendStatusToProjectStatus(result.data.project_status);
+          console.log('[DEBUG] ExperimentRecordTab - Project status fetched', {
+            backendStatus: result.data.project_status,
+            mappedStatus,
+          });
+          setProjectStatus(mappedStatus);
+        } else {
+          console.warn('[DEBUG] ExperimentRecordTab - getProjectDetail returned unsuccessful');
+          setProjectStatus(null);
+        }
+      } catch (error) {
+        console.error('[DEBUG] ExperimentRecordTab - Error fetching project status', error);
+        // エラー時は null のまま（isProjectRecordable = true で安全側に倒す）
+        setProjectStatus(null);
+      }
+    };
+
+    fetchProjectStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
   // プロジェクト選択時にAPI呼び出し
   useEffect(() => {
     const fetchWorkerTasks = async () => {
@@ -236,10 +292,10 @@ export default function ExperimentRecordTab({
   }, [selectedProjectName, selectedMethodId, selectedTaskId]);
 
   // プロジェクトの状態が記録可能かどうか
-  // waiting_approval（承認待ち）とwaiting_task（タスク待ち）は記録不可
-  const isProjectRecordable = projectStatus 
-    ? ['active', 'in_progress', 'executing_task'].includes(projectStatus) 
-    : true;
+  // executing_task（作業中）のみ記録可能
+  // waiting_approval（承認待ち）、waiting_task（タスク待ち）、completed（完了）は記録不可
+  // projectStatus が null（取得前/エラー）の場合は安全側に倒して true（記録可能）とする
+  const isProjectRecordable = projectStatus === null || projectStatus === 'executing_task';
 
   // 記録ボタンクリックハンドラ
   const handleRecordClick = (transition: Transition) => {

@@ -124,6 +124,23 @@ export interface WorkerProjectListResponse {
 }
 
 /**
+ * プロジェクト詳細レスポンス型
+ * API: GET /api/v1/projects/:projectId
+ */
+export interface ProjectDetailResponse {
+  project_id: string;
+  project_name: string;
+  description: string | null;
+  project_status: string;
+  is_checked_out: boolean;
+  checked_out_by: string | null;
+  checked_out_at: string | null;
+  checked_out_user_name: string | null;
+  create_at: string;
+  update_at: string;
+}
+
+/**
  * 承認依頼レスポンス型
  */
 export interface ApprovalRequestResponse {
@@ -683,6 +700,58 @@ export const getWorkerAccessibleProjects = async (
       error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data
+    });
+    throw error;
+  }
+};
+
+/**
+ * プロジェクト詳細を取得
+ * GET /api/v1/projects/:projectId
+ *
+ * @param projectId プロジェクトID（UUID）
+ * @returns プロジェクト詳細情報
+ * @throws Error APIエラー時
+ *
+ * @example
+ * ```typescript
+ * const result = await getProjectDetail('550e8400-e29b-41d4-a716-446655440000');
+ * console.log(result.data.project_status); // 'active'
+ * ```
+ */
+export const getProjectDetail = async (
+  projectId: string
+): Promise<ApiResponse<ProjectDetailResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] getProjectDetail - Start', { projectId });
+
+    const response = await client.get<{
+      success: boolean;
+      data: ProjectDetailResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectId)}`);
+
+    console.log('[DEBUG] getProjectDetail - Success', {
+      projectId: response.data.data.project_id,
+      projectStatus: response.data.data.project_status,
+    });
+
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta,
+    };
+  } catch (error) {
+    console.error('[DEBUG] getProjectDetail - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
     });
     throw error;
   }
