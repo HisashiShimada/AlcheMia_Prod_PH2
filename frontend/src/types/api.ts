@@ -146,6 +146,23 @@ export interface ResetPasswordResponseData {
 }
 
 /**
+ * フォーマットフォルダ作成リクエストデータ
+ */
+export interface CreateFormatFolderRequestData {
+  folderName: string;
+}
+
+/**
+ * フォーマットフォルダ作成レスポンスデータ
+ */
+export interface CreateFormatFolderResponseData {
+  folder_name: string;
+  folder_path: string;
+  department_cd: string;
+  created_at: string;
+}
+
+/**
  * タスク登録状況レスポンス
  * 
  * @remarks

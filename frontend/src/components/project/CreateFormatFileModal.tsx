@@ -8,7 +8,6 @@ import {
   Space,
   Typography,
   Alert,
-  Select,
   theme,
 } from 'antd';
 import { FileAddOutlined } from '@ant-design/icons';
@@ -26,7 +25,6 @@ export interface CreateFormatFileData {
   formatName: string;
   fileType: 'xml' | 'maiml';
   templateType?: 'material' | 'condition' | 'result';
-  description: string;
   createdBy: string;
   createdByName: string;
 }
@@ -85,6 +83,24 @@ export default function CreateFormatFileModal({
       
       const fileNameWithExtension = `${sanitizedFileName}${extension}`;
       
+      // テンプレートタイプを自動判定（XMLファイルの場合のみ）
+      let templateType: 'material' | 'condition' | 'result' | undefined;
+      if (fileType === 'xml') {
+        const folderName = (formatId || formatName || '').toLowerCase();
+        if (folderName === 'material') {
+          templateType = 'material';
+        } else if (folderName === 'condition') {
+          templateType = 'condition';
+        } else if (folderName === 'result') {
+          templateType = 'result';
+        }
+        
+        // テンプレートタイプが判定できない場合はエラー
+        if (!templateType) {
+          throw new Error('XMLファイルはmaterial、condition、resultフォルダでのみ作成できます');
+        }
+      }
+      
       // ファイルデータの作成
       const fileData: CreateFormatFileData = {
         fileName: values.fileName,
@@ -92,8 +108,7 @@ export default function CreateFormatFileModal({
         formatId: formatId || '',
         formatName: formatName || '',
         fileType: fileType || 'xml',
-        templateType: values.templateType,
-        description: values.description || '',
+        templateType: templateType,
         createdBy: createdBy,
         createdByName: createdByName,
       };
@@ -106,7 +121,21 @@ export default function CreateFormatFileModal({
     } catch (err) {
       // バリデーションエラーまたは送信エラー
       if (err instanceof Error) {
-        setError(err.message);
+        const errorMessage = err.message;
+        
+        // ファイル名重複エラーの場合、ファイル名フィールドにエラーを設定
+        if (errorMessage.includes('同じ名前のファイルが既に存在します') || 
+            errorMessage.includes('already exists')) {
+          form.setFields([
+            {
+              name: 'fileName',
+              errors: [errorMessage],
+            },
+          ]);
+        } else {
+          // その他のエラーは上部のAlertに表示
+          setError(errorMessage);
+        }
       } else {
         console.error('Form validation failed:', err);
       }
@@ -222,60 +251,6 @@ export default function CreateFormatFileModal({
                 style={{ width: 80, textAlign: 'center' }}
               />
             </Space.Compact>
-          </Form.Item>
-
-          {/* テンプレート種別選択（XMLファイルの場合のみ表示） */}
-          {fileType === 'xml' && (
-            <Form.Item
-              name="templateType"
-              label={t('formatManagement.create.templateType') || 'テンプレートタイプ'}
-              extra={t('formatManagement.create.templateTypeExtra') || '作成するXMLのテンプレート種別を選択してください'}
-              rules={[
-                {
-                  required: true,
-                  message: t('formatManagement.create.templateTypeRequired') || 'テンプレートタイプを選択してください',
-                },
-              ]}
-              initialValue="material"
-            >
-              <Select
-                placeholder={t('formatManagement.create.templateTypePlaceholder') || 'テンプレートタイプを選択'}
-                options={[
-                  { 
-                    value: 'material', 
-                    label: 'MaterialTemplate',
-                  },
-                  { 
-                    value: 'condition', 
-                    label: 'ConditionTemplate',
-                  },
-                  { 
-                    value: 'result', 
-                    label: 'ResultTemplate',
-                  },
-                ]}
-              />
-            </Form.Item>
-          )}
-
-          {/* 概要 */}
-          <Form.Item
-            name="description"
-            label={t('formatManagement.create.description') || '概要'}
-            extra={t('formatManagement.create.descriptionExtra') || 'ファイルの目的や内容を記述してください'}
-            rules={[
-              {
-                max: 500,
-                message: t('formatManagement.create.descriptionMaxLength') || '概要は500文字以内で入力してください',
-              },
-            ]}
-          >
-            <Input.TextArea
-              placeholder={t('formatManagement.create.descriptionPlaceholder') || 'ファイルの概要を入力（オプション）'}
-              maxLength={500}
-              showCount
-              rows={4}
-            />
           </Form.Item>
         </Form>
       </Space>
