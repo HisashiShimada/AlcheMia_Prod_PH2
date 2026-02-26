@@ -27,6 +27,7 @@ export interface CreateFormatFileData {
   templateType?: 'material' | 'condition' | 'result';
   createdBy: string;
   createdByName: string;
+  currentPath?: string; // 現在のサブフォルダパス
 }
 
 /**
@@ -41,6 +42,7 @@ interface CreateFormatFileModalProps {
   fileType: 'xml' | 'maiml' | null;
   createdBy: string;
   createdByName: string;
+  currentPath?: string[]; // 現在のフォルダパス
 }
 
 /**
@@ -56,6 +58,7 @@ export default function CreateFormatFileModal({
   fileType,
   createdBy,
   createdByName,
+  currentPath = [],
 }: CreateFormatFileModalProps) {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -111,7 +114,15 @@ export default function CreateFormatFileModal({
         templateType: templateType,
         createdBy: createdBy,
         createdByName: createdByName,
+        currentPath: currentPath.length > 0 ? currentPath.join('/') : undefined,
       };
+      
+      console.log('🔍 [CreateFormatFileModal] Submitting file data:', {
+        fileNameWithExtension: fileData.fileNameWithExtension,
+        formatId: fileData.formatId,
+        currentPath: fileData.currentPath,
+        currentPathArray: currentPath,
+      });
       
       // 親コンポーネントの送信ハンドラを呼び出し
       await onSubmit(fileData);

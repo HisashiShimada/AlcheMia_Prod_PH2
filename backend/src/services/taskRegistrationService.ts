@@ -10,6 +10,8 @@
 
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
+import { TransitionDataRepository } from '../repositories/transitionDataRepository';
+import { TemplateDataRepository } from '../repositories/templateDataRepository';
 import type {
   GetTaskRegistrationResponse,
   TaskRegistrationData,
@@ -19,6 +21,11 @@ import type {
 import { getPool } from '../database/db';
 import type { PoolClient } from 'pg';
 import type { ProjectTask } from '../types/database';
+import { getStorageService } from './storageService';
+import { MaimlParserTyped } from '../utils/maimlParserTyped';
+
+const transitionDataRepository = new TransitionDataRepository();
+const templateDataRepository = new TemplateDataRepository();
 
 /**
  * タスク登録情報を取得
@@ -135,7 +142,34 @@ export async function saveTaskRegistration(
       userId,
       requestData.tasks
     );
-    
+
+    // 7. MAIMLファイルをパース
+    const storageService = getStorageService();
+    const maimlFilePath = `projects/${projectName}/${projectName}.maiml`;
+    const maimlBuffer = await storageService.downloadFile(organizationId, maimlFilePath);
+    const maimlContent = maimlBuffer.toString('utf-8');
+    const parser = new MaimlParserTyped(maimlContent);
+
+    // 8. transition_dataテーブルへ削除＋INSERT
+    await deleteAndInsertTransitionData(
+      client,
+      organizationId,
+      project.project_id,
+      userId,
+      requestData.tasks,
+      parser
+    );
+
+    // 9. template_dataテーブルへ削除＋INSERT
+    await deleteAndInsertTemplateData(
+      client,
+      organizationId,
+      project.project_id,
+      userId,
+      requestData.tasks,
+      parser
+    );
+
     await client.query('COMMIT');
     
     return {
@@ -258,6 +292,181 @@ async function deleteAndInsertTaskDetails(
         userId,
         userId
       ]);
+    }
+  }
+}
+
+/**
+ * transition_dataテーブルへ削除＋INSERT
+ *
+ * MAIMLの各メソッドに含まれるトランジションを、
+ * project_task_detailの各レコード（method_id × task_no）に対して初期登録する。
+ *
+ * @param client - PostgreSQLクライアント（トランザクション内）
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @param userId - ユーザーID
+ * @param tasks - タスクデータ
+ * @param parser - MAIMLパーサー
+ * @private
+ */
+async function deleteAndInsertTransitionData(
+  client: PoolClient,
+  organizationId: string,
+  projectId: string,
+  userId: string,
+  tasks: SaveTaskRegistrationRequest['tasks'],
+  parser: MaimlParserTyped
+): Promise<void> {
+  // 1. 既存レコードを全削除
+  await transitionDataRepository.deleteByProject(organizationId, projectId, client);
+
+  // 2. MAIMLのメソッドごとにトランジション情報を取得
+  const methodList = parser.getMethodList();
+  // methodList[i] = { methodId, methodName, transitions: [{id, name}], transitionCount }
+
+  // メソッドIDをキーにトランジション一覧を引けるマップを作成
+  const methodTransitionMap = new Map<string, string[]>();
+  for (const method of methodList) {
+    const transitionIds = method.transitions.map(t => t.id).filter(id => id !== '');
+    methodTransitionMap.set(method.methodId, transitionIds);
+  }
+
+  // 3. project_task_detail の各レコード分ループしてINSERT
+  for (const task of tasks) {
+    const transitionIds = methodTransitionMap.get(task.methodId) ?? [];
+    if (transitionIds.length === 0) {
+      // トランジションが存在しないメソッドはスキップ
+      continue;
+    }
+
+    for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
+      for (const transitionId of transitionIds) {
+        await transitionDataRepository.insert(
+          organizationId,
+          projectId,
+          task.methodId,
+          taskNo,
+          transitionId,
+          userId,
+          client
+        );
+      }
+    }
+  }
+}
+
+/**
+ * template_dataテーブルへ削除＋INSERT
+ *
+ * MAIMLの各メソッドに含まれるテンプレートのplaceRefを、
+ * project_task_detailの各レコード（method_id × task_no）に対して初期登録する。
+ * property_setには、テンプレートのプロパティ定義（key・xsiType・units）を格納する。
+ *
+ * @param client - PostgreSQLクライアント（トランザクション内）
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @param userId - ユーザーID
+ * @param tasks - タスクデータ
+ * @param parser - MAIMLパーサー
+ * @private
+ */
+async function deleteAndInsertTemplateData(
+  client: PoolClient,
+  organizationId: string,
+  projectId: string,
+  userId: string,
+  tasks: SaveTaskRegistrationRequest['tasks'],
+  parser: MaimlParserTyped
+): Promise<void> {
+  // 1. 既存レコードを全削除
+  await templateDataRepository.deleteByProject(organizationId, projectId, client);
+
+  // 2. MAIMLのメソッドごとに place_id → property_set のマッピングを構築
+  // getMethods() でメソッドオブジェクトを取得し、各メソッドのテンプレートとplaceRefを抽出する
+  const methods = parser.getMethods();
+
+  // メソッドIDをキーに { placeId, propertySet }[] を引けるマップを作成
+  type PlacePropertyEntry = {
+    placeId: string;
+    propertySet: Record<string, unknown>;
+  };
+  const methodPlaceMap = new Map<string, PlacePropertyEntry[]>();
+
+  for (const method of methods) {
+    const methodId = method.id || '';
+    if (!methodId) continue;
+
+    const entries: PlacePropertyEntry[] = [];
+
+    // material / condition / result の3カテゴリを処理
+    const templateCategories: Array<{
+      templates: typeof method.materialTemplates;
+      templateType: 'material' | 'condition' | 'result';
+    }> = [
+      { templates: method.materialTemplates, templateType: 'material' },
+      { templates: method.conditionTemplates, templateType: 'condition' },
+      { templates: method.resultTemplates, templateType: 'result' },
+    ];
+
+    for (const { templates, templateType } of templateCategories) {
+      if (!templates) continue;
+
+      // 単一要素・配列の両方に対応
+      const templateArray = Array.isArray(templates) ? templates : [templates];
+
+      for (const template of templateArray) {
+        if (!template.placeRefs || template.placeRefs.length === 0) continue;
+
+        // このテンプレートのプロパティ定義を構築
+        const properties = (template.properties || []).map(p => ({
+          key: p.key || '',
+          xsiType: p.xsiType || 'stringType',
+          value: null,
+          units: p.units || null,
+        }));
+
+        const propertySet: Record<string, unknown> = {
+          templateId: template.id || '',
+          templateType,
+          properties,
+        };
+
+        // 各 placeRef ごとに1レコード生成
+        for (const placeRef of template.placeRefs) {
+          const placeId = placeRef.ref || '';
+          if (!placeId) continue;
+          entries.push({ placeId, propertySet });
+        }
+      }
+    }
+
+    if (entries.length > 0) {
+      methodPlaceMap.set(methodId, entries);
+    }
+  }
+
+  // 3. project_task_detail の各レコード分ループしてINSERT
+  for (const task of tasks) {
+    const entries = methodPlaceMap.get(task.methodId) ?? [];
+    if (entries.length === 0) {
+      // テンプレートが存在しないメソッドはスキップ
+      continue;
+    }
+
+    for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
+      for (const { placeId, propertySet } of entries) {
+        await templateDataRepository.insert(
+          organizationId,
+          projectId,
+          task.methodId,
+          taskNo,
+          placeId,
+          propertySet,
+          userId,
+          client
+        );
+      }
     }
   }
 }

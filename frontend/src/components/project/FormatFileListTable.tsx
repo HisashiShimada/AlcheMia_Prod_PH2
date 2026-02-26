@@ -25,7 +25,7 @@ const { Text } = Typography;
 /**
  * フォーマットファイルの型定義
  */
-interface FormatFileData {
+export interface FormatFileData {
   id: string;
   name: string;
   path: string;

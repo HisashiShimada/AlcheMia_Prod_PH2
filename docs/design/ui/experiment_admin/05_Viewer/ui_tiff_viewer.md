@@ -246,6 +246,7 @@ frontend/src/components/viewer/TiffViewer.tsx
 |-----------|------|----------|--------|
 | 2.0.0 | 2025-12-26 | Ant Design v6対応 | Development Team |
 | 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| 2.1.0 | 2026-02-25 | APIエンドポイントを `/api/s3/file-binary` → `POST /api/v1/files/view-url`（署名付きURL）に変更。ダウンロードボタンに署名付きURLを使用するよう修正 | Cline |
 
 ---
 
@@ -262,22 +263,44 @@ frontend/src/components/viewer/TiffViewer.tsx
 
 ## 10. APIエンドポイント
 
-### 10.1. 画像バイナリ取得
+### 10.1. 表示用署名付きURL取得
 
 **エンドポイント:**
 ```
-GET /api/s3/file-binary?key={fileKey}&t={timestamp}
+POST /api/v1/files/view-url
 ```
 
-**クエリパラメータ:**
-| パラメータ | 必須 | 説明 |
-|-----------|-----|------|
-| key | ○ | S3ファイルキー |
-| t | ○ | タイムスタンプ（キャッシュ回避） |
+**リクエストボディ:**
+```json
+{
+  "fileKey": "projects/Sample_Project/microscope.tiff"
+}
+```
 
 **レスポンス:**
-- Content-Type: image/tiff
-- バイナリデータ
+```json
+{
+  "success": true,
+  "data": {
+    "url": "https://swift.example.com/...?temp_url_sig=...",
+    "expiresAt": "2026-02-25T16:45:00Z",
+    "expiresIn": 3600
+  }
+}
+```
+
+**フロントエンドサービス:**
+```typescript
+// frontend/src/services/fileAccessService.ts
+const url = await getFileViewUrl(fileKey);
+// → ダウンロードボタンの href に使用
+const link = document.createElement('a');
+link.href = url;
+link.download = fileName;
+link.click();
+```
+
+**注意:** ブラウザでのTIFF直接表示はサポートされないため、署名付きURLはダウンロード用として使用します。
 
 ---
 

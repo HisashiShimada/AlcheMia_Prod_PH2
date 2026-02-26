@@ -199,6 +199,29 @@ export class FileAccessService {
    * @throws NotFoundError ファイルが存在しない場合
    * @throws StorageError ストレージエラーの場合
    */
+  /**
+   * ファイル表示用署名付きURL取得
+   * Task: ビューアボタン修正 - 画像・TIFFファイルの表示用URL取得
+   * - Content-Dispositionを付与しない（インライン表示用）
+   * - 有効期限1時間
+   */
+  async getSignedViewUrl(
+    organizationId: string,
+    fileKey: string
+  ): Promise<{ url: string; expiresAt: string; expiresIn: number }> {
+    // ファイル存在確認
+    const exists = await this.storageService.fileExists(organizationId, fileKey);
+    if (!exists) {
+      throw new Error(`ファイルが見つかりません: ${fileKey}`);
+    }
+
+    const expiresIn = 3600;
+    const url = await this.storageService.getSignedUrl(organizationId, fileKey, expiresIn);
+    const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+
+    return { url, expiresAt, expiresIn };
+  }
+
   async streamFileByKey(
     organizationId: string,
     fileKey: string

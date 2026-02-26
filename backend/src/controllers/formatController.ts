@@ -229,7 +229,7 @@ async function createFormatFile(
 ): Promise<void> {
   try {
     const { folderName } = req.params;
-    const { fileName } = req.body;
+    const { fileName, currentPath } = req.body;
     
     // 型アサーション（ミドルウェアで検証済みと想定）
     const organizationId = req.user!.organizationId;
@@ -240,6 +240,7 @@ async function createFormatFile(
       departmentCd,
       folderName,
       fileName,
+      currentPath,
       sessionExists: !!req.session,
     });
 
@@ -248,7 +249,8 @@ async function createFormatFile(
       organizationId,
       departmentCd,
       folderName,
-      fileName
+      fileName,
+      currentPath
     );
 
     res.status(201).json({

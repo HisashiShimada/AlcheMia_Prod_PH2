@@ -36,9 +36,11 @@ import TransitionNode from '../nodes/TransitionNode';
 import PropertyViewerWithSelection from './dialogs/PropertyViewerWithSelection';
 import { Drawer } from 'antd';
 
-// ユーティリティ
-import { parseMaimlToPetriNet } from '../../utils/maimlParser';
+// ユーティリティ（新方式: maimlParserTyped）
+import { MaimlParserTyped } from '../../utils/maimlParserTyped';
+import { buildTemplateMap } from '../../utils/petriNetExtractor';
 import { convertToReactFlowFormat } from '../../utils/reactFlowConverter';
+import type { Method } from '../../types/maiml-unified';
 
 const { Title, Text } = Typography;
 
@@ -169,64 +171,87 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
     setError(null);
 
     try {
-      console.log('🔍 [PetriNetViewer] MAIMLデータの解析開始', {
+      console.log('🔍 [PetriNetViewer] MAIMLデータの解析開始（新方式: maimlParserTyped）', {
         selectedMethodId: selectedMethodId || 'all'
       });
-      
-      // MAIML XMLをパース（🆕 selectedMethodIdを渡す）
-      const structure = parseMaimlToPetriNet(maimlData, selectedMethodId);
-      
-      // ペトリネット構造をSubNetViewer用の形式に変換
-      const placesForSubNet = structure.places.map(place => {
-        // templatesからtypeを取得（存在しない場合はmaterial）
-        const template = structure.templates[place.id];
-        const templateType = template?.type || 'material';
-        
+
+      // 新方式: MaimlParserTyped でパース
+      const parser = new MaimlParserTyped(maimlData);
+      const methodsData: Method[] = parser.getMethods();
+
+      // selectedMethodId が指定されている場合は対象メソッドのみ、なければ最初のメソッドを使用
+      const targetMethod = selectedMethodId
+        ? methodsData.find((m: Method) => m.id === selectedMethodId) || methodsData[0]
+        : methodsData[0];
+
+      if (!targetMethod) {
+        setNodes([]);
+        setEdges([]);
+        setError('メソッドが見つかりません');
+        return;
+      }
+
+      // templateMap を構築（buildTemplateMap: placeId -> Template）
+      const builtTemplateMap = buildTemplateMap(maimlData);
+
+      // SubNetViewer 用の構造データを生成
+      const placesForSubNet = (targetMethod.pnml.places || []).map((place) => {
+        const tmpl = builtTemplateMap[place.id];
         return {
           id: place.id,
           data: {
-            label: place.name,
-            stereotype: templateType, // templatesから取得したtypeを使用
-            template: template ? { id: template.id } : undefined,
-            templateId: template?.id,
+            label: place.name || place.id,
+            stereotype: tmpl?.category || 'material',
+            template: tmpl ? { id: tmpl.id } : undefined,
+            templateId: tmpl?.id,
           },
         };
       });
-      
+
       setPetriNetStructure({
         places: placesForSubNet,
-        arcs: structure.arcs,
+        arcs: targetMethod.pnml.arcs || [],
       });
-      
-      // templateMapを保存（XML要素を含む形式に変換）
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(maimlData, 'text/xml');
+
+      // templateMap を SubNetViewer 用の { element: Element } 形式に変換
+      const xmlDoc = new DOMParser().parseFromString(maimlData, 'text/xml');
       const newTemplateMap: Record<string, { element: Element }> = {};
-      
-      Object.entries(structure.templates).forEach(([placeId, template]) => {
-        // XMLからテンプレート要素を取得
-        const templateEl = xmlDoc.querySelector(
-          `materialTemplate[id="${template.id}"], conditionTemplate[id="${template.id}"], resultTemplate[id="${template.id}"]`
+      Object.entries(builtTemplateMap).forEach(([placeId, tmpl]) => {
+        const el = xmlDoc.querySelector(
+          `materialTemplate[id="${tmpl.id}"], conditionTemplate[id="${tmpl.id}"], resultTemplate[id="${tmpl.id}"]`
         );
-        if (templateEl) {
-          newTemplateMap[placeId] = { element: templateEl };
+        if (el) {
+          newTemplateMap[placeId] = { element: el };
         }
       });
-      
       setTemplateMap(newTemplateMap);
-      
-      // React Flow形式に変換
-      const { nodes: flowNodes, edges: flowEdges } = convertToReactFlowFormat(structure);
-      
+
+      // React Flow 形式に変換（新シグネチャ: parser, petriNetData, templateMap）
+      // Viewer は selectedMethodId で1メソッドずつ表示する方針。
+      // methods に全メソッドを渡すと pnmlGroup フレームノードが生成されるが、
+      // PetriNetViewer の nodeTypes に pnmlGroup が未登録のため黒点になる。
+      // → methods: [targetMethod] で単一メソッドモードにして pnmlGroup を抑制する。
+      const petriNetData = {
+        methods: [targetMethod],
+        places: targetMethod.pnml.places || [],
+        transitions: targetMethod.pnml.transitions || [],
+        arcs: targetMethod.pnml.arcs || [],
+      };
+      const { nodes: flowNodes, edges: flowEdges } = convertToReactFlowFormat(
+        parser,
+        petriNetData,
+        builtTemplateMap
+      );
+
       setNodes(flowNodes);
       setEdges(flowEdges);
-      
-      console.log('✅ [PetriNetViewer] ペトリネット初期化完了:', {
+
+      console.log('✅ [PetriNetViewer] ペトリネット初期化完了（新方式）:', {
         nodes: flowNodes.length,
         edges: flowEdges.length,
-        places: structure.places.length,
-        arcs: structure.arcs.length,
-        selectedMethodId: selectedMethodId || 'all',
+        places: petriNetData.places.length,
+        arcs: petriNetData.arcs.length,
+        selectedMethodId: selectedMethodId || targetMethod.id,
       });
     } catch (err) {
       console.error('❌ [PetriNetViewer] 初期化エラー:', err);
