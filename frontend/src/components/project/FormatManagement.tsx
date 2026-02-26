@@ -141,22 +141,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     }
   }, [formatsData]);
 
-  // サブフォルダのモックデータ（実際はAPIから取得）
-  // 各取引先会社のフォルダ（1階層のみ）
-  const subFolders = useMemo(() => {
-    if (!selectedFormatId) return [];
-    
-    // フォーマットIDに応じてサブフォルダを返す（モック）
-    // 取引先会社のフォルダ
-    return [
-      { value: 'company_a', label: 'company_a (A社)' },
-      { value: 'company_b', label: 'company_b (B社)' },
-      { value: 'company_c', label: 'company_c (C社)' },
-      { value: 'company_d', label: 'company_d (D社)' },
-      { value: 'company_e', label: 'company_e (E社)' },
-    ];
-  }, [selectedFormatId]);
-
   // ソート処理
   const handleSortChange = useCallback((newSortBy: 'name' | 'category' | 'updatedAt') => {
     if (sortBy === newSortBy) {
@@ -911,11 +895,39 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           id: selectedFormat.id,
           name: selectedFormat.name,
           folderName: selectedFormat.folderName,
+          departmentCd: user.departmentCd,
         } : null}
-        subFolders={subFolders}
-        onUploadComplete={(result) => {
-          console.log('アップロード完了:', result);
-          // TODO: ファイル一覧の再読み込み
+        currentFolderPath={currentFolderPath}
+        onUploadComplete={async (result) => {
+          console.log('✅ [FormatManagement] アップロード完了:', result);
+          
+          // ファイル一覧を再読み込み
+          if (selectedFormatId && selectedFormat) {
+            try {
+              const currentPath = currentFolderPath.length > 0 
+                ? currentFolderPath.join('/')
+                : undefined;
+              
+              const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+              
+              const cacheKey = currentPath 
+                ? `${selectedFormatId}/${currentPath}`
+                : selectedFormatId;
+              
+              setFormatFilesData(prev => ({
+                ...prev,
+                [cacheKey]: {
+                  allFiles: (fileResponse.success && fileResponse.data?.files) ? fileResponse.data.files as FormatFileData[] : [],
+                }
+              }));
+              
+              console.log('✅ [FormatManagement] ファイル一覧更新完了');
+            } catch (error) {
+              console.error('❌ [FormatManagement] ファイル一覧更新エラー:', error);
+            }
+          }
+          
+          // フォーマット一覧も更新（ファイル数が変わる可能性があるため）
           handleRefresh();
         }}
       />

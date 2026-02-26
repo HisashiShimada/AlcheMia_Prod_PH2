@@ -201,6 +201,40 @@ export async function getFormatFiles(
             fileCount,
           });
         }
+      } else if (relativeParts.length > 1) {
+        // サブフォルダ内のファイル（ディレクトリマーカーがない場合）
+        // → サブフォルダを暗黙的にフォルダとして認識
+        const subFolderName = relativeParts[0]; // 直下のフォルダ名
+        
+        if (subFolderName && !processedFolders.has(subFolderName)) {
+          processedFolders.add(subFolderName);
+
+          // サブフォルダ内のファイル数をカウント
+          const subFolderPath = subPath
+            ? `${subPath}/${subFolderName}`
+            : subFolderName;
+          const subFolderFullPath = `formats/${departmentCd}/${folderName}/${subFolderPath}`;
+          const subFolderPrefix = `${organizationId}/${subFolderFullPath}/`;
+          
+          const fileCount = allItems.filter(f => {
+            if (!f.key.startsWith(subFolderPrefix)) return false;
+            if (f.key.endsWith('/')) return false;
+            return true;
+          }).length;
+
+          console.log('[formatService] Detected implicit folder:', subFolderName, 'fileCount:', fileCount);
+
+          filesAndFolders.push({
+            id: subFolderName,
+            name: subFolderName,
+            path: subFolderName,
+            size: 0,
+            lastModified: new Date().toISOString(),
+            type: 'folder',
+            isFolder: true,
+            fileCount,
+          });
+        }
       } else {
         // ファイルの場合 - 直下のファイルのみ
         if (relativeParts.length === 1) {
