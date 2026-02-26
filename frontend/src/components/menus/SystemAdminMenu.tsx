@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout, Card, Typography, theme } from 'antd';
+import { Layout, Card, Typography, theme, App } from 'antd';
 import {
   TeamOutlined,
   ShopOutlined,
@@ -99,54 +99,56 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
   const HEADER_TOTAL_HEIGHT = 140;
 
   return (
-    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
-      <Header user={user} onLogout={onLogout} />
-      <SubHeader 
-        title={t('menu.system_admin.title')}
-        tabs={tabItems}
-        activeTabKey={currentTab}
-        onTabChange={handleTabChange}
-        currentMenu="system_admin"
-        onMenuChange={handleMenuChange}
-        userPermissions={permissions}
-      />
+    <App>
+      <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
+        <Header user={user} onLogout={onLogout} />
+        <SubHeader 
+          title={t('menu.system_admin.title')}
+          tabs={tabItems}
+          activeTabKey={currentTab}
+          onTabChange={handleTabChange}
+          currentMenu="system_admin"
+          onMenuChange={handleMenuChange}
+          userPermissions={permissions}
+        />
 
-      {/* コンテンツエリア */}
-      <Content
-        style={{
-          marginTop: HEADER_TOTAL_HEIGHT,
-          height: `calc(100vh - ${HEADER_TOTAL_HEIGHT}px)`,
-          overflow: 'auto',
-          background: token.colorBgContainer,
-          padding: `0 ${token.paddingContentHorizontal}px`,
-        }}
-      >
-        {/* タブ1: システム概要 */}
-        {currentTab === '1' && <SystemOverview />}
+        {/* コンテンツエリア */}
+        <Content
+          style={{
+            marginTop: HEADER_TOTAL_HEIGHT,
+            height: `calc(100vh - ${HEADER_TOTAL_HEIGHT}px)`,
+            overflow: 'auto',
+            background: token.colorBgContainer,
+            padding: `0 ${token.paddingContentHorizontal}px`,
+          }}
+        >
+          {/* タブ1: システム概要 */}
+          {currentTab === '1' && <SystemOverview />}
 
-        {/* タブ2: 組織統計情報 */}
-        {currentTab === '2' && <OrganizationStatistics />}
+          {/* タブ2: 組織統計情報 */}
+          {currentTab === '2' && <OrganizationStatistics />}
 
-        {/* タブ3: ユーザー管理 */}
-        {currentTab === '3' && <UserManagement />}
+          {/* タブ3: ユーザー管理 */}
+          {currentTab === '3' && <UserManagement />}
 
-        {/* タブ4: セッション管理 */}
-        {currentTab === '4' && <SessionManagement />}
+          {/* タブ4: セッション管理 */}
+          {currentTab === '4' && <SessionManagement />}
 
-        {/* タブ5: 部署管理 */}
-        {currentTab === '5' && (
-          <div style={{ padding: token.paddingContentVertical }}>
-            <DepartmentManagement />
-          </div>
-        )}
+          {/* タブ5: 部署管理 */}
+          {currentTab === '5' && (
+            <div style={{ padding: token.paddingContentVertical }}>
+              <DepartmentManagement />
+            </div>
+          )}
 
-        {/* タブ6: ロール管理 */}
-        {currentTab === '6' && (
-          <div style={{ padding: token.paddingContentVertical }}>
-            <RoleManagement />
-          </div>
-        )}
-      </Content>
-    </Layout>
+          {/* タブ6: ロール管理 */}
+          {currentTab === '6' && (
+            <div style={{ padding: token.paddingContentVertical }}>
+              <RoleManagement />
+            </div>
+          )}
+        </Content>
+      </Layout>
+    </App>
   );
 }

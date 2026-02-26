@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   Button,
@@ -10,11 +10,11 @@ import {
   Modal,
   Form,
   Select,
-  message,
   Typography,
   Row,
   Col,
   Badge,
+  App,
 } from 'antd';
 import {
   SearchOutlined,
@@ -24,104 +24,131 @@ import {
   ReloadOutlined,
   UploadOutlined,
   DownloadOutlined,
-  FilterOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { MenuProps } from 'antd';
-import Papa from 'papaparse';
-import usersData from '../../../mock/data/users-management.json';
+import {
+  fetchUsers,
+  createUser,
+  updateUser,
+  updateUserStatus,
+  batchUpdateUserStatus,
+  uploadCsv,
+  downloadCsv,
+  UserRecord,
+  CreateUserRequest,
+  UpdateUserRequest,
+  UserFilters,
+} from '@/services/userApiService';
+import { fetchMasters as fetchDepartments } from '@/services/departmentApiService';
+import { fetchMasters as fetchRoles } from '@/services/roleApiService';
 
 const { Text } = Typography;
-
-/**
- * ユーザーデータの型定義
- */
-interface UserData {
-  id: string;
-  lastName: string;
-  firstName: string;
-  userId: string;
-  emailAdress: string;
-  department: string;
-  twoFactorAuth: string;
-  role: string;
-  lastLogin: string;
-  isActive: boolean;
-  avatarText: string;
-}
 
 /**
  * ユーザー管理画面のコンポーネント
  */
 export default function UserManagement() {
-  const [users, setUsers] = useState<UserData[]>(usersData as UserData[]);
+  const { message, modal } = App.useApp();
+  const [users, setUsers] = useState<UserRecord[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
-  const [selectedTwoFactorAuth, setSelectedTwoFactorAuth] = useState<string>('');
   const [selectedRole, setSelectedRole] = useState<string>('');
+  const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
+  const [roles, setRoles] = useState<{ value: string; label: string }[]>([]);
   const [form] = Form.useForm();
 
-  // 日時フォーマット関数
-  const formatDateTime = (dateTimeStr: string): string => {
-    if (!dateTimeStr || dateTimeStr === '-') return '-';
-    // YYYYMMDDhhmmss 形式を yyyy/MM/dd hh:mm に変換
-    if (dateTimeStr.length >= 12) {
-      const year = dateTimeStr.substring(0, 4);
-      const month = dateTimeStr.substring(4, 6);
-      const day = dateTimeStr.substring(6, 8);
-      const hour = dateTimeStr.substring(8, 10);
-      const minute = dateTimeStr.substring(10, 12);
-      return `${year}/${month}/${day} ${hour}:${minute}`;
+  // 初期データ読み込み
+  useEffect(() => {
+    loadUsers();
+    loadDepartments();
+    loadRoles();
+  }, []);
+
+  /**
+   * ユーザー一覧を読み込み
+   */
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchUsers();
+      setUsers(data);
+    } catch (error) {
+      console.error('ユーザー一覧の取得に失敗:', error);
+      message.error('ユーザー一覧の取得に失敗しました');
+    } finally {
+      setLoading(false);
     }
-    return dateTimeStr;
   };
 
-  // 所属部署の選択肢を動的に取得
-  const departments = useMemo(() => {
-    const uniqueDepts = Array.from(new Set(users.map(u => u.department).filter(d => d)));
-    return uniqueDepts.sort();
-  }, [users]);
+  /**
+   * 部署マスターを読み込み
+   */
+  const loadDepartments = async () => {
+    try {
+      const data = await fetchDepartments();
+      console.log('=== Fetching Department ===');
+      console.log('Department API Response:', data);
+      
+      const options = data.map((d) => ({
+        value: String(d.departmentId),    // バックエンドのフィールド名（department_cd → departmentId）
+        label: String(d.displayName)      // バックエンドのフィールド名（department_name → displayName）
+      }));
+      
+      console.log('Department Options:', options);
+      setDepartments(options);
+    } catch (error) {
+      console.error('部署一覧の取得に失敗:', error);
+      message.error('部署一覧の取得に失敗しました');
+    }
+  };
+
+  /**
+   * ロールマスターを読み込み
+   */
+  const loadRoles = async () => {
+    try {
+      const data = await fetchRoles();
+      console.log('Role API Response:', data);  // デバッグ用
+      
+      const options = data
+        .filter((r) => r.roleId && r.roleName)  // バックエンドのフィールド名（role_cd → roleId）
+        .map((r) => ({
+          value: String(r.roleId),              // バックエンドのフィールド名（role_cd → roleId）
+          label: String(r.roleName)             // バックエンドのフィールド名（role_name → roleName）
+        }));
+      
+      console.log('Role Options:', options);  // デバッグ用
+      setRoles(options);
+    } catch (error) {
+      console.error('ロール一覧の取得に失敗:', error);
+      message.error('ロール一覧の取得に失敗しました');
+    }
+  };
 
   // フィルタリングされたユーザー
-  // ユーザー名、ユーザーID、メールアドレスをまとめて曖昧検索 + 所属部署、二段階認証、ロールでフィルター
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
       // テキスト検索フィルター
       const searchLower = searchText.toLowerCase();
       const matchesSearch = !searchText.trim() || (
-        user.lastName.toLowerCase().includes(searchLower) ||
-        user.firstName.toLowerCase().includes(searchLower) ||
-        user.userId.toLowerCase().includes(searchLower) ||
-        user.emailAdress.toLowerCase().includes(searchLower)
+        (user.userName && String(user.userName).toLowerCase().includes(searchLower)) ||
+        (user.userId && String(user.userId).toLowerCase().includes(searchLower)) ||
+        (user.mailAddress && String(user.mailAddress).toLowerCase().includes(searchLower))
       );
 
-      // 所属部署フィルター
-      const matchesDepartment = !selectedDepartment || user.department === selectedDepartment;
+      // 所属部署フィルター（department_cdで比較）
+      const matchesDepartment = !selectedDepartment || user.departmentCd === selectedDepartment;
 
-      // 二段階認証フィルター
-      const matchesTwoFactorAuth = !selectedTwoFactorAuth || user.twoFactorAuth === selectedTwoFactorAuth;
+      // ロールフィルター（role_cdで比較）
+      const matchesRole = !selectedRole || user.roleCd === selectedRole;
 
-      // ロールフィルター
-      const matchesRole = !selectedRole || user.role === selectedRole;
-
-      return matchesSearch && matchesDepartment && matchesTwoFactorAuth && matchesRole;
+      return matchesSearch && matchesDepartment && matchesRole;
     });
-  }, [users, searchText, selectedDepartment, selectedTwoFactorAuth, selectedRole]);
-
-  const roles = [
-    { value: 'システム管理者', label: 'システム管理者' },
-    { value: 'データ管理者', label: 'データ管理者' },
-    { value: '実験管理者', label: '実験管理者' },
-    { value: '実験作業者', label: '実験作業者' },
-  ];
-
-  const twoFactorAuthOptions = [
-    { value: '済', label: '済' },
-    { value: '未', label: '未' },
-  ];
+  }, [users, searchText, selectedDepartment, selectedRole]);
 
   const rowSelection = {
     selectedRowKeys,
@@ -130,14 +157,14 @@ export default function UserManagement() {
     },
   };
 
-  const columns: ColumnsType<UserData> = [
+  const columns: ColumnsType<UserRecord> = [
     {
       title: (
         <div style={{ textAlign: 'center' }}>
           <Space size="middle" align="center">
             <span>ユーザー名</span>
             <Badge
-              count={filteredUsers.filter(user => !user.isActive).length}
+              count={filteredUsers.filter(user => user.isActive === true).length}
               style={{
                 backgroundColor: '#4169E1',
                 fontSize: 14,
@@ -150,28 +177,14 @@ export default function UserManagement() {
           </Space>
         </div>
       ),
-      key: 'user',
+      dataIndex: 'userName',
+      key: 'userName',
       width: 150,
-      sorter: (a, b) => a.lastName.localeCompare(b.lastName),
-      render: (_, record) => (
-        <Text style={{ 
-          fontWeight: 500, 
-          color: record.isActive ? 'rgba(0, 0, 0, 0.45)' : '#0093CF'
-        }}>
-          {record.lastName} {record.firstName}
-        </Text>
-      ),
-    },
-    {
-      title: <div style={{ textAlign: 'center' }}>ユーザーID</div>,
-      dataIndex: 'userId',
-      key: 'userId',
-      width: 250,
-      sorter: (a, b) => a.userId.localeCompare(b.userId),
+      sorter: (a, b) => (String(a.userName) || '').localeCompare(String(b.userName) || ''),
       render: (text: string, record) => (
         <Text style={{ 
-          fontSize: 13,
-          color: record.isActive ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
+          fontWeight: 500, 
+          color: record.isActive !== false ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.45)'
         }}>
           {text}
         </Text>
@@ -179,14 +192,14 @@ export default function UserManagement() {
     },
     {
       title: <div style={{ textAlign: 'center' }}>メールアドレス</div>,
-      dataIndex: 'emailAdress',
-      key: 'emailAdress',
+      dataIndex: 'mailAddress',
+      key: 'mailAddress',
       width: 250,
-      sorter: (a, b) => a.emailAdress.localeCompare(b.emailAdress),
+      sorter: (a, b) => (String(a.mailAddress) || '').localeCompare(String(b.mailAddress) || ''),
       render: (text: string, record) => (
         <Text style={{ 
           fontSize: 13,
-          color: record.isActive ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
+          color: record.isActive !== false ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.45)'
         }}>
           {text}
         </Text>
@@ -194,34 +207,36 @@ export default function UserManagement() {
     },
     {
       title: <div style={{ textAlign: 'center' }}>所属部署</div>,
-      dataIndex: 'department',
-      key: 'department',
+      dataIndex: 'departmentName',
+      key: 'departmentName',
       width: 150,
       align: 'left',
-      sorter: (a, b) => a.department.localeCompare(b.department),
-    },
-    {
-      title: <div style={{ textAlign: 'center' }}>二段階認証設定</div>,
-      dataIndex: 'twoFactorAuth',
-      key: 'twoFactorAuth',
-      width: 130,
-      align: 'center',
-      sorter: (a, b) => a.twoFactorAuth.localeCompare(b.twoFactorAuth),
+      sorter: (a, b) => (String(a.departmentName) || '').localeCompare(String(b.departmentName) || ''),
+      render: (text: string, record) => (
+        <Text style={{ 
+          color: record.isActive !== false ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.45)'
+        }}>
+          {text || '-'}
+        </Text>
+      ),
     },
     {
       title: <div style={{ textAlign: 'center' }}>ロール</div>,
-      dataIndex: 'role',
-      key: 'role',
+      dataIndex: 'roleName',
+      key: 'roleName',
       width: 130,
       align: 'center',
-      sorter: (a, b) => a.role.localeCompare(b.role),
-      render: (role: string) => (
+      sorter: (a, b) => (String(a.roleName) || '').localeCompare(String(b.roleName) || ''),
+      render: (role: string, record) => (
         <Tag
-          color={role === 'システム管理者' ? '#FFC0CB' : role === 'システム権限者' ? '#87CEEB' : 'default'}
+          color="default"
           style={{
             borderRadius: 12,
             padding: '2px 12px',
-            border: 'none',
+            border: '1px solid #d9d9d9',
+            backgroundColor: '#fff',
+            color: 'rgba(0, 0, 0, 0.85)',
+            opacity: record.isActive !== false ? 1 : 0.5,
           }}
         >
           {role}
@@ -230,12 +245,31 @@ export default function UserManagement() {
     },
     {
       title: <div style={{ textAlign: 'center' }}>最終ログイン</div>,
-      dataIndex: 'lastLogin',
+      dataIndex: 'lastLoginAt',
       key: 'lastLogin',
       width: 150,
       align: 'right',
-      sorter: (a, b) => a.lastLogin.localeCompare(b.lastLogin),
-      render: (text: string) => formatDateTime(text),
+      render: (value: string | null, record) => {
+        if (!value) {
+          return (
+            <Text style={{ 
+              color: record.isActive !== false ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.45)'
+            }}>
+              -
+            </Text>
+          );
+        }
+        // ISO日時をフォーマット（例: 2026-02-24T14:33:46.238Z → 2026/02/24 14:33）
+        const date = new Date(value);
+        const formatted = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        return (
+          <Text style={{ 
+            color: record.isActive !== false ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.45)'
+          }}>
+            {formatted}
+          </Text>
+        );
+      },
     },
     {
       title: '',
@@ -248,15 +282,17 @@ export default function UserManagement() {
           <Button
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
+            disabled={loading}
           >
             編集
           </Button>
           <Button
-            onClick={() => handleToggleActive(record.id)}
-            danger={!record.isActive}
+            onClick={() => handleToggleActive(String(record.userId))}
+            danger={record.isActive}
             style={{ width: '100px' }}
+            disabled={loading}
           >
-            {record.isActive ? 'アクティブ' : '非アクティブ'}
+            {record.isActive ? '非アクティブ' : 'アクティブ'}
           </Button>
         </Space>
       ),
@@ -267,85 +303,112 @@ export default function UserManagement() {
     setEditingUser(null);
     form.resetFields();
     form.setFieldsValue({
-      twoFactorAuth: '未',
-      role: 'システム権限者',
-      isActive: true,
+      isActive: true,           // true=アクティブ（デフォルト）
     });
     setIsModalVisible(true);
   };
 
-  const handleEdit = (user: UserData) => {
+  const handleEdit = (user: UserRecord) => {
     setEditingUser(user);
-    form.setFieldsValue(user);
+    form.setFieldsValue({
+      userName: user.userName,
+      mailAddress: user.mailAddress,          // メールアドレス表示用
+      departmentCd: user.departmentCd,
+      roleCd: user.roleCd,
+      isActive: user.isActive,
+    });
     setIsModalVisible(true);
   };
 
-  const handleActivate = () => {
+  const handleActivate = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('アクティブにするユーザーを選択してください');
       return;
     }
-    Modal.confirm({
+    modal.confirm({
       title: '選択したユーザーをアクティブにしますか？',
       content: `${selectedRowKeys.length}件のユーザーがアクティブになります。`,
       okText: 'アクティブ化',
       cancelText: 'キャンセル',
-      onOk: () => {
-        setUsers(users.map(u => 
-          selectedRowKeys.includes(u.id) ? { ...u, isActive: false } : u
-        ));
-        setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件のユーザーをアクティブにしました`);
+      onOk: async () => {
+        try {
+          setLoading(true);
+          await batchUpdateUserStatus(selectedRowKeys as string[], true);
+          await loadUsers();
+          setSelectedRowKeys([]);
+          message.success(`${selectedRowKeys.length}件のユーザーをアクティブにしました`);
+        } catch (error) {
+          console.error('アクティブ化に失敗:', error);
+          message.error('アクティブ化に失敗しました');
+        } finally {
+          setLoading(false);
+        }
       },
     });
   };
 
-  const handleDeactivate = () => {
+  const handleDeactivate = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('非アクティブにするユーザーを選択してください');
       return;
     }
-    Modal.confirm({
+    modal.confirm({
       title: '選択したユーザーを非アクティブにしますか？',
       content: `${selectedRowKeys.length}件のユーザーが非アクティブになります。`,
       okText: '非アクティブ化',
       cancelText: 'キャンセル',
       okButtonProps: { danger: true },
-      onOk: () => {
-        setUsers(users.map(u => 
-          selectedRowKeys.includes(u.id) ? { ...u, isActive: true } : u
-        ));
-        setSelectedRowKeys([]);
-        message.success(`${selectedRowKeys.length}件のユーザーを非アクティブにしました`);
+      onOk: async () => {
+        try {
+          setLoading(true);
+          await batchUpdateUserStatus(selectedRowKeys as string[], false);
+          await loadUsers();
+          setSelectedRowKeys([]);
+          message.success(`${selectedRowKeys.length}件のユーザーを非アクティブにしました`);
+        } catch (error) {
+          console.error('非アクティブ化に失敗:', error);
+          message.error('非アクティブ化に失敗しました');
+        } finally {
+          setLoading(false);
+        }
       },
     });
   };
 
-  const handleToggleActive = (id: string) => {
-    const user = users.find(u => u.id === id);
+  const handleToggleActive = (userId: string) => {
+    const user = users.find(u => String(u.userId) === userId);
     if (!user) return;
 
-    const actionText = user.isActive ? 'アクティブ' : '非アクティブ';
-    const userName = `${user.lastName} ${user.firstName}`;
+    const actionText = user.isActive ? '非アクティブ' : 'アクティブ';
+    const userName = String(user.userName);
 
-    Modal.confirm({
+    modal.confirm({
       title: `${userName}を${actionText}にしますか？`,
-      content: `このユーザーを${user.isActive ? 'アクティブ' : '非アクティブ'}状態に変更します。`,
+      content: `このユーザーを${actionText}状態に変更します。`,
       okText: actionText,
       cancelText: 'キャンセル',
-      okButtonProps: user.isActive ? undefined : { danger: true },
-      onOk: () => {
-        setUsers(users.map(u => 
-          u.id === id ? { ...u, isActive: !u.isActive } : u
-        ));
-        message.success(`${userName}を${user.isActive ? 'アクティブ' : '非アクティブ'}にしました`);
+      okButtonProps: user.isActive ? { danger: true } : undefined,
+      onOk: async () => {
+        try {
+          setLoading(true);
+          await updateUserStatus(userId, !user.isActive);
+          await loadUsers();
+          message.success(`${userName}を${actionText}にしました`);
+        } catch (error) {
+          console.error('ステータス更新に失敗:', error);
+          message.error('ステータス更新に失敗しました');
+        } finally {
+          setLoading(false);
+        }
       },
     });
   };
 
   const handleReload = () => {
-    setUsers(usersData as UserData[]);
+    loadUsers();
     setSearchText('');
+    setSelectedDepartment('');
+    setSelectedRole('');
     setSelectedRowKeys([]);
     message.success('データをリロードしました');
   };
@@ -354,182 +417,42 @@ export default function UserManagement() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.csv';
-    input.onchange = (e: Event) => {
+    input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
       const file = target.files?.[0];
       if (file) {
-        handleCSVUpload(file);
+        try {
+          setLoading(true);
+          await uploadCsv(file);
+          await loadUsers();
+          message.success('CSVファイルをアップロードしました');
+        } catch (error) {
+          console.error('CSVアップロードに失敗:', error);
+          const errorMessage = error instanceof Error ? error.message : 'CSVアップロードに失敗しました';
+          message.error(errorMessage);
+        } finally {
+          setLoading(false);
+        }
       }
     };
     input.click();
   };
 
-  const handleCSVUpload = (file: File) => {
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      encoding: 'UTF-8',
-      skipEmptyLines: true,
-      complete: (results: Papa.ParseResult<Record<string, string>>) => {
-        try {
-          const newUsers: UserData[] = [];
-          const errors: string[] = [];
-          const existingUserIds = new Set(users.map(u => u.userId.toLowerCase()));
-
-          results.data.forEach((row: Record<string, string>, index: number) => {
-            const rowNumber = index + 2;
-
-            if (!row['姓'] || !row['名'] || !row['ユーザーID'] || !row['メールアドレス']) {
-              errors.push(`${rowNumber}行目: 姓、名、ユーザーID、メールアドレスは必須です`);
-              return;
-            }
-
-            const userId = row['ユーザーID'].trim().toLowerCase();
-            if (existingUserIds.has(userId)) {
-              errors.push(`${rowNumber}行目: ユーザーID「${row['ユーザーID']}」は既に登録されています`);
-              return;
-            }
-
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(row['メールアドレス'])) {
-              errors.push(`${rowNumber}行目: メールアドレスの形式が不正です`);
-              return;
-            }
-
-            const validRoles = ['システム管理者', 'システム権限者', 'データ管理者', '実験管理者', '実験作業者'];
-            const role = row['ロール'] || 'システム権限者';
-            if (!validRoles.includes(role)) {
-              errors.push(`${rowNumber}行目: ロール「${role}」は無効です`);
-              return;
-            }
-
-            const twoFactorAuth = row['二段階認証設定'] || '未';
-            if (!['済', '未'].includes(twoFactorAuth)) {
-              errors.push(`${rowNumber}行目: 二段階認証設定は「済」または「未」を指定してください`);
-              return;
-            }
-
-            const isActiveValue = row['状態'] || 'アクティブ';
-            const isActive = isActiveValue === 'アクティブ' || isActiveValue === 'true' || isActiveValue === '1';
-
-            const newUser: UserData = {
-              id: `user${String(users.length + newUsers.length + 1).padStart(3, '0')}`,
-              lastName: row['姓'].trim(),
-              firstName: row['名'].trim(),
-              userId: row['ユーザーID'].trim(),
-              emailAdress: row['メールアドレス'].trim(),
-              department: row['所属部署']?.trim() || '',
-              twoFactorAuth: twoFactorAuth,
-              role: role,
-              lastLogin: row['最終ログイン'] || '-',
-              isActive: isActive,
-              avatarText: row['姓'].trim().charAt(0),
-            };
-
-            newUsers.push(newUser);
-            existingUserIds.add(userId);
-          });
-
-          if (errors.length > 0) {
-            Modal.error({
-              title: 'CSVファイルにエラーがあります',
-              content: (
-                <div>
-                  <p>以下のエラーを修正してください：</p>
-                  <ul style={{ maxHeight: '300px', overflow: 'auto' }}>
-                    {errors.slice(0, 10).map((error, i) => (
-                      <li key={i}>{error}</li>
-                    ))}
-                    {errors.length > 10 && <li>...他 {errors.length - 10} 件のエラー</li>}
-                  </ul>
-                </div>
-              ),
-              width: 600,
-            });
-
-            if (newUsers.length > 0) {
-              Modal.confirm({
-                title: '一部のデータを追加しますか？',
-                content: `${newUsers.length}件の有効なユーザーデータが見つかりました。これらを追加しますか？`,
-                okText: '追加',
-                cancelText: 'キャンセル',
-                onOk: () => {
-                  setUsers([...users, ...newUsers]);
-                  message.success(`${newUsers.length}件のユーザーを追加しました`);
-                },
-              });
-            }
-            return;
-          }
-
-          if (newUsers.length > 0) {
-            setUsers([...users, ...newUsers]);
-            message.success(`${newUsers.length}件のユーザーを追加しました`);
-          } else {
-            message.warning('追加するユーザーデータがありませんでした');
-          }
-        } catch (error) {
-          console.error('CSV処理エラー:', error);
-          message.error('CSVファイルの処理中にエラーが発生しました');
-        }
-      },
-      error: (error: Error) => {
-        console.error('CSVパースエラー:', error);
-        message.error('CSVファイルの読み込みに失敗しました');
-      },
-    });
-  };
-
-  const handleDownload = () => {
-    const headers = [
-      '姓',
-      '名',
-      'ユーザーID',
-      'メールアドレス',
-      '所属部署',
-      '二段階認証設定',
-      'ロール',
-      '最終ログイン',
-      '状態',
-    ];
-
-    const rows = filteredUsers.map((user) => [
-      user.lastName,
-      user.firstName,
-      user.userId,
-      user.emailAdress,
-      user.department,
-      user.twoFactorAuth,
-      user.role,
-      user.lastLogin,
-      user.isActive ? 'アクティブ' : '非アクティブ',
-    ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-      ),
-    ].join('\n');
-
-    const bom = '\uFEFF';
-    const csvWithBom = bom + csvContent;
-    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, '-')
-      .slice(0, -5);
-    link.href = url;
-    link.download = `users_${timestamp}.csv`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    message.success('CSVファイルをダウンロードしました');
+  const handleDownload = async () => {
+    try {
+      setLoading(true);
+      await downloadCsv({
+        search: searchText,
+        department_cd: selectedDepartment,
+        role_cd: selectedRole,
+      });
+      message.success('CSVファイルをダウンロードしました');
+    } catch (error) {
+      console.error('CSV download error:', error);
+      message.error(error instanceof Error ? error.message : 'CSVダウンロードに失敗しました');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleModalOk = async () => {
@@ -537,31 +460,43 @@ export default function UserManagement() {
       const values = await form.validateFields();
       
       if (editingUser) {
-        setUsers(users.map(u => 
-          u.id === editingUser.id 
-            ? { 
-                ...u, 
-                ...values,
-                avatarText: values.lastName.charAt(0),
-              } 
-            : u
-        ));
+        // 更新
+        const updateData: UpdateUserRequest = {
+          userName: values.userName,
+          departmentCd: values.departmentCd,
+          roleCd: values.roleCd,
+          isActive: values.isActive,  // アクティブ判定を追加
+        };
+        
+        setLoading(true);
+        await updateUser(String(editingUser.userId), updateData);
+        await loadUsers();
         message.success('ユーザー情報を更新しました');
       } else {
-        const newUser: UserData = {
-          ...values,
-          id: `user${String(users.length + 1).padStart(3, '0')}`,
-          avatarText: values.lastName.charAt(0),
-          lastLogin: '-',
+          // 新規作成
+        const createData: CreateUserRequest = {
+          userId: values.mailAddress,
+          userName: values.userName,
+          mailAddress: values.mailAddress,
+          departmentCd: values.departmentCd,
+          roleCd: values.roleCd,
+          isActive: values.isActive,
         };
-        setUsers([...users, newUser]);
+        
+        setLoading(true);
+        await createUser(createData);
+        await loadUsers();
         message.success('ユーザーを追加しました');
       }
       
       setIsModalVisible(false);
       form.resetFields();
     } catch (error) {
-      console.error('バリデーションエラー:', error);
+      console.error('保存に失敗:', error);
+      const errorMessage = error instanceof Error ? error.message : '保存に失敗しました';
+      message.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -578,19 +513,19 @@ export default function UserManagement() {
         marginBottom: 16,
         gap: 8,
       }}>
-        <Button icon={<UploadOutlined />} onClick={handleUpload}>
+        <Button icon={<UploadOutlined />} onClick={handleUpload} disabled={loading}>
           CSV<br />アップロード
         </Button>
-        <Button icon={<DownloadOutlined />} onClick={handleDownload}>
+        <Button icon={<DownloadOutlined />} onClick={handleDownload} disabled={loading}>
           CSV<br />ダウンロード
         </Button>
-        <Button icon={<PlusOutlined />} onClick={handleAdd}>
+        <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={loading}>
           追加
         </Button>
         <Button
           icon={<DeleteOutlined />}
           onClick={handleActivate}
-          disabled={selectedRowKeys.length === 0}
+          disabled={selectedRowKeys.length === 0 || loading}
           style={{
             minWidth: 85,
             backgroundColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
@@ -604,17 +539,17 @@ export default function UserManagement() {
           danger
           icon={<DeleteOutlined />}
           onClick={handleDeactivate}
-          disabled={selectedRowKeys.length === 0}
+          disabled={selectedRowKeys.length === 0 || loading}
           style={{
             minWidth: 110,
-            backgroundColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
-            borderColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
-            color: selectedRowKeys.length > 0 ? '#fff' : undefined,
+            backgroundColor: selectedRowKeys.length > 0 && !loading ? '#FFA500' : undefined,
+            borderColor: selectedRowKeys.length > 0 && !loading ? '#FFA500' : undefined,
+            color: selectedRowKeys.length > 0 && !loading ? '#fff' : undefined,
           }}
         >
           非アクティブ
         </Button>
-        <Button icon={<ReloadOutlined />} onClick={handleReload}>
+        <Button icon={<ReloadOutlined />} onClick={handleReload} disabled={loading}>
           リロード
         </Button>
       </div>
@@ -630,11 +565,12 @@ export default function UserManagement() {
         <Row gutter={16} style={{ marginBottom: 8 }}>
           <Col style={{ width: 400 }}>
             <Input
-              placeholder="ユーザー名、ユーザーID、メールアドレスで検索"
+              placeholder="ユーザー名、メールアドレスで検索"
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
+              disabled={loading}
             />
           </Col>
           <Col style={{ width: 150 }}>
@@ -644,20 +580,8 @@ export default function UserManagement() {
               onChange={(value) => setSelectedDepartment(value || '')}
               allowClear
               style={{ width: '100%' }}
-              options={departments.map(dept => ({ label: dept, value: dept }))}
-            />
-          </Col>
-          <Col style={{ width: 150 }}>
-            <Select
-              placeholder="二段階認証"
-              value={selectedTwoFactorAuth || undefined}
-              onChange={(value) => setSelectedTwoFactorAuth(value || '')}
-              allowClear
-              style={{ width: '100%' }}
-              options={[
-                { label: '済', value: '済' },
-                { label: '未', value: '未' }
-              ]}
+              options={departments}
+              disabled={loading}
             />
           </Col>
           <Col style={{ width: 150 }}>
@@ -668,6 +592,7 @@ export default function UserManagement() {
               allowClear
               style={{ width: '100%' }}
               options={roles}
+              disabled={loading}
             />
           </Col>
         </Row>
@@ -676,9 +601,10 @@ export default function UserManagement() {
           rowSelection={rowSelection}
           columns={columns}
           dataSource={filteredUsers}
-          rowKey="id"
+          rowKey="userId"
           size="small"
           scroll={{ x: 1400 }}
+          loading={loading}
           pagination={{
             pageSize: 20,
             showSizeChanger: true,
@@ -697,107 +623,82 @@ export default function UserManagement() {
         width={600}
         okText="保存"
         cancelText="キャンセル"
+        confirmLoading={loading}
       >
         <Form form={form} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="lastName"
-                label="姓"
-                rules={[{ required: true, message: '姓を入力してください' }]}
-              >
-                <Input placeholder="山田" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="firstName"
-                label="名"
-                rules={[{ required: true, message: '名を入力してください' }]}
-              >
-                <Input placeholder="太郎" />
-              </Form.Item>
-            </Col>
-          </Row>
-
           <Form.Item
-            name="userId"
-            label="ユーザーID"
-            rules={[
-              { required: true, message: 'ユーザーIDを入力してください' },
-              { type: 'email', message: '正しいメールアドレス形式を入力してください' }
-            ]}
+            name="userName"
+            label="ユーザー名"
+            rules={[{ required: true, message: 'ユーザー名を入力してください' }]}
           >
-            <Input placeholder="example@company.com" />
+            <Input placeholder="山田 太郎" />
           </Form.Item>
 
           <Form.Item
-            name="emailAdress"
+            name="mailAddress"
             label="メールアドレス"
             rules={[
               { required: true, message: 'メールアドレスを入力してください' },
               { type: 'email', message: '正しいメールアドレスを入力してください' }
             ]}
           >
-            <Input placeholder="example@company.com" />
+            <Input 
+              placeholder="example@company.com" 
+              disabled={!!editingUser}
+            />
+          </Form.Item>
+
+
+          <Form.Item
+            name="departmentCd"
+            label="所属部署"
+            rules={[{ required: true, message: '所属部署を選択してください' }]}
+          >
+            <Select
+              placeholder="所属部署を選択"
+              options={departments}
+            />
           </Form.Item>
 
           <Form.Item
-            name="department"
-            label="所属部署"
-            rules={[{ required: true, message: '所属部署を入力してください' }]}
+            name="roleCd"
+            label="ロール"
+            rules={[{ required: true, message: 'ロールを選択してください' }]}
           >
-            <Input placeholder="A" />
+            <Select
+              placeholder="ロールを選択"
+              options={roles}
+            />
           </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="twoFactorAuth"
-                label="二段階認証"
-                rules={[{ required: true }]}
-              >
-                <Select options={twoFactorAuthOptions} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="role"
-                label="ロール"
-                rules={[{ required: true, message: 'ロールを選択してください' }]}
-              >
-                <Select options={roles} />
-              </Form.Item>
-            </Col>
-          </Row>
 
           <Form.Item
             name="isActive"
-            label="状態"
-            valuePropName="checked"
+            label="アクティブ判定"
+            rules={[{ required: true, message: 'アクティブ判定を選択してください' }]}
           >
             <Select
               options={[
-                { value: false, label: 'アクティブ' },
-                { value: true, label: '非アクティブ' },
+                { value: true, label: 'アクティブ' },
+                { value: false, label: '非アクティブ' },
               ]}
             />
           </Form.Item>
+
         </Form>
       </Modal>
 
       <style jsx global>{`
         .active-row td {
-          background-color: #d3d3d3 !important;
-        }
-        .active-row:hover td {
-          background-color: #c0c0c0 !important;
-        }
-        .inactive-row td {
           background-color: #fff !important;
         }
-        .inactive-row:hover td {
+        .active-row:hover td {
           background-color: #f5f5f5 !important;
+        }
+        .inactive-row td {
+          background-color: #d3d3d3 !important;
+        }
+        .inactive-row:hover td {
+          background-color: #c0c0c0 !important;
         }
       `}</style>
     </div>
