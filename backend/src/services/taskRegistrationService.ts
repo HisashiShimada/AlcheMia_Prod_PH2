@@ -10,7 +10,6 @@
 
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
-import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import type {
   GetTaskRegistrationResponse,
   TaskRegistrationData,

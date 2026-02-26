@@ -294,7 +294,7 @@ export async function sendInstructions(
   organizationId: string,
   projectId: string,
   userId: string,
-  request: SendInstructionsRequest
+  _request: SendInstructionsRequest
 ): Promise<SendInstructionsResponse> {
   const pool = getPool();
   const client = await pool.connect();
