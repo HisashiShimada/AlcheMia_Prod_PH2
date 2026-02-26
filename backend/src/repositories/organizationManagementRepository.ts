@@ -1,10 +1,11 @@
 /**
  * Organization（組織）リポジトリ
  * データアクセス層
+ * pg-promise + SQLファイル外部管理パターンを使用
  */
 
-import { Pool } from 'pg';
-import { getPool } from '../database/db';
+import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * Organizationのデータ型定義（DB型）
@@ -38,195 +39,173 @@ export interface OrganizationSearchFilters {
 
 /**
  * Organization一覧を取得
- * 
+ *
  * @param filters 検索フィルター
  * @returns Organizationの配列
  */
 export async function findAll(
   filters: OrganizationSearchFilters = {}
 ): Promise<OrganizationRow[]> {
-  const pool: Pool = getPool();
-  
-  console.log('=== organizationManagementRepository.findAll called ===');
-  console.log('filters:', filters);
-  
-  let query = `
-    SELECT 
-      o.organization_id,
-      o.organization_cd,
-      o.organization_display_name,
-      o.organization_email,
-      o.chief_user_id,
-      ou.user_name as chief_user_name,
-      o.corporation_id,
-      c.corporation_name,
-      o.is_entry,
-      o.is_active,
-      o.update_at
-    FROM organization o
-    LEFT JOIN organization_user ou 
-      ON ou.user_id = o.chief_user_id
-      AND ou.organization_id = o.organization_id
-    LEFT JOIN corporation c 
-      ON c.corporation_id = o.corporation_id
-    WHERE 1=1
-  `;
-  
+  const pgp = getPgp();
+
+  // 外部SQLファイルを読み込み（ベースクエリ）
+  let sqlQuery = await loadSqlFile('organizations/findAll.sql');
+
   const params: any[] = [];
   let paramIndex = 1;
-  
-  // 検索フィルター
+
+  // 検索フィルター（動的条件をWHERE 1=1の後に追加）
   if (filters.search) {
-    query += ` AND (
-      o.organization_cd ILIKE $${paramIndex} OR
-      o.organization_email ILIKE $${paramIndex}
-    )`;
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND (
+        o.organization_cd ILIKE $${paramIndex} OR
+        o.organization_email ILIKE $${paramIndex}
+      )
+ORDER BY`
+    );
     params.push(`%${filters.search}%`);
     paramIndex++;
   }
-  
+
   // 組織CDフィルター
   if (filters.organizationCd) {
-    query += ` AND o.organization_cd = $${paramIndex}`;
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND o.organization_cd = $${paramIndex}
+ORDER BY`
+    );
     params.push(filters.organizationCd);
     paramIndex++;
   }
-  
+
   // 組織表示名フィルター
   if (filters.organizationDisplayName) {
-    query += ` AND o.organization_display_name = $${paramIndex}`;
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND o.organization_display_name = $${paramIndex}
+ORDER BY`
+    );
     params.push(filters.organizationDisplayName);
     paramIndex++;
   }
-  
+
   // 会社名フィルター
   if (filters.corporationName) {
-    query += ` AND c.corporation_name = $${paramIndex}`;
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND c.corporation_name = $${paramIndex}
+ORDER BY`
+    );
     params.push(filters.corporationName);
     paramIndex++;
   }
-  
+
   // アクティブフィルター
   if (filters.isActive !== undefined) {
-    query += ` AND o.is_active = $${paramIndex}`;
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND o.is_active = $${paramIndex}
+ORDER BY`
+    );
     params.push(filters.isActive);
     paramIndex++;
   }
-  
-  // ソート
+
+  // ソート順を置換
   const sortBy = filters.sortBy || 'organization_cd';
-  const sortOrder = filters.sortOrder || 'asc';
-  query += ` ORDER BY o.${sortBy} ${sortOrder.toUpperCase()}`;
-  
-  console.log('Executing query:', query);
-  console.log('With params:', params);
-  
-  try {
-    const result = await pool.query<OrganizationRow>(query, params);
-    console.log('Query executed successfully, rows:', result.rows.length);
-    return result.rows;
-  } catch (error) {
-    console.error('Database query error:', error);
-    throw error;
-  }
+  const sortOrder = (filters.sortOrder || 'asc').toUpperCase();
+  sqlQuery = sqlQuery.replace(
+    'ORDER BY o.organization_cd ASC',
+    `ORDER BY o.${sortBy} ${sortOrder}`
+  );
+
+  return await pgp.any<OrganizationRow>(sqlQuery, params);
 }
 
 /**
  * Organization IDで1件取得
- * 
+ *
  * @param organizationId 組織ID
  * @returns Organization（見つからない場合はnull）
  */
 export async function findById(
   organizationId: string
 ): Promise<OrganizationRow | null> {
-  const pool: Pool = getPool();
-  
-  const query = `
-    SELECT 
-      o.organization_id,
-      o.organization_cd,
-      o.organization_display_name,
-      o.organization_email,
-      o.chief_user_id,
-      ou.user_name as chief_user_name,
-      o.corporation_id,
-      c.corporation_name,
-      o.is_entry,
-      o.is_active,
-      o.update_at
-    FROM organization o
-    LEFT JOIN organization_user ou 
-      ON ou.user_id = o.chief_user_id
-      AND ou.organization_id = o.organization_id
-    LEFT JOIN corporation c 
-      ON c.corporation_id = o.corporation_id
-    WHERE o.organization_id = $1
-  `;
-  
-  const result = await pool.query<OrganizationRow>(query, [organizationId]);
-  
-  return result.rows.length > 0 ? result.rows[0] : null;
+  const pgp = getPgp();
+
+  const sqlQuery = await loadSqlFile('organizations/findById.sql');
+  const result = await pgp.oneOrNone<OrganizationRow>(sqlQuery, [organizationId]);
+  return result ?? null;
 }
 
 /**
  * OrganizationIDが既に存在するかチェック
- * 
+ *
  * @param organizationId 組織ID
  * @returns 存在する場合true
  */
 export async function existsById(
   organizationId: string
 ): Promise<boolean> {
-  const pool: Pool = getPool();
-  
+  const pgp = getPgp();
+
   const query = `
     SELECT EXISTS (
       SELECT 1
       FROM organization
       WHERE organization_id = $1
-    ) as exists
+    ) AS exists
   `;
-  
-  const result = await pool.query(query, [organizationId]);
-  return result.rows[0].exists;
+
+  const result = await pgp.one<{ exists: boolean }>(query, [organizationId]);
+  return result.exists;
 }
 
 /**
  * Organization CDが既に存在するかチェック
- * 
+ *
  * @param organizationCd 組織CD
+ * @param excludeId チェック時に除外するID（更新時に使用）
  * @returns 存在する場合true
  */
 export async function existsByCd(
   organizationCd: string,
   excludeId?: string
 ): Promise<boolean> {
-  const pool: Pool = getPool();
-  
-  let query = `
-    SELECT EXISTS (
-      SELECT 1
-      FROM organization
-      WHERE organization_cd = $1
-  `;
-  
-  const params: any[] = [organizationCd];
-  
+  const pgp = getPgp();
+
+  let query: string;
+  let params: any[];
+
   if (excludeId !== undefined) {
-    query += ` AND organization_id != $2`;
-    params.push(excludeId);
+    query = `
+      SELECT EXISTS (
+        SELECT 1
+        FROM organization
+        WHERE organization_cd = $1
+          AND organization_id != $2
+      ) AS exists
+    `;
+    params = [organizationCd, excludeId];
+  } else {
+    query = `
+      SELECT EXISTS (
+        SELECT 1
+        FROM organization
+        WHERE organization_cd = $1
+      ) AS exists
+    `;
+    params = [organizationCd];
   }
-  
-  query += `) as exists`;
-  
-  const result = await pool.query(query, params);
-  return result.rows[0].exists;
+
+  const result = await pgp.one<{ exists: boolean }>(query, params);
+  return result.exists;
 }
 
 /**
  * Organizationを新規作成
- * 
+ *
  * @param data Organization情報
  * @param userId ログインユーザーID
  * @returns 作成されたOrganization
@@ -244,8 +223,8 @@ export async function create(
   },
   userId: string
 ): Promise<OrganizationRow> {
-  const pool: Pool = getPool();
-  
+  const pgp = getPgp();
+
   const query = `
     INSERT INTO organization (
       organization_id,
@@ -263,7 +242,7 @@ export async function create(
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
     )
-    RETURNING 
+    RETURNING
       organization_id,
       organization_cd,
       organization_display_name,
@@ -273,7 +252,7 @@ export async function create(
       is_active,
       update_at
   `;
-  
+
   const values = [
     data.organizationId,
     data.organizationCd,
@@ -286,15 +265,13 @@ export async function create(
     userId,
     userId,
   ];
-  
-  const result = await pool.query<OrganizationRow>(query, values);
-  
-  return result.rows[0];
+
+  return await pgp.one<OrganizationRow>(query, values);
 }
 
 /**
  * Organizationを更新
- * 
+ *
  * @param organizationId 組織ID
  * @param data 更新情報
  * @param userId ログインユーザーID
@@ -313,65 +290,64 @@ export async function update(
   },
   userId: string
 ): Promise<OrganizationRow | null> {
-  const pool: Pool = getPool();
-  
+  const pgp = getPgp();
+
   const updates: string[] = [];
   const values: any[] = [organizationId];
   let paramIndex = 2;
-  
+
   if (data.organizationDisplayName !== undefined) {
     updates.push(`organization_display_name = $${paramIndex}`);
     values.push(data.organizationDisplayName);
     paramIndex++;
   }
-  
+
   if (data.organizationEmail !== undefined) {
     updates.push(`organization_email = $${paramIndex}`);
     values.push(data.organizationEmail);
     paramIndex++;
   }
-  
+
   if (data.chiefUserId !== undefined) {
     updates.push(`chief_user_id = $${paramIndex}`);
     values.push(data.chiefUserId);
     paramIndex++;
   }
-  
+
   if (data.corporationId !== undefined) {
     updates.push(`corporation_id = $${paramIndex}`);
     values.push(data.corporationId);
     paramIndex++;
   }
-  
+
   if (data.isEntry !== undefined) {
     updates.push(`is_entry = $${paramIndex}`);
     values.push(data.isEntry);
     paramIndex++;
   }
-  
+
   if (data.isActive !== undefined) {
     updates.push(`is_active = $${paramIndex}`);
     values.push(data.isActive);
     paramIndex++;
   }
-  
+
   if (updates.length === 0) {
-    // 更新対象がない場合は現在のデータを返す
     return await findById(organizationId);
   }
-  
+
   // update_user_id と update_at は常に更新
   updates.push(`update_user_id = $${paramIndex}`);
   values.push(userId);
   paramIndex++;
-  
+
   updates.push(`update_at = NOW()`);
-  
+
   const query = `
     UPDATE organization
     SET ${updates.join(', ')}
     WHERE organization_id = $1
-    RETURNING 
+    RETURNING
       organization_id,
       organization_cd,
       organization_display_name,
@@ -381,20 +357,20 @@ export async function update(
       is_active,
       update_at
   `;
-  
-  const result = await pool.query<OrganizationRow>(query, values);
-  
-  if (result.rows.length === 0) {
+
+  const updated = await pgp.oneOrNone<OrganizationRow>(query, values);
+
+  if (!updated) {
     return null;
   }
-  
+
   // JOINでchief_user_nameとcorporation_nameを取得
   return await findById(organizationId);
 }
 
 /**
  * Organizationのアクティブ状態を更新
- * 
+ *
  * @param organizationId 組織ID
  * @param isActive アクティブ状態
  * @param userId ログインユーザーID
@@ -405,31 +381,27 @@ export async function updateStatus(
   isActive: boolean,
   userId: string
 ): Promise<OrganizationRow | null> {
-  const pool: Pool = getPool();
-  
+  const pgp = getPgp();
+
   const query = `
     UPDATE organization
     SET is_active = $1,
         update_user_id = $2,
         update_at = NOW()
     WHERE organization_id = $3
-    RETURNING 
-      organization_id,
-      organization_cd,
-      organization_display_name,
-      organization_email,
-      chief_user_id,
-      corporation_id,
-      is_active,
-      update_at
+    RETURNING
+      organization_id
   `;
-  
-  const result = await pool.query<OrganizationRow>(query, [isActive, userId, organizationId]);
-  
-  if (result.rows.length === 0) {
+
+  const updated = await pgp.oneOrNone<{ organization_id: string }>(
+    query,
+    [isActive, userId, organizationId]
+  );
+
+  if (!updated) {
     return null;
   }
-  
+
   // JOINでchief_user_nameとcorporation_nameを取得
   return await findById(organizationId);
 }
@@ -437,38 +409,37 @@ export async function updateStatus(
 /**
  * Organizationを削除（物理削除）
  * ※通常はupdateStatusで論理削除を使用することを推奨
- * 
+ *
  * @param organizationId 組織ID
  * @returns 削除された場合true
  */
 export async function deleteById(
   organizationId: string
 ): Promise<boolean> {
-  const pool: Pool = getPool();
-  
+  const pgp = getPgp();
+
   const query = `
     DELETE FROM organization
     WHERE organization_id = $1
   `;
-  
-  const result = await pool.query(query, [organizationId]);
-  
-  return result.rowCount !== null && result.rowCount > 0;
+
+  const result = await pgp.result(query, [organizationId]);
+  return result.rowCount > 0;
 }
 
 /**
  * 組織のシステム管理者一覧を取得
- * 
+ *
  * @param organizationId 組織ID
  * @returns システム管理者の配列
  */
 export async function findSystemAdminsByOrganizationId(
   organizationId: string
 ): Promise<Array<{ user_id: string; user_name: string }>> {
-  const pool: Pool = getPool();
-  
+  const pgp = getPgp();
+
   const query = `
-    SELECT 
+    SELECT
       user_id,
       user_name
     FROM organization_user
@@ -477,18 +448,16 @@ export async function findSystemAdminsByOrganizationId(
       AND is_active = true
     ORDER BY user_name
   `;
-  
-  const result = await pool.query(query, [organizationId]);
-  
-  return result.rows;
+
+  return await pgp.any<{ user_id: string; user_name: string }>(query, [organizationId]);
 }
 
 /**
  * 組織利用者を作成（organization_user）
- * 
+ *
  * @param data 組織利用者情報
- * @param client PostgreSQLクライアント（トランザクション用）
- * @returns 作成された組織利用者
+ * @param userId ログインユーザーID
+ * @param t pg-promiseトランザクションオブジェクト
  */
 export async function createOrganizationUser(
   data: {
@@ -501,7 +470,7 @@ export async function createOrganizationUser(
     isActive: boolean;
   },
   userId: string,
-  client: any
+  t: any
 ): Promise<void> {
   const query = `
     INSERT INTO organization_user (
@@ -520,7 +489,7 @@ export async function createOrganizationUser(
       $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
     )
   `;
-  
+
   const values = [
     data.userId,
     data.organizationId,
@@ -532,17 +501,16 @@ export async function createOrganizationUser(
     userId,
     userId,
   ];
-  
-  await client.query(query, values);
+
+  await t.none(query, values);
 }
 
 /**
  * ロールを作成（role）
- * 
+ *
  * @param data ロール情報
  * @param userId ログインユーザーID
- * @param client PostgreSQLクライアント（トランザクション用）
- * @returns 作成されたロール
+ * @param t pg-promiseトランザクションオブジェクト
  */
 export async function createRole(
   data: {
@@ -553,7 +521,7 @@ export async function createRole(
     isActive: boolean;
   },
   userId: string,
-  client: any
+  t: any
 ): Promise<void> {
   const query = `
     INSERT INTO role (
@@ -571,7 +539,7 @@ export async function createRole(
     )
     ON CONFLICT (organization_id, role_cd) DO NOTHING
   `;
-  
+
   const values = [
     data.organizationId,
     data.roleCd,
@@ -581,17 +549,16 @@ export async function createRole(
     userId,
     userId,
   ];
-  
-  await client.query(query, values);
+
+  await t.none(query, values);
 }
 
 /**
  * ロール権限を一括作成（role_permission）
- * 
+ *
  * @param data ロール権限情報の配列
  * @param userId ログインユーザーID
- * @param client PostgreSQLクライアント（トランザクション用）
- * @returns 作成されたロール権限
+ * @param t pg-promiseトランザクションオブジェクト
  */
 export async function createRolePermissions(
   data: Array<{
@@ -601,26 +568,25 @@ export async function createRolePermissions(
     permission: number;
   }>,
   userId: string,
-  client: any
+  t: any
 ): Promise<void> {
-  // 各権限を順次挿入
+  const query = `
+    INSERT INTO role_permission (
+      organization_id,
+      role_cd,
+      function_cd,
+      permission,
+      create_user_id,
+      update_user_id,
+      create_at,
+      update_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, NOW(), NOW()
+    )
+    ON CONFLICT (organization_id, role_cd, function_cd) DO NOTHING
+  `;
+
   for (const permission of data) {
-    const query = `
-      INSERT INTO role_permission (
-        organization_id,
-        role_cd,
-        function_cd,
-        permission,
-        create_user_id,
-        update_user_id,
-        create_at,
-        update_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, NOW(), NOW()
-      )
-      ON CONFLICT (organization_id, role_cd, function_cd) DO NOTHING
-    `;
-    
     const values = [
       permission.organizationId,
       permission.roleCd,
@@ -629,7 +595,7 @@ export async function createRolePermissions(
       userId,
       userId,
     ];
-    
-    await client.query(query, values);
+
+    await t.none(query, values);
   }
 }

@@ -589,7 +589,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       
       // セッショントークンを取得
-      const sessionToken = sessionStorage.getItem('sessionToken');
+      const sessionToken = localStorage.getItem('sessionToken');
       if (!sessionToken) {
         message.error('セッショントークンが取得できません');
         setLoading(false);
@@ -731,7 +731,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           fixedFilters,
         });
         
-        const sessionToken = sessionStorage.getItem('sessionToken');
+        const sessionToken = localStorage.getItem('sessionToken');
         if (!sessionToken) {
           message.error('セッショントークンが取得できません');
           setLoading(false);
@@ -844,7 +844,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       
       // セッショントークンを取得
-      const sessionToken = sessionStorage.getItem('sessionToken');
+      const sessionToken = localStorage.getItem('sessionToken');
       if (!sessionToken) {
         message.error('セッショントークンが取得できません');
         return;
