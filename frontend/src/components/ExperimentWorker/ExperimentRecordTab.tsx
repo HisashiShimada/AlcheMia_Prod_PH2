@@ -16,7 +16,7 @@ import IssueManagementModal from './IssueManagementModal';
 import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
 import { getIssues, createIssue, addComment } from '@/services/issueApiService';
-import { Method, ProjectStatus, ProgressStatus, Transition, Issue, IssueReportFormData, Task, ExperimentDataValue } from '@/types/experimentWorker';
+import { Method, ProjectStatus, ProgressStatus, Transition, Issue, IssueReportFormData, Task, ExperimentDataValue, isRecordViewableStatus } from '@/types/experimentWorker';
 import { getWorkerTasks } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { createApiClient } from '@/utils/authUtils';
@@ -260,11 +260,10 @@ export default function ExperimentRecordTab({
     fetchProgress();
   }, [fetchProgress]);
 
-  // プロジェクトの状態が記録可能かどうか
-  // executing_task（作業中）のみ記録可能
-  // waiting_approval（承認待ち）、waiting_task（タスク待ち）、completed（完了）は記録不可
-  // projectStatus が null（取得前/エラー）の場合は安全側に倒して true（記録可能）とする
-  const isProjectRecordable = projectStatus === null || projectStatus === 'executing_task';
+  // プロジェクトの状態が記録を参照・操作可能かどうか
+  // waiting_task / executing_task / waiting_approval の場合に活性
+  // projectStatus が null（取得前/エラー）の場合は安全側に倒して true（活性）とする
+  const isProjectRecordable = projectStatus === null || isRecordViewableStatus(projectStatus);
 
   // 記録ボタンクリックハンドラ
   const handleRecordClick = (transition: Transition) => {

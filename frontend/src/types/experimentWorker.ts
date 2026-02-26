@@ -200,11 +200,12 @@ export function isSelectableStatus(status: ProjectStatus): boolean {
 }
 
 /**
- * トランジション記録が可能な状態かどうかを判定
+ * 実験記録の参照・操作が可能な状態かどうかを判定
+ * タスク実行待ち・実行中・承認待ちの場合に記録を参照・操作できる
  * @param status プロジェクト状態
- * @returns 記録可能な場合true
+ * @returns 記録を参照・操作可能な場合true
  */
-export function isRecordableStatus(status: ProjectStatus): boolean {
+export function isRecordViewableStatus(status: ProjectStatus): boolean {
   return ['waiting_task', 'executing_task', 'waiting_approval'].includes(status);
 }
 

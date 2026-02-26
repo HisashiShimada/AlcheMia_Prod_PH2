@@ -5,7 +5,7 @@ import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress, But
 import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
-import { Transition, ExperimentDataValue, ProjectStatus, isRecordableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
+import { Transition, ExperimentDataValue, ProjectStatus, isRecordViewableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
 import { getIssues, createIssue, addComment } from '@/services/issueApiService';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
@@ -352,8 +352,9 @@ export default function TransitionList({
         width: 65,
         align: 'center' as const,
         render: (_: unknown, record: Transition) => {
-          // プロジェクトの状態が記録可能でない場合は非活性化
-          const isProjectRecordable = projectStatus ? isRecordableStatus(projectStatus) : true;
+          // プロジェクトの状態が記録を参照・操作可能でない場合は非活性化
+          // waiting_task / executing_task / waiting_approval の場合に活性
+          const isProjectRecordable = projectStatus === null || isRecordViewableStatus(projectStatus);
           
           return (
             <button
