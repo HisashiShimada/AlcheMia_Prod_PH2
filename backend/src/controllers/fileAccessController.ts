@@ -408,6 +408,63 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
 
 
 /**
+ * ファイル表示用署名付きURL取得エンドポイント
+ * POST /api/v1/files/view-url
+ *
+ * Task: ビューアボタン修正 - 画像・TIFFファイルの表示用URL取得
+ * - ファイルキーを直接指定して表示用の署名付きURLを返す
+ * - Content-Dispositionを付与しない（ブラウザでインライン表示可能）
+ */
+export async function getFileViewUrl(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId } = req.user!;
+    const { fileKey } = req.body;
+
+    const repository = new FileMetadataRepository();
+    const accessValidator = new ProjectAccessValidator();
+    const service = new FileAccessService(repository, accessValidator);
+
+    const result = await service.getSignedViewUrl(organizationId, fileKey);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error: any) {
+    logError('File view URL error', error, {
+      action: 'file_view_url',
+      organizationId: req.user?.organizationId,
+      fileKey: req.body?.fileKey,
+      requestId,
+    });
+
+    let statusCode = 500;
+    let errorCode = 'SYSTEM_ERROR';
+    let errorMessage = 'システムエラーが発生しました';
+
+    if (error.message) {
+      if (error.message.includes('見つかりません') || error.message.includes('存在しません')) {
+        statusCode = 404;
+        errorCode = 'RESOURCE_NOT_FOUND';
+        errorMessage = error.message;
+      }
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: { code: errorCode, message: errorMessage },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
  * バッチ履歴取得
  * GET /api/v1/files/batches
  * 

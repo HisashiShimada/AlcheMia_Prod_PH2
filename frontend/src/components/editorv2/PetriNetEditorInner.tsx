@@ -400,7 +400,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   
   // ワークフロー追加フック
   const { addWorkflow } = useWorkflow({
-    projectId: documentData?.id || 'default-project',
     addToHistory: (action: string, data: unknown) => {
       // useHistoryのpushStateは{ nodes, edges }形式を期待するため、変換
       if (action === 'addWorkflow' && typeof data === 'object' && data !== null) {
@@ -892,9 +891,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
               } else {
                 const errorText = validateResponse.error ;
                 console.error('❌ [PetriNetEditorInner] バリデーションAPIエラー:', {
-                  // status: errorText.code,
-                  // statusText: validateResponse.statusText,
-                  // errorText: errorText.substring(0, 500)
+                  errorText
                 });
               }
             } catch (validateErr: unknown) {
@@ -2762,8 +2759,6 @@ interface PetriNetEditorInnerUIProps {
 const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   nodes,
   edges,
-  setNodes,
-  setEdges,
   onNodesChange,
   onEdgesChange,
   handleNodeClick,
@@ -2777,7 +2772,6 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   nodeTypes,
   pressedKeys,
   methods,
-  multiMethodMode,
   activeMethodIndex,
   handleMethodChange,
   handleAddMethod,
@@ -2819,7 +2813,6 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   validationResult,
   handleCloseSaveConfirmDialog,
   handleSaveConfirmAction,
-  isSaving,
   templateEditorOpen,
   handleCloseTemplateEditor,
   templateEditNode,

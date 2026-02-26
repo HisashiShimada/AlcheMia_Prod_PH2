@@ -77,7 +77,6 @@ export type NodeType =
  * useWorkflowパラメータの型定義（Phase 9拡張版）
  */
 export interface UseWorkflowParams {
-  projectId: string;
   addToHistory: (action: string, data: unknown) => void;
 }
 
@@ -127,7 +126,6 @@ export interface UseWorkflowReturn {
  * @returns ワークフロー操作関数と状態
  */
 export const useWorkflow = ({
-  projectId,
   addToHistory
 }: UseWorkflowParams): UseWorkflowReturn => {
   

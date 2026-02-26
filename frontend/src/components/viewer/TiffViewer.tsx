@@ -3,7 +3,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Space, Typography, Alert, Flex } from 'antd';
 import { 
   ZoomInOutlined, 
@@ -12,6 +12,7 @@ import {
   DownloadOutlined,
   FileImageOutlined
 } from '@ant-design/icons';
+import { getFileViewUrl } from '@/services/fileAccessService';
 
 const { Title, Text } = Typography;
 
@@ -26,46 +27,67 @@ interface TiffViewerProps {
  */
 const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
   const [scale, setScale] = useState(1);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [urlError, setUrlError] = useState<string | null>(null);
 
-  // バイナリURLの生成（タイムスタンプ付き）
-  // const imageUrl = `/api/s3/file-binary?key=${encodeURIComponent(fileKey)}&t=${new Date().getTime()}`;
-  
-  // ✅ API呼び出しをコメントアウト - モック用
-  const imageUrl = '#'; // モック: 実際のAPIエンドポイント
+  useEffect(() => {
+    if (!fileKey) return;
 
-  /**
-   * 拡大
-   */
-  const handleZoomIn = (): void => {
+    let isMounted = true;
+
+    const fetchUrl = async () => {
+      try {
+        console.log('🔍 [TiffViewer] 署名付きURLを取得中:', fileKey);
+        const url = await getFileViewUrl(fileKey);
+        if (isMounted) {
+          setSignedUrl(url);
+          setUrlError(null);
+          console.log('✅ [TiffViewer] URL取得成功');
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('❌ [TiffViewer] URL取得エラー:', err);
+          setUrlError(`URLの取得に失敗しました: ${err instanceof Error ? err.message : '不明なエラー'}`);
+        }
+      }
+    };
+
+    fetchUrl();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fileKey]);
+
+  /** 拡大 */
+  const handleZoomIn = useCallback((): void => {
     setScale(prevScale => Math.min(prevScale * 1.2, 5));
-  };
+  }, []);
 
-  /**
-   * 縮小
-   */
-  const handleZoomOut = (): void => {
+  /** 縮小 */
+  const handleZoomOut = useCallback((): void => {
     setScale(prevScale => Math.max(prevScale / 1.2, 0.1));
-  };
+  }, []);
 
-  /**
-   * リセット
-   */
-  const handleReset = (): void => {
+  /** リセット */
+  const handleReset = useCallback((): void => {
     setScale(1);
-  };
+  }, []);
 
   /**
-   * ダウンロード
+   * ダウンロード（署名付きURLを使用）
    */
-  const handleDownload = (): void => {
-    // ✅ モック: 実際のダウンロード処理
-    // const link = document.createElement('a');
-    // link.href = imageUrl;
-    // link.download = fileName;
-    // link.click();
-    console.log('TIFFファイルダウンロード:', fileName);
-    alert(`モック: ${fileName} をダウンロードします`);
-  };
+  const handleDownload = useCallback((): void => {
+    if (!signedUrl) {
+      console.warn('[TiffViewer] ダウンロードURLがまだ取得されていません');
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = signedUrl;
+    link.download = fileName;
+    link.click();
+    console.log('✅ [TiffViewer] TIFFファイルダウンロード開始:', fileName);
+  }, [signedUrl, fileName]);
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -109,6 +131,7 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
               size="small"
               icon={<DownloadOutlined />}
               onClick={handleDownload}
+              disabled={!signedUrl}
             >
               ダウンロード
             </Button>
@@ -127,6 +150,15 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
         background: '#f5f5f5'
       }}>
         <Space orientation="vertical" size="large" style={{ textAlign: 'center' }}>
+          {urlError && (
+            <Alert
+              message="URLの取得に失敗しました"
+              description={urlError}
+              type="error"
+              showIcon
+            />
+          )}
+
           <Alert
             message="TIFFファイルが選択されました"
             description={
@@ -149,16 +181,13 @@ const TiffViewer: React.FC<TiffViewerProps> = ({ fileKey, fileName }) => {
             size="large"
             icon={<DownloadOutlined />}
             onClick={handleDownload}
+            disabled={!signedUrl}
           >
             TIFFファイルをダウンロード
           </Button>
 
-          {/* モック表示用の情報 */}
           <Card size="small" style={{ marginTop: 16 }}>
             <Space orientation="vertical" size="small">
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                <strong>モックモード:</strong> API呼び出しはコメントアウトされています
-              </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 ファイルキー: {fileKey}
               </Text>

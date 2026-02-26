@@ -10,6 +10,7 @@ import { CloseOutlined, MinusOutlined, ExpandOutlined } from '@ant-design/icons'
 import { Rnd } from 'react-rnd';
 import ViewRenderer from './ViewRenderer';
 import SubNetViewer from './dialogs/SubNetViewer';
+import { getFileContentAsText } from '@/services/fileAccessService';
 
 const { Text } = Typography;
 
@@ -59,6 +60,8 @@ interface ViewRendererDialogProps {
   id: string;
   contentType: 'file' | 'subnet' | 'edit';
   file?: FileData;
+  /** 外部から渡すファイルコンテンツ（省略時はAPIから取得） */
+  fileContent?: string | null;
   subnetData?: SubnetData;
   zIndex: number;
   initialPosition?: { x: number; y: number };
@@ -67,39 +70,6 @@ interface ViewRendererDialogProps {
   onFocus: (id: string) => void;
   onOpenSubNetViewer?: (subnetData: SubnetData) => void;
 }
-
-/**
- * ファイルコンテンツをロードする関数
- */
-const loadFileContent = async (file: FileData): Promise<string | null> => {
-  try {
-    // MAIMLファイルの場合、test_omori11.maimlを読み込む
-    if (file.type === 'maiml') {
-      console.log('🔍 [ViewRendererDialog] MAIMLファイルを読み込み中:', file.name);
-      const response = await fetch('/data/mock/test_omori11.maiml');
-      
-      if (!response.ok) {
-        console.error('❌ [ViewRendererDialog] HTTPエラー:', response.status, response.statusText);
-        throw new Error(`Failed to load MAIML file: ${response.status} ${response.statusText}`);
-      }
-      
-      const content = await response.text();
-      console.log('✅ [ViewRendererDialog] ファイル読み込み成功:', {
-        size: content.length,
-        firstChars: content.substring(0, 100),
-      });
-      
-      return content;
-    }
-    
-    // その他のファイルタイプは今のところコンテンツなし
-    return null;
-  } catch (error) {
-    console.error('❌ [ViewRendererDialog] ファイル読み込みエラー:', error);
-    message.error(`ファイルの読み込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
-    return null;
-  }
-};
 
 /**
  * ViewRendererDialog コンポーネント
@@ -111,6 +81,7 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
   id,
   contentType,
   file,
+  fileContent: externalFileContent,
   subnetData,
   zIndex,
   initialPosition = { x: 100, y: 100 },
@@ -129,15 +100,39 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
       return;
     }
 
+    // 外部からコンテンツが渡されている場合はそのまま使用（APIスキップ）
+    if (externalFileContent !== undefined) {
+      setFileContent(externalFileContent ?? null);
+      return;
+    }
+
+    // MAIMLファイルのみAPIからテキストを取得
+    if (file.type !== 'maiml') {
+      setFileContent(null);
+      return;
+    }
+
     let isMounted = true;
 
     const loadContent = async () => {
       setLoading(true);
-      const content = await loadFileContent(file);
-      
-      if (isMounted) {
-        setFileContent(content);
-        setLoading(false);
+      try {
+        console.log('🔍 [ViewRendererDialog] MAIMLファイルをS3から読み込み中:', file.name, 'path:', file.path);
+        const content = await getFileContentAsText(file.path);
+        if (isMounted) {
+          setFileContent(content);
+          console.log('✅ [ViewRendererDialog] ファイル読み込み成功:', { size: content.length });
+        }
+      } catch (error) {
+        console.error('❌ [ViewRendererDialog] ファイル読み込みエラー:', error);
+        message.error(`ファイルの読み込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+        if (isMounted) {
+          setFileContent(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -146,7 +141,7 @@ const ViewRendererDialog: React.FC<ViewRendererDialogProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [contentType, file]);
+  }, [contentType, file, externalFileContent]);
 
   // タイトル取得
   const getTitle = () => {
