@@ -17,7 +17,7 @@ import MethodTaskSelectionModal from './MethodTaskSelectionModal';
 import MethodTaskSelector from './MethodTaskSelector';
 import { getIssues, createIssue, addComment } from '@/services/issueApiService';
 import { Method, ProjectStatus, ProgressStatus, Transition, Issue, IssueReportFormData, Task, ExperimentDataValue } from '@/types/experimentWorker';
-import { getWorkerTasks, getProjectDetail } from '@/services/projectApiService';
+import { getWorkerTasks } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { createApiClient } from '@/utils/authUtils';
 
@@ -46,6 +46,8 @@ interface ExperimentRecordTabProps {
   onSelectTask: (taskId: string) => void;
   onTaskCreated: (newTaskId: string) => void;
   selectedMethod: Method | null;
+  /** 選択中プロジェクトのステータス（数値）: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了 */
+  selectedProjectStatus: number | null;
 }
 
 /**
@@ -61,6 +63,7 @@ export default function ExperimentRecordTab({
   onSelectTask,
   onTaskCreated,
   selectedMethod,
+  selectedProjectStatus,
 }: ExperimentRecordTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
@@ -84,64 +87,27 @@ export default function ExperimentRecordTab({
   const [projectId, setProjectId] = useState<string | null>(null);
   const [progressData, setProgressData] = useState<Record<string, unknown>[]>([]);
   
-  // プロジェクトのステータス（APIから取得）
-  const [projectStatus, setProjectStatus] = useState<ProjectStatus | null>(null);
-  
   /**
-   * バックエンドの project_status 値をフロントエンドの ProjectStatus 型にマッピング
+   * worker-accessible APIの数値ステータスをフロントエンドの ProjectStatus 型にマッピング
+   * 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
    */
-  const mapBackendStatusToProjectStatus = (backendStatus: string): ProjectStatus | null => {
-    switch (backendStatus) {
-      case 'active':
-      case 'in_progress':
-        return 'executing_task';
-      case 'created':
-      case 'checked_in':
+  const mapNumericStatusToProjectStatus = (status: number | null): ProjectStatus | null => {
+    switch (status) {
+      case 1:
         return 'waiting_task';
-      case 'waiting_approval':
+      case 2:
+        return 'executing_task';
+      case 3:
         return 'waiting_approval';
-      case 'approved':
+      case 4:
         return 'completed';
       default:
-        console.warn('[mapBackendStatusToProjectStatus] 未知のステータス:', backendStatus);
         return null;
     }
   };
 
-  // projectId が確定したらプロジェクトステータスを取得
-  useEffect(() => {
-    const fetchProjectStatus = async () => {
-      if (!projectId) {
-        setProjectStatus(null);
-        return;
-      }
-
-      try {
-        console.log('[DEBUG] ExperimentRecordTab - Fetching project status', { projectId });
-
-        const result = await getProjectDetail(projectId);
-
-        if (result.success && result.data) {
-          const mappedStatus = mapBackendStatusToProjectStatus(result.data.project_status);
-          console.log('[DEBUG] ExperimentRecordTab - Project status fetched', {
-            backendStatus: result.data.project_status,
-            mappedStatus,
-          });
-          setProjectStatus(mappedStatus);
-        } else {
-          console.warn('[DEBUG] ExperimentRecordTab - getProjectDetail returned unsuccessful');
-          setProjectStatus(null);
-        }
-      } catch (error) {
-        console.error('[DEBUG] ExperimentRecordTab - Error fetching project status', error);
-        // エラー時は null のまま（isProjectRecordable = true で安全側に倒す）
-        setProjectStatus(null);
-      }
-    };
-
-    fetchProjectStatus();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  // prop から受け取った数値ステータスを ProjectStatus 型に変換
+  const projectStatus: ProjectStatus | null = mapNumericStatusToProjectStatus(selectedProjectStatus);
 
   // プロジェクト選択時にAPI呼び出し
   useEffect(() => {
