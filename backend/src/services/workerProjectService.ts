@@ -10,7 +10,6 @@
 
 import { logger } from '../utils/logger';
 import * as workerProjectRepository from '../repositories/workerProjectRepository';
-import { PROJECT_STATUS_MAP } from '../types/project';
 import type {
   WorkerProjectService as IWorkerProjectService,
   ListWorkerProjectsParams,
@@ -81,12 +80,12 @@ export class WorkerProjectService implements IWorkerProjectService {
       // ページネーション情報の計算
       const totalPages = Math.ceil(totalItems / params.limit);
 
-      // データ変換（DBの命名からAPIの命名へ + 数値→文字列ステータス変換）
+      // データ変換（DBの命名からAPIの命名へ）
       const items: WorkerAccessibleProject[] = projects.map((project) => ({
         projectId: project.project_id,
         projectName: project.project_name,
         description: project.description || '',
-        projectStatus: PROJECT_STATUS_MAP[project.project_status] || 'pending',
+        projectStatus: project.project_status,
         createdAt: new Date(project.create_at).toISOString(),
         updatedAt: new Date(project.update_at).toISOString(),
       }));

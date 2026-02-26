@@ -4,12 +4,36 @@
  */
 import Papa from 'papaparse';
 import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcrypt';
 import * as organizationRepository from '../repositories/organizationManagementRepository';
 import { OrganizationSearchFilters } from '../repositories/organizationManagementRepository';
 import { getPool } from '../database/db';
 import { generateAndSaveCertificate } from './certificateService';
 import { getStorageService } from './storageService';
 import { logger } from '../utils/logger';
+
+/**
+ * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）
+ */
+function generateRandomPassword(): string {
+  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
+  const digits = '0123456789';
+  const symbols = '!@#$%^&*';
+  const all = upper + lower + digits + symbols;
+  // 各種別から最低1文字ずつ確保
+  let password =
+    upper.charAt(Math.floor(Math.random() * upper.length)) +
+    lower.charAt(Math.floor(Math.random() * lower.length)) +
+    digits.charAt(Math.floor(Math.random() * digits.length)) +
+    symbols.charAt(Math.floor(Math.random() * symbols.length));
+  // 残り8文字をランダムに追加
+  for (let i = 0; i < 8; i++) {
+    password += all.charAt(Math.floor(Math.random() * all.length));
+  }
+  // シャッフル
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+}
 
 /**
  * Organizationレスポンス型定義（API型）
@@ -118,6 +142,7 @@ export async function getOrganizationById(
  * 2. organization_user（組織利用者） - 代表システム管理者
  * 3. role（ロール） - ROLE002（システム管理者）
  * 4. role_permission（ロール権限） - 4つの機能権限
+ * 5. user_authentication（利用者認証） - パスワード認証情報
  * 
  * @param data Organization情報
  * @param userId ログインユーザーID
@@ -132,6 +157,7 @@ export async function createOrganization(
     chiefUserId?: string;
     chiefUserName?: string;
     chiefUserEmail?: string;
+    chiefUserPassword?: string;
     corporationId?: string;
     isEntry?: number;
     isActive?: boolean;
@@ -209,7 +235,6 @@ export async function createOrganization(
           roleCd: 'ROLE002',                     // システム管理者
           mailAddress: data.chiefUserEmail,      // mail_address = 代表者メールアドレス
           departmentCd: null,                    // Null
-          lockedUntil: null,                     // Null
           isActive: true,                        // True
         },
         userId,
@@ -236,29 +261,71 @@ export async function createOrganization(
         organizationId: data.organizationId,
         roleCd: 'ROLE002',
         functionCd: '020000',                  // システム管理者メニュー
-        permission: 0,                          // 書込可
+        permission: 1,                          // 書込可
       },
       {
         organizationId: data.organizationId,
         roleCd: 'ROLE002',
         functionCd: '030000',                  // データ管理者メニュー
-        permission: 0,                          // 書込可
+        permission: 1,                          // 書込可
       },
       {
         organizationId: data.organizationId,
         roleCd: 'ROLE002',
         functionCd: '040000',                  // 実験管理者メニュー
-        permission: 0,                          // 書込可
+        permission: 1,                          // 書込可
       },
       {
         organizationId: data.organizationId,
         roleCd: 'ROLE002',
         functionCd: '050000',                  // 実験作業者メニュー
-        permission: 0,                          // 書込可
+        permission: 1,                          // 書込可
       },
     ];
     
     await organizationRepository.createRolePermissions(permissions, userId, client);
+    
+    // 5. user_authenticationテーブルに挿入（パスワード認証情報）
+    if (data.chiefUserEmail) {
+      // ランダムパスワードを自動生成
+      const plainPassword = generateRandomPassword();
+      console.log(`Password:${plainPassword}`);
+      
+      // パスワードをbcryptでハッシュ化（12 rounds）
+      const saltRounds = 12;
+      const passwordHash = await bcrypt.hash(plainPassword, saltRounds);
+      
+      // パスワード有効期限：保存ボタン押下時のタイムスタンプ（現在日時）
+      const passwordExpiresAt = new Date();
+      
+      const authQuery = `
+        INSERT INTO user_authentication (
+          user_id,
+          organization_id,
+          password,
+          is_temporary_flg,
+          password_expires_at,
+          create_user_id,
+          update_user_id,
+          create_at,
+          update_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+        )
+      `;
+      
+      const authValues = [
+        data.chiefUserEmail,         // user_id（代表者メールアドレス）
+        data.organizationId,         // organization_id
+        passwordHash,                // password（bcryptハッシュ）
+        true,                        // is_temporary_flg（仮パスワード）
+        passwordExpiresAt,           // password_expires_at（有効期限）
+        userId,                      // create_user_id
+        userId,                      // update_user_id
+      ];
+      
+      await client.query(authQuery, authValues);
+    }
     
     await client.query('COMMIT');
     
@@ -657,7 +724,7 @@ export async function uploadOrganizationsCsv(
       }
       
       // createOrganization関数を使用（組織追加ダイアログと同じ処理）
-      // これにより organization, organization_user, role, role_permission への挿入が自動的に行われる
+      // パスワードはcreateOrganization内でランダム自動生成される
       await createOrganization({
         organizationId: uuidv4(),
         organizationCd,
