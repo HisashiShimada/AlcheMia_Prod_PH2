@@ -425,40 +425,23 @@ export default function ExperimentRecordTab({
     }
   };
 
-  // 進捗データをトランジションにマージ
+  // 進捗APIから取得したデータをトランジション一覧に変換
+  // selectedMethod.transitions は常に空配列のため、progressData を起点にマッピングする
   const transitionsWithProgress = useMemo(() => {
-    if (!selectedMethod) {
+    if (!progressData || progressData.length === 0) {
       return [];
     }
 
-    return selectedMethod.transitions.map(transition => {
-      // APIから取得した進捗データを検索
-      const progress = progressData.find(p => p.transition_id === transition.transitionId);
-
-      if (progress) {
-        // 進捗データが見つかった場合、ステータスと進捗率をマージ
-        // APIレスポンスのstatusは既に文字列（'not_started' | 'in_progress' | 'completed'）
-        return {
-          ...transition,
-          status: ((progress.status as string) || 'not_started') as ProgressStatus,
-          progressRate: (progress.progress as number) ?? 0,
-          inputMaterialsCount: 0, // TODO: 将来的にAPI追加
-          inputIngredientsCount: 0, // TODO: 将来的にAPI追加
-          inputResultsCount: 0, // TODO: 将来的にAPI追加
-        };
-      }
-
-      // 進捗データが見つからない場合、デフォルト値を設定
-      return {
-        ...transition,
-        status: 'not_started' as const,
-        progressRate: 0,
-        inputMaterialsCount: 0,
-        inputIngredientsCount: 0,
-        inputResultsCount: 0
-      };
-    });
-  }, [selectedMethod, progressData]);
+    return progressData.map(progress => ({
+      transitionId: progress.transition_id as string,
+      transitionName: (progress.transition_name as string) ?? '',
+      status: ((progress.status as string) || 'not_started') as ProgressStatus,
+      progressRate: (progress.progress as number) ?? 0,
+      inputMaterialsCount: 0, // TODO: 将来的にAPI追加
+      inputIngredientsCount: 0, // TODO: 将来的にAPI追加
+      inputResultsCount: 0, // TODO: 将来的にAPI追加
+    }));
+  }, [progressData]);
 
   // フロー図に切り替え
   const handleSwitchToFlow = () => {
@@ -492,7 +475,7 @@ export default function ExperimentRecordTab({
       />
 
       {/* 表示切り替えボタン */}
-      {selectedProject && selectedMethod && (
+      {selectedProject && selectedMethodId && (
         <div style={{ marginBottom: 8, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
           <Space size="middle">
             {viewMode === 'list' ? (
@@ -532,7 +515,7 @@ export default function ExperimentRecordTab({
               </Text>
             </Space>
           </Card>
-        ) : !selectedMethod ? (
+        ) : !selectedMethodId ? (
           <Card style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
