@@ -292,7 +292,7 @@ export default function IssueManagementModal({
       footer={null}
       width={1200}
       style={{ top: 20 }}
-      destroyOnClose
+      destroyOnHidden
     >
       {/* 新規問題報告ボタン（参照専用モードまたは承認依頼中は非活性） */}
       {!viewMode && (
