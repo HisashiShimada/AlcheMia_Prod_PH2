@@ -250,8 +250,9 @@ export default function ExperimentRecordTab({
     }
 
     // selectedTaskIdからtaskNoを抽出（形式: projectId-methodId-taskNo）
+    // projectId は UUID（ハイフン含む）のため末尾要素を取得する
     const parts = selectedTaskId.split('-');
-    const taskNo = parts.length > 2 ? parseInt(parts[2], 10) : null;
+    const taskNo = parts.length > 0 ? parseInt(parts[parts.length - 1], 10) : null;
 
     if (taskNo === null || isNaN(taskNo)) {
       console.error('[DEBUG] ExperimentRecordTab - Invalid taskNo', { selectedTaskId });
