@@ -37,11 +37,23 @@ export interface TransitionProgress {
   /** 最終更新日時（ISO 8601形式）またはnull */
   last_updated: string | null;
   
-  /** 実験記録データの有無 */
-  has_data: boolean;
+  /** MAIMLファイルから取得したトランジションに紐づく材料の定義数 */
+  material_count: number;
   
-  /** 実験記録データ件数 */
-  data_count: number;
+  /** DBから取得したトランジションに紐づく材料の実績数 */
+  material_actual_count: number;
+  
+  /** MAIMLファイルから取得したトランジションに紐づく条件の定義数 */
+  condition_count: number;
+  
+  /** DBから取得したトランジションに紐づく条件の実績数 */
+  condition_actual_count: number;
+  
+  /** MAIMLファイルから取得したトランジションに紐づく結果の定義数 */
+  result_count: number;
+  
+  /** DBから取得したトランジションに紐づく結果の実績数 */
+  result_actual_count: number;
 }
 
 /**

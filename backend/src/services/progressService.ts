@@ -210,6 +210,8 @@ export class ProgressService {
       const transitionStartTime = Date.now();
       const transitions = await this.getTransitionsProgress(
         method.transitions,
+        method.places,
+        method.arcs,
         organizationId,
         projectId,
         methodId,
@@ -394,6 +396,8 @@ export class ProgressService {
    */
   private async getTransitionsProgress(
     transitions: any[],
+    places: any[],
+    arcs: any[],
     organizationId: string,
     projectId: string,
     methodId: string,
@@ -404,6 +408,8 @@ export class ProgressService {
       transitions.map(async (transition) => {
         return await this.getSingleTransitionProgress(
           transition,
+          places,
+          arcs,
           organizationId,
           projectId,
           methodId,
@@ -421,23 +427,67 @@ export class ProgressService {
    */
   private async getSingleTransitionProgress(
     transition: any,
+    places: any[],
+    arcs: any[],
     organizationId: string,
     projectId: string,
     methodId: string,
     taskNo: number
   ): Promise<TransitionProgress> {
+    // トランジションに接続するプレースIDを取得（アーク経由）
+    const connectedPlaceIds: string[] = places
+      .filter((p: any) => arcs.some((a: any) =>
+        (a.source === transition.id && a.target === p.id) ||
+        (a.target === transition.id && a.source === p.id)
+      ))
+      .map((p: any) => p.id);
+
+    // MAIMLから取得した定義数を算出（ステレオタイプ別カウント）
+    const materialCount = places.filter((p: any) =>
+      connectedPlaceIds.includes(p.id) && p.data?.stereotype === 'materialTemplate'
+    ).length;
+
+    const conditionCount = places.filter((p: any) =>
+      connectedPlaceIds.includes(p.id) && p.data?.stereotype === 'conditionTemplate'
+    ).length;
+
+    const resultCount = places.filter((p: any) =>
+      connectedPlaceIds.includes(p.id) && p.data?.stereotype === 'resultTemplate'
+    ).length;
+
+    // DBから取得した実績数を算出
+    let materialActualCount = 0;
+    let conditionActualCount = 0;
+    let resultActualCount = 0;
+
+    if (connectedPlaceIds.length > 0) {
+      try {
+        const { getPgp } = await import('../database/db');
+        const pgp = getPgp();
+        const countSql = await loadSqlFile('template_data/countActualByPlaceIds.sql');
+        const countRows = await pgp.any<{ template_type: string; count: string }>(
+          countSql,
+          [organizationId, projectId, methodId, taskNo, connectedPlaceIds]
+        );
+
+        for (const row of countRows) {
+          if (row.template_type === 'materialTemplate') {
+            materialActualCount = Number(row.count);
+          } else if (row.template_type === 'conditionTemplate') {
+            conditionActualCount = Number(row.count);
+          } else if (row.template_type === 'resultTemplate') {
+            resultActualCount = Number(row.count);
+          }
+        }
+      } catch (dbError) {
+        logger.error(`[ProgressService] 実績数取得エラー: ${transition.id}`, { dbError });
+        // エラー時は0のまま継続
+      }
+    }
+
     try {
       // 最新レコード取得
       const latestRecord = await this.transitionDataRepository.getLatestRecordByTransition(
-        organizationId,
-        projectId,
-        methodId,
-        taskNo,
-        transition.id
-      );
-
-      // データ件数取得
-      const dataCount = await this.transitionDataRepository.countRecordsByTransition(
         organizationId,
         projectId,
         methodId,
@@ -453,14 +503,18 @@ export class ProgressService {
           status: 'not_started',
           progress: 0,
           last_updated: null,
-          has_data: false,
-          data_count: 0
+          material_count: materialCount,
+          material_actual_count: materialActualCount,
+          condition_count: conditionCount,
+          condition_actual_count: conditionActualCount,
+          result_count: resultCount,
+          result_actual_count: resultActualCount
         };
       }
 
       // Status型をTransitionStatus型に変換
       const transitionStatus = this.convertStatusToTransitionStatus(latestRecord.status);
-      
+
       // ステータスと進捗率の整合性チェック
       const progress = this.normalizeProgress(transitionStatus, latestRecord.progress_rate);
 
@@ -470,13 +524,17 @@ export class ProgressService {
         status: transitionStatus,
         progress,
         last_updated: latestRecord.updated_at.toISOString(),
-        has_data: dataCount > 0,
-        data_count: dataCount
+        material_count: materialCount,
+        material_actual_count: materialActualCount,
+        condition_count: conditionCount,
+        condition_actual_count: conditionActualCount,
+        result_count: resultCount,
+        result_actual_count: resultActualCount
       };
 
     } catch (error) {
-      console.error(`[ProgressService] トランジション進捗取得エラー: ${transition.id}`, error);
-      
+      logger.error(`[ProgressService] トランジション進捗取得エラー: ${transition.id}`, { error });
+
       // エラー時はnot_startedとして扱う
       return {
         transition_id: transition.id,
@@ -484,8 +542,12 @@ export class ProgressService {
         status: 'not_started',
         progress: 0,
         last_updated: null,
-        has_data: false,
-        data_count: 0
+        material_count: materialCount,
+        material_actual_count: materialActualCount,
+        condition_count: conditionCount,
+        condition_actual_count: conditionActualCount,
+        result_count: resultCount,
+        result_actual_count: resultActualCount
       };
     }
   }

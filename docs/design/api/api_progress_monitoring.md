@@ -1,8 +1,8 @@
 # 進捗確認API仕様書
 
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-02-18 17:58  
-**バージョン**: 1.4.1  
+**最終更新**: 2026-02-26 20:07  
+**バージョン**: 1.4.2  
 **対象画面**: 実験管理者 - 進捗確認画面、実験作業者 - 実験記録画面  
 **総API数**: 6個  
 **実装状況**: 1個実装済み、5個未実装
@@ -623,21 +623,39 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
         "transition_name": "材料準備",
         "status": "completed",
         "progress": 100,
-        "last_updated": "2026-01-21T14:00:00Z"
+        "last_updated": "2026-01-21T14:00:00Z",
+        "material_count": 3,
+        "material_actual_count": 3,
+        "condition_count": 2,
+        "condition_actual_count": 2,
+        "result_count": 1,
+        "result_actual_count": 1
       },
       {
         "transition_id": "t2",
         "transition_name": "反応実験",
         "status": "in_progress",
         "progress": 45,
-        "last_updated": "2026-01-21T15:30:00Z"
+        "last_updated": "2026-01-21T15:30:00Z",
+        "material_count": 4,
+        "material_actual_count": 2,
+        "condition_count": 3,
+        "condition_actual_count": 1,
+        "result_count": 2,
+        "result_actual_count": 0
       },
       {
         "transition_id": "t3",
         "transition_name": "結果測定",
         "status": "not_started",
         "progress": 0,
-        "last_updated": null
+        "last_updated": null,
+        "material_count": 2,
+        "material_actual_count": 0,
+        "condition_count": 1,
+        "condition_actual_count": 0,
+        "result_count": 3,
+        "result_actual_count": 0
       }
     ],
     "overall_progress": {
@@ -720,6 +738,40 @@ const transitions = await Promise.all(
       .select(db.fn.count('record_id').as('count'))
       .executeTakeFirstOrThrow();
 
+    // MAIMLファイルからトランジションに紐づく材料・条件・結果の定義数を取得
+    const transitionNode = transition; // MAIMLパーサーが返すトランジション情報
+    const materialCount = transitionNode.materials?.length ?? 0;
+    const conditionCount = transitionNode.conditions?.length ?? 0;
+    const resultCount = transitionNode.results?.length ?? 0;
+
+    // DBから材料・条件・結果の実績データ数を取得
+    const actualCounts = await db
+      .selectFrom('experiment_record_detail')
+      .where('task_id', '=', taskId)
+      .where('transition_id', '=', transition.id)
+      .where('organization_id', '=', organizationId)
+      .select([
+        db.fn.count(
+          db.case()
+            .when('data_type', '=', 'material')
+            .then(1)
+            .end()
+        ).as('material_actual_count'),
+        db.fn.count(
+          db.case()
+            .when('data_type', '=', 'condition')
+            .then(1)
+            .end()
+        ).as('condition_actual_count'),
+        db.fn.count(
+          db.case()
+            .when('data_type', '=', 'result')
+            .then(1)
+            .end()
+        ).as('result_actual_count')
+      ])
+      .executeTakeFirstOrThrow();
+
     return {
       transition_id: transition.id,
       transition_name: transition.name,
@@ -728,7 +780,13 @@ const transitions = await Promise.all(
       last_updated: records?.last_updated || null,
       comment: records?.comment || null,
       has_data: (dataCount.count as number) > 0,
-      data_count: Number(dataCount.count)
+      data_count: Number(dataCount.count),
+      material_count: materialCount,
+      material_actual_count: Number(actualCounts.material_actual_count),
+      condition_count: conditionCount,
+      condition_actual_count: Number(actualCounts.condition_actual_count),
+      result_count: resultCount,
+      result_actual_count: Number(actualCounts.result_actual_count)
     };
   })
 );
@@ -1730,6 +1788,16 @@ const validateStatusUpdate = (body: any) => {
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.4.2 | 2026-02-26 | 進捗データ取得API レスポンス仕様修正 | Cline |
+| | | - API #3: 各トランジションに材料・条件・結果の定義数と実績数を追加 | |
+| | | - `material_count`: MAIMLファイルから取得したトランジションに紐づく材料の定義数 | |
+| | | - `material_actual_count`: DBから取得した材料の実績数 | |
+| | | - `condition_count`: MAIMLファイルから取得したトランジションに紐づく条件の定義数 | |
+| | | - `condition_actual_count`: DBから取得した条件の実績数 | |
+| | | - `result_count`: MAIMLファイルから取得したトランジションに紐づく結果の定義数 | |
+| | | - `result_actual_count`: DBから取得した結果の実績数 | |
+| | | - 実装要件にMAIMLパーサーによる定義数取得処理を追記 | |
+| | | - 実装要件にexperiment_record_detailテーブルからの実績カウントクエリを追記 | |
 | 1.4.0 | 2026-02-18 | トランジションステータス更新API追加（6エンドポイント） | Cline |
 | | | - API #6: PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status | |
 | | | - 実験データ記録APIから進捗確認APIに移動 | |

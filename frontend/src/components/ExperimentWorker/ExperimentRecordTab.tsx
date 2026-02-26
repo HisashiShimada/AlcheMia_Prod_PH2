@@ -427,6 +427,13 @@ export default function ExperimentRecordTab({
 
   // 進捗APIから取得したデータをトランジション一覧に変換
   // selectedMethod.transitions は常に空配列のため、progressData を起点にマッピングする
+  // APIレスポンスフィールド対応:
+  //   material_count       → totalMaterialsCount  (MAIMLから取得した材料の定義数)
+  //   material_actual_count → inputMaterialsCount  (DBから取得した材料の実績数)
+  //   condition_count      → totalIngredientsCount (MAIMLから取得した条件の定義数)
+  //   condition_actual_count → inputIngredientsCount (DBから取得した条件の実績数)
+  //   result_count         → totalResultsCount    (MAIMLから取得した結果の定義数)
+  //   result_actual_count  → inputResultsCount    (DBから取得した結果の実績数)
   const transitionsWithProgress = useMemo(() => {
     if (!progressData || progressData.length === 0) {
       return [];
@@ -437,9 +444,12 @@ export default function ExperimentRecordTab({
       transitionName: (progress.transition_name as string) ?? '',
       status: ((progress.status as string) || 'not_started') as ProgressStatus,
       progressRate: (progress.progress as number) ?? 0,
-      inputMaterialsCount: 0, // TODO: 将来的にAPI追加
-      inputIngredientsCount: 0, // TODO: 将来的にAPI追加
-      inputResultsCount: 0, // TODO: 将来的にAPI追加
+      inputMaterialsCount: (progress.material_actual_count as number) ?? 0,
+      totalMaterialsCount: (progress.material_count as number) ?? 0,
+      inputIngredientsCount: (progress.condition_actual_count as number) ?? 0,
+      totalIngredientsCount: (progress.condition_count as number) ?? 0,
+      inputResultsCount: (progress.result_actual_count as number) ?? 0,
+      totalResultsCount: (progress.result_count as number) ?? 0,
     }));
   }, [progressData]);
 
