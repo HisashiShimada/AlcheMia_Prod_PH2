@@ -49,80 +49,67 @@ export async function findAll(
   filters: UserSearchFilters = {}
 ): Promise<UserRow[]> {
   const pgp = getPgp();
-  
-  // 動的条件を構築
-  const conditions: string[] = ['ou.organization_id = $1'];
+
+  // ベースクエリを外部ファイルから読み込み
+  let sqlQuery = await loadSqlFile('users/findAll.sql');
+
   const params: any[] = [organizationId];
-  
+  let paramIndex = 2;
+
   // 検索フィルター
   if (filters.search) {
-    conditions.push(`(ou.user_name ILIKE $${params.length + 1} OR ou.mail_address ILIKE $${params.length + 1})`);
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND (ou.user_name ILIKE $${paramIndex} OR ou.mail_address ILIKE $${paramIndex})
+ORDER BY`
+    );
     params.push(`%${filters.search}%`);
+    paramIndex++;
   }
-  
+
   // アクティブ状態フィルター
   if (filters.isActive !== undefined) {
-    conditions.push(`ou.is_active = $${params.length + 1}`);
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND ou.is_active = $${paramIndex}
+ORDER BY`
+    );
     params.push(filters.isActive);
+    paramIndex++;
   }
-  
+
   // 部署フィルター
   if (filters.departmentCd) {
-    conditions.push(`ou.department_cd = $${params.length + 1}`);
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND ou.department_cd = $${paramIndex}
+ORDER BY`
+    );
     params.push(filters.departmentCd);
+    paramIndex++;
   }
-  
+
   // ロールフィルター
   if (filters.roleCd) {
-    conditions.push(`ou.role_cd = $${params.length + 1}`);
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND ou.role_cd = $${paramIndex}
+ORDER BY`
+    );
     params.push(filters.roleCd);
+    paramIndex++;
   }
-  
+
   // ソート順
-  const sortBy = filters.sortBy === 'user_name' ? 'ou.user_name' : 
-                 filters.sortBy === 'update_at' ? 'ou.update_at' : 
+  const sortBy = filters.sortBy === 'user_name' ? 'ou.user_name' :
+                 filters.sortBy === 'update_at' ? 'ou.update_at' :
                  'ou.user_id';
   const sortOrder = (filters.sortOrder || 'asc').toUpperCase();
-  
-  // SQLクエリを動的に構築
-  const sqlQuery = `
-    SELECT 
-      ou.user_id,
-      ou.user_name,
-      ou.mail_address,
-      ou.department_cd,
-      d.department_name,
-      ou.role_cd,
-      r.role_name,
-      ou.is_active,
-      last_login.last_login_at,
-      ou.create_at,
-      ou.update_at
-    FROM organization_user ou
-    LEFT JOIN department d 
-      ON ou.organization_id = d.organization_id 
-      AND ou.department_cd = d.department_cd
-    LEFT JOIN role r 
-      ON ou.organization_id = r.organization_id 
-      AND ou.role_cd = r.role_cd
-    LEFT JOIN user_authentication ua 
-      ON ou.user_id = ua.user_id 
-      AND ou.organization_id = ua.organization_id
-    LEFT JOIN (
-      SELECT 
-        lh.organization_id,
-        lh.user_name,
-        MAX(lh.login_at) as last_login_at
-      FROM login_history lh
-      WHERE lh.login_sf = true
-      GROUP BY lh.organization_id, lh.user_name
-    ) last_login 
-      ON ou.organization_id = last_login.organization_id 
-      AND ou.user_name = last_login.user_name
-    WHERE ${conditions.join(' AND ')}
-    ORDER BY ${sortBy} ${sortOrder}
-  `;
-  
+  sqlQuery = sqlQuery.replace(
+    'ORDER BY ou.user_id ASC',
+    `ORDER BY ${sortBy} ${sortOrder}`
+  );
+
   return await pgp.any<UserRow>(sqlQuery, params);
 }
 

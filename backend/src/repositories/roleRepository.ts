@@ -219,12 +219,9 @@ export async function createRole(
 ): Promise<void> {
   const pgp = getPgp();
 
-  // 重複チェック
-  const checkQuery = `
-    SELECT role_cd FROM role
-    WHERE organization_id = $1 AND role_cd = $2
-  `;
-  const existing = await pgp.oneOrNone(checkQuery, [organizationId, roleData.roleId]);
+  // 重複チェック（SQLファイル使用）
+  const checkSql = await loadSqlFile('roles/checkExists.sql');
+  const existing = await pgp.oneOrNone(checkSql, [organizationId, roleData.roleId]);
 
   if (existing) {
     throw new Error('ロールCDが既に存在しています');
@@ -335,15 +332,15 @@ export async function updateRolePermissions(
 ): Promise<void> {
   const pgp = getPgp();
 
-  await pgp.tx(async (t) => {
-    // 既存のrole_permissionを削除
-    const deleteQuery = `
-      DELETE FROM role_permission
-      WHERE organization_id = $1 AND role_cd = $2
-    `;
-    await t.none(deleteQuery, [organizationId, roleId]);
+  // SQLファイルを事前に読み込み（トランザクション外で実施）
+  const deleteSql = await loadSqlFile('roles/deletePermissions.sql');
+  const insertSql = await loadSqlFile('roles/insertPermission.sql');
 
-    // 新しいrole_permissionを挿入
+  await pgp.tx(async (t) => {
+    // 既存のrole_permissionを削除（SQLファイル使用）
+    await t.none(deleteSql, [organizationId, roleId]);
+
+    // 新しいrole_permissionを挿入（SQLファイル使用）
     if (permissions.length > 0) {
       for (const perm of permissions) {
         const functionId = getFunctionIdByName(perm.functionName);
@@ -353,18 +350,10 @@ export async function updateRolePermissions(
           continue;
         }
 
-        const insertQuery = `
-          INSERT INTO role_permission (
-            organization_id, role_cd, function_cd, permission,
-            create_user_id, create_at, update_user_id, update_at
-          )
-          VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, CURRENT_TIMESTAMP)
-        `;
-
         // permission: 0=読取専用、1=書込可
         const permissionValue = perm.writable ? 1 : 0;
 
-        await t.none(insertQuery, [
+        await t.none(insertSql, [
           organizationId,
           roleId,
           functionId,
@@ -413,13 +402,9 @@ export async function getInitialScreenFunctionCd(
 ): Promise<string | null> {
   const pgp = getPgp();
 
-  const query = `
-    SELECT initial_screen_function_cd
-    FROM role
-    WHERE organization_id = $1 AND role_cd = $2
-  `;
+  const sqlQuery = await loadSqlFile('roles/findInitialScreenFunctionCd.sql');
   const result = await pgp.oneOrNone<{ initial_screen_function_cd: string | null }>(
-    query,
+    sqlQuery,
     [organizationId, roleCd]
   );
 
