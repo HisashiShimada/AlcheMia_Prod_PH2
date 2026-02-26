@@ -116,20 +116,43 @@ export type ProgressServiceError =
  * Petri Netトランジション情報
  * 
  * @description MAIMLファイルから抽出されるトランジション情報
+ * @remarks maimlService.ts の parsePetriNetStructure() が返す構造に対応
  * @requirements Requirement 4: MAIMLファイルとの連携
  */
 export interface PetriNetTransition {
   /** トランジションID */
   id: string;
   
-  /** トランジション名 */
-  name: string;
+  /** ノードタイプ */
+  type: string;
+  
+  /** トランジションデータ */
+  data: {
+    /** トランジション表示名 */
+    label: string;
+    
+    /** メソッドID */
+    methodId: string;
+    
+    /** ステレオタイプ（省略可能） */
+    stereotype?: string;
+    
+    /** 説明（省略可能） */
+    description?: string;
+    
+    /** インストラクションID（省略可能） */
+    instructionId?: string;
+    
+    /** プログラム（省略可能） */
+    program?: string;
+  };
 }
 
 /**
  * パース済みメソッド情報
  * 
  * @description MAIMLファイルから抽出されるメソッド構造
+ * @remarks maimlService.ts の parsePetriNetStructure() が返す methods[] の要素に対応
  * @requirements Requirement 4: MAIMLファイルとの連携
  */
 export interface ParsedMethod {
@@ -139,10 +162,32 @@ export interface ParsedMethod {
   /** メソッド名 */
   methodName: string;
   
-  /** Petri Net構造 */
-  petriNet: {
-    /** トランジション配列 */
-    transitions: PetriNetTransition[];
+  /** メソッドインデックス */
+  methodIndex: number;
+  
+  /** トランジション配列 */
+  transitions: PetriNetTransition[];
+  
+  /** プレース配列 */
+  places: any[];
+  
+  /** アーク配列 */
+  arcs: any[];
+  
+  /** メタデータ */
+  metadata: {
+    uuid?: string;
+    name?: string;
+    description?: string;
+    pnmlId?: string;
+    pnmlName?: string;
+  };
+  
+  /** 統計情報 */
+  statistics: {
+    placeCount: number;
+    transitionCount: number;
+    arcCount: number;
   };
 }
 

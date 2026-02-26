@@ -209,7 +209,7 @@ export class ProgressService {
       // Step 4: トランジション進捗データの取得（並列処理）
       const transitionStartTime = Date.now();
       const transitions = await this.getTransitionsProgress(
-        method.petriNet.transitions,
+        method.transitions,
         organizationId,
         projectId,
         methodId,
@@ -449,7 +449,7 @@ export class ProgressService {
       if (!latestRecord) {
         return {
           transition_id: transition.id,
-          transition_name: transition.name || transition.id,
+          transition_name: transition.data?.label || transition.id,
           status: 'not_started',
           progress: 0,
           last_updated: null,
@@ -466,7 +466,7 @@ export class ProgressService {
 
       return {
         transition_id: transition.id,
-        transition_name: transition.name || transition.id,
+        transition_name: transition.data?.label || transition.id,
         status: transitionStatus,
         progress,
         last_updated: latestRecord.updated_at.toISOString(),
@@ -480,7 +480,7 @@ export class ProgressService {
       // エラー時はnot_startedとして扱う
       return {
         transition_id: transition.id,
-        transition_name: transition.name || transition.id,
+        transition_name: transition.data?.label || transition.id,
         status: 'not_started',
         progress: 0,
         last_updated: null,
