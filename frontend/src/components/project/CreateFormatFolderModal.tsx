@@ -13,6 +13,7 @@ const { Text } = Typography;
 export interface CreateFormatFolderData {
   formatId: string;
   folderName: string;
+  currentPath?: string; // 現在のサブフォルダパス
 }
 
 /**
@@ -24,6 +25,7 @@ interface CreateFormatFolderModalProps {
   onSubmit: (data: CreateFormatFolderData) => Promise<void>;
   formatId: string | null;
   formatName: string | null;
+  currentPath?: string[]; // 現在のフォルダパス
 }
 
 /**
@@ -35,6 +37,7 @@ const CreateFormatFolderModal: React.FC<CreateFormatFolderModalProps> = ({
   onSubmit,
   formatId,
   formatName,
+  currentPath = [],
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -63,6 +66,7 @@ const CreateFormatFolderModal: React.FC<CreateFormatFolderModalProps> = ({
       const data: CreateFormatFolderData = {
         formatId,
         folderName: values.folderName,
+        currentPath: currentPath.length > 0 ? currentPath.join('/') : undefined,
       };
 
       await onSubmit(data);

@@ -7,6 +7,7 @@
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { TransitionStatus } from '../types/transitionData';
+import type { PoolClient } from 'pg';
 
 /**
  * トランジションデータのデータベース行型
@@ -237,6 +238,73 @@ export class TransitionDataRepository {
       // その他のエラーはDatabaseErrorでラップ
       throw new DatabaseError(
         'Database error occurred while updating transition status',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * トランジション実績を1件INSERT（タスク登録時の初期レコード作成用）
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param methodId - メソッドID
+   * @param taskNo - タスク番号
+   * @param transitionId - トランジションID
+   * @param userId - 作成・更新ユーザーID
+   * @param client - トランザクション用PoolClient
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async insert(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    transitionId: string,
+    userId: string,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      const query = await loadSqlFile('transition_data/insert.sql');
+      const params = [
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transitionId,
+        0, // status: 初期値0
+        0, // progress_rate: 初期値0
+        userId, // create_user_id
+        userId  // update_user_id
+      ];
+      await client.query(query, params);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while inserting transition data',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * プロジェクト内のトランジション実績を全件削除（タスク登録再保存時）
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param client - トランザクション用PoolClient
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async deleteByProject(
+    organizationId: string,
+    projectId: string,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      const query = await loadSqlFile('transition_data/deleteByProject.sql');
+      await client.query(query, [organizationId, projectId]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while deleting transition data by project',
         error as Error
       );
     }

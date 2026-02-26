@@ -20,8 +20,11 @@ import { message } from 'antd';
  * Context値の型定義
  */
 interface ProjectMaimlContextValue {
-  /** MAIMLルートデータ */
+  /** MAIMLルートデータ（パース済みオブジェクト） */
   maimlRoot: MaimlRoot | null;
+  
+  /** MAIMLファイルの生の文字列データ */
+  maimlContent: string | null;
   
   /** MAIMLパーサーインスタンス */
   parser: MaimlParserTyped | null;
@@ -64,6 +67,7 @@ interface ProjectMaimlProviderProps {
  */
 export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ children }) => {
   const [maimlRoot, setMaimlRoot] = useState<MaimlRoot | null>(null);
+  const [maimlContent, setMaimlContent] = useState<string | null>(null);
   const [parser, setParser] = useState<MaimlParserTyped | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -106,6 +110,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
         if (response.error?.code === 'FILE_NOT_FOUND') {
           console.log('ℹ️ [ProjectMaimlContext] MAIMLファイルが存在しません（プロジェクト作成直後）');
           setMaimlRoot(null);
+          setMaimlContent(null);
           setParser(null);
           setCurrentProjectName(projectName);
           setError(null);
@@ -114,12 +119,13 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
         throw new Error(response.error?.message || 'MAIMLファイルの取得に失敗しました');
       }
 
-      const maimlContent = response.data?.maimlContent;
+      const fetchedMaimlContent = response.data?.maimlContent;
 
       // MAIMLファイルの中身が空の場合
-      if (!maimlContent || maimlContent.trim() === '') {
+      if (!fetchedMaimlContent || fetchedMaimlContent.trim() === '') {
         console.log('ℹ️ [ProjectMaimlContext] MAIMLファイルの内容が空です');
         setMaimlRoot(null);
+        setMaimlContent(null);
         setParser(null);
         setCurrentProjectName(projectName);
         setError(null);
@@ -127,12 +133,12 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
       }
 
       console.log('✅ [ProjectMaimlContext] MAIMLファイル取得成功:', {
-        contentLength: maimlContent.length,
+        contentLength: fetchedMaimlContent.length,
         projectName,
       });
 
       // MAIMLをパース
-      const maimlParser = new MaimlParserTyped(maimlContent);
+      const maimlParser = new MaimlParserTyped(fetchedMaimlContent);
       const parsedMaiml = maimlParser.getTypedMaiml();
 
       console.log('✅ [ProjectMaimlContext] MAIMLパース成功:', {
@@ -142,6 +148,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
 
       // Stateを更新
       setMaimlRoot(parsedMaiml);
+      setMaimlContent(fetchedMaimlContent);
       setParser(maimlParser);
       setCurrentProjectName(projectName);
       setError(null);
@@ -156,6 +163,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
       const error = err instanceof Error ? err : new Error('不明なエラーが発生しました');
       setError(error);
       setMaimlRoot(null);
+      setMaimlContent(null);
       setParser(null);
       setCurrentProjectName(null);
 
@@ -192,6 +200,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
     }
 
     setMaimlRoot(null);
+    setMaimlContent(null);
     setParser(null);
     setError(null);
     setCurrentProjectName(null);
@@ -199,6 +208,7 @@ export const ProjectMaimlProvider: React.FC<ProjectMaimlProviderProps> = ({ chil
 
   const value: ProjectMaimlContextValue = {
     maimlRoot,
+    maimlContent,
     parser,
     isLoading,
     error,

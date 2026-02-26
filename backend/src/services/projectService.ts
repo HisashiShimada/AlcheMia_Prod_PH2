@@ -927,10 +927,17 @@ export class ProjectService {
               const fileName = file.key.split('/').pop() || '';
               const fileType = fileName.split('.').pop() || '';
 
+              // organizationId プレフィックスを除去して相対パスとして返す
+              // file.key 例: "550e8400.../projects/Sample_Project/Sample_Project.maiml"
+              // 相対パス例: "projects/Sample_Project/Sample_Project.maiml"
+              const relativePath = file.key.startsWith(`${organizationId}/`)
+                ? file.key.substring(organizationId.length + 1)
+                : file.key;
+
               return {
                 id: file.key,
                 name: fileName,
-                path: file.key,
+                path: relativePath,
                 size: file.size,
                 lastModified: file.lastModified.toISOString(),
                 type: fileType,
@@ -981,10 +988,15 @@ export class ProjectService {
                 const versionMatch = fileName.match(/_v(\d+)\.maiml$/);
                 const version = versionMatch ? parseInt(versionMatch[1], 10) : null;
 
+                // organizationId プレフィックスを除去して相対パスとして返す
+                const archiveRelativePath = file.key.startsWith(`${organizationId}/`)
+                  ? file.key.substring(organizationId.length + 1)
+                  : file.key;
+
                 return {
                   id: file.key,
                   name: fileName,
-                  path: file.key,
+                  path: archiveRelativePath,
                   size: file.size,
                   lastModified: file.lastModified.toISOString(),
                   type: fileType,
