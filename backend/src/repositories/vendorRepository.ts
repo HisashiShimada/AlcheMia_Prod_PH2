@@ -77,33 +77,7 @@ export const create = async (
 ): Promise<VendorMaster> => {
   const pgp = getPgp();
 
-  const query = `
-    INSERT INTO vendor (
-      organization_id,
-      vendor_uuid,
-      vendor_id,
-      vendor_name,
-      vendor_description,
-      vendor_annotation,
-      corporation_id,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
-    )
-    RETURNING
-      vendor_id,
-      vendor_uuid,
-      vendor_name,
-      vendor_description,
-      vendor_annotation,
-      is_active,
-      update_at
-  `;
-
+  const query = await loadSqlFile('vendors/create.sql');
   const values = [
     organizationId,
     uuidv4(),
@@ -149,26 +123,7 @@ export const update = async (
 
   if (corporationId !== null && corporationId !== undefined) {
     // corporation_idが存在する場合：corporation_idで照合
-    query = `
-      UPDATE vendor
-      SET
-        vendor_name = COALESCE($3, vendor_name),
-        vendor_description = COALESCE($4, vendor_description),
-        vendor_annotation = COALESCE($5, vendor_annotation),
-        is_active = COALESCE($6, is_active),
-        update_user_id = $7,
-        update_at = NOW()
-      WHERE corporation_id = $1
-        AND vendor_id = $2
-      RETURNING
-        vendor_id,
-        vendor_uuid,
-        vendor_name,
-        vendor_description,
-        vendor_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('vendors/updateByCorporation.sql');
     values = [
       corporationId,
       vendorId,
@@ -180,26 +135,7 @@ export const update = async (
     ];
   } else {
     // corporation_idがNULLの場合：organization_idで照合
-    query = `
-      UPDATE vendor
-      SET
-        vendor_name = COALESCE($3, vendor_name),
-        vendor_description = COALESCE($4, vendor_description),
-        vendor_annotation = COALESCE($5, vendor_annotation),
-        is_active = COALESCE($6, is_active),
-        update_user_id = $7,
-        update_at = NOW()
-      WHERE organization_id = $1
-        AND vendor_id = $2
-      RETURNING
-        vendor_id,
-        vendor_uuid,
-        vendor_name,
-        vendor_description,
-        vendor_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('vendors/updateByOrganization.sql');
     values = [
       organizationId,
       vendorId,
@@ -239,43 +175,11 @@ export const updateStatus = async (
 
   if (corporationId !== null && corporationId !== undefined) {
     // corporation_idが存在する場合：corporation_idで照合
-    query = `
-      UPDATE vendor
-      SET
-        is_active = $3,
-        update_user_id = $4,
-        update_at = NOW()
-      WHERE corporation_id = $1
-        AND vendor_id = $2
-      RETURNING
-        vendor_id,
-        vendor_uuid,
-        vendor_name,
-        vendor_description,
-        vendor_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('vendors/updateStatusByCorporation.sql');
     values = [corporationId, vendorId, isActive, userId];
   } else {
     // corporation_idがNULLの場合：organization_idで照合
-    query = `
-      UPDATE vendor
-      SET
-        is_active = $3,
-        update_user_id = $4,
-        update_at = NOW()
-      WHERE organization_id = $1
-        AND vendor_id = $2
-      RETURNING
-        vendor_id,
-        vendor_uuid,
-        vendor_name,
-        vendor_description,
-        vendor_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('vendors/updateStatusByOrganization.sql');
     values = [organizationId, vendorId, isActive, userId];
   }
 
@@ -296,15 +200,7 @@ export const existsById = async (
 ): Promise<boolean> => {
   const pgp = getPgp();
 
-  const query = `
-    SELECT EXISTS (
-      SELECT 1
-      FROM vendor
-      WHERE organization_id = $1
-        AND vendor_id = $2
-    ) AS exists
-  `;
-
+  const query = await loadSqlFile('vendors/existsById.sql');
   const result = await pgp.one<{ exists: boolean }>(query, [organizationId, vendorId]);
   return result.exists;
 };

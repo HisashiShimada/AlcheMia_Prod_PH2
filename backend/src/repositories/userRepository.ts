@@ -182,25 +182,8 @@ export async function create(
   return await pgp.tx(async (t) => {
     try {
       // 1. organization_userテーブルにINSERT
-      const userQuery = `
-        INSERT INTO organization_user (
-          user_id,
-          organization_id,
-          user_name,
-          mail_address,
-          department_cd,
-          role_cd,
-          is_active,
-          create_user_id,
-          update_user_id,
-          create_at,
-          update_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
-        )
-        RETURNING *
-      `;
-      
+      const userQuery = await loadSqlFile('users/createUser.sql');
+
       const userValues = [
         data.userId,
         organizationId,
@@ -229,21 +212,7 @@ export async function create(
       // パスワード有効期限：保存/CSVアップロード時のタイムスタンプ（現在日時）
       const passwordExpiresAt = new Date();
       
-      const authQuery = `
-        INSERT INTO user_authentication (
-          user_id,
-          organization_id,
-          password,
-          is_temporary_flg,
-          password_expires_at,
-          create_user_id,
-          update_user_id,
-          create_at,
-          update_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
-        )
-      `;
+      const authQuery = await loadSqlFile('users/createUserAuth.sql');
       
       const authValues = [
         data.userId,
@@ -431,19 +400,17 @@ export async function deleteById(
 ): Promise<boolean> {
   const pgp = getPgp();
   
+  // SQLファイルをトランザクション外で事前読み込み
+  const deleteAuthQuery = await loadSqlFile('users/deleteUserAuth.sql');
+  const deleteUserQuery = await loadSqlFile('users/deleteUser.sql');
+
   return await pgp.tx(async (t) => {
     // 1. user_authenticationから削除
-    await t.none(
-      'DELETE FROM user_authentication WHERE organization_id = $1 AND user_id = $2',
-      [organizationId, userId]
-    );
-    
+    await t.none(deleteAuthQuery, [organizationId, userId]);
+
     // 2. organization_userから削除
-    const result = await t.result(
-      'DELETE FROM organization_user WHERE organization_id = $1 AND user_id = $2',
-      [organizationId, userId]
-    );
-    
+    const result = await t.result(deleteUserQuery, [organizationId, userId]);
+
     return (result.rowCount ?? 0) > 0;
   });
 }

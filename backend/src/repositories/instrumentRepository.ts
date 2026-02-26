@@ -77,33 +77,7 @@ export const create = async (
 ): Promise<InstrumentMaster> => {
   const pgp = getPgp();
 
-  const query = `
-    INSERT INTO instrument (
-      organization_id,
-      instrument_uuid,
-      instrument_id,
-      instrument_name,
-      instrument_description,
-      instrument_annotation,
-      corporation_id,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
-    )
-    RETURNING
-      instrument_id,
-      instrument_uuid,
-      instrument_name,
-      instrument_description,
-      instrument_annotation,
-      is_active,
-      update_at
-  `;
-
+  const query = await loadSqlFile('instruments/create.sql');
   const values = [
     organizationId,
     uuidv4(),
@@ -149,26 +123,7 @@ export const update = async (
 
   if (corporationId !== null && corporationId !== undefined) {
     // corporation_idが存在する場合：corporation_idで照合
-    query = `
-      UPDATE instrument
-      SET
-        instrument_name = COALESCE($3, instrument_name),
-        instrument_description = COALESCE($4, instrument_description),
-        instrument_annotation = COALESCE($5, instrument_annotation),
-        is_active = COALESCE($6, is_active),
-        update_user_id = $7,
-        update_at = NOW()
-      WHERE corporation_id = $1
-        AND instrument_id = $2
-      RETURNING
-        instrument_id,
-        instrument_uuid,
-        instrument_name,
-        instrument_description,
-        instrument_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('instruments/updateByCorporation.sql');
     values = [
       corporationId,
       instrumentId,
@@ -180,26 +135,7 @@ export const update = async (
     ];
   } else {
     // corporation_idがNULLの場合：organization_idで照合
-    query = `
-      UPDATE instrument
-      SET
-        instrument_name = COALESCE($3, instrument_name),
-        instrument_description = COALESCE($4, instrument_description),
-        instrument_annotation = COALESCE($5, instrument_annotation),
-        is_active = COALESCE($6, is_active),
-        update_user_id = $7,
-        update_at = NOW()
-      WHERE organization_id = $1
-        AND instrument_id = $2
-      RETURNING
-        instrument_id,
-        instrument_uuid,
-        instrument_name,
-        instrument_description,
-        instrument_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('instruments/updateByOrganization.sql');
     values = [
       organizationId,
       instrumentId,
@@ -239,43 +175,11 @@ export const updateStatus = async (
 
   if (corporationId !== null && corporationId !== undefined) {
     // corporation_idが存在する場合：corporation_idで照合
-    query = `
-      UPDATE instrument
-      SET
-        is_active = $3,
-        update_user_id = $4,
-        update_at = NOW()
-      WHERE corporation_id = $1
-        AND instrument_id = $2
-      RETURNING
-        instrument_id,
-        instrument_uuid,
-        instrument_name,
-        instrument_description,
-        instrument_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('instruments/updateStatusByCorporation.sql');
     values = [corporationId, instrumentId, isActive, userId];
   } else {
     // corporation_idがNULLの場合：organization_idで照合
-    query = `
-      UPDATE instrument
-      SET
-        is_active = $3,
-        update_user_id = $4,
-        update_at = NOW()
-      WHERE organization_id = $1
-        AND instrument_id = $2
-      RETURNING
-        instrument_id,
-        instrument_uuid,
-        instrument_name,
-        instrument_description,
-        instrument_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('instruments/updateStatusByOrganization.sql');
     values = [organizationId, instrumentId, isActive, userId];
   }
 
@@ -296,15 +200,7 @@ export const existsById = async (
 ): Promise<boolean> => {
   const pgp = getPgp();
 
-  const query = `
-    SELECT EXISTS (
-      SELECT 1
-      FROM instrument
-      WHERE organization_id = $1
-        AND instrument_id = $2
-    ) AS exists
-  `;
-
+  const query = await loadSqlFile('instruments/existsById.sql');
   const result = await pgp.one<{ exists: boolean }>(query, [organizationId, instrumentId]);
   return result.exists;
 };

@@ -232,14 +232,7 @@ export async function createRole(
     ? getFunctionIdByName(roleData.initialScreenFunctionName)
     : null;
 
-  const insertQuery = `
-    INSERT INTO role (
-      organization_id, role_cd, role_name, initial_screen_function_cd,
-      is_active, create_user_id, create_at, update_user_id, update_at
-    )
-    VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7, CURRENT_TIMESTAMP)
-  `;
-
+  const insertQuery = await loadSqlFile('roles/create.sql');
   await pgp.none(insertQuery, [
     organizationId,
     roleData.roleId,
@@ -379,12 +372,7 @@ export async function existsById(
 ): Promise<boolean> {
   const pgp = getPgp();
 
-  const query = `
-    SELECT EXISTS(
-      SELECT 1 FROM role
-      WHERE organization_id = $1 AND role_cd = $2
-    ) AS exists
-  `;
+  const query = await loadSqlFile('roles/existsById.sql');
   const result = await pgp.one<{ exists: boolean }>(query, [organizationId, roleCd]);
   return result.exists;
 }

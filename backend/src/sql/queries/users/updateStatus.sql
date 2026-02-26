@@ -1,4 +1,4 @@
--- Userのアクティブ状態を更新
+-- Userアクティブ状態更新クエリ
 UPDATE organization_user
 SET is_active = $1,
     update_user_id = $2,

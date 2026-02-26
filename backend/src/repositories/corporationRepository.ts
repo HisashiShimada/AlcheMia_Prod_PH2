@@ -123,32 +123,15 @@ export async function existsByName(
 ): Promise<boolean> {
   const pgp = getPgp();
 
-  let query: string;
-  let params: any[];
-
   if (excludeId !== undefined) {
-    query = `
-      SELECT EXISTS (
-        SELECT 1
-        FROM corporation
-        WHERE corporation_name = $1
-          AND corporation_id != $2
-      ) AS exists
-    `;
-    params = [corporationName, excludeId];
+    const query = await loadSqlFile('corporations/existsByNameExclude.sql');
+    const result = await pgp.one<{ exists: boolean }>(query, [corporationName, excludeId]);
+    return result.exists;
   } else {
-    query = `
-      SELECT EXISTS (
-        SELECT 1
-        FROM corporation
-        WHERE corporation_name = $1
-      ) AS exists
-    `;
-    params = [corporationName];
+    const query = await loadSqlFile('corporations/existsByName.sql');
+    const result = await pgp.one<{ exists: boolean }>(query, [corporationName]);
+    return result.exists;
   }
-
-  const result = await pgp.one<{ exists: boolean }>(query, params);
-  return result.exists;
 }
 
 /**
@@ -168,26 +151,7 @@ export async function create(
 ): Promise<CorporationRow> {
   const pgp = getPgp();
 
-  const query = `
-    INSERT INTO corporation (
-      corporation_id,
-      corporation_name,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, NOW(), NOW()
-    )
-    RETURNING
-      corporation_id,
-      corporation_name,
-      is_active,
-      create_at,
-      update_at
-  `;
-
+  const query = await loadSqlFile('corporations/create.sql');
   const values = [
     data.corporationId,
     data.corporationName,
@@ -274,20 +238,7 @@ export async function updateStatus(
 ): Promise<CorporationRow | null> {
   const pgp = getPgp();
 
-  const query = `
-    UPDATE corporation
-    SET is_active = $1,
-        update_user_id = $2,
-        update_at = NOW()
-    WHERE corporation_id = $3
-    RETURNING
-      corporation_id,
-      corporation_name,
-      is_active,
-      create_at,
-      update_at
-  `;
-
+  const query = await loadSqlFile('corporations/updateStatus.sql');
   const result = await pgp.oneOrNone<CorporationRow>(query, [isActive, userId, corporationId]);
   return result ?? null;
 }
@@ -304,11 +255,7 @@ export async function deleteById(
 ): Promise<boolean> {
   const pgp = getPgp();
 
-  const query = `
-    DELETE FROM corporation
-    WHERE corporation_id = $1
-  `;
-
+  const query = await loadSqlFile('corporations/deleteById.sql');
   const result = await pgp.result(query, [corporationId]);
   return result.rowCount > 0;
 }

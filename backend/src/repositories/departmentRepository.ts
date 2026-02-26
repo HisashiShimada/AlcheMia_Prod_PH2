@@ -117,15 +117,7 @@ export async function existsById(
 ): Promise<boolean> {
   const pgp = getPgp();
 
-  const query = `
-    SELECT EXISTS (
-      SELECT 1
-      FROM department
-      WHERE organization_id = $1
-        AND department_cd = $2
-    ) AS exists
-  `;
-
+  const query = await loadSqlFile('departments/existsById.sql');
   const result = await pgp.one<{ exists: boolean }>(query, [organizationId, departmentCd]);
   return result.exists;
 }
@@ -150,28 +142,7 @@ export async function create(
 ): Promise<DepartmentRow> {
   const pgp = getPgp();
 
-  const query = `
-    INSERT INTO department (
-      organization_id,
-      department_cd,
-      department_name,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, NOW(), $7
-    )
-    RETURNING
-      organization_id,
-      department_cd,
-      department_name,
-      is_active,
-      create_at,
-      update_at
-  `;
-
+  const query = await loadSqlFile('departments/create.sql');
   const values = [
     organizationId,
     data.departmentCd,
@@ -179,7 +150,6 @@ export async function create(
     data.isActive !== undefined ? data.isActive : true,
     userId,
     userId,
-    data.updateAt || 'NOW()',
   ];
 
   return await pgp.one<DepartmentRow>(query, values);
@@ -274,22 +244,7 @@ export async function updateStatus(
 ): Promise<DepartmentRow | null> {
   const pgp = getPgp();
 
-  const query = `
-    UPDATE department
-    SET is_active = $1,
-        update_user_id = $2,
-        update_at = NOW()
-    WHERE organization_id = $3
-      AND department_cd = $4
-    RETURNING
-      organization_id,
-      department_cd,
-      department_name,
-      is_active,
-      create_at,
-      update_at
-  `;
-
+  const query = await loadSqlFile('departments/updateStatus.sql');
   const result = await pgp.oneOrNone<DepartmentRow>(query, [isActive, userId, organizationId, departmentCd]);
   return result ?? null;
 }
@@ -308,12 +263,7 @@ export async function deleteById(
 ): Promise<boolean> {
   const pgp = getPgp();
 
-  const query = `
-    DELETE FROM department
-    WHERE organization_id = $1
-      AND department_cd = $2
-  `;
-
+  const query = await loadSqlFile('departments/deleteById.sql');
   const result = await pgp.result(query, [organizationId, departmentCd]);
   return result.rowCount > 0;
 }

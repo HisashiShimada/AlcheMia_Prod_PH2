@@ -140,6 +140,34 @@ export async function findById(
 }
 
 /**
+ * 情報ダウンロード用の組織統計データ型定義
+ */
+export interface OrganizationStatsRow {
+  organization_id: string;
+  organization_cd: string;
+  organization_display_name: string;
+  organization_email: string;
+  chief_user_name: string | null;
+  corporation_name: string | null;
+  project_count: number;
+  active_user_count: number;
+  total_user_count: number;
+}
+
+/**
+ * 情報ダウンロード用：全組織の統計情報を取得
+ * プロジェクト数・アクティブユーザー数・総ユーザー数を集計して返す
+ *
+ * @returns 組織統計情報の配列
+ */
+export async function findAllWithStats(): Promise<OrganizationStatsRow[]> {
+  const pgp = getPgp();
+
+  const sqlQuery = await loadSqlFile('organizations/findAllWithStats.sql');
+  return await pgp.any<OrganizationStatsRow>(sqlQuery);
+}
+
+/**
  * OrganizationIDが既に存在するかチェック
  *
  * @param organizationId 組織ID
@@ -150,14 +178,7 @@ export async function existsById(
 ): Promise<boolean> {
   const pgp = getPgp();
 
-  const query = `
-    SELECT EXISTS (
-      SELECT 1
-      FROM organization
-      WHERE organization_id = $1
-    ) AS exists
-  `;
-
+  const query = await loadSqlFile('organizations/existsById.sql');
   const result = await pgp.one<{ exists: boolean }>(query, [organizationId]);
   return result.exists;
 }
@@ -179,23 +200,10 @@ export async function existsByCd(
   let params: any[];
 
   if (excludeId !== undefined) {
-    query = `
-      SELECT EXISTS (
-        SELECT 1
-        FROM organization
-        WHERE organization_cd = $1
-          AND organization_id != $2
-      ) AS exists
-    `;
+    query = await loadSqlFile('organizations/existsByCdExclude.sql');
     params = [organizationCd, excludeId];
   } else {
-    query = `
-      SELECT EXISTS (
-        SELECT 1
-        FROM organization
-        WHERE organization_cd = $1
-      ) AS exists
-    `;
+    query = await loadSqlFile('organizations/existsByCd.sql');
     params = [organizationCd];
   }
 
@@ -225,33 +233,7 @@ export async function create(
 ): Promise<OrganizationRow> {
   const pgp = getPgp();
 
-  const query = `
-    INSERT INTO organization (
-      organization_id,
-      organization_cd,
-      organization_display_name,
-      organization_email,
-      chief_user_id,
-      corporation_id,
-      is_entry,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
-    )
-    RETURNING
-      organization_id,
-      organization_cd,
-      organization_display_name,
-      organization_email,
-      chief_user_id,
-      corporation_id,
-      is_active,
-      update_at
-  `;
+  const query = await loadSqlFile('organizations/create.sql');
 
   const values = [
     data.organizationId,
@@ -383,15 +365,7 @@ export async function updateStatus(
 ): Promise<OrganizationRow | null> {
   const pgp = getPgp();
 
-  const query = `
-    UPDATE organization
-    SET is_active = $1,
-        update_user_id = $2,
-        update_at = NOW()
-    WHERE organization_id = $3
-    RETURNING
-      organization_id
-  `;
+  const query = await loadSqlFile('organizations/updateStatus.sql');
 
   const updated = await pgp.oneOrNone<{ organization_id: string }>(
     query,
@@ -418,10 +392,7 @@ export async function deleteById(
 ): Promise<boolean> {
   const pgp = getPgp();
 
-  const query = `
-    DELETE FROM organization
-    WHERE organization_id = $1
-  `;
+  const query = await loadSqlFile('organizations/deleteById.sql');
 
   const result = await pgp.result(query, [organizationId]);
   return result.rowCount > 0;
@@ -438,18 +409,8 @@ export async function findSystemAdminsByOrganizationId(
 ): Promise<Array<{ user_id: string; user_name: string }>> {
   const pgp = getPgp();
 
-  const query = `
-    SELECT
-      user_id,
-      user_name
-    FROM organization_user
-    WHERE organization_id = $1
-      AND role_cd = 'ROLE002'
-      AND is_active = true
-    ORDER BY user_name
-  `;
-
-  return await pgp.any<{ user_id: string; user_name: string }>(query, [organizationId]);
+  const sqlQuery = await loadSqlFile('organizations/findSystemAdmins.sql');
+  return await pgp.any<{ user_id: string; user_name: string }>(sqlQuery, [organizationId]);
 }
 
 /**
@@ -472,23 +433,7 @@ export async function createOrganizationUser(
   userId: string,
   t: any
 ): Promise<void> {
-  const query = `
-    INSERT INTO organization_user (
-      user_id,
-      organization_id,
-      user_name,
-      role_cd,
-      mail_address,
-      department_cd,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
-    )
-  `;
+  const query = await loadSqlFile('organizations/createOrganizationUser.sql');
 
   const values = [
     data.userId,
@@ -523,22 +468,7 @@ export async function createRole(
   userId: string,
   t: any
 ): Promise<void> {
-  const query = `
-    INSERT INTO role (
-      organization_id,
-      role_cd,
-      role_name,
-      initial_screen_function_cd,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
-    )
-    ON CONFLICT (organization_id, role_cd) DO NOTHING
-  `;
+  const query = await loadSqlFile('organizations/createRole.sql');
 
   const values = [
     data.organizationId,
@@ -570,21 +500,7 @@ export async function createRolePermissions(
   userId: string,
   t: any
 ): Promise<void> {
-  const query = `
-    INSERT INTO role_permission (
-      organization_id,
-      role_cd,
-      function_cd,
-      permission,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, NOW(), NOW()
-    )
-    ON CONFLICT (organization_id, role_cd, function_cd) DO NOTHING
-  `;
+  const query = await loadSqlFile('organizations/createRolePermission.sql');
 
   for (const permission of data) {
     const values = [
