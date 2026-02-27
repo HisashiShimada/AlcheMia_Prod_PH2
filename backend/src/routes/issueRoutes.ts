@@ -141,31 +141,31 @@ router.get(
   tenantIsolation,
   checkPermission('050000', 0),
   [
-    query('project_id')
+    query('projectId')
       .notEmpty()
-      .withMessage('project_idは必須です')
+      .withMessage('projectIdは必須です')
       .isUUID()
-      .withMessage('project_idはUUID形式である必要があります'),
-    query('method_id')
+      .withMessage('projectIdはUUID形式である必要があります'),
+    query('methodId')
       .notEmpty()
-      .withMessage('method_idは必須です')
+      .withMessage('methodIdは必須です')
       .isString()
-      .withMessage('method_idは文字列である必要があります'),
-    query('task_no')
+      .withMessage('methodIdは文字列である必要があります'),
+    query('taskNo')
       .notEmpty()
-      .withMessage('task_noは必須です')
+      .withMessage('taskNoは必須です')
       .isInt({ min: 1 })
-      .withMessage('task_noは1以上の整数である必要があります'),
-    query('transition_id')
+      .withMessage('taskNoは1以上の整数である必要があります'),
+    query('transitionId')
       .notEmpty()
-      .withMessage('transition_idは必須です')
+      .withMessage('transitionIdは必須です')
       .isString()
-      .withMessage('transition_idは文字列である必要があります'),
+      .withMessage('transitionIdは文字列である必要があります'),
     query('status')
       .optional()
       .isIn(['unresolved', 'resolved'])
       .withMessage('statusは"unresolved"または"resolved"である必要があります'),
-    query('issue_type')
+    query('issueType')
       .optional()
       .isIn([
         'material_shortage',
@@ -176,7 +176,7 @@ router.get(
         'time_constraint',
         'other'
       ])
-      .withMessage('issue_typeは許可された値である必要があります'),
+      .withMessage('issueTypeは許可された値である必要があります'),
   ],
   handleValidationErrors,
   issueController.list
