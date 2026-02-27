@@ -10,6 +10,6 @@
 SELECT 
   id, 
   status 
-FROM projects 
+FROM project 
 WHERE organization_id = $1 
   AND project_name = $2;
