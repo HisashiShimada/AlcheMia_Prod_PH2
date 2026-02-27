@@ -9,10 +9,8 @@ import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import {
   Issue,
   NewIssue,
-  IssueStatus,
   IssueWithComments,
   IssueListFilters,
-  ISSUE_STATUS_VALUES,
 } from '../types/issue';
 import {
   NotFoundError,
@@ -183,13 +181,14 @@ export class IssueService {
 
   /**
    * Controller層用: ステータスを更新する（ServiceResult形式）
+   * @param status 0=未解決, 1=解決済（API設計書準拠のinteger）
    */
   async updateStatus(
     organizationId: string,
     projectName: string,
     issueId: string,
     userId: string,
-    status: IssueStatus
+    status: number
   ): Promise<ServiceResult<Issue>> {
     try {
       // プロジェクト名からプロジェクトID取得
@@ -207,17 +206,14 @@ export class IssueService {
         throw new NotFoundError('問題報告が見つかりません');
       }
 
-      // ステータスバリデーション
+      // ステータスバリデーション（0 or 1）
       this.validateStatus(status);
-
-      // ステータスを数値変換
-      const statusNumber = this.convertStatusToNumber(status);
 
       const updatedIssue = await this.issueRepository.updateStatus(
         issueId,
         organizationId,
         userId,
-        statusNumber
+        status
       );
 
       if (!updatedIssue) {
@@ -364,12 +360,12 @@ export class IssueService {
   }
 
   /**
-   * ステータスのバリデーション
+   * ステータスのバリデーション（integer: 0=未解決, 1=解決済）
    */
-  private validateStatus(status: IssueStatus): void {
-    if (!ISSUE_STATUS_VALUES.includes(status)) {
+  private validateStatus(status: number): void {
+    if (status !== 0 && status !== 1) {
       throw new ValidationError(
-        `無効なステータスです。許可された値: ${ISSUE_STATUS_VALUES.join(', ')}`
+        '無効なステータスです。許可された値: 0（未解決）, 1（解決済）'
       );
     }
   }
@@ -387,22 +383,5 @@ export class IssueService {
       default:
         throw new ValidationError(`無効な問題対象です: ${targetType}`);
     }
-  }
-
-  /**
-   * ステータスを文字列から数値に変換
-   */
-  private convertStatusToNumber(status: IssueStatus): number{
-      switch(status){
-        case ISSUE_STATUS_VALUES[0]:
-          return 0;
-        case ISSUE_STATUS_VALUES[1]:
-          return 1;
-        default:
-          throw new ValidationError(
-            `無効なステータスです。許可された値: ${ISSUE_STATUS_VALUES.join(', ')}`
-          );
-      }
-
   }
 }

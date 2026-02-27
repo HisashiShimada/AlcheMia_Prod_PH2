@@ -12,8 +12,6 @@ import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { checkPermission } from '../middleware/permissionCheckMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
-import { ISSUE_STATUS_VALUES } from '../types/issue'
-
 const router = Router();
 
 /**
@@ -229,8 +227,8 @@ router.patch(
     body('status')
       .notEmpty()
       .withMessage('statusは必須です')
-      .isIn(ISSUE_STATUS_VALUES)
-      .withMessage('statusは"unresolved"または"resolved"である必要があります'),
+      .isInt({ min: 0, max: 1 })
+      .withMessage('statusは0（未解決）または1（解決）である必要があります'),
   ],
   handleValidationErrors,
   issueController.updateStatus

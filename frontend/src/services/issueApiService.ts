@@ -117,6 +117,7 @@ interface IssueCommentApiData {
 /**
  * 問題一覧取得APIの問題データ（1件分）
  * バックエンドAPIレスポンスの構造（GET /api/v1/issues）
+ * statusはDBから数値（0=未解決, 1=解決済）で返る場合がある
  */
 interface IssueApiData {
   id: string;
@@ -129,7 +130,7 @@ interface IssueApiData {
   transitionId: string;
   title: string;
   contents: string;
-  status: 'unresolved' | 'resolved';
+  status: 'unresolved' | 'resolved' | 0 | 1 | number;
   reportedBy: string;
   reportedByName: string;
   reportedAt: string;
@@ -166,6 +167,20 @@ function mapToIssueComment(c: IssueCommentApiData, issueId: string): IssueCommen
 }
 
 /**
+ * APIレスポンスのstatus値をフロントエンドの IssueStatus 型に変換
+ * DBからは数値（0=未解決, 1=解決済）で返る場合がある
+ *
+ * @param status APIレスポンスのstatus値（数値または文字列）
+ * @returns IssueStatus 文字列
+ */
+function mapToIssueStatus(status: 'unresolved' | 'resolved' | number): IssueStatus {
+  if (status === 0 || status === 'unresolved') return 'unresolved';
+  if (status === 1 || status === 'resolved') return 'resolved';
+  // 想定外の値はデフォルトで未解決とする
+  return 'unresolved';
+}
+
+/**
  * APIレスポンスの問題データをフロントエンドの Issue 型にマッピング
  *
  * @param data APIレスポンスの問題データ（1件）
@@ -191,7 +206,8 @@ function mapToIssue(data: IssueApiData): Issue {
     projectName: data.projectName,
     title: data.title,
     content: data.contents,
-    status: data.status as IssueStatus,
+    // DBから数値（0/1）で返る場合があるため、文字列IssueStatusに変換する
+    status: mapToIssueStatus(data.status as 'unresolved' | 'resolved' | number),
     targetType: data.targetType as IssueTargetType,
     issueType: data.issueType,
     reportedBy,
@@ -311,6 +327,75 @@ export async function addComment(params: AddCommentParams): Promise<AddCommentAp
       error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+}
+
+/**
+ * ステータス更新APIのリクエストパラメータ
+ * PATCH /api/v1/issues/status
+ */
+export interface UpdateIssueStatusParams {
+  /** プロジェクト名（必須） */
+  projectName: string;
+  /** 問題ID（必須） */
+  issueId: string;
+  /** ステータス（'unresolved' | 'resolved'）: APIリクエスト時に integer（0/1）に変換して送信 */
+  status: IssueStatus;
+}
+
+/**
+ * 問題ステータスを更新する
+ * PATCH /api/v1/issues/status
+ *
+ * フロントエンドの IssueStatus（文字列）を integer に変換してAPIに送信する。
+ * - 'unresolved' → 0
+ * - 'resolved'   → 1
+ *
+ * @param params リクエストパラメータ（projectName, issueId, status は必須）
+ * @throws Error API呼び出し失敗時
+ */
+export async function updateIssueStatus(params: UpdateIssueStatusParams): Promise<void> {
+  const client = createApiClient();
+
+  // IssueStatus 文字列を API設計書準拠の integer に変換
+  const statusInt = params.status === 'resolved' ? 1 : 0;
+
+  try {
+    console.log('[DEBUG] updateIssueStatus - Start', {
+      issueId: params.issueId,
+      projectName: params.projectName,
+      status: params.status,
+      statusInt,
+    });
+
+    const response = await client.patch<{
+      success: boolean;
+      data: unknown;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>('/issues/status', {
+      projectName: params.projectName,
+      issueId: params.issueId,
+      status: statusInt,
+    });
+
+    if (!response.data.success) {
+      throw new Error('ステータスの更新に失敗しました');
+    }
+
+    console.log('[DEBUG] updateIssueStatus - Success', {
+      issueId: params.issueId,
+      status: params.status,
+    });
+  } catch (error) {
+    console.error('[DEBUG] updateIssueStatus - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorStatus: (error as AxiosError)?.response?.status,
     });
     throw error;

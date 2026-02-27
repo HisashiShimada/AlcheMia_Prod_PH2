@@ -6,7 +6,7 @@ import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCi
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue, ProjectStatus, isRecordViewableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
-import { getIssues, createIssue, addComment } from '@/services/issueApiService';
+import { getIssues, createIssue, addComment, updateIssueStatus } from '@/services/issueApiService';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
@@ -247,6 +247,48 @@ export default function TransitionList({
     } catch (error) {
       console.error('[handleSubmitComment] コメント投稿エラー', error);
       message.error('コメントの投稿に失敗しました');
+    }
+  };
+
+  // ステータス変更ハンドラ
+  const handleUpdateStatus = async (issueId: string, status: Issue['status']) => {
+    if (!projectName) {
+      console.warn('[handleUpdateStatus] projectName が未設定です');
+      message.error('プロジェクトが選択されていません');
+      return;
+    }
+
+    try {
+      await updateIssueStatus({
+        projectName,
+        issueId,
+        status,
+      });
+
+      // ステータス更新後に問題一覧を再取得して表示に反映
+      const parts = (selectedTaskId ?? '').split('-');
+      const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
+
+      if (projectId && methodId && !isNaN(taskNo) && selectedTransition) {
+        setIssueLoading(true);
+        try {
+          const fetchedIssues = await getIssues({
+            projectId,
+            methodId,
+            taskNo,
+            transitionId: selectedTransition.transitionId,
+          });
+          setIssues(fetchedIssues);
+        } catch (fetchError) {
+          console.error('[handleUpdateStatus] 問題一覧再取得エラー', fetchError);
+          // 再取得失敗はサイレントに処理（ステータス更新自体は成功しているため）
+        } finally {
+          setIssueLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('[handleUpdateStatus] ステータス更新エラー', error);
+      message.error('ステータスの更新に失敗しました');
     }
   };
 
@@ -531,6 +573,7 @@ export default function TransitionList({
           onClose={handleIssueModalClose}
           onSubmitIssue={handleSubmitIssue}
           onSubmitComment={handleSubmitComment}
+          onUpdateStatus={handleUpdateStatus}
           projectStatus={projectStatus}
         />
       )}

@@ -32,10 +32,10 @@
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | 権限 |
 |----|-------------|---------------|------|---------|------|
 | 1 | POST | /api/v1/issues | 問題報告 | ✅ 実装済み | Worker以上 |
-| 2 | POST | /api/v1/issues/:issueId/comments | コメント投稿 | ✅ 実装済み | Worker以上 |
+| 2 | POST | /api/v1/issues/comments | コメント投稿 | ✅ 実装済み | Worker以上 |
 | 3 | GET | /api/v1/issues | 問題一覧取得 | ✅ 実装済み | Worker以上 |
 | 4 | GET | /api/v1/issues/:issueId | 問題詳細取得 | ✅ 実装済み | Worker以上 |
-| 5 | PATCH | /api/v1/issues/:issueId/status | 問題ステータス変更 | ✅ 実装済み | Manager以上 |
+| 5 | PATCH | /api/v1/issues/status | 問題ステータス変更 | ✅ 実装済み | Manager以上 |
 
 ---
 
@@ -835,7 +835,7 @@ router.patch('/issues/status',
 |-----------|----|----|------|------|
 | projectName | string | ○ | プロジェクト名 | 空文字列ではない |
 | issueId | string | ○ | 問題ID | 空文字列ではない |
-| status | string | ○ | ステータス | unresolved, resolved |
+| status | integer | ○ | ステータス | 0:未解決、1:解決 |
 
 ### レスポンス
 
