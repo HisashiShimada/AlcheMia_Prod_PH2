@@ -6,7 +6,7 @@ import Papa from 'papaparse';
 import { v4 as uuidv4 } from 'uuid';
 import * as corporationRepository from '../repositories/corporationRepository';
 import { CorporationSearchFilters } from '../repositories/corporationRepository';
-import { getPool } from '../database/db';
+import { getPgp } from '../database/db';
 
 /**
  * Corporationレスポンス型定義
@@ -287,12 +287,9 @@ export async function uploadCorporationsCsv(
   }
   
   // Phase 2: DB登録（バリデーション通過後のみ）
-  const pool = getPool();
-  const client = await pool.connect();
+  const pgp = getPgp();
   
-  try {
-    await client.query('BEGIN');
-    
+  return await pgp.tx(async (_t) => {
     let successCount = 0;
     
     // 全行を新規作成（バリデーションで既存チェック済み）
@@ -316,17 +313,10 @@ export async function uploadCorporationsCsv(
       successCount++;
     }
     
-    await client.query('COMMIT');
-    
     return {
       successCount,
       failureCount: 0,
       errors: [],
     };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }

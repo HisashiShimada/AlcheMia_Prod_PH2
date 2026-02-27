@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS maiml_event_log CASCADE;
 CREATE TABLE maiml_event_log (
     -- 複合主キー
     organization_id UUID NOT NULL,
-    project_id UUID NOT NULL,
+    project_id character varying(20) NOT NULL,
     sequence_no NUMERIC(5,0) NOT NULL,
     
     -- ログ情報

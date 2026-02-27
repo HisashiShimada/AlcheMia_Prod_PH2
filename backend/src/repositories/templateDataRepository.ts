@@ -197,4 +197,74 @@ export class TemplateDataRepository {
       );
     }
   }
+
+  /**
+   * テンプレート実績を1件INSERT（タスク登録時の初期レコード作成用）
+   *
+   * DDL準拠のカラム（property_set）を使用します。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param methodId - メソッドID
+   * @param taskNo - タスク番号
+   * @param placeId - プレースID
+   * @param propertySet - テンプレートプロパティ定義（JSON形式）
+   * @param userId - 作成・更新ユーザーID
+   * @param client - トランザクション用PoolClient
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async insert(
+    organizationId: string,
+    projectId: string,
+    methodId: string,
+    taskNo: number,
+    placeId: string,
+    propertySet: Record<string, unknown> | null,
+    userId: string,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      const query = await loadSqlFile('template_data/insert.sql');
+      const params = [
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        placeId,
+        propertySet !== null ? JSON.stringify(propertySet) : null, // JSONB
+        userId, // create_user_id
+        userId  // update_user_id
+      ];
+      await client.query(query, params);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while inserting template data',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * プロジェクト内のテンプレート実績を全件削除（タスク登録再保存時）
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param client - トランザクション用PoolClient
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async deleteByProject(
+    organizationId: string,
+    projectId: string,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      const query = await loadSqlFile('template_data/deleteByProject.sql');
+      await client.query(query, [organizationId, projectId]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while deleting template data by project',
+        error as Error
+      );
+    }
+  }
 }

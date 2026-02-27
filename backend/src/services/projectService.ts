@@ -13,12 +13,14 @@ import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
-import { loadSqlFile } from '../sql/loader';
 import type { 
   Project, 
   Pagination, 
   ProjectListResponse
 } from '../types/project';
+import {
+  nanoid
+} from 'nanoid'
 
 interface ListOptions {
   page: number;
@@ -114,8 +116,8 @@ export class ProjectService {
       }
 
       // Task 3.4: プロジェクトレコード登録
-      const { v4: uuidv4 } = require('uuid');
-      const projectId = uuidv4();
+      // project_id 形式: 'project_' (8文字) + nanoid(12) = 20文字固定
+      const projectId = `project_${nanoid(12)}`;
       const createAt = new Date().toISOString();
 
       const insertQuery = `
@@ -927,10 +929,17 @@ export class ProjectService {
               const fileName = file.key.split('/').pop() || '';
               const fileType = fileName.split('.').pop() || '';
 
+              // organizationId プレフィックスを除去して相対パスとして返す
+              // file.key 例: "550e8400.../projects/Sample_Project/Sample_Project.maiml"
+              // 相対パス例: "projects/Sample_Project/Sample_Project.maiml"
+              const relativePath = file.key.startsWith(`${organizationId}/`)
+                ? file.key.substring(organizationId.length + 1)
+                : file.key;
+
               return {
                 id: file.key,
                 name: fileName,
-                path: file.key,
+                path: relativePath,
                 size: file.size,
                 lastModified: file.lastModified.toISOString(),
                 type: fileType,
@@ -981,10 +990,15 @@ export class ProjectService {
                 const versionMatch = fileName.match(/_v(\d+)\.maiml$/);
                 const version = versionMatch ? parseInt(versionMatch[1], 10) : null;
 
+                // organizationId プレフィックスを除去して相対パスとして返す
+                const archiveRelativePath = file.key.startsWith(`${organizationId}/`)
+                  ? file.key.substring(organizationId.length + 1)
+                  : file.key;
+
                 return {
                   id: file.key,
                   name: fileName,
-                  path: file.key,
+                  path: archiveRelativePath,
                   size: file.size,
                   lastModified: file.lastModified.toISOString(),
                   type: fileType,

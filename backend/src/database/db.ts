@@ -16,6 +16,11 @@ types.setTypeParser(23, (val: string) => parseInt(val, 10)); // INTEGER
 types.setTypeParser(20, (val: string) => parseInt(val, 10)); // BIGINT
 types.setTypeParser(1700, (val: string) => parseFloat(val)); // NUMERIC
 
+// pg-promiseはモジュールレベルで1度だけ初期化する
+// （複数回pgPromise()を呼ぶとpgのグローバル状態が上書きされ、
+//   getPool()を使う既存Repositoryの動作が壊れるため）
+const pgpLib = pgPromise({ noWarnings: true });
+
 let pool: Pool | null = null;
 let pgp: pgPromise.IDatabase<any> | null = null;
 
@@ -137,11 +142,11 @@ export function getPgp(): pgPromise.IDatabase<any> {
     if (!pool) {
       initializePool();
     }
-    
-    // pg-promiseインスタンスを作成（Poolの接続情報を使用）
-    const pgpLib = pgPromise();
+
+    // モジュールレベルで初期化済みのpgpLibを再利用する
+    // （pgPromise()を再度呼ばないことでpgのグローバル状態の上書きを防ぐ）
     const config = pool!.options;
-    
+
     pgp = pgpLib({
       host: config.host as string,
       port: config.port as number,

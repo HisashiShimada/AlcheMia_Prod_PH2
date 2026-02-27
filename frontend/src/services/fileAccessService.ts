@@ -268,6 +268,76 @@ export const uploadFiles = async (
 };
 
 /**
+ * ファイルテキスト内容取得（ビューア用）
+ *
+ * Task: ビューアボタン修正 - MAIMLなどテキストファイルをstring取得
+ * - /files/download-url を使って署名付きURLを取得後、直接fetchしてテキストを返す
+ * - organization_idは認証情報から自動取得
+ *
+ * @param fileKey ファイルキー（相対パス）
+ * @returns ファイルのテキスト内容
+ * @throws Error APIエラー時
+ */
+export const getFileContentAsText = async (fileKey: string): Promise<string> => {
+  const client = createApiClient();
+
+  try {
+    // 署名付きURLを取得
+    const response = await client.post<ApiResponse<{ url: string; expiresAt: string; expiresIn: number }>>(
+      '/files/view-url',
+      { fileKey }
+    );
+
+    if (!response.data.success || !response.data.data?.url) {
+      throw new Error('ファイルURLの取得に失敗しました');
+    }
+
+    // 署名付きURLからテキストを取得
+    const fileResponse = await fetch(response.data.data.url);
+    if (!fileResponse.ok) {
+      throw new Error(`ファイルの取得に失敗しました: ${fileResponse.statusText}`);
+    }
+
+    return await fileResponse.text();
+  } catch (error) {
+    console.error('ファイルテキスト取得エラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * ファイル表示用署名付きURL取得（画像・TIFFビューア用）
+ *
+ * Task: ビューアボタン修正 - 画像・TIFFなど表示用URLをstring取得
+ * - /files/view-url を使って署名付きURLを取得して返す
+ * - ImageViewer・TiffViewerでそのままsrcとして使用可能
+ * - organization_idは認証情報から自動取得
+ *
+ * @param fileKey ファイルキー（相対パス）
+ * @returns 表示用署名付きURL
+ * @throws Error APIエラー時
+ */
+export const getFileViewUrl = async (fileKey: string): Promise<string> => {
+  const client = createApiClient();
+
+  try {
+    const response = await client.post<ApiResponse<{ url: string; expiresAt: string; expiresIn: number }>>(
+      '/files/view-url',
+      { fileKey }
+    );
+
+    if (!response.data.success || !response.data.data?.url) {
+      throw new Error('ファイルURLの取得に失敗しました');
+    }
+
+    return response.data.data.url;
+  } catch (error) {
+    console.error('ファイル表示URL取得エラー:', error);
+    throw error;
+  }
+};
+
+/**
  * ファイルキーベースの汎用削除
  * 
  * Task: ファイル削除API共通化

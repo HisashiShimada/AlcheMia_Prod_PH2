@@ -239,8 +239,10 @@ router.get(
   authMiddleware,
   [
     param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+      .notEmpty()
+      .withMessage('projectIdは必須です')
+      .isString()
+      .withMessage('projectIdは文字列である必要があります'),
   ],
   handleValidationErrors,
   projectController.getCheckoutStatus
@@ -316,8 +318,8 @@ router.get(
       .withMessage('projectNameは1〜255文字である必要があります'),
     query('projectId')
       .optional()
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+      .isString()
+      .withMessage('projectIdは文字列である必要があります'),
   ],
   handleValidationErrors,
   projectController.getWorkerInstructions

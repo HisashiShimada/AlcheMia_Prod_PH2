@@ -53,7 +53,9 @@ import {
   type ProjectListResponse,
 } from '@/services/projectApiService';
 import { AxiosError } from 'axios';
-import type { Project, Task, ProjectEditParams } from '@/types/project';
+import type { Project, Task } from '@/types/project';
+import type { MaimlEditorParams } from '@/types/maimlEditor';
+import { getUserInfo } from '@/utils/sessionStorageHelper';
 import type { ProjectFile } from '@/types/file';
 import type { InstructionData } from '@/types/instructionRegistration';
 
@@ -71,7 +73,7 @@ interface ProjectFilesData {
  * プロジェクト管理画面メインコンポーネント（内部実装）
  */
 interface ProjectManagementInnerProps {
-  onEdit?: (params: ProjectEditParams) => void;
+  onEdit?: (params: MaimlEditorParams) => void;
 }
 
 const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit }) => {
@@ -79,7 +81,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
   const { token } = theme.useToken();
   
   // ProjectMaimlContextを使用
-  const { loadMaiml, reloadMaiml, maimlRoot, isLoading: isMaimlLoading } = useProjectMaiml();
+  const { loadMaiml, reloadMaiml, maimlRoot, maimlContent, isLoading: isMaimlLoading } = useProjectMaiml();
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [ownerFilter, setOwnerFilter] = useState<string>('my_only'); // my_only, all
@@ -113,6 +115,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
     id: string;
     contentType: 'file' | 'subnet';
     file?: ProjectFile;
+    /** ファイルコンテンツ（Context から渡す場合に使用。未指定時は ViewRendererDialog 内で API 取得） */
+    fileContent?: string | null;
     subnetData?: {
       transitionName: string;
       maimlData: string;
@@ -669,12 +673,18 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
 
     // Draftがない場合は直接エディタへ
     console.log('➡️ [ProjectManagement] No draft, opening editor directly');
-    const sourceS3Key = `/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
-    const params: ProjectEditParams = {
-      projectId: selectedProject.id,
-      projectName: selectedProject.name,
-      projectOverview: selectedProject.description,
-      sourceS3Key: sourceS3Key
+    const userInfo = getUserInfo();
+    const orgId = userInfo?.organizationId ?? '';
+    const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+    const params: MaimlEditorParams = {
+      editMode: 'project',
+      editingFileName: `${selectedProject.name}.maiml`,
+      originalFileName: selectedProject.name,
+      sourceS3Key,
+      displayTitle: selectedProject.name,
+      displaySubtitle: selectedProject.description || undefined,
+      documentId: selectedProject.id,
+      description: selectedProject.description || undefined,
     };
     onEdit?.(params);
   }, [selectedProject, onEdit]);
@@ -684,13 +694,18 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
     console.log('💾 [ProjectManagement] Restoring draft');
     setDraftRestoreDialogOpen(false);
     if (selectedProject) {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '');
-      const sourceS3Key = userInfo ? `/org_${userInfo.organizationPrefix}/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
-      const params: ProjectEditParams = {
-        projectId: selectedProject.id,
-        projectName: selectedProject.name,
-        projectOverview: selectedProject.description,
-        sourceS3Key: sourceS3Key
+      const userInfo = getUserInfo();
+      const orgId = userInfo?.organizationId ?? '';
+      const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+      const params: MaimlEditorParams = {
+        editMode: 'project',
+        editingFileName: `${selectedProject.name}.maiml`,
+        originalFileName: selectedProject.name,
+        sourceS3Key,
+        displayTitle: selectedProject.name,
+        displaySubtitle: selectedProject.description || undefined,
+        documentId: selectedProject.id,
+        description: selectedProject.description || undefined,
       };
       onEdit?.(params);
     }
@@ -704,13 +719,18 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
       // Draftを削除してから開く
       const draftKey = `petri-net-draft-${selectedProject.id}`;
       localStorage.removeItem(draftKey);
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '');
-      const sourceS3Key = userInfo ? `/org_${userInfo.organizationPrefix}/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
-      const params: ProjectEditParams = {
-        projectId: selectedProject.id,
-        projectName: selectedProject.name,
-        projectOverview: selectedProject.description,
-        sourceS3Key: sourceS3Key
+      const userInfo = getUserInfo();
+      const orgId = userInfo?.organizationId ?? '';
+      const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+      const params: MaimlEditorParams = {
+        editMode: 'project',
+        editingFileName: `${selectedProject.name}.maiml`,
+        originalFileName: selectedProject.name,
+        sourceS3Key,
+        displayTitle: selectedProject.name,
+        displaySubtitle: selectedProject.description || undefined,
+        documentId: selectedProject.id,
+        description: selectedProject.description || undefined,
       };
       onEdit?.(params);
     }
@@ -736,18 +756,41 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
 
     const id = `${file.id}-${Date.now()}`;
     const offset = openDialogs.length * 30;  // カスケード配置
-    
+
+    /**
+     * プロジェクト直下（root）の最新 MAIMLファイルであれば
+     * Context に既にロード済みの maimlContent を渡す（API 二重取得を防ぐ）。
+     * アーカイブファイルや非 MAIML ファイルは undefined を渡し、
+     * ViewRendererDialog 内で都度 API 取得させる。
+     */
+    let passedFileContent: string | null | undefined = undefined;
+    if (
+      file.type === 'maiml' &&
+      currentFolder === 'root' &&
+      selectedProject &&
+      maimlContent !== undefined
+    ) {
+      // Context のキャッシュを渡す（null = ファイルなし も正常値として渡す）
+      passedFileContent = maimlContent;
+      console.log(
+        '📋 [ProjectManagement] Context の maimlContent をビューアに渡す:',
+        file.name,
+        { contentLength: maimlContent?.length ?? 0 }
+      );
+    }
+
     const newDialog: OpenDialog = {
       id,
       contentType: 'file',  // ファイル表示
       file,
+      fileContent: passedFileContent,
       zIndex: nextZIndex,
       position: { x: 100 + offset, y: 100 + offset }
     };
     
     setOpenDialogs(prev => [...prev, newDialog]);
     setNextZIndex(prev => prev + 1);
-  }, [openDialogs, nextZIndex]);
+  }, [openDialogs, nextZIndex, currentFolder, selectedProject, maimlContent]);
 
   // ダイアログを閉じる
   const handleCloseDialog = useCallback((id: string) => {
@@ -841,33 +884,37 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
    * 
    * 処理フロー:
    * 1. プロジェクト一覧を最新化
-   * 2. 選択中のプロジェクトを復元
-   * 3. 選択中のタブのデータを最新化
-   * 4. MAIMLデータを最新化
+   * 2. 選択中のプロジェクトを復元（プロジェクト選択中の場合のみ）
+   * 3. 選択中のタブのデータを最新化（プロジェクト選択中の場合のみ）
+   * 4. MAIMLデータを最新化（プロジェクト選択中の場合のみ）
+   * 
+   * @remarks プロジェクト未選択時はプロジェクト一覧のみ再取得する
    */
   const handleProjectReload = useCallback(async () => {
-    if (!selectedProject) {
-      message.warning('プロジェクトを選択してください');
-      return;
-    }
-
     try {
       setIsReloadingProject(true);
       
       console.log('🔄 [ProjectManagement] リロード開始:', {
-        projectId: selectedProject.id,
-        projectName: selectedProject.name,
+        projectId: selectedProject?.id,
+        projectName: selectedProject?.name,
         currentTab,
       });
       
-      // 1. 現在の選択状態を保存
+      // 1. プロジェクト一覧を最新化（プロジェクト未選択時もこれだけ実行）
+      console.log('📋 [ProjectManagement] プロジェクト一覧を最新化');
+      await refetchProjects();
+      
+      // プロジェクトが選択されていない場合はここで終了
+      if (!selectedProject) {
+        message.success('プロジェクト一覧を更新しました');
+        console.log('✅ [ProjectManagement] プロジェクト一覧のみ更新完了（プロジェクト未選択）');
+        return;
+      }
+      
+      // 2. 現在の選択状態を保存
       const currentProjectId = selectedProject.id;
       const currentProjectName = selectedProject.name;
       const currentTabKey = currentTab;
-      
-      // 2. プロジェクト一覧を最新化
-      console.log('📋 [ProjectManagement] プロジェクト一覧を最新化');
-      await refetchProjects();
       
       // 3. プロジェクト選択を復元
       console.log('🎯 [ProjectManagement] プロジェクト選択を復元:', currentProjectId);
@@ -1108,7 +1155,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
             icon={<ReloadOutlined />}
             onClick={handleProjectReload}
             loading={isReloadingProject}
-            disabled={!selectedProject || isReloadingProject}
+            disabled={isReloadingProject}
           >
             {isReloadingProject ? 'リロード中...' : 'リロード'}
           </Button>
@@ -1488,6 +1535,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
           id={dialog.id}
           contentType={dialog.contentType}
           file={dialog.file}
+          fileContent={dialog.fileContent}
           subnetData={dialog.subnetData}
           zIndex={dialog.zIndex}
           initialPosition={dialog.position}
@@ -1527,7 +1575,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
  * プロジェクト管理画面メインコンポーネント（Provider付き）
  */
 interface ProjectManagementProps {
-  onEdit?: (params: ProjectEditParams) => void;
+  onEdit?: (params: MaimlEditorParams) => void;
 }
 
 const ProjectManagement: React.FC<ProjectManagementProps> = (props) => {

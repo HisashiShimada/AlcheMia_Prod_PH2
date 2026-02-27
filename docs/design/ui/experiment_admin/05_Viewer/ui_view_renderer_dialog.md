@@ -94,9 +94,21 @@ interface SubnetData {
 ### 5.2. ファイルコンテンツ読み込み
 
 **処理フロー:**
-1. file/editモード時、useEffectでloadFileContent()実行
-2. MAIMLファイルの場合、test_omori11.maimlを読み込み
-3. ロード完了後、fileContentをViewRendererに渡す
+1. file/editモード時、useEffectで読み込みを実行
+2. MAIMLファイルの場合: `getFileContentAsText(file.path)` を呼び出し
+   - `POST /api/v1/files/view-url` で署名付きURL取得
+   - `fetch(url)` でS3/Swiftからテキストを取得
+3. 画像ファイル（ImageViewer/TiffViewer）の場合: `getFileViewUrl(file.path)` で署名付きURL取得
+4. 外部から `fileContent` props が渡された場合はAPIスキップ
+5. ロード完了後、fileContentをViewRendererに渡す
+
+**使用フロントエンドサービス（`fileAccessService.ts`）:**
+```typescript
+// テキストファイル（MAIML/XML/JSON/CSV）
+getFileContentAsText(fileKey: string): Promise<string>
+// 画像・TIFFファイル
+getFileViewUrl(fileKey: string): Promise<string>
+```
 
 ### 5.3. ドラッグ&リサイズ
 
@@ -216,3 +228,4 @@ ReactDOM.createPortal(dialogContent, document.body)
 |-----------|------|----------|--------|
 | 1.0.0 | 2025-12-19 | react-rnd対応フローティングダイアログ作成 | Development Team |
 | 1.1.0 | 2026-02-19 | UI仕様書作成 | Cline |
+| 1.2.0 | 2026-02-25 | ファイルコンテンツ読み込みをS3 API対応に更新（`POST /api/v1/files/view-url`） | Cline |

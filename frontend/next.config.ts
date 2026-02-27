@@ -21,7 +21,18 @@ const nextConfig: NextConfig = {
   // Reactのストリクトモードを有効化（開発時のパフォーマンス改善）
   reactStrictMode: true,
 
-  // Webpackの最適化設定
+  // Turbopack設定（Next.js 16以降のデフォルトバンドラー）
+  // SVGをReactコンポーネントとしてインポート可能にする
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
+  },
+
+  // Webpackの最適化設定（--webpack フラグ使用時のフォールバック）
   webpack: (config, { dev, isServer }) => {
     // 開発モードでのキャッシュ最適化
     if (dev) {
@@ -41,6 +52,7 @@ const nextConfig: NextConfig = {
 
     return config;
   },
+
 };
 
 export default nextConfig;

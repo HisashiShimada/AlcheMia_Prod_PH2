@@ -289,41 +289,43 @@ export class MaimlParserTyped {
     const condition: Template[] = [];
     const result: Template[] = [];
     
-    // protocol直下のテンプレート
+    // protocol直下のテンプレート（共通テンプレート: methodId = null）
     if (protocol.materialTemplates) {
-      this.collectTemplates(protocol.materialTemplates, 'material', material);
+      this.collectTemplates(protocol.materialTemplates, 'material', material, null);
     }
     if (protocol.conditionTemplates) {
-      this.collectTemplates(protocol.conditionTemplates, 'condition', condition);
+      this.collectTemplates(protocol.conditionTemplates, 'condition', condition, null);
     }
     if (protocol.resultTemplates) {
-      this.collectTemplates(protocol.resultTemplates, 'result', result);
+      this.collectTemplates(protocol.resultTemplates, 'result', result, null);
     }
     
-    // 各method内のテンプレート
+    // 各method内のテンプレート（methodId = method.id を付与）
     methods.forEach(method => {
+      const methodId = method.id || undefined;
+
       if (method.materialTemplates) {
-        this.collectTemplates(method.materialTemplates, 'material', material);
+        this.collectTemplates(method.materialTemplates, 'material', material, methodId);
       }
       if (method.conditionTemplates) {
-        this.collectTemplates(method.conditionTemplates, 'condition', condition);
+        this.collectTemplates(method.conditionTemplates, 'condition', condition, methodId);
       }
       if (method.resultTemplates) {
-        this.collectTemplates(method.resultTemplates, 'result', result);
+        this.collectTemplates(method.resultTemplates, 'result', result, methodId);
       }
       
-      // method.program内のテンプレート
+      // method.program内のテンプレート（methodId = method.id を付与）
       if (method.program) {
         const program = Array.isArray(method.program) ? method.program : [method.program];
         program.forEach(prog => {
           if (prog.materialTemplates) {
-            this.collectTemplates(prog.materialTemplates, 'material', material);
+            this.collectTemplates(prog.materialTemplates, 'material', material, methodId);
           }
           if (prog.conditionTemplates) {
-            this.collectTemplates(prog.conditionTemplates, 'condition', condition);
+            this.collectTemplates(prog.conditionTemplates, 'condition', condition, methodId);
           }
           if (prog.resultTemplates) {
-            this.collectTemplates(prog.resultTemplates, 'result', result);
+            this.collectTemplates(prog.resultTemplates, 'result', result, methodId);
           }
         });
       }
@@ -343,26 +345,19 @@ export class MaimlParserTyped {
   private collectTemplates(
     templates: Template | Array<Template>,
     type: 'material' | 'condition' | 'result',
-    result: Array<Template>
+    result: Array<Template>,
+    methodId: string | null | undefined = undefined
   ): void {
     const templateArray = Array.isArray(templates) ? templates : [templates];
     
     templateArray.forEach(template => {
-      // placeRef から最初の ref 値を取得（配列型なので）
-      const placeRefs = template.placeRefs as PlaceRef[] | undefined;
-      const placeRefValue = placeRefs && placeRefs.length > 0 
-        ? placeRefs[0].ref 
-        : undefined;
-      
-      // transitionRef は MaterialTemplate のみに存在
-      let transitionRefValue: string | undefined = undefined;
-      if (type === 'material' && 'templateRef' in template) {
-        const tRef = template.templateRef;
-        transitionRefValue = tRef?.ref ? tRef.ref : undefined;
+      // ✅ methodIdを付与（protocol直下=null、method内=methodId文字列）
+      // 既にmethodIdが設定されている場合は上書きしない
+      if (template.methodId === undefined) {
+        result.push({ ...template, methodId: methodId ?? undefined });
+      } else {
+        result.push(template);
       }
-      
-      // Phase 6-2修正: XSD準拠型をそのまま使用（追加フィールドは不要）
-      result.push(template);
     });
   }
   

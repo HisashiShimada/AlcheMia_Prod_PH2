@@ -118,6 +118,33 @@ router.post(
 );
 
 /**
+ * ファイル表示用署名付きURL取得
+ * POST /api/v1/files/view-url
+ *
+ * Task: ビューアボタン修正 - 画像・TIFFファイルの表示用URL取得
+ * - ファイルキーを直接指定して表示用署名付きURLを取得
+ * - Content-Dispositionを付与しない（ダウンロード強制なし）
+ *
+ * @middleware authMiddleware - JWT認証
+ * @note すべてのロールがアクセス可能（マルチテナント分離で保護）
+ */
+router.post(
+  '/view-url',
+  authMiddleware,
+  [
+    body('fileKey')
+      .notEmpty()
+      .withMessage('fileKeyは必須です')
+      .isString()
+      .withMessage('fileKeyは文字列である必要があります')
+      .isLength({ min: 1, max: 1024 })
+      .withMessage('fileKeyは1〜1024文字である必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.getFileViewUrl
+);
+
+/**
  * ファイルキーベースの汎用ダウンロード用署名付きURL取得
  * POST /api/v1/files/download-url
  * 
@@ -184,8 +211,10 @@ router.get(
   authMiddleware,
   [
     param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+      .notEmpty()
+      .withMessage('projectIdは必須です')
+      .isString()
+      .withMessage('projectIdは文字列である必要があります'),
     param('fileName')
       .notEmpty()
       .withMessage('fileNameは必須です')

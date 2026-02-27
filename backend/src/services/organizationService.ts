@@ -7,7 +7,8 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 import * as organizationRepository from '../repositories/organizationManagementRepository';
 import { OrganizationSearchFilters } from '../repositories/organizationManagementRepository';
-import { getPool } from '../database/db';
+import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import { generateAndSaveCertificate } from './certificateService';
 import { getStorageService } from './storageService';
 import { logger } from '../utils/logger';
@@ -182,234 +183,193 @@ export async function createOrganization(
     throw error;
   }
   
-  // トランザクション管理
-  const pool = getPool();
-  const client = await pool.connect();
-  
+  // pg-promise トランザクション管理
+  const pgp = getPgp();
+
+  // トランザクション外で実行するデータを事前に準備
+  // (bcryptはCPU負荷が高いためトランザクション外で実行)
+  let plainPassword: string | null = null;
+  let passwordHash: string | null = null;
+  let passwordExpiresAt: Date | null = null;
+
+  if (data.chiefUserEmail) {
+    plainPassword = generateRandomPassword();
+    console.log(`Password:${plainPassword}`);
+    const saltRounds = 12;
+    passwordHash = await bcrypt.hash(plainPassword, saltRounds);
+    passwordExpiresAt = new Date();
+  }
+
+  let fullOrganization;
+
   try {
-    await client.query('BEGIN');
-    
-    // 1. organizationテーブルに挿入
-    const insertOrgQuery = `
-      INSERT INTO organization (
-        organization_id,
-        organization_cd,
-        organization_display_name,
-        organization_email,
-        chief_user_id,
-        corporation_id,
-        is_entry,
-        is_active,
-        create_user_id,
-        update_user_id,
-        create_at,
-        update_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
-      )
-      RETURNING organization_id
-    `;
-    
-    const orgValues = [
-      data.organizationId,
-      data.organizationCd,
-      data.organizationDisplayName,
-      data.organizationEmail,
-      data.chiefUserEmail || null,  // 代表者メールアドレスをchief_user_idに設定
-      data.corporationId || null,
-      data.isEntry !== undefined ? data.isEntry : 0,
-      data.isActive !== undefined ? data.isActive : true,
-      userId,
-      userId,
-    ];
-    
-    await client.query(insertOrgQuery, orgValues);
-    
-    // 2. organization_userテーブルに挿入（代表システム管理者）
-    if (data.chiefUserEmail && data.chiefUserName) {
-      await organizationRepository.createOrganizationUser(
+    // SQLファイルを事前に読み込み
+    const insertOrgQuery = await loadSqlFile('organizations/create.sql');
+    const authQuery = await loadSqlFile('organizations/createUserAuthentication.sql');
+
+    await pgp.tx(async (t) => {
+      // 1. organizationテーブルに挿入
+      const orgValues = [
+        data.organizationId,
+        data.organizationCd,
+        data.organizationDisplayName,
+        data.organizationEmail,
+        data.chiefUserEmail || null,  // 代表者メールアドレスをchief_user_idに設定
+        data.corporationId || null,
+        data.isEntry !== undefined ? data.isEntry : 0,
+        data.isActive !== undefined ? data.isActive : true,
+        userId,
+        userId,
+      ];
+
+      await t.one(insertOrgQuery, orgValues);
+
+      // 2. organization_userテーブルに挿入（代表システム管理者）
+      if (data.chiefUserEmail && data.chiefUserName) {
+        await organizationRepository.createOrganizationUser(
+          {
+            userId: data.chiefUserEmail,           // user_id = 代表者メールアドレス
+            organizationId: data.organizationId,
+            userName: data.chiefUserName,          // user_name = 代表システム管理者名
+            roleCd: 'ROLE002',                     // システム管理者
+            mailAddress: data.chiefUserEmail,      // mail_address = 代表者メールアドレス
+            departmentCd: null,                    // Null
+            isActive: true,                        // True
+          },
+          userId,
+          t                                        // pg-promiseトランザクションオブジェクト
+        );
+      }
+
+      // 3. roleテーブルに挿入（ROLE002: システム管理者）
+      await organizationRepository.createRole(
         {
-          userId: data.chiefUserEmail,           // user_id = 代表者メールアドレス
           organizationId: data.organizationId,
-          userName: data.chiefUserName,          // user_name = 代表システム管理者名
-          roleCd: 'ROLE002',                     // システム管理者
-          mailAddress: data.chiefUserEmail,      // mail_address = 代表者メールアドレス
-          departmentCd: null,                    // Null
-          isActive: true,                        // True
+          roleCd: 'ROLE002',
+          roleName: 'システム管理者',
+          initialScreenFunctionCd: '020000',     // システム管理メニュー
+          isActive: true,
         },
         userId,
-        client
+        t                                          // pg-promiseトランザクションオブジェクト
       );
-    }
-    
-    // 3. roleテーブルに挿入（ROLE002: システム管理者）
-    await organizationRepository.createRole(
-      {
-        organizationId: data.organizationId,
-        roleCd: 'ROLE002',
-        roleName: 'システム管理者',
-        initialScreenFunctionCd: '020000',     // システム管理メニュー
-        isActive: true,
-      },
-      userId,
-      client
-    );
-    
-    // 4. role_permissionテーブルに挿入（4つの機能権限）
-    const permissions = [
-      {
-        organizationId: data.organizationId,
-        roleCd: 'ROLE002',
-        functionCd: '020000',                  // システム管理者メニュー
-        permission: 1,                          // 書込可
-      },
-      {
-        organizationId: data.organizationId,
-        roleCd: 'ROLE002',
-        functionCd: '030000',                  // データ管理者メニュー
-        permission: 1,                          // 書込可
-      },
-      {
-        organizationId: data.organizationId,
-        roleCd: 'ROLE002',
-        functionCd: '040000',                  // 実験管理者メニュー
-        permission: 1,                          // 書込可
-      },
-      {
-        organizationId: data.organizationId,
-        roleCd: 'ROLE002',
-        functionCd: '050000',                  // 実験作業者メニュー
-        permission: 1,                          // 書込可
-      },
-    ];
-    
-    await organizationRepository.createRolePermissions(permissions, userId, client);
-    
-    // 5. user_authenticationテーブルに挿入（パスワード認証情報）
-    if (data.chiefUserEmail) {
-      // ランダムパスワードを自動生成
-      const plainPassword = generateRandomPassword();
-      console.log(`Password:${plainPassword}`);
-      
-      // パスワードをbcryptでハッシュ化（12 rounds）
-      const saltRounds = 12;
-      const passwordHash = await bcrypt.hash(plainPassword, saltRounds);
-      
-      // パスワード有効期限：保存ボタン押下時のタイムスタンプ（現在日時）
-      const passwordExpiresAt = new Date();
-      
-      const authQuery = `
-        INSERT INTO user_authentication (
-          user_id,
-          organization_id,
-          password,
-          is_temporary_flg,
-          password_expires_at,
-          create_user_id,
-          update_user_id,
-          create_at,
-          update_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
-        )
-      `;
-      
-      const authValues = [
-        data.chiefUserEmail,         // user_id（代表者メールアドレス）
-        data.organizationId,         // organization_id
-        passwordHash,                // password（bcryptハッシュ）
-        true,                        // is_temporary_flg（仮パスワード）
-        passwordExpiresAt,           // password_expires_at（有効期限）
-        userId,                      // create_user_id
-        userId,                      // update_user_id
+
+      // 4. role_permissionテーブルに挿入（4つの機能権限）
+      const permissions = [
+        {
+          organizationId: data.organizationId,
+          roleCd: 'ROLE002',
+          functionCd: '020000',                  // システム管理者メニュー
+          permission: 1,                          // 書込可
+        },
+        {
+          organizationId: data.organizationId,
+          roleCd: 'ROLE002',
+          functionCd: '030000',                  // データ管理者メニュー
+          permission: 1,                          // 書込可
+        },
+        {
+          organizationId: data.organizationId,
+          roleCd: 'ROLE002',
+          functionCd: '040000',                  // 実験管理者メニュー
+          permission: 1,                          // 書込可
+        },
+        {
+          organizationId: data.organizationId,
+          roleCd: 'ROLE002',
+          functionCd: '050000',                  // 実験作業者メニュー
+          permission: 1,                          // 書込可
+        },
       ];
-      
-      await client.query(authQuery, authValues);
-    }
-    
-    await client.query('COMMIT');
-    
+
+      await organizationRepository.createRolePermissions(permissions, userId, t);  // pg-promiseトランザクションオブジェクト
+
+      // 5. user_authenticationテーブルに挿入（パスワード認証情報）
+      if (data.chiefUserEmail && passwordHash && passwordExpiresAt) {
+        const authValues = [
+          data.chiefUserEmail,         // user_id（代表者メールアドレス）
+          data.organizationId,         // organization_id
+          passwordHash,                // password（bcryptハッシュ）
+          true,                        // is_temporary_flg（仮パスワード）
+          passwordExpiresAt,           // password_expires_at（有効期限）
+          userId,                      // create_user_id
+          userId,                      // update_user_id
+        ];
+
+        await t.none(authQuery, authValues);
+      }
+    });
+
     // JOINでchief_user_nameとcorporation_nameを取得
-    const fullOrganization = await organizationRepository.findById(data.organizationId);
-    
+    fullOrganization = await organizationRepository.findById(data.organizationId);
+
     if (!fullOrganization) {
       throw new Error('Created organization not found');
     }
-    
+
     // 組織作成成功後、クライアント証明書を自動生成
-    // 注意: トランザクション完了後に実行（DB整合性を保つため）
-    // 証明書生成失敗時でも組織作成自体は成功とする
-    try {
-      logger.info(`[organizationService] 組織作成成功、証明書生成を開始: organizationId=${data.organizationId}`);
-      const certResult = await generateAndSaveCertificate(data.organizationId);
-      
-      if (certResult.success) {
-        logger.info(`[organizationService] 証明書生成成功: organizationId=${data.organizationId}`);
-      } else {
-        logger.warn(
-          `[organizationService] 証明書生成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
-          {
-            error: certResult.errorMessage,
-            organizationId: data.organizationId,
-          }
-        );
-      }
-    } catch (certError) {
-      // 証明書生成エラーはログに記録するが、組織作成自体は成功とする
-      logger.error(
-        `[organizationService] 証明書生成で例外発生（組織作成は成功）: organizationId=${data.organizationId}`,
-        {
-          error: certError instanceof Error ? certError.message : String(certError),
-          organizationId: data.organizationId,
-        }
-      );
-    }
-    
-    // 基本フォルダ構造の作成
-    // 注意: トランザクション完了後に実行（DB整合性を保つため）
-    // フォルダ作成失敗時でも組織作成自体は成功とする
-    try {
-      logger.info(`[organizationService] 基本フォルダ構造を作成: organizationId=${data.organizationId}`);
-      const storageService = getStorageService();
-      
-      // 組織の基本フォルダ構造を定義（ビジネスロジック）
-      const organizationFolders = [
-        'projects/',
-        'formats/',
-      ];
-      
-      await storageService.createFolders(data.organizationId, organizationFolders);
-      logger.info(`[organizationService] 基本フォルダ構造作成完了: organizationId=${data.organizationId}`);
-    } catch (folderError) {
-      // フォルダ作成エラーはログに記録するが、組織作成自体は成功とする
-      logger.warn(
-        `[organizationService] フォルダ作成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
-        {
-          error: folderError instanceof Error ? folderError.message : String(folderError),
-          organizationId: data.organizationId,
-        }
-      );
-    }
-    
-    return {
-      organizationId: fullOrganization.organization_id,
-      organizationCd: fullOrganization.organization_cd || '',
-      organizationDisplayName: fullOrganization.organization_display_name || '',
-      organizationEmail: fullOrganization.organization_email || '',
-      chiefUserId: fullOrganization.chief_user_id || '',
-      chiefUserName: fullOrganization.chief_user_name || '',
-      corporationName: fullOrganization.corporation_name || '',
-      isEntry: fullOrganization.is_entry,
-      isActive: fullOrganization.is_active,
-      updatedAt: formatDateTime(fullOrganization.update_at),
-    };
   } catch (error) {
-    await client.query('ROLLBACK');
     console.error('Transaction error during organization creation:', error);
     throw error;
-  } finally {
-    client.release();
   }
+
+  // 組織作成成功後、クライアント証明書を自動生成
+  // 注意: トランザクション完了後に実行（DB整合性を保つため）
+  // 証明書生成失敗時でも組織作成自体は成功とする
+  try {
+    logger.info(`[organizationService] 組織作成成功、証明書生成を開始: organizationId=${data.organizationId}`);
+    const certResult = await generateAndSaveCertificate(data.organizationId);
+
+    if (certResult.success) {
+      logger.info(`[organizationService] 証明書生成成功: organizationId=${data.organizationId}`);
+    } else {
+      logger.warn(
+        `[organizationService] 証明書生成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
+        {
+          error: certResult.errorMessage,
+          organizationId: data.organizationId,
+        }
+      );
+    }
+  } catch (certError) {
+    logger.error(
+      `[organizationService] 証明書生成で例外発生（組織作成は成功）: organizationId=${data.organizationId}`,
+      {
+        error: certError instanceof Error ? certError.message : String(certError),
+        organizationId: data.organizationId,
+      }
+    );
+  }
+
+  // 基本フォルダ構造の作成
+  try {
+    logger.info(`[organizationService] 基本フォルダ構造を作成: organizationId=${data.organizationId}`);
+    const storageService = getStorageService();
+    const organizationFolders = ['projects/', 'formats/'];
+    await storageService.createFolders(data.organizationId, organizationFolders);
+    logger.info(`[organizationService] 基本フォルダ構造作成完了: organizationId=${data.organizationId}`);
+  } catch (folderError) {
+    logger.warn(
+      `[organizationService] フォルダ作成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
+      {
+        error: folderError instanceof Error ? folderError.message : String(folderError),
+        organizationId: data.organizationId,
+      }
+    );
+  }
+
+  return {
+    organizationId: fullOrganization!.organization_id,
+    organizationCd: fullOrganization!.organization_cd || '',
+    organizationDisplayName: fullOrganization!.organization_display_name || '',
+    organizationEmail: fullOrganization!.organization_email || '',
+    chiefUserId: fullOrganization!.chief_user_id || '',
+    chiefUserName: fullOrganization!.chief_user_name || '',
+    corporationName: fullOrganization!.corporation_name || '',
+    isEntry: fullOrganization!.is_entry,
+    isActive: fullOrganization!.is_active,
+    updatedAt: formatDateTime(fullOrganization!.update_at),
+  };
 }
 
 /**
@@ -508,6 +468,78 @@ export async function getSystemAdminsByOrganizationId(
     userId: admin.user_id,
     userName: admin.user_name,
   }));
+}
+
+/**
+ * 情報ダウンロード用CSVデータ型定義
+ */
+export interface OrganizationInformationCsvRow {
+  '組織CD': string;
+  '組織表示名': string;
+  '組織e-mail': string;
+  '代表システム管理者': string;
+  '会社名': string;
+  'ストレージ使用量': string;
+  'プロジェクト数': string;
+  'アクティブユーザー数': string;
+}
+
+/**
+ * 情報ダウンロード用：全組織の統計情報を収集してCSVデータを返す
+ *
+ * @returns 情報ダウンロード用CSVデータの配列
+ */
+export async function downloadOrganizationsInformation(): Promise<OrganizationInformationCsvRow[]> {
+  // 環境変数から上限値を取得
+  const maxStorageGb = process.env.MAX_STORAGE_GB_PER_ORG || '10';
+  const maxProjects = process.env.MAX_PROJECTS_PER_ORG || '999';
+
+  // DB から組織統計情報を取得
+  const orgs = await organizationRepository.findAllWithStats();
+
+  // ストレージサービスの取得
+  const storageService = getStorageService();
+
+  // 各組織のストレージ使用量を取得
+  const rows: OrganizationInformationCsvRow[] = [];
+
+  for (const org of orgs) {
+    // ストレージ使用量の計算
+    // listFiles でルート配下の全ファイルを取得してサイズを合計
+    // 注意: maxKeys=500 の制限があるため、大量ファイルがある組織では近似値になる場合がある
+    let storageSizeBytes = 0;
+    try {
+      const files = await storageService.listFiles(org.organization_id, '', 1000);
+      storageSizeBytes = files.reduce((sum, f) => sum + (f.size || 0), 0);
+    } catch (err) {
+      logger.warn(`[organizationService] ストレージ使用量取得失敗: organizationId=${org.organization_id}`, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    // バイト → GB 変換（小数点2桁）
+    const storageSizeGb = (storageSizeBytes / (1024 * 1024 * 1024)).toFixed(2);
+    const storageDisplay = `${storageSizeGb}/${maxStorageGb}GB`;
+
+    // プロジェクト数表示
+    const projectDisplay = `${org.project_count}/${maxProjects}`;
+
+    // アクティブユーザー数表示
+    const activeUserDisplay = `${org.active_user_count}/${org.total_user_count}`;
+
+    rows.push({
+      '組織CD': org.organization_cd || '',
+      '組織表示名': org.organization_display_name || '',
+      '組織e-mail': org.organization_email || '',
+      '代表システム管理者': org.chief_user_name || '',
+      '会社名': org.corporation_name || '',
+      'ストレージ使用量': storageDisplay,
+      'プロジェクト数': projectDisplay,
+      'アクティブユーザー数': activeUserDisplay,
+    });
+  }
+
+  return rows;
 }
 
 /**
@@ -661,13 +693,11 @@ export async function uploadOrganizationsCsv(
     // corporation_name存在チェック（指定されている場合のみ）
     const corporationName = row['corporation_name']?.trim();
     if (corporationName) {
-      const pool = getPool();
-      const result = await pool.query(
-        'SELECT corporation_id FROM corporation WHERE corporation_name = $1 AND is_active = true',
-        [corporationName]
-      );
+      const pgp = getPgp();
+      const findByNameQuery = await loadSqlFile('corporations/findByName.sql');
+      const corpResult = await pgp.oneOrNone(findByNameQuery, [corporationName]);
       
-      if (result.rows.length === 0) {
+      if (!corpResult) {
         validationErrors.push({
           row: rowNumber,
           field: 'corporation_name',
@@ -715,12 +745,10 @@ export async function uploadOrganizationsCsv(
       // corporation_nameからcorporation_idを取得
       let corporationId: string | undefined = undefined;
       if (corporationName) {
-        const pool = getPool();
-        const result = await pool.query(
-          'SELECT corporation_id FROM corporation WHERE corporation_name = $1 AND is_active = true',
-          [corporationName]
-        );
-        corporationId = result.rows[0].corporation_id;
+        const pgp = getPgp();
+        const findByNameQuery = await loadSqlFile('corporations/findByName.sql');
+        const corpResult = await pgp.oneOrNone<{ corporation_id: string }>(findByNameQuery, [corporationName]);
+        corporationId = corpResult?.corporation_id;
       }
       
       // createOrganization関数を使用（組織追加ダイアログと同じ処理）
