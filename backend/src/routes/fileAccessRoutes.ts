@@ -145,6 +145,33 @@ router.post(
 );
 
 /**
+ * ファイル削除
+ * DELETE /api/v1/files/delete
+ * 
+ * Task: ファイル削除API共通化
+ * - ファイルキーを直接指定してファイルを削除
+ * - フォーマット、プロジェクト、その他のファイルで共通利用可能
+ * 
+ * @middleware authMiddleware - JWT認証
+ * @note すべてのロールがアクセス可能（マルチテナント分離で保護）
+ */
+router.delete(
+  '/delete',
+  authMiddleware,
+  [
+    body('fileKey')
+      .notEmpty()
+      .withMessage('fileKeyは必須です')
+      .isString()
+      .withMessage('fileKeyは文字列である必要があります')
+      .isLength({ min: 1, max: 1024 })
+      .withMessage('fileKeyは1〜1024文字である必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.deleteFile
+);
+
+/**
  * 単一ファイルダウンロード用署名付きURL取得
  * GET /api/v1/projects/:projectId/files/:fileName/download
  * 

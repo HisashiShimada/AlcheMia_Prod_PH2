@@ -268,6 +268,42 @@ export const uploadFiles = async (
 };
 
 /**
+ * ファイルキーベースの汎用削除
+ * 
+ * Task: ファイル削除API共通化
+ * - ファイルキー（相対パス）を指定してファイルを削除
+ * - プロジェクト、フォーマット、その他のファイルで共通利用可能
+ * - organization_idは認証情報から自動取得
+ * 
+ * @param fileKey ファイルキー（相対パス）
+ * @returns Promise<void> 削除完了後に解決
+ * @throws Error APIエラー時
+ * 
+ * @example
+ * // フォーマットファイル削除
+ * await deleteFileByKey('formats/chemistry/template.xml');
+ * 
+ * // プロジェクトファイル削除
+ * await deleteFileByKey('projects/sample_project/data.csv');
+ */
+export const deleteFileByKey = async (
+  fileKey: string
+): Promise<void> => {
+  const client = createApiClient();
+
+  try {
+    await client.delete('/files/delete', {
+      data: { fileKey },
+    });
+
+    console.log('ファイル削除成功:', fileKey);
+  } catch (error) {
+    console.error('ファイル削除エラー:', error);
+    throw error;
+  }
+};
+
+/**
  * ファイルサイズをフォーマット（バイト → KB/MB/GB）
  * 
  * @param bytes ファイルサイズ（バイト）

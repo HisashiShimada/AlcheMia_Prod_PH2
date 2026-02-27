@@ -597,6 +597,61 @@ export class FileAccessService {
   }
 
   /**
+   * ファイルキーベースでファイルを削除
+   * 
+   * Task: ファイル削除API共通化
+   * - ファイルキーを指定してストレージからファイルを削除
+   * - フォーマット、プロジェクト、その他のファイルで共通利用可能
+   * 
+   * @param organizationId 組織ID
+   * @param fileKey ファイルキー（相対パス）
+   * @throws ValidationError ファイルキーが不正な場合
+   * @throws NotFoundError ファイルが存在しない場合
+   * @throws StorageError ストレージエラーの場合
+   */
+  async deleteFileByKey(
+    organizationId: string,
+    fileKey: string
+  ): Promise<void> {
+    // 1. ファイルキーのバリデーション
+    if (!fileKey || fileKey.trim().length === 0) {
+      throw new ValidationError('ファイルキーは必須です');
+    }
+
+    // パストラバーサル攻撃対策
+    if (fileKey.includes('..') || fileKey.includes('//')) {
+      throw new ValidationError('不正なファイルパスが検出されました');
+    }
+
+    // 2. ストレージ上のファイル存在確認
+    const existsInStorage = await this.storageService.fileExists(
+      organizationId,
+      fileKey
+    );
+
+    if (!existsInStorage) {
+      throw new NotFoundError(
+        `ファイルが見つかりません: ${fileKey}`
+      );
+    }
+
+    // 3. ストレージからファイルを削除
+    try {
+      await this.storageService.deleteFile(organizationId, fileKey);
+      console.log(`✅ [Delete] ストレージから削除成功: ${fileKey}`);
+    } catch (error) {
+      throw new StorageError(
+        `ファイルの削除に失敗しました: ${fileKey}`
+      );
+    }
+
+    // 4. DBからメタデータを削除（存在する場合のみ）
+    // Note: file_metadataテーブルの削除は将来的に実装予定
+    // 現時点ではストレージからの削除のみ実行
+    console.log(`ℹ️ [Delete] file_metadataテーブルの削除は未実装: ${fileKey}`);
+  }
+
+  /**
    * フォルダ配下のすべてのファイルをZIP形式でダウンロード
    * 
    * Task: 汎用フォルダZIPダウンロード機能
