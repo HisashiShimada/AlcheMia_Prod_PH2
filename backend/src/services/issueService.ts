@@ -57,12 +57,12 @@ export class IssueService {
         projectId: data.projectId,
         issueId: data.issueId || `issue_${Date.now()}`,
         methodId: data.methodId,
-        issueTarget: data.issueTarget,
+        issueTarget: data.targetType,
         taskNo: data.taskNo,
         transitionId: data.transitionId,
-        issueTitle: data.issueTitle,
+        issueTitle: data.title,
         issueType: data.issueType,
-        issueContents: data.issueContents,
+        issueContents: data.description,
         issueReporterId: userId,
       };
 
