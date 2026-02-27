@@ -115,10 +115,10 @@ export const generateInitialDocumentData = (editingFileName?: string) => {
     owners: generateInitialOwner(),
     instruments: [],
     // エディター用拡張プロパティ
-    protocolId: `protocol_${Date.now()}`,
-    methodId: `method_${Date.now()}`,
-    pnmlId: `pnml_${Date.now()}`,
-    programId: `program_${Date.now()}`,
+    protocolId: `protocol_${baseFileName}_${uuidPrefix}`,
+    methodId: `method_${baseFileName}_${uuidPrefix}`,
+    pnmlId: `pnml_${baseFileName}_${uuidPrefix}`,
+    programId: `program_${baseFileName}_${uuidPrefix}`,
     chains: [],
     parents: []
   };
@@ -133,7 +133,7 @@ export const generateInitialDocumentData = (editingFileName?: string) => {
     ownersCount: documentData.owners.length
   });
   
-  return { documentData, methodIdForInitialMethod: `method_${baseFileName}_${uuidPrefix}` };
+  return { documentData };
 };
 
 /**

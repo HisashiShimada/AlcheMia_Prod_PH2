@@ -11,6 +11,7 @@ CREATE TABLE template_data (
     organization_id UUID NOT NULL,
     project_id UUID NOT NULL,
     method_id CHARACTER VARYING NOT NULL,
+    experiment_order numeric(2,0) NOT NULL,
     task_no NUMERIC(3,0) NOT NULL,
     place_id CHARACTER VARYING NOT NULL,
     
@@ -26,7 +27,7 @@ CREATE TABLE template_data (
     update_at TIMESTAMP,
     
     -- 制約
-    CONSTRAINT template_data_pkey PRIMARY KEY (organization_id, project_id, method_id, task_no, place_id)
+  , CONSTRAINT template_data_PKC PRIMARY KEY (organization_id,project_id,method_id,experiment_order,task_no,place_id)
 );
 
 -- コメント
@@ -34,6 +35,7 @@ COMMENT ON TABLE template_data IS 'テンプレート実績';
 COMMENT ON COLUMN template_data.organization_id IS '組織ID';
 COMMENT ON COLUMN template_data.project_id IS 'プロジェクトID';
 COMMENT ON COLUMN template_data.method_id IS 'メソッドID';
+COMMENT ON COLUMN template_data.experiment_order IS '実験順序';
 COMMENT ON COLUMN template_data.task_no IS 'タスク連番';
 COMMENT ON COLUMN template_data.place_id IS 'プレースID';
 COMMENT ON COLUMN template_data.property_set IS 'プロパティセット';

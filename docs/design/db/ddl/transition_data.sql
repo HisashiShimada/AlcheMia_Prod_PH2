@@ -11,6 +11,7 @@ CREATE TABLE transition_data (
     organization_id UUID NOT NULL,
     project_id UUID NOT NULL,
     method_id CHARACTER VARYING NOT NULL,
+    experiment_order numeric(2,0) NOT NULL,
     task_no NUMERIC(3,0) NOT NULL,
     transition_id CHARACTER VARYING NOT NULL,
     
@@ -27,7 +28,7 @@ CREATE TABLE transition_data (
     update_at TIMESTAMP,
     
     -- 制約
-    CONSTRAINT transition_data_pkey PRIMARY KEY (organization_id, project_id, method_id, task_no, transition_id)
+  , CONSTRAINT transition_data_PKC PRIMARY KEY (organization_id,project_id,method_id,experiment_order,task_no,transition_id)
 );
 
 -- コメント
@@ -35,11 +36,12 @@ COMMENT ON TABLE transition_data IS 'トランジション実績';
 COMMENT ON COLUMN transition_data.organization_id IS '組織ID';
 COMMENT ON COLUMN transition_data.project_id IS 'プロジェクトID';
 COMMENT ON COLUMN transition_data.method_id IS 'メソッドID';
+COMMENT ON COLUMN transition_data.experiment_order IS '実験順序';
 COMMENT ON COLUMN transition_data.task_no IS 'タスク連番';
 COMMENT ON COLUMN transition_data.transition_id IS 'トランジションID';
 COMMENT ON COLUMN transition_data.status IS 'ステータス';
 COMMENT ON COLUMN transition_data.progress_rate IS '進捗率';
 COMMENT ON COLUMN transition_data.create_user_id IS '作成者ユーザID';
-COMMENT ON COLUMN transition_data.update_user_id IS '更新者ユーザID';
 COMMENT ON COLUMN transition_data.create_at IS '作成日時';
+COMMENT ON COLUMN transition_data.update_user_id IS '更新者ユーザID';
 COMMENT ON COLUMN transition_data.update_at IS '更新日時';

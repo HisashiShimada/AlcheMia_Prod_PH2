@@ -13,7 +13,6 @@ import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
-import { loadSqlFile } from '../sql/loader';
 import type { 
   Project, 
   Pagination, 

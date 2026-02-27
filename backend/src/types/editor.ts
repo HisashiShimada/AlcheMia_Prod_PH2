@@ -8,7 +8,40 @@
  *
  */
 
-import type { Node, Edge, Viewport } from 'reactflow';
+// reactflow は React専用ライブラリのためバックエンドでは使用不可
+// 互換性のある最小限の型をローカルで定義する
+
+/**
+ * ReactFlow Node型の互換定義（バックエンド用）
+ */
+export interface Node<T = unknown> {
+  id: string;
+  type?: string;
+  position: { x: number; y: number };
+  data: T;
+  [key: string]: unknown;
+}
+
+/**
+ * ReactFlow Edge型の互換定義（バックエンド用）
+ */
+export interface Edge<T = unknown> {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
+  data?: T;
+  [key: string]: unknown;
+}
+
+/**
+ * ReactFlow Viewport型の互換定義（バックエンド用）
+ */
+export interface Viewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
 
 // XSD準拠の型定義をimport
 import type {
