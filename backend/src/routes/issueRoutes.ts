@@ -35,8 +35,8 @@ router.post(
     body('projectId')
       .notEmpty()
       .withMessage('projectIdは必須です')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+      .isString()
+      .withMessage('projectIdは文字列である必要があります'),
     body('methodId')
       .optional()
       .isString()
@@ -144,8 +144,8 @@ router.get(
     query('project_id')
       .notEmpty()
       .withMessage('project_idは必須です')
-      .isUUID()
-      .withMessage('project_idはUUID形式である必要があります'),
+      .isString()
+      .withMessage('project_idは文字列である必要があります'),
     query('method_id')
       .notEmpty()
       .withMessage('method_idは必須です')

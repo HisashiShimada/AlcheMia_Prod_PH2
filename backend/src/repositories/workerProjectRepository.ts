@@ -15,7 +15,7 @@ import { loadSqlFile } from '../sql/loader';
  * WorkerAccessibleProjectのデータ型定義
  */
 export interface WorkerAccessibleProjectRow {
-  project_id: string; // UUID
+  project_id: string; // character varying
   project_name: string;
   description: string | null;
   project_status: number;

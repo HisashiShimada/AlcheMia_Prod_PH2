@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS issue_comment CASCADE;
 CREATE TABLE issue_comment (
     -- 複合主キー
     organization_id UUID NOT NULL,
-    project_id UUID NOT NULL,
+    project_id character varying(20) NOT NULL,
     issue_id CHARACTER VARYING NOT NULL,
     sequence_no NUMERIC(3,0) NOT NULL,
     
