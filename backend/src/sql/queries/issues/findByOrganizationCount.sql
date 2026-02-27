@@ -2,5 +2,5 @@
 -- findByOrganization() メソッドで使用
 -- 動的フィルタ（projectId, methodId, taskNo, transitionId, issueType, severity, status）はTypeScriptコードで追加される
 SELECT COUNT(*) as count
-FROM issues
+FROM issue
 WHERE organization_id = $1

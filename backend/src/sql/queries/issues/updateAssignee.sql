@@ -1,5 +1,5 @@
 -- 担当者を更新する
-UPDATE issues
+UPDATE issue
 SET assignee_id = $1, update_at = CURRENT_TIMESTAMP
 WHERE issue_id = $2 AND organization_id = $3
 RETURNING

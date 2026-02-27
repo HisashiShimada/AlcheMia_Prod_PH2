@@ -1,6 +1,6 @@
 -- 問題を作成する
 -- POST /api/v1/issues で使用
-INSERT INTO issues (
+INSERT INTO issue (
   organization_id,
   project_id,
   issue_id,
