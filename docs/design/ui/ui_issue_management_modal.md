@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/IssueManagementModal.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-01-19
+- **最終更新日**: 2026-02-27
 
 ---
 
@@ -559,15 +559,11 @@ const getStatusTag = (status: IssueStatus) => {
     name="issueType"
     rules={[{ required: true, message: '問題タイプを選択してください' }]}
   >
-    <Select placeholder="問題タイプを選択">
-      <Select.Option value="material_shortage">材料不足</Select.Option>
-      <Select.Option value="equipment_failure">機器故障</Select.Option>
-      <Select.Option value="procedure_unclear">手順不明確</Select.Option>
-      <Select.Option value="safety_concern">安全性の懸念</Select.Option>
-      <Select.Option value="quality_issue">品質問題</Select.Option>
-      <Select.Option value="time_constraint">時間制約</Select.Option>
-      <Select.Option value="other">その他</Select.Option>
-    </Select>
+    <Select
+      placeholder="問題タイプを選択"
+      loading={issueTypeLoading}
+      options={issueTypeOptions}
+    />
   </Form.Item>
 
   <Form.Item
@@ -610,15 +606,19 @@ const getStatusTag = (status: IssueStatus) => {
 
 ### 8.3 問題タイプの選択肢
 
-| 値 | 表示テキスト |
-|----|-------------|
-| material_shortage | 材料不足 |
-| equipment_failure | 機器故障 |
-| procedure_unclear | 手順不明確 |
-| safety_concern | 安全性の懸念 |
-| quality_issue | 品質問題 |
-| time_constraint | 時間制約 |
-| other | その他 |
+問題タイプの選択肢は **コードマスターAPI** から動的に取得します。ハードコードはしていません。
+
+**API:** `GET /api/v1/code-master/issue_type/options`
+
+**取得方法:** `useCodeMaster('issue_type')` カスタムフックを使用
+
+```typescript
+// コンポーネント内で自動取得
+const { options: issueTypeOptions, loading: issueTypeLoading } = useCodeMaster('issue_type');
+```
+
+**選択肢の管理:** `code_master` テーブルの `code_division = 'issue_type'` レコードで管理します。
+選択肢の追加・変更・削除はDBのみで対応可能です（フロントエンドの変更不要）。
 
 ---
 
@@ -1023,4 +1023,5 @@ scroll={{ y: 'calc(70vh - 280px)' }}
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-02-27 | 問題タイプ選択肢をハードコードからコードマスターAPI取得に変更（useCodeMaster('issue_type')） | Cline |
 | 1.0.0 | 2026-01-19 | 初版作成、UI設計書として文書化 | Cline |

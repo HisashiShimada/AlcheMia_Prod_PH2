@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useCodeMaster } from '@/hooks/useCodeMaster';
 import {
   Modal,
   Table,
@@ -78,6 +79,11 @@ export default function IssueManagementModal({
   // フィルタリング用のstate
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<IssueStatus | 'all'>('all');
+
+  // 問題タイプ選択肢をコードマスターAPIから取得（マウント時に自動フェッチ）
+  // destroyOnHidden により、モーダルが閉じるたびにコンポーネントが破棄・再生成されるため、
+  // enabled=true（デフォルト）でマウント時に自動フェッチすれば十分
+  const { options: issueTypeOptions, loading: issueTypeLoading } = useCodeMaster('issue_type');
 
   // プロジェクトが承認依頼中の場合は編集不可
   const isApprovalPending = projectStatus === 'waiting_approval';
@@ -407,15 +413,11 @@ export default function IssueManagementModal({
                   name="issueType"
                   rules={[{ required: true, message: '問題タイプを選択してください' }]}
                 >
-                  <Select placeholder="問題タイプを選択">
-                    <Select.Option value="material_shortage">材料不足</Select.Option>
-                    <Select.Option value="equipment_failure">機器故障</Select.Option>
-                    <Select.Option value="procedure_unclear">手順不明確</Select.Option>
-                    <Select.Option value="safety_concern">安全性の懸念</Select.Option>
-                    <Select.Option value="quality_issue">品質問題</Select.Option>
-                    <Select.Option value="time_constraint">時間制約</Select.Option>
-                    <Select.Option value="other">その他</Select.Option>
-                  </Select>
+                  <Select
+                    placeholder="問題タイプを選択"
+                    loading={issueTypeLoading}
+                    options={issueTypeOptions}
+                  />
                 </Form.Item>
 
                 <Form.Item
