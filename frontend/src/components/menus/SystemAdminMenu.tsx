@@ -7,7 +7,6 @@ import {
   ShopOutlined,
   FolderOutlined,
   ExperimentOutlined,
-  BarChartOutlined,
   AuditOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
@@ -19,7 +18,6 @@ import { getPermissionsFromToken } from '@/utils/jwtUtils';
 // システム管理コンポーネントのインポート
 import SystemOverview from '../SystemManagement/SystemOverview';
 import UserManagement from '../SystemManagement/UserManagement';
-import OrganizationStatistics from '../SystemManagement/OrganizationStatistics';
 import SessionManagement from '../SystemManagement/SessionManagement';
 import MasterManagement from '../DataManagement/MasterManagement';
 import RoleManagement from '../SystemManagement/RoleManagement';
@@ -58,26 +56,21 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
     },
     {
       key: '2',
-      label: t('menu.system_admin.tabs.organizationStatistics'),
-      icon: <BarChartOutlined />,
-    },
-    {
-      key: '3',
       label: t('menu.system_admin.tabs.userManagement'),
       icon: <TeamOutlined />,
     },
     {
-      key: '4',
+      key: '3',
       label: t('menu.system_admin.tabs.sessionManagement'),
       icon: <ExperimentOutlined />,
     },
     {
-      key: '5',
+      key: '4',
       label: '部署管理',
       icon: <ShopOutlined />,
     },
     {
-      key: '6',
+      key: '5',
       label: 'ロール管理',
       icon: <AuditOutlined />,
     }
@@ -125,24 +118,21 @@ export default function SystemAdminMenu({ user, onLogout, onNavigate, onMenuChan
           {/* タブ1: システム概要 */}
           {currentTab === '1' && <SystemOverview />}
 
-          {/* タブ2: 組織統計情報 */}
-          {currentTab === '2' && <OrganizationStatistics />}
+          {/* タブ2: ユーザー管理 */}
+          {currentTab === '2' && <UserManagement />}
 
-          {/* タブ3: ユーザー管理 */}
-          {currentTab === '3' && <UserManagement />}
+          {/* タブ3: セッション管理 */}
+          {currentTab === '3' && <SessionManagement />}
 
-          {/* タブ4: セッション管理 */}
-          {currentTab === '4' && <SessionManagement />}
-
-          {/* タブ5: 部署管理 */}
-          {currentTab === '5' && (
+          {/* タブ4: 部署管理 */}
+          {currentTab === '4' && (
             <div style={{ padding: token.paddingContentVertical }}>
               <DepartmentManagement />
             </div>
           )}
 
-          {/* タブ6: ロール管理 */}
-          {currentTab === '6' && (
+          {/* タブ5: ロール管理 */}
+          {currentTab === '5' && (
             <div style={{ padding: token.paddingContentVertical }}>
               <RoleManagement />
             </div>

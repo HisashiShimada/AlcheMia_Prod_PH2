@@ -332,6 +332,39 @@ export async function downloadCertificate(req: Request, res: Response, next: Nex
 }
 
 /**
+ * 情報ダウンロード（全組織の統計情報CSV）
+ * 
+ * GET /api/v1/provider/organization/download-information-csv
+ */
+export async function downloadInformationCsv(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    console.log('=== downloadInformationCsv API called ===');
+
+    // サービス層で統計情報を取得
+    const rows = await organizationService.downloadOrganizationsInformation();
+
+    console.log('Information CSV rows count:', rows.length);
+
+    // タイムスタンプ付きファイル名を生成 (yyyyMMddhhmmss)
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[-:]/g, '')
+      .replace('T', '')
+      .slice(0, 14);
+    const filename = `information_${timestamp}.csv`;
+
+    const csv = Papa.unparse(rows, { header: true });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send('\uFEFF' + csv);
+  } catch (error) {
+    console.error('Download information CSV error:', error);
+    next(error);
+  }
+}
+
+/**
  * OrganizationCSVダウンロード
  * 
  * GET /api/v1/provider/organization/download-csv

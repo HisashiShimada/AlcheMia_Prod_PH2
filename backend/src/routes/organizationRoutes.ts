@@ -67,6 +67,18 @@ router.get(
 );
 
 /**
+ * 情報ダウンロード（全組織の統計情報CSV）
+ * GET /api/v1/provider/organization/download-information-csv
+ * 
+ * 注意: このルートは /organization/:organizationId より前に定義する必要がある
+ */
+router.get(
+  '/organization/download-information-csv',
+  authMiddleware,
+  organizationController.downloadInformationCsv
+);
+
+/**
  * OrganizationCSVダウンロード
  * GET /api/v1/provider/organization/download-csv
  * 

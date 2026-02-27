@@ -1,169 +1,111 @@
 'use client';
 
-import React from 'react';
-import { Card, Button, Space, message } from 'antd';
+import React, { useState } from 'react';
+import { Card, Button, App, Typography, theme } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
-import informationDownloadData from '../../../mock/data/information-download.json';
-
-/**
- * 組織データの型定義
- */
-interface Organization {
-  id: number;
-  organization_id: string;
-  organization_name: string;
-  organization_name_en: string;
-  description: string;
-  status: string;
-  user_count: number;
-  admin_count: number;
-  storage_used_gb: number;
-  storage_limit_gb: number;
-  language: string;
-  timezone: string;
-  created_at: string;
-  updated_at: string;
-}
+import { createApiClient } from '@/utils/authUtils';
 
 /**
  * 情報ダウンロード画面
- * 組織統計情報のCSVダウンロード機能を提供
+ * バックエンドAPI経由で全組織の統計情報をCSVダウンロードする
  */
 const InformationDownload: React.FC = () => {
-  const { title, downloadEnabled } = informationDownloadData;
-
-  /**
-   * JSONデータをCSV形式に変換
-   */
-  const convertToCSV = (data: Organization[]): string => {
-    if (data.length === 0) return '';
-
-    // CSVヘッダー（日本語）
-    const headers = [
-      'ID',
-      '組織ID',
-      '組織名',
-      '組織名（英語）',
-      '説明',
-      'ステータス',
-      'ユーザー数',
-      '管理者数',
-      'ストレージ使用量(GB)',
-      'ストレージ上限(GB)',
-      '言語',
-      'タイムゾーン',
-      '作成日時',
-      '更新日時'
-    ];
-
-    // ヘッダー行
-    const csvHeaders = headers.join(',');
-
-    // データ行
-    const csvRows = data.map((org) => {
-      return [
-        org.id,
-        org.organization_id,
-        `"${org.organization_name}"`,
-        `"${org.organization_name_en}"`,
-        `"${org.description}"`,
-        org.status,
-        org.user_count,
-        org.admin_count,
-        org.storage_used_gb,
-        org.storage_limit_gb,
-        org.language,
-        org.timezone,
-        org.created_at,
-        org.updated_at
-      ].join(',');
-    });
-
-    return [csvHeaders, ...csvRows].join('\r\n');
-  };
+  const { token } = theme.useToken();
+  const { message: messageApi } = App.useApp();
+  const [loading, setLoading] = useState(false);
 
   /**
    * CSVダウンロード処理
+   * GET /api/v1/provider/organization/download-information-csv
    */
-  const handleDownload = () => {
+  const handleDownload = async () => {
     try {
-      // CSVデータを生成
-      const csvContent = convertToCSV(organizationsData);
+      setLoading(true);
+      const client = createApiClient();
 
-      // UTF-8 BOM（Byte Order Mark）を追加
-      const BOM = '\uFEFF';
-      const csvWithBOM = BOM + csvContent;
+      const response = await client.get(
+        '/provider/organization/download-information-csv',
+        { responseType: 'blob' }
+      );
 
-      // Blobを作成
-      const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([response.data], { type: 'text/csv' });
 
-      // ダウンロードリンクを作成
-      const link = document.createElement('a');
+      // Content-Disposition ヘッダーからファイル名を取得
+      const contentDisposition =
+        response.headers['content-disposition'] ||
+        response.headers['Content-Disposition'];
+
+      let filename = 'information.csv';
+
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match && match[1]) {
+          filename = match[1].replace(/['"]/g, '');
+        }
+      } else {
+        // フォールバック: フロントエンド側でタイムスタンプを生成
+        const now = new Date();
+        const ts = [
+          now.getFullYear(),
+          String(now.getMonth() + 1).padStart(2, '0'),
+          String(now.getDate()).padStart(2, '0'),
+          String(now.getHours()).padStart(2, '0'),
+          String(now.getMinutes()).padStart(2, '0'),
+          String(now.getSeconds()).padStart(2, '0'),
+        ].join('');
+        filename = `information_${ts}.csv`;
+      }
+
       const url = URL.createObjectURL(blob);
-      
-      // ファイル名に日時を追加
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const fileName = `organization_statistics_${timestamp}.csv`;
-
-      link.setAttribute('href', url);
-      link.setAttribute('download', fileName);
-      link.style.visibility = 'hidden';
-      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      // URLオブジェクトを解放
       URL.revokeObjectURL(url);
 
-      message.success(`${fileName} をダウンロードしました`);
+      messageApi.success(`${filename} をダウンロードしました`);
     } catch (error) {
       console.error('CSV download error:', error);
-      message.error('CSVダウンロードに失敗しました');
+      messageApi.error('CSVダウンロードに失敗しました');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  // ヘッダースタイル
-  const headerStyle: React.CSSProperties = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '16px 24px',
-    background: '#ffffff',
-    borderBottom: '2px solid #212121',
-    marginBottom: 0,
-  };
-
-  const titleStyle: React.CSSProperties = {
-    fontSize: '20px',
-    fontWeight: 600,
-    color: '#212121',
-    margin: 0,
   };
 
   return (
     <div style={{ padding: 0, minHeight: 'calc(100vh - 112px)' }}>
       {/* ヘッダーカード */}
       <Card
-        bordered={false}
+        variant="borderless"
         style={{
           borderRadius: 0,
           marginBottom: 0,
           boxShadow: 'none',
         }}
-        bodyStyle={headerStyle}
+        styles={{
+          body: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: `${token.paddingMD}px ${token.paddingLG}px`,
+            background: token.colorBgContainer,
+            borderBottom: `2px solid ${token.colorBorder}`,
+            marginBottom: 0,
+          },
+        }}
       >
-        <h2 style={titleStyle}>{title}</h2>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          情報ダウンロード
+        </Typography.Title>
         <Button
           type="default"
-          size="large"
           icon={<DownloadOutlined />}
           onClick={handleDownload}
-          disabled={!downloadEnabled}
+          loading={loading}
           style={{
-            borderRadius: '8px',
-            fontWeight: 500,
-            minWidth: '160px',
+            borderRadius: token.borderRadius,
           }}
         >
           CSVダウンロード
