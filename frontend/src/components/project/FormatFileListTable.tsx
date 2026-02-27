@@ -46,8 +46,8 @@ interface FormatFileListTableProps {
   files: FormatFileData[];
   onFileClick?: (file: FormatFileData) => void;
   onFolderClick?: (folderId: string) => void;
-  onDetail?: (file: FormatFileData) => void;
   onEdit?: (file: FormatFileData) => void;
+  onDownload?: (file: FormatFileData) => void;
   onDelete?: (file: FormatFileData) => void;
 }
 
@@ -59,8 +59,8 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
   files, 
   onFileClick,
   onFolderClick,
-  onDetail,
   onEdit,
+  onDownload,
   onDelete 
 }) => {
   const { token } = theme.useToken();
@@ -157,7 +157,7 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
               icon={<DownloadOutlined />}
               onClick={(e) => {
                 e.stopPropagation();
-                console.log('Download file:', record.name);
+                onDownload?.(record);
               }}
             >
               ダウンロード

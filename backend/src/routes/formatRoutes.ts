@@ -96,4 +96,39 @@ router.post(
   formatController.createFormatFile
 );
 
+/**
+ * PUT /api/v1/formats/files
+ * フォーマットファイル更新
+ * 
+ * 認証: 必須（JWT + Session）
+ * 権限: 実験管理者メニュー（040000）、書込可（1）
+ * 
+ * リクエストボディ:
+ *   - filePath: ファイルパス（formats/{dept}/{folder}/{file}形式）
+ *   - content: 更新するXMLコンテンツ（文字列）
+ */
+router.put(
+  '/files',
+  authMiddleware,
+  checkPermission('040000', 1),  // 実験管理者メニュー、書込可
+  formatController.updateFormatFile
+);
+
+/**
+ * DELETE /api/v1/formats/files
+ * フォーマットファイル削除
+ * 
+ * 認証: 必須（JWT + Session）
+ * 権限: 実験管理者メニュー（040000）、書込可（1）
+ * 
+ * リクエストボディ:
+ *   - filePath: ファイルパス（formats/{dept}/{folder}/{file}形式）
+ */
+router.delete(
+  '/files',
+  authMiddleware,
+  checkPermission('040000', 1),  // 実験管理者メニュー、書込可
+  formatController.deleteFormatFile
+);
+
 export default router;

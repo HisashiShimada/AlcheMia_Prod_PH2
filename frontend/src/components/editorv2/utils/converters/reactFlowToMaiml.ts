@@ -516,7 +516,7 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
  * @param indentLevel - インデントレベル
  * @returns content要素のXML文字列
  */
-function buildContentXML(content: Content, indentLevel = 6): string {
+export function buildContentXML(content: Content, indentLevel = 6): string {
   const indent = '  '.repeat(indentLevel);
   
   let contentXml = `${indent}<content`;

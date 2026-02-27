@@ -31,18 +31,26 @@ import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatF
 import CreateFormatModal from './CreateFormatModal';
 import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
 import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
-import TemplateEditorDialog from '@/components/editorv2/components/TemplateEditorDialog';
+import FormatEditorDialog from '@/components/editorv2/components/FormatEditorDialog';
+import { Template } from '@/types/maiml-unified';
 import mockFormatFilesData from '@/data/mock/mockFormatFiles.json';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { App } from 'antd';
 import { User } from '@/types/auth';
 import { useApi } from '@/hooks/useApi';
-import { fetchFormats, fetchFormatFiles, createFormatFile, createFormatSubfolder } from '@/utils/formatApi';
+import { fetchFormats, fetchFormatFiles, createFormatFile, createFormatSubfolder, createFormatFolder, updateFormatFileContent } from '@/utils/formatApi';
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
 import type { ProjectFile } from '@/types/file';
-import { getFileDownloadUrlByKey } from '@/services/fileAccessService';
+import { getFileDownloadUrlByKey, deleteFileByKey } from '@/services/fileAccessService';
 import { createApiClient } from '@/utils/authUtils';
+import { 
+  buildPropertyXML, 
+  buildContentXML,
+  escapeXml
+} from '@/components/editorv2/utils/converters/reactFlowToMaiml';
+import { Property, Content } from '@/types/maiml-unified';
+import { PropertyData } from '@/components/editorv2/components/NestedPropertyEditor';
 
 const { Title, Text } = Typography;
 
@@ -93,7 +101,7 @@ interface FormatManagementProps {
 const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [formats, setFormats] = useState<Format[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -321,9 +329,143 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         setIsLoadingMaimlContent(false);
       }
     } else if (isXmlFile) {
-      // XMLファイル: TemplateEditorDialogを開く
+      // ✅ Phase 1-1: XMLファイル編集 - 空ファイル検出とデフォルトXML生成
       console.log('📝 [FormatManagement] XMLファイル編集:', file.name);
-      setEditingXmlFile(file);
+      
+      // ファイル内容を読み込む
+      let xmlContent = '';
+      
+      if (file.path && file.path.trim() !== '') {
+        try {
+          console.log('📂 [FormatManagement] XMLファイル内容読み込み開始:', file.path);
+          const client = createApiClient();
+          
+          const response = await client.post('/files/download-url', 
+            { fileKey: file.path },
+            { responseType: 'blob' }
+          );
+          
+          const blob = response.data as Blob;
+          xmlContent = await blob.text();
+          
+          console.log('✅ [FormatManagement] XMLファイル内容読み込み完了');
+        } catch (error) {
+          console.log('🆕 [FormatManagement] XMLファイル読み込みエラー - 新規扱い:', error);
+          xmlContent = '';
+        }
+      }
+      
+      // ✅ Phase 2: XMLをPropertyData形式にパース（直接実装）
+      const parsedProperties: Record<string, PropertyData> = {};
+      const parsedContents: Record<string, PropertyData> = {};
+      let isNewFile = false;
+      
+      // 空ファイル検出
+      if (!xmlContent || xmlContent.trim() === '') {
+        console.log('🆕 [FormatManagement] 空XMLファイル検出 - 新規作成モード');
+        isNewFile = true;
+      } else {
+        // 既存XMLをパース（FormatManagement.tsx内で直接実装）
+        try {
+          // DOMParserでXMLをパース
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
+          
+          // パースエラーをチェック
+          const parserError = xmlDoc.querySelector('parsererror');
+          if (parserError) {
+            throw new Error('XMLパースエラー: ' + (parserError.textContent || '不明なエラー'));
+          }
+          
+          // ルート要素を取得
+          const rootElement = xmlDoc.documentElement;
+          
+          if (rootElement.tagName !== 'keyDictionary') {
+            throw new Error(`期待しないルート要素: ${rootElement.tagName}（keyDictionaryである必要があります）`);
+          }
+          
+          // properties を解析
+          const propertyElements = rootElement.querySelectorAll(':scope > property');
+          propertyElements.forEach(propElement => {
+            const propertyData = parsePropertyElement(propElement as Element);
+            if (propertyData) {
+              parsedProperties[propertyData.key] = propertyData;
+            }
+          });
+          
+          // contents を解析
+          const contentElements = rootElement.querySelectorAll(':scope > content');
+          contentElements.forEach(contentElement => {
+            const contentData = parsePropertyElement(contentElement as Element);
+            if (contentData) {
+              parsedContents[contentData.key] = contentData;
+            }
+          });
+          
+          console.log('✅ [FormatManagement] keyDictionary XMLパース成功:', {
+            propertiesCount: Object.keys(parsedProperties).length,
+            contentsCount: Object.keys(parsedContents).length
+          });
+        } catch (parseError) {
+          console.error('❌ [FormatManagement] XMLパースエラー:', parseError);
+          message.error('XMLファイルの解析に失敗しました: ' + (parseError as Error).message);
+          return;
+        }
+      }
+      
+      /**
+       * property要素またはcontent要素をPropertyData形式にパース（再帰的）
+       */
+      function parsePropertyElement(element: Element): PropertyData | null {
+        const key = element.getAttribute('key');
+        if (!key) {
+          return null;
+        }
+        
+        const tagName = element.tagName;
+        const attributes: Record<string, string> = {};
+        Array.from(element.attributes).forEach(attr => {
+          if (attr.name !== 'key') {
+            attributes[attr.name] = attr.value;
+          }
+        });
+        
+        const elements: Record<string, string> = {};
+        const elementChildren = Array.from(element.children).filter(
+          child => child.tagName !== 'property' && child.tagName !== 'content'
+        );
+        elementChildren.forEach(child => {
+          elements[child.tagName] = child.textContent || '';
+        });
+        
+        const children: PropertyData[] = [];
+        const childPropertyElements = Array.from(element.children).filter(
+          child => child.tagName === 'property' || child.tagName === 'content'
+        );
+        childPropertyElements.forEach(childElement => {
+          const childData = parsePropertyElement(childElement as Element);
+          if (childData) {
+            children.push(childData);
+          }
+        });
+        
+        return {
+          key,
+          tagName,
+          attributes,
+          elements,
+          children
+        };
+      }
+      
+      // XMLコンテンツとパース結果をファイル情報に追加してTemplateEditorDialogを開く
+      setEditingXmlFile({
+        ...file,
+        content: xmlContent,
+        parsedProperties,
+        parsedContents,
+        isNewFile
+      });
       setShowTemplateEditor(true);
     } else {
       // その他のファイル: エラーメッセージ
@@ -331,6 +473,91 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     }
   }, []);
   
+  // ファイルダウンロードハンドラ
+  const handleFileDownload = useCallback(async (file: FormatFileData) => {
+    try {
+      console.log('📥 ファイルダウンロード開始:', file.name);
+      
+      // ファイルパスが存在するか確認
+      if (!file.path || file.path.trim() === '') {
+        throw new Error('ファイルパスが指定されていません');
+      }
+
+      // 既存APIを使用してダウンロード
+      await getFileDownloadUrlByKey(file.path);
+
+      // 成功メッセージ表示
+      message.success(`「${file.name}」のダウンロードを開始しました`);
+    } catch (error) {
+      console.error('❌ ダウンロードエラー:', error);
+      message.error(
+        `ファイルのダウンロードに失敗しました: ${
+          error instanceof Error ? error.message : '不明なエラー'
+        }`
+      );
+    }
+  }, [message]);
+
+  // ファイル削除ハンドラ
+  const handleFileDelete = useCallback(async (file: FormatFileData) => {
+    // 削除確認モーダルを表示
+    modal.confirm({
+      title: 'ファイル削除',
+      content: `「${file.name}」を削除しますか？この操作は取り消せません。`,
+      okText: '削除',
+      okButtonProps: { danger: true },
+      cancelText: 'キャンセル',
+      onOk: async () => {
+        try {
+          console.log('🗑️ ファイル削除開始:', file.name);
+          
+          // 削除API呼び出し（共通化されたdeleteFileByKeyを使用）
+          await deleteFileByKey(file.path);
+          
+          message.success(`「${file.name}」を削除しました`);
+          
+          // ファイル一覧を更新
+          if (selectedFormatId) {
+            try {
+              const currentPath = currentFolderPath.length > 0 
+                ? currentFolderPath.join('/')
+                : undefined;
+              
+              const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+              
+              const cacheKey = currentPath 
+                ? `${selectedFormatId}/${currentPath}`
+                : selectedFormatId;
+              
+              setFormatFilesData(prev => ({
+                ...prev,
+                [cacheKey]: {
+                  allFiles: (fileResponse.success && fileResponse.data?.files) 
+                    ? fileResponse.data.files as FormatFileData[] 
+                    : [],
+                }
+              }));
+              
+              console.log('✅ ファイル一覧更新完了');
+            } catch (refreshError) {
+              console.error('❌ ファイル一覧更新エラー:', refreshError);
+            }
+          }
+          
+          // フォーマット一覧も更新（ファイル数が変わる可能性があるため）
+          handleRefresh();
+        } catch (error) {
+          console.error('❌ 削除エラー:', error);
+          message.error(
+            `ファイルの削除に失敗しました: ${
+              error instanceof Error ? error.message : '不明なエラー'
+            }`
+          );
+        }
+      },
+    });
+  }, [selectedFormatId, currentFolderPath, handleRefresh, message]);
+
   // ファイル詳細表示ハンドラ
   const handleFileDetail = useCallback((file: FormatFileDetailData) => {
     console.log('ファイル詳細表示:', file);
@@ -447,16 +674,32 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       // モーダルを閉じる
       handleCloseCreateFileModal();
       
-      // ファイル一覧を最新化（全ファイルを再取得）
+      // ファイル一覧を最新化（現在のパスのファイルを再取得）
       if (selectedFormatId && selectedFormat) {
         try {
-          const fileResponse = await fetchFormatFiles(selectedFormatId, undefined);
+          const currentPath = currentFolderPath.length > 0 
+            ? currentFolderPath.join('/')
+            : undefined;
+          
+          const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+          
+          const cacheKey = currentPath 
+            ? `${selectedFormatId}/${currentPath}`
+            : selectedFormatId;
+          
           setFormatFilesData(prev => ({
             ...prev,
-            [selectedFormatId]: {
-              allFiles: (fileResponse.success && fileResponse.data?.files) ? fileResponse.data.files as FormatFileData[] : [],
+            [cacheKey]: {
+              allFiles: (fileResponse.success && fileResponse.data?.files) 
+                ? fileResponse.data.files as FormatFileData[] 
+                : [],
             }
           }));
+          
+          console.log('✅ ファイル一覧更新完了');
+          
+          // 強制的に再レンダリングを促す
+          setFormatFilesData(prev => ({ ...prev }));
         } catch (error) {
           console.error('❌ [FormatManagement] Failed to refresh files after creation:', error);
         }
@@ -521,16 +764,32 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       // モーダルを閉じる
       handleCloseCreateFolderModal();
       
-      // ファイル一覧を最新化（全ファイルを再取得）
+      // ファイル一覧を最新化（現在のパスのファイルを再取得）
       if (selectedFormatId && selectedFormat) {
         try {
-          const fileResponse = await fetchFormatFiles(selectedFormatId, undefined);
+          const currentPath = currentFolderPath.length > 0 
+            ? currentFolderPath.join('/')
+            : undefined;
+          
+          const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+          
+          const cacheKey = currentPath 
+            ? `${selectedFormatId}/${currentPath}`
+            : selectedFormatId;
+          
           setFormatFilesData(prev => ({
             ...prev,
-            [selectedFormatId]: {
-              allFiles: (fileResponse.success && fileResponse.data?.files) ? fileResponse.data.files as FormatFileData[] : [],
+            [cacheKey]: {
+              allFiles: (fileResponse.success && fileResponse.data?.files) 
+                ? fileResponse.data.files as FormatFileData[] 
+                : [],
             }
           }));
+          
+          console.log('✅ ファイル一覧更新完了');
+          
+          // 強制的に再レンダリングを促す
+          setFormatFilesData(prev => ({ ...prev }));
         } catch (error) {
           console.error('❌ [FormatManagement] Failed to refresh files after folder creation:', error);
         }
@@ -550,14 +809,13 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     try {
       console.log('📁 [FormatManagement] 新規フォーマットフォルダ作成（部門直下）:', folderName);
       
-      const client = createApiClient();
+      // API呼び出し（共通化されたcreateFormatFolderを使用）
+      const response = await createFormatFolder(folderName);
       
-      // API呼び出し（createApiClientは既に/api/v1をbaseURLに含んでいる）
-      const response = await client.post('/formats/folders', {
-        folderName,
-      });
-      
-      console.log('✅ [FormatManagement] フォルダ作成成功:', response.data);
+      // 型ガード: success === true の場合のみ data にアクセス
+      if (response.success) {
+        console.log('✅ [FormatManagement] フォルダ作成成功:', response.data);
+      }
       
       // モーダルを閉じる
       setCreateFormatModalOpen(false);
@@ -843,14 +1101,14 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                     <Text type="secondary">読み込み中...</Text>
                   </div>
                 ) : (
-                  <FormatFileListTable
-                    files={formatFiles}
-                    onFileClick={(file) => console.log('File clicked:', file.name)}
-                    onFolderClick={handleFolderClick}
-                    onDetail={handleFileDetail}
-                    onEdit={handleFileEdit}
-                    onDelete={(file) => console.log('Delete file:', file.name)}
-                  />
+                <FormatFileListTable
+                  files={formatFiles}
+                  onFileClick={(file) => console.log('File clicked:', file.name)}
+                  onFolderClick={handleFolderClick}
+                  onEdit={handleFileEdit}
+                  onDownload={handleFileDownload}
+                  onDelete={handleFileDelete}
+                />
                 )}
               </div>
             </>
@@ -1033,40 +1291,147 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       {showTemplateEditor && editingXmlFile && (() => {
         // 一時的なノードを作成（Date.now()の警告を回避するためuseMemoの代わりに即時関数を使用）
         const tempId = `temp_${editingXmlFile.id}_${editingXmlFile.lastModified}`;
+        
+        // ✅ フォーマットカテゴリからplaceTypeを判定
+        // 優先順位: 1. parsedTemplate.category 2. folderName 3. category 4. fileName
+        const parsedCategory = editingXmlFile.parsedTemplate?.category;
+        const folderName = selectedFormat?.folderName?.toLowerCase() || '';
+        const category = selectedFormat?.category?.toLowerCase() || '';
+        const fileName = editingXmlFile.name.toLowerCase();
+        
+        const placeType = 
+          // 0. parsedTemplate.categoryから判定（最優先）
+          parsedCategory === 'material' ? 'material' as const :
+          parsedCategory === 'condition' ? 'condition' as const :
+          parsedCategory === 'result' ? 'result' as const :
+          // 1. folderNameから判定
+          folderName.includes('material') ? 'material' as const :
+          folderName.includes('condition') ? 'condition' as const :
+          folderName.includes('measurement') || folderName.includes('result') ? 'result' as const :
+          // 2. categoryから判定
+          category === 'material' ? 'material' as const :
+          category === 'condition' ? 'condition' as const :
+          category === 'measurement' || category === 'analysis' ? 'result' as const :
+          // 3. ファイル名から判定（フォールバック）
+          fileName.includes('material') ? 'material' as const :
+          fileName.includes('condition') ? 'condition' as const :
+          // デフォルト
+          'result' as const;
+        
+        console.log('🔍 [FormatManagement] placeType判定:', {
+          parsedCategory,
+          folderName: selectedFormat?.folderName,
+          category: selectedFormat?.category,
+          fileName: editingXmlFile.name,
+          determinedPlaceType: placeType,
+          hasParsedTemplate: !!editingXmlFile.parsedTemplate
+        });
+        
+        // ✅ Phase 2: parsedTemplateがあればtemplateRefとして設定
         const tempNode = {
           id: tempId,
-          type: 'materialTemplate', // TODO: Phase 5でtemplateTypeから判定
+          type: `${placeType}Template`,
           position: { x: 0, y: 0 },
           data: {
             id: tempId,
             name: editingXmlFile.name.replace('.xml', ''),
             description: '',
-            placeType: 'material' as const,
+            placeType: placeType,
             nodeType: 'place' as const,
+            // ✅ parsedPropertiesとparsedContentsを直接渡す（Template型経由なし）
+            ...(editingXmlFile.parsedProperties && {
+              parsedProperties: editingXmlFile.parsedProperties
+            }),
+            ...(editingXmlFile.parsedContents && {
+              parsedContents: editingXmlFile.parsedContents
+            }),
+            // 新規ファイルフラグ
+            isNewFile: editingXmlFile.isNewFile
           },
         };
         
         return (
-          <TemplateEditorDialog
+          <FormatEditorDialog
             open={showTemplateEditor}
             onClose={() => {
               setShowTemplateEditor(false);
               setEditingXmlFile(null);
             }}
             node={tempNode}
-            onSave={(nodeId, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId) => {
-              console.log('💾 [FormatManagement] XML保存:', editingXmlFile.name, {
-                nodeId,
-                templateRef,
-                isNewTemplate,
-                templateCategory,
-                isCommonTemplate,
-                methodId
+            onSave={async (
+              nodeId: string,
+              properties: Property[],
+              contents: Content[],
+              templateId: string,
+              name: string,
+              description: string,
+              category: string
+            ) => {
+              console.log('📝 [FormatManagement] XML保存開始:', {
+                templateId,
+                name,
+                category,
+                propertiesCount: properties.length,
+                contentsCount: contents.length
               });
-              // TODO: 実際の保存処理を実装
-              message.success('保存しました（モック）');
-              setShowTemplateEditor(false);
-              setEditingXmlFile(null);
+              
+              try {
+                // ✅ xmlns属性の構築（S3パスから拡張子を除去）
+                const s3PathWithoutExt = editingXmlFile.path.replace(/\.xml$/i, '');
+                const xmlns = `http://abc.com/schema/keyDictionary/${s3PathWithoutExt}`;
+                
+                console.log('🔍 [FormatManagement] S3パス:', editingXmlFile.path);
+                console.log('🔍 [FormatManagement] xmlns:', xmlns);
+                
+                // ✅ keyDictionary XML生成（直接実装）
+                let xmlContent = `<keyDictionary xmlns="${escapeXml(xmlns)}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n`;
+                
+                // property要素群を出力
+                properties.forEach(prop => {
+                  xmlContent += buildPropertyXML(prop, 1);
+                });
+                
+                // content要素群を出力
+                contents.forEach(content => {
+                  xmlContent += buildContentXML(content, 1);
+                });
+                
+                xmlContent += `</keyDictionary>\n`;
+                
+                console.log('📄 [FormatManagement] 生成されたXML:', xmlContent.substring(0, 500) + '...');
+                
+                // バックエンドAPIに保存（共通化されたupdateFormatFileContentを使用）
+                await updateFormatFileContent(editingXmlFile.path, xmlContent);
+                
+                console.log('✅ [FormatManagement] ファイル保存成功:', editingXmlFile.path);
+                
+                message.success('保存しました');
+                
+                // ファイル一覧を更新
+                if (selectedFormatId && selectedFormat) {
+                  const currentPath = currentFolderPath.length > 0 
+                    ? currentFolderPath.join('/')
+                    : undefined;
+                  const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+                  const cacheKey = currentPath 
+                    ? `${selectedFormatId}/${currentPath}`
+                    : selectedFormatId;
+                  setFormatFilesData(prev => ({
+                    ...prev,
+                    [cacheKey]: {
+                      allFiles: (fileResponse.success && fileResponse.data?.files) 
+                        ? fileResponse.data.files as FormatFileData[] 
+                        : [],
+                    }
+                  }));
+                }
+                
+                setShowTemplateEditor(false);
+                setEditingXmlFile(null);
+              } catch (error) {
+                console.error('❌ [FormatManagement] デバッグエラー:', error);
+                message.error('デバッグ処理でエラーが発生しました: ' + (error as Error).message);
+              }
             }}
           />
         );

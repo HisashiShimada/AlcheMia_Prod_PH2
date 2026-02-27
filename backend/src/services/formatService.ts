@@ -558,10 +558,106 @@ function sanitizeFileName(fileName: string): string {
     .replace(/[^a-zA-Z0-9_-]/g, '_'); // 英数字・_・-以外を_に変換
 }
 
+/**
+ * フォーマットファイルの内容を更新
+ * 
+ * @param organizationId 組織ID
+ * @param filePath ファイルパス（formats/{dept}/{folder}/{file}形式）
+ * @param content 更新するXMLコンテンツ
+ * @returns 更新されたファイル情報
+ */
+export async function updateFormatFile(
+  organizationId: string,
+  filePath: string,
+  content: string
+): Promise<{
+  filePath: string;
+  size: number;
+  updatedAt: string;
+}> {
+  const storageService = getStorageService();
+
+  try {
+    // 1. ファイルの存在確認
+    const exists = await storageService.fileExists(organizationId, filePath);
+    if (!exists) {
+      throw new Error('ファイルが見つかりません');
+    }
+
+    // 2. コンテンツのバリデーション
+    if (typeof content !== 'string') {
+      throw new Error('ファイル内容が不正です');
+    }
+
+    // 3. S3へアップロード（上書き）
+    await storageService.uploadFile(
+      organizationId,
+      filePath,
+      Buffer.from(content, 'utf-8'),
+      { contentType: 'application/xml' }
+    );
+
+    console.log('[formatService] File update success:', filePath);
+
+    // 4. レスポンスを返す
+    const fileSize = Buffer.from(content, 'utf-8').length;
+
+    return {
+      filePath,
+      size: fileSize,
+      updatedAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('[formatService] Failed to update format file:', error);
+    throw error;
+  }
+}
+
+/**
+ * フォーマットファイルを削除
+ * 
+ * @param organizationId 組織ID
+ * @param filePath ファイルパス（formats/{dept}/{folder}/{file}形式）
+ * @returns 削除結果
+ */
+export async function deleteFormatFile(
+  organizationId: string,
+  filePath: string
+): Promise<{
+  filePath: string;
+  deletedAt: string;
+}> {
+  const storageService = getStorageService();
+
+  try {
+    // 1. ファイルの存在確認
+    const exists = await storageService.fileExists(organizationId, filePath);
+    if (!exists) {
+      throw new Error('ファイルが見つかりません');
+    }
+
+    // 2. S3からファイルを削除
+    await storageService.deleteFile(organizationId, filePath);
+
+    console.log('[formatService] File delete success:', filePath);
+
+    // 3. レスポンスを返す
+    return {
+      filePath,
+      deletedAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error('[formatService] Failed to delete format file:', error);
+    throw error;
+  }
+}
+
 export const formatService = {
   getFormatFolders,
   getFormatFiles,
   createFormatFolder,
   createFormatSubfolder,
   createFormatFile,
+  updateFormatFile,
+  deleteFormatFile,
 };
