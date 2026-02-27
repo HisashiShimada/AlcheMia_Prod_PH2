@@ -50,11 +50,91 @@ import {
   ProjectStatus,
   isEditableStatus,
 } from '@/types/experimentWorker';
-import { templatesList } from '@/data/projectsData';
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
 import { updateTransitionStatus } from '@/services/projectApiService';
-import { ExperimentDataRecord } from '@/types/api';
+import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
+
+// ===== TemplateDataItem → Template 変換ヘルパー =====
+
+/**
+ * API の templateType 文字列をフロントの TemplateCategory にマッピングする
+ */
+function mapTemplateTypeToCategory(templateType: string): TemplateCategory {
+  switch (templateType) {
+    case 'material':   return 'Materials';
+    case 'condition':  return 'Conditions';
+    case 'result':     return 'Results';
+    default:           return 'Materials'; // 未知の値は Materials にフォールバック
+  }
+}
+
+/**
+ * API の xsiType 文字列をフロントの PropertyType にマッピングする
+ */
+function mapXsiTypeToPropertyType(xsiType: string): import('@/types/experimentWorker').PropertyType {
+  const known = [
+    'stringType', 'intType', 'floatType', 'booleanType',
+    'dateType', 'dateTimeType', 'contentDoubleListType', 'propertyListType', 'insertion',
+  ] as const;
+  if ((known as readonly string[]).includes(xsiType)) {
+    return xsiType as import('@/types/experimentWorker').PropertyType;
+  }
+  return 'stringType'; // 未知の xsiType は stringType にフォールバック
+}
+
+/**
+ * templateType からデフォルトのテンプレート名を生成する
+ */
+function buildTemplateName(templateType: string, templateId: string): string {
+  switch (templateType) {
+    case 'material':  return `材料テンプレート`;
+    case 'condition': return `条件テンプレート`;
+    case 'result':    return `結果テンプレート`;
+    default:          return templateId;
+  }
+}
+
+/**
+ * API レスポンスの TemplateDataItem[] をサイドバー表示用の Template[] に変換する
+ *
+ * フォールバック時の data 形式:
+ *   { templateId, templateType, properties: [{ key, xsiType, value, units }] }
+ *
+ * DB 実績あり時の data 形式:
+ *   フラットな key-value（プロパティ定義が含まれないため、フォールバックの構造を優先する）
+ */
+function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Template[] {
+  return items.map((item) => {
+    const category = mapTemplateTypeToCategory(item.templateType);
+
+    // data.properties が存在する場合（フォールバック形式）はそこから Property[] を構築
+    const rawData = item.data as Record<string, unknown>;
+    const rawProperties = rawData.properties as Array<{
+      key: string;
+      xsiType: string;
+      value: unknown;
+      units: string | null;
+    }> | undefined;
+
+    const properties: Property[] = (rawProperties ?? []).map((p) => ({
+      key: p.key,
+      label: p.key,                          // ラベルはキーをそのまま使用
+      type: mapXsiTypeToPropertyType(p.xsiType),
+      units: p.units ?? undefined,
+      required: false,
+    }));
+
+    const name = buildTemplateName(item.templateType, item.templateId);
+
+    return {
+      templateId: item.templateId,
+      category,
+      name,
+      properties,
+    } satisfies Template;
+  });
+}
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -99,6 +179,9 @@ export default function DataRecordDialog({
   // 作業指示モーダルの状態
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
 
+  // APIから取得したテンプレート一覧（TemplateDataItem → Template に変換済み）
+  const [fetchedTemplates, setFetchedTemplates] = useState<Template[]>([]);
+
   // テンプレート一覧用の状態
   const [templateSearchText, setTemplateSearchText] = useState('');
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<TemplateCategory | undefined>(undefined);
@@ -142,8 +225,14 @@ export default function DataRecordDialog({
   }, []);
 
   // テンプレート一覧のフィルタリング
+  // fetchedTemplates（APIから取得・変換済み）を優先し、なければ transition.templates を使用する
   const filteredTemplates = useMemo(() => {
-    let filtered = templatesList;
+    const source: Template[] =
+      fetchedTemplates.length > 0
+        ? fetchedTemplates
+        : (transition?.templates ?? []);
+
+    let filtered = source;
 
     // テンプレート名でのあいまい検索
     if (templateSearchText) {
@@ -158,7 +247,7 @@ export default function DataRecordDialog({
     }
 
     return filtered;
-  }, [templateSearchText, selectedTemplateCategory]);
+  }, [fetchedTemplates, transition?.templates, templateSearchText, selectedTemplateCategory]);
 
   // 選択されたテンプレートのみを取得
   const selectedTemplate = useMemo(() => {
@@ -220,6 +309,7 @@ export default function DataRecordDialog({
       setComment('');
       setProgress(0);
       setSelectedTemplateId(null);
+      setFetchedTemplates([]); // ダイアログオープン時に前回取得分をリセット
 
       // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
       setStatusUpdateExpanded(isProjectEditable);
@@ -250,18 +340,30 @@ export default function DataRecordDialog({
             );
 
             if (response.success && response.data.templates.length > 0) {
-              // 取得した実績データをフォームフィールドに反映（既存値の復元）
+              // ① TemplateDataItem[] → Template[] に変換してサイドバーに表示
+              const converted = convertTemplateDataItemsToTemplates(response.data.templates);
+              setFetchedTemplates(converted);
+
+              // ② 取得した実績データをフォームフィールドに反映（既存値の復元）
               const initialValues: Record<string, unknown> = {};
               for (const item of response.data.templates) {
-                // templateId（= placeId）でテンプレート定義を検索
-                for (const [fieldKey, fieldValue] of Object.entries(item.data)) {
-                  const formKey = `${item.templateId}_${fieldKey}`;
-                  initialValues[formKey] = fieldValue;
+                if (item.recordedBy !== null) {
+                  // DB実績データ（recordedBy !== null）:
+                  // フラットなkey-value形式でフォームに反映
+                  for (const [fieldKey, fieldValue] of Object.entries(item.data)) {
+                    const formKey = `${item.templateId}_${fieldKey}`;
+                    initialValues[formKey] = fieldValue;
+                  }
                 }
+                // フォールバックデータ（recordedBy === null）:
+                // data は { templateId, templateType, properties: [{ key, xsiType, value: null, units }] } 形式。
+                // value がすべて null のためフォームへの反映をスキップし、空の状態で開く。
               }
-              form.setFieldsValue(initialValues);
+              if (Object.keys(initialValues).length > 0) {
+                form.setFieldsValue(initialValues);
+              }
 
-              // templateId でサイドバー選択状態を復元（最初の実績データのテンプレートを選択）
+              // ③ 最初のテンプレートをサイドバーで選択状態にする
               const firstItem = response.data.templates[0];
               if (firstItem) {
                 setSelectedTemplateId(firstItem.templateId);

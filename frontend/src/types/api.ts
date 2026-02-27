@@ -232,6 +232,14 @@ export interface SaveBatchExperimentDataResponse {
  *
  * @remarks
  * API: GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+ *
+ * DBに実績データがある場合:
+ *   data はフラットなkey-value形式（例: { "temperature": 25.5 }）
+ *   recordedBy / recordedAt には記録者・記録日時がセットされる
+ *
+ * 実績データが0件のフォールバック時:
+ *   data は { templateId, templateType, properties: [{ key, xsiType, value: null, units }] } 形式
+ *   recordedBy / recordedAt は null（未記録を示す）
  */
 export interface TemplateDataItem {
   /** プレースID（テンプレートとプレースの紐付けに使用） */
@@ -240,12 +248,22 @@ export interface TemplateDataItem {
   templateType: 'material' | 'condition' | 'result';
   /** テンプレートID（テンプレート定義の特定に使用） */
   templateId: string;
-  /** 実験データ本体（フォームの既存値復元に使用） */
+  /**
+   * 実験データ本体
+   * - DB実績あり: フラットなkey-value形式（フォームの既存値復元に使用）
+   * - フォールバック: { templateId, templateType, properties } 形式（MAIMLテンプレート定義）
+   */
   data: Record<string, unknown>;
-  /** 記録者のユーザーID（UUID） */
-  recordedBy: string;
-  /** 記録日時（ISO 8601 形式） */
-  recordedAt: string;
+  /**
+   * 記録者のユーザーID（UUID）
+   * DBに実績がない場合（フォールバック時）は null
+   */
+  recordedBy: string | null;
+  /**
+   * 記録日時（ISO 8601 形式）
+   * DBに実績がない場合（フォールバック時）は null
+   */
+  recordedAt: string | null;
 }
 
 /**

@@ -1,11 +1,9 @@
-import axios from 'axios';
+import { createApiClient } from '@/utils/authUtils';
 import {
   SaveBatchExperimentDataRequest,
   SaveBatchExperimentDataResponse,
   GetTemplateDataResponse,
 } from '@/types/api';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 /**
  * 実験データを一括保存する
@@ -27,14 +25,13 @@ export async function saveBatchExperimentData(
   taskNo: number,
   request: SaveBatchExperimentDataRequest
 ): Promise<SaveBatchExperimentDataResponse> {
+  const apiClient = createApiClient();
   const url =
-    `${API_BASE_URL}/api/v1/experiments/projects/` +
+    `/experiments/projects/` +
     `${encodeURIComponent(projectName)}/methods/` +
     `${encodeURIComponent(methodId)}/tasks/${taskNo}/data`;
 
-  const response = await axios.post<SaveBatchExperimentDataResponse>(url, request, {
-    withCredentials: true,
-  });
+  const response = await apiClient.post<SaveBatchExperimentDataResponse>(url, request);
 
   return response.data;
 }
@@ -59,15 +56,14 @@ export async function getTemplateData(
   taskNo: number,
   transitionId: string
 ): Promise<GetTemplateDataResponse> {
+  const apiClient = createApiClient();
   const url =
-    `${API_BASE_URL}/api/v1/experiments/projects/` +
+    `/experiments/projects/` +
     `${encodeURIComponent(projectName)}/methods/` +
     `${encodeURIComponent(methodId)}/tasks/${taskNo}/data` +
     `?transitionId=${encodeURIComponent(transitionId)}`;
 
-  const response = await axios.get<GetTemplateDataResponse>(url, {
-    withCredentials: true,
-  });
+  const response = await apiClient.get<GetTemplateDataResponse>(url);
 
   return response.data;
 }

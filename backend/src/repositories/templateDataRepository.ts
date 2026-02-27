@@ -2,53 +2,62 @@
  * TemplateDataRepository
  * 
  * template_dataテーブルへのデータアクセスを担当するリポジトリ
- * 実験データ（Material、Condition、Result）のCRUD操作を提供します。
+ * 実験データ（テンプレート実績）のCRUD操作を提供します。
+ * 
+ * @remarks
+ * 実際のDBスキーマ（旧スキーマ）に準拠:
+ *   PK: (organization_id, project_id, method_id, task_no, place_id)
+ *   データ本体: property_set (JSONB)
+ *   監査: create_user_id, update_user_id, create_at, update_at
  */
 
 import { PoolClient } from 'pg';
 import { loadSqlFile } from '../sql/loader';
 
 /**
- * テンプレートタイプ
+ * property_set JSONB 内のプロパティ定義
  */
-export type TemplateType = 'material' | 'condition' | 'result';
+export interface PropertySetProperty {
+  key: string;
+  xsiType: string;
+  value: unknown;
+  units: string | null;
+}
 
 /**
- * ステータス
+ * property_set JSONB の型定義
+ * template_data.property_set カラムに格納されるJSONBの構造
  */
-export type Status = 'initial' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
+export interface PropertySet {
+  templateId: string;
+  templateType: 'material' | 'condition' | 'result';
+  properties: PropertySetProperty[];
+}
 
 /**
- * テンプレートデータレコード（挿入/更新用）
+ * テンプレートデータレコード（UPSERT用）
  */
 export interface TemplateDataRecord {
   placeId: string;
-  templateType: TemplateType;
-  templateId: string;
-  data: Record<string, unknown>; // JSONB
-  status?: Status;
-  comment?: string;
+  propertySet: PropertySet;
+  updateUserId: string;
 }
 
 /**
  * テンプレートデータのデータベース行型（取得結果）
+ * docs/design/db/ddl/template_data.sql に準拠
  */
 export interface TemplateDataRow {
-  id: string; // UUID
   organization_id: string;
   project_id: string;
   method_id: string;
   task_no: number;
   place_id: string;
-  template_type: TemplateType;
-  template_id: string;
-  data: Record<string, unknown>; // JSONB
-  status: Status | null;
-  comment: string | null;
-  recorded_by: string; // UUID
-  recorded_at: Date;
-  created_at: Date;
-  updated_at: Date;
+  property_set: PropertySet | null;
+  create_user_id: string | null;
+  update_user_id: string | null;
+  create_at: Date;
+  update_at: Date;
 }
 
 /**
@@ -82,7 +91,6 @@ export class TemplateDataRepository {
    * @param methodId - メソッドID
    * @param taskNo - タスク番号
    * @param record - テンプレートデータレコード
-   * @param recordedBy - 記録者のユーザーID
    * @param client - トランザクション用のPoolClient
    * @returns 保存されたテンプレートデータ
    * @throws {DatabaseError} データベースエラーが発生した場合
@@ -93,7 +101,6 @@ export class TemplateDataRepository {
     methodId: string,
     taskNo: number,
     record: TemplateDataRecord,
-    recordedBy: string,
     client: PoolClient
   ): Promise<TemplateDataRow> {
     try {
@@ -106,12 +113,9 @@ export class TemplateDataRepository {
         methodId,
         taskNo,
         record.placeId,
-        record.templateType,
-        record.templateId,
-        JSON.stringify(record.data), // JSONB型として保存
-        record.status || null,
-        record.comment || null,
-        recordedBy,
+        JSON.stringify(record.propertySet), // JSONB型として保存
+        record.updateUserId, // create_user_id（新規INSERT時）
+        record.updateUserId, // update_user_id
       ];
 
       const result = await client.query(query, params);
@@ -200,8 +204,6 @@ export class TemplateDataRepository {
 
   /**
    * テンプレート実績を1件INSERT（タスク登録時の初期レコード作成用）
-   *
-   * DDL準拠のカラム（property_set）を使用します。
    *
    * @param organizationId - 組織ID（マルチテナント分離）
    * @param projectId - プロジェクトID
