@@ -29,6 +29,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { createApiClient } from '@/utils/authUtils';
 import { formatDateTime } from '@/utils/dateFormatter';
+import { getMenuPermission } from '@/utils/menuPermissions';
 
 const { Text } = Typography;
 const { useToken } = theme;
@@ -74,6 +75,10 @@ interface OptionType {
 export default function OrganizationManagement() {
   const { modal, message: messageApi } = App.useApp();
   const { token } = useToken();
+
+  // 権限制御: provider メニュー（機能CD: 010000）の permission が 0 の場合は読取専用
+  const isReadOnly = getMenuPermission('provider') === 0;
+
   const [organizations, setOrganizations] = useState<OrganizationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -304,7 +309,7 @@ export default function OrganizationManagement() {
             size="small"
             icon={<DownloadOutlined />}
             onClick={() => handleDownloadCertificate(record)}
-            disabled={!record.isActive}
+            disabled={isReadOnly || !record.isActive}
           >
             証明書DL
           </Button>
@@ -312,6 +317,7 @@ export default function OrganizationManagement() {
             size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
+            disabled={isReadOnly}
           >
             編集
           </Button>
@@ -320,6 +326,7 @@ export default function OrganizationManagement() {
             onClick={() => handleToggleActive(record)}
             danger={record.isActive}
             style={{ width: '100px' }}
+            disabled={isReadOnly}
           >
             {!record.isActive ? 'アクティブ' : '非アクティブ'}
           </Button>
@@ -806,24 +813,28 @@ export default function OrganizationManagement() {
             style={{ display: 'none' }}
             onChange={handleUpload}
           />
-          <Button icon={<UploadOutlined />} onClick={() => document.getElementById('csv-upload')?.click()}>
+          <Button
+            icon={<UploadOutlined />}
+            onClick={() => document.getElementById('csv-upload')?.click()}
+            disabled={isReadOnly}
+          >
             CSV<br />アップロード
           </Button>
         </label>
         <Button icon={<DownloadOutlined />} onClick={handleDownload}>
           CSV<br />ダウンロード
         </Button>
-        <Button icon={<PlusOutlined />} onClick={handleAdd}>
+        <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={isReadOnly}>
           追加
         </Button>
         <Button
           onClick={handleActivate}
-          disabled={selectedRowKeys.length === 0}
+          disabled={isReadOnly || selectedRowKeys.length === 0}
           style={{
             minWidth: 85,
-            backgroundColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
-            borderColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
-            color: selectedRowKeys.length > 0 ? '#fff' : undefined,
+            backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
+            borderColor: !isReadOnly && selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
+            color: !isReadOnly && selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
           アクティブ
@@ -831,12 +842,12 @@ export default function OrganizationManagement() {
         <Button
           danger
           onClick={handleDeactivate}
-          disabled={selectedRowKeys.length === 0}
+          disabled={isReadOnly || selectedRowKeys.length === 0}
           style={{
             minWidth: 85,
-            backgroundColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
-            borderColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
-            color: selectedRowKeys.length > 0 ? '#fff' : undefined,
+            backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? '#FFA500' : undefined,
+            borderColor: !isReadOnly && selectedRowKeys.length > 0 ? '#FFA500' : undefined,
+            color: !isReadOnly && selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
           非アクティブ
