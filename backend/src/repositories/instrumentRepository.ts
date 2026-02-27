@@ -231,8 +231,8 @@ export const findAllWithFilters = async (
   let paramIndex = 1;
 
   // 表示切替フィルタ（display_scope）
-  if (filters.displayScope === 'all') {
-    // 全体選択: corporation_idのみでフィルタ
+  if (filters.displayScope === 'all' && corporationId) {
+    // 全体選択: corporation_idが有効な場合はcorporation_idでフィルタ
     sqlQuery = sqlQuery.replace(
       'WHERE 1=1',
       `WHERE corporation_id = $${paramIndex}`
@@ -240,7 +240,7 @@ export const findAllWithFilters = async (
     values.push(corporationId);
     paramIndex++;
   } else {
-    // 自組織選択: organization_idのみでフィルタ
+    // 自組織選択、またはcorporationIdがnullの場合: organization_idでフィルタ
     sqlQuery = sqlQuery.replace(
       'WHERE 1=1',
       `WHERE organization_id = $${paramIndex}`

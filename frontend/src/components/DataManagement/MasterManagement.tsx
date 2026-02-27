@@ -172,7 +172,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       }));
   }, []);
 
-  // データの読み込み
+  // データの読み込み（マスタ種別変更時）
   useEffect(() => {
     if (!selectedMasterInfo) return;
 
@@ -184,7 +184,14 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
     // すべてDB連携マスタなのでAPIから取得
     fetchMasterData(selectedMasterInfo.masterId);
-  }, [selectedMasterInfo]);
+  }, [selectedMasterType]); // selectedMasterInfo（useMemo）ではなく selectedMasterType（プリミティブ値）を依存配列に使用
+
+  // コンポーネントマウント時のデータ取得（ログイン直後の初回表示対応）
+  useEffect(() => {
+    if (!selectedMasterInfo) return;
+    fetchMasterData(selectedMasterInfo.masterId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // マウント時に1回だけ実行
 
   // displayScopeが変更されたらデータを再取得
   useEffect(() => {

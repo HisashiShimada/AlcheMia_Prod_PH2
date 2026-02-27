@@ -7,7 +7,8 @@ import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
 import * as organizationRepository from '../repositories/organizationManagementRepository';
 import { OrganizationSearchFilters } from '../repositories/organizationManagementRepository';
-import { getPool, getPgp } from '../database/db';
+import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import { generateAndSaveCertificate } from './certificateService';
 import { getStorageService } from './storageService';
 import { logger } from '../utils/logger';
@@ -202,28 +203,12 @@ export async function createOrganization(
   let fullOrganization;
 
   try {
+    // SQLファイルを事前に読み込み
+    const insertOrgQuery = await loadSqlFile('organizations/create.sql');
+    const authQuery = await loadSqlFile('organizations/createUserAuthentication.sql');
+
     await pgp.tx(async (t) => {
       // 1. organizationテーブルに挿入
-      const insertOrgQuery = `
-        INSERT INTO organization (
-          organization_id,
-          organization_cd,
-          organization_display_name,
-          organization_email,
-          chief_user_id,
-          corporation_id,
-          is_entry,
-          is_active,
-          create_user_id,
-          update_user_id,
-          create_at,
-          update_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
-        )
-        RETURNING organization_id
-      `;
-
       const orgValues = [
         data.organizationId,
         data.organizationCd,
@@ -301,22 +286,6 @@ export async function createOrganization(
 
       // 5. user_authenticationテーブルに挿入（パスワード認証情報）
       if (data.chiefUserEmail && passwordHash && passwordExpiresAt) {
-        const authQuery = `
-          INSERT INTO user_authentication (
-            user_id,
-            organization_id,
-            password,
-            is_temporary_flg,
-            password_expires_at,
-            create_user_id,
-            update_user_id,
-            create_at,
-            update_at
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
-          )
-        `;
-
         const authValues = [
           data.chiefUserEmail,         // user_id（代表者メールアドレス）
           data.organizationId,         // organization_id
@@ -502,6 +471,78 @@ export async function getSystemAdminsByOrganizationId(
 }
 
 /**
+ * 情報ダウンロード用CSVデータ型定義
+ */
+export interface OrganizationInformationCsvRow {
+  '組織CD': string;
+  '組織表示名': string;
+  '組織e-mail': string;
+  '代表システム管理者': string;
+  '会社名': string;
+  'ストレージ使用量': string;
+  'プロジェクト数': string;
+  'アクティブユーザー数': string;
+}
+
+/**
+ * 情報ダウンロード用：全組織の統計情報を収集してCSVデータを返す
+ *
+ * @returns 情報ダウンロード用CSVデータの配列
+ */
+export async function downloadOrganizationsInformation(): Promise<OrganizationInformationCsvRow[]> {
+  // 環境変数から上限値を取得
+  const maxStorageGb = process.env.MAX_STORAGE_GB_PER_ORG || '10';
+  const maxProjects = process.env.MAX_PROJECTS_PER_ORG || '999';
+
+  // DB から組織統計情報を取得
+  const orgs = await organizationRepository.findAllWithStats();
+
+  // ストレージサービスの取得
+  const storageService = getStorageService();
+
+  // 各組織のストレージ使用量を取得
+  const rows: OrganizationInformationCsvRow[] = [];
+
+  for (const org of orgs) {
+    // ストレージ使用量の計算
+    // listFiles でルート配下の全ファイルを取得してサイズを合計
+    // 注意: maxKeys=500 の制限があるため、大量ファイルがある組織では近似値になる場合がある
+    let storageSizeBytes = 0;
+    try {
+      const files = await storageService.listFiles(org.organization_id, '', 1000);
+      storageSizeBytes = files.reduce((sum, f) => sum + (f.size || 0), 0);
+    } catch (err) {
+      logger.warn(`[organizationService] ストレージ使用量取得失敗: organizationId=${org.organization_id}`, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    // バイト → GB 変換（小数点2桁）
+    const storageSizeGb = (storageSizeBytes / (1024 * 1024 * 1024)).toFixed(2);
+    const storageDisplay = `${storageSizeGb}/${maxStorageGb}GB`;
+
+    // プロジェクト数表示
+    const projectDisplay = `${org.project_count}/${maxProjects}`;
+
+    // アクティブユーザー数表示
+    const activeUserDisplay = `${org.active_user_count}/${org.total_user_count}`;
+
+    rows.push({
+      '組織CD': org.organization_cd || '',
+      '組織表示名': org.organization_display_name || '',
+      '組織e-mail': org.organization_email || '',
+      '代表システム管理者': org.chief_user_name || '',
+      '会社名': org.corporation_name || '',
+      'ストレージ使用量': storageDisplay,
+      'プロジェクト数': projectDisplay,
+      'アクティブユーザー数': activeUserDisplay,
+    });
+  }
+
+  return rows;
+}
+
+/**
  * CSV型定義
  */
 interface CsvRow {
@@ -652,13 +693,11 @@ export async function uploadOrganizationsCsv(
     // corporation_name存在チェック（指定されている場合のみ）
     const corporationName = row['corporation_name']?.trim();
     if (corporationName) {
-      const pool = getPool();
-      const result = await pool.query(
-        'SELECT corporation_id FROM corporation WHERE corporation_name = $1 AND is_active = true',
-        [corporationName]
-      );
+      const pgp = getPgp();
+      const findByNameQuery = await loadSqlFile('corporations/findByName.sql');
+      const corpResult = await pgp.oneOrNone(findByNameQuery, [corporationName]);
       
-      if (result.rows.length === 0) {
+      if (!corpResult) {
         validationErrors.push({
           row: rowNumber,
           field: 'corporation_name',
@@ -706,12 +745,10 @@ export async function uploadOrganizationsCsv(
       // corporation_nameからcorporation_idを取得
       let corporationId: string | undefined = undefined;
       if (corporationName) {
-        const pool = getPool();
-        const result = await pool.query(
-          'SELECT corporation_id FROM corporation WHERE corporation_name = $1 AND is_active = true',
-          [corporationName]
-        );
-        corporationId = result.rows[0].corporation_id;
+        const pgp = getPgp();
+        const findByNameQuery = await loadSqlFile('corporations/findByName.sql');
+        const corpResult = await pgp.oneOrNone<{ corporation_id: string }>(findByNameQuery, [corporationName]);
+        corporationId = corpResult?.corporation_id;
       }
       
       // createOrganization関数を使用（組織追加ダイアログと同じ処理）
