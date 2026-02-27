@@ -163,6 +163,7 @@ export interface FormatFilesResponse {
 export interface CreateFormatFileRequest {
   fileName: string;  // 拡張子を含むファイル名（例: "test.xml", "workflow.maiml"）
   description?: string;
+  currentPath?: string; // 現在のサブフォルダパス
 }
 
 /**

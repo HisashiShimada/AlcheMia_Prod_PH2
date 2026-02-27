@@ -19,7 +19,7 @@ import {
   FolderAddOutlined,
 } from '@ant-design/icons';
 import FormatFolderTree from './FormatFolderTree';
-import FormatFileListTable from './FormatFileListTable';
+import FormatFileListTable, { type FormatFileData } from './FormatFileListTable';
 import FormatSearchModal from './FormatSearchModal';
 import FormatUploadDialog from './FormatUploadDialog';
 import CreateFormatFileModal, { CreateFormatFileData } from './CreateFormatFileModal';
@@ -37,6 +37,7 @@ import { useApi } from '@/hooks/useApi';
 import { fetchFormats, fetchFormatFiles, createFormatFile, createFormatSubfolder } from '@/utils/formatApi';
 import type { ApiResponse } from '@/types/api';
 import type { FormatListResponse } from '@/types/format';
+import type { ProjectFile } from '@/types/file';
 import { getFileDownloadUrlByKey } from '@/services/fileAccessService';
 import { createApiClient } from '@/utils/authUtils';
 
@@ -105,6 +106,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const [sortBy, setSortBy] = useState<'name' | 'category' | 'updatedAt' | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [currentFolderPath, setCurrentFolderPath] = useState<string[]>([]);
+  const [formatFilesData, setFormatFilesData] = useState<Record<string, { allFiles: FormatFileData[] }>>({});
   
   // PetriNetEditor表示用State
   const [showPetriNetEditor, setShowPetriNetEditor] = useState(false);
@@ -135,22 +137,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       setFormats(formatsData.data.folders as Format[]);
     }
   }, [formatsData]);
-
-  // サブフォルダのモックデータ（実際はAPIから取得）
-  // 各取引先会社のフォルダ（1階層のみ）
-  const subFolders = useMemo(() => {
-    if (!selectedFormatId) return [];
-    
-    // フォーマットIDに応じてサブフォルダを返す（モック）
-    // 取引先会社のフォルダ
-    return [
-      { value: 'company_a', label: 'company_a (A社)' },
-      { value: 'company_b', label: 'company_b (B社)' },
-      { value: 'company_c', label: 'company_c (C社)' },
-      { value: 'company_d', label: 'company_d (D社)' },
-      { value: 'company_e', label: 'company_e (E社)' },
-    ];
-  }, [selectedFormatId]);
 
   // ソート処理
   const handleSortChange = useCallback((newSortBy: 'name' | 'category' | 'updatedAt') => {
@@ -362,25 +348,60 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     setSelectedFile(null);
   }, []);
 
-  // フォーマットファイル一覧取得関数をuseCallbackで定義
-  const fetchFormatFilesCallback = React.useCallback(async () => {
-    if (!selectedFormatId) {
-      return { success: true, data: { files: [] } };
-    }
-    const subPath = currentFolderPath.length > 0 ? currentFolderPath.join('/') : undefined;
-    return fetchFormatFiles(selectedFormatId, subPath);
-  }, [selectedFormatId, currentFolderPath]);
+  // 選択したフォーマットとそのファイル一覧を取得
+  const selectedFormat = useMemo(() => {
+    return formats.find((f) => f.id === selectedFormatId) || null;
+  }, [formats, selectedFormatId]);
 
-  // フォーマットファイル一覧を取得（APIから）
-  const { 
-    data: formatFilesData, 
-    isLoading: isLoadingFiles, 
-    error: filesError, 
-    refetch: refetchFiles 
-  } = useApi(
-    fetchFormatFilesCallback,
-    [selectedFormatId, currentFolderPath]
-  );
+  // 選択されたフォーマットのファイルタイプ
+  const selectedFileType = selectedFormat?.fileType || null;
+
+  // フォーマット選択時、またはフォルダ移動時にファイルを取得
+  const [isLoadingFiles, setIsLoadingFiles] = React.useState(false);
+  
+  React.useEffect(() => {
+    const loadFormatFiles = async () => {
+      if (!selectedFormatId || !selectedFormat) {
+        console.log('⏳ [FormatManagement] No format selected, skipping file load');
+        return;
+      }
+      
+      try {
+        setIsLoadingFiles(true);
+        
+        // 現在のフォルダパスを取得
+        const currentPath = currentFolderPath.length > 0 
+          ? currentFolderPath.join('/')
+          : undefined;
+        
+        console.log('📂 [FormatManagement] Loading files for format:', selectedFormat.name, 'path:', currentPath || 'root');
+        
+        // 現在のフォルダの直下のファイル・フォルダのみを取得
+        const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+        
+        const files = (fileResponse.success && fileResponse.data?.files) ? fileResponse.data.files as FormatFileData[] : [];
+        
+        console.log('✅ [FormatManagement] Files loaded:', files.length);
+        
+        // キャッシュキーを生成（フォーマットID + パス）
+        const cacheKey = currentPath 
+          ? `${selectedFormatId}/${currentPath}`
+          : selectedFormatId;
+        
+        setFormatFilesData(prev => ({
+          ...prev,
+          [cacheKey]: { allFiles: files }
+        }));
+      } catch (error) {
+        console.error('❌ [FormatManagement] Failed to fetch format files:', error);
+        message.error('ファイル一覧の取得に失敗しました');
+      } finally {
+        setIsLoadingFiles(false);
+      }
+    };
+    
+    loadFormatFiles();
+  }, [selectedFormatId, selectedFormat, currentFolderPath]);
 
   // 新規ファイル作成ハンドラ
   const handleCreateFormatFile = useCallback(async (data: CreateFormatFileData) => {
@@ -393,9 +414,17 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       }
       
       // formatApi.tsから直接呼び出し
-      const response = await createFormatFile(data.formatId, {
+      const apiRequestData = {
         fileName: data.fileNameWithExtension,
+        currentPath: data.currentPath,
+      };
+      
+      console.log('🚀 [FormatManagement] Calling createFormatFile API:', {
+        formatId: data.formatId,
+        apiRequestData,
       });
+      
+      const response = await createFormatFile(data.formatId, apiRequestData);
       
       // 型ガード: success === true の場合のみ data にアクセス
       if (response.success) {
@@ -415,8 +444,22 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       // モーダルを閉じる
       handleCloseCreateFileModal();
       
-      // ファイル一覧とフォーマット一覧を更新
-      await refetchFiles();
+      // ファイル一覧を最新化（全ファイルを再取得）
+      if (selectedFormatId && selectedFormat) {
+        try {
+          const fileResponse = await fetchFormatFiles(selectedFormatId, undefined);
+          setFormatFilesData(prev => ({
+            ...prev,
+            [selectedFormatId]: {
+              allFiles: (fileResponse.success && fileResponse.data?.files) ? fileResponse.data.files as FormatFileData[] : [],
+            }
+          }));
+        } catch (error) {
+          console.error('❌ [FormatManagement] Failed to refresh files after creation:', error);
+        }
+      }
+      
+      // フォーマット一覧を更新
       handleRefresh();
     } catch (error) {
       console.error('❌ [FormatManagement] ファイル作成エラー:', error);
@@ -447,7 +490,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       const enrichedError = new Error(errorMessage);
       throw enrichedError;
     }
-  }, [t, handleCloseCreateFileModal, handleRefresh, refetchFiles]);
+  }, [t, handleCloseCreateFileModal, handleRefresh, selectedFormatId, selectedFormat]);
 
   // 新規フォルダ作成ハンドラ（フォーマット内サブフォルダ作成）
   const handleCreateFormatFolder = useCallback(async (data: CreateFormatFolderData) => {
@@ -458,7 +501,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       const response = await createFormatSubfolder(
         data.formatId,        // formatName
         data.folderName,      // subfolderName
-        ''                    // parentPath（空文字列=ルート直下）
+        data.currentPath || '' // parentPath（現在のパス、未指定時はルート直下）
       );
       
       // 型ガード: success === true の場合のみ data にアクセス
@@ -475,8 +518,20 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       // モーダルを閉じる
       handleCloseCreateFolderModal();
       
-      // ファイル一覧を更新
-      refetchFiles();
+      // ファイル一覧を最新化（全ファイルを再取得）
+      if (selectedFormatId && selectedFormat) {
+        try {
+          const fileResponse = await fetchFormatFiles(selectedFormatId, undefined);
+          setFormatFilesData(prev => ({
+            ...prev,
+            [selectedFormatId]: {
+              allFiles: (fileResponse.success && fileResponse.data?.files) ? fileResponse.data.files as FormatFileData[] : [],
+            }
+          }));
+        } catch (error) {
+          console.error('❌ [FormatManagement] Failed to refresh files after folder creation:', error);
+        }
+      }
     } catch (error) {
       console.error('❌ [FormatManagement] フォルダ作成エラー:', error);
       message.error({
@@ -485,7 +540,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       });
       throw error;
     }
-  }, [t, handleCloseCreateFolderModal, refetchFiles]);
+  }, [t, handleCloseCreateFolderModal, selectedFormatId, selectedFormat]);
 
   // 新規フォーマットフォルダ作成ハンドラ（部門直下）
   const handleCreateFormat = useCallback(async (folderName: string) => {
@@ -514,21 +569,18 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     }
   }, [handleRefresh]);
 
-  // 選択したフォーマットとそのファイル一覧を取得
-  const selectedFormat = useMemo(() => {
-    return formats.find((f) => f.id === selectedFormatId) || null;
-  }, [formats, selectedFormatId]);
-
-  // 選択されたフォーマットのファイルタイプ
-  const selectedFileType = selectedFormat?.fileType || null;
-
   // フォルダクリックハンドラ
   const handleFolderClick = useCallback((folderId: string) => {
     if (folderId === 'back') {
-      // 戻るボタン
-      setCurrentFolderPath([]);
+      // 戻るボタン - 1階層だけ戻る
+      setCurrentFolderPath(currentFolderPath.slice(0, -1));
     } else {
-      setCurrentFolderPath([...currentFolderPath, folderId]);
+      // フォルダIDからフォルダ名を抽出（パスの最後の部分）
+      const folderName = folderId.includes('/') 
+        ? folderId.split('/').pop() || folderId 
+        : folderId;
+      
+      setCurrentFolderPath([...currentFolderPath, folderName]);
     }
   }, [currentFolderPath]);
 
@@ -549,8 +601,33 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
     setCurrentFolderPath([]);
   }, []);
 
-  const formatFiles = useMemo(() => {
-    if (!formatFilesData?.data.files) return [];
+  const formatFiles = useMemo((): FormatFileData[] => {
+    if (!selectedFormatId) {
+      return [];
+    }
+    
+    // キャッシュキーを生成（フォーマットID + パス）
+    const currentPath = currentFolderPath.length > 0 
+      ? currentFolderPath.join('/')
+      : undefined;
+    const cacheKey = currentPath 
+      ? `${selectedFormatId}/${currentPath}`
+      : selectedFormatId;
+    
+    const formatData = formatFilesData[cacheKey];
+    if (!formatData || !formatData.allFiles) {
+      return [];
+    }
+    
+    console.log('📂 [FormatManagement] Showing files:', {
+      cacheKey,
+      totalFiles: formatData.allFiles.length,
+      currentFolderPath,
+      samplePaths: formatData.allFiles.slice(0, 5).map(f => f.path)
+    });
+    
+    // APIから取得したファイル一覧をそのまま表示（フィルタリング不要）
+    const files = formatData.allFiles;
     
     // 戻るボタンを追加（サブフォルダ内の場合）
     if (currentFolderPath.length > 0) {
@@ -565,12 +642,12 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           isFolder: true,
           fileCount: undefined,
         },
-        ...formatFilesData.data.files,
+        ...files
       ];
     }
     
-    return formatFilesData.data.files;
-  }, [formatFilesData, currentFolderPath]);
+    return files;
+  }, [selectedFormatId, currentFolderPath, formatFilesData]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: token.colorBgLayout }}>
@@ -681,7 +758,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           <FormatFolderTree
             formats={filteredAndSortedFormats}
             selectedFormatId={selectedFormatId}
-            onFormatSelect={handleFormatSelect}
+            onFormatSelect={handleFormatSelectWithReset}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
@@ -749,14 +826,29 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
 
               {/* XMLファイル一覧 */}
               <div style={{ flex: 1, overflow: 'auto', padding: token.margin }}>
-                <FormatFileListTable
-                  files={formatFiles}
-                  onFileClick={(file) => console.log('File clicked:', file.name)}
-                  onFolderClick={handleFolderClick}
-                  onDetail={handleFileDetail}
-                  onEdit={handleFileEdit}
-                  onDelete={(file) => console.log('Delete file:', file.name)}
-                />
+                {isLoadingFiles ? (
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    height: '100%',
+                    minHeight: 300,
+                    gap: token.margin
+                  }}>
+                    <Spin size="large" />
+                    <Text type="secondary">読み込み中...</Text>
+                  </div>
+                ) : (
+                  <FormatFileListTable
+                    files={formatFiles}
+                    onFileClick={(file) => console.log('File clicked:', file.name)}
+                    onFolderClick={handleFolderClick}
+                    onDetail={handleFileDetail}
+                    onEdit={handleFileEdit}
+                    onDelete={(file) => console.log('Delete file:', file.name)}
+                  />
+                )}
               </div>
             </>
           ) : (
@@ -800,11 +892,39 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           id: selectedFormat.id,
           name: selectedFormat.name,
           folderName: selectedFormat.folderName,
+          departmentCd: user.departmentCd,
         } : null}
-        subFolders={subFolders}
-        onUploadComplete={(result) => {
-          console.log('アップロード完了:', result);
-          // TODO: ファイル一覧の再読み込み
+        currentFolderPath={currentFolderPath}
+        onUploadComplete={async (result) => {
+          console.log('✅ [FormatManagement] アップロード完了:', result);
+          
+          // ファイル一覧を再読み込み
+          if (selectedFormatId && selectedFormat) {
+            try {
+              const currentPath = currentFolderPath.length > 0 
+                ? currentFolderPath.join('/')
+                : undefined;
+              
+              const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+              
+              const cacheKey = currentPath 
+                ? `${selectedFormatId}/${currentPath}`
+                : selectedFormatId;
+              
+              setFormatFilesData(prev => ({
+                ...prev,
+                [cacheKey]: {
+                  allFiles: (fileResponse.success && fileResponse.data?.files) ? fileResponse.data.files as FormatFileData[] : [],
+                }
+              }));
+              
+              console.log('✅ [FormatManagement] ファイル一覧更新完了');
+            } catch (error) {
+              console.error('❌ [FormatManagement] ファイル一覧更新エラー:', error);
+            }
+          }
+          
+          // フォーマット一覧も更新（ファイル数が変わる可能性があるため）
           handleRefresh();
         }}
       />
@@ -819,6 +939,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         fileType={selectedFileType}
         createdBy={user.id}
         createdByName={user.displayName}
+        currentPath={currentFolderPath}
       />
 
       {/* 新規フォルダ作成モーダル */}
@@ -828,6 +949,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         onSubmit={handleCreateFormatFolder}
         formatId={selectedFormatId}
         formatName={selectedFormat?.name || null}
+        currentPath={currentFolderPath}
       />
 
       {/* 新規フォーマットフォルダ作成モーダル（部門直下） */}

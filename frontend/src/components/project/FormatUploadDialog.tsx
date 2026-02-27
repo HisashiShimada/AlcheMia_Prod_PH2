@@ -4,20 +4,21 @@
  * Ant Design v6を使用し、UIポリシーに準拠
  */
 
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
+import { uploadFiles } from '@/services/fileAccessService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 import {
   Modal,
   Segmented,
   Upload,
   Button,
-  Cascader,
-  Checkbox,
+  Input,
   Alert,
   Progress,
   Space,
   Typography,
   Divider,
-  message,
+  App,
 } from 'antd';
 import {
   UploadOutlined,
@@ -29,7 +30,6 @@ import {
   LoadingOutlined,
 } from '@ant-design/icons';
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
-import type { DefaultOptionType } from 'antd/es/cascader';
 
 const { Text } = Typography;
 const { Dragger } = Upload;
@@ -69,16 +69,10 @@ interface FormatUploadDialogProps {
     id: string;
     name: string;
     folderName: string;
+    departmentCd?: string;
   } | null;
-  /** ベースフォルダ配下のサブフォルダ一覧 */
-  subFolders?: Array<{
-    value: string;
-    label: string;
-    children?: Array<{
-      value: string;
-      label: string;
-    }>;
-  }>;
+  /** 現在開いているフォルダパス */
+  currentFolderPath?: string[];
 }
 
 /**
@@ -100,13 +94,14 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
   onClose,
   onUploadComplete,
   baseFolder,
-  subFolders = [],
+  currentFolderPath = [],
 }) => {
+  const { message } = App.useApp();
+  
   // 状態管理
   const [uploadMode, setUploadMode] = useState<UploadMode>('single');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
-  const [selectedSubFolder, setSelectedSubFolder] = useState<string[]>([]);
-  const [preserveFolderStructure, setPreserveFolderStructure] = useState<boolean>(true);
+  const [subFolderPath, setSubFolderPath] = useState<string>('');
   const [uploadState, setUploadState] = useState<UploadState>({
     isUploading: false,
     progress: 0,
@@ -179,6 +174,31 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
   );
 
   /**
+   * アップロード先パスを構築
+   */
+  const getTargetPath = useCallback(() => {
+    if (!baseFolder) {
+      return '';
+    }
+    
+    // formats/{departmentCd}/{formatFolderName} または formats/{formatFolderName}
+    const basePath = baseFolder.departmentCd 
+      ? `formats/${baseFolder.departmentCd}/${baseFolder.folderName}`
+      : `formats/${baseFolder.folderName}`;
+    
+    // サブフォルダパスから先頭・末尾のスラッシュを削除
+    const cleanSubFolder = subFolderPath.trim().replace(/^\/+|\/+$/g, '');
+    
+    // サブフォルダパスはフォーマットフォルダルートからの絶対パスとして扱う
+    // （プロジェクト管理と同じ動作）
+    const finalPath = cleanSubFolder ? `${basePath}/${cleanSubFolder}` : basePath;
+    
+    console.log('📂 [FormatUploadDialog] Final targetPath:', finalPath);
+    
+    return finalPath;
+  }, [baseFolder, subFolderPath]);
+
+  /**
    * アップロード実行
    */
   const handleUpload = useCallback(async () => {
@@ -188,7 +208,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
     }
 
     if (!baseFolder) {
-      message.error('ベースフォルダが選択されていません');
+      message.error('フォーマットが選択されていません');
       return;
     }
 
@@ -201,48 +221,81 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
     });
 
     try {
-      // ここに実際のアップロード処理を実装
-      // 現在はモック動作
-      for (let i = 0; i < fileList.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        setUploadState((prev) => ({
-          ...prev,
-          uploadedCount: i + 1,
-          progress: Math.round(((i + 1) / fileList.length) * 100),
-        }));
-      }
+      // originFileObjを抽出してFile型に変換
+      // フォルダアップロードの場合、nameにパスを含む新しいFileオブジェクトを作成
+      const files = fileList
+        .map(f => {
+          const originFile = f.originFileObj;
+          if (!originFile) return null;
+          
+          // フォルダモードで、かつnameにパスが含まれている場合
+          if (uploadMode === 'folder' && f.name.includes('/')) {
+            // nameにパスを含む新しいFileオブジェクトを作成
+            // これによりバックエンドでfile.originalnameからパスを取得できる
+            return new File([originFile], f.name, {
+              type: originFile.type,
+              lastModified: originFile.lastModified,
+            });
+          }
+          
+          // フォルダモード以外はそのまま返す
+          return originFile as File;
+        })
+        .filter((f): f is File => !!f);
 
-      message.success('アップロードが完了しました');
-      
-      if (onUploadComplete) {
-        onUploadComplete({
-          mode: uploadMode,
-          fileCount: fileList.length,
-          success: true,
-        });
-      }
+      const targetPath = getTargetPath();
 
-      // 完了後の状態リセット
-      setTimeout(() => {
-        setFileList([]);
-        setUploadState({
-          isUploading: false,
-          progress: 0,
-          uploadedCount: 0,
-          totalCount: 0,
-          error: null,
-        });
-      }, 2000);
+      // API呼び出し
+      const response = await uploadFiles({
+        uploadMode,
+        targetPath,
+        files,
+        metadata: {
+          formatId: baseFolder.id,
+        },
+        onProgress: (progress) => {
+          setUploadState(prev => ({
+            ...prev,
+            progress: progress.percentage,
+            uploadedCount: progress.uploadedCount,
+          }));
+        },
+      });
+
+      if (response) {
+        message.success('アップロードが完了しました');
+        
+        if (onUploadComplete) {
+          onUploadComplete({
+            mode: uploadMode,
+            fileCount: fileList.length,
+            success: true,
+          });
+        }
+
+        // 完了後の状態リセット（2秒後）
+        setTimeout(() => {
+          setFileList([]);
+          setSubFolderPath('');
+          setUploadState({
+            isUploading: false,
+            progress: 100,
+            uploadedCount: fileList.length,
+            totalCount: fileList.length,
+            error: null,
+          });
+        }, 2000);
+      }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'アップロードに失敗しました';
-      setUploadState((prev) => ({
+      const errorMessage = extractErrorMessage(error);
+      setUploadState(prev => ({
         ...prev,
         isUploading: false,
         error: errorMessage,
       }));
       message.error(errorMessage);
     }
-  }, [fileList, uploadMode, onUploadComplete, baseFolder]);
+  }, [fileList, uploadMode, baseFolder, getTargetPath, onUploadComplete, message]);
 
   /**
    * ダイアログを閉じる
@@ -260,50 +313,6 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
       onClose();
     }
   }, [uploadState.isUploading, onClose]);
-
-  /**
-   * サブフォルダ選択ハンドラ
-   */
-  const handleSubFolderChange = useCallback((value: (string | number | null)[]) => {
-    // nullを除外し、すべてstringに変換してstateに保存
-    const filteredValue = value
-      .filter((v): v is string | number => v !== null)
-      .map(v => String(v));
-    setSelectedSubFolder(filteredValue);
-  }, []);
-
-  /**
-   * 選択されたフォルダパスを文字列に変換
-   */
-  const selectedFolderPathString = useMemo(() => {
-    if (!baseFolder) return '';
-    
-    if (selectedSubFolder.length === 0) {
-      return baseFolder.folderName;
-    }
-    
-    return `${baseFolder.folderName}/${selectedSubFolder.join('/')}`;
-  }, [baseFolder, selectedSubFolder]);
-
-  /**
-   * Cascaderのプレースホルダー（モードに応じて変更）
-   */
-  const cascaderPlaceholder = useMemo(() => {
-    if (subFolders.length === 0) {
-      return 'サブフォルダなし';
-    }
-    if (uploadMode === 'single') {
-      return 'サブフォルダを選択（省略可）';
-    }
-    return 'サブフォルダを選択（省略可）';
-  }, [uploadMode, subFolders.length]);
-
-  /**
-   * サブフォルダレベルで選択可能かどうか（一括ファイル・フォルダタブのみ）
-   */
-  const changeOnSelect = useMemo(() => {
-    return uploadMode === 'bulk' || uploadMode === 'folder';
-  }, [uploadMode]);
 
   /**
    * ファイルリストの合計サイズ計算
@@ -501,74 +510,64 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
 
         <Divider style={{ margin: '12px 0' }} />
 
-        {/* オプション設定 */}
-        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+        {/* アップロード先フォーマット表示 */}
+        {baseFolder && (
+          <div
+            style={{
+              padding: '12px 16px',
+              backgroundColor: '#E6F7FC',
+              borderRadius: 8,
+              border: '1px solid #0093CF',
+            }}
+          >
+            <Space orientation="vertical" size={4} style={{ width: '100%' }}>
+              <Text strong style={{ color: '#007AB3', fontSize: 13 }}>
+                アップロード先フォーマット
+              </Text>
+              <Text style={{ fontSize: 15, fontWeight: 500 }}>
+                {baseFolder.name}
+              </Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                パス: {getTargetPath() || 
+                  (baseFolder.departmentCd 
+                    ? `formats/${baseFolder.departmentCd}/${baseFolder.folderName}`
+                    : `formats/${baseFolder.folderName}`)}
+              </Text>
+            </Space>
+          </div>
+        )}
+
+        {!baseFolder && (
+          <Alert
+            message="フォーマットが選択されていません"
+            description="フォーマットを選択してからアップロードしてください"
+            type="warning"
+            showIcon
+          />
+        )}
+
+        {/* サブフォルダパス入力（オプション） */}
+        {baseFolder && (
           <div>
             <Text strong style={{ display: 'block', marginBottom: 8 }}>
-              アップロード先フォルダ
+              サブフォルダパス（オプション）
             </Text>
-            {/* ベースフォルダ表示 */}
-            <div
-              style={{
-                marginBottom: 8,
-                padding: '8px 12px',
-                backgroundColor: '#F0F0F0',
-                borderRadius: 6,
-                border: '1px solid #D9D9D9',
-              }}
-            >
-              <Text style={{ fontSize: 13, color: '#595959' }}>
-                ベースフォルダ: <Text strong>{baseFolder.name}</Text>
-              </Text>
-            </div>
-            
-            {/* サブフォルダ選択 */}
-            {subFolders.length > 0 && (
-              <Cascader
-                options={subFolders}
-                value={selectedSubFolder}
-                onChange={handleSubFolderChange}
-                placeholder={cascaderPlaceholder}
-                disabled={uploadState.isUploading}
-                expandTrigger="hover"
-                showSearch
-                changeOnSelect={changeOnSelect}
-                style={{ width: '100%' }}
-                allowClear
-              />
-            )}
-            
-            {selectedFolderPathString && (
-              <div
-                style={{
-                  marginTop: 8,
-                  padding: '8px 12px',
-                  backgroundColor: '#E6F7FC',
-                  borderRadius: 6,
-                }}
-              >
-                <Text style={{ fontSize: 12, color: '#007AB3' }}>
-                  選択パス: {selectedFolderPathString}
-                </Text>
-              </div>
-            )}
-          </div>
-
-          {(uploadMode === 'bulk' || uploadMode === 'folder') && (
-            <Checkbox
-              checked={preserveFolderStructure}
-              onChange={(e) => setPreserveFolderStructure(e.target.checked)}
+            <Input
+              value={subFolderPath}
+              onChange={(e) => setSubFolderPath(e.target.value)}
+              placeholder="例: subfolder（空欄の場合は選択フォーマットフォルダ直下）"
               disabled={uploadState.isUploading}
-            >
-              フォルダ構造を保持する
-            </Checkbox>
-          )}
-        </Space>
+            />
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+              サブフォルダを指定しない場合は、選択フォーマットフォルダ直下にアップロードされます
+            </Text>
+          </div>
+        )}
 
         {/* アップロード進行状況 */}
         {uploadState.isUploading && (
           <Alert
-            message="アップロード中"
+            title="アップロード中"
             description={
               <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                 <Text>
@@ -586,7 +585,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         {/* アップロード完了 */}
         {!uploadState.isUploading && uploadState.progress === 100 && (
           <Alert
-            message="アップロード完了"
+            title="アップロード完了"
             description={`${uploadState.totalCount}個のファイルが正常にアップロードされました`}
             type="success"
             showIcon
@@ -597,7 +596,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         {/* エラー表示 */}
         {uploadState.error && (
           <Alert
-            message="アップロードエラー"
+            title="アップロードエラー"
             description={uploadState.error}
             type="error"
             showIcon
