@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS transition_data CASCADE;
 CREATE TABLE transition_data (
     -- 複合主キー
     organization_id UUID NOT NULL,
-    project_id UUID NOT NULL,
+    project_id character varying(20) NOT NULL,
     method_id CHARACTER VARYING NOT NULL,
     experiment_order numeric(2,0) NOT NULL,
     task_no NUMERIC(3,0) NOT NULL,

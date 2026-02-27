@@ -3,7 +3,7 @@ DROP TABLE if exists project_task CASCADE;
 
 CREATE TABLE project_task (
   organization_id uuid NOT NULL
-  , project_id uuid NOT NULL
+  , project_id character varying(20) NOT NULL
   , method_id character varying NOT NULL
   , experiment_order numeric(2,0) NOT NULL
   , task_name character varying

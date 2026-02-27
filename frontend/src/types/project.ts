@@ -173,13 +173,3 @@ export interface CheckoutProjectResponse {
   checkedOutBy: string;
   checkedOutAt: string;
 }
-
-/**
- * プロジェクト編集パラメータ
- */
-export interface ProjectEditParams {
-  projectId: string;
-  projectName: string;
-  projectOverview?: string;
-  sourceS3Key: string;
-}

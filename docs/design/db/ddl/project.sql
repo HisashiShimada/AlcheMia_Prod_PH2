@@ -3,7 +3,7 @@ DROP TABLE if exists project CASCADE;
 
 CREATE TABLE project (
   organization_id uuid NOT NULL
-  , project_id uuid NOT NULL
+  , project_id character varying(20) NOT NULL
   , project_name character varying
   , description text
   , department_cd character varying(50)

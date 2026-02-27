@@ -17,7 +17,7 @@ import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
 import { User } from '@/types/auth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getPermissionsFromToken } from '@/utils/jwtUtils';
-import { ProjectEditParams } from '@/types/project';
+import type { MaimlEditorParams } from '@/types/maimlEditor';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -51,7 +51,7 @@ export default function ExperimentAdminMenu({
   
   // Phase 6追加: エディタ表示用のステート
   const [showEditor, setShowEditor] = useState(false);
-  const [editorProjectParams, setEditorProjectParams] = useState<ProjectEditParams | null>(null);
+  const [editorProjectParams, setEditorProjectParams] = useState<MaimlEditorParams | null>(null);
 
   const tabItems = [
     {
@@ -82,7 +82,7 @@ export default function ExperimentAdminMenu({
   };
 
   // Phase 6追加: 編集画面表示ハンドラー
-  const handleEditProject = (params: ProjectEditParams) => {
+  const handleEditProject = (params: MaimlEditorParams) => {
     console.log('✏️ [ExperimentAdminMenu] Edit project:', params);
     setEditorProjectParams(params);
     setShowEditor(true);
@@ -109,11 +109,8 @@ export default function ExperimentAdminMenu({
   if (showEditor && editorProjectParams) {
     return (
       <PetriNetEditorScreen
-        projectId={editorProjectParams.projectId}
-        projectName={editorProjectParams.projectName}
-        projectOverview={editorProjectParams.projectOverview}
+        params={editorProjectParams}
         onClose={handleCloseEditor}
-        sourceS3Key={editorProjectParams.sourceS3Key}
       />
     );
   }

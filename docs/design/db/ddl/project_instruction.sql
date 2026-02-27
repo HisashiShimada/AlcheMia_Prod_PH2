@@ -19,7 +19,7 @@ DROP TABLE if exists project_instruction CASCADE;
 -- * RestoreFromTempTable
 CREATE TABLE project_instruction (
   organization_id uuid NOT NULL
-  , project_id uuid NOT NULL
+  , project_id character varying(20) NOT NULL
   , experiment_instruction_id character varying NOT NULL
   , method_id character varying
   , instruction_target numeric(2,0)

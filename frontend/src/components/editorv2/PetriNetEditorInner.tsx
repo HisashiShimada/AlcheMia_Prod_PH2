@@ -103,7 +103,7 @@ const getErrorMessage = (err: unknown): string => {
 // const TemplateListView = lazy(() => import('./components/TemplateListView'));
 
 // 内部コンポーネント
-const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, ...props }: PetriNetEditorInnerProps) => {
+const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, initialDocumentId, initialDescription, ...props }: PetriNetEditorInnerProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<EdgeData>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -605,8 +605,11 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         console.log('🆕 [PetriNetEditorInner] 新規作成モード: 空の状態で起動');
         
         if (editingFileName && !documentData) {
-          // ✅ Util関数でDocumentDataとMethodIDを生成
-          const { documentData: initialDocumentData } = generateInitialDocumentData(editingFileName);
+          // ✅ Util関数でDocumentDataとMethodIDを生成（initialDocumentId/initialDescriptionを渡す）
+          const { documentData: initialDocumentData } = generateInitialDocumentData(editingFileName, {
+            documentId: initialDocumentId,
+            description: initialDescription,
+          });
           setDocumentData(initialDocumentData);
           
           // ✅ Util関数でMethodDataを生成
@@ -614,7 +617,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           setMethods([initialMethod]);
         } else {
           // editingFileNameがない場合のフォールバック
-          const { documentData: initialDocumentData } = generateInitialDocumentData();
+          const { documentData: initialDocumentData } = generateInitialDocumentData(undefined, {
+            documentId: initialDocumentId,
+            description: initialDescription,
+          });
           setDocumentData(initialDocumentData);
           
           const initialMethod = generateInitialMethod(initialDocumentData.methodId);
@@ -3155,6 +3161,10 @@ export interface PetriNetEditorInnerProps {
   onError?: (error: Error) => void;
   editingFileName?: string;
   editMode: string;
+  /** DocumentData.id の初期値（新規作成時のみ適用） */
+  initialDocumentId?: string;
+  /** DocumentData.description の初期値（新規作成時のみ適用） */
+  initialDescription?: string;
   originalFileName?: string;
   sourceS3Key?: string;
   [key: string]: unknown;

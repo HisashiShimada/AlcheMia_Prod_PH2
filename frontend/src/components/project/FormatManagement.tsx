@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { ReactFlowProvider } from 'reactflow';
 import {
   Card,
   Input,
@@ -10,7 +9,6 @@ import {
   Space,
   Typography,
   theme,
-  Breadcrumb,
   Spin,
 } from 'antd';
 import {
@@ -18,8 +16,6 @@ import {
   ReloadOutlined,
   UploadOutlined,
   PlusOutlined,
-  HomeOutlined,
-  FolderOutlined,
   FolderAddOutlined,
 } from '@ant-design/icons';
 import FormatFolderTree from './FormatFolderTree';
@@ -30,7 +26,8 @@ import CreateFormatFileModal, { CreateFormatFileData } from './CreateFormatFileM
 import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatFolderModal';
 import CreateFormatModal from './CreateFormatModal';
 import FormatFileDetailModal, { FormatFileDetailData } from './FormatFileDetailModal';
-import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
+import PetriNetEditorScreen from '@/components/editorv2/PetriNetEditorScreen';
+import type { MaimlEditorParams } from '@/types/maimlEditor';
 import TemplateEditorDialog from '@/components/editorv2/components/TemplateEditorDialog';
 import mockFormatFilesData from '@/data/mock/mockFormatFiles.json';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -895,13 +892,20 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
               <div style={{ minHeight: 100 }} />
               </div>
             ) : (
-              <ReactFlowProvider>
-                <PetriNetEditorInner
-                  maimlData={maimlFileContent}
-                  editingFileName={editingMaimlFile.name}
-                  editMode="format"
-                />
-              </ReactFlowProvider>
+              <PetriNetEditorScreen
+                params={{
+                  editMode: 'format',
+                  editingFileName: editingMaimlFile.name,
+                  originalFileName: editingMaimlFile.name,
+                  sourceS3Key: editingMaimlFile.path || '',
+                  displayTitle: editingMaimlFile.name,
+                  displaySubtitle: selectedFormat?.name,
+                }}
+                onClose={() => {
+                  setShowPetriNetEditor(false);
+                  setEditingMaimlFile(null);
+                }}
+              />
             )}
           </div>
         </div>

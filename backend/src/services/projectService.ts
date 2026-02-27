@@ -18,6 +18,9 @@ import type {
   Pagination, 
   ProjectListResponse
 } from '../types/project';
+import {
+  nanoid
+} from 'nanoid'
 
 interface ListOptions {
   page: number;
@@ -113,8 +116,8 @@ export class ProjectService {
       }
 
       // Task 3.4: プロジェクトレコード登録
-      const { v4: uuidv4 } = require('uuid');
-      const projectId = uuidv4();
+      // project_id 形式: 'project_' (8文字) + nanoid(12) = 20文字固定
+      const projectId = `project_${nanoid(12)}`;
       const createAt = new Date().toISOString();
 
       const insertQuery = `

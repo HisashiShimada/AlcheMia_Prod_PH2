@@ -80,6 +80,50 @@ export async function parseMaiML(content: string): Promise<ParseResult> {
 }
 
 /**
+ * リトライ機能付きS3/Swiftアップロード
+ * 
+ * @param organizationId - 組織ID
+ * @param fileKey - ファイルキー
+ * @param content - アップロード内容
+ * @param options - アップロードオプション
+ * @param maxRetries - 最大リトライ回数（デフォルト: 3）
+ * @param timeoutMs - タイムアウト（ミリ秒、デフォルト: 60000）
+ */
+async function uploadFileWithRetry(
+  organizationId: string,
+  fileKey: string,
+  content: Buffer,
+  options: { contentType?: string; metadata?: Record<string, string> },
+  maxRetries: number = 3,
+  timeoutMs: number = 60000
+): Promise<void> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await Promise.race([
+        storageService.uploadFile(organizationId, fileKey, content, options),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Upload timeout after ${timeoutMs}ms`)), timeoutMs)
+        ),
+      ]);
+      console.log(`✅ [maimlService] S3/Swiftアップロード成功 (attempt ${attempt}/${maxRetries}):`, fileKey);
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(`⚠️ [maimlService] S3/Swiftアップロード失敗 (attempt ${attempt}/${maxRetries}):`, error instanceof Error ? error.message : error);
+      if (attempt < maxRetries) {
+        const waitMs = attempt * 1000; // 1秒, 2秒, 3秒...
+        console.log(`🔄 [maimlService] ${waitMs}ms後にリトライします...`);
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+      }
+    }
+  }
+
+  throw new Error(`S3/Swiftアップロードが${maxRetries}回失敗しました: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
+}
+
+/**
  * MAIMLファイル保存
  * Reference版のロジックを統合
  */
@@ -90,23 +134,23 @@ export async function saveMaiML(
 ): Promise<maimlSaveResult> {
   try {
 
-    // 1. バリデーション
-    const validation = await validateMaiML(organizationId,content, '');
-    if (!validation.isValid) {
-      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
-    }
-
     // ファイルのバックアップ
     await createBackup(fileKey, organizationId);
 
-    // 4. S3/Swiftアップロード
-    await storageService.uploadFile(organizationId, fileKey, Buffer.from(content, 'utf-8'), {
-      contentType: 'application/xml',
-      metadata: {
-        'edit-timestamp': new Date().toISOString(),
-        'validation-status': validation.isValid ? 'valid' : 'warning',
+    // S3/Swiftアップロード（リトライ機能付き）
+    await uploadFileWithRetry(
+      organizationId,
+      fileKey,
+      Buffer.from(content, 'utf-8'),
+      {
+        contentType: 'application/xml',
+        metadata: {
+          'edit-timestamp': new Date().toISOString(),
+        },
       },
-    });
+      3,    // maxRetries
+      60000 // timeout: 60秒
+    );
 
     // 5. コンテンツハッシュ計算
     const contentHash = calculateContentHash(content);
@@ -287,7 +331,6 @@ export async function saveMaiML(
       size: Buffer.byteLength(content, 'utf-8'),
       lastModified: new Date().toISOString(),
       contentHash,
-      validationResult: validation,
     };
   } catch (error) {
     console.error('❌ [maimlService] MAIML保存エラー:', error);

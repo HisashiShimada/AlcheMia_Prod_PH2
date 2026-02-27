@@ -92,9 +92,20 @@ export const generateInitialOwner = (): DocumentTagData[] => {
 /**
  * DocumentData初期値を生成
  * @param editingFileName 編集中のファイル名（オプション）
+ * @param options 追加オプション（新規作成時のみ適用、S3から既存MAIMLを読み込んだ場合はMAIML内の値が優先される）
+ * @param options.documentId DocumentData.id の初期値（省略時は `document_${Date.now()}` が自動生成される）
+ * @param options.description DocumentData.description の初期値
  * @returns DocumentData初期値
  */
-export const generateInitialDocumentData = (editingFileName?: string) => {
+export const generateInitialDocumentData = (
+  editingFileName?: string,
+  options?: {
+    /** DocumentData.id の初期値 */
+    documentId?: string;
+    /** DocumentData.description の初期値 */
+    description?: string;
+  }
+) => {
   const baseFileName = editingFileName ? editingFileName.replace('.maiml', '') : '';
   const uuidFull = crypto.randomUUID();
   const uuidPrefix = uuidFull.substring(0, 8);
@@ -104,10 +115,10 @@ export const generateInitialDocumentData = (editingFileName?: string) => {
   const formattedDate = now.toISOString().split('T')[0]; // YYYY-MM-DD形式
   
   const documentData = {
-    id: `document_${Date.now()}`,
+    id: options?.documentId || `document_${Date.now()}`,
     uuid: uuidFull,
     name: baseFileName || 'document',
-    description: '',
+    description: options?.description || '',
     date: formattedDate,
     // XSD準拠プロパティ（配列、必須）
     creators: [],
