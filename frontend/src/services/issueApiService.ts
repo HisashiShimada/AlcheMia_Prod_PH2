@@ -7,7 +7,7 @@
 
 import { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
-import type { Issue, IssueComment, User, IssueType, IssueTargetType, IssueStatus } from '@/types/experimentWorker';
+import type { Issue, IssueComment, User, IssueTargetType, IssueStatus } from '@/types/experimentWorker';
 
 // ============================================================
 // APIレスポンス型定義（バックエンドのレスポンス構造に合わせる）
@@ -22,8 +22,8 @@ export interface CreateIssueParams {
   projectId: string;
   /** メソッドID（オプション） */
   methodId?: string;
-  /** 問題タイプ（必須） */
-  issueType: string;
+  /** 問題タイプ（必須）: code_master.code_value（整数） */
+  issueType: number;
   /** 対象タイプ（必須） */
   targetType: string;
   /** タスク連番（オプション） */
@@ -64,8 +64,8 @@ export interface GetIssuesParams {
   transitionId: string;
   /** ステータスフィルタ（オプション） */
   status?: 'unresolved' | 'resolved';
-  /** 問題タイプフィルタ（オプション） */
-  issueType?: string;
+  /** 問題タイプフィルタ（オプション）: code_master.code_value（整数） */
+  issueType?: number;
 }
 
 /**
@@ -74,7 +74,7 @@ export interface GetIssuesParams {
  */
 interface CreateIssueApiData {
   id: string;
-  issueType: string;
+  issueType: number;
   targetType: string;
   projectId: string;
   projectName?: string;
@@ -120,7 +120,7 @@ interface IssueCommentApiData {
  */
 interface IssueApiData {
   id: string;
-  issueType: string;
+  issueType: number;
   targetType: string;
   projectId: string;
   projectName?: string;
@@ -193,7 +193,7 @@ function mapToIssue(data: IssueApiData): Issue {
     content: data.contents,
     status: data.status as IssueStatus,
     targetType: data.targetType as IssueTargetType,
-    issueType: data.issueType as IssueType | undefined,
+    issueType: data.issueType,
     reportedBy,
     reportedAt: data.reportedAt,
     comments,

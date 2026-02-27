@@ -290,14 +290,8 @@ export interface WorkflowStatistics {
 // ===== Phase: 問題報告モーダル用の型定義 =====
 
 // 問題タイプ（問題報告モーダル用）
-export type IssueType = 
-  | 'material_shortage'    // 材料不足
-  | 'equipment_failure'    // 機器故障
-  | 'procedure_unclear'    // 手順不明確
-  | 'safety_concern'       // 安全性の懸念
-  | 'quality_issue'        // 品質問題
-  | 'time_constraint'      // 時間制約
-  | 'other';               // その他
+// code_master テーブルの code_division='issue_type' の code_value（整数）
+export type IssueType = number;
 
 // 問題報告データ（問題報告モーダル用）
 export interface IssueReportData {

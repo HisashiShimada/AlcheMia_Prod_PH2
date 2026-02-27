@@ -74,7 +74,7 @@ router.post('/issues',
 {
   "projectId": "550e8400-e29b-41d4-a716-446655440000",
   "methodId": "method_001",
-  "issueType": "material_shortage",
+  "issueType": 1,
   "targetType": "transition",
   "taskNo": 1,
   "transitionId": "transition_001",
@@ -89,7 +89,7 @@ router.post('/issues',
 |-----------|----|----|------|------|
 | projectId | UUID | ○ | プロジェクトID | UUID形式 |
 | methodId | string | △ | メソッドID | メソッド識別子（例: method_001）　tagetTypeがtaskの場合 |
-| issueType | string | ○ | 問題の種類 | material_shortage, equipment_failure, procedure_unclear, safety_concern, quality_issue, time_constraint, other |
+| issueType | integer | ○ | 問題の種類 | `GET /api/v1/code-master/issue_type/options` で取得した `code_value`（画面で選択された値） |
 | targetType | string | ○ | 対象種別 | project, task, transition |
 | taskNo | integer | △ | タスク番号 | targetTypeがtask/transitionの場合必須、1以上の整数 |
 | transitionId | string | △ | トランジションID | targetTypeがtransitionの場合必須 |
@@ -106,7 +106,7 @@ router.post('/issues',
     "id": "770e8400-e29b-41d4-a716-446655440002",
     "projectId": "550e8400-e29b-41d4-a716-446655440000",
     "methodId": "method_001",
-    "issueType": "material_shortage",
+    "issueType": 1,
     "targetType": "transition",
     "taskNo": 1,
     "transitionId": "transition_001",
@@ -164,7 +164,7 @@ router.post('/issues',
 
 1. **バリデーション**
    - methodIdが指定されたプロジェクトに存在することを確認
-   - issueTypeが許可された値であることを確認
+   - issueTypeが正の整数（`GET /api/v1/code-master/issue_type/options` の `code_value` のいずれか）であることを確認
    - targetTypeに応じて必須パラメータを確認
    - projectIdが自組織に属することを確認
    - taskNo/transitionIdが指定されたプロジェクトに属することを確認
@@ -185,7 +185,7 @@ router.post('/issues',
 #### 必須チェック
 - [ ] projectId はUUID形式
 - [ ] methodId は空文字列ではない
-- [ ] issueType は許可された値のいずれか
+- [ ] issueType は正の整数（`GET /api/v1/code-master/issue_type/options` で取得した `code_value` のいずれか）
 - [ ] targetType は "project", "task", "transition" のいずれか
 - [ ] title は1-200文字
 - [ ] description は1-2000文字
@@ -466,7 +466,7 @@ GET /api/v1/issues?projectId=550e8400-e29b-41d4-a716-446655440000&methodId=metho
   "data": [
     {
       "id": "770e8400-e29b-41d4-a716-446655440002",
-      "issueType": "material_shortage",
+      "issueType": 1,
       "targetType": "transition",
       "projectId": "550e8400-e29b-41d4-a716-446655440000",
       "projectName": "Sample Project",

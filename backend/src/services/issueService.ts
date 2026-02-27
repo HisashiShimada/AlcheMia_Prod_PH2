@@ -5,6 +5,7 @@
  */
 
 import { IssueRepository } from '../repositories/issueRepository';
+import * as codeMasterRepository from '../repositories/codeMasterRepository';
 import {
   Issue,
   NewIssue,
@@ -66,8 +67,8 @@ export class IssueService {
         issueReporterId: userId,
       };
 
-      // バリデーション
-      this.validateIssueData(newIssue);
+      // バリデーション（code_master参照のため async）
+      await this.validateIssueData(organizationId, newIssue);
 
       const issue = await this.issueRepository.create(newIssue);
       return { success: true, data: issue };
@@ -329,8 +330,9 @@ export class IssueService {
 
   /**
    * 問題報告データのバリデーション
+   * issueType は code_master テーブル（code_division='issue_type'）の code_value を参照して検証
    */
-  private validateIssueData(data: Partial<NewIssue>): void {
+  private async validateIssueData(organizationId: string, data: Partial<NewIssue>): Promise<void> {
     if (!data.issueTitle || data.issueTitle.trim() === '') {
       throw new ValidationError('タイトルは必須です');
     }
@@ -339,19 +341,25 @@ export class IssueService {
       throw new ValidationError('説明は必須です');
     }
 
-    if (!data.issueType && data.issueType !== 0) {
-      throw new ValidationError('問題タイプは必須です');
-    }
-
     if (data.issueTitle.length > 200) {
       throw new ValidationError('タイトルは200文字以内で入力してください');
     }
 
-    const validIssueTypeNumbers = [1, 2, 3, 4, 5];
-    if (!validIssueTypeNumbers.includes(data.issueType as number)) {
-      throw new ValidationError(
-        '無効な問題タイプです。1-5のいずれかを指定してください'
-      );
+    // issueType の必須チェック
+    if (data.issueType === undefined || data.issueType === null) {
+      throw new ValidationError('問題タイプは必須です');
+    }
+
+    // issueType が正の整数であることを確認
+    if (!Number.isInteger(data.issueType) || data.issueType < 0) {
+      throw new ValidationError('問題タイプは0、もしくは正の整数である必要があります');
+    }
+
+    // code_master テーブルを参照して有効な issueType か検証
+    const validCodes = await codeMasterRepository.findByDivision(organizationId, 'issue_type');
+    const validValues = validCodes.map(cm => Number(cm.code_value));
+    if (!validValues.includes(data.issueType)) {
+      throw new ValidationError('無効な問題タイプです');
     }
   }
 

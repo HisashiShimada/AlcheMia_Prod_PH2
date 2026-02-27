@@ -43,17 +43,7 @@ router.post(
       .withMessage('methodIdは文字列である必要があります'),
     body('issueType')
       .notEmpty()
-      .withMessage('issueTypeは必須です')
-      .isIn([
-        'material_shortage',
-        'equipment_failure',
-        'procedure_unclear',
-        'safety_concern',
-        'quality_issue',
-        'time_constraint',
-        'other'
-      ])
-      .withMessage('issueTypeは許可された値である必要があります'),
+      .withMessage('issueTypeは必須です'),
     body('targetType')
       .notEmpty()
       .withMessage('targetTypeは必須です')
