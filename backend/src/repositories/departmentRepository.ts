@@ -176,52 +176,14 @@ export async function update(
 ): Promise<DepartmentRow | null> {
   const pgp = getPgp();
 
-  const updates: string[] = [];
-  const values: any[] = [organizationId, departmentCd];
-  let paramIndex = 3;
-
-  if (data.departmentName !== undefined) {
-    updates.push(`department_name = $${paramIndex}`);
-    values.push(data.departmentName);
-    paramIndex++;
-  }
-
-  if (data.isActive !== undefined) {
-    updates.push(`is_active = $${paramIndex}`);
-    values.push(data.isActive);
-    paramIndex++;
-  }
-
-  if (updates.length === 0) {
-    return await findById(organizationId, departmentCd);
-  }
-
-  // update_user_id と update_at は常に更新
-  updates.push(`update_user_id = $${paramIndex}`);
-  values.push(userId);
-  paramIndex++;
-
-  if (data.updateAt !== undefined) {
-    updates.push(`update_at = $${paramIndex}`);
-    values.push(data.updateAt);
-    paramIndex++;
-  } else {
-    updates.push(`update_at = NOW()`);
-  }
-
-  const query = `
-    UPDATE department
-    SET ${updates.join(', ')}
-    WHERE organization_id = $1
-      AND department_cd = $2
-    RETURNING
-      organization_id,
-      department_cd,
-      department_name,
-      is_active,
-      create_at,
-      update_at
-  `;
+  const query = await loadSqlFile('departments/update.sql');
+  const values = [
+    organizationId,
+    departmentCd,
+    data.departmentName ?? null,
+    data.isActive ?? null,
+    userId,
+  ];
 
   const result = await pgp.oneOrNone<DepartmentRow>(query, values);
   return result ?? null;

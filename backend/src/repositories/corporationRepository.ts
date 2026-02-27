@@ -105,7 +105,7 @@ export async function findById(
 export async function count(): Promise<number> {
   const pgp = getPgp();
 
-  const query = `SELECT COUNT(*) AS count FROM corporation`;
+  const query = await loadSqlFile('corporations/count.sql');
   const result = await pgp.one<{ count: string }>(query);
   return parseInt(result.count, 10);
 }
@@ -181,43 +181,13 @@ export async function update(
 ): Promise<CorporationRow | null> {
   const pgp = getPgp();
 
-  const updates: string[] = [];
-  const values: any[] = [corporationId];
-  let paramIndex = 2;
-
-  if (data.corporationName !== undefined) {
-    updates.push(`corporation_name = $${paramIndex}`);
-    values.push(data.corporationName);
-    paramIndex++;
-  }
-
-  if (data.isActive !== undefined) {
-    updates.push(`is_active = $${paramIndex}`);
-    values.push(data.isActive);
-    paramIndex++;
-  }
-
-  if (updates.length === 0) {
-    return await findById(corporationId);
-  }
-
-  // update_user_id と update_at は常に更新
-  updates.push(`update_user_id = $${paramIndex}`);
-  values.push(userId);
-  paramIndex++;
-  updates.push(`update_at = NOW()`);
-
-  const query = `
-    UPDATE corporation
-    SET ${updates.join(', ')}
-    WHERE corporation_id = $1
-    RETURNING
-      corporation_id,
-      corporation_name,
-      is_active,
-      create_at,
-      update_at
-  `;
+  const query = await loadSqlFile('corporations/update.sql');
+  const values = [
+    corporationId,
+    data.corporationName ?? null,
+    data.isActive ?? null,
+    userId,
+  ];
 
   const result = await pgp.oneOrNone<CorporationRow>(query, values);
   return result ?? null;

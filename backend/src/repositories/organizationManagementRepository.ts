@@ -274,73 +274,19 @@ export async function update(
 ): Promise<OrganizationRow | null> {
   const pgp = getPgp();
 
-  const updates: string[] = [];
-  const values: any[] = [organizationId];
-  let paramIndex = 2;
+  const query = await loadSqlFile('organizations/update.sql');
+  const values = [
+    organizationId,
+    data.organizationDisplayName ?? null,
+    data.organizationEmail ?? null,
+    data.chiefUserId ?? null,
+    data.corporationId ?? null,
+    data.isEntry ?? null,
+    data.isActive ?? null,
+    userId,
+  ];
 
-  if (data.organizationDisplayName !== undefined) {
-    updates.push(`organization_display_name = $${paramIndex}`);
-    values.push(data.organizationDisplayName);
-    paramIndex++;
-  }
-
-  if (data.organizationEmail !== undefined) {
-    updates.push(`organization_email = $${paramIndex}`);
-    values.push(data.organizationEmail);
-    paramIndex++;
-  }
-
-  if (data.chiefUserId !== undefined) {
-    updates.push(`chief_user_id = $${paramIndex}`);
-    values.push(data.chiefUserId);
-    paramIndex++;
-  }
-
-  if (data.corporationId !== undefined) {
-    updates.push(`corporation_id = $${paramIndex}`);
-    values.push(data.corporationId);
-    paramIndex++;
-  }
-
-  if (data.isEntry !== undefined) {
-    updates.push(`is_entry = $${paramIndex}`);
-    values.push(data.isEntry);
-    paramIndex++;
-  }
-
-  if (data.isActive !== undefined) {
-    updates.push(`is_active = $${paramIndex}`);
-    values.push(data.isActive);
-    paramIndex++;
-  }
-
-  if (updates.length === 0) {
-    return await findById(organizationId);
-  }
-
-  // update_user_id と update_at は常に更新
-  updates.push(`update_user_id = $${paramIndex}`);
-  values.push(userId);
-  paramIndex++;
-
-  updates.push(`update_at = NOW()`);
-
-  const query = `
-    UPDATE organization
-    SET ${updates.join(', ')}
-    WHERE organization_id = $1
-    RETURNING
-      organization_id,
-      organization_cd,
-      organization_display_name,
-      organization_email,
-      chief_user_id,
-      corporation_id,
-      is_active,
-      update_at
-  `;
-
-  const updated = await pgp.oneOrNone<OrganizationRow>(query, values);
+  const updated = await pgp.oneOrNone<{ organization_id: string }>(query, values);
 
   if (!updated) {
     return null;
