@@ -7,7 +7,7 @@ import * as userRepository from '../repositories/userRepository';
 import { UserRow } from '../repositories/userRepository';
 import { UserSearchFilters } from '../types/database';
 import Papa from 'papaparse';
-import { getPool } from '../database/db';
+import { getPgp } from '../database/db';
 
 /**
  * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）
@@ -370,14 +370,10 @@ export async function uploadUsersFromCSV(
   }
   
   // Phase 2: DB登録（バリデーション通過後のみ）
-  const pool = getPool();
-  const client = await pool.connect();
+  const pgp = getPgp();
+  let successCount = 0;
   
-  try {
-    await client.query('BEGIN');
-    
-    let successCount = 0;
-    
+  await pgp.tx(async (_t) => {
     // 全行を新規作成（バリデーションで既存チェック済み）
     for (let i = 0; i < parseResult.data.length; i++) {
       const row = parseResult.data[i];
@@ -413,19 +409,11 @@ export async function uploadUsersFromCSV(
       
       successCount++;
     }
-    
-    await client.query('COMMIT');
-    
-    return {
-      successCount,
-      failureCount: 0,
-      errors: [],
-    };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
+  
+  return {
+    successCount,
+    failureCount: 0,
+    errors: [],
+  };
 }
-

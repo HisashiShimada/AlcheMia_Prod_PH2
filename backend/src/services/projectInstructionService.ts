@@ -17,7 +17,6 @@ import {
   UpdateInstructionRequest,
   UpdateInstructionResponse,
   DeleteInstructionResponse,
-  SendInstructionsRequest,
   SendInstructionsResponse,
   InstructionData
 } from '../types/api';
@@ -294,7 +293,6 @@ export async function sendInstructions(
   organizationId: string,
   projectId: string,
   userId: string,
-  _request: SendInstructionsRequest
 ): Promise<SendInstructionsResponse> {
   const pool = getPool();
   const client = await pool.connect();

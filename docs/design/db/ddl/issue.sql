@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS issue CASCADE;
 CREATE TABLE issue (
     -- 複合主キー
     organization_id UUID NOT NULL,
-    project_id UUID NOT NULL,
+    project_id character varying(20) NOT NULL,
     issue_id CHARACTER VARYING NOT NULL,
     
     -- 問題情報

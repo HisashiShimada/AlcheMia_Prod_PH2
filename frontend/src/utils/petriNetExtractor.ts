@@ -48,11 +48,7 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
     
     // Materials
     templates.material.forEach((t: Template) => {
-      // ✅ 新方式: maimlParserTypedからメタデータを取得
-      const placeId = parser.getPlaceRefByTemplateId(t.id);
-      
-      // ✅ 新方式: typedMaimlから取得したメタデータを使用
-      templateMap[placeId] = {
+      const templateEntry: Template = {
         id: t.id,
         name: t.name,
         description: t.description,
@@ -64,15 +60,26 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
         placeRefs: t.placeRefs,
         templateRef: t.templateRef,
       };
+
+      // ✅ 全placeRefsをキーとしてマッピング（共通テンプレートの複数place対応）
+      if (t.placeRefs && t.placeRefs.length > 0) {
+        t.placeRefs.forEach(pr => {
+          if (pr.ref) {
+            templateMap[pr.ref] = templateEntry;
+          }
+        });
+      } else {
+        // placeRefsがない場合は従来通り最初のplaceRefで登録
+        const placeId = parser.getPlaceRefByTemplateId(t.id);
+        if (placeId) {
+          templateMap[placeId] = templateEntry;
+        }
+      }
     });
     
     // Conditions
     templates.condition.forEach((t: Template) => {
-      // ✅ 新方式: maimlParserTypedからメタデータを取得
-      const placeId = parser.getPlaceRefByTemplateId(t.id);
-      
-      // ✅ 新方式: typedMaimlから取得したメタデータを使用
-      templateMap[placeId] = {
+      const templateEntry: Template = {
         id: t.id,
         name: t.name,
         description: t.description,
@@ -84,15 +91,25 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
         placeRefs: t.placeRefs,
         templateRef: t.templateRef,
       };
+
+      // ✅ 全placeRefsをキーとしてマッピング（共通テンプレートの複数place対応）
+      if (t.placeRefs && t.placeRefs.length > 0) {
+        t.placeRefs.forEach(pr => {
+          if (pr.ref) {
+            templateMap[pr.ref] = templateEntry;
+          }
+        });
+      } else {
+        const placeId = parser.getPlaceRefByTemplateId(t.id);
+        if (placeId) {
+          templateMap[placeId] = templateEntry;
+        }
+      }
     });
     
     // Results
     templates.result.forEach((t: Template) => {
-      // ✅ 新方式: maimlParserTypedからメタデータを取得
-      const placeId = parser.getPlaceRefByTemplateId(t.id);
-      
-      // ✅ 新方式: typedMaimlから取得したメタデータを使用
-      templateMap[placeId] = {
+      const templateEntry: Template = {
         id: t.id,
         name: t.name,
         description: t.description,
@@ -104,6 +121,20 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
         placeRefs: t.placeRefs,
         templateRef: t.templateRef,
       };
+
+      // ✅ 全placeRefsをキーとしてマッピング（共通テンプレートの複数place対応）
+      if (t.placeRefs && t.placeRefs.length > 0) {
+        t.placeRefs.forEach(pr => {
+          if (pr.ref) {
+            templateMap[pr.ref] = templateEntry;
+          }
+        });
+      } else {
+        const placeId = parser.getPlaceRefByTemplateId(t.id);
+        if (placeId) {
+          templateMap[placeId] = templateEntry;
+        }
+      }
     });
     
     // const insertionCount = Object.values(templateMap).filter((t: TemplateMapEntry) => t.insertion).length;

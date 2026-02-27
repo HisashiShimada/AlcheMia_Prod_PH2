@@ -8,8 +8,6 @@
  * @date 2026-01-30
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import type { Node, Edge, Viewport } from 'reactflow';
 
 // XSD準拠の型定義をimport

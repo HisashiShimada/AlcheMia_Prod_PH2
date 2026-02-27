@@ -103,7 +103,7 @@ const getErrorMessage = (err: unknown): string => {
 // const TemplateListView = lazy(() => import('./components/TemplateListView'));
 
 // 内部コンポーネント
-const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, ...props }: PetriNetEditorInnerProps) => {
+const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, initialDocumentId, initialDescription, ...props }: PetriNetEditorInnerProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<EdgeData>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -118,7 +118,6 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   
   // ✅ Phase 9.10 Step7: error型と saveError型をnullで統一
   const [error, setError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | undefined>(undefined);
   
   // エラーマッピング用に TemplateContext を後で取得するため、
   // ここではContextをラップせずにステートのみ管理
@@ -606,19 +605,25 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         console.log('🆕 [PetriNetEditorInner] 新規作成モード: 空の状態で起動');
         
         if (editingFileName && !documentData) {
-          // ✅ Util関数でDocumentDataとMethodIDを生成
-          const { documentData: initialDocumentData, methodIdForInitialMethod } = generateInitialDocumentData(editingFileName);
+          // ✅ Util関数でDocumentDataとMethodIDを生成（initialDocumentId/initialDescriptionを渡す）
+          const { documentData: initialDocumentData } = generateInitialDocumentData(editingFileName, {
+            documentId: initialDocumentId,
+            description: initialDescription,
+          });
           setDocumentData(initialDocumentData);
           
           // ✅ Util関数でMethodDataを生成
-          const initialMethod = generateInitialMethod(methodIdForInitialMethod);
+          const initialMethod = generateInitialMethod(initialDocumentData.methodId);
           setMethods([initialMethod]);
         } else {
           // editingFileNameがない場合のフォールバック
-          const { documentData: initialDocumentData, methodIdForInitialMethod } = generateInitialDocumentData();
+          const { documentData: initialDocumentData } = generateInitialDocumentData(undefined, {
+            documentId: initialDocumentId,
+            description: initialDescription,
+          });
           setDocumentData(initialDocumentData);
           
-          const initialMethod = generateInitialMethod(methodIdForInitialMethod);
+          const initialMethod = generateInitialMethod(initialDocumentData.methodId);
           setMethods([initialMethod]);
         }
         
@@ -1521,27 +1526,57 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       });
       
       // TemplateContextに追加（window.clineAddTemplateを使用）
+      const newTemplateForContext: Template = {
+        id: templateId,  // ✅ 修正: templateIdを使用
+        uuid: convertedTemplateRef.uuid,
+        name: convertedTemplateRef.name || '',
+        description: convertedTemplateRef.description,
+        category: templateCategory,
+        properties: convertedTemplateRef.properties || [],
+        contents: convertedTemplateRef.contents || [],
+        placeRefs: convertedTemplateRef.placeRefs || [],
+        templateRef: convertedTemplateRef.templateRef,
+        methodId: correctMethodId,
+      };
+
       if (window.clineAddTemplate) {
         window.clineAddTemplate({
           category: templateCategory === 'material' ? 'material' : templateCategory === 'condition' ? 'condition' : 'result',
-          template: {
-            id: templateId,  // ✅ 修正: templateIdを使用
-            uuid: convertedTemplateRef.uuid,
-            name: convertedTemplateRef.name || '',
-            description: convertedTemplateRef.description,
-            category: templateCategory,
-            properties: convertedTemplateRef.properties || [],
-            contents: convertedTemplateRef.contents || [],
-            placeRefs: convertedTemplateRef.placeRefs || [],
-            templateRef: convertedTemplateRef.templateRef,
-            methodId: correctMethodId,
-          }
+          template: newTemplateForContext,
         });
         console.log('✅ [PetriNetEditorInner] 新規テンプレートをContextに追加完了:', { correctMethodId });
       } else {
         console.error('❌ [PetriNetEditorInner] addTemplate関数が見つかりません');
       }
-      
+
+      // ✅ 修正: 新規テンプレート作成時もnodesのdata.templateを更新する
+      // （methodsのuseEffectがnodesの変化を監視しているため、ここで更新が必要）
+      setNodes((nds) => {
+        const placeRefsToUpdate = newTemplateForContext.placeRefs || [];
+        const newNodes = nds.map((node: Node<NodeData>) => {
+          if (placeRefsToUpdate.some((pr) => pr.ref === node.id)) {
+            console.log('✅ [PetriNetEditorInner] 新規テンプレート: ノードにテンプレート設定:', {
+              nodeId: node.id,
+              templateId: templateId,
+              isCommonTemplate: isCommonTemplate,
+              methodId: correctMethodId,
+            });
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                template: newTemplateForContext,
+                templateRef: newTemplateForContext,
+                isCommonTemplate: isCommonTemplate,
+              },
+            };
+          }
+          return node;
+        });
+        pushState({ nodes: newNodes, edges });
+        return newNodes;
+      });
+
       // テンプレートエディタを閉じる
       setTemplateEditorOpen(false);
       setTemplateEditNode(null);
@@ -3126,6 +3161,10 @@ export interface PetriNetEditorInnerProps {
   onError?: (error: Error) => void;
   editingFileName?: string;
   editMode: string;
+  /** DocumentData.id の初期値（新規作成時のみ適用） */
+  initialDocumentId?: string;
+  /** DocumentData.description の初期値（新規作成時のみ適用） */
+  initialDescription?: string;
   originalFileName?: string;
   sourceS3Key?: string;
   [key: string]: unknown;

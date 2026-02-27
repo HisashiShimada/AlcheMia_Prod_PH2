@@ -13,8 +13,7 @@ import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   SaveInstructionRequest,
-  UpdateInstructionRequest,
-  SendInstructionsRequest
+  UpdateInstructionRequest
 } from '../types/api';
 
 /**
@@ -283,7 +282,6 @@ export async function sendInstructions(
     const organizationId = req.user!.organizationId;
     const userId = req.user!.userId;
     const projectName = req.params.projectName;
-    const requestBody = req.body as SendInstructionsRequest;
     
     // projectNameからprojectを特定
     const project = await projectRepository.findByName(organizationId, projectName);
@@ -300,8 +298,7 @@ export async function sendInstructions(
     const result = await projectInstructionService.sendInstructions(
       organizationId,
       projectId,
-      userId,
-      requestBody
+      userId
     );
     
     res.json({
