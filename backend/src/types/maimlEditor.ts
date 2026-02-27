@@ -5,5 +5,5 @@ export interface maimlSaveResult {
       size: number;
       lastModified: string;
       contentHash: string;
-      validationResult: AnalysisResult
+      validationResult?: AnalysisResult
 }

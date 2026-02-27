@@ -313,10 +313,17 @@ const handleEditButtonClick = useCallback(() => {
   }
 
   // 3. Draftなし → 直接エディタへ
-  const params: ProjectEditParams = {
-    projectId: selectedProject.id,
-    projectName: selectedProject.name,
-    projectOverview: selectedProject.description
+  const userInfo = getUserInfo();
+  const orgId = userInfo?.organizationId || '';
+  const params: MaimlEditorParams = {
+    editMode: 'project',
+    editingFileName: `${selectedProject.name}.maiml`,
+    originalFileName: selectedProject.name,
+    sourceS3Key: `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`,
+    displayTitle: selectedProject.name,
+    displaySubtitle: selectedProject.description,
+    documentId: selectedProject.id,
+    description: selectedProject.description,
   };
   onEdit?.(params);
 }, [selectedProject, onEdit]);
@@ -629,16 +636,15 @@ const handleFocusDialog = useCallback((id: string) => {
 ### 4.1 Props定義
 
 ```typescript
-interface ProjectManagementProps {
-  onEdit?: (params: ProjectEditParams) => void;
-}
+import type { MaimlEditorParams } from '@/types/maimlEditor';
 
-interface ProjectEditParams {
-  projectId: string;
-  projectName: string;
-  projectOverview?: string;
+interface ProjectManagementProps {
+  onEdit?: (params: MaimlEditorParams) => void;
 }
 ```
+
+> **注意**: `ProjectEditParams` は `MaimlEditorParams` に統合されました（2026-02-27）。  
+> `MaimlEditorParams` の定義は `frontend/src/types/maimlEditor.ts` を参照してください。
 
 ### 4.2 State定義
 

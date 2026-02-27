@@ -15,7 +15,6 @@
 
 import { getPool } from '../database/db';
 import { ProjectInstruction } from '../types/database';
-import { v4 as uuidv4 } from 'uuid';
 
 /**
  * 指示をInsert（規約準拠: テーブル型Objectから動的にクエリ構築）

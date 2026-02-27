@@ -5,71 +5,74 @@ import { Button, Spin, message } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { ReactFlowProvider } from 'reactflow';
 import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
+import { getFileContentAsText } from '@/services/fileAccessService';
+import type { MaimlEditorParams } from '@/types/maimlEditor';
 
 /**
  * PetriNetエディタのフルスクリーン表示画面
- * 
- * ExperimentAdminMenuから呼び出され、プロジェクトの実験フローを編集する
+ *
+ * ProjectManagement / FormatManagement から呼び出され、
+ * MAIML ファイルを編集する汎用エディタ画面。
+ * 旧 projectId / projectName / projectOverview Props は廃止し
+ * MaimlEditorParams 一本化で受け取る。
  */
 
 interface PetriNetEditorScreenProps {
-  /** 編集するプロジェクトのID */
-  projectId: string;
-  /** プロジェクト名 */
-  projectName: string;
-  /** プロジェクト概要 */
-  projectOverview?: string;
+  /** 編集パラメータ（共通型） */
+  params: MaimlEditorParams;
   /** 画面を閉じるコールバック */
   onClose: () => void;
-  sourceS3Key: string;
 }
 
 /**
  * PetriNetエディタスクリーンコンポーネント
  */
 export default function PetriNetEditorScreen({
-  projectId,
-  projectName,
-  projectOverview,
+  params,
   onClose,
-  sourceS3Key
 }: PetriNetEditorScreenProps) {
+  const {
+    editMode,
+    editingFileName,
+    originalFileName,
+    sourceS3Key,
+    displayTitle,
+    displaySubtitle,
+    documentId,
+    description,
+  } = params;
+
   // ステート管理
   const [isLoading, setIsLoading] = useState(true);
-  const [maimlContent, setMaimlContent] = useState<string | undefined>(undefined);
+  const [maimlContent, setMaimlContent] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   /**
-   * プロジェクト情報とファイルを読み込む
+   * S3 から MAIML ファイルを読み込む
+   * 存在しない場合（404 / null）は新規作成モードで開始
    */
   useEffect(() => {
-    loadProjectData();
-  }, [projectId]);
+    loadMaimlData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceS3Key]);
 
-  /**
-   * プロジェクトデータの読み込み
-   */
-  const loadProjectData = async () => {
+  const loadMaimlData = async () => {
     try {
       setIsLoading(true);
-      
-      console.log('📂 [PetriNetEditorScreen] Loading project data:', projectId);
-      console.log('📝 [PetriNetEditorScreen] Project name:', projectName);
-      console.log('📄 [PetriNetEditorScreen] Project overview:', projectOverview);
-      
-      // TODO: プロジェクトに関連するMAIMLファイルを検索して読み込む
-      // 以下の順で探す:
-      // 1. プロジェクトのメインMAIMLファイル
-      // 2. プロジェクトフォルダ内の*.maimlファイル
-      // 3. なければundefined（新規作成）
-      
-      // 仮実装: 新規作成モードで開始
-      setMaimlContent(undefined);
-      
-      console.log('✅ [PetriNetEditorScreen] MAIML content ready (新規作成モード)');
+      console.log('📂 [PetriNetEditorScreen] Loading MAIML:', sourceS3Key);
+
+      const content = await getFileContentAsText(sourceS3Key);
+      setMaimlContent(content ?? null);
+
+      if (content) {
+        console.log('✅ [PetriNetEditorScreen] MAIML loaded from S3, length:', content.length);
+      } else {
+        console.log('✅ [PetriNetEditorScreen] No existing MAIML → 新規作成モード');
+      }
     } catch (error) {
-      console.error('❌ [PetriNetEditorScreen] Failed to load project data:', error);
-      message.error('プロジェクトの読み込みに失敗しました');
+      console.error('❌ [PetriNetEditorScreen] Failed to load MAIML:', error);
+      // ファイルが存在しない場合は新規作成として続行
+      setMaimlContent(null);
     } finally {
       setIsLoading(false);
     }
@@ -80,13 +83,11 @@ export default function PetriNetEditorScreen({
    */
   const handleBack = useCallback(() => {
     console.log('🔙 [PetriNetEditorScreen] Back button clicked');
-    console.log('📝 [PetriNetEditorScreen] Has unsaved changes:', hasUnsavedChanges);
-    
+
     if (hasUnsavedChanges) {
       const confirmed = window.confirm(
         '保存されていない変更があります。破棄して戻りますか？'
       );
-      
       if (confirmed) {
         console.log('✅ [PetriNetEditorScreen] User confirmed, closing editor');
         onClose();
@@ -98,36 +99,6 @@ export default function PetriNetEditorScreen({
       onClose();
     }
   }, [hasUnsavedChanges, onClose]);
-
-  /**
-   * 保存処理のハンドラー
-   */
-  const handleSave = useCallback(async (content: string) => {
-    try {
-      console.log('💾 [PetriNetEditorScreen] Save initiated');
-      console.log('📄 [PetriNetEditorScreen] Content length:', content.length);
-      
-      // TODO: 保存APIの実装
-      // 以下の処理を行う:
-      // 1. contentをS3に保存（org_xxx/projects/project_id/workflow.maiml）
-      // 2. プロジェクトのメタデータを更新
-      // 3. 保存日時を記録
-      
-      // 仮実装: ローカルストレージに保存
-      const saveKey = `project-${projectId}-workflow`;
-      localStorage.setItem(saveKey, content);
-      
-      console.log('✅ [PetriNetEditorScreen] Save completed successfully');
-      message.success('保存しました');
-      
-      // 未保存フラグをクリア
-      setHasUnsavedChanges(false);
-    } catch (error) {
-      console.error('❌ [PetriNetEditorScreen] Save failed:', error);
-      message.error('保存に失敗しました');
-      throw error; // エディタ側でハンドリング
-    }
-  }, [projectId]);
 
   /**
    * コンテンツ変更通知のハンドラー
@@ -142,10 +113,10 @@ export default function PetriNetEditorScreen({
   // ローディング中
   if (isLoading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         backgroundColor: '#f0f2f5'
       }}>
@@ -158,17 +129,17 @@ export default function PetriNetEditorScreen({
 
   // メイン画面
   return (
-    <div style={{ 
-      width: '100vw', 
-      height: '100vh', 
-      display: 'flex', 
+    <div style={{
+      width: '100vw',
+      height: '100vh',
+      display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
       backgroundColor: '#ffffff'
     }}>
       {/* ヘッダーバー */}
-      <div style={{ 
-        padding: '12px 16px', 
+      <div style={{
+        padding: '12px 16px',
         borderBottom: '1px solid #f0f0f0',
         display: 'flex',
         alignItems: 'center',
@@ -177,30 +148,30 @@ export default function PetriNetEditorScreen({
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         zIndex: 10
       }}>
-        <Button 
-          icon={<ArrowLeftOutlined />} 
+        <Button
+          icon={<ArrowLeftOutlined />}
           onClick={handleBack}
           size="middle"
         >
           戻る
         </Button>
-        
+
         <div style={{ flex: 1 }}>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: '18px', 
+          <h1 style={{
+            margin: 0,
+            fontSize: '18px',
             fontWeight: 600,
             color: '#262626'
           }}>
-            実験フロー編集 - {projectName}
+            {editMode === 'project' ? '実験フロー編集' : 'フォーマット編集'} - {displayTitle}
           </h1>
-          {projectOverview && (
-            <p style={{ 
-              margin: '4px 0 0 0', 
-              fontSize: '14px', 
-              color: '#8c8c8c' 
+          {displaySubtitle && (
+            <p style={{
+              margin: '4px 0 0 0',
+              fontSize: '14px',
+              color: '#8c8c8c'
             }}>
-              {projectOverview}
+              {displaySubtitle}
             </p>
           )}
         </div>
@@ -223,11 +194,13 @@ export default function PetriNetEditorScreen({
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <ReactFlowProvider>
           <PetriNetEditorInner
-            maimlData={maimlContent || null}
-            editingFileName={`${projectName}.maiml`}
-            editMode="project"
-            originalFileName={projectName}
+            maimlData={maimlContent}
+            editingFileName={editingFileName}
+            editMode={editMode}
+            originalFileName={originalFileName}
             sourceS3Key={sourceS3Key}
+            initialDocumentId={documentId}
+            initialDescription={description}
           />
         </ReactFlowProvider>
       </div>

@@ -184,8 +184,10 @@ router.get(
   authMiddleware,
   [
     param('projectId')
-      .isUUID()
-      .withMessage('projectIdはUUID形式である必要があります'),
+      .notEmpty()
+      .withMessage('projectIdは必須です')
+      .isString()
+      .withMessage('projectIdは文字列である必要があります'),
     param('fileName')
       .notEmpty()
       .withMessage('fileNameは必須です')

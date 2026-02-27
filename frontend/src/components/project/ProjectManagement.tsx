@@ -53,7 +53,9 @@ import {
   type ProjectListResponse,
 } from '@/services/projectApiService';
 import { AxiosError } from 'axios';
-import type { Project, Task, ProjectEditParams } from '@/types/project';
+import type { Project, Task } from '@/types/project';
+import type { MaimlEditorParams } from '@/types/maimlEditor';
+import { getUserInfo } from '@/utils/sessionStorageHelper';
 import type { ProjectFile } from '@/types/file';
 import type { InstructionData } from '@/types/instructionRegistration';
 
@@ -71,7 +73,7 @@ interface ProjectFilesData {
  * プロジェクト管理画面メインコンポーネント（内部実装）
  */
 interface ProjectManagementInnerProps {
-  onEdit?: (params: ProjectEditParams) => void;
+  onEdit?: (params: MaimlEditorParams) => void;
 }
 
 const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit }) => {
@@ -671,12 +673,18 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
 
     // Draftがない場合は直接エディタへ
     console.log('➡️ [ProjectManagement] No draft, opening editor directly');
-    const sourceS3Key = `/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
-    const params: ProjectEditParams = {
-      projectId: selectedProject.id,
-      projectName: selectedProject.name,
-      projectOverview: selectedProject.description,
-      sourceS3Key: sourceS3Key
+    const userInfo = getUserInfo();
+    const orgId = userInfo?.organizationId ?? '';
+    const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+    const params: MaimlEditorParams = {
+      editMode: 'project',
+      editingFileName: `${selectedProject.name}.maiml`,
+      originalFileName: selectedProject.name,
+      sourceS3Key,
+      displayTitle: selectedProject.name,
+      displaySubtitle: selectedProject.description || undefined,
+      documentId: selectedProject.id,
+      description: selectedProject.description || undefined,
     };
     onEdit?.(params);
   }, [selectedProject, onEdit]);
@@ -686,13 +694,18 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
     console.log('💾 [ProjectManagement] Restoring draft');
     setDraftRestoreDialogOpen(false);
     if (selectedProject) {
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '');
-      const sourceS3Key = userInfo ? `/org_${userInfo.organizationPrefix}/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
-      const params: ProjectEditParams = {
-        projectId: selectedProject.id,
-        projectName: selectedProject.name,
-        projectOverview: selectedProject.description,
-        sourceS3Key: sourceS3Key
+      const userInfo = getUserInfo();
+      const orgId = userInfo?.organizationId ?? '';
+      const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+      const params: MaimlEditorParams = {
+        editMode: 'project',
+        editingFileName: `${selectedProject.name}.maiml`,
+        originalFileName: selectedProject.name,
+        sourceS3Key,
+        displayTitle: selectedProject.name,
+        displaySubtitle: selectedProject.description || undefined,
+        documentId: selectedProject.id,
+        description: selectedProject.description || undefined,
       };
       onEdit?.(params);
     }
@@ -706,13 +719,18 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
       // Draftを削除してから開く
       const draftKey = `petri-net-draft-${selectedProject.id}`;
       localStorage.removeItem(draftKey);
-      const userInfo = JSON.parse(sessionStorage.getItem('userInfo') || '');
-      const sourceS3Key = userInfo ? `/org_${userInfo.organizationPrefix}/projects/${selectedProject.name}/${selectedProject.name}.maiml` : '';
-      const params: ProjectEditParams = {
-        projectId: selectedProject.id,
-        projectName: selectedProject.name,
-        projectOverview: selectedProject.description,
-        sourceS3Key: sourceS3Key
+      const userInfo = getUserInfo();
+      const orgId = userInfo?.organizationId ?? '';
+      const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+      const params: MaimlEditorParams = {
+        editMode: 'project',
+        editingFileName: `${selectedProject.name}.maiml`,
+        originalFileName: selectedProject.name,
+        sourceS3Key,
+        displayTitle: selectedProject.name,
+        displaySubtitle: selectedProject.description || undefined,
+        documentId: selectedProject.id,
+        description: selectedProject.description || undefined,
       };
       onEdit?.(params);
     }
@@ -1557,7 +1575,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
  * プロジェクト管理画面メインコンポーネント（Provider付き）
  */
 interface ProjectManagementProps {
-  onEdit?: (params: ProjectEditParams) => void;
+  onEdit?: (params: MaimlEditorParams) => void;
 }
 
 const ProjectManagement: React.FC<ProjectManagementProps> = (props) => {

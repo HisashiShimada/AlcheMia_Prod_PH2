@@ -208,10 +208,10 @@
 - **物理名**: `project`
 - **論理名**: プロジェクト
 - **DDLファイル**: `docs/design/db/ddl/project.sql`
-- **主キー**: `organization_id` (UUID), `project_id` (UUID)
+- **主キー**: `organization_id` (UUID), `project_id` (CHARACTER VARYING(20))
 - **主要カラム**:
   - `organization_id` - 組織ID (FK: organization)
-  - `project_id` - プロジェクトID
+  - `project_id` - プロジェクトID（形式: `project_` + UUID先頭12文字、例: `project_10ee60f051cb`）
   - `project_name` - プロジェクト名（プロジェクト名かつフォルダ名）
   - `description` - 概要
   - `department_cd` - 部署CD
@@ -653,6 +653,9 @@ maiml_event_log
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-02-27 | project.project_id型をUUIDからCHARACTER VARYING(20)に変更（MAIML DocumentData.idとの連携対応） | Cline |
+| | project_id形式: `project_` + UUID先頭12文字（例: `project_10ee60f051cb`）、最大20文字 | |
+| | マイグレーション: `backend/migrations/20260227_alter_project_id_to_varchar.sql` | |
 | 2026-02-10 | login_history.login_sfカラムをCHARACTER VARYING(10)からBOOLEANに変更（型整合性確保） | Cline |
 | 2026-02-10 | login_historyテーブルにentry_execute_flg、idx_login_history_queryを追加（ER図更新に伴う） | Cline |
 | 2026-02-09 | ER図更新に合わせて全テーブルの監査カラム（create_user_id, update_user_id等）を追加 | Cline |

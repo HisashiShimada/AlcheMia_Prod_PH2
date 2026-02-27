@@ -13,7 +13,7 @@ CREATE TABLE maiml_validation_history (
     
     -- 組織・プロジェクト情報
     organization_id UUID NOT NULL,
-    project_id UUID,
+    project_id character varying(20) 
     file_key VARCHAR(500),
     
     -- ユーザー情報

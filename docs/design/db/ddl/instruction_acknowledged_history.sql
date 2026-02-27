@@ -11,7 +11,7 @@ DROP TABLE IF EXISTS instruction_acknowledged_history CASCADE;
 CREATE TABLE instruction_acknowledged_history (
     -- 主キー（複合キー）
     organization_id UUID NOT NULL,
-    project_id UUID NOT NULL,
+    project_id character varying(20) NOT NULL,
     experiment_instruction_id VARCHAR NOT NULL,
     experiment_user_id VARCHAR(50) NOT NULL,
     

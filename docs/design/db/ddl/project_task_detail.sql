@@ -3,26 +3,28 @@ DROP TABLE if exists project_task_detail CASCADE;
 
 CREATE TABLE project_task_detail (
   organization_id uuid NOT NULL
-  , project_id uuid NOT NULL
+  , project_id character varying(20) NOT NULL
   , method_id character varying NOT NULL
+  , experiment_order numeric(2,0) NOT NULL
   , task_no numeric(3,0) NOT NULL
   , task_status numeric(2,0)
   , experiment_start_at timestamp
   , experiment_end_at timestamp
-  , experiment_user_id VARCHAR(50)
+  , experiment_user_id character varying(50)
   , reviewed_at timestamp
-  , review_user_id VARCHAR(50)
-  , create_user_id VARCHAR(50)
+  , review_user_id character varying(50)
+  , create_user_id character varying(50)
   , create_at timestamp
-  , update_user_id VARCHAR(50)
+  , update_user_id character varying(50)
   , update_at timestamp
-  , CONSTRAINT project_task_detail_PKC PRIMARY KEY (organization_id,project_id,method_id,task_no)
+  , CONSTRAINT project_task_detail_PKC PRIMARY KEY (organization_id,project_id,method_id,experiment_order,task_no)
 ) ;
 
 COMMENT ON TABLE project_task_detail IS 'プロジェクトタスク_詳細';
 COMMENT ON COLUMN project_task_detail.organization_id IS '組織ID';
 COMMENT ON COLUMN project_task_detail.project_id IS 'プロジェクトID';
 COMMENT ON COLUMN project_task_detail.method_id IS 'メソッドID';
+COMMENT ON COLUMN project_task_detail.experiment_order IS '実験順序';
 COMMENT ON COLUMN project_task_detail.task_no IS 'タスク連番';
 COMMENT ON COLUMN project_task_detail.task_status IS 'タスクステータス';
 COMMENT ON COLUMN project_task_detail.experiment_start_at IS '実験開始日';
