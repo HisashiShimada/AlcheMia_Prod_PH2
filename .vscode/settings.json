@@ -1,0 +1,40 @@
+{
+  // --- TypeScript / JavaScript ---
+  "typescript.validate.enable": true,
+  // JS の VS Code 標準診断は切って、ESLint/TS に統一（重複回避）
+  "javascript.validate.enable": false,
+  // ワークスペースの TypeScript を使う（VSCode 内蔵TSとズレないように）
+  "typescript.tsdk": "node_modules/typescript/lib",
+
+  // --- ESLint を Problems に反映 ---
+  "eslint.enable": false,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact",
+    "json",
+    "jsonc"
+  ],
+  // モノレポ/複数ディレクトリの場合は明示して解決性向上
+  "eslint.workingDirectories": [
+    { "directory": "./", "changeProcessCWD": true },
+    { "directory": "frontend", "changeProcessCWD": true },
+    { "directory": "backend", "changeProcessCWD": true }
+  ],
+
+  // --- 保存時の自動整形/修正 ---
+  // Prettier を使うなら VSCodeのformatterはOFFにして、ESLint経由で整形を統一
+  // "editor.formatOnSave": false,
+  // "editor.codeActionsOnSave": {
+  //   "source.fixAll.eslint": "explicit" // VSCode 1.75+ は "explicit" が推奨
+  // },
+
+  // --- 問題タブの視認性 ---
+  "problems.showCurrentInStatus": true,
+  "problems.decorations.enabled": true,
+
+  // --- Next.js 開発体験 ---
+  // もし React 18 の型推論を React 19 的にしたくない場合などの抑制が必要なら tsconfig で調整
+  // VSCode 設定ではなく参考: "tsconfig.json" の "jsx": "preserve" / "react-jsx" などを Next.js 推奨通りに
+}

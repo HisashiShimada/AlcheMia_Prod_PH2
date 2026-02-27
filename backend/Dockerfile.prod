@@ -1,0 +1,67 @@
+# =============================================================================
+# Backend Dockerfile - 本番環境用（マルチステージビルド）
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: ビルドステージ
+# TypeScriptをコンパイルしてdistディレクトリを生成する
+# -----------------------------------------------------------------------------
+FROM node:24-alpine AS builder
+
+WORKDIR /app
+
+# package.jsonとpackage-lock.jsonをコピー（依存関係インストール用）
+COPY package*.json ./
+
+# 全依存関係をインストール（devDependenciesも必要: TypeScriptコンパイルのため）
+RUN npm ci
+
+# ソースコードをコピー
+COPY . .
+
+# TypeScriptをビルド
+RUN npm run build
+
+# -----------------------------------------------------------------------------
+# Stage 2: 本番実行ステージ
+# ビルド成果物のみを含む軽量イメージ
+# -----------------------------------------------------------------------------
+FROM node:24-alpine AS runner
+
+# セキュリティ: root以外のユーザーで実行
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+WORKDIR /app
+
+# package.jsonをコピー（npm start実行のため）
+COPY package*.json ./
+
+# 本番依存関係のみインストール（devDependenciesを除外）
+RUN npm ci --omit=dev && \
+    npm cache clean --force
+
+# ビルド成果物をコピー
+COPY --from=builder /app/dist ./dist
+
+# SQLファイルをコピー（SQLファイル外部管理のため）
+COPY --from=builder /app/src/sql ./src/sql
+
+# certsディレクトリをコピー（証明書ファイル）
+COPY --from=builder /app/certs ./certs
+
+# ファイルの所有者をnodejsユーザーに変更
+RUN chown -R nodejs:nodejs /app
+
+# nodejsユーザーに切り替え
+USER nodejs
+
+# ポートを公開
+EXPOSE 3001
+
+# ヘルスチェック
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget -qO- http://localhost:3001/api/v1/health || exit 1
+
+# 本番環境で起動（コンパイル済みJSを実行）
+CMD ["npm", "start"]
