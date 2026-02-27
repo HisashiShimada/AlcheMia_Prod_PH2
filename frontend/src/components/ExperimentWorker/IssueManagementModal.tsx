@@ -72,7 +72,10 @@ export default function IssueManagementModal({
   const [form] = Form.useForm();
   const [commentForm] = Form.useForm();
   
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  // 選択中の問題IDのみをstateで保持する
+  // selectedIssue 自体は issues props から useMemo で導出することで、
+  // 親が issues を再取得するたびに自動的に最新データが反映される
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [showNewIssueForm, setShowNewIssueForm] = useState(false);
   const [newComment, setNewComment] = useState('');
   
@@ -88,6 +91,14 @@ export default function IssueManagementModal({
   // プロジェクトが承認依頼中の場合は編集不可
   const isApprovalPending = projectStatus === 'waiting_approval';
   const isEditDisabled = viewMode || isApprovalPending;
+
+  // 選択中の問題を issues props から導出する
+  // issues プロップが更新（コメント送信・ステータス変更後の再取得）されると
+  // selectedIssue も自動的に最新データに追随し、コメント一覧が即時更新される
+  const selectedIssue = useMemo(
+    () => issues.find((issue) => issue.issueId === selectedIssueId) ?? null,
+    [issues, selectedIssueId]
+  );
 
   // フィルタリングされた問題一覧
   const filteredIssues = useMemo(() => {
@@ -265,7 +276,7 @@ export default function IssueManagementModal({
 
   // モーダルを閉じる
   const handleClose = () => {
-    setSelectedIssue(null);
+    setSelectedIssueId(null);
     setShowNewIssueForm(false);
     form.resetFields();
     commentForm.resetFields();
@@ -275,14 +286,14 @@ export default function IssueManagementModal({
 
   // 問題選択時のハンドラ
   const handleSelectIssue = (issue: Issue) => {
-    setSelectedIssue(issue);
+    setSelectedIssueId(issue.issueId);
     setShowNewIssueForm(false);
   };
 
   // 新規問題報告ボタン押下
   const handleNewIssueClick = () => {
     setShowNewIssueForm(true);
-    setSelectedIssue(null);
+    setSelectedIssueId(null);
   };
 
   return (

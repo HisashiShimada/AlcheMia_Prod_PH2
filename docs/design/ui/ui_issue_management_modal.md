@@ -172,14 +172,31 @@ interface IssueReportFormData {
 const [form] = Form.useForm();                          // 新規問題報告フォーム
 const [commentForm] = Form.useForm();                   // コメントフォーム
 
-const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);  // 選択中の問題
+// 選択中の問題IDのみをstateで保持する
+// selectedIssue 自体は issues props から useMemo で導出することで、
+// 親が issues を再取得するたびに自動的に最新データが反映される
+const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);  // 選択中の問題ID
+
 const [showNewIssueForm, setShowNewIssueForm] = useState(false);         // 新規報告フォーム表示状態
 const [newComment, setNewComment] = useState('');                        // 新規コメントテキスト
 
 // フィルタリング用
 const [searchText, setSearchText] = useState('');                        // 検索テキスト
 const [statusFilter, setStatusFilter] = useState<IssueStatus | 'all'>('all');  // ステータスフィルター
+
+// 選択中の問題を issues props から導出する（useMemo）
+// issues プロップが更新（コメント送信・ステータス変更後の再取得）されると
+// selectedIssue も自動的に最新データに追随し、コメント一覧が即時更新される
+const selectedIssue = useMemo(
+  () => issues.find((issue) => issue.issueId === selectedIssueId) ?? null,
+  [issues, selectedIssueId]
+);
 ```
+
+**設計ポイント:**
+- `selectedIssue` はstateではなく `useMemo` で導出される派生値
+- `issues` プロップが変化するたびに自動再計算されるため、コメント送信後の即時表示が実現される
+- `useEffect` + `setState` のパターンは避ける（ESLintエラー・カスケードレンダリングの原因となるため）
 
 ### 4.2 編集可否の判定
 
@@ -1023,5 +1040,6 @@ scroll={{ y: 'calc(70vh - 280px)' }}
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.2.0 | 2026-02-27 | コメント送信後の即時表示対応: `selectedIssue` を state から `useMemo` による派生値に変更し、`issues` props 更新時に自動反映されるよう修正 | Cline |
 | 1.1.0 | 2026-02-27 | 問題タイプ選択肢をハードコードからコードマスターAPI取得に変更（useCodeMaster('issue_type')） | Cline |
 | 1.0.0 | 2026-01-19 | 初版作成、UI設計書として文書化 | Cline |
