@@ -182,15 +182,6 @@ mmdpf/
 - ⏳ ワーカー協働機能
 - ⏳ 多言語対応（日本語）
 
-## ユーザーロール
-
-1. **Provider**: サービス提供者
-2. **System Admin**: システム管理者（全組織アクセス可）
-3. **Data Admin**: データ管理者（自組織内）
-4. **Experiment Admin**: 実験管理者（自組織内）
-5. **Experiment Worker**: 実験作業者
-6. **MI Engineer**: Materials Informatics エンジニア
-
 ## テスト
 
 ### バックエンドテスト実行
@@ -211,19 +202,157 @@ npm run test:coverage     # カバレッジレポート生成
 
 ## デプロイ
 
-### Docker Composeでのデプロイ
+### 前提条件
+
+| ツール | バージョン |
+|--------|-----------|
+| Docker | 24.0以上 |
+| Docker Compose | v2.0以上 |
+| AWS CLI | v2.0以上（AWSデプロイ時） |
+
+---
+
+### オンプレ環境（Ubuntu + docker-compose）
+
+Swift（オブジェクトストレージ）・nginx・PostgreSQL・Redis・backend・frontendを全て docker-compose で起動します。
+
+#### 1. 環境変数の設定
 
 ```bash
-docker-compose up -d --build
+cp .env.prod.onprem.example .env
+vi .env   # 各値を実環境に合わせて編集（パスワード等を必ず変更）
 ```
 
-### AWS ECSへのデプロイ
+#### 2. SSL証明書の配置
 
 ```bash
-./scripts/deployment/deploy-ecs-service-connect.sh
+# サーバー証明書（nginx用）
+backend/certs/server/server.crt
+backend/certs/server/server.key
+
+# CA証明書（クライアント証明書検証用）
+backend/certs/ca/ca.crt
+
+# 証明書を生成する場合
+npm --prefix backend run generate:server-cert
 ```
 
-詳細は `docs/cline_archive/` 配下のデプロイガイドを参照してください。
+#### 3. デプロイ実行
+
+```bash
+chmod +x scripts/deploy.onprem.sh
+./scripts/deploy.onprem.sh
+```
+
+デプロイスクリプトが以下を自動実行します：
+- Docker イメージのビルド
+- PostgreSQL / Redis / Swift の起動
+- DB マイグレーションの実行
+- backend / frontend / nginx の起動
+- ヘルスチェック
+
+#### オプション
+
+```bash
+./scripts/deploy.onprem.sh --no-build    # イメージビルドをスキップ
+./scripts/deploy.onprem.sh --no-migrate  # DBマイグレーションをスキップ
+./scripts/deploy.onprem.sh --pull        # 最新ベースイメージをpullしてビルド
+```
+
+#### 手動起動（docker-compose コマンド直接使用）
+
+```bash
+# 全サービス起動（Swift + nginx 含む）
+docker-compose -f docker-compose.prod.yml --profile onprem up -d
+
+# ログ確認
+docker-compose -f docker-compose.prod.yml --profile onprem logs -f
+
+# 停止
+docker-compose -f docker-compose.prod.yml --profile onprem down
+```
+
+サービスが起動したら:
+- HTTPS: https://localhost/
+- Backend API: http://localhost:3001/api/v1/
+
+---
+
+### AWS環境（ECS Fargate + RDS + ElastiCache + S3）
+
+#### 前提: AWSリソースの準備
+
+デプロイ前に以下のAWSリソースが必要です：
+
+| リソース | 用途 |
+|---------|------|
+| ECR リポジトリ × 2 | backend / frontend イメージ保存 |
+| ECS クラスター | コンテナ実行基盤 |
+| ECS サービス × 2 | backend / frontend サービス管理 |
+| RDS Aurora PostgreSQL | データベース |
+| ElastiCache for Redis | セッションストア |
+| S3 バケット | ファイルストレージ |
+| ALB | ロードバランサー（HTTPS終端） |
+| Secrets Manager | 機密情報管理（推奨） |
+| IAM ロール | ECS タスクロール・実行ロール |
+
+#### 1. 環境変数の設定
+
+```bash
+cp .env.prod.aws.example .env
+vi .env   # AWS リソース情報（アカウントID・エンドポイント等）を設定
+```
+
+主要な設定項目：
+```bash
+AWS_ACCOUNT_ID=123456789012
+AWS_ECR_REGION=ap-northeast-1
+ECR_REPOSITORY_BACKEND=mmdpf-backend
+ECR_REPOSITORY_FRONTEND=mmdpf-frontend
+ECS_CLUSTER=mmdpf-production
+ECS_SERVICE_BACKEND=mmdpf-backend-service
+ECS_SERVICE_FRONTEND=mmdpf-frontend-service
+DB_HOST=YOUR_RDS_ENDPOINT.rds.amazonaws.com
+REDIS_HOST=YOUR_ELASTICACHE_ENDPOINT.cache.amazonaws.com
+```
+
+#### 2. ECS タスク定義の調整
+
+`aws/ecs-task-definition-backend.json` と `aws/ecs-task-definition-frontend.json` 内の
+`<PLACEHOLDER>` を実環境の値に合わせて確認・調整してください。
+
+#### 3. デプロイ実行
+
+```bash
+chmod +x scripts/deploy.aws.sh
+./scripts/deploy.aws.sh
+```
+
+デプロイスクリプトが以下を自動実行します：
+- ECR へのログイン
+- Docker イメージのビルド & ECR へのプッシュ（タグ: Gitコミットハッシュ）
+- ECS タスク定義の更新
+- ECS サービスのローリングデプロイ
+
+#### オプション
+
+```bash
+./scripts/deploy.aws.sh --no-build          # イメージビルドをスキップ
+./scripts/deploy.aws.sh --backend           # バックエンドのみデプロイ
+./scripts/deploy.aws.sh --frontend          # フロントエンドのみデプロイ
+./scripts/deploy.aws.sh --tag v1.2.3        # イメージタグを指定
+```
+
+---
+
+### バージョン情報
+
+| サービス | イメージ |
+|---------|---------|
+| PostgreSQL | `postgres:17-alpine` |
+| Redis | `redis:8-alpine` |
+| Node.js (backend/frontend) | `node:24-alpine` |
+| nginx | `nginx:alpine` |
 
 ## セキュリティ
 

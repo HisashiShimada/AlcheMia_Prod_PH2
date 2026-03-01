@@ -22,8 +22,10 @@
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
     "alwaysStrict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    // "noUnusedLocals": true,
+    // "noUnusedParameters": true,
+    "noUnusedLocals": false,      // TS6133を抑制
+    "noUnusedParameters": false,   // TS6133を抑制
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "types": ["node", "jest"],

@@ -1,0 +1,145 @@
+{
+  "_comment": "=================================================================",
+  "_comment2": "mmdpf ECS タスク定義テンプレート - バックエンド",
+  "_comment3": "=================================================================",
+  "_comment4": "使い方:",
+  "_comment5": "  1. <PLACEHOLDER> の値を実環境に合わせて置き換えてください",
+  "_comment6": "  2. scripts/deploy.aws.sh が自動的にこのファイルを使用します",
+  "_comment7": "  3. 手動で登録する場合: aws ecs register-task-definition --cli-input-json file://aws/ecs-task-definition-backend.json",
+  "_comment8": "=================================================================",
+
+  "family": "mmdpf-backend",
+  "taskRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/mmdpf-ecs-task-role",
+  "executionRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/mmdpf-ecs-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+
+  "_comment_cpu_memory": "CPU/メモリは実際の負荷に応じて調整してください",
+  "_comment_cpu_values": "有効なCPU値: 256, 512, 1024, 2048, 4096",
+  "_comment_memory_values": "有効なメモリ値: CPUによって異なる（AWSドキュメント参照）",
+  "cpu": "512",
+  "memory": "1024",
+
+  "containerDefinitions": [
+    {
+      "name": "mmdpf-backend",
+      "image": "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/mmdpf-backend:<IMAGE_TAG>",
+
+      "_comment_essential": "必須コンテナ - このコンテナが停止するとタスク全体が停止",
+      "essential": true,
+
+      "portMappings": [
+        {
+          "containerPort": 3001,
+          "hostPort": 3001,
+          "protocol": "tcp"
+        }
+      ],
+
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "BACKEND_PORT", "value": "3001" },
+        { "name": "STORAGE_TYPE", "value": "s3" },
+        { "name": "DB_SSL", "value": "true" },
+        { "name": "DB_POOL_MIN", "value": "2" },
+        { "name": "DB_POOL_MAX", "value": "20" },
+        { "name": "LOG_LEVEL", "value": "info" }
+      ],
+
+      "_comment_secrets": "機密情報はAWS Secrets Manager から取得することを推奨",
+      "secrets": [
+        {
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:DB_HOST::"
+        },
+        {
+          "name": "DB_PORT",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:DB_PORT::"
+        },
+        {
+          "name": "DB_NAME",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:DB_NAME::"
+        },
+        {
+          "name": "DB_USER",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:DB_USER::"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:DB_PASSWORD::"
+        },
+        {
+          "name": "REDIS_HOST",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:REDIS_HOST::"
+        },
+        {
+          "name": "REDIS_PORT",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:REDIS_PORT::"
+        },
+        {
+          "name": "REDIS_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:REDIS_PASSWORD::"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:JWT_SECRET::"
+        },
+        {
+          "name": "SESSION_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:SESSION_SECRET::"
+        },
+        {
+          "name": "AWS_S3_BUCKET",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:AWS_S3_BUCKET::"
+        },
+        {
+          "name": "AWS_REGION",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:AWS_REGION::"
+        },
+        {
+          "name": "CERT_P12_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:mmdpf/production:CERT_P12_PASSWORD::"
+        }
+      ],
+
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/mmdpf-backend",
+          "awslogs-region": "<AWS_REGION>",
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
+        }
+      },
+
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "wget -qO- http://localhost:3001/api/v1/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 60
+      },
+
+      "readonlyRootFilesystem": false,
+
+      "_comment_ulimits": "Node.jsのファイルディスクリプタ上限を引き上げ",
+      "ulimits": [
+        {
+          "name": "nofile",
+          "softLimit": 65536,
+          "hardLimit": 65536
+        }
+      ]
+    }
+  ],
+
+  "_comment_tags": "タグはコスト管理・リソース管理に使用",
+  "tags": [
+    { "key": "Project", "value": "mmdpf" },
+    { "key": "Environment", "value": "production" },
+    { "key": "Service", "value": "backend" }
+  ]
+}
