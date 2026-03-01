@@ -1,9 +1,12 @@
 /**
  * Instrumentマスタリポジトリ
  * instrumentテーブルへのデータアクセスを担当
+ * pg-promise + SQLファイル外部管理パターンを使用
  */
 
-import { getPool } from '../database/db';
+import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Instrument情報の型定義
@@ -20,36 +23,22 @@ export interface InstrumentMaster {
 
 /**
  * 指定された組織のInstrumentマスタを全件取得
- * 
+ *
  * @param organizationId 組織ID
  * @returns Instrumentマスタの配列
  */
 export const findAll = async (
   organizationId: string
 ): Promise<InstrumentMaster[]> => {
-  const pool = getPool();
-  
-  const query = `
-    SELECT 
-      instrument_id,
-      instrument_uuid,
-      instrument_name,
-      instrument_description,
-      instrument_annotation,
-      is_active,
-      update_at
-    FROM instrument
-    WHERE organization_id = $1
-    ORDER BY instrument_id
-  `;
-  
-  const result = await pool.query(query, [organizationId]);
-  return result.rows;
+  const pgp = getPgp();
+
+  const sqlQuery = await loadSqlFile('instruments/findAll.sql');
+  return await pgp.any<InstrumentMaster>(sqlQuery, [organizationId]);
 };
 
 /**
  * IDでInstrumentマスタを取得
- * 
+ *
  * @param organizationId 組織ID
  * @param instrumentId Instrument ID
  * @returns Instrumentマスタ または null
@@ -58,31 +47,20 @@ export const findById = async (
   organizationId: string,
   instrumentId: string
 ): Promise<InstrumentMaster | null> => {
-  const pool = getPool();
-  
-  const query = `
-    SELECT 
-      instrument_id,
-      instrument_uuid,
-      instrument_name,
-      instrument_description,
-      instrument_annotation,
-      is_active,
-      update_at
-    FROM instrument
-    WHERE organization_id = $1
-      AND instrument_id = $2
-  `;
-  
-  const result = await pool.query(query, [organizationId, instrumentId]);
-  return result.rows[0] || null;
+  const pgp = getPgp();
+
+  const sqlQuery = await loadSqlFile('instruments/findById.sql');
+  const result = await pgp.oneOrNone<InstrumentMaster>(sqlQuery, [organizationId, instrumentId]);
+  return result ?? null;
 };
 
 /**
  * Instrumentマスタを新規作成
- * 
+ *
  * @param organizationId 組織ID
  * @param data Instrument情報
+ * @param userId ログインユーザーID
+ * @param corporationId 会社ID（任意）
  * @returns 作成されたInstrumentマスタ
  */
 export const create = async (
@@ -97,35 +75,9 @@ export const create = async (
   userId: string,
   corporationId?: string | null
 ): Promise<InstrumentMaster> => {
-  const pool = getPool();
-  const { v4: uuidv4 } = require('uuid');
-  
-  const query = `
-    INSERT INTO instrument (
-      organization_id,
-      instrument_uuid,
-      instrument_id,
-      instrument_name,
-      instrument_description,
-      instrument_annotation,
-      corporation_id,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
-    )
-    RETURNING 
-      instrument_id,
-      instrument_name,
-      instrument_description,
-      instrument_annotation,
-      is_active,
-      update_at
-  `;
-  
+  const pgp = getPgp();
+
+  const query = await loadSqlFile('instruments/create.sql');
   const values = [
     organizationId,
     uuidv4(),
@@ -133,19 +85,18 @@ export const create = async (
     data.instrumentName,
     data.instrumentDescription || null,
     data.instrumentAnnotation || null,
-    corporationId,
+    corporationId ?? null,
     data.isActive !== undefined ? data.isActive : true,
     userId,
     userId,
   ];
-  
-  const result = await pool.query(query, values);
-  return result.rows[0];
+
+  return await pgp.one<InstrumentMaster>(query, values);
 };
 
 /**
  * Instrumentマスタを更新
- * 
+ *
  * @param organizationId 組織ID
  * @param instrumentId Instrument ID
  * @param data 更新データ
@@ -165,33 +116,14 @@ export const update = async (
   userId: string,
   corporationId?: string | null
 ): Promise<InstrumentMaster | null> => {
-  const pool = getPool();
-  
-  // WHERE句の条件を構築
+  const pgp = getPgp();
+
   let query: string;
   let values: any[];
-  
+
   if (corporationId !== null && corporationId !== undefined) {
     // corporation_idが存在する場合：corporation_idで照合
-    query = `
-      UPDATE instrument
-      SET
-        instrument_name = COALESCE($3, instrument_name),
-        instrument_description = COALESCE($4, instrument_description),
-        instrument_annotation = COALESCE($5, instrument_annotation),
-        is_active = COALESCE($6, is_active),
-        update_user_id = $7,
-        update_at = NOW()
-      WHERE corporation_id = $1
-        AND instrument_id = $2
-      RETURNING 
-        instrument_id,
-        instrument_name,
-        instrument_description,
-        instrument_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('instruments/updateByCorporation.sql');
     values = [
       corporationId,
       instrumentId,
@@ -203,25 +135,7 @@ export const update = async (
     ];
   } else {
     // corporation_idがNULLの場合：organization_idで照合
-    query = `
-      UPDATE instrument
-      SET
-        instrument_name = COALESCE($3, instrument_name),
-        instrument_description = COALESCE($4, instrument_description),
-        instrument_annotation = COALESCE($5, instrument_annotation),
-        is_active = COALESCE($6, is_active),
-        update_user_id = $7,
-        update_at = NOW()
-      WHERE organization_id = $1
-        AND instrument_id = $2
-      RETURNING 
-        instrument_id,
-        instrument_name,
-        instrument_description,
-        instrument_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('instruments/updateByOrganization.sql');
     values = [
       organizationId,
       instrumentId,
@@ -232,14 +146,14 @@ export const update = async (
       userId,
     ];
   }
-  
-  const result = await pool.query(query, values);
-  return result.rows[0] || null;
+
+  const result = await pgp.oneOrNone<InstrumentMaster>(query, values);
+  return result ?? null;
 };
 
 /**
  * Instrumentマスタのアクティブ状態を更新
- * 
+ *
  * @param organizationId 組織ID
  * @param instrumentId Instrument ID
  * @param isActive アクティブ状態
@@ -254,59 +168,28 @@ export const updateStatus = async (
   userId: string,
   corporationId?: string | null
 ): Promise<InstrumentMaster | null> => {
-  const pool = getPool();
-  
-  // WHERE句の条件を構築
+  const pgp = getPgp();
+
   let query: string;
   let values: any[];
-  
+
   if (corporationId !== null && corporationId !== undefined) {
     // corporation_idが存在する場合：corporation_idで照合
-    query = `
-      UPDATE instrument
-      SET
-        is_active = $3,
-        update_user_id = $4,
-        update_at = NOW()
-      WHERE corporation_id = $1
-        AND instrument_id = $2
-      RETURNING 
-        instrument_id,
-        instrument_name,
-        instrument_description,
-        instrument_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('instruments/updateStatusByCorporation.sql');
     values = [corporationId, instrumentId, isActive, userId];
   } else {
     // corporation_idがNULLの場合：organization_idで照合
-    query = `
-      UPDATE instrument
-      SET
-        is_active = $3,
-        update_user_id = $4,
-        update_at = NOW()
-      WHERE organization_id = $1
-        AND instrument_id = $2
-      RETURNING 
-        instrument_id,
-        instrument_name,
-        instrument_description,
-        instrument_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('instruments/updateStatusByOrganization.sql');
     values = [organizationId, instrumentId, isActive, userId];
   }
-  
-  const result = await pool.query(query, values);
-  return result.rows[0] || null;
+
+  const result = await pgp.oneOrNone<InstrumentMaster>(query, values);
+  return result ?? null;
 };
 
 /**
  * Instrument IDが既に存在するかチェック
- * 
+ *
  * @param organizationId 組織ID
  * @param instrumentId Instrument ID
  * @returns 存在する場合true
@@ -315,24 +198,16 @@ export const existsById = async (
   organizationId: string,
   instrumentId: string
 ): Promise<boolean> => {
-  const pool = getPool();
-  
-  const query = `
-    SELECT EXISTS (
-      SELECT 1
-      FROM instrument
-      WHERE organization_id = $1
-        AND instrument_id = $2
-    ) as exists
-  `;
-  
-  const result = await pool.query(query, [organizationId, instrumentId]);
-  return result.rows[0].exists;
+  const pgp = getPgp();
+
+  const query = await loadSqlFile('instruments/existsById.sql');
+  const result = await pgp.one<{ exists: boolean }>(query, [organizationId, instrumentId]);
+  return result.exists;
 };
 
 /**
- * フィルタ条件付きでInstrumentマスタを取得（WHERE句でフィルタリング）
- * 
+ * フィルタ条件付きでInstrumentマスタを取得
+ *
  * @param organizationId 組織ID
  * @param corporationId 会社ID
  * @param filters フィルタ条件
@@ -347,58 +222,59 @@ export const findAllWithFilters = async (
     isActive?: boolean;
   } = {}
 ): Promise<InstrumentMaster[]> => {
-  const pool = getPool();
-  
-  const whereClauses: string[] = [];
+  const pgp = getPgp();
+
+  // ベースクエリを外部ファイルから読み込み
+  let sqlQuery = await loadSqlFile('instruments/findAllWithFilters.sql');
+
   const values: any[] = [];
   let paramIndex = 1;
-  
+
   // 表示切替フィルタ（display_scope）
-  if (filters.displayScope === 'all') {
-    // 全体選択: corporation_idのみでフィルタ（organization_idは照合しない）
-    whereClauses.push(`corporation_id = $${paramIndex}`);
+  if (filters.displayScope === 'all' && corporationId) {
+    // 全体選択: corporation_idが有効な場合はcorporation_idでフィルタ
+    sqlQuery = sqlQuery.replace(
+      'WHERE 1=1',
+      `WHERE corporation_id = $${paramIndex}`
+    );
     values.push(corporationId);
     paramIndex++;
   } else {
-    // 自組織選択: organization_idのみでフィルタ
-    whereClauses.push(`organization_id = $${paramIndex}`);
+    // 自組織選択、またはcorporationIdがnullの場合: organization_idでフィルタ
+    sqlQuery = sqlQuery.replace(
+      'WHERE 1=1',
+      `WHERE organization_id = $${paramIndex}`
+    );
     values.push(organizationId);
     paramIndex++;
   }
-  
-  // 検索フィルタ（instrument_id, instrument_name, instrument_description, instrument_annotationの4項目で部分一致検索）
+
+  // 検索フィルタ（ID・名称・説明・注釈での部分一致）
   if (filters.search) {
-    whereClauses.push(
-      `(instrument_id ILIKE $${paramIndex} OR 
-        instrument_name ILIKE $${paramIndex} OR 
-        instrument_description ILIKE $${paramIndex} OR 
-        instrument_annotation ILIKE $${paramIndex})`
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND (
+        instrument_id ILIKE $${paramIndex} OR
+        instrument_name ILIKE $${paramIndex} OR
+        instrument_description ILIKE $${paramIndex} OR
+        instrument_annotation ILIKE $${paramIndex}
+      )
+ORDER BY`
     );
     values.push(`%${filters.search}%`);
     paramIndex++;
   }
-  
+
   // アクティブ状態フィルタ
   if (filters.isActive !== undefined) {
-    whereClauses.push(`is_active = $${paramIndex}`);
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND is_active = $${paramIndex}
+ORDER BY`
+    );
     values.push(filters.isActive);
     paramIndex++;
   }
-  
-  const query = `
-    SELECT 
-      instrument_id,
-      instrument_uuid,
-      instrument_name,
-      instrument_description,
-      instrument_annotation,
-      is_active,
-      update_at
-    FROM instrument
-    WHERE ${whereClauses.join(' AND ')}
-    ORDER BY instrument_id
-  `;
-  
-  const result = await pool.query(query, values);
-  return result.rows;
+
+  return await pgp.any<InstrumentMaster>(sqlQuery, values);
 };

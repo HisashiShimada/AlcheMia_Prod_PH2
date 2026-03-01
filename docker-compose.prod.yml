@@ -1,0 +1,236 @@
+# =============================================================================
+# mmdpf Docker Compose - 本番環境用
+# =============================================================================
+#
+# 使い方:
+#   【オンプレ環境】Swift + nginx を含む全サービスを起動
+#     docker-compose -f docker-compose.prod.yml --profile onprem up -d
+#
+#   【AWS環境】backend/frontend/DB のみ起動（S3・ALBは外部サービスを使用）
+#     docker-compose -f docker-compose.prod.yml up -d
+#
+# 事前準備:
+#   cp .env.prod.onprem.example .env  # オンプレの場合
+#   cp .env.prod.aws.example .env     # AWSの場合
+#   vi .env                           # 環境に合わせて編集
+# =============================================================================
+
+services:
+
+  # ===========================================================================
+  # PostgreSQL - リレーショナルデータベース
+  # 常時起動（オンプレ・AWS共通）
+  # ※ AWSではRDS Aurora PostgreSQLに切り替え可（.envのDB_HOST等を変更）
+  # ===========================================================================
+  postgres:
+    image: postgres:17-alpine
+    container_name: mmdpf-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-mmdpf_db}
+      POSTGRES_USER: ${DB_USER:-mmdpf_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mmdpf_password}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - mmdpf-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-mmdpf_user} -d ${DB_NAME:-mmdpf_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ===========================================================================
+  # OpenStack Swift - オブジェクトストレージ（オンプレ環境専用）
+  # profiles: [onprem] → --profile onprem 指定時のみ起動
+  # AWSでは S3 を使用するため不要
+  # ===========================================================================
+  swift:
+    image: bouncestorage/swift-aio:latest
+    container_name: mmdpf-swift
+    restart: unless-stopped
+    profiles:
+      - onprem
+    ports:
+      - "${SWIFT_PORT:-8080}:8080"
+    environment:
+      - AUTH_URL=http://localhost:${SWIFT_PORT:-8080}/auth/v1.0
+      - ACCOUNT=${SWIFT_ACCOUNT:-mmdpf}
+      - USER=${SWIFT_USER:-mmdpf_user}
+      - PASSWORD=${SWIFT_PASSWORD:?SWIFT_PASSWORD is required for onprem profile}
+    volumes:
+      - swift-data:/srv
+    networks:
+      - mmdpf-network
+    healthcheck:
+      test: >
+        ["CMD-SHELL",
+         "swift -A http://localhost:${SWIFT_PORT:-8080}/auth/v1.0
+         -U ${SWIFT_ACCOUNT:-mmdpf}:${SWIFT_USER:-mmdpf_user}
+         -K ${SWIFT_PASSWORD:-testing} stat || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Redis - セッションストア
+  # 常時起動（オンプレ・AWS共通）
+  # ※ AWSではElastiCacheに切り替え可（.envのREDIS_HOST等を変更）
+  # ===========================================================================
+  redis:
+    image: redis:8-alpine
+    container_name: mmdpf-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - mmdpf-network
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-}
+      --maxmemory ${REDIS_MAXMEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ===========================================================================
+  # Backend - Node.js/Express APIサーバー
+  # 常時起動（オンプレ・AWS共通）
+  # ===========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    image: mmdpf-backend:${IMAGE_TAG:-latest}
+    container_name: mmdpf-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mmdpf-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ===========================================================================
+  # Frontend - Next.js フロントエンドサーバー
+  # 常時起動（オンプレ・AWS共通）
+  # ===========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    image: mmdpf-frontend:${IMAGE_TAG:-latest}
+    container_name: mmdpf-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - mmdpf-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ===========================================================================
+  # Nginx - リバースプロキシ（オンプレ環境専用）
+  # profiles: [onprem] → --profile onprem 指定時のみ起動
+  # AWSではALB（Application Load Balancer）を使用するため不要
+  # ===========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: mmdpf-nginx
+    restart: unless-stopped
+    profiles:
+      - onprem
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # nginx本番設定
+      - ./config/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      # SSL証明書（サーバー証明書）
+      - ${SSL_CERT_DIR:-./backend/certs/server}:/etc/nginx/ssl:ro
+      # CA証明書（クライアント証明書検証用）
+      - ${CA_CERT_DIR:-./backend/certs/ca}:/etc/nginx/ssl/ca:ro
+      # nginx静的ファイル
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - mmdpf-network
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t && wget -qO- http://localhost/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres-data:
+    name: mmdpf_prod_postgres-data
+  redis-data:
+    name: mmdpf_prod_redis-data
+  swift-data:
+    name: mmdpf_prod_swift-data
+  nginx-logs:
+    name: mmdpf_prod_nginx-logs
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  mmdpf-network:
+    name: mmdpf-prod-network
+    driver: bridge

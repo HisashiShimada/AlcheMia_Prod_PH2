@@ -5,7 +5,8 @@
 
 import * as roleRepository from '../repositories/roleRepository';
 import Papa from 'papaparse';
-import { getPool } from '../database/db';
+import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 
 /**
  * 機能情報の型
@@ -326,135 +327,103 @@ export async function uploadRolesCsv(
   console.log('Grouped by role:', Array.from(groupedByRole.entries()));
 
   // トランザクション開始
-  const pool = getPool();
-  const client = await pool.connect();
+  const pgp = getPgp();
+  
+  // SQLファイルを事前に読み込む
+  const roleInsertSql = await loadSqlFile('roles/create.sql');
+  const permissionInsertSql = await loadSqlFile('roles/insertPermission.sql');
 
   try {
-    await client.query('BEGIN');
+    await pgp.tx(async (t) => {
+      // 各ロールごとに処理
+      for (const [roleCd, roleRows] of groupedByRole) {
+        const firstRow = roleRows[0];
+        console.log('Processing role:', roleCd);
+        console.log('First row:', JSON.stringify(firstRow, null, 2));
 
-    const now = new Date();
-
-    // 各ロールごとに処理
-    for (const [roleCd, roleRows] of groupedByRole) {
-      const firstRow = roleRows[0];
-      console.log('Processing role:', roleCd);
-      console.log('First row:', JSON.stringify(firstRow, null, 2));
-
-      // initial_screen_function_cd を機能名からCDに変換
-      const initialScreenFunctionName = firstRow['initial_screen_function_cd']?.trim();
-      console.log('Initial screen function name:', initialScreenFunctionName);
-      
-      const initialScreenFunctionCd = roleRepository.getFunctionIdByName(initialScreenFunctionName);
-      console.log('Initial screen function CD:', initialScreenFunctionCd);
-
-      if (initialScreenFunctionName && !initialScreenFunctionCd) {
-        const errorMsg = `初期画面機能「${initialScreenFunctionName}」が見つかりません`;
-        console.error(errorMsg);
-        throw {
-          statusCode: 400,
-          code: 'FUNCTION_NOT_FOUND',
-          message: errorMsg,
-          details: [{
-            field: 'initial_screen_function_cd',
-            message: errorMsg,
-          }],
-        };
-      }
-
-      // is_active の変換
-      const isActiveStr = firstRow['is_active']?.trim().toLowerCase();
-      const isActive =
-        isActiveStr === 'true' || isActiveStr === '1' || isActiveStr === '';
-
-      // roleテーブルにinsert
-      const roleInsertQuery = `
-        INSERT INTO role (
-          organization_id,
-          role_cd,
-          role_name,
-          initial_screen_function_cd,
-          is_active,
-          create_user_id,
-          update_user_id,
-          create_at,
-          update_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `;
-
-      await client.query(roleInsertQuery, [
-        organizationId,
-        roleCd,
-        firstRow['role_name']?.trim(),
-        initialScreenFunctionCd,
-        isActive,
-        userId,
-        userId,
-        now,
-        now,
-      ]);
-
-      // role_permissionテーブルにinsert（各行の権限情報）
-      for (const row of roleRows) {
-        const functionName = row['function_cd']?.trim();
+        // initial_screen_function_cd を機能名からCDに変換
+        const initialScreenFunctionName = firstRow['initial_screen_function_cd']?.trim();
+        console.log('Initial screen function name:', initialScreenFunctionName);
         
-        // function_cdが空の場合はスキップ（roleテーブルのみ登録）
-        if (!functionName) {
-          console.log('Skipping role_permission insert: function_cd is empty');
-          continue;
-        }
-        
-        console.log('Processing function name:', functionName);
-        
-        const functionCd = roleRepository.getFunctionIdByName(functionName);
-        console.log('Function CD:', functionCd);
+        const initialScreenFunctionCd = roleRepository.getFunctionIdByName(initialScreenFunctionName);
+        console.log('Initial screen function CD:', initialScreenFunctionCd);
 
-        if (!functionCd) {
-          const errorMsg = `機能「${functionName}」が見つかりません`;
+        if (initialScreenFunctionName && !initialScreenFunctionCd) {
+          const errorMsg = `初期画面機能「${initialScreenFunctionName}」が見つかりません`;
           console.error(errorMsg);
           throw {
             statusCode: 400,
             code: 'FUNCTION_NOT_FOUND',
             message: errorMsg,
             details: [{
-              field: 'function_cd',
+              field: 'initial_screen_function_cd',
               message: errorMsg,
             }],
           };
         }
 
-        const permissionSymbol = row['permission']?.trim();
-        const permission = permissionSymbol === 'Ⓦ' ? 0 : 1;
+        // is_active の変換
+        const isActiveStr = firstRow['is_active']?.trim().toLowerCase();
+        const isActive =
+          isActiveStr === 'true' || isActiveStr === '1' || isActiveStr === '';
 
-        const permissionInsertQuery = `
-          INSERT INTO role_permission (
-            organization_id,
-            role_cd,
-            function_cd,
-            permission,
-            create_user_id,
-            update_user_id,
-            create_at,
-            update_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        `;
-
-        await client.query(permissionInsertQuery, [
+        // roleテーブルにinsert（外部SQLファイル使用）
+        await t.none(roleInsertSql, [
           organizationId,
           roleCd,
-          functionCd,
-          permission,
+          firstRow['role_name']?.trim(),
+          initialScreenFunctionCd,
+          isActive,
           userId,
           userId,
-          now,
-          now,
         ]);
-      }
-    }
 
-    await client.query('COMMIT');
+        // role_permissionテーブルにinsert（各行の権限情報）
+        for (const row of roleRows) {
+          const functionName = row['function_cd']?.trim();
+          
+          // function_cdが空の場合はスキップ（roleテーブルのみ登録）
+          if (!functionName) {
+            console.log('Skipping role_permission insert: function_cd is empty');
+            continue;
+          }
+          
+          console.log('Processing function name:', functionName);
+          
+          const functionCd = roleRepository.getFunctionIdByName(functionName);
+          console.log('Function CD:', functionCd);
+
+          if (!functionCd) {
+            const errorMsg = `機能「${functionName}」が見つかりません`;
+            console.error(errorMsg);
+            throw {
+              statusCode: 400,
+              code: 'FUNCTION_NOT_FOUND',
+              message: errorMsg,
+              details: [{
+                field: 'function_cd',
+                message: errorMsg,
+              }],
+            };
+          }
+
+          const permissionSymbol = row['permission']?.trim();
+          const permission = permissionSymbol === 'Ⓦ' ? 0 : 1;
+
+          // role_permissionテーブルにinsert（外部SQLファイル使用）
+          await t.none(permissionInsertSql, [
+            organizationId,
+            roleCd,
+            functionCd,
+            permission,
+            userId,
+            userId,
+          ]);
+        }
+      }
+    });
     console.log('Transaction committed successfully');
   } catch (error: any) {
-    await client.query('ROLLBACK');
     console.error('ロールCSVアップロードトランザクションエラー:', error);
     
     // カスタムエラーの場合はそのまま投げる
@@ -471,8 +440,6 @@ export async function uploadRolesCsv(
         message: error.message || String(error),
       }],
     };
-  } finally {
-    client.release();
   }
 }
 

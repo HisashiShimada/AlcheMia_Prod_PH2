@@ -728,8 +728,8 @@ export async function findAllWithFilters(
   let paramIndex = 1;
   
   // 表示切替フィルタ（display_scope）
-  if (filters.displayScope === 'all') {
-    // 全体選択: corporation_idのみでフィルタ（organization_idは照合しない）
+  if (filters.displayScope === 'all' && corporationId) {
+    // 全体選択: corporation_idが有効な場合はcorporation_idでフィルタ
     whereClauses.push(`cm.corporation_id = $${paramIndex}`);
     values.push(corporationId);
     paramIndex++;

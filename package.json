@@ -1,0 +1,12 @@
+{
+  "name": "mmdpf",
+  "version": "1.0.0",
+  "description": "マルチモーダルデータプラットフォーム",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.js"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.19"
+  }
+}

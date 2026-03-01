@@ -1,9 +1,12 @@
 /**
  * Vendorマスタリポジトリ
  * vendor_masterテーブルへのデータアクセスを担当
+ * pg-promise + SQLファイル外部管理パターンを使用
  */
 
-import { getPool } from '../database/db';
+import { getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Vendor情報の型定義
@@ -20,36 +23,22 @@ export interface VendorMaster {
 
 /**
  * 指定された組織のVendorマスタを全件取得
- * 
+ *
  * @param organizationId 組織ID
  * @returns Vendorマスタの配列
  */
 export const findAll = async (
   organizationId: string
 ): Promise<VendorMaster[]> => {
-  const pool = getPool();
-  
-  const query = `
-    SELECT 
-      vendor_id,
-      vendor_uuid,
-      vendor_name,
-      vendor_description,
-      vendor_annotation,
-      is_active,
-      update_at
-    FROM vendor
-    WHERE organization_id = $1
-    ORDER BY vendor_id
-  `;
-  
-  const result = await pool.query(query, [organizationId]);
-  return result.rows;
+  const pgp = getPgp();
+
+  const sqlQuery = await loadSqlFile('vendors/findAll.sql');
+  return await pgp.any<VendorMaster>(sqlQuery, [organizationId]);
 };
 
 /**
  * IDでVendorマスタを取得
- * 
+ *
  * @param organizationId 組織ID
  * @param vendorId Vendor ID
  * @returns Vendorマスタ または null
@@ -58,31 +47,20 @@ export const findById = async (
   organizationId: string,
   vendorId: string
 ): Promise<VendorMaster | null> => {
-  const pool = getPool();
-  
-  const query = `
-    SELECT 
-      vendor_id,
-      vendor_uuid,
-      vendor_name,
-      vendor_description,
-      vendor_annotation,
-      is_active,
-      update_at
-    FROM vendor
-    WHERE organization_id = $1
-      AND vendor_id = $2
-  `;
-  
-  const result = await pool.query(query, [organizationId, vendorId]);
-  return result.rows[0] || null;
+  const pgp = getPgp();
+
+  const sqlQuery = await loadSqlFile('vendors/findById.sql');
+  const result = await pgp.oneOrNone<VendorMaster>(sqlQuery, [organizationId, vendorId]);
+  return result ?? null;
 };
 
 /**
  * Vendorマスタを新規作成
- * 
+ *
  * @param organizationId 組織ID
  * @param data Vendor情報
+ * @param userId ログインユーザーID
+ * @param corporationId 会社ID（任意）
  * @returns 作成されたVendorマスタ
  */
 export const create = async (
@@ -97,35 +75,9 @@ export const create = async (
   userId: string,
   corporationId?: string | null
 ): Promise<VendorMaster> => {
-  const pool = getPool();
-  const { v4: uuidv4 } = require('uuid');
-  
-  const query = `
-    INSERT INTO vendor (
-      organization_id,
-      vendor_uuid,
-      vendor_id,
-      vendor_name,
-      vendor_description,
-      vendor_annotation,
-      corporation_id,
-      is_active,
-      create_user_id,
-      update_user_id,
-      create_at,
-      update_at
-    ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
-    )
-    RETURNING 
-      vendor_id,
-      vendor_name,
-      vendor_description,
-      vendor_annotation,
-      is_active,
-      update_at
-  `;
-  
+  const pgp = getPgp();
+
+  const query = await loadSqlFile('vendors/create.sql');
   const values = [
     organizationId,
     uuidv4(),
@@ -133,19 +85,18 @@ export const create = async (
     data.vendorName,
     data.vendorDescription || null,
     data.vendorAnnotation || null,
-    corporationId,
+    corporationId ?? null,
     data.isActive !== undefined ? data.isActive : true,
     userId,
     userId,
   ];
-  
-  const result = await pool.query(query, values);
-  return result.rows[0];
+
+  return await pgp.one<VendorMaster>(query, values);
 };
 
 /**
  * Vendorマスタを更新
- * 
+ *
  * @param organizationId 組織ID
  * @param vendorId Vendor ID
  * @param data 更新データ
@@ -165,33 +116,14 @@ export const update = async (
   userId: string,
   corporationId?: string | null
 ): Promise<VendorMaster | null> => {
-  const pool = getPool();
-  
-  // WHERE句の条件を構築
+  const pgp = getPgp();
+
   let query: string;
   let values: any[];
-  
+
   if (corporationId !== null && corporationId !== undefined) {
     // corporation_idが存在する場合：corporation_idで照合
-    query = `
-      UPDATE vendor
-      SET
-        vendor_name = COALESCE($3, vendor_name),
-        vendor_description = COALESCE($4, vendor_description),
-        vendor_annotation = COALESCE($5, vendor_annotation),
-        is_active = COALESCE($6, is_active),
-        update_user_id = $7,
-        update_at = NOW()
-      WHERE corporation_id = $1
-        AND vendor_id = $2
-      RETURNING 
-        vendor_id,
-        vendor_name,
-        vendor_description,
-        vendor_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('vendors/updateByCorporation.sql');
     values = [
       corporationId,
       vendorId,
@@ -203,25 +135,7 @@ export const update = async (
     ];
   } else {
     // corporation_idがNULLの場合：organization_idで照合
-    query = `
-      UPDATE vendor
-      SET
-        vendor_name = COALESCE($3, vendor_name),
-        vendor_description = COALESCE($4, vendor_description),
-        vendor_annotation = COALESCE($5, vendor_annotation),
-        is_active = COALESCE($6, is_active),
-        update_user_id = $7,
-        update_at = NOW()
-      WHERE organization_id = $1
-        AND vendor_id = $2
-      RETURNING 
-        vendor_id,
-        vendor_name,
-        vendor_description,
-        vendor_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('vendors/updateByOrganization.sql');
     values = [
       organizationId,
       vendorId,
@@ -232,14 +146,14 @@ export const update = async (
       userId,
     ];
   }
-  
-  const result = await pool.query(query, values);
-  return result.rows[0] || null;
+
+  const result = await pgp.oneOrNone<VendorMaster>(query, values);
+  return result ?? null;
 };
 
 /**
  * Vendorマスタのアクティブ状態を更新
- * 
+ *
  * @param organizationId 組織ID
  * @param vendorId Vendor ID
  * @param isActive アクティブ状態
@@ -254,59 +168,28 @@ export const updateStatus = async (
   userId: string,
   corporationId?: string | null
 ): Promise<VendorMaster | null> => {
-  const pool = getPool();
-  
-  // WHERE句の条件を構築
+  const pgp = getPgp();
+
   let query: string;
   let values: any[];
-  
+
   if (corporationId !== null && corporationId !== undefined) {
     // corporation_idが存在する場合：corporation_idで照合
-    query = `
-      UPDATE vendor
-      SET
-        is_active = $3,
-        update_user_id = $4,
-        update_at = NOW()
-      WHERE corporation_id = $1
-        AND vendor_id = $2
-      RETURNING 
-        vendor_id,
-        vendor_name,
-        vendor_description,
-        vendor_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('vendors/updateStatusByCorporation.sql');
     values = [corporationId, vendorId, isActive, userId];
   } else {
     // corporation_idがNULLの場合：organization_idで照合
-    query = `
-      UPDATE vendor
-      SET
-        is_active = $3,
-        update_user_id = $4,
-        update_at = NOW()
-      WHERE organization_id = $1
-        AND vendor_id = $2
-      RETURNING 
-        vendor_id,
-        vendor_name,
-        vendor_description,
-        vendor_annotation,
-        is_active,
-        update_at
-    `;
+    query = await loadSqlFile('vendors/updateStatusByOrganization.sql');
     values = [organizationId, vendorId, isActive, userId];
   }
-  
-  const result = await pool.query(query, values);
-  return result.rows[0] || null;
+
+  const result = await pgp.oneOrNone<VendorMaster>(query, values);
+  return result ?? null;
 };
 
 /**
  * Vendor IDが既に存在するかチェック
- * 
+ *
  * @param organizationId 組織ID
  * @param vendorId Vendor ID
  * @returns 存在する場合true
@@ -315,24 +198,16 @@ export const existsById = async (
   organizationId: string,
   vendorId: string
 ): Promise<boolean> => {
-  const pool = getPool();
-  
-  const query = `
-    SELECT EXISTS (
-      SELECT 1
-      FROM vendor
-      WHERE organization_id = $1
-        AND vendor_id = $2
-    ) as exists
-  `;
-  
-  const result = await pool.query(query, [organizationId, vendorId]);
-  return result.rows[0].exists;
+  const pgp = getPgp();
+
+  const query = await loadSqlFile('vendors/existsById.sql');
+  const result = await pgp.one<{ exists: boolean }>(query, [organizationId, vendorId]);
+  return result.exists;
 };
 
 /**
- * フィルタ条件付きでVendorマスタを取得（WHERE句でフィルタリング）
- * 
+ * フィルタ条件付きでVendorマスタを取得
+ *
  * @param organizationId 組織ID
  * @param corporationId 会社ID
  * @param filters フィルタ条件
@@ -347,58 +222,59 @@ export const findAllWithFilters = async (
     isActive?: boolean;
   } = {}
 ): Promise<VendorMaster[]> => {
-  const pool = getPool();
-  
-  const whereClauses: string[] = [];
+  const pgp = getPgp();
+
+  // ベースクエリを外部ファイルから読み込み
+  let sqlQuery = await loadSqlFile('vendors/findAllWithFilters.sql');
+
   const values: any[] = [];
   let paramIndex = 1;
-  
+
   // 表示切替フィルタ（display_scope）
-  if (filters.displayScope === 'all') {
-    // 全体選択: corporation_idのみでフィルタ（organization_idは照合しない）
-    whereClauses.push(`corporation_id = $${paramIndex}`);
+  if (filters.displayScope === 'all' && corporationId) {
+    // 全体選択: corporation_idが有効な場合はcorporation_idでフィルタ
+    sqlQuery = sqlQuery.replace(
+      'WHERE 1=1',
+      `WHERE corporation_id = $${paramIndex}`
+    );
     values.push(corporationId);
     paramIndex++;
   } else {
-    // 自組織選択: organization_idのみでフィルタ
-    whereClauses.push(`organization_id = $${paramIndex}`);
+    // 自組織選択、またはcorporationIdがnullの場合: organization_idでフィルタ
+    sqlQuery = sqlQuery.replace(
+      'WHERE 1=1',
+      `WHERE organization_id = $${paramIndex}`
+    );
     values.push(organizationId);
     paramIndex++;
   }
-  
+
   // 検索フィルタ（ID・名称・説明・注釈での部分一致、大文字小文字を区別しない）
   if (filters.search) {
-    whereClauses.push(
-      `(vendor_id ILIKE $${paramIndex} OR 
-        vendor_name ILIKE $${paramIndex} OR 
-        vendor_description ILIKE $${paramIndex} OR 
-        vendor_annotation ILIKE $${paramIndex})`
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND (
+        vendor_id ILIKE $${paramIndex} OR
+        vendor_name ILIKE $${paramIndex} OR
+        vendor_description ILIKE $${paramIndex} OR
+        vendor_annotation ILIKE $${paramIndex}
+      )
+ORDER BY`
     );
     values.push(`%${filters.search}%`);
     paramIndex++;
   }
-  
+
   // アクティブ状態フィルタ
   if (filters.isActive !== undefined) {
-    whereClauses.push(`is_active = $${paramIndex}`);
+    sqlQuery = sqlQuery.replace(
+      'ORDER BY',
+      `AND is_active = $${paramIndex}
+ORDER BY`
+    );
     values.push(filters.isActive);
     paramIndex++;
   }
-  
-  const query = `
-    SELECT 
-      vendor_id,
-      vendor_uuid,
-      vendor_name,
-      vendor_description,
-      vendor_annotation,
-      is_active,
-      update_at
-    FROM vendor
-    WHERE ${whereClauses.join(' AND ')}
-    ORDER BY vendor_id
-  `;
-  
-  const result = await pool.query(query, values);
-  return result.rows;
+
+  return await pgp.any<VendorMaster>(sqlQuery, values);
 };
