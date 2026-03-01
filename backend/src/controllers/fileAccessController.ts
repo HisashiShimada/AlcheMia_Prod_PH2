@@ -408,6 +408,68 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
 
 
 /**
+ * ファイルテキスト内容プロキシ取得エンドポイント
+ * POST /api/v1/files/content-as-text
+ *
+ * ファイルキーを指定してバックエンドがストレージから直接取得し、
+ * テキスト文字列としてレスポンスする（署名付きURL経由のfetchを不要にする）
+ */
+export async function getFileContentAsText(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId } = req.user!;
+    const { fileKey } = req.body;
+
+    const repository = new FileMetadataRepository();
+    const accessValidator = new ProjectAccessValidator();
+    const service = new FileAccessService(repository, accessValidator);
+
+    const result = await service.streamFileByKey(organizationId, fileKey);
+
+    const text = result.buffer.toString('utf-8');
+
+    res.status(200).json({
+      success: true,
+      data: { content: text },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error: any) {
+    logError('File content as text error', error, {
+      action: 'file_content_as_text',
+      organizationId: req.user?.organizationId,
+      fileKey: req.body?.fileKey,
+      requestId,
+    });
+
+    let statusCode = 500;
+    let errorCode = 'SYSTEM_ERROR';
+    let errorMessage = 'システムエラーが発生しました';
+
+    if (error.message) {
+      if (error.message.includes('見つかりません') || error.message.includes('存在しません')) {
+        statusCode = 404;
+        errorCode = 'RESOURCE_NOT_FOUND';
+        errorMessage = error.message;
+      } else if (error.message.includes('パストラバーサル') || error.message.includes('不正な')) {
+        statusCode = 400;
+        errorCode = 'VALIDATION_ERROR';
+        errorMessage = error.message;
+      }
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: { code: errorCode, message: errorMessage },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
  * ファイル表示用署名付きURL取得エンドポイント
  * POST /api/v1/files/view-url
  *
