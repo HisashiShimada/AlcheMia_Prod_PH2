@@ -7,10 +7,14 @@
  */
 
 import { TemplateDataRepository, TemplateDataRecord, TemplateDataRow, PropertySet } from '../repositories/templateDataRepository';
+import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { getStorageService } from './storageService';
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
+import { getUseDeemedProgress } from '../repositories/organizationRepository';
+import { TransitionStatusEnum } from '../types/transitionData';
+import { logger } from '../utils/logger';
 
 /**
  * プロジェクト編集不可エラー
@@ -123,6 +127,19 @@ export class ExperimentDataService {
         );
         savedRecords.push(savedRecord);
       }
+
+      // 4. みなし進捗の更新（use_deemed_progress = true の組織のみ）
+      await updateDeemedProgress(
+        organizationId,
+        projectId,
+        projectName,
+        methodId,
+        taskNo,
+        savedRecords,
+        recordedBy,
+        pool,
+        client
+      );
 
       // トランザクションコミット
       await client.query('COMMIT');
@@ -405,6 +422,195 @@ function buildFallbackTemplates(
   }
 
   return fallbackTemplates;
+}
+
+/**
+ * みなし進捗の更新処理
+ *
+ * @description
+ * template_data の UPSERT 完了後に呼び出す。
+ * 自組織の use_deemed_progress フラグが true の場合のみ動作する。
+ * 保存されたプレースIDからMAIMLのアーク情報を用いてトランジションIDを解決し、
+ * transition_data の status / progress_rate を自動更新する。
+ *
+ * ステータス決定ルール（バリデーションなし）:
+ *   - 実績登録済み数 === 0         → スキップ（変更なし）
+ *   - 実績登録済み数 < 総プレース数 → IN_PROGRESS (3)
+ *   - 実績登録済み数 === 総プレース数 → COMPLETED (5)
+ *
+ * @param organizationId - 組織ID
+ * @param projectId - プロジェクトID
+ * @param projectName - プロジェクト名（MAIMLパス解決用）
+ * @param methodId - メソッドID
+ * @param taskNo - タスク番号
+ * @param savedRecords - UPSERTで保存されたtemplate_dataレコード
+ * @param updatedBy - 更新者ユーザーID
+ * @param pool - データベース接続プール
+ * @param client - トランザクション用PoolClient
+ */
+async function updateDeemedProgress(
+  organizationId: string,
+  projectId: string,
+  projectName: string,
+  methodId: string,
+  taskNo: number,
+  savedRecords: TemplateDataRow[],
+  updatedBy: string,
+  pool: import('pg').Pool,
+  client: import('pg').PoolClient
+): Promise<void> {
+  // 1. みなし進捗フラグを確認
+  let useDeemedProgress: boolean;
+  try {
+    useDeemedProgress = await getUseDeemedProgress(pool, organizationId);
+  } catch (err) {
+    logger.warn('[ExperimentDataService] みなし進捗フラグ取得失敗。スキップします。', { organizationId, err });
+    return;
+  }
+
+  if (!useDeemedProgress) {
+    return;
+  }
+
+  // 2. MAIMLをダウンロード＆パース
+  let parser: MaimlParserTyped;
+  try {
+    const storageService = getStorageService();
+    const maimlPath = `projects/${projectName}/${projectName}.maiml`;
+    const maimlBuffer = await storageService.downloadFile(organizationId, maimlPath);
+    parser = new MaimlParserTyped(maimlBuffer.toString('utf-8'));
+  } catch (err) {
+    logger.warn('[ExperimentDataService] MAIMLダウンロード/パース失敗。みなし進捗をスキップします。', { organizationId, projectName, err });
+    return;
+  }
+
+  // 3. 対象メソッドのアーク情報を取得
+  const methods = parser.getMethods();
+  const targetMethod = methods.find(m => m.id === methodId);
+  if (!targetMethod) {
+    logger.warn('[ExperimentDataService] みなし進捗: メソッドが見つかりません。スキップします。', { methodId });
+    return;
+  }
+  const pnmlArcs = targetMethod.pnml.arcs || [];
+
+  // 4. 保存されたplaceIdのユニーク一覧を取得
+  const savedPlaceIds = [...new Set(savedRecords.map(r => r.place_id))];
+
+  // 5. placeId → transitionId のマッピングを構築（アーク経由）
+  //    また transitionId → 接続全placeIds のマッピングも同時構築
+  const transitionToAllPlaceIds = new Map<string, Set<string>>();
+
+  for (const arc of pnmlArcs) {
+    const source = arc.source || '';
+    const target = arc.target || '';
+    if (!source || !target) continue;
+
+    // アークのsourceがtransition、targetがplaceの場合
+    // アークのtargetがtransition、sourceがplaceの場合
+    // transition_data のトランジションIDはpnmlのtransitionsから特定する
+    const pnmlTransitions = targetMethod.pnml.transitions || [];
+    const pnmlPlaces = targetMethod.pnml.places || [];
+
+    const sourceIsTransition = pnmlTransitions.some(t => t.id === source);
+    const targetIsTransition = pnmlTransitions.some(t => t.id === target);
+    const sourceIsPlace = pnmlPlaces.some(p => p.id === source);
+    const targetIsPlace = pnmlPlaces.some(p => p.id === target);
+
+    let transitionId: string | null = null;
+    let placeId: string | null = null;
+
+    if (sourceIsTransition && targetIsPlace) {
+      transitionId = source;
+      placeId = target;
+    } else if (targetIsTransition && sourceIsPlace) {
+      transitionId = target;
+      placeId = source;
+    }
+
+    if (transitionId && placeId) {
+      if (!transitionToAllPlaceIds.has(transitionId)) {
+        transitionToAllPlaceIds.set(transitionId, new Set());
+      }
+      transitionToAllPlaceIds.get(transitionId)!.add(placeId);
+    }
+  }
+
+  // 6. 今回保存されたplaceIdが属するtransitionIdを特定
+  const affectedTransitionIds = new Set<string>();
+  for (const placeId of savedPlaceIds) {
+    for (const [transitionId, placeIds] of transitionToAllPlaceIds.entries()) {
+      if (placeIds.has(placeId)) {
+        affectedTransitionIds.add(transitionId);
+      }
+    }
+  }
+
+  if (affectedTransitionIds.size === 0) {
+    logger.warn('[ExperimentDataService] みなし進捗: 保存placeIdに対応するtransitionが見つかりません。', { savedPlaceIds });
+    return;
+  }
+
+  // 7. 各transitionIdについてstatus/progress_rateを算出し更新
+  const transitionRepo = new TransitionDataRepository();
+
+  for (const transitionId of affectedTransitionIds) {
+    const allPlaceIds = transitionToAllPlaceIds.get(transitionId);
+    if (!allPlaceIds || allPlaceIds.size === 0) continue;
+
+    const totalCount = allPlaceIds.size;
+    const allPlaceIdsArray = [...allPlaceIds];
+
+    // 実績登録済みplaceIdをDBからカウント（template_dataに実績があるもの）
+    let registeredCount = 0;
+    try {
+      const countSql = await loadSqlFile('template_data/countActualByPlaceIds.sql');
+      const countRows = await client.query<{ template_type: string; count: string }>(
+        countSql,
+        [organizationId, projectId, methodId, taskNo, allPlaceIdsArray]
+      );
+      // templateType関係なく全件合算
+      registeredCount = countRows.rows.reduce((sum, row) => sum + Number(row.count), 0);
+    } catch (err) {
+      logger.error('[ExperimentDataService] みなし進捗: 実績数カウント失敗。スキップします。', { transitionId, err });
+      continue;
+    }
+
+    // 実績0件はスキップ
+    if (registeredCount === 0) {
+      continue;
+    }
+
+    // status / progress_rate を決定
+    const newStatus = registeredCount >= totalCount
+      ? TransitionStatusEnum.COMPLETED
+      : TransitionStatusEnum.IN_PROGRESS;
+    const newProgressRate = Math.min(100, Math.round(registeredCount / totalCount * 100));
+
+    // transition_data を更新
+    try {
+      await transitionRepo.updateStatusDeemed(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        transitionId,
+        newStatus,
+        newProgressRate,
+        updatedBy,
+        client
+      );
+      logger.info('[ExperimentDataService] みなし進捗: transition_data を更新しました。', {
+        transitionId,
+        newStatus,
+        newProgressRate,
+        registeredCount,
+        totalCount,
+      });
+    } catch (err) {
+      logger.error('[ExperimentDataService] みなし進捗: transition_data 更新失敗。スキップします。', { transitionId, err });
+      // 1件の更新失敗はスキップ（トランザクション全体はロールバックしない）
+    }
+  }
 }
 
 /**

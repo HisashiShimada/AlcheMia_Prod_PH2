@@ -109,6 +109,32 @@ export default function ExperimentRecordTab({
   // prop から受け取った数値ステータスを ProjectStatus 型に変換
   const projectStatus: ProjectStatus | null = mapNumericStatusToProjectStatus(selectedProjectStatus);
 
+  /**
+   * APIレスポンスの数値トランジションステータスをフロントエンドの ProgressStatus 文字列に変換
+   *
+   * バックエンド TransitionStatusEnum との対応:
+   *   0: INITIAL     → 'not_started'
+   *   1: PREPARING   → 'in_progress'
+   *   2: READY       → 'in_progress'
+   *   3: IN_PROGRESS → 'in_progress'
+   *   4: PAUSED      → 'on_hold'
+   *   5: COMPLETED   → 'completed'
+   *   6: ERROR       → 'issue'
+   */
+  const mapTransitionStatusToProgressStatus = (status: unknown): ProgressStatus => {
+    const num = Number(status);
+    switch (num) {
+      case 0:  return 'not_started';
+      case 1:  return 'in_progress';
+      case 2:  return 'in_progress';
+      case 3:  return 'in_progress';
+      case 4:  return 'on_hold';
+      case 5:  return 'completed';
+      case 6:  return 'issue';
+      default: return 'not_started';
+    }
+  };
+
   // プロジェクト選択時にAPI呼び出し
   useEffect(() => {
     const fetchWorkerTasks = async () => {
@@ -441,7 +467,7 @@ export default function ExperimentRecordTab({
     return progressData.map(progress => ({
       transitionId: progress.transition_id as string,
       transitionName: (progress.transition_name as string) ?? '',
-      status: ((progress.status as string) || 'not_started') as ProgressStatus,
+      status: mapTransitionStatusToProgressStatus(progress.status),
       progressRate: (progress.progress as number) ?? 0,
       inputMaterialsCount: (progress.material_actual_count as number) ?? 0,
       totalMaterialsCount: (progress.material_count as number) ?? 0,

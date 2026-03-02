@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-27
-- **バージョン**: 3.2.0
-- **最終更新**: 2026-02-27
+- **バージョン**: 3.3.0
+- **最終更新**: 2026-03-02
 - **担当**: Development Team
 - **実装状況**: ⏳ 未実装
 
@@ -90,7 +90,6 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
           { "key": "pressure",    "xsiType": "floatType", "value": 1013,  "units": "hPa" }
         ]
       },
-      "status": "completed",
       "comment": "材料データ記録完了"
     },
     {
@@ -102,7 +101,6 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
           { "key": "humidity", "xsiType": "floatType", "value": 60, "units": "%" }
         ]
       },
-      "status": "running",
       "comment": "条件データ記録中"
     }
   ]
@@ -124,7 +122,6 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 | data.templateId | string | ○ | テンプレートID | |
 | data.templateType | string | ○ | テンプレート種別 | material, condition, result |
 | data.properties | array | ○ | プロパティ配列 | `[{ key, xsiType, value, units }]` の形式 |
-| status | string | △ | ステータス | initial, preparing, ready, running, paused, completed, error |
 | comment | string | × | コメント | 最大2000文字 |
 
 > **注意**: `templateType`・`templateId` はトップレベルには含めず、`data` オブジェクト内に含めてください。
@@ -270,7 +267,21 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
    - dataフィールドにJSONB形式で保存
    - recorded_byに現在のユーザーIDを設定
 
-5. **トランザクション保証（All or Nothing）**
+5. **みなし進捗の自動更新**（自組織の `use_deemed_progress = true` の場合のみ）
+   - MAIMLファイルをダウンロード＆パースしてアーク情報を取得
+   - 保存されたプレースIDからアーク経由でトランジションIDを解決
+   - 各トランジションについて以下を実行:
+     - そのトランジションに接続された全プレース数（MAIML由来）を総数とする
+     - `template_data` テーブルから実績登録済みプレース数をカウント
+     - ステータスを決定:
+       - 実績0件 → 更新しない
+       - 実績1件以上かつ全件未満 → `IN_PROGRESS` (3)
+       - 全件登録済み → `COMPLETED` (5)
+     - 進捗率を計算: `Math.round(実績登録済み数 / 総数 × 100)`
+     - `transition_data` テーブルの status / progress_rate を更新（状態遷移バリデーションなし）
+   - MAIMLファイルが存在しない等のエラー時はスキップ（メイン処理には影響しない）
+
+6. **トランザクション保証（All or Nothing）**
    - すべてのINSERT/UPDATEを1トランザクションで実行
    - 1件でも失敗したら全体をロールバック
    - すべて成功した場合のみコミット
@@ -289,7 +300,6 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 - [ ] data.templateId は必須（文字列、1〜255文字）
 - [ ] data.templateType は "material", "condition", "result" のいずれか（必須）
 - [ ] data.properties は配列形式（必須）
-- [ ] status は許可された値のいずれか（指定時）
 - [ ] comment は2000文字以内（指定時）
 
 #### 関連性チェック
@@ -915,6 +925,12 @@ backend/tests/controllers/experimentDataController.test.ts
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 3.3.0 | 2026-03-02 | 実験データ一括保存API みなし進捗対応 | Cline |
+| | | - ビジネスロジック #5 にみなし進捗自動更新仕様を追加 | |
+| | | - `use_deemed_progress = true` の組織でデータ保存時に `transition_data` を自動更新 | |
+| | | - 実績1件以上: IN_PROGRESS (3)、全件完了: COMPLETED (5) | |
+| | | - progress_rate = Math.round(実績登録済み数 / 総プレース数 × 100) | |
+| | | - 状態遷移バリデーションなし、MAIMLエラー時はスキップ | |
 | 3.2.0 | 2026-02-27 | テンプレート実績一覧取得API 0件時フォールバック仕様追加 | Cline |
 | | | - フィルタリング後にデータ0件の場合、空配列ではなくMAIMLテンプレート定義からレスポンスを生成 | |
 | | | - 処理フローにStep 10〜12を追加（件数確認・フォールバック処理） | |
