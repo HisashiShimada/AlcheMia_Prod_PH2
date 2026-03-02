@@ -27,6 +27,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { formatDateTime } from '@/utils/dateFormatter';
 import { getDepartmentConfig } from '@/types/departmentTypes';
+import { getMenuPermission } from '@/utils/menuPermissions';
 import {
   fetchMasters,
   createMaster,
@@ -55,6 +56,9 @@ interface DepartmentRecord {
 export default function DepartmentManagement() {
   const { modal, message } = App.useApp();
   const { token } = theme.useToken();
+
+  // 権限制御: system_admin メニュー（機能CD: 020000）の permission が 0 の場合は読取専用
+  const isReadOnly = getMenuPermission('system_admin') === 0;
 
   // State管理
   const [departments, setDepartments] = useState<DepartmentRecord[]>([]);
@@ -162,7 +166,7 @@ export default function DepartmentManagement() {
         fixed: 'right',
         render: (_, record) => (
           <Flex gap="small" justify="end">
-            <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} disabled={isReadOnly}>
               編集
             </Button>
             <Button
@@ -170,6 +174,7 @@ export default function DepartmentManagement() {
               onClick={() => handleToggleActive(record)}
               danger={record.isActive !== false}
               style={{ minWidth: '80px' }}
+              disabled={isReadOnly}
             >
               {record.isActive !== false ? '非アクティブ' : 'アクティブ'}
             </Button>
@@ -402,7 +407,7 @@ export default function DepartmentManagement() {
         }}
       >
         <Flex gap="small">
-          <Button icon={<UploadOutlined />} onClick={handleUpload}>
+          <Button icon={<UploadOutlined />} onClick={handleUpload} disabled={isReadOnly}>
             CSV
             <br />
             アップロード
@@ -412,18 +417,18 @@ export default function DepartmentManagement() {
             <br />
             ダウンロード
           </Button>
-          <Button icon={<PlusOutlined />} onClick={handleAdd}>
+          <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={isReadOnly}>
             追加
           </Button>
           <Button
             icon={<DeleteOutlined />}
             onClick={handleActivate}
-            disabled={selectedRowKeys.length === 0}
+            disabled={isReadOnly || selectedRowKeys.length === 0}
             style={{
               minWidth: 85,
-              backgroundColor: selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
-              borderColor: selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
-              color: selectedRowKeys.length > 0 ? token.colorWhite : undefined,
+              backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
+              borderColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
+              color: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWhite : undefined,
             }}
           >
             アクティブ
@@ -432,12 +437,12 @@ export default function DepartmentManagement() {
             danger
             icon={<DeleteOutlined />}
             onClick={handleDeactivate}
-            disabled={selectedRowKeys.length === 0}
+            disabled={isReadOnly || selectedRowKeys.length === 0}
             style={{
               minWidth: 85,
-              backgroundColor: selectedRowKeys.length > 0 ? token.colorWarning : undefined,
-              borderColor: selectedRowKeys.length > 0 ? token.colorWarning : undefined,
-              color: selectedRowKeys.length > 0 ? token.colorWhite : undefined,
+              backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWarning : undefined,
+              borderColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWarning : undefined,
+              color: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWhite : undefined,
             }}
           >
             非アクティブ

@@ -41,6 +41,7 @@ import {
 } from '@/services/userApiService';
 import { fetchMasters as fetchDepartments } from '@/services/departmentApiService';
 import { fetchMasters as fetchRoles } from '@/services/roleApiService';
+import { getMenuPermission } from '@/utils/menuPermissions';
 
 const { Text } = Typography;
 
@@ -49,6 +50,10 @@ const { Text } = Typography;
  */
 export default function UserManagement() {
   const { message, modal } = App.useApp();
+
+  // 権限制御: system_admin メニュー（機能CD: 020000）の permission が 0 の場合は読取専用
+  const isReadOnly = getMenuPermission('system_admin') === 0;
+
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -282,7 +287,7 @@ export default function UserManagement() {
           <Button
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
-            disabled={loading}
+            disabled={isReadOnly || loading}
           >
             編集
           </Button>
@@ -290,7 +295,7 @@ export default function UserManagement() {
             onClick={() => handleToggleActive(String(record.userId))}
             danger={record.isActive}
             style={{ width: '100px' }}
-            disabled={loading}
+            disabled={isReadOnly || loading}
           >
             {record.isActive ? '非アクティブ' : 'アクティブ'}
           </Button>
@@ -513,24 +518,24 @@ export default function UserManagement() {
         marginBottom: 16,
         gap: 8,
       }}>
-        <Button icon={<UploadOutlined />} onClick={handleUpload} disabled={loading}>
+        <Button icon={<UploadOutlined />} onClick={handleUpload} disabled={isReadOnly || loading}>
           CSV<br />アップロード
         </Button>
         <Button icon={<DownloadOutlined />} onClick={handleDownload} disabled={loading}>
           CSV<br />ダウンロード
         </Button>
-        <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={loading}>
+        <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={isReadOnly || loading}>
           追加
         </Button>
         <Button
           icon={<DeleteOutlined />}
           onClick={handleActivate}
-          disabled={selectedRowKeys.length === 0 || loading}
+          disabled={isReadOnly || selectedRowKeys.length === 0 || loading}
           style={{
             minWidth: 85,
-            backgroundColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
-            borderColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
-            color: selectedRowKeys.length > 0 ? '#fff' : undefined,
+            backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
+            borderColor: !isReadOnly && selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
+            color: !isReadOnly && selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
           アクティブ
@@ -539,12 +544,12 @@ export default function UserManagement() {
           danger
           icon={<DeleteOutlined />}
           onClick={handleDeactivate}
-          disabled={selectedRowKeys.length === 0 || loading}
+          disabled={isReadOnly || selectedRowKeys.length === 0 || loading}
           style={{
             minWidth: 110,
-            backgroundColor: selectedRowKeys.length > 0 && !loading ? '#FFA500' : undefined,
-            borderColor: selectedRowKeys.length > 0 && !loading ? '#FFA500' : undefined,
-            color: selectedRowKeys.length > 0 && !loading ? '#fff' : undefined,
+            backgroundColor: !isReadOnly && selectedRowKeys.length > 0 && !loading ? '#FFA500' : undefined,
+            borderColor: !isReadOnly && selectedRowKeys.length > 0 && !loading ? '#FFA500' : undefined,
+            color: !isReadOnly && selectedRowKeys.length > 0 && !loading ? '#fff' : undefined,
           }}
         >
           非アクティブ

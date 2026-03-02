@@ -15,7 +15,7 @@ import type {
   Transition,
   Arc,
   Place,
-  Method
+  Method,
 } from '@/types/maiml-unified';
 import { MaimlParserTyped } from './maimlParserTyped';
 
@@ -36,14 +36,6 @@ export interface PetriNetData {
 interface ReactFlowFormat {
   nodes: Node<NodeData>[];
   edges: Edge<EdgeData>[];
-}
-
-/**
- * フレーム枠線生成結果の型定義
- */
-interface FrameNodesResult {
-  frameNodes: Node<NodeData>[];
-  adjustedNodes: Node<NodeData>[];
 }
 
 /**
@@ -258,20 +250,16 @@ export const convertToReactFlowFormat = (
     
     const allNodes = [...placeNodes, ...transitionNodes];
     
-    // 複数PNML要素対応：フレーム枠線レンダリング
-    const { frameNodes, adjustedNodes } = createPnmlGroupFrames(allNodes, petriNetData);
-    
     console.log('✅ [reactFlowConverter] React Flow形式変換完了:', {
-      totalNodes: adjustedNodes.length,
+      totalNodes: allNodes.length,
       placeNodes: placeNodes.length,
       transitionNodes: transitionNodes.length,
       edges: edges.length,
-      frameNodes: frameNodes.length,
       placesWithTemplateRef: placeNodes.filter(n => n.data.templateRef).length
     });
     
     return {
-      nodes: [...frameNodes, ...adjustedNodes],
+      nodes: allNodes,
       edges: edges
     };
     
@@ -592,138 +580,3 @@ const calculateSimpleLayout = (
   return nodePositions;
 };
 
-/**
- * 複数PNML要素対応: PNMLグループのフレーム枠線を生成
- */
-const createPnmlGroupFrames = (
-  nodes: Node<NodeData>[],
-  petriNetData: PetriNetData
-): FrameNodesResult => {
-  try {
-    console.log('🎯 [createPnmlGroupFrames] フレーム枠線生成開始:', {
-      nodeCount: nodes.length,
-    });
-    
-    // pnmlMetadataが存在しない、または単一PNMLの場合はフレームなし
-    if (petriNetData.methods.length <= 1) {
-      console.log('ℹ️ [createPnmlGroupFrames] 単一PNMLまたはメタデータなし、フレーム不要');
-      return { frameNodes: [], adjustedNodes: nodes };
-    }
-    
-    const frameNodes: Node<NodeData>[] = [];
-    const adjustedNodes: Node<NodeData>[] = [];
-    const framePadding = 15;
-    const labelHeight = 30;
-    const frameMargin = 150;
-    
-    let currentYOffset = 0;
-    
-    // 各PNMLメタデータからフレームを生成
-    petriNetData.methods.forEach((method: Method) => {
-      const pnmlMeta = method.pnml;
-      const pnmlId = pnmlMeta.id;
-      const description = pnmlMeta.description || pnmlMeta.name || pnmlId;
-      
-      // このpnmlIdに属するノードを取得
-      const groupNodes = nodes.filter(node => node.data.pnmlId === pnmlId);
-      
-      if (groupNodes.length === 0) {
-        console.warn(`⚠️ [createPnmlGroupFrames] PNML ${pnmlId} に属するノードなし`);
-        return;
-      }
-      
-      // グループの境界を計算
-      const nodeWidth = 80;
-      const nodeHeight = 80;
-      
-      const originalMinX = Math.min(...groupNodes.map(node => node.position.x));
-      const originalMinY = Math.min(...groupNodes.map(node => node.position.y));
-      const originalMaxX = Math.max(...groupNodes.map(node => node.position.x));
-      const originalMaxY = Math.max(...groupNodes.map(node => node.position.y));
-      
-      const actualHeight = originalMaxY - originalMinY;
-      const minHeightBasedOnNodes = (groupNodes.length - 1) * 100 + nodeHeight;
-      const effectiveHeight = Math.min(actualHeight, minHeightBasedOnNodes);
-      
-      const normalizedWidth = originalMaxX - originalMinX + nodeWidth + (framePadding * 2);
-      const normalizedHeight = effectiveHeight + nodeHeight + labelHeight + (framePadding * 2);
-      
-      const frameWidth = normalizedWidth;
-      const frameHeight = normalizedHeight;
-      
-      // 親ノード（フレーム）を作成
-      const frameId = `pnml-frame-${pnmlId}`;
-      frameNodes.push({
-        id: frameId,
-        type: 'pnmlGroup',
-        position: { x: originalMinX - framePadding, y: currentYOffset },
-        style: {
-          width: frameWidth,
-          height: frameHeight,
-          border: 'none',
-          background: 'transparent',
-        },
-        data: {
-          id: frameId,
-          name: description,
-          description: description,
-          nodeType: 'place',
-          placeType : 'place',
-          pnmlId: pnmlId
-        },
-        draggable: true,
-        selectable: false,
-      });
-      
-      // グループ内のノードに親ノード指定
-      groupNodes.forEach(node => {
-        adjustedNodes.push({
-          ...node,
-          parentNode: frameId,
-          extent: 'parent' as const,
-          position: {
-            x: node.position.x - originalMinX + framePadding,
-            y: node.position.y - originalMinY + labelHeight + framePadding
-          }
-        });
-      });
-      
-      console.log(`📦 [createPnmlGroupFrames] フレーム作成: ${description}`, {
-        pnmlId,
-        nodeCount: groupNodes.length,
-        frameWidth,
-        frameHeight,
-        originalBounds: { 
-          minY: originalMinY, 
-          maxY: originalMaxY, 
-          actualHeight: originalMaxY - originalMinY,
-          minHeightBasedOnNodes,
-          effectiveHeight
-        },
-        position: { x: originalMinX - framePadding, y: currentYOffset },
-        yOffset: currentYOffset
-      });
-      
-      // 次のグループのY座標オフセットを更新
-      currentYOffset += frameHeight + frameMargin;
-    });
-    
-    // pnmlIdを持たないノードをそのまま追加
-    const nodesWithoutPnmlId = nodes.filter(node => !node.data.pnmlId);
-    if (nodesWithoutPnmlId.length > 0) {
-      console.log(`📦 [createPnmlGroupFrames] pnmlIdなしノードを追加: ${nodesWithoutPnmlId.length}個`);
-      adjustedNodes.push(...nodesWithoutPnmlId);
-    }
-    
-    console.log(`✅ [createPnmlGroupFrames] フレーム生成完了:`, {
-      frameCount: frameNodes.length,
-      adjustedNodeCount: adjustedNodes.length
-    });
-    
-    return { frameNodes, adjustedNodes };
-    
-  } catch (error) {
-    console.error('❌ [createPnmlGroupFrames] フレーム生成エラー:', error);
-    return { frameNodes: [], adjustedNodes: nodes };
-  }
-};
