@@ -345,20 +345,41 @@ export default function DataRecordDialog({
               setFetchedTemplates(converted);
 
               // ② 取得した実績データをフォームフィールドに反映（既存値の復元）
-              const initialValues: Record<string, unknown> = {};
-              for (const item of response.data.templates) {
-                if (item.recordedBy !== null) {
-                  // DB実績データ（recordedBy !== null）:
-                  // フラットなkey-value形式でフォームに反映
-                  for (const [fieldKey, fieldValue] of Object.entries(item.data)) {
-                    const formKey = `${item.templateId}_${fieldKey}`;
-                    initialValues[formKey] = fieldValue;
+                  const initialValues: Record<string, unknown> = {};
+                  for (const item of response.data.templates) {
+                    if (item.recordedBy !== null) {
+                      // DB実績データ（recordedBy !== null）:
+                      // フラットなkey-value形式でフォームに反映
+                      for (const [fieldKey, fieldValue] of Object.entries(item.data)) {
+                        const formKey = `${item.templateId}_${fieldKey}`;
+                        initialValues[formKey] = fieldValue;
+                      }
+                    } else {
+                      // フォールバックデータ（recordedBy === null）:
+                      // data は { templateId, templateType, properties: [{ key, xsiType, value, units }] } 形式。
+                      // value が non-null の場合はフォームにデフォルト値として反映する
+                      const rawData = item.data as Record<string, unknown>;
+                      const rawProperties = rawData.properties as Array<{
+                        key: string;
+                        xsiType: string;
+                        value: unknown;
+                        units: string | null;
+                      }> | undefined;
+                      if (rawProperties) {
+                        for (const p of rawProperties) {
+                          if (p.value !== null && p.value !== undefined) {
+                            const formKey = `${item.templateId}_${p.key}`;
+                            // dateType / dateTimeType は dayjs に変換（DatePicker が dayjs オブジェクトを期待するため）
+                            if (p.xsiType === 'dateType' || p.xsiType === 'dateTimeType') {
+                              initialValues[formKey] = dayjs(String(p.value));
+                            } else {
+                              initialValues[formKey] = p.value;
+                            }
+                          }
+                        }
+                      }
+                    }
                   }
-                }
-                // フォールバックデータ（recordedBy === null）:
-                // data は { templateId, templateType, properties: [{ key, xsiType, value: null, units }] } 形式。
-                // value がすべて null のためフォームへの反映をスキップし、空の状態で開く。
-              }
               if (Object.keys(initialValues).length > 0) {
                 form.setFieldsValue(initialValues);
               }

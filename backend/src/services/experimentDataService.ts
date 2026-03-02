@@ -364,11 +364,11 @@ function buildFallbackTemplates(
     for (const template of templateArray) {
       if (!template.placeRefs || template.placeRefs.length === 0) continue;
 
-      // このテンプレートのプロパティ定義を構築（value は null で初期化）
+      // このテンプレートのプロパティ定義を構築（MAIMLのvalue要素から値を取得）
       const properties = (template.properties || []).map(p => ({
         key: p.key || '',
         xsiType: p.xsiType || 'stringType',
-        value: null,
+        value: p.value ?? null,
         units: p.units || null,
       }));
 
