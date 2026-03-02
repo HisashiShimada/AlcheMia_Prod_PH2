@@ -48,6 +48,8 @@ interface ExperimentRecordTabProps {
   selectedMethod: Method | null;
   /** 選択中プロジェクトのステータス（数値）: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了 */
   selectedProjectStatus: number | null;
+  /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
+  useDeemedProgress?: boolean;
 }
 
 /**
@@ -64,6 +66,7 @@ export default function ExperimentRecordTab({
   onTaskCreated,
   selectedMethod,
   selectedProjectStatus,
+  useDeemedProgress = true,
 }: ExperimentRecordTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
@@ -594,6 +597,7 @@ export default function ExperimentRecordTab({
                     methodId={selectedMethodId || undefined}
                     projectName={selectedProjectName}
                     onDataSaveComplete={fetchProgress}
+                    useDeemedProgress={useDeemedProgress}
                   />
                 </div>
               </div>
@@ -644,6 +648,7 @@ export default function ExperimentRecordTab({
         projectName={selectedProjectName || undefined}
         methodId={selectedMethodId || undefined}
         taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
+        useDeemedProgress={useDeemedProgress}
       />
 
       {/* 問題報告モーダル */}

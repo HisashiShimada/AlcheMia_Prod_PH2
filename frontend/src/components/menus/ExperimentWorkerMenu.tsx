@@ -253,6 +253,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   // 選択中プロジェクトのステータス（数値）を取得
   // worker-accessible APIのレスポンスから直接参照することで、不要なAPIコールを排除
   const selectedProjectStatus = projects.find(p => p.projectId === selectedProject)?.projectStatus ?? null;
+  const selectedProjectUseDeemedProgress = projects.find(p => p.projectId === selectedProject)?.useDeemedProgress ?? true;
 
   const handleTabChange = (key: string) => {
     setCurrentTab(key);
@@ -325,6 +326,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
           onTaskCreated={handleTaskCreated}
           selectedMethod={selectedMethod}
           selectedProjectStatus={selectedProjectStatus}
+          useDeemedProgress={selectedProjectUseDeemedProgress}
         />
       ),
     },

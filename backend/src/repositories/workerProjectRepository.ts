@@ -19,6 +19,7 @@ export interface WorkerAccessibleProjectRow {
   project_name: string;
   description: string | null;
   project_status: number;
+  use_deemed_progress: boolean; // みなし進捗使用フラグ（organization.use_deemed_progress）
   create_at: Date;
   update_at: Date;
 }

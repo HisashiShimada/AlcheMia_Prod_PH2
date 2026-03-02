@@ -178,6 +178,8 @@ interface DataRecordDialogProps {
   projectName?: string;
   methodId?: string;
   taskNo?: number;
+  /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
+  useDeemedProgress?: boolean;
 }
 
 /**
@@ -194,6 +196,7 @@ export default function DataRecordDialog({
   projectName,
   methodId,
   taskNo,
+  useDeemedProgress: useDeemedProgressProp = true,
 }: DataRecordDialogProps) {
   const { token } = theme.useToken();
   const [form] = Form.useForm();
@@ -257,7 +260,8 @@ export default function DataRecordDialog({
   const [progress, setProgress] = useState<number>(0);
   
   // みなし進捗更新用の状態
-  const [useDeemedProgress, setUseDeemedProgress] = useState(true);
+  // useDeemedProgressProp が false の場合は初期値を false にして常にステータス更新を表示
+  const [useDeemedProgress, setUseDeemedProgress] = useState(useDeemedProgressProp);
 
   /**
    * 現在のステータスから遷移可能なステータスの選択肢（useMemo でメモ化）
@@ -362,6 +366,8 @@ export default function DataRecordDialog({
       setComment('');
       setProgress(0);
       setSelectedTemplateId(null);
+      // prop の最新値を state に同期（useState の初期値はマウント時のみ評価されるため毎回同期が必要）
+      setUseDeemedProgress(useDeemedProgressProp);
       setFetchedTemplates([]);     // ダイアログオープン時に前回取得分をリセット
       setFetchedTemplateItems([]); // GETレスポンス生データもリセット
 
@@ -456,7 +462,7 @@ export default function DataRecordDialog({
         })();
       }
     }
-  }, [open, transition, form, isProjectEditable, projectName, methodId, taskNo]);
+  }, [open, transition, form, isProjectEditable, projectName, methodId, taskNo, useDeemedProgressProp]);
 
   // テンプレート保存ハンドラ
   const handleSaveTemplate = async () => {
@@ -1028,12 +1034,17 @@ export default function DataRecordDialog({
       <div>
         {/* みなし進捗更新チェックボックスと作業指示ボタン */}
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Checkbox
-            checked={useDeemedProgress}
-            onChange={(e) => setUseDeemedProgress(e.target.checked)}
-          >
-            みなし進捗更新
-          </Checkbox>
+          {/* useDeemedProgressProp が false の場合はチェックボックスを非表示（組織設定で無効化） */}
+          {useDeemedProgressProp ? (
+            <Checkbox
+              checked={useDeemedProgress}
+              onChange={(e) => setUseDeemedProgress(e.target.checked)}
+            >
+              みなし進捗更新
+            </Checkbox>
+          ) : (
+            <span /> /* チェックボックス非表示時のスペーサー */
+          )}
           <Button
             icon={<InfoCircleOutlined />}
             onClick={() => setInstructionModalOpen(true)}
@@ -1042,8 +1053,10 @@ export default function DataRecordDialog({
           </Button>
         </div>
 
-        {/* ステータス更新セクション（みなし進捗更新OFF時のみ表示） */}
-        {!useDeemedProgress && (
+        {/* ステータス更新セクション
+            - useDeemedProgressProp が false の場合: 常時表示（組織設定でみなし進捗無効）
+            - useDeemedProgressProp が true の場合: チェックボックスOFF時のみ表示 */}
+        {(!useDeemedProgressProp || !useDeemedProgress) && (
           <div style={{ marginBottom: 24 }}>
             {/* タイトルセクション */}
             <div
