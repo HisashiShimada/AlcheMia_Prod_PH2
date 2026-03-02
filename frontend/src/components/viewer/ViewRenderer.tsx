@@ -19,7 +19,8 @@ import TiffViewer from './TiffViewer';
 import ImageViewer from './ImageViewer';
 import PetriNetViewer from './PetriNetViewer';
 import PetriNetEditorInner from '@/components/editorv2/PetriNetEditorInner';
-import { fetchMultipleMethodsStructureFromContent } from '@/utils/apiClient';
+import { MaimlParserTyped } from '@/utils/maimlParserTyped';
+import type { Method } from '@/types/maiml-unified';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -289,43 +290,51 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
       return;
     }
 
-    const checkMultipleMethods = async () => {
+    const checkMultipleMethods = () => {
       try {
         setLoadingMethods(true);
         console.log('🔍 [ViewRenderer] 複数メソッドチェック開始:', selectedFile.key);
-        
-        // Base64エンコード
-        const base64Content = btoa(unescape(encodeURIComponent(fileContent)));
-        
-        const response = await fetchMultipleMethodsStructureFromContent(base64Content);
-        
-        if (response && typeof response === 'object' && 'success' in response) {
-          const apiResponse = response as { 
-            success: boolean; 
-            data?: { methods?: MethodData[] }; 
-            error?: string;
-          };
-          
-          if (apiResponse.success && apiResponse.data?.methods && apiResponse.data.methods.length > 1) {
-            console.log('✅ [ViewRenderer] 複数メソッド検出:', apiResponse.data.methods.length);
-            setMethods(apiResponse.data.methods);
-            setIsMultiMethod(true);
-            setSelectedMethodIndex(0);
-            
-            // メッセージ表示（キーで重複防止）
-            message.success({
-              content: `${apiResponse.data.methods.length}個のメソッドを検出しました`,
-              key: 'multiple-methods-detected',
-              duration: 3
-            });
-          } else {
-            console.log('ℹ️ [ViewRenderer] 単一メソッドまたは非対応');
-            setMethods([]);
-            setIsMultiMethod(false);
-          }
+
+        const parser = new MaimlParserTyped(fileContent);
+        const parsedMethods: Method[] = parser.getMethods();
+
+        if (parsedMethods.length > 1) {
+          const methodDataList: MethodData[] = parsedMethods.map((m, index) => ({
+            methodId: m.id || `method_${index}`,
+            methodIndex: index,
+            name: m.name || m.id || `Method ${index + 1}`,
+            places: (m.pnml.places || []).map((p) => ({
+              id: p.id,
+              type: 'place',
+              description: p.name,
+            })),
+            transitions: (m.pnml.transitions || []).map((t) => ({
+              id: t.id,
+              description: t.name,
+            })),
+            arcs: (m.pnml.arcs || []).map((a) => ({
+              id: a.id,
+              source: a.source,
+              target: a.target,
+            })),
+          }));
+
+          console.log('✅ [ViewRenderer] 複数メソッド検出:', methodDataList.length);
+          setMethods(methodDataList);
+          setIsMultiMethod(true);
+          setSelectedMethodIndex(0);
+
+          message.success({
+            content: `${methodDataList.length}個のメソッドを検出しました`,
+            key: 'multiple-methods-detected',
+            duration: 3,
+          });
+        } else {
+          console.log('ℹ️ [ViewRenderer] 単一メソッド');
+          setMethods([]);
+          setIsMultiMethod(false);
         }
-        
-        // チェック済みフラグを設定
+
         setCheckedFileKey(selectedFile.key);
       } catch (error) {
         console.error('❌ [ViewRenderer] 複数メソッドチェックエラー:', error);
