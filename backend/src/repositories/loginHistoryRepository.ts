@@ -127,7 +127,7 @@ export async function recordLogin(
 ): Promise<void> {
   const query = `
     INSERT INTO login_history (
-      user_name,
+      user_id,
       organization_id,
       login_at,
       login_sf,

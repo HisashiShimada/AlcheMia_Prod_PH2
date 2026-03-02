@@ -72,6 +72,8 @@ export class AuthService {
         userId,
         organizationId
       );
+      console.log(userId, organizationId);
+      console.log(userResult);
 
       if (!userResult.success) {
         // ユーザー不存在 - ログイン履歴に記録
@@ -125,6 +127,8 @@ export class AuthService {
         password
       );
 
+      console.log(passwordResult);
+
       if (!passwordResult.success || !passwordResult.data) {
         await loginHistoryRepository.recordLogin(
           this.pool,
@@ -151,11 +155,14 @@ export class AuthService {
         user.organization_id
       );
 
+      console.log(exemptionCheck);
+
       if (exemptionCheck.success && exemptionCheck.data.isExempt) {
+        console.log(user.user_name, user.organization_id, ipAddress, userAgent);
         // 免除適用 - ログイン履歴を記録して直接トークン発行
         await loginHistoryRepository.recordLogin(
           this.pool,
-          user.user_name,
+          user.user_id,
           user.organization_id,
           true,
           null,

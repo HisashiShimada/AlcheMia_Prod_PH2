@@ -47,7 +47,6 @@ export class OrganizationUserRepository {
           ou.role_cd,
           ou.organization_id,
           ou.is_active,
-          ou.locked_until,
           ou.department_cd,
           o.corporation_id
         FROM organization_user ou

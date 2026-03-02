@@ -107,6 +107,7 @@ export class PasswordService {
          WHERE user_id = $1 AND organization_id = $2`,
         [userId, orgId]
       );
+      console.log(result);
 
       // ユーザーが存在しない場合
       if (result.rows.length === 0) {
