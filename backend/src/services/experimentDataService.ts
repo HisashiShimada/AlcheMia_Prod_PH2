@@ -268,27 +268,33 @@ export async function getTemplateData(
       adjacentPlaceIds.includes(r.place_id)
     );
 
-    // 8. 件数確認とフォールバック処理
-    let templates: TemplateDataItem[];
-    if (filteredRecords.length > 0) {
-      // 8-a. DB実績データを property_set から取り出してマッピング
-      templates = filteredRecords.map((r: TemplateDataRow) => {
-        const ps: PropertySet | null = r.property_set;
+    // 8. placeId ごとに DB実績 or フォールバックを選択
+    // （一部のみ保存済みの場合に、未保存のplaceIdがレスポンスから欠損しないようにするため）
+    const fallbackAll = buildFallbackTemplates(parser, methodId, adjacentPlaceIds);
+
+    const templates: TemplateDataItem[] = adjacentPlaceIds.map(placeId => {
+      // DBにそのplaceIdのレコードが存在するか確認
+      const dbRecord = filteredRecords.find((r: TemplateDataRow) => r.place_id === placeId);
+
+      if (dbRecord) {
+        // 8-a. DB実績データを property_set から取り出してマッピング
+        const ps: PropertySet | null = dbRecord.property_set;
         return {
-          placeId: r.place_id,
+          placeId: dbRecord.place_id,
           templateType: ps?.templateType ?? '',
           templateId: ps?.templateId ?? '',
           data: ps as unknown as Record<string, unknown> ?? {},
-          recordedBy: r.update_user_id ?? null,
-          recordedAt: r.update_at instanceof Date
-            ? r.update_at.toISOString()
-            : (r.update_at != null ? String(r.update_at) : null),
-        };
-      });
-    } else {
-      // 8-b. 0件フォールバック: MAIMLテンプレート定義から初期値を生成
-      templates = buildFallbackTemplates(parser, methodId, adjacentPlaceIds);
-    }
+          recordedBy: dbRecord.update_user_id ?? null,
+          recordedAt: dbRecord.update_at instanceof Date
+            ? dbRecord.update_at.toISOString()
+            : (dbRecord.update_at != null ? String(dbRecord.update_at) : null),
+        } as TemplateDataItem;
+      } else {
+        // 8-b. フォールバック: MAIMLテンプレート定義から初期値を使用
+        const fallback = fallbackAll.find(f => f.placeId === placeId);
+        return fallback ?? null;
+      }
+    }).filter((item): item is TemplateDataItem => item !== null);
 
     return {
       projectName,
