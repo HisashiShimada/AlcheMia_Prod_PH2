@@ -613,45 +613,6 @@ export async function updateFormatFile(
   }
 }
 
-/**
- * フォーマットファイルを削除
- * 
- * @param organizationId 組織ID
- * @param filePath ファイルパス（formats/{dept}/{folder}/{file}形式）
- * @returns 削除結果
- */
-export async function deleteFormatFile(
-  organizationId: string,
-  filePath: string
-): Promise<{
-  filePath: string;
-  deletedAt: string;
-}> {
-  const storageService = getStorageService();
-
-  try {
-    // 1. ファイルの存在確認
-    const exists = await storageService.fileExists(organizationId, filePath);
-    if (!exists) {
-      throw new Error('ファイルが見つかりません');
-    }
-
-    // 2. S3からファイルを削除
-    await storageService.deleteFile(organizationId, filePath);
-
-    console.log('[formatService] File delete success:', filePath);
-
-    // 3. レスポンスを返す
-    return {
-      filePath,
-      deletedAt: new Date().toISOString(),
-    };
-  } catch (error) {
-    console.error('[formatService] Failed to delete format file:', error);
-    throw error;
-  }
-}
-
 export const formatService = {
   getFormatFolders,
   getFormatFiles,
@@ -659,5 +620,4 @@ export const formatService = {
   createFormatSubfolder,
   createFormatFile,
   updateFormatFile,
-  deleteFormatFile,
 };

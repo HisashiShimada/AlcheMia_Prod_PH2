@@ -378,77 +378,6 @@ async function updateFormatFile(
   }
 }
 
-/**
- * フォーマットファイル削除
- * DELETE /api/v1/formats/files
- */
-async function deleteFormatFile(
-  req: Request,
-  res: Response,
-  _next: NextFunction
-): Promise<void> {
-  try {
-    const { filePath } = req.body;
-    const organizationId = req.user!.organizationId!;
-
-    console.log('[formatController] deleteFormatFile called:', {
-      organizationId,
-      filePath,
-    });
-
-    // バリデーション
-    if (!filePath || typeof filePath !== 'string') {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_FILE_PATH',
-          message: 'ファイルパスが不正です',
-        },
-      });
-      return;
-    }
-
-    // サービスを呼び出してファイルを削除
-    const result = await formatService.deleteFormatFile(
-      organizationId,
-      filePath
-    );
-
-    res.json({
-      success: true,
-      data: result,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: req.headers['x-request-id'] as string || 'unknown',
-      },
-    });
-  } catch (error) {
-    console.error('[formatController] deleteFormatFile error:', error);
-    
-    // エラーメッセージに応じてステータスコードを設定
-    const errorMessage = (error as Error).message;
-    let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
-
-    if (errorMessage.includes('見つかりません')) {
-      statusCode = 404;
-      errorCode = 'FILE_NOT_FOUND';
-    }
-
-    res.status(statusCode).json({
-      success: false,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: req.headers['x-request-id'] as string || 'unknown',
-      },
-    });
-  }
-}
-
 export const formatController = {
   getFormats,
   getFormatFiles,
@@ -456,5 +385,4 @@ export const formatController = {
   createFormatSubfolder,
   createFormatFile,
   updateFormatFile,
-  deleteFormatFile,
 };
