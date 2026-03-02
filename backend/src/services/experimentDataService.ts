@@ -85,11 +85,11 @@ export class ExperimentDataService {
         throw error;
       }
 
-      const projectId = projectResult.rows[0].id;
-      const projectStatus = projectResult.rows[0].status;
+      const projectId = projectResult.rows[0].project_id;
+      const projectStatus = projectResult.rows[0].project_status;
 
-      // 編集可能なステータスかチェック（draft, active, waiting_approval）
-      const editableStatuses = ['draft', 'active', 'waiting_approval'];
+      // 編集可能なステータスかチェック（2:タスク実行中）
+      const editableStatuses = [2];
       if (!editableStatuses.includes(projectStatus)) {
         throw new ProjectNotEditableError(projectStatus);
       }
