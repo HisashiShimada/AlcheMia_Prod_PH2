@@ -470,11 +470,11 @@ export class ProgressService {
         );
 
         for (const row of countRows) {
-          if (row.template_type === 'materialTemplate') {
+          if (row.template_type === 'material') {
             materialActualCount = Number(row.count);
-          } else if (row.template_type === 'conditionTemplate') {
+          } else if (row.template_type === 'condition') {
             conditionActualCount = Number(row.count);
-          } else if (row.template_type === 'resultTemplate') {
+          } else if (row.template_type === 'result') {
             resultActualCount = Number(row.count);
           }
         }
