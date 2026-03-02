@@ -182,6 +182,9 @@ export default function DataRecordDialog({
   // APIから取得したテンプレート一覧（TemplateDataItem → Template に変換済み）
   const [fetchedTemplates, setFetchedTemplates] = useState<Template[]>([]);
 
+  // APIから取得したテンプレート実績の生データ（placeId・data構造の保持に使用）
+  const [fetchedTemplateItems, setFetchedTemplateItems] = useState<TemplateDataItem[]>([]);
+
   // テンプレート一覧用の状態
   const [templateSearchText, setTemplateSearchText] = useState('');
   const [selectedTemplateCategory, setSelectedTemplateCategory] = useState<TemplateCategory | undefined>(undefined);
@@ -309,7 +312,8 @@ export default function DataRecordDialog({
       setComment('');
       setProgress(0);
       setSelectedTemplateId(null);
-      setFetchedTemplates([]); // ダイアログオープン時に前回取得分をリセット
+      setFetchedTemplates([]);     // ダイアログオープン時に前回取得分をリセット
+      setFetchedTemplateItems([]); // GETレスポンス生データもリセット
 
       // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
       setStatusUpdateExpanded(isProjectEditable);
@@ -340,7 +344,10 @@ export default function DataRecordDialog({
             );
 
             if (response.success && response.data.templates.length > 0) {
-              // ① TemplateDataItem[] → Template[] に変換してサイドバーに表示
+              // ① GETレスポンスの生データをそのまま保持（保存時にdata構造・placeIdを参照するため）
+              setFetchedTemplateItems(response.data.templates);
+
+              // ② TemplateDataItem[] → Template[] に変換してサイドバーに表示
               const converted = convertTemplateDataItemsToTemplates(response.data.templates);
               setFetchedTemplates(converted);
 
@@ -426,35 +433,75 @@ export default function DataRecordDialog({
 
       const template = selectedTemplate;
 
-      // フォームデータをExperimentDataValue形式に変換
-      const templateData: ExperimentDataValue = {
-        templateId: template.templateId,
-        category: template.category,
-      };
+      // ── GETで取得した生データを参照 ──────────────────────────────────────
+      // fetchedTemplateItems から templateId に一致するオリジナルアイテムを検索する。
+      // これにより placeId の正確な値と、バックエンドが期待する data 構造を取得する。
+      const originalItem = fetchedTemplateItems.find(
+        (item) => item.templateId === template.templateId
+      );
 
-      template.properties.forEach((prop) => {
-        const key = `${template.templateId}_${prop.key}`;
-        if (prop.type === 'contentDoubleListType') {
-          templateData[prop.key] = dataGrids[key] || [[0, 0, 0]];
-        } else if (prop.type === 'dateType' || prop.type === 'dateTimeType') {
-          const dateValue = values[key];
-          templateData[prop.key] = dateValue
-            ? dayjs(dateValue).format(
-                prop.type === 'dateType' ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'
-              )
-            : null;
-        } else {
-          templateData[prop.key] = values[key] ?? null;
-        }
-      });
+      // ── data 組み立て ────────────────────────────────────────────────────
+      // オリジナルの data をディープコピーしてベースとし、
+      // フォームで変更された値のみ上書きする（構造を破壊しない）。
+      const baseData: Record<string, unknown> = originalItem
+        ? JSON.parse(JSON.stringify(originalItem.data))
+        : {};
 
-      // APIリクエスト用レコードを構築
-      // placeId は現状 templateId で代替（将来 Transition.templates に placeId が追加された際に修正）
+      if (
+        baseData.properties &&
+        Array.isArray(baseData.properties)
+      ) {
+        // フォールバック形式: { templateId, templateType, properties: [{ key, xsiType, value, units }] }
+        // properties[i].value をフォーム値で上書きする
+        (
+          baseData.properties as Array<{
+            key: string;
+            xsiType: string;
+            value: unknown;
+            units: string | null;
+          }>
+        ).forEach((p) => {
+          const formKey = `${template.templateId}_${p.key}`;
+          if (p.xsiType === 'dateType') {
+            const v = values[formKey];
+            p.value = v ? dayjs(v).format('YYYY-MM-DD') : null;
+          } else if (p.xsiType === 'dateTimeType') {
+            const v = values[formKey];
+            p.value = v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : null;
+          } else if (p.xsiType === 'contentDoubleListType') {
+            p.value = dataGrids[formKey] ?? null;
+          } else {
+            p.value = values[formKey] ?? null;
+          }
+        });
+      } else {
+        // DB実績形式: フラットなkey-value
+        // baseData[prop.key] をフォーム値で上書きする
+        template.properties.forEach((prop) => {
+          const formKey = `${template.templateId}_${prop.key}`;
+          if (prop.type === 'contentDoubleListType') {
+            baseData[prop.key] = dataGrids[formKey] ?? [[0, 0, 0]];
+          } else if (prop.type === 'dateType' || prop.type === 'dateTimeType') {
+            const v = values[formKey];
+            baseData[prop.key] = v
+              ? dayjs(v).format(
+                  prop.type === 'dateType' ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'
+                )
+              : null;
+          } else {
+            baseData[prop.key] = values[formKey] ?? null;
+          }
+        });
+      }
+
+      // ── APIリクエスト用レコードを構築 ─────────────────────────────────────
+      // placeId は GETレスポンスの TemplateDataItem.placeId を使用する。
+      // （DB一意キー: organization_id + project_id + method_id + task_no + place_id）
       const record: ExperimentDataRecord = {
-        placeId: template.templateId,
+        placeId: originalItem?.placeId ?? template.templateId,
         templateType: mapTemplateCategoryToApiType(template.category),
         templateId: template.templateId,
-        data: templateData as Record<string, unknown>,
+        data: baseData,
         status: selectedStatus,
         comment: comment || undefined,
       };
@@ -462,7 +509,8 @@ export default function DataRecordDialog({
       // バックエンドAPIへ保存
       await saveBatchExperimentData(projectName, methodId, taskNo, { records: [record] });
 
-      onSave([templateData]);
+      // onSave には保存した data を ExperimentDataValue 形式で渡す
+      onSave([baseData as ExperimentDataValue]);
       message.success(
         `「${template.name}」を保存しました（ステータス: ${statusOptions.find((opt) => opt.value === selectedStatus)?.label}）`
       );
