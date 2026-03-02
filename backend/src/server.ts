@@ -28,6 +28,7 @@ import progressRoutes from './routes/progressRoutes';
 import organizationRoutes from './routes/organizationRoutes';
 import formatRoutes from './routes/formatRoutes';
 import codeMasterRoutes from './routes/codeMasterRoutes';
+import semanticSearchRoutes from './routes/semanticSearchRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -115,6 +116,9 @@ async function startServer() {
     
     // Mount code master routes
     app.use('/api/v1/code-master', codeMasterRoutes);
+
+    // Mount semantic search routes
+    app.use('/api/v1/semantic-search', semanticSearchRoutes);
 
     if (process.env.NODE_ENV !== 'test') {
       const server = app.listen(PORT, () => {

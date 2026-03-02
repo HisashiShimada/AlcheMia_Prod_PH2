@@ -46,6 +46,7 @@
     "@types/pg-promise": "^0.0.28",
     "@xmldom/xmldom": "^0.8.11",
     "archiver": "^7.0.1",
+    "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "compression": "^1.8.1",
     "connect-redis": "^7.1.1",
