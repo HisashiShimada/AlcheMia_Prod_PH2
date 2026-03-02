@@ -354,36 +354,35 @@ export default function DataRecordDialog({
               // ② 取得した実績データをフォームフィールドに反映（既存値の復元）
                   const initialValues: Record<string, unknown> = {};
                   for (const item of response.data.templates) {
-                    if (item.recordedBy !== null) {
-                      // DB実績データ（recordedBy !== null）:
-                      // フラットなkey-value形式でフォームに反映
-                      for (const [fieldKey, fieldValue] of Object.entries(item.data)) {
-                        const formKey = `${item.templateId}_${fieldKey}`;
-                        initialValues[formKey] = fieldValue;
-                      }
-                    } else {
-                      // フォールバックデータ（recordedBy === null）:
-                      // data は { templateId, templateType, properties: [{ key, xsiType, value, units }] } 形式。
-                      // value が non-null の場合はフォームにデフォルト値として反映する
-                      const rawData = item.data as Record<string, unknown>;
-                      const rawProperties = rawData.properties as Array<{
-                        key: string;
-                        xsiType: string;
-                        value: unknown;
-                        units: string | null;
-                      }> | undefined;
-                      if (rawProperties) {
-                        for (const p of rawProperties) {
-                          if (p.value !== null && p.value !== undefined) {
-                            const formKey = `${item.templateId}_${p.key}`;
-                            // dateType / dateTimeType は dayjs に変換（DatePicker が dayjs オブジェクトを期待するため）
-                            if (p.xsiType === 'dateType' || p.xsiType === 'dateTimeType') {
-                              initialValues[formKey] = dayjs(String(p.value));
-                            } else {
-                              initialValues[formKey] = p.value;
-                            }
+                    const rawData = item.data as Record<string, unknown>;
+                    const rawProperties = rawData.properties as Array<{
+                      key: string;
+                      xsiType: string;
+                      value: unknown;
+                      units: string | null;
+                    }> | undefined;
+
+                    if (Array.isArray(rawProperties)) {
+                      // properties配列形式:
+                      // フォールバック形式・保存済み形式（DB保存時に properties 構造のまま保存された場合）
+                      // どちらでも統一処理する。value が non-null の場合にフォームへ反映する。
+                      for (const p of rawProperties) {
+                        if (p.value !== null && p.value !== undefined) {
+                          const formKey = `${item.templateId}_${p.key}`;
+                          // dateType / dateTimeType は dayjs に変換（DatePicker が dayjs オブジェクトを期待するため）
+                          if (p.xsiType === 'dateType' || p.xsiType === 'dateTimeType') {
+                            initialValues[formKey] = dayjs(String(p.value));
+                          } else {
+                            initialValues[formKey] = p.value;
                           }
                         }
+                      }
+                    } else if (item.recordedBy !== null) {
+                      // 純粋なフラットkey-value形式（将来的な保存形式変更に備えて残す）:
+                      // data が { key: value, ... } のフラット形式の場合にフォームへ反映する。
+                      for (const [fieldKey, fieldValue] of Object.entries(rawData)) {
+                        const formKey = `${item.templateId}_${fieldKey}`;
+                        initialValues[formKey] = fieldValue;
                       }
                     }
                   }
