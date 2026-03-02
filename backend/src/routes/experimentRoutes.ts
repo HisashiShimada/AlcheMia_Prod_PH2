@@ -103,18 +103,6 @@ router.post(
       .withMessage('placeIdは必須です')
       .isLength({ min: 1, max: 255 })
       .withMessage('placeIdは1〜255文字である必要があります'),
-    body('records.*.templateType')
-      .trim()
-      .notEmpty()
-      .withMessage('templateTypeは必須です')
-      .isIn(['material', 'condition', 'result'])
-      .withMessage('templateTypeは material, condition, result のいずれかである必要があります'),
-    body('records.*.templateId')
-      .trim()
-      .notEmpty()
-      .withMessage('templateIdは必須です')
-      .isLength({ min: 1, max: 255 })
-      .withMessage('templateIdは1〜255文字である必要があります'),
     body('records.*.data')
       .exists()
       .withMessage('dataは必須です')
@@ -124,6 +112,21 @@ router.post(
         }
         return true;
       }),
+    body('records.*.data.templateId')
+      .trim()
+      .notEmpty()
+      .withMessage('data.templateIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('data.templateIdは1〜255文字である必要があります'),
+    body('records.*.data.templateType')
+      .trim()
+      .notEmpty()
+      .withMessage('data.templateTypeは必須です')
+      .isIn(['material', 'condition', 'result'])
+      .withMessage('data.templateTypeは material, condition, result のいずれかである必要があります'),
+    body('records.*.data.properties')
+      .isArray()
+      .withMessage('data.propertiesは配列である必要があります'),
     body('records.*.status')
       .optional()
       .trim()

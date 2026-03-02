@@ -123,12 +123,15 @@ export const saveBatchData = async (
     const { projectName, methodId, taskNo } = req.params;
     const taskNoNum = parseInt(taskNo, 10);
 
-    // リクエストボディの抽出（フロントエンドは templateType / templateId / data を個別フィールドで送る）
+    // リクエストボディの抽出
+    // data フィールドは GET レスポンスの templates[].data と同一形式（PropertySet形式）
     const rawRecords = req.body.records as Array<{
       placeId: string;
-      templateType: 'material' | 'condition' | 'result';
-      templateId: string;
-      data: Record<string, unknown>;
+      data: {
+        templateId: string;
+        templateType: 'material' | 'condition' | 'result';
+        properties: Array<{ key: string; xsiType: string; value: unknown; units: string | null }>;
+      };
     }>;
 
     // 認証・認可情報の取得
@@ -148,13 +151,14 @@ export const saveBatchData = async (
       throw error;
     }
 
-    // フロントエンドの形式を TemplateDataRecord（property_set形式）に変換
+    // リクエストの data フィールドをそのまま PropertySet（property_set）として保存
+    // data は GET レスポンスの templates[].data と同一形式のため変換不要
     const records: TemplateDataRecord[] = rawRecords.map(r => {
       const propertySet: PropertySet = {
-        templateId: r.templateId,
-        templateType: r.templateType,
-        properties: Array.isArray(r.data?.properties)
-          ? (r.data.properties as Array<{ key: string; xsiType: string; value: unknown; units: string | null }>)
+        templateId: r.data.templateId,
+        templateType: r.data.templateType,
+        properties: Array.isArray(r.data.properties)
+          ? r.data.properties
           : [],
       };
       return {

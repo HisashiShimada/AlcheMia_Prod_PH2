@@ -73,40 +73,33 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 | taskNo | integer | ○ | タスク連番 |
 
 #### リクエストボディ
+
+> **注意**: `data` フィールドは `GET /api/v1/experiments/.../data` レスポンスの `templates[].data` と同一形式（`PropertySet` 形式）です。  
+> フロントエンドは GET で取得した `data` を、ユーザーが修正した値（`properties[].value`）のみ書き換えてそのまま POST してください。
+
 ```json
 {
   "records": [
     {
       "placeId": "place_001",
-      "templateType": "material",
-      "templateId": "mat_001",
       "data": {
-        "temperature": {
-          "value": 25.5,
-          "unit": "°C"
-        },
-        "pressure": {
-          "value": 1013,
-          "unit": "hPa"
-        }
+        "templateId": "mat_001",
+        "templateType": "material",
+        "properties": [
+          { "key": "temperature", "xsiType": "floatType", "value": 25.5, "units": "°C" },
+          { "key": "pressure",    "xsiType": "floatType", "value": 1013,  "units": "hPa" }
+        ]
       },
       "status": "completed",
       "comment": "材料データ記録完了"
     },
     {
       "placeId": "place_002",
-      "templateType": "condition",
-      "templateId": "cond_001",
       "data": {
-        "humidity": {
-          "value": 60,
-          "unit": "%"
-        },
-        "dataGrid": [
-          ["時刻", "温度", "圧力"],
-          ["10:00", "25.5", "1013"],
-          ["11:00", "26.0", "1012"],
-          ["12:00", "26.5", "1011"]
+        "templateId": "cond_001",
+        "templateType": "condition",
+        "properties": [
+          { "key": "humidity", "xsiType": "floatType", "value": 60, "units": "%" }
         ]
       },
       "status": "running",
@@ -127,11 +120,14 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 | パラメータ | 型 | 必須 | 説明 | 制約 |
 |-----------|----|----|------|------|
 | placeId | string | ○ | プレースID | |
-| templateType | string | ○ | テンプレート種別 | material, condition, result |
-| templateId | string | ○ | テンプレートID | |
-| data | object | ○ | 実験データ | ネストプロパティ、DataGrid対応 |
+| data | object | ○ | 実験データ（PropertySet形式） | `{ templateId, templateType, properties }` の形式 |
+| data.templateId | string | ○ | テンプレートID | |
+| data.templateType | string | ○ | テンプレート種別 | material, condition, result |
+| data.properties | array | ○ | プロパティ配列 | `[{ key, xsiType, value, units }]` の形式 |
 | status | string | △ | ステータス | initial, preparing, ready, running, paused, completed, error |
 | comment | string | × | コメント | 最大2000文字 |
+
+> **注意**: `templateType`・`templateId` はトップレベルには含めず、`data` オブジェクト内に含めてください。
 
 ### レスポンス
 
@@ -289,9 +285,10 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 
 #### records配列の各要素のチェック
 - [ ] placeId は必須
-- [ ] templateType は "material", "condition", "result" のいずれか
-- [ ] templateId は必須
-- [ ] data はオブジェクト形式
+- [ ] data はオブジェクト形式（必須）
+- [ ] data.templateId は必須（文字列、1〜255文字）
+- [ ] data.templateType は "material", "condition", "result" のいずれか（必須）
+- [ ] data.properties は配列形式（必須）
 - [ ] status は許可された値のいずれか（指定時）
 - [ ] comment は2000文字以内（指定時）
 
