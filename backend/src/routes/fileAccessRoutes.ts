@@ -118,6 +118,32 @@ router.post(
 );
 
 /**
+ * ファイルテキスト内容プロキシ取得
+ * POST /api/v1/files/content-as-text
+ *
+ * バックエンドがストレージからファイルを直接取得し、テキスト文字列として返す
+ * 署名付きURL経由のクライアントfetchが不要になる
+ *
+ * @middleware authMiddleware - JWT認証
+ * @note すべてのロールがアクセス可能（マルチテナント分離で保護）
+ */
+router.post(
+  '/content-as-text',
+  authMiddleware,
+  [
+    body('fileKey')
+      .notEmpty()
+      .withMessage('fileKeyは必須です')
+      .isString()
+      .withMessage('fileKeyは文字列である必要があります')
+      .isLength({ min: 1, max: 1024 })
+      .withMessage('fileKeyは1〜1024文字である必要があります'),
+  ],
+  handleValidationErrors,
+  fileAccessController.getFileContentAsText
+);
+
+/**
  * ファイル表示用署名付きURL取得
  * POST /api/v1/files/view-url
  *

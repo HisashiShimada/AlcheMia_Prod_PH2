@@ -285,36 +285,24 @@ JOIN project_id_mapping m ON m.old_id = mvh.project_id;
 
 -- template_data
 INSERT INTO template_data (
-  organization_id, project_id, method_id, experiment_order, task_no, place_id,
+  organization_id, project_id, method_id, task_no, place_id,
   property_set, create_user_id, update_user_id, create_at, update_at
 )
 SELECT
-  td.organization_id, m.new_id, td.method_id, td.experiment_order, td.task_no, td.place_id,
+  td.organization_id, m.new_id, td.method_id, td.task_no, td.place_id,
   td.property_set, td.create_user_id, td.update_user_id, td.create_at, td.update_at
 FROM tmp_template_data td
 JOIN project_id_mapping m ON m.old_id = td.project_id;
 
 -- transition_data
 INSERT INTO transition_data (
-  organization_id, project_id, method_id, experiment_order, task_no, transition_id,
+  organization_id, project_id, method_id, task_no, transition_id,
   status, progress_rate, create_user_id, update_user_id, create_at, update_at
 )
 SELECT
-  trd.organization_id, m.new_id, trd.method_id, trd.experiment_order, trd.task_no, trd.transition_id,
+  trd.organization_id, m.new_id, trd.method_id, trd.task_no, trd.transition_id,
   trd.status, trd.progress_rate, trd.create_user_id, trd.update_user_id, trd.create_at, trd.update_at
 FROM tmp_transition_data trd
 JOIN project_id_mapping m ON m.old_id = trd.project_id;
-
--- ============================================================
--- Step 6: マッピング確認（実行ログ用）
--- ============================================================
-DO $$
-DECLARE
-  r RECORD;
-BEGIN
-  FOR r IN SELECT old_id, new_id FROM project_id_mapping ORDER BY new_id LOOP
-    RAISE NOTICE 'Mapped: % -> %', r.old_id, r.new_id;
-  END LOOP;
-END $$;
 
 COMMIT;
