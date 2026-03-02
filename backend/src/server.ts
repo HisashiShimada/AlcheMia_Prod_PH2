@@ -29,6 +29,7 @@ import organizationRoutes from './routes/organizationRoutes';
 import formatRoutes from './routes/formatRoutes';
 import codeMasterRoutes from './routes/codeMasterRoutes';
 import semanticSearchRoutes from './routes/semanticSearchRoutes';
+import systemOverviewRoutes from './routes/systemOverviewRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -119,6 +120,8 @@ async function startServer() {
 
     // Mount semantic search routes
     app.use('/api/v1/semantic-search', semanticSearchRoutes);
+    // Mount system overview routes
+    app.use('/api/v1/systemManagement', systemOverviewRoutes);
 
     if (process.env.NODE_ENV !== 'test') {
       const server = app.listen(PORT, () => {

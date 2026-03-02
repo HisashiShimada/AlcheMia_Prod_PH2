@@ -1,25 +1,43 @@
 'use client';
 
-import React from 'react';
-import { Card, Row, Col, Flex, theme } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Card, Row, Col, Flex, theme, Spin, Alert } from 'antd';
 import {
   UserOutlined,
   DesktopOutlined,
   ExperimentOutlined,
-  FolderOutlined,
   DatabaseOutlined,
   LoginOutlined,
 } from '@ant-design/icons';
-import systemOverviewData from '../../../mock/data/system-overview.json';
+import { getSystemOverview } from '../../services/systemOverviewApiService';
+import { SystemOverviewData } from '../../types/systemOverview';
 
 /**
  * システム概要画面
  * システム全体の統計情報を表示するダッシュボード
  */
-const SystemOverviewMock: React.FC = () => {
+const SystemOverview: React.FC = () => {
   const { token } = theme.useToken();
-  const { users, sessions, experimentSystem, projects, storage, loginLast7Days } =
-    systemOverviewData;
+  const [data, setData] = useState<SystemOverviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await getSystemOverview();
+        setData(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'システム概要情報の取得に失敗しました');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // 統計カードのスタイル
   const cardStyle: React.CSSProperties = {
@@ -56,11 +74,45 @@ const SystemOverviewMock: React.FC = () => {
     color: token.colorText,
   };
 
+  if (loading) {
+    return (
+      <div style={{
+        padding: token.paddingLG,
+        background: token.colorBgLayout,
+        minHeight: 'calc(100vh - 112px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div style={{
+        padding: token.paddingLG,
+        background: token.colorBgLayout,
+        minHeight: 'calc(100vh - 112px)',
+      }}>
+        <Alert
+          type="error"
+          title="データ取得エラー"
+          description={error || 'データが取得できませんでした'}
+          showIcon
+        />
+      </div>
+    );
+  }
+
+  const { users, sessions, experimentSystem, storage, loginLast7Days } = data;
+
   return (
-    <div style={{ 
+    <div style={{
       padding: token.paddingLG,
       background: token.colorBgLayout,
-      minHeight: 'calc(100vh - 112px)' 
+      minHeight: 'calc(100vh - 112px)'
     }}>
       <Row gutter={[24, 24]}>
         {/* ユーザー */}
@@ -79,14 +131,6 @@ const SystemOverviewMock: React.FC = () => {
                 <span style={labelStyle}>アクティブ</span>
                 <span style={valueStyle}>{users.active}</span>
               </div>
-              <div style={statRowStyle}>
-                <span style={labelStyle}>管理者</span>
-                <span style={valueStyle}>{users.managers}</span>
-              </div>
-              <div style={statRowStyle}>
-                <span style={labelStyle}>作業者</span>
-                <span style={valueStyle}>{users.workers}</span>
-              </div>
             </Flex>
           </Card>
         </Col>
@@ -103,14 +147,6 @@ const SystemOverviewMock: React.FC = () => {
                 <span style={labelStyle}>総セッション</span>
                 <span style={valueStyle}>{sessions.total}</span>
               </div>
-              <div style={statRowStyle}>
-                <span style={labelStyle}>アクティブ</span>
-                <span style={valueStyle}>{sessions.active}</span>
-              </div>
-              <div style={statRowStyle}>
-                <span style={labelStyle}>今日のセッション</span>
-                <span style={valueStyle}>{sessions.today}</span>
-              </div>
             </Flex>
           </Card>
         </Col>
@@ -124,40 +160,20 @@ const SystemOverviewMock: React.FC = () => {
             </div>
             <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
-                <span style={labelStyle}>割当ファイル</span>
-                <span style={valueStyle}>{experimentSystem.assignedFiles}</span>
-              </div>
-              <div style={statRowStyle}>
-                <span style={labelStyle}>指示</span>
-                <span style={valueStyle}>{experimentSystem.instructions}</span>
-              </div>
-              <div style={statRowStyle}>
-                <span style={labelStyle}>進捗レポート</span>
-                <span style={valueStyle}>{experimentSystem.progressReports}</span>
-              </div>
-              <div style={statRowStyle}>
-                <span style={labelStyle}>アクティブ作業者</span>
-                <span style={valueStyle}>{experimentSystem.activeWorkers}</span>
-              </div>
-            </Flex>
-          </Card>
-        </Col>
-
-        {/* プロジェクト */}
-        <Col xs={24} md={12} lg={8}>
-          <Card style={cardStyle} variant="borderless">
-            <div style={titleStyle}>
-              <FolderOutlined style={{ fontSize: token.fontSizeHeading4 }} />
-              プロジェクト
-            </div>
-            <Flex vertical gap={0} style={{ width: '100%' }}>
-              <div style={statRowStyle}>
                 <span style={labelStyle}>総プロジェクト数</span>
-                <span style={valueStyle}>{projects.total}</span>
+                <span style={valueStyle}>{experimentSystem.totalProjects}</span>
               </div>
               <div style={statRowStyle}>
-                <span style={labelStyle}>アクティブ</span>
-                <span style={valueStyle}>{projects.active}</span>
+                <span style={labelStyle}>プロジェクト計画中/タスク実行待ち</span>
+                <span style={valueStyle}>{experimentSystem.planning}</span>
+              </div>
+              <div style={statRowStyle}>
+                <span style={labelStyle}>タスク実行中/タスク結果レビュー待ち</span>
+                <span style={valueStyle}>{experimentSystem.inProgress}</span>
+              </div>
+              <div style={statRowStyle}>
+                <span style={labelStyle}>プロジェクト完了/タスク異常終了</span>
+                <span style={valueStyle}>{experimentSystem.completed}</span>
               </div>
             </Flex>
           </Card>
@@ -177,7 +193,7 @@ const SystemOverviewMock: React.FC = () => {
               </div>
               <div style={statRowStyle}>
                 <span style={labelStyle}>使用容量</span>
-                <span style={valueStyle}>{storage.usedCapacityGB} GB</span>
+                <span style={valueStyle}>{storage.usedCapacityGB.toFixed(3)} GB</span>
               </div>
             </Flex>
           </Card>
@@ -211,4 +227,4 @@ const SystemOverviewMock: React.FC = () => {
   );
 };
 
-export default SystemOverviewMock;
+export default SystemOverview;

@@ -31,6 +31,7 @@ import { getMasterDataConfig, getAllMasterDataConfigs } from '@/types/masterData
 import type { MasterDataType } from '@/types/masterDataTypes';
 import * as masterApi from '@/services/masterApiService';
 import type { MasterRecord } from '@/services/masterApiService';
+import { getMenuPermission } from '@/utils/menuPermissions';
 
 const { Text } = Typography;
 
@@ -67,6 +68,9 @@ interface MasterManagementMockProps {
 export default function MasterManagementMock({ initialMasterId }: MasterManagementMockProps) {
   const { token } = theme.useToken();
   const { message, modal } = App.useApp();
+
+  // 権限制御: data_admin メニュー（機能CD: 030000）の permission が 0 の場合は読取専用
+  const isReadOnly = getMenuPermission('data_admin') === 0;
 
   // State管理
   const [masters, setMasters] = useState<MasterRecord[]>([]);
@@ -357,6 +361,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
+            disabled={isReadOnly}
           >
             編集
           </Button>
@@ -365,6 +370,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             onClick={() => handleToggleActive(record)}
             danger={record.isActive !== false}
             style={{ minWidth: '80px' }}
+            disabled={isReadOnly}
           >
             {record.isActive !== false ? '非アクティブ' : 'アクティブ'}
           </Button>
@@ -1256,24 +1262,24 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
         {/* 右側：操作ボタン */}
         <Flex gap="small">
-          <Button icon={<UploadOutlined />} onClick={handleUpload}>
+          <Button icon={<UploadOutlined />} onClick={handleUpload} disabled={isReadOnly}>
             CSV<br />アップロード
           </Button>
           <Button icon={<DownloadOutlined />} onClick={handleDownload}>
             CSV<br />ダウンロード
           </Button>
-          <Button icon={<PlusOutlined />} onClick={handleAdd}>
+          <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={isReadOnly}>
             追加
           </Button>
           <Button
             icon={<DeleteOutlined />}
             onClick={handleActivate}
-            disabled={selectedRowKeys.length === 0}
+            disabled={isReadOnly || selectedRowKeys.length === 0}
             style={{
               minWidth: 85,
-              backgroundColor: selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
-              borderColor: selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
-              color: selectedRowKeys.length > 0 ? token.colorWhite : undefined,
+              backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
+              borderColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
+              color: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWhite : undefined,
             }}
           >
             アクティブ
@@ -1282,12 +1288,12 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             danger
             icon={<DeleteOutlined />}
             onClick={handleDeactivate}
-            disabled={selectedRowKeys.length === 0}
+            disabled={isReadOnly || selectedRowKeys.length === 0}
             style={{
               minWidth: 85,
-              backgroundColor: selectedRowKeys.length > 0 ? token.colorWarning : undefined,
-              borderColor: selectedRowKeys.length > 0 ? token.colorWarning : undefined,
-              color: selectedRowKeys.length > 0 ? token.colorWhite : undefined,
+              backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWarning : undefined,
+              borderColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWarning : undefined,
+              color: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWhite : undefined,
             }}
           >
             非アクティブ

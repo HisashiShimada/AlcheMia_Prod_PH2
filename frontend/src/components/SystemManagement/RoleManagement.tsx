@@ -29,6 +29,7 @@ import type { ColumnsType } from 'antd/es/table';
 import Papa from 'papaparse';
 import { formatDateTime } from '@/utils/dateFormatter';
 import { getRoleConfig } from '@/types/roleTypes';
+import { getMenuPermission } from '@/utils/menuPermissions';
 import type { RoleConfig, FieldConfig } from '@/types/roleTypes';
 import {
   fetchMasters,
@@ -93,6 +94,9 @@ interface RoleApiResponse {
 export default function RoleManagementMock() {
   const { token } = theme.useToken();
   const { message, modal } = App.useApp();
+
+  // 権限制御: system_admin メニュー（機能CD: 020000）の permission が 0 の場合は読取専用
+  const isReadOnly = getMenuPermission('system_admin') === 0;
 
   // State管理
   const [masters, setMasters] = useState<MasterRecord[]>([]);
@@ -319,12 +323,12 @@ export default function RoleManagementMock() {
               return (
                 <span
                   style={{ 
-                    cursor: isActive ? 'pointer' : 'not-allowed',
-                    // 機能が設定されていて、かつアクティブな場合のみ下線を表示
-                    textDecoration: (functions.length > 0 && isActive) ? 'underline' : 'none',
+                    cursor: (isActive && !isReadOnly) ? 'pointer' : 'not-allowed',
+                    // 機能が設定されていて、かつアクティブかつ書込可の場合のみ下線を表示
+                    textDecoration: (functions.length > 0 && isActive && !isReadOnly) ? 'underline' : 'none',
                     color: isActive ? undefined : token.colorTextDisabled,
                   }}
-                  onClick={isActive ? () => handleOpenFunctionModalDirect(record) : undefined}
+                  onClick={(isActive && !isReadOnly) ? () => handleOpenFunctionModalDirect(record) : undefined}
                 >
                   {functions.length === 0 ? (
                     // 機能が設定されていない場合は「－」を表示（下線なし）
@@ -374,17 +378,19 @@ export default function RoleManagementMock() {
               size="small"
               icon={<EditOutlined />}
               onClick={() => handleEdit(record)}
+              disabled={isReadOnly}
             >
               編集
             </Button>
             <Button
               size="small"
               onClick={() => handleToggleActive(record)}
-              danger={isActive}
+              danger={!isReadOnly && isActive}
               style={{ 
                 minWidth: '80px',
-                color: isActive ? token.colorError : token.colorText
+                color: (!isReadOnly && isActive) ? token.colorError : token.colorText
               }}
+              disabled={isReadOnly}
             >
               {isActive ? '非アクティブ' : 'アクティブ'}
             </Button>
@@ -924,24 +930,24 @@ export default function RoleManagementMock() {
         gap: 16,
       }}>
         <Flex gap="small">
-          <Button icon={<UploadOutlined />} onClick={handleUpload}>
+          <Button icon={<UploadOutlined />} onClick={handleUpload} disabled={isReadOnly}>
             CSV<br />アップロード
           </Button>
           <Button icon={<DownloadOutlined />} onClick={handleDownload}>
             CSV<br />ダウンロード
           </Button>
-          <Button icon={<PlusOutlined />} onClick={handleAdd}>
+          <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={isReadOnly}>
             追加
           </Button>
           <Button
             icon={<DeleteOutlined />}
             onClick={handleActivate}
-            disabled={selectedRowKeys.length === 0}
+            disabled={isReadOnly || selectedRowKeys.length === 0}
             style={{
               minWidth: 85,
-              backgroundColor: selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
-              borderColor: selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
-              color: selectedRowKeys.length > 0 ? token.colorWhite : undefined,
+              backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
+              borderColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorSuccess : undefined,
+              color: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWhite : undefined,
             }}
           >
             アクティブ
@@ -950,12 +956,12 @@ export default function RoleManagementMock() {
             danger
             icon={<DeleteOutlined />}
             onClick={handleDeactivate}
-            disabled={selectedRowKeys.length === 0}
+            disabled={isReadOnly || selectedRowKeys.length === 0}
             style={{
               minWidth: 85,
-              backgroundColor: selectedRowKeys.length > 0 ? token.colorWarning : undefined,
-              borderColor: selectedRowKeys.length > 0 ? token.colorWarning : undefined,
-              color: selectedRowKeys.length > 0 ? token.colorWhite : undefined,
+              backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWarning : undefined,
+              borderColor: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWarning : undefined,
+              color: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWhite : undefined,
             }}
           >
             非アクティブ
