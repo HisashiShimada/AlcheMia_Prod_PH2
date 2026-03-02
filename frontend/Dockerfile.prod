@@ -1,0 +1,77 @@
+# =============================================================================
+# Frontend Dockerfile - 本番環境用（マルチステージビルド）
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: 依存関係インストールステージ
+# -----------------------------------------------------------------------------
+FROM node:24-alpine AS deps
+
+WORKDIR /app
+
+# package.jsonとpackage-lock.jsonをコピー
+COPY package*.json ./
+
+# 全依存関係をインストール
+RUN npm ci
+
+# -----------------------------------------------------------------------------
+# Stage 2: ビルドステージ
+# Next.jsアプリをビルドする
+# -----------------------------------------------------------------------------
+FROM node:24-alpine AS builder
+
+WORKDIR /app
+
+# 依存関係をコピー
+COPY --from=deps /app/node_modules ./node_modules
+
+# ソースコードをコピー
+COPY . .
+
+# Next.jsビルド（本番用スタンドアロンビルド）
+# standalone出力を使用することでDockerイメージを軽量化
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+# -----------------------------------------------------------------------------
+# Stage 3: 本番実行ステージ
+# ビルド成果物のみを含む軽量イメージ
+# -----------------------------------------------------------------------------
+FROM node:24-alpine AS runner
+
+# セキュリティ: root以外のユーザーで実行
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Next.jsのstandaloneビルドを使用する場合（next.config.tsでoutput: 'standalone'を設定済みの場合）
+# COPY --from=builder /app/.next/standalone ./
+# COPY --from=builder /app/.next/static ./.next/static
+# COPY --from=builder /app/public ./public
+
+# 通常ビルドの場合（standaloneを使わない場合）
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY package*.json ./
+
+# ファイルの所有者をnextjsユーザーに変更
+RUN chown -R nextjs:nodejs /app
+
+# nextjsユーザーに切り替え
+USER nextjs
+
+# ポートを公開
+EXPOSE 3000
+
+# ヘルスチェック
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget -qO- http://localhost:3000/ || exit 1
+
+# 本番環境で起動
+CMD ["npm", "start"]
