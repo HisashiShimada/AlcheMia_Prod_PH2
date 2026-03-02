@@ -34,6 +34,7 @@ import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import DraftRestoreDialog from '../viewer/DraftRestoreDialog';
 import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
+import TransitionSetSearchModal from '@/components/TransitionSetSearch/TransitionSetSearchModal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ProjectMaimlProvider, useProjectMaiml } from '@/contexts/ProjectMaimlContext';
 import { message } from 'antd';
@@ -96,6 +97,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [issueManagementModalOpen, setIssueManagementModalOpen] = useState(false);
+  const [semanticSearchModalOpen, setSemanticSearchModalOpen] = useState(false);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
   
   // Phase 6追加: Draft関連のステート
@@ -1159,6 +1161,12 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
           >
             {isReloadingProject ? 'リロード中...' : 'リロード'}
           </Button>
+          <Button
+            icon={<SearchOutlined />}
+            onClick={() => setSemanticSearchModalOpen(true)}
+          >
+            セマンティック検索
+          </Button>
         </Space>
         </div>
       </Card>
@@ -1567,6 +1575,20 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
           viewMode={true}
         />
       )}
+
+      {/* セマンティック検索モーダル */}
+      <TransitionSetSearchModal
+        open={semanticSearchModalOpen}
+        onClose={() => setSemanticSearchModalOpen(false)}
+        initialProjectName={selectedProject?.name}
+        onOpenProject={(projectName) => {
+          // プロジェクト名からIDを検索して選択する
+          const target = projects.find((p) => p.name === projectName);
+          if (target) {
+            handleProjectSelect(target.id);
+          }
+        }}
+      />
     </div>
   );
 };

@@ -719,26 +719,20 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
               
           console.log('📋 [PetriNetEditorInner] 共通テンプレート一覧 (型安全):', Array.from(commonTemplateIds));
           console.log('🔗 [PetriNetEditorInner] 参照関係マップ:', commonTemplateRefMap);
-              
-          // Phase 3.2: maimlParserTyped.getDocument()を使用してDocument情報を抽出
-          try {
-            const docParser = new MaimlParserTyped(maimlData);
-            const extractedDoc = docParser.getDocument();
-            
-            if (extractedDoc) {
-              const documentWithCorrectName: DocumentData = {
-                ...extractedDoc,
-                name: props.originalFileName 
-                  ? props.originalFileName.replace('.maiml', '') 
-                  : (extractedDoc.name || 'document'),
-              };
-              setDocumentData(documentWithCorrectName);
-              console.log('📄 [PetriNetEditorInner] Document情報を読み込みました（型安全）:', documentWithCorrectName);
-            }
-          } catch (docError) {
-            console.warn('⚠️ [PetriNetEditorInner] Document情報の取得に失敗:', docError);
-            // Documentがない場合でもペトリネット表示は続行
+          
+          const extractedDoc = parser.getDocument();
+          
+          if (extractedDoc) {
+            const documentWithCorrectName: DocumentData = {
+              ...extractedDoc,
+              name: props.originalFileName 
+                ? props.originalFileName.replace('.maiml', '') 
+                : (extractedDoc.name || 'document'),
+            };
+            setDocumentData(documentWithCorrectName);
+            console.log('📄 [PetriNetEditorInner] Document情報を読み込みました（型安全）:', documentWithCorrectName);
           }
+            
               
           // 各methodをReact Flow形式に変換
           const convertedMethods = methodsData.map((method: Method, index: number): MethodData => {

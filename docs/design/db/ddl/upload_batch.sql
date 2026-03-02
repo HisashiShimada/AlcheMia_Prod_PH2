@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS upload_batch (
   upload_type VARCHAR(50) NOT NULL,  -- 'single', 'bulk', 'folder', 'draft'
   
   -- 組織
-  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL,
   
   -- アップロード実行者（VARCHAR(50)に変更）
   upload_by VARCHAR(50) NOT NULL,

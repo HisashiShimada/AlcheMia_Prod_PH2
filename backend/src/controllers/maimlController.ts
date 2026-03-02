@@ -9,6 +9,7 @@
 import { Request, Response } from 'express';
 import * as maimlService from '../services/maimlService';
 import { JwtPayload } from '../types/auth';
+import { ingestSingleFileAsync } from '../services/singleFileIngestService';
 
 /**
  * 共通エラーハンドラ
@@ -136,6 +137,11 @@ export async function save(req: Request, res: Response): Promise<void> {
     });
 
     const result = await maimlService.saveMaiML(fileKey, decodedContent, organizationId);
+
+    // セマンティック検索インデックス更新（fire-and-forget）
+    // MAIMLファイル保存成功後、バックグラウンドでembeddingを生成してDBに投入する
+    ingestSingleFileAsync(organizationId, fileKey);
+    console.log(`🔍 [maimlController] セマンティック検索インデックス更新をキューに追加: ${fileKey}`);
 
     res.json({
       success: true,

@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.12.0
-- **最終更新**: 2026-02-25
+- **バージョン**: 2.15.0
+- **最終更新**: 2026-02-26
 - **担当**: Development Team
 
 ---
@@ -503,6 +503,7 @@
 | 14.7 | PUT | /api/v1/provider/organization/:organizationId | 組織更新 | ✅ 実装済み | organizationController.updateOrganization |
 | 14.8 | PATCH | /api/v1/provider/organization/:organizationId/status | 組織アクティブ状態更新 | ✅ 実装済み | organizationController.updateOrganizationStatus |
 | 14.9 | GET | /api/v1/provider/organization/:organizationId/certificate | クライアント証明書ダウンロード | ✅ 実装済み | organizationController.downloadCertificate |
+| 14.10 | GET | /api/v1/provider/organization/download-information-csv | 情報CSVダウンロード | ✅ 実装済み | organizationController.downloadInformationCsv |
 
 **ミドルウェアチェーン:**
 - すべて: `authMiddleware`
@@ -519,7 +520,32 @@
 
 ---
 
-### 15. ユーザー管理API（User Management）
+### 15. システム概要API（System Overview）
+
+**API設計書**: [api_system_overview.md](./api_system_overview.md)  
+**ルートファイル**: `backend/src/routes/systemOverviewRoutes.ts`
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 15.1 | GET | /api/v1/systemManagement/system-overview | システム概要統計取得 | ✅ 実装済み | systemOverviewController.getOverview |
+
+**ミドルウェアチェーン:**
+- `authMiddleware` → `tenantIsolation`
+- 権限: system_admin
+
+**備考:**
+- ✅ 実装済み
+- ユーザー統計・セッション数・実験システム状況・ストレージ・ログイン履歴を一括取得
+- 5つのデータソース（DB×3、Redis、Swift/S3）を `Promise.all` で並列取得
+- セッション・ストレージ取得失敗時は `0` を返却し画面表示を継続
+- `experimentSystem.planning`: `project_status` IN `'0'`, `'1'`（プロジェクト計画中/タスク実行待ち）
+- `experimentSystem.inProgress`: `project_status` IN `'2'`, `'3'`（タスク実行中/タスク結果レビュー待ち）
+- `experimentSystem.completed`: `project_status` IN `'4'`, `'5'`（プロジェクト完了/タスク異常終了）
+- ストレージ統計: Swift/S3から直接取得（`storageService.listFiles()`）。フォルダオブジェクト・`.keep`プレースホルダーを除外して集計。`usedCapacityGB` は小数点3桁（GB単位）
+
+---
+
+### 16. ユーザー管理API（User Management）
 
 **API設計書**: [api_user_management.md](./api_user_management.md)  
 **ルートファイル**: `backend/src/routes/userRoutes.ts`
@@ -608,9 +634,10 @@
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
 | 会社管理API | 7 | 7 | 0 | 0 | 100% |
 | ファイルアクセスAPI | 6 | 6 | 0 | 0 | 100% |
-| 組織管理API | 9 | 9 | 0 | 0 | 100% |
+| 組織管理API | 10 | 10 | 0 | 0 | 100% |
+| システム概要API | 1 | 1 | 0 | 0 | 100% |
 | ユーザー管理API | 7 | 7 | 0 | 0 | 100% |
-| **合計** | **122** | **108** | **0** | **14** | **88%** |
+| **合計** | **124** | **110** | **0** | **14** | **89%** |
 
 ### 優先度別実装状況
 
@@ -794,7 +821,19 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 2.12.0 | 2026-02-25 | 実験データ記録API - テンプレート実績一覧取得API追加 | Cline |
+| 2.15.0 | 2026-02-27 | システム概要API - ストレージ統計仕様変更 | Cline |
+| | | - ストレージ統計取得元をSwift/S3直接取得（`storageService.listFiles()`）に変更 | |
+| | | - `usedCapacityGB` の小数点桁数を2桁→3桁に変更 | |
+| 2.14.0 | 2026-02-26 | システム概要API・情報CSVダウンロードAPI追加 | Cline |
+| | | - セクション15: システム概要API新規追加（1エンドポイント、実装済み100%） | |
+| | | - API 15.1: GET /api/v1/systemManagement/system-overview | |
+| | | - 組織管理API: 9→10エンドポイント（API 14.10: 情報CSVダウンロード追加） | |
+| | | - API設計書: api_system_overview.md 新規作成 | |
+| | | - API設計書: api_information_download.md 新規作成 | |
+| | | - 実装済みAPI総数: 108→110エンドポイント（+2） | |
+| | | - 全体: 122→124エンドポイント | |
+| | | - 全体実装率: 88%→89%に向上 | |
+| 2.13.0 | 2026-02-25 | 実験データ記録API - テンプレート実績一覧取得API追加 | Cline |
 | | | - API 8.2: GET .../tasks/:taskNo/data 追加 | |
 | | | - DataRecordDialog でのモックデータ（templatesList）置き換え用 | |
 | | | - transitionId（クエリ）で MaiML ペトリネット解析し隣接プレースを特定 | |
@@ -802,16 +841,7 @@ const path = `projects/${projectName}/file.maiml`;
 | | | - 実装状況サマリー: 実験データ記録API 総数 1→2 | |
 | | | - 全体: 115→116エンドポイント | |
 | | | - 詳細仕様: api_experiment_data.md セクション2 を参照 | |
-| 2.12.0 | 2026-02-24 | フォーマット管理API - 新規作成機能実装完了 | Cline |
-| | | - API 4.3: 新規ファイル作成（XMLファイル・MAIMLファイル対応） | |
-| | | - API 4.4: 新規フォーマットフォルダ作成（部門直下） | |
-| | | - API 4.5: フォーマット内サブフォルダ作成 | |
-| | | - テンプレートタイプ自動判定機能実装 | |
-| | | - フォーマット管理API: 5→6エンドポイント、実装済み2→5（83%） | |
-| | | - 実装済みAPI総数: 101→104エンドポイント（+3） | |
-| | | - 全体実装率: 87%→90%に向上 | |
-| 2.11.0 | 2026-02-19 | 組織管理API - クライアント証明書ダウンロード機能追加 | Cline |
-| | | - API 14.9: GET /organization/:organizationId/certificate 追加 | |
+| 2.12.0 | 2026-02-24 | フォーマット管理API - 新規作成機能実装完了 | 
 | | | - PKCS#12形式の証明書ダウンロード | |
 | | | - 組織管理API: 8→9エンドポイント | |
 | | | - 実装済みAPI総数: 81→82エンドポイント（+1） | |

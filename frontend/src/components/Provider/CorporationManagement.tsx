@@ -26,6 +26,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { createApiClient } from '@/utils/authUtils';
 import { formatDateTime } from '@/utils/dateFormatter';
+import { getMenuPermission } from '@/utils/menuPermissions';
 
 const { Text } = Typography;
 
@@ -45,6 +46,10 @@ interface CorporationData {
  */
 export default function CorporationManagement() {
   const { modal, message: messageApi } = App.useApp();
+
+  // 権限制御: provider メニュー（機能CD: 010000）の permission が 0 の場合は読取専用
+  const isReadOnly = getMenuPermission('provider') === 0;
+
   const [corporations, setCorporations] = useState<CorporationData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -161,6 +166,7 @@ export default function CorporationManagement() {
           <Button
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
+            disabled={isReadOnly}
           >
             編集
           </Button>
@@ -168,6 +174,7 @@ export default function CorporationManagement() {
             onClick={() => handleToggleActive(record)}
             danger={record.isActive}
             style={{ width: '100px' }}
+            disabled={isReadOnly}
           >
             {record.isActive ? '非アクティブ' : 'アクティブ'}
           </Button>
@@ -444,10 +451,11 @@ export default function CorporationManagement() {
       setIsModalVisible(false);
       form.resetFields();
       await fetchCorporations();
-    } catch (error: any) {
+    } catch (error) {
       console.error('保存エラー:', error);
-      if (error.response?.data?.error) {
-        messageApi.error(error.response.data.error);
+      const axiosError = error as { response?: { data?: { error?: string } } };
+      if (axiosError.response?.data?.error) {
+        messageApi.error(axiosError.response.data.error);
       } else {
         messageApi.error('保存に失敗しました');
       }
@@ -476,24 +484,28 @@ export default function CorporationManagement() {
             style={{ display: 'none' }}
             onChange={handleUpload}
           />
-          <Button icon={<UploadOutlined />} onClick={() => document.getElementById('csv-upload')?.click()}>
+          <Button
+            icon={<UploadOutlined />}
+            onClick={() => document.getElementById('csv-upload')?.click()}
+            disabled={isReadOnly}
+          >
             CSV<br />アップロード
           </Button>
         </label>
         <Button icon={<DownloadOutlined />} onClick={handleDownload}>
           CSV<br />ダウンロード
         </Button>
-        <Button icon={<PlusOutlined />} onClick={handleAdd}>
+        <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={isReadOnly}>
           追加
         </Button>
         <Button
           onClick={handleActivate}
-          disabled={selectedRowKeys.length === 0}
+          disabled={isReadOnly || selectedRowKeys.length === 0}
           style={{
             minWidth: 85,
-            backgroundColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
-            borderColor: selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
-            color: selectedRowKeys.length > 0 ? '#fff' : undefined,
+            backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
+            borderColor: !isReadOnly && selectedRowKeys.length > 0 ? '#4CAF50' : undefined,
+            color: !isReadOnly && selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
           アクティブ
@@ -501,12 +513,12 @@ export default function CorporationManagement() {
         <Button
           danger
           onClick={handleDeactivate}
-          disabled={selectedRowKeys.length === 0}
+          disabled={isReadOnly || selectedRowKeys.length === 0}
           style={{
             minWidth: 85,
-            backgroundColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
-            borderColor: selectedRowKeys.length > 0 ? '#FFA500' : undefined,
-            color: selectedRowKeys.length > 0 ? '#fff' : undefined,
+            backgroundColor: !isReadOnly && selectedRowKeys.length > 0 ? '#FFA500' : undefined,
+            borderColor: !isReadOnly && selectedRowKeys.length > 0 ? '#FFA500' : undefined,
+            color: !isReadOnly && selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
           非アクティブ

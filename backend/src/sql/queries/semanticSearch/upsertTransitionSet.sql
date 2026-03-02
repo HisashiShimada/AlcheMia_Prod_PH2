@@ -1,0 +1,70 @@
+-- transition_set テーブルへのUPSERT
+-- 検索単位の一意性: (organization_id, file_id, method_uuid, transition_id)
+-- conflict時は全フィールドを更新
+
+INSERT INTO transition_set (
+  organization_id,
+  project_name,
+  file_id,
+  file_path,
+  method_uuid,
+  transition_id,
+  instruction_ids,
+  instruction_descs,
+  input_place_ids,
+  output_place_ids,
+  input_place_count,
+  output_place_count,
+  input_text,
+  transition_text,
+  output_text,
+  structure_text,
+  input_mt_count,
+  input_ct_count,
+  input_rt_count,
+  output_mt_count,
+  output_ct_count,
+  output_rt_count,
+  emb_input,
+  emb_transition,
+  emb_output,
+  emb_structure,
+  technique,
+  embedding_model_version,
+  norm_template_version,
+  updated_at
+) VALUES (
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+  $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+  $21, $22, $23::vector, $24::vector, $25::vector, $26::vector,
+  $27, $28, $29, NOW()
+)
+ON CONFLICT (organization_id, file_id, method_uuid, transition_id)
+DO UPDATE SET
+  project_name = EXCLUDED.project_name,
+  file_path = EXCLUDED.file_path,
+  instruction_ids = EXCLUDED.instruction_ids,
+  instruction_descs = EXCLUDED.instruction_descs,
+  input_place_ids = EXCLUDED.input_place_ids,
+  output_place_ids = EXCLUDED.output_place_ids,
+  input_place_count = EXCLUDED.input_place_count,
+  output_place_count = EXCLUDED.output_place_count,
+  input_text = EXCLUDED.input_text,
+  transition_text = EXCLUDED.transition_text,
+  output_text = EXCLUDED.output_text,
+  structure_text = EXCLUDED.structure_text,
+  input_mt_count = EXCLUDED.input_mt_count,
+  input_ct_count = EXCLUDED.input_ct_count,
+  input_rt_count = EXCLUDED.input_rt_count,
+  output_mt_count = EXCLUDED.output_mt_count,
+  output_ct_count = EXCLUDED.output_ct_count,
+  output_rt_count = EXCLUDED.output_rt_count,
+  emb_input = EXCLUDED.emb_input,
+  emb_transition = EXCLUDED.emb_transition,
+  emb_output = EXCLUDED.emb_output,
+  emb_structure = EXCLUDED.emb_structure,
+  technique = EXCLUDED.technique,
+  embedding_model_version = EXCLUDED.embedding_model_version,
+  norm_template_version = EXCLUDED.norm_template_version,
+  updated_at = NOW()
+RETURNING transition_set_id

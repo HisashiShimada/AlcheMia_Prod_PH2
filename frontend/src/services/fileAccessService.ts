@@ -270,8 +270,8 @@ export const uploadFiles = async (
 /**
  * ファイルテキスト内容取得（ビューア用）
  *
- * Task: ビューアボタン修正 - MAIMLなどテキストファイルをstring取得
- * - /files/download-url を使って署名付きURLを取得後、直接fetchしてテキストを返す
+ * バックエンドがストレージからファイルを直接プロキシ取得し、テキスト文字列として返す。
+ * 署名付きURL経由のクライアントfetchは行わない。
  * - organization_idは認証情報から自動取得
  *
  * @param fileKey ファイルキー（相対パス）
@@ -282,23 +282,16 @@ export const getFileContentAsText = async (fileKey: string): Promise<string> => 
   const client = createApiClient();
 
   try {
-    // 署名付きURLを取得
-    const response = await client.post<ApiResponse<{ url: string; expiresAt: string; expiresIn: number }>>(
-      '/files/view-url',
+    const response = await client.post<ApiResponse<{ content: string }>>(
+      '/files/content-as-text',
       { fileKey }
     );
 
-    if (!response.data.success || !response.data.data?.url) {
-      throw new Error('ファイルURLの取得に失敗しました');
+    if (!response.data.success || response.data.data?.content === undefined) {
+      throw new Error('ファイル内容の取得に失敗しました');
     }
 
-    // 署名付きURLからテキストを取得
-    const fileResponse = await fetch(response.data.data.url);
-    if (!fileResponse.ok) {
-      throw new Error(`ファイルの取得に失敗しました: ${fileResponse.statusText}`);
-    }
-
-    return await fileResponse.text();
+    return response.data.data.content;
   } catch (error) {
     console.error('ファイルテキスト取得エラー:', error);
     throw error;
