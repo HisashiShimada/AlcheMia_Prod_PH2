@@ -1291,8 +1291,8 @@ const validateStatusUpdate = (body: any) => {
 | パラメータ | 型 | 必須 | 説明 | 制約 |
 |-----------|----|----|------|------|
 | taskNo | integer | ○ | タスク連番 | 1以上の整数 |
-| status | string | ○ | トランジションステータス | initial, preparing, ready, running, paused, completed, error |
-| progressRate | integer | △ | 進捗率 | 0-100、statusがcompletedの場合は自動的に100 |
+| status | integer | ○ | トランジションステータス（数値） | 0〜6の整数（0:初期, 1:準備中, 2:準備完了, 3:実行中, 4:一時停止, 5:完了, 6:エラー） |
+| progressRate | integer | △ | 進捗率 | 0-100、statusが5=completedの場合は自動的に100 |
 | comment | string | × | コメント | 最大2000文字 |
 
 #### レスポンス

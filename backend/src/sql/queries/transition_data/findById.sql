@@ -8,10 +8,9 @@ SELECT
   transition_id,
   status,
   progress_rate,
-  comment,
-  updated_by,
-  updated_at,
-  created_at
+  update_user_id,
+  update_at,
+  create_at
 FROM transition_data
 WHERE organization_id = $1
   AND project_id = $2

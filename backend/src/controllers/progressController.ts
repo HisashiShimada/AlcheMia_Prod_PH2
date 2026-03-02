@@ -204,8 +204,8 @@ export async function updateTransitionStatus(
     const { taskNo: _taskNo, status, progressRate, comment: _comment } = req.body;
 
     // 認証・認可情報の取得
-    const organizationId = (req as any).organizationId;
-    const updatedBy = req.user?.userId || (req.user as any)?.id;
+    const organizationId = req.user?.organizationId;
+    const updatedBy = req.user?.userId;
 
     // 必須パラメータの検証
     if (!organizationId) {

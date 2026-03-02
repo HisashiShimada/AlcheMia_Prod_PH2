@@ -1,3 +1,7 @@
+import { TransitionStatusEnum, TransitionStatus } from './transitionData';
+
+export { TransitionStatusEnum, TransitionStatus };
+
 /**
  * 進捗データ取得API - 型定義
  * 
@@ -5,15 +9,6 @@
  * Feature: progress-data-retrieval-api
  * Task: 1.2 型定義の整備
  */
-
-/**
- * トランジションステータス
- * 
- * - not_started: 未開始
- * - in_progress: 進行中
- * - completed: 完了
- */
-export type TransitionStatus = 'not_started' | 'in_progress' | 'completed';
 
 /**
  * トランジション進捗情報

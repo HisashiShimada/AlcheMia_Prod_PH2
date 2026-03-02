@@ -9,14 +9,14 @@ SELECT
   status,
   progress_rate,
   comment,
-  updated_by,
-  updated_at,
-  created_at
+  update_user_id,
+  update_at,
+  create_at
 FROM transition_data
 WHERE organization_id = $1
   AND project_id = $2
   AND method_id = $3
   AND task_no = $4
   AND transition_id = $5
-ORDER BY updated_at DESC
+ORDER BY update_at DESC
 LIMIT 1

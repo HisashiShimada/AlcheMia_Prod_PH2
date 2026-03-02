@@ -176,8 +176,12 @@ export interface ExperimentDataRecord {
   templateId: string;
   /** 実験データ（JSONB形式） */
   data: Record<string, unknown>;
-  /** ステータス（省略可） */
-  status?: 'initial' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
+  /**
+   * ステータス（省略可）
+   * 数値型（TransitionStatusEnum に対応）
+   * 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+   */
+  status?: number;
   /** コメント（省略可、最大2000文字） */
   comment?: string;
 }
@@ -304,9 +308,12 @@ export interface GetTemplateDataResponse {
 export interface UpdateTransitionStatusRequest {
   /** タスク連番（1以上の整数） */
   taskNo: number;
-  /** トランジションステータス */
-  status: 'initial' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
-  /** 進捗率（0〜100、statusがcompletedの場合は自動的に100） */
+  /**
+   * トランジションステータス（数値型）
+   * 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+   */
+  status: number;
+  /** 進捗率（0〜100、statusが5=completedの場合は自動的に100） */
   progressRate?: number;
   /** コメント（最大2000文字） */
   comment?: string;
@@ -323,7 +330,11 @@ export interface UpdateTransitionStatusResponse {
   taskNo: number;
   methodId: string;
   projectName: string;
-  status: string;
+  /**
+   * トランジションステータス（数値型）
+   * 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+   */
+  status: number;
   progressRate: number;
   comment: string | null;
   updatedBy: string;

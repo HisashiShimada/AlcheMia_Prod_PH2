@@ -221,15 +221,12 @@ export interface Stats {
 // 進捗ステータス
 export type ProgressStatus = 'not_started' | 'in_progress' | 'completed' | 'on_hold' | 'issue';
 
-// トランジションステータス（実験データ記録用）
-export type TransitionStatus = 
-  | 'initial'           // 初期状態
-  | 'preparing'         // 準備状態
-  | 'ready'             // 準備完了状態
-  | 'running'           // 動作状態
-  | 'paused'            // 休止状態
-  | 'completed'         // 終状態
-  | 'error';            // 異常終了状態
+/**
+ * トランジションステータス（実験データ記録用）
+ * 数値型（TransitionStatusEnumに対応）
+ * 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+ */
+export type TransitionStatus = number;
 
 // トランジション進捗情報
 export interface TransitionProgress {

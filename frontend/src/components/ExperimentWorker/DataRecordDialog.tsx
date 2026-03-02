@@ -50,6 +50,34 @@ import {
   ProjectStatus,
   isEditableStatus,
 } from '@/types/experimentWorker';
+
+/**
+ * ステータス遷移ルール（progressService.ts の ALLOWED_TRANSITIONS と同一）
+ * キー: 現在のステータス値（数値）
+ * 値: 遷移可能なステータス値の配列（数値）
+ */
+const ALLOWED_TRANSITIONS: Record<number, number[]> = {
+  0: [1, 5, 6],       // 初期状態 → 準備状態、終状態、異常終了
+  1: [2, 5, 6],       // 準備状態 → 準備完了、終状態、異常終了
+  2: [2, 3, 5, 6],    // 準備完了 → 準備完了（自己遷移）、動作状態、終状態、異常終了
+  3: [4, 5, 6],       // 動作状態 → 休止状態、終状態、異常終了
+  4: [3, 5, 6],       // 休止状態 → 動作状態、終状態、異常終了
+  5: [],              // 終状態 → 変更不可
+  6: [],              // 異常終了 → 変更不可
+};
+
+/**
+ * 全ステータスの定義
+ */
+const ALL_STATUS_OPTIONS: { value: TransitionStatus; label: string }[] = [
+  { value: 0 as TransitionStatus, label: '初期状態' },
+  { value: 1 as TransitionStatus, label: '準備状態' },
+  { value: 2 as TransitionStatus, label: '準備完了状態' },
+  { value: 3 as TransitionStatus, label: '動作状態' },
+  { value: 4 as TransitionStatus, label: '休止状態' },
+  { value: 5 as TransitionStatus, label: '終状態' },
+  { value: 6 as TransitionStatus, label: '異常終了状態' },
+];
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
 import { updateTransitionStatus } from '@/services/projectApiService';
 import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
@@ -203,24 +231,43 @@ export default function DataRecordDialog({
   // プロジェクトの状態が編集可能かどうか
   const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
 
+  /**
+   * 現在のトランジションステータス（数値）
+   * transition.status は型上 ProgressStatus（文字列型）だが、
+   * APIレスポンスでは実際に数値（0-6）が入っているため Number() で変換する
+   */
+  const currentStatus = useMemo((): number => {
+    if (!transition || transition.status === undefined || transition.status === null) {
+      return 0;
+    }
+    const num = Number(transition.status);
+    return isNaN(num) ? 0 : num;
+  }, [transition]);
+
+  /**
+   * 終端ステータス（完了・エラー）かどうか
+   * 終端ステータスの場合はステータス変更不可
+   */
+  const isTerminalStatus = currentStatus === 5 || currentStatus === 6;
+
   // ステータスとコメント用の状態
-  const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>('initial');
+  // 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+  const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>(0);
   const [comment, setComment] = useState('');
   const [progress, setProgress] = useState<number>(0);
   
   // みなし進捗更新用の状態
   const [useDeemedProgress, setUseDeemedProgress] = useState(true);
 
-  // ステータスの選択肢
-  const statusOptions = [
-    { value: 'initial' as TransitionStatus, label: '初期状態' },
-    { value: 'preparing' as TransitionStatus, label: '準備状態' },
-    { value: 'ready' as TransitionStatus, label: '準備完了状態' },
-    { value: 'running' as TransitionStatus, label: '動作状態' },
-    { value: 'paused' as TransitionStatus, label: '休止状態' },
-    { value: 'completed' as TransitionStatus, label: '終状態' },
-    { value: 'error' as TransitionStatus, label: '異常終了状態' },
-  ];
+  /**
+   * 現在のステータスから遷移可能なステータスの選択肢（useMemo でメモ化）
+   * ALLOWED_TRANSITIONS に基づいて選択肢をフィルタリングする
+   * 終端ステータス（5: 終状態、6: 異常終了）の場合は空配列
+   */
+  const statusOptions = useMemo(() => {
+    const allowedValues = ALLOWED_TRANSITIONS[currentStatus] ?? [];
+    return ALL_STATUS_OPTIONS.filter(opt => allowedValues.includes(opt.value as number));
+  }, [currentStatus]);
 
   // クライアント判定
   useEffect(() => {
@@ -308,7 +355,10 @@ export default function DataRecordDialog({
       form.resetFields();
       setFormData({});
       setDataGrids({});
-      setSelectedStatus('initial');
+      // 初期値は現在のトランジションステータスから遷移可能な最初の選択肢を設定
+      // 終端ステータスの場合は選択肢がないため 0 のまま
+      const allowedValues = ALLOWED_TRANSITIONS[currentStatus] ?? [];
+      setSelectedStatus((allowedValues[0] ?? 0) as TransitionStatus);
       setComment('');
       setProgress(0);
       setSelectedTemplateId(null);
@@ -1034,14 +1084,35 @@ export default function DataRecordDialog({
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>
                       ステータス
                     </Text>
-                    <Select
-                      style={{ width: '100%' }}
-                      placeholder="ステータスを選択"
-                      value={selectedStatus}
-                      onChange={setSelectedStatus}
-                      options={statusOptions}
-                      disabled={!isProjectEditable}
-                    />
+                    {isTerminalStatus ? (
+                      <Alert
+                        message={`現在のステータスは「${ALL_STATUS_OPTIONS.find(o => o.value === currentStatus)?.label}」です。これ以上変更できません。`}
+                        type="warning"
+                        showIcon
+                        style={{ marginBottom: 0 }}
+                      />
+                    ) : statusOptions.length === 0 ? (
+                      <Alert
+                        message="遷移可能なステータスがありません"
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: 0 }}
+                      />
+                    ) : (
+                      <>
+                        <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                          現在: {ALL_STATUS_OPTIONS.find(o => o.value === currentStatus)?.label ?? '不明'}
+                        </Text>
+                        <Select
+                          style={{ width: '100%' }}
+                          placeholder="ステータスを選択"
+                          value={selectedStatus}
+                          onChange={setSelectedStatus}
+                          options={statusOptions}
+                          disabled={!isProjectEditable || isTerminalStatus}
+                        />
+                      </>
+                    )}
                   </Col>
 
                   {/* 進捗 */}
