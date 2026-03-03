@@ -30,7 +30,7 @@
 ## 2. 画面構成
 
 ### 2.1 画面イメージ
-![指示確認タブイメージ](images\ui_instruction_confirmation_tab.jpg)
+![指示確認タブイメージ](..\images\ui_instruction_confirmation_tab.jpg)
 
 ### 2.2 レイアウト構造
 

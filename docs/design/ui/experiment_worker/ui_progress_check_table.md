@@ -29,7 +29,7 @@
 ## 2. コンポーネント構成
 
 ### 2.1 画面イメージ
-![進捗確認テーブルイメージ](images\ui_progress_check_table.jpg)
+![進捗確認テーブルイメージ](..\images\ui_progress_check_table.jpg)
 
 ### 2.2 レイアウト構造
 

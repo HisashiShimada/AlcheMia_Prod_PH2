@@ -34,8 +34,8 @@
 ## 2. コンポーネント構成
 
 ### 2.1 画面イメージ
-![問題管理モーダルイメージ(新規報告)](images\ui_issue_management_modal_1.jpg)
-![問題管理モーダルイメージ](images\ui_issue_management_modal_2.jpg)
+![問題管理モーダルイメージ(新規報告)](..\images\ui_issue_management_modal_1.jpg)
+![問題管理モーダルイメージ](..\images\ui_issue_management_modal_2.jpg)
 
 ### 2.2 レイアウト構造
 

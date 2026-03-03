@@ -31,7 +31,7 @@
 ## 2. 画面レイアウト
 
 ### 2.1 画面イメージ
-![実験作業者メイン画面イメージ](images\ui_experiment_worker_main.jpg)
+![実験作業者メイン画面イメージ](..\images\ui_experiment_worker_main.jpg)
 
 ### 2.1. 全体構成
 
