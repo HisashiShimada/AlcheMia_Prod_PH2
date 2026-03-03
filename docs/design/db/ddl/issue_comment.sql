@@ -30,6 +30,15 @@ CREATE TABLE issue_comment (
     CONSTRAINT issue_comment_pkey PRIMARY KEY (organization_id, project_id, issue_id, sequence_no)
 );
 
+-- インデックス（パフォーマンス最適化）
+-- 問題IDによるコメント取得用インデックス
+CREATE INDEX idx_issue_comment_issue_id
+    ON issue_comment (issue_id, sequence_no);
+
+-- 組織・問題IDによる複合インデックス（マルチテナント分離 + コメント取得）
+CREATE INDEX idx_issue_comment_org_issue
+    ON issue_comment (organization_id, issue_id);
+
 -- コメント
 COMMENT ON TABLE issue_comment IS '問題コメント';
 COMMENT ON COLUMN issue_comment.organization_id IS '組織ID';

@@ -40,6 +40,25 @@ CREATE TABLE issue (
     CONSTRAINT issue_pkey PRIMARY KEY (organization_id, project_id, issue_id)
 );
 
+-- インデックス（パフォーマンス最適化）
+-- 問題一覧取得用複合インデックス（organization_id + project_id + status）
+CREATE INDEX idx_issue_org_project_status
+    ON issue (organization_id, project_id, status);
+
+-- 問題一覧取得用複合インデックス（organization_id + project_id + create_at）
+CREATE INDEX idx_issue_org_project_created
+    ON issue (organization_id, project_id, create_at DESC);
+
+-- タスクレベル絞り込み用インデックス
+CREATE INDEX idx_issue_org_method_task
+    ON issue (organization_id, method_id, task_no)
+    WHERE issue_target IS NOT NULL;
+
+-- トランジションレベル絞り込み用インデックス
+CREATE INDEX idx_issue_org_transition
+    ON issue (organization_id, transition_id)
+    WHERE transition_id IS NOT NULL;
+
 -- コメント
 COMMENT ON TABLE issue IS '問題';
 COMMENT ON COLUMN issue.organization_id IS '組織ID';
