@@ -350,18 +350,19 @@ export default function DepartmentManagement() {
         // 編集の場合
         const editingRecord = editingDepartment as DepartmentRecord;
         await updateMaster(editingRecord.departmentId, {
-          departmentName: values.displayName,
-          isActive: values.isActive,
-        });
+          ...(editingRecord as unknown as import('@/services/departmentApiService').MasterRecord),
+          department_name: values.displayName,
+          is_active: values.isActive,
+        } as import('@/services/departmentApiService').MasterRecord);
         await fetchDepartments();
         message.success('部署情報を更新しました');
       } else {
         // 新規追加の場合
         await createMaster({
-          departmentCd: values.departmentId,
-          departmentName: values.displayName,
-          isActive: values.isActive !== undefined ? values.isActive : true,
-        });
+          department_cd: values.departmentId,
+          department_name: values.displayName,
+          is_active: values.isActive !== undefined ? values.isActive : true,
+        } as import('@/services/departmentApiService').MasterRecord);
         await fetchDepartments();
         message.success('部署を追加しました');
       }

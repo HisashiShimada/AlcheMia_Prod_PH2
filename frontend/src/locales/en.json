@@ -36,6 +36,7 @@
     "provider": {
       "title": "Provider Menu",
       "tabs": {
+        "corporationManagement": "Corporation Management",
         "organizationManagement": "Organization Management",
         "informationDownload": "Information Download"
       }

@@ -985,8 +985,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       } else if (selectedMasterInfo?.masterId === '1') {
         // Creatorマスタ
         // JSON形式の値を解析
-        let vendorData = null;
-        let instrumentData = null;
+        let vendorData: { vendorId: unknown; vendorName: unknown } | null = null;
+        let instrumentData: { instrumentId: unknown; instrumentName: unknown } | null = null;
         
         // vendorNameの処理
         if (values.vendorName) {
