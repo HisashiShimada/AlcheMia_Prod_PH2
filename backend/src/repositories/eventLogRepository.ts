@@ -263,6 +263,169 @@ export class EventLogRepository {
   }
 
   /**
+   * トランジション進捗更新イベントログを記録
+   *
+   * トランジションの進捗が更新された際（みなし進捗・手動更新）に呼び出す。
+   * 以下のXML構造を模したJSONを maiml_event_log に保存する。
+   *
+   * ```xml
+   * <eventLog id="eventLogID">
+   *   <log id="work_{ts}_{shortName}_log_transition_{transitionId}" ref="{transitionId}">
+   *     <trace id="trace_{transitionId}_work_{ts}_{shortName}" ref="{transitionId}">
+   *       <event id="event_report_{loginId}_{ts}" ref="{transitionId}">
+   *         <property key="timestamp" xsi:type="xs:dateTime">...</property>
+   *         <property key="worker_id" xsi:type="xs:string">...</property>
+   *         <property key="status" xsi:type="xs:string">...</property>
+   *         <property key="progress_percentage" xsi:type="xs:int">...</property>
+   *         <property key="report_type" xsi:type="xs:string">transition_progress</property>
+   *         <property key="comments" xsi:type="xs:string">...</property>
+   *       </event>
+   *     </trace>
+   *   </log>
+   * </eventLog>
+   * ```
+   *
+   * ID採番ルール:
+   *   ts        = Date.now()（Unixミリ秒）
+   *   shortName = loginIdの@より前の部分（例: yukihiro.omori@... → yukihiro）
+   *   loginId   = user_authenticationテーブルから取得（取得失敗時はuserIdをフォールバック）
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param transitionId - トランジションID
+   * @param userId - 更新者ユーザID（user_authenticationのuser_id）
+   * @param statusLabel - ステータスラベル文字列（例: "running", "completed"）
+   * @param progressPercentage - 進捗率（0-100）
+   * @param comment - コメント（省略可）
+   * @param client - トランザクション用のPoolClient
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async insertTransitionProgressLog(
+    organizationId: string,
+    projectId: string,
+    transitionId: string,
+    userId: string,
+    statusLabel: string,
+    progressPercentage: number,
+    comment: string | null | undefined,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      // 1. sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
+      const sequenceQuery = `
+        SELECT COALESCE(MAX(sequence_no), 0) + 1 AS next_sequence_no
+        FROM maiml_event_log
+        WHERE organization_id = $1 AND project_id = $2
+      `;
+      const sequenceResult = await client.query(sequenceQuery, [
+        organizationId,
+        projectId,
+      ]);
+      const nextSequenceNo: number = sequenceResult.rows[0].next_sequence_no;
+
+      // 2. loginId の設定
+      //    user_authentication の user_id はメールアドレス形式のためそのまま loginId として使用する
+      const loginId: string = userId;
+
+      // 3. ID生成に必要な値を算出
+      //    ts1: ログ生成タイムスタンプ（Unixミリ秒）
+      //    shortName: loginIdの@より前の部分（メールアドレス以外の場合はloginId全体）
+      const ts = Date.now();
+      const atIndex = loginId.indexOf('@');
+      const shortName = atIndex > 0 ? loginId.substring(0, atIndex) : loginId;
+      const nowIso = new Date(ts).toISOString();
+
+      // 4. JSON構造を構築
+      const logJson = {
+        eventLog: {
+          '@id': 'eventLogID',
+          log: {
+            '@id': `work_${ts}_${shortName}_log_transition_${transitionId}`,
+            '@ref': transitionId,
+            trace: {
+              '@id': `trace_${transitionId}_work_${ts}_${shortName}`,
+              '@ref': transitionId,
+              event: {
+                '@id': `event_report_${loginId}_${ts}`,
+                '@ref': transitionId,
+                property: [
+                  {
+                    '@key': 'timestamp',
+                    '@xsi:type': 'xs:dateTime',
+                    '#text': nowIso,
+                  },
+                  {
+                    '@key': 'worker_id',
+                    '@xsi:type': 'xs:string',
+                    '#text': loginId,
+                  },
+                  {
+                    '@key': 'status',
+                    '@xsi:type': 'xs:string',
+                    '#text': statusLabel,
+                  },
+                  {
+                    '@key': 'progress_percentage',
+                    '@xsi:type': 'xs:int',
+                    '#text': progressPercentage,
+                  },
+                  {
+                    '@key': 'report_type',
+                    '@xsi:type': 'xs:string',
+                    '#text': 'transition_progress',
+                  },
+                  {
+                    '@key': 'comments',
+                    '@xsi:type': 'xs:string',
+                    '#text': comment ?? '',
+                  },
+                ],
+              },
+            },
+          },
+        },
+      };
+
+      // 5. maiml_event_log にINSERT（Parameterized Query）
+      const insertQuery = `
+        INSERT INTO maiml_event_log (
+          organization_id,
+          project_id,
+          sequence_no,
+          log,
+          create_user_id,
+          create_at,
+          update_user_id,
+          update_at
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4::jsonb,
+          $5,
+          CURRENT_TIMESTAMP,
+          $5,
+          CURRENT_TIMESTAMP
+        )
+      `;
+
+      await client.query(insertQuery, [
+        organizationId,
+        projectId,
+        nextSequenceNo,
+        JSON.stringify(logJson),
+        userId,
+      ]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while inserting transition progress log',
+        error as Error
+      );
+    }
+  }
+
+  /**
    * 指示対象に応じた eventLog JSON 構造を生成するヘルパー
    *
    * @param params - 指示確認ログパラメータ

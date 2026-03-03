@@ -648,6 +648,7 @@ export class ProgressService {
    * @param methodId メソッドID
    * @param transitionId トランジションID
    * @param update 更新内容
+   * @param comment イベントログに記録するコメント（省略可）
    * @returns 更新後のトランジションデータ
    */
   async updateTransitionStatus(
@@ -655,7 +656,8 @@ export class ProgressService {
     projectId: string,
     methodId: string,
     transitionId: string,
-    update: TransitionDataUpdate
+    update: TransitionDataUpdate,
+    comment?: string | null
   ): Promise<TransitionData> {
     const pool = getPool();
     const client = await pool.connect();
@@ -702,20 +704,27 @@ export class ProgressService {
         finalUpdate
       );
 
-      // 5. イベントログを記録
-      await this.eventLogRepository.logEvent(
+      // 5. イベントログを記録（指定のXML構造を模したJSONフォーマット）
+      // トランジションステータス数値 → ラベル文字列 のマッピング
+      const transitionStatusLabelMap: Record<number, string> = {
+        [TransitionStatusEnum.INITIAL]: 'initial',
+        [TransitionStatusEnum.PREPARING]: 'preparing',
+        [TransitionStatusEnum.READY]: 'ready',
+        [TransitionStatusEnum.IN_PROGRESS]: 'running',
+        [TransitionStatusEnum.PAUSED]: 'paused',
+        [TransitionStatusEnum.COMPLETED]: 'completed',
+        [TransitionStatusEnum.ERROR]: 'error',
+      };
+      const statusLabel = transitionStatusLabelMap[update.status] ?? String(update.status);
+
+      await this.eventLogRepository.insertTransitionProgressLog(
         organizationId,
         projectId,
-        {
-          event_type: 'transition_status_update',
-          method_id: method_id,
-          task_no: task_no,
-          transition_id: transitionId,
-          status: update.status,
-          progress_rate: finalProgressRate,
-          updated_by: update.updated_by,
-          timestamp: new Date()
-        },
+        transitionId,
+        update.updated_by,
+        statusLabel,
+        finalProgressRate,
+        comment ?? null,
         client
       );
 

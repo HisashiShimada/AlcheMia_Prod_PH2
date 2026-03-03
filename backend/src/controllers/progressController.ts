@@ -255,11 +255,7 @@ export async function updateTransitionStatus(
       ...(progressRate !== undefined && { progress_rate: progressRate }),
     };
 
-    // TODO: _taskNo、_commentはmaiml_event_logテーブルに格納する処理を実装予定
-    // 現在はリクエストボディから受け取るのみ（バリデーション済み）
-
-    // サービス層を呼び出してステータス更新
-    
+    // サービス層を呼び出してステータス更新（commentをイベントログ用に渡す）
     const transitionDataRepository = new TransitionDataRepository();
     const progressService = new ProgressService(transitionDataRepository);
     
@@ -268,7 +264,8 @@ export async function updateTransitionStatus(
       projectId,
       methodId,
       transitionId,
-      updateData
+      updateData,
+      _comment ?? null
     );
 
     // 成功レスポンスを返す

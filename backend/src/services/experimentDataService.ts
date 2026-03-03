@@ -8,6 +8,7 @@
 
 import { TemplateDataRepository, TemplateDataRecord, TemplateDataRow, PropertySet } from '../repositories/templateDataRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
+import { EventLogRepository } from '../repositories/eventLogRepository';
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { getStorageService } from './storageService';
@@ -586,7 +587,7 @@ async function updateDeemedProgress(
       : TransitionStatusEnum.IN_PROGRESS;
     const newProgressRate = Math.min(100, Math.round(registeredCount / totalCount * 100));
 
-    // transition_data を更新
+    // transition_data を更新し、イベントログを記録
     try {
       await transitionRepo.updateStatusDeemed(
         organizationId,
@@ -606,6 +607,34 @@ async function updateDeemedProgress(
         registeredCount,
         totalCount,
       });
+
+      // みなし進捗更新イベントログを記録
+      // statusLabel: IN_PROGRESS(3) → "running", COMPLETED(5) → "completed"
+      const deemedStatusLabelMap: Record<number, string> = {
+        [TransitionStatusEnum.IN_PROGRESS]: 'running',
+        [TransitionStatusEnum.COMPLETED]: 'completed',
+      };
+      const deemedStatusLabel = deemedStatusLabelMap[newStatus] ?? String(newStatus);
+
+      try {
+        const eventLogRepository = new EventLogRepository();
+        await eventLogRepository.insertTransitionProgressLog(
+          organizationId,
+          projectId,
+          transitionId,
+          updatedBy,
+          deemedStatusLabel,
+          newProgressRate,
+          null, // みなし進捗は自動更新のためコメントなし
+          client
+        );
+      } catch (logErr) {
+        // イベントログ記録失敗はwarningログを出力し、メイン処理は継続
+        logger.warn('[ExperimentDataService] みなし進捗: イベントログ記録失敗。処理は継続します。', {
+          transitionId,
+          logErr,
+        });
+      }
     } catch (err) {
       logger.error('[ExperimentDataService] みなし進捗: transition_data 更新失敗。スキップします。', { transitionId, err });
       // 1件の更新失敗はスキップ（トランザクション全体はロールバックしない）
