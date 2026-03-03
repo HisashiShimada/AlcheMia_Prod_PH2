@@ -1,7 +1,7 @@
 ﻿# A5:ER FORMAT:21
 # A5:ER ENCODING:UTF8
 # A5:ER Mk-1 Copyright © 2007 m.matsubara
-# A5:SQL Mk-2 Version 2.21.0 Copyright © 1997 - 2026 m.matsubara
+# A5:SQL Mk-2 Version 2.21.1 Copyright © 1997 - 2026 m.matsubara
 #  https://a5m2.mmatsubara.com
 
 [Manager]
@@ -59,6 +59,7 @@ Field="組織E-mail","organization_email","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="代表者ユーザID","chief_user_id","@VARCHAR(50)",,,"","",$00000000,""
 Field="会社ID","corporation_id","uuid",,,"","",$FFFFFFFF,""
 Field="二段階認証判定","is_entry","@INT",,,"","0:二段階認証なし1:二段階認証あり",$FFFFFFFF,""
+Field="みなし進捗使用フラグ","use_deemed_progress","@BOOLEAN","NOT NULL",,"true","",$FFFFFFFF,""
 Field="アクティブ判定","is_active","@BOOLEAN",,,"","",$FFFFFFFF,""
 Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
@@ -69,7 +70,7 @@ Index=idx_organizaton_organization_cd=1,organization_cd
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260218084944
+ModifiedDateTime=20260303103610
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,100,588,503
 ZOrder=4
 

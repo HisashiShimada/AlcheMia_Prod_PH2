@@ -48,6 +48,7 @@ export interface OrganizationResponse {
   chiefUserName: string;
   corporationName: string;
   isEntry: number;
+  useDeemedProgress: boolean;
   isActive: boolean;
   updatedAt: string;
 }
@@ -101,6 +102,7 @@ export async function getOrganizations(
     chiefUserName: org.chief_user_name || '',
     corporationName: org.corporation_name || '',
     isEntry: org.is_entry,
+    useDeemedProgress: org.use_deemed_progress,
     isActive: org.is_active,
     updatedAt: formatDateTime(org.update_at),
   }));
@@ -130,6 +132,7 @@ export async function getOrganizationById(
     chiefUserName: organization.chief_user_name || '',
     corporationName: organization.corporation_name || '',
     isEntry: organization.is_entry,
+    useDeemedProgress: organization.use_deemed_progress,
     isActive: organization.is_active,
     updatedAt: formatDateTime(organization.update_at),
   };
@@ -161,6 +164,7 @@ export async function createOrganization(
     chiefUserPassword?: string;
     corporationId?: string;
     isEntry?: number;
+    useDeemedProgress?: boolean;
     isActive?: boolean;
   },
   userId: string
@@ -217,6 +221,7 @@ export async function createOrganization(
         data.chiefUserEmail || null,  // 代表者メールアドレスをchief_user_idに設定
         data.corporationId || null,
         data.isEntry !== undefined ? data.isEntry : 0,
+        data.useDeemedProgress !== undefined ? data.useDeemedProgress : true,
         data.isActive !== undefined ? data.isActive : true,
         userId,
         userId,
@@ -367,6 +372,7 @@ export async function createOrganization(
     chiefUserName: fullOrganization!.chief_user_name || '',
     corporationName: fullOrganization!.corporation_name || '',
     isEntry: fullOrganization!.is_entry,
+    useDeemedProgress: fullOrganization!.use_deemed_progress,
     isActive: fullOrganization!.is_active,
     updatedAt: formatDateTime(fullOrganization!.update_at),
   };
@@ -389,6 +395,7 @@ export async function updateOrganization(
     chiefUserId?: string;
     corporationId?: string;
     isEntry?: number;
+    useDeemedProgress?: boolean;
     isActive?: boolean;
   },
   userId: string
@@ -408,6 +415,7 @@ export async function updateOrganization(
     chiefUserName: organization.chief_user_name || '',
     corporationName: organization.corporation_name || '',
     isEntry: organization.is_entry,
+    useDeemedProgress: organization.use_deemed_progress,
     isActive: organization.is_active,
     updatedAt: formatDateTime(organization.update_at),
   };
@@ -441,6 +449,7 @@ export async function updateOrganizationStatus(
     chiefUserName: organization.chief_user_name || '',
     corporationName: organization.corporation_name || '',
     isEntry: organization.is_entry,
+    useDeemedProgress: organization.use_deemed_progress,
     isActive: organization.is_active,
     updatedAt: formatDateTime(organization.update_at),
   };
@@ -655,6 +664,18 @@ export async function uploadOrganizationsCsv(
       break;
     }
     
+    // 型チェック（use_deemed_progress）
+    const useDeemedProgressStr = row['use_deemed_progress']?.trim();
+    if (useDeemedProgressStr &&
+        !['true', 'TRUE', '1', 'false', 'FALSE', '0', ''].includes(useDeemedProgressStr)) {
+      validationErrors.push({
+        row: rowNumber,
+        field: 'use_deemed_progress',
+        message: `${rowNumber}行目: use_deemed_progressは true/false/1/0 のいずれかである必要があります`
+      });
+      break;
+    }
+
     // 型チェック（is_active）
     const isActiveStr = row['is_active']?.trim();
     if (isActiveStr && 
@@ -738,6 +759,10 @@ export async function uploadOrganizationsCsv(
       const isEntryStr = row['is_entry']?.trim();
       const isEntry = isEntryStr === '1' ? 1 : 0;
       
+      // use_deemed_progressの変換
+      const useDeemedProgressStr = row['use_deemed_progress']?.trim();
+      const useDeemedProgress = useDeemedProgressStr === 'false' || useDeemedProgressStr === 'FALSE' || useDeemedProgressStr === '0' ? false : true;
+
       // is_activeの変換
       const isActiveStr = row['is_active']?.trim();
       const isActive = isActiveStr === 'true' || isActiveStr === 'TRUE' || isActiveStr === '1';
@@ -762,6 +787,7 @@ export async function uploadOrganizationsCsv(
         chiefUserEmail,
         corporationId,
         isEntry,
+        useDeemedProgress,
         isActive,
       }, userId);
       

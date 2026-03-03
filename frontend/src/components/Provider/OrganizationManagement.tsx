@@ -46,6 +46,7 @@ interface OrganizationData {
   chiefUserName: string;             // 代表システム管理者名（JOIN結果）
   corporationName: string;           // 会社名（JOIN結果）
   isEntry: number;                   // 二段階認証判定
+  useDeemedProgress: boolean;        // みなし進捗使用フラグ
   isActive: boolean;                 // アクティブ/非アクティブ
   updatedAt: string;                 // 更新日時
 }
@@ -87,6 +88,8 @@ export default function OrganizationManagement() {
   const [editingOrg, setEditingOrg] = useState<OrganizationData | null>(null);
   const [selectedOrganizationDisplayName, setSelectedOrganizationDisplayName] = useState<string>('');
   const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('');
+  const [selectedIsEntry, setSelectedIsEntry] = useState<string>('');
+  const [selectedUseDeemedProgress, setSelectedUseDeemedProgress] = useState<string>('');
   const [form] = Form.useForm();
   const [companyOptions, setCompanyOptions] = useState<OptionType[]>([]);
   const [systemAdminOptions, setSystemAdminOptions] = useState<OptionType[]>([]);
@@ -160,9 +163,15 @@ export default function OrganizationManagement() {
       // 会社名フィルター
       const matchesCompanyName = !selectedCompanyCode || org.corporationName === selectedCompanyCode;
 
-      return matchesSearch && matchesOrganizationDisplayName && matchesCompanyName;
+      // 二段階認証判定フィルター
+      const matchesIsEntry = selectedIsEntry === '' || org.isEntry === Number(selectedIsEntry);
+
+      // みなし進捗使用フラグフィルター
+      const matchesUseDeemedProgress = selectedUseDeemedProgress === '' || org.useDeemedProgress === (selectedUseDeemedProgress === 'true');
+
+      return matchesSearch && matchesOrganizationDisplayName && matchesCompanyName && matchesIsEntry && matchesUseDeemedProgress;
     });
-  }, [organizations, searchText, selectedOrganizationDisplayName, selectedCompanyCode]);
+  }, [organizations, searchText, selectedOrganizationDisplayName, selectedCompanyCode, selectedIsEntry, selectedUseDeemedProgress]);
 
   // アクティブな組織数をカウント
   const activeOrganizationCount = useMemo(() => {
@@ -245,7 +254,7 @@ export default function OrganizationManagement() {
       title: <div style={{ textAlign: 'center' }}>代表システム管理者</div>,
       dataIndex: 'chiefUserName',
       key: 'chiefUserName',
-      width: 150,
+      width: 164,
       sorter: (a, b) => a.chiefUserName.localeCompare(b.chiefUserName),
       render: (text: string, record) => (
         <Text style={{ 
@@ -285,6 +294,22 @@ export default function OrganizationManagement() {
           color: !record.isActive ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
         }}>
           {value === 1 ? 'あり' : 'なし'}
+        </Text>
+      ),
+    },
+    {
+      title: <div style={{ textAlign: 'center' }}>みなし進捗使用フラグ</div>,
+      dataIndex: 'useDeemedProgress',
+      key: 'useDeemedProgress',
+      width: 174,
+      align: 'center',
+      sorter: (a, b) => Number(a.useDeemedProgress) - Number(b.useDeemedProgress),
+      render: (value: boolean, record) => (
+        <Text style={{ 
+          fontSize: 13,
+          color: !record.isActive ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.85)'
+        }}>
+          {value ? 'あり' : 'なし'}
         </Text>
       ),
     },
@@ -581,6 +606,8 @@ export default function OrganizationManagement() {
     setSelectedRowKeys([]);
     setSelectedOrganizationDisplayName('');
     setSelectedCompanyCode('');
+    setSelectedIsEntry('');
+    setSelectedUseDeemedProgress('');
     await fetchOrganizations();
     messageApi.success('データをリロードしました');
   };
@@ -644,70 +671,56 @@ export default function OrganizationManagement() {
     }
   };
 
-  // CSVダウンロード
-  const handleDownload = async () => {
+  // CSVダウンロード（フィルタ済みデータをそのまま CSV 化）
+  const handleDownload = () => {
     try {
-      setLoading(true);
-      const client = createApiClient();
-      
-      // クエリパラメータを構築
-      const params: Record<string, string> = {};
-      if (searchText.trim()) {
-        params.search = searchText.trim();
-      }
-      if (selectedOrganizationDisplayName) {
-        params.organization_display_name = selectedOrganizationDisplayName;
-      }
-      if (selectedCompanyCode) {
-        params.corporation_name = selectedCompanyCode;
-      }
-      
-      const response = await client.get('/provider/organization/download-csv', {
-        params,
-        responseType: 'blob',
-      });
-      
-      // レスポンスをBlobとして取得
-      const blob = new Blob([response.data], { type: 'text/csv' });
-      
-      // Content-Dispositionヘッダーからファイル名を取得
-      const contentDisposition = 
-        response.headers['content-disposition'] || 
-        response.headers['Content-Disposition'];
-      
-      let filename = 'organizations.csv'; // デフォルト値
-      
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1].replace(/['"]/g, '');
-        }
-      } else {
-        // Content-Dispositionヘッダーがない場合は、フロントエンド側でタイムスタンプを生成
-        const timestamp = new Date()
-          .toISOString()
-          .replace(/[-:]/g, '')
-          .replace('T', '')
-          .slice(0, 14);
-        filename = `organizations_${timestamp}.csv`;
-      }
-      
-      // ダウンロードリンクを作成
+      // フィルタ適用済みの filteredOrganizations を CSV 化
+      const csvData = filteredOrganizations.map((o) => ({
+        'organization_cd': o.organizationCd,
+        'organization_display_name': o.organizationDisplayName,
+        'organization_email': o.organizationEmail,
+        'chief_user_name': o.chiefUserName,
+        'chief_user_email': o.chiefUserId,
+        'corporation_name': o.corporationName,
+        'is_entry': o.isEntry,
+        'use_deemed_progress': o.useDeemedProgress,
+        'update_at': o.updatedAt,
+        'is_active': o.isActive,
+      }));
+
+      // CSV 文字列を構築（ヘッダー付き）
+      const headers = Object.keys(csvData[0] ?? {});
+      const rows = csvData.map(row =>
+        headers.map(h => {
+          const val = String((row as Record<string, unknown>)[h] ?? '');
+          return val.includes(',') || val.includes('"') || val.includes('\n')
+            ? `"${val.replace(/"/g, '""')}"`
+            : val;
+        }).join(',')
+      );
+      const csvString = [headers.join(','), ...rows].join('\r\n');
+
+      // BOM 付き UTF-8 でダウンロード
+      const blob = new Blob(['\uFEFF' + csvString], { type: 'text/csv; charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
+
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[-:]/g, '')
+        .replace('T', '')
+        .slice(0, 14);
       link.href = url;
-      link.download = filename;
+      link.download = `organizations_${timestamp}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       messageApi.success('CSVファイルをダウンロードしました');
     } catch (error) {
       console.error('CSV download error:', error);
       messageApi.error('CSVダウンロードに失敗しました');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -895,6 +908,32 @@ export default function OrganizationManagement() {
               options={companyNames.map(name => ({ label: name, value: name }))}
             />
           </Col>
+          <Col style={{ width: 150 }}>
+            <Select
+              placeholder="二段階認証判定"
+              value={selectedIsEntry || undefined}
+              onChange={(value) => setSelectedIsEntry(value ?? '')}
+              allowClear
+              style={{ width: '100%' }}
+              options={[
+                { label: 'なし', value: '0' },
+                { label: 'あり', value: '1' },
+              ]}
+            />
+          </Col>
+          <Col style={{ width: 174 }}>
+            <Select
+              placeholder="みなし進捗使用フラグ"
+              value={selectedUseDeemedProgress || undefined}
+              onChange={(value) => setSelectedUseDeemedProgress(value ?? '')}
+              allowClear
+              style={{ width: '100%' }}
+              options={[
+                { label: 'あり', value: 'true' },
+                { label: 'なし', value: 'false' },
+              ]}
+            />
+          </Col>
         </Row>
 
         <Table
@@ -996,6 +1035,20 @@ export default function OrganizationManagement() {
               </Form.Item>
 
               <Form.Item
+                name="useDeemedProgress"
+                label="みなし進捗使用フラグ"
+                rules={[{ required: true, message: 'みなし進捗使用フラグを選択してください' }]}
+              >
+                <Select
+                  placeholder="みなし進捗使用フラグを選択してください"
+                  options={[
+                    { value: true, label: 'あり' },
+                    { value: false, label: 'なし' },
+                  ]}
+                />
+              </Form.Item>
+
+              <Form.Item
                 name="isActive"
                 label="状態"
                 rules={[{ required: true }]}
@@ -1062,6 +1115,20 @@ export default function OrganizationManagement() {
                   options={[
                     { value: 0, label: 'なし' },
                     { value: 1, label: 'あり' },
+                  ]}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="useDeemedProgress"
+                label="みなし進捗使用フラグ"
+                rules={[{ required: true, message: 'みなし進捗使用フラグを選択してください' }]}
+              >
+                <Select
+                  placeholder="あり"
+                  options={[
+                    { value: true, label: 'あり' },
+                    { value: false, label: 'なし' },
                   ]}
                 />
               </Form.Item>
