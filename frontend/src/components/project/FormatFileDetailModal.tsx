@@ -30,6 +30,14 @@ export interface FormatFileDetailData {
   createdBy?: string;
   createdByName?: string;
   createdAt?: string;
+  // ✅ Phase 1: XML/MAIMLファイル編集用プロパティ
+  content?: string;      // ファイルの内容（XML/MAIML文字列）
+  isNewFile?: boolean;   // 新規ファイルフラグ
+  // ✅ Phase 2: XMLパース結果（Template型経由）
+  parsedTemplate?: import('@/types/maiml-unified').Template;  // パースされたTemplate型オブジェクト
+  // ✅ Phase 3: XMLパース結果（PropertyData形式直接）
+  parsedProperties?: Record<string, import('@/components/editorv2/components/NestedPropertyEditor').PropertyData>;
+  parsedContents?: Record<string, import('@/components/editorv2/components/NestedPropertyEditor').PropertyData>;
 }
 
 /**

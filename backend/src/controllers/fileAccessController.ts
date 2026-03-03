@@ -406,7 +406,6 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
   }
 }
 
-
 /**
  * ファイルテキスト内容プロキシ取得エンドポイント
  * POST /api/v1/files/content-as-text
@@ -522,6 +521,104 @@ export async function getFileViewUrl(req: Request, res: Response): Promise<void>
       success: false,
       error: { code: errorCode, message: errorMessage },
       meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+
+/**
+ * ファイル削除エンドポイント
+ * DELETE /api/v1/files/delete
+ * 
+ * Task: ファイル削除API共通化
+ * - ファイルキー（相対パス）を指定してファイルを削除
+ * - フォーマット、プロジェクト、その他のファイルで共通利用可能
+ */
+export async function deleteFile(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  
+  try {
+    const { organizationId } = req.user!;
+    const { fileKey } = req.body;
+
+    console.log('🗑️ [File Delete] リクエスト開始:', {
+      organizationId,
+      fileKey,
+      requestId,
+    });
+
+    // Service層の初期化と呼び出し
+    const repository = new FileMetadataRepository();
+    const accessValidator = new ProjectAccessValidator();
+    const service = new FileAccessService(repository, accessValidator);
+
+    await service.deleteFileByKey(organizationId, fileKey);
+
+    console.log('✅ [File Delete] 削除成功:', fileKey);
+
+    // 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: {
+        message: 'ファイルを削除しました',
+        fileKey,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+
+  } catch (error: any) {
+    // エラーハンドリング
+    logError('File delete error', error, {
+      action: 'file_delete',
+      organizationId: req.user?.organizationId,
+      fileKey: req.body?.fileKey,
+      requestId,
+    });
+
+    // エラータイプに応じたステータスコードとレスポンス
+    let statusCode = 500;
+    let errorCode = 'SYSTEM_ERROR';
+    let errorMessage = 'システムエラーが発生しました';
+
+    if (error.message) {
+      // ValidationErrorのチェック
+      if (error.message.includes('パストラバーサル') || 
+          error.message.includes('不正なファイルパス') ||
+          error.message.includes('ファイルキー') ||
+          error.message.includes('無効な')) {
+        statusCode = 400;
+        errorCode = 'VALIDATION_ERROR';
+        errorMessage = error.message;
+      }
+      // NotFoundErrorのチェック
+      else if (error.message.includes('見つかりません') || 
+               error.message.includes('存在しません')) {
+        statusCode = 404;
+        errorCode = 'RESOURCE_NOT_FOUND';
+        errorMessage = error.message;
+      }
+      // StorageErrorのチェック
+      else if (error.message.includes('削除') || 
+               error.message.includes('ストレージ')) {
+        statusCode = 500;
+        errorCode = 'STORAGE_ERROR';
+        errorMessage = error.message;
+      }
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        code: errorCode,
+        message: errorMessage,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
     });
   }
 }

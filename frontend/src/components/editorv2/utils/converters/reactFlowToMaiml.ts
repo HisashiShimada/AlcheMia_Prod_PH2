@@ -464,16 +464,25 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
   
   let propertyXml = `${indent}<property key="${escapeXml(propName)}"`;
   
-  // ✅ NestedPropertyEditor形式の属性出力
-    if (prop.units || prop.units) {
-      propertyXml += ` units="${escapeXml(prop.units || prop.units)}"`;
-    }
-    if (prop.formatString) {
-      propertyXml += ` formatString="${escapeXml(prop.formatString)}"`;
-    }
-    if (prop.scaleFactor) {
-      propertyXml += ` scaleFactor="${escapeXml(prop.scaleFactor)}"`;
-    }
+  // ✅ 既存処理をそのまま維持（units、formatString、scaleFactor）
+  if (prop.units) {
+    propertyXml += ` units="${escapeXml(prop.units)}"`;
+  }
+  if (prop.formatString) {
+    propertyXml += ` formatString="${escapeXml(prop.formatString)}"`;
+  }
+  if (prop.scaleFactor) {
+    propertyXml += ` scaleFactor="${escapeXml(prop.scaleFactor)}"`;
+  }
+  
+  // ✅ 新規: prop.attributesから動的に属性を出力（id、ref、カスタム属性）
+  if (prop.attributes) {
+    Object.entries(prop.attributes).forEach(([attrName, attrValue]) => {
+      if (attrName !== 'xsi:type' && attrValue) {
+        propertyXml += ` ${attrName}="${escapeXml(attrValue)}"`;
+      }
+    });
+  }
   
   propertyXml += ` xsi:type="${escapeXml(propType)}">\n`;
   
@@ -492,7 +501,7 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
       propertyXml += buildContentXML(content, indentLevel + 1);
     })
   }
-  // ✅ 通常のpropertyの場合：value/description要素を出力（MaiMLParser形式のみ、NestedPropertyEditorは上で処理済み）
+  // ✅ 通常のpropertyの場合：value/description/customElements要素を出力
   else {
     // description（MaiMLParser形式専用）
     if (prop.description !== undefined && prop.description !== '') {
@@ -502,6 +511,25 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
     const value = prop.value|| '';
     if (value !== '') {
       propertyXml += `${indent}  <value>${escapeXml(String(value))}</value>\n`;
+    }
+    
+    // ✅ 新規: prop.customElementsからカスタム子要素を出力
+    if (prop.customElements) {
+      Object.entries(prop.customElements).forEach(([elementName, customElement]) => {
+        if (customElement && customElement.value !== undefined && customElement.value !== null && customElement.value !== '') {
+          let elementXml = `${indent}  <${elementName}`;
+          // 属性を出力
+          if (customElement.attributes) {
+            Object.entries(customElement.attributes).forEach(([attrName, attrValue]) => {
+              if (attrValue) {
+                elementXml += ` ${attrName}="${escapeXml(attrValue)}"`;
+              }
+            });
+          }
+          elementXml += `>${escapeXml(String(customElement.value))}</${elementName}>\n`;
+          propertyXml += elementXml;
+        }
+      });
     }
   }
   
@@ -516,7 +544,7 @@ export function buildPropertyXML(prop: Property, indentLevel = 5): string {
  * @param indentLevel - インデントレベル
  * @returns content要素のXML文字列
  */
-function buildContentXML(content: Content, indentLevel = 6): string {
+export function buildContentXML(content: Content, indentLevel = 6): string {
   const indent = '  '.repeat(indentLevel);
   
   let contentXml = `${indent}<content`;

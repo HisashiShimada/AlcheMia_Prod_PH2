@@ -195,6 +195,42 @@ export async function createFormatFolder(
 }
 
 /**
+ * フォーマットファイルの内容を更新
+ * PUT /api/v1/formats/files
+ * 
+ * @param filePath - ファイルパス
+ * @param content - ファイル内容
+ */
+export async function updateFormatFileContent(
+  filePath: string,
+  content: string
+): Promise<ApiResponse<{ message: string }>> {
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
+  try {
+    const response = await client.put<ApiResponse<{ message: string }>>(
+      '/formats/files',
+      {
+        content,
+        filePath,
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || 'ファイルの更新に失敗しました'
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('updateFormatFileContent error:', error);
+    throw error;
+  }
+}
+
+/**
  * 互換性のためのエイリアス
  * apiClient.ts からの移行をスムーズにするため
  */
