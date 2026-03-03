@@ -1092,8 +1092,8 @@ export class ProjectService {
         };
       }
 
-      // プロジェクトステータス検証: waiting_task (1) のみ許可
-      if (project.project_status !== 1) {
+      // プロジェクトステータス検証: task_in_progress (2) のみ許可
+      if (project.project_status !== 2) {
         // ステータス名のマッピング
         const statusNames: { [key: number]: string } = {
           0: 'プロジェクト計画中',
@@ -1105,11 +1105,11 @@ export class ProjectService {
         };
         const currentStatusName = statusNames[project.project_status] || '不明';
         
-        // waiting_approval の場合は特別なメッセージ
+        // waiting_approval (3) の場合は特別なメッセージ
         const message =
-          project.project_status === 2
+          project.project_status === 3
             ? '既に承認依頼が送信されています'
-            : `プロジェクトステータスがタスク実行待ちではありません。現在のステータス: ${currentStatusName}`;
+            : `プロジェクトステータスがタスク実行中ではありません。現在のステータス: ${currentStatusName}`;
 
         return {
           success: false,
@@ -1119,8 +1119,8 @@ export class ProjectService {
             details: {
               currentStatus: project.project_status,
               currentStatusName,
-              requiredStatus: 1,
-              requiredStatusName: 'タスク実行待ち',
+              requiredStatus: 2,
+              requiredStatusName: 'タスク実行中',
             },
           },
         };
@@ -1134,7 +1134,7 @@ export class ProjectService {
         const rowCount = await projectRepository.updateApprovalStatus(
           organizationId,
           projectId,
-          2, // waiting_approval
+          3, // waiting_approval（タスク結果レビュー待ち）
           currentTimestamp,
           userId
         );

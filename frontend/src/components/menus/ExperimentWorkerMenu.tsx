@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, Typography, Space, Button, Tabs, theme, Select, message, Spin } from 'antd';
+import { Layout, Card, Typography, Space, Button, Tabs, theme, Select, App, Spin } from 'antd';
 import {
   FileTextOutlined,
   FormOutlined,
@@ -86,6 +86,7 @@ interface ExperimentWorkerMenuProps {
  * サブヘッダーに埋め込まれたタブでメニューを表示
  */
 export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMenuChange }: ExperimentWorkerMenuProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('4');
