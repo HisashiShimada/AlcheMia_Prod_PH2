@@ -236,16 +236,17 @@ export const parseMaiml = async (
  */
 export const saveMaiml = async (
   fileKey : string,
-  content: string
+  content: string,
+  archive: boolean = true
 ): Promise<ApiResponse<SaveMaimlResult>> => {
   const client = createApiClient();
   
   try {
-    console.log(`💾 [maimlApiService] MAIMLファイル保存 (${fileKey})`);
+    console.log(`💾 [maimlApiService] MAIMLファイル保存 (${fileKey}, archive: ${archive})`);
     
     const response = await client.post<ApiResponse<SaveMaimlResult>>(
       '/maiml/save',
-      { fileKey, content }
+      { fileKey, content, archive }
     );
     
     return response.data;

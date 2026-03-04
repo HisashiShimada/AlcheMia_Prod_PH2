@@ -124,19 +124,20 @@ export async function parsePetriNetStructure(req: Request, res: Response): Promi
  */
 export async function save(req: Request, res: Response): Promise<void> {
   try {
-    const { fileKey, content } = req.body;
+    const { fileKey, content, archive = true } = req.body;
     const organizationId = req.user!.organizationId;
 
-    console.log('🔍 [maimlController] MAIML保存リクエスト受信:', fileKey);
+    console.log('🔍 [maimlController] MAIML保存リクエスト受信:', { fileKey, archive });
     
     // Base64デコード
     const decodedContent = decodeBase64Content(content);
     console.log('✅ [maimlController] Base64デコード完了:', {
       fileKey,
       decodedLength: decodedContent.length,
+      archive,
     });
 
-    const result = await maimlService.saveMaiML(fileKey, decodedContent, organizationId);
+    const result = await maimlService.saveMaiML(fileKey, decodedContent, organizationId, archive);
 
     // セマンティック検索インデックス更新（fire-and-forget）
     // MAIMLファイル保存成功後、バックグラウンドでembeddingを生成してDBに投入する

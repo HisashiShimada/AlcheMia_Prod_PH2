@@ -116,7 +116,9 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
   const fetchS3Folders = async () => {
     setLoadingFolders(true);
     try {
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
+      const userInfoStr = localStorage.getItem('userInfo');
+      const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
+      const currentOrgId = userInfo?.organizationId;
       
       if (!currentOrgId) {
         console.error('❌ [SaveConfirmDialog] Organization ID not found');

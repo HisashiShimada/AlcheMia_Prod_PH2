@@ -1274,10 +1274,14 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                 params={{
                   editMode: 'format',
                   editingFileName: editingMaimlFile.name,
-                  originalFileName: editingMaimlFile.name,
-                  sourceS3Key: editingMaimlFile.path || '',
+                  originalFileName: editingMaimlFile.name.replace(/\.maiml$/i, ''),
+                  sourceS3Key: editingMaimlFile.path && editingMaimlFile.path.trim() !== '' 
+                    ? editingMaimlFile.path 
+                    : '',
                   displayTitle: editingMaimlFile.name,
-                  displaySubtitle: selectedFormat?.name,
+                  displaySubtitle: selectedFormat?.description,
+                  documentId: selectedFormat?.id || editingMaimlFile.id,
+                  description: selectedFormat?.description,
                 }}
                 onClose={() => {
                   setShowPetriNetEditor(false);
