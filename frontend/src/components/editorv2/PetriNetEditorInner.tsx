@@ -1372,9 +1372,32 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // Phase 4A: テンプレート編集ダイアログを開く
   const handleOpenTemplateEditor = useCallback((node: Node<NodeData>) => {
     console.log('🔧 [PetriNetEditorInner] テンプレート編集:', node);
-    setTemplateEditNode(node);
+
+    // ✅ methodId が未設定のノードには activeMethod の methodId を補完する
+    // これにより TemplateEditorDialog.handleSave → handleSaveTemplate で
+    // correctMethodId が正しく解決される
+    const isCommon = node.data.isCommonTemplate || false;
+    const currentMethodId = methods[activeMethodIndex]?.methodId;
+    const nodeWithMethodId: Node<NodeData> = {
+      ...node,
+      data: {
+        ...node.data,
+        methodId: isCommon
+          ? null                                          // 共通テンプレートは null のまま
+          : (node.data.methodId ?? currentMethodId ?? null), // 未設定なら activeMethod の ID を補完
+      },
+    };
+
+    console.log('📋 [PetriNetEditorInner] TemplateEditorDialog に渡す methodId:', {
+      original: node.data.methodId,
+      补完後: nodeWithMethodId.data.methodId,
+      isCommon,
+      activeMethodId: currentMethodId,
+    });
+
+    setTemplateEditNode(nodeWithMethodId);
     setTemplateEditorOpen(true);
-  }, []);
+  }, [methods, activeMethodIndex]);
 
   // Phase 4A: テンプレート編集ダイアログを閉じる
   const handleCloseTemplateEditor = useCallback(() => {
@@ -2132,7 +2155,42 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           setNodes(prev => [...prev, ...result2.nodes!]);
           setEdges(prev => [...prev, ...result2.edges!]);
         }
-        
+
+        // ✅ 修正: ワークフローのテンプレートを TemplateContext に追加
+        // addWorkflow が返す templates を window.clineAddTemplate で登録しないと
+        // 保存時の window.clineAllTemplates に含まれずテンプレートが消える
+        if (result2.templates && window.clineAddTemplate) {
+          const currentMethodId = methods[activeMethodIndex]?.methodId;
+          console.log('📋 [PetriNetEditorInner] ワークフローテンプレートをContextに追加:', {
+            material: result2.templates.material.length,
+            condition: result2.templates.condition.length,
+            result: result2.templates.result.length,
+            currentMethodId,
+          });
+
+          const registerTemplates = (
+            category: 'material' | 'condition' | 'result',
+            templateList: import('../../types/maiml-unified').Template[]
+          ) => {
+            templateList.forEach(t => {
+              // methodId が未設定の場合はアクティブメソッドの ID を補完
+              const templateWithMethodId = {
+                ...t,
+                methodId: t.methodId !== undefined ? t.methodId : currentMethodId,
+              };
+              window.clineAddTemplate({
+                category,
+                template: templateWithMethodId,
+              });
+              console.log(`  ✅ [PetriNetEditorInner] ${category}テンプレート追加: ${t.id} (methodId: ${templateWithMethodId.methodId})`);
+            });
+          };
+
+          registerTemplates('material', result2.templates.material);
+          registerTemplates('condition', result2.templates.condition);
+          registerTemplates('result', result2.templates.result);
+        }
+
         console.log('✅ [PetriNetEditorInner] ワークフロー追加完了:', result2.message);
         alert(result2.message);
         

@@ -193,10 +193,11 @@ export function convertMultipleMethodsToMaiML(
   if (allTemplates) {
     console.log('📋 [multiMethodConverter] TemplateContextから共通テンプレート取得');
     
-    // Material共通テンプレート
+    // Material共通テンプレート（methodIdがnullまたはundefinedのもの）
+    // ※ placeRefs が空でも出力する（フォーマットのテンプレート＝追加先テンプレートはplaceRefsが空）
     if (allTemplates.material) {
       const commonMaterials = allTemplates.material.filter(
-        (t: Template) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0
+        (t: Template) => t.methodId === null || t.methodId === undefined
       );
       commonMaterials.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
@@ -228,10 +229,11 @@ export function convertMultipleMethodsToMaiML(
       });
     }
     
-    // Condition共通テンプレート
+    // Condition共通テンプレート（methodIdがnullまたはundefinedのもの）
+    // ※ placeRefs が空でも出力する（フォーマットのテンプレート＝追加先テンプレートはplaceRefsが空）
     if (allTemplates.condition) {
       const commonConditions = allTemplates.condition.filter(
-        (t: Template) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0
+        (t: Template) => t.methodId === null || t.methodId === undefined
       );
       commonConditions.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
@@ -263,10 +265,11 @@ export function convertMultipleMethodsToMaiML(
       });
     }
     
-    // Result共通テンプレート
+    // Result共通テンプレート（methodIdがnullまたはundefinedのもの）
+    // ※ placeRefs が空でも出力する（フォーマットのテンプレート＝追加先テンプレートはplaceRefsが空）
     if (allTemplates.result) {
       const commonResults = allTemplates.result.filter(
-        (t: Template) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0
+        (t: Template) => t.methodId === null || t.methodId === undefined
       );
       commonResults.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
@@ -417,55 +420,142 @@ function buildMethodXML(
     methodXml += `        </instruction>\n`;
   });
   
-  // Template要素群（✅ TemplateContextのmethodIdで判定）
-  const templateNodes = places.filter((place: Node<NodeData>) => {
-    // テンプレートが存在しない場合は除外
-    if (!place.data.template) {
-      return false;
+  // ✅ Template要素群
+  // allTemplatesが提供されている場合: TemplateContextから直接取得（convertReactFlowToMaiMLと同じアプローチ）
+  // allTemplatesが提供されていない場合: place.data.templateからフォールバック取得
+  const materialTemplates: Node<NodeData>[] = [];
+  const conditionTemplates: Node<NodeData>[] = [];
+  const resultTemplates: Node<NodeData>[] = [];
+
+  if (allTemplates) {
+    console.log(`📋 [buildMethodXML] TemplateContextからテンプレート取得 (methodId: ${methodId})`);
+
+    // materialTemplates: allTemplatesからmethodIdが一致するもののみ取得
+    if (allTemplates.material) {
+      const contextMaterials = allTemplates.material.filter((t: Template) =>
+        t.methodId === methodId && t.placeRefs && t.placeRefs.length > 0
+      );
+      contextMaterials.forEach((template: Template) => {
+        const fakeNode: Node<NodeData> = {
+          id: template.id,
+          type: 'materialTemplate',
+          position: { x: 0, y: 0 },
+          data: {
+            id: template.id,
+            name: template.name || template.id,
+            description: template.description || '',
+            nodeType: 'place',
+            placeType: 'material',
+            template: {
+              id: template.id,
+              uuid: template.uuid || '',
+              name: template.name || '',
+              description: template.description || '',
+              category: 'material',
+              properties: template.properties || [],
+              contents: template.contents || [],
+              placeRefs: template.placeRefs || [],
+              templateRef: template.templateRef,
+            },
+          },
+        };
+        materialTemplates.push(fakeNode);
+        console.log(`  ✅ [buildMethodXML] MaterialTemplate追加: ${template.id}`);
+      });
     }
-    
-    // テンプレートIDを取得
-    const template = place.data.template;
-    const templateId = template.id;
-    
-    // ✅ TemplateContextから該当テンプレートを検索
-    if (allTemplates && templateId) {
-      const placeType = place.data.placeType;
-      const category = placeType === 'material' ? 'material' :
-                      placeType === 'condition' ? 'condition' : 'result';
-      
-      if (allTemplates[category as keyof TemplatesByCategory]) {
-        const templates = allTemplates[category as keyof TemplatesByCategory];
-        if (templates) {
-          const templateInContext = templates.find((t: Template) => t.id === templateId);
-          
-          if (templateInContext) {
-            // methodIdがnullの場合は共通テンプレート → 除外
-            if (templateInContext.methodId === null) {
-              return false;
-            }
-            
-            // methodIdが現在のmethodと異なる場合 → 除外
-            if (templateInContext.methodId !== methodId) {
-              return false;
-            }
-          }
-        }
-      }
+
+    // conditionTemplates: allTemplatesからmethodIdが一致するもののみ取得
+    if (allTemplates.condition) {
+      const contextConditions = allTemplates.condition.filter((t: Template) =>
+        t.methodId === methodId && t.placeRefs && t.placeRefs.length > 0
+      );
+      contextConditions.forEach((template: Template) => {
+        const fakeNode: Node<NodeData> = {
+          id: template.id,
+          type: 'conditionTemplate',
+          position: { x: 0, y: 0 },
+          data: {
+            id: template.id,
+            name: template.name || template.id,
+            description: template.description || '',
+            nodeType: 'place',
+            placeType: 'condition',
+            template: {
+              id: template.id,
+              uuid: template.uuid || '',
+              name: template.name || '',
+              description: template.description || '',
+              category: 'condition',
+              properties: template.properties || [],
+              contents: template.contents || [],
+              placeRefs: template.placeRefs || [],
+              templateRef: template.templateRef,
+            },
+          },
+        };
+        conditionTemplates.push(fakeNode);
+        console.log(`  ✅ [buildMethodXML] ConditionTemplate追加: ${template.id}`);
+      });
     }
-    
-    // 共通テンプレート参照ノード（commonTemplateRef）も除外
-    if (place.data.commonTemplateRef) {
-      return false;
+
+    // resultTemplates: allTemplatesからmethodIdが一致するもののみ取得
+    if (allTemplates.result) {
+      const contextResults = allTemplates.result.filter((t: Template) =>
+        t.methodId === methodId && t.placeRefs && t.placeRefs.length > 0
+      );
+      contextResults.forEach((template: Template) => {
+        const fakeNode: Node<NodeData> = {
+          id: template.id,
+          type: 'resultTemplate',
+          position: { x: 0, y: 0 },
+          data: {
+            id: template.id,
+            name: template.name || template.id,
+            description: template.description || '',
+            nodeType: 'place',
+            placeType: 'result',
+            template: {
+              id: template.id,
+              uuid: template.uuid || '',
+              name: template.name || '',
+              description: template.description || '',
+              category: 'result',
+              properties: template.properties || [],
+              contents: template.contents || [],
+              placeRefs: template.placeRefs || [],
+              templateRef: template.templateRef,
+            },
+          },
+        };
+        resultTemplates.push(fakeNode);
+        console.log(`  ✅ [buildMethodXML] ResultTemplate追加: ${template.id}`);
+      });
     }
-    
-    return true;
-  });
-  
-  const materialTemplates = templateNodes.filter((n: Node<NodeData>) => n.data.placeType === 'material');
-  const conditionTemplates = templateNodes.filter((n: Node<NodeData>) => n.data.placeType === 'condition');
-  const resultTemplates = templateNodes.filter((n: Node<NodeData>) => n.data.placeType === 'result');
-  
+
+    console.log(`📊 [buildMethodXML] テンプレート統計 (methodId: ${methodId}):`, {
+      material: materialTemplates.length,
+      condition: conditionTemplates.length,
+      result: resultTemplates.length,
+    });
+  } else {
+    // フォールバック: allTemplatesが提供されていない場合は place.data.template から取得
+    console.log(`📋 [buildMethodXML] フォールバック: place.data.templateからテンプレート取得 (methodId: ${methodId})`);
+
+    const templateNodes = places.filter((place: Node<NodeData>) => {
+      if (!place.data.template) return false;
+      // 共通テンプレート参照ノード（commonTemplateRef）は除外
+      if (place.data.commonTemplateRef) return false;
+      return true;
+    });
+
+    templateNodes.filter((n: Node<NodeData>) => n.data.placeType === 'material')
+      .forEach((n: Node<NodeData>) => materialTemplates.push(n));
+    templateNodes.filter((n: Node<NodeData>) => n.data.placeType === 'condition')
+      .forEach((n: Node<NodeData>) => conditionTemplates.push(n));
+    templateNodes.filter((n: Node<NodeData>) => n.data.placeType === 'result')
+      .forEach((n: Node<NodeData>) => resultTemplates.push(n));
+  }
+
   // materialTemplate要素群
   materialTemplates.forEach((node: Node<NodeData>) => {
     methodXml += buildTemplateXML(node, 'materialTemplate', places);
@@ -557,9 +647,18 @@ function buildTemplateXML(
       });
   }
   
-  // placeRef
-  const placeRefId = template.placeRefs[0].id || `${templateId}TL`;
-  templateXml += `          <placeRef id="${placeRefId}" ref="${node.id}"/>\n`;
+  // placeRef（複数対応）
+  const placeRefs = template.placeRefs && template.placeRefs.length > 0
+    ? template.placeRefs
+    : [{ id: '', ref: node.id }];
+
+  placeRefs.forEach((placeRef: PlaceRef, index: number) => {
+    const placeRefId = index === 0
+      ? (placeRef.id || `${templateId}TL`)
+      : `${templateId}TL_${index}`;
+    templateXml += `          <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
+  });
+
   templateXml += `        </${templateType}>\n`;
   
   return templateXml;
