@@ -29,7 +29,7 @@
 ## 2. コンポーネント構成
 
 ### 2.1 画面イメージ
-![指示グループコンポーネントイメージ](images\ui_instruction_group.jpg)
+![指示グループコンポーネントイメージ](..\images\ui_instruction_group.jpg)
 
 ### 2.2 レイアウト構造
 

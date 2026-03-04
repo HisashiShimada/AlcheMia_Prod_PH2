@@ -46,7 +46,7 @@
 ## 2. コンポーネント構成
 
 ### 2.1 画面イメージ
-![指示フロー図ダイアログイメージ](images\ui_instruction_flow_dialog.jpg)
+![指示フロー図ダイアログイメージ](..\images\ui_instruction_flow_dialog.jpg)
 
 ### 2.2 レイアウト構造
 

@@ -34,7 +34,7 @@
 ## 2. コンポーネント構成
 
 ### 2.1 画面イメージ
-![プロジェクト選択モーダルイメージ](images\ui_project_selection_modal.jpg)
+![プロジェクト選択モーダルイメージ](..\images\ui_project_selection_modal.jpg)
 
 ### 2.2 レイアウト構造
 

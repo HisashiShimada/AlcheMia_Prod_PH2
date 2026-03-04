@@ -31,7 +31,7 @@
 ## 2. コンポーネント構成
 
 ### 2.1 画面イメージ
-![トランジション一覧イメージ](images\ui_transition_list.jpg)
+![トランジション一覧イメージ](..\images\ui_transition_list.jpg)
 
 ### 2.2 レイアウト構造
 

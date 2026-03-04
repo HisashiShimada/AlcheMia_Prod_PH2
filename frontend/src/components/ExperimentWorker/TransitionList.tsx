@@ -24,6 +24,8 @@ interface TransitionListProps {
   projectName?: string;
   /** 実験データ保存完了後のコールバック（親コンポーネントの進捗データ再取得に使用） */
   onDataSaveComplete?: () => void;
+  /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
+  useDeemedProgress?: boolean;
 }
 
 /**
@@ -39,6 +41,7 @@ export default function TransitionList({
   methodId,
   projectName,
   onDataSaveComplete,
+  useDeemedProgress = true,
 }: TransitionListProps) {
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
@@ -561,6 +564,7 @@ export default function TransitionList({
         projectName={projectName}
         methodId={methodId}
         taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
+        useDeemedProgress={useDeemedProgress}
       />
 
       {/* 問題管理モーダル */}

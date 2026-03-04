@@ -30,7 +30,7 @@
 ## 2. 画面構成
 
 ### 2.1 画面イメージ
-![実験記録タブイメージ](images\ui_experiment_record_tab.jpg)
+![実験記録タブイメージ](..\images\ui_experiment_record_tab.jpg)
 
 ### 2.2 レイアウト構造
 

@@ -44,7 +44,7 @@
 ## 2. コンポーネント構成
 
 ### 2.1 画面イメージ
-![メソッド・タスク選択モーダルイメージ](images\ui_method_task_selection_modal.jpg)
+![メソッド・タスク選択モーダルイメージ](..\images\ui_method_task_selection_modal.jpg)
 
 ### 2.2 レイアウト構造
 
