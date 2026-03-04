@@ -404,7 +404,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       if (action === 'addWorkflow' && typeof data === 'object' && data !== null) {
         const workflowData = data as { nodes?: Node<NodeData>[]; edges?: Edge<EdgeData>[] };
         if (workflowData.nodes && workflowData.edges) {
-          pushState({ nodes: workflowData.nodes, edges: workflowData.edges });
+          // ✅ 修正: 既存ノード/エッジ + 追加分を合わせてpushState
+          // pushState({ nodes: workflowData.nodes, edges: workflowData.edges }) だと
+          // history.present が追加分のみになり、history同期useEffectが既存ノードを上書きしてしまう
+          pushState({
+            nodes: [...nodes, ...workflowData.nodes],
+            edges: [...edges, ...workflowData.edges]
+          });
         }
       }
     },
@@ -2119,6 +2125,14 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const result2 = await addWorkflow(targetPosition, maimlContent, file.name);
       
       if (result2.success) {
+        // ✅ 修正: ReactFlowのstateに追加分をマージ（置き換えではなく追加）
+        // addWorkflow内部のsetNodes/setEdgesはuseWorkflow内部stateを更新するが、
+        // PetriNetEditorInnerのReactFlow stateには反映されないため、ここで明示的に追加する
+        if (result2.nodes && result2.edges) {
+          setNodes(prev => [...prev, ...result2.nodes!]);
+          setEdges(prev => [...prev, ...result2.edges!]);
+        }
+        
         console.log('✅ [PetriNetEditorInner] ワークフロー追加完了:', result2.message);
         alert(result2.message);
         
