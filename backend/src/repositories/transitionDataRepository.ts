@@ -20,10 +20,9 @@ export interface TransitionDataRow {
   transition_id: string;
   status: TransitionStatus; // 数値型（0-6）
   progress_rate: number;
-  comment?: string | null;
-  updated_by: string;
-  updated_at: Date;
-  created_at: Date;
+  update_user_id: string;
+  update_at: Date;
+  create_at: Date;
 }
 
 /**

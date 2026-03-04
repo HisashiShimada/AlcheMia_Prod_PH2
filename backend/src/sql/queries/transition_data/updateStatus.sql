@@ -3,8 +3,8 @@
 UPDATE transition_data
 SET status = $1,
     progress_rate = $2,
-    updated_by = $3,
-    updated_at = CURRENT_TIMESTAMP
+    update_user_id = $3,
+    update_at = CURRENT_TIMESTAMP
 WHERE organization_id = $4
   AND project_id = $5
   AND method_id = $6
@@ -18,7 +18,6 @@ RETURNING
   transition_id,
   status,
   progress_rate,
-  comment,
-  updated_by,
-  updated_at,
-  created_at
+  update_user_id,
+  update_at,
+  create_at

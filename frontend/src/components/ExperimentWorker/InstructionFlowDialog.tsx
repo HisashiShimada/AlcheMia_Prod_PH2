@@ -24,6 +24,7 @@ export interface FileData {
   type: string;
   isFolder?: boolean;
   fileCount?: number;
+  content?: string; // APIから取得済みのファイルコンテンツ（設定されていればfetchをスキップ）
 }
 
 /**
@@ -68,12 +69,24 @@ interface InstructionFlowDialogProps {
 
 /**
  * ファイルコンテンツをロードする関数
+ * 
+ * - file.content が設定されている場合はそれをそのまま返す（APIから取得済みコンテンツを優先）
+ * - file.content がない場合はモックデータにフォールバック（後方互換性）
  */
 const loadFileContent = async (file: FileData): Promise<string | null> => {
   try {
-    // MAIMLファイルの場合、test_omori11.maimlを読み込む
     if (file.type === 'maiml') {
-      console.log('🔍 [InstructionFlowDialog] MAIMLファイルを読み込み中:', file.name);
+      // APIから取得済みのコンテンツが存在する場合はそれを使用
+      if (file.content) {
+        console.log('✅ [InstructionFlowDialog] APIコンテンツを使用:', {
+          name: file.name,
+          size: file.content.length,
+        });
+        return file.content;
+      }
+
+      // フォールバック: モックデータを読み込む
+      console.warn('⚠️ [InstructionFlowDialog] file.contentがないためモックデータにフォールバック:', file.name);
       const response = await fetch('/data/mock/test_omori11.maiml');
       
       if (!response.ok) {
@@ -82,7 +95,7 @@ const loadFileContent = async (file: FileData): Promise<string | null> => {
       }
       
       const content = await response.text();
-      console.log('✅ [InstructionFlowDialog] ファイル読み込み成功:', {
+      console.log('✅ [InstructionFlowDialog] モックファイル読み込み成功:', {
         size: content.length,
         firstChars: content.substring(0, 100),
       });
@@ -197,6 +210,7 @@ const InstructionFlowDialog: React.FC<InstructionFlowDialogProps> = ({
             isTabletDevice={false}
             isMobileDevice={false}
             hideMethodTabs={true}
+            selectedMethodId={selectedMethodId}
             onOpenSubNetViewer={onOpenSubNetViewer}
           />
         )}

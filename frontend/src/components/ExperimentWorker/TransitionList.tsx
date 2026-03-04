@@ -5,8 +5,8 @@ import { Table, Tag, Typography, Input, Select, Row, Col, message, Progress, But
 import { SearchOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
-import { Transition, ExperimentDataValue, ProjectStatus, isRecordableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
-import { getIssuesByTransitionId } from '@/data/projectsData';
+import { Transition, ExperimentDataValue, ProjectStatus, isRecordViewableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
+import { getIssues, createIssue, addComment, updateIssueStatus } from '@/services/issueApiService';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
@@ -21,6 +21,9 @@ interface TransitionListProps {
   onTaskCreated?: (taskId: string) => void;
   projectId?: string;
   methodId?: string;
+  projectName?: string;
+  /** 実験データ保存完了後のコールバック（親コンポーネントの進捗データ再取得に使用） */
+  onDataSaveComplete?: () => void;
 }
 
 /**
@@ -31,8 +34,11 @@ interface TransitionListProps {
 export default function TransitionList({
   transitions,
   projectStatus,
+  selectedTaskId,
   projectId,
   methodId,
+  projectName,
+  onDataSaveComplete,
 }: TransitionListProps) {
   const [selectedTransition, setSelectedTransition] = useState<Transition | null>(null);
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
@@ -43,8 +49,8 @@ export default function TransitionList({
   const [searchText, setSearchText] = useState<string>('');
   const [selectedTransitionName, setSelectedTransitionName] = useState<string | undefined>(undefined);
 
-  // TODO: モックデータ - 実際はpropsまたはAPIから取得
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [issueLoading, setIssueLoading] = useState<boolean>(false);
 
   // トランジション名の選択肢を生成
   const transitionNameOptions = useMemo(() => {
@@ -74,12 +80,12 @@ export default function TransitionList({
   };
 
   // データ保存ハンドラ
-  const handleDataSave = (data: ExperimentDataValue[]) => {
-    console.log('保存されたデータ:', data);
-    // TODO: バックエンドAPIへの保存処理を実装
+  const handleDataSave = (_data: ExperimentDataValue[]) => {
     message.success('実験データを保存しました');
     setDataRecordModalOpen(false);
     setSelectedTransition(null);
+    // 保存後に親コンポーネントの進捗データを再取得してトランジション一覧を最新状態に更新
+    onDataSaveComplete?.();
   };
 
   // ステータス表示用のヘルパー関数
@@ -111,12 +117,38 @@ export default function TransitionList({
   };
 
   // 問題報告ボタンクリックハンドラ
-  const handleIssueReport = (transition: Transition) => {
+  const handleIssueReport = async (transition: Transition) => {
     setSelectedTransition(transition);
-    // トランジションIDに関連する問題を取得
-    const transitionIssues = getIssuesByTransitionId(transition.transitionId);
-    setIssues(transitionIssues);
+    setIssues([]);
     setIssueModalOpen(true);
+
+    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
+    // projectId は UUID（ハイフン含む）のため split('-') の末尾要素を取得する
+    const parts = (selectedTaskId ?? '').split('-');
+    const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
+
+    if (!projectId || !methodId || !selectedTaskId || isNaN(taskNo)) {
+      console.warn('[handleIssueReport] 必要なパラメータが不足しています', {
+        projectId, methodId, selectedTaskId, taskNo,
+      });
+      return;
+    }
+
+    setIssueLoading(true);
+    try {
+      const fetchedIssues = await getIssues({
+        projectId,
+        methodId,
+        taskNo,
+        transitionId: transition.transitionId,
+      });
+      setIssues(fetchedIssues);
+    } catch (error) {
+      console.error('[handleIssueReport] 問題一覧取得エラー', error);
+      message.error('問題一覧の取得に失敗しました');
+    } finally {
+      setIssueLoading(false);
+    }
   };
 
   // 問題報告モーダルを閉じる
@@ -126,17 +158,138 @@ export default function TransitionList({
   };
 
   // 新規問題報告送信ハンドラ
-  const handleSubmitIssue = (issue: IssueReportFormData) => {
-    console.log('新規問題報告:', issue);
-    // TODO: バックエンドAPIへの送信処理を実装
-    message.success('問題を報告しました');
+  const handleSubmitIssue = async (issue: IssueReportFormData) => {
+    // selectedTaskId から taskNo を抽出（形式: {projectId}-{methodId}-{taskNo}）
+    // projectId は UUID（ハイフン含む）のため split('-') の末尾要素を取得する
+    const parts = (selectedTaskId ?? '').split('-');
+    const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
+
+    if (!projectId) {
+      console.warn('[handleSubmitIssue] projectId が未設定です');
+      message.error('プロジェクトが選択されていません');
+      return;
+    }
+
+    try {
+      await createIssue({
+        projectId,
+        methodId: methodId ?? undefined,
+        issueType: issue.issueType,
+        targetType: issue.targetType,
+        taskNo: !isNaN(taskNo) ? taskNo : undefined,
+        transitionId: selectedTransition?.transitionId ?? undefined,
+        title: issue.title,
+        description: issue.content,
+      });
+
+      message.success('問題を報告しました');
+
+      // 問題一覧を再取得して最新状態を反映
+      if (projectId && methodId && !isNaN(taskNo) && selectedTransition) {
+        setIssueLoading(true);
+        try {
+          const fetchedIssues = await getIssues({
+            projectId,
+            methodId,
+            taskNo,
+            transitionId: selectedTransition.transitionId,
+          });
+          setIssues(fetchedIssues);
+        } catch (fetchError) {
+          console.error('[handleSubmitIssue] 問題一覧再取得エラー', fetchError);
+          // 再取得失敗はサイレントに処理（報告自体は成功しているため）
+        } finally {
+          setIssueLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('[handleSubmitIssue] 問題報告エラー', error);
+      message.error('問題の報告に失敗しました');
+    }
   };
 
   // コメント送信ハンドラ
-  const handleSubmitComment = (issueId: string, comment: string) => {
-    console.log('コメント投稿:', { issueId, comment });
-    // TODO: バックエンドAPIへの送信処理を実装
-    message.success('コメントを投稿しました');
+  const handleSubmitComment = async (issueId: string, comment: string) => {
+    if (!projectName) {
+      console.warn('[handleSubmitComment] projectName が未設定です');
+      message.error('プロジェクトが選択されていません');
+      return;
+    }
+
+    try {
+      await addComment({
+        projectName,
+        issueId,
+        comment,
+      });
+
+      // コメント投稿後に問題一覧を再取得して表示に反映
+      const parts = (selectedTaskId ?? '').split('-');
+      const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
+
+      if (projectId && methodId && !isNaN(taskNo) && selectedTransition) {
+        setIssueLoading(true);
+        try {
+          const fetchedIssues = await getIssues({
+            projectId,
+            methodId,
+            taskNo,
+            transitionId: selectedTransition.transitionId,
+          });
+          setIssues(fetchedIssues);
+        } catch (fetchError) {
+          console.error('[handleSubmitComment] 問題一覧再取得エラー', fetchError);
+          // 再取得失敗はサイレントに処理（コメント投稿自体は成功しているため）
+        } finally {
+          setIssueLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('[handleSubmitComment] コメント投稿エラー', error);
+      message.error('コメントの投稿に失敗しました');
+    }
+  };
+
+  // ステータス変更ハンドラ
+  const handleUpdateStatus = async (issueId: string, status: Issue['status']) => {
+    if (!projectName) {
+      console.warn('[handleUpdateStatus] projectName が未設定です');
+      message.error('プロジェクトが選択されていません');
+      return;
+    }
+
+    try {
+      await updateIssueStatus({
+        projectName,
+        issueId,
+        status,
+      });
+
+      // ステータス更新後に問題一覧を再取得して表示に反映
+      const parts = (selectedTaskId ?? '').split('-');
+      const taskNo = parts.length > 1 ? parseInt(parts[parts.length - 1], 10) : NaN;
+
+      if (projectId && methodId && !isNaN(taskNo) && selectedTransition) {
+        setIssueLoading(true);
+        try {
+          const fetchedIssues = await getIssues({
+            projectId,
+            methodId,
+            taskNo,
+            transitionId: selectedTransition.transitionId,
+          });
+          setIssues(fetchedIssues);
+        } catch (fetchError) {
+          console.error('[handleUpdateStatus] 問題一覧再取得エラー', fetchError);
+          // 再取得失敗はサイレントに処理（ステータス更新自体は成功しているため）
+        } finally {
+          setIssueLoading(false);
+        }
+      }
+    } catch (error) {
+      console.error('[handleUpdateStatus] ステータス更新エラー', error);
+      message.error('ステータスの更新に失敗しました');
+    }
   };
 
   // テーブルの列定義
@@ -241,8 +394,9 @@ export default function TransitionList({
         width: 65,
         align: 'center' as const,
         render: (_: unknown, record: Transition) => {
-          // プロジェクトの状態が記録可能でない場合は非活性化
-          const isProjectRecordable = projectStatus ? isRecordableStatus(projectStatus) : true;
+          // プロジェクトの状態が記録を参照・操作可能でない場合は非活性化
+          // waiting_task / executing_task / waiting_approval の場合に活性
+          const isProjectRecordable = projectStatus === null || isRecordViewableStatus(projectStatus);
           
           return (
             <button
@@ -404,7 +558,9 @@ export default function TransitionList({
         onClose={handleDataRecordModalClose}
         onSave={handleDataSave}
         projectId={projectId}
+        projectName={projectName}
         methodId={methodId}
+        taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
       />
 
       {/* 問題管理モーダル */}
@@ -417,6 +573,7 @@ export default function TransitionList({
           onClose={handleIssueModalClose}
           onSubmitIssue={handleSubmitIssue}
           onSubmitComment={handleSubmitComment}
+          onUpdateStatus={handleUpdateStatus}
           projectStatus={projectStatus}
         />
       )}

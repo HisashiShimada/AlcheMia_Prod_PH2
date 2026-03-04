@@ -61,7 +61,7 @@ export default function ProviderMenu({ user, onLogout, onNavigate, onMenuChange 
   const tabItems = [
     {
       key: '1',
-      label: t('menu.provider.tabs.companyManagement'),
+      label: t('menu.provider.tabs.corporationManagement'),
       icon: <AuditOutlined />,
     },
     {

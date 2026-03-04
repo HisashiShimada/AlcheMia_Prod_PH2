@@ -20,6 +20,7 @@ export interface OrganizationRow {
   corporation_id: string | null; // UUID
   corporation_name: string | null; // JOIN結果
   is_entry: number; // 二段階認証判定（0: なし, 1: あり）
+  use_deemed_progress: boolean; // みなし進捗使用フラグ
   is_active: boolean;
   update_at: Date;
 }
@@ -227,6 +228,7 @@ export async function create(
     chiefUserId?: string;
     corporationId?: string;
     isEntry?: number;
+    useDeemedProgress?: boolean;
     isActive?: boolean;
   },
   userId: string
@@ -243,6 +245,7 @@ export async function create(
     data.chiefUserId || null,
     data.corporationId || null,
     data.isEntry !== undefined ? data.isEntry : 0,
+    data.useDeemedProgress !== undefined ? data.useDeemedProgress : true,
     data.isActive !== undefined ? data.isActive : true,
     userId,
     userId,
@@ -268,6 +271,7 @@ export async function update(
     chiefUserId?: string;
     corporationId?: string;
     isEntry?: number;
+    useDeemedProgress?: boolean;
     isActive?: boolean;
   },
   userId: string
@@ -282,6 +286,7 @@ export async function update(
     data.chiefUserId ?? null,
     data.corporationId ?? null,
     data.isEntry ?? null,
+    data.useDeemedProgress ?? null,
     data.isActive ?? null,
     userId,
   ];

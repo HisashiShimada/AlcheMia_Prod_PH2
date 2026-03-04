@@ -41,12 +41,6 @@ export enum TransitionStatusEnum {
 export type TransitionStatus = typeof TransitionStatusEnum[keyof typeof TransitionStatusEnum];
 
 /**
- * 旧Status型（文字列型）- 後方互換性のため一時的に保持
- * @deprecated 数値型のTransitionStatusEnumを使用してください
- */
-export type Status = 'initial' | 'preparing' | 'ready' | 'running' | 'paused' | 'completed' | 'error';
-
-/**
  * トランジションデータの完全な構造
  */
 export interface TransitionData {
@@ -138,28 +132,3 @@ export function getTransitionStatusLabel(status: TransitionStatus): string {
   return labels[status] || '不明';
 }
 
-/**
- * 旧Status型（文字列型）から新TransitionStatus型（数値型）への変換
- * @deprecated 後方互換性のためのヘルパー関数
- */
-export function convertLegacyStatusToNumber(legacyStatus: Status): TransitionStatus {
-  const map: Record<Status, TransitionStatus> = {
-    'initial': TransitionStatusEnum.INITIAL,
-    'preparing': TransitionStatusEnum.PREPARING,
-    'ready': TransitionStatusEnum.READY,
-    'running': TransitionStatusEnum.IN_PROGRESS,
-    'paused': TransitionStatusEnum.PAUSED,
-    'completed': TransitionStatusEnum.COMPLETED,
-    'error': TransitionStatusEnum.ERROR
-  };
-  return map[legacyStatus];
-}
-
-/**
- * 旧Status型（文字列型）検証関数 - 後方互換性のため保持
- * @deprecated isValidTransitionStatusを使用してください
- */
-export function isValidStatus(value: any): value is Status {
-  const validStrings = ['initial', 'preparing', 'ready', 'running', 'paused', 'completed', 'error'];
-  return typeof value === 'string' && validStrings.includes(value);
-}

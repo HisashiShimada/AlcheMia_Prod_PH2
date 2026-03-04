@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-27
-- **バージョン**: 1.0.0
-- **最終更新**: 2026-01-27
+- **バージョン**: 3.2.0
+- **最終更新**: 2026-02-27
 - **担当**: Development Team
 - **実装状況**: ⏳ 未実装
 
@@ -31,6 +31,7 @@
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | 権限 |
 |----|-------------|---------------|------|---------|------|
 | 1 | POST | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | experiment_worker のみ書込可 |
+| 2 | GET | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | テンプレート実績一覧取得 | ⏳ 未実装 | experiment_worker 読取専用 |
 
 ---
 
@@ -72,40 +73,33 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 | taskNo | integer | ○ | タスク連番 |
 
 #### リクエストボディ
+
+> **注意**: `data` フィールドは `GET /api/v1/experiments/.../data` レスポンスの `templates[].data` と同一形式（`PropertySet` 形式）です。  
+> フロントエンドは GET で取得した `data` を、ユーザーが修正した値（`properties[].value`）のみ書き換えてそのまま POST してください。
+
 ```json
 {
   "records": [
     {
       "placeId": "place_001",
-      "templateType": "material",
-      "templateId": "mat_001",
       "data": {
-        "temperature": {
-          "value": 25.5,
-          "unit": "°C"
-        },
-        "pressure": {
-          "value": 1013,
-          "unit": "hPa"
-        }
+        "templateId": "mat_001",
+        "templateType": "material",
+        "properties": [
+          { "key": "temperature", "xsiType": "floatType", "value": 25.5, "units": "°C" },
+          { "key": "pressure",    "xsiType": "floatType", "value": 1013,  "units": "hPa" }
+        ]
       },
       "status": "completed",
       "comment": "材料データ記録完了"
     },
     {
       "placeId": "place_002",
-      "templateType": "condition",
-      "templateId": "cond_001",
       "data": {
-        "humidity": {
-          "value": 60,
-          "unit": "%"
-        },
-        "dataGrid": [
-          ["時刻", "温度", "圧力"],
-          ["10:00", "25.5", "1013"],
-          ["11:00", "26.0", "1012"],
-          ["12:00", "26.5", "1011"]
+        "templateId": "cond_001",
+        "templateType": "condition",
+        "properties": [
+          { "key": "humidity", "xsiType": "floatType", "value": 60, "units": "%" }
         ]
       },
       "status": "running",
@@ -126,11 +120,14 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 | パラメータ | 型 | 必須 | 説明 | 制約 |
 |-----------|----|----|------|------|
 | placeId | string | ○ | プレースID | |
-| templateType | string | ○ | テンプレート種別 | material, condition, result |
-| templateId | string | ○ | テンプレートID | |
-| data | object | ○ | 実験データ | ネストプロパティ、DataGrid対応 |
+| data | object | ○ | 実験データ（PropertySet形式） | `{ templateId, templateType, properties }` の形式 |
+| data.templateId | string | ○ | テンプレートID | |
+| data.templateType | string | ○ | テンプレート種別 | material, condition, result |
+| data.properties | array | ○ | プロパティ配列 | `[{ key, xsiType, value, units }]` の形式 |
 | status | string | △ | ステータス | initial, preparing, ready, running, paused, completed, error |
 | comment | string | × | コメント | 最大2000文字 |
+
+> **注意**: `templateType`・`templateId` はトップレベルには含めず、`data` オブジェクト内に含めてください。
 
 ### レスポンス
 
@@ -288,9 +285,10 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 
 #### records配列の各要素のチェック
 - [ ] placeId は必須
-- [ ] templateType は "material", "condition", "result" のいずれか
-- [ ] templateId は必須
-- [ ] data はオブジェクト形式
+- [ ] data はオブジェクト形式（必須）
+- [ ] data.templateId は必須（文字列、1〜255文字）
+- [ ] data.templateType は "material", "condition", "result" のいずれか（必須）
+- [ ] data.properties は配列形式（必須）
 - [ ] status は許可された値のいずれか（指定時）
 - [ ] comment は2000文字以内（指定時）
 
@@ -447,6 +445,390 @@ $13: template_type (string) - record 2
 ---
 
 
+## 2. テンプレート実績一覧取得API
+
+### 概要
+トランジションIDに隣接するプレースの実験実績データを取得します。  
+`DataRecordDialog` を開いた際に既存の入力済みデータを復元するために使用します。
+
+処理は以下の2段階で行います：
+1. `template_data` テーブルから対象タスクのレコードを全件取得
+2. S3/Swift の MaiML ファイルをパースしてペトリネット構造を解析し、指定トランジションに隣接するプレースIDでフィルタリング
+
+### エンドポイント
+```
+GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+```
+
+### HTTPメソッド
+GET
+
+### 認証要件
+- JWT認証必須
+- ロール: experiment_worker 読取専用
+- テナント分離必須
+
+### ミドルウェアチェーン
+```typescript
+router.get('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data',
+  auth,                                    // JWT認証
+  tenantIsolation,                         // テナント分離
+  checkPermission('050000', 0),            // experiment_worker 読取専用
+  [ query('transitionId').notEmpty().isString().isLength({ min: 1, max: 255 }) ],
+  handleValidationErrors,
+  experimentDataController.getTemplateData
+);
+```
+
+### リクエスト
+
+#### パスパラメータ
+| パラメータ | 型 | 必須 | 説明 | 制約 |
+|-----------|----|----|------|------|
+| projectName | string | ○ | プロジェクト名 | 1〜255文字 |
+| methodId | string | ○ | メソッドID | 1〜255文字 |
+| taskNo | integer | ○ | タスク連番 | 1以上の整数 |
+
+#### クエリパラメータ
+| パラメータ | 型 | 必須 | 説明 | 制約 |
+|-----------|----|----|------|------|
+| transitionId | string | ○ | トランジションID | 1〜255文字 |
+
+#### リクエスト例
+```
+GET /api/v1/experiments/projects/sample_project/methods/method_001/tasks/1/data?transitionId=t1
+```
+
+### 処理フロー
+1. パスパラメータ・クエリパラメータのバリデーション
+2. JWT から organizationId を取得（tenantIsolation ミドルウェア）
+3. `projects` テーブルから projectName → project_id を解決（organization_id でフィルタ）
+4. `template_data` テーブルから `organization_id` + `project_id` + `method_id` + `task_no` が一致するレコードを全件取得
+5. S3/Swift から MaiML ファイルをダウンロード（パス: `projects/{projectName}/{projectName}.maiml`）
+6. `parsePetriNetStructure()` でペトリネット構造を解析
+7. 指定 `transitionId` の存在確認（存在しない場合 404）
+8. arcs から隣接プレースIDを特定（入力プレース・出力プレースの両方）
+   - `arc.source === transitionId` → `arc.target`（出力プレース）
+   - `arc.target === transitionId` → `arc.source`（入力プレース）
+9. Step 4 で取得したレコードを隣接プレースIDでフィルタリング
+10. フィルタリング後のデータ件数を確認
+11. データが1件以上ある場合 → そのままレスポンスを返却（200 OK）
+12. データが0件の場合 → MAIMLファイルのテンプレート定義からフォールバックレスポンスを生成して返却（200 OK）
+    - `parser.getMethods()` で対象メソッドを特定
+    - `materialTemplates` / `conditionTemplates` / `resultTemplates` をループ
+    - 各テンプレートの `placeRefs` から隣接プレースIDに一致するものを抽出
+    - `properties` を `{ key, xsiType, value: null, units }` 形式でマッピング
+    - `data` に `{ templateId, templateType, properties }` をセット（`taskRegistrationService.ts` の `property_set` と同形式）
+    - `recordedBy` / `recordedAt` は `null` を設定
+
+### レスポンス
+
+#### 成功時（200 OK）
+```json
+{
+  "success": true,
+  "data": {
+    "projectName": "sample_project",
+    "methodId": "method_001",
+    "taskNo": 1,
+    "transitionId": "t1",
+    "adjacentPlaceIds": ["p1", "p2"],
+    "templates": [
+      {
+        "placeId": "p1",
+        "templateType": "material",
+        "templateId": "template-mat-001",
+        "data": { "key": "value" },
+        "recordedBy": "880e8400-e29b-41d4-a716-446655440003",
+        "recordedAt": "2026-02-25T10:00:00.000Z"
+      },
+      {
+        "placeId": "p2",
+        "templateType": "condition",
+        "templateId": "template-cond-001",
+        "data": { "temperature": 25 },
+        "recordedBy": "880e8400-e29b-41d4-a716-446655440003",
+        "recordedAt": "2026-02-25T11:00:00.000Z"
+      }
+    ],
+    "totalCount": 2
+  },
+  "meta": {
+    "timestamp": "2026-02-25T17:00:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+#### 隣接プレースの実績データが 0 件の場合（MAIMLテンプレートからフォールバック生成、200 OK）
+```json
+{
+  "success": true,
+  "data": {
+    "projectName": "sample_project",
+    "methodId": "method_001",
+    "taskNo": 1,
+    "transitionId": "t1",
+    "adjacentPlaceIds": ["p1", "p2"],
+    "templates": [
+      {
+        "placeId": "p1",
+        "templateType": "material",
+        "templateId": "template-mat-001",
+        "data": {
+          "templateId": "template-mat-001",
+          "templateType": "material",
+          "properties": [
+            { "key": "temperature", "xsiType": "stringType", "value": null, "units": "°C" },
+            { "key": "pressure",    "xsiType": "floatType",  "value": null, "units": "hPa" }
+          ]
+        },
+        "recordedBy": null,
+        "recordedAt": null
+      },
+      {
+        "placeId": "p2",
+        "templateType": "condition",
+        "templateId": "template-cond-001",
+        "data": {
+          "templateId": "template-cond-001",
+          "templateType": "condition",
+          "properties": [
+            { "key": "humidity", "xsiType": "floatType", "value": null, "units": "%" }
+          ]
+        },
+        "recordedBy": null,
+        "recordedAt": null
+      }
+    ],
+    "totalCount": 2
+  },
+  "meta": {
+    "timestamp": "2026-02-25T17:00:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+> **注意**: `data` フィールドは `taskRegistrationService.ts` の `deleteAndInsertTemplateData` が `template_data.property_set` に格納する形式と同一です。`recordedBy` / `recordedAt` は未記録を表す `null` が設定されます。
+
+#### エラーレスポンス
+
+| HTTPステータス | エラーコード | 説明 |
+|--------------|-------------|------|
+| 400 | VALIDATION_ERROR | パラメータ不正（transitionId 未指定など） |
+| 404 | PROJECT_NOT_FOUND | 指定したプロジェクトが存在しない |
+| 404 | MAIML_NOT_FOUND | MaiML ファイルが S3/Swift に存在しない |
+| 404 | TRANSITION_NOT_FOUND | MaiML 内に指定トランジションIDが存在しない |
+| 500 | MAIML_PARSE_FAILED | MaiML のパース処理に失敗 |
+| 500 | DATABASE_ERROR | DB エラー |
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "TRANSITION_NOT_FOUND",
+    "message": "Transition 't999' not found in MaiML method 'method_001'"
+  },
+  "meta": {
+    "timestamp": "2026-02-25T17:00:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+### レスポンスフィールド詳細
+
+#### data オブジェクト
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| projectName | string | リクエストのプロジェクト名 |
+| methodId | string | リクエストのメソッドID |
+| taskNo | integer | リクエストのタスク連番 |
+| transitionId | string | リクエストのトランジションID |
+| adjacentPlaceIds | string[] | MaiML から特定した隣接プレースIDの一覧 |
+| templates | array | 実績データ配列（0件の場合は空配列） |
+| totalCount | integer | templates 配列の件数 |
+
+#### templates 配列の各要素
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| placeId | string | プレースID（テンプレートとプレースの紐付けに使用） |
+| templateType | string | テンプレート種別（material / condition / result） |
+| templateId | string | テンプレートID（テンプレート定義の特定に使用） |
+| data | object | 実験データ本体。DBに実績がある場合は記録済みデータ、0件フォールバック時は `{ templateId, templateType, properties: [{ key, xsiType, value: null, units }] }` 形式のMAIML定義値 |
+| recordedBy | string \| null | 記録者のユーザーID（UUID）。DBに実績がない場合は `null` |
+| recordedAt | string \| null | 記録日時（ISO 8601 形式）。DBに実績がない場合は `null` |
+
+### バリデーション
+
+- [ ] projectName は文字列（1〜255文字）
+- [ ] methodId は文字列（1〜255文字）
+- [ ] taskNo は1以上の整数
+- [ ] transitionId は文字列（1〜255文字）、必須
+
+### データベーステーブル
+
+#### 使用テーブル
+1. **projects**（project_id の解決）
+   - project_name, id, organization_id
+
+2. **template_data**（実績データ取得）
+   - organization_id, project_id, method_id, task_no, place_id
+   - template_type, template_id, data (JSONB)
+   - recorded_by, recorded_at
+
+#### SQL例（実績データ取得）
+```sql
+-- 1. project_id の解決
+SELECT id FROM projects
+WHERE project_name = $1
+  AND organization_id = $2;
+
+-- 2. 対象タスクの template_data を全件取得（プレースIDフィルタはアプリ層で実施）
+SELECT
+  place_id,
+  template_type,
+  template_id,
+  data,
+  recorded_by,
+  recorded_at
+FROM template_data
+WHERE organization_id = $1
+  AND project_id      = $2
+  AND method_id       = $3
+  AND task_no         = $4
+ORDER BY place_id ASC;
+```
+
+### セキュリティ
+
+#### マルチテナント分離
+- [ ] organization_id フィルタ必須（projects テーブル・template_data テーブル両方）
+- [ ] クロステナントアクセス不可
+
+#### 認証・認可
+- [ ] JWT認証必須
+- [ ] experiment_worker 読取専用
+
+#### 入力検証
+- [ ] SQLインジェクション対策（Parameterized Queries）
+- [ ] パスパラメータの長さ制限
+
+### 実装要件
+
+#### フォールバック処理（0件時のMAIMLテンプレート生成）
+
+フィルタリング後のデータが0件の場合、`MaimlParserTyped.getMethods()` を使用してMAIMLから初期値を生成する。
+`taskRegistrationService.ts` の `deleteAndInsertTemplateData` と同一のロジックを使用すること。
+
+```typescript
+/**
+ * 0件時フォールバック: MAIMLテンプレート定義からレスポンスを生成
+ * 
+ * @param parser - MaimlParserTyped インスタンス（MAIMLファイルは処理フロー Step 5 で取得済み）
+ * @param methodId - メソッドID
+ * @param adjacentPlaceIds - 隣接プレースIDの配列（処理フロー Step 8 で特定済み）
+ * @returns フォールバック用 templates 配列
+ */
+function buildFallbackTemplates(
+  parser: MaimlParserTyped,
+  methodId: string,
+  adjacentPlaceIds: string[]
+): TemplateDataItem[] {
+  const methods = parser.getMethods();
+  const method = methods.find(m => m.id === methodId);
+  if (!method) {
+    throw new NotFoundError(`Method '${methodId}' not found in MaiML`);
+  }
+
+  const templateCategories: Array<{
+    templates: typeof method.materialTemplates;
+    templateType: 'material' | 'condition' | 'result';
+  }> = [
+    { templates: method.materialTemplates, templateType: 'material' },
+    { templates: method.conditionTemplates, templateType: 'condition' },
+    { templates: method.resultTemplates,    templateType: 'result' },
+  ];
+
+  const fallbackTemplates: TemplateDataItem[] = [];
+
+  for (const { templates, templateType } of templateCategories) {
+    if (!templates) continue;
+
+    // 単一要素・配列の両方に対応（taskRegistrationService.ts と同一パターン）
+    const templateArray = Array.isArray(templates) ? templates : [templates];
+
+    for (const template of templateArray) {
+      if (!template.placeRefs || template.placeRefs.length === 0) continue;
+
+      // このテンプレートのプロパティ定義を構築（value は null で初期化）
+      const properties = (template.properties || []).map(p => ({
+        key: p.key || '',
+        xsiType: p.xsiType || 'stringType',
+        value: null,
+        units: p.units || null,
+      }));
+
+      const data = {
+        templateId: template.id || '',
+        templateType,
+        properties,
+      };
+
+      // 各 placeRef ごとに1エントリ生成（隣接プレースIDに一致するもののみ）
+      for (const placeRef of template.placeRefs) {
+        const placeId = placeRef.ref || '';
+        if (!placeId) continue;
+        if (!adjacentPlaceIds.includes(placeId)) continue; // 隣接プレースのみ
+
+        fallbackTemplates.push({
+          placeId,
+          templateType,
+          templateId: template.id || '',
+          data,
+          recordedBy: null,
+          recordedAt: null,
+        });
+      }
+    }
+  }
+
+  return fallbackTemplates;
+}
+```
+
+**使用箇所（サービス層）**:
+```typescript
+// Step 9 の後
+const filteredRecords = allRecords.filter(r => adjacentPlaceIds.includes(r.place_id));
+
+// Step 10-12: 件数確認とフォールバック処理
+let templates: TemplateDataItem[];
+if (filteredRecords.length > 0) {
+  // Step 11: DB実績データをそのまま返却
+  templates = filteredRecords.map(r => ({
+    placeId: r.place_id,
+    templateType: r.template_type,
+    templateId: r.template_id,
+    data: r.data,
+    recordedBy: r.recorded_by,
+    recordedAt: r.recorded_at,
+  }));
+} else {
+  // Step 12: MAIMLテンプレート定義からフォールバック生成
+  templates = buildFallbackTemplates(parser, methodId, adjacentPlaceIds);
+}
+```
+
+### パフォーマンス
+
+- インデックス: `template_data (organization_id, project_id, method_id, task_no)` を使用
+- MaiML パース: S3/Swift からのダウンロードを最小化（1回のみ、フォールバック時も同一インスタンスを再利用）
+- キャッシュ: 不要（リアルタイム性重視）
+
+---
+
 ## 🔗 関連ドキュメント
 
 ### API設計書
@@ -533,6 +915,12 @@ backend/tests/controllers/experimentDataController.test.ts
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 3.2.0 | 2026-02-27 | テンプレート実績一覧取得API 0件時フォールバック仕様追加 | Cline |
+| | | - フィルタリング後にデータ0件の場合、空配列ではなくMAIMLテンプレート定義からレスポンスを生成 | |
+| | | - 処理フローにStep 10〜12を追加（件数確認・フォールバック処理） | |
+| | | - 0件時の `data` は `taskRegistrationService.ts` の `property_set` と同形式（`{ templateId, templateType, properties: [{ key, xsiType, value: null, units }] }`） | |
+| | | - `recordedBy` / `recordedAt` は未記録時 `null` を返すよう仕様変更 | |
+| | | - 実装要件セクションに `buildFallbackTemplates()` のコード例を追記 | |
 | 3.1.0 | 2026-02-18 | エンドポイントと権限の仕様変更 | Cline |
 | | | - エンドポイント: `:projectId` → `:projectName` に変更 | |
 | | | - 権限: `Worker以上` → `experiment_worker のみ書込可` に変更 | |

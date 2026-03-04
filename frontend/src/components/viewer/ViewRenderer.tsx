@@ -79,6 +79,7 @@ interface ViewRendererProps {
   
   // UI制御
   hideMethodTabs?: boolean; // メソッド選択Tabsを非表示にする（指示確認タブ用）
+  selectedMethodId?: string | null; // 表示するメソッドのID（hideMethodTabs時に使用）
   
   // イベントハンドラー
   onFileDownload?: (fileKey: string, fileName: string) => void;
@@ -251,6 +252,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
   isTabletDevice = false,
   isMobileDevice = false,
   hideMethodTabs = false,
+  selectedMethodId = null,
   onFileDownload,
   onExitEdit,
   onExitExperiment,
@@ -410,6 +412,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
         }
         
         // 🎯 単一メソッドまたはチェック中: 従来通りの表示
+        // hideMethodTabsがtrueの場合は selectedMethodId（外部から渡されたもの）を使用
         return (
           <div 
             id="petri-net-viewer-container"
@@ -427,6 +430,7 @@ const ViewRenderer: React.FC<ViewRendererProps> = ({
                 propertyDisplayMode="drawer"
                 containerElementId="petri-net-viewer-container"
                 onOpenSubNetViewer={onOpenSubNetViewer}
+                selectedMethodId={selectedMethodId || undefined}
               />
             </ErrorBoundary>
           </div>

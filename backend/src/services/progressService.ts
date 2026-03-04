@@ -25,8 +25,7 @@ import {
   TaskWithProject,
   ParsedMethod,
   TransitionProgress,
-  OverallProgress,
-  TransitionStatus as TransitionStatusString
+  OverallProgress
 } from '../types/progress';
 import { logger } from '../utils/logger';
 import { getPool } from '../database/db';
@@ -39,13 +38,13 @@ import { loadSqlFile } from '../sql/loader';
  * データベース定義に基づく遷移ルール
  */
 export const ALLOWED_TRANSITIONS: Record<TransitionStatusNumber, TransitionStatusNumber[]> = {
-  [TransitionStatusEnum.INITIAL]: [TransitionStatusEnum.PREPARING, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
-  [TransitionStatusEnum.PREPARING]: [TransitionStatusEnum.READY, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.INITIAL]: [TransitionStatusEnum.INITIAL, TransitionStatusEnum.PREPARING, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.PREPARING]: [TransitionStatusEnum.PREPARING, TransitionStatusEnum.READY, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
   [TransitionStatusEnum.READY]: [TransitionStatusEnum.READY, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
-  [TransitionStatusEnum.IN_PROGRESS]: [TransitionStatusEnum.PAUSED, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
-  [TransitionStatusEnum.PAUSED]: [TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
-  [TransitionStatusEnum.COMPLETED]: [],
-  [TransitionStatusEnum.ERROR]: []
+  [TransitionStatusEnum.IN_PROGRESS]: [TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.PAUSED, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.PAUSED]: [TransitionStatusEnum.PAUSED, TransitionStatusEnum.IN_PROGRESS, TransitionStatusEnum.COMPLETED, TransitionStatusEnum.ERROR],
+  [TransitionStatusEnum.COMPLETED]: [TransitionStatusEnum.COMPLETED],
+  [TransitionStatusEnum.ERROR]: [TransitionStatusEnum.ERROR]
 };
 
 /**
@@ -209,7 +208,9 @@ export class ProgressService {
       // Step 4: トランジション進捗データの取得（並列処理）
       const transitionStartTime = Date.now();
       const transitions = await this.getTransitionsProgress(
-        method.petriNet.transitions,
+        method.transitions,
+        method.places,
+        method.arcs,
         organizationId,
         projectId,
         methodId,
@@ -231,8 +232,8 @@ export class ProgressService {
         project_id: task.project_id,
         project_name: task.project_name,
         method_id: task.method_id,
-        method_name: method.methodName,
-        task_no: task.task_no,
+        method_name: task.task_name,  // project_task.task_name をメソッド名として使用
+        task_no: task.task_no,        // project_task_detail.task_no
         task_name: task.task_name,
         transitions,
         overall_progress: overallProgress
@@ -394,6 +395,8 @@ export class ProgressService {
    */
   private async getTransitionsProgress(
     transitions: any[],
+    places: any[],
+    arcs: any[],
     organizationId: string,
     projectId: string,
     methodId: string,
@@ -404,6 +407,8 @@ export class ProgressService {
       transitions.map(async (transition) => {
         return await this.getSingleTransitionProgress(
           transition,
+          places,
+          arcs,
           organizationId,
           projectId,
           methodId,
@@ -421,23 +426,67 @@ export class ProgressService {
    */
   private async getSingleTransitionProgress(
     transition: any,
+    places: any[],
+    arcs: any[],
     organizationId: string,
     projectId: string,
     methodId: string,
     taskNo: number
   ): Promise<TransitionProgress> {
+    // トランジションに接続するプレースIDを取得（アーク経由）
+    const connectedPlaceIds: string[] = places
+      .filter((p: any) => arcs.some((a: any) =>
+        (a.source === transition.id && a.target === p.id) ||
+        (a.target === transition.id && a.source === p.id)
+      ))
+      .map((p: any) => p.id);
+
+    // MAIMLから取得した定義数を算出（ステレオタイプ別カウント）
+    const materialCount = places.filter((p: any) =>
+      connectedPlaceIds.includes(p.id) && p.data?.stereotype === 'materialTemplate'
+    ).length;
+
+    const conditionCount = places.filter((p: any) =>
+      connectedPlaceIds.includes(p.id) && p.data?.stereotype === 'conditionTemplate'
+    ).length;
+
+    const resultCount = places.filter((p: any) =>
+      connectedPlaceIds.includes(p.id) && p.data?.stereotype === 'resultTemplate'
+    ).length;
+
+    // DBから取得した実績数を算出
+    let materialActualCount = 0;
+    let conditionActualCount = 0;
+    let resultActualCount = 0;
+
+    if (connectedPlaceIds.length > 0) {
+      try {
+        const { getPgp } = await import('../database/db');
+        const pgp = getPgp();
+        const countSql = await loadSqlFile('template_data/countActualByPlaceIds.sql');
+        const countRows = await pgp.any<{ template_type: string; count: string }>(
+          countSql,
+          [organizationId, projectId, methodId, taskNo, connectedPlaceIds]
+        );
+
+        for (const row of countRows) {
+          if (row.template_type === 'materialTemplate') {
+            materialActualCount = Number(row.count);
+          } else if (row.template_type === 'conditionTemplate') {
+            conditionActualCount = Number(row.count);
+          } else if (row.template_type === 'resultTemplate') {
+            resultActualCount = Number(row.count);
+          }
+        }
+      } catch (dbError) {
+        logger.error(`[ProgressService] 実績数取得エラー: ${transition.id}`, { dbError });
+        // エラー時は0のまま継続
+      }
+    }
+
     try {
       // 最新レコード取得
       const latestRecord = await this.transitionDataRepository.getLatestRecordByTransition(
-        organizationId,
-        projectId,
-        methodId,
-        taskNo,
-        transition.id
-      );
-
-      // データ件数取得
-      const dataCount = await this.transitionDataRepository.countRecordsByTransition(
         organizationId,
         projectId,
         methodId,
@@ -449,74 +498,53 @@ export class ProgressService {
       if (!latestRecord) {
         return {
           transition_id: transition.id,
-          transition_name: transition.name || transition.id,
-          status: 'not_started',
+          transition_name: transition.data?.label || transition.id,
+          status: TransitionStatusEnum.INITIAL,
           progress: 0,
           last_updated: null,
-          has_data: false,
-          data_count: 0
+          material_count: materialCount,
+          material_actual_count: materialActualCount,
+          condition_count: conditionCount,
+          condition_actual_count: conditionActualCount,
+          result_count: resultCount,
+          result_actual_count: resultActualCount
         };
       }
 
-      // Status型をTransitionStatus型に変換
-      const transitionStatus = this.convertStatusToTransitionStatus(latestRecord.status);
-      
       // ステータスと進捗率の整合性チェック
-      const progress = this.normalizeProgress(transitionStatus, latestRecord.progress_rate);
+      const progress = this.normalizeProgress(latestRecord.status, latestRecord.progress_rate);
 
       return {
         transition_id: transition.id,
-        transition_name: transition.name || transition.id,
-        status: transitionStatus,
+        transition_name: transition.data?.label || transition.id,
+        status: latestRecord.status,
         progress,
         last_updated: latestRecord.updated_at.toISOString(),
-        has_data: dataCount > 0,
-        data_count: dataCount
+        material_count: materialCount,
+        material_actual_count: materialActualCount,
+        condition_count: conditionCount,
+        condition_actual_count: conditionActualCount,
+        result_count: resultCount,
+        result_actual_count: resultActualCount
       };
 
     } catch (error) {
-      console.error(`[ProgressService] トランジション進捗取得エラー: ${transition.id}`, error);
-      
-      // エラー時はnot_startedとして扱う
+      logger.error(`[ProgressService] トランジション進捗取得エラー: ${transition.id}`, { error });
+
+      // エラー時はINITIAL（未開始）として扱う
       return {
         transition_id: transition.id,
-        transition_name: transition.name || transition.id,
-        status: 'not_started',
+        transition_name: transition.data?.label || transition.id,
+        status: TransitionStatusEnum.INITIAL,
         progress: 0,
         last_updated: null,
-        has_data: false,
-        data_count: 0
+        material_count: materialCount,
+        material_actual_count: materialActualCount,
+        condition_count: conditionCount,
+        condition_actual_count: conditionActualCount,
+        result_count: resultCount,
+        result_actual_count: resultActualCount
       };
-    }
-  }
-
-  /**
-   * TransitionStatus型（数値）をTransitionStatus型（表示用文字列）に変換
-   * 
-   * @private
-   * @requirements Requirement 9: データ整合性
-   */
-  private convertStatusToTransitionStatus(status: TransitionStatusNumber): TransitionStatusString {
-    // TransitionStatus（数値）からTransitionStatus（表示用文字列）へのマッピング
-    switch (status) {
-      case TransitionStatusEnum.COMPLETED:
-        return 'completed';
-      
-      case TransitionStatusEnum.INITIAL:
-        return 'not_started';
-      
-      case TransitionStatusEnum.PREPARING:
-      case TransitionStatusEnum.READY:
-      case TransitionStatusEnum.IN_PROGRESS:
-      case TransitionStatusEnum.PAUSED:
-        return 'in_progress';
-      
-      case TransitionStatusEnum.ERROR:
-        // エラーの場合は進行中として扱う（エラー後も作業継続可能）
-        return 'in_progress';
-      
-      default:
-        return 'not_started';
     }
   }
 
@@ -526,17 +554,17 @@ export class ProgressService {
    * @private
    * @requirements Requirement 9: データ整合性
    */
-  private normalizeProgress(status: TransitionStatusString, progressRate: number): number {
+  private normalizeProgress(status: TransitionStatusNumber, progressRate: number): number {
     // ステータスに応じて進捗率を補正
-    if (status === 'completed') {
+    if (status === TransitionStatusEnum.COMPLETED) {
       return 100;
     }
     
-    if (status === 'not_started') {
+    if (status === TransitionStatusEnum.INITIAL) {
       return 0;
     }
 
-    // in_progressの場合は0-100の範囲に制限
+    // それ以外（PREPARING/READY/IN_PROGRESS/PAUSED/ERROR）は0-100の範囲に制限
     return Math.max(0, Math.min(100, progressRate));
   }
 
@@ -563,9 +591,15 @@ export class ProgressService {
     }
 
     // ステータスごとのカウント
-    const completed = transitions.filter(t => t.status === 'completed').length;
-    const inProgress = transitions.filter(t => t.status === 'in_progress').length;
-    const notStarted = transitions.filter(t => t.status === 'not_started').length;
+    const completed = transitions.filter(t => t.status === TransitionStatusEnum.COMPLETED).length;
+    const inProgress = transitions.filter(t => [
+      TransitionStatusEnum.PREPARING,
+      TransitionStatusEnum.READY,
+      TransitionStatusEnum.IN_PROGRESS,
+      TransitionStatusEnum.PAUSED,
+      TransitionStatusEnum.ERROR
+    ].includes(t.status as TransitionStatusNumber)).length;
+    const notStarted = transitions.filter(t => t.status === TransitionStatusEnum.INITIAL).length;
 
     // 全体進捗率の計算（全トランジションの進捗率の平均値）
     const totalProgress = transitions.reduce((sum, t) => sum + t.progress, 0);
@@ -679,7 +713,6 @@ export class ProgressService {
           transition_id: transitionId,
           status: update.status,
           progress_rate: finalProgressRate,
-          comment: updatedTransition.comment || undefined,
           updated_by: update.updated_by,
           timestamp: new Date()
         },
@@ -687,27 +720,9 @@ export class ProgressService {
       );
 
       // 6. タスク進捗率を再計算
-      const countSql = await loadSqlFile('transition_data/countByTask.sql');
-      const countResult = await client.query(
-        countSql,
-        [organizationId, projectId, method_id, task_no]
-      );
-      const transitionCount = parseInt(countResult.rows[0].count, 10);
-
-      const sumSql = await loadSqlFile('transition_data/sumProgressRateByTask.sql');
-      const sumResult = await client.query(
-        sumSql,
-        [organizationId, projectId, method_id, task_no]
-      );
-      const progressSum = parseInt(sumResult.rows[0].sum, 10);
-
-      const taskProgressRate = transitionCount > 0 ? Math.round(progressSum / transitionCount) : 0;
-
-      const updateProgressSql = await loadSqlFile('project_tasks/updateProgressRate.sql');
-      await client.query(
-        updateProgressSql,
-        [taskProgressRate, organizationId, projectId, method_id, task_no]
-      );
+      // TODO: project_taskテーブルにprogress_rateカラムが存在しないため、現在はスキップ
+      // project_taskテーブルのスキーマ: organization_id, project_id, method_id, experiment_order, task_name, experiment_condition, attempts_count
+      // 進捗率カラム追加後に実装する
 
       await client.query('COMMIT');
 

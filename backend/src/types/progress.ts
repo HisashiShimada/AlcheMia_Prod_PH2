@@ -1,3 +1,7 @@
+import { TransitionStatusEnum, TransitionStatus } from './transitionData';
+
+export { TransitionStatusEnum, TransitionStatus };
+
 /**
  * 進捗データ取得API - 型定義
  * 
@@ -5,15 +9,6 @@
  * Feature: progress-data-retrieval-api
  * Task: 1.2 型定義の整備
  */
-
-/**
- * トランジションステータス
- * 
- * - not_started: 未開始
- * - in_progress: 進行中
- * - completed: 完了
- */
-export type TransitionStatus = 'not_started' | 'in_progress' | 'completed';
 
 /**
  * トランジション進捗情報
@@ -37,11 +32,23 @@ export interface TransitionProgress {
   /** 最終更新日時（ISO 8601形式）またはnull */
   last_updated: string | null;
   
-  /** 実験記録データの有無 */
-  has_data: boolean;
+  /** MAIMLファイルから取得したトランジションに紐づく材料の定義数 */
+  material_count: number;
   
-  /** 実験記録データ件数 */
-  data_count: number;
+  /** DBから取得したトランジションに紐づく材料の実績数 */
+  material_actual_count: number;
+  
+  /** MAIMLファイルから取得したトランジションに紐づく条件の定義数 */
+  condition_count: number;
+  
+  /** DBから取得したトランジションに紐づく条件の実績数 */
+  condition_actual_count: number;
+  
+  /** MAIMLファイルから取得したトランジションに紐づく結果の定義数 */
+  result_count: number;
+  
+  /** DBから取得したトランジションに紐づく結果の実績数 */
+  result_actual_count: number;
 }
 
 /**
@@ -116,20 +123,43 @@ export type ProgressServiceError =
  * Petri Netトランジション情報
  * 
  * @description MAIMLファイルから抽出されるトランジション情報
+ * @remarks maimlService.ts の parsePetriNetStructure() が返す構造に対応
  * @requirements Requirement 4: MAIMLファイルとの連携
  */
 export interface PetriNetTransition {
   /** トランジションID */
   id: string;
   
-  /** トランジション名 */
-  name: string;
+  /** ノードタイプ */
+  type: string;
+  
+  /** トランジションデータ */
+  data: {
+    /** トランジション表示名 */
+    label: string;
+    
+    /** メソッドID */
+    methodId: string;
+    
+    /** ステレオタイプ（省略可能） */
+    stereotype?: string;
+    
+    /** 説明（省略可能） */
+    description?: string;
+    
+    /** インストラクションID（省略可能） */
+    instructionId?: string;
+    
+    /** プログラム（省略可能） */
+    program?: string;
+  };
 }
 
 /**
  * パース済みメソッド情報
  * 
  * @description MAIMLファイルから抽出されるメソッド構造
+ * @remarks maimlService.ts の parsePetriNetStructure() が返す methods[] の要素に対応
  * @requirements Requirement 4: MAIMLファイルとの連携
  */
 export interface ParsedMethod {
@@ -139,10 +169,32 @@ export interface ParsedMethod {
   /** メソッド名 */
   methodName: string;
   
-  /** Petri Net構造 */
-  petriNet: {
-    /** トランジション配列 */
-    transitions: PetriNetTransition[];
+  /** メソッドインデックス */
+  methodIndex: number;
+  
+  /** トランジション配列 */
+  transitions: PetriNetTransition[];
+  
+  /** プレース配列 */
+  places: any[];
+  
+  /** アーク配列 */
+  arcs: any[];
+  
+  /** メタデータ */
+  metadata: {
+    uuid?: string;
+    name?: string;
+    description?: string;
+    pnmlId?: string;
+    pnmlName?: string;
+  };
+  
+  /** 統計情報 */
+  statistics: {
+    placeCount: number;
+    transitionCount: number;
+    arcCount: number;
   };
 }
 
@@ -150,13 +202,13 @@ export interface ParsedMethod {
  * タスク基本情報（Repository層で使用）
  * 
  * @description TaskRepositoryのgetTaskByProjectMethodTaskNoメソッドの返却型
+ * @remarks
+ * - task_name: project_task.task_name（メソッド名として使用）
+ * - task_no: project_task_detail.task_no（タスク連番）
  * @requirements Requirement 1: 進捗データ取得機能
  */
 export interface TaskWithProject {
-  /** タスクID */
-  task_id: string;
-  
-  /** タスク名 */
+  /** タスク名（project_task.task_name） */
   task_name: string;
   
   /** プロジェクトID */
@@ -168,7 +220,7 @@ export interface TaskWithProject {
   /** メソッドID */
   method_id: string;
   
-  /** タスク連番 */
+  /** タスク連番（project_task_detail.task_no） */
   task_no: number;
 }
 

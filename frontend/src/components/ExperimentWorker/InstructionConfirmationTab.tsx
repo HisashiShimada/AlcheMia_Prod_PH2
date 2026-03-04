@@ -11,7 +11,7 @@ import InstructionFlowDialog from './InstructionFlowDialog';
 import SubNetViewer from '@/components/viewer/dialogs/SubNetViewer';
 import type { FileData, SubnetData } from './InstructionFlowDialog';
 import { Stats, Instruction, ProjectStatus, isEditableStatus, Method, Task } from '@/types/experimentWorker';
-import { getWorkerTasks, confirmInstruction } from '@/services/projectApiService';
+import { getWorkerTasks, confirmInstruction, getProjectMaiml } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 
 const { Title, Text } = Typography;
@@ -76,6 +76,7 @@ export default function InstructionConfirmationTab({
     zIndex: number;
   }>>([]);
   const [nextZIndex, setNextZIndex] = useState(999999);
+  const [flowDiagramLoading, setFlowDiagramLoading] = useState(false);
   
   // SubNetViewerの管理
   const [subnetData, setSubnetData] = useState<SubnetData | null>(null);
@@ -243,25 +244,57 @@ export default function InstructionConfirmationTab({
     };
   }, [filteredInstructions]);
 
-  // フロー図ダイアログを開く
-  const handleOpenFlowDiagram = () => {
-    const fileData: FileData = {
-      id: 'test_omori11',
-      name: 'test_omori11.maiml',
-      path: '/data/mock/test_omori11.maiml',
-      size: 0,
-      lastModified: new Date().toISOString(),
-      type: 'maiml',
-    };
+  // フロー図ダイアログを開く（APIからMAIMLコンテンツを取得）
+  const handleOpenFlowDiagram = async () => {
+    if (!selectedProjectName) {
+      message.warning('プロジェクトが選択されていません');
+      return;
+    }
 
-    const newDialog = {
-      id: `flow-diagram-${Date.now()}`,
-      file: fileData,
-      zIndex: nextZIndex,
-    };
+    setFlowDiagramLoading(true);
+    try {
+      console.log('[DEBUG] handleOpenFlowDiagram - MAIMLコンテンツ取得開始', { selectedProjectName });
 
-    setViewerDialogs([...viewerDialogs, newDialog]);
-    setNextZIndex(nextZIndex + 1);
+      const result = await getProjectMaiml(selectedProjectName);
+
+      if (!result.success || !result.data?.maimlContent) {
+        console.error('[DEBUG] handleOpenFlowDiagram - MAIMLコンテンツ取得失敗', result);
+        message.error('フロー図の読み込みに失敗しました');
+        return;
+      }
+
+      const { maimlContent, projectName, lastModified } = result.data;
+
+      console.log('[DEBUG] handleOpenFlowDiagram - MAIMLコンテンツ取得成功', {
+        projectName,
+        contentLength: maimlContent.length,
+        lastModified,
+      });
+
+      const fileData: FileData = {
+        id: selectedProjectName,
+        name: `${projectName}.maiml`,
+        path: `projects/${projectName}/${projectName}.maiml`,
+        size: maimlContent.length,
+        lastModified: lastModified || new Date().toISOString(),
+        type: 'maiml',
+        content: maimlContent, // APIから取得したコンテンツを設定
+      };
+
+      const newDialog = {
+        id: `flow-diagram-${Date.now()}`,
+        file: fileData,
+        zIndex: nextZIndex,
+      };
+
+      setViewerDialogs([...viewerDialogs, newDialog]);
+      setNextZIndex(nextZIndex + 1);
+    } catch (error) {
+      console.error('[DEBUG] handleOpenFlowDiagram - エラー', error);
+      message.error('フロー図の読み込み中にエラーが発生しました');
+    } finally {
+      setFlowDiagramLoading(false);
+    }
   };
 
   // ダイアログを閉じる
@@ -519,6 +552,8 @@ export default function InstructionConfirmationTab({
                   type="default"
                   icon={<NodeIndexOutlined />}
                   onClick={handleOpenFlowDiagram}
+                  loading={flowDiagramLoading}
+                  disabled={flowDiagramLoading || !selectedProjectName}
                   style={{
                     height: 32,
                     display: 'flex',
