@@ -291,10 +291,98 @@ async function createFormatFile(
   }
 }
 
+/**
+ * フォーマットファイル更新
+ * PUT /api/v1/formats/files
+ */
+async function updateFormatFile(
+  req: Request,
+  res: Response,
+  _next: NextFunction
+): Promise<void> {
+  try {
+    const { filePath, content } = req.body;
+    const organizationId = req.user!.organizationId!;
+
+    console.log('[formatController] updateFormatFile called:', {
+      organizationId,
+      filePath,
+      contentLength: content?.length,
+    });
+
+    // バリデーション
+    if (!filePath || typeof filePath !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_FILE_PATH',
+          message: 'ファイルパスが不正です',
+        },
+      });
+      return;
+    }
+
+    if (!content || typeof content !== 'string') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_CONTENT',
+          message: 'ファイル内容が不正です',
+        },
+      });
+      return;
+    }
+
+    // サービスを呼び出してファイルを更新
+    const result = await formatService.updateFormatFile(
+      organizationId,
+      filePath,
+      content
+    );
+
+    res.json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: req.headers['x-request-id'] as string || 'unknown',
+      },
+    });
+  } catch (error) {
+    console.error('[formatController] updateFormatFile error:', error);
+    
+    // エラーメッセージに応じてステータスコードを設定
+    const errorMessage = (error as Error).message;
+    let statusCode = 500;
+    let errorCode = 'SYSTEM_ERROR';
+
+    if (errorMessage.includes('見つかりません')) {
+      statusCode = 404;
+      errorCode = 'FILE_NOT_FOUND';
+    } else if (errorMessage.includes('不正です')) {
+      statusCode = 400;
+      errorCode = 'INVALID_CONTENT';
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        code: errorCode,
+        message: errorMessage,
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: req.headers['x-request-id'] as string || 'unknown',
+      },
+    });
+  }
+}
+
 export const formatController = {
   getFormats,
   getFormatFiles,
   createFormatFolder,
   createFormatSubfolder,
   createFormatFile,
+  updateFormatFile,
 };

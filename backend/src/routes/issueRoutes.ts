@@ -12,8 +12,6 @@ import { authMiddleware } from '../middleware/authMiddleware';
 import { tenantIsolation } from '../middleware/tenantIsolation';
 import { checkPermission } from '../middleware/permissionCheckMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
-import { ISSUE_STATUS_VALUES } from '../types/issue'
-
 const router = Router();
 
 /**
@@ -43,17 +41,7 @@ router.post(
       .withMessage('methodIdは文字列である必要があります'),
     body('issueType')
       .notEmpty()
-      .withMessage('issueTypeは必須です')
-      .isIn([
-        'material_shortage',
-        'equipment_failure',
-        'procedure_unclear',
-        'safety_concern',
-        'quality_issue',
-        'time_constraint',
-        'other'
-      ])
-      .withMessage('issueTypeは許可された値である必要があります'),
+      .withMessage('issueTypeは必須です'),
     body('targetType')
       .notEmpty()
       .withMessage('targetTypeは必須です')
@@ -141,31 +129,31 @@ router.get(
   tenantIsolation,
   checkPermission('050000', 0),
   [
-    query('project_id')
+    query('projectId')
       .notEmpty()
-      .withMessage('project_idは必須です')
+      .withMessage('projectIdは必須です')
       .isString()
-      .withMessage('project_idは文字列である必要があります'),
-    query('method_id')
+      .withMessage('projectIdは文字列である必要があります'),
+    query('methodId')
       .notEmpty()
-      .withMessage('method_idは必須です')
+      .withMessage('methodIdは必須です')
       .isString()
-      .withMessage('method_idは文字列である必要があります'),
-    query('task_no')
+      .withMessage('methodIdは文字列である必要があります'),
+    query('taskNo')
       .notEmpty()
-      .withMessage('task_noは必須です')
+      .withMessage('taskNoは必須です')
       .isInt({ min: 1 })
-      .withMessage('task_noは1以上の整数である必要があります'),
-    query('transition_id')
+      .withMessage('taskNoは1以上の整数である必要があります'),
+    query('transitionId')
       .notEmpty()
-      .withMessage('transition_idは必須です')
+      .withMessage('transitionIdは必須です')
       .isString()
-      .withMessage('transition_idは文字列である必要があります'),
+      .withMessage('transitionIdは文字列である必要があります'),
     query('status')
       .optional()
       .isIn(['unresolved', 'resolved'])
       .withMessage('statusは"unresolved"または"resolved"である必要があります'),
-    query('issue_type')
+    query('issueType')
       .optional()
       .isIn([
         'material_shortage',
@@ -176,7 +164,7 @@ router.get(
         'time_constraint',
         'other'
       ])
-      .withMessage('issue_typeは許可された値である必要があります'),
+      .withMessage('issueTypeは許可された値である必要があります'),
   ],
   handleValidationErrors,
   issueController.list
@@ -239,8 +227,8 @@ router.patch(
     body('status')
       .notEmpty()
       .withMessage('statusは必須です')
-      .isIn(ISSUE_STATUS_VALUES)
-      .withMessage('statusは"unresolved"または"resolved"である必要があります'),
+      .isInt({ min: 0, max: 1 })
+      .withMessage('statusは0（未解決）または1（解決）である必要があります'),
   ],
   handleValidationErrors,
   issueController.updateStatus

@@ -131,11 +131,16 @@ export async function saveMaiML(
   fileKey: string,
   content: string,
   organizationId: string,
+  archive: boolean = true,
 ): Promise<maimlSaveResult> {
   try {
 
-    // ファイルのバックアップ
-    await createBackup(fileKey, organizationId);
+    // ファイルのバックアップ（archiveがtrueの場合のみ）
+    if (archive) {
+      await createBackup(fileKey, organizationId);
+    } else {
+      console.log('ℹ️ [maimlService] アーカイブ化スキップ（上書き保存）');
+    }
 
     // S3/Swiftアップロード（リトライ機能付き）
     await uploadFileWithRetry(
@@ -261,18 +266,20 @@ export async function saveMaiML(
         // メタデータ抽出失敗しても保存は成功とする
       }
       
-      // project_maiml_flgをtrueに更新（必須処理）
-      console.log('🔍 [MAIML Save] project_maiml_flg更新開始:', fileKey);
-      
-      // fileKeyからproject_nameを抽出
-      // 想定形式: projects/sample_project/sample_project.maiml
-      const pathParts = fileKey.split('/');
-      console.log('🔍 [MAIML Save] pathParts:', pathParts);
-      
-      // 'projects'の位置を探す
-      const projectsIndex = pathParts.findIndex(part => part === 'projects');
-      
-      if (projectsIndex !== -1 && pathParts.length > projectsIndex + 1) {
+      // project_maiml_flgをtrueに更新（プロジェクトファイルの場合のみ）
+      // fileKeyがprojects/を含む場合のみ実行
+      if (fileKey.includes('/projects/')) {
+        console.log('🔍 [MAIML Save] project_maiml_flg更新開始:', fileKey);
+        
+        // fileKeyからproject_nameを抽出
+        // 想定形式: projects/sample_project/sample_project.maiml
+        const pathParts = fileKey.split('/');
+        console.log('🔍 [MAIML Save] pathParts:', pathParts);
+        
+        // 'projects'の位置を探す
+        const projectsIndex = pathParts.findIndex(part => part === 'projects');
+        
+        if (projectsIndex !== -1 && pathParts.length > projectsIndex + 1) {
         const projectName = pathParts[projectsIndex + 1];
         console.log('🔍 [MAIML Save] 抽出されたプロジェクト名:', projectName);
         
@@ -312,18 +319,22 @@ export async function saveMaiML(
             });
             throw new Error(`Failed to update project_maiml_flg: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);
           }
+          } else {
+            console.log('ℹ️ [MAIML Save] project_maiml_flgは既にtrue:', projectName);
+          }
         } else {
-          console.log('ℹ️ [MAIML Save] project_maiml_flgは既にtrue:', projectName);
+          // fileKeyの形式が不正な場合はエラー
+          const errorMsg = `Invalid fileKey format: ${fileKey} (pathParts: ${JSON.stringify(pathParts)})`;
+          console.error('❌ [MAIML Save] fileKeyからproject_nameを抽出できません:', {
+            fileKey,
+            pathParts,
+            projectsIndex,
+          });
+          throw new Error(errorMsg);
         }
       } else {
-        // fileKeyの形式が不正な場合はエラー
-        const errorMsg = `Invalid fileKey format: ${fileKey} (pathParts: ${JSON.stringify(pathParts)})`;
-        console.error('❌ [MAIML Save] fileKeyからproject_nameを抽出できません:', {
-          fileKey,
-          pathParts,
-          projectsIndex,
-        });
-        throw new Error(errorMsg);
+        // フォーマットファイルの場合はproject_maiml_flg更新をスキップ
+        console.log('ℹ️ [MAIML Save] フォーマットファイルのためproject_maiml_flg更新をスキップ:', fileKey);
       }
     }
 

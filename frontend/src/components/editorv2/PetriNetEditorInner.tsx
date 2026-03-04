@@ -361,8 +361,15 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   
   const { fitView, screenToFlowPosition, getViewport, setViewport } = useReactFlow();
   
-  // ユーザーID取得（AuthProviderから）
-  const currentUserId = localStorage.getItem('userId') || 'default-user';
+  // ユーザーID取得（localStorageのuserInfoから）
+  const currentUserId = React.useMemo(() => {
+    try {
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+      return userInfo.id || 'unknown-user';
+    } catch {
+      return 'unknown-user';
+    }
+  }, []);
   
   // Draft管理フック初期化
   const currentEditState : EditState = useMemo(() => ({
@@ -2413,8 +2420,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
 
         const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
         
-        // S3ファイル保存API（uploadRoutes.jsの/saveエンドポイント）
-        const response = await maimlService.saveMaiml(fileKey, base64Data)
+        // editModeに応じてarchiveパラメータを設定
+        // 'project' → true（アーカイブ化）, 'format' → false（上書き）
+        const archive = editMode === 'project';
+        console.log('💾 [PetriNetEditorInner] アーカイブ設定:', { editMode, archive });
+        
+        // S3ファイル保存API
+        const response = await maimlService.saveMaiml(fileKey, base64Data, archive)
         
         if (!response.success) {
           const errorData = response.error;
@@ -2896,7 +2908,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
         {nonCriticalErrors.length > 0 && (
           <Alert 
             type="warning"
-            message={
+            title={
               <Flex align="center" justify="space-between" style={{ width: '100%' }}>
                 <span>{nonCriticalErrors.length}件の警告があります</span>
                 <button

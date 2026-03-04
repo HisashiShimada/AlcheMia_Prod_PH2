@@ -60,7 +60,7 @@ describe('Issue Routes', () => {
       const response = await request(app)
         .get('/api/v1/issues')
         .query({
-          project_id: '550e8400-e29b-41d4-a716-446655440000',
+          projectId: '550e8400-e29b-41d4-a716-446655440000',
           status: 'unresolved',
           page: 1,
           limit: 20

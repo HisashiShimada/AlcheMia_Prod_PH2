@@ -104,13 +104,16 @@ export async function list(req: Request, res: Response): Promise<void> {
     const { organizationId } = req.user!;
 
     // クエリパラメータの取得（API設計書に準拠）
+    const issueTypeRaw = req.query.issueType as string | undefined;
+    const issueTypeNum = issueTypeRaw !== undefined ? parseInt(issueTypeRaw, 10) : undefined;
+
     const filters = {
       projectId: req.query.projectId as string,
       methodId: req.query.methodId as string,
       taskNo: parseInt(req.query.taskNo as string, 10),
       transitionId: req.query.transitionId as string,
       status: req.query.status as string | undefined,
-      issueType: req.query.issueType as string | undefined,
+      issueType: issueTypeNum !== undefined && !isNaN(issueTypeNum) ? issueTypeNum : undefined,
     };
 
     // Service層呼び出し（フィルタのみ渡す）

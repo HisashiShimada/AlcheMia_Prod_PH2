@@ -6,24 +6,9 @@
 
 /**
  * 問題タイプ（issue_typeカラムの値）
+ * code_masterテーブルの code_division = 'issue_type' の code_value（数値）を使用
  */
-export type IssueType =
-  | 'bug'              // バグ
-  | 'feature_request'  // 機能要望
-  | 'question'         // 質問
-  | 'improvement'      // 改善提案
-  | 'other';           // その他
-
-/**
- * 問題タイプの有効な値（バリデーション用）
- */
-export const ISSUE_TYPE_VALUES: readonly IssueType[] = [
-  'bug',
-  'feature_request',
-  'question',
-  'improvement',
-  'other',
-] as const;
+export type IssueType = number;
 
 /**
  * 重要度（severityカラムの値）
@@ -295,8 +280,8 @@ export interface IssueWithComments {
   /** 問題ID */
   id: string;
 
-  /** 問題タイプ */
-  issueType: string;
+  /** 問題タイプ（code_masterの code_value 数値） */
+  issueType: number;
 
   /** 対象種別 */
   targetType: 'project' | 'task' | 'transition';
@@ -366,6 +351,6 @@ export interface IssueListFilters {
   /** ステータスフィルタ（オプション） */
   status?: string;
 
-  /** 問題タイプフィルタ（オプション） */
-  issueType?: string;
+  /** 問題タイプフィルタ（オプション、code_masterの code_value 数値） */
+  issueType?: number;
 }

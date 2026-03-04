@@ -42,6 +42,7 @@ export interface WorkerAccessibleProject {
   projectName: string;
   description: string;
   projectStatus: number; // 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了
+  useDeemedProgress: boolean; // みなし進捗使用フラグ（organization.use_deemed_progress）
   createdAt: string;
   updatedAt: string;
 }

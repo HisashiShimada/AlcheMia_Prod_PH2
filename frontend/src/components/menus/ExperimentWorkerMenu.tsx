@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, Typography, Space, Button, Tabs, theme, Select, message, Spin } from 'antd';
+import { Layout, Card, Typography, Space, Button, Tabs, theme, Select, App, Spin } from 'antd';
 import {
   FileTextOutlined,
   FormOutlined,
@@ -86,6 +86,7 @@ interface ExperimentWorkerMenuProps {
  * サブヘッダーに埋め込まれたタブでメニューを表示
  */
 export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMenuChange }: ExperimentWorkerMenuProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('4');
@@ -250,6 +251,11 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   // TODO: API化後、メソッド情報を取得するロジックを実装
   const selectedMethod = null;
 
+  // 選択中プロジェクトのステータス（数値）を取得
+  // worker-accessible APIのレスポンスから直接参照することで、不要なAPIコールを排除
+  const selectedProjectStatus = projects.find(p => p.projectId === selectedProject)?.projectStatus ?? null;
+  const selectedProjectUseDeemedProgress = projects.find(p => p.projectId === selectedProject)?.useDeemedProgress ?? true;
+
   const handleTabChange = (key: string) => {
     setCurrentTab(key);
   };
@@ -312,6 +318,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       children: (
         <ExperimentRecordTab
           selectedProject={selectedProject}
+          selectedProjectName={selectedProjectName}
           onProjectChange={handleProjectChangeForChild}
           selectedMethodId={selectedMethodId}
           onSelectMethod={handleSelectMethod}
@@ -319,6 +326,8 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
           onSelectTask={handleSelectTask}
           onTaskCreated={handleTaskCreated}
           selectedMethod={selectedMethod}
+          selectedProjectStatus={selectedProjectStatus}
+          useDeemedProgress={selectedProjectUseDeemedProgress}
         />
       ),
     },

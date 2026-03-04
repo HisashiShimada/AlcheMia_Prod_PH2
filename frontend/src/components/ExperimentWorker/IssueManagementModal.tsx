@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useCodeMaster } from '@/hooks/useCodeMaster';
 import {
   Modal,
   Table,
@@ -71,7 +72,10 @@ export default function IssueManagementModal({
   const [form] = Form.useForm();
   const [commentForm] = Form.useForm();
   
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  // 選択中の問題IDのみをstateで保持する
+  // selectedIssue 自体は issues props から useMemo で導出することで、
+  // 親が issues を再取得するたびに自動的に最新データが反映される
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [showNewIssueForm, setShowNewIssueForm] = useState(false);
   const [newComment, setNewComment] = useState('');
   
@@ -79,9 +83,22 @@ export default function IssueManagementModal({
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<IssueStatus | 'all'>('all');
 
+  // 問題タイプ選択肢をコードマスターAPIから取得（マウント時に自動フェッチ）
+  // destroyOnHidden により、モーダルが閉じるたびにコンポーネントが破棄・再生成されるため、
+  // enabled=true（デフォルト）でマウント時に自動フェッチすれば十分
+  const { options: issueTypeOptions, loading: issueTypeLoading } = useCodeMaster('issue_type');
+
   // プロジェクトが承認依頼中の場合は編集不可
   const isApprovalPending = projectStatus === 'waiting_approval';
   const isEditDisabled = viewMode || isApprovalPending;
+
+  // 選択中の問題を issues props から導出する
+  // issues プロップが更新（コメント送信・ステータス変更後の再取得）されると
+  // selectedIssue も自動的に最新データに追随し、コメント一覧が即時更新される
+  const selectedIssue = useMemo(
+    () => issues.find((issue) => issue.issueId === selectedIssueId) ?? null,
+    [issues, selectedIssueId]
+  );
 
   // フィルタリングされた問題一覧
   const filteredIssues = useMemo(() => {
@@ -259,7 +276,7 @@ export default function IssueManagementModal({
 
   // モーダルを閉じる
   const handleClose = () => {
-    setSelectedIssue(null);
+    setSelectedIssueId(null);
     setShowNewIssueForm(false);
     form.resetFields();
     commentForm.resetFields();
@@ -269,14 +286,14 @@ export default function IssueManagementModal({
 
   // 問題選択時のハンドラ
   const handleSelectIssue = (issue: Issue) => {
-    setSelectedIssue(issue);
+    setSelectedIssueId(issue.issueId);
     setShowNewIssueForm(false);
   };
 
   // 新規問題報告ボタン押下
   const handleNewIssueClick = () => {
     setShowNewIssueForm(true);
-    setSelectedIssue(null);
+    setSelectedIssueId(null);
   };
 
   return (
@@ -292,7 +309,7 @@ export default function IssueManagementModal({
       footer={null}
       width={1200}
       style={{ top: 20 }}
-      destroyOnClose
+      destroyOnHidden
     >
       {/* 新規問題報告ボタン（参照専用モードまたは承認依頼中は非活性） */}
       {!viewMode && (
@@ -407,15 +424,11 @@ export default function IssueManagementModal({
                   name="issueType"
                   rules={[{ required: true, message: '問題タイプを選択してください' }]}
                 >
-                  <Select placeholder="問題タイプを選択">
-                    <Select.Option value="material_shortage">材料不足</Select.Option>
-                    <Select.Option value="equipment_failure">機器故障</Select.Option>
-                    <Select.Option value="procedure_unclear">手順不明確</Select.Option>
-                    <Select.Option value="safety_concern">安全性の懸念</Select.Option>
-                    <Select.Option value="quality_issue">品質問題</Select.Option>
-                    <Select.Option value="time_constraint">時間制約</Select.Option>
-                    <Select.Option value="other">その他</Select.Option>
-                  </Select>
+                  <Select
+                    placeholder="問題タイプを選択"
+                    loading={issueTypeLoading}
+                    options={issueTypeOptions}
+                  />
                 </Form.Item>
 
                 <Form.Item

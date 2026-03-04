@@ -8,6 +8,10 @@
 import { AxiosError } from 'axios';
 import { createApiClient } from '@/utils/authUtils';
 import type { ProjectFile } from '@/types/file';
+import type {
+  UpdateTransitionStatusRequest,
+  UpdateTransitionStatusResponse,
+} from '@/types/api';
 import type { Task, TaskStatistics, Project, MaimlSearchCriterion, MaimlSearchResponseData } from '@/types/project';
 import type {
   GetTaskRegistrationResponse,
@@ -116,6 +120,7 @@ export interface WorkerProject {
   projectName: string;         // プロジェクト名
   projectCd?: string;          // プロジェクトCD（APIレスポンスに含まれない場合がある）
   projectStatus: number;       // プロジェクトステータス（0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了）
+  useDeemedProgress?: boolean; // みなし進捗使用フラグ（organization.use_deemed_progress）省略時はtrue
   description: string;         // プロジェクトの説明
   createdAt: string;           // 作成日時（ISO 8601）
   updatedAt: string;           // 更新日時（ISO 8601）
@@ -132,6 +137,23 @@ export interface WorkerProjectListResponse {
     totalItems: number;
     itemsPerPage: number;
   };
+}
+
+/**
+ * プロジェクト詳細レスポンス型
+ * API: GET /api/v1/projects/:projectId
+ */
+export interface ProjectDetailResponse {
+  project_id: string;
+  project_name: string;
+  description: string | null;
+  project_status: string;
+  is_checked_out: boolean;
+  checked_out_by: string | null;
+  checked_out_at: string | null;
+  checked_out_user_name: string | null;
+  create_at: string;
+  update_at: string;
 }
 
 /**
@@ -700,6 +722,58 @@ export const getWorkerAccessibleProjects = async (
 };
 
 /**
+ * プロジェクト詳細を取得
+ * GET /api/v1/projects/:projectId
+ *
+ * @param projectId プロジェクトID（UUID）
+ * @returns プロジェクト詳細情報
+ * @throws Error APIエラー時
+ *
+ * @example
+ * ```typescript
+ * const result = await getProjectDetail('550e8400-e29b-41d4-a716-446655440000');
+ * console.log(result.data.project_status); // 'active'
+ * ```
+ */
+export const getProjectDetail = async (
+  projectId: string
+): Promise<ApiResponse<ProjectDetailResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] getProjectDetail - Start', { projectId });
+
+    const response = await client.get<{
+      success: boolean;
+      data: ProjectDetailResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectId)}`);
+
+    console.log('[DEBUG] getProjectDetail - Success', {
+      projectId: response.data.data.project_id,
+      projectStatus: response.data.data.project_status,
+    });
+
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta,
+    };
+  } catch (error) {
+    console.error('[DEBUG] getProjectDetail - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
  * 承認依頼を送信
  * PATCH /api/v1/projects/:projectName/approval-request
  * 
@@ -1037,6 +1111,79 @@ export const confirmInstruction = async (
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,
       errorStatus: (error as AxiosError)?.response?.status
+    });
+    throw error;
+  }
+};
+
+/**
+ * トランジションステータスを更新
+ * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
+ *
+ * @param projectName プロジェクト名
+ * @param methodId メソッドID
+ * @param transitionId トランジションID
+ * @param request リクエストボディ（taskNo, status, progressRate, comment）
+ * @returns 更新されたトランジション情報
+ * @throws Error APIエラー時
+ *
+ * @example
+ * ```typescript
+ * await updateTransitionStatus('sample_project', 'method1', 't1', {
+ *   taskNo: 1,
+ *   status: 'running',
+ *   progressRate: 50,
+ *   comment: '実験を開始しました',
+ * });
+ * ```
+ */
+export const updateTransitionStatus = async (
+  projectName: string,
+  methodId: string,
+  transitionId: string,
+  request: UpdateTransitionStatusRequest
+): Promise<ApiResponse<UpdateTransitionStatusResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] updateTransitionStatus - Start', {
+      projectName,
+      methodId,
+      transitionId,
+      taskNo: request.taskNo,
+      status: request.status,
+    });
+
+    const response = await client.patch<{
+      success: boolean;
+      data: UpdateTransitionStatusResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(
+      `/progress/projects/${encodeURIComponent(projectName)}/methods/${encodeURIComponent(methodId)}/transitions/${encodeURIComponent(transitionId)}/status`,
+      request
+    );
+
+    console.log('[DEBUG] updateTransitionStatus - Success', {
+      transitionId: response.data.data.transitionId,
+      status: response.data.data.status,
+      progressRate: response.data.data.progressRate,
+      updatedAt: response.data.data.updatedAt,
+    });
+
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta,
+    };
+  } catch (error) {
+    console.error('[DEBUG] updateTransitionStatus - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
     });
     throw error;
   }

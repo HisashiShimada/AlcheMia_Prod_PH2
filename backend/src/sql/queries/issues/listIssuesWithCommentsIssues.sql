@@ -23,8 +23,8 @@ SELECT
   i.issue_completer_id AS "completedBy",
   completer.user_name AS "completedByName",
   i.issue_complate_at AS "completedAt"
-FROM issues i
-INNER JOIN projects p ON p.organization_id = i.organization_id AND p.project_id = i.project_id
+FROM issue i
+INNER JOIN project p ON p.organization_id = i.organization_id AND p.project_id = i.project_id
 INNER JOIN organization_user reporter ON reporter.organization_id = i.organization_id AND reporter.user_id = i.issue_reporter_id
 LEFT JOIN organization_user completer ON completer.organization_id = i.organization_id AND completer.user_id = i.issue_completer_id
 WHERE i.organization_id = $1

@@ -3,7 +3,31 @@
 import React, { useState } from 'react';
 import { Card, Button, Space, Statistic, Row, Col } from 'antd';
 import { ReloadOutlined, DatabaseOutlined, FolderOutlined, UsergroupAddOutlined } from '@ant-design/icons';
-import statisticsData from '../../../mock/data/organization-statistics.json';
+
+/** デフォルト統計データ（APIが利用可能になるまでのスタブ） */
+const defaultStatisticsData = {
+  lastUpdated: new Date().toLocaleString('ja-JP'),
+  statistics: {
+    storage: {
+      used: 0.0,
+      total: 100.0,
+      unit: 'GB',
+      usageRate: 0,
+      fileCount: 0,
+      maimlFileCount: 0,
+    },
+    projects: {
+      count: 0,
+      total: 0,
+      registrationRate: 0,
+    },
+    activeUsers: {
+      count: 0,
+      total: 0,
+      registrationRate: 0,
+    },
+  },
+};
 
 /**
  * 組織統計情報画面
@@ -15,8 +39,8 @@ import statisticsData from '../../../mock/data/organization-statistics.json';
  * - 統計情報のリロード
  */
 const OrganizationStatisticsMock: React.FC = () => {
-  const [lastUpdated, setLastUpdated] = useState<string>(statisticsData.lastUpdated);
-  const [statistics, setStatistics] = useState(statisticsData.statistics);
+  const [lastUpdated, setLastUpdated] = useState<string>(defaultStatisticsData.lastUpdated);
+  const [statistics, setStatistics] = useState(defaultStatisticsData.statistics);
 
   // リロードボタンのハンドラ
   const handleReload = () => {

@@ -24,6 +24,7 @@ import {
   Card,
   Layout,
   Slider,
+  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -49,8 +50,119 @@ import {
   ProjectStatus,
   isEditableStatus,
 } from '@/types/experimentWorker';
-import { templatesList } from '@/data/projectsData';
+
+/**
+ * ステータス遷移ルール（progressService.ts の ALLOWED_TRANSITIONS と同一）
+ * キー: 現在のステータス値（数値）
+ * 値: 遷移可能なステータス値の配列（数値）
+ */
+const ALLOWED_TRANSITIONS: Record<number, number[]> = {
+  0: [1, 5, 6],       // 初期状態 → 準備状態、終状態、異常終了
+  1: [2, 5, 6],       // 準備状態 → 準備完了、終状態、異常終了
+  2: [2, 3, 5, 6],    // 準備完了 → 準備完了（自己遷移）、動作状態、終状態、異常終了
+  3: [4, 5, 6],       // 動作状態 → 休止状態、終状態、異常終了
+  4: [3, 5, 6],       // 休止状態 → 動作状態、終状態、異常終了
+  5: [],              // 終状態 → 変更不可
+  6: [],              // 異常終了 → 変更不可
+};
+
+/**
+ * 全ステータスの定義
+ */
+const ALL_STATUS_OPTIONS: { value: TransitionStatus; label: string }[] = [
+  { value: 0 as TransitionStatus, label: '初期状態' },
+  { value: 1 as TransitionStatus, label: '準備状態' },
+  { value: 2 as TransitionStatus, label: '準備完了状態' },
+  { value: 3 as TransitionStatus, label: '動作状態' },
+  { value: 4 as TransitionStatus, label: '休止状態' },
+  { value: 5 as TransitionStatus, label: '終状態' },
+  { value: 6 as TransitionStatus, label: '異常終了状態' },
+];
+import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
+import { updateTransitionStatus } from '@/services/projectApiService';
+import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
+
+// ===== TemplateDataItem → Template 変換ヘルパー =====
+
+/**
+ * API の templateType 文字列をフロントの TemplateCategory にマッピングする
+ */
+function mapTemplateTypeToCategory(templateType: string): TemplateCategory {
+  switch (templateType) {
+    case 'material':   return 'Materials';
+    case 'condition':  return 'Conditions';
+    case 'result':     return 'Results';
+    default:           return 'Materials'; // 未知の値は Materials にフォールバック
+  }
+}
+
+/**
+ * API の xsiType 文字列をフロントの PropertyType にマッピングする
+ */
+function mapXsiTypeToPropertyType(xsiType: string): import('@/types/experimentWorker').PropertyType {
+  const known = [
+    'stringType', 'intType', 'floatType', 'booleanType',
+    'dateType', 'dateTimeType', 'contentDoubleListType', 'propertyListType', 'insertion',
+  ] as const;
+  if ((known as readonly string[]).includes(xsiType)) {
+    return xsiType as import('@/types/experimentWorker').PropertyType;
+  }
+  return 'stringType'; // 未知の xsiType は stringType にフォールバック
+}
+
+/**
+ * templateType からデフォルトのテンプレート名を生成する
+ */
+function buildTemplateName(templateType: string, templateId: string): string {
+  switch (templateType) {
+    case 'material':  return `材料テンプレート`;
+    case 'condition': return `条件テンプレート`;
+    case 'result':    return `結果テンプレート`;
+    default:          return templateId;
+  }
+}
+
+/**
+ * API レスポンスの TemplateDataItem[] をサイドバー表示用の Template[] に変換する
+ *
+ * フォールバック時の data 形式:
+ *   { templateId, templateType, properties: [{ key, xsiType, value, units }] }
+ *
+ * DB 実績あり時の data 形式:
+ *   フラットな key-value（プロパティ定義が含まれないため、フォールバックの構造を優先する）
+ */
+function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Template[] {
+  return items.map((item) => {
+    const category = mapTemplateTypeToCategory(item.templateType);
+
+    // data.properties が存在する場合（フォールバック形式）はそこから Property[] を構築
+    const rawData = item.data as Record<string, unknown>;
+    const rawProperties = rawData.properties as Array<{
+      key: string;
+      xsiType: string;
+      value: unknown;
+      units: string | null;
+    }> | undefined;
+
+    const properties: Property[] = (rawProperties ?? []).map((p) => ({
+      key: p.key,
+      label: p.key,                          // ラベルはキーをそのまま使用
+      type: mapXsiTypeToPropertyType(p.xsiType),
+      units: p.units ?? undefined,
+      required: false,
+    }));
+
+    const name = buildTemplateName(item.templateType, item.templateId);
+
+    return {
+      templateId: item.templateId,
+      category,
+      name,
+      properties,
+    } satisfies Template;
+  });
+}
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -63,7 +175,11 @@ interface DataRecordDialogProps {
   onClose: () => void;
   onSave: (data: ExperimentDataValue[]) => void;
   projectId?: string;
+  projectName?: string;
   methodId?: string;
+  taskNo?: number;
+  /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
+  useDeemedProgress?: boolean;
 }
 
 /**
@@ -77,7 +193,10 @@ export default function DataRecordDialog({
   onClose,
   onSave,
   projectId,
+  projectName,
   methodId,
+  taskNo,
+  useDeemedProgress: useDeemedProgressProp = true,
 }: DataRecordDialogProps) {
   const { token } = theme.useToken();
   const [form] = Form.useForm();
@@ -85,9 +204,17 @@ export default function DataRecordDialog({
   const [dataGrids, setDataGrids] = useState<Record<string, number[][]>>({});
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  // テンプレート実績データのローディング状態
+  const [templateDataLoading, setTemplateDataLoading] = useState(false);
   
   // 作業指示モーダルの状態
   const [instructionModalOpen, setInstructionModalOpen] = useState(false);
+
+  // APIから取得したテンプレート一覧（TemplateDataItem → Template に変換済み）
+  const [fetchedTemplates, setFetchedTemplates] = useState<Template[]>([]);
+
+  // APIから取得したテンプレート実績の生データ（placeId・data構造の保持に使用）
+  const [fetchedTemplateItems, setFetchedTemplateItems] = useState<TemplateDataItem[]>([]);
 
   // テンプレート一覧用の状態
   const [templateSearchText, setTemplateSearchText] = useState('');
@@ -107,24 +234,44 @@ export default function DataRecordDialog({
   // プロジェクトの状態が編集可能かどうか
   const isProjectEditable = projectStatus ? isEditableStatus(projectStatus) : true;
 
+  /**
+   * 現在のトランジションステータス（数値）
+   * transition.status は型上 ProgressStatus（文字列型）だが、
+   * APIレスポンスでは実際に数値（0-6）が入っているため Number() で変換する
+   */
+  const currentStatus = useMemo((): number => {
+    if (!transition || transition.status === undefined || transition.status === null) {
+      return 0;
+    }
+    const num = Number(transition.status);
+    return isNaN(num) ? 0 : num;
+  }, [transition]);
+
+  /**
+   * 終端ステータス（完了・エラー）かどうか
+   * 終端ステータスの場合はステータス変更不可
+   */
+  const isTerminalStatus = currentStatus === 5 || currentStatus === 6;
+
   // ステータスとコメント用の状態
-  const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>('initial');
+  // 0: 初期状態, 1: 準備中, 2: 準備完了, 3: 実行中, 4: 一時停止, 5: 完了, 6: エラー
+  const [selectedStatus, setSelectedStatus] = useState<TransitionStatus>(0);
   const [comment, setComment] = useState('');
   const [progress, setProgress] = useState<number>(0);
   
   // みなし進捗更新用の状態
-  const [useDeemedProgress, setUseDeemedProgress] = useState(true);
+  // useDeemedProgressProp が false の場合は初期値を false にして常にステータス更新を表示
+  const [useDeemedProgress, setUseDeemedProgress] = useState(useDeemedProgressProp);
 
-  // ステータスの選択肢
-  const statusOptions = [
-    { value: 'initial' as TransitionStatus, label: '初期状態' },
-    { value: 'preparing' as TransitionStatus, label: '準備状態' },
-    { value: 'ready' as TransitionStatus, label: '準備完了状態' },
-    { value: 'running' as TransitionStatus, label: '動作状態' },
-    { value: 'paused' as TransitionStatus, label: '休止状態' },
-    { value: 'completed' as TransitionStatus, label: '終状態' },
-    { value: 'error' as TransitionStatus, label: '異常終了状態' },
-  ];
+  /**
+   * 現在のステータスから遷移可能なステータスの選択肢（useMemo でメモ化）
+   * ALLOWED_TRANSITIONS に基づいて選択肢をフィルタリングする
+   * 終端ステータス（5: 終状態、6: 異常終了）の場合は空配列
+   */
+  const statusOptions = useMemo(() => {
+    const allowedValues = ALLOWED_TRANSITIONS[currentStatus] ?? [];
+    return ALL_STATUS_OPTIONS.filter(opt => allowedValues.includes(opt.value as number));
+  }, [currentStatus]);
 
   // クライアント判定
   useEffect(() => {
@@ -132,8 +279,14 @@ export default function DataRecordDialog({
   }, []);
 
   // テンプレート一覧のフィルタリング
+  // fetchedTemplates（APIから取得・変換済み）を優先し、なければ transition.templates を使用する
   const filteredTemplates = useMemo(() => {
-    let filtered = templatesList;
+    const source: Template[] =
+      fetchedTemplates.length > 0
+        ? fetchedTemplates
+        : (transition?.templates ?? []);
+
+    let filtered = source;
 
     // テンプレート名でのあいまい検索
     if (templateSearchText) {
@@ -148,7 +301,7 @@ export default function DataRecordDialog({
     }
 
     return filtered;
-  }, [templateSearchText, selectedTemplateCategory]);
+  }, [fetchedTemplates, transition?.templates, templateSearchText, selectedTemplateCategory]);
 
   // 選択されたテンプレートのみを取得
   const selectedTemplate = useMemo(() => {
@@ -172,6 +325,20 @@ export default function DataRecordDialog({
     }
   };
 
+  /**
+   * TemplateCategory（フロント）→ templateType（API）へのマッピング
+   * Materials → material, Conditions → condition, Results → result
+   */
+  const mapTemplateCategoryToApiType = (
+    category: TemplateCategory
+  ): 'material' | 'condition' | 'result' => {
+    switch (category) {
+      case 'Materials':  return 'material';
+      case 'Conditions': return 'condition';
+      case 'Results':    return 'result';
+    }
+  };
+
   // テンプレート種別のタグ色
   const getTemplateCategoryColor = (category: TemplateCategory): string => {
     switch (category) {
@@ -186,20 +353,27 @@ export default function DataRecordDialog({
     }
   };
 
-  // ダイアログを開いたときにフォームをリセット
+  // ダイアログを開いたときにフォームをリセット＆テンプレート実績データを取得
   useEffect(() => {
     if (open && transition) {
       form.resetFields();
       setFormData({});
       setDataGrids({});
-      setSelectedStatus('initial'); // ステータスをリセット
-      setComment(''); // コメントをリセット
-      setProgress(0); // 進捗をリセット
-      setSelectedTemplateId(null); // テンプレート選択状態をリセット
-      
+      // 初期値は現在のトランジションステータスから遷移可能な最初の選択肢を設定
+      // 終端ステータスの場合は選択肢がないため 0 のまま
+      const allowedValues = ALLOWED_TRANSITIONS[currentStatus] ?? [];
+      setSelectedStatus((allowedValues[0] ?? 0) as TransitionStatus);
+      setComment('');
+      setProgress(0);
+      setSelectedTemplateId(null);
+      // prop の最新値を state に同期（useState の初期値はマウント時のみ評価されるため毎回同期が必要）
+      setUseDeemedProgress(useDeemedProgressProp);
+      setFetchedTemplates([]);     // ダイアログオープン時に前回取得分をリセット
+      setFetchedTemplateItems([]); // GETレスポンス生データもリセット
+
       // プロジェクトの状態が編集可能でない場合は「ステータス更新」を折りたたむ
       setStatusUpdateExpanded(isProjectEditable);
-      
+
       // 各テンプレートのDataGridを初期化
       transition.templates?.forEach((template) => {
         template.properties.forEach((prop) => {
@@ -211,8 +385,84 @@ export default function DataRecordDialog({
           }
         });
       });
+
+      // テンプレート実績データをAPIから取得してフォームの初期値を復元
+      // 必須パスパラメータが揃っている場合のみ実行
+      if (projectName && methodId && taskNo !== undefined && transition.transitionId) {
+        (async () => {
+          try {
+            setTemplateDataLoading(true);
+            const response = await getTemplateData(
+              projectName,
+              methodId,
+              taskNo,
+              transition.transitionId
+            );
+
+            if (response.success && response.data.templates.length > 0) {
+              // ① GETレスポンスの生データをそのまま保持（保存時にdata構造・placeIdを参照するため）
+              setFetchedTemplateItems(response.data.templates);
+
+              // ② TemplateDataItem[] → Template[] に変換してサイドバーに表示
+              const converted = convertTemplateDataItemsToTemplates(response.data.templates);
+              setFetchedTemplates(converted);
+
+              // ② 取得した実績データをフォームフィールドに反映（既存値の復元）
+                  const initialValues: Record<string, unknown> = {};
+                  for (const item of response.data.templates) {
+                    const rawData = item.data as Record<string, unknown>;
+                    const rawProperties = rawData.properties as Array<{
+                      key: string;
+                      xsiType: string;
+                      value: unknown;
+                      units: string | null;
+                    }> | undefined;
+
+                    if (Array.isArray(rawProperties)) {
+                      // properties配列形式:
+                      // フォールバック形式・保存済み形式（DB保存時に properties 構造のまま保存された場合）
+                      // どちらでも統一処理する。value が non-null の場合にフォームへ反映する。
+                      for (const p of rawProperties) {
+                        if (p.value !== null && p.value !== undefined) {
+                          const formKey = `${item.templateId}_${p.key}`;
+                          // dateType / dateTimeType は dayjs に変換（DatePicker が dayjs オブジェクトを期待するため）
+                          if (p.xsiType === 'dateType' || p.xsiType === 'dateTimeType') {
+                            initialValues[formKey] = dayjs(String(p.value));
+                          } else {
+                            initialValues[formKey] = p.value;
+                          }
+                        }
+                      }
+                    } else if (item.recordedBy !== null) {
+                      // 純粋なフラットkey-value形式（将来的な保存形式変更に備えて残す）:
+                      // data が { key: value, ... } のフラット形式の場合にフォームへ反映する。
+                      for (const [fieldKey, fieldValue] of Object.entries(rawData)) {
+                        const formKey = `${item.templateId}_${fieldKey}`;
+                        initialValues[formKey] = fieldValue;
+                      }
+                    }
+                  }
+              if (Object.keys(initialValues).length > 0) {
+                form.setFieldsValue(initialValues);
+              }
+
+              // ③ 最初のテンプレートをサイドバーで選択状態にする
+              const firstItem = response.data.templates[0];
+              if (firstItem) {
+                setSelectedTemplateId(firstItem.templateId);
+              }
+            }
+          } catch (error) {
+            // 実績データ取得失敗は非致命的（初回記録時は404になる）
+            // エラーメッセージは表示しない（フォームは空の状態で開く）
+            console.warn('テンプレート実績データの取得に失敗しました（初回記録の場合は正常）:', error);
+          } finally {
+            setTemplateDataLoading(false);
+          }
+        })();
+      }
     }
-  }, [open, transition, form, isProjectEditable]);
+  }, [open, transition, form, isProjectEditable, projectName, methodId, taskNo, useDeemedProgressProp]);
 
   // テンプレート保存ハンドラ
   const handleSaveTemplate = async () => {
@@ -221,45 +471,116 @@ export default function DataRecordDialog({
       return;
     }
 
+    // APIに必要なパスパラメータのガードチェック
+    if (!projectName || !methodId || taskNo === undefined) {
+      message.error('保存に必要なプロジェクト情報が不足しています');
+      console.error('handleSaveTemplate: projectName / methodId / taskNo が未設定', {
+        projectName,
+        methodId,
+        taskNo,
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       const values = await form.validateFields();
-      
+
       const template = selectedTemplate;
 
-      const templateData: ExperimentDataValue = {
+      // ── GETで取得した生データを参照 ──────────────────────────────────────
+      // fetchedTemplateItems から templateId に一致するオリジナルアイテムを検索する。
+      // これにより placeId の正確な値と、バックエンドが期待する data 構造を取得する。
+      const originalItem = fetchedTemplateItems.find(
+        (item) => item.templateId === template.templateId
+      );
+
+      // ── data 組み立て ────────────────────────────────────────────────────
+      // オリジナルの data をディープコピーしてベースとし、
+      // フォームで変更された値のみ上書きする（構造を破壊しない）。
+      const baseData: Record<string, unknown> = originalItem
+        ? JSON.parse(JSON.stringify(originalItem.data))
+        : {};
+
+      if (
+        baseData.properties &&
+        Array.isArray(baseData.properties)
+      ) {
+        // フォールバック形式: { templateId, templateType, properties: [{ key, xsiType, value, units }] }
+        // properties[i].value をフォーム値で上書きする
+        (
+          baseData.properties as Array<{
+            key: string;
+            xsiType: string;
+            value: unknown;
+            units: string | null;
+          }>
+        ).forEach((p) => {
+          const formKey = `${template.templateId}_${p.key}`;
+          if (p.xsiType === 'dateType') {
+            const v = values[formKey];
+            p.value = v ? dayjs(v).format('YYYY-MM-DD') : null;
+          } else if (p.xsiType === 'dateTimeType') {
+            const v = values[formKey];
+            p.value = v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : null;
+          } else if (p.xsiType === 'contentDoubleListType') {
+            p.value = dataGrids[formKey] ?? null;
+          } else {
+            p.value = values[formKey] ?? null;
+          }
+        });
+      } else {
+        // DB実績形式: フラットなkey-value
+        // baseData[prop.key] をフォーム値で上書きする
+        template.properties.forEach((prop) => {
+          const formKey = `${template.templateId}_${prop.key}`;
+          if (prop.type === 'contentDoubleListType') {
+            baseData[prop.key] = dataGrids[formKey] ?? [[0, 0, 0]];
+          } else if (prop.type === 'dateType' || prop.type === 'dateTimeType') {
+            const v = values[formKey];
+            baseData[prop.key] = v
+              ? dayjs(v).format(
+                  prop.type === 'dateType' ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'
+                )
+              : null;
+          } else {
+            baseData[prop.key] = values[formKey] ?? null;
+          }
+        });
+      }
+
+      // ── APIリクエスト用レコードを構築 ─────────────────────────────────────
+      // placeId は GETレスポンスの TemplateDataItem.placeId を使用する。
+      // （DB一意キー: organization_id + project_id + method_id + task_no + place_id）
+      const record: ExperimentDataRecord = {
+        placeId: originalItem?.placeId ?? template.templateId,
+        templateType: mapTemplateCategoryToApiType(template.category),
         templateId: template.templateId,
-        category: template.category,
-      };
-      
-      template.properties.forEach((prop) => {
-        const key = `${template.templateId}_${prop.key}`;
-        if (prop.type === 'contentDoubleListType') {
-          templateData[prop.key] = dataGrids[key] || [[0, 0, 0]];
-        } else if (prop.type === 'dateType' || prop.type === 'dateTimeType') {
-          const dateValue = values[key];
-          templateData[prop.key] = dateValue ? dayjs(dateValue).format(
-            prop.type === 'dateType' ? 'YYYY-MM-DD' : 'YYYY-MM-DD HH:mm:ss'
-          ) : null;
-        } else {
-          templateData[prop.key] = values[key] ?? null;
-        }
-      });
-      
-      // ステータスとコメントをログ出力（バックエンド実装時に使用）
-      console.log('保存データ:', {
-        transitionId: transition?.transitionId,
-        templateId: template.templateId,
+        data: baseData,
         status: selectedStatus,
-        comment: comment,
-        experimentData: templateData,
-      });
-      
-      onSave([templateData]);
-      message.success(`「${template.name}」を保存しました（ステータス: ${statusOptions.find(opt => opt.value === selectedStatus)?.label}）`);
-    } catch (error) {
-      console.error('Validation failed:', error);
-      message.error('入力内容を確認してください');
+        comment: comment || undefined,
+      };
+
+      // バックエンドAPIへ保存
+      await saveBatchExperimentData(projectName, methodId, taskNo, { records: [record] });
+
+      // onSave には保存した data を ExperimentDataValue 形式で渡す
+      onSave([baseData as ExperimentDataValue]);
+      message.success(
+        `「${template.name}」を保存しました（ステータス: ${statusOptions.find((opt) => opt.value === selectedStatus)?.label}）`
+      );
+    } catch (error: unknown) {
+      console.error('handleSaveTemplate error:', error);
+      // axios エラーの場合はサーバーメッセージを優先表示
+      const axiosError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
+      const serverMessage = axiosError?.response?.data?.error?.message;
+      if (serverMessage) {
+        message.error(`保存に失敗しました: ${serverMessage}`);
+      } else if (axiosError?.message) {
+        message.error(`保存に失敗しました: ${axiosError.message}`);
+      } else {
+        message.error('入力内容を確認してください');
+      }
     } finally {
       setLoading(false);
     }
@@ -713,12 +1034,17 @@ export default function DataRecordDialog({
       <div>
         {/* みなし進捗更新チェックボックスと作業指示ボタン */}
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Checkbox
-            checked={useDeemedProgress}
-            onChange={(e) => setUseDeemedProgress(e.target.checked)}
-          >
-            みなし進捗更新
-          </Checkbox>
+          {/* useDeemedProgressProp が false の場合はチェックボックスを非表示（組織設定で無効化） */}
+          {useDeemedProgressProp ? (
+            <Checkbox
+              checked={useDeemedProgress}
+              onChange={(e) => setUseDeemedProgress(e.target.checked)}
+            >
+              みなし進捗更新
+            </Checkbox>
+          ) : (
+            <span /> /* チェックボックス非表示時のスペーサー */
+          )}
           <Button
             icon={<InfoCircleOutlined />}
             onClick={() => setInstructionModalOpen(true)}
@@ -727,8 +1053,10 @@ export default function DataRecordDialog({
           </Button>
         </div>
 
-        {/* ステータス更新セクション（みなし進捗更新OFF時のみ表示） */}
-        {!useDeemedProgress && (
+        {/* ステータス更新セクション
+            - useDeemedProgressProp が false の場合: 常時表示（組織設定でみなし進捗無効）
+            - useDeemedProgressProp が true の場合: チェックボックスOFF時のみ表示 */}
+        {(!useDeemedProgressProp || !useDeemedProgress) && (
           <div style={{ marginBottom: 24 }}>
             {/* タイトルセクション */}
             <div
@@ -769,14 +1097,35 @@ export default function DataRecordDialog({
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>
                       ステータス
                     </Text>
-                    <Select
-                      style={{ width: '100%' }}
-                      placeholder="ステータスを選択"
-                      value={selectedStatus}
-                      onChange={setSelectedStatus}
-                      options={statusOptions}
-                      disabled={!isProjectEditable}
-                    />
+                    {isTerminalStatus ? (
+                      <Alert
+                        message={`現在のステータスは「${ALL_STATUS_OPTIONS.find(o => o.value === currentStatus)?.label}」です。これ以上変更できません。`}
+                        type="warning"
+                        showIcon
+                        style={{ marginBottom: 0 }}
+                      />
+                    ) : statusOptions.length === 0 ? (
+                      <Alert
+                        message="遷移可能なステータスがありません"
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: 0 }}
+                      />
+                    ) : (
+                      <>
+                        <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
+                          現在: {ALL_STATUS_OPTIONS.find(o => o.value === currentStatus)?.label ?? '不明'}
+                        </Text>
+                        <Select
+                          style={{ width: '100%' }}
+                          placeholder="ステータスを選択"
+                          value={selectedStatus}
+                          onChange={setSelectedStatus}
+                          options={statusOptions}
+                          disabled={!isProjectEditable || isTerminalStatus}
+                        />
+                      </>
+                    )}
                   </Col>
 
                   {/* 進捗 */}
@@ -827,19 +1176,46 @@ export default function DataRecordDialog({
                     <Button
                       type="primary"
                       icon={<SaveOutlined />}
-                      onClick={() => {
-                        // ステータス更新の保存処理
-                        console.log('ステータス更新保存:', {
-                          transitionId: transition?.transitionId,
-                          status: selectedStatus,
-                          progress: progress,
-                          comment: comment,
-                        });
-                        message.success(
-                          `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}、進捗: ${progress}%）`
-                        );
-                      }}
+                      loading={loading}
                       disabled={!isProjectEditable}
+                      onClick={async () => {
+                        // パスパラメータのガードチェック
+                        if (!projectName || !methodId || !transition?.transitionId || taskNo === undefined) {
+                          message.error('更新に必要なプロジェクト情報が不足しています');
+                          console.error('ステータス更新: projectName / methodId / transitionId / taskNo が未設定', {
+                            projectName,
+                            methodId,
+                            transitionId: transition?.transitionId,
+                            taskNo,
+                          });
+                          return;
+                        }
+                        try {
+                          setLoading(true);
+                          await updateTransitionStatus(projectName, methodId, transition.transitionId, {
+                            taskNo,
+                            status: selectedStatus,
+                            progressRate: progress,
+                            comment: comment || undefined,
+                          });
+                          message.success(
+                            `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}、進捗: ${progress}%）`
+                          );
+                        } catch (error: unknown) {
+                          console.error('ステータス更新エラー:', error);
+                          const axiosError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
+                          const serverMessage = axiosError?.response?.data?.error?.message;
+                          if (serverMessage) {
+                            message.error(`更新に失敗しました: ${serverMessage}`);
+                          } else if (axiosError?.message) {
+                            message.error(`更新に失敗しました: ${axiosError.message}`);
+                          } else {
+                            message.error('ステータスの更新に失敗しました');
+                          }
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
                     >
                       保存
                     </Button>
@@ -904,8 +1280,9 @@ export default function DataRecordDialog({
                 />
               </Space>
 
-              {/* テーブル */}
+              {/* テーブル（実績データ読み込み中はSpinを表示） */}
               <div style={{ flex: 1, overflow: 'auto' }}>
+                <Spin spinning={templateDataLoading} tip="実績データ読み込み中...">
                 <Table
                   size="small"
                   dataSource={filteredTemplates}
@@ -960,6 +1337,7 @@ export default function DataRecordDialog({
                     },
                   ]}
                 />
+                </Spin>
               </div>
             </div>
           </Sider>

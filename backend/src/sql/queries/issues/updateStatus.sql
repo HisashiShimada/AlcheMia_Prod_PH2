@@ -1,6 +1,6 @@
 -- ステータスを更新する
 -- PATCH /api/v1/issues/status で使用
-UPDATE issues
+UPDATE issue
 SET status = $1, 
   issue_completer_id = CASE WHEN $1 = 0 THEN NULL WHEN $1 = 1 THEN $2 ELSE issue_completer_id END,
   issue_complate_at = CASE WHEN $1 = 0 THEN NULL WHEN $1 = 1 THEN CURRENT_TIMESTAMP ELSE issue_complate_at END,

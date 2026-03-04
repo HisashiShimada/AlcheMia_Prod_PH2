@@ -5,11 +5,11 @@
 --   $2: project_name (TEXT) - プロジェクト名
 -- 
 -- Returns:
---   id, status（見つからない場合は0件）
+--   project_id, project_status（見つからない場合は0件）
 
 SELECT 
-  id, 
-  status 
-FROM projects 
+  project_id, 
+  project_status 
+FROM project 
 WHERE organization_id = $1 
   AND project_name = $2;

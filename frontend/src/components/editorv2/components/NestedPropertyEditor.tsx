@@ -18,6 +18,7 @@ import {
   Tag,
   message,
   Modal,
+  App,
 } from 'antd';
 import {
   CloseOutlined,
@@ -149,6 +150,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
   onDeleteProperty,
   forceRenderKey
 }) => {
+  const { modal } = App.useApp();
   const [showAttributeAddModal, setShowAttributeAddModal] = useState(false);
   const [showElementAddModal, setShowElementAddModal] = useState(false);
   const [showChildAddModal, setShowChildAddModal] = useState(false);
@@ -242,7 +244,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
               danger
               icon={<DeleteOutlined />}
               onClick={() => {
-                Modal.confirm({
+                modal.confirm({
                   title: `プロパティ「${propertyKey}」を削除しますか？`,
                   onOk: () => onDeleteProperty(propertyKey),
                 });
@@ -366,7 +368,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           setShowAttributeAddModal(false);
         }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <Select
             style={{ width: '100%' }}
             placeholder="属性名を選択"
@@ -404,7 +406,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
             <Select
               style={{ width: '100%' }}
               placeholder="MaiML Property Type"
-              value={newAttributeValue}
+              value={newAttributeValue || undefined}
               onChange={setNewAttributeValue}
             >
               <Option disabled>--- Simple Types ---</Option>
@@ -444,7 +446,7 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           }
         }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <Input
             placeholder="要素名（例: value, description）"
             value={newElementName}
@@ -477,9 +479,9 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           }
         }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <Alert
-            message={`親要素: ${propertyKey} | 現在の子要素数: ${propertyData.children?.length || 0}件`}
+            title={`親要素: ${propertyKey} | 現在の子要素数: ${propertyData.children?.length || 0}件`}
             type="info"
           />
           <Input
@@ -513,8 +515,8 @@ const NestedPropertyEditor: React.FC<NestedPropertyEditorProps> = ({
           }
         }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Alert message={`コピー元: ${propertyKey}`} type="info" />
+        <Space orientation="vertical" style={{ width: '100%' }}>
+          <Alert title={`コピー元: ${propertyKey}`} type="info" />
           <Input
             placeholder={`新しいキー名（例: ${propertyKey}_copy）`}
             value={copyKey}

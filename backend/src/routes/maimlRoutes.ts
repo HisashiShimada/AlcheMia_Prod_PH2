@@ -84,6 +84,10 @@ router.post(
       .withMessage('contentは必須です')
       .isString()
       .withMessage('contentは文字列である必要があります'),
+    body('archive')
+      .optional()
+      .isBoolean()
+      .withMessage('archiveはbooleanである必要があります'),
   ],
   handleValidationErrors,
   maimlController.save

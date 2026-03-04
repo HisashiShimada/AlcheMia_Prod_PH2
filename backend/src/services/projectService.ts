@@ -1093,8 +1093,8 @@ export class ProjectService {
         };
       }
 
-      // プロジェクトステータス検証: waiting_task (1) のみ許可
-      if (project.project_status !== 1) {
+      // プロジェクトステータス検証: task_in_progress (2) のみ許可
+      if (project.project_status !== 2) {
         // ステータス名のマッピング
         const statusNames: { [key: number]: string } = {
           0: 'プロジェクト計画中',
@@ -1106,11 +1106,11 @@ export class ProjectService {
         };
         const currentStatusName = statusNames[project.project_status] || '不明';
         
-        // waiting_approval の場合は特別なメッセージ
+        // waiting_approval (3) の場合は特別なメッセージ
         const message =
-          project.project_status === 2
+          project.project_status === 3
             ? '既に承認依頼が送信されています'
-            : `プロジェクトステータスがタスク実行待ちではありません。現在のステータス: ${currentStatusName}`;
+            : `プロジェクトステータスがタスク実行中ではありません。現在のステータス: ${currentStatusName}`;
 
         return {
           success: false,
@@ -1120,8 +1120,8 @@ export class ProjectService {
             details: {
               currentStatus: project.project_status,
               currentStatusName,
-              requiredStatus: 1,
-              requiredStatusName: 'タスク実行待ち',
+              requiredStatus: 2,
+              requiredStatusName: 'タスク実行中',
             },
           },
         };
@@ -1135,7 +1135,7 @@ export class ProjectService {
         const rowCount = await projectRepository.updateApprovalStatus(
           organizationId,
           projectId,
-          2, // waiting_approval
+          3, // waiting_approval（タスク結果レビュー待ち）
           currentTimestamp,
           userId
         );
@@ -1640,9 +1640,11 @@ export class ProjectService {
 
   /**
    * 指示確認を記録する
-   * 
+   *
    * @description instructionConfirmationService.tsから移植
    * Task: 2.1, 2.2 Service層実装
+   * maiml_event_log へのINSERTをトランザクション内で追加（2026-03-03）
+   *
    * @param instructionId - 指示ID
    * @param projectName - プロジェクト名
    * @param userId - ユーザーID
@@ -1660,11 +1662,15 @@ export class ProjectService {
     // リポジトリ層のインポート
     const instructionRepository = require('../repositories/instructionRepository');
     const projectRepository = require('../repositories/projectRepository');
+    const { EventLogRepository } = require('../repositories/eventLogRepository');
+
+    const pool = getPool();
+    let client;
 
     try {
       // 0. projectNameからprojectIdを取得
       const project = await projectRepository.findProjectIdByName(organizationId, projectName);
-      
+
       if (!project) {
         return {
           success: false,
@@ -1674,7 +1680,7 @@ export class ProjectService {
           },
         };
       }
-      
+
       const projectId = project.project_id;
 
       // 1. 指示の存在確認（organization_idフィルタ付き）
@@ -1727,17 +1733,93 @@ export class ProjectService {
         }
       }
 
-      // 4. 確認履歴の挿入
-      const insertedHistory = await instructionRepository.insertAcknowledged(
+      // 4. MAIMLファイルを解析して programId を取得
+      //    トランジション（target=3）・タスク（target=2）の場合、
+      //    <program id="..."> の id を trace @ref に使用する。
+      let programId: string | null = null;
+      const instructionTarget = instruction.instruction_target ?? 1;
+
+      if (
+        instruction.method_id &&
+        (instructionTarget === 2 || instructionTarget === 3)
+      ) {
+        try {
+          const storageService = getStorageService();
+          const filePath = `projects/${projectName}/${projectName}.maiml`;
+          const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+          const maimlContent = fileBuffer.toString('utf-8');
+
+          const { XMLParser } = require('fast-xml-parser');
+          const parser = new XMLParser({
+            ignoreAttributes: false,
+            attributeNamePrefix: '@_',
+          });
+          const parsed = parser.parse(maimlContent);
+
+          // protocol.method は単一要素の場合もあるため配列に統一
+          const methods = parsed?.maiml?.protocol?.method;
+          const methodsArray = Array.isArray(methods)
+            ? methods
+            : methods
+            ? [methods]
+            : [];
+
+          // method_id が一致するメソッドの program id を取得
+          const targetMethod = methodsArray.find(
+            (m: any) => m['@_id'] === instruction.method_id
+          );
+          programId = targetMethod?.program?.['@_id'] ?? null;
+        } catch (maimlError) {
+          // MAIMLファイル取得・パース失敗時は null のまま続行（ログのみ）
+          const { logError } = require('../utils/logger');
+          logError('Failed to parse MAIML for programId', maimlError as Error, {
+            projectName,
+            organizationId,
+            methodId: instruction.method_id,
+          });
+        }
+      }
+
+      // 5. トランザクション開始
+      //    - instruction_acknowledged_history に確認履歴を挿入
+      //    - maiml_event_log にイベントログを挿入
+      //    の2つを同一トランザクションで実行する
+      client = await pool.connect();
+      await client.query('BEGIN');
+
+      // 5-1. 確認履歴の挿入（PoolClient版）
+      const insertedHistory = await instructionRepository.insertAcknowledgedWithClient(
         instructionId,
         projectId,
         userId,
-        organizationId
+        organizationId,
+        client
       );
 
       const acknowledgedAt = insertedHistory.acknowledged_at.toISOString();
 
-      // 5. ユーザー名の取得
+      // 5-2. maiml_event_log にイベントログを挿入
+      const eventLogRepository = new EventLogRepository();
+      await eventLogRepository.insertInstructionConfirmLog(
+        organizationId,
+        projectId,
+        {
+          instructionTarget,
+          methodId: instruction.method_id ?? null,
+          transitionId: instruction.transition_id ?? null,
+          programId,
+          taskNo: instruction.task_no ?? null,
+          experimentInstructionId: instructionId,
+          userId,
+          acknowledgedAt,
+        },
+        client
+      );
+
+      // トランザクションコミット
+      await client.query('COMMIT');
+
+      // 5. ユーザー名の取得（トランザクション外）
       const userName = await instructionRepository.findUserNameFromAuth(userId, organizationId);
 
       // 6. レスポンスデータの整形
@@ -1754,6 +1836,11 @@ export class ProjectService {
         data: responseData,
       };
     } catch (error) {
+      // エラー時はROLLBACK
+      if (client) {
+        await client.query('ROLLBACK');
+      }
+
       const { logError } = require('../utils/logger');
       logError('Instruction confirmation error', error as Error, {
         instructionId,
@@ -1768,6 +1855,10 @@ export class ProjectService {
           message: 'データベースエラーが発生しました',
         },
       };
+    } finally {
+      if (client) {
+        client.release();
+      }
     }
   }
 
@@ -1818,3 +1909,4 @@ export class ProjectService {
     }
   }
 }
+  

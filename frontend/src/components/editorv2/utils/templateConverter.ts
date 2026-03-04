@@ -205,6 +205,25 @@ export function convertPropertyDataToPropertiesArray(propertyDataRecord: Record<
     if (propData.attributes?.scaleFactor) {
       property.scaleFactor = parseFloat(propData.attributes.scaleFactor);
     }
+    if (propData.attributes?.key) {
+      property.key = propData.attributes.key;
+    }
+    
+    // ✅ 新規: id、ref、カスタム属性を property.attributes にコピー
+    if (propData.attributes) {
+      const customAttrs: Record<string, string> = {};
+      Object.entries(propData.attributes).forEach(([key, value]) => {
+        // xsi:type、units、formatString、scaleFactor、keyは既に個別フィールドに変換済みなので除外
+        if (key !== 'xsi:type' && key !== 'units' && key !== 'formatString' && 
+            key !== 'scaleFactor' && key !== 'key') {
+          customAttrs[key] = value;
+        }
+      });
+      
+      if (Object.keys(customAttrs).length > 0) {
+        property.attributes = customAttrs;
+      }
+    }
     
     // 要素の変換
     if (propData.elements?.value) {
@@ -267,6 +286,21 @@ export function convertPropertyDataChildrenToArrays(
       if (child.attributes?.units) property.units = child.attributes.units;
       if (child.attributes?.formatString) property.formatString = child.attributes.formatString;
       if (child.attributes?.scaleFactor) property.scaleFactor = parseFloat(child.attributes.scaleFactor);
+      
+      // ✅ 新規: id、ref、カスタム属性を property.attributes にコピー
+      if (child.attributes) {
+        const customAttrs: Record<string, string> = {};
+        Object.entries(child.attributes).forEach(([key, value]) => {
+          if (key !== 'xsi:type' && key !== 'units' && key !== 'formatString' && 
+              key !== 'scaleFactor' && key !== 'key') {
+            customAttrs[key] = value;
+          }
+        });
+        
+        if (Object.keys(customAttrs).length > 0) {
+          property.attributes = customAttrs;
+        }
+      }
       
       // 要素の変換
       if (child.elements?.value) property.value = child.elements.value;

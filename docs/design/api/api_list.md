@@ -2,7 +2,7 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.13.0
+- **バージョン**: 2.15.0
 - **最終更新**: 2026-02-26
 - **担当**: Development Team
 
@@ -289,10 +289,11 @@
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
 | 8.1 | POST | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | ExperimentDataController.saveBatch |
+| 8.2 | GET | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | テンプレート実績一覧取得 | ⏳ 未実装 | ExperimentDataController.getTemplateData |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
-- 権限: experiment_worker のみ書込可
+- 権限: 8.1（experiment_worker のみ書込可）、8.2（experiment_worker 読取専用）
 
 **備考:**
 - 実験データのテンプレート単位保存
@@ -302,6 +303,13 @@
 - トランザクション保証により整合性を確保
 - マルチテナント分離により自組織の実験データのみ操作可能
 - **トランジションステータス更新APIは進捗確認API（6.6）に移動**
+- **API 8.2: テンプレート実績一覧取得**
+  - DataRecordDialog でダイアログを開いた際に既存入力済みデータを復元するために使用
+  - クエリパラメータ `transitionId` を必須とする
+  - S3/Swift の MaiML ファイルをパースしてペトリネット構造を解析
+  - 指定トランジションに隣接するプレース（入力・出力の両方）のレコードを返却
+  - 隣接プレースの実績データが 0 件の場合も 200 OK（空配列）
+  - 詳細仕様: [api_experiment_data.md](./api_experiment_data.md) API #2 を参照
 
 ---
 
@@ -620,7 +628,7 @@
 | Maiml編集API | 17 | 17 | 0 | 0 | 100% |
 | 進捗確認API | 4 | 0 | 0 | 4 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
-| 実験データ記録API | 1 | 0 | 0 | 1 | 0% |
+| 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
 | 部署管理API | 7 | 7 | 0 | 0 | 100% |
 | ロール管理API | 8 | 8 | 0 | 0 | 100% |
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
@@ -813,10 +821,10 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 2.14.0 | 2026-02-27 | システム概要API - ストレージ統計仕様変更 | Cline |
+| 2.15.0 | 2026-02-27 | システム概要API - ストレージ統計仕様変更 | Cline |
 | | | - ストレージ統計取得元をSwift/S3直接取得（`storageService.listFiles()`）に変更 | |
 | | | - `usedCapacityGB` の小数点桁数を2桁→3桁に変更 | |
-| 2.13.0 | 2026-02-26 | システム概要API・情報CSVダウンロードAPI追加 | Cline |
+| 2.14.0 | 2026-02-26 | システム概要API・情報CSVダウンロードAPI追加 | Cline |
 | | | - セクション15: システム概要API新規追加（1エンドポイント、実装済み100%） | |
 | | | - API 15.1: GET /api/v1/systemManagement/system-overview | |
 | | | - 組織管理API: 9→10エンドポイント（API 14.10: 情報CSVダウンロード追加） | |
@@ -825,6 +833,14 @@ const path = `projects/${projectName}/file.maiml`;
 | | | - 実装済みAPI総数: 108→110エンドポイント（+2） | |
 | | | - 全体: 122→124エンドポイント | |
 | | | - 全体実装率: 88%→89%に向上 | |
+| 2.13.0 | 2026-02-25 | 実験データ記録API - テンプレート実績一覧取得API追加 | Cline |
+| | | - API 8.2: GET .../tasks/:taskNo/data 追加 | |
+| | | - DataRecordDialog でのモックデータ（templatesList）置き換え用 | |
+| | | - transitionId（クエリ）で MaiML ペトリネット解析し隣接プレースを特定 | |
+| | | - 実験データ記録API: 1→2エンドポイント（+1: テンプレート実績一覧取得） | |
+| | | - 実装状況サマリー: 実験データ記録API 総数 1→2 | |
+| | | - 全体: 115→116エンドポイント | |
+| | | - 詳細仕様: api_experiment_data.md セクション2 を参照 | |
 | 2.12.0 | 2026-02-24 | フォーマット管理API - 新規作成機能実装完了 | 
 | | | - PKCS#12形式の証明書ダウンロード | |
 | | | - 組織管理API: 8→9エンドポイント | |

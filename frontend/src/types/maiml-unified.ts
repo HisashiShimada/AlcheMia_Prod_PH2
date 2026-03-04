@@ -401,6 +401,28 @@ export interface Property {
   
   /** スケールファクター */
   scaleFactor?: number;
+
+  // ============================================================================
+  // XML属性（id、ref、カスタム属性用）
+  // ============================================================================
+  
+  /**
+   * XML属性の辞書（id、ref、カスタム属性用）
+   * 
+   * id、ref、カスタム属性を格納
+   * units、formatString、scaleFactorは既存フィールドを継続使用
+   * 
+   * @example
+   * ```typescript
+   * {
+   *   id: "prop1",
+   *   ref: "template1",
+   *   myCustomAttr: "customValue"
+   * }
+   * ```
+   */
+  attributes?: Record<string, string>;
+  
 }
 
 // ============================================================================

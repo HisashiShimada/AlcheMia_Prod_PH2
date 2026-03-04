@@ -1,6 +1,6 @@
 -- 問題を作成する
 -- POST /api/v1/issues で使用
-INSERT INTO issues (
+INSERT INTO issue (
   organization_id,
   project_id,
   issue_id,
@@ -21,7 +21,7 @@ INSERT INTO issues (
   update_user_id,
   update_at
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'unresolved',
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0,
   $11, NOW(), null, null,
   $11, NOW(), $11, NOW()
 )

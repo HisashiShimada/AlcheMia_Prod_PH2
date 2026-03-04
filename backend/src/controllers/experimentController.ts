@@ -7,7 +7,54 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import * as experimentDataService from '../services/experimentDataService';
-import { TemplateDataRecord } from '../repositories/templateDataRepository';
+import { TemplateDataRecord, PropertySet } from '../repositories/templateDataRepository';
+
+/**
+ * テンプレート実績一覧取得
+ *
+ * @route GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data
+ * @group Experiments - 実験管理
+ * @param {string} projectName.path.required - プロジェクト名
+ * @param {string} methodId.path.required - メソッドID
+ * @param {number} taskNo.path.required - タスク番号
+ * @param {string} transitionId.query.required - トランジションID
+ * @returns {Object} 200 - 隣接プレースのテンプレート実績一覧
+ * @returns {Error} 400 - バリデーションエラー
+ * @returns {Error} 404 - プロジェクト / メソッド / トランジションが見つからない
+ * @returns {Error} 500 - サーバーエラー
+ * @security JWT
+ */
+export const getTemplateData = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { projectName, methodId, taskNo } = req.params;
+    const { transitionId } = req.query as { transitionId: string };
+    const taskNoNum = parseInt(taskNo, 10);
+    const organizationId = (req as any).organizationId as string;
+
+    const result = await experimentDataService.getTemplateData(
+      organizationId,
+      projectName,
+      methodId,
+      taskNoNum,
+      transitionId
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: uuidv4(),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
  * @deprecated このエンドポイントは progressRoutes.ts に移動しました
@@ -77,7 +124,15 @@ export const saveBatchData = async (
     const taskNoNum = parseInt(taskNo, 10);
 
     // リクエストボディの抽出
-    const { records } = req.body as { records: TemplateDataRecord[] };
+    // data フィールドは GET レスポンスの templates[].data と同一形式（PropertySet形式）
+    const rawRecords = req.body.records as Array<{
+      placeId: string;
+      data: {
+        templateId: string;
+        templateType: 'material' | 'condition' | 'result';
+        properties: Array<{ key: string; xsiType: string; value: unknown; units: string | null }>;
+      };
+    }>;
 
     // 認証・認可情報の取得
     const organizationId = (req as any).organizationId;
@@ -95,6 +150,23 @@ export const saveBatchData = async (
       error.name = 'AuthenticationError';
       throw error;
     }
+
+    // リクエストの data フィールドをそのまま PropertySet（property_set）として保存
+    // data は GET レスポンスの templates[].data と同一形式のため変換不要
+    const records: TemplateDataRecord[] = rawRecords.map(r => {
+      const propertySet: PropertySet = {
+        templateId: r.data.templateId,
+        templateType: r.data.templateType,
+        properties: Array.isArray(r.data.properties)
+          ? r.data.properties
+          : [],
+      };
+      return {
+        placeId: r.placeId,
+        propertySet,
+        updateUserId: recordedBy,
+      };
+    });
 
     // サービス層を呼び出して一括保存
     const savedRecords = await experimentDataService.saveBatchData(

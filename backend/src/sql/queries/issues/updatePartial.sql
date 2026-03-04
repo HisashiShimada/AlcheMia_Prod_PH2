@@ -2,7 +2,7 @@
 -- update() メソッドで使用
 -- SET句はTypeScriptコードで動的に構築される
 -- このファイルはベーステンプレートとして使用
-UPDATE issues
+UPDATE issue
 SET update_at = CURRENT_TIMESTAMP
 WHERE issue_id = $1 AND organization_id = $2
 RETURNING

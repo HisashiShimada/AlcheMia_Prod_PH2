@@ -26,13 +26,13 @@ LEFT JOIN user_authentication ua
 LEFT JOIN (
   SELECT
     lh.organization_id,
-    lh.user_name,
+    lh.user_id,
     MAX(lh.login_at) AS last_login_at
   FROM login_history lh
   WHERE lh.login_sf = true
-  GROUP BY lh.organization_id, lh.user_name
+  GROUP BY lh.organization_id, lh.user_id
 ) last_login
   ON ou.organization_id = last_login.organization_id
-  AND ou.user_name = last_login.user_name
+  AND ou.user_id = last_login.user_id
 WHERE ou.organization_id = $1
 ORDER BY ou.user_id ASC

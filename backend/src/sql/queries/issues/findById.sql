@@ -19,5 +19,5 @@ SELECT
   create_at AS "createAt",
   update_user_id AS "updateUserId",
   update_at AS "updateAt"
-FROM issues
+FROM issue
 WHERE issue_id = $1 AND organization_id = $2

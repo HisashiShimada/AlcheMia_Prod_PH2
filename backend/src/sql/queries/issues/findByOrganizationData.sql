@@ -22,7 +22,7 @@ SELECT
   create_at AS "createAt",
   update_user_id AS "updateUserId",
   update_at AS "updateAt"
-FROM issues
+FROM issue
 WHERE organization_id = $1
 ORDER BY create_at DESC
 LIMIT $2 OFFSET $3

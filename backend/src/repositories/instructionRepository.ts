@@ -3,16 +3,26 @@
  * データベースアクセス層
  */
 
+import { PoolClient } from 'pg';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 
 /**
  * Instructionのデータ型定義
+ * findById.sql で取得するカラムに対応
  */
 export interface InstructionRow {
   instruction_id: string;
   project_id: string;
   organization_id: string;
+  /** メソッドID */
+  method_id: string | null;
+  /** 指示対象: 1=ファイル全体、2=タスク、3=トランジション */
+  instruction_target: number | null;
+  /** タスク連番 */
+  task_no: number | null;
+  /** トランジションID */
+  transition_id: string | null;
 }
 
 /**
@@ -156,6 +166,37 @@ export async function insertAcknowledged(
     return result;
   } catch (error) {
     console.error('Database query error in insertAcknowledged:', error);
+    throw error;
+  }
+}
+
+/**
+ * 確認履歴の挿入（PoolClient版 - トランザクション内で使用）
+ *
+ * @param instructionId 指示ID
+ * @param projectId プロジェクトID
+ * @param userId ユーザーID
+ * @param organizationId 組織ID
+ * @param client トランザクション用のPoolClient
+ * @returns 挿入された確認履歴
+ */
+export async function insertAcknowledgedWithClient(
+  instructionId: string,
+  projectId: string,
+  userId: string,
+  organizationId: string,
+  client: PoolClient
+): Promise<AcknowledgedHistoryRow> {
+  const sqlQuery = await loadSqlFile('instructions/insertAcknowledged.sql');
+
+  try {
+    const result = await client.query<AcknowledgedHistoryRow>(
+      sqlQuery,
+      [instructionId, projectId, userId, organizationId]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('Database query error in insertAcknowledgedWithClient:', error);
     throw error;
   }
 }
