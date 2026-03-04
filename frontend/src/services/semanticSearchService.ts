@@ -14,9 +14,10 @@ import type {
   BatchJob,
   BatchStats,
   BatchIngestOptions,
+  DecomposedQuery,
 } from '@/types/semanticSearch';
 
-const BASE_PATH = '/api/v1/semantic-search';
+const BASE_PATH = '/semantic-search';
 
 /**
  * セマンティック検索を実行する
@@ -122,4 +123,21 @@ export async function getBatchStats(): Promise<BatchStats> {
 export async function cancelBatchJob(jobId: string): Promise<void> {
   const api = createApiClient();
   await api.delete(`${BASE_PATH}/batch/${jobId}`);
+}
+
+// ─── クエリ分解API ───────────────────────────────────────
+
+/**
+ * 自然言語クエリを4軸に分解する
+ *
+ * @param query - 自然言語クエリ
+ * @returns DecomposedQuery（gpt-oss未接続時はフォールバック動作）
+ */
+export async function decomposeNaturalLanguageQuery(query: string): Promise<DecomposedQuery> {
+  const api = createApiClient();
+  const response = await api.post<{ success: boolean; data: DecomposedQuery }>(
+    `${BASE_PATH}/decompose`,
+    { query }
+  );
+  return response.data.data;
 }

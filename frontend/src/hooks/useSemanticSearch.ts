@@ -27,13 +27,34 @@ export const DEFAULT_WEIGHTS: SearchWeights = {
   structure: 0.10,
 };
 
-/** 重みプリセット定義 */
-export const WEIGHT_PRESETS = [
-  { label: 'バランス（デフォルト）', weights: DEFAULT_WEIGHTS },
-  { label: '手法重視', weights: { input: 0.15, transition: 0.60, output: 0.15, structure: 0.10 } },
-  { label: '入出力重視', weights: { input: 0.40, transition: 0.20, output: 0.35, structure: 0.05 } },
-  { label: '構造重視', weights: { input: 0.20, transition: 0.30, output: 0.20, structure: 0.30 } },
-];
+/** 重みプリセット定義（オブジェクト形式） */
+export const WEIGHT_PRESETS: Record<string, { name: string; description: string; weights: SearchWeights }> = {
+  balanced: {
+    name: 'バランス',
+    description: '全軸をバランスよく評価（デフォルト）',
+    weights: DEFAULT_WEIGHTS,
+  },
+  procedureFocused: {
+    name: '手順重視',
+    description: '実験手順・操作の類似性を重視',
+    weights: { input: 0.15, transition: 0.60, output: 0.15, structure: 0.10 },
+  },
+  inputFocused: {
+    name: '入力重視',
+    description: '材料・入力条件の類似性を重視',
+    weights: { input: 0.50, transition: 0.25, output: 0.15, structure: 0.10 },
+  },
+  outputFocused: {
+    name: '出力重視',
+    description: '出力データの類似性を重視',
+    weights: { input: 0.15, transition: 0.25, output: 0.50, structure: 0.10 },
+  },
+  structureFocused: {
+    name: '構造重視',
+    description: 'ペトリネット構造の類似性を重視',
+    weights: { input: 0.10, transition: 0.05, output: 0.05, structure: 0.80 },
+  },
+};
 
 export interface UseSemanticSearchReturn {
   /** 検索結果 */

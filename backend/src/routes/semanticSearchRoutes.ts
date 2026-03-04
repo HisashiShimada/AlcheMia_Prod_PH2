@@ -4,7 +4,7 @@
  * @description セマンティック検索APIのルート定義
  * @remarks
  * - 認証・テナント分離ミドルウェア適用済み
- * - 検索はexperiment_admin以上の権限を要求（機能CD: 030000 データ管理）
+ * - 検索はexperiment_admin以上の権限を要求（機能CD: 040000 データ管理）
  */
 
 import { Router } from 'express';
@@ -23,13 +23,13 @@ const router = Router();
  *
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
- * @middleware checkPermission - 権限チェック（030000 データ管理、読取専用）
+ * @middleware checkPermission - 権限チェック（040000 データ管理、読取専用）
  */
 router.post(
   '/search',
   authMiddleware,
   tenantIsolation,
-  checkPermission('030000', 0),
+  checkPermission('040000', 0),
   [
     body('input_query').optional().isString().withMessage('input_queryは文字列で指定してください'),
     body('transition_query').optional().isString().withMessage('transition_queryは文字列で指定してください'),
@@ -53,13 +53,13 @@ router.post(
  *
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
- * @middleware checkPermission - 権限チェック（030000 データ管理、書込可）
+ * @middleware checkPermission - 権限チェック（040000 データ管理、書込可）
  */
 router.post(
   '/index',
   authMiddleware,
   tenantIsolation,
-  checkPermission('030000', 1),
+  checkPermission('040000', 1),
   [
     body('filePath')
       .notEmpty()
@@ -76,13 +76,13 @@ router.post(
  *
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
- * @middleware checkPermission - 権限チェック（030000 データ管理、書込可）
+ * @middleware checkPermission - 権限チェック（040000 データ管理、書込可）
  */
 router.delete(
   '/index',
   authMiddleware,
   tenantIsolation,
-  checkPermission('030000', 1),
+  checkPermission('040000', 1),
   [
     body('filePath')
       .notEmpty()
@@ -99,14 +99,40 @@ router.delete(
  *
  * @middleware authMiddleware - JWT認証
  * @middleware tenantIsolation - テナント分離
- * @middleware checkPermission - 権限チェック（030000 データ管理、読取専用）
+ * @middleware checkPermission - 権限チェック（040000 データ管理、読取専用）
  */
 router.get(
   '/stats',
   authMiddleware,
   tenantIsolation,
-  checkPermission('030000', 0),
+  checkPermission('040000', 0),
   semanticSearchController.getStats
+);
+
+/**
+ * 自然言語クエリ分解
+ * POST /api/v1/semantic-search/decompose
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware tenantIsolation - テナント分離
+ * @middleware checkPermission - 権限チェック（040000 データ管理、読取専用）
+ * @remarks
+ * 自然言語クエリを4軸（input/transition/output/structure）に分解する。
+ * gpt-oss-20b未接続時はフォールバック動作（元クエリを全軸に使用）。
+ */
+router.post(
+  '/decompose',
+  authMiddleware,
+  tenantIsolation,
+  checkPermission('040000', 0),
+  [
+    body('query')
+      .notEmpty()
+      .isString()
+      .withMessage('queryは必須の文字列です'),
+  ],
+  handleValidationErrors,
+  semanticSearchController.decompose
 );
 
 /**
@@ -129,7 +155,7 @@ router.post(
   '/batch',
   authMiddleware,
   tenantIsolation,
-  checkPermission('030000', 1),
+  checkPermission('040000', 1),
   semanticSearchController.startBatch
 );
 
@@ -141,7 +167,7 @@ router.get(
   '/batch',
   authMiddleware,
   tenantIsolation,
-  checkPermission('030000', 0),
+  checkPermission('040000', 0),
   semanticSearchController.getBatchJobs
 );
 
@@ -153,7 +179,7 @@ router.get(
   '/batch/stats',
   authMiddleware,
   tenantIsolation,
-  checkPermission('030000', 0),
+  checkPermission('040000', 0),
   semanticSearchController.getBatchStatsController
 );
 
@@ -165,7 +191,7 @@ router.delete(
   '/batch/:jobId',
   authMiddleware,
   tenantIsolation,
-  checkPermission('030000', 1),
+  checkPermission('040000', 1),
   semanticSearchController.cancelBatch
 );
 

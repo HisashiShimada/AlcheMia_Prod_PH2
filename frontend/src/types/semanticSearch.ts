@@ -30,6 +30,14 @@ export interface SemanticSearchRequest {
   weights?: SearchWeights;
 }
 
+/** スコア詳細（4軸個別スコア） */
+export interface ScoreDetail {
+  input_score: number;
+  transition_score: number;
+  output_score: number;
+  structure_score: number;
+}
+
 /** 検索結果1件 */
 export interface SemanticSearchHit {
   transition_set_id: string;
@@ -40,11 +48,10 @@ export interface SemanticSearchHit {
   method_uuid: string;
   transition_id: string;
   technique: string | null;
-  combined_score: number;
-  score_input: number;
-  score_transition: number;
-  score_output: number;
-  score_structure: number;
+  /** 加重平均コサイン類似度スコア（0.0〜1.0） */
+  score: number;
+  /** 各軸のコサイン類似度（デバッグ・説明用） */
+  score_detail: ScoreDetail;
   input_text: string;
   transition_text: string;
   output_text: string;
@@ -120,6 +127,28 @@ export interface BatchStats {
 export interface BatchIngestOptions {
   forceReprocess?: boolean;
   maxFiles?: number | null;
+}
+
+/** gpt-oss-20b によるクエリ分解結果 */
+export interface DecomposedQuery {
+  /** 入力条件クエリ（CT/MT focused） */
+  q_in: string;
+  /** 手順クエリ（procedure steps） */
+  q_tr: string;
+  /** 出力要求クエリ（RT focused） */
+  q_out: string;
+  /** 実験構造クエリ（place counts + MT/CT/RT counts） */
+  q_struct: string;
+  /** 検出されたメソドロジー（例: RAMAN, XRF） */
+  methodology: string | null;
+  /** メソドロジー検出信頼度（0.0〜1.0） */
+  methodology_confidence: number;
+  /** 分解信頼度（0.0〜1.0） */
+  confidence: number;
+  /** フォールバック動作フラグ（gpt-oss未接続時） */
+  fallback?: boolean;
+  /** エラーメッセージ（フォールバック時） */
+  error?: string;
 }
 
 /** 検索履歴アイテム */

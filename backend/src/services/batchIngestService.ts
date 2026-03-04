@@ -132,10 +132,15 @@ async function _runBatch(
   const storageService = getStorageService();
 
   try {
-    // projects/ 配下の .maiml ファイルを列挙
+    // projects/{project_name}/*.maiml のみ対象
+    // archive/ などサブディレクトリは除外
     const allFiles = await storageService.listFiles(organizationId, 'projects');
     const maimlFiles = allFiles
-      .filter((f) => f.key.endsWith('.maiml'))
+      .filter((f) => {
+        // projects/{project_name}/{file}.maiml の形式のみ（サブディレクトリなし）
+        // パス例: org_id/projects/QuantumDotLED/QuantumDotLED.maiml
+        return /\/projects\/[^/]+\/[^/]+\.maiml$/.test(f.key);
+      })
       .map((f) => f.key);
 
     const targetFiles = maxFiles ? maimlFiles.slice(0, maxFiles) : maimlFiles;

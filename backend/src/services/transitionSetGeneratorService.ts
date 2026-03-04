@@ -34,10 +34,13 @@ function generateFileId(filePath: string): string {
  *
  * @example
  * "projects/my_project/my_project.maiml" → "my_project"
+ * "org_id/projects/my_project/my_project.maiml" → "my_project"
+ * "/projects/my_project/my_project.maiml" → "my_project"
  * "formats/dept_001/material/template.xml" → null
  */
 function extractProjectName(filePath: string): string | null {
-  const match = filePath.match(/^projects\/([^/]+)\//);
+  // organization_idプレフィックスや先頭スラッシュがあっても対応
+  const match = filePath.match(/(?:^|\/|\\)projects\/([^/]+)\//);
   return match ? match[1] : null;
 }
 
@@ -204,14 +207,16 @@ function generateFromMethod(
     const countCT = (method.conditionTemplates ?? []).length;
     const countRT = (method.resultTemplates ?? []).length;
 
-    // Instruction情報取得
+    // Instruction情報取得（description > name > id の優先順で説明文を取得）
     let instructionIds: string[] | null = null;
     let instructionDescs: string[] | null = null;
     try {
-      const instrId = parser.getInstructionIdByTransitionId(transitionId);
-      if (instrId) {
-        instructionIds = [instrId];
-        instructionDescs = [instrId]; // descが取れない場合はIDで代替
+      const instruction = parser.getInstructionByTransitionId(transitionId);
+      if (instruction) {
+        instructionIds = [instruction.id];
+        // description → name → id の優先順で説明文を決定
+        const desc = instruction.description?.trim() || instruction.name?.trim() || instruction.id;
+        instructionDescs = [desc];
       }
     } catch {
       // Instruction取得失敗は無視

@@ -12,6 +12,7 @@ import { FileMetadataRepository } from '../repositories/fileMetadataRepository';
 import { ProjectAccessValidator } from '../services/projectAccessValidator';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
+import { ingestSingleFileAsync } from '../services/singleFileIngestService';
 
 /**
  * 単一ファイルダウンロード用署名付きURL取得エンドポイント
@@ -265,6 +266,18 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
         requestId,
       },
     });
+
+    // セマンティック検索インデックス更新（fire-and-forget）
+    // アップロード成功後、MAIMLファイルのみバックグラウンドでEmbedding生成・DB保存する
+    if (result?.files) {
+      const maimlFiles = result.files.filter(
+        (f: { filePath: string }) => f.filePath.endsWith('.maiml')
+      );
+      for (const f of maimlFiles) {
+        ingestSingleFileAsync(organizationId, f.filePath);
+        console.log(`🔍 [fileAccessController] セマンティック検索インデックス更新をキューに追加: ${f.filePath}`);
+      }
+    }
 
   } catch (error: any) {
     // エラーハンドリング
