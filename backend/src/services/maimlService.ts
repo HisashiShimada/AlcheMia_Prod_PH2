@@ -192,6 +192,7 @@ export async function saveMaiML(
           // 既存レコードの更新（既存のupdateFileMetadataを使用）
           const updateData = {
             organization_id: organizationId,
+            is_maiml_file: true,
             maiml_document_uuid: metadata.document_uuid,
             maiml_document_name: metadata.document_name,
             maiml_document_description: metadata.document_description,
@@ -204,7 +205,7 @@ export async function saveMaiML(
             maiml_elements: JSON.stringify(metadata.elements),
             maiml_values: JSON.stringify(metadata.values),
             maiml_metadata_extracted_at: new Date(),
-            maiml_metadata_extraction_status: 'success'
+            maiml_metadata_extraction_status: 'completed'
           };
           
           await fileMetadataRepository.updateFileMetadata(fileKey, updateData);
@@ -232,7 +233,7 @@ export async function saveMaiML(
             maiml_elements: JSON.stringify(metadata.elements),
             maiml_values: JSON.stringify(metadata.values),
             maiml_metadata_extracted_at: new Date(),
-            maiml_metadata_extraction_status: 'success',
+            maiml_metadata_extraction_status: 'completed',
             created_at: new Date(),
             updated_at: new Date()
           };

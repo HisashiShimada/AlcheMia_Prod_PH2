@@ -124,9 +124,40 @@ router.post(
 );
 
 /**
+ * プロジェクト詳細検索
+ * POST /api/v1/projects/search
+ *
+ * @middleware authMiddleware - JWT認証
+ * @description MAIMLメタデータを使ったプロジェクト詳細検索（AND条件）
+ * @body { criteria: Array<{ attribute: string; value: string }> }
+ * @roles 全ロール（読み取り専用）
+ */
+router.post(
+  '/search',
+  authMiddleware,
+  [
+    body('criteria')
+      .isArray({ min: 1 })
+      .withMessage('criteriaは1件以上の配列である必要があります'),
+    body('criteria.*.attribute')
+      .notEmpty()
+      .withMessage('criteria[].attributeは必須です')
+      .isString()
+      .withMessage('criteria[].attributeは文字列である必要があります'),
+    body('criteria.*.value')
+      .notEmpty()
+      .withMessage('criteria[].valueは必須です')
+      .isString()
+      .withMessage('criteria[].valueは文字列である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.searchProjects
+);
+
+/**
  * プロジェクトMAIML取得
  * GET /api/v1/projects/:projectName/maiml
- * 
+ *
  * @middleware authMiddleware - JWT認証
  * @description プロジェクトの最新MAIMLファイルをXML形式で取得する（プロジェクト管理画面で使用）
  * @note フロントエンドProjectMaimlContext用エンドポイント

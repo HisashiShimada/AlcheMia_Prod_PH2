@@ -22,6 +22,8 @@ import {
   FileTextOutlined,
 } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { searchProjectsByMaiml } from '@/services/projectApiService';
+import type { MaimlSearchProjectResult } from '@/types/project';
 
 const { Text, Title } = Typography;
 
@@ -200,58 +202,47 @@ const ProjectSearchModal: React.FC<ProjectSearchModalProps> = ({
       setIsSearching(true);
       console.log('🔍 MAIML検索開始:', validCriteria);
 
-      // TODO: 実際のAPI呼び出しに置き換える
-      // const results = await searchProjectsEnhanced(validCriteria);
-      
-      // モックデータ（開発用）
-      const mockResults: SearchResult[] = [
-        {
-          id: 'project_001',
-          name: '新材料開発プロジェクト',
-          description: '新しい材料の開発に関するプロジェクト',
-          owner: '山田太郎',
-          department: '研究開発部',
-          status: 'in_progress',
-          tags: ['材料開発', '実験'],
-          createdAt: '2024-01-15',
-          updatedAt: '2024-12-10',
+      // 実際のAPI呼び出し
+      const response = await searchProjectsByMaiml(validCriteria);
+
+      const searchDuration = Date.now() - searchStartTime;
+
+      if (!response.success || !response.data) {
+        setError('検索に失敗しました。しばらく経ってから再試行してください。');
+        setSearchResults([]);
+        return;
+      }
+
+      // APIレスポンスを SearchResult 型に変換
+      const results: SearchResult[] = response.data.projects.map(
+        (proj: MaimlSearchProjectResult) => ({
+          id: proj.project_id,
+          name: proj.project_name,
+          description: proj.description || '',
+          owner: '',
+          department: '',
+          status: String(proj.project_status),
+          tags: [],
+          createdAt: proj.create_at ? proj.create_at.slice(0, 10) : '',
+          updatedAt: proj.update_at ? proj.update_at.slice(0, 10) : '',
           isCheckedOut: false,
-          matchCount: 2,
+          matchCount: validCriteria.length,
           matchedAttributes: validCriteria.map(c => ({
             attribute: SEARCHABLE_ATTRIBUTES.find(a => a.value === c.attribute)?.label || c.attribute,
             value: c.value,
           })),
-        },
-        {
-          id: 'project_002',
-          name: '材料特性評価プロジェクト',
-          description: '材料の特性評価に関するプロジェクト',
-          owner: '佐藤花子',
-          department: '研究開発部',
-          status: 'pending',
-          tags: ['材料評価', '分析'],
-          createdAt: '2024-02-20',
-          updatedAt: '2024-12-08',
-          isCheckedOut: true,
-          matchCount: 1,
-          matchedAttributes: validCriteria.slice(0, 1).map(c => ({
-            attribute: SEARCHABLE_ATTRIBUTES.find(a => a.value === c.attribute)?.label || c.attribute,
-            value: c.value,
-          })),
-        },
-      ];
+        })
+      );
 
-      const searchDuration = Date.now() - searchStartTime;
-
-      setSearchResults(mockResults);
+      setSearchResults(results);
       setSearchStats({
-        totalFiles: mockResults.length,
-        totalMatches: mockResults.reduce((sum, file) => sum + file.matchCount, 0),
+        totalFiles: results.length,
+        totalMatches: results.reduce((sum, r) => sum + r.matchCount, 0),
         searchDuration,
         totalCriteria: validCriteria.length,
       });
 
-      if (mockResults.length === 0) {
+      if (results.length === 0) {
         setError('検索条件に一致するプロジェクトが見つかりませんでした');
       }
     } catch (err) {

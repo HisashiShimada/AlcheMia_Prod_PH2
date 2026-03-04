@@ -1165,7 +1165,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
             icon={<SearchOutlined />}
             onClick={() => setSemanticSearchModalOpen(true)}
           >
-            セマンティック検索
+            トランジション検索
           </Button>
         </Space>
         </div>
@@ -1515,8 +1515,16 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
         onClose={() => setSearchModalOpen(false)}
         onProjectSelect={(projectId: string) => {
           console.log('検索結果からプロジェクトが選択されました:', projectId);
+          // フィルター条件をリセットして選択プロジェクトが左パネルに表示されるようにする
+          setSearchQuery('');
+          setOwnerFilter('all');
+          setCheckoutFilter('all');
+          setProjectStatusFilter('all');
+          setDepartmentFilter('all');
           // プロジェクトを選択状態にする
           handleProjectSelect(projectId);
+          // モーダルを閉じる
+          setSearchModalOpen(false);
         }}
       />
 

@@ -392,7 +392,20 @@ function buildMethodXML(
   
   // Transition要素群
   transitions.forEach((transition: Node<NodeData>) => {
-    methodXml += `        <transition id="${transition.id}"/>\n`;
+    const hasName = transition.data.name && transition.data.name.trim() !== '';
+    const hasDescription = transition.data.description && transition.data.description.trim() !== '';
+    if (hasName || hasDescription) {
+      methodXml += `        <transition id="${escapeXml(transition.id)}">\n`;
+      if (hasName) {
+        methodXml += `          <name>${escapeXml(transition.data.name)}</name>\n`;
+      }
+      if (hasDescription) {
+        methodXml += `          <description>${escapeXml(transition.data.description)}</description>\n`;
+      }
+      methodXml += `        </transition>\n`;
+    } else {
+      methodXml += `        <transition id="${escapeXml(transition.id)}"/>\n`;
+    }
   });
   
   // Arc要素群

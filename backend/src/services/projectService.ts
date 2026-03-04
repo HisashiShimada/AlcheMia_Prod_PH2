@@ -11,6 +11,7 @@ import { escapeHtml } from '../utils/sanitize';
 import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
 import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
+import { FileMetadataRepository, MaimlSearchCriteria, MaimlSearchResult } from '../repositories/fileMetadataRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import type { 
@@ -1765,6 +1766,53 @@ export class ProjectService {
         error: {
           code: 'SYSTEM_DATABASE_ERROR',
           message: 'データベースエラーが発生しました',
+        },
+      };
+    }
+  }
+
+  /**
+   * MAIMLメタデータを使ったプロジェクト詳細検索
+   *
+   * @description
+   * file_metadataテーブルのmaiml_*カラムをAND条件で検索し、
+   * 一致するMAIMLファイルを持つプロジェクトを返す。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離に必須）
+   * @param criteria - 検索条件配列（AND結合）
+   * @returns 検索にヒットしたプロジェクト一覧
+   */
+  async searchProjects(
+    organizationId: string,
+    criteria: MaimlSearchCriteria[]
+  ): Promise<ServiceResult<{ projects: MaimlSearchResult[]; total: number }>> {
+    try {
+      const fileMetadataRepo = new FileMetadataRepository();
+      const rows = await fileMetadataRepo.searchByMaimlMetadata(organizationId, criteria);
+
+      // プロジェクト単位に重複除去（複数ファイルがヒットする場合に備えて）
+      const projectMap = new Map<string, MaimlSearchResult>();
+      for (const row of rows) {
+        if (!projectMap.has(row.project_id)) {
+          projectMap.set(row.project_id, row);
+        }
+      }
+      const projects = Array.from(projectMap.values());
+
+      return {
+        success: true,
+        data: {
+          projects,
+          total: projects.length,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'データベースエラーが発生しました',
+          originalError: error as Error,
         },
       };
     }
