@@ -33,7 +33,7 @@
 ## 2. 画面構成
 
 ### 2.1 画面イメージ
-![実験データ記録イメージ](images\ui_data_record_dialog.jpg)
+![実験データ記録イメージ](..\images\ui_data_record_dialog.jpg)
 
 ### 2.2 レイアウト構造
 

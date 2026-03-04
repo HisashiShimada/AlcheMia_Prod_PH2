@@ -30,7 +30,7 @@
 ## 2. 画面構成
 
 ### 2.1 画面イメージ
-![進捗確認タブイメージ](images\ui_progress_check_tab.jpg)
+![進捗確認タブイメージ](..\images\ui_progress_check_tab.jpg)
 
 ### 2.2 レイアウト構造
 

@@ -28,7 +28,7 @@
 ## 2. コンポーネント構成
 
 ### 2.1 画面イメージ
-![指示統計コンポーネントイメージ](images\ui_instruction_stats.jpg)
+![指示統計コンポーネントイメージ](..\images\ui_instruction_stats.jpg)
 
 ### 2.2 レイアウト構造
 

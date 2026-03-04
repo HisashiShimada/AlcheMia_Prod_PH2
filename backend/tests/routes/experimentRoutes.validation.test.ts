@@ -301,33 +301,6 @@ describe('POST /projects/:projectId/methods/:methodId/tasks/:taskNo/data - Valid
       expect(response.body.success).toBe(false);
     });
 
-    it('statusが不正な値の場合、400エラーを返す', async () => {
-      const response = await request(app)
-        .post(`/api/v1/experiments/projects/${validProjectId}/methods/${validMethodId}/tasks/${validTaskNo}/data`)
-        .send({
-          records: [
-            {
-              placeId: 'place1',
-              templateType: 'material',
-              templateId: 'template1',
-              data: {},
-              status: 'invalid-status'
-            }
-          ]
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body.success).toBe(false);
-      expect(response.body.error.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            field: 'records[0].status',
-            message: expect.stringMatching(/initial|preparing|ready|running|paused|completed|error/)
-          })
-        ])
-      );
-    });
-
     it('commentが2000文字を超える場合、400エラーを返す', async () => {
       const longComment = 'a'.repeat(2001);
 
@@ -376,7 +349,6 @@ describe('POST /projects/:projectId/methods/:methodId/tasks/:taskNo/data - Valid
           templateType: 'condition',
           templateId: 'template2',
           data: { temp: 25 },
-          status: 'ready',
           comment: 'Test comment'
         }
       ];

@@ -86,6 +86,7 @@ export class WorkerProjectService implements IWorkerProjectService {
         projectName: project.project_name,
         description: project.description || '',
         projectStatus: project.project_status,
+        useDeemedProgress: project.use_deemed_progress ?? true,
         createdAt: new Date(project.create_at).toISOString(),
         updatedAt: new Date(project.update_at).toISOString(),
       }));

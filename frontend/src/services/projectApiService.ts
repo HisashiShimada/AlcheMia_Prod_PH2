@@ -120,6 +120,7 @@ export interface WorkerProject {
   projectName: string;         // プロジェクト名
   projectCd?: string;          // プロジェクトCD（APIレスポンスに含まれない場合がある）
   projectStatus: number;       // プロジェクトステータス（0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了）
+  useDeemedProgress?: boolean; // みなし進捗使用フラグ（organization.use_deemed_progress）省略時はtrue
   description: string;         // プロジェクトの説明
   createdAt: string;           // 作成日時（ISO 8601）
   updatedAt: string;           // 更新日時（ISO 8601）

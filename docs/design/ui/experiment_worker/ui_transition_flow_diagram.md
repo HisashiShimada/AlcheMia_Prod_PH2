@@ -32,7 +32,7 @@
 ## 2. コンポーネント構成
 
 ### 2.1 画面イメージ
-![トランジションフロー図イメージ](images\ui_transition_flow_diagram.jpg)
+![トランジションフロー図イメージ](..\images\ui_transition_flow_diagram.jpg)
 
 ### 2.2 レイアウト構造
 
