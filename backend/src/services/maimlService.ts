@@ -1507,18 +1507,16 @@ export async function getMaimlFileContent(fileKey: string): Promise<FileContentR
   try {
     console.log('📄 [maimlService] ファイル内容取得開始:', fileKey);
 
-    // fileKeyから組織IDを抽出（org_xxx/ プレフィックスから）
-    const orgMatch = fileKey.match(/^org_([^/]+)\//);
-    if (!orgMatch) {
-      throw new Error('Invalid file key format: organization prefix not found');
+    // fileKeyから組織IDを抽出（最初の "/" までが組織ID = UUID形式）
+    const slashIndex = fileKey.indexOf('/');
+    if (slashIndex === -1) {
+      throw new Error('Invalid file key format: organization ID separator "/" not found');
     }
 
-    const organizationPrefix = orgMatch[0]; // org_xxx/
-    const relativePath = fileKey.substring(organizationPrefix.length); // org_xxx/を除いた相対パス
+    const organizationId = fileKey.substring(0, slashIndex); // UUID形式の組織ID
+    const relativePath = fileKey.substring(slashIndex + 1); // 組織ID以降の相対パス
 
-    // TODO: DBからorganization_idを取得する処理が必要
-    // 現時点では組織プレフィックスをそのまま使用
-    const buffer = await storageService.downloadFile(organizationPrefix.replace('/', ''), relativePath);
+    const buffer = await storageService.downloadFile(organizationId, relativePath);
 
     const content = buffer.toString('utf-8');
 
