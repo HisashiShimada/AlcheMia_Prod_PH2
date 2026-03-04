@@ -862,7 +862,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
               console.log('🔍 [PetriNetEditorInner] maimlData preview:', maimlData?.substring(0, 200));
               
               const base64Data = btoa(unescape(encodeURIComponent(maimlData)));
-              const currentOrgId = localStorage.getItem('currentOrganizationId');
+              const userInfoStr1 = localStorage.getItem('userInfo');
+              const userInfo1 = userInfoStr1 ? JSON.parse(userInfoStr1) : null;
+              const currentOrgId = userInfo1?.organizationId || null;
               
               console.log('🔍 [PetriNetEditorInner] バリデーションリクエスト:', {
                 base64Length: base64Data.length,
@@ -1125,7 +1127,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     
     try {
       // ストレージファイル一覧取得（新APIエンドポイント使用）
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
+      const userInfoStr2 = localStorage.getItem('userInfo');
+      const userInfo2 = userInfoStr2 ? JSON.parse(userInfoStr2) : null;
+      const currentOrgId = userInfo2?.organizationId || null;
       
       if (!currentOrgId) {
         throw new Error('組織IDが取得できません');
@@ -2241,7 +2245,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
       
       // 自動補正API呼び出し（新APIエンドポイント使用）
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
+      const userInfoStr3 = localStorage.getItem('userInfo');
+      const userInfo3 = userInfoStr3 ? JSON.parse(userInfoStr3) : null;
+      const currentOrgId = userInfo3?.organizationId || null;
       
       if (!currentOrgId) {
         throw new Error('組織IDが取得できません');
@@ -2358,7 +2364,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
         
         // 自動補正API呼び出し（新APIエンドポイント使用）
-        const currentOrgId = localStorage.getItem('currentOrganizationId');
+        const userInfoStr4 = localStorage.getItem('userInfo');
+        const userInfo4 = userInfoStr4 ? JSON.parse(userInfoStr4) : null;
+        const currentOrgId = userInfo4?.organizationId || null;
         
         if (!currentOrgId) {
           throw new Error('組織IDが取得できません');
@@ -2387,7 +2395,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         console.log('☁️ [PetriNetEditorInner] S3に保存:', folder);
         console.log('🔍 [PetriNetEditorInner] sourceS3Key:', props.sourceS3Key);
         
-        const currentOrgId = localStorage.getItem('currentOrganizationId');
+        const userInfoStr5 = localStorage.getItem('userInfo');
+        const userInfo5 = userInfoStr5 ? JSON.parse(userInfoStr5) : null;
+        const currentOrgId = userInfo5?.organizationId || null;
         
         // ファイル名決定（DocumentEditDialogで設定した名前 > 元のファイル名 > デフォルト）
         const baseFileName = documentData?.name 
