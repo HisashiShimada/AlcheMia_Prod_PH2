@@ -218,7 +218,7 @@ export function validatePetriNet(
     allTemplatesList.forEach(template => {
       const templateId = template.id;
       const placeRefs = template.placeRefs || [];
-      const isCommonTemplate = template.methodId === null;
+      const isCommonTemplate = template.methodId === null || template.methodId === undefined;
       
       if (placeRefs.length === 0) {
         console.warn(`⚠️ [validatePetriNet] テンプレート ${templateId} のplaceRefsが空です`);
@@ -754,9 +754,10 @@ export async function convertReactFlowToMaiML(
   if (allTemplates) {
     console.log('📋 [convertReactFlowToMaiML] 共通テンプレート取得開始');
     
-    // Material共通テンプレート
+    // Material共通テンプレート（methodIdがnullまたはundefinedのもの）
+    // ※ placeRefs が空でも出力する（フォーマットのテンプレート＝追加先テンプレートはplaceRefsが空）
     if (allTemplates.material) {
-      const commonMaterials = allTemplates.material.filter((t: Template) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0);
+      const commonMaterials = allTemplates.material.filter((t: Template) => t.methodId === null || t.methodId === undefined);
       commonMaterials.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
           id: template.id,
@@ -782,9 +783,10 @@ export async function convertReactFlowToMaiML(
       });
     }
     
-    // Condition共通テンプレート
+    // Condition共通テンプレート（methodIdがnullまたはundefinedのもの）
+    // ※ placeRefs が空でも出力する（フォーマットのテンプレート＝追加先テンプレートはplaceRefsが空）
     if (allTemplates.condition) {
-      const commonConditions = allTemplates.condition.filter((t: Template) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0);
+      const commonConditions = allTemplates.condition.filter((t: Template) => t.methodId === null || t.methodId === undefined);
       commonConditions.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
           id: template.id,
@@ -810,9 +812,10 @@ export async function convertReactFlowToMaiML(
       });
     }
     
-    // Result共通テンプレート
+    // Result共通テンプレート（methodIdがnullまたはundefinedのもの）
+    // ※ placeRefs が空でも出力する（フォーマットのテンプレート＝追加先テンプレートはplaceRefsが空）
     if (allTemplates.result) {
-      const commonResults = allTemplates.result.filter((t: Template) => t.methodId === null && t.placeRefs && t.placeRefs.length > 0);
+      const commonResults = allTemplates.result.filter((t: Template) => t.methodId === null || t.methodId === undefined);
       commonResults.forEach((template: Template) => {
         const fakeNode: Node<NodeData> = {
           id: template.id,
@@ -989,9 +992,15 @@ export async function convertReactFlowToMaiML(
     console.log('📋 [convertReactFlowToMaiML] TemplateContextからテンプレート取得');
     
     // 現在のmethodIdを取得
-    const currentMethodId = documentData?.methodId;
+    // documentData?.methodId が undefined の場合は allMethods[0]?.methodId をフォールバック
+    // それも undefined の場合は「共通テンプレートでない全テンプレート」を出力する
+    const currentMethodId = documentData?.methodId || allMethods?.[0]?.methodId;
+    const hasKnownMethodId = currentMethodId !== undefined && currentMethodId !== null;
     console.log('🔍 [convertReactFlowToMaiML] フィルタリング条件:', {
       currentMethodId,
+      hasKnownMethodId,
+      documentDataMethodId: documentData?.methodId,
+      allMethodsFirstId: allMethods?.[0]?.methodId,
       allMaterialCount: allTemplates.material?.length || 0,
       allConditionCount: allTemplates.condition?.length || 0,
       allResultCount: allTemplates.result?.length || 0
@@ -999,8 +1008,11 @@ export async function convertReactFlowToMaiML(
     
     // materialTemplates
     if (allTemplates.material) {
+      // currentMethodIdが特定できている場合はそのIDでフィルタ
+      // 特定できていない場合は「共通テンプレートでない全テンプレート」を含める
       const contextMaterialTemplates = allTemplates.material.filter((t: Template) => 
-        t.methodId === currentMethodId && t.placeRefs && t.placeRefs.length > 0
+        (hasKnownMethodId ? t.methodId === currentMethodId : (t.methodId !== null && t.methodId !== undefined))
+        && t.placeRefs && t.placeRefs.length > 0
       );
       
       contextMaterialTemplates.forEach((template: Template) => {
@@ -1030,7 +1042,8 @@ export async function convertReactFlowToMaiML(
     // conditionTemplates
     if (allTemplates.condition) {
       const contextConditionTemplates = allTemplates.condition.filter((t: Template) => 
-        t.methodId === currentMethodId && t.placeRefs && t.placeRefs.length > 0
+        (hasKnownMethodId ? t.methodId === currentMethodId : (t.methodId !== null && t.methodId !== undefined))
+        && t.placeRefs && t.placeRefs.length > 0
       );
       
       contextConditionTemplates.forEach((template: Template) => {
@@ -1060,7 +1073,8 @@ export async function convertReactFlowToMaiML(
     // resultTemplates
     if (allTemplates.result) {
       const contextResultTemplates = allTemplates.result.filter((t: Template) => 
-        t.methodId === currentMethodId && t.placeRefs && t.placeRefs.length > 0
+        (hasKnownMethodId ? t.methodId === currentMethodId : (t.methodId !== null && t.methodId !== undefined))
+        && t.placeRefs && t.placeRefs.length > 0
       );
       
       contextResultTemplates.forEach((template: Template) => {
