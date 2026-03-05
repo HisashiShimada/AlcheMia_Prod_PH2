@@ -50,6 +50,7 @@ import {
   createProject as createProjectApi,
   checkoutProject,
   checkinProject,
+  completeReviewTasks,
   type CreateProjectRequest,
   type ApiResponse,
   type ProjectListResponse,
@@ -1276,15 +1277,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     {isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}
                   </Button>
                   <Button
-                    type="default"
-                    icon={<UserOutlined />}
-                    onClick={() => onOpenWorkerScreen?.(selectedProject.id, selectedProject.name)}
-                    disabled={!isProjectCheckedOut}
-                    title={!isProjectCheckedOut ? 'チェックアウト後に操作できます' : undefined}
-                  >
-                    作業者画面
-                  </Button>
-                  <Button
                     type="primary"
                     icon={<ExclamationCircleOutlined />}
                     onClick={handleOpenIssueManagement}
@@ -1388,6 +1380,44 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     label: t('projectManagement.tabs.task_results'),
                     children: (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {/* ボタンエリア */}
+                        <Flex justify="flex-end" gap="small">
+                          <Button
+                            type="default"
+                            icon={<UserOutlined />}
+                            onClick={() => onOpenWorkerScreen?.(selectedProject.id, selectedProject.name)}
+                            disabled={!isProjectCheckedOut}
+                            title={!isProjectCheckedOut ? 'チェックアウト後に操作できます' : undefined}
+                          >
+                            作業確認
+                          </Button>
+                          <Button
+                            type="primary"
+                            style={{ marginRight: 16 }}
+                            disabled={taskStats.review_waiting === 0}
+                            title={taskStats.review_waiting === 0 ? 'レビュー待ちのタスクがありません' : undefined}
+                            onClick={async () => {
+                              if (!selectedProject) return;
+                              try {
+                                const res = await completeReviewTasks(selectedProject.name);
+                                message.success(res.data?.message || 'レビュー待ちタスクを完了に更新しました');
+                                // タスク一覧を再取得
+                                const taskResponse = await getProjectTasks(selectedProject.name, 'all');
+                                setProjectTasksData(prev => ({
+                                  ...prev,
+                                  [selectedProjectId!]: {
+                                    tasks: taskResponse.tasks || [],
+                                    statistics: taskResponse.statistics || {},
+                                  }
+                                }));
+                              } catch {
+                                message.error('タスク確認完了処理に失敗しました');
+                              }
+                            }}
+                          >
+                            タスク確認完了
+                          </Button>
+                        </Flex>
                         {/* 統計カード */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: token.margin }}>
                       <Card
@@ -1484,7 +1514,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     {/* タスク結果テーブル */}
                     <TaskResultsTable
                       results={taskResults}
-                      onViewResult={handleViewTaskResult}
                     />
                   </div>
                     ),
