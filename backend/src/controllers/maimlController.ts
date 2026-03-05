@@ -516,7 +516,7 @@ export async function listFiles(req: Request, res: Response): Promise<void> {
 
     res.json({
       success: true,
-      ...result,
+      data: result,
       meta: {
         timestamp: new Date().toISOString(),
       },
@@ -552,7 +552,7 @@ export async function getFileContent(req: Request, res: Response): Promise<void>
 
     res.json({
       success: true,
-      ...result,
+      data: result,
       meta: {
         timestamp: new Date().toISOString(),
       },
@@ -612,7 +612,7 @@ export async function autoCorrect(req: Request, res: Response): Promise<void> {
 
     res.json({
       success: true,
-      ...result,
+      data: result,
       meta: {
         timestamp: new Date().toISOString(),
       },
