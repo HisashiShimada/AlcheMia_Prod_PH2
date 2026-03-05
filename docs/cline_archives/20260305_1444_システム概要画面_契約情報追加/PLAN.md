@@ -11,7 +11,7 @@
 1. 「ユーザー」カード内の「アクティブ」の下に「契約ユーザー数」を追加
 2. 「ストレージ」カード内の「使用容量」の下に「契約容量」を追加
 
-データはorganizationテーブルの `contracted_users`（契約ユーザー数）・`contract_capacity`（契約容量）カラムから取得する。
+データはorganizationテーブルの `contract_users`（契約ユーザー数）・`contract_capacity`（契約容量）カラムから取得する。
 
 ## 目的と期待される成果
 - [ ] ユーザーカードに「契約ユーザー数」が表示される
@@ -40,10 +40,10 @@
 
 ### 追加要件
 「実験システム」カード内の「プロジェクト完了/タスク異常終了」の下に「契約プロジェクト数」を追加する。
-データは organizationテーブルの `contracted_projects` カラムから取得する。
+データは organizationテーブルの `contract_projects` カラムから取得する。
 
 ### 実施確認
-- [x] `backend/src/repositories/systemOverviewRepository.ts` - `getOrganizationContractInfo()` に `contracted_projects` 取得済み
+- [x] `backend/src/repositories/systemOverviewRepository.ts` - `getOrganizationContractInfo()` に `contract_projects` 取得済み
 - [x] `backend/src/services/systemOverviewService.ts` - `experimentSystem.contractedProjects` として返却済み
 - [x] `frontend/src/types/systemOverview.ts` - `contractedProjects: number | null` 定義済み
 - [x] `frontend/src/components/SystemManagement/SystemOverview.tsx` - 「契約プロジェクト数」表示行実装済み

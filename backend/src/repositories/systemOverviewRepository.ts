@@ -45,9 +45,9 @@ export interface StorageStats {
  * 組織契約情報の型定義
  */
 export interface OrganizationContractInfo {
-  contracted_users: number | null;
+  contract_users: number | null;
   contract_capacity: number | null;
-  contracted_projects: number | null;
+  contract_projects: number | null;
 }
 
 /**
@@ -112,7 +112,7 @@ export async function getStorageStats(organizationId: string): Promise<StorageSt
 export async function getOrganizationContractInfo(organizationId: string): Promise<OrganizationContractInfo> {
   const pgp = getPgp();
   const query = `
-    SELECT contracted_users, contract_capacity, contracted_projects
+    SELECT contract_users, contract_capacity, contract_projects
     FROM organization
     WHERE organization_id = $1
   `;

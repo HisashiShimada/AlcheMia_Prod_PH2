@@ -243,7 +243,7 @@ SystemOverview (React.FC)
 | プロジェクト計画中/タスク実行待ち | `experimentSystem.planning` | project_status: '0', '1' |
 | タスク実行中/タスク結果レビュー待ち | `experimentSystem.inProgress` | project_status: '2', '3' |
 | プロジェクト完了/タスク異常終了 | `experimentSystem.completed` | project_status: '4', '5' |
-| 契約プロジェクト数 | `experimentSystem.contractedProjects` | organizationテーブルの contracted_projects カラム |
+| 契約プロジェクト数 | `experimentSystem.contractedProjects` | organizationテーブルの contract_projects カラム |
 
 ### 4.5. ストレージカード
 
@@ -519,7 +519,7 @@ describe('SystemOverview', () => {
 |-----------|------|----------|--------|
 | 1.2.0 | 2026-03-05 | 実験システムカードに「契約プロジェクト数」を追加 | Cline |
 | | | - `experimentSystem.contractedProjects` フィールド追加 | |
-| | | - organizationテーブルの `contracted_projects` カラムから取得 | |
+| | | - organizationテーブルの `contract_projects` カラムから取得 | |
 | 1.1.0 | 2026-02-27 | ストレージカード「使用容量」の小数点桁数を2桁→3桁に変更 | Cline |
 | | | ストレージ統計の取得元をSwift/S3直接取得（`storageService.listFiles()`）に変更 | |
 | 1.0.0 | 2026-02-26 | 初版作成 | Development Team |

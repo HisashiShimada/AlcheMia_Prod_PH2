@@ -200,7 +200,7 @@ GET
 
 **CSV形式** (UTF-8 BOM付き):
 ```csv
-organization_cd,organization_display_name,organization_email,chief_user_name,chief_user_email,corporation_name,contract_capacity,contracted_users,contracted_projects,is_entry,update_at,is_active
+organization_cd,organization_display_name,organization_email,chief_user_name,chief_user_email,corporation_name,contract_capacity,contract_users,contract_projects,is_entry,update_at,is_active
 maiml_lab_001,MAIML研究所,org@example.com,山田太郎,admin@example.com,サンプル株式会社,100,50,30,1,20260218103000,true
 ```
 
@@ -234,7 +234,7 @@ POST
 
 #### CSV形式
 ```csv
-organization_cd,organization_display_name,organization_email,chief_user_name,chief_user_email,corporation_name,contract_capacity,contracted_users,contracted_projects,is_entry,update_at,is_active
+organization_cd,organization_display_name,organization_email,chief_user_name,chief_user_email,corporation_name,contract_capacity,contract_users,contract_projects,is_entry,update_at,is_active
 maiml_lab_001,MAIML研究所,org@example.com,山田太郎,admin@example.com,サンプル株式会社,100,50,30,1,,true
 ```
 
@@ -300,8 +300,8 @@ maiml_lab_001,MAIML研究所,org@example.com,山田太郎,admin@example.com,サ�
 - is_entry: 0または1
 - is_active: true/false/1/0
 - contract_capacity: 数値のみ（指定時）
-- contracted_users: 数値のみ（指定時）
-- contracted_projects: 数値のみ（指定時）
+- contract_users: 数値のみ（指定時）
+- contract_projects: 数値のみ（指定時）
 
 #### 重複チェック
 - organization_cdがCSV内で重複していないこと
@@ -894,7 +894,7 @@ frontend/src/components/Provider/OrganizationManagement.tsx
 |-----------|------|----------|--------|
 | 1.2.0 | 2026-03-05 | 契約情報3項目追加 | Cline |
 | | | - 組織一覧レスポンスに contractCapacity / contractedUsers / contractedProjects 追加 | |
-| | | - CSVダウンロード・アップロードの列定義に contract_capacity / contracted_users / contracted_projects 追加 | |
+| | | - CSVダウンロード・アップロードの列定義に contract_capacity / contract_users / contract_projects 追加 | |
 | | | - CSVアップロードバリデーションに数値チェック追加 | |
 | 1.1.0 | 2026-02-19 | クライアント証明書ダウンロードAPI追加 | Cline |
 | | | - API #9: GET /organization/:organizationId/certificate 追加 | |

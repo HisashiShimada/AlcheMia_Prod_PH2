@@ -104,7 +104,7 @@ authMiddleware → tenantIsolation → getOverview
 | `experimentSystem.planning` | number | プロジェクト計画中/タスク実行待ち（`project_status` IN `'0'`, `'1'`） |
 | `experimentSystem.inProgress` | number | タスク実行中/タスク結果レビュー待ち（`project_status` IN `'2'`, `'3'`） |
 | `experimentSystem.completed` | number | プロジェクト完了/タスク異常終了（`project_status` IN `'4'`, `'5'`） |
-| `experimentSystem.contractedProjects` | number | 契約プロジェクト数（`organization`テーブルの `contracted_projects`） |
+| `experimentSystem.contractedProjects` | number | 契約プロジェクト数（`organization`テーブルの `contract_projects`） |
 | `storage.totalFiles` | number | ストレージの総ファイル数（Swift/S3） |
 | `storage.usedCapacityGB` | number | 使用容量（GB、小数点3桁） |
 | `loginLast7Days.total` | number | 過去7日間の総ログイン試行数 |
@@ -220,7 +220,7 @@ export interface SystemOverviewData {
 |-----------|------|----------|--------|
 | 1.2.0 | 2026-03-05 | 契約プロジェクト数を追加 | Cline |
 | | | - experimentSystem に `contractedProjects` フィールド追加 | |
-| | | - organizationテーブルの `contracted_projects` カラムから取得 | |
+| | | - organizationテーブルの `contract_projects` カラムから取得 | |
 | | | - フロントエンド型定義に `contractedProjects: number` 追加 | |
 | 1.1.0 | 2026-02-27 | ストレージ統計取得元をSwift/S3直接取得に変更 | Cline |
 | | | フォルダオブジェクト・`.keep`プレースホルダーを除外するフィルタ追加 | |

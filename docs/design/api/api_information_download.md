@@ -74,8 +74,8 @@ authMiddleware → downloadInformationCsv
 | active_user_count | アクティブユーザー数 |
 | project_count | 総プロジェクト数 |
 | contract_capacity | 契約容量 |
-| contracted_users | 契約ユーザー数 |
-| contracted_projects | 契約プロジェクト数 |
+| contract_users | 契約ユーザー数 |
+| contract_projects | 契約プロジェクト数 |
 | created_at | 組織作成日時 |
 
 **ファイル名形式:**
@@ -139,5 +139,5 @@ const response = await client.get(
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.1.0 | 2026-03-05 | 契約情報3項目追加 | Cline |
-| | | - CSVカラムに `contract_capacity` / `contracted_users` / `contracted_projects` 追加 | |
+| | | - CSVカラムに `contract_capacity` / `contract_users` / `contract_projects` 追加 | |
 | 1.0.0 | 2026-02-26 | 初版作成 | Cline |

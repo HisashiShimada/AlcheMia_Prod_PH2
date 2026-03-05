@@ -108,8 +108,8 @@ export async function getOrganizations(
     useDeemedProgress: org.use_deemed_progress,
     isActive: org.is_active,
     contractCapacity: org.contract_capacity ?? null,
-    contractedUsers: org.contracted_users ?? null,
-    contractedProjects: org.contracted_projects ?? null,
+    contractedUsers: org.contract_users ?? null,
+    contractedProjects: org.contract_projects ?? null,
     updatedAt: formatDateTime(org.update_at),
   }));
 }
@@ -141,8 +141,8 @@ export async function getOrganizationById(
     useDeemedProgress: organization.use_deemed_progress,
     isActive: organization.is_active,
     contractCapacity: organization.contract_capacity ?? null,
-    contractedUsers: organization.contracted_users ?? null,
-    contractedProjects: organization.contracted_projects ?? null,
+    contractedUsers: organization.contract_users ?? null,
+    contractedProjects: organization.contract_projects ?? null,
     updatedAt: formatDateTime(organization.update_at),
   };
 }
@@ -390,8 +390,8 @@ export async function createOrganization(
     useDeemedProgress: fullOrganization!.use_deemed_progress,
     isActive: fullOrganization!.is_active,
     contractCapacity: fullOrganization!.contract_capacity ?? null,
-    contractedUsers: fullOrganization!.contracted_users ?? null,
-    contractedProjects: fullOrganization!.contracted_projects ?? null,
+    contractedUsers: fullOrganization!.contract_users ?? null,
+    contractedProjects: fullOrganization!.contract_projects ?? null,
     updatedAt: formatDateTime(fullOrganization!.update_at),
   };
 }
@@ -439,8 +439,8 @@ export async function updateOrganization(
     useDeemedProgress: organization.use_deemed_progress,
     isActive: organization.is_active,
     contractCapacity: organization.contract_capacity ?? null,
-    contractedUsers: organization.contracted_users ?? null,
-    contractedProjects: organization.contracted_projects ?? null,
+    contractedUsers: organization.contract_users ?? null,
+    contractedProjects: organization.contract_projects ?? null,
     updatedAt: formatDateTime(organization.update_at),
   };
 }
@@ -476,8 +476,8 @@ export async function updateOrganizationStatus(
     useDeemedProgress: organization.use_deemed_progress,
     isActive: organization.is_active,
     contractCapacity: organization.contract_capacity ?? null,
-    contractedUsers: organization.contracted_users ?? null,
-    contractedProjects: organization.contracted_projects ?? null,
+    contractedUsers: organization.contract_users ?? null,
+    contractedProjects: organization.contract_projects ?? null,
     updatedAt: formatDateTime(organization.update_at),
   };
 }
@@ -568,13 +568,13 @@ export async function downloadOrganizationsInformation(): Promise<OrganizationIn
       : '';
 
     // 契約ユーザー数（nullの場合は空文字）
-    const contractedUsersDisplay = org.contracted_users !== null && org.contracted_users !== undefined
-      ? `${org.contracted_users}`
+    const contractedUsersDisplay = org.contract_users !== null && org.contract_users !== undefined
+      ? `${org.contract_users}`
       : '';
 
     // 契約プロジェクト数（nullの場合は空文字）
-    const contractedProjectsDisplay = org.contracted_projects !== null && org.contracted_projects !== undefined
-      ? `${org.contracted_projects}`
+    const contractedProjectsDisplay = org.contract_projects !== null && org.contract_projects !== undefined
+      ? `${org.contract_projects}`
       : '';
 
     rows.push({
@@ -783,24 +783,24 @@ export async function uploadOrganizationsCsv(
       break;
     }
 
-    // 数値チェック（contracted_users）
-    const contractedUsersStr = row['contracted_users']?.trim();
+    // 数値チェック（contract_users）
+    const contractedUsersStr = row['contract_users']?.trim();
     if (contractedUsersStr && !/^\d+$/.test(contractedUsersStr)) {
       validationErrors.push({
         row: rowNumber,
-        field: 'contracted_users',
-        message: `${rowNumber}行目: contracted_usersは数値で入力してください`
+        field: 'contract_users',
+        message: `${rowNumber}行目: contract_usersは数値で入力してください`
       });
       break;
     }
 
-    // 数値チェック（contracted_projects）
-    const contractedProjectsStr = row['contracted_projects']?.trim();
+    // 数値チェック（contract_projects）
+    const contractedProjectsStr = row['contract_projects']?.trim();
     if (contractedProjectsStr && !/^\d+$/.test(contractedProjectsStr)) {
       validationErrors.push({
         row: rowNumber,
-        field: 'contracted_projects',
-        message: `${rowNumber}行目: contracted_projectsは数値で入力してください`
+        field: 'contract_projects',
+        message: `${rowNumber}行目: contract_projectsは数値で入力してください`
       });
       break;
     }
@@ -855,8 +855,8 @@ export async function uploadOrganizationsCsv(
       
       // 契約情報の変換（空文字・未入力はnull）
       const contractCapacityStr = row['contract_capacity']?.trim();
-      const contractedUsersStr = row['contracted_users']?.trim();
-      const contractedProjectsStr = row['contracted_projects']?.trim();
+      const contractedUsersStr = row['contract_users']?.trim();
+      const contractedProjectsStr = row['contract_projects']?.trim();
       const contractCapacity = contractCapacityStr ? Number(contractCapacityStr) : null;
       const contractedUsers = contractedUsersStr ? Number(contractedUsersStr) : null;
       const contractedProjects = contractedProjectsStr ? Number(contractedProjectsStr) : null;

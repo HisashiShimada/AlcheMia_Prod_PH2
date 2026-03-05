@@ -23,8 +23,8 @@ export interface OrganizationRow {
   use_deemed_progress: boolean; // みなし進捗使用フラグ
   is_active: boolean;
   contract_capacity: number | null; // 契約容量
-  contracted_users: number | null;  // 契約ユーザー数
-  contracted_projects: number | null; // 契約プロジェクト数
+  contract_users: number | null;  // 契約ユーザー数
+  contract_projects: number | null; // 契約プロジェクト数
   update_at: Date;
 }
 
@@ -153,8 +153,8 @@ export interface OrganizationStatsRow {
   organization_email: string;
   chief_user_name: string | null;
   corporation_name: string | null;
-  contracted_users: number | null;
-  contracted_projects: number | null;
+  contract_users: number | null;
+  contract_projects: number | null;
   contract_capacity: number | null;
   project_count: number;
   active_user_count: number;

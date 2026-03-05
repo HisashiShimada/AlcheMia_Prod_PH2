@@ -73,7 +73,7 @@ export async function getSystemOverview(organizationId: string): Promise<SystemO
     users: {
       total: userStats.total,
       active: userStats.active,
-      contractedUsers: contractInfo.contracted_users,
+      contractedUsers: contractInfo.contract_users,
     },
     sessions: {
       total: activeTokens,
@@ -83,7 +83,7 @@ export async function getSystemOverview(organizationId: string): Promise<SystemO
       planning: projectStats.planning,
       inProgress: projectStats.in_progress,
       completed: projectStats.completed,
-      contractedProjects: contractInfo.contracted_projects,
+      contractedProjects: contractInfo.contract_projects,
     },
     storage: {
       totalFiles: storageFiles.totalFiles,
