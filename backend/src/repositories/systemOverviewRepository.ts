@@ -42,6 +42,15 @@ export interface StorageStats {
 }
 
 /**
+ * 組織契約情報の型定義
+ */
+export interface OrganizationContractInfo {
+  contracted_users: number | null;
+  contract_capacity: number | null;
+  contracted_projects: number | null;
+}
+
+/**
  * ユーザー統計を取得
  * organization_userテーブルの総数・アクティブ数
  *
@@ -91,4 +100,21 @@ export async function getStorageStats(organizationId: string): Promise<StorageSt
   const pgp = getPgp();
   const query = await loadSqlFile('system_overview/getStorageStats.sql');
   return await pgp.one<StorageStats>(query, [organizationId]);
+}
+
+/**
+ * 組織の契約情報を取得
+ * organizationテーブルの契約ユーザー数・契約容量
+ *
+ * @param organizationId 組織ID
+ * @returns 組織契約情報
+ */
+export async function getOrganizationContractInfo(organizationId: string): Promise<OrganizationContractInfo> {
+  const pgp = getPgp();
+  const query = `
+    SELECT contracted_users, contract_capacity, contracted_projects
+    FROM organization
+    WHERE organization_id = $1
+  `;
+  return await pgp.one<OrganizationContractInfo>(query, [organizationId]);
 }

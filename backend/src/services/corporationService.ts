@@ -106,6 +106,15 @@ export async function createCorporation(
   },
   userId: string
 ): Promise<CorporationResponse> {
+  // 会社名重複チェック
+  const exists = await corporationRepository.existsByName(data.corporationName);
+  if (exists) {
+    const error: any = new Error('この会社名は既に使用されています');
+    error.statusCode = 409;
+    error.code = 'DUPLICATE_CORPORATION_NAME';
+    throw error;
+  }
+
   // UUIDを自動生成
   const corporationId = uuidv4();
   
@@ -139,6 +148,17 @@ export async function updateCorporation(
   },
   userId: string
 ): Promise<CorporationResponse | null> {
+  // 会社名が変更される場合は重複チェック（自身を除外）
+  if (data.corporationName) {
+    const exists = await corporationRepository.existsByName(data.corporationName, corporationId);
+    if (exists) {
+      const error: any = new Error('入力された会社名は既に存在しています');
+      error.statusCode = 409;
+      error.code = 'DUPLICATE_CORPORATION_NAME';
+      throw error;
+    }
+  }
+
   const corporation = await corporationRepository.update(corporationId, data, userId);
   
   if (!corporation) {

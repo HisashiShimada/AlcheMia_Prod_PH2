@@ -60,6 +60,9 @@ Field="代表者ユーザID","chief_user_id","@VARCHAR(50)",,,"","",$00000000,""
 Field="会社ID","corporation_id","uuid",,,"","",$FFFFFFFF,""
 Field="二段階認証判定","is_entry","@INT",,,"","0:二段階認証なし1:二段階認証あり",$FFFFFFFF,""
 Field="みなし進捗使用フラグ","use_deemed_progress","@BOOLEAN","NOT NULL",,"true","",$FFFFFFFF,""
+Field="契約容量","contract_capacity","@DECIMAL(8, 3)",,,"","",$FFFFFFFF,""
+Field="契約ユーザー数","contracted_users","@INT",,,"","",$FFFFFFFF,""
+Field="契約プロジェクト数","contracted_projects","@INT",,,"","",$FFFFFFFF,""
 Field="アクティブ判定","is_active","@BOOLEAN",,,"","",$FFFFFFFF,""
 Field="作成者ユーザID","create_user_id","@VARCHAR(50)",,,"","",$FFFFFFFF,""
 Field="作成日時","create_at","timestamp",,,"","",$FFFFFFFF,""
@@ -70,7 +73,7 @@ Index=idx_organizaton_organization_cd=1,organization_cd
 EffectMode=None
 Color=$000000
 BkColor=$FFFFFF
-ModifiedDateTime=20260303103610
+ModifiedDateTime=20260305172509
 Position="材料開発データ管理システム_認証関連_ER図.A5ER",100,100,588,503
 ZOrder=4
 

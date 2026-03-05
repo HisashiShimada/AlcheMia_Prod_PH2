@@ -5,6 +5,7 @@ import {
   Table,
   Button,
   Input,
+  InputNumber,
   Space,
   Modal,
   Form,
@@ -48,6 +49,9 @@ interface OrganizationData {
   isEntry: number;                   // 二段階認証判定
   useDeemedProgress: boolean;        // みなし進捗使用フラグ
   isActive: boolean;                 // アクティブ/非アクティブ
+  contractCapacity: number | null;   // 契約容量
+  contractedUsers: number | null;    // 契約ユーザー数
+  contractedProjects: number | null; // 契約プロジェクト数
   updatedAt: string;                 // 更新日時
 }
 
@@ -682,6 +686,9 @@ export default function OrganizationManagement() {
         'chief_user_name': o.chiefUserName,
         'chief_user_email': o.chiefUserId,
         'corporation_name': o.corporationName,
+        'contract_capacity': o.contractCapacity ?? '',
+        'contracted_users': o.contractedUsers ?? '',
+        'contracted_projects': o.contractedProjects ?? '',
         'is_entry': o.isEntry,
         'use_deemed_progress': o.useDeemedProgress,
         'update_at': o.updatedAt,
@@ -1021,6 +1028,45 @@ export default function OrganizationManagement() {
               </Form.Item>
 
               <Form.Item
+                name="contractCapacity"
+                label="契約容量"
+                rules={[{ required: true, message: '契約容量を入力してください' }]}
+              >
+                <InputNumber
+                  min={0}
+                  precision={0}
+                  style={{ width: '100%' }}
+                  placeholder="契約容量を入力してください"
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="contractedUsers"
+                label="契約ユーザー数"
+                rules={[{ required: true, message: '契約ユーザー数を入力してください' }]}
+              >
+                <InputNumber
+                  min={0}
+                  precision={0}
+                  style={{ width: '100%' }}
+                  placeholder="契約ユーザー数を入力してください"
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="contractedProjects"
+                label="契約プロジェクト数"
+                rules={[{ required: true, message: '契約プロジェクト数を入力してください' }]}
+              >
+                <InputNumber
+                  min={0}
+                  precision={0}
+                  style={{ width: '100%' }}
+                  placeholder="契約プロジェクト数を入力してください"
+                />
+              </Form.Item>
+
+              <Form.Item
                 name="isEntry"
                 label="二段階認証判定"
                 rules={[{ required: true, message: '二段階認証判定を選択してください' }]}
@@ -1102,6 +1148,45 @@ export default function OrganizationManagement() {
                     if (!option?.label) return false;
                     return option.label.toLowerCase().includes(input.toLowerCase());
                   }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="contractCapacity"
+                label="契約容量"
+                rules={[{ required: true, message: '契約容量を入力してください' }]}
+              >
+                <InputNumber
+                  min={0}
+                  precision={0}
+                  style={{ width: '100%' }}
+                  placeholder="契約容量を入力してください"
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="contractedUsers"
+                label="契約ユーザー数"
+                rules={[{ required: true, message: '契約ユーザー数を入力してください' }]}
+              >
+                <InputNumber
+                  min={0}
+                  precision={0}
+                  style={{ width: '100%' }}
+                  placeholder="契約ユーザー数を入力してください"
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="contractedProjects"
+                label="契約プロジェクト数"
+                rules={[{ required: true, message: '契約プロジェクト数を入力してください' }]}
+              >
+                <InputNumber
+                  min={0}
+                  precision={0}
+                  style={{ width: '100%' }}
+                  placeholder="契約プロジェクト数を入力してください"
                 />
               </Form.Item>
 

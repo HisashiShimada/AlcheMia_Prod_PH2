@@ -15,6 +15,7 @@ export interface SystemOverviewData {
   users: {
     total: number;
     active: number;
+    contractedUsers: number | null;
   };
   sessions: {
     total: number;
@@ -24,10 +25,12 @@ export interface SystemOverviewData {
     planning: number;
     inProgress: number;
     completed: number;
+    contractedProjects: number | null;
   };
   storage: {
     totalFiles: number;
     usedCapacityGB: number;
+    contractCapacityGB: number | null;
   };
   loginLast7Days: {
     total: number;
@@ -50,6 +53,7 @@ export async function getSystemOverview(organizationId: string): Promise<SystemO
     loginStats,
     activeTokens,
     storageFiles,
+    contractInfo,
   ] = await Promise.all([
     // ユーザー統計（DB）
     systemOverviewRepository.getUserStats(organizationId),
@@ -61,12 +65,15 @@ export async function getSystemOverview(organizationId: string): Promise<SystemO
     getSessionCount(organizationId),
     // ストレージ統計（Swift/S3）
     getStorageStats(organizationId),
+    // 組織契約情報（DB）
+    systemOverviewRepository.getOrganizationContractInfo(organizationId),
   ]);
 
   return {
     users: {
       total: userStats.total,
       active: userStats.active,
+      contractedUsers: contractInfo.contracted_users,
     },
     sessions: {
       total: activeTokens,
@@ -76,10 +83,14 @@ export async function getSystemOverview(organizationId: string): Promise<SystemO
       planning: projectStats.planning,
       inProgress: projectStats.in_progress,
       completed: projectStats.completed,
+      contractedProjects: contractInfo.contracted_projects,
     },
     storage: {
       totalFiles: storageFiles.totalFiles,
       usedCapacityGB: storageFiles.usedCapacityGB,
+      contractCapacityGB: contractInfo.contract_capacity !== null
+        ? parseFloat(Number(contractInfo.contract_capacity).toFixed(3))
+        : null,
     },
     loginLast7Days: {
       total: loginStats.total,

@@ -131,6 +131,12 @@ const SystemOverview: React.FC = () => {
                 <span style={labelStyle}>アクティブ</span>
                 <span style={valueStyle}>{users.active}</span>
               </div>
+              <div style={statRowStyle}>
+                <span style={labelStyle}>契約ユーザー数</span>
+                <span style={valueStyle}>
+                  {users.contractedUsers !== null ? users.contractedUsers : '-'}
+                </span>
+              </div>
             </Flex>
           </Card>
         </Col>
@@ -175,6 +181,12 @@ const SystemOverview: React.FC = () => {
                 <span style={labelStyle}>プロジェクト完了/タスク異常終了</span>
                 <span style={valueStyle}>{experimentSystem.completed}</span>
               </div>
+              <div style={statRowStyle}>
+                <span style={labelStyle}>契約プロジェクト数</span>
+                <span style={valueStyle}>
+                  {experimentSystem.contractedProjects !== null ? experimentSystem.contractedProjects : '-'}
+                </span>
+              </div>
             </Flex>
           </Card>
         </Col>
@@ -194,6 +206,12 @@ const SystemOverview: React.FC = () => {
               <div style={statRowStyle}>
                 <span style={labelStyle}>使用容量</span>
                 <span style={valueStyle}>{storage.usedCapacityGB.toFixed(3)} GB</span>
+              </div>
+              <div style={statRowStyle}>
+                <span style={labelStyle}>契約容量</span>
+                <span style={valueStyle}>
+                  {storage.contractCapacityGB !== null ? `${storage.contractCapacityGB.toFixed(3)} GB` : '-'}
+                </span>
               </div>
             </Flex>
           </Card>

@@ -50,6 +50,9 @@ export interface OrganizationResponse {
   isEntry: number;
   useDeemedProgress: boolean;
   isActive: boolean;
+  contractCapacity: number | null;
+  contractedUsers: number | null;
+  contractedProjects: number | null;
   updatedAt: string;
 }
 
@@ -104,6 +107,9 @@ export async function getOrganizations(
     isEntry: org.is_entry,
     useDeemedProgress: org.use_deemed_progress,
     isActive: org.is_active,
+    contractCapacity: org.contract_capacity ?? null,
+    contractedUsers: org.contracted_users ?? null,
+    contractedProjects: org.contracted_projects ?? null,
     updatedAt: formatDateTime(org.update_at),
   }));
 }
@@ -134,6 +140,9 @@ export async function getOrganizationById(
     isEntry: organization.is_entry,
     useDeemedProgress: organization.use_deemed_progress,
     isActive: organization.is_active,
+    contractCapacity: organization.contract_capacity ?? null,
+    contractedUsers: organization.contracted_users ?? null,
+    contractedProjects: organization.contracted_projects ?? null,
     updatedAt: formatDateTime(organization.update_at),
   };
 }
@@ -166,6 +175,9 @@ export async function createOrganization(
     isEntry?: number;
     useDeemedProgress?: boolean;
     isActive?: boolean;
+    contractCapacity?: number | null;
+    contractedUsers?: number | null;
+    contractedProjects?: number | null;
   },
   userId: string
 ): Promise<OrganizationResponse> {
@@ -214,17 +226,20 @@ export async function createOrganization(
     await pgp.tx(async (t) => {
       // 1. organizationテーブルに挿入
       const orgValues = [
-        data.organizationId,
-        data.organizationCd,
-        data.organizationDisplayName,
-        data.organizationEmail,
-        data.chiefUserEmail || null,  // 代表者メールアドレスをchief_user_idに設定
-        data.corporationId || null,
-        data.isEntry !== undefined ? data.isEntry : 0,
-        data.useDeemedProgress !== undefined ? data.useDeemedProgress : true,
-        data.isActive !== undefined ? data.isActive : true,
-        userId,
-        userId,
+        data.organizationId,                                              // $1
+        data.organizationCd,                                              // $2
+        data.organizationDisplayName,                                     // $3
+        data.organizationEmail,                                           // $4
+        data.chiefUserEmail || null,  // 代表者メールアドレスをchief_user_idに設定 // $5
+        data.corporationId || null,                                       // $6
+        data.isEntry !== undefined ? data.isEntry : 0,                   // $7
+        data.useDeemedProgress !== undefined ? data.useDeemedProgress : true, // $8
+        data.isActive !== undefined ? data.isActive : true,              // $9
+        data.contractCapacity ?? null,                                    // $10
+        data.contractedUsers ?? null,                                     // $11
+        data.contractedProjects ?? null,                                  // $12
+        userId,                                                           // $13
+        userId,                                                           // $14
       ];
 
       await t.one(insertOrgQuery, orgValues);
@@ -374,6 +389,9 @@ export async function createOrganization(
     isEntry: fullOrganization!.is_entry,
     useDeemedProgress: fullOrganization!.use_deemed_progress,
     isActive: fullOrganization!.is_active,
+    contractCapacity: fullOrganization!.contract_capacity ?? null,
+    contractedUsers: fullOrganization!.contracted_users ?? null,
+    contractedProjects: fullOrganization!.contracted_projects ?? null,
     updatedAt: formatDateTime(fullOrganization!.update_at),
   };
 }
@@ -397,6 +415,9 @@ export async function updateOrganization(
     isEntry?: number;
     useDeemedProgress?: boolean;
     isActive?: boolean;
+    contractCapacity?: number | null;
+    contractedUsers?: number | null;
+    contractedProjects?: number | null;
   },
   userId: string
 ): Promise<OrganizationResponse | null> {
@@ -417,6 +438,9 @@ export async function updateOrganization(
     isEntry: organization.is_entry,
     useDeemedProgress: organization.use_deemed_progress,
     isActive: organization.is_active,
+    contractCapacity: organization.contract_capacity ?? null,
+    contractedUsers: organization.contracted_users ?? null,
+    contractedProjects: organization.contracted_projects ?? null,
     updatedAt: formatDateTime(organization.update_at),
   };
 }
@@ -451,6 +475,9 @@ export async function updateOrganizationStatus(
     isEntry: organization.is_entry,
     useDeemedProgress: organization.use_deemed_progress,
     isActive: organization.is_active,
+    contractCapacity: organization.contract_capacity ?? null,
+    contractedUsers: organization.contracted_users ?? null,
+    contractedProjects: organization.contracted_projects ?? null,
     updatedAt: formatDateTime(organization.update_at),
   };
 }
@@ -488,6 +515,9 @@ export interface OrganizationInformationCsvRow {
   '組織e-mail': string;
   '代表システム管理者': string;
   '会社名': string;
+  '契約容量': string;
+  '契約ユーザー数': string;
+  '契約プロジェクト数': string;
   'ストレージ使用量': string;
   'プロジェクト数': string;
   'アクティブユーザー数': string;
@@ -499,10 +529,6 @@ export interface OrganizationInformationCsvRow {
  * @returns 情報ダウンロード用CSVデータの配列
  */
 export async function downloadOrganizationsInformation(): Promise<OrganizationInformationCsvRow[]> {
-  // 環境変数から上限値を取得
-  const maxStorageGb = process.env.MAX_STORAGE_GB_PER_ORG || '10';
-  const maxProjects = process.env.MAX_PROJECTS_PER_ORG || '999';
-
   // DB から組織統計情報を取得
   const orgs = await organizationRepository.findAllWithStats();
 
@@ -528,13 +554,28 @@ export async function downloadOrganizationsInformation(): Promise<OrganizationIn
 
     // バイト → GB 変換（小数点2桁）
     const storageSizeGb = (storageSizeBytes / (1024 * 1024 * 1024)).toFixed(2);
-    const storageDisplay = `${storageSizeGb}/${maxStorageGb}GB`;
+    const storageDisplay = `${storageSizeGb}GB`;
 
-    // プロジェクト数表示
-    const projectDisplay = `${org.project_count}/${maxProjects}`;
+    // プロジェクト数表示（分母なし）
+    const projectDisplay = `${org.project_count}`;
 
     // アクティブユーザー数表示
     const activeUserDisplay = `${org.active_user_count}/${org.total_user_count}`;
+
+    // 契約容量（nullの場合は空文字）
+    const contractCapacityDisplay = org.contract_capacity !== null && org.contract_capacity !== undefined
+      ? `${Number(org.contract_capacity).toFixed(2)}GB`
+      : '';
+
+    // 契約ユーザー数（nullの場合は空文字）
+    const contractedUsersDisplay = org.contracted_users !== null && org.contracted_users !== undefined
+      ? `${org.contracted_users}`
+      : '';
+
+    // 契約プロジェクト数（nullの場合は空文字）
+    const contractedProjectsDisplay = org.contracted_projects !== null && org.contracted_projects !== undefined
+      ? `${org.contracted_projects}`
+      : '';
 
     rows.push({
       '組織CD': org.organization_cd || '',
@@ -542,6 +583,9 @@ export async function downloadOrganizationsInformation(): Promise<OrganizationIn
       '組織e-mail': org.organization_email || '',
       '代表システム管理者': org.chief_user_name || '',
       '会社名': org.corporation_name || '',
+      '契約容量': contractCapacityDisplay,
+      '契約ユーザー数': contractedUsersDisplay,
+      '契約プロジェクト数': contractedProjectsDisplay,
       'ストレージ使用量': storageDisplay,
       'プロジェクト数': projectDisplay,
       'アクティブユーザー数': activeUserDisplay,
@@ -727,6 +771,39 @@ export async function uploadOrganizationsCsv(
         break;
       }
     }
+
+    // 数値チェック（contract_capacity）
+    const contractCapacityStr = row['contract_capacity']?.trim();
+    if (contractCapacityStr && !/^\d+$/.test(contractCapacityStr)) {
+      validationErrors.push({
+        row: rowNumber,
+        field: 'contract_capacity',
+        message: `${rowNumber}行目: contract_capacityは数値で入力してください`
+      });
+      break;
+    }
+
+    // 数値チェック（contracted_users）
+    const contractedUsersStr = row['contracted_users']?.trim();
+    if (contractedUsersStr && !/^\d+$/.test(contractedUsersStr)) {
+      validationErrors.push({
+        row: rowNumber,
+        field: 'contracted_users',
+        message: `${rowNumber}行目: contracted_usersは数値で入力してください`
+      });
+      break;
+    }
+
+    // 数値チェック（contracted_projects）
+    const contractedProjectsStr = row['contracted_projects']?.trim();
+    if (contractedProjectsStr && !/^\d+$/.test(contractedProjectsStr)) {
+      validationErrors.push({
+        row: rowNumber,
+        field: 'contracted_projects',
+        message: `${rowNumber}行目: contracted_projectsは数値で入力してください`
+      });
+      break;
+    }
   }
   
   // エラーがあれば即座に終了（DB登録は行わない）
@@ -776,6 +853,14 @@ export async function uploadOrganizationsCsv(
         corporationId = corpResult?.corporation_id;
       }
       
+      // 契約情報の変換（空文字・未入力はnull）
+      const contractCapacityStr = row['contract_capacity']?.trim();
+      const contractedUsersStr = row['contracted_users']?.trim();
+      const contractedProjectsStr = row['contracted_projects']?.trim();
+      const contractCapacity = contractCapacityStr ? Number(contractCapacityStr) : null;
+      const contractedUsers = contractedUsersStr ? Number(contractedUsersStr) : null;
+      const contractedProjects = contractedProjectsStr ? Number(contractedProjectsStr) : null;
+
       // createOrganization関数を使用（組織追加ダイアログと同じ処理）
       // パスワードはcreateOrganization内でランダム自動生成される
       await createOrganization({
@@ -789,6 +874,9 @@ export async function uploadOrganizationsCsv(
         isEntry,
         useDeemedProgress,
         isActive,
+        contractCapacity,
+        contractedUsers,
+        contractedProjects,
       }, userId);
       
       successCount++;

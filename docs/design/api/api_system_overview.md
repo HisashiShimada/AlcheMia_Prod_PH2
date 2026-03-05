@@ -2,7 +2,7 @@
 
 ## メタデータ
 - **作成日**: 2026-02-26
-- **バージョン**: 1.1.0
+- **バージョン**: 1.2.0
 - **担当**: Development Team
 - **対象画面**: システム概要画面（システム管理メニュー）
 
@@ -73,7 +73,8 @@ authMiddleware → tenantIsolation → getOverview
       "totalProjects": 15,
       "planning": 5,
       "inProgress": 6,
-      "completed": 4
+      "completed": 4,
+      "contractedProjects": 30
     },
     "storage": {
       "totalFiles": 120,
@@ -103,6 +104,7 @@ authMiddleware → tenantIsolation → getOverview
 | `experimentSystem.planning` | number | プロジェクト計画中/タスク実行待ち（`project_status` IN `'0'`, `'1'`） |
 | `experimentSystem.inProgress` | number | タスク実行中/タスク結果レビュー待ち（`project_status` IN `'2'`, `'3'`） |
 | `experimentSystem.completed` | number | プロジェクト完了/タスク異常終了（`project_status` IN `'4'`, `'5'`） |
+| `experimentSystem.contractedProjects` | number | 契約プロジェクト数（`organization`テーブルの `contracted_projects`） |
 | `storage.totalFiles` | number | ストレージの総ファイル数（Swift/S3） |
 | `storage.usedCapacityGB` | number | 使用容量（GB、小数点3桁） |
 | `loginLast7Days.total` | number | 過去7日間の総ログイン試行数 |
@@ -186,6 +188,7 @@ export interface SystemOverviewData {
     planning: number;
     inProgress: number;
     completed: number;
+    contractedProjects: number;
   };
   storage: { totalFiles: number; usedCapacityGB: number };
   loginLast7Days: { total: number; success: number; failed: number };
@@ -215,6 +218,10 @@ export interface SystemOverviewData {
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.2.0 | 2026-03-05 | 契約プロジェクト数を追加 | Cline |
+| | | - experimentSystem に `contractedProjects` フィールド追加 | |
+| | | - organizationテーブルの `contracted_projects` カラムから取得 | |
+| | | - フロントエンド型定義に `contractedProjects: number` 追加 | |
 | 1.1.0 | 2026-02-27 | ストレージ統計取得元をSwift/S3直接取得に変更 | Cline |
 | | | フォルダオブジェクト・`.keep`プレースホルダーを除外するフィルタ追加 | |
 | | | usedCapacityGB の小数点桁数を2桁→3桁に変更 | |

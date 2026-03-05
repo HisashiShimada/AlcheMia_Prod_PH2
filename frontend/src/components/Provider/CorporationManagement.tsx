@@ -187,9 +187,6 @@ export default function CorporationManagement() {
   const handleAdd = () => {
     setEditingCorporation(null);
     form.resetFields();
-    form.setFieldsValue({
-      isActive: true,
-    });
     setIsModalVisible(true);
   };
 
@@ -453,9 +450,9 @@ export default function CorporationManagement() {
       await fetchCorporations();
     } catch (error) {
       console.error('保存エラー:', error);
-      const axiosError = error as { response?: { data?: { error?: string } } };
-      if (axiosError.response?.data?.error) {
-        messageApi.error(axiosError.response.data.error);
+      const axiosError = error as { response?: { data?: { error?: { message?: string } } } };
+      if (axiosError.response?.data?.error?.message) {
+        messageApi.error(axiosError.response.data.error.message);
       } else {
         messageApi.error('保存に失敗しました');
       }
@@ -575,11 +572,14 @@ export default function CorporationManagement() {
         okText="保存"
         cancelText="キャンセル"
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" initialValues={{ isActive: true }}>
           <Form.Item
             name="corporationName"
             label="会社名"
-            rules={[{ required: true, message: '会社名を入力してください' }]}
+            rules={[
+              { required: true, message: '会社名を入力してください' },
+              { max: 50, message: '会社名は1〜50文字で入力してください' },
+            ]}
           >
             <Input placeholder="株式会社サンプル" />
           </Form.Item>
