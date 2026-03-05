@@ -571,13 +571,13 @@ export default function TransitionList({
       {selectedTransition && (
         <IssueManagementModal
           visible={issueModalOpen}
+          targetName={selectedTransition.transitionName}
+          projectId={projectId || ''}
+          projectName={projectName || ''}
+          methodId={methodId || undefined}
+          taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
           transitionId={selectedTransition.transitionId}
-          transitionName={selectedTransition.transitionName}
-          issues={issues}
           onClose={handleIssueModalClose}
-          onSubmitIssue={handleSubmitIssue}
-          onSubmitComment={handleSubmitComment}
-          onUpdateStatus={handleUpdateStatus}
           projectStatus={projectStatus}
         />
       )}

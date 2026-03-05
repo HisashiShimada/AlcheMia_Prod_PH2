@@ -1,6 +1,6 @@
 -- コメント付き問題一覧を取得する（問題一覧部分）
 -- GET /api/v1/issues で使用
--- 動的フィルタ（status, issueType）はTypeScriptコードで追加される
+-- 動的フィルタ（methodId, taskNo, transitionId, status, issueType）はTypeScriptコードで追加される
 SELECT
   i.issue_id AS id,
   i.issue_type AS "issueType",
@@ -29,10 +29,4 @@ INNER JOIN organization_user reporter ON reporter.organization_id = i.organizati
 LEFT JOIN organization_user completer ON completer.organization_id = i.organization_id AND completer.user_id = i.issue_completer_id
 WHERE i.organization_id = $1
   AND i.project_id = $2
-  AND i.method_id = $3
-  AND (
-    (i.issue_target = 1) OR
-    (i.issue_target = 2 AND i.task_no = $4) OR
-    (i.issue_target = 3 AND i.transition_id = $5)
-  )
 ORDER BY i.issue_report_at DESC

@@ -22,6 +22,7 @@ import {
   DownloadOutlined,
   FileTextOutlined,
   ExclamationCircleOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
@@ -75,9 +76,11 @@ interface ProjectFilesData {
  */
 interface ProjectManagementInnerProps {
   onEdit?: (params: MaimlEditorParams) => void;
+  /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
+  onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
 }
 
-const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit }) => {
+const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit, onOpenWorkerScreen }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
   
@@ -155,7 +158,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
   // プロジェクト一覧をAPI経由で取得
   const {
     data: projectsData,
-    loading: projectsLoading,
     error: projectsError,
     refetch: refetchProjects
   } = useApi<ApiResponse<ProjectListResponse>>(
@@ -1274,6 +1276,15 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
                     {isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}
                   </Button>
                   <Button
+                    type="default"
+                    icon={<UserOutlined />}
+                    onClick={() => onOpenWorkerScreen?.(selectedProject.id, selectedProject.name)}
+                    disabled={!isProjectCheckedOut}
+                    title={!isProjectCheckedOut ? 'チェックアウト後に操作できます' : undefined}
+                  >
+                    作業者画面
+                  </Button>
+                  <Button
                     type="primary"
                     icon={<ExclamationCircleOutlined />}
                     onClick={handleOpenIssueManagement}
@@ -1576,11 +1587,11 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
       {selectedProject && (
         <IssueManagementModal
           visible={issueManagementModalOpen}
-          transitionId={selectedProject.id}
-          transitionName={selectedProject.name}
-          issues={mockIssues}
+          targetName={selectedProject.name}
+          projectId={selectedProject.id}
+          projectName={selectedProject.name}
           onClose={handleCloseIssueManagement}
-          viewMode={true}
+          viewMode={selectedProject.status === 4}
         />
       )}
 
@@ -1606,6 +1617,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
  */
 interface ProjectManagementProps {
   onEdit?: (params: MaimlEditorParams) => void;
+  /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
+  onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
 }
 
 const ProjectManagement: React.FC<ProjectManagementProps> = (props) => {

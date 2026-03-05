@@ -8,16 +8,18 @@ import type { FileData, SubnetData } from '@/components/viewer/ViewRendererDialo
 import TaskListTable from './TaskListTable';
 
 interface ProgressCheckTableProps {
-  tasks: Task[];
+tasks: Task[];
   projectStatus: ProjectStatus | null;
   onTaskAction: (taskId: string, action: string) => void;
+  /** trueのとき強制終了ボタンを無効化（オーバーレイ閲覧モード用） */
+  readOnly?: boolean;
 }
 
 /**
  * 進捗確認テーブル（親コンポーネント）
  * タスク一覧を表示（メソッドはタブで選択済み）
  */
-export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction }: ProgressCheckTableProps) {
+export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction, readOnly = false }: ProgressCheckTableProps) {
   // ViewRendererDialogの管理
   const [viewerDialogs, setViewerDialogs] = useState<Array<{
     id: string;
@@ -87,6 +89,7 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction 
         projectStatus={projectStatus}
         onTaskAction={onTaskAction}
         onProgressRateClick={handleProgressRateClick}
+        readOnly={readOnly}
       />
       
       {/* ViewRendererDialog群 */}

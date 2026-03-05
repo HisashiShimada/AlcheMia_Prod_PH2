@@ -25,7 +25,7 @@ const EMPTY_ICON_SIZE = 48;
  * 指示確認タブのProps
  */
 interface InstructionConfirmationTabProps {
-  selectedProject: string;
+selectedProject: string;
   selectedProjectName: string;
   onProjectChange: (value: string) => void;
   selectedMethodId: string | null;
@@ -38,6 +38,8 @@ interface InstructionConfirmationTabProps {
   expandedGroups: Record<string, boolean>;
   toggleGroup: (groupKey: string) => void;
   onInstructionsUpdated: () => Promise<void>;
+  /** trueのとき確認完了ボタンを無効化（オーバーレイ閲覧モード用） */
+  readOnly?: boolean;
 }
 
 
@@ -58,6 +60,7 @@ export default function InstructionConfirmationTab({
   expandedGroups,
   toggleGroup,
   onInstructionsUpdated,
+  readOnly = false,
 }: InstructionConfirmationTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
@@ -624,6 +627,7 @@ export default function InstructionConfirmationTab({
                     }}
                     loading={confirmLoading}
                     disabled={
+                      readOnly ||
                       confirmLoading || 
                       filteredInstructions
                         .filter((i) => i.targetType === 'file')
@@ -693,7 +697,7 @@ export default function InstructionConfirmationTab({
                     )}
                     projectStatus={projectStatus}
                     isClient={isClient}
-                    onConfirmInstructions={handleConfirmTaskInstructions}
+                    onConfirmInstructions={readOnly ? undefined : handleConfirmTaskInstructions}
                     confirmLoading={confirmLoading}
                   />
                 </div>
@@ -741,7 +745,7 @@ export default function InstructionConfirmationTab({
                     )}
                     projectStatus={projectStatus}
                     isClient={isClient}
-                    onConfirmInstructions={handleConfirmTransitionInstructions}
+                    onConfirmInstructions={readOnly ? undefined : handleConfirmTransitionInstructions}
                     confirmLoading={confirmLoading}
                   />
                 </div>
@@ -758,6 +762,7 @@ export default function InstructionConfirmationTab({
                 onClick={handleConfirmAllInstructions}
                 loading={confirmLoading}
                 disabled={
+                  readOnly ||
                   filteredStats.total === 0 || 
                   confirmLoading || 
                   filteredInstructions.every((i) => i.isAcknowledged)
@@ -768,12 +773,14 @@ export default function InstructionConfirmationTab({
                   fontSize: 16,
                   fontWeight: 600,
                   backgroundColor: 
-                    (filteredStats.total === 0 || 
+                    (readOnly ||
+                     filteredStats.total === 0 || 
                      filteredInstructions.every((i) => i.isAcknowledged)) 
                       ? undefined 
                       : token.colorSuccess,
                   borderColor: 
-                    (filteredStats.total === 0 || 
+                    (readOnly ||
+                     filteredStats.total === 0 || 
                      filteredInstructions.every((i) => i.isAcknowledged)) 
                       ? undefined 
                       : token.colorSuccess,

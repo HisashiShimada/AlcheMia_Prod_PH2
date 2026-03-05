@@ -20,13 +20,15 @@ const { Title, Text } = Typography;
 const EMPTY_ICON_SIZE = 48;
 
 interface ProgressCheckTabProps {
-  selectedProject: string | null;
+selectedProject: string | null;
   selectedProjectName: string;
   onProjectChange: (projectId: string) => void;
   selectedMethodId: string | null;
   onSelectMethod: (methodId: string) => void;
   onTabChange?: (tabKey: string) => void;
   onSelectTaskAndTab?: (taskId: string, tabKey: string) => void;
+  /** trueのとき強制終了ボタンを無効化（オーバーレイ閲覧モード用） */
+  readOnly?: boolean;
 }
 
 /**
@@ -40,7 +42,8 @@ export default function ProgressCheckTab({
   selectedMethodId,
   onSelectMethod,
   onTabChange,
-  onSelectTaskAndTab
+  onSelectTaskAndTab,
+  readOnly = false,
 }: ProgressCheckTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
@@ -653,43 +656,6 @@ export default function ProgressCheckTab({
   }, []);
 
   // モックの問題データ（プロジェクト全体の問題を想定）
-  const mockIssues = useMemo<Issue[]>(() => {
-    if (!selectedProject) return [];
-    
-    // TODO: 実際にはバックエンドから取得
-    return [
-      {
-        issueId: 'issue_001',
-        projectId: projectId || '',
-        projectName: selectedProject,
-        taskId: tasks[0]?.taskId || '',
-        taskName: tasks[0]?.taskName || '',
-        transitionId: 'trans_001',
-        transitionName: 'サンプル調製',
-        targetType: 'task',
-        title: '材料が不足しています',
-        content: '実験に必要な試薬Aが不足しており、実験を進められません。',
-        status: 'unresolved',
-        reportedBy: {
-          userId: 'user_001',
-          userName: '実験作業者A'
-        },
-        reportedAt: new Date().toISOString(),
-        comments: [
-          {
-            commentId: 'comment_001',
-            issueId: 'issue_001',
-            content: '試薬を追加発注しました。明日到着予定です。',
-            createdBy: {
-              userId: 'user_002',
-              userName: '実験管理者B'
-            },
-            createdAt: new Date(new Date().getTime() - 3600000).toISOString()
-          }
-        ]
-      }
-    ];
-  }, [selectedProject, projectId, tasks]);
 
   // メソッドのステータスを計算する関数
   const getMethodStatus = useCallback((methodTasks: Task[]): {
@@ -762,6 +728,7 @@ export default function ProgressCheckTab({
                 tasks={methodTasks}
                 projectStatus={projectStatus}
                 onTaskAction={handleTaskAction}
+                readOnly={readOnly}
               />
             ) : (
               <div
@@ -877,15 +844,16 @@ export default function ProgressCheckTab({
       />
 
       {/* 問題確認モーダル（参照専用） */}
-      {selectedTaskForIssueCheck && (
+      {selectedTaskForIssueCheck && projectId && (
         <IssueManagementModal
           visible={issueCheckModalVisible}
-          transitionId={selectedTaskForIssueCheck.taskId}
-          transitionName={selectedTaskForIssueCheck.taskName}
-          issues={mockIssues}
+          targetName={selectedTaskForIssueCheck.taskName}
+          projectId={projectId}
+          projectName={selectedProject || ''}
+          methodId={selectedTaskForIssueCheck.methodId}
+          taskNo={selectedTaskForIssueCheck.taskNo ? parseInt(selectedTaskForIssueCheck.taskNo, 10) || undefined : undefined}
           onClose={handleCloseIssueCheck}
           viewMode={true}
-          filterTaskId={selectedTaskForIssueCheck.taskId}
         />
       )}
     </div>
