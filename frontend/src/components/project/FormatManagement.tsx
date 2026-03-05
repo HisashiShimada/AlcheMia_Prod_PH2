@@ -1382,12 +1382,13 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
               });
               
               try {
-                // ✅ xmlns属性の構築（S3パスから拡張子を除去）
-                const s3PathWithoutExt = editingXmlFile.path.replace(/\.xml$/i, '');
+                // ✅ xmlns属性の構築（S3パスから拡張子とUUIDを除去）
+                let s3PathWithoutExt = editingXmlFile.path.replace(/\.xml$/i, '');
+                // パスの最初の部分がUUID形式（8-4-4-4-12）の場合は除去
+                // 例: a0718dc5-21f3-44e6-87e9-cc2ae83f3385/formats/... → formats/...
+                const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\//i;
+                s3PathWithoutExt = s3PathWithoutExt.replace(uuidPattern, '');
                 const xmlns = `http://abc.com/schema/keyDictionary/${s3PathWithoutExt}`;
-                
-                console.log('🔍 [FormatManagement] S3パス:', editingXmlFile.path);
-                console.log('🔍 [FormatManagement] xmlns:', xmlns);
                 
                 // ✅ keyDictionary XML生成（直接実装）
                 let xmlContent = `<keyDictionary xmlns="${escapeXml(xmlns)}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n`;
