@@ -32,6 +32,7 @@ import type { MasterDataType } from '@/types/masterDataTypes';
 import * as masterApi from '@/services/masterApiService';
 import type { MasterRecord } from '@/services/masterApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -68,8 +69,8 @@ interface MasterManagementMockProps {
 export default function MasterManagementMock({ initialMasterId }: MasterManagementMockProps) {
   const { token } = theme.useToken();
   const { message, modal } = App.useApp();
+  const { t } = useLanguage();
 
-  // 権限制御: data_admin メニュー（機能CD: 030000）の permission が 0 の場合は読取専用
   const isReadOnly = getMenuPermission('data_admin') === 0;
 
   // State管理
@@ -126,7 +127,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     } catch (error) {
       console.error('Fetch error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      message.error(`マスタの取得に失敗しました: ${errorMessage}`);
+      message.error(t('masterManagement.messages.fetchError').replace('{error}', errorMessage));
       setMasters([]);
     } finally {
       setLoading(false);
@@ -363,7 +364,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             onClick={() => handleEdit(record)}
             disabled={isReadOnly}
           >
-            編集
+            {t('masterManagement.buttons.edit')}
           </Button>
           <Button
             size="small"
@@ -372,7 +373,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             style={{ minWidth: '80px' }}
             disabled={isReadOnly}
           >
-            {record.isActive !== false ? '非アクティブ' : 'アクティブ'}
+            {record.isActive !== false ? t('masterManagement.status.inactive') : t('masterManagement.status.active')}
           </Button>
         </Flex>
       ),
@@ -435,18 +436,17 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   // 一括アクティブ化
   const handleActivate = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('アクティブにするマスタを選択してください');
+      message.warning(t('masterManagement.messages.activateSelectRequired'));
       return;
     }
     
     modal.confirm({
-      title: '選択したマスタをアクティブにしますか？',
-      content: `${selectedRowKeys.length}件のマスタがアクティブになります。`,
-      okText: 'アクティブ化',
-      cancelText: 'キャンセル',
+      title: t('masterManagement.messages.activateConfirmTitle'),
+      content: t('masterManagement.messages.activateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      okText: t('masterManagement.status.active'),
+      cancelText: t('masterManagement.buttons.cancel'),
       onOk: async () => {
         try {
-          // DB連携マスタの場合はAPI経由で更新
           const DB_CONNECTED_MASTERS = ['3', '2', '1'];
           if (selectedMasterInfo && DB_CONNECTED_MASTERS.includes(selectedMasterInfo.masterId)) {
             await masterApi.batchUpdateMasterStatus(
@@ -464,10 +464,10 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           }
           
           setSelectedRowKeys([]);
-          message.success(`${selectedRowKeys.length}件のマスタをアクティブにしました`);
+          message.success(t('masterManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
           console.error('一括アクティブ化エラー:', error);
-          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+          message.error(error instanceof Error ? error.message : t('masterManagement.messages.activateError'));
         }
       },
     });
@@ -476,18 +476,17 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
   // 一括非アクティブ化
   const handleDeactivate = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('非アクティブにするマスタを選択してください');
+      message.warning(t('masterManagement.messages.deactivateSelectRequired'));
       return;
     }
     modal.confirm({
-      title: '選択したマスタを非アクティブにしますか？',
-      content: `${selectedRowKeys.length}件のマスタが非アクティブになります。`,
-      okText: '非アクティブ化',
-      cancelText: 'キャンセル',
+      title: t('masterManagement.messages.deactivateConfirmTitle'),
+      content: t('masterManagement.messages.deactivateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      okText: t('masterManagement.status.inactive'),
+      cancelText: t('masterManagement.buttons.cancel'),
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
-          // DB連携マスタの場合はAPI経由で更新
           const DB_CONNECTED_MASTERS = ['3', '2', '1'];
           if (selectedMasterInfo && DB_CONNECTED_MASTERS.includes(selectedMasterInfo.masterId)) {
             await masterApi.batchUpdateMasterStatus(
@@ -505,10 +504,10 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           }
           
           setSelectedRowKeys([]);
-          message.success(`${selectedRowKeys.length}件のマスタを非アクティブにしました`);
+          message.success(t('masterManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
           console.error('エラー:', error);
-          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+          message.error(error instanceof Error ? error.message : t('masterManagement.messages.deactivateError'));
         }
       },
     });
@@ -532,30 +531,27 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
 
     // 現在のステータスに基づいてアクション決定
     const currentStatus = record.isActive !== false;
-    const actionText = currentStatus ? '非アクティブ' : 'アクティブ';
+    const actionText = currentStatus ? t('masterManagement.status.inactive') : t('masterManagement.status.active');
     const newStatus = !currentStatus;
 
     modal.confirm({
-      title: `${masterName}を${actionText}にしますか？`,
-      content: `このマスタを${actionText}状態に変更します。`,
+      title: t('masterManagement.messages.toggleConfirmTitle').replace('{name}', masterName).replace('{action}', actionText),
+      content: t('masterManagement.messages.toggleConfirmContent').replace('{action}', actionText),
       okText: actionText,
-      cancelText: 'キャンセル',
-      okButtonProps: actionText === '非アクティブ' ? { danger: true } : undefined,
+      cancelText: t('masterManagement.buttons.cancel'),
+      okButtonProps: currentStatus ? { danger: true } : undefined,
       onOk: async () => {
         try {
-          // 統一的なAPI呼び出し
           await masterApi.updateMasterStatus(
             convertMasterIdToType(selectedMasterInfo.masterId),
             recordId,
             newStatus
           );
-          
-          // データ再取得
           await fetchMasterData(selectedMasterInfo.masterId);
-          message.success(`${masterName}を${actionText}にしました`);
+          message.success(t('masterManagement.messages.toggleSuccess').replace('{name}', masterName).replace('{action}', actionText));
         } catch (error) {
           console.error('エラー:', error);
-          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+          message.error(error instanceof Error ? error.message : t('masterManagement.messages.toggleError'));
         }
       },
     });
@@ -567,7 +563,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     
     // すべてDB連携マスタなのでAPIから再取得
     fetchMasterData(selectedMasterInfo.masterId);
-    message.success('データをリロードしました');
+    message.success(t('masterManagement.messages.reloadSuccess'));
   };
 
   // CSVアップロード
@@ -576,7 +572,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     
     // DB連携マスタ（Instrument, Vendor, Creator）のみCSVアップロード可能
     if (!['3', '2', '1'].includes(selectedMasterInfo.masterId)) {
-      message.warning('このマスタはCSVアップロードに対応していません');
+      message.warning(t('masterManagement.messages.csvNotSupported'));
       return;
     }
     
@@ -604,12 +600,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       // セッショントークンを取得
       const sessionToken = localStorage.getItem('sessionToken');
       if (!sessionToken) {
-        message.error('セッショントークンが取得できません');
+        message.error(t('masterManagement.messages.sessionTokenError'));
         setLoading(false);
         return;
       }
       
-      // マスタIDに応じたエンドポイントを決定
       let endpoint = '';
       if (selectedMasterInfo.masterId === '3') {
         endpoint = `${apiUrl}/master/instrument/upload-csv`;
@@ -618,7 +613,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       } else if (selectedMasterInfo.masterId === '1') {
         endpoint = `${apiUrl}/master/creator/upload-csv`;
       } else {
-        message.error('このマスタはCSVアップロードに対応していません');
+        message.error(t('masterManagement.messages.csvNotSupported'));
         return;
       }
       
@@ -681,17 +676,16 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           width: 600,
         });
         
-        message.error(`CSVアップロードに失敗しました（${failureCount}件のエラー）`);
+        message.error(t('masterManagement.messages.csvUploadError').replace('{count}', String(failureCount)));
       } else if (successCount > 0) {
-        // 成功の場合
-        message.success(`CSVファイルをアップロードしました（${successCount}件登録）`);
+        message.success(t('masterManagement.messages.csvUploadSuccess').replace('{count}', String(successCount)));
         
         // データを再取得
         await fetchMasterData(selectedMasterInfo.masterId);
       }
     } catch (error) {
       console.error('CSV upload error:', error);
-      message.error(error instanceof Error ? error.message : 'CSVアップロードに失敗しました');
+      message.error(error instanceof Error ? error.message : t('masterManagement.messages.csvUploadFailed'));
     } finally {
       setLoading(false);
     }
@@ -746,7 +740,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         
         const sessionToken = localStorage.getItem('sessionToken');
         if (!sessionToken) {
-          message.error('セッショントークンが取得できません');
+          message.error(t('masterManagement.messages.sessionTokenError'));
           setLoading(false);
           return;
         }
@@ -794,10 +788,10 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         
-        message.success('CSVファイルをダウンロードしました');
+        message.success(t('masterManagement.messages.csvDownloadSuccess'));
       } catch (error) {
         console.error('CSV download error:', error);
-        message.error(error instanceof Error ? error.message : 'CSVダウンロードに失敗しました');
+        message.error(error instanceof Error ? error.message : t('masterManagement.messages.csvDownloadError'));
       } finally {
         setLoading(false);
       }
@@ -842,7 +836,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    message.success('CSVファイルをダウンロードしました');
+    message.success(t('masterManagement.messages.csvDownloadSuccess'));
   };
 
   // モーダルOK
@@ -859,7 +853,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       // セッショントークンを取得
       const sessionToken = localStorage.getItem('sessionToken');
       if (!sessionToken) {
-        message.error('セッショントークンが取得できません');
+        message.error(t('masterManagement.messages.sessionTokenError'));
         return;
       }
       
@@ -897,9 +891,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           }
           
           await fetchMasterData('instrument');
-          message.success('マスタ情報を更新しました');
+          message.success(t('masterManagement.messages.saveSuccess'));
         } else {
-          // 新規追加の場合 - POST
           const response = await fetch(`${apiUrl}/master/instrument`, {
             method: 'POST',
             headers: {
@@ -924,7 +917,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           }
           
           await fetchMasterData('instrument');
-          message.success('マスタを追加しました');
+          message.success(t('masterManagement.messages.addSuccess'));
         }
       } else if (selectedMasterInfo?.masterId === '2') {
         // Vendorマスタ
@@ -953,9 +946,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           }
           
           await fetchMasterData('vendor');
-          message.success('マスタ情報を更新しました');
+          message.success(t('masterManagement.messages.saveSuccess'));
         } else {
-          // 新規追加の場合 - POST
           const response = await fetch(`${apiUrl}/master/vendor`, {
             method: 'POST',
             headers: {
@@ -980,7 +972,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           }
           
           await fetchMasterData('vendor');
-          message.success('マスタを追加しました');
+          message.success(t('masterManagement.messages.addSuccess'));
         }
       } else if (selectedMasterInfo?.masterId === '1') {
         // Creatorマスタ
@@ -1057,9 +1049,8 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           }
           
           await fetchMasterData('creator');
-          message.success('マスタ情報を更新しました');
+          message.success(t('masterManagement.messages.saveSuccess'));
         } else {
-          // 新規追加の場合 - POST
           const response = await fetch(`${apiUrl}/master/creator`, {
             method: 'POST',
             headers: {
@@ -1088,7 +1079,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           }
           
           await fetchMasterData('creator');
-          message.success('マスタを追加しました');
+          message.success(t('masterManagement.messages.addSuccess'));
         }
       } else {
         // その他のマスタ（従来のローカル処理）
@@ -1098,14 +1089,12 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           setMasters(masters.map(m => 
             m[idField] === editingMaster[idField] ? { ...m, ...values } : m
           ));
-          message.success('マスタ情報を更新しました');
+          message.success(t('masterManagement.messages.saveSuccess'));
         } else {
-          // 新規追加の場合
           const newRecord: MasterRecord = { ...values };
-  
           newRecord.isActive = values.isActive !== undefined ? values.isActive : true;
           setMasters([...masters, newRecord]);
-          message.success('マスタを追加しました');
+          message.success(t('masterManagement.messages.addSuccess'));
         }
       }
       
@@ -1240,21 +1229,21 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         {/* 左側：マスタ選択と表示切替（initialMasterIdが指定されていない場合のみ表示） */}
         {!initialMasterId && (
           <Flex gap="middle" align="center">
-            <Text strong style={{ fontSize: token.fontSizeLG }}>マスタ選択：</Text>
+            <Text strong style={{ fontSize: token.fontSizeLG }}>{t('masterManagement.masterSelect')}：</Text>
             <Select
               style={{ width: 300 }}
               value={selectedMasterType}
               onChange={setSelectedMasterType}
               options={masterTypes}
             />
-            <Text strong style={{ fontSize: token.fontSizeLG, marginLeft: 16 }}>表示切替：</Text>
+            <Text strong style={{ fontSize: token.fontSizeLG, marginLeft: 16 }}>{t('masterManagement.displayScope')}：</Text>
             <Select
               style={{ width: 200 }}
               value={displayScope}
               onChange={setDisplayScope}
               options={[
-                { value: 'all', label: '全体' },
-                { value: 'own', label: '自組織' },
+                { value: 'all', label: t('masterManagement.displayScopeOptions.all') },
+                { value: 'own', label: t('masterManagement.displayScopeOptions.own') },
               ]}
             />
           </Flex>
@@ -1263,13 +1252,13 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
         {/* 右側：操作ボタン */}
         <Flex gap="small">
           <Button icon={<UploadOutlined />} onClick={handleUpload} disabled={isReadOnly}>
-            CSV<br />アップロード
+            {t('masterManagement.buttons.csvUpload')}
           </Button>
           <Button icon={<DownloadOutlined />} onClick={handleDownload}>
-            CSV<br />ダウンロード
+            {t('masterManagement.buttons.csvDownload')}
           </Button>
           <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={isReadOnly}>
-            追加
+            {t('masterManagement.buttons.add')}
           </Button>
           <Button
             icon={<DeleteOutlined />}
@@ -1282,7 +1271,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
               color: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWhite : undefined,
             }}
           >
-            アクティブ
+            {t('masterManagement.buttons.activate')}
           </Button>
           <Button
             danger
@@ -1296,10 +1285,10 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
               color: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWhite : undefined,
             }}
           >
-            非アクティブ
+            {t('masterManagement.buttons.deactivate')}
           </Button>
           <Button icon={<ReloadOutlined />} onClick={handleReload}>
-            リロード
+            {t('masterManagement.buttons.reload')}
           </Button>
         </Flex>
       </div>
@@ -1369,7 +1358,7 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
             pageSize: 20,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100'],
-            showTotal: (total) => `全 ${total} 件`,
+            showTotal: (total) => t('masterManagement.pagination.showTotal').replace('{total}', String(total)),
           }}
           rowClassName={(record) => {
             // Creatorマスタ（masterId="1"）の場合、VendorとInstrumentの状態チェック
@@ -1402,21 +1391,16 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
       {/* マスタ追加/編集モーダル */}
       <Modal
         title={
-          selectedMasterInfo?.masterId === '0' 
+          selectedMasterInfo?.masterId === '0'
             ? ''
-            : (editingMaster ? 'マスタ編集' : 'マスタ追加')
+            : (editingMaster ? t('masterManagement.modal.editTitle') : t('masterManagement.modal.addTitle'))
         }
-        // title={
-        //   selectedMasterInfo?.masterId === '2' 
-        //     ? (editingMaster ? 'マスタ編集' : 'マスタ追加')
-        //     : ''
-        // }
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         width={600}
-        okText="保存"
-        cancelText="キャンセル"
+        okText={t('masterManagement.buttons.save')}
+        cancelText={t('masterManagement.buttons.cancel')}
       >
         <Form form={form} layout="vertical">
           {selectedMasterInfo && Object.entries(selectedMasterInfo.itemCategories).map(([key, category], index) => {
@@ -1502,11 +1486,11 @@ export default function MasterManagementMock({ initialMasterId }: MasterManageme
           
           {/* 状態フィールドを表示 */}
           {(
-            <Form.Item name="isActive" label="状態">
+            <Form.Item name="isActive" label={t('masterManagement.form.status')}>
               <Select
                 options={[
-                  { value: true, label: 'アクティブ' },
-                  { value: false, label: '非アクティブ' },
+                  { value: true, label: t('masterManagement.status.active') },
+                  { value: false, label: t('masterManagement.status.inactive') },
                 ]}
               />
             </Form.Item>

@@ -27,6 +27,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { createApiClient } from '@/utils/authUtils';
 import { formatDateTime } from '@/utils/dateFormatter';
 import { getMenuPermission } from '@/utils/menuPermissions';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -46,6 +47,7 @@ interface CorporationData {
  */
 export default function CorporationManagement() {
   const { modal, message: messageApi } = App.useApp();
+  const { t } = useLanguage();
 
   // 権限制御: provider メニュー（機能CD: 010000）の permission が 0 の場合は読取専用
   const isReadOnly = getMenuPermission('provider') === 0;
@@ -76,12 +78,12 @@ export default function CorporationManagement() {
         setCorporations(response.data.data);
       } else {
         console.error('Unexpected response format:', response.data);
-        messageApi.error('データ形式が不正です');
+        messageApi.error(t('corporationManagement.messages.invalidDataFormat'));
         setCorporations([]);
       }
     } catch (error) {
       console.error('Corporation取得エラー:', error);
-      messageApi.error('会社データの取得に失敗しました');
+      messageApi.error(t('corporationManagement.messages.fetchError'));
       setCorporations([]); // エラー時は空配列を設定
     } finally {
       setLoading(false);
@@ -121,7 +123,7 @@ export default function CorporationManagement() {
       title: (
         <div style={{ textAlign: 'center' }}>
           <Space size="middle" align="center">
-            <span>会社名</span>
+            <span>{t('corporationManagement.columns.corporationName')}</span>
             <Badge
               count={activeCorporationCount}
               style={{
@@ -147,7 +149,7 @@ export default function CorporationManagement() {
       ),
     },
     {
-      title: <div style={{ textAlign: 'center' }}>更新日時</div>,
+      title: <div style={{ textAlign: 'center' }}>{t('corporationManagement.columns.updatedAt')}</div>,
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 160,
@@ -168,7 +170,7 @@ export default function CorporationManagement() {
             onClick={() => handleEdit(record)}
             disabled={isReadOnly}
           >
-            編集
+            {t('corporationManagement.buttons.edit')}
           </Button>
           <Button
             onClick={() => handleToggleActive(record)}
@@ -176,7 +178,7 @@ export default function CorporationManagement() {
             style={{ width: '100px' }}
             disabled={isReadOnly}
           >
-            {record.isActive ? '非アクティブ' : 'アクティブ'}
+            {record.isActive ? t('corporationManagement.status.inactive') : t('corporationManagement.status.active')}
           </Button>
         </Space>
       ),
@@ -200,15 +202,15 @@ export default function CorporationManagement() {
   // アクティブ化（一括）
   const handleActivate = async () => {
     if (selectedRowKeys.length === 0) {
-      messageApi.warning('アクティブにする会社を選択してください');
+      messageApi.warning(t('corporationManagement.messages.activateSelectRequired'));
       return;
     }
     
     modal.confirm({
-      title: '選択した会社をアクティブにしますか？',
-      content: `${selectedRowKeys.length}件の会社がアクティブになります。`,
-      okText: 'アクティブ化',
-      cancelText: 'キャンセル',
+      title: t('corporationManagement.messages.activateConfirmTitle'),
+      content: t('corporationManagement.messages.activateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      okText: t('corporationManagement.status.active'),
+      cancelText: t('corporationManagement.buttons.cancel'),
       onOk: async () => {
         try {
           const client = createApiClient();
@@ -220,12 +222,12 @@ export default function CorporationManagement() {
             );
           }
           
-          messageApi.success(`${selectedRowKeys.length}件の会社をアクティブにしました`);
+          messageApi.success(t('corporationManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
           setSelectedRowKeys([]);
           await fetchCorporations();
         } catch (error) {
           console.error('アクティブ化エラー:', error);
-          messageApi.error('アクティブ化に失敗しました');
+          messageApi.error(t('corporationManagement.messages.activateError'));
         }
       },
     });
@@ -234,15 +236,15 @@ export default function CorporationManagement() {
   // 非アクティブ化（一括）
   const handleDeactivate = async () => {
     if (selectedRowKeys.length === 0) {
-      messageApi.warning('非アクティブにする会社を選択してください');
+      messageApi.warning(t('corporationManagement.messages.deactivateSelectRequired'));
       return;
     }
     
     modal.confirm({
-      title: '選択した会社を非アクティブにしますか？',
-      content: `${selectedRowKeys.length}件の会社が非アクティブになります。`,
-      okText: '非アクティブ化',
-      cancelText: 'キャンセル',
+      title: t('corporationManagement.messages.deactivateConfirmTitle'),
+      content: t('corporationManagement.messages.deactivateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      okText: t('corporationManagement.status.inactive'),
+      cancelText: t('corporationManagement.buttons.cancel'),
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
@@ -255,12 +257,12 @@ export default function CorporationManagement() {
             );
           }
           
-          messageApi.success(`${selectedRowKeys.length}件の会社を非アクティブにしました`);
+          messageApi.success(t('corporationManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
           setSelectedRowKeys([]);
           await fetchCorporations();
         } catch (error) {
           console.error('非アクティブ化エラー:', error);
-          messageApi.error('非アクティブ化に失敗しました');
+          messageApi.error(t('corporationManagement.messages.deactivateError'));
         }
       },
     });
@@ -268,14 +270,14 @@ export default function CorporationManagement() {
 
   // アクティブ/非アクティブ切り替え（個別）
   const handleToggleActive = async (corporation: CorporationData) => {
-    const actionText = corporation.isActive ? '非アクティブ' : 'アクティブ';
+    const actionText = corporation.isActive ? t('corporationManagement.status.inactive') : t('corporationManagement.status.active');
     const corporationName = corporation.corporationName;
 
     modal.confirm({
-      title: `${corporationName}を${actionText}にしますか？`,
-      content: `この会社を${actionText}状態に変更します。`,
+      title: t('corporationManagement.messages.toggleConfirmTitle').replace('{name}', corporationName).replace('{action}', actionText),
+      content: t('corporationManagement.messages.toggleConfirmContent').replace('{action}', actionText),
       okText: actionText,
-      cancelText: 'キャンセル',
+      cancelText: t('corporationManagement.buttons.cancel'),
       okButtonProps: corporation.isActive ? { danger: true } : undefined,
       onOk: async () => {
         try {
@@ -285,11 +287,11 @@ export default function CorporationManagement() {
             { isActive: !corporation.isActive }
           );
           
-          messageApi.success(`${corporationName}を${actionText}にしました`);
+          messageApi.success(t('corporationManagement.messages.toggleSuccess').replace('{name}', corporationName).replace('{action}', actionText));
           await fetchCorporations();
         } catch (error) {
           console.error('ステータス変更エラー:', error);
-          messageApi.error(`ステータスの変更に失敗しました`);
+          messageApi.error(t('corporationManagement.messages.toggleError'));
         }
       },
     });
@@ -300,7 +302,7 @@ export default function CorporationManagement() {
     setSearchText('');
     setSelectedRowKeys([]);
     await fetchCorporations();
-    messageApi.success('データをリロードしました');
+    messageApi.success(t('corporationManagement.messages.reloadSuccess'));
   };
 
   // CSVダウンロード
@@ -355,10 +357,10 @@ export default function CorporationManagement() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      messageApi.success('CSVファイルをダウンロードしました');
+      messageApi.success(t('corporationManagement.messages.csvDownloadSuccess'));
     } catch (error) {
       console.error('CSV download error:', error);
-      messageApi.error('CSVダウンロードに失敗しました');
+      messageApi.error(t('corporationManagement.messages.csvDownloadError'));
     } finally {
       setLoading(false);
     }
@@ -404,7 +406,7 @@ export default function CorporationManagement() {
         
         // 成功時はログ出力のみ
         console.log(`CSV upload successful: ${result.successCount} records created`);
-        messageApi.success('CSVファイルをアップロードしました');
+        messageApi.success(t('corporationManagement.messages.csvUploadSuccess'));
       }
       
       await fetchCorporations();
@@ -417,7 +419,7 @@ export default function CorporationManagement() {
       
       // HTTPエラーの場合
       console.error('CSV upload error:', error);
-      messageApi.error('CSVアップロードに失敗しました');
+      messageApi.error(t('corporationManagement.messages.csvUploadError'));
     } finally {
       setLoading(false);
     }
@@ -435,14 +437,14 @@ export default function CorporationManagement() {
           `/provider/corporation/${editingCorporation.corporationId}`,
           values
         );
-        messageApi.success('会社情報を更新しました');
+        messageApi.success(t('corporationManagement.messages.saveSuccess'));
       } else {
         // 新規作成
         await client.post(
           '/provider/corporation',
           values
         );
-        messageApi.success('会社を追加しました');
+        messageApi.success(t('corporationManagement.messages.addSuccess'));
       }
       
       setIsModalVisible(false);
@@ -454,7 +456,7 @@ export default function CorporationManagement() {
       if (axiosError.response?.data?.error?.message) {
         messageApi.error(axiosError.response.data.error.message);
       } else {
-        messageApi.error('保存に失敗しました');
+        messageApi.error(t('corporationManagement.messages.saveError'));
       }
     }
   };
@@ -486,14 +488,14 @@ export default function CorporationManagement() {
             onClick={() => document.getElementById('csv-upload')?.click()}
             disabled={isReadOnly}
           >
-            CSV<br />アップロード
+            {t('corporationManagement.buttons.csvUpload')}
           </Button>
         </label>
         <Button icon={<DownloadOutlined />} onClick={handleDownload}>
-          CSV<br />ダウンロード
+          {t('corporationManagement.buttons.csvDownload')}
         </Button>
         <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={isReadOnly}>
-          追加
+          {t('corporationManagement.buttons.add')}
         </Button>
         <Button
           onClick={handleActivate}
@@ -505,7 +507,7 @@ export default function CorporationManagement() {
             color: !isReadOnly && selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
-          アクティブ
+          {t('corporationManagement.buttons.activate')}
         </Button>
         <Button
           danger
@@ -518,10 +520,10 @@ export default function CorporationManagement() {
             color: !isReadOnly && selectedRowKeys.length > 0 ? '#fff' : undefined,
           }}
         >
-          非アクティブ
+          {t('corporationManagement.buttons.deactivate')}
         </Button>
         <Button icon={<ReloadOutlined />} onClick={handleReload}>
-          リロード
+          {t('corporationManagement.buttons.reload')}
         </Button>
       </div>
 
@@ -536,7 +538,7 @@ export default function CorporationManagement() {
         <Row gutter={16} style={{ marginBottom: 8 }}>
           <Col style={{ width: 400 }}>
             <Input
-              placeholder="会社名、更新日時で検索"
+              placeholder={t('corporationManagement.searchPlaceholder')}
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -557,42 +559,42 @@ export default function CorporationManagement() {
             pageSize: 20,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100'],
-            showTotal: (total) => `全 ${total} 件`,
+          showTotal: (total) => t('corporationManagement.pagination.showTotal').replace('{total}', String(total)),
           }}
           rowClassName={(record) => (!record.isActive ? 'inactive-row' : '')}
         />
       </div>
 
       <Modal
-        title={editingCorporation ? '会社編集' : '会社追加'}
+        title={editingCorporation ? t('corporationManagement.modal.editTitle') : t('corporationManagement.modal.addTitle')}
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         width={600}
-        okText="保存"
-        cancelText="キャンセル"
+        okText={t('corporationManagement.buttons.save')}
+        cancelText={t('corporationManagement.buttons.cancel')}
       >
         <Form form={form} layout="vertical" initialValues={{ isActive: true }}>
           <Form.Item
             name="corporationName"
-            label="会社名"
+            label={t('corporationManagement.form.corporationName')}
             rules={[
-              { required: true, message: '会社名を入力してください' },
-              { max: 50, message: '会社名は1〜50文字で入力してください' },
+              { required: true, message: t('corporationManagement.form.corporationNameRequired') },
+              { max: 50, message: t('corporationManagement.form.corporationNameMaxLength') },
             ]}
           >
-            <Input placeholder="株式会社サンプル" />
+            <Input placeholder={t('corporationManagement.form.corporationNamePlaceholder')} />
           </Form.Item>
 
           <Form.Item
             name="isActive"
-            label="状態"
+            label={t('corporationManagement.form.status')}
             rules={[{ required: true }]}
           >
             <Select
               options={[
-                { value: true, label: 'アクティブ' },
-                { value: false, label: '非アクティブ' },
+                { value: true, label: t('corporationManagement.status.active') },
+                { value: false, label: t('corporationManagement.status.inactive') },
               ]}
             />
           </Form.Item>
