@@ -1,113 +1,234 @@
-# mmdpf Docker Compose Configuration
-version: '3.8'
+# =============================================================================
+# mmdpf Docker Compose - 本番オンプレ環境用（全サービス）
+# =============================================================================
+#
+# 使い方:
+#   全サービスを起動（オンプレ標準）
+#     docker-compose up -d
+#
+# 事前準備:
+#   cp .env.prod.onprem.example .env
+#   vi .env  # 環境に合わせて編集
+#
+# バックアップ:
+#   このファイルの変更前バックアップ → docker-compose.yml.bak
+# =============================================================================
 
 services:
-  # PostgreSQL Database
+
+  # ===========================================================================
+  # PostgreSQL - リレーショナルデータベース
+  # ===========================================================================
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: mmdpf-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: mmdpf_db
-      POSTGRES_USER: mmdpf_user
-      POSTGRES_PASSWORD: mmdpf_password
+      POSTGRES_DB: ${DB_NAME:-mmdpf_db}
+      POSTGRES_USER: ${DB_USER:-mmdpf_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-mmdpf_password}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - mmdpf-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mmdpf_user"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-mmdpf_user} -d ${DB_NAME:-mmdpf_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
 
-  # OpenStack Swift (Object Storage)
+  # ===========================================================================
+  # Redis - セッションストア
+  # ===========================================================================
+  redis:
+    image: redis:8-alpine
+    container_name: mmdpf-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - mmdpf-network
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-}
+      --maxmemory ${REDIS_MAXMEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ===========================================================================
+  # OpenStack Swift - オブジェクトストレージ（オンプレ専用）
+  # ===========================================================================
   swift:
     image: bouncestorage/swift-aio:latest
     container_name: mmdpf-swift
+    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${SWIFT_PORT:-8080}:8080"
     environment:
-      - AUTH_URL=http://localhost:8080/auth/v1.0
-      - ACCOUNT=test
-      - USER=tester
-      - PASSWORD=testing
+      - AUTH_URL=http://localhost:${SWIFT_PORT:-8080}/auth/v1.0
+      - ACCOUNT=${SWIFT_ACCOUNT:-mmdpf}
+      - USER=${SWIFT_USER:-mmdpf_user}
+      - PASSWORD=${SWIFT_PASSWORD:-mmdpf_password}
     volumes:
       - swift-data:/srv
     networks:
       - mmdpf-network
     healthcheck:
-      test: ["CMD", "swift", "-A", "http://localhost:8080/auth/v1.0", "-U", "test:tester", "-K", "testing", "stat"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/healthcheck || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
 
-  # Redis (Session Store)
-  redis:
-    image: redis:7-alpine
-    container_name: mmdpf-redis
+  # ===========================================================================
+  # Backend - Node.js/Express APIサーバー
+  # ===========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    image: mmdpf-backend:${IMAGE_TAG:-latest}
+    container_name: mmdpf-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
     ports:
-      - "6379:6379"
+      - "${BACKEND_PORT:-3001}:3001"
     volumes:
-      - redis-data:/data
+      - ./backend/certs:/app/certs:ro
+      - backend-logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      swift:
+        condition: service_started
     networks:
       - mmdpf-network
-    command: redis-server --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
-  # Backend API Server (開発時に使用)
-  # backend:
-  #   build:
-  #     context: ./backend
-  #     dockerfile: Dockerfile
-  #   container_name: mmdpf-backend
-  #   ports:
-  #     - "3001:3001"
-  #   environment:
-  #     - NODE_ENV=development
-  #   env_file:
-  #     - ./backend/.env
-  #   volumes:
-  #     - ./backend:/app
-  #     - /app/node_modules
-  #   depends_on:
-  #     - postgres
-  #     - swift
-  #   networks:
-  #     - mmdpf-network
+  # ===========================================================================
+  # Frontend - Next.js フロントエンドサーバー
+  # ===========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    image: mmdpf-frontend:${IMAGE_TAG:-latest}
+    container_name: mmdpf-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - mmdpf-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
-  # Frontend (開発時に使用)
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: mmdpf-frontend
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - NODE_ENV=development
-  #   volumes:
-  #     - ./frontend:/app
-  #     - /app/node_modules
-  #   depends_on:
-  #     - backend
-  #   networks:
-  #     - mmdpf-network
+  # ===========================================================================
+  # Nginx - リバースプロキシ（SSL終端・クライアント証明書認証）
+  # ===========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: mmdpf-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ${SSL_CERT_DIR:-./backend/certs/server}:/etc/nginx/ssl:ro
+      - ${CA_CERT_DIR:-./backend/certs/ca}:/etc/nginx/ssl/ca:ro
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - mmdpf-network
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t && wget -qO- http://localhost/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
+# =============================================================================
+# Volumes
+# =============================================================================
 volumes:
   postgres-data:
     name: mmdpf_postgres-data
-  swift-data:
-    name: mmdpf_swift-data
   redis-data:
     name: mmdpf_redis-data
+  swift-data:
+    name: mmdpf_swift-data
+  backend-logs:
+    name: mmdpf_backend-logs
+  nginx-logs:
+    name: mmdpf_nginx-logs
 
+# =============================================================================
+# Networks
+# =============================================================================
 networks:
   mmdpf-network:
     name: mmdpf-network
