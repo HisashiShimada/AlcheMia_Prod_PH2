@@ -12,6 +12,7 @@ import { loadSqlFile } from '../sql/loader';
 import { generateAndSaveCertificate } from './certificateService';
 import { getStorageService } from './storageService';
 import { logger } from '../utils/logger';
+import { getMessage } from '../utils/messages';
 
 /**
  * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）
@@ -179,12 +180,13 @@ export async function createOrganization(
     contractedUsers?: number | null;
     contractedProjects?: number | null;
   },
-  userId: string
+  userId: string,
+  lang: string = 'ja'
 ): Promise<OrganizationResponse> {
   // ID重複チェック
   const exists = await organizationRepository.existsById(data.organizationId);
   if (exists) {
-    const error: any = new Error('入力されたIDは既に存在しています');
+    const error: any = new Error(getMessage(lang, 'organization.duplicateId'));
     error.statusCode = 409;
     error.code = 'DUPLICATE_ORGANIZATION_ID';
     throw error;
@@ -193,7 +195,7 @@ export async function createOrganization(
   // 組織CD重複チェック
   const cdExists = await organizationRepository.existsByCd(data.organizationCd);
   if (cdExists) {
-    const error: any = new Error('入力された組織CDは既に存在しています');
+    const error: any = new Error(getMessage(lang, 'organization.duplicateCd'));
     error.statusCode = 409;
     error.code = 'DUPLICATE_ORGANIZATION_CD';
     throw error;
@@ -507,9 +509,9 @@ export async function getSystemAdminsByOrganizationId(
 }
 
 /**
- * 情報ダウンロード用CSVデータ型定義
+ * 情報ダウンロード用CSVデータ型定義（日本語ヘッダー）
  */
-export interface OrganizationInformationCsvRow {
+export interface OrganizationInformationCsvRowJa {
   '組織CD': string;
   '組織表示名': string;
   '組織e-mail': string;
@@ -524,11 +526,32 @@ export interface OrganizationInformationCsvRow {
 }
 
 /**
+ * 情報ダウンロード用CSVデータ型定義（英語ヘッダー）
+ */
+export interface OrganizationInformationCsvRowEn {
+  'Organization CD': string;
+  'Organization Display Name': string;
+  'Organization E-mail': string;
+  'Chief System Administrator': string;
+  'Corporation Name': string;
+  'Contract Capacity': string;
+  'Contracted Users': string;
+  'Contracted Projects': string;
+  'Storage Usage': string;
+  'Projects': string;
+  'Active Users': string;
+}
+
+/** 情報ダウンロード用CSVデータ型定義（言語共通） */
+export type OrganizationInformationCsvRow = OrganizationInformationCsvRowJa | OrganizationInformationCsvRowEn;
+
+/**
  * 情報ダウンロード用：全組織の統計情報を収集してCSVデータを返す
  *
+ * @param lang 言語コード（'ja' または 'en'、デフォルト: 'ja'）
  * @returns 情報ダウンロード用CSVデータの配列
  */
-export async function downloadOrganizationsInformation(): Promise<OrganizationInformationCsvRow[]> {
+export async function downloadOrganizationsInformation(lang: string = 'ja'): Promise<OrganizationInformationCsvRow[]> {
   // DB から組織統計情報を取得
   const orgs = await organizationRepository.findAllWithStats();
 
@@ -577,19 +600,35 @@ export async function downloadOrganizationsInformation(): Promise<OrganizationIn
       ? `${org.contract_projects}`
       : '';
 
-    rows.push({
-      '組織CD': org.organization_cd || '',
-      '組織表示名': org.organization_display_name || '',
-      '組織e-mail': org.organization_email || '',
-      '代表システム管理者': org.chief_user_name || '',
-      '会社名': org.corporation_name || '',
-      '契約容量': contractCapacityDisplay,
-      '契約ユーザー数': contractedUsersDisplay,
-      '契約プロジェクト数': contractedProjectsDisplay,
-      'ストレージ使用量': storageDisplay,
-      'プロジェクト数': projectDisplay,
-      'アクティブユーザー数': activeUserDisplay,
-    });
+    if (lang === 'en') {
+      (rows as OrganizationInformationCsvRowEn[]).push({
+        'Organization CD': org.organization_cd || '',
+        'Organization Display Name': org.organization_display_name || '',
+        'Organization E-mail': org.organization_email || '',
+        'Chief System Administrator': org.chief_user_name || '',
+        'Corporation Name': org.corporation_name || '',
+        'Contract Capacity': contractCapacityDisplay,
+        'Contracted Users': contractedUsersDisplay,
+        'Contracted Projects': contractedProjectsDisplay,
+        'Storage Usage': storageDisplay,
+        'Projects': projectDisplay,
+        'Active Users': activeUserDisplay,
+      });
+    } else {
+      (rows as OrganizationInformationCsvRowJa[]).push({
+        '組織CD': org.organization_cd || '',
+        '組織表示名': org.organization_display_name || '',
+        '組織e-mail': org.organization_email || '',
+        '代表システム管理者': org.chief_user_name || '',
+        '会社名': org.corporation_name || '',
+        '契約容量': contractCapacityDisplay,
+        '契約ユーザー数': contractedUsersDisplay,
+        '契約プロジェクト数': contractedProjectsDisplay,
+        'ストレージ使用量': storageDisplay,
+        'プロジェクト数': projectDisplay,
+        'アクティブユーザー数': activeUserDisplay,
+      });
+    }
   }
 
   return rows;
@@ -629,7 +668,8 @@ interface CsvUploadResult {
  */
 export async function uploadOrganizationsCsv(
   csvContent: string,
-  userId: string
+  userId: string,
+  lang: string = 'ja'
 ): Promise<CsvUploadResult> {
   // CSVをパース
   const parseResult = Papa.parse<CsvRow>(csvContent, {
@@ -656,7 +696,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'organization_cd',
-        message: `${rowNumber}行目: 組織CDは必須です`
+        message: getMessage(lang, 'organization.csv.cdRequired', { row: String(rowNumber) }),
       });
       break;
     }
@@ -665,7 +705,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'organization_display_name',
-        message: `${rowNumber}行目: 組織表示名は必須です`
+        message: getMessage(lang, 'organization.csv.displayNameRequired', { row: String(rowNumber) }),
       });
       break;
     }
@@ -674,7 +714,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'organization_email',
-        message: `${rowNumber}行目: 組織e-mailは必須です`
+        message: getMessage(lang, 'organization.csv.emailRequired', { row: String(rowNumber) }),
       });
       break;
     }
@@ -683,7 +723,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'chief_user_name',
-        message: `${rowNumber}行目: 代表システム管理者は必須です`
+        message: getMessage(lang, 'organization.csv.chiefUserNameRequired', { row: String(rowNumber) }),
       });
       break;
     }
@@ -692,7 +732,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'chief_user_email',
-        message: `${rowNumber}行目: 代表者メールアドレスは必須です`
+        message: getMessage(lang, 'organization.csv.chiefUserEmailRequired', { row: String(rowNumber) }),
       });
       break;
     }
@@ -703,7 +743,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'is_entry',
-        message: `${rowNumber}行目: is_entryは0または1である必要があります`
+        message: getMessage(lang, 'organization.csv.isEntryInvalid', { row: String(rowNumber) }),
       });
       break;
     }
@@ -715,7 +755,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'use_deemed_progress',
-        message: `${rowNumber}行目: use_deemed_progressは true/false/1/0 のいずれかである必要があります`
+        message: getMessage(lang, 'organization.csv.useDeemedProgressInvalid', { row: String(rowNumber) }),
       });
       break;
     }
@@ -727,7 +767,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'is_active',
-        message: `${rowNumber}行目: is_activeは true/false/1/0 のいずれかである必要があります`
+        message: getMessage(lang, 'organization.csv.isActiveInvalid', { row: String(rowNumber) }),
       });
       break;
     }
@@ -738,7 +778,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'organization_cd',
-        message: `${rowNumber}行目: 組織CD「${organizationCd}」はCSV内で重複しています`
+        message: getMessage(lang, 'organization.csv.cdDuplicateInCsv', { row: String(rowNumber), cd: organizationCd }),
       });
       break;
     }
@@ -750,7 +790,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'organization_cd',
-        message: `${rowNumber}行目: 組織CD「${organizationCd}」は既に存在します`
+        message: getMessage(lang, 'organization.csv.cdAlreadyExists', { row: String(rowNumber), cd: organizationCd }),
       });
       break;
     }
@@ -766,7 +806,7 @@ export async function uploadOrganizationsCsv(
         validationErrors.push({
           row: rowNumber,
           field: 'corporation_name',
-          message: `${rowNumber}行目: 会社名「${corporationName}」は登録されていません`
+          message: getMessage(lang, 'organization.csv.corporationNotFound', { row: String(rowNumber), name: corporationName }),
         });
         break;
       }
@@ -778,7 +818,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'contract_capacity',
-        message: `${rowNumber}行目: contract_capacityは数値で入力してください`
+        message: getMessage(lang, 'organization.csv.contractCapacityNotNumber', { row: String(rowNumber) }),
       });
       break;
     }
@@ -789,7 +829,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'contract_users',
-        message: `${rowNumber}行目: contract_usersは数値で入力してください`
+        message: getMessage(lang, 'organization.csv.contractUsersNotNumber', { row: String(rowNumber) }),
       });
       break;
     }
@@ -800,7 +840,7 @@ export async function uploadOrganizationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'contract_projects',
-        message: `${rowNumber}行目: contract_projectsは数値で入力してください`
+        message: getMessage(lang, 'organization.csv.contractProjectsNotNumber', { row: String(rowNumber) }),
       });
       break;
     }
@@ -877,7 +917,7 @@ export async function uploadOrganizationsCsv(
         contractCapacity,
         contractedUsers,
         contractedProjects,
-      }, userId);
+      }, userId, lang);
       
       successCount++;
     }

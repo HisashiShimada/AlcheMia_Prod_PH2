@@ -5,6 +5,7 @@
 
 import * as userRepository from '../repositories/userRepository';
 import { UserRow } from '../repositories/userRepository';
+import { getMessage } from '../utils/messages';
 import { UserSearchFilters } from '../types/database';
 import Papa from 'papaparse';
 import { getPgp } from '../database/db';
@@ -91,7 +92,7 @@ export async function createUser(
   // 重複チェック
   const exists = await userRepository.existsById(organizationId, data.userId);
   if (exists) {
-    throw new Error('このユーザーIDは既に使用されています');
+    throw new Error(getMessage('ja', 'user.duplicateUserId'));
   }
 
   // ランダムパスワードを自動生成
@@ -266,7 +267,8 @@ interface CsvUploadResult {
 export async function uploadUsersFromCSV(
   organizationId: string,
   csvContent: string,
-  userId: string
+  userId: string,
+  lang: string = 'ja'
 ): Promise<CsvUploadResult> {
   // CSVをパース
   const parseResult = Papa.parse<CsvRow>(csvContent, {
@@ -291,7 +293,7 @@ export async function uploadUsersFromCSV(
       validationErrors.push({
         row: rowNumber,
         field: 'ユーザー名',
-        message: `${rowNumber}行目: ユーザー名は必須です`
+        message: getMessage(lang, 'user.csv.userNameRequired', { row: String(rowNumber) }),
       });
       break; // 最初のエラーで停止
     }
@@ -300,7 +302,7 @@ export async function uploadUsersFromCSV(
       validationErrors.push({
         row: rowNumber,
         field: 'メールアドレス',
-        message: `${rowNumber}行目: メールアドレスは必須です`
+        message: getMessage(lang, 'user.csv.mailAddressRequired', { row: String(rowNumber) }),
       });
       break; // 最初のエラーで停止
     }
@@ -309,7 +311,7 @@ export async function uploadUsersFromCSV(
       validationErrors.push({
         row: rowNumber,
         field: 'ロール',
-        message: `${rowNumber}行目: ロールは必須です`
+        message: getMessage(lang, 'user.csv.roleCdRequired', { row: String(rowNumber) }),
       });
       break; // 最初のエラーで停止
     }
@@ -320,7 +322,7 @@ export async function uploadUsersFromCSV(
       validationErrors.push({
         row: rowNumber,
         field: 'メールアドレス',
-        message: `${rowNumber}行目: メールアドレスの形式が不正です`
+        message: getMessage(lang, 'user.csv.mailAddressInvalid', { row: String(rowNumber) }),
       });
       break; // 最初のエラーで停止
     }
@@ -332,7 +334,7 @@ export async function uploadUsersFromCSV(
       validationErrors.push({
         row: rowNumber,
         field: 'アクティブ判定',
-        message: `${rowNumber}行目: アクティブ判定は true/false/1/0 のいずれかである必要があります`
+        message: getMessage(lang, 'user.csv.isActiveInvalid', { row: String(rowNumber) }),
       });
       break; // 最初のエラーで停止
     }
@@ -342,7 +344,7 @@ export async function uploadUsersFromCSV(
       validationErrors.push({
         row: rowNumber,
         field: 'メールアドレス',
-        message: `${rowNumber}行目: メールアドレス「${mailAddress}」はCSV内で重複しています`
+        message: getMessage(lang, 'user.csv.mailAddressDuplicateInCsv', { row: String(rowNumber), mail: mailAddress }),
       });
       break; // 最初のエラーで停止
     }
@@ -354,7 +356,7 @@ export async function uploadUsersFromCSV(
       validationErrors.push({
         row: rowNumber,
         field: 'メールアドレス',
-        message: `${rowNumber}行目: メールアドレス「${mailAddress}」は既に存在します`
+        message: getMessage(lang, 'user.csv.mailAddressAlreadyExists', { row: String(rowNumber), mail: mailAddress }),
       });
       break; // 最初のエラーで停止
     }
