@@ -135,18 +135,15 @@ router.get(
       .isString()
       .withMessage('projectIdは文字列である必要があります'),
     query('methodId')
-      .notEmpty()
-      .withMessage('methodIdは必須です')
+      .optional()
       .isString()
       .withMessage('methodIdは文字列である必要があります'),
     query('taskNo')
-      .notEmpty()
-      .withMessage('taskNoは必須です')
+      .optional()
       .isInt({ min: 1 })
       .withMessage('taskNoは1以上の整数である必要があります'),
     query('transitionId')
-      .notEmpty()
-      .withMessage('transitionIdは必須です')
+      .optional()
       .isString()
       .withMessage('transitionIdは文字列である必要があります'),
     query('status')

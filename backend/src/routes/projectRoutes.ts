@@ -301,6 +301,31 @@ router.get(
 );
 
 /**
+ * レビュー待ちタスクを一括完了に更新
+ * POST /api/v1/projects/:projectName/tasks/complete-review
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description タスク結果確認タブで「タスク確認完了」ボタン押下時に呼び出す。
+ *              当該プロジェクトのレビュー待ち（review_waiting）タスクを全て完了（completed）に更新する。
+ * @roles experiment_admin（書込可）
+ */
+router.post(
+  '/:projectName/tasks/complete-review',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.completeReviewTasks
+);
+
+/**
  * プロジェクトタスク一覧取得
  * GET /api/v1/projects/:projectName/tasks
  * 

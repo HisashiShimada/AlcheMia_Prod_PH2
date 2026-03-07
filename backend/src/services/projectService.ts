@@ -1908,5 +1908,53 @@ export class ProjectService {
       };
     }
   }
+
+  /**
+   * レビュー待ちタスクを一括完了に更新
+   *
+   * @param organizationId 組織ID
+   * @param projectName プロジェクト名
+   * @returns 更新件数
+   */
+  async completeReviewTasks(
+    organizationId: string,
+    projectName: string
+  ): Promise<{
+    success: boolean;
+    data?: { updatedCount: number; message: string };
+    error?: { code: string; message: string };
+  }> {
+    try {
+      // プロジェクト名 → プロジェクトID
+      const projectRow = await projectRepository.findProjectIdByName(organizationId, projectName);
+      if (!projectRow) {
+        return {
+          success: false,
+          error: { code: 'RESOURCE_NOT_FOUND', message: 'プロジェクトが見つかりません' },
+        };
+      }
+
+      const updatedCount = await projectRepository.completeReviewTasks(
+        organizationId,
+        projectRow.project_id
+      );
+
+      return {
+        success: true,
+        data: {
+          updatedCount,
+          message: `レビュー待ちタスク ${updatedCount} 件を完了に更新しました`,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'データベースエラーが発生しました',
+        },
+      };
+    }
+  }
 }
   

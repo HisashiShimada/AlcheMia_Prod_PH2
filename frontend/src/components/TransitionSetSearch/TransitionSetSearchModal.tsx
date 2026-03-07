@@ -1,5 +1,5 @@
 /**
- * セマンティック検索モーダル
+ * トランジション検索モーダル
  *
  * @description 統合クエリ入力・クイック検索・重み調整・検索結果表示を統合したモーダルコンポーネント
  */
@@ -63,7 +63,7 @@ const QUICK_SEARCH_BUTTONS = [
 ] as const;
 
 /**
- * セマンティック検索モーダル
+ * トランジション検索モーダル
  */
 const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
   open,
@@ -171,7 +171,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
       title={
         <Space>
           <AccountBookOutlined />
-          <span>セマンティック検索</span>
+          <span>トランジション検索</span>
           {searched && hits.length > 0 && (
             <Badge count={hits.length} showZero color="blue" />
           )}

@@ -749,12 +749,13 @@ export class FileMetadataRepository {
       }
 
       if (mapping.isJsonb) {
-        // JSONB配列カラム: 配列に指定値が含まれるかを検索
-        // 例: fm.maiml_ids @> '["place_01"]'::jsonb
+        // JSONB配列カラム: 配列要素に対して部分一致（ILIKE）検索
+        // Reference版と同等の動作: LOWER(COALESCE(id, '')) LIKE LOWER('%値%')
+        // 例: EXISTS (SELECT 1 FROM jsonb_array_elements_text(fm.maiml_ids) AS elem WHERE LOWER(elem) ILIKE '%place%')
         additionalConditions.push(
-          `${mapping.column} @> $${paramIndex}::jsonb`
+          `EXISTS (SELECT 1 FROM jsonb_array_elements_text(${mapping.column}) AS elem WHERE LOWER(elem) ILIKE $${paramIndex})`
         );
-        params.push(JSON.stringify([criterion.value]));
+        params.push(`%${criterion.value.toLowerCase()}%`);
       } else {
         // テキストカラム: 部分一致（ILIKE）
         // 例: fm.maiml_document_name ILIKE '%サンプル%'
@@ -771,8 +772,8 @@ export class FileMetadataRepository {
       return [];
     }
 
-    // ベースクエリに動的条件を追加
-    const finalQuery = `${baseQuery}  AND ${additionalConditions.join('\n  AND ')}
+    // ベースクエリに動的条件を追加（Reference版と同様にOR結合）
+    const finalQuery = `${baseQuery}  AND (${additionalConditions.join('\n  OR ')})
 ORDER BY p.project_name ASC`;
 
     console.log('🔍 [FileMetadataRepository] MAIML検索クエリ実行:', {

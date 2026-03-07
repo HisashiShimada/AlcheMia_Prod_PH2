@@ -1324,6 +1324,33 @@ export const getInstructions = async (
  * }
  * ```
  */
+/**
+ * レビュー待ちタスクを一括完了に更新
+ * POST /api/v1/projects/:projectName/tasks/complete-review
+ *
+ * @param projectName プロジェクト名
+ * @returns 更新件数とメッセージ
+ */
+export const completeReviewTasks = async (
+  projectName: string
+): Promise<ApiResponse<{ updatedCount: number; message: string }>> => {
+  const client = createApiClient();
+  try {
+    console.log('[DEBUG] completeReviewTasks - Request', { projectName });
+    const response = await client.post<{
+      success: boolean;
+      data: { updatedCount: number; message: string };
+    }>(`/projects/${encodeURIComponent(projectName)}/tasks/complete-review`);
+    console.log('[DEBUG] completeReviewTasks - Success', {
+      updatedCount: response.data.data.updatedCount,
+    });
+    return response.data as ApiResponse<{ updatedCount: number; message: string }>;
+  } catch (error) {
+    console.error('[DEBUG] completeReviewTasks - Error', { error });
+    throw error;
+  }
+};
+
 export const getTaskRegistrationStatus = async (
   projectName: string
 ): Promise<TaskRegistrationStatusResponse> => {

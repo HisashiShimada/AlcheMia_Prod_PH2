@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
 import {
   Modal,
@@ -18,35 +18,46 @@ import {
   message,
   Row,
   Col,
+  Spin,
 } from 'antd';
 import {
   ExclamationCircleOutlined,
   CheckCircleOutlined,
   PlusOutlined,
-  SendOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import {
   Issue,
   IssueStatus,
   IssueTargetType,
-  IssueReportFormData,
   IssueComment,
   ProjectStatus,
 } from '@/types/experimentWorker';
+import {
+  getIssues,
+  createIssue,
+  addComment,
+  updateIssueStatus,
+} from '@/services/issueApiService';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
 
 interface IssueManagementModalProps {
   visible: boolean;
-  transitionId: string;
-  transitionName: string;
-  issues: Issue[];
+  /** タイトルに表示する名前 */
+  targetName: string;
+  /** 問題一覧取得・新規報告に必要なプロジェクトID */
+  projectId: string;
+  /** コメント追加・ステータス変更に必要なプロジェクト名 */
+  projectName: string;
+  /** オプション: 省略時はプロジェクト全件を取得 */
+  methodId?: string;
+  /** オプション: タスク単位の絞り込みに使用 */
+  taskNo?: number;
+  /** オプション: トランジション単位の絞り込みに使用 */
+  transitionId?: string;
   onClose: () => void;
-  onSubmitIssue?: (issue: IssueReportFormData) => void;
-  onSubmitComment?: (issueId: string, comment: string) => void;
-  onUpdateStatus?: (issueId: string, status: IssueStatus) => void;
   viewMode?: boolean; // 参照専用モード（デフォルト: false）
   filterTaskId?: string; // フィルタリング用タスクID
   projectStatus?: ProjectStatus | null; // プロジェクトステータス（編集可否の判定用）
@@ -54,47 +65,69 @@ interface IssueManagementModalProps {
 
 /**
  * 問題管理モーダル
- * トランジションに関連する問題の一覧表示、詳細閲覧、コメント入力機能を提供
+ * 問題一覧の取得・新規報告・コメント送信・ステータス変更をモーダル内部で行う
  */
 export default function IssueManagementModal({
   visible,
+  targetName,
+  projectId,
+  projectName,
+  methodId,
+  taskNo,
   transitionId,
-  transitionName,
-  issues,
   onClose,
-  onSubmitIssue,
-  onSubmitComment,
-  onUpdateStatus,
   viewMode = false,
   filterTaskId,
   projectStatus,
 }: IssueManagementModalProps) {
   const [form] = Form.useForm();
   const [commentForm] = Form.useForm();
-  
+
+  // 問題一覧（内部state）
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issuesLoading, setIssuesLoading] = useState(false);
+
   // 選択中の問題IDのみをstateで保持する
-  // selectedIssue 自体は issues props から useMemo で導出することで、
-  // 親が issues を再取得するたびに自動的に最新データが反映される
+  // selectedIssue 自体は issues state から useMemo で導出することで、
+  // 再取得のたびに自動的に最新データが反映される
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [showNewIssueForm, setShowNewIssueForm] = useState(false);
   const [newComment, setNewComment] = useState('');
-  
+
   // フィルタリング用のstate
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<IssueStatus | 'all'>('all');
 
-  // 問題タイプ選択肢をコードマスターAPIから取得（マウント時に自動フェッチ）
-  // destroyOnHidden により、モーダルが閉じるたびにコンポーネントが破棄・再生成されるため、
-  // enabled=true（デフォルト）でマウント時に自動フェッチすれば十分
+  // 問題タイプ選択肢をコードマスターAPIから取得
   const { options: issueTypeOptions, loading: issueTypeLoading } = useCodeMaster('issue_type');
 
   // プロジェクトが承認依頼中の場合は編集不可
   const isApprovalPending = projectStatus === 'waiting_approval';
   const isEditDisabled = viewMode || isApprovalPending;
 
-  // 選択中の問題を issues props から導出する
-  // issues プロップが更新（コメント送信・ステータス変更後の再取得）されると
-  // selectedIssue も自動的に最新データに追随し、コメント一覧が即時更新される
+  // 問題一覧を再取得する関数
+  const fetchIssues = useCallback(async () => {
+    if (!projectId) return;
+    setIssuesLoading(true);
+    try {
+      const data = await getIssues({ projectId, methodId, taskNo, transitionId });
+      setIssues(data);
+    } catch (error) {
+      console.error('[IssueManagementModal] fetchIssues error:', error);
+      message.error('問題一覧の取得に失敗しました');
+    } finally {
+      setIssuesLoading(false);
+    }
+  }, [projectId, methodId, taskNo, transitionId]);
+
+  // モーダルが開いた時に問題一覧を取得する
+  useEffect(() => {
+    if (visible) {
+      fetchIssues();
+    }
+  }, [visible, fetchIssues]);
+
+  // 選択中の問題を issues state から導出する
   const selectedIssue = useMemo(
     () => issues.find((issue) => issue.issueId === selectedIssueId) ?? null,
     [issues, selectedIssueId]
@@ -107,7 +140,7 @@ export default function IssueManagementModal({
       if (filterTaskId && issue.taskId !== filterTaskId) {
         return false;
       }
-      
+
       // あいまい検索（タイトル、内容）
       const matchesSearch =
         searchText === '' ||
@@ -194,84 +227,124 @@ export default function IssueManagementModal({
   const handleSubmitNewIssue = async () => {
     try {
       const values = await form.validateFields();
-      
-      if (onSubmitIssue) {
-        onSubmitIssue(values as IssueReportFormData);
-      }
+
+      await createIssue({
+        projectId,
+        methodId,
+        issueType: values.issueType,
+        targetType: values.targetType,
+        taskNo,
+        transitionId,
+        title: values.title,
+        description: values.content,
+      });
 
       message.success('問題を報告しました');
       form.resetFields();
       setShowNewIssueForm(false);
+      // 一覧を再取得
+      await fetchIssues();
     } catch (error) {
-      console.error('Validation failed:', error);
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        // Form validation error - do nothing
+        return;
+      }
+      console.error('[IssueManagementModal] handleSubmitNewIssue error:', error);
+      message.error('問題の報告に失敗しました');
     }
   };
 
   // コメント送信
-  const handleCommentSubmit = () => {
+  const handleCommentSubmit = async () => {
     if (!selectedIssue) return;
-    
+
     if (!newComment.trim()) {
       message.warning('コメントを入力してください');
       return;
     }
 
-    // コメントを送信
-    if (onSubmitComment) {
-      onSubmitComment(selectedIssue.issueId, newComment.trim());
-    }
+    try {
+      await addComment({
+        projectName,
+        issueId: selectedIssue.issueId,
+        comment: newComment.trim(),
+      });
 
-    message.success('コメントを送信しました');
-    setNewComment('');
-    commentForm.resetFields();
+      message.success('コメントを送信しました');
+      setNewComment('');
+      commentForm.resetFields();
+      // 一覧を再取得（コメントが追加された状態を反映）
+      await fetchIssues();
+    } catch (error) {
+      console.error('[IssueManagementModal] handleCommentSubmit error:', error);
+      message.error('コメントの送信に失敗しました');
+    }
   };
 
   // ステータスを「未解決」に変更
-  const handleSetUnresolved = () => {
+  const handleSetUnresolved = async () => {
     if (!selectedIssue) return;
-    
+
     if (!newComment.trim()) {
       message.warning('コメントを入力してください');
       return;
     }
 
-    // コメントを送信
-    if (onSubmitComment) {
-      onSubmitComment(selectedIssue.issueId, newComment.trim());
-    }
+    try {
+      // コメントを送信してからステータスを更新
+      await addComment({
+        projectName,
+        issueId: selectedIssue.issueId,
+        comment: newComment.trim(),
+      });
+      await updateIssueStatus({
+        projectName,
+        issueId: selectedIssue.issueId,
+        status: 'unresolved',
+      });
 
-    // ステータスを更新
-    if (onUpdateStatus) {
-      onUpdateStatus(selectedIssue.issueId, 'unresolved');
+      message.success('ステータスを「未解決」に変更しました');
+      setNewComment('');
+      commentForm.resetFields();
+      // 一覧を再取得
+      await fetchIssues();
+    } catch (error) {
+      console.error('[IssueManagementModal] handleSetUnresolved error:', error);
+      message.error('ステータスの変更に失敗しました');
     }
-
-    message.success('ステータスを「未解決」に変更しました');
-    setNewComment('');
-    commentForm.resetFields();
   };
 
   // ステータスを「解決済」に変更
-  const handleSetResolved = () => {
+  const handleSetResolved = async () => {
     if (!selectedIssue) return;
-    
+
     if (!newComment.trim()) {
       message.warning('コメントを入力してください');
       return;
     }
 
-    // コメントを送信
-    if (onSubmitComment) {
-      onSubmitComment(selectedIssue.issueId, newComment.trim());
-    }
+    try {
+      // コメントを送信してからステータスを更新
+      await addComment({
+        projectName,
+        issueId: selectedIssue.issueId,
+        comment: newComment.trim(),
+      });
+      await updateIssueStatus({
+        projectName,
+        issueId: selectedIssue.issueId,
+        status: 'resolved',
+      });
 
-    // ステータスを更新
-    if (onUpdateStatus) {
-      onUpdateStatus(selectedIssue.issueId, 'resolved');
+      message.success('ステータスを「解決済」に変更しました');
+      setNewComment('');
+      commentForm.resetFields();
+      // 一覧を再取得
+      await fetchIssues();
+    } catch (error) {
+      console.error('[IssueManagementModal] handleSetResolved error:', error);
+      message.error('ステータスの変更に失敗しました');
     }
-
-    message.success('ステータスを「解決済」に変更しました');
-    setNewComment('');
-    commentForm.resetFields();
   };
 
   // モーダルを閉じる
@@ -281,6 +354,7 @@ export default function IssueManagementModal({
     form.resetFields();
     commentForm.resetFields();
     setNewComment('');
+    setIssues([]);
     onClose();
   };
 
@@ -301,7 +375,9 @@ export default function IssueManagementModal({
       title={
         <Space>
           <ExclamationCircleOutlined style={{ color: '#faad14' }} />
-          <span>問題報告 - {transitionName}</span>
+          <span>
+            {viewMode ? '問題確認' : '問題報告'} - {targetName}
+          </span>
         </Space>
       }
       open={visible}
@@ -311,7 +387,7 @@ export default function IssueManagementModal({
       style={{ top: 20 }}
       destroyOnHidden
     >
-      {/* 新規問題報告ボタン（参照専用モードまたは承認依頼中は非活性） */}
+      {/* 新規問題報告ボタン（参照専用モードまたは承認依頼中は非表示） */}
       {!viewMode && (
         <div style={{ marginBottom: 16 }}>
           <Button
@@ -360,27 +436,29 @@ export default function IssueManagementModal({
             </Space>
 
             {/* テーブル */}
-            <Table
-              columns={columns}
-              dataSource={filteredIssues}
-              rowKey="issueId"
-              size="small"
-              pagination={false}
-              scroll={{ y: 'calc(70vh - 280px)' }}
-              onRow={(record) => ({
-                onClick: () => handleSelectIssue(record),
-                style: {
-                  cursor: 'pointer',
-                  backgroundColor:
-                    selectedIssue?.issueId === record.issueId
-                      ? '#e6f7ff'
-                      : undefined,
-                },
-              })}
-              locale={{
-                emptyText: '問題が報告されていません',
-              }}
-            />
+            <Spin spinning={issuesLoading}>
+              <Table
+                columns={columns}
+                dataSource={filteredIssues}
+                rowKey="issueId"
+                size="small"
+                pagination={false}
+                scroll={{ y: 'calc(70vh - 280px)' }}
+                onRow={(record) => ({
+                  onClick: () => handleSelectIssue(record),
+                  style: {
+                    cursor: 'pointer',
+                    backgroundColor:
+                      selectedIssue?.issueId === record.issueId
+                        ? '#e6f7ff'
+                        : undefined,
+                  },
+                })}
+                locale={{
+                  emptyText: '問題が報告されていません',
+                }}
+              />
+            </Spin>
           </Card>
         </Col>
 

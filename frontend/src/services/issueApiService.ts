@@ -56,12 +56,12 @@ export interface AddCommentParams {
 export interface GetIssuesParams {
   /** プロジェクトID（UUID、必須） */
   projectId: string;
-  /** メソッドID（必須） */
-  methodId: string;
-  /** タスク連番（必須） */
-  taskNo: number;
-  /** トランジションID（必須） */
-  transitionId: string;
+  /** メソッドID（オプション。省略時はプロジェクト全件を返す） */
+  methodId?: string;
+  /** タスク連番（オプション） */
+  taskNo?: number;
+  /** トランジションID（オプション） */
+  transitionId?: string;
   /** ステータスフィルタ（オプション） */
   status?: 'unresolved' | 'resolved';
   /** 問題タイプフィルタ（オプション）: code_master.code_value（整数） */
