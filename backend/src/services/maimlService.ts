@@ -1102,9 +1102,14 @@ export async function listFormatsFiles(organizationId: string): Promise<ListForm
       // .xml ファイルのみ対象
       if (!key.toLowerCase().endsWith('.xml')) continue;
 
+      // storageService.listFiles は組織IDプレフィックス付きの絶対パスを返す
+      // 例: 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385/formats/DEP004/condition/condition.xml'
+      // → 組織IDプレフィックスを除去して相対パスに変換する
+      const orgPrefix = `${organizationId}/`;
+      const relativePath = key.startsWith(orgPrefix) ? key.slice(orgPrefix.length) : key;
+
       // パスを分解: formats/{departmentCd}/{folderName}/{...}/{fileName}
-      // storageService.listFiles が組織IDなしの相対パスを返す前提
-      const parts = key.split('/');
+      const parts = relativePath.split('/');
       // parts[0] = 'formats', parts[1] = departmentCd, parts[2] = folderName, parts[3+] = サブパス or fileName
       if (parts.length < 4) continue;
       if (parts[0] !== 'formats') continue;
