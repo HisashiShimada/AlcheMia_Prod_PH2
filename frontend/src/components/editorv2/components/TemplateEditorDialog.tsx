@@ -54,6 +54,7 @@ import {
   convertPropertiesArrayToNestedFormatRecursive,
   convertPropertyDataToPropertiesArray,
   convertPropertyDataToContentsArray,
+  convertContentsArrayToNestedFormat,
 } from '../utils/templateConverter';
 
 const { Title, Text } = Typography;
@@ -262,8 +263,20 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       }
       
       setProperties(convertedProperties);
+
+      // ✅ Contents変換（useEffectで初期化されていなかったバグを修正）
+      let convertedContents: Record<string, PropertyData> = {};
+      if (mergedTemplate.contents) {
+        if (Array.isArray(mergedTemplate.contents) && mergedTemplate.contents.length > 0) {
+          convertedContents = convertContentsArrayToNestedFormat(mergedTemplate.contents);
+        }
+      }
+      setContents(convertedContents);
+
       setExpandedNodes(new Set());
+      setExpandedContentNodes(new Set());
       setForceRenderKey(Date.now());
+      setForceContentRenderKey(Date.now());
     }
   }, [open, node, mergedTemplate]);
 
@@ -957,7 +970,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     
     // PropertyData形式からProperty[]とContent[]に変換
     const convertedProperties = convertPropertyDataToPropertiesArray(properties);
-    const convertedContents = convertPropertyDataToContentsArray(properties);
+    const convertedContents = convertPropertyDataToContentsArray(contents);
     
     const templateRef: Template = {
       ...(node.data.templateRef || {}),
