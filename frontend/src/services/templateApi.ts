@@ -59,7 +59,7 @@ export const fetchTemplateFiles = async (): Promise<ListFormatsResponse> => {
 
   try {
     const response = await client.get<{ success: boolean; data: ListFormatsResponse }>(
-      '/api/v1/maiml/formats'
+      '/maiml/formats'
     );
 
     return response.data.data || { departments: [] };
@@ -84,7 +84,7 @@ export const fetchTemplateContent = async (fileKey: string): Promise<string> => 
     const response = await client.get<{
       success: boolean;
       data: { data: { content: string } };
-    }>('/api/v1/maiml/file-content', {
+    }>('/maiml/file-content', {
       params: { key: fileKey },
     });
 
