@@ -1420,7 +1420,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               loading={isLoadingTemplates}
               style={{ width: '100%' }}
               showSearch
-              treeDefaultExpandAll={false}
+              treeDefaultExpandAll={true}
               treeData={formatsResponse.departments.flatMap(dept =>
                 dept.folders.map(folder => ({
                   title: `${dept.departmentCd} / ${folder.folderName}`,
