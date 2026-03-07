@@ -42,7 +42,7 @@ const fetchFileList = async (): Promise<S3File[]> => {
 const fetchFileContent = async (fileKey: string): Promise<string> => {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/v1/maiml/file-content?key=${encodeURIComponent(fileKey)}`,
+      `${API_BASE_URL}/maiml/file-content?key=${encodeURIComponent(fileKey)}`,
       { credentials: 'include' }
     );
     
