@@ -1,11 +1,11 @@
 # Maiml編集API仕様書
 
 **作成日**: 2026-01-21 16:40  
-**最終更新**: 2026-02-27 15:20  
-**バージョン**: 3.1.0  
+**最終更新**: 2026-03-06  
+**バージョン**: 3.2.0  
 **対象画面**: 実験管理者 - Maiml編集画面  
-**総API数**: 20個  
-**実装状況**: 20個実装済み、0個未実装
+**総API数**: 21個  
+**実装状況**: 20個実装済み、1個未実装
 
 ---
 
@@ -17,12 +17,12 @@
 | MAIML操作 | 4 | 0 | 4 |
 | バリデーション | 2 | 0 | 2 |
 | セッション管理 | 2 | 0 | 2 |
-| ファイル管理 | 3 | 0 | 3 |
+| ファイル管理 | 3 | 1 | 4 |
 | Draft機能 | 4 | 0 | 4 |
 | その他 | 3 | 0 | 3 |
-| **合計** | **20** | **0** | **20** |
+| **合計** | **20** | **1** | **21** |
 
-**完了率**: 100% (20/20)
+**完了率**: 95% (20/21)
 
 ---
 
@@ -47,6 +47,7 @@
 | 15 | Draft読み込み | GET | `/api/v1/maiml/draft/:draftKey` | ✅ 実装済み | - |
 | 16 | Draft一覧取得 | GET | `/api/v1/maiml/drafts` | ✅ 実装済み | - |
 | 17 | Draft削除 | DELETE | `/api/v1/maiml/draft/:draftKey` | ✅ 実装済み | - |
+| 18 | 名前空間テンプレートフォルダ＆ファイル一覧取得 | GET | `/api/v1/maiml/formats` | ⏳ 未実装 | 🔴 高 |
 
 ---
 
@@ -928,6 +929,191 @@ const correctMAIML = async (content: string, level: string) => {
 
 ---
 
+### 18. 名前空間テンプレートフォルダ＆ファイル一覧取得 🔴
+
+**エンドポイント**: `GET /api/v1/maiml/formats`
+
+**説明**: 名前空間テンプレート取り込み機能向けに、全部門横断で `formats/` 配下の `material/` `condition/` `result/` フォルダに存在する `.xml` ファイルの一覧を取得する
+
+**認証**: 必須
+
+**権限**: `experiment_admin`, `system_admin`
+
+**優先度**: ⭐⭐⭐ 高
+
+**使用箇所**: `frontend/src/components/editorv2/components/TemplateEditorDialog.tsx`（名前空間テンプレート取り込みダイアログ）
+
+**既存APIが流用不可な理由**:
+- `GET /api/v1/formats`（4.1）: セッションの `departmentCd` に紐づく単一部門のみ返す
+- `GET /api/v1/formats/:folderName/files`（4.2）: 同上、全部門横断不可
+- `GET /api/v1/maiml/files`（5.11）: `.maiml`/`.xml` 混在、部門フィルタなし
+
+#### リクエストパラメータ
+
+クエリパラメータなし
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "departments": [
+      {
+        "departmentCd": "dept_001",
+        "departmentName": "化学部門",
+        "folders": [
+          {
+            "folderType": "material",
+            "files": [
+              {
+                "key": "formats/dept_001/material/template1.xml",
+                "fileName": "template1.xml",
+                "size": 4096,
+                "lastModified": "2026-02-01T10:00:00Z"
+              },
+              {
+                "key": "formats/dept_001/material/template2.xml",
+                "fileName": "template2.xml",
+                "size": 3200,
+                "lastModified": "2026-02-10T12:00:00Z"
+              }
+            ]
+          },
+          {
+            "folderType": "condition",
+            "files": [
+              {
+                "key": "formats/dept_001/condition/cond_template.xml",
+                "fileName": "cond_template.xml",
+                "size": 2048,
+                "lastModified": "2026-02-05T09:00:00Z"
+              }
+            ]
+          },
+          {
+            "folderType": "result",
+            "files": []
+          }
+        ]
+      },
+      {
+        "departmentCd": "dept_002",
+        "departmentName": "生物部門",
+        "folders": [
+          {
+            "folderType": "material",
+            "files": [
+              {
+                "key": "formats/dept_002/material/bio_material.xml",
+                "fileName": "bio_material.xml",
+                "size": 5120,
+                "lastModified": "2026-02-15T14:00:00Z"
+              }
+            ]
+          },
+          {
+            "folderType": "condition",
+            "files": []
+          },
+          {
+            "folderType": "result",
+            "files": []
+          }
+        ]
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-03-06T10:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**エラー時**:
+- 401: 認証エラー
+- 403: 権限不足
+- 500: システムエラー（S3/Swift接続エラーを含む）
+
+#### 実装要件
+
+**処理フロー**:
+1. セッションから `organizationId` を取得
+2. `storageService.listFiles(organizationId, 'formats/')` で全部門フォルダを横断取得
+3. S3オブジェクト一覧から部門CD・フォルダ種別・ファイルを分類
+4. `material/`・`condition/`・`result/` 配下の `.xml` ファイルのみ抽出
+5. DBの `department` テーブルから `department_name` を取得してレスポンスに付加
+
+**実装例（コントローラー）**:
+```typescript
+// backend/src/controllers/maimlController.ts
+
+export const getFormats = async (req: Request, res: Response): Promise<void> => {
+  const organizationId = req.user.organizationId;
+  const TEMPLATE_FOLDERS = ['material', 'condition', 'result'];
+
+  // S3全オブジェクト取得
+  const allFiles = await storageService.listFiles(organizationId, 'formats/');
+
+  // 部門CD → フォルダ種別 → ファイル の構造に分類
+  const departmentMap = new Map<string, Map<string, StorageFile[]>>();
+
+  for (const file of allFiles) {
+    // key 例: "formats/dept_001/material/template1.xml"
+    const parts = file.key.split('/');
+    if (parts.length < 4) continue;
+    const departmentCd = parts[1];
+    const folderType = parts[2];
+
+    if (!TEMPLATE_FOLDERS.includes(folderType)) continue;
+    if (!file.key.endsWith('.xml')) continue;
+
+    if (!departmentMap.has(departmentCd)) {
+      departmentMap.set(departmentCd, new Map());
+    }
+    const folderMap = departmentMap.get(departmentCd)!;
+    if (!folderMap.has(folderType)) {
+      folderMap.set(folderType, []);
+    }
+    folderMap.get(folderType)!.push(file);
+  }
+
+  // DBから部門名を取得
+  const departmentCds = Array.from(departmentMap.keys());
+  const departments = await departmentRepository.findByCds(organizationId, departmentCds);
+  const deptNameMap = new Map(departments.map(d => [d.department_cd, d.department_name]));
+
+  // レスポンス構造を組み立て
+  const result = Array.from(departmentMap.entries()).map(([departmentCd, folderMap]) => ({
+    departmentCd,
+    departmentName: deptNameMap.get(departmentCd) ?? departmentCd,
+    folders: TEMPLATE_FOLDERS.map(folderType => ({
+      folderType,
+      files: (folderMap.get(folderType) ?? []).map(f => ({
+        key: f.key,
+        fileName: f.key.split('/').pop(),
+        size: f.size,
+        lastModified: f.lastModified,
+      })),
+    })),
+  }));
+
+  res.json({ success: true, data: { departments: result } });
+};
+```
+
+**フロントエンドとの連携**:
+- `templateApi.ts` の `fetchTemplateFiles()` からこのAPIを呼び出す
+- ファイル内容取得は既存の `GET /api/v1/maiml/file-content?key=<fileKey>` を流用（`key` にS3フルキーを指定）
+
+**マルチテナント分離**:
+- `storageService.listFiles(organizationId, 'formats/')` により organization_id プレフィックスが自動付与される
+- 他組織のファイルへのアクセスは不可
+
+---
+
 ## 🔒 セキュリティ考慮事項
 
 ### マルチテナント分離の徹底
@@ -1033,6 +1219,12 @@ Warning: 299 - "このエンドポイントは非推奨です。/api/v1/maiml/pa
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 3.2.0 | 2026-03-06 | 名前空間テンプレートフォルダ＆ファイル一覧取得API追加 | Cline |
+| | | - API #18: GET /api/v1/maiml/formats 新規追加（未実装） | |
+| | | - editorv2 TemplateEditorDialog の名前空間テンプレート取り込み機能向け | |
+| | | - 全部門横断で formats/ 配下の material/condition/result の .xml ファイルを返す | |
+| | | - レスポンス構造: 部門CD → folderType → files の3階層 | |
+| | | - 総API数: 20→21個、完了率: 100%→95% | |
 | 3.1.0 | 2026-02-27 15:20 | project_id型変更に伴うAPI仕様更新 | Cline |
 | | | - PUT /api/v1/projects/:projectId/maiml の projectId 型を UUID → string(varchar)に変更 | |
 | | | - GET /api/v1/projects/:projectId/maiml の projectId 型を UUID → string(varchar)に変更 | |

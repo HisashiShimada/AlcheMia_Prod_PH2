@@ -37,12 +37,12 @@ const fetchFileList = async (): Promise<S3File[]> => {
 };
 
 /**
- * ファイル内容取得（S3から）
+ * ファイル内容取得（V2 MAIML API経由）
  */
 const fetchFileContent = async (fileKey: string): Promise<string> => {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/s3/file-content?key=${encodeURIComponent(fileKey)}`,
+      `${API_BASE_URL}/v1/maiml/file-content?key=${encodeURIComponent(fileKey)}`,
       { credentials: 'include' }
     );
     
