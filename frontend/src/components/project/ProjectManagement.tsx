@@ -26,7 +26,6 @@ import {
 } from '@ant-design/icons';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
-import ProjectSearchModal from './ProjectSearchModal';
 import TaskResultsTable from './TaskResultsTable';
 import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
@@ -97,7 +96,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt'); // ソート項目
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // ソート順序
   const [currentFolder, setCurrentFolder] = useState<string>('root');
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [issueManagementModalOpen, setIssueManagementModalOpen] = useState(false);
@@ -1127,14 +1125,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             />
           </Space>
 
-          {/* 詳細検索ボタン */}
-          <Button 
-            type="primary"
-            icon={<SearchOutlined />}
-            onClick={() => setSearchModalOpen(true)}
-          >
-            {t('projectManagement.advanced_search')}
-          </Button>
         </Space>
 
         {/* 右側のアクションボタン */}
@@ -1548,25 +1538,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           )}
         </div>
       </div>
-
-      {/* プロジェクト検索モーダル */}
-      <ProjectSearchModal
-        open={searchModalOpen}
-        onClose={() => setSearchModalOpen(false)}
-        onProjectSelect={(projectId: string) => {
-          console.log('検索結果からプロジェクトが選択されました:', projectId);
-          // フィルター条件をリセットして選択プロジェクトが左パネルに表示されるようにする
-          setSearchQuery('');
-          setOwnerFilter('all');
-          setCheckoutFilter('all');
-          setProjectStatusFilter('all');
-          setDepartmentFilter('all');
-          // プロジェクトを選択状態にする
-          handleProjectSelect(projectId);
-          // モーダルを閉じる
-          setSearchModalOpen(false);
-        }}
-      />
 
       {/* 一括アップロードダイアログ */}
       <BulkUploadDialog

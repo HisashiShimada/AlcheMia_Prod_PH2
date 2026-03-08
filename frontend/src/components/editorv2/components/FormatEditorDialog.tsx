@@ -1349,7 +1349,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               {namespaceData.properties && (
                 <Alert
                   title={
-                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                       <Text strong>📊 プロパティプレビュー ({Object.keys(namespaceData.properties).length}件)</Text>
                       <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                         {Object.entries(namespaceData.properties).map(([key, data]) => (

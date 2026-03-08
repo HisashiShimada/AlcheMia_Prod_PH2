@@ -238,7 +238,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
           border: '1px solid #ff9800'
         }}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <Text strong style={{ color: '#ff9800' }}>
             <WarningOutlined /> {errors.length}件の警告
           </Text>
@@ -306,7 +306,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
         {/* エッジ選択時 */}
         {isEdge && selectedEdge && (
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Space orientation="vertical" style={{ width: '100%' }} size="middle">
             {renderErrors(selectedEdge.data?.errors)}
             
             <Card size="small" style={{ backgroundColor: '#f5f5f5' }}>
@@ -339,7 +339,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 接続情報
               </Text>
               <Card size="small" style={{ backgroundColor: '#fafafa' }}>
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Text type="secondary" style={{ fontSize: 11 }}>Source:</Text>
                     <Text style={{ fontSize: 12 }}>{selectedEdge.source}</Text>
@@ -373,7 +373,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
         {/* ノード選択時 */}
         {selectedNode && (
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Space orientation="vertical" style={{ width: '100%' }} size="middle">
             {renderErrors(selectedNode.data?.errors)}
             
             <Card size="small" style={{ backgroundColor: '#f5f5f5' }}>
@@ -504,7 +504,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     テンプレート情報
                   </Text>
                   <Card size="small" style={{ backgroundColor: '#fafafa', marginBottom: 8 }}>
-                    <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space orientation="vertical" style={{ width: '100%' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <Text type="secondary" style={{ fontSize: 11 }}>種類:</Text>
                         <Text style={{ fontSize: 12 }}>

@@ -101,7 +101,7 @@ const SaveDialog: React.FC<SaveDialogProps> = ({
         </Button>,
       ]}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         {/* エラー表示 */}
         {error && (
           <Alert

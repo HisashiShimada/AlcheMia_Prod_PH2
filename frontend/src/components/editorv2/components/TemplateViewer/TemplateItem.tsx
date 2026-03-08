@@ -57,7 +57,7 @@ const TemplateItem: React.FC<TemplateItemProps> = ({
           position: 'relative',
         }}
         hoverable
-        bodyStyle={{ padding: '12px' }}
+        styles={{ body: { padding: '12px' } }}
       >
         {/* ヘッダー: カテゴリ色・タイトル・警告・削除ボタン */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>

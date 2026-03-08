@@ -185,7 +185,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
         </Button>,
       ]}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Text type="secondary">追加するMaiMLファイルを選択してください</Text>
 
         {/* 検索バー */}
@@ -302,7 +302,7 @@ const WorkflowSelectorDialog: React.FC<WorkflowSelectorDialogProps> = ({
           <Alert
             message="選択中のファイル"
             description={
-              <Space direction="vertical" size="small">
+              <Space orientation="vertical" size="small">
                 <Text>
                   <strong>名前:</strong> {selectedFile.name || selectedFile.key}
                 </Text>

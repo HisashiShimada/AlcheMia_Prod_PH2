@@ -6,50 +6,6 @@
  */
 
 import { getPool } from '../database/db';
-import { loadSqlFile } from '../sql/loader';
-
-/**
- * MAIML検索条件の型定義
- */
-export interface MaimlSearchCriteria {
-  attribute: string; // 検索属性（例: 'document.name', 'id', 'measurement_value'）
-  value: string;     // 検索値
-}
-
-/**
- * MAIML検索結果の型定義（プロジェクト単位）
- */
-export interface MaimlSearchResult {
-  project_id: string;
-  project_name: string;
-  description: string | null;
-  project_status: number;
-  create_at: Date;
-  update_at: Date;
-  file_key: string;
-  maiml_document_name: string | null;
-  maiml_document_uuid: string | null;
-  maiml_document_description: string | null;
-  maiml_metadata_extraction_status: string | null;
-}
-
-/**
- * フロントエンドの attribute 値から DB カラムへのマッピング
- */
-const ATTRIBUTE_TO_COLUMN: Record<string, { column: string; isJsonb: boolean }> = {
-  'document.uuid':         { column: 'fm.maiml_document_uuid',        isJsonb: false },
-  'document.name':         { column: 'fm.maiml_document_name',         isJsonb: false },
-  'document.description':  { column: 'fm.maiml_document_description',  isJsonb: false },
-  'measurement_value':     { column: 'fm.maiml_measurement_values',    isJsonb: true  },
-  'units':                 { column: 'fm.maiml_units',                  isJsonb: true  },
-  'section_type':          { column: 'fm.maiml_section_types',          isJsonb: true  },
-  'id':                    { column: 'fm.maiml_ids',                    isJsonb: true  },
-  'ref':                   { column: 'fm.maiml_refs',                   isJsonb: true  },
-  'key':                   { column: 'fm.maiml_keys',                   isJsonb: true  },
-  'element':               { column: 'fm.maiml_elements',               isJsonb: true  },
-  'value':                 { column: 'fm.maiml_values',                  isJsonb: true  },
-};
-
 /**
  * ファイルメタデータ型定義
  */
@@ -88,20 +44,6 @@ export interface FileMetadata {
   s3_etag?:string;
   last_edit_timestamp?: Date;
   
-  // Phase 2.5: MAIML検索用メタデータ（2026-02-20追加）
-  maiml_document_uuid?: string;
-  maiml_document_name?: string;
-  maiml_document_description?: string;
-  maiml_measurement_values?: string; // JSONB
-  maiml_units?: string; // JSONB
-  maiml_section_types?: string; // JSONB
-  maiml_ids?: string; // JSONB
-  maiml_refs?: string; // JSONB
-  maiml_keys?: string; // JSONB
-  maiml_elements?: string; // JSONB
-  maiml_values?: string; // JSONB
-  maiml_metadata_extracted_at?: Date;
-  maiml_metadata_extraction_status?: string;
 }
 
 /**
@@ -155,13 +97,6 @@ export class FileMetadataRepository {
    * @param projectId - プロジェクトID（現在は使用しないが将来の拡張用）
    * @param fileName - ファイル名
    * @returns ファイルメタデータ、または存在しない場合はnull
-   * 
-   * @example
-   * const metadata = await repository.getFileMetadata(
-   *   'org_maiml_lab_001',
-   *   '550e8400-e29b-41d4-a716-446655440000',
-   *   'sample_project.maiml'
-   * );
    */
   async getFileMetadata(
     organizationId: string,
@@ -169,71 +104,23 @@ export class FileMetadataRepository {
     fileName: string
   ): Promise<FileMetadata | null> {
     const pool = getPool();
-
-    // Parameterized Queryを使用してSQLインジェクション対策
-    // organization_idフィルタを必須とすることでマルチテナント分離を保証
     const query = `
-      SELECT
-        *
-      FROM file_metadata
-      WHERE organization_id = $1
-        AND file_name = $2
+      SELECT * FROM file_metadata
+      WHERE organization_id = $1 AND file_name = $2
       LIMIT 1
     `;
-
     const params = [organizationId, fileName];
-
     try {
       const result = await pool.query(query, params);
-
-      // レコードが存在しない場合はnullを返却
       if (result.rowCount === 0 || !result.rows[0]) {
         return null;
       }
-
-      const row = result.rows[0];
-
-      // データベースのスネークケースからキャメルケースに変換
-      return {
-        file_key:row.file_key,
-        s3_bucket:row.s3_bucket,
-        organization_id:row.organization_id,
-        original_filename:row.original_filename,
-        file_size:row.file_size,
-        file_type:row.file_type,
-        file_extension:row.file_extension,
-        is_maiml_file:row.is_maiml_file,
-        maiml_analysis_status:row.maiml_analysis_status,
-        maiml_error_count:row.maiml_error_count,
-        maiml_warning_count:row.maiml_warning_count,
-        maiml_version:row.maiml_version,
-        maiml_transitions_count:row.maiml_transitions_count,
-        maiml_places_count:row.maiml_places_count,
-        maiml_validation_result:row.maiml_validation_result,
-        maiml_last_analyzed:row.maiml_last_analyzed,
-        uploaded_by:row.uploaded_by,
-        create_user_id:row.create_user_id,
-        update_user_id:row.update_user_id,
-        created_at:row.created_at,
-        updated_at:row.updated_at,
-        custom_metadata:row.custom_metadata,
-        tags:row.tags,
-        search_keywords:row.search_keywords,
-        description:row.description,
-        file_hash:row.file_hash,
-        parent_folder_path:row.parent_folder_path,
-        upload_batch_id:row.upload_batch_id,
-        upload_source:row.upload_source,
-        upload_method:row.upload_method,
-        s3_storage_class:row.s3_storage_class,
-        s3_etag:row.s3_etag,
-        last_edit_timestamp:row.last_edit_timestamp,
-      };
+      return result.rows[0] as FileMetadata;
     } catch (error) {
-      // データベースエラーをそのままスロー（上位層でハンドリング）
       throw error;
     }
   }
+
   async getFileMetadataByFileKey(
     fileKey: string
   ): Promise<FileMetadata | null> {
@@ -592,14 +479,6 @@ export class FileMetadataRepository {
       'custom_metadata',
       'tags',
       'search_keywords',
-      'maiml_measurement_values',
-      'maiml_units',
-      'maiml_section_types',
-      'maiml_ids',
-      'maiml_refs',
-      'maiml_keys',
-      'maiml_elements',
-      'maiml_values',
     ]);
 
     // 動的にカラムとプレースホルダーを構築
@@ -653,14 +532,6 @@ export class FileMetadataRepository {
       'custom_metadata',
       'tags',
       'search_keywords',
-      'maiml_measurement_values',
-      'maiml_units',
-      'maiml_section_types',
-      'maiml_ids',
-      'maiml_refs',
-      'maiml_keys',
-      'maiml_elements',
-      'maiml_values',
     ]);
 
     const setClause = [];
@@ -707,88 +578,4 @@ export class FileMetadataRepository {
     }
   }
 
-  /**
-   * MAIML検索メタデータを使ってプロジェクトを検索
-   * 
-   * @description
-   * file_metadataテーブルのmaiml_*カラムをAND条件で検索し、
-   * 一致するMAIMLファイルを持つプロジェクトを返す。
-   * 
-   * @param organizationId - 組織ID（マルチテナント分離に必須）
-   * @param criteria - 検索条件配列（AND結合）
-   * @returns 検索にヒットしたプロジェクト一覧
-   * 
-   * @example
-   * ```typescript
-   * const results = await repo.searchByMaimlMetadata('org-uuid', [
-   *   { attribute: 'document.name', value: 'サンプル' },
-   *   { attribute: 'id',            value: 'place_01' },
-   * ]);
-   * ```
-   */
-  async searchByMaimlMetadata(
-    organizationId: string,
-    criteria: MaimlSearchCriteria[]
-  ): Promise<MaimlSearchResult[]> {
-    const pool = getPool();
-
-    // ベースクエリをSQLファイルから読み込む
-    const baseQuery = await loadSqlFile('projectSearch/searchByMaimlMetadata.sql');
-
-    // 動的WHERE条件を構築
-    const additionalConditions: string[] = [];
-    const params: any[] = [organizationId]; // $1 = organization_id
-    let paramIndex = 2;
-
-    for (const criterion of criteria) {
-      const mapping = ATTRIBUTE_TO_COLUMN[criterion.attribute];
-      if (!mapping) {
-        // 未知の属性はスキップ（セキュリティ: カラム名インジェクション防止）
-        console.warn(`⚠️ [FileMetadataRepository] 未知の検索属性をスキップ: ${criterion.attribute}`);
-        continue;
-      }
-
-      if (mapping.isJsonb) {
-        // JSONB配列カラム: 配列要素に対して部分一致（ILIKE）検索
-        // Reference版と同等の動作: LOWER(COALESCE(id, '')) LIKE LOWER('%値%')
-        // 例: EXISTS (SELECT 1 FROM jsonb_array_elements_text(fm.maiml_ids) AS elem WHERE LOWER(elem) ILIKE '%place%')
-        additionalConditions.push(
-          `EXISTS (SELECT 1 FROM jsonb_array_elements_text(${mapping.column}) AS elem WHERE LOWER(elem) ILIKE $${paramIndex})`
-        );
-        params.push(`%${criterion.value.toLowerCase()}%`);
-      } else {
-        // テキストカラム: 部分一致（ILIKE）
-        // 例: fm.maiml_document_name ILIKE '%サンプル%'
-        additionalConditions.push(
-          `${mapping.column} ILIKE $${paramIndex}`
-        );
-        params.push(`%${criterion.value}%`);
-      }
-      paramIndex++;
-    }
-
-    // 条件が1つもない場合は空配列を返す
-    if (additionalConditions.length === 0) {
-      return [];
-    }
-
-    // ベースクエリに動的条件を追加（Reference版と同様にOR結合）
-    const finalQuery = `${baseQuery}  AND (${additionalConditions.join('\n  OR ')})
-ORDER BY p.project_name ASC`;
-
-    console.log('🔍 [FileMetadataRepository] MAIML検索クエリ実行:', {
-      organizationId,
-      criteriaCount: criteria.length,
-      appliedConditions: additionalConditions.length,
-    });
-
-    try {
-      const result = await pool.query(finalQuery, params);
-      console.log(`✅ [FileMetadataRepository] MAIML検索完了: ${result.rows.length}件`);
-      return result.rows as MaimlSearchResult[];
-    } catch (error) {
-      console.error('❌ [FileMetadataRepository] MAIML検索エラー:', error);
-      throw error;
-    }
-  }
 }

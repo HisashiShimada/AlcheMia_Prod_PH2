@@ -67,7 +67,7 @@ const WorkerScreenOverlay: React.FC<WorkerScreenOverlayProps> = ({
           overflow: 'hidden',
         },
       }}
-      destroyOnClose
+      destroyOnHidden
       centered={false}
     >
       <App>
