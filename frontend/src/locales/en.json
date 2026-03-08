@@ -233,6 +233,35 @@
       "version": "Version",
       "description": "Description",
       "noDescription": "No description available"
+    },
+    "messages": {
+      "file_load_failed": "Failed to load file",
+      "xml_parse_failed": "Failed to parse XML file",
+      "unsupported_file_type": "Unsupported file type",
+      "download_started": "\"{{fileName}}\" download started",
+      "download_failed": "Failed to download file",
+      "file_list_load_failed": "Failed to load file list",
+      "file_created": "File created successfully",
+      "file_saved": "Saved successfully",
+      "debug_error": "Debug error occurred"
+    },
+    "dialog": {
+      "delete_title": "Delete File",
+      "delete_confirm": "Are you sure you want to delete \"{{fileName}}\"? This action cannot be undone.",
+      "delete_ok": "Delete",
+      "delete_cancel": "Cancel",
+      "delete_success": "\"{{fileName}}\" has been deleted",
+      "delete_failed": "Failed to delete file"
+    },
+    "buttons": {
+      "new_format_folder": "New Format Folder",
+      "new_subfolder": "New Subfolder",
+      "close": "Close"
+    },
+    "loading": {
+      "loading": "Loading...",
+      "file_loading": "Loading file...",
+      "editing": "Editing"
     }
   },
   "projectManagement": {

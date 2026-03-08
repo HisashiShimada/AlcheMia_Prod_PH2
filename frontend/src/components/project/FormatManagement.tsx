@@ -316,11 +316,11 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         }
         
         setShowPetriNetEditor(true);
-      } catch (error) {
-        console.error('❌ [FormatManagement] ファイル読み込みエラー:', error);
-        message.error('ファイルの読み込みに失敗しました: ' + (error as Error).message);
-        setEditingMaimlFile(null);
-      } finally {
+        } catch (error) {
+          console.error('❌ [FormatManagement] ファイル読み込みエラー:', error);
+          message.error(t('formatManagement.messages.file_load_failed') + ': ' + (error as Error).message);
+          setEditingMaimlFile(null);
+        } finally {
         setIsLoadingMaimlContent(false);
       }
     } else if (isXmlFile) {
@@ -403,7 +403,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           });
         } catch (parseError) {
           console.error('❌ [FormatManagement] XMLパースエラー:', parseError);
-          message.error('XMLファイルの解析に失敗しました: ' + (parseError as Error).message);
+          message.error(t('formatManagement.messages.xml_parse_failed') + ': ' + (parseError as Error).message);
           return;
         }
       }
@@ -464,9 +464,9 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       setShowTemplateEditor(true);
     } else {
       // その他のファイル: エラーメッセージ
-      message.error('編集できないファイル形式です');
+      message.error(t('formatManagement.messages.unsupported_file_type'));
     }
-  }, []);
+  }, [t, message]);
   
   // ファイルダウンロードハンドラ
   const handleFileDownload = useCallback(async (file: FormatFileData) => {
@@ -482,26 +482,26 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
       await getFileDownloadUrlByKey(file.path);
 
       // 成功メッセージ表示
-      message.success(`「${file.name}」のダウンロードを開始しました`);
+      message.success(t('formatManagement.messages.download_started').replace('{{fileName}}', file.name));
     } catch (error) {
       console.error('❌ ダウンロードエラー:', error);
       message.error(
-        `ファイルのダウンロードに失敗しました: ${
+        t('formatManagement.messages.download_failed') + `: ${
           error instanceof Error ? error.message : '不明なエラー'
         }`
       );
     }
-  }, [message]);
+  }, [t, message]);
 
   // ファイル削除ハンドラ
   const handleFileDelete = useCallback(async (file: FormatFileData) => {
     // 削除確認モーダルを表示
     modal.confirm({
-      title: 'ファイル削除',
-      content: `「${file.name}」を削除しますか？この操作は取り消せません。`,
-      okText: '削除',
+      title: t('formatManagement.dialog.delete_title'),
+      content: t('formatManagement.dialog.delete_confirm').replace('{{fileName}}', file.name),
+      okText: t('formatManagement.dialog.delete_ok'),
       okButtonProps: { danger: true },
-      cancelText: 'キャンセル',
+      cancelText: t('formatManagement.dialog.delete_cancel'),
       onOk: async () => {
         try {
           console.log('🗑️ ファイル削除開始:', file.name);
@@ -509,7 +509,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           // 削除API呼び出し（共通化されたdeleteFileByKeyを使用）
           await deleteFileByKey(file.path);
           
-          message.success(`「${file.name}」を削除しました`);
+          message.success(t('formatManagement.dialog.delete_success').replace('{{fileName}}', file.name));
           
           // ファイル一覧を更新
           if (selectedFormatId) {
@@ -619,7 +619,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
         }));
       } catch (error) {
         console.error('❌ [FormatManagement] Failed to fetch format files:', error);
-        message.error('ファイル一覧の取得に失敗しました');
+        message.error(t('formatManagement.messages.file_list_load_failed'));
       } finally {
         setIsLoadingFiles(false);
       }
@@ -1001,7 +1001,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
               style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
               onClick={() => setCreateFormatModalOpen(true)}
             >
-              新規フォーマットフォルダ
+              {t('formatManagement.buttons.new_format_folder')}
             </Button>
           </div>
         </div>
@@ -1068,7 +1068,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                     style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     onClick={handleOpenCreateFolderModal}
                   >
-                    新規サブフォルダ
+                    {t('formatManagement.buttons.new_subfolder')}
                   </Button>
                   <Button
                     type="primary"
@@ -1093,7 +1093,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                     gap: token.margin
                   }}>
                     <Spin size="large" />
-                    <Text type="secondary">読み込み中...</Text>
+                    <Text type="secondary">{t('formatManagement.loading.loading')}</Text>
                   </div>
                 ) : (
                 <FormatFileListTable
@@ -1249,9 +1249,9 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                   setEditingMaimlFile(null);
                 }}
               >
-                閉じる
+                {t('formatManagement.buttons.close')}
               </Button>
-              <Text strong>編集中: {editingMaimlFile.name}</Text>
+              <Text strong>{t('formatManagement.loading.editing')}: {editingMaimlFile.name}</Text>
             </Space>
           </div>
           
@@ -1264,7 +1264,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                 justifyContent: 'center', 
                 height: '100%' 
               }}>
-                <Spin size="large" tip="ファイル読み込み中..." >
+                <Spin size="large" tip={t('formatManagement.loading.file_loading')} >
               <div style={{ minHeight: 100 }} />
             </Spin>
               <div style={{ minHeight: 100 }} />
@@ -1382,12 +1382,13 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
               });
               
               try {
-                // ✅ xmlns属性の構築（S3パスから拡張子を除去）
-                const s3PathWithoutExt = editingXmlFile.path.replace(/\.xml$/i, '');
+                // ✅ xmlns属性の構築（S3パスから拡張子とUUIDを除去）
+                let s3PathWithoutExt = editingXmlFile.path.replace(/\.xml$/i, '');
+                // パスの最初の部分がUUID形式（8-4-4-4-12）の場合は除去
+                // 例: a0718dc5-21f3-44e6-87e9-cc2ae83f3385/formats/... → formats/...
+                const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\//i;
+                s3PathWithoutExt = s3PathWithoutExt.replace(uuidPattern, '');
                 const xmlns = `http://abc.com/schema/keyDictionary/${s3PathWithoutExt}`;
-                
-                console.log('🔍 [FormatManagement] S3パス:', editingXmlFile.path);
-                console.log('🔍 [FormatManagement] xmlns:', xmlns);
                 
                 // ✅ keyDictionary XML生成（直接実装）
                 let xmlContent = `<keyDictionary xmlns="${escapeXml(xmlns)}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n`;
