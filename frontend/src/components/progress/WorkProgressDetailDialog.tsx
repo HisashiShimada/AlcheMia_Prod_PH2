@@ -91,8 +91,9 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       });
 
       // maimlFileKey からプロジェクト名を抽出
-      // 形式: {organizationId}/projects/{projectName}/{projectName}.maiml
-      const projectNameMatch = fileData.maimlFileKey.match(/\/projects\/([^/]+)\//);
+      // 形式: "projects/{projectName}/{projectName}.maiml"（organizationIdプレフィックスなし）
+      // ※ バックエンド(projectService.getProjectFiles)はorganizationIdを除去した相対パスを返す
+      const projectNameMatch = fileData.maimlFileKey.match(/(?:^|\/)projects\/([^/]+)\//);
       const projectName = projectNameMatch ? decodeURIComponent(projectNameMatch[1]) : null;
 
       if (!projectName) {

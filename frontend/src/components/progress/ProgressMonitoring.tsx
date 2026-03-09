@@ -338,7 +338,7 @@ export default function ProgressMonitoring() {
       }
 
       const resolvedFileData: FileData = {
-        maimlFileKey: maimlFile.path, // 実際のS3キー（例: {org_id}/projects/{name}/{name}.maiml）
+        maimlFileKey: maimlFile.path, // 相対パス（例: projects/{name}/{name}.maiml）※organizationIdプレフィックスなし
         fileName: maimlFile.name,
       };
       setFileData(resolvedFileData);

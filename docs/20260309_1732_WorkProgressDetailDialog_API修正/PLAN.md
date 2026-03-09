@@ -1,179 +1,126 @@
-# タスク計画書: WorkProgressDetailDialog APIが呼ばれない問題の修正
+# タスク計画書: WorkProgressDetailDialog maimlFileKey パス修正
 
 ## メタデータ
-- **作成日時**: 2026-03-09 17:32
-- **タスクID**: WorkProgressDetailDialog_API修正
+- **作成日時**: 2026-03-09 17:53
+- **タスクID**: WorkProgressDetailDialog_maimlFileKey修正
 - **優先度**: 高
 - **推定工数**: 0.5時間
 
----
-
 ## 1. タスク概要
 
-進捗確認タブの「詳細」ボタンを押下するとダイアログは表示されるが、
-APIが一切呼ばれないためデータが表示されない問題を修正する。
+`WorkProgressDetailDialog.tsx` の `fetchFileDetails` 関数内で、`fileData.maimlFileKey` からプロジェクト名を抽出する正規表現が誤っており、プロジェクト名が取得できずエラーが発生する問題を修正する。
 
----
+## 2. 調査結果
 
-## 2. 調査結果（根本原因）
+### データフロー
 
-### 🔴 原因1（最重要）: `managerId` が空文字列で API が呼ばれない
+```
+ProgressMonitoring.tsx
+  ↓ handleViewDetails()
+  ↓ fetchProjectFilesReal(record.projectName)
+    → GET /api/v1/projects/:projectName/files
+      ↓ projectService.getProjectFiles()
+        → storageService.listFiles()
+          → S3/Swiftのfileキー: "{organizationId}/projects/{name}/{name}.maiml"
+          → organizationIdプレフィックスを除去して返却
+          → path: "projects/{name}/{name}.maiml"  ← organizationIdなし
+  ↓ maimlFile.path  →  "projects/{name}/{name}.maiml"
+  ↓ setFileData({ maimlFileKey: maimlFile.path, ... })
 
-**場所**: `ProgressMonitoring.tsx` → `WorkProgressDetailDialog.tsx`
-
-`ProgressMonitoring.tsx` 側で `managerId` を初期化している：
-
-```typescript
-// ProgressMonitoring.tsx
-const [managerId] = useState<string>(() => getUserInfo()?.id ?? '');
+WorkProgressDetailDialog.tsx
+  ↓ fileData.maimlFileKey  →  "projects/{name}/{name}.maiml"
+  ↓ .match(/\/projects\/([^/]+)\//)  ← 先頭に"/"を要求するためマッチしない！
+  ↓ projectName = null
+  ↓ throw new Error('maimlFileKeyからプロジェクト名を取得できませんでした')
 ```
 
-`getUserInfo()?.id` が取得できない場合、`managerId = ''`（空文字列）になる。
+### 根本原因
 
-`WorkProgressDetailDialog.tsx` の `useEffect` は以下の条件で `fetchFileDetails()` を呼ぶ：
-
-```typescript
-useEffect(() => {
-  if (open && fileData && managerId) {  // ← '' は falsy！
-    fetchFileDetails();
-  }
-}, [open, fileData, managerId, fetchFileDetails]);
-```
-
-JavaScript では空文字列 `''` は **falsy** なので、
-`managerId` が空文字列だと `fetchFileDetails()` が**永遠に呼ばれない**。
-これがダイアログを開いてもAPIが投げられない直接の原因。
-
-さらに `fetchFileDetails` 内部にも同じガード条件がある：
+バックエンド `projectService.ts` の `getProjectFiles` は、S3/Swiftから取得したフルキー（`{organizationId}/projects/{name}/{name}.maiml`）から **`organizationId` プレフィックスを除去** して `path` として返す：
 
 ```typescript
-if (!fileData || !fileData.maimlFileKey || !managerId) {
-  console.warn('⚠️ [FileProgressDetail] Missing required parameters');
-  return;
-}
+// file.key 例: "550e8400.../projects/Sample_Project/Sample_Project.maiml"
+// 相対パス例: "projects/Sample_Project/Sample_Project.maiml"
+const relativePath = file.key.startsWith(`${organizationId}/`)
+  ? file.key.slice(`${organizationId}/`.length)
+  : file.key;
+path: relativePath,  // ← organizationId なしの相対パス
 ```
 
-### 🔴 原因2: `axios` を直接使用（認証ヘッダーなし）
-
-**場所**: `WorkProgressDetailDialog.tsx`
+### 問題箇所（WorkProgressDetailDialog.tsx 95行目付近）
 
 ```typescript
-// ❌ 直接 axios を使用 → 認証ヘッダーなし → 401 エラー
-import axios from 'axios';
-...
-const response = await axios.get(
-  `/api/v1/progress/projects/${encodeURIComponent(projectName)}/work-details`
-);
+// ❌ 誤り：コメントが実態と異なる
+// 形式: {organizationId}/projects/{projectName}/{projectName}.maiml
+const projectNameMatch = fileData.maimlFileKey.match(/\/projects\/([^/]+)\//);
 ```
 
-他の API 呼び出しは `createApiClient()` を経由して認証トークンを自動付与している：
-
-```typescript
-// ✅ 他の API の正しい実装例
-const { createApiClient } = await import('./authUtils');
-const client = createApiClient();
-const response = await client.get('/projects');
-```
-
-`progressRoutes.ts` のエンドポイントには `authMiddleware` が設定されており、
-認証なしでは `401 Unauthorized` が返る。
-原因1が解消されても、原因2が原因でエラーになる。
-
-### ✅ バックエンドの実装状況（問題なし）
-
-バックエンドは**正しく実装されている**：
-
-| 項目 | 状態 |
-|------|------|
-| `GET /api/v1/progress/projects/:projectName/work-details` | ✅ 実装済み（progressRoutes.ts） |
-| `progressController.getWorkDetails()` | ✅ 実装済み |
-| `progressService.getWorkDetails()` | ✅ 実装済み |
-| 認証ミドルウェア | ✅ `authMiddleware` + `checkPermission('040000', 0)` |
-
-`progressService.getWorkDetails()` は以下を一括返却する：
-- `projectInfo`: プロジェクト基本情報（オーナー、部門、ステータス等）
-- `fileInfo`: MAIMLファイルキー等
-- `workDetails[]`: 各タスクのトランジション進捗リスト
-
----
+正規表現 `/\/projects\/([^/]+)\//` は先頭に `/` を必要とするため、
+`"projects/xxx/yyy.maiml"` にはマッチしない（`null` が返る）。
 
 ## 3. 目的と期待される成果
 
-### 目的
-`WorkProgressDetailDialog` の詳細ボタン押下時にAPIが正しく呼ばれ、データが表示されるようにする。
-
-### 期待される成果
-- [ ] 詳細ボタン押下時に `GET /api/v1/progress/projects/:projectName/work-details` が呼ばれる
-- [ ] プロジェクト情報・タスク情報・トランジション進捗がダイアログに表示される
-- [ ] 認証エラー（401）が発生しない
-
----
+- [ ] 正規表現を修正してプロジェクト名が正しく抽出されること
+- [ ] コメントを実態に合わせて修正すること
+- [ ] `ProgressMonitoring.tsx` の誤ったコメントも修正すること
 
 ## 4. 実装ステップ
 
-### Step 1: `useEffect` の条件から `managerId` を削除
-- **ファイル**: `frontend/src/components/progress/WorkProgressDetailDialog.tsx`
-- `managerId` は JWT 認証からサーバー側で組織IDを取得するため不要
+### Step 1: WorkProgressDetailDialog.tsx の正規表現修正
+- [ ] 正規表現を `(?:^|\/)projects\/([^/]+)\/` に変更（先頭パターンを許容）
+- [ ] コメントを正しい形式に修正
 
-### Step 2: `fetchFileDetails` 内部のガード条件から `managerId` を削除
-- **ファイル**: `frontend/src/components/progress/WorkProgressDetailDialog.tsx`
-- 同ファイル内の `if (!fileData || !fileData.maimlFileKey || !managerId)` を修正
-
-### Step 3: `axios.get` を `createApiClient().get` に置き換え
-- **ファイル**: `frontend/src/components/progress/WorkProgressDetailDialog.tsx`
-- `axios` の直接呼び出しを `createApiClient()` 経由に変更
-- ベースURLのプレフィックス `/api/v1` を削除（`createApiClient` が自動付与）
-
-### Step 4: 不要な `axios` import を削除
-- **ファイル**: `frontend/src/components/progress/WorkProgressDetailDialog.tsx`
-- `import axios from 'axios'` を削除
-
----
+### Step 2: ProgressMonitoring.tsx のコメント修正
+- [ ] `maimlFileKey` のコメント（誤った形式説明）を修正
 
 ## 5. 変更ファイル
 
-| ファイル | 変更内容 |
-|---------|---------|
-| `frontend/src/components/progress/WorkProgressDetailDialog.tsx` | managerId条件削除・axios→createApiClient置換 |
+1. `frontend/src/components/progress/WorkProgressDetailDialog.tsx` - 正規表現とコメント修正
+2. `frontend/src/components/progress/ProgressMonitoring.tsx` - コメント修正
 
----
+## 6. 修正内容
 
-## 6. リスク
+### WorkProgressDetailDialog.tsx（95行目付近）
 
-| リスク | 影響度 | 発生確率 | 対策 |
-|--------|--------|----------|------|
-| `managerId` を他の用途で使用している可能性 | 低 | 低 | コードを確認済み（未使用） |
-| `createApiClient` のベースURL形式の差異 | 中 | 低 | 他の実装例（fetchProjects等）を参照して確認 |
+**変更前:**
+```typescript
+// maimlFileKey からプロジェクト名を抽出
+// 形式: {organizationId}/projects/{projectName}/{projectName}.maiml
+const projectNameMatch = fileData.maimlFileKey.match(/\/projects\/([^/]+)\//);
+```
 
----
+**変更後:**
+```typescript
+// maimlFileKey からプロジェクト名を抽出
+// 形式: "projects/{projectName}/{projectName}.maiml"（organizationIdプレフィックスなし）
+// ※ バックエンドはorganizationIdを除去した相対パスを返す
+const projectNameMatch = fileData.maimlFileKey.match(/(?:^|\/)projects\/([^/]+)\//);
+```
 
-## 7. テスト計画
+### ProgressMonitoring.tsx（handleViewDetails内）
 
-### 手動テスト
-- [ ] 詳細ボタンを押下してダイアログが開く
-- [ ] ブラウザのネットワークタブで `work-details` APIリクエストが送信されることを確認
-- [ ] プロジェクト情報（名前・ステータス・オーナー等）が表示される
-- [ ] タスクタブが表示される（workDetails が存在する場合）
-- [ ] トランジション進捗が表示される
-- [ ] 再読み込みボタンで再取得できる
+**変更前:**
+```typescript
+maimlFileKey: maimlFile.path, // 実際のS3キー（例: {org_id}/projects/{name}/{name}.maiml）
+```
 
----
+**変更後:**
+```typescript
+maimlFileKey: maimlFile.path, // 相対パス（例: projects/{name}/{name}.maiml）※organizationIdプレフィックスなし
+```
 
-## 8. 承認記録
-- **計画書提示日時**: 2026-03-09 17:32
-- **承認日時**: 2026-03-09 17:32
-- **承認者コメント**: ユーザーにより Act mode への切り替えで承認
+## 7. リスク
 
----
+| リスク | 対策 |
+|--------|------|
+| バックエンドが将来的にorganizationIdプレフィックス付きのパスを返す可能性 | `(?:^|\/)` を使い両形式に対応した正規表現を使用 |
 
-## 9. 実施記録
+## 8. テスト計画
 
-### 実施日時
-開始: 2026-03-09 17:32
-完了: （作業完了後に記入）
+- [ ] `projects/sample_project/sample_project.maiml` でプロジェクト名が `sample_project` に抽出されること
+- [ ] `550e8400-e29b-41d4-a716-446655440000/projects/sample_project/sample_project.maiml` でも正しく抽出されること（後方互換）
 
-### 実施ステップ
-- [x] Step 1: useEffect の managerId 条件削除
-- [x] Step 2: fetchFileDetails ガード条件の managerId 削除
-- [x] Step 3: axios.get → createApiClient().get 置換
-- [x] Step 4: axios import 削除
+## 9. 承認記録
+- **計画書提示日時**: 2026-03-09 17:53
+- **承認日時**: 2026-03-09 17:53
+- **承認者コメント**: 修正を承認
