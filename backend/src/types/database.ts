@@ -178,7 +178,7 @@ export interface ProjectInstruction {
  * @remarks
  * この型は project_task テーブルのスキーマに対応しています。
  * DDL: docs/design/db/ddl/project_task.sql
- * 主キー: (organization_id, project_id, method_id)
+ * 主キー: (organization_id, project_id, method_id, experiment_order)
  */
 export interface ProjectTask {
   /** 組織ID（主キー） */
@@ -190,7 +190,7 @@ export interface ProjectTask {
   /** メソッドID（主キー） */
   method_id: string;
   
-  /** 実験順序 */
+  /** 実験順序（主キー） */
   experiment_order?: number | null;
   
   /** 実験条件 */
@@ -198,6 +198,9 @@ export interface ProjectTask {
   
   /** 試行回数 */
   attempts_count?: number | null;
+  
+  /** 作業者連携済フラグ */
+  worker_linked_flg?: boolean | null;
   
   /** 作成者ユーザID */
   create_user_id?: string;

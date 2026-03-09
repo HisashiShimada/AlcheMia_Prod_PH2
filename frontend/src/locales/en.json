@@ -273,6 +273,26 @@
     "all_projects": "All",
     "department": "Department",
     "all": "All",
+    "fileManagement": {
+      "table": {
+        "type": "Type",
+        "fileName": "File Name",
+        "size": "Size",
+        "lastModified": "Last Modified",
+        "actions": "Actions"
+      },
+      "buttons": {
+        "download": "Download",
+        "viewer": "Viewer"
+      },
+      "messages": {
+        "downloadStarted": "\"{{fileName}}\" download started",
+        "downloadFailed": "Failed to download file",
+        "filePathMissing": "File path is not specified",
+        "downloadError": "Failed to download file: {{error}}"
+      },
+      "emptyState": "No files available"
+    },
     "instruction": {
       "experimentConditionTitle": "Experiment Conditions for Multiple Runs",
       "conditionSpecification": "Condition Specification",
@@ -473,12 +493,25 @@
     },
     "trialCountPlaceholder": "Trial count",
     "emptyState": "No tasks available",
+    "buttons": {
+      "addInstruction": "Add Instruction",
+      "projectInstruction": "Project Instruction"
+    },
+    "labels": {
+      "methodNotSet": "Method Not Set"
+    },
     "messages": {
       "restored": "Restored saved task information",
       "saved": "Task information saved successfully",
       "selectAllMethods": "Please select all methods",
       "invalidTrialCount": "Trial count must be between 1 and 999",
-      "invalidOrder": "Order must be between 1 and {max}"
+      "invalidOrder": "Order must be between 1 and {max}",
+      "checkedOut": "Project is checked out. Cannot save.",
+      "maimlNotRegistered": "MAIML file is not registered. Cannot save.",
+      "requireInstruction": "Please set at least one project instruction or task instruction",
+      "selectMethods": "Please select methods to save",
+      "selectAllMethodsFirst": "All methods must be selected for initial save",
+      "cannotChangeOrder": "Cannot change order of checked-out methods"
     }
   },
   "instructionRegistration": {
@@ -499,12 +532,31 @@
       "normal": "Normal",
       "low": "Low"
     },
+    "priorityLabels": {
+      "0": "Low",
+      "1": "Normal",
+      "2": "Medium",
+      "3": "High"
+    },
     "type": {
       "general": "General",
       "setup": "Setup",
       "measurement": "Measurement",
       "safety": "Safety",
       "cleanup": "Cleanup"
+    },
+    "typeLabels": {
+      "0": "General",
+      "1": "Setup",
+      "2": "Measurement",
+      "3": "Safety",
+      "4": "Cleanup"
+    },
+    "target": {
+      "method": "Method",
+      "transition": "Transition",
+      "task": "Task",
+      "project": "Entire Project"
     },
     "emptyState": "No instructions registered",
     "editButton": "Edit",
@@ -515,7 +567,11 @@
       "added": "Instruction added successfully",
       "updated": "Instruction updated successfully",
       "sent": "Instructions sent successfully",
-      "noInstructions": "No instructions to send"
+      "sentCount": "{count} instruction(s) sent successfully",
+      "noInstructions": "No instructions to send",
+      "saveFailed": "Failed to save instruction",
+      "deleted": "Instruction deleted successfully",
+      "deleteFailed": "Failed to delete instruction (may have been sent)"
     }
   }
 }

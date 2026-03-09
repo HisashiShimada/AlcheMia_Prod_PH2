@@ -233,15 +233,15 @@
 - **物理名**: `project_task`
 - **論理名**: プロジェクトタスク
 - **DDLファイル**: `docs/design/db/ddl/project_task.sql`
-- **主キー**: `organization_id` (UUID), `project_id` (UUID), `method_id` (VARCHAR)
+- **主キー**: `organization_id` (UUID), `project_id` (CHARACTER VARYING(20)), `method_id` (CHARACTER VARYING), `experiment_order` (NUMERIC(2,0))
 - **主要カラム**:
   - `organization_id` - 組織ID (FK: project)
   - `project_id` - プロジェクトID (FK: project)
   - `method_id` - メソッドID
-  - `task_name` - タスク名
   - `experiment_order` - 実験順序
   - `experiment_condition` - 実験条件
   - `attempts_count` - 試行回数
+  - `worker_linked_flg` - 作業者連携済フラグ
   - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時
   - `update_user_id` - 更新者ユーザID

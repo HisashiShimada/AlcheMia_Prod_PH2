@@ -8,21 +8,22 @@
  * - Service層でupsertロジックを実装（既存レコード確認 → insert/update分岐）
  * 
  * DDL: docs/design/db/ddl/project_task.sql
- * 主キー: (organization_id, project_id, method_id)
+ * 主キー: (organization_id, project_id, method_id, experiment_order)
  */
 
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
 import { ProjectTask } from '../types/database';
 import type { TaskWithProject } from '../types/progress';
 import type { MethodTaskRecord, TaskFilters } from '../types/task';
 import { loadSqlFile } from '../sql/loader';
+import type { ITask } from 'pg-promise';
 
 /**
  * プロジェクト内のタスク一覧を取得
  * 
  * @param organizationId 組織ID
  * @param projectId プロジェクトID
- * @returns タスク一覧
+ * @returns タスク一覧（experiment_order順）
  */
 export async function findByProject(
   organizationId: string,
@@ -34,7 +35,7 @@ export async function findByProject(
     SELECT *
     FROM project_task
     WHERE organization_id = $1 AND project_id = $2
-    ORDER BY method_id ASC
+    ORDER BY experiment_order ASC
   `;
   
   const result = await pool.query<ProjectTask>(query, [organizationId, projectId]);
@@ -151,7 +152,7 @@ export async function update(data: ProjectTask): Promise<ProjectTask> {
   const pool = getPool();
   
   // WHERE句で使用するカラム（主キー）
-  const whereColumns = ['organization_id', 'project_id', 'method_id'];
+  const whereColumns = ['organization_id', 'project_id', 'method_id', 'experiment_order'];
   const whereValues = whereColumns.map(col => data[col as keyof ProjectTask]);
   
   // 更新するカラム（主キーを除外）
@@ -352,3 +353,98 @@ function mapSortFieldToColumn(sortField: string): string {
 
     return mapping[sortField] || 'ptd.task_no';
   }
+
+/**
+ * タスクデータの型定義（バッチUPSERT用）
+ */
+export interface TaskUpsertData {
+  methodId: string;
+  experimentOrder: number;
+  experimentCondition: number;
+  trialCount: number;
+}
+
+/**
+ * タスクデータの型定義（バッチINSERT用）
+ * TaskUpsertDataを拡張してworkerLinkedFlgを追加
+ */
+export interface TaskInsertData {
+  methodId: string;
+  experimentOrder: number;
+  experimentCondition: number;
+  trialCount: number;
+  workerLinkedFlg: boolean;
+}
+
+/**
+ * worker_linked_flgの値で絞り込んでタスクを削除（トランザクション内）
+ * 
+ * @param t pg-promiseトランザクションオブジェクト
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param workerLinkedFlg 削除対象のworker_linked_flg値
+ */
+export async function deleteByProjectAndWorkerLinkedFlg(
+  t: ITask<unknown>,
+  organizationId: string,
+  projectId: string,
+  workerLinkedFlg: boolean
+): Promise<void> {
+  const query = `
+    DELETE FROM project_task
+    WHERE organization_id = $1 
+      AND project_id = $2 
+      AND worker_linked_flg = $3
+  `;
+  
+  await t.none(query, [organizationId, projectId, workerLinkedFlg]);
+}
+
+/**
+ * タスクの一括INSERT（トランザクション内）
+ * タスク登録保存時に使用（削除→INSERT方式）
+ * 
+ * @param t pg-promiseトランザクションオブジェクト
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param userId ユーザーID
+ * @param tasks タスクデータ配列
+ */
+export async function batchInsertTasks(
+  t: ITask<unknown>,
+  organizationId: string,
+  projectId: string,
+  userId: string,
+  tasks: TaskInsertData[]
+): Promise<void> {
+  const now = new Date();
+  
+  for (const task of tasks) {
+    // TaskInsertDataをProjectTask型に変換
+    const projectTask: ProjectTask = {
+      organization_id: organizationId,
+      project_id: projectId,
+      method_id: task.methodId,
+      experiment_order: task.experimentOrder,
+      experiment_condition: task.experimentCondition,
+      attempts_count: task.trialCount,
+      worker_linked_flg: task.workerLinkedFlg,
+      create_user_id: userId,
+      create_at: now,
+      update_user_id: userId,
+      update_at: now
+    };
+    
+    // 動的にINSERTクエリを構築（DB操作規約に準拠）
+    const columns = Object.keys(projectTask);
+    const values = columns.map(col => projectTask[col as keyof ProjectTask]);
+    const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(', ');
+    
+    const query = `
+      INSERT INTO project_task (${columns.join(', ')})
+      VALUES (${placeholders})
+    `;
+    
+    await t.none(query, values);
+  }
+}

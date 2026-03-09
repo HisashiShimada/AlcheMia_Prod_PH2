@@ -125,7 +125,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
       onCancel={handleClose}
       width={900}
       footer={null}
-      destroyOnClose={false}
+      destroyOnHidden={false}
       styles={{ body: { padding: '16px 24px', maxHeight: '80vh', overflowY: 'auto' } }}
     >
       <Tabs

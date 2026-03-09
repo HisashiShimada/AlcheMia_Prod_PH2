@@ -24,6 +24,7 @@ import {
   getFileDownloadUrlByKey,
 } from '@/services/fileAccessService';
 import type { ProjectFile } from '@/types/file';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface FileListTableProps {
   files: ProjectFile[];
@@ -44,6 +45,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
   onViewFile 
 }) => {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 
   /**
@@ -56,20 +58,21 @@ const FileListTable: React.FC<FileListTableProps> = ({
 
       // ファイルパスが存在するか確認
       if (!file.path || file.path.trim() === '') {
-        throw new Error('ファイルパスが指定されていません');
+        throw new Error(t('projectManagement.fileManagement.messages.filePathMissing'));
       }
 
       // ファイルキーベースで直接ダウンロード（プロキシ方式）
       await getFileDownloadUrlByKey(file.path);
 
       // 成功メッセージ表示
-      message.success(`「${file.name}」のダウンロードを開始しました`);
+      message.success(
+        t('projectManagement.fileManagement.messages.downloadStarted').replace('{{fileName}}', file.name)
+      );
     } catch (error) {
       console.error('ファイルダウンロードエラー:', error);
+      const errorMsg = error instanceof Error ? error.message : '不明なエラー';
       message.error(
-        `ファイルのダウンロードに失敗しました: ${
-          error instanceof Error ? error.message : '不明なエラー'
-        }`
+        t('projectManagement.fileManagement.messages.downloadError').replace('{{error}}', errorMsg)
       );
     } finally {
       setDownloadingFileId(null);
@@ -100,14 +103,14 @@ const FileListTable: React.FC<FileListTableProps> = ({
 
   const columns: ColumnsType<ProjectFile> = [
     {
-      title: 'タイプ',
+      title: t('projectManagement.fileManagement.table.type'),
       key: 'type',
       width: 50,
       align: 'center',
       render: (_text: string, record: ProjectFile) => getFileIcon(record),
     },
     {
-      title: 'ファイル名',
+      title: t('projectManagement.fileManagement.table.fileName'),
       dataIndex: 'name',
       key: 'name',
       sorter: (a, b) => a.name.localeCompare(b.name, 'ja'),
@@ -127,7 +130,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
       ),
     },
     {
-      title: 'サイズ',
+      title: t('projectManagement.fileManagement.table.size'),
       key: 'size',
       width: 120,
       sorter: (a, b) => a.size - b.size,
@@ -137,7 +140,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
         ) : null,
     },
     {
-      title: '最終更新日',
+      title: t('projectManagement.fileManagement.table.lastModified'),
       key: 'lastModified',
       width: 150,
       sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime(),
@@ -147,7 +150,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
         ) : null,
     },
     {
-      title: '操作',
+      title: t('projectManagement.fileManagement.table.actions'),
       key: 'actions',
       width: 220,
       align: 'center',
@@ -165,7 +168,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
                 handleDownloadFile(record);
               }}
             >
-              ダウンロード
+              {t('projectManagement.fileManagement.buttons.download')}
             </Button>
             <Button
               type="primary"
@@ -177,7 +180,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
                 onViewFile?.(record);
               }}
             >
-              ビューア
+              {t('projectManagement.fileManagement.buttons.viewer')}
             </Button>
           </Space>
         ) : null,
@@ -192,7 +195,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
       size="small"
       pagination={false}
       locale={{
-        emptyText: <Empty description="ファイルがありません" image={Empty.PRESENTED_IMAGE_SIMPLE} />,
+        emptyText: <Empty description={t('projectManagement.fileManagement.emptyState')} image={Empty.PRESENTED_IMAGE_SIMPLE} />,
       }}
       onRow={(record) => ({
         onClick: () => {

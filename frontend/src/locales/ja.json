@@ -324,6 +324,26 @@
     "all_projects": "全体",
     "department": "部門",
     "all": "全て",
+    "fileManagement": {
+      "table": {
+        "type": "タイプ",
+        "fileName": "ファイル名",
+        "size": "サイズ",
+        "lastModified": "最終更新日",
+        "actions": "操作"
+      },
+      "buttons": {
+        "download": "ダウンロード",
+        "viewer": "ビューア"
+      },
+      "messages": {
+        "downloadStarted": "「{{fileName}}」のダウンロードを開始しました",
+        "downloadFailed": "ファイルのダウンロードに失敗しました",
+        "filePathMissing": "ファイルパスが指定されていません",
+        "downloadError": "ファイルのダウンロードに失敗しました: {{error}}"
+      },
+      "emptyState": "ファイルがありません"
+    },
     "instruction": {
       "experimentConditionTitle": "複数回実行時の実験条件",
       "conditionSpecification": "条件指定",
@@ -581,12 +601,25 @@
     },
     "trialCountPlaceholder": "試行回数",
     "emptyState": "タスクがありません",
+    "buttons": {
+      "addInstruction": "指示追加",
+      "projectInstruction": "プロジェクト指示"
+    },
+    "labels": {
+      "methodNotSet": "メソッド未設定"
+    },
     "messages": {
       "restored": "保存されたタスク情報を復元しました",
       "saved": "タスク情報を保存しました",
       "selectAllMethods": "すべてのメソッドを選択してください",
       "invalidTrialCount": "試行回数は1〜999の範囲で入力してください",
-      "invalidOrder": "順序は1〜{max}の範囲で入力してください"
+      "invalidOrder": "順序は1〜{max}の範囲で入力してください",
+      "checkedOut": "プロジェクトがチェックアウトされています。保存できません。",
+      "maimlNotRegistered": "MAIMLファイルが登録されていません。保存できません。",
+      "requireInstruction": "プロジェクト指示またはタスク指示を最低1つ設定してください",
+      "selectMethods": "保存するメソッドを選択してください",
+      "selectAllMethodsFirst": "初回保存時は全てのメソッドを選択する必要があります",
+      "cannotChangeOrder": "チェックアウト済みのメソッドは順序変更できません"
     }
   },
   "instructionRegistration": {
@@ -607,12 +640,31 @@
       "normal": "通常",
       "low": "低"
     },
+    "priorityLabels": {
+      "0": "低",
+      "1": "通常",
+      "2": "中",
+      "3": "高"
+    },
     "type": {
       "general": "一般",
       "setup": "セットアップ",
       "measurement": "測定",
       "safety": "安全",
       "cleanup": "清掃"
+    },
+    "typeLabels": {
+      "0": "一般",
+      "1": "セットアップ",
+      "2": "測定",
+      "3": "安全",
+      "4": "清掃"
+    },
+    "target": {
+      "method": "メソッド",
+      "transition": "トランジション",
+      "task": "タスク",
+      "project": "プロジェクト全体"
     },
     "emptyState": "指示が登録されていません",
     "editButton": "編集",
@@ -623,7 +675,11 @@
       "added": "指示を追加しました",
       "updated": "指示を更新しました",
       "sent": "指示を送信しました",
-      "noInstructions": "送信する指示がありません"
+      "sentCount": "{count}件の指示を送信しました",
+      "noInstructions": "送信する指示がありません",
+      "saveFailed": "指示の保存に失敗しました",
+      "deleted": "指示を削除しました",
+      "deleteFailed": "指示の削除に失敗しました（送信済の可能性があります）"
     }
   }
 }

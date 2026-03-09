@@ -519,7 +519,7 @@ export class ProgressService {
         transition_name: transition.data?.label || transition.id,
         status: latestRecord.status,
         progress,
-        last_updated: latestRecord.updated_at.toISOString(),
+        last_updated: latestRecord.update_at.toISOString(),
         material_count: materialCount,
         material_actual_count: materialActualCount,
         condition_count: conditionCount,

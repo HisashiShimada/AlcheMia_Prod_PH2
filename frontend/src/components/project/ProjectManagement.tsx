@@ -1361,7 +1361,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
                   },
                   {
                     key: 'instruction_registration',
-                    label: '指示送信',
+                    label: '指示一覧',
                     children: (
                       <InstructionRegistrationTab
                         projectId={selectedProject.id}
