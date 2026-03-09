@@ -388,3 +388,111 @@ export interface WorkProgressDetailResponse {
   /** 作業詳細一覧（タスク × トランジション進捗） */
   workDetails: WorkDetailItem[];
 }
+
+// ============================================================
+// メソッド別タスク一覧＋進捗情報取得API 型定義
+// GET /api/v1/projects/:projectId/methods/:methodId/tasks
+// ============================================================
+
+/**
+ * タスク単位のトランジション進捗統計
+ */
+export interface TaskProgressStats {
+  /** トランジション総数（transition_data から集計） */
+  total_transitions: number;
+
+  /** 完了数（status = 5） */
+  completed: number;
+
+  /** 作業中数（status = 1〜4） */
+  in_progress: number;
+
+  /** 未着手数（status = 0 または NULL） */
+  not_started: number;
+
+  /** 進捗率（0〜100、avg_progress_rate から算出） */
+  progress_percentage: number;
+}
+
+/**
+ * メソッド別タスク一覧の各タスク要素
+ * GET /api/v1/projects/:projectId/methods/:methodId/tasks のレスポンス tasks[]
+ */
+export interface MethodTaskItem {
+  /** 実験順序（project_task.experiment_order） */
+  experiment_order: number;
+
+  /** タスク名（project_task.task_name） */
+  task_name: string | null;
+
+  /** タスク連番（project_task_detail.task_no） */
+  task_no: number | null;
+
+  /** タスクステータス文字列（pending / in_progress / review_waiting / completed / failed） */
+  task_status: string;
+
+  /** タスクステータス数値（project_task_detail.task_status） */
+  task_status_num: number | null;
+
+  /** 担当作業者ID */
+  experiment_user_id: string | null;
+
+  /** 担当作業者名 */
+  experiment_user_name: string | null;
+
+  /** 実験開始日時（ISO8601） */
+  experiment_start_at: string | null;
+
+  /** 実験終了日時（ISO8601） */
+  experiment_end_at: string | null;
+
+  /** トランジション進捗統計 */
+  progress: TaskProgressStats;
+
+  /** レコード作成日時（ISO8601） */
+  created_at: string | null;
+
+  /** レコード更新日時（ISO8601） */
+  updated_at: string | null;
+}
+
+/**
+ * メソッド別タスク一覧の統計サマリー
+ */
+export interface MethodTasksStatistics {
+  /** タスク総数 */
+  total: number;
+
+  /** 未着手タスク数（task_status = pending） */
+  pending: number;
+
+  /** 実行中タスク数（task_status = in_progress） */
+  in_progress: number;
+
+  /** 完了タスク数（task_status = completed） */
+  completed: number;
+
+  /** 失敗タスク数（task_status = failed） */
+  failed: number;
+
+  /** 全体進捗率（各タスクの progress_percentage の平均、0〜100） */
+  overall_progress: number;
+}
+
+/**
+ * メソッド別タスク一覧＋進捗情報取得APIレスポンス data 部分
+ * GET /api/v1/projects/:projectId/methods/:methodId/tasks
+ */
+export interface MethodTasksResponse {
+  /** プロジェクトID */
+  project_id: string;
+
+  /** メソッドID */
+  method_id: string;
+
+  /** タスク一覧（experiment_order + task_no 単位） */
+  tasks: MethodTaskItem[];
+
+  /** 統計サマリー */
+  statistics: MethodTasksStatistics;
+}

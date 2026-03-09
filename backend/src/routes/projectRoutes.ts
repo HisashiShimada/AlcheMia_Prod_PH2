@@ -326,6 +326,46 @@ router.post(
 );
 
 /**
+ * メソッド別タスク一覧＋進捗情報取得
+ * GET /api/v1/projects/:projectId/methods/:methodId/tasks
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
+ * @description 指定プロジェクト・メソッドに紐づくタスク一覧を進捗集計付きで取得する。
+ *              実験管理者の進捗確認タブ（WorkProgressDetailDialog）で使用する。
+ * @note 静的ルートセグメント "methods" を含むため /:projectName/tasks より先に定義する
+ * @requirements api_progress_monitoring.md API #1
+ * @roles experiment_admin（読取専用）
+ */
+router.get(
+  '/:projectId/methods/:methodId/tasks',
+  authMiddleware,
+  checkPermission('040000', 0),
+  [
+    param('projectId')
+      .notEmpty()
+      .withMessage('projectIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectIdは1〜255文字である必要があります'),
+    param('methodId')
+      .notEmpty()
+      .withMessage('methodIdは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('methodIdは1〜255文字である必要があります'),
+    query('status')
+      .optional()
+      .isIn(['all', 'pending', 'in_progress', 'review_waiting', 'completed', 'failed'])
+      .withMessage('statusはall, pending, in_progress, review_waiting, completed, failedのいずれかである必要があります'),
+    query('include_details')
+      .optional()
+      .isBoolean()
+      .withMessage('include_detailsはtrueまたはfalseである必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.getMethodTasks
+);
+
+/**
  * プロジェクトタスク一覧取得
  * GET /api/v1/projects/:projectName/tasks
  * 
