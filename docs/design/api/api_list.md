@@ -553,7 +553,40 @@
 
 ---
 
-### 16. ユーザー管理API（User Management）
+### 16. セマンティック検索API（Semantic Search）
+
+**API設計書**: [api_semantic_search.md](./api_semantic_search.md)  
+**ルートファイル**: `backend/src/routes/semanticSearchRoutes.ts`  
+**備考**: 実装済み9/9エンドポイント（100%）、4軸ベクトル検索
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 16.1 | POST | /api/v1/semantic-search/search | セマンティック検索 | ✅ 実装済み | semanticSearchController.search |
+| 16.2 | POST | /api/v1/semantic-search/decompose | クエリ分解（AI4軸分解） | ✅ 実装済み | semanticSearchController.decompose |
+| 16.3 | POST | /api/v1/semantic-search/index | ファイルインデックス登録 | ✅ 実装済み | semanticSearchController.indexFile |
+| 16.4 | GET | /api/v1/semantic-search/stats | インデックス統計取得 | ✅ 実装済み | semanticSearchController.getStats |
+| 16.5 | GET | /api/v1/semantic-search/health | ヘルスチェック | ✅ 実装済み | semanticSearchController.health |
+| 16.6 | POST | /api/v1/semantic-search/batch | バッチ処理開始 | ✅ 実装済み | semanticSearchController.startBatch |
+| 16.7 | GET | /api/v1/semantic-search/batch | バッチジョブ一覧取得 | ✅ 実装済み | semanticSearchController.listBatchJobs |
+| 16.8 | GET | /api/v1/semantic-search/batch/stats | バッチ統計取得 | ✅ 実装済み | semanticSearchController.getBatchStats |
+| 16.9 | DELETE | /api/v1/semantic-search/batch/:jobId | バッチジョブキャンセル | ✅ 実装済み | semanticSearchController.cancelBatchJob |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`（JWTからorganizationIdを取得）
+- 権限: すべてのロール（マルチテナント分離で保護）
+
+**備考:**
+- 4軸ベクトル検索（入力条件・手順・出力・構造）によりMAIMLトランジションを類似度評価
+- AI（GPT）による自然言語クエリの4軸自動分解（GPT未接続時はフォールバック動作）
+- 検索重み調整: 4軸ごとに0.0〜1.0の重みをカスタマイズ可能
+- バッチ処理: 組織内全MAIMLファイルの一括Embedding生成（非同期実行）
+- 使用コンポーネント: `TransitionSetSearchModal.tsx`、`TransitionSetBatchProcessingPanel.tsx`
+- 呼び出し元サービス: `frontend/src/services/semanticSearchService.ts`
+- 詳細仕様: [api_semantic_search.md](./api_semantic_search.md) を参照
+
+---
+
+### 17. ユーザー管理API（User Management）
 
 **API設計書**: [api_user_management.md](./api_user_management.md)  
 **ルートファイル**: `backend/src/routes/userRoutes.ts`

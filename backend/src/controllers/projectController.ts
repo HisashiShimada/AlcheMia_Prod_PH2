@@ -261,62 +261,6 @@ export async function completeReviewTasks(req: Request, res: Response): Promise<
 }
 
 /**
- * プロジェクト詳細検索エンドポイント
- * POST /api/v1/projects/search
- *
- * @description
- * MAIMLメタデータを使ったプロジェクト詳細検索。
- * バリデーションはルート定義のミドルウェアで処理済み。
- *
- * @body { criteria: Array<{ attribute: string; value: string }> }
- */
-export async function searchProjects(req: Request, res: Response): Promise<void> {
-  const requestId = uuidv4();
-  const projectService = new ProjectService();
-
-  try {
-    const { organizationId } = req.user!;
-    const criteria: MaimlSearchCriteria[] = req.body.criteria;
-
-    // Service 層呼び出し
-    const result = await projectService.searchProjects(organizationId, criteria);
-
-    if (!result.success) {
-      res.status(500).json({
-        success: false,
-        error: {
-          code: result.error?.code || 'SYSTEM_ERROR',
-          message: result.error?.message || 'エラーが発生しました',
-        },
-        meta: { timestamp: new Date().toISOString(), requestId },
-      });
-      return;
-    }
-
-    res.status(200).json({
-      success: true,
-      data: result.data,
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
-  } catch (error) {
-    logError('Project search error', error as Error, {
-      action: 'project_search',
-      organizationId: req.user?.organizationId,
-      requestId,
-    });
-
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'SYSTEM_ERROR',
-        message: 'システムエラーが発生しました',
-      },
-      meta: { timestamp: new Date().toISOString(), requestId },
-    });
-  }
-}
-
-/**
  * プロジェクトタスク一覧取得エンドポイント
  * GET /api/v1/projects/:projectName/tasks
  * 

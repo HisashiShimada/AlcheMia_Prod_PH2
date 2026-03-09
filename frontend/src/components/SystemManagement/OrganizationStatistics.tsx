@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Card, Button, Space, Statistic, Row, Col } from 'antd';
 import { ReloadOutlined, DatabaseOutlined, FolderOutlined, UsergroupAddOutlined } from '@ant-design/icons';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 /** デフォルト統計データ（APIが利用可能になるまでのスタブ） */
 const defaultStatisticsData = {
@@ -41,6 +42,7 @@ const defaultStatisticsData = {
 const OrganizationStatisticsMock: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<string>(defaultStatisticsData.lastUpdated);
   const [statistics, setStatistics] = useState(defaultStatisticsData.statistics);
+  const { t } = useLanguage();
 
   // リロードボタンのハンドラ
   const handleReload = () => {
@@ -75,19 +77,19 @@ const OrganizationStatisticsMock: React.FC = () => {
       <Card
         title={
           <div style={{ fontSize: '20px', fontWeight: 'bold' }}>
-            統計情報
+            {t('organizationStatistics.title')}
           </div>
         }
         extra={
           <Space>
             <span style={{ color: '#757575', fontSize: '14px' }}>
-              最終更新: {lastUpdated}
+              {t('organizationStatistics.lastUpdated')}: {lastUpdated}
             </span>
-            <Button 
+            <Button
               icon={<ReloadOutlined />}
               onClick={handleReload}
             >
-              リロード
+              {t('organizationStatistics.buttons.reload')}
             </Button>
           </Space>
         }
@@ -112,7 +114,7 @@ const OrganizationStatisticsMock: React.FC = () => {
             >
               <DatabaseOutlined style={{ fontSize: '48px', color: '#757575', marginBottom: '16px' }} />
               <div style={{ fontSize: '14px', color: '#757575', marginBottom: '8px' }}>
-                ストレージ使用量
+                {t('organizationStatistics.storage.title')}
               </div>
               <Statistic
                 value={statistics.storage.used}
@@ -121,10 +123,10 @@ const OrganizationStatisticsMock: React.FC = () => {
                 valueStyle={{ fontSize: '28px', fontWeight: 'bold', color: '#212121' }}
               />
               <div style={{ fontSize: '12px', color: '#9e9e9e', marginTop: '8px' }}>
-                利用率: {(statistics.storage.usageRate * 100).toFixed(2)}%
+                {t('organizationStatistics.storage.usageRate')}: {(statistics.storage.usageRate * 100).toFixed(2)}%
               </div>
               <div style={{ fontSize: '12px', color: '#9e9e9e' }}>
-                ファイル数: {statistics.storage.fileCount} (MaiML: {statistics.storage.maimlFileCount})
+                {t('organizationStatistics.storage.fileCount')}: {statistics.storage.fileCount} (MaiML: {statistics.storage.maimlFileCount})
               </div>
             </Card>
           </Col>
@@ -144,7 +146,7 @@ const OrganizationStatisticsMock: React.FC = () => {
             >
               <FolderOutlined style={{ fontSize: '48px', color: '#757575', marginBottom: '16px' }} />
               <div style={{ fontSize: '14px', color: '#757575', marginBottom: '8px' }}>
-                プロジェクト数
+                {t('organizationStatistics.projects.title')}
               </div>
               <Statistic
                 value={statistics.projects.count}
@@ -152,7 +154,7 @@ const OrganizationStatisticsMock: React.FC = () => {
                 valueStyle={{ fontSize: '28px', fontWeight: 'bold', color: '#212121' }}
               />
               <div style={{ fontSize: '12px', color: '#9e9e9e', marginTop: '8px' }}>
-                登録率: {statistics.projects.registrationRate.toFixed(2)}%
+                {t('organizationStatistics.projects.registrationRate')}: {statistics.projects.registrationRate.toFixed(2)}%
               </div>
             </Card>
           </Col>
@@ -172,7 +174,7 @@ const OrganizationStatisticsMock: React.FC = () => {
             >
               <UsergroupAddOutlined style={{ fontSize: '48px', color: '#757575', marginBottom: '16px' }} />
               <div style={{ fontSize: '14px', color: '#757575', marginBottom: '8px' }}>
-                アクティブユーザー
+                {t('organizationStatistics.activeUsers.title')}
               </div>
               <Statistic
                 value={statistics.activeUsers.count}
@@ -180,7 +182,7 @@ const OrganizationStatisticsMock: React.FC = () => {
                 valueStyle={{ fontSize: '28px', fontWeight: 'bold', color: '#212121' }}
               />
               <div style={{ fontSize: '12px', color: '#9e9e9e', marginTop: '8px' }}>
-                登録率: {statistics.activeUsers.registrationRate.toFixed(2)}%
+                {t('organizationStatistics.activeUsers.registrationRate')}: {statistics.activeUsers.registrationRate.toFixed(2)}%
               </div>
             </Card>
           </Col>

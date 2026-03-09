@@ -1411,7 +1411,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         cancelText="キャンセル"
         okButtonProps={{ disabled: !selectedNamespaceFile }}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
+        <Space orientation="vertical" style={{ width: '100%' }} size="large">
           <Alert
             message="テンプレートファイルから名前空間（properties定義）を取り込みます"
             description={
@@ -1467,7 +1467,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               {namespacePreview.parsedData && (
                 <Alert
                   message={
-                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                       <Text strong>
                         📊 プロパティ: {Object.keys(namespacePreview.parsedData.properties).length}件 ／
                         コンテンツ: {Object.keys(namespacePreview.parsedData.contents).length}件
@@ -1515,7 +1515,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         onCancel={() => setShowAddModal(false)}
         onOk={handleAddProperty}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <Input
             placeholder="プロパティキー（例: compound, concentration）"
             value={newPropertyKey}
@@ -1547,7 +1547,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         cancelText="キャンセル"
         width={600}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
+        <Space orientation="vertical" style={{ width: '100%' }} size="large">
           {duplicateKeys.length > 0 ? (
             <Alert
               message={`⚠️ 重複するプロパティキーが ${duplicateKeys.length} 件あります`}
@@ -1616,7 +1616,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         onCancel={() => setShowContentAddModal(false)}
         onOk={handleAddContent}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <Input
             placeholder="プロパティキー（例: compound, concentration）"
             value={newContentKey}
@@ -1655,7 +1655,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         />
         
         <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             {allNodes
               .filter(n => n.data?.nodeType === 'place')
               .filter(n => !placeRefs.some((pr) => pr.ref === n.id))

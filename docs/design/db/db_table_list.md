@@ -46,6 +46,9 @@
   - `corporation_id` - 会社ID (FK: corporation)
   - `is_entry` - 二段階認証判定
   - `use_deemed_progress` - みなし進捗使用フラグ
+  - `contract_capacity` - 契約容量
+  - `contract_users` - 契約ユーザー数
+  - `contract_projects` - 契約プロジェクト数
   - `is_active` - アクティブ判定
   - `create_user_id` - 作成者ユーザID
   - `create_at` - 作成日時

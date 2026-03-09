@@ -199,7 +199,7 @@ const TransitionSetBatchProcessingPanel: React.FC = () => {
           プロジェクト配下の全MAIMLファイルをスキャンし、4軸ベクトルEmbeddingを生成します。
         </Text>
 
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <Space>
             <Text style={{ fontSize: 12 }}>既存ファイルを強制再処理:</Text>
             <Switch

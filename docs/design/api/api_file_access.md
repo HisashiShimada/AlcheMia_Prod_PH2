@@ -847,6 +847,145 @@ if (!allowedMimeTypes.includes(file.mimetype)) {
 
 ---
 
-**作成者**: Cline  
-**作成日**: 2026-02-19 17:05  
-**最終更新**: 2026-02-19 17:05
+---
+
+## API #7: ファイルテキスト内容取得
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | POST |
+| **エンドポイント** | `/api/v1/files/content-as-text` |
+| **説明** | 指定したファイルのテキスト内容をS3/Swiftから取得して文字列として返却する |
+| **実装状態** | ✅ 実装済み |
+| **権限** | すべてのロール（マルチテナント分離で保護） |
+| **呼び出し元** | fileAccessService.ts (`getFileContentAsText`) |
+
+### リクエスト
+
+**リクエストボディ（JSON）**
+
+```json
+{
+  "filePath": "projects/sample_project/sample_project.maiml"
+}
+```
+
+| フィールド | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| filePath | string | ✅ | organization_id省略の相対ファイルパス |
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "data": {
+    "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<maiml>...</maiml>",
+    "filePath": "projects/sample_project/sample_project.maiml",
+    "contentType": "application/xml",
+    "size": 12345
+  }
+}
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| content | string | ファイルのテキスト内容 |
+| filePath | string | リクエストで指定したファイルパス |
+| contentType | string | ファイルのContent-Type |
+| size | number | ファイルサイズ（バイト） |
+
+**エラー時**
+
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | VALIDATION_ERROR | filePathが未指定 |
+| 401 | AUTH_TOKEN_INVALID | 認証エラー |
+| 404 | FILE_NOT_FOUND | ファイルが存在しない |
+| 500 | SYSTEM_ERROR | S3/Swiftアクセスエラー |
+
+### 実装要件
+
+- `storageService.downloadFile(organizationId, filePath)` を使用
+- organization_idはJWTセッションから自動取得（リクエストに含める必要なし）
+- バイナリファイルは文字列変換されるが文字化けする場合あり（テキスト系ファイル向け）
+
+---
+
+## API #8: ファイル削除
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | DELETE |
+| **エンドポイント** | `/api/v1/files/delete` |
+| **説明** | 指定したファイルをS3/Swiftから削除する |
+| **実装状態** | ✅ 実装済み |
+| **権限** | すべてのロール（マルチテナント分離で保護） |
+| **呼び出し元** | fileAccessService.ts (`deleteFile`) |
+
+### リクエスト
+
+**リクエストボディ（JSON）**
+
+```json
+{
+  "filePath": "projects/sample_project/archive/sample_project_v1.maiml"
+}
+```
+
+| フィールド | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| filePath | string | ✅ | organization_id省略の相対ファイルパス |
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "message": "ファイルを削除しました",
+  "data": {
+    "filePath": "projects/sample_project/archive/sample_project_v1.maiml"
+  }
+}
+```
+
+**エラー時**
+
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | VALIDATION_ERROR | filePathが未指定 |
+| 401 | AUTH_TOKEN_INVALID | 認証エラー |
+| 403 | FORBIDDEN | 他組織ファイルへのアクセス |
+| 404 | FILE_NOT_FOUND | ファイルが存在しない |
+| 500 | SYSTEM_ERROR | S3/Swiftアクセスエラー |
+
+### 実装要件
+
+- `storageService.deleteFile(organizationId, filePath)` を使用
+- organization_idはJWTセッションから自動取得
+- マルチテナント分離：organization_idがパスに自動付与されるため他組織ファイルへのアクセス不可
+- file_metadataテーブルが存在する場合は連動して削除
+
+---
+
+## 📝 変更履歴（追記分）
+
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|----------|--------|
+| 1.1.0 | 2026-03-06 | ProjectManagement画面調査によりfileAccessService.tsから呼び出されるAPI追記 | Cline |
+| | | - API #7: ファイルテキスト内容取得 POST /api/v1/files/content-as-text | |
+| | | - API #8: ファイル削除 DELETE /api/v1/files/delete | |
+
+---
+
+**作成者**: Cline
+**作成日**: 2026-02-19 17:05
+**最終更新**: 2026-03-06 15:37

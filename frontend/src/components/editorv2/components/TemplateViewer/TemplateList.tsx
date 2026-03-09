@@ -96,11 +96,13 @@ const TemplateList: React.FC<TemplateListProps> = ({
           flexDirection: 'column',
           border: `2px solid ${getCategoryColor(category)}`,
         }}
-        bodyStyle={{
-          padding: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
+        styles={{
+          body: {
+            padding: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+          },
         }}
       >
         {/* ヘッダー（固定） */}

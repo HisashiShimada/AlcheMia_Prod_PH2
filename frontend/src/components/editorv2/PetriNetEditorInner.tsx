@@ -2634,7 +2634,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           showIcon
           style={{ maxWidth: 600, width: '100%' }}
         />
-        <Space direction="vertical" style={{ width: '100%', maxWidth: 600 }}>
+        <Space orientation="vertical" style={{ width: '100%', maxWidth: 600 }}>
           {criticalErrors.map((err, idx) => (
             <Alert 
               key={idx} 

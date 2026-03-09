@@ -11,13 +11,11 @@ import {
 } from '@ant-design/icons';
 import { getSystemOverview } from '../../services/systemOverviewApiService';
 import { SystemOverviewData } from '../../types/systemOverview';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-/**
- * システム概要画面
- * システム全体の統計情報を表示するダッシュボード
- */
 const SystemOverview: React.FC = () => {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   const [data, setData] = useState<SystemOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,16 +28,14 @@ const SystemOverview: React.FC = () => {
         const result = await getSystemOverview();
         setData(result);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'システム概要情報の取得に失敗しました');
+        setError(err instanceof Error ? err.message : t('systemOverview.messages.fetchError'));
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
-  // 統計カードのスタイル
   const cardStyle: React.CSSProperties = {
     padding: 0,
     height: '100%',
@@ -98,8 +94,8 @@ const SystemOverview: React.FC = () => {
       }}>
         <Alert
           type="error"
-          title="データ取得エラー"
-          description={error || 'データが取得できませんでした'}
+          title={t('systemOverview.errorTitle')}
+          description={error || t('systemOverview.errorFallback')}
           showIcon
         />
       </div>
@@ -112,7 +108,7 @@ const SystemOverview: React.FC = () => {
     <div style={{
       padding: token.paddingLG,
       background: token.colorBgLayout,
-      minHeight: 'calc(100vh - 112px)'
+      minHeight: 'calc(100vh - 112px)',
     }}>
       <Row gutter={[24, 24]}>
         {/* ユーザー */}
@@ -120,16 +116,22 @@ const SystemOverview: React.FC = () => {
           <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
               <UserOutlined style={{ fontSize: token.fontSizeHeading4 }} />
-              ユーザー
+              {t('systemOverview.sections.users')}
             </div>
             <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
-                <span style={labelStyle}>総ユーザー数</span>
+                <span style={labelStyle}>{t('systemOverview.labels.totalUsers')}</span>
                 <span style={valueStyle}>{users.total}</span>
               </div>
               <div style={statRowStyle}>
-                <span style={labelStyle}>アクティブ</span>
+                <span style={labelStyle}>{t('systemOverview.labels.activeUsers')}</span>
                 <span style={valueStyle}>{users.active}</span>
+              </div>
+              <div style={statRowStyle}>
+                <span style={labelStyle}>{t('systemOverview.labels.contractedUsers')}</span>
+                <span style={valueStyle}>
+                  {users.contractedUsers !== null ? users.contractedUsers : '-'}
+                </span>
               </div>
             </Flex>
           </Card>
@@ -140,11 +142,11 @@ const SystemOverview: React.FC = () => {
           <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
               <DesktopOutlined style={{ fontSize: token.fontSizeHeading4 }} />
-              セッション
+              {t('systemOverview.sections.sessions')}
             </div>
             <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
-                <span style={labelStyle}>総セッション</span>
+                <span style={labelStyle}>{t('systemOverview.labels.totalSessions')}</span>
                 <span style={valueStyle}>{sessions.total}</span>
               </div>
             </Flex>
@@ -156,24 +158,30 @@ const SystemOverview: React.FC = () => {
           <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
               <ExperimentOutlined style={{ fontSize: token.fontSizeHeading4 }} />
-              実験システム
+              {t('systemOverview.sections.experimentSystem')}
             </div>
             <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
-                <span style={labelStyle}>総プロジェクト数</span>
+                <span style={labelStyle}>{t('systemOverview.labels.totalProjects')}</span>
                 <span style={valueStyle}>{experimentSystem.totalProjects}</span>
               </div>
               <div style={statRowStyle}>
-                <span style={labelStyle}>プロジェクト計画中/タスク実行待ち</span>
+                <span style={labelStyle}>{t('systemOverview.labels.planning')}</span>
                 <span style={valueStyle}>{experimentSystem.planning}</span>
               </div>
               <div style={statRowStyle}>
-                <span style={labelStyle}>タスク実行中/タスク結果レビュー待ち</span>
+                <span style={labelStyle}>{t('systemOverview.labels.inProgress')}</span>
                 <span style={valueStyle}>{experimentSystem.inProgress}</span>
               </div>
               <div style={statRowStyle}>
-                <span style={labelStyle}>プロジェクト完了/タスク異常終了</span>
+                <span style={labelStyle}>{t('systemOverview.labels.completed')}</span>
                 <span style={valueStyle}>{experimentSystem.completed}</span>
+              </div>
+              <div style={statRowStyle}>
+                <span style={labelStyle}>{t('systemOverview.labels.contractedProjects')}</span>
+                <span style={valueStyle}>
+                  {experimentSystem.contractedProjects !== null ? experimentSystem.contractedProjects : '-'}
+                </span>
               </div>
             </Flex>
           </Card>
@@ -184,16 +192,22 @@ const SystemOverview: React.FC = () => {
           <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
               <DatabaseOutlined style={{ fontSize: token.fontSizeHeading4 }} />
-              ストレージ
+              {t('systemOverview.sections.storage')}
             </div>
             <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
-                <span style={labelStyle}>総ファイル数</span>
+                <span style={labelStyle}>{t('systemOverview.labels.totalFiles')}</span>
                 <span style={valueStyle}>{storage.totalFiles}</span>
               </div>
               <div style={statRowStyle}>
-                <span style={labelStyle}>使用容量</span>
+                <span style={labelStyle}>{t('systemOverview.labels.usedCapacity')}</span>
                 <span style={valueStyle}>{storage.usedCapacityGB.toFixed(3)} GB</span>
+              </div>
+              <div style={statRowStyle}>
+                <span style={labelStyle}>{t('systemOverview.labels.contractCapacity')}</span>
+                <span style={valueStyle}>
+                  {storage.contractCapacityGB !== null ? `${storage.contractCapacityGB.toFixed(3)} GB` : '-'}
+                </span>
               </div>
             </Flex>
           </Card>
@@ -204,19 +218,19 @@ const SystemOverview: React.FC = () => {
           <Card style={cardStyle} variant="borderless">
             <div style={titleStyle}>
               <LoginOutlined style={{ fontSize: token.fontSizeHeading4 }} />
-              ログイン（過去7日）
+              {t('systemOverview.sections.loginLast7Days')}
             </div>
             <Flex vertical gap={0} style={{ width: '100%' }}>
               <div style={statRowStyle}>
-                <span style={labelStyle}>総ログイン</span>
+                <span style={labelStyle}>{t('systemOverview.labels.totalLogins')}</span>
                 <span style={valueStyle}>{loginLast7Days.total}</span>
               </div>
               <div style={statRowStyle}>
-                <span style={labelStyle}>成功</span>
+                <span style={labelStyle}>{t('systemOverview.labels.success')}</span>
                 <span style={valueStyle}>{loginLast7Days.success}</span>
               </div>
               <div style={statRowStyle}>
-                <span style={labelStyle}>失敗</span>
+                <span style={labelStyle}>{t('systemOverview.labels.failed')}</span>
                 <span style={valueStyle}>{loginLast7Days.failed}</span>
               </div>
             </Flex>

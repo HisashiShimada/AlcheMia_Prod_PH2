@@ -119,7 +119,8 @@ export async function createDepartment(req: Request, res: Response, next: NextFu
     const organizationId = req.user?.organizationId;
     const userId = req.user?.userId;
 
-    const department = await masterService.createDepartment(String(organizationId), req.body, String(userId));
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
+    const department = await masterService.createDepartment(String(organizationId), req.body, String(userId), lang);
 
     res.status(201).json({
       success: true,
@@ -256,7 +257,8 @@ export async function uploadDepartmentCsv(req: Request, res: Response, next: Nex
     }
 
     const csvContent = req.file.buffer.toString('utf-8');
-    const result = await masterService.uploadDepartmentsCsv(String(organizationId), csvContent, String(userId));
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
+    const result = await masterService.uploadDepartmentsCsv(String(organizationId), csvContent, String(userId), lang);
 
     res.json({
       success: true,
