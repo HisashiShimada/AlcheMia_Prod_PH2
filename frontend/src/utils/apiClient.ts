@@ -673,12 +673,47 @@ export async function fetchPetriNetStructure(fileKey: string): Promise<unknown> 
 }
 
 /**
- * 実験記録データを取得（モック）
+ * 実験記録データを取得
+ *
+ * @description
+ * 指定されたワークID（タスク）に紐づく実験記録データを返す。
+ *
+ * ## ⚠️ 現状: モックデータを返しています
+ *
+ * ### 理由
+ * この関数が想定していた `GET /api/experiment-records/by-work-id/:workId` は
+ * バックエンドに実装されておらず、対応するエンドポイントが存在しない。
+ *
+ * ### 実APIに接続するために必要な条件
+ * 実APIを呼ぶには以下の情報が必要だが、現在の引数 `workId` のみから導出できない：
+ *   - `projectName`: プロジェクト名
+ *   - `methodId`: メソッドID
+ *   - `taskNo`: タスク連番（整数）
+ *   - `transitionId`: トランジションID（トランジションごとに1回のAPI呼び出しが必要）
+ *
+ * ### バックエンドの既存API（参考）
+ * バックエンドには以下の近接APIが存在するが、1トランジションごとにしか呼び出せない：
+ * ```
+ * GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data?transitionId=xxx
+ * ```
+ * 全トランジション分の実験記録を一括取得するには、新しいバックエンドAPIの実装が必要。
+ *
+ * ### TODO: バックエンドAPI実装後の対応方針
+ * 1. バックエンドに一括取得API を追加:
+ *    `GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/all-records`
+ * 2. この関数のシグネチャを `fetchExperimentRecords(projectName, methodId, taskNo)` に変更
+ * 3. 上記APIを呼び出すよう実装を変更
+ * 4. `PetriNetVisualization.tsx` の呼び出し箇所も合わせて変更
+ *
+ * @param workId - ワークID（タスクの識別子）※現状は未使用（バックエンドAPIが未実装のためモックを返す）
  */
 export async function fetchExperimentRecords(workId: string): Promise<unknown> {
   await simulateApiDelay();
-  
+
+  console.log('📦 [fetchExperimentRecords] モックデータを返却（バックエンドAPI未実装）:', { workId });
+
   // モックデータをダイナミックインポート
+  // TODO: バックエンドに一括取得APIが実装されたら、実APIを呼び出すよう変更する
   try {
     const mockData = await import('@/data/mock/mockExperimentRecords.json');
     return {
