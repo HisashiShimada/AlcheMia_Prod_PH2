@@ -755,7 +755,6 @@ export class ProgressService {
         project_id: string;
         method_id: string;
         experiment_order: number;
-        task_name: string | null;
         experiment_condition: number | null;
         attempts_count: number | null;
         create_at: Date;
@@ -837,7 +836,7 @@ export class ProgressService {
 
           const workDetailItem: WorkDetailItem = {
             workId,
-            taskName: task.task_name ?? undefined,
+            taskNo: Number(task.experiment_order),
             methodName: task.method_id,
             workStatus: completedCount === totalTransitions && totalTransitions > 0 ? '完了'
               : workingCount > 0 ? '進行中'

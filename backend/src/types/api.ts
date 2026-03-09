@@ -338,11 +338,11 @@ export interface TransitionProgressItem {
  * WorkProgressDetailDialog の workDetails の各要素に対応
  */
 export interface WorkDetailItem {
-  /** タスク識別子（"{methodId}_{taskNo}" 形式） */
+  /** タスク識別子（"{methodId}_{experimentOrder}" 形式） */
   workId: string;
 
-  /** タスク名（project_task.task_name） */
-  taskName?: string;
+  /** タスク連番（タスクNo）（project_task.experiment_order） */
+  taskNo: number;
 
   /** メソッド名（project_task.method_id） */
   methodName?: string;

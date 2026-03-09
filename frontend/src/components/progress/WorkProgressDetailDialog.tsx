@@ -294,7 +294,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
     key: String(index),
     label: (
       <Text strong style={{ fontSize: token.fontSizeSM }}>
-        {work.taskName || `作業${index + 1}`}
+        {`Task${work.taskNo}`}
       </Text>
     ),
   }));
@@ -534,20 +534,10 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                 <Col xs={24} sm={12} md={6}>
                   <Space orientation="vertical" size={0}>
                     <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                      タスク名
+                      タスクNo
                     </Text>
                     <Text strong style={{ fontSize: token.fontSize }}>
-                      {selectedWork.taskName || selectedWork.workId}
-                    </Text>
-                  </Space>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Space orientation="vertical" size={0}>
-                    <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                      タスクID
-                    </Text>
-                    <Text style={{ fontSize: token.fontSizeSM }}>
-                      {selectedWork.workId}
+                      {selectedWork.taskNo}
                     </Text>
                   </Space>
                 </Col>
