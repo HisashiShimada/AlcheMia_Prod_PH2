@@ -390,6 +390,115 @@ export interface WorkProgressDetailResponse {
 }
 
 // ============================================================
+// タスク詳細取得API 型定義
+// GET /api/v1/tasks/:taskId
+// ============================================================
+
+/**
+ * トランジション進捗の個別レコード
+ * GET /api/v1/tasks/:taskId のレスポンス transitionProgress[] の各要素
+ */
+export interface TaskDetailTransitionItem {
+  /** トランジションID */
+  transitionId: string;
+
+  /** トランジションステータス数値（0:初期, 1:準備中, 2:準備完了, 3:実行中, 4:一時停止, 5:完了, 6:エラー） */
+  status: number | null;
+
+  /** 進捗率（0〜100） */
+  progressRate: number | null;
+
+  /** 最終更新日時（ISO8601） */
+  updatedAt: string | null;
+}
+
+/**
+ * タスク詳細統計情報
+ */
+export interface TaskDetailStats {
+  /** トランジション総数 */
+  totalTransitions: number;
+
+  /** 完了数（status = 5） */
+  completed: number;
+
+  /** 作業中数（status = 1〜4） */
+  inProgress: number;
+
+  /** 未着手数（status = 0 または NULL） */
+  notStarted: number;
+
+  /** 進捗率（0〜100、avg_progress_rate から算出） */
+  progressPercentage: number;
+}
+
+/**
+ * タスク詳細取得APIレスポンス data 部分
+ * GET /api/v1/tasks/:taskId
+ *
+ * taskId フォーマット: "{projectId}__{methodId}__{taskNo}" （ダブルアンダースコア区切り）
+ * 例: "550e8400-e29b-41d4-a716-446655440000__method1__3"
+ */
+export interface TaskDetailResponse {
+  /** タスクID文字列（{projectId}__{methodId}__{taskNo} 形式） */
+  taskId: string;
+
+  /** プロジェクトID */
+  projectId: string;
+
+  /** プロジェクト名 */
+  projectName: string;
+
+  /** メソッドID */
+  methodId: string;
+
+  /** 実験順序（project_task.experiment_order） */
+  experimentOrder: number;
+
+  /** タスク名（project_task.task_name） */
+  taskName: string | null;
+
+  /** タスク連番（project_task_detail.task_no） */
+  taskNo: number;
+
+  /** タスクステータス文字列（pending / in_progress / review_waiting / completed / failed） */
+  taskStatus: string;
+
+  /** タスクステータス数値（project_task_detail.task_status） */
+  taskStatusNum: number | null;
+
+  /** 担当作業者ID */
+  experimentUserId: string | null;
+
+  /** 担当作業者名 */
+  experimentUserName: string | null;
+
+  /** 実験開始日時（ISO8601） */
+  experimentStartAt: string | null;
+
+  /** 実験終了日時（ISO8601） */
+  experimentEndAt: string | null;
+
+  /** レビュー完了日時（ISO8601） */
+  reviewedAt: string | null;
+
+  /** レビュアーID */
+  reviewUserId: string | null;
+
+  /** トランジション進捗一覧（transition_data から取得） */
+  transitionProgress: TaskDetailTransitionItem[];
+
+  /** 進捗統計情報 */
+  stats: TaskDetailStats;
+
+  /** レコード作成日時（ISO8601） */
+  createdAt: string | null;
+
+  /** レコード更新日時（ISO8601） */
+  updatedAt: string | null;
+}
+
+// ============================================================
 // メソッド別タスク一覧＋進捗情報取得API 型定義
 // GET /api/v1/projects/:projectId/methods/:methodId/tasks
 // ============================================================

@@ -8,6 +8,7 @@
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
 import * as progressController from '../controllers/progressController';
+import * as projectController from '../controllers/projectController';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { handleValidationErrors } from '../middleware/validationMiddleware';
 import { checkPermission } from '../middleware/permissionCheckMiddleware';
@@ -179,6 +180,30 @@ router.patch(
   ],
   handleValidationErrors,
   progressController.updateTransitionStatus
+);
+
+/**
+ * タスク詳細取得
+ * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
+ * @description
+ *   projectName / methodId / taskNo からタスクを特定し、
+ *   タスク基本情報 + トランジション進捗一覧 + 統計情報を返す。
+ * @roles experiment_admin（読取専用）
+ */
+router.get(
+  '/projects/:projectName/methods/:methodId/tasks/:taskNo/details',
+  authMiddleware,
+  checkPermission('040000', 0),
+  [
+    validateParamString('projectName', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamInt('taskNo', 1),
+  ],
+  handleValidationErrors,
+  projectController.getTaskDetail
 );
 
 /**

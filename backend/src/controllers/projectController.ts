@@ -9,8 +9,9 @@ import { Request, Response } from 'express';
 import { ProjectService } from '../services/projectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
-import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats } from '../types/api';
+import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse } from '../types/api';
 import type { MaimlSearchCriteria } from '../repositories/fileMetadataRepository';
+import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 
 /**
  * プロジェクト作成エンドポイント
@@ -104,6 +105,110 @@ export async function create(req: Request, res: Response): Promise<void> {
         timestamp: new Date().toISOString(),
         requestId,
       },
+    });
+  }
+}
+
+/**
+ * タスク詳細取得エンドポイント
+ * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details
+ *
+ * @description
+ *   projectName / methodId / taskNo パラメータからタスクを特定し、
+ *   タスク基本情報 + トランジション進捗一覧 + 統計情報を返す。
+ * @note バリデーションはルート定義のミドルウェアで処理済み
+ */
+export async function getTaskDetail(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectName, methodId, taskNo: taskNoStr } = req.params;
+
+    // taskNo を数値に変換（バリデーション済み前提だが念のため）
+    const taskNo = parseInt(taskNoStr, 10);
+    if (isNaN(taskNo) || taskNo < 1) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_TASK_NO_INVALID',
+          message: 'taskNo は1以上の整数である必要があります。',
+        },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    // ── projectName → projectId 解決 ──────────────────────────────
+    const { getPool } = require('../database/db');
+    const pool = getPool();
+    const projectResult = await pool.query(
+      'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2',
+      [organizationId, projectName]
+    );
+
+    if (projectResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'プロジェクトが見つかりません。',
+        },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    const projectId: string = projectResult.rows[0].project_id;
+
+    // taskId 文字列はレスポンスへの埋め込み用（フロントエンドで識別子として利用可能）
+    const taskId = `${projectId}__${methodId}__${taskNo}`;
+
+    // ── Repository 呼び出し ──────────────────────────────────────────
+    const taskDetail: TaskDetailResponse | null =
+      await projectTaskDetailRepository.findTaskDetail(
+        organizationId,
+        projectId,
+        methodId,
+        taskNo,
+        taskId
+      );
+
+    if (!taskDetail) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: '指定されたタスクが見つかりません。',
+        },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    // ── 成功レスポンス ───────────────────────────────────────────────
+    res.status(200).json({
+      success: true,
+      data: taskDetail,
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('getTaskDetail error', error as Error, {
+      action: 'task_get_detail',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      methodId: req.params.methodId,
+      taskNo: req.params.taskNo,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました。',
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }
