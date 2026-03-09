@@ -373,10 +373,11 @@ export async function fetchProjectFilesReal(
 
 /**
  * モックAPIを使用するかどうかを判定
- * 開発環境では常にモックAPIを使用
+ *
+ * 常に実APIを使用するため false を返す。
  */
 export function shouldUseMockAPI(): boolean {
-  return true; // 現在は常にモックAPI使用
+  return false;
 }
 
 /**
