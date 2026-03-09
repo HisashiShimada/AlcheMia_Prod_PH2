@@ -44,9 +44,6 @@ import type {
   WorkDetail,
   TransitionProgress,
 } from '@/types/progress';
-// モックデータのインポート
-import mockProjectsData from '@/data/mock/mockProjects.json';
-
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
@@ -94,90 +91,32 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
         timestamp: new Date().toISOString(),
       });
 
-      // ============================================================
-      // 🔒 API呼び出し（コメントアウト - モックデータ使用中）
-      // ============================================================
-      // const response = await axios.get(
-      //   `/api/manager/file-progress-detail/${encodeURIComponent(fileData.maimlFileKey)}`,
-      //   { params: { managerId } }
-      // );
-      //
-      // if (response.data.success) {
-      //   const { fileInfo, workDetails } = response.data.data;
-      //
-      //   console.log('✅ [FileProgressDetail] ファイル詳細取得成功:', {
-      //     workCount: workDetails?.length || 0,
-      //   });
-      //
-      //   setFileDetails({
-      //     fileInfo,
-      //     workDetails: workDetails || [],
-      //   });
-      //   setSelectedWorkIndex(0);
-      // } else {
-      //   throw new Error(response.data.error || 'ファイル詳細の取得に失敗しました');
-      // }
+      // maimlFileKey からプロジェクト名を抽出
+      // 形式: {organizationId}/projects/{projectName}/{projectName}.maiml
+      const projectNameMatch = fileData.maimlFileKey.match(/\/projects\/([^/]+)\//);
+      const projectName = projectNameMatch ? decodeURIComponent(projectNameMatch[1]) : null;
 
-      // ============================================================
-      // ✅ モックデータを使用（開発用）
-      // ============================================================
-      // 実際のAPIレスポンスをシミュレート
-      await new Promise(resolve => setTimeout(resolve, 800)); // ローディング表示のため遅延
-
-      // プロジェクトIDからモックデータを選択
-      // fileDataのmaimlFileKeyからプロジェクトIDを抽出
-      const projectIdMatch = fileData.maimlFileKey.match(/projects?\/(proj_\d+)/);
-      const projectId = projectIdMatch ? projectIdMatch[1] : null;
-      
-      // mockProjects.jsonから該当プロジェクトを取得
-      const project = mockProjectsData.projects.find(p => p.id === projectId);
-      
-      if (!project) {
-        throw new Error(`プロジェクト ${projectId} が見つかりません`);
+      if (!projectName) {
+        throw new Error('maimlFileKeyからプロジェクト名を取得できませんでした');
       }
 
-      // APIレスポンス形式に変換
-      const response = {
-        success: true,
-        data: {
-          projectInfo: {
-            projectId: project.id,
-            projectName: project.name,
-            projectDescription: project.description,
-            owner: project.owner,
-            department: project.department,
-            status: project.status,
-            methods: project.methods,
-            createdAt: project.createdAt,
-            updatedAt: project.updatedAt
-          },
-          fileInfo: {
-            fileName: project.fileInfo.fileName,
-            maimlFileKey: project.fileInfo.maimlFileKey,
-            organizationId: project.fileInfo.organizationId,
-            checkoutStatus: {
-              isCheckedOut: project.isCheckedOut,
-              checkoutBy: project.checkedOutBy || null
-            }
-          },
-          workDetails: project.tasks.map(task => ({
-            workId: task.workId,
-            taskName: task.taskName,
-            methodName: task.methodName,
-            assignedWorkerId: task.assignedWorkerId,
-            workStatus: task.workStatus,
-            progressPercentage: task.progressPercentage,
-            stats: task.stats,
-            transitionProgress: task.transitionProgress || []
-          }))
-        }
-      };
+      console.log('🔍 [FileProgressDetail] プロジェクト名抽出:', {
+        projectName,
+        timestamp: new Date().toISOString(),
+      });
 
-      if (response.success) {
-        const { projectInfo, fileInfo, workDetails } = response.data;
+      // ============================================================
+      // API呼び出し
+      // ============================================================
+      const response = await axios.get(
+        `/api/v1/progress/projects/${encodeURIComponent(projectName)}/work-details`
+      );
 
-        console.log('✅ [FileProgressDetail] ファイル詳細取得成功（モックデータ）:', {
-          projectId,
+      if (response.data.success) {
+        const { projectInfo, fileInfo, workDetails } = response.data.data;
+
+        console.log('✅ [FileProgressDetail] ファイル詳細取得成功:', {
+          projectName,
           workCount: workDetails?.length || 0,
         });
 
@@ -197,7 +136,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
         });
         setSelectedWorkIndex(0);
       } else {
-        throw new Error('ファイル詳細の取得に失敗しました');
+        throw new Error(response.data.error?.message || 'ファイル詳細の取得に失敗しました');
       }
     } catch (err) {
       console.error('❌ [FileProgressDetail] Fetch error:', err);
