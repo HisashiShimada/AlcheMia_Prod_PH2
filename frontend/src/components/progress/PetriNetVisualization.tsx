@@ -336,9 +336,14 @@ const nodeTypes = {
  */
 interface PetriNetVisualizationProps {
   fileKey: string;
+  /** @deprecated バックエンドAPIでは不要。後方互換のため残存 */
   workerId: string;
   workId: string;
   progressData?: TransitionProgress[];
+  /** トランジション進捗APIを呼び出す際のメソッドID（オプショナル） */
+  methodId?: string;
+  /** トランジション進捗APIを呼び出す際のタスク連番（オプショナル、1以上） */
+  taskNo?: number;
 }
 
 /**
@@ -350,6 +355,8 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
   workerId,
   workId,
   progressData = [],
+  methodId,
+  taskNo,
 }) => {
   const { token } = theme.useToken();
 
@@ -438,8 +445,13 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
               transitionStatus: progressData,
             },
           };
+        } else if (methodId && taskNo !== undefined) {
+          // methodId/taskNoが指定されている場合はAPIを呼び出し
+          progressResult = await fetchTransitionStatusAPI(fileKey, methodId, taskNo);
         } else {
-          progressResult = await fetchTransitionStatusAPI(workerId, fileKey);
+          // methodId/taskNoが未指定の場合は空データで代替
+          console.log('ℹ️ [PetriNetVisualization] methodId/taskNo未指定のため進捗データなし');
+          progressResult = { success: true, data: { transitionStatus: [] } };
         }
 
         // 実験記録データ取得（workId必須）
@@ -468,7 +480,13 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
 
         // トランジション進捗取得（エラーでも続行）
         try {
-          progressResult = await fetchTransitionStatusAPI(workerId, fileKey);
+          if (methodId && taskNo !== undefined) {
+            progressResult = await fetchTransitionStatusAPI(fileKey, methodId, taskNo);
+          } else {
+            // methodId/taskNoが未指定の場合は空データで代替
+            console.log('ℹ️ [PetriNetVisualization] methodId/taskNo未指定のため進捗データなし（実API）');
+            progressResult = { success: true, data: { transitionStatus: [] } };
+          }
         } catch (error) {
           console.warn('⚠️ [PetriNetVisualization] トランジション進捗取得失敗（続行）:', error);
           progressResult = { success: true, data: { transitionStatus: [] } };

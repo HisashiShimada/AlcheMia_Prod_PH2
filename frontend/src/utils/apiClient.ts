@@ -163,27 +163,131 @@ export async function fetchFormatById(formatId: string): Promise<ApiResponse<For
 }
 
 /**
- * プロジェクトのファイル一覧を取得
+ * トランジション番号に対応するステータスラベル文字列を返す
+ * バックエンドの数値ステータス → フロントエンドの表示文字列へのマッピング
  */
-export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>> {
-  await simulateApiDelay();
-  
-  const allFiles = filesData.files as Record<string, { root: ProjectFile[]; archive?: ProjectFile[] }>;
-  const projectFiles = allFiles[projectId];
-  
-  if (!projectFiles) {
-    throw new Error(`プロジェクトのファイルが見つかりません: ${projectId}`);
+function getTransitionStatusLabel(status: number): string {
+  const TRANSITION_STATUS_LABELS: Record<number, string> = {
+    0: '未開始',
+    1: '準備中',
+    2: '準備完了',
+    3: '実行中',
+    4: '一時停止',
+    5: '完了',
+    6: 'エラー',
+  };
+  return TRANSITION_STATUS_LABELS[status] ?? '未開始';
+}
+
+/**
+ * トランジション進捗データを取得
+ * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
+ *
+ * @description
+ * fileKey からプロジェクト名を抽出し、バックエンドの進捗APIを呼び出す。
+ * バックエンドレスポンス（snake_case・数値ステータス）を
+ * フロントエンド期待形式（camelCase・文字列ステータス）に変換して返す。
+ *
+ * @param fileKey   - MAIMLファイルキー（例: orgId/projects/projectName/projectName.maiml）
+ * @param methodId  - メソッドID
+ * @param taskNo    - タスク連番（1以上の整数）
+ * @returns フロントエンド期待形式のトランジション進捗データ
+ */
+export async function fetchTransitionStatus(
+  fileKey: string,
+  methodId: string,
+  taskNo: number
+): Promise<unknown> {
+  // モックモード時はモックデータを返す
+  if (shouldUseMockAPI()) {
+    console.log('📦 [fetchTransitionStatus] モックAPIからデータ取得');
+    try {
+      const mockData = await import('@/data/mock/mockTransitionStatus.json');
+      return {
+        success: true,
+        data: {
+          transitionStatus: mockData.default || mockData,
+        },
+      };
+    } catch {
+      console.warn('⚠️ mockTransitionStatus.json not found, returning empty data');
+      return {
+        success: true,
+        data: {
+          transitionStatus: [],
+        },
+      };
+    }
   }
-  
+
+  // fileKey からプロジェクト名を抽出
+  // 例: "550e8400-.../projects/sample_project/sample_project.maiml" → "sample_project"
+  const projectNameFromKey = fileKey.split('/projects/')[1]?.split('/')[0];
+  if (!projectNameFromKey) {
+    throw new Error(
+      `fileKey からプロジェクト名を抽出できませんでした。fileKey: ${fileKey}`
+    );
+  }
+
+  console.log('🌐 [fetchTransitionStatus] 実API呼び出し:', {
+    fileKey,
+    projectName: projectNameFromKey,
+    methodId,
+    taskNo,
+  });
+
+  const response = await fetch(
+    `${API_BASE_URL}/progress/projects/${encodeURIComponent(projectNameFromKey)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/transitions`,
+    {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.error?.message ||
+        `トランジション進捗の取得に失敗しました: ${response.status}`
+    );
+  }
+
+  const result = await response.json();
+
+  console.log('✅ [fetchTransitionStatus] APIレスポンス取得成功:', {
+    success: result.success,
+    transitionsCount: result.data?.transitions?.length,
+  });
+
+  // バックエンドレスポンス → フロントエンド期待形式へ変換
+  // バックエンド: { data: { transitions: [{ transition_id, transition_name, status(数値), progress, ... }] } }
+  // フロントエンド期待: { data: { transitionStatus: [{ transitionId, transitionName, progressStatus(文字列), ... }] } }
+  const rawTransitions: Array<{
+    transition_id: string;
+    transition_name: string;
+    status: number;
+    progress: number;
+    last_updated: string | null;
+    material_count?: number;
+    condition_count?: number;
+    result_count?: number;
+  }> = result.data?.transitions ?? [];
+
+  const transitionStatus = rawTransitions.map((t) => ({
+    transitionId: t.transition_id,
+    transitionName: t.transition_name,
+    progressStatus: getTransitionStatusLabel(t.status),
+    latestStatus: getTransitionStatusLabel(t.status),
+    progressPercentage: t.progress ?? 0,
+  }));
+
   return {
     success: true,
     data: {
-      files: projectFiles.root || [],
-      archiveFiles: projectFiles.archive || [],
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      requestId: 'mock-request-id',
+      transitionStatus,
     },
   };
 }
@@ -566,30 +670,6 @@ export async function fetchPetriNetStructure(fileKey: string): Promise<unknown> 
   });
 
   return result;
-}
-
-/**
- * トランジション状態を取得（モック）
- */
-export async function fetchTransitionStatus(workerId: string, fileKey: string): Promise<unknown> {
-  await simulateApiDelay();
-  
-  // モックデータをダイナミックインポート
-  try {
-    const mockData = await import('@/data/mock/mockTransitionStatus.json');
-    return {
-      success: true,
-      data: mockData.default || mockData,
-    };
-  } catch (error) {
-    console.warn('⚠️ mockTransitionStatus.json not found, returning empty data');
-    return {
-      success: true,
-      data: {
-        transitionStatus: [],
-      },
-    };
-  }
 }
 
 /**
