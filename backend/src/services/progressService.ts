@@ -732,8 +732,8 @@ export class ProgressService {
         department: proj.department_name ?? proj.department_cd ?? undefined,
         status: statusStr,
         methods: methodIds,
-        createdAt: proj.create_at.toISOString(),
-        updatedAt: proj.update_at.toISOString()
+        createdAt: proj.create_at ? proj.create_at.toISOString() : '',
+        updatedAt: proj.update_at ? proj.update_at.toISOString() : ''
       };
 
       const fileInfo: FileInfoDetail = {
@@ -831,12 +831,12 @@ export class ProgressService {
               };
             }
             return {
-              transitionId: row.transition_id,
-              progressStatus: TRANSITION_STATUS_LABELS[row.status] ?? '未開始',
-              assignedWorker: row.worker_name ?? undefined,
-              startDate: row.create_at.toISOString(),
-              endDate: row.status === 5 ? row.update_at.toISOString() : undefined
-            };
+                transitionId: row.transition_id,
+                progressStatus: TRANSITION_STATUS_LABELS[row.status] ?? '未開始',
+                assignedWorker: row.worker_name ?? undefined,
+                startDate: row.create_at ? row.create_at.toISOString() : undefined,
+                endDate: row.status === 5 && row.update_at ? row.update_at.toISOString() : undefined
+              };
           });
 
           // 統計情報の算出
