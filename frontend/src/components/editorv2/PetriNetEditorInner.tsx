@@ -411,7 +411,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       if (action === 'addWorkflow' && typeof data === 'object' && data !== null) {
         const workflowData = data as { nodes?: Node<NodeData>[]; edges?: Edge<EdgeData>[] };
         if (workflowData.nodes && workflowData.edges) {
-          pushState({ nodes: workflowData.nodes, edges: workflowData.edges });
+          // ✅ 修正: 既存ノード/エッジ + 追加分を合わせてpushState
+          // pushState({ nodes: workflowData.nodes, edges: workflowData.edges }) だと
+          // history.present が追加分のみになり、history同期useEffectが既存ノードを上書きしてしまう
+          pushState({
+            nodes: [...nodes, ...workflowData.nodes],
+            edges: [...edges, ...workflowData.edges]
+          });
         }
       }
     },
@@ -684,11 +690,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           
           // parser.getTemplates()を使用して統一のTemplate型配列を取得
           const { material, condition, result } = parser.getTemplates();
-          const allTemplates: Template[] = [...material, ...condition, ...result];
+          const allTemplates: Template[] = Array.from([...material, ...condition, ...result]).filter((t): t is Template => t != null && typeof t === 'object' && !!t.id);
               
-          allTemplates.forEach((template: Template) => {
-            const templateId = template.id;
-            const placeRefs = template.placeRefs || []; // XSD準拠: placeRef（配列）
+          allTemplates.forEach((template: Template | null | undefined) => {
+            // ✅ 安全ガード: template または template.id が falsy な場合はスキップ
+            const templateId = template?.id;
+            if (!templateId) return;
+            const placeRefs = template?.placeRefs || []; // XSD準拠: placeRef（配列）
             
             if (placeRefs.length > 1 && templateId) {
               commonTemplateIds.add(templateId);
@@ -869,7 +877,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
               console.log('🔍 [PetriNetEditorInner] maimlData preview:', maimlData?.substring(0, 200));
               
               const base64Data = btoa(unescape(encodeURIComponent(maimlData)));
-              const currentOrgId = localStorage.getItem('currentOrganizationId');
+              const userInfoStr1 = localStorage.getItem('userInfo');
+              const userInfo1 = userInfoStr1 ? JSON.parse(userInfoStr1) : null;
+              const currentOrgId = userInfo1?.organizationId || null;
               
               console.log('🔍 [PetriNetEditorInner] バリデーションリクエスト:', {
                 base64Length: base64Data.length,
@@ -1132,7 +1142,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     
     try {
       // ストレージファイル一覧取得（新APIエンドポイント使用）
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
+      const userInfoStr2 = localStorage.getItem('userInfo');
+      const userInfo2 = userInfoStr2 ? JSON.parse(userInfoStr2) : null;
+      const currentOrgId = userInfo2?.organizationId || null;
       
       if (!currentOrgId) {
         throw new Error('組織IDが取得できません');
@@ -1283,9 +1295,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       // 全カテゴリのテンプレートをチェック
       (['material', 'condition', 'result'] as const).forEach((category) => {
-        const templates : Template[] = allTemplates[category];
-        if (templates.length > 0) {
+        const templates : Template[] = (allTemplates[category] || []).filter((t): t is Template => t != null && typeof t === 'object' && !!t.id);
+          if (templates.length > 0) {
           templates.forEach((template: Template) => {
+            if (!template || !template.id) return; // ✅ 安全ガード
             // このテンプレートのplaceRefsにoldIdが含まれている場合
             if (template.placeRefs && template.placeRefs.find((r) => r.ref === oldId)) {
               console.log('🔄 [PetriNetEditorInner] テンプレートのplaceRefsを更新:', {
@@ -1369,9 +1382,32 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // Phase 4A: テンプレート編集ダイアログを開く
   const handleOpenTemplateEditor = useCallback((node: Node<NodeData>) => {
     console.log('🔧 [PetriNetEditorInner] テンプレート編集:', node);
-    setTemplateEditNode(node);
+
+    // ✅ methodId が未設定のノードには activeMethod の methodId を補完する
+    // これにより TemplateEditorDialog.handleSave → handleSaveTemplate で
+    // correctMethodId が正しく解決される
+    const isCommon = node.data.isCommonTemplate || false;
+    const currentMethodId = methods[activeMethodIndex]?.methodId;
+    const nodeWithMethodId: Node<NodeData> = {
+      ...node,
+      data: {
+        ...node.data,
+        methodId: isCommon
+          ? null                                          // 共通テンプレートは null のまま
+          : (node.data.methodId ?? currentMethodId ?? null), // 未設定なら activeMethod の ID を補完
+      },
+    };
+
+    console.log('📋 [PetriNetEditorInner] TemplateEditorDialog に渡す methodId:', {
+      original: node.data.methodId,
+      补完後: nodeWithMethodId.data.methodId,
+      isCommon,
+      activeMethodId: currentMethodId,
+    });
+
+    setTemplateEditNode(nodeWithMethodId);
     setTemplateEditorOpen(true);
-  }, []);
+  }, [methods, activeMethodIndex]);
 
   // Phase 4A: テンプレート編集ダイアログを閉じる
   const handleCloseTemplateEditor = useCallback(() => {
@@ -1604,9 +1640,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         
         // 全カテゴリから元のテンプレートを検索（templateIdで検索）
         (['material', 'condition', 'result'] as const).forEach((category) => {
-        const templates : Template[] = allTemplates[category];
+        const templates : Template[] = (allTemplates[category] || []).filter((t): t is Template => t != null && typeof t === 'object' && !!t.id);
           if (!originalTemplate.id && templates.length > 0) {
-            originalTemplate = templates.find((t: Template) => t.id === templateId)!;  // ✅ 修正: templateIdで検索
+            const found = templates.find((t: Template) => t.id === templateId);
+            if (found) {  // ✅ 修正: find()がundefinedを返す場合に備えてチェック
+              originalTemplate = found;
+            }
           }
         });
         
@@ -2122,6 +2161,49 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const result2 = await addWorkflow(targetPosition, maimlContent, file.name);
       
       if (result2.success) {
+        // ✅ 修正: ReactFlowのstateに追加分をマージ（置き換えではなく追加）
+        // addWorkflow内部のsetNodes/setEdgesはuseWorkflow内部stateを更新するが、
+        // PetriNetEditorInnerのReactFlow stateには反映されないため、ここで明示的に追加する
+        if (result2.nodes && result2.edges) {
+          setNodes(prev => [...prev, ...result2.nodes!]);
+          setEdges(prev => [...prev, ...result2.edges!]);
+        }
+
+        // ✅ 修正: ワークフローのテンプレートを TemplateContext に追加
+        // addWorkflow が返す templates を window.clineAddTemplate で登録しないと
+        // 保存時の window.clineAllTemplates に含まれずテンプレートが消える
+        if (result2.templates && window.clineAddTemplate) {
+          const currentMethodId = methods[activeMethodIndex]?.methodId;
+          console.log('📋 [PetriNetEditorInner] ワークフローテンプレートをContextに追加:', {
+            material: result2.templates.material.length,
+            condition: result2.templates.condition.length,
+            result: result2.templates.result.length,
+            currentMethodId,
+          });
+
+          const registerTemplates = (
+            category: 'material' | 'condition' | 'result',
+            templateList: import('../../types/maiml-unified').Template[]
+          ) => {
+            templateList.forEach(t => {
+              // methodId が未設定の場合はアクティブメソッドの ID を補完
+              const templateWithMethodId = {
+                ...t,
+                methodId: t.methodId !== undefined ? t.methodId : currentMethodId,
+              };
+              window.clineAddTemplate({
+                category,
+                template: templateWithMethodId,
+              });
+              console.log(`  ✅ [PetriNetEditorInner] ${category}テンプレート追加: ${t.id} (methodId: ${templateWithMethodId.methodId})`);
+            });
+          };
+
+          registerTemplates('material', result2.templates.material);
+          registerTemplates('condition', result2.templates.condition);
+          registerTemplates('result', result2.templates.result);
+        }
+
         console.log('✅ [PetriNetEditorInner] ワークフロー追加完了:', result2.message);
         alert(result2.message);
         
@@ -2248,7 +2330,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
       
       // 自動補正API呼び出し（新APIエンドポイント使用）
-      const currentOrgId = localStorage.getItem('currentOrganizationId');
+      const userInfoStr3 = localStorage.getItem('userInfo');
+      const userInfo3 = userInfoStr3 ? JSON.parse(userInfoStr3) : null;
+      const currentOrgId = userInfo3?.organizationId || null;
       
       if (!currentOrgId) {
         throw new Error('組織IDが取得できません');
@@ -2365,7 +2449,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const base64Data = btoa(unescape(encodeURIComponent(maimlXml)));
         
         // 自動補正API呼び出し（新APIエンドポイント使用）
-        const currentOrgId = localStorage.getItem('currentOrganizationId');
+        const userInfoStr4 = localStorage.getItem('userInfo');
+        const userInfo4 = userInfoStr4 ? JSON.parse(userInfoStr4) : null;
+        const currentOrgId = userInfo4?.organizationId || null;
         
         if (!currentOrgId) {
           throw new Error('組織IDが取得できません');
@@ -2394,7 +2480,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         console.log('☁️ [PetriNetEditorInner] S3に保存:', folder);
         console.log('🔍 [PetriNetEditorInner] sourceS3Key:', props.sourceS3Key);
         
-        const currentOrgId = localStorage.getItem('currentOrganizationId');
+        const userInfoStr5 = localStorage.getItem('userInfo');
+        const userInfo5 = userInfoStr5 ? JSON.parse(userInfoStr5) : null;
+        const currentOrgId = userInfo5?.organizationId || null;
         
         // ファイル名決定（DocumentEditDialogで設定した名前 > 元のファイル名 > デフォルト）
         const baseFileName = documentData?.name 
@@ -2546,7 +2634,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           showIcon
           style={{ maxWidth: 600, width: '100%' }}
         />
-        <Space direction="vertical" style={{ width: '100%', maxWidth: 600 }}>
+        <Space orientation="vertical" style={{ width: '100%', maxWidth: 600 }}>
           {criticalErrors.map((err, idx) => (
             <Alert 
               key={idx} 

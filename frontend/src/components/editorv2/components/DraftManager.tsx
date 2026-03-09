@@ -384,7 +384,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
                 title={<Text strong style={{ color: '#1677ff' }}>🤖 自動保存（最大3世代）</Text>}
                 style={{ marginBottom: 16, backgroundColor: '#f0f8ff' }}
               >
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                   <Select
                     value={selectedAutoSaveGeneration}
                     onChange={setSelectedAutoSaveGeneration}

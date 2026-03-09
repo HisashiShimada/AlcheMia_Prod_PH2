@@ -54,6 +54,34 @@ export interface TransitionSet {
 }
 
 // ============================================================================
+// クエリ分解型
+// ============================================================================
+
+/**
+ * gpt-oss-20b によるクエリ分解結果
+ */
+export interface DecomposedQuery {
+  /** 入力条件クエリ（CT/MT focused） */
+  q_in: string;
+  /** 手順クエリ（procedure steps） */
+  q_tr: string;
+  /** 出力要求クエリ（RT focused） */
+  q_out: string;
+  /** 実験構造クエリ（place counts + MT/CT/RT counts） */
+  q_struct: string;
+  /** 検出されたメソドロジー（例: RAMAN, XRF） */
+  methodology: string | null;
+  /** メソドロジー検出信頼度（0.0〜1.0） */
+  methodology_confidence: number;
+  /** 分解信頼度（0.0〜1.0） */
+  confidence: number;
+  /** フォールバック動作フラグ（gpt-oss未接続時） */
+  fallback?: boolean;
+  /** エラーメッセージ（フォールバック時） */
+  error?: string;
+}
+
+// ============================================================================
 // 埋め込みサービス API型
 // ============================================================================
 

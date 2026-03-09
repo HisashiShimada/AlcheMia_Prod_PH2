@@ -48,6 +48,8 @@ interface ExperimentRecordTabProps {
   selectedMethod: Method | null;
   /** 選択中プロジェクトのステータス（数値）: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了 */
   selectedProjectStatus: number | null;
+  /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
+  useDeemedProgress?: boolean;
 }
 
 /**
@@ -64,6 +66,7 @@ export default function ExperimentRecordTab({
   onTaskCreated,
   selectedMethod,
   selectedProjectStatus,
+  useDeemedProgress = true,
 }: ExperimentRecordTabProps) {
   // テーマトークンを取得（UIポリシー準拠）
   const { token } = theme.useToken();
@@ -108,6 +111,32 @@ export default function ExperimentRecordTab({
 
   // prop から受け取った数値ステータスを ProjectStatus 型に変換
   const projectStatus: ProjectStatus | null = mapNumericStatusToProjectStatus(selectedProjectStatus);
+
+  /**
+   * APIレスポンスの数値トランジションステータスをフロントエンドの ProgressStatus 文字列に変換
+   *
+   * バックエンド TransitionStatusEnum との対応:
+   *   0: INITIAL     → 'not_started'
+   *   1: PREPARING   → 'in_progress'
+   *   2: READY       → 'in_progress'
+   *   3: IN_PROGRESS → 'in_progress'
+   *   4: PAUSED      → 'on_hold'
+   *   5: COMPLETED   → 'completed'
+   *   6: ERROR       → 'issue'
+   */
+  const mapTransitionStatusToProgressStatus = (status: unknown): ProgressStatus => {
+    const num = Number(status);
+    switch (num) {
+      case 0:  return 'not_started';
+      case 1:  return 'in_progress';
+      case 2:  return 'in_progress';
+      case 3:  return 'in_progress';
+      case 4:  return 'on_hold';
+      case 5:  return 'completed';
+      case 6:  return 'issue';
+      default: return 'not_started';
+    }
+  };
 
   // プロジェクト選択時にAPI呼び出し
   useEffect(() => {
@@ -441,7 +470,7 @@ export default function ExperimentRecordTab({
     return progressData.map(progress => ({
       transitionId: progress.transition_id as string,
       transitionName: (progress.transition_name as string) ?? '',
-      status: ((progress.status as string) || 'not_started') as ProgressStatus,
+      status: mapTransitionStatusToProgressStatus(progress.status),
       progressRate: (progress.progress as number) ?? 0,
       inputMaterialsCount: (progress.material_actual_count as number) ?? 0,
       totalMaterialsCount: (progress.material_count as number) ?? 0,
@@ -568,6 +597,7 @@ export default function ExperimentRecordTab({
                     methodId={selectedMethodId || undefined}
                     projectName={selectedProjectName}
                     onDataSaveComplete={fetchProgress}
+                    useDeemedProgress={useDeemedProgress}
                   />
                 </div>
               </div>
@@ -618,17 +648,19 @@ export default function ExperimentRecordTab({
         projectName={selectedProjectName || undefined}
         methodId={selectedMethodId || undefined}
         taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
+        useDeemedProgress={useDeemedProgress}
       />
 
       {/* 問題報告モーダル */}
       <IssueManagementModal
         visible={issueModalOpen}
-        transitionId={selectedTransition?.transitionId || ''}
-        transitionName={selectedTransition?.transitionName || ''}
-        issues={issues}
+        targetName={selectedTransition?.transitionName || ''}
+        projectId={projectId || ''}
+        projectName={selectedProjectName || ''}
+        methodId={selectedMethodId || undefined}
+        taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
+        transitionId={selectedTransition?.transitionId || undefined}
         onClose={handleIssueModalClose}
-        onSubmitIssue={handleSubmitIssue}
-        onSubmitComment={handleSubmitComment}
         projectStatus={projectStatus}
       />
     </div>

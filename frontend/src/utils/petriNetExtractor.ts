@@ -64,8 +64,10 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
       // ✅ 全placeRefsをキーとしてマッピング（共通テンプレートの複数place対応）
       if (t.placeRefs && t.placeRefs.length > 0) {
         t.placeRefs.forEach(pr => {
-          if (pr.ref) {
-            templateMap[pr.ref] = templateEntry;
+          // ✅ Fix: pr.ref が空の場合は pr.id をフォールバックとして使用
+          const key = pr.ref || pr.id;
+          if (key) {
+            templateMap[key] = templateEntry;
           }
         });
       } else {
@@ -95,8 +97,10 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
       // ✅ 全placeRefsをキーとしてマッピング（共通テンプレートの複数place対応）
       if (t.placeRefs && t.placeRefs.length > 0) {
         t.placeRefs.forEach(pr => {
-          if (pr.ref) {
-            templateMap[pr.ref] = templateEntry;
+          // ✅ Fix: pr.ref が空の場合は pr.id をフォールバックとして使用
+          const key = pr.ref || pr.id;
+          if (key) {
+            templateMap[key] = templateEntry;
           }
         });
       } else {
@@ -125,8 +129,10 @@ export const buildTemplateMap = (parserOrData: MaimlParserTyped | string): Recor
       // ✅ 全placeRefsをキーとしてマッピング（共通テンプレートの複数place対応）
       if (t.placeRefs && t.placeRefs.length > 0) {
         t.placeRefs.forEach(pr => {
-          if (pr.ref) {
-            templateMap[pr.ref] = templateEntry;
+          // ✅ Fix: pr.ref が空の場合は pr.id をフォールバックとして使用
+          const key = pr.ref || pr.id;
+          if (key) {
+            templateMap[key] = templateEntry;
           }
         });
       } else {

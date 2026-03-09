@@ -339,14 +339,14 @@ export interface IssueListFilters {
   /** プロジェクトID（必須） */
   projectId: string;
 
-  /** メソッドID（必須） */
-  methodId: string;
+  /** メソッドID（オプション。省略時はプロジェクト全件を返す） */
+  methodId?: string;
 
-  /** タスク番号（必須） */
-  taskNo: number;
+  /** タスク番号（オプション。issue_target=2の問題を絞り込む場合に指定） */
+  taskNo?: number;
 
-  /** トランジションID（必須） */
-  transitionId: string;
+  /** トランジションID（オプション。issue_target=3の問題を絞り込む場合に指定） */
+  transitionId?: string;
 
   /** ステータスフィルタ（オプション） */
   status?: string;

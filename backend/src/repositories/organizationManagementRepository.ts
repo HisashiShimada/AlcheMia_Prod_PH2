@@ -22,6 +22,9 @@ export interface OrganizationRow {
   is_entry: number; // 二段階認証判定（0: なし, 1: あり）
   use_deemed_progress: boolean; // みなし進捗使用フラグ
   is_active: boolean;
+  contract_capacity: number | null; // 契約容量
+  contract_users: number | null;  // 契約ユーザー数
+  contract_projects: number | null; // 契約プロジェクト数
   update_at: Date;
 }
 
@@ -150,6 +153,9 @@ export interface OrganizationStatsRow {
   organization_email: string;
   chief_user_name: string | null;
   corporation_name: string | null;
+  contract_users: number | null;
+  contract_projects: number | null;
+  contract_capacity: number | null;
   project_count: number;
   active_user_count: number;
   total_user_count: number;
@@ -230,6 +236,8 @@ export async function create(
     isEntry?: number;
     useDeemedProgress?: boolean;
     isActive?: boolean;
+    contractCapacity?: number | null;
+    contractedUsers?: number | null;
   },
   userId: string
 ): Promise<OrganizationRow> {
@@ -247,6 +255,8 @@ export async function create(
     data.isEntry !== undefined ? data.isEntry : 0,
     data.useDeemedProgress !== undefined ? data.useDeemedProgress : true,
     data.isActive !== undefined ? data.isActive : true,
+    data.contractCapacity ?? null,
+    data.contractedUsers ?? null,
     userId,
     userId,
   ];
@@ -273,6 +283,9 @@ export async function update(
     isEntry?: number;
     useDeemedProgress?: boolean;
     isActive?: boolean;
+    contractCapacity?: number | null;
+    contractedUsers?: number | null;
+    contractedProjects?: number | null;
   },
   userId: string
 ): Promise<OrganizationRow | null> {
@@ -289,6 +302,9 @@ export async function update(
     data.useDeemedProgress ?? null,
     data.isActive ?? null,
     userId,
+    data.contractCapacity ?? null,
+    data.contractedUsers ?? null,
+    data.contractedProjects ?? null,
   ];
 
   const updated = await pgp.oneOrNone<{ organization_id: string }>(query, values);

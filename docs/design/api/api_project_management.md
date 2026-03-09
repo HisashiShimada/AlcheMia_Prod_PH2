@@ -1911,6 +1911,283 @@ const projects = await db
 
 ---
 
-**作成者**: Cline  
-**作成日**: 2026-01-21 16:30  
-**最終更新**: 2026-02-19 17:02
+---
+
+## API #16: レビュー待ちタスク一括完了
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | POST |
+| **エンドポイント** | `/api/v1/projects/:projectName/tasks/complete-review` |
+| **説明** | 指定プロジェクトのレビュー待ち（status=3）タスクを一括で完了状態にする |
+| **実装状態** | ✅ 実装済み |
+| **権限** | experiment_admin 以上（Manager権限） |
+| **呼び出し元** | ProjectManagement.tsx（タスク確認完了ボタン） |
+
+### リクエスト
+
+**パスパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| projectName | string | ✅ | プロジェクト名 |
+
+**リクエストボディ**
+
+なし
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "message": "レビュー待ちタスクを完了しました",
+  "data": {
+    "completedCount": 3
+  }
+}
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| completedCount | number | 完了に変更されたタスク数 |
+
+**エラー時**
+
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | INVALID_PROJECT | プロジェクトが存在しない |
+| 403 | FORBIDDEN | 権限不足 |
+| 404 | NOT_FOUND | レビュー待ちタスクが存在しない |
+
+---
+
+## API #17: タスク登録状況取得
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | GET |
+| **エンドポイント** | `/api/v1/projects/:projectName/instructions/status` |
+| **説明** | 指定プロジェクトの指示登録状況（未送信・送信済み件数など）を取得する |
+| **実装状態** | ✅ 実装済み |
+| **権限** | experiment_admin 以上（Manager権限） |
+| **呼び出し元** | InstructionRegistrationTab.tsx |
+
+### リクエスト
+
+**パスパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| projectName | string | ✅ | プロジェクト名 |
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "data": {
+    "draftCount": 2,
+    "sentCount": 5,
+    "totalCount": 7
+  }
+}
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| draftCount | number | 未送信（下書き）の指示件数 |
+| sentCount | number | 送信済みの指示件数 |
+| totalCount | number | 合計指示件数 |
+
+---
+
+## API #18: 指示更新
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | PUT |
+| **エンドポイント** | `/api/v1/projects/:projectName/instructions/:instructionId` |
+| **説明** | 指定した指示の内容を更新する（未送信の指示のみ更新可能） |
+| **実装状態** | ✅ 実装済み |
+| **権限** | experiment_admin 以上（Manager権限） |
+| **呼び出し元** | InstructionRegistrationTab.tsx |
+
+### リクエスト
+
+**パスパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| projectName | string | ✅ | プロジェクト名 |
+| instructionId | string | ✅ | 指示ID |
+
+**リクエストボディ**
+
+```json
+{
+  "content": "更新後の指示内容",
+  "taskId": "task-001",
+  "targetWorkerIds": ["user-uuid-1", "user-uuid-2"]
+}
+```
+
+| フィールド | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| content | string | ✅ | 指示内容 |
+| taskId | string | ✅ | 対象タスクID |
+| targetWorkerIds | string[] | ✅ | 送信対象ワーカーのユーザーIDリスト |
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "data": {
+    "instructionId": "instruction-uuid",
+    "content": "更新後の指示内容",
+    "taskId": "task-001",
+    "status": "draft",
+    "updatedAt": "2026-03-06T06:35:00.000Z"
+  }
+}
+```
+
+**エラー時**
+
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | ALREADY_SENT | 送信済み指示は更新不可 |
+| 403 | FORBIDDEN | 権限不足 |
+| 404 | NOT_FOUND | 指示が存在しない |
+
+---
+
+## API #19: 指示削除
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | DELETE |
+| **エンドポイント** | `/api/v1/projects/:projectName/instructions/:instructionId` |
+| **説明** | 指定した指示を削除する（未送信の指示のみ削除可能） |
+| **実装状態** | ✅ 実装済み |
+| **権限** | experiment_admin 以上（Manager権限） |
+| **呼び出し元** | InstructionRegistrationTab.tsx |
+
+### リクエスト
+
+**パスパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| projectName | string | ✅ | プロジェクト名 |
+| instructionId | string | ✅ | 指示ID |
+
+**リクエストボディ**
+
+なし
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "message": "指示を削除しました"
+}
+```
+
+**エラー時**
+
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | ALREADY_SENT | 送信済み指示は削除不可 |
+| 403 | FORBIDDEN | 権限不足 |
+| 404 | NOT_FOUND | 指示が存在しない |
+
+---
+
+## API #20: 指示一括送信
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | POST |
+| **エンドポイント** | `/api/v1/projects/:projectName/instructions/send` |
+| **説明** | プロジェクトの未送信指示を一括でワーカーに送信する。送信と同時にproject_taskレコードが生成される |
+| **実装状態** | ✅ 実装済み |
+| **権限** | experiment_admin 以上（Manager権限） |
+| **呼び出し元** | InstructionRegistrationTab.tsx |
+
+### リクエスト
+
+**パスパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| projectName | string | ✅ | プロジェクト名 |
+
+**リクエストボディ**
+
+なし（未送信指示を全件送信する）
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "data": {
+    "sentCount": 3,
+    "taskIds": ["task-uuid-1", "task-uuid-2", "task-uuid-3"]
+  }
+}
+```
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| sentCount | number | 送信された指示件数 |
+| taskIds | string[] | 生成されたタスクIDリスト |
+
+**エラー時**
+
+| ステータス | エラーコード | 説明 |
+|-----------|-------------|------|
+| 400 | NO_DRAFT_INSTRUCTIONS | 送信対象の未送信指示がない |
+| 403 | FORBIDDEN | 権限不足 |
+
+---
+
+## 📝 変更履歴（追記分）
+
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|----------|--------|
+| 2.8.0 | 2026-03-06 | ProjectManagement画面から呼び出されるAPI追記 | Cline |
+| | | - API #16: レビュー待ちタスク一括完了 POST /tasks/complete-review | |
+| | | - API #17: タスク登録状況取得 GET /instructions/status | |
+| | | - API #18: 指示更新 PUT /instructions/:instructionId | |
+| | | - API #19: 指示削除 DELETE /instructions/:instructionId | |
+| | | - API #20: 指示一括送信 POST /instructions/send | |
+
+---
+
+**作成者**: Cline
+**作成日**: 2026-01-21 16:30
+**最終更新**: 2026-03-06 15:36

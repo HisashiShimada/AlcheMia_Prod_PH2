@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Layout, Card, Typography, Space, Button, Tabs, theme, Select, message, Spin } from 'antd';
+import { Layout, Card, Typography, Space, Button, Tabs, theme, Select, App, Spin } from 'antd';
 import {
   FileTextOutlined,
   FormOutlined,
@@ -79,13 +79,28 @@ interface ExperimentWorkerMenuProps {
   onLogout: () => void;
   onNavigate: (path: string) => void;
   onMenuChange?: (menuType: MenuType) => void;
+  /** true のとき Header/SubHeader を非表示にしてコンテンツのみ表示 */
+  overlayMode?: boolean;
+  /** 固定するプロジェクトID（指定時はプロジェクト選択を disabled にして初期選択） */
+  fixedProjectId?: string;
+  /** true のとき操作ボタン（選択・承認依頼）を disabled にする */
+  readOnly?: boolean;
 }
 
 /**
  * 実験作業者メニュー画面
  * サブヘッダーに埋め込まれたタブでメニューを表示
  */
-export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMenuChange }: ExperimentWorkerMenuProps) {
+export default function ExperimentWorkerMenu({
+  user,
+  onLogout,
+  onNavigate,
+  onMenuChange,
+  overlayMode = false,
+  fixedProjectId,
+  readOnly = false,
+}: ExperimentWorkerMenuProps) {
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const { token } = theme.useToken();
   const [currentTab, setCurrentTab] = useState('4');
@@ -193,6 +208,17 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
     setIsClient(true);
   }, []);
 
+  // overlayMode: fixedProjectId が指定されたら初期選択として設定
+  useEffect(() => {
+    if (fixedProjectId && projects.length > 0) {
+      const project = projects.find(p => p.projectId === fixedProjectId);
+      if (project) {
+        handleProjectChange(fixedProjectId);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixedProjectId, projects]);
+
   // プロジェクト変更時のハンドラー（メソッドとタスクをリセット）
   const handleProjectChange = (value: string | undefined | null) => {
     // undefined/nullは空文字列として扱う
@@ -253,6 +279,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
   // 選択中プロジェクトのステータス（数値）を取得
   // worker-accessible APIのレスポンスから直接参照することで、不要なAPIコールを排除
   const selectedProjectStatus = projects.find(p => p.projectId === selectedProject)?.projectStatus ?? null;
+  const selectedProjectUseDeemedProgress = projects.find(p => p.projectId === selectedProject)?.useDeemedProgress ?? true;
 
   const handleTabChange = (key: string) => {
     setCurrentTab(key);
@@ -277,14 +304,15 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
       icon: <CheckSquareOutlined />,
       children: (
         <ProgressCheckTab
-          selectedProject={selectedProject}
-          selectedProjectName={selectedProjectName}
-          onProjectChange={handleProjectChangeForChild}
-          selectedMethodId={selectedMethodId}
-          onSelectMethod={handleSelectMethod}
-          onTabChange={handleTabChange}
-          onSelectTaskAndTab={handleSelectTaskAndTab}
-        />
+            selectedProject={selectedProject}
+            selectedProjectName={selectedProjectName}
+            onProjectChange={handleProjectChangeForChild}
+            selectedMethodId={selectedMethodId}
+            onSelectMethod={handleSelectMethod}
+            onTabChange={handleTabChange}
+            onSelectTaskAndTab={handleSelectTaskAndTab}
+            readOnly={readOnly}
+          />
       ),
     },
     {
@@ -306,6 +334,7 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
           expandedGroups={expandedGroups}
           toggleGroup={toggleGroup}
           onInstructionsUpdated={refetchInstructions}
+          readOnly={readOnly}
         />
       ),
     },
@@ -325,131 +354,141 @@ export default function ExperimentWorkerMenu({ user, onLogout, onNavigate, onMen
           onTaskCreated={handleTaskCreated}
           selectedMethod={selectedMethod}
           selectedProjectStatus={selectedProjectStatus}
+          useDeemedProgress={selectedProjectUseDeemedProgress}
         />
       ),
     },
   ];
 
+  /** コンテンツ部分（プロジェクト選択エリア + タブ） */
+  const contentBody = (
+    <div style={{ width: '100%', padding: 0 }}>
+      {/* プロジェクト選択・選択ボタン */}
+      <div style={{
+        height: SELECTION_AREA_HEIGHT,
+        marginBottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        gap: token.marginXS,
+        flexWrap: 'nowrap',
+        backgroundColor: token.colorBgContainer,
+        border: `1px solid ${token.colorBorder}`,
+        borderLeft: 'none',
+        borderRight: 'none',
+        paddingLeft: token.paddingLG,
+        paddingRight: token.paddingLG,
+      }}>
+        <Space size="middle" style={{ flex: '0 0 auto' }}>
+          <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
+          <Text strong>{t('experimentWork.labels.project')}:</Text>
+          <Select
+            value={selectedProject === '' ? undefined : selectedProject}
+            placeholder="-"
+            style={{ width: 280 }}
+            onChange={handleProjectChange}
+            loading={projectsLoading}
+            /* overlayMode: fixedProjectId がある場合はプロジェクト変更不可 */
+            disabled={projectsLoading || (overlayMode && !!fixedProjectId)}
+            notFoundContent={projectsLoading ? <Spin size="small" /> : 'プロジェクトがありません'}
+            options={[
+              { value: '', label: '-' },
+              ...projects.map((project) => {
+                const statusLabel = projectStatusOptions.find(opt => opt.value === project.projectStatus)?.label ?? String(project.projectStatus);
+                return {
+                  value: project.projectId,
+                  label: `${project.projectName} - ${statusLabel}`
+                };
+              })
+            ]}
+            size="middle"
+          />
+          {/* 選択ボタン: readOnly時は disabled */}
+          <Button
+            type="primary"
+            icon={<CheckOutlined />}
+            onClick={() => setDialogOpen(true)}
+            size="large"
+            disabled={readOnly}
+          >
+            {t('experimentWork.selectButton')}
+          </Button>
+
+          {/* 承認依頼ボタン（進捗確認タブ選択時のみ表示） */}
+          {currentTab === '4' && (
+            <Button
+              type="default"
+              onClick={handleApprovalRequest}
+              size="large"
+              /* readOnly時 or プロジェクト未選択時は disabled */
+              disabled={readOnly || !selectedProject || selectedProject === '' || approvalLoading}
+              loading={approvalLoading}
+              icon={approvalLoading ? <LoadingOutlined /> : undefined}
+            >
+              承認依頼
+            </Button>
+          )}
+        </Space>
+      </div>
+
+      {/* タブ */}
+      <div style={{ borderRadius: 0 }}>
+        <Tabs
+          activeKey={currentTab}
+          onChange={handleTabChange}
+          items={tabItems}
+          size="large"
+          style={{ marginBottom: 0 }}
+          tabBarStyle={{
+            padding: `0 ${token.paddingLG}px`,
+            margin: 0,
+            borderTop: `1px solid ${token.colorBorder}`,
+            borderBottom: `1px solid ${token.colorBorder}`,
+            borderLeft: 'none',
+            borderRight: 'none',
+            borderRadius: 0,
+          }}
+        />
+      </div>
+
+      {/* プロジェクト選択モーダル（readOnly時は不要だが、一応open=falseで無効化） */}
+      <ProjectSelectionModal
+        open={!readOnly && dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        selectedProject={selectedProject}
+        onProjectChange={handleProjectChange}
+        projects={projects}
+        loading={projectsLoading}
+      />
+    </div>
+  );
+
+  // overlayMode のとき: Header/SubHeader なしでコンテンツのみ返す
+  if (overlayMode) {
+    return (
+      <div style={{ height: '100%', overflow: 'auto', background: token.colorBgLayout }}>
+        {contentBody}
+      </div>
+    );
+  }
+
+  // 通常モード: Header + SubHeader + Content で返す
   return (
     <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Header user={user} onLogout={onLogout} />
-      <SubHeader 
+      <SubHeader
         title={t('menu.experiment_worker.title')}
         currentMenu="experiment_worker"
         onMenuChange={handleMenuChange}
         userPermissions={permissions}
       />
-
-      {/* コンテンツエリア */}
       <Content
         style={{
-          marginTop: TOTAL_HEADER_HEIGHT, // Header(64px) + SubHeader(48px) = 112px
+          marginTop: TOTAL_HEADER_HEIGHT,
           padding: 0,
         }}
       >
-        <div style={{ 
-          width: '100%',
-          padding: 0,
-        }}>
-          {/* プロジェクト選択・選択ボタン */}
-          <div style={{ 
-            height: SELECTION_AREA_HEIGHT,
-            marginBottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            gap: token.marginXS,
-            flexWrap: 'nowrap',
-            backgroundColor: token.colorBgContainer,
-            border: `1px solid ${token.colorBorder}`,
-            borderLeft: 'none',
-            borderRight: 'none',
-            paddingLeft: token.paddingLG,
-            paddingRight: token.paddingLG,
-          }}>
-            {/* プロジェクト選択・選択ボタン */}
-            <Space size="middle" style={{ flex: '0 0 auto' }}>
-              <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
-              <Text strong>{t('experimentWork.labels.project')}:</Text>
-              <Select
-                value={selectedProject === '' ? undefined : selectedProject}
-                placeholder="-"
-                style={{ width: 280 }}
-                onChange={handleProjectChange}
-                loading={projectsLoading}
-                disabled={projectsLoading}
-                notFoundContent={projectsLoading ? <Spin size="small" /> : 'プロジェクトがありません'}
-                options={[
-                  { value: '', label: '-' },
-                  ...projects.map((project) => {
-                    const statusLabel = projectStatusOptions.find(opt => opt.value === project.projectStatus)?.label ?? String(project.projectStatus);
-                    return {
-                      value: project.projectId,
-                      label: `${project.projectName} - ${statusLabel}`
-                    };
-                  })
-                ]}
-                size="middle"
-              />
-              <Button
-                type="primary"
-                icon={<CheckOutlined />}
-                onClick={() => setDialogOpen(true)}
-                size="large"
-              >
-                {t('experimentWork.selectButton')}
-              </Button>
-              
-              {/* 承認依頼ボタン（進捗確認タブ選択時のみ表示） */}
-              {currentTab === '4' && (
-                <Button
-                  type="default"
-                  onClick={handleApprovalRequest}
-                  size="large"
-                  disabled={!selectedProject || selectedProject === '' || approvalLoading}
-                  loading={approvalLoading}
-                  icon={approvalLoading ? <LoadingOutlined /> : undefined}
-                >
-                  承認依頼
-                </Button>
-              )}
-            </Space>
-          </div>
-
-          {/* タブ */}
-          <div style={{
-            borderRadius: 0,
-          }}>
-            <Tabs
-              activeKey={currentTab}
-              onChange={handleTabChange}
-              items={tabItems}
-              size="large"
-              style={{
-                marginBottom: 0,
-              }}
-              tabBarStyle={{
-                padding: `0 ${token.paddingLG}px`,
-                margin: 0,
-                borderTop: `1px solid ${token.colorBorder}`,
-                borderBottom: `1px solid ${token.colorBorder}`,
-                borderLeft: 'none',
-                borderRight: 'none',
-                borderRadius: 0,
-              }}
-            />
-          </div>
-
-          {/* プロジェクト選択モーダル */}
-          <ProjectSelectionModal
-            open={dialogOpen}
-            onClose={() => setDialogOpen(false)}
-            selectedProject={selectedProject}
-            onProjectChange={handleProjectChange}
-            projects={projects}
-            loading={projectsLoading}
-          />
-        </div>
+        {contentBody}
       </Content>
     </Layout>
   );

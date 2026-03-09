@@ -344,6 +344,40 @@ export interface User {
 }
 
 /**
+ * maiml_event_logテーブルの型定義
+ * 
+ * @remarks
+ * この型は maiml_event_log テーブルのスキーマに対応しています。
+ * DDL: docs/design/db/ddl/maiml_event_log.sql
+ * 主キー: (organization_id, project_id, sequence_no)
+ */
+export interface MaimlEventLog {
+  /** 組織ID（主キー） */
+  organization_id: string;
+
+  /** プロジェクトID（主キー） */
+  project_id: string;
+
+  /** シーケンス番号（主キー、自動採番） */
+  sequence_no: number;
+
+  /** ログ（JSONB形式） */
+  log?: Record<string, any> | null;
+
+  /** 作成者ユーザID */
+  create_user_id?: string;
+
+  /** 更新者ユーザID */
+  update_user_id?: string;
+
+  /** 作成日時 */
+  create_at?: Date;
+
+  /** 更新日時 */
+  update_at?: Date;
+}
+
+/**
  * User検索フィルター型定義
  */
 export interface UserSearchFilters {

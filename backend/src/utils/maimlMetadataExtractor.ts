@@ -124,30 +124,39 @@ export function extractFromNode(node: any, metadata: MetaData, parentKey = ''): 
     }
 
     // 属性情報を収集
-    if (key === '@_id' && value) {
-      metadata.ids.push(String(value));
+    // xml2js の mergeAttrs:true により XML属性は @_ プレフィックスなしで展開される
+    // 例: <place id="condition-xxx" /> → { id: "condition-xxx" }（@_id ではない）
+    if (key === 'id' && value && typeof value === 'string') {
+      metadata.ids.push(value);
     }
-    if (key === '@_ref' && value) {
-      metadata.refs.push(String(value));
+    if (key === 'ref' && value && typeof value === 'string') {
+      metadata.refs.push(value);
     }
-    if (key === '@_key' && value) {
-      metadata.keys.push(String(value));
+    // アーク（arc）の接続元・接続先も refs に収集
+    if (key === 'source' && value && typeof value === 'string') {
+      metadata.refs.push(value);
+    }
+    if (key === 'target' && value && typeof value === 'string') {
+      metadata.refs.push(value);
+    }
+    if (key === 'key' && value && typeof value === 'string') {
+      metadata.keys.push(value);
     }
 
     // 測定値・単位を収集
-    if ((key === 'value' || key === '@_value' || parentKey === 'measurement') && value) {
+    if ((key === 'value' || parentKey === 'measurement') && value) {
       const strValue = String(value).trim();
       // 数値に変換可能な場合のみ測定値として記録
       if (strValue && !isNaN(Number(strValue))) {
         metadata.measurement_values.push(strValue);
       }
     }
-    if ((key === 'unit' || key === '@_unit' || key === 'units') && value) {
+    if ((key === 'unit' || key === 'units') && value) {
       metadata.units.push(String(value));
     }
 
     // セクション種別を収集
-    if ((key === 'section' || key === 'sectionType' || key === '@_type') && value) {
+    if ((key === 'section' || key === 'sectionType' || key === 'type') && value) {
       metadata.section_types.push(String(value));
     }
 

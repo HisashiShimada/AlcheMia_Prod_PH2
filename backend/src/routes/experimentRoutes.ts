@@ -127,11 +127,6 @@ router.post(
     body('records.*.data.properties')
       .isArray()
       .withMessage('data.propertiesは配列である必要があります'),
-    body('records.*.status')
-      .optional()
-      .trim()
-      .isIn(['initial', 'preparing', 'ready', 'running', 'paused', 'completed', 'error'])
-      .withMessage('statusは initial, preparing, ready, running, paused, completed, error のいずれかである必要があります'),
     body('records.*.comment')
       .optional()
       .trim()

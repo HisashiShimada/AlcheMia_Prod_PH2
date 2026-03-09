@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.15.0
-- **最終更新**: 2026-02-26
+- **バージョン**: 2.16.0
+- **最終更新**: 2026-03-06
 - **担当**: Development Team
 
 ---
@@ -190,6 +190,7 @@
 | 5.15 | GET | /api/v1/maiml/draft/:draftKey | Draft読み込み | ✅ 実装済み | maimlController.loadDraft |
 | 5.16 | GET | /api/v1/maiml/drafts | Draft一覧取得 | ✅ 実装済み | maimlController.listDrafts |
 | 5.17 | DELETE | /api/v1/maiml/draft/:draftKey | Draft削除 | ✅ 実装済み | maimlController.deleteDraft |
+| 5.18 | GET | /api/v1/maiml/formats | 名前空間テンプレートフォルダ＆ファイル一覧取得 | ⏳ 未実装 | maimlController.getFormats |
 
 **ミドルウェアチェーン:**
 - 5.1-5.9: `auth` → バリデーション
@@ -214,6 +215,13 @@
 - バックアップ機能（archiveフォルダ）
 - storageService統合（S3/Swift対応）
 - 旧エンドポイント（`/api/worker/*`）は2026年7月21日廃止予定
+- **API 5.18: 名前空間テンプレートフォルダ＆ファイル一覧取得**
+  - `editorv2` の名前空間テンプレート取り込み機能（TemplateEditorDialog）で使用
+  - 全部門横断で `formats/` 配下の `material/` `condition/` `result/` フォルダの `.xml` ファイルのみを返す
+  - フォーマット管理API（4.1/4.2）はセッションの部門CD単位のため流用不可
+  - `storageService.listFiles(organizationId, 'formats/')` で全部門を横断取得
+  - レスポンス構造: 部門CD → フォルダ（material/condition/result） → ファイルの3階層
+  - 詳細仕様: [api_maiml_editor.md](./api_maiml_editor.md) API #18を参照
 
 ---
 
@@ -545,7 +553,40 @@
 
 ---
 
-### 16. ユーザー管理API（User Management）
+### 16. セマンティック検索API（Semantic Search）
+
+**API設計書**: [api_semantic_search.md](./api_semantic_search.md)  
+**ルートファイル**: `backend/src/routes/semanticSearchRoutes.ts`  
+**備考**: 実装済み9/9エンドポイント（100%）、4軸ベクトル検索
+
+| No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
+|----|-------------|---------------|------|---------|--------------|
+| 16.1 | POST | /api/v1/semantic-search/search | セマンティック検索 | ✅ 実装済み | semanticSearchController.search |
+| 16.2 | POST | /api/v1/semantic-search/decompose | クエリ分解（AI4軸分解） | ✅ 実装済み | semanticSearchController.decompose |
+| 16.3 | POST | /api/v1/semantic-search/index | ファイルインデックス登録 | ✅ 実装済み | semanticSearchController.indexFile |
+| 16.4 | GET | /api/v1/semantic-search/stats | インデックス統計取得 | ✅ 実装済み | semanticSearchController.getStats |
+| 16.5 | GET | /api/v1/semantic-search/health | ヘルスチェック | ✅ 実装済み | semanticSearchController.health |
+| 16.6 | POST | /api/v1/semantic-search/batch | バッチ処理開始 | ✅ 実装済み | semanticSearchController.startBatch |
+| 16.7 | GET | /api/v1/semantic-search/batch | バッチジョブ一覧取得 | ✅ 実装済み | semanticSearchController.listBatchJobs |
+| 16.8 | GET | /api/v1/semantic-search/batch/stats | バッチ統計取得 | ✅ 実装済み | semanticSearchController.getBatchStats |
+| 16.9 | DELETE | /api/v1/semantic-search/batch/:jobId | バッチジョブキャンセル | ✅ 実装済み | semanticSearchController.cancelBatchJob |
+
+**ミドルウェアチェーン:**
+- すべて: `authMiddleware`（JWTからorganizationIdを取得）
+- 権限: すべてのロール（マルチテナント分離で保護）
+
+**備考:**
+- 4軸ベクトル検索（入力条件・手順・出力・構造）によりMAIMLトランジションを類似度評価
+- AI（GPT）による自然言語クエリの4軸自動分解（GPT未接続時はフォールバック動作）
+- 検索重み調整: 4軸ごとに0.0〜1.0の重みをカスタマイズ可能
+- バッチ処理: 組織内全MAIMLファイルの一括Embedding生成（非同期実行）
+- 使用コンポーネント: `TransitionSetSearchModal.tsx`、`TransitionSetBatchProcessingPanel.tsx`
+- 呼び出し元サービス: `frontend/src/services/semanticSearchService.ts`
+- 詳細仕様: [api_semantic_search.md](./api_semantic_search.md) を参照
+
+---
+
+### 17. ユーザー管理API（User Management）
 
 **API設計書**: [api_user_management.md](./api_user_management.md)  
 **ルートファイル**: `backend/src/routes/userRoutes.ts`
@@ -625,7 +666,7 @@
 | プロジェクト管理API | 16 | 13 | 0 | 3 | 81% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 6 | 5 | 0 | 1 | 83% |
-| Maiml編集API | 17 | 17 | 0 | 0 | 100% |
+| Maiml編集API | 18 | 17 | 0 | 1 | 94% |
 | 進捗確認API | 4 | 0 | 0 | 4 | 0% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
 | 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
@@ -821,6 +862,13 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.16.0 | 2026-03-06 | Maiml編集API - 名前空間テンプレートフォルダ＆ファイル一覧取得API追加 | Cline |
+| | | - API 5.18: GET /api/v1/maiml/formats 新規追加（未実装） | |
+| | | - 名前空間テンプレート取り込み機能（editorv2 TemplateEditorDialog）向け | |
+| | | - 全部門横断でmaterial/condition/result配下の.xmlファイル一覧を返す | |
+| | | - Maiml編集API: 17→18エンドポイント（実装済み17、未実装1） | |
+| | | - 全体: 124→125エンドポイント | |
+| | | - 詳細仕様: api_maiml_editor.md API #18を参照 | |
 | 2.15.0 | 2026-02-27 | システム概要API - ストレージ統計仕様変更 | Cline |
 | | | - ストレージ統計取得元をSwift/S3直接取得（`storageService.listFiles()`）に変更 | |
 | | | - `usedCapacityGB` の小数点桁数を2桁→3桁に変更 | |

@@ -28,6 +28,29 @@ export interface IngestResult {
 }
 
 /**
+ * file_pathを正規化する（organization_idプレフィックスと先頭スラッシュを除去）
+ *
+ * storageService.listFiles()が返すkeyにorg_idが含まれる場合があるため、
+ * DBに保存するfile_pathを常に相対パス（org_id省略）に統一する。
+ * これにより file_id（UUID v5）が一意に定まりupsertが正しく機能する。
+ *
+ * @example
+ * "a0718dc5-.../projects/foo/foo.maiml" → "projects/foo/foo.maiml"
+ * "/projects/foo/foo.maiml"             → "projects/foo/foo.maiml"
+ * "projects/foo/foo.maiml"              → "projects/foo/foo.maiml"
+ */
+function normalizeFilePath(organizationId: string, filePath: string): string {
+  let normalized = filePath;
+  // org_idプレフィックスを除去
+  if (normalized.startsWith(organizationId + '/')) {
+    normalized = normalized.slice(organizationId.length + 1);
+  }
+  // 先頭スラッシュを除去
+  normalized = normalized.replace(/^\/+/, '');
+  return normalized;
+}
+
+/**
  * 1つのMAIMLファイルをセマンティック検索インデックスに投入する
  *
  * @param organizationId - 組織ID
@@ -45,25 +68,29 @@ export async function ingestSingleFile(
   let skippedCount = 0;
   let errorCount = 0;
 
-  console.log(`[singleFileIngestService] Start: ${filePath}`);
+  // file_pathを正規化してorg_idプレフィックス・先頭スラッシュを除去
+  // → file_id（UUID v5）が毎回同じ値になりupsertが正しく機能する
+  const normalizedPath = normalizeFilePath(organizationId, filePath);
+
+  console.log(`[singleFileIngestService] Start: ${normalizedPath}`);
 
   try {
-    // Step 1: ストレージからMAIMLファイルを読み込む
-    const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+    // Step 1: ストレージからMAIMLファイルを読み込む（正規化パスで取得）
+    const fileBuffer = await storageService.downloadFile(organizationId, normalizedPath);
     const maimlContent = fileBuffer.toString('utf-8');
 
-    // Step 2: MAIMLから4軸テキスト＋メタデータを生成
+    // Step 2: MAIMLから4軸テキスト＋メタデータを生成（正規化パスをfile_pathとして使用）
     const metadataList = generateTransitionSetMetadata(
       maimlContent,
       organizationId,
-      filePath,
+      normalizedPath,
       technique
     );
 
     if (metadataList.length === 0) {
-      console.log(`[singleFileIngestService] No transition sets found: ${filePath}`);
+      console.log(`[singleFileIngestService] No transition sets found: ${normalizedPath}`);
       return {
-        filePath,
+        filePath: normalizedPath,
         upsertedCount: 0,
         skippedCount: 0,
         errorCount: 0,
@@ -72,7 +99,7 @@ export async function ingestSingleFile(
     }
 
     console.log(
-      `[singleFileIngestService] ${metadataList.length} transition sets to embed: ${filePath}`
+      `[singleFileIngestService] ${metadataList.length} transition sets to embed: ${normalizedPath}`
     );
 
     // Step 3: 各トランジションセットのEmbeddingを生成してDBへUPSERT
@@ -120,15 +147,15 @@ export async function ingestSingleFile(
 
     const durationMs = Date.now() - startTime;
     console.log(
-      `[singleFileIngestService] Done: ${filePath} ` +
+      `[singleFileIngestService] Done: ${normalizedPath} ` +
         `upserted=${upsertedCount} skipped=${skippedCount} errors=${errorCount} ${durationMs}ms`
     );
 
-    return { filePath, upsertedCount, skippedCount, errorCount, durationMs };
+    return { filePath: normalizedPath, upsertedCount, skippedCount, errorCount, durationMs };
   } catch (err) {
     const durationMs = Date.now() - startTime;
-    console.error(`[singleFileIngestService] Fatal error for ${filePath}:`, err);
-    return { filePath, upsertedCount, skippedCount: 0, errorCount: 1, durationMs };
+    console.error(`[singleFileIngestService] Fatal error for ${normalizedPath}:`, err);
+    return { filePath: normalizedPath, upsertedCount, skippedCount: 0, errorCount: 1, durationMs };
   }
 }
 

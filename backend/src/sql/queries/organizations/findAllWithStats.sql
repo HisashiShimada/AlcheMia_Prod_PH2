@@ -7,6 +7,9 @@ SELECT
   o.organization_email,
   ou.user_name AS chief_user_name,
   c.corporation_name,
+  o.contract_users,
+  o.contract_projects,
+  o.contract_capacity,
   COALESCE(p.project_count, 0)::int AS project_count,
   COALESCE(u.active_user_count, 0)::int AS active_user_count,
   COALESCE(u.total_user_count, 0)::int AS total_user_count

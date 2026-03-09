@@ -4,46 +4,33 @@ import React, { useState } from 'react';
 import { Card, Button, App, Typography, theme } from 'antd';
 import { DownloadOutlined } from '@ant-design/icons';
 import { createApiClient } from '@/utils/authUtils';
+import { useLanguage } from '@/contexts/LanguageContext';
 
-/**
- * 情報ダウンロード画面
- * バックエンドAPI経由で全組織の統計情報をCSVダウンロードする
- */
 const InformationDownload: React.FC = () => {
   const { token } = theme.useToken();
   const { message: messageApi } = App.useApp();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
 
-  /**
-   * CSVダウンロード処理
-   * GET /api/v1/provider/organization/download-information-csv
-   */
   const handleDownload = async () => {
     try {
       setLoading(true);
       const client = createApiClient();
-
       const response = await client.get(
         '/provider/organization/download-information-csv',
         { responseType: 'blob' }
       );
-
       const blob = new Blob([response.data], { type: 'text/csv' });
-
-      // Content-Disposition ヘッダーからファイル名を取得
       const contentDisposition =
         response.headers['content-disposition'] ||
         response.headers['Content-Disposition'];
-
       let filename = 'information.csv';
-
       if (contentDisposition) {
         const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
         if (match && match[1]) {
           filename = match[1].replace(/['"]/g, '');
         }
       } else {
-        // フォールバック: フロントエンド側でタイムスタンプを生成
         const now = new Date();
         const ts = [
           now.getFullYear(),
@@ -55,7 +42,6 @@ const InformationDownload: React.FC = () => {
         ].join('');
         filename = `information_${ts}.csv`;
       }
-
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -64,11 +50,10 @@ const InformationDownload: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
-      messageApi.success(`${filename} をダウンロードしました`);
+      messageApi.success(t('informationDownload.messages.downloadSuccess').replace('{filename}', filename));
     } catch (error) {
       console.error('CSV download error:', error);
-      messageApi.error('CSVダウンロードに失敗しました');
+      messageApi.error(t('informationDownload.messages.downloadError'));
     } finally {
       setLoading(false);
     }
@@ -76,14 +61,9 @@ const InformationDownload: React.FC = () => {
 
   return (
     <div style={{ padding: 0, minHeight: 'calc(100vh - 112px)' }}>
-      {/* ヘッダーカード */}
       <Card
         variant="borderless"
-        style={{
-          borderRadius: 0,
-          marginBottom: 0,
-          boxShadow: 'none',
-        }}
+        style={{ borderRadius: 0, marginBottom: 0, boxShadow: 'none' }}
         styles={{
           body: {
             display: 'flex',
@@ -97,18 +77,16 @@ const InformationDownload: React.FC = () => {
         }}
       >
         <Typography.Title level={4} style={{ margin: 0 }}>
-          情報ダウンロード
+          {t('informationDownload.title')}
         </Typography.Title>
         <Button
           type="default"
           icon={<DownloadOutlined />}
           onClick={handleDownload}
           loading={loading}
-          style={{
-            borderRadius: token.borderRadius,
-          }}
+          style={{ borderRadius: token.borderRadius }}
         >
-          CSVダウンロード
+          {t('informationDownload.csvDownload')}
         </Button>
       </Card>
     </div>

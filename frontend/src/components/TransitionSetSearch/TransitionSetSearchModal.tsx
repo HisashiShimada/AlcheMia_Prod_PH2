@@ -1,7 +1,7 @@
 /**
- * セマンティック検索モーダル
+ * トランジション検索モーダル
  *
- * @description 4軸クエリ入力・重み調整・検索結果表示を統合したモーダルコンポーネント
+ * @description 統合クエリ入力・クイック検索・重み調整・検索結果表示を統合したモーダルコンポーネント
  */
 
 'use client';
@@ -15,18 +15,31 @@ import {
   Space,
   Typography,
   Divider,
-  InputNumber,
   Row,
   Col,
   Badge,
   Collapse,
+  Tooltip,
+  Alert,
+  message,
 } from 'antd';
-import { SearchOutlined, SettingOutlined, CloudUploadOutlined } from '@ant-design/icons';
+import {
+  SearchOutlined,
+  SettingOutlined,
+  CloudUploadOutlined,
+  ThunderboltOutlined,
+  AccountBookOutlined,
+  InboxOutlined,
+  ExportOutlined,
+  ApartmentOutlined,
+  StarOutlined,
+} from '@ant-design/icons';
 import WeightSliders from './WeightSliders';
 import SearchResults from './SearchResults';
 import TransitionSetBatchProcessingPanel from './TransitionSetBatchProcessingPanel';
-import { useSemanticSearch, DEFAULT_WEIGHTS } from '@/hooks/useSemanticSearch';
-import type { SearchWeights, SemanticSearchRequest } from '@/types/semanticSearch';
+import { useSemanticSearch, DEFAULT_WEIGHTS, WEIGHT_PRESETS } from '@/hooks/useSemanticSearch';
+import { decomposeNaturalLanguageQuery } from '@/services/semanticSearchService';
+import type { SearchWeights, SemanticSearchRequest, DecomposedQuery } from '@/types/semanticSearch';
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -40,8 +53,17 @@ interface TransitionSetSearchModalProps {
   initialProjectName?: string;
 }
 
+/** クイック検索ボタン定義 */
+const QUICK_SEARCH_BUTTONS = [
+  { key: 'structureFocused', icon: <ApartmentOutlined />, label: '構造重視' },
+  { key: 'procedureFocused', icon: <ThunderboltOutlined />, label: '手順重視' },
+  { key: 'inputFocused', icon: <InboxOutlined />, label: '入力重視' },
+  { key: 'outputFocused', icon: <ExportOutlined />, label: '出力重視' },
+  { key: 'balanced', icon: <StarOutlined />, label: 'バランス' },
+] as const;
+
 /**
- * セマンティック検索モーダル
+ * トランジション検索モーダル
  */
 const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
   open,
@@ -49,53 +71,91 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
   onOpenProject,
   initialProjectName,
 }) => {
-  // 検索クエリ
-  const [inputQuery, setInputQuery] = useState('');
-  const [transitionQuery, setTransitionQuery] = useState('');
-  const [outputQuery, setOutputQuery] = useState('');
-  const [structureQuery, setStructureQuery] = useState('');
-
-  // フィルター
-  const [projectNameFilter, setProjectNameFilter] = useState(initialProjectName ?? '');
-  const [techniqueFilter, setTechniqueFilter] = useState('');
-  const [topK, setTopK] = useState(10);
+  // 統合クエリ（メイン入力）
+  const [query, setQuery] = useState('');
 
   // 重み
   const [weights, setWeights] = useState<SearchWeights>(DEFAULT_WEIGHTS);
+
+  // AI分解結果表示用
+  const [decomposed, setDecomposed] = useState<DecomposedQuery | null>(null);
+  const [decomposing, setDecomposing] = useState(false);
 
   // 検索フック
   const { hits, loading, error, searched, elapsedMs, search, clearResults } =
     useSemanticSearch();
 
+  /**
+   * クエリをAI分解して検索リクエストを生成する
+   */
+  const buildRequest = useCallback(
+    async (customWeights?: SearchWeights): Promise<SemanticSearchRequest | null> => {
+      if (!query.trim()) return null;
+      setDecomposing(true);
+      try {
+        const result = await decomposeNaturalLanguageQuery(query.trim());
+        setDecomposed(result);
+        return {
+          ...(result.q_in && { input_query: result.q_in }),
+          ...(result.q_tr && { transition_query: result.q_tr }),
+          ...(result.q_out && { output_query: result.q_out }),
+          ...(result.q_struct && { structure_query: result.q_struct }),
+          top_k: 50,
+          weights: customWeights ?? weights,
+        };
+      } catch (err) {
+        console.error('[TransitionSetSearchModal] decompose error:', err);
+        // フォールバック：クエリをtransition_queryとして渡す
+        return {
+          transition_query: query.trim(),
+          top_k: 50,
+          weights: customWeights ?? weights,
+        };
+      } finally {
+        setDecomposing(false);
+      }
+    },
+    [query, weights]
+  );
+
+  /**
+   * 通常検索
+   */
   const handleSearch = useCallback(async () => {
-    const request: SemanticSearchRequest = {
-      ...(inputQuery.trim() && { input_query: inputQuery.trim() }),
-      ...(transitionQuery.trim() && { transition_query: transitionQuery.trim() }),
-      ...(outputQuery.trim() && { output_query: outputQuery.trim() }),
-      ...(structureQuery.trim() && { structure_query: structureQuery.trim() }),
-      top_k: topK,
-      ...(projectNameFilter.trim() && { project_name: projectNameFilter.trim() }),
-      ...(techniqueFilter.trim() && { technique: techniqueFilter.trim() }),
-      weights,
-    };
+    if (!query.trim()) {
+      message.warning('検索クエリを入力してください');
+      return;
+    }
+    const request = await buildRequest();
+    if (!request) return;
     await search(request);
-  }, [
-    inputQuery,
-    transitionQuery,
-    outputQuery,
-    structureQuery,
-    topK,
-    projectNameFilter,
-    techniqueFilter,
-    weights,
-    search,
-  ]);
+  }, [query, buildRequest, search]);
+
+  /**
+   * クイック検索：プリセット重みで即時検索
+   */
+  const handleQuickSearch = useCallback(
+    async (presetKey: string) => {
+      if (!query.trim()) {
+        message.warning('クイック検索には検索クエリを入力してください');
+        return;
+      }
+      const preset = WEIGHT_PRESETS[presetKey];
+      if (!preset) return;
+
+      // 重みをUIに反映
+      setWeights(preset.weights);
+
+      const request = await buildRequest(preset.weights);
+      if (!request) return;
+      await search(request);
+    },
+    [query, buildRequest, search]
+  );
 
   const handleClear = () => {
-    setInputQuery('');
-    setTransitionQuery('');
-    setOutputQuery('');
-    setStructureQuery('');
+    setQuery('');
+    setDecomposed(null);
     clearResults();
   };
 
@@ -104,18 +164,14 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
     onClose();
   };
 
-  const hasAnyQuery =
-    inputQuery.trim() ||
-    transitionQuery.trim() ||
-    outputQuery.trim() ||
-    structureQuery.trim();
+  const isProcessing = loading || decomposing;
 
   return (
     <Modal
       title={
         <Space>
-          <SearchOutlined />
-          <span>セマンティック検索</span>
+          <AccountBookOutlined />
+          <span>トランジション検索</span>
           {searched && hits.length > 0 && (
             <Badge count={hits.length} showZero color="blue" />
           )}
@@ -123,7 +179,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
       }
       open={open}
       onCancel={handleClose}
-      width={900}
+      width={960}
       footer={null}
       destroyOnHidden={false}
       styles={{ body: { padding: '16px 24px', maxHeight: '80vh', overflowY: 'auto' } }}
@@ -137,92 +193,113 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
             label: '検索',
             children: (
               <div>
-                {/* クエリ入力エリア */}
-                <Row gutter={16}>
-                  <Col span={12}>
-                    <div style={{ marginBottom: 12 }}>
-                      <Text style={{ fontSize: 12 }}>入力（Input）クエリ</Text>
-                      <TextArea
-                        rows={2}
-                        placeholder="サンプルの種類・前処理条件など"
-                        value={inputQuery}
-                        onChange={(e) => setInputQuery(e.target.value)}
-                        style={{ marginTop: 4, fontSize: 12 }}
-                      />
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <Text style={{ fontSize: 12 }}>出力（Output）クエリ</Text>
-                      <TextArea
-                        rows={2}
-                        placeholder="期待される測定結果・生成物など"
-                        value={outputQuery}
-                        onChange={(e) => setOutputQuery(e.target.value)}
-                        style={{ marginTop: 4, fontSize: 12 }}
-                      />
-                    </div>
-                  </Col>
-                  <Col span={12}>
-                    <div style={{ marginBottom: 12 }}>
-                      <Text style={{ fontSize: 12 }}>手法（Transition）クエリ</Text>
-                      <TextArea
-                        rows={2}
-                        placeholder="使用する分析・処理手法など"
-                        value={transitionQuery}
-                        onChange={(e) => setTransitionQuery(e.target.value)}
-                        style={{ marginTop: 4, fontSize: 12 }}
-                      />
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <Text style={{ fontSize: 12 }}>構造（Structure）クエリ</Text>
-                      <TextArea
-                        rows={2}
-                        placeholder="プレース数・テンプレート数など構造的特徴"
-                        value={structureQuery}
-                        onChange={(e) => setStructureQuery(e.target.value)}
-                        style={{ marginTop: 4, fontSize: 12 }}
-                      />
-                    </div>
-                  </Col>
-                </Row>
+                {/* ── 検索クエリ入力 ── */}
+                <div style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 12 }}>検索クエリ</Text>
+                  <TextArea
+                    rows={3}
+                    placeholder="例: 532nmレーザーでラマン測定、CLS解析、スペクトルとTIFF画像を出力"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onPressEnter={(e) => {
+                      if (!e.shiftKey) {
+                        e.preventDefault();
+                        handleSearch();
+                      }
+                    }}
+                    style={{ marginTop: 4, fontSize: 12 }}
+                  />
+                  <Text type="secondary" style={{ fontSize: 11 }}>
+                    💡 入力条件、実験手順、期待される出力を含めて記述してください
+                  </Text>
+                </div>
 
-                {/* フィルター */}
-                <Row gutter={16} style={{ marginBottom: 8 }}>
-                  <Col span={8}>
-                    <Text style={{ fontSize: 12 }}>プロジェクト名フィルター</Text>
-                    <Input
-                      size="small"
-                      placeholder="例: my_project"
-                      value={projectNameFilter}
-                      onChange={(e) => setProjectNameFilter(e.target.value)}
-                      style={{ marginTop: 4 }}
-                      allowClear
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <Text style={{ fontSize: 12 }}>手法コードフィルター</Text>
-                    <Input
-                      size="small"
-                      placeholder="例: RAMAN, XRF"
-                      value={techniqueFilter}
-                      onChange={(e) => setTechniqueFilter(e.target.value)}
-                      style={{ marginTop: 4 }}
-                      allowClear
-                    />
-                  </Col>
-                  <Col span={4}>
-                    <Text style={{ fontSize: 12 }}>上位件数</Text>
-                    <InputNumber
-                      size="small"
-                      min={1}
-                      max={50}
-                      value={topK}
-                      onChange={(v) => setTopK(v ?? 10)}
-                      style={{ marginTop: 4, width: '100%' }}
-                    />
-                  </Col>
-                </Row>
+                {/* ── 検索ボタン ── */}
+                <Space style={{ marginBottom: 12 }}>
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<SearchOutlined />}
+                    loading={isProcessing}
+                    disabled={!query.trim()}
+                    onClick={handleSearch}
+                    style={{ minWidth: 140 }}
+                  >
+                    {isProcessing ? '検索中...' : '検索実行'}
+                  </Button>
+                  <Button onClick={handleClear} disabled={isProcessing}>
+                    リセット
+                  </Button>
+                </Space>
 
-                {/* 重み設定（折りたたみ） */}
+                {/* ── クイック検索 ── */}
+                <div style={{ marginBottom: 16 }}>
+                  <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+                    ⚡ クイック検索（ワンクリックで重み調整済み検索）
+                  </Text>
+                  <Space wrap>
+                    {QUICK_SEARCH_BUTTONS.map(({ key, icon, label }) => (
+                      <Tooltip
+                        key={key}
+                        title={WEIGHT_PRESETS[key]?.description ?? ''}
+                      >
+                        <Button
+                          icon={icon}
+                          size="small"
+                          onClick={() => handleQuickSearch(key)}
+                          disabled={isProcessing || !query.trim()}
+                        >
+                          {label}
+                        </Button>
+                      </Tooltip>
+                    ))}
+                  </Space>
+                </div>
+
+                {/* ── AI分解結果表示 ── */}
+                {decomposed && (
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      background: '#f9f0ff',
+                      border: '1px solid #d3adf7',
+                      borderRadius: 4,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                      🤖 AI分析: クエリの4軸分解
+                    </Text>
+                    <Row gutter={8}>
+                      <Col span={12}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>📥 入力条件:</Text>
+                        <Text style={{ fontSize: 11, display: 'block' }}>
+                          {decomposed.q_in || '-'}
+                        </Text>
+                      </Col>
+                      <Col span={12}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>⚡ 手順:</Text>
+                        <Text style={{ fontSize: 11, display: 'block' }}>
+                          {decomposed.q_tr || '-'}
+                        </Text>
+                      </Col>
+                      <Col span={12}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>📤 出力:</Text>
+                        <Text style={{ fontSize: 11, display: 'block' }}>
+                          {decomposed.q_out || '-'}
+                        </Text>
+                      </Col>
+                      <Col span={12}>
+                        <Text type="secondary" style={{ fontSize: 11 }}>🕸️ 構造:</Text>
+                        <Text style={{ fontSize: 11, display: 'block' }}>
+                          {decomposed.q_struct || '-'}
+                        </Text>
+                      </Col>
+                    </Row>
+                  </div>
+                )}
+
+                {/* ── 重み設定（折りたたみ） ── */}
                 <Collapse
                   size="small"
                   style={{ marginBottom: 8 }}
@@ -240,7 +317,7 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
                           <WeightSliders
                             weights={weights}
                             onChange={setWeights}
-                            disabled={loading}
+                            disabled={isProcessing}
                           />
                         </div>
                       ),
@@ -250,29 +327,57 @@ const TransitionSetSearchModal: React.FC<TransitionSetSearchModalProps> = ({
 
                 <Divider style={{ margin: '8px 0' }} />
 
-                {/* ボタン */}
-                <Space>
-                  <Button
-                    type="primary"
-                    icon={<SearchOutlined />}
-                    loading={loading}
-                    disabled={!hasAnyQuery}
-                    onClick={handleSearch}
-                  >
-                    検索
-                  </Button>
-                  <Button onClick={handleClear} disabled={loading}>
-                    クリア
-                  </Button>
-                </Space>
+                {/* エラー表示 */}
+                {error && (
+                  <Alert
+                    type="error"
+                    message={error}
+                    showIcon
+                    style={{ marginBottom: 12 }}
+                    closable
+                  />
+                )}
 
-                <Divider style={{ margin: '12px 0' }} />
+                {/* 未検索時のヒント */}
+                {!searched && !loading && (
+                  <div
+                    style={{
+                      padding: 24,
+                      textAlign: 'center',
+                      background: '#fafafa',
+                      border: '1px dashed #d9d9d9',
+                      borderRadius: 4,
+                    }}
+                  >
+                    <SearchOutlined style={{ fontSize: 48, color: '#1677ff', marginBottom: 12 }} />
+                    <Typography.Title level={5} type="secondary" style={{ marginBottom: 8 }}>
+                      トランジションセット検索を開始
+                    </Typography.Title>
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+                      4軸ベクトル検索により、実験プロトコルのトランジションレベルでの精密な類似度評価が可能です
+                    </Text>
+                    <div style={{ textAlign: 'left', maxWidth: 480, margin: '0 auto' }}>
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
+                        📥 <strong>入力条件の例</strong>: 「シリコン基板、532nmレーザー、室温」
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
+                        ⚡ <strong>手順の例</strong>: 「バックグラウンド補正、ピーク検出」
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>
+                        📤 <strong>出力の例</strong>: 「スペクトルデータCSV、TIFFイメージ」
+                      </Text>
+                      <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                        🕸️ <strong>構造の例</strong>: 「1入力2出力」「直列3ステップ」
+                      </Text>
+                    </div>
+                  </div>
+                )}
 
                 {/* 検索結果 */}
                 <SearchResults
                   hits={hits}
                   loading={loading}
-                  error={error}
+                  error={null}
                   searched={searched}
                   elapsedMs={elapsedMs}
                   onOpenProject={(name) => {

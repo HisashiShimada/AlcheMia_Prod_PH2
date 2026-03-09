@@ -7,6 +7,7 @@ import * as roleRepository from '../repositories/roleRepository';
 import Papa from 'papaparse';
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
+import { getMessage } from '../utils/messages';
 
 /**
  * 機能情報の型
@@ -166,7 +167,8 @@ export async function updateRolePermissions(
 export async function uploadRolesCsv(
   organizationId: string,
   userId: string,
-  csvContent: string
+  csvContent: string,
+  lang: string = 'ja'
 ): Promise<void> {
   // CSVパース
   const parseResult = Papa.parse(csvContent, {
@@ -178,7 +180,7 @@ export async function uploadRolesCsv(
     throw {
       statusCode: 400,
       code: 'CSV_PARSE_ERROR',
-      message: 'CSVファイルの形式が不正です',
+      message: getMessage(lang, 'role.csv.parseError'),
       details: parseResult.errors,
     };
   }
@@ -189,7 +191,7 @@ export async function uploadRolesCsv(
     throw {
       statusCode: 400,
       code: 'EMPTY_CSV',
-      message: 'CSVファイルにデータが含まれていません',
+      message: getMessage(lang, 'role.csv.emptyData'),
     };
   }
 
@@ -205,7 +207,7 @@ export async function uploadRolesCsv(
       errors.push({
         row: rowNumber,
         field: 'role_cd',
-        message: `${rowNumber}行目: role_cdは必須です`,
+        message: getMessage(lang, 'role.csv.cdRequired', { row: String(rowNumber) }),
       });
     }
 
@@ -218,7 +220,7 @@ export async function uploadRolesCsv(
       errors.push({
         row: rowNumber,
         field: 'is_active',
-        message: `${rowNumber}行目: is_activeは true/false/1/0 のいずれかである必要があります`,
+        message: getMessage(lang, 'role.csv.isActiveInvalid', { row: String(rowNumber) }),
       });
     }
   }
@@ -239,7 +241,7 @@ export async function uploadRolesCsv(
         errors.push({
           row: rowNumber,
           field: 'role_cd',
-          message: `${rowNumber}行目: role_cd「${roleCd}」のrole_nameが統一されていません（「${existingRoleName}」と「${roleName}」）`,
+          message: getMessage(lang, 'role.csv.roleNameMismatch', { row: String(rowNumber), roleCd, existing: existingRoleName!, newName: roleName }),
         });
       }
     } else {
@@ -277,7 +279,7 @@ export async function uploadRolesCsv(
         errors.push({
           row: rowNumber,
           field: 'initial_screen_function_cd',
-          message: `${rowNumber}行目: initial_screen_function_cd「${initialScreenFunctionName}」が、role_cd「${roleCd}」のいずれのfunction_cdにも含まれていません`,
+          message: getMessage(lang, 'role.csv.initialScreenNotInRole', { row: String(rowNumber), screen: initialScreenFunctionName, roleCd }),
         });
       }
     }
@@ -287,7 +289,7 @@ export async function uploadRolesCsv(
     throw {
       statusCode: 400,
       code: 'VALIDATION_ERROR',
-      message: 'CSVファイルのバリデーションエラー',
+      message: getMessage(lang, 'role.csv.validationError'),
       details: errors,
     };
   }
@@ -301,11 +303,11 @@ export async function uploadRolesCsv(
       throw {
         statusCode: 400,
         code: 'DUPLICATE_ROLE_CD',
-        message: `role_cd「${roleCd}」は既に存在します`,
+        message: getMessage(lang, 'role.csv.alreadyExists', { roleCd }),
         details: [
           {
             field: 'role_cd',
-            message: `role_cd「${roleCd}」は既に存在します`,
+            message: getMessage(lang, 'role.csv.alreadyExists', { roleCd }),
           },
         ],
       };
@@ -435,7 +437,7 @@ export async function uploadRolesCsv(
     throw {
       statusCode: 500,
       code: 'TRANSACTION_ERROR',
-      message: 'ロールCSVアップロード処理中にエラーが発生しました',
+      message: getMessage(lang, 'role.csv.transactionError'),
       details: [{
         message: error.message || String(error),
       }],

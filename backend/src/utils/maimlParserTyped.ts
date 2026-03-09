@@ -234,42 +234,45 @@ export class MaimlParserTyped {
    getInstructionIdByTransitionId(
     transitionId: string
   ): string {
-    // 1. 該当するTransitionを取得
+    const instruction = this.getInstructionByTransitionId(transitionId);
+    return instruction ? instruction.id : '';
+  }
+
+  /**
+   * TransitionIDに対応するInstructionオブジェクトを返す
+   *
+   * @param transitionId - 検索対象のTransition ID
+   * @returns 対応するInstructionオブジェクト（見つからない場合はnull）
+   */
+  getInstructionByTransitionId(
+    transitionId: string
+  ): import('../types/maiml-unified').Instruction | null {
     const methods = this.getMethods();
     if (methods.length === 0) {
-      return '';
+      return null;
     }
-    
-    // 2. forEachをfor...ofに変更して早期リターンを可能にする
+
     for (const method of methods) {
-      // 3. program配列を取得（単一要素と配列の両方に対応）
-      const programs = Array.isArray(method.program) 
-        ? method.program 
+      const programs = Array.isArray(method.program)
+        ? method.program
         : [method.program];
-      
-      // 4. 各programのinstructionを検索
+
       for (const program of programs) {
         if (!program.instructions) {
           continue;
         }
-        
-        // instruction配列を取得（単一要素と配列の両方に対応）
-        const instructions = program.instructions;
-        
-        // 5. 該当するtransitionIdを持つinstructionを検索（早期終了）
-        // Instruction型はtransitionRef配列を持つので、その中のrefを確認
-        const instruction = instructions.find(i => 
+
+        const instruction = program.instructions.find(i =>
           i.transitionRef.ref === transitionId
         );
-        
+
         if (instruction) {
-          return instruction.id;
+          return instruction;
         }
       }
     }
-    
-    // 6. 見つからなかった場合は空文字を返す
-    return '';
+
+    return null;
   }
   
   /**

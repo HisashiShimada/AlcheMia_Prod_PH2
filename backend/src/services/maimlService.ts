@@ -18,7 +18,6 @@ import { MaimlDraftsRepository, MaimlDraftsRow } from '../repositories/maimlDraf
 import * as projectRepository from '../repositories/projectRepository';
 import { Project } from '../types/database';
 import type { Draft } from '../types/editor';
-import * as maimlMetadataExtractor from '../utils/maimlMetadataExtractor';
 import {
   ListFilesResponse,
   StorageFile,
@@ -177,94 +176,8 @@ export async function saveMaiML(
       console.log('ℹ️ [S3 Save] 新規ファイルのためDB作成はメタデータ抽出時に実行');
     }
     
-    // MaiMLファイルの場合、メタデータ自動抽出
+    // MaiMLファイルの場合、project_maiml_flgを更新
     if (fileKey.toLowerCase().endsWith('.maiml')) {
-      try {
-        console.log('🔍 [MAIML Save] MaiMLメタデータ抽出開始:', fileKey);
-        
-        // 1. S3/SwiftからXML取得
-        const xmlBuffer = await storageService.downloadFile(organizationId, fileKey);
-        const xmlContent = xmlBuffer.toString('utf-8');
-        
-        // 2. メタデータ抽出（Utility）
-        const metadata = await maimlMetadataExtractor.extractMetadataFromXML(xmlContent);
-        
-        // 3. DB更新（Repository - 既存メソッド使用）
-        const fileMetadataRepository = new FileMetadataRepository();
-        const existingRecord = await fileMetadataRepository.getFileMetadataByFileKey(fileKey);
-        
-        if (existingRecord) {
-          // 既存レコードの更新（既存のupdateFileMetadataを使用）
-          const updateData = {
-            organization_id: organizationId,
-            maiml_document_uuid: metadata.document_uuid,
-            maiml_document_name: metadata.document_name,
-            maiml_document_description: metadata.document_description,
-            maiml_measurement_values: JSON.stringify(metadata.measurement_values),
-            maiml_units: JSON.stringify(metadata.units),
-            maiml_section_types: JSON.stringify(metadata.section_types),
-            maiml_ids: JSON.stringify(metadata.ids),
-            maiml_refs: JSON.stringify(metadata.refs),
-            maiml_keys: JSON.stringify(metadata.keys),
-            maiml_elements: JSON.stringify(metadata.elements),
-            maiml_values: JSON.stringify(metadata.values),
-            maiml_metadata_extracted_at: new Date(),
-            maiml_metadata_extraction_status: 'success'
-          };
-          
-          await fileMetadataRepository.updateFileMetadata(fileKey, updateData);
-          console.log('✅ [MAIML Save] MaiMLメタデータ抽出成功（更新）');
-        } else {
-          // 新規レコードの作成（既存のinsertFileMetadataを使用）
-          const insertData: Partial<FileMetadata> = {
-            file_key: fileKey,
-            organization_id: organizationId,
-            s3_bucket: process.env.S3_BUCKET_NAME || 'mmdpf-files',
-            original_filename: fileKey.split('/').pop(),
-            file_size: Buffer.byteLength(content, 'utf-8'),
-            file_type: 'application/xml',
-            uploaded_by: 'system-metadata-extractor',
-            is_maiml_file: true,
-            maiml_document_uuid: metadata.document_uuid,
-            maiml_document_name: metadata.document_name,
-            maiml_document_description: metadata.document_description,
-            maiml_measurement_values: JSON.stringify(metadata.measurement_values),
-            maiml_units: JSON.stringify(metadata.units),
-            maiml_section_types: JSON.stringify(metadata.section_types),
-            maiml_ids: JSON.stringify(metadata.ids),
-            maiml_refs: JSON.stringify(metadata.refs),
-            maiml_keys: JSON.stringify(metadata.keys),
-            maiml_elements: JSON.stringify(metadata.elements),
-            maiml_values: JSON.stringify(metadata.values),
-            maiml_metadata_extracted_at: new Date(),
-            maiml_metadata_extraction_status: 'success',
-            created_at: new Date(),
-            updated_at: new Date()
-          };
-          
-          await fileMetadataRepository.insertFileMetadata(insertData);
-          console.log('✅ [MAIML Save] MaiMLメタデータ抽出成功（新規作成）');
-        }
-      } catch (metadataError) {
-        console.error('❌ [MAIML Save] MaiMLメタデータ抽出エラー:', metadataError);
-        
-        // エラー状態を記録
-        try {
-          const fileMetadataRepository = new FileMetadataRepository();
-          const existingRecord = await fileMetadataRepository.getFileMetadataByFileKey(fileKey);
-          if (existingRecord) {
-            await fileMetadataRepository.updateFileMetadata(fileKey, {
-              maiml_metadata_extraction_status: 'failed',
-              maiml_metadata_extracted_at: new Date()
-            });
-          }
-        } catch (dbError) {
-          console.error('❌ [MAIML Save] DB更新エラー:', dbError);
-        }
-        
-        // メタデータ抽出失敗しても保存は成功とする
-      }
-      
       // project_maiml_flgをtrueに更新（プロジェクトファイルの場合のみ）
       // fileKeyがprojects/を含む場合のみ実行
       if (fileKey.includes('/projects/')) {
@@ -1038,6 +951,136 @@ function cleanOrphanedArcs(draft: Draft): Draft {
   };
 }
 
+// ========== フォーマットテンプレート関連 ==========
+
+/**
+ * フォーマットテンプレートファイル型
+ */
+export interface FormatTemplateFile {
+  key: string;       // 組織IDなし相対パス（例: formats/dept_001/material/template1.xml）
+  fileName: string;  // ファイル名のみ
+  size: number;
+}
+
+/**
+ * フォーマットフォルダ型
+ */
+export interface FormatFolder {
+  folderName: 'material' | 'condition' | 'result';
+  files: FormatTemplateFile[];
+}
+
+/**
+ * 部門ごとのフォーマット情報型
+ */
+export interface FormatDepartment {
+  departmentCd: string;
+  folders: FormatFolder[];
+}
+
+/**
+ * listFormatsFiles レスポンス型
+ */
+export interface ListFormatsResponse {
+  departments: FormatDepartment[];
+}
+
+/**
+ * フォーマットテンプレートファイル一覧取得
+ *
+ * formats/ 配下を全部門横断で走査し、material/ condition/ result/ 配下の
+ * .xml ファイルのみを抽出して階層構造で返す。
+ *
+ * @param organizationId - 組織ID
+ * @returns 部門 → フォルダ → ファイルの階層構造
+ */
+export async function listFormatsFiles(organizationId: string): Promise<ListFormatsResponse> {
+  try {
+    console.log('📁 [maimlService] フォーマット一覧取得開始:', organizationId);
+
+    // formats/ 配下のファイルを全件取得
+    const allFiles = await storageService.listFiles(organizationId, 'formats/');
+
+    // テンプレートフォルダ名（固定）
+    const TEMPLATE_FOLDERS = ['material', 'condition', 'result'] as const;
+
+    // 部門ごとに整理するためのMap
+    const departmentMap = new Map<string, Map<string, FormatTemplateFile[]>>();
+
+    for (const file of allFiles) {
+      const key: string = file.key || '';
+      if (!key) continue;
+
+      // .xml ファイルのみ対象
+      if (!key.toLowerCase().endsWith('.xml')) continue;
+
+      // storageService.listFiles は組織IDプレフィックス付きの絶対パスを返す
+      // 例: 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385/formats/DEP004/condition/condition.xml'
+      // → 組織IDプレフィックスを除去して相対パスに変換する
+      const orgPrefix = `${organizationId}/`;
+      const relativePath = key.startsWith(orgPrefix) ? key.slice(orgPrefix.length) : key;
+
+      // パスを分解: formats/{departmentCd}/{folderName}/{...}/{fileName}
+      const parts = relativePath.split('/');
+      // parts[0] = 'formats', parts[1] = departmentCd, parts[2] = folderName, parts[3+] = サブパス or fileName
+      if (parts.length < 4) continue;
+      if (parts[0] !== 'formats') continue;
+
+      const departmentCd = parts[1];
+      const folderName = parts[2];
+
+      // material / condition / result のみ対象
+      if (!TEMPLATE_FOLDERS.includes(folderName as typeof TEMPLATE_FOLDERS[number])) continue;
+
+      const fileName = parts[parts.length - 1];
+
+      // 部門Mapに登録
+      if (!departmentMap.has(departmentCd)) {
+        departmentMap.set(departmentCd, new Map());
+      }
+      const folderMap = departmentMap.get(departmentCd)!;
+      if (!folderMap.has(folderName)) {
+        folderMap.set(folderName, []);
+      }
+      folderMap.get(folderName)!.push({
+        key,
+        fileName,
+        size: file.size || 0,
+      });
+    }
+
+    // Map → レスポンス形式に変換
+    const departments: FormatDepartment[] = [];
+    for (const [departmentCd, folderMap] of departmentMap) {
+      const folders: FormatFolder[] = [];
+      for (const [folderName, files] of folderMap) {
+        folders.push({
+          folderName: folderName as 'material' | 'condition' | 'result',
+          files,
+        });
+      }
+      // フォルダ名でソート
+      folders.sort((a, b) => a.folderName.localeCompare(b.folderName));
+      departments.push({ departmentCd, folders });
+    }
+    // 部門CDでソート
+    departments.sort((a, b) => a.departmentCd.localeCompare(b.departmentCd));
+
+    console.log('✅ [maimlService] フォーマット一覧取得完了:', {
+      departmentCount: departments.length,
+      totalFiles: departments.reduce(
+        (sum, d) => sum + d.folders.reduce((s, f) => s + f.files.length, 0),
+        0
+      ),
+    });
+
+    return { departments };
+  } catch (error) {
+    console.error('❌ [maimlService] フォーマット一覧取得エラー:', error);
+    throw error;
+  }
+}
+
 // ========== 既存の関数 ==========
 
 /**
@@ -1518,18 +1561,16 @@ export async function getMaimlFileContent(fileKey: string): Promise<FileContentR
   try {
     console.log('📄 [maimlService] ファイル内容取得開始:', fileKey);
 
-    // fileKeyから組織IDを抽出（org_xxx/ プレフィックスから）
-    const orgMatch = fileKey.match(/^org_([^/]+)\//);
-    if (!orgMatch) {
-      throw new Error('Invalid file key format: organization prefix not found');
+    // fileKeyから組織IDを抽出（最初の "/" までが組織ID = UUID形式）
+    const slashIndex = fileKey.indexOf('/');
+    if (slashIndex === -1) {
+      throw new Error('Invalid file key format: organization ID separator "/" not found');
     }
 
-    const organizationPrefix = orgMatch[0]; // org_xxx/
-    const relativePath = fileKey.substring(organizationPrefix.length); // org_xxx/を除いた相対パス
+    const organizationId = fileKey.substring(0, slashIndex); // UUID形式の組織ID
+    const relativePath = fileKey.substring(slashIndex + 1); // 組織ID以降の相対パス
 
-    // TODO: DBからorganization_idを取得する処理が必要
-    // 現時点では組織プレフィックスをそのまま使用
-    const buffer = await storageService.downloadFile(organizationPrefix.replace('/', ''), relativePath);
+    const buffer = await storageService.downloadFile(organizationId, relativePath);
 
     const content = buffer.toString('utf-8');
 

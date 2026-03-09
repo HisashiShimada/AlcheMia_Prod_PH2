@@ -104,7 +104,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
         dataSource={hits}
         renderItem={(hit, index) => {
           const isExpanded = expandedIds.has(hit.transition_set_id);
-          const scorePercent = Math.round(hit.combined_score * 100);
+          const scorePercent = Math.round(hit.score * 100);
 
           return (
             <List.Item
@@ -142,7 +142,7 @@ const SearchResults: React.FC<SearchResultsProps> = ({
                       type="circle"
                       size={36}
                       percent={scorePercent}
-                      strokeColor={scoreToColor(hit.combined_score)}
+                      strokeColor={scoreToColor(hit.score)}
                       format={(p) => (
                         <span style={{ fontSize: 10 }}>{p}%</span>
                       )}
@@ -182,10 +182,10 @@ const SearchResults: React.FC<SearchResultsProps> = ({
                         スコア内訳:
                       </Text>
                       <Space size="small" style={{ marginLeft: 8 }}>
-                        <Tag>入力 {Math.round(hit.score_input * 100)}%</Tag>
-                        <Tag>手法 {Math.round(hit.score_transition * 100)}%</Tag>
-                        <Tag>出力 {Math.round(hit.score_output * 100)}%</Tag>
-                        <Tag>構造 {Math.round(hit.score_structure * 100)}%</Tag>
+                        <Tag>入力 {Math.round(hit.score_detail.input_score * 100)}%</Tag>
+                        <Tag>手法 {Math.round(hit.score_detail.transition_score * 100)}%</Tag>
+                        <Tag>出力 {Math.round(hit.score_detail.output_score * 100)}%</Tag>
+                        <Tag>構造 {Math.round(hit.score_detail.structure_score * 100)}%</Tag>
                       </Space>
                     </div>
 

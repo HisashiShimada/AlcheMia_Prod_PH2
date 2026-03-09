@@ -399,7 +399,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       ]}
     >
       <div style={{ maxHeight: 'calc(90vh - 200px)', overflow: 'auto' }}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           {/* バリデーションエラー */}
           {validationErrors.length > 0 && (
             <Alert
@@ -451,7 +451,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
             >
               {/* 基本プロパティ */}
               <Panel header={<Text strong>📄 基本プロパティ</Text>} key="basic">
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                   <Form.Item
                     label="Document ID"
                     name="id"
@@ -515,7 +515,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                   style={{ marginBottom: 16 }}
                 />
                 
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                   <Form.Item label="Protocol ID" name="protocolId">
                     <Input placeholder="protocolID" />
                   </Form.Item>
@@ -549,7 +549,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                 }
                 key="signature"
               >
-                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                   <Alert
                     message="📋 XML署名機能について"
                     description="W3C XMLDSig仕様に基づくXML署名を追加します。MaiML保存時にSHA-256ハッシュを計算し、document要素内にSignature要素を挿入します。"

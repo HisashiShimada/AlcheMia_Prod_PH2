@@ -10,7 +10,6 @@ import { ProjectService } from '../services/projectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import type { CreateProjectRequest } from '../types/api';
-
 /**
  * プロジェクト作成エンドポイント
  * POST /api/v1/projects
@@ -103,6 +102,53 @@ export async function create(req: Request, res: Response): Promise<void> {
         timestamp: new Date().toISOString(),
         requestId,
       },
+    });
+  }
+}
+
+/**
+ * レビュー待ちタスクを一括完了に更新
+ * POST /api/v1/projects/:projectName/tasks/complete-review
+ */
+export async function completeReviewTasks(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { projectName } = req.params;
+    const organizationId = req.user?.organizationId;
+
+    if (!organizationId) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'AUTH_REQUIRED', message: '認証が必要です' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    const result = await projectService.completeReviewTasks(organizationId, projectName);
+
+    if (!result.success) {
+      const statusCode = result.error?.code === 'RESOURCE_NOT_FOUND' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: result.error,
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SYSTEM_ERROR', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }

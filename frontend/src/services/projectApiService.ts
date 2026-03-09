@@ -120,6 +120,7 @@ export interface WorkerProject {
   projectName: string;         // プロジェクト名
   projectCd?: string;          // プロジェクトCD（APIレスポンスに含まれない場合がある）
   projectStatus: number;       // プロジェクトステータス（0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了）
+  useDeemedProgress?: boolean; // みなし進捗使用フラグ（organization.use_deemed_progress）省略時はtrue
   description: string;         // プロジェクトの説明
   createdAt: string;           // 作成日時（ISO 8601）
   updatedAt: string;           // 更新日時（ISO 8601）
@@ -1323,6 +1324,33 @@ export const getInstructions = async (
  * }
  * ```
  */
+/**
+ * レビュー待ちタスクを一括完了に更新
+ * POST /api/v1/projects/:projectName/tasks/complete-review
+ *
+ * @param projectName プロジェクト名
+ * @returns 更新件数とメッセージ
+ */
+export const completeReviewTasks = async (
+  projectName: string
+): Promise<ApiResponse<{ updatedCount: number; message: string }>> => {
+  const client = createApiClient();
+  try {
+    console.log('[DEBUG] completeReviewTasks - Request', { projectName });
+    const response = await client.post<{
+      success: boolean;
+      data: { updatedCount: number; message: string };
+    }>(`/projects/${encodeURIComponent(projectName)}/tasks/complete-review`);
+    console.log('[DEBUG] completeReviewTasks - Success', {
+      updatedCount: response.data.data.updatedCount,
+    });
+    return response.data as ApiResponse<{ updatedCount: number; message: string }>;
+  } catch (error) {
+    console.error('[DEBUG] completeReviewTasks - Error', { error });
+    throw error;
+  }
+};
+
 export const getTaskRegistrationStatus = async (
   projectName: string
 ): Promise<TaskRegistrationStatusResponse> => {
@@ -1749,3 +1777,4 @@ export const getProjectMaiml = async (
     throw error;
   }
 };
+

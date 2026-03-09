@@ -516,7 +516,7 @@ export async function listFiles(req: Request, res: Response): Promise<void> {
 
     res.json({
       success: true,
-      ...result,
+      data: result,
       meta: {
         timestamp: new Date().toISOString(),
       },
@@ -552,13 +552,45 @@ export async function getFileContent(req: Request, res: Response): Promise<void>
 
     res.json({
       success: true,
-      ...result,
+      data: result,
       meta: {
         timestamp: new Date().toISOString(),
       },
     });
   } catch (error) {
     handleError(res, error, 'ファイル内容取得エラー');
+  }
+}
+
+/**
+ * フォーマットテンプレートファイル一覧取得
+ * GET /api/v1/maiml/formats
+ *
+ * @description formats/ 配下を全部門横断で走査し、material/ condition/ result/ 配下の .xml ファイルのみ返す
+ */
+export async function listFormats(req: Request, res: Response): Promise<void> {
+  try {
+    const authUser = req.user as JwtPayload;
+    const organizationId = authUser.organizationId;
+
+    console.log('📁 [maimlController] フォーマット一覧取得リクエスト受信:', { organizationId });
+
+    // formats/ 配下の全ファイルを取得
+    const allFiles = await maimlService.listFormatsFiles(organizationId);
+
+    console.log('✅ [maimlController] フォーマット一覧取得完了:', {
+      departmentCount: allFiles.departments.length,
+    });
+
+    res.json({
+      success: true,
+      data: allFiles,
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    handleError(res, error, 'フォーマット一覧取得エラー');
   }
 }
 
@@ -612,7 +644,7 @@ export async function autoCorrect(req: Request, res: Response): Promise<void> {
 
     res.json({
       success: true,
-      ...result,
+      data: result,
       meta: {
         timestamp: new Date().toISOString(),
       },

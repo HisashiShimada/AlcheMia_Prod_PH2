@@ -107,11 +107,15 @@ export async function list(req: Request, res: Response): Promise<void> {
     const issueTypeRaw = req.query.issueType as string | undefined;
     const issueTypeNum = issueTypeRaw !== undefined ? parseInt(issueTypeRaw, 10) : undefined;
 
+    const taskNoRaw = req.query.taskNo as string | undefined;
+    const taskNoNum = taskNoRaw !== undefined ? parseInt(taskNoRaw, 10) : undefined;
+
     const filters = {
       projectId: req.query.projectId as string,
-      methodId: req.query.methodId as string,
-      taskNo: parseInt(req.query.taskNo as string, 10),
-      transitionId: req.query.transitionId as string,
+      // methodId / taskNo / transitionId はオプション（省略時はプロジェクト全件を返す）
+      methodId: (req.query.methodId as string | undefined) || undefined,
+      taskNo: taskNoNum !== undefined && !isNaN(taskNoNum) ? taskNoNum : undefined,
+      transitionId: (req.query.transitionId as string | undefined) || undefined,
       status: req.query.status as string | undefined,
       issueType: issueTypeNum !== undefined && !isNaN(issueTypeNum) ? issueTypeNum : undefined,
     };

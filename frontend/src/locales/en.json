@@ -30,7 +30,8 @@
     "system_admin": "System Administrator",
     "data_admin": "Data Administrator",
     "experiment_admin": "Experiment Administrator",
-    "experiment_worker": "Experiment Worker"
+    "experiment_worker": "Experiment Worker",
+    "mi_engineer": "MI Engineer"
   },
   "menu": {
     "provider": {
@@ -512,6 +513,556 @@
       "selectMethods": "Please select methods to save",
       "selectAllMethodsFirst": "All methods must be selected for initial save",
       "cannotChangeOrder": "Cannot change order of checked-out methods"
+    }
+  },
+  "corporationManagement": {
+    "title": "Corporation Management",
+    "searchPlaceholder": "Search by corporation name or updated date",
+    "columns": {
+      "corporationName": "Corporation Name",
+      "updatedAt": "Updated At"
+    },
+    "buttons": {
+      "csvUpload": "CSV\nUpload",
+      "csvDownload": "CSV\nDownload",
+      "add": "Add",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "reload": "Reload",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "modal": {
+      "addTitle": "Add Corporation",
+      "editTitle": "Edit Corporation"
+    },
+    "form": {
+      "corporationName": "Corporation Name",
+      "corporationNameRequired": "Please enter a corporation name",
+      "corporationNameMaxLength": "Corporation name must be 1-50 characters",
+      "corporationNamePlaceholder": "Sample Corporation",
+      "status": "Status"
+    },
+    "messages": {
+      "fetchError": "Failed to fetch corporation data",
+      "invalidDataFormat": "Invalid data format",
+      "activateSelectRequired": "Please select corporations to activate",
+      "deactivateSelectRequired": "Please select corporations to deactivate",
+      "activateConfirmTitle": "Activate selected corporations?",
+      "activateConfirmContent": "{count} corporation(s) will be activated.",
+      "activateSuccess": "{count} corporation(s) activated",
+      "activateError": "Failed to activate",
+      "deactivateConfirmTitle": "Deactivate selected corporations?",
+      "deactivateConfirmContent": "{count} corporation(s) will be deactivated.",
+      "deactivateSuccess": "{count} corporation(s) deactivated",
+      "deactivateError": "Failed to deactivate",
+      "toggleConfirmTitle": "Set {name} to {action}?",
+      "toggleConfirmContent": "This corporation will be changed to {action} status.",
+      "toggleSuccess": "{name} has been set to {action}",
+      "toggleError": "Failed to change status",
+      "reloadSuccess": "Data reloaded",
+      "csvDownloadSuccess": "CSV file downloaded",
+      "csvDownloadError": "Failed to download CSV",
+      "csvUploadSuccess": "CSV file uploaded",
+      "csvUploadError": "Failed to upload CSV",
+      "saveSuccess": "Corporation updated",
+      "addSuccess": "Corporation added",
+      "saveError": "Failed to save"
+    },
+    "pagination": {
+      "showTotal": "Total {total} items"
+    }
+  },
+  "organizationManagement": {
+    "searchPlaceholder": "Search by organization CD, email, chief admin, or updated date",
+    "columns": {
+      "organizationCd": "Organization CD",
+      "organizationDisplayName": "Display Name",
+      "organizationEmail": "Organization Email",
+      "chiefUserName": "Chief System Admin",
+      "corporationName": "Corporation Name",
+      "twoFactorAuth": "Two-Factor Auth",
+      "useDeemedProgress": "Use Deemed Progress",
+      "updatedAt": "Updated At"
+    },
+    "yesNo": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "buttons": {
+      "csvUpload": "CSV Upload",
+      "csvDownload": "CSV Download",
+      "add": "Add",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "reload": "Reload",
+      "edit": "Edit",
+      "certDownload": "Cert DL",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "filters": {
+      "organizationDisplayName": "Display Name",
+      "corporationName": "Corporation Name",
+      "twoFactorAuth": "Two-Factor Auth",
+      "useDeemedProgress": "Use Deemed Progress"
+    },
+    "modal": {
+      "addTitle": "Add Organization",
+      "editTitle": "Edit Organization"
+    },
+    "form": {
+      "organizationCd": "Organization CD",
+      "organizationCdRequired": "Please enter an organization CD",
+      "organizationCdDuplicate": "This organization CD is already in use",
+      "organizationDisplayName": "Display Name",
+      "organizationDisplayNameRequired": "Please enter a display name",
+      "organizationEmail": "Organization Email",
+      "organizationEmailRequired": "Please enter an organization email",
+      "chiefUserId": "Chief System Admin",
+      "chiefUserIdRequired": "Please select a chief system admin",
+      "chiefUserIdPlaceholder": "Select chief system admin",
+      "corporationName": "Corporation Name",
+      "corporationNamePlaceholder": "Select corporation name",
+      "contractCapacity": "Contract Capacity",
+      "contractCapacityRequired": "Please enter contract capacity",
+      "contractCapacityPlaceholder": "Enter contract capacity",
+      "contractedUsers": "Contracted Users",
+      "contractedUsersRequired": "Please enter contracted users",
+      "contractedUsersPlaceholder": "Enter contracted users",
+      "contractedProjects": "Contracted Projects",
+      "contractedProjectsRequired": "Please enter contracted projects",
+      "contractedProjectsPlaceholder": "Enter contracted projects",
+      "isEntry": "Two-Factor Auth",
+      "isEntryRequired": "Please select two-factor auth setting",
+      "useDeemedProgress": "Use Deemed Progress",
+      "useDeemedProgressRequired": "Please select use deemed progress setting",
+      "status": "Status",
+      "chiefUserName": "Chief System Admin",
+      "chiefUserNameRequired": "Please enter chief system admin",
+      "chiefUserEmail": "Chief User Email",
+      "chiefUserEmailRequired": "Please enter chief user email",
+      "organizationInfo": "Organization Information",
+      "chiefInfo": "Chief User Information"
+    },
+    "messages": {
+      "fetchError": "Failed to fetch organization data",
+      "invalidDataFormat": "Invalid data format",
+      "certDownloadSuccess": "Certificate for {cd} downloaded",
+      "certDownloadError": "Failed to download certificate",
+      "systemAdminFetchError": "Failed to fetch system admins",
+      "corporationFetchError": "Failed to fetch corporation data",
+      "corporationInvalidFormat": "Invalid corporation data format",
+      "activateSelectRequired": "Please select organizations to activate",
+      "deactivateSelectRequired": "Please select organizations to deactivate",
+      "activateConfirmTitle": "Activate selected organizations?",
+      "activateConfirmContent": "{count} organization(s) will be activated.",
+      "activateSuccess": "{count} organization(s) activated",
+      "activateError": "Failed to activate",
+      "deactivateConfirmTitle": "Deactivate selected organizations?",
+      "deactivateConfirmContent": "{count} organization(s) will be deactivated.",
+      "deactivateSuccess": "{count} organization(s) deactivated",
+      "deactivateError": "Failed to deactivate",
+      "toggleConfirmTitle": "Set {cd} to {action}?",
+      "toggleConfirmContent": "This organization will be changed to {action} status.",
+      "toggleSuccess": "{cd} has been set to {action}",
+      "toggleError": "Failed to change status",
+      "reloadSuccess": "Data reloaded",
+      "csvDownloadSuccess": "CSV file downloaded",
+      "csvDownloadError": "Failed to download CSV",
+      "csvUploadSuccess": "CSV file uploaded",
+      "csvUploadError": "Failed to upload CSV",
+      "saveSuccess": "Organization updated",
+      "addSuccess": "Organization added",
+      "saveError": "Failed to save"
+    },
+    "pagination": {
+      "showTotal": "Total {total} items"
+    }
+  },
+  "informationDownload": {
+    "title": "Information Download",
+    "csvDownload": "CSV Download",
+    "messages": {
+      "downloadSuccess": "{filename} downloaded",
+      "downloadError": "Failed to download CSV"
+    }
+  },
+  "systemOverview": {
+    "errorTitle": "Data Fetch Error",
+    "errorFallback": "Failed to fetch data",
+    "sections": {
+      "users": "Users",
+      "sessions": "Sessions",
+      "experimentSystem": "Experiment System",
+      "storage": "Storage",
+      "loginLast7Days": "Logins (Last 7 Days)"
+    },
+    "labels": {
+      "totalUsers": "Total Users",
+      "activeUsers": "Active",
+      "contractedUsers": "Contracted Users",
+      "totalSessions": "Total Sessions",
+      "totalProjects": "Total Projects",
+      "planning": "Planning / Pending",
+      "inProgress": "In Progress / Review Waiting",
+      "completed": "Completed / Task Error",
+      "contractedProjects": "Contracted Projects",
+      "totalFiles": "Total Files",
+      "usedCapacity": "Used Capacity",
+      "contractCapacity": "Contract Capacity",
+      "totalLogins": "Total Logins",
+      "success": "Success",
+      "failed": "Failed"
+    },
+    "messages": {
+      "fetchError": "Failed to fetch system overview data"
+    }
+  },
+  "userManagement": {
+    "searchPlaceholder": "Search by user name or email",
+    "columns": {
+      "userName": "User Name",
+      "mailAddress": "Email",
+      "departmentName": "Department",
+      "roleName": "Role",
+      "lastLoginAt": "Last Login"
+    },
+    "buttons": {
+      "csvUpload": "CSV Upload",
+      "csvDownload": "CSV Download",
+      "add": "Add",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "reload": "Reload",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "filters": {
+      "department": "Department",
+      "role": "Role"
+    },
+    "modal": {
+      "addTitle": "Add User",
+      "editTitle": "Edit User"
+    },
+    "form": {
+      "userName": "User Name",
+      "userNameRequired": "Please enter a user name",
+      "mailAddress": "Email",
+      "mailAddressRequired": "Please enter an email",
+      "mailAddressInvalid": "Please enter a valid email",
+      "department": "Department",
+      "departmentRequired": "Please select a department",
+      "departmentPlaceholder": "Select department",
+      "role": "Role",
+      "roleRequired": "Please select a role",
+      "rolePlaceholder": "Select role",
+      "isActive": "Active Status",
+      "isActiveRequired": "Please select active status"
+    },
+    "messages": {
+      "fetchError": "Failed to fetch user list",
+      "departmentFetchError": "Failed to fetch department list",
+      "roleFetchError": "Failed to fetch role list",
+      "activateSelectRequired": "Please select users to activate",
+      "deactivateSelectRequired": "Please select users to deactivate",
+      "activateConfirmTitle": "Activate selected users?",
+      "activateConfirmContent": "{count} user(s) will be activated.",
+      "activateSuccess": "{count} user(s) activated",
+      "activateError": "Failed to activate",
+      "deactivateConfirmTitle": "Deactivate selected users?",
+      "deactivateConfirmContent": "{count} user(s) will be deactivated.",
+      "deactivateSuccess": "{count} user(s) deactivated",
+      "deactivateError": "Failed to deactivate",
+      "toggleConfirmTitle": "Set {name} to {action}?",
+      "toggleConfirmContent": "This user will be changed to {action} status.",
+      "toggleSuccess": "{name} has been set to {action}",
+      "toggleError": "Failed to update status",
+      "reloadSuccess": "Data reloaded",
+      "csvUploadSuccess": "CSV file uploaded",
+      "csvUploadError": "Failed to upload CSV",
+      "csvDownloadSuccess": "CSV file downloaded",
+      "saveSuccess": "User updated",
+      "addSuccess": "User added",
+      "saveError": "Failed to save"
+    },
+    "pagination": {
+      "showTotal": "Total {total} items"
+    }
+  },
+  "departmentManagement": {
+    "searchPlaceholder": "Search by department CD or name",
+    "columns": {
+      "departmentCd": "Department CD",
+      "departmentName": "Department Name",
+      "updatedAt": "Updated At"
+    },
+    "buttons": {
+      "csvUpload": "CSV Upload",
+      "csvDownload": "CSV Download",
+      "add": "Add",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "reload": "Reload",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "modal": {
+      "addTitle": "Add Department",
+      "editTitle": "Edit Department"
+    },
+    "form": {
+      "departmentCd": "Department CD",
+      "departmentCdRequired": "Please enter a department CD",
+      "departmentCdPlaceholder": "Enter department CD",
+      "departmentName": "Department Name",
+      "departmentNameRequired": "Please enter a department name",
+      "departmentNamePlaceholder": "Enter department name",
+      "status": "Status"
+    },
+    "messages": {
+      "fetchError": "Failed to fetch departments",
+      "activateSelectRequired": "Please select departments to activate",
+      "deactivateSelectRequired": "Please select departments to deactivate",
+      "activateConfirmTitle": "Activate selected departments?",
+      "activateConfirmContent": "{count} department(s) will be activated.",
+      "activateSuccess": "{count} department(s) activated",
+      "deactivateConfirmTitle": "Deactivate selected departments?",
+      "deactivateConfirmContent": "{count} department(s) will be deactivated.",
+      "deactivateSuccess": "{count} department(s) deactivated",
+      "toggleConfirmTitle": "Set {name} to {action}?",
+      "toggleConfirmContent": "This department will be changed to {action} status.",
+      "toggleSuccess": "{name} has been set to {action}",
+      "reloadSuccess": "Data reloaded",
+      "csvUploadSuccess": "CSV file uploaded",
+      "csvDownloadSuccess": "CSV file downloaded",
+      "saveSuccess": "Department updated",
+      "addSuccess": "Department added"
+    },
+    "pagination": {
+      "showTotal": "Total {total} items"
+    }
+  },
+  "roleManagement": {
+    "searchPlaceholder": "Search by function name",
+    "columns": {
+      "roleCd": "Role CD",
+      "roleName": "Role Name",
+      "functionName": "Function Name"
+    },
+    "buttons": {
+      "csvUpload": "CSV Upload",
+      "csvDownload": "CSV Download",
+      "add": "Add",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "reload": "Reload",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "filters": {
+      "roleName": "Role Name"
+    },
+    "modal": {
+      "addTitle": "Add Role",
+      "editTitle": "Edit Role"
+    },
+    "form": {
+      "roleCd": "Role CD",
+      "roleCdRequired": "Please enter a role CD",
+      "roleCdPlaceholder": "Enter role CD",
+      "roleName": "Role Name",
+      "roleNameRequired": "Please enter a role name",
+      "roleNamePlaceholder": "Enter role name",
+      "functionName": "Function Name",
+      "initialScreen": "Initial Screen Function",
+      "initialScreenPlaceholder": "Select",
+      "status": "Status"
+    },
+    "messages": {
+      "fetchError": "Failed to fetch role masters",
+      "activateSelectRequired": "Please select roles to activate",
+      "deactivateSelectRequired": "Please select roles to deactivate",
+      "activateConfirmTitle": "Activate selected roles?",
+      "activateConfirmContent": "{count} role(s) will be activated.",
+      "activateSuccess": "{count} role(s) activated",
+      "deactivateConfirmTitle": "Deactivate selected roles?",
+      "deactivateConfirmContent": "{count} role(s) will be deactivated.",
+      "deactivateSuccess": "{count} role(s) deactivated",
+      "toggleConfirmTitle": "Set {name} to {action}?",
+      "toggleConfirmContent": "This role will be changed to {action} status.",
+      "toggleSuccess": "{name} has been set to {action}",
+      "reloadSuccess": "Data reloaded",
+      "csvUploadSuccess": "CSV uploaded",
+      "csvDownloadSuccess": "CSV file downloaded",
+      "functionUpdated": "Function updated",
+      "functionSet": "Function set (will be saved to DB when you click Save)",
+      "saveSuccess": "Role updated",
+      "addSuccess": "Role added"
+    },
+    "pagination": {
+      "showTotal": "Total {total} items"
+    }
+  },
+  "sessionManagement": {
+    "searchPlaceholder": "Search by user name, email, or session duration",
+    "columns": {
+      "user": "User",
+      "sessionDuration": "Session Duration",
+      "operation": "Action"
+    },
+    "buttons": {
+      "reload": "Reload",
+      "terminate": "Terminate",
+      "self": "You"
+    },
+    "autoRefresh": {
+      "label": "Auto Refresh",
+      "enableSuccess": "Auto refresh enabled ({interval} min interval)",
+      "disableInfo": "Auto refresh disabled",
+      "intervalChanged": "Refresh interval changed to {interval} min",
+      "options": {
+        "1min": "1 min",
+        "5min": "5 min",
+        "10min": "10 min",
+        "30min": "30 min"
+      }
+    },
+    "messages": {
+      "fetchError": "Failed to fetch session list",
+      "terminateConfirmTitle": "Terminate this session?",
+      "terminateConfirmContent": "This session will be forcibly terminated. The user will need to log in again.",
+      "terminateSuccess": "Session terminated",
+      "terminateError": "Failed to terminate session",
+      "reloadSuccess": "Data reloaded"
+    },
+    "pagination": {
+      "showTotal": "Total {total} items"
+    }
+  },
+  "masterManagement": {
+    "selectLabel": "Select Master:",
+    "displayScopeLabel": "Display Scope:",
+    "masterSelect": "Select Master",
+    "displayScope": "Display Scope",
+    "displayScopeOptions": {
+      "all": "All",
+      "own": "Own Organization"
+    },
+    "buttons": {
+      "csvUpload": "CSV Upload",
+      "csvDownload": "CSV Download",
+      "add": "Add",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "reload": "Reload",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "modal": {
+      "addTitle": "Add Master",
+      "editTitle": "Edit Master"
+    },
+    "form": {
+      "status": "Status",
+      "selectPlaceholder": "Select {label}",
+      "inputPlaceholder": "Enter {label}",
+      "required": "Please enter {label}",
+      "requiredSelect": "Please select {label}"
+    },
+    "csvError": {
+      "title": "CSV Upload Error",
+      "description": "All records were rolled back due to the following errors.",
+      "instruction": "Please check the errors and re-upload after fixing.",
+      "failureCount": "Failures: {count}"
+    },
+    "creatorWarning": "Records with missing or inactive Vendor or Instrument linked to Creator will be highlighted.",
+    "messages": {
+      "fetchError": "Failed to fetch master data: {error}",
+      "csvNotSupported": "This master does not support CSV upload",
+      "unsupportedCsvUpload": "This master does not support CSV upload",
+      "sessionTokenError": "Failed to retrieve session token",
+      "unsupportedMasterId": "Cannot be managed in this screen",
+      "csvUploadSuccess": "CSV uploaded ({count} records registered)",
+      "csvUploadError": "CSV upload failed ({count} errors)",
+      "csvUploadFailed": "Failed to upload CSV",
+      "csvUploadFailure": "CSV upload failed ({count} errors)",
+      "csvDownloadSuccess": "CSV file downloaded",
+      "csvDownloadError": "Failed to download CSV",
+      "activateSelectRequired": "Please select masters to activate",
+      "deactivateSelectRequired": "Please select masters to deactivate",
+      "activateConfirmTitle": "Activate selected masters?",
+      "activateConfirmContent": "{count} master(s) will be activated.",
+      "activateSuccess": "{count} master(s) activated",
+      "activateError": "Failed to activate",
+      "deactivateConfirmTitle": "Deactivate selected masters?",
+      "deactivateConfirmContent": "{count} master(s) will be deactivated.",
+      "deactivateSuccess": "{count} master(s) deactivated",
+      "deactivateError": "Failed to deactivate",
+      "toggleConfirmTitle": "Set {name} to {action}?",
+      "toggleConfirmContent": "This master will be changed to {action} status.",
+      "toggleSuccess": "{name} has been set to {action}",
+      "toggleError": "Failed to change status",
+      "reloadSuccess": "Data reloaded",
+      "saveSuccess": "Master updated",
+      "updateSuccess": "Master updated",
+      "addSuccess": "Master added",
+      "updateFailed": "Failed to update",
+      "addFailed": "Failed to add",
+      "idDuplicate": "The entered ID already exists"
+    },
+    "pagination": {
+      "showTotal": "Total {total} items"
+    }
+  },
+  "organizationStatistics": {
+    "title": "Statistics",
+    "lastUpdated": "Last Updated",
+    "buttons": {
+      "reload": "Reload"
+    },
+    "storage": {
+      "title": "Storage Usage",
+      "usageRate": "Usage Rate",
+      "fileCount": "File Count"
+    },
+    "projects": {
+      "title": "Project Count",
+      "registrationRate": "Registration Rate"
+    },
+    "activeUsers": {
+      "title": "Active Users",
+      "registrationRate": "Registration Rate"
     }
   },
   "instructionRegistration": {

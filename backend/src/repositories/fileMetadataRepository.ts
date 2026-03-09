@@ -6,7 +6,6 @@
  */
 
 import { getPool } from '../database/db';
-
 /**
  * ファイルメタデータ型定義
  */
@@ -45,20 +44,6 @@ export interface FileMetadata {
   s3_etag?:string;
   last_edit_timestamp?: Date;
   
-  // Phase 2.5: MAIML検索用メタデータ（2026-02-20追加）
-  maiml_document_uuid?: string;
-  maiml_document_name?: string;
-  maiml_document_description?: string;
-  maiml_measurement_values?: string; // JSONB
-  maiml_units?: string; // JSONB
-  maiml_section_types?: string; // JSONB
-  maiml_ids?: string; // JSONB
-  maiml_refs?: string; // JSONB
-  maiml_keys?: string; // JSONB
-  maiml_elements?: string; // JSONB
-  maiml_values?: string; // JSONB
-  maiml_metadata_extracted_at?: Date;
-  maiml_metadata_extraction_status?: string;
 }
 
 /**
@@ -112,13 +97,6 @@ export class FileMetadataRepository {
    * @param projectId - プロジェクトID（現在は使用しないが将来の拡張用）
    * @param fileName - ファイル名
    * @returns ファイルメタデータ、または存在しない場合はnull
-   * 
-   * @example
-   * const metadata = await repository.getFileMetadata(
-   *   'org_maiml_lab_001',
-   *   '550e8400-e29b-41d4-a716-446655440000',
-   *   'sample_project.maiml'
-   * );
    */
   async getFileMetadata(
     organizationId: string,
@@ -126,71 +104,23 @@ export class FileMetadataRepository {
     fileName: string
   ): Promise<FileMetadata | null> {
     const pool = getPool();
-
-    // Parameterized Queryを使用してSQLインジェクション対策
-    // organization_idフィルタを必須とすることでマルチテナント分離を保証
     const query = `
-      SELECT
-        *
-      FROM file_metadata
-      WHERE organization_id = $1
-        AND file_name = $2
+      SELECT * FROM file_metadata
+      WHERE organization_id = $1 AND file_name = $2
       LIMIT 1
     `;
-
     const params = [organizationId, fileName];
-
     try {
       const result = await pool.query(query, params);
-
-      // レコードが存在しない場合はnullを返却
       if (result.rowCount === 0 || !result.rows[0]) {
         return null;
       }
-
-      const row = result.rows[0];
-
-      // データベースのスネークケースからキャメルケースに変換
-      return {
-        file_key:row.file_key,
-        s3_bucket:row.s3_bucket,
-        organization_id:row.organization_id,
-        original_filename:row.original_filename,
-        file_size:row.file_size,
-        file_type:row.file_type,
-        file_extension:row.file_extension,
-        is_maiml_file:row.is_maiml_file,
-        maiml_analysis_status:row.maiml_analysis_status,
-        maiml_error_count:row.maiml_error_count,
-        maiml_warning_count:row.maiml_warning_count,
-        maiml_version:row.maiml_version,
-        maiml_transitions_count:row.maiml_transitions_count,
-        maiml_places_count:row.maiml_places_count,
-        maiml_validation_result:row.maiml_validation_result,
-        maiml_last_analyzed:row.maiml_last_analyzed,
-        uploaded_by:row.uploaded_by,
-        create_user_id:row.create_user_id,
-        update_user_id:row.update_user_id,
-        created_at:row.created_at,
-        updated_at:row.updated_at,
-        custom_metadata:row.custom_metadata,
-        tags:row.tags,
-        search_keywords:row.search_keywords,
-        description:row.description,
-        file_hash:row.file_hash,
-        parent_folder_path:row.parent_folder_path,
-        upload_batch_id:row.upload_batch_id,
-        upload_source:row.upload_source,
-        upload_method:row.upload_method,
-        s3_storage_class:row.s3_storage_class,
-        s3_etag:row.s3_etag,
-        last_edit_timestamp:row.last_edit_timestamp,
-      };
+      return result.rows[0] as FileMetadata;
     } catch (error) {
-      // データベースエラーをそのままスロー（上位層でハンドリング）
       throw error;
     }
   }
+
   async getFileMetadataByFileKey(
     fileKey: string
   ): Promise<FileMetadata | null> {
@@ -544,6 +474,13 @@ export class FileMetadataRepository {
   async insertFileMetadata(data: Partial<FileMetadata>): Promise<FileMetadata> {
     const pool = getPool();
 
+    // JSONB型カラムの一覧（::jsonbキャストが必要）
+    const JSONB_COLUMNS = new Set([
+      'custom_metadata',
+      'tags',
+      'search_keywords',
+    ]);
+
     // 動的にカラムとプレースホルダーを構築
     const columns: string[] = [];
     const placeholders: string[] = [];
@@ -555,8 +492,8 @@ export class FileMetadataRepository {
       if (value !== undefined) {
         columns.push(key);
         
-        // JSON型のカラムは特別処理
-        if (key === 'custom_metadata' || key === 'tags' || key === 'search_keywords') {
+        // JSONB型のカラムは特別処理（::jsonbキャストが必要）
+        if (JSONB_COLUMNS.has(key)) {
           placeholders.push(`$${paramIndex}::jsonb`);
           values.push(typeof value === 'string' ? value : JSON.stringify(value));
         } else {
@@ -588,6 +525,15 @@ export class FileMetadataRepository {
 
   async updateFileMetadata(fileKey:string, updates : any) {
     const pool = getPool();
+
+    // JSONB型カラムの一覧（::jsonbキャストが必要）
+    const JSONB_COLUMNS = new Set([
+      'draft_metadata',
+      'custom_metadata',
+      'tags',
+      'search_keywords',
+    ]);
+
     const setClause = [];
     const values = [];
     let paramIndex = 1;
@@ -597,9 +543,10 @@ export class FileMetadataRepository {
     delete filteredUpdates.updated_at;
 
     for (const [key, value] of Object.entries(filteredUpdates)) {
-      if (key === 'draft_metadata' || key === 'custom_metadata' || key === 'tags') {
+      // JSONB型カラムは::jsonbキャストが必要
+      if (JSONB_COLUMNS.has(key)) {
         setClause.push(`${key} = $${paramIndex}::jsonb`);
-        values.push(JSON.stringify(value));
+        values.push(typeof value === 'string' ? value : JSON.stringify(value));
       } else {
         setClause.push(`${key} = $${paramIndex}`);
         values.push(value);
@@ -630,4 +577,5 @@ export class FileMetadataRepository {
       throw error;
     }
   }
+
 }

@@ -23,11 +23,13 @@ function getStatusConfig(status: TaskStatus) {
 }
 
 interface TaskListTableProps {
-  tasks: Task[];
+tasks: Task[];
   selectedMethodId: string | null;
   projectStatus: ProjectStatus | null;
   onTaskAction: (taskId: string, action: string) => void;
   onProgressRateClick: (task: Task) => void;
+  /** trueのとき強制終了ボタンを無効化（オーバーレイ閲覧モード用） */
+  readOnly?: boolean;
 }
 
 /**
@@ -39,7 +41,8 @@ export default function TaskListTable({
   selectedMethodId,
   projectStatus,
   onTaskAction,
-  onProgressRateClick
+  onProgressRateClick,
+  readOnly = false,
 }: TaskListTableProps) {
   const { t } = useLanguage();
   
@@ -229,7 +232,7 @@ export default function TaskListTable({
               danger
               size="small"
               onClick={() => onTaskAction(record.taskId, 'forceTerminate')}
-              disabled={isDisabled}
+              disabled={isDisabled || readOnly}
               aria-label="タスクを強制終了"
             >
               終了

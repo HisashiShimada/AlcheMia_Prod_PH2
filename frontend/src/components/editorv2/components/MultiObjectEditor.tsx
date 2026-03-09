@@ -644,7 +644,7 @@ const MultiObjectEditor: React.FC<MultiObjectEditorProps> = ({
         <div>
           {/* マスタデータから追加 */}
           {masterData.length > 0 && (
-            <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
               <Typography.Text type="secondary">
                 マスタデータから{title}を追加:
               </Typography.Text>

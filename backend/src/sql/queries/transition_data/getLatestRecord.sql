@@ -8,7 +8,6 @@ SELECT
   transition_id,
   status,
   progress_rate,
-  comment,
   update_user_id,
   update_at,
   create_at

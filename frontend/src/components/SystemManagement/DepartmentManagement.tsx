@@ -28,6 +28,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { formatDateTime } from '@/utils/dateFormatter';
 import { getDepartmentConfig } from '@/types/departmentTypes';
 import { getMenuPermission } from '@/utils/menuPermissions';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   fetchMasters,
   createMaster,
@@ -56,8 +57,8 @@ interface DepartmentRecord {
 export default function DepartmentManagement() {
   const { modal, message } = App.useApp();
   const { token } = theme.useToken();
+  const { t } = useLanguage();
 
-  // 権限制御: system_admin メニュー（機能CD: 020000）の permission が 0 の場合は読取専用
   const isReadOnly = getMenuPermission('system_admin') === 0;
 
   // State管理
@@ -82,7 +83,7 @@ export default function DepartmentManagement() {
     } catch (error) {
       console.error('Fetch error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      message.error(`部署の取得に失敗しました: ${errorMessage}`);
+      message.error(t('departmentManagement.messages.fetchError').replace('{error}', errorMessage));
       setDepartments([]);
     } finally {
       setLoading(false);
@@ -112,7 +113,7 @@ export default function DepartmentManagement() {
   const columns: ColumnsType<DepartmentRecord> = useMemo(() => {
     return [
       {
-        title: <div style={{ textAlign: 'center' }}>部署CD</div>,
+        title: <div style={{ textAlign: 'center' }}>{t('departmentManagement.columns.departmentCd')}</div>,
         dataIndex: 'departmentId',
         key: 'departmentId',
         width: 150,
@@ -124,7 +125,7 @@ export default function DepartmentManagement() {
         },
       },
       {
-        title: <div style={{ textAlign: 'center' }}>部署名</div>,
+        title: <div style={{ textAlign: 'center' }}>{t('departmentManagement.columns.departmentName')}</div>,
         dataIndex: 'displayName',
         key: 'displayName',
         width: 300,
@@ -146,7 +147,7 @@ export default function DepartmentManagement() {
         ),
       },
       {
-        title: <div style={{ textAlign: 'center' }}>更新日時</div>,
+        title: <div style={{ textAlign: 'center' }}>{t('departmentManagement.columns.updatedAt')}</div>,
         dataIndex: 'updatedAt',
         key: 'updatedAt',
         width: 180,
@@ -167,7 +168,7 @@ export default function DepartmentManagement() {
         render: (_, record) => (
           <Flex gap="small" justify="end">
             <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} disabled={isReadOnly}>
-              編集
+              {t('departmentManagement.buttons.edit')}
             </Button>
             <Button
               size="small"
@@ -176,7 +177,7 @@ export default function DepartmentManagement() {
               style={{ minWidth: '80px' }}
               disabled={isReadOnly}
             >
-              {record.isActive !== false ? '非アクティブ' : 'アクティブ'}
+              {record.isActive !== false ? t('departmentManagement.status.inactive') : t('departmentManagement.status.active')}
             </Button>
           </Flex>
         ),
@@ -212,24 +213,24 @@ export default function DepartmentManagement() {
   // 一括アクティブ化
   const handleActivate = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('アクティブにする部署を選択してください');
+      message.warning(t('departmentManagement.messages.activateSelectRequired'));
       return;
     }
 
     modal.confirm({
-      title: '選択した部署をアクティブにしますか？',
-      content: `${selectedRowKeys.length}件の部署がアクティブになります。`,
-      okText: 'アクティブ化',
-      cancelText: 'キャンセル',
+      title: t('departmentManagement.messages.activateConfirmTitle'),
+      content: t('departmentManagement.messages.activateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      okText: t('departmentManagement.status.active'),
+      cancelText: t('departmentManagement.buttons.cancel'),
       onOk: async () => {
         try {
           await batchUpdateMasterStatus(selectedRowKeys.map(String), true);
           await fetchDepartments();
           setSelectedRowKeys([]);
-          message.success(`${selectedRowKeys.length}件の部署をアクティブにしました`);
+          message.success(t('departmentManagement.messages.activateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
           console.error('一括アクティブ化エラー:', error);
-          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+          message.error(error instanceof Error ? error.message : t('departmentManagement.messages.activateError'));
         }
       },
     });
@@ -238,25 +239,25 @@ export default function DepartmentManagement() {
   // 一括非アクティブ化
   const handleDeactivate = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('非アクティブにする部署を選択してください');
+      message.warning(t('departmentManagement.messages.deactivateSelectRequired'));
       return;
     }
 
     modal.confirm({
-      title: '選択した部署を非アクティブにしますか？',
-      content: `${selectedRowKeys.length}件の部署が非アクティブになります。`,
-      okText: '非アクティブ化',
-      cancelText: 'キャンセル',
+      title: t('departmentManagement.messages.deactivateConfirmTitle'),
+      content: t('departmentManagement.messages.deactivateConfirmContent').replace('{count}', String(selectedRowKeys.length)),
+      okText: t('departmentManagement.status.inactive'),
+      cancelText: t('departmentManagement.buttons.cancel'),
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await batchUpdateMasterStatus(selectedRowKeys.map(String), false);
           await fetchDepartments();
           setSelectedRowKeys([]);
-          message.success(`${selectedRowKeys.length}件の部署を非アクティブにしました`);
+          message.success(t('departmentManagement.messages.deactivateSuccess').replace('{count}', String(selectedRowKeys.length)));
         } catch (error) {
           console.error('エラー:', error);
-          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+          message.error(error instanceof Error ? error.message : t('departmentManagement.messages.deactivateError'));
         }
       },
     });
@@ -271,19 +272,19 @@ export default function DepartmentManagement() {
     const newStatus = !currentStatus;
 
     modal.confirm({
-      title: `${departmentName}を${actionText}にしますか？`,
-      content: `この部署を${actionText}状態に変更します。`,
+      title: t('departmentManagement.messages.toggleConfirmTitle').replace('{name}', departmentName).replace('{action}', actionText),
+      content: t('departmentManagement.messages.toggleConfirmContent').replace('{action}', actionText),
       okText: actionText,
-      cancelText: 'キャンセル',
-      okButtonProps: actionText === '非アクティブ' ? { danger: true } : undefined,
+      cancelText: t('departmentManagement.buttons.cancel'),
+      okButtonProps: actionText === t('departmentManagement.status.inactive') ? { danger: true } : undefined,
       onOk: async () => {
         try {
           await updateMasterStatus(deptRecord.departmentId, newStatus);
           await fetchDepartments();
-          message.success(`${departmentName}を${actionText}にしました`);
+          message.success(t('departmentManagement.messages.toggleSuccess').replace('{name}', departmentName).replace('{action}', actionText));
         } catch (error) {
           console.error('エラー:', error);
-          message.error(error instanceof Error ? error.message : 'エラーが発生しました');
+          message.error(error instanceof Error ? error.message : t('departmentManagement.messages.toggleError'));
         }
       },
     });
@@ -292,7 +293,7 @@ export default function DepartmentManagement() {
   // リロード
   const handleReload = () => {
     fetchDepartments();
-    message.success('データをリロードしました');
+    message.success(t('departmentManagement.messages.reloadSuccess'));
   };
 
   // CSVアップロード
@@ -315,11 +316,11 @@ export default function DepartmentManagement() {
     try {
       setLoading(true);
       await uploadCsv(file);
-      message.success('CSVファイルをアップロードしました');
+      message.success(t('departmentManagement.messages.csvUploadSuccess'));
       await fetchDepartments();
     } catch (error) {
       console.error('CSV upload error:', error);
-      message.error(error instanceof Error ? error.message : 'CSVアップロードに失敗しました');
+      message.error(error instanceof Error ? error.message : t('departmentManagement.messages.csvUploadError'));
     } finally {
       setLoading(false);
     }
@@ -332,10 +333,10 @@ export default function DepartmentManagement() {
       await downloadCsv({
         search: searchText,
       });
-      message.success('CSVファイルをダウンロードしました');
+      message.success(t('departmentManagement.messages.csvDownloadSuccess'));
     } catch (error) {
       console.error('CSV download error:', error);
-      message.error(error instanceof Error ? error.message : 'CSVダウンロードに失敗しました');
+      message.error(error instanceof Error ? error.message : t('departmentManagement.messages.csvDownloadError'));
     } finally {
       setLoading(false);
     }
@@ -355,7 +356,7 @@ export default function DepartmentManagement() {
           is_active: values.isActive,
         } as import('@/services/departmentApiService').MasterRecord);
         await fetchDepartments();
-        message.success('部署情報を更新しました');
+        message.success(t('departmentManagement.messages.saveSuccess'));
       } else {
         // 新規追加の場合
         await createMaster({
@@ -364,7 +365,7 @@ export default function DepartmentManagement() {
           is_active: values.isActive !== undefined ? values.isActive : true,
         } as import('@/services/departmentApiService').MasterRecord);
         await fetchDepartments();
-        message.success('部署を追加しました');
+        message.success(t('departmentManagement.messages.addSuccess'));
       }
 
       setIsModalVisible(false);
@@ -408,18 +409,14 @@ export default function DepartmentManagement() {
         }}
       >
         <Flex gap="small">
-          <Button icon={<UploadOutlined />} onClick={handleUpload} disabled={isReadOnly}>
-            CSV
-            <br />
-            アップロード
+  <Button icon={<UploadOutlined />} onClick={handleUpload} disabled={isReadOnly}>
+            {t('departmentManagement.buttons.csvUpload')}
           </Button>
           <Button icon={<DownloadOutlined />} onClick={handleDownload}>
-            CSV
-            <br />
-            ダウンロード
+            {t('departmentManagement.buttons.csvDownload')}
           </Button>
           <Button icon={<PlusOutlined />} onClick={handleAdd} disabled={isReadOnly}>
-            追加
+            {t('departmentManagement.buttons.add')}
           </Button>
           <Button
             icon={<DeleteOutlined />}
@@ -432,7 +429,7 @@ export default function DepartmentManagement() {
               color: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWhite : undefined,
             }}
           >
-            アクティブ
+            {t('departmentManagement.buttons.activate')}
           </Button>
           <Button
             danger
@@ -446,10 +443,10 @@ export default function DepartmentManagement() {
               color: !isReadOnly && selectedRowKeys.length > 0 ? token.colorWhite : undefined,
             }}
           >
-            非アクティブ
+            {t('departmentManagement.buttons.deactivate')}
           </Button>
           <Button icon={<ReloadOutlined />} onClick={handleReload}>
-            リロード
+            {t('departmentManagement.buttons.reload')}
           </Button>
         </Flex>
       </div>
@@ -466,7 +463,7 @@ export default function DepartmentManagement() {
         <Row gutter={16} style={{ marginBottom: 8 }}>
           <Col style={{ width: 400 }}>
             <Input
-              placeholder="部署CD、部署名で検索"
+            placeholder={t('departmentManagement.searchPlaceholder')}
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -487,7 +484,7 @@ export default function DepartmentManagement() {
             pageSize: 20,
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100'],
-            showTotal: (total) => `全 ${total} 件`,
+            showTotal: (total) => t('departmentManagement.pagination.showTotal').replace('{total}', String(total)),
           }}
           rowClassName={(record) =>
             record.isActive === false ? 'active-row' : 'inactive-row'
@@ -497,36 +494,36 @@ export default function DepartmentManagement() {
 
       {/* 部署追加/編集モーダル */}
       <Modal
-        title={editingDepartment ? '部署編集' : '部署追加'}
+        title={editingDepartment ? t('departmentManagement.modal.editTitle') : t('departmentManagement.modal.addTitle')}
         open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         width={600}
-        okText="保存"
-        cancelText="キャンセル"
+        okText={t('departmentManagement.buttons.save')}
+        cancelText={t('departmentManagement.buttons.cancel')}
       >
         <Form form={form} layout="vertical">
           <Form.Item
             name="departmentId"
-            label="部署CD"
-            rules={[{ required: !editingDepartment, message: '部署CDを入力してください' }]}
+            label={t('departmentManagement.form.departmentCd')}
+            rules={[{ required: !editingDepartment, message: t('departmentManagement.form.departmentCdRequired') }]}
           >
-            <Input disabled={!!editingDepartment} placeholder="部署CDを入力してください" />
+            <Input disabled={!!editingDepartment} placeholder={t('departmentManagement.form.departmentCdPlaceholder')} />
           </Form.Item>
 
           <Form.Item
             name="displayName"
-            label="部署名"
-            rules={[{ required: true, message: '部署名を入力してください' }]}
+            label={t('departmentManagement.form.departmentName')}
+            rules={[{ required: true, message: t('departmentManagement.form.departmentNameRequired') }]}
           >
-            <Input placeholder="部署名を入力してください" />
+            <Input placeholder={t('departmentManagement.form.departmentNamePlaceholder')} />
           </Form.Item>
 
-          <Form.Item name="isActive" label="状態">
+          <Form.Item name="isActive" label={t('departmentManagement.form.status')}>
             <Select
               options={[
-                { value: true, label: 'アクティブ' },
-                { value: false, label: '非アクティブ' },
+                { value: true, label: t('departmentManagement.status.active') },
+                { value: false, label: t('departmentManagement.status.inactive') },
               ]}
             />
           </Form.Item>

@@ -10,6 +10,11 @@
 import { Request, Response } from 'express';
 import { JwtPayload } from '../types/auth';
 import { generate4AxisVectors, healthCheck as embeddingHealthCheck, getServiceInfo } from '../services/transitionSetEmbeddingService';
+import {
+  decomposeQuery,
+  healthCheck as decomposerHealthCheck,
+  getServiceInfo as getDecomposerServiceInfo,
+} from '../services/transitionSetQueryDecomposerService';
 import { ingestSingleFile } from '../services/singleFileIngestService';
 import {
   ingestAllFiles,
@@ -328,19 +333,59 @@ export async function cancelBatch(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * 自然言語クエリ分解
+ * POST /api/v1/semantic-search/decompose
+ *
+ * @remarks
+ * 自然言語クエリを4軸（input/transition/output/structure）に分解する。
+ * gpt-oss-20b未接続時はフォールバック（元クエリを全軸に使用）。
+ */
+export async function decompose(req: Request, res: Response): Promise<void> {
+  try {
+    const { query } = req.body as { query?: string };
+
+    if (!query || query.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_REQUEST', message: 'query is required' },
+      });
+      return;
+    }
+
+    const decomposed = await decomposeQuery(query);
+
+    res.json({
+      success: true,
+      data: decomposed,
+      meta: { timestamp: new Date().toISOString() },
+    });
+  } catch (error) {
+    handleError(res, error, 'クエリ分解エラー');
+  }
+}
+
+/**
  * ヘルスチェック
  * GET /api/v1/semantic-search/health
  */
 export async function health(_req: Request, res: Response): Promise<void> {
   try {
-    const ollamaHealthy = await embeddingHealthCheck();
+    const [ollamaHealthy, decomposerHealth] = await Promise.all([
+      embeddingHealthCheck(),
+      decomposerHealthCheck(),
+    ]);
+
+    const overallStatus =
+      ollamaHealthy && decomposerHealth.status === 'healthy' ? 'ok' : 'degraded';
 
     res.json({
       success: true,
       data: {
-        status: ollamaHealthy ? 'ok' : 'degraded',
+        status: overallStatus,
         ollama: ollamaHealthy ? 'ok' : 'unreachable',
+        gpt_oss: decomposerHealth.status === 'healthy' ? 'ok' : 'unreachable',
         serviceInfo: getServiceInfo(),
+        decomposerServiceInfo: getDecomposerServiceInfo(),
       },
       meta: { timestamp: new Date().toISOString() },
     });
