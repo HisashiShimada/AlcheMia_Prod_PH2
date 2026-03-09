@@ -16,6 +16,7 @@ export interface TaskRegistrationData {
   experimentCondition: number;
   trialCount: number;
   experimentOrder: number;
+  workerLinkedFlg: boolean;
 }
 
 /**
@@ -43,6 +44,21 @@ export interface SaveTaskRegistrationRequest {
     methodId: string;
     experimentCondition: number;
     trialCount: number;
+    experimentOrder: number; // タスク登録タブ上の作業順序
+    workerLinkedFlg?: boolean; // 作業者連携済フラグ（オプション、デフォルト: false）
+  }[];
+  /**
+   * 指示リスト（オプション）
+   * タスク登録タブから追加された指示を一括保存する際に使用
+   */
+  instructions?: {
+    methodId: string;
+    content: string;
+    priority: number;
+    type: number;
+    targetType: number;
+    transitionId: string | null;
+    taskNumber: number | null;
   }[];
 }
 

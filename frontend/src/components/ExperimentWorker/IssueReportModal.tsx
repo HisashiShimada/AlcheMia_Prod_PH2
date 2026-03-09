@@ -34,7 +34,7 @@ interface IssueReportModalProps {
  * - ステータス変更ボタンを追加（未解決/解決）
  * - コメント送信ボタンに名称変更
  * 
- * Note: destroyOnClose=trueにより、モーダルが閉じる度にコンポーネントが破棄され、
+ * Note: destroyOnHidden=trueにより、モーダルが非表示になる度にコンポーネントが破棄され、
  * 次回開く時には新しいインスタンスが作成されるため、initialStatusが正しく反映される
  */
 export default function IssueReportModal({

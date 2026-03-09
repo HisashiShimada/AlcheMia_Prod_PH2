@@ -10,9 +10,10 @@
  * 主キー: (organization_id, project_id, method_id, task_no)
  */
 
-import { getPool } from '../database/db';
-import { loadSqlFile } from '../sql/loader';
+import { getPool, getPgp } from '../database/db';
 import { ProjectTaskDetail } from '../types/database';
+import { loadSqlFile } from '../sql/loader';
+import type { ITask } from 'pg-promise';
 import { TaskDetailResponse, TaskDetailTransitionItem, TaskDetailStats } from '../types/api';
 
 /**
@@ -321,4 +322,71 @@ export async function findTaskDetail(
   };
 
   return response;
+
+// ========================================
+// pg-promise対応メソッド（タスク登録保存用）
+// ========================================
+
+/**
+ * タスク詳細データの型定義（バッチINSERT用）
+ */
+export interface TaskDetailInsertData {
+  methodId: string;
+  trialCount: number;
+}
+
+/**
+ * プロジェクト単位でタスク詳細を削除（トランザクション内）
+ * タスク登録保存時に既存レコードをクリアする際に使用
+ * 
+ * @param t pg-promiseトランザクションオブジェクト
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ */
+export async function deleteByProject(
+  t: ITask<unknown>,
+  organizationId: string,
+  projectId: string
+): Promise<void> {
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('project_task_detail/deleteByProject.sql');
+  
+  await t.none(sqlQuery, [organizationId, projectId]);
+}
+
+/**
+ * タスク詳細の一括INSERT（トランザクション内）
+ * タスク登録保存時に新規レコードを作成する際に使用
+ * 
+ * @param t pg-promiseトランザクションオブジェクト
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param userId ユーザーID
+ * @param tasks タスクデータ配列
+ */
+export async function batchInsert(
+  t: ITask<unknown>,
+  organizationId: string,
+  projectId: string,
+  userId: string,
+  tasks: TaskDetailInsertData[]
+): Promise<void> {
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('project_task_detail/insert.sql');
+  
+  for (const task of tasks) {
+    // 各タスクのtrialCount分のレコードを作成
+    for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
+      await t.none(sqlQuery, [
+        organizationId,
+        projectId,
+        task.methodId,
+        taskNo,
+        0, // task_status: 0（初期状態）
+        userId, // create_user_id
+        userId  // update_user_id
+      ]);
+    }
+  }
+
 }
