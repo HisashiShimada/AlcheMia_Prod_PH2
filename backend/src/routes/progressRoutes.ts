@@ -181,4 +181,27 @@ router.patch(
   progressController.updateTransitionStatus
 );
 
+/**
+ * WorkProgressDetailDialog 用 作業詳細一括取得
+ * GET /api/v1/progress/projects/:projectName/work-details
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
+ * @middleware handleValidationErrors - バリデーションエラーハンドリング
+ * @description
+ *   プロジェクト名をキーに、projectInfo / fileInfo / workDetails（transitionProgress 含む）を一括返却する。
+ *   WorkProgressDetailDialog がダイアログ初期表示時に呼び出す。
+ * @roles experiment_admin（読取専用）
+ */
+router.get(
+  '/projects/:projectName/work-details',
+  authMiddleware,
+  checkPermission('040000', 0),
+  [
+    validateParamString('projectName', 1, 255),
+  ],
+  handleValidationErrors,
+  progressController.getWorkDetails
+);
+
 export default router;

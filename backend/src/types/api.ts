@@ -248,3 +248,143 @@ export interface GetInstructionsResponse {
   /** 指示一覧 */
   instructions: InstructionData[];
 }
+
+// ============================================================
+// WorkProgressDetailDialog 用 API 型定義
+// ============================================================
+
+/**
+ * プロジェクト情報詳細
+ * WorkProgressDetailDialog の projectInfo に対応
+ */
+export interface ProjectInfoDetail {
+  /** プロジェクトID */
+  projectId: string;
+
+  /** プロジェクト名 */
+  projectName: string;
+
+  /** プロジェクト説明 */
+  projectDescription?: string;
+
+  /** オーナー名 */
+  owner: string;
+
+  /** 部門名 */
+  department?: string;
+
+  /** プロジェクトステータス（文字列） */
+  status: 'planning' | 'pending' | 'in_progress' | 'review_waiting' | 'completed' | 'error';
+
+  /** メソッドID一覧（MAIMLから取得） */
+  methods: string[];
+
+  /** 作成日時（ISO8601） */
+  createdAt: string;
+
+  /** 更新日時（ISO8601） */
+  updatedAt: string;
+}
+
+/**
+ * ファイル情報詳細
+ * WorkProgressDetailDialog の fileInfo に対応
+ */
+export interface FileInfoDetail {
+  /** ファイル名（例: プロジェクト名.maiml） */
+  fileName: string;
+
+  /** MAIMLファイルのストレージキー（例: {organizationId}/projects/{name}/{name}.maiml） */
+  maimlFileKey: string;
+
+  /** 組織ID */
+  organizationId: string;
+
+  /** チェックアウト状態 */
+  checkoutStatus: {
+    /** チェックアウト中か */
+    isCheckedOut: boolean;
+    /** チェックアウトしているユーザーID（チェックアウト中の場合） */
+    checkoutBy?: string | null;
+  };
+}
+
+/**
+ * トランジション進捗情報
+ * WorkProgressDetailDialog の transitionProgress の各要素に対応
+ */
+export interface TransitionProgressItem {
+  /** トランジションID */
+  transitionId: string;
+
+  /** トランジション名（MAIMLから取得、未定義の場合はtransitionId） */
+  transitionName?: string;
+
+  /** 進捗状態（日本語文字列）: 未開始 / 準備中 / 作業中 / 休止中 / 完了 / 異常中 */
+  progressStatus: string;
+
+  /** 担当作業者名 */
+  assignedWorker?: string;
+
+  /** 開始日時（ISO8601、create_at） */
+  startDate?: string;
+
+  /** 終了日時（ISO8601、完了時の update_at） */
+  endDate?: string;
+}
+
+/**
+ * 作業詳細情報（タスク単位）
+ * WorkProgressDetailDialog の workDetails の各要素に対応
+ */
+export interface WorkDetailItem {
+  /** タスク識別子（"{methodId}_{taskNo}" 形式） */
+  workId: string;
+
+  /** タスク名（project_task.task_name） */
+  taskName?: string;
+
+  /** メソッド名（project_task.method_id） */
+  methodName?: string;
+
+  /** 割り当て作業者ID */
+  assignedWorkerId?: string;
+
+  /** タスクステータス（文字列） */
+  workStatus: string;
+
+  /** 進捗率（0〜100） */
+  progressPercentage?: number;
+
+  /** トランジション統計情報 */
+  stats: {
+    /** トランジション総数 */
+    totalTransitions: number;
+    /** 完了数（status=5） */
+    completed: number;
+    /** 作業中数（status=1,2,3,4） */
+    working: number;
+    /** 未着手数（status=0） */
+    notStarted: number;
+    /** 完了率（0〜100） */
+    completionRate: number;
+  };
+
+  /** トランジション進捗一覧 */
+  transitionProgress?: TransitionProgressItem[];
+}
+
+/**
+ * WorkProgressDetailDialog 用 API レスポンスデータ
+ * GET /api/v1/progress/projects/:projectName/work-details のレスポンス data 部分
+ */
+export interface WorkProgressDetailResponse {
+  /** プロジェクト情報 */
+  projectInfo: ProjectInfoDetail;
+
+  /** ファイル情報 */
+  fileInfo: FileInfoDetail;
+
+  /** 作業詳細一覧（タスク × トランジション進捗） */
+  workDetails: WorkDetailItem[];
+}
