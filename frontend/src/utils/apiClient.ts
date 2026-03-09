@@ -334,6 +334,44 @@ export async function createFormatFile(
 
 
 /**
+ * プロジェクトのファイル一覧を実APIから取得
+ * GET /api/v1/projects/:projectName/files
+ *
+ * @param projectName - プロジェクト名（URLパスに使用）
+ * @returns ファイル一覧レスポンス（現行ファイルとアーカイブファイル）
+ */
+export async function fetchProjectFilesReal(
+  projectName: string
+): Promise<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/projects/${encodeURIComponent(projectName)}/files`,
+      {
+        method: 'GET',
+        credentials: 'include', // Cookie認証
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error?.message || 'プロジェクトファイル一覧の取得に失敗しました'
+      );
+    }
+
+    const data: ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }> =
+      await response.json();
+    return data;
+  } catch (error) {
+    console.error('fetchProjectFilesReal error:', error);
+    throw error;
+  }
+}
+
+/**
  * モックAPIを使用するかどうかを判定
  * 開発環境では常にモックAPIを使用
  */
