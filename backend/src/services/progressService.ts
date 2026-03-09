@@ -852,9 +852,9 @@ export class ProgressService {
             workId,
             taskNo: Number(task.experiment_order),
             methodName: task.method_id,
-            workStatus: completedCount === totalTransitions && totalTransitions > 0 ? '完了'
-              : workingCount > 0 ? '進行中'
-              : '未開始',
+            workStatus: completedCount === totalTransitions && totalTransitions > 0 ? 'completed'
+              : workingCount > 0 ? 'in_progress'
+              : 'pending',
             progressPercentage: completionRate,
             stats: {
               totalTransitions,

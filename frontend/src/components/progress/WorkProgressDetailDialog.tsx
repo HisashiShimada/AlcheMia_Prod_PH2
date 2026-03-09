@@ -670,7 +670,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
             </Card>
 
             {/* PetriNetVisualization統合 */}
-            {fileDetails?.fileInfo && selectedWork.assignedWorkerId && (
+            {fileDetails?.fileInfo && fileDetails.fileInfo.maimlFileKey && (
               <div>
                 <Text type="secondary" strong style={{ paddingLeft: token.paddingSM }}>
                   実験フロー図
@@ -684,7 +684,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                 >
                   <PetriNetVisualization
                     fileKey={fileDetails.fileInfo.maimlFileKey}
-                    workerId={selectedWork.assignedWorkerId}
+                    workerId={selectedWork.assignedWorkerId || ''}
                     workId={selectedWork.workId}
                     progressData={selectedWork.transitionProgress}
                   />

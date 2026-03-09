@@ -581,35 +581,27 @@ export async function fetchMultipleMethodsStructureFromContent(maimlContent: str
  * Step 1: GET /api/v1/maiml/file-content?key={fileKey} でMAIMLコンテンツを取得
  * Step 2: POST /api/v1/maiml/parse-petri-net-structure にcontentを送信して構造データを取得
  *
+ * createApiClient() を使用して Authorization ヘッダーを自動付与する。
+ *
  * @param fileKey - S3/SwiftのMAIMLファイルキー（例: org-id/projects/proj-name/proj-name.maiml）
  */
 export async function fetchPetriNetStructure(fileKey: string): Promise<unknown> {
   console.log('🔍 [fetchPetriNetStructure] 実API呼び出し開始:', fileKey);
 
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
   // Step 1: fileKeyからMAIMLコンテンツを取得
-  const fileContentResponse = await fetch(
-    `${API_BASE_URL}/maiml/file-content?key=${encodeURIComponent(fileKey)}`,
-    {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
+  const fileContentResponse = await client.get(
+    `/maiml/file-content?key=${encodeURIComponent(fileKey)}`
   );
 
-  if (!fileContentResponse.ok) {
-    const errorData = await fileContentResponse.json().catch(() => ({}));
-    throw new Error(
-      errorData.error?.message ||
-        `MAIMLファイルの取得に失敗しました: ${fileContentResponse.status}`
-    );
-  }
-
-  const fileContentData = await fileContentResponse.json();
+  const fileContentData = fileContentResponse.data;
 
   // レスポンス形式に応じてcontentを取得
+  // 実際のレスポンス構造: { success: true, data: { data: { content: "..." } } }
   const content =
+    fileContentData.data?.data?.content ||
     fileContentData.data?.content ||
     fileContentData.content ||
     fileContentData.data;
@@ -624,27 +616,12 @@ export async function fetchPetriNetStructure(fileKey: string): Promise<unknown> 
   });
 
   // Step 2: contentをparse-petri-net-structureに送信
-  const parseResponse = await fetch(
-    `${API_BASE_URL}/maiml/parse-petri-net-structure`,
-    {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ content }),
-    }
+  const parseResponse = await client.post(
+    `/maiml/parse-petri-net-structure`,
+    { content }
   );
 
-  if (!parseResponse.ok) {
-    const errorData = await parseResponse.json().catch(() => ({}));
-    throw new Error(
-      errorData.error?.message ||
-        `Petri Net構造解析に失敗しました: ${parseResponse.status}`
-    );
-  }
-
-  const result = await parseResponse.json();
+  const result = parseResponse.data;
 
   console.log('✅ [fetchPetriNetStructure] Petri Net構造解析成功:', {
     success: result.success,
