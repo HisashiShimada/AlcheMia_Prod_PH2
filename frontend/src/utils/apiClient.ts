@@ -484,47 +484,88 @@ export async function fetchMultipleMethodsStructureFromContent(maimlContent: str
 }
 
 /**
- * ペトリネット構造データを取得（モック）
+ * ペトリネット構造データを取得
+ * POST /api/v1/maiml/parse-petri-net-structure
+ *
+ * @description
+ * fileKeyを使ってMAIMLファイルの内容を取得し、Petri Net構造を解析する。
+ * Step 1: GET /api/v1/maiml/file-content?key={fileKey} でMAIMLコンテンツを取得
+ * Step 2: POST /api/v1/maiml/parse-petri-net-structure にcontentを送信して構造データを取得
+ *
+ * @param fileKey - S3/SwiftのMAIMLファイルキー（例: org-id/projects/proj-name/proj-name.maiml）
  */
 export async function fetchPetriNetStructure(fileKey: string): Promise<unknown> {
-  await simulateApiDelay();
-  
-  // モックデータをダイナミックインポート
-  try {
-    const mockData = await import('@/data/mock/mockPetriNetStructure.json');
-    const allData = (mockData.default || mockData) as Record<string, unknown>;
-    
-    // fileKeyからプロジェクトIDを抽出
-    const projectIdMatch = fileKey.match(/projects\/([^/]+)/);
-    const projectId = projectIdMatch ? projectIdMatch[1] : null;
-    
-    // プロジェクトIDに対応するデータを取得
-    if (projectId && allData[projectId]) {
-      return allData[projectId];
-    }
-    
-    // プロジェクトIDが見つからない場合、最初のプロジェクトを返す
-    const firstProjectKey = Object.keys(allData)[0];
-    if (firstProjectKey) {
-      console.warn(`⚠️ Project ${projectId} not found, using first project: ${firstProjectKey}`);
-      return allData[firstProjectKey];
-    }
-    
-    // データがない場合
-    throw new Error('No mock data available');
-  } catch (error) {
-    console.warn('⚠️ mockPetriNetStructure.json not found or invalid, returning empty data');
-    return {
-      success: true,
-      data: {
-        places: [],
-        transitions: [],
-        arcs: [],
-        isMultiMethod: false,
-        methods: [],
+  console.log('🔍 [fetchPetriNetStructure] 実API呼び出し開始:', fileKey);
+
+  // Step 1: fileKeyからMAIMLコンテンツを取得
+  const fileContentResponse = await fetch(
+    `${API_BASE_URL}/maiml/file-content?key=${encodeURIComponent(fileKey)}`,
+    {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    };
+    }
+  );
+
+  if (!fileContentResponse.ok) {
+    const errorData = await fileContentResponse.json().catch(() => ({}));
+    throw new Error(
+      errorData.error?.message ||
+        `MAIMLファイルの取得に失敗しました: ${fileContentResponse.status}`
+    );
   }
+
+  const fileContentData = await fileContentResponse.json();
+
+  // レスポンス形式に応じてcontentを取得
+  const content =
+    fileContentData.data?.content ||
+    fileContentData.content ||
+    fileContentData.data;
+
+  if (!content || typeof content !== 'string') {
+    throw new Error('MAIMLファイルの内容が取得できませんでした');
+  }
+
+  console.log('✅ [fetchPetriNetStructure] MAIMLコンテンツ取得成功:', {
+    fileKey,
+    contentLength: content.length,
+  });
+
+  // Step 2: contentをparse-petri-net-structureに送信
+  const parseResponse = await fetch(
+    `${API_BASE_URL}/maiml/parse-petri-net-structure`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ content }),
+    }
+  );
+
+  if (!parseResponse.ok) {
+    const errorData = await parseResponse.json().catch(() => ({}));
+    throw new Error(
+      errorData.error?.message ||
+        `Petri Net構造解析に失敗しました: ${parseResponse.status}`
+    );
+  }
+
+  const result = await parseResponse.json();
+
+  console.log('✅ [fetchPetriNetStructure] Petri Net構造解析成功:', {
+    success: result.success,
+    isMultiMethod: result.data?.isMultiMethod,
+    placesCount: result.data?.places?.length,
+    transitionsCount: result.data?.transitions?.length,
+    methodsCount: result.data?.methods?.length,
+  });
+
+  return result;
 }
 
 /**
