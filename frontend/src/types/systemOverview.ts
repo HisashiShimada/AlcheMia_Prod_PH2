@@ -9,6 +9,7 @@ export interface SystemOverviewData {
   users: {
     total: number;
     active: number;
+    contractedUsers: number | null;
   };
   sessions: {
     total: number;
@@ -18,10 +19,12 @@ export interface SystemOverviewData {
     planning: number;
     inProgress: number;
     completed: number;
+    contractedProjects: number | null;
   };
   storage: {
     totalFiles: number;
     usedCapacityGB: number;
+    contractCapacityGB: number | null;
   };
   loginLast7Days: {
     total: number;

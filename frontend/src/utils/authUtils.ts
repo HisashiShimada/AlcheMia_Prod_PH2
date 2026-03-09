@@ -58,6 +58,9 @@ export const createApiClient = (): AxiosInstance => {
           // Authorizationヘッダーに自動設定
           config.headers.Authorization = `Bearer ${sessionToken}`;
         }
+        // 現在の言語設定を Accept-Language ヘッダーに設定
+        const lang = localStorage.getItem('user-locale') || 'ja';
+        config.headers['Accept-Language'] = lang;
       }
       return config;
     },

@@ -1,5 +1,5 @@
 -- Project Name : noname
--- Date/Time    : 2026/03/03 10:36:42
+-- Date/Time    : 2026/03/06 8:04:13
 -- Author       : seiya.takizawa
 -- RDBMS Type   : PostgreSQL
 -- Application  : A5:SQL Mk-2
@@ -26,6 +26,9 @@ CREATE TABLE organization (
   , corporation_id uuid
   , is_entry integer
   , use_deemed_progress BOOLEAN DEFAULT true NOT NULL
+  , contract_capacity numeric(8, 3)
+  , contract_users integer
+  , contract_projects integer
   , is_active BOOLEAN
   , create_user_id character varying(50)
   , create_at timestamp
@@ -46,9 +49,11 @@ COMMENT ON COLUMN organization.chief_user_id IS '代表者ユーザID';
 COMMENT ON COLUMN organization.corporation_id IS '会社ID';
 COMMENT ON COLUMN organization.is_entry IS '二段階認証判定:0:二段階認証なし1:二段階認証あり';
 COMMENT ON COLUMN organization.use_deemed_progress IS 'みなし進捗使用フラグ';
+COMMENT ON COLUMN organization.contract_capacity IS '契約容量';
+COMMENT ON COLUMN organization.contract_users IS '契約ユーザー数';
+COMMENT ON COLUMN organization.contract_projects IS '契約プロジェクト数';
 COMMENT ON COLUMN organization.is_active IS 'アクティブ判定';
 COMMENT ON COLUMN organization.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN organization.create_at IS '作成日時';
 COMMENT ON COLUMN organization.update_user_id IS '更新者ユーザID';
 COMMENT ON COLUMN organization.update_at IS '更新日時';
-

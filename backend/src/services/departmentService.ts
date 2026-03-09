@@ -8,6 +8,7 @@ import * as departmentRepository from '../repositories/departmentRepository';
 import { DepartmentSearchFilters } from '../repositories/departmentRepository';
 import { getPgp } from '../database/db';
 import { getStorageService } from './storageService';
+import { getMessage } from '../utils/messages';
 
 /**
  * Departmentレスポンス型定義
@@ -111,12 +112,13 @@ export async function createDepartment(
     departmentName: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  lang: string = 'ja'
 ): Promise<DepartmentResponse> {
   // ID重複チェック
   const exists = await departmentRepository.existsById(organizationId, data.departmentCd);
   if (exists) {
-    const error: any = new Error('入力されたIDは既に存在しています');
+    const error: any = new Error(getMessage(lang, 'department.duplicateCd'));
     error.statusCode = 409;
     error.code = 'DUPLICATE_DEPARTMENT_CD';
     throw error;
@@ -236,7 +238,8 @@ interface CsvUploadResult {
 export async function uploadDepartmentsCsv(
   organizationId: string,
   csvContent: string,
-  userId: string
+  userId: string,
+  lang: string = 'ja'
 ): Promise<CsvUploadResult> {
   // CSVをパース
   const parseResult = Papa.parse<CsvRow>(csvContent, {
@@ -260,7 +263,7 @@ export async function uploadDepartmentsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'department_cd',
-        message: `${rowNumber}行目: department_cdは必須です`
+        message: getMessage(lang, 'department.csv.cdRequired', { row: String(rowNumber) }),
       });
       break; // 最初のエラーで停止
     }
@@ -269,7 +272,7 @@ export async function uploadDepartmentsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'department_name',
-        message: `${rowNumber}行目: department_nameは必須です`
+        message: getMessage(lang, 'department.csv.nameRequired', { row: String(rowNumber) }),
       });
       break; // 最初のエラーで停止
     }
@@ -281,7 +284,7 @@ export async function uploadDepartmentsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'is_active',
-        message: `${rowNumber}行目: is_activeは true/false/1/0 のいずれかである必要があります`
+        message: getMessage(lang, 'department.csv.isActiveInvalid', { row: String(rowNumber) }),
       });
       break; // 最初のエラーで停止
     }
@@ -291,7 +294,7 @@ export async function uploadDepartmentsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'department_cd',
-        message: `${rowNumber}行目: department_cd「${departmentCd}」はCSV内で重複しています`
+        message: getMessage(lang, 'department.csv.cdDuplicateInCsv', { row: String(rowNumber), cd: departmentCd }),
       });
       break; // 最初のエラーで停止
     }
@@ -303,7 +306,7 @@ export async function uploadDepartmentsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'department_cd',
-        message: `${rowNumber}行目: department_cd「${departmentCd}」は既に存在します`
+        message: getMessage(lang, 'department.csv.cdAlreadyExists', { row: String(rowNumber), cd: departmentCd }),
       });
       break; // 最初のエラーで停止
     }

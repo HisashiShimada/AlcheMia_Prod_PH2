@@ -209,7 +209,8 @@ export async function uploadRoleCsv(
     const csvContent = req.file.buffer.toString('utf-8');
 
     // サービス層でアップロード処理
-    await masterService.uploadRolesCsv(String(organizationId), String(userId), csvContent);
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
+    await masterService.uploadRolesCsv(String(organizationId), String(userId), csvContent, lang);
 
     res.status(200).json({
       success: true,

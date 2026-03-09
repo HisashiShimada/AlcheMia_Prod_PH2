@@ -13,6 +13,9 @@ SELECT
   o.is_entry,
   o.use_deemed_progress,
   o.is_active,
+  o.contract_capacity,
+  o.contract_users,
+  o.contract_projects,
   o.update_at
 FROM organization o
 LEFT JOIN organization_user ou

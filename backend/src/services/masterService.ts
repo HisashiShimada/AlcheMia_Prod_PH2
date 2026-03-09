@@ -9,6 +9,7 @@ import { CreatorSearchFilters } from '../repositories/creatorRepository';
 import * as instrumentRepository from '../repositories/instrumentRepository';
 import * as vendorRepository from '../repositories/vendorRepository';
 import { getPgp } from '../database/db';
+import { getMessage } from '../utils/messages';
 
 /**
  * Creatorマスタレスポンス型定義
@@ -217,12 +218,13 @@ export async function createCreatorMaster(
     isActive?: boolean;
   },
   userId: string,
-  corporationId?: string | null
+  corporationId?: string | null,
+  lang: string = 'ja'
 ): Promise<CreatorMasterResponse> {
   // ID重複チェック
   const exists = await creatorRepository.existsById(organizationId, data.creatorId);
   if (exists) {
-    const error: any = new Error('入力されたIDは既に存在しています');
+    const error: any = new Error(getMessage(lang, 'master.duplicateCreatorId'));
     error.statusCode = 409;
     error.code = 'DUPLICATE_CREATOR_ID';
     throw error;
@@ -457,12 +459,13 @@ export async function createInstrumentMaster(
     isActive?: boolean;
   },
   userId: string,
-  corporationId?: string | null
+  corporationId?: string | null,
+  lang: string = 'ja'
 ): Promise<InstrumentMasterResponse> {
   // ID重複チェック
   const exists = await instrumentRepository.existsById(organizationId, data.instrumentId);
   if (exists) {
-    const error: any = new Error('入力されたIDは既に存在しています');
+    const error: any = new Error(getMessage(lang, 'master.duplicateInstrumentId'));
     error.statusCode = 409;
     error.code = 'DUPLICATE_INSTRUMENT_ID';
     throw error;
@@ -553,12 +556,13 @@ export async function createVendorMaster(
     isActive?: boolean;
   },
   userId: string,
-  corporationId?: string | null
+  corporationId?: string | null,
+  lang: string = 'ja'
 ): Promise<VendorMasterResponse> {
   // ID重複チェック
   const exists = await vendorRepository.existsById(organizationId, data.vendorId);
   if (exists) {
-    const error: any = new Error('入力されたIDは既に存在しています');
+    const error: any = new Error(getMessage(lang, 'master.duplicateVendorId'));
     error.statusCode = 409;
     error.code = 'DUPLICATE_VENDOR_ID';
     throw error;

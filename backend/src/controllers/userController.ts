@@ -423,7 +423,8 @@ export async function uploadUsersCsv(req: Request, res: Response, next: NextFunc
     }
 
     const csvContent = req.file.buffer.toString('utf-8');
-    const result = await userService.uploadUsersFromCSV(String(organizationId), csvContent, String(currentUserId));
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
+    const result = await userService.uploadUsersFromCSV(String(organizationId), csvContent, String(currentUserId), lang);
 
     // バリデーションエラーのチェック（HTTPステータス200でもエラーの場合がある）
     if (result.failureCount > 0 && result.errors.length > 0) {
