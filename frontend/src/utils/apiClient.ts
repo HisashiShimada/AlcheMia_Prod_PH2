@@ -85,24 +85,19 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/a
  * GET /api/v1/projects
  */
 export async function fetchProjects(): Promise<ApiResponse<ProjectListResponse>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/projects`, {
-      method: 'GET',
-      credentials: 'include', // Cookie認証
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+  try {
+    const response = await client.get<ApiResponse<ProjectListResponse>>('/projects');
+
+    if (!response.data.success) {
       throw new Error(
-        errorData.error?.message || 'プロジェクト一覧の取得に失敗しました'
+        response.data.error?.message || 'プロジェクト一覧の取得に失敗しました'
       );
     }
 
-    const data: ApiResponse<ProjectListResponse> = await response.json();
-    return data;
+    return response.data;
   } catch (error) {
     console.error('fetchProjects error:', error);
     throw error;
@@ -114,24 +109,21 @@ export async function fetchProjects(): Promise<ApiResponse<ProjectListResponse>>
  * GET /api/v1/projects/:projectId
  */
 export async function fetchProjectById(projectId: string): Promise<ApiResponse<ProjectDetailResponse>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
-      method: 'GET',
-      credentials: 'include', // Cookie認証
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+  try {
+    const response = await client.get<ApiResponse<ProjectDetailResponse>>(
+      `/projects/${encodeURIComponent(projectId)}`
+    );
+
+    if (!response.data.success) {
       throw new Error(
-        errorData.error?.message || 'プロジェクト詳細の取得に失敗しました'
+        response.data.error?.message || 'プロジェクト詳細の取得に失敗しました'
       );
     }
 
-    const data: ApiResponse<ProjectDetailResponse> = await response.json();
-    return data;
+    return response.data;
   } catch (error) {
     console.error('fetchProjectById error:', error);
     throw error;
@@ -447,28 +439,21 @@ export async function createFormatFile(
 export async function fetchProjectFilesReal(
   projectName: string
 ): Promise<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>> {
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/projects/${encodeURIComponent(projectName)}/files`,
-      {
-        method: 'GET',
-        credentials: 'include', // Cookie認証
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
+    const response = await client.get<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>>(
+      `/projects/${encodeURIComponent(projectName)}/files`
     );
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+    if (!response.data.success) {
       throw new Error(
-        errorData.error?.message || 'プロジェクトファイル一覧の取得に失敗しました'
+        response.data.error?.message || 'プロジェクトファイル一覧の取得に失敗しました'
       );
     }
 
-    const data: ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }> =
-      await response.json();
-    return data;
+    return response.data;
   } catch (error) {
     console.error('fetchProjectFilesReal error:', error);
     throw error;
