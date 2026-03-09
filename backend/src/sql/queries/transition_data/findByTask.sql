@@ -1,7 +1,9 @@
 -- タスク別トランジション進捗取得クエリ
 -- 使用箇所:
 --   - progressService.ts - getWorkDetails()
--- パラメータ: $1=organizationId, $2=projectId, $3=methodId, $4=experimentOrder, $5=taskNo
+-- パラメータ: $1=organizationId, $2=projectId, $3=methodId, $4=taskNo
+-- 注意: transition_data に experiment_order カラムは存在しない
+--       主キー: (organization_id, project_id, method_id, task_no, transition_id)
 
 SELECT
   td.transition_id,
@@ -18,6 +20,5 @@ LEFT JOIN organization_user ou
 WHERE td.organization_id = $1
   AND td.project_id = $2
   AND td.method_id = $3
-  AND td.experiment_order = $4
-  AND td.task_no = $5
+  AND td.task_no = $4
 ORDER BY td.transition_id ASC

@@ -775,6 +775,7 @@ export class ProgressService {
       };
 
       const transitionSql = await loadSqlFile('transition_data/findByTask.sql');
+      const taskDetailSql = await loadSqlFile('project_tasks/findTaskDetailsByMethodId.sql');
 
       const workDetails: WorkDetailItem[] = await Promise.all(
         taskRows.map(async (task) => {
@@ -788,19 +789,32 @@ export class ProgressService {
             : [];
 
           // DB からトランジション進捗を取得
-          // transition_data の主キーは (organizationId, projectId, methodId, experimentOrder, taskNo)
-          // experimentOrder に対応するすべての task_no を集約して取得する
-          // ここでは experimentOrder を $4 として渡し、task_no は 1 固定で試みる
-          // （実際には task_no=1 始まりで登録されることを前提とする）
-          const tdRows = await pgp.any<{
-            transition_id: string;
-            status: number;
-            progress_rate: number;
-            update_user_id: string | null;
-            worker_name: string | null;
-            create_at: Date;
-            update_at: Date;
-          }>(transitionSql, [organizationId, proj.project_id, task.method_id, task.experiment_order, 1]);
+          // project_task_detail から当該メソッドの task_no 一覧を取得し、
+          // 各 task_no ごとに transition_data をクエリして全件集約する
+          // （transition_data の主キー: organization_id, project_id, method_id, task_no, transition_id）
+          const taskDetailRows = await pgp.any<{ task_no: number }>(
+            taskDetailSql,
+            [organizationId, proj.project_id, task.method_id]
+          );
+
+          // task_no 一覧が取得できない場合は空配列を返す
+          const taskNos: number[] = taskDetailRows.map(r => Number(r.task_no));
+
+          // 各 task_no の transition_data を並列取得してフラットに集約
+          const tdRowsPerTaskNo = await Promise.all(
+            taskNos.map(taskNo =>
+              pgp.any<{
+                transition_id: string;
+                status: number;
+                progress_rate: number;
+                update_user_id: string | null;
+                worker_name: string | null;
+                create_at: Date;
+                update_at: Date;
+              }>(transitionSql, [organizationId, proj.project_id, task.method_id, taskNo])
+            )
+          );
+          const tdRows = tdRowsPerTaskNo.flat();
 
           // DB にないトランジションも「未開始」として含める
           const tdMap = new Map(tdRows.map(r => [r.transition_id, r]));
