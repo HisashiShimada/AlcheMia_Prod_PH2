@@ -180,8 +180,23 @@ export default function ProgressMonitoring() {
         matchesDepartment = item.department === departmentFilter;
       }
 
+      // ownerFilter: 'my_only' のとき、ログインユーザーが所有するプロジェクトのみに絞り込む
+      // 1次条件: ownerEmail とログインユーザーの email を比較
+      // 2次条件: ownerEmail が空の場合は ownerName と displayName を比較
+      // セッション情報が null の場合はフィルタしない（安全側）
+      const userInfo = getUserInfo();
+      let matchesOwner = true;
+      if (ownerFilter === 'my_only' && userInfo) {
+        if (item.ownerEmail && userInfo.email) {
+          matchesOwner = item.ownerEmail === userInfo.email;
+        } else if (item.ownerName && userInfo.displayName) {
+          matchesOwner = item.ownerName === userInfo.displayName;
+        }
+      }
+
       return (
         matchesSearch &&
+        matchesOwner &&
         matchesCheckout &&
         matchesProjectStatus &&
         matchesDepartment
@@ -190,6 +205,7 @@ export default function ProgressMonitoring() {
   }, [
     allData,
     searchText,
+    ownerFilter,
     checkoutFilter,
     projectStatusFilter,
     departmentFilter,
