@@ -25,6 +25,7 @@ import type { FileData, Project } from '@/types/progress';
 import type { ProjectFile } from '@/types/file';
 import { useApi } from '@/hooks/useApi';
 import { fetchProjects, fetchProjectFilesReal } from '@/utils/apiClient';
+import { getUserInfo } from '@/utils/sessionStorageHelper';
 import type { ApiResponse } from '@/types/api';
 import type { ProjectListResponse } from '@/types/project';
 
@@ -70,7 +71,7 @@ export default function ProgressMonitoring() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<ProgressRecord | null>(null);
   const [fileData, setFileData] = useState<FileData | null>(null);
-  const [managerId] = useState('manager_001'); // TODO: 実際のログインユーザーIDを使用
+  const [managerId] = useState<string>(() => getUserInfo()?.id ?? '');
   // 詳細ボタン押下時のローディング状態（Phase 3）: クリックしたプロジェクトIDを保持
   const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
 
