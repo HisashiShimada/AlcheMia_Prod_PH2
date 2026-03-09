@@ -41,20 +41,20 @@ import {
   FolderOutlined,
   FileOutlined,
 } from '@ant-design/icons';
-import { fetchTemplateFiles, fetchTemplateContent, type TemplateFile } from '@/services/templateApi';
+import { fetchTemplateFiles, type ListFormatsResponse } from '@/services/templateApi';
 import type { 
   NodeData, 
   TemplateError,
 } from '../../../types/editor';
 import { Template, Insertion, PlaceRef} from '@/types/maiml-unified';
 import NestedPropertyEditor, { type PropertyData } from './NestedPropertyEditor';
+import useNamespaceOperations, { type NamespaceData } from '../hooks/useNamespaceOperations';
 import {
   convertPropertiesArrayToNestedFormat,
   convertPropertiesArrayToNestedFormatRecursive,
   convertPropertyDataToPropertiesArray,
   convertPropertyDataToContentsArray,
-  parseNamespacesFromXml,
-  buildTreeData,
+  convertContentsArrayToNestedFormat,
 } from '../utils/templateConverter';
 
 const { Title, Text } = Typography;
@@ -123,16 +123,16 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   // ✅ Phase 2-2: 名前空間取り込み用State（Reference版に統一）
   const [showNamespaceDialog, setShowNamespaceDialog] = useState(false);
-  const [templateFiles, setTemplateFiles] = useState<TemplateFile[]>([]);
+  const [formatsResponse, setFormatsResponse] = useState<ListFormatsResponse>({ departments: [] });
   const [selectedNamespaceFile, setSelectedNamespaceFile] = useState<string>('');
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [importedNamespaces, setImportedNamespaces] = useState<string[]>([]);
   const [namespaceImportMode, setNamespaceImportMode] = useState<'replace_all_properties' | 'replace_all_contents'>('replace_all_properties');
 
   // ✅ Phase 3: 高度な名前空間取り込みUI用State（Reference版に統一）
-  const [namespaceData, setNamespaceData] = useState<{
-    xml?: string;
-    properties?: Record<string, PropertyData>;
+  const [namespacePreview, setNamespacePreview] = useState<{
+    parsedData?: NamespaceData;
+    xmlPreview?: string;
     error?: string;
   }>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -140,6 +140,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   // ✅ Phase 4: バリデーション用State
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // useNamespaceOperations フック
+  const { analyzeNamespaceFile, replaceTemplateWithNamespace } = useNamespaceOperations();
 
   /**
    * テンプレートタイプ判定
@@ -260,8 +263,20 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       }
       
       setProperties(convertedProperties);
+
+      // ✅ Contents変換（useEffectで初期化されていなかったバグを修正）
+      let convertedContents: Record<string, PropertyData> = {};
+      if (mergedTemplate.contents) {
+        if (Array.isArray(mergedTemplate.contents) && mergedTemplate.contents.length > 0) {
+          convertedContents = convertContentsArrayToNestedFormat(mergedTemplate.contents);
+        }
+      }
+      setContents(convertedContents);
+
       setExpandedNodes(new Set());
+      setExpandedContentNodes(new Set());
       setForceRenderKey(Date.now());
+      setForceContentRenderKey(Date.now());
     }
   }, [open, node, mergedTemplate]);
 
@@ -776,76 +791,44 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
    * @param mode - 'replace_all_properties' または 'replace_all_contents'
    */
   const handleOpenNamespaceImport = async (mode: 'replace_all_properties' | 'replace_all_contents' = 'replace_all_properties') => {
-    const organizationId = localStorage.getItem('organizationPrefix') || '';
-    if (!organizationId) {
-      message.error('組織IDが取得できません');
-      return;
-    }
-
-    // カテゴリを判定
-    const category = node.data.placeType === 'material' ? 'material' :
-                     node.data.placeType === 'condition' ? 'condition' : 'result';
-
     setNamespaceImportMode(mode);
     setIsLoadingTemplates(true);
     setShowNamespaceDialog(true);
 
     try {
-      const files = await fetchTemplateFiles(organizationId, category);
-      setTemplateFiles(files);
+      const result = await fetchTemplateFiles();
+      setFormatsResponse(result);
     } catch (error) {
       console.error('テンプレートファイル一覧取得エラー:', error);
       message.error('テンプレートファイル一覧の取得に失敗しました');
-      setTemplateFiles([]);
+      setFormatsResponse({ departments: [] });
     } finally {
       setIsLoadingTemplates(false);
     }
   };
 
   /**
-   * ✅ Phase 3-2: ファイル選択時のプレビュー取得（Reference版に統一）
+   * ✅ Phase 3-2: ファイル選択時のプレビュー取得（analyzeNamespaceFile を使用）
    */
-  const handleSelectNamespaceFile = async (filePath: string) => {
-    setSelectedNamespaceFile(filePath);
-    
-    if (!filePath) {
-      setNamespaceData({});
+  const handleSelectNamespaceFile = async (fileKey: string) => {
+    setSelectedNamespaceFile(fileKey);
+
+    if (!fileKey) {
+      setNamespacePreview({});
       return;
     }
-    
-    const organizationId = localStorage.getItem('organizationPrefix') || '';
-    if (!organizationId) {
-      setNamespaceData({ error: '組織IDが取得できません' });
-      return;
-    }
-    
+
     try {
-      // XMLコンテンツを取得
-      const xmlContent = await fetchTemplateContent(organizationId, filePath);
-      
-      // プロパティを解析
-      const parsedProperties = parseNamespacesFromXml(xmlContent);
-      
-      // 大きなXMLは最初の500行に制限
-      const xmlLines = xmlContent.split('\n');
-      const limitedXml = xmlLines.length > 500 
-        ? xmlLines.slice(0, 500).join('\n') + '\n\n... (残り省略)'
-        : xmlContent;
-      
-      setNamespaceData({
-        xml: limitedXml,
-        properties: parsedProperties
-      });
+      const parsed = await analyzeNamespaceFile(fileKey);
+      setNamespacePreview({ parsedData: parsed });
     } catch (error) {
       console.error('プレビュー読み込みエラー:', error);
-      setNamespaceData({
-        error: 'プレビューの読み込みに失敗しました'
-      });
+      setNamespacePreview({ error: 'プレビューの読み込みに失敗しました' });
     }
   };
 
   /**
-   * ✅ Phase 3-3: テンプレートファイルから名前空間を取り込み（重複チェック付き）（Reference版に統一）
+   * ✅ Phase 3-3: 重複チェックして確認ダイアログを表示
    */
   const handleConfirmImportWithDuplicateCheck = async () => {
     if (!selectedNamespaceFile) {
@@ -853,19 +836,11 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       return;
     }
 
-    // プレビュー内容がある場合はそれを使用、なければ再取得
-    let parsedNamespaces = namespaceData.properties;
-    
-    if (!parsedNamespaces) {
-      const organizationId = localStorage.getItem('organizationPrefix') || '';
-      if (!organizationId) {
-        message.error('組織IDが取得できません');
-        return;
-      }
-
+    let parsed = namespacePreview.parsedData;
+    if (!parsed) {
       try {
-        const xmlContent = await fetchTemplateContent(organizationId, selectedNamespaceFile);
-        parsedNamespaces = parseNamespacesFromXml(xmlContent);
+        parsed = await analyzeNamespaceFile(selectedNamespaceFile);
+        setNamespacePreview({ parsedData: parsed });
       } catch (error) {
         console.error('名前空間取り込みエラー:', error);
         message.error('名前空間の取り込みに失敗しました');
@@ -873,85 +848,73 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       }
     }
 
-    // 重複チェック
-    const duplicates = Object.keys(parsedNamespaces).filter(key => properties[key]);
-    setDuplicateKeys(duplicates);
+    const sourceData = namespaceImportMode === 'replace_all_properties'
+      ? parsed.properties
+      : parsed.contents;
 
-    // 確認ダイアログを表示
+    const duplicates = Object.keys(sourceData).filter(key =>
+      namespaceImportMode === 'replace_all_properties' ? properties[key] : contents[key]
+    );
+    setDuplicateKeys(duplicates);
     setShowConfirmDialog(true);
   };
 
   /**
-   * ✅ Phase 3-3: 取り込み確認後の実行（Reference版に統一）
+   * ✅ Phase 3-3: 取り込み確認後の実行
+   *   replaceTemplateWithNamespace() を使い全置き換え＋namespaceSource付与
    */
   const handleImportNamespace = () => {
-    if (!namespaceData.properties) {
-      message.error('取り込むプロパティがありません');
+    const parsed = namespacePreview.parsedData;
+    if (!parsed) {
+      message.error('取り込むデータがありません');
       return;
     }
 
     try {
-      const fileName = selectedNamespaceFile.split('/').pop() || selectedNamespaceFile;
-      
-      // ✅ Reference版の機能を統合: namespaceOrigin/namespaceSourceメタデータを追加
-      if (namespaceImportMode === 'replace_all_properties') {
-        const processedProperties: Record<string, PropertyData> = {};
-        
-        Object.entries(namespaceData.properties).forEach(([key, propData]) => {
-          processedProperties[key] = {
-            ...propData,
-            namespaceOrigin: true,
-            namespaceSource: {
-              fileName: fileName,
-              importedAt: new Date().toISOString()
+      const templateType = namespaceImportMode === 'replace_all_properties' ? 'properties' : 'contents';
+
+      if (templateType === 'properties') {
+        replaceTemplateWithNamespace(
+          parsed,
+          'properties',
+          // setEditingTemplate として setProperties をラップ
+          (updater) => {
+            if (typeof updater === 'function') {
+              setProperties(prev => {
+                const fakeTemplate = { properties: prev, contents };
+                const next = updater(fakeTemplate as never);
+                return (next as { properties: Record<string, PropertyData> }).properties;
+              });
             }
-          };
-        });
-        
-        // 既存のプロパティにマージ（重複キーは上書き）
-        setProperties(prev => ({
-          ...prev,
-          ...processedProperties
-        }));
-        
+          }
+        );
         setForceRenderKey(Date.now());
-        message.success(
-          `${fileName} から ${Object.keys(processedProperties).length} 個のプロパティを取り込みました`
-        );
-      } else if (namespaceImportMode === 'replace_all_contents') {
-        // ✅ Contents取り込み処理を追加
-        const processedContents: Record<string, PropertyData> = {};
-        
-        Object.entries(namespaceData.properties).forEach(([key, contentData]) => {
-          processedContents[key] = {
-            ...contentData,
-            namespaceOrigin: true,
-            namespaceSource: {
-              fileName: fileName,
-              importedAt: new Date().toISOString()
+        message.success(`${Object.keys(parsed.properties).length} 個のプロパティを取り込みました`);
+      } else {
+        replaceTemplateWithNamespace(
+          parsed,
+          'contents',
+          (updater) => {
+            if (typeof updater === 'function') {
+              setContents(prev => {
+                const fakeTemplate = { properties, contents: prev };
+                const next = updater(fakeTemplate as never);
+                return (next as { contents: Record<string, PropertyData> }).contents;
+              });
             }
-          };
-        });
-        
-        setContents(prev => ({
-          ...prev,
-          ...processedContents
-        }));
-        
-        setForceContentRenderKey(Date.now());
-        message.success(
-          `${fileName} から ${Object.keys(processedContents).length} 個のContentsを取り込みました`
+          }
         );
+        setForceContentRenderKey(Date.now());
+        message.success(`${Object.keys(parsed.contents).length} 個のContentsを取り込みました`);
       }
 
-      // 取り込み済みリストに追加
+      const fileName = selectedNamespaceFile.split('/').pop() || selectedNamespaceFile;
       setImportedNamespaces(prev => [...prev, fileName]);
-      
-      // 状態をクリア
+
       setShowConfirmDialog(false);
       setShowNamespaceDialog(false);
       setSelectedNamespaceFile('');
-      setNamespaceData({});
+      setNamespacePreview({});
       setDuplicateKeys([]);
       setHasChanges(true);
     } catch (error) {
@@ -1007,7 +970,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     
     // PropertyData形式からProperty[]とContent[]に変換
     const convertedProperties = convertPropertyDataToPropertiesArray(properties);
-    const convertedContents = convertPropertyDataToContentsArray(properties);
+    const convertedContents = convertPropertyDataToContentsArray(contents);
     
     const templateRef: Template = {
       ...(node.data.templateRef || {}),
@@ -1402,12 +1365,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                 </Button>
               </Space>
 
-              {Object.keys(properties).length === 0 ? (
+              {Object.keys(contents).length === 0 ? (
                 <Alert message="Contentがありません。「新規Contentを追加」ボタンから追加してください。" type="info" />
               ) : (
-                Object.entries(properties).map(([key, data]) => (
+                Object.entries(contents).map(([key, data]) => (
                   <NestedPropertyEditor
-                    key={`${key}_${forceRenderKey}`}
+                    key={`${key}_${forceContentRenderKey}`}
                     propertyData={data}
                     propertyKey={key}
                     level={0}
@@ -1440,6 +1403,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         onCancel={() => {
           setShowNamespaceDialog(false);
           setSelectedNamespaceFile('');
+          setNamespacePreview({});
         }}
         onOk={handleConfirmImportWithDuplicateCheck}
         width={800}
@@ -1460,7 +1424,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             type="info"
           />
 
-          {/* ✅ Phase 3-1 & 3-2: テンプレートファイル選択（TreeSelect版 + プレビュー連動） */}
+          {/* テンプレートファイル選択（TreeSelect） */}
           <Form.Item label="テンプレートファイル">
             <TreeSelect
               placeholder="テンプレートファイルを選択してください"
@@ -1469,44 +1433,57 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
               loading={isLoadingTemplates}
               style={{ width: '100%' }}
               showSearch
-              treeDefaultExpandAll={false}
-              treeData={buildTreeData(templateFiles)}
-              filterTreeNode={(input, node) =>
-                (node?.title?.toString() ?? '').toLowerCase().includes(input.toLowerCase())
+              treeDefaultExpandAll={true}
+              treeData={formatsResponse.departments.flatMap(dept =>
+                dept.folders.map(folder => ({
+                  title: `${dept.departmentCd} / ${folder.folderName}`,
+                  value: `${dept.departmentCd}/${folder.folderName}`,
+                  selectable: false,
+                  children: folder.files.map(file => ({
+                    title: file.fileName,
+                    value: file.key,
+                    isLeaf: true,
+                  })),
+                }))
+              )}
+              filterTreeNode={(input, treeNode) =>
+                (treeNode?.title?.toString() ?? '').toLowerCase().includes(input.toLowerCase())
               }
             />
           </Form.Item>
 
-          {/* ✅ Phase 3-2: プレビュー表示 */}
+          {/* プレビュー表示 */}
           {selectedNamespaceFile && (
             <>
-              {namespaceData.error && (
+              {namespacePreview.error && (
                 <Alert
                   message="プレビューエラー"
-                  description={namespaceData.error}
+                  description={namespacePreview.error}
                   type="error"
                   style={{ marginBottom: 16 }}
                 />
               )}
-              
-              {namespaceData.properties && (
+
+              {namespacePreview.parsedData && (
                 <Alert
                   message={
                     <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                      <Text strong>📊 プロパティプレビュー ({Object.keys(namespaceData.properties).length}件)</Text>
+                      <Text strong>
+                        📊 プロパティ: {Object.keys(namespacePreview.parsedData.properties).length}件 ／
+                        コンテンツ: {Object.keys(namespacePreview.parsedData.contents).length}件
+                      </Text>
                       <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                        {Object.entries(namespaceData.properties).map(([key, data]) => (
+                        {Object.entries(
+                          namespaceImportMode === 'replace_all_properties'
+                            ? namespacePreview.parsedData.properties
+                            : namespacePreview.parsedData.contents
+                        ).map(([key, data]) => (
                           <div key={key} style={{ marginBottom: 8, padding: 8, backgroundColor: '#f0f5ff', borderRadius: 4 }}>
                             <Text strong>{key}</Text>
-                            {data.attributes?.['xsi:type'] && (
+                            {(data as PropertyData).attributes?.['xsi:type'] && (
                               <Tag color="blue" style={{ marginLeft: 8 }}>
-                                {data.attributes['xsi:type']}
+                                {(data as PropertyData).attributes['xsi:type']}
                               </Tag>
-                            )}
-                            {data.elements?.value && (
-                              <div style={{ marginLeft: 16, fontSize: 12 }}>
-                                値: {data.elements.value}
-                              </div>
                             )}
                           </div>
                         ))}
@@ -1517,37 +1494,14 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
                   style={{ marginBottom: 16 }}
                 />
               )}
-              
-              {namespaceData.xml && (
-                <Collapse
-                  items={[
-                    {
-                      key: 'xml',
-                      label: '📄 XMLプレビュー（最初の500行）',
-                      children: (
-                        <pre style={{
-                          maxHeight: 300,
-                          overflowY: 'auto',
-                          backgroundColor: '#f5f5f5',
-                          padding: 12,
-                          borderRadius: 4,
-                          fontSize: 12
-                        }}>
-                          {namespaceData.xml}
-                        </pre>
-                      )
-                    }
-                  ]}
-                />
-              )}
             </>
           )}
 
-          {/* テンプレートファイル一覧 */}
-          {!isLoadingTemplates && templateFiles.length === 0 && (
+          {/* ファイルなし警告 */}
+          {!isLoadingTemplates && formatsResponse.departments.length === 0 && (
             <Alert
               message="テンプレートファイルが見つかりませんでした"
-              description="対象カテゴリのテンプレートファイルが存在しません"
+              description="formats/ 配下に .xml ファイルが存在しません"
               type="warning"
             />
           )}
@@ -1621,32 +1575,37 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             />
           )}
           
-          {namespaceData.properties && (
-            <div>
-              <Text strong>取り込むプロパティ: {Object.keys(namespaceData.properties).length}件</Text>
-              <div style={{ 
-                maxHeight: 300, 
-                overflowY: 'auto', 
-                marginTop: 8,
-                padding: 12,
-                backgroundColor: '#f5f5f5',
-                borderRadius: 4
-              }}>
-                {Object.keys(namespaceData.properties).map(key => (
-                  <div key={key} style={{ marginBottom: 4 }}>
-                    <Tag color={duplicateKeys.includes(key) ? 'orange' : 'blue'}>
-                      {key}
-                    </Tag>
-                    {duplicateKeys.includes(key) && (
-                      <Text type="warning" style={{ marginLeft: 8, fontSize: 12 }}>
-                        (上書き)
-                      </Text>
-                    )}
-                  </div>
-                ))}
+          {namespacePreview.parsedData && (() => {
+            const sourceData = namespaceImportMode === 'replace_all_properties'
+              ? namespacePreview.parsedData.properties
+              : namespacePreview.parsedData.contents;
+            return (
+              <div>
+                <Text strong>取り込む要素: {Object.keys(sourceData).length}件</Text>
+                <div style={{
+                  maxHeight: 300,
+                  overflowY: 'auto',
+                  marginTop: 8,
+                  padding: 12,
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: 4
+                }}>
+                  {Object.keys(sourceData).map(key => (
+                    <div key={key} style={{ marginBottom: 4 }}>
+                      <Tag color={duplicateKeys.includes(key) ? 'orange' : 'blue'}>
+                        {key}
+                      </Tag>
+                      {duplicateKeys.includes(key) && (
+                        <Text type="warning" style={{ marginLeft: 8, fontSize: 12 }}>
+                          (上書き)
+                        </Text>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </Space>
       </Modal>
       
