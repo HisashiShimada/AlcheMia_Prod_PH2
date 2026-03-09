@@ -36,7 +36,6 @@ import {
   CheckOutlined,
   MinusCircleOutlined,
 } from '@ant-design/icons';
-import axios from 'axios';
 import PetriNetVisualization from './PetriNetVisualization';
 import type {
   FileData,
@@ -74,9 +73,10 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
 
   /**
    * ファイル詳細取得
+   * managerId はサーバー側 JWT 認証から組織IDを取得するため不要
    */
   const fetchFileDetails = useCallback(async () => {
-    if (!fileData || !fileData.maimlFileKey || !managerId) {
+    if (!fileData || !fileData.maimlFileKey) {
       console.warn('⚠️ [FileProgressDetail] Missing required parameters');
       return;
     }
@@ -87,7 +87,6 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
     try {
       console.log('🔍 [FileProgressDetail] ファイル詳細取得:', {
         fileKey: fileData.maimlFileKey.substring(0, 50) + '...',
-        managerId,
         timestamp: new Date().toISOString(),
       });
 
@@ -106,10 +105,12 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       });
 
       // ============================================================
-      // API呼び出し
+      // API呼び出し（createApiClient 経由で認証ヘッダーを自動付与）
       // ============================================================
-      const response = await axios.get(
-        `/api/v1/progress/projects/${encodeURIComponent(projectName)}/work-details`
+      const { createApiClient } = await import('@/utils/authUtils');
+      const client = createApiClient();
+      const response = await client.get(
+        `/progress/projects/${encodeURIComponent(projectName)}/work-details`
       );
 
       if (response.data.success) {
@@ -141,20 +142,21 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
     } catch (err) {
       console.error('❌ [FileProgressDetail] Fetch error:', err);
       const errorMessage =
-        axios.isAxiosError(err) && err.response?.data?.error
-          ? err.response.data.error
+        err instanceof Error
+          ? err.message
           : 'ファイル詳細の取得に失敗しました';
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [fileData, managerId]);
+  }, [fileData]);
 
   /**
    * ダイアログが開かれたらデータ取得
+   * managerId はサーバー側 JWT 認証から組織IDを取得するため不要
    */
   useEffect(() => {
-    if (open && fileData && managerId) {
+    if (open && fileData) {
       fetchFileDetails();
     } else if (!open) {
       // ダイアログを閉じたらリセット
@@ -162,7 +164,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       setSelectedWorkIndex(0);
       setError(null);
     }
-  }, [open, fileData, managerId, fetchFileDetails]);
+  }, [open, fileData, fetchFileDetails]);
 
   /**
    * タブ変更ハンドラ

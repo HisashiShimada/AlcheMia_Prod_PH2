@@ -86,16 +86,55 @@ export default function ProgressMonitoring() {
     []
   );
 
+  /**
+   * プロジェクトステータスの数値コードを文字列キーに変換する
+   * APIレスポンスの status は数値（0〜5）だが、
+   * フィルタリング・表示ロジックは文字列キーを期待しているため変換が必要
+   * 
+   * マッピング（バックエンド code_master テーブルに基づく）:
+   * 0 → 'planning'       プロジェクト計画中
+   * 1 → 'pending'        タスク実行待ち
+   * 2 → 'in_progress'    タスク実行中
+   * 3 → 'review_waiting' タスク結果レビュー待ち
+   * 4 → 'completed'      プロジェクト完了
+   * 5 → 'error'          タスク異常終了
+   */
+  const getStatusStringFromNumber = (status: number): string => {
+    const map: Record<number, string> = {
+      0: 'planning',
+      1: 'pending',
+      2: 'in_progress',
+      3: 'review_waiting',
+      4: 'completed',
+      5: 'error',
+    };
+    return map[status] ?? 'planning';
+  };
+
   // APIから取得したデータを進捗記録形式に変換
   const allData: ProgressRecord[] = useMemo(() => {
-    if (!projectsData?.data.projects) return [];
-    
-    return projectsData.data.projects.map(
+    // ApiResponse<T> は ApiSuccessResponse<T> | ApiErrorResponse のユニオン型のため
+    // success チェックで型を ApiSuccessResponse に絞り込んでから data にアクセスする
+    if (!projectsData || !projectsData.success) return [];
+
+    const rawData = projectsData.data;
+
+    // APIレスポンスは data が Project[] 直接の場合（現在の実装）と
+    // data.projects の場合（UI仕様書の想定）があるため両方に対応する
+    const projects = Array.isArray(rawData)
+      ? (rawData as unknown as Project[])
+      : ((rawData as unknown as ProjectListResponse)?.projects ?? []);
+
+    if (!projects.length) return [];
+
+    return projects.map(
       (item, index) => ({
         key: `${index + 1}`,
         projectId: item.id,
         projectName: item.name,
-        projectStatus: item.status,
+        // APIの status は実際には数値（0〜5）で返ってくるため Number() で明示キャストし文字列キーに変換する
+        // @/types/progress の Project.status は ProjectStatus（文字列型）だが実データは数値
+        projectStatus: getStatusStringFromNumber(Number(item.status)),
         department: item.department || '',
         isCheckedOut: item.isCheckedOut || false,
         ownerEmail: item.ownerEmail || '',
