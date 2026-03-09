@@ -28,11 +28,12 @@
     "en": "English"
   },
   "roles": {
-    "provider": "プロバイダ",
+    "provider": "プロバイダー",
     "system_admin": "システム管理者",
     "data_admin": "データ管理者",
     "experiment_admin": "実験管理者",
-    "experiment_worker": "実験作業者"
+    "experiment_worker": "実験作業者",
+    "mi_engineer": "MI技術者"
   },
   "menu": {
     "provider": {
@@ -587,6 +588,556 @@
       "selectAllMethods": "すべてのメソッドを選択してください",
       "invalidTrialCount": "試行回数は1〜999の範囲で入力してください",
       "invalidOrder": "順序は1〜{max}の範囲で入力してください"
+    }
+  },
+  "corporationManagement": {
+    "title": "会社管理",
+    "searchPlaceholder": "会社名、更新日時で検索",
+    "columns": {
+      "corporationName": "会社名",
+      "updatedAt": "更新日時"
+    },
+    "buttons": {
+      "csvUpload": "CSV\nアップロード",
+      "csvDownload": "CSV\nダウンロード",
+      "add": "追加",
+      "activate": "アクティブ",
+      "deactivate": "非アクティブ",
+      "reload": "リロード",
+      "edit": "編集",
+      "save": "保存",
+      "cancel": "キャンセル"
+    },
+    "status": {
+      "active": "アクティブ",
+      "inactive": "非アクティブ"
+    },
+    "modal": {
+      "addTitle": "会社追加",
+      "editTitle": "会社編集"
+    },
+    "form": {
+      "corporationName": "会社名",
+      "corporationNameRequired": "会社名を入力してください",
+      "corporationNameMaxLength": "会社名は1〜50文字で入力してください",
+      "corporationNamePlaceholder": "株式会社サンプル",
+      "status": "状態"
+    },
+    "messages": {
+      "fetchError": "会社データの取得に失敗しました",
+      "invalidDataFormat": "データ形式が不正です",
+      "activateSelectRequired": "アクティブにする会社を選択してください",
+      "deactivateSelectRequired": "非アクティブにする会社を選択してください",
+      "activateConfirmTitle": "選択した会社をアクティブにしますか？",
+      "activateConfirmContent": "{count}件の会社がアクティブになります。",
+      "activateSuccess": "{count}件の会社をアクティブにしました",
+      "activateError": "アクティブ化に失敗しました",
+      "deactivateConfirmTitle": "選択した会社を非アクティブにしますか？",
+      "deactivateConfirmContent": "{count}件の会社が非アクティブになります。",
+      "deactivateSuccess": "{count}件の会社を非アクティブにしました",
+      "deactivateError": "非アクティブ化に失敗しました",
+      "toggleConfirmTitle": "{name}を{action}にしますか？",
+      "toggleConfirmContent": "この会社を{action}状態に変更します。",
+      "toggleSuccess": "{name}を{action}にしました",
+      "toggleError": "ステータスの変更に失敗しました",
+      "reloadSuccess": "データをリロードしました",
+      "csvDownloadSuccess": "CSVファイルをダウンロードしました",
+      "csvDownloadError": "CSVダウンロードに失敗しました",
+      "csvUploadSuccess": "CSVファイルをアップロードしました",
+      "csvUploadError": "CSVアップロードに失敗しました",
+      "saveSuccess": "会社情報を更新しました",
+      "addSuccess": "会社を追加しました",
+      "saveError": "保存に失敗しました"
+    },
+    "pagination": {
+      "showTotal": "全 {total} 件"
+    }
+  },
+  "organizationManagement": {
+    "searchPlaceholder": "組織CD、組織e-mail、代表システム管理者、更新日時で検索",
+    "columns": {
+      "organizationCd": "組織CD",
+      "organizationDisplayName": "組織表示名",
+      "organizationEmail": "組織e-mail",
+      "chiefUserName": "代表システム管理者",
+      "corporationName": "会社名",
+      "twoFactorAuth": "二段階認証判定",
+      "useDeemedProgress": "みなし進捗使用フラグ",
+      "updatedAt": "更新日時"
+    },
+    "yesNo": {
+      "yes": "あり",
+      "no": "なし"
+    },
+    "buttons": {
+      "csvUpload": "CSVアップロード",
+      "csvDownload": "CSVダウンロード",
+      "add": "追加",
+      "activate": "アクティブ",
+      "deactivate": "非アクティブ",
+      "reload": "リロード",
+      "edit": "編集",
+      "certDownload": "証明書DL",
+      "save": "保存",
+      "cancel": "キャンセル"
+    },
+    "status": {
+      "active": "アクティブ",
+      "inactive": "非アクティブ"
+    },
+    "filters": {
+      "organizationDisplayName": "組織表示名",
+      "corporationName": "会社名",
+      "twoFactorAuth": "二段階認証判定",
+      "useDeemedProgress": "みなし進捗使用フラグ"
+    },
+    "modal": {
+      "addTitle": "組織追加",
+      "editTitle": "組織編集"
+    },
+    "form": {
+      "organizationCd": "組織CD",
+      "organizationCdRequired": "組織CDを入力してください",
+      "organizationCdDuplicate": "この組織CDは既に使用されています",
+      "organizationDisplayName": "組織表示名",
+      "organizationDisplayNameRequired": "組織表示名を入力してください",
+      "organizationEmail": "組織e-mail",
+      "organizationEmailRequired": "組織e-mailを入力してください",
+      "chiefUserId": "代表システム管理者",
+      "chiefUserIdRequired": "代表システム管理者を選択してください",
+      "chiefUserIdPlaceholder": "代表システム管理者を選択してください",
+      "corporationName": "会社名",
+      "corporationNamePlaceholder": "会社名を選択してください",
+      "contractCapacity": "契約容量",
+      "contractCapacityRequired": "契約容量を入力してください",
+      "contractCapacityPlaceholder": "契約容量を入力してください",
+      "contractedUsers": "契約ユーザー数",
+      "contractedUsersRequired": "契約ユーザー数を入力してください",
+      "contractedUsersPlaceholder": "契約ユーザー数を入力してください",
+      "contractedProjects": "契約プロジェクト数",
+      "contractedProjectsRequired": "契約プロジェクト数を入力してください",
+      "contractedProjectsPlaceholder": "契約プロジェクト数を入力してください",
+      "isEntry": "二段階認証判定",
+      "isEntryRequired": "二段階認証判定を選択してください",
+      "useDeemedProgress": "みなし進捗使用フラグ",
+      "useDeemedProgressRequired": "みなし進捗使用フラグを選択してください",
+      "status": "状態",
+      "chiefUserName": "代表システム管理者",
+      "chiefUserNameRequired": "代表システム管理者を入力してください",
+      "chiefUserEmail": "代表者メールアドレス",
+      "chiefUserEmailRequired": "代表者メールアドレスを入力してください",
+      "organizationInfo": "組織情報",
+      "chiefInfo": "代表者情報"
+    },
+    "messages": {
+      "fetchError": "組織データの取得に失敗しました",
+      "invalidDataFormat": "データ形式が不正です",
+      "certDownloadSuccess": "{cd}の証明書をダウンロードしました",
+      "certDownloadError": "証明書のダウンロードに失敗しました",
+      "systemAdminFetchError": "システム管理者の取得に失敗しました",
+      "corporationFetchError": "会社データの取得に失敗しました",
+      "corporationInvalidFormat": "会社データの形式が不正です",
+      "activateSelectRequired": "アクティブにする組織を選択してください",
+      "deactivateSelectRequired": "非アクティブにする組織を選択してください",
+      "activateConfirmTitle": "選択した組織をアクティブにしますか？",
+      "activateConfirmContent": "{count}件の組織がアクティブになります。",
+      "activateSuccess": "{count}件の組織をアクティブにしました",
+      "activateError": "アクティブ化に失敗しました",
+      "deactivateConfirmTitle": "選択した組織を非アクティブにしますか？",
+      "deactivateConfirmContent": "{count}件の組織が非アクティブになります。",
+      "deactivateSuccess": "{count}件の組織を非アクティブにしました",
+      "deactivateError": "非アクティブ化に失敗しました",
+      "toggleConfirmTitle": "{cd}を{action}にしますか？",
+      "toggleConfirmContent": "この組織を{action}状態に変更します。",
+      "toggleSuccess": "{cd}を{action}にしました",
+      "toggleError": "ステータスの変更に失敗しました",
+      "reloadSuccess": "データをリロードしました",
+      "csvDownloadSuccess": "CSVファイルをダウンロードしました",
+      "csvDownloadError": "CSVダウンロードに失敗しました",
+      "csvUploadSuccess": "CSVファイルをアップロードしました",
+      "csvUploadError": "CSVアップロードに失敗しました",
+      "saveSuccess": "組織情報を更新しました",
+      "addSuccess": "組織を追加しました",
+      "saveError": "保存に失敗しました"
+    },
+    "pagination": {
+      "showTotal": "全 {total} 件"
+    }
+  },
+  "informationDownload": {
+    "title": "情報ダウンロード",
+    "csvDownload": "CSVダウンロード",
+    "messages": {
+      "downloadSuccess": "{filename} をダウンロードしました",
+      "downloadError": "CSVダウンロードに失敗しました"
+    }
+  },
+  "systemOverview": {
+    "errorTitle": "データ取得エラー",
+    "errorFallback": "データが取得できませんでした",
+    "sections": {
+      "users": "ユーザー",
+      "sessions": "セッション",
+      "experimentSystem": "実験システム",
+      "storage": "ストレージ",
+      "loginLast7Days": "ログイン（過去7日）"
+    },
+    "labels": {
+      "totalUsers": "総ユーザー数",
+      "activeUsers": "アクティブ",
+      "contractedUsers": "契約ユーザー数",
+      "totalSessions": "総セッション",
+      "totalProjects": "総プロジェクト数",
+      "planning": "プロジェクト計画中/タスク実行待ち",
+      "inProgress": "タスク実行中/タスク結果レビュー待ち",
+      "completed": "プロジェクト完了/タスク異常終了",
+      "contractedProjects": "契約プロジェクト数",
+      "totalFiles": "総ファイル数",
+      "usedCapacity": "使用容量",
+      "contractCapacity": "契約容量",
+      "totalLogins": "総ログイン",
+      "success": "成功",
+      "failed": "失敗"
+    },
+    "messages": {
+      "fetchError": "システム概要情報の取得に失敗しました"
+    }
+  },
+  "userManagement": {
+    "searchPlaceholder": "ユーザー名、メールアドレスで検索",
+    "columns": {
+      "userName": "ユーザー名",
+      "mailAddress": "メールアドレス",
+      "departmentName": "所属部署",
+      "roleName": "ロール",
+      "lastLoginAt": "最終ログイン"
+    },
+    "buttons": {
+      "csvUpload": "CSVアップロード",
+      "csvDownload": "CSVダウンロード",
+      "add": "追加",
+      "activate": "アクティブ",
+      "deactivate": "非アクティブ",
+      "reload": "リロード",
+      "edit": "編集",
+      "save": "保存",
+      "cancel": "キャンセル"
+    },
+    "status": {
+      "active": "アクティブ",
+      "inactive": "非アクティブ"
+    },
+    "filters": {
+      "department": "所属部署",
+      "role": "ロール"
+    },
+    "modal": {
+      "addTitle": "ユーザー追加",
+      "editTitle": "ユーザー編集"
+    },
+    "form": {
+      "userName": "ユーザー名",
+      "userNameRequired": "ユーザー名を入力してください",
+      "mailAddress": "メールアドレス",
+      "mailAddressRequired": "メールアドレスを入力してください",
+      "mailAddressInvalid": "正しいメールアドレスを入力してください",
+      "department": "所属部署",
+      "departmentRequired": "所属部署を選択してください",
+      "departmentPlaceholder": "所属部署を選択",
+      "role": "ロール",
+      "roleRequired": "ロールを選択してください",
+      "rolePlaceholder": "ロールを選択",
+      "isActive": "アクティブ判定",
+      "isActiveRequired": "アクティブ判定を選択してください"
+    },
+    "messages": {
+      "fetchError": "ユーザー一覧の取得に失敗しました",
+      "departmentFetchError": "部署一覧の取得に失敗しました",
+      "roleFetchError": "ロール一覧の取得に失敗しました",
+      "activateSelectRequired": "アクティブにするユーザーを選択してください",
+      "deactivateSelectRequired": "非アクティブにするユーザーを選択してください",
+      "activateConfirmTitle": "選択したユーザーをアクティブにしますか？",
+      "activateConfirmContent": "{count}件のユーザーがアクティブになります。",
+      "activateSuccess": "{count}件のユーザーをアクティブにしました",
+      "activateError": "アクティブ化に失敗しました",
+      "deactivateConfirmTitle": "選択したユーザーを非アクティブにしますか？",
+      "deactivateConfirmContent": "{count}件のユーザーが非アクティブになります。",
+      "deactivateSuccess": "{count}件のユーザーを非アクティブにしました",
+      "deactivateError": "非アクティブ化に失敗しました",
+      "toggleConfirmTitle": "{name}を{action}にしますか？",
+      "toggleConfirmContent": "このユーザーを{action}状態に変更します。",
+      "toggleSuccess": "{name}を{action}にしました",
+      "toggleError": "ステータス更新に失敗しました",
+      "reloadSuccess": "データをリロードしました",
+      "csvUploadSuccess": "CSVファイルをアップロードしました",
+      "csvUploadError": "CSVアップロードに失敗しました",
+      "csvDownloadSuccess": "CSVファイルをダウンロードしました",
+      "saveSuccess": "ユーザー情報を更新しました",
+      "addSuccess": "ユーザーを追加しました",
+      "saveError": "保存に失敗しました"
+    },
+    "pagination": {
+      "showTotal": "全 {total} 件"
+    }
+  },
+  "departmentManagement": {
+    "searchPlaceholder": "部署CD、部署名で検索",
+    "columns": {
+      "departmentCd": "部署CD",
+      "departmentName": "部署名",
+      "updatedAt": "更新日時"
+    },
+    "buttons": {
+      "csvUpload": "CSVアップロード",
+      "csvDownload": "CSVダウンロード",
+      "add": "追加",
+      "activate": "アクティブ",
+      "deactivate": "非アクティブ",
+      "reload": "リロード",
+      "edit": "編集",
+      "save": "保存",
+      "cancel": "キャンセル"
+    },
+    "status": {
+      "active": "アクティブ",
+      "inactive": "非アクティブ"
+    },
+    "modal": {
+      "addTitle": "部署追加",
+      "editTitle": "部署編集"
+    },
+    "form": {
+      "departmentCd": "部署CD",
+      "departmentCdRequired": "部署CDを入力してください",
+      "departmentCdPlaceholder": "部署CDを入力してください",
+      "departmentName": "部署名",
+      "departmentNameRequired": "部署名を入力してください",
+      "departmentNamePlaceholder": "部署名を入力してください",
+      "status": "状態"
+    },
+    "messages": {
+      "fetchError": "部署の取得に失敗しました",
+      "activateSelectRequired": "アクティブにする部署を選択してください",
+      "deactivateSelectRequired": "非アクティブにする部署を選択してください",
+      "activateConfirmTitle": "選択した部署をアクティブにしますか？",
+      "activateConfirmContent": "{count}件の部署がアクティブになります。",
+      "activateSuccess": "{count}件の部署をアクティブにしました",
+      "deactivateConfirmTitle": "選択した部署を非アクティブにしますか？",
+      "deactivateConfirmContent": "{count}件の部署が非アクティブになります。",
+      "deactivateSuccess": "{count}件の部署を非アクティブにしました",
+      "toggleConfirmTitle": "{name}を{action}にしますか？",
+      "toggleConfirmContent": "この部署を{action}状態に変更します。",
+      "toggleSuccess": "{name}を{action}にしました",
+      "reloadSuccess": "データをリロードしました",
+      "csvUploadSuccess": "CSVファイルをアップロードしました",
+      "csvDownloadSuccess": "CSVファイルをダウンロードしました",
+      "saveSuccess": "部署情報を更新しました",
+      "addSuccess": "部署を追加しました"
+    },
+    "pagination": {
+      "showTotal": "全 {total} 件"
+    }
+  },
+  "roleManagement": {
+    "searchPlaceholder": "機能名で検索",
+    "columns": {
+      "roleCd": "ロールCD",
+      "roleName": "ロール名",
+      "functionName": "機能名"
+    },
+    "buttons": {
+      "csvUpload": "CSVアップロード",
+      "csvDownload": "CSVダウンロード",
+      "add": "追加",
+      "activate": "アクティブ",
+      "deactivate": "非アクティブ",
+      "reload": "リロード",
+      "edit": "編集",
+      "save": "保存",
+      "cancel": "キャンセル"
+    },
+    "status": {
+      "active": "アクティブ",
+      "inactive": "非アクティブ"
+    },
+    "filters": {
+      "roleName": "ロール名"
+    },
+    "modal": {
+      "addTitle": "ロール追加",
+      "editTitle": "ロール編集"
+    },
+    "form": {
+      "roleCd": "ロールCD",
+      "roleCdRequired": "ロールCDを入力してください",
+      "roleCdPlaceholder": "ロールCDを入力してください",
+      "roleName": "ロール名",
+      "roleNameRequired": "ロール名を入力してください",
+      "roleNamePlaceholder": "ロール名を入力してください",
+      "functionName": "機能名",
+      "initialScreen": "初期画面機能名",
+      "initialScreenPlaceholder": "選択してください",
+      "status": "状態"
+    },
+    "messages": {
+      "fetchError": "ロールマスタの取得に失敗しました",
+      "activateSelectRequired": "アクティブにするロールを選択してください",
+      "deactivateSelectRequired": "非アクティブにするロールを選択してください",
+      "activateConfirmTitle": "選択したロールをアクティブにしますか？",
+      "activateConfirmContent": "{count}件のロールがアクティブになります。",
+      "activateSuccess": "{count}件のロールをアクティブにしました",
+      "deactivateConfirmTitle": "選択したロールを非アクティブにしますか？",
+      "deactivateConfirmContent": "{count}件のロールが非アクティブになります。",
+      "deactivateSuccess": "{count}件のロールを非アクティブにしました",
+      "toggleConfirmTitle": "{name}を{action}にしますか？",
+      "toggleConfirmContent": "このロールを{action}状態に変更します。",
+      "toggleSuccess": "{name}を{action}にしました",
+      "reloadSuccess": "データをリロードしました",
+      "csvUploadSuccess": "CSVをアップロードしました",
+      "csvDownloadSuccess": "CSVファイルをダウンロードしました",
+      "functionUpdated": "機能を更新しました",
+      "functionSet": "機能を設定しました（「保存」ボタンでDBに反映されます）",
+      "saveSuccess": "ロール情報を更新しました",
+      "addSuccess": "ロールを追加しました"
+    },
+    "pagination": {
+      "showTotal": "全 {total} 件"
+    }
+  },
+  "sessionManagement": {
+    "searchPlaceholder": "ユーザー名、メールアドレス、セッション時間で検索",
+    "columns": {
+      "user": "ユーザー",
+      "sessionDuration": "セッション時間",
+      "operation": "操作"
+    },
+    "buttons": {
+      "reload": "リロード",
+      "terminate": "終了",
+      "self": "自分"
+    },
+    "autoRefresh": {
+      "label": "自動更新",
+      "enableSuccess": "自動更新を有効にしました（{interval}分間隔）",
+      "disableInfo": "自動更新を無効にしました",
+      "intervalChanged": "更新間隔を{interval}分に変更しました",
+      "options": {
+        "1min": "1分",
+        "5min": "5分",
+        "10min": "10分",
+        "30min": "30分"
+      }
+    },
+    "messages": {
+      "fetchError": "セッション一覧の取得に失敗しました",
+      "terminateConfirmTitle": "セッションを終了しますか？",
+      "terminateConfirmContent": "このセッションは強制的に終了されます。ユーザーは再度ログインが必要になります。",
+      "terminateSuccess": "セッションを終了しました",
+      "terminateError": "セッションの終了に失敗しました",
+      "reloadSuccess": "データをリロードしました"
+    },
+    "pagination": {
+      "showTotal": "全 {total} 件"
+    }
+  },
+  "masterManagement": {
+    "selectLabel": "マスタ選択：",
+    "displayScopeLabel": "表示切替：",
+    "masterSelect": "マスタ選択",
+    "displayScope": "表示切替",
+    "displayScopeOptions": {
+      "all": "全体",
+      "own": "自組織"
+    },
+    "buttons": {
+      "csvUpload": "CSVアップロード",
+      "csvDownload": "CSVダウンロード",
+      "add": "追加",
+      "activate": "アクティブ",
+      "deactivate": "非アクティブ",
+      "reload": "リロード",
+      "edit": "編集",
+      "save": "保存",
+      "cancel": "キャンセル"
+    },
+    "status": {
+      "active": "アクティブ",
+      "inactive": "非アクティブ"
+    },
+    "modal": {
+      "addTitle": "マスタ追加",
+      "editTitle": "マスタ編集"
+    },
+    "form": {
+      "status": "状態",
+      "selectPlaceholder": "{label}を選択してください",
+      "inputPlaceholder": "{label}を入力してください",
+      "required": "{label}を入力してください",
+      "requiredSelect": "{label}を選択してください"
+    },
+    "csvError": {
+      "title": "CSVアップロードエラー",
+      "description": "以下のエラーにより、全てロールバックされました。",
+      "instruction": "エラー内容を確認して、修正後に再度アップロードしてください。",
+      "failureCount": "失敗件数: {count}件"
+    },
+    "creatorWarning": "Creatorに紐づくVendorまたはInstrumentに不備がある場合、該当レコードは強調表示されます。",
+    "messages": {
+      "fetchError": "マスタの取得に失敗しました: {error}",
+      "csvNotSupported": "このマスタはCSVアップロードに対応していません",
+      "unsupportedCsvUpload": "このマスタはCSVアップロードに対応していません",
+      "sessionTokenError": "セッショントークンが取得できません",
+      "unsupportedMasterId": "この画面では管理できません",
+      "csvUploadSuccess": "CSVファイルをアップロードしました（{count}件登録）",
+      "csvUploadError": "CSVアップロードに失敗しました（{count}件のエラー）",
+      "csvUploadFailed": "CSVアップロードに失敗しました",
+      "csvUploadFailure": "CSVアップロードに失敗しました（{count}件のエラー）",
+      "csvDownloadSuccess": "CSVファイルをダウンロードしました",
+      "csvDownloadError": "CSVダウンロードに失敗しました",
+      "activateSelectRequired": "アクティブにするマスタを選択してください",
+      "deactivateSelectRequired": "非アクティブにするマスタを選択してください",
+      "activateConfirmTitle": "選択したマスタをアクティブにしますか？",
+      "activateConfirmContent": "{count}件のマスタがアクティブになります。",
+      "activateSuccess": "{count}件のマスタをアクティブにしました",
+      "activateError": "アクティブ化に失敗しました",
+      "deactivateConfirmTitle": "選択したマスタを非アクティブにしますか？",
+      "deactivateConfirmContent": "{count}件のマスタが非アクティブになります。",
+      "deactivateSuccess": "{count}件のマスタを非アクティブにしました",
+      "deactivateError": "非アクティブ化に失敗しました",
+      "toggleConfirmTitle": "{name}を{action}にしますか？",
+      "toggleConfirmContent": "このマスタを{action}状態に変更します。",
+      "toggleSuccess": "{name}を{action}にしました",
+      "toggleError": "ステータスの変更に失敗しました",
+      "reloadSuccess": "データをリロードしました",
+      "saveSuccess": "マスタ情報を更新しました",
+      "updateSuccess": "マスタ情報を更新しました",
+      "addSuccess": "マスタを追加しました",
+      "updateFailed": "更新に失敗しました",
+      "addFailed": "追加に失敗しました",
+      "idDuplicate": "入力されたIDは既に存在しています"
+    },
+    "pagination": {
+      "showTotal": "全 {total} 件"
+    }
+  },
+  "organizationStatistics": {
+    "title": "統計情報",
+    "lastUpdated": "最終更新",
+    "buttons": {
+      "reload": "リロード"
+    },
+    "storage": {
+      "title": "ストレージ使用量",
+      "usageRate": "利用率",
+      "fileCount": "ファイル数"
+    },
+    "projects": {
+      "title": "プロジェクト数",
+      "registrationRate": "登録率"
+    },
+    "activeUsers": {
+      "title": "アクティブユーザー",
+      "registrationRate": "登録率"
     }
   },
   "instructionRegistration": {

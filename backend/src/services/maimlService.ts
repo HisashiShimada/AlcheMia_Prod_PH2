@@ -951,6 +951,136 @@ function cleanOrphanedArcs(draft: Draft): Draft {
   };
 }
 
+// ========== フォーマットテンプレート関連 ==========
+
+/**
+ * フォーマットテンプレートファイル型
+ */
+export interface FormatTemplateFile {
+  key: string;       // 組織IDなし相対パス（例: formats/dept_001/material/template1.xml）
+  fileName: string;  // ファイル名のみ
+  size: number;
+}
+
+/**
+ * フォーマットフォルダ型
+ */
+export interface FormatFolder {
+  folderName: 'material' | 'condition' | 'result';
+  files: FormatTemplateFile[];
+}
+
+/**
+ * 部門ごとのフォーマット情報型
+ */
+export interface FormatDepartment {
+  departmentCd: string;
+  folders: FormatFolder[];
+}
+
+/**
+ * listFormatsFiles レスポンス型
+ */
+export interface ListFormatsResponse {
+  departments: FormatDepartment[];
+}
+
+/**
+ * フォーマットテンプレートファイル一覧取得
+ *
+ * formats/ 配下を全部門横断で走査し、material/ condition/ result/ 配下の
+ * .xml ファイルのみを抽出して階層構造で返す。
+ *
+ * @param organizationId - 組織ID
+ * @returns 部門 → フォルダ → ファイルの階層構造
+ */
+export async function listFormatsFiles(organizationId: string): Promise<ListFormatsResponse> {
+  try {
+    console.log('📁 [maimlService] フォーマット一覧取得開始:', organizationId);
+
+    // formats/ 配下のファイルを全件取得
+    const allFiles = await storageService.listFiles(organizationId, 'formats/');
+
+    // テンプレートフォルダ名（固定）
+    const TEMPLATE_FOLDERS = ['material', 'condition', 'result'] as const;
+
+    // 部門ごとに整理するためのMap
+    const departmentMap = new Map<string, Map<string, FormatTemplateFile[]>>();
+
+    for (const file of allFiles) {
+      const key: string = file.key || '';
+      if (!key) continue;
+
+      // .xml ファイルのみ対象
+      if (!key.toLowerCase().endsWith('.xml')) continue;
+
+      // storageService.listFiles は組織IDプレフィックス付きの絶対パスを返す
+      // 例: 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385/formats/DEP004/condition/condition.xml'
+      // → 組織IDプレフィックスを除去して相対パスに変換する
+      const orgPrefix = `${organizationId}/`;
+      const relativePath = key.startsWith(orgPrefix) ? key.slice(orgPrefix.length) : key;
+
+      // パスを分解: formats/{departmentCd}/{folderName}/{...}/{fileName}
+      const parts = relativePath.split('/');
+      // parts[0] = 'formats', parts[1] = departmentCd, parts[2] = folderName, parts[3+] = サブパス or fileName
+      if (parts.length < 4) continue;
+      if (parts[0] !== 'formats') continue;
+
+      const departmentCd = parts[1];
+      const folderName = parts[2];
+
+      // material / condition / result のみ対象
+      if (!TEMPLATE_FOLDERS.includes(folderName as typeof TEMPLATE_FOLDERS[number])) continue;
+
+      const fileName = parts[parts.length - 1];
+
+      // 部門Mapに登録
+      if (!departmentMap.has(departmentCd)) {
+        departmentMap.set(departmentCd, new Map());
+      }
+      const folderMap = departmentMap.get(departmentCd)!;
+      if (!folderMap.has(folderName)) {
+        folderMap.set(folderName, []);
+      }
+      folderMap.get(folderName)!.push({
+        key,
+        fileName,
+        size: file.size || 0,
+      });
+    }
+
+    // Map → レスポンス形式に変換
+    const departments: FormatDepartment[] = [];
+    for (const [departmentCd, folderMap] of departmentMap) {
+      const folders: FormatFolder[] = [];
+      for (const [folderName, files] of folderMap) {
+        folders.push({
+          folderName: folderName as 'material' | 'condition' | 'result',
+          files,
+        });
+      }
+      // フォルダ名でソート
+      folders.sort((a, b) => a.folderName.localeCompare(b.folderName));
+      departments.push({ departmentCd, folders });
+    }
+    // 部門CDでソート
+    departments.sort((a, b) => a.departmentCd.localeCompare(b.departmentCd));
+
+    console.log('✅ [maimlService] フォーマット一覧取得完了:', {
+      departmentCount: departments.length,
+      totalFiles: departments.reduce(
+        (sum, d) => sum + d.folders.reduce((s, f) => s + f.files.length, 0),
+        0
+      ),
+    });
+
+    return { departments };
+  } catch (error) {
+    console.error('❌ [maimlService] フォーマット一覧取得エラー:', error);
+    throw error;
+  }
+}
+
 // ========== 既存の関数 ==========
 
 /**

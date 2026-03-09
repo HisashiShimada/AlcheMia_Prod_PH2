@@ -41,7 +41,7 @@ import {
   FolderOutlined,
   FileOutlined,
 } from '@ant-design/icons';
-import { fetchTemplateFiles, fetchTemplateContent, type TemplateFile } from '@/services/templateApi';
+import { fetchTemplateFiles, fetchTemplateContent, type ListFormatsResponse, type FormatTemplateFile } from '@/services/templateApi';
 import type { 
   NodeData, 
   TemplateError,
@@ -94,6 +94,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   templateErrors = {},
 }) => {
   const [hasChanges, setHasChanges] = useState(false);
+  // ✅ 初期化済みフラグ: open 中に node 参照が変わっても useEffect の再実行を防ぐ
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // 基本情報State（UI非表示だが保存時に必要なため残す）
   const [templateId, setTemplateId] = useState('');
@@ -124,7 +126,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
 
   // ✅ Phase 2-2: 名前空間取り込み用State（Reference版に統一）
   const [showNamespaceDialog, setShowNamespaceDialog] = useState(false);
-  const [templateFiles, setTemplateFiles] = useState<TemplateFile[]>([]);
+  const [templateFiles, setTemplateFiles] = useState<FormatTemplateFile[]>([]);
   const [selectedNamespaceFile, setSelectedNamespaceFile] = useState<string>('');
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [importedNamespaces, setImportedNamespaces] = useState<string[]>([]);
@@ -230,7 +232,16 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
    * 初期化: ノードデータからStateを設定
    */
   useEffect(() => {
+    // ✅ ダイアログが閉じたら初期化フラグをリセット
+    if (!open) {
+      setIsInitialized(false);
+      return;
+    }
+
     if (open && node) {
+      // ✅ 既に初期化済みの場合はスキップ（node 参照変化による再実行を防ぐ）
+      if (isInitialized) return;
+
       // ✅ Phase 3: parsedPropertiesとparsedContentsを優先的に使用（フォーマット管理専用）
       if ('parsedProperties' in node.data || 'parsedContents' in node.data) {
         console.log('📋 [TemplateEditorDialog] parsedPropertiesとparsedContentsを直接読み込み');
@@ -266,7 +277,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           propertiesCount: Object.keys(parsedProperties).length,
           contentsCount: Object.keys(parsedContents).length
         });
-        
+
+        setIsInitialized(true);
         return;
       }
       
@@ -300,7 +312,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           name: defaultName,
           placeType: node.data.placeType
         });
-        
+
+        setIsInitialized(true);
         return;
       }
       
@@ -343,8 +356,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       setExpandedContentNodes(new Set());
       setForceRenderKey(Date.now());
       setForceContentRenderKey(Date.now());
+      setIsInitialized(true);
     }
-  }, [open, node, mergedTemplate]);
+  }, [open, node, mergedTemplate, isInitialized]);
 
   /**
    * NestedPropertyEditor用ハンドラー
@@ -860,13 +874,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
    * @param mode - 'replace_all_properties' または 'replace_all_contents'
    */
   const handleOpenNamespaceImport = async (mode: 'replace_all_properties' | 'replace_all_contents' = 'replace_all_properties') => {
-    const organizationId = localStorage.getItem('organizationPrefix') || '';
-    if (!organizationId) {
-      message.error('組織IDが取得できません');
-      return;
-    }
-
-    // カテゴリを判定
+    // カテゴリを判定（フィルタリング用）
     const category = node.data.placeType === 'material' ? 'material' :
                      node.data.placeType === 'condition' ? 'condition' : 'result';
 
@@ -875,8 +883,18 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     setShowNamespaceDialog(true);
 
     try {
-      const files = await fetchTemplateFiles(organizationId, category);
-      setTemplateFiles(files);
+      // fetchTemplateFiles は引数なし、ListFormatsResponse を返す
+      const response = await fetchTemplateFiles();
+      // カテゴリに一致するフォルダのファイルを抽出
+      const allFiles: FormatTemplateFile[] = [];
+      response.departments.forEach(dept => {
+        dept.folders
+          .filter(folder => folder.folderName === category)
+          .forEach(folder => {
+            allFiles.push(...folder.files);
+          });
+      });
+      setTemplateFiles(allFiles);
     } catch (error) {
       console.error('テンプレートファイル一覧取得エラー:', error);
       message.error('テンプレートファイル一覧の取得に失敗しました');
@@ -904,8 +922,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
     }
     
     try {
-      // XMLコンテンツを取得
-      const xmlContent = await fetchTemplateContent(organizationId, filePath);
+      // XMLコンテンツを取得（fetchTemplateContent は fileKey 1引数）
+      const fileKey = `${organizationId}/${filePath}`;
+      const xmlContent = await fetchTemplateContent(fileKey);
       
       // プロパティを解析
       const parsedProperties = parseNamespacesFromXml(xmlContent);
@@ -948,7 +967,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
       }
 
       try {
-        const xmlContent = await fetchTemplateContent(organizationId, selectedNamespaceFile);
+        const fileKey = `${organizationId}/${selectedNamespaceFile}`;
+        const xmlContent = await fetchTemplateContent(fileKey);
         parsedNamespaces = parseNamespacesFromXml(xmlContent);
       } catch (error) {
         console.error('名前空間取り込みエラー:', error);
@@ -1022,36 +1042,36 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
    * 保存処理（フォーマット管理専用）
    */
   const handleSave = () => {
-    // ✅ 基本チェック
-    if (!templateId.trim()) {
-      message.error('テンプレートIDを入力してください');
-      return;
-    }
-    
+    // ✅ templateId が空の場合は自動生成
+    // フォーマット管理画面では templateId 入力フィールドが非表示のため、
+    // ユーザーが入力できない。空の場合は自動生成して処理を続行する。
+    const effectiveTemplateId = templateId.trim() ||
+      `${node.data.placeType}_template_${Date.now()}`;
+
     // PropertyData形式からProperty[]とContent[]に変換
     const convertedProperties = convertPropertyDataToPropertiesArray(properties);
     const convertedContents = convertPropertyDataToContentsArray(contents);
-    
+
     console.log('📝 [FormatEditorDialog] 保存処理:', {
-      templateId,
+      effectiveTemplateId,
       name,
       category: nodeCategory,
       propertiesCount: convertedProperties.length,
       contentsCount: convertedContents.length
     });
-    
+
     // ✅ Template型を経由せず直接渡す
+    // 注意: onClose() は FormatManagement の onSave ハンドラ内で呼ばれるため、ここでは呼ばない
     onSave(
       node.id,
       convertedProperties,
       convertedContents,
-      templateId,
+      effectiveTemplateId,
       name,
       description,
       nodeCategory
     );
-    
-    onClose();
+
     setHasChanges(false);
   };
 

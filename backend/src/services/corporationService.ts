@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import * as corporationRepository from '../repositories/corporationRepository';
 import { CorporationSearchFilters } from '../repositories/corporationRepository';
 import { getPgp } from '../database/db';
+import { getMessage } from '../utils/messages';
 
 /**
  * Corporationレスポンス型定義
@@ -104,8 +105,18 @@ export async function createCorporation(
     corporationName: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  lang: string = 'ja'
 ): Promise<CorporationResponse> {
+  // 会社名重複チェック
+  const exists = await corporationRepository.existsByName(data.corporationName);
+  if (exists) {
+    const error: any = new Error(getMessage(lang, 'corporation.duplicateName'));
+    error.statusCode = 409;
+    error.code = 'DUPLICATE_CORPORATION_NAME';
+    throw error;
+  }
+
   // UUIDを自動生成
   const corporationId = uuidv4();
   
@@ -137,8 +148,20 @@ export async function updateCorporation(
     corporationName?: string;
     isActive?: boolean;
   },
-  userId: string
+  userId: string,
+  lang: string = 'ja'
 ): Promise<CorporationResponse | null> {
+  // 会社名が変更される場合は重複チェック（自身を除外）
+  if (data.corporationName) {
+    const exists = await corporationRepository.existsByName(data.corporationName, corporationId);
+    if (exists) {
+      const error: any = new Error(getMessage(lang, 'corporation.duplicateNameOnUpdate'));
+      error.statusCode = 409;
+      error.code = 'DUPLICATE_CORPORATION_NAME';
+      throw error;
+    }
+  }
+
   const corporation = await corporationRepository.update(corporationId, data, userId);
   
   if (!corporation) {
@@ -213,7 +236,8 @@ interface CsvUploadResult {
  */
 export async function uploadCorporationsCsv(
   csvContent: string,
-  userId: string
+  userId: string,
+  lang: string = 'ja'
 ): Promise<CsvUploadResult> {
   // CSVをパース
   const parseResult = Papa.parse<CsvRow>(csvContent, {
@@ -236,7 +260,7 @@ export async function uploadCorporationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'corporation_name',
-        message: `${rowNumber}行目: corporation_nameは必須です`
+        message: getMessage(lang, 'corporation.csv.nameRequired', { row: String(rowNumber) }),
       });
       break; // 最初のエラーで停止
     }
@@ -248,7 +272,7 @@ export async function uploadCorporationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'is_active',
-        message: `${rowNumber}行目: is_activeは true/false/1/0 のいずれかである必要があります`
+        message: getMessage(lang, 'corporation.csv.isActiveInvalid', { row: String(rowNumber) }),
       });
       break; // 最初のエラーで停止
     }
@@ -259,7 +283,7 @@ export async function uploadCorporationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'corporation_name',
-        message: `${rowNumber}行目: corporation_name「${corporationName}」はCSV内で重複しています`
+        message: getMessage(lang, 'corporation.csv.nameDuplicateInCsv', { row: String(rowNumber), name: corporationName }),
       });
       break; // 最初のエラーで停止
     }
@@ -271,7 +295,7 @@ export async function uploadCorporationsCsv(
       validationErrors.push({
         row: rowNumber,
         field: 'corporation_name',
-        message: `${rowNumber}行目: corporation_name「${corporationName}」は既に存在します`
+        message: getMessage(lang, 'corporation.csv.nameAlreadyExists', { row: String(rowNumber), name: corporationName }),
       });
       break; // 最初のエラーで停止
     }

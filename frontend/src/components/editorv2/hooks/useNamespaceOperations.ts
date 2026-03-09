@@ -9,27 +9,28 @@
  */
 
 import { useCallback, useState } from 'react';
-
-/**
- * APIベースURL
- */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+import { createApiClient } from '@/utils/authUtils';
 
 /**
  * ファイル一覧取得（S3から）
  */
 const fetchFileList = async (): Promise<S3File[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/s3/files`, {
-      credentials: 'include'
+    const client = createApiClient();
+    const response = await client.get<{
+      success: boolean;
+      data: { files: S3File[] };
+      files?: S3File[];
+    }>('/maiml/files', {
+      params: {
+        organizationId: undefined, // organizationIdはサーバー側でJWTから取得
+      },
     });
-    
-    if (!response.ok) {
-      throw new Error(`ファイル一覧取得失敗: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    return Array.isArray(result) ? result : (result.files || []);
+
+    const data = response.data;
+    // レスポンス構造: { success, data: { files: [...] } }
+    const files = data?.data?.files ?? (Array.isArray(data) ? data : []);
+    return files;
   } catch (error) {
     console.error('❌ [fetchFileList] エラー:', error);
     throw error;
@@ -37,30 +38,20 @@ const fetchFileList = async (): Promise<S3File[]> => {
 };
 
 /**
- * ファイル内容取得（S3から）
+ * ファイル内容取得（V2 MAIML API経由）
  */
 const fetchFileContent = async (fileKey: string): Promise<string> => {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/s3/file-content?key=${encodeURIComponent(fileKey)}`,
-      { credentials: 'include' }
-    );
-    
-    if (!response.ok) {
-      throw new Error(`ファイル内容取得失敗: ${response.status}`);
-    }
-    
-    const contentType = response.headers.get('content-type');
-    let content: string;
-    
-    if (contentType && contentType.includes('application/json')) {
-      const result = await response.json();
-      content = result.success ? (result.data?.content || result.content || '') : '';
-    } else {
-      content = await response.text();
-    }
-    
-    return content;
+    const client = createApiClient();
+    const response = await client.get<{
+      success: boolean;
+      data: { data: { content: string; fileKey: string } };
+    }>('/maiml/file-content', {
+      params: { key: fileKey },
+    });
+
+    // レスポンス構造: { success, data: { data: { content, fileKey, ... } } }
+    return response.data?.data?.data?.content ?? '';
   } catch (error) {
     console.error('❌ [fetchFileContent] エラー:', error);
     throw error;
