@@ -1,6 +1,6 @@
 ---
 name: test-skill
-description: e2e/playright/bdd
+description: ユニットテストを実行する
 ---
 
 # test-skill
