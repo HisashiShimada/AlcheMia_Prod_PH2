@@ -16,8 +16,8 @@
 | **5-2** | 実験記録（トランジション記録） | 要件書#2〜7、追加機能L | 4件 | Playwright自動 |
 | **5-3** | 問題報告・ステータス変更 | 要件書（なし）、追加機能D/E/F/G | 7件 | Playwright自動 |
 | **5-4** | 指示確認 | 要件書#8、追加機能H/I/J | 4件 | Playwright自動 |
-| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K | 4件 | Playwright自動 |
-| **合計** | - | - | **24件** | - |
+| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K | 15件 | Playwright自動 |
+| **合計** | - | - | **35件** | - |
 
 ### スコープ外
 
@@ -114,14 +114,57 @@
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
 |-----------|-----------|------|------|---------|
 | 5-5-1 | 進捗確認タブでタスク一覧がメソッドタブ別に表示されること | 正常系 | 要件書#1、追加機能C | GET `/api/v1/tasks?projectId={projectId}` |
-| 5-5-2 | 進捗確認タブでタスクのステータスを「開始」に変更できること | 正常系 | 要件書#1 | PUT `/api/v1/tasks/{taskId}/status` |
+| 5-5-2 | 進捗確認タブでタスクのステータスを「開始」に変更できること | 正常系 | 要件書#1 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` |
 | 5-5-3 | 進捗確認タブ表示時のみ「承認依頼」ボタンが表示されること | 表示確認 | 追加機能K | - |
 | 5-5-4 | プロジェクト選択時に承認依頼ボタンが活性化されること | 表示確認 | `ui_experiment_worker_main.md` §3.2.3 | - |
+| 5-5-5 | 「指示確認」ボタンをクリックすると指示確認タブに遷移すること | 正常系 | `ui_task_list_table.md` §5.3 | - |
+| 5-5-6 | 「実験記録」ボタンをクリックすると実験記録タブに遷移すること | 正常系 | `ui_task_list_table.md` §5.3 | - |
+| 5-5-7 | 「問題確認」ボタンをクリックすると問題確認モーダルが参照専用で開くこと | 正常系 | `ui_task_list_table.md` §5.3 | GET `/api/v1/issues` |
+| 5-5-8 | 「強制終了」ボタンをクリックするとタスクが強制終了されること | 正常系 | `ui_task_list_table.md` §5.3 | - |
+| 5-5-9 | 進捗率をクリックするとフロー図ダイアログが表示されること | 正常系 | `ui_task_list_table.md` §5.2 | - |
+| 5-5-10 | プロジェクトステータスが編集不可（waiting_approval）の場合に「開始」ボタンが無効化されること | 表示確認 | `ui_task_list_table.md` §5.3 | - |
+| 5-5-11 | タスクステータスが「実行待ち（pending）」以外の場合に「開始」ボタンが無効化されること | 表示確認 | `ui_task_list_table.md` §5.3 | - |
+| 5-5-12 | タスクステータスが「完了（completed）」または「異常終了（error）」の場合に「強制終了」ボタンが無効化されること | 表示確認 | `ui_task_list_table.md` §5.3 | - |
+| 5-5-13 | 「承認依頼」ボタンをクリックすると承認依頼が送信され、成功メッセージが表示されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | POST `/api/v1/projects/{projectId}/approval-request` |
+| 5-5-14 | 承認依頼送信後にプロジェクトステータスが「承認待ち（waiting_approval）」に更新されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | POST `/api/v1/projects/{projectId}/approval-request` |
+| 5-5-15 | 既に承認依頼済みのプロジェクトで再度「承認依頼」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_experiment_worker_main.md` §15.2 | POST `/api/v1/projects/{projectId}/approval-request` |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み
 - テスト用プロジェクトにタスクデータが存在する（project_taskテーブル）
 - プロジェクトが選択済み
+
+**ビジネスルール（設計書より）:**
+
+#### テーブル内アクションボタンの活性/非活性条件
+
+| ボタン名 | アクション | 常時有効 | 有効条件（タスクステータス） | 有効条件（プロジェクトステータス） |
+|---------|-----------|---------|---------------------------|--------------------------------|
+| 指示確認 | `instruction` | ✅ 常に有効 | - | - |
+| 開始 | `start` | - | `pending`（実行待ち）のみ | `waiting_task` または `executing_task` のみ（isEditableStatus） |
+| 問題確認 | `issueCheck` | ✅ 常に有効 | - | - |
+| 実験記録 | `record` | ✅ 常に有効 | - | - |
+| 強制終了 | `forceTerminate` | - | `completed`・`error` 以外 | `waiting_task` または `executing_task` のみ（isEditableStatus） |
+
+#### プロジェクトステータスと isEditableStatus の対応
+
+| プロジェクトステータス | isEditableStatus | 開始・強制終了ボタン |
+|----------------------|-----------------|-------------------|
+| `planning`（計画中） | false | **無効** |
+| `waiting_task`（タスク実行待ち） | **true** | 有効 |
+| `executing_task`（タスク実行中） | **true** | 有効 |
+| `waiting_approval`（承認待ち） | false | **無効** |
+| `completed`（完了） | false | **無効** |
+
+#### タスクステータスの表示
+
+| TaskStatus | 表示ラベル | バッジ色 |
+|-----------|-----------|---------|
+| `pending` | 実行待ち | default（灰色） |
+| `in_progress` | 実行中 | orange（オレンジ色） |
+| `review_waiting` | レビュー待ち | blue（青色） |
+| `completed` | 完了 | green（緑色） |
+| `error` | 異常終了 | red（赤色） |
 
 ---
 
@@ -216,6 +259,7 @@
 | POST `/api/v1/issues/:issueId/comments` | ✅ 完了 | 影響なし |
 | GET `/api/v1/issues` | ✅ 完了 | 影響なし |
 | PATCH `/api/v1/issues/:issueId/status` | ✅ 完了 | 5-3-6、5-3-7はManager権限ユーザーで実施 |
+| POST `/api/v1/projects/{projectId}/approval-request` | TODO | 5-5-13〜5-5-15の承認依頼処理がTODO |
 
 > **注**: APIがTODO状態のシナリオでは、現状のモック画面での動作確認（UI表示・ダイアログ開閉・バリデーション確認）を主目的とし、実際のAPI通信確認はAPI実装後に追加する。
 
