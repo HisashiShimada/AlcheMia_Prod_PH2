@@ -6,49 +6,7 @@
 
 ---
 
-## 1. 要件書記載業務とUI/API設計書の照合結果
-
-| 要件書 # | 業務内容 | UI設計書での実装状況 | 対応API | テスト対象 |
-|---------|---------|---------------------|---------|-----------|
-| 1 | プロジェクトの作成（ワークフローベースを選択して作成） | ✅ `CreateProjectModal` | POST `/api/v1/projects` | **4-1** |
-| 2 | ワークフローの修正（プロジェクト内のワークフロー編集） | ✅ `PetriNetEditorScreen` | S3ファイル操作 | **4-8** |
-| 3 | タスクの作成（メソッド・試行回数・実験条件設定） | ✅ `TaskRegistrationTab` | POST `/api/v1/projects/:projectName/task-registration` | **4-3** |
-| 4 | 実験前のワークフロー・タスクの設定 | ✅ チェックアウト操作（編集ロック） | POST `/api/v1/projects/:projectName/checkout` | **4-2** |
-| 5 | 実験タスク実行中のワークフロー修正（チェックイン操作） | ✅ チェックイン操作 | POST `/api/v1/projects/:projectName/checkin` | **4-2** |
-| 6 | 実験作業者への指示事項の入力・提示 | ✅ `InstructionRegistrationTab` | POST `/api/v1/projects/:projectName/instructions/send` | **4-4** |
-| 7 | 実験中の進捗・実験作業者のメモの閲覧 | ✅ `ProgressMonitoring` + `WorkProgressDetailDialog` | GET `/api/v1/projects`（進捗情報含む） | **4-5** |
-| 8 | 実験結果の信頼性フラグの記録（○/△/×） | ❌ 設計書に未定義 | - | **対象外** |
-| 9 | データマートの作成 | ❌ 設計書に未定義 | - | **対象外** |
-| 10 | 解析に利用するデータの指定・検索・構造化・蓄積 | ❌ 設計書に未定義 | - | **対象外** |
-| 11 | 外部データのアップロード（フォーマット変換後） | ❌ 設計書に未定義 | - | **対象外** |
-| 12 | 実験管理者の操作履歴の閲覧 | ❌ 設計書に未定義 | - | **対象外** |
-| 13 | ワークフローベースの作成（慣れた後） | ✅ `FormatManagement` | GET `/api/v1/formats` など | **4-7** |
-| 14 | システムダウン時の状態通知の受信 | ❌ 設計書に未定義 | - | **対象外** |
-| 15 | タスク実行状況の確認 | ✅ `TaskResultsTable` + 統計カード | GET `/api/v1/projects/:projectName/tasks` | **4-5** |
-
----
-
-## 2. 追加機能一覧（要件書に未記載・設計書に実装済み）
-
-設計書を精査した結果、要件書に記載のない以下の機能が実装されていることが確認された。これらもテスト対象に追加する。
-
-| 追加機能ID | 機能名 | 根拠（設計書） | 対応API | テスト対象 |
-|-----------|--------|---------------|---------|-----------|
-| A | プロジェクト一覧のフィルタリング（所有者/部門/ステータス/チェックアウト状態） | `ui_project_management.md` §3.2 | GET `/api/v1/projects`（クエリパラメータ） | **4-6** |
-| B | プロジェクト一覧のキーワード検索 | `ui_project_management.md` §3.2 | GET `/api/v1/projects`（クエリパラメータ） | **4-6** |
-| C | プロジェクトファイル一覧表示（ルート・アーカイブ） | `ui_file_list_table.md`、`ui_project_folder_tree.md` | GET `/api/v1/projects/:projectName/files` | **4-1** |
-| D | プロジェクト一括ダウンロード（ZIP形式） | `ui_project_management.md` §3.7 | POST `/api/v1/files/download-folder-zip` | **4-1** |
-| E | タスク結果の統計表示（実行待ち/実行中/レビュー待ち/完了/異常終了） | `ui_task_results_table.md`、`ui_project_management.md` §3.9 | GET `/api/v1/projects/:projectName/tasks` | **4-5** |
-| F | レビュー待ちタスクの一括完了 | `api_project_management.md` §API#16 | POST `/api/v1/projects/:projectName/tasks/complete-review` | **4-5** |
-| G | 指示の個別編集（未送信のみ） | `ui_instruction_registration_tab.md` §3.3.3、`api_project_management.md` §API#18 | PUT `/api/v1/projects/:projectName/instructions/:instructionId` | **4-4** |
-| H | 指示の個別削除（未送信のみ） | `ui_instruction_registration_tab.md` §3.3.3、`api_project_management.md` §API#19 | DELETE `/api/v1/projects/:projectName/instructions/:instructionId` | **4-4** |
-| I | 指示登録状況の確認（未送信件数/送信済み件数/合計件数） | `api_project_management.md` §API#17 | GET `/api/v1/projects/:projectName/instructions/status` | **4-4** |
-| J | 進捗確認タブでの詳細ダイアログ表示 | `ui_progress_monitoring.md` §3.1.8、`ui_work_progress_detail_dialog.md` | GET `/api/v1/projects`（進捗情報含む） | **4-5** |
-| K | タスク登録のドラッグ＆ドロップ順序変更 | `ui_task_registration_tab.md` §3.3.2 | POST `/api/v1/projects/:projectName/task-registration` | **4-3** |
-
----
-
-## 3. テスト対象スコープ（確定版）
+## 1. テスト対象スコープ（確定版）
 
 ### スコープ内
 
@@ -75,7 +33,7 @@
 
 ---
 
-## 4. シナリオ詳細一覧
+## 2. シナリオ詳細一覧
 
 ### 4-1: プロジェクト作成
 
@@ -249,9 +207,9 @@
 
 ---
 
-## 5. テスト実行に必要な前提情報
+## 3. テスト実行に必要な前提情報
 
-### 5.1 テスト環境
+### 3.1 テスト環境
 
 | 項目 | 値 |
 |------|-----|
@@ -260,7 +218,7 @@
 | DB接続 | PostgreSQL（直接接続でDB検証用） |
 | 組織ID（orgId） | 要確認 |
 
-### 5.2 テストユーザー
+### 3.2 テストユーザー
 
 | 項目 | 値 |
 |------|-----|
@@ -268,7 +226,7 @@
 | ユーザーID | 要確認 |
 | パスワード | 要確認 |
 
-### 5.3 テスト用データ
+### 3.3 テスト用データ
 
 | データ | 用途 | 準備方法 |
 |--------|------|---------|
@@ -276,6 +234,48 @@
 | MAIMLファイル登録済みプロジェクト | 4-3（タスク登録） | S3にMAIMLファイルを配置 |
 | タスクデータ付きプロジェクト | 4-5（タスク結果確認） | project_task_detailレコードを挿入 |
 | 複数ステータスのプロジェクト | 4-6（フィルタ・検索） | DBに複数プロジェクトを挿入 |
+
+---
+
+## 4. 要件書記載業務とUI/API設計書の照合結果
+
+| 要件書 # | 業務内容 | UI設計書での実装状況 | 対応API | テスト対象 |
+|---------|---------|---------------------|---------|-----------|
+| 1 | プロジェクトの作成（ワークフローベースを選択して作成） | ✅ `CreateProjectModal` | POST `/api/v1/projects` | **4-1** |
+| 2 | ワークフローの修正（プロジェクト内のワークフロー編集） | ✅ `PetriNetEditorScreen` | S3ファイル操作 | **4-8** |
+| 3 | タスクの作成（メソッド・試行回数・実験条件設定） | ✅ `TaskRegistrationTab` | POST `/api/v1/projects/:projectName/task-registration` | **4-3** |
+| 4 | 実験前のワークフロー・タスクの設定 | ✅ チェックアウト操作（編集ロック） | POST `/api/v1/projects/:projectName/checkout` | **4-2** |
+| 5 | 実験タスク実行中のワークフロー修正（チェックイン操作） | ✅ チェックイン操作 | POST `/api/v1/projects/:projectName/checkin` | **4-2** |
+| 6 | 実験作業者への指示事項の入力・提示 | ✅ `InstructionRegistrationTab` | POST `/api/v1/projects/:projectName/instructions/send` | **4-4** |
+| 7 | 実験中の進捗・実験作業者のメモの閲覧 | ✅ `ProgressMonitoring` + `WorkProgressDetailDialog` | GET `/api/v1/projects`（進捗情報含む） | **4-5** |
+| 8 | 実験結果の信頼性フラグの記録（○/△/×） | ❌ 設計書に未定義 | - | **対象外** |
+| 9 | データマートの作成 | ❌ 設計書に未定義 | - | **対象外** |
+| 10 | 解析に利用するデータの指定・検索・構造化・蓄積 | ❌ 設計書に未定義 | - | **対象外** |
+| 11 | 外部データのアップロード（フォーマット変換後） | ❌ 設計書に未定義 | - | **対象外** |
+| 12 | 実験管理者の操作履歴の閲覧 | ❌ 設計書に未定義 | - | **対象外** |
+| 13 | ワークフローベースの作成（慣れた後） | ✅ `FormatManagement` | GET `/api/v1/formats` など | **4-7** |
+| 14 | システムダウン時の状態通知の受信 | ❌ 設計書に未定義 | - | **対象外** |
+| 15 | タスク実行状況の確認 | ✅ `TaskResultsTable` + 統計カード | GET `/api/v1/projects/:projectName/tasks` | **4-5** |
+
+---
+
+## 5. 追加機能一覧（要件書に未記載・設計書に実装済み）
+
+設計書を精査した結果、要件書に記載のない以下の機能が実装されていることが確認された。これらもテスト対象に追加する。
+
+| 追加機能ID | 機能名 | 根拠（設計書） | 対応API | テスト対象 |
+|-----------|--------|---------------|---------|-----------|
+| A | プロジェクト一覧のフィルタリング（所有者/部門/ステータス/チェックアウト状態） | `ui_project_management.md` §3.2 | GET `/api/v1/projects`（クエリパラメータ） | **4-6** |
+| B | プロジェクト一覧のキーワード検索 | `ui_project_management.md` §3.2 | GET `/api/v1/projects`（クエリパラメータ） | **4-6** |
+| C | プロジェクトファイル一覧表示（ルート・アーカイブ） | `ui_file_list_table.md`、`ui_project_folder_tree.md` | GET `/api/v1/projects/:projectName/files` | **4-1** |
+| D | プロジェクト一括ダウンロード（ZIP形式） | `ui_project_management.md` §3.7 | POST `/api/v1/files/download-folder-zip` | **4-1** |
+| E | タスク結果の統計表示（実行待ち/実行中/レビュー待ち/完了/異常終了） | `ui_task_results_table.md`、`ui_project_management.md` §3.9 | GET `/api/v1/projects/:projectName/tasks` | **4-5** |
+| F | レビュー待ちタスクの一括完了 | `api_project_management.md` §API#16 | POST `/api/v1/projects/:projectName/tasks/complete-review` | **4-5** |
+| G | 指示の個別編集（未送信のみ） | `ui_instruction_registration_tab.md` §3.3.3、`api_project_management.md` §API#18 | PUT `/api/v1/projects/:projectName/instructions/:instructionId` | **4-4** |
+| H | 指示の個別削除（未送信のみ） | `ui_instruction_registration_tab.md` §3.3.3、`api_project_management.md` §API#19 | DELETE `/api/v1/projects/:projectName/instructions/:instructionId` | **4-4** |
+| I | 指示登録状況の確認（未送信件数/送信済み件数/合計件数） | `api_project_management.md` §API#17 | GET `/api/v1/projects/:projectName/instructions/status` | **4-4** |
+| J | 進捗確認タブでの詳細ダイアログ表示 | `ui_progress_monitoring.md` §3.1.8、`ui_work_progress_detail_dialog.md` | GET `/api/v1/projects`（進捗情報含む） | **4-5** |
+| K | タスク登録のドラッグ＆ドロップ順序変更 | `ui_task_registration_tab.md` §3.3.2 | POST `/api/v1/projects/:projectName/task-registration` | **4-3** |
 
 ---
 
