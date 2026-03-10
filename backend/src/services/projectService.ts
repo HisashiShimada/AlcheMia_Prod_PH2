@@ -712,16 +712,20 @@ export class ProjectService {
 
       const project = selectResult.rows[0];
 
-      // 前提条件チェック: task_status = 1のタスク存在確認（Repository層経由）
-      const hasRunning = await projectTaskRepository.hasRunningTasks(organizationId, projectId);
+      // 前提条件チェック: task_status が 3 (completed) または 4 (error) 以外のタスク存在確認（Repository層経由）
+      const hasIncomplete = await projectTaskRepository.hasIncompleteTasks(organizationId, projectId);
 
-      if (hasRunning) {
+      if (hasIncomplete) {
         await client.query('ROLLBACK');
         return {
           success: false,
           error: {
-            code: 'TASK_IN_PROGRESS',
-            message: '実行中のタスクが存在するため、チェックインできません',
+            code: 'TASK_NOT_COMPLETED',
+            message: 'チェックイン可能なタスクステータスではありません',
+            details: {
+              requiredStatus: 'すべてのタスクが完了(3)または異常終了(4)である必要があります',
+              note: '未着手(0)、実行中(1)、レビュー待ち(2)のタスクが存在します',
+            },
           },
         };
       }
