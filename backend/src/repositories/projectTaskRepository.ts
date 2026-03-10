@@ -448,3 +448,41 @@ export async function batchInsertTasks(
     await t.none(query, values);
   }
 }
+
+/**
+ * プロジェクト内の全タスクのworker_linked_flgを更新（トランザクション内）
+ * チェックアウト時に使用
+ * 
+ * @param client pg PoolClient（トランザクション用）
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param workerLinkedFlg 設定する値（通常はtrue）
+ * @param userId 更新ユーザーID
+ * @returns 更新件数
+ */
+export async function updateWorkerLinkedFlgByProject(
+  client: any,
+  organizationId: string,
+  projectId: string,
+  workerLinkedFlg: boolean,
+  userId: string
+): Promise<number> {
+  const query = `
+    UPDATE project_task
+    SET 
+      worker_linked_flg = $1,
+      update_user_id = $2,
+      update_at = CURRENT_TIMESTAMP
+    WHERE organization_id = $3 
+      AND project_id = $4
+  `;
+  
+  const result = await client.query(query, [
+    workerLinkedFlg,
+    userId,
+    organizationId,
+    projectId
+  ]);
+  
+  return result.rowCount || 0;
+}

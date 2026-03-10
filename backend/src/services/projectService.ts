@@ -604,6 +604,17 @@ export class ProjectService {
 
       await client.query(updateQuery, [organizationId, projectId, userId]);
 
+      // project_taskのworker_linked_flgをtrueに更新
+      const updatedTaskCount = await projectTaskRepository.updateWorkerLinkedFlgByProject(
+        client,
+        organizationId,
+        projectId,
+        true,
+        userId
+      );
+      
+      console.log(`[DEBUG] checkout - Updated worker_linked_flg for ${updatedTaskCount} tasks`);
+
       // トランザクションコミット
       await client.query('COMMIT');
 
@@ -1909,4 +1920,3 @@ export class ProjectService {
     }
   }
 }
-  
