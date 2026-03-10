@@ -228,3 +228,148 @@ export async function findUserNameFromAuth(
     throw error;
   }
 }
+
+/**
+ * 指示データの型定義（タスク登録タブから保存時に使用）
+ */
+export interface InstructionInsertData {
+  methodId: string;
+  content: string;
+  priority: number;
+  type: number;
+  targetType: number;
+  transitionId: string | null;
+  taskNumber: number | null;
+}
+
+/**
+ * 指示データの完全な型定義（findByProject用）
+ */
+export interface InstructionFullRow {
+  instruction_id: string;
+  organization_id: string;
+  project_id: string;
+  method_id: string;
+  target_type: number;
+  priority: number;
+  type: number;
+  task_no: number | null;
+  transition_id: string | null;
+  content: string;
+  instruction_status: number;
+  create_at: Date;
+  create_user_id: string;
+  update_at: Date;
+  update_user_id: string;
+}
+
+/**
+ * プロジェクトの全指示を取得（プロジェクト指示 + タスク指示）
+ * バリデーション用に使用
+ * 
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @returns 指示一覧
+ */
+export async function findByProject(
+  organizationId: string,
+  projectId: string
+): Promise<InstructionFullRow[]> {
+  const pgp = getPgp();
+  
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('instructions/findByProject.sql');
+  
+  try {
+    const result = await pgp.any<InstructionFullRow>(
+      sqlQuery,
+      [organizationId, projectId]
+    );
+    return result;
+  } catch (error) {
+    console.error('Database query error in findByProject:', error);
+    throw error;
+  }
+}
+
+/**
+ * プロジェクト名取得用の型定義
+ */
+interface ProjectNameRow {
+  project_name: string;
+}
+
+/**
+ * 指示数カウント用の型定義
+ */
+interface CountRow {
+  count: string;
+}
+
+/**
+ * 指示の一括挿入（トランザクション内）
+ * タスク登録タブから指示を保存する際に使用
+ * 
+ * @param client PostgreSQLクライアント（トランザクション内）
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param userId ユーザーID
+ * @param instructions 指示データ配列
+ */
+export async function batchInsert(
+  client: any,
+  organizationId: string,
+  projectId: string,
+  userId: string,
+  instructions: InstructionInsertData[]
+): Promise<void> {
+  const pgp = getPgp();
+  
+  // プロジェクト名を取得
+  const projectNameQuery = await loadSqlFile('instructions/getProjectName.sql');
+  const projectResult = await pgp.oneOrNone<ProjectNameRow>(
+    projectNameQuery,
+    [organizationId, projectId]
+  );
+  
+  if (!projectResult) {
+    throw new Error('Project not found');
+  }
+  
+  const projectName = projectResult.project_name;
+  
+  // 既存の指示数を取得
+  const countQuery = await loadSqlFile('instructions/getInstructionCount.sql');
+  const countResult = await pgp.one<CountRow>(
+    countQuery,
+    [organizationId, projectId]
+  );
+  let nextNumber = parseInt(countResult.count) + 1;
+  
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('instructions/batchInsert.sql');
+  
+  for (const instruction of instructions) {
+    // {projectName}_{連番}形式でIDを生成（3桁0埋め）
+    const instructionId = `${projectName}_${String(nextNumber).padStart(3, '0')}`;
+    
+    await client.query(sqlQuery, [
+      organizationId,
+      projectId,
+      instructionId,
+      instruction.methodId,
+      instruction.targetType,
+      instruction.priority,
+      instruction.type,
+      instruction.taskNumber,
+      instruction.transitionId,
+      instruction.content,
+      userId,
+      0, // instruction_status: 0（未送信）
+      userId, // create_user_id
+      userId // update_user_id
+    ]);
+    
+    nextNumber++;
+  }
+}

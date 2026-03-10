@@ -143,8 +143,8 @@ export type TaskStatus =
  */
 export interface WorkDetail {
   workId: string;
-  taskName?: string;
-  methodName?: string; // このタスクが属するメソッド名
+  taskNo: number;          // タスク連番（タスクNo）（project_task.experiment_order）
+  methodName?: string;     // このタスクが属するメソッド名
   workStatus: TaskStatus;
   assignedWorkerId?: string;
   progressPercentage: number;

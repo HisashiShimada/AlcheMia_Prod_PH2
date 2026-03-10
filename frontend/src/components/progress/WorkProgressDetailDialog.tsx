@@ -36,7 +36,6 @@ import {
   CheckOutlined,
   MinusCircleOutlined,
 } from '@ant-design/icons';
-import axios from 'axios';
 import PetriNetVisualization from './PetriNetVisualization';
 import type {
   FileData,
@@ -44,9 +43,6 @@ import type {
   WorkDetail,
   TransitionProgress,
 } from '@/types/progress';
-// モックデータのインポート
-import mockProjectsData from '@/data/mock/mockProjects.json';
-
 const { Title, Text } = Typography;
 const { useBreakpoint } = Grid;
 
@@ -77,9 +73,10 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
 
   /**
    * ファイル詳細取得
+   * managerId はサーバー側 JWT 認証から組織IDを取得するため不要
    */
   const fetchFileDetails = useCallback(async () => {
-    if (!fileData || !fileData.maimlFileKey || !managerId) {
+    if (!fileData || !fileData.maimlFileKey) {
       console.warn('⚠️ [FileProgressDetail] Missing required parameters');
       return;
     }
@@ -90,94 +87,38 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
     try {
       console.log('🔍 [FileProgressDetail] ファイル詳細取得:', {
         fileKey: fileData.maimlFileKey.substring(0, 50) + '...',
-        managerId,
+        timestamp: new Date().toISOString(),
+      });
+
+      // maimlFileKey からプロジェクト名を抽出
+      // 形式: "projects/{projectName}/{projectName}.maiml"（organizationIdプレフィックスなし）
+      // ※ バックエンド(projectService.getProjectFiles)はorganizationIdを除去した相対パスを返す
+      const projectNameMatch = fileData.maimlFileKey.match(/(?:^|\/)projects\/([^/]+)\//);
+      const projectName = projectNameMatch ? decodeURIComponent(projectNameMatch[1]) : null;
+
+      if (!projectName) {
+        throw new Error('maimlFileKeyからプロジェクト名を取得できませんでした');
+      }
+
+      console.log('🔍 [FileProgressDetail] プロジェクト名抽出:', {
+        projectName,
         timestamp: new Date().toISOString(),
       });
 
       // ============================================================
-      // 🔒 API呼び出し（コメントアウト - モックデータ使用中）
+      // API呼び出し（createApiClient 経由で認証ヘッダーを自動付与）
       // ============================================================
-      // const response = await axios.get(
-      //   `/api/manager/file-progress-detail/${encodeURIComponent(fileData.maimlFileKey)}`,
-      //   { params: { managerId } }
-      // );
-      //
-      // if (response.data.success) {
-      //   const { fileInfo, workDetails } = response.data.data;
-      //
-      //   console.log('✅ [FileProgressDetail] ファイル詳細取得成功:', {
-      //     workCount: workDetails?.length || 0,
-      //   });
-      //
-      //   setFileDetails({
-      //     fileInfo,
-      //     workDetails: workDetails || [],
-      //   });
-      //   setSelectedWorkIndex(0);
-      // } else {
-      //   throw new Error(response.data.error || 'ファイル詳細の取得に失敗しました');
-      // }
+      const { createApiClient } = await import('@/utils/authUtils');
+      const client = createApiClient();
+      const response = await client.get(
+        `/progress/projects/${encodeURIComponent(projectName)}/work-details`
+      );
 
-      // ============================================================
-      // ✅ モックデータを使用（開発用）
-      // ============================================================
-      // 実際のAPIレスポンスをシミュレート
-      await new Promise(resolve => setTimeout(resolve, 800)); // ローディング表示のため遅延
+      if (response.data.success) {
+        const { projectInfo, fileInfo, workDetails } = response.data.data;
 
-      // プロジェクトIDからモックデータを選択
-      // fileDataのmaimlFileKeyからプロジェクトIDを抽出
-      const projectIdMatch = fileData.maimlFileKey.match(/projects?\/(proj_\d+)/);
-      const projectId = projectIdMatch ? projectIdMatch[1] : null;
-      
-      // mockProjects.jsonから該当プロジェクトを取得
-      const project = mockProjectsData.projects.find(p => p.id === projectId);
-      
-      if (!project) {
-        throw new Error(`プロジェクト ${projectId} が見つかりません`);
-      }
-
-      // APIレスポンス形式に変換
-      const response = {
-        success: true,
-        data: {
-          projectInfo: {
-            projectId: project.id,
-            projectName: project.name,
-            projectDescription: project.description,
-            owner: project.owner,
-            department: project.department,
-            status: project.status,
-            methods: project.methods,
-            createdAt: project.createdAt,
-            updatedAt: project.updatedAt
-          },
-          fileInfo: {
-            fileName: project.fileInfo.fileName,
-            maimlFileKey: project.fileInfo.maimlFileKey,
-            organizationId: project.fileInfo.organizationId,
-            checkoutStatus: {
-              isCheckedOut: project.isCheckedOut,
-              checkoutBy: project.checkedOutBy || null
-            }
-          },
-          workDetails: project.tasks.map(task => ({
-            workId: task.workId,
-            taskName: task.taskName,
-            methodName: task.methodName,
-            assignedWorkerId: task.assignedWorkerId,
-            workStatus: task.workStatus,
-            progressPercentage: task.progressPercentage,
-            stats: task.stats,
-            transitionProgress: task.transitionProgress || []
-          }))
-        }
-      };
-
-      if (response.success) {
-        const { projectInfo, fileInfo, workDetails } = response.data;
-
-        console.log('✅ [FileProgressDetail] ファイル詳細取得成功（モックデータ）:', {
-          projectId,
+        console.log('✅ [FileProgressDetail] ファイル詳細取得成功:', {
+          projectName,
           workCount: workDetails?.length || 0,
         });
 
@@ -197,25 +138,26 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
         });
         setSelectedWorkIndex(0);
       } else {
-        throw new Error('ファイル詳細の取得に失敗しました');
+        throw new Error(response.data.error?.message || 'ファイル詳細の取得に失敗しました');
       }
     } catch (err) {
       console.error('❌ [FileProgressDetail] Fetch error:', err);
       const errorMessage =
-        axios.isAxiosError(err) && err.response?.data?.error
-          ? err.response.data.error
+        err instanceof Error
+          ? err.message
           : 'ファイル詳細の取得に失敗しました';
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [fileData, managerId]);
+  }, [fileData]);
 
   /**
    * ダイアログが開かれたらデータ取得
+   * managerId はサーバー側 JWT 認証から組織IDを取得するため不要
    */
   useEffect(() => {
-    if (open && fileData && managerId) {
+    if (open && fileData) {
       fetchFileDetails();
     } else if (!open) {
       // ダイアログを閉じたらリセット
@@ -223,7 +165,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
       setSelectedWorkIndex(0);
       setError(null);
     }
-  }, [open, fileData, managerId, fetchFileDetails]);
+  }, [open, fileData, fetchFileDetails]);
 
   /**
    * タブ変更ハンドラ
@@ -352,7 +294,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
     key: String(index),
     label: (
       <Text strong style={{ fontSize: token.fontSizeSM }}>
-        {work.taskName || `作業${index + 1}`}
+        {`Task${work.taskNo}`}
       </Text>
     ),
   }));
@@ -592,20 +534,10 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                 <Col xs={24} sm={12} md={6}>
                   <Space orientation="vertical" size={0}>
                     <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                      タスク名
+                      タスクNo
                     </Text>
                     <Text strong style={{ fontSize: token.fontSize }}>
-                      {selectedWork.taskName || selectedWork.workId}
-                    </Text>
-                  </Space>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <Space orientation="vertical" size={0}>
-                    <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                      タスクID
-                    </Text>
-                    <Text style={{ fontSize: token.fontSizeSM }}>
-                      {selectedWork.workId}
+                      {selectedWork.taskNo}
                     </Text>
                   </Space>
                 </Col>
@@ -738,7 +670,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
             </Card>
 
             {/* PetriNetVisualization統合 */}
-            {fileDetails?.fileInfo && selectedWork.assignedWorkerId && (
+            {fileDetails?.fileInfo && fileDetails.fileInfo.maimlFileKey && (
               <div>
                 <Text type="secondary" strong style={{ paddingLeft: token.paddingSM }}>
                   実験フロー図
@@ -752,7 +684,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                 >
                   <PetriNetVisualization
                     fileKey={fileDetails.fileInfo.maimlFileKey}
-                    workerId={selectedWork.assignedWorkerId}
+                    workerId={selectedWork.assignedWorkerId || ''}
                     workId={selectedWork.workId}
                     progressData={selectedWork.transitionProgress}
                   />

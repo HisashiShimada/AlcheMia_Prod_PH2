@@ -55,7 +55,8 @@ export async function getInstructions(
     methodId: inst.method_id || '',
     transitionId: inst.transition_id || '',
     taskNumber: inst.task_no ?? undefined,
-    isSent: inst.instruction_status === 1
+    isSent: inst.instruction_status === 1,
+    instruction_status: inst.instruction_status ?? 0
   }));
   
   logger.info('指示一覧を取得しました', {

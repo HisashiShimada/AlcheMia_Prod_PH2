@@ -1354,7 +1354,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   },
                   {
                     key: 'instruction_registration',
-                    label: '指示送信',
+                    label: '指示一覧',
                     children: (
                       <InstructionRegistrationTab
                         projectId={selectedProject.id}
@@ -1504,6 +1504,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     {/* タスク結果テーブル */}
                     <TaskResultsTable
                       results={taskResults}
+                      onViewResult={handleViewTaskResult}
                     />
                   </div>
                     ),

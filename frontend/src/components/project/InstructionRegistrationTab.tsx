@@ -104,6 +104,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             trialCount: task.trialCount,
             experimentOrder: task.experimentOrder,
             taskNumberOptions: Array.from({ length: task.trialCount }, (_, i) => i + 1),
+            workerLinkedFlg: task.workerLinkedFlg || false,
           }));
 
           console.log('[DEBUG] InstructionRegistrationTab - Tasks loaded from DB:', uiTasks);
@@ -113,7 +114,8 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
           setRegisteredTasks([]);
         }
       } catch (error) {
-        console.error('タスク登録情報の取得に失敗しました:', error);
+        console.error('Failed to fetch task registration:', error);
+        message.error(t('instructionRegistration.messages.taskFetchFailed'));
         setRegisteredTasks([]);
       }
     };
@@ -135,7 +137,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
         setInstructions(instructionList);
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : '指示一覧の取得に失敗しました';
+          error instanceof Error ? error.message : t('instructionRegistration.messages.fetchFailed');
         message.error(errorMessage);
       }
     };
@@ -262,7 +264,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       }
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : '指示の保存に失敗しました';
+        error instanceof Error ? error.message : t('instructionRegistration.messages.saveFailed');
       message.error(errorMessage);
     }
   }, [editMode, projectName, handleCloseDialog, t]);
@@ -278,13 +280,13 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       if (result.deleted) {
         // ローカル状態を更新
         setInstructions((prev) => prev.filter((inst) => inst.id !== id));
-        message.success('指示を削除しました');
+        message.success(t('instructionRegistration.messages.deleted'));
       } else {
-        message.error('指示の削除に失敗しました（送信済の可能性があります）');
+        message.error(t('instructionRegistration.messages.deleteFailed'));
       }
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : '指示の削除に失敗しました';
+        error instanceof Error ? error.message : t('instructionRegistration.messages.deleteError');
       message.error(errorMessage);
     }
   }, [projectName]);
@@ -313,13 +315,13 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       // 親コンポーネントに通知
       onInstructionsSubmit?.(sentInstructions);
 
-      message.success(`${result.sentInstructionsCount}件の指示を送信しました`);
+      message.success(t('instructionRegistration.messages.sent').replace('{count}', result.sentInstructionsCount.toString()));
 
       // 送信後、送信済フラグを立てて表示を継続
       setInstructions(sentInstructions);
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : '指示送信エラー';
+        error instanceof Error ? error.message : t('instructionRegistration.messages.sendFailed');
       message.error(errorMessage);
     } finally {
       setIsSending(false);
@@ -347,31 +349,16 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   /**
    * 優先度のラベル（code_value → code_name）
    */
-  const PRIORITY_LABELS: Record<number, string> = {
-    0: '低',
-    1: '通常',
-    2: '中',
-    3: '高',
-  };
-
   const getPriorityLabel = useCallback((priority: number): string => {
-    return PRIORITY_LABELS[priority] || String(priority);
-  }, []);
+    return t(`instructionRegistration.priority.${priority}`) || String(priority);
+  }, [t]);
 
   /**
    * タイプのラベル（code_value → code_name）
    */
-  const TYPE_LABELS: Record<number, string> = {
-    0: '一般',
-    1: 'セットアップ',
-    2: '測定',
-    3: '安全',
-    4: '清掃',
-  };
-
   const getTypeLabel = useCallback((type: number): string => {
-    return TYPE_LABELS[type] || String(type);
-  }, []);
+    return t(`instructionRegistration.type.${type}`) || String(type);
+  }, [t]);
 
   /**
    * 指示対象のラベル
@@ -381,15 +368,15 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     
     if (instruction.transitionId) {
       const transition = availableTransitions.find(t => t.id === instruction.transitionId);
-      return `${method?.displayName || 'メソッド'} > ${transition?.displayName || 'トランジション'}`;
+      return `${method?.displayName || t('instructionRegistration.targetLabels.method')} > ${transition?.displayName || t('instructionRegistration.targetLabels.transition')}`;
     } else if (instruction.taskNumber !== undefined) {
-      return `${method?.displayName || 'メソッド'} > タスク ${instruction.taskNumber}`;
+      return `${method?.displayName || t('instructionRegistration.targetLabels.method')} > ${t('instructionRegistration.targetLabels.task')} ${instruction.taskNumber}`;
     } else if (instruction.methodId) {
-      return method?.displayName || 'メソッド';
+      return method?.displayName || t('instructionRegistration.targetLabels.method');
     } else {
-      return 'ファイル全体';
+      return t('instructionRegistration.targetLabels.wholeProject');
     }
-  }, [availableMethods, availableTransitions]);
+  }, [availableMethods, availableTransitions, t]);
 
   /**
    * テーブルのカラム定義
@@ -479,14 +466,6 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       <div style={{ marginBottom: token.marginMD, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `0 ${token.paddingLG}px` }}>
         <Text type="secondary">{t('instructionRegistration.listTitle').replace('{count}', instructions.length.toString())}</Text>
         <Space>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleOpenCreateDialog}
-            disabled={isMaimlLoading || isSending || isCheckoutLocked}
-          >
-            {t('instructionRegistration.addButton')}
-          </Button>
           <Button
             type="primary"
             icon={<SendOutlined />}
