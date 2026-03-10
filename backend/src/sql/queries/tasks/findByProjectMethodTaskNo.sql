@@ -7,11 +7,10 @@
 --   $4: organization_id (UUID) - マルチテナント分離必須
 -- 
 -- Returns:
---   task_name (project_task.task_name), project_id, project_name, method_id, task_no (project_task_detail.task_no)
+--   project_id, project_name, method_id, task_no (project_task_detail.task_no)
 --   見つからない場合は0件
 
 SELECT 
-  pt.task_name,
   pt.project_id,
   p.project_name,
   pt.method_id,

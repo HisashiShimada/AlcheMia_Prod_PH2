@@ -10,8 +10,11 @@
  * 主キー: (organization_id, project_id, method_id, task_no)
  */
 
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
 import { ProjectTaskDetail } from '../types/database';
+import { loadSqlFile } from '../sql/loader';
+import type { ITask } from 'pg-promise';
+import { TaskDetailResponse, TaskDetailTransitionItem, TaskDetailStats } from '../types/api';
 
 /**
  * プロジェクト内のタスク詳細一覧を取得
@@ -191,4 +194,200 @@ export async function bulkInsert(taskDetails: ProjectTaskDetail[]): Promise<numb
   } finally {
     client.release();
   }
+}
+
+// ---------------------------------------------------------------------------
+// タスクステータス数値 → 文字列 変換マップ
+// ---------------------------------------------------------------------------
+const TASK_STATUS_MAP: Record<number, string> = {
+  0: 'pending',
+  1: 'in_progress',
+  2: 'failed',
+  3: 'review_waiting',
+  4: 'completed',
+};
+
+/**
+ * タスクステータス数値を文字列に変換する
+ * @param statusNum DB の task_status 数値
+ * @returns 文字列ステータス（不明な値は 'pending' を返す）
+ */
+function toTaskStatusString(statusNum: number | null | undefined): string {
+  if (statusNum === null || statusNum === undefined) return 'pending';
+  return TASK_STATUS_MAP[statusNum] ?? 'pending';
+}
+
+// ---------------------------------------------------------------------------
+// findTaskDetail - タスク詳細 + トランジション進捗 一括取得
+// ---------------------------------------------------------------------------
+
+/**
+ * タスク詳細情報をトランジション進捗込みで取得
+ *
+ * @param organizationId 組織ID（マルチテナント分離）
+ * @param projectId      プロジェクトID
+ * @param methodId       メソッドID
+ * @param taskNo         タスク連番
+ * @param taskId         レスポンスに埋め込むタスクID文字列（"{projectId}__{methodId}__{taskNo}"）
+ * @returns タスク詳細レスポンス、または null（タスクが存在しない場合）
+ */
+export async function findTaskDetail(
+  organizationId: string,
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  taskId: string
+): Promise<TaskDetailResponse | null> {
+  const pool = getPool();
+
+  // ── 1. タスク基本情報取得（集計付き）──────────────────────────────
+  const detailSql = await loadSqlFile('tasks/findDetailByTaskId.sql');
+  const detailResult = await pool.query(detailSql, [
+    projectId,
+    methodId,
+    taskNo,
+    organizationId,
+  ]);
+
+  if (detailResult.rows.length === 0) {
+    return null;
+  }
+
+  const row = detailResult.rows[0];
+
+  // ── 2. トランジション進捗個別レコード取得 ────────────────────────
+  const transitionSql = await loadSqlFile('tasks/findTransitionsByTaskId.sql');
+  const transitionResult = await pool.query(transitionSql, [
+    projectId,
+    methodId,
+    taskNo,
+    organizationId,
+  ]);
+
+  const transitionProgress: TaskDetailTransitionItem[] = transitionResult.rows.map(
+    (t) => ({
+      transitionId: t.transition_id as string,
+      status:       t.status !== null ? Number(t.status) : null,
+      progressRate: t.progress_rate !== null ? Number(t.progress_rate) : null,
+      updatedAt:    t.update_at ? (t.update_at as Date).toISOString() : null,
+    })
+  );
+
+  // ── 3. 統計情報を集計 ─────────────────────────────────────────────
+  const totalTransitions   = Number(row.total_transitions)   ?? 0;
+  const completedCount     = Number(row.completed_transitions) ?? 0;
+  const inProgressCount    = Number(row.inprogress_transitions) ?? 0;
+  const notStartedCount    = Number(row.notstarted_transitions) ?? 0;
+  const avgProgressRate    = Number(row.avg_progress_rate)   ?? 0;
+
+  const stats: TaskDetailStats = {
+    totalTransitions,
+    completed:          completedCount,
+    inProgress:         inProgressCount,
+    notStarted:         notStartedCount,
+    progressPercentage: avgProgressRate,
+  };
+
+  // ── 4. レスポンス組み立て ──────────────────────────────────────────
+  const response: TaskDetailResponse = {
+    taskId,
+    projectId:           row.project_id as string,
+    projectName:         row.project_name as string,
+    methodId:            row.method_id as string,
+    experimentOrder:     Number(row.experiment_order),
+    taskName:            row.task_name as string | null,
+    taskNo:              Number(row.task_no),
+    taskStatus:          toTaskStatusString(row.task_status as number | null),
+    taskStatusNum:       row.task_status !== null ? Number(row.task_status) : null,
+    experimentUserId:    row.experiment_user_id as string | null,
+    experimentUserName:  row.experiment_user_name as string | null,
+    experimentStartAt:   row.experiment_start_at
+      ? (row.experiment_start_at as Date).toISOString()
+      : null,
+    experimentEndAt:     row.experiment_end_at
+      ? (row.experiment_end_at as Date).toISOString()
+      : null,
+    reviewedAt:          row.reviewed_at
+      ? (row.reviewed_at as Date).toISOString()
+      : null,
+    reviewUserId:        row.review_user_id as string | null,
+    transitionProgress,
+    stats,
+    createdAt:           row.create_at
+      ? (row.create_at as Date).toISOString()
+      : null,
+    updatedAt:           row.update_at
+      ? (row.update_at as Date).toISOString()
+      : null,
+  };
+
+  return response;
+}
+
+// ========================================
+// pg-promise対応メソッド（タスク登録保存用）
+// ========================================
+
+/**
+ * タスク詳細データの型定義（バッチINSERT用）
+ */
+export interface TaskDetailInsertData {
+  methodId: string;
+  trialCount: number;
+}
+
+/**
+ * プロジェクト単位でタスク詳細を削除（トランザクション内）
+ * タスク登録保存時に既存レコードをクリアする際に使用
+ * 
+ * @param t pg-promiseトランザクションオブジェクト
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ */
+export async function deleteByProject(
+  t: ITask<unknown>,
+  organizationId: string,
+  projectId: string
+): Promise<void> {
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('project_task_detail/deleteByProject.sql');
+  
+  await t.none(sqlQuery, [organizationId, projectId]);
+}
+
+/**
+ * タスク詳細の一括INSERT（トランザクション内）
+ * タスク登録保存時に新規レコードを作成する際に使用
+ * 
+ * @param t pg-promiseトランザクションオブジェクト
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param userId ユーザーID
+ * @param tasks タスクデータ配列
+ */
+export async function batchInsert(
+  t: ITask<unknown>,
+  organizationId: string,
+  projectId: string,
+  userId: string,
+  tasks: TaskDetailInsertData[]
+): Promise<void> {
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('project_task_detail/insert.sql');
+  
+  for (const task of tasks) {
+    // 各タスクのtrialCount分のレコードを作成
+    for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
+      await t.none(sqlQuery, [
+        organizationId,
+        projectId,
+        task.methodId,
+        taskNo,
+        0, // task_status: 0（初期状態）
+        userId, // create_user_id
+        userId  // update_user_id
+      ]);
+    }
+  }
+
 }

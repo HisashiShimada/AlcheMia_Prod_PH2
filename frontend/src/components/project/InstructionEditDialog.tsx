@@ -99,10 +99,21 @@ interface InstructionEditDialogProps {
   mode: 'create' | 'edit';
   instruction?: InstructionData;
   tasks: TaskDetail[];
-  availableMethods: MethodInfo[];
+  availableMethods?: MethodInfo[];
   availableTransitions: TransitionInfo[];
   onClose: () => void;
   onSave: (instruction: InstructionData, keepDialogOpen?: boolean) => void;
+  /**
+   * 固定するメソッドID（指定時はメソッド選択を無効化）
+   * タスク登録タブから指示追加する際に使用
+   */
+  fixedMethodId?: string;
+  /**
+   * 保存モード
+   * - 'immediate': 即時DB保存（指示登録タブのデフォルト動作）
+   * - 'local': ローカルstateに保存（タスク登録タブで使用）
+   */
+  saveMode?: 'immediate' | 'local';
 }
 
 /**
@@ -117,6 +128,8 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   availableTransitions,
   onClose,
   onSave,
+  fixedMethodId,
+  saveMode = 'immediate',
 }) => {
   const { token } = useToken();
   const [form] = Form.useForm();
@@ -201,20 +214,21 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
       setSelectedTransitionId(instruction.transitionId);
     } else {
       // 新規作成モード：初期値を設定
+      const initialMethodId = fixedMethodId || '';
       form.setFieldsValue({
         priority: INSTRUCTION_PRIORITIES_LOCAL.NORMAL,
         type: INSTRUCTION_TYPES_LOCAL.GENERAL,
-        methodId: '',
+        methodId: initialMethodId,
         taskNumber: undefined,
         transitionId: '',
         content: '',
       });
-      setSelectedMethodId('');
+      setSelectedMethodId(initialMethodId);
       setSelectedTaskNumber(undefined);
       setSelectedTransitionId('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, fixedMethodId]);
 
   /**
    * メソッド選択時
@@ -245,7 +259,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
   /**
    * 選択されたメソッド情報を取得
    */
-  const selectedMethod = availableMethods.find(m => m.id === selectedMethodId);
+  const selectedMethod = availableMethods?.find(m => m.id === selectedMethodId);
 
   /**
    * 選択されたトランジション情報を取得
@@ -387,49 +401,40 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
       <Form
         form={form}
         layout="vertical"
-        style={{ marginTop: token.marginLG }}
+        style={{ marginTop: token.marginSM }}
       >
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="small" style={{ width: '100%' }}>
+          {/* methodIdをhiddenフィールドとして保持 */}
+          <Form.Item name="methodId" hidden>
+            <Input />
+          </Form.Item>
+
           {/* 指示対象（表示のみ） */}
           <div>
             <Text strong style={{ display: 'block', marginBottom: token.marginXS }}>
               🎯 指示対象
             </Text>
             <Card size="small" style={{ backgroundColor: token.colorPrimaryBg }}>
-              {selectedMethodId ? (
-                <Text>
-                  <AimOutlined /> {selectedMethod?.displayName || 'メソッド未設定'}
-                </Text>
-              ) : (
-                <Text>
-                  <FileTextOutlined /> ファイル全体
-                </Text>
-              )}
+              <Space orientation="vertical" size={4} style={{ width: '100%' }}>
+                {selectedMethodId ? (
+                  <>
+                    <Text strong style={{ fontSize: '16px' }}>
+                      <AimOutlined /> {selectedMethod?.displayName || selectedMethodId}
+                    </Text>
+                    {selectedMethod?.description && (
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        {selectedMethod.description}
+                      </Text>
+                    )}
+                  </>
+                ) : (
+                  <Text>
+                    <FileTextOutlined /> プロジェクト全体
+                  </Text>
+                )}
+              </Space>
             </Card>
           </div>
-
-          {/* メソッド選択 */}
-          <Form.Item
-            name="methodId"
-            label="対象メソッド"
-          >
-            <Select
-              placeholder="メソッドを選択..."
-              onChange={handleMethodChange}
-              allowClear
-              disabled={isSentInstruction}
-            >
-              {tasks.map((task) => {
-                const method = availableMethods.find(m => m.id === task.methodId);
-                return method ? (
-                  <Select.Option key={task.methodId} value={task.methodId}>
-                    {method.displayName}
-                    {method.description && ` - ${method.description}`}
-                  </Select.Option>
-                ) : null;
-              })}
-            </Select>
-          </Form.Item>
 
           {/* 優先度 */}
           <Form.Item
@@ -533,7 +538,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
           {selectedTransition && (
             <Alert
               message={
-                <Space direction="vertical" size="small">
+                <Space orientation="vertical" size="small">
                   <Text>
                     <Text strong>選択中:</Text> {selectedTransition.displayName}
                   </Text>

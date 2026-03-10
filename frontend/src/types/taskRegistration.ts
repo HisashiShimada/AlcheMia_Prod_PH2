@@ -21,6 +21,7 @@ export interface TaskRegistrationItem {
   experimentCondition: number;
   trialCount: number;
   experimentOrder: number;
+  workerLinkedFlg: boolean;
 }
 
 /**
@@ -50,6 +51,7 @@ export interface TaskDetail {
   trialCount: number;
   experimentOrder?: number; // 実験順序
   taskNumberOptions: number[]; // 指示入力部用のタスク番号リスト
+  workerLinkedFlg: boolean; // ワーカー連携フラグ（trueの場合は編集不可）
 }
 
 /**
@@ -72,10 +74,28 @@ export interface SaveTaskRegistrationItem {
 }
 
 /**
+ * 指示データ（保存用）
+ */
+export interface InstructionSaveItem {
+  methodId: string;
+  content: string;
+  priority: number;
+  type: number;
+  targetType: number;
+  transitionId: string | null;
+  taskNumber: number | null;
+}
+
+/**
  * タスク登録保存APIのリクエスト
  */
 export interface SaveTaskRegistrationRequest {
   tasks: SaveTaskRegistrationItem[];
+  /**
+   * 指示リスト（オプション）
+   * タスク登録タブから追加された指示を一括保存する際に使用
+   */
+  instructions?: InstructionSaveItem[];
 }
 
 /**

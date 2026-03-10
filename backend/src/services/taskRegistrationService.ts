@@ -10,6 +10,7 @@
 
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
+import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
 import { TemplateDataRepository } from '../repositories/templateDataRepository';
 import type {
@@ -18,7 +19,7 @@ import type {
   SaveTaskRegistrationRequest,
   SaveTaskRegistrationResponse
 } from '../types/taskRegistration';
-import { getPool } from '../database/db';
+import { getPgp } from '../database/db';
 import type { PoolClient } from 'pg';
 import type { ProjectTask } from '../types/database';
 import { getStorageService } from './storageService';
@@ -49,22 +50,69 @@ export async function getTaskRegistration(
   const isCheckoutLocked = project.checkout_status === 1;
   const isMaimlRegistered = project.project_maiml_flg === true;
   
-  // 3. タスク情報を取得（DBのみ）
-  let tasks: TaskRegistrationData[] = [];
-  
-  // 4. project_taskテーブルから取得
+  // 3. project_taskテーブルから全タスクを取得
   const dbTasks = await projectTaskRepository.findByProject(organizationId, project.project_id);
   
-  if (dbTasks && dbTasks.length > 0) {
-    // DBにデータがある場合のみtasksを設定
-    tasks = dbTasks.map((task: ProjectTask, index: number): TaskRegistrationData => ({
-      methodId: task.method_id,
-      experimentCondition: task.experiment_condition || 0,
-      trialCount: task.attempts_count || 1,
-      experimentOrder: task.experiment_order || index + 1
-    }));
+  // 4. DBの全タスクをUI用の形式に変換
+  let tasks: TaskRegistrationData[] = dbTasks.map((task: ProjectTask, index: number): TaskRegistrationData => ({
+    methodId: task.method_id,
+    experimentCondition: task.experiment_condition || 0,
+    trialCount: task.attempts_count || 1,
+    experimentOrder: task.experiment_order || index + 1,
+    workerLinkedFlg: task.worker_linked_flg || false
+  }));
+  
+  // 5. MAIMLファイルが登録されていて、かつチェックイン状態（編集可能）の場合のみ差分メソッドを検出して追加
+  if (isMaimlRegistered && !isCheckoutLocked) {
+    try {
+      // MAIMLファイルを取得してパース
+      const storageService = getStorageService();
+      const maimlFilePath = `projects/${projectName}/${projectName}.maiml`;
+      const maimlBuffer = await storageService.downloadFile(organizationId, maimlFilePath);
+      const maimlContent = maimlBuffer.toString('utf-8');
+      const parser = new MaimlParserTyped(maimlContent);
+      
+      // MAIMLから全メソッドを取得
+      const maimlMethods = parser.getMethods();
+      
+      // DBのworker_linked_flg=falseメソッドIDセットを作成
+      const falseFlagMethodIds = new Set(
+        dbTasks
+          .filter(task => task.worker_linked_flg === false)
+          .map(task => task.method_id)
+      );
+      
+      // MAIMLにあるが、DBのFALSEメソッドに存在しないメソッドを検出
+      // （TRUEメソッドと重複するものも差分として検出される）
+      const newMethods = maimlMethods.filter(method => 
+        method.id && !falseFlagMethodIds.has(method.id)
+      );
+      
+      // 新規メソッドを初期データとして追加
+      const newTasks: TaskRegistrationData[] = newMethods.map((method, index): TaskRegistrationData => ({
+        methodId: method.id || '',
+        experimentCondition: 0, // デフォルト値
+        trialCount: 1, // デフォルト値
+        experimentOrder: tasks.length + index + 1, // 既存タスクの後ろに追加
+        workerLinkedFlg: false
+      }));
+      
+      // 既存タスクと新規タスクを統合
+      tasks = [...tasks, ...newTasks];
+      
+      console.log('[TaskRegistrationService] MAIML差分検出:', {
+        maimlMethodCount: maimlMethods.length,
+        dbTaskCount: dbTasks.length,
+        dbFalseFlagCount: falseFlagMethodIds.size,
+        newMethodCount: newMethods.length,
+        totalTaskCount: tasks.length
+      });
+      
+    } catch (error) {
+      // MAIMLパースエラーは警告ログのみ（処理は継続）
+      console.warn('[TaskRegistrationService] MAIML解析エラー（処理は継続）:', error);
+    }
   }
-  // DBにデータがない場合は空配列のまま（フロントエンドで処理）
   
   return {
     tasks,
@@ -88,212 +136,122 @@ export async function saveTaskRegistration(
   userId: string,
   requestData: SaveTaskRegistrationRequest
 ): Promise<SaveTaskRegistrationResponse> {
-  const pool = getPool();
-  const client = await pool.connect();
+  const pgp = getPgp();
   
-  try {
-    await client.query('BEGIN');
-    
-    // 1. プロジェクト情報を取得
-    const project = await projectRepository.findByName(organizationId, projectName);
-    
-    if (!project) {
-      throw new Error('Project not found');
+  // 1. プロジェクト情報を取得（トランザクション外）
+  const project = await projectRepository.findByName(organizationId, projectName);
+  
+  if (!project) {
+    throw new Error('Project not found');
+  }
+  
+  // 2. チェックアウト状態を確認
+  if (project.checkout_status === 1) {
+    throw new Error('Project is checked out. Cannot save task registration.');
+  }
+  
+  // 3. MAIMLファイル登録状態を確認
+  if (project.project_maiml_flg !== true) {
+    throw new Error('MAIML file is not registered. Cannot save task registration.');
+  }
+  
+  // 4. バリデーション
+  if (!requestData.tasks || requestData.tasks.length === 0) {
+    throw new Error('Tasks are required');
+  }
+  
+  for (const task of requestData.tasks) {
+    if (!task.methodId) {
+      throw new Error('Method ID is required for all tasks');
     }
-    
-    // 2. チェックアウト状態を確認
-    if (project.checkout_status === 1) {
-      throw new Error('Project is checked out. Cannot save task registration.');
+    if (task.trialCount < 1 || task.trialCount > 999) {
+      throw new Error('Trial count must be between 1 and 999');
     }
+  }
+  
+  // 5. MAIMLファイルをパース（トランザクション外）
+  const storageService = getStorageService();
+  const maimlFilePath = `projects/${projectName}/${projectName}.maiml`;
+  const maimlBuffer = await storageService.downloadFile(organizationId, maimlFilePath);
+  const maimlContent = maimlBuffer.toString('utf-8');
+  const parser = new MaimlParserTyped(maimlContent);
+  
+  // 6. トランザクション内でDB操作を実行
+  return await pgp.tx(async (t) => {
+    // 6-1. project_taskテーブルへ削除→INSERT
+    // 6-1-1. worker_linked_flg=falseのタスクを削除
+    await projectTaskRepository.deleteByProjectAndWorkerLinkedFlg(
+      t,
+      organizationId,
+      project.project_id,
+      false
+    );
     
-    // 3. MAIMLファイル登録状態を確認
-    if (project.project_maiml_flg !== true) {
-      throw new Error('MAIML file is not registered. Cannot save task registration.');
-    }
-    
-    // 4. バリデーション
-    if (!requestData.tasks || requestData.tasks.length === 0) {
-      throw new Error('Tasks are required');
-    }
-    
-    for (const task of requestData.tasks) {
-      if (!task.methodId) {
-        throw new Error('Method ID is required for all tasks');
-      }
-      if (task.trialCount < 1 || task.trialCount > 999) {
-        throw new Error('Trial count must be between 1 and 999');
-      }
-    }
-    
-    // 5. project_taskテーブルへUPSERT
-    await upsertProjectTasks(
-      client,
+    // 6-1-2. リクエストのタスクを新規INSERT
+    await projectTaskRepository.batchInsertTasks(
+      t,
       organizationId,
       project.project_id,
       userId,
-      requestData.tasks
+      requestData.tasks.map(task => ({
+        methodId: task.methodId,
+        experimentOrder: task.experimentOrder,
+        experimentCondition: task.experimentCondition,
+        trialCount: task.trialCount,
+        workerLinkedFlg: task.workerLinkedFlg || false
+      }))
     );
     
-    // 6. project_task_detailテーブルへ削除＋INSERT
-    await deleteAndInsertTaskDetails(
-      client,
+    // 6-2. project_task_detailテーブルへ削除＋INSERT
+    await projectTaskDetailRepository.deleteByProject(t, organizationId, project.project_id);
+    await projectTaskDetailRepository.batchInsert(
+      t,
       organizationId,
       project.project_id,
       userId,
-      requestData.tasks
+      requestData.tasks.map(task => ({
+        methodId: task.methodId,
+        trialCount: task.trialCount
+      }))
     );
-
-    // 7. MAIMLファイルをパース
-    const storageService = getStorageService();
-    const maimlFilePath = `projects/${projectName}/${projectName}.maiml`;
-    const maimlBuffer = await storageService.downloadFile(organizationId, maimlFilePath);
-    const maimlContent = maimlBuffer.toString('utf-8');
-    const parser = new MaimlParserTyped(maimlContent);
-
-    // 8. transition_dataテーブルへ削除＋INSERT
+    
+    // 6-3. transition_dataテーブルへ削除＋INSERT
     await deleteAndInsertTransitionData(
-      client,
+      t as any, // 既存のRepositoryがPoolClientを期待しているため、一時的にany
       organizationId,
       project.project_id,
       userId,
       requestData.tasks,
       parser
     );
-
-    // 9. template_dataテーブルへ削除＋INSERT
+    
+    // 6-4. template_dataテーブルへ削除＋INSERT
     await deleteAndInsertTemplateData(
-      client,
+      t as any, // 既存のRepositoryがPoolClientを期待しているため、一時的にany
       organizationId,
       project.project_id,
       userId,
       requestData.tasks,
       parser
     );
-
-    await client.query('COMMIT');
+    
+    // 6-5. 指示データの保存（instructions配列が指定されている場合のみ）
+    if (requestData.instructions && requestData.instructions.length > 0) {
+      const instructionRepository = await import('../repositories/instructionRepository');
+      await instructionRepository.batchInsert(
+        t as any, // instructionRepository.batchInsertがany型を期待
+        organizationId,
+        project.project_id,
+        userId,
+        requestData.instructions
+      );
+    }
     
     return {
       success: true,
       message: 'Task registration saved successfully'
     };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Failed to save task registration:', error);
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
-/**
- * project_taskテーブルへUPSERT
- * 
- * @param client - PostgreSQLクライアント
- * @param organizationId - 組織ID
- * @param projectId - プロジェクトID
- * @param userId - ユーザーID
- * @param tasks - タスクデータ
- * @private
- */
-async function upsertProjectTasks(
-  client: PoolClient,
-  organizationId: string,
-  projectId: string,
-  userId: string,
-  tasks: SaveTaskRegistrationRequest['tasks']
-): Promise<void> {
-  for (let i = 0; i < tasks.length; i++) {
-    const task = tasks[i];
-    
-    const query = `
-      INSERT INTO project_task (
-        organization_id,
-        project_id,
-        method_id,
-        experiment_order,
-        experiment_condition,
-        attempts_count,
-        create_user_id,
-        create_at,
-        update_user_id,
-        update_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8, CURRENT_TIMESTAMP)
-      ON CONFLICT (organization_id, project_id, method_id)
-      DO UPDATE SET
-        experiment_order = EXCLUDED.experiment_order,
-        experiment_condition = EXCLUDED.experiment_condition,
-        attempts_count = EXCLUDED.attempts_count,
-        update_user_id = EXCLUDED.update_user_id,
-        update_at = CURRENT_TIMESTAMP
-    `;
-    
-    await client.query(query, [
-      organizationId,
-      projectId,
-      task.methodId,
-      i + 1, // experiment_order
-      task.experimentCondition,
-      task.trialCount,
-      userId,
-      userId
-    ]);
-  }
-}
-
-/**
- * project_task_detailテーブルへ削除＋INSERT
- * 
- * @param client - PostgreSQLクライアント
- * @param organizationId - 組織ID
- * @param projectId - プロジェクトID
- * @param userId - ユーザーID
- * @param tasks - タスクデータ
- * @private
- */
-async function deleteAndInsertTaskDetails(
-  client: PoolClient,
-  organizationId: string,
-  projectId: string,
-  userId: string,
-  tasks: SaveTaskRegistrationRequest['tasks']
-): Promise<void> {
-  // 1. 既存のproject_task_detailを削除
-  const deleteQuery = `
-    DELETE FROM project_task_detail
-    WHERE organization_id = $1
-      AND project_id = $2
-  `;
-  
-  await client.query(deleteQuery, [organizationId, projectId]);
-  
-  // 2. 新規にproject_task_detailを作成
-  for (const task of tasks) {
-    for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
-      const insertQuery = `
-        INSERT INTO project_task_detail (
-          organization_id,
-          project_id,
-          method_id,
-          task_no,
-          task_status,
-          create_user_id,
-          create_at,
-          update_user_id,
-          update_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7, CURRENT_TIMESTAMP)
-      `;
-      
-      await client.query(insertQuery, [
-        organizationId,
-        projectId,
-        task.methodId,
-        taskNo,
-        0, // task_status: 0（初期状態）
-        userId,
-        userId
-      ]);
-    }
-  }
+  });
 }
 
 /**

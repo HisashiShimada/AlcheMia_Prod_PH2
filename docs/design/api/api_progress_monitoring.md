@@ -1,11 +1,11 @@
 # 進捗確認API仕様書
 
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-02-26 20:07  
-**バージョン**: 1.4.2  
+**最終更新**: 2026-03-09 11:02  
+**バージョン**: 1.5.0  
 **対象画面**: 実験管理者 - 進捗確認画面、実験作業者 - 実験記録画面  
 **総API数**: 6個  
-**実装状況**: 1個実装済み、5個未実装
+**実装状況**: 2個実装済み、4個未実装
 
 ---
 
@@ -13,10 +13,10 @@
 
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
-| 進捗確認 | 1 | 5 | 6 |
-| **合計** | **1** | **5** | **6** |
+| 進捗確認 | 2 | 4 | 6 |
+| **合計** | **2** | **4** | **6** |
 
-**完了率**: 16.7% (1/6)
+**完了率**: 33.3% (2/6)
 
 ---
 
@@ -25,7 +25,7 @@
 | # | API名 | メソッド | エンドポイント | 状態 | 優先度 |
 |---|------|---------|---------------|------|--------|
 | 1 | メソッド別タスク一覧取得 | GET | `/api/v1/projects/:projectId/methods/:methodId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 2 | タスク詳細取得 | GET | `/api/v1/tasks/:taskId` | 🔴 未実装 | ⭐⭐ 中 |
+| 2 | タスク詳細取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` | 🟢 実装済み | ⭐⭐ 中 |
 | 3 | 進捗データ取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 4 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 5 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
@@ -1788,6 +1788,13 @@ const validateStatusUpdate = (body: any) => {
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.5.0 | 2026-03-09 | タスク詳細取得API エンドポイント変更・実装済みに更新 | Cline |
+| | | - API #2: エンドポイントを `GET /api/v1/tasks/:taskId` → `GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` に変更 | |
+| | | - 実装済み（`backend/src/controllers/projectController.ts` `getTaskDetail()`、`backend/src/routes/progressRoutes.ts`） | |
+| | | - パラメータ: taskId(UUID) → projectName/methodId/taskNo の組み合わせに変更 | |
+| | | - `server.ts` から旧 `tasksRoutes` の登録を削除 | |
+| | | - 実装状況サマリー: 1→2実装済み、5→4未実装 | |
+| | | - 完了率: 16.7%→33.3% | |
 | 1.4.2 | 2026-02-26 | 進捗データ取得API レスポンス仕様修正 | Cline |
 | | | - API #3: 各トランジションに材料・条件・結果の定義数と実績数を追加 | |
 | | | - `material_count`: MAIMLファイルから取得したトランジションに紐づく材料の定義数 | |

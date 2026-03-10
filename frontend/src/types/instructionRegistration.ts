@@ -61,7 +61,9 @@ export interface InstructionData {
   methodId: string;
   transitionId: string;
   taskNumber?: number;
-  isSent?: boolean; // 送信済フラグ
+  instruction_status?: number; // 0: 未送信, 1: 送信済
+  isSent?: boolean; // 送信済フラグ（後方互換性のため保持）
+  isNewlyAdded?: boolean; // 新規追加フラグ（DBから取得した指示と区別するため）
 }
 
 /**
@@ -100,5 +102,16 @@ export interface InstructionEditDialogProps {
   tasks: TaskDetail[];
   availableTransitions: TransitionInfo[];
   onClose: () => void;
-  onSave: (instruction: InstructionData) => void;
+  onSave: (instruction: InstructionData, keepDialogOpen?: boolean) => void;
+  /**
+   * 固定するメソッドID（指定時はメソッド選択を無効化）
+   * タスク登録タブから指示追加する際に使用
+   */
+  fixedMethodId?: string;
+  /**
+   * 保存モード
+   * - 'immediate': 即時DB保存（指示登録タブのデフォルト動作）
+   * - 'local': ローカルstateに保存（タスク登録タブで使用）
+   */
+  saveMode?: 'immediate' | 'local';
 }

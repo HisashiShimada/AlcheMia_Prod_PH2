@@ -423,6 +423,78 @@ export async function getWorkerTasks(
 }
 
 /**
+ * WorkProgressDetailDialog 用 作業詳細一括取得API
+ *
+ * GET /api/v1/progress/projects/:projectName/work-details
+ *
+ * @description
+ *   プロジェクト名をキーに、WorkProgressDetailDialog が必要とする
+ *   projectInfo / fileInfo / workDetails（transitionProgress 含む）を一括返却する。
+ * @roles experiment_admin（040000 読取専用以上）
+ */
+export async function getWorkDetails(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const requestId = uuidv4();
+  const timestamp = new Date().toISOString();
+
+  try {
+    const { projectName } = req.params;
+    const { organizationId } = req.user!;
+
+    logger.info('getWorkDetails request received', {
+      projectName,
+      organizationId,
+      requestId
+    });
+
+    const transitionDataRepository = new TransitionDataRepository();
+    const progressService = new ProgressService(transitionDataRepository);
+    const result = await progressService.getWorkDetails(projectName, organizationId);
+
+    if (result.success) {
+      logger.info('getWorkDetails succeeded', {
+        projectName,
+        organizationId,
+        taskCount: result.data.workDetails.length,
+        requestId
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result.data,
+        meta: { timestamp, requestId }
+      });
+      return;
+    }
+
+    const statusCode = getHttpStatusFromErrorCode(result.error.code);
+    logger.warn('getWorkDetails failed', {
+      errorCode: result.error.code,
+      message: result.error.message,
+      projectName,
+      organizationId,
+      requestId
+    });
+
+    res.status(statusCode).json({
+      success: false,
+      error: result.error,
+      meta: { timestamp, requestId }
+    });
+  } catch (error) {
+    logger.error('Unexpected error in getWorkDetails', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      requestId
+    });
+    next(error);
+  }
+}
+
+/**
  * タスクステータス更新API
  * 
  * PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status

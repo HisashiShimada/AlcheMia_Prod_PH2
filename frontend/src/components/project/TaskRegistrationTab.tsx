@@ -13,15 +13,16 @@ import {
   Typography,
   Select,
   Input,
-  message,
   theme,
   Spin,
   Empty,
+  App,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   SaveOutlined,
   HolderOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
 import {
   DndContext,
@@ -42,11 +43,17 @@ import { CSS } from '@dnd-kit/utilities';
 import type { 
   TaskDetail, 
   MethodInfo, 
-  TaskRegistrationData
+  TaskRegistrationData,
+  InstructionSaveItem,
 } from '@/types/taskRegistration';
+import type {
+  InstructionData,
+  TransitionInfo,
+} from '@/types/instructionRegistration';
+import InstructionEditDialog from './InstructionEditDialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProjectMaiml } from '@/contexts/ProjectMaimlContext';
-import { getTaskRegistration, saveTaskRegistration } from '@/services/projectApiService';
+import { getTaskRegistration, saveTaskRegistration, saveInstruction, getInstructions } from '@/services/projectApiService';
 import { createSelectOptionsFromCodeMaster, createRangeOptions } from '@/utils/selectUtils';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
 
@@ -82,6 +89,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   onTasksChange,
 }) => {
   const { token } = useToken();
+  const { message } = App.useApp();
   const { t } = useLanguage();
   const { maimlRoot } = useProjectMaiml();
 
@@ -92,11 +100,50 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isMaimlRegistered, setIsMaimlRegistered] = useState<boolean>(false);
   
+  // チェックボックス状態管理（タスクIDで管理）
+  const [checkedTaskIds, setCheckedTaskIds] = useState<Set<number>>(new Set());
+  
+  // 指示管理のstate（統合版）
+  const [instructions, setInstructions] = useState<InstructionData[]>([]);
+  const [isInstructionDialogOpen, setIsInstructionDialogOpen] = useState<boolean>(false);
+  const [selectedMethodIdForInstruction, setSelectedMethodIdForInstruction] = useState<string>('');
+  const [availableTransitions, setAvailableTransitions] = useState<TransitionInfo[]>([]);
+  
+  // プロジェクト指示用のダイアログ状態
+  const [isProjectInstructionDialogOpen, setIsProjectInstructionDialogOpen] = useState<boolean>(false);
+  
   // チェックアウト状態はPropsを優先し、なければAPI取得結果を使用
   const isCheckoutLocked = isCheckoutLockedProp ?? false;
 
+  /**
+   * チェックボックスの状態変更ハンドラー
+   */
+  const handleCheckboxChange = useCallback((taskId: number, checked: boolean) => {
+    setCheckedTaskIds(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(taskId);
+      } else {
+        newSet.delete(taskId);
+      }
+      return newSet;
+    });
+  }, []);
+
   // コードマスターから実験条件オプションを取得
   const { options: experimentConditionOptions, loading: loadingCodeMaster } = useCodeMaster('experiment_condition');
+
+  /**
+   * 指示データのリフレッシュ（stateクリア + DB再取得）
+   */
+  const refreshInstructions = useCallback(async () => {
+    setInstructions([]); // stateをクリア
+    const instructionsData = await getInstructions(projectName).catch(err => {
+      console.warn('[DEBUG] TaskRegistrationTab - Failed to refresh instructions (continuing):', err);
+      return []; // エラー時は空配列を返す
+    });
+    setInstructions(instructionsData || []); // DB指示をセット
+  }, [projectName]);
 
   /**
    * タブがアクティブになった時にタスク登録情報を再取得
@@ -105,30 +152,41 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     const fetchTaskRegistration = async () => {
       if (!projectName || !isActive) return;
 
-      console.log('[DEBUG] TaskRegistrationTab - Tab activated, fetching task registration');
+      console.log('[DEBUG] TaskRegistrationTab - Tab activated, fetching task registration', {
+        isActive,
+        projectName,
+        timestamp: new Date().toISOString()
+      });
       setLoadingMethods(true);
 
       try {
-        const data = await getTaskRegistration(projectName);
+        // タスクデータを取得
+        const taskData = await getTaskRegistration(projectName);
 
         // MAIML登録状態を保存（チェックアウト状態はPropsから取得）
-        setIsMaimlRegistered(data.isMaimlRegistered);
+        setIsMaimlRegistered(taskData.isMaimlRegistered);
+        
+        // 指示データを共通関数で取得（stateクリア + DB再取得）
+        await refreshInstructions();
+        
+        console.log('[DEBUG] TaskRegistrationTab - Instructions refreshed');
 
         // タスク情報をUI用の形式に変換
-        if (data.tasks && data.tasks.length > 0) {
+        if (taskData.tasks && taskData.tasks.length > 0) {
           // DBにデータがある場合
-          const uiTasks: TaskDetail[] = data.tasks.map((task, index) => ({
+          const uiTasks: TaskDetail[] = taskData.tasks.map((task, index) => ({
             id: index + 1,
             methodId: task.methodId,
             experimentCondition: Number(task.experimentCondition), // DBから取得した値を明示的に数値型に変換
             trialCount: task.trialCount,
             experimentOrder: task.experimentOrder,
             taskNumberOptions: Array.from({ length: task.trialCount }, (_, i) => i + 1),
+            workerLinkedFlg: task.workerLinkedFlg || false, // ワーカー連携フラグを取得
           }));
 
           // デバッグログ：型を確認
           console.log('[DEBUG] TaskRegistrationTab - Converted tasks from DB:', {
-            originalTasks: data.tasks,
+            originalTasks: taskData.tasks,
             uiTasks,
             experimentConditionTypes: uiTasks.map(t => ({
               value: t.experimentCondition,
@@ -140,14 +198,20 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           onTasksChange?.(uiTasks);
 
           // メソッド情報を抽出（簡易版：methodIdから生成）
-          const methods: MethodInfo[] = data.tasks.map((task) => ({
+          const methods: MethodInfo[] = taskData.tasks.map((task) => ({
             id: task.methodId,
             name: task.methodId,
             displayName: task.methodId,
             description: undefined,
           }));
           setAvailableMethods(methods);
-        } else if (data.tasks && data.tasks.length === 0 && maimlRoot?.protocol?.methods) {
+          
+          // DBにデータがある場合：workerLinkedFlg=falseのタスクIDでcheckedTaskIdsを初期化
+          const editableTaskIds = new Set(
+            uiTasks.filter(t => !t.workerLinkedFlg).map(t => t.id)
+          );
+          setCheckedTaskIds(editableTaskIds);
+        } else if (taskData.tasks && taskData.tasks.length === 0 && maimlRoot?.protocol?.methods) {
           // DBにデータがない場合、コンテキストのMAIMLから初期値を生成
           console.log('[DEBUG] TaskRegistrationTab - Generating initial tasks from MAIML context');
           
@@ -159,6 +223,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             trialCount: 1, // デフォルト値
             experimentOrder: index + 1,
             taskNumberOptions: [1],
+            workerLinkedFlg: false, // 初期データはfalse
           }));
           
           setTaskDetails(initialTasks);
@@ -173,6 +238,10 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           }));
           setAvailableMethods(methodInfos);
           
+          // DBにデータがない場合（初回）：全タスクIDでcheckedTaskIdsを初期化
+          const allTaskIds = new Set(initialTasks.map(t => t.id));
+          setCheckedTaskIds(allTaskIds);
+          
           console.log('[DEBUG] TaskRegistrationTab - Initial tasks generated:', {
             taskCount: initialTasks.length,
             methodCount: methodInfos.length,
@@ -185,7 +254,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         }
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : 'タスク登録情報の取得に失敗しました';
+          error instanceof Error ? error.message : t('taskRegistration.messages.fetchFailed') || 'Failed to fetch task registration';
         message.error(errorMessage);
         console.error('Failed to fetch task registration:', error);
       } finally {
@@ -194,7 +263,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     };
 
     fetchTaskRegistration();
-  }, [projectName, isActive, onTasksChange, maimlRoot]);
+  }, [projectName, isActive, refreshInstructions]); // refreshInstructionsを依存配列に追加
 
   /**
    * タスク詳細を更新
@@ -226,18 +295,109 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   );
 
   /**
+   * 指示追加ボタンのクリックハンドラ
+   */
+  const handleAddInstructionClick = useCallback((methodId: string) => {
+    setSelectedMethodIdForInstruction(methodId);
+    setIsInstructionDialogOpen(true);
+  }, []);
+
+  /**
+   * 指示保存ハンドラ（ローカルstateに保存）
+   */
+  const handleInstructionSave = useCallback((instruction: InstructionData, keepDialogOpen?: boolean) => {
+    // instruction_status=0（未送信）として追加
+    const newInstruction: InstructionData = {
+      ...instruction,
+      instruction_status: 0,
+      isNewlyAdded: true // 新規追加フラグを設定
+    };
+    
+    setInstructions(prev => [...prev, newInstruction]);
+    message.success(t('instructionRegistration.messages.added'));
+    
+    if (!keepDialogOpen) {
+      // 両方のダイアログを閉じる
+      setIsInstructionDialogOpen(false);
+      setIsProjectInstructionDialogOpen(false);
+      setSelectedMethodIdForInstruction('');
+    }
+  }, []);
+
+  /**
+   * 指示ダイアログを閉じる
+   */
+  const handleInstructionDialogClose = useCallback(() => {
+    setIsInstructionDialogOpen(false);
+    setSelectedMethodIdForInstruction('');
+  }, []);
+
+  /**
+   * プロジェクト指示ボタンのクリックハンドラ
+   */
+  const handleProjectInstructionClick = useCallback(() => {
+    setIsProjectInstructionDialogOpen(true);
+  }, []);
+
+  /**
+   * プロジェクト指示ダイアログを閉じる
+   */
+  const handleProjectInstructionDialogClose = useCallback(() => {
+    setIsProjectInstructionDialogOpen(false);
+  }, []);
+
+  /**
    * タスクデータを保存
    */
   const handleSave = useCallback(async () => {
     try {
+      // バリデーション: 新規追加 + DBから取得したinstruction_status=0の指示
+      const unsentInstructions = instructions.filter(inst => inst.instruction_status === 0);
+      
+      if (unsentInstructions.length === 0) {
+        message.warning(t('taskRegistration.messages.requireInstruction'));
+        return;
+      }
+      
+      // 送信用: 新規追加した指示のみをフィルタリング
+      const newlyAddedInstructions = instructions.filter(
+        inst => inst.isNewlyAdded === true
+      );
+      
+      // チェックが1つもない場合
+      if (checkedTaskIds.size === 0) {
+        message.warning(t('taskRegistration.messages.selectMethods'));
+        return;
+      }
+      
+      // 初回保存かどうかを判定（API取得データを再取得して確認）
+      const currentData = await getTaskRegistration(projectName);
+      const isFirstSave = !currentData.tasks || currentData.tasks.length === 0;
+      
+      // 初回保存時は全タスクがチェックされているか確認
+      if (isFirstSave) {
+        const allTaskIds = taskDetails.map(t => t.id);
+        const allChecked = allTaskIds.every(id => checkedTaskIds.has(id));
+        
+        if (!allChecked) {
+          message.warning(t('taskRegistration.messages.selectAllMethodsFirst'));
+          return;
+        }
+      }
+      
+      // チェックされた かつ workerLinkedFlg=false のタスクのみをフィルタリング
+      const checkedTasks = taskDetails.filter(task => 
+        checkedTaskIds.has(task.id) && !task.workerLinkedFlg
+      );
+      
       // バリデーション
-      const emptyMethod = taskDetails.find((task) => !task.methodId);
+      const emptyMethod = checkedTasks.find((task) => !task.methodId);
       if (emptyMethod) {
         message.warning(t('taskRegistration.messages.selectAllMethods'));
         return;
       }
 
-      const invalidTrialCount = taskDetails.find(
+      const invalidTrialCount = checkedTasks.find(
         (task) => task.trialCount < 1 || task.trialCount > 999
       );
       if (invalidTrialCount) {
@@ -247,41 +407,87 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
 
       // チェックアウト状態チェック
       if (isCheckoutLocked) {
-        message.warning('プロジェクトがチェックアウトされています。保存できません。');
+        message.warning(t('taskRegistration.messages.checkedOut'));
         return;
       }
 
       // MAIML登録状態チェック
       if (!isMaimlRegistered) {
-        message.warning('MAIMLファイルが登録されていません。保存できません。');
+        message.warning(t('taskRegistration.messages.maimlNotRegistered'));
         return;
       }
 
       setIsSaving(true);
 
+      // チェックされたタスクのメソッドIDを取得
+      const checkedMethodIds = new Set(checkedTasks.map(t => t.methodId));
+      
+      // 新規追加した指示のみを送信対象としてフィルタリング
+      // プロジェクト指示（methodId === ""）またはチェックされたメソッドの指示をフィルタリング
+      const checkedInstructions = newlyAddedInstructions.filter((inst: InstructionData) =>
+        inst.methodId === '' || checkedMethodIds.has(inst.methodId)
+      );
+
+      // API用の指示データを作成
+      const instructionSaveItems: InstructionSaveItem[] = checkedInstructions.map((inst: InstructionData) => ({
+        methodId: inst.methodId,
+        content: inst.content,
+        priority: inst.priority,
+        type: inst.type,
+        targetType: inst.targetType,
+        transitionId: inst.transitionId || null,
+        taskNumber: inst.taskNumber || null,
+      }));
+
+      // workerLinkedFlg=trueの既存タスクの最大experiment_orderを取得
+      const maxExistingOrder = taskDetails
+        .filter(t => t.workerLinkedFlg)
+        .reduce((max, t) => Math.max(max, t.experimentOrder || 0), 0);
+
+      console.log('[DEBUG] TaskRegistrationTab - Save calculation:', {
+        maxExistingOrder,
+        checkedTasksCount: checkedTasks.length,
+        taskDetailsCount: taskDetails.length,
+        workerLinkedCount: taskDetails.filter(t => t.workerLinkedFlg).length
+      });
+
       // API用のリクエストデータを作成
       const requestData = {
-        tasks: taskDetails.map((task) => ({
-          methodId: task.methodId,
-          experimentCondition: task.experimentCondition,
-          trialCount: task.trialCount,
-        })),
+        tasks: checkedTasks.map((task, index) => {
+          const calculatedOrder = maxExistingOrder + index + 1;
+          console.log('[DEBUG] TaskRegistrationTab - Task order:', {
+            methodId: task.methodId,
+            index,
+            maxExistingOrder,
+            calculatedOrder
+          });
+          return {
+            methodId: task.methodId,
+            experimentCondition: task.experimentCondition,
+            trialCount: task.trialCount,
+            experimentOrder: calculatedOrder, // 既存の最大order + 連番
+          };
+        }),
+        instructions: instructionSaveItems.length > 0 ? instructionSaveItems : undefined,
       };
 
       // APIを呼び出し
       const response = await saveTaskRegistration(projectName, requestData);
 
-      onTasksChange?.(taskDetails);
+      // 保存成功後、共通関数でstateをクリア + DB再取得
+      await refreshInstructions();
+      
+      onTasksChange?.(checkedTasks);
       message.success(response.message || t('taskRegistration.messages.saved'));
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : 'タスク保存エラー';
+        error instanceof Error ? error.message : t('taskRegistration.messages.saveFailed') || 'Failed to save task';
       message.error(errorMessage);
       console.error('Failed to save task registration:', error);
     } finally {
       setIsSaving(false);
     }
-  }, [taskDetails, projectName, isCheckoutLocked, isMaimlRegistered, onTasksChange, t]);
+  }, [taskDetails, checkedTaskIds, instructions, availableMethods, projectName, isCheckoutLocked, isMaimlRegistered, refreshInstructions, onTasksChange, t]);
 
   /**
    * ドラッグ&ドロップセンサーの設定
@@ -305,6 +511,15 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       setTaskDetails((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
+
+        // ドラッグ対象またはドロップ先がworker_linked_flg=trueの場合は順序変更を無効化
+        const draggedItem = items[oldIndex];
+        const targetItem = items[newIndex];
+        
+        if (draggedItem?.workerLinkedFlg || targetItem?.workerLinkedFlg) {
+          message.warning(t('taskRegistration.messages.cannotChangeOrder'));
+          return items; // 変更せず元の配列を返す
+        }
 
         return arrayMove(items, oldIndex, newIndex);
       });
@@ -332,6 +547,15 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       // 同じ位置なら変更不要
       if (currentIndex === newIndex) return prev;
 
+      // 移動元または移動先がworker_linked_flg=trueの場合は順序変更を無効化
+      const movingItem = prev[currentIndex];
+      const targetItem = prev[newIndex];
+      
+      if (movingItem?.workerLinkedFlg || targetItem?.workerLinkedFlg) {
+        message.warning(t('taskRegistration.messages.cannotChangeOrder'));
+        return prev;
+      }
+
       // 配列を並び替え
       return arrayMove(prev, currentIndex, newIndex);
     });
@@ -352,6 +576,13 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   }, [taskDetails.length]);
 
   /**
+   * 行が非活性かどうかを判定する関数
+   */
+  const isRowDisabled = useCallback((record: TaskDetail) => {
+    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg;
+  }, [isSaving, loadingMethods, isCheckoutLocked]);
+
+  /**
    * ドラッグ可能な行コンポーネント
    */
   const DraggableRow = (props: DraggableRowProps) => {
@@ -367,24 +598,35 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       id: restProps['data-row-key'],
     });
 
+    // 行データを取得（workerLinkedFlgチェック用）
+    const rowKey = restProps['data-row-key'];
+    const rowRecord = taskDetails.find(task => task.id.toString() === rowKey.toString());
+    const isRowWorkerLinked = rowRecord?.workerLinkedFlg || false;
+
     const style: React.CSSProperties = {
       ...restProps.style,
       transform: CSS.Transform.toString(transform),
       transition,
       ...(isDragging ? { position: 'relative', zIndex: 9999 } : {}),
+      ...(isRowWorkerLinked ? { 
+        backgroundColor: '#f5f5f5',
+        opacity: 0.7
+      } : {}),
     };
 
     return (
       <tr {...restProps} ref={setNodeRef} style={style} {...attributes}>
         {React.Children.map(children, (child) => {
           if ((child as React.ReactElement).key === 'sort') {
+            // worker_linked_flg=trueの場合もドラッグ不可にする
+            const isDragDisabled = isCheckoutLocked || isRowWorkerLinked;
             return React.cloneElement(child as React.ReactElement, {}, (
               <div 
-                {...(isCheckoutLocked ? {} : listeners)} 
+                {...(isDragDisabled ? {} : listeners)} 
                 style={{ 
-                  cursor: isCheckoutLocked ? 'not-allowed' : 'grab', 
+                  cursor: isDragDisabled ? 'not-allowed' : 'grab', 
                   padding: '8px',
-                  opacity: isCheckoutLocked ? 0.5 : 1
+                  opacity: isDragDisabled ? 0.5 : 1
                 }}
               >
                 <HolderOutlined />
@@ -402,6 +644,23 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
    */
   const columns: ColumnsType<TaskDetail> = [
     {
+      key: 'checkbox',
+      width: 50,
+      align: 'center',
+      render: (_text, record) => (
+        <input
+          type="checkbox"
+          checked={checkedTaskIds.has(record.id)}
+          onChange={(e) => handleCheckboxChange(record.id, e.target.checked)}
+          disabled={isRowDisabled(record)}
+          style={{ 
+            cursor: isRowDisabled(record) ? 'not-allowed' : 'pointer',
+            opacity: record.workerLinkedFlg ? 0.5 : 1
+          }}
+        />
+      ),
+    },
+    {
       key: 'sort',
       width: 50,
       align: 'center',
@@ -411,18 +670,32 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
       key: 'order',
       width: 120,
       align: 'center',
-      render: (_text, record, index) => (
-        <Select
-          value={index + 1}
-          onChange={(value) => {
-            handleOrderChange(record.id, value);
-          }}
-          disabled={isSaving || loadingMethods || isCheckoutLocked}
-          size="small"
-          style={{ width: '100%' }}
-          options={orderSelectOptions}
-        />
-      ),
+      render: (_text, record, index) => {
+        // worker_linked_flg=trueのメソッドの位置を取得
+        const workerLinkedPositions = taskDetails
+          .map((task, idx) => task.workerLinkedFlg ? idx + 1 : null)
+          .filter(pos => pos !== null) as number[];
+        
+        // 現在のメソッド自身がworker_linked_flg=trueの場合は、現在位置のみ選択可能
+        const options = record.workerLinkedFlg
+          ? [{ label: (index + 1).toString(), value: index + 1 }]
+          : createRangeOptions(1, taskDetails.length).filter(
+              opt => !workerLinkedPositions.includes(opt.value) || opt.value === index + 1
+            );
+        
+        return (
+          <Select
+            value={index + 1}
+            onChange={(value) => {
+              handleOrderChange(record.id, value);
+            }}
+            disabled={isRowDisabled(record)}
+            size="small"
+            style={{ width: '100%' }}
+            options={options}
+          />
+        );
+      },
     },
     {
       title: t('taskRegistration.columns.method'),
@@ -431,7 +704,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         const method = availableMethods.find((m) => m.id === record.methodId);
         return (
           <div>
-            <div>{method?.displayName || 'メソッド未設定'}</div>
+            <div>{method?.displayName || t('taskRegistration.labels.methodNotSet')}</div>
             {method?.description && (
               <Text type="secondary" style={{ fontSize: '12px' }}>
                 {method.description}
@@ -451,7 +724,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           onChange={(value) =>
             handleUpdateTaskDetail(record.id, 'experimentCondition', value.toString())
           }
-          disabled={isSaving || loadingMethods || isCheckoutLocked}
+          disabled={isRowDisabled(record)}
           size="small"
           style={{ width: '100%' }}
           options={experimentConditionSelectOptions}
@@ -478,7 +751,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             }
           }}
           placeholder={t('taskRegistration.trialCountPlaceholder')}
-          disabled={isSaving || loadingMethods || isCheckoutLocked}
+          disabled={isRowDisabled(record)}
           size="small"
           min={1}
           max={999}
@@ -486,13 +759,34 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
         />
       ),
     },
+    {
+      title: '',
+      key: 'addInstruction',
+      width: 120,
+      align: 'center',
+      render: (_text, record) => {
+        return (
+          <Button
+            type="primary"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => handleAddInstructionClick(record.methodId)}
+            disabled={isRowDisabled(record)}
+          >
+            {t('taskRegistration.buttons.addInstruction')}
+          </Button>
+        );
+      },
+    },
   ];
 
   // ローディング中
   if (loadingMethods) {
     return (
       <div style={{ padding: token.paddingLG, textAlign: 'center' }}>
-        <Spin size="large" tip={t('taskRegistration.loading')} />
+        <Spin size="large" tip={t('taskRegistration.loading')}>
+          <div style={{ minHeight: 100 }} />
+        </Spin>
       </div>
     );
   }
@@ -510,15 +804,24 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ marginBottom: token.marginMD, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `0 ${token.paddingLG}px` }}>
         <Text type="secondary">{t('taskRegistration.dragHint')}</Text>
-        <Button
-          type="primary"
-          icon={<SaveOutlined />}
-          onClick={handleSave}
-          loading={isSaving}
-          disabled={loadingMethods || isCheckoutLocked}
-        >
-          {isSaving ? t('taskRegistration.saving') : t('taskRegistration.saveButton')}
-        </Button>
+        <Space>
+          <Button
+            type="primary"
+            onClick={handleProjectInstructionClick}
+            disabled={loadingMethods || isCheckoutLocked}
+          >
+            {t('taskRegistration.buttons.projectInstruction')}
+          </Button>
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            onClick={handleSave}
+            loading={isSaving}
+            disabled={loadingMethods || isCheckoutLocked}
+          >
+            {isSaving ? t('taskRegistration.saving') : t('taskRegistration.saveButton')}
+          </Button>
+        </Space>
       </div>
 
       <DndContext
@@ -552,6 +855,30 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           />
         </SortableContext>
       </DndContext>
+
+      {/* タスク指示追加ダイアログ */}
+      <InstructionEditDialog
+        open={isInstructionDialogOpen}
+        mode="create"
+        tasks={taskDetails}
+        availableTransitions={availableTransitions}
+        onClose={handleInstructionDialogClose}
+        onSave={handleInstructionSave}
+        fixedMethodId={selectedMethodIdForInstruction}
+        saveMode="local"
+      />
+
+      {/* プロジェクト指示追加ダイアログ */}
+      <InstructionEditDialog
+        open={isProjectInstructionDialogOpen}
+        mode="create"
+        tasks={taskDetails}
+        availableTransitions={availableTransitions}
+        onClose={handleProjectInstructionDialogClose}
+        onSave={handleInstructionSave}
+        fixedMethodId=""
+        saveMode="local"
+      />
     </div>
   );
 };

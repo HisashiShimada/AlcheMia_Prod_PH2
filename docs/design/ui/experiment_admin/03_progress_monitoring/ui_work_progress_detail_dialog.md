@@ -44,7 +44,7 @@
 │ │ [Task1] [Task2] [Task3] ← タブ                  │ │
 │ ├─────────────────────────────────────────────────┤ │
 │ │ タスク詳細                                       │ │
-│ │ タスク名: 材料準備  ID: task_001  [実行中]      │ │
+│ │ タスクNo: 1  [実行中]                           │ │
 │ │ メソッド: Method1                               │ │
 │ ├─────────────────────────────────────────────────┤ │
 │ │ トランジションサマリー                           │ │
@@ -135,8 +135,7 @@
 
 | 項目 | 幅（xs/sm/md） | 表示形式 |
 |------|---------------|---------|
-| タスク名 | 24/12/6 | Text strong |
-| タスクID | 24/12/6 | Text（小さめ） |
+| タスクNo | 24/12/6 | Text strong |
 | タスクステータス | 24/12/6 | Tag（色分け） |
 | メソッド名 | 24/12/6 | Text（小さめ） |
 
@@ -404,7 +403,7 @@ interface FileDetails {
 ```typescript
 interface WorkDetail {
   workId: string;
-  taskName?: string;
+  taskNo: number;            // タスク連番（タスクNo）
   methodName?: string;
   assignedWorkerId?: string;
   workStatus: string;

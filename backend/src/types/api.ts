@@ -250,6 +250,363 @@ export interface GetInstructionsResponse {
 }
 
 // ============================================================
+// WorkProgressDetailDialog 用 API 型定義
+// ============================================================
+
+/**
+ * プロジェクト情報詳細
+ * WorkProgressDetailDialog の projectInfo に対応
+ */
+export interface ProjectInfoDetail {
+  /** プロジェクトID */
+  projectId: string;
+
+  /** プロジェクト名 */
+  projectName: string;
+
+  /** プロジェクト説明 */
+  projectDescription?: string;
+
+  /** オーナー名 */
+  owner: string;
+
+  /** 部門名 */
+  department?: string;
+
+  /** プロジェクトステータス（文字列） */
+  status: 'planning' | 'pending' | 'in_progress' | 'review_waiting' | 'completed' | 'error';
+
+  /** メソッドID一覧（MAIMLから取得） */
+  methods: string[];
+
+  /** 作成日時（ISO8601） */
+  createdAt: string;
+
+  /** 更新日時（ISO8601） */
+  updatedAt: string;
+}
+
+/**
+ * ファイル情報詳細
+ * WorkProgressDetailDialog の fileInfo に対応
+ */
+export interface FileInfoDetail {
+  /** ファイル名（例: プロジェクト名.maiml） */
+  fileName: string;
+
+  /** MAIMLファイルのストレージキー（例: {organizationId}/projects/{name}/{name}.maiml） */
+  maimlFileKey: string;
+
+  /** 組織ID */
+  organizationId: string;
+
+  /** チェックアウト状態 */
+  checkoutStatus: {
+    /** チェックアウト中か */
+    isCheckedOut: boolean;
+    /** チェックアウトしているユーザーID（チェックアウト中の場合） */
+    checkoutBy?: string | null;
+  };
+}
+
+/**
+ * トランジション進捗情報
+ * WorkProgressDetailDialog の transitionProgress の各要素に対応
+ */
+export interface TransitionProgressItem {
+  /** トランジションID */
+  transitionId: string;
+
+  /** トランジション名（MAIMLから取得、未定義の場合はtransitionId） */
+  transitionName?: string;
+
+  /** 進捗状態（日本語文字列）: 未開始 / 準備中 / 作業中 / 休止中 / 完了 / 異常中 */
+  progressStatus: string;
+
+  /** 担当作業者名 */
+  assignedWorker?: string;
+
+  /** 開始日時（ISO8601、create_at） */
+  startDate?: string;
+
+  /** 終了日時（ISO8601、完了時の update_at） */
+  endDate?: string;
+}
+
+/**
+ * 作業詳細情報（タスク単位）
+ * WorkProgressDetailDialog の workDetails の各要素に対応
+ */
+export interface WorkDetailItem {
+  /** タスク識別子（"{methodId}_{experimentOrder}" 形式） */
+  workId: string;
+
+  /** タスク連番（タスクNo）（project_task.experiment_order） */
+  taskNo: number;
+
+  /** メソッド名（project_task.method_id） */
+  methodName?: string;
+
+  /** 割り当て作業者ID */
+  assignedWorkerId?: string;
+
+  /** タスクステータス（文字列） */
+  workStatus: string;
+
+  /** 進捗率（0〜100） */
+  progressPercentage?: number;
+
+  /** トランジション統計情報 */
+  stats: {
+    /** トランジション総数 */
+    totalTransitions: number;
+    /** 完了数（status=5） */
+    completed: number;
+    /** 作業中数（status=1,2,3,4） */
+    working: number;
+    /** 未着手数（status=0） */
+    notStarted: number;
+    /** 完了率（0〜100） */
+    completionRate: number;
+  };
+
+  /** トランジション進捗一覧 */
+  transitionProgress?: TransitionProgressItem[];
+}
+
+/**
+ * WorkProgressDetailDialog 用 API レスポンスデータ
+ * GET /api/v1/progress/projects/:projectName/work-details のレスポンス data 部分
+ */
+export interface WorkProgressDetailResponse {
+  /** プロジェクト情報 */
+  projectInfo: ProjectInfoDetail;
+
+  /** ファイル情報 */
+  fileInfo: FileInfoDetail;
+
+  /** 作業詳細一覧（タスク × トランジション進捗） */
+  workDetails: WorkDetailItem[];
+}
+
+// ============================================================
+// タスク詳細取得API 型定義
+// GET /api/v1/tasks/:taskId
+// ============================================================
+
+/**
+ * トランジション進捗の個別レコード
+ * GET /api/v1/tasks/:taskId のレスポンス transitionProgress[] の各要素
+ */
+export interface TaskDetailTransitionItem {
+  /** トランジションID */
+  transitionId: string;
+
+  /** トランジションステータス数値（0:初期, 1:準備中, 2:準備完了, 3:実行中, 4:一時停止, 5:完了, 6:エラー） */
+  status: number | null;
+
+  /** 進捗率（0〜100） */
+  progressRate: number | null;
+
+  /** 最終更新日時（ISO8601） */
+  updatedAt: string | null;
+}
+
+/**
+ * タスク詳細統計情報
+ */
+export interface TaskDetailStats {
+  /** トランジション総数 */
+  totalTransitions: number;
+
+  /** 完了数（status = 5） */
+  completed: number;
+
+  /** 作業中数（status = 1〜4） */
+  inProgress: number;
+
+  /** 未着手数（status = 0 または NULL） */
+  notStarted: number;
+
+  /** 進捗率（0〜100、avg_progress_rate から算出） */
+  progressPercentage: number;
+}
+
+/**
+ * タスク詳細取得APIレスポンス data 部分
+ * GET /api/v1/tasks/:taskId
+ *
+ * taskId フォーマット: "{projectId}__{methodId}__{taskNo}" （ダブルアンダースコア区切り）
+ * 例: "550e8400-e29b-41d4-a716-446655440000__method1__3"
+ */
+export interface TaskDetailResponse {
+  /** タスクID文字列（{projectId}__{methodId}__{taskNo} 形式） */
+  taskId: string;
+
+  /** プロジェクトID */
+  projectId: string;
+
+  /** プロジェクト名 */
+  projectName: string;
+
+  /** メソッドID */
+  methodId: string;
+
+  /** 実験順序（project_task.experiment_order） */
+  experimentOrder: number;
+
+  /** タスク名（project_task.task_name） */
+  taskName: string | null;
+
+  /** タスク連番（project_task_detail.task_no） */
+  taskNo: number;
+
+  /** タスクステータス文字列（pending / in_progress / review_waiting / completed / failed） */
+  taskStatus: string;
+
+  /** タスクステータス数値（project_task_detail.task_status） */
+  taskStatusNum: number | null;
+
+  /** 担当作業者ID */
+  experimentUserId: string | null;
+
+  /** 担当作業者名 */
+  experimentUserName: string | null;
+
+  /** 実験開始日時（ISO8601） */
+  experimentStartAt: string | null;
+
+  /** 実験終了日時（ISO8601） */
+  experimentEndAt: string | null;
+
+  /** レビュー完了日時（ISO8601） */
+  reviewedAt: string | null;
+
+  /** レビュアーID */
+  reviewUserId: string | null;
+
+  /** トランジション進捗一覧（transition_data から取得） */
+  transitionProgress: TaskDetailTransitionItem[];
+
+  /** 進捗統計情報 */
+  stats: TaskDetailStats;
+
+  /** レコード作成日時（ISO8601） */
+  createdAt: string | null;
+
+  /** レコード更新日時（ISO8601） */
+  updatedAt: string | null;
+}
+
+// ============================================================
+// メソッド別タスク一覧＋進捗情報取得API 型定義
+// GET /api/v1/projects/:projectId/methods/:methodId/tasks
+// ============================================================
+
+/**
+ * タスク単位のトランジション進捗統計
+ */
+export interface TaskProgressStats {
+  /** トランジション総数（transition_data から集計） */
+  total_transitions: number;
+
+  /** 完了数（status = 5） */
+  completed: number;
+
+  /** 作業中数（status = 1〜4） */
+  in_progress: number;
+
+  /** 未着手数（status = 0 または NULL） */
+  not_started: number;
+
+  /** 進捗率（0〜100、avg_progress_rate から算出） */
+  progress_percentage: number;
+}
+
+/**
+ * メソッド別タスク一覧の各タスク要素
+ * GET /api/v1/projects/:projectId/methods/:methodId/tasks のレスポンス tasks[]
+ */
+export interface MethodTaskItem {
+  /** 実験順序（project_task.experiment_order） */
+  experiment_order: number;
+
+  /** タスク名（project_task.task_name） */
+  task_name: string | null;
+
+  /** タスク連番（project_task_detail.task_no） */
+  task_no: number | null;
+
+  /** タスクステータス文字列（pending / in_progress / review_waiting / completed / failed） */
+  task_status: string;
+
+  /** タスクステータス数値（project_task_detail.task_status） */
+  task_status_num: number | null;
+
+  /** 担当作業者ID */
+  experiment_user_id: string | null;
+
+  /** 担当作業者名 */
+  experiment_user_name: string | null;
+
+  /** 実験開始日時（ISO8601） */
+  experiment_start_at: string | null;
+
+  /** 実験終了日時（ISO8601） */
+  experiment_end_at: string | null;
+
+  /** トランジション進捗統計 */
+  progress: TaskProgressStats;
+
+  /** レコード作成日時（ISO8601） */
+  created_at: string | null;
+
+  /** レコード更新日時（ISO8601） */
+  updated_at: string | null;
+}
+
+/**
+ * メソッド別タスク一覧の統計サマリー
+ */
+export interface MethodTasksStatistics {
+  /** タスク総数 */
+  total: number;
+
+  /** 未着手タスク数（task_status = pending） */
+  pending: number;
+
+  /** 実行中タスク数（task_status = in_progress） */
+  in_progress: number;
+
+  /** 完了タスク数（task_status = completed） */
+  completed: number;
+
+  /** 失敗タスク数（task_status = failed） */
+  failed: number;
+
+  /** 全体進捗率（各タスクの progress_percentage の平均、0〜100） */
+  overall_progress: number;
+}
+
+/**
+ * メソッド別タスク一覧＋進捗情報取得APIレスポンス data 部分
+ * GET /api/v1/projects/:projectId/methods/:methodId/tasks
+ */
+export interface MethodTasksResponse {
+  /** プロジェクトID */
+  project_id: string;
+
+  /** メソッドID */
+  method_id: string;
+
+  /** タスク一覧（experiment_order + task_no 単位） */
+  tasks: MethodTaskItem[];
+
+  /** 統計サマリー */
+  statistics: MethodTasksStatistics;
+}
+
+// ============================================================
 // MaiML 公開/非公開関連のリクエスト/レスポンス型
 // ============================================================
 
@@ -307,3 +664,4 @@ export interface MaimlPublishResponse {
   /** 受付日時 */
   requestedAt: string;
 }
+
