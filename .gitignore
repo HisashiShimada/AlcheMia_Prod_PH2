@@ -79,4 +79,6 @@ Thumbs.db
 .node_repl_history
 
 # e2e
-e2e/reports/
+tests/e2e/reports/
+tests/e2e/.features-gen
+test-results
