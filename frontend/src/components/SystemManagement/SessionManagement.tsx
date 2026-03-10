@@ -20,6 +20,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { getActiveSessions, terminateSession } from '@/services/sessionApiService';
 import type { SessionInfo } from '@/types/session';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -28,6 +29,7 @@ const { Text } = Typography;
  */
 export default function SessionManagement() {
   const { modal, message: messageApi } = App.useApp();
+  const { t } = useLanguage();
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -42,7 +44,7 @@ export default function SessionManagement() {
       setSessions(data.sessions);
     } catch (error) {
       console.error('セッション一覧取得エラー:', error);
-      messageApi.error('セッション一覧の取得に失敗しました');
+      messageApi.error(t('sessionManagement.messages.fetchError'));
     } finally {
       setLoading(false);
     }
@@ -57,7 +59,7 @@ export default function SessionManagement() {
   const handleReload = React.useCallback(() => {
     setSearchText('');
     fetchSessions();
-    messageApi.success('データをリロードしました');
+    messageApi.success(t('sessionManagement.messages.reloadSuccess'));
   }, [fetchSessions, messageApi]);
 
   // 自動更新の処理
@@ -91,8 +93,8 @@ export default function SessionManagement() {
     {
       title: (
         <div style={{ textAlign: 'center' }}>
-          <Space size="middle">
-            <span>ユーザー</span>
+      <Space size="middle">
+            <span>{t('sessionManagement.columns.user')}</span>
             <Badge
               count={filteredSessions.length}
               style={{
@@ -123,7 +125,7 @@ export default function SessionManagement() {
       ),
     },
     {
-      title: 'セッション時間',
+      title: t('sessionManagement.columns.sessionDuration'),
       dataIndex: 'sessionDuration',
       key: 'sessionDuration',
       width: 150,
@@ -145,7 +147,7 @@ export default function SessionManagement() {
       ),
     },
     {
-      title: '操作',
+      title: t('sessionManagement.columns.operation'),
       key: 'operation',
       width: 150,
       align: 'center',
@@ -162,7 +164,7 @@ export default function SessionManagement() {
               }}
               disabled
             >
-              自分
+              {t('sessionManagement.buttons.self')}
             </Button>
           );
         } else {
@@ -177,7 +179,7 @@ export default function SessionManagement() {
               }}
               loading={loading}
             >
-              終了
+              {t('sessionManagement.buttons.terminate')}
             </Button>
           );
         }
@@ -188,20 +190,19 @@ export default function SessionManagement() {
   // セッション終了
   const handleTerminateSession = (tokenId: string) => {
     modal.confirm({
-      title: 'セッションを終了しますか？',
-      content: 'このセッションは強制的に終了されます。ユーザーは再度ログインが必要になります。',
-      okText: '終了',
-      cancelText: 'キャンセル',
+      title: t('sessionManagement.messages.terminateConfirmTitle'),
+      content: t('sessionManagement.messages.terminateConfirmContent'),
+      okText: t('sessionManagement.buttons.terminate'),
+      cancelText: t('sessionManagement.buttons.cancel'),
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
           await terminateSession(tokenId);
-          messageApi.success('セッションを終了しました');
-          // セッション一覧を再取得
+          messageApi.success(t('sessionManagement.messages.terminateSuccess'));
           await fetchSessions();
         } catch (error) {
           console.error('セッション終了エラー:', error);
-          messageApi.error('セッションの終了に失敗しました');
+          messageApi.error(t('sessionManagement.messages.terminateError'));
         }
       },
     });
@@ -211,9 +212,9 @@ export default function SessionManagement() {
   const handleAutoRefreshChange = (checked: boolean) => {
     setAutoRefresh(checked);
     if (checked) {
-      messageApi.success(`自動更新を有効にしました（${refreshInterval}分間隔）`);
+      messageApi.success(t('sessionManagement.autoRefresh.enableSuccess').replace('{interval}', String(refreshInterval)));
     } else {
-      messageApi.info('自動更新を無効にしました');
+      messageApi.info(t('sessionManagement.autoRefresh.disableInfo'));
     }
   };
 
@@ -221,7 +222,7 @@ export default function SessionManagement() {
   const handleRefreshIntervalChange = (value: number) => {
     setRefreshInterval(value);
     if (autoRefresh) {
-      messageApi.info(`更新間隔を${value}分に変更しました`);
+      messageApi.info(t('sessionManagement.autoRefresh.intervalChanged').replace('{interval}', String(value)));
     }
   };
 
@@ -240,17 +241,17 @@ export default function SessionManagement() {
             checked={autoRefresh}
             onChange={(e) => handleAutoRefreshChange(e.target.checked)}
           >
-            自動更新
+            {t('sessionManagement.autoRefresh.label')}
           </Checkbox>
           <Select
             value={refreshInterval}
             onChange={handleRefreshIntervalChange}
             style={{ width: 100 }}
             options={[
-              { value: 1, label: '1分' },
-              { value: 5, label: '5分' },
-              { value: 10, label: '10分' },
-              { value: 30, label: '30分' },
+              { value: 1, label: t('sessionManagement.autoRefresh.options.1min') },
+              { value: 5, label: t('sessionManagement.autoRefresh.options.5min') },
+              { value: 10, label: t('sessionManagement.autoRefresh.options.10min') },
+              { value: 30, label: t('sessionManagement.autoRefresh.options.30min') },
             ]}
             suffixIcon={<span style={{ fontSize: 12 }}>▼</span>}
           />
@@ -259,7 +260,7 @@ export default function SessionManagement() {
             onClick={handleReload}
             loading={loading}
           >
-            リロード
+            {t('sessionManagement.buttons.reload')}
           </Button>
         </div>
 
@@ -273,7 +274,7 @@ export default function SessionManagement() {
           {/* 検索バー */}
           <div style={{ marginBottom: 16 }}>
             <Input
-              placeholder="ユーザー名、メールアドレス、セッション時間で検索"
+              placeholder={t('sessionManagement.searchPlaceholder')}
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -292,7 +293,7 @@ export default function SessionManagement() {
             pagination={{
               pageSize: 10,
               showSizeChanger: true,
-              showTotal: (total) => `全 ${total} 件`,
+              showTotal: (total) => t('sessionManagement.pagination.showTotal').replace('{total}', String(total)),
             }}
           />
         </div>

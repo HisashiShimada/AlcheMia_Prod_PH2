@@ -56,7 +56,7 @@ const WeightSliders: React.FC<WeightSlidersProps> = ({ weights, onChange, disabl
   const totalPercent = Math.round(total * 100);
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="small">
+    <Space orientation="vertical" style={{ width: '100%' }} size="small">
       {/* ヘッダー */}
       <Row justify="space-between" align="middle">
         <Col>

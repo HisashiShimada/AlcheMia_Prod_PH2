@@ -22,10 +22,10 @@ import {
   DownloadOutlined,
   FileTextOutlined,
   ExclamationCircleOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import ProjectFolderTree from './ProjectFolderTree';
 import FileListTable from './FileListTable';
-import ProjectSearchModal from './ProjectSearchModal';
 import TaskResultsTable from './TaskResultsTable';
 import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
@@ -49,6 +49,7 @@ import {
   createProject as createProjectApi,
   checkoutProject,
   checkinProject,
+  completeReviewTasks,
   type CreateProjectRequest,
   type ApiResponse,
   type ProjectListResponse,
@@ -75,9 +76,11 @@ interface ProjectFilesData {
  */
 interface ProjectManagementInnerProps {
   onEdit?: (params: MaimlEditorParams) => void;
+  /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
+  onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
 }
 
-const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit }) => {
+const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit, onOpenWorkerScreen }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
   
@@ -93,7 +96,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt'); // ソート項目
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // ソート順序
   const [currentFolder, setCurrentFolder] = useState<string>('root');
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [issueManagementModalOpen, setIssueManagementModalOpen] = useState(false);
@@ -155,7 +157,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
   // プロジェクト一覧をAPI経由で取得
   const {
     data: projectsData,
-    loading: projectsLoading,
     error: projectsError,
     refetch: refetchProjects
   } = useApi<ApiResponse<ProjectListResponse>>(
@@ -1124,14 +1125,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
             />
           </Space>
 
-          {/* 詳細検索ボタン */}
-          <Button 
-            type="primary"
-            icon={<SearchOutlined />}
-            onClick={() => setSearchModalOpen(true)}
-          >
-            {t('projectManagement.advanced_search')}
-          </Button>
         </Space>
 
         {/* 右側のアクションボタン */}
@@ -1377,6 +1370,44 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
                     label: t('projectManagement.tabs.task_results'),
                     children: (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {/* ボタンエリア */}
+                        <Flex justify="flex-end" gap="small">
+                          <Button
+                            type="default"
+                            icon={<UserOutlined />}
+                            onClick={() => onOpenWorkerScreen?.(selectedProject.id, selectedProject.name)}
+                            disabled={!isProjectCheckedOut}
+                            title={!isProjectCheckedOut ? 'チェックアウト後に操作できます' : undefined}
+                          >
+                            作業確認
+                          </Button>
+                          <Button
+                            type="primary"
+                            style={{ marginRight: 16 }}
+                            disabled={taskStats.review_waiting === 0}
+                            title={taskStats.review_waiting === 0 ? 'レビュー待ちのタスクがありません' : undefined}
+                            onClick={async () => {
+                              if (!selectedProject) return;
+                              try {
+                                const res = await completeReviewTasks(selectedProject.name);
+                                message.success(res.data?.message || 'レビュー待ちタスクを完了に更新しました');
+                                // タスク一覧を再取得
+                                const taskResponse = await getProjectTasks(selectedProject.name, 'all');
+                                setProjectTasksData(prev => ({
+                                  ...prev,
+                                  [selectedProjectId!]: {
+                                    tasks: taskResponse.tasks || [],
+                                    statistics: taskResponse.statistics || {},
+                                  }
+                                }));
+                              } catch {
+                                message.error('タスク確認完了処理に失敗しました');
+                              }
+                            }}
+                          >
+                            タスク確認完了
+                          </Button>
+                        </Flex>
                         {/* 統計カード */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: token.margin }}>
                       <Card
@@ -1473,7 +1504,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
                     {/* タスク結果テーブル */}
                     <TaskResultsTable
                       results={taskResults}
-                      onViewResult={handleViewTaskResult}
                     />
                   </div>
                     ),
@@ -1508,25 +1538,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
           )}
         </div>
       </div>
-
-      {/* プロジェクト検索モーダル */}
-      <ProjectSearchModal
-        open={searchModalOpen}
-        onClose={() => setSearchModalOpen(false)}
-        onProjectSelect={(projectId: string) => {
-          console.log('検索結果からプロジェクトが選択されました:', projectId);
-          // フィルター条件をリセットして選択プロジェクトが左パネルに表示されるようにする
-          setSearchQuery('');
-          setOwnerFilter('all');
-          setCheckoutFilter('all');
-          setProjectStatusFilter('all');
-          setDepartmentFilter('all');
-          // プロジェクトを選択状態にする
-          handleProjectSelect(projectId);
-          // モーダルを閉じる
-          setSearchModalOpen(false);
-        }}
-      />
 
       {/* 一括アップロードダイアログ */}
       <BulkUploadDialog
@@ -1576,11 +1587,11 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
       {selectedProject && (
         <IssueManagementModal
           visible={issueManagementModalOpen}
-          transitionId={selectedProject.id}
-          transitionName={selectedProject.name}
-          issues={mockIssues}
+          targetName={selectedProject.name}
+          projectId={selectedProject.id}
+          projectName={selectedProject.name}
           onClose={handleCloseIssueManagement}
-          viewMode={true}
+          viewMode={selectedProject.status === 4}
         />
       )}
 
@@ -1606,6 +1617,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit 
  */
 interface ProjectManagementProps {
   onEdit?: (params: MaimlEditorParams) => void;
+  /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
+  onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
 }
 
 const ProjectManagement: React.FC<ProjectManagementProps> = (props) => {

@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Table, Button, Tag, Typography, Empty, theme } from 'antd';
+import { Table, Tag, Typography, Empty, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EyeOutlined } from '@ant-design/icons';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { Task } from '@/types/project';
 
@@ -11,7 +10,6 @@ const { Text } = Typography;
 
 interface TaskResultsTableProps {
   results: Task[];
-  onViewResult: (result: Task) => void;
 }
 
 /**
@@ -19,7 +17,6 @@ interface TaskResultsTableProps {
  */
 const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
   results,
-  onViewResult,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -131,25 +128,6 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
             day: '2-digit',
           }) : '-'}
         </Text>
-      ),
-    },
-    {
-      title: t('projectManagement.task_results.actions') || '操作',
-      key: 'actions',
-      width: '10%',
-      align: 'center',
-      render: (_text: string, record: Task) => (
-        <Button
-          type="default"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewResult(record);
-          }}
-        >
-          {t('projectManagement.task_results.view_result') || '詳細'}
-        </Button>
       ),
     },
   ];

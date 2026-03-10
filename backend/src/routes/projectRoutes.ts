@@ -124,37 +124,6 @@ router.post(
 );
 
 /**
- * プロジェクト詳細検索
- * POST /api/v1/projects/search
- *
- * @middleware authMiddleware - JWT認証
- * @description MAIMLメタデータを使ったプロジェクト詳細検索（AND条件）
- * @body { criteria: Array<{ attribute: string; value: string }> }
- * @roles 全ロール（読み取り専用）
- */
-router.post(
-  '/search',
-  authMiddleware,
-  [
-    body('criteria')
-      .isArray({ min: 1 })
-      .withMessage('criteriaは1件以上の配列である必要があります'),
-    body('criteria.*.attribute')
-      .notEmpty()
-      .withMessage('criteria[].attributeは必須です')
-      .isString()
-      .withMessage('criteria[].attributeは文字列である必要があります'),
-    body('criteria.*.value')
-      .notEmpty()
-      .withMessage('criteria[].valueは必須です')
-      .isString()
-      .withMessage('criteria[].valueは文字列である必要があります'),
-  ],
-  handleValidationErrors,
-  projectController.searchProjects
-);
-
-/**
  * プロジェクトMAIML取得
  * GET /api/v1/projects/:projectName/maiml
  *
@@ -298,6 +267,31 @@ router.get(
   ],
   handleValidationErrors,
   projectController.getProjectFiles
+);
+
+/**
+ * レビュー待ちタスクを一括完了に更新
+ * POST /api/v1/projects/:projectName/tasks/complete-review
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description タスク結果確認タブで「タスク確認完了」ボタン押下時に呼び出す。
+ *              当該プロジェクトのレビュー待ち（review_waiting）タスクを全て完了（completed）に更新する。
+ * @roles experiment_admin（書込可）
+ */
+router.post(
+  '/:projectName/tasks/complete-review',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.completeReviewTasks
 );
 
 /**

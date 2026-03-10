@@ -12,7 +12,7 @@ import type {
   UpdateTransitionStatusRequest,
   UpdateTransitionStatusResponse,
 } from '@/types/api';
-import type { Task, TaskStatistics, Project, MaimlSearchCriterion, MaimlSearchResponseData } from '@/types/project';
+import type { Task, TaskStatistics, Project } from '@/types/project';
 import type {
   GetTaskRegistrationResponse,
   SaveTaskRegistrationRequest,
@@ -1324,6 +1324,33 @@ export const getInstructions = async (
  * }
  * ```
  */
+/**
+ * レビュー待ちタスクを一括完了に更新
+ * POST /api/v1/projects/:projectName/tasks/complete-review
+ *
+ * @param projectName プロジェクト名
+ * @returns 更新件数とメッセージ
+ */
+export const completeReviewTasks = async (
+  projectName: string
+): Promise<ApiResponse<{ updatedCount: number; message: string }>> => {
+  const client = createApiClient();
+  try {
+    console.log('[DEBUG] completeReviewTasks - Request', { projectName });
+    const response = await client.post<{
+      success: boolean;
+      data: { updatedCount: number; message: string };
+    }>(`/projects/${encodeURIComponent(projectName)}/tasks/complete-review`);
+    console.log('[DEBUG] completeReviewTasks - Success', {
+      updatedCount: response.data.data.updatedCount,
+    });
+    return response.data as ApiResponse<{ updatedCount: number; message: string }>;
+  } catch (error) {
+    console.error('[DEBUG] completeReviewTasks - Error', { error });
+    throw error;
+  }
+};
+
 export const getTaskRegistrationStatus = async (
   projectName: string
 ): Promise<TaskRegistrationStatusResponse> => {
@@ -1751,43 +1778,3 @@ export const getProjectMaiml = async (
   }
 };
 
-/**
- * MAIMLメタデータを使ったプロジェクト詳細検索
- * POST /api/v1/projects/search
- *
- * @param criteria - 検索条件配列（AND結合）
- * @returns 検索にヒットしたプロジェクト一覧
- * @throws Error APIエラー時
- *
- * @example
- * ```typescript
- * const result = await searchProjectsByMaiml([
- *   { attribute: 'document.name', value: 'サンプル' },
- *   { attribute: 'id', value: 'place_01' },
- * ]);
- * console.log(result.data?.projects);
- * ```
- */
-export const searchProjectsByMaiml = async (
-  criteria: MaimlSearchCriterion[]
-): Promise<ApiResponse<MaimlSearchResponseData>> => {
-  const client = createApiClient();
-
-  try {
-    console.log('🔍 [projectApiService] MAIML詳細検索開始:', criteria);
-    const response = await client.post<ApiResponse<MaimlSearchResponseData>>(
-      '/projects/search',
-      { criteria }
-    );
-    console.log('✅ [projectApiService] MAIML詳細検索完了:', response.data.data?.total, '件');
-    return response.data;
-  } catch (error) {
-    console.error('❌ [projectApiService] MAIML詳細検索エラー:', {
-      error,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      errorResponse: (error as AxiosError<ApiErrorResponse>)?.response?.data,
-      errorStatus: (error as AxiosError)?.response?.status,
-    });
-    throw error;
-  }
-};

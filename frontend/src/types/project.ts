@@ -174,39 +174,3 @@ export interface CheckoutProjectResponse {
   checkedOutAt: string;
 }
 
-// ============================================================
-// MAIML詳細検索
-// ============================================================
-
-/**
- * MAIML詳細検索の条件
- */
-export interface MaimlSearchCriterion {
-  attribute: string;
-  value: string;
-}
-
-/**
- * MAIML詳細検索の結果（プロジェクト単位）
- */
-export interface MaimlSearchProjectResult {
-  project_id: string;
-  project_name: string;
-  description: string | null;
-  project_status: number;
-  create_at: string;
-  update_at: string;
-  file_key: string;
-  maiml_document_name: string | null;
-  maiml_document_uuid: string | null;
-  maiml_document_description: string | null;
-  maiml_metadata_extraction_status: string | null;
-}
-
-/**
- * MAIML詳細検索レスポンスデータ
- */
-export interface MaimlSearchResponseData {
-  projects: MaimlSearchProjectResult[];
-  total: number;
-}

@@ -10,8 +10,6 @@ import { ProjectService } from '../services/projectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import type { CreateProjectRequest } from '../types/api';
-import type { MaimlSearchCriteria } from '../repositories/fileMetadataRepository';
-
 /**
  * プロジェクト作成エンドポイント
  * POST /api/v1/projects
@@ -109,33 +107,33 @@ export async function create(req: Request, res: Response): Promise<void> {
 }
 
 /**
- * プロジェクト詳細検索エンドポイント
- * POST /api/v1/projects/search
- *
- * @description
- * MAIMLメタデータを使ったプロジェクト詳細検索。
- * バリデーションはルート定義のミドルウェアで処理済み。
- *
- * @body { criteria: Array<{ attribute: string; value: string }> }
+ * レビュー待ちタスクを一括完了に更新
+ * POST /api/v1/projects/:projectName/tasks/complete-review
  */
-export async function searchProjects(req: Request, res: Response): Promise<void> {
+export async function completeReviewTasks(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
   const projectService = new ProjectService();
 
   try {
-    const { organizationId } = req.user!;
-    const criteria: MaimlSearchCriteria[] = req.body.criteria;
+    const { projectName } = req.params;
+    const organizationId = req.user?.organizationId;
 
-    // Service 層呼び出し
-    const result = await projectService.searchProjects(organizationId, criteria);
+    if (!organizationId) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'AUTH_REQUIRED', message: '認証が必要です' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    const result = await projectService.completeReviewTasks(organizationId, projectName);
 
     if (!result.success) {
-      res.status(500).json({
+      const statusCode = result.error?.code === 'RESOURCE_NOT_FOUND' ? 404 : 500;
+      res.status(statusCode).json({
         success: false,
-        error: {
-          code: result.error?.code || 'SYSTEM_ERROR',
-          message: result.error?.message || 'エラーが発生しました',
-        },
+        error: result.error,
         meta: { timestamp: new Date().toISOString(), requestId },
       });
       return;
@@ -147,18 +145,9 @@ export async function searchProjects(req: Request, res: Response): Promise<void>
       meta: { timestamp: new Date().toISOString(), requestId },
     });
   } catch (error) {
-    logError('Project search error', error as Error, {
-      action: 'project_search',
-      organizationId: req.user?.organizationId,
-      requestId,
-    });
-
     res.status(500).json({
       success: false,
-      error: {
-        code: 'SYSTEM_ERROR',
-        message: 'システムエラーが発生しました',
-      },
+      error: { code: 'SYSTEM_ERROR', message: 'システムエラーが発生しました' },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
   }

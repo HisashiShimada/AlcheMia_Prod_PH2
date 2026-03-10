@@ -654,12 +654,13 @@ export default function ExperimentRecordTab({
       {/* 問題報告モーダル */}
       <IssueManagementModal
         visible={issueModalOpen}
-        transitionId={selectedTransition?.transitionId || ''}
-        transitionName={selectedTransition?.transitionName || ''}
-        issues={issues}
+        targetName={selectedTransition?.transitionName || ''}
+        projectId={projectId || ''}
+        projectName={selectedProjectName || ''}
+        methodId={selectedMethodId || undefined}
+        taskNo={(() => { const p = (selectedTaskId ?? '').split('-'); const n = parseInt(p[p.length - 1], 10); return isNaN(n) ? undefined : n; })()}
+        transitionId={selectedTransition?.transitionId || undefined}
         onClose={handleIssueModalClose}
-        onSubmitIssue={handleSubmitIssue}
-        onSubmitComment={handleSubmitComment}
         projectStatus={projectStatus}
       />
     </div>

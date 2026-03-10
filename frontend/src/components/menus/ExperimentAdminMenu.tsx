@@ -11,6 +11,7 @@ import Header from '../common/Header';
 import SubHeader from '../common/SubHeader';
 import { MenuType } from '@/types/auth';
 import ProjectManagement from '../project/ProjectManagement';
+import WorkerScreenOverlay from '../project/WorkerScreenOverlay';
 import FormatManagement from '../project/FormatManagement';
 import ProgressMonitoring from '../progress/ProgressMonitoring';
 import PetriNetEditorScreen from '../editorv2/PetriNetEditorScreen';
@@ -52,6 +53,23 @@ export default function ExperimentAdminMenu({
   // Phase 6追加: エディタ表示用のステート
   const [showEditor, setShowEditor] = useState(false);
   const [editorProjectParams, setEditorProjectParams] = useState<MaimlEditorParams | null>(null);
+
+  // 作業者画面オーバーレイのステート
+  const [workerOverlayOpen, setWorkerOverlayOpen] = useState(false);
+  const [workerOverlayProjectId, setWorkerOverlayProjectId] = useState<string | undefined>(undefined);
+  const [workerOverlayProjectName, setWorkerOverlayProjectName] = useState<string | undefined>(undefined);
+
+  // 作業者画面オーバーレイを開くハンドラー
+  const handleOpenWorkerScreen = (projectId: string, projectName: string) => {
+    setWorkerOverlayProjectId(projectId);
+    setWorkerOverlayProjectName(projectName);
+    setWorkerOverlayOpen(true);
+  };
+
+  // 作業者画面オーバーレイを閉じるハンドラー
+  const handleCloseWorkerScreen = () => {
+    setWorkerOverlayOpen(false);
+  };
 
   const tabItems = [
     {
@@ -141,7 +159,10 @@ export default function ExperimentAdminMenu({
         {currentTab === '1' ? (
           // プロジェクト管理: 全幅表示
           <div style={{ height: '100%', overflow: 'hidden' }}>
-            <ProjectManagement onEdit={handleEditProject} />
+            <ProjectManagement
+              onEdit={handleEditProject}
+              onOpenWorkerScreen={handleOpenWorkerScreen}
+            />
           </div>
         ) : currentTab === '2' ? (
           // フォーマット管理: 全幅表示
@@ -171,6 +192,14 @@ export default function ExperimentAdminMenu({
           </div>
         )}
       </Content>
+      {/* 作業者画面オーバーレイ */}
+      <WorkerScreenOverlay
+        open={workerOverlayOpen}
+        onClose={handleCloseWorkerScreen}
+        user={user}
+        fixedProjectId={workerOverlayProjectId}
+        fixedProjectName={workerOverlayProjectName}
+      />
     </Layout>
   );
 }

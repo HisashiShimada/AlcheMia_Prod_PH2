@@ -442,6 +442,33 @@ export async function countProjectTasksByStatus(
 }
 
 /**
+ * レビュー待ちタスクを一括完了に更新
+ *
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @returns 更新件数
+ */
+export async function completeReviewTasks(
+  organizationId: string,
+  projectId: string
+): Promise<number> {
+  const pool = getPool();
+
+  // task_status = 3 (review_waiting) を 4 (completed) に更新
+  const query = `
+    UPDATE project_task_detail
+    SET task_status = 4,
+        update_at = CURRENT_TIMESTAMP
+    WHERE organization_id = $1
+      AND project_id = $2
+      AND task_status = 3
+  `;
+
+  const result = await pool.query(query, [organizationId, projectId]);
+  return result.rowCount ?? 0;
+}
+
+/**
  * プロジェクト情報を取得（IDと名前のみ）
  * 
  * @param organizationId 組織ID

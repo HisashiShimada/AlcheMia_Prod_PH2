@@ -185,6 +185,20 @@ router.get(
 );
 
 /**
+ * フォーマットテンプレートファイル一覧取得
+ * GET /api/v1/maiml/formats
+ *
+ * @middleware authMiddleware - JWT認証
+ * @description formats/ 配下を全部門横断で走査し、material/ condition/ result/ 配下の .xml ファイルのみ返す
+ * @requirements FR-TEMPLATE-1, SEC-1
+ */
+router.get(
+  '/formats',
+  authMiddleware,
+  maimlController.listFormats
+);
+
+/**
  * ファイル内容取得
  * GET /api/v1/maiml/file-content
  * 

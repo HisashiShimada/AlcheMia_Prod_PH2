@@ -392,9 +392,40 @@ export class IssueRepository {
     const pgp = getPgp();
 
     // Query 1: 問題一覧を取得（外部SQLファイル + 動的フィルタ）
+    // SQLファイルは organization_id ($1) と project_id ($2) のみ固定
     let issuesQuery = await loadSqlFile('issues/listIssuesWithCommentsIssues.sql');
-    const values: any[] = [organizationId, filters.projectId, filters.methodId, filters.taskNo, filters.transitionId];
-    let paramIndex = 6;
+    const values: any[] = [organizationId, filters.projectId];
+    let paramIndex = 3;
+
+    // オプショナルフィルタ: methodId（省略時はプロジェクト全件）
+    if (filters.methodId) {
+      issuesQuery = issuesQuery.replace(
+        'ORDER BY',
+        `AND i.method_id = $${paramIndex}\nORDER BY`
+      );
+      values.push(filters.methodId);
+      paramIndex++;
+    }
+
+    // オプショナルフィルタ: taskNo（issue_target=2の問題を絞り込む）
+    if (filters.taskNo !== undefined) {
+      issuesQuery = issuesQuery.replace(
+        'ORDER BY',
+        `AND (i.issue_target != 2 OR i.task_no = $${paramIndex})\nORDER BY`
+      );
+      values.push(filters.taskNo);
+      paramIndex++;
+    }
+
+    // オプショナルフィルタ: transitionId（issue_target=3の問題を絞り込む）
+    if (filters.transitionId) {
+      issuesQuery = issuesQuery.replace(
+        'ORDER BY',
+        `AND (i.issue_target != 3 OR i.transition_id = $${paramIndex})\nORDER BY`
+      );
+      values.push(filters.transitionId);
+      paramIndex++;
+    }
 
     // オプショナルフィルタ: status
     if (filters.status) {

@@ -260,12 +260,12 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         </Space>
       }
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         {/* バリデーション結果統計（エラーがある場合のみ） */}
         {hasErrors && (
           <Alert
             message={
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                 <Space>
                   <Text strong>❌ エラー:</Text>
                   <Text>{errorCount}件</Text>
@@ -289,7 +289,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         {hasErrors && validationResult?.errors && validationResult.errors.length > 0 && (
           <Collapse>
             <Panel header="エラー詳細 (上位3件)" key="errors">
-              <Space direction="vertical" style={{ width: '100%' }}>
+              <Space orientation="vertical" style={{ width: '100%' }}>
                 {validationResult.errors.slice(0, 3).map((error, index) => (
                   <Alert
                     key={index}
@@ -320,7 +320,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
 
         {/* 保存先選択 */}
         <div style={{ padding: 16, backgroundColor: '#e6f4ff', borderRadius: 8, border: '2px solid #1677ff' }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             <Space>
               <CloudUploadOutlined />
               <Text strong>保存先を選択</Text>
@@ -352,7 +352,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
                     <Spin tip="フォルダ読み込み中..." />
                   </div>
                 ) : showCustomFolderInput ? (
-                  <Space direction="vertical" style={{ width: '100%', marginTop: 8 }}>
+                  <Space orientation="vertical" style={{ width: '100%', marginTop: 8 }}>
                     <Input
                       value={customFolder}
                       onChange={(e) => setCustomFolder(e.target.value)}
@@ -369,7 +369,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
                     </Button>
                   </Space>
                 ) : (
-                  <Space direction="vertical" style={{ width: '100%', marginTop: 8 }}>
+                  <Space orientation="vertical" style={{ width: '100%', marginTop: 8 }}>
                     <Alert
                       message={
                         <Space>
@@ -427,7 +427,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
         </Text>
 
         {/* アクションボタン */}
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           {/* 自動補正ボタン（エラーがある場合のみ） */}
           {hasErrors && hasCorrections && (
             <Button

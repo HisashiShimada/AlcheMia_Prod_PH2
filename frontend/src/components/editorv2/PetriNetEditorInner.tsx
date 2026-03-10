@@ -690,11 +690,13 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           
           // parser.getTemplates()を使用して統一のTemplate型配列を取得
           const { material, condition, result } = parser.getTemplates();
-          const allTemplates: Template[] = [...material, ...condition, ...result];
+          const allTemplates: Template[] = Array.from([...material, ...condition, ...result]).filter((t): t is Template => t != null && typeof t === 'object' && !!t.id);
               
-          allTemplates.forEach((template: Template) => {
-            const templateId = template.id;
-            const placeRefs = template.placeRefs || []; // XSD準拠: placeRef（配列）
+          allTemplates.forEach((template: Template | null | undefined) => {
+            // ✅ 安全ガード: template または template.id が falsy な場合はスキップ
+            const templateId = template?.id;
+            if (!templateId) return;
+            const placeRefs = template?.placeRefs || []; // XSD準拠: placeRef（配列）
             
             if (placeRefs.length > 1 && templateId) {
               commonTemplateIds.add(templateId);
@@ -1293,9 +1295,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       // 全カテゴリのテンプレートをチェック
       (['material', 'condition', 'result'] as const).forEach((category) => {
-        const templates : Template[] = allTemplates[category];
-        if (templates.length > 0) {
+        const templates : Template[] = (allTemplates[category] || []).filter((t): t is Template => t != null && typeof t === 'object' && !!t.id);
+          if (templates.length > 0) {
           templates.forEach((template: Template) => {
+            if (!template || !template.id) return; // ✅ 安全ガード
             // このテンプレートのplaceRefsにoldIdが含まれている場合
             if (template.placeRefs && template.placeRefs.find((r) => r.ref === oldId)) {
               console.log('🔄 [PetriNetEditorInner] テンプレートのplaceRefsを更新:', {
@@ -1637,9 +1640,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         
         // 全カテゴリから元のテンプレートを検索（templateIdで検索）
         (['material', 'condition', 'result'] as const).forEach((category) => {
-        const templates : Template[] = allTemplates[category];
+        const templates : Template[] = (allTemplates[category] || []).filter((t): t is Template => t != null && typeof t === 'object' && !!t.id);
           if (!originalTemplate.id && templates.length > 0) {
-            originalTemplate = templates.find((t: Template) => t.id === templateId)!;  // ✅ 修正: templateIdで検索
+            const found = templates.find((t: Template) => t.id === templateId);
+            if (found) {  // ✅ 修正: find()がundefinedを返す場合に備えてチェック
+              originalTemplate = found;
+            }
           }
         });
         
@@ -2628,7 +2634,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
           showIcon
           style={{ maxWidth: 600, width: '100%' }}
         />
-        <Space direction="vertical" style={{ width: '100%', maxWidth: 600 }}>
+        <Space orientation="vertical" style={{ width: '100%', maxWidth: 600 }}>
           {criticalErrors.map((err, idx) => (
             <Alert 
               key={idx} 
