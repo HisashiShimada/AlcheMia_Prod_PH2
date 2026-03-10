@@ -4,9 +4,20 @@
   "description": "マルチモーダルデータプラットフォーム",
   "private": true,
   "scripts": {
-    "build": "node scripts/build.js"
+    "build": "node scripts/build.js",
+    "test": "npx bddgen --config tests/e2e/playwright.config.ts && npx playwright test --config tests/e2e/playwright.config.ts --headed",
+    "test:ui": "npx bddgen --config tests/e2e/playwright.config.ts && npx playwright test --config tests/e2e/playwright.config.ts --ui",
+    "test:grep": "npx bddgen --config tests/e2e/playwright.config.ts && npx playwright test --config tests/e2e/playwright.config.ts --headed --grep",
+    "e2e:gen-feature": "npx ts-node --project tsconfig.json tests/e2e/scripts/md-to-feature.ts"
   },
   "dependencies": {
     "dayjs": "^1.11.19"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.3.3",
+    "@types/pg": "^8.18.0",
+    "pg": "^8.19.0",
+    "playwright-bdd": "^8.4.2"
   }
 }

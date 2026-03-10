@@ -1,0 +1,204 @@
+{
+  "_comment": "group-X-X-setup: グループ最初のシナリオ (Before) で UI 経由一括登録するデータ。is_active は登録時の初期値。",
+
+  "group-1-6-setup": {
+    "description": "[1-6] グループで使う組織を UI（組織追加ダイアログ）経由で一括登録",
+    "group_end_tag": "@1-6-8",
+    "records": [
+      {
+        "organization_cd": "e2e-org-edit-before",
+        "organization_display_name": "E2E組織編集前",
+        "organization_email": "e2e-edit-before@example.com",
+        "contract_capacity": 100,
+        "contract_users": 10,
+        "contract_projects": 5,
+        "is_entry": "無効",
+        "use_deemed_progress": "なし",
+        "is_active": true,
+        "chief_user_name": "E2E管理者AAA",
+        "chief_user_email": "admin-aaa@example.com"
+      },
+      {
+        "organization_cd": "e2e-org-toggle-bbb",
+        "organization_display_name": "E2E組織トグルBBB",
+        "organization_email": "e2e-toggle-bbb@example.com",
+        "contract_capacity": 100,
+        "contract_users": 10,
+        "contract_projects": 5,
+        "is_entry": "無効",
+        "use_deemed_progress": "なし",
+        "is_active": true,
+        "chief_user_name": "E2E管理者BBB",
+        "chief_user_email": "admin-bbb@example.com"
+      },
+      {
+        "organization_cd": "e2e-permanent-org-aaa",
+        "organization_display_name": "E2E常設組織AAA",
+        "organization_email": "e2e-permanent-aaa@example.com",
+        "contract_capacity": 100,
+        "contract_users": 10,
+        "contract_projects": 5,
+        "is_entry": "無効",
+        "use_deemed_progress": "なし",
+        "is_active": true,
+        "chief_user_name": "E2E常設管理者AAA",
+        "chief_user_email": "admin-permanent-aaa@example.com"
+      }
+    ],
+    "cleanup_names": ["E2E組織編集後", "E2E組織キャンセル後"]
+  },
+
+  "group-1-7-setup": {
+    "description": "[1-7] グループで使う組織を UI（組織追加ダイアログ）経由で一括登録",
+    "group_end_tag": "@1-7-5",
+    "records": [
+      {
+        "organization_cd": "e2e-org-toggle-bbb",
+        "organization_display_name": "E2E組織トグルBBB",
+        "organization_email": "e2e-toggle-bbb@example.com",
+        "contract_capacity": 100,
+        "contract_users": 10,
+        "contract_projects": 5,
+        "is_entry": "無効",
+        "use_deemed_progress": "なし",
+        "is_active": true,
+        "chief_user_name": "E2E管理者BBB",
+        "chief_user_email": "admin-bbb@example.com"
+      },
+      {
+        "organization_cd": "e2e-org-toggle-ccc",
+        "organization_display_name": "E2E組織トグルCCC",
+        "organization_email": "e2e-toggle-ccc@example.com",
+        "contract_capacity": 100,
+        "contract_users": 10,
+        "contract_projects": 5,
+        "is_entry": "無効",
+        "use_deemed_progress": "なし",
+        "is_active": true,
+        "chief_user_name": "E2E管理者CCC",
+        "chief_user_email": "admin-ccc@example.com"
+      },
+      {
+        "organization_cd": "e2e-org-toggle-ddd",
+        "organization_display_name": "E2E組織トグルDDD",
+        "organization_email": "e2e-toggle-ddd@example.com",
+        "contract_capacity": 100,
+        "contract_users": 10,
+        "contract_projects": 5,
+        "is_entry": "無効",
+        "use_deemed_progress": "なし",
+        "is_active": true,
+        "chief_user_name": "E2E管理者DDD",
+        "chief_user_email": "admin-ddd@example.com"
+      },
+      {
+        "organization_cd": "e2e-permanent-org-aaa",
+        "organization_display_name": "E2E常設組織AAA",
+        "organization_email": "e2e-permanent-aaa@example.com",
+        "contract_capacity": 100,
+        "contract_users": 10,
+        "contract_projects": 5,
+        "is_entry": "無効",
+        "use_deemed_progress": "なし",
+        "is_active": true,
+        "chief_user_name": "E2E常設管理者AAA",
+        "chief_user_email": "admin-permanent-aaa@example.com"
+      }
+    ],
+    "cleanup_names": []
+  },
+
+  "1-6-1": {
+    "description": "組織名変更テスト: E2E組織編集前 が is_active=true で存在すること (group-1-6-setup で登録済み)",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-edit-before", "is_active": true }
+    ],
+    "cleanup_names": ["E2E組織編集後"]
+  },
+  "1-6-2": {
+    "description": "アクティブ→非アクティブ変更テスト: E2E組織トグルBBB が is_active=true で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-toggle-bbb", "is_active": true }
+    ],
+    "cleanup_names": []
+  },
+  "1-6-3": {
+    "description": "非アクティブ→アクティブ変更テスト: E2E組織トグルBBB が is_active=true で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-toggle-bbb", "is_active": true }
+    ],
+    "cleanup_names": []
+  },
+  "1-6-4": {
+    "description": "キャンセルテスト: E2E組織トグルBBB が is_active=true で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-toggle-bbb", "is_active": true }
+    ],
+    "cleanup_names": ["E2E組織キャンセル後"]
+  },
+  "1-6-5": {
+    "description": "既存値表示テスト: E2E組織トグルBBB が is_active=true で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-toggle-bbb", "is_active": true }
+    ],
+    "cleanup_names": []
+  },
+  "1-6-6": {
+    "description": "空バリデーションエラーテスト: E2E組織トグルBBB が is_active=true で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-toggle-bbb", "is_active": true }
+    ],
+    "cleanup_names": []
+  },
+  "1-6-7": {
+    "description": "文字数バリデーションエラーテスト: E2E組織トグルBBB が is_active=true で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-toggle-bbb", "is_active": true }
+    ],
+    "cleanup_names": []
+  },
+  "1-6-8": {
+    "description": "重複エラーテスト: E2E組織トグルBBB と E2E常設組織AAA が両方 is_active=true で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-toggle-bbb",    "is_active": true },
+      { "organization_cd": "e2e-permanent-org-aaa", "is_active": true }
+    ],
+    "cleanup_names": []
+  },
+
+  "1-7-1": {
+    "description": "個別切り替えテスト (アクティブ→非アクティブ): E2E組織トグルCCC が is_active=true で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-toggle-ccc", "is_active": true }
+    ],
+    "cleanup_names": []
+  },
+  "1-7-2": {
+    "description": "個別切り替えテスト (非アクティブ→アクティブ): E2E組織トグルDDD が is_active=false で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-toggle-ddd", "is_active": false }
+    ],
+    "cleanup_names": []
+  },
+  "1-7-3": {
+    "description": "切り替えキャンセルテスト: E2E組織トグルBBB が is_active=true で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-org-toggle-bbb", "is_active": true }
+    ],
+    "cleanup_names": []
+  },
+  "1-7-4": {
+    "description": "一括アクティブ化テスト: E2E常設組織AAA が is_active=false で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-permanent-org-aaa", "is_active": false }
+    ],
+    "cleanup_names": []
+  },
+  "1-7-5": {
+    "description": "一括非アクティブ化テスト: E2E常設組織AAA が is_active=true で存在すること",
+    "is_active_overrides": [
+      { "organization_cd": "e2e-permanent-org-aaa", "is_active": true }
+    ],
+    "cleanup_names": []
+  }
+}

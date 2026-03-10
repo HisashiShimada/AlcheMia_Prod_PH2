@@ -1,6 +1,6 @@
 ---
 name: test-skill
-description: テストの設計・実装・実行時に使用する
+description: e2e/playright/bdd
 ---
 
 # test-skill
