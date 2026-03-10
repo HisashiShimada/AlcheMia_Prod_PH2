@@ -6,46 +6,7 @@
 
 ---
 
-## 1. 要件書記載業務とUI/API設計書の照合結果
-
-| 要件書 # | 業務内容 | UI設計書での実装状況 | 対応API | テスト対象 |
-|---------|---------|---------------------|---------|-----------|
-| 1 | タスクの選択・実行（作業開始・中断・再開） | ✅ `ProgressCheckTab` / `MethodTaskSelectionModal` | PUT `/api/v1/tasks/{taskId}/status` | **5-1, 5-5** |
-| 2 | ワークフローに従った作業手順の順次実行 | ✅ `TransitionList` / `TransitionFlowDiagram` | GET `/api/v1/progress/{projectId}/{methodId}/{taskId}` | **5-2** |
-| 3 | 実験条件（実験者名・作業記録・実験結果・計測結果・実験ログ）の登録 | ✅ `DataRecordDialog` | POST `/api/v1/experiments/{transitionId}/data` | **5-2** |
-| 4 | 実験作業中のメモ・気づきの入力（作業手順に紐づいて記録） | ✅ `DataRecordDialog`（コメント欄） | POST `/api/v1/experiments/{transitionId}/data` | **5-2** |
-| 5 | 事前設定条件と異なる実験条件で実施した場合の実際条件の記録 | ✅ `DataRecordDialog`（ステータス・コメント入力） | POST `/api/v1/experiments/{transitionId}/data` | **5-2** |
-| 6 | 計測・分析結果の登録（計測・分析システムからのデータ取得） | ✅ `DataRecordDialog` | POST `/api/v1/experiments/{transitionId}/data` | **5-2** |
-| 7 | 作業手順ごとの実験機器・計測装置の操作 | ✅ `TransitionList`（記録ボタン） | POST `/api/v1/experiments/{transitionId}/data` | **5-2** |
-| 8 | 実験管理者からの指示事項・注意事項の確認 | ✅ `InstructionConfirmationTab` / `InstructionGroup` / `InstructionCard` | GET `/api/v1/instructions` | **5-4** |
-| 9 | 実験作業者の操作履歴の閲覧 | ❌ 設計書に未定義 | - | **対象外** |
-| 10 | システムダウン時の状態通知の受信 | ❌ 設計書に未定義 | - | **対象外** |
-| 11 | 削除データの通知の受信 | ❌ 設計書に未定義 | - | **対象外** |
-
----
-
-## 2. 追加機能一覧（要件書に未記載・設計書に実装済み）
-
-設計書を精査した結果、要件書に記載のない以下の機能が実装されていることが確認された。これらもテスト対象に追加する。
-
-| 追加機能ID | 機能名 | 根拠（設計書） | 対応API | テスト対象 |
-|-----------|--------|---------------|---------|-----------|
-| A | プロジェクト選択（コンボボックス + 選択モーダル） | `ui_experiment_worker_main.md` §3, `ui_project_selection_modal.md` | GET `/api/v1/projects/worker-accessible` | **5-1** |
-| B | メソッド・タスク選択モーダル（タブ切り替え・フィルタリング） | `ui_method_task_selection_modal.md` | - | **5-1** |
-| C | 進捗確認タブでのタスク一覧表示（メソッドタブ切り替え） | `ui_progress_check_tab.md`, `ui_progress_check_table.md` | GET `/api/v1/tasks?projectId={projectId}` | **5-5** |
-| D | 問題報告（トランジション単位・タスク単位） | `ui_transition_list.md` §5.2, `ui_issue_management_modal.md` | POST `/api/v1/issues` | **5-3** |
-| E | 問題へのコメント投稿 | `ui_issue_management_modal.md` | POST `/api/v1/issues/:issueId/comments` | **5-3** |
-| F | 問題一覧の確認（フィルタリング・ページネーション） | `ui_issue_management_modal.md` | GET `/api/v1/issues` | **5-3** |
-| G | 問題ステータス変更（未解決⇔解決済）※権限制限あり | `ui_issue_management_modal.md` §8 | PATCH `/api/v1/issues/:issueId/status` | **5-3** |
-| H | 指示のグループ表示（プロジェクト/タスク/トランジション別） | `ui_instruction_group.md` §3.1 | GET `/api/v1/instructions` | **5-4** |
-| I | 指示グループの折りたたみ/展開 | `ui_instruction_group.md` §4 | - | **5-4** |
-| J | 指示確認完了ボタン（確認完了のマーク） | `ui_instruction_group.md` §6.2 | PUT `/api/v1/instructions/{instructionId}/confirm` | **5-4** |
-| K | 承認依頼（進捗確認タブから送信） | `ui_experiment_worker_main.md` §3.2.3 | POST `/api/v1/projects/{projectId}/approval-request` | **5-5** |
-| L | トランジションのフロー図表示（TransitionFlowDiagram） | `ui_transition_flow_diagram.md` | GET `/api/v1/files/maiml/{fileId}` | **5-2** |
-
----
-
-## 3. テスト対象スコープ（確定版）
+## 1. テスト対象スコープ（確定版）
 
 ### スコープ内
 
@@ -68,7 +29,7 @@
 
 ---
 
-## 4. シナリオ詳細一覧
+## 2. シナリオ詳細一覧
 
 ### 5-1: プロジェクト・メソッド・タスク選択
 
@@ -164,9 +125,9 @@
 
 ---
 
-## 5. テスト実行に必要な前提情報
+## 3. テスト実行に必要な前提情報
 
-### 5.1 テスト環境
+### 3.1 テスト環境
 
 | 項目 | 値 |
 |------|-----|
@@ -175,14 +136,14 @@
 | DB接続 | PostgreSQL（直接接続でDB検証用） |
 | 組織ID（orgId） | 要確認（testers.tsに定義） |
 
-### 5.2 テストユーザー
+### 3.2 テストユーザー
 
 | ロール | ユーザーID | パスワード | 用途 |
 |--------|-----------|-----------|------|
 | experiment_worker | 要確認 | 要確認 | 5-1〜5-5（基本シナリオ） |
 | experiment_admin（Manager） | 要確認 | 要確認 | 5-3-6、5-3-7（問題ステータス変更） |
 
-### 5.3 テスト用データ
+### 3.3 テスト用データ
 
 | データ | 用途 | 準備方法 |
 |--------|------|---------|
@@ -190,6 +151,45 @@
 | プロジェクトに紐づくメソッド・タスク | 5-1, 5-2, 5-5 | project_taskテーブルに挿入 |
 | トランジションデータ | 5-2, 5-3 | transition_setテーブル（MAIMLから生成） |
 | 指示データ（project_instruction） | 5-4 | DBに事前挿入 |
+
+---
+
+## 4. 要件書記載業務とUI/API設計書の照合結果
+
+| 要件書 # | 業務内容 | UI設計書での実装状況 | 対応API | テスト対象 |
+|---------|---------|---------------------|---------|-----------|
+| 1 | タスクの選択・実行（作業開始・中断・再開） | ✅ `ProgressCheckTab` / `MethodTaskSelectionModal` | PUT `/api/v1/tasks/{taskId}/status` | **5-1, 5-5** |
+| 2 | ワークフローに従った作業手順の順次実行 | ✅ `TransitionList` / `TransitionFlowDiagram` | GET `/api/v1/progress/{projectId}/{methodId}/{taskId}` | **5-2** |
+| 3 | 実験条件（実験者名・作業記録・実験結果・計測結果・実験ログ）の登録 | ✅ `DataRecordDialog` | POST `/api/v1/experiments/{transitionId}/data` | **5-2** |
+| 4 | 実験作業中のメモ・気づきの入力（作業手順に紐づいて記録） | ✅ `DataRecordDialog`（コメント欄） | POST `/api/v1/experiments/{transitionId}/data` | **5-2** |
+| 5 | 事前設定条件と異なる実験条件で実施した場合の実際条件の記録 | ✅ `DataRecordDialog`（ステータス・コメント入力） | POST `/api/v1/experiments/{transitionId}/data` | **5-2** |
+| 6 | 計測・分析結果の登録（計測・分析システムからのデータ取得） | ✅ `DataRecordDialog` | POST `/api/v1/experiments/{transitionId}/data` | **5-2** |
+| 7 | 作業手順ごとの実験機器・計測装置の操作 | ✅ `TransitionList`（記録ボタン） | POST `/api/v1/experiments/{transitionId}/data` | **5-2** |
+| 8 | 実験管理者からの指示事項・注意事項の確認 | ✅ `InstructionConfirmationTab` / `InstructionGroup` / `InstructionCard` | GET `/api/v1/instructions` | **5-4** |
+| 9 | 実験作業者の操作履歴の閲覧 | ❌ 設計書に未定義 | - | **対象外** |
+| 10 | システムダウン時の状態通知の受信 | ❌ 設計書に未定義 | - | **対象外** |
+| 11 | 削除データの通知の受信 | ❌ 設計書に未定義 | - | **対象外** |
+
+---
+
+## 5. 追加機能一覧（要件書に未記載・設計書に実装済み）
+
+設計書を精査した結果、要件書に記載のない以下の機能が実装されていることが確認された。これらもテスト対象に追加する。
+
+| 追加機能ID | 機能名 | 根拠（設計書） | 対応API | テスト対象 |
+|-----------|--------|---------------|---------|-----------|
+| A | プロジェクト選択（コンボボックス + 選択モーダル） | `ui_experiment_worker_main.md` §3, `ui_project_selection_modal.md` | GET `/api/v1/projects/worker-accessible` | **5-1** |
+| B | メソッド・タスク選択モーダル（タブ切り替え・フィルタリング） | `ui_method_task_selection_modal.md` | - | **5-1** |
+| C | 進捗確認タブでのタスク一覧表示（メソッドタブ切り替え） | `ui_progress_check_tab.md`, `ui_progress_check_table.md` | GET `/api/v1/tasks?projectId={projectId}` | **5-5** |
+| D | 問題報告（トランジション単位・タスク単位） | `ui_transition_list.md` §5.2, `ui_issue_management_modal.md` | POST `/api/v1/issues` | **5-3** |
+| E | 問題へのコメント投稿 | `ui_issue_management_modal.md` | POST `/api/v1/issues/:issueId/comments` | **5-3** |
+| F | 問題一覧の確認（フィルタリング・ページネーション） | `ui_issue_management_modal.md` | GET `/api/v1/issues` | **5-3** |
+| G | 問題ステータス変更（未解決⇔解決済）※権限制限あり | `ui_issue_management_modal.md` §8 | PATCH `/api/v1/issues/:issueId/status` | **5-3** |
+| H | 指示のグループ表示（プロジェクト/タスク/トランジション別） | `ui_instruction_group.md` §3.1 | GET `/api/v1/instructions` | **5-4** |
+| I | 指示グループの折りたたみ/展開 | `ui_instruction_group.md` §4 | - | **5-4** |
+| J | 指示確認完了ボタン（確認完了のマーク） | `ui_instruction_group.md` §6.2 | PUT `/api/v1/instructions/{instructionId}/confirm` | **5-4** |
+| K | 承認依頼（進捗確認タブから送信） | `ui_experiment_worker_main.md` §3.2.3 | POST `/api/v1/projects/{projectId}/approval-request` | **5-5** |
+| L | トランジションのフロー図表示（TransitionFlowDiagram） | `ui_transition_flow_diagram.md` | GET `/api/v1/files/maiml/{fileId}` | **5-2** |
 
 ---
 
