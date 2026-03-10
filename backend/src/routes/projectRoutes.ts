@@ -638,4 +638,96 @@ router.post(
   projectInstructionController.sendInstructions
 );
 
+/**
+ * MaiML 公開ステータス取得
+ * GET /api/v1/projects/:projectName/publish-status
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、読取専用）
+ * @description プロジェクトの公開状態を確認する
+ * @roles experiment_admin（読取専用）
+ * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.3
+ */
+router.get(
+  '/:projectName/publish-status',
+  authMiddleware,
+  checkPermission('040000', 0),
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.getPublishStatus
+);
+
+/**
+ * MaiML 公開
+ * POST /api/v1/projects/:projectName/publish
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description プロジェクトの最新 MaiML ファイルを公開する（maiml_publish_registry に登録）
+ * @roles experiment_admin（書込可）
+ * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.1
+ */
+router.post(
+  '/:projectName/publish',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+    body('template_only')
+      .isBoolean()
+      .withMessage('template_onlyはtrueまたはfalseである必要があります'),
+    body('store_raw_series')
+      .isBoolean()
+      .withMessage('store_raw_seriesはtrueまたはfalseである必要があります'),
+    body('retention')
+      .optional({ nullable: true })
+      .isISO8601()
+      .withMessage('retentionはISO 8601形式の日時文字列である必要があります'),
+    body('keep_raw_on_unpublish')
+      .isBoolean()
+      .withMessage('keep_raw_on_unpublishはtrueまたはfalseである必要があります'),
+  ],
+  handleValidationErrors,
+  projectController.publish
+);
+
+/**
+ * MaiML 非公開
+ * POST /api/v1/projects/:projectName/unpublish
+ *
+ * @middleware authMiddleware - JWT認証
+ * @middleware checkPermission - 権限チェック（機能CD: 040000 実験管理者メニュー、書込可）
+ * @description 公開済み MaiML アセットを非公開にする
+ * @roles experiment_admin（書込可）
+ * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.2
+ */
+router.post(
+  '/:projectName/unpublish',
+  authMiddleware,
+  checkPermission('040000', 1),
+  [
+    param('projectName')
+      .notEmpty()
+      .withMessage('projectNameは必須です')
+      .isLength({ min: 1, max: 255 })
+      .withMessage('projectNameは1〜255文字である必要があります'),
+    body('mode')
+      .optional()
+      .isIn(['keep_meta', 'full_delete'])
+      .withMessage("modeは'keep_meta'または'full_delete'である必要があります"),
+  ],
+  handleValidationErrors,
+  projectController.unpublish
+);
+
 export default router;

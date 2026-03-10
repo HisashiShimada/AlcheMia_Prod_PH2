@@ -30,7 +30,6 @@ import formatRoutes from './routes/formatRoutes';
 import codeMasterRoutes from './routes/codeMasterRoutes';
 import semanticSearchRoutes from './routes/semanticSearchRoutes';
 import systemOverviewRoutes from './routes/systemOverviewRoutes';
-import maimlOpenDataRoutes from './routes/maimlOpenDataRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -123,9 +122,6 @@ async function startServer() {
     app.use('/api/v1/semantic-search', semanticSearchRoutes);
     // Mount system overview routes
     app.use('/api/v1/systemManagement', systemOverviewRoutes);
-
-    // Mount MaiML OpenData Pipeline routes
-    app.use('/api/v1/maiml-opendata', maimlOpenDataRoutes);
 
     if (process.env.NODE_ENV !== 'test') {
       const server = app.listen(PORT, () => {

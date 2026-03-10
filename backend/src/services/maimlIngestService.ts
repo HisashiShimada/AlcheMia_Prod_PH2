@@ -96,7 +96,7 @@ export async function publishMaiml(
     }
 
     // ── 5. プレビュー生成 ─────────────────────────────────────
-    const previewMode: PreviewMode = req.preview_mode ?? 'uniform';
+    const previewMode: PreviewMode = req.preview_mode ?? 'maxhold';
     const previews = generatePreviews(assetId, seriesList, previewMode);
 
     // ── 6. KV・プレビューを DB に保存 ─────────────────────────

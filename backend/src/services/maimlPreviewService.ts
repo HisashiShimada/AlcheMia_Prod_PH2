@@ -5,8 +5,8 @@
  * @reference docs/MaiML_OpenData_Pipeline/MaiML_OpenData_Pipeline_BasicDesign_v1.3.md § 5
  *
  * 対応モード:
- *   - uniform  : 等間隔間引き（デフォルト）
- *   - maxhold  : 各バケット内の最大値を保持
+ *   - uniform  : 等間隔間引き
+ *   - maxhold  : 各バケット内の最大値を保持（デフォルト）
  *   - mmr      : Minimum Maximum Ratio（ピーク保存間引き）
  *
  * TODO: inline series を含む MaiML サンプル入手後に実装品質を向上させる
@@ -20,8 +20,8 @@ import { determineSeriesType } from './maimlKvExtractorService';
 // 定数
 // ============================================================
 
-/** プレビューの最大点数 */
-const DEFAULT_MAX_POINTS = 1000;
+/** プレビューの最大点数（仕様書: BasicDesign v1.3 § 5.1 で最大 2,000 点と規定） */
+const DEFAULT_MAX_POINTS = 2000;
 
 // ============================================================
 // 公開関数
@@ -32,13 +32,13 @@ const DEFAULT_MAX_POINTS = 1000;
  *
  * @param assetId - 取り込み先 asset_id
  * @param seriesList - KV 抽出サービスから得た ParsedSeries[]
- * @param mode - プレビューモード（デフォルト: 'uniform'）
- * @param maxPoints - プレビュー最大点数（デフォルト: 1000）
+ * @param mode - プレビューモード（デフォルト: 'maxhold'）recommendations.md §2.2 に従いピーク保持を推奨
+ * @param maxPoints - プレビュー最大点数（デフォルト: 2000）仕様書 §5.1 より最大 2,000 点
  */
 export function generatePreviews(
   assetId: number,
   seriesList: ParsedSeries[],
-  mode: PreviewMode = 'uniform',
+  mode: PreviewMode = 'maxhold',
   maxPoints: number = DEFAULT_MAX_POINTS,
 ): MaimlSeriesPreview[] {
   return seriesList.map((series) =>

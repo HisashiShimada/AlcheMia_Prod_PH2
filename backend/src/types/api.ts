@@ -248,3 +248,62 @@ export interface GetInstructionsResponse {
   /** 指示一覧 */
   instructions: InstructionData[];
 }
+
+// ============================================================
+// MaiML 公開/非公開関連のリクエスト/レスポンス型
+// ============================================================
+
+/**
+ * MaiML 公開リクエスト
+ * POST /api/v1/projects/:projectName/publish
+ *
+ * @remarks
+ * maiml_publish_registry に登録する4つのフラグを受け取る
+ * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.1
+ */
+export interface MaimlPublishRequest {
+  /**
+   * テンプレートのみ公開するか
+   * true の場合、KV属性・プレビューは生成しない
+   * @default false
+   */
+  template_only: boolean;
+
+  /**
+   * 生データ（series）を DB に永続化するか
+   * true の場合、maiml_series_raw_header / maiml_series_raw_chunk に保存
+   * @default false
+   */
+  store_raw_series: boolean;
+
+  /**
+   * 公開期限（自動非公開日時）
+   * ISO 8601 形式の文字列。省略した場合は無期限公開
+   * @example "2026-12-31T00:00:00+09:00"
+   */
+  retention: string | null;
+
+  /**
+   * 非公開時に生データを残すか
+   * false の場合、非公開時に maiml_series_raw_* も CASCADE 削除される
+   * @default false
+   */
+  keep_raw_on_unpublish: boolean;
+}
+
+/**
+ * MaiML 公開レスポンス
+ */
+export interface MaimlPublishResponse {
+  /** 公開レジストリ ID */
+  registryId: string;
+
+  /** プロジェクト名 */
+  projectName: string;
+
+  /** 公開ステータス */
+  status: 'requested' | 'published';
+
+  /** 受付日時 */
+  requestedAt: string;
+}

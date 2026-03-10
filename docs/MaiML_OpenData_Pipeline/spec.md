@@ -26,7 +26,34 @@
 
 ---
 
-## 2. システムを構成する3つのコンポーネント
+## 2. システムを構成するコンポーネント
+
+### 2.0 mmdpf での実装アーキテクチャ（決定済み）
+
+元仕様書は CLI ツール + Python Worker を想定しているが、mmdpf への組み込みでは以下の構成を採用する（詳細は `recommendations.md` §1 参照）。
+
+```
+[フロントエンド]
+    │  公開ボタン押下（experiment_admin のみ）
+    ▼
+[バックエンド API（Express）]
+    │  ① maiml_publish_registry に status='requested' で登録
+    │  ② bullmq キューにジョブをエンキュー
+    │  ③ 即座に 202 Accepted を返却
+    ▼
+[bullmq Worker（同一 Express プロセス内）]
+    │  ④ Swift/S3 から MaiML ファイルを取得
+    │  ⑤ sax パッケージでストリーミング SAX 解析
+    │  ⑥ プレビュー生成（デフォルト: maxhold）
+    │  ⑦ KV 属性・プレビューデータを DB に挿入
+    │  ⑧ status を 'published' に更新
+    ▼
+[PostgreSQL]
+```
+
+> **Redis**: docker-compose.yml に既存の `redis:7-alpine` を流用（追加インフラ不要）
+
+### 2.1 元仕様書のコンポーネント構成（参考）
 
 ```
 [ユーザー]
@@ -46,7 +73,7 @@
 [PostgreSQL (Aurora 互換)]
 ```
 
-### 2.1 SAX / iterparse とは（XML 解析方式の説明）
+### 2.2 SAX / iterparse とは（XML 解析方式の説明）
 
 MaiML は XML フォーマットのファイルであり、その解析方式として仕様書に「SAX/iterparse」が記載されている。
 
@@ -86,7 +113,7 @@ DOM 方式でメモリに全展開するとサーバーがメモリ不足にな�
 
 ---
 
-## 2.2 XML データの登録単位
+## 2.3 XML データの登録単位
 
 MaiML（XML）ファイルを公開すると、データは **3つの階層** に分かれて DB に登録される。
 

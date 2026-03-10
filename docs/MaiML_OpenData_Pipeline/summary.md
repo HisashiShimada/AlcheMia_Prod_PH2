@@ -12,6 +12,8 @@
 | [spec.md](./spec.md) | **処理仕様** — 何をするか・どんなデータが登録されるか | 仕様を理解したい人 |
 | [implementation.md](./implementation.md) | **実装方針・カラムマッピング** — どう作るか・XSD から確認したカラム対応表 | 実装者・設計者 |
 | [issues.md](./issues.md) | **課題・未決事項** — 設計前に解決が必要な課題一覧 | 設計判断者・PL |
+| [diff.md](./diff.md) | **元仕様書 vs 要約仕様書 差分** — 変更点・未解決点・省略点の整理 | 設計判断者・PL |
+| [recommendations.md](./recommendations.md) | **実装推奨事項** — アーキテクチャ・Worker・DB・セキュリティ・ロードマップ | 実装者・設計者 |
 
 ---
 

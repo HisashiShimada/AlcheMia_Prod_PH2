@@ -9,7 +9,8 @@ import { Request, Response } from 'express';
 import { ProjectService } from '../services/projectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
-import type { CreateProjectRequest } from '../types/api';
+import type { CreateProjectRequest, MaimlPublishRequest, MaimlPublishResponse } from '../types/api';
+import * as maimlIngestService from '../services/maimlIngestService';
 /**
  * プロジェクト作成エンドポイント
  * POST /api/v1/projects
@@ -1024,6 +1025,196 @@ export async function checkin(req: Request, res: Response): Promise<void> {
         timestamp: new Date().toISOString(),
         requestId,
       },
+    });
+  }
+}
+
+/**
+ * MaiML 公開エンドポイント
+ * POST /api/v1/projects/:projectName/publish
+ *
+ * @description
+ * プロジェクト詳細画面の「公開」ボタン押下時に呼び出す。
+ * projectName から最新 MaiML ファイルパスを取得し、maimlIngestService で
+ * KV・プレビューを DB に保存して即時公開する。
+ *
+ * @roles experiment_admin（書込可）
+ * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.1
+ */
+export async function publish(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectName } = req.params;
+    const body = req.body as MaimlPublishRequest;
+
+    // 1. projectName から最新 MaiML ファイルパスを取得
+    const maimlResult = await projectService.getProjectMaiml(organizationId, projectName);
+    if (!maimlResult.success || !maimlResult.data?.filePath) {
+      const statusCode = maimlResult.error?.code === 'RESOURCE_NOT_FOUND' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: maimlResult.error?.code ?? 'RESOURCE_NOT_FOUND',
+          message: maimlResult.error?.message ?? 'MaiML ファイルが見つかりません',
+        },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+    const fileUri = maimlResult.data.filePath;
+
+    // 2. maimlIngestService で公開処理（KV 抽出・プレビュー生成・DB 保存）
+    const ingestResult = await maimlIngestService.publishMaiml(organizationId, fileUri, {
+      template_only:         body.template_only         ?? false,
+      store_raw_series:      body.store_raw_series       ?? false,
+      keep_raw_on_unpublish: body.keep_raw_on_unpublish  ?? false,
+      retention_until:       body.retention              ?? null,
+    });
+
+    const response: MaimlPublishResponse = {
+      registryId: String(ingestResult.asset_id),
+      projectName,
+      status: 'published',
+      requestedAt: new Date().toISOString(),
+    };
+
+    res.status(201).json({
+      success: true,
+      data: {
+        ...response,
+        doc_name:           ingestResult.doc_name,
+        condition_kv_count: ingestResult.condition_kv_count,
+        material_kv_count:  ingestResult.material_kv_count,
+        preview_count:      ingestResult.preview_count,
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('MaiML publish error', error as Error, {
+      action: 'maiml_publish',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'SYSTEM_ERROR', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * MaiML 非公開エンドポイント
+ * POST /api/v1/projects/:projectName/unpublish
+ *
+ * @description
+ * プロジェクト詳細画面の「非公開」ボタン押下時に呼び出す。
+ * 公開済みアセットに紐づく KV・プレビュー・生データを削除する。
+ * mode=keep_meta（デフォルト）: 代表メタ（maiml_asset）は残す
+ * mode=full_delete: maiml_asset ごと完全削除
+ *
+ * @roles experiment_admin（書込可）
+ * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.2
+ */
+export async function unpublish(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectName } = req.params;
+    const { mode = 'keep_meta' } = req.body as { mode?: 'keep_meta' | 'full_delete' };
+
+    // projectName から公開ステータスを取得して asset_id を特定
+    const projectService = new ProjectService();
+    const maimlResult = await projectService.getProjectMaiml(organizationId, projectName);
+    if (!maimlResult.success || !maimlResult.data?.filePath) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'RESOURCE_NOT_FOUND', message: 'MaiML ファイルが見つかりません' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+    const fileUri = maimlResult.data.filePath;
+
+    const statusData = await maimlIngestService.getPublishStatus(organizationId, fileUri);
+    if (!statusData.is_published || !statusData.asset_id) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'NOT_PUBLISHED', message: 'このプロジェクトは公開されていません' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    await maimlIngestService.unpublishMaiml(organizationId, statusData.asset_id, mode);
+
+    res.status(200).json({
+      success: true,
+      data: { projectName, mode, unpublishedAt: new Date().toISOString() },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('MaiML unpublish error', error as Error, {
+      action: 'maiml_unpublish',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'SYSTEM_ERROR', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * MaiML 公開ステータス取得エンドポイント
+ * GET /api/v1/projects/:projectName/publish-status
+ *
+ * @description プロジェクトの公開状態を確認する
+ * @roles experiment_admin（読取専用）
+ */
+export async function getPublishStatus(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectName } = req.params;
+
+    const projectService = new ProjectService();
+    const maimlResult = await projectService.getProjectMaiml(organizationId, projectName);
+    if (!maimlResult.success || !maimlResult.data?.filePath) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'RESOURCE_NOT_FOUND', message: 'MaiML ファイルが見つかりません' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    const status = await maimlIngestService.getPublishStatus(organizationId, maimlResult.data.filePath);
+    res.status(200).json({
+      success: true,
+      data: status,
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('MaiML getPublishStatus error', error as Error, {
+      action: 'maiml_getPublishStatus',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'SYSTEM_ERROR', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }

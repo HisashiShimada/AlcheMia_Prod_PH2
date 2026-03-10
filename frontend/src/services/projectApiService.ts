@@ -1723,6 +1723,130 @@ export const checkinProject = async (
 };
 
 // ========================================
+// MaiML 公開/非公開 API 関数
+// ========================================
+
+/**
+ * MaiML 公開リクエスト型
+ */
+export interface MaimlPublishRequest {
+  template_only: boolean;
+  store_raw_series: boolean;
+  retention: string | null;
+  keep_raw_on_unpublish: boolean;
+}
+
+/**
+ * MaiML 公開レスポンス型
+ */
+export interface MaimlPublishResponse {
+  registryId: string;
+  projectName: string;
+  status: 'requested';
+  requestedAt: string;
+}
+
+/**
+ * プロジェクトの MaiML を公開する
+ * POST /api/v1/projects/:projectName/publish
+ *
+ * @param projectName プロジェクト名
+ * @param request 公開オプション
+ * @returns 公開受付結果
+ * @throws Error APIエラー時
+ */
+export const publishProject = async (
+  projectName: string,
+  request: MaimlPublishRequest
+): Promise<ApiResponse<MaimlPublishResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] publishProject - Request', { projectName, request });
+
+    const response = await client.post<{
+      success: boolean;
+      data: MaimlPublishResponse;
+      meta: { timestamp: string; requestId: string };
+    }>(`/projects/${encodeURIComponent(projectName)}/publish`, request);
+
+    console.log('[DEBUG] publishProject - Success', {
+      registryId: response.data.data.registryId,
+      status: response.data.data.status,
+    });
+
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta,
+    };
+  } catch (error) {
+    console.error('[DEBUG] publishProject - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * MaiML 非公開レスポンス型
+ */
+export interface MaimlUnpublishResponse {
+  projectName: string;
+  mode: 'keep_meta' | 'full_delete';
+  unpublishedAt: string;
+}
+
+/**
+ * プロジェクトの MaiML を非公開にする
+ * POST /api/v1/projects/:projectName/unpublish
+ *
+ * @param projectName プロジェクト名
+ * @param mode 非公開モード（keep_meta: 代表メタは残す / full_delete: 完全削除）
+ * @returns 非公開処理結果
+ * @throws Error APIエラー時
+ */
+export const unpublishProject = async (
+  projectName: string,
+  mode: 'keep_meta' | 'full_delete' = 'keep_meta'
+): Promise<ApiResponse<MaimlUnpublishResponse>> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] unpublishProject - Request', { projectName, mode });
+
+    const response = await client.post<{
+      success: boolean;
+      data: MaimlUnpublishResponse;
+      meta: { timestamp: string; requestId: string };
+    }>(`/projects/${encodeURIComponent(projectName)}/unpublish`, { mode });
+
+    console.log('[DEBUG] unpublishProject - Success', {
+      projectName: response.data.data.projectName,
+      mode: response.data.data.mode,
+      unpublishedAt: response.data.data.unpublishedAt,
+    });
+
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      meta: response.data.meta,
+    };
+  } catch (error) {
+    console.error('[DEBUG] unpublishProject - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+// ========================================
 // MAIML関連API関数
 // ========================================
 
