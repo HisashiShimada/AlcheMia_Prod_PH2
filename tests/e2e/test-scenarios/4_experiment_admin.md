@@ -1,0 +1,560 @@
+# 実験管理者 シナリオテスト対象一覧
+
+> **作成日**: 2026-03-10  
+> **参照元**: `docs/20260310_0940_ロール別業務内容一覧.md`（要求仕様書ベース）  
+> **照合先**: UI設計書（`docs/design/ui/experiment_admin/`）、API設計書（`docs/design/api/api_project_management.md`）
+
+---
+
+## 1. テスト対象スコープ（確定版）
+
+### スコープ内
+
+| テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 |
+|----------------|----------------|------|-----------|-----------|
+| **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D | 15件 | Playwright自動 |
+| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 16件 | 手動 |
+| **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 8件 | Playwright自動 |
+| **4-4** | タスク登録 | 要件書#3、追加機能K | 3件 | Playwright自動 |
+| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I | 6件 | Playwright自動 |
+| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J | 18件 | Playwright自動 |
+| **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B | 3件 | Playwright自動 |
+| **4-8** | フォーマット管理 | 要件書#13 | 40件 | Playwright自動 |
+| **4-9** | トランジション検索 | - | 10件 | 手動 |
+| **4-10** | プロジェクト公開 | - | 1件 | Playwright自動 | 
+| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 |
+| **合計** | - | - | **129件** | - |
+
+### スコープ外
+
+| 除外対象 | 除外理由 |
+|---------|---------|
+| 信頼性フラグの記録（要件書#8） | 設計書に実装なし |
+| データマート関連（要件書#9-11） | 設計書に実装なし |
+| 操作履歴の閲覧（要件書#12） | 設計書に実装なし |
+| システムダウン通知（要件書#14） | 設計書に実装なし |
+
+---
+
+## 2. シナリオ詳細一覧
+
+### 4-1: プロジェクト作成・ファイル操作
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-1-1 | プロジェクトを新規作成できること | 正常系 | 要件書#1 | POST `/api/v1/projects` |
+| 4-1-2 | プロジェクト名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `CreateProjectModal` バリデーション | - |
+| 4-1-3 | プロジェクト名が3文字未満の場合にバリデーションエラーが表示されること | 異常系 | `CreateProjectModal` バリデーション | - |
+| 4-1-4 | プロジェクト名が100文字超の場合にバリデーションエラーが表示されること | 異常系 | `CreateProjectModal` バリデーション | - |
+| 4-1-5 | キャンセルしてもプロジェクトが作成されないこと | 正常系 | `CreateProjectModal` キャンセル | - |
+| 4-1-6 | 既存のプロジェクト名を入力した場合に重複エラーが表示されること | 異常系 | 要件書#1、API 409エラー | POST `/api/v1/projects` |
+| 4-1-7 | プロジェクト未選択時は「プロジェクトダウンロード」ボタンが非活性であること | 表示確認 | `ui_project_management.md` §2.2.3 | - |
+| 4-1-8 | プロジェクト選択後に「プロジェクトダウンロード」ボタンが活性化されること | 表示確認 | `ui_project_management.md` §2.2.3-B、§3.7 | - |
+| 4-1-9 | 「プロジェクトダウンロード」ボタンをクリックするとZIPファイルがダウンロードされること | 正常系 | 追加機能D、`ui_project_management.md` §3.7 | POST `/api/v1/files/download-folder-zip` |
+| 4-1-10 | ファイル一覧の「ダウンロード」ボタンをクリックするとファイルがダウンロードされること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.4 | POST `/api/v1/files/download` |
+| 4-1-11 | ダウンロード中は該当ファイルの「ダウンロード」ボタンがローディング状態になり、他のダウンロードボタンが非活性になること | 表示確認 | `ui_file_list_table.md` §3.4.2 | - |
+| 4-1-12 | ファイルダウンロードに失敗した場合にエラーメッセージが表示されること | 異常系 | `ui_file_list_table.md` §9.1 | POST `/api/v1/files/download` |
+| 4-1-13 | ファイル一覧の「ビューア」ボタンをクリックするとビューアダイアログが起動すること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.5 | - |
+| 4-1-14 | 複数のビューアダイアログを同時に開けること（上限5個） | 正常系 | `ui_project_management.md` §3.10.2 | - |
+| 4-1-15 | 5個を超えてビューアダイアログを開こうとすると警告メッセージが表示されること | 異常系 | `ui_project_management.md` §3.10.2 | - |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- プロジェクト管理タブが表示されている
+- テスト用プロジェクトがDB・S3に存在すること（4-1-7〜4-1-15）
+- テスト用プロジェクトのS3にファイルが存在すること（4-1-10〜4-1-15）
+
+**後処理:**
+- 作成したプロジェクトを `project` テーブルから削除
+- ダウンロードされたZIPファイルをローカルから削除（4-1-9）
+- ダウンロードされた個別ファイルをローカルから削除（4-1-10）
+
+---
+
+### 4-2: MAIML編集（PetriNetEditor）
+
+> **テスト方法**: 手動テスト（GUI操作が複雑かつ専門的なため、Playwrightによる自動化対象外）
+
+| シナリオID | シナリオ名 | 種別 | 根拠 |
+|-----------|-----------|------|------|
+| 4-2-1 | PetriNetEditorでワークフローを開いて表示できること | 正常系 | 要件書#2 |
+| 4-2-2 | PetriNetEditorでノード・トランジションを編集して保存できること | 正常系 | 要件書#2 |
+| 4-2-3 | 編集内容がS3に反映されMAIMLファイルが更新されること | 正常系 | 要件書#2 |
+| 4-2-4 | ペトリネット編集画面が表示されること（ノード・エッジの描画確認） | 正常系 | `ui_petri_net_editor_screen.md` §2.1、`ui_petri_net_editor.md` §6.1 |
+| 4-2-5 | ビューモードを「テンプレート」に切り替えるとテンプレート一覧が表示されること | 正常系 | `ui_editor_toolbar.md` §5.1、`ui_petri_net_editor.md` §5.13 |
+| 4-2-6 | メソッドタブからメソッドを追加でき、タブが増えること | 正常系 | `ui_petri_net_editor.md` §5.7 |
+| 4-2-7 | ツールバーの「Material」ボタン（またはM+クリック）でMaterialノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 |
+| 4-2-8 | ツールバーの「Condition」ボタン（またはC+クリック）でConditionノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 |
+| 4-2-9 | ツールバーの「Result」ボタン（またはR+クリック）でResultノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 |
+| 4-2-10 | ツールバーの「Transition」ボタン（またはT+クリック）でTransitionノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 |
+| 4-2-11 | ワークフロー取込モードを有効にしてMAIMLファイルを選択するとサブネットが追加されること | 正常系 | `ui_editor_toolbar.md` §5.3、`ui_workflow_selector_dialog.md` §5.5 |
+| 4-2-12 | Documentボタンからドキュメント情報（名前・日付・Creator等）を編集して保存できること | 正常系 | `ui_editor_toolbar.md` §5.4、`ui_document_edit_dialog.md` §3.1.8 |
+| 4-2-13 | バリデーションボタンをクリックするとバリデーション結果パネルが表示されること | 正常系 | `ui_editor_toolbar.md` §5.4、`ui_validation_panel.md` §5.1 |
+| 4-2-14 | バリデーションエラーがある場合にエラー箇所が強調表示されること | 正常系 | `ui_petri_net_editor.md` §5.8、`ui_validation_panel.md` §5.3 |
+| 4-2-15 | 保存ダイアログからS3への保存ができること | 正常系 | `ui_save_confirm_dialog.md` §5.4、`ui_petri_net_editor_screen.md` §3.1.2 |
+| 4-2-16 | Draftボタンから下書き管理ダイアログが開き、現在の編集内容を下書き保存できること | 正常系 | `ui_draft_manager.md` §3.1.2、`ui_editor_toolbar.md` §5.4 |
+| 4-2-17 | 自動保存をONにすると一定時間ごとに下書きが自動保存されること | 正常系 | `ui_draft_manager.md` §3.1.5、`ui_editor_toolbar.md` §5.5 |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在する
+- プロジェクトにMAIMLファイルが登録済みである
+- プロジェクトがチェックアウト済みである（編集ロックを取得済み）
+- プロジェクト管理タブでプロジェクトを選択後、「編集」ボタンから実験フロー編集画面（PetriNetEditor）を開いていること
+- ワークフロー取込（4-2-11）用: S3上にワークフロー取込対象のMAIMLファイルが存在すること
+- ワークフロー取込（4-2-11）用: 取込元ファイルは `WorkflowSelectorDialog` で選択可能な状態であること
+
+**手動テスト手順（概要）:**
+1. プロジェクト管理画面からプロジェクトを選択し、「編集」ボタンをクリックしてPetriNetEditorを開く
+2. ワークフローのノード・トランジションが正しく表示されていることを目視確認（4-2-1、4-2-4）
+3. ビューモード切替ボタンで「テンプレート」表示を確認（4-2-5）
+4. メソッドタブのメソッド追加を確認（4-2-6）
+5. 各ノード追加ボタン（Material/Condition/Result/Transition）の動作を確認（4-2-7〜4-2-10）
+6. ワークフロー取込ボタンをクリックし、WorkflowSelectorDialogからMAIMLファイルを選択してサブネット追加を確認（4-2-11）
+7. Documentボタンをクリックし、ドキュメント情報を編集・保存（4-2-12）
+8. バリデーションボタンをクリックし、ValidationPanelの表示と結果を確認（4-2-13、4-2-14）
+9. 保存ボタン（または Ctrl+S）をクリックし、SaveConfirmDialogからS3保存を確認（4-2-15、4-2-2、4-2-3）
+10. Draftボタンをクリックし、下書き管理ダイアログから手動保存を確認（4-2-16）
+11. 自動保存スイッチをONにして一定時間後に下書きが作成されることを確認（4-2-17）
+
+**注意事項:**
+- PetriNetEditorはReactFlowベースのGUIエディタであり、ドラッグ操作など自動化が困難な操作を含む
+- 手動テスト実施者はMAIML仕様の基礎知識を有すること
+- 自動保存（4-2-17）は `useDraftManager` フックの設定間隔（デフォルト30秒）後に確認すること
+- バリデーションエラーの強調表示（4-2-14）を確認するには、意図的に不正なノード構成（重複IDなど）を作成すること
+
+---
+
+### 4-3: チェックアウト / チェックイン
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-3-1 | プロジェクトをチェックアウトできること（`checked_in` ステータス） | 正常系 | 要件書#4 | POST `/api/v1/projects/:projectName/checkout` |
+| 4-3-2 | チェックアウト中のプロジェクトをチェックインできること | 正常系 | 要件書#5 | POST `/api/v1/projects/:projectName/checkin` |
+| 4-3-3 | チェックアウト中のプロジェクトには「チェックアウト中」タグが表示されること | 表示確認 | `ui_project_management.md` §2.2.3 | GET `/api/v1/projects` |
+| 4-3-4 | `created` ステータスのプロジェクトをチェックアウトできること | 正常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
+| 4-3-5 | `checked_out` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
+| 4-3-6 | `in_progress` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
+| 4-3-7 | 実行中のタスクがある場合はチェックインできないこと | 異常系 | ビジネスルール（チェックイン不可条件） | POST `/api/v1/projects/:projectName/checkin` |
+| 4-3-8 | チェックアウトしたユーザー以外はチェックインできないこと | 異常系 | ビジネスルール（チェックイン可能ユーザー） | POST `/api/v1/projects/:projectName/checkin` |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在する
+- プロジェクトが「チェックイン済み」状態である
+
+**ビジネスルール（設計書より）:**
+- チェックアウトできるのは `created` または `checked_in` ステータスのみ
+- チェックインできるのはチェックアウトしたユーザーのみ
+- 実行中のタスクがある場合はチェックイン不可
+
+---
+
+### 4-4: タスク登録
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-4-1 | タスク登録タブで試行回数を設定して保存できること | 正常系 | 要件書#3 | POST `/api/v1/projects/:projectName/task-registration` |
+| 4-4-2 | タスク登録タブで実験条件を変更して保存できること | 正常系 | 要件書#3 | POST `/api/v1/projects/:projectName/task-registration` |
+| 4-4-3 | ドラッグ＆ドロップでタスクの実行順序を変更して保存できること | 正常系 | 追加機能K | POST `/api/v1/projects/:projectName/task-registration` |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在する
+- プロジェクトにMAIMLファイルが登録済みである（`isMaimlRegistered: true`）
+- プロジェクトがチェックアウト中でない（`isCheckoutLocked: false`）
+
+**ビジネスルール（設計書より）:**
+- MAIMLが未登録の場合は保存ボタンが無効化される
+- チェックアウト中の場合は保存ボタンが無効化される
+- 試行回数は1〜999の整数のみ有効
+
+---
+
+### 4-5: 指示登録・送信
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-5-1 | 指示を追加して一括送信できること | 正常系 | 要件書#6 | POST `/api/v1/projects/:projectName/instructions/send` |
+| 4-5-2 | 未送信の指示を編集できること | 正常系 | 追加機能G | PUT `/api/v1/projects/:projectName/instructions/:instructionId` |
+| 4-5-3 | 未送信の指示を削除できること | 正常系 | 追加機能H | DELETE `/api/v1/projects/:projectName/instructions/:instructionId` |
+| 4-5-4 | 送信済みの指示は削除ボタンが非表示であること | 表示確認 | `ui_instruction_registration_tab.md` §3.3.3 | - |
+| 4-5-5 | 指示が0件の場合に一括送信ボタンが無効化されること | 表示確認 | `ui_instruction_registration_tab.md` §3.3.4 | - |
+| 4-5-6 | 指示登録状況（未送信件数/送信済み件数/合計）が表示されること | 表示確認 | 追加機能I | GET `/api/v1/projects/:projectName/instructions/status` |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在する
+- プロジェクト管理タブ > 「指示登録」タブが表示されている
+
+**ビジネスルール（設計書より）:**
+- 送信済みの指示は編集・削除不可（読み取り専用になる）
+- 指示が0件の場合は一括送信ボタンが無効化される
+- 送信と同時に `project_task` レコードが生成される
+
+---
+
+### 4-6: 進捗確認・タスク結果
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-6-1 | 進捗確認タブでプロジェクト一覧が表示されること | 正常系 | 要件書#7 | GET `/api/v1/projects` |
+| 4-6-2-1 | 詳細ボタン（EyeアイコンつきPrimary Ghostボタン）をクリックすると「プロジェクト進捗詳細」モーダルが表示されること | 正常系 | 追加機能J、`ui_progress_monitoring.md` §2.2.5、`ui_work_progress_detail_dialog.md` §2.2.1 | - |
+| 4-6-2-2 | 詳細ダイアログにプロジェクト情報（プロジェクト名・ステータスTag・プロジェクトID・説明・オーナー・部門・更新日時）が表示されること | 表示確認 | `ui_work_progress_detail_dialog.md` §2.2.3 | - |
+| 4-6-2-3 | プロジェクトに複数メソッドがある場合はメソッドフィルタが表示され、単一メソッドの場合は表示されないこと | 表示確認 | `ui_work_progress_detail_dialog.md` §2.2.4、§3.1.3 | - |
+| 4-6-2-4 | タスクタブを切り替えると各タスクの詳細（タスク名・タスクID・ステータス・メソッド名）とトランジションサマリー（全体・完了・作業中・未着手・完了率）が切り替わること | 正常系 | `ui_work_progress_detail_dialog.md` §2.2.5、§2.2.6、§2.2.7、§3.1.4 | - |
+| 4-6-2-5 | 詳細ダイアログにトランジション詳細一覧（トランジション名・進捗ステータスTag・作業者・開始日・終了日）が表示されること | 表示確認 | `ui_work_progress_detail_dialog.md` §2.2.9 | - |
+| 4-6-2-6 | 詳細ダイアログの「再読み込み」ボタンをクリックするとデータが再取得されること | 正常系 | `ui_work_progress_detail_dialog.md` §2.2.2、§3.1.7 | - |
+| 4-6-2-7 | 詳細ダイアログの「閉じる」ボタンをクリックするとモーダルが閉じること | 正常系 | `ui_work_progress_detail_dialog.md` §2.2.2、§3.1.8 | - |
+| 4-6-3 | タスク結果タブでタスク統計（件数）が表示されること | 表示確認 | 要件書#15、追加機能E | GET `/api/v1/projects/:projectName/tasks` |
+| 4-6-4 | レビュー待ちタスクを一括完了できること | 正常系 | 追加機能F | POST `/api/v1/projects/:projectName/tasks/complete-review` |
+| 4-6-5 | 問題管理モーダルで問題一覧が表示されること（タイトル・内容による検索、ステータスフィルター） | 正常系 | `ui_issue_management_modal.md` §5、§6 | GET `/api/v1/issues` |
+| 4-6-6 | 新規問題をプロジェクト単位で登録できること | 正常系 | `ui_issue_management_modal.md` §8、`api_issue_management.md` §1 | POST `/api/v1/issues` |
+| 4-6-7 | 新規問題をトランジション単位で登録できること | 正常系 | `ui_issue_management_modal.md` §8、`api_issue_management.md` §1 | POST `/api/v1/issues` |
+| 4-6-8 | 新規問題登録時にタイトルまたは内容が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_issue_management_modal.md` §8.2 | - |
+| 4-6-9 | 既存問題を選択してコメントを追加できること | 正常系 | `ui_issue_management_modal.md` §7、`api_issue_management.md` §2 | POST `/api/v1/issues/comments` |
+| 4-6-10 | コメントが未入力の場合に「コメント送信」「解決」「未解決」ボタンが非活性であること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - |
+| 4-6-11 | 未解決の問題を「解決済」に変更できること（コメントと同時送信） | 正常系 | `ui_issue_management_modal.md` §7.2、`api_issue_management.md` §5 | POST `/api/v1/issues/comments`、PATCH `/api/v1/issues/status` |
+| 4-6-12 | 解決済の問題を「未解決」に戻せること（コメントと同時送信） | 正常系 | `ui_issue_management_modal.md` §7.2、`api_issue_management.md` §5 | POST `/api/v1/issues/comments`、PATCH `/api/v1/issues/status` |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在する（タスクデータを含む）
+- 詳細ダイアログ確認シナリオ（4-6-2-1〜4-6-2-7）用: テスト用プロジェクトに `project_task` テーブルのレコードが少なくとも1件存在すること
+- 詳細ダイアログ確認シナリオ（4-6-2-1〜4-6-2-7）用: 各タスクに紐づくトランジション進捗データが少なくとも1件存在すること
+- メソッドフィルタ確認シナリオ（4-6-2-3）用: 複数メソッド（2件以上）を持つプロジェクトが少なくとも1件存在すること
+- 問題確認シナリオ（4-6-5〜4-6-12）用: `issue` テーブルにテスト用問題データが挿入済みであること
+  - 未解決（`status=unresolved`）の問題を少なくとも1件
+  - 解決済（`status=resolved`）の問題を少なくとも1件
+  - コメントが1件以上付いている問題を少なくとも1件
+
+**後処理:**
+- 登録した問題データを `issue` テーブルから削除（4-6-6〜4-6-7）
+- 追加したコメントを `issue_comment` テーブルから削除（4-6-9〜4-6-12）
+
+**統計カラー定義（設計書より）:**
+- 実行待ち（pending）: セカンダリー
+- 実行中（in_progress）: プライマリー青
+- 異常終了（error）: 赤
+- レビュー待ち（review_waiting）: 警告黄
+- 完了（completed）: 成功緑
+
+**問題ステータス定義（`api_issue_management.md` より）:**
+- 未解決（`unresolved`）: 警告（オレンジ）タグ
+- 解決済（`resolved`）: 成功（緑）タグ
+
+**問題対象種別（`api_issue_management.md` より）:**
+- `project`: プロジェクト単位
+- `task`: タスク単位
+- `transition`: トランジション単位
+
+---
+
+### 4-7: プロジェクトフィルタ・検索
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-7-1 | プロジェクトステータスでフィルタリングできること | 正常系 | 追加機能A | GET `/api/v1/projects` |
+| 4-7-2 | チェックアウト状態でフィルタリングできること | 正常系 | 追加機能A | GET `/api/v1/projects` |
+| 4-7-3 | キーワード検索でプロジェクトを絞り込みできること | 正常系 | 追加機能B | GET `/api/v1/projects` |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- プロジェクト管理タブが表示されている
+- 検索・フィルタの対象となる複数のプロジェクトがDBに存在する
+
+**フィルタ選択肢（設計書より）:**
+- **ステータス**: 全て / 計画中(planning) / 実行待ち(pending) / 実行中(in_progress) / レビュー待ち(review_waiting) / 完了(completed) / エラー(error)
+- **チェックアウト状態**: 全て / チェックイン済み(checked_in) / チェックアウト中(checked_out)
+- **検索対象**: プロジェクト名、プロジェクトID、ステータス表示名、部門名、所有者名
+
+---
+
+### 4-8: フォーマット管理
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-8-1 | フォーマット一覧が表示されること | 正常系 | 要件書#13 | GET `/api/v1/formats` |
+| 4-8-2 | フォーマット（ワークフローベース）を新規登録できること | 正常系 | 要件書#13 | POST `/api/v1/formats` |
+| 4-8-3 | 登録済みフォーマットを削除できること | 正常系 | 要件書#13 | DELETE `/api/v1/formats/:formatId` |
+| 4-8-4 | 「詳細検索」ボタンをクリックすると詳細検索モーダルが開くこと | 表示確認 | `ui_format_search_modal.md` §3.1.1 | - |
+| 4-8-5 | 検索条件を「条件追加」ボタンで5件まで追加できること | 表示確認 | `ui_format_search_modal.md` §3.1.2 | - |
+| 4-8-6 | 「リセット」ボタンをクリックすると検索条件と結果がクリアされ初期状態（条件1件）に戻ること | 正常系 | `ui_format_search_modal.md` §3.1.2 | - |
+| 4-8-7 | 有効な検索条件が0件の状態で検索を実行するとエラーメッセージが表示されること | 異常系 | `ui_format_search_modal.md` §3.3 | - |
+| 4-8-8 | フォーマット未選択時に「新規フォルダ」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ui_format_management.md` §3.2 | - |
+| 4-8-9 | フォーマット選択後に「新規フォルダ」ボタンをクリックすると新規フォルダ作成モーダルが開くこと | 表示確認 | `ui_create_format_folder_modal.md` §3.1.1 | - |
+| 4-8-10 | フォルダ名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_folder_modal.md` §3.3 | - |
+| 4-8-11 | フォルダ名に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_folder_modal.md` §3.3 | - |
+| 4-8-12 | 「キャンセル」ボタンをクリックするとモーダルが閉じてフォルダが作成されないこと | 正常系 | `ui_create_format_folder_modal.md` §3.1.4 | - |
+| 4-8-13 | フォーマット未選択時に「新規ファイル」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ui_format_management.md` §3.2 / §6.3 | - |
+| 4-8-14 | フォーマット選択後に「新規ファイル」ボタンをクリックすると新規ファイル作成モーダルが開くこと | 表示確認 | `ui_create_format_file_modal.md` §3.1.1 | - |
+| 4-8-15 | XMLタイプのフォーマット選択時はテンプレートタイプ選択（Material/Condition/Result）が表示されること | 表示確認 | `ui_create_format_file_modal.md` §3.1.1 / §3.1.3 | - |
+| 4-8-16 | MAIMLタイプのフォーマット選択時はテンプレートタイプ選択が表示されないこと | 表示確認 | `ui_create_format_file_modal.md` §3.1.1 / §3.1.3 | - |
+| 4-8-17 | ファイル名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_file_modal.md` §3.3 | - |
+| 4-8-18 | ファイル名が100文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_file_modal.md` §3.3 | - |
+| 4-8-19 | XMLファイル作成時にテンプレートタイプが未選択の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_file_modal.md` §3.3 | - |
+| 4-8-20 | 「キャンセル」ボタンをクリックするとモーダルが閉じてファイルが作成されないこと | 正常系 | `ui_create_format_file_modal.md` §3.1.6 | - |
+| 4-8-21 | フォーマット未選択時に「アップロード」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ui_format_management.md` §3.2 / §6.3 | - |
+| 4-8-22 | フォーマット選択後に「アップロード」ボタンをクリックするとアップロードダイアログが開くこと | 表示確認 | `ui_format_upload_dialog.md` §3.1.1 | - |
+| 4-8-23 | 単一ファイルモードでファイルを1件選択してアップロードできること | 正常系 | `ui_format_upload_dialog.md` §3.1.3 / §3.1.8 | POST `/api/v1/formats/upload` |
+| 4-8-24 | 一括ファイルモードで複数ファイルを選択してアップロードできること | 正常系 | `ui_format_upload_dialog.md` §3.1.3 / §3.1.8 | POST `/api/v1/formats/upload` |
+| 4-8-25 | フォルダモードでフォルダを選択してアップロードできること | 正常系 | `ui_format_upload_dialog.md` §3.1.4 / §3.1.8 | POST `/api/v1/formats/upload` |
+| 4-8-26 | モード切り替え時に選択済みファイルリストがクリアされること | 表示確認 | `ui_format_upload_dialog.md` §3.1.2 | - |
+| 4-8-27 | 単一ファイルモードで複数ファイルを選択すると最後の1ファイルのみが選択状態になること | 表示確認 | `ui_format_upload_dialog.md` §3.1.3 | - |
+| 4-8-28 | ファイルを選択せずにアップロードボタンを押すと警告メッセージが表示されること | 異常系 | `ui_format_upload_dialog.md` §3.3 / §6.1 | - |
+| 4-8-29 | アップロード中にファイル完了件数とパーセントが進捗表示されること | 表示確認 | `ui_format_upload_dialog.md` §2.2.7 / §3.1.8 | - |
+| 4-8-30 | アップロード完了後に成功メッセージが表示されること | 表示確認 | `ui_format_upload_dialog.md` §2.2.7 | - |
+| 4-8-31 | アップロード中にダイアログを閉じようとすると確認ダイアログが表示されること | 異常系 | `ui_format_upload_dialog.md` §3.1.10 / §6.2 | - |
+| 4-8-32 | MAIMLファイル（.maiml）の「編集」ボタンをクリックするとPetriNetEditorがフルスクリーンで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | POST `/api/worker/load-maiml-file` |
+| 4-8-33 | XMLファイル（.xml）の「編集」ボタンをクリックするとTemplateEditorDialogがモーダルで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | - |
+| 4-8-34 | MAIMLファイルの編集後に保存するとS3ファイルが更新されること | 正常系 | `ui_format_management.md` §3.1.7 | PUT `/api/v1/formats/:formatId/files/:fileId` |
+| 4-8-35 | .maimlでも.xmlでもないファイルの「編集」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_format_management.md` §6.3 | - |
+| 4-8-36 | ファイルの「ダウンロード」ボタンをクリックするとファイルがダウンロードされること | 正常系 | `ui_format_file_list_table.md` §3.1.5 | POST `/api/v1/files/download` |
+| 4-8-37 | ファイルダウンロードに失敗した場合にエラーメッセージが表示されること | 異常系 | `ui_format_management.md` §6.2 | POST `/api/v1/files/download` |
+| 4-8-38 | ファイルの「削除」ボタンをクリックすると削除確認ダイアログが表示されること | 表示確認 | `ui_format_file_list_table.md` §3.1.6、`ui_format_management.md` §3.2 | - |
+| 4-8-39 | 削除確認ダイアログで確認するとファイルが削除されてファイル一覧から消えること | 正常系 | `ui_format_management.md` §3.2 / §6.4 | DELETE `/api/v1/formats/:formatId/files/:fileId` |
+| 4-8-40 | 削除確認ダイアログでキャンセルするとファイルが削除されないこと | 正常系 | `ui_format_file_list_table.md` §3.1.6 | - |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- フォーマット管理画面が表示されている
+- フォーマット選択が必要なシナリオ（4-8-5〜4-8-7、4-8-9〜4-8-20、4-8-22〜4-8-40）: フォーマット一覧にテスト用フォーマットが1件以上存在すること
+  - XMLタイプのフォーマットが1件以上存在すること（4-8-15、4-8-19）
+  - MAIMLタイプのフォーマットが1件以上存在すること（4-8-16）
+- ファイル操作シナリオ（4-8-32〜4-8-40）: 選択中のフォーマット内にテスト用ファイルが存在すること
+  - MAIMLファイル（.maiml）が1件以上存在すること（4-8-32、4-8-34）
+  - XMLファイル（.xml）が1件以上存在すること（4-8-33）
+  - その他の拡張子ファイルが1件以上存在すること（4-8-35）
+  - 削除確認シナリオ（4-8-38〜4-8-40）用: 削除してよいテスト用ファイルが1件以上存在すること
+
+**注意事項:**
+- 4-8-4〜4-8-7（詳細検索）: 検索実行APIは🔴未実装のため、検索結果の表示確認は対象外。UI操作（モーダル開閉・条件追加・リセット・バリデーション）のみを確認する
+- 4-8-8〜4-8-12（新規フォルダ作成）: フォルダ作成APIは🔴未実装のため、作成完了の確認はフロントエンドのバリデーション・モーダル動作の範囲に限定する
+- 4-8-13〜4-8-20（新規XMLファイル作成）: ファイル作成APIは🔴未実装のため、バリデーション・モーダル動作のみを確認する。作成完了の確認は実装後に追加する
+- 4-8-23〜4-8-31（アップロード）: `POST /api/v1/formats/upload` は🔴未実装のため、現在はモック処理のみ確認。進捗表示・完了メッセージはフロントエンドのモック動作を確認する
+- 4-8-25（フォルダモード）: ブラウザの `webkitdirectory` 属性を使用するため、Playwrightでの自動化が困難。手動テストを検討する
+- 4-8-32〜4-8-33（編集・エディタ起動）: PetriNetEditor（MAIML）またはTemplateEditorDialog（XML）が起動することのみを確認する。エディタ操作の詳細テストは 4-2（MAIML）または別途XMLエディタテストで実施する
+- 4-8-34（編集保存）: `PUT /api/v1/formats/:formatId/files/:fileId` は🔴未実装のため、API実装後に確認する
+- 4-8-36〜4-8-37（ダウンロード）: `POST /api/v1/files/download` は🔴未実装のため、API実装後に確認する。現在はコンソールログ出力のみ
+- 4-8-39（削除）: ファイル削除APIは🔴未実装のため、削除確認ダイアログの表示・UIの動作のみ確認する。削除完了の確認は実装後に追加する
+
+**後処理:**
+- 登録したフォーマットを削除（4-8-2）
+- アップロードしたファイルをS3から削除（4-8-23〜4-8-25、API実装後）
+- 削除したテスト用ファイルをS3から復元（4-8-39、API実装後）
+
+---
+
+### 4-9: トランジション検索
+
+> **テスト方法**: 手動テスト
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-9-1 | （シナリオ名を記入） | - | - | - |
+| 4-9-2 | （シナリオ名を記入） | - | - | - |
+| 4-9-3 | （シナリオ名を記入） | - | - | - |
+| 4-9-4 | （シナリオ名を記入） | - | - | - |
+| 4-9-5 | （シナリオ名を記入） | - | - | - |
+| 4-9-6 | （シナリオ名を記入） | - | - | - |
+| 4-9-7 | （シナリオ名を記入） | - | - | - |
+| 4-9-8 | （シナリオ名を記入） | - | - | - |
+| 4-9-9 | （シナリオ名を記入） | - | - | - |
+| 4-9-10 | （シナリオ名を記入） | - | - | - |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- （その他前提条件を記入）
+
+---
+
+### 4-10: プロジェクト公開
+
+| シナリオID | シナリオ名 | 種別 | 根拠 |
+|-----------|-----------|------|------|
+
+**前提条件:**
+
+**手動テスト手順（概要）:**
+
+**注意事項:**
+
+---
+
+### 4-11: ファイルアップロード
+
+> **テスト方法**: Playwright自動（4-11-1〜2、4-11-5〜10）+ 手動（4-11-3〜4：ブラウザの `webkitdirectory` 属性を使用するフォルダモードは自動化困難なため）
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-11-1 | 単一ファイルモードでファイルをアップロードできること | 正常系 | 追加機能L | POST `/api/v1/files/upload` |
+| 4-11-2 | 一括ファイルモードで複数ファイルを同時にアップロードできること | 正常系 | 追加機能L | POST `/api/v1/files/upload` |
+| 4-11-3 | フォルダモードでフォルダをアップロードできること | 正常系 | 追加機能L | POST `/api/v1/files/upload` |
+| 4-11-4 | フォルダ構造を保持するオプションが有効な場合にフォルダ階層を維持してアップロードできること | 正常系 | `ui_bulk_upload_dialog.md` §3.5 | POST `/api/v1/files/upload` |
+| 4-11-5 | アップロード中にファイル完了件数とパーセントが進捗表示されること | 表示確認 | `ui_bulk_upload_dialog.md` §3.6.2 | - |
+| 4-11-6 | アップロード完了後に成功メッセージが表示されること | 表示確認 | `ui_bulk_upload_dialog.md` §3.6.2 | - |
+| 4-11-7 | ファイルを選択せずにアップロードボタンを押すと警告メッセージが表示されること | 異常系 | `ui_bulk_upload_dialog.md` §7.2 | - |
+| 4-11-8 | アップロード中にダイアログを閉じようとすると確認ダイアログが表示されること | 異常系 | `ui_bulk_upload_dialog.md` §3.7 | - |
+| 4-11-9 | 単一ファイルモードで複数ファイルを選択すると最後の1ファイルのみが選択状態になること | 表示確認 | `ui_bulk_upload_dialog.md` §3.2.3 | - |
+| 4-11-10 | モード切り替え時に選択済みファイルリストがクリアされること | 表示確認 | `ui_bulk_upload_dialog.md` §3.1.2 | - |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- テスト用プロジェクトがDB・S3に存在し、プロジェクト管理タブで選択済みである
+- プロジェクト管理画面のツールバーに「アップロード」ボタンが表示されている
+
+**後処理:**
+- アップロードしたファイルをS3から削除
+- `upload_batch` テーブルのテストデータを削除
+
+**対応ファイル形式（設計書より）:**
+- MAIML: `.maiml`, `.xml`
+- データ: `.json`, `.txt`, `.csv`
+- 画像: `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.svg`, `.webp`, `.tif`, `.tiff`
+- ドキュメント: `.pdf`
+
+**フォルダ構造保持オプション（設計書より）:**
+- 一括ファイルモードまたはフォルダモードの場合のみ表示
+- チェック時: `webkitRelativePath` を保持してアップロード
+- 未チェック時: フラットにアップロード
+
+---
+
+## 3. テスト実行に必要な前提情報
+
+### 3.1 テスト環境
+
+| 項目 | 値 |
+|------|-----|
+| フロントエンドURL | http://localhost:3000 |
+| バックエンドURL | http://localhost:3001 |
+| DB接続 | PostgreSQL（直接接続でDB検証用） |
+| 組織ID（orgId） | 要確認 |
+
+### 3.2 テストユーザー
+
+| 項目 | 値 |
+|------|-----|
+| ロール | experiment_admin |
+| ユーザーID | 要確認 |
+| パスワード | 要確認 |
+
+### 3.3 テスト用データ
+
+| データ | 用途 | 準備方法 |
+|--------|------|---------|
+| テスト用プロジェクト（チェックイン済み） | 4-3, 4-4, 4-5, 4-6 | テスト実行前にDBに挿入 |
+| MAIMLファイル登録済みプロジェクト | 4-4（タスク登録） | S3にMAIMLファイルを配置 |
+| タスクデータ付きプロジェクト | 4-6（タスク結果確認） | project_task_detailレコードを挿入 |
+| 複数ステータスのプロジェクト | 4-7（フィルタ・検索） | DBに複数プロジェクトを挿入 |
+| 未解決・解決済の問題データ（`issue`テーブル） | 4-6-5〜4-6-12（問題確認） | `issue`テーブルにテストデータを挿入（`status=unresolved`を1件以上、`status=resolved`を1件以上） |
+| 問題に紐づくコメントデータ（`issue_comment`テーブル） | 4-6-5（問題一覧・コメント表示確認） | `issue_comment`テーブルにテストデータを挿入（既存問題に対して1件以上） |
+
+---
+
+## 4. 要件書記載業務とUI/API設計書の照合結果
+
+| 要件書 # | 業務内容 | UI設計書での実装状況 | 対応API | テスト対象 |
+|---------|---------|---------------------|---------|-----------|
+| 1 | プロジェクトの作成（ワークフローベースを選択して作成） | ✅ `CreateProjectModal` | POST `/api/v1/projects` | **4-1** |
+| 2 | ワークフローの修正（プロジェクト内のワークフロー編集） | ✅ `PetriNetEditorScreen` | S3ファイル操作 | **4-2** |
+| 3 | タスクの作成（メソッド・試行回数・実験条件設定） | ✅ `TaskRegistrationTab` | POST `/api/v1/projects/:projectName/task-registration` | **4-4** |
+| 4 | 実験前のワークフロー・タスクの設定 | ✅ チェックアウト操作（編集ロック） | POST `/api/v1/projects/:projectName/checkout` | **4-3** |
+| 5 | 実験タスク実行中のワークフロー修正（チェックイン操作） | ✅ チェックイン操作 | POST `/api/v1/projects/:projectName/checkin` | **4-3** |
+| 6 | 実験作業者への指示事項の入力・提示 | ✅ `InstructionRegistrationTab` | POST `/api/v1/projects/:projectName/instructions/send` | **4-5** |
+| 7 | 実験中の進捗・実験作業者のメモの閲覧 | ✅ `ProgressMonitoring` + `WorkProgressDetailDialog` | GET `/api/v1/projects`（進捗情報含む） | **4-6** |
+| 8 | 実験結果の信頼性フラグの記録（○/△/×） | ❌ 設計書に未定義 | - | **対象外** |
+| 9 | データマートの作成 | ❌ 設計書に未定義 | - | **対象外** |
+| 10 | 解析に利用するデータの指定・検索・構造化・蓄積 | ❌ 設計書に未定義 | - | **対象外** |
+| 11 | 外部データのアップロード（フォーマット変換後） | ❌ 設計書に未定義 | - | **対象外** |
+| 12 | 実験管理者の操作履歴の閲覧 | ❌ 設計書に未定義 | - | **対象外** |
+| 13 | ワークフローベースの作成（慣れた後） | ✅ `FormatManagement` | GET `/api/v1/formats` など | **4-8** |
+| 14 | システムダウン時の状態通知の受信 | ❌ 設計書に未定義 | - | **対象外** |
+| 15 | タスク実行状況の確認 | ✅ `TaskResultsTable` + 統計カード | GET `/api/v1/projects/:projectName/tasks` | **4-6** |
+
+---
+
+## 5. 追加機能一覧（要件書に未記載・設計書に実装済み）
+
+設計書を精査した結果、要件書に記載のない以下の機能が実装されていることが確認された。これらもテスト対象に追加する。
+
+| 追加機能ID | 機能名 | 根拠（設計書） | 対応API | テスト対象 |
+|-----------|--------|---------------|---------|-----------|
+| A | プロジェクト一覧のフィルタリング（所有者/部門/ステータス/チェックアウト状態） | `ui_project_management.md` §3.2 | GET `/api/v1/projects`（クエリパラメータ） | **4-7** |
+| B | プロジェクト一覧のキーワード検索 | `ui_project_management.md` §3.2 | GET `/api/v1/projects`（クエリパラメータ） | **4-7** |
+| C | プロジェクトファイル一覧表示・ファイルダウンロード・ビューア起動（ルート・アーカイブ） | `ui_file_list_table.md`、`ui_project_folder_tree.md` | GET `/api/v1/projects/:projectName/files`、POST `/api/v1/files/download` | **4-1** |
+| D | プロジェクト一括ダウンロード（ZIP形式） | `ui_project_management.md` §3.7 | POST `/api/v1/files/download-folder-zip` | **4-1** |
+| E | タスク結果の統計表示（実行待ち/実行中/レビュー待ち/完了/異常終了） | `ui_task_results_table.md`、`ui_project_management.md` §3.9 | GET `/api/v1/projects/:projectName/tasks` | **4-6** |
+| F | レビュー待ちタスクの一括完了 | `api_project_management.md` §API#16 | POST `/api/v1/projects/:projectName/tasks/complete-review` | **4-6** |
+| G | 指示の個別編集（未送信のみ） | `ui_instruction_registration_tab.md` §3.3.3、`api_project_management.md` §API#18 | PUT `/api/v1/projects/:projectName/instructions/:instructionId` | **4-5** |
+| H | 指示の個別削除（未送信のみ） | `ui_instruction_registration_tab.md` §3.3.3、`api_project_management.md` §API#19 | DELETE `/api/v1/projects/:projectName/instructions/:instructionId` | **4-5** |
+| I | 指示登録状況の確認（未送信件数/送信済み件数/合計件数） | `api_project_management.md` §API#17 | GET `/api/v1/projects/:projectName/instructions/status` | **4-5** |
+| J | 進捗確認タブでの詳細ダイアログ表示 | `ui_progress_monitoring.md` §3.1.8、`ui_work_progress_detail_dialog.md` | GET `/api/v1/projects`（進捗情報含む） | **4-6** |
+| K | タスク登録のドラッグ＆ドロップ順序変更 | `ui_task_registration_tab.md` §3.3.2 | POST `/api/v1/projects/:projectName/task-registration` | **4-4** |
+| L | 一括ファイルアップロード（単一/一括/フォルダの3モード、進捗表示、フォルダ構造保持） | `ui_bulk_upload_dialog.md` | POST `/api/v1/files/upload` | **4-11** |
+
+---
+
+## 6. 設計書との差異・懸念事項
+
+### 6.1 要件書と設計書の相違点
+
+| # | 相違内容 | 詳細 |
+|---|---------|------|
+| 1 | 要件書#1「ワークフローベースを選択して作成」→ 設計書では選択なし | 設計書（`CreateProjectModal`）ではプロジェクト名・概要のみ入力。ワークフローベース選択機能は未実装。 |
+| 2 | 要件書#3「プロパティ一覧をダウンロード・値入力・アップロードで複数タスク生成」→ 設計書では異なる | 設計書（`TaskRegistrationTab`）では メソッドID/試行回数/実験条件のみ設定。プロパティ一覧のダウンロード機能は未実装。 |
+| 3 | 要件書#8「信頼性フラグ（○/△/×）の記録」→ 設計書に存在しない | 完全に未実装。テストシナリオの対象外とする。 |
+| 4 | 要件書#9-11「データマート/解析データ管理」→ 設計書に存在しない | 完全に未実装。テストシナリオの対象外とする。 |
+| 5 | 要件書#12「操作履歴の閲覧」→ 設計書に存在しない | 完全に未実装。テストシナリオの対象外とする。 |
+
+### 6.2 APIの実装状況
+
+| API | 状態 | テストへの影響 |
+|-----|------|--------------|
+| POST `/api/v1/projects` | ✅ 実装済み | 影響なし |
+| POST `/api/v1/projects/:projectName/checkout` | ✅ 実装済み | 影響なし |
+| POST `/api/v1/projects/:projectName/checkin` | ✅ 実装済み | 影響なし |
+| GET `/api/v1/projects/:projectName/task-registration` | ✅ 実装済み | 影響なし |
+| POST `/api/v1/projects/:projectName/task-registration` | ✅ 実装済み | 影響なし |
+| POST `/api/v1/projects/:projectName/instructions/send` | ✅ 実装済み | 影響なし |
+| PUT `/api/v1/projects/:projectName/instructions/:id` | ✅ 実装済み | 影響なし |
+| DELETE `/api/v1/projects/:projectName/instructions/:id` | ✅ 実装済み | 影響なし |
+| GET `/api/v1/projects/:projectName/instructions/status` | ✅ 実装済み | 影響なし |
+| POST `/api/v1/projects/:projectName/tasks/complete-review` | ✅ 実装済み | 影響なし |
+| GET `/api/v1/projects/:projectName/tasks` | ✅ 実装済み | 影響なし |
+| GET `/api/v1/projects/:projectName/instructions`（管理者用） | 🔴 未実装 | 4-5-6（指示一覧確認）の実施に影響する可能性あり |
+| POST `/api/v1/formats/search` | 🔴 未実装 | 4-8-4〜4-8-7（詳細検索）はUI操作のみ確認。検索結果の検証は実装後に追加 |
+| POST `/api/v1/formats/:formatId/folders` | 🔴 未実装 | 4-8-8〜4-8-12（新規フォルダ作成）はバリデーション・モーダル動作のみ確認 |
+| POST `/api/v1/formats/:formatId/files` | 🔴 未実装 | 4-8-13〜4-8-20（新規ファイル作成）はバリデーション・モーダル動作のみ確認。作成完了の確認は実装後に追加 |
+| POST `/api/v1/formats/upload` | 🔴 未実装 | 4-8-23〜4-8-31（アップロード）はフロントエンドのモック動作のみ確認 |
+| POST `/api/worker/load-maiml-file` | ✅ 実装済み | 4-8-32（MAIMLファイル編集起動）に使用。PetriNetEditorへのファイル読み込みのみ確認 |
+| PUT `/api/v1/formats/:formatId/files/:fileId` | 🔴 未実装 | 4-8-34（編集保存）はAPI実装後に確認 |
+| POST `/api/v1/files/download`（フォーマット管理） | 🔴 未実装 | 4-8-36〜4-8-37（ファイルダウンロード）はAPI実装後に確認 |
+| DELETE `/api/v1/formats/:formatId/files/:fileId` | 🔴 未実装 | 4-8-39（ファイル削除）は削除確認ダイアログの動作のみ確認。削除完了の確認はAPI実装後に追加 |
+
+---
+
+## 7. 参照ドキュメント
+
+| ドキュメント | パス |
+|------------|------|
+| ロール別業務内容一覧 | `docs/20260310_0940_ロール別業務内容一覧.md` |
+| 実験管理者メニュー設計 | `docs/design/ui/experiment_admin/00_menu/ui_experiment_admin_menu.md` |
+| プロジェクト管理画面設計 | `docs/design/ui/experiment_admin/01_project_management/ui_project_management.md` |
+| プロジェクト作成モーダル設計 | `docs/design/ui/experiment_admin/01_project_management/ui_create_project_modal.md` |
+| タスク登録タブ設計 | `docs/design/ui/experiment_admin/01_project_management/ui_task_registration_tab.md` |
+| 指示登録タブ設計 | `docs/design/ui/experiment_admin/01_project_management/ui_instruction_registration_tab.md` |
+| 進捗確認画面設計 | `docs/design/ui/experiment_admin/03_progress_monitoring/ui_progress_monitoring.md` |
+| プロジェクト管理API設計 | `docs/design/api/api_project_management.md` |
+| ファイルアクセスAPI設計 | `docs/design/api/api_file_access.md` |
+| ファイル一覧テーブル設計 | `docs/design/ui/experiment_admin/01_project_management/ui_file_list_table.md` |
+| 一括アップロードダイアログ設計 | `docs/design/ui/experiment_admin/01_project_management/ui_bulk_upload_dialog.md` |
+| 問題管理API設計 | `docs/design/api/api_issue_management.md` |
+| 問題管理モーダル設計（実験作業者側） | `docs/design/ui/experiment_worker/ui_issue_management_modal.md` |
+| フォーマット管理画面設計 | `docs/design/ui/experiment_admin/02_format_management/ui_format_management.md` |
+| 詳細検索モーダル設計 | `docs/design/ui/experiment_admin/02_format_management/ui_format_search_modal.md` |
+| 新規フォルダ作成モーダル設計 | `docs/design/ui/experiment_admin/02_format_management/ui_create_format_folder_modal.md` |
+| 新規ファイル作成モーダル設計 | `docs/design/ui/experiment_admin/02_format_management/ui_create_format_file_modal.md` |
+| アップロードダイアログ設計（フォーマット管理） | `docs/design/ui/experiment_admin/02_format_management/ui_format_upload_dialog.md` |
+| プロバイダーテスト（参考実装） | `e2e/features/provider/1-1_corporation_create.feature` |
+| プロバイダーステップ定義（参考実装） | `e2e/steps/provider/1-1_corporation_create.ts` |
