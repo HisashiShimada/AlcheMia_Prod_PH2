@@ -322,6 +322,7 @@ export async function findTaskDetail(
   };
 
   return response;
+}
 
 // ========================================
 // pg-promise対応メソッド（タスク登録保存用）
