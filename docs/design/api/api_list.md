@@ -232,8 +232,7 @@
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 6.1 | GET | /api/v1/projects/:projectId/methods/:methodId/tasks | メソッド別タスク一覧取得 | ⏳ 未実装 | ProgressController.listTasks |
-| 6.2 | GET | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details | タスク詳細取得 | ✅ 実装済み | ProjectController.getTaskDetail |
+| 6.1 | GET | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details | タスク詳細取得 | ✅ 実装済み | ProjectController.getTaskDetail |
 | 6.3 | GET | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
 | 6.4 | GET | /api/v1/progress/projects/:projectName/worker-tasks | タスク一覧取得（実験作業者用） | ⏳ 未実装 | ProgressController.getWorkerTasks |
 | 6.5 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | タスクステータス更新 | ⏳ 未実装 | ProgressController.updateTaskStatus |

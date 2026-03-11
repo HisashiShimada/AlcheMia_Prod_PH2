@@ -4,8 +4,8 @@
 **最終更新**: 2026-03-11 09:52  
 **バージョン**: 1.6.0  
 **対象画面**: 実験管理者 - 進捗確認画面、実験作業者 - 実験記録画面  
-**総API数**: 7個  
-**実装状況**: 3個実装済み、4個未実装
+**総API数**: 6個  
+**実装状況**: 3個実装済み、3個未実装
 
 ---
 
@@ -13,10 +13,10 @@
 
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
-| 進捗確認 | 3 | 4 | 7 |
-| **合計** | **3** | **4** | **7** |
+| 進捗確認 | 3 | 3 | 6 |
+| **合計** | **3** | **3** | **6** |
 
-**完了率**: 42.9% (3/7)
+**完了率**: 50.0% (3/6)
 
 ---
 
@@ -24,13 +24,12 @@
 
 | # | API名 | メソッド | エンドポイント | 状態 | 優先度 |
 |---|------|---------|---------------|------|--------|
-| 1 | メソッド別タスク一覧取得 | GET | `/api/v1/projects/:projectId/methods/:methodId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 2 | タスク詳細取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` | 🟢 実装済み | ⭐⭐ 中 |
-| 3 | 進捗データ取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 4 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 5 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 6 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
-| 7 | 作業詳細一括取得 | GET | `/api/v1/progress/projects/:projectName/work-details` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 1 | タスク詳細取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` | 🟢 実装済み | ⭐⭐ 中 |
+| 2 | 進捗データ取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 3 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 4 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 5 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 6 | 作業詳細一括取得 | GET | `/api/v1/progress/projects/:projectName/work-details` | 🟢 実装済み | ⭐⭐⭐ 高 |
 
 ---
 
@@ -118,180 +117,7 @@ router.METHOD('/path',
 
 ## 📋 API詳細仕様
 
-### 1. メソッド別タスク一覧取得 🔴
-
-**エンドポイント**: `GET /api/v1/projects/:projectId/methods/:methodId/tasks`
-
-**説明**: 指定メソッドに紐づくタスク一覧を進捗情報付きで取得
-
-**認証**: 必須
-
-**権限**: `experiment_admin`, `system_admin`
-
-**優先度**: ⭐⭐⭐ 高
-
-#### リクエストパラメータ
-
-**パスパラメータ**:
-| パラメータ | 型 | 必須 | 説明 |
-|----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
-| `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
-
-**クエリパラメータ**:
-| パラメータ | 型 | 必須 | デフォルト | 説明 |
-|----------|---|------|-----------|------|
-| `status` | string | × | all | タスクステータスフィルタ（`all`, `pending`, `in_progress`, `completed`, `failed`） |
-| `include_details` | boolean | × | false | タスク詳細情報を含める |
-
-#### レスポンス
-
-**成功時 (200 OK)**:
-```json
-{
-  "success": true,
-  "data": {
-    "project_id": "550e8400-e29b-41d4-a716-446655440000",
-    "project_name": "Sample Project",
-    "method_id": "method1",
-    "method_name": "合成実験",
-    "tasks": [
-      {
-        "task_id": "task-uuid-1",
-        "task_name": "材料準備",
-        "transition_id": "t1",
-        "transition_name": "材料準備",
-        "task_status": "completed",
-        "assigned_to": "worker-uuid",
-        "assigned_user_name": "Worker Name",
-        "progress": {
-          "total_steps": 5,
-          "completed_steps": 5,
-          "progress_percentage": 100
-        },
-        "created_at": "2026-01-21T10:00:00Z",
-        "started_at": "2026-01-21T10:30:00Z",
-        "completed_at": "2026-01-21T14:00:00Z",
-        "has_issues": false
-      },
-      {
-        "task_id": "task-uuid-2",
-        "task_name": "反応実験",
-        "transition_id": "t2",
-        "transition_name": "反応実験",
-        "task_status": "in_progress",
-        "assigned_to": "worker-uuid-2",
-        "assigned_user_name": "Worker Name 2",
-        "progress": {
-          "total_steps": 8,
-          "completed_steps": 3,
-          "progress_percentage": 37.5
-        },
-        "created_at": "2026-01-21T14:00:00Z",
-        "started_at": "2026-01-21T14:30:00Z",
-        "completed_at": null,
-        "has_issues": true,
-        "issue_count": 2
-      }
-    ],
-    "statistics": {
-      "total": 10,
-      "pending": 3,
-      "in_progress": 4,
-      "completed": 2,
-      "failed": 1,
-      "overall_progress": 45.5
-    }
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
-**エラー時**:
-- 400: バリデーションエラー
-- 401: 認証エラー
-- 403: 権限不足
-- 404: プロジェクトまたはメソッドが存在しない
-- 500: システムエラー
-
-#### 実装要件
-
-**DBクエリ**:
-```typescript
-// プロジェクトのMAIMLファイルからメソッド情報を取得
-const maimlContent = await storageService.downloadFile(
-  organizationPrefix,
-  `projects/${project_name}/${project_name}.maiml`
-);
-
-const methods = await parseMultipleMethodsStructure(maimlContent);
-const method = methods.find(m => m.methodId === methodId);
-
-if (!method) {
-  throw new NotFoundError('メソッドが見つかりません');
-}
-
-// project_taskテーブルからタスク一覧を取得
-const tasks = await db
-  .selectFrom('project_task')
-  .leftJoin('project_task_detail', 'project_task.task_id', 'project_task_detail.task_id')
-  .leftJoin('organization_user', 'project_task.assign_user_id', 'organization_user.user_id')
-  .leftJoin('user_authentication', 'organization_user.user_id', 'user_authentication.user_id')
-  .where('project_task.project_id', '=', projectId)
-  .where('project_task.method_id', '=', methodId)
-  .where('project_task.organization_id', '=', organizationId)
-  .select([
-    'project_task.task_id',
-    'project_task.task_name',
-    'project_task.transition_id',
-    'project_task.task_status',
-    'project_task.assign_user_id',
-    'user_authentication.user_name as assigned_user_name',
-    'project_task.create_at',
-    'project_task.update_at',
-    db.fn.count('project_task_detail.task_detail_id').as('total_steps'),
-    db.fn.count(
-      db.case()
-        .when('project_task_detail.status', '=', 'completed')
-        .then(1)
-        .end()
-    ).as('completed_steps')
-  ])
-  .groupBy([
-    'project_task.task_id',
-    'project_task.task_name',
-    'project_task.transition_id',
-    'project_task.task_status',
-    'project_task.assign_user_id',
-    'user_authentication.user_name',
-    'project_task.create_at',
-    'project_task.update_at'
-  ])
-  .execute();
-```
-
-**進捗計算**:
-```typescript
-const calculateProgress = (task: any) => {
-  const totalSteps = task.total_steps || 0;
-  const completedSteps = task.completed_steps || 0;
-  
-  return {
-    total_steps: totalSteps,
-    completed_steps: completedSteps,
-    progress_percentage: totalSteps > 0 
-      ? Math.round((completedSteps / totalSteps) * 100 * 10) / 10 
-      : 0
-  };
-};
-```
-
----
-
-### 2. タスク詳細取得 🔴
+### 1. タスク詳細取得 🔴
 
 **エンドポイント**: `GET /api/v1/tasks/:taskId`
 
