@@ -10,7 +10,6 @@ import { ProjectService } from '../services/projectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse } from '../types/api';
-import type { MaimlSearchCriteria } from '../repositories/fileMetadataRepository';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 
 /**
@@ -1223,7 +1222,6 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
 
       return {
         experiment_order: Number(row.experiment_order),
-        task_name: row.task_name ?? null,
         task_no: row.task_no !== null && row.task_no !== undefined ? Number(row.task_no) : null,
         task_status: taskStatusStr,
         task_status_num: taskStatusNum,

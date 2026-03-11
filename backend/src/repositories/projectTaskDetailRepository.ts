@@ -295,7 +295,6 @@ export async function findTaskDetail(
     projectName:         row.project_name as string,
     methodId:            row.method_id as string,
     experimentOrder:     Number(row.experiment_order),
-    taskName:            row.task_name as string | null,
     taskNo:              Number(row.task_no),
     taskStatus:          toTaskStatusString(row.task_status as number | null),
     taskStatusNum:       row.task_status !== null ? Number(row.task_status) : null,
