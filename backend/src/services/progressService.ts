@@ -27,6 +27,14 @@ import {
   TransitionProgress,
   OverallProgress
 } from '../types/progress';
+import type {
+  WorkProgressDetailResponse,
+  ProjectInfoDetail,
+  FileInfoDetail,
+  WorkDetailItem,
+  TransitionProgressItem
+} from '../types/api';
+import * as projectRepository from '../repositories/projectRepository';
 import { logger } from '../utils/logger';
 import { getPool } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
@@ -637,6 +645,259 @@ export class ProgressService {
 
     if (!allowedTransitions.includes(toStatus)) {
       throw new InvalidStatusTransitionError(fromStatus, toStatus);
+    }
+  }
+
+  /**
+   * WorkProgressDetailDialog 用の作業詳細データを一括取得
+   *
+   * @param projectName プロジェクト名（URL パスパラメータ）
+   * @param organizationId 組織ID（マルチテナント分離）
+   * @returns WorkProgressDetailResponse または ProgressServiceError
+   * @remarks
+   *   projectInfo / fileInfo / workDetails（transitionProgress 含む）を一括返却する。
+   *   MAIML ファイルはキャッシュせず毎回ダウンロードするが、
+   *   プロジェクト内の全タスクのトランジション進捗取得は Promise.all で並列実行する。
+   */
+  async getWorkDetails(
+    projectName: string,
+    organizationId: string
+  ): Promise<Result<WorkProgressDetailResponse, ProgressServiceError>> {
+    const startTime = Date.now();
+    logger.info('[ProgressService.getWorkDetails] 開始', { projectName, organizationId });
+
+    try {
+      // ─────────────────────────────────────────────
+      // Step 1: プロジェクト基本情報を DB から取得
+      // ─────────────────────────────────────────────
+      const { getPgp } = await import('../database/db');
+      const pgp = getPgp();
+
+      const projectSql = await loadSqlFile('projects/findWithOwnerAndDept.sql');
+      const projectRows = await pgp.any<{
+        organization_id: string;
+        project_id: string;
+        project_name: string;
+        description: string | null;
+        department_cd: string | null;
+        department_name: string | null;
+        owner_user_id: string | null;
+        owner_name: string | null;
+        project_status: number;
+        checkout_status: number | null;
+        create_at: Date;
+        update_at: Date;
+      }>(projectSql, [projectName, organizationId]);
+
+      if (projectRows.length === 0) {
+        logger.warn('[ProgressService.getWorkDetails] プロジェクトが見つかりません', { projectName, organizationId });
+        return { success: false, error: { code: 'TASK_NOT_FOUND', message: 'プロジェクトが見つかりません' } };
+      }
+
+      const proj = projectRows[0];
+
+      // ─────────────────────────────────────────────
+      // Step 2: MAIML ダウンロード & パース
+      // ─────────────────────────────────────────────
+      const maimlResult = await this.downloadAndParseMAIML(projectName, organizationId);
+      if (!maimlResult.success) {
+        return { success: false, error: maimlResult.error };
+      }
+
+      const methodIds = maimlResult.methods.map((m: ParsedMethod) => m.methodId);
+
+      // ─────────────────────────────────────────────
+      // Step 3: プロジェクトステータス → 文字列変換
+      // ─────────────────────────────────────────────
+      const PROJECT_STATUS_MAP: Record<number, ProjectInfoDetail['status']> = {
+        0: 'planning',
+        1: 'pending',
+        2: 'in_progress',
+        3: 'review_waiting',
+        4: 'completed',
+        5: 'error'
+      };
+      const statusStr: ProjectInfoDetail['status'] = PROJECT_STATUS_MAP[proj.project_status] ?? 'planning';
+
+      // ─────────────────────────────────────────────
+      // Step 4: projectInfo / fileInfo を組み立て
+      // ─────────────────────────────────────────────
+      const maimlFileKey = `${organizationId}/projects/${projectName}/${projectName}.maiml`;
+
+      const projectInfo: ProjectInfoDetail = {
+        projectId: proj.project_id,
+        projectName: proj.project_name,
+        projectDescription: proj.description ?? undefined,
+        owner: proj.owner_name ?? proj.owner_user_id ?? '',
+        department: proj.department_name ?? proj.department_cd ?? undefined,
+        status: statusStr,
+        methods: methodIds,
+        createdAt: proj.create_at ? proj.create_at.toISOString() : '',
+        updatedAt: proj.update_at ? proj.update_at.toISOString() : ''
+      };
+
+      const fileInfo: FileInfoDetail = {
+        fileName: `${projectName}.maiml`,
+        maimlFileKey,
+        organizationId,
+        checkoutStatus: {
+          isCheckedOut: proj.checkout_status !== null && proj.checkout_status !== 0,
+          checkoutBy: null
+        }
+      };
+
+      // ─────────────────────────────────────────────
+      // Step 5: タスク一覧を DB から取得
+      // ─────────────────────────────────────────────
+      const taskSql = await loadSqlFile('project_tasks/findByProjectId.sql');
+      const taskRows = await pgp.any<{
+        organization_id: string;
+        project_id: string;
+        method_id: string;
+        experiment_order: number;
+        experiment_condition: number | null;
+        attempts_count: number | null;
+        create_at: Date;
+        update_at: Date;
+      }>(taskSql, [proj.project_id, organizationId]);
+
+      // ─────────────────────────────────────────────
+      // Step 6: タスクごとのトランジション進捗を並列取得
+      // ─────────────────────────────────────────────
+      const TRANSITION_STATUS_LABELS: Record<number, string> = {
+        0: '未開始',
+        1: '準備中',
+        2: '作業中',
+        3: '休止中',
+        4: '作業中',
+        5: '完了',
+        6: '異常中'
+      };
+
+      const transitionSql = await loadSqlFile('transition_data/findByTask.sql');
+      const taskDetailSql = await loadSqlFile('project_tasks/findTaskDetailsByMethodId.sql');
+
+      const workDetails: WorkDetailItem[] = await Promise.all(
+        taskRows.map(async (task) => {
+          // workId は "{methodId}_{experimentOrder}" 形式
+          const workId = `${task.method_id}_${task.experiment_order}`;
+
+          // タスクに対応する MAIML メソッドのトランジション一覧を取得
+          const method = maimlResult.methods.find((m: ParsedMethod) => m.methodId === task.method_id);
+          const maimlTransitions: string[] = method
+            ? method.transitions.map((t: any) => String(t.id ?? t.transitionId ?? t))
+            : [];
+
+          // DB からトランジション進捗を取得
+          // project_task_detail から当該メソッドの task_no 一覧を取得し、
+          // 各 task_no ごとに transition_data をクエリして全件集約する
+          // （transition_data の主キー: organization_id, project_id, method_id, task_no, transition_id）
+          const taskDetailRows = await pgp.any<{ task_no: number }>(
+            taskDetailSql,
+            [organizationId, proj.project_id, task.method_id]
+          );
+
+          // task_no 一覧が取得できない場合は空配列を返す
+          const taskNos: number[] = taskDetailRows.map(r => Number(r.task_no));
+
+          // 各 task_no の transition_data を並列取得してフラットに集約
+          const tdRowsPerTaskNo = await Promise.all(
+            taskNos.map(taskNo =>
+              pgp.any<{
+                transition_id: string;
+                status: number;
+                progress_rate: number;
+                update_user_id: string | null;
+                worker_name: string | null;
+                create_at: Date;
+                update_at: Date;
+              }>(transitionSql, [organizationId, proj.project_id, task.method_id, taskNo])
+            )
+          );
+          const tdRows = tdRowsPerTaskNo.flat();
+
+          // DB にないトランジションも「未開始」として含める
+          const tdMap = new Map(tdRows.map(r => [r.transition_id, r]));
+          const allTransitionIds = maimlTransitions.length > 0
+            ? maimlTransitions
+            : tdRows.map(r => r.transition_id);
+
+          const transitionProgress: TransitionProgressItem[] = allTransitionIds.map(tid => {
+            const row = tdMap.get(tid);
+            if (!row) {
+              return {
+                transitionId: tid,
+                progressStatus: '未開始'
+              };
+            }
+            return {
+                transitionId: row.transition_id,
+                progressStatus: TRANSITION_STATUS_LABELS[row.status] ?? '未開始',
+                assignedWorker: row.worker_name ?? undefined,
+                startDate: row.create_at ? row.create_at.toISOString() : undefined,
+                endDate: row.status === 5 && row.update_at ? row.update_at.toISOString() : undefined
+              };
+          });
+
+          // 統計情報の算出
+          const totalTransitions = transitionProgress.length;
+          const completedCount = tdRows.filter(r => r.status === 5).length;
+          const workingCount = tdRows.filter(r => r.status >= 1 && r.status <= 4).length;
+          const notStarted = totalTransitions - completedCount - workingCount;
+          const completionRate = totalTransitions > 0
+            ? Math.round((completedCount / totalTransitions) * 100)
+            : 0;
+
+          const workDetailItem: WorkDetailItem = {
+            workId,
+            taskNo: Number(task.experiment_order),
+            methodName: task.method_id,
+            workStatus: completedCount === totalTransitions && totalTransitions > 0 ? 'completed'
+              : workingCount > 0 ? 'in_progress'
+              : 'pending',
+            progressPercentage: completionRate,
+            stats: {
+              totalTransitions,
+              completed: completedCount,
+              working: workingCount,
+              notStarted: Math.max(0, notStarted),
+              completionRate
+            },
+            transitionProgress
+          };
+
+          return workDetailItem;
+        })
+      );
+
+      const totalDuration = Date.now() - startTime;
+      logger.info('[ProgressService.getWorkDetails] 完了', {
+        projectName,
+        taskCount: workDetails.length,
+        duration: totalDuration
+      });
+
+      return {
+        success: true,
+        data: {
+          projectInfo,
+          fileInfo,
+          workDetails
+        }
+      };
+    } catch (error) {
+      const err = error as Error;
+      logger.error('[ProgressService.getWorkDetails] エラー', {
+        projectName,
+        organizationId,
+        errorMessage: err.message,
+        errorStack: err.stack,
+        duration: Date.now() - startTime
+      });
+      return {
+        success: false,
+        error: { code: 'DATABASE_ERROR', message: 'データベースエラーが発生しました' }
+      };
     }
   }
 

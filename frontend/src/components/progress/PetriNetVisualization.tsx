@@ -336,9 +336,14 @@ const nodeTypes = {
  */
 interface PetriNetVisualizationProps {
   fileKey: string;
+  /** @deprecated バックエンドAPIでは不要。後方互換のため残存 */
   workerId: string;
   workId: string;
   progressData?: TransitionProgress[];
+  /** トランジション進捗APIを呼び出す際のメソッドID（オプショナル） */
+  methodId?: string;
+  /** トランジション進捗APIを呼び出す際のタスク連番（オプショナル、1以上） */
+  taskNo?: number;
 }
 
 /**
@@ -350,6 +355,8 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
   workerId,
   workId,
   progressData = [],
+  methodId,
+  taskNo,
 }) => {
   const { token } = theme.useToken();
 
@@ -438,8 +445,13 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
               transitionStatus: progressData,
             },
           };
+        } else if (methodId && taskNo !== undefined) {
+          // methodId/taskNoが指定されている場合はAPIを呼び出し
+          progressResult = await fetchTransitionStatusAPI(fileKey, methodId, taskNo);
         } else {
-          progressResult = await fetchTransitionStatusAPI(workerId, fileKey);
+          // methodId/taskNoが未指定の場合は空データで代替
+          console.log('ℹ️ [PetriNetVisualization] methodId/taskNo未指定のため進捗データなし');
+          progressResult = { success: true, data: { transitionStatus: [] } };
         }
 
         // 実験記録データ取得（workId必須）
@@ -461,52 +473,41 @@ const PetriNetVisualization: React.FC<PetriNetVisualizationProps> = ({
         }
       } else {
         // 実APIを使用
-        const encodedFileKey = encodeURIComponent(fileKey);
-        const [structureResponse, progressResponse] = await Promise.all([
-          fetch(`/api/worker/petri-net-structure/${encodedFileKey}`),
-          fetch(`/api/worker/transition-status/${encodeURIComponent(workerId)}/${encodedFileKey}`),
-        ]);
+        console.log('🌐 [PetriNetVisualization] 実APIからデータ取得中...');
+
+        // ペトリネット構造取得: POST /api/v1/maiml/parse-petri-net-structure
+        structureResult = await fetchPetriNetStructureAPI(fileKey);
+
+        // トランジション進捗取得（エラーでも続行）
+        try {
+          if (methodId && taskNo !== undefined) {
+            progressResult = await fetchTransitionStatusAPI(fileKey, methodId, taskNo);
+          } else {
+            // methodId/taskNoが未指定の場合は空データで代替
+            console.log('ℹ️ [PetriNetVisualization] methodId/taskNo未指定のため進捗データなし（実API）');
+            progressResult = { success: true, data: { transitionStatus: [] } };
+          }
+        } catch (error) {
+          console.warn('⚠️ [PetriNetVisualization] トランジション進捗取得失敗（続行）:', error);
+          progressResult = { success: true, data: { transitionStatus: [] } };
+        }
 
         // 実験記録データ取得（workId必須）
         if (workId) {
           try {
-            const recordsResponse = await fetch(
-              `/api/experiment-records/by-work-id/${encodeURIComponent(workId)}`,
-              { credentials: 'include' }
-            );
-
-            if (recordsResponse.ok) {
-              const recordsData = await recordsResponse.json();
-              if (recordsData.success && recordsData.data) {
-                fetchedExperimentRecords = recordsData.data;
-                setExperimentRecordsData(fetchedExperimentRecords);
-                console.log('✅ [PetriNetVisualization] 実験記録データ取得成功:', {
-                  materials: fetchedExperimentRecords?.materials?.length || 0,
-                  conditions: fetchedExperimentRecords?.conditions?.length || 0,
-                  results: fetchedExperimentRecords?.results?.length || 0,
-                });
-              }
+            const recordsData = await fetchExperimentRecordsAPI(workId);
+            if (recordsData && typeof recordsData === 'object' && 'data' in recordsData) {
+              fetchedExperimentRecords = (recordsData as { data: ExperimentRecordsData }).data;
+              setExperimentRecordsData(fetchedExperimentRecords);
+              console.log('✅ [PetriNetVisualization] 実験記録データ取得成功:', {
+                materials: fetchedExperimentRecords?.materials?.length || 0,
+                conditions: fetchedExperimentRecords?.conditions?.length || 0,
+                results: fetchedExperimentRecords?.results?.length || 0,
+              });
             }
           } catch (error) {
             console.warn('⚠️ [PetriNetVisualization] 実験記録データ取得エラー:', error);
           }
-        }
-
-        if (!structureResponse.ok) {
-          throw new Error(`ペトリネット構造の取得に失敗しました: ${structureResponse.status}`);
-        }
-
-        structureResult = await structureResponse.json();
-
-        // 進捗データ取得（エラーでも続行）
-        if (progressResponse.ok) {
-          progressResult = await progressResponse.json();
-        } else {
-          console.warn(
-            '⚠️ [PetriNetVisualization] トランジション進捗取得失敗（続行）:',
-            progressResponse.status
-          );
-          progressResult = { success: true, data: { transitionStatus: [] } };
         }
       }
 

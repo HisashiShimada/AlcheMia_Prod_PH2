@@ -1512,6 +1512,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     {/* タスク結果テーブル */}
                     <TaskResultsTable
                       results={taskResults}
+                      onViewResult={handleViewTaskResult}
                     />
                   </div>
                     ),

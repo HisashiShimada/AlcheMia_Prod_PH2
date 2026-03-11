@@ -85,24 +85,19 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/a
  * GET /api/v1/projects
  */
 export async function fetchProjects(): Promise<ApiResponse<ProjectListResponse>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/projects`, {
-      method: 'GET',
-      credentials: 'include', // Cookie認証
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+  try {
+    const response = await client.get<ApiResponse<ProjectListResponse>>('/projects');
+
+    if (!response.data.success) {
       throw new Error(
-        errorData.error?.message || 'プロジェクト一覧の取得に失敗しました'
+        response.data.error?.message || 'プロジェクト一覧の取得に失敗しました'
       );
     }
 
-    const data: ApiResponse<ProjectListResponse> = await response.json();
-    return data;
+    return response.data;
   } catch (error) {
     console.error('fetchProjects error:', error);
     throw error;
@@ -114,24 +109,21 @@ export async function fetchProjects(): Promise<ApiResponse<ProjectListResponse>>
  * GET /api/v1/projects/:projectId
  */
 export async function fetchProjectById(projectId: string): Promise<ApiResponse<ProjectDetailResponse>> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
-      method: 'GET',
-      credentials: 'include', // Cookie認証
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+  try {
+    const response = await client.get<ApiResponse<ProjectDetailResponse>>(
+      `/projects/${encodeURIComponent(projectId)}`
+    );
+
+    if (!response.data.success) {
       throw new Error(
-        errorData.error?.message || 'プロジェクト詳細の取得に失敗しました'
+        response.data.error?.message || 'プロジェクト詳細の取得に失敗しました'
       );
     }
 
-    const data: ApiResponse<ProjectDetailResponse> = await response.json();
-    return data;
+    return response.data;
   } catch (error) {
     console.error('fetchProjectById error:', error);
     throw error;
@@ -163,27 +155,131 @@ export async function fetchFormatById(formatId: string): Promise<ApiResponse<For
 }
 
 /**
- * プロジェクトのファイル一覧を取得
+ * トランジション番号に対応するステータスラベル文字列を返す
+ * バックエンドの数値ステータス → フロントエンドの表示文字列へのマッピング
  */
-export async function fetchProjectFiles(projectId: string): Promise<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>> {
-  await simulateApiDelay();
-  
-  const allFiles = filesData.files as Record<string, { root: ProjectFile[]; archive?: ProjectFile[] }>;
-  const projectFiles = allFiles[projectId];
-  
-  if (!projectFiles) {
-    throw new Error(`プロジェクトのファイルが見つかりません: ${projectId}`);
+function getTransitionStatusLabel(status: number): string {
+  const TRANSITION_STATUS_LABELS: Record<number, string> = {
+    0: '未開始',
+    1: '準備中',
+    2: '準備完了',
+    3: '実行中',
+    4: '一時停止',
+    5: '完了',
+    6: 'エラー',
+  };
+  return TRANSITION_STATUS_LABELS[status] ?? '未開始';
+}
+
+/**
+ * トランジション進捗データを取得
+ * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions
+ *
+ * @description
+ * fileKey からプロジェクト名を抽出し、バックエンドの進捗APIを呼び出す。
+ * バックエンドレスポンス（snake_case・数値ステータス）を
+ * フロントエンド期待形式（camelCase・文字列ステータス）に変換して返す。
+ *
+ * @param fileKey   - MAIMLファイルキー（例: orgId/projects/projectName/projectName.maiml）
+ * @param methodId  - メソッドID
+ * @param taskNo    - タスク連番（1以上の整数）
+ * @returns フロントエンド期待形式のトランジション進捗データ
+ */
+export async function fetchTransitionStatus(
+  fileKey: string,
+  methodId: string,
+  taskNo: number
+): Promise<unknown> {
+  // モックモード時はモックデータを返す
+  if (shouldUseMockAPI()) {
+    console.log('📦 [fetchTransitionStatus] モックAPIからデータ取得');
+    try {
+      const mockData = await import('@/data/mock/mockTransitionStatus.json');
+      return {
+        success: true,
+        data: {
+          transitionStatus: mockData.default || mockData,
+        },
+      };
+    } catch {
+      console.warn('⚠️ mockTransitionStatus.json not found, returning empty data');
+      return {
+        success: true,
+        data: {
+          transitionStatus: [],
+        },
+      };
+    }
   }
-  
+
+  // fileKey からプロジェクト名を抽出
+  // 例: "550e8400-.../projects/sample_project/sample_project.maiml" → "sample_project"
+  const projectNameFromKey = fileKey.split('/projects/')[1]?.split('/')[0];
+  if (!projectNameFromKey) {
+    throw new Error(
+      `fileKey からプロジェクト名を抽出できませんでした。fileKey: ${fileKey}`
+    );
+  }
+
+  console.log('🌐 [fetchTransitionStatus] 実API呼び出し:', {
+    fileKey,
+    projectName: projectNameFromKey,
+    methodId,
+    taskNo,
+  });
+
+  const response = await fetch(
+    `${API_BASE_URL}/progress/projects/${encodeURIComponent(projectNameFromKey)}/methods/${encodeURIComponent(methodId)}/tasks/${taskNo}/transitions`,
+    {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      errorData.error?.message ||
+        `トランジション進捗の取得に失敗しました: ${response.status}`
+    );
+  }
+
+  const result = await response.json();
+
+  console.log('✅ [fetchTransitionStatus] APIレスポンス取得成功:', {
+    success: result.success,
+    transitionsCount: result.data?.transitions?.length,
+  });
+
+  // バックエンドレスポンス → フロントエンド期待形式へ変換
+  // バックエンド: { data: { transitions: [{ transition_id, transition_name, status(数値), progress, ... }] } }
+  // フロントエンド期待: { data: { transitionStatus: [{ transitionId, transitionName, progressStatus(文字列), ... }] } }
+  const rawTransitions: Array<{
+    transition_id: string;
+    transition_name: string;
+    status: number;
+    progress: number;
+    last_updated: string | null;
+    material_count?: number;
+    condition_count?: number;
+    result_count?: number;
+  }> = result.data?.transitions ?? [];
+
+  const transitionStatus = rawTransitions.map((t) => ({
+    transitionId: t.transition_id,
+    transitionName: t.transition_name,
+    progressStatus: getTransitionStatusLabel(t.status),
+    latestStatus: getTransitionStatusLabel(t.status),
+    progressPercentage: t.progress ?? 0,
+  }));
+
   return {
     success: true,
     data: {
-      files: projectFiles.root || [],
-      archiveFiles: projectFiles.archive || [],
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      requestId: 'mock-request-id',
+      transitionStatus,
     },
   };
 }
@@ -334,11 +430,43 @@ export async function createFormatFile(
 
 
 /**
+ * プロジェクトのファイル一覧を実APIから取得
+ * GET /api/v1/projects/:projectName/files
+ *
+ * @param projectName - プロジェクト名（URLパスに使用）
+ * @returns ファイル一覧レスポンス（現行ファイルとアーカイブファイル）
+ */
+export async function fetchProjectFilesReal(
+  projectName: string
+): Promise<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>> {
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
+  try {
+    const response = await client.get<ApiResponse<{ files: ProjectFile[]; archiveFiles: ProjectFile[] }>>(
+      `/projects/${encodeURIComponent(projectName)}/files`
+    );
+
+    if (!response.data.success) {
+      throw new Error(
+        response.data.error?.message || 'プロジェクトファイル一覧の取得に失敗しました'
+      );
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('fetchProjectFilesReal error:', error);
+    throw error;
+  }
+}
+
+/**
  * モックAPIを使用するかどうかを判定
- * 開発環境では常にモックAPIを使用
+ *
+ * 常に実APIを使用するため false を返す。
  */
 export function shouldUseMockAPI(): boolean {
-  return true; // 現在は常にモックAPI使用
+  return false;
 }
 
 /**
@@ -445,80 +573,109 @@ export async function fetchMultipleMethodsStructureFromContent(maimlContent: str
 }
 
 /**
- * ペトリネット構造データを取得（モック）
+ * ペトリネット構造データを取得
+ * POST /api/v1/maiml/parse-petri-net-structure
+ *
+ * @description
+ * fileKeyを使ってMAIMLファイルの内容を取得し、Petri Net構造を解析する。
+ * Step 1: GET /api/v1/maiml/file-content?key={fileKey} でMAIMLコンテンツを取得
+ * Step 2: POST /api/v1/maiml/parse-petri-net-structure にcontentを送信して構造データを取得
+ *
+ * createApiClient() を使用して Authorization ヘッダーを自動付与する。
+ *
+ * @param fileKey - S3/SwiftのMAIMLファイルキー（例: org-id/projects/proj-name/proj-name.maiml）
  */
 export async function fetchPetriNetStructure(fileKey: string): Promise<unknown> {
-  await simulateApiDelay();
-  
-  // モックデータをダイナミックインポート
-  try {
-    const mockData = await import('@/data/mock/mockPetriNetStructure.json');
-    const allData = (mockData.default || mockData) as Record<string, unknown>;
-    
-    // fileKeyからプロジェクトIDを抽出
-    const projectIdMatch = fileKey.match(/projects\/([^/]+)/);
-    const projectId = projectIdMatch ? projectIdMatch[1] : null;
-    
-    // プロジェクトIDに対応するデータを取得
-    if (projectId && allData[projectId]) {
-      return allData[projectId];
-    }
-    
-    // プロジェクトIDが見つからない場合、最初のプロジェクトを返す
-    const firstProjectKey = Object.keys(allData)[0];
-    if (firstProjectKey) {
-      console.warn(`⚠️ Project ${projectId} not found, using first project: ${firstProjectKey}`);
-      return allData[firstProjectKey];
-    }
-    
-    // データがない場合
-    throw new Error('No mock data available');
-  } catch (error) {
-    console.warn('⚠️ mockPetriNetStructure.json not found or invalid, returning empty data');
-    return {
-      success: true,
-      data: {
-        places: [],
-        transitions: [],
-        arcs: [],
-        isMultiMethod: false,
-        methods: [],
-      },
-    };
+  console.log('🔍 [fetchPetriNetStructure] 実API呼び出し開始:', fileKey);
+
+  const { createApiClient } = await import('./authUtils');
+  const client = createApiClient();
+
+  // Step 1: fileKeyからMAIMLコンテンツを取得
+  const fileContentResponse = await client.get(
+    `/maiml/file-content?key=${encodeURIComponent(fileKey)}`
+  );
+
+  const fileContentData = fileContentResponse.data;
+
+  // レスポンス形式に応じてcontentを取得
+  // 実際のレスポンス構造: { success: true, data: { data: { content: "..." } } }
+  const content =
+    fileContentData.data?.data?.content ||
+    fileContentData.data?.content ||
+    fileContentData.content ||
+    fileContentData.data;
+
+  if (!content || typeof content !== 'string') {
+    throw new Error('MAIMLファイルの内容が取得できませんでした');
   }
+
+  console.log('✅ [fetchPetriNetStructure] MAIMLコンテンツ取得成功:', {
+    fileKey,
+    contentLength: content.length,
+  });
+
+  // Step 2: contentをparse-petri-net-structureに送信
+  const parseResponse = await client.post(
+    `/maiml/parse-petri-net-structure`,
+    { content }
+  );
+
+  const result = parseResponse.data;
+
+  console.log('✅ [fetchPetriNetStructure] Petri Net構造解析成功:', {
+    success: result.success,
+    isMultiMethod: result.data?.isMultiMethod,
+    placesCount: result.data?.places?.length,
+    transitionsCount: result.data?.transitions?.length,
+    methodsCount: result.data?.methods?.length,
+  });
+
+  return result;
 }
 
 /**
- * トランジション状態を取得（モック）
- */
-export async function fetchTransitionStatus(workerId: string, fileKey: string): Promise<unknown> {
-  await simulateApiDelay();
-  
-  // モックデータをダイナミックインポート
-  try {
-    const mockData = await import('@/data/mock/mockTransitionStatus.json');
-    return {
-      success: true,
-      data: mockData.default || mockData,
-    };
-  } catch (error) {
-    console.warn('⚠️ mockTransitionStatus.json not found, returning empty data');
-    return {
-      success: true,
-      data: {
-        transitionStatus: [],
-      },
-    };
-  }
-}
-
-/**
- * 実験記録データを取得（モック）
+ * 実験記録データを取得
+ *
+ * @description
+ * 指定されたワークID（タスク）に紐づく実験記録データを返す。
+ *
+ * ## ⚠️ 現状: モックデータを返しています
+ *
+ * ### 理由
+ * この関数が想定していた `GET /api/experiment-records/by-work-id/:workId` は
+ * バックエンドに実装されておらず、対応するエンドポイントが存在しない。
+ *
+ * ### 実APIに接続するために必要な条件
+ * 実APIを呼ぶには以下の情報が必要だが、現在の引数 `workId` のみから導出できない：
+ *   - `projectName`: プロジェクト名
+ *   - `methodId`: メソッドID
+ *   - `taskNo`: タスク連番（整数）
+ *   - `transitionId`: トランジションID（トランジションごとに1回のAPI呼び出しが必要）
+ *
+ * ### バックエンドの既存API（参考）
+ * バックエンドには以下の近接APIが存在するが、1トランジションごとにしか呼び出せない：
+ * ```
+ * GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data?transitionId=xxx
+ * ```
+ * 全トランジション分の実験記録を一括取得するには、新しいバックエンドAPIの実装が必要。
+ *
+ * ### TODO: バックエンドAPI実装後の対応方針
+ * 1. バックエンドに一括取得API を追加:
+ *    `GET /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/all-records`
+ * 2. この関数のシグネチャを `fetchExperimentRecords(projectName, methodId, taskNo)` に変更
+ * 3. 上記APIを呼び出すよう実装を変更
+ * 4. `PetriNetVisualization.tsx` の呼び出し箇所も合わせて変更
+ *
+ * @param workId - ワークID（タスクの識別子）※現状は未使用（バックエンドAPIが未実装のためモックを返す）
  */
 export async function fetchExperimentRecords(workId: string): Promise<unknown> {
   await simulateApiDelay();
-  
+
+  console.log('📦 [fetchExperimentRecords] モックデータを返却（バックエンドAPI未実装）:', { workId });
+
   // モックデータをダイナミックインポート
+  // TODO: バックエンドに一括取得APIが実装されたら、実APIを呼び出すよう変更する
   try {
     const mockData = await import('@/data/mock/mockExperimentRecords.json');
     return {

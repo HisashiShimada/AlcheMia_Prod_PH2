@@ -11,6 +11,7 @@ import {
   Tag,
   Typography,
   theme,
+  message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -21,8 +22,10 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import WorkProgressDetailDialog from './WorkProgressDetailDialog';
 import type { FileData, Project } from '@/types/progress';
+import type { ProjectFile } from '@/types/file';
 import { useApi } from '@/hooks/useApi';
-import { fetchProjects } from '@/utils/apiClient';
+import { fetchProjects, fetchProjectFilesReal } from '@/utils/apiClient';
+import { getUserInfo } from '@/utils/sessionStorageHelper';
 import type { ApiResponse } from '@/types/api';
 import type { ProjectListResponse } from '@/types/project';
 
@@ -68,7 +71,9 @@ export default function ProgressMonitoring() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<ProgressRecord | null>(null);
   const [fileData, setFileData] = useState<FileData | null>(null);
-  const [managerId] = useState('manager_001'); // TODO: 実際のログインユーザーIDを使用
+  const [managerId] = useState<string>(() => getUserInfo()?.id ?? '');
+  // 詳細ボタン押下時のローディング状態（Phase 3）: クリックしたプロジェクトIDを保持
+  const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
 
   // プロジェクト一覧をAPI経由で取得
   const { 
@@ -81,16 +86,55 @@ export default function ProgressMonitoring() {
     []
   );
 
+  /**
+   * プロジェクトステータスの数値コードを文字列キーに変換する
+   * APIレスポンスの status は数値（0〜5）だが、
+   * フィルタリング・表示ロジックは文字列キーを期待しているため変換が必要
+   * 
+   * マッピング（バックエンド code_master テーブルに基づく）:
+   * 0 → 'planning'       プロジェクト計画中
+   * 1 → 'pending'        タスク実行待ち
+   * 2 → 'in_progress'    タスク実行中
+   * 3 → 'review_waiting' タスク結果レビュー待ち
+   * 4 → 'completed'      プロジェクト完了
+   * 5 → 'error'          タスク異常終了
+   */
+  const getStatusStringFromNumber = (status: number): string => {
+    const map: Record<number, string> = {
+      0: 'planning',
+      1: 'pending',
+      2: 'in_progress',
+      3: 'review_waiting',
+      4: 'completed',
+      5: 'error',
+    };
+    return map[status] ?? 'planning';
+  };
+
   // APIから取得したデータを進捗記録形式に変換
   const allData: ProgressRecord[] = useMemo(() => {
-    if (!projectsData?.data.projects) return [];
-    
-    return projectsData.data.projects.map(
+    // ApiResponse<T> は ApiSuccessResponse<T> | ApiErrorResponse のユニオン型のため
+    // success チェックで型を ApiSuccessResponse に絞り込んでから data にアクセスする
+    if (!projectsData || !projectsData.success) return [];
+
+    const rawData = projectsData.data;
+
+    // APIレスポンスは data が Project[] 直接の場合（現在の実装）と
+    // data.projects の場合（UI仕様書の想定）があるため両方に対応する
+    const projects = Array.isArray(rawData)
+      ? (rawData as unknown as Project[])
+      : ((rawData as unknown as ProjectListResponse)?.projects ?? []);
+
+    if (!projects.length) return [];
+
+    return projects.map(
       (item, index) => ({
         key: `${index + 1}`,
         projectId: item.id,
         projectName: item.name,
-        projectStatus: item.status,
+        // APIの status は実際には数値（0〜5）で返ってくるため Number() で明示キャストし文字列キーに変換する
+        // @/types/progress の Project.status は ProjectStatus（文字列型）だが実データは数値
+        projectStatus: getStatusStringFromNumber(Number(item.status)),
         department: item.department || '',
         isCheckedOut: item.isCheckedOut || false,
         ownerEmail: item.ownerEmail || '',
@@ -175,8 +219,23 @@ export default function ProgressMonitoring() {
         matchesDepartment = item.department === departmentFilter;
       }
 
+      // ownerFilter: 'my_only' のとき、ログインユーザーが所有するプロジェクトのみに絞り込む
+      // 1次条件: ownerEmail とログインユーザーの email を比較
+      // 2次条件: ownerEmail が空の場合は ownerName と displayName を比較
+      // セッション情報が null の場合はフィルタしない（安全側）
+      const userInfo = getUserInfo();
+      let matchesOwner = true;
+      if (ownerFilter === 'my_only' && userInfo) {
+        if (item.ownerEmail && userInfo.email) {
+          matchesOwner = item.ownerEmail === userInfo.email;
+        } else if (item.ownerName && userInfo.displayName) {
+          matchesOwner = item.ownerName === userInfo.displayName;
+        }
+      }
+
       return (
         matchesSearch &&
+        matchesOwner &&
         matchesCheckout &&
         matchesProjectStatus &&
         matchesDepartment
@@ -185,6 +244,7 @@ export default function ProgressMonitoring() {
   }, [
     allData,
     searchText,
+    ownerFilter,
     checkoutFilter,
     projectStatusFilter,
     departmentFilter,
@@ -253,15 +313,42 @@ export default function ProgressMonitoring() {
   };
 
   // 詳細表示ハンドラ
-  const handleViewDetails = (record: ProgressRecord) => {
+  // プロジェクトのMAIMLファイルをAPIから取得してダイアログを開く（Phase 2〜4）
+  const handleViewDetails = async (record: ProgressRecord) => {
     setSelectedProject(record);
-    // test_omori11.maimlを使用（mock環境）
-    const dummyFileData: FileData = {
-      maimlFileKey: `org_001/projects/${record.projectId}/test_omori11.maiml`,
-      fileName: `test_omori11.maiml`,
-    };
-    setFileData(dummyFileData);
-    setIsDetailDialogOpen(true);
+    setLoadingProjectId(record.projectId);
+    try {
+      // GET /api/v1/projects/:projectName/files を呼び出して実際のファイル情報を取得
+      const filesResponse = await fetchProjectFilesReal(record.projectName);
+
+      // APIエラーレスポンスのナローイング
+      if (!filesResponse.success) {
+        message.error(filesResponse.error?.message || 'ファイル情報の取得に失敗しました');
+        return;
+      }
+
+      const mainFiles: ProjectFile[] = filesResponse.data.files ?? [];
+
+      // archiveではなく現行ファイルから .maiml ファイルを探す
+      const maimlFile = mainFiles.find((f: ProjectFile) => f.name.endsWith('.maiml'));
+
+      if (!maimlFile) {
+        message.error('MAIMLファイルが見つかりません');
+        return;
+      }
+
+      const resolvedFileData: FileData = {
+        maimlFileKey: maimlFile.path, // 相対パス（例: projects/{name}/{name}.maiml）※organizationIdプレフィックスなし
+        fileName: maimlFile.name,
+      };
+      setFileData(resolvedFileData);
+      setIsDetailDialogOpen(true);
+    } catch (error) {
+      console.error('handleViewDetails error:', error);
+      message.error('ファイル情報の取得に失敗しました');
+    } finally {
+      setLoadingProjectId(null);
+    }
   };
   
   // モーダルを閉じるハンドラ
@@ -384,6 +471,8 @@ export default function ProgressMonitoring() {
           ghost
           icon={<EyeOutlined />}
           size="small"
+          loading={loadingProjectId === record.projectId}
+          disabled={loadingProjectId !== null && loadingProjectId !== record.projectId}
           onClick={() => handleViewDetails(record)}
         >
           {t('progress.actions.viewDetails')}
