@@ -6,8 +6,8 @@ import { defineBddConfig } from 'playwright-bdd';
  * features/ 配下の .feature ファイルと steps/ 配下のステップ定義を紐付ける
  */
 const testDir = defineBddConfig({
-  features: 'features/provider/*.feature',
-  steps: 'steps/provider/*.ts',
+  features: 'features/**/*.feature',
+  steps: 'steps/**/*.ts',
 });
 
 /**
