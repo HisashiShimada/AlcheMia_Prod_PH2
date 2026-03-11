@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/InstructionGroup.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-01-19
+- **最終更新日**: 2026-03-11
 
 ---
 
@@ -119,11 +119,13 @@
 
 ```typescript
 interface InstructionGroupProps {
-  title: string;                          // グループタイトル
-  instructions: Instruction[];            // 指示一覧
-  emoji: string;                          // 絵文字（未使用）
-  projectStatus: ProjectStatus | null;   // プロジェクトステータス
-  isClient: boolean;                      // クライアント判定フラグ
+  title: string;                                               // グループタイトル
+  instructions: Instruction[];                                 // 指示一覧
+  emoji: string;                                               // 絵文字（未使用）
+  projectStatus: ProjectStatus | null;                        // プロジェクトステータス
+  isClient: boolean;                                           // クライアント判定フラグ
+  onConfirmInstructions?: (instructions: Instruction[]) => void; // 確認完了コールバック（省略可）
+  confirmLoading?: boolean;                                    // 確認完了ボタンのローディング状態（省略可）
 }
 ```
 
@@ -133,12 +135,14 @@ interface InstructionGroupProps {
 |-------|---------|-----------|
 | プロジェクト指示 | カードなし直接表示 | なし |
 | タスク指示 | タスク単位でカード化 | taskIdでグループ化 |
+| メソッド単位指示 | メソッド単位でカード化 | methodIdでグループ化 |
 | トランジション単位指示 | トランジション単位でカード化 | transitionIdでグループ化 |
 
-**後方互換性:**
-- 全体指示 → プロジェクト指示
-- タスク単位指示 → タスク指示
-- メソッド単位指示 → タスク指示
+**後方互換性（旧名称のtitleもサポート）:**
+- 全体指示 → プロジェクト指示と同じ処理
+- タスク単位指示 → タスク指示と同じ処理
+
+**注意:** `メソッド単位指示` はタスク指示に統合されず、独立したケースとして `groupByMethod()` で処理される。
 
 ---
 
@@ -238,25 +242,49 @@ onMouseLeave={(e) => {
 
 | イベント名 | トリガー | 処理内容 |
 |-----------|---------|---------|
-| handleConfirmation | 確認完了ボタンクリック | アラート表示（モック） |
+| onConfirmInstructions（コールバック） | 確認完了ボタンクリック | 親コンポーネントに対象グループの指示一覧を渡してAPI呼び出しを委譲 |
 
 ```typescript
-const handleConfirmation = (groupType: string, targetName?: string) => {
-  if (targetName) {
-    alert(`${targetName}の確認完了（モック）`);
-  } else {
-    alert(`${groupType}の確認完了（モック）`);
-  }
-};
-```
-
-**イベント伝播の制御:**
-```typescript
+// 確認完了ボタンのクリックハンドラ（タスク指示の例）
 onClick={(e) => {
   e.stopPropagation();  // カード展開/折りたたみを防ぐ
-  handleConfirmation('タスク指示', taskName);
+  onConfirmInstructions(taskInstructions);  // コールバック経由で親に委譲
 }}
 ```
+
+**ボタンの状態制御:**
+```typescript
+<Button
+  type="primary"
+  icon={<CheckCircleOutlined />}
+  loading={confirmLoading}          // ローディング中はスピナー表示
+  disabled={
+    confirmLoading ||               // ローディング中は無効化
+    taskInstructions.every((i) => i.isAcknowledged)  // 全指示確認済みの場合も無効化
+  }
+  onClick={(e) => {
+    e.stopPropagation();
+    onConfirmInstructions(taskInstructions);
+  }}
+  style={{ 
+    backgroundColor: token.colorSuccess,
+    borderColor: token.colorSuccess 
+  }}
+>
+  確認完了
+</Button>
+```
+
+**表示条件:**
+- `onConfirmInstructions` prop が渡されている場合のみ表示（省略時はボタン非表示）
+- 展開時のみ表示（折りたたみ時は非表示）
+
+**disabled 条件:**
+- `confirmLoading === true`（APIリクエスト中）
+- 対象グループの全指示が `isAcknowledged === true`（確認済み）
+
+**イベント伝播の制御:**
+- `e.stopPropagation()` でカードの展開/折りたたみトグルを防ぐ
 
 ---
 
@@ -271,7 +299,7 @@ onClick={(e) => {
 
 **JSX構造:**
 ```typescript
-<Space direction="vertical" size={8} style={{ width: '100%' }}>
+<Space orientation="vertical" size={8} style={{ width: '100%' }}>
   {groupInstructions.map((instruction) => (
     <InstructionCard
       key={instruction.instructionId}
@@ -313,7 +341,7 @@ onClick={(e) => {
   
   {/* 指示カード群（展開時のみ） */}
   {isExpanded && (
-    <Space direction="vertical">
+    <Space orientation="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
       {taskInstructions.map((instruction) => (
         <InstructionCard {...} />
       ))}
@@ -328,9 +356,64 @@ onClick={(e) => {
 - トランジションごとにカードでグループ化
 - 折りたたみ可能
 - 確認完了ボタンあり（展開時のみ表示）
-- アイコンはAimOutlined（ピンク系）
+- アイコンはAimOutlined（水色: colorInfo）
 
 **構造はタスク指示と同様**
+
+### 7.4 メソッド単位指示
+
+**特徴:**
+- メソッドごとにカードでグループ化
+- 折りたたみ可能
+- 確認完了ボタンあり（展開時のみ、`onConfirmInstructions` が渡された場合のみ表示）
+- アイコンはToolOutlined（青: colorPrimary）
+- `title === 'メソッド単位指示'` の場合に処理（タスク指示とは独立したケース）
+
+**カード構造:**
+```typescript
+<Card>
+  {/* ヘッダー行 */}
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    {/* 展開/折りたたみエリア（クリッカブル） */}
+    <div onClick={() => toggleItem(methodId)}>
+      {isExpanded ? <DownOutlined /> : <RightOutlined />}
+      <Title level={5}>
+        <ToolOutlined style={{ color: token.colorPrimary }} />
+        {methodName} ({methodInstructions.length}件)
+      </Title>
+    </div>
+
+    {/* 確認完了ボタン（展開時かつonConfirmInstructionsがある場合のみ） */}
+    {isExpanded && onConfirmInstructions && (
+      <Button
+        type="primary"
+        icon={<CheckCircleOutlined />}
+        loading={confirmLoading}
+        disabled={
+          confirmLoading ||
+          methodInstructions.every((i) => i.isAcknowledged)
+        }
+        onClick={(e) => {
+          e.stopPropagation();
+          onConfirmInstructions(methodInstructions);
+        }}
+        style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+      >
+        確認完了
+      </Button>
+    )}
+  </div>
+
+  {/* 指示カード群（展開時のみ） */}
+  {isExpanded && (
+    <Space orientation="vertical" size={8} style={{ width: '100%', marginTop: 8 }}>
+      {methodInstructions.map((instruction) => (
+        <InstructionCard {...} />
+      ))}
+    </Space>
+  )}
+</Card>
+```
 
 ---
 
@@ -503,7 +586,8 @@ const taskGroups = useMemo(() => groupByTask(), [groupInstructions]);
    - ユーザーが折りたたんだ場合のみ状態保持
 
 2. **後方互換性**
-   - 旧名称（全体指示、メソッド単位指示）もサポート
+   - 旧名称（全体指示、タスク単位指示）もサポート
+   - `メソッド単位指示` は後方互換ではなく、独立したケースとして処理
    - noDataMessagesでメッセージを統一管理
 
 3. **未使用のemoji prop**
@@ -511,12 +595,18 @@ const taskGroups = useMemo(() => groupByTask(), [groupInstructions]);
    - 将来の機能拡張のため残されている
 
 4. **確認完了ボタンの動作**
-   - 現在はモック実装（alert表示）
-   - 将来的にAPIを呼び出して確認状態を更新
+   - `onConfirmInstructions` コールバック経由で親コンポーネントに処理を委譲
+   - `confirmLoading` propによりAPIリクエスト中はローディング表示
+   - 対象グループの全指示が確認済み（`isAcknowledged === true`）の場合はボタンをdisabledにする
+   - `onConfirmInstructions` が未指定の場合はボタン自体を表示しない
 
 5. **e.stopPropagation()の使用**
    - 確認完了ボタンクリック時に展開/折りたたみを防ぐ
    - 重要なイベント伝播制御
+
+6. **getIconヘルパー関数（未使用）**
+   - `getIcon(iconType: string)` 関数が定義されているが、JSX内では直接アイコンコンポーネントを記述しており現在は未使用
+   - 将来的なリファクタリングのために残されている可能性あり
 
 ### 13.2 将来の拡張
 
@@ -541,3 +631,4 @@ const taskGroups = useMemo(() => groupByTask(), [groupInstructions]);
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-19 | 初版作成 | Cline |
+| 1.1.0 | 2026-03-11 | ソースコードとの差分修正（Props追加・確認完了ボタン実装更新・メソッド単位指示セクション追加・Spaceプロパティ名修正・備考更新） | Cline |

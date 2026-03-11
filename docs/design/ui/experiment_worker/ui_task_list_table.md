@@ -78,6 +78,7 @@ interface TaskListTableProps {
   projectStatus: ProjectStatus | null;            // プロジェクトステータス
   onTaskAction: (taskId: string, action: string) => void; // タスクアクションハンドラ
   onProgressRateClick: (task: Task) => void;      // 進捗率クリックハンドラ
+  readOnly?: boolean;                             // trueのとき強制終了ボタンを無効化（オーバーレイ閲覧モード用）
 }
 ```
 
@@ -90,6 +91,7 @@ interface TaskListTableProps {
 | projectStatus | ProjectStatus \| null | ✓ | プロジェクトのステータス（ボタンの有効/無効判定に使用） |
 | onTaskAction | function | ✓ | タスクアクションボタンクリック時のハンドラ |
 | onProgressRateClick | function | ✓ | 進捗率クリック時のハンドラ（フロー図表示） |
+| readOnly | boolean | - | trueのとき強制終了ボタンを無効化。オーバーレイ閲覧モード用。デフォルト: false |
 
 ---
 
@@ -165,7 +167,7 @@ const filteredTasks = useMemo(() => {
 | 開始 | `start` | onTaskAction(taskId, 'start')を呼び出し。タスクステータス更新API(`PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status`)でステータスを'in_progress'に更新。**楽観的ロック用に現在の`updatedAt`を`currentUpdatedAt`パラメータとして送信**。成功時はタスク一覧を再取得して最新の状態を反映。競合エラー（409 Conflict）発生時は最新のタスク一覧を再取得してユーザーに通知。 | status === 'not_started' かつ isEditableStatus(projectStatus) |
 | 問題確認 | `issueCheck` | onTaskAction(taskId, 'issueCheck')を呼び出し | 常に有効 |
 | 記録 | `record` | onTaskAction(taskId, 'record')を呼び出し | 常に有効 |
-| 強制終了 | `forceTerminate` | onTaskAction(taskId, 'forceTerminate')を呼び出し | status !== 'completed' かつ status !== 'forced_terminated' かつ isEditableStatus(projectStatus) |
+| 強制終了 | `forceTerminate` | onTaskAction(taskId, 'forceTerminate')を呼び出し | status !== 'completed' かつ status !== 'forced_terminated' かつ isEditableStatus(projectStatus) かつ readOnly !== true |
 
 **ボタンの有効/無効ロジック:**
 ```typescript
@@ -177,7 +179,8 @@ const isDisabled = record.status !== 'not_started' || !isProjectEditable;
 const isDisabled = 
   record.status === 'completed' || 
   record.status === 'forced_terminated' || 
-  !isProjectEditable;
+  !isProjectEditable ||
+  readOnly;  // readOnly=trueの場合も無効化（オーバーレイ閲覧モード用）
 ```
 
 ---
@@ -222,7 +225,7 @@ Table（Ant Design）
 | 進捗率 | progressRate | 75px | center | ✓ | 進捗率（クリック可能） |
 | 指示確認 | - | 85px | center | - | 指示確認ボタン |
 | 開始 | - | 65px | center | - | タスク開始ボタン |
-| 問題確認 | - | 65px | center | - | 問題確認ボタン |
+| 問題確認（多言語対応） | - | 65px | center | - | 問題確認ボタン（タイトルはt('experimentWork.progressCheck.issueCheck')） |
 | 実験記録 | - | 85px | center | - | 実験記録ボタン |
 | 強制終了 | - | 85px | center | - | 強制終了ボタン |
 
@@ -282,11 +285,9 @@ Table（Ant Design）
 | TaskStatus値 | 表示ラベル | 色 |
 |-------------|-----------|-----|
 | not_started | 開始前 | default（灰色） |
-| started | 開始 | blue（青色） |
 | in_progress | 作業中 | orange（オレンジ色） |
 | completed | 完了 | green（緑色） |
 | forced_terminated | 強制終了 | red（赤色） |
-| suspended | 中断 | default（灰色） |
 
 #### 7.2.3 進捗率
 
@@ -370,10 +371,16 @@ interface Task {
   methodId?: string;           // メソッドID
   methodName: string;          // メソッド名
   taskNo: string;              // タスクNo
+  taskName: string;            // タスク名
   sampleNumber: string;        // サンプル番号
   notes: string;               // 備考
   status: TaskStatus;          // ステータス
+  assignedUserId?: string;     // 割り当てユーザーID
+  assignedUserName?: string;   // 割り当てユーザー名
+  createdAt?: string;          // 作成日時（ISO8601形式）
+  updatedAt: string;           // 更新日時（ISO8601形式、楽観的ロック用に必須）
   progressRate: number;        // 進捗率（0-100）
+  transitionStatuses?: TransitionStatus[]; // トランジションステータス一覧
   progressReport: string;      // 進捗報告の状態
   recordNumber: string;        // 実験記録番号
 }
@@ -395,11 +402,9 @@ type ProjectStatus =
 ```typescript
 type TaskStatus = 
   | 'not_started'       // 開始前
-  | 'started'           // 開始
   | 'in_progress'       // 作業中
   | 'completed'         // 完了
-  | 'forced_terminated' // 強制終了
-  | 'suspended';        // 中断
+  | 'forced_terminated'; // 強制終了
 ```
 
 ---
@@ -415,7 +420,6 @@ pagination={{
   showQuickJumper: false,        // クイックジャンプ無効
   showTotal: (total) => `全${total}件`,
   pageSizeOptions: ['10', '20', '50', '100'],
-  position: ['bottomRight'],     // 右下配置
   locale: {
     items_per_page: '件/ページ',
     jump_to: 'ページ',
@@ -427,7 +431,6 @@ pagination={{
 **特徴:**
 - デフォルト20件/ページ
 - 10、20、50、100件から選択可能
-- 右下に配置
 - 日本語ローカライズ
 
 ---
@@ -548,8 +551,8 @@ aria-label="タスクを開始"
    - 'planning'、'waiting_approval'、'completed'の場合は開始・強制終了ボタンが無効
 
 5. **ステータスの内部関数**
-   - getStatusConfig(): ステータスバッジの色とラベルを返す
-   - getStatusLabel(): ステータスの日本語ラベルを返す（検索用）
+   - getStatusConfig(): コンポーネント外のトップレベルに定義。ステータスバッジの色とラベルを返す
+   - getStatusLabel(): `filteredTasks` の `useMemo` 内にインラインで定義。ステータスの日本語ラベルを返す（検索用）
 
 ### 13.2 将来の拡張
 
@@ -608,6 +611,7 @@ aria-label="タスクを開始"
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.0.2 | 2026-03-11 | ソースコードとの差分を修正（readOnly Props追加、TaskStatus型を4種類に修正、Task型に不足フィールド追加、ページネーションposition削除、問題確認カラム多言語対応明記、getStatusLabel定義場所修正） | Cline |
 | 1.0.1 | 2026-02-23 | 開始ボタンの説明を更新（楽観的ロック用currentUpdatedAtパラメータ、409 Conflict処理を追加） | Cline |
 | 1.0.0 | 2026-02-20 | 初版作成 | Cline |
 

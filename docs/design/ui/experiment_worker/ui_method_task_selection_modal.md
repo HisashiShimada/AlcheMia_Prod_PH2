@@ -113,11 +113,13 @@ interface MethodTaskSelectionModalProps {
   selectedMethodId: string | null;                  // 選択中のメソッドID
   selectedTaskId: string | null;                    // 選択中のタスクID
   onSelect: (methodId: string, taskId: string) => void;  // メソッド・タスク選択イベント
+  methods: Method[];                                // APIから取得したメソッド一覧
 }
 ```
 
 **重要な前提条件:**
 - `selectedProject`が指定されている前提
+- メソッド一覧（`methods`）は呼び出し元（親コンポーネント）からpropsとして渡される
 - メソッドIDとタスクIDを同時に返す
 
 ---
@@ -164,7 +166,16 @@ const [selectedStatus, setSelectedStatus] = useState<TaskStatus | undefined>(und
 
 ### 5.1 データ型定義
 
+型定義は `@/types/experimentWorker` で定義されており、コンポーネント内でインポートして使用します。
+
 ```typescript
+import { Task, TaskStatus, Method } from '@/types/experimentWorker';
+```
+
+各型の定義（参考）:
+
+```typescript
+// @/types/experimentWorker より
 interface Method {
   methodId: string;
   methodName: string;
@@ -176,7 +187,7 @@ interface Task {
   taskName: string;
   status: TaskStatus;
   progressRate: number;
-  // 以下は動的に付与
+  // 以下は allTasks 生成時に動的に付与
   projectId?: string;
   methodId?: string;
   methodName?: string;
@@ -193,20 +204,19 @@ type TaskStatus =
 
 ### 5.2 データソース
 
-```typescript
-// プロジェクトデータを取得
-const projectData = selectedProject ? projectsData[selectedProject] : null;
+メソッド一覧はpropsとして親コンポーネントから渡されます。コンポーネント内部でAPIを直接呼び出す実装はありません。
 
-// メソッド一覧の取得
+```typescript
+// メソッド一覧の取得（propsから）
 const methods = useMemo<Method[]>(() => {
-  return projectData?.methods || [];
-}, [projectData]);
+  return propsMethods || [];
+}, [propsMethods]);
 
 // 選択されたメソッドに紐づくタスクを取得
 const allTasks = useMemo(() => {
-  if (!activeMethodId || !projectData?.methods) return [];
+  if (!activeMethodId || !methods) return [];
   
-  const method = projectData.methods.find((m: Method) => m.methodId === activeMethodId);
+  const method = methods.find((m: Method) => m.methodId === activeMethodId);
   if (!method || !method.tasks) return [];
   
   // プロジェクトIDとメソッドIDを各タスクに付与
@@ -216,14 +226,13 @@ const allTasks = useMemo(() => {
     methodId: method.methodId,
     methodName: method.methodName,
   }));
-}, [projectData, selectedProject, activeMethodId]);
+}, [methods, selectedProject, activeMethodId]);
 ```
 
 **データ取得の流れ:**
-1. `selectedProject` → プロジェクトデータ取得
-2. プロジェクトデータ → メソッド一覧取得
-3. `activeMethodId` → 特定のメソッドのタスク一覧取得
-4. タスクにプロジェクトID・メソッドID・メソッド名を付与
+1. 親コンポーネントがAPIからメソッド一覧を取得し、`methods` propsとして渡す
+2. `activeMethodId`（アクティブなタブのメソッドID）で特定のメソッドのタスク一覧を取得
+3. タスクにプロジェクトID・メソッドID・メソッド名を付与
 
 ### 5.3 ステータス定義
 
@@ -249,6 +258,25 @@ const getStatusConfig = (status: TaskStatus) => {
   return configs[status] || { color: 'default', label: '不明' };
 };
 ```
+
+### 5.4 ステータス選択肢（statusOptions）
+
+ステータスフィルターの `Select` コンポーネントに渡す選択肢の定数です。
+
+```typescript
+const statusOptions = [
+  { label: '開始前', value: 'not_started' },
+  { label: '開始', value: 'started' },
+  { label: '作業中', value: 'in_progress' },
+  { label: '完了', value: 'completed' },
+  { label: '強制終了', value: 'forced_terminated' },
+  { label: '中断', value: 'suspended' }
+];
+```
+
+**特徴:**
+- `getStatusConfig` と同じステータス一覧を網羅
+- `Select` コンポーネントの `options` プロパティに直接渡す
 
 ---
 
@@ -429,7 +457,15 @@ const columns: ColumnsType<Task> = [
     sorter: (a, b) => a.status.localeCompare(b.status),
     render: (status: TaskStatus) => {
       const config = getStatusConfig(status);
-      return <Tag color={config.color}>{config.label}</Tag>;
+      return (
+        <Tag
+          color={config.color}
+          style={{ margin: 0 }}
+          aria-label={`ステータス: ${config.label}`}
+        >
+          {config.label}
+        </Tag>
+      );
     }
   },
   {
@@ -700,15 +736,15 @@ const handleCancel = () => {
 ### 12.1 useMemoによる最適化
 
 ```typescript
-// メソッド一覧の取得
+// メソッド一覧の取得（propsから）
 const methods = useMemo<Method[]>(() => {
-  return projectData?.methods || [];
-}, [projectData]);
+  return propsMethods || [];
+}, [propsMethods]);
 
 // アクティブメソッドのタスク一覧の取得
 const allTasks = useMemo(() => {
   // タスクにプロジェクトID・メソッドID・メソッド名を付与
-}, [projectData, selectedProject, activeMethodId]);
+}, [methods, selectedProject, activeMethodId]);
 
 // フィルタリングされたタスクデータ
 const filteredTasks = useMemo(() => {
@@ -722,7 +758,7 @@ const taskNameOptions = useMemo(() => {
 ```
 
 **最適化されている処理:**
-- メソッド一覧の取得
+- メソッド一覧の取得（propsから）
 - タスク一覧の取得（プロジェクトID・メソッドID付与）
 - フィルタリング処理
 - タスク名選択肢の生成
@@ -782,4 +818,23 @@ onClick={(e) => {
    - `:global()`でグローバルスコープに適用
    - `!important`で優先度を確保
 
-### 13.2 他のコンポー
+### 13.2 他のコンポーネントとの関係
+
+| コンポーネント | 関係 | 説明 |
+|--------------|------|------|
+| ExperimentRecordTab | 利用元 | メソッド・タスク選択時にこのモーダルを開く |
+| ProgressCheckTab | 利用元 | メソッド・タスク選択時にこのモーダルを開く |
+| InstructionConfirmationTab | 利用元 | メソッド・タスク選択時にこのモーダルを開く |
+| ProjectSelectionModal | 兄弟コンポーネント | プロジェクト・メソッド選択用の別モーダル |
+
+**利用元コンポーネントの責務:**
+- APIからメソッド一覧（`Method[]`）を取得し、`methods` propsとして渡す
+- 選択確定後の `onSelect(methodId, taskId)` コールバックを実装する
+- モーダルの開閉状態（`open`）を管理する
+
+---
+
+## 14. 最終更新
+
+- **最終更新日**: 2026-03-11
+- **更新内容**: ソースコードとの差分を修正（`methods` props追加、型定義インポート明記、データソース説明修正、`statusOptions` 追加、`Tag` の `style` 追加、`useMemo` 依存配列修正）

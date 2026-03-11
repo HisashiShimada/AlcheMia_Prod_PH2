@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/TransitionList.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-01-19
+- **最終更新日**: 2026-03-11
 
 ---
 
@@ -76,6 +76,7 @@
 #### カスタムコンポーネント
 - `DataRecordDialog` - データ記録モーダル
 - `IssueManagementModal` - 問題管理モーダル
+- `InstructionConfirmationModal` - 指示確認モーダル（import済み、現在未使用）
 
 #### アイコン
 - `SearchOutlined` - 検索アイコン
@@ -92,11 +93,16 @@
 interface TransitionListProps {
   transitions: Transition[];           // トランジション一覧
   methodName?: string;                 // メソッド名（未使用）
-  selectedTaskId?: string;             // 選択中のタスクID（未使用）
+  selectedTaskId?: string;             // 選択中のタスクID
   projectStatus: ProjectStatus | null; // プロジェクトステータス
   onTaskCreated?: (taskId: string) => void; // タスク作成ハンドラ（未使用）
   projectId?: string;                  // プロジェクトID
   methodId?: string;                   // メソッドID
+  projectName?: string;                // プロジェクト名（IssueManagementModal・コメント送信・ステータス更新で使用）
+  /** 実験データ保存完了後のコールバック（親コンポーネントの進捗データ再取得に使用） */
+  onDataSaveComplete?: () => void;
+  /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
+  useDeemedProgress?: boolean;         // デフォルト: true
 }
 ```
 
@@ -140,7 +146,7 @@ interface TransitionListProps {
 #### 記録ボタン
 - **スタイル**: 赤背景（#CF0027）、白文字
 - **ホバー**: 濃い赤（#a50020）
-- **無効化条件**: プロジェクトステータスが記録不可（waiting_approval, waiting_task）
+- **有効化条件**: `isRecordViewableStatus(projectStatus)` が `true` の場合（waiting_task / executing_task / waiting_approval のいずれか）、または `projectStatus` が `null` の場合
 - **無効化時**: グレー背景（#d3d3d3）、opacity: 0.6
 
 #### 問題報告ボタン
@@ -178,10 +184,11 @@ interface TransitionListProps {
 | イベント名 | トリガー | 処理内容 |
 |-----------|---------|---------|
 | handleDataRecordModalClose | データ記録モーダルを閉じる | モーダルを非表示、選択トランジションをクリア |
-| handleDataSave | データ保存 | データをログ出力、成功メッセージ表示、モーダルを閉じる（TODO: API実装） |
+| handleDataSave | データ保存完了 | 成功メッセージ表示、モーダルを閉じ、`onDataSaveComplete` コールバックを呼び出して親コンポーネントの進捗データを再取得 |
 | handleIssueModalClose | 問題管理モーダルを閉じる | モーダルを非表示、選択トランジションをクリア |
-| handleSubmitIssue | 問題報告送信 | 問題をログ出力、成功メッセージ表示（TODO: API実装） |
-| handleSubmitComment | コメント送信 | コメントをログ出力、成功メッセージ表示（TODO: API実装） |
+| handleSubmitIssue | 問題報告送信 | `createIssue` APIを呼び出して問題を報告し、成功後に問題一覧を再取得して表示を更新 |
+| handleSubmitComment | コメント送信 | `addComment` APIを呼び出してコメントを投稿し、成功後に問題一覧を再取得して表示を更新 |
+| handleUpdateStatus | 問題ステータス変更 | `updateIssueStatus` APIを呼び出してステータスを更新し、成功後に問題一覧を再取得して表示を更新 |
 
 ---
 
@@ -204,6 +211,9 @@ const [selectedTransitionName, setSelectedTransitionName] = useState<string | un
 
 // 問題一覧
 const [issues, setIssues] = useState<Issue[]>([]);
+
+// 問題一覧取得中のローディング状態
+const [issueLoading, setIssueLoading] = useState<boolean>(false);
 ```
 
 ### 6.2 算出データ（useMemo）
@@ -300,12 +310,9 @@ borderRadius: 4px
 ### 8.1 プロジェクトステータスによる制限
 
 ```typescript
-const isProjectRecordable = projectStatus 
-  ? isRecordableStatus(projectStatus) 
-  : true;
-
-// 記録可能なステータス: active, in_progress, executing_task
-// 記録不可: waiting_approval, waiting_task
+// プロジェクトの状態が記録を参照・操作可能でない場合は非活性化
+// waiting_task / executing_task / waiting_approval の場合に活性
+const isProjectRecordable = projectStatus === null || isRecordViewableStatus(projectStatus);
 ```
 
 ### 8.2 データ表示の処理
@@ -417,12 +424,17 @@ pagination={{
    - 問題報告ボタンは常に有効
 
 3. **未使用のProps**
-   - `methodName`, `selectedTaskId`, `onTaskCreated`は現在未使用
+   - `methodName`、`onTaskCreated` は現在未使用
    - 将来の拡張のために残されている
 
 4. **カスタムボタンの使用**
    - Ant DesignのButtonコンポーネントではなく、ネイティブbuttonを使用
    - より細かなスタイル制御のため
+
+5. **IssueManagementModalのデータ管理**
+   - `IssueManagementModal` は `projectId`、`projectName`、`methodId`、`taskNo`、`transitionId` を受け取り、モーダル内部で自律的にデータ取得・送信を行う
+   - 問題一覧（`issues`）・ローディング状態（`issueLoading`）はこのコンポーネント内で管理しているが、`IssueManagementModal` へは渡していない
+   - `handleSubmitIssue`、`handleSubmitComment`、`handleUpdateStatus` もPropsとして `IssueManagementModal` へ渡していない（モーダル内部で処理）
 
 ### 12.2 将来の拡張
 
@@ -446,6 +458,17 @@ pagination={{
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.2.0 | 2026-03-11 | ソースコード実態に合わせた仕様書修正 | Cline |
+| | | - Props に `projectName`、`onDataSaveComplete`、`useDeemedProgress` を追記 | |
+| | | - `selectedTaskId` の「未使用」注釈を削除 | |
+| | | - カスタムコンポーネントに `InstructionConfirmationModal` を追記（import済み・未使用） | |
+| | | - State に `issueLoading` を追記 | |
+| | | - `handleDataSave`、`handleSubmitIssue`、`handleSubmitComment` のTODO記載を実装済みに更新 | |
+| | | - `handleUpdateStatus`（問題ステータス変更ハンドラ）を追加 | |
+| | | - 記録ボタン有効化条件を `isRecordViewableStatus` に修正 | |
+| | | - バリデーション（8.1節）のコードを実装に合わせて更新 | |
+| | | - IssueManagementModalのデータ管理に関する特記事項を追加 | |
+| | | - 未使用Propsの記載を修正（`methodName`、`onTaskCreated` に限定） | |
 | 1.1.0 | 2026-02-17 | API仕様v2.1.0に準拠した修正 | Cline |
 | | | - API一覧にエンドポイント列を追加 | |
 | | | - 実験データ保存APIのエンドポイント更新 | |

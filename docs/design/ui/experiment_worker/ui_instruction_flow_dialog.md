@@ -10,7 +10,7 @@
 | カテゴリ | 実験作業者（Experiment Worker） |
 | 権限 | experiment_worker |
 | 作成日 | 2026-01-19 |
-| 最終更新日 | 2026-01-19 |
+| 最終更新日 | 2026-03-11 |
 
 ---
 
@@ -133,6 +133,7 @@ interface FileData {
   type: string;         // ファイルタイプ（'maiml'など）
   isFolder?: boolean;   // フォルダかどうか
   fileCount?: number;   // フォルダ内のファイル数
+  content?: string;     // APIから取得済みのファイルコンテンツ（設定されていればfetchをスキップ）
 }
 
 interface SubnetData {
@@ -174,15 +175,38 @@ const [isMinimized, setIsMinimized] = useState(false);               // 最小�
 
 ```typescript
 const loadFileContent = async (file: FileData): Promise<string | null> => {
-  // MAIMLファイルの場合、test_omori11.maimlを読み込む
-  if (file.type === 'maiml') {
-    const response = await fetch('/data/mock/test_omori11.maiml');
-    const content = await response.text();
-    return content;
+  try {
+    if (file.type === 'maiml') {
+      // APIから取得済みのコンテンツが存在する場合はそれを優先使用
+      if (file.content) {
+        return file.content;
+      }
+
+      // フォールバック: モックデータを読み込む
+      const response = await fetch('/data/mock/test_omori11.maiml');
+
+      // HTTPエラーチェック
+      if (!response.ok) {
+        throw new Error(`Failed to load MAIML file: ${response.status} ${response.statusText}`);
+      }
+
+      const content = await response.text();
+      return content;
+    }
+
+    // その他のファイルタイプはコンテンツなし
+    return null;
+  } catch (error) {
+    // エラー時はメッセージを表示してnullを返す
+    message.error(`ファイルの読み込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    return null;
   }
-  return null;
 };
 ```
+
+**優先順位:**
+1. `file.content` が設定されている場合 → APIから取得済みコンテンツをそのまま使用
+2. `file.content` がない場合 → `/data/mock/test_omori11.maiml` をfetchして使用（後方互換フォールバック）
 
 **useEffectで自動読み込み:**
 - file が変更されたら自動的にファイル内容を読み込み
@@ -274,7 +298,9 @@ return null;
    ↓
 2. useEffect でファイル読み込み
    ↓
-3. loadFileContent('/data/mock/test_omori11.maiml')
+3. loadFileContent(file)
+     ├─ file.content が存在する → APIから取得済みコンテンツをそのまま使用
+     └─ file.content がない   → fetch('/data/mock/test_omori11.maiml') にフォールバック
    ↓
 4. setFileContent(content)
    ↓
@@ -317,7 +343,17 @@ onClose(id)
 
 ## 6. スタイリング
 
-### 6.1 ダイアログコンテナ
+### 6.1 Rnd コンポーネント
+
+```typescript
+// Rnd コンポーネント自体にも zIndex を設定（Portal レンダリング時の重ね順制御）
+<Rnd
+  style={{ zIndex: zIndex }}
+  ...
+>
+```
+
+### 6.1.1 ダイアログコンテナ（Rnd 内側）
 
 ```typescript
 {
@@ -330,7 +366,7 @@ onClose(id)
   flexDirection: 'column',
   overflow: 'hidden',
   position: 'relative',
-  zIndex: zIndex,  // Props から受け取ったZ-index
+  zIndex: zIndex,  // Props から受け取ったZ-index（Rnd 内側コンテナにも設定）
 }
 ```
 
@@ -358,11 +394,15 @@ onClose(id)
 ### 6.3 コンテンツエリア
 
 ```typescript
-{
-  position: 'relative',
-  flex: 1,
-  overflow: 'hidden',
-}
+// id 属性付き（コンテナの一意識別に使用）
+<div
+  id={`instruction-flow-dialog-container-${id}`}
+  style={{
+    position: 'relative',
+    flex: 1,
+    overflow: 'hidden',
+  }}
+>
 ```
 
 ---
@@ -579,4 +619,10 @@ const handleShowFlowDiagram = () => {
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-03-11 | ソースコードとの差分解消 | Cline |
+| | | - §3.3 `FileData` 型に `content?: string` フィールドを追加 | |
+| | | - §4.1 `loadFileContent` のロジックを更新（`file.content` 優先・HTTPエラーチェック・エラーハンドリング追加） | |
+| | | - §5.1 初期化フローに `file.content` 分岐を追記 | |
+| | | - §6.1 `Rnd` コンポーネントへの `style={{ zIndex }}` 設定を追記 | |
+| | | - §6.3 コンテンツエリアの `id` 属性を追記 | |
 | 1.0.0 | 2026-01-19 | 初版作成 | Cline |
