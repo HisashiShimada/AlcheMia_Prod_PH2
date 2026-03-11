@@ -66,7 +66,6 @@ WHERE pt.project_id = $1
 GROUP BY 
   -- メソッド情報
   pt.method_id,
-  pt.task_name,
   pt.experiment_order,
   -- タスク詳細情報
   ptd.task_no,
