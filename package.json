@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "build": "node scripts/build.js",
-    "test": "npx bddgen --config tests/e2e/playwright.config.ts && npx playwright test --config tests/e2e/playwright.config.ts --headed",
-    "test:ui": "npx bddgen --config tests/e2e/playwright.config.ts && npx playwright test --config tests/e2e/playwright.config.ts --ui",
+    "test": "node tests/e2e/scripts/run-e2e.js",
+    "test:ui": "node tests/e2e/scripts/run-e2e-ui.js",
     "test:grep": "npx bddgen --config tests/e2e/playwright.config.ts && npx playwright test --config tests/e2e/playwright.config.ts --headed --grep",
     "e2e:gen-feature": "npx ts-node --project tsconfig.json tests/e2e/scripts/md-to-feature.ts"
   },

@@ -1,13 +1,25 @@
 import { defineConfig, devices } from '@playwright/test';
 import { defineBddConfig } from 'playwright-bdd';
 
-/**
- * playwright-bdd の設定
- * features/ 配下の .feature ファイルと steps/ 配下のステップ定義を紐付ける
- */
+// playwright-bdd の設定
+// features/ 配下の .feature ファイルと steps/ 配下のステップ定義を紐付ける
+//
+// 環境変数 FEATURE_FILE が指定されている場合は、そのファイルのみを対象とする。
+// 例: FEATURE_FILE=xxx.feature の場合
+//   features に xxx.feature、steps に xxx.ts と common.ts が使われる
+const featureFile = process.env.FEATURE_FILE;
+
+// featureファイル名からベース名（拡張子なし）を取得
+// 例: "xxx.feature" → "xxx"
+const baseName = featureFile ? featureFile.replace(/\.feature$/, '') : undefined;
+
 const testDir = defineBddConfig({
-  features: 'features/**/*.feature',
-  steps: 'steps/**/*.ts',
+  features: baseName
+    ? `features/**/${baseName}.feature`  // 特定ファイルのみ
+    : 'features/**/*.feature',            // 全ファイル
+  steps: baseName
+    ? [`steps/**/${baseName}.ts`, 'steps/**/common.ts']  // 同名ステップ + common
+    : 'steps/**/*.ts',                    // 全ステップ
 });
 
 /**
