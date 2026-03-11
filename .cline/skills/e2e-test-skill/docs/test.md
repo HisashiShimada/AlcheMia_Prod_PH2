@@ -867,3 +867,108 @@ After(async () => {
 ✅ **UI 経由で作成したレコードを `createdXxxNames` / `createdXxxCds` に追跡し After フックで削除する**  
 ❌ **グループ最初のシナリオ以外の Before で UI ログイン → 登録操作をしない**（テスト時間が長くなる）  
 ❌ **DB に直接 INSERT してテストデータを作成しない**（UI 経由で作成したデータである保証が失われる）
+
+---
+
+### セレクタの決定方針（data-testid）
+
+#### 概要
+
+ステップファイルでセレクタを指定する際は、**フロントエンドソースに `data-testid` 属性を付与し、それをセレクタとして使用する**。  
+CSS クラス（`.ant-select` 等）や `text=` による推測セレクタは、コンポーネント変更・テキスト変更で壊れやすいため非推奨。
+
+#### セレクタ決定フロー
+
+```
+featureファイル・ステップファイル作成時
+  ↓
+① テスト対象画面の UI 設計書（docs/design/ui/）を開く
+   → 「使用コンポーネント」セクションで画面の構成要素を確認する
+  ↓
+② 対応するフロントエンドソースファイルを特定する
+   → UI 設計書のファイルパス（例: frontend/src/components/ExperimentWorker/DataRecordDialog.tsx）
+  ↓
+③ ソースファイルを read_file で読み込み、テスト対象要素を探す
+   → ボタン・Select・Input・Checkbox など
+  ↓
+④ 対象要素に data-testid 属性を追加する（ソースファイルを変更）
+   → 命名規則に従って命名する（後述）
+  ↓
+⑤ ステップファイルに [data-testid="xxx"] セレクタを記述する
+   → フォールバックセレクタ不要。data-testid のみで記述する
+```
+
+#### data-testid 命名規則
+
+**フォーマット:** `{コンポーネント名}-{要素の役割}` （ケバブケース・英語小文字）
+
+| コンポーネント | data-testid 例 | 対象要素 |
+|---|---|---|
+| プロジェクト選択 Select | `project-select` | Ant Design `<Select>` |
+| プロジェクト選択ボタン | `project-select-button` | `<Button>` |
+| メソッド選択 Select | `method-select` | Ant Design `<Select>` |
+| タスク選択 Select | `task-select` | Ant Design `<Select>` |
+| メソッド・タスク選択ボタン | `method-task-select-button` | `<Button>` |
+| みなし進捗チェックボックス | `deemed-progress-checkbox` | `<Checkbox>` |
+| 作業指示ボタン | `instruction-button` | `<Button>` |
+| データ記録キャンセルボタン | `data-record-cancel-button` | `<Button>` |
+| データ記録保存ボタン | `data-record-save-button` | `<Button>` |
+
+#### ソースファイルへの追加方法
+
+Ant Design コンポーネントは `data-testid` プロパティをそのまま受け取りDOMに反映される。
+
+```tsx
+// ✅ Select に data-testid を追加
+<Select
+  data-testid="project-select"
+  value={selectedProject}
+  onChange={handleProjectChange}
+  ...
+/>
+
+// ✅ Button に data-testid を追加
+<Button
+  data-testid="project-select-button"
+  type="primary"
+  onClick={() => setDialogOpen(true)}
+>
+  選択
+</Button>
+
+// ✅ Checkbox に data-testid を追加
+<Checkbox
+  data-testid="deemed-progress-checkbox"
+  checked={useDeemedProgress}
+  onChange={(e) => setUseDeemedProgress(e.target.checked)}
+>
+  みなし進捗更新
+</Checkbox>
+```
+
+#### ステップファイルでの使用方法
+
+```typescript
+// ✅ data-testid セレクタのみで記述（フォールバック不要）
+const projectSelect = page.locator('[data-testid="project-select"]');
+await projectSelect.waitFor({ state: 'visible', timeout: 10000 });
+await projectSelect.click();
+
+// ❌ 非推奨: CSS クラスによるフォールバック混在（保守が複雑になる）
+const projectSelect = page.locator('[data-testid="project-select"], .project-select-area .ant-select').first();
+```
+
+#### ステップファイル生成時の注意事項
+
+- シナリオ・ステップファイルを作成する時点で、**対応ソースに `data-testid` が存在しない場合は追加すること**
+- `data-testid` がない場合に `TODO:` コメントを残すのではなく、その場でソースを修正して `data-testid` を追加してセレクタを確定させる
+- `data-testid` はテスト専用の識別子であり、スタイルや業務ロジックに影響しない
+
+#### DO / DON'T
+
+✅ **UI 設計書の「使用コンポーネント」からソースファイルを特定し `data-testid` を追加する**  
+✅ **ステップファイルでは `[data-testid="xxx"]` のみを使用する**  
+✅ **ステップファイル生成時に `data-testid` が未追加なら即座にソースに追加する**  
+❌ **`TODO: 実際のセレクタに更新すること` のようなコメントを残さない**  
+❌ **CSS クラス（`.ant-select` 等）をメインセレクタとして使用しない**  
+❌ **`text=` や `:has-text()` を一意のセレクタとして使用しない**（複数要素にマッチしやすい）
