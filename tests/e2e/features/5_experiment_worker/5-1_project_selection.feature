@@ -2,8 +2,8 @@
 #
 # テスト実行情報
 #   URL      : http://localhost:3000/?orgId=a0718dc5-21f3-44e6-87e9-cc2ae83f3385
-#   ユーザID  : worker_user@example.com  ※TODO: 実際のユーザーIDに要更新
-#   パスワード: auth0001                 ※TODO: 実際のパスワードに要更新
+#   ユーザID  : worker@example.com
+#   パスワード: worker123
 
 機能: [5-1] プロジェクト・メソッド・タスク選択
   実験作業者がプロジェクト・メソッド・タスクを選択する機能。

@@ -5,8 +5,8 @@
  *
  * テスト実行情報:
  *   URL      : http://localhost:3000/?orgId=a0718dc5-21f3-44e6-87e9-cc2ae83f3385
- *   ユーザID  : worker_user@example.com  ※TODO: 実際のユーザーIDに要更新
- *   パスワード: auth0001                 ※TODO: 実際のパスワードに要更新
+ *   ユーザID  : worker@example.com
+ *   パスワード: worker123
  *
  * 前提条件（テストデータ）:
  *   - project テーブルに E2Eテスト用プロジェクト_5-1（project_status: 1 = in_progress）が存在すること
@@ -142,8 +142,8 @@ When('実験作業者ユーザー {string} でログインする', async ({ page
   await page.goto(`/?orgId=${ORG_ID}`);
   await page.waitForSelector('#userId', { timeout: 15000 });
   // TODO: 実際の実験作業者ユーザーIDとパスワードに更新すること
-  await page.fill('#userId', 'worker_user@example.com');
-  await page.fill('#password', 'auth0001');
+  await page.fill('#userId', 'worker@example.com');
+  await page.fill('#password', 'worker123');
   await page.click('button[type="submit"]');
   await page.waitForLoadState('networkidle', { timeout: 30000 });
 });
