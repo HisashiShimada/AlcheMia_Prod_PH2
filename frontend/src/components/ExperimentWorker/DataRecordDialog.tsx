@@ -1015,12 +1015,14 @@ export default function DataRecordDialog({
       footer={[
         <Button
           key="cancel"
+          data-testid="data-record-cancel-button"
           onClick={onClose}
         >
           キャンセル
         </Button>,
         <Button
           key="save"
+          data-testid="data-record-save-button"
           type="primary"
           icon={<SaveOutlined />}
           onClick={handleSaveTemplate}
@@ -1032,11 +1034,12 @@ export default function DataRecordDialog({
       ]}
     >
       <div>
-        {/* みなし進捗更新チェックボックスと作業指示ボタン */}
+      {/* みなし進捗更新チェックボックスと作業指示ボタン */}
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {/* useDeemedProgressProp が false の場合はチェックボックスを非表示（組織設定で無効化） */}
           {useDeemedProgressProp ? (
             <Checkbox
+              data-testid="deemed-progress-checkbox"
               checked={useDeemedProgress}
               onChange={(e) => setUseDeemedProgress(e.target.checked)}
             >
@@ -1046,6 +1049,7 @@ export default function DataRecordDialog({
             <span /> /* チェックボックス非表示時のスペーサー */
           )}
           <Button
+            data-testid="instruction-button"
             icon={<InfoCircleOutlined />}
             onClick={() => setInstructionModalOpen(true)}
           >

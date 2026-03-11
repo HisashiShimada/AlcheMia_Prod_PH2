@@ -491,7 +491,7 @@ export default function TransitionList({
     <>
       <div>
         {/* 絞り込みUI */}
-        <Row gutter={[16, 8]} style={{ marginBottom: 16 }}>
+        <Row gutter={[16, 8]} style={{ marginBottom: 16 }} data-testid="transition-list-filter-row">
           <Col xs={24} sm={12} md={12}>
             <Input
               placeholder="トランジション名、説明で検索..."
@@ -500,6 +500,7 @@ export default function TransitionList({
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
               aria-label="全カラム検索"
+              data-testid="transition-list-search-input"
             />
           </Col>
           <Col xs={24} sm={12} md={12}>
@@ -511,6 +512,7 @@ export default function TransitionList({
               allowClear
               options={transitionNameOptions}
               aria-label="トランジション名で絞り込み"
+              data-testid="transition-list-name-filter"
             />
           </Col>
         </Row>
@@ -541,6 +543,7 @@ export default function TransitionList({
           bordered
           aria-label="トランジション一覧"
           aria-describedby="transition-list-description"
+          data-testid="transition-list-table"
           rowClassName={(_, index) => index % 2 === 0 ? 'table-row-light' : 'table-row-dark'}
           style={{
             background: '#ffffff',

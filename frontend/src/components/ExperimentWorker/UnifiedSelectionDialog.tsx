@@ -436,6 +436,7 @@ export default function UnifiedSelectionDialog({
       title={getModalTitle()}
       okText="決定"
       cancelText="キャンセル"
+      data-testid="unified-selection-dialog"
       footer={
         step === 'project' ? (
           <Space>

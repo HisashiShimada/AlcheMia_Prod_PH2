@@ -110,7 +110,7 @@ export default function InstructionGroup({
   // プロジェクト指示の場合（カードなしで表示）
   if (title === 'プロジェクト指示' || title === '全体指示') {
     return (
-      <div style={{ marginBottom: 32 }}>
+      <div data-testid="instruction-group-file" style={{ marginBottom: 32 }}>
         {groupInstructions.length === 0 ? (
           <Card>
             <Empty description={noDataMessages[title] || '作業指示がありません'} />
@@ -138,7 +138,7 @@ export default function InstructionGroup({
 
     if (taskIds.length === 0) {
       return (
-        <div style={{ marginBottom: 32 }}>
+        <div data-testid="instruction-group-task-empty" style={{ marginBottom: 32 }}>
           <Card>
             <Empty description={noDataMessages[title] || '作業指示がありません'} />
           </Card>
@@ -147,7 +147,7 @@ export default function InstructionGroup({
     }
 
     return (
-      <div style={{ marginBottom: 32 }}>
+      <div data-testid="instruction-group-task" style={{ marginBottom: 32 }}>
         <Space orientation="vertical" size={8} style={{ width: '100%' }}>
           {taskIds.map((taskId) => {
             const taskInstructions = taskGroups[taskId];
@@ -157,6 +157,7 @@ export default function InstructionGroup({
             return (
               <Card
                 key={taskId}
+                data-testid={`instruction-task-item-${taskId}`}
                 style={{
                   borderRadius: token.borderRadius,
                   backgroundColor: token.colorBgContainer,
@@ -381,7 +382,7 @@ export default function InstructionGroup({
     }
 
     return (
-      <div style={{ marginBottom: 32 }}>
+      <div data-testid="instruction-group-transition" style={{ marginBottom: 32 }}>
         <Space orientation="vertical" size={8} style={{ width: '100%' }}>
           {transitionIds.map((transitionId) => {
             const transitionInstructions = transitionGroups[transitionId];
@@ -391,6 +392,7 @@ export default function InstructionGroup({
             return (
               <Card
                 key={transitionId}
+                data-testid={`instruction-transition-item-${transitionId}`}
                 style={{
                   borderRadius: token.borderRadius,
                   backgroundColor: token.colorBgContainer,

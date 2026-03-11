@@ -27,6 +27,7 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
     
     return (
       <Button
+        data-testid={`task-action-btn-start-${task.taskId}`}
         type="default"
         size="small"
         icon={<PlayCircleOutlined />}
@@ -50,6 +51,7 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
     
     return (
       <Button
+        data-testid={`task-action-btn-record-${task.taskId}`}
         type="default"
         size="small"
         icon={<FormOutlined />}
@@ -69,6 +71,7 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
     
     return (
       <Button
+        data-testid={`task-action-btn-progress-${task.taskId}`}
         type="default"
         size="small"
         icon={<LineChartOutlined />}
@@ -88,6 +91,7 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
     
     return (
       <Button
+        data-testid={`task-action-btn-issue-${task.taskId}`}
         type="default"
         size="small"
         icon={<AlertOutlined />}
@@ -111,6 +115,7 @@ export default function TaskActionButtons({ task, onAction, buttonType }: TaskAc
     
     return (
       <Button
+        data-testid={`task-action-btn-complete-${task.taskId}`}
         type="default"
         size="small"
         icon={<CheckCircleOutlined />}

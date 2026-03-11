@@ -263,17 +263,19 @@ export default function MethodTaskSelectionModal({
             icon={<CloseOutlined />}
             onClick={handleClearSelection}
             disabled={!tempSelectedTaskId}
+            data-testid="method-task-selection-clear-button"
           >
             選択解除
           </Button>
           <Space>
-            <Button onClick={handleCancel}>
+            <Button onClick={handleCancel} data-testid="method-task-selection-cancel-button">
               キャンセル
             </Button>
             <Button 
               type="primary"
               onClick={handleOk}
               icon={<CheckOutlined />}
+              data-testid="method-task-selection-ok-button"
             >
               決定
             </Button>
@@ -286,6 +288,7 @@ export default function MethodTaskSelectionModal({
           overflowY: 'auto'
         }
       }}
+      data-testid="method-task-selection-modal"
     >
       {/* メソッドタブ */}
       <Tabs
@@ -306,6 +309,7 @@ export default function MethodTaskSelectionModal({
                     onChange={(e) => setSearchText(e.target.value)}
                     allowClear
                     aria-label="全カラム検索"
+                    data-testid="method-task-selection-search-input"
                   />
                 </Col>
                 <Col xs={24} sm={8}>
@@ -317,6 +321,7 @@ export default function MethodTaskSelectionModal({
                     allowClear
                     options={taskNameOptions}
                     aria-label="タスク名で絞り込み"
+                    data-testid="method-task-selection-task-name-filter"
                   />
                 </Col>
                 <Col xs={24} sm={8}>
@@ -328,6 +333,7 @@ export default function MethodTaskSelectionModal({
                     allowClear
                     options={statusOptions}
                     aria-label="ステータスで絞り込み"
+                    data-testid="method-task-selection-status-filter"
                   />
                 </Col>
               </Row>
@@ -365,6 +371,7 @@ export default function MethodTaskSelectionModal({
                   background: '#ffffff',
                   borderRadius: '8px'
                 }}
+                data-testid="method-task-selection-table"
               />
             </>
           ),
@@ -377,6 +384,7 @@ export default function MethodTaskSelectionModal({
         tabBarStyle={{
           marginBottom: 0,
         }}
+        data-testid="method-task-selection-tabs"
       />
       
       {/* スタイル */}

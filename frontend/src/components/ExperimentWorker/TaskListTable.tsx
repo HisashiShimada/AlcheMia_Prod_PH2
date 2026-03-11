@@ -248,7 +248,7 @@ export default function TaskListTable({
   return (
     <div>
       {/* 絞り込みUI */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }} data-testid="task-list-filter-row">
         <Col xs={24} sm={12}>
           <Input
             placeholder="タスク名、ステータス、進捗率で検索..."
@@ -257,6 +257,7 @@ export default function TaskListTable({
             onChange={(e) => setSearchText(e.target.value)}
             allowClear
             aria-label="タスク一覧検索"
+            data-testid="task-list-search-input"
           />
         </Col>
         <Col xs={24} sm={12}>
@@ -268,6 +269,7 @@ export default function TaskListTable({
             allowClear
             options={statusOptions}
             aria-label="タスクステータスで絞り込み"
+            data-testid="task-list-status-filter"
           />
         </Col>
       </Row>
@@ -293,6 +295,7 @@ export default function TaskListTable({
       size="middle"
       bordered
       aria-label="タスク一覧"
+      data-testid="task-list-table"
       style={{
         background: '#ffffff',
         borderRadius: '8px'

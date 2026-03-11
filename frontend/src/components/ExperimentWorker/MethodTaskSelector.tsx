@@ -83,6 +83,7 @@ export default function MethodTaskSelector({
             <PartitionOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
             <Text strong style={{ minWidth: 80 }}>メソッド:</Text>
             <Select
+              data-testid="method-select"
               style={{ width: 200 }}
               placeholder="メソッドを選択してください"
               value={selectedMethodId || undefined}
@@ -104,6 +105,7 @@ export default function MethodTaskSelector({
             <CheckSquareOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
             <Text strong style={{ minWidth: 80 }}>タスク:</Text>
             <Select
+              data-testid="task-select"
               style={{ width: 200 }}
               placeholder="タスクを選択してください"
               value={selectedTaskId || ''}
@@ -113,6 +115,7 @@ export default function MethodTaskSelector({
               size="large"
             />
             <Button
+              data-testid="method-task-select-button"
               type="primary"
               icon={<CheckOutlined />}
               onClick={onOpenModal}

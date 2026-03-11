@@ -773,6 +773,7 @@ export default function ProgressCheckTab({
         </Card>
       ) : !selectedProject ? (
         <Card
+          data-testid="progress-check-tab-no-project"
           style={{
             borderRadius: '8px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
@@ -791,6 +792,7 @@ export default function ProgressCheckTab({
         </Card>
       ) : methods.length === 0 ? (
         <Card
+          data-testid="progress-check-tab-no-methods"
           style={{
             borderRadius: '8px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
@@ -808,6 +810,7 @@ export default function ProgressCheckTab({
         </Card>
       ) : (
         <Card
+          data-testid="progress-check-tab-content"
           style={{
             borderRadius: '8px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
@@ -816,6 +819,7 @@ export default function ProgressCheckTab({
         >
           {/* メソッドタブ */}
           <Tabs
+            data-testid="progress-check-method-tabs"
             activeKey={selectedMethodId || undefined}
             onChange={onSelectMethod}
             items={methodTabs}

@@ -383,6 +383,7 @@ export default function ExperimentWorkerMenu({
           <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
           <Text strong>{t('experimentWork.labels.project')}:</Text>
           <Select
+            data-testid="project-select"
             value={selectedProject === '' ? undefined : selectedProject}
             placeholder="-"
             style={{ width: 280 }}
@@ -405,6 +406,7 @@ export default function ExperimentWorkerMenu({
           />
           {/* 選択ボタン: readOnly時は disabled */}
           <Button
+            data-testid="project-select-button"
             type="primary"
             icon={<CheckOutlined />}
             onClick={() => setDialogOpen(true)}
