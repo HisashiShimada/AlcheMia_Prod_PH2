@@ -2,18 +2,22 @@
  * MaiML 非公開バッチ（期限切れアセットの一括非公開）
  *
  * 実行方法:
- *   npx ts-node -P backend/batch/unpublish/tsconfig.json backend/batch/unpublish/index.ts
+ *   npx ts-node -P backend/batch/unpublish/tsconfig.json backend/batch/unpublish/index.ts [--mode <mode>]
  *
  * npm scripts から実行:
  *   cd backend && npm run batch:unpublish
+ *   cd backend && npm run batch:unpublish -- --mode full_delete
  *
  * cron設定例（毎日0時に実行）:
  *   0 0 * * * cd /path/to/mmdpf/backend && npm run batch:unpublish >> /var/log/mmdpf/unpublish.log 2>&1
  *
- * 環境変数:
- *   UNPUBLISH_MODE  - 'keep_meta'（デフォルト）または 'full_delete'
- *                     keep_meta  : KV / プレビュー / 生データを削除。代表メタ（maiml_asset）は残す
- *                     full_delete: maiml_asset ごと CASCADE 完全削除
+ * モード指定（優先順位: コマンドライン引数 > 環境変数 > デフォルト）:
+ *   --mode <mode>   - コマンドライン引数でモードを指定
+ *   UNPUBLISH_MODE  - 環境変数でモードを指定
+ *   デフォルト: 'keep_meta'
+ *
+ *   keep_meta  : KV / プレビュー / 生データを削除。代表メタ（maiml_asset）は残す
+ *   full_delete: maiml_asset ごと CASCADE 完全削除
  */
 
 import { createPool } from './db';
@@ -23,13 +27,18 @@ async function main(): Promise<void> {
   const startedAt = new Date().toISOString();
   console.log(`[${startedAt}] unpublish batch start`);
 
-  // 環境変数から非公開モードを取得（デフォルト: keep_meta）
-  const rawMode = process.env.UNPUBLISH_MODE ?? 'keep_meta';
+  // コマンドライン引数から --mode を取得（優先順位: 引数 > 環境変数 > デフォルト）
+  const args = process.argv.slice(2);
+  const modeArgIndex = args.indexOf('--mode');
+  const modeFromArg = modeArgIndex !== -1 ? args[modeArgIndex + 1] : undefined;
+  const rawMode = modeFromArg ?? process.env.UNPUBLISH_MODE ?? 'keep_meta';
+
   if (rawMode !== 'keep_meta' && rawMode !== 'full_delete') {
     console.error(
-      `[${new Date().toISOString()}] 環境変数 UNPUBLISH_MODE の値が不正です: "${rawMode}"`,
+      `[${new Date().toISOString()}] モードの値が不正です: "${rawMode}"`,
     );
     console.error(`  有効な値: keep_meta | full_delete`);
+    console.error(`  指定方法: --mode <mode> または環境変数 UNPUBLISH_MODE`);
     process.exit(1);
   }
   const mode: UnpublishMode = rawMode;

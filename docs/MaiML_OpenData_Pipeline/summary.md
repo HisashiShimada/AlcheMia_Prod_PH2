@@ -1,51 +1,39 @@
-# MaiML 公開処理 ドキュメント目次
+# MaiML OpenData Pipeline ドキュメント一覧
 
-> 元仕様書: `docs/design/MaiML_OpenData_Pipeline_BasicDesign_v1.3.md` (v1.3, 2026-02-17)
-> 作成日: 2026-03-05
-
----
-
-## ファイル一覧
-
-| ファイル | 内容 | 対象読者 |
-|---------|------|---------|
-| [spec.md](./spec.md) | **処理仕様** — 何をするか・どんなデータが登録されるか | 仕様を理解したい人 |
-| [implementation.md](./implementation.md) | **実装方針・カラムマッピング** — どう作るか・XSD から確認したカラム対応表 | 実装者・設計者 |
-| [issues.md](./issues.md) | **課題・未決事項** — 設計前に解決が必要な課題一覧 | 設計判断者・PL |
-| [diff.md](./diff.md) | **元仕様書 vs 要約仕様書 差分** — 変更点・未解決点・省略点の整理 | 設計判断者・PL |
-| [recommendations.md](./recommendations.md) | **実装推奨事項** — アーキテクチャ・Worker・DB・セキュリティ・ロードマップ | 実装者・設計者 |
+> 最終更新: 2026-03-11
 
 ---
 
-## spec.md の内容
+## 📂 現行ドキュメント（参照すること）
 
-1. システムの概要（公開 / 非公開の概念）
-2. コンポーネント構成（Ingest Controller / Worker / Storage）
-   - SAX / iterparse とは（XML ストリーミング解析の説明）
-   - XML データの登録単位（1ファイル → 複数テーブルへの登録階層）
-3. 公開・非公開フロー
-4. DB テーブル一覧と役割
-5. プレビュー生成の詳細（uniform / maxhold / MMR）
-6. 生データ保存の詳細（store_raw_series / チャンク分割）
-7. KV テーブルの設計思想（パス表現・instruction_id）
-8. CLI コマンドと対応処理
-9. 検索クエリ例
-10. バージョン変遷（V1.1 → V1.3）
+| ファイル | 内容 |
+|---------|------|
+| **[spec.md](./spec.md)** | ✅ **確定仕様書**（アーキテクチャ・処理フロー・API・権限） |
+| **[db.md](./db.md)** | 🗄️ **DB 設計書**（テーブル構成・DDL・カラムマッピング）※暫定 |
+| **[pending.md](./pending.md)** | ⚠️ **未確定事項一覧**（スキーマ命名規則・UI・inline series） |
+| [MaiML_OpenData_Pipeline_BasicDesign_v1.3.md](./MaiML_OpenData_Pipeline_BasicDesign_v1.3.md) | 📄 元仕様書（参考資料） |
 
 ---
 
-## implementation.md の内容
+## 🗂️ アーカイブ（bk/ フォルダ）
 
-1. 実装時の重要な考慮事項
-   - 冪等性（再実行安全性）
-   - CASCADE 削除の設計
-   - パフォーマンス指針
-   - ロール設計
-2. 各テーブルのカラムマッピング判別可否
-   - 仕様書から判別できるカラム / 不明なカラムの整理
-   - テーブルごとの詳細分析
-3. 未決事項・実装前に決定が必要な点
-   - DB スキーマ関連
-   - Worker 実装関連
-   - フロントエンド / 認証関連
-   - 追加調査が必要なドキュメント
+以下のファイルは 2026-03-11 に `bk/` フォルダへ移動しました。  
+**新仕様書（spec.md）に置き換えられているため、通常は参照不要です。**
+
+| ファイル | 内容 |
+|---------|------|
+| [bk/spec.md](./bk/spec.md) | 旧仕様書 |
+| [bk/implementation.md](./bk/implementation.md) | 旧実装ガイド |
+| [bk/issues.md](./bk/issues.md) | 旧課題一覧 |
+| [bk/diff.md](./bk/diff.md) | 旧差分分析 |
+| [bk/recommendations.md](./bk/recommendations.md) | 旧推奨事項 |
+| [bk/implementation_status.md](./bk/implementation_status.md) | 旧実装ステータス |
+
+---
+
+## ⚠️ 実装時の注意
+
+**テーブル関連の実装は `pending.md` の更新（確定）後に着手すること。**
+
+- API エンドポイント（`projectRoutes.ts` / `projectController.ts`）は既存実装を継続利用する
+- KV 抽出・Repository・マイグレーション等はテーブル構成確定後に再実装する

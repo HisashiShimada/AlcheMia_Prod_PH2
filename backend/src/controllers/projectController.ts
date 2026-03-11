@@ -11,7 +11,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse,MaimlPublishRequest,MaimlPublishResponse } from '../types/api';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
-import * as maimlIngestService from '../services/maimlIngestService'
 
 /**
  * プロジェクト作成エンドポイント
@@ -1303,8 +1302,9 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
  *
  * @description
  * プロジェクト詳細画面の「公開」ボタン押下時に呼び出す。
- * projectName から最新 MaiML ファイルパスを取得し、maimlIngestService で
- * KV・プレビューを DB に保存して即時公開する。
+ * projectName から最新 MaiML ファイルパスを取得し、bullmq キューにジョブを投入する。
+ * 処理は非同期で行われるため 202 Accepted を返す。
+ * フロントエンドは GET /publish-status でポーリングして完了を確認すること。
  *
  * @roles experiment_admin（書込可）
  * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.1
@@ -1334,29 +1334,21 @@ export async function publish(req: Request, res: Response): Promise<void> {
     }
     const fileUri = maimlResult.data.filePath;
 
-    // 2. maimlIngestService で公開処理（KV 抽出・プレビュー生成・DB 保存）
-    const ingestResult = await maimlIngestService.publishMaiml(organizationId, fileUri, {
-      template_only:         body.template_only         ?? false,
-      store_raw_series:      body.store_raw_series       ?? false,
-      keep_raw_on_unpublish: body.keep_raw_on_unpublish  ?? false,
-      retention_until:       body.retention              ?? null,
-    });
+    // 2. 公開リクエストを登録し bullmq キューにジョブを投入（非同期）
+    // TODO: maimlIngestService.requestPublish() 実装後に置き換える
+    //   - maiml_asset INSERT
+    //   - maiml_publish_registry INSERT (status='requested')
+    //   - maimlPublishQueue へのジョブ投入
+    console.warn('[projectController.publish] requestPublish は未実装です（bullmq Worker 実装待ち）');
 
-    const response: MaimlPublishResponse = {
-      registryId: String(ingestResult.asset_id),
-      projectName,
-      status: 'published',
-      requestedAt: new Date().toISOString(),
-    };
-
-    res.status(201).json({
+    // 202 Accepted: 処理は非同期で継続する
+    res.status(202).json({
       success: true,
       data: {
-        ...response,
-        doc_name:           ingestResult.doc_name,
-        condition_kv_count: ingestResult.condition_kv_count,
-        material_kv_count:  ingestResult.material_kv_count,
-        preview_count:      ingestResult.preview_count,
+        asset_id:    null,
+        registry_id: null,
+        status:      'requested',
+        message:     '公開処理を開始しました。完了までしばらくお待ちください。',
       },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
@@ -1381,12 +1373,11 @@ export async function publish(req: Request, res: Response): Promise<void> {
  *
  * @description
  * プロジェクト詳細画面の「非公開」ボタン押下時に呼び出す。
- * 公開済みアセットに紐づく KV・プレビュー・生データを削除する。
- * mode=keep_meta（デフォルト）: 代表メタ（maiml_asset）は残す
- * mode=full_delete: maiml_asset ごと完全削除
+ * bullmq キューに非公開ジョブを投入する。処理は非同期で行われるため 202 Accepted を返す。
+ * フロントエンドは GET /publish-status でポーリングして完了を確認すること。
  *
  * @roles experiment_admin（書込可）
- * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.2
+ * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §4.1
  */
 export async function unpublish(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
@@ -1409,21 +1400,20 @@ export async function unpublish(req: Request, res: Response): Promise<void> {
     }
     const fileUri = maimlResult.data.filePath;
 
-    const statusData = await maimlIngestService.getPublishStatus(organizationId, fileUri);
-    if (!statusData.is_published || !statusData.asset_id) {
-      res.status(404).json({
-        success: false,
-        error: { code: 'NOT_PUBLISHED', message: 'このプロジェクトは公開されていません' },
-        meta: { timestamp: new Date().toISOString(), requestId },
-      });
-      return;
-    }
+    // 非公開ジョブを bullmq キューに投入（非同期）
+    // TODO: maimlIngestService.requestUnpublish() 実装後に置き換える
+    //   - maiml_publish_job INSERT (job_type='unpublish', status='pending')
+    //   - maimlUnpublishQueue へのジョブ投入
+    console.warn('[projectController.unpublish] requestUnpublish は未実装です（bullmq Worker 実装待ち）');
 
-    await maimlIngestService.unpublishMaiml(organizationId, statusData.asset_id, mode);
-
-    res.status(200).json({
+    // 202 Accepted: 処理は非同期で継続する
+    res.status(202).json({
       success: true,
-      data: { projectName, mode, unpublishedAt: new Date().toISOString() },
+      data: {
+        job_id:  null,
+        status:  'pending',
+        message: '非公開処理を開始しました。完了までしばらくお待ちください。',
+      },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
   } catch (error) {
@@ -1466,10 +1456,21 @@ export async function getPublishStatus(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const status = await maimlIngestService.getPublishStatus(organizationId, maimlResult.data.filePath);
+    // TODO: maiml_asset / maiml_publish_registry の実装後に getPublishStatus() を復元する
+    console.warn('[projectController.getPublishStatus] getPublishStatus は未実装です（DB テーブル構成確定待ち）');
     res.status(200).json({
       success: true,
-      data: status,
+      data: {
+        is_published:     false,
+        asset_id:         null,
+        registry_id:      null,
+        status:           null,
+        doc_name:         null,
+        template_only:    null,
+        store_raw_series: null,
+        retention_until:  null,
+        published_at:     null,
+      },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
   } catch (error) {
