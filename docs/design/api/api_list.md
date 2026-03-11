@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.16.0
-- **最終更新**: 2026-03-06
+- **バージョン**: 2.17.0
+- **最終更新**: 2026-03-11
 - **担当**: Development Team
 
 ---
@@ -238,6 +238,7 @@
 | 6.4 | GET | /api/v1/progress/projects/:projectName/worker-tasks | タスク一覧取得（実験作業者用） | ⏳ 未実装 | ProgressController.getWorkerTasks |
 | 6.5 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | タスクステータス更新 | ⏳ 未実装 | ProgressController.updateTaskStatus |
 | 6.6 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | ProgressController.updateTransitionStatus |
+| 6.7 | GET | /api/v1/progress/projects/:projectName/work-details | 作業詳細一括取得 | ✅ 実装済み | ProgressController.getWorkDetails |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -667,7 +668,7 @@
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 6 | 5 | 0 | 1 | 83% |
 | Maiml編集API | 18 | 17 | 0 | 1 | 94% |
-| 進捗確認API | 4 | 0 | 0 | 4 | 0% |
+| 進捗確認API | 7 | 3 | 0 | 4 | 43% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
 | 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
 | 部署管理API | 7 | 7 | 0 | 0 | 100% |
@@ -678,7 +679,7 @@
 | 組織管理API | 10 | 10 | 0 | 0 | 100% |
 | システム概要API | 1 | 1 | 0 | 0 | 100% |
 | ユーザー管理API | 7 | 7 | 0 | 0 | 100% |
-| **合計** | **124** | **110** | **0** | **14** | **89%** |
+| **合計** | **127** | **113** | **0** | **14** | **89%** |
 
 ### 優先度別実装状況
 
@@ -862,6 +863,13 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.17.0 | 2026-03-11 | 進捗確認API - 作業詳細一括取得API追加 | Cline |
+| | | - API 6.7: GET /api/v1/progress/projects/:projectName/work-details 新規追加（実装済み） | |
+| | | - WorkProgressDetailDialog 用の projectInfo / fileInfo / workDetails を一括返却 | |
+| | | - 権限: experiment_admin（040000 読取専用以上） | |
+| | | - 進捗確認API: 6→7エンドポイント（実装済み2→3） | |
+| | | - 全体: 126→127エンドポイント、実装済み112→113 | |
+| | | - 詳細仕様: api_progress_monitoring.md API #7を参照 | |
 | 2.16.0 | 2026-03-06 | Maiml編集API - 名前空間テンプレートフォルダ＆ファイル一覧取得API追加 | Cline |
 | | | - API 5.18: GET /api/v1/maiml/formats 新規追加（未実装） | |
 | | | - 名前空間テンプレート取り込み機能（editorv2 TemplateEditorDialog）向け | |

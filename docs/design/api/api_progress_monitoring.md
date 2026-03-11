@@ -1,11 +1,11 @@
 # 進捗確認API仕様書
 
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-03-09 11:02  
-**バージョン**: 1.5.0  
+**最終更新**: 2026-03-11 09:52  
+**バージョン**: 1.6.0  
 **対象画面**: 実験管理者 - 進捗確認画面、実験作業者 - 実験記録画面  
-**総API数**: 6個  
-**実装状況**: 2個実装済み、4個未実装
+**総API数**: 7個  
+**実装状況**: 3個実装済み、4個未実装
 
 ---
 
@@ -13,10 +13,10 @@
 
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
-| 進捗確認 | 2 | 4 | 6 |
-| **合計** | **2** | **4** | **6** |
+| 進捗確認 | 3 | 4 | 7 |
+| **合計** | **3** | **4** | **7** |
 
-**完了率**: 33.3% (2/6)
+**完了率**: 42.9% (3/7)
 
 ---
 
@@ -30,6 +30,7 @@
 | 4 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 5 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 6 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 7 | 作業詳細一括取得 | GET | `/api/v1/progress/projects/:projectName/work-details` | 🟢 実装済み | ⭐⭐⭐ 高 |
 
 ---
 
@@ -1765,6 +1766,193 @@ const validateStatusUpdate = (body: any) => {
 
 ---
 
+---
+
+### 7. 作業詳細一括取得API 🟢
+
+**エンドポイント**: `GET /api/v1/progress/projects/:projectName/work-details`
+
+**説明**: WorkProgressDetailDialog が必要とする projectInfo / fileInfo / workDetails（transitionProgress 含む）を一括返却する
+
+**認証**: 必須
+
+**権限**: `experiment_admin`（機能CD: `040000`、読取専用以上）
+
+**優先度**: ⭐⭐⭐ 高
+
+**実装状況**: ✅ 実装済み
+- コントローラー: `backend/src/controllers/progressController.ts` - `getWorkDetails()`
+- サービス: `backend/src/services/progressService.ts` - `ProgressService.getWorkDetails()`
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "projectInfo": {
+      "projectId": "550e8400-e29b-41d4-a716-446655440000",
+      "projectName": "Sample Project",
+      "projectDescription": "プロジェクトの説明",
+      "owner": "Owner Name",
+      "department": "研究部門",
+      "status": "in_progress",
+      "methods": ["method1", "method2"],
+      "createdAt": "2026-01-21T10:00:00.000Z",
+      "updatedAt": "2026-03-01T12:00:00.000Z"
+    },
+    "fileInfo": {
+      "fileName": "Sample Project.maiml",
+      "maimlFileKey": "550e8400-e29b-41d4-a716-446655440000/projects/Sample Project/Sample Project.maiml",
+      "organizationId": "550e8400-e29b-41d4-a716-446655440000",
+      "checkoutStatus": {
+        "isCheckedOut": false,
+        "checkoutBy": null
+      }
+    },
+    "workDetails": [
+      {
+        "workId": "method1_1",
+        "taskNo": 1,
+        "methodName": "method1",
+        "workStatus": "in_progress",
+        "progressPercentage": 50,
+        "stats": {
+          "totalTransitions": 4,
+          "completed": 2,
+          "working": 1,
+          "notStarted": 1,
+          "completionRate": 50
+        },
+        "transitionProgress": [
+          {
+            "transitionId": "t1",
+            "progressStatus": "完了",
+            "assignedWorker": "Worker Name",
+            "startDate": "2026-03-01T10:00:00.000Z",
+            "endDate": "2026-03-01T14:00:00.000Z"
+          },
+          {
+            "transitionId": "t2",
+            "progressStatus": "作業中",
+            "assignedWorker": "Worker Name 2",
+            "startDate": "2026-03-02T09:00:00.000Z",
+            "endDate": null
+          },
+          {
+            "transitionId": "t3",
+            "progressStatus": "未開始"
+          }
+        ]
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-03-11T00:00:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**projectInfo フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `projectId` | string (UUID) | プロジェクトID |
+| `projectName` | string | プロジェクト名 |
+| `projectDescription` | string \| undefined | プロジェクト説明 |
+| `owner` | string | オーナー名（ユーザー名またはユーザーID） |
+| `department` | string \| undefined | 部門名（または部門CD） |
+| `status` | string | プロジェクトステータス（`planning` / `pending` / `in_progress` / `review_waiting` / `completed` / `error`） |
+| `methods` | string[] | MAIMLファイルに定義されたメソッドID一覧 |
+| `createdAt` | string (ISO 8601) | 作成日時 |
+| `updatedAt` | string (ISO 8601) | 更新日時 |
+
+**workDetails[].stats フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `totalTransitions` | number | MAIMLに定義されたトランジション総数 |
+| `completed` | number | 完了数（status=5） |
+| `working` | number | 作業中数（status=1〜4） |
+| `notStarted` | number | 未開始数 |
+| `completionRate` | number | 完了率（0〜100の整数） |
+
+**workDetails[].transitionProgress[].progressStatus 値**:
+| 値 | DBのstatus値 | 説明 |
+|----|------------|------|
+| `未開始` | DBに未登録 or 0 | 初期状態 |
+| `準備中` | 1 | 準備中 |
+| `作業中` | 2 または 4 | 作業中・再開 |
+| `休止中` | 3 | 一時停止 |
+| `完了` | 5 | 完了 |
+| `異常中` | 6 | エラー状態 |
+
+**エラー時**:
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない（`TASK_NOT_FOUND`）
+- 500: MAIMLダウンロード失敗 / MAIMLパース失敗 / DBエラー
+
+#### ビジネスロジック
+
+1. **プロジェクト基本情報取得**
+   - `projects/findWithOwnerAndDept.sql` を使用し、プロジェクト名と組織IDでプロジェクト情報・オーナー名・部門名を取得
+
+2. **MAIML ダウンロード & パース**
+   - S3/Swift から `{organizationId}/projects/{projectName}/{projectName}.maiml` をダウンロード
+   - `parsePetriNetStructure()` でメソッド一覧とトランジション一覧を抽出
+
+3. **タスク一覧取得**
+   - `project_tasks/findByProjectId.sql` でプロジェクト内の全タスクを取得
+
+4. **トランジション進捗一括取得（Promise.all 並列処理）**
+   - タスクごとに `project_tasks/findTaskDetailsByMethodId.sql` で task_no 一覧を取得
+   - 各 task_no の `transition_data/findByTask.sql` でトランジション進捗を取得
+   - MAIML に定義されているが DB に未登録のトランジションは「未開始」として返す
+
+5. **統計情報算出**
+   - `completedCount`: status=5 のトランジション数
+   - `workingCount`: status=1〜4 のトランジション数
+   - `completionRate`: completedCount / totalTransitions × 100（整数）
+   - `workStatus`: 全完了なら `completed`、1件でも作業中なら `in_progress`、それ以外は `pending`
+
+#### ミドルウェアチェーン
+
+```typescript
+router.get(
+  '/projects/:projectName/work-details',
+  authMiddleware,                    // 1. JWT認証
+  checkPermission('040000', 0),      // 2. 権限チェック（実験管理者メニュー、読取専用以上）
+  getWorkDetails                     // 3. コントローラー
+);
+```
+
+#### 使用SQLファイル
+
+| SQLファイル | 用途 |
+|------------|------|
+| `projects/findWithOwnerAndDept.sql` | プロジェクト基本情報（オーナー・部門含む）取得 |
+| `project_tasks/findByProjectId.sql` | プロジェクト内タスク一覧取得 |
+| `project_tasks/findTaskDetailsByMethodId.sql` | メソッドIDに紐づく task_no 一覧取得 |
+| `transition_data/findByTask.sql` | タスク（task_no）のトランジション進捗一覧取得 |
+
+#### 備考
+
+- **用途**: WorkProgressDetailDialog で使用（進捗確認画面）
+- **workId の形式**: `{methodId}_{experimentOrder}`（例: `method1_1`）
+- **methodName フィールド**: 現時点では `method_id` の値をそのまま返却（MAIML のメソッド名表示名は未対応）
+- MAIMLに存在するがDBに未登録のトランジションは `progressStatus: '未開始'` として含める
+- プロジェクト内の全タスクを対象とする（担当者フィルタなし）
+
+---
+
 ## 📚 関連ドキュメント
 
 ### 規約
@@ -1788,6 +1976,13 @@ const validateStatusUpdate = (body: any) => {
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.6.0 | 2026-03-11 | 作業詳細一括取得API追加（7エンドポイント） | Cline |
+| | | - API #7: GET /api/v1/progress/projects/:projectName/work-details 新規追加（実装済み） | |
+| | | - WorkProgressDetailDialog 向けの projectInfo / fileInfo / workDetails 一括返却 | |
+| | | - 権限: experiment_admin（機能CD: 040000、読取専用以上） | |
+| | | - 実装済み: progressController.ts `getWorkDetails()`、progressService.ts `ProgressService.getWorkDetails()` | |
+| | | - 総API数: 6→7（+1）、実装済み: 2→3（+1） | |
+| | | - 完了率: 33.3%→42.9% | |
 | 1.5.0 | 2026-03-09 | タスク詳細取得API エンドポイント変更・実装済みに更新 | Cline |
 | | | - API #2: エンドポイントを `GET /api/v1/tasks/:taskId` → `GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` に変更 | |
 | | | - 実装済み（`backend/src/controllers/projectController.ts` `getTaskDetail()`、`backend/src/routes/progressRoutes.ts`） | |
