@@ -7,6 +7,27 @@ E2Eテストは **Playwright** + **playwright-bdd** を使用した BDD（Gherki
 
 ---
 
+### フロントエンドUIフレームワーク（本システム固有の必須知識）
+
+本システムのフロントエンドは **Ant Design v6（React）** を使用している。
+
+Playwrightでセレクターを記述する際は、ネイティブHTMLのDOMではなく  
+**Ant DesignのCSSクラス名** を使用する必要がある。
+
+**⚠️ 重要:** 以下のような汎用セレクターは Ant Design のDOM構造に合わないため **使用禁止**：
+
+```typescript
+// ❌ 禁止: ネイティブHTMLやaria属性ベースのセレクター（Ant Designでは機能しない）
+page.locator('[data-menu-id]')          // Ant Design Menu の data-* 属性
+page.locator('.ant-menu-item')          // Ant Design Menu のメニュー項目（本システムは Tabs を使用）
+page.locator('li, a, span').filter(...)  // 汎用HTML要素での絞り込み（DOM構造依存でNG）
+page.locator('[role="tab"]')             // WAI-ARIA属性（Ant Designは独自クラスで管理）
+```
+
+すべての画面操作は後述の **「Ant Design v6 セレクタ一覧」** に記載されたCSSクラス名を使用すること。
+
+---
+
 ### ディレクトリ構造
 
 ```
@@ -278,6 +299,70 @@ Ant Design v6 で使用する CSS クラス名を統一して使用すること�
 | フォームバリデーションエラー | `.ant-form-item-explain-error` |
 | トーストメッセージ | `.ant-message-notice-wrapper` |
 | Form.Item コンテナ | `.ant-form-item` |
+| **Tabs ナビゲーション全体** | `.ant-tabs` |
+| **Tabs タブアイテム（全状態）** | `.ant-tabs-tab` |
+| **Tabs アクティブなタブ** | `.ant-tabs-tab.ant-tabs-tab-active` |
+
+---
+
+### 画面ナビゲーション（Ant Design Tabs コンポーネント）【重要】
+
+#### 本システムのナビゲーション実装
+
+本システムの **システム管理者画面・実験管理者画面等** では、  
+画面内のナビゲーション（タブ切り替え）に Ant Design の **`Tabs` コンポーネント** を使用している。
+
+**⚠️ `Menu` コンポーネントは使用していない。**  
+以下のセレクターはDOMに存在しないため **絶対に使用しないこと**：
+
+```typescript
+// ❌ 禁止: Menu コンポーネントのセレクター（本システムには存在しない）
+await page.waitForSelector('[data-menu-id]', { timeout: 15000 });  // DOM に存在しない → タイムアウト
+await page.waitForSelector('.ant-menu-item', { timeout: 15000 }); // DOM に存在しない → タイムアウト
+const menuItem = page.locator('li, a, span').filter({ hasText: 'タブ名' }); // 汎用要素 → 誤マッチ
+```
+
+#### Tabs タブクリックの正しい実装
+
+```typescript
+// ✅ 正しい例: .ant-tabs-tab セレクターを使用してタブをクリック
+When('ユーザー管理画面を開く', async ({ page }) => {
+  // タブが表示されるまで待機
+  await page.waitForSelector('.ant-tabs-tab', { timeout: 15000 });
+  // タブテキストでフィルタしてクリック
+  const tab = page.locator('.ant-tabs-tab').filter({ hasText: 'ユーザー管理' }).first();
+  await tab.click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+});
+```
+
+#### 各メニュー画面のタブ一覧
+
+**システム管理者画面（`SystemAdminMenu.tsx`）:**
+
+| タブ key | タブラベル | セレクター |
+|---|---|---|
+| '1' | システム概要 | `.ant-tabs-tab:has-text("システム概要")` |
+| '2' | ユーザー管理 | `.ant-tabs-tab:has-text("ユーザー管理")` |
+| '3' | セッション管理 | `.ant-tabs-tab:has-text("セッション管理")` |
+| '4' | 部署管理 | `.ant-tabs-tab:has-text("部署管理")` |
+| '5' | ロール管理 | `.ant-tabs-tab:has-text("ロール管理")` |
+
+**タブ操作パターン（統一フォーム）:**
+
+```typescript
+// タブ遷移の統一パターン
+async function clickTab(page: Page, tabLabel: string): Promise<void> {
+  await page.waitForSelector('.ant-tabs-tab', { timeout: 15000 });
+  const tab = page.locator('.ant-tabs-tab').filter({ hasText: tabLabel }).first();
+  await tab.click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+}
+
+// 使用例
+await clickTab(page, 'ユーザー管理');
+await clickTab(page, 'ロール管理');
+```
 
 ---
 
@@ -869,6 +954,158 @@ After(async () => {
 ❌ **DB に直接 INSERT してテストデータを作成しない**（UI 経由で作成したデータである保証が失われる）
 
 ---
+
+### テスト順序依存・前提状態依存の管理（重要）
+
+#### 問題の典型例（1-7-4 / 1-7-5）
+
+「アクティブ化」を確認するシナリオは、**前のシナリオで「非アクティブ化」されていること**を前提とする。
+
+```gherkin
+# 1-7-3: 非アクティブ化を確認（アクティブ → 非アクティブ）
+@1-7-3
+シナリオ: 組織の個別切り替えボタンで非アクティブ化できること
+
+# 1-7-4: アクティブ化を確認（非アクティブ → アクティブ）  ← 1-7-3 で非アクティブになっている前提
+@1-7-4
+シナリオ: 組織の個別切り替えボタンでアクティブ化できること
+```
+
+1-7-4 単独実行すると Before フックが `setupOrganizationTestData('1-7-4')` で対象組織の `is_active = false` を保証するため問題ない。  
+しかし **組織 CD が DB に存在しない場合**（前回の After で削除された等）は `setupOrganizationTestData` が INSERT するため、`createdOrganizationCds` に追加して After で削除される。
+
+#### 対処ルール
+
+- アクティブ化確認シナリオは `before` フックで対象組織の `is_active = false` を明示的に保証する
+- `applyOrganizationIsActiveOverrides` の `is_active_overrides` で対象 CD の `is_active: false` を定義する
+- 状態依存が発生するシナリオは **必ず前のシナリオと連続実行**するか、Before フックで前提状態を独立して保証する
+
+---
+
+### Ant Design Select のデフォルト値はスキップすること（重要）
+
+#### 問題の症状
+
+`fillOrganizationForm` 等で「なし」「無効」といったデフォルト値を Select に渡すと、  
+`selectOptionByLabel` がドロップダウン表示を待ち続けてタイムアウトになる。
+
+#### 原因
+
+Ant Design Select は既に「なし」が選択されている状態でも `click()` が実行されるため、  
+ドロップダウンの動作が不安定になりタイムアウトする。
+
+#### 対処：デフォルト値はスキップする
+
+```typescript
+// ✅ デフォルト値の場合は操作不要のためスキップ
+const defaultValues = ['なし', '無効'];
+if (value && !defaultValues.includes(value)) {
+  await selectOptionByLabel(page, selectLabelMap[field], value);
+}
+```
+
+**適用が必要なフィールド例：**
+
+| フィールド | デフォルト値 | スキップ条件 |
+|---|---|---|
+| 二段階認証判定 | 無効 | `'無効'` の場合はスキップ |
+| みなし進捗使用フラグ | なし | `'なし'` の場合はスキップ |
+| 状態（会社/組織） | アクティブ | `'アクティブ'` の場合はスキップ |
+
+---
+
+### エラー確認テストでのクリーンアップ追跡の罠（重複エラーシナリオ等）
+
+#### 問題の症状（1-5-7 の事例）
+
+1-5-7「既存の組織CDを入力した場合に重複エラーが表示されること」を実行後、  
+次回実行時の Before フックで `e2e-permanent-org-aaa` が存在せず重複エラーを再現できなくなる。
+
+#### 原因
+
+`fillOrganizationForm` 内で入力した組織 CD を **保存成否に関わらず** `createdOrganizationCds` に追加していると、  
+POST が失敗（重複エラー）しても After フックで CD が削除されてしまう。
+
+```
+Before: e2e-permanent-org-aaa を INSERT（存在しなければ）
+  ↓
+テスト: '組織CD' = 'e2e-permanent-org-aaa' を入力 → [重複エラーが返る]
+  ↓ ❌ fillOrganizationForm 内で createdOrganizationCds.push('e2e-permanent-org-aaa') が走る
+  ↓
+After: createdOrganizationCds を DELETE → e2e-permanent-org-aaa が消えてしまう
+  ↓
+次回実行時: Before が INSERT しようとするが、または CD なしで重複確認ができない
+```
+
+#### 対処ルール
+
+**組織 CD / 組織表示名の追跡は「POST 成功時のみ」行う。**  
+フォーム入力時は一時変数（`lastEnteredOrgCd`）に保持するだけにし、POST レスポンスが成功した時点で `createdOrganizationCds` に追加する。
+
+```typescript
+// ✅ fillOrganizationForm 内：一時変数に保持するだけ
+if (field === '組織CD' && value) {
+  lastEnteredOrgCd = value;  // POST 成功時に createdOrganizationCds へ追加（呼び出し元で実施）
+}
+
+// ✅ POST 成功を検知したら追跡対象に追加（重複エラー確認テストでは呼ばれない）
+const response = await page.waitForResponse(
+  (r) => r.url().includes('/provider/organization') && r.request().method() === 'POST',
+  { timeout: 10000 }
+);
+if (response.status() < 400 && lastEnteredOrgCd) {
+  createdOrganizationCds.push(lastEnteredOrgCd);
+  lastEnteredOrgCd = null;
+}
+```
+
+**常設データ（Permanent Data）パターンの使い分け：**
+
+| パターン | 用途 | クリーンアップ |
+|---|---|---|
+| `createdOrganizationCds` | POST 成功で作成した組織 | After フックで DELETE |
+| Before で INSERT + After で復元 | 重複・トグル確認など前提データが必要なシナリオ | After フックで元の状態に復元 |
+| `setupOrganizationTestData` | Before フックでの前提データ準備（UPSERT） | After フックで復元 or DELETE |
+
+---
+
+### テスト順序変更時の連動更新（3点セット）
+
+グループシナリオ（例: 1-7-x）の末尾シナリオを変更するときは、以下の **3箇所を必ず同時に変更** すること。
+
+#### 変更が必要な3箇所
+
+| ファイル | 変更内容 |
+|---|---|
+| `tests/e2e/features/provider/1_provider.feature` | シナリオの順序・タグを変更 |
+| `tests/e2e/fixtures/testdata/organization_test_data.json` | `"group_end_tag"` キーを新しい末尾シナリオ ID に更新 |
+| `tests/e2e/steps/provider/1_provider.ts` | `After({ tags: '@X-X-X' })` のタグを新しい末尾タグに更新 |
+
+#### 例：1-7 グループの末尾が `@1-7-5` になった場合
+
+```json
+// organization_test_data.json
+{
+  "group-1-7-setup": {
+    "group_end_tag": "@1-7-5"  // ← 末尾シナリオを @1-7-5 に変更
+  }
+}
+```
+
+```typescript
+// 1_provider.ts
+After({ tags: '@1-7-5' }, async () => {  // ← @1-7-5 に変更
+  for (const cd of groupSharedOrganizationCds) {
+    await deleteOrganizationCascade(cd).catch(() => {});
+  }
+  groupSharedOrganizationCds.length = 0;
+});
+```
+
+**3点セットの更新を怠るとどうなるか：**
+
+- グループ共有データが削除されずに残り続ける（リソースリーク）
+- または途中のシナリオで共有データが消えて後続シナリオが失敗する
 
 ### セレクタの決定方針（data-testid）
 
