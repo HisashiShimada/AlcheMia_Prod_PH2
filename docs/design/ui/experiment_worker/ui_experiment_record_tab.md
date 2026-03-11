@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/ExperimentRecordTab.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-01-19
+- **最終更新日**: 2026-03-11
 
 ---
 
@@ -142,9 +142,9 @@
 |-----------|---------|---------|
 | handleDataRecordModalClose | データ記録モーダルを閉じる | モーダルを非表示、選択トランジションをクリア |
 | handleIssueModalClose | 問題管理モーダルを閉じる | モーダルを非表示、選択トランジションをクリア |
-| handleDataSave | データ保存 | データをログ出力（TODO: バックエンドAPI実装） |
-| handleSubmitIssue | 問題報告送信 | 問題をログ出力（TODO: バックエンドAPI実装） |
-| handleSubmitComment | コメント送信 | コメントをログ出力（TODO: バックエンドAPI実装） |
+| handleDataSave | データ保存完了コールバック（DataRecordDialog の onSave から呼ばれる） | モーダルを閉じ、`fetchProgress()` で進捗データを再取得してトランジション一覧を最新状態に更新 |
+| handleSubmitIssue | 問題報告送信 | `createIssue()` APIを呼び出して問題を登録。成功後に問題一覧を再取得 |
+| handleSubmitComment | コメント送信 | `addComment()` APIを呼び出してコメントを投稿。成功後に問題一覧を再取得 |
 
 ### 4.3 選択イベント
 
@@ -162,6 +162,7 @@
 ```typescript
 interface ExperimentRecordTabProps {
   selectedProject: string;                    // 選択中のプロジェクトID
+  selectedProjectName: string;                // 選択中のプロジェクト名（API呼び出しに使用）
   onProjectChange: (value: string) => void;   // プロジェクト変更ハンドラ
   selectedMethodId: string | null;            // 選択中のメソッドID
   onSelectMethod: (methodId: string | null) => void; // メソッド選択ハンドラ
@@ -169,6 +170,10 @@ interface ExperimentRecordTabProps {
   onSelectTask: (taskId: string) => void;     // タスク選択ハンドラ
   onTaskCreated: (newTaskId: string) => void; // タスク作成ハンドラ
   selectedMethod: Method | null;              // 選択中のメソッドオブジェクト
+  /** 選択中プロジェクトのステータス（数値）: 0=計画中, 1=タスク実行待ち, 2=タスク実行中, 3=承認待ち, 4=完了, 5=異常終了 */
+  selectedProjectStatus: number | null;
+  /** みなし進捗使用フラグ（organization.use_deemed_progress）: false の場合はチェックボックスを非表示にしてステータス更新を常時表示 */
+  useDeemedProgress?: boolean;
 }
 ```
 
@@ -188,50 +193,86 @@ const [selectedTransition, setSelectedTransition] = useState<Transition | null>(
 // 問題管理モーダル状態
 const [issueModalOpen, setIssueModalOpen] = useState(false);
 const [issues, setIssues] = useState<Issue[]>([]);
+const [issueLoading, setIssueLoading] = useState<boolean>(false); // 問題一覧取得中のローディング状態
+
+// API連携の状態管理
+const [loading, setLoading] = useState<boolean>(false);           // タスク一覧取得中のローディング状態
+const [methods, setMethods] = useState<Method[]>([]);             // APIから取得したメソッド一覧
+const [tasks, setTasks] = useState<Task[]>([]);                   // APIから取得したタスク一覧
+const [projectId, setProjectId] = useState<string | null>(null);  // APIから取得したDBのプロジェクトID
+const [progressData, setProgressData] = useState<Record<string, unknown>[]>([]); // 進捗APIから取得したトランジション進捗データ
 ```
 
 ### 5.3 算出データ
 
 ```typescript
-// プロジェクトデータ
-const selectedProjectData = projectsData[selectedProject];
+/**
+ * selectedProjectStatus（数値）を ProjectStatus 型文字列にマッピング
+ * 0=計画中 → null, 1=タスク実行待ち → 'waiting_task',
+ * 2=タスク実行中 → 'executing_task', 3=承認待ち → 'waiting_approval',
+ * 4=完了 → 'completed', 5=異常終了 → null
+ */
+const mapNumericStatusToProjectStatus = (status: number | null): ProjectStatus | null => { ... };
 
-// プロジェクトステータス
-const projectStatus: ProjectStatus | null = selectedProjectData?.status ?? null;
+// prop から受け取った数値ステータスを ProjectStatus 型に変換
+const projectStatus: ProjectStatus | null = mapNumericStatusToProjectStatus(selectedProjectStatus);
 
-// 記録可能状態判定
-const isProjectRecordable = projectStatus 
-  ? ['active', 'in_progress', 'executing_task'].includes(projectStatus) 
-  : true;
+// 記録・参照可能状態判定
+// isRecordViewableStatus() は ['waiting_task', 'executing_task', 'waiting_approval'] を活性とする
+// projectStatus が null（取得前/エラー）の場合は安全側に倒して true（活性）とする
+const isProjectRecordable = projectStatus === null || isRecordViewableStatus(projectStatus);
 
-// タスク一覧
-const tasks = selectedProject && selectedMethod
-  ? selectedMethod.tasks || []
-  : [];
+// selectedMethodId でフィルタしたタスク一覧（APIから取得した tasks State をフィルタ）
+const filteredTasks = useMemo(() => {
+  if (!selectedMethodId) return tasks;
+  return tasks.filter(task => task.methodId === selectedMethodId);
+}, [tasks, selectedMethodId]);
 
-// 進捗データを含むトランジション一覧（useMemo）
+// 進捗データを含むトランジション一覧（progressData を起点に構築）
+// selectedMethod.transitions は常に空配列のため、progressData を起点にマッピングする
+// APIレスポンスフィールド対応:
+//   material_count        → totalMaterialsCount  (MAIMLから取得した材料の定義数)
+//   material_actual_count → inputMaterialsCount  (DBから取得した材料の実績数)
+//   condition_count       → totalIngredientsCount (MAIMLから取得した条件の定義数)
+//   condition_actual_count→ inputIngredientsCount (DBから取得した条件の実績数)
+//   result_count          → totalResultsCount    (MAIMLから取得した結果の定義数)
+//   result_actual_count   → inputResultsCount    (DBから取得した結果の実績数)
 const transitionsWithProgress = useMemo(() => {
-  // 進捗データとトランジションをマージ
-  // ...
-}, [selectedMethod, selectedTaskId, selectedProjectData, tasks]);
+  if (!progressData || progressData.length === 0) return [];
+  return progressData.map(progress => ({
+    transitionId: progress.transition_id,
+    transitionName: progress.transition_name ?? '',
+    status: mapTransitionStatusToProgressStatus(progress.status),
+    progressRate: progress.progress ?? 0,
+    inputMaterialsCount: progress.material_actual_count ?? 0,
+    totalMaterialsCount: progress.material_count ?? 0,
+    inputIngredientsCount: progress.condition_actual_count ?? 0,
+    totalIngredientsCount: progress.condition_count ?? 0,
+    inputResultsCount: progress.result_actual_count ?? 0,
+    totalResultsCount: progress.result_count ?? 0,
+  }));
+}, [progressData]);
 ```
 
 ### 5.4 使用するAPI
 
 | API | メソッド | エンドポイント | 用途 | 実装状況 |
 |-----|---------|--------------|------|---------|
-| 実験データ保存API | POST | `/api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/data` | 実験データの一括保存 | TODO |
-| ステータス更新API | PUT | `/api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status` | トランジションステータスの更新 | TODO |
-| 問題報告API | POST | `/api/v1/issues` | 問題報告の送信 | ✅ 完了 |
-| コメント投稿API | POST | `/api/v1/issues/:issueId/comments` | 問題へのコメント投稿 | ✅ 完了 |
-| 問題一覧取得API | GET | `/api/v1/issues` | 問題一覧取得 | ✅ 完了 |
-| 問題詳細取得API | GET | `/api/v1/issues/:issueId` | 問題詳細とコメント一覧取得 | ✅ 完了 |
-| 進捗データ取得API | GET | `/api/v1/experiments/projects/:projectId/methods/:methodId/tasks/:taskNo/progress` | トランジションの進捗データ取得 | モックデータ使用中 |
+| ワーカータスク一覧取得API | GET | `getWorkerTasks(projectName)` (projectApiService) | プロジェクト名でメソッド・タスク一覧を取得 | ✅ 完了 |
+| 実験データ保存API | POST | （DataRecordDialog 内で実装） | 実験データの一括保存 | ✅ 完了（子コンポーネントで実装） |
+| ステータス更新API | PUT | （TransitionList 等の子コンポーネント内で実装） | トランジションステータスの更新 | ✅ 完了（子コンポーネントで実装） |
+| 問題報告API | POST | `/api/v1/issues` | 問題報告の送信（`createIssue()`） | ✅ 完了 |
+| コメント投稿API | POST | `/api/v1/issues/:issueId/comments` | 問題へのコメント投稿（`addComment()`） | ✅ 完了 |
+| 問題一覧取得API | GET | `/api/v1/issues` | 問題一覧取得（`getIssues()`） | ✅ 完了 |
+| 進捗データ取得API | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | トランジションの進捗データ取得 | ✅ 完了 |
 
 ### 5.5 データソース
 
-- `projectsData` - プロジェクトマスターデータ（モック）
-- `getIssuesByTransitionId` - トランジションIDに紐づく問題一覧取得（モック）
+- `getWorkerTasks(projectName)` - `projectApiService` 経由でメソッド・タスク一覧を取得（実API）
+- `getIssues({ projectId, methodId, taskNo, transitionId })` - `issueApiService` 経由でトランジションに紐づく問題一覧を取得（実API）
+- `createIssue(...)` - `issueApiService` 経由で問題を新規登録（実API）
+- `addComment({ projectName, issueId, comment })` - `issueApiService` 経由でコメントを投稿（実API）
+- 進捗データ - `GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` を `createApiClient()` で直接呼び出し（実API）
 
 ---
 
@@ -247,13 +288,17 @@ const transitionsWithProgress = useMemo(() => {
 
 ### 6.2 プロジェクトステータスによる制限
 
-| プロジェクトステータス | 記録可否 | 説明 |
-|---------------------|---------|------|
-| active | ○ | 記録可能 |
-| in_progress | ○ | 記録可能 |
-| executing_task | ○ | 記録可能 |
-| waiting_approval | × | 承認待ち - 記録不可 |
-| waiting_task | × | タスク待ち - 記録不可 |
+`isProjectRecordable` は `isRecordViewableStatus()` 関数（`types/experimentWorker.ts`）を使用して判定します。  
+`projectStatus` が `null`（取得前/エラー）の場合は安全側に倒して `true`（活性）とします。
+
+| プロジェクトステータス（数値） | ProjectStatus 文字列 | 記録・参照可否 | 説明 |
+|------------------------------|---------------------|-------------|------|
+| 0（計画中） | null | ○ | null 扱い → 活性 |
+| 1（タスク実行待ち） | waiting_task | ○ | 記録・参照可能 |
+| 2（タスク実行中） | executing_task | ○ | 記録・参照可能 |
+| 3（承認待ち） | waiting_approval | ○ | 記録・参照可能 |
+| 4（完了） | completed | × | 完了済み - 記録不可 |
+| 5（異常終了） | null | ○ | null 扱い → 活性 |
 
 ---
 
@@ -351,6 +396,15 @@ ExperimentRecordTab
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.2.0 | 2026-03-11 | ソースコードとの差分解消 | Cline |
+| | | - Props定義に `selectedProjectName`・`selectedProjectStatus`・`useDeemedProgress` を追加 | |
+| | | - State定義にAPI連携用State（`loading`・`methods`・`tasks`・`projectId`・`progressData`・`issueLoading`）を追加 | |
+| | | - 算出データをモック参照から実API・数値ステータスマッピングベースに更新 | |
+| | | - `isProjectRecordable` の判定ロジックを最新実装（`isRecordViewableStatus()`）に更新 | |
+| | | - §6.2 プロジェクトステータス表をデータ数値対応表に更新 | |
+| | | - API一覧を最新実装に合わせて更新（`getWorkerTasks`追加・進捗APIエンドポイント修正・TODO→完了済みに変更） | |
+| | | - データソースをモック参照から実APIサービスに更新 | |
+| | | - `handleDataSave`・`handleSubmitIssue`・`handleSubmitComment` の実装内容をAPI呼び出しに更新 | |
 | 1.1.0 | 2026-02-17 | API仕様v2.1.0に準拠した修正 | Cline |
 | | | - API一覧にエンドポイント列を追加 | |
 | | | - 実験データ保存APIのエンドポイント更新 | |

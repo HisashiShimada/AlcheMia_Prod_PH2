@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/ProgressCheckTab.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-01-19
+- **最終更新日**: 2026-03-11
 
 ---
 
@@ -36,12 +36,32 @@
 
 ```
 ┌─────────────────────────────────────────────┐
+│ ローディング中（loading=true）               │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Card                                     │ │
+│ │  [スピナー]                              │ │
+│ │  タスク一覧を読み込んでいます...          │ │
+│ └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐
 │ プロジェクト未選択時                         │
 │ ┌─────────────────────────────────────────┐ │
 │ │ Card                                     │ │
 │ │  [CheckSquareOutlined アイコン (48px)]   │ │
 │ │  進捗確認                                │ │
 │ │  プロジェクトを選択してください           │ │
+│ └─────────────────────────────────────────┘ │
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐
+│ メソッドなし時                               │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Card                                     │ │
+│ │  [CheckSquareOutlined アイコン (48px)]   │ │
+│ │  メソッドが見つかりません                │ │
+│ │  このプロジェクトにはメソッドが登録されて │ │
+│ │  いません                                │ │
 │ └─────────────────────────────────────────┘ │
 └─────────────────────────────────────────────┘
 
@@ -64,6 +84,7 @@
 └─────────────────────────────────────────────┘
 
 モーダル:
+- IssueReportModal（問題報告）
 - IssueManagementModal（問題確認 - 参照専用）
 ```
 
@@ -80,6 +101,7 @@
 
 #### カスタムコンポーネント
 - `ProgressCheckTable` - タスク進捗テーブル
+- `IssueReportModal` - 問題報告モーダル
 - `IssueManagementModal` - 問題確認モーダル（参照専用）
 
 #### アイコン
@@ -116,13 +138,14 @@
 
 `ProgressCheckTable`コンポーネント内で以下のアクションボタンを提供：
 
-| アクション | 説明 | 遷移先 |
-|-----------|------|--------|
-| 開始 | タスクを開始（将来実装） | - |
-| 指示確認 | 指示確認タブに遷移 | InstructionConfirmationTab（タブ2） |
-| 実験記録 | 実験記録タブに遷移 | ExperimentRecordTab（タブ3） |
-| 問題確認 | 問題確認モーダルを開く（参照専用） | IssueManagementModal |
-| 強制終了 | タスクを強制終了（将来実装） | - |
+| アクション | アクションキー | 説明 | 遷移先 |
+|-----------|-------------|------|--------|
+| 開始 | `start` | タスクを開始（API連携・楽観的ロック対応） | - |
+| 指示確認 | `instruction` | 指示確認タブに遷移 | InstructionConfirmationTab（タブ2） |
+| 実験記録 | `record` | 実験記録タブに遷移 | ExperimentRecordTab（タブ3） |
+| 問題報告 | `issue` | 問題報告モーダルを開く | IssueReportModal |
+| 問題確認 | `issueCheck` | 問題確認モーダルを開く（参照専用） | IssueManagementModal |
+| 強制終了 | `forceTerminate` | タスクを強制終了（API連携・楽観的ロック対応） | - |
 
 ---
 
@@ -145,40 +168,81 @@
 ```typescript
 switch (action) {
   case 'start':
-    // 今後実装予定
-    message.info('タスク開始機能は今後実装予定です');
+    // タスク開始処理（API連携・楽観的ロック対応）
+    await updateTaskStatus(
+      selectedProjectName,
+      task.methodId,
+      task.taskNo,
+      'in_progress',
+      undefined,      // comment（オプショナル）
+      task.updatedAt  // currentUpdatedAt（楽観的ロック用）
+    );
+    message.success('タスクを開始しました');
+    // タスク一覧を再取得して最新の状態を反映
+    await refreshTasks();
     break;
 
   case 'instruction':
-    // 指示確認タブへ遷移
+    // 指示確認タブへ遷移（メソッドとタスクを選択状態にする）
     if (onSelectTaskAndTab) {
-      onSelectTaskAndTab(taskId, '2'); // タブ2
+      onSelectTaskAndTab(taskId, '2'); // 指示確認タブ
+      message.info('指示確認タブに移動します');
+    } else {
+      // フォールバック: メソッドのみ選択
+      if (task.methodId) onSelectMethod(task.methodId);
+      if (onTabChange) onTabChange('2');
     }
     break;
 
   case 'record':
-    // 実験記録タブへ遷移
+    // 実験記録タブへ遷移（タスクを選択状態にする）
     if (onSelectTaskAndTab) {
-      onSelectTaskAndTab(taskId, '3'); // タブ3
+      onSelectTaskAndTab(taskId, '3'); // 実験記録タブ
+      message.info('実験記録タブに移動します');
+    } else if (onTabChange) {
+      onTabChange('3');
     }
     break;
-  
+
+  case 'issue':
+    // 問題報告モーダルを開く
+    handleOpenIssueReport(task);
+    break;
+
   case 'issueCheck':
     // 問題確認モーダルを開く（参照専用）
     handleOpenIssueCheck(task);
     break;
 
   case 'forceTerminate':
-    // 今後実装予定
-    message.info('強制終了機能は今後実装予定です');
+    // 強制終了処理（API連携・楽観的ロック対応）
+    await updateTaskStatus(
+      selectedProjectName,
+      task.methodId,
+      task.taskNo,
+      'forced_terminated',
+      undefined,      // comment（オプショナル）
+      task.updatedAt  // currentUpdatedAt（楽観的ロック用）
+    );
+    message.success('タスクを強制終了しました');
+    // タスク一覧を再取得して最新の状態を反映
+    await refreshTasks();
     break;
 }
 ```
+
+**エラーハンドリング（`start` / `forceTerminate` 共通）:**
+- `403`: 「このタスクを操作する権限がありません」
+- `404`: 「タスクが見つかりません」
+- `409`: 「このタスクは他のユーザーによって更新されました」 → タスク一覧を再取得
+- その他: 「タスクの更新中にエラーが発生しました」
 
 ### 4.3 モーダルイベント
 
 | イベント名 | トリガー | 処理内容 |
 |-----------|---------|---------|
+| handleOpenIssueReport | 問題報告ボタンクリック | 選択したタスクを設定し、IssueReportModalを開く |
+| handleCloseIssueReport | 問題報告モーダルを閉じる | モーダルを非表示、選択タスクをクリア |
 | handleOpenIssueCheck | 問題確認ボタンクリック | 選択したタスクを設定し、IssueManagementModalを開く（参照専用） |
 | handleCloseIssueCheck | 問題確認モーダルを閉じる | モーダルを非表示、選択タスクをクリア |
 
@@ -191,43 +255,39 @@ switch (action) {
 ```typescript
 interface ProgressCheckTabProps {
   selectedProject: string | null;              // 選択中のプロジェクトID
+  selectedProjectName: string;                 // 選択中のプロジェクト名（API呼び出しに使用）
   onProjectChange: (projectId: string) => void; // プロジェクト変更ハンドラ
   selectedMethodId: string | null;             // 選択中のメソッドID
   onSelectMethod: (methodId: string) => void;  // メソッド選択ハンドラ
   onTabChange?: (tabKey: string) => void;      // タブ変更ハンドラ
   onSelectTaskAndTab?: (taskId: string, tabKey: string) => void; // タスク選択＋タブ遷移
+  readOnly?: boolean;                          // trueのとき強制終了ボタンを無効化（オーバーレイ閲覧モード用）
 }
 ```
 
 ### 5.2 State（内部状態）
 
 ```typescript
-// プロジェクト変更時に実験順序が最も小さいメソッドを自動選択
-useEffect(() => {
-  if (methods.length > 0) {
-    // 実験順序でソートして最も小さいメソッドを選択
-    const sortedMethods = [...methods].sort((a, b) => a.experimentOrder - b.experimentOrder);
-    onSelectMethod(sortedMethods[0].methodId);
-  }
-}, [methods, onSelectMethod]);
+// API連携の状態管理
+const [loading, setLoading] = useState<boolean>(false);         // データ取得中フラグ
+const [methods, setMethods] = useState<Method[]>([]);           // メソッド一覧
+const [tasks, setTasks] = useState<Task[]>([]);                 // タスク一覧（全メソッド分）
+const [projectId, setProjectId] = useState<string | null>(null); // APIから取得したプロジェクトID
+
+// プロジェクトステータス（暫定: APIから取得できるまでnull）
+const projectStatus: ProjectStatus | null = null;
+
+// 自動メソッド選択の制御
+const prevProjectRef = useRef<string | null>(null);             // 前回のプロジェクトID（変更検知用）
+const [needsAutoSelect, setNeedsAutoSelect] = useState<boolean>(false); // 自動選択フラグ
 ```
 
-**注意**: `!selectedMethodId`条件と依存配列の`selectedMethodId`を削除しています。
-これにより、プロジェクト切り替え時（methodsが変わるとき）に確実にメソッドが自動選択されます。
+**注意**: プロジェクト変更時は `needsAutoSelect` フラグを使った2段階の自動選択ロジックで制御します。
+これにより、プロジェクト切り替え時に確実に最初のメソッドが自動選択されます。
 
 ### 5.3 算出データ
 
 ```typescript
-// プロジェクトステータス
-const projectStatus: ProjectStatus | null = selectedProject 
-  ? projectsData[selectedProject]?.status ?? null
-  : null;
-
-// メソッド一覧（useMemo）
-const methods = useMemo<Method[]>(() => {
-  return selectedProject ? projectsData[selectedProject]?.methods || [] : [];
-}, [selectedProject]);
-
 // メソッドタブ（useMemo）
 const methodTabs = useMemo(() => {
   return methods.map((method) => {
@@ -246,59 +306,130 @@ const methodTabs = useMemo(() => {
 }, [methods, tasks, projectStatus, handleTaskAction, token, getMethodStatus]);
 ```
 
+**注意**: `methods` と `tasks` はAPIから取得した値をStateとして保持しており、`useMemo` ではなく `useState` で管理します。
+
 ### 5.4 useEffect
 
 ```typescript
-// プロジェクト変更時に最初のメソッドを自動選択
+// ① プロジェクト選択時にAPIでタスク一覧を取得
 useEffect(() => {
-  if (methods.length > 0 && !selectedMethodId) {
-    onSelectMethod(methods[0].methodId);
-  }
-}, [methods, selectedMethodId, onSelectMethod]);
-
-// プロジェクト内の全メソッドのタスクを取得
-useEffect(() => {
-  if (selectedProject) {
-    const projectData = projectsData[selectedProject];
-    const allTasks: Task[] = [];
-    
-    if (projectData?.methods) {
-      projectData.methods.forEach((method: Method) => {
-        if (method.tasks) {
-          const tasksWithIds = method.tasks.map((task: Task) => ({
-            ...task,
-            projectId: selectedProject,
-            methodId: method.methodId,
-          }));
-          allTasks.push(...tasksWithIds);
-        }
-      });
+  const fetchWorkerTasks = async () => {
+    if (!selectedProject || !selectedProjectName) {
+      setMethods([]);
+      setTasks([]);
+      setProjectId(null);
+      return;
     }
-    
-    setTasks(allTasks);
-  } else {
-    setTasks([]);
+    setLoading(true);
+    try {
+      const result = await getWorkerTasks(selectedProjectName);
+      if (result.success && result.data) {
+        const apiData = result.data;
+        setProjectId(apiData.project_id);
+        
+        // メソッド一覧を変換（UI用の型に変換）
+        const methodsData: Method[] = apiData.methods.map((method: WorkerMethod) => ({
+          methodId: method.method_id,
+          methodName: method.method_name,
+          experimentOrder: method.experiment_order,
+          description: '',        // APIには存在しないためデフォルト値
+          category: 'experiment', // APIには存在しないためデフォルト値
+          transitions: [],        // APIには存在しないためデフォルト値
+        }));
+        
+        // 全タスクを変換（全メソッド分をフラット化）
+        const allTasks: Task[] = apiData.methods.flatMap((method: WorkerMethod) =>
+          method.tasks.map((task: WorkerTask) => ({
+            taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
+            taskNo: task.task_no.toString(),
+            taskName: task.task_no.toString(), // task_nameカラム削除のためtask_noを代用
+            methodId: method.method_id,
+            methodName: method.method_name,
+            status: task.task_status as Task['status'],
+            assignedUserId: task.experiment_user_id,
+            assignedUserName: task.experiment_user_name,
+            createdAt: task.created_at,
+            updatedAt: task.updated_at,
+            projectId: apiData.project_id,
+            sampleNumber: '',
+            notes: '',
+            progressRate: parseFloat(task.progress_rate) || 0,
+            transitionStatuses: [],
+            progressReport: '',
+            recordNumber: '',
+          }))
+        );
+        
+        setMethods(methodsData);
+        setTasks(allTasks);
+        
+        // API取得完了後、最初のメソッドを自動選択
+        if (methodsData.length > 0) {
+          const sortedMethods = [...methodsData].sort((a, b) => a.experimentOrder - b.experimentOrder);
+          onSelectMethod(sortedMethods[0].methodId);
+        }
+        message.success('タスク一覧を取得しました');
+      } else {
+        message.error('タスク一覧の取得に失敗しました');
+        setMethods([]);
+        setTasks([]);
+      }
+    } catch (error) {
+      message.error('タスク一覧の取得中にエラーが発生しました');
+      setMethods([]);
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchWorkerTasks();
+}, [selectedProject, selectedProjectName]);
+
+// ② プロジェクト変更を検知して自動選択フラグをセット
+useEffect(() => {
+  if (selectedProject !== prevProjectRef.current) {
+    prevProjectRef.current = selectedProject;
+    setNeedsAutoSelect(true);
   }
 }, [selectedProject]);
+
+// ③ メソッドが更新されたら自動選択
+// - needsAutoSelect=true（プロジェクト変更後）: 先頭メソッドを強制選択
+// - selectedMethodId=null（初回表示時など）: 通常の自動選択
+useEffect(() => {
+  if (methods.length > 0 && needsAutoSelect) {
+    const sortedMethods = [...methods].sort((a, b) => a.experimentOrder - b.experimentOrder);
+    onSelectMethod(sortedMethods[0].methodId);
+    setNeedsAutoSelect(false);
+  } else if (methods.length > 0 && !selectedMethodId && !needsAutoSelect) {
+    const sortedMethods = [...methods].sort((a, b) => a.experimentOrder - b.experimentOrder);
+    onSelectMethod(sortedMethods[0].methodId);
+  }
+}, [methods, needsAutoSelect, selectedMethodId, onSelectMethod]);
 ```
 
 ### 5.5 使用するAPI
 
-| API | メソッド | 用途 | 実装状況 |
-|-----|---------|------|---------|
-| タスク一覧取得API | GET | プロジェクト内の全タスク取得 | モックデータ使用中 |
-| タスクステータス更新API | PUT | タスクステータスの更新 | TODO |
-| 問題報告API | POST | 問題報告の送信 | ✅ 完了 |
-| コメント投稿API | POST | 問題へのコメント投稿 | ✅ 完了 |
-| 問題一覧取得API | GET | 問題一覧取得 | ✅ 完了 |
-| 問題詳細取得API | GET | 問題詳細とコメント一覧取得 | ✅ 完了 |
-| 問題ステータス変更API | PATCH | 問題ステータスの変更 | ✅ 完了 |
+| API | メソッド | 用途 | 実装状況 | サービス関数 |
+|-----|---------|------|---------|------------|
+| タスク一覧取得API | GET | プロジェクト内の全タスク取得 | ✅ 完了 | `getWorkerTasks(projectName)` |
+| タスクステータス更新API | PUT | タスクステータスの更新（楽観的ロック対応） | ✅ 完了 | `updateTaskStatus(projectName, methodId, taskNo, status, comment, currentUpdatedAt)` |
+| 問題報告API | POST | 問題報告の送信 | ✅ 完了 | - |
+| コメント投稿API | POST | 問題へのコメント投稿 | ✅ 完了 | - |
+| 問題一覧取得API | GET | 問題一覧取得 | ✅ 完了 | - |
+| 問題詳細取得API | GET | 問題詳細とコメント一覧取得 | ✅ 完了 | - |
+| 問題ステータス変更API | PATCH | 問題ステータスの変更 | ✅ 完了 | - |
+
+**タスクステータス更新時のエラーハンドリング:**
+- `403`: 権限なしエラー
+- `404`: タスク未存在エラー
+- `409`: 楽観的ロック競合エラー（他ユーザーが先に更新） → タスク一覧を再取得して最新状態を反映
 
 ### 5.6 データソース
 
-- `projectsData` - プロジェクトマスターデータ（モック）
-- `getTasksByProjectAndMethod` - プロジェクトとメソッドに紐づくタスク取得（モック）
-- `updateTaskStatus` - タスクステータス更新（モック）
+- `getWorkerTasks` - プロジェクト名を指定してメソッド・タスク一覧を取得（`@/services/projectApiService`）
+- `updateTaskStatus` - タスクステータス更新（楽観的ロック対応）（`@/services/projectApiService`）
+- `WorkerTasksResponse`, `WorkerMethod`, `WorkerTask` - APIレスポンスの型定義（`@/services/projectApiService`）
 
 ---
 
@@ -334,6 +465,8 @@ useEffect(() => {
 
 ```
 ProgressCheckTab
+  ├→ IssueReportModal（問題報告）
+  │   └→ 閉じる
   └→ IssueManagementModal（問題確認 - 参照専用）
       └→ 閉じる
 ```
@@ -361,9 +494,10 @@ ProgressCheckTab
 
 ### 9.1 最適化
 
-- `methods`は`useMemo`でメモ化
+- `methods`・`tasks`・`projectId`・`loading` は `useState` で管理（APIから取得したデータ）
 - `methodTabs`は`useMemo`でメモ化
 - `handleTaskAction`は`useCallback`でメモ化
+- `getMethodStatus`は`useCallback`でメモ化
 
 ### 9.2 データ量
 
@@ -395,8 +529,8 @@ ProgressCheckTab
        return { status: 'success', label: '完了' };
      }
      
-     // 作業中・開始済みのタスクがあれば作業中
-     if (methodTasks.some(t => ['in_progress', 'started'].includes(t.status))) {
+     // 作業中のタスクがあれば作業中（'in_progress'のみ対象）
+     if (methodTasks.some(t => t.status === 'in_progress')) {
        return { status: 'processing', label: '作業中' };
      }
      
@@ -414,12 +548,10 @@ ProgressCheckTab
 
 ### 10.2 将来の拡張
 
-1. タスク開始機能の実装
-2. 強制終了機能の実装
-3. タスクフィルタリング機能（ステータス、期限）
-4. タスクソート機能
-5. 承認依頼機能（プロジェクト単位）
-6. リアルタイム進捗更新（WebSocket）
+1. タスクフィルタリング機能（ステータス、期限）
+2. タスクソート機能
+3. 承認依頼機能（プロジェクト単位）
+4. リアルタイム進捗更新（WebSocket）
 
 ### 10.3 関連ドキュメント
 
@@ -433,3 +565,4 @@ ProgressCheckTab
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-19 | 初版作成 | Cline |
+| 1.1.0 | 2026-03-11 | ソースコード差分に基づく仕様書修正（Props追加・API連携実装反映・IssueReportModal追加・アクション処理更新・ローディング状態追加） | Cline |
