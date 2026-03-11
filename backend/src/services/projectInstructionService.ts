@@ -78,7 +78,7 @@ export async function getInstructions(
  * @remarks
  * タスク数のカウントは削除しました。
  * タスク登録は別途タスク登録タブで管理されるため、
- * ここではプロジェクトステータスのみを確認します。
+ * 指示送信はどのステータスでも可能です。
  */
 export async function getTaskRegistrationStatus(
   organizationId: string,
@@ -92,15 +92,12 @@ export async function getTaskRegistrationStatus(
   }
   
   const projectStatus = project.project_status ?? 0;
-  // タスク登録有無に関わらず、プロジェクトステータスが0,3,5なら送信可能
-  // 0=計画中, 3=承認待ち, 5=異常終了
-  const canSendInstructions = [0, 3, 5].includes(projectStatus);
   
   return {
     hasRegisteredTasks: true, // 常にtrue（タスク登録タブで管理されるため）
     taskCount: 0, // 使用しない
     projectStatus,
-    canSendInstructions
+    canSendInstructions: true // 常にtrue（ステータスに関わらず送信可能）
   };
 }
 
@@ -281,9 +278,9 @@ export async function deleteInstruction(
  * @remarks
  * トランザクション処理:
  * 1. 未送信指示のステータスを送信済に更新
- * 2. プロジェクトステータスを0→1に更新
  * 
  * タスク作成は別途タスク登録タブで実施されるため、このAPIでは行いません。
+ * プロジェクトステータスに関わらず指示送信が可能です。
  * 
  * @param organizationId 組織ID
  * @param projectId プロジェクトID
@@ -307,21 +304,6 @@ export async function sendInstructions(
     
     if (!project) {
       throw new Error('プロジェクトが見つかりません');
-    }
-
-    // プロジェクトステータスが0（計画中）、3（承認待ち）、5（異常終了）のいずれかでない場合はエラー
-    const allowedStatuses = [0, 3, 5];
-    if (!allowedStatuses.includes(project.project_status ?? -1)) {
-      const statusNames: Record<number, string> = {
-        0: '計画中',
-        1: 'タスク実行待ち',
-        2: 'タスク実行中',
-        3: '承認待ち',
-        4: '完了',
-        5: '異常終了'
-      };
-      const currentStatusName = statusNames[project.project_status ?? -1] || '不明';
-      throw new Error(`指示送信は計画中、承認待ち、異常終了のステータスでのみ可能です（現在: ${currentStatusName}）`);
     }
     
     // 未送信指示を取得
