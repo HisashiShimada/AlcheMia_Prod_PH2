@@ -96,9 +96,6 @@ export interface ProgressData {
   /** タスク連番 */
   task_no: number;
   
-  /** タスク名 */
-  task_name: string;
-  
   /** トランジション進捗情報配列 */
   transitions: TransitionProgress[];
   
@@ -203,14 +200,10 @@ export interface ParsedMethod {
  * 
  * @description TaskRepositoryのgetTaskByProjectMethodTaskNoメソッドの返却型
  * @remarks
- * - task_name: project_task.task_name（メソッド名として使用）
  * - task_no: project_task_detail.task_no（タスク連番）
  * @requirements Requirement 1: 進捗データ取得機能
  */
 export interface TaskWithProject {
-  /** タスク名（project_task.task_name） */
-  task_name: string;
-  
   /** プロジェクトID */
   project_id: string;
   

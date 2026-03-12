@@ -240,9 +240,8 @@ export class ProgressService {
         project_id: task.project_id,
         project_name: task.project_name,
         method_id: task.method_id,
-        method_name: task.task_name,  // project_task.task_name をメソッド名として使用
+        method_name: task.method_id,  // method_idをメソッド名として使用
         task_no: task.task_no,        // project_task_detail.task_no
-        task_name: task.task_name,
         transitions,
         overall_progress: overallProgress
       };
@@ -991,7 +990,7 @@ export class ProgressService {
 
       // 6. タスク進捗率を再計算
       // TODO: project_taskテーブルにprogress_rateカラムが存在しないため、現在はスキップ
-      // project_taskテーブルのスキーマ: organization_id, project_id, method_id, experiment_order, task_name, experiment_condition, attempts_count
+      // project_taskテーブルのスキーマ: organization_id, project_id, method_id, experiment_order, experiment_condition, attempts_count
       // 進捗率カラム追加後に実装する
 
       await client.query('COMMIT');

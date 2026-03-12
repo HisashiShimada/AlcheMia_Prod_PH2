@@ -295,7 +295,6 @@ export async function findTaskDetail(
     projectName:         row.project_name as string,
     methodId:            row.method_id as string,
     experimentOrder:     Number(row.experiment_order),
-    taskName:            row.task_name as string | null,
     taskNo:              Number(row.task_no),
     taskStatus:          toTaskStatusString(row.task_status as number | null),
     taskStatusNum:       row.task_status !== null ? Number(row.task_status) : null,
@@ -337,6 +336,32 @@ export interface TaskDetailInsertData {
 }
 
 /**
+ * 特定メソッドの最大task_noを取得（トランザクション内）
+ * 
+ * @param t pg-promiseトランザクションオブジェクト
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param methodId メソッドID
+ * @returns 最大task_no（レコードが存在しない場合は0）
+ */
+export async function findMaxTaskNoByMethod(
+  t: ITask<unknown>,
+  organizationId: string,
+  projectId: string,
+  methodId: string
+): Promise<number> {
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('project_task_detail/findMaxTaskNoByMethod.sql');
+  
+  const result = await t.oneOrNone<{ max_task_no: number }>(
+    sqlQuery,
+    [organizationId, projectId, methodId]
+  );
+  
+  return result?.max_task_no ?? 0;
+}
+
+/**
  * プロジェクト単位でタスク詳細を削除（トランザクション内）
  * タスク登録保存時に既存レコードをクリアする際に使用
  * 
@@ -356,8 +381,32 @@ export async function deleteByProject(
 }
 
 /**
+ * プロジェクト単位でタスク詳細を削除（特定ステータスのみ、トランザクション内）
+ * タスク登録保存時に task_status=0（未着手）のレコードのみを削除する際に使用
+ * 
+ * @param t pg-promiseトランザクションオブジェクト
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param taskStatus 削除対象のタスクステータス（0=未着手、1=実行中、2=レビュー待ち、3=完了、4=異常終了）
+ */
+export async function deleteByProjectAndStatus(
+  t: ITask<unknown>,
+  organizationId: string,
+  projectId: string,
+  taskStatus: number
+): Promise<void> {
+  // 外部SQLファイルを読み込み
+  const sqlQuery = await loadSqlFile('project_task_detail/deleteByProjectAndStatus.sql');
+  
+  await t.none(sqlQuery, [organizationId, projectId, taskStatus]);
+}
+
+/**
  * タスク詳細の一括INSERT（トランザクション内）
  * タスク登録保存時に新規レコードを作成する際に使用
+ * 
+ * @remarks
+ * 既存レコードを保持し、新規レコードのtask_noは既存の最大値+1から採番する
  * 
  * @param t pg-promiseトランザクションオブジェクト
  * @param organizationId 組織ID
@@ -376,8 +425,21 @@ export async function batchInsert(
   const sqlQuery = await loadSqlFile('project_task_detail/insert.sql');
   
   for (const task of tasks) {
-    // 各タスクのtrialCount分のレコードを作成
-    for (let taskNo = 1; taskNo <= task.trialCount; taskNo++) {
+    // 既存の最大task_noを取得
+    const maxTaskNo = await findMaxTaskNoByMethod(
+      t,
+      organizationId,
+      projectId,
+      task.methodId
+    );
+    
+    // 既存の最大値+1から採番
+    const startTaskNo = maxTaskNo + 1;
+    
+    // 各タスクのtrialCount分のレコードを作成（連番で追加）
+    for (let i = 0; i < task.trialCount; i++) {
+      const taskNo = startTaskNo + i;
+      
       await t.none(sqlQuery, [
         organizationId,
         projectId,
