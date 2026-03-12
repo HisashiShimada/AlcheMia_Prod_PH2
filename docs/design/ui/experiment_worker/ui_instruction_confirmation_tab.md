@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/InstructionConfirmationTab.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-01-19
+- **最終更新日**: 2026-03-11
 
 ---
 
@@ -121,12 +121,14 @@
 
 ### 3.2 ボタン
 
-| ボタン名 | タイプ | 表示条件 | アクション |
-|---------|--------|---------|-----------|
-| 選択 | default | プロジェクト選択時 | メソッド・タスク選択モーダルを開く |
-| フロー図 | default + NodeIndexOutlined | プロジェクト選択時 | InstructionFlowDialogを開く |
-| 確認完了（グループ単位） | primary + success色 | プロジェクト指示グループ展開時 & 指示が存在 | プロジェクト指示の一括確認完了（モック） |
-| 全ての指示の確認完了 | primary + success色 + large | 常時表示 | 全ての指示を確認完了にする（モック） |
+| ボタン名 | タイプ | 表示条件 | 無効化条件 | アクション |
+|---------|--------|---------|-----------|-----------|
+| 選択 | default | プロジェクト選択後 | プロジェクト未選択 or ローディング中 | メソッド・タスク選択モーダルを開く |
+| フロー図 | default + NodeIndexOutlined | プロジェクト選択後 | フロー図ローディング中 or プロジェクト未選択 | `handleOpenFlowDiagram` → APIでMAIMLを取得しInstructionFlowDialogを開く |
+| 確認完了（プロジェクト指示グループ） | primary + success色 + CheckCircleOutlined | プロジェクト指示グループ展開時 & 指示が1件以上存在 | `readOnly` = true or 全件確認済み or 処理中 | `handleConfirmProjectInstructions` → Modal.confirmで確認後、APIで一括確認完了 |
+| 確認完了（タスク指示グループ） | primary + success色（InstructionGroup内） | タスク指示グループ展開時（InstructionGroup側で制御） | `readOnly` = true or 処理中 | `handleConfirmTaskInstructions` → Modal.confirmで確認後、APIで一括確認完了 |
+| 確認完了（トランジション指示グループ） | primary + success色（InstructionGroup内） | トランジション指示グループ展開時（InstructionGroup側で制御） | `readOnly` = true or 処理中 | `handleConfirmTransitionInstructions` → Modal.confirmで確認後、APIで一括確認完了 |
+| 全ての指示の確認完了 | primary + success色 + large + CheckCircleOutlined | 常時表示 | `readOnly` = true or 指示0件 or 全件確認済み or 処理中 | `handleConfirmAllInstructions` → Modal.confirmで確認後、全未確認指示をAPIで一括確認完了 |
 
 ### 3.3 表示項目
 
@@ -158,12 +160,16 @@
 
 | イベント名 | トリガー | 処理内容 |
 |-----------|---------|---------|
-| handleOpenFlowDiagram | フロー図ボタンクリック | InstructionFlowDialogを開く（複数同時表示可能） |
+| handleOpenFlowDiagram | フロー図ボタンクリック | `getProjectMaiml()` でMAIMLコンテンツを取得し、InstructionFlowDialogを開く（複数同時表示可能） |
 | handleCloseDialog | ダイアログ閉じる | ダイアログ一覧から削除 |
 | handleFocusDialog | ダイアログクリック | 該当ダイアログを最前面に表示（z-index更新） |
 | handleOpenSubNetViewer | サブネット表示ボタンクリック | SubNetViewerを開く |
 | handleCloseSubNetViewer | SubNetViewer閉じる | SubNetViewerを非表示 |
-| handleConfirmAllInstructions | 全ての指示の確認完了ボタンクリック | 全指示を確認済みに更新（確認ダイアログ表示 → API呼び出し） |
+| confirmInstructions | 指示確認共通処理 | 指定した指示一覧を順番に `confirmInstruction()` APIで確認完了にする共通関数。成功・失敗件数を表示し、完了後に `onInstructionsUpdated()` で一覧を再取得 |
+| handleConfirmProjectInstructions | プロジェクト指示グループの確認完了ボタンクリック | `Modal.confirm` で確認後、未確認のプロジェクト指示を一括確認完了（`confirmInstructions` 呼び出し） |
+| handleConfirmTaskInstructions | タスク指示グループの確認完了ボタンクリック（InstructionGroup経由） | `Modal.confirm` で確認後、未確認のタスク指示を一括確認完了（`confirmInstructions` 呼び出し） |
+| handleConfirmTransitionInstructions | トランジション指示グループの確認完了ボタンクリック（InstructionGroup経由） | `Modal.confirm` で確認後、未確認のトランジション指示を一括確認完了（`confirmInstructions` 呼び出し） |
+| handleConfirmAllInstructions | 全ての指示の確認完了ボタンクリック | `Modal.confirm` で確認後、全未確認指示を一括確認完了（`confirmInstructions` 呼び出し） |
 
 ### 4.3 選択イベント
 
@@ -181,6 +187,7 @@
 ```typescript
 interface InstructionConfirmationTabProps {
   selectedProject: string;                    // 選択中のプロジェクトID
+  selectedProjectName: string;                // 選択中のプロジェクト名（APIリクエストに使用）
   onProjectChange: (value: string) => void;   // プロジェクト変更ハンドラ
   selectedMethodId: string | null;            // 選択中のメソッドID
   onSelectMethod: (methodId: string | null) => void; // メソッド選択ハンドラ
@@ -191,12 +198,21 @@ interface InstructionConfirmationTabProps {
   isClient: boolean;                          // クライアント側レンダリングフラグ
   expandedGroups: Record<string, boolean>;    // グループ展開状態
   toggleGroup: (groupKey: string) => void;    // グループ展開切り替えハンドラ
+  onInstructionsUpdated: () => Promise<void>; // 指示確認完了後の再取得ハンドラ
+  readOnly?: boolean;                         // trueのとき確認完了ボタンを無効化（オーバーレイ閲覧モード用）
 }
 ```
 
 ### 5.2 State（内部状態）
 
 ```typescript
+// API連携の状態管理
+const [loading, setLoading] = useState<boolean>(false);           // タスク一覧取得中フラグ
+const [confirmLoading, setConfirmLoading] = useState<boolean>(false); // 指示確認完了処理中フラグ
+const [methods, setMethods] = useState<Method[]>([]);             // APIから取得したメソッド一覧
+const [tasks, setTasks] = useState<Task[]>([]);                   // APIから取得した全タスク一覧
+const [projectId, setProjectId] = useState<string | null>(null);  // APIから取得したプロジェクトID
+
 // ViewRendererDialogの管理
 const [viewerDialogs, setViewerDialogs] = useState<Array<{
   id: string;
@@ -204,6 +220,7 @@ const [viewerDialogs, setViewerDialogs] = useState<Array<{
   zIndex: number;
 }>>([]);
 const [nextZIndex, setNextZIndex] = useState(999999);
+const [flowDiagramLoading, setFlowDiagramLoading] = useState(false); // フロー図読み込み中フラグ
 
 // SubNetViewerの管理
 const [subnetData, setSubnetData] = useState<SubnetData | null>(null);
@@ -215,22 +232,12 @@ const [isModalVisible, setIsModalVisible] = useState(false);
 ### 5.3 算出データ
 
 ```typescript
-// プロジェクト情報（useMemo）
-const projectInfo = useMemo(() => {
-  if (!selectedProject) return null;
-  return projectsData[selectedProject];
-}, [selectedProject]);
-
-// メソッド情報（useMemo）
-const methodInfo = useMemo(() => {
-  if (!selectedMethodId || !projectInfo) return null;
-  return projectInfo.methods?.find((m) => m.methodId === selectedMethodId);
-}, [selectedMethodId, projectInfo]);
-
-// タスク一覧
-const tasks = selectedProject && methodInfo
-  ? methodInfo.tasks || []
-  : [];
+// 選択されたメソッドに紐づくタスクをフィルタリング（useMemo）
+// ※ tasks は State から取得（APIで取得した全タスク一覧）
+const filteredTasks = useMemo(() => {
+  if (!selectedMethodId) return tasks;
+  return tasks.filter(task => task.methodId === selectedMethodId);
+}, [tasks, selectedMethodId]);
 
 // フィルタ済み指示一覧（useMemo）
 const filteredInstructions = useMemo(() => {
@@ -245,7 +252,7 @@ const filteredInstructions = useMemo(() => {
       if (selectedMethodId && instruction.methodId !== selectedMethodId) {
         return false;
       }
-      // タスク未選択の場合は選択されたメソッドの全てのタスクの作業指示を表示
+      // タスク未選択の場合（空文字列または'new'）は選択されたメソッドの全てのタスクの作業指示を表示
       if (!selectedTaskId || selectedTaskId === '' || selectedTaskId === 'new') {
         return true;
       }
@@ -266,25 +273,24 @@ const filteredStats = useMemo(() => {
   return {
     total: filteredInstructions.length,
     file: fileInstructions.length,
-    method: taskInstructions.length,
+    method: taskInstructions.length, // 後方互換性のためmethodキーを残すがtaskInstructionsを使用
     transition: transitionInstructions.length,
     unread: unreadInstructions.length,
   };
 }, [filteredInstructions]);
 
-// プロジェクトステータス
-const projectStatus: ProjectStatus | null = selectedProject 
-  ? getProjectStatus(selectedProject)
-  : null;
+// プロジェクトステータス（暫定: APIから取得できるまでnull固定）
+const projectStatus: ProjectStatus | null = null;
 ```
 
 ### 5.4 使用するAPI
 
-| API | メソッド | エンドポイント | 用途 | 実装状況 |
-|-----|---------|--------------|------|---------|
-| 指示一覧取得API | GET | `/api/v1/instructions` | 作業指示一覧の取得 | TODO |
-| 指示確認API | PUT | `/api/v1/instructions/{instructionId}/confirm` | 指示の確認完了 | TODO |
-| MAIMLファイル取得API | GET | `/api/v1/projects/:projectId/maiml` | フロー図表示用のMAIMLファイル取得 | TODO |
+| API | サービス関数 | メソッド | エンドポイント | 用途 | 実装状況 |
+|-----|------------|---------|--------------|------|---------|
+| タスク一覧取得API | `getWorkerTasks(projectName)` | GET | `/api/v1/worker/tasks` | メソッド・タスク一覧をAPIから取得（`useEffect`でプロジェクト選択時に呼び出し） | 実装済み |
+| 指示一覧取得API | （親コンポーネントから`sortedInstructions`として受け取り） | GET | `/api/v1/instructions` | 作業指示一覧の取得（本コンポーネントでは直接呼び出さない） | 親側で実装 |
+| 指示確認API | `confirmInstruction(projectName, instructionId)` | PUT | `/api/v1/instructions/{instructionId}/confirm` | 指示の確認完了（`confirmInstructions`共通処理から呼び出し） | 実装済み |
+| MAIMLファイル取得API | `getProjectMaiml(projectName)` | GET | `/api/v1/projects/:projectName/maiml` | フロー図表示用のMAIMLファイル取得（`handleOpenFlowDiagram`から呼び出し） | 実装済み |
 
 **指示一覧取得API詳細:**
 - **クエリパラメータ**: 
@@ -304,7 +310,8 @@ const projectStatus: ProjectStatus | null = selectedProject
 
 ### 5.5 データソース
 
-- `projectsData` - プロジェクトマスターデータ（モック）
+- メソッド・タスク一覧: `getWorkerTasks()` API から取得（**モックデータ廃止済み**）
+- 指示一覧: 親コンポーネントから `sortedInstructions` props として受け取る
 
 ---
 
@@ -318,24 +325,75 @@ const projectStatus: ProjectStatus | null = selectedProject
 
 ### 6.2 確認完了時のチェック
 
+確認完了ボタン押下時は `Modal.confirm`（Ant Design）でダイアログを表示し、確認後に API を呼び出します。`window.alert` / `window.confirm` は使用しません。
+
 ```typescript
-const handleConfirmAllInstructions = () => {
-  const unreadCount = filteredStats.unread;
-  
-  if (unreadCount === 0) {
-    alert('全ての指示は既に確認済みです');
+// 共通確認処理（各ハンドラから呼び出し）
+const confirmInstructions = async (instructions: Instruction[], groupName: string) => {
+  if (!selectedProjectName) {
+    message.error('プロジェクトが選択されていません');
     return;
   }
-  
-  const confirmed = window.confirm(
-    `全ての指示（${filteredStats.total}件中${unreadCount}件未読）を確認完了にしますか？`
-  );
-  
-  if (confirmed) {
-    // TODO: API呼び出し
+  if (instructions.length === 0) {
+    message.warning('確認する指示がありません');
+    return;
+  }
+
+  setConfirmLoading(true);
+  let successCount = 0;
+  let failCount = 0;
+
+  try {
+    for (const instruction of instructions) {
+      const result = await confirmInstruction(selectedProjectName, instruction.instructionId);
+      if (result.success) {
+        successCount++;
+      } else {
+        failCount++;
+      }
+    }
+
+    // 結果に応じてフィードバック表示
+    if (failCount === 0) {
+      message.success(`${groupName}を確認完了しました（${successCount}件）`);
+    } else if (successCount === 0) {
+      message.error(`${groupName}の確認に失敗しました（${failCount}件）`);
+    } else {
+      message.warning(`${groupName}の確認が一部失敗しました（成功: ${successCount}件、失敗: ${failCount}件）`);
+    }
+
+    // 成功件数が1件以上あれば指示一覧を再取得
+    if (successCount > 0) {
+      await onInstructionsUpdated();
+    }
+  } finally {
+    setConfirmLoading(false);
   }
 };
+
+// 全指示確認完了ハンドラ
+const handleConfirmAllInstructions = () => {
+  const unreadInstructions = filteredInstructions.filter((i) => !i.isAcknowledged);
+
+  if (unreadInstructions.length === 0) {
+    message.info('確認が必要な指示はありません');
+    return;
+  }
+
+  Modal.confirm({
+    title: '全ての指示の確認完了',
+    content: `全ての指示（${filteredStats.total}件中${unreadInstructions.length}件未確認）を確認完了にしますか？`,
+    okText: '確認完了',
+    cancelText: 'キャンセル',
+    onOk: async () => {
+      await confirmInstructions(unreadInstructions, '全ての指示');
+    },
+  });
+};
 ```
+
+**確認完了の判定フィールド:**
+- 未確認判定: `instruction.isAcknowledged === false`（`isRead` ではなく `isAcknowledged` を使用）
 
 ---
 
@@ -387,8 +445,9 @@ InstructionConfirmationTab
 
 ### 9.1 最適化
 
-- `projectInfo`, `methodInfo`, `filteredInstructions`, `filteredStats`は`useMemo`でメモ化
+- `filteredTasks`, `filteredInstructions`, `filteredStats`は`useMemo`でメモ化
 - 不要な再レンダリングを防ぐため、コールバック関数は適切にメモ化
+- プロジェクト選択時の`useEffect`で非同期API呼び出しを実施（`selectedProject`, `selectedProjectName`の変化を監視）
 
 ### 9.2 データ量
 
@@ -418,16 +477,25 @@ InstructionConfirmationTab
    - クリックで最前面に表示
 
 4. **確認完了機能**
-   - グループ単位: プロジェクト指示のみ
-   - 全体: 全ての指示を一括確認完了
+   - プロジェクト指示グループ: グループヘッダーの「確認完了」ボタンで一括確認
+   - タスク指示グループ: `InstructionGroup`コンポーネント経由で確認完了
+   - トランジション指示グループ: `InstructionGroup`コンポーネント経由で確認完了
+   - 全体: 「全ての指示の確認完了」ボタンで全グループを一括確認完了
+
+5. **空状態の判定**
+   - `!selectedProjectName`（`selectedProject`ではなく`selectedProjectName`を使用）で判定
+   - `selectedProjectName`が空文字列またはfalsy値の場合に空状態を表示
+
+6. **`readOnly`モード**
+   - `readOnly={true}` が渡された場合、全ての確認完了ボタンが無効化される
+   - オーバーレイ閲覧モード（他ユーザーの進捗確認）で使用
 
 ### 10.2 将来の拡張
 
-1. バックエンドAPI統合（指示確認完了）
-2. 指示の既読/未読状態のリアルタイム更新（WebSocket）
-3. 指示の検索・フィルタリング機能
-4. 指示へのコメント機能
-5. 指示の重要度・優先度表示
+1. 指示の既読/未読状態のリアルタイム更新（WebSocket）
+2. 指示の検索・フィルタリング機能
+3. 指示へのコメント機能
+4. 指示の重要度・優先度表示
 
 ### 10.3 関連ドキュメント
 
@@ -444,3 +512,4 @@ InstructionConfirmationTab
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-19 | 初版作成 | Cline |
+| 2.0.0 | 2026-03-11 | ソースコードとの差分を解消：Props追加（selectedProjectName/onInstructionsUpdated/readOnly）、State追加（loading/confirmLoading/methods/tasks/projectId/flowDiagramLoading）、算出データ修正（filteredTasks化・projectInfo/methodInfo削除）、イベントハンドラ追加（confirmInstructions/handleConfirmProjectInstructions/handleConfirmTaskInstructions/handleConfirmTransitionInstructions）、ボタン一覧追加（タスク・トランジション指示の確認完了）、確認完了処理をwindow.confirm→Modal.confirm+API実装済みに更新、データソースをモック→API化に更新、空状態判定をselectedProjectName使用に修正 | Cline |

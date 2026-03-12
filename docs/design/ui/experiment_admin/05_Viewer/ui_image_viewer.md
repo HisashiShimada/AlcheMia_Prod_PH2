@@ -1,473 +1,342 @@
-# ImageViewer UI仕様書
+# ImageViewer コンポーネント UI仕様書
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+ImageViewerは、画像ファイル（JPG、PNG、GIF、BMP、WebP）を表示し、拡大・縮小・リセット機能を提供するビューアコンポーネントです。署名付きURLを使用してS3から安全に画像を取得・表示します。
 
-画像ファイル（JPG、PNG、GIF等）を表示し、拡大縮小、リセット機能を提供するビューアコンポーネント。
+### 1.2 使用場面
+- プロジェクト管理画面で画像ファイルを選択した際の表示
+- 実験結果として保存された画像ファイルの閲覧
+- フローティングダイアログ内での画像表示
 
-### 1.2. 使用場面
-
-- DocumentEditDialogで画像ファイルを選択した場合
-- Result要素に添付された画像ファイルを表示する場合
-- 実験データに含まれる画像を閲覧する場合
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin（実験管理者）
+- **認証**: JWT + Session Hybrid認証
 
 ---
 
 ## 2. 画面構成
 
-### 2.1. レイアウト構造
+### 2.1 レイアウト構造
+
+#### 2.1.1 通常表示時
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│ 📷 sample_image.png                                      │
-│ [🔍+ 拡大] [🔍- 縮小] [↻ リセット]                      │
-├──────────────────────────────────────────────────────────┤
-│                                                          │
-│                                                          │
-│                   [  画像表示エリア  ]                    │
-│                   ( 800 x 600 px )                       │
-│                   倍率: 1.0x                             │
-│                                                          │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ 📷 [ファイル名]    [拡大] [縮小] [リセット] ← ツールバー  │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│                   [画像表示エリア]                       │
+│                   transform: scale()                    │
+│                                                         │
+│  ┌───────────────────────────────────────────────┐     │
+│  │ サイズ: 1920 x 1080 px                       │     │
+│  │ ズーム倍率: 1.20x                             │     │
+│  │ ファイルキー: ...                             │     │
+│  └───────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+#### 2.1.2 ロード中
 
-#### 2.2.1. ヘッダー
+```
+┌─────────────────────────────────────────────────────────┐
+│ 📷 [ファイル名]    [拡大] [縮小] [リセット] (無効化)     │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│                   🔄 Spinner                            │
+│                 画像を読み込み中...                      │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
 
-| 要素 | 説明 |
-|------|------|
-| アイコン | FileImageOutlined |
-| ファイル名 | fileName表示 |
-| ツールバー | 拡大、縮小、リセットボタン |
+#### 2.1.3 エラー時
 
-#### 2.2.2. ツールバー
+```
+┌─────────────────────────────────────────────────────────┐
+│ 📷 [ファイル名]    [拡大] [縮小] [リセット] [再読み込み]  │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ⚠️ エラー                                              │
+│  画像の読み込みに失敗しました。                          │
+│  サポートされていない形式かもしれません。                 │
+│  [再試行] ボタン                                         │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
 
-| ボタン | アイコン | 機能 |
-|-------|---------|------|
-| 拡大 | ZoomInOutlined | 画像を1.2倍に拡大 |
-| 縮小 | ZoomOutOutlined | 画像を1/1.2倍に縮小 |
-| リセット | ReloadOutlined | 倍率を1.0倍に戻す |
+### 2.2 主要UI要素
 
-**制約:**
-- 拡大上限: 5.0倍
-- 縮小下限: 0.1倍
+#### 2.2.1 ツールバー
+- **左側**: ファイルアイコン（FileImageOutlined、赤色 #CF0027）+ ファイル名（Title level 5）
+- **右側**: 操作ボタン群
+  - **拡大ボタン**: ZoomInOutlined アイコン
+  - **縮小ボタン**: ZoomOutOutlined アイコン
+  - **リセットボタン**: ReloadOutlined アイコン
+  - **再読み込みボタン**: Primary、エラー時のみ表示
 
-#### 2.2.3. 画像表示エリア
+#### 2.2.2 画像表示エリア
+- **背景色**: #f5f5f5（グレー）
+- **配置**: 中央揃え（flex: center）
+- **スクロール**: overflow: auto
+- **画像**: `<AntImage>`コンポーネント、transform: scale()でズーム
+- **プレビュー機能**: Ant Design Imageのプレビューモーダル
 
-**表示方式:**
-- Ant Design Image コンポーネントを使用
-- preview機能を有効化（クリックで拡大プレビュー）
-- transform: scale() で倍率を適用
-
-**サイズ情報:**
-- 画像の実サイズ（width x height）を表示
-- 現在の倍率を表示
-
-#### 2.2.4. ローディング状態
-
-**表示内容:**
-- Spin コンポーネント
-- LoadingOutlined アイコン
-- 「読み込み中...」メッセージ
-
-#### 2.2.5. エラー状態
-
-**表示内容:**
-- Alert コンポーネント（type="error"）
-- エラーメッセージ
-- 「画像の読み込みに失敗しました」
+#### 2.2.3 画像情報カード
+- **サイズ**: 横幅 x 縦幅 px
+- **ズーム倍率**: scale値（小数点2桁）
+- **ファイルキー**: S3ファイルパス
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1. 主要機能の詳細
+### 3.1 画像の読み込み
 
-#### 3.1.1. 画像読み込み
-
-**処理フロー:**
-1. fileKeyをpropsから受け取る
-2. S3から画像バイナリを取得するAPIを呼び出し
-3. `/api/s3/file-binary?key={fileKey}&t={timestamp}`
-4. Imageオブジェクトで画像を読み込み
-5. onloadイベントで成功判定
-6. onerrorイベントでエラー処理
-
-**タイムスタンプ付きURL:**
-- キャッシュ回避のため、クエリパラメータにtimestampを付与
-- `&t=${new Date().getTime()}`
-
-#### 3.1.2. 画像サイズ取得
-
-**処理フロー:**
-1. Imageオブジェクトのonloadで実行
-2. img.width と img.height を取得
-3. imageDimensions stateに保存
-4. 画面に「{width} x {height} px」を表示
-
-#### 3.1.3. 拡大機能
-
-**処理フロー:**
-1. 「拡大」ボタンをクリック
-2. handleZoomIn() を実行
-3. scale を 1.2倍に更新
-4. 上限5.0倍でクリップ
-5. transform: scale(scale) を適用
-
-**計算式:**
+#### 3.1.1 処理フロー
 ```typescript
-newScale = Math.min(scale * 1.2, 5);
+useEffect(() => {
+  if (!fileKey) return;
+
+  let isMounted = true;
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    setImageUrl(null);
+
+    try {
+      console.log('🔍 [ImageViewer] 署名付きURLを取得中:', fileKey);
+      const url = await getFileViewUrl(fileKey);
+      if (!isMounted) return;
+
+      // 画像読み込み確認
+      const img = new Image();
+      img.onload = () => {
+        if (!isMounted) return;
+        console.log('✅ [ImageViewer] 画像読み込み成功:', img.width, 'x', img.height);
+        setImageUrl(url);
+        setImageDimensions({ width: img.width, height: img.height });
+        setLoading(false);
+      };
+      img.onerror = (e) => {
+        if (!isMounted) return;
+        console.error('❌ [ImageViewer] 画像読み込みエラー:', e);
+        setError('画像の読み込みに失敗しました。サポートされていない形式かもしれません。');
+        setLoading(false);
+      };
+      img.src = url;
+    } catch (err) {
+      if (!isMounted) return;
+      console.error('❌ [ImageViewer] URL取得エラー:', err);
+      setError(`画像URLの取得に失敗しました: ${err instanceof Error ? err.message : '不明なエラー'}`);
+      setLoading(false);
+    }
+  };
+
+  load();
+
+  return () => {
+    isMounted = false;
+  };
+}, [fileKey, reloadTrigger]);
 ```
 
-#### 3.1.4. 縮小機能
+#### 3.1.2 UI動作
+- **開始時**: loadingフラグをtrueに設定、Spinner表示
+- **URL取得**: `getFileViewUrl(fileKey)`で署名付きURL取得
+- **画像検証**: `new Image()`で実際に読み込み、サイズを取得
+- **成功時**: imageUrlとimageDimensionsを設定、画像表示
+- **エラー時**: errorメッセージを設定、Alertとエラーボタン表示
 
-**処理フロー:**
-1. 「縮小」ボタンをクリック
-2. handleZoomOut() を実行
-3. scale を 1/1.2倍に更新
-4. 下限0.1倍でクリップ
-5. transform: scale(scale) を適用
+#### 3.1.3 再読み込み機能
+- `reloadTrigger` Stateをインクリメントすることで再読み込み
+- useEffectの依存配列に含まれるため、値が変わると再実行
 
-**計算式:**
+### 3.2 ズーム操作
+
+#### 3.2.1 拡大（Zoom In）
 ```typescript
-newScale = Math.max(scale / 1.2, 0.1);
+const handleZoomIn = useCallback((): void => {
+  setScale(prevScale => Math.min(prevScale * 1.2, 5));
+}, []);
 ```
+- **倍率**: 現在の1.2倍
+- **最大**: 5倍まで
 
-#### 3.1.5. リセット機能
+#### 3.2.2 縮小（Zoom Out）
+```typescript
+const handleZoomOut = useCallback((): void => {
+  setScale(prevScale => Math.max(prevScale / 1.2, 0.1));
+}, []);
+```
+- **倍率**: 現在の1/1.2倍
+- **最小**: 0.1倍まで
 
-**処理フロー:**
-1. 「リセット」ボタンをクリック
-2. handleReset() を実行
-3. scale を 1.0 に戻す
-4. transform: scale(1) を適用
+#### 3.2.3 リセット
+```typescript
+const handleReset = useCallback((): void => {
+  setScale(1);
+}, []);
+```
+- **倍率**: 1倍（元のサイズ）に戻す
 
-#### 3.1.6. プレビュー機能（Ant Design Image）
+#### 3.2.4 画像への適用
+```typescript
+<AntImage
+  src={imageUrl}
+  style={{
+    transform: `scale(${scale})`,
+    transformOrigin: 'center center',
+    maxWidth: '100%',
+    maxHeight: '100%',
+    objectFit: 'contain'
+  }}
+/>
+```
+- CSS `transform: scale()`で拡大・縮小
+- `transformOrigin: 'center center'`で中心を基準に拡大
 
-**処理フロー:**
-1. 画像をクリック
-2. Ant Design Image の preview 機能が起動
-3. 全画面プレビューモーダルが表示
-4. ズーム、回転、ダウンロード機能が利用可能
-5. Escapeキーまたは閉じるボタンでモーダルを閉じる
+### 3.3 プレビューモーダル
 
-#### 3.1.7. クリーンアップ処理
-
-**処理フロー:**
-1. fileKeyが変更された場合
-2. useEffectのクリーンアップ関数を実行
-3. imageUrl, loading, error をリセット
-4. 新しいfileKeyで画像を再読み込み
-
-### 3.2. ボタン・操作の動作
-
-| 操作 | 動作 | 状態変更 |
-|------|------|---------|
-| 拡大ボタン | 画像を1.2倍に拡大 | scale更新 |
-| 縮小ボタン | 画像を1/1.2倍に縮小 | scale更新 |
-| リセットボタン | 倍率を1.0に戻す | scale=1 |
-| 画像クリック | プレビューモーダル表示 | Ant Design Image処理 |
+```typescript
+<AntImage
+  preview={{
+    mask: 'プレビュー'
+  }}
+/>
+```
+- Ant Design Imageのプレビュー機能を有効化
+- 画像クリックでフルスクリーンモーダル表示
+- モーダル内で独自のズーム・回転機能が利用可能
 
 ---
 
 ## 4. データ仕様
 
-### 4.1. Props型定義
+### 4.1 Props定義
 
 ```typescript
 interface ImageViewerProps {
-  fileKey: string;    // S3ファイルキー
-  fileName: string;   // ファイル名
+  fileKey: string;
+  fileName: string;
 }
 ```
 
-### 4.2. State型定義
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| fileKey | string | ✅ | S3ファイルキー（署名付きURL取得に使用） |
+| fileName | string | ✅ | 表示するファイル名 |
+
+### 4.2 State定義
 
 ```typescript
-interface State {
-  imageUrl: string | null;               // 画像URL
-  loading: boolean;                      // ローディング状態
-  error: string | null;                  // エラーメッセージ
-  scale: number;                         // 倍率（0.1〜5.0）
-  imageDimensions: {
-    width: number;                       // 画像幅（px）
-    height: number;                      // 画像高さ（px）
-  };
-}
+const [imageUrl, setImageUrl] = useState<string | null>(null);
+const [loading, setLoading] = useState<boolean>(true);
+const [error, setError] = useState<string | null>(null);
+const [scale, setScale] = useState<number>(1);
+const [reloadTrigger, setReloadTrigger] = useState<number>(0);
+const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number }>({ 
+  width: 0, 
+  height: 0 
+});
 ```
 
----
-
-## 5. UI/UXポリシー準拠
-
-### 5.1. Ant Designコンポーネント使用
-
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Card | 外側のコンテナ | bordered, style |
-| Typography.Title | ヘッダータイトル | level={4} |
-| Typography.Text | テキスト表示 | - |
-| Button | 各種操作ボタン | type, icon, onClick |
-| Space | ボタングループ | size |
-| Flex | レイアウト | justify, align, vertical |
-| Image | 画像表示 | src, alt, preview, style |
-| Spin | ローディング | indicator, tip |
-| Alert | エラー表示 | type, message, showIcon |
-
-### 5.2. @ant-design/icons使用
-
-- ZoomInOutlined: 拡大ボタン
-- ZoomOutOutlined: 縮小ボタン
-- ReloadOutlined: リセットボタン
-- FileImageOutlined: ファイルアイコン
-- LoadingOutlined: ローディングアイコン
+**State説明:**
+| State名 | 型 | 初期値 | 説明 |
+|---------|---|--------|------|
+| imageUrl | string \| null | null | 署名付きURL |
+| loading | boolean | true | ロード中フラグ |
+| error | string \| null | null | エラーメッセージ |
+| scale | number | 1 | ズーム倍率（1 = 100%） |
+| reloadTrigger | number | 0 | 再読み込みトリガー（インクリメントで再読み込み） |
+| imageDimensions | { width, height } | { width: 0, height: 0 } | 画像の元サイズ（px） |
 
 ---
 
-## 6. 実装ファイル
+## 5. API連携
 
-### 6.1. ソースファイルパス
+### 5.1 使用するAPI一覧
 
-```
-frontend/src/components/viewer/ImageViewer.tsx
-```
+| # | API名 | メソッド | エンドポイント | 状態 | 説明 |
+|---|------|---------|---------------|------|------|
+| 1 | getFileViewUrl | - | - | ✅ 実装済み | S3署名付きURL取得（fileAccessService） |
 
-### 6.2. 関連コンポーネント
-
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| DocumentEditDialog | ../editor/DocumentEditDialog | 親コンポーネント |
-| TiffViewer | ./TiffViewer | TIFFファイル専用ビューア |
-
-### 6.3. 依存ライブラリ
-
-| ライブラリ | バージョン | 用途 |
-|-----------|----------|------|
-| antd | 6.x | UIコンポーネント |
-| @ant-design/icons | 5.x | アイコン |
-| react | 18.2.0 | Reactライブラリ |
-
----
-
-## 7. 既知の課題・TODO
-
-- [ ] 画像の回転機能
-- [ ] 画像の反転機能
-- [ ] 画像の明るさ・コントラスト調整
-- [ ] 複数画像のギャラリー表示
-
----
-
-## 8. 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 2.0.0 | 2025-12-26 | Ant Design v6対応 | Development Team |
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
-| 2.1.0 | 2026-02-25 | APIエンドポイントを `/api/s3/file-binary` → `POST /api/v1/files/view-url`（署名付きURL）に変更 | Cline |
-
----
-
-## 9. 使用例
+### 5.2 API呼び出しコード
 
 ```typescript
-<ImageViewer
-  fileKey="org_maiml_lab_001/experiments/exp_001/result_image.png"
-  fileName="result_image.png"
-/>
-```
-
----
-
-## 10. APIエンドポイント
-
-### 10.1. 表示用署名付きURL取得
-
-**エンドポイント:**
-```
-POST /api/v1/files/view-url
-```
-
-**リクエストボディ:**
-```json
-{
-  "fileKey": "projects/Sample_Project/image.png"
-}
-```
-
-**レスポンス:**
-```json
-{
-  "success": true,
-  "data": {
-    "url": "https://swift.example.com/...?temp_url_sig=...",
-    "expiresAt": "2026-02-25T16:45:00Z",
-    "expiresIn": 3600
-  }
-}
-```
-
-**フロントエンドサービス:**
-```typescript
-// frontend/src/services/fileAccessService.ts
 const url = await getFileViewUrl(fileKey);
-// → 署名付きURLを取得して <img src={url}> で表示
 ```
+
+**備考:**
+- `getFileViewUrl`は`fileAccessService`で定義されたサービス関数
+- バックエンドAPIを呼び出してS3署名付きURLを取得
+- 有効期限付きURL（通常1時間）
 
 ---
 
-## 11. エラーハンドリング
+## 6. エラーハンドリング
 
-### 11.1. 画像読み込みエラー
+### 6.1 エラーケース一覧
 
+| エラーケース | 対処方法 |
+|-------------|----------|
+| 署名付きURL取得失敗 | errorメッセージ設定、Alert表示、再読み込みボタン表示 |
+| 画像読み込み失敗（img.onerror） | エラーメッセージ設定、Alert表示、再試行ボタン表示 |
+| サポートされていない画像形式 | 「サポートされていない形式かもしれません」メッセージ表示 |
+
+### 6.2 エラー処理コード
+
+#### 6.2.1 URL取得エラー
+```typescript
+try {
+  const url = await getFileViewUrl(fileKey);
+  // ...
+} catch (err) {
+  if (!isMounted) return;
+  console.error('❌ [ImageViewer] URL取得エラー:', err);
+  setError(`画像URLの取得に失敗しました: ${err instanceof Error ? err.message : '不明なエラー'}`);
+  setLoading(false);
+}
+```
+
+#### 6.2.2 画像読み込みエラー
 ```typescript
 img.onerror = (e) => {
-  console.error('画像読み込みエラー:', e);
+  if (!isMounted) return;
+  console.error('❌ [ImageViewer] 画像読み込みエラー:', e);
   setError('画像の読み込みに失敗しました。サポートされていない形式かもしれません。');
   setLoading(false);
 };
 ```
 
-**エラー表示:**
-```tsx
-{error && (
-  <Alert
-    type="error"
-    message="エラー"
-    description={error}
-    showIcon
-  />
-)}
-```
-
-### 11.2. ネットワークエラー
-
-APIエンドポイントに接続できない場合、onerrorが発火してエラーメッセージを表示します。
+**エラーメッセージ:**
+- "画像URLの取得に失敗しました: [エラーメッセージ]"
+- "画像の読み込みに失敗しました。サポートされていない形式かもしれません。"
 
 ---
 
-## 12. パフォーマンス最適化
+## 7. 実装ファイル
 
-### 12.1. useEffectのクリーンアップ
+### 7.1 ファイルパス
+- **メインファイル**: `frontend/src/components/viewer/ImageViewer.tsx`
 
-```typescript
-useEffect(() => {
-  const cleanup = () => {
-    setImageUrl(null);
-    setLoading(true);
-    setError(null);
-  };
+### 7.2 関連ファイル
+- **サービス**: `frontend/src/services/fileAccessService.ts`（getFileViewUrl）
 
-  cleanup(); // 初期化
+### 7.3 依存コンポーネント
+- `<AntImage />` - Ant Design Imageコンポーネント（プレビューモーダル付き）
 
-  // 画像読み込み処理...
-
-  return cleanup; // クリーンアップ関数を返す
-}, [fileKey]);
-```
-
-### 12.2. 画像キャッシュ
-
-- ブラウザの標準的な画像キャッシュを利用
-- タイムスタンプ付きURLで必要時にキャッシュ更新
+### 7.4 依存ライブラリ
+- `antd`: Card, Button, Space, Typography, Alert, Spin, Flex, Image
+- `@ant-design/icons`: ZoomInOutlined, ZoomOutOutlined, ReloadOutlined, FileImageOutlined, LoadingOutlined
 
 ---
 
-## 13. アクセシビリティ
+## 8. 変更履歴
 
-### 13.1. alt属性
-
-```typescript
-<Image
-  src={imageUrl}
-  alt={fileName}
-  // ...
-/>
-```
-
-### 13.2. キーボード操作
-
-- Tab: フォーカス移動
-- Enter/Space: ボタンクリック
-- Escape: プレビューモーダルを閉じる
-
----
-
-## 14. 対応画像形式
-
-### 14.1. サポート形式
-
-| 形式 | 拡張子 | 説明 |
-|------|-------|------|
-| JPEG | .jpg, .jpeg | 一般的な画像形式 |
-| PNG | .png | 透過対応 |
-| GIF | .gif | アニメーション対応 |
-| WebP | .webp | 次世代画像形式 |
-| SVG | .svg | ベクター画像 |
-
-**注意:**
-- TIFF形式は TiffViewer コンポーネントを使用
-
-### 14.2. 非対応形式
-
-- TIFF（.tif, .tiff） → TiffViewer を使用
-- RAW形式
-- HEIC形式（iOS専用）
-
----
-
-## 15. スタイリング
-
-### 15.1. 画像表示スタイル
-
-```typescript
-{
-  width: '100%',
-  height: 'auto',
-  maxHeight: '600px',
-  objectFit: 'contain',
-  transform: `scale(${scale})`,
-  transformOrigin: 'center',
-  transition: 'transform 0.2s ease-out'
-}
-```
-
-### 15.2. レスポンシブ対応
-
-- maxHeight: 600px（大画面）
-- maxHeight: 400px（モバイル）
-- width: 100%（親要素に応じる）
-
----
-
-## 16. 使用シナリオ
-
-### 16.1. 実験結果画像の表示
-
-1. DocumentEditDialogでResultファイルを選択
-2. 画像ファイル（.png）が添付されている
-3. ImageViewerが表示される
-4. 画像が読み込まれて表示される
-5. 拡大ボタンで詳細を確認
-6. 画像クリックで全画面プレビュー
-
-### 16.2. 拡大・縮小操作
-
-1. 初期表示（倍率1.0x）
-2. 拡大ボタンを3回クリック（1.0 → 1.2 → 1.44 → 1.728）
-3. 細部を確認
-4. リセットボタンで元の倍率に戻す
-
-### 16.3. エラーハンドリング
-
-1. 存在しない画像ファイルを指定
-2. ローディング表示
-3. 読み込みエラー発生
-4. エラーメッセージが表示される
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-12 | 実装ベースで仕様書を再作成 | Cline |

@@ -32,11 +32,15 @@
 
 ### 1.4 ロール設計
 
-| ロール | 権限 | 説明 |
+> ⚠️ 元仕様書のDB ロール（viewer / publisher / admin）は **使用しない**。
+> mmdpf の RBAC に統一する（diff.md §1.4 / recommendations.md §4.1 参照）。
+
+| 実行者 | 権限 | 説明 |
 |--------|------|------|
-| `viewer` | SELECT のみ | 閲覧ユーザー |
-| `publisher` | INSERT / DELETE / 関数実行 | 公開・非公開操作ユーザー |
-| `admin` | DDL（テーブル定義変更） | システム管理者 |
+| `experiment_admin` | 公開・非公開の両操作 | mmdpf RBAC のロール |
+| その他のロール | 操作不可（閲覧のみ） | — |
+
+全 API エンドポイントに `auth → tenantIsolation → permissionCheck（experiment_admin のみ許可）` を適用する。
 
 ---
 
@@ -192,6 +196,11 @@ XSD の `maiml-property.xsd`（contentBaseType）と `maiml-protocol.xsd` から
 | **既存テーブルとの紐付け** | `project` テーブルとの直接的な紐づけは不要 |
 | **実装場所** | mmdpf の **backend（Node.js/Express）に組み込む** |
 | **実行可能ロール** | **`experiment_admin`** のみが公開・非公開の両操作を実行可能 |
+| **非同期処理方式** | **bullmq**（Redis キュー）でバックグラウンドジョブ化。ボタン押下 → 202 Accepted を即返却し、Worker が非同期処理 |
+| **XML 解析方式** | Node.js の **`sax` パッケージ**（ストリーミング SAX 解析）。元仕様書の Python iterparse と同等の動作 |
+| **プレビューデフォルトモード** | **`maxhold`**（ピーク保持）。MaiML の主ユースケース（分光・XRF）に適合。uniform / mmr はユーザー明示選択時のみ |
+| **生データ保存デフォルト** | **`store_raw_series=false`**（プレビューのみ）。DB 肥大化リスク回避のため |
+| **スケジュール自動非公開** | bullmq **Repeat Job** で毎日 0 時に `retention` 期限切れアセットを一括非公開 |
 
 ---
 
@@ -206,7 +215,6 @@ XSD の `maiml-property.xsd`（contentBaseType）と `maiml-protocol.xsd` から
 
 ### 4.2 Worker 実装関連
 
-- [ ] プレビュー生成のデフォルトモード（uniform / maxhold / mmr のどれを使うか）
 - [ ] 公開対象の「ファイル URI」がどこに置かれるか（mmdpf の Swift/S3 との連携方法）
 
 ### 4.3 フロントエンド関連

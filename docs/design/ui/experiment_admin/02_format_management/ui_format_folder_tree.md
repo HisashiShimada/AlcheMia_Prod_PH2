@@ -1,315 +1,475 @@
-# FormatFolderTree UI仕様書
+# フォーマットフォルダツリー UI仕様書
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+フォーマットフォルダツリーは、部門配下のフォーマットフォルダ一覧を縦型リスト形式で表示するコンポーネントです。各フォーマットフォルダの基本情報（名前、ファイルタイプ、ファイル数、更新日）を表示し、ユーザーがフォーマットを選択できるようにします。
 
-フォーマット一覧を表示するツリーコンポーネント。XML/MAIMLフォーマットの選択とソート機能を提供します。
+### 1.2 使用場面
+- **表示場所**: フォーマット管理画面の左側パネル（画面幅の約33%）
+- **主な用途**:
+  - フォーマットフォルダの一覧表示
+  - フォーマットフォルダの選択
+  - ソート機能（名前/カテゴリ/更新日）
 
-### 1.2. 使用場面
-
-- FormatManagement画面の左側パネル
-- フォーマット一覧の表示と選択
-- カテゴリ、ファイルタイプ、ファイル数などのメタ情報表示
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須（親コンポーネントで制御）
-- **テナント分離**: organization_id によるマルチテナント分離（親コンポーネントで制御）
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin（実験管理者）
+- **認証**: 親コンポーネント（FormatManagement）で認証済み
 
 ---
 
 ## 2. 画面構成
 
-### 2.1. レイアウト構造
+### 2.1 レイアウト構造
 
 ```
-┌─────────────────────────────────┐
-│ ヘッダー                         │
-│ ┌─────────────────────────────┐ │
-│ │ フォーマット一覧        [≡]  │ │
-│ │ {count} フォーマット         │ │
-│ └─────────────────────────────┘ │
-├─────────────────────────────────┤
-│ フォーマット1                    │
-│ ├ XML | プロトコル              │
-│ ├ 5 ファイル                    │
-│ ├ 部門: 研究開発部              │
-│ └ 更新: 2026/01/15             │
-├─────────────────────────────────┤
-│ フォーマット2 (選択中)           │
-│ ├ MAIML | 材料                  │
-│ ├ 8 ファイル                    │
-│ ├ 部門: 品質管理部              │
-│ └ 更新: 2026/01/20             │
-├─────────────────────────────────┤
-│ ...                             │
-└─────────────────────────────────┘
+┌────────────────────────────────────┐
+│ ヘッダー                           │
+│ ┌────────────────────────────────┐ │
+│ │ フォーマット一覧    [ソート]   │ │
+│ │ 5 フォーマット                 │ │
+│ └────────────────────────────────┘ │
+├────────────────────────────────────┤
+│ フォーマットカード1                │
+│ ├─┬─────────────────────────────┤ │
+│ │▌│ 材料テンプレート      [XML]  │ │
+│ │▌│ 5 ファイル                   │ │
+│ │▌│ 更新: 2026/03/10             │ │
+│ └─┴─────────────────────────────┘ │
+│                                    │
+│ フォーマットカード2                │
+│ ┌───────────────────────────────┐ │
+│ │ 条件テンプレート      [XML]  │ │
+│ │ 3 ファイル                   │ │
+│ │ 更新: 2026/03/09             │ │
+│ └───────────────────────────────┘ │
+│                                    │
+│ ... (その他のフォーマット)         │
+└────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+### 2.2 主要UI要素
 
-#### 2.2.1. ヘッダーエリア
+#### 2.2.1 ヘッダー
+- **タイトル**（Text strong）: 「フォーマット一覧」
+- **件数表示**（Text secondary）: 「{count} フォーマット」
+- **ソートボタン**（Dropdown + Button）: ソート項目選択
 
-| 要素 | コンポーネント | 説明 |
-|------|--------------|------|
-| タイトル | Text (strong) | 「フォーマット一覧」 |
-| カウント表示 | Text (secondary) | 「{count} フォーマット」 |
-| ソートボタン | Button + Dropdown | ソートメニューを開く |
+#### 2.2.2 フォーマットカード（各フォーマット）
+- **フォーマット名**（Text strong）: 選択時は太字
+- **ファイルタイプタグ**（Tag）:
+  - XML: cyan（水色）
+  - MAIML: purple（紫）
+- **ファイル数**（Text secondary）: 「{count} ファイル」
+- **更新日**（Text secondary）: 「更新: YYYY/MM/DD」
+- **選択インジケーター**: 左側に3pxの青いボーダー、背景色を水色に変更
 
-#### 2.2.2. フォーマットリストアイテム
+### 2.3 インタラクション
 
-各フォーマットアイテムには以下の情報を表示：
+#### 2.3.1 フォーマット選択
+- **操作**: フォーマットカードをクリック
+- **結果**: 
+  - 選択されたフォーマットがハイライト表示される
+  - 親コンポーネントに`onFormatSelect(formatId)`が通知される
+  - 右側パネルにファイル一覧が表示される
 
-| 要素 | コンポーネント | 説明 |
-|------|--------------|------|
-| フォーマット名 | Text (strong) | メイン表示テキスト |
-| ファイルタイプタグ | Tag | XML（シアン）、MAIML（パープル） |
-| カテゴリタグ | Tag | カテゴリに応じた色分け |
-| ファイル数 | Text (secondary) | 「{count} ファイル」 |
-| 部門 | Text (secondary) | 「部門: {department}」 |
-| 更新日 | Text (secondary) | 「更新: {date}」（日本語形式） |
-
-### 2.3. 画面遷移
-
-- 画面遷移なし（選択状態の変更のみ）
-- 親コンポーネント（FormatManagement）のコールバックを呼び出す
+#### 2.3.2 ソート
+- **操作**: ヘッダーのソートボタンをクリック
+- **メニュー項目**:
+  - フォーマット名
+  - カテゴリ
+  - 更新日
+- **結果**: 
+  - 親コンポーネントに`onSortChange(sortBy)`が通知される
+  - 同じ項目を再度クリックすると昇順⇔降順が切り替わる
+  - メニュー項目に現在のソート状態が表示される（↑/↓アイコン）
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1. 主要機能の詳細
+### 3.1 フォーマット一覧の表示
 
-#### 3.1.1. フォーマット一覧の表示
+#### 3.1.1 表示内容
 
-**処理フロー:**
-1. 親コンポーネントからformatsを受け取る
-2. List.Itemで各フォーマットをレンダリング
-3. カテゴリに応じたタグ色を適用
-4. 選択されたフォーマットをハイライト表示
+各フォーマットカードには以下の情報が表示されます：
 
-**表示情報:**
-- フォーマット名（太字）
-- ファイルタイプタグ（XML/MAIML）
-- カテゴリタグ（色分け）
-- ファイル数
-- 部門
-- 更新日（日本語形式）
+```typescript
+<div
+  key={format.id}
+  onClick={() => onFormatSelect(format.id)}
+  style={{
+    padding: `${token.paddingSM}px ${token.margin}px`,
+    cursor: 'pointer',
+    backgroundColor: selectedFormatId === format.id ? token.colorPrimaryBg : 'transparent',
+    borderLeft: selectedFormatId === format.id ? `3px solid ${token.colorPrimary}` : '3px solid transparent',
+  }}
+>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: token.marginXS, width: '100%' }}>
+    <Space size="small">
+      <Text
+        strong={selectedFormatId === format.id}
+        style={{ fontSize: token.fontSize }}
+      >
+        {format.name}
+      </Text>
+      <Tag
+        color={format.fileType === 'xml' ? 'cyan' : 'purple'}
+        style={{ fontSize: token.fontSizeSM, margin: 0 }}
+      >
+        {format.fileType.toUpperCase()}
+      </Tag>
+    </Space>
+    <Space size="small" wrap>
+      <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+        {format.fileCount} ファイル
+      </Text>
+    </Space>
+    <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+      更新: {new Date(format.updatedAt).toLocaleDateString('ja-JP')}
+    </Text>
+  </div>
+</div>
+```
 
-#### 3.1.2. フォーマット選択
+#### 3.1.2 UI動作
+- ユーザー操作: フォーマットカードをクリック
+- 画面変化: 
+  - カードがハイライト表示される（背景色変更 + 左ボーダー表示）
+  - フォーマット名が太字になる
+- 親コンポーネントへの通知: `onFormatSelect(format.id)`
 
-**処理フロー:**
-1. ユーザーがリストアイテムをクリック
-2. onFormatSelect(formatId)コールバックを呼び出し
-3. 親コンポーネントでselectedFormatIdが更新される
-4. 選択されたアイテムが視覚的にハイライト表示される
+### 3.2 カテゴリタグの色分け
 
-**ハイライト表示:**
-- 背景色: token.colorPrimaryBg
-- 左ボーダー: 3px solid token.colorPrimary
-- テキスト: 太字（strong）
+#### 3.2.1 カテゴリ色マッピング
 
-#### 3.1.3. ソート機能
+```typescript
+const getCategoryTagColor = (category: string): string => {
+  const colors: Record<string, string> = {
+    protocol: 'cyan',      // プロトコル: 水色
+    material: 'success',   // 材料: 緑
+    measurement: 'blue',   // 測定: 青
+    analysis: 'orange',    // 解析: オレンジ
+    sample: 'purple',      // 試料: 紫
+    device: 'red',         // 装置: 赤
+  };
+  return colors[category] || 'default';
+};
+```
 
-**処理フロー:**
-1. ヘッダーのソートボタンをクリック
-2. Dropdownメニューを表示
-3. ソート項目を選択
-4. onSortChange(sortBy)コールバックを呼び出し
-5. 親コンポーネントでソート処理が実行される
+#### 3.2.2 カテゴリラベル
 
-**ソート項目:**
-- フォーマット名（name）
-- カテゴリ（category）
-- 更新日（updatedAt）
+```typescript
+const getCategoryLabel = (category: string): string => {
+  const labels: Record<string, string> = {
+    protocol: 'プロトコル',
+    material: '材料',
+    measurement: '測定',
+    analysis: '解析',
+    sample: '試料',
+    device: '装置',
+  };
+  return labels[category] || category;
+};
+```
 
-**ソート順序:**
-- 同じ項目を選択 → 昇順/降順を切り替え
-- 異なる項目を選択 → 昇順でソート
+**注**: 現在の実装ではカテゴリラベルは表示されていませんが、将来的に使用される可能性があります。
 
-**ソートアイコン表示:**
-- 昇順: SortAscendingOutlined
-- 降順: SortDescendingOutlined
-- 現在のソート項目のみアイコン表示
+### 3.3 ソート機能
 
-#### 3.1.4. カテゴリタグの色分け
+#### 3.3.1 ソートメニュー
 
-| カテゴリ | 色 | 表示名 |
-|---------|---|--------|
-| protocol | cyan | プロトコル |
-| material | success (green) | 材料 |
-| measurement | blue | 測定 |
-| analysis | orange | 解析 |
-| sample | purple | 試料 |
-| device | red | 装置 |
-| その他 | default | カテゴリ値をそのまま表示 |
+```typescript
+const menuItems: MenuProps['items'] = [
+  {
+    key: 'name',
+    label: (
+      <Space>
+        <span>フォーマット名</span>
+        {sortBy === 'name' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+      </Space>
+    ),
+    onClick: () => onSortChange('name'),
+  },
+  {
+    key: 'category',
+    label: (
+      <Space>
+        <span>カテゴリ</span>
+        {sortBy === 'category' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+      </Space>
+    ),
+    onClick: () => onSortChange('category'),
+  },
+  {
+    key: 'updatedAt',
+    label: (
+      <Space>
+        <span>更新日</span>
+        {sortBy === 'updatedAt' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+      </Space>
+    ),
+    onClick: () => onSortChange('updatedAt'),
+  },
+];
+```
 
-#### 3.1.5. ファイルタイプタグの色分け
+#### 3.3.2 ソート動作
 
-| ファイルタイプ | 色 | 表示 |
-|--------------|---|------|
-| xml | cyan | XML |
-| maiml | purple | MAIML |
+- **ソート項目**:
+  1. フォーマット名（name）: 日本語ロケールでの文字列比較
+  2. カテゴリ（category）: 文字列比較
+  3. 更新日（updatedAt）: 日時比較
 
-### 3.2. ボタン・操作の動作
+- **ソート順序**:
+  - 初回クリック: 昇順（asc）
+  - 同じ項目を再度クリック: 降順（desc）に切り替え
+  - 別の項目をクリック: 昇順（asc）に戻る
 
-| 操作 | 動作 | コールバック |
-|------|------|------------|
-| フォーマットアイテムをクリック | フォーマットを選択 | onFormatSelect(formatId) |
-| ソートボタンをクリック | ソートメニューを開く | - |
-| ソート項目を選択 | ソート条件を変更 | onSortChange(sortBy) |
+- **実装**: 親コンポーネント（FormatManagement）でソート処理を実行
 
-### 3.3. バリデーションルール
+#### 3.3.3 UI動作
+- ユーザー操作: ヘッダーのソートボタンをクリック → メニュー項目を選択
+- 画面変化: 
+  - メニューが表示される
+  - 現在のソート項目に↑/↓アイコンが表示される
+  - フォーマット一覧がソートされる
+- 親コンポーネントへの通知: `onSortChange(sortBy)`
 
-- バリデーションなし（表示のみ）
+### 3.4 スタイリング
+
+#### 3.4.1 レイアウト
+
+```typescript
+<div
+  style={{
+    height: '100%',
+    backgroundColor: token.colorBgContainer,
+    borderRight: `1px solid ${token.colorBorderSecondary}`,
+    overflowY: 'auto',
+  }}
+>
+```
+
+- **高さ**: 親コンテナの100%（画面全体に伸びる）
+- **背景色**: `token.colorBgContainer`（白系）
+- **右ボーダー**: 1pxの灰色線
+- **オーバーフロー**: 縦スクロール可能
+
+#### 3.4.2 ヘッダー
+
+```typescript
+<div
+  style={{
+    padding: token.margin,
+    borderBottom: `1px solid ${token.colorBorderSecondary}`,
+  }}
+>
+```
+
+- **パディング**: `token.margin`
+- **下ボーダー**: 1pxの灰色線
+
+#### 3.4.3 選択状態のカード
+
+```typescript
+backgroundColor: selectedFormatId === format.id ? token.colorPrimaryBg : 'transparent',
+borderLeft: selectedFormatId === format.id ? `3px solid ${token.colorPrimary}` : '3px solid transparent',
+```
+
+- **背景色**: 選択時は水色（`token.colorPrimaryBg`）
+- **左ボーダー**: 選択時は3pxの青線（`token.colorPrimary`）
 
 ---
 
 ## 4. データ仕様
 
-### 4.1. 入力項目（Props）
+### 4.1 Props定義
 
 ```typescript
 interface FormatFolderTreeProps {
-  formats: Format[];                     // フォーマット一覧
-  selectedFormatId: string | null;       // 選択中のフォーマットID
-  onFormatSelect: (formatId: string) => void;  // 選択時のコールバック
-  sortBy: 'name' | 'category' | 'updatedAt';  // ソート項目
-  sortOrder: 'asc' | 'desc';            // ソート順序
-  onSortChange: (sortBy: 'name' | 'category' | 'updatedAt') => void;  // ソート変更コールバック
+  formats: Format[];                                          // フォーマット一覧
+  selectedFormatId: string | null;                            // 選択中のフォーマットID
+  onFormatSelect: (formatId: string) => void;                 // フォーマット選択時のコールバック
+  sortBy: 'name' | 'category' | 'updatedAt' | null;          // ソート項目
+  sortOrder: 'asc' | 'desc';                                  // ソート順序
+  onSortChange: (sortBy: 'name' | 'category' | 'updatedAt') => void; // ソート変更時のコールバック
 }
 ```
 
-### 4.2. Format型定義
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| formats | Format[] | ✅ | 表示するフォーマット一覧 |
+| selectedFormatId | string \| null | ✅ | 現在選択されているフォーマットのID（未選択時はnull） |
+| onFormatSelect | (formatId: string) => void | ✅ | フォーマットがクリックされた時に呼び出されるコールバック関数 |
+| sortBy | 'name' \| 'category' \| 'updatedAt' \| null | ✅ | 現在のソート項目（未ソート時はnull） |
+| sortOrder | 'asc' \| 'desc' | ✅ | 現在のソート順序（昇順/降順） |
+| onSortChange | (sortBy: string) => void | ✅ | ソート項目が変更された時に呼び出されるコールバック関数 |
+
+### 4.2 Format型定義
 
 ```typescript
 interface Format {
-  id: string;               // フォーマットID
-  name: string;             // フォーマット名
-  folderName: string;       // フォルダ名
-  description: string;      // 説明
-  fileCount: number;        // ファイル数
-  fileType: 'xml' | 'maiml'; // ファイルタイプ
-  category: string;         // カテゴリ
-  department: string;       // 部門
-  createdAt: string;        // 作成日時
-  updatedAt: string;        // 更新日時
-  tags: string[];           // タグ
+  id: string;           // フォーマットID
+  name: string;         // フォーマット名
+  folderName: string;   // フォルダ名
+  description: string;  // 説明
+  fileCount: number;    // ファイル数
+  fileType: 'xml' | 'maiml';  // ファイルタイプ
+  category: string;     // カテゴリ
+  department: string;   // 部門CD
+  createdAt: string;    // 作成日時（ISO 8601形式）
+  updatedAt: string;    // 更新日時（ISO 8601形式）
+  tags: string[];       // タグ
 }
 ```
 
-### 4.3. 出力項目
+**Format説明:**
+| フィールド名 | 型 | 説明 |
+|------------|---|------|
+| id | string | フォーマットの一意識別子 |
+| name | string | 表示用のフォーマット名 |
+| folderName | string | S3/Swiftのフォルダ名 |
+| description | string | フォーマットの説明 |
+| fileCount | number | フォーマット内のファイル数 |
+| fileType | 'xml' \| 'maiml' | フォーマットのファイルタイプ（XML または MAIML） |
+| category | string | カテゴリ（protocol/material/measurement/analysis/sample/device） |
+| department | string | 所属部門のコード |
+| createdAt | string | 作成日時（ISO 8601形式文字列） |
+| updatedAt | string | 最終更新日時（ISO 8601形式文字列） |
+| tags | string[] | フォーマットに関連付けられたタグ |
 
-- なし（コールバック経由で親コンポーネントに通知）
+### 4.3 State定義
+
+このコンポーネントは**ステートレス**で、ローカルStateを持ちません。
+全ての状態管理は親コンポーネント（FormatManagement）で行われます。
 
 ---
 
 ## 5. API連携
 
-### 5.1. 使用するAPI一覧
-
-- なし（親コンポーネントからデータを受け取る）
+このコンポーネントは直接APIを呼び出しません。
+親コンポーネント（FormatManagement）が取得したデータを`formats` Propsとして受け取ります。
 
 ---
 
 ## 6. エラーハンドリング
 
-### 6.1. エラーケース
+### 6.1 エラーケース
 
-| エラーケース | 処理 |
-|------------|------|
-| formats配列が空 | 空のリストを表示（エラーメッセージなし） |
-| 無効なフォーマットデータ | コンソールエラーログ（実装は親コンポーネント） |
+このコンポーネントは表示専用のため、独自のエラーハンドリングはありません。
 
-### 6.2. エラーメッセージ
+以下のケースは親コンポーネントで処理されます：
+- フォーマット一覧取得失敗
+- データの不整合（nullやundefined）
 
-- エラーメッセージなし（表示専用コンポーネント）
+### 6.2 表示の制約
 
----
-
-## 7. UI/UXポリシー準拠
-
-### 7.1. Ant Designコンポーネント使用
-
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| List | フォーマット一覧 | dataSource, renderItem |
-| List.Item | 各フォーマットアイテム | onClick, style |
-| Typography.Text | テキスト表示 | strong, type="secondary" |
-| Tag | ファイルタイプ、カテゴリ | color |
-| Button | ソートボタン | type="text", icon, size="small" |
-| Dropdown | ソートメニュー | menu, placement="bottomRight" |
-| Space | アイテム内の要素配置 | size="small", wrap |
-
-### 7.2. デザイントークン使用
+#### 6.2.1 空の一覧
 
 ```typescript
-const { token } = theme.useToken();
-
-// 使用例
-backgroundColor: token.colorBgContainer
-borderRight: `1px solid ${token.colorBorderSecondary}`
-borderBottom: `1px solid ${token.colorBorderSecondary}`
-padding: token.margin
-paddingSM: token.paddingSM
-marginXS: token.marginXS
-fontSize: token.fontSize
-fontSizeSM: token.fontSizeSM
-colorPrimaryBg: token.colorPrimaryBg  // 選択時の背景色
-colorPrimary: token.colorPrimary      // 選択時のボーダー色
+{formats.map((format) => (
+  // ... フォーマットカードの表示
+))}
 ```
 
-### 7.3. レスポンシブ対応
+- `formats`が空配列の場合、カードは何も表示されません
+- ヘッダーには「0 フォーマット」と表示されます
 
-- 親コンポーネント（FormatManagement）で幅を制御
-- 縦スクロールで全アイテムを表示可能
+#### 6.2.2 日付フォーマットエラー
+
+```typescript
+更新: {new Date(format.updatedAt).toLocaleDateString('ja-JP')}
+```
+
+- `updatedAt`が不正な日付文字列の場合、「Invalid Date」と表示される可能性があります
+- **推奨**: 親コンポーネントでデータバリデーションを実施
 
 ---
 
-## 8. 実装ファイル
+## 7. 実装ファイル
 
-### 8.1. ソースファイルパス
+### 7.1 ファイルパス
+- **メインファイル**: `frontend/src/components/project/FormatFolderTree.tsx`
+
+### 7.2 関連ファイル
+- **親コンポーネント**: `frontend/src/components/project/FormatManagement.tsx`
+- **型定義**: このファイル内で定義（Format型）
+
+### 7.3 依存ライブラリ
+- **Ant Design**:
+  - Typography (Text)
+  - Tag
+  - Dropdown
+  - Space
+  - Button
+  - theme
+- **Ant Design Icons**:
+  - SortAscendingOutlined
+  - SortDescendingOutlined
+
+### 7.4 親子関係
 
 ```
-frontend/src/components/project/FormatFolderTree.tsx
+FormatManagement (親)
+  ↓ Props: formats, selectedFormatId, onFormatSelect, sortBy, sortOrder, onSortChange
+FormatFolderTree (このコンポーネント)
 ```
 
-### 8.2. 関連コンポーネント
+**親コンポーネントから受け取るデータ:**
+- フォーマット一覧（フィルタリング・ソート済み）
+- 選択状態
+- ソート設定
 
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| FormatManagement | ./FormatManagement.tsx | 親コンポーネント |
-
-### 8.3. カスタムフック
-
-- なし
-
-### 8.4. ユーティリティ
-
-| 関数 | 役割 |
-|------|------|
-| getCategoryTagColor | カテゴリに応じたタグの色を返す |
-| getCategoryLabel | カテゴリの表示名（日本語）を返す |
+**親コンポーネントへの通知:**
+- フォーマット選択イベント
+- ソート変更イベント
 
 ---
 
-## 9. 既知の課題・TODO
+## 8. UI/UXの考慮事項
 
-### 改善提案
+### 8.1 レスポンシブデザイン
 
-- [ ] フォーマット数が多い場合の仮想スクロール対応（現在は全て表示）
-- [ ] フォーマット検索機能の追加（リスト内フィルタリング）
-- [ ] フォルダ階層の表示（現在はフラットなリスト）
-- [ ] ドラッグ&ドロップでのソート順変更
-- [ ] カテゴリグループ化表示（折りたたみ可能）
-- [ ] お気に入り機能の追加
+- **幅**: 親コンポーネント（FormatManagement）で33%に固定
+- **最小幅**: 350px（親コンポーネントで設定）
+- **最大幅**: 500px（親コンポーネントで設定）
+- **高さ**: 親コンテナの100%
+
+### 8.2 スクロール
+
+- **縦スクロール**: `overflowY: 'auto'`で自動表示
+- フォーマット数が多い場合、スクロールバーが表示される
+- ヘッダーは固定（スクロール対象外）
+
+### 8.3 視覚的フィードバック
+
+#### 8.3.1 ホバー効果
+```typescript
+cursor: 'pointer'
+```
+- マウスカーソルがポインターに変わり、クリック可能であることを示す
+
+#### 8.3.2 選択状態
+- **背景色**: 水色（`token.colorPrimaryBg`）
+- **左ボーダー**: 3pxの青線（`token.colorPrimary`）
+- **フォント**: 太字（`strong={true}`）
+
+#### 8.3.3 ファイルタイプの識別
+- **XMLタグ**: cyan（水色）
+- **MAIMLタグ**: purple（紫）
+
+### 8.4 アクセシビリティ
+
+- **クリック領域**: カード全体がクリック可能
+- **視覚的な階層**: 明確な選択状態の表示
+- **テキストの可読性**: 適切なフォントサイズとコントラスト
 
 ---
 
-## 10. 変更履歴
+## 9. 変更履歴
 
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |

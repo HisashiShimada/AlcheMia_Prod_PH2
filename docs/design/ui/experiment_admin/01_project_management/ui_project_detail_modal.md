@@ -1,493 +1,374 @@
-# ProjectDetailModal - プロジェクト詳細モーダル
+# プロジェクト詳細モーダル UI仕様書
 
-## 1. 概要
+## 概要
 
-### 1.1 コンポーネントの目的
-選択したプロジェクトの詳細情報を表示するモーダルダイアログ。プロジェクトのメタデータ、統計情報、ファイル一覧を一目で確認できます。
+### 目的
+プロジェクトの詳細情報（メタデータ、メンバー、ファイル一覧）を表示するモーダルコンポーネント。プロジェクト情報の確認とプロジェクトを開く操作を提供する。
 
-### 1.2 使用場面
-- プロジェクト管理画面で「詳細」ボタンをクリックした際に表示（現在は未実装）
-- プロジェクトの概要を素早く確認したい場合
+### 使用場面
+- プロジェクト一覧からプロジェクト名をクリック
+- プロジェクトフォルダツリーからプロジェクトを選択
+- プロジェクト検索結果から詳細を表示
 
-### 1.3 アクセス権限
-- **必須ロール**: experiment_admin
-- **認証**: JWT + Session Hybrid認証
+### アクセス権限
+- **Experiment Admin（実験管理者）**: プロジェクト詳細の閲覧
+- **その他のロール**: アクセス不可
 
 ---
 
-## 2. 画面構成
+## 画面構成
 
-### 2.1 レイアウト構造
+### レイアウト構造
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ [プロジェクト名]  [ステータスタグ]    [×]          │ ← ヘッダー
-│ 📁 [フォルダ名]                                     │
+│ Project001  [進行中]                          [×]  │
+│ 📁 project_folder_001                              │
 ├─────────────────────────────────────────────────────┤
 │                                                     │
-│ ■ プロジェクト情報                                  │
+│ プロジェクト情報                                     │
+│ プロジェクトの説明テキスト...                       │
 │                                                     │
-│ [プロジェクト概要テキスト]                          │
+│ 所有者             │ メンバー                        │
+│ 👤 user001        │ user001, user002, user003      │
 │                                                     │
-│ ┌──────────────┬──────────────┐                   │
-│ │ 所有者       │ メンバー     │                   │
-│ │ 👥 田中太郎  │ 田中, 佐藤   │                   │
-│ ├──────────────┼──────────────┤                   │
-│ │ ファイル数   │ ストレージ   │                   │
-│ │ 📄 15 ファイル│ 💾 10.5 MB  │                   │
-│ ├──────────────┼──────────────┤                   │
-│ │ 作成日       │ 最終更新日   │                   │
-│ │ 📅 2日前     │ 📅 1時間前   │                   │
-│ └──────────────┴──────────────┘                   │
+│ ファイル数         │ ストレージ使用量                │
+│ 📄 25 ファイル    │ 💾 15.2 MB                     │
+│                                                     │
+│ 作成日             │ 最終更新日                      │
+│ 📅 2日前          │ 📅 1時間前                     │
 │                                                     │
 │ タグ                                                │
-│ [実験] [分析] [材料]                                │
+│ [ラマン] [XRD] [実験]                              │
 │                                                     │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━           │
+│ ──────────────────────────────────────────────      │
 │                                                     │
-│ ■ ファイル一覧 (15)                                │
+│ ファイル一覧 (25)                                   │
+│ （FileListTableコンポーネント）                     │
 │                                                     │
-│ [FileListTable コンポーネント]                      │
-│                                                     │
-├─────────────────────────────────────────────────────┤
-│                     [閉じる] [プロジェクトを開く]   │ ← フッター
+│                            [閉じる] [プロジェクトを開く]│
 └─────────────────────────────────────────────────────┘
 ```
 
-**モーダルサイズ:**
-- 幅: 1000px
-- 高さ: 最大90vh - 200px（スクロール可能）
-- 位置: top: 40px
+### UI要素
 
-### 2.2 主要UI要素
+#### 1. モーダルヘッダー
+- **プロジェクト名**: level 4、太字
+- **ステータスタグ**: 色はステータスに応じて変化
+- **フォルダ名**: `FolderOutlined`アイコン + フォルダ名（グレー）
 
-#### 2.2.1 ヘッダー
-**左側:**
-- プロジェクト名（Title level 4）
-- ステータスタグ（Tag - 色はステータスにより変動）
-- フォルダ名（Text secondary + アイコン）
+#### 2. プロジェクト情報セクション
+- **タイトル**: 「プロジェクト情報」（level 5）
+- **説明**: プロジェクトの説明テキスト（グレー）
+- **メタデータグリッド**: 2列×6行のレイアウト
 
-**右側:**
-- 閉じるボタン（×）
+#### 3. メタデータ表示項目
 
-#### 2.2.2 プロジェクト情報セクション
+| 項目 | アイコン | 表示形式 |
+|------|---------|---------|
+| 所有者 | `TeamOutlined` | ユーザー名 |
+| メンバー | - | カンマ区切り |
+| ファイル数 | `FileTextOutlined` | 数値 + "ファイル" |
+| ストレージ使用量 | `HddOutlined` | formatFileSize() |
+| 作成日 | `CalendarOutlined` | formatRelativeTime() |
+| 最終更新日 | `CalendarOutlined` | formatRelativeTime() |
 
-**A. プロジェクト概要**
-- プロジェクトの説明文（Text secondary）
+#### 4. タグ表示
+- **ラベル**: 「タグ」（12px、グレー）
+- **タグ**: Ant DesignのTagコンポーネント、wrap表示
 
-**B. 詳細情報グリッド（2列 × 3行）**
-| 左列 | 右列 |
-|------|------|
-| 所有者 | メンバー |
-| ファイル数 | ストレージ使用量 |
-| 作成日 | 最終更新日 |
+#### 5. ファイル一覧セクション
+- **タイトル**: 「ファイル一覧 ({件数})」（level 5）
+- **テーブル**: FileListTableコンポーネント
 
-各項目:
-- ラベル（Text secondary, fontSize: 12）
-- 値（Text + アイコン）
-
-**C. タグ**
-- タグ一覧（Tag コンポーネント、wrap表示）
-
-#### 2.2.3 ファイル一覧セクション
-- タイトル: "ファイル一覧 (件数)"
-- `<FileListTable />` コンポーネント
-
-#### 2.2.4 フッターボタン
-- 閉じるボタン（デフォルト）
-- プロジェクトを開くボタン（プライマリ）
+#### 6. フッターボタン
+- **閉じるボタン**: default、モーダルを閉じる
+- **プロジェクトを開くボタン**: primary、プロジェクト管理画面に遷移
 
 ---
 
-## 3. 機能仕様
+## 機能仕様
 
-### 3.1 初期表示
+### Props定義
 
-#### 3.1.1 表示データ
-モーダル表示時、以下のデータを整形して表示:
-- プロジェクト基本情報（名前、ステータス、フォルダ名、概要）
-- 統計情報（ファイル数、ストレージ使用量）
-- メタデータ（所有者、メンバー、作成日、更新日、タグ）
-- ファイル一覧
+```typescript
+interface ProjectDetailModalProps {
+  open: boolean;                       // モーダル表示状態
+  onClose: () => void;                 // 閉じるハンドラー
+  project: ProjectDetail | null;       // プロジェクト詳細
+  files: FileItem[];                   // ファイル一覧
+}
+```
 
-### 3.2 ステータス表示
+### データ型定義
 
-#### 3.2.1 ステータスタグの色マッピング
+#### ProjectDetail
+
+```typescript
+interface ProjectDetail {
+  id: string;                          // プロジェクトID
+  name: string;                        // プロジェクト名
+  folderName: string;                  // フォルダ名
+  description: string;                 // 説明
+  status: string;                      // ステータス
+  fileCount: number;                   // ファイル数
+  totalSize: number;                   // 合計サイズ（バイト）
+  createdAt: string;                   // 作成日時
+  updatedAt: string;                   // 更新日時
+  owner: string;                       // 所有者
+  members: string[];                   // メンバー一覧
+  tags: string[];                      // タグ一覧
+}
+```
+
+#### FileItem
+
+```typescript
+interface FileItem {
+  id: string;                          // ファイルID
+  name: string;                        // ファイル名
+  path: string;                        // パス
+  size: number;                        // サイズ（バイト）
+  lastModified: string;                // 最終更新日時
+  type: string;                        // ファイルタイプ
+  isCheckedOut: boolean;               // チェックアウト状態
+  checkedOutBy: string | null;        // チェックアウトユーザー
+  checkedOutAt: string | null;        // チェックアウト日時
+}
+```
+
+---
+
+## 主要機能
+
+### 1. ステータスタグの色取得
+
 ```typescript
 const getStatusTagColor = (status: string): string => {
   const colors: Record<string, string> = {
-    planning: 'default',      // グレー
-    pending: 'blue',          // 青
-    in_progress: 'cyan',      // シアン
-    completed: 'success',     // 緑
+    planning: 'default',
+    pending: 'blue',
+    in_progress: 'cyan',
+    completed: 'success',
   };
   return colors[status] || 'default';
 };
 ```
 
-#### 3.2.2 ステータステキストの変換
+**ステータスと色の対応**:
+| ステータス | 色 | 意味 |
+|-----------|-----|------|
+| planning | default（グレー） | 計画中 |
+| pending | blue（青） | 保留中 |
+| in_progress | cyan（水色） | 進行中 |
+| completed | success（緑） | 完了 |
+
+### 2. ステータステキストのフォーマット
+
 ```typescript
 const statusText = formatProjectStatus(project.status);
 ```
 
-**formatProjectStatus関数:**
-- `planning` → "計画中"
-- `pending` → "実行待ち"
-- `in_progress` → "実行中"
-- `review_waiting` → "レビュー待ち"
-- `completed` → "完了"
-- `error` → "エラー"
+**ユーティリティ**: `formatProjectStatus()`
+- ステータスコードを日本語ラベルに変換
+- 例: `in_progress` → 「進行中」
 
-### 3.3 日時表示
+### 3. ファイルサイズのフォーマット
 
-#### 3.3.1 相対時刻フォーマット
-```typescript
-formatRelativeTime(project.createdAt)
-```
-
-**表示例:**
-- 1分以内 → "たった今"
-- 1時間以内 → "30分前"
-- 1日以内 → "5時間前"
-- 1週間以内 → "3日前"
-- それ以降 → "2週間前"
-
-### 3.4 ファイルサイズ表示
-
-#### 3.4.1 ファイルサイズフォーマット
 ```typescript
 formatFileSize(project.totalSize)
 ```
 
-**表示例:**
-- 1024 bytes → "1 KB"
-- 1048576 bytes → "1 MB"
-- 1073741824 bytes → "1 GB"
+**ユーティリティ**: `formatFileSize(bytes: number)`
+- バイト数を人間が読みやすい形式に変換
+- 例: `15900000` → 「15.2 MB」
 
-### 3.5 ボタン操作
+### 4. 相対時間のフォーマット
 
-#### 3.5.1 閉じるボタン
 ```typescript
-<Button key="close" onClick={onClose}>
-  閉じる
-</Button>
+formatRelativeTime(project.createdAt)
+formatRelativeTime(project.updatedAt)
 ```
 
-**動作:**
-- モーダルを閉じる
-- 親コンポーネントの`onClose`ハンドラを呼び出し
+**ユーティリティ**: `formatRelativeTime(date: string)`
+- 日時を相対的な表現に変換
+- 例: `2026-03-09T10:00:00Z` → 「2日前」
 
-#### 3.5.2 プロジェクトを開くボタン
+### 5. ファイルクリック処理
+
+```typescript
+onFileClick={(file) => console.log('File clicked:', file.name)}
+```
+
+**動作**:
+- FileListTableからファイルがクリックされた時のコールバック
+- 現在は console.log のみ（将来的にファイル詳細表示やダウンロード機能を実装予定）
+
+### 6. プロジェクトを開く処理
+
 ```typescript
 <Button key="open" type="primary" onClick={() => console.log('Open project')}>
   プロジェクトを開く
 </Button>
 ```
 
-**動作:**
-- 現在は未実装（console.log出力のみ）
-- 将来的にはMAIML編集画面へ遷移
-
-### 3.6 ファイル一覧表示
-
-#### 3.6.1 FileListTable統合
-```typescript
-<FileListTable
-  files={files}
-  onFileClick={(file) => console.log('File clicked:', file.name)}
-/>
-```
-
-**表示内容:**
-- ファイル名、サイズ、最終更新日、チェックアウト状態等
-- 詳細は`FileListTable.md`を参照
+**動作**:
+- 現在は console.log のみ
+- 将来的にプロジェクト管理画面のメインビューに遷移する機能を実装予定
 
 ---
 
-## 4. データ仕様
+## モーダル設定
 
-### 4.1 Props定義
-
-```typescript
-interface ProjectDetailModalProps {
-  open: boolean;                // モーダル表示状態
-  onClose: () => void;          // 閉じるハンドラ
-  project: Project | null;      // プロジェクト情報
-  files: FileData[];            // ファイル一覧
-}
-```
-
-### 4.2 Project型定義
-
-```typescript
-interface Project {
-  id: string;              // プロジェクトID
-  name: string;            // プロジェクト名
-  folderName: string;      // フォルダ名
-  description: string;     // 概要
-  status: string;          // ステータス
-  fileCount: number;       // ファイル数
-  totalSize: number;       // 合計サイズ（バイト）
-  createdAt: string;       // 作成日時（ISO 8601）
-  updatedAt: string;       // 更新日時（ISO 8601）
-  owner: string;           // 所有者
-  members: string[];       // メンバーリスト
-  tags: string[];          // タグリスト
-}
-```
-
-### 4.3 FileData型定義
-
-```typescript
-interface FileData {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  lastModified: string;
-  type: string;
-  isCheckedOut: boolean;
-  checkedOutBy: string | null;
-  checkedOutAt: string | null;
-}
-```
-
----
-
-## 5. API連携
-
-### 5.1 使用するAPI
-このコンポーネント自体はAPIを直接呼び出しません。
-
-### 5.2 親コンポーネントからのデータ供給
-- プロジェクト情報: `ProjectManagement`から渡される
-- ファイル一覧: `ProjectManagement`の`projectFiles`から渡される
-
----
-
-## 6. ユーティリティ関数
-
-### 6.1 使用するフォーマッター
-
-```typescript
-import {
-  formatFileSize,
-  formatRelativeTime,
-  formatProjectStatus,
-  getStatusColor
-} from '@/utils/formatters';
-```
-
-#### 6.1.1 formatFileSize
-```typescript
-formatFileSize(bytes: number): string
-```
-バイト数を人間が読みやすい形式に変換（KB, MB, GB）
-
-#### 6.1.2 formatRelativeTime
-```typescript
-formatRelativeTime(dateString: string): string
-```
-ISO 8601日時文字列を相対時刻に変換（"2日前"等）
-
-#### 6.1.3 formatProjectStatus
-```typescript
-formatProjectStatus(status: string): string
-```
-ステータスコードを日本語表示名に変換
-
-#### 6.1.4 getStatusColor
-```typescript
-getStatusColor(status: string): string
-```
-ステータスに対応する色を返す
-
----
-
-## 7. UI/UXポリシー準拠
-
-### 7.1 Ant Designコンポーネント使用
-
-| 用途 | コンポーネント | Props |
-|------|---------------|-------|
-| モーダル | Modal | width=1000, style.top=40 |
-| タイトル | Typography.Title | level=4, level=5 |
-| テキスト | Typography.Text | type="secondary" |
-| タグ | Tag | color（動的） |
-| アイコン | Icon | style.color |
-| グリッド | Row, Col | gutter=[16, 16] |
-| スペース | Space | size="small", "middle" |
-| 区切り線 | Divider | margin="24px 0" |
-
-### 7.2 レスポンシブグリッド
-
-```typescript
-<Row gutter={[16, 16]}>
-  <Col span={12}>  {/* 左列 */}
-    ...
-  </Col>
-  <Col span={12}>  {/* 右列 */}
-    ...
-  </Col>
-</Row>
-```
-
-**デザイン:**
-- 2列グリッド（各span=12）
-- gutter: 16px（横・縦）
-- モバイル対応（必要に応じてspan調整）
-
-### 7.3 アイコンの使用
-
-| 用途 | アイコン | 色 |
-|------|---------|-----|
-| フォルダ | FolderOutlined | #757575 |
-| チーム | TeamOutlined | #757575 |
-| ファイル | FileTextOutlined | #757575 |
-| ストレージ | HddOutlined | #757575 |
-| カレンダー | CalendarOutlined | #757575 |
-| 閉じる | CloseOutlined | デフォルト |
-
----
-
-## 8. 実装ファイル
-
-### 8.1 ファイルパス
-```
-frontend/src/components/project/ProjectDetailModal.tsx
-```
-
-### 8.2 依存コンポーネント
-- `FileListTable` - ファイル一覧テーブル
-
-### 8.3 依存ライブラリ
-- antd: Modal, Typography, Tag, Divider, Space, Row, Col, Button
-- @ant-design/icons: 各種アイコン
-- React: FC型
-
-### 8.4 依存ユーティリティ
-- `@/utils/formatters` - フォーマッター関数群
-
----
-
-## 9. スタイリング
-
-### 9.1 モーダルスタイル
+### サイズと配置
 
 ```typescript
 <Modal
+  open={open}
+  onCancel={onClose}
   width={1000}
   style={{ top: 40 }}
-  bodyStyle={{
-    maxHeight: 'calc(90vh - 200px)',
-    overflowY: 'auto'
-  }}
+  styles={{ body: { maxHeight: 'calc(90vh - 200px)', overflowY: 'auto' } }}
 >
 ```
 
-**特徴:**
-- 固定幅: 1000px
-- 上部余白: 40px
-- ボディ最大高さ: 90vh - 200px
-- 縦スクロール: 自動
-
-### 9.2 情報グリッドスタイル
-
-```typescript
-<Text
-  type="secondary"
-  style={{
-    display: 'block',
-    marginBottom: 4,
-    fontSize: 12
-  }}
->
-```
-
-**ラベルスタイル:**
-- タイプ: secondary
-- 表示: block
-- 下余白: 4px
-- フォントサイズ: 12px
+**設定**:
+- **幅**: 1000px
+- **上部位置**: 40px
+- **ボディ最大高さ**: `calc(90vh - 200px)`
+- **オーバーフロー**: 縦スクロール
 
 ---
 
-## 10. エラーハンドリング
+## 子コンポーネント
 
-### 10.1 Nullチェック
+### FileListTable
+
+**用途**: ファイル一覧表示
+
+**Props**:
+```typescript
+{
+  files: FileItem[];
+  onFileClick: (file: FileItem) => void;
+}
+```
+
+**機能**:
+- ファイル名、サイズ、最終更新日、チェックアウト状態を表示
+- ファイルクリック時にコールバックを実行
+
+---
+
+## 特記事項
+
+### null チェック
 
 ```typescript
 if (!project) return null;
 ```
 
-**動作:**
-- `project`がnullの場合、何も表示しない
-- モーダルがopenでもprojectがnullなら非表示
+**理由**:
+- `project`が`null`の場合、何も表示しない
+- モーダルが開かれる前にデータが準備されることを前提
 
-### 10.2 デフォルト値
+### メンバー表示
 
 ```typescript
-const colors: Record<string, string> = {
-  planning: 'default',
-  pending: 'blue',
-  in_progress: 'cyan',
-  completed: 'success',
-};
-return colors[status] || 'default';  // 未定義の場合はdefault
+<Text>{project.members.join(', ')}</Text>
 ```
 
----
+**フォーマット**: カンマ + スペース区切り
+**例**: 「user001, user002, user003」
 
-## 11. 既知の課題・TODO
+### タグ表示
 
-### 11.1 既知の課題
-- 「プロジェクトを開く」ボタンが未実装（console.log出力のみ）
-- ファイルクリック時の動作が未実装（console.log出力のみ）
+```typescript
+<Space size="small" wrap>
+  {project.tags.map((tag, index) => (
+    <Tag key={index}>{tag}</Tag>
+  ))}
+</Space>
+```
 
-### 11.2 将来の改善案
-- [ ] 「プロジェクトを開く」ボタンの実装（MAIML編集画面へ遷移）
-- [ ] ファイルクリック時の詳細表示
-- [ ] プロジェクト情報の編集機能
-- [ ] メンバー管理機能
-- [ ] タグの追加・削除機能
-- [ ] プロジェクト統計のグラフ表示
-- [ ] エクスポート機能
-- [ ] モバイルレスポンシブ対応の強化
-
----
-
-## 12. テスト観点
-
-### 12.1 単体テスト
-- [ ] モーダル表示/非表示が正しく動作する
-- [ ] projectがnullの場合、nullを返す
-- [ ] ステータスタグの色が正しく設定される
-- [ ] 日時が正しくフォーマットされる
-- [ ] ファイルサイズが正しくフォーマットされる
-- [ ] タグが正しく表示される
-
-### 12.2 統合テスト
-- [ ] 親コンポーネントからのデータ受け取り
-- [ ] FileListTableへのデータ渡し
-- [ ] ボタンクリックのハンドラ呼び出し
-
-### 12.3 E2Eテスト
-- [ ] モーダル表示から閉じるまでの操作
-- [ ] ファイル一覧のスクロール
-- [ ] ボタン操作
+**動作**:
+- `wrap`により、横幅が不足する場合は自動的に改行
+- タグが0個の場合は空のSpaceが表示される
 
 ---
 
-## 13. 変更履歴
+## ユーティリティ関数
 
-| 日付 | バージョン | 変更内容 | 担当者 |
-|------|-----------|---------|--------|
-| 2026-01-21 | 1.0.0 | 初版作成 | Cline |
+### formatFileSize
+
+**用途**: バイト数を人間が読みやすい形式に変換
+
+**例**:
+- `1024` → 「1 KB」
+- `1048576` → 「1 MB」
+- `1073741824` → 「1 GB」
+
+### formatRelativeTime
+
+**用途**: 日時を相対的な表現に変換
+
+**例**:
+- 1時間以内 → 「1時間前」
+- 1日以内 → 「5時間前」
+- 1週間以内 → 「3日前」
+- それ以上 → 「2週間前」または絶対日時
+
+### formatProjectStatus
+
+**用途**: ステータスコードを日本語ラベルに変換
+
+**対応表**:
+| コード | ラベル |
+|--------|--------|
+| planning | 計画中 |
+| pending | 保留中 |
+| in_progress | 進行中 |
+| completed | 完了 |
+
+### getStatusColor
+
+**用途**: ステータスに応じたタグの色を取得
+
+**実装**: コンポーネント内で定義（`getStatusTagColor`関数）
 
 ---
 
-## 14. 関連ドキュメント
+## 実装ファイル情報
 
-- [ProjectManagement仕様](./ProjectManagement.md) - 親コンポーネント
-- [FileListTable仕様](./FileListTable.md) - 子コンポーネント
-- [UIポリシー](.clinerules/references/ui_policy.md) - UI設計ルール
+### パス
+```
+frontend/src/components/project/ProjectDetailModal.tsx
+```
+
+### 主要な依存パッケージ
+- `antd`: UI コンポーネント（Modal, Button, Typography, Tag, Divider, Space, Row, Col）
+- `@ant-design/icons`: アイコン（CloseOutlined, FolderOutlined, TeamOutlined, FileTextOutlined, HddOutlined, CalendarOutlined）
+- `react`: React本体
+
+### ユーティリティ
+- `formatters`: formatFileSize, formatRelativeTime, formatProjectStatus, getStatusColor
+
+### 子コンポーネント
+- `FileListTable`: ファイル一覧表示
+
+---
+
+## 変更履歴
+
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|---------|--------|
+| 1.0 | 2026-03-11 | 実装ベースで仕様書を新規作成（実装ファイル: ProjectDetailModal.tsx） | Cline |
+
+---
+
+## 関連ドキュメント
+
+- [プロジェクト管理画面](ui_project_management.md)
+- [プロジェクトフォルダツリー](ui_project_folder_tree.md)
+- [ファイル一覧テーブル](ui_file_list_table.md)
+- [プロジェクト作成モーダル](ui_create_project_modal.md)
