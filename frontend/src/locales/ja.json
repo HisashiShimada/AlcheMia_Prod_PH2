@@ -424,6 +424,8 @@
     },
     "tabs": {
       "file_management": "ファイル管理",
+      "task_registration": "タスク登録",
+      "instruction_registration": "指示一覧",
       "task_results": "タスク結果確認"
     },
     "task_results": {
@@ -432,6 +434,7 @@
       "coming_soon": "タスク結果確認機能は開発中です",
       "work_id": "作業ID",
       "task_name": "タスク名",
+      "task_no": "タスク番号",
       "method_name": "メソッド",
       "assigned_worker": "担当者",
       "progress": "進捗率",
@@ -1180,6 +1183,8 @@
     "sendButton": "指示送信",
     "columns": {
       "target": "指示対象",
+      "taskNumber": "タスク番号",
+      "transitionId": "トランジションID",
       "priority": "優先度",
       "type": "タイプ",
       "content": "指示内容",
@@ -1244,8 +1249,12 @@
       "sentCount": "{count}件の指示を送信しました",
       "noInstructions": "送信する指示がありません",
       "saveFailed": "指示の保存に失敗しました",
+      "sendFailed": "指示の送信に失敗しました",
+      "fetchFailed": "指示一覧の取得に失敗しました",
+      "taskFetchFailed": "タスク情報の取得に失敗しました",
       "deleted": "指示を削除しました",
-      "deleteFailed": "指示の削除に失敗しました（送信済の可能性があります）"
+      "deleteFailed": "指示の削除に失敗しました（送信済の可能性があります）",
+      "deleteError": "指示の削除中にエラーが発生しました"
     }
   }
 }

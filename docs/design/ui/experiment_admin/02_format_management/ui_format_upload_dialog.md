@@ -1,517 +1,660 @@
-# FormatUploadDialog UI仕様書
+# フォーマットファイルアップロードダイアログ UI仕様書
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+フォーマットファイルアップロードダイアログは、選択されたフォーマットフォルダまたはサブフォルダに、単一ファイル・複数ファイル・フォルダ階層を一括でアップロードするためのモーダルダイアログです。ドラッグ&ドロップに対応し、アップロード進行状況をリアルタイムで表示します。
 
-フォーマット管理画面用の一括ファイルアップロードダイアログ。単一ファイル、一括ファイル、フォルダ構造を保持したアップロードの3つのモードをサポートします。
+### 1.2 使用場面
+- **表示場所**: フォーマット管理画面のモーダルオーバーレイ
+- **トリガー**: 「ファイルアップロード」ボタンのクリック
+- **主な用途**:
+  - XMLテンプレートファイルの一括アップロード
+  - MAIMLワークフローファイルのアップロード
+  - フォルダ階層を維持したアップロード
+  - サブフォルダへのファイル追加
 
-### 1.2. 使用場面
-
-- FormatManagement画面の「アップロード」ボタンクリック時
-- 複数のフォーマットファイルを一度にアップロードする場合
-- フォルダ構造を保持してアップロードする場合
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
-- **テナント分離**: organization_id によるマルチテナント分離
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin（実験管理者）
+- **認証**: 親コンポーネント（FormatManagement）で認証済み
 
 ---
 
 ## 2. 画面構成
 
-### 2.1. レイアウト構造
+### 2.1 モーダル構造
 
 ```
-┌───────────────────────────────────────────────┐
-│ ファイルアップロード                           │
-├───────────────────────────────────────────────┤
-│ アップロードタイプ                             │
-│ [📄単一] [📦一括] [📁フォルダ]               │
-│                                               │
-│ ┌─────────────────────────────────────────┐  │
-│ │       📦                                 │  │
-│ │   ファイルをドラッグ&ドロップ            │  │
-│ │ または、クリックしてファイルを選択        │  │
-│ └─────────────────────────────────────────┘  │
-│                                               │
-│ 選択ファイル (2個)                            │
-│ ┌─────────────────────────────────────────┐  │
-│ │ template1.xml                    2.5 KB │  │
-│ │ workflow.maiml                   3.2 KB │  │
-│ │ 総サイズ: 5.7 KB                         │  │
-│ └─────────────────────────────────────────┘  │
-│ ──────────────────────────────────────────   │
-│ アップロード先フォルダ                        │
-│ ベースフォルダ: 材料データフォーマット        │
-│ [サブフォルダを選択（省略可） ▼]             │
-│ 選択パス: formats/materials/templates        │
-│                                               │
-│ ☑ フォルダ構造を保持する                     │
-│                                               │
-├───────────────────────────────────────────────┤
-│                     [キャンセル] [アップロード]│
-└───────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ ファイルアップロード                              [キャンセル] [アップロード開始] │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ アップロードタイプ                                          │
+│ ┌─────────────┬─────────────┬─────────────┐               │
+│ │ 📄 単一ファイル │ 📥 一括ファイル │ 📁 フォルダ  │               │
+│ └─────────────┴─────────────┴─────────────┘               │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │           📥                                            │ │
+│ │    ファイルをドラッグ&ドロップ                          │ │
+│ │  または、クリックしてファイルを選択                     │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ ┌─ 選択ファイル (3個) ────────────────────────────────────┐ │
+│ │ material_template.xml                        5.2 KB    │ │
+│ │ condition_template.xml                       3.8 KB    │ │
+│ │ result_template.xml                          4.1 KB    │ │
+│ │ 総サイズ: 13.1 KB                                       │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ ────────────────────────────────────────────────────────── │
+│ 📁 アップロード先フォーマット                               │
+│    材料データフォーマット                                   │
+│    パス: formats/dept_001/material                          │
+│                                                             │
+│ サブフォルダパス（オプション）                              │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ 例: subfolder                                           │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│ サブフォルダを指定しない場合は、選択フォーマットフォルダ直下 │
+│ にアップロードされます                                      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+### 2.2 主要UI要素
 
-#### 2.2.1. モーダルヘッダー
+#### 2.2.1 モーダルヘッダー
+- **タイトル**: 「ファイルアップロード」
+- **アクションボタン**: 
+  - キャンセルボタン
+  - アップロード開始ボタン（プライマリ）
 
-| 要素 | 説明 |
-|------|------|
-| タイトル | 「ファイルアップロード」 |
+#### 2.2.2 アップロードタイプセグメント
+- **タイプ**: Segmented（ボタングループ）
+- **オプション**:
+  1. 単一ファイル（📄 FileOutlined）
+  2. 一括ファイル（📥 InboxOutlined）
+  3. フォルダ（📁 FolderOutlined）
 
-#### 2.2.2. アップロードタイプ（Segmented）
+#### 2.2.3 ファイル選択エリア
 
-| モード | アイコン | 説明 | 制限 |
-|--------|---------|------|------|
-| 単一ファイル | FileOutlined | 1つのファイルをアップロード | 1ファイルのみ |
-| 一括ファイル | InboxOutlined | 複数ファイルを一度にアップロード | 制限なし |
-| フォルダ | FolderOutlined | フォルダごとアップロード（構造保持） | 制限なし |
+##### 単一ファイル・一括ファイルモード
+- **タイプ**: Dragger（ドラッグ&ドロップエリア）
+- **アイコン**: InboxOutlined（青色、#0093CF）
+- **メインテキスト**: 「ファイルをドラッグ&ドロップ」
+- **サブテキスト**: 「または、クリックしてファイルを選択」
+- **対応形式**: .maiml, .xml, .json, .txt, .csv, .png, .jpg, .jpeg, .gif, .pdf, .tif, .tiff, .bmp, .svg, .webp
 
-#### 2.2.3. ファイル選択エリア
+##### フォルダモード
+- **タイプ**: Button（フォルダ選択ボタン）
+- **アイコン**: FolderOutlined
+- **テキスト**: 「フォルダを選択」
+- **機能**: 非表示のinput[type="file"]をトリガー（webkitdirectory属性）
 
-**ドラッグ&ドロップエリア（単一・一括モード）:**
+#### 2.2.4 選択ファイル表示エリア（条件付き）
+- **表示条件**: ファイルが選択されている場合
+- **背景色**: #f5f5f5
+- **内容**:
+  - ファイル数
+  - ファイル名とサイズのリスト（最大10件表示）
+  - 11件目以降は「他 N ファイル...」と表示
+  - 総サイズ（青い背景ボックス）
 
-| 要素 | 説明 |
-|------|------|
-| アイコン | InboxOutlined（48px、色: #0093CF） |
-| メインテキスト | 「ファイルをドラッグ&ドロップ」 |
-| サブテキスト | 「または、クリックしてファイルを選択」 |
-| 対応形式 | .maiml, .xml, .json, .txt, .csv, .png, .jpg, .jpeg, .gif, .pdf, .tif, .tiff, .bmp, .svg, .webp |
+#### 2.2.5 アップロード先フォーマット表示
+- **背景色**: #E6F7FC（水色）
+- **ボーダー**: #0093CF（青）
+- **内容**:
+  - フォーマット名
+  - フォーマットパス
 
-**フォルダ選択ボタン（フォルダモード）:**
+#### 2.2.6 サブフォルダパス入力
+- **タイプ**: Input
+- **プレースホルダー**: 「例: subfolder（空欄の場合は選択フォーマットフォルダ直下）」
+- **補足説明**: サブフォルダを指定しない場合の挙動
 
-| 要素 | 説明 |
-|------|------|
-| ボタン | 「フォルダを選択」（FolderOutlined、large） |
-| 動作 | 非表示のinput要素をトリガー |
+#### 2.2.7 アップロード進行状況（条件付き）
+- **表示条件**: アップロード中
+- **タイプ**: Alert（info、icon=LoadingOutlined）
+- **内容**:
+  - 「N / M ファイル完了」
+  - Progress（進行状況バー）
 
-#### 2.2.4. 選択ファイル表示エリア
+#### 2.2.8 アップロード完了表示（条件付き）
+- **表示条件**: アップロード完了後
+- **タイプ**: Alert（success、icon=CheckCircleOutlined）
+- **内容**: 「N個のファイルが正常にアップロードされました」
 
-| 項目 | 説明 |
-|------|------|
-| ヘッダー | 「選択ファイル (N個)」 |
-| ファイルリスト | 最大10件表示、スクロール可能（最大高さ200px） |
-| ファイル名 | 左寄せ、ellipsis対応 |
-| ファイルサイズ | 右寄せ、フォーマット済み |
-| 総サイズ | 青背景エリアに表示 |
+#### 2.2.9 エラー表示（条件付き）
+- **表示条件**: エラー発生時
+- **タイプ**: Alert（error、icon=CloseCircleOutlined、closable）
+- **内容**: エラーメッセージ
 
-#### 2.2.5. アップロード先フォルダ選択
+### 2.3 インタラクション
 
-| 要素 | 説明 |
-|------|------|
-| ベースフォルダ表示 | 灰色背景、選択されたフォーマット名 |
-| サブフォルダ選択 | Cascader（階層選択、検索可能） |
-| 選択パス表示 | 青背景、完全なパス文字列 |
+#### 2.3.1 モーダル表示
+- **操作**: 「ファイルアップロード」ボタンをクリック
+- **結果**: モーダルが開き、選択されたフォーマット情報が表示される
 
-#### 2.2.6. オプション
+#### 2.3.2 アップロードタイプの選択
+- **操作**: Segmentedボタンをクリック
+- **結果**: 
+  - 選択したモードに切り替わる
+  - ファイルリストがクリアされる
+  - ファイル選択エリアが切り替わる
 
-| オプション | 表示条件 | デフォルト |
-|----------|---------|----------|
-| フォルダ構造を保持する | 一括・フォルダモードのみ | チェック済み |
+#### 2.3.3 ファイル選択（単一・一括モード）
+- **操作1**: ファイルをドラッグ&ドロップ
+- **操作2**: クリックしてファイル選択ダイアログを開く
+- **結果**: 
+  - 選択ファイルが表示される
+  - 単一モードの場合、最後の1ファイルのみが残る
 
-#### 2.2.7. 進行状況表示
+#### 2.3.4 フォルダ選択（フォルダモード）
+- **操作**: 「フォルダを選択」ボタンをクリック
+- **結果**: 
+  - システムのフォルダ選択ダイアログが開く
+  - フォルダ内の全ファイルが選択される
+  - ファイル名にパスが含まれる（webkitRelativePath）
 
-| 状態 | 表示内容 |
-|------|---------|
-| アップロード中 | Alert（info）+ Progress（active） + ファイル数表示 |
-| 完了 | Alert（success）+ CheckCircleOutlined |
-| エラー | Alert（error）+ CloseCircleOutlined + エラーメッセージ |
+#### 2.3.5 サブフォルダパスの入力
+- **操作**: サブフォルダパス入力フィールドに入力
+- **結果**: アップロード先パスが動的に更新される
 
-#### 2.2.8. フッターボタン
+#### 2.3.6 アップロード開始
+- **操作**: 「アップロード開始」ボタンをクリック
+- **結果**: 
+  - アップロード処理が開始される
+  - 進行状況が表示される
+  - 完了後、成功メッセージが表示される
 
-| ボタン | スタイル | 状態 | 動作 |
-|--------|---------|------|------|
-| キャンセル | default | アップロード中は無効 | モーダルを閉じる |
-| アップロード開始 | primary | ファイル未選択・アップロード中は無効 | アップロード実行 |
+#### 2.3.7 アップロード中のキャンセル
+- **操作**: 「キャンセル」ボタンをクリック
+- **結果**: 確認ダイアログが表示される
 
-### 2.3. 画面遷移
-
-- 画面遷移なし
-- アップロード完了後、2秒後に自動的にクリア
-- onUploadCompleteコールバックで親に通知
+#### 2.3.8 モーダルを閉じる
+- **操作**: ×ボタン、またはキャンセルボタンをクリック
+- **結果**: 
+  - アップロード中でない場合: 即座に閉じる
+  - アップロード中の場合: 確認ダイアログが表示される
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1. 主要機能の詳細
+### 3.1 アップロードモード
 
-#### 3.1.1. モーダル表示
+#### 3.1.1 単一ファイルモード
 
-**処理フロー:**
-1. 親コンポーネントからopen=trueで呼び出される
-2. baseFolderがnullの場合は警告メッセージを表示
-3. baseFolderがある場合は通常のアップロードUIを表示
-
-**警告表示（ベースフォルダ未選択）:**
-```
-タイトル: 「フォーマットが選択されていません」
-説明: 「先にフォーマットを選択してください。」
-タイプ: warning
-```
-
-#### 3.1.2. アップロードモードの切り替え
-
-**処理フロー:**
-1. Segmentedコンポーネントで3つのモードを選択
-2. モード変更時にfileListをクリア
-3. フォルダモードの場合はDraggerではなくボタン表示
-
-**モード別の動作:**
-
-| モード | ファイル選択方法 | 複数選択 | 構造保持オプション |
-|--------|----------------|---------|------------------|
-| 単一ファイル | Dragger | 不可（最後の1つのみ） | 非表示 |
-| 一括ファイル | Dragger | 可 | 表示 |
-| フォルダ | 非表示inputでディレクトリ選択 | 可 | 表示 |
-
-#### 3.1.3. ファイル選択（単一・一括モード）
-
-**処理フロー:**
-1. Draggerコンポーネントでドラッグ&ドロップまたはクリック選択
-2. beforeUploadでfalseを返し、自動アップロードを無効化
-3. onChange時にfileListを更新
-4. 単一モードの場合は最後の1つのみ保持
-
-**対応ファイル形式:**
 ```typescript
-accept=".maiml,.xml,.json,.txt,.csv,.png,.jpg,.jpeg,.gif,.pdf,.tif,.tiff,.bmp,.svg,.webp"
+type UploadMode = 'single';
 ```
 
-#### 3.1.4. フォルダ選択（フォルダモード）
+- **機能**: 1つのファイルのみをアップロード
+- **ファイル選択**: 複数選択しても最後の1ファイルのみが残る
+- **用途**: テンプレートファイルの個別アップロード
 
-**処理フロー:**
-1. 非表示のinput要素（webkitdirectory属性付き）を使用
-2. ボタンクリックでinputをトリガー
-3. フォルダ選択時、全ファイルをwebkitRelativePathと共に取得
-4. UploadFile配列に変換してfileListに設定
+#### 3.1.2 一括ファイルモード
 
-**webkitRelativePath:**
-- フォルダ構造を保持するためのパス情報
-- 例: `materials/templates/template1.xml`
-
-#### 3.1.5. ファイルリストの表示
-
-**処理フロー:**
-1. fileList配列の内容を表示
-2. 10件まで表示、それ以上は「他N件...」
-3. 各ファイルの名前とサイズを表示
-4. 総サイズを計算して表示
-
-**ファイルサイズフォーマット:**
-- 1024未満: `X Bytes`
-- 1024以上、1MB未満: `X.XX KB`
-- 1MB以上、1GB未満: `X.XX MB`
-- 1GB以上: `X.XX GB`
-
-#### 3.1.6. サブフォルダ選択
-
-**処理フロー:**
-1. 親から受け取ったsubFolders配列をCascaderに渡す
-2. 階層構造で選択可能
-3. 検索機能（showSearch）有効
-4. 一括・フォルダモードではchangeOnSelect=trueで途中階層選択可能
-
-**Cascader options形式:**
 ```typescript
-[
-  {
-    value: 'templates',
-    label: 'テンプレート',
-    children: [
-      {
-        value: 'materials',
-        label: '材料'
-      }
-    ]
+type UploadMode = 'bulk';
+```
+
+- **機能**: 複数のファイルを同時にアップロード
+- **ファイル選択**: 複数選択可能
+- **用途**: 複数のテンプレートファイルの一括アップロード
+
+#### 3.1.3 フォルダモード
+
+```typescript
+type UploadMode = 'folder';
+```
+
+- **機能**: フォルダ階層を維持したままアップロード
+- **ファイル選択**: フォルダ選択ダイアログ
+- **用途**: サブフォルダ構造を含むファイル群のアップロード
+
+#### 3.1.4 UI動作
+- ユーザー操作: Segmentedボタンをクリック
+- 画面変化: 
+  - 選択したモードに切り替わる
+  - ファイルリストがクリアされる
+  - ファイル選択UIが切り替わる
+
+### 3.2 ファイル選択処理
+
+#### 3.2.1 ファイル選択ハンドラ（単一・一括モード）
+
+```typescript
+const handleFileChange: UploadProps['onChange'] = useCallback(
+  (info: { fileList: UploadFile[] }) => {
+    let newFileList = [...info.fileList];
+    
+    // 単一ファイルモードの場合は1つのみ
+    if (uploadMode === 'single') {
+      newFileList = newFileList.slice(-1);
+    }
+
+    setFileList(newFileList);
+  },
+  [uploadMode]
+);
+```
+
+#### 3.2.2 フォルダ選択ハンドラ（フォルダモード）
+
+```typescript
+const handleFolderSelect = useCallback(
+  (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const uploadFiles: UploadFile[] = Array.from(files).map((file, index) => {
+      const fileWithPath = file as File & { webkitRelativePath?: string };
+      const rcFile = file as RcFile;
+      rcFile.uid = `${Date.now()}-${index}`;
+      
+      return {
+        uid: rcFile.uid,
+        name: fileWithPath.webkitRelativePath || file.name,
+        status: 'done' as const,
+        size: file.size,
+        type: file.type,
+        originFileObj: rcFile,
+      };
+    });
+
+    setFileList(uploadFiles);
+  },
+  []
+);
+```
+
+- **webkitRelativePath**: フォルダからの相対パスが取得される
+- **例**: `subfolder1/subfolder2/file.xml`
+
+#### 3.2.3 自動アップロード無効化
+
+```typescript
+const beforeUpload = useCallback(() => {
+  return false; // 自動アップロードを無効化
+}, []);
+```
+
+- **理由**: アップロード開始ボタンをクリックするまでアップロードしない
+
+#### 3.2.4 UI動作
+- ユーザー操作: ファイル選択またはドラッグ&ドロップ
+- 画面変化: 
+  - 選択ファイルリストが表示される
+  - 総サイズが計算・表示される
+
+### 3.3 アップロード先パスの構築
+
+#### 3.3.1 パス構築ロジック
+
+```typescript
+const getTargetPath = useCallback(() => {
+  if (!baseFolder) {
+    return '';
   }
-]
+  
+  // formats/{departmentCd}/{formatFolderName} または formats/{formatFolderName}
+  const basePath = baseFolder.departmentCd 
+    ? `formats/${baseFolder.departmentCd}/${baseFolder.folderName}`
+    : `formats/${baseFolder.folderName}`;
+  
+  // サブフォルダパスから先頭・末尾のスラッシュを削除
+  const cleanSubFolder = subFolderPath.trim().replace(/^\/+|\/+$/g, '');
+  
+  // サブフォルダパスはフォーマットフォルダルートからの絶対パスとして扱う
+  const finalPath = cleanSubFolder ? `${basePath}/${cleanSubFolder}` : basePath;
+  
+  return finalPath;
+}, [baseFolder, subFolderPath]);
 ```
 
-**選択パス表示:**
-- ベースフォルダ + 選択されたサブフォルダのパス
-- 例: `formats/materials/templates`
+**例:**
+- フォーマットフォルダ直下: `formats/dept_001/material`
+- サブフォルダ指定: `formats/dept_001/material/subfolder1`
 
-#### 3.1.7. フォルダ構造保持オプション
+#### 3.3.2 UI動作
+- ユーザー操作: サブフォルダパスを入力
+- 画面変化: 
+  - アップロード先パス表示が動的に更新される
 
-**処理フロー:**
-1. 一括・フォルダモードのみ表示
-2. Checkboxでオン/オフ切り替え
-3. オン: webkitRelativePathを保持してアップロード
-4. オフ: ファイル名のみでアップロード（フラット化）
+### 3.4 アップロード実行
 
-#### 3.1.8. アップロード実行
+#### 3.4.1 バリデーション
 
-**処理フロー:**
-1. ファイル選択チェック（0件の場合は警告）
-2. ベースフォルダチェック（nullの場合はエラー）
-3. アップロード状態を設定（isUploading=true）
-4. 各ファイルを順次アップロード（モック処理）
-5. 進行状況を更新（uploadedCount、progress）
-6. 完了後、2秒後に自動リセット
-7. onUploadCompleteコールバックを呼び出し
-
-**進行状況の更新:**
 ```typescript
-progress = Math.round((uploadedCount / totalCount) * 100)
+if (fileList.length === 0) {
+  message.warning('ファイルを選択してください');
+  return;
+}
+
+if (!baseFolder) {
+  message.error('フォーマットが選択されていません');
+  return;
+}
 ```
 
-**完了後の自動リセット:**
-- fileListをクリア
-- uploadStateを初期化
-- 2秒のディレイ
+#### 3.4.2 アップロード処理
 
-#### 3.1.9. エラーハンドリング
+```typescript
+const handleUpload = useCallback(async () => {
+  setUploadState({
+    isUploading: true,
+    progress: 0,
+    uploadedCount: 0,
+    totalCount: fileList.length,
+    error: null,
+  });
 
-**エラーケース:**
-1. ファイル未選択でアップロード実行
-2. ベースフォルダ未選択
-3. アップロードAPI呼び出し失敗
+  try {
+    // originFileObjを抽出してFile型に変換
+    const files = fileList
+      .map(f => {
+        const originFile = f.originFileObj;
+        if (!originFile) return null;
+        
+        // フォルダモードで、かつnameにパスが含まれている場合
+        if (uploadMode === 'folder' && f.name.includes('/')) {
+          // nameにパスを含む新しいFileオブジェクトを作成
+          return new File([originFile], f.name, {
+            type: originFile.type,
+            lastModified: originFile.lastModified,
+          });
+        }
+        
+        return originFile as File;
+      })
+      .filter((f): f is File => !!f);
 
-**エラー表示:**
-- Alert（error）コンポーネント
-- closable（ユーザーが手動で閉じられる）
+    const targetPath = getTargetPath();
 
-#### 3.1.10. モーダルを閉じる
+    // API呼び出し
+    const response = await uploadFiles({
+      uploadMode,
+      targetPath,
+      files,
+      metadata: {
+        formatId: baseFolder.id,
+      },
+      onProgress: (progress) => {
+        setUploadState(prev => ({
+          ...prev,
+          progress: progress.percentage,
+          uploadedCount: progress.uploadedCount,
+        }));
+      },
+    });
 
-**処理フロー:**
-1. アップロード中の場合は確認ダイアログ表示
-2. 確認後、onClose()コールバックを呼び出し
-3. アップロード中でない場合は即座に閉じる
+    if (response) {
+      message.success('アップロードが完了しました');
+      
+      if (onUploadComplete) {
+        onUploadComplete({
+          mode: uploadMode,
+          fileCount: fileList.length,
+          success: true,
+        });
+      }
 
-**確認ダイアログ:**
+      // 完了後の状態リセット（2秒後）
+      setTimeout(() => {
+        setFileList([]);
+        setSubFolderPath('');
+        setUploadState({
+          isUploading: false,
+          progress: 100,
+          uploadedCount: fileList.length,
+          totalCount: fileList.length,
+          error: null,
+        });
+      }, 2000);
+    }
+  } catch (error) {
+    const errorMessage = extractErrorMessage(error);
+    setUploadState(prev => ({
+      ...prev,
+      isUploading: false,
+      error: errorMessage,
+    }));
+    message.error(errorMessage);
+  }
+}, [fileList, uploadMode, baseFolder, getTargetPath, onUploadComplete, message]);
 ```
-タイトル: 「アップロード中」
-内容: 「アップロード処理が進行中です。キャンセルしますか？」
+
+#### 3.4.3 プログレスコールバック
+
+```typescript
+onProgress: (progress) => {
+  setUploadState(prev => ({
+    ...prev,
+    progress: progress.percentage,
+    uploadedCount: progress.uploadedCount,
+  }));
+}
 ```
 
-### 3.2. ボタン・操作の動作
+- **更新頻度**: ファイルごとに更新
+- **表示内容**: パーセンテージとアップロード済みファイル数
 
-| 操作 | 動作 | 状態変更 |
-|------|------|---------|
-| モード切り替え | fileListをクリア | uploadMode変更 |
-| ファイル選択（Dragger） | fileList更新 | fileList変更 |
-| フォルダ選択ボタン | input要素をトリガー | - |
-| サブフォルダ選択 | パス更新 | selectedSubFolder変更 |
-| 構造保持チェック | オプション切り替え | preserveFolderStructure変更 |
-| アップロード開始 | アップロード実行 | uploadState変更 |
-| キャンセル | モーダルを閉じる | - |
+#### 3.4.4 UI動作
+- ユーザー操作: 「アップロード開始」ボタンをクリック
+- 画面変化: 
+  - ボタンがローディング状態になる
+  - 進行状況が表示される
+  - 完了後、成功メッセージが表示される
+  - 2秒後に状態がリセットされる
 
-### 3.3. バリデーションルール
+### 3.5 エラーハンドリング
 
-| ルール | タイミング | エラーメッセージ |
-|--------|----------|----------------|
-| ファイル選択チェック | アップロード開始時 | 「ファイルを選択してください」 |
-| ベースフォルダチェック | アップロード開始時 | 「ベースフォルダが選択されていません」 |
+#### 3.5.1 ファイル未選択エラー
+
+```typescript
+if (fileList.length === 0) {
+  message.warning('ファイルを選択してください');
+  return;
+}
+```
+
+#### 3.5.2 フォーマット未選択エラー
+
+```typescript
+if (!baseFolder) {
+  message.error('フォーマットが選択されていません');
+  return;
+}
+```
+
+#### 3.5.3 API通信エラー
+
+```typescript
+catch (error) {
+  const errorMessage = extractErrorMessage(error);
+  setUploadState(prev => ({
+    ...prev,
+    isUploading: false,
+    error: errorMessage,
+  }));
+  message.error(errorMessage);
+}
+```
+
+#### 3.5.4 UI動作
+- ユーザー操作: なし（エラー発生時に自動表示）
+- 画面変化: 
+  - エラーAlertが表示される
+  - Ant Design Messageが画面上部に表示される
+
+### 3.6 アップロード中のキャンセル
+
+#### 3.6.1 キャンセル確認
+
+```typescript
+const handleClose = useCallback(() => {
+  if (uploadState.isUploading) {
+    Modal.confirm({
+      title: 'アップロード中',
+      content: 'アップロード処理が進行中です。キャンセルしますか？',
+      okText: 'はい',
+      cancelText: 'いいえ',
+      onOk: onClose,
+    });
+  } else {
+    onClose();
+  }
+}, [uploadState.isUploading, onClose]);
+```
+
+#### 3.6.2 UI動作
+- ユーザー操作: アップロード中に「キャンセル」ボタンをクリック
+- 画面変化: 
+  - 確認ダイアログが表示される
+  - 「はい」をクリックすると、モーダルが閉じる
+  - 「いいえ」をクリックすると、アップロード続行
 
 ---
 
 ## 4. データ仕様
 
-### 4.1. 入力項目（Props）
+### 4.1 Props定義
 
 ```typescript
 interface FormatUploadDialogProps {
-  open: boolean;                      // ダイアログ表示状態
-  onClose: () => void;                // 閉じる時のコールバック
-  onUploadComplete?: (result: {       // アップロード完了時のコールバック
+  open: boolean;                                      // ダイアログの表示/非表示
+  onClose: () => void;                                // 閉じるハンドラ
+  onUploadComplete?: (result: {                       // アップロード完了ハンドラ
     mode: UploadMode;
     fileCount: number;
     success: boolean;
   }) => void;
-  baseFolder: {                       // ベースフォルダ（必須）
+  baseFolder: {                                       // ベースフォルダ（選択されたフォーマット）
     id: string;
     name: string;
     folderName: string;
+    departmentCd?: string;
   } | null;
-  subFolders?: Array<{                // サブフォルダ一覧（オプション）
-    value: string;
-    label: string;
-    children?: Array<{
-      value: string;
-      label: string;
-    }>;
-  }>;
+  currentFolderPath?: string[];                       // 現在開いているフォルダパス
 }
 ```
 
-### 4.2. UploadMode型定義
+### 4.2 UploadMode型定義
 
 ```typescript
 type UploadMode = 'single' | 'bulk' | 'folder';
 ```
 
-### 4.3. UploadState型定義
+### 4.3 UploadState型定義
 
 ```typescript
 interface UploadState {
-  isUploading: boolean;    // アップロード中フラグ
-  progress: number;        // 進行状況（0-100）
-  uploadedCount: number;   // アップロード完了ファイル数
-  totalCount: number;      // 総ファイル数
-  error: string | null;    // エラーメッセージ
+  isUploading: boolean;       // アップロード中フラグ
+  progress: number;           // 進行状況（0-100）
+  uploadedCount: number;      // アップロード済みファイル数
+  totalCount: number;         // 総ファイル数
+  error: string | null;       // エラーメッセージ
 }
 ```
 
-### 4.4. 出力項目
+### 4.4 State定義
 
-**onUploadComplete コールバック引数:**
 ```typescript
-{
-  mode: UploadMode;       // 使用したアップロードモード
-  fileCount: number;      // アップロードしたファイル数
-  success: boolean;       // 成功/失敗
-}
+const [uploadMode, setUploadMode] = useState<UploadMode>('single');
+const [fileList, setFileList] = useState<UploadFile[]>([]);
+const [subFolderPath, setSubFolderPath] = useState<string>('');
+const [uploadState, setUploadState] = useState<UploadState>({
+  isUploading: false,
+  progress: 0,
+  uploadedCount: 0,
+  totalCount: 0,
+  error: null,
+});
 ```
 
 ---
 
 ## 5. API連携
 
-### 5.1. 使用するAPI一覧
-
-| API | メソッド | 説明 | 実装状態 |
-|-----|---------|------|---------|
-| uploadFormatFiles | POST | フォーマットファイルアップロード | TODO |
-
-### 5.2. リクエスト仕様
+### 5.1 呼び出されるAPI
 
 ```typescript
-// TODO: API実装後に追加
-POST /api/v1/formats/upload
-Content-Type: multipart/form-data
-
-FormData:
-- files: File[]
-- baseFolder: string
-- subFolder?: string
-- preserveStructure: boolean
+const response = await uploadFiles({
+  uploadMode,
+  targetPath,
+  files,
+  metadata: {
+    formatId: baseFolder.id,
+  },
+  onProgress: (progress) => {
+    // プログレス更新
+  },
+});
 ```
+
+**API:**
+- **関数**: `uploadFiles`（fileAccessService）
+- **パラメータ**:
+  - `uploadMode`: アップロードモード
+  - `targetPath`: アップロード先パス
+  - `files`: Fileオブジェクトの配列
+  - `metadata`: メタデータ（formatId）
+  - `onProgress`: プログレスコールバック
 
 ---
 
 ## 6. エラーハンドリング
 
-### 6.1. エラーケース
+### 6.1 エラーケースと表示方法
 
-| エラーケース | 処理 |
-|------------|------|
-| ファイル未選択 | message.warning「ファイルを選択してください」 |
-| ベースフォルダ未選択 | message.error「ベースフォルダが選択されていません」 |
-| アップロードAPI失敗 | Alert（error）+ エラーメッセージ |
-| アップロード中のキャンセル | 確認ダイアログ表示 |
-
-### 6.2. エラーメッセージ
-
-| メッセージ | 表示タイミング | 種類 |
-|----------|--------------|------|
-| 「ファイルを選択してください」 | ファイル未選択でアップロード | message.warning |
-| 「ベースフォルダが選択されていません」 | ベースフォルダ未選択 | message.error |
-| 「アップロードに失敗しました」 | API呼び出し失敗 | Alert（error） |
-| 「アップロード処理が進行中です。キャンセルしますか？」 | アップロード中のキャンセル | Modal.confirm |
+| エラーケース | 検知タイミング | 表示方法 | 表示内容 |
+|------------|------------|---------|---------|
+| ファイル未選択 | アップロード開始時 | Ant Design Message | 「ファイルを選択してください」 |
+| フォーマット未選択 | アップロード開始時 | Ant Design Message | 「フォーマットが選択されていません」 |
+| API通信エラー | API返却時 | Alert + Message | エラーメッセージ |
 
 ---
 
-## 7. UI/UXポリシー準拠
+## 7. 実装ファイル
 
-### 7.1. Ant Designコンポーネント使用
+### 7.1 ファイルパス
+- **メインファイル**: `frontend/src/components/project/FormatUploadDialog.tsx`
 
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Modal | ダイアログ本体 | title, open, onCancel, width={800}, footer, styles |
-| Segmented | モード選択 | value, onChange, block, options, disabled |
-| Upload.Dragger | ファイル選択（単一・一括） | fileList, onChange, beforeUpload, multiple, disabled, accept, showUploadList={false} |
-| Button | フォルダ選択、フッターボタン | icon, onClick, disabled, block, size, type, loading |
-| Cascader | サブフォルダ選択 | options, value, onChange, placeholder, disabled, expandTrigger="hover", showSearch, changeOnSelect, allowClear |
-| Checkbox | 構造保持オプション | checked, onChange, disabled |
-| Alert | 情報・進行状況・エラー表示 | message, description, type, showIcon, icon, closable |
-| Progress | アップロード進行状況 | percent, status="active" |
-| Space | 要素の配置 | direction, size |
-| Typography.Text | テキスト表示 | strong, type, ellipsis, title |
-| Divider | セクション区切り | - |
+### 7.2 関連ファイル
+- **親コンポーネント**: `frontend/src/components/project/FormatManagement.tsx`
+- **サービス**: `frontend/src/services/fileAccessService.ts` (uploadFiles)
+- **ユーティリティ**: `frontend/src/utils/errorUtils.ts` (extractErrorMessage)
 
-### 7.2. カラーパレット
-
-```typescript
-// アップロードアイコン色
-#0093CF  // 青系
-
-// ベースフォルダ背景
-#F0F0F0  // 薄い灰色
-
-// 選択パス背景
-#E6F7FC  // 薄い青
-color: #007AB3  // 濃い青
-
-// 選択ファイルエリア背景
-#f5f5f5  // 薄い灰色
-```
-
-### 7.3. 多言語対応
-
-- 現在は日本語のみ
-- 将来的に多言語化が必要
-
-### 7.4. レスポンシブ対応
-
-- モーダル幅: 800px（固定）
-- モーダル高さ: 最大70vh、スクロール可能
-- ファイルリスト: 最大高さ200px、スクロール可能
-- モバイルでは自動的に幅が調整される（Ant Designのデフォルト動作）
+### 7.3 依存ライブラリ
+- **Ant Design**: Modal, Segmented, Upload (Dragger), Button, Input, Alert, Progress, Space, Typography, Divider, App
+- **Ant Design Icons**: UploadOutlined, InboxOutlined, FolderOutlined, FileOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined
 
 ---
 
-## 8. 実装ファイル
+## 8. UI/UXの考慮事項
 
-### 8.1. ソースファイルパス
+### 8.1 レスポンシブデザイン
+- **幅**: 800px（固定）
+- **高さ**: 最大70vh、スクロール可能
 
-```
-frontend/src/components/project/FormatUploadDialog.tsx
-```
+### 8.2 アクセシビリティ
+- **ドラッグ&ドロップ**: 代替としてクリック選択も可能
+- **キーボード操作**: フォーカス管理とEnter/Escキー対応
 
-### 8.2. 関連コンポーネント
+### 8.3 視覚的フィードバック
+- **進行状況**: リアルタイムでProgress表示
+- **完了状態**: 緑色のAlert表示
+- **エラー状態**: 赤色のAlert表示
 
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| FormatManagement | ./FormatManagement.tsx | 親コンポーネント |
-
-### 8.3. ユーティリティ
-
-- formatFileSize(): ファイルサイズをフォーマット（コンポーネント内に実装）
-
----
-
-## 9. 既知の課題・TODO
-
-### 実装待ち
-
-- [ ] API実装（uploadFormatFiles）
-- [ ] モックアップロード処理を実際のAPI呼び出しに置き換え
-- [ ] アップロードのキャンセル機能
-- [ ] 大容量ファイルのチャンクアップロード
-- [ ] リトライ機能
-
-### 改善提案
-
-- [ ] ファイルのバリデーション強化（サイズ制限、形式チェック）
-- [ ] アップロード前のファイルプレビュー
-- [ ] 並列アップロードのサポート
-- [ ] アップロード履歴の表示
-- [ ] 重複ファイルの検出と警告
-- [ ] ファイル名の自動リネーム機能
-- [ ] ドラッグ&ドロップ時のビジュアルフィードバック強化
-- [ ] アップロード速度の表示
-- [ ] 残り時間の推定表示
+### 8.4 ユーザーガイダンス
+- **補足説明**: サブフォルダパスの説明
+- **プレースホルダー**: 入力例を表示
 
 ---
 
-## 10. 変更履歴
+## 9. 変更履歴
 
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |

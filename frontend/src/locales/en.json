@@ -373,6 +373,8 @@
     },
     "tabs": {
       "file_management": "File Management",
+      "task_registration": "Task Registration",
+      "instruction_registration": "Instruction List",
       "task_results": "Task Results"
     },
     "task_results": {
@@ -381,6 +383,7 @@
       "coming_soon": "Task results feature is under development",
       "work_id": "Work ID",
       "task_name": "Task Name",
+      "task_no": "Task No.",
       "method_name": "Method",
       "assigned_worker": "Assigned Worker",
       "progress": "Progress",
@@ -1072,6 +1075,8 @@
     "sendButton": "Send Instructions",
     "columns": {
       "target": "Instruction Target",
+      "taskNumber": "Task No.",
+      "transitionId": "Transition ID",
       "priority": "Priority",
       "type": "Type",
       "content": "Instruction Content",
@@ -1121,8 +1126,12 @@
       "sentCount": "{count} instruction(s) sent successfully",
       "noInstructions": "No instructions to send",
       "saveFailed": "Failed to save instruction",
+      "sendFailed": "Failed to send instructions",
+      "fetchFailed": "Failed to fetch instruction list",
+      "taskFetchFailed": "Failed to fetch task information",
       "deleted": "Instruction deleted successfully",
-      "deleteFailed": "Failed to delete instruction (may have been sent)"
+      "deleteFailed": "Failed to delete instruction (may have been sent)",
+      "deleteError": "An error occurred while deleting the instruction"
     }
   }
 }

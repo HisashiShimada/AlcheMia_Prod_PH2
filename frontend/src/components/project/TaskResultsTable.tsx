@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Table, Tag, Typography, Empty, theme, Button } from 'antd';
-import { EyeOutlined } from '@ant-design/icons';
+import { Table, Tag, Typography, Empty, theme } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useLanguage } from '@/contexts/LanguageContext';
 import type { Task } from '@/types/project';
@@ -11,7 +10,7 @@ const { Text } = Typography;
 
 interface TaskResultsTableProps {
   results: Task[];
-  onViewResult: (result: Task) => void;
+  onViewResult?: (result: Task) => void;
 }
 
 /**
@@ -19,7 +18,6 @@ interface TaskResultsTableProps {
  */
 const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
   results,
-  onViewResult,
 }) => {
   const { t } = useLanguage();
   const { token } = theme.useToken();
@@ -44,20 +42,20 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
 
   const columns: ColumnsType<Task> = [
     {
-      title: t('projectManagement.task_results.task_name') || 'タスク名',
-      dataIndex: 'taskName',
-      key: 'taskName',
-      width: '28%',
-      sorter: (a, b) => (a.taskName || a.transitionName).localeCompare(b.taskName || b.transitionName),
-      render: (_text: string, record: Task) => <Text strong>{record.taskName || record.transitionName}</Text>,
-    },
-    {
       title: t('projectManagement.task_results.method_name') || 'メソッド',
       dataIndex: 'methodName',
       key: 'methodName',
-      width: '18%',
+      width: '28%',
       sorter: (a, b) => (a.methodName || '').localeCompare(b.methodName || ''),
       render: (text: string | undefined) => text || '-',
+    },
+    {
+      title: t('projectManagement.task_results.task_no') || 'タスク番号',
+      dataIndex: 'taskName',
+      key: 'taskName',
+      width: '18%',
+      sorter: (a, b) => (a.taskName || a.transitionName).localeCompare(b.taskName || b.transitionName),
+      render: (_text: string, record: Task) => <Text strong>{record.taskName || record.transitionName}</Text>,
     },
     {
       title: t('projectManagement.task_results.status') || 'ステータス',
@@ -93,7 +91,7 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
       title: t('projectManagement.task_results.work_completed_at') || '作業終了日',
       dataIndex: 'workCompletedAt',
       key: 'workCompletedAt',
-      width: '18%',
+      width: '20%',
       align: 'right',
       sorter: (a, b) => {
         if (!a.workCompletedAt && !b.workCompletedAt) return 0;
@@ -115,7 +113,7 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
       title: t('projectManagement.task_results.review_completed_at') || 'レビュー完了日',
       dataIndex: 'reviewCompletedAt',
       key: 'reviewCompletedAt',
-      width: '12%',
+      width: '20%',
       align: 'right',
       sorter: (a, b) => {
         if (!a.reviewCompletedAt && !b.reviewCompletedAt) return 0;
@@ -131,25 +129,6 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
             day: '2-digit',
           }) : '-'}
         </Text>
-      ),
-    },
-    {
-      title: t('projectManagement.task_results.actions') || '操作',
-      key: 'actions',
-      width: '10%',
-      align: 'center',
-      render: (_: unknown, record: Task) => (
-        <Button
-          type="default"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewResult(record);
-          }}
-        >
-          {t('projectManagement.task_results.view_result') || '結果確認'}
-        </Button>
       ),
     },
   ];

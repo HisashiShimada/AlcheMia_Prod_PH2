@@ -1,612 +1,477 @@
-# ProgressMonitoring UI仕様書
+# 進捗管理画面 UI仕様書
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+プロジェクトの進捗状況を一覧で表示し、タスクの完了状況やプロジェクトステータスを確認するための画面です。実験管理者が各プロジェクトの進捗を監視し、必要に応じて詳細を確認できます。
 
-実験管理者がプロジェクトの進捗状況を一覧で確認し、フィルタリング・検索・ソートを行える進捗監視画面。各プロジェクトの完了タスク数、プロジェクトステータス、チェックアウト状態を把握し、詳細確認が可能です。
+### 1.2 使用場面
+- 実験管理者メニューの「進捗確認」タブを選択した際に表示
+- プロジェクト一覧を俯瞰して進捗状況を把握する際に使用
+- 各プロジェクトの詳細な進捗を確認する際の起点として機能
 
-### 1.2. 使用場面
-
-- ExperimentAdminMenuの「進捗確認」メニュー選択時
-- プロジェクトの進捗状況を確認する場合
-- タスクの完了状況を監視する場合
-- 特定のプロジェクトの詳細を確認する場合
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
-- **テナント分離**: organization_id によるマルチテナント分離
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin
+- **認証**: JWT + Session Hybrid認証
 
 ---
 
 ## 2. 画面構成
 
-### 2.1. レイアウト構造
+### 2.1 レイアウト構造
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ 進捗管理画面                                         │
-├─────────────────────────────────────────────────────┤
-│ ┌─────────────────────────────────────────────────┐ │
-│ │ フィルター・検索エリア                   [更新] │ │
-│ │ 所有者: [自分所有のみ ▼] 部門: [全部門 ▼]      │ │
-│ │ ステータス: [全て ▼] チェックアウト: [全て ▼]  │ │
-│ │ 検索: [🔍 入力値でフィルタリング_________]      │ │
-│ └─────────────────────────────────────────────────┘ │
-│                                                     │
-│ ┌─────────────────────────────────────────────────┐ │
-│ │ プロジェクト一覧テーブル            [25件]      │ │
-│ ├─────────────────────────────────────────────────┤ │
-│ │ プロジェクト名 │部門│ステータス│チェック│所有│ │
-│ │───────────────┼────┼─────────┼────────┼────│ │
-│ │ 材料実験A      │研究│実行中    │イン済み│佐藤│ │
-│ │ PRJ-001        │    │[cyan]    │[green] │ 3/5│ │
-│ │                │    │          │        │[詳] │ │
-│ │───────────────┼────┼─────────┼────────┼────│ │
-│ │ 材料実験B      │開発│完了      │イン済み│鈴木│ │
-│ │ PRJ-002        │    │[green]   │[green] │ 5/5│ │
-│ │                │    │          │        │[詳] │ │
-│ └─────────────────────────────────────────────────┘ │
-│ [< 前へ] [1] [2] [3] ... [次へ >] 合計 25 件        │
-└─────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│ フィルタ・検索エリア (Card)                                      │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │ [所有者] [部門] [プロジェクトステータス] [チェックアウト]   │ │
+│ │ [検索入力]                                    [更新ボタン]  │ │
+│ └────────────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│ プロジェクト一覧テーブル (Card)                                  │
+│ ┌────────────────────────────────────────────────────────────┐ │
+│ │ プロジェクト名 │ 部門 │ ステータス │ … │ 操作              │ │
+│ │─────────────────────────────────────────────────────────│ │
+│ │ Project A      │ 研究 │ 実行中    │ … │ [詳細表示]       │ │
+│ │ Project B      │ 開発 │ 完了      │ … │ [詳細表示]       │ │
+│ └────────────────────────────────────────────────────────────┘ │
+│ [ページネーション: 1 2 3 ... 10件/ページ]                        │
+└────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────┐
+│ 作業進捗詳細ダイアログ (WorkProgressDetailDialog)                │
+│ - モーダル形式で表示                                             │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+### 2.2 主要UI要素
 
-#### 2.2.1. フィルター・検索カード
+#### 2.2.1 フィルタ・検索エリア
+- **所有者フィルタ** (Select): 「自分所有のみ」「全体」
+- **部門フィルタ** (Select): 「全部門」または個別部門選択
+- **プロジェクトステータスフィルタ** (Select): 「全て」「計画中」「実行待ち」「実行中」「レビュー待ち」「完了」「エラー」
+- **チェックアウトフィルタ** (Select): 「全て」「チェックアウト済み」「チェックイン済み」
+- **検索入力** (Input): プロジェクト名、ID、所有者名等でフィルタリング
+- **更新ボタン** (Button): データを再取得
 
-| フィルター項目 | コンポーネント | 幅 | 選択肢 |
-|--------------|--------------|-----|--------|
-| 所有者 | Select | 150px | 自分所有のみ / 全体 |
-| 部門 | Select | 150px | 全部門 / 部門名リスト（動的） |
-| プロジェクトステータス | Select | 200px | 全て / 計画中 / 実行待ち / 実行中 / レビュー待ち / 完了 / 異常終了 |
-| チェックアウト状態 | Select | 150px | 全て / チェックアウト済み / チェックイン済み |
-| 検索 | Input | 300px | 全項目を対象に検索 |
-| 更新ボタン | Button | - | API再取得 |
+#### 2.2.2 プロジェクト一覧テーブル
+- **プロジェクト名**: プロジェクト名とID（サブテキスト）
+- **部門**: 所属部門
+- **プロジェクトステータス**: ステータスTag（色付き）
+- **チェックアウト**: チェックアウト状態Tag（オレンジ/緑）
+- **所有者**: 所有者名
+- **タスク進捗**: 完了タスク数/総タスク数
+- **操作**: 詳細表示ボタン
 
-**ラベルスタイル:**
-- フォントサイズ: `fontSizeSM`
-- フォントウェイト: `fontWeightStrong`
-- テキスト色: secondary
+#### 2.2.3 その他
+- **ページネーション**: 5/10/25/50件表示切り替え
+- **ソート機能**: 各カラムヘッダークリックでソート可能
 
-#### 2.2.2. テーブルカラム定義
+### 2.3 画面遷移
 
-| カラム | 幅 | 配置 | ソート | 説明 |
-|--------|-----|------|--------|------|
-| プロジェクト名 | 250px | left | ○ | プロジェクト名 + プロジェクトID（2行表示）+ 件数Tag |
-| 部門 | 120px | left | ○ | 部門名 |
-| プロジェクトステータス | 180px | left | ○ | ステータスTag（色分け） |
-| チェックアウト | 150px | center | ○ | チェックアウト中 / チェックイン済み Tag |
-| 所有者 | 150px | left | ○ | 所有者名（太字） |
-| 完了タスク数/総タスク数 | 150px | center | ○ | 数値表示（太字） |
-| 操作 | 120px | center | - | 詳細ボタン |
-
-#### 2.2.3. プロジェクトステータスの色定義
-
-| ステータス | 色 | 表示名 |
-|-----------|-----|--------|
-| planning | default（灰色） | プロジェクト計画中 |
-| pending | blue | タスク実行待ち |
-| in_progress | cyan | タスク実行中 |
-| review_waiting | purple | タスク結果レビュー待ち |
-| completed | success（緑） | プロジェクト完了 |
-| error | error（赤） | タスク異常終了 |
-
-#### 2.2.4. チェックアウト状態の色定義
-
-| 状態 | 色 | 表示名 |
-|------|-----|--------|
-| チェックアウト中 | orange | チェックアウト中 |
-| チェックイン済み | success（緑） | チェックイン済み |
-
-#### 2.2.5. 詳細ボタン
-
-| 項目 | 値 |
-|------|-----|
-| タイプ | primary ghost |
-| サイズ | small |
-| アイコン | EyeOutlined |
-| テキスト | 多言語対応（progress.actions.viewDetails） |
-
-### 2.3. 画面遷移
-
-- **詳細ボタンクリック**: WorkProgressDetailDialogモーダルを表示
-- 画面遷移なし（単一画面）
+```mermaid
+graph TD
+    A[進捗管理画面] -->|詳細表示ボタン| B[作業進捗詳細ダイアログ]
+    B -->|閉じる| A
+```
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1. 主要機能の詳細
+### 3.1 データ取得とフィルタリング
 
-#### 3.1.1. 画面初期表示
+#### 3.1.1 プロジェクト一覧取得
+```typescript
+// useApiフックでプロジェクト一覧を取得
+const { 
+  data: projectsData, 
+  isLoading: isLoadingProjects, 
+  error: projectsError, 
+  refetch: refetchProjects 
+} = useApi<ApiResponse<ProjectListResponse>>(
+  fetchProjects,
+  []
+);
+```
 
-**処理フロー:**
-1. コンポーネントマウント時にuseApiフックでプロジェクト一覧を取得
-2. APIレスポンスをProgressRecord型に変換
-3. 初期状態でフィルターを適用（所有者: 自分所有のみ）
-4. テーブルに表示
+#### 3.1.2 データ変換処理
+APIから取得したプロジェクトデータを表示用の`ProgressRecord`形式に変換します。
 
-**初期値:**
-- 所有者フィルター: `my_only`（自分所有のみ）
-- 部門フィルター: `all`（全部門）
-- プロジェクトステータスフィルター: `all`（全て）
-- チェックアウトフィルター: `all`（全て）
-- 検索テキスト: 空文字列
-- ページ: 0
-- 1ページあたりの行数: 10
-- ソート順序: `asc`（昇順）
-- ソート対象: `projectName`
+**プロジェクトステータスの変換:**
+- APIは数値コード（0〜5）を返す
+- 画面表示用に文字列キーに変換
+- マッピング: 0→'planning', 1→'pending', 2→'in_progress', 3→'review_waiting', 4→'completed', 5→'error'
 
-#### 3.1.2. プロジェクト一覧の取得（API連携）
+```typescript
+const getStatusStringFromNumber = (status: number): string => {
+  const map: Record<number, string> = {
+    0: 'planning',
+    1: 'pending',
+    2: 'in_progress',
+    3: 'review_waiting',
+    4: 'completed',
+    5: 'error',
+  };
+  return map[status] ?? 'planning';
+};
+```
 
-**処理フロー:**
-1. useApiフックでfetchProjects()を呼び出し
-2. APIレスポンス（ProjectListResponse）を取得
-3. projectsData.data.projectsをProgressRecord[]に変換
-4. 変換ロジック:
-   ```typescript
-   {
-     key: index + 1,
-     projectId: item.id,
-     projectName: item.name,
-     projectStatus: item.status,
-     department: item.department || '',
-     isCheckedOut: item.isCheckedOut || false,
-     ownerEmail: item.ownerEmail || '',
-     ownerName: item.ownerName || item.owner || '',
-     completedTasks: item.completedTasks || 0,
-     totalTasks: item.totalTasks || 0,
-   }
-   ```
+#### 3.1.3 フィルタリング条件
+- **検索テキスト**: プロジェクトID、プロジェクト名、ステータス、部門、所有者、タスク数で部分一致検索
+- **所有者フィルタ**: 
+  - `my_only`: ログインユーザーのemailまたはdisplayNameと一致するプロジェクトのみ
+  - `all`: 全プロジェクト
+- **部門フィルタ**: 選択した部門に一致するプロジェクトのみ
+- **プロジェクトステータスフィルタ**: 選択したステータスに一致するプロジェクトのみ
+- **チェックアウトフィルタ**: 
+  - `checkedOut`: チェックアウト中のプロジェクトのみ
+  - `checkedIn`: チェックイン済みのプロジェクトのみ
+  - `all`: 全プロジェクト
 
-**エラーハンドリング:**
-- useApiフックが自動的にエラーハンドリング
-- isLoadingでローディング状態を管理
-- projectsErrorでエラー情報を取得
+#### 3.1.4 ソート機能
+各カラムでソート可能（昇順/降順）:
+- プロジェクト名、部門、プロジェクトステータス、チェックアウト状態、所有者、完了タスク数
 
-#### 3.1.3. フィルタリング機能
+### 3.2 詳細表示機能
 
-**処理フロー:**
-1. useMemo()でfilteredDataを計算
-2. 以下の条件で複合フィルタリング:
-   - 検索テキスト（全項目を対象、表示名も含む）
-   - チェックアウト状態
-   - プロジェクトステータス
-   - 部門
-3. 条件に一致するレコードのみ抽出
+#### 3.2.1 処理フロー
+```typescript
+const handleViewDetails = async (record: ProgressRecord) => {
+  setSelectedProject(record);
+  setLoadingProjectId(record.projectId);
+  try {
+    // プロジェクトのファイル情報を取得
+    const filesResponse = await fetchProjectFilesReal(record.projectName);
+    
+    if (!filesResponse.success) {
+      message.error(filesResponse.error?.message || 'ファイル情報の取得に失敗しました');
+      return;
+    }
+    
+    const mainFiles: ProjectFile[] = filesResponse.data.files ?? [];
+    
+    // .maimlファイルを検索
+    const maimlFile = mainFiles.find((f: ProjectFile) => f.name.endsWith('.maiml'));
+    
+    if (!maimlFile) {
+      message.error('MAIMLファイルが見つかりません');
+      return;
+    }
+    
+    // FileDataを作成してダイアログを開く
+    const resolvedFileData: FileData = {
+      maimlFileKey: maimlFile.path,
+      fileName: maimlFile.name,
+    };
+    setFileData(resolvedFileData);
+    setIsDetailDialogOpen(true);
+  } catch (error) {
+    console.error('handleViewDetails error:', error);
+    message.error('ファイル情報の取得に失敗しました');
+  } finally {
+    setLoadingProjectId(null);
+  }
+};
+```
 
-**検索対象項目:**
-- プロジェクトID
-- プロジェクト名
-- プロジェクトステータス（値と表示名）
-- チェックアウト状態（表示名）
-- 部門
-- 所有者メールアドレス
-- 所有者名
-- 完了タスク数（文字列変換）
-- 総タスク数（文字列変換）
+#### 3.2.2 UI動作
+- **ユーザー操作**: テーブル行の「詳細表示」ボタンをクリック
+- **ローディング表示**: クリックしたボタンにローディングスピナーを表示し、他のボタンを無効化
+- **画面変化**: `WorkProgressDetailDialog`がモーダル表示される
+- **エラー時**: エラーメッセージをtoast表示
 
-**大文字小文字の区別:**
-- なし（toLowerCase()で正規化）
+#### 3.2.3 条件分岐
+- プロジェクトにMAIMLファイルが存在しない場合: エラーメッセージ表示
+- API呼び出し失敗時: エラーメッセージ表示とローディング解除
 
-#### 3.1.4. ソート機能
+### 3.3 更新機能
 
-**処理フロー:**
-1. useMemo()でsortedDataを計算
-2. orderBy（対象カラム）とorder（昇順/降順）に基づいてソート
-3. 文字列の場合はlocaleCompare()で日本語対応
-4. 数値・真偽値の場合は直接比較
+#### 3.3.1 処理フロー
+```typescript
+const handleRefresh = () => {
+  console.log('Refresh data');
+  refetchProjects();
+};
+```
 
-**ソート可能なカラム:**
-- プロジェクト名
-- 部門
-- プロジェクトステータス
-- チェックアウト状態
-- 所有者名
-- 完了タスク数
+#### 3.3.2 UI動作
+- **ユーザー操作**: 「更新」ボタンをクリック
+- **画面変化**: プロジェクト一覧を再取得し、テーブルを更新
+- **完了メッセージ**: なし（自動更新）
 
-#### 3.1.5. ページネーション
+### 3.4 ステータス表示
 
-**Ant Design Tableのpagination設定:**
-- デフォルトページサイズ: 10件
-- ページサイズ変更: 可能
-- ページサイズ選択肢: [5, 10, 25, 50]
-- 総件数表示: 「合計 N 件」
+#### 3.4.1 プロジェクトステータスの色分け
+```typescript
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'planning': return 'default';
+    case 'pending': return 'blue';
+    case 'in_progress': return 'cyan';
+    case 'review_waiting': return 'purple';
+    case 'completed': return 'success';
+    case 'error': return 'error';
+    default: return 'default';
+  }
+};
+```
 
-#### 3.1.6. 部門リストの動的生成
-
-**処理フロー:**
-1. useMemo()でdepartmentsを計算
-2. allDataから部門を抽出
-3. Set()でユニーク化
-4. sort()で昇順ソート
-5. Select optionsとして使用
-
-#### 3.1.7. 統計データの計算
-
-**計算内容:**
-- 総プロジェクト数: filteredData.length
-- プロジェクト名カラムのヘッダーにTagで表示
-
-#### 3.1.8. 詳細表示
-
-**処理フロー:**
-1. 詳細ボタンクリック時にhandleViewDetails()を呼び出し
-2. 選択されたProgressRecordをsetSelectedProject()で保存
-3. ダミーFileDataを作成（モック環境）:
-   ```typescript
-   {
-     maimlFileKey: `org_001/projects/${projectId}/test_omori11.maiml`,
-     fileName: `test_omori11.maiml`
-   }
-   ```
-4. WorkProgressDetailDialogを開く（setIsDetailDialogOpen(true)）
-
-**FileDataの生成:**
-- 本番環境では実際のS3キーを使用
-- モック環境ではtest_omori11.maimlを使用
-
-#### 3.1.9. リフレッシュ機能
-
-**処理フロー:**
-1. 更新ボタンクリック時にhandleRefresh()を呼び出し
-2. refetchProjects()でAPIを再取得
-3. テーブルデータが自動更新
-
-#### 3.1.10. モーダルを閉じる
-
-**処理フロー:**
-1. WorkProgressDetailDialogのonClose()コールバックが呼ばれる
-2. handleCloseDialog()で以下をクリア:
-   - isDetailDialogOpen: false
-   - selectedProject: null
-   - fileData: null
-
-### 3.2. ボタン・操作の動作
-
-| 操作 | 動作 | 状態変更 |
-|------|------|---------|
-| 所有者フィルター変更 | フィルタリング再実行 | ownerFilter更新 |
-| 部門フィルター変更 | フィルタリング再実行 | departmentFilter更新 |
-| ステータスフィルター変更 | フィルタリング再実行 | projectStatusFilter更新 |
-| チェックアウトフィルター変更 | フィルタリング再実行 | checkoutFilter更新 |
-| 検索テキスト入力 | フィルタリング再実行 | searchText更新 |
-| 検索クリアボタン | 検索テキストをクリア | searchText: '' |
-| 更新ボタン | API再取得 | - |
-| カラムヘッダークリック | ソート実行 | order, orderBy更新 |
-| 詳細ボタン | モーダル表示 | isDetailDialogOpen: true |
-| ページ変更 | 表示ページ切替 | Tableが管理 |
-
-### 3.3. バリデーションルール
-
-- バリデーションなし（表示専用画面）
+#### 3.4.2 ステータスラベルの多言語対応
+```typescript
+const getProjectStatusLabel = (status: string) => {
+  switch (status) {
+    case 'planning': return t('progress.filter.planning') || 'プロジェクト計画中';
+    case 'pending': return t('progress.filter.pending') || 'タスク実行待ち';
+    case 'in_progress': return t('progress.filter.inProgress') || 'タスク実行中';
+    case 'review_waiting': return t('progress.filter.reviewWaiting') || 'タスク結果レビュー待ち';
+    case 'completed': return t('progress.filter.completed') || 'プロジェクト完了';
+    case 'error': return t('progress.filter.error') || 'タスク異常終了';
+    default: return status;
+  }
+};
+```
 
 ---
 
 ## 4. データ仕様
 
-### 4.1. ProgressRecord型定義
+### 4.1 Props定義
+
+このコンポーネントはPropsを持ちません（トップレベルコンポーネント）。
+
+### 4.2 State定義
 
 ```typescript
-interface ProgressRecord {
-  key: string;                 // テーブル行キー（連番）
-  projectId: string;           // プロジェクトID
-  projectName: string;         // プロジェクト名
-  projectStatus: string;       // プロジェクトステータス
-  department: string;          // 部門
-  isCheckedOut: boolean;       // チェックアウト状態
-  ownerEmail: string;          // 所有者メールアドレス
-  ownerName: string;           // 所有者名
-  completedTasks: number;      // 完了タスク数
-  totalTasks: number;          // 総タスク数
-}
+// フィルタ関連State
+const [searchText, setSearchText] = useState('');
+const [ownerFilter, setOwnerFilter] = useState('my_only'); // 'my_only' | 'all'
+const [checkoutFilter, setCheckoutFilter] = useState('all');
+const [projectStatusFilter, setProjectStatusFilter] = useState('all');
+const [departmentFilter, setDepartmentFilter] = useState('all');
+
+// テーブル表示関連State
+const [lastUpdated] = useState(new Date().toLocaleString('ja-JP'));
+const [page, setPage] = useState(0);
+const [rowsPerPage, setRowsPerPage] = useState(10);
+const [order, setOrder] = useState<Order>('asc');
+const [orderBy, setOrderBy] = useState<OrderBy>('projectName');
+
+// モーダル関連State
+const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+const [selectedProject, setSelectedProject] = useState<ProgressRecord | null>(null);
+const [fileData, setFileData] = useState<FileData | null>(null);
+const [managerId] = useState<string>(() => getUserInfo()?.id ?? '');
+
+// ローディングState
+const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
 ```
 
-### 4.2. 入力項目
+**State説明:**
 
-- なし（Props不要、自己完結型コンポーネント）
+| State名 | 型 | 初期値 | 説明 |
+|---------|---|--------|------|
+| searchText | string | '' | 検索テキスト |
+| ownerFilter | string | 'my_only' | 所有者フィルタ（'my_only' または 'all'） |
+| checkoutFilter | string | 'all' | チェックアウトフィルタ |
+| projectStatusFilter | string | 'all' | プロジェクトステータスフィルタ |
+| departmentFilter | string | 'all' | 部門フィルタ |
+| page | number | 0 | 現在のページ番号 |
+| rowsPerPage | number | 10 | 1ページあたりの表示件数 |
+| order | Order | 'asc' | ソート順序 |
+| orderBy | OrderBy | 'projectName' | ソート対象カラム |
+| isDetailDialogOpen | boolean | false | 詳細ダイアログの表示状態 |
+| selectedProject | ProgressRecord \| null | null | 選択されたプロジェクト |
+| fileData | FileData \| null | null | 詳細表示用のファイルデータ |
+| managerId | string | getUserInfo()?.id ?? '' | ログイン中の管理者ID |
+| loadingProjectId | string \| null | null | ローディング中のプロジェクトID |
 
-### 4.3. 初期表示データ
+### 4.3 その他の型定義
 
-**API経由で取得:**
-- エンドポイント: fetchProjects()
-- レスポンス型: ApiResponse<ProjectListResponse>
+```typescript
+/**
+ * 進捗情報の型定義（表示用）
+ */
+interface ProgressRecord {
+  key: string;
+  projectId: string;
+  projectName: string;
+  projectStatus: string;
+  department: string;
+  isCheckedOut: boolean;
+  ownerEmail: string;
+  ownerName: string;
+  completedTasks: number;
+  totalTasks: number;
+}
+
+type Order = 'asc' | 'desc';
+type OrderBy = keyof ProgressRecord;
+```
+
+**インポートされる型:**
+```typescript
+import type { FileData, Project } from '@/types/progress';
+import type { ProjectFile } from '@/types/file';
+import type { ApiResponse } from '@/types/api';
+import type { ProjectListResponse } from '@/types/project';
+```
 
 ---
 
 ## 5. API連携
 
-### 5.1. 現在使用しているAPI
+### 5.1 使用するAPI一覧
 
 | # | API名 | メソッド | エンドポイント | 状態 | 説明 |
-|---|------|---------|---------------|------|--------|
-| 1 | プロジェクト一覧取得 | GET | `/api/v1/projects` | ✅ 実装済み | プロジェクト一覧を取得（進捗情報含む） |
+|---|------|---------|---------------|------|------|
+| 1 | fetchProjects | GET | `/api/v1/projects` | ✅ 実装済み | プロジェクト一覧を取得 |
+| 2 | fetchProjectFilesReal | GET | `/api/v1/projects/:projectName/files` | ✅ 実装済み | プロジェクトのファイル情報を取得 |
 
-**詳細**: [プロジェクト管理API仕様書](../../api/api_project_management.md#31-プロジェクト一覧取得-)
+### 5.2 API呼び出しコード
 
-**使用箇所:**
-- 画面初期表示時にプロジェクト一覧を取得
-- クエリパラメータ `include_progress=true` で進捗情報も含めて取得
-- レスポンスに `completed_tasks`, `total_tasks`, `progress_percentage` を含む
+#### 5.2.1 プロジェクト一覧取得
+```typescript
+const { 
+  data: projectsData, 
+  isLoading: isLoadingProjects, 
+  error: projectsError, 
+  refetch: refetchProjects 
+} = useApi<ApiResponse<ProjectListResponse>>(
+  fetchProjects,
+  []
+);
+```
 
-### 5.2. 進捗確認API（参照）
+#### 5.2.2 プロジェクトファイル取得
+```typescript
+const filesResponse = await fetchProjectFilesReal(record.projectName);
+```
 
-詳細な進捗情報を取得するための進捗確認APIが定義されています：
+### 5.3 リクエスト/レスポンス例
 
-**詳細**: [進捗確認API仕様書](../../api/api_progress_monitoring.md)
-
-| # | API名 | メソッド | エンドポイント | 状態 | 優先度 | 説明 |
-|---|------|---------|---------------|------|--------|------|
-| 1 | メソッド別タスク一覧取得 | GET | `/api/v1/projects/:projectId/methods/:methodId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 | 指定メソッドに紐づくタスク一覧を進捗情報付きで取得 |
-| 2 | タスク詳細取得 | GET | `/api/v1/tasks/:taskId` | 🔴 未実装 | ⭐⭐ 中 | 指定タスクの詳細情報を取得 |
-
-**主な機能:**
-- メソッド単位でタスクの進捗を集約
-- 各タスクの詳細情報（担当者、ステータス、実験記録）を取得
-- リアルタイム進捗の反映
-
-**将来の統合方針:**
-- 現在はプロジェクト一覧API（`include_progress=true`）でタスク進捗を取得
-- 進捗確認APIが実装された後は、以下の2段階で情報を取得する設計に移行：
-  1. プロジェクト一覧API → プロジェクトの基本情報と概要進捗
-  2. 進捗確認API → 詳細な進捗情報（メソッド別、タスク別）
-- WorkProgressDetailDialogでの詳細表示時に進捗確認APIを呼び出す
-
-**注意:** 
-- 両APIとも現在未実装のため、実装時は適切に統合する必要があります
-- APIレスポンス形式は統一レスポンス形式（`success`, `data`, `meta`）に準拠
-
-### 5.2. リクエスト/レスポンス例
-
-#### 5.2.1. プロジェクト一覧取得 ✅
+#### 5.3.1 プロジェクト一覧取得
 
 **Request:**
 ```http
-GET /api/v1/projects?page=1&limit=20&include_progress=true
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
+GET /api/v1/projects HTTP/1.1
+Authorization: Bearer {sessionToken}
+X-Organization-Id: {organizationId}
 ```
 
-**Query Parameters:**
-- `page`: ページ番号（デフォルト: 1）
-- `limit`: 1ページあたりの件数（デフォルト: 20）
-- `include_progress`: 進捗情報を含めるか（true/false）
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "project-uuid-123",
+      "name": "Sample Project",
+      "status": 2,
+      "department": "研究部",
+      "isCheckedOut": false,
+      "ownerEmail": "user@example.com",
+      "ownerName": "山田太郎",
+      "completedTasks": 5,
+      "totalTasks": 10
+    }
+  ]
+}
+```
+
+#### 5.3.2 プロジェクトファイル取得
+
+**Request:**
+```http
+GET /api/v1/projects/Sample_Project/files HTTP/1.1
+Authorization: Bearer {sessionToken}
+X-Organization-Id: {organizationId}
+```
 
 **Response (200 OK):**
 ```json
 {
   "success": true,
   "data": {
-    "projects": [
+    "files": [
       {
-        "project_id": "550e8400-e29b-41d4-a716-446655440000",
-        "project_name": "材料実験A",
-        "project_folder_name": "PRJ-001",
-        "description": "プロジェクトの説明",
-        "project_status": "in_progress",
-        "is_checked_out": false,
-        "checked_out_by": null,
-        "checked_out_at": null,
-        "owner_id": "user-uuid",
-        "owner_name": "佐藤太郎",
-        "owner_email": "sato@example.com",
-        "department_id": "dept-uuid",
-        "department_name": "研究開発部",
-        "completed_tasks": 3,
-        "total_tasks": 5,
-        "progress_percentage": 60,
-        "created_at": "2026-01-15T10:00:00Z",
-        "updated_at": "2026-01-20T15:30:00Z"
+        "name": "Sample_Project.maiml",
+        "path": "projects/Sample_Project/Sample_Project.maiml",
+        "size": 12345,
+        "lastModified": "2026-03-10T12:00:00Z"
       }
     ]
-  },
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "totalItems": 150,
-    "totalPages": 8,
-    "hasNext": true,
-    "hasPrev": false
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
   }
 }
 ```
-
 
 ---
 
 ## 6. エラーハンドリング
 
-### 6.1. エラーレスポンス形式
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "エラーメッセージ",
-    "details": [
-      {
-        "field": "fieldName",
-        "message": "詳細メッセージ",
-        "code": "FIELD_ERROR_CODE"
-      }
-    ]
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
-### 6.2. 共通エラーコード
-
-| コード | HTTPステータス | 説明 | 対処方法 |
-|-------|---------------|------|----------|
-| `AUTH_TOKEN_INVALID` | 401 | 認証トークンが無効 | 再ログインを促す |
-| `AUTH_TOKEN_EXPIRED` | 401 | 認証トークンの有効期限切れ | 再ログインを促す |
-| `PERMISSION_INSUFFICIENT` | 403 | 権限不足 | エラーメッセージを表示 |
-| `RESOURCE_NOT_FOUND` | 404 | リソースが見つからない | リストを再取得 |
-| `VALIDATION_ERROR` | 400 | バリデーションエラー | 詳細メッセージを表示 |
-| `SYSTEM_DATABASE_ERROR` | 500 | データベースエラー | 再試行を促す |
-| `SYSTEM_STORAGE_ERROR` | 500 | ストレージエラー | 再試行を促す |
-
-### 6.3. エラーケース別の処理
+### 6.1 エラーケース一覧
 
 | エラーケース | HTTPステータス | エラーコード | 対処方法 |
 |-------------|---------------|-------------|----------|
-| プロジェクト一覧取得失敗 | 500 | `SYSTEM_DATABASE_ERROR` | message.error表示 + 空配列設定 + 再試行ボタン |
-| 進捗詳細取得失敗 | 404 | `RESOURCE_NOT_FOUND` | message.error表示 + モーダルを閉じる |
-| タスク進捗一覧取得失敗 | 404 | `RESOURCE_NOT_FOUND` | message.error表示 + 空配列設定 |
-| データが0件 | - | - | 空のテーブル表示（Ant Designのデフォルト）「データがありません」 |
-| API接続エラー | - | - | useApiフックのerror状態で管理 + 再試行ボタン |
+| プロジェクト一覧取得失敗 | 500 | - | useApiフック内で自動的にエラー処理 |
+| ファイル情報取得失敗 | 404/500 | - | message.error表示 + ローディング解除 |
+| MAIMLファイル未検出 | - | - | message.error表示 + ダイアログ非表示 |
+| 認証エラー | 401 | - | ログイン画面へリダイレクト（共通処理） |
+| 権限エラー | 403 | - | エラーメッセージ表示 |
 
-### 6.4. ローディング状態
-
-- useApiフックの`isLoading`でローディング状態を管理
-- Table全体にSpinコンポーネントでローディング表示
-- 長時間のローディング時はタイムアウト警告（30秒以上）
-
----
-
-## 7. UI/UXポリシー準拠
-
-### 7.1. Ant Designコンポーネント使用
-
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Card | フィルターエリア、テーブルエリア | bordered={false} |
-| Select | フィルター項目 | style, value, onChange, options |
-| Input | 検索 | prefix, placeholder, value, onChange, allowClear |
-| Button | 更新ボタン、詳細ボタン | type, icon, onClick, ghost, size |
-| Space | 要素の配置 | direction, size, wrap, align |
-| Table | プロジェクト一覧 | dataSource, columns, rowKey, pagination, scroll, size |
-| Tag | ステータス表示、件数表示 | color |
-| Typography.Text | ラベル表示 | type, style |
-
-### 7.2. デザイントークン使用
+### 6.2 エラー処理コード
 
 ```typescript
-import { theme } from 'antd';
-const { token } = theme.useToken();
+// ファイル取得エラー
+if (!filesResponse.success) {
+  message.error(filesResponse.error?.message || 'ファイル情報の取得に失敗しました');
+  return;
+}
 
-// 使用箇所
-padding: token.paddingLG
-backgroundColor: token.colorBgLayout
-fontSize: token.fontSizeSM
-fontWeight: token.fontWeightStrong
+// MAIMLファイル未検出エラー
+if (!maimlFile) {
+  message.error('MAIMLファイルが見つかりません');
+  return;
+}
+
+// 例外処理
+try {
+  // ...処理
+} catch (error) {
+  console.error('handleViewDetails error:', error);
+  message.error('ファイル情報の取得に失敗しました');
+} finally {
+  setLoadingProjectId(null);
+}
 ```
-
-### 7.3. カラーパレット
-
-**プロジェクトステータス:**
-- planning: default（灰色）
-- pending: blue
-- in_progress: cyan
-- review_waiting: purple
-- completed: success（緑）
-- error: error（赤）
-
-**チェックアウト状態:**
-- チェックアウト中: orange
-- チェックイン済み: success（緑）
-
-**件数Tag:**
-- blue（情報）
-
-### 7.4. 多言語対応
-
-useLanguage()カスタムフックを使用：
-
-```typescript
-const { t } = useLanguage();
-
-t('progress.table.projectName')
-t('progress.filter.myOnly')
-t('progress.filter.allProjects')
-// など
-```
-
-### 7.5. レスポンシブ対応
-
-- 画面全体: padding: token.paddingLG
-- 背景色: token.colorBgLayout
-- 最小高さ: 100vh
-- フィルターエリア: flexWrap: 'wrap'（モバイル対応）
-- テーブルスクロール: scroll={{ x: 1200 }}（横スクロール有効）
 
 ---
 
-## 8. 実装ファイル
+## 7. 実装ファイル
 
-### 8.1. ソースファイルパス
+### 7.1 ファイルパス
+- **メインファイル**: `frontend/src/components/progress/ProgressMonitoring.tsx`
 
-```
-frontend/src/components/progress/ProgressMonitoring.tsx
-```
+### 7.2 関連ファイル
+- **型定義**: 
+  - `frontend/src/types/progress.ts` - FileData, Project型
+  - `frontend/src/types/file.ts` - ProjectFile型
+  - `frontend/src/types/api.ts` - ApiResponse型
+  - `frontend/src/types/project.ts` - ProjectListResponse型
+- **API**: `frontend/src/utils/apiClient.ts` - fetchProjects, fetchProjectFilesReal
+- **ユーティリティ**: `frontend/src/utils/sessionStorageHelper.ts` - getUserInfo
+- **Context**: `frontend/src/contexts/LanguageContext.tsx` - useLanguage
+- **カスタムフック**: `frontend/src/hooks/useApi.ts` - useApi
 
-### 8.2. 関連コンポーネント
-
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| WorkProgressDetailDialog | ./WorkProgressDetailDialog.tsx | 詳細表示モーダル |
-
-### 8.3. カスタムフック
-
-| フック | パス | 役割 |
-|--------|------|------|
-| useLanguage | @/contexts/LanguageContext | 多言語化 |
-| useApi | @/hooks/useApi | API通信 |
-
-### 8.4. API関数
-
-| 関数 | パス | 役割 |
-|------|------|------|
-| fetchProjects | @/utils/apiClient | プロジェクト一覧取得 |
-
-### 8.5. 型定義
-
-| 型 | パス | 役割 |
-|----|------|------|
-| FileData | @/types/progress | ファイルデータ型 |
-| Project | @/types/progress | プロジェクト型 |
-| ApiResponse | @/types/api | API共通レスポンス型 |
-| ProjectListResponse | @/types/project | プロジェクト一覧レスポンス型 |
+### 7.3 依存コンポーネント
+- `<WorkProgressDetailDialog />` - 作業進捗詳細ダイアログ（`./WorkProgressDetailDialog`）
+- Ant Designコンポーネント: Card, Input, Button, Select, Space, Table, Tag, Typography, theme, message
 
 ---
 
-## 9. 既知の課題・TODO
+## 8. 変更履歴
 
-### 実装待ち
-
-- [ ] 所有者フィルター（my_onlyの実装）
-- [ ] managerId の実際のログインユーザーIDへの置き換え
-- [ ] 本番環境でのFileData生成（実際のS3キー使用）
-
-### 改善提案
-
-- [ ] エクスポート機能（CSV、Excel）
-- [ ] 列の表示/非表示切替
-- [ ] カラム幅のカスタマイズ
-- [ ] 保存されたフィルター設定の復元
-- [ ] リアルタイム更新（WebSocket）
-- [ ] グラフ表示（進捗状況の可視化）
-- [ ] 一括操作機能
-- [ ] 詳細検索モーダル
-- [ ] フィルター条件の保存・共有
-- [ ] 通知機能（ステータス変更時）
-
----
-
-## 10. 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |

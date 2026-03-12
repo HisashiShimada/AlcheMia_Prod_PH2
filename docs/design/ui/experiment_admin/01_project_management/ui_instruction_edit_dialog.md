@@ -1,151 +1,262 @@
-# InstructionEditDialog - 指示編集ダイアログ
+# 指示編集ダイアログ UI仕様書
 
-## 1. 概要
+## 概要
 
-### 1.1 コンポーネントの目的
-単一指示の追加・編集を行うモーダルダイアログ。メソッド、トランジション、タスクに対する作業指示を入力・編集する機能を提供します。連続指示機能に対応しています。
+### 目的
+単一指示の新規作成・編集・詳細表示を行うモーダルダイアログコンポーネント。指示対象（プロジェクト全体/メソッド/タスク/Transition）の選択、優先度・タイプ・内容の入力、および連続指示機能を提供する。
 
-### 1.2 使用場面
-- InstructionRegistrationTabから呼び出される
-- 新規指示の追加時
-- 既存指示の編集時
-- 送信済指示の詳細表示時
+### 使用場面
+- **タスク登録タブ**: 各タスクに対する指示を追加（`fixedMethodId`指定）
+- **指示登録タブ**: 指示の新規作成・編集・詳細表示
+- **プロジェクト指示**: プロジェクト全体に対する指示を追加（`fixedMethodId=""`）
 
-### 1.3 アクセス権限
-- **必須ロール**: experiment_admin
-- **認証**: JWT + Session Hybrid認証
-
----
-
-## 2. 画面構成
-
-### 2.1 レイアウト構造
-
-```
-┌─────────────────────────────────────────────┐
-│ 新規指示の追加                        [×]   │
-├─────────────────────────────────────────────┤
-│ 🎯 指示対象                                 │
-│ ┌─────────────────────────────────────────┐│
-│ │ 🎯 サンプル準備                         ││
-│ └─────────────────────────────────────────┘│
-│                                             │
-│ 対象メソッド                                │
-│ [サンプル準備 - 実験サンプルの準備  ▼]    │
-│                                             │
-│ 優先度 *                                    │
-│ [通常 ▼]                                   │
-│                                             │
-│ タイプ *                                    │
-│ [一般 ▼]                                   │
-│                                             │
-│ 🎯 対象タスク                               │
-│ [タスク番号を選択... ▼]                    │
-│                                             │
-│ 🔗 トランジションID                         │
-│ [トランジションを選択... ▼]                │
-│                                             │
-│ 指示内容 *                                  │
-│ ┌─────────────────────────────────────────┐│
-│ │ 作業者への具体的な指示を入力...        ││
-│ │                                         ││
-│ │                            0 / 1000     ││
-│ └─────────────────────────────────────────┘│
-├─────────────────────────────────────────────┤
-│         [キャンセル] [➕連続指示] [💾保存]  │
-└─────────────────────────────────────────────┘
-```
+### アクセス権限
+- **Experiment Admin（実験管理者）**: 指示の作成・編集・閲覧
+- **その他のロール**: アクセス不可
 
 ---
 
-## 3. 機能仕様
+## 画面構成
 
-### 3.1 Props定義
+### レイアウト構造
+
+```
+┌─────────────────────────────────────────────────┐
+│ 新規指示の追加                            [×] │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│ 🎯 指示対象                                     │
+│ ┌─────────────────────────────────────────┐   │
+│ │ 🎯 Method1                              │   │
+│ │    説明テキスト                         │   │
+│ └─────────────────────────────────────────┘   │
+│                                                 │
+│ 優先度: *                                       │
+│ [高 ▼]                                         │
+│                                                 │
+│ タイプ: *                                       │
+│ [一般 ▼]                                       │
+│                                                 │
+│ 🎯 対象タスク:                                  │
+│ [タスク番号を選択... ▼]                        │
+│                                                 │
+│ 🔗 トランジションID:                            │
+│ [トランジションを選択... ▼]                    │
+│                                                 │
+│ 指示内容: *                                     │
+│ ┌─────────────────────────────────────────┐   │
+│ │                                         │   │
+│ │ [作業者への具体的な指示...]            │   │
+│ │                                         │   │
+│ │                                    0/1000│   │
+│ └─────────────────────────────────────────┘   │
+│                                                 │
+│                [キャンセル] [連続指示] [保存]  │
+└─────────────────────────────────────────────────┘
+
+【送信済み指示の詳細表示】
+┌─────────────────────────────────────────────────┐
+│ 指示詳細                                  [×] │
+├─────────────────────────────────────────────────┤
+│ （全フィールドが非活性・表示のみ）              │
+│                                   [閉じる]      │
+└─────────────────────────────────────────────────┘
+```
+
+### UI要素
+
+#### 1. ダイアログヘッダー
+- **新規作成**: 「新規指示の追加」
+- **編集**: 「指示の編集」
+- **送信済み詳細**: 「指示詳細」
+
+#### 2. 指示対象表示（読み取り専用）
+- **背景色**: `token.colorPrimaryBg`（淡い青）
+- **プロジェクト全体**: 📄アイコン + 「プロジェクト全体」
+- **メソッド指定**: 🎯アイコン + メソッド名 + 説明
+
+#### 3. 入力フィールド
+
+| フィールド | 必須 | タイプ | 説明 |
+|-----------|------|--------|------|
+| 優先度 | ✓ | Select | 低/通常/中/高（コードマスタから取得） |
+| タイプ | ✓ | Select | 一般/セットアップ/測定/安全/清掃 |
+| 対象タスク | - | Select | タスク番号（1〜trialCount） |
+| トランジションID | - | Select | メソッド内のTransition一覧 |
+| 指示内容 | ✓ | TextArea | 1000文字以内、6行、文字数カウント表示 |
+
+#### 4. フッターボタン
+
+**未送信指示の場合**:
+- **キャンセルボタン**: ダイアログを閉じる（変更破棄）
+- **連続指示ボタン**: 保存後もダイアログを開いたまま（新規作成時のみ）
+- **保存ボタン**: 指示を保存してダイアログを閉じる
+
+**送信済み指示の場合**:
+- **閉じるボタン**: ダイアログを閉じる（編集・削除不可）
+
+---
+
+## 機能仕様
+
+### Props定義
 
 ```typescript
 interface InstructionEditDialogProps {
-  open: boolean;                                  // ダイアログ表示/非表示
-  mode: 'create' | 'edit';                        // モード（新規/編集）
-  instruction?: InstructionData;                  // 編集対象の指示（編集時）
-  tasks: TaskDetail[];                            // タスク一覧
-  availableMethods: MethodInfo[];                 // 利用可能なメソッド一覧
-  availableTransitions: TransitionInfo[];         // 利用可能なトランジション一覧
-  onClose: () => void;                            // 閉じるハンドラ
-  onSave: (instruction: InstructionData, keepDialogOpen?: boolean) => void;  // 保存ハンドラ
+  open: boolean;                       // ダイアログ表示状態
+  mode: 'create' | 'edit';             // モード（作成/編集）
+  instruction?: InstructionData;       // 編集対象の指示
+  tasks: TaskDetail[];                 // タスク一覧
+  availableMethods?: MethodInfo[];     // メソッド一覧
+  availableTransitions: TransitionInfo[]; // Transition一覧（全メソッド分）
+  onClose: () => void;                 // 閉じるハンドラー
+  onSave: (instruction: InstructionData, keepDialogOpen?: boolean) => void; // 保存ハンドラー
+  fixedMethodId?: string;              // 固定するメソッドID（指定時はメソッド選択を無効化）
+  saveMode?: 'immediate' | 'local';    // 保存モード
 }
 ```
 
-### 3.2 State管理
+**fixedMethodId**:
+- 指定あり: メソッドを固定（タスク登録タブから使用）
+- `""`: プロジェクト全体に対する指示
+- 未指定: メソッド選択可能（指示登録タブから使用）
+
+**saveMode**:
+- `'immediate'`: 即時DB保存（指示登録タブのデフォルト動作）
+- `'local'`: ローカルstateに保存（タスク登録タブで使用）
+
+### State管理
 
 ```typescript
+// フォーム状態
 const [form] = Form.useForm();
+
+// 選択状態
 const [selectedMethodId, setSelectedMethodId] = useState<string>('');
 const [selectedTaskNumber, setSelectedTaskNumber] = useState<number | undefined>(undefined);
 const [selectedTransitionId, setSelectedTransitionId] = useState<string>('');
+
+// コードマスタ
+const [priorityOptions, setPriorityOptions] = useState<SelectOption[]>([]);
+const [typeOptions, setTypeOptions] = useState<SelectOption[]>([]);
+const [isLoadingCodeMaster, setIsLoadingCodeMaster] = useState<boolean>(false);
 ```
 
-### 3.3 主要機能
+### Context連携
 
-#### 3.3.1 モード切り替え
-
-**新規作成モード（mode='create'）:**
-- タイトル: 「新規指示の追加」
-- フォーム初期値: デフォルト値
-- フッター: キャンセル + 連続指示 + 保存
-
-**編集モード（mode='edit'）:**
-- タイトル: 「指示の編集」
-- フォーム初期値: 既存データ
-- フッター: キャンセル + 保存
-
-**送信済表示モード（isSent=true）:**
-- タイトル: 「指示詳細」
-- すべてのフィールド: 読み取り専用
-- フッター: 閉じるボタンのみ
-
-#### 3.3.2 指示対象の表示
-
-**表示ロジック:**
 ```typescript
-{selectedMethodId ? (
-  <Text>
-    <AimOutlined /> {selectedMethod?.displayName || 'メソッド未設定'}
-  </Text>
-) : (
-  <Text>
-    <FileTextOutlined /> ファイル全体
-  </Text>
-)}
+const { maimlRoot } = useProjectMaiml(); // MAIMLデータ取得（トランジションのフィルタリング用）
 ```
 
-**背景色:** colorPrimaryBg
+### 主要機能
 
-#### 3.3.3 メソッド選択
+#### 1. コードマスタの取得
+
+**実行タイミング**: コンポーネントマウント時
 
 ```typescript
-<Form.Item name="methodId" label="対象メソッド">
-  <Select
-    placeholder="メソッドを選択..."
-    onChange={handleMethodChange}
-    allowClear
-    disabled={isSentInstruction}
-  >
-    {tasks.map((task) => {
-      const method = availableMethods.find(m => m.id === task.methodId);
-      return method ? (
-        <Select.Option key={task.methodId} value={task.methodId}>
-          {method.displayName}
-          {method.description && ` - ${method.description}`}
-        </Select.Option>
-      ) : null;
-    })}
-  </Select>
-</Form.Item>
+useEffect(() => {
+  const fetchCodeMasterOptions = async () => {
+    try {
+      setIsLoadingCodeMaster(true);
+      const options = await getMultipleSelectOptions([
+        'instruction_priority',
+        'instruction_type'
+      ]);
+      
+      setPriorityOptions(options.instruction_priority || []);
+      setTypeOptions(options.instruction_type || []);
+    } catch (error) {
+      console.error('コードマスタ取得エラー:', error);
+      // フォールバック: 空配列（ハードコードされた値を使用）
+      setPriorityOptions([]);
+      setTypeOptions([]);
+    } finally {
+      setIsLoadingCodeMaster(false);
+    }
+  };
+
+  fetchCodeMasterOptions();
+}, []);
 ```
 
-**メソッド変更時の処理:**
+**API**: `GET /api/v1/code-master/multiple?keys=instruction_priority,instruction_type`
+
+**フォールバック**:
+- コードマスタ取得失敗時はハードコードされた値を使用
+- 優先度: 低(0), 通常(1), 中(2), 高(3)
+- タイプ: 一般(0), セットアップ(1), 測定(2), 安全(3), 清掃(4)
+
+#### 2. トランジションの動的フィルタリング
+
+**実行タイミング**: `selectedMethodId`が変更された時
+
 ```typescript
-const handleMethodChange = (value: string) => {
+const filteredTransitions = React.useMemo((): TransitionInfo[] => {
+  if (!selectedMethodId || !maimlRoot?.protocol?.methods) {
+    return [];
+  }
+  
+  const method = maimlRoot.protocol.methods.find(m => m.id === selectedMethodId);
+  if (!method?.pnml?.transitions) {
+    return [];
+  }
+  
+  return method.pnml.transitions.map((transition) => ({
+    id: transition.id,
+    displayName: transition.name || transition.id,
+    category: 'other',
+    description: transition.description,
+    isExperimentRelevant: true,
+  }));
+}, [selectedMethodId, maimlRoot]);
+```
+
+**フィルタリングロジック**:
+- `selectedMethodId`が指定されている場合: そのメソッドのトランジションのみを表示
+- `selectedMethodId`が空の場合: トランジション選択不可
+
+#### 3. ダイアログの初期化
+
+**実行タイミング**: ダイアログが開かれた時（`open = true`）
+
+**編集モード**:
+```typescript
+if (mode === 'edit' && instruction) {
+  form.setFieldsValue({
+    priority: instruction.priority,
+    type: instruction.type,
+    methodId: instruction.methodId,
+    taskNumber: instruction.taskNumber,
+    transitionId: instruction.transitionId,
+    content: instruction.content,
+  });
+  setSelectedMethodId(instruction.methodId);
+  setSelectedTaskNumber(instruction.taskNumber);
+  setSelectedTransitionId(instruction.transitionId);
+}
+```
+
+**新規作成モード**:
+```typescript
+const initialMethodId = fixedMethodId || '';
+form.setFieldsValue({
+  priority: INSTRUCTION_PRIORITIES_LOCAL.NORMAL, // 1
+  type: INSTRUCTION_TYPES_LOCAL.GENERAL,         // 0
+  methodId: initialMethodId,
+  taskNumber: undefined,
+  transitionId: '',
+  content: '',
+});
+setSelectedMethodId(initialMethodId);
+setSelectedTaskNumber(undefined);
+setSelectedTransitionId('');
+```
+
+#### 4. メソッド選択時の処理
+
+```typescript
+const handleMethodChange = useCallback((value: string) => {
   setSelectedMethodId(value);
   // トランジションとタスク番号をリセット
   setSelectedTransitionId('');
@@ -154,354 +265,377 @@ const handleMethodChange = (value: string) => {
     transitionId: '',
     taskNumber: undefined,
   });
-};
+}, [form]);
 ```
 
-#### 3.3.4 優先度選択
+**リセット理由**: メソッドを変更すると、トランジション・タスク番号の選択肢が変わるため
 
-**選択肢:**
-| 値 | ラベル | code_value |
-|----|--------|-----------|
-| 高 | HIGH | 3 |
-| 中 | MEDIUM | 2 |
-| 通常 | NORMAL | 1 |
-| 低 | LOW | 0 |
-
-**デフォルト値:** NORMAL (1)
+#### 5. タスク一覧の取得
 
 ```typescript
-<Form.Item
-  name="priority"
-  label="優先度"
-  rules={[{ required: true, message: '優先度を選択してください' }]}
->
-  <Select disabled={isSentInstruction}>
-    <Select.Option value={3}>高</Select.Option>
-    <Select.Option value={2}>中</Select.Option>
-    <Select.Option value={1}>通常</Select.Option>
-    <Select.Option value={0}>低</Select.Option>
-  </Select>
-</Form.Item>
+const methodTasks = React.useMemo(() => {
+  return tasks.filter(t => t.methodId === selectedMethodId);
+}, [tasks, selectedMethodId]);
+
+const selectedTask = methodTasks.length > 0 ? methodTasks[0] : undefined;
 ```
 
-#### 3.3.5 タイプ選択
+**タスク番号の選択可否**:
+- `selectedMethodId`が空: 選択不可
+- `selectedTask`が存在しない: 選択不可
+- `selectedTask.experimentCondition !== 1`: 選択不可（実験条件のみ）
+- 上記以外: 選択可能
 
-**選択肢:**
-| 値 | ラベル | code_value |
-|----|--------|-----------|
-| 一般 | GENERAL | 0 |
-| セットアップ | SETUP | 1 |
-| 測定 | MEASUREMENT | 2 |
-| 安全 | SAFETY | 3 |
-| 清掃 | CLEANUP | 4 |
+#### 6. 保存処理
 
-**デフォルト値:** GENERAL (0)
-
+**共通処理**:
 ```typescript
-<Form.Item
-  name="type"
-  label="タイプ"
-  rules={[{ required: true, message: 'タイプを選択してください' }]}
->
-  <Select disabled={isSentInstruction}>
-    <Select.Option value={0}>一般</Select.Option>
-    <Select.Option value={1}>セットアップ</Select.Option>
-    <Select.Option value={2}>測定</Select.Option>
-    <Select.Option value={3}>安全</Select.Option>
-    <Select.Option value={4}>清掃</Select.Option>
-  </Select>
-</Form.Item>
-```
+const saveInstruction = useCallback(async (keepDialogOpen: boolean) => {
+  try {
+    const values = await form.validateFields();
 
-#### 3.3.6 対象タスク選択
-
-**有効化条件:**
-- メソッドが選択されている
-- 選択されたタスクの実験条件が「異なる」（experimentCondition === 1）
-
-```typescript
-<Form.Item name="taskNumber" label="🎯 対象タスク">
-  <Select
-    placeholder="タスク番号を選択..."
-    disabled={
-      isSentInstruction || 
-      !selectedMethodId || 
-      !selectedTask || 
-      selectedTask.experimentCondition !== 1
+    // バリデーション
+    if (!values.content || values.content.trim() === '') {
+      form.setFields([
+        {
+          name: 'content',
+          errors: ['指示内容を入力してください'],
+        },
+      ]);
+      return;
     }
-    allowClear
-  >
-    {selectedTask?.taskNumberOptions.map((taskNum) => (
-      <Select.Option key={taskNum} value={taskNum}>
-        タスク {taskNum}
-      </Select.Option>
-    ))}
-  </Select>
-</Form.Item>
-```
 
-#### 3.3.7 トランジション選択
+    // 指示データを構築
+    const instructionData: InstructionData = {
+      id: instruction?.id || Date.now(),
+      content: values.content.trim(),
+      priority: values.priority,
+      type: values.type,
+      targetType: TARGET_TYPES_LOCAL.FILE, // デフォルト
+      methodId: values.methodId || '',
+      transitionId: values.transitionId || '',
+      taskNumber: values.taskNumber,
+    };
 
-**有効化条件:**
-- メソッドが選択されている
-
-```typescript
-<Form.Item name="transitionId" label="🔗 トランジションID">
-  <Select
-    placeholder="トランジションを選択..."
-    disabled={isSentInstruction || !selectedMethodId}
-    onChange={(value) => setSelectedTransitionId(value)}
-    allowClear
-  >
-    {availableTransitions.map((transition) => (
-      <Select.Option key={transition.id} value={transition.id}>
-        {transition.isExperimentRelevant && '⭐ '}
-        {transition.displayName}
-        {transition.category !== 'other' && ` [${transition.category}]`}
-      </Select.Option>
-    ))}
-  </Select>
-</Form.Item>
-```
-
-**選択されたトランジションの詳細表示:**
-```typescript
-{selectedTransition && (
-  <Alert
-    message={
-      <Space direction="vertical" size="small">
-        <Text><Text strong>選択中:</Text> {selectedTransition.displayName}</Text>
-        <Text><Text strong>カテゴリ:</Text> {selectedTransition.category}</Text>
-        {selectedTransition.description && (
-          <Text><Text strong>説明:</Text> {selectedTransition.description}</Text>
-        )}
-      </Space>
+    // 対象タイプを判定
+    if (instructionData.transitionId) {
+      instructionData.targetType = TARGET_TYPES_LOCAL.TRANSITION; // 2
+    } else if (instructionData.taskNumber !== undefined) {
+      instructionData.targetType = TARGET_TYPES_LOCAL.TASK; // 1
+    } else {
+      instructionData.targetType = TARGET_TYPES_LOCAL.FILE; // 0
     }
-    type="success"
-    showIcon
-  />
-)}
+
+    // 保存コールバック
+    onSave(instructionData, keepDialogOpen);
+
+    // ダイアログを開いたままにする場合のみフォームをリセット
+    if (keepDialogOpen) {
+      const currentMethodId = values.methodId || '';
+      
+      form.resetFields();
+      form.setFieldsValue({
+        priority: INSTRUCTION_PRIORITIES_LOCAL.NORMAL,
+        type: INSTRUCTION_TYPES_LOCAL.GENERAL,
+        methodId: currentMethodId, // メソッドIDを引き継ぐ
+        taskNumber: undefined,
+        transitionId: '',
+        content: '',
+      });
+      // メソッドIDは保持、トランジションとタスク番号のみリセット
+      setSelectedMethodId(currentMethodId);
+      setSelectedTaskNumber(undefined);
+      setSelectedTransitionId('');
+    }
+  } catch (error) {
+    console.error('Validation failed:', error);
+  }
+}, [form, instruction, onSave]);
 ```
 
-#### 3.3.8 指示内容入力
-
+**保存ボタン**:
 ```typescript
-<Form.Item
-  name="content"
-  label="指示内容 *"
-  rules={[
-    { required: true, message: '指示内容を入力してください' },
-    { max: 1000, message: '1000文字以内で入力してください' },
-  ]}
->
-  <TextArea
-    placeholder="作業者への具体的な指示を入力してください..."
-    rows={6}
-    showCount
-    maxLength={1000}
-    disabled={isSentInstruction}
-  />
-</Form.Item>
+const handleSave = useCallback(async () => {
+  await saveInstruction(false); // ダイアログを閉じる
+}, [saveInstruction]);
 ```
 
-**バリデーション:**
-- 必須チェック
-- 最大1000文字
-- トリム処理（空白除去）
-
-#### 3.3.9 保存処理
-
-**共通保存ロジック:**
+**連続指示ボタン**:
 ```typescript
-const saveInstruction = async (keepDialogOpen: boolean) => {
-  const values = await form.validateFields();
-
-  // バリデーション
-  if (!values.content || values.content.trim() === '') {
-    form.setFields([{ name: 'content', errors: ['指示内容を入力してください'] }]);
-    return;
-  }
-
-  // 指示データを構築
-  const instructionData: InstructionData = {
-    id: instruction?.id || Date.now(),
-    content: values.content.trim(),
-    priority: values.priority,
-    type: values.type,
-    targetType: TARGET_TYPES_LOCAL.FILE,
-    methodId: values.methodId || '',
-    transitionId: values.transitionId || '',
-    taskNumber: values.taskNumber,
-  };
-
-  // 対象タイプを判定
-  if (instructionData.transitionId) {
-    instructionData.targetType = TARGET_TYPES_LOCAL.TRANSITION;
-  } else if (instructionData.taskNumber !== undefined) {
-    instructionData.targetType = TARGET_TYPES_LOCAL.TASK;
-  } else {
-    instructionData.targetType = TARGET_TYPES_LOCAL.FILE;
-  }
-
-  // 保存コールバック
-  onSave(instructionData, keepDialogOpen);
-
-  // 連続指示の場合はフォームをリセット
-  if (keepDialogOpen) {
-    const currentMethodId = values.methodId || '';
-    form.resetFields();
-    form.setFieldsValue({
-      priority: INSTRUCTION_PRIORITIES_LOCAL.NORMAL,
-      type: INSTRUCTION_TYPES_LOCAL.GENERAL,
-      methodId: currentMethodId, // メソッドIDを引き継ぐ
-      taskNumber: undefined,
-      transitionId: '',
-      content: '',
-    });
-    setSelectedMethodId(currentMethodId);
-    setSelectedTaskNumber(undefined);
-    setSelectedTransitionId('');
-  }
-};
+const handleSaveAndContinue = useCallback(async () => {
+  await saveInstruction(true); // ダイアログを開いたまま
+}, [saveInstruction]);
 ```
 
-**通常保存:**
-- ボタン: 「保存」
-- アイコン: SaveOutlined
-- 動作: 保存してダイアログを閉じる
+**対象タイプの判定優先順位**:
+1. `transitionId`が指定されている → `TARGET_TYPES_LOCAL.TRANSITION` (2)
+2. `taskNumber`が指定されている → `TARGET_TYPES_LOCAL.TASK` (1)
+3. 上記以外 → `TARGET_TYPES_LOCAL.FILE` (0)
 
-**連続指示:**
-- ボタン: 「連続指示」
-- アイコン: PlusOutlined
-- 動作: 保存してダイアログは開いたまま
-- メソッドIDを引き継ぐ
-- その他のフィールドはリセット
-
-#### 3.3.10 キャンセル処理
+#### 7. キャンセル処理
 
 ```typescript
-const handleCancel = () => {
+const handleCancel = useCallback(() => {
   form.resetFields();
   setSelectedMethodId('');
   setSelectedTaskNumber(undefined);
   setSelectedTransitionId('');
   onClose();
-};
+}, [form, onClose]);
 ```
+
+#### 8. 送信済み指示の判定
+
+```typescript
+const isSentInstruction = instruction?.isSent === true;
+```
+
+**送信済み指示の場合**:
+- すべての入力フィールドが非活性（`disabled={isSentInstruction}`）
+- フッターボタンは「閉じる」のみ
+- ダイアログタイトルは「指示詳細」
 
 ---
 
-## 4. データ型定義
+## データ型定義
 
-### 4.1 InstructionData型
+### InstructionData
 
 ```typescript
 interface InstructionData {
-  id: string | number;
-  content: string;                // 指示内容（最大1000文字）
-  priority: number;               // 優先度（0-3）
-  type: number;                   // タイプ（0-4）
-  targetType: number;             // 対象タイプ（0-2）
-  methodId?: string;              // メソッドID
-  transitionId?: string;          // トランジションID
-  taskNumber?: number;            // タスク番号
-  isSent?: boolean;               // 送信済フラグ
+  id: string | number;                 // 指示ID
+  content: string;                     // 指示内容
+  priority: number;                    // 優先度（0: 低, 1: 通常, 2: 中, 3: 高）
+  type: number;                        // タイプ（0: 一般, 1: セットアップ, 2: 測定, 3: 安全, 4: 清掃）
+  targetType: number;                  // 対象タイプ（0: ファイル, 1: タスク, 2: Transition）
+  methodId: string;                    // メソッドID（空文字の場合はプロジェクト指示）
+  transitionId: string;                // TransitionID
+  taskNumber?: number;                 // タスク番号
+  isSent?: boolean;                    // 送信済みフラグ
 }
 ```
 
-### 4.2 対象タイプの判定ロジック
+### 定数
 
+**優先度（INSTRUCTION_PRIORITIES_LOCAL）**:
 ```typescript
-const TARGET_TYPES = {
-  FILE: 0,         // ファイル全体
-  TASK: 1,         // タスク
-  TRANSITION: 2,   // トランジション
-};
+const INSTRUCTION_PRIORITIES_LOCAL = {
+  LOW: 0,      // 低
+  NORMAL: 1,   // 通常
+  MEDIUM: 2,   // 中
+  HIGH: 3,     // 高
+} as const;
+```
 
-// 判定ロジック
-if (transitionId) {
-  targetType = TARGET_TYPES.TRANSITION;
-} else if (taskNumber !== undefined) {
-  targetType = TARGET_TYPES.TASK;
-} else {
-  targetType = TARGET_TYPES.FILE;
+**タイプ（INSTRUCTION_TYPES_LOCAL）**:
+```typescript
+const INSTRUCTION_TYPES_LOCAL = {
+  GENERAL: 0,     // 一般
+  SETUP: 1,       // セットアップ
+  MEASUREMENT: 2, // 測定
+  SAFETY: 3,      // 安全
+  CLEANUP: 4,     // 清掃
+} as const;
+```
+
+**対象タイプ（TARGET_TYPES_LOCAL）**:
+```typescript
+const TARGET_TYPES_LOCAL = {
+  FILE: 0,        // ファイル（プロジェクト全体/メソッド）
+  TASK: 1,        // タスク
+  TRANSITION: 2,  // Transition
+} as const;
+```
+
+---
+
+## バリデーション
+
+### 必須項目
+
+| フィールド | バリデーション | エラーメッセージ |
+|-----------|---------------|-----------------|
+| 優先度 | required | 「優先度を選択してください」 |
+| タイプ | required | 「タイプを選択してください」 |
+| 指示内容 | required | 「指示内容を入力してください」 |
+| 指示内容 | max: 1000 | 「1000文字以内で入力してください」 |
+
+### カスタムバリデーション
+
+**指示内容の空白チェック**:
+```typescript
+if (!values.content || values.content.trim() === '') {
+  form.setFields([
+    {
+      name: 'content',
+      errors: ['指示内容を入力してください'],
+    },
+  ]);
+  return;
 }
 ```
 
 ---
 
-## 5. UI/UXポリシー準拠
+## 特記事項
 
-### 5.1 Ant Designコンポーネント使用
+### 連続指示モード
 
-| 用途 | コンポーネント | Props |
-|------|---------------|-------|
-| モーダル | Modal | title, open, onCancel, width, footer |
-| フォーム | Form | form, layout="vertical" |
-| セレクト | Select | placeholder, onChange, allowClear, disabled |
-| テキストエリア | Input.TextArea | rows, showCount, maxLength |
-| カード | Card | size="small", style |
-| アラート | Alert | message, type, showIcon |
-| ボタン | Button | type, icon, onClick |
+**機能概要**:
+- 保存後もダイアログを開いたまま、続けて次の指示を入力可能
+- 新規作成モード時のみ「連続指示」ボタンを表示
 
-### 5.2 カラーパレット
+**動作**:
+1. 「連続指示」ボタンをクリック
+2. 指示を保存（`onSave(instruction, true)`）
+3. フォームをリセット
+4. **メソッドIDは引き継ぐ**（トランジション・タスク番号のみリセット）
+5. ダイアログは開いたまま
 
-| 要素 | 色 | 用途 |
-|------|-----|------|
-| 指示対象カード | colorPrimaryBg | 情報表示エリア |
-| トランジション詳細 | success (Alert) | 選択中の詳細 |
+**用途**: 同じメソッドに対して複数の指示を連続登録する場合に便利
+
+### 固定メソッドID（fixedMethodId）
+
+**指定パターン**:
+- `fixedMethodId={methodId}`: 特定メソッドに固定（タスク登録タブから使用）
+- `fixedMethodId=""`: プロジェクト全体に固定（プロジェクト指示ボタンから使用）
+- `fixedMethodId`未指定: メソッド選択可能（指示登録タブから使用）
+
+**UI挙動**:
+- `fixedMethodId`が指定されている場合、メソッド選択フィールドは非表示（hiddenフィールドとして保持）
+- 指示対象カードに固定されたメソッドまたは「プロジェクト全体」を表示
+
+### トランジション選択の制約
+
+**選択可能条件**:
+- `selectedMethodId`が指定されている
+- MAIMLコンテキストから該当メソッドのトランジションを取得できる
+
+**表示内容**:
+- 実験関連のトランジションには⭐マーク
+- カテゴリが'other'以外の場合は`[カテゴリ名]`を表示
+- トランジション選択時に詳細情報をAlertで表示
+
+### タスク番号選択の制約
+
+**選択可能条件**:
+- `selectedMethodId`が指定されている
+- 該当メソッドのタスクが存在する
+- **`experimentCondition === 1`**（実験条件のみ）
+
+**理由**: テスト条件（0）のタスクには指示を追加できない
+
+### 送信済み指示の扱い
+
+**判定**: `instruction?.isSent === true`
+
+**UI変更**:
+- ダイアログタイトル: 「指示詳細」
+- すべての入力フィールドが非活性
+- フッターボタン: 「閉じる」のみ
+- 編集・削除不可（閲覧のみ）
+
+### 保存モード（saveMode）
+
+**immediate（デフォルト）**:
+- 指示登録タブから使用
+- 保存時に即座にAPIを呼び出してDB保存
+- 親コンポーネント（InstructionRegistrationTab）で実装
+
+**local**:
+- タスク登録タブから使用
+- 保存時はローカルstateに追加のみ（API呼び出しなし）
+- 「保存」ボタンクリック時に一括でAPI送信
+- 親コンポーネント（TaskRegistrationTab）で実装
+
+### メソッド情報の取得
+
+**availableMethods（Props）**:
+- 指示登録タブから渡される（MAIMLコンテキストから生成）
+- タスク登録タブでは未指定（タスク一覧から推測）
+
+**メソッド表示**:
+```typescript
+const selectedMethod = availableMethods?.find(m => m.id === selectedMethodId);
+```
+
+- `selectedMethod?.displayName`: メソッド名
+- `selectedMethod?.description`: メソッドの説明
 
 ---
 
-## 6. エラーハンドリング
+## エラーハンドリング
 
-### 6.1 エラーケース
+### コードマスタ取得失敗
 
-| エラーケース | 原因 | 対処方法 |
-|-------------|------|----------|
-| 指示内容未入力 | 必須フィールド空 | フォームエラー表示 |
-| 指示内容が空白のみ | トリム後空 | カスタムエラー表示 |
-| 文字数超過 | 1000文字超 | フォームエラー表示 |
-| バリデーション失敗 | その他の入力エラー | コンソールログ出力 |
+**対処**:
+- エラーをコンソールに出力
+- フォールバック: ハードコードされた値を使用
+- 優先度: 低(0), 通常(1), 中(2), 高(3)
+- タイプ: 一般(0), セットアップ(1), 測定(2), 安全(3), 清掃(4)
+
+### フォームバリデーション失敗
+
+**対処**:
+- エラーをコンソールに出力
+- フォームのエラー表示を更新
+- ダイアログを閉じない
 
 ---
 
-## 7. 実装ファイル
+## API連携
 
-### 7.1 ファイルパス
+### 1. コードマスタ取得
+
+**エンドポイント**: `GET /api/v1/code-master/multiple?keys=instruction_priority,instruction_type`
+
+**レスポンス**:
+```typescript
+{
+  instruction_priority: Array<{
+    value: number;
+    label: string;
+  }>;
+  instruction_type: Array<{
+    value: number;
+    label: string;
+  }>;
+}
+```
+
+---
+
+## 実装ファイル情報
+
+### パス
 ```
 frontend/src/components/project/InstructionEditDialog.tsx
 ```
 
-### 7.2 依存コンポーネント
-- なし（単独で動作）
+### 主要な依存パッケージ
+- `antd`: UI コンポーネント（Modal, Form, Select, Input, Space, Typography, Alert, Card, theme, Button）
+- `@ant-design/icons`: アイコン（FileTextOutlined, AimOutlined, PlusOutlined, SaveOutlined）
+- `react`: React本体（useState, useEffect, useCallback）
 
-### 7.3 依存ライブラリ
-- antd: Modal, Form, Select, Input, Space, Typography, Alert, Card, Button
-- @ant-design/icons: FileTextOutlined, AimOutlined, PlusOutlined, SaveOutlined
+### Context
+- `ProjectMaimlContext`: MAIMLデータ取得（トランジションのフィルタリング用）
 
----
-
-## 8. 既知の課題・TODO
-
-### 8.1 将来の改善案
-- [ ] テンプレート機能（よく使う指示の保存）
-- [ ] 下書き保存機能
-- [ ] 指示のプレビュー機能
-- [ ] AIによる指示内容の提案
-- [ ] 過去の指示履歴の参照
+### API Service
+- `codeMasterApiService`: コードマスタ取得
 
 ---
 
-## 9. 変更履歴
+## 変更履歴
 
-| 日付 | バージョン | 変更内容 | 担当者 |
-|------|-----------|---------|--------|
-| 2026-02-19 | 1.0.0 | 初版作成 | Cline |
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|---------|--------|
+| 1.0 | 2026-03-11 | 実装ベースで仕様書を新規作成（実装ファイル: InstructionEditDialog.tsx） | Cline |
 
 ---
 
-## 10. 関連ドキュメント
+## 関連ドキュメント
 
-- [InstructionRegistrationTab仕様](./InstructionRegistrationTab.md) - 親コンポーネント
-- [InstructionDialog仕様](./InstructionDialog.md) - 旧バージョンダイアログ
+- [プロジェクト管理画面](ui_project_management.md)
+- [タスク登録タブ](ui_task_registration_tab.md)
+- [指示登録タブ](ui_instruction_registration_tab.md)
+- [タスク結果一覧テーブル](ui_task_results_table.md)

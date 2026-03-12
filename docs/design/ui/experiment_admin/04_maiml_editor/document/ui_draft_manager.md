@@ -1,712 +1,730 @@
-# DraftManager UI仕様書
+# Draft Manager - Draft管理UIコンポーネント
 
-## 1. 概要
+## 概要
 
-### 1.1. コンポーネントの目的
+### 目的
+MAIML編集中の作業内容を一時保存（Draft）として管理するためのUIコンポーネントです。自動保存/手動保存の管理、Draft読み込み、削除、検索・ソート機能を提供します。
 
-PetriNetEditorで編集中のMAIMLファイルの下書き（Draft）を管理するコンポーネント。自動保存・手動保存、読み込み、削除、検索・ソート機能を提供します。
+### 使用場面
+- MAIML Petri Netエディタで作業中にDraftを保存する時
+- 過去のDraftを読み込んで作業を再開する時
+- 自動保存機能を有効/無効にする時
+- 不要なDraftを削除する時
 
-### 1.2. 使用場面
-
-- PetriNetEditorで編集中に下書きを保存したい場合
-- 過去の下書きを読み込んで編集を再開したい場合
-- 不要な下書きを削除したい場合
-- 自動保存機能を有効/無効にしたい場合
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
-- **ユーザー分離**: 自分の下書きのみアクセス可能
+### アクセス権限
+- **実験管理者（Experiment Admin）**: 利用可能
+- MAIML編集権限を持つユーザーのみアクセス可能
+- 自分が保存したDraftのみ表示・管理可能
 
 ---
 
-## 2. 画面構成
+## 画面構成
 
-### 2.1. レイアウト構造
+### レイアウト構造
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│ 📁 下書き管理                                       [×]     │
-├────────────────────────────────────────────────────────────┤
-│ 自動保存: [ON/OFF]  検索: [        ] ソート: [日時順▼]   │
-├────────────────────────────────────────────────────────────┤
-│ ┌──────────────────────────────────────────────────────┐  │
-│ │ 📄 sample_project_draft (自動保存)                   │  │
-│ │    最終保存: 2026-01-21 14:30  ノード: 15  アーク: 20 │  │
-│ │    [📂 読み込み] [🗑 削除]                            │  │
-│ ├──────────────────────────────────────────────────────┤  │
-│ │ 📄 experiment_workflow_v2                            │  │
-│ │    最終保存: 2026-01-21 12:00  ノード: 20  アーク: 30 │  │
-│ │    [📂 読み込み] [🗑 削除]                            │  │
-│ └──────────────────────────────────────────────────────┘  │
-│                                                            │
-│ 現在の編集内容を保存:                                       │
-│ 下書き名: [________________]  [💾 保存]                   │
-└────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ [フォルダアイコン] Draft管理                      [×]   │
+├─────────────────────────────────────────────────────────┤
+│ [💾 新規保存] [🔄 更新] [⚪/🟢 自動保存]                │
+│                              [検索...] [ソート選択]     │
+│                                                         │
+│ 🟢 自動保存有効 | 編集中: draft_xxx | 間隔: 30秒       │
+│ ※自動保存有効かつ編集中の場合のみ表示                   │
+│                                                         │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ 🤖 自動保存（最大3世代）                            │ │
+│ │ ─────────────────────────────────────────────────── │ │
+│ │ [Select: 最新/1世代前/2世代前 - MM/DD HH:MM]       │ │
+│ │ [🔵 N ノード] [🔗 N アーク]    [読み込み]          │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                         │
+│ ───────────────────────────────────────────────────────  │
+│ 💾 手動保存（N件）                                      │
+│ ───────────────────────────────────────────────────────  │
+│                                                         │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ Draft名1                        YYYY/MM/DD HH:MM   │ │
+│ │ [🔵 N ノード] [🔗 N アーク] [📋 N テンプレート]     │ │
+│ │ 📄 元ファイル名.maiml                                │ │
+│ │ [読み込み] [削除]                                    │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                         │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ Draft名2                        YYYY/MM/DD HH:MM   │ │
+│ │ [🔵 N ノード] [🔗 N アーク] [📋 N テンプレート]     │ │
+│ │ 📄 元ファイル名.maiml                                │ │
+│ │ [読み込み] [削除]                                    │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                         │
+│ （一覧が続く...）                                       │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+### 新規保存モーダル
 
-#### 2.2.1. ヘッダー
-
-| 要素 | 説明 |
-|------|------|
-| タイトル | 「📁 下書き管理」 |
-| 閉じるボタン | CloseOutlined、onClose()実行 |
-
-#### 2.2.2. ツールバー
-
-| 要素 | 説明 |
-|------|------|
-| 自動保存スイッチ | Switch、ON/OFF切り替え |
-| 検索フィールド | Input + SearchOutlined、下書き名で検索 |
-| ソート選択 | Select、日時順/名前順/ノード数順 |
-| 更新ボタン | ReloadOutlined、一覧を再取得 |
-
-#### 2.2.3. 下書き一覧
-
-**List.Item構成:**
-- 下書き名（太字）
-- 自動保存タグ（該当する場合）
-- 最終保存日時
-- ノード数、アーク数、テンプレート数
-- 操作ボタン（読み込み、削除）
-
-**表示情報:**
 ```
-📄 sample_project_draft (自動保存)
-最終保存: 2026-01-21 14:30
-ノード: 15  アーク: 20  テンプレート: 5
-[📂 読み込み] [🗑 削除]
+┌─────────────────────────────────────────────────────────┐
+│ 💾 新規Draft保存                                  [×]   │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ [Draft名を入力________________________]                 │
+│                                                         │
+│                              [キャンセル]  [保存]       │
+└─────────────────────────────────────────────────────────┘
 ```
 
-#### 2.2.4. 現在の編集内容保存エリア
+### UI要素一覧
 
-| 要素 | 説明 |
-|------|------|
-| 下書き名入力 | Input、新規保存時の名前 |
-| 保存ボタン | SaveOutlined、現在の編集状態を保存 |
+#### メインモーダル
 
-#### 2.2.5. ローディング状態
+1. **モーダルヘッダー**
+   - アイコン: FolderOpenOutlined
+   - タイトル: "Draft管理"
+   - [×]閉じるボタン
 
-**表示内容:**
-- Spin コンポーネント
-- 「読み込み中...」メッセージ
+2. **ツールバー（上部）**
+   - [💾 新規保存]ボタン（primary、SaveOutlined）
+   - [🔄 更新]ボタン（ReloadOutlined）
+   - 自動保存トグル: Switch + "🟢/⚪ 自動保存"ラベル
+   - スペーサー（flex: 1）
+   - 検索Input（prefix: SearchOutlined、幅200px、allowClear）
+   - ソートSelect（幅150px）
+     - 📅 日付順（date）
+     - 📝 名前順（name）
+     - 🔢 ノード数順（nodeCount）
 
-#### 2.2.6. エラー状態
+3. **自動保存ステータスAlert**（autoSaveEnabled && currentDraftKey の場合のみ表示）
+   - メッセージ: "🟢 自動保存有効 | 編集中: {key} | 間隔: 30秒"
+   - タイプ: success
 
-**表示内容:**
-- Alert コンポーネント（type="error"）
-- エラーメッセージ
+4. **エラーAlert**（error存在時のみ表示）
+   - タイトル: "エラー"
+   - 説明: エラーメッセージ
+   - タイプ: error、showIcon
 
-#### 2.2.7. 空状態
+5. **自動保存セクション**（autoSaveDrafts.length > 0 の場合のみ表示）
+   - Card（size="small"、背景色: #f0f8ff）
+   - タイトル: "🤖 自動保存（最大3世代）"（青色強調）
+   - Select: 世代選択（最新/1世代前/2世代前 - MM/DD HH:MM形式）
+   - Tag: 🔵 Nノード（青色）
+   - Tag: 🔗 Nアーク（青色）
+   - [読み込み]ボタン（primary、FolderOpenOutlined）
 
-**表示内容:**
-- Empty コンポーネント
-- 「下書きがありません」メッセージ
+6. **Divider**（manualDrafts.length > 0 の場合のみ表示）
+   - テキスト: "💾 手動保存（N件）"（強調）
+
+7. **手動保存一覧**（List + Card）
+   - Card（size="small"、marginBottom: 8px）
+   - Draft名（強調）+ 保存日時（右寄せ、グレー）
+   - Tag: 🔵 Nノード
+   - Tag: 🔗 Nアーク
+   - Tag: 📋 Nテンプレート
+   - 元ファイル名（グレー、フォントサイズ12px）
+   - [読み込み]ボタン（primary、small、FolderOpenOutlined）
+   - [削除]ボタン（danger、small、DeleteOutlined、Popconfirm付き）
+
+8. **空状態表示**（Draft 0件の場合）
+   - テキスト: "🔭 Draftがありません"（グレー、中央揃え）
+   - 検索結果0件メッセージ（searchQuery存在時）
+
+9. **ローディング表示**（isLoading時）
+   - Spin（size="large"、中央揃え、padding: 40px 0）
+
+#### 新規保存モーダル
+
+1. **モーダルヘッダー**
+   - タイトル: "💾 新規Draft保存"
+
+2. **Draft名Input**
+   - placeholder: "Draft名を入力"
+   - Enter押下で保存実行
+
+3. **フッター**
+   - [キャンセル]ボタン
+   - [保存]ボタン（confirmLoading付き）
 
 ---
 
-## 3. 機能仕様
+## 機能仕様
 
-### 3.1. 主要機能の詳細
-
-#### 3.1.1. 下書き一覧取得
-
-**処理フロー:**
-1. コンポーネントマウント時またはopen=trueになった時
-2. fetchDrafts() を実行
-3. `/api/s3/drafts?userId={userId}&organizationId={orgId}`
-4. S3から下書きJSON一覧を取得
-5. drafts stateに保存
-6. リスト表示
-
-**APIレスポンス:**
-```json
-{
-  "drafts": [
-    {
-      "draft_key": "drafts/user_123/auto_20260121_143000.json",
-      "draft_name": "sample_project_draft",
-      "last_saved_at": "2026-01-21T14:30:00Z",
-      "node_count": 15,
-      "arc_count": 20,
-      "template_count": 5
-    }
-  ]
-}
-```
-
-#### 3.1.2. 下書き保存
-
-**処理フロー:**
-1. 「保存」ボタンをクリック
-2. 下書き名をバリデーション（必須、重複チェック）
-3. 現在の編集状態（nodes, edges, templates, documentData）を取得
-4. saveDraft() を実行
-5. POST `/api/s3/drafts`
-6. S3に下書きJSONを保存
-7. 一覧を再取得
-
-**リクエストボディ:**
-```json
-{
-  "userId": "user_123",
-  "organizationId": "org_456",
-  "draftName": "sample_project_draft",
-  "draftData": {
-    "nodes": [...],
-    "edges": [...],
-    "templates": {...},
-    "documentData": {...},
-    "fileName": "sample_project.maiml"
-  }
-}
-```
-
-#### 3.1.3. 下書き読み込み
-
-**処理フロー:**
-1. 「読み込み」ボタンをクリック
-2. 確認ダイアログを表示（現在の編集内容が失われる警告）
-3. OKの場合、loadDraft() を実行
-4. GET `/api/s3/drafts/{draftKey}`
-5. S3から下書きJSONを取得
-6. onLoad(draftData) を実行
-7. 親コンポーネント（PetriNetEditor）で状態を復元
-8. モーダルを閉じる
-
-#### 3.1.4. 下書き削除
-
-**処理フロー:**
-1. 「削除」ボタンをクリック
-2. 削除確認ダイアログを表示
-3. OKの場合、deleteDraft() を実行
-4. DELETE `/api/s3/drafts/{draftKey}`
-5. S3から下書きJSONを削除
-6. 一覧を再取得
-
-#### 3.1.5. 自動保存機能
-
-**処理フロー:**
-1. 自動保存スイッチをONにする
-2. onAutoSaveToggle(true) を実行
-3. 親コンポーネント（PetriNetEditor）で自動保存タイマーを開始
-4. 一定時間（例: 5分）ごとに自動保存を実行
-5. 下書き名: "auto_{timestamp}"
-
-**自動保存の識別:**
-- 下書き名が "auto_" で始まる場合、自動保存と判定
-- 自動保存タグ（Tag color="blue"）を表示
-
-#### 3.1.6. 検索機能
-
-**処理フロー:**
-1. 検索フィールドに文字列を入力
-2. searchQuery stateを更新
-3. useMemo() でフィルタリング
-4. 下書き名に searchQuery が含まれるものを表示
-
-**検索条件:**
-- 下書き名で部分一致検索
-- 大文字小文字を区別しない
-
-#### 3.1.7. ソート機能
-
-**処理フロー:**
-1. ソート選択を変更
-2. sortBy stateを更新
-3. useMemo() でソート
-4. 選択した順序で下書きを並び替え
-
-**ソート順序:**
-| ソート | 説明 |
-|-------|------|
-| date（デフォルト） | 最終保存日時の降順（新しい順） |
-| name | 下書き名の昇順（アルファベット順） |
-| nodeCount | ノード数の降順（多い順） |
-
-#### 3.1.8. 自動保存世代管理
-
-**処理フロー:**
-1. 自動保存は最新5世代のみ保持
-2. 6世代目以降は自動削除
-3. 世代番号で識別（auto_0, auto_1, auto_2...）
-4. 最も古い世代を削除して新しい世代を保存
-
-### 3.2. ボタン・操作の動作
-
-| 操作 | 動作 | 状態変更 |
-|------|------|---------|
-| 自動保存スイッチ | 自動保存を有効/無効 | onAutoSaveToggle() |
-| 検索フィールド入力 | 下書きをフィルタ | searchQuery更新 |
-| ソート選択 | 下書きを並び替え | sortBy更新 |
-| 更新ボタン | 一覧を再取得 | fetchDrafts() |
-| 読み込みボタン | 下書きを読み込み | onLoad() |
-| 削除ボタン | 下書きを削除 | deleteDraft() |
-| 保存ボタン | 現在の編集内容を保存 | saveDraft() |
-| 閉じるボタン | モーダルを閉じる | onClose() |
-
----
-
-## 4. データ仕様
-
-### 4.1. Props型定義
+### Props定義
 
 ```typescript
 interface DraftManagerProps {
-  open: boolean;                              // 表示フラグ
-  onClose: () => void;                        // 閉じる
-  onLoad: (draft: any) => void;               // 下書き読み込み
-  currentEditState?: EditState;               // 現在の編集状態
-  userId: string;                             // ユーザーID
-  autoSaveEnabled?: boolean;                  // 自動保存有効フラグ
-  onAutoSaveToggle?: (enabled: boolean) => void; // 自動保存切り替え
-  currentDraftKey?: string | null;            // 現在の下書きキー
+  show: boolean;                                  // モーダル表示フラグ
+  onClose: () => void;                            // 閉じるコールバック
+  onLoadDraft: (data: Draft & { fileName?: string }) => void;  // Draft読み込みコールバック
+  currentEditState: EditState | null;             // 現在の編集状態
+  userId: string;                                 // ユーザーID
+  autoSaveEnabled?: boolean;                      // 自動保存有効フラグ
+  onAutoSaveToggle?: (enabled: boolean) => void;  // 自動保存トグルコールバック
+  currentDraftKey?: string | null;                // 現在編集中のDraft Key
 }
 ```
 
-### 4.2. DraftInfo型定義
+### State管理
 
 ```typescript
-interface DraftInfo {
-  draft_key: string;           // S3キー
-  draft_name: string;          // 下書き名
-  original_file_key?: string;  // 元ファイルキー
-  last_saved_at: string;       // 最終保存日時（ISO 8601）
-  node_count?: number;         // ノード数
-  arc_count?: number;          // アーク数
-  template_count?: number;     // テンプレート数
-  nodes?: any[];               // ノードデータ
-  edges?: any[];               // エッジデータ
-  templates?: any;             // テンプレートデータ
-  documentData?: any;          // ドキュメントデータ
+// useDraftManager hook の戻り値
+const {
+  drafts,          // Draft一覧
+  isLoading,       // ローディング状態
+  error,           // エラーメッセージ
+  fetchDrafts,     // Draft一覧取得
+  saveDraft,       // Draft保存
+  deleteDraft,     // Draft削除
+} = useDraftManager(currentEditState, { userId });
+
+// ローカルState
+const [searchQuery, setSearchQuery] = useState('');                        // 検索クエリ
+const [showSaveDialog, setShowSaveDialog] = useState(false);              // 保存ダイアログ表示
+const [newDraftName, setNewDraftName] = useState('');                     // 新規Draft名
+const [sortBy, setSortBy] = useState<'date' | 'name' | 'nodeCount'>('date');  // ソート種別
+const [selectedAutoSaveGeneration, setSelectedAutoSaveGeneration] = useState(0);  // 自動保存世代選択
+```
+
+### カスタムフック
+
+#### useDraftManager
+```typescript
+import useDraftManager from '../hooks/useDraftManager';
+```
+
+**機能**: Draft管理のビジネスロジックを提供
+
+**戻り値:**
+- `drafts`: Draft[]
+- `isLoading`: boolean
+- `error`: string | null
+- `fetchDrafts()`: Draft一覧取得
+- `saveDraft(data)`: Draft保存
+- `deleteDraft(draftKey)`: Draft削除
+
+---
+
+## 主要機能
+
+### 1. 初期化処理
+
+#### userIdバリデーション
+```typescript
+useEffect(() => {
+  if (!userId || userId === 'default-user' || userId === 'unknown-user') {
+    console.error('❌ [DraftManager V2] Invalid userId:', userId);
+  }
+}, [userId]);
+```
+
+**動作:**
+- 不正なuserIdを検出してコンソールエラー出力
+- デフォルト値や不明なユーザーを防止
+
+#### モーダル表示時のDraft取得
+```typescript
+useEffect(() => {
+  if (show) {
+    console.log('📄 [DraftManager V2] モーダル表示 - Draft一覧取得');
+    fetchDrafts();
+  }
+}, [show, fetchDrafts]);
+```
+
+**動作:**
+- モーダルが表示されたらDraft一覧を取得
+- 常に最新のDraftリストを表示
+
+### 2. 新規保存ダイアログ
+
+#### ダイアログを開く
+```typescript
+const handleOpenSaveDialog = () => {
+  // ダイアログを開く際に初期値を設定
+  if (currentEditState?.fileName) {
+    const defaultName = `Draft - ${currentEditState.fileName} - ${new Date().toLocaleString('ja-JP')}`;
+    setNewDraftName(defaultName);
+  }
+  setShowSaveDialog(true);
+};
+```
+
+**動作:**
+1. 編集中のファイル名から初期Draft名を生成
+2. 形式: `Draft - {fileName} - {日時}`
+3. 保存ダイアログを表示
+
+#### 新規保存実行
+```typescript
+const handleSaveNew = async () => {
+  if (!newDraftName.trim()) {
+    Modal.error({ title: 'エラー', content: 'Draft名を入力してください' });
+    return;
+  }
+
+  try {
+    const draftKey = `draft_${Date.now()}`;
+
+    await saveDraft({
+      draftKey,
+      draftName: newDraftName,
+      originalFileKey: currentEditState?.fileName || '',
+      nodes: currentEditState?.nodes || [],
+      edges: currentEditState?.edges || [],
+      templates: currentEditState?.templates || [],
+      documentData: currentEditState?.documentData,
+      lastSavedAt : new Date().toISOString(),
+    });
+
+    Modal.success({ title: '保存完了', content: 'Draftを保存しました' });
+    setShowSaveDialog(false);
+    setNewDraftName('');
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    Modal.error({ title: '保存エラー', content: errorMessage });
+  }
+};
+```
+
+**動作:**
+1. Draft名の必須チェック
+2. タイムスタンプベースのdraftKeyを生成（`draft_{timestamp}`）
+3. currentEditStateから必要なデータを抽出
+4. saveDraft()を呼び出してサーバーに保存
+5. 成功時はモーダルを閉じて入力をリセット
+6. エラー時はエラーモーダル表示
+
+### 3. Draft読み込み
+
+```typescript
+const handleLoadDraft = async (draft: Draft) => {
+  // キャンバス上にオブジェクトが存在する場合は警告
+  const hasExistingContent =
+    currentEditState &&
+    ((currentEditState.nodes && currentEditState.nodes.length > 0) ||
+      (currentEditState.edges && currentEditState.edges.length > 0) ||
+      (currentEditState.templates && Object.keys(currentEditState.templates).length > 0));
+
+  if (hasExistingContent) {
+    const objectCounts = [
+      currentEditState.nodes?.length > 0 ? `${currentEditState.nodes.length}個のノード` : '',
+      currentEditState.edges?.length > 0 ? `${currentEditState.edges.length}個のアーク` : '',
+      currentEditState.templates && Object.keys(currentEditState.templates).length > 0
+        ? `${Object.keys(currentEditState.templates).length}個のテンプレート`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('、');
+
+    Modal.confirm({
+      title: '編集中のMaiMLを破棄して読み込みますか？',
+      content: `現在のキャンバスには以下が存在します：\n${objectCounts}\n\n現在の編集内容は失われます。`,
+      onOk: async () => {
+        // Draft読み込み実行
+        await loadDraftData(draft);
+      },
+    });
+  } else {
+    // コンテンツがない場合はそのまま読み込み
+    await loadDraftData(draft);
+  }
+};
+
+// 実際の読み込み処理（共通化）
+const loadDraftData = async (draft: Draft) => {
+  try {
+    const data = await draftService.fetchDraftById(draft.draftKey);
+
+    const loadData = {
+      ...data,
+      fileName: data.originalFileKey || data.draftName,
+    };
+
+    onLoadDraft(loadData);
+    onClose();
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    Modal.error({ title: '読み込みエラー', content: errorMessage });
+  }
+};
+```
+
+**動作フロー:**
+1. 現在のキャンバスに編集内容があるかチェック
+2. 編集内容がある場合:
+   - オブジェクト数をカウント（ノード/アーク/テンプレート）
+   - 確認ダイアログを表示
+   - OKクリック → Draft読み込み実行
+3. 編集内容がない場合:
+   - 確認なしで即座に読み込み
+4. fetchDraftById()でDraft詳細を取得
+5. fileNameを付与して親コンポーネントに渡す
+6. モーダルを閉じる
+
+### 4. Draft削除
+
+```typescript
+const handleDelete = async (draftKey: string, draftName: string) => {
+  try {
+    await deleteDraft(draftKey);
+    Modal.success({ title: '削除完了', content: `"${draftName}" を削除しました` });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    Modal.error({ title: '削除エラー', content: errorMessage });
+  }
+};
+```
+
+**動作:**
+1. Popconfirmで削除確認（UI側）
+2. deleteDraft()でサーバーから削除
+3. 成功時は成功メッセージ表示
+4. fetchDrafts()が自動的に一覧を更新（useDraftManager内部）
+
+### 5. 自動保存トグル
+
+```typescript
+const handleAutoSaveToggle = (checked: boolean) => {
+  if (onAutoSaveToggle) {
+    onAutoSaveToggle(checked);
+  }
+};
+```
+
+**動作:**
+- Switch切り替え → 親コンポーネントのonAutoSaveToggleコールバック呼び出し
+- 親側で自動保存タイマーの開始/停止を制御
+
+### 6. フィルタリング・ソート（useMemo）
+
+```typescript
+const { autoSaveDrafts, manualDrafts } = useMemo(() => {
+  // drafts が配列であることを保証
+  const draftArray = Array.isArray(drafts) ? drafts : [];
+  
+  let filtered = draftArray;
+
+  // 🔍 検索フィルター
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    filtered = draftArray.filter(
+      (draft) =>
+        draft.draftName.toLowerCase().includes(query) ||
+        draft.originalFileKey?.toLowerCase().includes(query)
+    );
+  }
+
+  // 🤖 自動保存と手動保存に分ける
+  const autoSaves = filtered
+    .filter((d : Draft) => d.draftName && d.draftName.includes('自動保存'))
+    .sort((a, b) => new Date(b.lastSavedAt).getTime() - new Date(a.lastSavedAt).getTime());
+
+  const manuals = filtered.filter((d) => !d.draftName || !d.draftName.includes('自動保存'));
+
+  // 💾 手動保存をソート
+  const sortedManuals = [...manuals].sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return a.draftName.localeCompare(b.draftName);
+      case 'nodeCount':
+        return ((b.nodes?.length || 0) - (a.nodes?.length || 0));
+      case 'date':
+      default:
+        return new Date(b.lastSavedAt || new Date()).getTime() - 
+               new Date(a.lastSavedAt || new Date()).getTime();
+    }
+  });
+
+  return {
+    autoSaveDrafts: autoSaves,
+    manualDrafts: sortedManuals,
+  };
+}, [drafts, searchQuery, sortBy]);
+```
+
+**動作:**
+1. draftsが配列であることを保証（エラー防止）
+2. 検索クエリでフィルタリング（Draft名 or 元ファイル名）
+3. 自動保存と手動保存を分離（Draft名に"自動保存"が含まれるか）
+4. 自動保存: 日付降順（最新が先頭）
+5. 手動保存: sortByに応じてソート
+   - `date`: 日付降順（デフォルト）
+   - `name`: 名前昇順
+   - `nodeCount`: ノード数降順
+
+---
+
+## データ型定義
+
+### Draft
+
+```typescript
+interface Draft {
+  draftKey: string;                   // Draft識別キー
+  draftName: string;                  // Draft名
+  originalFileKey?: string;           // 元ファイル名
+  nodes: any[];                       // ノード一覧
+  edges: any[];                       // アーク一覧
+  templates: Record<string, any>;     // テンプレート一覧
+  documentData?: any;                 // ドキュメントデータ
+  lastSavedAt: string;                // 最終保存日時（ISO形式）
 }
 ```
 
-### 4.3. EditState型定義
+### EditState
 
 ```typescript
 interface EditState {
-  fileName?: string;    // ファイル名
-  nodes?: any[];        // ノードデータ
-  edges?: any[];        // エッジデータ
-  templates?: any;      // テンプレートデータ
-  documentData?: any;   // ドキュメントデータ
-}
-```
-
-### 4.4. State型定義
-
-```typescript
-interface State {
-  drafts: DraftInfo[];                     // 下書き一覧
-  isLoading: boolean;                      // ローディング状態
-  error: string | null;                    // エラーメッセージ
-  searchQuery: string;                     // 検索クエリ
-  showSaveDialog: boolean;                 // 保存ダイアログ表示フラグ
-  showDeleteConfirm: boolean;              // 削除確認ダイアログ表示フラグ
-  selectedDraft: DraftInfo | null;         // 選択中の下書き
-  newDraftName: string;                    // 新規下書き名
-  sortBy: 'date' | 'name' | 'nodeCount';   // ソート順序
-  selectedAutoSaveGeneration: number;      // 自動保存世代番号
+  fileName?: string;                  // 編集中のファイル名
+  nodes?: any[];                      // ノード一覧
+  edges?: any[];                      // アーク一覧
+  templates?: Record<string, any>;    // テンプレート一覧
+  documentData?: any;                 // ドキュメントデータ
 }
 ```
 
 ---
 
-## 5. UI/UXポリシー準拠
+## API連携
 
-### 5.1. Ant Designコンポーネント使用
-
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Modal | 外側のコンテナ | open, onCancel, title, width, footer |
-| Card | 保存エリア | size, bordered |
-| Typography.Text | テキスト表示 | strong, type |
-| Button | 各種操作ボタン | type, icon, onClick, danger |
-| Input | 検索、下書き名入力 | prefix, placeholder, value, onChange |
-| Select | ソート選択 | value, onChange, options |
-| Switch | 自動保存切り替え | checked, onChange |
-| List | 下書き一覧 | dataSource, renderItem, loading |
-| List.Item | リスト項目 | actions |
-| Tag | 自動保存タグ | color |
-| Space | ボタングループ | size |
-| Flex | レイアウト | justify, align, vertical |
-| Spin | ローディング | - |
-| Alert | エラー表示 | type, message, showIcon |
-| Empty | 空状態 | description |
-
-### 5.2. @ant-design/icons使用
-
-- CloseOutlined: 閉じるボタン
-- SaveOutlined: 保存ボタン
-- ReloadOutlined: 更新ボタン
-- DeleteOutlined: 削除ボタン
-- FolderOpenOutlined: 読み込みボタン
-- SearchOutlined: 検索アイコン
-- SortAscendingOutlined: ソートアイコン
-
----
-
-## 6. 実装ファイル
-
-### 6.1. ソースファイルパス
-
-```
-frontend/src/components/editorv2/components/DraftManager.tsx
-```
-
-### 6.2. 関連コンポーネント・フック
-
-| ファイル | パス | 役割 |
-|---------|------|------|
-| PetriNetEditor | ./PetriNetEditor | 親コンポーネント |
-| useDraftManager | ../../hooks/useDraftManager | 下書き管理カスタムフック |
-| DraftRestoreDialog | ../viewer/DraftRestoreDialog | 下書き復元確認ダイアログ |
-
-### 6.3. 依存ライブラリ
-
-| ライブラリ | バージョン | 用途 |
-|-----------|----------|------|
-| antd | 6.x | UIコンポーネント |
-| @ant-design/icons | 5.x | アイコン |
-| react | 18.2.0 | Reactライブラリ |
-
----
-
-## 7. 既知の課題・TODO
-
-- [ ] 下書きのプレビュー機能
-- [ ] 下書きの比較機能
-- [ ] 下書きのマージ機能
-- [ ] 下書きのエクスポート/インポート
-
----
-
-## 8. 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 2.0.0 | 2025-12-23 | Ant Design v6対応、自動保存世代管理 | Development Team |
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
-
----
-
-## 9. 使用例
+### draftService
 
 ```typescript
+import * as draftService from '@/services/draftService';
+```
+
+#### fetchDraftById()
+```typescript
+const data = await draftService.fetchDraftById(draft.draftKey);
+```
+
+**機能**: 指定されたdraftKeyのDraft詳細を取得
+
+**パラメータ:**
+- `draftKey`: string
+
+**戻り値:** Draft
+
+**使用箇所**: Draft読み込み時
+
+---
+
+## 関連コンポーネント
+
+### カスタムフック
+
+#### useDraftManager
+- **ファイルパス**: `frontend/src/components/editorv2/hooks/useDraftManager.ts`
+- **用途**: Draft管理のビジネスロジックを提供
+- **機能:**
+  - Draft一覧取得（fetchDrafts）
+  - Draft保存（saveDraft）
+  - Draft削除（deleteDraft）
+  - ローディング状態管理
+  - エラー管理
+
+### 親コンポーネント
+
+#### PetriNetEditorScreen / PetriNetEditorInner
+- **ファイルパス**: `frontend/src/components/editorv2/PetriNetEditorScreen.tsx`
+- **用途**: MAIML Petri Netエディタ画面
+- **連携:**
+  - DraftManagerを表示/非表示
+  - onLoadDraftでDraftデータを受け取って復元
+  - autoSaveEnabledフラグで自動保存を制御
+  - currentEditStateで現在の編集状態を渡す
+
+### 使用コンポーネント（Ant Design）
+
+- **Modal**: モーダルダイアログ
+- **Button**: ボタン
+- **Input**: 検索入力
+- **List**: Draft一覧
+- **Card**: Draftカード
+- **Space**: 要素間スペース
+- **Spin**: ローディング表示
+- **Alert**: ステータス/エラー表示
+- **Select**: ソート選択
+- **Switch**: 自動保存トグル
+- **Tag**: ノード数/アーク数表示
+- **Divider**: セクション区切り
+- **Popconfirm**: 削除確認
+
+---
+
+## エラーハンドリング
+
+### Draft名必須チェック
+
+```typescript
+if (!newDraftName.trim()) {
+  Modal.error({ title: 'エラー', content: 'Draft名を入力してください' });
+  return;
+}
+```
+
+### API通信エラー
+
+```typescript
+try {
+  await saveDraft({ ... });
+  Modal.success({ title: '保存完了', content: 'Draftを保存しました' });
+} catch (err) {
+  const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+  Modal.error({ title: '保存エラー', content: errorMessage });
+}
+```
+
+### 編集内容破棄の確認
+
+```typescript
+Modal.confirm({
+  title: '編集中のMaiMLを破棄して読み込みますか？',
+  content: `現在のキャンバスには以下が存在します：\n${objectCounts}\n\n現在の編集内容は失われます。`,
+  onOk: async () => {
+    // Draft読み込み実行
+  },
+});
+```
+
+### userIdバリデーション
+
+```typescript
+if (!userId || userId === 'default-user' || userId === 'unknown-user') {
+  console.error('❌ [DraftManager V2] Invalid userId:', userId);
+}
+```
+
+---
+
+## パフォーマンス最適化
+
+### useMemo使用
+
+```typescript
+const { autoSaveDrafts, manualDrafts } = useMemo(() => {
+  // フィルタリング・ソート処理
+}, [drafts, searchQuery, sortBy]);
+```
+
+**メリット:**
+- drafts/searchQuery/sortByが変更された場合のみ再計算
+- 不要な再レンダリングを防止
+
+### 配列チェック
+
+```typescript
+const draftArray = Array.isArray(drafts) ? drafts : [];
+```
+
+**メリット:**
+- draftsが配列でない場合のエラーを防止
+- 型安全性の向上
+
+---
+
+## 使用例
+
+### PetriNetEditorInner内での使用
+
+```typescript
+const [showDraftManager, setShowDraftManager] = useState(false);
+const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+const [currentDraftKey, setCurrentDraftKey] = useState<string | null>(null);
+
+// Draft読み込みハンドラー
+const handleLoadDraft = (data: Draft & { fileName?: string }) => {
+  // Draftデータをエディタに復元
+  setNodes(data.nodes || []);
+  setEdges(data.edges || []);
+  setTemplates(data.templates || {});
+  setDocumentData(data.documentData);
+  setFileName(data.fileName || data.draftName);
+  
+  console.log('✅ Draft読み込み完了');
+};
+
+// 自動保存トグル
+const handleAutoSaveToggle = (enabled: boolean) => {
+  setAutoSaveEnabled(enabled);
+  
+  if (enabled) {
+    // 自動保存タイマー開始
+    startAutoSave();
+  } else {
+    // 自動保存タイマー停止
+    stopAutoSave();
+  }
+};
+
+// DraftManager表示
 <DraftManager
-  open={draftManagerOpen}
-  onClose={() => setDraftManagerOpen(false)}
-  onLoad={(draft) => {
-    // 下書きを読み込んで編集状態を復元
-    setNodes(draft.nodes);
-    setEdges(draft.edges);
-    setTemplates(draft.templates);
-    setDocumentData(draft.documentData);
-  }}
+  show={showDraftManager}
+  onClose={() => setShowDraftManager(false)}
+  onLoadDraft={handleLoadDraft}
   currentEditState={{
-    fileName: currentFileName,
+    fileName: fileName,
     nodes: nodes,
     edges: edges,
     templates: templates,
-    documentData: documentData
+    documentData: documentData,
   }}
-  userId={user.id}
+  userId={userId}
   autoSaveEnabled={autoSaveEnabled}
-  onAutoSaveToggle={(enabled) => setAutoSaveEnabled(enabled)}
+  onAutoSaveToggle={handleAutoSaveToggle}
   currentDraftKey={currentDraftKey}
 />
 ```
 
 ---
 
-## 10. APIエンドポイント
+## 特記事項
 
-### 10.1. 下書き一覧取得
+### 自動保存の仕組み
 
-**エンドポイント:**
-```
-GET /api/s3/drafts?userId={userId}&organizationId={orgId}
-```
+1. **保存間隔**: 30秒（親コンポーネントのタイマーで制御）
+2. **世代管理**: 最大3世代まで保持
+3. **Draft名形式**: Draft名に"自動保存"を含める
+4. **表示**: 自動保存セクションに分離して表示（青色背景）
 
-**クエリパラメータ:**
-| パラメータ | 必須 | 説明 |
-|-----------|-----|------|
-| userId | ○ | ユーザーID |
-| organizationId | ○ | 組織ID |
-
-**レスポンス:**
-```json
-{
-  "drafts": [
-    {
-      "draft_key": "drafts/user_123/auto_20260121_143000.json",
-      "draft_name": "sample_project_draft",
-      "last_saved_at": "2026-01-21T14:30:00Z",
-      "node_count": 15,
-      "arc_count": 20,
-      "template_count": 5
-    }
-  ]
-}
-```
-
-### 10.2. 下書き保存
-
-**エンドポイント:**
-```
-POST /api/s3/drafts
-```
-
-**リクエストボディ:**
-```json
-{
-  "userId": "user_123",
-  "organizationId": "org_456",
-  "draftName": "sample_project_draft",
-  "draftData": {
-    "nodes": [...],
-    "edges": [...],
-    "templates": {...},
-    "documentData": {...}
-  }
-}
-```
-
-**レスポンス:**
-```json
-{
-  "success": true,
-  "draftKey": "drafts/user_123/sample_project_draft_20260121_143000.json"
-}
-```
-
-### 10.3. 下書き読み込み
-
-**エンドポイント:**
-```
-GET /api/s3/drafts/{draftKey}
-```
-
-**レスポンス:**
-```json
-{
-  "nodes": [...],
-  "edges": [...],
-  "templates": {...},
-  "documentData": {...}
-}
-```
-
-### 10.4. 下書き削除
-
-**エンドポイント:**
-```
-DELETE /api/s3/drafts/{draftKey}
-```
-
-**レスポンス:**
-```json
-{
-  "success": true
-}
-```
-
----
-
-## 11. S3パス構造
-
-### 11.1. 下書き保存パス
-
-```
-s3://bucket-name/
-  └── org_{organization_id}/
-      └── drafts/
-          └── user_{user_id}/
-              ├── manual_sample_project_20260121_120000.json
-              ├── auto_0.json  # 自動保存（最新）
-              ├── auto_1.json  # 自動保存（1世代前）
-              ├── auto_2.json  # 自動保存（2世代前）
-              ├── auto_3.json  # 自動保存（3世代前）
-              └── auto_4.json  # 自動保存（4世代前）
-```
-
-### 11.2. 下書きJSON形式
-
-```json
-{
-  "version": "2.0.0",
-  "savedAt": "2026-01-21T14:30:00Z",
-  "fileName": "sample_project.maiml",
-  "nodes": [
-    {
-      "id": "node_1",
-      "type": "place",
-      "data": {...},
-      "position": { "x": 100, "y": 100 }
-    }
-  ],
-  "edges": [
-    {
-      "id": "edge_1",
-      "source": "node_1",
-      "target": "node_2"
-    }
-  ],
-  "templates": {
-    "material": {...},
-    "condition": {...},
-    "result": {...}
-  },
-  "documentData": {...}
-}
-```
-
----
-
-## 12. エラーハンドリング
-
-### 12.1. ユーザーIDバリデーション
+### Draft Key生成
 
 ```typescript
-useEffect(() => {
-  if (!userId || userId === 'default-user' || userId === 'unknown-user') {
-    console.error('❌ [DraftManager] Invalid userId:', userId);
-    setError('ユーザーIDが正しく設定されていません。ログインし直してください。');
-  }
-}, [userId]);
+const draftKey = `draft_${Date.now()}`;
 ```
 
-### 12.2. API呼び出しエラー
+- タイムスタンプベース（ミリ秒）
+- 一意性を保証
+- 形式: `draft_1234567890123`
+
+### fileName復元
 
 ```typescript
-try {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`下書き取得失敗: ${response.status}`);
-  }
-  const data = await response.json();
-  setDrafts(data.drafts);
-} catch (error) {
-  setError(error.message);
-  setDrafts([]);
-}
+const loadData = {
+  ...data,
+  fileName: data.originalFileKey || data.draftName,
+};
 ```
 
----
-
-## 13. 使用シナリオ
-
-### 13.1. 手動保存
-
-1. PetriNetEditorで編集中
-2. 「下書き管理」ボタンをクリック
-3. DraftManagerが表示される
-4. 下書き名を入力（例: "experiment_workflow_v2"）
-5. 「保存」ボタンをクリック
-6. 下書きがS3に保存される
-7. 一覧に表示される
-
-### 13.2. 自動保存
-
-1. 自動保存スイッチをONにする
-2. 5分ごとに自動保存が実行される
-3. 下書き名: "auto_0" → "auto_1" → ... → "auto_4"
-4. 5世代を超えると古いものから削除される
-5. 一覧に自動保存タグ付きで表示される
-
-### 13.3. 下書き読み込み
-
-1. 「下書き管理」を開く
-2. 読み込みたい下書きを選択
-3. 「読み込み」ボタンをクリック
-4. 確認ダイアログが表示される
-5. 「OK」をクリック
-6. 下書きの内容が復元される
-7. 編集を再開できる
-
-### 13.4. 下書き削除
-
-1. 「下書き管理」を開く
-2. 削除したい下書きを選択
-3. 「削除」ボタンをクリック
-4. 削除確認ダイアログが表示される
-5. 「OK」をクリック
-6. 下書きがS3から削除される
-7. 一覧から消える
-
-### 13.5. 下書き検索
-
-1. 検索フィールドに「experiment」と入力
-2. "experiment"を含む下書きのみ表示される
-3. 検索クエリをクリアすると全件表示に戻る
+- originalFileKeyを優先
+- なければdraftNameをfileNameとして使用
+- エディタタイトルバーに表示される
 
 ---
 
-## 14. パフォーマンス最適化
+## 変更履歴
 
-### 14.1. フィルタリングとソートのメモ化
-
-```typescript
-const filteredAndSortedDrafts = useMemo(() => {
-  let result = [...drafts];
-  
-  // 検索フィルタ
-  if (searchQuery) {
-    result = result.filter(draft =>
-      draft.draft_name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }
-  
-  // ソート
-  result.sort((a, b) => {
-    switch (sortBy) {
-      case 'date':
-        return new Date(b.last_saved_at).getTime() - new Date(a.last_saved_at).getTime();
-      case 'name':
-        return a.draft_name.localeCompare(b.draft_name);
-      case 'nodeCount':
-        return (b.node_count || 0) - (a.node_count || 0);
-      default:
-        return 0;
-    }
-  });
-  
-  return result;
-}, [drafts, searchQuery, sortBy]);
-```
+| 日付 | バージョン | 変更内容 | 担当者 |
+|------|----------|---------|--------|
+| 2026-03-12 | 1.0.0 | 実装ベースでUI仕様書を新規作成 | Cline |
+| 2026-XX-XX | - | V2版（Ant Design実装）完了（実装） | - |
+| 2025-XX-XX | - | Draft管理UIコンポーネント初版作成（実装） | - |
 
 ---
 
-## 15. セキュリティ
+## 実装ファイル情報
 
-### 15.1. ユーザー分離
-
-- 各ユーザーは自分の下書きのみアクセス可能
-- S3パスに user_id を含める
-- APIでuserIdを検証
-
-### 15.2. 組織分離
-
-- 各組織は自組織の下書きのみアクセス可能
-- S3パスに organization_id を含める
-- APIでorganizationIdを検証
-
----
-
-## 16. アクセシビリティ
-
-### 16.1. キーボード操作
-
-- Tab: フォーカス移動
-- Enter: ボタンクリック
-- Escape: モーダルを閉じる
-- 矢印キー: リスト項目移動
-
-### 16.2. ARIA属性
-
-- role="dialog"（Modal時に自動付与）
-- aria-label="下書き管理"
+- **ファイルパス**: `frontend/src/components/editorv2/components/DraftManager.tsx`
+- **コンポーネント名**: `DraftManager`
+- **実装バージョン**: 2.0.0（Ant Design）
+- **実装日**: 2026-XX-XX
