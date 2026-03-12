@@ -17,6 +17,7 @@ import { createBdd } from 'playwright-bdd';
 import { db, closeDb } from '../../db';
 import testData from '../../fixtures/testdata/user_test_data.json';
 import deptTestData from '../../fixtures/testdata/department_test_data.json';
+import roleTestData from '../../fixtures/testdata/role_test_data.json';
 
 const { Given, When, Then, Before, After, AfterAll } = createBdd();
 
@@ -449,40 +450,185 @@ Before({ tags: '@2-14-5' }, async () => {
   );
 });
 
+/**
+ * UIのロール追加ダイアログ経由でロールを1件登録するヘルパー
+ * @2-20-1〜4 の Before フックで使用
+ */
+async function addRoleViaDialog(
+  page: import('@playwright/test').Page,
+  roleCd: string,
+  roleName: string,
+  isActive: boolean
+): Promise<void> {
+  const addBtn = page.locator('button').filter({ hasText: '追加' }).first();
+  await addBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await addBtn.click();
+  await page.waitForSelector('.ant-modal', { timeout: 10000 });
+
+  // Form.Item name="role" → id="role"
+  await setReactInputValue(page, '.ant-modal #role', roleCd);
+  // Form.Item name="roleName" → id="roleName"
+  await setReactInputValue(page, '.ant-modal #roleName', roleName);
+  if (!isActive) {
+    await selectAntOption(page, '.ant-modal .ant-form-item:has(#isActive) .ant-select', '非アクティブ');
+  }
+
+  await page.click('.ant-modal-footer .ant-btn-primary');
+
+  // POSTレスポンス待機（失敗してもOK）
+  await page.waitForResponse(
+    (r) => r.url().includes('/systemManagement/role') && r.request().method() === 'POST',
+    { timeout: 10000 }
+  ).catch(() => {});
+
+  // モーダルが閉じるまで待機
+  await page.locator('.ant-modal').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
+
+  createdRoleCds.push(roleCd);
+}
+
 // ============================================================
 // Before フック: ロール系前提データ準備
 // ============================================================
 
-Before({ tags: '@2-20-1' }, async () => {
+Before({ tags: '@2-20-1' }, async ({ page }) => {
+  // クリーンアップ
+  await db
+    .query(
+      `DELETE FROM role_permission WHERE organization_id = $1 AND role_cd IN ('e2e_edit_before_role')`,
+      [ORG_ID]
+    )
+    .catch(() => {});
   await db
     .query(
       `DELETE FROM role WHERE organization_id = $1 AND role_name IN ('E2E編集前ロール','E2E編集後ロール')`,
       [ORG_ID]
     )
     .catch(() => {});
-  await db.query(
-    `INSERT INTO role (organization_id, role_cd, role_name, is_active)
-     VALUES ($1, 'e2e_edit_before_role', 'E2E編集前ロール', true)
-     ON CONFLICT DO NOTHING`,
-    [ORG_ID]
-  );
-  createdRoleCds.push('e2e_edit_before_role');
-});
-
-Before({ tags: '@2-20-2 or @2-20-3 or @2-20-4' }, async () => {
   await db
     .query(
-      `DELETE FROM role WHERE organization_id = $1 AND role_name = 'E2E編集テストロール'`,
+      `DELETE FROM role WHERE organization_id = $1 AND role_cd = $2`,
+      [ORG_ID, roleTestData.editBefore.roleCd]
+    )
+    .catch(() => {});
+
+  // UIのロール追加ダイアログから登録
+  await loginAsSystemAdmin(page, roleTestData.loginUser.userId);
+  await page.waitForSelector('.ant-tabs-tab', { timeout: 15000 });
+  await page.locator('.ant-tabs-tab').filter({ hasText: 'ロール管理' }).first().click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+
+  await addRoleViaDialog(
+    page,
+    roleTestData.editBefore.roleCd,   // 'e2e_edit_before_role'
+    roleTestData.editBefore.roleName, // 'E2E編集前ロール'
+    roleTestData.editBefore.isActive  // true
+  );
+});
+
+Before({ tags: '@2-20-2' }, async ({ page }) => {
+  // クリーンアップ
+  await db
+    .query(
+      `DELETE FROM role_permission WHERE organization_id = $1 AND role_cd = $2`,
+      [ORG_ID, roleTestData.editTest2.roleCd]
+    )
+    .catch(() => {});
+  await db
+    .query(
+      `DELETE FROM role WHERE organization_id = $1 AND role_name IN ('E2E編集テストロール2','E2Eキャンセル後ロール')`,
       [ORG_ID]
     )
     .catch(() => {});
-  await db.query(
-    `INSERT INTO role (organization_id, role_cd, role_name, is_active)
-     VALUES ($1, 'e2e_edit_test_role', 'E2E編集テストロール', true)
-     ON CONFLICT DO NOTHING`,
-    [ORG_ID]
+  await db
+    .query(
+      `DELETE FROM role WHERE organization_id = $1 AND role_cd = $2`,
+      [ORG_ID, roleTestData.editTest2.roleCd]
+    )
+    .catch(() => {});
+
+  // UIのロール追加ダイアログから登録
+  await loginAsSystemAdmin(page, roleTestData.loginUser.userId);
+  await page.waitForSelector('.ant-tabs-tab', { timeout: 15000 });
+  await page.locator('.ant-tabs-tab').filter({ hasText: 'ロール管理' }).first().click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+
+  await addRoleViaDialog(
+    page,
+    roleTestData.editTest2.roleCd,   // 'e2e_edit_test_role2'
+    roleTestData.editTest2.roleName, // 'E2E編集テストロール2'
+    roleTestData.editTest2.isActive  // true
   );
-  createdRoleCds.push('e2e_edit_test_role');
+});
+
+Before({ tags: '@2-20-3' }, async ({ page }) => {
+  // クリーンアップ
+  await db
+    .query(
+      `DELETE FROM role_permission WHERE organization_id = $1 AND role_cd = $2`,
+      [ORG_ID, roleTestData.editTest3.roleCd]
+    )
+    .catch(() => {});
+  await db
+    .query(
+      `DELETE FROM role WHERE organization_id = $1 AND role_name = 'E2E編集テストロール3'`,
+      [ORG_ID]
+    )
+    .catch(() => {});
+  await db
+    .query(
+      `DELETE FROM role WHERE organization_id = $1 AND role_cd = $2`,
+      [ORG_ID, roleTestData.editTest3.roleCd]
+    )
+    .catch(() => {});
+
+  // UIのロール追加ダイアログから登録
+  await loginAsSystemAdmin(page, roleTestData.loginUser.userId);
+  await page.waitForSelector('.ant-tabs-tab', { timeout: 15000 });
+  await page.locator('.ant-tabs-tab').filter({ hasText: 'ロール管理' }).first().click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+
+  await addRoleViaDialog(
+    page,
+    roleTestData.editTest3.roleCd,   // 'e2e_edit_test_role3'
+    roleTestData.editTest3.roleName, // 'E2E編集テストロール3'
+    roleTestData.editTest3.isActive  // true
+  );
+});
+
+Before({ tags: '@2-20-4' }, async ({ page }) => {
+  // クリーンアップ
+  await db
+    .query(
+      `DELETE FROM role_permission WHERE organization_id = $1 AND role_cd = $2`,
+      [ORG_ID, roleTestData.editTest4.roleCd]
+    )
+    .catch(() => {});
+  await db
+    .query(
+      `DELETE FROM role WHERE organization_id = $1 AND role_name = 'E2E編集テストロール4'`,
+      [ORG_ID]
+    )
+    .catch(() => {});
+  await db
+    .query(
+      `DELETE FROM role WHERE organization_id = $1 AND role_cd = $2`,
+      [ORG_ID, roleTestData.editTest4.roleCd]
+    )
+    .catch(() => {});
+
+  // UIのロール追加ダイアログから登録
+  await loginAsSystemAdmin(page, roleTestData.loginUser.userId);
+  await page.waitForSelector('.ant-tabs-tab', { timeout: 15000 });
+  await page.locator('.ant-tabs-tab').filter({ hasText: 'ロール管理' }).first().click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+
+  await addRoleViaDialog(
+    page,
+    roleTestData.editTest4.roleCd,   // 'e2e_edit_test_role4'
+    roleTestData.editTest4.roleName, // 'E2E編集テストロール4'
+    roleTestData.editTest4.isActive  // true
+  );
 });
 
 Before({ tags: '@2-21-1 or @2-21-3' }, async () => {
@@ -1349,14 +1495,15 @@ When('ロール {string} の「編集」ボタンをクリックする', async (
   await page.waitForSelector('.ant-modal', { timeout: 10000 });
 });
 
-When(
+  When(
   'ロール編集ダイアログで以下の情報を変更して保存する',
   async ({ page }, dataTable: { hashes: () => Array<{ フィールド: string; 値: string }> }) => {
     const rows = dataTable.hashes();
     for (const row of rows) {
       const { フィールド: field, 値: value } = row;
       if (field === 'ロール名') {
-        const inputSel = '.ant-modal .ant-input';
+        // 編集ダイアログではロールCD（#role）がdisabledになるため #roleName を指定
+        const inputSel = '.ant-modal #roleName';
         await page.click(inputSel);
         await page.keyboard.press('Control+A');
         await setReactInputValue(page, inputSel, value);
@@ -1376,14 +1523,16 @@ When(
 );
 
 When('ロール編集ダイアログでロール名を {string} に変更する', async ({ page }, newName: string) => {
-  const inputSel = '.ant-modal .ant-input';
+  // 編集ダイアログではロールCD（#role）がdisabledになるため #roleName を指定
+  const inputSel = '.ant-modal #roleName';
   await page.click(inputSel);
   await page.keyboard.press('Control+A');
   await setReactInputValue(page, inputSel, newName);
 });
 
 When('ロール編集ダイアログでロール名を {string} に変更して保存する', async ({ page }, newName: string) => {
-  const inputSel = '.ant-modal .ant-input';
+  // 編集ダイアログではロールCD（#role）がdisabledになるため #roleName を指定
+  const inputSel = '.ant-modal #roleName';
   await page.click(inputSel);
   await page.keyboard.press('Control+A');
   await setReactInputValue(page, inputSel, newName);
@@ -2297,7 +2446,8 @@ Then('ロール編集ダイアログが表示されること', async ({ page }) 
 });
 
 Then('ロール編集ダイアログのロール名フィールドに {string} が表示されていること', async ({ page }, value: string) => {
-  const input = page.locator('.ant-modal .ant-input').first();
+  // 編集ダイアログではロールCD（#role）がdisabledになるため #roleName を指定
+  const input = page.locator('.ant-modal #roleName');
   await expect(input).toHaveValue(value, { timeout: 5000 });
 });
 
