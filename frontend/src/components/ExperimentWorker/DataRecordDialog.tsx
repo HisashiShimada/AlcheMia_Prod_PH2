@@ -996,6 +996,7 @@ export default function DataRecordDialog({
 
   return (
     <Modal
+      data-testid="data-record-dialog"
       title={
         <Space>
           <Text strong style={{ fontSize: 18 }}>
@@ -1061,7 +1062,7 @@ export default function DataRecordDialog({
             - useDeemedProgressProp が false の場合: 常時表示（組織設定でみなし進捗無効）
             - useDeemedProgressProp が true の場合: チェックボックスOFF時のみ表示 */}
         {(!useDeemedProgressProp || !useDeemedProgress) && (
-          <div style={{ marginBottom: 24 }}>
+          <div data-testid="status-update-section" style={{ marginBottom: 24 }}>
             {/* タイトルセクション */}
             <div
               style={{
@@ -1264,6 +1265,7 @@ export default function DataRecordDialog({
               {/* フィルタリングエリア */}
               <Space direction="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
                 <Input
+                  data-testid="template-search-input"
                   placeholder="テンプレート名で検索"
                   prefix={<SearchOutlined />}
                   value={templateSearchText}
@@ -1271,6 +1273,7 @@ export default function DataRecordDialog({
                   allowClear
                 />
                 <Select
+                  data-testid="template-category-select"
                   placeholder="テンプレート種別"
                   value={selectedTemplateCategory}
                   onChange={setSelectedTemplateCategory}

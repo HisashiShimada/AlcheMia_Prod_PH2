@@ -404,6 +404,7 @@ export default function TransitionList({
           return (
             <button
               type="button"
+              data-testid="transition-record-button"
               onClick={(e) => {
                 e.stopPropagation();
                 handleRecord(record);
