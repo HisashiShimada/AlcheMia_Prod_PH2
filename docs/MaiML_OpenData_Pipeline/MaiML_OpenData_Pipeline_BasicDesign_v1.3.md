@@ -1,20 +1,25 @@
 
-# MaiML 取り込みパイプライン **基本設計書** v1.3
-最終更新: 2026-02-17
+# MaiML 取り込みパイプライン **基本設計書** v1.5
+最終更新: 2026-03-10
 
 ---
 
 ## 1. 目的・スコープ
 - ユーザーが**公開したい MaiML（XML）**のみを指定して公開し、不要時は**非公開（物理削除）**できる。
 - DB は **PostgreSQL 互換（Aurora を含む）**。AWS ネイティブサービスに依存しない（オンプレ可）。
-- **巨大配列は原本参照**を基本とし、DB は **要約／KV 属性／行明細／プレビュー**を保持（既定）。ただし v1.3 では**選択制で生データ配列の永続化**が可能。
-- プレビューは**最大 2,000 点**。方式は **等間隔（uniform）／最大値保持（maxhold）／MMR** から選択。テンプレートのみ公開（値なし）の場合は生成しない。
+- **巨大配列は原本参照**を基本とし、DB は **要約／KV 属性／行明細**を保持（既定）。ただし v1.3 では**選択制で生データ配列の永続化**が可能。
+- **DB 設計（公開機能が登録するテーブル構成）は現在再検討中**。maiml2Excel の出力項目をベースに最終的なテーブル定義を決定する予定であり、本書の DB 設計（セクション3〜5）は**参考案**である。
 
 ---
 
 ## 2. 基本構成（コンポーネント）
-- **Ingest Controller（CLI/API）**：公開対象の登録（whitelist）、公開/非公開の実行、期限設定、状態参照。
-- **Ingest Worker**：SAX/iterparse によるストリーミング解析で MaiML を取り込み、DB に反映（プレビュー生成・任意で生データ保存）。
+
+> **実装言語**：バックエンド（Worker を含む全コンポーネント）は **Node.js / TypeScript** で実装する。
+
+- **Ingest Controller（API）**：公開対象の登録（whitelist）、公開/非公開バッチの発火、期限設定、状態参照。
+- **Publish Batch Worker**：公開処理を担う非同期バッチ（TypeScript 実装）。SAX によるストリーミング解析で MaiML を取り込み、DB に反映する。UI からのボタン押下を契機に非同期実行される。
+- **Unpublish Batch Worker**：非公開処理を担う非同期バッチ（TypeScript 実装）。UI からのボタン押下による即時実行と、定期実行（cron 等）による期限到来アセットの自動非公開の両方に対応する。
+- **Job Progress Manager**：バッチ（公開/非公開）の実行進捗を管理し、フロントエンドからポーリングまたは WebSocket 等でリアルタイムにステータスを取得できるようにする。
 - **Storage 抽象**：`file://` / `nfs://` / `smb://` / `s3://`（S3 互換可）。
 
 ---
@@ -94,107 +99,11 @@ CREATE INDEX IF NOT EXISTS ix_material_kv_instruction  ON maiml_material_kv(inst
 
 ---
 
-## 5. **プレビュー実装ロジック**（V1.1網羅・V1.2拡張付き）
+## 5. **生データ配列の永続化**（V1.3 追加・参考案）
 
-### 5.1 仕様
-- 上限点数：`PREVIEW_POINTS_MAX = 2000`（固定）。
-- モード：`uniform`／`maxhold`／`mmr`。
-- テンプレートのみ公開（`template_only=true`）や `<data>` に値が無い場合は生成しない。
+> ⚠️ **本セクションの DB 設計は参考案です。** 公開機能が登録するテーブル構成は maiml2Excel の出力項目をベースに再検討中のため、実装前に最新の設計を確認してください。
 
-### 5.2 アルゴリズム
-- **共通前処理**：`x` は昇順、`y` は 0–1 正規化（`(y - min)/(max - min + epsilon)`）、端点保持（先頭・末尾）。
-- **uniform**：インデックス等間隔に `k` 点抽出。`i_j = round(j*(N-1)/(k-1))`。
-- **maxhold**：全域を `k` 区間に分割し、各区間で `y` 最大の点を選択。空区間は隣接 2 位で補完。
-- **mmr**：
-  - スコア：`score(i) = (1-lambda)*sim_whole(i) - lambda*max_{j in S} sim_pair(i,j)`。
-  - 代表性 `sim_whole` は振幅正規化値など、類似度 `sim_pair` は `1 - |y_i - y_j|/(|y_i|+|y_j|+epsilon)` 等。
-  - 初期 `S` は最大強度＋端点、候補はランダム/ビン上位でサンプリングして `O(k·M)` に削減。
-  - 長大系列は **maxhold で 4k に圧縮 -> MMR で k** が安定。
-
-### 5.3 品質指標（任意保存）
-- MAE/MAPE（原系列 vs プレビュー）/ Peak Recall（上位 P 個ピークの捕捉）/ Area 保持率（`sum(y)` 比）。
-
-### 5.4 プレビュー格納テーブル（V1.2 で拡張）
-```sql
-CREATE TABLE IF NOT EXISTS maiml_series_preview (
-  preview_id        BIGSERIAL PRIMARY KEY,
-  asset_id          BIGINT NOT NULL REFERENCES maiml_asset(asset_id) ON DELETE CASCADE,
-  -- プロファイル（V1.2 で追加）
-  instruction_id    TEXT,
-  template_id       TEXT,
-  result_id         TEXT,
-  result_name       TEXT,
-  content_id        TEXT,
-  content_size      INT,
-  -- 系列メタ
-  series_type       TEXT   NOT NULL CHECK (series_type IN ('TIC','SPECTRUM_TOTAL','OTHER')),
-  x_label           TEXT   NOT NULL,
-  y_label           TEXT   NOT NULL,
-  mode              TEXT   NOT NULL CHECK (mode IN ('uniform','maxhold','mmr')),
-  params            JSONB  NOT NULL DEFAULT '{}'::jsonb,
-  original_points   INT    NOT NULL,
-  preview_points    INT    NOT NULL,
-  x                 DOUBLE PRECISION[] NOT NULL,
-  y                 DOUBLE PRECISION[] NOT NULL,
-  x_min             DOUBLE PRECISION,
-  x_max             DOUBLE PRECISION,
-  y_min             DOUBLE PRECISION,
-  y_max             DOUBLE PRECISION,
-  quality           JSONB,
-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS ix_preview_asset_type      ON maiml_series_preview(asset_id, series_type);
-CREATE INDEX IF NOT EXISTS ix_preview_instruction     ON maiml_series_preview(instruction_id);
-CREATE INDEX IF NOT EXISTS ix_preview_template        ON maiml_series_preview(template_id);
-CREATE INDEX IF NOT EXISTS ix_preview_result_content  ON maiml_series_preview(result_id, content_id);
-```
-
-### 5.5 疑似コード（ワーカー）
-```python
-# uniform
-k = min(N, 2000)
-idx = [round(j*(N-1)/(k-1)) for j in range(k)]
-Xp, Yp = X[idx], Y[idx]
-```
-```python
-# maxhold（インデックス分割）
-k = min(N, 2000)
-bounds = [round(j*N/k) for j in range(k+1)]
-sel = []
-for j in range(k):
-    lo, hi = bounds[j], bounds[j+1]
-    if hi > lo:
-        b = range(lo, hi)
-        sel.append(max(b, key=lambda i: Y[i]))
-sel = sorted(set(sel + [0, N-1]))
-Xp, Yp = X[sel], Y[sel]
-```
-```python
-# mmr（maxhold->MMR）
-k = min(N, 2000)
-sel4 = maxhold_indices(X, Y, 4*k)
-C = list(sel4)
-S = [max(C, key=lambda i: Y[i])]
-lam = 0.2
-import random
-while len(S) < k:
-    best, best_score = None, -1e9
-    for i in random.sample(C, min(2000, len(C))):
-        sim_whole = (Y[i]-minY)/(maxY-minY+1e-9)
-        sim_pair  = max(1.0 - abs(Y[i]-Y[j])/(abs(Y[i])+abs(Y[j])+1e-9) for j in S)
-        score = (1-lam)*sim_whole - lam*sim_pair
-        if score > best_score:
-            best, best_score = i, score
-    S.append(best); C.remove(best)
-S = sorted(set(S + [0, N-1]))
-Xp, Yp = X[S], Y[S]
-```
-
----
-
-## 6. **生データ配列の永続化**（V1.3 追加）
-
-### 6.1 ヘッダ
+### 5.1 ヘッダ
 ```sql
 CREATE TABLE IF NOT EXISTS maiml_series_raw_header (
   raw_id          BIGSERIAL PRIMARY KEY,
@@ -218,7 +127,7 @@ CREATE TABLE IF NOT EXISTS maiml_series_raw_header (
 );
 ```
 
-### 6.2 チャンク（Array 方式：既定）
+### 5.2 チャンク（Array 方式：既定）
 ```sql
 CREATE TABLE IF NOT EXISTS maiml_series_raw_chunk (
   raw_id        BIGINT NOT NULL REFERENCES maiml_series_raw_header(raw_id) ON DELETE CASCADE,
@@ -231,7 +140,7 @@ CREATE TABLE IF NOT EXISTS maiml_series_raw_chunk (
 );
 ```
 
-### 6.3 チャンク（Binary 方式：任意）
+### 5.3 チャンク（Binary 方式：任意）
 ```sql
 CREATE TABLE IF NOT EXISTS maiml_series_raw_chunk_bin (
   raw_id        BIGINT NOT NULL REFERENCES maiml_series_raw_header(raw_id) ON DELETE CASCADE,
@@ -244,40 +153,104 @@ CREATE TABLE IF NOT EXISTS maiml_series_raw_chunk_bin (
 );
 ```
 
-### 6.4 取り込みフロー（要約）
+### 5.4 取り込みフロー（要約）
 1. レジストリで `store_raw_series=true` のアセットのみ対象。
-2. `<data>` と `resultTemplate` を突合して `instruction_id / template_id / result_id / result_name / content_id / content_size` を特定（プレビューと同一キー）。
+2. `<data>` と `resultTemplate` を突合して `instruction_id / template_id / result_id / result_name / content_id / content_size` を特定。
 3. ヘッダ INSERT -> チャンク分割（例：32,768 点）-> チャンク挿入（COPY 推奨）-> ハッシュ更新。
-4. 既存のプレビュー生成は従来どおり（併用可）。
 
 > 非公開（Unpublish）時は、ヘッダ/チャンクも **`asset_id` 参照で CASCADE 削除**。代表メタ保持でも RAW は削除が既定（レジストリで上書き可）。
 
 ---
 
-## 7. Unpublish（非公開）とスケジュール
-- `maiml_unpublish_asset(asset_id, keep_meta)`：代表メタ保持（既定 true）／完全削除。RAW/プレビュー/KV/行明細は `asset_id` 参照で削除対象。
-- `maiml_unpublish_due_assets()`：期限到来の一括非公開。
+## 6. **非同期バッチ実行と UI 進捗管理**（V1.4 追加）
 
----
+### 6.1 基本方針
 
-## 8. CLI 例（抜粋）
-```bash
-# 公開対象の登録（テンプレートのみ）
-maimlctl register   --file-uri "file:///data/maiml/raman_001.xml"   --template-only true   --keep-meta-on-unpublish true   --retention "2026-03-31T00:00:00+09:00"
+- **公開**および**非公開**の処理は、それぞれ独立した**非同期バッチ（Batch Worker）**として実装する。
+- UI の「公開」「非公開」ボタンはバッチの**発火（エンキュー）のみ**を行い、即座にレスポンスを返す。
+- バッチの実行進捗は **Job Progress Manager** が管理し、フロントエンドは進捗をキャッチアップできる。
 
-# 公開対象の登録（生データも保存）
-maimlctl register   --file-uri "file:///data/maiml/gcms_001.xml"   --store-raw-series true --raw-chunk-size 32768 --raw-compression zstd
+### 6.2 操作フロー
 
-# 公開実行
-maimlctl publish --all-requested
-
-# 任意非公開（代表メタ保持）
-maimlctl unpublish --asset-id 123 --mode keep_meta
+```
+[ユーザー]
+   │
+   │ ①「公開」ボタン押下 / ②「非公開」ボタン押下
+   ▼
+[フロントエンド]
+   │ HTTP POST /api/publish  または  POST /api/unpublish
+   │ → job_id を受け取り（即時レスポンス）
+   ▼
+[バックエンド API（Ingest Controller）]
+   │ ジョブをキュー（DB or メモリキュー）に登録
+   │ job_id / status=pending を Job Progress Manager に記録
+   ▼
+[Publish Batch Worker / Unpublish Batch Worker]（非同期）
+   │ ジョブを取得し実行
+   │ 進捗（pending → running → done / error）を Job Progress Manager に更新
+   ▼
+[フロントエンド]（ポーリング or WebSocket）
+   │ GET /api/jobs/:job_id/status でステータスを定期取得
+   │ done / error になったら画面に反映（完了通知・エラー表示）
 ```
 
+### 6.3 ジョブステータス管理テーブル
+
+```sql
+CREATE TABLE IF NOT EXISTS maiml_publish_job (
+  job_id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_type        TEXT          NOT NULL CHECK (job_type IN ('publish', 'unpublish')),
+  asset_id        BIGINT        REFERENCES maiml_asset(asset_id) ON DELETE SET NULL,
+  registry_id     BIGINT,                         -- maiml_publish_registry の参照（任意）
+  status          TEXT          NOT NULL DEFAULT 'pending'
+                                CHECK (status IN ('pending','running','done','error')),
+  triggered_by    TEXT,                           -- 実行者（ユーザーID等）
+  trigger_type    TEXT          NOT NULL DEFAULT 'manual'
+                                CHECK (trigger_type IN ('manual','schedule')),
+  error_message   TEXT,
+  started_at      TIMESTAMPTZ,
+  finished_at     TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ   NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_publish_job_status    ON maiml_publish_job(status);
+CREATE INDEX IF NOT EXISTS ix_publish_job_asset     ON maiml_publish_job(asset_id);
+CREATE INDEX IF NOT EXISTS ix_publish_job_type      ON maiml_publish_job(job_type, status);
+```
+
+### 6.4 ステータス遷移
+
+```
+pending → running → done
+                 └→ error
+```
+
+- `pending`：ジョブ登録済み・未実行。
+- `running`：バッチ Worker が処理中。
+- `done`：正常完了。
+- `error`：異常終了（`error_message` にエラー内容を格納）。
+
+### 6.5 フロントエンドのキャッチアップ方式
+
+| 方式 | 説明 | 採用可否 |
+|------|------|---------|
+| ポーリング | `GET /api/jobs/:job_id/status` を一定間隔（例：3秒）で呼び出す | ✅ 推奨（シンプル） |
+| WebSocket | サーバーからプッシュ通知 | ✅ 任意（リアルタイム性が高い） |
+| SSE（Server-Sent Events） | サーバーから一方向ストリーム | 任意 |
+
+> 推奨はポーリング方式。完了（`done` / `error`）を検知したタイミングで画面の状態を更新する。
+
 ---
 
-## 9. 検索クエリ例（抜粋）
+## 7. Unpublish（非公開）とスケジュール
+
+- **即時非公開**：UI の「非公開」ボタン押下 → Unpublish Batch Worker がジョブを非同期実行。
+- **定期実行（スケジュール非公開）**：cron 等による定期実行で `maiml_unpublish_due_assets()` を呼び出し、期限到来アセットを一括非公開。この場合も `maiml_publish_job`（`trigger_type='schedule'`）にジョブを記録する。
+- `maiml_unpublish_asset(asset_id, keep_meta)`：代表メタ保持（既定 true）／完全削除。RAW/KV/行明細は `asset_id` 参照で削除対象。
+- `maiml_unpublish_due_assets()`：期限到来の一括非公開（スケジュール実行）。
+
+---
+
+## 8. 検索クエリ例（抜粋）
 ```sql
 -- Laser=532nm かつ STEP を限定
 SELECT DISTINCT a.asset_id, a.doc_name
@@ -285,13 +258,6 @@ FROM   maiml_asset a
 JOIN   maiml_condition_kv c ON c.asset_id = a.asset_id
 WHERE  c.key='Laser' AND (c.value_num=532 OR c.value_text='532')
   AND  c.instruction_id='RamanSpectroscopy';
-```
-```sql
--- STEP=CLSAnalysis で生成されたプレビュー
-SELECT p.asset_id, p.instruction_id, p.result_id, p.content_id, p.preview_points
-FROM   maiml_series_preview p
-WHERE  p.instruction_id='CLSAnalysis'
-ORDER BY p.created_at DESC;
 ```
 ```sql
 -- 生データのプロファイル列挙
@@ -303,7 +269,7 @@ ORDER BY h.content_id;
 
 ---
 
-## 10. パフォーマンス／容量／運用ガイド
+## 9. パフォーマンス／容量／運用ガイド
 - チャンク点数の既定は 32K。I/O・メモリ・可視化応答の妥協点で調整。
 - インデックスは `(asset_id, content_id)` と `(raw_id, chunk_index)` を優先。
 - Binary 方式は圧縮率と CPU のトレードオフを評価。Array 方式は SQL 可視化が容易。
@@ -311,21 +277,28 @@ ORDER BY h.content_id;
 
 ---
 
-## 11. テスト計画（要点）
-- プレビュー（3 方式）の再現性・品質（MAE/MAPE/Peak Recall/Area）。
+## 10. テスト計画（要点）
 - KV のネスト/型/複数同名キー・`instruction_id` 付与規則の正当性。
 - RAW 取り込みの冪等（途中失敗->再実行で一致）。
-- Unpublish 時の削除範囲（ヘッダ/チャンク/プレビュー/KV/行明細）。
+- Unpublish 時の削除範囲（ヘッダ/チャンク/KV/行明細）。
+- **非同期バッチ**のジョブ登録・実行・ステータス更新の正常系・異常系。
+- **ポーリング API**（`GET /api/jobs/:job_id/status`）の応答正確性。
+- **スケジュール非公開**（`trigger_type='schedule'`）のジョブ記録と削除範囲。
 
 ---
 
-## 12. セキュリティ／権限
+## 11. セキュリティ／権限
 - ロール：`viewer`（SELECT）、`publisher`（INSERT/DELETE/関数）、`admin`（DDL）。
 - 秘密情報は環境変数や Vault 等で管理。
 
 ---
 
-## 13. 決定事項（v1.3 完全版）
-- V1.1 の**プレビュー実装ロジック（uniform/maxhold/MMR）・DDL・品質指標**を**全て踏襲**。
-- V1.2 の **instruction 連携**／**プレビュー識別子拡張**を維持。
+## 12. 決定事項（v1.5 完全版）
+- V1.1 の **KV 汎用テーブル・DDL** を踏襲。
+- V1.2 の **instruction 連携**を維持。
 - V1.3 で **RAW 永続化（ヘッダ/チャンク）**を追加し、選択制で運用可能とした。
+- V1.4 で **非同期バッチ実行方式**を採用。公開・非公開はそれぞれ独立した Batch Worker で実装し、UI ボタンはバッチの発火のみ行う。バッチ進捗は `maiml_publish_job` テーブルで管理し、フロントエンドはポーリングでキャッチアップする。スケジュール非公開は引き続き定期実行（cron 等）で対応し、`trigger_type='schedule'` としてジョブ記録する。
+- V1.5 で以下の変更を加えた：
+  - **実装言語を TypeScript（Node.js）に統一**。Worker を含む全コンポーネントを TypeScript で実装する。
+  - **プレビュー機能を廃止**。series_preview テーブルおよび関連ロジックは削除。
+  - **DB 設計を再検討中**。公開機能が登録するテーブル構成は maiml2Excel の出力項目をベースに確定予定。本書の DB 設計（セクション3〜5）は参考案として扱う。

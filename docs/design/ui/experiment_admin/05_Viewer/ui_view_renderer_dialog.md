@@ -1,39 +1,275 @@
-# ViewRendererDialog UI仕様書
+# ViewRendererDialog コンポーネント UI仕様書
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+ViewRendererDialogは、ファイルまたはサブネットをフローティングダイアログで表示するコンポーネントです。react-rndライブラリを使用してドラッグ&リサイズが可能で、複数のダイアログを重ねて表示できます。
 
-ViewRendererまたはSubNetViewerをフローティングダイアログとして表示するラッパーコンポーネント。react-rndによりドラッグ&リサイズが可能です。
+### 1.2 使用場面
+- プロジェクト管理画面でファイルを新しいウィンドウで開く際
+- Petri Netビューアーでサブネットを別ウィンドウで表示する際
+- 複数のファイルを同時に参照する必要がある場合
+- ファイルを編集モードで開く際（editモード）
+
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin（実験管理者）
+- **認証**: JWT + Session Hybrid認証
 
 ---
 
-## 2. ファイルパス
+## 2. 画面構成
+
+### 2.1 レイアウト構造
+
+#### 2.1.1 通常表示時
 
 ```
-frontend/src/components/viewer/ViewRendererDialog.tsx
+┌─────────────────────────────────────────────────────────┐
+│ [ファイル名]                    [最小化] [閉じる] ← タイトルバー │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  <ViewRenderer /> または <SubNetViewer />               │
+│  (コンテンツエリア)                                      │
+│                                                         │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
+
+#### 2.1.2 最小化時
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ [ファイル名]                    [展開] [閉じる]          │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 2.1.3 ロード中
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ [ファイル名]                    [最小化] [閉じる]        │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│                   🔄 Spinner                            │
+│                   ロード中...                            │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 2.2 主要UI要素
+
+#### 2.2.1 タイトルバー
+- **背景色**: #fafafa（グレー背景）
+- **ドラッグハンドル**: タイトルバー全体（カーソルが`move`に変化）
+- **タイトル**: ファイル名またはサブネット名（太字、16px）
+- **最小化ボタン**: MinusOutlined/ExpandOutlined アイコン
+- **閉じるボタン**: CloseOutlined アイコン
+
+#### 2.2.2 コンテンツエリア
+- **背景色**: #fff（白背景）
+- **境界**: 角丸（8px）、シャドウ付き
+- **内容**: ViewRendererまたはSubNetViewer
+- **スクロール**: overflow: hidden（子コンポーネントで制御）
+
+#### 2.2.3 ダイアログ配置
+- **初期位置**: x: 100, y: 100（画面左上からのオフセット）
+- **初期サイズ**: 1200x800（幅x高さ）
+- **最小サイズ**: 
+  - subnetモード: 1000x600
+  - その他: 800x600
+- **最大サイズ**: 画面サイズ - 100px
+- **境界**: window内に制限
 
 ---
 
-## 3. Props定義
+## 3. 機能仕様
 
-| プロパティ名 | 型 | 必須 | 説明 |
-|------------|---|-----|------|
-| id | string | ✓ | ダイアログ識別子 |
-| contentType | 'file' \| 'subnet' \| 'edit' | ✓ | コンテンツ種別 |
-| file | FileData | | ファイル情報（fileまたはeditモード時） |
-| subnetData | SubnetData | | サブネット情報（subnetモード時） |
-| zIndex | number | ✓ | Z-index値（重ね順） |
-| initialPosition | {x, y} | | 初期表示位置（デフォルト: {x:100, y:100}） |
-| initialSize | {width, height} | | 初期サイズ（デフォルト: {width:1200, height:800}） |
-| onClose | (id) => void | ✓ | 閉じる処理 |
-| onFocus | (id) => void | ✓ | フォーカス時処理 |
-| onOpenSubNetViewer | (data) => void | | サブネット表示 |
+### 3.1 ファイルコンテンツの読み込み
 
-**FileData型:**
+#### 3.1.1 処理フロー
 ```typescript
-interface FileData {
+useEffect(() => {
+  if ((contentType !== 'file' && contentType !== 'edit') || !file) {
+    return;
+  }
+
+  // 外部からコンテンツが渡されている場合はそのまま使用（APIスキップ）
+  if (externalFileContent !== undefined) {
+    setFileContent(externalFileContent ?? null);
+    return;
+  }
+
+  // MAIMLファイルのみAPIからテキストを取得
+  if (file.type !== 'maiml') {
+    setFileContent(null);
+    return;
+  }
+
+  let isMounted = true;
+
+  const loadContent = async () => {
+    setLoading(true);
+    try {
+      console.log('🔍 [ViewRendererDialog] MAIMLファイルをS3から読み込み中:', file.name, 'path:', file.path);
+      const content = await getFileContentAsText(file.path);
+      if (isMounted) {
+        setFileContent(content);
+        console.log('✅ [ViewRendererDialog] ファイル読み込み成功:', { size: content.length });
+      }
+    } catch (error) {
+      console.error('❌ [ViewRendererDialog] ファイル読み込みエラー:', error);
+      message.error(`ファイルの読み込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+      if (isMounted) {
+        setFileContent(null);
+      }
+    } finally {
+      if (isMounted) {
+        setLoading(false);
+      }
+    }
+  };
+
+  loadContent();
+
+  return () => {
+    isMounted = false;
+  };
+}, [contentType, file, externalFileContent]);
+```
+
+#### 3.1.2 UI動作
+- **開始時**: loadingフラグをtrueに設定、Spinner表示
+- **成功時**: fileContentをStateに設定、ViewRendererに渡す
+- **エラー時**: message.errorでエラーメッセージ表示、fileContentはnull
+- **完了時**: loadingフラグをfalseに設定
+
+#### 3.1.3 外部コンテンツ対応
+- `externalFileContent` Propsが渡された場合はAPIスキップ
+- 親コンポーネントが既にファイル内容を持っている場合に使用
+
+### 3.2 ダイアログの操作
+
+#### 3.2.1 ドラッグ移動
+- **対象**: タイトルバー（`drag-handle`クラス）
+- **範囲**: window内に制限（`bounds="window"`）
+- **処理**: react-rndが自動処理
+
+#### 3.2.2 リサイズ
+- **有効条件**: 最小化されていない時のみ
+- **最小サイズ**: contentTypeによって異なる（800x600 または 1000x600）
+- **最大サイズ**: 画面サイズ - 100px
+- **処理**: react-rndが自動処理
+
+#### 3.2.3 最小化/展開
+```typescript
+<Button
+  type="text"
+  icon={isMinimized ? <ExpandOutlined /> : <MinusOutlined />}
+  onClick={(e) => {
+    e.stopPropagation();
+    setIsMinimized(!isMinimized);
+  }}
+  title={isMinimized ? '展開' : '最小化'}
+/>
+```
+- **最小化時**: 高さ60pxに縮小、コンテンツ非表示、リサイズ無効
+- **展開時**: 元のサイズに戻る、コンテンツ表示、リサイズ有効
+
+#### 3.2.4 閉じる
+```typescript
+<Button
+  type="text"
+  icon={<CloseOutlined />}
+  onClick={(e) => {
+    e.stopPropagation();
+    onClose(id);
+  }}
+  title="閉じる"
+/>
+```
+- **処理**: 親コンポーネントの`onClose`コールバックを呼び出し
+
+#### 3.2.5 フォーカス
+```typescript
+onMouseDown={() => onFocus(id)}
+```
+- **タイミング**: ダイアログ内をクリックした時
+- **処理**: 親コンポーネントの`onFocus`コールバックを呼び出し、z-indexを更新
+
+### 3.3 コンテンツタイプ別レンダリング
+
+#### 3.3.1 fileモード
+```typescript
+<ViewRenderer
+  currentView="main"
+  selectedFile={selectedFile}
+  fileContent={fileContent}
+  enhancedMode={false}
+  downloadingFile={false}
+  deviceType="desktop"
+  isTabletDevice={false}
+  isMobileDevice={false}
+  onOpenSubNetViewer={onOpenSubNetViewer}
+/>
+```
+- **用途**: 通常のファイルビューアー表示
+- **対応ファイル**: MAIML, TIFF, 画像ファイル
+
+#### 3.3.2 editモード
+```typescript
+<ViewRenderer
+  currentView="edit"
+  selectedFile={selectedFile}
+  fileContent={fileContent}
+  enhancedMode={false}
+  downloadingFile={false}
+  deviceType="desktop"
+  isTabletDevice={false}
+  isMobileDevice={false}
+  onExitEdit={() => onClose(id)}
+  onOpenSubNetViewer={onOpenSubNetViewer}
+/>
+```
+- **用途**: Petri Net編集エディタ表示
+- **タイトル**: "🚀 編集: [ファイル名]"
+- **終了時**: ダイアログを閉じる
+
+#### 3.3.3 subnetモード
+```typescript
+<SubNetViewer
+  open={true}
+  nodeName={subnetData.transitionName}
+  maimlData={subnetData.maimlData}
+  templateMap={subnetData.templateMap}
+  petriNetData={subnetData.petriNetData}
+  onClose={() => onClose(id)}
+/>
+```
+- **用途**: サブネットの詳細表示
+- **最小幅**: 1000px（他より大きい）
+
+### 3.4 Portal レンダリング
+
+```typescript
+if (typeof document !== 'undefined') {
+  return ReactDOM.createPortal(dialogContent, document.body);
+}
+return null;
+```
+- **目的**: ダイアログをdocument.bodyに直接レンダリング（z-index制御のため）
+- **SSR対応**: document未定義時はnullを返す
+
+---
+
+## 4. データ仕様
+
+### 4.1 Props定義
+
+```typescript
+/**
+ * ファイルデータ型定義
+ */
+export interface FileData {
   id: string;
   name: string;
   path: string;
@@ -43,189 +279,184 @@ interface FileData {
   isFolder?: boolean;
   fileCount?: number;
 }
-```
 
-**SubnetData型:**
-```typescript
-interface SubnetData {
+/**
+ * サブネットデータ型定義
+ */
+export interface SubnetData {
   transitionName: string;
   maimlData: string;
   templateMap: Record<string, { element: Element }>;
-  petriNetData: { places, arcs };
+  petriNetData: {
+    places: Array<{
+      id: string;
+      data: {
+        label?: string;
+        stereotype?: string;
+        template?: { id: string };
+        templateId?: string;
+      };
+    }>;
+    arcs: Array<{
+      id: string;
+      source: string;
+      target: string;
+    }>;
+  };
+}
+
+/**
+ * ViewRendererDialog Props
+ */
+interface ViewRendererDialogProps {
+  id: string;
+  contentType: 'file' | 'subnet' | 'edit';
+  file?: FileData;
+  /** 外部から渡すファイルコンテンツ（省略時はAPIから取得） */
+  fileContent?: string | null;
+  subnetData?: SubnetData;
+  zIndex: number;
+  initialPosition?: { x: number; y: number };
+  initialSize?: { width: number; height: number };
+  onClose: (id: string) => void;
+  onFocus: (id: string) => void;
+  onOpenSubNetViewer?: (subnetData: SubnetData) => void;
 }
 ```
 
----
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| id | string | ✅ | ダイアログの一意識別子 |
+| contentType | 'file' \| 'subnet' \| 'edit' | ✅ | コンテンツタイプ（file/subnet/edit） |
+| file | FileData | - | ファイル情報（fileモード、editモード時） |
+| fileContent | string \| null | - | 外部から渡すファイルコンテンツ（省略時はAPI取得） |
+| subnetData | SubnetData | - | サブネットデータ（subnetモード時） |
+| zIndex | number | ✅ | ダイアログの重ね順 |
+| initialPosition | { x: number; y: number } | - | 初期表示位置（デフォルト: {x:100, y:100}） |
+| initialSize | { width: number; height: number } | - | 初期サイズ（デフォルト: {width:1200, height:800}） |
+| onClose | Function | ✅ | ダイアログを閉じる時のコールバック |
+| onFocus | Function | ✅ | ダイアログがフォーカスされた時のコールバック |
+| onOpenSubNetViewer | Function | - | サブネットビューアーを開く時のコールバック |
 
-## 4. レイアウト
+### 4.2 State定義
 
-```
-┌─────────────────────────────────────────────┐
-│ タイトル（ドラッグ可能）        [−] [×]   │
-├─────────────────────────────────────────────┤
-│                                             │
-│  ViewRenderer または SubNetViewer          │
-│                                             │
-│  (リサイズ可能)                             │
-│                                             │
-└─────────────────────────────────────────────┘
-```
-
----
-
-## 5. 主要機能
-
-### 5.1. コンテンツタイプ別表示
-
-**3種類のコンテンツ:**
-
-1. **file（ファイル表示）**
-   - ViewRendererをmainモードで表示
-   - ファイルコンテンツを自動ロード
-
-2. **edit（編集モード）**
-   - ViewRendererをeditモードで表示
-   - PetriNetEditorInnerで編集画面
-
-3. **subnet（サブネット表示）**
-   - SubNetViewerを表示
-   - トランジションのサブネット図
-
-### 5.2. ファイルコンテンツ読み込み
-
-**処理フロー:**
-1. file/editモード時、useEffectで読み込みを実行
-2. MAIMLファイルの場合: `getFileContentAsText(file.path)` を呼び出し
-   - `POST /api/v1/files/view-url` で署名付きURL取得
-   - `fetch(url)` でS3/Swiftからテキストを取得
-3. 画像ファイル（ImageViewer/TiffViewer）の場合: `getFileViewUrl(file.path)` で署名付きURL取得
-4. 外部から `fileContent` props が渡された場合はAPIスキップ
-5. ロード完了後、fileContentをViewRendererに渡す
-
-**使用フロントエンドサービス（`fileAccessService.ts`）:**
 ```typescript
-// テキストファイル（MAIML/XML/JSON/CSV）
-getFileContentAsText(fileKey: string): Promise<string>
-// 画像・TIFFファイル
-getFileViewUrl(fileKey: string): Promise<string>
+const [fileContent, setFileContent] = useState<string | null>(null);
+const [loading, setLoading] = useState(false);
+const [isMinimized, setIsMinimized] = useState(false);
 ```
 
-### 5.3. ドラッグ&リサイズ
+**State説明:**
+| State名 | 型 | 初期値 | 説明 |
+|---------|---|--------|------|
+| fileContent | string \| null | null | 読み込まれたファイルの内容 |
+| loading | boolean | false | ファイルロード中フラグ |
+| isMinimized | boolean | false | 最小化状態フラグ |
 
-**react-rnd機能:**
-- ドラッグ: タイトルバー（.drag-handleクラス）
-- リサイズ: 四隅・辺をドラッグ
-- 境界制限: bounds="window"
-- 最小サイズ:
-  - subnet: minWidth=1000, minHeight=600
-  - その他: minWidth=800, minHeight=600
+### 4.3 その他の型定義
 
-### 5.4. 最小化機能
-
-**動作:**
-- [−]ボタンクリック → isMinimized=true
-- タイトルバーのみ表示（height=60px）
-- [展開]ボタンで復元
-
----
-
-## 6. State管理
-
-| State | 型 | 説明 |
-|------|---|------|
-| fileContent | string \| null | ファイルの内容 |
-| loading | boolean | ロード中フラグ |
-| isMinimized | boolean | 最小化状態 |
-
----
-
-## 7. 使用コンポーネント
-
-### 7.1. 内部コンポーネント
-
-- ViewRenderer（file/editモード）
-- SubNetViewer（subnetモード）
-
-### 7.2. ライブラリ
-
-- react-rnd（Rnd）: ドラッグ&リサイズ機能
-- ReactDOM.createPortal: document.bodyにPortalレンダリング
-
-### 7.3. Ant Design
-
-- Spin, message, Button, Typography
-
-### 7.4. アイコン
-
-- CloseOutlined（閉じる）
-- MinusOutlined（最小化）
-- ExpandOutlined（展開）
-
----
-
-## 8. Portalレンダリング
-
-**方式:**
+**タイトル生成ロジック:**
 ```typescript
-ReactDOM.createPortal(dialogContent, document.body)
+const getTitle = () => {
+  if (contentType === 'file' && file) {
+    return file.name;
+  }
+  if (contentType === 'subnet' && subnetData) {
+    return `サブネット: ${subnetData.transitionName}`;
+  }
+  if (contentType === 'edit' && file) {
+    return `🚀 編集: ${file.name}`;
+  }
+  return '不明';
+};
 ```
 
-**理由:**
-- Z-indexスタッキングコンテキストの問題回避
-- 親コンポーネントのoverflowに影響されない
-- ダイアログが常に最前面に表示可能
+---
 
-**SSR対応:**
-- `typeof document !== 'undefined'` でチェック
-- SSR時はnullを返す
+## 5. API連携
+
+### 5.1 使用するAPI一覧
+
+| # | API名 | メソッド | エンドポイント | 状態 | 説明 |
+|---|------|---------|---------------|------|------|
+| 1 | getFileContentAsText | - | - | ✅ 実装済み | S3からファイル内容を取得（fileAccessService） |
+
+### 5.2 API呼び出しコード
+
+```typescript
+const content = await getFileContentAsText(file.path);
+```
+
+**備考:**
+- `getFileContentAsText`は`fileAccessService`で定義されたサービス関数
+- S3から署名付きURLを取得してファイル内容を読み込む
+- MAIMLファイル（type='maiml'）の場合のみ呼び出される
+- 外部から`fileContent` Propsが渡された場合はAPIスキップ
 
 ---
 
-## 9. タイトル取得
+## 6. エラーハンドリング
 
-**ルール:**
-- file: ファイル名
-- edit: "🚀 編集: {ファイル名}"
-- subnet: "サブネット: {トランジション名}"
+### 6.1 エラーケース一覧
 
----
+| エラーケース | HTTPステータス | 対処方法 |
+|-------------|---------------|----------|
+| ファイル読み込み失敗 | - | message.error表示、コンソールエラー出力 |
+| APIエラー | 400/500 | message.error表示、fileContentをnull設定 |
 
-## 10. スタイル
+### 6.2 エラー処理コード
 
-**ダイアログ:**
-- borderRadius: 8px
-- boxShadow: Ant Design標準
-- backgroundColor: #fff
+```typescript
+try {
+  const content = await getFileContentAsText(file.path);
+  if (isMounted) {
+    setFileContent(content);
+  }
+} catch (error) {
+  console.error('❌ [ViewRendererDialog] ファイル読み込みエラー:', error);
+  message.error(`ファイルの読み込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+  if (isMounted) {
+    setFileContent(null);
+  }
+} finally {
+  if (isMounted) {
+    setLoading(false);
+  }
+}
+```
 
-**タイトルバー:**
-- padding: 16px 24px
-- backgroundColor: #fafafa
-- cursor: move
-- borderBottom: 1px solid #f0f0f0
-
-**最小化時:**
-- height: 60px
-- borderBottomなし
-- borderRadius: 8px（全周）
-
----
-
-## 11. イベント処理
-
-### 11.1. onMouseDown
-
-ダイアログクリック時に`onFocus(id)`を呼び出し、Z-indexを最前面に更新。
-
-### 11.2. onClose
-
-[×]ボタンまたはViewRenderer/SubNetViewerのonClose時に`onClose(id)`を呼び出し。
+**エラーメッセージ:**
+- "ファイルの読み込みに失敗しました: [エラーメッセージ]"
 
 ---
 
-## 12. 変更履歴
+## 7. 実装ファイル
 
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2025-12-19 | react-rnd対応フローティングダイアログ作成 | Development Team |
-| 1.1.0 | 2026-02-19 | UI仕様書作成 | Cline |
-| 1.2.0 | 2026-02-25 | ファイルコンテンツ読み込みをS3 API対応に更新（`POST /api/v1/files/view-url`） | Cline |
+### 7.1 ファイルパス
+- **メインファイル**: `frontend/src/components/viewer/ViewRendererDialog.tsx`
+
+### 7.2 関連ファイル
+- **サービス**: `frontend/src/services/fileAccessService.ts`（getFileContentAsText）
+- **子コンポーネント**:
+  - `frontend/src/components/viewer/ViewRenderer.tsx`
+  - `frontend/src/components/viewer/dialogs/SubNetViewer.tsx`
+
+### 7.3 依存コンポーネント
+- `<ViewRenderer />` - ファイルビューアー統括コンポーネント
+- `<SubNetViewer />` - サブネットビューアーコンポーネント
+- `<Rnd />` - react-rndライブラリのドラッグ&リサイズコンポーネント
+
+### 7.4 依存ライブラリ
+- `antd`: Spin, message, Button, Typography
+- `@ant-design/icons`: CloseOutlined, MinusOutlined, ExpandOutlined
+- `react-rnd`: Rnd
+- `react-dom`: ReactDOM.createPortal
+
+---
+
+## 8. 変更履歴
+
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-12 | 実装ベースで仕様書を再作成 | Cline |

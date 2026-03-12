@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/TransitionFlowDiagram.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-01-19
+- **最終更新日**: 2026-03-11
 
 ---
 
@@ -82,6 +82,8 @@
 - `Panel` - 情報パネル
 - `useNodesState` - ノード状態管理フック
 - `useEdgesState` - エッジ状態管理フック
+- `ConnectionMode` - 接続モード設定
+- `MarkerType` - エッジマーカータイプ
 
 #### Ant Design コンポーネント
 - `Empty` - 空状態表示
@@ -277,10 +279,18 @@ connectionMode={ConnectionMode.Loose}
 ```typescript
 <Panel position="top-left">
   <div style={{ /* スタイル */ }}>
-    <Space direction="vertical" size="small">
-      {methodName && <Text strong>{methodName}</Text>}
-      <Text type="secondary">トランジション数: {transitions.length}</Text>
-      <Text type="secondary">ドラッグで移動、スクロールでズーム</Text>
+    <Space orientation="vertical" size="small">
+      {methodName && (
+        <Text strong style={{ fontSize: 14 }}>
+          {methodName}
+        </Text>
+      )}
+      <Text type="secondary" style={{ fontSize: 12 }}>
+        トランジション数: {transitions.length}
+      </Text>
+      <Text type="secondary" style={{ fontSize: 11 }}>
+        ドラッグで移動、スクロールでズーム
+      </Text>
     </Space>
   </div>
 </Panel>
@@ -338,6 +348,7 @@ const initialNodes = useMemo(() => {
 }, [transitions, onRecordClick, onIssueClick, isProjectRecordable]);
 
 // 初期エッジ生成（workOrder順の隣接接続）
+// ※ token.colorPrimary は依存配列に含まれているが、内部では使用していない（過剰な依存）
 const initialEdges = useMemo(() => {
   // workOrder順にソート
   // 隣接トランジション間にエッジ追加
@@ -410,19 +421,32 @@ React.useEffect(() => {
 ```typescript
 if (!transitions || transitions.length === 0) {
   return (
-    <Empty
-      image={<PartitionOutlined style={{ fontSize: 48 }} />}
-      description={
-        <Space direction="vertical" align="center">
-          <Title level={4} type="secondary">
-            トランジションがありません
-          </Title>
-          <Text type="secondary">
-            選択されたタスクにトランジションが含まれていません
-          </Text>
-        </Space>
-      }
-    />
+    <div
+      style={{
+        width: '100%',
+        height: '500px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: token.colorBgLayout,
+        borderRadius: token.borderRadiusLG,
+      }}
+    >
+      <Empty
+        image={<PartitionOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />}
+        imageStyle={{ height: 48 }}
+        description={
+          <Space orientation="vertical" align="center" size="small">
+            <Title level={4} type="secondary" style={{ margin: 0 }}>
+              トランジションがありません
+            </Title>
+            <Text type="secondary">
+              選択されたタスクにトランジションが含まれていません
+            </Text>
+          </Space>
+        }
+      />
+    </div>
   );
 }
 ```
@@ -493,3 +517,4 @@ if (!transitions || transitions.length === 0) {
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-19 | 初版作成 | Cline |
+| 1.0.1 | 2026-03-11 | ソースコードとの差分修正（Space.orientation化、空状態divラッパー追加、アイコンスタイル追加、Textのfontsize追加、useMemo依存配列の補足、ReactFlowインポート追記） | Cline |

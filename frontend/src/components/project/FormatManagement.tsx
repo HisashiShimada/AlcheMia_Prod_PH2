@@ -20,7 +20,6 @@ import {
 } from '@ant-design/icons';
 import FormatFolderTree from './FormatFolderTree';
 import FormatFileListTable, { type FormatFileData } from './FormatFileListTable';
-import FormatSearchModal from './FormatSearchModal';
 import FormatUploadDialog from './FormatUploadDialog';
 import CreateFormatFileModal, { CreateFormatFileData } from './CreateFormatFileModal';
 import CreateFormatFolderModal, { CreateFormatFolderData } from './CreateFormatFolderModal';
@@ -102,7 +101,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [fileTypeFilter, setFileTypeFilter] = useState<'all' | 'xml' | 'maiml'>('all');
   const [selectedFormatId, setSelectedFormatId] = useState<string | null>(null);
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [createFileModalOpen, setCreateFileModalOpen] = useState(false);
   const [createFolderModalOpen, setCreateFolderModalOpen] = useState(false);
@@ -137,7 +135,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
 
   // フォーマットデータが取得できたらstateを更新
   React.useEffect(() => {
-    if (formatsData?.data.folders) {
+    if (formatsData?.success && formatsData.data.folders) {
       // Data synchronization in useEffect is a valid pattern
        
       setFormats(formatsData.data.folders as Format[]);
@@ -973,14 +971,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                 />
               </Space>
 
-              {/* 詳細検索ボタン */}
-              <Button 
-                type="primary"
-                icon={<SearchOutlined />}
-                onClick={() => setSearchModalOpen(true)}
-              >
-                {t('formatManagement.advanced_search')}
-              </Button>
             </Space>
 
             {/* 右側: リフレッシュボタン */}
@@ -1128,17 +1118,6 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
           )}
         </div>
       </div>
-
-      {/* フォーマットファイル検索モーダル */}
-      <FormatSearchModal
-        open={searchModalOpen}
-        onClose={() => setSearchModalOpen(false)}
-        onFileSelect={(file) => {
-          console.log('検索結果からファイルが選択されました:', file);
-          // TODO: ファイル選択時の処理を実装
-          // 例: ファイルエディタを開く、ファイルダウンロードなど
-        }}
-      />
 
       {/* フォーマットファイルアップロードダイアログ */}
       <FormatUploadDialog

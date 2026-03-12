@@ -9,7 +9,7 @@ import { Request, Response } from 'express';
 import { ProjectService } from '../services/projectService';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
-import type { CreateProjectRequest, TaskDetailResponse } from '../types/api';
+import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse,MaimlPublishRequest,MaimlPublishResponse } from '../types/api';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 
 /**
@@ -1130,6 +1130,360 @@ export async function checkin(req: Request, res: Response): Promise<void> {
         timestamp: new Date().toISOString(),
         requestId,
       },
+    });
+  }
+}
+
+/**
+ * メソッド別タスク一覧＋進捗情報取得エンドポイント
+ * GET /api/v1/projects/:projectId/methods/:methodId/tasks
+ *
+ * @description 指定プロジェクト・メソッドに紐づくタスク一覧を進捗集計付きで取得する。
+ *              実験管理者の進捗確認タブ（WorkProgressDetailDialog）で使用する。
+ * @note バリデーションはルート定義のミドルウェアで処理済み
+ */
+export async function getMethodTasks(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectId, methodId } = req.params;
+    const statusFilter = (req.query.status as string) || 'all';
+
+    // プロジェクト存在確認（マルチテナント分離）
+    const { getPool } = require('../database/db');
+    const pool = getPool();
+    const projectCheckResult = await pool.query(
+      'SELECT project_id FROM project WHERE project_id = $1 AND organization_id = $2',
+      [projectId, organizationId]
+    );
+
+    if (projectCheckResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'RESOURCE_NOT_FOUND',
+          message: 'プロジェクトが見つかりません',
+        },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    // SQLファイルを使ってタスク一覧取得
+    const { loadSqlFile } = require('../sql/loader');
+    const sql = await loadSqlFile('tasks/findByProjectMethod.sql');
+    const queryResult = await pool.query(sql, [projectId, methodId, organizationId]);
+    const rows = queryResult.rows;
+
+    // タスクステータス数値 → 文字列変換
+    const statusMap: Record<number, string> = {
+      0: 'pending',
+      1: 'in_progress',
+      2: 'failed',
+      3: 'review_waiting',
+      4: 'completed',
+    };
+
+    // statusフィルタのマッピング（クエリパラメータ → DB数値）
+    const statusFilterMap: Record<string, number | null> = {
+      all: null,
+      pending: 0,
+      in_progress: 1,
+      failed: 2,
+      review_waiting: 3,
+      completed: 4,
+    };
+
+    // DBロウをAPIレスポンス型に変換
+    let tasks: MethodTaskItem[] = rows.map((row: any) => {
+      const taskStatusNum: number | null =
+        row.task_status !== null && row.task_status !== undefined
+          ? Number(row.task_status)
+          : null;
+      const taskStatusStr = taskStatusNum !== null ? (statusMap[taskStatusNum] ?? 'pending') : 'pending';
+
+      const totalTransitions = Number(row.total_transitions) || 0;
+      const completedTransitions = Number(row.completed_transitions) || 0;
+      const inprogressTransitions = Number(row.inprogress_transitions) || 0;
+      const notstartedTransitions = Number(row.notstarted_transitions) || 0;
+      const avgProgressRate = Number(row.avg_progress_rate) || 0;
+
+      const progress: TaskProgressStats = {
+        total_transitions: totalTransitions,
+        completed: completedTransitions,
+        in_progress: inprogressTransitions,
+        not_started: notstartedTransitions,
+        progress_percentage:
+          totalTransitions > 0
+            ? Math.round(avgProgressRate * 10) / 10
+            : 0,
+      };
+
+      return {
+        experiment_order: Number(row.experiment_order),
+        task_name: row.task_name ?? null,
+        task_no: row.task_no !== null && row.task_no !== undefined ? Number(row.task_no) : null,
+        task_status: taskStatusStr,
+        task_status_num: taskStatusNum,
+        experiment_user_id: row.experiment_user_id ?? null,
+        experiment_user_name: row.experiment_user_name ?? null,
+        experiment_start_at: row.experiment_start_at
+          ? new Date(row.experiment_start_at).toISOString()
+          : null,
+        experiment_end_at: row.experiment_end_at
+          ? new Date(row.experiment_end_at).toISOString()
+          : null,
+        progress,
+        created_at: row.create_at ? new Date(row.create_at).toISOString() : null,
+        updated_at: row.update_at ? new Date(row.update_at).toISOString() : null,
+      } satisfies MethodTaskItem;
+    });
+
+    // statusフィルタの適用（task_noがNULLのレコードはproject_task_detailが未作成のため除外しない）
+    if (statusFilter !== 'all' && statusFilterMap[statusFilter] !== undefined) {
+      const targetStatusNum = statusFilterMap[statusFilter];
+      tasks = tasks.filter((t) => t.task_status_num === targetStatusNum);
+    }
+
+    // 統計サマリー計算
+    const statistics: MethodTasksStatistics = {
+      total: tasks.length,
+      pending: tasks.filter((t) => t.task_status === 'pending').length,
+      in_progress: tasks.filter((t) => t.task_status === 'in_progress').length,
+      completed: tasks.filter((t) => t.task_status === 'completed').length,
+      failed: tasks.filter((t) => t.task_status === 'failed').length,
+      overall_progress:
+        tasks.length > 0
+          ? parseFloat(
+              (
+                tasks.reduce((sum, t) => sum + t.progress.progress_percentage, 0) /
+                tasks.length
+              ).toFixed(1)
+            )
+          : 0,
+    };
+
+    const responseData: MethodTasksResponse = {
+      project_id: projectId,
+      method_id: methodId,
+      tasks,
+      statistics,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: responseData,
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('Project getMethodTasks error', error as Error, {
+      action: 'project_getMethodTasks',
+      organizationId: req.user?.organizationId,
+      projectId: req.params.projectId,
+      methodId: req.params.methodId,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * MaiML 公開エンドポイント
+ * POST /api/v1/projects/:projectName/publish
+ *
+ * @description
+ * プロジェクト詳細画面の「公開」ボタン押下時に呼び出す。
+ * projectName から最新 MaiML ファイルパスを取得し、bullmq キューにジョブを投入する。
+ * 処理は非同期で行われるため 202 Accepted を返す。
+ * フロントエンドは GET /publish-status でポーリングして完了を確認すること。
+ *
+ * @roles experiment_admin（書込可）
+ * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §3.1
+ */
+export async function publish(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectName } = req.params;
+    const body = req.body as MaimlPublishRequest;
+
+    // 1. projectName から最新 MaiML ファイルパスを取得
+    const maimlResult = await projectService.getProjectMaiml(organizationId, projectName);
+    if (!maimlResult.success || !maimlResult.data?.filePath) {
+      const statusCode = maimlResult.error?.code === 'RESOURCE_NOT_FOUND' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: maimlResult.error?.code ?? 'RESOURCE_NOT_FOUND',
+          message: maimlResult.error?.message ?? 'MaiML ファイルが見つかりません',
+        },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+    const fileUri = maimlResult.data.filePath;
+
+    // 2. 公開リクエストを登録し bullmq キューにジョブを投入（非同期）
+    // TODO: maimlIngestService.requestPublish() 実装後に置き換える
+    //   - maiml_asset INSERT
+    //   - maiml_publish_registry INSERT (status='requested')
+    //   - maimlPublishQueue へのジョブ投入
+    console.warn('[projectController.publish] requestPublish は未実装です（bullmq Worker 実装待ち）');
+
+    // 202 Accepted: 処理は非同期で継続する
+    res.status(202).json({
+      success: true,
+      data: {
+        asset_id:    null,
+        registry_id: null,
+        status:      'requested',
+        message:     '公開処理を開始しました。完了までしばらくお待ちください。',
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('MaiML publish error', error as Error, {
+      action: 'maiml_publish',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'SYSTEM_ERROR', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * MaiML 非公開エンドポイント
+ * POST /api/v1/projects/:projectName/unpublish
+ *
+ * @description
+ * プロジェクト詳細画面の「非公開」ボタン押下時に呼び出す。
+ * bullmq キューに非公開ジョブを投入する。処理は非同期で行われるため 202 Accepted を返す。
+ * フロントエンドは GET /publish-status でポーリングして完了を確認すること。
+ *
+ * @roles experiment_admin（書込可）
+ * 仕様: docs/MaiML_OpenData_Pipeline/spec.md §4.1
+ */
+export async function unpublish(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectName } = req.params;
+    const { mode = 'keep_meta' } = req.body as { mode?: 'keep_meta' | 'full_delete' };
+
+    // projectName から公開ステータスを取得して asset_id を特定
+    const projectService = new ProjectService();
+    const maimlResult = await projectService.getProjectMaiml(organizationId, projectName);
+    if (!maimlResult.success || !maimlResult.data?.filePath) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'RESOURCE_NOT_FOUND', message: 'MaiML ファイルが見つかりません' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+    const fileUri = maimlResult.data.filePath;
+
+    // 非公開ジョブを bullmq キューに投入（非同期）
+    // TODO: maimlIngestService.requestUnpublish() 実装後に置き換える
+    //   - maiml_publish_job INSERT (job_type='unpublish', status='pending')
+    //   - maimlUnpublishQueue へのジョブ投入
+    console.warn('[projectController.unpublish] requestUnpublish は未実装です（bullmq Worker 実装待ち）');
+
+    // 202 Accepted: 処理は非同期で継続する
+    res.status(202).json({
+      success: true,
+      data: {
+        job_id:  null,
+        status:  'pending',
+        message: '非公開処理を開始しました。完了までしばらくお待ちください。',
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('MaiML unpublish error', error as Error, {
+      action: 'maiml_unpublish',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'SYSTEM_ERROR', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * MaiML 公開ステータス取得エンドポイント
+ * GET /api/v1/projects/:projectName/publish-status
+ *
+ * @description プロジェクトの公開状態を確認する
+ * @roles experiment_admin（読取専用）
+ */
+export async function getPublishStatus(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId } = req.user!;
+    const { projectName } = req.params;
+
+    const projectService = new ProjectService();
+    const maimlResult = await projectService.getProjectMaiml(organizationId, projectName);
+    if (!maimlResult.success || !maimlResult.data?.filePath) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'RESOURCE_NOT_FOUND', message: 'MaiML ファイルが見つかりません' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    // TODO: maiml_asset / maiml_publish_registry の実装後に getPublishStatus() を復元する
+    console.warn('[projectController.getPublishStatus] getPublishStatus は未実装です（DB テーブル構成確定待ち）');
+    res.status(200).json({
+      success: true,
+      data: {
+        is_published:     false,
+        asset_id:         null,
+        registry_id:      null,
+        status:           null,
+        doc_name:         null,
+        template_only:    null,
+        store_raw_series: null,
+        retention_until:  null,
+        published_at:     null,
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error) {
+    logError('MaiML getPublishStatus error', error as Error, {
+      action: 'maiml_getPublishStatus',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'SYSTEM_ERROR', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }

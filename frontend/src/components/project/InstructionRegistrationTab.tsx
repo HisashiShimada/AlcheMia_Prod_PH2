@@ -315,7 +315,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       // 親コンポーネントに通知
       onInstructionsSubmit?.(sentInstructions);
 
-      message.success(t('instructionRegistration.messages.sent').replace('{count}', result.sentInstructionsCount.toString()));
+      message.success(t('instructionRegistration.messages.sentCount').replace('{count}', result.sentInstructionsCount.toString()));
 
       // 送信後、送信済フラグを立てて表示を継続
       setInstructions(sentInstructions);
@@ -350,14 +350,14 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
    * 優先度のラベル（code_value → code_name）
    */
   const getPriorityLabel = useCallback((priority: number): string => {
-    return t(`instructionRegistration.priority.${priority}`) || String(priority);
+    return t(`instructionRegistration.priorityLabels.${priority}`) || String(priority);
   }, [t]);
 
   /**
    * タイプのラベル（code_value → code_name）
    */
   const getTypeLabel = useCallback((type: number): string => {
-    return t(`instructionRegistration.type.${type}`) || String(type);
+    return t(`instructionRegistration.typeLabels.${type}`) || String(type);
   }, [t]);
 
   /**
@@ -368,15 +368,26 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     
     if (instruction.transitionId) {
       const transition = availableTransitions.find(t => t.id === instruction.transitionId);
-      return `${method?.displayName || t('instructionRegistration.targetLabels.method')} > ${transition?.displayName || t('instructionRegistration.targetLabels.transition')}`;
+      return `${method?.displayName || t('instructionRegistration.target.method')} > ${transition?.displayName || t('instructionRegistration.target.transition')}`;
     } else if (instruction.taskNumber !== undefined) {
-      return `${method?.displayName || t('instructionRegistration.targetLabels.method')} > ${t('instructionRegistration.targetLabels.task')} ${instruction.taskNumber}`;
+      return `${method?.displayName || t('instructionRegistration.target.method')} > ${t('instructionRegistration.target.task')} ${instruction.taskNumber}`;
     } else if (instruction.methodId) {
-      return method?.displayName || t('instructionRegistration.targetLabels.method');
+      return method?.displayName || t('instructionRegistration.target.method');
     } else {
-      return t('instructionRegistration.targetLabels.wholeProject');
+      return t('instructionRegistration.target.project');
     }
   }, [availableMethods, availableTransitions, t]);
+
+  /**
+   * 指示対象のラベル（メソッド名またはプロジェクト全体）
+   */
+  const getTargetBaseLabel = useCallback((instruction: InstructionData): string => {
+    if (instruction.methodId) {
+      const method = availableMethods.find(m => m.id === instruction.methodId);
+      return method?.displayName || instruction.methodId;
+    }
+    return t('instructionRegistration.target.project');
+  }, [availableMethods, t]);
 
   /**
    * テーブルのカラム定義
@@ -384,18 +395,48 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
   const columns: ColumnsType<InstructionData> = [
     {
       title: t('instructionRegistration.columns.target'),
-      dataIndex: 'targetType',
+      dataIndex: 'methodId',
       key: 'target',
-      width: 200,
+      width: 240,
+      ellipsis: true,
       render: (_, record) => (
-        <Text>{getTargetLabel(record)}</Text>
+        <Tooltip title={getTargetBaseLabel(record)}>
+          <Text ellipsis>{getTargetBaseLabel(record)}</Text>
+        </Tooltip>
       ),
+    },
+    {
+      title: t('instructionRegistration.columns.taskNumber'),
+      dataIndex: 'taskNumber',
+      key: 'taskNumber',
+      width: 90,
+      align: 'center' as const,
+      render: (taskNumber: number | undefined) => (
+        <Text>{taskNumber !== undefined ? taskNumber : '-'}</Text>
+      ),
+    },
+    {
+      title: t('instructionRegistration.columns.transitionId'),
+      dataIndex: 'transitionId',
+      key: 'transitionId',
+      width: 180,
+      ellipsis: true,
+      render: (transitionId: string | undefined) => {
+        if (!transitionId) return <Text>-</Text>;
+        const transition = availableTransitions.find(tr => tr.id === transitionId);
+        const label = transition?.displayName || transitionId;
+        return (
+          <Tooltip title={transitionId}>
+            <Text ellipsis>{label}</Text>
+          </Tooltip>
+        );
+      },
     },
     {
       title: t('instructionRegistration.columns.priority'),
       dataIndex: 'priority',
       key: 'priority',
-      width: 100,
+      width: 75,
       render: (priority: number) => (
         <Tag color={getPriorityColor(priority)}>{getPriorityLabel(priority)}</Tag>
       ),
@@ -404,24 +445,25 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
       title: t('instructionRegistration.columns.type'),
       dataIndex: 'type',
       key: 'type',
-      width: 120,
+      width: 90,
       render: (type: number) => <Text>{getTypeLabel(type)}</Text>,
     },
     {
       title: t('instructionRegistration.columns.content'),
       dataIndex: 'content',
       key: 'content',
+      // width未指定で残り幅を自動的に使用
       ellipsis: true,
       render: (content: string) => (
         <Tooltip title={content}>
-          <Text ellipsis>{content}</Text>
+          <Text ellipsis style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{content}</Text>
         </Tooltip>
       ),
     },
     {
       title: t('instructionRegistration.columns.action'),
       key: 'action',
-      width: 150,
+      width: 160,
       render: (_, record) => (
         <Space size="small">
           {record.isSent ? (
@@ -490,6 +532,8 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
         size="small"
         pagination={false}
         loading={isMaimlLoading}
+        tableLayout="fixed"
+        style={{ width: '100%', tableLayout: 'fixed' }}
         locale={{
           emptyText: (
             <Empty

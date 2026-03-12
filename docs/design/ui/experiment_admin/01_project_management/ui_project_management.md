@@ -1,18 +1,20 @@
-# ProjectManagement - プロジェクト管理メイン画面
+# プロジェクト管理画面 UI仕様書
 
 ## 1. 概要
 
 ### 1.1 コンポーネントの目的
-プロジェクト管理のメイン画面。プロジェクト一覧の閲覧、フィルタリング、ソート、ファイル管理、タスク結果確認などの包括的なプロジェクト管理機能を提供します。
+プロジェクト管理画面は、実験管理者がMAIMLプロジェクトを一元的に管理するためのメイン画面です。プロジェクトの作成、ファイル管理、タスク登録、指示管理、進捗確認、編集、チェックアウト/チェックイン、公開などの機能を提供します。
 
 ### 1.2 使用場面
-- 実験管理者が実験管理メニューの「プロジェクト管理」タブを選択した際に表示
-- プロジェクトの作成、編集、閲覧、ファイル管理を行う中心的な画面
-- MAIML編集画面への入り口
+- 実験管理者メニューの「プロジェクト管理」タブ選択時に表示
+- ログイン後のデフォルト表示画面（実験管理者ロール）
+- プロジェクト一覧の閲覧・検索・フィルタリング
+- 選択したプロジェクトの詳細情報表示・操作
 
 ### 1.3 アクセス権限
-- **必須ロール**: experiment_admin
+- **必須ロール**: Experiment Admin（実験管理者）
 - **認証**: JWT + Session Hybrid認証
+- **組織分離**: マルチテナント（organizationId）
 
 ---
 
@@ -21,154 +23,151 @@
 ### 2.1 レイアウト構造
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ ツールバー (検索・フィルタ・アクションボタン)        │
-├──────────────┬──────────────────────────────────────┤
-│ プロジェクト │ 右側: 詳細ビュー                     │
-│ 一覧ツリー   │ ┌──────────────────────────────────┐ │
-│ (35%幅)     │ │ プロジェクト情報ヘッダー          │ │
-│              │ ├──────────────────────────────────┤ │
-│              │ │ ファイル操作ツールバー            │ │
-│              │ ├──────────────────────────────────┤ │
-│              │ │ タブ [ファイル管理] [タスク結果] │ │
-│              │ │ ┌────────────────────────────┐   │ │
-│              │ │ │ タブコンテンツ            │   │ │
-│              │ │ │ (動的に切り替わる)        │   │ │
-│              │ │ └────────────────────────────┘   │ │
-│              │ └──────────────────────────────────┘ │
-└──────────────┴──────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ ツールバー                                                       │
+│ [フィルタ群] [検索] [新規作成] [アップロード] [リロード] [検索] │
+├──────────────────┬──────────────────────────────────────────────┤
+│                  │ プロジェクト情報ヘッダー                     │
+│                  │ [プロジェクト名] [ステータス] [チェックアウト状態]│
+│                  ├──────────────────────────────────────────────┤
+│ プロジェクト     │ ファイル操作ツールバー                       │
+│ 一覧ツリー       │ [ZIP DL] [編集] [チェックイン] [問題] [公開]│
+│                  ├──────────────────────────────────────────────┤
+│ (35%幅)          │ タブコンテンツ (65%幅)                       │
+│                  │                                              │
+│ - プロジェクトA  │ [Tab: ファイル管理 | タスク登録 | 指示一覧 | 進捗確認]│
+│   ├ 概要         │                                              │
+│   ├ ステータス   │ ┌──────────────────────────────────────────┐│
+│   └ 更新日時     │ │ FileListTable / TaskRegistrationTab /     ││
+│ - プロジェクトB  │ │ InstructionRegistrationTab /              ││
+│ - プロジェクトC  │ │ TaskResultsTable                          ││
+│                  │ └──────────────────────────────────────────┘│
+└──────────────────┴──────────────────────────────────────────────┘
 ```
 
 ### 2.2 主要UI要素
 
-#### 2.2.1 ツールバー
-**左側: 検索・フィルタエリア**
-- 所有者絞込（Select）: "自分のみ" / "全てのプロジェクト"
-- 部門絞込（Select）: 全部門 + 動的な部門リスト
-- プロジェクトステータス絞込（Select）: 全て / 計画中 / 実行待ち / 実行中 / レビュー待ち / 完了 / エラー
-- チェックアウトステータス絞込（Select）: 全て / チェックイン済み / チェックアウト中
-- 検索バー（Input）: 全項目対象の全文検索
-- 詳細検索ボタン（Button）
+#### 2.2.1 ツールバー（上部）
+- **所有者フィルタ**（Select）: `my_only`（自分のみ）/ `all`（全て）
+- **部門フィルタ**（Select）: 全部門 / 各部門コード
+- **プロジェクトステータスフィルタ**（Select）: 全て / 計画中 / 実行待ち / 実行中 / レビュー待ち / 完了 / 異常終了
+- **チェックアウトステータスフィルタ**（Select）: 全て / チェックイン済み / チェックアウト中
+- **検索バー**（Input + SearchOutlined）: プロジェクト名、フォルダ名、説明、所有者、部門、タグで検索
+- **新規作成ボタン**（Button + PlusOutlined）: 新規プロジェクト作成モーダルを開く
+- **アップロードボタン**（Button + UploadOutlined）: 一括アップロードダイアログを開く
+- **リロードボタン**（Button + ReloadOutlined）: プロジェクト一覧・選択中のタブデータを最新化
+- **トランジション検索ボタン**（Button + SearchOutlined）: セマンティック検索モーダルを開く
 
-**右側: アクションボタン**
-- 新規プロジェクト作成（Button - 緑色）
-- アップロード（Button - 緑色）
-- リロード（Button - 青色）
+#### 2.2.2 左側パネル（プロジェクト一覧）
+- **ProjectFolderTree**: プロジェクト一覧をツリー表示
+  - ソート機能（名前/ステータス/作成日時、昇順/降順）
+  - プロジェクト選択
+  - フォルダ展開/折りたたみ
 
-#### 2.2.2 プロジェクト一覧ツリー（左側35%）
-- `<ProjectFolderTree />` コンポーネント
-- プロジェクトをカード形式で表示
-- ソート機能付きヘッダー
-- 選択状態のハイライト表示
+#### 2.2.3 右側パネル - プロジェクト情報ヘッダー
+- **プロジェクト名**（Title level 5）
+- **ステータスタグ**（Tag）: プロジェクトステータス（計画中/実行待ち/実行中/レビュー待ち/完了/異常終了）
+- **チェックアウト状態タグ**（Tag）: チェックアウト中表示
+- **概要**（Text）: プロジェクトの説明
 
-#### 2.2.3 詳細ビュー（右側）
+#### 2.2.4 右側パネル - ファイル操作ツールバー
+- **ZIPダウンロードボタン**（Button + DownloadOutlined）: プロジェクト全体をZIPでダウンロード
+- **編集ボタン**（Button + EditOutlined）: Petri Netエディタを開く（Draft復元確認あり）
+- **チェックイン/チェックアウトボタン**（Button + FileTextOutlined）: 状態切り替え
+- **問題確認ボタン**（Button + ExclamationCircleOutlined）: 問題管理モーダルを開く
+- **公開ボタン**（Button）: MAIMLファイルをOpenDataとして公開
 
-**プロジェクト未選択時:**
-- 中央に案内メッセージ表示
-- "プロジェクトを選択してください"
+#### 2.2.5 右側パネル - タブコンテンツ
+**Tab 1: ファイル管理**
+- **FileListTable**: プロジェクトのファイル一覧（root + archiveフォルダ）
+  - ファイル/フォルダクリック → ViewRendererDialogで表示
 
-**プロジェクト選択時:**
+**Tab 2: タスク登録**
+- **TaskRegistrationTab**: タスクの新規登録・一覧表示
+  - チェックアウト中はロック（編集不可）
 
-**A. プロジェクト情報ヘッダー**
-- プロジェクト名（Title level 5）
-- ステータスタグ（Tag）
-- チェックアウトステータスタグ（Tag - オレンジ）
-- プロジェクト概要（Text secondary）
+**Tab 3: 指示一覧**
+- **InstructionRegistrationTab**: 指示の新規作成・編集・送信
+  - チェックアウト中はロック（編集不可）
+  - 指示送信後にプロジェクト一覧を再取得（ステータス更新を反映）
 
-**B. ファイル操作ツールバー**
-- プロジェクト一括ダウンロード（Button）
-- 編集（Button）
-- チェックイン/チェックアウト切替（Button - 状態により色変更）
-- 問題確認（Button - 黄色）
-- 指示送信（Button）
-- 公開（Button - 情報色）
+**Tab 4: 進捗確認**
+- **統計カード**: 総タスク数、実行待ち、実行中、異常終了、レビュー待ち、完了
+- **作業確認ボタン**: 作業者画面オーバーレイを開く（チェックアウト中のみ有効）
+- **タスク確認完了ボタン**: レビュー待ちタスクを完了に更新
+- **TaskResultsTable**: タスク結果一覧
 
-**C. タブコンテンツ**
-- **ファイル管理タブ**: `<FileListTable />` コンポーネント
-- **タスク登録タブ**: `<TaskRegistrationTab />` コンポーネント（タスクの作成・編集）
-- **指示送信タブ**: `<InstructionRegistrationTab />` コンポーネント（ワーカーへの指示送信）
-- **タスク結果タブ**: 統計カード + `<TaskResultsTable />` コンポーネント
+### 2.3 モーダル・ダイアログ
 
-### 2.3 画面遷移
+- **CreateProjectModal**: 新規プロジェクト作成
+- **BulkUploadDialog**: ファイル一括アップロード
+- **ViewRendererDialog**: ファイル表示（複数同時表示可能、最大5個）
+- **DraftRestoreDialog**: Draft復元確認
+- **IssueManagementModal**: 問題確認・管理
+- **TransitionSetSearchModal**: セマンティック検索
+
+### 2.4 画面遷移
 
 ```mermaid
 graph TD
-    A[ProjectManagement] --> B[ProjectDetailModal]
-    A --> C[ProjectSearchModal]
-    A --> D[CreateProjectModal]
-    A --> E[BulkUploadDialog]
-    A --> F[InstructionDialog]
-    A --> G[IssueManagementModal]
-    A --> H[DraftRestoreDialog]
-    A --> I[ViewRendererDialog]
-    H --> J[PetriNetEditorScreen]
-    A --> J
+    A[プロジェクト管理画面] --> B[Petri Netエディタ]
+    A --> C[作業者画面オーバーレイ]
+    A --> D[新規プロジェクト作成モーダル]
+    A --> E[一括アップロードダイアログ]
+    A --> F[ViewRendererDialog]
+    A --> G[問題確認モーダル]
+    A --> H[セマンティック検索モーダル]
+    B --> A
+    C --> A
 ```
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1 プロジェクト一覧の取得と表示
+### 3.1 プロジェクト一覧取得・表示
 
-#### 3.1.1 API連携
+#### 3.1.1 処理フロー
 ```typescript
-const { data, isLoading, error, refetch } = useApi<ApiResponse<ProjectListResponse>>(
-  fetchProjects,
+// useApiフックでプロジェクト一覧を取得
+const {
+  data: projectsData,
+  error: projectsError,
+  refetch: refetchProjects
+} = useApi<ApiResponse<ProjectListResponse>>(
+  async () => await getProjects(),
   []
 );
+
+// projectsDataが取得できたらstateを更新
+useEffect(() => {
+  if (projectsData?.success && projectsData.data) {
+    const projectsList = Array.isArray(projectsData.data) 
+      ? projectsData.data 
+      : ((projectsData.data as ProjectListResponse)?.projects || []);
+    setProjects(projectsList);
+  }
+}, [projectsData, projectsError]);
 ```
 
-**使用API:** ✅
-- GET `/api/v1/projects` - プロジェクト一覧取得
+#### 3.1.2 UI動作
+- マウント時に自動でAPI呼び出し
+- データ取得中はローディング表示
+- 取得成功: プロジェクト一覧を表示
+- 取得失敗: エラーメッセージ表示
 
-**詳細:** [プロジェクト管理API仕様書](../../api/api_project_management.md#31-プロジェクト一覧取得-)
+### 3.2 フィルタリング・検索・ソート
 
-#### 3.1.2 データ構造
-```typescript
-interface Project {
-  id: string;
-  name: string;
-  folderName: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-  status: 'planning' | 'pending' | 'in_progress' | 'review_waiting' | 'completed' | 'error';
-  fileCount: number;
-  totalSize: number;
-  owner: string;
-  department: string;
-  departmentName?: string;
-  members: string[];
-  tags: string[];
-  isCheckedOut: boolean;
-  checkedOutBy: string | null;
-  checkedOutAt: string | null;
-  tasks?: Task[];
-}
-```
-
-### 3.2 フィルタリング機能
-
-#### 3.2.1 フィルタ項目
-| フィルタ | State | オプション |
-|---------|-------|-----------|
-| 所有者 | ownerFilter | my_only, all |
-| 部門 | departmentFilter | all + 動的な部門リスト |
-| プロジェクトステータス | projectStatusFilter | all, planning, pending, in_progress, review_waiting, completed, error |
-| チェックアウトステータス | checkoutFilter | all, checked_in, checked_out |
-| 検索クエリ | searchQuery | 全項目対象の文字列 |
-
-#### 3.2.2 フィルタリングロジック
+#### 3.2.1 フィルタリング処理
 ```typescript
 const filteredProjects = useMemo(() => {
   return projects.filter((project) => {
-    // 検索クエリでフィルタリング（表示名も含む）
-    const matchesSearch = searchQuery === '' || 
+    // 検索クエリでフィルタリング（ID、名前、説明、所有者、部門、ステータス、タグ）
+    const matchesSearch = searchQuery === '' ||
       project.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      // ... その他の項目
-    
+      // ... その他のフィールド
+
     // チェックアウト状態でフィルタリング
     let matchesCheckout = true;
     if (checkoutFilter === 'checked_out') {
@@ -176,114 +175,169 @@ const filteredProjects = useMemo(() => {
     } else if (checkoutFilter === 'checked_in') {
       matchesCheckout = project.isCheckedOut === false;
     }
-    
+
     // プロジェクトステータスでフィルタリング
-    let matchesProjectStatus = projectStatusFilter === 'all' || 
-      project.status === projectStatusFilter;
-    
+    let matchesProjectStatus = true;
+    if (projectStatusFilter !== 'all') {
+      matchesProjectStatus = project.status === parseInt(projectStatusFilter, 10);
+    }
+
     // 部門でフィルタリング
-    let matchesDepartment = departmentFilter === 'all' || 
-      project.department === departmentFilter;
-    
+    let matchesDepartment = true;
+    if (departmentFilter !== 'all') {
+      matchesDepartment = project.department === departmentFilter;
+    }
+
     return matchesSearch && matchesCheckout && matchesProjectStatus && matchesDepartment;
   });
 }, [projects, searchQuery, checkoutFilter, projectStatusFilter, departmentFilter]);
 ```
 
-### 3.3 ソート機能
-
-#### 3.3.1 ソート項目
-- `name` - プロジェクト名（文字列順）
-- `status` - ステータス（定義された順序）
-- `createdAt` - 作成日時（日時順）
-
-#### 3.3.2 ソート順序
-- `asc` - 昇順
-- `desc` - 降順（デフォルト）
-
-#### 3.3.3 ソート動作
+#### 3.2.2 ソート処理
 ```typescript
-const handleSortChange = useCallback((newSortBy) => {
-  if (sortBy === newSortBy) {
-    // 同じ項目をクリック → 順序を反転
-    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-  } else {
-    // 異なる項目をクリック → 新しい項目で降順
-    setSortBy(newSortBy);
-    setSortOrder('desc');
-  }
-}, [sortBy, sortOrder]);
-```
-
-### 3.4 プロジェクトファイル管理
-
-#### 3.4.1 ファイル一覧取得
-```typescript
-useEffect(() => {
-  const loadProjectFiles = async () => {
-    if (!selectedProjectId) return;
-    
-    const response = await fetchProjectFiles(selectedProjectId);
-    if (response.success && response.data?.files) {
-      setProjectFilesData(prev => ({
-        ...prev,
-        [selectedProjectId]: {
-          root: response.data.files || [],
-          archive: response.data.archiveFiles || [],
-        }
-      }));
+const sortedProjects = useMemo(() => {
+  const sorted = [...filteredProjects];
+  sorted.sort((a, b) => {
+    let comparison = 0;
+    if (sortBy === 'name') {
+      comparison = a.name.localeCompare(b.name);
+    } else if (sortBy === 'status') {
+      comparison = a.status - b.status;
+    } else if (sortBy === 'createdAt') {
+      comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     }
-  };
-  loadProjectFiles();
-}, [selectedProjectId]);
+    return sortOrder === 'asc' ? comparison : -comparison;
+  });
+  return sorted;
+}, [filteredProjects, sortBy, sortOrder]);
 ```
 
-**使用API:** ✅
-- GET `/api/v1/projects/:projectId/files` - プロジェクトファイル一覧取得 ✅
+### 3.3 プロジェクト選択
 
-**実装状況:** 実装済み - `getProjectFiles()` 関数を使用
-
-**詳細:** [プロジェクト管理API仕様書](../../api/api_project_management.md#34-ファイル一覧取得-)（セクション5.2.3参照）
-
-#### 3.4.2 フォルダ構造
-- **root**: ルートフォルダのファイル
-- **archive**: アーカイブフォルダのファイル（バージョン履歴）
-
-#### 3.4.3 フォルダナビゲーション
+#### 3.3.1 処理フロー
 ```typescript
-const projectFiles = useMemo(() => {
-  if (currentFolder === 'root') {
-    // ルートフォルダ表示 + archiveフォルダエントリ
-    const rootFiles = projectData.root || [];
-    const archiveFiles = projectData.archive || [];
-    
-    if (archiveFiles.length > 0) {
-      const archiveFolder = {
-        id: 'archive',
-        name: 'archive',
-        type: 'folder',
-        isFolder: true,
-        fileCount: archiveFiles.length,
-      };
-      return [...rootFiles, archiveFolder];
+const handleProjectSelect = useCallback(async (projectId: string) => {
+  setSelectedProjectId(projectId);
+  setCurrentFolder('root'); // プロジェクト切り替え時はルートフォルダを表示
+  
+  // 選択したプロジェクトのMAIMLを読み込み
+  const project = projects.find(p => p.id === projectId);
+  if (project) {
+    try {
+      await loadMaiml(project.name);
+    } catch (error) {
+      console.error('❌ [ProjectManagement] MAIML読み込み失敗:', error);
     }
-    return rootFiles;
-  } else if (currentFolder === 'archive') {
-    // archiveフォルダ内表示 + 戻るボタン
-    const backButton = {
-      id: 'back',
-      name: '↑ 戻る',
-      type: 'folder',
-      isFolder: true,
-    };
-    return [backButton, ...projectData.archive];
   }
-}, [selectedProjectId, currentFolder, projectData]);
+}, [projects, loadMaiml]);
 ```
 
-### 3.5 MAIML編集画面への遷移
+#### 3.3.2 UI動作
+- プロジェクト選択時にハイライト表示
+- MAIMLデータをContextに読み込み
+- 右側パネルにプロジェクト詳細を表示
+- currentFolderを'root'にリセット
 
-#### 3.5.1 編集ボタンクリック時のフロー
+### 3.4 タブ切り替え
+
+#### 3.4.1 処理フロー
+```typescript
+<Tabs
+  activeKey={currentTab}
+  onChange={async (key) => {
+    const newTab = key as 'file_management' | 'task_results';
+    setCurrentTab(newTab);
+    
+    if (!selectedProjectId || !selectedProject) return;
+    
+    try {
+      setIsLoadingTabData(true);
+      
+      if (newTab === 'file_management') {
+        const fileResponse = await getProjectFiles(selectedProject.name, true);
+        setProjectFilesData(prev => ({
+          ...prev,
+          [selectedProjectId]: {
+            root: fileResponse.files || [],
+            archive: fileResponse.archiveFiles || [],
+          }
+        }));
+      } else if (newTab === 'task_results') {
+        const taskResponse = await getProjectTasks(selectedProject.name, 'all');
+        setProjectTasksData(prev => ({
+          ...prev,
+          [selectedProjectId]: {
+            tasks: taskResponse.tasks || [],
+            statistics: taskResponse.statistics || {},
+          }
+        }));
+      }
+    } catch (error) {
+      message.error('データの取得に失敗しました');
+    } finally {
+      setIsLoadingTabData(false);
+    }
+  }}
+  items={[...]}
+/>
+```
+
+#### 3.4.2 UI動作
+- タブクリック時に最新データを取得
+- ローディング表示中は操作不可
+- データ取得完了後にタブコンテンツを表示
+
+### 3.5 チェックアウト/チェックイン
+
+#### 3.5.1 処理フロー
+```typescript
+const handleToggleCheckout = useCallback(async () => {
+  if (!selectedProject) return;
+
+  try {
+    if (isProjectCheckedOut) {
+      // チェックイン処理
+      await checkinProject(selectedProject.name);
+      await refetchProjects();
+      message.success(`プロジェクト「${selectedProject.name}」をチェックインしました`);
+    } else {
+      // チェックアウト処理
+      await checkoutProject(selectedProject.name);
+      await refetchProjects();
+      message.success(`プロジェクト「${selectedProject.name}」をチェックアウトしました`);
+    }
+  } catch (error) {
+    // エラーコード別のメッセージ表示
+    if (error instanceof AxiosError && error.response?.data) {
+      const errorCode = error.response.data.error?.code || 'UNKNOWN_ERROR';
+      switch (errorCode) {
+        case 'TASK_IN_PROGRESS':
+          message.error('実行中のタスクが存在するため、チェックインできません');
+          break;
+        case 'CHECKOUT_NO_MAIML_FILE':
+          message.error('MAIMLファイルが存在しません。先にプロジェクトを編集してMAIMLファイルを作成してください。');
+          break;
+        // ... その他のエラーケース
+      }
+    } else {
+      message.error('チェックイン/チェックアウト処理中にエラーが発生しました');
+    }
+  }
+}, [selectedProject, isProjectCheckedOut, refetchProjects]);
+```
+
+#### 3.5.2 チェックアウト前提条件
+- MAIMLファイルが存在する
+- プロジェクトステータスが「タスク実行待ち」
+- タスクが登録されている
+- 未送信の指示が存在しない
+
+#### 3.5.3 チェックイン前提条件
+- 実行中のタスクが存在しない
+
+### 3.6 編集（Petri Netエディタ起動）
+
+#### 3.6.1 処理フロー
 ```typescript
 const handleEditButtonClick = useCallback(() => {
   if (!selectedProject) {
@@ -291,16 +345,15 @@ const handleEditButtonClick = useCallback(() => {
     return;
   }
 
-  // 1. Draftチェック
+  // Draftチェック
   const draftKey = `petri-net-draft-${selectedProject.id}`;
   const draftData = localStorage.getItem(draftKey);
   
   if (draftData) {
-    // 2. Draft存在 → 復元確認ダイアログ表示
     try {
       const draft = JSON.parse(draftData);
       const info = {
-        savedAt: draft.savedAt,
+        savedAt: draft.savedAt || new Date().toISOString(),
         methodCount: draft.methods?.length || 0,
         nodeCount: draft.nodes?.length || 0
       };
@@ -312,155 +365,104 @@ const handleEditButtonClick = useCallback(() => {
     }
   }
 
-  // 3. Draftなし → 直接エディタへ
+  // Draftがない場合は直接エディタへ
   const userInfo = getUserInfo();
-  const orgId = userInfo?.organizationId || '';
+  const orgId = userInfo?.organizationId ?? '';
+  const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
   const params: MaimlEditorParams = {
     editMode: 'project',
     editingFileName: `${selectedProject.name}.maiml`,
     originalFileName: selectedProject.name,
-    sourceS3Key: `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`,
+    sourceS3Key,
     displayTitle: selectedProject.name,
-    displaySubtitle: selectedProject.description,
+    displaySubtitle: selectedProject.description || undefined,
     documentId: selectedProject.id,
-    description: selectedProject.description,
+    description: selectedProject.description || undefined,
   };
   onEdit?.(params);
 }, [selectedProject, onEdit]);
 ```
 
-#### 3.5.2 Draft復元の選択
-**オプション1: Draft復元**
+#### 3.6.2 Draft復元確認
+- LocalStorageにDraftデータが存在する場合、DraftRestoreDialogを表示
+- ユーザーが「復元」を選択 → Draftを読み込んでエディタ起動
+- ユーザーが「新規作成/既存ファイル」を選択 → Draftを削除してエディタ起動
+
+### 3.7 プロジェクトリロード
+
+#### 3.7.1 処理フロー
 ```typescript
-const handleRestoreDraft = useCallback(() => {
-  setDraftRestoreDialogOpen(false);
-  onEdit?.(params);  // Draftを保持したまま開く
-}, [selectedProject, onEdit]);
-```
-
-**オプション2: 新規作成/既存ファイル**
-```typescript
-const handleCreateNewOrExisting = useCallback(() => {
-  setDraftRestoreDialogOpen(false);
-  // Draftを削除してから開く
-  localStorage.removeItem(draftKey);
-  onEdit?.(params);
-}, [selectedProject, onEdit]);
-```
-
-### 3.6 チェックイン/チェックアウト機能
-
-#### 3.6.1 ステータス切り替え
-```typescript
-const handleToggleCheckout = useCallback(async () => {
-  if (!selectedProject) return;
-
+const handleProjectReload = useCallback(async () => {
   try {
-    const endpoint = selectedProject.isCheckedOut
-      ? `/api/v1/projects/${selectedProject.id}/checkin`
-      : `/api/v1/projects/${selectedProject.id}/checkout`;
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionToken}`,
-        'X-Organization-Id': organizationId,
-      },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error('チェックイン/チェックアウトに失敗しました');
-    }
-
-    const result = await response.json();
+    setIsReloadingProject(true);
     
-    // プロジェクトのチェックアウトステータスを更新
-    setProjects((prev) =>
-      prev.map((project) => {
-        if (project.id === selectedProject.id) {
-          return {
-            ...project,
-            isCheckedOut: result.data.is_checked_out,
-            checkedOutBy: result.data.checked_out_by,
-            checkedOutAt: result.data.checked_out_at,
-          };
+    // 1. プロジェクト一覧を最新化
+    await refetchProjects();
+    
+    // プロジェクトが選択されていない場合はここで終了
+    if (!selectedProject) {
+      message.success('プロジェクト一覧を更新しました');
+      return;
+    }
+    
+    // 2. プロジェクト選択を復元
+    const currentProjectId = selectedProject.id;
+    const currentProjectName = selectedProject.name;
+    setSelectedProjectId(currentProjectId);
+    
+    // 3. MAIMLデータを最新化
+    await reloadMaiml();
+    
+    // 4. 選択中のタブに応じてデータを最新化
+    if (currentTab === 'file_management') {
+      const fileResponse = await getProjectFiles(currentProjectName, true);
+      setProjectFilesData(prev => ({
+        ...prev,
+        [currentProjectId]: {
+          root: fileResponse.files || [],
+          archive: fileResponse.archiveFiles || [],
         }
-        return project;
-      })
-    );
-
-    const actionText = result.data.is_checked_out ? 'チェックアウト' : 'チェックイン';
-    message.success(`プロジェクトを${actionText}しました`);
+      }));
+    } else if (currentTab === 'task_results') {
+      const taskResponse = await getProjectTasks(currentProjectName, 'all');
+      setProjectTasksData(prev => ({
+        ...prev,
+        [currentProjectId]: {
+          tasks: taskResponse.tasks || [],
+          statistics: taskResponse.statistics || {},
+        }
+      }));
+    }
+    
+    message.success('プロジェクトの最新情報を読み込みました');
   } catch (error) {
-    message.error(error.message || 'チェックイン/チェックアウトに失敗しました');
+    message.error('プロジェクトの最新情報の取得に失敗しました');
+  } finally {
+    setIsReloadingProject(false);
   }
-}, [selectedProject]);
+}, [selectedProject, currentTab, refetchProjects, reloadMaiml]);
 ```
 
-**使用API:** ✅
-- POST `/api/v1/projects/:projectId/checkout` - チェックアウト ✅
-- POST `/api/v1/projects/:projectId/checkin` - チェックイン ✅
+#### 3.7.2 リロード対象
+- プロジェクト一覧
+- 選択中のプロジェクトのMAIML
+- 選択中のタブのデータ（ファイル一覧 or タスク一覧）
 
-**優先度:** ⭐⭐⭐ 高
+### 3.8 ZIPダウンロード
 
-**詳細:** [プロジェクト管理API仕様書](../../api/api_project_management.md#33-チェックアウト-)
-
-### 3.7 プロジェクト一括ダウンロード
-
-#### 3.7.1 ダウンロードフロー
+#### 3.8.1 処理フロー
 ```typescript
 const handleProjectDownload = useCallback(async () => {
-  if (!selectedProject) return;
+  if (!selectedProject) {
+    message.warning('プロジェクトを選択してください');
+    return;
+  }
 
   try {
     setIsDownloading(true);
-    setDownloadProgress({ current: 0, total: 0 });
-
-    // 1. ファイル/フォルダダウンロードAPI呼び出し（共通API）
-    const response = await fetch('/api/v1/files/download', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionToken}`,
-        'X-Organization-Id': organizationId,
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        context: 'project',
-        project_id: selectedProject.id,
-        paths: [selectedProject.folderName], // プロジェクトフォルダ全体
-        include_archive: true,
-        format: 'zip'
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error('ダウンロード要求に失敗しました');
-    }
-
-    const result = await response.json();
-    
-    if (result.data.download_type === 'direct') {
-      // 2. 署名付きURLを取得してダウンロード
-      const signedUrl = result.data.signed_url;
-      const link = document.createElement('a');
-      link.href = signedUrl;
-      link.download = `${selectedProject.name}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      message.success(`プロジェクト「${selectedProject.name}」をダウンロードしました`);
-    } else if (result.data.download_type === 'async') {
-      // 3. 非同期ダウンロード（大容量の場合）
-      const jobId = result.data.job_id;
-      message.info('ダウンロードの準備中です...');
-      
-      // ジョブステータスのポーリング（実装省略）
-      // GET /api/v1/download-jobs/:jobId でステータス確認
-    }
+    const folderPath = `projects/${selectedProject.name}`;
+    await downloadFolderAsZip(folderPath);
+    message.success(`プロジェクト「${selectedProject.name}」をZIPファイルでダウンロードしました`);
   } catch (error) {
     message.error('プロジェクトのダウンロードに失敗しました');
   } finally {
@@ -469,129 +471,40 @@ const handleProjectDownload = useCallback(async () => {
 }, [selectedProject]);
 ```
 
-**使用API:** ✅
-- POST `/api/v1/files/download` - ファイル/フォルダダウンロード ✅
+### 3.9 公開処理
 
-**優先度:** ⭐⭐⭐ 高
-
-**詳細:** [共通API仕様書](../../api/api_common.md#2-ファイルダウンロード-)
-
-### 3.8 プロジェクトリロード
-
-#### 3.8.1 リロードフロー
+#### 3.9.1 処理フロー
 ```typescript
-const handleProjectReload = useCallback(async () => {
-  if (!selectedProject) return;
-
+const handlePublish = useCallback(async () => {
+  if (!selectedProject) {
+    message.warning('プロジェクトを選択してください');
+    return;
+  }
+  const request: MaimlPublishRequest = {
+    template_only: false,
+    store_raw_series: true,
+    retention: null,
+    keep_raw_on_unpublish: false,
+  };
   try {
-    setIsReloadingProject(true);
-    
-    // 1. リロードAPI呼び出し
-    const response = await fetch(`/api/v1/projects/${selectedProject.id}/reload`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      signal: AbortSignal.timeout(30000), // 30秒タイムアウト
-    });
-
-    if (!response.ok) {
-      // エラーハンドリング（ステータスコード別）
-      // 400, 401, 403, 404, 409, 500, 502, 503
-      return;
-    }
-
-    // 2. 成功レスポンスのパース
-    const result = await response.json();
-    const summary = result.data?.summary || {};
-    
-    // 3. サマリーメッセージ生成
-    const summaryParts = [];
-    if (summary.filesAdded > 0) summaryParts.push(`追加: ${summary.filesAdded}件`);
-    if (summary.filesUpdated > 0) summaryParts.push(`更新: ${summary.filesUpdated}件`);
-    if (summary.filesDeleted > 0) summaryParts.push(`削除: ${summary.filesDeleted}件`);
-    
-    const summaryText = summaryParts.length > 0 
-      ? ` (${summaryParts.join(', ')})`
-      : '';
-    
-    message.success(`プロジェクトのリロードが完了しました${summaryText}`);
-    
-    // 4. ファイル一覧を再取得
-    const filesResponse = await fetchProjectFiles(selectedProject.id);
-    if (filesResponse.success && filesResponse.data.files) {
-      setProjectFilesData(prev => ({
-        ...prev,
-        [selectedProject.id]: {
-          root: filesResponse.data.files,
-          archive: filesResponse.data.archiveFiles || [],
-        }
-      }));
-    }
+    await publishProject(selectedProject.name, request);
+    message.success(`プロジェクト「${selectedProject.name}」の公開を受け付けました`);
   } catch (error) {
-    // エラーハンドリング（タイムアウト、ネットワークエラー等）
-  } finally {
-    setIsReloadingProject(false);
+    if (error instanceof AxiosError && error.response?.data) {
+      const msg = error.response.data.error?.message || '公開処理に失敗しました';
+      message.error(msg);
+    } else {
+      message.error('公開処理に失敗しました');
+    }
   }
 }, [selectedProject]);
 ```
 
-**使用API:**
-- POST /api/v1/projects/:projectId/reload - プロジェクトリロード
-
-### 3.9 タスク結果管理
-
-#### 3.9.1 タスク統計の計算
-```typescript
-const taskStats = useMemo(() => {
-  const stats = {
-    total: taskResults.length,
-    pending: 0,
-    in_progress: 0,
-    error: 0,
-    review_waiting: 0,
-    completed: 0,
-  };
-
-  taskResults.forEach((result) => {
-    switch (result.workStatus) {
-      case 'pending': stats.pending++; break;
-      case 'in_progress': stats.in_progress++; break;
-      case 'error': stats.error++; break;
-      case 'review_waiting': stats.review_waiting++; break;
-      case 'completed': stats.completed++; break;
-    }
-  });
-
-  return stats;
-}, [taskResults]);
-```
-
-#### 3.9.2 統計カード表示
-- 総タスク数（グレー）
-- 実行待ち（セカンダリー）
-- 実行中（プライマリー青）
-- 異常終了（エラー赤）
-- レビュー待ち（警告黄）
-- 完了（成功緑）
-
 ### 3.10 複数ダイアログ管理
 
-#### 3.10.1 ダイアログ構造
+#### 3.10.1 ダイアログを開く
 ```typescript
-interface OpenDialog {
-  id: string;
-  contentType: 'file' | 'subnet';
-  file?: FileData;
-  subnetData?: { /* ... */ };
-  zIndex: number;
-  position: { x: number; y: number };
-}
-```
-
-#### 3.10.2 ダイアログ操作
-```typescript
-// ファイル表示ダイアログを開く
-const handleViewFile = useCallback((file: FileData) => {
+const handleViewFile = useCallback((file: ProjectFile) => {
   // 上限チェック（5個まで）
   if (openDialogs.length >= 5) {
     message.warning('同時に開けるダイアログは5個までです');
@@ -600,34 +513,71 @@ const handleViewFile = useCallback((file: FileData) => {
 
   const id = `${file.id}-${Date.now()}`;
   const offset = openDialogs.length * 30;  // カスケード配置
-  
+
+  // Context の maimlContent を渡す（API 二重取得を防ぐ）
+  let passedFileContent: string | null | undefined = undefined;
+  if (
+    file.type === 'maiml' &&
+    currentFolder === 'root' &&
+    selectedProject &&
+    maimlContent !== undefined
+  ) {
+    passedFileContent = maimlContent;
+  }
+
   const newDialog: OpenDialog = {
     id,
     contentType: 'file',
     file,
+    fileContent: passedFileContent,
     zIndex: nextZIndex,
     position: { x: 100 + offset, y: 100 + offset }
   };
   
   setOpenDialogs(prev => [...prev, newDialog]);
   setNextZIndex(prev => prev + 1);
-}, [openDialogs, nextZIndex]);
+}, [openDialogs, nextZIndex, currentFolder, selectedProject, maimlContent]);
+```
 
-// ダイアログを閉じる
+#### 3.10.2 ダイアログを閉じる
+```typescript
 const handleCloseDialog = useCallback((id: string) => {
   setOpenDialogs(prev => prev.filter(d => d.id !== id));
 }, []);
+```
 
-// ダイアログをフォーカス（最前面に）
+#### 3.10.3 ダイアログをフォーカス
+```typescript
 const handleFocusDialog = useCallback((id: string) => {
   setOpenDialogs(prev => 
     prev.map(d => 
-      d.id === id ? { ...d, zIndex: nextZIndex } : d
+      d.id === id 
+        ? { ...d, zIndex: nextZIndex }
+        : d
     )
   );
   setNextZIndex(prev => prev + 1);
 }, [nextZIndex]);
 ```
+
+### 3.11 指示送信後のプロジェクト一覧再取得
+
+#### 3.11.1 処理フロー
+```typescript
+const handleInstructionsSubmit = useCallback(async (instructions: InstructionData[]) => {
+  try {
+    // プロジェクト一覧を再取得してステータス更新を反映
+    await refetchProjects();
+  } catch (error) {
+    console.error('❌ プロジェクト一覧の再取得に失敗:', error);
+    // エラーメッセージは表示しない（指示送信自体は成功しているため）
+  }
+}, [refetchProjects]);
+```
+
+#### 3.11.2 目的
+- 指示送信後にプロジェクトステータスが「タスク実行待ち」→「タスク実行中」に変わる
+- プロジェクト一覧を再取得してステータス表示を最新化
 
 ---
 
@@ -636,43 +586,57 @@ const handleFocusDialog = useCallback((id: string) => {
 ### 4.1 Props定義
 
 ```typescript
-import type { MaimlEditorParams } from '@/types/maimlEditor';
+interface ProjectManagementInnerProps {
+  /** Petri Netエディタを開くコールバック */
+  onEdit?: (params: MaimlEditorParams) => void;
+  /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
+  onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
+}
 
 interface ProjectManagementProps {
+  /** Petri Netエディタを開くコールバック */
   onEdit?: (params: MaimlEditorParams) => void;
+  /** 作業者画面を開くコールバック（プロジェクトID・プロジェクト名を渡す） */
+  onOpenWorkerScreen?: (projectId: string, projectName: string) => void;
 }
 ```
 
-> **注意**: `ProjectEditParams` は `MaimlEditorParams` に統合されました（2026-02-27）。  
-> `MaimlEditorParams` の定義は `frontend/src/types/maimlEditor.ts` を参照してください。
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| onEdit | `(params: MaimlEditorParams) => void` | - | Petri Netエディタを開くコールバック。編集ボタンクリック時に呼び出される |
+| onOpenWorkerScreen | `(projectId: string, projectName: string) => void` | - | 作業者画面オーバーレイを開くコールバック |
 
 ### 4.2 State定義
 
 ```typescript
-// プロジェクトデータ
+// プロジェクト一覧
 const [projects, setProjects] = useState<Project[]>([]);
-const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-// フィルタ・ソート
+// フィルタ・検索
 const [searchQuery, setSearchQuery] = useState('');
-const [ownerFilter, setOwnerFilter] = useState<string>('my_only');
-const [checkoutFilter, setCheckoutFilter] = useState<string>('all');
-const [projectStatusFilter, setProjectStatusFilter] = useState<string>('all');
+const [ownerFilter, setOwnerFilter] = useState<string>('my_only'); // my_only, all
+const [checkoutFilter, setCheckoutFilter] = useState<string>('all'); // all, checked_in, checked_out
+const [projectStatusFilter, setProjectStatusFilter] = useState<string>('all'); // all, 0-5
 const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+
+// ソート
 const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt');
 const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-// ファイル管理
+// プロジェクト選択
+const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+// フォルダ・タブ
 const [currentFolder, setCurrentFolder] = useState<string>('root');
-const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
+const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results' | 'task_registration' | 'instruction_registration'>('file_management');
+const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
 
 // モーダル・ダイアログ
-const [modalOpen, setModalOpen] = useState(false);
-const [searchModalOpen, setSearchModalOpen] = useState(false);
 const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-const [instructionDialogOpen, setInstructionDialogOpen] = useState(false);
 const [createModalOpen, setCreateModalOpen] = useState(false);
 const [issueManagementModalOpen, setIssueManagementModalOpen] = useState(false);
+const [semanticSearchModalOpen, setSemanticSearchModalOpen] = useState(false);
 const [draftRestoreDialogOpen, setDraftRestoreDialogOpen] = useState(false);
 
 // Draft情報
@@ -682,44 +646,86 @@ const [draftInfo, setDraftInfo] = useState<{
   nodeCount: number;
 } | null>(null);
 
-// タブ
-const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results'>('file_management');
+// プロジェクトデータキャッシュ
+const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
+const [projectTasksData, setProjectTasksData] = useState<Record<string, { tasks: Task[]; statistics: unknown }>>({});
 
-// フローティングダイアログ
-const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
-const [nextZIndex, setNextZIndex] = useState(1000);
-
-// ダウンロード・リロード状態
+// ローディング状態
+const [isLoadingTabData, setIsLoadingTabData] = useState(false);
 const [isDownloading, setIsDownloading] = useState(false);
-const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 });
 const [isReloadingProject, setIsReloadingProject] = useState(false);
 
-// フォルダツリー
-const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['folder_active']));
+// 複数ダイアログ管理
+const [openDialogs, setOpenDialogs] = useState<OpenDialog[]>([]);
+const [nextZIndex, setNextZIndex] = useState(1000);
 ```
 
-### 4.3 FileData型定義
+**State説明:**
+| State名 | 型 | 初期値 | 説明 |
+|---------|---|--------|------|
+| projects | `Project[]` | `[]` | プロジェクト一覧 |
+| searchQuery | `string` | `''` | 検索クエリ |
+| ownerFilter | `string` | `'my_only'` | 所有者フィルタ |
+| checkoutFilter | `string` | `'all'` | チェックアウト状態フィルタ |
+| projectStatusFilter | `string` | `'all'` | プロジェクトステータスフィルタ |
+| departmentFilter | `string` | `'all'` | 部門フィルタ |
+| sortBy | `'name' \| 'status' \| 'createdAt'` | `'createdAt'` | ソート項目 |
+| sortOrder | `'asc' \| 'desc'` | `'desc'` | ソート順序 |
+| selectedProjectId | `string \| null` | `null` | 選択中のプロジェクトID |
+| currentFolder | `string` | `'root'` | 現在表示中のフォルダ（root/archive） |
+| currentTab | 4つのタブキー | `'file_management'` | 選択中のタブ |
+| expandedFolders | `Set<string>` | `new Set(['folder_active'])` | 展開中のフォルダ一覧 |
+| projectFilesData | `Record<string, ProjectFilesData>` | `{}` | プロジェクトごとのファイル一覧キャッシュ |
+| projectTasksData | `Record<string, ...>` | `{}` | プロジェクトごとのタスク一覧キャッシュ |
+| openDialogs | `OpenDialog[]` | `[]` | 開いているダイアログ一覧（最大5個） |
+| nextZIndex | `number` | `1000` | 次のダイアログのz-index |
+
+### 4.3 Context連携
 
 ```typescript
-interface FileData {
-  id: string;
-  name: string;
-  path: string;
-  size: number;
-  lastModified: string;
-  type: string;
-  isFolder?: boolean;
-  fileCount?: number;
-  signedUrl?: string;
-}
+// LanguageContext
+const { t } = useLanguage();
+
+// ProjectMaimlContext
+const { 
+  loadMaiml,        // MAIML読み込み
+  reloadMaiml,      // MAIML再読み込み
+  maimlRoot,        // MAIMLルート要素
+  maimlContent,     // MAIML文字列
+  isLoading: isMaimlLoading  // ローディング状態
+} = useProjectMaiml();
 ```
 
-### 4.4 ProjectFilesData型定義
+### 4.4 その他の型定義
 
 ```typescript
+/**
+ * プロジェクトファイルデータ
+ */
 interface ProjectFilesData {
-  root: FileData[];
-  archive: FileData[];
+  root: ProjectFile[];
+  archive: ProjectFile[];
+}
+
+/**
+ * 開いているダイアログの情報
+ */
+interface OpenDialog {
+  id: string;
+  contentType: 'file' | 'subnet';
+  file?: ProjectFile;
+  fileContent?: string | null;  // Contextから渡す場合に使用
+  subnetData?: {
+    transitionName: string;
+    maimlData: string;
+    templateMap: Record<string, { element: Element }>;
+    petriNetData: {
+      places: Array<{ id: string; data: { label?: string; stereotype?: string; template?: { id: string }; templateId?: string; } }>;
+      arcs: Array<{ id: string; source: string; target: string; }>;
+    };
+  };
+  zIndex: number;
+  position: { x: number; y: number };
 }
 ```
 
@@ -729,36 +735,31 @@ interface ProjectFilesData {
 
 ### 5.1 使用するAPI一覧
 
-| # | API名 | メソッド | エンドポイント | 状態 | 優先度 | 説明 |
-|---|------|---------|---------------|------|--------|------|
-| 1 | プロジェクト一覧取得 | GET | `/api/v1/projects` | ✅ 実装済み | - | プロジェクト一覧を取得 |
-| 2 | プロジェクト作成 | POST | `/api/v1/projects` | ✅ 実装済み | - | 新規プロジェクトを作成 |
-| 3 | ファイル一覧取得 | GET | `/api/v1/projects/:projectId/files` | ✅ 実装済み | - | プロジェクトのファイル一覧を取得（`getProjectFiles()`使用） |
-| 4 | タスク一覧取得 | GET | `/api/v1/projects/:projectId/tasks` | ✅ 実装済み | - | プロジェクトのタスク一覧を取得（`getProjectTasks()`使用） |
-| 5 | フォルダZIPダウンロード | POST | `/api/v1/files/download-folder-zip` | ✅ 実装済み | - | フォルダをZIP形式でダウンロード（`downloadFolderAsZip()`使用） |
-| 6 | プロジェクトリロード | GET | `/api/v1/projects` | ✅ 実装済み | - | プロジェクト一覧を再取得して最新化（`refetchProjects()`使用） |
-| 7 | チェックアウト | POST | `/api/v1/projects/:projectId/checkout` | 🔴 未実装 | ⭐⭐⭐ 高 | プロジェクトをチェックアウト（ローカルステート更新のみ） |
-| 8 | チェックイン | POST | `/api/v1/projects/:projectId/checkin` | 🔴 未実装 | ⭐⭐⭐ 高 | プロジェクトをチェックイン（ローカルステート更新のみ） |
-| 9 | 指示送信 | POST | `/api/v1/projects/:projectId/instructions` | 🔴 未実装 | ⭐⭐ 中 | ワーカーへの作業指示を送信（console.log出力のみ） |
-| 10 | 指示一覧取得 | GET | `/api/v1/projects/:projectId/instructions` | 🔴 未実装 | ⭐⭐ 中 | プロジェクトの指示一覧を取得 |
-| 11 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐⭐ 中 | 高度な検索条件でプロジェクトを検索 |
-| 12 | プロジェクト公開 | POST | `/api/v1/projects/:projectId/publish` | 🔴 未実装 | ⭐ 低 | プロジェクトを公開 |
+| # | API名 | メソッド | エンドポイント | 状態 | 説明 |
+|---|------|---------|---------------|------|------|
+| 1 | getProjects | GET | `/api/v1/provider/projects` | ✅ 実装済み | プロジェクト一覧取得 |
+| 2 | getProjectFiles | GET | `/api/v1/provider/projects/:projectName/files` | ✅ 実装済み | プロジェクトのファイル一覧取得 |
+| 3 | getProjectTasks | GET | `/api/v1/experiment-admin/projects/:projectName/tasks` | ✅ 実装済み | プロジェクトのタスク一覧取得 |
+| 4 | createProject | POST | `/api/v1/provider/projects` | ✅ 実装済み | 新規プロジェクト作成 |
+| 5 | checkoutProject | POST | `/api/v1/experiment-admin/projects/:projectName/checkout` | ✅ 実装済み | プロジェクトチェックアウト |
+| 6 | checkinProject | POST | `/api/v1/experiment-admin/projects/:projectName/checkin` | ✅ 実装済み | プロジェクトチェックイン |
+| 7 | completeReviewTasks | POST | `/api/v1/experiment-admin/projects/:projectName/tasks/complete-review` | ✅ 実装済み | レビュー待ちタスクを完了に更新 |
+| 8 | publishProject | POST | `/api/v1/experiment-admin/projects/:projectName/publish` | ✅ 実装済み | プロジェクト公開 |
+| 9 | downloadFolderAsZip | GET | `/api/v1/files/download-zip` | ✅ 実装済み | フォルダをZIPでダウンロード |
 
-**共通API:**
-- [ファイルアップロード](../../api/api_common.md#1-ファイルアップロード-) - context=project
-- [ファイルダウンロード](../../api/api_common.md#2-ファイルダウンロード-) - 個別ファイル用
+### 5.2 API呼び出し例
 
-**詳細**: [プロジェクト管理API仕様書](../../api/api_project_management.md) を参照
+#### 5.2.1 プロジェクト一覧取得
 
-### 5.2 リクエスト/レスポンス例
-
-#### 5.2.1 プロジェクト一覧取得 ✅
-
-**Request:**
-```http
-GET /api/v1/projects?page=1&limit=20
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
+```typescript
+const {
+  data: projectsData,
+  error: projectsError,
+  refetch: refetchProjects
+} = useApi<ApiResponse<ProjectListResponse>>(
+  async () => await getProjects(),
+  []
+);
 ```
 
 **Response (200 OK):**
@@ -768,89 +769,34 @@ X-Organization-Id: {organization_id}
   "data": {
     "projects": [
       {
-        "project_id": "550e8400-e29b-41d4-a716-446655440000",
-        "project_name": "Sample Project",
-        "project_folder_name": "sample_project",
-        "description": "プロジェクトの説明",
-        "project_status": "in_progress",
-        "is_checked_out": false,
-        "checked_out_by": null,
-        "checked_out_at": null,
-        "file_count": 15,
-        "total_size": 10485760,
-        "owner_id": "user-uuid",
-        "owner_name": "山田太郎",
-        "department_id": "dept-uuid",
-        "department_name": "研究開発部",
-        "created_at": "2026-01-15T10:00:00Z",
-        "updated_at": "2026-01-20T15:30:00Z"
+        "id": "project-uuid",
+        "name": "project-001",
+        "folderName": "project-001",
+        "description": "プロジェクト説明",
+        "owner": "user-01",
+        "department": "dept-001",
+        "departmentName": "研究開発部",
+        "status": 1,
+        "statusName": "タスク実行待ち",
+        "isCheckedOut": false,
+        "tags": ["tag1", "tag2"],
+        "createdAt": "2026-03-01T10:00:00Z",
+        "updatedAt": "2026-03-11T08:00:00Z"
       }
     ]
-  },
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "totalItems": 150,
-    "totalPages": 8,
-    "hasNext": true,
-    "hasPrev": false
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
   }
 }
 ```
 
-#### 5.2.2 プロジェクト作成 ✅
+#### 5.2.2 チェックアウト
 
-**Request:**
-```http
-POST /api/v1/projects
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
-Content-Type: application/json
-
-{
-  "project_name": "New Project",
-  "description": "新規プロジェクトの説明",
-  "department_id": "dept-uuid",
-  "tags": ["実験", "分析"]
-}
+```typescript
+await checkoutProject(projectName);
 ```
 
-**Response (201 Created):**
-```json
-{
-  "success": true,
-  "data": {
-    "project_id": "550e8400-e29b-41d4-a716-446655440000",
-    "project_name": "New Project",
-    "project_folder_name": "New_Project",
-    "description": "新規プロジェクトの説明",
-    "project_status": "created",
-    "is_checked_out": false,
-    "file_count": 0,
-    "total_size": 0,
-    "owner_id": "user-uuid",
-    "department_id": "dept-uuid",
-    "created_at": "2026-01-21T16:00:00Z",
-    "updated_at": "2026-01-21T16:00:00Z"
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
-#### 5.2.3 ファイル一覧取得 🔴
-
 **Request:**
-```http
-GET /api/v1/projects/550e8400-e29b-41d4-a716-446655440000/files?folder=root
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
+```
+POST /api/v1/experiment-admin/projects/{projectName}/checkout
 ```
 
 **Response (200 OK):**
@@ -858,118 +804,51 @@ X-Organization-Id: {organization_id}
 {
   "success": true,
   "data": {
-    "files": [
-      {
-        "file_id": "file-uuid-1",
-        "file_name": "sample.maiml",
-        "file_path": "org_maiml_lab_001/projects/Sample_Project/sample.maiml",
-        "file_size": 12345,
-        "file_type": "maiml",
-        "is_archive": false,
-        "version": null,
-        "created_at": "2026-01-15T10:00:00Z",
-        "updated_at": "2026-01-20T15:30:00Z"
-      }
-    ]
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
+    "message": "プロジェクトをチェックアウトしました"
   }
 }
 ```
 
-#### 5.2.4 プロジェクトリロード 🔴
-
-**Request:**
-```http
-POST /api/v1/projects/550e8400-e29b-41d4-a716-446655440000/reload
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
-```
-
-**Response (200 OK):**
+**Error Response (400 Bad Request):**
 ```json
 {
-  "success": true,
-  "data": {
-    "summary": {
-      "filesAdded": 3,
-      "filesUpdated": 2,
-      "filesDeleted": 1,
-      "totalFiles": 20
-    },
-    "details": {
-      "added": [
-        {
-          "file_name": "new_file1.maiml",
-          "file_path": "org_maiml_lab_001/projects/Sample_Project/new_file1.maiml",
-          "file_size": 5000
-        }
-      ],
-      "updated": [
-        {
-          "file_name": "existing_file.maiml",
-          "file_path": "org_maiml_lab_001/projects/Sample_Project/existing_file.maiml",
-          "old_size": 10000,
-          "new_size": 12000
-        }
-      ],
-      "deleted": [
-        {
-          "file_name": "old_file.maiml",
-          "file_path": "org_maiml_lab_001/projects/Sample_Project/old_file.maiml"
-        }
-      ]
-    }
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
+  "success": false,
+  "error": {
+    "code": "CHECKOUT_NO_MAIML_FILE",
+    "message": "MAIMLファイルが存在しません",
+    "details": {}
   }
 }
 ```
 
-#### 5.2.5 指示送信 🔴
+#### 5.2.3 プロジェクト公開
+
+```typescript
+const request: MaimlPublishRequest = {
+  template_only: false,
+  store_raw_series: true,
+  retention: null,
+  keep_raw_on_unpublish: false,
+};
+await publishProject(projectName, request);
+```
 
 **Request:**
-```http
-POST /api/v1/projects/550e8400-e29b-41d4-a716-446655440000/instructions
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
-Content-Type: application/json
-
+```json
 {
-  "instruction_title": "サンプル分析の実施",
-  "instruction_content": "以下の手順で分析を実施してください",
-  "assigned_worker_ids": ["worker-uuid-1", "worker-uuid-2"],
-  "due_date": "2026-01-25T23:59:59Z",
-  "priority": "high",
-  "tasks": [
-    {
-      "task_name": "タスク1",
-      "description": "タスク1の説明",
-      "estimated_duration": 120
-    }
-  ]
+  "template_only": false,
+  "store_raw_series": true,
+  "retention": null,
+  "keep_raw_on_unpublish": false
 }
 ```
 
-**Response (201 Created):**
+**Response (202 Accepted):**
 ```json
 {
   "success": true,
   "data": {
-    "instruction_id": "instruction-uuid",
-    "instruction_title": "サンプル分析の実施",
-    "project_id": "550e8400-e29b-41d4-a716-446655440000",
-    "assigned_worker_ids": ["worker-uuid-1", "worker-uuid-2"],
-    "status": "pending",
-    "created_at": "2026-01-21T16:00:00Z"
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
+    "message": "公開処理を受け付けました"
   }
 }
 ```
@@ -978,65 +857,194 @@ Content-Type: application/json
 
 ## 6. エラーハンドリング
 
-### 6.1 エラーレスポンス形式
+### 6.1 エラーケース一覧
 
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "エラーメッセージ",
-    "details": [
-      {
-        "field": "fieldName",
-        "message": "詳細メッセージ",
-        "code": "FIELD_ERROR_CODE"
-      }
-    ]
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
+| エラーケース | HTTPステータス | エラーコード | 対処方法 |
+|-------------|---------------|-------------|----------|
+| プロジェクト一覧取得失敗 | 500 | - | message.error('プロジェクト一覧の取得に失敗しました') |
+| ファイル一覧取得失敗 | 500 | - | message.error('ファイル一覧の取得に失敗しました') |
+| タスク一覧取得失敗 | 500 | - | message.error('データの取得に失敗しました') |
+| チェックアウト失敗: MAIMLファイルなし | 400 | `CHECKOUT_NO_MAIML_FILE` | message.error('MAIMLファイルが存在しません。先にプロジェクトを編集してMAIMLファイルを作成してください。') |
+| チェックアウト失敗: ステータス不正 | 400 | `CHECKOUT_INVALID_STATUS` | message.error('プロジェクトステータスがタスク実行待ちではありません') |
+| チェックアウト失敗: タスク未登録 | 400 | `CHECKOUT_NO_TASKS` | message.error('タスクが登録されていません。先にタスク登録タブからタスクを登録してください。') |
+| チェックアウト失敗: 未送信の指示あり | 400 | `CHECKOUT_UNSENT_INSTRUCTIONS` | message.error('未送信の指示が存在します。先に指示送信タブから指示を送信してください。') |
+| チェックアウト失敗: 既にチェックアウト中 | 409 | `PROJECT_ALREADY_CHECKED_OUT` | message.warning('このプロジェクトは既に{ユーザー名}によってチェックアウトされています。') |
+| チェックイン失敗: 実行中タスクあり | 400 | `TASK_IN_PROGRESS` | message.error('実行中のタスクが存在するため、チェックインできません') |
+| プロジェクト作成失敗 | 400/500 | - | message.error(エラーメッセージ) |
+| プロジェクトダウンロード失敗 | 500 | - | message.error('プロジェクトのダウンロードに失敗しました') |
+| 公開処理失敗 | 400/500 | - | message.error(エラーメッセージ) |
+| ダイアログ上限超過 | - | - | message.warning('同時に開けるダイアログは5個までです') |
+
+### 6.2 エラー処理コード
+
+#### 6.2.1 チェックアウト/チェックインエラー
+
+```typescript
+try {
+  if (isProjectCheckedOut) {
+    await checkinProject(selectedProject.name);
+  } else {
+    await checkoutProject(selectedProject.name);
+  }
+  await refetchProjects();
+  message.success('処理が完了しました');
+} catch (error) {
+  if (error instanceof AxiosError && error.response?.data) {
+    const errorData = error.response.data;
+    const errorCode = errorData.error?.code || 'UNKNOWN_ERROR';
+    const errorMessage = errorData.error?.message || 'チェックイン/チェックアウトに失敗しました';
+    const errorDetails = errorData.error?.details;
+    
+    switch (errorCode) {
+      case 'TASK_IN_PROGRESS':
+        message.error('実行中のタスクが存在するため、チェックインできません');
+        break;
+      case 'CHECKOUT_NO_MAIML_FILE':
+        message.error('MAIMLファイルが存在しません。先にプロジェクトを編集してMAIMLファイルを作成してください。');
+        break;
+      // ... その他のエラーコード
+      default:
+        message.error(errorMessage);
+    }
+  } else {
+    message.error('チェックイン/チェックアウト処理中にエラーが発生しました');
   }
 }
 ```
 
-### 6.2 共通エラーコード
+#### 6.2.2 API取得エラー
 
-| コード | HTTPステータス | 説明 | 対処方法 |
-|-------|---------------|------|----------|
-| `AUTH_TOKEN_INVALID` | 401 | 認証トークンが無効 | 再ログインを促す |
-| `AUTH_TOKEN_EXPIRED` | 401 | 認証トークンの有効期限切れ | 再ログインを促す |
-| `PERMISSION_INSUFFICIENT` | 403 | 権限不足 | エラーメッセージを表示 |
-| `RESOURCE_NOT_FOUND` | 404 | リソースが見つからない | リストを再取得 |
-| `VALIDATION_ERROR` | 400 | バリデーションエラー | 詳細メッセージを表示 |
-| `BUSINESS_DUPLICATE_PROJECT_NAME` | 409 | プロジェクト名が重複 | 別の名前を入力させる |
-| `SYSTEM_DATABASE_ERROR` | 500 | データベースエラー | 再試行を促す |
-| `SYSTEM_STORAGE_ERROR` | 500 | ストレージエラー | 再試行を促す |
+```typescript
+useEffect(() => {
+  if (projectsError) {
+    console.error('❌ [ProjectManagement] API error:', projectsError);
+    message.error('プロジェクト一覧の取得に失敗しました');
+    return;
+  }
+  // ...
+}, [projectsData, projectsError]);
+```
 
-### 6.3 エラーケース別の処理
+---
 
-| エラーケース | HTTPステータス | エラーコード | 対処方法 |
-|-------------|---------------|-------------|----------|
-| プロジェクト一覧取得失敗 | 500 | `SYSTEM_DATABASE_ERROR` | message.error表示 + 空配列設定 + 再試行ボタン |
-| ファイル一覧取得失敗 | 404 | `RESOURCE_NOT_FOUND` | message.error表示 + プロジェクトリストを再取得 |
-| プロジェクト作成失敗（重複） | 409 | `BUSINESS_DUPLICATE_PROJECT_NAME` | message.error表示 + 別の名前を入力させる |
-| ダウンロード失敗 | 403, 500 | `PERMISSION_INSUFFICIENT`, `SYSTEM_STORAGE_ERROR` | message.error表示 + ダウンロード中止 |
-| リロードタイムアウト | 504 | - | message.error表示 + 再試行を促す |
-| リロード中のチェックアウト競合 | 409 | `BUSINESS_PROJECT_CHECKED_OUT` | message.warning表示 + チェックイン後に再試行 |
-| ダイアログ上限超過 | - | - | message.warning表示 + 開かない |
-| プロジェクト未選択で操作 | - | - | message.warning表示 |
+## 7. 実装ファイル
 
-### 6.4 リロードエラーの詳細ハンドリング
+### 7.1 メインファイル
+- **パス**: `frontend/src/components/project/ProjectManagement.tsx`
+- **行数**: 約1,300行
+- **エクスポート**: `ProjectManagement`（default export）
 
-| HTTPステータス | エラーコード | 説明 | UI表示 |
-|---------------|-------------|------|--------|
-| 400 | `VALIDATION_INVALID_PROJECT_ID` | 不正なプロジェクトID | 「プロジェクトIDが無効です」 |
-| 401 | `AUTH_TOKEN_INVALID` | 認証エラー | 「認証が無効です。再ログインしてください」 |
-| 403 | `PERMISSION_INSUFFICIENT` | 権限不足 | 「このプロジェクトへのアクセス権限がありません」 |
-| 404 | `RESOURCE_NOT_FOUND` | プロジェクトが存在しない | 「プロジェクトが見つかりません」 |
-| 409 | `BUSINESS_PROJECT_CHECKED_OUT` | チェックアウト中 | 「プロジェクトがチェックアウト中です。チェックイン後に再試行してください」 |
-| 500 | `SYSTEM_STORAGE_ERROR` | S3接続エラー | 「ストレージサーバーとの通信に失敗しました」 |
-| 502 | `SYSTEM_EXTERNAL_SERVICE_ERROR` | 外部サービスエラー | 「外部サービスとの通信に失敗しました」 |
-| 503 | `SYSTEM_SERVICE_UNAVAILABLE` | サービス一時停止 | 「サービスが一時的に利用できません。しばらくしてから再試行してください」 |
-| 504 | - | タイムアウト | 「処理がタイムアウトしました。プロジェクトが大きい場合、時間がかかることがあります」 |
+### 7.2 関連ファイル
+
+#### 7.2.1 型定義
+- `frontend/src/types/project.ts` - Project, Task型
+- `frontend/src/types/file.ts` - ProjectFile型
+- `frontend/src/types/maimlEditor.ts` - MaimlEditorParams型
+- `frontend/src/types/instructionRegistration.ts` - InstructionData型
+
+#### 7.2.2 APIサービス
+- `frontend/src/services/projectApiService.ts` - プロジェクト関連API
+- `frontend/src/services/fileAccessService.ts` - ファイルダウンロードAPI
+
+#### 7.2.3 ユーティリティ
+- `frontend/src/utils/sessionStorageHelper.ts` - getUserInfo()
+
+#### 7.2.4 Context
+- `frontend/src/contexts/LanguageContext.tsx` - 多言語対応
+- `frontend/src/contexts/ProjectMaimlContext.tsx` - MAIML読み込み・管理
+
+#### 7.2.5 カスタムフック
+- `frontend/src/hooks/useApi.ts` - API呼び出し
+
+### 7.3 子コンポーネント
+
+| コンポーネント名 | パス | 説明 |
+|----------------|------|------|
+| ProjectFolderTree | `./ProjectFolderTree` | プロジェクト一覧ツリー |
+| FileListTable | `./FileListTable` | ファイル一覧テーブル |
+| TaskResultsTable | `./TaskResultsTable` | タスク結果一覧テーブル |
+| BulkUploadDialog | `./BulkUploadDialog` | 一括アップロードダイアログ |
+| TaskRegistrationTab | `./TaskRegistrationTab` | タスク登録タブ |
+| InstructionRegistrationTab | `./InstructionRegistrationTab` | 指示一覧タブ |
+| CreateProjectModal | `./CreateProjectModal` | 新規プロジェクト作成モーダル |
+| ViewRendererDialog | `@/components/viewer/ViewRendererDialog` | ファイル表示ダイアログ（複数同時表示可能） |
+| DraftRestoreDialog | `../viewer/DraftRestoreDialog` | Draft復元確認ダイアログ |
+| IssueManagementModal | `../ExperimentWorker/IssueManagementModal` | 問題確認・管理モーダル |
+| TransitionSetSearchModal | `@/components/TransitionSetSearch/TransitionSetSearchModal` | セマンティック検索モーダル |
+
+### 7.4 依存ライブラリ
+- React 18.2.0
+- Ant Design v6 (Card, Input, Button, Select, Space, Tag, Tabs, Typography, Flex, theme, message)
+- @ant-design/icons (各種アイコン)
+
+---
+
+## 8. 変更履歴
+
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースで仕様書を再作成（約1,300行の実装を完全に反映） | Cline |
+
+---
+
+## 9. 補足事項
+
+### 9.1 パフォーマンス最適化
+- **useMemo**: filteredProjects, sortedProjects, departments, projectFiles, taskResults, taskStats, selectedProject, isProjectCheckedOut
+- **useCallback**: 全イベントハンドラー（handleProjectSelect, handleToggleCheckout, handleEditButtonClick等）
+- **データキャッシュ**: projectFilesData, projectTasksData で選択プロジェクトごとにデータをキャッシュ
+
+### 9.2 Context統合
+- **ProjectMaimlProvider**: ProjectManagement全体をラップしてMAIML管理機能を提供
+- **useProjectMaiml**: loadMaiml(), reloadMaiml(), maimlRoot, maimlContent, isLoading
+
+### 9.3 複数ダイアログ管理
+- 最大5個まで同時表示可能
+- カスケード配置（30pxずつオフセット）
+- z-index自動管理（フォーカス時に最前面に移動）
+- Context の maimlContent を渡すことでAPI二重取得を防止
+
+### 9.4 プロジェクトステータス
+| status | statusName | 説明 |
+|--------|-----------|------|
+| 0 | プロジェクト計画中 | 初期状態 |
+| 1 | タスク実行待ち | チェックアウト可能 |
+| 2 | タスク実行中 | チェックアウト中 |
+| 3 | 承認待ち | レビュー待ちタスクあり |
+| 4 | プロジェクト完了 | 全タスク完了 |
+| 5 | タスク異常終了 | エラー発生 |
+
+### 9.5 タブ別のデータ取得タイミング
+- **マウント時**: プロジェクト一覧のみ取得
+- **プロジェクト選択時**: MAIMLを読み込み
+- **タブ切り替え時**: 該当タブのデータを最新取得
+- **リロードボタン**: プロジェクト一覧 + 選択中のタブデータ + MAIMLを最新化
+
+### 9.6 チェックアウト/チェックインのワークフロー
+
+**チェックアウトまでの流れ:**
+1. プロジェクト作成（ステータス: 0 計画中）
+2. 編集ボタンでPetri Netエディタ起動 → MAIMLファイル保存
+3. タスク登録タブでタスクを登録
+4. 指示一覧タブで指示を作成・送信（ステータス: 1 実行待ちに変更）
+5. チェックアウトボタンをクリック（ステータス: 2 実行中に変更）
+
+**チェックイン:**
+- 全タスクが完了またはレビュー待ちになったらチェックイン可能
+- チェックイン後、ステータスが 3 レビュー待ち または 4 完了に変更
+
+### 9.7 リロード処理の詳細
+プロジェクト未選択時とプロジェクト選択時で動作が異なります：
+
+**プロジェクト未選択時:**
+- プロジェクト一覧のみ再取得
+- メッセージ: 「プロジェクト一覧を更新しました」
+
+**プロジェクト選択時:**
+1. プロジェクト一覧を最新化
+2. プロジェクト選択を復元（selectedProjectId）
+3. MAIMLデータを最新化（reloadMaiml）
+4. 選択中のタブのデータを最新化
+   - ファイル管理タブ: getProjectFiles()
+   - 進捗確認タブ: getProjectTasks()
+5. メッセージ: 「プロジェクトの最新情報を読み込みました」
