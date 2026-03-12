@@ -1,493 +1,1042 @@
-# FormatManagement UI仕様書
+# フォーマット管理画面 UI仕様書
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+フォーマット管理画面は、実験で使用するXMLテンプレートファイルとMAIMLワークフローファイルを管理するためのメイン画面です。部門ごとに整理されたフォーマットフォルダの一覧表示、ファイルの閲覧・編集・作成・削除、フォルダの作成、ファイルのアップロード・ダウンロードなど、フォーマット管理に関する全ての操作を提供します。
 
-フォーマット管理画面のメインコンポーネント。XML/MAIMLフォーマットファイルの閲覧、作成、編集、削除、アップロードなどの管理機能を提供します。
+### 1.2 使用場面
+- **表示タイミング**: 実験管理者メニューの「フォーマット管理」タブを選択した時
+- **主な用途**:
+  - XMLテンプレートファイル（Material/Condition/Result）の管理
+  - MAIMLワークフローファイルの管理
+  - 部門ごとのフォーマットフォルダ管理
+  - フォーマットファイルの検索・編集・作成
 
-### 1.2. 使用場面
-
-- 実験管理者がフォーマット管理メニューから遷移
-- フォーマット定義ファイル（XML/MAIML）の一元管理
-- テンプレートファイルの作成・編集
-- ワークフローファイル（MAIML）の管理
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
-- **テナント分離**: organization_id によるマルチテナント分離
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin（実験管理者）
+- **認証**: JWT + Session Hybrid認証
+- **組織分離**: organization_idによるマルチテナント分離
 
 ---
 
 ## 2. 画面構成
 
-### 2.1. レイアウト構造
+### 2.1 レイアウト構造
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ ツールバー（検索・フィルタ・リフレッシュ）                      │
-├─────────────────┬───────────────────────────────────────────┤
-│ 左側（33%）     │ 右側（67%）                               │
-│                 │                                           │
-│ FormatFolderTree│ ┌───────────────────────────────────────┐ │
-│ （フォーマット  │ │ フォーマット情報ヘッダー              │ │
-│   一覧）        │ ├───────────────────────────────────────┤ │
-│                 │ │ フォーマット操作ツールバー            │ │
-│                 │ ├───────────────────────────────────────┤ │
-│                 │ │ FormatFileListTable                   │ │
-│                 │ │ （ファイル一覧）                      │ │
-│                 │ │                                       │ │
-│                 │ │                                       │ │
-│                 │ └───────────────────────────────────────┘ │
-└─────────────────┴───────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ツールバー（検索・フィルタ・新規フォーマットフォルダ作成）               │
+├────────────────────┬────────────────────────────────────────────────────┤
+│ 左側: フォーマット │ 右側: ファイル一覧                                 │
+│ フォルダツリー     │ ┌──────────────────────────────────────────────┐ │
+│ (33%幅)           │ │ フォーマット情報ヘッダー                     │ │
+│                    │ ├──────────────────────────────────────────────┤ │
+│ ┌────────────────┐ │ │ ファイル操作ツールバー                       │ │
+│ │ フォーマット1  │ │ ├──────────────────────────────────────────────┤ │
+│ │ フォーマット2  │ │ │ ファイル一覧テーブル                         │ │
+│ │ フォーマット3  │ │ │ - フォルダ/ファイル                         │ │
+│ │ ...            │ │ │ - 編集/ダウンロード/削除ボタン              │ │
+│ └────────────────┘ │ └──────────────────────────────────────────────┘ │
+└────────────────────┴────────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+### 2.2 主要UI要素
 
-#### 2.2.1. ツールバー（上部）
+#### 2.2.1 ツールバー（上部）
+- **カテゴリ絞込**（Select）: protocol/material/measurement/analysis/sample/device/all
+- **ファイルタイプ絞込**（Select）: xml/maiml/all
+- **検索バー**（Input）: フォーマット名、説明、タグで検索
+- **詳細検索ボタン**（Button）: FormatSearchModalを開く
+- **リフレッシュボタン**（Button）: フォーマット一覧を再取得
+- **新規フォーマットフォルダボタン**（Button）: 部門直下に新規フォーマットフォルダを作成
 
-| 要素 | コンポーネント | 説明 |
-|------|--------------|------|
-| カテゴリ絞込 | Select | プロトコル、材料、測定、分析、サンプル、デバイス |
-| ファイルタイプ絞込 | Select | 全て、XML、MAIML |
-| 検索バー | Input | 前方一致検索（名前、説明、タグなど） |
-| 詳細検索ボタン | Button (primary) | 詳細検索モーダルを開く |
-| リフレッシュボタン | Button (primary) | フォーマット一覧を再取得 |
-
-#### 2.2.2. 左側: フォーマット一覧（FormatFolderTree）
-
-- フォーマットの階層構造表示
-- ソート機能（名前、カテゴリ、更新日時）
+#### 2.2.2 左側パネル（フォーマットフォルダツリー）
+- **FormatFolderTree**コンポーネント
+- フォーマットフォルダ一覧（カード形式）
+- ソート機能（name/category/updatedAt）
 - 選択されたフォーマットをハイライト表示
 
-#### 2.2.3. 右側: ファイル管理エリア
+#### 2.2.3 右側パネル（ファイル一覧）
 
 **フォーマット情報ヘッダー:**
 - フォーマット名（Title level 5）
-- フォーマットの説明（Text secondary）
+- フォーマット説明（Text secondary）
 
-**フォーマット操作ツールバー:**
-- 新規ファイル作成ボタン（XML/MAIML）
-- 新規フォルダ作成ボタン
-- アップロードボタン
+**ファイル操作ツールバー:**
+- **新規ファイル作成ボタン**（Button）: XMLまたはMAIMLファイルを作成
+- **新規サブフォルダ作成ボタン**（Button）: フォーマット内にサブフォルダを作成
+- **アップロードボタン**（Button）: ファイルアップロードダイアログを開く
 
-**ファイル一覧（FormatFileListTable）:**
-- ファイル・フォルダの一覧表示
-- サブフォルダ階層のサポート
-- ファイル操作（詳細、編集、削除）
+**ファイル一覧テーブル:**
+- **FormatFileListTable**コンポーネント
+- フォルダ・ファイルの一覧表示
+- 各ファイルに編集/ダウンロード/削除ボタン
 
-### 2.3. 画面遷移
+#### 2.2.4 フルスクリーンエディタ（条件付き表示）
 
-```
-FormatManagement
-├── FormatSearchModal（詳細検索モーダル）
-├── FormatUploadDialog（アップロードダイアログ）
-├── CreateFormatFileModal（新規ファイル作成モーダル）
-├── CreateFormatFolderModal（新規フォルダ作成モーダル）
-├── FormatFileDetailModal（ファイル詳細モーダル）
-├── PetriNetEditor（MAIMLファイル編集 - フルスクリーン）
-└── TemplateEditorDialog（XMLファイル編集 - モーダル）
+**PetriNetEditor（MAIMLファイル編集時）:**
+- 固定配置（position: fixed, z-index: 1000）
+- ヘッダー（閉じるボタン、ファイル名表示）
+- PetriNetEditorScreenコンポーネント
+
+**FormatEditorDialog（XMLファイル編集時）:**
+- TemplateEditorDialogをラップしたモーダル
+- property/content要素の編集機能
+
+### 2.3 画面遷移
+
+```mermaid
+graph TD
+    A[フォーマット管理画面] --> B[詳細検索モーダル]
+    A --> C[ファイルアップロードダイアログ]
+    A --> D[新規ファイル作成モーダル]
+    A --> E[新規サブフォルダ作成モーダル]
+    A --> F[新規フォーマットフォルダ作成モーダル]
+    A --> G[ファイル詳細モーダル]
+    A --> H[PetriNetEditor - MAIMLファイル編集]
+    A --> I[FormatEditorDialog - XMLファイル編集]
+    
+    B --> A
+    C --> A
+    D --> A
+    E --> A
+    F --> A
+    G --> A
+    H --> A
+    I --> A
 ```
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1. 主要機能の詳細
+### 3.1 フォーマット一覧の表示と絞込
 
-#### 3.1.1. フォーマット一覧の表示
+#### 3.1.1 初期表示処理
 
-**処理フロー:**
-1. コンポーネントマウント時にAPI経由でフォーマット一覧を取得
-2. カテゴリ・ファイルタイプ・検索クエリでフィルタリング
-3. ソート（名前、カテゴリ、更新日時）を適用
-4. FormatFolderTreeコンポーネントに表示
+```typescript
+// API経由でフォーマット一覧を取得
+const { 
+  data: formatsData, 
+  isLoading: isLoadingFormats, 
+  error: formatsError, 
+  refetch: refetchFormats 
+} = useApi<ApiResponse<FormatListResponse>>(
+  fetchFormats,
+  []
+);
 
-**API連携:**
-- `GET /api/v1/formats` - フォーマット一覧取得（useApiフックで自動取得）
+// フォーマットデータが取得できたらstateを更新
+React.useEffect(() => {
+  if (formatsData?.data.folders) {
+    setFormats(formatsData.data.folders as Format[]);
+  }
+}, [formatsData]);
+```
 
-#### 3.1.2. フォーマット選択
+#### 3.1.2 フィルタリングとソート
 
-**処理フロー:**
-1. FormatFolderTreeでフォーマットをクリック
-2. selectedFormatIdを更新
-3. 右側にフォーマット情報とファイル一覧を表示
-4. currentFolderPathをリセット
+```typescript
+const filteredAndSortedFormats = useMemo(() => {
+  const filtered = formats.filter((format) => {
+    // 検索クエリでフィルタリング（全項目対象）
+    const matchesSearch = searchQuery === '' || 
+      format.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      format.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      // ... 他のフィールドも検索対象
+      
+    // カテゴリフィルタリング
+    const matchesCategory = categoryFilter === 'all' || 
+      format.category === categoryFilter;
+      
+    // ファイルタイプフィルタリング
+    const matchesFileType = fileTypeFilter === 'all' || 
+      format.fileType === fileTypeFilter;
+      
+    return matchesSearch && matchesCategory && matchesFileType;
+  });
+  
+  // ソート処理（sortByがnullの場合はバックエンドの順序を維持）
+  if (!sortBy) {
+    return filtered;
+  }
+  
+  const sorted = [...filtered].sort((a, b) => {
+    let comparison = 0;
+    switch (sortBy) {
+      case 'name':
+        comparison = a.name.localeCompare(b.name, 'ja');
+        break;
+      case 'category':
+        comparison = a.category.localeCompare(b.category);
+        break;
+      case 'updatedAt':
+        comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+        break;
+    }
+    return sortOrder === 'asc' ? comparison : -comparison;
+  });
+  
+  return sorted;
+}, [formats, searchQuery, categoryFilter, fileTypeFilter, sortBy, sortOrder, t]);
+```
 
-#### 3.1.3. ファイル・フォルダ一覧の表示
+#### 3.1.3 UI動作
+- ユーザー操作: 検索バーに入力、フィルタを変更、ソートボタンをクリック
+- 画面変化: フォーマット一覧がリアルタイムでフィルタリング・ソートされる
+- 完了メッセージ: なし（即座に反映）
 
-**処理フロー:**
-1. 選択されたフォーマットIDでモックデータを取得
-2. currentFolderPathに応じて表示階層を切り替え
-   - ルート: ルートファイル + サブフォルダ
-   - サブフォルダ内: 「戻る」ボタン + ファイル一覧
-3. FormatFileListTableに渡して表示
+### 3.2 フォーマット選択とファイル一覧表示
 
-#### 3.1.4. 新規ファイル作成
+#### 3.2.1 フォーマット選択処理
 
-**処理フロー:**
-1. 「新規ファイル作成」ボタンをクリック
-2. フォーマット未選択時は警告メッセージ
-3. CreateFormatFileModalを開く
-4. ユーザーがファイル情報を入力
-5. XMLファイルの場合、templateTypeに応じたデフォルトXML生成（Phase 6実装予定）
-6. API呼び出し（Phase 6実装予定）
-7. 成功メッセージ表示 & ファイル一覧を更新
+```typescript
+const handleFormatSelectWithReset = useCallback((formatId: string) => {
+  setSelectedFormatId(formatId);
+  setCurrentFolderPath([]); // パスをリセット（ルートに戻る）
+}, []);
+```
 
-#### 3.1.5. 新規フォルダ作成
+#### 3.2.2 ファイル一覧取得
 
-**処理フロー:**
-1. 「新規フォルダ作成」ボタンをクリック
-2. フォーマット未選択時は警告メッセージ
-3. CreateFormatFolderModalを開く
-4. ユーザーがフォルダ情報を入力
-5. API呼び出し（Phase 6実装予定）
-6. 成功メッセージ表示 & ファイル一覧を更新
+```typescript
+React.useEffect(() => {
+  const loadFormatFiles = async () => {
+    if (!selectedFormatId || !selectedFormat) {
+      return;
+    }
+    
+    try {
+      setIsLoadingFiles(true);
+      
+      // 現在のフォルダパスを取得
+      const currentPath = currentFolderPath.length > 0 
+        ? currentFolderPath.join('/')
+        : undefined;
+      
+      // 現在のフォルダの直下のファイル・フォルダのみを取得
+      const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+      
+      const files = (fileResponse.success && fileResponse.data?.files) 
+        ? fileResponse.data.files as FormatFileData[] 
+        : [];
+      
+      // キャッシュキーを生成（フォーマットID + パス）
+      const cacheKey = currentPath 
+        ? `${selectedFormatId}/${currentPath}`
+        : selectedFormatId;
+      
+      setFormatFilesData(prev => ({
+        ...prev,
+        [cacheKey]: { allFiles: files }
+      }));
+    } catch (error) {
+      message.error(t('formatManagement.messages.file_list_load_failed'));
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  };
+  
+  loadFormatFiles();
+}, [selectedFormatId, selectedFormat, currentFolderPath]);
+```
 
-#### 3.1.6. ファイルアップロード
+#### 3.2.3 UI動作
+- ユーザー操作: 左側のフォーマットフォルダをクリック
+- 画面変化: 右側にフォーマット情報とファイル一覧が表示される
+- ロード中: Spinコンポーネントで読み込み中を表示
 
-**処理フロー:**
-1. 「アップロード」ボタンをクリック
-2. FormatUploadDialogを開く
-3. ユーザーがファイルを選択してアップロード
-4. アップロード完了後、ファイル一覧を更新
+### 3.3 フォルダ移動
 
-#### 3.1.7. ファイル編集
+#### 3.3.1 フォルダクリック処理
 
-**処理フロー:**
+```typescript
+const handleFolderClick = useCallback((folderId: string) => {
+  if (folderId === 'back') {
+    // 戻るボタン - 1階層だけ戻る
+    setCurrentFolderPath(currentFolderPath.slice(0, -1));
+  } else {
+    // フォルダIDからフォルダ名を抽出
+    const folderName = folderId.includes('/') 
+      ? folderId.split('/').pop() || folderId 
+      : folderId;
+    
+    setCurrentFolderPath([...currentFolderPath, folderName]);
+  }
+}, [currentFolderPath]);
+```
 
-**MAIMLファイル（.maiml）の場合:**
-1. ファイル拡張子を確認
-2. ファイル内容を読み込み（`/api/worker/load-maiml-file`）
-3. 読み込み成功 & 内容あり → 既存ファイルモード
-4. 読み込み失敗 or 内容なし → 新規作成モード
-5. PetriNetEditorをフルスクリーンで開く
+#### 3.3.2 パンくずリストクリック処理
 
-**XMLファイル（.xml）の場合:**
-1. ファイル拡張子を確認
-2. TemplateEditorDialogをモーダルで開く
-3. 一時的なノードを作成してエディタに渡す
+```typescript
+const handleBreadcrumbClick = useCallback((index: number) => {
+  if (index === -1) {
+    // ルートに戻る
+    setCurrentFolderPath([]);
+  } else {
+    // 指定されたフォルダまで戻る
+    setCurrentFolderPath(currentFolderPath.slice(0, index + 1));
+  }
+}, [currentFolderPath]);
+```
 
-**その他のファイル:**
-- エラーメッセージを表示
+#### 3.3.3 UI動作
+- ユーザー操作: フォルダをダブルクリック、または戻るボタンをクリック
+- 画面変化: currentFolderPathが更新され、ファイル一覧が再取得される
+- ローディング: ファイル取得中はSpinを表示
 
-#### 3.1.8. ファイル詳細表示
+### 3.4 新規ファイル作成
 
-**処理フロー:**
-1. ファイル一覧で「詳細」ボタンをクリック
-2. 作成者情報を付与（現在のログインユーザー情報）
-3. FormatFileDetailModalを開く
+#### 3.4.1 新規ファイル作成モーダルを開く
 
-#### 3.1.9. フォルダ階層の移動
+```typescript
+const handleOpenCreateFileModal = useCallback(() => {
+  if (!selectedFormatId) {
+    message.warning(t('formatManagement.select_format'));
+    return;
+  }
+  setCreateFileModalOpen(true);
+}, [selectedFormatId, t]);
+```
 
-**処理フロー:**
-1. フォルダアイコンをクリック
-2. currentFolderPathを更新
-3. ファイル一覧を再計算して表示
-4. サブフォルダ内では「↑ 戻る」ボタンを表示
+#### 3.4.2 ファイル作成処理
 
-#### 3.1.10. リフレッシュ
+```typescript
+const handleCreateFormatFile = useCallback(async (data: CreateFormatFileData) => {
+  try {
+    // formatApi.tsから直接呼び出し
+    const apiRequestData = {
+      fileName: data.fileNameWithExtension,
+      currentPath: data.currentPath,
+    };
+    
+    const response = await createFormatFile(data.formatId, apiRequestData);
+    
+    if (response.success) {
+      console.log('✅ ファイル作成成功:', response.data);
+    }
+    
+    // 成功メッセージを表示
+    const successMessage = data.fileType === 'xml' && data.templateType
+      ? `${data.templateType}テンプレートが作成されました`
+      : 'ファイルが正常に作成されました';
+    
+    message.success(t('formatManagement.create.success') || successMessage);
+    
+    // モーダルを閉じる
+    handleCloseCreateFileModal();
+    
+    // ファイル一覧を最新化
+    if (selectedFormatId && selectedFormat) {
+      const currentPath = currentFolderPath.length > 0 
+        ? currentFolderPath.join('/')
+        : undefined;
+      
+      const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+      
+      const cacheKey = currentPath 
+        ? `${selectedFormatId}/${currentPath}`
+        : selectedFormatId;
+      
+      setFormatFilesData(prev => ({
+        ...prev,
+        [cacheKey]: {
+          allFiles: (fileResponse.success && fileResponse.data?.files) 
+            ? fileResponse.data.files as FormatFileData[] 
+            : [],
+        }
+      }));
+    }
+    
+    // フォーマット一覧を更新
+    handleRefresh();
+  } catch (error) {
+    console.error('❌ ファイル作成エラー:', error);
+    
+    // エラーメッセージを抽出
+    let errorMessage = 'ファイルの作成に失敗しました';
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { 
+        response?: { data?: { error?: { message?: string } } }; 
+        message?: string 
+      };
+      if (axiosError.response?.data?.error?.message) {
+        errorMessage = axiosError.response.data.error.message;
+      } else if (axiosError.message) {
+        errorMessage = axiosError.message;
+      }
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    
+    message.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+}, [t, handleCloseCreateFileModal, handleRefresh, selectedFormatId, selectedFormat]);
+```
 
-**処理フロー:**
-1. 「リフレッシュ」ボタンをクリック
-2. refetchFormats()を呼び出してAPI再取得
-3. フォーマット一覧を更新
+#### 3.4.3 UI動作
+- ユーザー操作: 「新規ファイル作成」ボタンをクリック
+- 画面変化: CreateFormatFileModalが開く
+- 完了メッセージ: 「ファイルが正常に作成されました」
 
-### 3.2. ボタン・操作の動作
+### 3.5 新規サブフォルダ作成
 
-| ボタン | 動作 | 条件 |
-|--------|------|------|
-| 詳細検索 | FormatSearchModalを開く | - |
-| リフレッシュ | API再取得してフォーマット一覧を更新 | - |
-| 新規ファイル作成 | CreateFormatFileModalを開く | フォーマット選択済み |
-| 新規フォルダ作成 | CreateFormatFolderModalを開く | フォーマット選択済み |
-| アップロード | FormatUploadDialogを開く | フォーマット選択済み |
-| ファイル詳細 | FormatFileDetailModalを開く | - |
-| ファイル編集 | PetriNetEditor or TemplateEditorDialogを開く | ファイル拡張子に応じる |
-| ファイル削除 | 削除確認 → API呼び出し（Phase 6実装予定） | - |
-| フォルダクリック | サブフォルダ内へ移動 | - |
-| 戻るボタン | ルートフォルダへ戻る | サブフォルダ内のみ |
+#### 3.5.1 サブフォルダ作成処理
 
-### 3.3. バリデーションルール
+```typescript
+const handleCreateFormatFolder = useCallback(async (data: CreateFormatFolderData) => {
+  try {
+    // formatApi.tsから直接呼び出し
+    const response = await createFormatSubfolder(
+      data.formatId,        // formatName
+      data.folderName,      // subfolderName
+      data.currentPath || '' // parentPath（現在のパス、未指定時はルート直下）
+    );
+    
+    if (response.success) {
+      console.log('✅ サブフォルダ作成成功:', response.data);
+    }
+    
+    message.success(t('formatManagement.folder_create_success'));
+    
+    handleCloseCreateFolderModal();
+    
+    // ファイル一覧を最新化
+    if (selectedFormatId && selectedFormat) {
+      const currentPath = currentFolderPath.length > 0 
+        ? currentFolderPath.join('/')
+        : undefined;
+      
+      const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+      
+      const cacheKey = currentPath 
+        ? `${selectedFormatId}/${currentPath}`
+        : selectedFormatId;
+      
+      setFormatFilesData(prev => ({
+        ...prev,
+        [cacheKey]: {
+          allFiles: (fileResponse.success && fileResponse.data?.files) 
+            ? fileResponse.data.files as FormatFileData[] 
+            : [],
+        }
+      }));
+    }
+  } catch (error) {
+    console.error('❌ フォルダ作成エラー:', error);
+    message.error((error as Error).message || t('formatManagement.folder_create_error'));
+    throw error;
+  }
+}, [t, handleCloseCreateFolderModal, selectedFormatId, selectedFormat]);
+```
 
-| 項目 | ルール |
-|------|--------|
-| フォーマット選択 | 新規作成・アップロード時は必須 |
-| ファイル拡張子 | 編集時は .maiml または .xml のみ |
+#### 3.5.2 UI動作
+- ユーザー操作: 「新規サブフォルダ作成」ボタンをクリック
+- 画面変化: CreateFormatFolderModalが開く
+- 完了メッセージ: 「フォルダが正常に作成されました」
+
+### 3.6 新規フォーマットフォルダ作成（部門直下）
+
+#### 3.6.1 フォーマットフォルダ作成処理
+
+```typescript
+const handleCreateFormat = useCallback(async (folderName: string) => {
+  try {
+    // API呼び出し（共通化されたcreateFormatFolderを使用）
+    const response = await createFormatFolder(folderName);
+    
+    if (response.success) {
+      console.log('✅ フォルダ作成成功:', response.data);
+    }
+    
+    setCreateFormatModalOpen(false);
+    
+    // フォーマット一覧を更新
+    handleRefresh();
+  } catch (error) {
+    console.error('❌ フォルダ作成エラー:', error);
+    throw error;
+  }
+}, [handleRefresh]);
+```
+
+#### 3.6.2 UI動作
+- ユーザー操作: ツールバーの「新規フォーマットフォルダ」ボタンをクリック
+- 画面変化: CreateFormatModalが開く
+- 完了メッセージ: モーダルが閉じ、フォーマット一覧が更新される
+
+### 3.7 ファイル編集
+
+#### 3.7.1 ファイル編集モード判定
+
+```typescript
+const handleFileEdit = useCallback(async (file: FormatFileDetailData) => {
+  // ファイル拡張子で判定
+  const fileName = file.name.toLowerCase();
+  const isMaimlFile = fileName.endsWith('.maiml');
+  const isXmlFile = fileName.endsWith('.xml');
+  
+  if (isMaimlFile) {
+    // MAIMLファイル: PetriNetEditorを開く
+    // ... (後述)
+  } else if (isXmlFile) {
+    // XMLファイル: FormatEditorDialogを開く
+    // ... (後述)
+  } else {
+    message.error(t('formatManagement.messages.unsupported_file_type'));
+  }
+}, [t, message]);
+```
+
+#### 3.7.2 MAIMLファイル編集
+
+```typescript
+// MAIMLファイル編集
+setEditingMaimlFile(file);
+
+// ファイル内容を読み込む
+setIsLoadingMaimlContent(true);
+setMaimlFileContent(null);
+
+try {
+  if (file.path && file.path.trim() !== '') {
+    // プロキシ方式: バックエンド経由でファイル内容を取得
+    const client = createApiClient();
+    
+    const response = await client.post('/files/download-url', 
+      { fileKey: file.path },
+      { responseType: 'blob' }
+    );
+    
+    // BlobをTextに変換
+    const blob = response.data as Blob;
+    const maimlContent = await blob.text();
+    
+    // 中身が実質空の場合は新規扱い
+    if (maimlContent.trim().length > 0) {
+      setMaimlFileContent(maimlContent);
+    } else {
+      setMaimlFileContent(null);
+    }
+  } else {
+    // パスがない場合は新規作成
+    setMaimlFileContent(null);
+  }
+  
+  setShowPetriNetEditor(true);
+} catch (error) {
+  message.error(t('formatManagement.messages.file_load_failed'));
+  setEditingMaimlFile(null);
+} finally {
+  setIsLoadingMaimlContent(false);
+}
+```
+
+#### 3.7.3 XMLファイル編集
+
+```typescript
+// XMLファイル編集
+let xmlContent = '';
+
+if (file.path && file.path.trim() !== '') {
+  try {
+    const client = createApiClient();
+    
+    const response = await client.post('/files/download-url', 
+      { fileKey: file.path },
+      { responseType: 'blob' }
+    );
+    
+    const blob = response.data as Blob;
+    xmlContent = await blob.text();
+  } catch (error) {
+    xmlContent = '';
+  }
+}
+
+// XMLをPropertyData形式にパース
+const parsedProperties: Record<string, PropertyData> = {};
+const parsedContents: Record<string, PropertyData> = {};
+let isNewFile = false;
+
+if (!xmlContent || xmlContent.trim() === '') {
+  isNewFile = true;
+} else {
+  // DOMParserでXMLをパース
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
+  
+  // パースエラーをチェック
+  const parserError = xmlDoc.querySelector('parsererror');
+  if (parserError) {
+    throw new Error('XMLパースエラー');
+  }
+  
+  // properties/contents を解析
+  // ... (詳細省略)
+}
+
+// FormatEditorDialogを開く
+setEditingXmlFile({
+  ...file,
+  content: xmlContent,
+  parsedProperties,
+  parsedContents,
+  isNewFile
+});
+setShowTemplateEditor(true);
+```
+
+#### 3.7.4 UI動作
+- ユーザー操作: ファイル一覧の「編集」ボタンをクリック
+- 画面変化: 
+  - MAIMLファイル: PetriNetEditorScreenが全画面表示される
+  - XMLファイル: FormatEditorDialogモーダルが開く
+- ロード中: Spinでファイル読み込み中を表示
+
+### 3.8 ファイルダウンロード
+
+#### 3.8.1 ダウンロード処理
+
+```typescript
+const handleFileDownload = useCallback(async (file: FormatFileData) => {
+  try {
+    // ファイルパスが存在するか確認
+    if (!file.path || file.path.trim() === '') {
+      throw new Error('ファイルパスが指定されていません');
+    }
+
+    // 既存APIを使用してダウンロード
+    await getFileDownloadUrlByKey(file.path);
+
+    // 成功メッセージ表示
+    message.success(
+      t('formatManagement.messages.download_started')
+        .replace('{{fileName}}', file.name)
+    );
+  } catch (error) {
+    message.error(
+      t('formatManagement.messages.download_failed') + `: ${
+        error instanceof Error ? error.message : '不明なエラー'
+      }`
+    );
+  }
+}, [t, message]);
+```
+
+#### 3.8.2 UI動作
+- ユーザー操作: ファイル一覧の「ダウンロード」ボタンをクリック
+- 画面変化: ブラウザのダウンロードが開始される
+- 完了メッセージ: 「ダウンロードを開始しました: {{fileName}}」
+
+### 3.9 ファイル削除
+
+#### 3.9.1 削除確認と処理
+
+```typescript
+const handleFileDelete = useCallback(async (file: FormatFileData) => {
+  // 削除確認モーダルを表示
+  modal.confirm({
+    title: t('formatManagement.dialog.delete_title'),
+    content: t('formatManagement.dialog.delete_confirm')
+      .replace('{{fileName}}', file.name),
+    okText: t('formatManagement.dialog.delete_ok'),
+    okButtonProps: { danger: true },
+    cancelText: t('formatManagement.dialog.delete_cancel'),
+    onOk: async () => {
+      try {
+        // 削除API呼び出し
+        await deleteFileByKey(file.path);
+        
+        message.success(
+          t('formatManagement.dialog.delete_success')
+            .replace('{{fileName}}', file.name)
+        );
+        
+        // ファイル一覧を更新
+        if (selectedFormatId) {
+          const currentPath = currentFolderPath.length > 0 
+            ? currentFolderPath.join('/')
+            : undefined;
+          
+          const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+          
+          const cacheKey = currentPath 
+            ? `${selectedFormatId}/${currentPath}`
+            : selectedFormatId;
+          
+          setFormatFilesData(prev => ({
+            ...prev,
+            [cacheKey]: {
+              allFiles: (fileResponse.success && fileResponse.data?.files) 
+                ? fileResponse.data.files as FormatFileData[] 
+                : [],
+            }
+          }));
+        }
+        
+        // フォーマット一覧も更新
+        handleRefresh();
+      } catch (error) {
+        message.error(
+          `ファイルの削除に失敗しました: ${
+            error instanceof Error ? error.message : '不明なエラー'
+          }`
+        );
+      }
+    },
+  });
+}, [selectedFormatId, currentFolderPath, handleRefresh, message]);
+```
+
+#### 3.9.2 UI動作
+- ユーザー操作: ファイル一覧の「削除」ボタンをクリック
+- 画面変化: 削除確認モーダルが表示される
+- 完了メッセージ: 「{{fileName}}を削除しました」
+
+### 3.10 ファイル詳細表示
+
+#### 3.10.1 詳細表示処理
+
+```typescript
+const handleFileDetail = useCallback((file: FormatFileDetailData) => {
+  // 作成者情報を付与（現在はログインユーザー情報を使用）
+  const fileWithCreator: FormatFileDetailData = {
+    ...file,
+    createdBy: user.id,
+    createdByName: user.displayName,
+    createdAt: file.createdAt || file.lastModified,
+  };
+  setSelectedFile(fileWithCreator);
+  setDetailModalOpen(true);
+}, [user]);
+```
+
+#### 3.10.2 UI動作
+- ユーザー操作: ファイル名をクリック、または「詳細」ボタンをクリック
+- 画面変化: FormatFileDetailModalが開く
+
+### 3.11 リフレッシュ
+
+#### 3.11.1 リフレッシュ処理
+
+```typescript
+const handleRefresh = React.useCallback(() => {
+  console.log('Refreshing format list...');
+  refetchFormats();
+}, [refetchFormats]);
+```
+
+#### 3.11.2 UI動作
+- ユーザー操作: ツールバーの「リフレッシュ」ボタンをクリック
+- 画面変化: フォーマット一覧が再取得され、画面が更新される
 
 ---
 
 ## 4. データ仕様
 
-### 4.1. 入力項目
+### 4.1 Props定義
 
-#### 4.1.1. フィルタリング
+```typescript
+interface FormatManagementProps {
+  user: User;  // ログインユーザー情報
+}
+```
 
-| 項目 | 型 | 必須 | デフォルト | 説明 |
-|------|---|------|-----------|------|
-| categoryFilter | string | - | 'all' | カテゴリ絞込（all, protocol, material, measurement, analysis, sample, device） |
-| fileTypeFilter | 'all' \| 'xml' \| 'maiml' | - | 'all' | ファイルタイプ絞込 |
-| searchQuery | string | - | '' | 検索クエリ（前方一致） |
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| user | User | ✅ | ログインユーザー情報（組織ID、部門CD、表示名等） |
 
-#### 4.1.2. ソート
+### 4.2 State定義
 
-| 項目 | 型 | 必須 | デフォルト | 説明 |
-|------|---|------|-----------|------|
-| sortBy | 'name' \| 'category' \| 'updatedAt' | - | 'name' | ソート項目 |
-| sortOrder | 'asc' \| 'desc' | - | 'asc' | ソート順序 |
+```typescript
+// フォーマット一覧とフィルタ
+const [formats, setFormats] = useState<Format[]>([]);
+const [searchQuery, setSearchQuery] = useState('');
+const [categoryFilter, setCategoryFilter] = useState<string>('all');
+const [fileTypeFilter, setFileTypeFilter] = useState<'all' | 'xml' | 'maiml'>('all');
+const [selectedFormatId, setSelectedFormatId] = useState<string | null>(null);
+const [sortBy, setSortBy] = useState<'name' | 'category' | 'updatedAt' | null>(null);
+const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-### 4.2. 出力項目
+// フォルダパスとファイル
+const [currentFolderPath, setCurrentFolderPath] = useState<string[]>([]);
+const [formatFilesData, setFormatFilesData] = useState<Record<string, { allFiles: FormatFileData[] }>>({});
 
-#### 4.2.1. Format型（フォーマット）
+// モーダル開閉状態
+const [searchModalOpen, setSearchModalOpen] = useState(false);
+const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+const [createFileModalOpen, setCreateFileModalOpen] = useState(false);
+const [createFolderModalOpen, setCreateFolderModalOpen] = useState(false);
+const [createFormatModalOpen, setCreateFormatModalOpen] = useState(false);
+const [detailModalOpen, setDetailModalOpen] = useState(false);
+const [selectedFile, setSelectedFile] = useState<FormatFileDetailData | null>(null);
+
+// PetriNetEditor表示用State
+const [showPetriNetEditor, setShowPetriNetEditor] = useState(false);
+const [editingMaimlFile, setEditingMaimlFile] = useState<FormatFileDetailData | null>(null);
+const [maimlFileContent, setMaimlFileContent] = useState<string | null>(null);
+const [isLoadingMaimlContent, setIsLoadingMaimlContent] = useState(false);
+
+// FormatEditorDialog表示用State
+const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+const [editingXmlFile, setEditingXmlFile] = useState<FormatFileDetailData | null>(null);
+```
+
+**State説明:**
+| State名 | 型 | 初期値 | 説明 |
+|---------|---|--------|------|
+| formats | Format[] | [] | フォーマット一覧 |
+| searchQuery | string | '' | 検索クエリ |
+| categoryFilter | string | 'all' | カテゴリフィルタ |
+| fileTypeFilter | 'all' \| 'xml' \| 'maiml' | 'all' | ファイルタイプフィルタ |
+| selectedFormatId | string \| null | null | 選択中のフォーマットID |
+| currentFolderPath | string[] | [] | 現在のフォルダパス（階層構造） |
+| formatFilesData | Record<string, { allFiles: FormatFileData[] }> | {} | フォーマット別ファイルデータキャッシュ |
+| searchModalOpen | boolean | false | 検索モーダル開閉状態 |
+| uploadDialogOpen | boolean | false | アップロードダイアログ開閉状態 |
+| createFileModalOpen | boolean | false | ファイル作成モーダル開閉状態 |
+| createFolderModalOpen | boolean | false | フォルダ作成モーダル開閉状態 |
+| createFormatModalOpen | boolean | false | フォーマットフォルダ作成モーダル開閉状態 |
+| detailModalOpen | boolean | false | 詳細モーダル開閉状態 |
+| selectedFile | FormatFileDetailData \| null | null | 選択中のファイル |
+| showPetriNetEditor | boolean | false | PetriNetEditor表示フラグ |
+| editingMaimlFile | FormatFileDetailData \| null | null | 編集中のMAIMLファイル |
+| maimlFileContent | string \| null | null | MAIMLファイル内容 |
+| isLoadingMaimlContent | boolean | false | MAIML読み込み中フラグ |
+| showTemplateEditor | boolean | false | FormatEditorDialog表示フラグ |
+| editingXmlFile | FormatFileDetailData \| null | null | 編集中のXMLファイル |
+
+### 4.3 型定義
+
+#### 4.3.1 Format型
 
 ```typescript
 interface Format {
-  id: string;               // フォーマットID
-  name: string;             // フォーマット名
-  folderName: string;       // フォルダ名
-  description: string;      // 説明
-  fileCount: number;        // ファイル数
-  fileType: 'xml' | 'maiml'; // ファイルタイプ
-  category: string;         // カテゴリ
-  department: string;       // 部門
-  createdAt: string;        // 作成日時
-  updatedAt: string;        // 更新日時
-  tags: string[];           // タグ
+  id: string;
+  name: string;
+  folderName: string;
+  description: string;
+  fileCount: number;
+  fileType: 'xml' | 'maiml';
+  category: string;
+  department: string;
+  createdAt: string;
+  updatedAt: string;
+  tags: string[];
 }
 ```
 
-#### 4.2.2. FormatFile型（ファイル）
+#### 4.3.2 FormatFile型
 
 ```typescript
 interface FormatFile {
-  id: string;               // ファイルID
-  name: string;             // ファイル名
-  path: string;             // ファイルパス
-  size: number;             // ファイルサイズ（バイト）
-  lastModified: string;     // 最終更新日時
-  type: string;             // ファイルタイプ
-  version?: string;         // バージョン
-  description?: string;     // 説明
-  isFolder?: boolean;       // フォルダフラグ
-  fileCount?: number;       // フォルダ内のファイル数
+  root: Array<{
+    id: string;
+    name: string;
+    path: string;
+    size: number;
+    lastModified: string;
+    type: string;
+    version?: string;
+    description?: string;
+  }>;
 }
 ```
 
-### 4.3. 初期表示データ
+#### 4.3.3 FormatFileData型（FormatFileListTable用）
 
-- **フォーマット一覧**: API経由で取得（`GET /api/v1/formats`）
-- **ファイル一覧**: モックデータから取得（Phase 6でAPI化予定）
+型定義は `FormatFileListTable.tsx` で定義されています。
+
+#### 4.3.4 FormatFileDetailData型（詳細表示用）
+
+型定義は `FormatFileDetailModal.tsx` で定義されています。
+
+#### 4.3.5 CreateFormatFileData型（ファイル作成用）
+
+型定義は `CreateFormatFileModal.tsx` で定義されています。
+
+#### 4.3.6 CreateFormatFolderData型（フォルダ作成用）
+
+型定義は `CreateFormatFolderModal.tsx` で定義されています。
 
 ---
 
 ## 5. API連携
 
-### 5.1. 使用するAPI一覧
+### 5.1 使用するAPI一覧
 
-| # | API名 | メソッド | エンドポイント | 状態 | 優先度 | 説明 |
-|---|------|---------|---------------|------|--------|------|
-| 1 | フォーマット一覧取得 | GET | `/api/v1/formats` | 🔴 未実装 | ⭐⭐⭐ 高 | フォーマット一覧を取得 |
-| 2 | フォーマットファイル一覧取得 | GET | `/api/v1/formats/:formatId/files` | 🔴 未実装 | ⭐⭐⭐ 高 | フォーマット内のファイル一覧を取得 |
-| 3 | 新規ファイル作成 | POST | `/api/v1/formats/:formatId/files` | 🔴 未実装 | ⭐⭐ 中 | 新規ファイルを作成 |
-| 4 | 新規フォルダ作成 | POST | `/api/v1/formats/:formatId/folders` | 🔴 未実装 | ⭐⭐ 中 | 新規フォルダを作成 |
-| 5 | ファイル編集（保存） | PUT | `/api/v1/formats/:formatId/files/:fileId` | 🔴 未実装 | ⭐⭐⭐ 高 | ファイル内容を保存 |
+| # | API名 | メソッド | エンドポイント | 状態 | 説明 |
+|---|------|---------|---------------|------|------|
+| 1 | fetchFormats | GET | `/api/v1/formats` | ✅ 実装済み | フォーマット一覧を取得 |
+| 2 | fetchFormatFiles | GET | `/api/v1/formats/:formatId/files` | ✅ 実装済み | フォーマット配下のファイル一覧を取得 |
+| 3 | createFormatFile | POST | `/api/v1/formats/:formatId/files` | ✅ 実装済み | 新規ファイルを作成 |
+| 4 | createFormatSubfolder | POST | `/api/v1/formats/:formatId/subfolders` | ✅ 実装済み | フォーマット内にサブフォルダを作成 |
+| 5 | createFormatFolder | POST | `/api/v1/formats/folders` | ✅ 実装済み | 部門直下に新規フォーマットフォルダを作成 |
+| 6 | updateFormatFileContent | PUT | `/api/v1/formats/files/content` | ✅ 実装済み | ファイル内容を更新 |
+| 7 | getFileDownloadUrlByKey | POST | `/files/download-url` | ✅ 実装済み | ファイルダウンロード用署名付きURLを取得 |
+| 8 | deleteFileByKey | DELETE | `/files/delete` | ✅ 実装済み | ファイルを削除 |
 
-**共通API:**
-- [ファイルアップロード](../../api/api_common.md#1-ファイルアップロード-) - context=format
-- [ファイルダウンロード](../../api/api_common.md#2-ファイルダウンロード-) - 個別ファイル用
-- [MAIMLファイル読み込み](../../api/api_maiml_edit.md#31-maimlファイル読み込み-) - MAIML編集用
+### 5.2 API呼び出しコード
 
-**詳細**: [フォーマット管理API仕様書](../../api/api_format_management.md) を参照
+#### 5.2.1 フォーマット一覧取得
 
-### 5.2. リクエスト/レスポンス例
+```typescript
+const { 
+  data: formatsData, 
+  isLoading: isLoadingFormats, 
+  error: formatsError, 
+  refetch: refetchFormats 
+} = useApi<ApiResponse<FormatListResponse>>(
+  fetchFormats,
+  []
+);
+```
 
-#### 5.2.1. フォーマット一覧取得 🔴
+#### 5.2.2 ファイル一覧取得
+
+```typescript
+const currentPath = currentFolderPath.length > 0 
+  ? currentFolderPath.join('/')
+  : undefined;
+
+const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+```
+
+#### 5.2.3 ファイル作成
+
+```typescript
+const apiRequestData = {
+  fileName: data.fileNameWithExtension,
+  currentPath: data.currentPath,
+};
+
+const response = await createFormatFile(data.formatId, apiRequestData);
+```
+
+#### 5.2.4 サブフォルダ作成
+
+```typescript
+const response = await createFormatSubfolder(
+  data.formatId,        // formatName
+  data.folderName,      // subfolderName
+  data.currentPath || '' // parentPath
+);
+```
+
+#### 5.2.5 フォーマットフォルダ作成
+
+```typescript
+const response = await createFormatFolder(folderName);
+```
+
+#### 5.2.6 ファイル内容更新（XML保存）
+
+```typescript
+await updateFormatFileContent(editingXmlFile.path, xmlContent);
+```
+
+#### 5.2.7 ファイルダウンロード
+
+```typescript
+await getFileDownloadUrlByKey(file.path);
+```
+
+#### 5.2.8 ファイル削除
+
+```typescript
+await deleteFileByKey(file.path);
+```
+
+### 5.3 リクエスト/レスポンス例
+
+#### 5.3.1 フォーマット一覧取得
 
 **Request:**
 ```http
-GET /api/v1/formats?file_type=all
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
+GET /api/v1/formats
+Authorization: Bearer {sessionToken}
+X-Organization-Id: {organizationId}
 ```
-
-**Query Parameters:**
-- `file_type`: ファイル種別フィルタ（`all`, `maiml`, `xml`）
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "format_id": "format-uuid",
-      "format_prefix": "chemistry",
-      "file_type": "maiml",
-      "description": "化学実験用ワークフロー",
-      "subfolder_count": 3,
-      "file_count": 8,
-      "created_at": "2026-01-21T10:00:00Z",
-      "updated_at": "2026-01-21T16:00:00Z"
-    },
-    {
-      "format_id": "format-uuid-2",
-      "format_prefix": "materials",
-      "file_type": "xml",
-      "description": "材料テンプレート",
-      "subfolder_count": 2,
-      "file_count": 5,
-      "created_at": "2026-01-20T10:00:00Z",
-      "updated_at": "2026-01-21T15:00:00Z"
-    }
-  ],
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
-#### 5.2.2. フォーマットファイル一覧取得 🔴
-
-**Request:**
-```http
-GET /api/v1/formats/format-uuid/files?subfolder_id=subfolder-uuid
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
-```
-
-**Query Parameters:**
-- `subfolder_id`: サブフォルダID（未指定時はルート直下）
 
 **Response (200 OK):**
 ```json
 {
   "success": true,
   "data": {
-    "format_id": "format-uuid",
-    "format_prefix": "chemistry",
-    "file_type": "maiml",
-    "current_path": "chemistry/synthesis",
     "folders": [
       {
-        "subfolder_id": "subfolder-uuid",
-        "subfolder_name": "synthesis",
-        "subfolder_path": "chemistry/synthesis",
-        "file_count": 3,
-        "created_at": "2026-01-21T10:00:00Z"
-      },
-      {
-        "subfolder_id": "subfolder-uuid-2",
-        "subfolder_name": "analysis",
-        "subfolder_path": "chemistry/analysis",
-        "file_count": 2,
-        "created_at": "2026-01-21T11:00:00Z"
-      }
-    ],
-    "files": [
-      {
-        "file_id": "file-uuid",
-        "file_name": "workflow.maiml",
-        "file_path": "org_maiml_lab_001/formats/chemistry/workflow.maiml",
-        "file_size": 12345,
-        "file_type": "maiml",
-        "created_at": "2026-01-21T10:00:00Z",
-        "updated_at": "2026-01-21T16:00:00Z"
+        "id": "format_001",
+        "name": "材料テンプレート",
+        "folderName": "material",
+        "description": "材料情報のテンプレート",
+        "fileCount": 5,
+        "fileType": "xml",
+        "category": "material",
+        "department": "dept_001",
+        "createdAt": "2026-01-15T10:00:00Z",
+        "updatedAt": "2026-03-10T15:30:00Z",
+        "tags": ["material", "template"]
       }
     ]
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
   }
 }
 ```
 
-#### 5.2.3. 新規ファイル作成 🔴
+#### 5.3.2 ファイル一覧取得
 
 **Request:**
 ```http
-POST /api/v1/formats/format-uuid/files
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
-Content-Type: application/json
-
-{
-  "fileName": "new_workflow.maiml",
-  "subfolderId": "subfolder-uuid",
-  "templateType": "empty"
-}
+GET /api/v1/formats/format_001/files?path=subfolder
+Authorization: Bearer {sessionToken}
+X-Organization-Id: {organizationId}
 ```
 
-**Response (201 Created):**
+**Response (200 OK):**
 ```json
 {
   "success": true,
   "data": {
-    "file_id": "file-uuid",
-    "file_name": "new_workflow.maiml",
-    "file_path": "org_maiml_lab_001/formats/chemistry/synthesis/new_workflow.maiml",
-    "file_size": 1234,
-    "file_type": "maiml",
-    "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<maiml>...</maiml>",
-    "created_at": "2026-01-21T16:00:00Z"
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
+    "files": [
+      {
+        "id": "file_001",
+        "name": "material_template.xml",
+        "path": "org_id/formats/material/subfolder/material_template.xml",
+        "size": 1024,
+        "lastModified": "2026-03-10T15:30:00Z",
+        "type": "file",
+        "isFolder": false
+      },
+      {
+        "id": "folder_001",
+        "name": "subsubfolder",
+        "path": "org_id/formats/material/subfolder/subsubfolder",
+        "size": 0,
+        "lastModified": "2026-03-10T15:30:00Z",
+        "type": "folder",
+        "isFolder": true,
+        "fileCount": 3
+      }
+    ]
   }
 }
 ```
 
-#### 5.2.4. 新規フォルダ作成 🔴
+#### 5.3.3 ファイル作成
 
 **Request:**
 ```http
-POST /api/v1/formats/format-uuid/folders
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
+POST /api/v1/formats/format_001/files
+Authorization: Bearer {sessionToken}
+X-Organization-Id: {organizationId}
 Content-Type: application/json
 
 {
-  "subfolderName": "new_category",
-  "parentSubfolderId": "parent-subfolder-uuid",
-  "description": "新しいカテゴリ"
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "success": true,
-  "data": {
-    "subfolder_id": "subfolder-uuid",
-    "format_id": "format-uuid",
-    "subfolder_name": "new_category",
-    "subfolder_path": "chemistry/synthesis/new_category",
-    "parent_subfolder_id": "parent-uuid",
-    "description": "新しいカテゴリ",
-    "created_at": "2026-01-21T16:00:00Z"
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
-#### 5.2.5. ファイル編集（保存） 🔴
-
-**Request:**
-```http
-PUT /api/v1/formats/format-uuid/files/file-uuid
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
-Content-Type: application/json
-
-{
-  "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<maiml>...</maiml>",
-  "createBackup": true
+  "fileName": "new_template.xml",
+  "currentPath": "subfolder"
 }
 ```
 
@@ -496,49 +1045,8 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "file_id": "file-uuid",
-    "file_name": "workflow.maiml",
-    "file_path": "org_maiml_lab_001/formats/chemistry/workflow.maiml",
-    "file_size": 15678,
-    "updated_at": "2026-01-21T16:00:00Z",
-    "backup_created": true,
-    "backup_path": "org_maiml_lab_001/formats/chemistry/.backup/workflow_20260121160000.maiml"
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
-#### 5.2.6. MAIMLファイル読み込み ✅
-
-詳細は [MAIML編集API仕様書](../../api/api_maiml_edit.md#31-maimlファイル読み込み-) を参照
-
-**Request:**
-```http
-POST /api/v1/maiml/load
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
-Content-Type: application/json
-
-{
-  "s3_key": "org_maiml_lab_001/formats/chemistry/sample.maiml"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "content": "base64-encoded-content",
-    "file_size": 12345,
-    "last_modified": "2026-01-20T15:30:00Z"
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
+    "fileKey": "org_id/formats/material/subfolder/new_template.xml",
+    "fileName": "new_template.xml"
   }
 }
 ```
@@ -547,175 +1055,144 @@ Content-Type: application/json
 
 ## 6. エラーハンドリング
 
-### 6.1. エラーレスポンス形式
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "エラーメッセージ",
-    "details": [
-      {
-        "field": "fieldName",
-        "message": "詳細メッセージ",
-        "code": "FIELD_ERROR_CODE"
-      }
-    ]
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
-### 6.2. 共通エラーコード
-
-| コード | HTTPステータス | 説明 | 対処方法 |
-|-------|---------------|------|----------|
-| `AUTH_TOKEN_INVALID` | 401 | 認証トークンが無効 | 再ログインを促す |
-| `AUTH_TOKEN_EXPIRED` | 401 | 認証トークンの有効期限切れ | 再ログインを促す |
-| `PERMISSION_INSUFFICIENT` | 403 | 権限不足 | エラーメッセージを表示 |
-| `RESOURCE_NOT_FOUND` | 404 | リソースが見つからない | リストを再取得 |
-| `VALIDATION_ERROR` | 400 | バリデーションエラー | 詳細メッセージを表示 |
-| `BUSINESS_DUPLICATE_FORMAT_NAME` | 409 | フォーマット名が重複 | 別の名前を入力させる |
-| `BUSINESS_DUPLICATE_FILE_NAME` | 409 | ファイル名が重複 | 別の名前を入力させる |
-| `SYSTEM_DATABASE_ERROR` | 500 | データベースエラー | 再試行を促す |
-| `SYSTEM_STORAGE_ERROR` | 500 | ストレージエラー | 再試行を促す |
-
-### 6.3. エラーケース別の処理
+### 6.1 エラーケース一覧
 
 | エラーケース | HTTPステータス | エラーコード | 対処方法 |
 |-------------|---------------|-------------|----------|
-| フォーマット一覧取得失敗 | 500 | `SYSTEM_DATABASE_ERROR` | message.error表示 + 空配列設定 + 再試行ボタン |
-| フォーマット詳細取得失敗 | 404 | `RESOURCE_NOT_FOUND` | message.error表示 + フォーマットリストを再取得 |
-| ファイル一覧取得失敗 | 404 | `RESOURCE_NOT_FOUND` | message.error表示 + 空配列設定 |
-| ファイル作成失敗（重複） | 409 | `BUSINESS_DUPLICATE_FILE_NAME` | message.error表示 + 別の名前を入力させる + モーダルは開いたまま |
-| フォルダ作成失敗 | 500 | `SYSTEM_STORAGE_ERROR` | message.error表示 + モーダルは開いたまま |
-| MAIMLファイル読み込み失敗 | 404 | `RESOURCE_NOT_FOUND` | 新規作成モードで開く |
-| ファイル削除失敗 | 403, 500 | `PERMISSION_INSUFFICIENT`, `SYSTEM_STORAGE_ERROR` | message.error表示 + 削除中止 |
-| フォーマット未選択で新規作成 | - | - | message.warning表示「フォーマットを選択してください」 |
-| 編集できないファイル形式 | - | - | message.error表示「編集できないファイル形式です」 |
+| フォーマット一覧取得失敗 | 500 | `FETCH_ERROR` | message.error表示、refetchで再試行 |
+| ファイル一覧取得失敗 | 500 | `FETCH_ERROR` | message.error表示 |
+| ファイル作成失敗（同名ファイル存在） | 400 | `FILE_ALREADY_EXISTS` | message.error表示、ファイル名変更を促す |
+| フォルダ作成失敗（同名フォルダ存在） | 400 | `FOLDER_ALREADY_EXISTS` | message.error表示、フォルダ名変更を促す |
+| ファイル読み込み失敗 | 404/500 | `FILE_NOT_FOUND` | message.error表示、新規扱いで処理 |
+| ファイル保存失敗 | 500 | `SAVE_ERROR` | message.error表示 |
+| ファイルダウンロード失敗 | 404/500 | `DOWNLOAD_ERROR` | message.error表示 |
+| ファイル削除失敗 | 500 | `DELETE_ERROR` | message.error表示 |
+| XMLパースエラー | - | `PARSE_ERROR` | message.error表示、編集中止 |
+| フォーマット未選択 | - | - | message.warning表示、処理中止 |
 
-### 6.4. 成功メッセージ
+### 6.2 エラー処理コード
 
-| メッセージ | 表示タイミング | 種類 |
-|----------|--------------|------|
-| 「ファイルが正常に作成されました」 | ファイル作成成功 | success |
-| 「フォルダが正常に作成されました」 | フォルダ作成成功 | success |
-| 「ファイルが削除されました」 | ファイル削除成功 | success |
-| 「保存しました」 | PetriNetEditor/TemplateEditorDialog保存成功 | success |
-| 「フォーマット一覧を更新しました」 | リフレッシュ成功 | success |
-
----
-
-## 7. UI/UXポリシー準拠
-
-### 7.1. Ant Designコンポーネント使用
-
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Card | ツールバー、ヘッダー、操作ツールバー | bordered={false} |
-| Input | 検索バー | prefix={<SearchOutlined />}, allowClear |
-| Select | カテゴリ絞込、ファイルタイプ絞込 | style={{ width: 150 }} |
-| Button | 詳細検索、リフレッシュ、新規作成、アップロード | type="primary", icon={...} |
-| Space | ボタングループ配置 | size="small" |
-| Typography.Title | フォーマット名 | level={5} |
-| Typography.Text | 説明テキスト、ラベル | type="secondary" |
-| Spin | MAIMLファイル読み込み中 | size="large" |
-| message | 通知メッセージ | success/error/warning |
-
-### 7.2. デザイントークン使用
+#### 6.2.1 ファイル一覧取得エラー
 
 ```typescript
-const { token } = theme.useToken();
-
-// 使用例
-backgroundColor: token.colorBgLayout
-borderBottom: `1px solid ${token.colorBorderSecondary}`
-padding: token.margin
-paddingLG: token.paddingLG
-fontSize: token.fontSizeSM
-fontWeight: token.fontWeightStrong
-colorSuccess: token.colorSuccess
+try {
+  setIsLoadingFiles(true);
+  const fileResponse = await fetchFormatFiles(selectedFormatId, currentPath);
+  // ...
+} catch (error) {
+  console.error('❌ Failed to fetch format files:', error);
+  message.error(t('formatManagement.messages.file_list_load_failed'));
+} finally {
+  setIsLoadingFiles(false);
+}
 ```
 
-### 7.3. レスポンシブ対応
+#### 6.2.2 ファイル作成エラー
 
-- 左側フォーマット一覧: 33%幅、最小350px、最大500px
-- 右側ファイル管理: flex: 1（残りの幅を使用）
-- ツールバーは flexWrap: 'wrap' で折り返し対応
+```typescript
+try {
+  const response = await createFormatFile(data.formatId, apiRequestData);
+  message.success(t('formatManagement.create.success'));
+} catch (error) {
+  // Axiosエラーからメッセージを抽出
+  let errorMessage = 'ファイルの作成に失敗しました';
+  
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosError = error as { 
+      response?: { data?: { error?: { message?: string } } }; 
+      message?: string 
+    };
+    if (axiosError.response?.data?.error?.message) {
+      errorMessage = axiosError.response.data.error.message;
+    } else if (axiosError.message) {
+      errorMessage = axiosError.message;
+    }
+  } else if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+  
+  message.error(errorMessage);
+  throw new Error(errorMessage);
+}
+```
+
+#### 6.2.3 XMLパースエラー
+
+```typescript
+try {
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
+  
+  const parserError = xmlDoc.querySelector('parsererror');
+  if (parserError) {
+    throw new Error('XMLパースエラー: ' + (parserError.textContent || '不明なエラー'));
+  }
+  
+  // ... パース処理
+} catch (parseError) {
+  console.error('❌ XMLパースエラー:', parseError);
+  message.error(
+    t('formatManagement.messages.xml_parse_failed') + 
+    ': ' + (parseError as Error).message
+  );
+  return;
+}
+```
+
+#### 6.2.4 フォーマット未選択エラー
+
+```typescript
+const handleOpenCreateFileModal = useCallback(() => {
+  if (!selectedFormatId) {
+    message.warning(t('formatManagement.select_format'));
+    return;
+  }
+  setCreateFileModalOpen(true);
+}, [selectedFormatId, t]);
+```
 
 ---
 
-## 8. 実装ファイル
+## 7. 実装ファイル
 
-### 8.1. ソースファイルパス
+### 7.1 ファイルパス
+- **メインファイル**: `frontend/src/components/project/FormatManagement.tsx`
 
-```
-frontend/src/components/project/FormatManagement.tsx
-```
+### 7.2 関連ファイル
+- **型定義**:
+  - `frontend/src/types/auth.ts` (User型)
+  - `frontend/src/types/api.ts` (ApiResponse型)
+  - `frontend/src/types/format.ts` (FormatListResponse型)
+  - `frontend/src/types/file.ts` (ProjectFile型)
+  - `frontend/src/types/maiml-unified.ts` (Property, Content型)
+  - `frontend/src/types/maimlEditor.ts` (MaimlEditorParams型)
+- **API関数**:
+  - `frontend/src/utils/formatApi.ts` (fetchFormats, fetchFormatFiles等)
+  - `frontend/src/services/fileAccessService.ts` (getFileDownloadUrlByKey, deleteFileByKey)
+- **ユーティリティ**:
+  - `frontend/src/utils/authUtils.ts` (createApiClient)
+  - `frontend/src/components/editorv2/utils/converters/reactFlowToMaiml.ts` (buildPropertyXML, buildContentXML, escapeXml)
+- **Context**:
+  - `frontend/src/contexts/LanguageContext.tsx` (useLanguage)
+- **Hooks**:
+  - `frontend/src/hooks/useApi.ts` (useApi)
 
-### 8.2. 関連コンポーネント
-
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| FormatFolderTree | ./FormatFolderTree.tsx | フォーマット一覧ツリー表示 |
-| FormatFileListTable | ./FormatFileListTable.tsx | ファイル一覧テーブル表示 |
-| FormatSearchModal | ./FormatSearchModal.tsx | 詳細検索モーダル |
-| FormatUploadDialog | ./FormatUploadDialog.tsx | アップロードダイアログ |
-| CreateFormatFileModal | ./CreateFormatFileModal.tsx | 新規ファイル作成モーダル |
-| CreateFormatFolderModal | ./CreateFormatFolderModal.tsx | 新規フォルダ作成モーダル |
-| FormatFileDetailModal | ./FormatFileDetailModal.tsx | ファイル詳細モーダル |
-| PetriNetEditor | ../editor/PetriNetEditor.tsx | MAIMLファイル編集エディタ |
-| TemplateEditorDialog | ../editor/TemplateEditorDialog.tsx | XMLファイル編集エディタ |
-
-### 8.3. カスタムフック
-
-| フック | パス | 役割 |
-|--------|------|------|
-| useLanguage | @/contexts/LanguageContext | 多言語化対応 |
-| useApi | @/hooks/useApi | API呼び出しとデータ管理 |
-
-### 8.4. ユーティリティ
-
-| ユーティリティ | パス | 役割 |
-|-------------|------|------|
-| fetchFormats | @/utils/apiClient | フォーマット一覧取得API |
-
-### 8.5. モックデータ
-
-| データ | パス | 説明 |
-|--------|------|------|
-| mockFormatFilesData | @/data/mock/mockFormatFiles.json | フォーマットファイルのモックデータ |
+### 7.3 依存コンポーネント
+- `<FormatFolderTree />` - フォーマットフォルダ一覧表示
+- `<FormatFileListTable />` - ファイル一覧テーブル
+- `<FormatSearchModal />` - 詳細検索モーダル
+- `<FormatUploadDialog />` - ファイルアップロードダイアログ
+- `<CreateFormatFileModal />` - 新規ファイル作成モーダル
+- `<CreateFormatFolderModal />` - 新規サブフォルダ作成モーダル
+- `<CreateFormatModal />` - 新規フォーマットフォルダ作成モーダル
+- `<FormatFileDetailModal />` - ファイル詳細表示モーダル
+- `<PetriNetEditorScreen />` - MAIMLファイル編集画面
+- `<FormatEditorDialog />` - XMLファイル編集ダイアログ
 
 ---
 
-## 9. 既知の課題・TODO
+## 8. 変更履歴
 
-### Phase 6実装予定
-
-- [ ] ファイル作成API呼び出しの実装
-- [ ] フォルダ作成API呼び出しの実装
-- [ ] ファイル削除API呼び出しの実装
-- [ ] XMLファイルのtemplateTypeに応じたデフォルトXML生成
-- [ ] PetriNetEditorの保存処理実装
-- [ ] TemplateEditorDialogの保存処理実装
-- [ ] ファイル一覧のAPI化（モックデータからの移行）
-
-### 改善提案
-
-- [ ] パンくずリストの表示（現在はフォルダ階層が深い場合にわかりにくい）
-- [ ] ファイルのドラッグ&ドロップアップロード対応
-- [ ] フォルダのドラッグ&ドロップ移動対応
-- [ ] ファイルのバージョン管理機能
-- [ ] ファイルのプレビュー機能
-
----
-
-## 10. 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースで仕様書を再作成（Phase 4: フォーマット管理画面） | Cline |

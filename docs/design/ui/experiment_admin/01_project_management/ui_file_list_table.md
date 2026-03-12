@@ -1,211 +1,192 @@
-# FileListTable - ファイル一覧テーブル
+# ファイル一覧テーブル UI仕様書
 
 ## 1. 概要
 
 ### 1.1 コンポーネントの目的
-プロジェクト内のファイルとフォルダを一覧表示するテーブルコンポーネント。ファイルのダウンロード、ビューア起動、フォルダナビゲーションを提供します。
+ファイル一覧テーブルは、プロジェクト管理画面の「ファイル管理」タブ内に表示され、選択したプロジェクトのファイル・フォルダ一覧をテーブル形式で表示するコンポーネントです。ファイルのダウンロード、ビューア表示、フォルダナビゲーション機能を提供します。
 
 ### 1.2 使用場面
-- プロジェクト管理画面の右側コンテンツエリア
-- 選択されたプロジェクトのファイル一覧表示
+- プロジェクト管理画面 → 「ファイル管理」タブ選択時
+- プロジェクト選択後に表示
+- rootフォルダ または archiveフォルダの内容を表示
 
 ### 1.3 アクセス権限
-- **必須ロール**: experiment_admin
+- **必須ロール**: Experiment Admin（実験管理者）
 - **認証**: JWT + Session Hybrid認証
+- **組織分離**: マルチテナント（organizationId）
 
 ---
 
 ## 2. 画面構成
 
-### 2.1 テーブル構造
+### 2.1 レイアウト構造
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ タイプ │ ファイル名          │ サイズ   │ 最終更新日  │ 操作    │
-├──────────────────────────────────────────────────────────────────┤
-│   📁   │ experiment_data (5) │          │            │         │
-│   📄   │ sample.maiml        │ 1.2 MB   │ 2時間前    │ [↓][👁] │
-│   📄   │ result.pdf          │ 3.5 MB   │ 1日前      │ [↓][👁] │
-│   📊   │ data.csv            │ 450 KB   │ 3日前      │ [↓][👁] │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ テーブルヘッダー                                            │
+│ [種別] [ファイル名] [サイズ] [更新日時] [操作]             │
+├─────────────────────────────────────────────────────────────┤
+│ [📁] archive (5)                                            │
+├─────────────────────────────────────────────────────────────┤
+│ [📄] project-001.maiml  │ 45.2 KB │ 2時間前 │ [DL] [表示] │
+├─────────────────────────────────────────────────────────────┤
+│ [📄] result.csv         │ 12.8 KB │ 1日前   │ [DL] [表示] │
+├─────────────────────────────────────────────────────────────┤
+│ [📊] data.xlsx          │ 128 KB  │ 3日前   │ [DL] [表示] │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**テーブルサイズ:**
-- size="small"
-- ページング: なし（全件表示）
+### 2.2 主要UI要素
 
-### 2.2 カラム定義
+#### 2.2.1 テーブルカラム
 
-| カラム | 幅 | ソート | 配置 | 説明 |
-|--------|-----|--------|------|------|
-| タイプ | 50px | - | center | ファイルタイプアイコン |
-| ファイル名 | 可変 | ○ | left | ファイル/フォルダ名 + パス（Tooltip） |
-| サイズ | 120px | ○ | left | ファイルサイズ（フォルダは空） |
-| 最終更新日 | 150px | ○ | left | 相対時間表示 |
-| 操作 | 220px | - | center | ダウンロード・ビューアボタン |
+**1. 種別（type）**
+- 幅: 50px
+- 表示: ファイル/フォルダタイプに応じたアイコン
+- 中央揃え
+
+**2. ファイル名（name）**
+- ソート可能（日本語対応）
+- フォルダの場合: 太字 + オレンジ色 + ファイル数表示
+- ツールチップ: ファイルパス表示
+
+**3. サイズ（size）**
+- 幅: 120px
+- ソート可能
+- フォルダの場合: 非表示
+- フォーマット: `formatFileSize()`（KB, MB単位）
+
+**4. 更新日時（lastModified）**
+- 幅: 150px
+- ソート可能
+- フォルダの場合: 非表示
+- フォーマット: `formatRelativeTime()`（相対時刻表示）
+
+**5. 操作（actions）**
+- 幅: 220px
+- 中央揃え
+- フォルダの場合: 非表示
+- ファイルの場合: ダウンロードボタン + ビューアボタン
+
+#### 2.2.2 ファイルタイプアイコン
+
+| ファイルタイプ | アイコン | 色 |
+|--------------|---------|-----|
+| フォルダ | FolderOpenOutlined | オレンジ（`token.colorWarning`） |
+| MAIML（.maiml） | FileTextOutlined | 青（`token.colorInfo`） |
+| PDF（.pdf） | FileTextOutlined | 赤（`token.colorError`） |
+| Excel（.xlsx） | TableOutlined | 緑（`token.colorSuccess`） |
+| CSV（.csv） | TableOutlined | グレー（`token.colorTextSecondary`） |
+| アーカイブ | FolderOpenOutlined | オレンジ（`token.colorWarning`） |
+| その他 | FileOutlined | グレー（`token.colorTextSecondary`） |
+
+#### 2.2.3 操作ボタン
+
+**ダウンロードボタン:**
+- アイコン: DownloadOutlined
+- サイズ: small
+- タイプ: default
+- ローディング状態: ダウンロード中は spinner表示
+- 無効化: 他のファイルダウンロード中は全ボタン無効
+
+**ビューアボタン:**
+- アイコン: EyeOutlined
+- サイズ: small
+- タイプ: primary
+- 背景色: 緑（`token.colorSuccess`）
+- クリック: ViewRendererDialogを開く
+
+### 2.3 Empty状態
+
+プロジェクトにファイルが存在しない場合:
+```typescript
+<Empty 
+  description={t('projectManagement.fileManagement.emptyState')} 
+  image={Empty.PRESENTED_IMAGE_SIMPLE} 
+/>
+```
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1 ファイルタイプアイコン
+### 3.1 ファイル一覧表示
 
-#### 3.1.1 アイコンマッピング
-
+#### 3.1.1 表示内容
 ```typescript
-const getFileIcon = (file: FileData) => {
-  if (file.isFolder) {
-    return <FolderOpenOutlined />;  // 📁 黄色（警告色）
-  }
-  
-  switch (file.type) {
-    case 'maiml':
-      return <FileTextOutlined />;  // 📄 青色（情報色）
-    case 'pdf':
-      return <FileTextOutlined />;  // 📄 赤色（エラー色）
-    case 'excel':
-      return <TableOutlined />;     // 📊 緑色（成功色）
-    case 'csv':
-      return <TableOutlined />;     // 📊 グレー
-    case 'archive':
-      return <FolderOpenOutlined />; // 📁 黄色
-    default:
-      return <FileOutlined />;      // 📄 グレー
-  }
-};
+<Table
+  dataSource={files}
+  columns={columns}
+  rowKey="id"
+  size="small"
+  pagination={false}
+/>
 ```
 
-#### 3.1.2 アイコンカラー
+#### 3.1.2 データソース
+- `files`: 親コンポーネント（ProjectManagement）から渡されるファイル一覧
+- rootフォルダ: プロジェクト直下のファイル + archiveフォルダ（存在する場合）
+- archiveフォルダ: アーカイブされた過去バージョンのファイル + 戻るボタン
 
-| ファイルタイプ | アイコン | カラー | トークン |
-|--------------|---------|--------|----------|
-| フォルダ | FolderOpenOutlined | 黄色 | colorWarning |
-| MAIML | FileTextOutlined | 青色 | colorInfo |
-| PDF | FileTextOutlined | 赤色 | colorError |
-| Excel | TableOutlined | 緑色 | colorSuccess |
-| CSV | TableOutlined | グレー | colorTextSecondary |
-| その他 | FileOutlined | グレー | colorTextSecondary |
+### 3.2 ファイルダウンロード
 
-### 3.2 ファイル名表示
-
-#### 3.2.1 フォルダ表示
+#### 3.2.1 処理フロー
 ```typescript
-render: (text: string, record: FileData) => (
-  <Tooltip title={record.path} placement="topLeft">
-    <span
-      style={{
-        fontWeight: record.isFolder ? token.fontWeightStrong : 'normal',
-        color: record.isFolder ? token.colorWarning : 'inherit',
-        cursor: record.isFolder ? 'pointer' : 'inherit',
-      }}
-    >
-      {text}
-      {record.isFolder && record.fileCount !== undefined && ` (${record.fileCount})`}
-    </span>
-  </Tooltip>
-)
-```
-
-**フォルダの特徴:**
-- 太字（fontWeightStrong）
-- 黄色（colorWarning）
-- ファイル数を括弧で表示（例: "experiment_data (5)"）
-- パスをTooltipで表示
-
-#### 3.2.2 ファイル表示
-- 通常フォント
-- デフォルトカラー
-- パスをTooltipで表示
-
-### 3.3 ソート機能
-
-#### 3.3.1 ソート対応カラム
-
-**ファイル名:**
-```typescript
-sorter: (a, b) => a.name.localeCompare(b.name, 'ja')
-```
-- 日本語対応のアルファベット順ソート
-
-**サイズ:**
-```typescript
-sorter: (a, b) => a.size - b.size
-```
-- バイト数の昇順/降順
-
-**最終更新日:**
-```typescript
-sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime()
-```
-- タイムスタンプの昇順/降順
-
-### 3.4 ダウンロード機能
-
-#### 3.4.1 ダウンロードフロー
-
-```typescript
-const handleDownloadFile = async (file: FileData) => {
+const handleDownloadFile = async (file: ProjectFile) => {
   try {
     setDownloadingFileId(file.id);
-    
-    // 1. API通信: 署名付きURLを取得
-    const fileDownloadInfo = await downloadFile(projectId, file.name);
-    
-    // 2. ファイルダウンロード実行
-    executeFileDownload(
-      fileDownloadInfo.downloadUrl, 
-      fileDownloadInfo.fileName
+
+    // ファイルパスが存在するか確認
+    if (!file.path || file.path.trim() === '') {
+      throw new Error(t('projectManagement.fileManagement.messages.filePathMissing'));
+    }
+
+    // ファイルキーベースで直接ダウンロード（プロキシ方式）
+    await getFileDownloadUrlByKey(file.path);
+
+    // 成功メッセージ表示
+    message.success(
+      t('projectManagement.fileManagement.messages.downloadStarted').replace('{{fileName}}', file.name)
     );
-    
-    // 3. 成功メッセージ表示
-    message.success(`「${file.name}」のダウンロードを開始しました`);
   } catch (error) {
-    // エラーメッセージ表示
-    message.error(`ファイルのダウンロードに失敗しました: ${error.message}`);
+    console.error('ファイルダウンロードエラー:', error);
+    const errorMsg = error instanceof Error ? error.message : '不明なエラー';
+    message.error(
+      t('projectManagement.fileManagement.messages.downloadError').replace('{{error}}', errorMsg)
+    );
   } finally {
     setDownloadingFileId(null);
   }
 };
 ```
 
-#### 3.4.2 ダウンロードボタン
+#### 3.2.2 UI動作
+1. ダウンロードボタンをクリック
+2. ボタンがローディング状態になる（spinner表示）
+3. 他のダウンロードボタンが無効化される
+4. バックエンドAPIを呼び出し（プロキシ方式）
+5. 成功: ファイルダウンロード開始 + 成功メッセージ
+6. 失敗: エラーメッセージ表示
+7. ローディング状態解除
 
+#### 3.2.3 プロキシ方式ダウンロード
 ```typescript
-<Button
-  type="default"
-  size="small"
-  icon={<DownloadOutlined />}
-  loading={downloadingFileId === record.id}
-  disabled={downloadingFileId !== null}
-  onClick={(e) => {
-    e.stopPropagation();  // 行クリックイベントを防止
-    handleDownloadFile(record);
-  }}
->
-  ダウンロード
-</Button>
+await getFileDownloadUrlByKey(file.path);
 ```
+- バックエンド経由で直接ダウンロード
+- S3署名付きURLを内部で生成・リダイレクト
+- ブラウザのダウンロード機能でファイル保存
 
-**状態:**
-- ダウンロード中: loading状態（スピナー表示）
-- 他のファイルダウンロード中: disabled
-- 通常: クリック可能
+### 3.3 ビューア表示
 
-### 3.5 ビューア起動機能
-
-#### 3.5.1 ビューアボタン
-
+#### 3.3.1 処理フロー
 ```typescript
 <Button
   type="primary"
   size="small"
   icon={<EyeOutlined />}
-  style={{ 
-    backgroundColor: token.colorSuccess, 
-    borderColor: token.colorSuccess 
-  }}
   onClick={(e) => {
-    e.stopPropagation();  // 行クリックイベントを防止
+    e.stopPropagation();
     onViewFile?.(record);
   }}
 >
@@ -213,21 +194,22 @@ const handleDownloadFile = async (file: FileData) => {
 </Button>
 ```
 
-**特徴:**
-- 緑色ボタン（成功色）
-- 親コンポーネントの`onViewFile`ハンドラを呼び出し
+#### 3.3.2 UI動作
+1. ビューアボタンをクリック
+2. 親コンポーネント（ProjectManagement）の`handleViewFile`を呼び出し
+3. ViewRendererDialogが開く
+4. ファイル内容を表示
 
-### 3.6 行クリックイベント
+### 3.4 フォルダクリック
 
-#### 3.6.1 クリック処理
-
+#### 3.4.1 処理フロー
 ```typescript
 onRow={(record) => ({
   onClick: () => {
     if (record.isFolder) {
-      onFolderClick?.(record.id);  // フォルダクリック
+      onFolderClick?.(record.id);
     } else {
-      onFileClick?.(record);       // ファイルクリック
+      onFileClick?.(record);
     }
   },
   style: {
@@ -236,10 +218,59 @@ onRow={(record) => ({
 })}
 ```
 
-**動作:**
-- フォルダ行: `onFolderClick`を呼び出し（フォルダ内へナビゲート）
-- ファイル行: `onFileClick`を呼び出し（ファイル選択）
-- カーソル: フォルダまたは`onFileClick`が存在する場合、pointer表示
+#### 3.4.2 UI動作
+- フォルダ行をクリック: `onFolderClick`コールバック呼び出し
+  - archiveフォルダ → archiveフォルダ内のファイル一覧を表示
+  - backフォルダ（"↑ 戻る"） → rootフォルダに戻る
+- ファイル行をクリック: `onFileClick`コールバック呼び出し（現在未使用）
+
+### 3.5 ソート機能
+
+#### 3.5.1 ソート可能カラム
+
+**ファイル名（name）:**
+```typescript
+sorter: (a, b) => a.name.localeCompare(b.name, 'ja')
+```
+- 日本語対応のアルファベット順ソート
+
+**サイズ（size）:**
+```typescript
+sorter: (a, b) => a.size - b.size
+```
+- バイト数による数値ソート
+
+**更新日時（lastModified）:**
+```typescript
+sorter: (a, b) => new Date(a.lastModified).getTime() - new Date(b.lastModified).getTime()
+```
+- タイムスタンプによる日時ソート
+
+### 3.6 多言語対応
+
+#### 3.6.1 翻訳キー
+```typescript
+const { t } = useLanguage();
+
+// テーブルヘッダー
+t('projectManagement.fileManagement.table.type')         // "種別"
+t('projectManagement.fileManagement.table.fileName')     // "ファイル名"
+t('projectManagement.fileManagement.table.size')         // "サイズ"
+t('projectManagement.fileManagement.table.lastModified') // "更新日時"
+t('projectManagement.fileManagement.table.actions')      // "操作"
+
+// ボタン
+t('projectManagement.fileManagement.buttons.download')   // "ダウンロード"
+t('projectManagement.fileManagement.buttons.viewer')     // "ビューア"
+
+// メッセージ
+t('projectManagement.fileManagement.messages.downloadStarted')  // "{{fileName}}のダウンロードを開始しました"
+t('projectManagement.fileManagement.messages.downloadError')    // "ダウンロードエラー: {{error}}"
+t('projectManagement.fileManagement.messages.filePathMissing')  // "ファイルパスが見つかりません"
+
+// Empty状態
+t('projectManagement.fileManagement.emptyState')         // "ファイルがありません"
+```
 
 ---
 
@@ -249,296 +280,254 @@ onRow={(record) => ({
 
 ```typescript
 interface FileListTableProps {
-  files: FileData[];                        // ファイル一覧
-  projectId: string;                        // プロジェクトID
-  onFileClick?: (file: FileData) => void;   // ファイルクリックハンドラ
-  onFolderClick?: (folderId: string) => void; // フォルダクリックハンドラ
-  onViewFile?: (file: FileData) => void;    // ビューア起動ハンドラ
+  /** 表示するファイル・フォルダ一覧 */
+  files: ProjectFile[];
+  /** プロジェクトID */
+  projectId: string;
+  /** ファイルクリック時のコールバック（現在未使用） */
+  onFileClick?: (file: ProjectFile) => void;
+  /** フォルダクリック時のコールバック */
+  onFolderClick?: (folderId: string) => void;
+  /** ビューアボタンクリック時のコールバック */
+  onViewFile?: (file: ProjectFile) => void;
 }
 ```
 
-### 4.2 FileData型定義
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| files | `ProjectFile[]` | ✅ | 表示するファイル・フォルダ一覧 |
+| projectId | `string` | ✅ | プロジェクトID（現在未使用） |
+| onFileClick | `(file: ProjectFile) => void` | - | ファイル行クリック時のコールバック（現在未使用） |
+| onFolderClick | `(folderId: string) => void` | - | フォルダクリック時のコールバック |
+| onViewFile | `(file: ProjectFile) => void` | - | ビューアボタンクリック時のコールバック |
+
+### 4.2 State定義
 
 ```typescript
-interface FileData {
-  id: string;             // ファイルID
-  name: string;           // ファイル名
-  path: string;           // ファイルパス（Tooltip表示用）
-  size: number;           // ファイルサイズ（バイト）
-  lastModified: string;   // 最終更新日（ISO 8601）
-  type: string;           // ファイルタイプ（'maiml', 'pdf', 'excel', 'csv', 'archive'等）
-  isFolder?: boolean;     // フォルダフラグ
-  fileCount?: number;     // フォルダ内ファイル数（フォルダの場合）
-}
-```
-
-### 4.3 State定義
-
-```typescript
+// ダウンロード中のファイルID
 const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
 ```
 
-**用途:**
-- ダウンロード中のファイルIDを保持
-- ローディング表示と他ボタンの無効化に使用
+**State説明:**
+| State名 | 型 | 初期値 | 説明 |
+|---------|---|--------|------|
+| downloadingFileId | `string \| null` | `null` | ダウンロード中のファイルID。nullの場合はダウンロード中のファイルなし |
+
+### 4.3 ProjectFile型定義
+
+```typescript
+interface ProjectFile {
+  id: string;              // ファイルID
+  name: string;            // ファイル名
+  path: string;            // ファイルパス（S3キー）
+  size: number;            // ファイルサイズ（バイト）
+  lastModified: string;    // 更新日時（ISO8601形式）
+  type: string;            // ファイルタイプ（maiml, pdf, excel, csv, folder等）
+  isFolder: boolean;       // フォルダかどうか
+  fileCount?: number;      // フォルダの場合のファイル数
+}
+```
+
+### 4.4 Context連携
+
+```typescript
+// LanguageContext
+const { t } = useLanguage();
+
+// Ant Design Theme
+const { token } = theme.useToken();
+```
 
 ---
 
 ## 5. API連携
 
-### 5.1 ファイルダウンロードAPI
+### 5.1 使用するAPI一覧
 
-#### 5.1.1 署名付きURL取得 ✅
+| # | API名 | メソッド | エンドポイント | 状態 | 説明 |
+|---|------|---------|---------------|------|------|
+| 1 | getFileDownloadUrlByKey | GET | `/api/v1/files/download-proxy` | ✅ 実装済み | ファイルをプロキシ経由でダウンロード |
+
+### 5.2 API呼び出し例
+
+#### 5.2.1 ファイルダウンロード（プロキシ方式）
 
 ```typescript
-const fileDownloadInfo = await downloadFile(projectId, file.name);
+await getFileDownloadUrlByKey(file.path);
 ```
-
-**使用API:** ✅
-- POST `/api/v1/files/download` - ファイルダウンロード用署名付きURL取得
-
-**詳細:** [共通API仕様書](../../api/api_common.md#2-ファイルダウンロード-)
 
 **Request:**
-```http
-POST /api/v1/files/download
-Authorization: Bearer maiml_session-{sessionId}_{timestamp}
-X-Organization-Id: {organization_id}
-Content-Type: application/json
-
-{
-  "file_path": "org_{organization_prefix}/projects/{project_name}/{filename}",
-  "expires_in": 3600
-}
+```
+GET /api/v1/files/download-proxy?fileKey={file.path}
 ```
 
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "download_url": "https://s3.amazonaws.com/...",
-    "file_name": "sample.maiml",
-    "file_size": 1234567,
-    "expires_at": "2026-01-23T09:00:00Z"
-  },
-  "meta": {
-    "timestamp": "2026-01-23T08:00:00Z",
-    "requestId": "req_abc123"
+**Response:**
+- 成功: ファイルストリームをブラウザにリダイレクト
+- 失敗: エラーレスポンス
+
+---
+
+## 6. エラーハンドリング
+
+### 6.1 エラーケース一覧
+
+| エラーケース | 対処方法 |
+|-------------|----------|
+| ファイルパスが空 | message.error('ファイルパスが見つかりません') |
+| ダウンロード失敗 | message.error('ダウンロードエラー: {エラーメッセージ}') |
+| API呼び出し失敗 | エラーメッセージ表示 + コンソールログ出力 |
+
+### 6.2 エラー処理コード
+
+```typescript
+try {
+  setDownloadingFileId(file.id);
+  
+  if (!file.path || file.path.trim() === '') {
+    throw new Error(t('projectManagement.fileManagement.messages.filePathMissing'));
   }
+  
+  await getFileDownloadUrlByKey(file.path);
+  message.success(t('projectManagement.fileManagement.messages.downloadStarted').replace('{{fileName}}', file.name));
+} catch (error) {
+  console.error('ファイルダウンロードエラー:', error);
+  const errorMsg = error instanceof Error ? error.message : '不明なエラー';
+  message.error(t('projectManagement.fileManagement.messages.downloadError').replace('{{error}}', errorMsg));
+} finally {
+  setDownloadingFileId(null);
 }
 ```
 
-#### 5.1.2 ダウンロード実行
+---
 
-```typescript
-executeFileDownload(fileDownloadInfo.downloadUrl, fileDownloadInfo.fileName);
-```
+## 7. 実装ファイル
 
-**動作:**
-- 署名付きURLから直接ダウンロード
-- ブラウザのダウンロード機能を使用
-- URLは1時間有効（デフォルト）
+### 7.1 メインファイル
+- **パス**: `frontend/src/components/project/FileListTable.tsx`
+- **行数**: 約200行
+- **エクスポート**: `FileListTable`（default export）
 
-### 5.2 ファイル一覧取得
+### 7.2 関連ファイル
 
-**親コンポーネントで実施:**
-- プロジェクト選択時にファイル一覧を取得
-- `files` propsとして渡される
+#### 7.2.1 型定義
+- `frontend/src/types/file.ts` - ProjectFile型
 
-**使用API:** 🔴
-- GET `/api/v1/projects/:projectId/files` - プロジェクトファイル一覧取得 🔴
+#### 7.2.2 APIサービス
+- `frontend/src/services/fileAccessService.ts` - getFileDownloadUrlByKey()
 
-**詳細:** [プロジェクト管理API仕様書](../../api/api_project_management.md#34-ファイル一覧取得-)
+#### 7.2.3 ユーティリティ
+- `frontend/src/utils/formatters.ts` - formatFileSize(), formatRelativeTime()
+
+#### 7.2.4 Context
+- `frontend/src/contexts/LanguageContext.tsx` - 多言語対応
+
+### 7.3 依存ライブラリ
+- React 18.2.0
+- Ant Design v6 (Table, Button, Tooltip, Space, Empty, message, theme)
+- @ant-design/icons (FileTextOutlined, FileOutlined, TableOutlined, FolderOpenOutlined, DownloadOutlined, EyeOutlined)
 
 ---
 
-## 6. UI/UXポリシー準拠
+## 8. 変更履歴
 
-### 6.1 Ant Designコンポーネント使用
-
-| 用途 | コンポーネント | Props |
-|------|---------------|-------|
-| テーブル | Table | size="small", pagination=false |
-| ボタン | Button | type, size="small", icon, loading, disabled |
-| スペース | Space | size="small" |
-| ツールチップ | Tooltip | title, placement="topLeft" |
-| 空状態 | Empty | description, image |
-| メッセージ | message | success, error |
-
-### 6.2 デザイントークン使用
-
-```typescript
-const { token } = theme.useToken();
-
-// アイコンサイズ
-fontSize: token.fontSizeLG
-
-// フォント
-fontWeight: token.fontWeightStrong
-
-// カラー
-color: token.colorWarning
-color: token.colorInfo
-color: token.colorError
-color: token.colorSuccess
-color: token.colorTextSecondary
-```
-
-### 6.3 カラーパレット
-
-| 要素 | カラー | トークン |
-|------|--------|----------|
-| フォルダアイコン | 黄色 | colorWarning |
-| MAIMLアイコン | 青色 | colorInfo |
-| PDFアイコン | 赤色 | colorError |
-| Excel/CSVアイコン | 緑色 | colorSuccess |
-| その他アイコン | グレー | colorTextSecondary |
-| ビューアボタン | 緑色 | colorSuccess |
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
 
 ---
 
-## 7. ユーティリティ関数
+## 9. 補足事項
 
-### 7.1 formatFileSize
+### 9.1 フォーマット関数
+
+#### 9.1.1 formatFileSize
+```typescript
+formatFileSize(bytes: number): string
+```
+- 入力: バイト数
+- 出力: KB, MB, GB単位の文字列
+- 例: `45200` → `"45.2 KB"`, `1048576` → `"1 MB"`
+
+#### 9.1.2 formatRelativeTime
+```typescript
+formatRelativeTime(isoDate: string): string
+```
+- 入力: ISO8601形式の日時文字列
+- 出力: 相対時刻の文字列
+- 例: `"2026-03-11T07:00:00Z"` → `"2時間前"`, `"2026-03-10T09:00:00Z"` → `"1日前"`
+
+### 9.2 テーブルスタイリング
 
 ```typescript
-formatFileSize(record.size)
+<Table
+  dataSource={files}
+  columns={columns}
+  rowKey="id"
+  size="small"           // 小さめのサイズ
+  pagination={false}     // ページネーション無効
+  onRow={(record) => ({
+    onClick: () => { /* ... */ },
+    style: {
+      cursor: record.isFolder || onFileClick ? 'pointer' : 'default',
+    },
+  })}
+/>
 ```
 
-**例:**
-- `1234` → "1.2 KB"
-- `1234567` → "1.2 MB"
-- `1234567890` → "1.2 GB"
-
-### 7.2 formatRelativeTime
+### 9.3 イベントバブリング制御
 
 ```typescript
-formatRelativeTime(record.lastModified)
-```
-
-**例:**
-- "2時間前"
-- "1日前"
-- "3日前"
-- "2024/01/15"（古い日付）
-
----
-
-## 8. 空状態
-
-### 8.1 Empty表示
-
-```typescript
-locale={{
-  emptyText: (
-    <Empty 
-      description="ファイルがありません" 
-      image={Empty.PRESENTED_IMAGE_SIMPLE} 
-    />
-  ),
+onClick={(e) => {
+  e.stopPropagation();  // 行クリックイベントの伝播を停止
+  handleDownloadFile(record);
 }}
 ```
+- ボタンクリック時に行クリックイベントが発火しないようにする
 
-**表示条件:**
-- `files` 配列が空の場合
-
----
-
-## 9. エラーハンドリング
-
-### 9.1 ダウンロードエラー
+### 9.4 ファイルタイプ判定
 
 ```typescript
-catch (error) {
-  console.error('ファイルダウンロードエラー:', error);
-  message.error(
-    `ファイルのダウンロードに失敗しました: ${
-      error instanceof Error ? error.message : '不明なエラー'
-    }`
-  );
-}
+const getFileIcon = (file: ProjectFile) => {
+  if (file.isFolder) {
+    return <FolderOpenOutlined />;
+  }
+  
+  switch (file.type) {
+    case 'maiml': return <FileTextOutlined />;
+    case 'pdf': return <FileTextOutlined />;
+    case 'excel': return <TableOutlined />;
+    case 'csv': return <TableOutlined />;
+    case 'archive': return <FolderOpenOutlined />;
+    default: return <FileOutlined />;
+  }
+};
 ```
 
-**エラーメッセージ:**
-- `ファイルのダウンロードに失敗しました: {詳細}`
-- コンソールにも詳細ログを出力
+### 9.5 フォルダ表示の特徴
 
----
+- **太字表示**: `fontWeight: token.fontWeightStrong`
+- **オレンジ色**: `color: token.colorWarning`
+- **ファイル数表示**: `archive (5)`のように括弧内に件数表示
+- **サイズ・更新日時非表示**: フォルダの場合は空欄
+- **操作ボタン非表示**: フォルダの場合はボタンなし
 
-## 10. 実装ファイル
+### 9.6 ダウンロード状態管理
 
-### 10.1 ファイルパス
-```
-frontend/src/components/project/FileListTable.tsx
-```
+- **単一ファイルダウンロード**: 一度に1ファイルのみダウンロード可能
+- **ローディング表示**: ダウンロード中のボタンにspinner表示
+- **他ボタン無効化**: `disabled={downloadingFileId !== null}`で他のダウンロードボタンを無効化
 
-### 10.2 依存コンポーネント
-- なし（単独で動作）
+### 9.7 プロキシ方式ダウンロードの利点
 
-### 10.3 依存ライブラリ
-- antd: Table, Button, Tooltip, Space, Empty, message, theme
-- @ant-design/icons: 各種アイコン
-- @/utils/formatters: formatFileSize, formatRelativeTime
-- @/api/fileDownloadService: downloadFile, executeFileDownload
+- クライアント側で署名付きURL生成不要
+- セキュリティ向上（S3への直接アクセス不要）
+- ダウンロード進捗の追跡が可能
+- エラーハンドリングの一元化
 
----
+### 9.8 アクセシビリティ
 
-## 11. 既知の課題・TODO
-
-### 11.1 既知の課題
-- ページング機能なし（大量ファイル時にパフォーマンス問題の可能性）
-- ファイルの一括ダウンロード機能なし
-- ファイル削除機能なし
-- ファイル名変更機能なし
-
-### 11.2 将来の改善案
-- [ ] ページング機能追加（100件以上の場合）
-- [ ] 仮想スクロール（大量ファイル対応）
-- [ ] ファイル選択機能（チェックボックス）
-- [ ] 一括ダウンロード機能
-- [ ] ファイル削除機能（権限チェック付き）
-- [ ] ファイル名変更機能
-- [ ] フィルター機能（ファイルタイプ、日付範囲等）
-- [ ] ドラッグ&ドロップアップロード
-- [ ] ファイルプレビュー機能
-- [ ] ブレッドクラムナビゲーション
-- [ ] ファイル検索機能
-
----
-
-## 12. テスト観点
-
-### 12.1 単体テスト
-- [ ] ファイルタイプアイコンが正しく表示される
-- [ ] フォルダ名が太字で黄色で表示される
-- [ ] ソート機能が正しく動作する
-- [ ] ダウンロードボタンがローディング状態になる
-- [ ] エラーメッセージが正しく表示される
-
-### 12.2 統合テスト
-- [ ] ダウンロードAPIが正しく呼び出される
-- [ ] 親コンポーネントへのイベント通知
-- [ ] ビューア起動が正しく動作する
-
-### 12.3 E2Eテスト
-- [ ] ファイルクリックからビューア起動
-- [ ] フォルダクリックから階層遷移
-- [ ] ダウンロード実行と完了確認
-
----
-
-## 13. 変更履歴
-
-| 日付 | バージョン | 変更内容 | 担当者 |
-|------|-----------|---------|--------|
-| 2026-01-21 | 1.0.0 | 初版作成 | Cline |
-
----
-
-## 14. 関連ドキュメント
-
-- [ProjectManagement仕様](./ProjectManagement.md) - 親コンポーネント
-- [BulkUploadDialog仕様](./BulkUploadDialog.md) - ファイルアップロード
-- [UIポリシー](.clinerules/references/ui_policy.md) - UI設計ルール
-- [ファイルダウンロードAPI](../../../20260121_API一覧.md) - API仕様
+- ツールチップでファイルパス表示
+- クリック可能要素にカーソル変更
+- ソート機能でデータ整理
+- Empty状態の明確な表示

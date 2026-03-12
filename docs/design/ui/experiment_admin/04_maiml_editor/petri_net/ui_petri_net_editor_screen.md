@@ -1,448 +1,339 @@
-# PetriNetEditorScreen UI仕様書
+# UI仕様書: Petri Netエディタスクリーン
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 目的
+MAIMLファイルをフルスクリーンで編集するためのエディタ画面。ProjectManagementまたはFormatManagementから呼び出され、Petri Net形式でMAIMLファイルを視覚的に編集する。
 
-PetriNetEditorをフルスクリーンで表示するラッパー画面コンポーネント。ExperimentAdminMenuから呼び出され、プロジェクトの実験フローを編集します。プロジェクトデータの読み込み、保存処理、未保存の変更の警告などを管理します。
+### 1.2 使用場面
+- プロジェクト管理画面からMAIMLファイルを編集する場合（editMode='project'）
+- フォーマット管理画面からフォーマットファイルを編集する場合（editMode='format'）
 
-### 1.2. 使用場面
-
-- ExperimentAdminMenuから「MAIML編集」を選択した場合
-- プロジェクト管理画面から実験フローを編集する場合
-- 新規プロジェクトの実験フローを作成する場合
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
-- **テナント分離**: organization_id によるマルチテナント分離
+### 1.3 アクセス権限
+- **実験管理者（Experiment Admin）**: 読み取り・編集可能
 
 ---
 
 ## 2. 画面構成
 
-### 2.1. レイアウト構造
+### 2.1 レイアウト構造
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ Header                                              │
-│ [← 戻る]     プロジェクト名: 材料実験A              │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│ PetriNetEditor（フルスクリーン）                    │
-│                                                     │
-│ [ツールバー] [保存] [バリデーション]                │
-│                                                     │
-│ ┌─────────────────────────────────────────────────┐ │
-│ │ ReactFlow編集エリア                             │ │
-│ │                                                 │ │
-│ │   ◯→[T]→◯                                     │ │
-│ │                                                 │ │
-│ │ [Controls] [MiniMap]                            │ │
-│ └─────────────────────────────────────────────────┘ │
-│                                                     │
-│ ℹ️ ローディング表示（初回のみ）                     │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ ヘッダーバー                                                  │
+│ [← 戻る] [タイトル・サブタイトル]         [● 未保存の変更]   │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│                 PetriNetEditorInner                          │
+│                 （React Flow編集エリア）                      │
+│                                                               │
+│                                                               │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+### 2.2 UI要素
 
-#### 2.2.1. ヘッダー
+#### ヘッダーバー
+- **戻るボタン**: 編集画面を閉じて元の画面に戻る
+- **タイトル**: 
+  - editMode='project': 「実験フロー編集 - {displayTitle}」
+  - editMode='format': 「フォーマット編集 - {displayTitle}」
+- **サブタイトル**: displaySubtitle（存在する場合のみ表示）
+- **未保存変更インジケーター**: hasUnsavedChangesがtrueの場合に表示
 
-| 要素 | コンポーネント | 説明 |
-|------|--------------|------|
-| 戻るボタン | Button | ArrowLeftOutlined、onBack()実行 |
-| プロジェクト名 | Typography.Title | level={4} |
+#### エディタ本体
+- **PetriNetEditorInner**: Petri Net編集コンポーネント（ReactFlowProviderでラップ）
 
-**スタイル:**
-- padding: 16px
-- borderBottom: 1px solid colorBorder
-- 固定配置（スクロールしても表示）
-
-#### 2.2.2. PetriNetEditor
-
-**Props渡し:**
-- initialContent: maimlContent
-- projectId: projectId
-- projectName: projectName
-- onSave: handleSave
-- onContentChange: handleContentChange
-- onError: handleError
-
-#### 2.2.3. ローディング表示
-
-**表示条件:** isLoading === true
-
-| 要素 | 設定 |
-|------|------|
-| Spin | size="large", tip="読み込み中..." |
-| 配置 | 画面中央 |
-
-### 2.3. 画面遷移
-
-- 戻るボタン: ExperimentAdminMenuに戻る（未保存の変更がある場合は確認ダイアログ）
+#### ローディング画面
+- **Spin**: ファイル読み込み中に表示
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1. 主要機能の詳細
+### 3.1 Props定義
 
-#### 3.1.1. プロジェクトデータの読み込み
+```typescript
+interface PetriNetEditorScreenProps {
+  /** 編集パラメータ（共通型） */
+  params: MaimlEditorParams;
+  /** 画面を閉じるコールバック */
+  onClose: () => void;
+}
 
-**処理フロー:**
-1. useEffect()でprojectIdを監視
-2. loadProjectData()を実行
-3. isLoading: true
-4. プロジェクトに関連するMAIMLファイルを検索:
-   - プロジェクトのメインMAIMLファイル
-   - プロジェクトフォルダ内の*.maimlファイル
-   - なければundefined（新規作成モード）
-5. maimlContentステートに設定
-6. isLoading: false
+// MaimlEditorParams型の内容
+interface MaimlEditorParams {
+  editMode: 'project' | 'format';
+  editingFileName: string;
+  originalFileName?: string;
+  sourceS3Key: string;
+  displayTitle: string;
+  displaySubtitle?: string;
+  documentId?: string;
+  description?: string;
+}
+```
 
-**エラーハンドリング:**
-- message.error()でエラー通知
-- isLoading: false
+### 3.2 State管理
 
-**現在の実装:**
-- TODO: API未実装
-- 仮実装: 新規作成モードで開始（maimlContent: undefined）
+```typescript
+// ローディング状態
+const [isLoading, setIsLoading] = useState<boolean>(true);
 
-#### 3.1.2. 保存処理
+// MAIMLファイルの内容（文字列）
+const [maimlContent, setMaimlContent] = useState<string | null>(null);
 
-**処理フロー:**
-1. PetriNetEditorからonSave()コールバックを受け取る
-2. handleSave()を実行
-3. contentを受け取る
-4. バリデーション実行（PetriNetEditor側で実施済み）
-5. プロジェクトのMAIMLファイルとして保存:
-   - 既存ファイルがあれば上書き
-   - なければ新規作成
-6. message.success()で成功通知
-7. hasUnsavedChanges: false
+// 未保存の変更があるか
+const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+```
 
-**エラーハンドリング:**
-- message.error()でエラー通知
-- hasUnsavedChanges: 変更なし
+### 3.3 主要機能
 
-**現在の実装:**
-- TODO: API未実装
-- 仮実装: コンソールログのみ
+#### 3.3.1 MAIMLファイルの読み込み
 
-#### 3.1.3. 変更通知の処理
+**トリガー**: useEffect（sourceS3Keyが変更されたとき）
 
-**処理フロー:**
-1. PetriNetEditorからonContentChange()コールバックを受け取る
-2. handleContentChange()を実行
-3. hasUnsavedChanges: true
+**処理フロー**:
+1. `setIsLoading(true)`
+2. `getFileContentAsText(sourceS3Key)` でS3からファイル取得
+3. 取得成功:
+   - `setMaimlContent(content)` - 内容を設定
+   - コンソールログ: ✅ 読み込み成功、文字列長を出力
+4. 取得失敗またはnull:
+   - `setMaimlContent(null)` - 新規作成モード
+   - コンソールログ: ✅ 新規作成モード
+5. `setIsLoading(false)`
 
-**用途:**
-- 戻るボタンクリック時の警告表示
+**新規作成モード**:
+- ファイルが存在しない場合（404エラーやnull）は、maimlContent=nullで新規作成として扱う
 
-#### 3.1.4. 戻る処理
+#### 3.3.2 戻るボタンの処理
 
-**処理フロー:**
-1. 戻るボタンをクリック
-2. handleBack()を実行
-3. hasUnsavedChangesをチェック:
-   - true: 確認ダイアログ表示
-     - 「保存されていない変更があります。破棄して戻りますか？」
-     - OK: onClose()実行
-     - Cancel: 何もしない
-   - false: 即座にonClose()実行
+**トリガー**: 戻るボタンクリック
 
-#### 3.1.5. エラー処理
+**処理フロー**:
+1. `hasUnsavedChanges`をチェック
+2. 未保存変更がある場合:
+   - `window.confirm()` で確認ダイアログ表示
+   - メッセージ: 「保存されていない変更があります。破棄して戻りますか？」
+   - ユーザーが「OK」: `onClose()` を呼び出し
+   - ユーザーが「キャンセル」: 何もしない
+3. 未保存変更がない場合:
+   - `onClose()` を呼び出し
 
-**処理フロー:**
-1. PetriNetEditorからonError()コールバックを受け取る
-2. handleError()を実行
-3. console.error()でエラーログ
-4. message.error()でエラー通知
+#### 3.3.3 コンテンツ変更の検知
 
-### 3.2. ボタン・操作の動作
+**トリガー**: PetriNetEditorInnerからの通知（未実装、将来的な拡張ポイント）
 
-| 操作 | 動作 | 状態変更 |
-|------|------|---------|
-| 戻るボタンクリック | 確認後に戻る | onClose()実行 |
-| PetriNetEditorで保存 | 保存処理 | hasUnsavedChanges: false |
-| PetriNetEditorで編集 | 変更通知 | hasUnsavedChanges: true |
+**処理フロー**:
+1. `hasUnsavedChanges`がfalseの場合のみ
+2. `setHasUnsavedChanges(true)` に変更
+3. コンソールログ: 📝 変更を検知
 
-### 3.3. バリデーションルール
-
-- なし（PetriNetEditor側で実施）
+**注**: 現在は`handleContentChange`コールバックが定義されているが、PetriNetEditorInnerに渡されていない
 
 ---
 
 ## 4. データ仕様
 
-### 4.1. Props型定義
+### 4.1 Props型定義
 
 ```typescript
 interface PetriNetEditorScreenProps {
-  projectId: string;         // プロジェクトID
-  projectName: string;       // プロジェクト名
-  projectOverview?: string;  // プロジェクト概要
-  onClose: () => void;       // 画面を閉じるコールバック
-  sourceS3Key: string;       // S3のファイルキー（読み込み元のパス）
+  params: MaimlEditorParams;
+  onClose: () => void;
+}
+
+interface MaimlEditorParams {
+  editMode: 'project' | 'format';
+  editingFileName: string;
+  originalFileName?: string;
+  sourceS3Key: string;
+  displayTitle: string;
+  displaySubtitle?: string;
+  documentId?: string;
+  description?: string;
 }
 ```
 
-**sourceS3Key の用途:**
-- MAIMLファイルの読み込み元S3パスを指定
-- 例: `/org_maiml_lab_001/projects/sample_project/sample_project.maiml`
-- PetriNetEditorInnerに渡されてファイル読み込みに使用される
-
-### 4.2. State型定義
+### 4.2 State型定義
 
 ```typescript
-interface State {
-  isLoading: boolean;                // ローディング状態
-  maimlContent: string | undefined;  // MAIMLコンテンツ
-  hasUnsavedChanges: boolean;        // 未保存の変更フラグ
-}
+const isLoading: boolean;
+const maimlContent: string | null;
+const hasUnsavedChanges: boolean;
 ```
 
 ---
 
 ## 5. API連携
 
-### 5.1. 使用するAPI一覧
+### 5.1 ファイル取得API
 
-[MAIML編集API仕様書](../../../api/api_maiml_editor.md)を参照
+| 関数 | 説明 | パラメータ | 戻り値 |
+|------|------|----------|--------|
+| `getFileContentAsText` | S3からMAIMLファイルをテキストとして取得 | `s3Key: string` | `Promise<string \| null>` |
 
-| API | メソッド | エンドポイント | 説明 | 実装状態 |
-|-----|---------|---------------|------|---------|
-| MAIMLファイル取得 | GET | `/api/v1/projects/:projectId/maiml` | プロジェクトのMAIMLファイル取得 | 🔴 未実装 |
-| MAIMLファイル保存 | PUT | `/api/v1/projects/:projectId/maiml` | プロジェクトのMAIMLファイル保存 | 🔴 未実装 |
+**エラーハンドリング**:
+- ファイルが存在しない場合はnullを返す
+- エラーが発生した場合もnullを返し、新規作成モードとして続行
 
-### 5.2. MAIMLファイル取得
+---
 
-**エンドポイント**: `GET /api/v1/projects/:projectId/maiml`
+## 6. 子コンポーネント
 
-**リクエストパラメータ**:
-- `projectId` (パスパラメータ): プロジェクトID
+### 6.1 PetriNetEditorInner
 
-**レスポンス**:
+**Props**:
 ```typescript
 {
-  "success": true,
-  "data": {
-    "file_id": "file-uuid",
-    "file_name": "sample_project.maiml",
-    "file_path": "org_maiml_lab_001/projects/Sample_Project/sample_project.maiml",
-    "file_size": 12345,
-    "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<maiml>...</maiml>",
-    "loaded_at": "2026-01-21T16:00:00Z"
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
-  }
+  maimlData: string | null;
+  editingFileName: string;
+  editMode: 'project' | 'format';
+  originalFileName?: string;
+  sourceS3Key: string;
+  initialDocumentId?: string;
+  initialDescription?: string;
 }
 ```
 
-### 5.3. MAIMLファイル保存
+**役割**: Petri Net編集の本体（React Flowを使用したノード・エッジ編集）
 
-**エンドポイント**: `PUT /api/v1/projects/:projectId/maiml`
+### 6.2 ReactFlowProvider
 
-**リクエストパラメータ**:
-- `projectId` (パスパラメータ): プロジェクトID
-
-**リクエストボディ**:
-```typescript
-{
-  "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<maiml>...</maiml>",
-  "fileName": "sample_project.maiml",
-  "createBackup": true
-}
-```
-
-**レスポンス**:
-```typescript
-{
-  "success": true,
-  "data": {
-    "file_id": "file-uuid",
-    "file_name": "sample_project.maiml",
-    "file_path": "org_maiml_lab_001/projects/Sample_Project/sample_project.maiml",
-    "file_size": 12345,
-    "saved_at": "2026-01-21T16:00:00Z",
-    "backup_created": true,
-    "backup_path": "org_maiml_lab_001/projects/Sample_Project/archive/sample_project_v2.maiml"
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
-### 5.4. 現在の実装状況
-
-**注意**: 上記APIは現在未実装です。
-
-**代替実装**:
-- 新規作成モードで開始（`maimlContent: undefined`）
-- 保存処理はコンソールログのみ
-- 実際のS3操作は行われません
+**役割**: React Flowのコンテキストを提供（PetriNetEditorInnerをラップ）
 
 ---
 
-## 6. エラーハンドリング
+## 7. スタイリング
 
-### 6.1. エラーケース
+### 7.1 画面全体
+- **width**: 100vw
+- **height**: 100vh
+- **display**: flex（縦方向）
+- **overflow**: hidden
+- **backgroundColor**: #ffffff
 
-| エラーケース | 処理 | 表示 |
-|------------|------|------|
-| プロジェクトデータ読み込み失敗 | message.error() | 「プロジェクトの読み込みに失敗しました」 |
-| 保存失敗 | message.error() | 「保存に失敗しました」 |
-| PetriNetEditorからのエラー | message.error() | エラー内容 |
+### 7.2 ヘッダーバー
+- **padding**: 12px 16px
+- **borderBottom**: 1px solid #f0f0f0
+- **display**: flex（横方向）
+- **alignItems**: center
+- **gap**: 16px
+- **backgroundColor**: white
+- **boxShadow**: 0 2px 8px rgba(0,0,0,0.06)
+- **zIndex**: 10
 
-### 6.2. エラーメッセージ
+### 7.3 タイトル
+- **fontSize**: 18px
+- **fontWeight**: 600
+- **color**: #262626
 
-- 「プロジェクトの読み込みに失敗しました」
-- 「保存に失敗しました」
-- 「保存されていない変更があります。破棄して戻りますか？」
+### 7.4 サブタイトル
+- **fontSize**: 14px
+- **color**: #8c8c8c
 
----
+### 7.5 未保存変更インジケーター
+- **padding**: 4px 12px
+- **backgroundColor**: #fff7e6
+- **border**: 1px solid #ffd591
+- **borderRadius**: 4px
+- **fontSize**: 14px
+- **color**: #d46b08
 
-## 7. UI/UXポリシー準拠
-
-### 7.1. Ant Designコンポーネント使用
-
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Button | 戻るボタン | icon, onClick |
-| Spin | ローディング | size, tip |
-| message | 通知 | success, error |
-| Typography | プロジェクト名 | Title level={4} |
-
-### 7.2. ReactFlowProvider
-
-- PetriNetEditorをReactFlowProviderでラップ
-- ReactFlowのコンテキストを提供
-
-### 7.3. レイアウト
-
-- フルスクリーン表示（固定ヘッダー + スクロール可能コンテンツ）
-- ヘッダー高さ: 64px
-- コンテンツエリア: calc(100vh - 64px)
-
----
-
-## 8. 実装ファイル
-
-### 8.1. ソースファイルパス
-
-```
-frontend/src/components/viewer/PetriNetEditorScreen.tsx
-```
-
-### 8.2. 関連コンポーネント
-
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| PetriNetEditor | @/components/editor/PetriNetEditor | メインエディタ |
-| ExperimentAdminMenu | - | 呼び出し元 |
-
-### 8.3. 依存ライブラリ
-
-| ライブラリ | バージョン | 用途 |
-|-----------|----------|------|
-| antd | 6.x | UIコンポーネント |
-| @ant-design/icons | 5.x | アイコン |
-| reactflow | 11.11.4 | ReactFlowProvider |
+### 7.6 ローディング画面
+- **display**: flex
+- **justifyContent**: center
+- **alignItems**: center
+- **height**: 100vh
+- **backgroundColor**: #f0f2f5
 
 ---
 
-## 9. 既知の課題・TODO
+## 8. エラーハンドリング
 
-### 実装待ち
+### 8.1 ファイル読み込みエラー
 
-- [ ] プロジェクトのMAIMLファイル読み込みAPI
-- [ ] プロジェクトのMAIMLファイル保存API
-- [ ] 複数のMAIMLファイルがある場合の処理
-- [ ] バージョン管理機能
-- [ ] 自動保存機能
+**発生条件**: 
+- S3からのファイル取得に失敗
+- ファイルが存在しない
 
-### 改善提案
+**対応**: 
+- エラーをコンソールに出力（❌マーク付き）
+- `maimlContent = null` として新規作成モードで続行
+- ユーザーにエラーメッセージは表示しない（新規作成として扱う）
 
-- [ ] ヘッダーに保存状態表示（保存済み / 未保存）
-- [ ] ヘッダーに最終更新日時表示
-- [ ] ブラウザの戻るボタン対応
-- [ ] キーボードショートカット（Ctrl+S）のハンドリング
-- [ ] オフライン対応
+### 8.2 未保存変更の破棄確認
 
----
+**発生条件**: 
+- 未保存変更がある状態で戻るボタンをクリック
 
-## 10. 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+**対応**: 
+- ブラウザネイティブの`window.confirm()`で確認
+- メッセージ: 「保存されていない変更があります。破棄して戻りますか？」
 
 ---
 
-## 11. 使用例
+## 9. 実装ファイル
 
-### 11.1. ExperimentAdminMenuからの呼び出し
+### 9.1 メインファイル
+- **パス**: `frontend/src/components/editorv2/PetriNetEditorScreen.tsx`
+- **行数**: 約210行
+- **言語**: TypeScript + React
 
-```typescript
-// ExperimentAdminMenu内
-const [editorOpen, setEditorOpen] = useState(false);
-const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+### 9.2 関連ファイル
+- `frontend/src/components/editorv2/PetriNetEditorInner.tsx` - エディタ本体
+- `frontend/src/services/fileAccessService.ts` - ファイルアクセスサービス
+- `frontend/src/types/maimlEditor.ts` - 型定義
 
-const handleOpenEditor = (project: Project) => {
-  setSelectedProject(project);
-  setEditorOpen(true);
-};
-
-const handleCloseEditor = () => {
-  setEditorOpen(false);
-  setSelectedProject(null);
-};
-
-return (
-  <>
-    {editorOpen && selectedProject ? (
-      <PetriNetEditorScreen
-        projectId={selectedProject.id}
-        projectName={selectedProject.name}
-        projectOverview={selectedProject.overview}
-        onClose={handleCloseEditor}
-      />
-    ) : (
-      <div>メニュー画面</div>
-    )}
-  </>
-);
-```
+### 9.3 依存ライブラリ
+- `react` - Reactフレームワーク
+- `antd` - Ant Designコンポーネント（Button, Spin, message）
+- `reactflow` - React Flow（ReactFlowProvider）
 
 ---
 
-## 12. パフォーマンス最適化
+## 10. 特記事項
 
-### 12.1. メモ化
+### 10.1 旧Propsの廃止
 
-- useCallback()で handleBack, handleSave, handleContentChange をメモ化
-- 不要な再レンダリングを防ぐ
+以前は`projectId`, `projectName`, `projectOverview`を個別のPropsとして受け取っていたが、現在は`MaimlEditorParams`型に一本化されている。
 
-### 12.2. 遅延読み込み
+### 10.2 新規作成モード
 
-- PetriNetEditorは動的インポート可能（将来的に）
+ファイルが存在しない場合（S3から取得できない場合）は、`maimlContent = null`として新規作成モードで動作する。PetriNetEditorInnerが空のPetri Netを生成する。
+
+### 10.3 未保存変更の検知
+
+現在は`handleContentChange`コールバックが定義されているが、PetriNetEditorInnerに渡されていない。将来的には、PetriNetEditorInner側でコンテンツが変更されたときにこのコールバックを呼び出すことで、未保存変更の検知が可能になる。
+
+### 10.4 ReactFlowProvider
+
+React Flowを使用するため、PetriNetEditorInnerを`<ReactFlowProvider>`でラップする必要がある。これにより、React Flowのコンテキスト（ノード・エッジの状態管理）が提供される。
+
+### 10.5 フルスクリーン表示
+
+この画面は100vw x 100vhのフルスクリーン表示となり、元の画面（ProjectManagement / FormatManagement）を完全に覆う。
 
 ---
 
-## 13. アクセシビリティ
+## 11. 変更履歴
 
-### 13.1. キーボード操作
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースでUI仕様書を新規作成 | Cline |
 
-- Esc: 戻る（未保存の変更がある場合は確認ダイアログ）
-- PetriNetEditor内のショートカットは継承
+---
 
-### 13.2. スクリーンリーダー対応
+## 12. 参考情報
 
-- ヘッダーにaria-labelを設定
-- ローディング中はaria-busyを設定
+### 12.1 呼び出し元
+
+- **ProjectManagement**: プロジェクト内のMAIMLファイルを編集
+- **FormatManagement**: フォーマットファイルを編集
+
+### 12.2 関連UI仕様書
+
+- `ui_petri_net_editor.md` - PetriNetEditorInnerの詳細仕様（Phase 6-2で作成予定）
+- `ui_project_management.md` - プロジェクト管理画面
+- `ui_format_management.md` - フォーマット管理画面

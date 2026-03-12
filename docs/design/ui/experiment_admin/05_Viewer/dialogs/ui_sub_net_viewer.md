@@ -1,192 +1,442 @@
-# SubNetViewer UI仕様書
+# SubNetViewer コンポーネント UI仕様書
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+SubNetViewerは、PetriNetのTransitionノードに接続されたサブネット（入力/出力Placeノード）をReact Flowで可視化するコンポーネントです。左ペインにサブネット図、右ペインにプロパティビューアを表示する2ペインレイアウトです。
 
-トランジションノードのサブネット（接続されたPlace群とアーク）をReact Flowで表示するビューアー。左ペインでサブネット図、右ペインでプロパティ詳細を表示します。
+### 1.2 使用場面
+- PetriNetViewerでTransitionノードをクリックした際のサブネット表示
+- ViewRendererDialog内でのサブネット可視化
+- Transitionに接続されたPlace（Material/Condition/Result）の関係表示
 
----
-
-## 2. ファイルパス
-
-```
-frontend/src/components/viewer/dialogs/SubNetViewer.tsx
-```
-
----
-
-## 3. Props定義
-
-| プロパティ名 | 型 | 必須 | 説明 |
-|------------|---|-----|------|
-| open | boolean | ✓ | 表示状態 |
-| nodeName | string | ✓ | トランジション名 |
-| maimlData | string | ✓ | MAIMLデータ |
-| templateMap | Record<string, {element}> | ✓ | テンプレートマップ |
-| petriNetData | object | ✓ | ペトリネットデータ（places, arcs） |
-| onClose | () => void | ✓ | 閉じる処理 |
-| arcsData | Array | | 複数methodモード用アークデータ |
-| placesData | Array | | 複数methodモード用プレースデータ |
-| multiMethodMode | boolean | | 複数methodモードフラグ |
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin（実験管理者）
+- **認証**: JWT + Session Hybrid認証
 
 ---
 
-## 4. レイアウト
+## 2. 画面構成
+
+### 2.1 レイアウト構造
+
+#### 2.1.1 通常表示時（右ペイン閉じている）
 
 ```
-┌─────────────────────────────────────────────────────┐
-│ [🔄] [ℹ️]                                    (右上) │
-├───────────────────────┬─────────────────────────────┤
-│ React Flow            │ PropertyViewer             │
-│ サブネット図          │ (ノード選択時表示)         │
-│                       │                             │
-│ ┌─────┐    ┌─────┐  │ 基本情報                    │
-│ │Material│──│Trans││  - ID: xxx                  │
-│ └─────┘    └─────┘  │  - Type: Material           │
-│      ↓               │                             │
-│ ┌─────┐             │ テンプレート                │
-│ │Result │             │ - name: ...                 │
-│ └─────┘             │ - value: ...                │
-│                       │                             │
-│ [MiniMap]            │ [閉じる]                    │
-│ [Controls]           │                             │
-└───────────────────────┴─────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    [🔄 ビューリセット] [ℹ️ 情報表示]     │
+│                                                         │
+│                   React Flow Canvas                     │
+│                  （サブネット表示）                      │
+│                                                         │
+│   ◯ Material → ⬡ Transition → ◯ Result               │
+│   ◯ Condition ↗                                        │
+│                                                         │
+│  [MiniMap]                         [Controls]          │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
+
+#### 2.1.2 プロパティビューア表示時
+
+```
+┌───────────────────────────────────┬────────────────────┐
+│  [🔄] [ℹ️]                        │ [ノード名]         │
+│                                   │ プロパティ   [✕]  │
+│        React Flow Canvas          ├────────────────────┤
+│      （サブネット表示）            │ [基本情報]         │
+│                                   │ [テンプレート]     │
+│  ◯ Material → ⬡ → ◯ Result      │ [データ]           │
+│  ◯ Condition ↗                   │                    │
+│                                   │ ID: place_001      │
+│  [MiniMap]     [Controls]         │ 名前: サンプル材料  │
+│                                   │                    │
+└───────────────────────────────────┴────────────────────┘
+    60%                                    40%
+```
+
+### 2.2 主要UI要素
+
+#### 2.2.1 ツールバー（左ペイン右上）
+- **背景**: 半透明白（rgba(255, 255, 255, 0.9)）
+- **角丸**: token.borderRadius
+- **シャドウ**: token.boxShadow
+- **ボタン**:
+  - ビューリセット: ReloadOutlined アイコン
+  - 情報表示: InfoCircleOutlined アイコン
+
+#### 2.2.2 左ペイン（React Flow）
+- **幅**: 右ペイン閉じ時は100%、開いている時は60%
+- **トランジション**: 0.3s ease
+- **React Flow設定**:
+  - fitView: 有効
+  - fitViewOptions: { padding: 0.2, minZoom: 0.5, maxZoom: 1.5 }
+  - MiniMap: 100x150px
+  - Controls: ズーム、フィット等のコントロール
+  - Background: グリッドパターン（#aaa、gap: 16）
+
+#### 2.2.3 右ペイン（PropertyViewer）
+- **幅**: 40%
+- **ボーダー**: 左側にボーダー
+- **背景**: token.colorBgContainer
+- **コンテンツ**: PropertyViewerコンポーネント
 
 ---
 
-## 5. 主要機能
+## 3. 機能仕様
 
-### 5.1. サブネット抽出
+### 3.1 サブネットデータの抽出
 
-**処理フロー:**
-1. トランジション名でアークをフィルタリング
-2. 接続されたPlace IDを収集
-3. Place情報とテンプレート情報を結合
-4. convertSubnetToReactFlow()でReact Flow形式に変換
+#### 3.1.1 処理フロー
+```typescript
+useEffect(() => {
+  if (!nodeName || !open) {
+    return;
+  }
 
-### 5.2. ノードクリック
+  const fetchSubnetData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // 複数method対応
+      let currentArcs = petriNetData.arcs;
+      let currentPlaces = petriNetData.places;
+      
+      if (multiMethodMode && arcsData && placesData) {
+        currentArcs = arcsData;
+        currentPlaces = placesData;
+      }
+      
+      // トランジションに接続されたアークをフィルタリング
+      const transitionArcs = currentArcs.filter((arc) => 
+        arc.source === nodeName || arc.target === nodeName
+      );
+      
+      if (transitionArcs.length === 0) {
+        setError(`トランジション "${nodeName}" に接続されたアークがありません`);
+        setLoading(false);
+        return;
+      }
+      
+      // arcから関連するplaceIDを収集
+      const relatedPlaceIds = new Set<string>();
+      const relatedArcs: ArcInfo[] = [];
+      
+      transitionArcs.forEach((arc) => {
+        relatedArcs.push({
+          id: arc.id,
+          source: arc.source,
+          target: arc.target,
+          weight: '1',
+          description: arc.id,
+        });
+        
+        if (arc.source !== nodeName) {
+          relatedPlaceIds.add(arc.source);
+        }
+        if (arc.target !== nodeName) {
+          relatedPlaceIds.add(arc.target);
+        }
+      });
+      
+      // placesデータを使用
+      const relatedPlaces: PlaceInfo[] = petriNetData.places
+        .filter((place) => relatedPlaceIds.has(place.id))
+        .map((place) => {
+          // ... テンプレート情報の取得 ...
+        });
+      
+      // サブネットデータを構築
+      const subnet: SubnetData = {
+        transition: { id: nodeName, name: nodeName, type: 'normal' },
+        places: relatedPlaces,
+        arcs: relatedArcs,
+      };
+      
+      setSubnetData(subnet);
+      
+      // React Flow形式に変換
+      const { nodes: flowNodes, edges: flowEdges } = convertSubnetToReactFlow(subnet);
+      
+      setNodes(flowNodes);
+      setEdges(flowEdges);
+      setLoading(false);
+      
+    } catch (err) {
+      console.error('❌ [SubNetViewer] サブネットデータ構築エラー:', err);
+      setError('サブネットデータの構築中にエラーが発生しました');
+      setLoading(false);
+    }
+  };
+  
+  fetchSubnetData();
+}, [maimlData, nodeName, templateMap, petriNetData, setNodes, setEdges, open, multiMethodMode, arcsData, placesData]);
+```
 
-**処理フロー:**
-1. ノードクリック → selectedNodeに設定
-2. テンプレート情報を抽出（extractTemplateProperties）
-3. 構造化プロパティを作成
-4. 右ペインを開いてPropertyViewerに表示
+#### 3.1.2 UI動作
+- **開始時**: loadingフラグをtrueに設定、Spinner表示
+- **アーク抽出**: nodeName（トランジション）に接続されたアークをフィルタリング
+- **Place収集**: アークから関連するPlaceIDを収集
+- **テンプレート情報**: templateMapからテンプレート情報を取得
+- **変換**: convertSubnetToReactFlowでReact Flow形式に変換
+- **成功時**: nodes、edgesをStateに設定、Canvas表示
+- **エラー時**: errorメッセージを設定、Alert表示
 
-**抽出されるプロパティ:**
-- basic: id, type, name
-- template: テンプレート固有のプロパティ
-- data: 座標等
+### 3.2 ノードクリック処理
 
-### 5.3. ビューリセット
+#### 3.2.1 処理フロー
+```typescript
+const handleNodeClick: NodeMouseHandler = useCallback((event, node) => {
+  setSelectedNodeId(node.id);
+  setSelectedNode(node);
 
-**機能:**
+  // PlaceノードかつTemplateの場合
+  if (node.data.nodeType === 'place' && node.data.isTemplate && node.data.template) {
+    const extractedProps = extractTemplateProperties(
+      node.data.template.element,
+      node.data.templateType as string
+    );
+    
+    // 構造化プロパティに変換
+    const basicProperties: Record<string, PropertyObject> = {
+      id: { key: 'id', value: extractedProps.id, type: 'string', description: 'テンプレートID' },
+      type: { key: 'type', value: extractedProps.type, type: 'string', description: 'テンプレート種別' },
+      name: { key: 'name', value: extractedProps.name, type: 'string', description: 'テンプレート名' },
+    };
+
+    const templateProperties: Record<string, PropertyObject> = {};
+    Object.entries(extractedProps).forEach(([key, value]) => {
+      if (!['id', 'type', 'name'].includes(key)) {
+        templateProperties[key] = {
+          key,
+          value: value ?? '値なし',
+          type: typeof value,
+          description: key,
+        };
+      }
+    });
+
+    const dataProperties: Record<string, PropertyObject> = {
+      coordinates: {
+        key: 'coordinates',
+        value: `(${node.position.x.toFixed(2)}, ${node.position.y.toFixed(2)})`,
+        type: 'coordinates',
+        description: 'ノード座標',
+      },
+    };
+
+    setStructuredProperties({
+      basic: basicProperties,
+      template: templateProperties,
+      data: dataProperties,
+    });
+  }
+  
+  // 右ペインを開く
+  setRightPanelOpen(true);
+}, [extractTemplateProperties]);
+```
+
+- **Placeノード**: extractTemplatePropertiesでプロパティ抽出 → 右ペイン表示
+- **Transitionノード**: 基本情報のみ表示 → 右ペイン表示
+
+### 3.3 テンプレートプロパティ抽出
+
+#### 3.3.1 処理フロー
+```typescript
+const extractTemplateProperties = useCallback((templateElement: Element | null, templateType: string) => {
+  if (!templateElement) {
+    return { id: 'unknown', type: templateType, name: '不明' };
+  }
+  
+  const properties: Record<string, unknown> = {
+    id: templateElement.getAttribute('id'),
+    type: templateType.charAt(0).toUpperCase() + templateType.slice(1),
+    name: templateElement.getAttribute('name') || '名称未設定',
+  };
+  
+  // 属性を追加
+  for (let i = 0; i < templateElement.attributes.length; i++) {
+    const attr = templateElement.attributes[i];
+    if (!['id', 'name'].includes(attr.name)) {
+      properties[attr.name] = attr.value;
+    }
+  }
+  
+  // 子要素をプロパティに追加
+  for (let i = 0; i < templateElement.children.length; i++) {
+    const child = templateElement.children[i];
+    const tagName = child.tagName;
+    
+    let value: unknown = child.textContent?.trim() || '';
+    
+    // 数値変換
+    if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value)) {
+      value = parseFloat(value);
+    }
+    
+    // Boolean変換
+    if (value === 'true') value = true;
+    if (value === 'false') value = false;
+    
+    // 同じタグ名が複数ある場合は配列化
+    if (properties[tagName]) {
+      if (!Array.isArray(properties[tagName])) {
+        properties[tagName] = [properties[tagName]];
+      }
+      (properties[tagName] as unknown[]).push(value);
+    } else {
+      properties[tagName] = value;
+    }
+  }
+  
+  return properties;
+}, []);
+```
+
+- **属性抽出**: Element.attributesから属性を取得
+- **子要素抽出**: Element.childrenから子要素を取得
+- **型変換**: 数値・Boolean自動変換
+- **配列化**: 同名タグは配列として管理
+
+### 3.4 その他の機能
+
+#### 3.4.1 ビューリセット
+```typescript
+const handleResetView = useCallback(() => {
+  setRightPanelOpen(false);
+  setSelectedNode(null);
+}, []);
+```
 - 右ペインを閉じる
 - 選択ノードをクリア
-- ビューポートをリセット
+
+#### 3.4.2 情報表示
+```typescript
+const handleShowInfo = useCallback(() => {
+  alert(`サブネット情報\n\n中心ノード: ${nodeName}\n関連プレース数: ${subnetData?.places.length || 0}\nアーク数: ${subnetData?.arcs.length || 0}\nテンプレート参照: ${Object.keys(templateMap).length}件`);
+}, [nodeName, subnetData, templateMap]);
+```
+- 簡易的なalertでサブネット情報を表示
 
 ---
 
-## 6. State管理
+## 4. データ仕様
 
-| State | 型 | 説明 |
-|------|---|------|
-| nodes | Node[] | React Flowノード配列 |
-| edges | Edge[] | React Flowエッジ配列 |
-| loading | boolean | 読み込み中フラグ |
-| error | string \| null | エラーメッセージ |
-| subnetData | SubnetData \| null | サブネット情報 |
-| rightPanelOpen | boolean | 右ペイン表示フラグ |
-| selectedNode | Node \| null | 選択中のノード |
-| selectedNodeId | string \| null | 選択中のノードID |
-| structuredProperties | object | 構造化プロパティ |
+### 4.1 Props定義
 
----
+```typescript
+interface SubNetViewerProps {
+  open: boolean;
+  nodeName: string;
+  maimlData: string;
+  templateMap: Record<string, { element: Element }>;
+  petriNetData: {
+    places: Array<{
+      id: string;
+      data: {
+        label?: string;
+        stereotype?: string;
+        template?: { id: string };
+        templateId?: string;
+      };
+    }>;
+    arcs: Array<{
+      id: string;
+      source: string;
+      target: string;
+    }>;
+  };
+  onClose: () => void;
+  arcsData?: Array<...> | null;
+  placesData?: Array<...> | null;
+  multiMethodMode?: boolean;
+}
+```
 
-## 7. 使用コンポーネント
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| open | boolean | ✅ | 表示状態 |
+| nodeName | string | ✅ | TransitionノードのID |
+| maimlData | string | ✅ | MAIML XML文字列 |
+| templateMap | Record<string, { element: Element }> | ✅ | テンプレートマップ |
+| petriNetData | Object | ✅ | Petri Net構造データ |
+| onClose | Function | ✅ | 閉じる時のコールバック |
+| arcsData | Array | - | 複数method対応用アークデータ |
+| placesData | Array | - | 複数method対応用Placeデータ |
+| multiMethodMode | boolean | - | 複数methodモードフラグ |
 
-### 7.1. React Flow
+### 4.2 State定義
 
-- ReactFlow（メイン）
-- MiniMap（ミニマップ）
-- Controls（ズーム・パン操作）
-- Background（背景グリッド）
-- ReactFlowProvider（コンテキスト提供）
-
-### 7.2. カスタムノード
-
-- MaterialTemplateNode
-- ConditionTemplateNode
-- ResultTemplateNode
-- TransitionNode
-
-### 7.3. 内部コンポーネント
-
-- PropertyViewer（右ペイン）
-
-### 7.4. Ant Design
-
-- Button, Space, Flex, Spin, Alert, Typography, Tooltip
-
----
-
-## 8. ユーティリティ
-
-### 8.1. convertSubnetToReactFlow()
-
-サブネットデータをReact Flow形式に変換。
-
-**入力:** SubnetData
-**出力:** { nodes, edges }
-
-### 8.2. extractTemplateProperties()
-
-テンプレート要素からプロパティを抽出。
-
-**処理:**
-- 属性をプロパティに変換
-- 子要素を解析
-- 数値・Boolean変換
-- 配列化（同名タグが複数ある場合）
-
----
-
-## 9. 複数methodモード
-
-**props:**
-- `multiMethodMode`: true
-- `arcsData`: 特定メソッドのアーク配列
-- `placesData`: 特定メソッドのプレース配列
-
-**動作:**
-- multiMethodMode=trueの場合、arcsDataとplacesDataを優先使用
-- petriNetDataの代わりに指定されたデータでサブネット構築
+```typescript
+const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState<string | null>(null);
+const [subnetData, setSubnetData] = useState<SubnetData | null>(null);
+const [rightPanelOpen, setRightPanelOpen] = useState(false);
+const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+const [structuredProperties, setStructuredProperties] = useState<{
+  basic: Record<string, PropertyObject>;
+  template: Record<string, PropertyObject>;
+  data: Record<string, PropertyObject>;
+}>({ basic: {}, template: {}, data: {} });
+```
 
 ---
 
-## 10. スタイル
+## 5. API連携
 
-**左ペイン:**
-- flex: 60%（右ペイン開）
-- flex: 100%（右ペイン閉）
-- transition: 0.3s ease
+### 5.1 使用するAPI一覧
 
-**右ペイン:**
-- flex: 40%
-- borderLeft: 1px solid
+| # | API名 | メソッド | エンドポイント | 状態 | 説明 |
+|---|------|---------|---------------|------|------|
+| - | （なし） | - | - | - | API呼び出しなし |
 
-**ツールバー:**
-- position: absolute
-- top: 10px, right: 10px
-- z-index: 10
-- 半透明背景
+**備考:**
+- SubNetViewerはPropsとして渡されたデータを使用
+- MAIML XMLの解析はコンポーネント内で実施
 
 ---
 
-## 11. 変更履歴
+## 6. エラーハンドリング
 
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.1.0 | 2026-01-29 | 非Modal版、複数methodモード対応 | Development Team |
-| 1.0.0 | 2026-02-19 | UI仕様書作成 | Cline |
+### 6.1 エラーケース一覧
+
+| エラーケース | 対処方法 |
+|-------------|----------|
+| アークが見つからない | 「トランジション "[nodeName]" に接続されたアークがありません」Alert表示 |
+| サブネットデータ構築エラー | 「サブネットデータの構築中にエラーが発生しました」Alert表示 |
+| テンプレート要素なし | デフォルトプロパティ（id: 'unknown', name: '不明'）を返す |
+
+---
+
+## 7. 実装ファイル
+
+### 7.1 ファイルパス
+- **メインファイル**: `frontend/src/components/viewer/dialogs/SubNetViewer.tsx`
+
+### 7.2 関連ファイル
+- **ユーティリティ**: `frontend/src/utils/subnetReactFlowConverter.ts`
+- **プロパティビューア**: `frontend/src/components/viewer/dialogs/PropertyViewer.tsx`
+- **カスタムノード**:
+  - `frontend/src/components/nodes/MaterialTemplateNode.tsx`
+  - `frontend/src/components/nodes/ConditionTemplateNode.tsx`
+  - `frontend/src/components/nodes/ResultTemplateNode.tsx`
+  - `frontend/src/components/nodes/TransitionNode.tsx`
+
+### 7.3 依存ライブラリ
+- `reactflow`: ReactFlow、MiniMap、Controls、Background、useNodesState、useEdgesState、ReactFlowProvider
+- `antd`: Button, Space, Flex, Spin, Alert, Typography, Tooltip, theme
+- `@ant-design/icons`: InfoCircleOutlined, ReloadOutlined
+
+---
+
+## 8. 変更履歴
+
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-12 | 実装ベースで仕様書を再作成 | Cline |
