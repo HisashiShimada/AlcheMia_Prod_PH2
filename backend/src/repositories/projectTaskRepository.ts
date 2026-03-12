@@ -116,6 +116,40 @@ export async function hasRunningTasks(
 }
 
 /**
+ * 未完了タスクが存在するかチェック（チェックイン前の確認用）
+ * task_status が 3 (completed) または 4 (error) 以外のタスクをチェック
+ * 
+ * チェックイン可能条件: すべてのタスクが task_status = 3 または 4
+ * チェックイン不可条件: task_status = 0, 1, 2 のタスクが1つでも存在
+ * 
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @returns 未完了タスクが存在する場合true
+ */
+export async function hasIncompleteTasks(
+  organizationId: string,
+  projectId: string
+): Promise<boolean> {
+  const pool = getPool();
+  
+  const query = `
+    SELECT EXISTS(
+      SELECT 1 
+      FROM project_task_detail
+      WHERE organization_id = $1 
+        AND project_id = $2 
+        AND task_status NOT IN (3, 4)
+    ) as has_incomplete_tasks
+  `;
+  
+  const result = await pool.query<{ has_incomplete_tasks: boolean }>(
+    query, 
+    [organizationId, projectId]
+  );
+  return result.rows[0].has_incomplete_tasks;
+}
+
+/**
  * タスクをInsert（規約準拠: テーブル型Objectから動的にクエリ構築）
  * 
  * @param data タスクデータ（テーブル型Object）
@@ -447,4 +481,42 @@ export async function batchInsertTasks(
     
     await t.none(query, values);
   }
+}
+
+/**
+ * プロジェクト内の全タスクのworker_linked_flgを更新（トランザクション内）
+ * チェックアウト時に使用
+ * 
+ * @param client pg PoolClient（トランザクション用）
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param workerLinkedFlg 設定する値（通常はtrue）
+ * @param userId 更新ユーザーID
+ * @returns 更新件数
+ */
+export async function updateWorkerLinkedFlgByProject(
+  client: any,
+  organizationId: string,
+  projectId: string,
+  workerLinkedFlg: boolean,
+  userId: string
+): Promise<number> {
+  const query = `
+    UPDATE project_task
+    SET 
+      worker_linked_flg = $1,
+      update_user_id = $2,
+      update_at = CURRENT_TIMESTAMP
+    WHERE organization_id = $3 
+      AND project_id = $4
+  `;
+  
+  const result = await client.query(query, [
+    workerLinkedFlg,
+    userId,
+    organizationId,
+    projectId
+  ]);
+  
+  return result.rowCount || 0;
 }
