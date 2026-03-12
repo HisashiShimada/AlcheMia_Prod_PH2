@@ -287,7 +287,7 @@ const projectStatus: ProjectStatus | null = null;
 
 | API | サービス関数 | メソッド | エンドポイント | 用途 | 実装状況 |
 |-----|------------|---------|--------------|------|---------|
-| タスク一覧取得API | `getWorkerTasks(projectName)` | GET | `/api/v1/worker/tasks` | メソッド・タスク一覧をAPIから取得（`useEffect`でプロジェクト選択時に呼び出し） | 実装済み |
+| タスク一覧取得API | `getWorkerTasks(projectName)` | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | メソッド・タスク一覧をAPIから取得（`useEffect`でプロジェクト選択時に呼び出し） | 実装済み |
 | 指示一覧取得API | （親コンポーネントから`sortedInstructions`として受け取り） | GET | `/api/v1/instructions` | 作業指示一覧の取得（本コンポーネントでは直接呼び出さない） | 親側で実装 |
 | 指示確認API | `confirmInstruction(projectName, instructionId)` | PUT | `/api/v1/instructions/{instructionId}/confirm` | 指示の確認完了（`confirmInstructions`共通処理から呼び出し） | 実装済み |
 | MAIMLファイル取得API | `getProjectMaiml(projectName)` | GET | `/api/v1/projects/:projectName/maiml` | フロー図表示用のMAIMLファイル取得（`handleOpenFlowDiagram`から呼び出し） | 実装済み |

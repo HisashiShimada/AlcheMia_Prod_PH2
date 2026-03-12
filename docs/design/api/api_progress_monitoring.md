@@ -1,11 +1,11 @@
 # 進捗確認API仕様書
 
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-03-11 10:52  
-**バージョン**: 1.7.0  
+**最終更新**: 2026-03-12 18:28  
+**バージョン**: 2.0.0  
 **対象画面**: 実験管理者 - 進捗確認画面、実験作業者 - 実験記録画面  
 **総API数**: 6個  
-**実装状況**: 3個実装済み、3個未実装
+**実装状況**: 6個実装済み、0個未実装
 
 ---
 
@@ -13,10 +13,10 @@
 
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
-| 進捗確認 | 3 | 3 | 6 |
-| **合計** | **3** | **3** | **6** |
+| 進捗確認 | 6 | 0 | 6 |
+| **合計** | **6** | **0** | **6** |
 
-**完了率**: 50.0% (3/6)
+**完了率**: 100.0% (6/6)
 
 ---
 
@@ -25,9 +25,9 @@
 | # | API名 | メソッド | エンドポイント | 状態 | 優先度 |
 |---|------|---------|---------------|------|--------|
 | 1 | タスク詳細取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` | 🟢 実装済み | ⭐⭐⭐ 高 |
-| 2 | 進捗データ取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 3 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 4 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 2 | 進捗データ取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 3 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 4 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
 | 5 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
 | 6 | 作業詳細一括取得 | GET | `/api/v1/progress/projects/:projectName/work-details` | 🟢 実装済み | ⭐⭐⭐ 高 |
 
@@ -416,7 +416,7 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
 
 ---
 
-### 3. 進捗データ取得API 🔴
+### 3. 進捗データ取得API 🟢
 
 **エンドポイント**: `GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions`
 
@@ -424,9 +424,15 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`（読取専用）
+**権限**: `experiment_worker`（機能CD: `050000`、読取専用）
 
 **優先度**: ⭐⭐⭐ 高
+
+**実装状況**: ✅ 実装済み
+- コントローラー: `backend/src/controllers/progressController.ts` - `getProgressData()`
+- サービス: `backend/src/services/progressService.ts` - `ProgressService.getProgressData()`
+- リポジトリ: `backend/src/repositories/transitionDataRepository.ts` - `getLatestRecordByTransition()`
+- ルート定義: `backend/src/routes/progressRoutes.ts` - `checkPermission('050000', 0)`
 
 #### リクエストパラメータ
 
@@ -447,15 +453,15 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
     "project_id": "550e8400-e29b-41d4-a716-446655440000",
     "project_name": "Sample Project",
     "method_id": "method1",
-    "method_name": "合成実験",
-    "task_no": "task-001",
+    "method_name": "method1",
+    "task_no": 1,
     "transitions": [
       {
         "transition_id": "t1",
         "transition_name": "材料準備",
-        "status": "completed",
+        "status": 5,
         "progress": 100,
-        "last_updated": "2026-01-21T14:00:00Z",
+        "last_updated": "2026-01-21T14:00:00.000Z",
         "material_count": 3,
         "material_actual_count": 3,
         "condition_count": 2,
@@ -466,9 +472,9 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
       {
         "transition_id": "t2",
         "transition_name": "反応実験",
-        "status": "in_progress",
+        "status": 3,
         "progress": 45,
-        "last_updated": "2026-01-21T15:30:00Z",
+        "last_updated": "2026-01-21T15:30:00.000Z",
         "material_count": 4,
         "material_actual_count": 2,
         "condition_count": 3,
@@ -479,7 +485,7 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
       {
         "transition_id": "t3",
         "transition_name": "結果測定",
-        "status": "not_started",
+        "status": 0,
         "progress": 0,
         "last_updated": null,
         "material_count": 2,
@@ -491,11 +497,11 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
       }
     ],
     "overall_progress": {
-      "total_transitions": 10,
-      "completed": 3,
-      "in_progress": 4,
-      "not_started": 3,
-      "overall_percentage": 45.0
+      "total_transitions": 3,
+      "completed": 1,
+      "in_progress": 1,
+      "not_started": 1,
+      "overall_percentage": 48.3
     }
   },
   "meta": {
@@ -505,161 +511,130 @@ const getCachedMethodTasks = async (projectId: string, methodId: string) => {
 }
 ```
 
+**レスポンス data フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `project_id` | string (UUID) | プロジェクトID |
+| `project_name` | string | プロジェクト名 |
+| `method_id` | string | メソッドID |
+| `method_name` | string | メソッド名（現時点では method_id の値をそのまま返却） |
+| `task_no` | number | タスク連番（整数） |
+| `transitions` | array | トランジション進捗一覧（後述） |
+| `overall_progress` | object | 全体進捗情報（後述） |
+
+**transitions[] フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `transition_id` | string | トランジションID |
+| `transition_name` | string | トランジション名（MAIMLラベル、未設定時はID） |
+| `status` | number | トランジションステータス数値（0〜6、後述） |
+| `progress` | number | 進捗率（0〜100）。status=5(COMPLETED)時は自動的に100、status=0(INITIAL)時は0に補正される |
+| `last_updated` | string \| null | 最終更新日時（ISO 8601） |
+| `material_count` | number | MAIMLに定義された材料テンプレート数 |
+| `material_actual_count` | number | DBに登録された材料実績数 |
+| `condition_count` | number | MAIMLに定義された条件テンプレート数 |
+| `condition_actual_count` | number | DBに登録された条件実績数 |
+| `result_count` | number | MAIMLに定義された結果テンプレート数 |
+| `result_actual_count` | number | DBに登録された結果実績数 |
+
+**トランジションステータス数値定義**:
+| 数値 | 名称 | 説明 |
+|------|------|------|
+| `0` | INITIAL | 初期（未着手） |
+| `1` | PREPARING | 準備中 |
+| `2` | READY | 準備完了 |
+| `3` | IN_PROGRESS | 実行中 |
+| `4` | PAUSED | 一時停止 |
+| `5` | COMPLETED | 完了 |
+| `6` | ERROR | エラー |
+
+**overall_progress フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `total_transitions` | number | トランジション総数 |
+| `completed` | number | 完了数（status = 5） |
+| `in_progress` | number | 作業中数（PREPARING(1) / READY(2) / IN_PROGRESS(3) / PAUSED(4) / ERROR(6)） |
+| `not_started` | number | 未着手数（status = 0） |
+| `overall_percentage` | number | 全体進捗率（全トランジションの progress 平均値、小数点1桁） |
+
 **エラー時**:
 - 400: バリデーションエラー
 - 401: 認証エラー
 - 403: 権限不足
-- 404: プロジェクト、メソッド、またはタスクが存在しない
-- 500: システムエラー
+- 404: プロジェクト（`RESOURCE_NOT_FOUND`）、メソッド（`METHOD_NOT_FOUND`）、またはタスク（`TASK_NOT_FOUND`）が存在しない
+- 500: MAIMLダウンロード失敗（`MAIML_DOWNLOAD_FAILED`）/ MAIMLパース失敗（`MAIML_PARSE_FAILED`）/ DBエラー（`DATABASE_ERROR`）
 
 #### 実装要件
 
-**DBクエリ**:
+**コントローラー処理フロー**:
 ```typescript
-// タスク基本情報を取得
-const task = await db
-  .selectFrom('project_task')
-  .leftJoin('project', 'project_task.project_id', 'project.project_id')
-  .where('project_task.task_id', '=', taskId)
-  .where('project_task.project_id', '=', projectId)
-  .where('project_task.method_id', '=', methodId)
-  .where('project_task.organization_id', '=', organizationId)
-  .select([
-    'project_task.task_id',
-    'project_task.task_name',
-    'project_task.transition_id',
-    'project.project_name'
-  ])
-  .executeTakeFirstOrThrow();
+// 1. projectName → projectId 解決（projects/findByName.sql）
+const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
+// → 404 RESOURCE_NOT_FOUND if not found
 
-// MAIMLファイルからメソッド情報とトランジション一覧を取得
-const maimlContent = await storageService.downloadFile(
-  organizationPrefix,
-  `projects/${task.project_name}/${task.project_name}.maiml`
-);
+// 2. ProgressService 呼び出し
+const result = await progressService.getProgressData(projectId, methodId, taskNo, organizationId);
+```
 
-const methods = await parseMultipleMethodsStructure(maimlContent);
-const method = methods.find(m => m.methodId === methodId);
+**ProgressService 処理フロー**:
+1. **タスク基本情報取得**: `projectTaskRepository.getTaskByProjectMethodTaskNo(projectId, methodId, taskNo, organizationId)` → タスクなし時 `TASK_NOT_FOUND`
+2. **MAIMLダウンロード＆パース**: `storageService.downloadFile(organizationId, 'projects/{projectName}/{projectName}.maiml')` → `parsePetriNetStructure(xmlContent)` → 失敗時 `MAIML_DOWNLOAD_FAILED` / `MAIML_PARSE_FAILED`
+3. **メソッド検索**: `methods.find(m => m.methodId === methodId)` → なし時 `METHOD_NOT_FOUND`
+4. **トランジション進捗取得（Promise.all 並列）**: 各トランジションについて下記を実行
+   - MAIMLのプレース・アーク情報から `material_count`, `condition_count`, `result_count` を算出（stereotype別カウント）
+   - `template_data/countActualByPlaceIds.sql` で実績数を取得
+   - `transitionDataRepository.getLatestRecordByTransition()` で最新ステータスを取得
+   - 取得したステータスと進捗率を `normalizeProgress()` で補正（後述）
+5. **進捗率正規化（`normalizeProgress()`）**:
+   - `status = 5`（COMPLETED）→ `progress` を強制的に `100` に設定
+   - `status = 0`（INITIAL）→ `progress` を強制的に `0` に設定
+   - DBレコードが存在しない場合 → `status = 0`、`progress = 0`、`last_updated = null` で返却
+   - それ以外（1〜4, 6）→ `Math.max(0, Math.min(100, progress_rate))` で 0〜100 の範囲に制限
+6. **全体進捗計算**: 各トランジションの `progress` 合計 / 総数 = `overall_percentage`
 
-if (!method) {
-  throw new NotFoundError('メソッドが見つかりません');
-}
-
-// 各トランジションの実験記録データを取得
-const transitions = await Promise.all(
-  method.petriNet.transitions.map(async (transition) => {
-    const records = await db
-      .selectFrom('experiment_record')
-      .where('task_id', '=', taskId)
-      .where('transition_id', '=', transition.id)
-      .where('organization_id', '=', organizationId)
-      .select([
-        'status',
-        'progress',
-        'comment',
-        'update_at as last_updated'
-      ])
-      .orderBy('update_at', 'desc')
-      .executeTakeFirst();
-
-    const dataCount = await db
-      .selectFrom('experiment_record')
-      .where('task_id', '=', taskId)
-      .where('transition_id', '=', transition.id)
-      .where('organization_id', '=', organizationId)
-      .select(db.fn.count('record_id').as('count'))
-      .executeTakeFirstOrThrow();
-
-    // MAIMLファイルからトランジションに紐づく材料・条件・結果の定義数を取得
-    const transitionNode = transition; // MAIMLパーサーが返すトランジション情報
-    const materialCount = transitionNode.materials?.length ?? 0;
-    const conditionCount = transitionNode.conditions?.length ?? 0;
-    const resultCount = transitionNode.results?.length ?? 0;
-
-    // DBから材料・条件・結果の実績データ数を取得
-    const actualCounts = await db
-      .selectFrom('experiment_record_detail')
-      .where('task_id', '=', taskId)
-      .where('transition_id', '=', transition.id)
-      .where('organization_id', '=', organizationId)
-      .select([
-        db.fn.count(
-          db.case()
-            .when('data_type', '=', 'material')
-            .then(1)
-            .end()
-        ).as('material_actual_count'),
-        db.fn.count(
-          db.case()
-            .when('data_type', '=', 'condition')
-            .then(1)
-            .end()
-        ).as('condition_actual_count'),
-        db.fn.count(
-          db.case()
-            .when('data_type', '=', 'result')
-            .then(1)
-            .end()
-        ).as('result_actual_count')
-      ])
-      .executeTakeFirstOrThrow();
-
-    return {
-      transition_id: transition.id,
-      transition_name: transition.name,
-      status: records?.status || 'not_started',
-      progress: records?.progress || 0,
-      last_updated: records?.last_updated || null,
-      comment: records?.comment || null,
-      has_data: (dataCount.count as number) > 0,
-      data_count: Number(dataCount.count),
-      material_count: materialCount,
-      material_actual_count: Number(actualCounts.material_actual_count),
-      condition_count: conditionCount,
-      condition_actual_count: Number(actualCounts.condition_actual_count),
-      result_count: resultCount,
-      result_actual_count: Number(actualCounts.result_actual_count)
-    };
-  })
+**ミドルウェアチェーン**:
+```typescript
+router.get(
+  '/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions',
+  authMiddleware,                    // 1. JWT認証
+  checkPermission('050000', 0),      // 2. 権限チェック（実験作業者メニュー、読取専用）
+  [
+    validateParamString('projectName', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamInt('taskNo', 1),
+  ],
+  handleValidationErrors,            // 3. バリデーションエラーハンドリング
+  progressController.getProgressData // 4. コントローラー
 );
 ```
 
-**進捗集計**:
-```typescript
-const calculateOverallProgress = (transitions: any[]) => {
-  const total = transitions.length;
-  const completed = transitions.filter(t => t.status === 'completed').length;
-  const inProgress = transitions.filter(t => t.status === 'in_progress').length;
-  const notStarted = transitions.filter(t => t.status === 'not_started').length;
-  
-  const totalProgress = transitions.reduce((sum, t) => sum + t.progress, 0);
-  const overallPercentage = total > 0 
-    ? Math.round((totalProgress / total) * 10) / 10 
-    : 0;
-  
-  return {
-    total_transitions: total,
-    completed,
-    in_progress: inProgress,
-    not_started: notStarted,
-    overall_percentage: overallPercentage
-  };
-};
-```
+**使用 SQL ファイル**:
+| SQLファイル | 説明 |
+|------------|------|
+| `backend/src/sql/queries/projects/findByName.sql` | プロジェクト名からプロジェクト情報取得 |
+| `backend/src/sql/queries/template_data/countActualByPlaceIds.sql` | プレースIDリストに対する実績データ数集計（template_typeごと） |
+| `backend/src/repositories/transitionDataRepository.ts` - `getLatestRecordByTransition()` | トランジションの最新ステータス取得（transition_dataテーブル） |
 
 ---
 
-### 4. タスク一覧取得（実験作業者用）API 🔴
+### 4. タスク一覧取得（実験作業者用）API 🟢
 
 **エンドポイント**: `GET /api/v1/progress/projects/:projectName/worker-tasks`
 
-**説明**: 実験作業者が自分に割り当てられたタスクの一覧を取得
+**説明**: プロジェクト内の全タスクをメソッド単位でグループ化して取得する
 
 **認証**: 必須
 
-**権限**: `experiment_worker`（読取専用）
+**権限**: `experiment_worker`（機能CD: `050000`、読取専用）
 
 **優先度**: ⭐⭐⭐ 高
+
+**実装状況**: ✅ 実装済み
+- コントローラー: `backend/src/controllers/progressController.ts` - `getWorkerTasks()`
+- サービス: `backend/src/services/taskService.ts` - `TaskService.getTasksGroupedByMethod()`
+- リポジトリ: `backend/src/repositories/projectTaskRepository.ts` - `findMethodsAndTasksByProject()`
+- SQL: `backend/src/sql/queries/tasks/listMethodsAndTasksByProject.sql`
+- ルート定義: `backend/src/routes/progressRoutes.ts` - `checkPermission('050000', 0)`
 
 #### リクエストパラメータ
 
@@ -667,10 +642,14 @@ const calculateOverallProgress = (transitions: any[]) => {
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
 | `projectName` | string | ○ | プロジェクト名 |
-| `status` | string | × | - | タスクステータスでフィルタリング（`not_started`, `started`, `in_progress`, `completed`, `forced_terminated`） |
-| `assignedTo` | UUID | × | - | 担当者でフィルタリング |
-| `sortBy` | string | × | `task_no` | ソート基準（`task_no`, `created_at`, `updated_at`, `status`） |
-| `order` | string | × | `asc` | ソート順（`asc`, `desc`） |
+
+**クエリパラメータ（オプション）**:
+| パラメータ | 型 | デフォルト | 説明 |
+|-----------|-----|-----------|------|
+| `status` | string | - | タスクステータスフィルタ（`not_started` / `in_progress` / `completed` / `forced_terminated`） |
+| `assignedTo` | string (UUID) | - | 担当者IDフィルタ（内部では `assignUserId` として処理） |
+| `sortBy` | string | `task_no` | ソート項目（`task_no` / `created_at` / `updated_at` / `status`） |
+| `order` | string | `asc` | ソート順（`asc` / `desc`） |
 
 #### レスポンス
 
@@ -684,36 +663,38 @@ const calculateOverallProgress = (transitions: any[]) => {
     "methods": [
       {
         "method_id": "method1",
-        "method_name": "合成実験",
+        "method_name": "method1",
         "experiment_order": 1,
         "tasks": [
           {
+            "task_id": "task-detail-uuid-1",
             "task_no": 1,
-            "status": "completed",
-            "experiment_user_id": "worker-uuid-1",
-            "experiment_user_name": "Worker Name 1",
-            "created_at": "2026-01-21T10:00:00Z",
-            "updated_at": "2026-01-21T14:00:00Z",
-            "progress": 100
+            "task_status": "completed",
+            "assign_user_id": "worker-uuid-1",
+            "assign_user_name": "Worker Name 1",
+            "progress_rate": 100,
+            "created_at": "2026-01-21T10:00:00.000Z",
+            "updated_at": "2026-01-21T14:00:00.000Z"
           },
           {
+            "task_id": "task-detail-uuid-2",
             "task_no": 2,
-            "status": "in_progress",
-            "experiment_user_id": "worker-uuid-2",
-            "experiment_user_name": "Worker Name 2",
-            "created_at": "2026-01-21T14:00:00Z",
-            "updated_at": "2026-01-21T15:30:00Z",
-            "progress": 45
+            "task_status": "in_progress",
+            "assign_user_id": "worker-uuid-2",
+            "assign_user_name": "Worker Name 2",
+            "progress_rate": 0,
+            "created_at": "2026-01-21T14:00:00.000Z",
+            "updated_at": "2026-01-21T15:30:00.000Z"
           }
         ]
       },
       {
         "method_id": "method2",
-        "method_name": "分析実験",
-        "tasks": [...]
+        "method_name": "method2",
+        "experiment_order": 2,
+        "tasks": []
       }
     ]
-    }
   },
   "meta": {
     "timestamp": "2026-01-21T16:00:00Z",
@@ -722,116 +703,95 @@ const calculateOverallProgress = (transitions: any[]) => {
 }
 ```
 
+**レスポンス data フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `project_id` | string (UUID) | プロジェクトID |
+| `project_name` | string | プロジェクト名 |
+| `methods` | array | メソッドグループ一覧（experiment_order 昇順） |
+
+**methods[] フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `method_id` | string | メソッドID |
+| `method_name` | string | メソッド名（現時点では method_id の値をそのまま返却） |
+| `experiment_order` | number | 実験順序 |
+| `tasks` | array | タスクサマリー一覧 |
+
+**tasks[] フィールド詳細（TaskSummary型）**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `task_id` | string | タスク詳細ID（`project_task_detail` の主キー） |
+| `task_no` | number | タスク連番（`project_task_detail.task_no`） |
+| `task_status` | string | タスクステータス文字列（`not_started` / `in_progress` / `completed` / `forced_terminated`） |
+| `assign_user_id` | string \| null | 担当作業者ID |
+| `assign_user_name` | string \| null | 担当作業者名 |
+| `progress_rate` | number \| null | 進捗率（0〜100） |
+| `created_at` | string | 作成日時（ISO 8601） |
+| `updated_at` | string | 更新日時（ISO 8601） |
+
 **エラー時**:
-- 400: バリデーションエラー
 - 401: 認証エラー
 - 403: 権限不足
-- 404: プロジェクトが存在しない
+- 404: プロジェクトが存在しない（`RESOURCE_NOT_FOUND`）
 - 500: システムエラー
 
 #### 実装要件
 
-**DBクエリ**:
+**コントローラー処理フロー**:
 ```typescript
-// プロジェクト情報を取得
-const project = await db
-  .selectFrom('project')
-  .where('project_name', '=', projectName)
-  .where('organization_id', '=', organizationId)
-  .select(['project_id', 'project_name'])
-  .executeTakeFirstOrThrow();
+// 1. projectName → projectId 解決（projects/findByName.sql）
+const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
+// → 404 RESOURCE_NOT_FOUND if not found
 
-// タスク一覧を取得
-let query = db
-  .selectFrom('project_task')
-  .leftJoin('organization_user', 'project_task.assign_user_id', 'organization_user.user_id')
-  .leftJoin('user_authentication', 'organization_user.user_id', 'user_authentication.user_id')
-  .where('project_task.project_id', '=', projectId)
-  .where('project_task.organization_id', '=', organizationId);
-
-// フィルタリング
-if (status) {
-  query = query.where('project_task.task_status', '=', status);
-}
-if (assignedTo) {
-  query = query.where('project_task.assign_user_id', '=', assignedTo);
-}
-
-// ソート
-const orderDirection = order === 'desc' ? 'desc' : 'asc';
-query = query.orderBy(`project_task.${sortBy}`, orderDirection);
-
-const tasks = await query
-  .select([
-    'project_task.task_no',
-    'project_task.method_id',
-    'project_task.task_status as status',
-    'project_task.assign_user_id as experiment_user_id',
-    'user_authentication.user_name as experiment_user_name',
-    'project_task.create_at as created_at',
-    'project_task.update_at as updated_at'
-  ])
-  .orderBy('project_task.method_id', 'asc')
-  .orderBy('project_task.task_no', 'asc')
-  .execute();
-
-// MAIMLファイルからメソッド情報を取得
-const maimlContent = await storageService.downloadFile(
-  organizationPrefix,
-  `projects/${project.project_name}/${project.project_name}.maiml`
-);
-
-const methods = await parseMultipleMethodsStructure(maimlContent);
-
-// メソッドごとにグループ化
-const groupedTasks = methods.map((method, index) => {
-  const methodTasks = tasks.filter(t => t.method_id === method.methodId);
-  
-  return {
-    method_id: method.methodId,
-    method_name: method.methodName,
-    experiment_order: index + 1,
-    tasks: methodTasks.map(task => ({
-      task_no: task.task_no,
-      status: task.status,
-      experiment_user_id: task.experiment_user_id,
-      experiment_user_name: task.experiment_user_name,
-      created_at: task.created_at,
-      updated_at: task.updated_at,
-      progress: 0 // 後で計算
-    }))
-  };
-});
-```
-
-**統計情報の計算**:
-```typescript
-const calculateStatistics = (tasks: any[]) => {
-  const total = tasks.length;
-  const statusCounts = {
-    not_started: tasks.filter(t => t.status === 'not_started').length,
-    started: tasks.filter(t => t.status === 'started').length,
-    in_progress: tasks.filter(t => t.status === 'in_progress').length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-    forced_terminated: tasks.filter(t => t.status === 'forced_terminated').length
-  };
-  
-  const totalProgress = tasks.reduce((sum, t) => sum + (t.progress || 0), 0);
-  const overallProgress = total > 0 
-    ? Math.round((totalProgress / total) * 10) / 10 
-    : 0;
-  
-  return {
-    total_tasks: total,
-    ...statusCounts,
-    overall_progress: overallProgress
-  };
+// 2. クエリパラメータをTaskFiltersに変換
+const filters: TaskFilters = {
+  methodId: req.query.methodId,
+  status: req.query.status,
+  assignUserId: req.query.assignedTo,  // assignedTo → assignUserId にマッピング
+  sortBy: req.query.sortBy,
+  order: req.query.order,
 };
+
+// 3. TaskService.getTasksGroupedByMethod() 呼び出し
+const methodGroups = await taskService.getTasksGroupedByMethod(projectId, organizationId, filters);
 ```
+
+**TaskService 処理フロー**:
+1. `projectTaskRepository.findMethodsAndTasksByProject(projectId, organizationId, filters)` でレコード取得
+2. `method_id` 単位でグループ化（Map使用）、データ整合性検証（不正な method_id 除外）
+3. `experiment_order` 昇順でソート
+4. `convertToTaskSummary()` で数値ステータス（0/1/3/4）を文字列（`not_started`/`in_progress`/`completed`/`forced_terminated`）に変換
+
+**ミドルウェアチェーン**:
+```typescript
+router.get(
+  '/projects/:projectName/worker-tasks',
+  authMiddleware,                    // 1. JWT認証
+  checkPermission('050000', 0),      // 2. 権限チェック（実験作業者メニュー、読取専用）
+  [validateParamString('projectName', 1, 255)],
+  handleValidationErrors,            // 3. バリデーションエラーハンドリング
+  progressController.getWorkerTasks  // 4. コントローラー
+);
+```
+
+**使用 SQL ファイル**:
+| SQLファイル | 説明 |
+|------------|------|
+| `backend/src/sql/queries/projects/findByName.sql` | プロジェクト名からプロジェクト情報取得 |
+| `backend/src/sql/queries/tasks/listMethodsAndTasksByProject.sql` | メソッド・タスク一覧取得（project_task と project_task_detail を JOIN） |
+
+**タスクステータス数値 → 文字列 変換マップ**:
+| DB値 | 文字列 |
+|------|-------|
+| 0 | `not_started` |
+| 1 | `in_progress` |
+| 3 | `completed` |
+| 4 | `forced_terminated` |
 
 ---
 
-### 5. タスクステータス更新API（新エンドポイント） 🔴
+### 5. タスクステータス更新API 🟢
 
 **エンドポイント**: `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status`
 
@@ -839,9 +799,16 @@ const calculateStatistics = (tasks: any[]) => {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`（書込可）
+**権限**: `experiment_worker`（機能CD: `050000`、書込可）
 
 **優先度**: ⭐⭐⭐ 高
+
+**実装状況**: ✅ 実装済み
+- コントローラー: `backend/src/controllers/progressController.ts` - `updateTaskStatus()`
+- サービス: `backend/src/services/taskService.ts` - `updateTaskStatus()` 関数
+- SQL: `backend/src/sql/queries/tasks/findByIdForUpdate.sql`（SELECT FOR UPDATE）
+- SQL: `backend/src/sql/queries/tasks/updateStatus.sql`（UPDATE + 楽観的ロック）
+- ルート定義: `backend/src/routes/progressRoutes.ts` - `checkPermission('050000', 1)`
 
 #### リクエストパラメータ
 
@@ -850,16 +817,23 @@ const calculateStatistics = (tasks: any[]) => {
 |----------|---|------|------|
 | `projectName` | string | ○ | プロジェクト名 |
 | `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
-| `taskNo` | Integer | ○ | タスク連番 |
+| `taskNo` | Integer | ○ | タスク連番（1以上の整数） |
 
 **リクエストボディ**:
 ```json
 {
-  "status": "not_started" | "started" | "in_progress" | "completed" | "forced_terminated",
-  "comment": "string (最大500文字, optional)",
-  "currentUpdatedAt": "2026-02-18T10:00:00Z (ISO 8601形式, 楽観的ロック用, optional)"
+  "status": "not_started" | "in_progress" | "completed" | "forced_terminated",
+  "currentUpdatedAt": "2026-02-18T10:00:00Z (ISO 8601形式, 楽観的ロック用, 必須)",
+  "comment": "string (最大500文字, optional)"
 }
 ```
+
+**リクエストボディのパラメータ詳細**:
+| パラメータ | 型 | 必須 | 説明 | 制約 |
+|-----------|---|------|------|------|
+| `status` | string | ○ | 更新後のステータス | `not_started` / `in_progress` / `completed` / `forced_terminated` のいずれか |
+| `currentUpdatedAt` | string | ○ | 楽観的ロック用タイムスタンプ | ISO 8601形式（必須）。DBのupdate_atと一致しない場合は409エラー |
+| `comment` | string | × | コメント | 最大500文字 |
 
 #### レスポンス
 
@@ -871,10 +845,10 @@ const calculateStatistics = (tasks: any[]) => {
     "task_no": 1,
     "project_name": "Sample Project",
     "method_id": "method1",
-    "previous_status": "in_progress",
+    "previous_status": null,
     "new_status": "completed",
     "updated_by": "user-uuid",
-    "updated_by_name": "User Name",
+    "updated_by_name": "Worker Name",
     "updated_at": "2026-02-18T11:00:00Z",
     "comment": "実験完了しました"
   },
@@ -885,209 +859,120 @@ const calculateStatistics = (tasks: any[]) => {
 }
 ```
 
+**レスポンス data フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `task_no` | number | タスク連番 |
+| `project_name` | string | プロジェクト名 |
+| `method_id` | string | メソッドID |
+| `previous_status` | null | 前のステータス（現在は常に `null`） |
+| `new_status` | string | 更新後のステータス（`not_started` / `in_progress` / `completed` / `forced_terminated`） |
+| `updated_by` | string \| null | 更新したユーザーID（実験担当者ID） |
+| `updated_by_name` | string \| null | 更新したユーザー名 |
+| `updated_at` | string | 更新日時（ISO 8601） |
+| `comment` | string \| null | コメント（指定した場合） |
+
 **エラー時**:
-- 400: バリデーションエラー、または無効なステータス遷移
+- 400: バリデーションエラー（statusが無効、currentUpdatedAtが不正形式、等） / 無効なステータス遷移（`INVALID_STATUS_TRANSITION`）
 - 401: 認証エラー
-- 403: 権限不足（担当者以外が更新しようとした）
-- 404: プロジェクト、メソッド、またはタスクが存在しない
-- 409: プロジェクトステータスが編集不可、または楽観的ロックエラー（currentUpdatedAtが一致しない）
-- 500: システムエラー
+- 403: 権限不足
+- 404: プロジェクト（`RESOURCE_NOT_FOUND`）またはタスク（`RESOURCE_NOT_FOUND`）が存在しない
+- 409: プロジェクトステータスが編集不可（`PERMISSION_INSUFFICIENT`）/ 楽観的ロック競合（`CONCURRENT_UPDATE_DETECTED`）
+- 500: システムエラー（`SYSTEM_ERROR`）
 
 #### ビジネスロジック
 
-**ステータス遷移ルール**:
-```typescript
-const validTransitions: Record<string, string[]> = {
-  'not_started': ['started', 'forced_terminated'],
-  'started': ['in_progress', 'forced_terminated'],
-  'in_progress': ['completed', 'forced_terminated'],
-  'completed': ['in_progress'], // 再開可能
-  'forced_terminated': ['started'] // 再開可能
-};
+**有効なステータス値**:
+| 文字列 | DB値（数値） | 説明 |
+|--------|------------|------|
+| `not_started` | 0 | 未着手 |
+| `in_progress` | 1 | 実行中 |
+| `completed` | 3 | 完了 |
+| `forced_terminated` | 4 | 強制終了 |
 
-const canTransition = (from: string, to: string): boolean => {
-  return validTransitions[from]?.includes(to) || false;
+**ステータス遷移ルール（実装通り）**:
+```typescript
+const VALID_TRANSITIONS: Record<number, number[]> = {
+  0: [1, 4],  // PENDING(not_started) → IN_PROGRESS(in_progress), FORCED_TERMINATED
+  1: [3, 4],  // IN_PROGRESS → COMPLETED, FORCED_TERMINATED
+  3: [],      // COMPLETED → 遷移不可（終端状態）
+  4: []       // FORCED_TERMINATED → 遷移不可（終端状態）
 };
 ```
 
-**前提条件チェック**:
-```typescript
-// プロジェクトステータスが編集可能かチェック
-const project = await db
-  .selectFrom('project')
-  .where('project_name', '=', projectName)
-  .where('organization_id', '=', organizationId)
-  .select(['project_id', 'project_status'])
-  .executeTakeFirstOrThrow();
-
-const editableStatuses = ['draft', 'active'];
-if (!editableStatuses.includes(project.project_status)) {
-  throw new ConflictError(
-    'プロジェクトステータスが編集可能な状態ではありません'
-  );
-}
-```
+**プロジェクト編集可能ステータス（実装通り）**:
+- DB値 `1`（pending / タスク実行待ち）または `2`（in_progress / タスク実行中）のみ編集可能
+- それ以外は 409 `PERMISSION_INSUFFICIENT` を返却
 
 **楽観的ロック制御**:
-```typescript
-// タスク情報取得
-const task = await db
-  .selectFrom('project_task')
-  .where('project_id', '=', project.project_id)
-  .where('method_id', '=', methodId)
-  .where('task_no', '=', taskNo)
-  .where('organization_id', '=', organizationId)
-  .select([
-    'task_id',
-    'task_status',
-    'update_at',
-    'assign_user_id'
-  ])
-  .executeTakeFirstOrThrow();
-
-// 楽観的ロックチェック（currentUpdatedAtが指定されている場合）
-if (currentUpdatedAt && task.update_at !== currentUpdatedAt) {
-  throw new ConflictError(
-    'タスクが他のユーザーによって更新されています。最新の情報を取得してください。'
-  );
-}
-```
+- `currentUpdatedAt` はリクエストボディの**必須パラメータ**
+- DBの `update_at` と比較し、不一致の場合は 409 `CONCURRENT_UPDATE_DETECTED` を返却
+- SELECT FOR UPDATE でタスクを排他ロックした上でUPDATE実行
 
 #### 実装要件
 
-**DBクエリ（トランザクション）**:
+**コントローラー処理フロー**:
 ```typescript
-await db.transaction().execute(async (trx) => {
-  // プロジェクト情報取得
-  const project = await trx
-    .selectFrom('project')
-    .where('project_name', '=', projectName)
-    .where('organization_id', '=', organizationId)
-    .select(['project_id', 'project_status'])
-    .executeTakeFirstOrThrow();
+// 1. projectName → projectId 解決（projects/findByName.sql）
+const project = await pgp.oneOrNone(projectQuery, [projectName, organizationId]);
+// → 404 RESOURCE_NOT_FOUND if not found
 
-  // 編集可能チェック
-  const editableStatuses = ['draft', 'active'];
-  if (!editableStatuses.includes(project.project_status)) {
-    throw new ConflictError('プロジェクトステータスが編集不可です');
-  }
+// 2. プロジェクト編集可能チェック（DB値 1 または 2 のみ編集可能）
+const editableStatuses = [1, 2];
+const projectStatus = Number(project.project_status);
+if (!editableStatuses.includes(projectStatus)) {
+  // → 409 PERMISSION_INSUFFICIENT
+}
 
-  // タスク情報取得
-  const task = await trx
-    .selectFrom('project_task')
-    .where('project_id', '=', project.project_id)
-    .where('method_id', '=', methodId)
-    .where('task_no', '=', taskNo)
-    .where('organization_id', '=', organizationId)
-    .select([
-      'task_id',
-      'task_status',
-      'update_at',
-      'assign_user_id'
-    ])
-    .executeTakeFirstOrThrow();
-
-  // 楽観的ロックチェック
-  if (currentUpdatedAt && task.update_at !== currentUpdatedAt) {
-    throw new ConflictError('他のユーザーによって更新されています');
-  }
-
-  // 権限チェック（実験作業者は自分に割り当てられたタスクのみ更新可能）
-  if (task.assign_user_id !== req.user.userId) {
-    throw new ForbiddenError(
-      '自分に割り当てられたタスクのみ更新できます'
-    );
-  }
-
-  // ステータス遷移チェック
-  if (!canTransition(task.task_status, status)) {
-    throw new BadRequestError(
-      `ステータスを ${task.task_status} から ${status} に変更できません`
-    );
-  }
-
-  // ステータス更新
-  const now = new Date().toISOString();
-  await trx
-    .updateTable('project_task')
-    .set({
-      task_status: status,
-      update_at: now,
-      update_user_id: req.user.userId
-    })
-    .where('task_id', '=', task.task_id)
-    .where('organization_id', '=', organizationId)
-    .execute();
-
-  // コメントがある場合は記録
-  if (comment) {
-    await trx
-      .insertInto('task_comment')
-      .values({
-        comment_id: uuidv4(),
-        task_id: task.task_id,
-        user_id: req.user.userId,
-        comment: comment,
-        organization_id: organizationId,
-        create_at: now
-      })
-      .execute();
-  }
-
-  // 監査ログ記録
-  logger.info('Task status updated', {
-    projectName,
-    methodId,
-    taskNo,
-    previousStatus: task.task_status,
-    newStatus: status,
-    updatedBy: req.user.userId,
-    organizationId
-  });
-});
+// 3. taskService.updateTaskStatus() 呼び出し（pg-promiseトランザクション）
+const result = await updateTaskStatusService(
+  organizationId, projectId, methodId, taskNo,
+  userId, status, currentUpdatedAt, comment
+);
 ```
 
-**バリデーション**:
+**taskService.updateTaskStatus() 処理フロー（pg-promiseトランザクション）**:
+1. `tasks/findByIdForUpdate.sql` で SELECT FOR UPDATE（organization_id, project_id, method_id, task_no でフィルタ）
+2. タスクが存在しない場合は `RESOURCE_NOT_FOUND`
+3. `validateTransition(currentStatus, newStatusNum)` でステータス遷移チェック → 失敗時 `INVALID_STATUS_TRANSITION`
+4. `tasks/updateStatus.sql` で UPDATE（`currentUpdatedAt` = DB の `update_at` が一致するレコードのみ）
+5. UPDATE が 0件の場合（楽観的ロック失敗）→ `CONCURRENT_UPDATE_DETECTED`
+
+**ミドルウェアチェーン**:
 ```typescript
-const validateStatusUpdate = (body: any) => {
-  const validStatuses = [
-    'not_started',
-    'started',
-    'in_progress',
-    'completed',
-    'forced_terminated'
-  ];
-
-  if (!body.status) {
-    throw new BadRequestError('status is required');
-  }
-
-  if (!validStatuses.includes(body.status)) {
-    throw new BadRequestError(
-      `Invalid status. Must be one of: ${validStatuses.join(', ')}`
-    );
-  }
-
-  if (body.comment && body.comment.length > 500) {
-    throw new BadRequestError('comment must be 500 characters or less');
-  }
-
-  if (body.currentUpdatedAt && !isValidISODate(body.currentUpdatedAt)) {
-    throw new BadRequestError('currentUpdatedAt must be valid ISO 8601 format');
-  }
-};
+router.patch(
+  '/projects/:projectName/methods/:methodId/tasks/:taskNo/status',
+  authMiddleware,                    // 1. JWT認証
+  checkPermission('050000', 1),      // 2. 権限チェック（実験作業者メニュー、書込可）
+  [
+    validateParamString('projectName', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamInt('taskNo', 1),
+    body('status').notEmpty(),
+    body('currentUpdatedAt').notEmpty(),
+  ],
+  handleValidationErrors,            // 3. バリデーションエラーハンドリング
+  progressController.updateTaskStatus // 4. コントローラー
+);
 ```
+
+**使用 SQL ファイル**:
+| SQLファイル | 説明 |
+|------------|------|
+| `backend/src/sql/queries/projects/findByName.sql` | プロジェクト名からプロジェクト情報取得 |
+| `backend/src/sql/queries/tasks/findByIdForUpdate.sql` | SELECT FOR UPDATE（タスク排他ロック） |
+| `backend/src/sql/queries/tasks/updateStatus.sql` | タスクステータス更新（楽観的ロックチェック含む） |
 
 **備考**:
-- プロジェクト名、メソッドID、タスク連番の組み合わせでタスクを一意に特定
-- 楽観的ロック（currentUpdatedAt）による並行更新制御（オプション）
-- ステータス遷移バリデーション実装
-- **権限**: 実験作業者（experiment_worker）のみが自分に割り当てられたタスクのステータスを更新可能
-- 実験管理者（experiment_admin）やシステム管理者（system_admin）はこのAPIを使用不可
+- `currentUpdatedAt` は**必須**パラメータ（省略不可）
+- 有効なステータス値: `not_started` / `in_progress` / `completed` / `forced_terminated`（`started` は無効）
+- COMPLETED（3）/ FORCED_TERMINATED（4）からは遷移不可（終端状態）
+- `previous_status` はレスポンスに含まれるが、現在の実装では常に `null`
+- **権限**: `experiment_worker`（機能CD: `050000`、書込可）のみ使用可能
 
 ---
 
-### 6. トランジションステータス更新API 🔴
+### 6. トランジションステータス更新API 🟢
 
 **エンドポイント**: `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status`
 
@@ -1807,6 +1692,35 @@ router.get(
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.0.0 | 2026-03-12 | トランジションステータス更新API（API #6）仕様書修正（ソースコード実装に合わせて更新） | Cline |
+| | | - API #6 見出しを 🔴（未実装）→ 🟢（実装済み）に変更 | |
+| | | - ビジネスロジック #1 プロジェクト編集可能ステータスを実装に合わせて修正（`project_status = 1 or 2` の数値チェック） | |
+| | | - 実装状況セクションを詳細化（progressController.ts の `updateTransitionStatus()` 関数の実装情報を追記） | |
+| | | - コントローラーから `organizationId` / `updatedBy` を `req.user` から取得する実装詳細を追記 | |
+| | | - `ProgressService.updateTransitionStatus()` 経由でトランジション更新・イベントログ記録する実装を追記 | |
+| 1.9.0 | 2026-03-12 | 進捗データ取得API（API #2）仕様書修正（ソースコード実装に合わせて更新） | Cline |
+| | | - transitions[].progress フィールド説明を修正（status=5時に100、status=0時に0へ補正される旨を追記） | |
+| | | - overall_progress.in_progress フィールド説明を修正（ステータス名称を明示: PREPARING/READY/IN_PROGRESS/PAUSED/ERROR） | |
+| | | - ProgressService処理フローにステップ5「進捗率正規化（normalizeProgress()）」を追加 | |
+| | | - normalizeProgress(): status=5→100固定、status=0→0固定、DBレコードなし→status=0/progress=0/last_updated=null、それ以外→0〜100クランプ | |
+| 1.8.0 | 2026-03-12 | タスク関連API #3/#4/#5 仕様書修正（ソースコード実装に合わせて更新） | Cline |
+| | | - 実装状況サマリー: 3→6実装済み、3→0未実装、完了率100%に更新 | |
+| | | - API一覧テーブル: #3/#4/#5を🔴未実装→🟢実装済みに変更 | |
+| | | - API #3（進捗データ取得）: 🔴→🟢、実装状況セクション追加 | |
+| | | - API #3 レスポンス: statusを文字列→数値（0〜6）に修正、フィールド詳細表追加 | |
+| | | - API #3 レスポンス: method_nameはmethod_idを返却、task_noは整数型に修正 | |
+| | | - API #3 実装要件: DBクエリ（仮実装）→ProgressService処理フロー・ミドルウェアチェーン・SQLファイル一覧に差し替え | |
+| | | - API #4（タスク一覧取得）: 🔴→🟢、実装状況セクション追加 | |
+| | | - API #4 レスポンス: tasks[]をTaskSummary型（task_id/task_status/assign_user_name/progress_rate等）に修正 | |
+| | | - API #4 リクエスト: パラメータ表を修正（パスパラメータ/クエリパラメータに分離） | |
+| | | - API #4 実装要件: TaskService.getTasksGroupedByMethod()処理フロー・SQLファイル一覧に差し替え | |
+| | | - API #5（タスクステータス更新）: 🔴→🟢、実装状況セクション追加 | |
+| | | - API #5 リクエスト: currentUpdatedAtを必須パラメータに変更（optional→必須） | |
+| | | - API #5 ステータス値: startedを削除、有効値を4種類（not_started/in_progress/completed/forced_terminated）に修正 | |
+| | | - API #5 ステータス遷移ルール: 実装通りの遷移ルール（VALID_TRANSITIONS数値マップ）に差し替え | |
+| | | - API #5 プロジェクト編集可能チェック: editableStatuses=[1,2]（数値）に修正 | |
+| | | - API #5 実装要件: pg-promiseトランザクション処理フロー・SQLファイル一覧に差し替え | |
+| | | - API #5 previous_status: 現在の実装では常にnullと明記 | |
 | 1.7.0 | 2026-03-11 | タスク詳細取得API 仕様書修正（実装に合わせて更新） | Cline |
 | | | - API #1: エンドポイント・パラメータ・レスポンス・権限を実際の実装に合わせて修正 | |
 | | | - パラメータ: projectName / methodId / taskNo（パスパラメータ3種に変更） | |
