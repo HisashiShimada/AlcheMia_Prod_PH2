@@ -207,6 +207,7 @@ export default function InstructionGroup({
                   {/* 確認完了ボタン（展開時のみ表示） */}
                   {isExpanded && onConfirmInstructions && (
                     <Button
+                      data-testid={`instruction-task-confirm-button-${taskId}`}
                       type="primary"
                       icon={<CheckCircleOutlined />}
                       onClick={(e) => {
@@ -442,6 +443,7 @@ export default function InstructionGroup({
                   {/* 確認完了ボタン（展開時のみ表示） */}
                   {isExpanded && onConfirmInstructions && (
                     <Button
+                      data-testid={`instruction-transition-confirm-button-${transitionId}`}
                       type="primary"
                       icon={<CheckCircleOutlined />}
                       onClick={(e) => {
