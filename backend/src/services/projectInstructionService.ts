@@ -78,7 +78,7 @@ export async function getInstructions(
  * @remarks
  * タスク数のカウントは削除しました。
  * タスク登録は別途タスク登録タブで管理されるため、
- * ここではプロジェクトステータスのみを確認します。
+ * 指示送信はどのステータスでも可能です。
  */
 export async function getTaskRegistrationStatus(
   organizationId: string,
@@ -92,14 +92,12 @@ export async function getTaskRegistrationStatus(
   }
   
   const projectStatus = project.project_status ?? 0;
-  // タスク登録有無に関わらず、プロジェクトステータスが0なら送信可能
-  const canSendInstructions = projectStatus === 0;
   
   return {
     hasRegisteredTasks: true, // 常にtrue（タスク登録タブで管理されるため）
     taskCount: 0, // 使用しない
     projectStatus,
-    canSendInstructions
+    canSendInstructions: true // 常にtrue（ステータスに関わらず送信可能）
   };
 }
 
@@ -280,9 +278,9 @@ export async function deleteInstruction(
  * @remarks
  * トランザクション処理:
  * 1. 未送信指示のステータスを送信済に更新
- * 2. プロジェクトステータスを0→1に更新
  * 
  * タスク作成は別途タスク登録タブで実施されるため、このAPIでは行いません。
+ * プロジェクトステータスに関わらず指示送信が可能です。
  * 
  * @param organizationId 組織ID
  * @param projectId プロジェクトID
@@ -306,11 +304,6 @@ export async function sendInstructions(
     
     if (!project) {
       throw new Error('プロジェクトが見つかりません');
-    }
-
-    // プロジェクトステータスが0（計画中）でない場合はエラー
-    if (project.project_status !== 0) {
-      throw new Error('プロジェクトステータスが計画中ではありません');
     }
     
     // 未送信指示を取得
@@ -337,27 +330,7 @@ export async function sendInstructions(
       sentCount
     });
     
-    // 2. プロジェクトステータスを0→1（タスク実行待ち）に更新
-    const existingProject = await projectRepository.getById(projectId, organizationId);
-    
-    if (!existingProject) {
-      throw new Error('プロジェクトが見つかりません');
-    }
-    
-    const updatedProjectData: Project = {
-      ...existingProject,
-      project_status: 1,  // タスク実行待ち
-      update_user_id: userId,
-      update_at: new Date()
-    };
-    
-    await projectRepository.update(updatedProjectData);
-    
-    logger.info('プロジェクトステータスを更新しました', {
-      organizationId,
-      projectId,
-      newStatus: 1
-    });
+    // プロジェクトステータスの更新は行わない（チェックアウト時に実施）
     
     await client.query('COMMIT');
     

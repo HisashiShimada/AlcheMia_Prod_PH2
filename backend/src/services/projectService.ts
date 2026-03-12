@@ -484,8 +484,9 @@ export class ProjectService {
         };
       }
 
-      // バリデーション2: プロジェクトステータスチェック（タスク実行待ち = 1 のみ許可）
-      if (project.project_status !== 1) {
+      // バリデーション2: プロジェクトステータスチェック（計画中=0、承認待ち=3、異常終了=5 のいずれかを許可）
+      const allowedStatuses = [0, 3, 5];
+      if (!allowedStatuses.includes(project.project_status ?? -1)) {
         await client.query('ROLLBACK');
         const statusNames: { [key: number]: string } = {
           0: 'プロジェクト計画中',
@@ -495,20 +496,20 @@ export class ProjectService {
           4: 'プロジェクト完了',
           5: 'タスク異常終了',
         };
-        const currentStatusName = statusNames[project.project_status] || '不明';
+        const currentStatusName = statusNames[project.project_status ?? -1] || '不明';
         
         return {
           success: false,
           error: {
             code: 'CHECKOUT_INVALID_STATUS',
-            message: `プロジェクトステータスがタスク実行待ちではありません（現在: ${currentStatusName}）`,
+            message: `プロジェクトステータスが計画中、承認待ち、異常終了のいずれかではありません（現在: ${currentStatusName}）`,
             details: {
               projectId,
               projectName: project.project_name,
               currentStatus: project.project_status,
               currentStatusName,
-              requiredStatus: 1,
-              requiredStatusName: 'タスク実行待ち',
+              allowedStatuses: [0, 3, 5],
+              allowedStatusNames: ['プロジェクト計画中', 'タスク結果レビュー待ち', 'タスク異常終了'],
             },
           },
         };
@@ -595,14 +596,29 @@ export class ProjectService {
         }
       }
 
-      // チェックアウト実行: checkout_status = 1に更新
+      // チェックアウト実行: checkout_status = 1, project_status = 1 に更新
       const updateQuery = `
         UPDATE project
-        SET checkout_status = 1, owner_user_id = $3
+        SET checkout_status = 1, 
+            project_status = 1,
+            owner_user_id = $3,
+            update_user_id = $3,
+            update_at = CURRENT_TIMESTAMP
         WHERE organization_id = $1 AND project_id = $2
       `;
 
       await client.query(updateQuery, [organizationId, projectId, userId]);
+
+      // project_taskのworker_linked_flgをtrueに更新
+      const updatedTaskCount = await projectTaskRepository.updateWorkerLinkedFlgByProject(
+        client,
+        organizationId,
+        projectId,
+        true,
+        userId
+      );
+      
+      console.log(`[DEBUG] checkout - Updated worker_linked_flg for ${updatedTaskCount} tasks`);
 
       // トランザクションコミット
       await client.query('COMMIT');
@@ -701,16 +717,20 @@ export class ProjectService {
 
       const project = selectResult.rows[0];
 
-      // 前提条件チェック: task_status = 1のタスク存在確認（Repository層経由）
-      const hasRunning = await projectTaskRepository.hasRunningTasks(organizationId, projectId);
+      // 前提条件チェック: task_status が 3 (completed) または 4 (error) 以外のタスク存在確認（Repository層経由）
+      const hasIncomplete = await projectTaskRepository.hasIncompleteTasks(organizationId, projectId);
 
-      if (hasRunning) {
+      if (hasIncomplete) {
         await client.query('ROLLBACK');
         return {
           success: false,
           error: {
-            code: 'TASK_IN_PROGRESS',
-            message: '実行中のタスクが存在するため、チェックインできません',
+            code: 'TASK_NOT_COMPLETED',
+            message: 'チェックイン可能なタスクステータスではありません',
+            details: {
+              requiredStatus: 'すべてのタスクが完了(3)または異常終了(4)である必要があります',
+              note: '未着手(0)、実行中(1)、レビュー待ち(2)のタスクが存在します',
+            },
           },
         };
       }
@@ -1909,4 +1929,3 @@ export class ProjectService {
     }
   }
 }
-  

@@ -548,6 +548,14 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     return selectedProject?.isCheckedOut === true;
   }, [selectedProject]);
 
+  // メソッドの順序変更可否を判定（プロジェクトステータスベース）
+  // プロジェクト計画中（status=0）のみ順序変更可能、それ以外は不可
+  const isOrderChangeLocked = useMemo(() => {
+    if (!selectedProject) return false;
+    // プロジェクトステータスが0（プロジェクト計画中）以外は順序変更不可
+    return selectedProject.status !== 0;
+  }, [selectedProject]);
+
   // チェックイン/チェックアウト切り替えハンドラ
   const handleToggleCheckout = useCallback(async () => {
     if (!selectedProject) return;

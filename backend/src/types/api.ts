@@ -455,9 +455,6 @@ export interface TaskDetailResponse {
   /** 実験順序（project_task.experiment_order） */
   experimentOrder: number;
 
-  /** タスク名（project_task.task_name） */
-  taskName: string | null;
-
   /** タスク連番（project_task_detail.task_no） */
   taskNo: number;
 

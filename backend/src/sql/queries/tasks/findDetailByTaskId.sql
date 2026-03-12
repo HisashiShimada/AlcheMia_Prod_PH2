@@ -19,7 +19,6 @@ SELECT
   -- タスク基本情報 (project_task)
   pt.method_id,
   pt.experiment_order,
-  pt.task_name,
 
   -- タスク実行情報 (project_task_detail)
   ptd.task_no,
@@ -74,7 +73,6 @@ GROUP BY
   p.project_name,
   pt.method_id,
   pt.experiment_order,
-  pt.task_name,
   ptd.task_no,
   ptd.task_status,
   ptd.experiment_user_id,

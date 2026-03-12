@@ -202,8 +202,15 @@ export async function saveTaskRegistration(
       }))
     );
     
-    // 6-2. project_task_detailテーブルへ削除＋INSERT
-    await projectTaskDetailRepository.deleteByProject(t, organizationId, project.project_id);
+    // 6-2. project_task_detailテーブルへの処理
+    // task_status=0（未着手）のレコードのみ削除 → 連番で追加
+    // batchInsert内で既存の最大task_no+1から採番される
+    await projectTaskDetailRepository.deleteByProjectAndStatus(
+      t,
+      organizationId,
+      project.project_id,
+      0 // task_status=0（未着手）のみ削除
+    );
     await projectTaskDetailRepository.batchInsert(
       t,
       organizationId,
