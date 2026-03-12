@@ -631,8 +631,8 @@
       "updatedAt": "更新日時"
     },
     "buttons": {
-      "csvUpload": "CSV\nアップロード",
-      "csvDownload": "CSV\nダウンロード",
+      "csvUpload": "CSVアップロード",
+      "csvDownload": "CSVダウンロード",
       "add": "追加",
       "activate": "アクティブ",
       "deactivate": "非アクティブ",
@@ -734,6 +734,7 @@
       "organizationCdDuplicate": "この組織CDは既に使用されています",
       "organizationDisplayName": "組織表示名",
       "organizationDisplayNameRequired": "組織表示名を入力してください",
+      "organizationDisplayNameMaxLength": "組織表示名は1〜50文字で入力してください",
       "organizationEmail": "組織e-mail",
       "organizationEmailRequired": "組織e-mailを入力してください",
       "chiefUserId": "代表システム管理者",

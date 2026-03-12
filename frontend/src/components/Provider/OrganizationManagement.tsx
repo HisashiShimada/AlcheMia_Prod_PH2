@@ -363,6 +363,7 @@ export default function OrganizationManagement() {
       organizationEmail: '',
       corporationId: undefined,
       isEntry: 0,
+      useDeemedProgress: false,
       isActive: true,
       chiefUserName: '',
       chiefUserEmail: '',
@@ -567,6 +568,12 @@ export default function OrganizationManagement() {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
+
+      // 組織CD重複チェック中 or 重複確定の場合は送信しない
+      if (!editingOrg && (isDuplicateChecking || isDuplicate)) {
+        return;
+      }
+
       const client = createApiClient();
       if (editingOrg) {
         const { chiefUserEmail, ...saveData } = values;
@@ -582,6 +589,10 @@ export default function OrganizationManagement() {
       form.resetFields();
       await fetchOrganizations();
     } catch (error) {
+      // form.validateFields() によるバリデーションエラーはフォームに表示済みのため何もしない
+      if (error && typeof error === 'object' && 'errorFields' in error) {
+        return;
+      }
       console.error('保存エラー:', error);
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { error?: string } } };
@@ -781,7 +792,10 @@ export default function OrganizationManagement() {
               <Form.Item
                 name="organizationDisplayName"
                 label={t('organizationManagement.form.organizationDisplayName')}
-                rules={[{ required: true, message: t('organizationManagement.form.organizationDisplayNameRequired') }]}
+                rules={[
+                  { required: true, message: t('organizationManagement.form.organizationDisplayNameRequired') },
+                  { max: 50, message: t('organizationManagement.form.organizationDisplayNameMaxLength') },
+                ]}
               >
                 <Input />
               </Form.Item>
