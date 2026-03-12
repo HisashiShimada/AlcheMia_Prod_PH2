@@ -1,493 +1,1098 @@
-# TemplateEditor UI仕様書
+# Template Editor Dialog - テンプレート編集ダイアログ
 
-## 1. 概要
+## 概要
 
-### 1.1. コンポーネントの目的
+### 目的
+MAIML Petri Netエディタ内で、Material/Condition/ResultテンプレートのProperties、Contents、Insertion、PlaceRefsなどを編集するためのモーダルダイアログです。NestedPropertyEditorを使用してネストされたプロパティ構造を階層的に編集できます。
 
-MAIMLファイルのTemplate情報（Material、Condition、Result）を編集するダイアログ。ネスト構造のプロパティ編集、XML属性・要素管理、名前空間テンプレート取り込み機能を提供します。
+### 使用場面
+- Petri Netエディタ画面でTemplateを持つPlaceノードをダブルクリックした時
+- 新規テンプレートを作成する時
+- 既存テンプレートを編集する時
+- テンプレートファイルから名前空間を取り込む時
 
-### 1.2. 使用場面
-
-- PetriNetEditorでTemplateノードをダブルクリックした場合
-- EditorToolbarの「Template」ボタンをクリックした場合
-- Material/Condition/Resultテンプレートを編集する場合
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
+### アクセス権限
+- **実験管理者（Experiment Admin）**: 利用可能
+- MAIML編集権限を持つユーザーのみアクセス可能
 
 ---
 
-## 2. 画面構成
+## 画面構成
 
-### 2.1. レイアウト構造
+### レイアウト構造
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│ Template編集                                     [×]      │
-├──────────────────────────────────────────────────────────┤
-│ テンプレート種別: [Material ▼]                           │
-│                                                          │
-│ ┌────────────────────────────────────────────────────┐  │
-│ │ 🔽 property: root_property [Level 0] [propertyLis…│  │
-│ │ ├─ Attributes (XML属性)                            │  │
-│ │ │  └─ xsi:type = "propertyListType" [削除]         │  │
-│ │ ├─ Elements (XML要素)                              │  │
-│ │ │  └─ (なし)                                        │  │
-│ │ └─ Actions                                         │  │
-│ │    [属性追加] [要素追加] [子追加] [コピー] [削除]   │  │
-│ │                                                     │  │
-│ │   🔽 property: material_name [Level 1]             │  │
-│ │   ├─ Attributes                                    │  │
-│ │   │  └─ name = "Material Name" [削除]              │  │
-│ │   ├─ Elements                                      │  │
-│ │   │  └─ value = "Sample Material" [削除]          │  │
-│ │   └─ Actions                                       │  │
-│ │      [属性追加] [要素追加] [子追加] [コピー] [削除]│  │
-│ └────────────────────────────────────────────────────┘  │
-│                                                          │
-│ 📁 名前空間テンプレート取り込み                           │
-│ [フォルダツリー]                                          │
-│                                                          │
-│ [キャンセル] [保存]                                       │
-└──────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ [アイコン] {nodeCategory}を編集          [×]            │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ [⚠️ バリデーション警告（N件）]  ※エラーがある場合      │
+│                                                         │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ 📋 基本情報                                         │ │
+│ │ ・テンプレートID                                    │ │
+│ │ ・UUID [生成ボタン]                                 │ │
+│ │ ・Name                                              │ │
+│ │ ・Description                                       │ │
+│ │                                                     │ │
+│ │ 🔗 Place References                   [追加]       │ │
+│ │ ・Place Ref一覧（削除ボタン付き）                  │ │
+│ │                                                     │ │
+│ │ 📎 Insertion情報 ※Material/Resultのみ              │ │
+│ │ ・URI                                               │ │
+│ │ ・Hash Method                                       │ │
+│ │ ・Hash Value                                        │ │
+│ │ ・Format                                            │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                         │
+│ ─────────────────────────────────────────────────────── │
+│                                                         │
+│ 🏷️ Properties                                          │
+│ [新規プロパティ追加] [テンプレートから取り込み]        │
+│                                                         │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ NestedPropertyEditor（プロパティ階層表示）          │ │
+│ │ - key1: value1                                      │ │
+│ │   - childKey1: childValue1                          │ │
+│ │   - childKey2: childValue2                          │ │
+│ │ - key2: value2                                      │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                         │
+│ [🔗 継承元プロパティ（親テンプレート）]  ※継承時のみ   │
+│ （Collapse展開で親テンプレートのPropertiesを表示）     │
+│                                                         │
+│ ─────────────────────────────────────────────────────── │
+│                                                         │
+│ 🏷️ Contents  ※Resultテンプレートのみ                   │
+│ [新規Content追加] [テンプレートから取り込み]           │
+│                                                         │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ NestedPropertyEditor（Content階層表示）             │ │
+│ └─────────────────────────────────────────────────────┘ │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│                    [キャンセル] [💾 保存]               │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+### UI要素一覧
 
-#### 2.2.1. ヘッダー
+#### 1. ヘッダー
+- タイトル: `{アイコン} {nodeCategory}を編集`
+  - Material: 🧪 (ExperimentOutlined)
+  - Condition: ⚙️ (SettingOutlined)
+  - Result: 📊 (BarChartOutlined)
+- 閉じるボタン（×）
 
-| 要素 | 説明 |
-|------|------|
-| タイトル | 「Template編集」 |
-| 閉じるボタン | Xアイコン、onClose()実行 |
+#### 2. バリデーション警告（エラーがある場合のみ表示）
+- Alert（warning）
+- エラー件数とメッセージのリスト表示
 
-#### 2.2.2. テンプレート種別選択
+#### 3. 基本情報セクション（薄青背景）
+- **テンプレートID**: Input（必須）
+- **UUID**: Input + [生成]ボタン（ThunderboltOutlined）
+- **Name**: Input
+- **Description**: TextArea（2行）
 
-| 項目 | コンポーネント | 選択肢 |
-|------|--------------|-------|
-| テンプレート種別 | Select | Material, Condition, Result |
+#### 4. Place Referencesセクション
+- 見出し: "🔗 Place References"
+- [追加]ボタン（PlusOutlined）
+- Place Ref一覧カード
+  - Place Ref番号
+  - Ref ID表示
+  - [削除]ボタン（DeleteOutlined）
 
-**機能:**
-- テンプレート種別を切り替え
-- 種別に応じたテンプレート構造を初期化
+#### 5. Insertionセクション（Material/Resultのみ）
+- 見出し: "📎 Insertion情報"
+- **URI**: Input
+- **Hash Method**: Input
+- **Hash Value**: Input
+- **Format**: Input
 
-#### 2.2.3. NestedPropertyEditor（ネスト構造プロパティ編集）
+#### 6. Propertiesセクション
+- 見出し: "🏷️ Properties"
+- [新規プロパティ追加]ボタン（PlusOutlined）
+- [テンプレートから取り込み]ボタン（DownloadOutlined）
+- NestedPropertyEditor コンポーネント（プロパティごと）
+  - 階層的なプロパティ表示
+  - 展開/折りたたみ機能
+  - 属性・要素の編集
+  - 子要素の追加・削除
 
-**階層構造表示:**
-- Level 0: ルートプロパティ
-- Level 1-N: 子プロパティ（ネスト可能）
+#### 7. 継承元プロパティセクション（継承時のみ）
+- Collapse（折りたたみ可能）
+- 見出し: "🔗 継承元プロパティ（親テンプレート: {id}）"
+- Tag: "読み取り専用"（青）
+- Alert: "このプロパティは親テンプレートから継承されています"
+- 親テンプレートのProperties一覧（読み取り専用）
 
-**各プロパティの表示要素:**
-- 展開/縮小ボタン（子要素がある場合）
-- プロパティ名（property: キー名）
-- レベル表示タグ（Level N）
-- xsi:type表示タグ（propertyListType等）
+#### 8. Contentsセクション（Resultテンプレートのみ）
+- 見出し: "🏷️ Contents"
+- [新規Content追加]ボタン（PlusOutlined）
+- [テンプレートから取り込み]ボタン（DownloadOutlined）
+- NestedPropertyEditor コンポーネント（Contentごと）
 
-**各プロパティのセクション:**
-1. **Attributes（XML属性）**
-   - 属性名 = 値のリスト
-   - 各属性に削除ボタン
-
-2. **Elements（XML要素）**
-   - 要素名 = 値のリスト
-   - 各要素に削除ボタン
-
-3. **Actions（操作ボタン）**
-   - 属性追加
-   - 要素追加
-   - 子追加
-   - 同階層コピー
-   - 削除
-
-#### 2.2.4. 名前空間テンプレート取り込み
-
-**コンポーネント:**
-- Collapse Panel「名前空間テンプレート取り込み」
-- フォルダツリー（Tree）
-- ファイルリスト
-
-**機能:**
-- 名前空間からテンプレートファイルを選択
-- 選択したテンプレートを現在のテンプレートにマージ
-
-#### 2.2.5. フッターボタン
-
-| ボタン | 機能 |
-|-------|------|
-| キャンセル | 変更を破棄してダイアログを閉じる |
-| 保存 | テンプレートを保存 |
-
-**スタイル:**
-- 保存ボタン: type="primary", icon="SaveOutlined"
-- キャンセルボタン: type="default"
+#### 9. フッター
+- [キャンセル]ボタン
+- [💾 保存]ボタン（primary）
 
 ---
 
-## 3. 機能仕様
+## 機能仕様
 
-### 3.1. 主要機能の詳細
-
-#### 3.1.1. テンプレート初期化
-
-**処理フロー:**
-1. ダイアログオープン時にnodeDataを取得
-2. data.properties から PropertyData を構築
-3. templateType（Material/Condition/Result）を判定
-4. NestedPropertyEditor に渡す
-
-#### 3.1.2. テンプレート種別切り替え
-
-**処理フロー:**
-1. Select で種別を選択
-2. templateType を更新
-3. デフォルトプロパティ構造を初期化
-4. 再レンダリング
-
-#### 3.1.3. 属性追加
-
-**処理フロー:**
-1. 「属性追加」ボタンをクリック
-2. 属性追加モーダルを表示
-3. 属性名と値を入力
-4. OKをクリック
-5. onUpdateNestedAttribute(propertyKey, attrName, attrValue) 実行
-6. PropertyData の attributes を更新
-7. モーダルを閉じる
-
-**バリデーション:**
-- 属性名: 必須、重複不可
-- 値: 任意
-
-#### 3.1.4. 要素追加
-
-**処理フロー:**
-1. 「要素追加」ボタンをクリック
-2. 要素追加モーダルを表示
-3. 要素名と値を入力
-4. OKをクリック
-5. onUpdateNestedElement(propertyKey, elemName, elemValue) 実行
-6. PropertyData の elements を更新
-7. モーダルを閉じる
-
-**バリデーション:**
-- 要素名: 必須、重複不可
-- 値: 任意
-
-#### 3.1.5. 子プロパティ追加
-
-**処理フロー:**
-1. 「子追加」ボタンをクリック
-2. 子追加モーダルを表示
-3. 子プロパティのキー名とタグ名を入力
-4. OKをクリック
-5. onAddNestedChild(parentKey, childTagName, specifiedKey) 実行
-6. PropertyData の children 配列に追加
-7. 自動的に展開状態にする
-8. モーダルを閉じる
-
-**制約:**
-- 親のxsi:typeが「propertyListType」の場合のみ追加可能
-
-#### 3.1.6. 同階層コピー
-
-**処理フロー:**
-1. 「コピー」ボタンをクリック
-2. コピーモーダルを表示
-3. 新しいキー名を入力
-4. OKをクリック
-5. onAddSameLevelCopy(sourceKey, sourceData, newKey, level) 実行
-6. 同じ階層に新しいプロパティをコピー
-7. モーダルを閉じる
-
-**機能:**
-- プロパティの構造を保持したままコピー
-- attributes, elements, children すべてコピー
-
-#### 3.1.7. プロパティ削除
-
-**処理フロー:**
-1. 「削除」ボタンをクリック
-2. 確認ダイアログを表示
-3. OKをクリック
-4. onDeleteProperty(propertyKey) 実行
-5. PropertyData から削除
-6. 子プロパティも再帰的に削除
-
-**制約:**
-- ルートプロパティ（Level 0）は削除不可
-
-#### 3.1.8. 属性削除
-
-**処理フロー:**
-1. 属性の「削除」ボタンをクリック
-2. onDeleteNestedAttribute(propertyKey, attrName) 実行
-3. PropertyData の attributes から削除
-
-#### 3.1.9. 要素削除
-
-**処理フロー:**
-1. 要素の「削除」ボタンをクリック
-2. onDeleteNestedElement(propertyKey, elemName) 実行
-3. PropertyData の elements から削除
-
-#### 3.1.10. 展開/縮小
-
-**処理フロー:**
-1. 展開/縮小ボタンをクリック
-2. onToggleExpanded(nodeId) 実行
-3. expandedNodes Set に追加/削除
-4. 子プロパティの表示/非表示を切り替え
-
-#### 3.1.11. 名前空間テンプレート取り込み
-
-**処理フロー:**
-1. 「名前空間テンプレート取り込み」パネルを展開
-2. フォルダツリーからフォルダを選択
-3. ファイルリストからテンプレートファイルを選択
-4. 「取り込み」ボタンをクリック
-5. 選択したテンプレートをパース
-6. 現在のPropertyDataにマージ
-7. 成功メッセージを表示
-
-**機能:**
-- useNamespaceOperations フックを使用
-- フォルダツリー階層表示
-- ファイル選択とプレビュー
-- テンプレートマージ処理
-
-#### 3.1.12. 保存処理
-
-**処理フロー:**
-1. 「保存」ボタンをクリック
-2. PropertyDataをXML形式に変換
-3. nodeDataを更新
-4. onSave(updatedNodeData) 実行
-5. ダイアログを閉じる
-
-### 3.2. ボタン・操作の動作
-
-| 操作 | 動作 | 状態変更 |
-|------|------|---------|
-| テンプレート種別選択 | 種別切り替え | templateType更新 |
-| 展開/縮小ボタン | 子プロパティ表示切替 | expandedNodes更新 |
-| 属性追加ボタン | 属性追加モーダル表示 | Modal表示 |
-| 要素追加ボタン | 要素追加モーダル表示 | Modal表示 |
-| 子追加ボタン | 子追加モーダル表示 | Modal表示 |
-| コピーボタン | コピーモーダル表示 | Modal表示 |
-| 削除ボタン | プロパティ削除 | PropertyData削除 |
-| 属性削除ボタン | 属性削除 | attributes更新 |
-| 要素削除ボタン | 要素削除 | elements更新 |
-| 名前空間取り込み | テンプレートマージ | PropertyData更新 |
-| キャンセルボタン | ダイアログを閉じる | onClose() |
-| 保存ボタン | 保存処理 | onSave() |
-
----
-
-## 4. データ仕様
-
-### 4.1. Props型定義
+### Props定義
 
 ```typescript
 interface TemplateEditorDialogProps {
-  open: boolean;                              // モーダル表示フラグ
-  nodeData: Node;                             // Templateノードデータ
-  onClose: () => void;                        // 閉じる
-  onSave: (updatedNodeData: Node) => void;    // 保存
+  open: boolean;                          // ダイアログの開閉状態
+  node: {                                 // 編集対象ノード
+    id: string;
+    data: NodeData;
+  };
+  onClose: () => void;                    // 閉じる時のコールバック
+  onSave: (                               // 保存時のコールバック
+    nodeId: string,
+    templateRef: Template,
+    isNewTemplate: boolean,
+    templateCategory: string,
+    isCommonTemplate: boolean,
+    methodId: string | null
+  ) => void;
+  allNodes?: Array<{ id: string; data: NodeData }>; // 全ノード（PlaceRef追加用）
+  templateErrors?: Record<string, TemplateError[]>; // バリデーションエラー
 }
 ```
 
-### 4.2. PropertyData型定義
+### State管理
 
+#### 基本情報State
+```typescript
+const [hasChanges, setHasChanges] = useState(false);
+const [templateId, setTemplateId] = useState('');
+const [uuid, setUuid] = useState('');
+const [name, setName] = useState('');
+const [description, setDescription] = useState('');
+const [placeRefs, setPlaceRefs] = useState<PlaceRef[]>([]);
+const [insertion, setInsertion] = useState<Insertion>({
+  uri: '',
+  hash: { method: '', value: '' },
+  format: ''
+});
+```
+
+#### Properties編集State
+```typescript
+const [properties, setProperties] = useState<Record<string, PropertyData>>({});
+const [expandedNodes, setExpandedNodes] = useState(new Set<string>());
+const [showAddModal, setShowAddModal] = useState(false);
+const [newPropertyKey, setNewPropertyKey] = useState('');
+const [newPropertyTagName, setNewPropertyTagName] = useState('property');
+const [forceRenderKey, setForceRenderKey] = useState(0);
+```
+
+#### Contents編集State
+```typescript
+const [contents, setContents] = useState<Record<string, PropertyData>>({});
+const [expandedContentNodes, setExpandedContentNodes] = useState(new Set<string>());
+const [showContentAddModal, setShowContentAddModal] = useState(false);
+const [newContentKey, setNewContentKey] = useState('');
+const [newContentTagName, setNewContentTagName] = useState('content');
+const [forceContentRenderKey, setForceContentRenderKey] = useState(0);
+```
+
+#### PlaceRef編集State
+```typescript
+const [showPlaceRefAddDialog, setShowPlaceRefAddDialog] = useState(false);
+```
+
+#### 名前空間取り込みState
+```typescript
+const [showNamespaceDialog, setShowNamespaceDialog] = useState(false);
+const [formatsResponse, setFormatsResponse] = useState<ListFormatsResponse>({ departments: [] });
+const [selectedNamespaceFile, setSelectedNamespaceFile] = useState<string>('');
+const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+const [importedNamespaces, setImportedNamespaces] = useState<string[]>([]);
+const [namespaceImportMode, setNamespaceImportMode] = useState<'replace_all_properties' | 'replace_all_contents'>('replace_all_properties');
+const [namespacePreview, setNamespacePreview] = useState<{
+  parsedData?: NamespaceData;
+  xmlPreview?: string;
+  error?: string;
+}>({});
+const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+const [duplicateKeys, setDuplicateKeys] = useState<string[]>([]);
+```
+
+#### バリデーションState
+```typescript
+const [validationErrors, setValidationErrors] = useState<string[]>([]);
+```
+
+### useMemo - 計算値
+
+#### nodeCategory（テンプレートタイプ判定）
+```typescript
+const nodeCategory = useMemo(() => {
+  if (!node) return '';
+  return node.data.placeType; // 'material' | 'condition' | 'result'
+}, [node]);
+```
+
+#### templateIcon（テンプレートアイコン）
+```typescript
+const templateIcon = useMemo(() => {
+  if (!node) return <ExperimentOutlined />;
+  return node.data.placeType === 'material' ? <ExperimentOutlined /> :
+         node.data.placeType === 'condition' ? <SettingOutlined /> :
+         <BarChartOutlined />;
+}, [node]);
+```
+
+#### mergedTemplate（マージされたテンプレートデータ）
+```typescript
+const mergedTemplate: Template | null = useMemo((): Template | null => {
+  if (!node) return null;
+  
+  const template = (node.data.template || {}) as Partial<Template>;
+  const templateRef = (node.data.templateRef || {}) as Partial<Template>;
+  
+  // template と templateRef をマージして返す
+  return {
+    id: template.id || templateRef.id || '',
+    uuid: template.uuid || templateRef.uuid || '',
+    name: template.name || templateRef.name || '',
+    description: template.description || templateRef.description,
+    category: template.category || templateRef.category || '',
+    properties: template.properties || templateRef.properties || [],
+    contents: template.contents || templateRef.contents || [],
+    insertion: template.insertion || templateRef.insertion,
+    placeRefs: template.placeRefs || templateRef.placeRefs || [],
+    templateRef: template.templateRef,
+  };
+}, [node]);
+```
+
+#### inheritedTemplate（継承元テンプレート）
+```typescript
+const inheritedTemplate = useMemo((): Template | null => {
+  if (!mergedTemplate?.templateRef) return null;
+  
+  const parentTemplateId = mergedTemplate.templateRef.ref;
+  if (!parentTemplateId || typeof parentTemplateId !== 'string') return null;
+  
+  // window.clineAllTemplatesから検索
+  if (window.clineAllTemplates) {
+    const category = node.data.placeType === 'material' ? 'material' :
+                     node.data.placeType === 'condition' ? 'condition' : 'result';
+    const templates = window.clineAllTemplates[category];
+    
+    if (templates.length > 0) {
+      const found = templates.find((t: Template) => t.id === parentTemplateId);
+      if (found) return found as Template;
+    }
+  }
+  
+  // allNodesから検索（フォールバック）
+  const parentNode = allNodes.find(n => 
+    n.id === parentTemplateId || 
+    n.data?.template?.id === parentTemplateId ||
+    n.data?.templateRef?.id === parentTemplateId
+  );
+  
+  if (parentNode) {
+    return (parentNode.data.template || parentNode.data.templateRef) as Template;
+  }
+  
+  return null;
+}, [mergedTemplate, allNodes, node]);
+```
+
+### カスタムフック
+
+#### useNamespaceOperations
+```typescript
+const { analyzeNamespaceFile, replaceTemplateWithNamespace } = useNamespaceOperations();
+```
+
+- `analyzeNamespaceFile(fileKey: string)`: テンプレートファイルを解析して名前空間データを取得
+- `replaceTemplateWithNamespace(parsed, type, setEditingTemplate)`: 名前空間データでテンプレートを置き換え
+
+---
+
+## 主要機能
+
+### 1. 初期化処理（useEffect）
+
+ダイアログが開かれた時、ノードデータからStateを初期化します。
+
+```typescript
+useEffect(() => {
+  if (open && node && mergedTemplate) {
+    // 基本情報
+    setTemplateId(mergedTemplate.id || '');
+    setUuid(mergedTemplate.uuid || '');
+    setName(mergedTemplate.name || '');
+    setDescription(mergedTemplate.description || '');
+    setInsertion(mergedTemplate.insertion || { uri: '', hash: {method: '', value: ''}, format: '' });
+    
+    // PlaceRefs
+    const loadedPlaceRefs = mergedTemplate.placeRefs || [];
+    setPlaceRefs(loadedPlaceRefs);
+    
+    // Properties変換（配列 → NestedPropertyEditor形式）
+    let convertedProperties: Record<string, PropertyData> = {};
+    if (mergedTemplate.properties) {
+      if (Array.isArray(mergedTemplate.properties)) {
+        convertedProperties = convertPropertiesArrayToNestedFormat(mergedTemplate.properties);
+      } else if (typeof mergedTemplate.properties === 'object') {
+        // 既にNestedPropertyEditor形式かチェック
+        const firstKey = Object.keys(mergedTemplate.properties)[0];
+        const firstProp = mergedTemplate.properties[firstKey] as Record<string, unknown>;
+        const isAlreadyNestedFormat = firstProp && 
+          typeof firstProp === 'object' &&
+          ('attributes' in firstProp || 'elements' in firstProp || 'children' in firstProp);
+        
+        if (isAlreadyNestedFormat) {
+          convertedProperties = mergedTemplate.properties as Record<string, PropertyData>;
+        }
+      }
+    }
+    setProperties(convertedProperties);
+
+    // Contents変換（配列 → NestedPropertyEditor形式）
+    let convertedContents: Record<string, PropertyData> = {};
+    if (mergedTemplate.contents) {
+      if (Array.isArray(mergedTemplate.contents) && mergedTemplate.contents.length > 0) {
+        convertedContents = convertContentsArrayToNestedFormat(mergedTemplate.contents);
+      }
+    }
+    setContents(convertedContents);
+
+    // 展開状態とレンダリングキーをリセット
+    setExpandedNodes(new Set());
+    setExpandedContentNodes(new Set());
+    setForceRenderKey(Date.now());
+    setForceContentRenderKey(Date.now());
+  }
+}, [open, node, mergedTemplate]);
+```
+
+### 2. UUID生成
+
+```typescript
+const handleGenerateUuid = () => {
+  const newUuid = crypto.randomUUID();
+  setUuid(newUuid);
+  setHasChanges(true);
+};
+```
+
+ボタンクリックで新しいUUID（urn:uuid:形式）を自動生成します。
+
+### 3. Properties編集機能
+
+#### 3-1. 新規プロパティ追加
+```typescript
+const handleAddProperty = () => {
+  if (!newPropertyKey.trim()) {
+    message.error('プロパティキーを入力してください');
+    return;
+  }
+
+  if (properties[newPropertyKey.trim()]) {
+    message.error('同じキーのプロパティが既に存在します');
+    return;
+  }
+
+  setProperties({
+    ...properties,
+    [newPropertyKey.trim()]: {
+      key: newPropertyKey.trim(),
+      tagName: newPropertyTagName,
+      attributes: {},
+      elements: {},
+      children: []
+    }
+  });
+
+  setNewPropertyKey('');
+  setNewPropertyTagName('property');
+  setShowAddModal(false);
+};
+```
+
+#### 3-2. ネスト子要素追加
+```typescript
+const handleAddNestedChild = (parentKey: string, childTagName: string, specifiedKey?: string) => {
+  // ユーザー指定のkeyを優先、なければランダム生成
+  const childKey = specifiedKey && specifiedKey.trim() 
+    ? specifiedKey.trim() 
+    : `${childTagName}_${Date.now()}`;
+  
+  // ✅ 重複keyチェック
+  const hasDuplicate = checkDuplicateKey(properties, parentKey, childKey);
+  if (hasDuplicate) {
+    message.error(`同じ階層に既に「${childKey}」が存在します`);
+    return;
+  }
+  
+  // 再帰的に親を検索して子要素を追加
+  setProperties(prevProperties => {
+    const updated = JSON.parse(JSON.stringify(prevProperties));
+    const found = findAndUpdateParent(updated, parentKey);
+    return updated;
+  });
+  
+  setForceRenderKey(Date.now()); // 強制再レンダリング
+  setExpandedNodes(prev => new Set([...prev, parentKey])); // 自動展開
+  setHasChanges(true);
+};
+```
+
+#### 3-3. 属性更新
+```typescript
+const handleUpdateNestedAttribute = (propertyKey: string, attrName: string, attrValue: string) => {
+  setProperties(prevProperties => {
+    const updated = JSON.parse(JSON.stringify(prevProperties));
+    findAndUpdate(updated, propertyKey); // 再帰的に検索して更新
+    return updated;
+  });
+  
+  setForceRenderKey(Date.now());
+  setHasChanges(true);
+};
+```
+
+#### 3-4. 要素更新
+```typescript
+const handleUpdateNestedElement = (propertyKey: string, elemName: string, elemValue: string) => {
+  // handleUpdateNestedAttributeと同様のパターン
+};
+```
+
+#### 3-5. プロパティ削除
+```typescript
+const handleDeleteProperty = (propertyKey: string) => {
+  const updated = { ...properties };
+  delete updated[propertyKey];
+  setProperties(updated);
+  setHasChanges(true);
+};
+```
+
+#### 3-6. 展開/折りたたみ
+```typescript
+const handleToggleExpanded = (nodeId: string) => {
+  setExpandedNodes(prev => {
+    const next = new Set(prev);
+    if (next.has(nodeId)) {
+      next.delete(nodeId);
+    } else {
+      next.add(nodeId);
+    }
+    return next;
+  });
+};
+```
+
+### 4. Contents編集機能（Resultテンプレートのみ）
+
+Propertiesと同様のハンドラー群を持ちます：
+- `handleAddContent()`
+- `handleAddNestedContentChild()`
+- `handleUpdateContentAttribute()`
+- `handleUpdateContentElement()`
+- `handleDeleteContent()`
+- `handleToggleContentExpanded()`
+
+### 5. PlaceRef編集機能
+
+#### 5-1. PlaceRef追加ダイアログを開く
+```typescript
+setShowPlaceRefAddDialog(true);
+```
+
+#### 5-2. PlaceRef追加
+```typescript
+// PlaceRef追加ダイアログ内のボタンクリック
+onClick={() => {
+  setPlaceRefs([...placeRefs, {id: '', ref: place.id}]);
+  setShowPlaceRefAddDialog(false);
+  setHasChanges(true);
+  message.success('Place Referenceを追加しました');
+}}
+```
+
+#### 5-3. PlaceRef削除
+```typescript
+onClick={() => {
+  const updated = placeRefs.filter((_, i) => i !== index);
+  setPlaceRefs(updated);
+  setHasChanges(true);
+}}
+```
+
+### 6. 名前空間取り込み機能
+
+#### 6-1. テンプレートファイル一覧取得
+```typescript
+const handleOpenNamespaceImport = async (mode: 'replace_all_properties' | 'replace_all_contents' = 'replace_all_properties') => {
+  setNamespaceImportMode(mode);
+  setIsLoadingTemplates(true);
+  setShowNamespaceDialog(true);
+
+  try {
+    const result = await fetchTemplateFiles();
+    setFormatsResponse(result);
+  } catch (error) {
+    message.error('テンプレートファイル一覧の取得に失敗しました');
+    setFormatsResponse({ departments: [] });
+  } finally {
+    setIsLoadingTemplates(false);
+  }
+};
+```
+
+#### 6-2. ファイル選択時のプレビュー取得
+```typescript
+const handleSelectNamespaceFile = async (fileKey: string) => {
+  setSelectedNamespaceFile(fileKey);
+
+  if (!fileKey) {
+    setNamespacePreview({});
+    return;
+  }
+
+  try {
+    const parsed = await analyzeNamespaceFile(fileKey);
+    setNamespacePreview({ parsedData: parsed });
+  } catch (error) {
+    setNamespacePreview({ error: 'プレビューの読み込みに失敗しました' });
+  }
+};
+```
+
+#### 6-3. 重複チェックと確認ダイアログ表示
+```typescript
+const handleConfirmImportWithDuplicateCheck = async () => {
+  if (!selectedNamespaceFile) {
+    message.error('テンプレートファイルを選択してください');
+    return;
+  }
+
+  let parsed = namespacePreview.parsedData;
+  if (!parsed) {
+    try {
+      parsed = await analyzeNamespaceFile(selectedNamespaceFile);
+      setNamespacePreview({ parsedData: parsed });
+    } catch (error) {
+      message.error('名前空間の取り込みに失敗しました');
+      return;
+    }
+  }
+
+  const sourceData = namespaceImportMode === 'replace_all_properties'
+    ? parsed.properties
+    : parsed.contents;
+
+  const duplicates = Object.keys(sourceData).filter(key =>
+    namespaceImportMode === 'replace_all_properties' ? properties[key] : contents[key]
+  );
+  setDuplicateKeys(duplicates);
+  setShowConfirmDialog(true);
+};
+```
+
+#### 6-4. 名前空間取り込み実行
+```typescript
+const handleImportNamespace = () => {
+  const parsed = namespacePreview.parsedData;
+  if (!parsed) {
+    message.error('取り込むデータがありません');
+    return;
+  }
+
+  try {
+    const templateType = namespaceImportMode === 'replace_all_properties' ? 'properties' : 'contents';
+
+    if (templateType === 'properties') {
+      replaceTemplateWithNamespace(
+        parsed,
+        'properties',
+        (updater) => {
+          if (typeof updater === 'function') {
+            setProperties(prev => {
+              const fakeTemplate = { properties: prev, contents };
+              const next = updater(fakeTemplate as never);
+              return (next as { properties: Record<string, PropertyData> }).properties;
+            });
+          }
+        }
+      );
+      setForceRenderKey(Date.now());
+      message.success(`${Object.keys(parsed.properties).length} 個のプロパティを取り込みました`);
+    } else {
+      replaceTemplateWithNamespace(
+        parsed,
+        'contents',
+        (updater) => {
+          if (typeof updater === 'function') {
+            setContents(prev => {
+              const fakeTemplate = { properties, contents: prev };
+              const next = updater(fakeTemplate as never);
+              return (next as { contents: Record<string, PropertyData> }).contents;
+            });
+          }
+        }
+      );
+      setForceContentRenderKey(Date.now());
+      message.success(`${Object.keys(parsed.contents).length} 個のContentsを取り込みました`);
+    }
+
+    const fileName = selectedNamespaceFile.split('/').pop() || selectedNamespaceFile;
+    setImportedNamespaces(prev => [...prev, fileName]);
+
+    setShowConfirmDialog(false);
+    setShowNamespaceDialog(false);
+    setSelectedNamespaceFile('');
+    setNamespacePreview({});
+    setDuplicateKeys([]);
+    setHasChanges(true);
+  } catch (error) {
+    message.error(`取り込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+  }
+};
+```
+
+### 7. 保存処理
+
+```typescript
+const handleSave = () => {
+  // ✅ 基本チェック
+  if (!templateId.trim()) {
+    message.error('テンプレートIDを入力してください');
+    return;
+  }
+  
+  // ✅ ノードIDとの重複チェック
+  const nodeIds = allNodes.map(n => n.id);
+  if (nodeIds.includes(templateId) && templateId !== node.id) {
+    message.error(
+      `テンプレートID "${templateId}" は既にノードIDとして使用されています。別のIDを指定してください。`
+    );
+    return;
+  }
+  
+  // ✅ 他のテンプレートIDとの重複チェック
+  if (window.clineAllTemplates) {
+    const allTemplateIds: string[] = [];
+    (['material', 'condition', 'result'] as const).forEach(category => {
+      const templates = window.clineAllTemplates[category];
+      if (templates && Array.isArray(templates)) {
+        templates.forEach((t: Template) => {
+          const currentTemplateId = node.data.template?.id || node.data.templateRef?.id;
+          const templateId = t.id;
+          if (templateId && templateId !== currentTemplateId) {
+            allTemplateIds.push(templateId);
+          }
+        });
+      }
+    });
+    
+    if (allTemplateIds.includes(templateId)) {
+      message.error(
+        `テンプレートID "${templateId}" は既に他のテンプレートで使用されています。別のIDを指定してください。`
+      );
+      return;
+    }
+  }
+  
+  // PropertyData形式からProperty[]とContent[]に変換
+  const convertedProperties = convertPropertyDataToPropertiesArray(properties);
+  const convertedContents = convertPropertyDataToContentsArray(contents);
+  
+  const templateRef: Template = {
+    ...(node.data.templateRef || {}),
+    id: templateId,
+    uuid: uuid,
+    name: name,
+    category: nodeCategory,
+    description: description,
+    properties: convertedProperties,
+    contents: convertedContents,
+    placeRefs: placeRefs,
+  };
+  
+  if (node.data.templateRef?.templateRef) {
+    templateRef.templateRef = node.data.templateRef?.templateRef;
+  }
+  
+  if ((node.data.placeType === 'material' || node.data.placeType === 'result') && 
+      (insertion.uri || insertion.hash || insertion.format)) {
+    templateRef.insertion = insertion;
+  }
+  
+  const isNewTemplate = node.data.isNewTemplate || false;
+  const templateCategory = node.data.templateCategory || node.data.placeType || 'material';
+  const isCommonTemplate = node.data.isCommonTemplate || false;
+  const methodId = node.data.methodId || null;
+  
+  onSave(node.id, templateRef, isNewTemplate, templateCategory, isCommonTemplate, methodId);
+  onClose();
+  setHasChanges(false);
+};
+```
+
+**保存時の処理フロー:**
+1. テンプレートID必須チェック
+2. ノードIDとの重複チェック
+3. 他テンプレートIDとの重複チェック（window.clineAllTemplates）
+4. PropertyData形式 → Property[]配列に変換（`convertPropertyDataToPropertiesArray`）
+5. PropertyData形式 → Content[]配列に変換（`convertPropertyDataToContentsArray`）
+6. Templateオブジェクトを構築
+7. Material/ResultのみInsertionを含める
+8. 親コンポーネントのonSaveコールバックを呼び出し
+9. ダイアログを閉じる
+
+---
+
+## サブモーダル構成
+
+### 1. プロパティ追加モーダル
+
+**トリガー**: [新規プロパティ追加]ボタンクリック
+
+**UI要素:**
+- Input: プロパティキー入力
+- Select: タグ名選択（property/content/parameter）
+- [キャンセル]/[OK]ボタン
+
+**動作:**
+- プロパティキーを入力してOKクリック
+- 重複チェック → 成功 → propertiesに追加
+- モーダルを閉じる
+
+### 2. Content追加モーダル（Resultテンプレートのみ）
+
+**トリガー**: [新規Content追加]ボタンクリック
+
+**UI要素:**
+- Input: Contentキー入力
+- Select: タグ名選択（property/content/parameter）
+- [キャンセル]/[OK]ボタン
+
+**動作:**
+- Contentキーを入力してOKクリック
+- 重複チェック → 成功 → contentsに追加
+- モーダルを閉じる
+
+### 3. PlaceRef追加ダイアログ
+
+**トリガー**: [追加]ボタンクリック（Place Referencesセクション）
+
+**UI要素:**
+- Alert: 「既存のPlaceから選択してください」
+- Place一覧（既に登録済みのものを除外）
+  - Place ID
+  - Place名
+  - Place種別
+  - [追加]ボタン（各Place）
+- [閉じる]ボタン
+
+**動作:**
+- allNodesからnodeType='place'のものを抽出
+- 既にplaceRefsに登録済みのものは表示しない
+- Place選択 → placeRefsに追加
+- メッセージ表示: 「Place Referenceを追加しました」
+- ダイアログを閉じる
+
+### 4. 名前空間取り込みモーダル
+
+**トリガー**: [テンプレートから取り込み]ボタンクリック
+
+**UI要素:**
+- Alert: 取り込みの説明
+  - 選択したテンプレートファイルのproperties定義を追加
+  - 同じキーのプロパティは上書き
+  - 複数のテンプレートから取り込み可能
+- TreeSelect: テンプレートファイル選択
+  - 部門 / フォルダ / ファイル の階層構造
+  - 検索機能
+- プレビュー表示（ファイル選択時）
+  - プロパティ件数 / コンテンツ件数
+  - キー一覧（xsi:type表示）
+- [キャンセル]/[取り込み]ボタン
+
+**動作:**
+1. ダイアログ表示時にfetchTemplateFiles()でファイル一覧取得
+2. ファイル選択 → analyzeNamespaceFile()でプレビュー取得
+3. [取り込み]クリック → 重複チェック → 確認ダイアログ表示
+
+### 5. 名前空間取り込み確認ダイアログ
+
+**トリガー**: 名前空間取り込みモーダルで[取り込み]ボタンクリック
+
+**UI要素:**
+- Alert: 重複警告（重複がある場合）
+  - 重複件数表示
+  - 重複キー一覧（Tagで表示）
+- または Alert: 「重複なし」（成功メッセージ）
+- 取り込む要素の一覧
+  - キー名
+  - 重複の場合は「(上書き)」表示
+- [キャンセル]/[取り込む]ボタン
+
+**動作:**
+1. 重複チェック結果を表示
+2. [取り込む]クリック → handleImportNamespace()実行
+3. replaceTemplateWithNamespace()で全置き換え + namespaceSource付与
+4. 成功メッセージ表示: 「N個のプロパティを取り込みました」
+5. ダイアログを閉じる
+
+---
+
+## API連携
+
+### 使用API
+
+#### fetchTemplateFiles()
+```typescript
+import { fetchTemplateFiles, type ListFormatsResponse } from '@/services/templateApi';
+```
+
+**機能**: テンプレートファイル一覧を取得
+
+**レスポンス:**
+```typescript
+interface ListFormatsResponse {
+  departments: Array<{
+    departmentCd: string;
+    folders: Array<{
+      folderName: string;
+      files: Array<{
+        fileName: string;
+        key: string;
+      }>;
+    }>;
+  }>;
+}
+```
+
+**使用箇所**: 名前空間取り込みモーダル表示時
+
+---
+
+## ユーティリティ関数
+
+### データ変換関数
+
+#### convertPropertiesArrayToNestedFormat()
+```typescript
+import {
+  convertPropertiesArrayToNestedFormat,
+  convertPropertiesArrayToNestedFormatRecursive,
+  convertPropertyDataToPropertiesArray,
+  convertPropertyDataToContentsArray,
+  convertContentsArrayToNestedFormat,
+} from '../utils/templateConverter';
+```
+
+**機能**: Property[]配列をNestedPropertyEditor用のRecord<string, PropertyData>形式に変換
+
+**使用箇所**: 初期化時のProperties読み込み
+
+#### convertContentsArrayToNestedFormat()
+**機能**: Content[]配列をNestedPropertyEditor用のRecord<string, PropertyData>形式に変換
+
+**使用箇所**: 初期化時のContents読み込み
+
+#### convertPropertyDataToPropertiesArray()
+**機能**: NestedPropertyEditor形式をProperty[]配列に変換（保存時）
+
+**使用箇所**: 保存処理
+
+#### convertPropertyDataToContentsArray()
+**機能**: NestedPropertyEditor形式をContent[]配列に変換（保存時）
+
+**使用箇所**: 保存処理
+
+#### convertPropertiesArrayToNestedFormatRecursive()
+**機能**: 継承元テンプレートのPropertiesを再帰的に変換（表示用）
+
+**使用箇所**: 継承元プロパティ表示
+
+---
+
+## 関連コンポーネント
+
+### 子コンポーネント
+
+#### NestedPropertyEditor
+- **ファイルパス**: `frontend/src/components/editorv2/components/NestedPropertyEditor.tsx`
+- **用途**: プロパティの階層構造を表示・編集
+- **Props:**
+  ```typescript
+  interface NestedPropertyEditorProps {
+    propertyData: PropertyData;
+    propertyKey: string;
+    level: number;
+    expandedNodes: Set<string>;
+    onToggleExpanded: (nodeId: string) => void;
+    onAddNestedChild: (parentKey: string, childTagName: string, specifiedKey?: string) => void;
+    onAddSameLevelCopy: (sourceData: PropertyData, newKey: string) => void;
+    onUpdateNestedAttribute: (propertyKey: string, attrName: string, attrValue: string) => void;
+    onUpdateNestedElement: (propertyKey: string, elemName: string, elemValue: string) => void;
+    onDeleteNestedAttribute: (propertyKey: string, attrName: string) => void;
+    onDeleteNestedElement: (propertyKey: string, elemName: string) => void;
+    onDeleteProperty: (propertyKey: string) => void;
+    forceRenderKey: number;
+  }
+  ```
+
+### カスタムフック
+
+#### useNamespaceOperations
+- **ファイルパス**: `frontend/src/components/editorv2/hooks/useNamespaceOperations.ts`
+- **用途**: 名前空間の解析と取り込み処理
+- **メソッド:**
+  - `analyzeNamespaceFile(fileKey: string): Promise<NamespaceData>` - テンプレートファイルを解析
+  - `replaceTemplateWithNamespace(parsed, type, setEditingTemplate)` - 名前空間でテンプレートを置き換え
+
+### 型定義
+
+#### PropertyData
 ```typescript
 interface PropertyData {
-  tagName: string;                       // タグ名（"property"等）
-  attributes?: { [key: string]: string }; // XML属性
-  elements?: { [key: string]: string };   // XML要素
-  children?: PropertyData[];              // 子プロパティ
+  key: string;
+  tagName: string;
+  attributes: Record<string, string>;
+  elements: Record<string, string>;
+  children?: PropertyData[];
 }
 ```
 
-### 4.3. NestedPropertyEditorProps型定義
-
+#### NamespaceData
 ```typescript
-interface NestedPropertyEditorProps {
-  propertyData: PropertyData;
-  propertyKey: string;
-  level?: number;                        // 階層レベル
-  expandedNodes: Set<string>;            // 展開中のノードID
-  onToggleExpanded: (nodeId: string) => void;
-  onAddNestedChild: (parentKey: string, childTagName: string, specifiedKey: string) => void;
-  onAddSameLevelCopy: (sourceKey: string, sourceData: PropertyData, newKey: string, level: number) => void;
-  onUpdateNestedAttribute: (propertyKey: string, attrName: string, attrValue: string) => void;
-  onUpdateNestedElement: (propertyKey: string, elemName: string, elemValue: string) => void;
-  onDeleteNestedAttribute: (propertyKey: string, attrName: string) => void;
-  onDeleteNestedElement: (propertyKey: string, elemName: string) => void;
-  onDeleteProperty: (propertyKey: string) => void;
-  forceRenderKey: number;
+interface NamespaceData {
+  properties: Record<string, PropertyData>;
+  contents: Record<string, PropertyData>;
 }
 ```
 
----
-
-## 5. UI/UXポリシー準拠
-
-### 5.1. Ant Designコンポーネント使用
-
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Modal | 外側のコンテナ | open, onCancel, title, width, footer |
-| Select | テンプレート種別選択 | value, onChange, options |
-| Button | 各種操作ボタン | type, size, icon, onClick |
-| Input | 属性・要素入力 | value, onChange |
-| TextArea | 要素値入力（複数行） | value, onChange, rows |
-| Collapse | 名前空間パネル | defaultActiveKey |
-| Panel | セクションパネル | header, key |
-| Tag | レベル・タイプ表示 | color |
-| Flex | ボタングループ配置 | justify, align, gap |
-| Tree | フォルダツリー | treeData, onSelect |
-| Spin | ローディング | spinning |
-| Alert | エラー・警告表示 | type, message, showIcon |
-
-### 5.2. @ant-design/icons使用
-
-- SaveOutlined: 保存ボタン
-- CloseOutlined: 閉じるボタン
-- PlusOutlined: 追加ボタン
-- DeleteOutlined: 削除ボタン
-- DownOutlined: 展開状態
-- RightOutlined: 縮小状態
-- ExperimentOutlined: Materialアイコン
-- SettingOutlined: Conditionアイコン
-- BarChartOutlined: Resultアイコン
-- CloudDownloadOutlined: 取り込みアイコン
-- FolderOutlined / FolderOpenOutlined: フォルダアイコン
-- FileOutlined: ファイルアイコン
-
----
-
-## 6. 実装ファイル
-
-### 6.1. ソースファイルパス
-
-```
-frontend/src/components/editorv2/components/TemplateEditorDialog.tsx
-```
-
-### 6.2. 関連コンポーネント
-
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| PetriNetEditor | ./PetriNetEditor | 親コンポーネント |
-| useNamespaceOperations | @/hooks/useNamespaceOperations | 名前空間操作フック |
-
-### 6.3. 依存ライブラリ
-
-| ライブラリ | バージョン | 用途 |
-|-----------|----------|------|
-| antd | 6.x | UIコンポーネント |
-| @ant-design/icons | 5.x | アイコン |
-| reactflow | 11.11.4 | Node型定義 |
-
----
-
-## 7. 既知の課題・TODO
-
-- [ ] プロパティのドラッグ&ドロップ並び替え
-- [ ] プロパティのインポート/エクスポート
-- [ ] バリデーションルールの設定
-- [ ] プロパティのプレビュー機能
-
----
-
-## 8. 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
-| 3.0.0 | 2025-12-23 | Next.js + TypeScript + Ant Design v6対応 | Development Team |
-| 3.1.0 | 2026-02-19 | 最新ソース（editorv2）に基づいてファイルパス更新 | Cline |
-
----
-
-## 9. 使用例
-
+#### Template（MAIMLテンプレート）
 ```typescript
-<TemplateEditorDialog
-  open={templateDialogOpen}
-  nodeData={selectedNode}
-  onClose={() => setTemplateDialogOpen(false)}
-  onSave={handleSaveTemplate}
-/>
+import { Template, Insertion, PlaceRef } from '@/types/maiml-unified';
+```
+
+### 親コンポーネント
+
+#### PetriNetEditorInner
+- **ファイルパス**: `frontend/src/components/editorv2/PetriNetEditorInner.tsx`
+- **用途**: MAIML Petri Netエディタのメイン画面
+- **連携**: PlaceノードダブルクリックでTemplateEditorDialogを開く
+
+---
+
+## データ型定義
+
+### PropertyData（NestedPropertyEditor用）
+```typescript
+interface PropertyData {
+  key: string;                          // プロパティキー
+  tagName: string;                      // XMLタグ名（property/content/parameter）
+  attributes: Record<string, string>;   // 属性（xsi:type等）
+  elements: Record<string, string>;     // 要素（name, value等）
+  children?: PropertyData[];            // 子要素（ネスト構造）
+}
+```
+
+### Template（MAIML）
+```typescript
+interface Template {
+  id: string;
+  uuid?: string;
+  name?: string;
+  description?: string;
+  category?: string;
+  properties?: Property[] | Record<string, PropertyData>;
+  contents?: Content[] | Record<string, PropertyData>;
+  insertion?: Insertion;
+  placeRefs?: PlaceRef[];
+  templateRef?: TemplateRef;
+}
+```
+
+### Insertion（Material/Result用）
+```typescript
+interface Insertion {
+  uri: string;
+  hash?: {
+    method: string;
+    value: string;
+  };
+  format: string;
+}
+```
+
+### PlaceRef
+```typescript
+interface PlaceRef {
+  id?: string;
+  ref: string;  // Place ID
+}
 ```
 
 ---
 
-## 10. パフォーマンス最適化
+## エラーハンドリング
 
-### 10.1. メモ化
+### バリデーションエラー表示
+- Props `templateErrors` から該当テンプレートのエラー一覧を取得
+- Alert（warning）でエラー件数とメッセージを表示
+- エラータイプと詳細メッセージをリスト表示
 
-- useMemo() でhasChildren, hasAttributes, hasElementsを計算
-- useCallback() でイベントハンドラをメモ化
+### 入力チェック
+- テンプレートID: 必須、ノードIDとの重複禁止、他テンプレートIDとの重複禁止
+- UUID: 形式チェック（オプション）
+- プロパティキー: 必須、重複チェック
+- Contentキー: 必須、重複チェック
 
-### 10.2. 再レンダリング制御
-
-- forceRenderKey で強制再レンダリング
-- React.memo() でNestedPropertyEditorをメモ化
-
----
-
-## 11. アクセシビリティ
-
-### 11.1. キーボード操作
-
-- Tab: フォーカス移動
-- Enter: モーダルのOK（フォーカスがOKボタンにある場合）
-- Escape: モーダルのキャンセル
+### API通信エラー
+- fetchTemplateFiles失敗時: 「テンプレートファイル一覧の取得に失敗しました」
+- analyzeNamespaceFile失敗時: 「プレビューの読み込みに失敗しました」
+- 名前空間取り込み失敗時: 「取り込みに失敗しました: {エラーメッセージ}」
 
 ---
 
-## 12. バリデーション
+## パフォーマンス最適化
 
-### 12.1. 属性追加時
+### 強制再レンダリング
+- `forceRenderKey` / `forceContentRenderKey` を使用
+- Date.now()で一意のキーを生成
+- NestedPropertyEditorの深いネスト更新時に必要
 
-```typescript
-if (!newAttributeName.trim()) {
-  message.error('属性名は必須です');
-  return;
-}
+### 不変性の保持
+- Properties/Contents更新時は `JSON.parse(JSON.stringify())` で深いコピー
+- 関数型setState（`prev => ...`）を使用
 
-if (propertyData.attributes && newAttributeName in propertyData.attributes) {
-  message.error('この属性名は既に存在します');
-  return;
-}
-```
+### 展開状態の管理
+- `expandedNodes` / `expandedContentNodes` をSet<string>で管理
+- 追加/削除時のパフォーマンスが良い
 
-### 12.2. 要素追加時
+---
 
-```typescript
-if (!newElementName.trim()) {
-  message.error('要素名は必須です');
-  return;
-}
+## 変更履歴
 
-if (propertyData.elements && newElementName in propertyData.elements) {
-  message.error('この要素名は既に存在します');
-  return;
-}
-```
+| 日付 | バージョン | 変更内容 | 担当者 |
+|------|----------|---------|--------|
+| 2026-03-11 | 1.0.0 | 実装ベースでUI仕様書を新規作成 | Cline |
+| 2026-01-30 | - | Phase 2-1: NestedPropertyEditor実装完了（実装） | - |
+| 2025-XX-XX | - | EditorV2用Template編集ダイアログ初版作成（実装） | - |
 
-### 12.3. 子プロパティ追加時
+---
 
-```typescript
-const parentXsiType = propertyData.attributes?.['xsi:type'] || '';
-if (parentXsiType !== 'propertyListType') {
-  message.error('親プロパティのxsi:typeが"propertyListType"でないため、子プロパティを追加できません');
-  return;
-}
+## 実装ファイル情報
 
-if (!childKey.trim()) {
-  message.error('プロパティキーは必須です');
-  return;
-}
+- **ファイルパス**: `frontend/src/components/editorv2/components/TemplateEditorDialog.tsx`
+- **コンポーネント名**: `TemplateEditorDialog`
+- **実装バージョン**: 2.1.0
+- **実装日**: 2026-01-30

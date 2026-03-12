@@ -1,116 +1,179 @@
-# TaskResultsTable - タスク結果一覧テーブル
+# タスク結果一覧テーブル UI仕様書
 
-## 1. 概要
+## 概要
 
-### 1.1 コンポーネントの目的
-タスクの実行結果を一覧表示するテーブルコンポーネント。ステータス、日付、詳細閲覧機能を提供します。
+### 目的
+プロジェクトのタスク実行結果を一覧表示するテーブルコンポーネント。タスク名・メソッド・ステータス・作業終了日・レビュー完了日を表示し、結果確認ボタンから詳細を閲覧できる。
 
-### 1.2 使用場面
-- プロジェクト管理画面のタスク結果セクション
-- 完了したタスクの確認
-- レビュー待ちタスクの確認
+### 使用場面
+- プロジェクト管理画面の「タスク結果」タブ（廃止予定、進捗確認タブに統合）
+- 進捗確認タブ内のタスク結果一覧表示
 
-### 1.3 アクセス権限
-- **必須ロール**: experiment_admin
-- **認証**: JWT + Session Hybrid認証
-
----
-
-## 2. 画面構成
-
-### 2.1 レイアウト構造
-
-```
-┌────────────────────────────────────────────────────────┐
-│ タスク名    │ メソッド │ ステータス │ 作業終了日 │    │
-├────────────────────────────────────────────────────────┤
-│ サンプル準備│ method_1 │[実行中]    │ -          │[詳細]│
-│ 測定実行    │ method_2 │[レビュー待ち]│ 2026-02-18│[詳細]│
-│ データ分析  │ method_3 │[完了]      │ 2026-02-17 │[詳細]│
-└────────────────────────────────────────────────────────┘
-```
+### アクセス権限
+- **Experiment Admin（実験管理者）**: タスク結果の閲覧
+- **その他のロール**: アクセス不可
 
 ---
 
-## 3. 機能仕様
+## 画面構成
 
-### 3.1 Props定義
+### レイアウト構造
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ タスク名      │メソッド│ステータス│作業終了日│レビュー│  操作  │
+├──────────────────────────────────────────────────────────────────┤
+│ Task_001     │Method1 │[完了]   │2026/03/10│2026/03/11│[結果確認]│
+│ Task_002     │Method2 │[実行中] │    -     │    -     │[結果確認]│
+│ Task_003     │Method1 │[異常]   │2026/03/09│    -     │[結果確認]│
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### UI要素
+
+#### テーブルカラム
+
+| カラム | 幅 | 表示内容 | ソート | 備考 |
+|--------|-----|---------|--------|------|
+| タスク名 | 28% | タスク名またはTransition名（太字） | ✓ | 文字列ソート |
+| メソッド | 18% | メソッド名 | ✓ | 文字列ソート、未設定は「-」 |
+| ステータス | 14% | ステータスタグ（色付き） | ✓ | カスタム順序ソート |
+| 作業終了日 | 18% | YYYY/MM/DD形式 | ✓ | 日付ソート、未設定は「-」 |
+| レビュー完了日 | 12% | YYYY/MM/DD形式 | ✓ | 日付ソート、未設定は「-」 |
+| 操作 | 10% | 結果確認ボタン | - | - |
+
+#### ステータスタグの色分け
+
+| ステータス | 色 | 表示ラベル |
+|-----------|-----|-----------|
+| pending | default（グレー） | 実行待ち |
+| in_progress | processing（青） | 実行中 |
+| error | error（赤） | 異常終了 |
+| review_waiting | warning（オレンジ） | レビュー待ち |
+| completed | success（緑） | 完了 |
+
+---
+
+## 機能仕様
+
+### Props定義
 
 ```typescript
 interface TaskResultsTableProps {
-  results: Task[];                      // タスク結果一覧
-  onViewResult: (result: Task) => void; // 詳細閲覧ハンドラ
+  results: Task[];                     // タスク結果一覧
+  onViewResult: (result: Task) => void; // 結果確認時のコールバック
 }
 ```
 
-### 3.2 カラム定義
-
-| カラム | 幅 | 整列 | ソート可能 |
-|--------|-----|------|-----------|
-| タスク名 | 30% | left | ✅ |
-| メソッド | 20% | left | ✅ |
-| ステータス | 15% | center | ✅ |
-| 作業終了日 | 18% | right | ✅ |
-| レビュー完了日 | 15% | right | ✅ |
-| 操作 | 10% | center | ❌ |
-
-### 3.3 ステータス表示
-
-**ステータス値とカラー:**
-
-| ステータス | ラベル | カラー | Tag color |
-|-----------|--------|-------|-----------|
-| pending | 実行待ち | グレー | default |
-| in_progress | 実行中 | ブルー | processing |
-| error | 異常終了 | レッド | error |
-| review_waiting | レビュー待ち | オレンジ | warning |
-| completed | 完了 | グリーン | success |
+### Context連携
 
 ```typescript
-const getStatusColor = (status: string) => {
+const { t } = useLanguage();           // 多言語対応
+const { token } = theme.useToken();    // Ant Design テーマトークン
+```
+
+### 主要機能
+
+#### 1. ステータスラベルの取得
+
+```typescript
+const getStatusLabel = (status: string) => {
   switch (status) {
-    case 'pending': return 'default';
-    case 'in_progress': return 'processing';
-    case 'error': return 'error';
-    case 'review_waiting': return 'warning';
-    case 'completed': return 'success';
-    default: return 'default';
+    case 'pending':
+      return t('projectManagement.task_results.status_pending') || '実行待ち';
+    case 'in_progress':
+      return t('projectManagement.task_results.status_in_progress') || '実行中';
+    case 'error':
+      return t('projectManagement.task_results.status_error') || '異常終了';
+    case 'review_waiting':
+      return t('projectManagement.task_results.status_review_waiting') || 'レビュー待ち';
+    case 'completed':
+      return t('projectManagement.task_results.status_completed') || '完了';
+    default:
+      return status;
   }
 };
 ```
 
-### 3.4 ソート機能
-
-**タスク名:**
-- アルファベット順
-- taskName || transitionName で比較
-
-**メソッド名:**
-- アルファベット順
-- 空文字列を末尾に配置
-
-**ステータス:**
-- 定義済み順序: pending → in_progress → error → review_waiting → completed
-
-**日付:**
-- 古い順 → 新しい順
-- null値は末尾に配置
-
-### 3.5 日付フォーマット
+#### 2. ステータスの色取得
 
 ```typescript
-const formatDate = (date: string | null) => {
-  if (!date) return '-';
-  return new Date(date).toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'pending':
+      return 'default';
+    case 'in_progress':
+      return 'processing';
+    case 'error':
+      return 'error';
+    case 'review_waiting':
+      return 'warning';
+    case 'completed':
+      return 'success';
+    default:
+      return 'default';
+  }
 };
-// 例: "2026-02-18" → "2026/02/18"
 ```
 
-### 3.6 詳細閲覧
+#### 3. ソート機能
+
+**タスク名ソート**:
+```typescript
+sorter: (a, b) => (a.taskName || a.transitionName).localeCompare(b.taskName || b.transitionName)
+```
+
+**メソッドソート**:
+```typescript
+sorter: (a, b) => (a.methodName || '').localeCompare(b.methodName || '')
+```
+
+**ステータスソート**（優先順位: pending → in_progress → error → review_waiting → completed）:
+```typescript
+sorter: (a, b) => {
+  const statusOrder = { 
+    pending: 0, 
+    in_progress: 1, 
+    error: 2, 
+    review_waiting: 3, 
+    completed: 4 
+  };
+  return (statusOrder[a.workStatus as keyof typeof statusOrder] || 0) 
+       - (statusOrder[b.workStatus as keyof typeof statusOrder] || 0);
+}
+```
+
+**日付ソート**（未設定は最後）:
+```typescript
+sorter: (a, b) => {
+  if (!a.workCompletedAt && !b.workCompletedAt) return 0;
+  if (!a.workCompletedAt) return 1;
+  if (!b.workCompletedAt) return -1;
+  return new Date(a.workCompletedAt).getTime() - new Date(b.workCompletedAt).getTime();
+}
+```
+
+#### 4. 日付表示
+
+**フォーマット**: YYYY/MM/DD（日本語ロケール）
+
+```typescript
+render: (date: string | null) => (
+  <Text style={{ fontSize: token.fontSizeSM }}>
+    {date ? new Date(date).toLocaleDateString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }) : '-'}
+  </Text>
+)
+```
+
+**表示例**:
+- `2026-03-11T10:30:00Z` → `2026/03/11`
+- `null` → `-`
+
+#### 5. 結果確認ボタン
 
 ```typescript
 <Button
@@ -122,112 +185,119 @@ const formatDate = (date: string | null) => {
     onViewResult(record);
   }}
 >
-  詳細
+  結果確認
 </Button>
 ```
 
+**動作**:
+- クリック時に`onViewResult(record)`コールバックを実行
+- イベント伝播を停止（`e.stopPropagation()`）
+
 ---
 
-## 4. データ型定義
+## データ型定義
 
-### 4.1 Task型
+### Task
 
 ```typescript
 interface Task {
-  workId?: string;                // 作業ID（rowKey用）
-  taskId: string;                 // タスクID
-  taskName?: string;              // タスク名
-  transitionName: string;         // トランジション名
-  methodName?: string;            // メソッド名
-  workStatus: string;             // 作業ステータス
-  workCompletedAt: string | null; // 作業終了日時
-  reviewCompletedAt: string | null; // レビュー完了日時
+  workId?: string;                     // 作業ID
+  taskId: string;                      // タスクID
+  taskName?: string;                   // タスク名
+  transitionName: string;              // Transition名
+  methodName?: string;                 // メソッド名
+  workStatus: string;                  // 作業ステータス
+  workCompletedAt: string | null;      // 作業終了日時
+  reviewCompletedAt: string | null;    // レビュー完了日時
 }
 ```
 
 ---
 
-## 5. UI/UXポリシー準拠
+## 特記事項
 
-### 5.1 Ant Designコンポーネント使用
-
-| 用途 | コンポーネント | Props |
-|------|---------------|-------|
-| テーブル | Table | dataSource, columns, size="small" |
-| ボタン | Button | type, size="small", icon |
-| タグ | Tag | color |
-| テキスト | Typography.Text | strong, fontSize |
-| 空状態 | Empty | description, image |
-
-### 5.2 カラーパレット
-
-| 要素 | 色 | 用途 |
-|------|-----|------|
-| ステータスタグ | 状態別 | 視覚的な識別 |
-| 日付テキスト | fontSizeSM | 小さめのフォント |
-
----
-
-## 6. 多言語対応
-
-### 6.1 翻訳キー
+### タスク名の表示優先順位
 
 ```typescript
-t('projectManagement.task_results.task_name')          // タスク名
-t('projectManagement.task_results.method_name')        // メソッド
-t('projectManagement.task_results.status')             // ステータス
-t('projectManagement.task_results.work_completed_at')  // 作業終了日
-t('projectManagement.task_results.review_completed_at') // レビュー完了日
-t('projectManagement.task_results.actions')            // 操作
-t('projectManagement.task_results.view_result')        // 詳細
-t('projectManagement.task_results.no_tasks')           // タスクがありません
-
-// ステータスラベル
-t('projectManagement.task_results.status_pending')         // 実行待ち
-t('projectManagement.task_results.status_in_progress')     // 実行中
-t('projectManagement.task_results.status_error')           // 異常終了
-t('projectManagement.task_results.status_review_waiting')  // レビュー待ち
-t('projectManagement.task_results.status_completed')       // 完了
+record.taskName || record.transitionName
 ```
+
+- `taskName`が存在する場合: `taskName`を表示
+- `taskName`が未設定の場合: `transitionName`を表示
+
+### rowKeyの設定
+
+```typescript
+rowKey={(record) => record.workId || record.taskId}
+```
+
+- `workId`が存在する場合: `workId`を使用
+- `workId`が未設定の場合: `taskId`を使用
+
+### 空状態
+
+**タスクが0件の場合**:
+```typescript
+<Empty
+  description={t('projectManagement.task_results.no_tasks') || 'タスクがありません'}
+  image={Empty.PRESENTED_IMAGE_SIMPLE}
+/>
+```
+
+### フォントサイズ
+
+**日付カラム**: `token.fontSizeSM`（小さいフォントサイズ）
 
 ---
 
-## 7. 実装ファイル
+## 多言語対応
 
-### 7.1 ファイルパス
+### 翻訳キー
+
+| キー | デフォルト値 |
+|------|-------------|
+| `projectManagement.task_results.task_name` | タスク名 |
+| `projectManagement.task_results.method_name` | メソッド |
+| `projectManagement.task_results.status` | ステータス |
+| `projectManagement.task_results.work_completed_at` | 作業終了日 |
+| `projectManagement.task_results.review_completed_at` | レビュー完了日 |
+| `projectManagement.task_results.actions` | 操作 |
+| `projectManagement.task_results.view_result` | 結果確認 |
+| `projectManagement.task_results.no_tasks` | タスクがありません |
+| `projectManagement.task_results.status_pending` | 実行待ち |
+| `projectManagement.task_results.status_in_progress` | 実行中 |
+| `projectManagement.task_results.status_error` | 異常終了 |
+| `projectManagement.task_results.status_review_waiting` | レビュー待ち |
+| `projectManagement.task_results.status_completed` | 完了 |
+
+---
+
+## 実装ファイル情報
+
+### パス
 ```
 frontend/src/components/project/TaskResultsTable.tsx
 ```
 
-### 7.2 依存コンポーネント
-- なし（単独で動作）
+### 主要な依存パッケージ
+- `antd`: UI コンポーネント（Table, Tag, Typography, Empty, theme, Button）
+- `@ant-design/icons`: アイコン（EyeOutlined）
+- `react`: React本体
 
-### 7.3 依存ライブラリ
-- antd: Table, Button, Tag, Typography, Empty
-- @ant-design/icons: EyeOutlined
-- @/contexts/LanguageContext: useLanguage
-
----
-
-## 8. 既知の課題・TODO
-
-### 8.1 将来の改善案
-- [ ] ページネーション機能
-- [ ] フィルタリング機能（ステータス別）
-- [ ] エクスポート機能（CSV/Excel）
-- [ ] 一括操作機能
-- [ ] 詳細なソート条件
+### Context
+- `LanguageContext`: 多言語対応
 
 ---
 
-## 9. 変更履歴
+## 変更履歴
 
-| 日付 | バージョン | 変更内容 | 担当者 |
-|------|-----------|---------|--------|
-| 2026-02-19 | 1.0.0 | 初版作成 | Cline |
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|---------|--------|
+| 1.0 | 2026-03-11 | 実装ベースで仕様書を新規作成（実装ファイル: TaskResultsTable.tsx） | Cline |
 
 ---
 
-## 10. 関連ドキュメント
+## 関連ドキュメント
 
-- [ProjectManagement仕様](./ProjectManagement.md) - 親コンポーネント
+- [プロジェクト管理画面](ui_project_management.md)
+- [進捗確認画面](../03_progress_monitoring/ui_progress_monitoring.md)

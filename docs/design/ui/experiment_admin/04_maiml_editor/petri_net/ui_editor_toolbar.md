@@ -1,114 +1,352 @@
-# EditorToolbar UI仕様書
+# EditorToolbar - 編集ツールバーコンポーネント
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+EditorToolbarは、Petri Netエディタ（PetriNetEditorInner）で使用される編集ツールバーコンポーネントです。ノード追加、Undo/Redo、保存、バリデーション、ワークフロー追加、Draft管理など、編集に必要な全機能をツールバーボタンとして提供します。
 
-PetriNetEditorInnerの編集ツールバーコンポーネント。ビューモード切替、ノード追加、Undo/Redo、保存、バリデーション、ドキュメント編集、Draft管理などの編集操作を提供します。
+**主要機能:**
+- ノード追加（Material、Condition、Result、Transition）
+- Undo/Redo操作
+- 保存機能
+- Document編集
+- バリデーション実行
+- ワークフロー追加
+- Draft管理
+- 自動保存トグル
+- ビューモード切替（ペトリネット/テンプレート）
 
-### 1.2. 使用場面
-
+### 1.2 使用場面
 - PetriNetEditorInner内で常に表示
-- 編集操作のメインインターフェース
+- React Flowキャンバスの上部に配置
+- エディタの全編集機能への入口として機能
+
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin
+- **認証**: JWT + Session Hybrid認証
 
 ---
 
-## 2. ファイルパス
+## 2. 画面構成
+
+### 2.1 レイアウト構造
 
 ```
-frontend/src/components/editorv2/components/EditorToolbar.tsx
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [ビュー切替] | [Material] [Condition] [Result] | [Transition] | [ワークフロー] │
+│ | [Document] | [バリデーション] | [保存] [Draft] | [Undo] [Redo] |            │
+│ ... 右側スペーサー ... | [自動保存トグル] | ヒント表示                         │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
+
+### 2.2 主要UI要素
+
+#### 2.2.1 ビュー切替（Segmented）
+- **位置**: 左端
+- **オプション**:
+  - ペトリネット（NodeIndexOutlinedアイコン）
+  - テンプレート（UnorderedListOutlinedアイコン）
+
+#### 2.2.2 ノード追加ボタン群
+- **Material Place**（PlusCircleOutlined）: Material Placeノード追加
+- **Condition Place**（BorderOutlined）: Condition Placeノード追加
+- **Result Place**（RadiusSettingOutlined）: Result Placeノード追加
+- **Transition**（SwapOutlined）: Transitionノード追加
+
+#### 2.2.3 ワークフロー追加ボタン
+- **アイコン**: ApartmentOutlined
+- **状態**: 
+  - デフォルト: 通常ボタン
+  - アクティブ時: Primaryボタン（青色）
+- **ラベル**: 
+  - デフォルト: "ワークフロー"
+  - アクティブ時: "ワークフロー (有効)"
+
+#### 2.2.4 Document編集ボタン
+- **アイコン**: FileTextOutlined
+- **ラベル**: "Document"
+
+#### 2.2.5 バリデーションボタン
+- **アイコン**: CheckCircleOutlined
+- **ラベル**: 
+  - デフォルト: "バリデーション"
+  - 実行中: "検証中..."
+- **状態**: loading（isValidating）
+
+#### 2.2.6 保存ボタン
+- **アイコン**: SaveOutlined
+- **タイプ**: primary（青色）
+- **ラベル**: "保存"
+- **状態**: disabled（canSaveがfalseの場合）
+- **ツールチップ**: "保存 (Ctrl+S)"
+
+#### 2.2.7 Draft管理ボタン
+- **アイコン**: FolderOpenOutlined
+- **ラベル**: "Draft"
+- **ツールチップ**: "Draft管理（一時保存・読み込み）"
+
+#### 2.2.8 Undo/Redoボタン
+- **Undo**（UndoOutlined）: 
+  - ツールチップ: "Undo (Ctrl+Z)"
+  - disabled: canUndoがfalse
+- **Redo**（RedoOutlined）: 
+  - ツールチップ: "Redo (Ctrl+Y)"
+  - disabled: canRedoがfalse
+
+#### 2.2.9 自動保存トグル
+- **位置**: 右側（スペーサーの後）
+- **要素**:
+  - ラベル: "自動保存"
+  - Switch（small）
+  - 最終保存時刻表示（HH:MM:SS形式）
+
+#### 2.2.10 ヒント表示
+- **位置**: 最右端
+- **テキスト**: "ヒント: Ctrl+Sで保存 | Ctrl+Z/Yで取り消し/やり直し | M/C/R/T+クリックでノード追加"
+- **スタイル**: secondary、11px
 
 ---
 
-## 3. Props定義
+## 3. 機能仕様
 
-| プロパティ名 | 型 | 必須 | 説明 |
-|------------|---|-----|------|
-| onAddNode | (nodeType) => void | ✓ | ノード追加コールバック |
-| onUndo | () => void | ✓ | Undo実行 |
-| onRedo | () => void | ✓ | Redo実行 |
-| canUndo | boolean | ✓ | Undo可能フラグ |
-| canRedo | boolean | ✓ | Redo可能フラグ |
-| onSave | () => void | ✓ | 保存処理 |
-| canSave | boolean | ✓ | 保存可能フラグ |
-| onEditDocument | () => void | ✓ | Document編集 |
-| onValidate | () => void | ✓ | バリデーション実行 |
-| isValidating | boolean | ✓ | バリデーション中フラグ |
-| onAddWorkflow | () => void | ✓ | ワークフロー追加 |
-| workflowModeActive | boolean | ✓ | ワークフローモード有効フラグ |
-| onOpenDraftManager | () => void | | Draft管理ダイアログを開く |
-| autoSaveEnabled | boolean | | 自動保存有効フラグ |
-| onAutoSaveToggle | (checked: boolean) => void | | 自動保存トグル |
-| lastAutoSaveTime | string \| Date \| null | | 最終自動保存時刻 |
-| viewMode | 'petriNet' \| 'templates' | | 現在のビューモード |
-| onViewModeChange | (mode) => void | | ビューモード変更 |
+### 3.1 Props定義
+
+```typescript
+export interface EditorToolbarProps {
+  // ノード追加
+  onAddNode: (nodeType: 'material' | 'condition' | 'result' | 'transition') => void;
+  
+  // Undo/Redo
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  
+  // 保存
+  onSave: () => void;
+  canSave: boolean;
+  
+  // Document編集
+  onEditDocument: () => void;
+  
+  // バリデーション
+  onValidate: () => void;
+  isValidating: boolean;
+  
+  // ワークフロー追加
+  onAddWorkflow: () => void;
+  workflowModeActive: boolean;
+  
+  // Draft管理
+  onOpenDraftManager?: () => void;
+  
+  // 自動保存
+  autoSaveEnabled?: boolean;
+  onAutoSaveToggle?: (checked: boolean) => void;
+  lastAutoSaveTime?: string | Date | null;
+  
+  // ビューモード切替
+  viewMode?: 'petriNet' | 'templates';
+  onViewModeChange?: (mode: 'petriNet' | 'templates') => void;
+}
+```
+
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| onAddNode | (nodeType) => void | ✅ | ノード追加時のコールバック |
+| onUndo | () => void | ✅ | Undo実行コールバック |
+| onRedo | () => void | ✅ | Redo実行コールバック |
+| canUndo | boolean | ✅ | Undo可能かどうか |
+| canRedo | boolean | ✅ | Redo可能かどうか |
+| onSave | () => void | ✅ | 保存コールバック |
+| canSave | boolean | ✅ | 保存可能かどうか（ノードがない場合はfalse） |
+| onEditDocument | () => void | ✅ | Document編集ダイアログを開くコールバック |
+| onValidate | () => void | ✅ | バリデーション実行コールバック |
+| isValidating | boolean | ✅ | バリデーション実行中かどうか |
+| onAddWorkflow | () => void | ✅ | ワークフロー追加モード切替コールバック |
+| workflowModeActive | boolean | ✅ | ワークフローモードがアクティブかどうか |
+| onOpenDraftManager | () => void | - | Draft管理ダイアログを開くコールバック |
+| autoSaveEnabled | boolean | - | 自動保存が有効かどうか |
+| onAutoSaveToggle | (checked) => void | - | 自動保存トグル変更コールバック |
+| lastAutoSaveTime | string \| Date \| null | - | 最終自動保存時刻 |
+| viewMode | 'petriNet' \| 'templates' | - | 現在のビューモード |
+| onViewModeChange | (mode) => void | - | ビューモード変更コールバック |
+
+### 3.2 ノード追加
+
+#### 3.2.1 処理フロー
+```typescript
+// ボタンクリック時
+onClick={() => onAddNode('material')}
+onClick={() => onAddNode('condition')}
+onClick={() => onAddNode('result')}
+onClick={() => onAddNode('transition')}
+```
+
+#### 3.2.2 UI動作
+- ユーザー操作: ノード追加ボタンをクリック
+- 親コンポーネント（PetriNetEditorInner）: handleAddNode実行
+- 結果: キャンバスにランダム位置でノードが追加される
+
+### 3.3 Undo/Redo
+
+#### 3.3.1 処理フロー
+```typescript
+// Undoボタンクリック時
+onClick={onUndo}
+disabled={!canUndo}
+
+// Redoボタンクリック時
+onClick={onRedo}
+disabled={!canRedo}
+```
+
+#### 3.3.2 UI動作
+- ユーザー操作: Undo/Redoボタンをクリック（またはCtrl+Z/Y）
+- 親コンポーネント: useHistoryフックのundo/redo実行
+- 結果: ノード・エッジの状態が履歴から復元される
+- ボタン状態: 履歴がない場合はdisabled
+
+### 3.4 保存
+
+#### 3.4.1 処理フロー
+```typescript
+// 保存ボタンクリック時
+onClick={onSave}
+disabled={!canSave}
+```
+
+#### 3.4.2 UI動作
+- ユーザー操作: 保存ボタンをクリック（またはCtrl+S）
+- 親コンポーネント: handleOpenSaveConfirmDialog実行
+- 結果: 
+  1. バリデーション実行
+  2. SaveConfirmDialogが開く
+  3. ユーザーが保存先（S3/ローカル）を選択
+  4. MAIML保存実行
+- ボタン状態: ノードがない場合はdisabled
+
+### 3.5 バリデーション
+
+#### 3.5.1 処理フロー
+```typescript
+// バリデーションボタンクリック時
+onClick={onValidate}
+loading={isValidating}
+```
+
+#### 3.5.2 UI動作
+- ユーザー操作: バリデーションボタンをクリック
+- 親コンポーネント: handleOpenValidationPanel実行
+- 結果:
+  1. MAIML生成
+  2. バリデーションAPI呼び出し
+  3. ValidationPanel表示
+  4. エラー・警告の詳細表示
+- ボタン状態: 実行中はloading、ラベルが"検証中..."に変化
+
+### 3.6 ワークフロー追加
+
+#### 3.6.1 処理フロー
+```typescript
+// ワークフロー追加ボタンクリック時
+onClick={onAddWorkflow}
+type={workflowModeActive ? 'primary' : 'default'}
+```
+
+#### 3.6.2 UI動作
+- ユーザー操作: ワークフローボタンをクリック
+- 親コンポーネント: handleWorkflowModeToggle実行
+- 結果:
+  - モード無効→有効: ボタンが青色に変化、ラベルが"ワークフロー (有効)"に変化
+  - モード有効→無効: ボタンが通常色に戻る
+- 次の操作:
+  - ユーザーがキャンバスをクリック
+  - WorkflowSelectorDialog表示
+  - ファイル選択後、選択位置にワークフロー追加
+
+### 3.7 Document編集
+
+#### 3.7.1 処理フロー
+```typescript
+// Document編集ボタンクリック時
+onClick={onEditDocument}
+```
+
+#### 3.7.2 UI動作
+- ユーザー操作: Documentボタンをクリック
+- 親コンポーネント: handleOpenDocumentEditor実行
+- 結果: DocumentEditDialog表示
+
+### 3.8 Draft管理
+
+#### 3.8.1 処理フロー
+```typescript
+// Draft管理ボタンクリック時（オプショナル）
+{onOpenDraftManager && (
+  <Button
+    onClick={onOpenDraftManager}
+  >
+    Draft
+  </Button>
+)}
+```
+
+#### 3.8.2 UI動作
+- ユーザー操作: Draftボタンをクリック
+- 親コンポーネント: handleOpenDraftManager実行
+- 結果: DraftManager表示
+
+### 3.9 自動保存トグル
+
+#### 3.9.1 処理フロー
+```typescript
+// 自動保存トグル変更時（オプショナル）
+{onAutoSaveToggle && (
+  <Switch
+    checked={autoSaveEnabled || false}
+    onChange={onAutoSaveToggle}
+  />
+)}
+```
+
+#### 3.9.2 UI動作
+- ユーザー操作: 自動保存スイッチをON/OFF
+- 親コンポーネント: setAutoSaveEnabled実行
+- 結果: useDraftManagerフックの自動保存機能が有効/無効化
+- 最終保存時刻表示: lastAutoSaveTimeがあれば"HH:MM:SS"形式で表示
+
+### 3.10 ビューモード切替
+
+#### 3.10.1 処理フロー
+```typescript
+// ビューモード切替時（オプショナル）
+{onViewModeChange && viewMode && (
+  <Segmented
+    value={viewMode}
+    onChange={(value) => onViewModeChange(value as 'petriNet' | 'templates')}
+    options={[
+      { label: 'ペトリネット', value: 'petriNet' },
+      { label: 'テンプレート', value: 'templates' },
+    ]}
+  />
+)}
+```
+
+#### 3.10.2 UI動作
+- ユーザー操作: Segmentedコントロールをクリック
+- 親コンポーネント: handleViewModeChange実行
+- 結果:
+  - ペトリネット: React Flowキャンバス表示
+  - テンプレート: TemplateList表示
 
 ---
 
-## 4. レイアウト構造
+## 4. ユーティリティ関数
 
-```
-┌────────────────────────────────────────────────────────────────┐
-│ [ペトリネット/テンプレート] | [Material] [Condition] [Result]  │
-│ [Transition] | [ワークフロー] | [Document] | [バリデーション]  │
-│ | [保存] [Draft] | [Undo] [Redo] | 自動保存: [ON] 最終: HH:MM:SS│
-│ ヒント: Ctrl+Sで保存 | Ctrl+Z/Yで取り消し | M/C/R/T+クリック  │
-└────────────────────────────────────────────────────────────────┘
-```
+### 4.1 最終保存時刻のフォーマット
 
----
-
-## 5. 主要UI要素
-
-### 5.1. ビューモード切替（Segmented）
-
-**表示条件**: viewModeとonViewModeChangeが存在する場合
-
-| オプション | アイコン | 値 |
-|-----------|---------|---|
-| ペトリネット | NodeIndexOutlined | 'petriNet' |
-| テンプレート | UnorderedListOutlined | 'templates' |
-
-### 5.2. ノード追加ボタン群
-
-| ボタン | アイコン | nodeType |
-|-------|---------|---------|
-| Material | PlusCircleOutlined | 'material' |
-| Condition | BorderOutlined | 'condition' |
-| Result | RadiusSettingOutlined | 'result' |
-| Transition | SwapOutlined | 'transition' |
-
-### 5.3. ワークフロー追加ボタン
-
-**表示:**
-- workflowModeActive=false: 「ワークフロー」（type="default"）
-- workflowModeActive=true: 「ワークフロー (有効)」（type="primary"）
-
-**アイコン**: ApartmentOutlined
-
-### 5.4. 編集操作ボタン
-
-| ボタン | アイコン | 有効条件 |
-|-------|---------|---------|
-| Document | FileTextOutlined | 常に有効 |
-| バリデーション | CheckCircleOutlined | 常に有効（loading時はスピナー） |
-| 保存 | SaveOutlined | canSave=true |
-| Draft | FolderOpenOutlined | onOpenDraftManager存在時 |
-| Undo | UndoOutlined | canUndo=true |
-| Redo | RedoOutlined | canRedo=true |
-
-### 5.5. 自動保存コントロール
-
-**表示条件**: onAutoSaveToggle存在時
-
-| 要素 | 説明 |
-|------|------|
-| Text | 「自動保存」 |
-| Switch | autoSaveEnabledで制御 |
-| Text（secondary） | 「(最終: HH:MM:SS)」 |
-
-**時刻フォーマット関数:**
 ```typescript
 const formatAutoSaveTime = (time: string | Date | null | undefined): string => {
   if (!time) return '';
@@ -120,147 +358,134 @@ const formatAutoSaveTime = (time: string | Date | null | undefined): string => {
 };
 ```
 
-### 5.6. ヒント表示
-
-**テキスト:**
-```
-ヒント: Ctrl+Sで保存 | Ctrl+Z/Yで取り消し/やり直し | M/C/R/T+クリックでノード追加
-```
-
-**スタイル:**
-- type="secondary"
-- fontSize: 11
-- marginLeft: 16
+**機能:**
+- string型のISO形式日時またはDate型を"HH:MM:SS"形式にフォーマット
+- nullまたはundefinedの場合は空文字を返す
 
 ---
 
-## 6. 使用しているAnt Designコンポーネント
+## 5. スタイル仕様
 
-| コンポーネント | 使用箇所 |
-|--------------|---------|
-| Flex | 全体レイアウト |
-| Segmented | ビューモード切替 |
-| Button | 各種ボタン |
-| Tooltip | ボタンのツールチップ |
-| Switch | 自動保存トグル |
-| Text | ラベル・ヒント表示 |
-| Space | アイコン+テキストのレイアウト |
-| Divider | セクション区切り |
+### 5.1 コンテナスタイル
 
----
-
-## 7. 使用しているアイコン
-
-**@ant-design/icons:**
-- SaveOutlined, UndoOutlined, RedoOutlined
-- FileTextOutlined, CheckCircleOutlined
-- ApartmentOutlined, FolderOpenOutlined
-- NodeIndexOutlined, UnorderedListOutlined
-- PlusCircleOutlined, BorderOutlined
-- RadiusSettingOutlined, SwapOutlined
-
----
-
-## 8. スタイル定義
-
-**コンテナ:**
 ```typescript
-{
+style={{
   padding: '8px 16px',
   borderBottom: '1px solid #f0f0f0',
   backgroundColor: '#fff',
   flexWrap: 'wrap',
   gap: 8,
-}
+}}
 ```
 
-**Divider:**
-- type="vertical"
-- height: 24
+**説明:**
+- パディング: 上下8px、左右16px
+- 下ボーダー: 1px、#f0f0f0
+- 背景色: 白
+- フレックスラップ: 有効（小画面時に折り返し）
+- ギャップ: 8px
+
+### 5.2 Dividerスタイル
+
+```typescript
+<Divider type="vertical" style={{ height: 24 }} />
+```
+
+**説明:**
+- タイプ: 縦線
+- 高さ: 24px
+
+### 5.3 テキストスタイル
+
+#### ヒント表示
+```typescript
+style={{ fontSize: 11, marginLeft: 16 }}
+type="secondary"
+```
+
+#### 自動保存時刻
+```typescript
+style={{ fontSize: 11 }}
+type="secondary"
+```
 
 ---
 
-## 9. 主要機能
+## 6. ボタン状態管理
 
-### 9.1. ビューモード切替
+### 6.1 Undoボタン
+- **有効**: canUndo === true
+- **無効**: canUndo === false
+- **ツールチップ**: 常に表示
 
-**処理フロー:**
-1. Segmentedの値が変更
-2. onViewModeChange(value)を実行
-3. PetriNetEditorInner側でviewMode更新
+### 6.2 Redoボタン
+- **有効**: canRedo === true
+- **無効**: canRedo === false
+- **ツールチップ**: 常に表示
 
-### 9.2. ノード追加
+### 6.3 保存ボタン
+- **有効**: canSave === true（ノードが1つ以上）
+- **無効**: canSave === false（ノードが0個）
+- **タイプ**: primary（青色）
 
-**処理フロー:**
-1. ノード追加ボタンをクリック
-2. onAddNode(nodeType)を実行
+### 6.4 バリデーションボタン
+- **通常**: loading === false、ラベル"バリデーション"
+- **実行中**: loading === true、ラベル"検証中..."
 
-**nodeType値:**
-- 'material', 'condition', 'result', 'transition'
-
-### 9.3. ワークフロー追加
-
-**処理フロー:**
-1. ワークフローボタンをクリック
-2. onAddWorkflow()を実行
-3. workflowModeActiveをトグル
-
-**表示変更:**
-- 非アクティブ: 通常ボタン
-- アクティブ: プライマリボタン、「(有効)」表示
-
-### 9.4. バリデーション
-
-**処理フロー:**
-1. バリデーションボタンをクリック
-2. onValidate()を実行
-3. isValidating=trueの間、ボタンにloading表示
-
-### 9.5. 保存
-
-**処理フロー:**
-1. 保存ボタンをクリック（Ctrl+Sショートカットも可）
-2. onSave()を実行
-
-**有効条件:**
-- canSave=true（ノードが存在する場合）
-
-### 9.6. Undo/Redo
-
-**Undo:**
-- canUndo=true時のみ有効
-- Ctrl+Zショートカット（PetriNetEditorInner側）
-
-**Redo:**
-- canRedo=true時のみ有効
-- Ctrl+Yショートカット（PetriNetEditorInner側）
+### 6.5 ワークフローボタン
+- **通常**: type="default"、ラベル"ワークフロー"
+- **アクティブ**: type="primary"、ラベル"ワークフロー (有効)"
 
 ---
 
-## 10. 備考
+## 7. エラーハンドリング
 
-### 10.1. バージョン
+### 7.1 エラーケース
+このコンポーネントは純粋なプレゼンテーションコンポーネントのため、エラーハンドリングは親コンポーネント（PetriNetEditorInner）で実施されます。
 
-- version: 2.0.0
-- date: 2026-01-29
-- Material-UI → Ant Design変換版
-
-### 10.2. レスポンシブ対応
-
-- flexWrap: 'wrap'で自動折り返し
-- gap: 8pxで要素間隔を統一
-
-### 10.3. アクセシビリティ
-
-- すべてのボタンにTooltipでヒント表示
-- キーボードショートカットをヒント欄に表示
+### 7.2 Props検証
+TypeScriptの型チェックにより、Propsの型安全性が保証されています。
 
 ---
 
-## 11. 変更履歴
+## 8. 実装ファイル
 
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
-| 2.0.0 | 2026-01-29 | Ant Design v6対応 | Development Team |
-| 2.1.0 | 2026-02-19 | 最新ソース（editorv2）に基づいて更新 | Cline |
+### 8.1 ファイルパス
+- **メインファイル**: `frontend/src/components/editorv2/components/EditorToolbar.tsx`
+
+### 8.2 依存コンポーネント
+- Ant Design:
+  - Space
+  - Button
+  - Divider
+  - Tooltip
+  - Switch
+  - Typography
+  - Segmented
+  - Flex
+- Ant Design Icons:
+  - SaveOutlined
+  - UndoOutlined
+  - RedoOutlined
+  - FileTextOutlined
+  - CheckCircleOutlined
+  - ApartmentOutlined
+  - FolderOpenOutlined
+  - NodeIndexOutlined
+  - UnorderedListOutlined
+  - PlusCircleOutlined
+  - BorderOutlined
+  - RadiusSettingOutlined
+  - SwapOutlined
+
+### 8.3 親コンポーネント
+- PetriNetEditorInner
+
+---
+
+## 9. 変更履歴
+
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-12 | 実装ベースで仕様書を新規作成 | Cline |
+| 2026-01-29 | Material-UI → Ant Design変換 | Development Team |

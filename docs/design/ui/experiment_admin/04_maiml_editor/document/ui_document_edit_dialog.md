@@ -1,434 +1,864 @@
-# DocumentEditDialog UI仕様書
+# DocumentEditDialog - Document編集ダイアログ
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
 
-MAIMLファイルのDocument要素（Creator、Vendor、Owner、Instrument）を編集するモーダルダイアログ。複数要素の登録、UUID自動生成、XML署名機能を提供します。
+DocumentEditDialogは、MAIMLファイルのDocument要素（Creator、Vendor、Owner、Instrument）を編集するモーダルダイアログです。Document情報の基本プロパティ、MaiML ID属性、XML署名設定、および複数のDocument関連要素（Creator/Vendor/Owner/Instrument）を一元管理します。
 
-### 1.2. 使用場面
+**主要機能:**
+- Document基本情報の編集（id、uuid、name、description、date）
+- MaiML ID属性の編集（protocolId、methodId、pnmlId、programId）
+- XML署名設定（改ざん防止機能）
+- Creator/Vendor/Owner/Instrument要素の編集（MultiObjectEditor使用）
+- マスタデータからの選択機能
+- UUID自動生成
+- リアルタイムバリデーション
 
-- EditorToolbarの「Document」ボタンをクリックした場合
-- PetriNetEditorでDocument編集が必要な場合
+### 1.2 使用場面
 
-### 1.3. アクセス権限
+- **表示タイミング**: PetriNetEditorInner の「Document編集」ボタンクリック時
+- **表示条件**: MAIML編集画面（PetriNetEditorScreen）からアクセス
+- **編集モード**: 新規作成、既存Document編集
 
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
+### 1.3 アクセス権限
+
+- **必須ロール**: Experiment Admin (Level 2)
+- **認証**: JWT + Session Hybrid認証
+- **組織制限**: 自組織のMAIMLファイルのみ編集可能
 
 ---
 
-## 2. 画面構成
+## 2. 目次
 
-### 2.1. レイアウト構造
+1. [概要](#1-概要)
+2. [目次](#2-目次)
+3. [画面構成](#3-画面構成)
+4. [機能仕様](#4-機能仕様)
+5. [データ仕様](#5-データ仕様)
+6. [API連携](#6-api連携)
+7. [エラーハンドリング](#7-エラーハンドリング)
+8. [実装ファイル](#8-実装ファイル)
+9. [変更履歴](#9-変更履歴)
+
+---
+
+## 3. 画面構成
+
+### 3.1 レイアウト構造
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Document編集                                    [×]      │
-├─────────────────────────────────────────────────────────┤
-│ 📄 基本情報                                              │
-│ ┌───────────────────────────────────────────────────┐   │
-│ │ ドキュメント名: [入力フィールド]                   │   │
-│ │ 説明: [テキストエリア]                             │   │
-│ │ 日付: [日付選択]                                   │   │
-│ └───────────────────────────────────────────────────┘   │
-│                                                         │
-│ 🔬 Creator（作成者）                                     │
-│ [MultiObjectEditor]                                     │
-│                                                         │
-│ 🏭 Vendor（ベンダー）                                    │
-│ [MultiObjectEditor]                                     │
-│                                                         │
-│ 👤 Owner（所有者）                                       │
-│ [MultiObjectEditor]                                     │
-│                                                         │
-│ 🔧 Instrument（機器）                                    │
-│ [MultiObjectEditor]                                     │
-│                                                         │
-│ 🔒 XML署名                                               │
-│ ☐ XML署名を有効にする                                    │
-│                                                         │
-│ [キャンセル] [保存]                                      │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ Modal Header                                                 │
+│ 📄 Document編集                                      [×]     │
+├─────────────────────────────────────────────────────────────┤
+│ Modal Body (スクロール可能)                                 │
+│ ┌───────────────────────────────────────────────────────┐   │
+│ │ バリデーションエラー表示（エラー時のみ）              │   │
+│ ├───────────────────────────────────────────────────────┤   │
+│ │ [UUID一括生成] ボタン                                  │   │
+│ ├───────────────────────────────────────────────────────┤   │
+│ │ Collapse: 基本プロパティ（展開状態）                   │   │
+│ │ - Document ID（必須）                                  │   │
+│ │ - UUID（生成ボタン付き）                               │   │
+│ │ - Name（必須）                                         │   │
+│ │ - Description                                          │   │
+│ │ - Date（DatePicker + 現在時刻ボタン）                  │   │
+│ ├───────────────────────────────────────────────────────┤   │
+│ │ Collapse: MaiML ID属性（折りたたみ状態）               │   │
+│ │ - Protocol ID                                          │   │
+│ │ - Method ID                                            │   │
+│ │ - PNML ID                                              │   │
+│ │ - Program ID                                           │   │
+│ ├───────────────────────────────────────────────────────┤   │
+│ │ Collapse: XML署名（折りたたみ状態）                    │   │
+│ │ - 改ざん防止のためのXML署名を行う（Checkbox）          │   │
+│ ├───────────────────────────────────────────────────────┤   │
+│ │ MultiObjectEditor: Creator（折りたたみ状態）           │   │
+│ │ - 追加/削除/編集機能                                   │   │
+│ │ - マスタデータから選択                                 │   │
+│ ├───────────────────────────────────────────────────────┤   │
+│ │ MultiObjectEditor: Vendor（折りたたみ状態）            │   │
+│ ├───────────────────────────────────────────────────────┤   │
+│ │ MultiObjectEditor: Owner（折りたたみ状態）             │   │
+│ ├───────────────────────────────────────────────────────┤   │
+│ │ MultiObjectEditor: Instrument（折りたたみ状態）        │   │
+│ ├───────────────────────────────────────────────────────┤   │
+│ │ ヒント（Info Alert）                                   │   │
+│ └───────────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────┤
+│ Modal Footer                                                 │
+│ [⚠️ 未保存の変更があります]  [キャンセル] [💾 Document保存] │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+### 3.2 主要UI要素
 
-#### 2.2.1. ヘッダー
+#### 3.2.1 バリデーションエラー表示
+- エラー時のみ表示
+- リスト形式でエラー内容を表示
 
-| 要素 | 説明 |
-|------|------|
-| タイトル | 「Document編集」 |
-| 閉じるボタン | Xアイコン、onClose()実行 |
+#### 3.2.2 UUID一括生成ボタン
+- Documentのuuidを一括生成
 
-#### 2.2.2. 基本情報セクション
+#### 3.2.3 基本プロパティ（Collapseパネル）
+- Document ID: 必須入力
+- UUID: UUID生成ボタン付き
+- Name: 必須入力
+- Description: テキストエリア
+- Date: DatePicker（現在時刻設定ボタン付き）
 
-| 項目 | コンポーネント | 必須 |
-|------|--------------|------|
-| ドキュメント名 | Input | ○ |
-| 説明 | TextArea | - |
-| 日付 | DatePicker | ○ |
+#### 3.2.4 MaiML ID属性（Collapseパネル）
+- Protocol ID, Method ID, PNML ID, Program ID
+- 最大64文字の英数字・アンダースコア・ハイフン
 
-#### 2.2.3. Creator（作成者）セクション
+#### 3.2.5 XML署名（Collapseパネル）
+- 改ざん防止のためのXML署名を行う（Checkbox）
+- W3C XMLDSig仕様に基づく署名
 
-**MultiObjectEditor使用:**
-- 複数のCreatorを登録可能
-- マスタデータから選択
-- 新規作成も可能
+#### 3.2.6 Creator/Vendor/Owner/Instrument編集
+- MultiObjectEditorコンポーネントを使用
+- 追加/削除/編集/並び替え機能
+- マスタデータから選択可能
+- Creator: 最低1件必須、Reference設定可能
+- Vendor: 最低1件必須
+- Owner: 最低1件必須
+- Instrument: 任意（0件可）
 
-**フィールド:**
-- ID（UUID自動生成）
-- 名前
-- 所属
-- メールアドレス
+### 3.3 画面遷移
 
-#### 2.2.4. Vendor（ベンダー）セクション
-
-**MultiObjectEditor使用:**
-- 複数のVendorを登録可能
-- マスタデータから選択
-
-**フィールド:**
-- ID（UUID自動生成）
-- ベンダー名
-- 連絡先
-- URL
-
-#### 2.2.5. Owner（所有者）セクション
-
-**MultiObjectEditor使用:**
-- 複数のOwnerを登録可能
-- マスタデータから選択
-
-**フィールド:**
-- ID（UUID自動生成）
-- 所有者名
-- 組織
-- 連絡先
-
-#### 2.2.6. Instrument（機器）セクション
-
-**MultiObjectEditor使用:**
-- 複数のInstrumentを登録可能
-- マスタデータから選択
-- 参照プロパティ（instrumentRef）対応
-
-**フィールド:**
-- ID（UUID自動生成）
-- 機器名
-- モデル
-- シリアル番号
-- ベンダー参照（vendorRef）
-
-#### 2.2.7. XML署名セクション
-
-| 要素 | 説明 |
-|------|------|
-| Checkbox | XML署名を有効にする |
-
-**機能:**
-- W3C XMLDSigに準拠
-- 署名有効時、保存時に自動署名
-
-#### 2.2.8. フッターボタン
-
-| ボタン | 機能 |
-|-------|------|
-| キャンセル | 変更を破棄してダイアログを閉じる |
-| 保存 | DocumentDataを保存 |
-
-**スタイル:**
-- 保存ボタン: type="primary"
-- キャンセルボタン: type="default"
+```mermaid
+graph TD
+    A[PetriNetEditorInner] -->|Document編集ボタン| B[DocumentEditDialog]
+    B -->|保存| C[Document情報更新]
+    B -->|キャンセル| D[変更破棄確認]
+    C --> A
+    D --> A
+```
 
 ---
 
-## 3. 機能仕様
+## 4. 機能仕様
 
-### 3.1. 主要機能の詳細
+### 4.1 ダイアログ初期化
 
-#### 3.1.1. Document初期化
-
-**新規作成時:**
-- documentData.name === 'document' または
-- documentData.id === 'documentID' の場合
-
-**デフォルト値:**
-- name: 空文字列
-- description: 空文字列
-- date: 現在日時
-- creators: []
-- vendors: []
-- owners: []
-- instruments: []
-- signature.enabled: false
-
-**既存Document編集時:**
-- documentDataの値をフォームに設定
-
-#### 3.1.2. マスタデータ取得
-
-**処理フロー:**
-1. ダイアログオープン時にマスタデータをAPIから取得
-2. fetchCreators() → creators
-3. fetchVendors() → vendors
-4. fetchOwners() → owners
-5. fetchInstruments() → instruments
-6. MultiObjectEditorに渡す
-
-#### 3.1.3. Creator編集
-
-**処理フロー:**
-1. MultiObjectEditorでCreatorを追加/編集/削除
-2. UUID自動生成
-3. マスタデータから選択または新規作成
-4. creators配列を更新
-
-#### 3.1.4. Vendor編集
-
-**処理フロー:**
-1. MultiObjectEditorでVendorを追加/編集/削除
-2. UUID自動生成
-3. マスタデータから選択
-4. vendors配列を更新
-
-#### 3.1.5. Owner編集
-
-**処理フロー:**
-1. MultiObjectEditorでOwnerを追加/編集/削除
-2. UUID自動生成
-3. マスタデータから選択
-4. owners配列を更新
-
-#### 3.1.6. Instrument編集
-
-**処理フロー:**
-1. MultiObjectEditorでInstrumentを追加/編集/削除
-2. UUID自動生成
-3. vendorRef参照プロパティを設定
-4. instruments配列を更新
-
-#### 3.1.7. XML署名
-
-**処理フロー:**
-1. Checkboxをトグル
-2. signature.enabledを更新
-3. 有効時、保存時にW3C XMLDSig署名を生成
-
-#### 3.1.8. 保存処理
-
-**処理フロー:**
-1. 「保存」ボタンをクリック
-2. バリデーション実行
-   - ドキュメント名: 必須
-   - 日付: 必須、有効な日付形式
-3. DocumentDataを構築
-4. onSave(documentData)を実行
-5. ダイアログを閉じる
-
-**バリデーションエラー時:**
-- エラーメッセージを表示
-- 保存処理を中断
-
-### 3.2. ボタン・操作の動作
-
-| 操作 | 動作 | 状態変更 |
-|------|------|---------|
-| ドキュメント名入力 | name更新 | フォーム状態更新 |
-| 説明入力 | description更新 | フォーム状態更新 |
-| 日付選択 | date更新 | フォーム状態更新 |
-| Creator追加 | creators配列に追加 | MultiObjectEditor |
-| Vendor追加 | vendors配列に追加 | MultiObjectEditor |
-| Owner追加 | owners配列に追加 | MultiObjectEditor |
-| Instrument追加 | instruments配列に追加 | MultiObjectEditor |
-| XML署名チェック | signature.enabled切替 | フォーム状態更新 |
-| キャンセルボタン | ダイアログを閉じる | onClose() |
-| 保存ボタン | 保存処理 | onSave() |
-
----
-
-## 4. データ仕様
-
-### 4.1. Props型定義
+#### 4.1.1 処理フロー
 
 ```typescript
-interface DocumentEditDialogProps {
-  open: boolean;                        // モーダル表示フラグ
-  documentData?: DocumentData;          // Documentデータ
-  onClose: () => void;                  // 閉じる
-  onSave: (data: DocumentData) => void; // 保存
+useEffect(() => {
+  if (open && documentData) {
+    // stateリセット
+    setHasChanges(false);
+    setValidationErrors([]);
+    
+    // フォーム初期化
+    form.setFieldsValue({
+      ...documentData,
+      date: documentData.date ? dayjs(documentData.date) : dayjs(),
+      signatureEnabled: documentData.signatureEnabled || false,
+    });
+  }
+}, [open, documentData, form]);
+```
+
+**注意**: PetriNetEditorInnerから初期化済みのdocumentDataが渡されるため、DocumentEditDialog側での追加の初期化は不要です。
+
+#### 4.1.2 マスタデータ取得
+
+```typescript
+useEffect(() => {
+  const loadMasterData = async () => {
+    if (!open) return;
+    
+    setIsLoadingMasters(true);
+    const [creatorsData, vendorsData, instrumentsData] = await Promise.all([
+      fetchMasters('creator'),
+      fetchMasters('vendor'),
+      fetchMasters('instrument'),
+    ]);
+    
+    setCreators(creatorsData.map(convertCreatorToDocumentTag));
+    setVendors(vendorsData.map(convertVendorToDocumentTag));
+    setInstruments(instrumentsData.map(convertInstrumentToDocumentTag));
+  };
+  
+  loadMasterData();
+}, [open]);
+```
+
+### 4.2 UUID生成機能
+
+#### 4.2.1 UUID一括生成
+
+```typescript
+const handleAutoGenerateUUIDs = useCallback(() => {
+  const values = form.getFieldsValue(true);
+  form.setFieldsValue({
+    ...values,
+    uuid: generateUUID(),
+  });
+  setHasChanges(true);
+  message.success('UUID を生成しました');
+}, [form, generateUUID]);
+```
+
+#### 4.2.2 個別UUID生成
+
+```typescript
+<Button
+  icon={<ThunderboltOutlined />}
+  onClick={() => {
+    const uuid = generateUUID();
+    form.setFieldValue('uuid', uuid);
+    setHasChanges(true);
+  }}
+>
+  生成
+</Button>
+```
+
+**UUID形式**: `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx` (RFC 4122 Version 4)
+
+### 4.3 現在時刻設定
+
+```typescript
+const handleSetCurrentDateTime = useCallback(() => {
+  form.setFieldValue('date', dayjs());
+  setHasChanges(true);
+  message.success('現在時刻を設定しました');
+}, [form]);
+```
+
+### 4.4 バリデーション機能
+
+#### 4.4.1 リアルタイムバリデーション
+
+```typescript
+const handleFormChange = useCallback(() => {
+  setHasChanges(true);
+
+  if (validationTimeoutRef.current) {
+    clearTimeout(validationTimeoutRef.current);
+  }
+
+  validationTimeoutRef.current = setTimeout(() => {
+    const values = form.getFieldsValue(true);
+    const errors = validateDocumentData(values);
+    setValidationErrors(errors);
+  }, 500);
+}, [form, validateDocumentData]);
+```
+
+**検証タイミング**: 入力後500msのデバウンス
+
+#### 4.4.2 バリデーションルール
+
+```typescript
+const validateDocumentData = useMemo(() => (data: DocumentData): string[] => {
+  const errors: string[] = [];
+  
+  // 基本プロパティ
+  if (!data.name?.trim()) {
+    errors.push('❌ Document name is required');
+  }
+  if (!data.id?.trim()) {
+    errors.push('❌ Document ID is required');
+  }
+  
+  // UUID形式チェック
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (data.uuid && !uuidRegex.test(data.uuid)) {
+    errors.push('❌ Invalid UUID format');
+  }
+  
+  // 日付形式チェック
+  if (data.date && isNaN(Date.parse(data.date))) {
+    errors.push('❌ Invalid date format');
+  }
+  
+  // 必須要素チェック
+  if (!data.creators || data.creators.length === 0) {
+    errors.push('❌ At least one Creator is required');
+  }
+  if (!data.vendors || data.vendors.length === 0) {
+    errors.push('❌ At least one Vendor is required');
+  }
+  if (!data.owners || data.owners.length === 0) {
+    errors.push('❌ At least one Owner is required');
+  }
+  
+  // ID重複チェック
+  const ids: string[] = [data.id];
+  if (data.creators) data.creators.forEach(c => c.id && ids.push(c.id));
+  if (data.vendors) data.vendors.forEach(v => v.id && ids.push(v.id));
+  if (data.owners) data.owners.forEach(o => o.id && ids.push(o.id));
+  if (data.instruments) data.instruments.forEach(i => i.id && ids.push(i.id));
+  
+  const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);
+  if (duplicateIds.length > 0) {
+    errors.push(`❌ Duplicate IDs found: ${duplicateIds.join(', ')}`);
+  }
+  
+  return errors;
+}, []);
+```
+
+### 4.5 セクション展開管理
+
+```typescript
+const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+  basic: true,
+  maimlIds: false,
+  signature: false,
+  creators: false,
+  vendors: false,
+  owners: false,
+  instruments: false,
+});
+
+const handleToggleSection = useCallback((sectionKey: string) => {
+  setExpandedSections(prev => ({
+    ...prev,
+    [sectionKey]: !prev[sectionKey]
+  }));
+}, []);
+```
+
+### 4.6 MultiObjectEditor連携
+
+#### 4.6.1 データ変更ハンドラー
+
+```typescript
+const handleMultiObjectDataChange = useCallback((
+  objectKey: 'creators' | 'vendors' | 'owners' | 'instruments',
+  objectsArray: DocumentTagData[]
+) => {
+  form.setFieldsValue({ [objectKey]: objectsArray });
+  setHasChanges(true);
+  
+  // バリデーション
+  if (validationTimeoutRef.current) {
+    clearTimeout(validationTimeoutRef.current);
+  }
+  validationTimeoutRef.current = setTimeout(() => {
+    const values = form.getFieldsValue(true);
+    const errors = validateDocumentData(values);
+    setValidationErrors(errors);
+  }, 500);
+}, [form, validateDocumentData]);
+```
+
+#### 4.6.2 VendorとInstrumentのIDリスト算出
+
+```typescript
+const vendorIds = useMemo(() => {
+  const vendors = form.getFieldValue('vendors') || [];
+  return vendors.map((v: DocumentTagData) => v.id).filter(Boolean);
+}, [form]);
+
+const instrumentIds = useMemo(() => {
+  const instruments = form.getFieldValue('instruments') || [];
+  return instruments.map((i: DocumentTagData) => i.id).filter(Boolean);
+}, [form]);
+```
+
+**用途**: CreatorのReference設定時に、VendorとInstrumentのIDリストを渡す
+
+### 4.7 保存処理
+
+```typescript
+const handleSave = useCallback(async () => {
+  try {
+    await form.validateFields();
+    
+    const values = form.getFieldsValue(true);
+
+    const documentToSave: DocumentData = {
+      ...values,
+      date: values.date ? values.date : new Date(),
+      signatureEnabled: values.signatureEnabled,
+    };
+
+    const errors = validateDocumentData(documentToSave);
+    setValidationErrors(errors);
+    
+    if (errors.length > 0) {
+      message.error('バリデーションエラーがあります');
+      return;
+    }
+    
+    onSave(documentToSave);
+    onClose();
+    message.success('Document を保存しました');
+  } catch (error) {
+    console.error('Validation failed:', error);
+    message.error('入力内容を確認してください');
+  }
+}, [form, validateDocumentData, onSave, onClose]);
+```
+
+### 4.8 キャンセル処理
+
+```typescript
+const handleCancel = useCallback(() => {
+  if (hasChanges) {
+    Modal.confirm({
+      title: '未保存の変更があります',
+      content: '変更を破棄しますか？',
+      okText: '破棄',
+      cancelText: 'キャンセル',
+      onOk: onClose,
+    });
+  } else {
+    onClose();
+  }
+}, [hasChanges, onClose]);
+```
+
+---
+
+## 5. データ仕様
+
+### 5.1 Props定義
+
+```typescript
+export interface DocumentEditDialogProps {
+  open: boolean;
+  documentData?: DocumentData | null;
+  onClose: () => void;
+  onSave: (document: DocumentData) => void;
+  readOnly?: boolean;
 }
 ```
 
-### 4.2. DocumentData型定義
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| open | boolean | ✅ | ダイアログ表示フラグ |
+| documentData | DocumentData \| null | - | 編集対象のDocument情報（新規作成時はnull） |
+| onClose | () => void | ✅ | ダイアログ閉じるコールバック |
+| onSave | (document: DocumentData) => void | ✅ | Document保存コールバック |
+| readOnly | boolean | - | 読み取り専用モード（未使用） |
+
+### 5.2 State定義
+
+```typescript
+const [form] = Form.useForm();
+const [hasChanges, setHasChanges] = useState<boolean>(false);
+const [validationErrors, setValidationErrors] = useState<string[]>([]);
+const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ /* ... */ });
+const [creators, setCreators] = useState<DocumentTagData[]>([]);
+const [vendors, setVendors] = useState<DocumentTagData[]>([]);
+const [owners, setOwners] = useState<DocumentTagData[]>([]);
+const [instruments, setInstruments] = useState<DocumentTagData[]>([]);
+const [isLoadingMasters, setIsLoadingMasters] = useState(false);
+const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+```
+
+| State名 | 型 | 初期値 | 説明 |
+|---------|---|--------|------|
+| form | FormInstance | - | Ant Design Formインスタンス |
+| hasChanges | boolean | false | 未保存の変更があるかフラグ |
+| validationErrors | string[] | [] | バリデーションエラー配列 |
+| expandedSections | Record<string, boolean> | {...} | セクション展開状態 |
+| creators | DocumentTagData[] | [] | Creatorマスタデータ |
+| vendors | DocumentTagData[] | [] | Vendorマスタデータ |
+| owners | DocumentTagData[] | [] | Ownerマスタデータ（保留） |
+| instruments | DocumentTagData[] | [] | Instrumentマスタデータ |
+| isLoadingMasters | boolean | false | マスタデータ読み込み中フラグ |
+| validationTimeoutRef | Ref<NodeJS.Timeout> | null | バリデーションデバウンス用タイマー |
+
+### 5.3 主要な型定義
+
+#### 5.3.1 DocumentData型
 
 ```typescript
 interface DocumentData {
-  id: string;                    // Document ID
-  uuid?: string;                 // UUID
-  name: string;                  // ドキュメント名
-  description?: string;          // 説明
-  date: string;                  // 日付（ISO 8601形式）
-  creators: ObjectData[];        // Creator配列
-  vendors: ObjectData[];         // Vendor配列
-  owners: ObjectData[];          // Owner配列
-  instruments: ObjectData[];     // Instrument配列
-  signature?: {
-    enabled: boolean;            // XML署名有効フラグ
-  };
-  protocolId?: string;           // プロトコルID
-  methodId?: string;             // メソッドID
-  pnmlId?: string;               // PNML ID
-  programId?: string;            // プログラムID
+  id: string;
+  uuid?: string;
+  name: string;
+  description?: string;
+  date?: string | Date;
+  protocolId?: string;
+  methodId?: string;
+  pnmlId?: string;
+  programId?: string;
+  signatureEnabled?: boolean;
+  creators?: DocumentTagData[];
+  vendors?: DocumentTagData[];
+  owners?: DocumentTagData[];
+  instruments?: DocumentTagData[];
+  [key: string]: unknown;
 }
 ```
 
-### 4.3. ObjectData型定義
+#### 5.3.2 DocumentTagData型
 
 ```typescript
-interface ObjectData {
-  id: string;           // ID
-  name: string;         // 名前
-  uuid?: string;        // UUID
-  [key: string]: any;   // その他のプロパティ
+interface DocumentTagData {
+  tagName: 'Creator' | 'Vendor' | 'Owner' | 'Instrument';
+  id: string;
+  uuid?: string;
+  name: string;
+  description?: string;
+  annotation?: string;
+  vendorRefs?: string[];    // Creator用
+  instrumentRefs?: string[]; // Creator用
+}
+```
+
+#### 5.3.3 マスタデータ型
+
+```typescript
+// CreatorRecord
+interface CreatorRecord {
+  creatorId: string;
+  creatorUuid: string;
+  creatorName: string;
+  creatorDescription: string;
+  creatorAnnotation: string;
+}
+
+// VendorRecord
+interface VendorRecord {
+  vendorId: string;
+  vendorUuid: string;
+  vendorName: string;
+  vendorDescription: string;
+  vendorAnnotation: string;
+}
+
+// InstrumentRecord
+interface InstrumentRecord {
+  instrumentId: string;
+  instrumentUuid: string;
+  instrumentName: string;
+  instrumentDescription: string;
+  instrumentAnnotation: string;
+}
+```
+
+### 5.4 フォームフィールド
+
+| フィールド名 | 型 | 必須 | 初期値 | 説明 |
+|-------------|---|------|--------|------|
+| id | string | ✅ | - | Document ID |
+| uuid | string | - | - | UUID（生成可能） |
+| name | string | ✅ | - | Document名 |
+| description | string | - | - | 説明 |
+| date | Dayjs | - | dayjs() | 日付 |
+| protocolId | string | - | - | Protocol ID |
+| methodId | string | - | - | Method ID |
+| pnmlId | string | - | - | PNML ID |
+| programId | string | - | - | Program ID |
+| signatureEnabled | boolean | - | false | XML署名有効化フラグ |
+| creators | DocumentTagData[] | ✅ | [] | Creator配列（最低1件） |
+| vendors | DocumentTagData[] | ✅ | [] | Vendor配列（最低1件） |
+| owners | DocumentTagData[] | ✅ | [] | Owner配列（最低1件） |
+| instruments | DocumentTagData[] | - | [] | Instrument配列（任意） |
+
+---
+
+## 6. API連携
+
+### 6.1 使用するAPI一覧
+
+| # | API名 | メソッド | エンドポイント | 説明 | 使用箇所 |
+|---|------|---------|---------------|------|----------|
+| 1 | マスタ取得（Creator） | GET | `/api/v1/masters/creator` | Creatorマスタデータ取得 | ダイアログ開閉時 |
+| 2 | マスタ取得（Vendor） | GET | `/api/v1/masters/vendor` | Vendorマスタデータ取得 | ダイアログ開閉時 |
+| 3 | マスタ取得（Instrument） | GET | `/api/v1/masters/instrument` | Instrumentマスタデータ取得 | ダイアログ開閉時 |
+
+### 6.2 API呼び出しコード
+
+#### 6.2.1 マスタデータ取得API
+
+```typescript
+// masterApiService.fetchMasters
+const creatorsData = await fetchMasters('creator') as Promise<CreatorRecord[]>;
+const vendorsData = await fetchMasters('vendor') as Promise<VendorRecord[]>;
+const instrumentsData = await fetchMasters('instrument') as Promise<InstrumentRecord[]>;
+
+// リクエスト
+GET /api/v1/masters/creator
+GET /api/v1/masters/vendor
+GET /api/v1/masters/instrument
+
+Headers:
+  Authorization: Bearer ${sessionToken}
+  X-Organization-Id: ${organizationId}
+
+// レスポンス (200 OK) - Creator
+{
+  "success": true,
+  "data": [
+    {
+      "creatorId": "creator_001",
+      "creatorUuid": "550e8400-e29b-41d4-a716-446655440000",
+      "creatorName": "Creator Name",
+      "creatorDescription": "Description",
+      "creatorAnnotation": "Annotation"
+    }
+  ]
+}
+
+// レスポンス (200 OK) - Vendor
+{
+  "success": true,
+  "data": [
+    {
+      "vendorId": "vendor_001",
+      "vendorUuid": "550e8400-e29b-41d4-a716-446655440001",
+      "vendorName": "Vendor Name",
+      "vendorDescription": "Description",
+      "vendorAnnotation": "Annotation"
+    }
+  ]
+}
+
+// レスポンス (200 OK) - Instrument
+{
+  "success": true,
+  "data": [
+    {
+      "instrumentId": "instrument_001",
+      "instrumentUuid": "550e8400-e29b-41d4-a716-446655440002",
+      "instrumentName": "Instrument Name",
+      "instrumentDescription": "Description",
+      "instrumentAnnotation": "Annotation"
+    }
+  ]
+}
+```
+
+#### 6.2.2 マスタデータ変換
+
+```typescript
+const convertCreatorToDocumentTag = (creator: CreatorRecord): DocumentTagData => ({
+  tagName: 'Creator',
+  id: creator.creatorId,
+  uuid: creator.creatorUuid,
+  name: creator.creatorName,
+  description: creator.creatorDescription,
+  annotation: creator.creatorAnnotation,
+});
+
+const convertVendorToDocumentTag = (vendor: VendorRecord): DocumentTagData => ({
+  tagName: 'Vendor',
+  id: vendor.vendorId,
+  uuid: vendor.vendorUuid,
+  name: vendor.vendorName,
+  description: vendor.vendorDescription,
+  annotation: vendor.vendorAnnotation,
+});
+
+const convertInstrumentToDocumentTag = (instrument: InstrumentRecord): DocumentTagData => ({
+  tagName: 'Instrument',
+  id: instrument.instrumentId,
+  uuid: instrument.instrumentUuid,
+  name: instrument.instrumentName,
+  description: instrument.instrumentDescription,
+  annotation: instrument.instrumentAnnotation,
+});
+```
+
+### 6.3 エラーレスポンス
+
+すべてのAPIで共通のエラーレスポンス形式：
+
+```json
+{
+  "success": false,
+  "error": {
+    "message": "エラーメッセージ",
+    "code": "ERROR_CODE",
+    "details": {}
+  }
 }
 ```
 
 ---
 
-## 5. UI/UXポリシー準拠
+## 7. エラーハンドリング
 
-### 5.1. Ant Designコンポーネント使用
+### 7.1 エラーケース一覧
 
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Modal | 外側のコンテナ | open, onCancel, title, width, footer |
-| Input | ドキュメント名 | value, onChange |
-| TextArea | 説明 | value, onChange, rows |
-| DatePicker | 日付選択 | value, onChange |
-| Collapse | セクション折りたたみ | defaultActiveKey |
-| Panel | セクションパネル | header, key |
-| Checkbox | XML署名 | checked, onChange |
-| Button | 保存・キャンセル | type, onClick |
-| Typography | テキスト表示 | Title, Text, Paragraph |
-| Alert | 警告メッセージ | type, message, showIcon |
+| エラーケース | HTTPステータス | エラーコード | 対処方法 |
+|-------------|---------------|-------------|----------|
+| マスタデータ取得失敗 | 400/500 | - | エラーメッセージ表示、ダイアログ表示継続 |
+| バリデーションエラー | - | - | エラーリスト表示、保存ボタン無効化 |
+| フォームバリデーション失敗 | - | - | エラーメッセージ表示、保存中断 |
+| 保存失敗 | - | - | エラーメッセージ表示 |
+| 未保存変更の破棄確認 | - | - | 確認ダイアログ表示 |
 
-### 5.2. @ant-design/icons使用
+### 7.2 エラー処理コード
 
-- FileTextOutlined: 基本情報アイコン
-- ExperimentOutlined: Creatorアイコン
-- ClockCircleOutlined: 日付アイコン
-- LockOutlined: XML署名アイコン
-
----
-
-## 6. 実装ファイル
-
-### 6.1. ソースファイルパス
-
-```
-frontend/src/components/editorv2/components/DocumentEditDialog.tsx
-```
-
-### 6.2. 関連コンポーネント
-
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| MultiObjectEditor | ./MultiObjectEditor | Creator等の編集 |
-| PetriNetEditor | ./PetriNetEditor | 親コンポーネント |
-
-### 6.3. 依存ライブラリ
-
-| ライブラリ | バージョン | 用途 |
-|-----------|----------|------|
-| antd | 6.x | UIコンポーネント |
-| @ant-design/icons | 5.x | アイコン |
-
----
-
-## 7. 既知の課題・TODO
-
-- [ ] XML署名の詳細仕様実装
-- [ ] バリデーションルールの拡充
-- [ ] マスタデータのキャッシュ機能
-- [ ] 参照整合性チェック
-
----
-
-## 8. 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
-| 4.0.0 | 2025-12-23 | Ant Design v6対応 | Development Team |
-| 4.1.0 | 2026-02-19 | editorv2版に更新 | Cline |
-
----
-
-## 9. 使用例
+#### 7.2.1 マスタデータ取得エラー
 
 ```typescript
-<DocumentEditDialog
-  open={documentDialogOpen}
-  documentData={documentData}
-  onClose={() => setDocumentDialogOpen(false)}
-  onSave={handleSaveDocument}
-/>
-```
-
----
-
-## 10. バリデーション
-
-### 10.1. 必須項目チェック
-
-```typescript
-if (!documentData.name.trim()) {
-  message.error('ドキュメント名は必須です');
-  return;
-}
-
-if (!documentData.date) {
-  message.error('日付は必須です');
-  return;
+try {
+  setIsLoadingMasters(true);
+  const [creatorsData, vendorsData, instrumentsData] = await Promise.all([
+    fetchMasters('creator') as Promise<CreatorRecord[]>,
+    fetchMasters('vendor') as Promise<VendorRecord[]>,
+    fetchMasters('instrument') as Promise<InstrumentRecord[]>,
+  ]);
+  
+  setCreators(creatorsData.map(convertCreatorToDocumentTag));
+  setVendors(vendorsData.map(convertVendorToDocumentTag));
+  setInstruments(instrumentsData.map(convertInstrumentToDocumentTag));
+  
+  console.log('✅ [DocumentEditDialog] マスタデータ取得完了', {
+    creators: creatorsData.length,
+    vendors: vendorsData.length,
+    instruments: instrumentsData.length,
+  });
+} catch (error) {
+  console.error('❌ [DocumentEditDialog] マスタデータ取得エラー:', error);
+  message.error('マスタデータの取得に失敗しました');
+} finally {
+  setIsLoadingMasters(false);
 }
 ```
 
-### 10.2. 日付形式チェック
+**エラー時の動作**:
+- エラーメッセージをToastで表示
+- マスタデータなしでもダイアログ表示は継続
+- 手入力での編集は可能
+
+#### 7.2.2 バリデーションエラー表示
 
 ```typescript
-if (!dayjs(documentData.date).isValid()) {
-  message.error('有効な日付を入力してください');
-  return;
-}
+{validationErrors.length > 0 && (
+  <Alert
+    message="バリデーションエラー"
+    description={
+      <ul style={{ margin: '8px 0 0 20px', padding: 0 }}>
+        {validationErrors.map((error, index) => (
+          <li key={index}>{error}</li>
+        ))}
+      </ul>
+    }
+    type="error"
+    showIcon
+  />
+)}
 ```
+
+**エラー表示条件**:
+- リアルタイムバリデーション（500msデバウンス）
+- 保存ボタン無効化（`disabled={validationErrors.length > 0}`）
+
+#### 7.2.3 保存時のエラー処理
+
+```typescript
+const handleSave = useCallback(async () => {
+  try {
+    await form.validateFields();
+    
+    const values = form.getFieldsValue(true);
+
+    const documentToSave: DocumentData = {
+      ...values,
+      date: values.date ? values.date : new Date(),
+      signatureEnabled: values.signatureEnabled,
+    };
+
+    const errors = validateDocumentData(documentToSave);
+    setValidationErrors(errors);
+    
+    if (errors.length > 0) {
+      message.error('バリデーションエラーがあります');
+      return;
+    }
+    
+    onSave(documentToSave);
+    onClose();
+    message.success('Document を保存しました');
+  } catch (error) {
+    console.error('Validation failed:', error);
+    message.error('入力内容を確認してください');
+  }
+}, [form, validateDocumentData, onSave, onClose]);
+```
+
+#### 7.2.4 未保存変更の確認
+
+```typescript
+const handleCancel = useCallback(() => {
+  if (hasChanges) {
+    Modal.confirm({
+      title: '未保存の変更があります',
+      content: '変更を破棄しますか？',
+      okText: '破棄',
+      cancelText: 'キャンセル',
+      onOk: onClose,
+    });
+  } else {
+    onClose();
+  }
+}, [hasChanges, onClose]);
+```
+
+### 7.3 バリデーションエラー詳細
+
+| エラー種別 | エラーメッセージ | 発生条件 |
+|-----------|----------------|---------|
+| Document name required | ❌ Document name is required | name が空文字 |
+| Document ID required | ❌ Document ID is required | id が空文字 |
+| Invalid UUID format | ❌ Invalid UUID format | UUID形式が不正 |
+| Invalid date format | ❌ Invalid date format | 日付形式が不正 |
+| Creator required | ❌ At least one Creator is required | Creatorが0件 |
+| Vendor required | ❌ At least one Vendor is required | Vendorが0件 |
+| Owner required | ❌ At least one Owner is required | Ownerが0件 |
+| Duplicate IDs | ❌ Duplicate IDs found: {ids} | ID重複検出 |
+
+### 7.4 エラー回復方法
+
+#### 7.4.1 マスタデータ取得失敗時
+
+1. エラーメッセージを確認
+2. ネットワーク接続を確認
+3. ダイアログを閉じて再度開く
+4. マスタデータなしでも手入力で編集可能
+
+#### 7.4.2 バリデーションエラー時
+
+1. 画面上部のエラーリストを確認
+2. 該当フィールドを修正
+3. 500ms後に自動再検証される
+4. エラーがなくなれば保存ボタンが有効化
+
+#### 7.4.3 保存失敗時
+
+1. エラーメッセージを確認
+2. 入力内容を見直す
+3. 再度保存を試みる
+4. ダイアログは閉じずに編集継続可能
 
 ---
 
-## 11. API連携
+## 8. 実装ファイル
 
-### 11.1. マスタデータ取得
+### 8.1 ファイルパス
 
-```typescript
-// Creator一覧取得
-const creators = await fetchCreators();
+- **メインファイル**: `frontend/src/components/editorv2/components/DocumentEditDialog.tsx`
 
-// Vendor一覧取得
-const vendors = await fetchVendors();
+### 8.2 関連ファイル
 
-// Owner一覧取得
-const owners = await fetchOwners();
+- **型定義**: `frontend/src/types/editor.ts`, `frontend/src/types/maiml-unified.ts`
+- **サービス**: `frontend/src/services/masterApiService.ts`
+- **子コンポーネント**: `frontend/src/components/editorv2/components/MultiObjectEditor.tsx`
 
-// Instrument一覧取得
-const instruments = await fetchInstruments();
-```
+### 8.3 依存ライブラリ
+
+- **Ant Design**: Modal, Button, Input, Form, Collapse, Alert, Space, Typography, Checkbox, DatePicker, Tag
+- **dayjs**: 日付操作
+- **Ant Design Icons**: ThunderboltOutlined, ClockCircleOutlined, SaveOutlined, SecurityScanOutlined
 
 ---
 
-## 12. アクセシビリティ
+## 9. 変更履歴
 
-### 12.1. キーボード操作
-
-- Tab: フォーカス移動
-- Enter: 保存（フォーカスが保存ボタンにある場合）
-- Escape: キャンセル
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースでUI仕様書を新規作成（DocumentEditDialog.tsx 約600行を分析） | Cline |

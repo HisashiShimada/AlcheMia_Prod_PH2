@@ -1,17 +1,18 @@
-# BulkUploadDialog - 一括ファイルアップロードダイアログ
+# 一括ファイルアップロードダイアログ UI仕様書
 
 ## 1. 概要
 
 ### 1.1 コンポーネントの目的
-プロジェクトへのファイルアップロードを行うモーダルダイアログ。単一ファイル、一括ファイル、フォルダアップロードの3モードに対応し、進捗表示とエラーハンドリングを提供します。
+一括ファイルアップロードダイアログは、プロジェクト管理画面から複数のファイルやフォルダを一括でS3にアップロードするためのモーダルダイアログです。単一ファイル、一括ファイル、フォルダの3つのアップロードモードをサポートし、進捗表示やエラーハンドリングを提供します。
 
 ### 1.2 使用場面
-- プロジェクト管理画面のツールバーで「一括アップロード」ボタンをクリックした際に表示
-- ファイルやフォルダをプロジェクトにアップロードする場合
+- プロジェクト管理画面 → 「ファイル管理」タブ → 「一括アップロード」ボタンクリック時に表示
+- モーダル形式で画面中央に表示
 
 ### 1.3 アクセス権限
-- **必須ロール**: experiment_admin
+- **必須ロール**: Experiment Admin（実験管理者）
 - **認証**: JWT + Session Hybrid認証
+- **組織分離**: マルチテナント（organizationId）
 
 ---
 
@@ -20,47 +21,86 @@
 ### 2.1 レイアウト構造
 
 ```
-┌──────────────────────────────────────────┐
-│ 一括ファイルアップロード           [×]  │
-├──────────────────────────────────────────┤
-│ アップロードタイプ                       │
-│ [📄 単一ファイル][📦 一括ファイル][📁 フォルダ] │
-│                                          │
-│ ┌────────────────────────────────────┐  │
-│ │      📦                            │  │
-│ │  ファイルをドラッグ&ドロップ      │  │
-│ │  または、クリックしてファイルを選択│  │
-│ └────────────────────────────────────┘  │
-│                                          │
-│ 選択ファイル (3個)                       │
-│ ┌────────────────────────────────────┐  │
-│ │ sample1.maiml         1.2 MB       │  │
-│ │ sample2.maiml         850 KB       │  │
-│ │ data.csv              120 KB       │  │
-│ │ 総サイズ: 2.17 MB                  │  │
-│ └────────────────────────────────────┘  │
-│                                          │
-│ ──────────────────────────────────────  │
-│                                          │
-│ アップロード先フォルダ                   │
-│ 所属組織: org_materials (材料科学組織)   │
-│ [部門 → プロジェクト 選択 ▼]            │
-│ 選択パス: org_materials/dept_research/project_001 │
-│                                          │
-│ ☑ フォルダ構造を保持する                │
-│                                          │
-│ ℹ️ アップロード中                        │
-│ 2 / 3 ファイル完了                       │
-│ [進捗バー: 67%]                          │
-│                                          │
-├──────────────────────────────────────────┤
-│              [キャンセル] [アップロード開始] │
-└──────────────────────────────────────────┘
+┌───────────────────────────────────────────────────┐
+│ 一括ファイルアップロード                     [×]  │
+├───────────────────────────────────────────────────┤
+│                                                   │
+│ アップロードタイプ                                │
+│ [単一ファイル] [一括ファイル] [フォルダ]         │
+│                                                   │
+│ ┌───────────────────────────────────────────┐   │
+│ │           📦                              │   │
+│ │   ファイルをドラッグ&ドロップ             │   │
+│ │   または、クリックしてファイルを選択      │   │
+│ └───────────────────────────────────────────┘   │
+│                                                   │
+│ 選択ファイル (3個)                                │
+│ ┌───────────────────────────────────────────┐   │
+│ │ file1.maiml              45.2 KB          │   │
+│ │ file2.csv                12.8 KB          │   │
+│ │ file3.xlsx               128 KB           │   │
+│ │ 総サイズ: 186 KB                          │   │
+│ └───────────────────────────────────────────┘   │
+│                                                   │
+│ アップロード先プロジェクト                        │
+│ ┌───────────────────────────────────────────┐   │
+│ │ プロジェクトA                             │   │
+│ │ パス: projects/プロジェクトA              │   │
+│ └───────────────────────────────────────────┘   │
+│                                                   │
+│ サブフォルダパス（オプション）                    │
+│ [例: data/experiment01                     ]     │
+│                                                   │
+│ バッチ名（オプション）                            │
+│ [例: 実験データ2024-01-15                  ]     │
+│                                                   │
+│                     [キャンセル] [アップロード開始]│
+└───────────────────────────────────────────────────┘
 ```
 
-**モーダルサイズ:**
-- 幅: 800px
-- 高さ: 最大70vh（スクロール可能）
+### 2.2 主要UI要素
+
+#### 2.2.1 アップロードタイプセグメント
+- Segmented（ブロック表示）
+- 3つのオプション:
+  1. **単一ファイル** (FileOutlined)
+  2. **一括ファイル** (InboxOutlined)
+  3. **フォルダ** (FolderOutlined)
+
+#### 2.2.2 ファイル選択エリア
+
+**単一ファイル / 一括ファイルモード:**
+- Dragger（ドラッグ&ドロップエリア）
+- アイコン: InboxOutlined（青色、48px）
+- 許可拡張子: `.maiml, .xml, .json, .txt, .csv, .png, .jpg, .jpeg, .gif, .pdf, .tif, .tiff, .bmp, .svg, .webp`
+
+**フォルダモード:**
+- ボタン: 「フォルダを選択」（FolderOutlined）
+- 非表示のfile input（webkitdirectory属性）
+
+#### 2.2.3 選択ファイル表示エリア
+- 背景色: `#f5f5f5`
+- 最大10ファイル表示（それ以上は「他 X ファイル...」と表示）
+- 各ファイル: ファイル名 + サイズ
+- 総サイズ表示（青い背景）
+
+#### 2.2.4 アップロード先プロジェクト表示
+- 背景色: `#E6F7FC`
+- ボーダー: `1px solid #0093CF`
+- プロジェクト名 + パス表示
+
+#### 2.2.5 オプション入力フィールド
+- **サブフォルダパス**: Input（プレースホルダー: "例: data/experiment01"）
+- **バッチ名**: Input（プレースホルダー: "例: 実験データ2024-01-15"）
+
+#### 2.2.6 進捗表示
+- Alert（info）: アップロード中
+- Progress: 進捗バー
+- LoadingOutlined アイコン
+
+#### 2.2.7 完了/エラー表示
+- Alert（success）: アップロード完了（CheckCircleOutlined）
+- Alert（error）: エラー発生（CloseCircleOutlined）
 
 ---
 
@@ -68,62 +108,47 @@
 
 ### 3.1 アップロードモード
 
-#### 3.1.1 モード切り替え
-
+#### 3.1.1 単一ファイルモード
 ```typescript
-type UploadMode = 'single' | 'bulk' | 'folder';
+uploadMode: 'single'
 ```
+- 1ファイルのみ選択可能
+- 最後に選択したファイルのみ保持
+- バッチ名: `"単一アップロード: {ファイル名}"`
 
-| モード | アイコン | 説明 | ファイル選択 |
-|--------|---------|------|------------|
-| 単一ファイル | FileOutlined | 1ファイルのみアップロード | 単一選択 |
-| 一括ファイル | InboxOutlined | 複数ファイルを一括アップロード | 複数選択 |
-| フォルダ | FolderOutlined | フォルダ全体をアップロード | フォルダ選択 |
-
-#### 3.1.2 モード変更時の処理
-
+#### 3.1.2 一括ファイルモード
 ```typescript
-const handleModeChange = useCallback((value: string | number) => {
-  setUploadMode(value as UploadMode);
-  setFileList([]);        // ファイルリストをクリア
-  setBatchName('');       // バッチ名をクリア
-}, []);
+uploadMode: 'bulk'
 ```
+- 複数ファイル選択可能
+- ドラッグ&ドロップまたはファイル選択ダイアログ
+- バッチ名: `"一括アップロード {件数}ファイル"`
+
+#### 3.1.3 フォルダモード
+```typescript
+uploadMode: 'folder'
+```
+- フォルダ全体を選択
+- webkitRelativePathでフォルダ階層を保持
+- バッチ名: `"フォルダアップロード: {フォルダ名}"`
 
 ### 3.2 ファイル選択
 
-#### 3.2.1 単一ファイル・一括ファイルモード
-
-**Dragger（ドラッグ&ドロップエリア）:**
+#### 3.2.1 ドラッグ&ドロップ
 ```typescript
 <Dragger
   fileList={fileList}
   onChange={handleFileChange}
-  beforeUpload={beforeUpload}  // 自動アップロード無効化
+  beforeUpload={beforeUpload}  // false を返して自動アップロード無効化
   multiple={uploadMode !== 'single'}
   disabled={uploadState.isUploading}
-  accept=".maiml,.xml,.json,.txt,.csv,.png,.jpg,.jpeg,.gif,.pdf,.tif,.tiff,.bmp,.svg,.webp"
+  accept=".maiml,.xml,.json,.txt,.csv,.png,..."
   showUploadList={false}
->
+/>
 ```
 
-**対応ファイル形式:**
-- MAIML: `.maiml`, `.xml`
-- データ: `.json`, `.txt`, `.csv`
-- 画像: `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.svg`, `.webp`
-- ドキュメント: `.pdf`
-- 画像（科学用途）: `.tif`, `.tiff`
-
-#### 3.2.2 フォルダモード
-
+#### 3.2.2 フォルダ選択
 ```typescript
-<Button
-  icon={<FolderOutlined />}
-  onClick={() => folderInputRef.current?.click()}
->
-  フォルダを選択
-</Button>
-
 <input
   ref={folderInputRef}
   type="file"
@@ -135,60 +160,343 @@ const handleModeChange = useCallback((value: string | number) => {
 />
 ```
 
-**動作:**
-- フォルダ選択ダイアログを表示
-- フォルダ内の全ファイルを取得
-- webkitRelativePathからフォルダ構造を保持
-
-#### 3.2.3 ファイル選択時の処理
+### 3.3 アップロード先パス構築
 
 ```typescript
-const handleFileChange: UploadProps['onChange'] = useCallback(
-  (info: { fileList: UploadFile[] }) => {
-    let newFileList = [...info.fileList];
+const getTargetPath = () => {
+  if (!preselectedFolder) {
+    return '';
+  }
+  
+  const basePath = `projects/${preselectedFolder}`;
+  const cleanSubFolder = subFolderPath.trim().replace(/^\/+|\/+$/g, '');
+  
+  return cleanSubFolder ? `${basePath}/${cleanSubFolder}` : basePath;
+};
+```
+
+**パス例:**
+- プロジェクトルート: `projects/プロジェクトA`
+- サブフォルダ指定: `projects/プロジェクトA/data/experiment01`
+
+### 3.4 アップロード実行
+
+#### 3.4.1 処理フロー
+```typescript
+const handleUpload = async () => {
+  // 1. バリデーション
+  if (fileList.length === 0) {
+    message.warning('ファイルを選択してください');
+    return;
+  }
+  
+  if (!preselectedFolder) {
+    message.error('プロジェクトが選択されていません');
+    return;
+  }
+  
+  // 2. アップロード状態初期化
+  setUploadState({
+    isUploading: true,
+    progress: 0,
+    uploadedCount: 0,
+    totalCount: fileList.length,
+    error: null,
+  });
+  
+  // 3. ファイル準備
+  const files = fileList
+    .map(f => {
+      const originFile = f.originFileObj;
+      if (!originFile) return null;
+      
+      // フォルダモードの場合、パスを含む新しいFileオブジェクトを作成
+      if (uploadMode === 'folder' && f.name.includes('/')) {
+        return new File([originFile], f.name, {
+          type: originFile.type,
+          lastModified: originFile.lastModified,
+        });
+      }
+      
+      return originFile as File;
+    })
+    .filter((f): f is File => !!f);
+  
+  // 4. API呼び出し
+  const response = await uploadFiles({
+    uploadMode,
+    targetPath: getTargetPath(),
+    files,
+    metadata: {
+      projectId,
+      batchName: batchName || undefined,
+    },
+    onProgress: (progress) => {
+      setUploadState(prev => ({
+        ...prev,
+        progress: progress.percentage,
+        uploadedCount: progress.uploadedCount,
+      }));
+    },
+  });
+  
+  // 5. 成功処理
+  if (response) {
+    message.success('アップロードが完了しました');
+    onUploadComplete?.({
+      mode: uploadMode,
+      fileCount: fileList.length,
+      success: true,
+    });
     
-    // 単一ファイルモードの場合は1つのみ
-    if (uploadMode === 'single') {
-      newFileList = newFileList.slice(-1);
-    }
-    
-    setFileList(newFileList);
-    
-    // バッチ名の自動生成
-    if (newFileList.length === 1) {
-      setBatchName(`単一アップロード: ${newFileList[0].name}`);
-    } else if (newFileList.length > 1) {
-      setBatchName(`一括アップロード ${newFileList.length}ファイル`);
-    }
+    // 2秒後に状態リセット
+    setTimeout(() => {
+      setFileList([]);
+      setBatchName('');
+      setSubFolderPath('');
+      setUploadState({ /* 完了状態 */ });
+    }, 2000);
+  }
+};
+```
+
+#### 3.4.2 進捗コールバック
+```typescript
+onProgress: (progress) => {
+  setUploadState(prev => ({
+    ...prev,
+    progress: progress.percentage,
+    uploadedCount: progress.uploadedCount,
+  }));
+}
+```
+
+### 3.5 キャンセル処理
+
+```typescript
+const handleClose = () => {
+  if (uploadState.isUploading) {
+    Modal.confirm({
+      title: 'アップロード中',
+      content: 'アップロード処理が進行中です。キャンセルしますか？',
+      okText: 'はい',
+      cancelText: 'いいえ',
+      onOk: onClose,
+    });
+  } else {
+    onClose();
+  }
+};
+```
+
+### 3.6 バッチ名の自動生成
+
+```typescript
+// 単一ファイル
+if (newFileList.length === 1) {
+  setBatchName(`単一アップロード: ${newFileList[0].name}`);
+}
+
+// 一括ファイル
+else if (newFileList.length > 1) {
+  setBatchName(`一括アップロード ${newFileList.length}ファイル`);
+}
+
+// フォルダ
+const folderName = firstFileWithPath.webkitRelativePath.split('/')[0];
+setBatchName(`フォルダアップロード: ${folderName}`);
+```
+
+---
+
+## 4. データ仕様
+
+### 4.1 Props定義
+
+```typescript
+interface BulkUploadDialogProps {
+  /** ダイアログの表示/非表示 */
+  open: boolean;
+  /** 閉じるハンドラ */
+  onClose: () => void;
+  /** アップロード完了ハンドラ */
+  onUploadComplete?: (result: {
+    mode: UploadMode;
+    fileCount: number;
+    success: boolean;
+  }) => void;
+  /** 事前選択されたフォルダパス */
+  preselectedFolder?: string;
+  /** プロジェクトID（必須） */
+  projectId: string;
+}
+```
+
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| open | `boolean` | ✅ | ダイアログの表示状態 |
+| onClose | `() => void` | ✅ | 閉じるハンドラ |
+| onUploadComplete | `(result) => void` | - | アップロード完了時のコールバック |
+| preselectedFolder | `string` | - | 事前選択されたプロジェクトフォルダ名 |
+| projectId | `string` | ✅ | プロジェクトID |
+
+### 4.2 State定義
+
+```typescript
+const [uploadMode, setUploadMode] = useState<UploadMode>('single');
+const [fileList, setFileList] = useState<UploadFile[]>([]);
+const [subFolderPath, setSubFolderPath] = useState<string>('');
+const [batchName, setBatchName] = useState<string>('');
+const [uploadState, setUploadState] = useState<UploadState>({
+  isUploading: false,
+  progress: 0,
+  uploadedCount: 0,
+  totalCount: 0,
+  error: null,
+});
+```
+
+**State説明:**
+| State名 | 型 | 初期値 | 説明 |
+|---------|---|--------|------|
+| uploadMode | `'single' \| 'bulk' \| 'folder'` | `'single'` | アップロードモード |
+| fileList | `UploadFile[]` | `[]` | 選択されたファイル一覧 |
+| subFolderPath | `string` | `''` | サブフォルダパス |
+| batchName | `string` | `''` | バッチ名 |
+| uploadState | `UploadState` | 初期状態 | アップロード進行状況 |
+
+### 4.3 UploadState型定義
+
+```typescript
+interface UploadState {
+  isUploading: boolean;    // アップロード中かどうか
+  progress: number;        // 進捗率（0-100）
+  uploadedCount: number;   // アップロード完了ファイル数
+  totalCount: number;      // 総ファイル数
+  error: string | null;    // エラーメッセージ
+}
+```
+
+---
+
+## 5. API連携
+
+### 5.1 使用するAPI
+
+| # | API名 | メソッド | エンドポイント | 説明 |
+|---|------|---------|---------------|------|
+| 1 | uploadFiles | POST | `/api/v1/files/upload` | ファイル一括アップロード |
+
+### 5.2 API呼び出し例
+
+```typescript
+await uploadFiles({
+  uploadMode: 'bulk',
+  targetPath: 'projects/プロジェクトA/data',
+  files: [File, File, File],
+  metadata: {
+    projectId: 'proj-123',
+    batchName: '実験データ2024-01-15',
   },
-  [uploadMode]
-);
+  onProgress: (progress) => {
+    // 進捗更新
+  },
+});
 ```
 
-### 3.3 選択ファイル表示
+**Request:**
+- `Content-Type`: `multipart/form-data`
+- `uploadMode`: アップロードモード
+- `targetPath`: アップロード先パス
+- `files[]`: ファイル配列
+- `metadata`: JSON文字列
 
-#### 3.3.1 ファイルリストエリア
-
+**Response:**
+```typescript
+{
+  success: true,
+  uploadedFiles: number,
+  failedFiles: number,
+  results: Array<{
+    fileName: string;
+    success: boolean;
+    s3Key: string;
+  }>
+}
 ```
-選択ファイル (3個)
-┌────────────────────────────────────┐
-│ sample1.maiml         1.2 MB       │
-│ sample2.maiml         850 KB       │
-│ data.csv              120 KB       │
-│ （最大10ファイルまで表示）          │
-│ 他 5 ファイル...                   │
-│                                    │
-│ 総サイズ: 2.17 MB                  │
-└────────────────────────────────────┘
+
+---
+
+## 6. エラーハンドリング
+
+### 6.1 エラーケース一覧
+
+| エラーケース | 対処方法 |
+|-------------|----------|
+| ファイル未選択 | message.warning('ファイルを選択してください') |
+| プロジェクト未選択 | message.error('プロジェクトが選択されていません') |
+| アップロード失敗 | Alert（error）でエラーメッセージ表示 |
+| ネットワークエラー | エラーメッセージ抽出して表示 |
+
+### 6.2 エラー処理コード
+
+```typescript
+try {
+  await uploadFiles({ /* ... */ });
+  message.success('アップロードが完了しました');
+} catch (error) {
+  const errorMessage = extractErrorMessage(error);
+  setUploadState(prev => ({
+    ...prev,
+    isUploading: false,
+    error: errorMessage,
+  }));
+  message.error(errorMessage);
+}
 ```
 
-**特徴:**
-- 最大10ファイルまで表示
-- 10ファイル超える場合は「他 N ファイル...」と表示
-- 各ファイル: 名前（省略表示） + サイズ
-- 総サイズを水色背景で表示
+---
 
-#### 3.3.2 ファイルサイズフォーマット
+## 7. 実装ファイル
+
+### 7.1 メインファイル
+- **パス**: `frontend/src/components/project/BulkUploadDialog.tsx`
+- **行数**: 約500行
+- **エクスポート**: `BulkUploadDialog`（default export）
+
+### 7.2 関連ファイル
+
+#### 7.2.1 APIサービス
+- `frontend/src/services/fileAccessService.ts` - uploadFiles()
+
+#### 7.2.2 ユーティリティ
+- `frontend/src/utils/errorUtils.ts` - extractErrorMessage()
+
+### 7.3 依存ライブラリ
+- React 18.2.0
+- Ant Design v6 (Modal, Segmented, Upload, Button, Input, Alert, Progress, Space, Typography, Divider, message)
+- @ant-design/icons (UploadOutlined, InboxOutlined, FolderOutlined, FileOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined)
+
+---
+
+## 8. 変更履歴
+
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
+
+---
+
+## 9. 補足事項
+
+### 9.1 許可ファイル拡張子
+
+```typescript
+accept=".maiml,.xml,.json,.txt,.csv,.png,.jpg,.jpeg,.gif,.pdf,.tif,.tiff,.bmp,.svg,.webp"
+```
+
+### 9.2 ファイルサイズフォーマット
 
 ```typescript
 const formatFileSize = (bytes: number): string => {
@@ -201,432 +509,72 @@ const formatFileSize = (bytes: number): string => {
 ```
 
 **例:**
-- `1234` → "1.21 KB"
-- `1234567` → "1.18 MB"
-- `1234567890` → "1.15 GB"
+- `0` → `"0 Bytes"`
+- `1024` → `"1 KB"`
+- `1048576` → `"1 MB"`
 
-### 3.4 アップロード先フォルダ選択
+### 9.3 モーダル設定
 
-#### 3.4.1 所属組織表示
-
-```
-所属組織: org_materials (材料科学組織)
-```
-
-- グレー背景で表示
-- 固定値（ログインユーザーの所属組織）
-- 変更不可
-
-#### 3.4.2 フォルダ階層選択（Cascader）
-
-**階層構造:**
-```
-org_materials (所属組織・自動付与)
-  └─ dept_research (部門)
-      └─ project_001 (プロジェクト)
-```
-
-**Cascader設定:**
 ```typescript
-<Cascader
-  options={folderStructureOptions}
-  value={selectedFolderPath}
-  onChange={handleFolderPathChange}
-  placeholder={cascaderPlaceholder}
-  expandTrigger="hover"
-  showSearch
-  changeOnSelect={changeOnSelect}  // モード依存
+<Modal
+  title="一括ファイルアップロード"
+  open={open}
+  onCancel={handleClose}
+  width={800}
+  footer={[/* カスタムフッター */]}
+  styles={{
+    body: { maxHeight: '70vh', overflowY: 'auto' }
+  }}
 />
 ```
 
-**プレースホルダー:**
-- 単一ファイル: "プロジェクトを選択"
-- 一括ファイル/フォルダ: "部門 または プロジェクト を選択"
-
-**changeOnSelect（途中選択可否）:**
-- 単一ファイル: `false`（プロジェクトまで選択必須）
-- 一括ファイル/フォルダ: `true`（部門レベルでも選択可）
-
-#### 3.4.3 選択パス表示
-
-```
-選択パス: org_materials/dept_research/project_001
-```
-
-- 水色背景で表示
-- 完全なパスを表示（組織ID含む）
-
-#### 3.4.4 フォルダ構造オプション（モック）
+### 9.4 フォルダアップロードの仕組み
 
 ```typescript
-const folderStructureOptions: DefaultOptionType[] = [
-  {
-    value: 'dept_research',
-    label: 'dept_research (研究部門)',
-    children: [
-      { value: 'project_001', label: 'project_001 (合金開発プロジェクト)' },
-      { value: 'project_002', label: 'project_002 (セラミックス研究)' },
-      // ...
-    ],
-  },
-  // 分析部門、合成部門、触媒部門、量子物理部門...
-];
+// HTML5のwebkitdirectory属性を使用
+<input
+  type="file"
+  webkitdirectory=""
+  directory=""
+  multiple
+/>
 ```
 
-### 3.5 フォルダ構造保持オプション
+- フォルダ内の全ファイルを選択
+- `webkitRelativePath`でフォルダ階層を取得
+- バックエンドでパス構造を再現
 
-#### 3.5.1 チェックボックス
+### 9.5 進捗表示のタイミング
 
-```typescript
-<Checkbox
-  checked={preserveFolderStructure}
-  onChange={(e) => setPreserveFolderStructure(e.target.checked)}
-  disabled={uploadState.isUploading}
->
-  フォルダ構造を保持する
-</Checkbox>
+1. **アップロード開始**: `isUploading: true`, `progress: 0`
+2. **進行中**: `onProgress`コールバックで進捗更新
+3. **完了**: `progress: 100`, `isUploading: false`
+4. **2秒後**: フォームリセット
+
+### 9.6 UI状態遷移
+
+```
+初期状態
+  ↓ ファイル選択
+ファイル選択済み
+  ↓ アップロード開始
+アップロード中（進捗表示）
+  ↓ 完了 or エラー
+完了状態 or エラー状態
+  ↓ 2秒後（完了時のみ）
+初期状態（リセット）
 ```
 
-**表示条件:**
-- 一括ファイルモードまたはフォルダモードの場合のみ表示
+### 9.7 アクセシビリティ
 
-**動作:**
-- チェック: webkitRelativePathを保持してアップロード
-- 未チェック: フラットにアップロード
+- ドラッグ&ドロップとクリック選択の両方をサポート
+- アップロード中のボタン無効化
+- 進捗状況の視覚的表示（Progress + テキスト）
+- エラーメッセージの明確な表示
+- キャンセル時の確認ダイアログ
 
-### 3.6 アップロード実行
+### 9.8 パフォーマンス考慮事項
 
-#### 3.6.1 アップロードフロー
-
-```typescript
-const handleUpload = useCallback(async () => {
-  if (fileList.length === 0) {
-    message.warning('ファイルを選択してください');
-    return;
-  }
-  
-  setUploadState({
-    isUploading: true,
-    progress: 0,
-    uploadedCount: 0,
-    totalCount: fileList.length,
-    error: null,
-  });
-  
-  try {
-    // originFileObjを抽出してFile型に変換
-    const files = fileList
-      .map(f => f.originFileObj)
-      .filter((f): f is RcFile => !!f)
-      .map(f => f as unknown as File);
-    
-    // API呼び出し
-    const response = await fileService.uploadFiles({
-      projectId,
-      uploadMode,
-      targetFolder: selectedFolderPathString,
-      files,
-      batchName: batchName || undefined,
-      preserveFolderStructure: uploadMode !== 'single' && preserveFolderStructure,
-      onProgress: (progress) => {
-        setUploadState(prev => ({
-          ...prev,
-          progress: progress.percentage,
-          uploadedCount: progress.uploadedCount,
-        }));
-      },
-    });
-    
-    if (response.success) {
-      message.success('アップロードが完了しました');
-      
-      if (onUploadComplete) {
-        onUploadComplete({
-          mode: uploadMode,
-          fileCount: fileList.length,
-          success: true,
-        });
-      }
-      
-      // 完了後の状態リセット（2秒後）
-      setTimeout(() => {
-        setFileList([]);
-        setBatchName('');
-        setUploadState({
-          isUploading: false,
-          progress: 100,
-          uploadedCount: fileList.length,
-          totalCount: fileList.length,
-          error: null,
-        });
-      }, 2000);
-    }
-  } catch (error) {
-    const errorMessage = extractErrorMessage(error);
-    setUploadState(prev => ({
-      ...prev,
-      isUploading: false,
-      error: errorMessage,
-    }));
-    message.error(errorMessage);
-  }
-}, [fileList, uploadMode, projectId, selectedFolderPathString, batchName, preserveFolderStructure, onUploadComplete]);
-```
-
-#### 3.6.2 進捗表示
-
-**アップロード中:**
-```
-ℹ️ アップロード中
-2 / 3 ファイル完了
-[━━━━━━━━━━░░░░░░░░░░] 67%
-```
-
-**アップロード完了:**
-```
-✅ アップロード完了
-3個のファイルが正常にアップロードされました
-```
-
-**エラー発生:**
-```
-❌ アップロードエラー
-{エラーメッセージ}
-```
-
-### 3.7 ダイアログを閉じる
-
-#### 3.7.1 閉じる処理
-
-```typescript
-const handleClose = useCallback(() => {
-  if (uploadState.isUploading) {
-    Modal.confirm({
-      title: 'アップロード中',
-      content: 'アップロード処理が進行中です。キャンセルしますか？',
-      okText: 'はい',
-      cancelText: 'いいえ',
-      onOk: onClose,
-    });
-  } else {
-    onClose();
-  }
-}, [uploadState.isUploading, onClose]);
-```
-
-**動作:**
-- アップロード中: 確認ダイアログを表示
-- 通常時: そのまま閉じる
-
----
-
-## 4. データ仕様
-
-### 4.1 Props定義
-
-```typescript
-interface BulkUploadDialogProps {
-  open: boolean;                          // ダイアログの表示/非表示
-  onClose: () => void;                    // 閉じるハンドラ
-  onUploadComplete?: (result: {
-    mode: UploadMode;
-    fileCount: number;
-    success: boolean;
-  }) => void;                             // アップロード完了ハンドラ
-  preselectedFolder?: string;             // 事前選択されたフォルダパス
-  projectId: string;                      // プロジェクトID（必須）
-}
-```
-
-### 4.2 UploadMode型定義
-
-```typescript
-type UploadMode = 'single' | 'bulk' | 'folder';
-```
-
-### 4.3 UploadState型定義
-
-```typescript
-interface UploadState {
-  isUploading: boolean;      // アップロード中フラグ
-  progress: number;          // 進捗率（0-100）
-  uploadedCount: number;     // アップロード完了ファイル数
-  totalCount: number;        // 総ファイル数
-  error: string | null;      // エラーメッセージ
-}
-```
-
-### 4.4 State定義
-
-```typescript
-const [uploadMode, setUploadMode] = useState<UploadMode>('single');
-const [fileList, setFileList] = useState<UploadFile[]>([]);
-const [selectedFolderPath, setSelectedFolderPath] = useState<(string | number)[]>([]);
-const [batchName, setBatchName] = useState<string>('');
-const [preserveFolderStructure, setPreserveFolderStructure] = useState<boolean>(true);
-const [uploadState, setUploadState] = useState<UploadState>({
-  isUploading: false,
-  progress: 0,
-  uploadedCount: 0,
-  totalCount: 0,
-  error: null,
-});
-```
-
----
-
-## 5. API連携
-
-### 5.1 ファイルアップロードAPI
-
-```typescript
-const response = await fileService.uploadFiles({
-  projectId,                   // プロジェクトID
-  uploadMode,                  // アップロードモード
-  targetFolder,                // アップロード先フォルダパス
-  files,                       // File配列
-  batchName,                   // バッチ名（オプショナル）
-  preserveFolderStructure,     // フォルダ構造保持フラグ
-  onProgress: (progress) => {  // 進捗コールバック
-    // 進捗更新処理
-  },
-});
-```
-
-**レスポンス:**
-```typescript
-{
-  success: boolean;
-  data?: {
-    uploadedFiles: string[];
-    failedFiles: string[];
-  };
-}
-```
-
----
-
-## 6. UI/UXポリシー準拠
-
-### 6.1 Ant Designコンポーネント使用
-
-| 用途 | コンポーネント | Props |
-|------|---------------|-------|
-| モーダル | Modal | width=800, styles.body |
-| セグメント | Segmented | block, options |
-| アップロード | Upload.Dragger | multiple, accept, showUploadList |
-| ボタン | Button | type, icon, disabled, loading |
-| カスケーダー | Cascader | showSearch, expandTrigger, changeOnSelect |
-| チェックボックス | Checkbox | checked, onChange |
-| 警告 | Alert | type, showIcon, icon |
-| 進捗バー | Progress | percent, status |
-| スペース | Space | direction="vertical", size |
-| テキスト | Typography.Text | strong, ellipsis, type |
-
-### 6.2 カラーパレット
-
-| 要素 | 色 | 用途 |
-|------|-----|------|
-| Draggerアイコン | #0093CF | アップロードエリア |
-| 総サイズ背景 | #E6F7FC | 情報表示エリア |
-| 所属組織背景 | #F0F0F0 | 固定情報表示 |
-| 選択パス背景 | #E6F7FC | パス表示エリア |
-
----
-
-## 7. エラーハンドリング
-
-### 7.1 エラーケース
-
-| エラーケース | 原因 | 対処方法 |
-|-------------|------|----------|
-| ファイル未選択 | ファイルが選択されていない | 警告メッセージ表示 |
-| アップロード失敗 | ネットワークエラー、サーバーエラー等 | エラーメッセージ表示 |
-
-### 7.2 エラーメッセージ
-
-```typescript
-// ファイル未選択
-message.warning('ファイルを選択してください');
-
-// アップロード失敗
-message.error(`ファイルのアップロードに失敗しました: ${errorMessage}`);
-```
-
----
-
-## 8. 実装ファイル
-
-### 8.1 ファイルパス
-```
-frontend/src/components/project/BulkUploadDialog.tsx
-```
-
-### 8.2 依存コンポーネント
-- なし（単独で動作）
-
-### 8.3 依存ライブラリ
-- antd: Modal, Segmented, Upload, Button, Cascader, Checkbox, Alert, Progress, Space, Typography, message
-- @ant-design/icons: 各種アイコン
-- @/services/fileService: uploadFiles
-- @/utils/errorUtils: extractErrorMessage
-
----
-
-## 9. 既知の課題・TODO
-
-### 9.1 既知の課題
-- フォルダ構造がモックデータ（実際のAPIから取得する必要あり）
-- アップロードキャンセル機能なし
-- アップロード中のファイル単位進捗表示なし
-
-### 9.2 将来の改善案
-- [ ] 実際のAPI連携（フォルダ構造取得）
-- [ ] アップロードキャンセル機能
-- [ ] ファイル単位の進捗表示
-- [ ] アップロード失敗時のリトライ機能
-- [ ] ファイルサイズ制限チェック
-- [ ] ファイル形式チェック強化
-- [ ] 並列アップロード数の制御
-- [ ] アップロード履歴の表示
-- [ ] ドラッグ&ドロップ時の視覚フィードバック強化
-
----
-
-## 10. テスト観点
-
-### 10.1 単体テスト
-- [ ] モード切り替えが正しく動作する
-- [ ] ファイル選択が正しく動作する
-- [ ] フォルダ選択が正しく動作する
-- [ ] ファイルサイズフォーマットが正しい
-- [ ] 進捗表示が正しく更新される
-- [ ] エラーメッセージが正しく表示される
-
-### 10.2 統合テスト
-- [ ] アップロードAPIが正しく呼び出される
-- [ ] 親コンポーネントへの完了通知
-- [ ] アップロード中の閉じる確認ダイアログ
-
-### 10.3 E2Eテスト
-- [ ] ファイル選択からアップロード完了
-- [ ] フォルダアップロード
-- [ ] エラーケースの動作確認
-- [ ] アップロード中のキャンセル
-
----
-
-## 11. 変更履歴
-
-| 日付 | バージョン | 変更内容 | 担当者 |
-|------|-----------|---------|--------|
-| 2026-01-21 | 1.0.0 | 初版作成 | Cline |
-
----
-
-## 12. 関連ドキュメント
-
-- [ProjectManagement仕様](./ProjectManagement.md) - 親コンポーネント
-- [FileListTable仕様](./FileListTable.md) - ファイル一覧表示
-- [UIポリシー](.clinerules/references/ui_policy.md) - UI設計ルール
-- [ファイルアップロードAPI](../../../20260121_API一覧.md) - API仕様
+- ファイルリスト表示は最大10件に制限
+- 大量ファイルの場合は「他 X ファイル...」と省略
+- アップロード完了後2秒でフォームリセット（自動クリーンアップ）
