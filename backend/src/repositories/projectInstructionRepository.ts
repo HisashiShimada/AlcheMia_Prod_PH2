@@ -199,7 +199,12 @@ export async function findById(
 }
 
 /**
- * 指示を削除（未送信のみ: status=0）
+ * 指示を削除し、後続の指示の連番を詰める（未送信のみ: status=0）
+ * 
+ * 動作例：
+ * 削除前: project_001, project_002, project_003
+ * project_002を削除
+ * 削除後: project_001, project_002 (旧project_003を採番し直し)
  * 
  * @param organizationId 組織ID
  * @param projectId プロジェクトID
@@ -212,17 +217,116 @@ export async function deleteById(
   experimentInstructionId: string
 ): Promise<boolean> {
   const pool = getPool();
+  const client = await pool.connect();
   
-  const query = `
-    DELETE FROM project_instruction
-    WHERE organization_id = $1
-      AND project_id = $2
-      AND experiment_instruction_id = $3
-      AND instruction_status = 0
-  `;
-  
-  const result = await pool.query(query, [organizationId, projectId, experimentInstructionId]);
-  return (result.rowCount ?? 0) > 0;
+  try {
+    await client.query('BEGIN');
+    
+    // 1. 削除対象の指示を取得（未送信のみ）
+    const targetQuery = `
+      SELECT experiment_instruction_id
+      FROM project_instruction
+      WHERE organization_id = $1
+        AND project_id = $2
+        AND experiment_instruction_id = $3
+        AND instruction_status = 0
+      FOR UPDATE
+    `;
+    
+    const targetResult = await client.query(targetQuery, [
+      organizationId,
+      projectId,
+      experimentInstructionId
+    ]);
+    
+    if (targetResult.rows.length === 0) {
+      // 見つからないまたは送信済
+      await client.query('ROLLBACK');
+      return false;
+    }
+    
+    // 2. プロジェクト名と削除対象の連番を取得
+    const projectQuery = `
+      SELECT project_name FROM project
+      WHERE organization_id = $1 AND project_id = $2
+    `;
+    const projectResult = await client.query(projectQuery, [organizationId, projectId]);
+    const projectName = projectResult.rows[0].project_name;
+    
+    // experiment_instruction_idから連番を抽出 (例: "project_002" → 2)
+    const deletedNumber = parseInt(experimentInstructionId.split('_').pop() || '0', 10);
+    
+    // 3. 削除対象より後の連番の指示を取得（未送信のみ、連番順）
+    const subsequentQuery = `
+      SELECT *
+      FROM project_instruction
+      WHERE organization_id = $1
+        AND project_id = $2
+        AND instruction_status = 0
+      ORDER BY experiment_instruction_id ASC
+      FOR UPDATE
+    `;
+    
+    const subsequentResult = await client.query<ProjectInstruction>(
+      subsequentQuery,
+      [organizationId, projectId]
+    );
+    
+    // 削除対象より後の指示を抽出
+    const subsequentInstructions = subsequentResult.rows.filter(inst => {
+      const num = parseInt(inst.experiment_instruction_id?.split('_').pop() || '0', 10);
+      return num > deletedNumber;
+    });
+    
+    // 4. 削除対象を削除
+    const deleteQuery = `
+      DELETE FROM project_instruction
+      WHERE organization_id = $1
+        AND project_id = $2
+        AND experiment_instruction_id = $3
+        AND instruction_status = 0
+    `;
+    
+    await client.query(deleteQuery, [
+      organizationId,
+      projectId,
+      experimentInstructionId
+    ]);
+    
+    // 5. 後続の指示を再採番して更新
+    for (let i = 0; i < subsequentInstructions.length; i++) {
+      const instruction = subsequentInstructions[i];
+      const oldId = instruction.experiment_instruction_id;
+      const newNumber = deletedNumber + i; // 削除された番号から詰めていく
+      const newId = `${projectName}_${String(newNumber).padStart(3, '0')}`;
+      
+      // IDを更新
+      const updateQuery = `
+        UPDATE project_instruction
+        SET experiment_instruction_id = $1,
+            update_at = CURRENT_TIMESTAMP
+        WHERE organization_id = $2
+          AND project_id = $3
+          AND experiment_instruction_id = $4
+      `;
+      
+      await client.query(updateQuery, [
+        newId,
+        organizationId,
+        projectId,
+        oldId
+      ]);
+    }
+    
+    await client.query('COMMIT');
+    return true;
+    
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
