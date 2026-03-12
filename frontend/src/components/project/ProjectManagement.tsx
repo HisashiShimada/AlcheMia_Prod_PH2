@@ -1373,7 +1373,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   },
                   {
                     key: 'task_registration',
-                    label: 'タスク登録',
+                    label: t('projectManagement.tabs.task_registration'),
                     children: (
                       <TaskRegistrationTab
                         projectId={selectedProject.id}
@@ -1385,7 +1385,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   },
                   {
                     key: 'instruction_registration',
-                    label: '指示一覧',
+                    label: t('projectManagement.tabs.instruction_registration'),
                     children: (
                       <InstructionRegistrationTab
                         projectId={selectedProject.id}
