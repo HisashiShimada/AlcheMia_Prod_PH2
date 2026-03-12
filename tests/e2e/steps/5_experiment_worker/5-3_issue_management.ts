@@ -240,7 +240,7 @@ After(async () => {
     try {
       await db.query(
         `DELETE FROM transition_set
-         WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND experiment_order = $4`,
+         WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
         [ORG_ID, TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER]
       );
       console.log('[5-3 After] transition_set 削除 完了');
@@ -797,7 +797,7 @@ async function upsertTestTransitionSet(
     // transition_set テーブルの存在確認
     const existing = await db.query<{ count: string }>(
       `SELECT COUNT(*) as count FROM transition_set
-       WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND experiment_order = $4`,
+       WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
       [ORG_ID, projectId, methodId, experimentOrder]
     );
 
@@ -806,12 +806,12 @@ async function upsertTestTransitionSet(
       // NOTE: transition_id は UUID 形式が必要（実際のスキーマに従う）
       await db.query(
         `INSERT INTO transition_set (
-          organization_id, project_id, method_id, experiment_order,
+          organization_id, project_id, method_id, task_no,
           transition_id, transition_name, status, progress_rate,
           create_at, update_at
         ) VALUES (
           $1, $2, $3, $4,
-          gen_random_uuid(), 'E2Eテスト用トランジション_5-3', 'not_started', 0,
+          gen_random_uuid(), 'E2Eテスト用トランジション_5-3', 0, 0,
           NOW(), NOW()
         )`,
         [ORG_ID, projectId, methodId, experimentOrder]

@@ -302,13 +302,11 @@ Given('実験作業者のユーザID {string} がDB（organization_userテーブ
 
 /**
  * 実験作業者ユーザーでログインする
- * TODO: ユーザーID・パスワードは仮値。実際の値に要更新。
  */
-When('実験作業者ユーザー {string} でログインする', async ({ page }, _userId: string) => {
+When('実験作業者ユーザー {string} でログインする', async ({ page }, userId: string) => {
   await page.goto(`/?orgId=${ORG_ID}`);
   await page.waitForSelector('#userId', { timeout: 15000 });
-  // TODO: 実際の実験作業者ユーザーIDとパスワードに更新すること
-  await page.fill('#userId', 'worker@example.com');
+  await page.fill('#userId', userId);
   await page.fill('#password', 'worker123');
   await page.click('button[type="submit"]');
   await page.waitForLoadState('networkidle', { timeout: 30000 });
@@ -613,9 +611,19 @@ Then('フロー図ダイアログが表示されること', async ({ page }) => 
 
 /**
  * [5-4-9] 全ての確認完了ボタンが無効化されていること
- * タスク・トランジション全アイテムの確認完了ボタンが disabled であること
+ * プロジェクト指示・タスク指示・トランジション指示の全確認完了ボタンが disabled であること
+ * テストシナリオ: 追加機能P / ui_instruction_confirmation_tab.md §3.2
  */
 Then('全ての確認完了ボタンが無効化されていること', async ({ page }) => {
+  // プロジェクト指示グループ内の「確認完了」ボタンが disabled であること
+  const projectConfirmBtns = page
+    .locator('[data-testid="instruction-group-file"]')
+    .locator('button:has-text("確認完了")');
+  const projectBtnCount = await projectConfirmBtns.count();
+  for (let i = 0; i < projectBtnCount; i++) {
+    await expect(projectConfirmBtns.nth(i)).toBeDisabled({ timeout: 10000 });
+  }
+
   // タスク指示グループ内の全確認完了ボタンが disabled であること
   const taskConfirmBtns = page.locator('[data-testid^="instruction-task-confirm-button-"]');
   const taskBtnCount = await taskConfirmBtns.count();

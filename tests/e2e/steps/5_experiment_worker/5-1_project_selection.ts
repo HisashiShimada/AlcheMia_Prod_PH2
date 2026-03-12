@@ -9,8 +9,8 @@
  *   パスワード: worker123
  *
  * 前提条件（テストデータ）:
- *   - project テーブルに E2Eテスト用プロジェクト_5-1（project_status: 1 = in_progress）が存在すること
- *   - project テーブルに E2Eテスト用プロジェクト_5-1B（project_status: 1 = in_progress）が存在すること（5-1-3用）
+ *   - project テーブルに E2Eテスト用プロジェクト_5-1（project_status: 2 = executing_task）が存在すること
+ *   - project テーブルに E2Eテスト用プロジェクト_5-1B（project_status: 2 = executing_task）が存在すること（5-1-3用）
  *   - project_task テーブルに上記プロジェクトのメソッドA・メソッドB・タスクが存在すること
  *
  * TODO: API GET /api/v1/projects/worker-accessible が実装完了後、
@@ -46,10 +46,10 @@ const TEST_METHOD_ID_B = 'E2E_METHOD_B';
 
 /**
  * project_status の数値定義（DDL: docs/design/db/ddl/project.sql）
- * TODO: バックエンドの enum 定義と照合して正確な値を確認すること
- * 現時点の想定: 1 = in_progress（実験中）
+ * 2 = executing_task（タスク実行中）
+ * テストシナリオ §3.3 および §5-5 ビジネスルール表より確認済み
  */
-const PROJECT_STATUS_IN_PROGRESS = 1;
+const PROJECT_STATUS_EXECUTING_TASK = 2;
 
 // ---------------------------------------------------------------------------
 // クリーンアップ追跡変数
@@ -491,7 +491,7 @@ async function waitForSelectDropdown(page: import('@playwright/test').Page): Pro
  * @param projectName - プロジェクト名（project テーブルの project_name）
  *
  * DDL参照: docs/design/db/ddl/project.sql
- * project_status の数値: TODO バックエンドのenum定義と照合して確認すること
+ * project_status の数値: 2 = executing_task（テストシナリオ §3.3 より確認済み）
  */
 async function upsertTestProject(projectId: string, projectName: string): Promise<void> {
   console.log(`[5-1 upsertTestProject] 開始: project_id=${projectId}, project_name=${projectName}`);
@@ -507,7 +507,7 @@ async function upsertTestProject(projectId: string, projectName: string): Promis
         `UPDATE project
          SET project_name = $1, project_status = $2, update_user_id = 'e2e-test', update_at = NOW()
          WHERE organization_id = $3 AND project_id = $4`,
-        [projectName, PROJECT_STATUS_IN_PROGRESS, ORG_ID, projectId]
+        [projectName, PROJECT_STATUS_EXECUTING_TASK, ORG_ID, projectId]
       );
       console.log(`[5-1 upsertTestProject] UPDATE 完了: project_id=${projectId}`);
     } else {
@@ -522,7 +522,7 @@ async function upsertTestProject(projectId: string, projectName: string): Promis
           false, 0,
           'e2e-test', NOW(), 'e2e-test', NOW()
         )`,
-        [ORG_ID, projectId, projectName, PROJECT_STATUS_IN_PROGRESS]
+        [ORG_ID, projectId, projectName, PROJECT_STATUS_EXECUTING_TASK]
       );
       createdProjectIds.push(projectId);
       console.log(`[5-1 upsertTestProject] INSERT 完了: project_id=${projectId}`);

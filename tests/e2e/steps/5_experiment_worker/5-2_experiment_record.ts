@@ -429,8 +429,9 @@ When('ステータス更新の保存ボタンをクリックする', async ({ pa
     page
       .waitForResponse(
         (resp) =>
-          resp.url().includes('/api/v1/experiments/') &&
-          resp.request().method() === 'PUT',
+          resp.url().includes('/transitions/') &&
+          resp.url().includes('/status') &&
+          resp.request().method() === 'PATCH',
         { timeout: 15000 }
       )
       .catch(() => {}),
@@ -797,7 +798,7 @@ Then('みなし進捗更新チェックボックスが非表示であること',
 
 /** トランジションステータス更新APIが呼び出されること */
 Then('トランジションステータス更新APIが呼び出されること', async ({ page }) => {
-  // PUT /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status
+  // PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status
   await expect
     .poll(
       async () => {
@@ -806,7 +807,7 @@ Then('トランジションステータス更新APIが呼び出されること',
             (resp) =>
               resp.url().includes('/transitions/') &&
               resp.url().includes('/status') &&
-              resp.request().method() === 'PUT',
+              resp.request().method() === 'PATCH',
             { timeout: 5000 }
           )
           .catch(() => null);
@@ -824,7 +825,7 @@ Then('トランジションステータス更新APIが進捗率50で呼び出さ
       (resp) =>
         resp.url().includes('/transitions/') &&
         resp.url().includes('/status') &&
-        resp.request().method() === 'PUT',
+        resp.request().method() === 'PATCH',
       { timeout: 15000 }
     )
     .catch(() => null);

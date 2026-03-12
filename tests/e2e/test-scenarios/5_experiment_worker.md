@@ -55,18 +55,18 @@
 |-----------|-----------|------|------|---------|
 | 5-2-1 | 実験記録タブでトランジション一覧が表示されること | 正常系 | 要件書#2 | GET `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` |
 | 5-2-2 | トランジションの「記録」ボタンでデータ記録ダイアログが開くこと | 正常系 | 要件書#3〜7 | - |
-| 5-2-3 | データ記録ダイアログでテンプレートデータを入力して保存できること | 正常系 | 要件書#3〜7 | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/template-data` |
+| 5-2-3 | データ記録ダイアログでテンプレートデータを入力して保存できること | 正常系 | 要件書#3〜7 | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` |
 | 5-2-4 | プロジェクト未選択時は記録ボタンが無効化されていること | 表示確認 | `ui_transition_list.md` §4.4 | - |
 | 5-2-5 | トランジション一覧に名称・ステータス・進捗率・材料数・条件数・結果数・記録ボタン・問題報告ボタンの各列が正しく表示されること | 表示確認 | 追加機能L、`ui_transition_list.md` | GET `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` |
 | 5-2-6 | 表示切り替えボタンでリスト表示⇄フロー図表示を切り替えられること | 正常系 | 追加機能L、`ui_experiment_record_tab.md` §3.2 | - |
 | 5-2-7 | フロー図表示でトランジションノードが表示されること | 表示確認 | 追加機能L、`ui_transition_flow_diagram.md` | - |
-| 5-2-8 | データ記録ダイアログ表示時に既存テンプレートデータが取得されること | 正常系 | `ui_data_record_dialog.md` §5.4 | GET `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/template-data` |
+| 5-2-8 | データ記録ダイアログ表示時に既存テンプレートデータが取得されること | 正常系 | `ui_data_record_dialog.md` §5.4 | GET `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` |
 | 5-2-9 | 既存データが存在するテンプレート行に記録済みバッジ（緑ドット）が表示されること | 表示確認 | `ui_data_record_dialog.md` §3.3 | - |
 | 5-2-10 | データ記録ダイアログで「みなし進捗更新」チェックボックスがON（初期状態）の場合にステータス更新セクションが非表示になること | 表示確認 | `ui_data_record_dialog.md` §3.1 | - |
 | 5-2-11 | データ記録ダイアログで「みなし進捗更新」チェックボックスをOFFにするとステータス更新セクション（ステータス選択・進捗スライダー・コメント）が表示されること | 表示確認 | `ui_data_record_dialog.md` §3.1、§4.4 | - |
 | 5-2-12 | 組織設定でみなし進捗を使用しない場合、チェックボックスが非表示でステータス更新セクションが常時表示されること | 表示確認 | `ui_data_record_dialog.md` §3.1（useDeemedProgressProp=false） | - |
-| 5-2-13 | みなし進捗OFFの状態でトランジションステータスを選択して保存ボタンを押すとステータスが更新されること | 正常系 | `ui_data_record_dialog.md` §4.4 | PUT `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status` |
-| 5-2-14 | みなし進捗OFFの状態で進捗率スライダーを操作して保存ボタンを押すと進捗率が更新されること | 正常系 | `ui_data_record_dialog.md` §3.1、§4.4 | PUT `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status` |
+| 5-2-13 | みなし進捗OFFの状態でトランジションステータスを選択して保存ボタンを押すとステータスが更新されること | 正常系 | `ui_data_record_dialog.md` §4.4 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` |
+| 5-2-14 | みなし進捗OFFの状態で進捗率スライダーを操作して保存ボタンを押すと進捗率が更新されること | 正常系 | `ui_data_record_dialog.md` §3.1、§4.4 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` |
 | 5-2-15 | 終端ステータス（終状態=5、異常終了状態=6）の場合にステータス選択が無効化されること | 表示確認 | `ui_data_record_dialog.md` §3.3（終端ステータス） | - |
 | 5-2-16 | プロジェクトステータスが編集不可（waiting_approval）の場合にデータ記録ダイアログのステータス更新セクションが折りたたまれた状態で表示されること | 表示確認 | `ui_data_record_dialog.md` §10.1 | - |
 | 5-2-17 | データ記録ダイアログにテンプレート一覧（材料IN/条件IN/結果OUT）が表示されること | 表示確認 | `ui_data_record_dialog.md` §3.3 | - |
@@ -127,11 +127,11 @@
 |-----------|-----------|------|------|---------|
 | 5-3-1 | トランジションの「問題報告」ボタンで問題管理モーダルが開くこと | 正常系 | 追加機能D | GET `/api/v1/issues` |
 | 5-3-2 | 問題管理モーダルで新しい問題を報告できること | 正常系 | 追加機能D | POST `/api/v1/issues` |
-| 5-3-3 | 問題管理モーダルで既存の問題にコメントを投稿できること | 正常系 | 追加機能E | POST `/api/v1/issues/:issueId/comments` |
+| 5-3-3 | 問題管理モーダルで既存の問題にコメントを投稿できること | 正常系 | 追加機能E | POST `/api/v1/issues/comments` |
 | 5-3-4 | タイトルが未入力の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - |
 | 5-3-5 | 問題一覧がステータスでフィルタリングできること | 正常系 | 追加機能F | GET `/api/v1/issues` |
-| 5-3-6 | 未解決の問題を解決済みに変更できること | 正常系 | 追加機能G | PATCH `/api/v1/issues/:issueId/status` |
-| 5-3-7 | 解決済みの問題を未解決に戻せること | 正常系 | 追加機能G | PATCH `/api/v1/issues/:issueId/status` |
+| 5-3-6 | 未解決の問題を解決済みに変更できること | 正常系 | 追加機能G | PATCH `/api/v1/issues/status` |
+| 5-3-7 | 解決済みの問題を未解決に戻せること | 正常系 | 追加機能G | PATCH `/api/v1/issues/status` |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み（5-3-1〜5-3-5）
@@ -286,11 +286,11 @@
 |---------|---------|---------------------|---------|-----------|
 | 1 | タスクの選択・実行（作業開始・中断・再開） | ✅ `ProgressCheckTab` / `MethodTaskSelectionModal` | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | **5-1, 5-5** |
 | 2 | ワークフローに従った作業手順の順次実行 | ✅ `TransitionList` / `TransitionFlowDiagram` | GET `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | **5-2** |
-| 3 | 実験条件（実験者名・作業記録・実験結果・計測結果・実験ログ）の登録 | ✅ `DataRecordDialog` | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/template-data` | **5-2** |
-| 4 | 実験作業中のメモ・気づきの入力（作業手順に紐づいて記録） | ✅ `DataRecordDialog`（コメント欄） | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/template-data` | **5-2** |
-| 5 | 事前設定条件と異なる実験条件で実施した場合の実際条件の記録 | ✅ `DataRecordDialog`（ステータス・コメント入力） | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/template-data` | **5-2** |
-| 6 | 計測・分析結果の登録（計測・分析システムからのデータ取得） | ✅ `DataRecordDialog` | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/template-data` | **5-2** |
-| 7 | 作業手順ごとの実験機器・計測装置の操作 | ✅ `TransitionList`（記録ボタン） | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/template-data` | **5-2** |
+| 3 | 実験条件（実験者名・作業記録・実験結果・計測結果・実験ログ）の登録 | ✅ `DataRecordDialog` | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | **5-2** |
+| 4 | 実験作業中のメモ・気づきの入力（作業手順に紐づいて記録） | ✅ `DataRecordDialog`（コメント欄） | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | **5-2** |
+| 5 | 事前設定条件と異なる実験条件で実施した場合の実際条件の記録 | ✅ `DataRecordDialog`（ステータス・コメント入力） | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | **5-2** |
+| 6 | 計測・分析結果の登録（計測・分析システムからのデータ取得） | ✅ `DataRecordDialog` | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | **5-2** |
+| 7 | 作業手順ごとの実験機器・計測装置の操作 | ✅ `TransitionList`（記録ボタン） | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | **5-2** |
 | 8 | 実験管理者からの指示事項・注意事項の確認 | ✅ `InstructionConfirmationTab` / `InstructionGroup` | GET `/api/v1/instructions` | **5-4** |
 | 9 | 実験作業者の操作履歴の閲覧 | ❌ 設計書に未定義 | - | **対象外** |
 | 10 | システムダウン時の状態通知の受信 | ❌ 設計書に未定義 | - | **対象外** |
@@ -308,15 +308,15 @@
 | B | メソッド・タスク選択モーダル（タブ切り替え・フィルタリング） | `ui_method_task_selection_modal.md` | - | **5-1** |
 | C | 進捗確認タブでのタスク一覧表示（メソッドタブ切り替え） | `ui_progress_check_tab.md`, `ui_progress_check_table.md` | GET `/api/v1/worker/tasks` | **5-5** |
 | D | 問題報告（トランジション単位・タスク単位） | `ui_transition_list.md` §5.2, `ui_issue_management_modal.md` | POST `/api/v1/issues` | **5-3** |
-| E | 問題へのコメント投稿 | `ui_issue_management_modal.md` | POST `/api/v1/issues/:issueId/comments` | **5-3** |
+| E | 問題へのコメント投稿 | `ui_issue_management_modal.md` | POST `/api/v1/issues/comments` | **5-3** |
 | F | 問題一覧の確認（フィルタリング・ページネーション） | `ui_issue_management_modal.md` | GET `/api/v1/issues` | **5-3** |
-| G | 問題ステータス変更（未解決⇔解決済） | `ui_issue_management_modal.md` §8 | PATCH `/api/v1/issues/:issueId/status` | **5-3** |
+| G | 問題ステータス変更（未解決⇔解決済） | `ui_issue_management_modal.md` §8 | PATCH `/api/v1/issues/status` | **5-3** |
 | H | 指示のグループ表示（プロジェクト/タスク/トランジション別） | `ui_instruction_group.md` §3.1 | GET `/api/v1/instructions` | **5-4** |
 | I | 指示グループの折りたたみ/展開 | `ui_instruction_group.md` §4 | - | **5-4** |
 | J | 指示確認完了ボタン（グループ単位・全体一括） | `ui_instruction_group.md` §6.2, `ui_instruction_confirmation_tab.md` §3.2 | PUT `/api/v1/instructions/{instructionId}/confirm` | **5-4** |
 | K | 承認依頼（進捗確認タブから送信） | `ui_experiment_worker_main.md` §3.2.3, §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | **5-5** |
 | L | トランジションのフロー図表示（TransitionFlowDiagram） | `ui_transition_flow_diagram.md` | - | **5-2** |
-| M | 実験データ保存後のテンプレート実績取得（ダイアログオープン時） | `ui_data_record_dialog.md` §5.4 | GET `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/template-data` | **5-2** |
+| M | 実験データ保存後のテンプレート実績取得（ダイアログオープン時） | `ui_data_record_dialog.md` §5.4 | GET `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | **5-2** |
 | N | 記録済みバッジ表示（テンプレート行に緑ドット） | `ui_data_record_dialog.md` §3.3 | - | **5-2** |
 | O | 指示確認タブのフロー図ダイアログ表示（ドラッグ&リサイズ） | `ui_instruction_flow_dialog.md` | GET `/api/v1/projects/:projectName/maiml` | **5-4** |
 | P | 全ての指示の一括確認完了 | `ui_instruction_confirmation_tab.md` §3.2 | PUT `/api/v1/instructions/{instructionId}/confirm` | **5-4** |
@@ -345,17 +345,17 @@
 | GET `/api/v1/projects/worker-accessible` | ✅ 完了 | 影響なし |
 | GET `/api/v1/worker/tasks` | ✅ 完了 | 影響なし（`getWorkerTasks(projectName)` を使用） |
 | GET `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | ✅ 完了 | 影響なし |
-| GET `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/template-data` | ✅ 完了 | 影響なし |
-| POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/template-data` | ✅ 完了 | 影響なし |
-| PUT `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions/:transitionId/status` | ✅ 完了 | 影響なし |
+| GET `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | ✅ 完了 | 影響なし |
+| POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | ✅ 完了 | 影響なし |
+| PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | ✅ 完了 | 影響なし |
 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | ✅ 完了 | 影響なし（楽観的ロック対応） |
 | GET `/api/v1/instructions` | ✅ 完了 | 影響なし |
 | PUT `/api/v1/instructions/{instructionId}/confirm` | ✅ 完了 | 影響なし |
 | GET `/api/v1/projects/:projectName/maiml` | ✅ 完了 | 影響なし |
 | POST `/api/v1/issues` | ✅ 完了 | 影響なし |
-| POST `/api/v1/issues/:issueId/comments` | ✅ 完了 | 影響なし |
+| POST `/api/v1/issues/comments` | ✅ 完了 | 影響なし |
 | GET `/api/v1/issues` | ✅ 完了 | 影響なし |
-| PATCH `/api/v1/issues/:issueId/status` | ✅ 完了 | 5-3-6、5-3-7はManager権限ユーザーで実施 |
+| PATCH `/api/v1/issues/status` | ✅ 完了 | 5-3-6、5-3-7はManager権限ユーザーで実施 |
 | PATCH `/api/v1/projects/{projectName}/approval-request` | ✅ 完了 | 影響なし（`requestApproval(projectName)` を使用） |
 
 ---

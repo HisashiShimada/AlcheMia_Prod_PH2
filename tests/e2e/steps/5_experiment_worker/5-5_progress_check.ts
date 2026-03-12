@@ -298,7 +298,8 @@ When('プロジェクト選択コンボボックスでプロジェクト {string
  */
 When('進捗確認タブを開く', async ({ page }) => {
   // 進捗確認タブのラベルをクリック（デフォルトタブのため既に表示されているケースもある）
-  const progressTab = page.locator('[role="tab"]').filter({ hasText: /進捗確認/ });
+  // Ant Design Tabs コンポーネントは .ant-tabs-tab セレクターを使用すること（[role="tab"] は禁止）
+  const progressTab = page.locator('.ant-tabs-tab').filter({ hasText: /進捗確認/ }).first();
   await progressTab.waitFor({ state: 'visible', timeout: 10000 });
   await progressTab.click();
   // タブコンテンツが表示されるまで待機
@@ -310,7 +311,8 @@ When('進捗確認タブを開く', async ({ page }) => {
  * ExperimentWorkerMenu.tsx: tabItems key='3'
  */
 When('実験記録タブを開く', async ({ page }) => {
-  const recordTab = page.locator('[role="tab"]').filter({ hasText: /実験記録/ });
+  // Ant Design Tabs コンポーネントは .ant-tabs-tab セレクターを使用すること（[role="tab"] は禁止）
+  const recordTab = page.locator('.ant-tabs-tab').filter({ hasText: /実験記録/ }).first();
   await recordTab.waitFor({ state: 'visible', timeout: 10000 });
   await recordTab.click();
   await page.waitForTimeout(500);
