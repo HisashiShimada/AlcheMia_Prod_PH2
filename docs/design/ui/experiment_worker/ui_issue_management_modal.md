@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/IssueManagementModal.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-02-27
+- **最終更新日**: 2026-03-11
 
 ---
 
@@ -68,7 +68,7 @@
 
 モーダル幅: 1200px
 モーダルトップ位置: 20px
-destroyOnClose: true
+destroyOnHidden: true
 ```
 
 ### 2.3 使用コンポーネント
@@ -90,12 +90,18 @@ destroyOnClose: true
 - `Typography.Text` / `Typography.Title` - テキスト表示
 - `Divider` - 区切り線
 - `message` - トースト通知
+- `Spin` - 問題一覧ローディング表示
+
+#### Reactフック
+- `useState` - 各種状態管理
+- `useMemo` - 派生値の計算（filteredIssues, selectedIssue）
+- `useEffect` - モーダルオープン時の問題一覧取得
+- `useCallback` - fetchIssues関数のメモ化
 
 #### アイコン
 - `ExclamationCircleOutlined` - 未解決アイコン
 - `CheckCircleOutlined` - 解決済アイコン
 - `PlusOutlined` - 新規問題報告アイコン
-- `SendOutlined` - 送信アイコン（未使用）
 
 ---
 
@@ -103,17 +109,23 @@ destroyOnClose: true
 
 ```typescript
 interface IssueManagementModalProps {
-  visible: boolean;                                      // モーダルの表示状態
-  transitionId: string;                                  // トランジションID
-  transitionName: string;                                // トランジション名（タイトルに表示）
-  issues: Issue[];                                       // 問題一覧
-  onClose: () => void;                                   // 閉じるイベントハンドラ
-  onSubmitIssue?: (issue: IssueReportFormData) => void; // 新規問題報告イベント
-  onSubmitComment?: (issueId: string, comment: string) => void;  // コメント送信イベント
-  onUpdateStatus?: (issueId: string, status: IssueStatus) => void;  // ステータス変更イベント
-  viewMode?: boolean;                                    // 参照専用モード（デフォルト: false）
-  filterTaskId?: string;                                 // フィルタリング用タスクID
-  projectStatus?: ProjectStatus | null;                  // プロジェクトステータス（編集可否の判定用）
+  visible: boolean;                    // モーダルの表示状態
+  /** タイトルに表示する名前 */
+  targetName: string;
+  /** 問題一覧取得・新規報告に必要なプロジェクトID */
+  projectId: string;
+  /** コメント追加・ステータス変更に必要なプロジェクト名 */
+  projectName: string;
+  /** オプション: 省略時はプロジェクト全件を取得 */
+  methodId?: string;
+  /** オプション: タスク単位の絞り込みに使用 */
+  taskNo?: number;
+  /** オプション: トランジション単位の絞り込みに使用 */
+  transitionId?: string;
+  onClose: () => void;                 // 閉じるイベントハンドラ
+  viewMode?: boolean;                  // 参照専用モード（デフォルト: false）
+  filterTaskId?: string;               // フィルタリング用タスクID
+  projectStatus?: ProjectStatus | null; // プロジェクトステータス（編集可否の判定用）
 }
 
 interface Issue {
@@ -151,16 +163,20 @@ interface IssueReportFormData {
 
 **Props詳細:**
 - `visible`: モーダルの表示/非表示を制御
-- `transitionId`: 表示対象のトランジションID
-- `transitionName`: タイトルに表示するトランジション名
-- `issues`: 表示する問題の配列
+- `targetName`: タイトルに表示する名前（トランジション名など）
+- `projectId`: 問題一覧取得・新規報告に使用するプロジェクトID
+- `projectName`: コメント追加・ステータス変更APIに使用するプロジェクト名
+- `methodId`: 絞り込み用メソッドID（オプション、省略時はプロジェクト全件を取得）
+- `taskNo`: タスク単位の絞り込みに使用するタスク番号（オプション）
+- `transitionId`: トランジション単位の絞り込みに使用するID（オプション）
 - `onClose`: モーダルを閉じるハンドラ
-- `onSubmitIssue`: 新規問題報告時のハンドラ（オプション）
-- `onSubmitComment`: コメント送信時のハンドラ（オプション）
-- `onUpdateStatus`: ステータス変更時のハンドラ（オプション）
 - `viewMode`: true の場合、参照専用モード（編集・新規作成不可）
 - `filterTaskId`: 指定した場合、そのタスクIDの問題のみ表示
 - `projectStatus`: プロジェクトのステータス（'waiting_approval'の場合は編集不可）
+
+> **設計変更について:**
+> 旧設計では `issues` Props として親コンポーネントから問題一覧を受け取り、`onSubmitIssue` / `onSubmitComment` / `onUpdateStatus` コールバックを通じて操作していた。
+> 現行設計では、コンポーネント内部で `issueApiService` を直接呼び出す設計に変更されており、親コンポーネントからのデータ受け渡しは不要になっている。
 
 ---
 
@@ -172,9 +188,13 @@ interface IssueReportFormData {
 const [form] = Form.useForm();                          // 新規問題報告フォーム
 const [commentForm] = Form.useForm();                   // コメントフォーム
 
+// 問題一覧（内部state: コンポーネント内部でAPIから取得）
+const [issues, setIssues] = useState<Issue[]>([]);
+const [issuesLoading, setIssuesLoading] = useState(false);
+
 // 選択中の問題IDのみをstateで保持する
-// selectedIssue 自体は issues props から useMemo で導出することで、
-// 親が issues を再取得するたびに自動的に最新データが反映される
+// selectedIssue 自体は issues state から useMemo で導出することで、
+// 再取得のたびに自動的に最新データが反映される
 const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);  // 選択中の問題ID
 
 const [showNewIssueForm, setShowNewIssueForm] = useState(false);         // 新規報告フォーム表示状態
@@ -184,8 +204,30 @@ const [newComment, setNewComment] = useState('');                        // 新�
 const [searchText, setSearchText] = useState('');                        // 検索テキスト
 const [statusFilter, setStatusFilter] = useState<IssueStatus | 'all'>('all');  // ステータスフィルター
 
-// 選択中の問題を issues props から導出する（useMemo）
-// issues プロップが更新（コメント送信・ステータス変更後の再取得）されると
+// 問題一覧を再取得する関数
+const fetchIssues = useCallback(async () => {
+  if (!projectId) return;
+  setIssuesLoading(true);
+  try {
+    const data = await getIssues({ projectId, methodId, taskNo, transitionId });
+    setIssues(data);
+  } catch (error) {
+    console.error('[IssueManagementModal] fetchIssues error:', error);
+    message.error('問題一覧の取得に失敗しました');
+  } finally {
+    setIssuesLoading(false);
+  }
+}, [projectId, methodId, taskNo, transitionId]);
+
+// モーダルが開いた時に問題一覧を取得する
+useEffect(() => {
+  if (visible) {
+    fetchIssues();
+  }
+}, [visible, fetchIssues]);
+
+// 選択中の問題を issues state から導出する（useMemo）
+// issues が更新（コメント送信・ステータス変更後の再取得）されると
 // selectedIssue も自動的に最新データに追随し、コメント一覧が即時更新される
 const selectedIssue = useMemo(
   () => issues.find((issue) => issue.issueId === selectedIssueId) ?? null,
@@ -194,11 +236,51 @@ const selectedIssue = useMemo(
 ```
 
 **設計ポイント:**
+- `issues` はPropsではなく内部Stateとして保持し、コンポーネント内部でAPIから取得する
 - `selectedIssue` はstateではなく `useMemo` で導出される派生値
-- `issues` プロップが変化するたびに自動再計算されるため、コメント送信後の即時表示が実現される
-- `useEffect` + `setState` のパターンは避ける（ESLintエラー・カスケードレンダリングの原因となるため）
+- `issues` stateが変化するたびに自動再計算されるため、コメント送信後の即時表示が実現される
+- `fetchIssues` は `useCallback` でメモ化し、`useEffect` の依存配列に安全に渡す
+- 各操作（問題報告・コメント送信・ステータス変更）後に `fetchIssues()` を再呼び出しして最新状態を反映する
 
-### 4.2 編集可否の判定
+### 4.2 使用APIサービス（issueApiService）
+
+このコンポーネントは `@/services/issueApiService` を直接インポートして使用します。
+
+```typescript
+import {
+  getIssues,
+  createIssue,
+  addComment,
+  updateIssueStatus,
+} from '@/services/issueApiService';
+```
+
+| 関数 | 用途 | 呼び出しタイミング |
+|------|------|-----------------|
+| `getIssues({ projectId, methodId, taskNo, transitionId })` | 問題一覧取得 | モーダルオープン時・各操作後 |
+| `createIssue({ projectId, methodId, issueType, targetType, taskNo, transitionId, title, description })` | 新規問題報告 | 保存ボタンクリック時 |
+| `addComment({ projectName, issueId, comment })` | コメント追加 | コメント送信・ステータス変更時 |
+| `updateIssueStatus({ projectName, issueId, status })` | ステータス変更 | 未解決/解決ボタンクリック時 |
+
+**再取得パターン:**
+
+各操作完了後は必ず `fetchIssues()` を呼び出し、最新状態を反映します。
+
+```
+ユーザー操作
+  ↓
+APIを直接呼び出し（createIssue / addComment / updateIssueStatus）
+  ↓
+成功メッセージ表示
+  ↓
+fetchIssues() で一覧を再取得
+  ↓
+issues state が更新
+  ↓
+selectedIssue（useMemo）が自動的に最新状態に追随
+```
+
+### 4.3 編集可否の判定
 
 ```typescript
 // プロジェクトが承認依頼中の場合は編集不可
@@ -539,6 +621,16 @@ const getStatusTag = (status: IssueStatus) => {
 | 未解決 | コメントが入力されている かつ 現在のステータスが「解決済」 かつ 編集可能 |
 | 解決 | コメントが入力されている かつ 現在のステータスが「未解決」 かつ 編集可能 |
 
+**ボタンのtooltip（承認依頼中）:**
+
+承認依頼中（`isApprovalPending === true`）の場合、各ボタンに以下の `title` tooltipが表示されます：
+
+| ボタン | tooltip |
+|--------|---------|
+| コメント送信 | `プロジェクトが承認依頼中のため、コメント送信はできません` |
+| 未解決 | `プロジェクトが承認依頼中のため、ステータス変更はできません` |
+| 解決 | `プロジェクトが承認依頼中のため、ステータス変更はできません` |
+
 ---
 
 ## 8. 新規問題報告フォーム
@@ -661,110 +753,192 @@ const { options: issueTypeOptions, loading: issueTypeLoading } = useCodeMaster('
 const handleSubmitNewIssue = async () => {
   try {
     const values = await form.validateFields();
-    
-    if (onSubmitIssue) {
-      onSubmitIssue(values as IssueReportFormData);
-    }
+
+    await createIssue({
+      projectId,
+      methodId,
+      issueType: values.issueType,
+      targetType: values.targetType,
+      taskNo,
+      transitionId,
+      title: values.title,
+      description: values.content,
+    });
 
     message.success('問題を報告しました');
     form.resetFields();
     setShowNewIssueForm(false);
+    // 一覧を再取得
+    await fetchIssues();
   } catch (error) {
-    console.error('Validation failed:', error);
+    if (error && typeof error === 'object' && 'errorFields' in error) {
+      // Form validation error - do nothing
+      return;
+    }
+    console.error('[IssueManagementModal] handleSubmitNewIssue error:', error);
+    message.error('問題の報告に失敗しました');
   }
 };
 ```
 
 **処理フロー:**
 1. フォームのバリデーション
-2. `onSubmitIssue`コールバック実行
+2. `createIssue()` APIを直接呼び出し
 3. 成功メッセージ表示
 4. フォームをリセット
 5. 新規報告フォームを閉じる
+6. `fetchIssues()` で一覧を再取得
 
 #### handleCommentSubmit（コメント送信）
 
 ```typescript
-const handleCommentSubmit = () => {
+const handleCommentSubmit = async () => {
   if (!selectedIssue) return;
-  
+
   if (!newComment.trim()) {
     message.warning('コメントを入力してください');
     return;
   }
 
-  if (onSubmitComment) {
-    onSubmitComment(selectedIssue.issueId, newComment.trim());
-  }
+  try {
+    await addComment({
+      projectName,
+      issueId: selectedIssue.issueId,
+      comment: newComment.trim(),
+    });
 
-  message.success('コメントを送信しました');
-  setNewComment('');
-  commentForm.resetFields();
+    message.success('コメントを送信しました');
+    setNewComment('');
+    commentForm.resetFields();
+    // 一覧を再取得（コメントが追加された状態を反映）
+    await fetchIssues();
+  } catch (error) {
+    console.error('[IssueManagementModal] handleCommentSubmit error:', error);
+    message.error('コメントの送信に失敗しました');
+  }
 };
 ```
 
 **処理フロー:**
 1. 問題選択確認
 2. コメント入力確認
-3. `onSubmitComment`コールバック実行
+3. `addComment()` APIを直接呼び出し
 4. 成功メッセージ表示
 5. コメントをクリア
+6. `fetchIssues()` で一覧を再取得
+
+#### handleSetUnresolved（未解決に変更）
+
+```typescript
+const handleSetUnresolved = async () => {
+  if (!selectedIssue) return;
+
+  if (!newComment.trim()) {
+    message.warning('コメントを入力してください');
+    return;
+  }
+
+  try {
+    // コメントを送信してからステータスを更新
+    await addComment({
+      projectName,
+      issueId: selectedIssue.issueId,
+      comment: newComment.trim(),
+    });
+    await updateIssueStatus({
+      projectName,
+      issueId: selectedIssue.issueId,
+      status: 'unresolved',
+    });
+
+    message.success('ステータスを「未解決」に変更しました');
+    setNewComment('');
+    commentForm.resetFields();
+    // 一覧を再取得
+    await fetchIssues();
+  } catch (error) {
+    console.error('[IssueManagementModal] handleSetUnresolved error:', error);
+    message.error('ステータスの変更に失敗しました');
+  }
+};
+```
+
+**処理フロー:**
+1. 問題選択確認
+2. コメント入力確認
+3. `addComment()` APIを直接呼び出し
+4. `updateIssueStatus()` APIを直接呼び出し（`'unresolved'` を渡す）
+5. 成功メッセージ表示
+6. コメントをクリア
+7. `fetchIssues()` で一覧を再取得
 
 #### handleSetResolved（解決済に変更）
 
 ```typescript
-const handleSetResolved = () => {
+const handleSetResolved = async () => {
   if (!selectedIssue) return;
-  
+
   if (!newComment.trim()) {
     message.warning('コメントを入力してください');
     return;
   }
 
-  // コメントを送信
-  if (onSubmitComment) {
-    onSubmitComment(selectedIssue.issueId, newComment.trim());
-  }
+  try {
+    // コメントを送信してからステータスを更新
+    await addComment({
+      projectName,
+      issueId: selectedIssue.issueId,
+      comment: newComment.trim(),
+    });
+    await updateIssueStatus({
+      projectName,
+      issueId: selectedIssue.issueId,
+      status: 'resolved',
+    });
 
-  // ステータスを更新
-  if (onUpdateStatus) {
-    onUpdateStatus(selectedIssue.issueId, 'resolved');
+    message.success('ステータスを「解決済」に変更しました');
+    setNewComment('');
+    commentForm.resetFields();
+    // 一覧を再取得
+    await fetchIssues();
+  } catch (error) {
+    console.error('[IssueManagementModal] handleSetResolved error:', error);
+    message.error('ステータスの変更に失敗しました');
   }
-
-  message.success('ステータスを「解決済」に変更しました');
-  setNewComment('');
-  commentForm.resetFields();
 };
 ```
 
 **処理フロー:**
 1. 問題選択確認
 2. コメント入力確認
-3. `onSubmitComment`コールバック実行
-4. `onUpdateStatus`コールバック実行（`'resolved'`を渡す）
+3. `addComment()` APIを直接呼び出し
+4. `updateIssueStatus()` APIを直接呼び出し（`'resolved'` を渡す）
 5. 成功メッセージ表示
 6. コメントをクリア
+7. `fetchIssues()` で一覧を再取得
 
 #### handleClose（モーダルを閉じる）
 
 ```typescript
 const handleClose = () => {
-  setSelectedIssue(null);
+  setSelectedIssueId(null);
   setShowNewIssueForm(false);
   form.resetFields();
   commentForm.resetFields();
   setNewComment('');
+  setIssues([]);
   onClose();
 };
 ```
 
 **処理フロー:**
-1. 選択中の問題をクリア
+1. 選択中の問題IDをクリア
 2. 新規報告フォームを非表示
 3. フォームをリセット
 4. コメントフォームをリセット
 5. コメントをクリア
-6. `onClose`コールバック実行
+6. 問題一覧をクリア
+7. `onClose`コールバック実行
 
 ---
 
@@ -811,7 +985,9 @@ const getTargetName = (issue: Issue): string => {
   title={
     <Space>
       <ExclamationCircleOutlined style={{ color: '#faad14' }} />
-      <span>問題報告 - {transitionName}</span>
+      <span>
+        {viewMode ? '問題確認' : '問題報告'} - {targetName}
+      </span>
     </Space>
   }
   open={visible}
@@ -819,7 +995,7 @@ const getTargetName = (issue: Issue): string => {
   footer={null}
   width={1200}
   style={{ top: 20 }}
-  destroyOnClose
+  destroyOnHidden
 >
 ```
 
@@ -827,8 +1003,10 @@ const getTargetName = (issue: Issue): string => {
 - モーダル幅: 1200px
 - トップ位置: 20px（画面上部に近づける）
 - カスタムタイトル: 警告アイコン（オレンジ色）+ テキスト
+  - `viewMode` が `true` の場合: `問題確認 - {targetName}`
+  - `viewMode` が `false` の場合: `問題報告 - {targetName}`
 - フッターなし（`footer={null}`）
-- `destroyOnClose={true}`: モーダルが閉じる度にコンポーネントを破棄
+- `destroyOnHidden={true}`: モーダルが非表示になる度にコンポーネントを破棄（`destroyOnClose` の後継API）
 
 ### 11.2 カードスタイル
 
@@ -838,7 +1016,7 @@ const getTargetName = (issue: Issue): string => {
   title="問題一覧"
   size="small"
   style={{ height: 'calc(70vh - 100px)' }}
-  bodyStyle={{ padding: 12, overflow: 'auto', height: 'calc(100% - 38px)' }}
+  styles={{ body: { padding: 12, overflow: 'auto', height: 'calc(100% - 38px)' } }}
 >
 
 // 右側カード（問題詳細）
@@ -846,7 +1024,7 @@ const getTargetName = (issue: Issue): string => {
   title={showNewIssueForm ? '新規問題報告' : '問題詳細'}
   size="small"
   style={{ height: 'calc(70vh - 100px)' }}
-  bodyStyle={{ padding: 16, overflow: 'auto', height: 'calc(100% - 38px)' }}
+  styles={{ body: { padding: 16, overflow: 'auto', height: 'calc(100% - 38px)' } }}
 >
 ```
 
@@ -929,19 +1107,21 @@ const filteredIssues = useMemo(() => {
 - 依存配列が変更されない限り、再計算を避ける
 - 検索テキスト入力時のパフォーマンスを改善
 
-### 13.2 destroyOnCloseの使用
+### 13.2 destroyOnHiddenの使用
 
 ```typescript
-<Modal destroyOnClose>
+<Modal destroyOnHidden>
 ```
 
 **メリット:**
-- モーダルが閉じる度にコンポーネントが破棄され、状態がリセットされる
+- モーダルが非表示になる度にコンポーネントが破棄され、状態がリセットされる
 - メモリリークを防ぐ
 
 **デメリット:**
 - モーダルを開く度に再レンダリングが発生
 - ただし、このモーダルは複雑だが許容範囲内
+
+> **Note:** `destroyOnClose` は旧APIで非推奨。Ant Design 最新版では `destroyOnHidden` を使用する。
 
 ### 13.3 テーブルのスクロール仮想化
 
@@ -1040,6 +1220,7 @@ scroll={{ y: 'calc(70vh - 280px)' }}
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.3.0 | 2026-03-11 | 仕様書をソースコードと同期: Props設計をコールバック方式から内部API直接呼び出し方式に変更（`issues`/`onSubmitIssue`/`onSubmitComment`/`onUpdateStatus` 削除 → `projectId`/`projectName`/`targetName`/`methodId`/`taskNo` 追加）、`fetchIssues`/`issuesLoading` 追記、各イベントハンドラのAPI呼び出し処理に更新、`destroyOnClose` → `destroyOnHidden` 修正、`bodyStyle` → `styles.body` 修正、ボタンtooltip追記 | Cline |
 | 1.2.0 | 2026-02-27 | コメント送信後の即時表示対応: `selectedIssue` を state から `useMemo` による派生値に変更し、`issues` props 更新時に自動反映されるよう修正 | Cline |
 | 1.1.0 | 2026-02-27 | 問題タイプ選択肢をハードコードからコードマスターAPI取得に変更（useCodeMaster('issue_type')） | Cline |
 | 1.0.0 | 2026-01-19 | 初版作成、UI設計書として文書化 | Cline |

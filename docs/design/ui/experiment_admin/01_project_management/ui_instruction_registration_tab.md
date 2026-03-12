@@ -1,407 +1,811 @@
-# InstructionRegistrationTab - 指示登録タブ
+# 指示登録タブ UI仕様書
 
-## 1. 概要
+## 概要
 
-### 1.1 コンポーネントの目的
-プロジェクト管理画面内の指示登録タブ。作業者向けの指示を作成・管理し、一括送信する機能を提供します。
+### 目的
+プロジェクトに登録された指示の一覧表示と管理を行うタブコンポーネント。指示の新規作成・編集・削除、および一括送信機能を提供する。
 
-### 1.2 使用場面
-- プロジェクト管理画面の「指示登録」タブで使用
-- メソッドやトランジション、タスクに対する作業指示を登録
+### 使用場面
+- プロジェクト管理画面の「指示登録」タブ
+- 実験管理者がワーカーに対する指示を管理する際に使用
+- タスク登録後、指示の確認・追加・送信を行う
 
-### 1.3 アクセス権限
-- **必須ロール**: experiment_admin
-- **認証**: JWT + Session Hybrid認証
-
----
-
-## 2. 画面構成
-
-### 2.1 レイアウト構造
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ 指示一覧 (3件)            [➕ 指示追加] [📤 一括送信]  │
-├─────────────────────────────────────────────────────────┤
-│ ┌───────────────────────────────────────────────────┐  │
-│ │ 指示対象          │ 優先度 │ 種別   │ 内容       │  │
-│ ├───────────────────────────────────────────────────┤  │
-│ │ メソッド > トラン │ [高]   │ 測定   │ 温度を... │  │
-│ │ ジション          │        │        │           │  │
-│ ├───────────────────────────────────────────────────┤  │
-│ │ メソッド > タスク │ [中]   │ 一般   │ データ... │  │
-│ │ 1                 │        │        │           │  │
-│ ├───────────────────────────────────────────────────┤  │
-│ │ ファイル全体      │ [通常] │ セット │ 実験準... │  │
-│ │                   │        │ アップ │           │  │
-│ └───────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
+### アクセス権限
+- **Experiment Admin（実験管理者）**: 指示の閲覧・作成・編集・削除・送信
+- **その他のロール**: アクセス不可
 
 ---
 
-## 3. 機能仕様
+## 画面構成
 
-### 3.1 Props定義
+### レイアウト構造
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 指示一覧 (3件)                              [一括送信]      │
+├─────────────────────────────────────────────────────────────┤
+│ ┌────────┬────┬────┬──────────────┬──────────┐          │
+│ │  対象  │優先度│種別│    内容      │  操作    │          │
+│ ├────────┼────┼────┼──────────────┼──────────┤          │
+│ │Method1 │ 高 │注意│テキスト...   │[編集][削除]│          │
+│ │Method2 │ 中 │確認│テキスト...   │[編集][削除]│          │
+│ │Project │ 低 │通知│テキスト...   │[編集][削除]│          │
+│ └────────┴────┴────┴──────────────┴──────────┘          │
+└─────────────────────────────────────────────────────────────┘
+
+【送信済み指示の表示】
+┌─────────────────────────────────────────────────────────────┐
+│ │Method1 │ 高 │注意│テキスト...   │  [詳細]  │ ← 送信済 │
+│ └────────┴────┴────┴──────────────┴──────────┘          │
+└─────────────────────────────────────────────────────────────┘
+
+【モーダル】
+┌─────────────────────────────────────┐
+│ 指示編集                         [×]│
+├─────────────────────────────────────┤
+│ 対象: [メソッド選択▼]               │
+│ 種別: [選択▼]                       │
+│ 優先度: [選択▼]                     │
+│ 内容: [テキストエリア]              │
+│                                     │
+│           [キャンセル] [保存]       │
+└─────────────────────────────────────┘
+```
+
+### UI要素
+
+#### 1. ツールバー
+- **指示件数表示**: 「指示一覧 ({count}件)」（左揃え、グレーテキスト）
+- **一括送信ボタン**: 全指示をワーカーに送信
+  - 有効条件: 指示が1件以上、チェックアウトされていない、送信中でない
+  - 色: 緑色（`token.colorSuccess`）
+  - アイコン: `SendOutlined`
+
+#### 2. 指示一覧テーブル
+| カラム | 説明 | 幅 | 表示内容 |
+|--------|------|-----|---------|
+| 対象 | 指示の対象（プロジェクト/メソッド/Transition/タスク） | 200px | テキスト |
+| 優先度 | 指示の優先度（高/中/通常/低） | 100px | タグ（色付き） |
+| 種別 | 指示の種別 | 120px | テキスト |
+| 内容 | 指示の詳細内容 | - | テキスト（ellipsis、Tooltip） |
+| 操作 | 編集・削除・詳細ボタン | 150px | ボタングループ |
+
+#### 3. 操作ボタンの表示分岐
+**未送信指示（`isSent = false`）**:
+- **編集ボタン**: 指示を編集
+- **削除ボタン**: 指示を削除（danger スタイル）
+
+**送信済み指示（`isSent = true`）**:
+- **詳細ボタン**: 指示を閲覧（編集・削除は不可）
+
+#### 4. 空状態
+- 指示が0件の場合: `Empty.PRESENTED_IMAGE_SIMPLE`
+- メッセージ: `instructionRegistration.emptyState`
+
+---
+
+## 機能仕様
+
+### Props定義
 
 ```typescript
 interface InstructionRegistrationTabProps {
-  projectId: string;              // プロジェクトID
-  projectName: string;            // プロジェクト名
-  tasks: TaskDetail[];            // タスク一覧
-  onInstructionsSubmit?: (instructions: InstructionData[]) => void;  // 送信完了時コールバック
+  projectId: string;                   // プロジェクトID
+  projectName: string;                 // プロジェクト名
+  isActive: boolean;                   // タブがアクティブか
+  isCheckoutLocked?: boolean;          // チェックアウト状態
+  onInstructionsSubmit?: (instructions: InstructionData[]) => void; // 送信完了時のコールバック
 }
 ```
 
-### 3.2 State管理
+### State管理
+
+#### 主要なState
 
 ```typescript
+// 指示一覧
 const [instructions, setInstructions] = useState<InstructionData[]>([]);
-const [availableMethods, setAvailableMethods] = useState<MethodInfo[]>([]);
-const [availableTransitions, setAvailableTransitions] = useState<TransitionInfo[]>([]);
-const [loadingTransitions, setLoadingTransitions] = useState<boolean>(false);
+
+// 登録済みタスク（InstructionEditDialogに渡す）
+const [registeredTasks, setRegisteredTasks] = useState<TaskDetail[]>([]);
+
+// ダイアログ状態
 const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
 const [editMode, setEditMode] = useState<'create' | 'edit'>('create');
 const [editingInstruction, setEditingInstruction] = useState<InstructionData | undefined>(undefined);
+
+// 送信状態
 const [isSending, setIsSending] = useState<boolean>(false);
 ```
 
-### 3.3 主要機能
-
-#### 3.3.1 指示一覧表示
-
-**テーブルカラム:**
-| カラム | 説明 | 幅 |
-|--------|------|-----|
-| 指示対象 | メソッド/トランジション/タスク | 200px |
-| 優先度 | 高/中/通常/低（タグ表示） | 100px |
-| 種別 | 一般/セットアップ/測定/安全/清掃 | 120px |
-| 内容 | 指示内容（省略表示、Tooltip） | 可変 |
-| 操作 | 編集/削除または詳細ボタン | 150px |
-
-**優先度タグカラー:**
-- 高（3）: red
-- 中（2）: orange
-- 通常（1）: blue
-- 低（0）: default
-
-#### 3.3.2 指示追加
+### Context連携
 
 ```typescript
-const handleOpenCreateDialog = () => {
+const { t } = useLanguage();                          // 多言語対応
+const { maimlRoot, isLoading: isMaimlLoading } = useProjectMaiml(); // MAIMLデータ取得
+```
+
+### useMemoによるデータ取得
+
+#### 1. メソッド一覧（MAIMLコンテキストから）
+
+```typescript
+const availableMethods = useMemo((): MethodInfo[] => {
+  if (!maimlRoot?.protocol?.methods) return [];
+  
+  return maimlRoot.protocol.methods.map((method) => ({
+    id: method.id,
+    name: method.name || method.id,
+    displayName: method.name || method.id,
+    description: method.description,
+  }));
+}, [maimlRoot]);
+```
+
+#### 2. トランジション一覧（MAIMLコンテキストから）
+
+```typescript
+const availableTransitions = useMemo((): TransitionInfo[] => {
+  if (!maimlRoot?.protocol?.methods) return [];
+  
+  // 全メソッドのトランジションを集約
+  const allTransitions: TransitionInfo[] = [];
+  maimlRoot.protocol.methods.forEach((method) => {
+    if (method.pnml?.transitions) {
+      method.pnml.transitions.forEach((transition) => {
+        allTransitions.push({
+          id: transition.id,
+          displayName: transition.name || transition.id,
+          category: 'other',
+          description: transition.description,
+          isExperimentRelevant: true,
+        });
+      });
+    }
+  });
+  
+  return allTransitions;
+}, [maimlRoot]);
+```
+
+**注**: InstructionEditDialogではメソッド選択時に動的にフィルタリングされます。
+
+### 主要機能
+
+#### 1. タスク登録情報の取得（タブアクティブ時）
+
+**実行タイミング**: タブがアクティブになった時（`isActive = true`）
+
+**処理フロー**:
+```typescript
+useEffect(() => {
+  if (!projectName || !isActive) return;
+  
+  // タスク登録データをAPI取得
+  const data = await getTaskRegistration(projectName);
+
+  // タスク情報をUI用の形式に変換
+  if (data.tasks && data.tasks.length > 0) {
+    const uiTasks: TaskDetail[] = data.tasks.map((task, index) => ({
+      id: index + 1,
+      methodId: task.methodId,
+      experimentCondition: Number(task.experimentCondition),
+      trialCount: task.trialCount,
+      experimentOrder: task.experimentOrder,
+      taskNumberOptions: Array.from({ length: task.trialCount }, (_, i) => i + 1),
+      workerLinkedFlg: task.workerLinkedFlg || false,
+    }));
+
+    setRegisteredTasks(uiTasks);
+  } else {
+    setRegisteredTasks([]);
+  }
+}, [projectName, isActive]);
+```
+
+**API**: `GET /api/v1/experiment-admin/project/:projectName/task-registration`
+
+#### 2. 指示一覧の取得（タブアクティブ時）
+
+**実行タイミング**: タブがアクティブになった時（`isActive = true`）
+
+**処理フロー**:
+```typescript
+useEffect(() => {
+  if (!projectName || !isActive) return;
+  
+  const instructionList = await getInstructions(projectName);
+  setInstructions(instructionList);
+}, [projectName, isActive]);
+```
+
+**API**: `GET /api/v1/experiment-admin/project/:projectName/instructions`
+
+**レスポンス**:
+```typescript
+Array<{
+  id: string | number;
+  methodId: string;
+  transitionId?: string | null;
+  taskNumber?: number;
+  priority: number;
+  type: number;
+  content: string;
+  isSent: boolean;
+}>
+```
+
+#### 3. 新規指示追加ダイアログを開く
+
+```typescript
+const handleOpenCreateDialog = useCallback(() => {
   setEditMode('create');
   setEditingInstruction(undefined);
   setEditDialogOpen(true);
-};
+}, []);
 ```
 
-**ボタン:**
-- ラベル: 「指示追加」
-- アイコン: PlusOutlined
-- 無効化条件: データ読み込み中 または 送信中
+**注**: 現在の実装では、新規追加ボタンは表示されていません。新規追加はタスク登録タブから行います。
 
-#### 3.3.3 指示編集・削除
-
-**編集ボタン:**
-- 送信前: 「編集」ボタン表示
-- 送信後: 「詳細」ボタン表示（読み取り専用）
-
-**削除ボタン:**
-- 送信前のみ表示
-- danger スタイル
-- 確認なしで即座に削除
+#### 4. 指示編集ダイアログを開く
 
 ```typescript
-const handleDeleteInstruction = (id: string | number) => {
-  setInstructions(prev => prev.filter(inst => inst.id !== id));
-  // localStorageも更新
-  localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-  message.success('指示を削除しました');
-};
+const handleOpenEditDialog = useCallback((instruction: InstructionData) => {
+  setEditMode('edit');
+  setEditingInstruction(instruction);
+  setEditDialogOpen(true);
+}, []);
 ```
 
-#### 3.3.4 一括送信
+**送信済み指示の場合**: 詳細表示モードで開く（編集・削除は不可）
+
+#### 5. 指示の保存
+
+**実行フロー**:
+```typescript
+const handleSaveInstruction = useCallback(async (instruction: InstructionData, keepDialogOpen: boolean = false) => {
+  try {
+    if (editMode === 'create') {
+      // 新規作成：API呼び出し
+      const result = await saveInstruction(projectName, {
+        methodId: instruction.methodId,
+        transitionId: instruction.transitionId || null,
+        taskNumber: instruction.taskNumber,
+        priority: instruction.priority,
+        type: instruction.type,
+        content: instruction.content,
+      });
+      
+      // APIから返されたIDで新しい指示を追加
+      const newInstruction: InstructionData = {
+        ...instruction,
+        id: result.instructionId,
+        isSent: false,
+      };
+      
+      setInstructions((prev) => [...prev, newInstruction]);
+      message.success(t('instructionRegistration.messages.added'));
+    } else {
+      // 編集：API呼び出し
+      await updateInstruction(projectName, String(instruction.id), {
+        methodId: instruction.methodId,
+        transitionId: instruction.transitionId || null,
+        taskNumber: instruction.taskNumber,
+        priority: instruction.priority,
+        type: instruction.type,
+        content: instruction.content,
+      });
+      
+      // ローカル状態を更新
+      setInstructions((prev) =>
+        prev.map((inst) => (inst.id === instruction.id ? instruction : inst))
+      );
+      message.success(t('instructionRegistration.messages.updated'));
+    }
+
+    // 連続指示の場合はダイアログを閉じない
+    if (!keepDialogOpen) {
+      handleCloseDialog();
+    } else {
+      // 連続指示モード：新規作成モードに切り替え
+      setEditMode('create');
+      setEditingInstruction(undefined);
+    }
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : t('instructionRegistration.messages.saveFailed');
+    message.error(errorMessage);
+  }
+}, [editMode, projectName, handleCloseDialog, t]);
+```
+
+**API（新規作成）**: `POST /api/v1/experiment-admin/project/:projectName/instruction`
+
+**リクエスト**:
+```typescript
+{
+  methodId: string;
+  transitionId: string | null;
+  taskNumber?: number;
+  priority: number;
+  type: number;
+  content: string;
+}
+```
+
+**API（編集）**: `PUT /api/v1/experiment-admin/project/:projectName/instruction/:id`
+
+**連続指示モード**:
+- `keepDialogOpen = true`の場合、保存後もダイアログを閉じない
+- 新規作成モードに切り替えて次の指示を連続入力可能
+
+#### 6. 指示の削除
 
 ```typescript
-const handleSubmitInstructions = async () => {
+const handleDeleteInstruction = useCallback(async (id: string | number) => {
+  try {
+    // API呼び出し
+    const result = await deleteInstruction(projectName, String(id));
+    
+    if (result.deleted) {
+      // ローカル状態を更新
+      setInstructions((prev) => prev.filter((inst) => inst.id !== id));
+      message.success(t('instructionRegistration.messages.deleted'));
+    } else {
+      message.error(t('instructionRegistration.messages.deleteFailed'));
+    }
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : t('instructionRegistration.messages.deleteError');
+    message.error(errorMessage);
+  }
+}, [projectName]);
+```
+
+**API**: `DELETE /api/v1/experiment-admin/project/:projectName/instruction/:id`
+
+**レスポンス**:
+```typescript
+{
+  deleted: boolean;
+}
+```
+
+#### 7. 指示の一括送信
+
+**実行フロー**:
+```typescript
+const handleSubmitInstructions = useCallback(async () => {
+  // バリデーション: 指示が0件の場合
   if (instructions.length === 0) {
-    message.warning('送信する指示がありません');
+    message.warning(t('instructionRegistration.messages.noInstructions'));
     return;
   }
 
-  setIsSending(true);
   try {
-    // API呼び出し（TODO: 実装）
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    setIsSending(true);
+
+    // 指示を一括送信
+    const result = await sendInstructions(projectName, {});
+
     // 送信済フラグを立てる
     const sentInstructions = instructions.map(inst => ({
       ...inst,
       isSent: true,
     }));
-    
-    setInstructions(sentInstructions);
+
+    // 親コンポーネントに通知
     onInstructionsSubmit?.(sentInstructions);
-    
-    message.success('指示を送信しました');
+
+    message.success(t('instructionRegistration.messages.sent').replace('{count}', result.sentInstructionsCount.toString()));
+
+    // 送信後、送信済フラグを立てて表示を継続
+    setInstructions(sentInstructions);
   } catch (error) {
-    message.error('指示送信エラー');
+    const errorMessage =
+      error instanceof Error ? error.message : t('instructionRegistration.messages.sendFailed');
+    message.error(errorMessage);
   } finally {
     setIsSending(false);
+  }
+}, [instructions, projectName, onInstructionsSubmit, t]);
+```
+
+**API**: `POST /api/v1/experiment-admin/project/:projectName/instructions/send`
+
+**リクエスト**:
+```typescript
+{} // 空オブジェクト
+```
+
+**レスポンス**:
+```typescript
+{
+  sentInstructionsCount: number;
+}
+```
+
+**送信後の処理**:
+- 全指示に`isSent = true`フラグを立てる
+- `onInstructionsSubmit`コールバック実行
+- 成功メッセージ表示（送信件数付き）
+- 指示一覧は送信後も表示を継続（詳細ボタンのみ）
+
+#### 8. 表示用ヘルパー関数
+
+**優先度のタグカラー**:
+```typescript
+const getPriorityColor = (priority: number): string => {
+  switch (priority) {
+    case 3: // 高
+      return 'red';
+    case 2: // 中
+      return 'orange';
+    case 1: // 通常
+      return 'blue';
+    case 0: // 低
+      return 'default';
+    default:
+      return 'default';
   }
 };
 ```
 
-**ボタン:**
-- ラベル: 「一括送信」
-- アイコン: SendOutlined
-- 色: 成功カラー（colorSuccess）
-- 無効化条件: 指示が0件 または 送信中
-- ローディング表示: 送信中
-
-### 3.4 LocalStorage保存・復元
-
-**保存キー:**
+**優先度のラベル**:
 ```typescript
-const storageKey = `instruction-registration-${projectId}`;
+const getPriorityLabel = useCallback((priority: number): string => {
+  return t(`instructionRegistration.priority.${priority}`) || String(priority);
+}, [t]);
 ```
 
-**保存データ形式:**
+**種別のラベル**:
 ```typescript
-interface InstructionRegistrationData {
-  projectId: string;
-  projectName: string;
-  instructions: InstructionData[];
-  savedAt: string;  // ISO 8601形式
-}
+const getTypeLabel = useCallback((type: number): string => {
+  return t(`instructionRegistration.type.${type}`) || String(type);
+}, [t]);
 ```
 
-**保存タイミング:**
-- 指示追加時
-- 指示編集時
-- 指示削除時
-- 一括送信時
-
-**復元タイミング:**
-- コンポーネントマウント時（useEffect）
-
-### 3.5 メソッド・トランジション情報取得
-
+**対象のラベル**:
 ```typescript
-useEffect(() => {
-  const fetchData = async () => {
-    setLoadingTransitions(true);
-    
-    try {
-      // TODO: 実際のAPI実装時に置き換え
-      // モックデータで代替
-      const mockMethods: MethodInfo[] = [...];
-      const mockTransitions: TransitionInfo[] = [...];
-      
-      setAvailableMethods(mockMethods);
-      setAvailableTransitions(mockTransitions);
-      
-      // LocalStorageから復元
-      const savedData = localStorage.getItem(storageKey);
-      if (savedData) {
-        const parsed: InstructionRegistrationData = JSON.parse(savedData);
-        if (parsed.projectId === projectId) {
-          setInstructions(parsed.instructions);
-          message.success('保存された指示を復元しました');
-        }
-      }
-    } catch (error) {
-      message.error('データ取得エラー');
-    } finally {
-      setLoadingTransitions(false);
-    }
-  };
-
-  fetchData();
-}, [projectId, storageKey]);
+const getTargetLabel = useCallback((instruction: InstructionData): string => {
+  const method = availableMethods.find(m => m.id === instruction.methodId);
+  
+  if (instruction.transitionId) {
+    const transition = availableTransitions.find(t => t.id === instruction.transitionId);
+    return `${method?.displayName || t('instructionRegistration.targetLabels.method')} > ${transition?.displayName || t('instructionRegistration.targetLabels.transition')}`;
+  } else if (instruction.taskNumber !== undefined) {
+    return `${method?.displayName || t('instructionRegistration.targetLabels.method')} > ${t('instructionRegistration.targetLabels.task')} ${instruction.taskNumber}`;
+  } else if (instruction.methodId) {
+    return method?.displayName || t('instructionRegistration.targetLabels.method');
+  } else {
+    return t('instructionRegistration.targetLabels.wholeProject');
+  }
+}, [availableMethods, availableTransitions, t]);
 ```
+
+**対象ラベルの階層表示**:
+- プロジェクト全体: 「プロジェクト全体」
+- メソッド: 「{メソッド名}」
+- メソッド > タスク: 「{メソッド名} > タスク {番号}」
+- メソッド > Transition: 「{メソッド名} > {Transition名}」
 
 ---
 
-## 4. データ型定義
+## データ型定義
 
-### 4.1 InstructionData型
+### InstructionData
 
 ```typescript
 interface InstructionData {
-  id: string | number;
-  methodId?: string;           // メソッドID
-  transitionId?: string;       // トランジションID
-  taskNumber?: number;         // タスク番号
-  priority: number;            // 優先度（0: 低, 1: 通常, 2: 中, 3: 高）
-  type: number;                // 種別（0: 一般, 1: セットアップ, 2: 測定, 3: 安全, 4: 清掃）
-  content: string;             // 指示内容
-  isSent?: boolean;            // 送信済フラグ
+  id: string | number;                 // 指示ID
+  methodId: string;                    // メソッドID（空文字の場合はプロジェクト指示）
+  transitionId?: string | null;        // TransitionID
+  taskNumber?: number;                 // タスク番号
+  priority: number;                    // 優先度（0: 低, 1: 通常, 2: 中, 3: 高）
+  type: number;                        // 種別
+  content: string;                     // 指示内容
+  targetType?: string;                 // 対象種別（表示用）
+  isSent?: boolean;                    // 送信済みフラグ
 }
 ```
 
-### 4.2 MethodInfo型
+### TaskDetail
+
+```typescript
+interface TaskDetail {
+  id: number;                          // UI内部ID
+  methodId: string;                    // メソッドID
+  experimentCondition: number;         // 実験条件
+  trialCount: number;                  // 試行回数
+  experimentOrder: number;             // 作業順序
+  taskNumberOptions: number[];         // タスク番号のオプション
+  workerLinkedFlg: boolean;            // ワーカー連携済みフラグ
+}
+```
+
+### MethodInfo
 
 ```typescript
 interface MethodInfo {
-  id: string;
-  name: string;
-  displayName: string;
-  description: string;
+  id: string;                          // メソッドID
+  name: string;                        // メソッド名
+  displayName: string;                 // 表示名
+  description?: string;                // 説明
 }
 ```
 
-### 4.3 TransitionInfo型
+### TransitionInfo
 
 ```typescript
 interface TransitionInfo {
-  id: string;
-  displayName: string;
-  category: string;
-  description: string;
-  isExperimentRelevant: boolean;
+  id: string;                          // TransitionID
+  displayName: string;                 // 表示名
+  category: string;                    // カテゴリ
+  description?: string;                // 説明
+  isExperimentRelevant: boolean;       // 実験関連フラグ
 }
 ```
 
 ---
 
-## 5. 子コンポーネント
+## 子コンポーネント
 
-### 5.1 InstructionEditDialog
+### InstructionEditDialog
 
-指示の追加・編集を行うダイアログコンポーネント。
+**用途**: 指示の新規作成・編集・詳細表示ダイアログ
 
-```typescript
-<InstructionEditDialog
-  open={editDialogOpen}
-  mode={editMode}                          // 'create' | 'edit'
-  instruction={editingInstruction}
-  tasks={tasks}
-  availableMethods={availableMethods}
-  availableTransitions={availableTransitions}
-  onClose={handleCloseDialog}
-  onSave={handleSaveInstruction}
-/>
-```
-
----
-
-## 6. API連携
-
-### 6.1 メソッド・トランジション情報取得
-
-**エンドポイント:** TODO（未実装）
-**メソッド:** GET
-**レスポンス:**
+**Props**:
 ```typescript
 {
-  methods: MethodInfo[];
-  transitions: TransitionInfo[];
+  open: boolean;                       // ダイアログ表示状態
+  mode: 'create' | 'edit';             // モード（作成/編集）
+  instruction?: InstructionData;       // 編集対象の指示
+  tasks: TaskDetail[];                 // タスク一覧
+  availableMethods: MethodInfo[];      // メソッド一覧
+  availableTransitions: TransitionInfo[]; // Transition一覧
+  onClose: () => void;                 // 閉じるハンドラー
+  onSave: (instruction: InstructionData, keepDialogOpen?: boolean) => void; // 保存ハンドラー
 }
 ```
 
-### 6.2 指示一括送信
+**使用箇所**:
+- 新規作成: `mode='create'`, `instruction=undefined`
+- 編集: `mode='edit'`, `instruction={editingInstruction}`
+- 詳細表示: `mode='edit'`, `instruction={editingInstruction}`, `isSent=true`（編集・削除不可）
 
-**エンドポイント:** TODO（未実装）
-**メソッド:** POST
-**リクエスト:**
+---
+
+## エラーハンドリング
+
+### エラーメッセージ
+
+| エラー条件 | メッセージキー | 表示メッセージ |
+|-----------|---------------|---------------|
+| タスク取得失敗 | `instructionRegistration.messages.taskFetchFailed` | 「タスク情報の取得に失敗しました」 |
+| 指示一覧取得失敗 | `instructionRegistration.messages.fetchFailed` | 「指示一覧の取得に失敗しました」 |
+| 指示が0件で送信 | `instructionRegistration.messages.noInstructions` | 「送信する指示がありません」 |
+| 指示追加成功 | `instructionRegistration.messages.added` | 「指示を追加しました」 |
+| 指示更新成功 | `instructionRegistration.messages.updated` | 「指示を更新しました」 |
+| 指示保存失敗 | `instructionRegistration.messages.saveFailed` | 「指示の保存に失敗しました」 |
+| 指示削除成功 | `instructionRegistration.messages.deleted` | 「指示を削除しました」 |
+| 指示削除失敗 | `instructionRegistration.messages.deleteFailed` | 「指示の削除に失敗しました」 |
+| 指示削除エラー | `instructionRegistration.messages.deleteError` | 「削除処理でエラーが発生しました」 |
+| 指示送信成功 | `instructionRegistration.messages.sent` | 「{count}件の指示を送信しました」 |
+| 指示送信失敗 | `instructionRegistration.messages.sendFailed` | 「指示の送信に失敗しました」 |
+
+### ローディング状態
+
+**MAIML読み込み中**:
+- テーブルに`loading={isMaimlLoading}`プロップを設定
+- ローディングスピナー表示
+
+**送信中**:
+- 一括送信ボタンに`loading={isSending}`プロップを設定
+- 編集・削除ボタンを非活性化
+
+---
+
+## 特記事項
+
+### 送信済み指示の扱い
+
+**送信済み指示（`isSent = true`）**:
+- 編集・削除ボタンを非表示
+- 詳細ボタンのみ表示
+- 詳細ボタンクリック時は閲覧モードでダイアログを開く
+- 送信後も指示一覧に表示を継続
+
+### 指示の対象階層
+
+**対象の優先順位**:
+1. **Transition指定あり**: 「{メソッド名} > {Transition名}」
+2. **タスク番号指定あり**: 「{メソッド名} > タスク {番号}」
+3. **メソッド指定のみ**: 「{メソッド名}」
+4. **プロジェクト全体**: 「プロジェクト全体」
+
+### MAIMLコンテキストとの連携
+
+**メソッド一覧**:
+- `maimlRoot.protocol.methods`から取得
+- `useMemo`でメモ化
+- InstructionEditDialogに渡す
+
+**トランジション一覧**:
+- 全メソッドの`pnml.transitions`を集約
+- `useMemo`でメモ化
+- InstructionEditDialogに渡す
+- ダイアログ内でメソッド選択時に動的にフィルタリング
+
+### 連続指示モード
+
+**keepDialogOpen = true の場合**:
+- 保存後もダイアログを閉じない
+- 新規作成モードに切り替え
+- 続けて次の指示を入力可能
+- InstructionEditDialog側で実装
+
+### 一括送信の仕様
+
+**送信対象**:
+- 現在表示されている全指示
+- 送信済み指示も含む（バックエンドで重複送信を防止）
+
+**送信後の状態**:
+- 全指示に`isSent = true`フラグを立てる
+- 指示一覧は表示を継続
+- 編集・削除ボタンを詳細ボタンに切り替え
+
+### タスク登録情報の取得タイミング
+
+**実行タイミング**:
+- タブがアクティブになった時（`isActive = true`）
+- InstructionEditDialogでタスク番号の選択肢を提供するために必要
+
+**取得内容**:
+- タスクのメソッドID
+- 試行回数（タスク番号の上限）
+- ワーカー連携済みフラグ
+
+---
+
+## API連携
+
+### 1. タスク登録情報取得
+
+**エンドポイント**: `GET /api/v1/experiment-admin/project/:projectName/task-registration`
+
+**レスポンス**:
 ```typescript
 {
-  projectId: string;
-  instructions: InstructionData[];
+  isMaimlRegistered: boolean;
+  tasks: Array<{
+    methodId: string;
+    experimentCondition: string;
+    trialCount: number;
+    experimentOrder: number;
+    workerLinkedFlg: boolean;
+  }>;
 }
 ```
 
-**レスポンス:**
+### 2. 指示一覧取得
+
+**エンドポイント**: `GET /api/v1/experiment-admin/project/:projectName/instructions`
+
+**レスポンス**:
+```typescript
+Array<{
+  id: string | number;
+  methodId: string;
+  transitionId?: string | null;
+  taskNumber?: number;
+  priority: number;
+  type: number;
+  content: string;
+  isSent: boolean;
+}>
+```
+
+### 3. 指示新規作成
+
+**エンドポイント**: `POST /api/v1/experiment-admin/project/:projectName/instruction`
+
+**リクエスト**:
 ```typescript
 {
-  success: boolean;
-  sentCount: number;
+  methodId: string;
+  transitionId: string | null;
+  taskNumber?: number;
+  priority: number;
+  type: number;
+  content: string;
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  instructionId: string | number;
+}
+```
+
+### 4. 指示編集
+
+**エンドポイント**: `PUT /api/v1/experiment-admin/project/:projectName/instruction/:id`
+
+**リクエスト**:
+```typescript
+{
+  methodId: string;
+  transitionId: string | null;
+  taskNumber?: number;
+  priority: number;
+  type: number;
+  content: string;
+}
+```
+
+### 5. 指示削除
+
+**エンドポイント**: `DELETE /api/v1/experiment-admin/project/:projectName/instruction/:id`
+
+**レスポンス**:
+```typescript
+{
+  deleted: boolean;
+}
+```
+
+### 6. 指示一括送信
+
+**エンドポイント**: `POST /api/v1/experiment-admin/project/:projectName/instructions/send`
+
+**リクエスト**:
+```typescript
+{} // 空オブジェクト
+```
+
+**レスポンス**:
+```typescript
+{
+  sentInstructionsCount: number;
 }
 ```
 
 ---
 
-## 7. UI/UXポリシー準拠
+## 実装ファイル情報
 
-### 7.1 Ant Designコンポーネント使用
-
-| 用途 | コンポーネント | Props |
-|------|---------------|-------|
-| テーブル | Table | columns, dataSource, size="small" |
-| ボタン | Button | type, icon, disabled, loading |
-| タグ | Tag | color |
-| テキスト | Typography.Text | type, ellipsis |
-| スペース | Space | size |
-| ツールチップ | Tooltip | title |
-| 空状態 | Empty | description, image |
-
-### 7.2 カラーパレット
-
-| 要素 | 色 | 用途 |
-|------|-----|------|
-| 送信ボタン | colorSuccess | アクション強調 |
-| 優先度「高」 | red | 緊急度表示 |
-| 優先度「中」 | orange | 重要度表示 |
-| 優先度「通常」 | blue | 標準表示 |
-
----
-
-## 8. エラーハンドリング
-
-### 8.1 エラーケース
-
-| エラーケース | 原因 | 対処方法 |
-|-------------|------|----------|
-| データ取得失敗 | APIエラー | エラーメッセージ表示 |
-| 送信する指示なし | 指示が0件 | 警告メッセージ表示 |
-| 一括送信失敗 | ネットワークエラー | エラーメッセージ表示、再試行 |
-| LocalStorage復元失敗 | JSON解析エラー | コンソールログ出力、無視 |
-
----
-
-## 9. 実装ファイル
-
-### 9.1 ファイルパス
+### パス
 ```
 frontend/src/components/project/InstructionRegistrationTab.tsx
 ```
 
-### 9.2 依存コンポーネント
-- InstructionEditDialog - 指示編集ダイアログ
+### 主要な依存パッケージ
+- `antd`: UI コンポーネント（Card, Button, Table, Space, Tag, Typography, message, theme, Tooltip, Empty）
+- `@ant-design/icons`: アイコン（PlusOutlined, EditOutlined, DeleteOutlined, SendOutlined, EyeOutlined）
+- `react`: React本体（useState, useEffect, useCallback, useMemo）
 
-### 9.3 依存ライブラリ
-- antd: Table, Button, Tag, Typography, Space, Tooltip, Empty, message
-- @ant-design/icons: PlusOutlined, EditOutlined, DeleteOutlined, SendOutlined, EyeOutlined
-- @/contexts/LanguageContext: useLanguage
+### Context
+- `LanguageContext`: 多言語対応
+- `ProjectMaimlContext`: MAIMLデータ取得
 
----
-
-## 10. 既知の課題・TODO
-
-### 10.1 API未実装
-- [ ] メソッド・トランジション情報取得API
-- [ ] 指示一括送信API
-
-### 10.2 将来の改善案
-- [ ] 指示の並び替え機能
-- [ ] 指示のフィルタリング機能
-- [ ] 指示のエクスポート機能
-- [ ] 送信履歴の表示
-- [ ] 指示のテンプレート機能
+### API Service
+- `projectApiService`: 指示関連のAPI呼び出し
 
 ---
 
-## 11. 変更履歴
+## 変更履歴
 
-| 日付 | バージョン | 変更内容 | 担当者 |
-|------|-----------|---------|--------|
-| 2026-02-19 | 1.0.0 | 初版作成 | Cline |
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|---------|--------|
+| 1.0 | 2026-03-11 | 実装ベースで仕様書を新規作成（実装ファイル: InstructionRegistrationTab.tsx） | Cline |
 
 ---
 
-## 12. 関連ドキュメント
+## 関連ドキュメント
 
-- [ProjectManagement仕様](./ProjectManagement.md) - 親コンポーネント
-- [InstructionEditDialog仕様](./InstructionEditDialog.md) - 編集ダイアログ
-- [TaskRegistrationTab仕様](./TaskRegistrationTab.md) - タスク登録タブ
+- [プロジェクト管理画面](ui_project_management.md)
+- [タスク登録タブ](ui_task_registration_tab.md)
+- [指示編集ダイアログ](ui_instruction_edit_dialog.md)
+- [タスク結果一覧テーブル](ui_task_results_table.md)

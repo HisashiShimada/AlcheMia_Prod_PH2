@@ -1,88 +1,65 @@
-import { createClient, RedisClientType } from 'redis';
+/**
+ * Redis 接続設定
+ *
+ * @description
+ *   - セッション管理用: getRedisClient() / isRedisAvailable()
+ *     express-session の RedisStore（node-redis クライアント）で使用。
+ *   - bullmq 用: createBullRedisConnection()
+ *     bullmq の Queue / Worker で使用する IORedis クライアントを生成する。
+ *     bullmq は IORedis（ioredis パッケージ）を要求するため別インスタンスで管理する。
+ *     maxRetriesPerRequest: null は bullmq の推奨設定。
+ *
+ * @reference docs/MaiML_OpenData_Pipeline/spec.md §9.2
+ */
 
-let redisClient: RedisClientType | null = null;
-let isRedisEnabled = false;
+import { RedisConnectionService } from '../services/redisConnectionService';
+import { Redis as IORedis } from 'ioredis';
+
+// ============================================================
+// セッション管理用（既存 / sessionMiddleware.ts から利用）
+// ============================================================
 
 /**
- * Redisクライアントの初期化（SESSION_STORE_TYPE=redisの場合のみ）
+ * セッション管理用 Redis クライアントを返す
+ * RedisConnectionService の初期化後に利用可能
  */
-export async function initRedisClient(): Promise<RedisClientType | null> {
-  const storeType = process.env.SESSION_STORE_TYPE || 'memory';
-  
-  if (storeType !== 'redis') {
-    console.log('Redis is disabled (SESSION_STORE_TYPE=' + storeType + ')');
-    return null;
-  }
-
-  if (redisClient) {
-    return redisClient;
-  }
-
-  try {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    
-    redisClient = createClient({
-      url: redisUrl,
-      socket: {
-        reconnectStrategy: (retries) => {
-          if (retries > 10) {
-            console.error('Redis reconnection failed');
-            return false; // 再接続停止
-          }
-          return Math.min(retries * 100, 3000);
-        }
-      }
-    });
-
-    // イベントリスナー
-    redisClient.on('error', (err) => {
-      console.error('Redis Client Error:', err);
-      isRedisEnabled = false;
-    });
-
-    redisClient.on('connect', () => {
-      console.log('✅ Redis Client Connected');
-      isRedisEnabled = true;
-    });
-
-    redisClient.on('ready', () => {
-      console.log('Redis Client Ready');
-    });
-
-    // 接続
-    await redisClient.connect();
-    
-    return redisClient;
-  } catch (error) {
-    console.error('Redis initialization failed:', error);
-    redisClient = null;
-    isRedisEnabled = false;
-    return null;
-  }
+export function getRedisClient() {
+  return RedisConnectionService.getClient();
 }
 
 /**
- * Redisが有効かチェック
+ * Redis が利用可能かどうかを返す
  */
 export function isRedisAvailable(): boolean {
-  return isRedisEnabled && redisClient !== null && redisClient.isOpen;
+  return RedisConnectionService.isRedisAvailable();
 }
 
-/**
- * Redisクライアントの取得
- */
-export function getRedisClient(): RedisClientType | null {
-  return redisClient;
-}
+// ============================================================
+// bullmq 用（Queue / Worker から利用）
+// ============================================================
 
 /**
- * Redis接続のクローズ
+ * bullmq 用 IORedis 接続を生成する
+ *
+ * @returns IORedis インスタンス（lazyConnect: true）
  */
-export async function closeRedisClient(): Promise<void> {
-  if (redisClient) {
-    await redisClient.disconnect();
-    redisClient = null;
-    isRedisEnabled = false;
-    console.log('Redis Client Closed');
-  }
+export function createBullRedisConnection(): IORedis {
+  const host = process.env.REDIS_HOST ?? 'localhost';
+  const port = parseInt(process.env.REDIS_PORT ?? '6379', 10);
+
+  const client = new IORedis({
+    host,
+    port,
+    maxRetriesPerRequest: null, // bullmq 推奨設定（必須）
+    enableReadyCheck:     false,
+    lazyConnect:          true,
+  });
+
+  client.on('error', (err) => {
+    // キュー/ワーカー起動前の接続エラーはログに記録して続行
+    // サーバー本体は Redis 未起動でも起動できる
+    console.warn('[bullmq Redis] 接続エラー:', err.message);
+  });
+
+  return client;
 }

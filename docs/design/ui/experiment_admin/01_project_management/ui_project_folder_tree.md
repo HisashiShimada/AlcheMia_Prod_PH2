@@ -1,17 +1,19 @@
-# ProjectFolderTree - プロジェクトフォルダツリー
+# プロジェクトフォルダツリー UI仕様書
 
 ## 1. 概要
 
 ### 1.1 コンポーネントの目的
-プロジェクト一覧を左側サイドバーに表示するコンポーネント。プロジェクトの選択、ソート、基本情報の表示を提供します。
+プロジェクトフォルダツリーは、プロジェクト管理画面の左側サイドバーに表示され、プロジェクト一覧をリスト形式で表示するコンポーネントです。ソート機能、プロジェクト選択、ステータス表示などの機能を提供します。
 
 ### 1.2 使用場面
-- プロジェクト管理画面の左側サイドバー
-- プロジェクトの選択とナビゲーション
+- プロジェクト管理画面の左側パネル（幅35%）
+- プロジェクト一覧の閲覧・選択
+- ソート順序の変更
 
 ### 1.3 アクセス権限
-- **必須ロール**: experiment_admin
+- **必須ロール**: Experiment Admin（実験管理者）
 - **認証**: JWT + Session Hybrid認証
+- **組織分離**: マルチテナント（organizationId）
 
 ---
 
@@ -20,168 +22,198 @@
 ### 2.1 レイアウト構造
 
 ```
-┌─────────────────────────────┐
-│ プロジェクト         [↓]   │ ← ヘッダー
-│ 15 プロジェクト             │
-├─────────────────────────────┤
-│ ┌─────────────────────────┐ │
-│ │ ■ プロジェクト名         │ │ ← 選択中（ハイライト）
-│ │ [ステータス] 10 ファイル │ │
-│ │ 所有者: 田中太郎         │ │
-│ │ 研究開発部 | 2024/01/15  │ │
-│ └─────────────────────────┘ │
-│                             │
-│ □ プロジェクト名2           │
-│ [ステータス] 5 ファイル     │
-│ 所有者: 佐藤花子            │
-│ 材料開発部 | 2024/02/20     │
-│                             │
-│ （以下、プロジェクト繰り返し）│
-└─────────────────────────────┘
+┌─────────────────────────────────────┐
+│ ヘッダー                            │
+│ [プロジェクト一覧] [件数] [ソート] │
+├─────────────────────────────────────┤
+│ プロジェクトA                       │
+│ ├ [ステータスタグ] [ファイル数]    │
+│ ├ 所有者: user-01                   │
+│ └ 研究開発部 | 2026/03/01          │
+├─────────────────────────────────────┤
+│ プロジェクトB (選択中)              │
+│ ├ [ステータスタグ] [ファイル数]    │
+│ ├ 所有者: user-02                   │
+│ └ 製造部 | 2026/02/28               │
+├─────────────────────────────────────┤
+│ プロジェクトC                       │
+│ ├ [ステータスタグ] [ファイル数]    │
+│ ├ 所有者: user-03                   │
+│ └ 品質管理部 | 2026/03/05           │
+└─────────────────────────────────────┘
 ```
-
-**サイドバー特性:**
-- 背景色: コンテナ背景色
-- 右ボーダー: 1px セカンダリボーダー色
-- スクロール: 縦スクロール自動
 
 ### 2.2 主要UI要素
 
 #### 2.2.1 ヘッダー
+- **タイトル**（Text strong）: "プロジェクト一覧"（多言語対応）
+- **件数表示**（Text secondary）: "{件数} プロジェクト"
+- **ソートボタン**（Button + Dropdown）: ソートメニューを開く
 
-**左側:**
-- タイトル: "プロジェクト"（強調テキスト）
-- プロジェクト数: "15 プロジェクト"（セカンダリテキスト）
+#### 2.2.2 ソートドロップダウンメニュー
+- **名前でソート**: 昇順/降順アイコン表示
+- **ステータスでソート**: 昇順/降順アイコン表示
+- **作成日時でソート**: 昇順/降順アイコン表示
 
-**右側:**
-- ソートボタン（ドロップダウン）
+#### 2.2.3 プロジェクトアイテム
+各プロジェクトは以下の情報を表示：
+- **プロジェクト名**（Text, 選択時はstrong）
+- **ステータスタグ**（Tag）: 色分けされたステータス表示
+- **ファイル数**（Text secondary）: "{件数} ファイル"
+- **所有者**（Text secondary）: "所有者: {所有者名}"
+- **部門・作成日時**（Text secondary）: "{部門名} | {作成日}"
 
-#### 2.2.2 プロジェクトアイテム
+### 2.3 UI状態
 
-各プロジェクトアイテムの構成:
-```
-┌─────────────────────────┐
-│ プロジェクト名           │ ← 強調テキスト（選択時）
-│ [ステータスタグ] 件数    │ ← Tag + セカンダリテキスト
-│ 所有者: 名前             │ ← セカンダリテキスト
-│ 部署 | 作成日            │ ← セカンダリテキスト
-└─────────────────────────┘
-```
+#### 2.3.1 通常状態
+- 背景色: `token.colorBgContainer`
+- 左ボーダー: 3px透明
 
-**選択状態の表示:**
-- 背景色: プライマリ背景色
-- 左ボーダー: 3px プライマリカラー
-- テキスト: 強調（strong）
+#### 2.3.2 選択状態
+- 背景色: `token.colorPrimaryBg`（プライマリ背景色）
+- 左ボーダー: 3px `token.colorPrimary`（プライマリカラー）
+- プロジェクト名が太字表示
+
+#### 2.3.3 ホバー状態
+- カーソル: pointer
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1 プロジェクト選択
+### 3.1 プロジェクト一覧表示
 
-#### 3.1.1 選択フロー
+#### 3.1.1 表示内容
 ```typescript
-const handleProjectSelect = (projectId: string) => {
-  onProjectSelect(projectId);  // 親コンポーネントへ通知
+{projects.map((project) => (
+  <div key={project.id} onClick={() => onProjectSelect(project.id)}>
+    <Text strong={selectedProjectId === project.id}>
+      {project.name}
+    </Text>
+    <Space size="small" wrap>
+      <Tag color={getStatusChipColor(project.status)}>
+        {project.statusName}
+      </Tag>
+      <Text type="secondary">
+        {project.fileCount} ファイル
+      </Text>
+    </Space>
+    <Text type="secondary">
+      所有者: {project.ownerName || project.owner}
+    </Text>
+    <Text type="secondary">
+      {project.departmentName || project.department} | {new Date(project.createdAt).toLocaleDateString('ja-JP')}
+    </Text>
+  </div>
+))}
+```
+
+#### 3.1.2 ステータスタグの色分け
+```typescript
+const getStatusChipColor = (status: number): string => {
+  switch (status) {
+    case 0: return 'default';  // プロジェクト計画中
+    case 1: return 'info';     // タスク実行待ち
+    case 2: return 'primary';  // タスク実行中（cyan表示）
+    case 3: return 'warning';  // 承認待ち
+    case 4: return 'success';  // プロジェクト完了
+    case 5: return 'error';    // タスク異常終了
+    default: return 'default';
+  }
 };
 ```
 
-**動作:**
+**ステータス対応表:**
+| status | statusName | Tag色 | 説明 |
+|--------|-----------|-------|------|
+| 0 | プロジェクト計画中 | default（灰色） | 初期状態 |
+| 1 | タスク実行待ち | info（青色） | チェックアウト可能 |
+| 2 | タスク実行中 | cyan（シアン） | チェックアウト中 |
+| 3 | 承認待ち | warning（オレンジ） | レビュー待ち |
+| 4 | プロジェクト完了 | success（緑色） | 全タスク完了 |
+| 5 | タスク異常終了 | error（赤色） | エラー発生 |
+
+### 3.2 プロジェクト選択
+
+#### 3.2.1 処理フロー
+```typescript
+onClick={() => onProjectSelect(project.id)}
+```
+
+#### 3.2.2 UI動作
 - プロジェクトアイテムをクリック
-- 選択状態が視覚的に表示される
-- 親コンポーネントへプロジェクトIDを通知
+- 親コンポーネント（ProjectManagement）の`handleProjectSelect`を呼び出し
+- 選択されたプロジェクトの背景色と左ボーダーが変化
+- プロジェクト名が太字になる
 
-#### 3.1.2 選択状態の表示
-```typescript
-<List.Item
-  style={{
-    backgroundColor: selectedProjectId === project.id 
-      ? token.colorPrimaryBg 
-      : 'transparent',
-    borderLeft: selectedProjectId === project.id 
-      ? `3px solid ${token.colorPrimary}` 
-      : '3px solid transparent',
-  }}
->
-```
+### 3.3 ソート機能
 
-### 3.2 ソート機能
-
-#### 3.2.1 ソート項目
-
-| ソート項目 | 説明 | キー |
-|-----------|------|------|
-| 名前順 | プロジェクト名でソート | `name` |
-| ステータス順 | ステータスでソート | `status` |
-| 作成日順 | 作成日でソート | `createdAt` |
-
-#### 3.2.2 ソート順
-- 昇順（asc）: SortAscendingOutlined アイコン
-- 降順（desc）: SortDescendingOutlined アイコン
-
-#### 3.2.3 ソート変更
-```typescript
-const handleSortChange = (sortBy: 'name' | 'status' | 'createdAt') => {
-  onSortChange(sortBy);  // 親コンポーネントへ通知
-};
-```
-
-**動作:**
-- ソートメニューから項目を選択
-- 親コンポーネントでソート処理を実行
-- 同じ項目を再選択すると、昇順/降順が切り替わる
-
-#### 3.2.4 ソートメニューの表示
+#### 3.3.1 ソートメニュー
 ```typescript
 const menuItems: MenuProps['items'] = [
   {
     key: 'name',
     label: (
       <Space>
-        <span>{t('projectManagement.folder_tree.sort.name')}</span>
-        {sortBy === 'name' && (
-          sortOrder === 'asc' 
-            ? <SortAscendingOutlined /> 
-            : <SortDescendingOutlined />
-        )}
+        <span>名前でソート</span>
+        {sortBy === 'name' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
       </Space>
     ),
     onClick: () => onSortChange('name'),
   },
-  // status, createdAt も同様
+  {
+    key: 'status',
+    label: (
+      <Space>
+        <span>ステータスでソート</span>
+        {sortBy === 'status' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+      </Space>
+    ),
+    onClick: () => onSortChange('status'),
+  },
+  {
+    key: 'createdAt',
+    label: (
+      <Space>
+        <span>作成日時でソート</span>
+        {sortBy === 'createdAt' && (sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />)}
+      </Space>
+    ),
+    onClick: () => onSortChange('createdAt'),
+  },
 ];
 ```
 
-### 3.3 ステータス表示
+#### 3.3.2 ソート処理
+- ソートメニュー項目をクリック
+- 親コンポーネント（ProjectManagement）の`handleSortChange`を呼び出し
+- 同じ項目をクリックした場合は昇順/降順を反転
+- 異なる項目をクリックした場合は降順でソート
+- メニューに現在のソート順序のアイコンを表示
 
-#### 3.3.1 ステータスタグの色マッピング
+#### 3.3.3 ソート項目
+| ソート項目 | ソート対象 | 説明 |
+|-----------|-----------|------|
+| name | プロジェクト名 | アルファベット順/逆順 |
+| status | ステータス番号 | 数値順/逆順（0-5） |
+| createdAt | 作成日時 | 日時順/逆順 |
+
+### 3.4 多言語対応
+
+#### 3.4.1 翻訳キー
 ```typescript
-const getStatusChipColor = (status: string) => {
-  const colors = {
-    planning: 'default',     // グレー
-    pending: 'info',         // 情報色
-    in_progress: 'primary',  // プライマリ → cyan
-    completed: 'success',    // 成功色
-  };
-  return colors[status] || 'default';
-};
-```
+const { t } = useLanguage();
 
-**注意:** `primary`は実際には`cyan`に変換されます。
+// ヘッダー
+t('projectManagement.folder_tree.title')          // "プロジェクト一覧"
+t('projectManagement.folder_tree.projects')       // "プロジェクト"
+t('projectManagement.folder_tree.files')          // "ファイル"
+t('projectManagement.folder_tree.owner')          // "所有者"
 
-#### 3.3.2 ステータスラベルの変換
-```typescript
-const getStatusLabel = (status: string): string => {
-  switch (status) {
-    case 'planning': return t('projectManagement.status_planning');
-    case 'pending': return t('projectManagement.status_pending');
-    case 'in_progress': return t('projectManagement.status_in_progress');
-    case 'review_waiting': return t('projectManagement.status_review_waiting');
-    case 'completed': return t('projectManagement.status_completed');
-    case 'error': return t('projectManagement.status_error');
-    default: return status;
-  }
-};
+// ソート
+t('projectManagement.folder_tree.sort.name')      // "名前でソート"
+t('projectManagement.folder_tree.sort.status')    // "ステータスでソート"
+t('projectManagement.folder_tree.sort.created_at') // "作成日時でソート"
 ```
 
 ---
@@ -192,238 +224,205 @@ const getStatusLabel = (status: string): string => {
 
 ```typescript
 interface ProjectFolderTreeProps {
-  projects: Project[];                                // プロジェクト一覧
-  selectedProjectId: string | null;                   // 選択中のプロジェクトID
-  onProjectSelect: (projectId: string) => void;       // プロジェクト選択ハンドラ
-  expandedFolders: Set<string>;                       // 展開済みフォルダ（将来用）
-  onToggleFolder: (folderId: string) => void;         // フォルダ展開ハンドラ（将来用）
-  sortBy: 'name' | 'status' | 'createdAt';           // ソート項目
-  sortOrder: 'asc' | 'desc';                          // ソート順
-  onSortChange: (sortBy: 'name' | 'status' | 'createdAt') => void; // ソート変更ハンドラ
+  /** 表示するプロジェクト一覧 */
+  projects: Project[];
+  /** 選択中のプロジェクトID */
+  selectedProjectId: string | null;
+  /** プロジェクト選択時のコールバック */
+  onProjectSelect: (projectId: string) => void;
+  /** 展開中のフォルダIDのセット（現在未使用） */
+  expandedFolders: Set<string>;
+  /** フォルダの展開/折りたたみコールバック（現在未使用） */
+  onToggleFolder: (folderId: string) => void;
+  /** ソート項目 */
+  sortBy: 'name' | 'status' | 'createdAt';
+  /** ソート順序 */
+  sortOrder: 'asc' | 'desc';
+  /** ソート変更時のコールバック */
+  onSortChange: (sortBy: 'name' | 'status' | 'createdAt') => void;
 }
 ```
+
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| projects | `Project[]` | ✅ | 表示するプロジェクト一覧（フィルタ済み・ソート済み） |
+| selectedProjectId | `string \| null` | ✅ | 選択中のプロジェクトID。nullの場合は未選択 |
+| onProjectSelect | `(projectId: string) => void` | ✅ | プロジェクト選択時のコールバック |
+| expandedFolders | `Set<string>` | ✅ | 展開中のフォルダIDのセット（現在未使用、将来の拡張用） |
+| onToggleFolder | `(folderId: string) => void` | ✅ | フォルダの展開/折りたたみコールバック（現在未使用） |
+| sortBy | `'name' \| 'status' \| 'createdAt'` | ✅ | 現在のソート項目 |
+| sortOrder | `'asc' \| 'desc'` | ✅ | 現在のソート順序 |
+| onSortChange | `(sortBy: 'name' \| 'status' \| 'createdAt') => void` | ✅ | ソート変更時のコールバック |
 
 ### 4.2 Project型定義
 
 ```typescript
 interface Project {
-  id: string;              // プロジェクトID
-  name: string;            // プロジェクト名
-  folderName: string;      // フォルダ名
-  fileCount: number;       // ファイル数
-  status: string;          // ステータス
-  department: string;      // 部署ID
-  departmentName?: string; // 部署名（オプショナル）
-  owner: string;           // 所有者ID
-  ownerName?: string;      // 所有者名（オプショナル）
-  createdAt: string;       // 作成日（ISO 8601）
+  id: string;                    // プロジェクトID（UUID）
+  name: string;                  // プロジェクト名
+  folderName: string;            // フォルダ名
+  description: string;           // 説明
+  owner: string;                 // 所有者ID
+  ownerName?: string;            // 所有者名（表示用）
+  department: string;            // 部門コード
+  departmentName?: string;       // 部門名（表示用）
+  status: number;                // ステータス番号（0-5）
+  statusName?: string;           // ステータス名（表示用）
+  isCheckedOut: boolean;         // チェックアウト中かどうか
+  fileCount: number;             // ファイル数
+  tags: string[];                // タグ
+  createdAt: string;             // 作成日時（ISO8601形式）
+  updatedAt: string;             // 更新日時（ISO8601形式）
 }
 ```
 
----
-
-## 5. UI/UXポリシー準拠
-
-### 5.1 Ant Designコンポーネント使用
-
-| 用途 | コンポーネント | Props |
-|------|---------------|-------|
-| 一覧表示 | List | dataSource, renderItem |
-| リストアイテム | List.Item | onClick, style |
-| テキスト | Typography.Text | strong, type="secondary" |
-| タグ | Tag | color, style |
-| スペース | Space | size="small", wrap |
-| ボタン | Button | type="text", size="small", icon |
-| ドロップダウン | Dropdown | menu, placement |
-
-### 5.2 デザイントークン使用
+### 4.3 Context連携
 
 ```typescript
+// LanguageContext
+const { t } = useLanguage();
+
+// Ant Design Theme
 const { token } = theme.useToken();
-
-// 使用例
-backgroundColor: token.colorBgContainer
-borderColor: token.colorBorderSecondary
-padding: token.margin
-fontSize: token.fontSize
 ```
 
-**主要なトークン:**
-- `colorBgContainer` - コンテナ背景色
-- `colorBorderSecondary` - セカンダリボーダー色
-- `colorPrimaryBg` - プライマリ背景色（選択時）
-- `colorPrimary` - プライマリカラー（選択ボーダー）
-- `margin` - マージン
-- `paddingSM` - 小パディング
-- `fontSize` - 標準フォントサイズ
-- `fontSizeSM` - 小フォントサイズ
+---
 
-### 5.3 スタイリング
+## 5. API連携
 
-#### 5.3.1 サイドバー全体
+### 5.1 使用するAPI
+
+このコンポーネントは直接APIを呼び出しません。親コンポーネント（ProjectManagement）から渡されたプロジェクト一覧を表示します。
+
+**データソース:**
+- `ProjectManagement`コンポーネントが`getProjects()` APIで取得したデータ
+- フィルタリング・ソート済みのデータを受け取る
+
+---
+
+## 6. エラーハンドリング
+
+### 6.1 エラーケース一覧
+
+このコンポーネントは表示専用のため、特別なエラーハンドリングは実装されていません。
+
+**考慮事項:**
+- プロジェクト一覧が空の場合: 空のリストを表示（"0 プロジェクト"と表示される）
+- 選択プロジェクトが見つからない場合: 選択状態なしで表示
+
+---
+
+## 7. 実装ファイル
+
+### 7.1 メインファイル
+- **パス**: `frontend/src/components/project/ProjectFolderTree.tsx`
+- **行数**: 約170行
+- **エクスポート**: `ProjectFolderTree`（default export）
+
+### 7.2 関連ファイル
+
+#### 7.2.1 型定義
+- `frontend/src/types/project.ts` - Project型
+
+#### 7.2.2 Context
+- `frontend/src/contexts/LanguageContext.tsx` - 多言語対応
+
+### 7.3 依存ライブラリ
+- React 18.2.0
+- Ant Design v6 (Typography, Tag, Dropdown, Space, Button, theme)
+- @ant-design/icons (SortAscendingOutlined, SortDescendingOutlined, SortAscendingOutlined as SortIcon)
+
+---
+
+## 8. 変更履歴
+
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースで仕様書を再作成 | Cline |
+
+---
+
+## 9. 補足事項
+
+### 9.1 スタイリング
+
+#### 9.1.1 コンテナ
 ```typescript
-<div
-  style={{
-    height: '100%',
-    backgroundColor: token.colorBgContainer,
-    borderRight: `1px solid ${token.colorBorderSecondary}`,
-    overflowY: 'auto',
-  }}
->
+style={{
+  height: '100%',
+  backgroundColor: token.colorBgContainer,
+  borderRight: `1px solid ${token.colorBorderSecondary}`,
+  overflowY: 'auto',
+}}
 ```
 
-#### 5.3.2 ヘッダー
+#### 9.1.2 ヘッダー
 ```typescript
-<div
-  style={{
-    padding: token.margin,
-    borderBottom: `1px solid ${token.colorBorderSecondary}`,
-  }}
->
+style={{
+  padding: token.margin,
+  borderBottom: `1px solid ${token.colorBorderSecondary}`,
+}}
 ```
 
-#### 5.3.3 プロジェクトアイテム
+#### 9.1.3 プロジェクトアイテム（通常）
 ```typescript
-<List.Item
-  style={{
-    padding: `${token.paddingSM}px ${token.margin}px`,
-    cursor: 'pointer',
-    backgroundColor: selectedProjectId === project.id 
-      ? token.colorPrimaryBg 
-      : 'transparent',
-    borderLeft: selectedProjectId === project.id 
-      ? `3px solid ${token.colorPrimary}` 
-      : '3px solid transparent',
-  }}
->
+style={{
+  padding: `${token.paddingSM}px ${token.margin}px`,
+  cursor: 'pointer',
+  backgroundColor: 'transparent',
+  borderLeft: '3px solid transparent',
+}}
 ```
 
----
+#### 9.1.4 プロジェクトアイテム（選択時）
+```typescript
+style={{
+  padding: `${token.paddingSM}px ${token.margin}px`,
+  cursor: 'pointer',
+  backgroundColor: token.colorPrimaryBg,
+  borderLeft: `3px solid ${token.colorPrimary}`,
+}}
+```
 
-## 6. 多言語対応
-
-### 6.1 翻訳キー
+### 9.2 日付フォーマット
 
 ```typescript
-// タイトル・ラベル
-t('projectManagement.folder_tree.title')              // "プロジェクト"
-t('projectManagement.folder_tree.projects')           // "プロジェクト"
-t('projectManagement.folder_tree.files')              // "ファイル"
-t('projectManagement.folder_tree.owner')              // "所有者"
-
-// ソート項目
-t('projectManagement.folder_tree.sort.name')          // "名前順"
-t('projectManagement.folder_tree.sort.status')        // "ステータス順"
-t('projectManagement.folder_tree.sort.created_at')    // "作成日順"
-
-// ステータス
-t('projectManagement.status_planning')                // "計画中"
-t('projectManagement.status_pending')                 // "実行待ち"
-t('projectManagement.status_in_progress')             // "実行中"
-t('projectManagement.status_review_waiting')          // "レビュー待ち"
-t('projectManagement.status_completed')               // "完了"
-t('projectManagement.status_error')                   // "エラー"
+new Date(project.createdAt).toLocaleDateString('ja-JP')
 ```
 
----
+**出力例:**
+- `2026/03/01`
+- `2026/03/11`
 
-## 7. インタラクション
+### 9.3 所有者・部門名の表示優先順位
 
-### 7.1 ホバー効果
-- 現在未実装
-- 将来的には背景色の変更等を追加予定
-
-### 7.2 クリック操作
-- プロジェクトアイテム全体がクリッカブル
-- クリック時にプロジェクトを選択
-
-### 7.3 キーボード操作
-- 現在未実装
-- 将来的には上下キーでナビゲーション可能にする予定
-
----
-
-## 8. パフォーマンス考慮
-
-### 8.1 仮想スクロール
-- 現在未実装
-- プロジェクト数が多い場合（100件以上）は仮想スクロールを検討
-
-### 8.2 メモ化
-- 現在未実装
-- ステータスラベル等の変換処理をメモ化することで最適化可能
-
----
-
-## 9. 実装ファイル
-
-### 9.1 ファイルパス
-```
-frontend/src/components/project/ProjectFolderTree.tsx
+```typescript
+project.ownerName || project.owner          // 所有者名があれば使用、なければID
+project.departmentName || project.department // 部門名があれば使用、なければコード
 ```
 
-### 9.2 依存コンポーネント
-- なし（単独で動作）
+### 9.4 未使用のProps
 
-### 9.3 依存ライブラリ
-- antd: List, Typography, Tag, Dropdown, Space, Button, theme
-- @ant-design/icons: SortAscendingOutlined, SortDescendingOutlined
-- React: FC型
+**expandedFolders, onToggleFolder:**
+- 現在のリスト表示では使用されていない
+- 将来的にツリー表示（階層構造）に拡張する際に使用予定
+- 親コンポーネントから渡されているが、現時点では機能していない
 
----
+### 9.5 レスポンシブ対応
 
-## 10. 既知の課題・TODO
+- `overflowY: 'auto'`: 縦スクロールを有効化
+- `height: '100%'`: 親コンテナの高さに合わせる
+- プロジェクト数が多い場合はスクロール可能
 
-### 10.1 既知の課題
-- フォルダ展開機能が未実装（expandedFolders, onToggleFolderは将来用）
-- ホバー効果なし
-- キーボードナビゲーションなし
+### 9.6 アクセシビリティ
 
-### 10.2 将来の改善案
-- [ ] フォルダ階層表示機能
-- [ ] ホバー時の背景色変更
-- [ ] キーボードナビゲーション（上下キー）
-- [ ] プロジェクトのドラッグ&ドロップ
-- [ ] コンテキストメニュー（右クリック）
-- [ ] 検索フィルター機能（サイドバー内検索）
-- [ ] 仮想スクロール（大量データ対応）
-- [ ] プロジェクトのお気に入り機能
-- [ ] 最近使用したプロジェクトのハイライト
+- クリック可能要素に`cursor: 'pointer'`を設定
+- 選択状態を視覚的に明確に表示（背景色・左ボーダー・太字）
+- ソートアイコンで現在のソート状態を表示
 
----
+### 9.7 パフォーマンス考慮事項
 
-## 11. テスト観点
-
-### 11.1 単体テスト
-- [ ] プロジェクト選択が正しく動作する
-- [ ] 選択状態が正しく表示される
-- [ ] ステータスタグの色が正しい
-- [ ] ステータスラベルが正しく変換される
-- [ ] ソートメニューが正しく表示される
-- [ ] ソートアイコンが正しく表示される
-
-### 11.2 統合テスト
-- [ ] 親コンポーネントへのイベント通知
-- [ ] プロジェクトデータの受け取り
-- [ ] ソート状態の連動
-
-### 11.3 E2Eテスト
-- [ ] プロジェクト選択から詳細表示
-- [ ] ソート操作
-- [ ] スクロール動作
-
----
-
-## 12. 変更履歴
-
-| 日付 | バージョン | 変更内容 | 担当者 |
-|------|-----------|---------|--------|
-| 2026-01-21 | 1.0.0 | 初版作成 | Cline |
-
----
-
-## 13. 関連ドキュメント
-
-- [ProjectManagement仕様](./ProjectManagement.md) - 親コンポーネント
-- [UIポリシー](.clinerules/references/ui_policy.md) - UI設計ルール
-- [フロントエンド規約](.clinerules/development/frontend.md) - コンポーネント記述規約
+- プロジェクト一覧のフィルタリング・ソートは親コンポーネントで実施
+- このコンポーネントは表示専用（純粋なプレゼンテーションコンポーネント）
+- 再レンダリング時にもパフォーマンス問題なし（軽量な表示処理のみ）

@@ -24,7 +24,8 @@
     "generate:types:watch": "nodemon --watch reference/schemas --exec npm run generate:types",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "format": "prettier --write \"src/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\"",
+    "batch:unpublish": "ts-node -P batch/unpublish/tsconfig.json batch/unpublish/index.ts"
   },
   "keywords": [
     "materials-science",
@@ -48,6 +49,7 @@
     "archiver": "^7.0.1",
     "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.70.4",
     "compression": "^1.8.1",
     "connect-redis": "^7.1.1",
     "cookie-parser": "^1.4.7",
