@@ -450,6 +450,7 @@ export default function TransitionList({
                 e.stopPropagation();
                 handleIssueReport(record);
               }}
+              data-testid="transition-issue-report-button"
               style={{
                 padding: '4px 12px',
                 fontSize: '13px',
