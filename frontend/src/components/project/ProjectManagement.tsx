@@ -50,9 +50,11 @@ import {
   checkoutProject,
   checkinProject,
   completeReviewTasks,
+  publishProject,
   type CreateProjectRequest,
   type ApiResponse,
   type ProjectListResponse,
+  type MaimlPublishRequest,
 } from '@/services/projectApiService';
 import { AxiosError } from 'axios';
 import type { Project, Task } from '@/types/project';
@@ -747,6 +749,33 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     }
   }, [selectedProject, onEdit]);
 
+  // 公開ボタンハンドラ
+  const handlePublish = useCallback(async () => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+    const request: MaimlPublishRequest = {
+      template_only: false,
+      store_raw_series: true,
+      retention: null,
+      keep_raw_on_unpublish: false,
+    };
+    try {
+      console.log('📢 [ProjectManagement] 公開開始:', selectedProject.name);
+      await publishProject(selectedProject.name, request);
+      message.success(`プロジェクト「${selectedProject.name}」の公開を受け付けました`);
+    } catch (error) {
+      console.error('❌ [ProjectManagement] 公開エラー:', error);
+      if (error instanceof AxiosError && error.response?.data) {
+        const msg = error.response.data.error?.message || '公開処理に失敗しました';
+        message.error(msg);
+      } else {
+        message.error('公開処理に失敗しました');
+      }
+    }
+  }, [selectedProject]);
+
   // 新規プロジェクト作成モーダルを開く
   const handleOpenCreateModal = useCallback(() => {
     setCreateModalOpen(true);
@@ -1285,6 +1314,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   <Button
                     type="primary"
                     style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
+                    onClick={handlePublish}
+                    disabled={!selectedProject}
                   >
                     {t('projectManagement.publish')}
                   </Button>
@@ -1350,7 +1381,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   },
                   {
                     key: 'task_registration',
-                    label: 'タスク登録',
+                    label: t('projectManagement.tabs.task_registration'),
                     children: (
                       <TaskRegistrationTab
                         projectId={selectedProject.id}
@@ -1362,7 +1393,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   },
                   {
                     key: 'instruction_registration',
-                    label: '指示一覧',
+                    label: t('projectManagement.tabs.instruction_registration'),
                     children: (
                       <InstructionRegistrationTab
                         projectId={selectedProject.id}

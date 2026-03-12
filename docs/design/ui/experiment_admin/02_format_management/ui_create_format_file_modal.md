@@ -1,379 +1,551 @@
-# CreateFormatFileModal UI仕様書
+０# 新規フォーマットファイル作成モーダル UI仕様書
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+新規フォーマットファイル作成モーダルは、フォーマットフォルダまたはサブフォルダ配下に新しいファイル（XMLまたはMAIML）を作成するためのモーダルダイアログです。ファイル名の入力、バリデーション、テンプレートタイプの自動判定などを行います。
 
-新規フォーマットファイル（XML/MAIML）を作成するためのモーダルダイアログ。ファイル名、テンプレートタイプ、説明を入力して新しいフォーマットファイルを作成します。
+### 1.2 使用場面
+- **表示場所**: フォーマット管理画面のモーダルオーバーレイ
+- **トリガー**: 「新規ファイル作成」ボタンのクリック
+- **主な用途**:
+  - XMLテンプレートファイルの新規作成
+  - MAIMLワークフローファイルの新規作成
+  - サブフォルダ内でのファイル作成
 
-### 1.2. 使用場面
-
-- FormatManagement画面の「新規ファイル」ボタンクリック時
-- 選択されたフォーマット内に新しいファイルを作成
-- XMLファイルの場合はテンプレートタイプ（Material/Condition/Result）を選択
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
-- **テナント分離**: organization_id によるマルチテナント分離
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin（実験管理者）
+- **認証**: 親コンポーネント（FormatManagement）で認証済み
 
 ---
 
 ## 2. 画面構成
 
-### 2.1. レイアウト構造
+### 2.1 モーダル構造
 
 ```
-┌─────────────────────────────────────────┐
-│ [📄] 新規XMLファイル作成                 │
-├─────────────────────────────────────────┤
-│                                         │
-│ ┌─────────────────────────────────────┐ │
-│ │ ℹ フォーマット情報                   │ │
-│ │ フォーマット: Materials             │ │
-│ │ ファイルタイプ: XML                 │ │
-│ │ 拡張子: .xml                        │ │
-│ └─────────────────────────────────────┘ │
-│                                         │
-│ ファイル名 *                            │
-│ ┌───────────────────────────┬─────┐    │
-│ │ template1                 │ .xml│    │
-│ └───────────────────────────┴─────┘    │
-│ 拡張子 .xml は自動で付加されます        │
-│                                         │
-│ テンプレートタイプ *                    │
-│ ┌───────────────────────────────────┐  │
-│ │ MaterialTemplate            [▼] │  │
-│ └───────────────────────────────────┘  │
-│ 作成するXMLのテンプレート種別を選択     │
-│                                         │
-│ 概要                                    │
-│ ┌───────────────────────────────────┐  │
-│ │                                   │  │
-│ │                                   │  │
-│ │                                   │  │
-│ └───────────────────────────────────┘  │
-│ ファイルの目的や内容を記述してください  │
-│                                         │
-├─────────────────────────────────────────┤
-│                    [キャンセル] [作成]  │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│ 📄 新規XMLファイル作成                  [×]     │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│ ⓘ フォーマット情報                              │
+│   フォーマット: material                         │
+│   ファイルタイプ: XML                            │
+│   拡張子: .xml                                  │
+│                                                 │
+│ ファイル名 *                                    │
+│ ┌─────────────────────────────┬──────────┐     │
+│ │ material_template_001       │  .xml    │     │
+│ │                             │  (固定)  │     │
+│ └─────────────────────────────┴──────────┘     │
+│ 拡張子 .xml は自動で付加されます                 │
+│                                                 │
+│                  [キャンセル]  [作成]          │
+└─────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+### 2.2 主要UI要素
 
-#### 2.2.1. モーダルヘッダー
+#### 2.2.1 モーダルヘッダー
+- **アイコン**: FileAddOutlined（青色）
+- **タイトル**: 
+  - XML: 「新規XMLファイル作成」
+  - MAIML: 「新規MaiMLファイル作成」
 
-| 要素 | コンポーネント | 説明 |
-|------|--------------|------|
-| アイコン | FileAddOutlined | プライマリ色のファイル追加アイコン |
-| タイトル | Text (strong) | 「新規XMLファイル作成」または「新規MaiMLファイル作成」 |
+#### 2.2.2 エラー表示エリア（条件付き）
+- **表示条件**: エラー発生時のみ
+- **タイプ**: Alert（error、closable）
+- **内容**: エラーメッセージ
 
-#### 2.2.2. 情報表示エリア（Alert）
+#### 2.2.3 フォーマット情報表示（条件付き）
+- **表示条件**: formatNameが存在する場合
+- **タイプ**: Alert（info）
+- **内容**:
+  - フォーマット名
+  - ファイルタイプ（XML/MAIML）
+  - 拡張子（.xml/.maiml）
 
-| 項目 | 説明 |
-|------|------|
-| フォーマット名 | 選択中のフォーマット名 |
-| ファイルタイプ | XML / MAIML（大文字） |
-| 拡張子 | `.xml` または `.maiml` |
+#### 2.2.4 ファイル名入力フィールド
+- **タイプ**: Input + Space.Compact
+- **構成**: 
+  - 左側: ファイル名入力欄（可変幅）
+  - 右側: 拡張子表示欄（固定幅80px、無効化）
+- **バリデーション**: 
+  - 必須
+  - 最小1文字
+  - 最大100文字
+- **機能**: 
+  - 文字数カウント表示
+  - オートフォーカス
+  - 補足説明（拡張子自動付与の説明）
 
-#### 2.2.3. 入力フォーム
+#### 2.2.5 アクションボタン
+- **キャンセルボタン**: モーダルを閉じる
+- **作成ボタン**: ファイル作成を実行（ローディング表示あり）
 
-| フィールド | 必須 | 入力タイプ | 制約 |
-|----------|------|-----------|------|
-| ファイル名 | ○ | Input | 1〜100文字、自動で拡張子が付加される |
-| テンプレートタイプ | ○ (XML時) | Select | Material/Condition/Result |
-| 概要 | × | TextArea | 最大500文字 |
+### 2.3 インタラクション
 
-#### 2.2.4. フッターボタン
+#### 2.3.1 モーダル表示
+- **操作**: 「新規ファイル作成」ボタンをクリック
+- **結果**: モーダルが開き、ファイル名入力フィールドにフォーカスが移動
 
-| ボタン | スタイル | 動作 |
-|--------|---------|------|
-| キャンセル | default | モーダルを閉じる（入力内容破棄） |
-| 作成 | primary | バリデーション後に作成処理実行 |
+#### 2.3.2 ファイル名入力
+- **操作**: ファイル名を入力
+- **結果**: 
+  - 文字数がリアルタイムで表示される
+  - 100文字以上は入力できない
+  - 拡張子が右側に固定表示される
 
-### 2.3. 画面遷移
+#### 2.3.3 作成実行
+- **操作**: 「作成」ボタンをクリック
+- **結果**: 
+  - バリデーションが実行される
+  - 成功時: モーダルが閉じ、ファイル一覧に新しいファイルが表示される
+  - 失敗時: エラーメッセージが表示される
 
-- 画面遷移なし
-- 作成成功時はモーダルを閉じる
-- 親コンポーネント（FormatManagement）のコールバックを呼び出す
+#### 2.3.4 キャンセル
+- **操作**: 「キャンセル」ボタンまたは×ボタンをクリック
+- **結果**: 
+  - フォームがリセットされる
+  - モーダルが閉じる
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1. 主要機能の詳細
+### 3.1 ファイル名のサニタイズ
 
-#### 3.1.1. モーダル表示
+#### 3.1.1 サニタイズ処理
 
-**処理フロー:**
-1. 親コンポーネントからopen=trueで呼び出される
-2. formatId, formatName, fileTypeを受け取る
-3. フォーマット情報をAlert（info）で表示
-4. fileTypeに応じてテンプレートタイプ選択を表示/非表示
-
-**表示条件:**
-- **XMLファイル**: テンプレートタイプ選択を表示
-- **MAIMLファイル**: テンプレートタイプ選択を非表示
-
-#### 3.1.2. ファイル名入力
-
-**処理フロー:**
-1. ユーザーがファイル名を入力
-2. リアルタイムで文字数カウント表示（最大100文字）
-3. 入力欄の右側に拡張子を自動表示（.xml または .maiml）
-4. バリデーションルール適用
-
-**バリデーション:**
-- 必須入力チェック
-- 1文字以上100文字以内
-- 文字数カウンター表示
-
-**サニタイズ処理:**
-- 送信時にスペース → `_` に変換
-- ファイル名に使用できない文字 → `_` に変換
-- 正規表現: `/[^a-zA-Z0-9_-]/g`
-
-#### 3.1.3. テンプレートタイプ選択（XML時のみ）
-
-**処理フロー:**
-1. fileType='xml' の場合のみ表示
-2. デフォルト値: 'material'
-3. ドロップダウンで選択
-
-**選択肢:**
-- **MaterialTemplate**: Material（材料）テンプレート
-- **ConditionTemplate**: Condition（条件）テンプレート
-- **ResultTemplate**: Result（結果）テンプレート
-
-**必須バリデーション:**
-- XMLファイルの場合は必須選択
-
-#### 3.1.4. 概要入力
-
-**処理フロー:**
-1. オプショナルな入力フィールド
-2. 最大500文字
-3. 文字数カウンター表示
-4. 4行のTextArea
-
-**バリデーション:**
-- 最大500文字
-
-#### 3.1.5. 作成処理
-
-**処理フロー:**
-1. 「作成」ボタンをクリック
-2. フォームバリデーション実行（form.validateFields()）
-3. ファイル名のサニタイズ処理
-4. CreateFormatFileDataオブジェクトの生成
-5. 親コンポーネントのonSubmit(data)コールバックを呼び出し
-6. 成功時:
-   - フォームをリセット
-   - モーダルを閉じる（親コンポーネントで制御）
-7. 失敗時:
-   - エラーメッセージを表示（Alert error）
-   - モーダルは開いたまま
-
-**送信データ構造:**
 ```typescript
-{
-  fileName: string;              // 入力されたファイル名
-  fileNameWithExtension: string; // サニタイズ+拡張子付きファイル名
-  formatId: string;              // フォーマットID
-  formatName: string;            // フォーマット名
-  fileType: 'xml' | 'maiml';     // ファイルタイプ
-  templateType?: string;         // テンプレートタイプ（XML時）
-  description: string;           // 概要
-  createdBy: string;             // 作成者ID
-  createdByName: string;         // 作成者名
+const sanitizedFileName = values.fileName
+  .replace(/\s+/g, '_')              // スペース → アンダースコア
+  .replace(/[^a-zA-Z0-9_-]/g, '_');  // 英数字・アンダースコア・ハイフン以外 → アンダースコア
+```
+
+- **目的**: ファイルシステムで使用できない文字を除去
+- **変換ルール**:
+  - スペース → `_`
+  - 英数字、`_`、`-` 以外 → `_`
+
+#### 3.1.2 拡張子付きファイル名生成
+
+```typescript
+const extension = fileType ? `.${fileType}` : '';
+const fileNameWithExtension = `${sanitizedFileName}${extension}`;
+```
+
+- **例**:
+  - 入力: `material template 001`
+  - サニタイズ後: `material_template_001`
+  - 最終: `material_template_001.xml`
+
+#### 3.1.3 UI動作
+- ユーザー操作: ファイル名を入力
+- 画面変化: 
+  - 入力値がそのまま表示される
+  - サニタイズは送信時に実行される（ユーザーには見えない）
+
+### 3.2 テンプレートタイプ自動判定（XMLのみ）
+
+#### 3.2.1 判定ロジック
+
+```typescript
+let templateType: 'material' | 'condition' | 'result' | undefined;
+if (fileType === 'xml') {
+  const folderName = (formatId || formatName || '').toLowerCase();
+  if (folderName === 'material') {
+    templateType = 'material';
+  } else if (folderName === 'condition') {
+    templateType = 'condition';
+  } else if (folderName === 'result') {
+    templateType = 'result';
+  }
+  
+  // テンプレートタイプが判定できない場合はエラー
+  if (!templateType) {
+    throw new Error('XMLファイルはmaterial、condition、resultフォルダでのみ作成できます');
+  }
 }
 ```
 
-#### 3.1.6. キャンセル処理
+- **判定基準**: フォーマットID（またはフォーマット名）を小文字に変換して判定
+- **対応フォルダ**:
+  - `material` → Material テンプレート
+  - `condition` → Condition テンプレート
+  - `result` → Result テンプレート
+- **エラーケース**: 上記以外のフォルダでXMLファイルを作成しようとした場合
 
-**処理フロー:**
-1. 「キャンセル」ボタンまたはモーダル外をクリック
-2. フォームをリセット（form.resetFields()）
-3. エラー状態をクリア
-4. 親コンポーネントのonCancel()コールバックを呼び出し
-5. モーダルを閉じる（親コンポーネントで制御）
+#### 3.2.2 UI動作
+- ユーザー操作: 「作成」ボタンをクリック
+- 画面変化: 
+  - XMLファイルの場合、テンプレートタイプが自動判定される
+  - 判定できない場合、エラーメッセージが表示される
+  - MAIMLファイルの場合、テンプレートタイプは`undefined`
 
-### 3.2. ボタン・操作の動作
+### 3.3 バリデーション
 
-| 操作 | 動作 | 状態変更 |
-|------|------|---------|
-| 作成ボタンクリック | バリデーション→作成処理 | submitting=true→false |
-| キャンセルボタンクリック | フォームリセット→モーダルを閉じる | - |
-| モーダル外クリック | キャンセル処理 | - |
-| Escキー | キャンセル処理 | - |
+#### 3.3.1 必須チェック
 
-### 3.3. バリデーションルール
+```typescript
+{
+  required: true,
+  message: 'ファイル名を入力してください',
+}
+```
 
-| フィールド | ルール | エラーメッセージ |
-|----------|--------|----------------|
-| ファイル名 | 必須 | 「ファイル名を入力してください」 |
-| ファイル名 | 1文字以上 | 「ファイル名は1文字以上で入力してください」 |
-| ファイル名 | 100文字以内 | 「ファイル名は100文字以内で入力してください」 |
-| テンプレートタイプ | 必須（XML時） | 「テンプレートタイプを選択してください」 |
-| 概要 | 500文字以内 | 「概要は500文字以内で入力してください」 |
+#### 3.3.2 最小文字数チェック
+
+```typescript
+{
+  min: 1,
+  message: 'ファイル名は1文字以上で入力してください',
+}
+```
+
+#### 3.3.3 最大文字数チェック
+
+```typescript
+{
+  max: 100,
+  message: 'ファイル名は100文字以内で入力してください',
+}
+```
+
+#### 3.3.4 UI動作
+- ユーザー操作: 「作成」ボタンをクリック
+- 画面変化: 
+  - バリデーションエラーがある場合、フィールド下部に赤いエラーメッセージが表示される
+  - すべてのバリデーションが通過すると、送信処理が実行される
+
+### 3.4 ファイル作成処理
+
+#### 3.4.1 送信ハンドラ
+
+```typescript
+const handleSubmit = async () => {
+  try {
+    setError(null);
+    setSubmitting(true);
+    
+    // バリデーション
+    const values = await form.validateFields();
+    
+    // ファイル名サニタイズ
+    const sanitizedFileName = values.fileName
+      .replace(/\s+/g, '_')
+      .replace(/[^a-zA-Z0-9_-]/g, '_');
+    
+    const fileNameWithExtension = `${sanitizedFileName}${extension}`;
+    
+    // テンプレートタイプ判定（XMLのみ）
+    let templateType: 'material' | 'condition' | 'result' | undefined;
+    if (fileType === 'xml') {
+      // ... 判定ロジック
+    }
+    
+    // ファイルデータの作成
+    const fileData: CreateFormatFileData = {
+      fileName: values.fileName,
+      fileNameWithExtension: fileNameWithExtension,
+      formatId: formatId || '',
+      formatName: formatName || '',
+      fileType: fileType || 'xml',
+      templateType: templateType,
+      createdBy: createdBy,
+      createdByName: createdByName,
+      currentPath: currentPath.length > 0 ? currentPath.join('/') : undefined,
+    };
+    
+    // 親コンポーネントの送信ハンドラを呼び出し
+    await onSubmit(fileData);
+    
+    // 成功時はフォームをリセット
+    form.resetFields();
+  } catch (err) {
+    // エラーハンドリング
+  } finally {
+    setSubmitting(false);
+  }
+};
+```
+
+#### 3.4.2 UI動作
+- ユーザー操作: 「作成」ボタンをクリック
+- 画面変化: 
+  - ボタンがローディング状態になる
+  - 成功時: モーダルが閉じ、フォームがリセットされる
+  - 失敗時: エラーメッセージが表示される
+
+### 3.5 エラーハンドリング
+
+#### 3.5.1 ファイル名重複エラー
+
+```typescript
+if (errorMessage.includes('同じ名前のファイルが既に存在します') || 
+    errorMessage.includes('already exists')) {
+  form.setFields([
+    {
+      name: 'fileName',
+      errors: [errorMessage],
+    },
+  ]);
+}
+```
+
+- **表示場所**: ファイル名入力フィールドの下部
+- **表示内容**: 「同じ名前のファイルが既に存在します」
+
+#### 3.5.2 テンプレートタイプ判定エラー
+
+```typescript
+throw new Error('XMLファイルはmaterial、condition、resultフォルダでのみ作成できます');
+```
+
+- **表示場所**: モーダル上部のAlertコンポーネント
+- **表示内容**: 「XMLファイルはmaterial、condition、resultフォルダでのみ作成できます」
+
+#### 3.5.3 その他のエラー
+
+```typescript
+setError(errorMessage);
+```
+
+- **表示場所**: モーダル上部のAlertコンポーネント
+- **表示内容**: エラーメッセージ（API返却値）
+
+#### 3.5.4 UI動作
+- ユーザー操作: なし（エラー発生時に自動表示）
+- 画面変化: 
+  - 重複エラー: ファイル名フィールドの下部に赤いエラーメッセージ
+  - その他のエラー: モーダル上部にAlertコンポーネント（閉じるボタンあり）
+
+### 3.6 キャンセル処理
+
+#### 3.6.1 キャンセルハンドラ
+
+```typescript
+const handleCancel = () => {
+  form.resetFields();
+  setError(null);
+  onCancel();
+};
+```
+
+#### 3.6.2 UI動作
+- ユーザー操作: 「キャンセル」ボタンまたは×ボタンをクリック
+- 画面変化: 
+  - フォームがリセットされる
+  - エラーメッセージがクリアされる
+  - モーダルが閉じる
 
 ---
 
 ## 4. データ仕様
 
-### 4.1. 入力項目（Props）
+### 4.1 Props定義
 
 ```typescript
 interface CreateFormatFileModalProps {
-  open: boolean;                      // モーダル表示状態
-  onCancel: () => void;               // キャンセル時のコールバック
-  onSubmit: (data: CreateFormatFileData) => Promise<void>;  // 送信時のコールバック
-  formatId: string | null;            // フォーマットID
-  formatName: string | null;          // フォーマット名
-  fileType: 'xml' | 'maiml' | null;   // ファイルタイプ
-  createdBy: string;                  // 作成者ID
-  createdByName: string;              // 作成者名
+  open: boolean;                                      // モーダル表示状態
+  onCancel: () => void;                               // キャンセル時のコールバック
+  onSubmit: (data: CreateFormatFileData) => Promise<void>; // 送信時のコールバック
+  formatId: string | null;                            // フォーマットID
+  formatName: string | null;                          // フォーマット名
+  fileType: 'xml' | 'maiml' | null;                  // ファイルタイプ
+  createdBy: string;                                  // 作成者ユーザーID
+  createdByName: string;                              // 作成者名
+  currentPath?: string[];                             // 現在のフォルダパス（サブフォルダ階層）
 }
 ```
 
-### 4.2. CreateFormatFileData型定義
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| open | boolean | ✅ | モーダルの表示状態（true=表示、false=非表示） |
+| onCancel | () => void | ✅ | キャンセル時に呼び出されるコールバック関数 |
+| onSubmit | (data: CreateFormatFileData) => Promise<void> | ✅ | 送信時に呼び出されるコールバック関数（非同期） |
+| formatId | string \| null | ✅ | フォーマットのID（テンプレートタイプ判定に使用） |
+| formatName | string \| null | ✅ | フォーマットの名前（表示とテンプレートタイプ判定に使用） |
+| fileType | 'xml' \| 'maiml' \| null | ✅ | ファイルタイプ（拡張子とテンプレートタイプ判定に使用） |
+| createdBy | string | ✅ | 作成者のユーザーID |
+| createdByName | string | ✅ | 作成者の名前 |
+| currentPath | string[] | - | 現在のフォルダパス（配列形式、例: `['subfolder1', 'subfolder2']`） |
+
+### 4.2 CreateFormatFileData型定義
 
 ```typescript
-interface CreateFormatFileData {
-  fileName: string;              // 入力されたファイル名
-  fileNameWithExtension: string; // サニタイズ+拡張子付きファイル名
-  formatId: string;              // フォーマットID
-  formatName: string;            // フォーマット名
-  fileType: 'xml' | 'maiml';     // ファイルタイプ
-  templateType?: 'material' | 'condition' | 'result';  // テンプレートタイプ（XML時）
-  description: string;           // 概要
-  createdBy: string;             // 作成者ID
-  createdByName: string;         // 作成者名
+export interface CreateFormatFileData {
+  fileName: string;                     // ユーザー入力のファイル名（拡張子なし）
+  fileNameWithExtension: string;        // サニタイズ済みファイル名（拡張子付き）
+  formatId: string;                     // フォーマットID
+  formatName: string;                   // フォーマット名
+  fileType: 'xml' | 'maiml';           // ファイルタイプ
+  templateType?: 'material' | 'condition' | 'result'; // テンプレートタイプ（XMLのみ）
+  createdBy: string;                    // 作成者ユーザーID
+  createdByName: string;                // 作成者名
+  currentPath?: string;                 // 現在のパス（スラッシュ区切り文字列）
 }
 ```
 
-### 4.3. フォーム値
+**CreateFormatFileData説明:**
+| フィールド名 | 型 | 必須 | 説明 |
+|------------|---|------|------|
+| fileName | string | ✅ | ユーザーが入力したファイル名（拡張子なし、サニタイズ前） |
+| fileNameWithExtension | string | ✅ | サニタイズ済みファイル名（拡張子付き、例: `material_template_001.xml`） |
+| formatId | string | ✅ | フォーマットのID |
+| formatName | string | ✅ | フォーマットの名前 |
+| fileType | 'xml' \| 'maiml' | ✅ | ファイルタイプ |
+| templateType | 'material' \| 'condition' \| 'result' | - | テンプレートタイプ（XMLファイルの場合のみ） |
+| createdBy | string | ✅ | 作成者のユーザーID |
+| createdByName | string | ✅ | 作成者の名前 |
+| currentPath | string | - | 現在のフォルダパス（スラッシュ区切り、例: `subfolder1/subfolder2`） |
+
+### 4.3 State定義
 
 ```typescript
-{
-  fileName: string;       // ファイル名（拡張子なし）
-  templateType?: string;  // テンプレートタイプ（XML時のみ）
-  description?: string;   // 概要（オプション）
-}
+const [submitting, setSubmitting] = useState(false);  // 送信中フラグ
+const [error, setError] = useState<string | null>(null); // エラーメッセージ
+const [form] = Form.useForm();                        // Ant Design Form インスタンス
 ```
+
+**State説明:**
+| State名 | 型 | 説明 |
+|---------|---|------|
+| submitting | boolean | 送信処理中かどうか（true=送信中、ボタンがローディング状態になる） |
+| error | string \| null | エラーメッセージ（null=エラーなし） |
+| form | FormInstance | Ant Design Formのインスタンス（バリデーションとリセットに使用） |
 
 ---
 
 ## 5. API連携
 
-### 5.1. 使用するAPI一覧
+このコンポーネントは直接APIを呼び出しません。
+親コンポーネント（FormatManagement）の`onSubmit`コールバックを呼び出し、親コンポーネントがAPI通信を行います。
 
-- なし（親コンポーネントでAPI呼び出しを実行）
-- onSubmitコールバック経由でデータを渡す
+### 5.1 呼び出されるAPI（親コンポーネント経由）
+
+**想定されるAPI:**
+- **POST** `/api/v1/experiment_admin/formats/{formatId}/files`
+  - ファイル作成API
+  - リクエストボディ: `CreateFormatFileData`
+  - レスポンス: 作成されたファイル情報
 
 ---
 
 ## 6. エラーハンドリング
 
-### 6.1. エラーケース
+### 6.1 エラーケースと表示方法
 
-| エラーケース | 処理 |
-|------------|------|
-| バリデーションエラー | フォーム項目下にエラーメッセージ表示 |
-| 送信処理エラー | モーダル上部にAlert（error）表示 |
-| ネットワークエラー | 親コンポーネントで処理（モーダルに伝播） |
+| エラーケース | 検知タイミング | 表示方法 | 表示内容 |
+|------------|------------|---------|---------|
+| ファイル名未入力 | バリデーション時 | フィールド下部 | 「ファイル名を入力してください」 |
+| ファイル名が短すぎる | バリデーション時 | フィールド下部 | 「ファイル名は1文字以上で入力してください」 |
+| ファイル名が長すぎる | バリデーション時 | フィールド下部 | 「ファイル名は100文字以内で入力してください」 |
+| ファイル名重複 | API返却時 | フィールド下部 | 「同じ名前のファイルが既に存在します」 |
+| テンプレートタイプ判定失敗 | 送信処理時 | モーダル上部Alert | 「XMLファイルはmaterial、condition、resultフォルダでのみ作成できます」 |
+| API通信エラー | API返却時 | モーダル上部Alert | APIから返却されたエラーメッセージ |
 
-### 6.2. エラーメッセージ
+### 6.2 エラー回復方法
 
-| メッセージ | 表示タイミング | 種類 |
-|----------|--------------|------|
-| 「ファイル名を入力してください」 | ファイル名未入力で送信 | validation |
-| 「テンプレートタイプを選択してください」 | XML時にテンプレートタイプ未選択で送信 | validation |
-| 「作成エラー」+ 詳細 | 送信処理失敗 | Alert（error） |
-
----
-
-## 7. UI/UXポリシー準拠
-
-### 7.1. Ant Designコンポーネント使用
-
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Modal | モーダル本体 | open, onCancel, onOk, okText, cancelText, confirmLoading, width={500}, destroyOnClose |
-| Form | 入力フォーム | layout="vertical", requiredMark="optional" |
-| Form.Item | 各入力項目 | name, label, extra, rules, initialValue |
-| Input | ファイル名入力 | placeholder, maxLength={100}, showCount, autoFocus, addonAfter |
-| Select | テンプレートタイプ選択 | placeholder, options |
-| Input.TextArea | 概要入力 | placeholder, maxLength={500}, showCount, rows={4} |
-| Alert | 情報・エラー表示 | message, description, type, showIcon, closable |
-| Space | 要素の配置 | direction="vertical", size="middle" |
-| Typography.Text | テキスト表示 | strong, type="secondary" |
-
-### 7.2. デザイントークン使用
-
-```typescript
-const { token } = theme.useToken();
-
-// 使用例
-color: token.colorPrimary  // アイコン色
-```
-
-### 7.3. 多言語対応
-
-- `useLanguage()` カスタムフックを使用
-- `t('formatManagement.create.*')` で翻訳文字列を取得
-- 未翻訳時はデフォルト日本語テキストを表示
-
-### 7.4. レスポンシブ対応
-
-- モーダル幅: 500px（固定）
-- モバイルでは自動的に幅が調整される（Ant Designのデフォルト動作）
+- **バリデーションエラー**: ユーザーが入力を修正
+- **重複エラー**: ユーザーがファイル名を変更
+- **テンプレートタイプ判定エラー**: ユーザーが適切なフォルダを選択してから再試行
+- **API通信エラー**: ユーザーが再試行またはキャンセル
 
 ---
 
-## 8. 実装ファイル
+## 7. 実装ファイル
 
-### 8.1. ソースファイルパス
+### 7.1 ファイルパス
+- **メインファイル**: `frontend/src/components/project/CreateFormatFileModal.tsx`
+
+### 7.2 関連ファイル
+- **親コンポーネント**: `frontend/src/components/project/FormatManagement.tsx`
+- **コンテキスト**: `frontend/src/contexts/LanguageContext.tsx`
+- **型定義**: このファイル内で定義・export（CreateFormatFileData型）
+
+### 7.3 依存ライブラリ
+- **Ant Design**:
+  - Modal
+  - Form
+  - Input
+  - Space
+  - Typography (Text)
+  - Alert
+  - theme
+- **Ant Design Icons**:
+  - FileAddOutlined
+- **Context**:
+  - useLanguage（多言語対応）
+
+### 7.4 親子関係
 
 ```
-frontend/src/components/project/CreateFormatFileModal.tsx
+FormatManagement (親)
+  ↓ Props: open, onCancel, onSubmit, formatId, formatName, fileType, createdBy, createdByName, currentPath
+CreateFormatFileModal (このコンポーネント)
 ```
 
-### 8.2. 関連コンポーネント
+**親コンポーネントから受け取るデータ:**
+- モーダル表示状態
+- フォーマット情報（ID、名前、ファイルタイプ）
+- 作成者情報
+- 現在のフォルダパス
 
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| FormatManagement | ./FormatManagement.tsx | 親コンポーネント |
-
-### 8.3. カスタムフック
-
-| フック | パス | 役割 |
-|--------|------|------|
-| useLanguage | @/contexts/LanguageContext | 多言語化 |
-
-### 8.4. ユーティリティ
-
-- なし
+**親コンポーネントへの通知:**
+- キャンセルイベント（`onCancel()`）
+- 送信イベント（`onSubmit(data)`）
 
 ---
 
-## 9. 既知の課題・TODO
+## 8. UI/UXの考慮事項
 
-### 改善提案
+### 8.1 レスポンシブデザイン
 
-- [ ] ファイル名の重複チェック機能
-- [ ] プレビュー機能（作成前にテンプレート構造を表示）
-- [ ] テンプレート選択時のサンプル表示
-- [ ] ファイル名の自動提案機能
-- [ ] ドラッグ&ドロップでのテンプレートファイル取り込み
-- [ ] タグ付け機能の追加
+- **幅**: 600px（固定）
+- **高さ**: コンテンツに応じて可変
+
+### 8.2 アクセシビリティ
+
+- **オートフォーカス**: モーダル表示時、ファイル名フィールドに自動フォーカス
+- **キーボード操作**: Enterキーで送信、Escキーでキャンセル
+- **エラーメッセージ**: 明確で具体的なメッセージ
+
+### 8.3 視覚的フィードバック
+
+#### 8.3.1 ローディング状態
+- 送信中は「作成」ボタンがローディング表示
+- モーダルは閉じられない（confirmLoadingで制御）
+
+#### 8.3.2 エラー表示
+- **フィールドエラー**: 赤い枠線 + 下部に赤いエラーメッセージ
+- **一般エラー**: 上部にAlertコンポーネント（閉じるボタンあり）
+
+#### 8.3.3 情報表示
+- **フォーマット情報**: 青いAlertコンポーネントで目立たせる
+- **拡張子**: 右側に固定表示（無効化されたInput）
+
+### 8.4 ユーザーガイダンス
+
+- **補足説明**: 「拡張子 .xml は自動で付加されます」
+- **文字数カウント**: リアルタイムで表示（例: `25/100`）
+- **プレースホルダー**: 「ファイル名を入力」
+
+### 8.5 多言語対応
+
+- **LanguageContext**: `useLanguage`フックを使用
+- **翻訳キー**:
+  - `formatManagement.create.titleXml`
+  - `formatManagement.create.titleMaiml`
+  - `formatManagement.create.fileName`
+  - `formatManagement.create.fileNameRequired`
+  - など
 
 ---
 
-## 10. 変更履歴
+## 9. 変更履歴
 
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |

@@ -1,504 +1,634 @@
-# FormatSearchModal UI仕様書
+# フォーマットファイル詳細検索モーダル UI仕様書
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+フォーマットファイル詳細検索モーダルは、MAIML統合テーブルを使用して、複数の検索条件を組み合わせてフォーマットファイル（XML/MAIML）を高速検索するためのモーダルダイアログです。最大5つまでの検索条件を組み合わせることができ、検索結果からファイルを選択できます。
 
-MAIML統合テーブルを高速検索し、複数の検索条件に一致するフォーマットファイル（XML/MAIML）を見つけるための詳細検索モーダル。最大5つの検索条件を組み合わせて、ファイル内の属性値を検索できます。
+### 1.2 使用場面
+- **表示場所**: フォーマット管理画面のモーダルオーバーレイ
+- **トリガー**: 「詳細検索」ボタンのクリック
+- **主な用途**:
+  - 複数条件でのファイル検索
+  - MAIML属性値による検索
+  - 測定データによる検索
+  - ファイル構造による検索
 
-### 1.2. 使用場面
-
-- FormatManagement画面の「詳細検索」ボタンクリック時
-- 特定の属性値を持つフォーマットファイルを探す場合
-- 複数条件でファイルを絞り込む場合
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
-- **テナント分離**: organization_id によるマルチテナント分離
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin（実験管理者）
+- **認証**: 親コンポーネント（FormatManagement）で認証済み
 
 ---
 
 ## 2. 画面構成
 
-### 2.1. レイアウト構造
+### 2.1 モーダル構造
 
 ```
-┌─────────────────────────────────────────────────┐
-│ [🔍] フォーマットファイル詳細検索                │
-├─────────────────────────────────────────────────┤
-│ ℹ MAIML統合テーブル高速検索                      │
-│ 高速化されたMaiML統合テーブル検索で...          │
-│                                                 │
-│ ┌───────────────────────────────────────────┐  │
-│ │ [🔍] 検索条件    [➕条件追加] [🔄リセット] │  │
-│ ├───────────────────────────────────────────┤  │
-│ │ 【1】 [属性選択 ▼] [検索値入力___] [×]  │  │
-│ │            AND                             │  │
-│ │ 【2】 [属性選択 ▼] [検索値入力___] [×]  │  │
-│ │                                            │  │
-│ │                          [🔍 検索]         │  │
-│ └───────────────────────────────────────────┘  │
-│                                                 │
-│ ┌───────────────────────────────────────────┐  │
-│ │ ✅ ファイル数: 2件 マッチ数: 3箇所        │  │
-│ │    検索時間: 45ms 検索条件: 2件           │  │
-│ └───────────────────────────────────────────┘  │
-│                                                 │
-│ ┌───────────────────────────────────────────┐  │
-│ │ [📄] 検索結果                    [2件]     │  │
-│ ├───────────────────────────────────────────┤  │
-│ │ ┌─────────────────────────────────────┐   │  │
-│ │ │ 📄 template1.xml    [XML] [2マッチ]│   │  │
-│ │ │ 📂 formats/materials/template1.xml │   │  │
-│ │ │ 材料データのテンプレートファイル   │   │  │
-│ │ │ [材料] [2.5 KB] [2024/11/20]      │   │  │
-│ │ │ 🎯 ヒット属性:                     │   │  │
-│ │ │    [Document名: template]          │   │  │
-│ │ │    [Element名: Material]           │   │  │
-│ │ └─────────────────────────────────────┘   │  │
-│ └───────────────────────────────────────────┘  │
-│                                                 │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ 🔍 フォーマットファイル詳細検索                      [×]    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ ℹ️ MAIML統合テーブル高速検索                                │
+│   高速化されたMaiML統合テーブル検索で、検索条件に一致する  │
+│   フォーマットファイル（XML/MAIML）を表示します。          │
+│   最大5つまで検索条件を組み合わせることができます。        │
+│                                                             │
+│ ┌─ 検索条件 ─────────────────── [条件追加] [リセット] ──┐ │
+│ │                                                          │ │
+│ │ [1] [属性を選択        ▼] [検索値を入力            ]    │ │
+│ │                  AND                                     │ │
+│ │ [2] [属性を選択        ▼] [検索値を入力            ] [×]│ │
+│ │                  AND                                     │ │
+│ │ [3] [属性を選択        ▼] [検索値を入力            ] [×]│ │
+│ │                                                          │ │
+│ │                                        [検索]            │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ ✅ ファイル数: 2件 │ マッチ数: 3箇所 │ 検索時間: 45ms    │
+│                                                             │
+│ ┌─ 検索結果 ──────────────────────────────── [2件] ─────┐ │
+│ │                                                          │ │
+│ │ ┌──────────────────────────────────────────────────────┐ │ │
+│ │ │ 📄 material_template_v1.xml    [XML] [v1.0] [2マッチ] │ │ │
+│ │ │ 📂 formats/material/material_template_v1.xml          │ │ │
+│ │ │ 材料データのテンプレートファイル                     │ │ │
+│ │ │ [材料] [15.0 KB] [2024/11/20]                        │ │ │
+│ │ │ 🎯 ヒット属性: [Document UUID: xxx] [ID属性: yyy]    │ │ │
+│ │ └──────────────────────────────────────────────────────┘ │ │
+│ │                                                          │ │
+│ │ ┌──────────────────────────────────────────────────────┐ │ │
+│ │ │ 📄 measurement_protocol.maiml  [MAIML] [v2.1] [1マッチ]│ │ │
+│ │ │ 📂 formats/measurement/measurement_protocol.maiml     │ │ │
+│ │ │ 測定プロトコルのMAIMLファイル                        │ │ │
+│ │ │ [測定] [22.5 KB] [2024/12/01]                        │ │ │
+│ │ │ 🎯 ヒット属性: [Document UUID: xxx]                  │ │ │
+│ │ └──────────────────────────────────────────────────────┘ │ │
+│ │                                                          │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+### 2.2 主要UI要素
 
-#### 2.2.1. モーダルヘッダー
+#### 2.2.1 モーダルヘッダー
+- **アイコン**: SearchOutlined（赤色、#CF0027）
+- **タイトル**: 「フォーマットファイル詳細検索」
 
-| 要素 | コンポーネント | 説明 |
-|------|--------------|------|
-| アイコン | SearchOutlined | 検索アイコン（色: #CF0027） |
-| タイトル | Text | 「フォーマットファイル詳細検索」 |
+#### 2.2.2 検索説明エリア
+- **タイプ**: Alert（info）
+- **タイトル**: 「MAIML統合テーブル高速検索」
+- **内容**: 機能説明と使用方法
 
-#### 2.2.2. 情報バナー（Alert）
+#### 2.2.3 検索条件カード
+- **タイトル**: 「検索条件」
+- **アクション**: 
+  - 条件追加ボタン（最大5件まで）
+  - リセットボタン
+- **検索条件行**: 
+  - 番号表示（赤背景）
+  - 属性セレクトボックス
+  - 検索値入力フィールド
+  - 削除ボタン（2件目以降）
+- **AND区切り**: 条件間にDivider
+- **検索ボタン**: 大きなプライマリボタン
 
-| 項目 | 説明 |
-|------|------|
-| タイトル | 「MAIML統合テーブル高速検索」 |
-| 説明文 | 検索機能の説明、最大5つまでの条件組み合わせ |
-| タイプ | info（情報） |
+#### 2.2.4 エラー表示エリア（条件付き）
+- **タイプ**: Alert（error、closable）
+- **表示条件**: エラー発生時のみ
 
-#### 2.2.3. 検索条件カード
+#### 2.2.5 検索統計カード（条件付き）
+- **背景色**: 緑色（#E8F5E9）
+- **表示項目**:
+  - ファイル数
+  - マッチ数
+  - 検索時間
+  - 検索条件数
+- **表示条件**: 検索実行後
 
-| 要素 | 説明 |
-|------|------|
-| 条件番号 | 赤背景の番号バッジ（1〜5） |
-| 属性選択 | Select（カテゴリ別グループ化） |
-| 検索値入力 | Input（Enterキーで検索実行） |
-| 削除ボタン | CloseOutlined（2つ目以降に表示） |
-| AND区切り | Divider（条件間） |
+#### 2.2.6 検索結果カード
+- **タイトル**: 「検索結果」
+- **件数バッジ**: 検索結果がある場合のみ
+- **結果ファイルカード**:
+  - ファイル名とアイコン
+  - ファイルタイプ・バージョン・マッチ数のTag
+  - ファイルパス（コードスタイル）
+  - 説明文
+  - ファイル情報Tag（カテゴリ、サイズ、日付）
+  - ヒット属性Tag
 
-**検索可能な属性カテゴリ:**
+### 2.3 インタラクション
 
-| カテゴリ | アイコン | 色 | 属性例 |
-|---------|---------|-----|--------|
-| Document情報 | 📄 | #CF0027 | Document UUID, Document名, Document説明 |
-| 測定データ | 📊 | #0093CF | 測定値, 単位 |
-| ファイル構造 | 🏗️ | #ed6c02 | セクション種別 |
-| MaiML属性 | 🏷️ | #2e7d32 | ID属性, Ref属性, Key属性, Element名, 汎用Value |
+#### 2.3.1 モーダル表示
+- **操作**: 「詳細検索」ボタンをクリック
+- **結果**: モーダルが開き、検索条件が初期化される
 
-#### 2.2.4. 検索統計カード
+#### 2.3.2 検索条件の追加
+- **操作**: 「条件追加」ボタンをクリック
+- **結果**: 新しい検索条件行が追加される（最大5件）
 
-| 項目 | 説明 |
-|------|------|
-| ファイル数 | マッチしたファイルの総数 |
-| マッチ数 | 検索条件にヒットした箇所の総数 |
-| 検索時間 | 検索処理にかかった時間（ms） |
-| 検索条件 | 有効な検索条件の数 |
+#### 2.3.3 検索条件の削除
+- **操作**: ×ボタンをクリック
+- **結果**: 該当の検索条件行が削除される（最低1件は残る）
 
-#### 2.2.5. 検索結果カード
+#### 2.3.4 検索実行
+- **操作**: 「検索」ボタンをクリック、またはEnterキーを押下
+- **結果**: 
+  - 検索が実行される
+  - ローディング状態が表示される
+  - 検索結果と統計が表示される
 
-各ファイルカードには以下の情報を表示:
+#### 2.3.5 リセット
+- **操作**: 「リセット」ボタンをクリック
+- **結果**: 
+  - 検索条件がクリアされる
+  - 検索結果がクリアされる
+  - エラーと統計がクリアされる
 
-| 項目 | 説明 |
-|------|------|
-| ファイル名 | アイコン + ファイル名（strong） |
-| タイプタグ | XML（green）/ MAIML（blue） |
-| バージョン | バージョン番号（あれば） |
-| マッチ数 | ヒット数のTag（success） |
-| ファイルパス | モノスペースフォントで表示 |
-| 説明 | ファイルの概要 |
-| カテゴリ | 材料、測定、分析等 |
-| ファイルサイズ | フォーマット済み（KB/MB） |
-| 最終更新日 | 日本語形式の日付 |
-| ヒット属性 | 検索条件にマッチした属性と値 |
+#### 2.3.6 ファイル選択
+- **操作**: 検索結果のファイルカードをクリック
+- **結果**: 
+  - ファイルが選択される
+  - `onFileSelect`コールバックが呼び出される
+  - モーダルが閉じる
 
-### 2.3. 画面遷移
-
-- 画面遷移なし
-- ファイル選択時はonFileSelectコールバックを呼び出してモーダルを閉じる
+#### 2.3.7 モーダルを閉じる
+- **操作**: ×ボタン、またはモーダル外側をクリック、またはEscキーを押下
+- **結果**: 
+  - 全ての状態がクリアされる
+  - モーダルが閉じる
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1. 主要機能の詳細
+### 3.1 検索可能な属性
 
-#### 3.1.1. モーダル表示
+#### 3.1.1 属性カテゴリ
 
-**処理フロー:**
-1. 親コンポーネントからopen=trueで呼び出される
-2. 初期状態で検索条件1つを表示
-3. モーダルの高さは最大画面高さの80%まで、スクロール可能
-
-#### 3.1.2. 検索条件の管理
-
-**検索条件の追加:**
-- 「条件追加」ボタンで追加（最大5つまで）
-- 各条件は「属性」と「値」のペア
-
-**検索条件の更新:**
-- 属性選択: カテゴリ別にグループ化されたSelect
-- 値入力: テキスト入力、Enterキーで検索実行
-- 削除: 2つ目以降の条件のみ削除可能
-
-**検索条件のリセット:**
-- 「リセット」ボタンで全条件クリア
-- 検索結果とエラーもクリア
-- 初期状態（条件1つ）に戻る
-
-#### 3.1.3. 属性選択のグループ化
-
-**カテゴリ別グループ:**
 ```typescript
-{
-  document: {
-    label: 'Document情報',
-    icon: '📄',
-    color: '#CF0027',
-    attributes: ['document.uuid', 'document.name', 'document.description']
-  },
-  data: {
-    label: '測定データ',
-    icon: '📊',
-    color: '#0093CF',
-    attributes: ['measurement_value', 'units']
-  },
-  structure: {
-    label: 'ファイル構造',
-    icon: '🏗️',
-    color: '#ed6c02',
-    attributes: ['section_type']
-  },
-  attributes: {
-    label: 'MaiML属性',
-    icon: '🏷️',
-    color: '#2e7d32',
-    attributes: ['id', 'ref', 'key', 'element', 'value']
+const ATTRIBUTE_CATEGORIES = {
+  document: { label: 'Document情報', icon: '📄', color: '#CF0027' },
+  data: { label: '測定データ', icon: '📊', color: '#0093CF' },
+  structure: { label: 'ファイル構造', icon: '🏗️', color: '#ed6c02' },
+  attributes: { label: 'MaiML属性', icon: '🏷️', color: '#2e7d32' },
+};
+```
+
+**カテゴリ説明:**
+| カテゴリ | アイコン | 色 | 説明 |
+|---------|---------|---|------|
+| document | 📄 | #CF0027（赤） | Document要素の情報 |
+| data | 📊 | #0093CF（青） | 測定データや値 |
+| structure | 🏗️ | #ed6c02（橙） | ファイルの構造情報 |
+| attributes | 🏷️ | #2e7d32（緑） | MAIML属性（NEW） |
+
+#### 3.1.2 検索可能属性リスト
+
+```typescript
+const SEARCHABLE_ATTRIBUTES = [
+  // Document情報
+  { value: 'document.uuid', label: 'Document UUID', category: 'document' },
+  { value: 'document.name', label: 'Document名', category: 'document' },
+  { value: 'document.description', label: 'Document説明', category: 'document' },
+  
+  // 測定データ
+  { value: 'measurement_value', label: '測定値', category: 'data' },
+  { value: 'units', label: '単位', category: 'data' },
+  
+  // ファイル構造
+  { value: 'section_type', label: 'セクション種別', category: 'structure' },
+  
+  // MaiML属性（新規追加）
+  { value: 'id', label: 'ID属性', category: 'attributes', isNew: true },
+  { value: 'ref', label: 'Ref属性', category: 'attributes', isNew: true },
+  { value: 'key', label: 'Key属性', category: 'attributes', isNew: true },
+  { value: 'element', label: 'Element名', category: 'attributes', isNew: true },
+  { value: 'value', label: '汎用Value', category: 'attributes', isNew: true },
+];
+```
+
+**NEW バッジ**: `isNew: true`の属性には緑色の「NEW」バッジが表示される
+
+#### 3.1.3 UI動作
+- ユーザー操作: 属性セレクトボックスをクリック
+- 画面変化: 
+  - カテゴリ別にグループ化されたオプションが表示される
+  - NEW属性には緑色のバッジが表示される
+  - 検索（フィルター）が可能
+
+### 3.2 検索条件の管理
+
+#### 3.2.1 検索条件の追加
+
+```typescript
+const addSearchCriteria = () => {
+  if (searchCriteria.length < 5) {
+    setSearchCriteria([...searchCriteria, { attribute: '', value: '' }]);
   }
-}
+};
 ```
 
-**NEW タグ表示:**
-- MaiML属性（新規追加）にはNEWタグを表示
-- Tag（success、小サイズ）
+- **制限**: 最大5件まで
+- **初期値**: 空の検索条件（`{ attribute: '', value: '' }`）
 
-#### 3.1.4. 検索実行
+#### 3.2.2 検索条件の更新
 
-**処理フロー:**
-1. 有効な検索条件（属性と値が両方入力済み）を抽出
-2. 有効な条件が0の場合はエラー表示
-3. 検索開始時刻を記録
-4. API呼び出し（TODO: 実装待ち）
-5. 検索結果と統計情報を設定
-6. 検索時間を計算
-7. 結果が0件の場合はエラーメッセージ
-
-**バリデーション:**
-- 最低1つの有効な検索条件が必要
-- 属性と値の両方が入力されている条件のみ有効
-
-**ローディング状態:**
-- 検索中は検索ボタンがloading状態
-- 検索ボタンは無効化
-
-#### 3.1.5. 検索結果の表示
-
-**結果カードの表示:**
-- ホバー効果（hoverable）
-- クリック可能（cursor: pointer）
-- トランジションアニメーション
-
-**ファイルサイズのフォーマット:**
-- 1024未満: `X B`
-- 1024以上、1MB未満: `X.X KB`
-- 1MB以上: `X.X MB`
-
-**カテゴリラベルの変換:**
 ```typescript
-{
-  protocol: 'プロトコル',
-  material: '材料',
-  measurement: '測定',
-  analysis: '分析',
-  sample: 'サンプル',
-  device: 'デバイス'
+const updateSearchCriteria = (index: number, field: 'attribute' | 'value', value: string) => {
+  const newCriteria = [...searchCriteria];
+  newCriteria[index][field] = value;
+  setSearchCriteria(newCriteria);
+};
+```
+
+- **対象**: 指定インデックスの検索条件
+- **更新可能フィールド**: `attribute`（属性）または`value`（検索値）
+
+#### 3.2.3 検索条件の削除
+
+```typescript
+const removeSearchCriteria = (index: number) => {
+  if (searchCriteria.length > 1) {
+    const newCriteria = searchCriteria.filter((_, i) => i !== index);
+    setSearchCriteria(newCriteria);
+  }
+};
+```
+
+- **制限**: 最低1件は残す
+- **対象**: 指定インデックスの検索条件
+
+#### 3.2.4 検索条件のリセット
+
+```typescript
+const handleReset = () => {
+  setSearchCriteria([{ attribute: '', value: '' }]);
+  setSearchResults([]);
+  setError(null);
+  setSearchStats(null);
+};
+```
+
+- **リセット内容**:
+  - 検索条件を初期状態（1件の空条件）に戻す
+  - 検索結果をクリア
+  - エラーをクリア
+  - 検索統計をクリア
+
+#### 3.2.5 UI動作
+- ユーザー操作: 条件追加/削除/リセットボタンをクリック
+- 画面変化: 
+  - 条件追加: 新しい検索条件行が表示される
+  - 条件削除: 該当の検索条件行が削除される
+  - リセット: 全ての状態がクリアされる
+
+### 3.3 検索実行
+
+#### 3.3.1 バリデーション
+
+```typescript
+const validCriteria = searchCriteria.filter(
+  (criteria) => criteria.attribute && criteria.value.trim()
+);
+
+if (validCriteria.length === 0) {
+  setError('検索条件を1つ以上設定してください');
+  return;
 }
 ```
 
-#### 3.1.6. ファイル選択
+- **検証内容**:
+  - 属性が選択されている
+  - 検索値が空でない（trimして空白のみでない）
+- **エラー**: 有効な条件が1つもない場合
 
-**処理フロー:**
-1. 検索結果のファイルカードをクリック
-2. コンソールログ出力
-3. 親コンポーネントのonFileSelect(file)コールバックを呼び出し
-4. モーダルを閉じる（handleClose）
+#### 3.3.2 検索処理
 
-#### 3.1.7. モーダルを閉じる
+```typescript
+const handleSearch = async () => {
+  setError(null);
+  setSearchStats(null);
+  
+  // バリデーション
+  // ...
 
-**処理フロー:**
-1. 検索条件を初期状態にリセット
-2. 検索結果をクリア
-3. エラーをクリア
-4. 検索統計をクリア
-5. 親コンポーネントのonClose()コールバックを呼び出し
+  const searchStartTime = Date.now();
 
-### 3.2. ボタン・操作の動作
+  try {
+    setIsSearching(true);
+    console.log('🔍 フォーマットファイル検索開始:', validCriteria);
 
-| 操作 | 動作 | 状態変更 |
-|------|------|---------|
-| 条件追加ボタン | 新しい検索条件を追加 | searchCriteria配列に追加 |
-| リセットボタン | 全条件・結果をクリア | 初期状態に戻す |
-| 検索ボタン | 検索を実行 | isSearching=true→false |
-| 削除ボタン（×） | 該当条件を削除 | searchCriteria配列から削除 |
-| Enterキー（入力欄） | 検索を実行 | - |
-| ファイルカードクリック | ファイルを選択 | onFileSelect()→モーダルを閉じる |
+    // TODO: 実際のAPI呼び出しに置き換える
+    // const results = await searchFormatFilesEnhanced(validCriteria);
+    
+    // モックデータ（開発用）
+    const mockResults: SearchResult[] = [ /* ... */ ];
 
-### 3.3. バリデーションルール
+    const searchDuration = Date.now() - searchStartTime;
 
-| ルール | 説明 | エラーメッセージ |
-|--------|------|----------------|
-| 有効条件チェック | 最低1つの有効な検索条件が必要 | 「検索条件を1つ以上設定してください」 |
-| 条件数制限 | 最大5つまで | 条件追加ボタンを非表示 |
+    setSearchResults(mockResults);
+    setSearchStats({
+      totalFiles: mockResults.length,
+      totalMatches: mockResults.reduce((sum, file) => sum + file.matchCount, 0),
+      searchDuration,
+      totalCriteria: validCriteria.length,
+    });
+
+    if (mockResults.length === 0) {
+      setError('検索条件に一致するファイルが見つかりませんでした');
+    }
+  } catch (err) {
+    console.error('❌ 検索エラー:', err);
+    const errorMessage = err instanceof Error ? err.message : '不明なエラーが発生しました';
+    setError(`検索エラー: ${errorMessage}`);
+    setSearchResults([]);
+  } finally {
+    setIsSearching(false);
+  }
+};
+```
+
+- **検索開始時**: 
+  - エラーと統計をクリア
+  - ローディング状態を設定
+- **検索中**: 
+  - API呼び出し（現在はモックデータ）
+  - 検索時間を計測
+- **検索完了時**: 
+  - 結果を設定
+  - 統計を計算・設定
+  - 結果が0件の場合、エラーメッセージを表示
+- **エラー発生時**: 
+  - エラーメッセージを設定
+  - 結果をクリア
+
+#### 3.3.3 検索統計の計算
+
+```typescript
+setSearchStats({
+  totalFiles: mockResults.length,                                          // ファイル数
+  totalMatches: mockResults.reduce((sum, file) => sum + file.matchCount, 0), // マッチ数合計
+  searchDuration,                                                          // 検索時間（ms）
+  totalCriteria: validCriteria.length,                                     // 検索条件数
+});
+```
+
+#### 3.3.4 UI動作
+- ユーザー操作: 「検索」ボタンをクリック、またはEnterキーを押下
+- 画面変化: 
+  - 検索ボタンがローディング状態になる
+  - 成功時: 検索結果と統計が表示される
+  - 失敗時: エラーメッセージが表示される
+  - 結果0件時: エラーメッセージと空状態が表示される
+
+### 3.4 検索結果の表示
+
+#### 3.4.1 検索結果カードのレンダリング
+
+各ファイルカードには以下の情報が表示されます：
+
+1. **ファイル名とタイプ**
+   - アイコン（FileTextOutlined、赤色）
+   - ファイル名（太字）
+   - ファイルタイプTag（XML=緑、MAIML=青）
+   - バージョンTag（灰色）
+   - マッチ数Tag（緑色）
+
+2. **ファイルパス**
+   - コードスタイル（灰色背景、等幅フォント）
+   - フォルダアイコン付き
+
+3. **ファイル説明**
+   - 灰色テキスト
+
+4. **ファイル情報Tag**
+   - カテゴリTag（アイコン付き）
+   - サイズTag（アイコン付き）
+   - 日付Tag（アイコン付き）
+
+5. **ヒット属性**
+   - シアン色のTag
+   - 属性名と値を表示
+
+#### 3.4.2 ファイルサイズのフォーマット
+
+```typescript
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+```
+
+#### 3.4.3 カテゴリ表示名の取得
+
+```typescript
+const getCategoryLabel = (category: string) => {
+  const categoryMap: Record<string, string> = {
+    protocol: 'プロトコル',
+    material: '材料',
+    measurement: '測定',
+    analysis: '分析',
+    sample: 'サンプル',
+    device: 'デバイス',
+  };
+  return categoryMap[category] || category;
+};
+```
+
+#### 3.4.4 UI動作
+- ユーザー操作: なし（自動表示）
+- 画面変化: 
+  - 検索結果がカード形式で表示される
+  - カードにマウスオーバーで視覚的フィードバック
+  - カードクリックでファイルが選択される
+
+### 3.5 ファイル選択
+
+#### 3.5.1 選択処理
+
+```typescript
+const handleFileSelect = (file: SearchResult) => {
+  console.log('📄 ファイル選択:', file.name);
+  onFileSelect(file);
+  handleClose();
+};
+```
+
+- **動作**:
+  1. コンソールにログ出力
+  2. 親コンポーネントの`onFileSelect`コールバックを呼び出し
+  3. モーダルを閉じる
+
+#### 3.5.2 UI動作
+- ユーザー操作: ファイルカードをクリック
+- 画面変化: 
+  - ファイルが選択される
+  - モーダルが閉じる
+  - 親コンポーネントで選択されたファイルが処理される
+
+### 3.6 モーダルを閉じる
+
+#### 3.6.1 閉じる処理
+
+```typescript
+const handleClose = () => {
+  setSearchCriteria([{ attribute: '', value: '' }]);
+  setSearchResults([]);
+  setError(null);
+  setSearchStats(null);
+  onClose();
+};
+```
+
+- **リセット内容**:
+  - 検索条件を初期状態に戻す
+  - 検索結果をクリア
+  - エラーをクリア
+  - 検索統計をクリア
+  - 親コンポーネントの`onClose`コールバックを呼び出し
+
+#### 3.6.2 UI動作
+- ユーザー操作: ×ボタン、またはモーダル外側をクリック、またはEscキーを押下
+- 画面変化: 
+  - 全ての状態がクリアされる
+  - モーダルが閉じる
 
 ---
 
 ## 4. データ仕様
 
-### 4.1. 入力項目（Props）
+### 4.1 Props定義
 
 ```typescript
 interface FormatSearchModalProps {
-  open: boolean;                              // モーダル表示状態
-  onClose: () => void;                        // 閉じる時のコールバック
-  onFileSelect: (file: SearchResult) => void; // ファイル選択時のコールバック
+  open: boolean;                                      // モーダル表示状態
+  onClose: () => void;                                // モーダルを閉じる時のコールバック
+  onFileSelect: (file: SearchResult) => void;         // ファイル選択時のコールバック
 }
 ```
 
-### 4.2. SearchCriteria型定義
+### 4.2 SearchCriteria型定義
 
 ```typescript
 interface SearchCriteria {
-  attribute: string;  // 検索属性（例: 'document.name'）
-  value: string;      // 検索値
+  attribute: string;    // 検索属性（例: 'document.uuid', 'id'）
+  value: string;        // 検索値
 }
 ```
 
-### 4.3. SearchResult型定義
+### 4.3 SearchResult型定義
 
 ```typescript
 interface SearchResult {
-  id: string;                  // ファイルID
-  name: string;                // ファイル名
-  path: string;                // ファイルパス
-  size: number;                // ファイルサイズ（バイト）
-  lastModified: string;        // 最終更新日時（ISO 8601形式）
-  type: string;                // ファイルタイプ（xml/maiml）
-  version?: string;            // バージョン（オプション）
-  description?: string;        // 説明（オプション）
-  formatName: string;          // フォーマット名
-  category: string;            // カテゴリ
-  matchCount: number;          // マッチ数
-  matchedAttributes?: Array<{  // ヒットした属性（オプション）
+  id: string;                     // ファイルID
+  name: string;                   // ファイル名
+  path: string;                   // S3/Swiftパス
+  size: number;                   // ファイルサイズ（バイト）
+  lastModified: string;           // 最終更新日時（ISO 8601形式）
+  type: string;                   // ファイルタイプ（'xml' | 'maiml'）
+  version?: string;               // バージョン
+  description?: string;           // 説明
+  formatName: string;             // フォーマット名
+  category: string;               // カテゴリ
+  matchCount: number;             // マッチ数
+  matchedAttributes?: Array<{     // ヒット属性リスト
     attribute: string;
     value: string;
   }>;
 }
 ```
 
-### 4.4. SearchStats型定義
+### 4.4 SearchStats型定義
 
 ```typescript
 interface SearchStats {
-  totalFiles: number;      // 検索結果のファイル数
-  totalMatches: number;    // 総マッチ数
-  searchDuration: number;  // 検索時間（ms）
-  totalCriteria: number;   // 有効な検索条件数
+  totalFiles: number;       // 検索結果ファイル数
+  totalMatches: number;     // マッチ箇所の合計数
+  searchDuration: number;   // 検索時間（ミリ秒）
+  totalCriteria: number;    // 使用した検索条件数
 }
+```
+
+### 4.5 State定義
+
+```typescript
+const [searchCriteria, setSearchCriteria] = useState<SearchCriteria[]>([
+  { attribute: '', value: '' },
+]);
+const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+const [isSearching, setIsSearching] = useState(false);
+const [error, setError] = useState<string | null>(null);
+const [searchStats, setSearchStats] = useState<SearchStats | null>(null);
 ```
 
 ---
 
 ## 5. API連携
 
-### 5.1. 使用するAPI一覧
+### 5.1 想定されるAPI
 
-| API | メソッド | 説明 | 実装状態 |
-|-----|---------|------|---------|
-| searchFormatFilesEnhanced | POST | フォーマットファイル詳細検索 | TODO |
-
-### 5.2. リクエスト仕様
+**現在はモックデータを使用**していますが、将来的には以下のAPIを呼び出す予定：
 
 ```typescript
-// TODO: API実装後に追加
-POST /api/v1/formats/search
-Content-Type: application/json
-
-{
-  "criteria": [
-    {
-      "attribute": "document.name",
-      "value": "template"
-    },
-    {
-      "attribute": "element",
-      "value": "Material"
-    }
-  ]
-}
+// TODO: 実際のAPI呼び出しに置き換える
+// const results = await searchFormatFilesEnhanced(validCriteria);
 ```
 
-### 5.3. レスポンス仕様
-
-```typescript
-// TODO: API実装後に追加
-{
-  "success": true,
-  "data": {
-    "files": [...],
-    "stats": {
-      "totalFiles": 2,
-      "totalMatches": 3,
-      "searchDuration": 45
-    }
-  }
-}
-```
+**想定されるAPI:**
+- **POST** `/api/v1/experiment_admin/formats/search`
+  - フォーマットファイル検索API
+  - リクエストボディ: `{ criteria: SearchCriteria[] }`
+  - レスポンス: `SearchResult[]`
 
 ---
 
 ## 6. エラーハンドリング
 
-### 6.1. エラーケース
+### 6.1 エラーケースと表示方法
 
-| エラーケース | 処理 |
-|------------|------|
-| 検索条件なし | エラーメッセージ「検索条件を1つ以上設定してください」 |
-| 検索結果0件 | エラーメッセージ「検索条件に一致するファイルが見つかりませんでした」 |
-| API通信エラー | エラーメッセージ「検索エラー: {エラー詳細}」 |
-
-### 6.2. エラーメッセージ
-
-| メッセージ | 表示タイミング | 種類 |
-|----------|--------------|------|
-| 「検索条件を1つ以上設定してください」 | 有効な検索条件が0個で検索実行 | Alert（error） |
-| 「検索条件に一致するファイルが見つかりませんでした」 | 検索結果が0件 | Alert（error） |
-| 「検索エラー: {詳細}」 | API呼び出し失敗 | Alert（error） |
+| エラーケース | 検知タイミング | 表示方法 | 表示内容 |
+|------------|------------|---------|---------|
+| 検索条件未設定 | 検索実行時 | Alert（error） | 「検索条件を1つ以上設定してください」 |
+| 検索結果0件 | API返却時 | Alert（error） | 「検索条件に一致するファイルが見つかりませんでした」 |
+| API通信エラー | API返却時 | Alert（error） | 「検索エラー: {エラーメッセージ}」 |
 
 ---
 
-## 7. UI/UXポリシー準拠
+## 7. 実装ファイル
 
-### 7.1. Ant Designコンポーネント使用
+### 7.1 ファイルパス
+- **メインファイル**: `frontend/src/components/project/FormatSearchModal.tsx`
 
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Modal | モーダル本体 | title, open, onCancel, width={900}, footer={null}, destroyOnClose, styles |
-| Alert | 情報バナー、エラー表示 | message, description, type, showIcon, closable |
-| Card | 検索条件、検索統計、検索結果、ファイルカード | title, extra, bordered, size, hoverable |
-| Select | 属性選択 | placeholder, value, onChange, options, showSearch |
-| Input | 検索値入力 | placeholder, value, onChange, onPressEnter |
-| Button | 各種操作ボタン | type, icon, onClick, size, disabled, loading |
-| Space | 要素の配置 | direction, size, align, wrap |
-| Tag | タイプ、バージョン、マッチ数、カテゴリ | color, icon |
-| Divider | 検索条件の区切り | type, style |
-| Empty | 検索結果なし時 | description |
+### 7.2 関連ファイル
+- **親コンポーネント**: `frontend/src/components/project/FormatManagement.tsx`
+- **コンテキスト**: `frontend/src/contexts/LanguageContext.tsx`
 
-### 7.2. カラーパレット
-
-```typescript
-// プライマリカラー（検索アイコン、条件番号）
-#CF0027
-
-// カテゴリ別カラー
-document: #CF0027    // 赤系
-data: #0093CF        // 青系
-structure: #ed6c02   // オレンジ系
-attributes: #2e7d32  // 緑系
-
-// 統計カード背景
-#E8F5E9  // 薄い緑
-```
-
-### 7.3. 多言語対応
-
-- `useLanguage()` カスタムフックを使用
-- 主な翻訳キーはハードコードされているため、将来的に多言語化が必要
-
-### 7.4. レスポンシブ対応
-
-- モーダル幅: 900px（固定）
-- モーダル高さ: 最大 `calc(100vh - 200px)`
-- スクロール: 縦スクロール有効
-- モバイルでは自動的に幅が調整される（Ant Designのデフォルト動作）
+### 7.3 依存ライブラリ
+- **Ant Design**: Modal, Input, Select, Button, Space, Tag, Typography, Divider, Alert, Card, Empty
+- **Ant Design Icons**: SearchOutlined, PlusOutlined, CloseOutlined, ReloadOutlined, FileTextOutlined
 
 ---
 
-## 8. 実装ファイル
+## 8. UI/UXの考慮事項
 
-### 8.1. ソースファイルパス
+### 8.1 レスポンシブデザイン
+- **幅**: 900px（固定）
+- **高さ**: 最大calc(100vh - 200px)、スクロール可能
 
-```
-frontend/src/components/project/FormatSearchModal.tsx
-```
+### 8.2 アクセシビリティ
+- **キーボード操作**: Enterキーで検索、Escキーでモーダルを閉じる
+- **視覚的フィードバック**: ホバー時のカード変化
 
-### 8.2. 関連コンポーネント
-
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| FormatManagement | ./FormatManagement.tsx | 親コンポーネント |
-
-### 8.3. カスタムフック
-
-| フック | パス | 役割 |
-|--------|------|------|
-| useLanguage | @/contexts/LanguageContext | 多言語化 |
-
-### 8.4. ユーティリティ
-
-- formatFileSize(): ファイルサイズをフォーマット（コンポーネント内に実装）
+### 8.3 パフォーマンス
+- **useMemo**: 属性オプションと検索条件の有効性チェックをメモ化
 
 ---
 
-## 9. 既知の課題・TODO
+## 9. 変更履歴
 
-### 実装待ち
-
-- [ ] API実装（searchFormatFilesEnhanced）
-- [ ] モックデータを実際のAPI呼び出しに置き換え
-- [ ] 検索結果のページネーション
-- [ ] 検索履歴の保存機能
-- [ ] よく使う検索条件の保存機能
-
-### 改善提案
-
-- [ ] 検索条件のプリセット機能
-- [ ] 検索結果のソート機能
-- [ ] 検索結果のエクスポート（CSV）
-- [ ] AND/OR条件の切り替え
-- [ ] 正規表現検索のサポート
-- [ ] ファジー検索のサポート
-- [ ] 検索結果のハイライト表示
-- [ ] ファイルのプレビュー機能
-- [ ] 検索条件の保存・共有機能
-- [ ] 検索履歴の表示
-
----
-
-## 10. 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-11 | 実装ベースで仕様書を作成（Phase 4: フォーマット管理画面） | Cline |

@@ -374,7 +374,7 @@ export async function findProjectTasks(
   };
   
   let query = `
-    SELECT 
+    SELECT
       ptd.organization_id,
       ptd.project_id,
       ptd.method_id,
@@ -386,8 +386,21 @@ export async function findProjectTasks(
       ou.user_name as experiment_user_name,
       ptd.reviewed_at,
       ptd.review_user_id,
-      ru.user_name as review_user_name
+      ru.user_name as review_user_name,
+      pt_agg.min_experiment_order
     FROM project_task_detail ptd
+    LEFT JOIN (
+      SELECT
+        organization_id,
+        project_id,
+        method_id,
+        MIN(experiment_order) AS min_experiment_order
+      FROM project_task
+      GROUP BY organization_id, project_id, method_id
+    ) pt_agg
+      ON pt_agg.organization_id = ptd.organization_id
+      AND pt_agg.project_id = ptd.project_id
+      AND pt_agg.method_id = ptd.method_id
     LEFT JOIN organization_user ou
       ON ou.user_id = ptd.experiment_user_id
       AND ou.organization_id = ptd.organization_id
@@ -409,7 +422,7 @@ export async function findProjectTasks(
     }
   }
   
-  query += ` ORDER BY ptd.method_id, ptd.task_no`;
+  query += ` ORDER BY pt_agg.min_experiment_order ASC, ptd.task_no ASC`;
   
   const result = await pool.query(query, params);
   return result.rows;

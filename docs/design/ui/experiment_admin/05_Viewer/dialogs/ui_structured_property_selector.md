@@ -1,524 +1,450 @@
-# StructuredPropertySelector UI仕様書
+# StructuredPropertySelector コンポーネント UI仕様書
 
 ## 1. 概要
 
-### 1.1. コンポーネントの目的
+### 1.1 コンポーネントの目的
+StructuredPropertySelectorは、Placeノードのプロパティを構造別（基本情報/テンプレート/データ）に表示し、チェックボックスで選択できるダイアログコンポーネントです。Modal、Drawer、埋め込みの3つの表示モードをサポートします。
 
-PlaceノードのプロパティをMAIML構造（基本情報、テンプレート、データ）別に選択するダイアログ。選択したプロパティのみをPetriNetビューアで表示します。
+### 1.2 使用場面
+- PetriNetViewerでPlaceノードをクリックした際のプロパティ選択（現在は使用されていない）
+- SubNetViewerでのプロパティ選択（埋め込みモード）
+- プロパティ選択ダイアログ（Modal/Drawerモード）
 
-### 1.2. 使用場面
-
-- PetriNetViewerでPlaceノードをクリックした場合
-- Placeノードに表示するプロパティを選択する場合
-- Material/Condition/Resultノードのプロパティを絞り込む場合
-
-### 1.3. アクセス権限
-
-- **対象ロール**: Experiment Admin（実験管理者）
-- **必須認証**: JWT認証必須
+### 1.3 アクセス権限
+- **必須ロール**: Experiment Admin（実験管理者）
+- **認証**: JWT + Session Hybrid認証
 
 ---
 
 ## 2. 画面構成
 
-### 2.1. レイアウト構造
+### 2.1 レイアウト構造
+
+#### 2.1.1 Modalモード
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│ プロパティ選択: material_001                     [×]      │
-├──────────────────────────────────────────────────────────┤
-│ 選択済み: [基本情報: ID] [テンプレート: formula] [×] [×] │
-│                                                          │
-│ [基本情報] [テンプレート] [データ]                        │
-├──────────────────────────────────────────────────────────┤
-│ ☐ ID                 (material_001)                     │
-│ ☑ 名前                (サンプル材料)                     │
-│ ☐ タイプ              (Material)                        │
-│ ☐ 説明                (実験用サンプル材料)               │
-│                                                          │
-└──────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│ プロパティ選択: [ノード名]               [✕] 閉じる     │
+├─────────────────────────────────────────────────────────┤
+│ 選択中のプロパティ                                       │
+│ ┌─────────────────────────────────────────────────┐   │
+│ │ [基本情報: id] [テンプレート: temperature] ...   │   │
+│ └─────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────┤
+│ [基本情報 2] [テンプレート 1] [データ]  ← タブ          │
+├─────────────────────────────────────────────────────────┤
+│ ☐  プロパティ名         値                              │
+│ ─────────────────────────────────────────────────     │
+│ ☑  ID                  place_001                        │
+│ ☑  名前                サンプル材料                      │
+│ ☐  タイプ              Material                         │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 2.2. 主要UI要素
+#### 2.1.2 Drawerモード
 
-#### 2.2.1. ヘッダー
-
-| 要素 | 説明 |
-|------|------|
-| タイトル | 「プロパティ選択: {nodeName}」 |
-| 閉じるボタン | Xアイコン、onClose()実行 |
-
-#### 2.2.2. 選択済みチップエリア
-
-**表示内容:**
-- 選択済みプロパティをTagで表示
-- 「{構造名}: {プロパティキー}」形式
-- 各Tagに削除ボタン（×）付き
-
-**機能:**
-- チップをクリックで選択解除
-- 構造別に色分け
-  - 基本情報: blue
-  - テンプレート: green
-  - データ: orange
-
-#### 2.2.3. タブ
-
-| タブ | 内容 |
-|------|------|
-| 基本情報 | 基本プロパティのリスト |
-| テンプレート | テンプレートプロパティのリスト |
-| データ | データプロパティのリスト |
-
-**タブ切り替え:**
-- デフォルト: 「基本情報」タブ
-- クリックで切り替え
-- activeTabでstate管理
-
-#### 2.2.4. プロパティリスト
-
-**List.Item構成:**
-- Checkbox: 選択状態
-- プロパティキー（太字）
-- プロパティ値（グレー、括弧内）
-
-**表示例:**
 ```
-☑ 名前 (サンプル材料)
-☐ ID (material_001)
+                                    ┌──────────────────────┐
+                                    │ プロパティ選択       │
+                                    │ [ノード名]   [✕]    │
+                                    ├──────────────────────┤
+                                    │ 選択中のプロパティ    │
+                                    │ [基本情報: id] ...   │
+                                    ├──────────────────────┤
+                                    │ [基本情報 2]         │
+                                    │ [テンプレート 1]     │
+                                    │ [データ]             │
+                                    ├──────────────────────┤
+                                    │ ☐ ID  place_001     │
+                                    │ ☑ 名前 サンプル材料  │
+                                    │                     │
+                                    └──────────────────────┘
 ```
 
-**値の表示:**
-- 文字列: そのまま表示
-- 数値: 数値表示
-- オブジェクト: 「{N}個の子要素」
-- 未設定: 「未設定」
+#### 2.1.3 埋め込みモード
 
-#### 2.2.5. 表示モード
+```
+┌─────────────────────────────────────────────────────────┐
+│ プロパティ: [ノード名]                                   │
+├─────────────────────────────────────────────────────────┤
+│ 選択中のプロパティ                                       │
+│ [基本情報: id] [テンプレート: temperature] ...          │
+├─────────────────────────────────────────────────────────┤
+│ [基本情報 2] [テンプレート 1] [データ]  ← タブ          │
+├─────────────────────────────────────────────────────────┤
+│ ☐  ID                  place_001                        │
+│ ☑  名前                サンプル材料                      │
+│ ☐  タイプ              Material                         │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
 
-| モード | 説明 |
-|-------|------|
-| modal | Modalダイアログ（デフォルト） |
-| drawer | Drawerサイドパネル |
-| embedded | 埋め込み表示（Modal/Drawerなし） |
+### 2.2 主要UI要素
 
-**用途:**
-- modal: 通常のダイアログ表示
-- drawer: サイドバーから表示
-- embedded: 他のコンポーネント内に埋め込み
+#### 2.2.1 ヘッダー
+- **タイトル**: "プロパティ選択: [ノード名]"
+- **閉じるボタン**: Modal/Drawerモードのみ
+
+#### 2.2.2 選択中のプロパティエリア
+- **背景**: 白色、下部ボーダー
+- **表示形式**: Tag（青色、クローズ可能）
+- **フォーマット**: "[構造名]: [プロパティキー]"
+- **空の場合**: Empty（「プロパティが選択されていません」）
+
+#### 2.2.3 タブ（選択数バッジ付き）
+- **基本情報**: 基本情報プロパティ + 選択数バッジ
+- **テンプレート**: テンプレートプロパティ + 選択数バッジ
+- **データ**: データプロパティ + 選択数バッジ
+
+#### 2.2.4 プロパティテーブル
+- **カラム**:
+  - チェックボックス（50px幅、中央揃え）
+  - プロパティ名（40%幅、太字）
+  - 値（自動幅、グレー、12px）
+- **サイズ**: small
+- **スクロール**: 最大高さ400px
+- **行クリック**: 行全体がクリック可能
 
 ---
 
 ## 3. 機能仕様
 
-### 3.1. 主要機能の詳細
+### 3.1 表示モード
 
-#### 3.1.1. プロパティ選択の初期化
-
-**処理フロー:**
-1. コンポーネントマウント時にpropsを受け取る
-2. structuredProperties: { basic, template, data }
-3. selectedProperties: { basic: [], template: [], data: [] }
-4. 各構造のプロパティリストを構築
-
-#### 3.1.2. タブ切り替え
-
-**処理フロー:**
-1. タブをクリック
-2. activeTabを更新（'basic', 'template', 'data'）
-3. 対応するプロパティリストを表示
-
-#### 3.1.3. プロパティ選択/解除
-
-**処理フロー:**
-1. Checkboxをクリック
-2. onPropertyToggle(structure, property) を実行
-3. 親コンポーネントでselectedPropertiesを更新
-4. チェック状態を切り替え
-
-**チェック状態の判定:**
+#### 3.1.1 モードの決定ロジック
 ```typescript
-const isChecked = selectedProperties[structure].includes(property);
+const actualDisplayMode: 'modal' | 'drawer' | 'embedded' = 
+  displayMode || (embedded ? 'embedded' : 'modal');
 ```
 
-#### 3.1.4. 選択済みチップの表示
+- **displayMode指定あり**: displayModeを使用
+- **embedded=true**: 'embedded'モード（後方互換性）
+- **それ以外**: 'modal'モード（デフォルト）
 
-**処理フロー:**
-1. selectedPropertiesの各構造をループ
-2. 選択されているプロパティをTagで表示
-3. 構造名とプロパティキーを結合
-4. closable=true で削除ボタンを表示
-
-**削除処理:**
-1. Tag の onClose をクリック
-2. onPropertyToggle(structure, property) を実行
-3. 選択を解除
-
-#### 3.1.5. プロパティ値のフォーマット
-
-**処理フロー:**
-1. PropertyObjectから値を取得
-2. value, elements.value, children を確認
-3. 値の型に応じてフォーマット
-4. 未設定の場合は「未設定」を返す
-
-**フォーマットロジック:**
+#### 3.1.2 Modalモード（解決策A）
 ```typescript
-if (obj.value !== undefined) return String(obj.value);
-if (obj.elements?.value !== undefined) return String(obj.elements.value);
-if (obj.children && obj.children.length > 0) return `${obj.children.length}個の子要素`;
-return '未設定';
+<Modal
+  title={`プロパティ選択: ${nodeName || nodeId || '未選択'}`}
+  open={open}
+  onCancel={onClose}
+  onOk={onClose}
+  width={800}
+  style={{ top: 80 }}
+  getContainer={getContainer || (() => document.body)}
+  styles={{ body: { maxHeight: '70vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' } }}
+>
+  {renderContent()}
+</Modal>
 ```
 
-#### 3.1.6. プロパティラベルの取得
+- **幅**: 800px
+- **位置**: top: 80px
+- **コンテナ**: getContainerで指定、デフォルトはdocument.body
 
-**処理フロー:**
-1. PropertyObjectのkeyプロパティを確認
-2. keyがあればそれを使用
-3. なければpropKeyをそのまま使用
+#### 3.1.3 Drawerモード（解決策B）
+```typescript
+<Drawer
+  title={`プロパティ選択: ${nodeName || nodeId || '未選択'}`}
+  placement="right"
+  open={open}
+  onClose={onClose}
+  width={400}
+  getContainer={getContainer || (() => document.body)}
+  style={{ position: 'absolute' }}
+  mask={true}
+  maskClosable={true}
+  destroyOnHidden={false}
+>
+  {renderContent()}
+</Drawer>
+```
 
-#### 3.1.7. 表示モードの決定
+- **幅**: 400px
+- **配置**: 右側
+- **コンテナ**: getContainerで指定
+- **マスク**: 表示、クリックで閉じる
 
-**処理フロー:**
-1. displayMode propを確認
-2. displayModeがない場合、embedded propで判定
-3. actualDisplayMode を決定
-4. modal/drawer/embeddedに応じた表示
+#### 3.1.4 埋め込みモード
+```typescript
+<div style={{ 
+  display: 'flex', 
+  flexDirection: 'column', 
+  height: '100%', 
+  overflow: 'hidden',
+  backgroundColor: '#fff'
+}}>
+  {/* ヘッダー */}
+  <div style={{ padding: '16px', borderBottom: '1px solid #f0f0f0', flexShrink: 0 }}>
+    <Text strong style={{ fontSize: 16 }}>
+      {`プロパティ: ${nodeName || nodeId || '未選択'}`}
+    </Text>
+  </div>
+  
+  {/* コンテンツ */}
+  <div style={{ flex: 1, overflow: 'auto' }}>
+    {renderContent()}
+  </div>
+</div>
+```
 
-**後方互換性:**
-- embedded=true → actualDisplayMode='embedded'
-- embedded=false → actualDisplayMode='modal'
-- displayMode指定時は displayMode を優先
+- **高さ**: 100%（親要素に依存）
+- **オーバーフロー**: コンテンツエリアのみスクロール
 
-### 3.2. ボタン・操作の動作
+### 3.2 プロパティ値のフォーマット
 
-| 操作 | 動作 | 状態変更 |
-|------|------|---------|
-| タブクリック | タブ切り替え | activeTab更新 |
-| Checkboxクリック | プロパティ選択/解除 | selectedProperties更新 |
-| チップ削除ボタン | プロパティ選択解除 | selectedProperties更新 |
-| 閉じるボタン | ダイアログを閉じる | onClose() |
+#### 3.2.1 処理フロー
+```typescript
+const formatPropertyValue = (propertyObj: PropertyObject | unknown): string => {
+  let value;
+  if (propertyObj && typeof propertyObj === 'object') {
+    const obj = propertyObj as PropertyObject;
+    if (obj.value !== undefined) {
+      value = obj.value;
+    } else if (obj.elements && obj.elements.value !== undefined) {
+      value = obj.elements.value;
+    } else if (obj.children && Array.isArray(obj.children) && obj.children.length > 0) {
+      return `${obj.children.length}個の子要素`;
+    }
+  } else {
+    value = propertyObj;
+  }
+
+  if (value === null || value === undefined || value === '') {
+    return '未設定';
+  }
+
+  return String(value);
+};
+```
+
+- **value優先**: obj.value → obj.elements.value → obj.children → propertyObj自体
+- **子要素**: "N個の子要素"と表示
+- **未設定**: "未設定"と表示
+
+### 3.3 選択済みチップの表示
+
+#### 3.3.1 処理フロー
+```typescript
+const renderSelectedChips = () => {
+  const allSelected: Array<{
+    structure: keyof StructuredProperties;
+    property: string;
+    label: string;
+  }> = [];
+
+  (Object.keys(structureLabels) as Array<keyof StructuredProperties>).forEach(structure => {
+    if (selectedProperties[structure]) {
+      selectedProperties[structure].forEach(prop => {
+        allSelected.push({
+          structure,
+          property: prop,
+          label: `${structureLabels[structure]}: ${prop}`
+        });
+      });
+    }
+  });
+
+  if (allSelected.length === 0) {
+    return (
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="プロパティが選択されていません"
+        style={{ margin: '16px 0' }}
+      />
+    );
+  }
+
+  return (
+    <Space wrap style={{ padding: '16px' }}>
+      {allSelected.map(({ structure, property, label }) => (
+        <Tag
+          key={`${structure}-${property}`}
+          closable
+          onClose={() => onPropertyToggle(structure, property)}
+          color="blue"
+        >
+          {label}
+        </Tag>
+      ))}
+    </Space>
+  );
+};
+```
+
+- **集約**: 全構造の選択プロパティを1つの配列に集約
+- **表示**: 青色Tag、クローズ可能
+- **フォーマット**: "[構造名]: [プロパティキー]"
 
 ---
 
 ## 4. データ仕様
 
-### 4.1. Props型定義
+### 4.1 Props定義
 
 ```typescript
 interface StructuredPropertySelectorProps {
-  open: boolean;                                    // 表示フラグ
-  onClose: () => void;                              // 閉じる
-  nodeId: string | null;                            // ノードID
-  nodeName?: string;                                // ノード名
-  structuredProperties: StructuredProperties;       // 構造化プロパティ
-  selectedProperties: SelectedProperties;           // 選択済みプロパティ
+  open: boolean;
+  onClose: () => void;
+  nodeId: string | null;
+  nodeName?: string;
+  structuredProperties: StructuredProperties;
+  selectedProperties: SelectedProperties;
   onPropertyToggle: (structure: keyof StructuredProperties, property: string) => void;
-  embedded?: boolean;                               // 埋め込みモード（後方互換）
-  displayMode?: 'modal' | 'drawer' | 'embedded';    // 表示モード（新規）
-  getContainer?: () => HTMLElement;                 // コンテナ要素取得関数
+  embedded?: boolean;  // 後方互換性のため残す
+  displayMode?: 'modal' | 'drawer' | 'embedded';  // 新規
+  getContainer?: () => HTMLElement;  // 新規
 }
 ```
 
-### 4.2. StructuredProperties型定義
+**Props説明:**
+| Prop名 | 型 | 必須 | 説明 |
+|--------|---|------|------|
+| open | boolean | ✅ | ダイアログの開閉状態 |
+| onClose | Function | ✅ | 閉じる時のコールバック |
+| nodeId | string \| null | ✅ | ノードID |
+| nodeName | string | - | ノード名 |
+| structuredProperties | StructuredProperties | ✅ | 構造化されたプロパティ |
+| selectedProperties | SelectedProperties | ✅ | 選択状態 |
+| onPropertyToggle | Function | ✅ | プロパティ選択トグル時のコールバック |
+| embedded | boolean | - | 埋め込みモードフラグ（後方互換性） |
+| displayMode | 'modal' \| 'drawer' \| 'embedded' | - | 表示モード（新規） |
+| getContainer | Function | - | コンテナ要素取得関数（Modal/Drawer用） |
 
-```typescript
-interface StructuredProperties {
-  basic: Record<string, PropertyObject>;    // 基本情報
-  template: Record<string, PropertyObject>; // テンプレート
-  data: Record<string, PropertyObject>;     // データ
-}
-```
+### 4.2 型定義
 
-### 4.3. SelectedProperties型定義
-
-```typescript
-interface SelectedProperties {
-  basic: string[];      // 選択済み基本情報プロパティ
-  template: string[];   // 選択済みテンプレートプロパティ
-  data: string[];       // 選択済みデータプロパティ
-}
-```
-
-### 4.4. PropertyObject型定義
-
+#### 4.2.1 PropertyObject
 ```typescript
 interface PropertyObject {
-  key?: string;           // プロパティキー
-  value?: unknown;        // 値
-  type?: string;          // 型
-  description?: string;   // 説明
+  key?: string;
+  value?: unknown;
+  type?: string;
+  description?: string;
   elements?: {
-    value?: unknown;      // 要素の値
+    value?: unknown;
   };
-  children?: unknown[];   // 子要素
+  children?: unknown[];
 }
 ```
 
-### 4.5. State型定義
+#### 4.2.2 StructuredProperties
+```typescript
+interface StructuredProperties {
+  basic: Record<string, PropertyObject>;
+  template: Record<string, PropertyObject>;
+  data: Record<string, PropertyObject>;
+}
+```
+
+#### 4.2.3 SelectedProperties
+```typescript
+interface SelectedProperties {
+  basic: string[];
+  template: string[];
+  data: string[];
+}
+```
+
+### 4.3 State定義
 
 ```typescript
-interface State {
-  activeTab: string;  // 'basic' | 'template' | 'data'
-}
+const [activeTab, setActiveTab] = useState<string>('basic');
 ```
 
----
-
-## 5. UI/UXポリシー準拠
-
-### 5.1. Ant Designコンポーネント使用
-
-| コンポーネント | 使用箇所 | props |
-|--------------|---------|-------|
-| Modal | modal表示モード | open, onCancel, title, footer |
-| Drawer | drawer表示モード | open, onClose, title, placement |
-| Tabs | タブコンテナ | activeKey, onChange |
-| TabPane | タブパネル（非推奨、items使用推奨） | tab, key |
-| List | プロパティリスト | dataSource, renderItem |
-| List.Item | リスト項目 | - |
-| Checkbox | 選択チェックボックス | checked, onChange |
-| Tag | 選択済みチップ | closable, onClose, color |
-| Typography.Text | テキスト表示 | strong, type |
-| Space | レイアウト | wrap, size |
-| Empty | 空状態 | description |
-
-### 5.2. @ant-design/icons使用
-
-- CheckCircleOutlined: 選択状態アイコン
-- CloseCircleOutlined: 非選択状態アイコン
+**State説明:**
+| State名 | 型 | 初期値 | 説明 |
+|---------|---|--------|------|
+| activeTab | string | 'basic' | アクティブなタブキー |
 
 ---
 
-## 6. 実装ファイル
+## 5. API連携
 
-### 6.1. ソースファイルパス
+### 5.1 使用するAPI一覧
 
-```
-frontend/src/components/viewer/dialogs/StructuredPropertySelector.tsx
-```
-
-### 6.2. 関連コンポーネント
-
-| コンポーネント | パス | 役割 |
-|--------------|------|------|
-| PetriNetViewer | ../PetriNetViewer | 親コンポーネント |
-| PropertyViewerWithSelection | ./PropertyViewerWithSelection | 選択機能付きビューア |
-
-### 6.3. 依存ライブラリ
-
-| ライブラリ | バージョン | 用途 |
-|-----------|----------|------|
-| antd | 6.x | UIコンポーネント |
-| @ant-design/icons | 5.x | アイコン |
-| react | 18.2.0 | Reactライブラリ |
+| # | API名 | メソッド | エンドポイント | 状態 | 説明 |
+|---|------|---------|---------------|------|------|
+| - | （なし） | - | - | - | API呼び出しなし |
 
 ---
 
-## 7. 既知の課題・TODO
+## 6. エラーハンドリング
 
-- [ ] プロパティの一括選択/解除機能
-- [ ] プロパティの検索/フィルタ機能
-- [ ] プロパティの並び替え機能
-- [ ] 選択済みプロパティのエクスポート
+### 6.1 エラーケース一覧
 
----
-
-## 8. 変更履歴
-
-| バージョン | 日付 | 変更内容 | 担当者 |
-|-----------|------|----------|--------|
-| 2.0.0 | 2025-12-26 | displayMode追加、Ant Design v6対応 | Development Team |
-| 1.0.0 | 2026-01-21 | 初版作成 | Cline |
+| エラーケース | 対処方法 |
+|-------------|----------|
+| structuredPropertiesが空 | Empty（「[構造名]プロパティがありません」）表示 |
+| 選択プロパティなし | Empty（「プロパティが選択されていません」）表示 |
 
 ---
 
-## 9. 使用例
+## 7. 実装ファイル
 
-### 9.1. Modal表示モード（デフォルト）
+### 7.1 ファイルパス
+- **メインファイル**: `frontend/src/components/viewer/dialogs/StructuredPropertySelector.tsx`
+
+### 7.2 依存ライブラリ
+- `antd`: Modal, Drawer, Tabs, Table, Checkbox, Tag, Typography, Space, Empty
+- `antd/es/table`: ColumnsType
+- `@ant-design/icons`: CheckCircleOutlined, CloseCircleOutlined
+
+---
+
+## 8. 使用例
+
+### 8.1 Modalモード
 
 ```typescript
 <StructuredPropertySelector
-  open={selectorOpen}
-  onClose={() => setSelectorOpen(false)}
-  nodeId="material_001"
+  open={modalOpen}
+  onClose={() => setModalOpen(false)}
+  nodeId="place_001"
   nodeName="サンプル材料"
-  structuredProperties={{
-    basic: {
-      id: { value: 'material_001' },
-      name: { value: 'サンプル材料' },
-      type: { value: 'Material' }
-    },
-    template: {
-      formula: { value: 'H2O' },
-      molarMass: { value: 18.015 }
-    },
-    data: {
-      quantity: { value: 100 },
-      unit: { value: 'g' }
-    }
-  }}
-  selectedProperties={{
-    basic: ['name'],
-    template: ['formula'],
-    data: []
-  }}
-  onPropertyToggle={(structure, property) => {
-    // 選択状態を切り替え
-  }}
+  structuredProperties={structuredProperties}
+  selectedProperties={selectedProperties}
+  onPropertyToggle={handlePropertyToggle}
+  displayMode="modal"
 />
 ```
 
-### 9.2. Drawer表示モード
+### 8.2 Drawerモード
 
 ```typescript
 <StructuredPropertySelector
+  open={drawerOpen}
+  onClose={() => setDrawerOpen(false)}
+  nodeId="place_001"
+  nodeName="サンプル材料"
+  structuredProperties={structuredProperties}
+  selectedProperties={selectedProperties}
+  onPropertyToggle={handlePropertyToggle}
   displayMode="drawer"
-  open={selectorOpen}
-  onClose={() => setSelectorOpen(false)}
-  nodeId="material_001"
-  // ... その他のprops
+  getContainer={() => document.getElementById('petri-net-container')!}
 />
 ```
 
-### 9.3. Embedded表示モード
+### 8.3 埋め込みモード
 
 ```typescript
-<StructuredPropertySelector
-  displayMode="embedded"
-  open={true}
-  onClose={() => {}}
-  nodeId="material_001"
-  // ... その他のprops
-/>
+<div style={{ height: '600px' }}>
+  <StructuredPropertySelector
+    open={true}
+    onClose={() => {}}
+    nodeId="place_001"
+    nodeName="サンプル材料"
+    structuredProperties={structuredProperties}
+    selectedProperties={selectedProperties}
+    onPropertyToggle={handlePropertyToggle}
+    displayMode="embedded"
+  />
+</div>
 ```
 
 ---
 
-## 10. スタイリング
+## 9. 変更履歴
 
-### 10.1. チップカラー（構造別）
-
-```typescript
-const getTagColor = (structure: string): string => {
-  switch (structure) {
-    case 'basic':
-      return 'blue';      // 基本情報
-    case 'template':
-      return 'green';     // テンプレート
-    case 'data':
-      return 'orange';    // データ
-    default:
-      return 'default';
-  }
-};
-```
-
-### 10.2. モード別スタイル
-
-**Modal:**
-- width: 600px
-- footer: null（フッターなし）
-
-**Drawer:**
-- placement: 'right'
-- width: 400px
-
-**Embedded:**
-- padding: 16px
-- border: なし
-
----
-
-## 11. パフォーマンス最適化
-
-### 11.1. メモ化
-
-```typescript
-// 選択済みチップをメモ化
-const selectedChips = useMemo(() => {
-  // チップの配列を構築
-}, [selectedProperties, structuredProperties]);
-
-// プロパティリストをメモ化
-const propertyList = useMemo(() => {
-  // リストデータソースを構築
-}, [structuredProperties, selectedProperties, activeTab]);
-```
-
-### 11.2. 再レンダリング制御
-
-- React.memo() でコンポーネントをメモ化
-- 不要な再レンダリングを防止
-
----
-
-## 12. アクセシビリティ
-
-### 12.1. キーボード操作
-
-- Tab: フォーカス移動
-- Space: チェックボックス切り替え
-- Enter: チェックボックス切り替え
-- Escape: ダイアログを閉じる
-
-### 12.2. ARIA属性
-
-- aria-label="プロパティ選択"
-- role="dialog"（Modal/Drawer時に自動付与）
-
----
-
-## 13. エラーハンドリング
-
-### 13.1. プロパティが存在しない場合
-
-```typescript
-if (!structuredProperties || Object.keys(structuredProperties).length === 0) {
-  return (
-    <Empty description="プロパティがありません" />
-  );
-}
-```
-
-### 13.2. 値のフォーマットエラー
-
-```typescript
-const formatPropertyValue = (propertyObj: PropertyObject | unknown): string => {
-  try {
-    // フォーマットロジック
-  } catch (error) {
-    console.error('プロパティ値フォーマットエラー:', error);
-    return '[表示エラー]';
-  }
-};
-```
-
----
-
-## 14. 使用シナリオ
-
-### 14.1. Placeノードのプロパティ選択
-
-1. PetriNetViewerでPlaceノードをクリック
-2. StructuredPropertySelectorが表示される
-3. 「基本情報」タブでnameを選択
-4. 「テンプレート」タブでformulaを選択
-5. 閉じるボタンをクリック
-6. 選択したプロパティのみがPlaceノードラベルに表示される
-
-### 14.2. 選択済みプロパティの変更
-
-1. 既に選択済みのプロパティがある状態
-2. 選択済みチップエリアに表示される
-3. チップの×ボタンをクリックで選択解除
-4. または、リストのCheckboxをクリックで選択解除
-
-### 14.3. タブを切り替えて複数構造から選択
-
-1. 「基本情報」タブでnameを選択
-2. 「テンプレート」タブに切り替え
-3. formulaとmolarMassを選択
-4. 「データ」タブに切り替え
-5. quantityを選択
-6. 合計4つのプロパティが選択される
+| 日付 | 変更内容 | 担当者 |
+|------|----------|--------|
+| 2026-03-12 | 実装ベースで仕様書を再作成 | Cline |
