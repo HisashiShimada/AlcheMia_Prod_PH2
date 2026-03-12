@@ -82,6 +82,7 @@ export default function InstructionStats({ stats }: InstructionStatsProps) {
 
   return (
     <div
+      data-testid="instruction-stats"
       style={{
         backgroundColor: token.colorBgContainer,
         border: `1px solid ${token.colorBorderSecondary}`,

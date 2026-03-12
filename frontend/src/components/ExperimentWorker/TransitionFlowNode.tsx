@@ -119,6 +119,7 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
         }}
         styles={{ body: { padding: token.paddingSM } }}
+        data-testid={`transition-flow-node-${transition.transitionId}`}
       >
         <Space orientation="vertical" style={{ width: '100%' }} size="small">
           {/* ステータスタグ */}
@@ -216,6 +217,7 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
                 fontSize: 12,
                 height: 28,
               }}
+              data-testid={`transition-node-record-button-${transition.transitionId}`}
             >
               記録
             </Button>
@@ -231,6 +233,7 @@ export default function TransitionFlowNode({ data }: TransitionFlowNodeProps) {
                 color: token.colorPrimary,
                 borderColor: token.colorPrimary,
               }}
+              data-testid={`transition-node-issue-button-${transition.transitionId}`}
             >
               報告
             </Button>

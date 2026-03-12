@@ -164,6 +164,7 @@ export default function IssueReportModal({
       footer={null}
       width={600}
       destroyOnHidden
+      data-testid="issue-report-modal"
     >
       {/* タスク情報表示 */}
       {task && (
@@ -174,6 +175,7 @@ export default function IssueReportModal({
             borderRadius: '4px',
             marginBottom: '24px',
           }}
+          data-testid="issue-report-task-info"
         >
           <Space orientation="vertical" size={4} style={{ width: '100%' }}>
             <Text strong style={{ fontSize: '14px' }}>
@@ -187,7 +189,7 @@ export default function IssueReportModal({
       )}
 
       {/* ステータス表示 */}
-      <div style={{ marginBottom: '16px' }}>
+      <div style={{ marginBottom: '16px' }} data-testid="issue-report-status-display">
         <Text strong>現在のステータス: </Text>
         <Text
           style={{
@@ -200,7 +202,7 @@ export default function IssueReportModal({
       </div>
 
       {/* 問題報告フォーム */}
-      <Form form={form} layout="vertical">
+      <Form form={form} layout="vertical" data-testid="issue-report-form">
         <Form.Item
           label="コメントを追加"
           name="comment"
@@ -215,6 +217,7 @@ export default function IssueReportModal({
             placeholder="コメントを入力してください"
             maxLength={500}
             showCount
+            data-testid="issue-report-comment-textarea"
           />
         </Form.Item>
 
@@ -223,10 +226,10 @@ export default function IssueReportModal({
           <Space style={{ display: 'flex', justifyContent: 'space-between' }}>
             {/* 左側: キャンセル・クリア */}
             <Space>
-              <Button onClick={handleCancel}>
+              <Button onClick={handleCancel} data-testid="issue-report-cancel-button">
                 キャンセル
               </Button>
-              <Button onClick={handleClear}>
+              <Button onClick={handleClear} data-testid="issue-report-clear-button">
                 クリア
               </Button>
             </Space>
@@ -237,12 +240,14 @@ export default function IssueReportModal({
                 type="primary"
                 onClick={handleCommentSubmit}
                 disabled={!hasComment}
+                data-testid="issue-report-comment-submit-button"
               >
                 コメント送信
               </Button>
               <Button
                 onClick={handleSetUnresolved}
                 disabled={!canUnresolve}
+                data-testid="issue-report-set-unresolved-button"
               >
                 未解決
               </Button>
@@ -254,6 +259,7 @@ export default function IssueReportModal({
                   borderColor: canResolve ? '#52c41a' : undefined,
                   color: canResolve ? '#fff' : undefined,
                 }}
+                data-testid="issue-report-set-resolved-button"
               >
                 解決
               </Button>

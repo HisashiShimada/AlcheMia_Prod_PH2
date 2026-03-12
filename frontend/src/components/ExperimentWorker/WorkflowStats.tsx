@@ -23,6 +23,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
         borderRadius: '8px',
         marginBottom: '16px'
       }}
+      data-testid="workflow-stats"
     >
       <Row gutter={[16, 8]} align="middle">
         {/* 開始前のトランジション */}
@@ -31,7 +32,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
             <Text type="secondary" style={{ fontSize: '12px' }}>
               開始前のトランジション
             </Text>
-            <Text strong style={{ fontSize: '18px', color: '#212121' }}>
+            <Text strong style={{ fontSize: '18px', color: '#212121' }} data-testid="workflow-stats-not-started">
               {statistics.notStarted}
             </Text>
           </Space>
@@ -43,7 +44,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
             <Text type="secondary" style={{ fontSize: '12px' }}>
               開始
             </Text>
-            <Text strong style={{ fontSize: '18px', color: '#0093CF' }}>
+            <Text strong style={{ fontSize: '18px', color: '#0093CF' }} data-testid="workflow-stats-started">
               {statistics.started}
             </Text>
           </Space>
@@ -55,7 +56,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
             <Text type="secondary" style={{ fontSize: '12px' }}>
               作業中
             </Text>
-            <Text strong style={{ fontSize: '18px', color: '#0093CF' }}>
+            <Text strong style={{ fontSize: '18px', color: '#0093CF' }} data-testid="workflow-stats-in-progress">
               {statistics.inProgress}
             </Text>
           </Space>
@@ -67,7 +68,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
             <Text type="secondary" style={{ fontSize: '12px' }}>
               完了
             </Text>
-            <Text strong style={{ fontSize: '18px', color: '#CF0027' }}>
+            <Text strong style={{ fontSize: '18px', color: '#CF0027' }} data-testid="workflow-stats-completed">
               {statistics.completed}
             </Text>
           </Space>
@@ -79,7 +80,7 @@ export default function WorkflowStats({ statistics }: WorkflowStatsProps) {
             <Text type="secondary" style={{ fontSize: '12px' }}>
               進捗率
             </Text>
-            <Text strong style={{ fontSize: '20px', color: '#CF0027' }}>
+            <Text strong style={{ fontSize: '20px', color: '#CF0027' }} data-testid="workflow-stats-progress-rate">
               {statistics.progressRate}%
             </Text>
           </Space>

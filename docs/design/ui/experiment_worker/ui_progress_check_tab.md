@@ -413,7 +413,7 @@ useEffect(() => {
 | API | メソッド | 用途 | 実装状況 | サービス関数 |
 |-----|---------|------|---------|------------|
 | タスク一覧取得API | GET | プロジェクト内の全タスク取得 | ✅ 完了 | `getWorkerTasks(projectName)` |
-| タスクステータス更新API | PUT | タスクステータスの更新（楽観的ロック対応） | ✅ 完了 | `updateTaskStatus(projectName, methodId, taskNo, status, comment, currentUpdatedAt)` |
+| タスクステータス更新API | PATCH | タスクステータスの更新（楽観的ロック対応） | ✅ 完了 | `updateTaskStatus(projectName, methodId, taskNo, status, comment, currentUpdatedAt)` |
 | 問題報告API | POST | 問題報告の送信 | ✅ 完了 | - |
 | コメント投稿API | POST | 問題へのコメント投稿 | ✅ 完了 | - |
 | 問題一覧取得API | GET | 問題一覧取得 | ✅ 完了 | - |

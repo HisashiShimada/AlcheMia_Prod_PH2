@@ -102,6 +102,7 @@ export default function InstructionConfirmationModal({
 
   return (
     <Modal
+      data-testid="instruction-confirmation-modal"
       title={
         <Space>
           <FileTextOutlined style={{ color: token.colorPrimary }} />
@@ -122,6 +123,7 @@ export default function InstructionConfirmationModal({
       footer={[
         <Button
           key="close"
+          data-testid="instruction-confirmation-modal-close-button"
           type="primary"
           icon={<CloseOutlined />}
           onClick={onCancel}
@@ -130,9 +132,12 @@ export default function InstructionConfirmationModal({
         </Button>,
       ]}
     >
-      <div>
+      <div data-testid="instruction-confirmation-modal-body">
         {instructions.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: token.marginXL }}>
+          <div
+            data-testid="instruction-confirmation-modal-empty"
+            style={{ textAlign: 'center', padding: token.marginXL }}
+          >
             <Text type="secondary">
               このトランジションには作業指示がありません
             </Text>
@@ -143,6 +148,7 @@ export default function InstructionConfirmationModal({
             {groupedInstructions.file.length > 0 && (
               <div style={{ marginBottom: token.marginMD }}>
                 <div
+                  data-testid="instruction-confirmation-modal-file-section-header"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -169,7 +175,12 @@ export default function InstructionConfirmationModal({
                   </Text>
                 </div>
                 {fileInstructionsExpanded && (
-                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  <Space
+                    data-testid="instruction-confirmation-modal-file-section-list"
+                    direction="vertical"
+                    size={8}
+                    style={{ width: '100%' }}
+                  >
                     {groupedInstructions.file.map((instruction) => (
                       <InstructionCard
                         key={instruction.instructionId}
@@ -187,6 +198,7 @@ export default function InstructionConfirmationModal({
             {groupedInstructions.method.length > 0 && (
               <div style={{ marginBottom: token.marginMD }}>
                 <div
+                  data-testid="instruction-confirmation-modal-method-section-header"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -213,7 +225,12 @@ export default function InstructionConfirmationModal({
                   </Text>
                 </div>
                 {methodInstructionsExpanded && (
-                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  <Space
+                    data-testid="instruction-confirmation-modal-method-section-list"
+                    direction="vertical"
+                    size={8}
+                    style={{ width: '100%' }}
+                  >
                     {groupedInstructions.method.map((instruction) => (
                       <InstructionCard
                         key={instruction.instructionId}
@@ -231,6 +248,7 @@ export default function InstructionConfirmationModal({
             {groupedInstructions.transition.length > 0 && (
               <div>
                 <div
+                  data-testid="instruction-confirmation-modal-transition-section-header"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -257,7 +275,12 @@ export default function InstructionConfirmationModal({
                   </Text>
                 </div>
                 {transitionInstructionsExpanded && (
-                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                  <Space
+                    data-testid="instruction-confirmation-modal-transition-section-list"
+                    direction="vertical"
+                    size={8}
+                    style={{ width: '100%' }}
+                  >
                     {groupedInstructions.transition.map((instruction) => (
                       <InstructionCard
                         key={instruction.instructionId}

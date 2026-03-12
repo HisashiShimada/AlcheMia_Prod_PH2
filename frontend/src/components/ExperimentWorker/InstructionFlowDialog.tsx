@@ -256,6 +256,7 @@ const InstructionFlowDialog: React.FC<InstructionFlowDialogProps> = ({
         {/* タイトルバー */}
         <div
           className="drag-handle"
+          data-testid={`instruction-flow-dialog-titlebar-${id}`}
           style={{
             padding: '16px 24px',
             borderBottom: isMinimized ? 'none' : '1px solid #f0f0f0',
@@ -271,6 +272,7 @@ const InstructionFlowDialog: React.FC<InstructionFlowDialogProps> = ({
           <Text strong style={{ fontSize: 16 }}>{getTitle()}</Text>
           <div style={{ display: 'flex', gap: 4 }}>
             <Button
+              data-testid={`instruction-flow-dialog-minimize-button-${id}`}
               type="text"
               icon={isMinimized ? <ExpandOutlined /> : <MinusOutlined />}
               onClick={(e) => {
@@ -280,6 +282,7 @@ const InstructionFlowDialog: React.FC<InstructionFlowDialogProps> = ({
               title={isMinimized ? '展開' : '最小化'}
             />
             <Button
+              data-testid={`instruction-flow-dialog-close-button-${id}`}
               type="text"
               icon={<CloseOutlined />}
               onClick={(e) => {
@@ -295,6 +298,7 @@ const InstructionFlowDialog: React.FC<InstructionFlowDialogProps> = ({
         {!isMinimized && (
           <div 
             id={`instruction-flow-dialog-container-${id}`}
+            data-testid={`instruction-flow-dialog-content-${id}`}
             style={{ 
               position: 'relative',
               flex: 1, 

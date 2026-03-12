@@ -36,6 +36,7 @@ export default function MethodSelector({
         borderColor: selectedMethodId ? token.colorPrimary : token.colorBorder,
         opacity: disabled ? 0.6 : 1,
       }}
+      data-testid="method-selector"
     >
       <Space orientation="vertical" size="small" style={{ width: '100%' }}>
         {/* ヘッダー */}
@@ -46,16 +47,16 @@ export default function MethodSelector({
 
         {/* 選択中の情報 */}
         {selectedMethod ? (
-          <Space orientation="vertical" size={0} style={{ paddingLeft: 24 }}>
-            <Text strong style={{ fontSize: 14 }}>
+          <Space orientation="vertical" size={0} style={{ paddingLeft: 24 }} data-testid="method-selector-selected-info">
+            <Text strong style={{ fontSize: 14 }} data-testid="method-selector-method-name">
               {selectedMethod.methodName}
             </Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text type="secondary" style={{ fontSize: 12 }} data-testid="method-selector-method-detail">
               {selectedMethod.methodId} • {selectedMethod.transitions?.length || 0} トランジション
             </Text>
           </Space>
         ) : (
-          <Text type="secondary" style={{ paddingLeft: 24, fontSize: 12 }}>
+          <Text type="secondary" style={{ paddingLeft: 24, fontSize: 12 }} data-testid="method-selector-empty-text">
             {disabled ? 'プロジェクトを選択してください' : 'メソッドが選択されていません'}
           </Text>
         )}

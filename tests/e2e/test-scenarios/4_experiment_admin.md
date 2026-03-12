@@ -12,18 +12,18 @@
 
 | テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 |
 |----------------|----------------|------|-----------|-----------|
-| **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D | 15件 | Playwright自動 |
+| **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M | 20件 | Playwright自動 |
 | **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 16件 | 手動 |
-| **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 8件 | Playwright自動 |
-| **4-4** | タスク登録 | 要件書#3、追加機能K | 3件 | Playwright自動 |
-| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I | 6件 | Playwright自動 |
-| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J | 18件 | Playwright自動 |
-| **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B | 3件 | Playwright自動 |
+| **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 10件 | Playwright自動 |
+| **4-4** | タスク登録 | 要件書#3、追加機能K/N | 7件 | Playwright自動 |
+| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 10件 | Playwright自動 |
+| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 21件 | Playwright自動 |
+| **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 7件 | Playwright自動 |
 | **4-8** | フォーマット管理 | 要件書#13 | 40件 | Playwright自動 |
-| **4-9** | トランジション検索 | - | 10件 | 手動 |
-| **4-10** | プロジェクト公開 | - | 1件 | Playwright自動 | 
+| **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） |
+| **4-10** | プロジェクト公開 | 追加機能S | 4件 | Playwright自動（フロントエンド実装後） |
 | **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 |
-| **合計** | - | - | **129件** | - |
+| **合計** | - | - | **155件** | - |
 
 ### スコープ外
 
@@ -57,12 +57,18 @@
 | 4-1-13 | ファイル一覧の「ビューア」ボタンをクリックするとビューアダイアログが起動すること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.5 | - |
 | 4-1-14 | 複数のビューアダイアログを同時に開けること（上限5個） | 正常系 | `ui_project_management.md` §3.10.2 | - |
 | 4-1-15 | 5個を超えてビューアダイアログを開こうとすると警告メッセージが表示されること | 異常系 | `ui_project_management.md` §3.10.2 | - |
+| 4-1-16 | プロジェクト一覧のプロジェクト名をクリックするとProjectDetailModalが表示されること | 正常系 | 追加機能M、`ui_project_detail_modal.md` §概要 | - |
+| 4-1-17 | ProjectDetailModalにプロジェクト情報（名前・ステータスタグ・フォルダ名・説明・所有者・メンバー・ファイル数・ストレージ使用量・作成日・最終更新日・タグ）が表示されること | 表示確認 | `ui_project_detail_modal.md` §2.3 | GET `/api/v1/projects/:projectName` |
+| 4-1-18 | ProjectDetailModalの「プロジェクトを開く」ボタンをクリックするとモーダルが閉じてプロジェクトが選択状態になること | 正常系 | `ui_project_detail_modal.md` §2.6 | - |
+| 4-1-19 | ProjectDetailModal内のファイル一覧にFileListTableコンポーネントが表示されること | 表示確認 | `ui_project_detail_modal.md` §2.5 | GET `/api/v1/projects/:projectName/files` |
+| 4-1-20 | ProjectDetailModalの「閉じる」ボタンをクリックするとモーダルが閉じること | 正常系 | `ui_project_detail_modal.md` §2.6 | - |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
 - プロジェクト管理タブが表示されている
-- テスト用プロジェクトがDB・S3に存在すること（4-1-7〜4-1-15）
-- テスト用プロジェクトのS3にファイルが存在すること（4-1-10〜4-1-15）
+- テスト用プロジェクトがDB・S3に存在すること（4-1-7〜4-1-20）
+- テスト用プロジェクトのS3にファイルが存在すること（4-1-10〜4-1-15、4-1-19）
+- ProjectDetailModal確認シナリオ（4-1-16〜4-1-20）用: タグ・メンバーが設定されたテスト用プロジェクトが1件以上存在すること
 
 **後処理:**
 - 作成したプロジェクトを `project` テーブルから削除
@@ -132,19 +138,29 @@
 | 4-3-1 | プロジェクトをチェックアウトできること（`checked_in` ステータス） | 正常系 | 要件書#4 | POST `/api/v1/projects/:projectName/checkout` |
 | 4-3-2 | チェックアウト中のプロジェクトをチェックインできること | 正常系 | 要件書#5 | POST `/api/v1/projects/:projectName/checkin` |
 | 4-3-3 | チェックアウト中のプロジェクトには「チェックアウト中」タグが表示されること | 表示確認 | `ui_project_management.md` §2.2.3 | GET `/api/v1/projects` |
-| 4-3-4 | `created` ステータスのプロジェクトをチェックアウトできること | 正常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
+| 4-3-4 | `in_progress` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
 | 4-3-5 | `checked_out` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
-| 4-3-6 | `in_progress` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
+| 4-3-6 | `completed` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
 | 4-3-7 | 実行中のタスクがある場合はチェックインできないこと | 異常系 | ビジネスルール（チェックイン不可条件） | POST `/api/v1/projects/:projectName/checkin` |
 | 4-3-8 | チェックアウトしたユーザー以外はチェックインできないこと | 異常系 | ビジネスルール（チェックイン可能ユーザー） | POST `/api/v1/projects/:projectName/checkin` |
+| 4-3-9 | MAIMLファイルが未登録のプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト前提条件） | POST `/api/v1/projects/:projectName/checkout` |
+| 4-3-10 | タスクが未登録のプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト前提条件） | POST `/api/v1/projects/:projectName/checkout` |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
 - テスト用プロジェクトがDB・S3に存在する
-- プロジェクトが「チェックイン済み」状態である
+- 4-3-1: プロジェクトが `checked_in`（チェックイン済み）状態、MAIMLファイル登録済み、タスク登録済みであること
+- 4-3-2〜4-3-3: プロジェクトがチェックアウト済み（`checked_out`）状態であること
+- 4-3-4〜4-3-6: 対象ステータスのプロジェクトが各1件存在すること
+- 4-3-7: チェックアウト済みプロジェクトに `in_progress` 状態のタスクが存在すること
+- 4-3-8: 別ユーザーがチェックアウトしたプロジェクトが存在すること（別ロールのユーザーアカウント必要）
+- 4-3-9: MAIMLファイルが未登録の `checked_in` プロジェクトが1件存在すること
+- 4-3-10: タスクが未登録の `checked_in` プロジェクトが1件存在すること
 
 **ビジネスルール（設計書より）:**
-- チェックアウトできるのは `created` または `checked_in` ステータスのみ
+- チェックアウトできるのは `checked_in`（チェックイン済み）ステータスのみ
+- チェックアウトにはMAIMLファイルの登録が必要
+- チェックアウトにはタスクが1件以上登録済みであることが必要
 - チェックインできるのはチェックアウトしたユーザーのみ
 - 実行中のタスクがある場合はチェックイン不可
 
@@ -157,17 +173,24 @@
 | 4-4-1 | タスク登録タブで試行回数を設定して保存できること | 正常系 | 要件書#3 | POST `/api/v1/projects/:projectName/task-registration` |
 | 4-4-2 | タスク登録タブで実験条件を変更して保存できること | 正常系 | 要件書#3 | POST `/api/v1/projects/:projectName/task-registration` |
 | 4-4-3 | ドラッグ＆ドロップでタスクの実行順序を変更して保存できること | 正常系 | 追加機能K | POST `/api/v1/projects/:projectName/task-registration` |
+| 4-4-4 | ワーカー連携済みタスク（`workerLinkedFlg=true`）は試行回数・実験条件の編集ができないこと | 表示確認 | 追加機能N、`ui_task_registration_tab.md` §ビジネスルール | - |
+| 4-4-5 | ワーカー連携済みタスクはドラッグ＆ドロップによる順序変更ができないこと | 表示確認 | 追加機能N、`ui_task_registration_tab.md` §ビジネスルール | - |
+| 4-4-6 | 各タスクの「指示追加」ボタンをクリックすると指示編集ダイアログ（InstructionEditDialog）が表示されること | 正常系 | 追加機能O、`ui_instruction_edit_dialog.md` §概要 | - |
+| 4-4-7 | タスク登録タブから追加した指示が指示登録タブの未送信指示一覧に反映されること | 正常系 | 追加機能O、`ui_instruction_edit_dialog.md` §saveMode | GET `/api/v1/projects/:projectName/instructions/status` |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
 - テスト用プロジェクトがDB・S3に存在する
 - プロジェクトにMAIMLファイルが登録済みである（`isMaimlRegistered: true`）
 - プロジェクトがチェックアウト中でない（`isCheckoutLocked: false`）
+- 4-4-4〜4-4-5: `workerLinkedFlg=true` のタスクを含むプロジェクトが1件存在すること
+- 4-4-6〜4-4-7: プロジェクトにタスクが1件以上登録されていること
 
 **ビジネスルール（設計書より）:**
 - MAIMLが未登録の場合は保存ボタンが無効化される
 - チェックアウト中の場合は保存ボタンが無効化される
 - 試行回数は1〜999の整数のみ有効
+- `workerLinkedFlg=true`（ワーカー連携済み）のタスクは試行回数・実験条件の編集および順序変更不可
 
 ---
 
@@ -347,37 +370,54 @@
 
 ### 4-9: トランジション検索
 
-> **テスト方法**: 手動テスト
+> **テスト方法**: Playwright自動（4-9-1〜4-9-9）+ 手動（4-9-10：意味的類似検索は検索精度の目視確認が必要なため）
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
 |-----------|-----------|------|------|---------|
-| 4-9-1 | （シナリオ名を記入） | - | - | - |
-| 4-9-2 | （シナリオ名を記入） | - | - | - |
-| 4-9-3 | （シナリオ名を記入） | - | - | - |
-| 4-9-4 | （シナリオ名を記入） | - | - | - |
-| 4-9-5 | （シナリオ名を記入） | - | - | - |
-| 4-9-6 | （シナリオ名を記入） | - | - | - |
-| 4-9-7 | （シナリオ名を記入） | - | - | - |
-| 4-9-8 | （シナリオ名を記入） | - | - | - |
-| 4-9-9 | （シナリオ名を記入） | - | - | - |
-| 4-9-10 | （シナリオ名を記入） | - | - | - |
+| 4-9-1 | 進捗確認画面にトランジション検索タブが表示されること | 表示確認 | 追加機能R、`ui_progress_monitoring.md` §タブ構成 | - |
+| 4-9-2 | プロジェクト名でトランジションを検索できること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
+| 4-9-3 | トランジション名でトランジションを検索できること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
+| 4-9-4 | ステータス（完了/作業中/未着手）でトランジションをフィルタリングできること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
+| 4-9-5 | 検索結果一覧にトランジション情報（トランジション名・プロジェクト名・タスク名・ステータス・作業者・開始日・終了日）が表示されること | 表示確認 | 追加機能R | GET `/api/v1/transition-search` |
+| 4-9-6 | 検索結果が0件の場合に「該当するトランジションが見つかりません」等のメッセージが表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
+| 4-9-7 | 検索条件を変更して再検索すると結果が更新されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
+| 4-9-8 | 検索条件をリセットすると全件が表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
+| 4-9-9 | 検索結果の行をクリックするとプロジェクト進捗詳細ダイアログが開き、該当トランジションが強調表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
+| 4-9-10 | 意味的類似検索（ベクトル検索）でテキスト内容が類似するトランジションが返されること | 正常系（手動） | 追加機能R（セマンティック検索） | GET `/api/v1/transition-search?semantic=true` |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
-- （その他前提条件を記入）
+- 進捗確認画面のトランジション検索タブが表示されている
+- 検索対象となるトランジションデータが `transition_set` テーブルに1件以上存在すること
+- 各ステータス（完了/作業中/未着手）のトランジションが少なくとも1件ずつ存在すること
+- 4-9-10（セマンティック検索）用: Ollamaエンベディングサービスが起動していること
+
+**注意事項:**
+- 4-9-10（意味的類似検索）: 検索精度は使用するエンベディングモデルに依存するため、結果の目視確認が必要。自動化は境界値テストにのみ適用
 
 ---
 
 ### 4-10: プロジェクト公開
 
-| シナリオID | シナリオ名 | 種別 | 根拠 |
-|-----------|-----------|------|------|
+> **テスト方法**: Playwright自動（フロントエンド実装後に実施。現在フロントエンド未実装のため保留）
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-10-1 | ファイル一覧の「公開」ボタンをクリックするとMaimlPublishDialogが表示されること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlPublishDialog | - |
+| 4-10-2 | MaimlPublishDialogで公開オプションを設定してMAIMLファイルを公開できること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlPublishDialog | POST `/api/v1/maiml-opendata/publish` |
+| 4-10-3 | 公開済みファイルのボタンが「公開済み」（緑・disabled）に変わること | 表示確認 | 追加機能S、`ui_maiml_publish.md` §公開ボタン | GET `/api/v1/maiml-opendata/status` |
+| 4-10-4 | 公開済みファイルの「公開済み」ボタンから「非公開にする」を選択するとMaimlUnpublishConfirmDialogが表示され、確認後に非公開にできること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlUnpublishConfirmDialog | DELETE `/api/v1/maiml-opendata/unpublish/:assetId` |
 
 **前提条件:**
-
-**手動テスト手順（概要）:**
+- 実験管理者ロールでログイン済み
+- プロジェクト管理タブでプロジェクトが選択済みであること
+- テスト用MAIMLファイルがS3に存在すること
+- 4-10-3〜4-10-4: OpenData Pipelineバックエンドが稼働していること
 
 **注意事項:**
+- **フロントエンド未実装のため、フロントエンド実装完了後にテストを実施すること**（`ui_maiml_publish.md` §実装状況: フロントエンド未実装）
+- 公開APIはバックエンド実装済みのため、APIレベルのテストは先行して実施可能
+- `experiment_admin` および `system_admin` ロールのみ公開ボタンが表示されること
 
 ---
 
@@ -480,18 +520,25 @@
 
 | 追加機能ID | 機能名 | 根拠（設計書） | 対応API | テスト対象 |
 |-----------|--------|---------------|---------|-----------|
-| A | プロジェクト一覧のフィルタリング（所有者/部門/ステータス/チェックアウト状態） | `ui_project_management.md` §3.2 | GET `/api/v1/projects`（クエリパラメータ） | **4-7** |
-| B | プロジェクト一覧のキーワード検索 | `ui_project_management.md` §3.2 | GET `/api/v1/projects`（クエリパラメータ） | **4-7** |
-| C | プロジェクトファイル一覧表示・ファイルダウンロード・ビューア起動（ルート・アーカイブ） | `ui_file_list_table.md`、`ui_project_folder_tree.md` | GET `/api/v1/projects/:projectName/files`、POST `/api/v1/files/download` | **4-1** |
-| D | プロジェクト一括ダウンロード（ZIP形式） | `ui_project_management.md` §3.7 | POST `/api/v1/files/download-folder-zip` | **4-1** |
-| E | タスク結果の統計表示（実行待ち/実行中/レビュー待ち/完了/異常終了） | `ui_task_results_table.md`、`ui_project_management.md` §3.9 | GET `/api/v1/projects/:projectName/tasks` | **4-6** |
-| F | レビュー待ちタスクの一括完了 | `api_project_management.md` §API#16 | POST `/api/v1/projects/:projectName/tasks/complete-review` | **4-6** |
-| G | 指示の個別編集（未送信のみ） | `ui_instruction_registration_tab.md` §3.3.3、`api_project_management.md` §API#18 | PUT `/api/v1/projects/:projectName/instructions/:instructionId` | **4-5** |
-| H | 指示の個別削除（未送信のみ） | `ui_instruction_registration_tab.md` §3.3.3、`api_project_management.md` §API#19 | DELETE `/api/v1/projects/:projectName/instructions/:instructionId` | **4-5** |
-| I | 指示登録状況の確認（未送信件数/送信済み件数/合計件数） | `api_project_management.md` §API#17 | GET `/api/v1/projects/:projectName/instructions/status` | **4-5** |
-| J | 進捗確認タブでの詳細ダイアログ表示 | `ui_progress_monitoring.md` §3.1.8、`ui_work_progress_detail_dialog.md` | GET `/api/v1/projects`（進捗情報含む） | **4-6** |
-| K | タスク登録のドラッグ＆ドロップ順序変更 | `ui_task_registration_tab.md` §3.3.2 | POST `/api/v1/projects/:projectName/task-registration` | **4-4** |
-| L | 一括ファイルアップロード（単一/一括/フォルダの3モード、進捗表示、フォルダ構造保持） | `ui_bulk_upload_dialog.md` | POST `/api/v1/files/upload` | **4-11** |
+| A | プロジェクト一覧のフィルタリング（所有者/部門/ステータス/チェックアウト状態） | `ProjectManagement.md` §フィルタ | GET `/api/v1/projects`（クエリパラメータ） | **4-7** |
+| B | プロジェクト一覧のキーワード検索 | `ProjectManagement.md` §検索 | GET `/api/v1/projects`（クエリパラメータ） | **4-7** |
+| C | プロジェクトファイル一覧表示・ファイルダウンロード・ビューア起動（ルート・アーカイブ） | `FileListTable.md`、`ProjectFolderTree.md` | GET `/api/v1/projects/:projectName/files`、POST `/api/v1/files/download` | **4-1** |
+| D | プロジェクト一括ダウンロード（ZIP形式） | `ProjectManagement.md` §一括ダウンロード | POST `/api/v1/files/download-folder-zip` | **4-1** |
+| E | タスク結果の統計表示（実行待ち/実行中/レビュー待ち/完了/異常終了） | `TaskResultsTable.md`、`ProgressMonitoring.md` §統計 | GET `/api/v1/projects/:projectName/tasks` | **4-6** |
+| F | レビュー待ちタスクの一括完了 | `TaskResultsTable.md` §一括完了 | POST `/api/v1/projects/:projectName/tasks/complete-review` | **4-6** |
+| G | 指示の個別編集（未送信のみ） | `InstructionDialog.md` §編集、API設計書 §API#18 | PUT `/api/v1/projects/:projectName/instructions/:instructionId` | **4-5** |
+| H | 指示の個別削除（未送信のみ） | `InstructionDialog.md` §削除、API設計書 §API#19 | DELETE `/api/v1/projects/:projectName/instructions/:instructionId` | **4-5** |
+| I | 指示登録状況の確認（未送信件数/送信済み件数/合計件数） | API設計書 §API#17 | GET `/api/v1/projects/:projectName/instructions/status` | **4-5** |
+| J | 進捗確認タブでの詳細ダイアログ表示 | `ProgressMonitoring.md` §詳細表示、`WorkProgressDetailDialog.md` | GET `/api/v1/projects`（進捗情報含む） | **4-6** |
+| K | タスク登録のドラッグ＆ドロップ順序変更 | `TaskResultsTable.md` §順序変更 | POST `/api/v1/projects/:projectName/task-registration` | **4-4** |
+| L | 一括ファイルアップロード（単一/一括/フォルダの3モード、進捗表示、フォルダ構造保持） | `BulkUploadDialog.md` | POST `/api/v1/files/upload` | **4-11** |
+| M | プロジェクト詳細モーダル（ProjectDetailModal）での詳細情報表示 | `ProjectDetailModal.md` | GET `/api/v1/projects/:projectName` | **4-1** |
+| N | ワーカー連携済みタスクの編集・順序変更ロック（`workerLinkedFlg`） | `TaskResultsTable.md` §workerLinkedFlg | - | **4-4** |
+| O | タスク登録タブからの指示追加（InstructionEditDialog連携） | `InstructionDialog.md` §タスク連携 | GET `/api/v1/projects/:projectName/instructions/status` | **4-4**、**4-5** |
+| P | 進捗確認画面でのPetriNet可視化表示 | `PetriNetVisualization.md` | - | **4-6** |
+| Q | プロジェクト検索モーダル（ProjectSearchModal）での高度な検索 | `ProjectSearchModal.md` | GET `/api/v1/projects`（クエリパラメータ） | **4-7** |
+| R | トランジション検索（キーワード/ステータス/セマンティック検索） | `ProgressMonitoring.md` §トランジション検索 | GET `/api/v1/transition-search` | **4-9** |
+| S | MAIMLファイルのOpenData Pipeline公開・非公開管理 | `ui_maiml_publish.md` | POST `/api/v1/maiml-opendata/publish`、DELETE `/api/v1/maiml-opendata/unpublish/:assetId` | **4-10** |
 
 ---
 
@@ -536,25 +583,88 @@
 
 ## 7. 参照ドキュメント
 
+### 7.1 UI設計書索引
+
+| ドキュメント | パス |
+|------------|------|
+| 実験管理者UI設計書索引 | `docs/design/ui/experiment_admin/README.md` |
+
+### 7.2 メニュー
+
+| ドキュメント | パス |
+|------------|------|
+| 実験管理者メニュー設計 | `docs/design/ui/experiment_admin/00_menu/ExperimentAdminMenu.md` |
+
+### 7.3 プロジェクト管理
+
+| ドキュメント | パス |
+|------------|------|
+| プロジェクト管理画面設計 | `docs/design/ui/experiment_admin/01_project_management/ProjectManagement.md` |
+| プロジェクトフォルダツリー設計 | `docs/design/ui/experiment_admin/01_project_management/ProjectFolderTree.md` |
+| ファイル一覧テーブル設計 | `docs/design/ui/experiment_admin/01_project_management/FileListTable.md` |
+| プロジェクト作成モーダル設計 | `docs/design/ui/experiment_admin/01_project_management/CreateProjectModal.md` |
+| プロジェクト詳細モーダル設計 | `docs/design/ui/experiment_admin/01_project_management/ProjectDetailModal.md` |
+| プロジェクト検索モーダル設計 | `docs/design/ui/experiment_admin/01_project_management/ProjectSearchModal.md` |
+| 一括アップロードダイアログ設計 | `docs/design/ui/experiment_admin/01_project_management/BulkUploadDialog.md` |
+| チェックアウト状態ダイアログ設計 | `docs/design/ui/experiment_admin/01_project_management/CheckoutStatusDialog.md` |
+
+### 7.4 フォーマット管理
+
+| ドキュメント | パス |
+|------------|------|
+| フォーマット管理画面設計 | `docs/design/ui/experiment_admin/02_format_management/FormatManagement.md` |
+| フォーマットフォルダツリー設計 | `docs/design/ui/experiment_admin/02_format_management/FormatFolderTree.md` |
+| フォーマットファイル一覧設計 | `docs/design/ui/experiment_admin/02_format_management/FormatFileListTable.md` |
+| フォーマットファイル作成モーダル設計 | `docs/design/ui/experiment_admin/02_format_management/CreateFormatFileModal.md` |
+| フォーマットフォルダ作成モーダル設計 | `docs/design/ui/experiment_admin/02_format_management/CreateFormatFolderModal.md` |
+| フォーマット詳細モーダル設計 | `docs/design/ui/experiment_admin/02_format_management/FormatFileDetailModal.md` |
+| フォーマット検索モーダル設計 | `docs/design/ui/experiment_admin/02_format_management/FormatSearchModal.md` |
+| フォーマットアップロードダイアログ設計 | `docs/design/ui/experiment_admin/02_format_management/FormatUploadDialog.md` |
+
+### 7.5 進捗確認
+
+| ドキュメント | パス |
+|------------|------|
+| 進捗確認画面設計 | `docs/design/ui/experiment_admin/03_progress_monitoring/ProgressMonitoring.md` |
+| 作業進捗詳細ダイアログ設計 | `docs/design/ui/experiment_admin/03_progress_monitoring/WorkProgressDetailDialog.md` |
+| タスク結果テーブル設計 | `docs/design/ui/experiment_admin/03_progress_monitoring/TaskResultsTable.md` |
+| 指示確認ダイアログ設計 | `docs/design/ui/experiment_admin/03_progress_monitoring/InstructionDialog.md` |
+| Petri Net可視化設計 | `docs/design/ui/experiment_admin/03_progress_monitoring/PetriNetVisualization.md` |
+
+### 7.6 MAIML編集
+
+| ドキュメント | パス |
+|------------|------|
+| Petri Netエディタ画面設計 | `docs/design/ui/experiment_admin/04_maiml_editor/petri_net/PetriNetEditorScreen.md` |
+| Petri Netエディタコア設計 | `docs/design/ui/experiment_admin/04_maiml_editor/petri_net/PetriNetEditor.md` |
+| エディタツールバー設計 | `docs/design/ui/experiment_admin/04_maiml_editor/petri_net/EditorToolbar.md` |
+| プロパティパネル設計 | `docs/design/ui/experiment_admin/04_maiml_editor/petri_net/PropertyPanel.md` |
+| バリデーションパネル設計 | `docs/design/ui/experiment_admin/04_maiml_editor/petri_net/ValidationPanel.md` |
+| メソッドタブパネル設計 | `docs/design/ui/experiment_admin/04_maiml_editor/petri_net/MethodTabPanel.md` |
+| ドキュメント編集ダイアログ設計 | `docs/design/ui/experiment_admin/04_maiml_editor/document/DocumentEditDialog.md` |
+| テンプレートエディタ設計 | `docs/design/ui/experiment_admin/04_maiml_editor/document/TemplateEditor.md` |
+| 下書き管理設計 | `docs/design/ui/experiment_admin/04_maiml_editor/document/DraftManager.md` |
+
+### 7.7 MAIML公開管理
+
+| ドキュメント | パス |
+|------------|------|
+| MaiML公開管理設計 | `docs/design/ui/experiment_admin/ui_maiml_publish.md` |
+| MaiML OpenData Pipeline API設計 | `docs/design/api/api_maiml_opendata.md` |
+
+### 7.8 API設計書
+
+| ドキュメント | パス |
+|------------|------|
+| プロジェクト管理API設計 | `docs/design/api/api_project_management.md` |
+| ファイルアクセスAPI設計 | `docs/design/api/api_file_access.md` |
+| 問題管理API設計 | `docs/design/api/api_issue_management.md` |
+
+### 7.9 その他
+
 | ドキュメント | パス |
 |------------|------|
 | ロール別業務内容一覧 | `docs/20260310_0940_ロール別業務内容一覧.md` |
-| 実験管理者メニュー設計 | `docs/design/ui/experiment_admin/00_menu/ui_experiment_admin_menu.md` |
-| プロジェクト管理画面設計 | `docs/design/ui/experiment_admin/01_project_management/ui_project_management.md` |
-| プロジェクト作成モーダル設計 | `docs/design/ui/experiment_admin/01_project_management/ui_create_project_modal.md` |
-| タスク登録タブ設計 | `docs/design/ui/experiment_admin/01_project_management/ui_task_registration_tab.md` |
-| 指示登録タブ設計 | `docs/design/ui/experiment_admin/01_project_management/ui_instruction_registration_tab.md` |
-| 進捗確認画面設計 | `docs/design/ui/experiment_admin/03_progress_monitoring/ui_progress_monitoring.md` |
-| プロジェクト管理API設計 | `docs/design/api/api_project_management.md` |
-| ファイルアクセスAPI設計 | `docs/design/api/api_file_access.md` |
-| ファイル一覧テーブル設計 | `docs/design/ui/experiment_admin/01_project_management/ui_file_list_table.md` |
-| 一括アップロードダイアログ設計 | `docs/design/ui/experiment_admin/01_project_management/ui_bulk_upload_dialog.md` |
-| 問題管理API設計 | `docs/design/api/api_issue_management.md` |
 | 問題管理モーダル設計（実験作業者側） | `docs/design/ui/experiment_worker/ui_issue_management_modal.md` |
-| フォーマット管理画面設計 | `docs/design/ui/experiment_admin/02_format_management/ui_format_management.md` |
-| 詳細検索モーダル設計 | `docs/design/ui/experiment_admin/02_format_management/ui_format_search_modal.md` |
-| 新規フォルダ作成モーダル設計 | `docs/design/ui/experiment_admin/02_format_management/ui_create_format_folder_modal.md` |
-| 新規ファイル作成モーダル設計 | `docs/design/ui/experiment_admin/02_format_management/ui_create_format_file_modal.md` |
-| アップロードダイアログ設計（フォーマット管理） | `docs/design/ui/experiment_admin/02_format_management/ui_format_upload_dialog.md` |
-| プロバイダーテスト（参考実装） | `e2e/features/provider/1-1_corporation_create.feature` |
-| プロバイダーステップ定義（参考実装） | `e2e/steps/provider/1-1_corporation_create.ts` |
+| プロバイダーテスト（参考実装） | `tests/e2e/features/provider/1-1_corporation_create.feature` |
+| プロバイダーステップ定義（参考実装） | `tests/e2e/steps/provider/1-1_corporation_create.ts` |
