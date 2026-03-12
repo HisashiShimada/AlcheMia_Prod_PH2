@@ -576,11 +576,26 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
   }, [taskDetails.length]);
 
   /**
-   * 行が非活性かどうかを判定する関数
+   * 順序変更が非活性かどうかを判定する関数（順序変更Selectのみ）
    */
-  const isRowDisabled = useCallback((record: TaskDetail) => {
+  const isOrderChangeDisabled = useCallback((record: TaskDetail) => {
     return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg;
   }, [isSaving, loadingMethods, isCheckoutLocked]);
+
+  /**
+   * チェックボックスが非活性かどうかを判定する関数
+   */
+  const isCheckboxDisabled = useCallback((record: TaskDetail) => {
+    return isSaving || loadingMethods || record.workerLinkedFlg;
+  }, [isSaving, loadingMethods]);
+
+  /**
+   * 実験条件・試行回数・指示追加ボタンの非活性判定
+   * isCheckoutLockedを含めない（順序以外は変更可能）
+   */
+  const isFieldDisabled = useCallback((record: TaskDetail) => {
+    return isSaving || loadingMethods || record.workerLinkedFlg;
+  }, [isSaving, loadingMethods]);
 
   /**
    * ドラッグ可能な行コンポーネント
@@ -652,9 +667,9 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           type="checkbox"
           checked={checkedTaskIds.has(record.id)}
           onChange={(e) => handleCheckboxChange(record.id, e.target.checked)}
-          disabled={isRowDisabled(record)}
+          disabled={isCheckboxDisabled(record)}
           style={{ 
-            cursor: isRowDisabled(record) ? 'not-allowed' : 'pointer',
+            cursor: isCheckboxDisabled(record) ? 'not-allowed' : 'pointer',
             opacity: record.workerLinkedFlg ? 0.5 : 1
           }}
         />
@@ -689,7 +704,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             onChange={(value) => {
               handleOrderChange(record.id, value);
             }}
-            disabled={isRowDisabled(record)}
+            disabled={isOrderChangeDisabled(record)}
             size="small"
             style={{ width: '100%' }}
             options={options}
@@ -724,7 +739,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           onChange={(value) =>
             handleUpdateTaskDetail(record.id, 'experimentCondition', value.toString())
           }
-          disabled={isRowDisabled(record)}
+          disabled={isFieldDisabled(record)}
           size="small"
           style={{ width: '100%' }}
           options={experimentConditionSelectOptions}
@@ -751,7 +766,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             }
           }}
           placeholder={t('taskRegistration.trialCountPlaceholder')}
-          disabled={isRowDisabled(record)}
+          disabled={isFieldDisabled(record)}
           size="small"
           min={1}
           max={999}
@@ -771,7 +786,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             size="small"
             icon={<PlusOutlined />}
             onClick={() => handleAddInstructionClick(record.methodId)}
-            disabled={isRowDisabled(record)}
+            disabled={isFieldDisabled(record)}
           >
             {t('taskRegistration.buttons.addInstruction')}
           </Button>
@@ -808,7 +823,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           <Button
             type="primary"
             onClick={handleProjectInstructionClick}
-            disabled={loadingMethods || isCheckoutLocked}
+            disabled={loadingMethods}
           >
             {t('taskRegistration.buttons.projectInstruction')}
           </Button>
@@ -817,7 +832,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             icon={<SaveOutlined />}
             onClick={handleSave}
             loading={isSaving}
-            disabled={loadingMethods || isCheckoutLocked}
+            disabled={loadingMethods}
           >
             {isSaving ? t('taskRegistration.saving') : t('taskRegistration.saveButton')}
           </Button>
