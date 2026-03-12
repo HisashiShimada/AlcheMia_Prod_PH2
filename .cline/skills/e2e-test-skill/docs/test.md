@@ -400,6 +400,91 @@ page.locator('button').filter({ hasText: /CSV.*ダウンロード/s }).click()
 
 ---
 
+### 編集ダイアログの Input セレクター（重要）
+
+#### 問題の背景
+
+追加ダイアログと編集ダイアログで **IDフィールドが `disabled` になる** 画面では、  
+`.ant-modal .ant-input` という汎用セレクターが **disabled な ID フィールド（1番目の Input）** にヒットしてしまい、  
+本来操作したい名前フィールドへの入力やバリデーション確認が失敗する。
+
+#### 本システムで確認されている事象
+
+| 画面 | disabled フィールド | 正しく操作すべきフィールド |
+|---|---|---|
+| 部署管理（編集） | `#departmentId`（部署CD） | `#displayName`（部署名） |
+| ロール管理（編集） | `#role`（ロールCD） | `#roleName`（ロール名） |
+| ユーザー管理（編集） | `#userId`（メールアドレス） | `#userName`（ユーザー名）等 |
+
+同様の設計（編集時にIDフィールドが disabled になる）を持つ他の画面でも同じ問題が発生する。
+
+#### ❌ 悪い例（汎用セレクター）
+
+```typescript
+// ❌ 悪い例: .ant-modal .ant-input は disabled な1番目のフィールドにヒットする
+const inputSel = '.ant-modal .ant-input';
+await page.click(inputSel);               // disabled フィールドをクリック → 入力できない
+await setReactInputValue(page, inputSel, newName);  // 値が入らずタイムアウト
+```
+
+#### ✅ 正しい例（Form.Item name から導出した ID セレクター）
+
+Ant Design の `Form.Item name="xxx"` は DOM上で `id="xxx"` の Input を生成する。  
+この ID を使って **操作対象フィールドを直接指定**する。
+
+```typescript
+// ✅ 部署編集ダイアログ: 部署名フィールドを直接指定
+// Form.Item name="displayName" → id="displayName"
+const inputSel = '.ant-modal #displayName';
+await page.click(inputSel);
+await page.keyboard.press('Control+A');
+await setReactInputValue(page, inputSel, newName);
+
+// ✅ ロール編集ダイアログ: ロール名フィールドを直接指定
+// Form.Item name="roleName" → id="roleName"
+const inputSel = '.ant-modal #roleName';
+await page.click(inputSel);
+await page.keyboard.press('Control+A');
+await setReactInputValue(page, inputSel, newName);
+```
+
+#### ID の確認方法
+
+対象コンポーネント（`DepartmentManagement.tsx`, `RoleManagement.tsx` 等）の  
+`<Form.Item name="xxx">` を確認し、その `name` 値をそのまま ID セレクターとして使用する。
+
+```typescript
+// コンポーネントのフォーム定義例（RoleManagement.tsx）
+<Form.Item name="role" ...>      // → id="role"（編集時 disabled）
+  <Input disabled={!!editingMaster} />
+</Form.Item>
+<Form.Item name="roleName" ...>  // → id="roleName"（操作対象）
+  <Input />
+</Form.Item>
+```
+
+#### Then ステップでのフィールド値確認も同様
+
+```typescript
+// ❌ 悪い例: first() は disabled なフィールドを取得してしまう
+const input = page.locator('.ant-modal .ant-input').first();
+await expect(input).toHaveValue(expectedValue, { timeout: 5000 });
+
+// ✅ 正しい例: 特定の ID フィールドを直接指定
+const input = page.locator('.ant-modal #roleName');
+await expect(input).toHaveValue(expectedValue, { timeout: 5000 });
+```
+
+#### DO / DON'T
+
+✅ **編集ダイアログでは `Form.Item name` から導出した `#id` セレクターを使用する**  
+✅ **コンポーネントの `disabled={!!editingMaster}` パターンを見つけたら、そのフィールドを避けて操作する**  
+✅ **追加ダイアログでも可能な限り `#id` セレクターを使い、フィールドを明示的に指定する**  
+❌ **`.ant-modal .ant-input` の汎用セレクターを編集ダイアログで使わない**（disabled フィールドにヒットする）  
+❌ **`.ant-modal .ant-input:nth-of-type(N)` も位置依存で不安定なため使わない**
+
+---
+
 ### React 制御コンポーネントへの入力方法（重要）
 
 `page.fill()` は HTML の value を変えるだけで React の `onChange` イベントをトリガーしない。  

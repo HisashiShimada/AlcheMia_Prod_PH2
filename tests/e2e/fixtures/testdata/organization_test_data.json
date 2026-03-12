@@ -50,7 +50,7 @@
 
   "group-1-7-setup": {
     "description": "[1-7] グループで使う組織を UI（組織追加ダイアログ）経由で一括登録",
-    "group_end_tag": "@1-7-5",
+    "group_end_tag": "@1-7-4",
     "records": [
       {
         "organization_cd": "e2e-org-toggle-bbb",
@@ -189,6 +189,13 @@
   },
   "1-7-4": {
     "description": "一括アクティブ化テスト: E2E常設組織AAA が is_active=false で存在すること",
+    "records": [
+      {
+        "organization_cd": "e2e-permanent-org-aaa",
+        "organization_display_name": "E2E常設組織AAA",
+        "is_active": true
+      }
+    ],
     "is_active_overrides": [
       { "organization_cd": "e2e-permanent-org-aaa", "is_active": false }
     ],
@@ -196,6 +203,28 @@
   },
   "1-7-5": {
     "description": "一括非アクティブ化テスト: E2E常設組織AAA が is_active=true で存在すること",
+    "records": [
+      {
+        "organization_cd": "e2e-permanent-org-aaa",
+        "organization_display_name": "E2E常設組織AAA",
+        "is_active": true
+      }
+    ],
+    "is_active_overrides": [
+      { "organization_cd": "e2e-permanent-org-aaa", "is_active": true }
+    ],
+    "cleanup_names": []
+  },
+
+  "1-5-7": {
+    "description": "組織CD重複テスト: e2e-permanent-org-aaa が is_active=true で存在すること",
+    "records": [
+      {
+        "organization_cd": "e2e-permanent-org-aaa",
+        "organization_display_name": "E2E常設組織AAA",
+        "is_active": true
+      }
+    ],
     "is_active_overrides": [
       { "organization_cd": "e2e-permanent-org-aaa", "is_active": true }
     ],

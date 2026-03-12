@@ -27,6 +27,21 @@
     "roleName": "E2E編集テストロール",
     "isActive": true
   },
+  "editTest2": {
+    "roleCd": "e2e_edit_test_role2",
+    "roleName": "E2E編集テストロール2",
+    "isActive": true
+  },
+  "editTest3": {
+    "roleCd": "e2e_edit_test_role3",
+    "roleName": "E2E編集テストロール3",
+    "isActive": true
+  },
+  "editTest4": {
+    "roleCd": "e2e_edit_test_role4",
+    "roleName": "E2E編集テストロール4",
+    "isActive": true
+  },
   "toggleActive": {
     "roleCd": "e2e_toggle_active_role",
     "roleName": "E2Eトグルロールアクティブ",
