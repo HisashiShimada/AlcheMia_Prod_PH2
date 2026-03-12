@@ -1,11 +1,11 @@
 # 進捗確認API仕様書
 
 **作成日**: 2026-01-21 16:45  
-**最終更新**: 2026-03-09 11:02  
-**バージョン**: 1.5.0  
+**最終更新**: 2026-03-11 10:52  
+**バージョン**: 1.7.0  
 **対象画面**: 実験管理者 - 進捗確認画面、実験作業者 - 実験記録画面  
 **総API数**: 6個  
-**実装状況**: 2個実装済み、4個未実装
+**実装状況**: 3個実装済み、3個未実装
 
 ---
 
@@ -13,10 +13,10 @@
 
 | カテゴリ | 実装済み | 未実装 | 合計 |
 |---------|---------|--------|------|
-| 進捗確認 | 2 | 4 | 6 |
-| **合計** | **2** | **4** | **6** |
+| 進捗確認 | 3 | 3 | 6 |
+| **合計** | **3** | **3** | **6** |
 
-**完了率**: 33.3% (2/6)
+**完了率**: 50.0% (3/6)
 
 ---
 
@@ -24,12 +24,12 @@
 
 | # | API名 | メソッド | エンドポイント | 状態 | 優先度 |
 |---|------|---------|---------------|------|--------|
-| 1 | メソッド別タスク一覧取得 | GET | `/api/v1/projects/:projectId/methods/:methodId/tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 2 | タスク詳細取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` | 🟢 実装済み | ⭐⭐ 中 |
-| 3 | 進捗データ取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 4 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 5 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
-| 6 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 1 | タスク詳細取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 2 | 進捗データ取得 | GET | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 3 | タスク一覧取得（実験作業者用） | GET | `/api/v1/progress/projects/:projectName/worker-tasks` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 4 | タスクステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | 🔴 未実装 | ⭐⭐⭐ 高 |
+| 5 | トランジションステータス更新 | PATCH | `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | 🟢 実装済み | ⭐⭐⭐ 高 |
+| 6 | 作業詳細一括取得 | GET | `/api/v1/progress/projects/:projectName/work-details` | 🟢 実装済み | ⭐⭐⭐ 高 |
 
 ---
 
@@ -117,15 +117,15 @@ router.METHOD('/path',
 
 ## 📋 API詳細仕様
 
-### 1. メソッド別タスク一覧取得 🔴
+### 1. タスク詳細取得 🟢
 
-**エンドポイント**: `GET /api/v1/projects/:projectId/methods/:methodId/tasks`
+**エンドポイント**: `GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details`
 
-**説明**: 指定メソッドに紐づくタスク一覧を進捗情報付きで取得
+**説明**: プロジェクト名・メソッドID・タスク連番でタスクを特定し、タスク基本情報・トランジション進捗一覧・統計情報を取得する
 
 **認証**: 必須
 
-**権限**: `experiment_admin`, `system_admin`
+**権限**: `experiment_admin`（機能CD: `040000`、読取専用）
 
 **優先度**: ⭐⭐⭐ 高
 
@@ -134,14 +134,9 @@ router.METHOD('/path',
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名 |
 | `methodId` | string | ○ | メソッドID（MAIMLファイル内のmethod id） |
-
-**クエリパラメータ**:
-| パラメータ | 型 | 必須 | デフォルト | 説明 |
-|----------|---|------|-----------|------|
-| `status` | string | × | all | タスクステータスフィルタ（`all`, `pending`, `in_progress`, `completed`, `failed`） |
-| `include_details` | boolean | × | false | タスク詳細情報を含める |
+| `taskNo` | integer | ○ | タスク連番（1以上の整数） |
 
 #### レスポンス
 
@@ -150,57 +145,49 @@ router.METHOD('/path',
 {
   "success": true,
   "data": {
-    "project_id": "550e8400-e29b-41d4-a716-446655440000",
-    "project_name": "Sample Project",
-    "method_id": "method1",
-    "method_name": "合成実験",
-    "tasks": [
+    "taskId": "550e8400-e29b-41d4-a716-446655440000__method1__3",
+    "projectId": "550e8400-e29b-41d4-a716-446655440000",
+    "projectName": "Sample Project",
+    "methodId": "method1",
+    "experimentOrder": 1,
+    "taskNo": 3,
+    "taskStatus": "in_progress",
+    "taskStatusNum": 1,
+    "experimentUserId": "880e8400-e29b-41d4-a716-446655440003",
+    "experimentUserName": "Worker Name",
+    "experimentStartAt": "2026-01-21T10:30:00.000Z",
+    "experimentEndAt": null,
+    "reviewedAt": null,
+    "reviewUserId": null,
+    "transitionProgress": [
       {
-        "task_id": "task-uuid-1",
-        "task_name": "材料準備",
-        "transition_id": "t1",
-        "transition_name": "材料準備",
-        "task_status": "completed",
-        "assigned_to": "worker-uuid",
-        "assigned_user_name": "Worker Name",
-        "progress": {
-          "total_steps": 5,
-          "completed_steps": 5,
-          "progress_percentage": 100
-        },
-        "created_at": "2026-01-21T10:00:00Z",
-        "started_at": "2026-01-21T10:30:00Z",
-        "completed_at": "2026-01-21T14:00:00Z",
-        "has_issues": false
+        "transitionId": "t1",
+        "status": 5,
+        "progressRate": 100,
+        "updatedAt": "2026-01-21T14:00:00.000Z"
       },
       {
-        "task_id": "task-uuid-2",
-        "task_name": "反応実験",
-        "transition_id": "t2",
-        "transition_name": "反応実験",
-        "task_status": "in_progress",
-        "assigned_to": "worker-uuid-2",
-        "assigned_user_name": "Worker Name 2",
-        "progress": {
-          "total_steps": 8,
-          "completed_steps": 3,
-          "progress_percentage": 37.5
-        },
-        "created_at": "2026-01-21T14:00:00Z",
-        "started_at": "2026-01-21T14:30:00Z",
-        "completed_at": null,
-        "has_issues": true,
-        "issue_count": 2
+        "transitionId": "t2",
+        "status": 3,
+        "progressRate": 60,
+        "updatedAt": "2026-01-21T15:30:00.000Z"
+      },
+      {
+        "transitionId": "t3",
+        "status": 0,
+        "progressRate": null,
+        "updatedAt": null
       }
     ],
-    "statistics": {
-      "total": 10,
-      "pending": 3,
-      "in_progress": 4,
-      "completed": 2,
-      "failed": 1,
-      "overall_progress": 45.5
-    }
+    "stats": {
+      "totalTransitions": 3,
+      "completed": 1,
+      "inProgress": 1,
+      "notStarted": 1,
+      "progressPercentage": 53.3
+    },
+    "createdAt": "2026-01-21T10:00:00.000Z",
+    "updatedAt": "2026-01-21T15:30:00.000Z"
   },
   "meta": {
     "timestamp": "2026-01-21T16:00:00Z",
@@ -209,283 +196,128 @@ router.METHOD('/path',
 }
 ```
 
+**レスポンス data フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `taskId` | string | タスクID文字列（`{projectId}__{methodId}__{taskNo}` 形式） |
+| `projectId` | string (UUID) | プロジェクトID |
+| `projectName` | string | プロジェクト名 |
+| `methodId` | string | メソッドID |
+| `experimentOrder` | number | 実験順序（`project_task.experiment_order`） |
+| `taskNo` | number | タスク連番（`project_task_detail.task_no`） |
+| `taskStatus` | string | タスクステータス文字列（`pending` / `in_progress` / `review_waiting` / `completed` / `failed`） |
+| `taskStatusNum` | number \| null | タスクステータス数値（DB の `task_status` 値） |
+| `experimentUserId` | string \| null | 担当作業者ID |
+| `experimentUserName` | string \| null | 担当作業者名 |
+| `experimentStartAt` | string \| null | 実験開始日時（ISO 8601） |
+| `experimentEndAt` | string \| null | 実験終了日時（ISO 8601） |
+| `reviewedAt` | string \| null | レビュー完了日時（ISO 8601） |
+| `reviewUserId` | string \| null | レビュアーID |
+| `transitionProgress` | array | トランジション進捗一覧（後述） |
+| `stats` | object | 進捗統計情報（後述） |
+| `createdAt` | string \| null | レコード作成日時（ISO 8601） |
+| `updatedAt` | string \| null | レコード更新日時（ISO 8601） |
+
+**transitionProgress[] フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `transitionId` | string | トランジションID |
+| `status` | number \| null | ステータス数値（0:初期, 1:準備中, 2:準備完了, 3:実行中, 4:一時停止, 5:完了, 6:エラー） |
+| `progressRate` | number \| null | 進捗率（0〜100） |
+| `updatedAt` | string \| null | 最終更新日時（ISO 8601） |
+
+**stats フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `totalTransitions` | number | トランジション総数 |
+| `completed` | number | 完了数（status = 5） |
+| `inProgress` | number | 作業中数（status = 1〜4） |
+| `notStarted` | number | 未着手数（status = 0 または NULL） |
+| `progressPercentage` | number | 進捗率（avg_progress_rate から算出、小数点1桁） |
+
 **エラー時**:
-- 400: バリデーションエラー
+- 400: バリデーションエラー（taskNo が1未満など）
 - 401: 認証エラー
 - 403: 権限不足
-- 404: プロジェクトまたはメソッドが存在しない
+- 404: プロジェクトまたはタスクが存在しない（`RESOURCE_NOT_FOUND`）
 - 500: システムエラー
 
 #### 実装要件
 
-**DBクエリ**:
+**ミドルウェアチェーン**:
 ```typescript
-// プロジェクトのMAIMLファイルからメソッド情報を取得
-const maimlContent = await storageService.downloadFile(
-  organizationPrefix,
-  `projects/${project_name}/${project_name}.maiml`
+router.get(
+  '/projects/:projectName/methods/:methodId/tasks/:taskNo/details',
+  authMiddleware,                    // 1. JWT認証
+  checkPermission('040000', 0),      // 2. 権限チェック（実験管理者メニュー、読取専用）
+  [
+    validateParamString('projectName', 1, 255),
+    validateParamString('methodId', 1, 255),
+    validateParamInt('taskNo', 1),
+  ],
+  handleValidationErrors,            // 3. バリデーションエラーハンドリング
+  projectController.getTaskDetail    // 4. コントローラー
 );
-
-const methods = await parseMultipleMethodsStructure(maimlContent);
-const method = methods.find(m => m.methodId === methodId);
-
-if (!method) {
-  throw new NotFoundError('メソッドが見つかりません');
-}
-
-// project_taskテーブルからタスク一覧を取得
-const tasks = await db
-  .selectFrom('project_task')
-  .leftJoin('project_task_detail', 'project_task.task_id', 'project_task_detail.task_id')
-  .leftJoin('organization_user', 'project_task.assign_user_id', 'organization_user.user_id')
-  .leftJoin('user_authentication', 'organization_user.user_id', 'user_authentication.user_id')
-  .where('project_task.project_id', '=', projectId)
-  .where('project_task.method_id', '=', methodId)
-  .where('project_task.organization_id', '=', organizationId)
-  .select([
-    'project_task.task_id',
-    'project_task.task_name',
-    'project_task.transition_id',
-    'project_task.task_status',
-    'project_task.assign_user_id',
-    'user_authentication.user_name as assigned_user_name',
-    'project_task.create_at',
-    'project_task.update_at',
-    db.fn.count('project_task_detail.task_detail_id').as('total_steps'),
-    db.fn.count(
-      db.case()
-        .when('project_task_detail.status', '=', 'completed')
-        .then(1)
-        .end()
-    ).as('completed_steps')
-  ])
-  .groupBy([
-    'project_task.task_id',
-    'project_task.task_name',
-    'project_task.transition_id',
-    'project_task.task_status',
-    'project_task.assign_user_id',
-    'user_authentication.user_name',
-    'project_task.create_at',
-    'project_task.update_at'
-  ])
-  .execute();
 ```
 
-**進捗計算**:
+**コントローラー処理フロー**:
 ```typescript
-const calculateProgress = (task: any) => {
-  const totalSteps = task.total_steps || 0;
-  const completedSteps = task.completed_steps || 0;
-  
-  return {
-    total_steps: totalSteps,
-    completed_steps: completedSteps,
-    progress_percentage: totalSteps > 0 
-      ? Math.round((completedSteps / totalSteps) * 100 * 10) / 10 
-      : 0
-  };
+// 1. projectName → projectId 解決
+const projectResult = await pool.query(
+  'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2',
+  [organizationId, projectName]
+);
+// → 404 if not found
+
+// 2. taskId 文字列生成（フロントエンド識別子用）
+const taskId = `${projectId}__${methodId}__${taskNo}`;
+
+// 3. Repository 呼び出し
+const taskDetail = await projectTaskDetailRepository.findTaskDetail(
+  organizationId, projectId, methodId, taskNo, taskId
+);
+// → 404 if not found
+```
+
+**使用 SQL ファイル**:
+
+| SQLファイル | 説明 |
+|------------|------|
+| `backend/src/sql/queries/tasks/findDetailByTaskId.sql` | タスク基本情報 + transition_data 集計（`$1`: projectId, `$2`: methodId, `$3`: taskNo, `$4`: organizationId） |
+| `backend/src/sql/queries/tasks/findTransitionsByTaskId.sql` | トランジション進捗個別レコード一覧（同パラメータ） |
+
+**`findDetailByTaskId.sql` 取得カラム**:
+- `project_id`, `project_name`（`project` テーブル）
+- `method_id`, `experiment_order`, `task_name`（`project_task` テーブル）
+- `task_no`, `task_status`, `experiment_user_id`, `experiment_start_at`, `experiment_end_at`, `reviewed_at`, `review_user_id`, `create_at`, `update_at`（`project_task_detail` テーブル）
+- `user_name AS experiment_user_name`（`organization_user` LEFT JOIN）
+- `total_transitions`, `completed_transitions`, `inprogress_transitions`, `notstarted_transitions`, `avg_progress_rate`（`transition_data` LEFT JOIN + 集計）
+
+**`findTransitionsByTaskId.sql` 取得カラム**:
+- `transition_id`, `status`, `progress_rate`, `create_at`, `update_at`（`transition_data` テーブル）
+
+**タスクステータス数値 → 文字列 変換マップ**:
+```typescript
+const TASK_STATUS_MAP: Record<number, string> = {
+  0: 'pending',
+  1: 'in_progress',
+  2: 'failed',
+  3: 'review_waiting',
+  4: 'completed',
 };
 ```
 
----
+#### 実装状況
 
-### 2. タスク詳細取得 🔴
-
-**エンドポイント**: `GET /api/v1/tasks/:taskId`
-
-**説明**: 指定タスクの詳細情報を取得
-
-**認証**: 必須
-
-**権限**: `experiment_admin`, `system_admin`
-
-**優先度**: ⭐⭐ 中
-
-#### リクエストパラメータ
-
-**パスパラメータ**:
-| パラメータ | 型 | 必須 | 説明 |
-|----------|---|------|------|
-| `taskId` | UUID | ○ | タスクID |
-
-**クエリパラメータ**:
-| パラメータ | 型 | 必須 | デフォルト | 説明 |
-|----------|---|------|-----------|------|
-| `include_records` | boolean | × | true | 実験記録を含める |
-| `include_issues` | boolean | × | true | 問題報告を含める |
-
-#### レスポンス
-
-**成功時 (200 OK)**:
-```json
-{
-  "success": true,
-  "data": {
-    "task_id": "task-uuid",
-    "project_id": "project-uuid",
-    "project_name": "Sample Project",
-    "method_id": "method1",
-    "method_name": "合成実験",
-    "transition_id": "t2",
-    "transition_name": "反応実験",
-    "task_name": "反応実験タスク",
-    "task_status": "in_progress",
-    "assigned_to": "worker-uuid",
-    "assigned_user_name": "Worker Name",
-    "assigned_at": "2026-01-21T10:00:00Z",
-    "started_at": "2026-01-21T10:30:00Z",
-    "completed_at": null,
-    "instruction": {
-      "instruction_id": "instruction-uuid",
-      "instruction_title": "実験指示タイトル",
-      "instruction_content": "実験指示の詳細内容",
-      "due_date": "2026-01-31T23:59:59Z"
-    },
-    "progress": {
-      "total_steps": 8,
-      "completed_steps": 3,
-      "progress_percentage": 37.5,
-      "details": [
-        {
-          "task_detail_id": "detail-uuid-1",
-          "step_name": "材料準備",
-          "status": "completed",
-          "completed_at": "2026-01-21T11:00:00Z"
-        },
-        {
-          "task_detail_id": "detail-uuid-2",
-          "step_name": "反応開始",
-          "status": "in_progress",
-          "completed_at": null
-        }
-      ]
-    },
-    "experiment_records": [
-      {
-        "record_id": "record-uuid",
-        "transition_id": "t2",
-        "recorded_at": "2026-01-21T12:00:00Z",
-        "data": {
-          "materials": [...],
-          "conditions": [...],
-          "results": [...]
-        }
-      }
-    ],
-    "issues": [
-      {
-        "issue_id": "issue-uuid",
-        "issue_type": "equipment_failure",
-        "issue_title": "装置不具合",
-        "issue_description": "温度センサーの異常",
-        "status": "open",
-        "reported_at": "2026-01-21T13:00:00Z",
-        "reported_by": "worker-uuid",
-        "reported_by_name": "Worker Name"
-      }
-    ],
-    "created_at": "2026-01-21T10:00:00Z",
-    "updated_at": "2026-01-21T15:30:00Z"
-  },
-  "meta": {
-    "timestamp": "2026-01-21T16:00:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
-**エラー時**:
-- 400: バリデーションエラー
-- 401: 認証エラー
-- 403: 権限不足
-- 404: タスクが存在しない
-- 500: システムエラー
-
-#### 実装要件
-
-**DBクエリ（複数テーブルJOIN）**:
-```typescript
-// タスク基本情報
-const task = await db
-  .selectFrom('project_task')
-  .leftJoin('project', 'project_task.project_id', 'project.project_id')
-  .leftJoin('project_instruction', 'project_task.instruction_id', 'project_instruction.instruction_id')
-  .leftJoin('organization_user', 'project_task.assign_user_id', 'organization_user.user_id')
-  .leftJoin('user_authentication', 'organization_user.user_id', 'user_authentication.user_id')
-  .where('project_task.task_id', '=', taskId)
-  .where('project_task.organization_id', '=', organizationId)
-  .select([
-    'project_task.*',
-    'project.project_name',
-    'user_authentication.user_name as assigned_user_name',
-    'project_instruction.instruction_title',
-    'project_instruction.instruction_content',
-    'project_instruction.due_date'
-  ])
-  .executeTakeFirstOrThrow();
-
-// タスク詳細（ステップ）
-if (include_records) {
-  task.progress.details = await db
-    .selectFrom('project_task_detail')
-    .where('task_id', '=', taskId)
-    .where('organization_id', '=', organizationId)
-    .orderBy('display_order', 'asc')
-    .selectAll()
-    .execute();
-}
-
-// 実験記録
-if (include_records) {
-  task.experiment_records = await db
-    .selectFrom('experiment_record')
-    .where('task_id', '=', taskId)
-    .where('organization_id', '=', organizationId)
-    .orderBy('create_at', 'desc')
-    .selectAll()
-    .execute();
-}
-
-// 問題報告
-if (include_issues) {
-  task.issues = await db
-    .selectFrom('task_issue')
-    .leftJoin('organization_user', 'task_issue.reported_by', 'organization_user.user_id')
-    .leftJoin('user_authentication', 'organization_user.user_id', 'user_authentication.user_id')
-    .where('task_issue.task_id', '=', taskId)
-    .where('task_issue.organization_id', '=', organizationId)
-    .select([
-      'task_issue.*',
-      'user_authentication.user_name as reported_by_name'
-    ])
-    .orderBy('task_issue.create_at', 'desc')
-    .execute();
-}
-```
-
-**メソッド情報の取得**:
-```typescript
-// MAIMLファイルからメソッド情報を取得
-const project = await db
-  .selectFrom('project')
-  .where('project_id', '=', task.project_id)
-  .where('organization_id', '=', organizationId)
-  .select('project_name')
-  .executeTakeFirstOrThrow();
-
-const maimlContent = await storageService.downloadFile(
-  organizationPrefix,
-  `projects/${project.project_name}/${project.project_name}.maiml`
-);
-
-const methods = await parseMultipleMethodsStructure(maimlContent);
-const method = methods.find(m => m.methodId === task.method_id);
-const transition = method?.petriNet.transitions.find(t => t.id === task.transition_id);
-
-task.method_name = method?.methodName || '';
-task.transition_name = transition?.name || '';
-```
+**実装済み箇所**:
+- ✅ ルート定義: `backend/src/routes/progressRoutes.ts`
+  - `checkPermission('040000', 0)` による権限チェック実装済み
+  - 機能CD: `040000`（実験管理者メニュー）、権限レベル: `0`（読取専用）
+- ✅ バリデーション: `validateParamString` / `validateParamInt` による検証実装済み
+- ✅ コントローラー: `backend/src/controllers/projectController.ts` - `getTaskDetail()`
+- ✅ Repository: `backend/src/repositories/projectTaskDetailRepository.ts` - `findTaskDetail()`
+- ✅ SQL: `backend/src/sql/queries/tasks/findDetailByTaskId.sql`
+- ✅ SQL: `backend/src/sql/queries/tasks/findTransitionsByTaskId.sql`
 
 ---
 
@@ -1765,6 +1597,193 @@ const validateStatusUpdate = (body: any) => {
 
 ---
 
+---
+
+### 7. 作業詳細一括取得API 🟢
+
+**エンドポイント**: `GET /api/v1/progress/projects/:projectName/work-details`
+
+**説明**: WorkProgressDetailDialog が必要とする projectInfo / fileInfo / workDetails（transitionProgress 含む）を一括返却する
+
+**認証**: 必須
+
+**権限**: `experiment_admin`（機能CD: `040000`、読取専用以上）
+
+**優先度**: ⭐⭐⭐ 高
+
+**実装状況**: ✅ 実装済み
+- コントローラー: `backend/src/controllers/progressController.ts` - `getWorkDetails()`
+- サービス: `backend/src/services/progressService.ts` - `ProgressService.getWorkDetails()`
+
+#### リクエストパラメータ
+
+**パスパラメータ**:
+| パラメータ | 型 | 必須 | 説明 |
+|----------|---|------|------|
+| `projectName` | string | ○ | プロジェクト名 |
+
+#### レスポンス
+
+**成功時 (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "projectInfo": {
+      "projectId": "550e8400-e29b-41d4-a716-446655440000",
+      "projectName": "Sample Project",
+      "projectDescription": "プロジェクトの説明",
+      "owner": "Owner Name",
+      "department": "研究部門",
+      "status": "in_progress",
+      "methods": ["method1", "method2"],
+      "createdAt": "2026-01-21T10:00:00.000Z",
+      "updatedAt": "2026-03-01T12:00:00.000Z"
+    },
+    "fileInfo": {
+      "fileName": "Sample Project.maiml",
+      "maimlFileKey": "550e8400-e29b-41d4-a716-446655440000/projects/Sample Project/Sample Project.maiml",
+      "organizationId": "550e8400-e29b-41d4-a716-446655440000",
+      "checkoutStatus": {
+        "isCheckedOut": false,
+        "checkoutBy": null
+      }
+    },
+    "workDetails": [
+      {
+        "workId": "method1_1",
+        "taskNo": 1,
+        "methodName": "method1",
+        "workStatus": "in_progress",
+        "progressPercentage": 50,
+        "stats": {
+          "totalTransitions": 4,
+          "completed": 2,
+          "working": 1,
+          "notStarted": 1,
+          "completionRate": 50
+        },
+        "transitionProgress": [
+          {
+            "transitionId": "t1",
+            "progressStatus": "完了",
+            "assignedWorker": "Worker Name",
+            "startDate": "2026-03-01T10:00:00.000Z",
+            "endDate": "2026-03-01T14:00:00.000Z"
+          },
+          {
+            "transitionId": "t2",
+            "progressStatus": "作業中",
+            "assignedWorker": "Worker Name 2",
+            "startDate": "2026-03-02T09:00:00.000Z",
+            "endDate": null
+          },
+          {
+            "transitionId": "t3",
+            "progressStatus": "未開始"
+          }
+        ]
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-03-11T00:00:00.000Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**projectInfo フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `projectId` | string (UUID) | プロジェクトID |
+| `projectName` | string | プロジェクト名 |
+| `projectDescription` | string \| undefined | プロジェクト説明 |
+| `owner` | string | オーナー名（ユーザー名またはユーザーID） |
+| `department` | string \| undefined | 部門名（または部門CD） |
+| `status` | string | プロジェクトステータス（`planning` / `pending` / `in_progress` / `review_waiting` / `completed` / `error`） |
+| `methods` | string[] | MAIMLファイルに定義されたメソッドID一覧 |
+| `createdAt` | string (ISO 8601) | 作成日時 |
+| `updatedAt` | string (ISO 8601) | 更新日時 |
+
+**workDetails[].stats フィールド詳細**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `totalTransitions` | number | MAIMLに定義されたトランジション総数 |
+| `completed` | number | 完了数（status=5） |
+| `working` | number | 作業中数（status=1〜4） |
+| `notStarted` | number | 未開始数 |
+| `completionRate` | number | 完了率（0〜100の整数） |
+
+**workDetails[].transitionProgress[].progressStatus 値**:
+| 値 | DBのstatus値 | 説明 |
+|----|------------|------|
+| `未開始` | DBに未登録 or 0 | 初期状態 |
+| `準備中` | 1 | 準備中 |
+| `作業中` | 2 または 4 | 作業中・再開 |
+| `休止中` | 3 | 一時停止 |
+| `完了` | 5 | 完了 |
+| `異常中` | 6 | エラー状態 |
+
+**エラー時**:
+- 401: 認証エラー
+- 403: 権限不足
+- 404: プロジェクトが存在しない（`TASK_NOT_FOUND`）
+- 500: MAIMLダウンロード失敗 / MAIMLパース失敗 / DBエラー
+
+#### ビジネスロジック
+
+1. **プロジェクト基本情報取得**
+   - `projects/findWithOwnerAndDept.sql` を使用し、プロジェクト名と組織IDでプロジェクト情報・オーナー名・部門名を取得
+
+2. **MAIML ダウンロード & パース**
+   - S3/Swift から `{organizationId}/projects/{projectName}/{projectName}.maiml` をダウンロード
+   - `parsePetriNetStructure()` でメソッド一覧とトランジション一覧を抽出
+
+3. **タスク一覧取得**
+   - `project_tasks/findByProjectId.sql` でプロジェクト内の全タスクを取得
+
+4. **トランジション進捗一括取得（Promise.all 並列処理）**
+   - タスクごとに `project_tasks/findTaskDetailsByMethodId.sql` で task_no 一覧を取得
+   - 各 task_no の `transition_data/findByTask.sql` でトランジション進捗を取得
+   - MAIML に定義されているが DB に未登録のトランジションは「未開始」として返す
+
+5. **統計情報算出**
+   - `completedCount`: status=5 のトランジション数
+   - `workingCount`: status=1〜4 のトランジション数
+   - `completionRate`: completedCount / totalTransitions × 100（整数）
+   - `workStatus`: 全完了なら `completed`、1件でも作業中なら `in_progress`、それ以外は `pending`
+
+#### ミドルウェアチェーン
+
+```typescript
+router.get(
+  '/projects/:projectName/work-details',
+  authMiddleware,                    // 1. JWT認証
+  checkPermission('040000', 0),      // 2. 権限チェック（実験管理者メニュー、読取専用以上）
+  getWorkDetails                     // 3. コントローラー
+);
+```
+
+#### 使用SQLファイル
+
+| SQLファイル | 用途 |
+|------------|------|
+| `projects/findWithOwnerAndDept.sql` | プロジェクト基本情報（オーナー・部門含む）取得 |
+| `project_tasks/findByProjectId.sql` | プロジェクト内タスク一覧取得 |
+| `project_tasks/findTaskDetailsByMethodId.sql` | メソッドIDに紐づく task_no 一覧取得 |
+| `transition_data/findByTask.sql` | タスク（task_no）のトランジション進捗一覧取得 |
+
+#### 備考
+
+- **用途**: WorkProgressDetailDialog で使用（進捗確認画面）
+- **workId の形式**: `{methodId}_{experimentOrder}`（例: `method1_1`）
+- **methodName フィールド**: 現時点では `method_id` の値をそのまま返却（MAIML のメソッド名表示名は未対応）
+- MAIMLに存在するがDBに未登録のトランジションは `progressStatus: '未開始'` として含める
+- プロジェクト内の全タスクを対象とする（担当者フィルタなし）
+
+---
+
 ## 📚 関連ドキュメント
 
 ### 規約
@@ -1788,6 +1807,21 @@ const validateStatusUpdate = (body: any) => {
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.7.0 | 2026-03-11 | タスク詳細取得API 仕様書修正（実装に合わせて更新） | Cline |
+| | | - API #1: エンドポイント・パラメータ・レスポンス・権限を実際の実装に合わせて修正 | |
+| | | - パラメータ: projectName / methodId / taskNo（パスパラメータ3種に変更） | |
+| | | - クエリパラメータ（include_records, include_issues）削除 | |
+| | | - レスポンス: TaskDetailResponse 型に合わせて更新（transitionProgress[] + stats{}） | |
+| | | - 権限: checkPermission('040000', 0) = experiment_admin 読取専用 | |
+| | | - 実装要件: SQLファイルベース（findDetailByTaskId.sql / findTransitionsByTaskId.sql）に差し替え | |
+| | | - 実装状況セクション追加（progressRoutes.ts / projectController.ts / projectTaskDetailRepository.ts） | |
+| 1.6.0 | 2026-03-11 | 作業詳細一括取得API追加（7エンドポイント） | Cline |
+| | | - API #7: GET /api/v1/progress/projects/:projectName/work-details 新規追加（実装済み） | |
+| | | - WorkProgressDetailDialog 向けの projectInfo / fileInfo / workDetails 一括返却 | |
+| | | - 権限: experiment_admin（機能CD: 040000、読取専用以上） | |
+| | | - 実装済み: progressController.ts `getWorkDetails()`、progressService.ts `ProgressService.getWorkDetails()` | |
+| | | - 総API数: 6→7（+1）、実装済み: 2→3（+1） | |
+| | | - 完了率: 33.3%→42.9% | |
 | 1.5.0 | 2026-03-09 | タスク詳細取得API エンドポイント変更・実装済みに更新 | Cline |
 | | | - API #2: エンドポイントを `GET /api/v1/tasks/:taskId` → `GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details` に変更 | |
 | | | - 実装済み（`backend/src/controllers/projectController.ts` `getTaskDetail()`、`backend/src/routes/progressRoutes.ts`） | |
