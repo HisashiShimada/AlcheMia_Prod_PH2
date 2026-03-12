@@ -183,7 +183,7 @@ export default function ExperimentRecordTab({
             method.tasks.map((task: WorkerTask) => ({
               taskId: `${apiData.project_id}-${method.method_id}-${task.task_no}`,
               taskNo: task.task_no.toString(),
-              taskName: task.task_no.toString(),
+              taskName: task.task_no.toString(), // task_nameカラム削除のため、task_noを代用
               methodId: method.method_id,
               methodName: method.method_name,
               status: task.task_status as Task['status'],
