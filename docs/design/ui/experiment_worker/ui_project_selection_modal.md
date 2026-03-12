@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/ProjectSelectionModal.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-01-19
+- **最終更新日**: 2026-03-11
 
 ---
 
@@ -18,9 +18,8 @@
 ### 1.2 主要機能
 - プロジェクト一覧のテーブル表示
 - ラジオボタンによる単一選択
-- あいまい検索機能（プロジェクト名、説明、所有者）
+- あいまい検索機能（プロジェクト名、プロジェクトコード）
 - プロジェクト名フィルター
-- 所有者フィルター
 - 選択解除機能
 - ページネーション
 
@@ -45,21 +44,21 @@
 │ Body:                                                         │
 │ ┌────────────────────────────────────────────────────────┐  │
 │ │ フィルタリングエリア                                     │  │
-│ │ ┌──────────┬────────────┬──────────┐                   │  │
-│ │ │[検索BOX] │[プロジェクト名]│[所有者]│                   │  │
-│ │ │  400px   │    200px    │ 150px  │                   │  │
-│ │ └──────────┴────────────┴──────────┘                   │  │
-│ ├────────────────────────────────────────────────────────┤  │
+│ │ ┌──────────┬────────────┐                             │  │
+│ │ │[検索BOX] │[プロジェクト名]│                             │  │
+│ │ │  400px   │    200px    │                             │  │
+│ │ └──────────┴────────────┘                             │  │
+├────────────────────────────────────────────────────────┤  │
 │ │ Table (高さ: 350px、スクロール可能)                      │  │
-│ │ ┌──────┬──────┬──────────┬────────┐                   │  │
-│ │ │[○]   │プロジェクト│説明│所有者  │                   │  │
-│ │ │      │名     │状態│      │        │                   │  │
-│ │ ├──────┼──────┼──────────┼────────┤                   │  │
-│ │ │[○]   │Project A│実行中│...│UserA│                   │  │
-│ │ │[●]   │Project B│一時停止│...│UserB│（選択中）        │  │
-│ │ │[○]   │Project C│実行中│...│UserC│                   │  │
-│ │ └──────┴──────┴──────────┴────────┘                   │  │
-│ │ Pagination: [1] [2] [3] ... 全X件                      │  │
+│ │ ┌──────┬──────────┬────────┬────────┐                 │  │
+│ │ │[○]   │プロジェクト名│プロジェクトCD│状態│             │  │
+│ │ │      │ 250px    │ 150px  │ 120px │             │  │
+│ │ ├──────┼──────────┼────────┼────────┤                 │  │
+│ │ │[○]   │Project A │A-001   │実行中  │                 │  │
+│ │ │[●]   │Project B │B-002   │実行中  │（選択中）        │  │
+│ │ │[○]   │Project C │C-003   │一時停止│                 │  │
+│ │ └──────┴──────────┴────────┴────────┘                 │  │
+│ │ Pagination: [1] [2] [3] ... 合計X件                    │  │
 │ └────────────────────────────────────────────────────────┘  │
 ├──────────────────────────────────────────────────────────────┤
 │ Footer:                                                       │
@@ -77,12 +76,13 @@
 - `Modal` - モーダルダイアログ
 - `Table` - プロジェクト一覧テーブル
 - `Input` - あいまい検索入力
-- `Select` - プロジェクト名・所有者フィルター
+- `Select` - プロジェクト名フィルター
 - `Button` - 選択解除、キャンセル、決定ボタン
 - `Space` - 要素間隔制御
 - `Row`, `Col` - フィルターエリアのレイアウト
 - `Typography.Text` - テキスト表示
 - `theme` - デザイントークン取得
+- `Spin` - ローディングスピナー（空データ時のローディング表示）
 
 #### アイコン
 - `FolderOutlined` - プロジェクトアイコン
@@ -103,6 +103,8 @@ interface ProjectSelectionModalProps {
   onClose: () => void;                        // 閉じるイベントハンドラ
   selectedProject: string;                    // 現在選択中のプロジェクトID
   onProjectChange: (value: string | null) => void;  // プロジェクト変更イベント
+  projects: WorkerProject[];                  // プロジェクト一覧（API取得済みデータ）
+  loading: boolean;                           // データ読み込み中フラグ
 }
 ```
 
@@ -117,7 +119,6 @@ const [tempProject, setTempProject] = useState<string>(selectedProject);
 // フィルター状態
 const [searchText, setSearchText] = useState<string>('');
 const [selectedProjectName, setSelectedProjectName] = useState<string | undefined>(undefined);
-const [selectedOwner, setSelectedOwner] = useState<string | undefined>(undefined);
 ```
 
 ### 4.1 状態のリセットタイミング
@@ -126,7 +127,6 @@ const [selectedOwner, setSelectedOwner] = useState<string | undefined>(undefined
 - `tempProject` ← `selectedProject`（現在の選択状態を復元）
 - `searchText` ← `''`（検索テキストをクリア）
 - `selectedProjectName` ← `undefined`（プロジェクト名フィルターをクリア）
-- `selectedOwner` ← `undefined`（所有者フィルターをクリア）
 
 ---
 
@@ -139,28 +139,25 @@ interface ProjectTableData {
   key: string;                   // 行キー（projectId）
   projectId: string;             // プロジェクトID
   projectName: string;           // プロジェクト名
-  status: ProjectStatus;         // プロジェクトステータス
-  description: string;           // 説明
-  owner: string;                 // 所有者
+  projectCd?: string;            // プロジェクトコード
+  projectStatus: number;         // プロジェクトステータス（数値: コードマスター参照）
   isCurrentlySelected: boolean;  // 現在選択中フラグ
 }
 ```
 
 ### 5.2 データソース
 
-- **ソース**: `projectsData`（モックデータ）
-- **フィルター条件**: `isSelectableStatus(status)` が `true` のプロジェクトのみ表示
-  - 選択可能な状態: 実行中（`ongoing`）、一時停止中（`paused`）
-  - 選択不可な状態: 完了（`completed`）、アーカイブ済み（`archived`）
+- **ソース**: Props `projects`（`WorkerProject[]`）。APIから取得済みのデータを親コンポーネントが渡す
+- **フィルター条件**: API側で選択可能なプロジェクトのみ返却されるため、コンポーネント側でのフィルタリングは不要
+- **ローディング状態**: Props `loading` が `true` の間はテーブルにローディングスピナーを表示し、フィルター入力も無効化される
 
 ### 5.3 テーブルカラム定義
 
 | カラム | dataIndex | 幅 | 配置 | 説明 |
 |--------|-----------|-----|------|------|
-| プロジェクト名 | projectName | 200px | left | FolderOutlinedアイコン付き、太字表示 |
-| 状態 | status | 140px | center | ProjectStatusの翻訳テキスト |
-| 説明 | description | auto | left | 省略表示（ellipsis）、セカンダリカラー |
-| 所有者 | owner | 150px | left | ユーザー名表示 |
+| プロジェクト名 | projectName | 250px | left | FolderOutlinedアイコン付き、太字表示 |
+| プロジェクトCD | projectCd | 150px | left | プロジェクトコード表示 |
+| 状態 | projectStatus | 120px | center | コードマスター（`project_status`）から取得したラベルを表示 |
 
 ---
 
@@ -170,15 +167,13 @@ interface ProjectTableData {
 
 **対象フィールド:**
 - プロジェクト名（`projectName`）
-- 説明（`description`）
-- 所有者（`owner`）
+- プロジェクトコード（`projectCd`）
 
 **検索ロジック:**
 ```typescript
 const matchesSearch = !searchText || 
   item.projectName.toLowerCase().includes(searchText.toLowerCase()) ||
-  item.description.toLowerCase().includes(searchText.toLowerCase()) ||
-  item.owner.toLowerCase().includes(searchText.toLowerCase());
+  (item.projectCd && item.projectCd.toLowerCase().includes(searchText.toLowerCase()));
 ```
 
 ### 6.2 プロジェクト名フィルター
@@ -194,29 +189,16 @@ const projectNameOptions = useMemo(() => {
 }, [allTableData]);
 ```
 
-### 6.3 所有者フィルター
-
-- **種類**: 完全一致フィルター
-- **選択肢**: テーブルデータから重複を除いた一意の所有者リスト
-- **ソート**: アルファベット順
-
-```typescript
-const ownerOptions = useMemo(() => {
-  const uniqueOwners = Array.from(new Set(allTableData.map(item => item.owner)));
-  return uniqueOwners.sort().map(owner => ({ label: owner, value: owner }));
-}, [allTableData]);
-```
-
-### 6.4 フィルタリング適用
+### 6.3 フィルタリング適用
 
 すべてのフィルター条件はAND条件で適用されます。
 
 ```typescript
 const filteredData = useMemo(() => {
   return allTableData.filter(item => {
-    return matchesSearch && matchesProjectName && matchesOwner;
+    return matchesSearch && matchesProjectName;
   });
-}, [allTableData, searchText, selectedProjectName, selectedOwner]);
+}, [allTableData, searchText, selectedProjectName]);
 ```
 
 ---
@@ -233,7 +215,6 @@ const filteredData = useMemo(() => {
 | rowSelection.onChange | テーブル行選択 | tempProjectを更新 |
 | setSearchText | 検索入力変更 | 検索テキストを更新（即座にフィルタリング） |
 | setSelectedProjectName | プロジェクト名選択 | プロジェクト名フィルターを更新 |
-| setSelectedOwner | 所有者選択 | 所有者フィルターを更新 |
 
 ### 7.2 イベント詳細
 
@@ -327,12 +308,15 @@ const rowSelection = {
   pagination={{
     pageSize: 10,
     showSizeChanger: true,
-    showTotal: (total) => `全: ${total} 件`,
+    showTotal: (total) => `合計: ${total} 件`,
     pageSizeOptions: ['10', '20', '50', '100'],
     showQuickJumper: true,
   }}
   scroll={{ y: 350 }}  // 縦スクロール
   size="middle"
+  locale={{
+    emptyText: loading ? <Spin /> : 'プロジェクトがありません'
+  }}
 />
 ```
 
@@ -348,9 +332,6 @@ const rowSelection = {
     <Input ... />
   </Col>
   <Col flex="200px">  {/* プロジェクト名フィルター */}
-    <Select ... />
-  </Col>
-  <Col flex="150px">  {/* 所有者フィルター */}
     <Select ... />
   </Col>
 </Row>
@@ -375,7 +356,7 @@ const rowSelection = {
 pagination={{
   pageSize: 10,                    // 1ページあたり10件
   showSizeChanger: true,           // ページサイズ変更可能
-  showTotal: (total) => `全: ${total} 件`,
+  showTotal: (total) => `合計: ${total} 件`,
   pageSizeOptions: ['10', '20', '50', '100'],
   showQuickJumper: true,           // ページ番号入力可能
 }}
@@ -402,26 +383,35 @@ t('experimentWork.projectSelection.title')
 t('experimentWork.projectSelection.clearSelection')
 t('experimentWork.projectSelection.cancel')
 t('experimentWork.projectSelection.confirm')
+```
 
-// フィルター
-t('experimentWork.projectSelection.searchPlaceholder')
-t('experimentWork.projectSelection.projectNameFilter')
-t('experimentWork.projectSelection.ownerFilter')
+### 11.2 ハードコードされている文字列（翻訳キー未適用）
 
-// テーブルカラム
-t('experimentWork.projectSelection.projectName')
-t('experimentWork.projectSelection.description')
-t('experimentWork.projectSelection.owner')
+以下の文字列は現状ハードコードされています（将来的に翻訳キー化推奨）：
 
-// ステータス
-t(`experimentWork.projectStatus.${status}`)
+```typescript
+// 検索・フィルタープレースホルダー
+placeholder="プロジェクト名またはコードで検索"
+placeholder="プロジェクト名でフィルタ"
 
-// 共通
-t('common.total')
-t('common.items')
+// ページネーション
+showTotal: (total) => `合計: ${total} 件`
 
-// 所有者不明
-t('experimentWork.projectSelection.unknownOwner')
+// 空データ時のメッセージ
+emptyText: 'プロジェクトがありません'
+
+// テーブルカラムヘッダー
+'プロジェクト名', 'プロジェクトCD', '状態'
+```
+
+### 11.3 ステータス表示
+
+ステータスのラベルは翻訳キーではなく、コードマスター（`useCodeMaster('project_status')`）から取得します。
+
+```typescript
+const { options: projectStatusOptions } = useCodeMaster('project_status');
+// projectStatus（数値）→ label（文字列）に変換して表示
+const label = projectStatusOptions.find(opt => opt.value === projectStatus)?.label ?? String(projectStatus);
 ```
 
 ---
@@ -451,21 +441,18 @@ t('experimentWork.projectSelection.unknownOwner')
 
 ```typescript
 // テーブルデータ生成
-const allTableData = useMemo(() => {...}, [selectedProject, t]);
+const allTableData = useMemo(() => {...}, [projects, selectedProject]);
 
 // プロジェクト名選択肢
 const projectNameOptions = useMemo(() => {...}, [allTableData]);
 
-// 所有者選択肢
-const ownerOptions = useMemo(() => {...}, [allTableData]);
-
 // フィルタリング適用
-const filteredData = useMemo(() => {...}, [allTableData, searchText, selectedProjectName, selectedOwner]);
+const filteredData = useMemo(() => {...}, [allTableData, searchText, selectedProjectName]);
 ```
 
 ### 13.2 最適化のポイント
 
-1. **データソースのフィルタリング**: 選択可能な状態のプロジェクトのみ表示
+1. **データはAPI取得済み**: 親コンポーネントがAPIからデータを取得して渡すため、コンポーネント内でのデータ取得は不要
 2. **メモ化**: 計算コストの高い処理（フィルタリング、選択肢生成）をuseMemoで最適化
 3. **仮想スクロール**: Table内部でAnt Designが提供（scroll設定）
 4. **ページネーション**: 大量データを分割表示
@@ -482,9 +469,8 @@ const filteredData = useMemo(() => {...}, [allTableData, searchText, selectedPro
    - キャンセル時は元の選択状態に戻る
 
 2. **選択可能なプロジェクト**
-   - `isSelectableStatus()`で判定
-   - 実行中（ongoing）、一時停止中（paused）のみ選択可能
-   - 完了（completed）、アーカイブ済み（archived）は表示されない
+   - API側でフィルタリング済みのデータが渡されるため、コンポーネント側での判定は不要
+   - 表示されるプロジェクトはすべて選択可能
 
 3. **選択解除機能**
    - プロジェクトの選択を解除できる
@@ -494,10 +480,6 @@ const filteredData = useMemo(() => {...}, [allTableData, searchText, selectedPro
 4. **フィルターのクリア**
    - モーダルを開くたびにフィルターがリセットされる
    - ユーザーが前回のフィルター状態に惑わされない
-
-5. **所有者の取得**
-   - `workAssignment.assignedBy.userName`から取得
-   - 取得できない場合は「不明な所有者」と表示
 
 ### 14.2 将来の拡張
 
@@ -523,3 +505,4 @@ const filteredData = useMemo(() => {...}, [allTableData, searchText, selectedPro
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-19 | 初版作成 | Cline |
+| 1.1.0 | 2026-03-11 | ソースコードとの差分修正（Props追加、テーブルカラム変更、所有者フィルター削除、データソースをAPI取得に変更、コードマスター方式のステータス表示に変更） | Cline |
