@@ -5,9 +5,9 @@
 - **物理名**: ExperimentWorkerMenu.tsx
 - **ファイルパス**: frontend/src/components/menus/ExperimentWorkerMenu.tsx
 - **作成日**: 2026-01-21
-- **最終更新日**: 2026-01-21
+- **最終更新日**: 2026-03-11
 - **担当者**: Development Team
-- **バージョン**: 1.0.0
+- **バージョン**: 1.1.0
 
 ---
 
@@ -21,10 +21,41 @@
 - **認証**: 必須
 
 ### 1.3. 主要機能
-1. プロジェクト選択
+1. プロジェクト選択（APIから取得した一覧から選択）
 2. タブ切り替え（進捗確認、指示確認、実験記録）
-3. メソッド・タスク選択
-4. 承認依頼（進捗確認タブのみ）
+3. メソッド・タスク選択（指示確認タブ・実験記録タブのみ）
+4. 承認依頼（進捗確認タブのみ、APIで送信）
+
+### 1.4. 表示モード
+
+| モード | 説明 |
+|--------|------|
+| 通常モード | Header + SubHeader + コンテンツを表示（デフォルト） |
+| オーバーレイモード（`overlayMode=true`） | Header/SubHeaderを非表示にしてコンテンツのみ表示。他画面への埋め込み用 |
+| 読み取り専用モード（`readOnly=true`） | 選択・承認依頼ボタンを disabled にする。参照目的での表示用 |
+
+---
+
+## 1.5. コンポーネントProps定義
+
+```typescript
+interface ExperimentWorkerMenuProps {
+  /** オーバーレイモード: trueにするとHeader/SubHeaderを非表示にしてコンテンツのみ表示 */
+  overlayMode?: boolean;
+  
+  /** プロジェクト固定: 指定するとそのプロジェクトが選択された状態で固定され、選択コンボボックスが disabled になる */
+  fixedProjectId?: string;
+  
+  /** 読み取り専用: trueにすると選択ボタン・承認依頼ボタンを disabled にする */
+  readOnly?: boolean;
+}
+```
+
+| Prop名 | 型 | デフォルト値 | 説明 |
+|--------|-----|------------|------|
+| `overlayMode` | `boolean` | `false` | `true` で Header/SubHeader を非表示にする |
+| `fixedProjectId` | `string` | `undefined` | プロジェクトを固定選択する（コンボボックスが disabled） |
+| `readOnly` | `boolean` | `false` | `true` で選択・承認依頼ボタンを disabled にする |
 
 ---
 
@@ -98,23 +129,33 @@
 例: Sample Project - 作業中
 ```
 
-**選択可能条件:**
-- ステータスが以下のいずれか:
-  - `draft`（下書き）
-  - `active`（作業中）
-  - `waiting_approval`（承認待ち）
-  - `approved`（承認済み）
+**プロジェクトステータス（数値）:**
+
+| 値 | 意味 |
+|----|------|
+| `0` | 計画中 |
+| `1` | タスク実行待ち |
+| `2` | タスク実行中 |
+| `3` | 承認待ち |
+| `4` | 完了 |
+| `5` | 異常終了 |
+
+ステータスラベルは `useCodeMaster('project_status')` フックから取得する。フロントエンドによるフィルタリングは行わず、APIから返ってきたすべてのプロジェクトを選択肢として表示する。
 
 **ドロップダウンオプション:**
 ```typescript
+const projectStatusOptions = useCodeMaster('project_status');
+
 options={[
-  { value: null, label: '-' },
-  ...Object.entries(projectsData)
-    .filter(([, project]) => isSelectableStatus(project.status))
-    .map(([id, project]) => ({
-      value: id,
-      label: `${project.projectName} - ${t(`experimentWork.projectStatus.${project.status}`)}`
-    }))
+  { value: '', label: '-' },
+  ...projects.map((project) => {
+    const statusLabel = projectStatusOptions.find(opt => opt.value === project.projectStatus)?.label
+      ?? String(project.projectStatus);
+    return {
+      value: project.projectId,
+      label: `${project.projectName} - ${statusLabel}`,
+    };
+  })
 ]}
 ```
 
@@ -131,7 +172,9 @@ options={[
 
 **動作:**
 - クリック時: `ProjectSelectionModal` を開く
-- プロジェクト、メソッド、タスクを一括選択可能
+- テーブル形式でプロジェクト一覧を表示し、**プロジェクトのみ**を選択する
+- あいまい検索・プロジェクト名フィルタ機能あり
+- メソッド・タスクの選択はこのモーダルでは行わない（`MethodTaskSelectionModal` で別途選択）
 
 #### 3.2.3. 承認依頼ボタン
 
@@ -145,8 +188,9 @@ options={[
 | 無効化条件 | プロジェクト未選択時（`!selectedProject || selectedProject === ''`） |
 
 **動作:**
-- クリック時: 承認依頼処理を実行
-- TODO: 承認依頼APIの実装
+- クリック時: `handleApprovalRequest()` を実行
+- `PATCH /api/v1/projects/{projectName}/approval-request` を呼び出す
+- 送信中は `approvalLoading=true` になりボタンにローディング表示
 
 ### 3.3. レイアウト
 
@@ -168,9 +212,20 @@ options={[
   <Space size="middle">
     <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
     <Text strong>プロジェクト:</Text>
-    <Select {...} />
-    <Button type="primary" {...}>選択</Button>
-    {currentTab === '4' && <Button {...}>承認依頼</Button>}
+    {/* プロジェクト選択コンボボックス（fixedProjectId指定時は disabled） */}
+    <Select
+      loading={projectsLoading}
+      disabled={!!fixedProjectId}
+      {...}
+    />
+    {/* 選択ボタン（readOnly時は非表示） */}
+    {!readOnly && (
+      <Button type="primary" {...}>選択</Button>
+    )}
+    {/* 承認依頼ボタン（進捗確認タブのみ表示、readOnly時は非表示） */}
+    {currentTab === '4' && !readOnly && (
+      <Button loading={approvalLoading} {...}>承認依頼</Button>
+    )}
   </Space>
 </div>
 ```
@@ -180,18 +235,40 @@ options={[
 | 状態 | 型 | 初期値 | 説明 |
 |------|-----|--------|------|
 | `selectedProject` | `string` | `''` | 選択中のプロジェクトID |
+| `selectedProjectName` | `string` | `''` | 選択中のプロジェクト名（表示用） |
+| `projects` | `WorkerProject[]` | `[]` | APIから取得したプロジェクト一覧 |
+| `projectsLoading` | `boolean` | `false` | プロジェクト一覧取得中フラグ |
 | `selectedMethodId` | `string \| null` | `null` | 選択中のメソッドID |
 | `selectedTaskId` | `string` | `'new'` | 選択中のタスクID |
 | `dialogOpen` | `boolean` | `false` | プロジェクト選択モーダルの開閉状態 |
+| `approvalLoading` | `boolean` | `false` | 承認依頼送信中フラグ |
+
+**WorkerProject 型定義:**
+```typescript
+interface WorkerProject {
+  projectId: string;       // プロジェクトID（UUID）
+  projectName: string;     // プロジェクト名
+  description: string;     // 説明
+  projectStatus: number;   // ステータス（数値）
+  useDeemedProgress?: boolean; // みなし進捗フラグ
+  createdAt: string;       // 作成日時（ISO 8601）
+  updatedAt: string;       // 更新日時（ISO 8601）
+}
+```
 
 ### 3.5. イベントハンドラー
 
 #### プロジェクト変更時
 
 ```typescript
-const handleProjectChange = (value: string | null) => {
+const handleProjectChange = (value: string | undefined | null) => {
   const projectValue = value || '';
-  originalHandleProjectChange(projectValue);
+  // プロジェクト名も同時に更新（ProgressCheckTab等への受け渡し用）
+  const project = projects.find(p => p.projectId === projectValue);
+  const projectName = project?.projectName ?? '';
+  
+  originalHandleProjectChange(projectValue, projectName); // 第2引数にprojectNameを渡す
+  setSelectedProjectName(projectName);
   
   // メソッドとタスクをリセット
   setSelectedMethodId(null);
@@ -200,9 +277,11 @@ const handleProjectChange = (value: string | null) => {
 ```
 
 **動作:**
-1. プロジェクトを変更
-2. メソッドを `null` にリセット
-3. タスクを空文字列にリセット
+1. プロジェクトIDを更新
+2. プロジェクト名を取得して `selectedProjectName` に保存
+3. `useInstructions` の `handleProjectChange(projectId, projectName)` を呼び出す
+4. メソッドを `null` にリセット
+5. タスクを空文字列にリセット
 
 ---
 
@@ -274,13 +353,21 @@ const handleTabChange = (key: string) => {
 
 **動作:**
 - タブクリック時、`currentTab` 状態を更新
-- 各タブコンポーネントに共通のpropsを渡す:
-  - `selectedProject`
-  - `onProjectChange`
-  - `selectedMethodId`
-  - `onSelectMethod`
-  - `selectedTaskId`
-  - `onSelectTask`
+
+**各タブコンポーネントに渡すprops:**
+
+| Props | 進捗確認タブ | 指示確認タブ | 実験記録タブ |
+|-------|------------|------------|------------|
+| `selectedProject` | ✅ | ✅ | ✅ |
+| `selectedProjectName` | ✅ | - | - |
+| `onProjectChange` | - | ✅ | ✅ |
+| `selectedMethodId` | - | ✅ | ✅ |
+| `onSelectMethod` | - | ✅ | ✅ |
+| `selectedTaskId` | - | ✅ | ✅ |
+| `onSelectTask` | - | ✅ | ✅ |
+| `onTabChange` | ✅ | - | - |
+| `onSelectTaskAndTab` | ✅ | - | - |
+| `readOnly` | ✅ | - | - |
 
 ---
 
@@ -498,9 +585,13 @@ const ResponsiveContainer = styled.div`
 |--------|-----|--------|------|
 | `currentTab` | `string` | `'4'` | 現在のタブキー（進捗確認） |
 | `isClient` | `boolean` | `false` | クライアント側レンダリングフラグ |
+| `selectedProjectName` | `string` | `''` | 選択中のプロジェクト名（表示用） |
+| `projects` | `WorkerProject[]` | `[]` | APIから取得したプロジェクト一覧 |
+| `projectsLoading` | `boolean` | `false` | プロジェクト一覧取得中フラグ |
 | `selectedMethodId` | `string \| null` | `null` | 選択中のメソッドID |
 | `selectedTaskId` | `string` | `'new'` | 選択中のタスクID |
 | `dialogOpen` | `boolean` | `false` | プロジェクト選択モーダルの開閉 |
+| `approvalLoading` | `boolean` | `false` | 承認依頼送信中フラグ |
 
 ### 7.2. カスタムフック
 
@@ -511,8 +602,17 @@ const {
   selectedProject,           // 選択中のプロジェクトID
   sortedInstructions,        // ソート済み指示リスト
   stats,                     // 統計情報
-  handleProjectChange,       // プロジェクト変更ハンドラー
+  handleProjectChange,       // プロジェクト変更ハンドラー（引数: projectId: string, projectName: string）
 } = useInstructions();
+```
+
+**handleProjectChange のシグネチャ（useInstructions内部）:**
+```typescript
+// useInstructions.ts
+const handleProjectChange = (projectId: string, projectName: string) => {
+  setSelectedProject(projectId);
+  // projectName は指示一覧取得時のフィルタリングに使用
+};
 ```
 
 #### useExpandState
@@ -531,9 +631,14 @@ const {
 ### 8.1. プロジェクト変更
 
 ```typescript
-const handleProjectChange = (value: string | null) => {
+const handleProjectChange = (value: string | undefined | null) => {
   const projectValue = value || '';
-  originalHandleProjectChange(projectValue);
+  // プロジェクト名も同時に更新
+  const project = projects.find(p => p.projectId === projectValue);
+  const projectName = project?.projectName ?? '';
+  
+  originalHandleProjectChange(projectValue, projectName); // 第2引数にprojectNameを渡す
+  setSelectedProjectName(projectName);
   
   // メソッドとタスクをリセット
   setSelectedMethodId(null);
@@ -543,8 +648,11 @@ const handleProjectChange = (value: string | null) => {
 
 **動作:**
 1. プロジェクトIDを更新
-2. メソッドIDを `null` にリセット
-3. タスクIDを空文字列にリセット
+2. プロジェクト名を `projects` 配列から検索して取得
+3. `selectedProjectName` を更新
+4. `useInstructions` の `handleProjectChange(projectId, projectName)` を呼び出す
+5. メソッドIDを `null` にリセット
+6. タスクIDを空文字列にリセット
 
 ### 8.2. メソッド選択
 
@@ -582,19 +690,9 @@ const handleTaskCreated = (newTaskId: string) => {
 
 ```typescript
 const handleSelectTaskAndTab = (taskId: string, tabKey: string) => {
-  // タスクからメソッドIDを取得
-  if (selectedProject) {
-    const projectData = projectsData[selectedProject];
-    if (projectData?.methods) {
-      for (const method of projectData.methods) {
-        const task = method.tasks?.find(t => t.taskId === taskId);
-        if (task) {
-          setSelectedMethodId(method.methodId);
-          break;
-        }
-      }
-    }
-  }
+  // TODO: API化後、タスクIDからメソッドIDを取得するロジックを実装
+  // 現在はモックデータを使用していないため、メソッドIDの取得は省略
+  
   // タスクを選択
   setSelectedTaskId(taskId);
   // タブを切り替え
@@ -604,14 +702,39 @@ const handleSelectTaskAndTab = (taskId: string, tabKey: string) => {
 
 **用途:** 進捗確認タブから実験記録タブへのタスク遷移
 
+**⚠️ 注意:** メソッドIDの取得ロジックは**未実装（TODO）**。API化後に、タスクIDからメソッドIDを逆引きするAPIまたはレスポンス構造を利用して実装予定。
+
 ### 8.6. 承認依頼
 
 ```typescript
-const handleApprovalRequest = () => {
-  // TODO: 承認依頼処理を実装
-  console.log('承認依頼ボタンがクリックされました');
+const handleApprovalRequest = async () => {
+  if (!selectedProject || !selectedProjectData) return;
+  
+  setApprovalLoading(true);
+  try {
+    // projectName を使ってAPIを呼び出す（PATCH /{projectName}/approval-request）
+    await requestApproval(selectedProjectData.projectName);
+    message.success('承認依頼を送信しました');
+    
+    // プロジェクト一覧を再取得してステータスを更新
+    const projectsResult = await getWorkerAccessibleProjects();
+    if (projectsResult.success) {
+      setProjects(projectsResult.data);
+    }
+  } catch (error) {
+    message.error('承認依頼の送信に失敗しました');
+  } finally {
+    setApprovalLoading(false);
+  }
 };
 ```
+
+**動作:**
+1. `approvalLoading` を `true` に設定（ボタンにローディング表示）
+2. `requestApproval(projectName)` を呼び出し（`PATCH /api/v1/projects/{projectName}/approval-request`）
+3. 成功時: 成功メッセージを表示し、プロジェクト一覧を再取得してステータスを反映
+4. 失敗時: エラーメッセージを表示
+5. `approvalLoading` を `false` に戻す
 
 ---
 
@@ -795,7 +918,8 @@ order: "asc" | "desc" (default: "asc") - ソート順
       "projectId": "string (UUID)",
       "projectName": "string",
       "description": "string",
-      "projectStatus": "in_progress" | "review_waiting" | "approved",
+      "projectStatus": number,
+      "useDeemedProgress": boolean,
       "createdAt": "string (ISO 8601)",
       "updatedAt": "string (ISO 8601)"
     }
@@ -824,7 +948,8 @@ order: "asc" | "desc" (default: "asc") - ソート順
       "projectId": "435b0667-af37-49e9-bc21-58f748587e49",
       "projectName": "GrapheneComposite",
       "description": "グラフェン複合材料の合成と物性評価",
-      "projectStatus": "in_progress",
+      "projectStatus": 2,
+      "useDeemedProgress": false,
       "createdAt": "1970-01-01T00:00:00.000Z",
       "updatedAt": "1970-01-01T00:00:00.000Z"
     },
@@ -832,7 +957,8 @@ order: "asc" | "desc" (default: "asc") - ソート順
       "projectId": "9a92873d-9deb-471d-8ccf-bce2a2cd216b",
       "projectName": "HighTempSuperconductor",
       "description": "YBCO系高温超伝導体の合成条件最適化プロジェクト",
-      "projectStatus": "review_waiting",
+      "projectStatus": 3,
+      "useDeemedProgress": false,
       "createdAt": "1970-01-01T00:00:00.000Z",
       "updatedAt": "1970-01-01T00:00:00.000Z"
     }
@@ -856,38 +982,27 @@ order: "asc" | "desc" (default: "asc") - ソート順
 - プロジェクト選択コンボボックスの初期化時
 - プロジェクト選択モーダル（`ProjectSelectionModal`）
 
-**選択可能条件**:
-- ステータスが以下のいずれか:
-  - `draft`（下書き）
-  - `active`（作業中）
-  - `waiting_approval`（承認待ち）
-  - `approved`（承認済み）
-
-**実装状況**: TODO
+**実装状況**: 実装済み（`getWorkerAccessibleProjects()` を使用）
 
 **特記事項**:
 - マルチテナント分離により自組織のプロジェクトのみ取得
-- フロントエンドで`isSelectableStatus()`を使用してフィルタリング
-- 実験作業者に割り当てられたプロジェクトのみ表示する場合、将来的にクエリパラメータで`assignedTo={userId}`を追加
+- フロントエンドではフィルタリングせず、APIが返すすべてのプロジェクトを表示（`isSelectableStatus()` は使用しない）
+- ステータスラベルは `useCodeMaster('project_status')` から取得
+- 実験作業者に割り当てられたプロジェクトのみ表示する場合、将来的にクエリパラメータで `assignedTo={userId}` を追加
 
 ### 15.2. 承認依頼API
 
-**エンドポイント**: `POST /api/v1/projects/{projectId}/approval-request`
+**エンドポイント**: `PATCH /api/v1/projects/{projectName}/approval-request`
 
 **用途**: 進捗確認タブから承認依頼を送信
+
+**パスパラメータ**:
+- `projectName`: プロジェクト名（UUID ではなく名前文字列）
 
 **リクエストボディ**:
 ```json
 {
-  "projectId": "string (UUID)",
-  "message": "string (optional, 最大500文字)",
-  "requestedTasks": [
-    {
-      "taskId": "string (UUID)",
-      "methodId": "string (UUID)",
-      "taskNo": number
-    }
-  ]
+  "comment": "string (optional)"
 }
 ```
 
@@ -895,14 +1010,7 @@ order: "asc" | "desc" (default: "asc") - ソート順
 ```json
 {
   "success": true,
-  "data": {
-    "approvalRequestId": "string (UUID)",
-    "projectId": "string (UUID)",
-    "status": "pending",
-    "requestedBy": "string (userId)",
-    "requestedAt": "string (ISO 8601)",
-    "message": "string"
-  },
+  "data": { ... },
   "meta": {
     "timestamp": "string (ISO 8601)",
     "requestId": "string (UUID)"
@@ -915,45 +1023,39 @@ order: "asc" | "desc" (default: "asc") - ソート順
 
 **前提条件**:
 - プロジェクトが選択されている（`selectedProject !== ''`）
-- プロジェクトステータスが`active`または`waiting_approval`
 - ユーザーに承認依頼権限がある（実験作業者ロール）
 
-**実装状況**: TODO
+**実装状況**: 実装済み（`projectApiService.ts` の `requestApproval(projectName)` を使用）
 
 **特記事項**:
-- 承認依頼送信後、プロジェクトステータスを`waiting_approval`に自動更新
-- 実験管理者（Manager）に通知を送信
-- 承認依頼履歴をデータベースに保存（監査証跡）
-- 同一プロジェクトで複数の承認依頼が存在する場合、最新のものを優先
+- パスパラメータは `projectId`（UUID）ではなく `projectName`（プロジェクト名の文字列）を使用
+- リクエストボディには `comment` のみ（`requestedTasks` は不要）
+- 承認依頼送信後、フロントエンドはプロジェクト一覧を再取得してステータスを反映
 
 **エラーケース**:
-- プロジェクトが選択されていない → 400 Bad Request
-- プロジェクトステータスが不正 → 400 Bad Request（`archived`等）
+- プロジェクトが選択されていない → ボタンを disabled にして防止
 - 権限不足 → 403 Forbidden
 - 既に承認依頼済み → 409 Conflict
 
 ### 15.3. API呼び出しフロー
 
-#### プロジェクト選択時
+#### プロジェクト一覧取得（マウント時）
 
 ```typescript
 // コンポーネントマウント時
 useEffect(() => {
   const fetchProjects = async () => {
+    setProjectsLoading(true);
     try {
-      const response = await apiService.get('/api/v1/projects', {
-        params: { sortBy: 'project_name', order: 'asc' }
-      });
-      
-      // 選択可能なステータスのみフィルタリング
-      const selectableProjects = response.data.filter(project => 
-        isSelectableStatus(project.status)
-      );
-      
-      setProjects(selectableProjects);
+      const result = await getWorkerAccessibleProjects();
+      if (result.success) {
+        setProjects(result.data);
+      }
     } catch (error) {
       console.error('プロジェクト一覧取得エラー:', error);
       message.error('プロジェクト一覧の取得に失敗しました');
+    } finally {
+      setProjectsLoading(false);
     }
   };
   
@@ -965,34 +1067,23 @@ useEffect(() => {
 
 ```typescript
 const handleApprovalRequest = async () => {
-  if (!selectedProject) {
-    message.warning('プロジェクトを選択してください');
-    return;
-  }
+  if (!selectedProject || !selectedProjectData) return;
   
+  setApprovalLoading(true);
   try {
-    const response = await apiService.post(
-      `/api/v1/projects/${selectedProject}/approval-request`,
-      {
-        projectId: selectedProject,
-        message: '実験作業が完了しましたので、承認をお願いします。',
-        requestedTasks: [] // 必要に応じてタスクIDリストを追加
-      }
-    );
-    
+    // projectName（プロジェクト名の文字列）で呼び出す
+    await requestApproval(selectedProjectData.projectName);
     message.success('承認依頼を送信しました');
     
-    // プロジェクトステータスを更新（ローカル状態）
-    updateProjectStatus(selectedProject, 'waiting_approval');
-    
-  } catch (error) {
-    console.error('承認依頼エラー:', error);
-    
-    if (error.response?.status === 409) {
-      message.error('既に承認依頼が送信されています');
-    } else {
-      message.error('承認依頼の送信に失敗しました');
+    // プロジェクト一覧を再取得してステータスをUIに反映
+    const projectsResult = await getWorkerAccessibleProjects();
+    if (projectsResult.success) {
+      setProjects(projectsResult.data);
     }
+  } catch (error) {
+    message.error('承認依頼の送信に失敗しました');
+  } finally {
+    setApprovalLoading(false);
   }
 };
 ```

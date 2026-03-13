@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/InstructionStats.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-01-19
+- **最終更新日**: 2026-03-11
 
 ---
 
@@ -127,11 +127,11 @@ interface StatCardProps {
     height: '100%',
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
   }}
-  bodyStyle={{ padding: '8px 24px' }}
+  styles={{ body: { padding: '8px 24px' } }}
 >
   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
     {/* アイコン */}
-    <div style={{ fontSize: 24, color: iconColor }}>
+    <div style={{ fontSize: 24, color: iconColor, display: 'flex', alignItems: 'center' }}>
       {icon}
     </div>
     
@@ -223,7 +223,7 @@ borderRadius: token.borderRadius
 height: '100%'
 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
 
-// カードボディ
+// カードボディ（styles={{ body: ... }} で指定）
 padding: '8px 24px'  // 縦8px、横24px
 
 // 内部レイアウト
@@ -342,3 +342,4 @@ const stats = useMemo(() => {
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-19 | 初版作成 | Cline |
+| 1.0.1 | 2026-03-11 | bodyStyleをstyles={{ body: ... }}に修正、アイコンdivにdisplay:flex/alignItems:center追加 | Cline |

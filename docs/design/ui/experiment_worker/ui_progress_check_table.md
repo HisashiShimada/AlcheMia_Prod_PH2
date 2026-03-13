@@ -6,7 +6,7 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/ProgressCheckTable.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-19
-- **最終更新日**: 2026-01-19
+- **最終更新日**: 2026-03-11
 
 ---
 
@@ -71,6 +71,7 @@ interface ProgressCheckTableProps {
   tasks: Task[];                                   // タスク一覧
   projectStatus: ProjectStatus | null;            // プロジェクトステータス
   onTaskAction: (taskId: string, action: string) => void; // タスクアクションハンドラ
+  readOnly?: boolean;                             // trueのとき強制終了ボタンを無効化（オーバーレイ閲覧モード用）、デフォルト: false
 }
 ```
 
@@ -172,12 +173,13 @@ const handleFocusDialog = (id: string) => {
 ### 6.1 Props → 子コンポーネント
 
 ```
-ProgressCheckTable (props: tasks, projectStatus, onTaskAction)
+ProgressCheckTable (props: tasks, projectStatus, onTaskAction, readOnly)
   ↓
-TaskListTable (props: tasks, projectStatus, onTaskAction, onProgressRateClick)
+TaskListTable (props: tasks, projectStatus, onTaskAction, onProgressRateClick, readOnly)
   ↓
 各行のアクションボタンクリック → onTaskAction実行
 各行の進捗率クリック → onProgressRateClick実行
+readOnly=true のとき強制終了ボタンを無効化
 ```
 
 ### 6.2 ダイアログ表示フロー
@@ -332,3 +334,4 @@ interface SubnetData {
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-19 | 初版作成 | Cline |
+| 1.1.0 | 2026-03-11 | Props に readOnly 追加、データフロー更新 | Cline |
