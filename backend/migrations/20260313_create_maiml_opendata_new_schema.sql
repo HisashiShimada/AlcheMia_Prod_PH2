@@ -63,7 +63,7 @@ COMMENT ON COLUMN maiml_publish_job.created_at    IS 'ジョブ登録日時';
 -- ============================================================
 
 ALTER TABLE organization
-  ADD COLUMN IF NOT EXISTS default_retention_days INT NOT NULL DEFAULT 365;
+  ADD COLUMN IF NOT EXISTS default_retention_days INT NOT NULL DEFAULT 30;
 
 COMMENT ON COLUMN organization.default_retention_days IS
   '公開時のデフォルト保持日数（日数）。正の整数のみ許可。環境変数 RETENTION_DAYS_DEFAULT の初期値で設定';

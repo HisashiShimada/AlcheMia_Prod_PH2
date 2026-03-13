@@ -71,8 +71,10 @@ export function startMaimlPublishWorker(): Worker<PublishJobData> {
         }
         const schemaExists = await assetRepo.schemaExists(organizationId);
         if (!schemaExists) {
-          await assetRepo.createSchemaIfNotExists(organizationId, org.organization_cd);
-          await assetRepo.createSchemaTables(organizationId);
+          throw new Error(
+            `組織スキーマが存在しません。組織作成時の初期化に失敗している可能性があります。` +
+            ` organizationId=${organizationId}`
+          );
         }
 
         // ── 5. 旧アセットがあれば削除 ─────────────────────
@@ -82,8 +84,8 @@ export function startMaimlPublishWorker(): Worker<PublishJobData> {
         }
 
         // ── 6. 新アセット INSERT ───────────────────────────
-        // retention_until: 組織設定の default_retention_days 日後（デフォルト 30 日）
-        const retentionDays = org.default_retention_days ?? 30;
+        // retention_until: 組織設定の default_retention_days 日後
+        const retentionDays = org.default_retention_days;
         const retentionUntil = new Date();
         retentionUntil.setDate(retentionUntil.getDate() + retentionDays);
 

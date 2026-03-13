@@ -55,6 +55,7 @@ export interface OrganizationResponse {
   contractCapacity: number | null;
   contractedUsers: number | null;
   contractedProjects: number | null;
+  defaultRetentionDays: number;
   updatedAt: string;
 }
 
@@ -112,6 +113,7 @@ export async function getOrganizations(
     contractCapacity: org.contract_capacity ?? null,
     contractedUsers: org.contract_users ?? null,
     contractedProjects: org.contract_projects ?? null,
+    defaultRetentionDays: org.default_retention_days,
     updatedAt: formatDateTime(org.update_at),
   }));
 }
@@ -145,6 +147,7 @@ export async function getOrganizationById(
     contractCapacity: organization.contract_capacity ?? null,
     contractedUsers: organization.contract_users ?? null,
     contractedProjects: organization.contract_projects ?? null,
+    defaultRetentionDays: organization.default_retention_days,
     updatedAt: formatDateTime(organization.update_at),
   };
 }
@@ -180,6 +183,7 @@ export async function createOrganization(
     contractCapacity?: number | null;
     contractedUsers?: number | null;
     contractedProjects?: number | null;
+    defaultRetentionDays?: number;
   },
   userId: string,
   lang: string = 'ja'
@@ -228,6 +232,10 @@ export async function createOrganization(
 
     await pgp.tx(async (t) => {
       // 1. organizationテーブルに挿入
+      // default_retention_days: リクエストから指定があれば使用、なければ環境変数から取得
+      const defaultRetentionDays = data.defaultRetentionDays
+        ?? parseInt(process.env.RETENTION_DAYS_DEFAULT ?? '30', 10);
+
       const orgValues = [
         data.organizationId,                                              // $1
         data.organizationCd,                                              // $2
@@ -241,8 +249,9 @@ export async function createOrganization(
         data.contractCapacity ?? null,                                    // $10
         data.contractedUsers ?? null,                                     // $11
         data.contractedProjects ?? null,                                  // $12
-        userId,                                                           // $13
+        defaultRetentionDays,                                             // $13
         userId,                                                           // $14
+        userId,                                                           // $15
       ];
 
       await t.one(insertOrgQuery, orgValues);
@@ -413,6 +422,7 @@ export async function createOrganization(
     contractCapacity: fullOrganization!.contract_capacity ?? null,
     contractedUsers: fullOrganization!.contract_users ?? null,
     contractedProjects: fullOrganization!.contract_projects ?? null,
+    defaultRetentionDays: fullOrganization!.default_retention_days,
     updatedAt: formatDateTime(fullOrganization!.update_at),
   };
 }
@@ -439,6 +449,7 @@ export async function updateOrganization(
     contractCapacity?: number | null;
     contractedUsers?: number | null;
     contractedProjects?: number | null;
+    defaultRetentionDays?: number;
   },
   userId: string
 ): Promise<OrganizationResponse | null> {
@@ -462,6 +473,7 @@ export async function updateOrganization(
     contractCapacity: organization.contract_capacity ?? null,
     contractedUsers: organization.contract_users ?? null,
     contractedProjects: organization.contract_projects ?? null,
+    defaultRetentionDays: organization.default_retention_days,
     updatedAt: formatDateTime(organization.update_at),
   };
 }
@@ -499,6 +511,7 @@ export async function updateOrganizationStatus(
     contractCapacity: organization.contract_capacity ?? null,
     contractedUsers: organization.contract_users ?? null,
     contractedProjects: organization.contract_projects ?? null,
+    defaultRetentionDays: organization.default_retention_days,
     updatedAt: formatDateTime(organization.update_at),
   };
 }

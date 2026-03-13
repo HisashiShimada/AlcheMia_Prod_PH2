@@ -25,6 +25,7 @@ export interface OrganizationRow {
   contract_capacity: number | null; // 契約容量
   contract_users: number | null;  // 契約ユーザー数
   contract_projects: number | null; // 契約プロジェクト数
+  default_retention_days: number; // MaiML公開時のデフォルト保持日数（日）
   update_at: Date;
 }
 
@@ -286,6 +287,7 @@ export async function update(
     contractCapacity?: number | null;
     contractedUsers?: number | null;
     contractedProjects?: number | null;
+    defaultRetentionDays?: number;
   },
   userId: string
 ): Promise<OrganizationRow | null> {
@@ -293,18 +295,19 @@ export async function update(
 
   const query = await loadSqlFile('organizations/update.sql');
   const values = [
-    organizationId,
-    data.organizationDisplayName ?? null,
-    data.organizationEmail ?? null,
-    data.chiefUserId ?? null,
-    data.corporationId ?? null,
-    data.isEntry ?? null,
-    data.useDeemedProgress ?? null,
-    data.isActive ?? null,
-    userId,
-    data.contractCapacity ?? null,
-    data.contractedUsers ?? null,
-    data.contractedProjects ?? null,
+    organizationId,                           // $1
+    data.organizationDisplayName ?? null,     // $2
+    data.organizationEmail ?? null,           // $3
+    data.chiefUserId ?? null,                 // $4
+    data.corporationId ?? null,               // $5
+    data.isEntry ?? null,                     // $6
+    data.useDeemedProgress ?? null,           // $7
+    data.isActive ?? null,                    // $8
+    userId,                                   // $9
+    data.contractCapacity ?? null,            // $10
+    data.contractedUsers ?? null,             // $11
+    data.contractedProjects ?? null,          // $12
+    data.defaultRetentionDays ?? null,        // $13
   ];
 
   const updated = await pgp.oneOrNone<{ organization_id: string }>(query, values);

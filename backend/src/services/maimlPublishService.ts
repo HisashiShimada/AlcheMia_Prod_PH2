@@ -13,11 +13,24 @@ import { maimlUnpublishQueue } from '../queues/maimlUnpublishQueue';
 import * as publishJobRepo     from '../repositories/maimlPublishJobRepository';
 import * as assetRepo          from '../repositories/maimlAssetRepository';
 import * as orgRepo            from '../repositories/organizationRepository';
+import * as projectRepo        from '../repositories/projectRepository';
+import * as projectTaskDetailRepo from '../repositories/projectTaskDetailRepository';
 import { getStorageService }   from './storageService';
 import {
   PublishJobResponse,
   PublishStatusResponse,
 } from '../types/maimlOpenData';
+
+/** タスクステータス: 完了 */
+const TASK_STATUS_COMPLETED = 4;
+/** タスクステータス: 異常終了 */
+const TASK_STATUS_ABORTED = 5;
+/** プロジェクトステータス: タスク結果レビュー待ち */
+const PROJECT_STATUS_REVIEW_WAITING = 3;
+/** プロジェクトステータス: プロジェクト完了 */
+const PROJECT_STATUS_COMPLETED = 4;
+/** チェックアウトステータス: チェックアウト中 */
+const CHECKOUT_STATUS_CHECKED_OUT = 1;
 
 // ============================================================
 // 公開（publish）
@@ -37,21 +50,55 @@ import {
  * @param projectName    - プロジェクト名
  * @param userId         - 操作者のユーザー ID
  * @returns 202 レスポンス用ペイロード
- * @throws Error('ALREADY_IN_PROGRESS') - 既に処理中のジョブが存在する場合
- * @throws Error('MAIML_NOT_FOUND')     - Swift/S3 に MaiML ファイルが存在しない場合
+ * @throws Error('ALREADY_IN_PROGRESS')      - 既に処理中のジョブが存在する場合
+ * @throws Error('MAIML_NOT_FOUND')          - Swift/S3 に MaiML ファイルが存在しない場合
+ * @throws Error('PROJECT_NOT_FOUND')        - プロジェクトが存在しない場合
+ * @throws Error('PROJECT_NOT_CHECKED_OUT')  - チェックアウト状態でない場合
+ * @throws Error('PROJECT_STATUS_INVALID')   - ステータスがタスク結果レビュー待ちでない場合
+ * @throws Error('TASKS_NOT_COMPLETED')      - 完了・異常終了以外のタスク詳細が存在する場合
  */
 export async function enqueuePublish(
   organizationId: string,
   projectName:    string,
   userId:         string | null
 ): Promise<PublishJobResponse> {
-  // ── 1. 重複チェック ──────────────────────────────────────
+  // ── 1. プロジェクト存在確認 ──────────────────────────────
+  const project = await projectRepo.findByName(organizationId, projectName);
+  if (!project) {
+    throw new Error('PROJECT_NOT_FOUND');
+  }
+  const projectId = project.project_id!;
+
+  // ── 2. チェックアウト状態確認 ────────────────────────────
+  if (project.checkout_status !== CHECKOUT_STATUS_CHECKED_OUT) {
+    throw new Error('PROJECT_NOT_CHECKED_OUT');
+  }
+
+  // ── 3. プロジェクトステータス確認 ───────────────────────
+  if (project.project_status !== PROJECT_STATUS_REVIEW_WAITING) {
+    throw new Error('PROJECT_STATUS_INVALID');
+  }
+
+  // ── 4. タスク詳細の完了確認 ─────────────────────────────
+  const taskDetails = await projectTaskDetailRepo.findByProject(organizationId, projectId);
+  if (taskDetails.length > 0) {
+    const hasIncomplete = taskDetails.some(
+      (t) =>
+        t.task_status !== TASK_STATUS_COMPLETED &&
+        t.task_status !== TASK_STATUS_ABORTED
+    );
+    if (hasIncomplete) {
+      throw new Error('TASKS_NOT_COMPLETED');
+    }
+  }
+
+  // ── 5. 重複チェック ──────────────────────────────────────
   const latest = await publishJobRepo.findLatestByProject(organizationId, projectName);
   if (latest && (latest.status === 'pending' || latest.status === 'running')) {
     throw new Error('ALREADY_IN_PROGRESS');
   }
 
-  // ── 2. Swift/S3 ファイル存在確認 ───────────────────────
+  // ── 6. Swift/S3 ファイル存在確認 ───────────────────────
   const fileUri = `projects/${projectName}/${projectName}.maiml`;
   const storage = getStorageService();
   const exists  = await storage.fileExists(organizationId, fileUri);
@@ -59,7 +106,7 @@ export async function enqueuePublish(
     throw new Error('MAIML_NOT_FOUND');
   }
 
-  // ── 3. DB に pending ジョブを作成 ───────────────────────
+  // ── 7. DB に pending ジョブを作成 ───────────────────────
   const job = await publishJobRepo.insert({
     job_type:        'publish',
     organization_id: organizationId,
@@ -75,7 +122,7 @@ export async function enqueuePublish(
 
   const jobId = job.job_id!;
 
-  // ── 4. bullmq へ投入 ────────────────────────────────────
+  // ── 8. bullmq へ投入 ────────────────────────────────────
   await maimlPublishQueue.add(
     'publish',
     {
@@ -88,7 +135,15 @@ export async function enqueuePublish(
     { jobId }   // bullmq ジョブ ID = DB job_id で統一
   );
 
-  // ── 5. レスポンス ────────────────────────────────────────
+  // ── 9. プロジェクトステータスを「プロジェクト完了（4）」に更新 ──
+  await projectRepo.updateStatus(
+    projectId,
+    PROJECT_STATUS_COMPLETED,
+    organizationId,
+    userId ?? 'system'
+  );
+
+  // ── 10. レスポンス ───────────────────────────────────────
   return {
     job_id:  jobId,
     status:  'pending',

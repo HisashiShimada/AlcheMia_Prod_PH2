@@ -76,6 +76,7 @@
 - **チェックイン/チェックアウトボタン**（Button + FileTextOutlined）: 状態切り替え
 - **問題確認ボタン**（Button + ExclamationCircleOutlined）: 問題管理モーダルを開く
 - **公開ボタン**（Button）: MAIMLファイルをOpenDataとして公開
+  - 詳細: [ui_maiml_publish_dialog.md](./ui_maiml_publish_dialog.md) / [ui_maiml_unpublish_dialog.md](./ui_maiml_unpublish_dialog.md) を参照
 
 #### 2.2.5 右側パネル - タブコンテンツ
 **Tab 1: ファイル管理**
@@ -471,34 +472,80 @@ const handleProjectDownload = useCallback(async () => {
 }, [selectedProject]);
 ```
 
-### 3.9 公開処理
+### 3.9 公開・非公開処理
 
-#### 3.9.1 処理フロー
+公開/非公開ボタンはファイル操作ツールバー内に配置される。  
+ボタンの表示ラベル・活性状態はポーリング中のジョブステータスによって動的に変化する。
+
+#### 3.9.1 ボタン表示状態
+
+| 条件 | ボタンラベル | ボタン種別 | 活性状態 |
+|------|------------|----------|--------|
+| 公開中でも非公開中でもない（未公開 or `done`/`error`） | 公開する | `type="default"` | 有効 |
+| `status = 'pending'` または `'running'`（公開ジョブ処理中） | 公開処理中… | `type="default"` | disabled |
+| `status = 'done'` かつ `asset_id` あり（公開済み） | 非公開にする | `type="default" danger` | 有効 |
+| `status = 'pending'` または `'running'`（非公開ジョブ処理中） | 非公開処理中… | `type="default"` | disabled |
+| プロジェクト未選択 | 公開する | `type="default"` | disabled |
+
+#### 3.9.2 ボタン押下時の処理
+
+**「公開する」ボタン押下時:**
+1. `MaimlPublishDialog` を開く
+2. ダイアログで「公開する」を押すと `POST /api/v1/projects/:projectName/publish` を呼び出す
+3. 202 Accepted を受け取ったら `usePublishStatusPoller.start()` でポーリング開始
+4. ポーリング完了（`status = 'done'`）でボタン状態を「非公開にする」に切り替え
+5. ポーリング完了（`status = 'error'`）で `message.error()` を表示
+
+**「非公開にする」ボタン押下時:**
+1. `MaimlUnpublishDialog` を開く
+2. ダイアログで「非公開にする」を押すと `POST /api/v1/projects/:projectName/unpublish` を呼び出す
+3. 202 Accepted を受け取ったら `usePublishStatusPoller.start()` でポーリング開始
+4. ポーリング完了（`status = 'done'`）でボタン状態を「公開する」に切り替え
+
+#### 3.9.3 ポーリング仕様（usePublishStatusPoller）
+
+- **ポーリング間隔**: 3秒
+- **タイムアウト**: 5分（5分経過後に最後のステータスを取得して `onComplete` を呼ぶ）
+- **停止条件**: `status` が `pending` / `running` 以外（`done` / `error` / `null`）
+- **コンポーネントアンマウント時**: 自動クリーンアップ（`useEffect` でタイマーをクリア）
+- **多重起動防止**: `isPollingRef.current` フラグで多重呼び出しをブロック
+
+#### 3.9.4 初期ステータス取得
+
+プロジェクト選択時に `GET /api/v1/projects/:projectName/publish-status` を呼び出し、  
+ボタン状態・ポーリング継続有無を初期化する。
+
+| `status` の値 | ボタン初期状態 | ポーリング開始 |
+|-------------|-------------|-------------|
+| `null`（ジョブ履歴なし） | 公開する（有効） | しない |
+| `pending` / `running` | 処理中…（disabled） | する（`start()` 呼び出し） |
+| `done` かつ `job_type = 'publish'` | 非公開にする（有効） | しない |
+| `done` かつ `job_type = 'unpublish'` | 公開する（有効） | しない |
+| `error` | 公開する（有効） | しない |
+
+#### 3.9.5 関連ダイアログ
+
+- 公開確認ダイアログ仕様: [ui_maiml_publish_dialog.md](./ui_maiml_publish_dialog.md)
+- 非公開確認ダイアログ仕様: [ui_maiml_unpublish_dialog.md](./ui_maiml_unpublish_dialog.md)
+
+#### 3.9.6 State定義（公開関連）
+
 ```typescript
-const handlePublish = useCallback(async () => {
-  if (!selectedProject) {
-    message.warning('プロジェクトを選択してください');
-    return;
-  }
-  const request: MaimlPublishRequest = {
-    template_only: false,
-    store_raw_series: true,
-    retention: null,
-    keep_raw_on_unpublish: false,
-  };
-  try {
-    await publishProject(selectedProject.name, request);
-    message.success(`プロジェクト「${selectedProject.name}」の公開を受け付けました`);
-  } catch (error) {
-    if (error instanceof AxiosError && error.response?.data) {
-      const msg = error.response.data.error?.message || '公開処理に失敗しました';
-      message.error(msg);
-    } else {
-      message.error('公開処理に失敗しました');
-    }
-  }
-}, [selectedProject]);
+// 公開ダイアログ表示状態
+const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+// 非公開ダイアログ表示状態
+const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false);
+// 公開ジョブの最新ステータス（null=未取得、status=nullは未公開）
+const [publishStatus, setPublishStatus] = useState<PublishStatusResponse | null>(null);
 ```
+
+#### 3.9.7 API
+
+| 操作 | API | 仕様書 |
+|------|-----|--------|
+| 公開ジョブ投入 | `POST /api/v1/projects/:projectName/publish` | [api_maiml_opendata.md](../../../api/api_maiml_opendata.md) |
+| 非公開ジョブ投入 | `POST /api/v1/projects/:projectName/unpublish` | [api_maiml_opendata.md](../../../api/api_maiml_opendata.md) |
+| 公開ステータス取得 | `GET /api/v1/projects/:projectName/publish-status` | [api_maiml_opendata.md](../../../api/api_maiml_opendata.md) |
 
 ### 3.10 複数ダイアログ管理
 

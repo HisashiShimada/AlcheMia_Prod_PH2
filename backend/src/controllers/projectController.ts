@@ -1343,6 +1343,38 @@ export async function publish(req: Request, res: Response): Promise<void> {
       result = await enqueuePublish(organizationId, projectName, userId);
     } catch (svcErr: unknown) {
       const code = svcErr instanceof Error ? svcErr.message : 'PUBLISH_ERROR';
+      if (code === 'PROJECT_NOT_FOUND') {
+        res.status(404).json({
+          success: false,
+          error: { code: 'PROJECT_NOT_FOUND', message: 'プロジェクトが見つかりません' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      if (code === 'PROJECT_NOT_CHECKED_OUT') {
+        res.status(400).json({
+          success: false,
+          error: { code: 'PROJECT_NOT_CHECKED_OUT', message: 'プロジェクトがチェックアウトされていません' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      if (code === 'PROJECT_STATUS_INVALID') {
+        res.status(400).json({
+          success: false,
+          error: { code: 'PROJECT_STATUS_INVALID', message: 'プロジェクトステータスがタスク結果レビュー待ちではありません' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      if (code === 'TASKS_NOT_COMPLETED') {
+        res.status(400).json({
+          success: false,
+          error: { code: 'TASKS_NOT_COMPLETED', message: '完了・異常終了以外のタスクが残っています' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
       if (code === 'ALREADY_IN_PROGRESS') {
         res.status(409).json({
           success: false,
@@ -1352,9 +1384,9 @@ export async function publish(req: Request, res: Response): Promise<void> {
         return;
       }
       if (code === 'MAIML_NOT_FOUND') {
-        res.status(404).json({
+        res.status(400).json({
           success: false,
-          error: { code: 'RESOURCE_NOT_FOUND', message: 'MaiML ファイルが見つかりません' },
+          error: { code: 'MAIML_NOT_FOUND', message: 'MAIMLファイルが存在しません' },
           meta: { timestamp: new Date().toISOString(), requestId },
         });
         return;

@@ -33,6 +33,7 @@ import formatRoutes from './routes/formatRoutes';
 import codeMasterRoutes from './routes/codeMasterRoutes';
 import semanticSearchRoutes from './routes/semanticSearchRoutes';
 import systemOverviewRoutes from './routes/systemOverviewRoutes';
+import systemConfigRoutes from './routes/systemConfigRoutes';
 
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
@@ -105,6 +106,7 @@ async function startServer() {
     // Mount provider routes
     app.use('/api/v1/provider', corporationRoutes);
     app.use('/api/v1/provider', organizationRoutes);
+    app.use('/api/v1/provider', systemConfigRoutes);
     
     // Mount master routes
     app.use('/api/v1/master', masterRoutes);
