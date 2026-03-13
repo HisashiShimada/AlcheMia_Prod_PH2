@@ -246,6 +246,46 @@ Before({ tags: '@5-3-14' }, async () => {
 });
 
 /**
+ * 5-3-15, 5-3-16, 5-3-17 用
+ * - waiting_approval のプロジェクトを準備
+ * - 既存問題データを準備（コメント投稿・ステータス変更テスト用）
+ */
+Before({ tags: '@5-3-15 or @5-3-16 or @5-3-17' }, async () => {
+  console.log('[5-3 Before] テストデータ準備 開始 (tags: @5-3-15〜@5-3-17)');
+  try {
+    // waiting_approval プロジェクトを準備
+    await db.query(
+      `INSERT INTO project (
+        organization_id, project_id, project_name, project_status,
+        project_maiml_flg, checkout_status,
+        create_user_id, create_at, update_user_id, update_at
+      ) VALUES (
+        $1, 'E2E-5-3-WA', 'E2Eテスト用プロジェクト_5-3_WA', 3,
+        false, 0,
+        'e2e-test', NOW(), 'e2e-test', NOW()
+      )
+      ON CONFLICT (organization_id, project_id) DO UPDATE
+        SET project_name = EXCLUDED.project_name, project_status = 3, update_at = NOW()`,
+      [ORG_ID]
+    );
+    await upsertTestProjectTask('E2E-5-3-WA', TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    await upsertTestTransitionSet('E2E-5-3-WA', TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    // 既存問題データを作成（コメント投稿・ステータス変更テスト用）
+    const issueId = await insertTestIssue(
+      'E2E-5-3-WA',
+      'E2Eテスト問題_5-3-WA',
+      'waiting_approval状態でのテスト用問題内容です。',
+      'unresolved'
+    );
+    if (issueId) setupIssueIds.push(issueId);
+    console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-15〜@5-3-17)');
+  } catch (error) {
+    console.error('[5-3 Before] テストデータ準備 失敗 (tags: @5-3-15〜@5-3-17):', error);
+    throw error;
+  }
+});
+
+/**
  * 5-3-7 用
  * - ステータス変更テスト用の解決済問題を準備（Manager でステータス変更）
  */
@@ -1217,4 +1257,56 @@ Then('コメント一覧に投稿時刻が表示されること', async ({ page 
   await expect(
     modal.locator('[data-testid="issue-comment-date"]').first()
   ).toBeVisible({ timeout: 10000 });
+});
+
+// ---------------------------------------------------------------------------
+// Then: waiting_approval 時の操作制限確認（5-3-15〜5-3-17）
+// ---------------------------------------------------------------------------
+
+/**
+ * [5-3-15] 「新規問題報告」ボタンが無効化されていること
+ * waiting_approval 時は新規問題報告が不可
+ * IssueManagementModal.tsx: data-testid="issue-management-new-issue-button"
+ */
+Then('「新規問題報告」ボタンが無効化されていること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(modal).toBeVisible({ timeout: 10000 });
+  const newIssueBtn = modal.locator('[data-testid="issue-management-new-issue-button"]');
+  await expect(newIssueBtn).toBeDisabled({ timeout: 10000 });
+});
+
+/**
+ * [5-3-16] 「コメント送信」ボタンが無効化されていること
+ * waiting_approval 時はコメント投稿が不可
+ * IssueManagementModal.tsx: data-testid="issue-management-comment-submit-button"
+ */
+Then('「コメント送信」ボタンが無効化されていること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(modal).toBeVisible({ timeout: 10000 });
+  const commentBtn = modal.locator('[data-testid="issue-management-comment-submit-button"]');
+  await expect(commentBtn).toBeDisabled({ timeout: 10000 });
+});
+
+/**
+ * [5-3-17] ステータス変更ボタン（「解決」「未解決」）が無効化されていること
+ * waiting_approval 時はステータス更新が不可
+ * IssueManagementModal.tsx: data-testid="issue-management-set-resolved-button" / "issue-management-set-unresolved-button"
+ */
+Then('ステータス変更ボタンが無効化されていること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(modal).toBeVisible({ timeout: 10000 });
+  // 「解決」または「未解決」ボタンのいずれか一方が disabled であることを確認
+  const resolveBtn = modal.locator('[data-testid="issue-management-set-resolved-button"]');
+  const unresolvedBtn = modal.locator('[data-testid="issue-management-set-unresolved-button"]');
+  // どちらかのボタンが表示されている場合、それが disabled であること
+  const resolveVisible = await resolveBtn.isVisible().catch(() => false);
+  const unresolvedVisible = await unresolvedBtn.isVisible().catch(() => false);
+  if (resolveVisible) {
+    await expect(resolveBtn).toBeDisabled({ timeout: 5000 });
+  } else if (unresolvedVisible) {
+    await expect(unresolvedBtn).toBeDisabled({ timeout: 5000 });
+  } else {
+    // ボタン自体が非表示の場合もステータス変更不可とみなす
+    console.log('[5-3-17] ステータス変更ボタンが非表示（変更不可）');
+  }
 });

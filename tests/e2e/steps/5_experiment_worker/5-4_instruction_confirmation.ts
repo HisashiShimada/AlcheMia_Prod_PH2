@@ -57,6 +57,10 @@ const TEST_PROJECT_NAME = 'E2Eテスト用プロジェクト_5-4';
 const TEST_PROJECT_ID_EMPTY = 'E2E-5-4-7';
 const TEST_PROJECT_NAME_EMPTY = 'E2Eテスト用プロジェクト_5-4-7';
 
+/** テスト用プロジェクト（5-4-10: waiting_approval 状態確認用） */
+const TEST_PROJECT_ID_WA = 'E2E-5-4-WA';
+const TEST_PROJECT_NAME_WA = 'E2Eテスト用プロジェクト_5-4_WA';
+
 /** テスト用実験指示ID プレフィックス */
 const TEST_INSTRUCTION_PREFIX = 'E2E-5-4';
 
@@ -203,6 +207,77 @@ Before({ tags: '@5-4-6' }, async () => {
     console.log('[5-4 Before] テストデータ準備 完了 (tags: @5-4-6)');
   } catch (error) {
     console.error('[5-4 Before] テストデータ準備 失敗 (tags: @5-4-6):', error);
+    throw error;
+  }
+});
+
+/**
+ * 5-4-10 用
+ * - waiting_approval（project_status: 3）のプロジェクトを準備
+ * - プロジェクト指示・タスク指示・トランジション指示を INSERT（未確認状態）
+ * - waiting_approval 時は確認完了ボタンが disabled であることを確認する
+ */
+Before({ tags: '@5-4-10' }, async () => {
+  console.log('[5-4 Before] テストデータ準備 開始 (tags: @5-4-10)');
+  try {
+    // waiting_approval プロジェクトを UPSERT
+    const existing = await db.query<{ project_id: string }>(
+      'SELECT project_id FROM project WHERE organization_id = $1 AND project_id = $2',
+      [ORG_ID, TEST_PROJECT_ID_WA]
+    );
+    if ((existing.rowCount ?? 0) > 0) {
+      await db.query(
+        `UPDATE project
+         SET project_name = $1, project_status = 3, update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $2 AND project_id = $3`,
+        [TEST_PROJECT_NAME_WA, ORG_ID, TEST_PROJECT_ID_WA]
+      );
+    } else {
+      await db.query(
+        `INSERT INTO project (
+          organization_id, project_id, project_name, project_status,
+          project_maiml_flg, checkout_status,
+          create_user_id, create_at, update_user_id, update_at
+        ) VALUES (
+          $1, $2, $3, 3,
+          false, 0,
+          'e2e-test', NOW(), 'e2e-test', NOW()
+        )`,
+        [ORG_ID, TEST_PROJECT_ID_WA, TEST_PROJECT_NAME_WA]
+      );
+      createdProjectIds.push(TEST_PROJECT_ID_WA);
+    }
+    // プロジェクト指示・タスク指示・トランジション指示を INSERT（未確認状態）
+    await upsertInstruction(
+      TEST_PROJECT_ID_WA,
+      `${TEST_INSTRUCTION_PREFIX}-WA-PRJ-001`,
+      INSTRUCTION_TARGET_PROJECT,
+      null,
+      null,
+      null,
+      '承認待ちプロジェクトへのプロジェクト指示です。'
+    );
+    await upsertInstruction(
+      TEST_PROJECT_ID_WA,
+      `${TEST_INSTRUCTION_PREFIX}-WA-TASK-001`,
+      INSTRUCTION_TARGET_TASK,
+      'E2E_METHOD_A',
+      null,
+      1,
+      '承認待ちプロジェクトへのタスク指示です。'
+    );
+    await upsertInstruction(
+      TEST_PROJECT_ID_WA,
+      `${TEST_INSTRUCTION_PREFIX}-WA-TRANS-001`,
+      INSTRUCTION_TARGET_TRANSITION,
+      'E2E_METHOD_A',
+      'E2E_TRANS_A',
+      1,
+      '承認待ちプロジェクトへのトランジション指示です。'
+    );
+    console.log('[5-4 Before] テストデータ準備 完了 (tags: @5-4-10)');
+  } catch (error) {
+    console.error('[5-4 Before] テストデータ準備 失敗 (tags: @5-4-10):', error);
     throw error;
   }
 });

@@ -123,9 +123,9 @@ Before({ tags: '@5-2-12' }, async () => {
 });
 
 /**
- * 5-2-16 用: waiting_approval のプロジェクトを準備
+ * 5-2-16, 5-2-25, 5-2-26 用: waiting_approval のプロジェクトを準備
  */
-Before({ tags: '@5-2-16' }, async () => {
+Before({ tags: '@5-2-16 or @5-2-25 or @5-2-26' }, async () => {
   console.log('[5-2 Before] テストデータ準備 開始（5-2-16: waiting_approval）');
   try {
     await upsertTestProject(TEST_PROJECT_ID_WA, TEST_PROJECT_NAME_WA, PROJECT_STATUS_WAITING_APPROVAL);
@@ -1019,6 +1019,33 @@ Then('プロパティリストの項目数が減少すること', async ({ page 
   const items = page.locator('[data-testid="data-record-dialog"] [data-testid="property-list-item"]');
   const count = await items.count();
   expect(count).toBeGreaterThanOrEqual(0);
+});
+
+/**
+ * [5-2-25] データ記録ダイアログの保存ボタンが無効化されていること
+ * waiting_approval 時は実験データの入力・保存が不可
+ * DataRecordDialog.tsx: data-testid="data-record-save-button"
+ */
+Then('データ記録ダイアログの保存ボタンが無効化されていること', async ({ page }) => {
+  const dialog = page.locator('[data-testid="data-record-dialog"]');
+  await expect(dialog).toBeVisible({ timeout: 15000 });
+  const saveBtn = dialog.locator('[data-testid="data-record-save-button"]');
+  await expect(saveBtn).toBeDisabled({ timeout: 10000 });
+});
+
+/**
+ * [5-2-26] データ記録ダイアログのステータス更新セクションが操作不可であること
+ * waiting_approval 時はステータス更新が不可
+ * DataRecordDialog.tsx: data-testid="status-update-section" のコントロールが disabled
+ */
+Then('データ記録ダイアログのステータス更新コントロールが無効化されていること', async ({ page }) => {
+  const dialog = page.locator('[data-testid="data-record-dialog"]');
+  await expect(dialog).toBeVisible({ timeout: 15000 });
+  const statusSection = dialog.locator('[data-testid="status-update-section"]');
+  await expect(statusSection).toBeVisible({ timeout: 10000 });
+  // ステータス選択 Select が disabled であること
+  const statusSelect = statusSection.locator('.ant-select').first();
+  await expect(statusSelect).toHaveClass(/ant-select-disabled/, { timeout: 5000 });
 });
 
 // ===========================================================================
