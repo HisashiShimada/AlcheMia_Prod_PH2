@@ -17,12 +17,13 @@
 | **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 9件 | Playwright自動 |
 | **4-4** | タスク登録 | 要件書#3、追加機能K/N | 7件 | Playwright自動 |
 | **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 10件 | Playwright自動 |
-| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 21件 | Playwright自動 |
+| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 13件 | Playwright自動 |
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 7件 | Playwright自動 |
 | **4-8** | フォーマット管理 | 要件書#13 | 40件 | Playwright自動 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） |
 | **4-10** | プロジェクト公開 | 追加機能S | 4件 | Playwright自動（フロントエンド実装後） |
 | **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 |
+| **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | Playwright自動 |
 | **合計** | - | - | **164件** | - |
 
 ### スコープ外
@@ -248,14 +249,6 @@
 | 4-6-2-7 | 詳細ダイアログの「閉じる」ボタンをクリックするとモーダルが閉じること | 正常系 | `ui_work_progress_detail_dialog.md` §2.2.2、§3.1.8 | - |
 | 4-6-3 | タスク結果タブでタスク統計（件数）が表示されること | 表示確認 | 要件書#15、追加機能E | GET `/api/v1/projects/:projectName/tasks` |
 | 4-6-4 | レビュー待ちタスクを一括完了できること | 正常系 | 追加機能F | POST `/api/v1/projects/:projectName/tasks/complete-review` |
-| 4-6-5 | 問題管理モーダルで問題一覧が表示されること（タイトル・内容による検索、ステータスフィルター） | 正常系 | `ui_issue_management_modal.md` §5、§6 | GET `/api/v1/issues` |
-| 4-6-6 | 新規問題をプロジェクト単位で登録できること | 正常系 | `ui_issue_management_modal.md` §8、`api_issue_management.md` §1 | POST `/api/v1/issues` |
-| 4-6-7 | 新規問題をトランジション単位で登録できること | 正常系 | `ui_issue_management_modal.md` §8、`api_issue_management.md` §1 | POST `/api/v1/issues` |
-| 4-6-8 | 新規問題登録時にタイトルまたは内容が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_issue_management_modal.md` §8.2 | - |
-| 4-6-9 | 既存問題を選択してコメントを追加できること | 正常系 | `ui_issue_management_modal.md` §7、`api_issue_management.md` §2 | POST `/api/v1/issues/comments` |
-| 4-6-10 | コメントが未入力の場合に「コメント送信」「解決」「未解決」ボタンが非活性であること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - |
-| 4-6-11 | 未解決の問題を「解決済」に変更できること（コメントと同時送信） | 正常系 | `ui_issue_management_modal.md` §7.2、`api_issue_management.md` §5 | POST `/api/v1/issues/comments`、PATCH `/api/v1/issues/status` |
-| 4-6-12 | 解決済の問題を「未解決」に戻せること（コメントと同時送信） | 正常系 | `ui_issue_management_modal.md` §7.2、`api_issue_management.md` §5 | POST `/api/v1/issues/comments`、PATCH `/api/v1/issues/status` |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -263,14 +256,6 @@
 - 詳細ダイアログ確認シナリオ（4-6-2-1〜4-6-2-7）用: テスト用プロジェクトに `project_task` テーブルのレコードが少なくとも1件存在すること
 - 詳細ダイアログ確認シナリオ（4-6-2-1〜4-6-2-7）用: 各タスクに紐づくトランジション進捗データが少なくとも1件存在すること
 - メソッドフィルタ確認シナリオ（4-6-2-3）用: 複数メソッド（2件以上）を持つプロジェクトが少なくとも1件存在すること
-- 問題確認シナリオ（4-6-5〜4-6-12）用: `issue` テーブルにテスト用問題データが挿入済みであること
-  - 未解決（`status=unresolved`）の問題を少なくとも1件
-  - 解決済（`status=resolved`）の問題を少なくとも1件
-  - コメントが1件以上付いている問題を少なくとも1件
-
-**後処理:**
-- 登録した問題データを `issue` テーブルから削除（4-6-6〜4-6-7）
-- 追加したコメントを `issue_comment` テーブルから削除（4-6-9〜4-6-12）
 
 **統計カラー定義（設計書より）:**
 - 実行待ち（pending）: セカンダリー
@@ -278,15 +263,6 @@
 - 異常終了（error）: 赤
 - レビュー待ち（review_waiting）: 警告黄
 - 完了（completed）: 成功緑
-
-**問題ステータス定義（`api_issue_management.md` より）:**
-- 未解決（`unresolved`）: 警告（オレンジ）タグ
-- 解決済（`resolved`）: 成功（緑）タグ
-
-**問題対象種別（`api_issue_management.md` より）:**
-- `project`: プロジェクト単位
-- `task`: タスク単位
-- `transition`: トランジション単位
 
 ---
 
@@ -477,6 +453,42 @@
 
 ---
 
+### 4-12: 問題管理
+
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
+|-----------|-----------|------|------|---------|
+| 4-12-1 | 問題管理モーダルで問題一覧が表示されること（タイトル・内容による検索、ステータスフィルター） | 正常系 | `ui_issue_management_modal.md` §5、§6 | GET `/api/v1/issues` |
+| 4-12-2 | 新規問題をプロジェクト単位で登録できること | 正常系 | `ui_issue_management_modal.md` §8、`api_issue_management.md` §1 | POST `/api/v1/issues` |
+| 4-12-3 | 新規問題をトランジション単位で登録できること | 正常系 | `ui_issue_management_modal.md` §8、`api_issue_management.md` §1 | POST `/api/v1/issues` |
+| 4-12-4 | 新規問題登録時にタイトルまたは内容が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_issue_management_modal.md` §8.2 | - |
+| 4-12-5 | 既存問題を選択してコメントを追加できること | 正常系 | `ui_issue_management_modal.md` §7、`api_issue_management.md` §2 | POST `/api/v1/issues/comments` |
+| 4-12-6 | コメントが未入力の場合に「コメント送信」「解決」「未解決」ボタンが非活性であること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - |
+| 4-12-7 | 未解決の問題を「解決済」に変更できること（コメントと同時送信） | 正常系 | `ui_issue_management_modal.md` §7.2、`api_issue_management.md` §5 | POST `/api/v1/issues/comments`、PATCH `/api/v1/issues/status` |
+| 4-12-8 | 解決済の問題を「未解決」に戻せること（コメントと同時送信） | 正常系 | `ui_issue_management_modal.md` §7.2、`api_issue_management.md` §5 | POST `/api/v1/issues/comments`、PATCH `/api/v1/issues/status` |
+
+**前提条件:**
+- 実験管理者ロールでログイン済み
+- プロジェクト管理タブでプロジェクトが選択済みであること
+- `issue` テーブルにテスト用問題データが挿入済みであること
+  - 未解決（`status=unresolved`）の問題を少なくとも1件
+  - 解決済（`status=resolved`）の問題を少なくとも1件
+  - コメントが1件以上付いている問題を少なくとも1件
+
+**後処理:**
+- 登録した問題データを `issue` テーブルから削除（4-12-2〜4-12-3）
+- 追加したコメントを `issue_comment` テーブルから削除（4-12-5〜4-12-8）
+
+**問題ステータス定義（`api_issue_management.md` より）:**
+- 未解決（`unresolved`）: 警告（オレンジ）タグ
+- 解決済（`resolved`）: 成功（緑）タグ
+
+**問題対象種別（`api_issue_management.md` より）:**
+- `project`: プロジェクト単位
+- `task`: タスク単位
+- `transition`: トランジション単位
+
+---
+
 ## 3. テスト実行に必要な前提情報
 
 ### 3.1 テスト環境
@@ -504,8 +516,8 @@
 | MAIMLファイル登録済みプロジェクト | 4-4（タスク登録） | S3にMAIMLファイルを配置 |
 | タスクデータ付きプロジェクト | 4-6（タスク結果確認） | project_task_detailレコードを挿入 |
 | 複数ステータスのプロジェクト | 4-7（フィルタ・検索） | DBに複数プロジェクトを挿入 |
-| 未解決・解決済の問題データ（`issue`テーブル） | 4-6-5〜4-6-12（問題確認） | `issue`テーブルにテストデータを挿入（`status=unresolved`を1件以上、`status=resolved`を1件以上） |
-| 問題に紐づくコメントデータ（`issue_comment`テーブル） | 4-6-5（問題一覧・コメント表示確認） | `issue_comment`テーブルにテストデータを挿入（既存問題に対して1件以上） |
+| 未解決・解決済の問題データ（`issue`テーブル） | 4-12-1〜4-12-8（問題管理） | `issue`テーブルにテストデータを挿入（`status=unresolved`を1件以上、`status=resolved`を1件以上） |
+| 問題に紐づくコメントデータ（`issue_comment`テーブル） | 4-12-1（問題一覧・コメント表示確認） | `issue_comment`テーブルにテストデータを挿入（既存問題に対して1件以上） |
 
 ---
 
