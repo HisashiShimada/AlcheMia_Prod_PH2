@@ -1171,6 +1171,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             icon={<PlusOutlined />}
             style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
             onClick={handleOpenCreateModal}
+            data-testid="create-project-button"
           >
             {t('projectManagement.new_project')}
           </Button>
@@ -1281,6 +1282,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     onClick={handleProjectDownload}
                     loading={isDownloading}
                     disabled={!selectedProject || isDownloading}
+                    data-testid="project-download-button"
                   >
                     {isDownloading 
                       ? 'ZIPダウンロード中...'
