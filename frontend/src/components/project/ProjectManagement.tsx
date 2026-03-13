@@ -1118,6 +1118,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
               style={{ width: 200 }}
               value={projectStatusFilter}
               onChange={setProjectStatusFilter}
+              data-testid="project-status-filter"
               options={[
                 { value: 'all', label: t('projectManagement.all') },
                 { value: '0', label: t('projectManagement.status_planning') },
@@ -1139,6 +1140,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
               style={{ width: 150 }}
               value={checkoutFilter}
               onChange={setCheckoutFilter}
+              data-testid="checkout-status-filter"
               options={[
                 { value: 'all', label: t('projectManagement.all') },
                 { value: 'checked_in', label: t('projectManagement.checked_in') },
@@ -1159,6 +1161,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ width: 250 }}
               allowClear
+              data-testid="project-search-input"
             />
           </Space>
 
