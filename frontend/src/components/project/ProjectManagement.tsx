@@ -1426,6 +1426,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                           <Button
                             type="primary"
                             style={{ marginRight: 16 }}
+                            data-testid="complete-review-button"
                             disabled={taskStats.review_waiting === 0}
                             title={taskStats.review_waiting === 0 ? 'レビュー待ちのタスクがありません' : undefined}
                             onClick={async () => {

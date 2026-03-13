@@ -311,6 +311,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
     <Modal
       open={open}
       onCancel={onClose}
+      data-testid="progress-detail-dialog"
       width={screens.lg ? 1200 : screens.md ? 900 : '90%'}
       style={{ top: 20 }}
       styles={{
@@ -332,10 +333,11 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
             onClick={fetchFileDetails}
             loading={loading}
             type="default"
+            data-testid="progress-detail-reload-button"
           >
             再読み込み
           </Button>
-          <Button type="primary" onClick={onClose}>
+          <Button type="primary" onClick={onClose} data-testid="progress-detail-close-button">
             閉じる
           </Button>
         </Flex>
@@ -499,6 +501,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
                 onChange={handleMethodFilterChange}
                 allowClear
                 style={{ width: '100%', maxWidth: 300 }}
+                data-testid="progress-detail-method-filter"
                 options={projectMethods.map(method => ({
                   label: method,
                   value: method,
@@ -516,6 +519,7 @@ const WorkProgressDetailDialog: React.FC<WorkProgressDetailDialogProps> = ({
           onChange={handleTabChange}
           items={tabItems}
           type="card"
+          data-testid="progress-detail-task-tabs"
           style={{
             background: token.colorBgContainer,
             borderBottom: `1px solid ${token.colorBorder}`,
