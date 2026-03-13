@@ -1,35 +1,25 @@
 /**
- * MaiML 非公開 Worker（スタブ）
+ * MaiML 非公開 Worker
  *
  * @description
- *   maiml-unpublish キューからジョブを取得し、MaiML ファイルの非公開処理を非同期で実行する。
- *   現在はスタブ実装。DB テーブル構成（db.md）確定後にプロセッサー本体を実装する。
+ *   maiml-unpublish キューからジョブを取得し、
+ *   組織スキーマの maiml_asset を CASCADE DELETE する。
  *
- * @todo DB テーブル構成確定後に processor 内を実装する
- *   - maiml_publish_job のステータスを 'running' に更新
- *   - mode に応じて KV / preview / raw を DB から削除
- *   - maiml_publish_registry の status を 'unpublished' に更新
- *   - maiml_publish_job のステータスを 'done' に更新
+ * 処理フロー:
+ *   1. maiml_publish_job を running に更新
+ *   2. 指定 asset_id の maiml_asset を CASCADE DELETE（関連テーブルも連鎖削除）
+ *   3. maiml_publish_job を done に更新
+ *   エラー時: maiml_publish_job を error に更新
  *
- * @reference docs/MaiML_OpenData_Pipeline/spec.md §9
+ * @reference docs/MaiML_OpenData_Pipeline/spec.md §9.3
  */
 
-import { Worker, Job } from 'bullmq';
+import { Worker, Job }           from 'bullmq';
 import { createBullRedisConnection } from '../config/redis';
 import { MAIML_UNPUBLISH_QUEUE_NAME } from '../queues/maimlUnpublishQueue';
-
-// ============================================================
-// ジョブデータ型定義
-// ============================================================
-
-/**
- * 非公開ジョブに渡すデータ
- */
-export interface UnpublishJobData {
-  organizationId: string;
-  assetId:        number | null;
-  mode:           'keep_meta' | 'full_delete';
-}
+import * as publishJobRepo            from '../repositories/maimlPublishJobRepository';
+import * as assetRepo                 from '../repositories/maimlAssetRepository';
+import { UnpublishJobData }           from '../types/maimlOpenData';
 
 // ============================================================
 // Worker インスタンス
@@ -39,36 +29,46 @@ let unpublishWorker: Worker<UnpublishJobData> | null = null;
 
 /**
  * MaiML 非公開 Worker を起動する
- *
- * @description
- *   server.ts の startServer() から呼び出す。
- *   Redis 未接続でも lazyConnect により起動失敗にはならない。
  */
 export function startMaimlUnpublishWorker(): Worker<UnpublishJobData> {
   unpublishWorker = new Worker<UnpublishJobData>(
     MAIML_UNPUBLISH_QUEUE_NAME,
     async (job: Job<UnpublishJobData>) => {
-      console.info(`[maimlUnpublishWorker] ジョブ受信 job_id=${job.id}`, {
-        organizationId: job.data.organizationId,
-        assetId:        job.data.assetId,
-        mode:           job.data.mode,
+      const { jobId, organizationId, assetId } = job.data;
+
+      console.info(`[maimlUnpublishWorker] 開始 job_id=${jobId}`, {
+        organizationId,
+        assetId: String(assetId),
       });
 
-      // ──────────────────────────────────────────────────────
-      // TODO: DB テーブル構成（db.md）確定後に以下を実装する
-      //
-      // 1. maiml_publish_job のステータスを 'running' に更新
-      // 2. mode === 'full_delete' の場合
-      //    → maiml_asset を cascade DELETE
-      // 3. mode === 'keep_meta' の場合
-      //    → maiml_condition_kv / maiml_material_kv を DELETE
-      //    → maiml_publish_registry の status を 'unpublished' に更新
-      // 4. maiml_publish_job のステータスを 'done' に更新
-      // ──────────────────────────────────────────────────────
+      // ── 1. ジョブ状態を running に更新 ──────────────────
+      await publishJobRepo.updateStatus(jobId, 'running', {
+        started_at: new Date(),
+      });
 
-      console.warn(
-        `[maimlUnpublishWorker] job_id=${job.id} は未実装です（DB テーブル構成確定待ち）`,
-      );
+      try {
+        // ── 2. maiml_asset を CASCADE DELETE ──────────────
+        // ON DELETE CASCADE により関連テーブルも自動削除される
+        await assetRepo.deleteAsset(organizationId, assetId);
+
+        // ── 3. ジョブを done に更新 ────────────────────────
+        await publishJobRepo.updateStatus(jobId, 'done', {
+          finished_at: new Date(),
+        });
+
+        console.info(`[maimlUnpublishWorker] 完了 job_id=${jobId}`);
+
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[maimlUnpublishWorker] エラー job_id=${jobId}`, message);
+
+        await publishJobRepo.updateStatus(jobId, 'error', {
+          finished_at:   new Date(),
+          error_message: message,
+        });
+
+        throw err; // bullmq にリトライさせる
+      }
     },
     {
       connection:  createBullRedisConnection(),
@@ -77,25 +77,23 @@ export function startMaimlUnpublishWorker(): Worker<UnpublishJobData> {
   );
 
   unpublishWorker.on('completed', (job) => {
-    console.info(`[maimlUnpublishWorker] 完了 job_id=${job.id}`);
+    console.info(`[maimlUnpublishWorker] ジョブ完了 job_id=${job.id}`);
   });
 
   unpublishWorker.on('failed', (job, err) => {
-    console.error(`[maimlUnpublishWorker] 失敗 job_id=${job?.id}`, err.message);
+    console.error(`[maimlUnpublishWorker] ジョブ失敗 job_id=${job?.id}`, err.message);
   });
 
   unpublishWorker.on('error', (err) => {
     console.error('[maimlUnpublishWorker] Worker エラー:', err.message);
   });
 
-  console.info('[maimlUnpublishWorker] 起動完了（スタブモード）');
+  console.info('[maimlUnpublishWorker] 起動完了');
   return unpublishWorker;
 }
 
 /**
  * MaiML 非公開 Worker を停止する
- *
- * @description gracefulShutdown から呼び出す
  */
 export async function stopMaimlUnpublishWorker(): Promise<void> {
   if (unpublishWorker) {

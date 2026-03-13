@@ -13,6 +13,7 @@ import { generateAndSaveCertificate } from './certificateService';
 import { getStorageService } from './storageService';
 import { logger } from '../utils/logger';
 import { getMessage } from '../utils/messages';
+import { createSchemaIfNotExists, createSchemaTables } from '../repositories/maimlAssetRepository';
 
 /**
  * ランダムパスワードを生成（12文字、英大文字・英小文字・数字・記号を含む）
@@ -375,6 +376,24 @@ export async function createOrganization(
       `[organizationService] フォルダ作成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
       {
         error: folderError instanceof Error ? folderError.message : String(folderError),
+        organizationId: data.organizationId,
+      }
+    );
+  }
+
+  // MaiML OpenData 用 組織スキーマ・テーブルの作成
+  // 公開機能で使用する {org_<uuid>}.maiml_asset 等を初期化する
+  // 失敗しても組織作成自体は成功とする
+  try {
+    logger.info(`[organizationService] 組織スキーマを作成: organizationId=${data.organizationId}`);
+    await createSchemaIfNotExists(data.organizationId, data.organizationCd);
+    await createSchemaTables(data.organizationId);
+    logger.info(`[organizationService] 組織スキーマ作成完了: organizationId=${data.organizationId}`);
+  } catch (schemaError) {
+    logger.warn(
+      `[organizationService] 組織スキーマ作成失敗（組織作成は成功）: organizationId=${data.organizationId}`,
+      {
+        error: schemaError instanceof Error ? schemaError.message : String(schemaError),
         organizationId: data.organizationId,
       }
     );

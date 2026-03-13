@@ -10,7 +10,9 @@ dotenv.config();
 import { setupSessionMiddleware } from './middleware/sessionMiddleware';
 import { RedisConnectionService } from './services/redisConnectionService';
 import { TokenBlacklistService } from './services/tokenBlacklistService';
+import { startMaimlPublishWorker,   stopMaimlPublishWorker   } from './workers/maimlPublishWorker';
 import { startMaimlUnpublishWorker, stopMaimlUnpublishWorker } from './workers/maimlUnpublishWorker';
+import { startMaimlScannerWorker,   stopMaimlScannerWorker   } from './workers/maimlScannerWorker';
 
 // Import routes after dotenv is configured
 import authRoutes from './routes/authRoutes';
@@ -140,10 +142,13 @@ async function startServer() {
       console.log(`  - Headers timeout: ${server.headersTimeout}ms (${server.headersTimeout / 1000}s)`);
       console.log(`  - Keep-Alive timeout: ${server.keepAliveTimeout}ms (${server.keepAliveTimeout / 1000}s)`);
 
-      // MaiML 公開/非公開 Worker の起動（bullmq 非同期処理）
+      // MaiML 公開/非公開/Scanner Worker の起動（bullmq 非同期処理）
       // Redis 未起動時はエラーをキャッチして続行（開発環境向けフォールバック）
       try {
+        startMaimlPublishWorker();
         startMaimlUnpublishWorker();
+        await startMaimlScannerWorker();
+        console.log('✅ MaiML Publish/Unpublish/Scanner Workers started');
       } catch (workerErr) {
         console.warn('⚠️  MaiML Worker 起動スキップ（Redis 未接続の可能性）:', (workerErr as Error).message);
       }
@@ -176,8 +181,14 @@ async function startServer() {
           console.log('HTTP server closed');
           
           // MaiML Worker の停止
-          await stopMaimlUnpublishWorker()
-            .catch((err) => console.warn('Worker 停止エラー:', (err as Error).message));
+          await Promise.all([
+            stopMaimlPublishWorker()
+              .catch((err) => console.warn('PublishWorker 停止エラー:', (err as Error).message)),
+            stopMaimlUnpublishWorker()
+              .catch((err) => console.warn('UnpublishWorker 停止エラー:', (err as Error).message)),
+            stopMaimlScannerWorker()
+              .catch((err) => console.warn('ScannerWorker 停止エラー:', (err as Error).message)),
+          ]);
 
           // Redis接続のクローズ
           await RedisConnectionService.disconnect();
