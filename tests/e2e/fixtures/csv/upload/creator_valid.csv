@@ -1,0 +1,2 @@
+creator_id,creator_name,creator_description,creator_annotation,vendor_name,instrument_name,is_active
+e2e_csv_crt_001,E2ECSVUP_クリエイター,E2Eテスト用説明,E2Eテスト用注釈,リガク株式会社,X-ray Diffractometer XRD-7000,true
