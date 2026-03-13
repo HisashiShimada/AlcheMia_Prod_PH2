@@ -156,7 +156,7 @@
 | 4-3-2 | チェックアウト中のプロジェクトをチェックインできること | 正常系 | 要件書#5 | POST `/api/v1/projects/:projectName/checkin` |
 | 4-3-3 | チェックアウト中のプロジェクトには「チェックアウト中」タグが表示されること | 表示確認 | `ui_project_management.md` §2.2.3 | GET `/api/v1/projects` |
 | 4-3-4 | `in_progress` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
-| 4-3-5 | `checked_out` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
+| 4-3-5 | `checkout_status` が `checked_out`（チェックアウト中）のプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
 | 4-3-6 | `completed` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
 | 4-3-7 | 実行中のタスクがある場合はチェックインできないこと | 異常系 | ビジネスルール（チェックイン不可条件） | POST `/api/v1/projects/:projectName/checkin` |
 | 4-3-8 | チェックアウトしたユーザー以外はチェックインできないこと | 異常系 | ビジネスルール（チェックイン可能ユーザー） | POST `/api/v1/projects/:projectName/checkin` |
@@ -168,7 +168,9 @@
 - テスト用プロジェクトがDB・S3に存在する
 - 4-3-1: プロジェクトが `checked_in`（チェックイン済み）状態、MAIMLファイル登録済み、タスク登録済みであること
 - 4-3-2〜4-3-3: プロジェクトがチェックアウト済み（`checked_out`）状態であること
-- 4-3-4〜4-3-6: 対象ステータスのプロジェクトが各1件存在すること
+- 4-3-4: `project_status` が `in_progress` のプロジェクトが1件存在すること
+- 4-3-5: `checkout_status` が `checked_out` のプロジェクトが1件存在すること
+- 4-3-6: `project_status` が `completed` のプロジェクトが1件存在すること
 - 4-3-7: チェックアウト済みプロジェクトに `in_progress` 状態のタスクが存在すること
 - 4-3-8: 別ユーザーがチェックアウトしたプロジェクトが存在すること（別ロールのユーザーアカウント必要）
 - 4-3-9: MAIMLファイルが未登録の `checked_in` プロジェクトが1件存在すること
