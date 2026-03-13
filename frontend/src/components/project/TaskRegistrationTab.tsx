@@ -630,7 +630,14 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     };
 
     return (
-      <tr {...restProps} ref={setNodeRef} style={style} {...attributes}>
+      <tr
+        {...restProps}
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        data-testid={`task-row-${rowKey}`}
+        data-worker-linked={isRowWorkerLinked ? 'true' : 'false'}
+      >
         {React.Children.map(children, (child) => {
           if ((child as React.ReactElement).key === 'sort') {
             // worker_linked_flg=trueの場合もドラッグ不可にする
@@ -643,6 +650,8 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
                   padding: '8px',
                   opacity: isDragDisabled ? 0.5 : 1
                 }}
+                data-testid={`task-drag-handle-${rowKey}`}
+                data-drag-disabled={isDragDisabled ? 'true' : 'false'}
               >
                 <HolderOutlined />
               </div>
@@ -743,6 +752,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           size="small"
           style={{ width: '100%' }}
           options={experimentConditionSelectOptions}
+          data-testid={`task-experiment-condition-select-${record.id}`}
         />
       ),
     },
@@ -771,6 +781,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           min={1}
           max={999}
           style={{ width: '100%' }}
+          data-testid={`task-trial-count-input-${record.id}`}
         />
       ),
     },
@@ -787,6 +798,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             icon={<PlusOutlined />}
             onClick={() => handleAddInstructionClick(record.methodId)}
             disabled={isFieldDisabled(record)}
+            data-testid={`task-add-instruction-button-${record.id}`}
           >
             {t('taskRegistration.buttons.addInstruction')}
           </Button>
@@ -824,6 +836,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             type="primary"
             onClick={handleProjectInstructionClick}
             disabled={loadingMethods}
+            data-testid="project-instruction-button"
           >
             {t('taskRegistration.buttons.projectInstruction')}
           </Button>
@@ -833,6 +846,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             onClick={handleSave}
             loading={isSaving}
             disabled={loadingMethods}
+            data-testid="task-registration-save-button"
           >
             {isSaving ? t('taskRegistration.saving') : t('taskRegistration.saveButton')}
           </Button>
