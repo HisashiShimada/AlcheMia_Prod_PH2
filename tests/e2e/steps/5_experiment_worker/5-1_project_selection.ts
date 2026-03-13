@@ -75,7 +75,7 @@ const createdProjectIds: string[] = [];
  * - テスト用プロジェクト_5-1 を INSERT
  * - テスト用メソッドA・B と各タスクを project_task に INSERT
  */
-Before({ tags: '@5-1-1 or @5-1-2 or @5-1-4 or @5-1-5' }, async () => {
+Before({ tags: '@5-1-1 or @5-1-2 or @5-1-4 or @5-1-5 or @5-1-8 or @5-1-9' }, async () => {
   console.log('[5-1 Before] テストデータ準備 開始 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5)');
   try {
     await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
@@ -314,7 +314,7 @@ When('「決定」ボタンをクリックする', async ({ page }) => {
 });
 
 /**
- * タスク名フィルターに文字列を入力する（5-1-5）
+ * タスク名フィルターに文字列を入力する（5-1-5, 5-1-9）
  * MethodTaskSelectionModal.tsx の全カラム検索 Input（placeholder="検索..."）を使用する
  * data-testid="method-task-selection-search-input"
  */
@@ -326,6 +326,73 @@ When('タスク名フィルターに {string} と入力する', async ({ page },
   await filterInput.waitFor({ state: 'visible', timeout: 10000 });
   await filterInput.fill(filterText);
   // フィルタリング結果の反映を待機
+  await page.waitForTimeout(500);
+});
+
+/**
+ * [5-1-6] プロジェクト選択モーダルの検索ボックスに文字列を入力する
+ * ProjectSelectionModal.tsx: data-testid="project-selection-search-input"
+ * あいまい検索対象: プロジェクト名（projectName）・プロジェクトコード（projectCd）
+ * 参照: ui_project_selection_modal.md §6.1
+ */
+When('プロジェクト選択モーダルの検索ボックスに {string} と入力する', async ({ page }, searchText: string) => {
+  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクト選択' });
+  await modal.waitFor({ state: 'visible', timeout: 10000 });
+  const searchInput = page.locator('[data-testid="project-selection-search-input"]');
+  await searchInput.waitFor({ state: 'visible', timeout: 10000 });
+  await searchInput.fill(searchText);
+  // フィルタリング結果の反映を待機
+  await page.waitForTimeout(500);
+});
+
+/**
+ * [5-1-6] プロジェクト選択モーダルの検索ボックスをクリアする
+ * allowClear ボタン（.ant-input-clear-icon）をクリックする
+ */
+When('プロジェクト選択モーダルの検索ボックスをクリアする', async ({ page }) => {
+  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクト選択' });
+  await modal.waitFor({ state: 'visible', timeout: 10000 });
+  const searchInput = page.locator('[data-testid="project-selection-search-input"]');
+  await searchInput.waitFor({ state: 'visible', timeout: 10000 });
+  await searchInput.clear();
+  await page.waitForTimeout(500);
+});
+
+/**
+ * [5-1-7] プロジェクト選択モーダルのプロジェクト名フィルターで指定プロジェクト名を選択する
+ * ProjectSelectionModal.tsx: data-testid="project-selection-name-filter"
+ * 参照: ui_project_selection_modal.md §6.2（完全一致フィルター）
+ */
+When('プロジェクト選択モーダルのプロジェクト名フィルターで {string} を選択する', async ({ page }, projectName: string) => {
+  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクト選択' });
+  await modal.waitFor({ state: 'visible', timeout: 10000 });
+  // ProjectSelectionModal.tsx: data-testid="project-selection-name-filter"
+  const nameFilter = page.locator('[data-testid="project-selection-name-filter"]');
+  await nameFilter.waitFor({ state: 'visible', timeout: 10000 });
+  await nameFilter.click();
+  await waitForSelectDropdown(page);
+  // プロジェクト名選択肢をクリック
+  const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
+  await visibleDropdown.locator(`.ant-select-item-option:has-text("${projectName}")`).click();
+  await page.waitForTimeout(500);
+});
+
+/**
+ * [5-1-8] ステータスフィルターで指定ステータスを選択する
+ * MethodTaskSelectionModal.tsx: data-testid="method-task-selection-status-filter"
+ * 参照: ui_method_task_selection_modal.md §7.2
+ */
+When('ステータスフィルターで {string} を選択する', async ({ page }, statusLabel: string) => {
+  const modal = page.locator('.ant-modal').filter({ hasText: 'メソッド・タスク選択' });
+  await modal.waitFor({ state: 'visible', timeout: 10000 });
+  // MethodTaskSelectionModal.tsx: data-testid="method-task-selection-status-filter"
+  const statusFilter = page.locator('[data-testid="method-task-selection-status-filter"]');
+  await statusFilter.waitFor({ state: 'visible', timeout: 10000 });
+  await statusFilter.click();
+  await waitForSelectDropdown(page);
+  // ステータスラベルで選択肢をクリック
+  const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
+  await visibleDropdown.locator(`.ant-select-item-option:has-text("${statusLabel}")`).click();
   await page.waitForTimeout(500);
 });
 
@@ -456,6 +523,30 @@ Then('タスク一覧に {string} が表示されていないこと', async ({ p
   const modal = page.locator('.ant-modal').filter({ hasText: 'メソッド・タスク選択' });
   await expect(
     modal.locator(`tr:has-text("${taskName}"), li:has-text("${taskName}")`)
+  ).not.toBeVisible({ timeout: 5000 });
+});
+
+/**
+ * [5-1-6, 5-1-7] プロジェクト一覧に指定プロジェクト名が表示されていること
+ * ProjectSelectionModal.tsx のテーブル行（プロジェクト名列）に対して確認する
+ * 参照: ui_project_selection_modal.md §5.3
+ */
+Then('プロジェクト一覧に {string} が表示されていること', async ({ page }, projectName: string) => {
+  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクト選択' });
+  await expect(
+    modal.locator(`table tbody tr:has-text("${projectName}")`)
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-1-6, 5-1-7] プロジェクト一覧に指定プロジェクト名が表示されていないこと（フィルタで非表示）
+ * ProjectSelectionModal.tsx のテーブル行（プロジェクト名列）に対して確認する
+ * 参照: ui_project_selection_modal.md §6.3（AND条件フィルタリング）
+ */
+Then('プロジェクト一覧に {string} が表示されていないこと', async ({ page }, projectName: string) => {
+  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクト選択' });
+  await expect(
+    modal.locator(`table tbody tr:has-text("${projectName}")`)
   ).not.toBeVisible({ timeout: 5000 });
 });
 
