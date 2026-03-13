@@ -1,2 +1,0 @@
-﻿organization_cd,organization_display_name,organization_email,chief_user_name,chief_user_email,corporation_name,contract_capacity,contract_users,contract_projects,is_entry,use_deemed_progress,update_at,is_active
-e2e-csv-added-org,E2E_CSV追加組織,e2e-csv-added@example.com,E2E管理者CSV,admin-csv@example.com,,100,10,5,0,false,20260310011508,true
