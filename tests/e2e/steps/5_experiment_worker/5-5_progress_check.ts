@@ -189,6 +189,29 @@ Before({ tags: '@5-5-12' }, async () => {
 });
 
 /**
+ * 5-5-16 用
+ * - E2Eテスト用プロジェクト_5-5-16（executing_task）
+ * - project_task: 複数メソッドID × 複数 experiment_order（昇順確認用）
+ *   - method_id=E2E_METHOD_C, experiment_order=3
+ *   - method_id=E2E_METHOD_A, experiment_order=1
+ *   - method_id=E2E_METHOD_B, experiment_order=2
+ */
+Before({ tags: '@5-5-16' }, async () => {
+  console.log('[5-5 Before] テストデータ準備 開始 (@5-5-16)');
+  try {
+    await upsertTestProject('E2E-5-5-16', 'E2Eテスト用プロジェクト_5-5-16', PROJECT_STATUS_EXECUTING_TASK);
+    // experiment_order をあえてバラバラに挿入し、UIが昇順で表示することを検証
+    await upsertTestProjectTask('E2E-5-5-16', 'E2E_METHOD_C', 3, 'not_started');
+    await upsertTestProjectTask('E2E-5-5-16', 'E2E_METHOD_A', 1, 'not_started');
+    await upsertTestProjectTask('E2E-5-5-16', 'E2E_METHOD_B', 2, 'not_started');
+    console.log('[5-5 Before] テストデータ準備 完了 (@5-5-16)');
+  } catch (error) {
+    console.error('[5-5 Before] テストデータ準備 失敗 (@5-5-16):', error);
+    throw error;
+  }
+});
+
+/**
  * 5-5-13, 5-5-14 用
  * - E2Eテスト用プロジェクト_5-5_承認依頼用（executing_task）
  * - project_task: not_started × 1
@@ -632,6 +655,46 @@ Then('エラーメッセージ {string} が表示されること', async ({ page
   await expect(
     page.locator(`.ant-message-notice-content:has-text("${messageText}")`)
   ).toBeVisible({ timeout: 15000 });
+});
+
+/**
+ * [5-5-16] メソッドタブがexperiment_orderの昇順で表示されていること
+ *
+ * ProgressCheckTab.tsx の data-testid="progress-check-method-tabs" 配下に
+ * Ant Design Tabs が表示される。各タブの data-testid="progress-check-method-tab-{experiment_order}"
+ * を取得し、左から順に experiment_order が昇順になっていることを確認する。
+ *
+ * テストデータ（@5-5-16 Beforeフック）:
+ *   - experiment_order=1 (E2E_METHOD_A)
+ *   - experiment_order=2 (E2E_METHOD_B)
+ *   - experiment_order=3 (E2E_METHOD_C)
+ * をバラバラな順序でINSERTしており、UIが昇順（1→2→3）で表示することを検証する。
+ */
+Then('メソッドタブがexperiment_orderの昇順で表示されていること', async ({ page }) => {
+  const methodTabsContainer = page.locator('[data-testid="progress-check-method-tabs"]');
+  await methodTabsContainer.waitFor({ state: 'visible', timeout: 10000 });
+
+  // メソッドタブを左から順に取得し、experiment_order を data-testid から抽出する
+  // 期待する data-testid パターン: "progress-check-method-tab-{experiment_order}"
+  const tabLocators = methodTabsContainer.locator('[data-testid^="progress-check-method-tab-"]');
+  const count = await tabLocators.count();
+  expect(count).toBeGreaterThan(1); // 複数タブがあること
+
+  // 各タブの experiment_order を左から順に収集する
+  const orders: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const testId = await tabLocators.nth(i).getAttribute('data-testid');
+    // "progress-check-method-tab-1" → 1
+    const orderStr = testId?.replace('progress-check-method-tab-', '') ?? '';
+    const order = parseInt(orderStr, 10);
+    expect(isNaN(order)).toBe(false);
+    orders.push(order);
+  }
+
+  // 昇順であることを検証（orders[i] < orders[i+1]）
+  for (let i = 0; i < orders.length - 1; i++) {
+    expect(orders[i]).toBeLessThan(orders[i + 1]);
+  }
 });
 
 // ===========================================================================
