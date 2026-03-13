@@ -1254,7 +1254,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     )}
                     {/* チェックアウト状態表示 - プロジェクト単位 */}
                     {selectedProject.isCheckedOut && (
-                      <Tag color="orange">{t('projectManagement.checking_out')}</Tag>
+                      <Tag color="orange" data-testid="checkout-status-tag">{t('projectManagement.checking_out')}</Tag>
                     )}
                   </Space>
                   {/* プロジェクト概要 */}
@@ -1302,6 +1302,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     icon={<FileTextOutlined />}
                     onClick={handleToggleCheckout}
                     style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+                    data-testid="checkout-checkin-button"
                   >
                     {isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}
                   </Button>
