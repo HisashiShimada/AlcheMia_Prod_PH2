@@ -13,7 +13,7 @@
 | テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 |
 |----------------|----------------|------|-----------|-----------|
 | **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M | 20件 | Playwright自動 |
-| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 16件 | 手動 |
+| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 26件 | 手動 |
 | **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 10件 | Playwright自動 |
 | **4-4** | タスク登録 | 要件書#3、追加機能K/N | 7件 | Playwright自動 |
 | **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 10件 | Playwright自動 |
@@ -23,7 +23,7 @@
 | **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） |
 | **4-10** | プロジェクト公開 | 追加機能S | 4件 | Playwright自動（フロントエンド実装後） |
 | **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 |
-| **合計** | - | - | **155件** | - |
+| **合計** | - | - | **165件** | - |
 
 ### スコープ外
 
@@ -100,6 +100,15 @@
 | 4-2-15 | 保存ダイアログからS3への保存ができること | 正常系 | `ui_save_confirm_dialog.md` §5.4、`ui_petri_net_editor_screen.md` §3.1.2 |
 | 4-2-16 | Draftボタンから下書き管理ダイアログが開き、現在の編集内容を下書き保存できること | 正常系 | `ui_draft_manager.md` §3.1.2、`ui_editor_toolbar.md` §5.4 |
 | 4-2-17 | 自動保存をONにすると一定時間ごとに下書きが自動保存されること | 正常系 | `ui_draft_manager.md` §3.1.5、`ui_editor_toolbar.md` §5.5 |
+| 4-2-18 | ValidationPanelでエラー一覧の各行にチェックボックスが表示されること | 表示確認 | `ui_validation_panel.md` §5.3、自動補正機能 |
+| 4-2-19 | ValidationPanelでエラーを1件以上選択すると「自動補正」ボタンが活性化されること | 表示確認 | `ui_validation_panel.md` §自動補正ボタン |
+| 4-2-20 | エラー未選択の状態で「自動補正」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ValidationPanel.tsx` handleApplyCorrections |
+| 4-2-21 | version属性が欠落したMAIMLに対して自動補正を実行すると `version="1.0"` が追加されること | 正常系 | `maimlParser.ts` generateAutoCorrections / MISSING_REQUIRED |
+| 4-2-22 | 名前空間が欠落したMAIMLに対して自動補正を実行すると正しい xmlns が追加されること | 正常系 | `maimlParser.ts` generateAutoCorrections / NAMESPACE_ERROR |
+| 4-2-23 | 未定義の参照（reference_error）を含むMAIMLに対して自動補正を実行すると無効な ref 属性が削除されること | 正常系 | `maimlParser.ts` generateAutoCorrections / REFERENCE_ERROR |
+| 4-2-24 | 保存ダイアログの「自動補正して保存」ボタンをクリックすると補正処理が実行された後に保存されること | 正常系 | `SaveConfirmDialog` auto-correct アクション |
+| 4-2-25 | 重複IDエラー・シンタックスエラーは自動補正の対象外であり、補正後もエラーが残ること | 異常系 | `maimlService.ts` autoCorrectMaiml 制限事項 |
+| 4-2-26 | 自動補正適用後に再バリデーションが自動実行され、ValidationPanelの結果が更新されること | 正常系 | `PetriNetEditorInner.tsx` handleAutoCorrect → handleRevalidate |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -122,12 +131,20 @@
 9. 保存ボタン（または Ctrl+S）をクリックし、SaveConfirmDialogからS3保存を確認（4-2-15、4-2-2、4-2-3）
 10. Draftボタンをクリックし、下書き管理ダイアログから手動保存を確認（4-2-16）
 11. 自動保存スイッチをONにして一定時間後に下書きが作成されることを確認（4-2-17）
+12. ValidationPanel内のエラー一覧からチェックボックスでエラーを選択し、「自動補正」ボタンをクリックして補正結果を確認（4-2-18〜4-2-26）
+    ※ 補正対象エラーを作成するには以下を実施：
+      - 保存前のMAIMLから `version` 属性を手動削除して読み込む（4-2-21用）
+      - `xmlns` 属性を削除または変更したMAIMLを読み込む（4-2-22用）
+      - 存在しないIDへの `placeRef ref="..."` を追加する（4-2-23用）
+      - 重複するIDを持つノードを作成する（4-2-25用・補正不可の確認）
 
 **注意事項:**
 - PetriNetEditorはReactFlowベースのGUIエディタであり、ドラッグ操作など自動化が困難な操作を含む
 - 手動テスト実施者はMAIML仕様の基礎知識を有すること
 - 自動保存（4-2-17）は `useDraftManager` フックの設定間隔（デフォルト30秒）後に確認すること
 - バリデーションエラーの強調表示（4-2-14）を確認するには、意図的に不正なノード構成（重複IDなど）を作成すること
+- 自動補正（4-2-18〜4-2-26）: 補正可能なエラーは「`version`属性欠落」「名前空間エラー」「未定義参照（参照削除）」の3種類のみ。重複ID・シンタックスエラーは自動補正不可。補正後は必ず内容を手動確認すること
+- 4-2-24（自動補正して保存）: `SaveConfirmDialog` の「自動補正して保存」ボタンは `POST /api/v1/maiml/auto-correct` → `POST /api/v1/maiml/save` の順で呼び出される
 
 ---
 
@@ -578,6 +595,8 @@
 | PUT `/api/v1/formats/:formatId/files/:fileId` | 🔴 未実装 | 4-8-34（編集保存）はAPI実装後に確認 |
 | POST `/api/v1/files/download`（フォーマット管理） | 🔴 未実装 | 4-8-36〜4-8-37（ファイルダウンロード）はAPI実装後に確認 |
 | DELETE `/api/v1/formats/:formatId/files/:fileId` | 🔴 未実装 | 4-8-39（ファイル削除）は削除確認ダイアログの動作のみ確認。削除完了の確認はAPI実装後に追加 |
+| POST `/api/v1/maiml/auto-correct` | ✅ 実装済み | 4-2-21〜4-2-23、4-2-24（自動補正）に使用。バックエンドの `maimlService.autoCorrectMaiml()` で補正処理を実行 |
+| POST `/api/v1/maiml/save` | ✅ 実装済み | 4-2-24（自動補正して保存）で `auto-correct` 後に呼び出される |
 
 ---
 
