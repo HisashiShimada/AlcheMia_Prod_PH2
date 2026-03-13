@@ -177,6 +177,75 @@ Before({ tags: '@5-3-6' }, async () => {
 });
 
 /**
+ * 5-3-8, 5-3-9, 5-3-10, 5-3-11, 5-3-12 用
+ * - バリデーションチェックのみのテスト（前提問題データ不要）
+ * - プロジェクト・タスク・トランジションのみ準備
+ */
+Before({ tags: '@5-3-8 or @5-3-9 or @5-3-10 or @5-3-11 or @5-3-12' }, async () => {
+  console.log('[5-3 Before] テストデータ準備 開始 (tags: @5-3-8〜@5-3-12)');
+  try {
+    await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
+    await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-8〜@5-3-12)');
+  } catch (error) {
+    console.error('[5-3 Before] テストデータ準備 失敗:', error);
+    throw error;
+  }
+});
+
+/**
+ * 5-3-13 用
+ * - 問題詳細表示確認テスト用の問題データを準備
+ */
+Before({ tags: '@5-3-13' }, async () => {
+  console.log('[5-3 Before] テストデータ準備 開始 (tags: @5-3-13)');
+  try {
+    await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
+    await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    // 問題詳細表示確認用の問題データを作成
+    const issueId = await insertTestIssue(
+      TEST_PROJECT_ID,
+      'E2Eテスト問題_5-3-13',
+      '5-3-13 問題詳細表示確認用の問題内容です。詳細な内容を確認するためのテストデータです。',
+      'unresolved'
+    );
+    if (issueId) setupIssueIds.push(issueId);
+    console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-13)');
+  } catch (error) {
+    console.error('[5-3 Before] テストデータ準備 失敗:', error);
+    throw error;
+  }
+});
+
+/**
+ * 5-3-14 用
+ * - コメント一覧表示確認テスト用の問題データ（コメントつき）を準備
+ */
+Before({ tags: '@5-3-14' }, async () => {
+  console.log('[5-3 Before] テストデータ準備 開始 (tags: @5-3-14)');
+  try {
+    await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
+    await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    // コメントつきの問題データを作成
+    const issueId = await insertTestIssueWithComment(
+      TEST_PROJECT_ID,
+      'E2Eテスト問題_5-3-14',
+      '5-3-14 コメント一覧表示確認用の問題内容です。詳細な内容を確認するためのテストデータです。',
+      'unresolved',
+      'E2Eテスト用コメント_5-3-14'
+    );
+    if (issueId) setupIssueIds.push(issueId);
+    console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-14)');
+  } catch (error) {
+    console.error('[5-3 Before] テストデータ準備 失敗:', error);
+    throw error;
+  }
+});
+
+/**
  * 5-3-7 用
  * - ステータス変更テスト用の解決済問題を準備（Manager でステータス変更）
  */
@@ -550,6 +619,64 @@ When('「解決」ボタンをクリックする', async ({ page }) => {
 });
 
 /**
+ * [5-3-8] 内容を入力せずに問題報告フォームの「保存」ボタンをクリックする
+ */
+When('内容を入力せずに問題報告フォームの「保存」ボタンをクリックする', async ({ page }) => {
+  const saveBtn = page.locator('[data-testid="issue-management-form-save-button"]');
+  await saveBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await saveBtn.click();
+  // フロントバリデーションエラーが表示されるまで待機
+  await page.waitForSelector('.ant-form-item-explain-error', { timeout: 5000 });
+});
+
+/**
+ * [5-3-9] 問題タイプを選択せずに問題報告フォームの「保存」ボタンをクリックする
+ */
+When('問題タイプを選択せずに問題報告フォームの「保存」ボタンをクリックする', async ({ page }) => {
+  const saveBtn = page.locator('[data-testid="issue-management-form-save-button"]');
+  await saveBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await saveBtn.click();
+  // フロントバリデーションエラーが表示されるまで待機
+  await page.waitForSelector('.ant-form-item-explain-error', { timeout: 5000 });
+});
+
+/**
+ * [5-3-11] 問題タイトルに101文字のタイトルを入力する（最大100文字超）
+ */
+When('問題タイトルに101文字のタイトルを入力する', async ({ page }) => {
+  // 101文字の文字列を生成（100文字を超えた場合のバリデーション確認用）
+  const longTitle = 'あ'.repeat(101);
+  const titleInput = page.locator('[data-testid="issue-management-title-input"]');
+  await titleInput.waitFor({ state: 'visible', timeout: 10000 });
+  await page.evaluate(
+    ({ selector, val }: { selector: string; val: string }) => {
+      /* eslint-disable no-undef */
+      const el = (document as Document).querySelector(selector) as HTMLInputElement | null;
+      if (!el) return;
+      const proto = (window as Window & typeof globalThis).HTMLInputElement.prototype;
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+      nativeInputValueSetter?.call(el, val);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      /* eslint-enable no-undef */
+    },
+    { selector: '[data-testid="issue-management-title-input"]', val: longTitle }
+  );
+});
+
+/**
+ * [5-3-12] 問題内容に1001文字の内容を入力する（最大1000文字超）
+ */
+When('問題内容に1001文字の内容を入力する', async ({ page }) => {
+  // 1001文字の文字列を生成
+  const longContent = 'あ'.repeat(1001);
+  const contentTextarea = page.locator('[data-testid="issue-management-content-textarea"]');
+  await contentTextarea.waitFor({ state: 'visible', timeout: 10000 });
+  await contentTextarea.click();
+  await contentTextarea.fill(longContent);
+});
+
+/**
  * 「未解決」ボタンをクリックしてステータスを未解決に変更する
  * IssueManagementModal.tsx: data-testid="issue-management-set-unresolved-button"
  */
@@ -877,3 +1004,217 @@ async function insertTestIssue(
     return null;
   }
 }
+
+/**
+ * テスト用問題データ（コメントつき）を INSERT する（5-3-14 用）
+ * @returns 作成された issue_id（失敗時は null）
+ */
+async function insertTestIssueWithComment(
+  projectId: string,
+  title: string,
+  content: string,
+  status: 'unresolved' | 'resolved',
+  commentContent: string
+): Promise<string | null> {
+  console.log(`[5-3 insertTestIssueWithComment] 開始: title=${title}`);
+  try {
+    // 同名の問題が既に存在する場合は先に削除してから INSERT
+    await db.query(
+      `DELETE FROM issue WHERE organization_id = $1 AND project_id = $2 AND title = $3`,
+      [ORG_ID, projectId, title]
+    );
+
+    const issueResult = await db.query<{ issue_id: string }>(
+      `INSERT INTO issue (
+        issue_id, organization_id, project_id,
+        title, content, status,
+        target_type, issue_type,
+        reported_by, reported_at,
+        create_at, update_at
+      ) VALUES (
+        gen_random_uuid(), $1, $2,
+        $3, $4, $5,
+        'transition', 'other',
+        'e2e-test', NOW(),
+        NOW(), NOW()
+      )
+      RETURNING issue_id`,
+      [ORG_ID, projectId, title, content, status]
+    );
+
+    const issueId = issueResult.rows[0]?.issue_id ?? null;
+    if (!issueId) {
+      console.error(`[5-3 insertTestIssueWithComment] issue INSERT 失敗: title=${title}`);
+      return null;
+    }
+
+    // コメントを INSERT する
+    await db.query(
+      `INSERT INTO issue_comment (
+        comment_id, issue_id, organization_id,
+        content, commented_by, commented_at,
+        create_at, update_at
+      ) VALUES (
+        gen_random_uuid(), $1, $2,
+        $3, 'e2e-test', NOW(),
+        NOW(), NOW()
+      )`,
+      [issueId, ORG_ID, commentContent]
+    );
+
+    console.log(`[5-3 insertTestIssueWithComment] INSERT 完了: issue_id=${issueId}, title=${title}`);
+    return issueId;
+  } catch (error) {
+    console.error(`[5-3 insertTestIssueWithComment] 失敗: title=${title}:`, error);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Then: バリデーションエラー確認（5-3-8〜5-3-12）
+// ---------------------------------------------------------------------------
+
+/**
+ * [5-3-8] 内容のバリデーションエラーメッセージが表示されること
+ */
+Then('内容のバリデーションエラー {string} が表示されること', async ({ page }, errorMessage: string) => {
+  await expect(
+    page.locator(`.ant-form-item-explain-error:has-text("${errorMessage}")`)
+  ).toBeVisible({ timeout: 5000 });
+});
+
+/**
+ * [5-3-9] 問題タイプのバリデーションエラーメッセージが表示されること
+ */
+Then('問題タイプのバリデーションエラー {string} が表示されること', async ({ page }, errorMessage: string) => {
+  await expect(
+    page.locator(`.ant-form-item-explain-error:has-text("${errorMessage}")`)
+  ).toBeVisible({ timeout: 5000 });
+});
+
+/**
+ * [5-3-12] 内容のバリデーションエラーが表示されること（メッセージ内容は問わない）
+ */
+Then('内容のバリデーションエラーが表示されること', async ({ page }) => {
+  // 内容フィールドに紐づく ant-form-item-explain-error が1件以上表示されることを確認
+  await expect(
+    page.locator('.ant-form-item-explain-error').first()
+  ).toBeVisible({ timeout: 5000 });
+});
+
+// ---------------------------------------------------------------------------
+// Then: 問題詳細表示確認（5-3-13）
+// ---------------------------------------------------------------------------
+
+/**
+ * [5-3-13] 問題詳細エリアに指定タイトルが表示されること
+ * IssueManagementModal.tsx: data-testid="issue-detail-title"
+ */
+Then('問題詳細エリアにタイトル {string} が表示されること', async ({ page }, title: string) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(
+    modal.locator(`[data-testid="issue-detail-title"]:has-text("${title}")`)
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-3-13] 問題詳細エリアにステータスタグが表示されること
+ * IssueManagementModal.tsx: data-testid="issue-detail-status"
+ */
+Then('問題詳細エリアにステータスタグが表示されること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(
+    modal.locator('[data-testid="issue-detail-status"]')
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-3-13] 問題詳細エリアに対象が表示されること
+ * IssueManagementModal.tsx: data-testid="issue-detail-target"
+ */
+Then('問題詳細エリアに対象が表示されること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(
+    modal.locator('[data-testid="issue-detail-target"]')
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-3-13] 問題詳細エリアに報告者が表示されること
+ * IssueManagementModal.tsx: data-testid="issue-detail-reporter"
+ */
+Then('問題詳細エリアに報告者が表示されること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(
+    modal.locator('[data-testid="issue-detail-reporter"]')
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-3-13] 問題詳細エリアに報告時刻が表示されること
+ * IssueManagementModal.tsx: data-testid="issue-detail-reported-at"
+ */
+Then('問題詳細エリアに報告時刻が表示されること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(
+    modal.locator('[data-testid="issue-detail-reported-at"]')
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-3-13] 問題詳細エリアに内容が表示されること
+ * IssueManagementModal.tsx: data-testid="issue-detail-content"
+ */
+Then('問題詳細エリアに内容が表示されること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(
+    modal.locator('[data-testid="issue-detail-content"]')
+  ).toBeVisible({ timeout: 10000 });
+});
+
+// ---------------------------------------------------------------------------
+// Then: コメント一覧表示確認（5-3-14）
+// ---------------------------------------------------------------------------
+
+/**
+ * [5-3-14] 問題詳細エリアにコメント一覧が表示されること
+ * IssueManagementModal.tsx: data-testid="issue-detail-comment-list"
+ */
+Then('問題詳細エリアにコメント一覧が表示されること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(
+    modal.locator('[data-testid="issue-detail-comment-list"]')
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-3-14] コメント一覧に指定コメント内容が表示されること
+ */
+Then('コメント一覧にコメント内容 {string} が表示されること', async ({ page }, commentContent: string) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(
+    modal.locator(`[data-testid="issue-detail-comment-list"] :has-text("${commentContent}")`)
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-3-14] コメント一覧に投稿者名が表示されること
+ * IssueManagementModal.tsx: data-testid="issue-comment-author"
+ */
+Then('コメント一覧に投稿者名が表示されること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(
+    modal.locator('[data-testid="issue-comment-author"]').first()
+  ).toBeVisible({ timeout: 10000 });
+});
+
+/**
+ * [5-3-14] コメント一覧に投稿時刻が表示されること
+ * IssueManagementModal.tsx: data-testid="issue-comment-date"
+ */
+Then('コメント一覧に投稿時刻が表示されること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(
+    modal.locator('[data-testid="issue-comment-date"]').first()
+  ).toBeVisible({ timeout: 10000 });
+});

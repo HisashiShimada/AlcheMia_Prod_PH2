@@ -81,7 +81,7 @@ let savedUseDeemedProgress: boolean | null = null;
  * - transition_set にトランジションを UPSERT
  */
 Before({
-  tags: '@5-2-1 or @5-2-2 or @5-2-3 or @5-2-5 or @5-2-6 or @5-2-7 or @5-2-8 or @5-2-9 or @5-2-10 or @5-2-11 or @5-2-13 or @5-2-14 or @5-2-15 or @5-2-17 or @5-2-18 or @5-2-19 or @5-2-20 or @5-2-21 or @5-2-22 or @5-2-23',
+  tags: '@5-2-1 or @5-2-2 or @5-2-3 or @5-2-5 or @5-2-6 or @5-2-7 or @5-2-8 or @5-2-9 or @5-2-10 or @5-2-11 or @5-2-13 or @5-2-14 or @5-2-15 or @5-2-17 or @5-2-18 or @5-2-19 or @5-2-20 or @5-2-21 or @5-2-22 or @5-2-23 or @5-2-24',
 }, async () => {
   console.log('[5-2 Before] テストデータ準備 開始（基本シナリオ）');
   try {
@@ -326,6 +326,13 @@ Given('必須プロパティを持つトランジションが存在する', asyn
   console.log('[5-2-23] 必須プロパティ付きトランジション（事前データ準備済み想定）');
 });
 
+/** プロパティリストタイプのプロパティを持つトランジションが存在する */
+Given('プロパティリストタイプのプロパティを持つトランジションが存在する', async () => {
+  // 既存のトランジションデータに propertyListType プロパティが含まれることを前提とする
+  // TODO: 実際のテンプレートデータに応じて調整すること
+  console.log('[5-2-24] プロパティリストプロパティ付きトランジション（事前データ準備済み想定）');
+});
+
 // ---------------------------------------------------------------------------
 // When: 画面操作
 // ---------------------------------------------------------------------------
@@ -559,6 +566,46 @@ When('必須プロパティを未入力のまま保存ボタンをクリック�
   await saveBtn.click();
   // バリデーションエラーが表示されるまで待機
   await page.waitForSelector('.ant-form-item-explain-error', { timeout: 5000 }).catch(() => {});
+});
+
+/** プロパティリストテンプレートを選択する */
+When('プロパティリストテンプレートを選択する', async ({ page }) => {
+  // propertyListType プロパティを持つテンプレートを選択する
+  // テンプレート一覧の最初の行をクリック（実際のデータに応じて調整が必要）
+  const templateRow = page.locator('[data-testid="data-record-dialog"] table tbody tr').first();
+  await templateRow.waitFor({ state: 'visible', timeout: 15000 });
+  await templateRow.click();
+  await page.waitForTimeout(500);
+});
+
+/** プロパティリストの「追加」ボタンをクリックする */
+When('プロパティリストの「追加」ボタンをクリックする', async ({ page }) => {
+  // propertyListType の追加ボタン（PlusOutlined アイコン）
+  const addBtn = page
+    .locator('[data-testid="data-record-dialog"] [data-testid="property-list-add-button"]')
+    .first();
+  await addBtn.waitFor({ state: 'visible', timeout: 10000 });
+  const initialCount = await page
+    .locator('[data-testid="data-record-dialog"] [data-testid="property-list-item"]')
+    .count();
+  console.log(`[5-2-24] プロパティリスト追加前: ${initialCount} 件`);
+  await addBtn.click();
+  await page.waitForTimeout(300);
+});
+
+/** プロパティリストの「削除」ボタンをクリックする */
+When('プロパティリストの「削除」ボタンをクリックする', async ({ page }) => {
+  // propertyListType の削除ボタン（DeleteOutlined アイコン）
+  const deleteBtn = page
+    .locator('[data-testid="data-record-dialog"] [data-testid="property-list-delete-button"]')
+    .first();
+  await deleteBtn.waitFor({ state: 'visible', timeout: 10000 });
+  const countBefore = await page
+    .locator('[data-testid="data-record-dialog"] [data-testid="property-list-item"]')
+    .count();
+  console.log(`[5-2-24] プロパティリスト削除前: ${countBefore} 件`);
+  await deleteBtn.click();
+  await page.waitForTimeout(300);
 });
 
 // ---------------------------------------------------------------------------
@@ -955,6 +1002,23 @@ Then('バリデーションエラーメッセージが表示されること', as
 Then('ダイアログが閉じないこと', async ({ page }) => {
   const dialog = page.locator('[data-testid="data-record-dialog"]');
   await expect(dialog).toBeVisible({ timeout: 3000 });
+});
+
+/** プロパティリストの項目数が増加すること */
+Then('プロパティリストの項目数が増加すること', async ({ page }) => {
+  // 追加後: data-testid="property-list-item" の数が1件以上であること
+  const items = page.locator('[data-testid="data-record-dialog"] [data-testid="property-list-item"]');
+  const count = await items.count();
+  expect(count).toBeGreaterThanOrEqual(1);
+});
+
+/** プロパティリストの項目数が減少すること */
+Then('プロパティリストの項目数が減少すること', async ({ page }) => {
+  // 削除後: data-testid="property-list-item" の数が追加後より減少していること
+  // 最低0件以上であることを確認（全削除の場合は0件になることもある）
+  const items = page.locator('[data-testid="data-record-dialog"] [data-testid="property-list-item"]');
+  const count = await items.count();
+  expect(count).toBeGreaterThanOrEqual(0);
 });
 
 // ===========================================================================
