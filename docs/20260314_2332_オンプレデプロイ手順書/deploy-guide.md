@@ -152,6 +152,63 @@ cd ~/mmdpf
 
 開発機（ビルドが行える環境）で以下を実施します。
 
+### Docker イメージのビルド & エクスポート（スクリプト自動化）
+
+以下のスクリプト1つで、ビルドからエクスポートまでを自動的に行います。
+
+```bash
+# プロジェクトルートに移動
+cd /path/to/mmdpf
+
+# スクリプトに実行権限を付与（初回のみ）
+chmod +x scripts/build-and-export.sh
+
+# ビルド & エクスポートを実行
+./scripts/build-and-export.sh
+```
+
+スクリプトは以下を自動で行います：
+
+- Docker の存在確認（前提条件チェック）
+- backend / frontend イメージのビルド
+- `dist/` ディレクトリへの tar.gz エクスポート
+- 生成ファイルのサイズ確認
+
+**出力ファイル：**
+
+```
+dist/
+├── mmdpf-backend.tar.gz
+└── mmdpf-frontend.tar.gz
+```
+
+**オプション：**
+
+| オプション | 説明 |
+|---|---|
+| `--backend` | backend のみビルド & エクスポート |
+| `--frontend` | frontend のみビルド & エクスポート |
+| `--pull` | ベースイメージを pull してからビルド |
+| `--output <dir>` | 出力先ディレクトリを指定（デフォルト: `./dist`） |
+
+```bash
+# 例: backend のみ再ビルドしてエクスポート
+./scripts/build-and-export.sh --backend
+
+# 例: ベースイメージを最新化してからビルド
+./scripts/build-and-export.sh --pull
+
+# 例: 出力先を指定してエクスポート
+./scripts/build-and-export.sh --output /tmp/mmdpf-export
+```
+
+---
+
+<details>
+<summary>📄 手動コマンド（参考）</summary>
+
+スクリプトを使わずに手動で実行する場合は以下のコマンドを使用します。
+
 ### Docker イメージのビルド
 
 ```bash
@@ -169,15 +226,20 @@ docker images | grep mmdpf
 ### Docker イメージを tar.gz でエクスポート
 
 ```bash
+# 出力ディレクトリを作成
+mkdir -p dist
+
 # backend イメージをエクスポート
-docker save mmdpf-backend:latest | gzip > mmdpf-backend.tar.gz
+docker save mmdpf-backend:latest | gzip > dist/mmdpf-backend.tar.gz
 
 # frontend イメージをエクスポート
-docker save mmdpf-frontend:latest | gzip > mmdpf-frontend.tar.gz
+docker save mmdpf-frontend:latest | gzip > dist/mmdpf-frontend.tar.gz
 
 # ファイルサイズの確認
-ls -lh mmdpf-backend.tar.gz mmdpf-frontend.tar.gz
+ls -lh dist/mmdpf-backend.tar.gz dist/mmdpf-frontend.tar.gz
 ```
+
+</details>
 
 ---
 
@@ -278,8 +340,8 @@ DEPLOY_USER=user
 DEPLOY_HOST=target-server-ip
 DEPLOY_DIR=/home/user/mmdpf
 
-# ① Docker イメージを転送
-scp mmdpf-backend.tar.gz mmdpf-frontend.tar.gz \
+# ① Docker イメージを転送（dist/ ディレクトリに出力されたファイルを転送）
+scp dist/mmdpf-backend.tar.gz dist/mmdpf-frontend.tar.gz \
   ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/
 
 # ② docker-compose.prod.yml を転送
