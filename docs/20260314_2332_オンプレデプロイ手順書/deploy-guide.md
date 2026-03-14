@@ -12,13 +12,14 @@
 2. [前提条件・必要なもの](#2-前提条件必要なもの)
 3. [STEP 1: デプロイ先サーバの準備](#3-step-1-デプロイ先サーバの準備)
 4. [STEP 2: 開発機側での事前作業](#4-step-2-開発機側での事前作業)
-5. [STEP 3: SSL証明書の準備](#5-step-3-ssl証明書の準備)
-6. [STEP 4: ファイルのサーバ転送](#6-step-4-ファイルのサーバ転送)
-7. [STEP 5: デプロイ先サーバでの起動作業](#7-step-5-デプロイ先サーバでの起動作業)
-8. [STEP 6: DBマイグレーション](#8-step-6-dbマイグレーション)
-9. [STEP 7: 動作確認](#9-step-7-動作確認)
-10. [運用コマンド集](#10-運用コマンド集)
-11. [トラブルシューティング](#11-トラブルシューティング)
+5. [STEP 2.5: 開発環境DBからのデータエクスポート](#5-step-25-開発環境dbからのデータエクスポート)
+6. [STEP 3: SSL証明書の準備](#6-step-3-ssl証明書の準備)
+7. [STEP 4: ファイルのサーバ転送](#7-step-4-ファイルのサーバ転送)
+8. [STEP 5: デプロイ先サーバでの起動作業](#8-step-5-デプロイ先サーバでの起動作業)
+9. [STEP 6: DBセットアップ（スキーマ＋設定データ移行）](#9-step-6-dbセットアップスキーマ設定データ移行)
+10. [STEP 7: 動作確認](#10-step-7-動作確認)
+11. [運用コマンド集](#11-運用コマンド集)
+12. [トラブルシューティング](#12-トラブルシューティング)
 
 ---
 
@@ -243,7 +244,89 @@ ls -lh dist/mmdpf-backend.tar.gz dist/mmdpf-frontend.tar.gz
 
 ---
 
-## 5. STEP 3: SSL証明書の準備
+## 5. STEP 2.5: 開発環境DBからのデータエクスポート
+
+開発環境の DB サーバ（別サーバで稼働中の `mmdpf-postgres` コンテナ）から、スキーマと設定データをダンプして開発機へ転送します。
+
+> **移行対象**: スキーマ（テーブル定義・インデックス等）＋設定データ（組織・ユーザー・ロール・部門等のマスターデータ）
+> **移行対象外**: 実験データ・ファイルメタデータ・ログ等の運用データ
+
+### 設定データ対象テーブル
+
+以下のテーブルを移行対象とします。プロジェクト構成に応じて適宜追加・除外してください。
+
+| テーブル名 | 内容 |
+|---|---|
+| `organization` | 組織情報 |
+| `department` | 部門情報 |
+| `role` | ロール定義 |
+| `role_permission` | ロール権限設定 |
+| `user_account` | ユーザーアカウント |
+| `user_role` | ユーザーとロールの紐付け |
+
+### 手順1: 開発環境DBサーバへSSH接続（開発機側で実行）
+
+```bash
+# 開発環境DBサーバにSSH接続
+ssh user@dev-db-server
+```
+
+### 手順2: スキーマのみダンプ（開発環境DBサーバで実行）
+
+```bash
+# スキーマのみダンプ（--schema-only でデータを含めない）
+docker exec mmdpf-postgres pg_dump \
+  -U mmdpf_user \
+  --schema-only \
+  --no-owner \
+  --no-acl \
+  mmdpf_db \
+  > ~/mmdpf-schema.sql
+
+# ファイル確認
+ls -lh ~/mmdpf-schema.sql
+```
+
+### 手順3: 設定データのみダンプ（開発環境DBサーバで実行）
+
+```bash
+# 設定データ対象テーブルを --table オプションで指定してダンプ
+docker exec mmdpf-postgres pg_dump \
+  -U mmdpf_user \
+  --data-only \
+  --no-owner \
+  --no-acl \
+  --disable-triggers \
+  --table=organization \
+  --table=department \
+  --table=role \
+  --table=role_permission \
+  --table=user_account \
+  --table=user_role \
+  mmdpf_db \
+  > ~/mmdpf-config-data.sql
+
+# ファイル確認
+ls -lh ~/mmdpf-config-data.sql
+```
+
+> **補足**: 移行するテーブルを追加・変更する場合は `--table=<テーブル名>` を追記・削除してください。
+
+### 手順4: ダンプファイルを開発機へ転送（開発機側で実行）
+
+```bash
+# 開発環境DBサーバからダンプファイルを取得
+mkdir -p dist
+scp user@dev-db-server:~/mmdpf-schema.sql dist/mmdpf-schema.sql
+scp user@dev-db-server:~/mmdpf-config-data.sql dist/mmdpf-config-data.sql
+
+# 転送確認
+ls -lh dist/mmdpf-schema.sql dist/mmdpf-config-data.sql
+```
+
+---
+
+## 6. STEP 3: SSL証明書の準備
 
 ### CA証明書の生成（初回のみ）
 
@@ -286,7 +369,7 @@ backend/certs/
 
 ---
 
-## 6. STEP 4: ファイルのサーバ転送
+## 7. STEP 4: ファイルのサーバ転送
 
 開発機から、デプロイ先サーバへ必要なファイルを転送します。
 
@@ -363,6 +446,10 @@ scp -r backend/certs/ \
 # ⑥ マイグレーション SQL を転送
 scp -r backend/migrations/ \
   ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/backend/
+
+# ⑦ DB ダンプファイルを転送（STEP 2.5 で作成したファイル）
+scp dist/mmdpf-schema.sql dist/mmdpf-config-data.sql \
+  ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/
 ```
 
 ### 転送後のディレクトリ構成確認（デプロイ先サーバ）
@@ -396,7 +483,7 @@ tree -L 3
 
 ---
 
-## 7. STEP 5: デプロイ先サーバでの起動作業
+## 8. STEP 5: デプロイ先サーバでの起動作業
 
 デプロイ先サーバにログインして作業します。
 
@@ -442,41 +529,86 @@ watch docker compose -f docker-compose.prod.yml --profile onprem ps
 
 ---
 
-## 8. STEP 6: DBマイグレーション
+## 9. STEP 6: DBセットアップ（スキーマ＋設定データ移行）
 
-### マイグレーションの実行
+デプロイ先サーバで PostgreSQL にスキーマを作成し、設定データを投入します。
+
+> **前提**: STEP 5 で `mmdpf-postgres` コンテナが healthy 状態で起動していること
+
+### 手順1: スキーマの適用（デプロイ先サーバで実行）
 
 ```bash
 cd ~/mmdpf
 
-# マイグレーションファイル一覧を確認
-ls -la backend/migrations/*.sql
+# スキーマを適用（テーブル・インデックス・制約を作成）
+docker exec -i mmdpf-postgres psql \
+  -U mmdpf_user \
+  -d mmdpf_db \
+  < mmdpf-schema.sql
 
-# 各マイグレーション SQL を順番に適用
+echo "✅ スキーマ適用完了"
+```
+
+### 手順2: テーブル作成の確認
+
+```bash
+# テーブル一覧を確認（主要テーブルが存在すること）
+docker exec -it mmdpf-postgres psql \
+  -U mmdpf_user \
+  -d mmdpf_db \
+  -c "\dt"
+```
+
+### 手順3: 設定データの投入（デプロイ先サーバで実行）
+
+```bash
+# 設定データを投入（organization, department, role 等）
+docker exec -i mmdpf-postgres psql \
+  -U mmdpf_user \
+  -d mmdpf_db \
+  < mmdpf-config-data.sql
+
+echo "✅ 設定データ投入完了"
+```
+
+### 手順4: データ投入の確認
+
+```bash
+# 組織データの確認
+docker exec -it mmdpf-postgres psql \
+  -U mmdpf_user \
+  -d mmdpf_db \
+  -c "SELECT organization_id, organization_name FROM organization;"
+
+# ユーザーアカウントの確認
+docker exec -it mmdpf-postgres psql \
+  -U mmdpf_user \
+  -d mmdpf_db \
+  -c "SELECT user_id, login_id, user_name FROM user_account LIMIT 10;"
+```
+
+### 手順5: マイグレーション差分の適用（必要な場合のみ）
+
+開発環境のスキーマダンプに含まれていない最新のマイグレーションがある場合は追加で適用します。
+
+```bash
+# 開発環境のスキーマダンプ後に追加されたマイグレーションファイルがあれば適用
 # ファイル名の日付順（古い順）に実行すること
 
-for sql_file in $(ls backend/migrations/*.sql | sort); do
+for sql_file in $(ls backend/migrations/*.sql | grep -v rollback | sort); do
   echo "Applying: $sql_file"
   docker exec -i mmdpf-postgres psql \
     -U mmdpf_user \
     -d mmdpf_db \
-    < "$sql_file"
-  echo "Done: $sql_file"
+    < "$sql_file" && echo "Done: $sql_file"
 done
 ```
 
-> ⚠️ **注意**: ロールバック用の SQL（`*_rollback.sql`）は適用しないでください。
-
-### マイグレーション適用後の確認
-
-```bash
-# テーブル一覧を確認
-docker exec -it mmdpf-postgres psql -U mmdpf_user -d mmdpf_db -c "\dt"
-```
+> ⚠️ **注意**: ロールバック用の SQL（`*_rollback.sql`）は適用しないでください。スキーマダンプ適用済みのテーブルに対して再度 CREATE TABLE を実行するとエラーになるため、既に存在するテーブルのマイグレーションはスキップしてください。
 
 ---
 
-## 9. STEP 7: 動作確認
+## 10. STEP 7: 動作確認
 
 ### 全サービスの起動
 
@@ -526,7 +658,7 @@ docker logs mmdpf-postgres -f
 
 ---
 
-## 10. 運用コマンド集
+## 11. 運用コマンド集
 
 ### 停止・起動・再起動
 
@@ -587,7 +719,7 @@ docker system df
 
 ---
 
-## 11. トラブルシューティング
+## 12. トラブルシューティング
 
 ### コンテナが起動しない
 
@@ -662,6 +794,8 @@ sudo systemctl stop apache2  # Apache が競合している場合など
 - [ ] `backend/certs/server/server.crt`
 - [ ] `backend/certs/server/server.key`
 - [ ] `backend/migrations/*.sql`（全マイグレーションファイル）
+- [ ] `mmdpf-schema.sql`（DB スキーマダンプ）
+- [ ] `mmdpf-config-data.sql`（設定データダンプ）
 
 ---
 
