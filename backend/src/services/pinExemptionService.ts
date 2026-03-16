@@ -29,12 +29,12 @@ export class PinExemptionService {
    * 7. 経過日数 <= 免除期間 → 免除適用
    * 8. 経過日数 > 免除期間 → 二段階認証必要
    * 
-   * @param userName - ユーザー名（organization_user.user_name）
+   * @param userId - ユーザーID（organization_user.user_id）
    * @param organizationId - 組織ID
    * @returns 免除判定結果
    */
   async isExemptionApplicable(
-    userName: string,
+    userId: string,
     organizationId: string
   ): Promise<Result<PinExemptionCheck>> {
     try {
@@ -79,7 +79,7 @@ export class PinExemptionService {
       // 3. ユーザーの最終二段階認証日時を取得
       const lastAuthLogin = await loginHistoryRepository.getLastTwoFactorAuthLogin(
         this.pool,
-        userName,
+        userId,
         organizationId
       );
 

@@ -103,7 +103,7 @@ export class AuthService {
       if (!user.is_active) {
         await loginHistoryRepository.recordLogin(
           this.pool,
-          user.user_name,
+          user.user_id,
           user.organization_id,
           false,
           'Account disabled',
@@ -132,7 +132,7 @@ export class AuthService {
       if (!passwordResult.success || !passwordResult.data) {
         await loginHistoryRepository.recordLogin(
           this.pool,
-          user.user_name,
+          user.user_id,
           user.organization_id,
           false,
           'Invalid password',
@@ -151,7 +151,7 @@ export class AuthService {
 
       // 4. PIN免除判定
       const exemptionCheck = await this.pinExemptionService.isExemptionApplicable(
-        user.user_name,
+        user.user_id,
         user.organization_id
       );
 
@@ -208,7 +208,7 @@ export class AuthService {
       // 6. ログイン成功履歴記録
       await loginHistoryRepository.recordLogin(
         this.pool,
-        user.user_name,
+        user.user_id,
         user.organization_id,
         true,
         null,
@@ -564,7 +564,7 @@ export class AuthService {
       // 9. ログイン履歴を記録（二段階認証実施）
       await loginHistoryRepository.recordLogin(
         this.pool,
-        userInfo.username,
+        userInfo.id,
         userInfo.organizationId,
         true,
         null,
