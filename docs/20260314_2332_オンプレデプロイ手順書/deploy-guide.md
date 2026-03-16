@@ -153,24 +153,39 @@ cd ~/mmdpf
 
 開発機（ビルドが行える環境）で以下を実施します。
 
-### Docker イメージのビルド & エクスポート（スクリプト自動化）
+### Docker イメージのビルド & エクスポート
 
-以下のスクリプト1つで、ビルドからエクスポートまでを自動的に行います。
+#### npm scripts（推奨）
+
+プロジェクトルートで以下の npm コマンドを実行します。
 
 ```bash
 # プロジェクトルートに移動
 cd /path/to/mmdpf
 
-# スクリプトに実行権限を付与（初回のみ）
-chmod +x scripts/build-and-export.sh
-
-# ビルド & エクスポートを実行
-./scripts/build-and-export.sh
+# ビルド & エクスポートを実行（backend + frontend 両方）
+npm run export
 ```
 
-スクリプトは以下を自動で行います：
+以下のコマンドで対象を絞ることもできます：
 
-- Docker の存在確認（前提条件チェック）
+| コマンド | 説明 |
+|---|---|
+| `npm run export` | backend と frontend 両方をビルド & エクスポート |
+| `npm run export:backend` | backend のみビルド & エクスポート |
+| `npm run export:frontend` | frontend のみビルド & エクスポート |
+| `npm run export:pull` | ベースイメージを pull してからビルド & エクスポート |
+
+```bash
+# 例: backend のみ再ビルドしてエクスポート
+npm run export:backend
+
+# 例: ベースイメージを最新化してからビルド
+npm run export:pull
+```
+
+各コマンドは以下を自動で行います：
+
 - backend / frontend イメージのビルド
 - `dist/` ディレクトリへの tar.gz エクスポート
 - 生成ファイルのサイズ確認
@@ -181,6 +196,21 @@ chmod +x scripts/build-and-export.sh
 dist/
 ├── mmdpf-backend.tar.gz
 └── mmdpf-frontend.tar.gz
+```
+
+---
+
+<details>
+<summary>📄 シェルスクリプトを使う場合（オプション）</summary>
+
+`--output` で出力先ディレクトリを自由に指定したい場合など、よりきめ細かい制御が必要なときはシェルスクリプトを使用できます。
+
+```bash
+# スクリプトに実行権限を付与（初回のみ）
+chmod +x scripts/build-and-export.sh
+
+# ビルド & エクスポートを実行
+./scripts/build-and-export.sh
 ```
 
 **オプション：**
@@ -202,6 +232,8 @@ dist/
 # 例: 出力先を指定してエクスポート
 ./scripts/build-and-export.sh --output /tmp/mmdpf-export
 ```
+
+</details>
 
 ---
 
