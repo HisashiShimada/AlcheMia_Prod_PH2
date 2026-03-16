@@ -261,8 +261,10 @@ ls -lh dist/mmdpf-backend.tar.gz dist/mmdpf-frontend.tar.gz
 | `department` | 部門情報 |
 | `role` | ロール定義 |
 | `role_permission` | ロール権限設定 |
-| `user_account` | ユーザーアカウント |
 | `user_role` | ユーザーとロールの紐付け |
+| `code_master` | コードマスター |
+| `organization_user` | 組織とユーザーの紐付け |
+| `user_authentication` | ユーザー認証情報 |
 
 ### 手順1: 開発環境DBサーバへSSH接続（開発機側で実行）
 
@@ -301,8 +303,10 @@ docker exec mmdpf-postgres pg_dump \
   --table=department \
   --table=role \
   --table=role_permission \
-  --table=user_account \
   --table=user_role \
+  --table=code_master \
+  --table=organization_user \
+  --table=user_authentication \
   mmdpf_db \
   > ~/mmdpf-config-data.sql
 
@@ -580,11 +584,17 @@ docker exec -it mmdpf-postgres psql \
   -d mmdpf_db \
   -c "SELECT organization_id, organization_name FROM organization;"
 
-# ユーザーアカウントの確認
+# ロールデータの確認
 docker exec -it mmdpf-postgres psql \
   -U mmdpf_user \
   -d mmdpf_db \
-  -c "SELECT user_id, login_id, user_name FROM user_account LIMIT 10;"
+  -c "SELECT role_id, role_name FROM role LIMIT 10;"
+
+# ユーザー認証情報の確認
+docker exec -it mmdpf-postgres psql \
+  -U mmdpf_user \
+  -d mmdpf_db \
+  -c "SELECT user_id, login_id FROM user_authentication LIMIT 10;"
 ```
 
 ### 手順5: マイグレーション差分の適用（必要な場合のみ）
