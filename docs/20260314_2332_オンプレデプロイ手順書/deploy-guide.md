@@ -455,6 +455,28 @@ openssl rand -hex 64
 
 すべてのファイルを1つの圧縮ファイル（`dist/mmdpf-deploy.tar.gz`）にまとめます。
 
+#### npm scripts（推奨）
+
+```bash
+# プロジェクトルートに移動
+cd /path/to/mmdpf
+
+# パッケージを作成
+npm run package
+```
+
+コマンドは以下を自動で行います：
+
+- 前提ファイルの存在確認（不足があればエラーで停止）
+- 必要なファイルをデプロイ先と同じディレクトリ構造に整理
+- `.env.deploy` を `.env` にリネームして格納
+- `dist/mmdpf-deploy.tar.gz` に圧縮
+
+---
+
+<details>
+<summary>📄 シェルスクリプトを使う場合（オプション）</summary>
+
 ```bash
 # プロジェクトルートに移動
 cd /path/to/mmdpf
@@ -466,12 +488,9 @@ chmod +x scripts/package-for-deploy.sh
 ./scripts/package-for-deploy.sh
 ```
 
-スクリプトは以下を自動で行います：
+</details>
 
-- 前提ファイルの存在確認（不足があればエラーで停止）
-- 必要なファイルをデプロイ先と同じディレクトリ構造に整理
-- `.env.deploy` を `.env` にリネームして格納
-- `dist/mmdpf-deploy.tar.gz` に圧縮
+---
 
 **パッケージ内のディレクトリ構造（展開後）：**
 
