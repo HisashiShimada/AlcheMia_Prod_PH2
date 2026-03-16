@@ -277,12 +277,12 @@ ssh user@dev-db-server
 
 ```bash
 # スキーマのみダンプ（--schema-only でデータを含めない）
-docker exec mmdpf-postgres pg_dump \
-  -U mmdpf_user \
+docker exec postgres_pgvector pg_dump \
+  -U maiml_user \
   --schema-only \
   --no-owner \
   --no-acl \
-  mmdpf_db \
+  maiml_db \
   > ~/mmdpf-schema.sql
 
 # ファイル確認
@@ -293,8 +293,8 @@ ls -lh ~/mmdpf-schema.sql
 
 ```bash
 # 設定データ対象テーブルを --table オプションで指定してダンプ
-docker exec mmdpf-postgres pg_dump \
-  -U mmdpf_user \
+docker exec postgres_pgvector pg_dump \
+  -U maiml_user \
   --data-only \
   --no-owner \
   --no-acl \
@@ -307,7 +307,7 @@ docker exec mmdpf-postgres pg_dump \
   --table=code_master \
   --table=organization_user \
   --table=user_authentication \
-  mmdpf_db \
+  maiml_db \
   > ~/mmdpf-config-data.sql
 
 # ファイル確認
@@ -551,8 +551,8 @@ cd ~/mmdpf
 
 # スキーマを適用（テーブル・インデックス・制約を作成）
 docker exec -i mmdpf-postgres psql \
-  -U mmdpf_user \
-  -d mmdpf_db \
+  -U maiml_user \
+  -d maiml_db \
   < mmdpf-schema.sql
 
 echo "✅ スキーマ適用完了"
@@ -563,8 +563,8 @@ echo "✅ スキーマ適用完了"
 ```bash
 # テーブル一覧を確認（主要テーブルが存在すること）
 docker exec -it mmdpf-postgres psql \
-  -U mmdpf_user \
-  -d mmdpf_db \
+  -U maiml_user \
+  -d maiml_db \
   -c "\dt"
 ```
 
@@ -573,8 +573,8 @@ docker exec -it mmdpf-postgres psql \
 ```bash
 # 設定データを投入（organization, department, role 等）
 docker exec -i mmdpf-postgres psql \
-  -U mmdpf_user \
-  -d mmdpf_db \
+  -U maiml_user \
+  -d maiml_db \
   < mmdpf-config-data.sql
 
 echo "✅ 設定データ投入完了"
@@ -585,20 +585,20 @@ echo "✅ 設定データ投入完了"
 ```bash
 # 組織データの確認
 docker exec -it mmdpf-postgres psql \
-  -U mmdpf_user \
-  -d mmdpf_db \
+  -U maiml_user \
+  -d maiml_db \
   -c "SELECT organization_id, organization_name FROM organization;"
 
 # ロールデータの確認
 docker exec -it mmdpf-postgres psql \
-  -U mmdpf_user \
-  -d mmdpf_db \
+  -U maiml_user \
+  -d maiml_db \
   -c "SELECT role_id, role_name FROM role LIMIT 10;"
 
 # ユーザー認証情報の確認
 docker exec -it mmdpf-postgres psql \
-  -U mmdpf_user \
-  -d mmdpf_db \
+  -U maiml_user \
+  -d maiml_db \
   -c "SELECT user_id, login_id FROM user_authentication LIMIT 10;"
 ```
 
