@@ -36,7 +36,7 @@ import type {
 } from '../types/api';
 import * as projectRepository from '../repositories/projectRepository';
 import { logger } from '../utils/logger';
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 
 /**
@@ -468,7 +468,6 @@ export class ProgressService {
 
     if (connectedPlaceIds.length > 0) {
       try {
-        const { getPgp } = await import('../database/db');
         const pgp = getPgp();
         const countSql = await loadSqlFile('template_data/countActualByPlaceIds.sql');
         const countRows = await pgp.any<{ template_type: string; count: string }>(
@@ -669,7 +668,6 @@ export class ProgressService {
       // ─────────────────────────────────────────────
       // Step 1: プロジェクト基本情報を DB から取得
       // ─────────────────────────────────────────────
-      const { getPgp } = await import('../database/db');
       const pgp = getPgp();
 
       const projectSql = await loadSqlFile('projects/findWithOwnerAndDept.sql');

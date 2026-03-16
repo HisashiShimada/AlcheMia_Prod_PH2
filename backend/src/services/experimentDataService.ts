@@ -16,6 +16,8 @@ import { MaimlParserTyped } from '../utils/maimlParserTyped';
 import { getUseDeemedProgress } from '../repositories/organizationRepository';
 import { TransitionStatusEnum } from '../types/transitionData';
 import { logger } from '../utils/logger';
+import type { Pool, PoolClient } from 'pg';
+import type { Property, Content } from '../types/maiml-unified';
 
 /**
  * プロジェクト編集不可エラー
@@ -389,12 +391,18 @@ function buildFallbackTemplates(
       if (!template.placeRefs || template.placeRefs.length === 0) continue;
 
       // このテンプレートのプロパティ定義を構築（MAIMLのvalue要素から値を取得）
+      // Property 型の必須フィールド（properties, contents）を空配列で補完
+      // value は Property 型の定義上 undefined 可（null 不可）のため ?? undefined で変換
       const properties = (template.properties || []).map(p => ({
         key: p.key || '',
         xsiType: p.xsiType || 'stringType',
-        value: p.value ?? null,
-        units: p.units || null,
+        value: p.value ?? undefined,
+        units: p.units || undefined,
+        properties: [] as Property[],
+        contents: [] as Content[],
       }));
+
+
 
       const propertySet: PropertySet = {
         templateId: template.id || '',
@@ -457,8 +465,8 @@ async function updateDeemedProgress(
   taskNo: number,
   savedRecords: TemplateDataRow[],
   updatedBy: string,
-  pool: import('pg').Pool,
-  client: import('pg').PoolClient
+  pool: Pool,
+  client: PoolClient
 ): Promise<void> {
   // 1. みなし進捗フラグを確認
   let useDeemedProgress: boolean;

@@ -2,8 +2,9 @@
 
 ## メタデータ
 - **作成日**: 2026-01-27
-- **バージョン**: 3.3.0
-- **最終更新**: 2026-03-02
+- **バージョン**: 3.4.0
+- **最終更新**: 2026-03-16
+
 - **担当**: Development Team
 - **実装状況**: ⏳ 未実装
 
@@ -121,7 +122,8 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 | data | object | ○ | 実験データ（PropertySet形式） | `{ templateId, templateType, properties }` の形式 |
 | data.templateId | string | ○ | テンプレートID | |
 | data.templateType | string | ○ | テンプレート種別 | material, condition, result |
-| data.properties | array | ○ | プロパティ配列 | `[{ key, xsiType, value, units }]` の形式 |
+| data.properties | array | ○ | プロパティ配列 | `[{ key, xsiType, value, units, description?, formatString?, scaleFactor? }]` の形式 |
+
 | comment | string | × | コメント | 最大2000文字 |
 
 > **注意**: `templateType`・`templateId` はトップレベルには含めず、`data` オブジェクト内に含めてください。
@@ -925,7 +927,13 @@ backend/tests/controllers/experimentDataController.test.ts
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 3.4.0 | 2026-03-16 | maimlDataWriter仕様修正に伴うプロパティ形式の更新 | Cline |
+| | | - `data.properties` 要素に `description?`・`formatString?`・`scaleFactor?` フィールドを追加 | |
+| | | - `templateDataRepository.ts` の `PropertySetProperty` を廃止し `Property[]`（maiml-unified）に統一 | |
+| | | - `taskRegistrationService.ts` でプロパティを `{ ...p, value: null }` として保存するよう変更（全フィールド保持） | |
+| | | - `eventLogRepository.ts` の xsi:type 文字列を `xs:string`→`stringType` 等に修正 | |
 | 3.3.0 | 2026-03-02 | 実験データ一括保存API みなし進捗対応 | Cline |
+
 | | | - ビジネスロジック #5 にみなし進捗自動更新仕様を追加 | |
 | | | - `use_deemed_progress = true` の組織でデータ保存時に `transition_data` を自動更新 | |
 | | | - 実績1件以上: IN_PROGRESS (3)、全件完了: COMPLETED (5) | |

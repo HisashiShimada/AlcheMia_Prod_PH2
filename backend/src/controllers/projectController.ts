@@ -12,6 +12,9 @@ import { logError } from '../utils/logger';
 import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse,MaimlPublishRequest,MaimlPublishResponse } from '../types/api';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { enqueuePublish, enqueueUnpublish, getPublishStatus as fetchPublishStatus } from '../services/maimlPublishService';
+import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
+import * as projectRepository from '../repositories/projectRepository';
 
 /**
  * プロジェクト作成エンドポイント
@@ -140,7 +143,6 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
     }
 
     // ── projectName → projectId 解決 ──────────────────────────────
-    const { getPool } = require('../database/db');
     const pool = getPool();
     const projectResult = await pool.query(
       'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2',
@@ -279,7 +281,6 @@ export async function getProjectTasks(req: Request, res: Response): Promise<void
     console.log('[DEBUG] getProjectTasks - Auth OK', { organizationId, projectName });
 
     // projectNameからprojectIdを取得
-    const { getPool } = require('../database/db');
     const pool = getPool();
     const projectQuery = 'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2';
     const projectResult = await pool.query(projectQuery, [organizationId, projectName]);
@@ -640,7 +641,6 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
     console.log('[DEBUG] getProjectFiles - Auth OK', { organizationId, projectName, userId: req.user!.userId });
 
     // projectNameからprojectIdを取得
-    const { getPool } = require('../database/db');
     const pool = getPool();
     const projectQuery = 'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2';
     const projectResult = await pool.query(projectQuery, [organizationId, projectName]);
@@ -853,7 +853,6 @@ export async function requestApproval(req: Request, res: Response): Promise<void
     const { comment } = req.body;
 
     // projectNameからprojectIdを取得（リポジトリ層を使用）
-    const projectRepository = require('../repositories/projectRepository');
     const project = await projectRepository.findProjectIdByName(organizationId, projectName);
     
     if (!project) {
@@ -1152,7 +1151,6 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
     const statusFilter = (req.query.status as string) || 'all';
 
     // プロジェクト存在確認（マルチテナント分離）
-    const { getPool } = require('../database/db');
     const pool = getPool();
     const projectCheckResult = await pool.query(
       'SELECT project_id FROM project WHERE project_id = $1 AND organization_id = $2',
@@ -1172,7 +1170,6 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
     }
 
     // SQLファイルを使ってタスク一覧取得
-    const { loadSqlFile } = require('../sql/loader');
     const sql = await loadSqlFile('tasks/findByProjectMethod.sql');
     const queryResult = await pool.query(sql, [projectId, methodId, organizationId]);
     const rows = queryResult.rows;

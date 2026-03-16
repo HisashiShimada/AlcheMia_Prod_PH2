@@ -58,21 +58,13 @@ function buildCommonTemplateXMLFromTemplate(
     xml += `      <uuid>${generateUUID()}</uuid>\n`;
   }
   
-  // テンプレート継承（templateRef要素）
-  if (template.templateRef) {
-    const templateRefId = `templateRef_${templateId}_${template.templateRef.ref}`;
-    xml += `      <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(template.templateRef.ref)}"/>\n`;
-  }
-  
-  // insertion要素
+  // XSD準拠: insertionType の uri/hash は必須（minOccurs=1）
   if (template.insertion) {
     xml += `      <insertion>\n`;
-    if (template.insertion.uri !== undefined) {
-      xml += `        <uri>${escapeXml(template.insertion.uri || '')}</uri>\n`;
-    }
-    if (template.insertion.hash !== undefined) {
-      xml += `        <hash>${escapeXml(template.insertion.hash.value || '')}</hash>\n`;
-    }
+    // uri は必須（undefinedでも空文字で出力）
+    xml += `        <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
+    // hash は必須（undefinedでも空文字で出力）
+    xml += `        <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
     if (template.insertion.format) {
       xml += `        <format>${escapeXml(template.insertion.format)}</format>\n`;
     }
@@ -91,13 +83,12 @@ function buildCommonTemplateXMLFromTemplate(
   
   // property要素群
   if (template.properties && template.properties.length > 0) {
-    template.properties
-      .forEach((prop: Property) => {
-        xml += buildPropertyXML(prop, 3);
-      });
+    template.properties.forEach((prop: Property) => {
+      xml += buildPropertyXML(prop, 3);
+    });
   }
   
-  // ✅ placeRefsから複数のplaceRefを出力
+  // XSD準拠: placeRef → templateRef の順で出力
   const placeRefs = template.placeRefs || [];
   console.log(`📋 共通テンプレート ${templateId}: placeRefs数 ${placeRefs.length}`, placeRefs);
   
@@ -105,10 +96,15 @@ function buildCommonTemplateXMLFromTemplate(
     const placeRefId = index === 0 
       ? (template.placeRefs[0].id || `${templateId}TL`)
       : `${templateId}TL_ref${index}`;
-    
     xml += `      <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
     console.log(`  ✅ placeRef追加: id="${placeRefId}" ref="${placeRef.ref}"`);
   });
+
+  // XSD準拠: templateRef は placeRef の後に出力
+  if (template.templateRef) {
+    const templateRefId = `templateRef_${templateId}_${template.templateRef.ref}`;
+    xml += `      <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(template.templateRef.ref)}"/>\n`;
+  }
   
   xml += `    </${templateType}>\n`;
   return xml;
@@ -302,11 +298,18 @@ export function convertMultipleMethodsToMaiML(
     }
   }
   
-  // ✅ 共通テンプレートを<protocol>直下に出力（<method>の前）
+  // XSD準拠: protocolType は uuid → method+ → materialTemplate* → conditionTemplate* → resultTemplate* の順
+  // 共通テンプレートは method の後に出力する
+
+  // 各method要素を出力（allTemplatesを渡す）
+  methods.forEach((method: MethodData, index: number) => {
+    maiml += buildMethodXML(method, index, fileName, allTemplates);
+  });
+
+  // 共通テンプレートを method の後に出力
   if (allCommonTemplates.length > 0) {
-    console.log('📋 共通テンプレート出力:', allCommonTemplates.length, '個');
+    console.log('📋 共通テンプレート出力（method後）:', allCommonTemplates.length, '個');
     
-    // タイプ別に分類して出力
     const commonMaterialTemplates = allCommonTemplates.filter(
       (n: Node<NodeData>) => n.data.placeType === 'material'
     );
@@ -317,33 +320,25 @@ export function convertMultipleMethodsToMaiML(
       (n: Node<NodeData>) => n.data.placeType === 'result'
     );
     
-    // materialTemplate
     commonMaterialTemplates.forEach((node: Node<NodeData>) => {
       maiml += buildCommonTemplateXMLFromTemplate(node, 'materialTemplate');
     });
-    
-    // conditionTemplate
     commonConditionTemplates.forEach((node: Node<NodeData>) => {
       maiml += buildCommonTemplateXMLFromTemplate(node, 'conditionTemplate');
     });
-    
-    // resultTemplate
     commonResultTemplates.forEach((node: Node<NodeData>) => {
       maiml += buildCommonTemplateXMLFromTemplate(node, 'resultTemplate');
     });
   }
   
-  // 各method要素を出力（allTemplatesを渡す）
-  methods.forEach((method: MethodData, index: number) => {
-    maiml += buildMethodXML(method, index, fileName, allTemplates);
-  });
-  
   maiml += `  </protocol>\n`;
   
-  // data/eventLog要素
+  // XSD準拠: data/eventLog は globalObjectContentGroup により uuid が必須
   maiml += `  <data id="dataID">\n`;
+  maiml += `    <uuid>${generateUUID()}</uuid>\n`;
   maiml += `  </data>\n`;
   maiml += `  <eventLog id="eventLogID">\n`;
+  maiml += `    <uuid>${generateUUID()}</uuid>\n`;
   maiml += `  </eventLog>\n`;
   
   maiml += `</maiml>`;
@@ -616,51 +611,37 @@ function buildTemplateXML(
     templateXml += `          <uuid>${generateUUID()}</uuid>\n`;
   }
   
-  // テンプレート継承（templateRef要素）
-  if (template.templateRef) {
-    const inheritNodeId = template.templateRef.ref;
-    const inheritNode = allNodes.find((p: Node<NodeData>) => p.id === inheritNodeId && p.type !== 'transition');
-    if (inheritNode && inheritNode.data.template) {
-      const inheritTemplateId = inheritNode.data.template.id  || `${prefix}${inheritNode.id}`;
-      const templateRefId = `templateRef_${templateId}`;
-      templateXml += `          <templateRef id="${templateRefId}" ref="${inheritTemplateId}"/>\n`;
-    }
-  }
-  
-  // insertion要素
+  // XSD準拠: insertionType の uri/hash は必須（minOccurs=1）
   if (template.insertion) {
     templateXml += `          <insertion>\n`;
-    if (template.insertion.uri !== undefined) {
-      templateXml += `            <uri>${template.insertion.uri || ''}</uri>\n`;
-    }
-    if (template.insertion.hash !== undefined) {
-      templateXml += `            <hash>${template.insertion.hash.value || ''}</hash>\n`;
-    }
+    // uri は必須（undefinedでも空文字で出力）
+    templateXml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
+    // hash は必須（undefinedでも空文字で出力）
+    templateXml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
     if (template.insertion.format) {
-      templateXml += `            <format>${template.insertion.format}</format>\n`;
+      templateXml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
     }
     templateXml += `          </insertion>\n`;
   }
   
   // name
   if (template.name) {
-    templateXml += `          <name>${template.name}</name>\n`;
+    templateXml += `          <name>${escapeXml(template.name)}</name>\n`;
   }
   
   // description
   if (template.description) {
-    templateXml += `          <description>${template.description}</description>\n`;
+    templateXml += `          <description>${escapeXml(template.description)}</description>\n`;
   }
   
   // property要素群
   if (template.properties && template.properties.length > 0) {
-    template.properties
-      .forEach((prop: Property) => {
-        templateXml += buildPropertyXML(prop, 5);
-      });
+    template.properties.forEach((prop: Property) => {
+      templateXml += buildPropertyXML(prop, 5);
+    });
   }
   
-  // placeRef（複数対応）
+  // XSD準拠: placeRef → templateRef の順で出力
   const placeRefs = template.placeRefs && template.placeRefs.length > 0
     ? template.placeRefs
     : [{ id: '', ref: node.id }];
@@ -671,6 +652,17 @@ function buildTemplateXML(
       : `${templateId}TL_${index}`;
     templateXml += `          <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
   });
+
+  // XSD準拠: templateRef は placeRef の後に出力
+  if (template.templateRef) {
+    const inheritNodeId = template.templateRef.ref;
+    const inheritNode = allNodes.find((p: Node<NodeData>) => p.id === inheritNodeId && p.type !== 'transition');
+    if (inheritNode && inheritNode.data.template) {
+      const inheritTemplateId = inheritNode.data.template.id || `${prefix}${inheritNode.id}`;
+      const templateRefId = `templateRef_${templateId}`;
+      templateXml += `          <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
+    }
+  }
 
   templateXml += `        </${templateType}>\n`;
   
