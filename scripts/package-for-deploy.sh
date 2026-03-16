@@ -110,6 +110,7 @@ echo ""
 info "ディレクトリ構造を構築中..."
 
 mkdir -p "${TMP_PKG}"
+mkdir -p "${TMP_PKG}/scripts"
 mkdir -p "${TMP_PKG}/config/nginx"
 mkdir -p "${TMP_PKG}/backend/certs/ca"
 mkdir -p "${TMP_PKG}/backend/certs/server"
@@ -145,6 +146,11 @@ success "コピー: backend/certs/"
 # ⑦ マイグレーション SQL（ロールバック用は除外）
 cp backend/migrations/*.sql "${TMP_PKG}/backend/migrations/" 2>/dev/null || true
 success "コピー: backend/migrations/*.sql"
+
+# ⑧ 起動スクリプト
+cp scripts/start-onprem.sh "${TMP_PKG}/scripts/start-onprem.sh"
+chmod +x "${TMP_PKG}/scripts/start-onprem.sh"
+success "コピー: scripts/start-onprem.sh"
 
 # =============================================================================
 # tar.gz に圧縮

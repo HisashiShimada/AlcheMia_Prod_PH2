@@ -451,6 +451,8 @@ chmod +x scripts/package-for-deploy.sh
 ├── mmdpf-frontend.tar.gz
 ├── mmdpf-schema.sql
 ├── mmdpf-config-data.sql
+├── scripts/
+│   └── start-onprem.sh        ← STEP 5 を一括実行するスクリプト（オプション）
 ├── config/
 │   └── nginx/
 │       ├── nginx.prod.conf
@@ -500,6 +502,13 @@ tree -L 3
 ssh user@target-server-ip
 cd ~/mmdpf
 ```
+
+> 💡 **スクリプトで一括実行（オプション）**
+> 以下の手順（イメージロード・ログディレクトリ作成・コンテナ起動）を1コマンドで実行したい場合は、起動スクリプトを使用できます。
+> ```bash
+> bash scripts/start-onprem.sh
+> ```
+> 手順を1つずつ確認しながら実行する場合は、以下の個別コマンドを使用してください。
 
 ### Docker イメージのロード
 
