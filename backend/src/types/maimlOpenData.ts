@@ -1,316 +1,394 @@
 /**
  * MaiML OpenData Pipeline 型定義
  *
- * @description MaiML公開処理パイプラインで使用するDB・API関連の型定義
- * @reference docs/MaiML_OpenData_Pipeline/MaiML_OpenData_Pipeline_BasicDesign_v1.3.md
+ * @description MaiML公開処理パイプライン（maiml2Excel方式）で使用するDB・API・Worker関連の型定義
+ * @reference docs/MaiML_OpenData_Pipeline/db.md
+ * @reference docs/MaiML_OpenData_Pipeline/spec.md
  */
 
 // ============================================================
-// DBテーブル型定義
+// DB テーブル型定義（public スキーマ）
 // ============================================================
 
 /**
- * maiml_asset テーブルの型定義
+ * public.maiml_publish_job テーブルの型定義
  *
  * @remarks
- * DDL: backend/migrations/20260310_create_maiml_opendata_tables.sql
+ * DDL: backend/migrations/20260312_create_maiml_opendata_new_schema.sql
+ * 主キー: job_id (UUID)
+ */
+export interface MaimlPublishJob {
+  job_id?:         string;
+  job_type:        'publish' | 'unpublish';
+  organization_id: string;
+  project_name:    string;
+  asset_id?:       bigint | null;
+  status:          'pending' | 'running' | 'done' | 'error';
+  triggered_by?:   string | null;
+  trigger_type:    'manual' | 'schedule';
+  error_message?:  string | null;
+  started_at?:     Date | null;
+  finished_at?:    Date | null;
+  created_at?:     Date;
+}
+
+// ============================================================
+// DB テーブル型定義（組織スキーマ）
+// ============================================================
+
+/**
+ * {org_schema}.maiml_asset テーブルの型定義
+ *
+ * @remarks
+ * DDL: backend/migrations/20260312_create_org_schema_tables.sql
  * 主キー: asset_id (BIGSERIAL)
- * TODO: v1.3以前の設計書確認後、スキーマを完全定義する
  */
 export interface MaimlAsset {
-  asset_id?: number;
-  organization_id: string;
-  file_uri: string;
-  doc_name?: string | null;
-  template_only: boolean;
-  created_at?: Date;
-  updated_at?: Date;
+  asset_id?:        bigint;
+  file_uri:         string;
+  doc_name?:        string | null;
+  retention_until:  Date;
+  created_at?:      Date;
+  updated_at?:      Date;
 }
 
 /**
- * maiml_publish_registry テーブルの型定義
+ * {org_schema}.maiml_instance テーブルの型定義
  *
  * @remarks
- * DDL: backend/migrations/20260310_create_maiml_opendata_tables.sql
- * 主キー: registry_id (BIGSERIAL)
- * TODO: v1.3以前の設計書確認後、スキーマを完全定義する
+ * DDL: backend/migrations/20260312_create_org_schema_tables.sql
  */
-export interface MaimlPublishRegistry {
-  registry_id?: number;
-  asset_id: number;
-  file_uri: string;
-  /** TODO: status の遷移ルールを確定させる */
-  status: 'requested' | 'processing' | 'published' | 'unpublished';
-  template_only: boolean;
-  store_raw_series: boolean;
-  store_raw_raster: boolean;
-  raw_chunk_size: number;
-  raw_compression: string;
-  keep_raw_on_unpublish: boolean;
-  retention_until?: Date | null;
-  created_at?: Date;
-  updated_at?: Date;
+export interface MaimlInstance {
+  instance_id?:      bigint;
+  asset_id:          bigint;
+  instance_type:     'result' | 'material' | 'condition';
+  instance_key:      string;
+  template_ref?:     string | null;
+  instance_uuid?:    string | null;
+  instance_name?:    string | null;
+  instance_line_no?: number | null;
 }
 
 /**
- * maiml_condition_kv テーブルの型定義
+ * {org_schema}.maiml_element テーブルの型定義
  *
  * @remarks
- * DDL: BasicDesign v1.3 § 4.1
+ * DDL: backend/migrations/20260312_create_org_schema_tables.sql
  */
-export interface MaimlConditionKv {
-  asset_id: number;
-  template_id?: string | null;
-  instruction_id?: string | null;
-  source_section: string;
-  path: string;
-  key: string;
-  idx: number;
-  value_text?: string | null;
-  value_num?: number | null;
-  unit?: string | null;
-  value_type?: string | null;
-  format_string?: string | null;
-  scale_factor?: number | null;
+export interface MaimlElement {
+  element_id?:         bigint;
+  instance_id:         bigint;
+  parent_element_id?:  bigint | null;
+  hierarchy:           string;
+  element_type:        string;
+  description?:        string | null;
+  element_data?:       string | null;
+  hash_method?:        string | null;
+  xsi_type?:           string | null;
+  key?:                string | null;
+  format_string?:      string | null;
+  units?:              string | null;
+  scale_factor?:       number | null;
+  axis?:               string | null;
+  size_value?:         number | null;
+  element_id_attr?:    string | null;
+  element_ref?:        string | null;
+  maiml_line_no?:      number | null;
 }
 
 /**
- * maiml_material_kv テーブルの型定義
+ * {org_schema}.maiml_element_value テーブルの型定義
  *
  * @remarks
- * DDL: BasicDesign v1.3 § 4.2
+ * DDL: backend/migrations/20260312_create_org_schema_tables.sql
  */
-export interface MaimlMaterialKv {
-  asset_id: number;
-  template_id?: string | null;
-  instruction_id?: string | null;
-  source_section: string;
-  path: string;
-  key: string;
-  idx: number;
-  value_text?: string | null;
-  value_num?: number | null;
-  unit?: string | null;
-  value_type?: string | null;
-  format_string?: string | null;
-  scale_factor?: number | null;
+export interface MaimlElementValue {
+  value_id?:    bigint;
+  element_id:   bigint;
+  value_idx:    number;
+  value?:       string | null;
+  value_array?: string[] | null;
 }
 
 /**
- * series_type の列挙型
+ * {org_schema}.maiml_insertion テーブルの型定義
  *
  * @remarks
- * TODO: key属性の実値を含むMaiMLサンプル（クロマトグラフィー系）入手後、
- *       TIC / SPECTRUM_TOTAL の判定ロジックを確定させる
+ * DDL: backend/migrations/20260312_create_org_schema_tables.sql
  */
-export type SeriesType = 'TIC' | 'SPECTRUM_TOTAL' | 'OTHER';
-
-/**
- * プレビューモードの列挙型
- */
-export type PreviewMode = 'uniform' | 'maxhold' | 'mmr';
-
-/**
- * maiml_series_preview テーブルの型定義
- *
- * @remarks
- * DDL: BasicDesign v1.3 § 5.4
- */
-export interface MaimlSeriesPreview {
-  preview_id?: number;
-  asset_id: number;
-  instruction_id?: string | null;
-  template_id?: string | null;
-  result_id?: string | null;
-  result_name?: string | null;
-  content_id?: string | null;
-  content_size?: number | null;
-  series_type: SeriesType;
-  x_label: string;
-  y_label: string;
-  mode: PreviewMode;
-  params: Record<string, unknown>;
-  original_points: number;
-  preview_points: number;
-  x: number[];
-  y: number[];
-  x_min?: number | null;
-  x_max?: number | null;
-  y_min?: number | null;
-  y_max?: number | null;
-  quality?: PreviewQuality | null;
-  created_at?: Date;
+export interface MaimlInsertion {
+  insertion_id?:  bigint;
+  instance_id:    bigint;
+  uri:            string;
+  hash_value?:    string | null;
+  hash_method?:   string | null;
+  file_uuid?:     string | null;
+  mime_format?:   string | null;
+  maiml_line_no?: number | null;
 }
 
 /**
- * プレビュー品質指標
+ * {org_schema}.maiml_template テーブルの型定義
  *
  * @remarks
- * BasicDesign v1.3 § 5.3
+ * DDL: backend/migrations/20260312_create_org_schema_tables.sql
  */
-export interface PreviewQuality {
-  mae?: number;
-  mape?: number;
-  peak_recall?: number;
-  area_ratio?: number;
+export interface MaimlTemplate {
+  template_id?:      bigint;
+  asset_id:          bigint;
+  template_type:     'result' | 'material' | 'condition';
+  template_key:      string;
+  template_uuid?:    string | null;
+  template_name?:    string | null;
+  template_line_no?: number | null;
 }
 
 /**
- * maiml_series_raw_header テーブルの型定義
+ * {org_schema}.maiml_template_element テーブルの型定義
  *
  * @remarks
- * DDL: BasicDesign v1.3 § 6.1
+ * DDL: backend/migrations/20260312_create_org_schema_tables.sql
  */
-export interface MaimlSeriesRawHeader {
-  raw_id?: number;
-  asset_id: number;
-  instruction_id?: string | null;
-  template_id?: string | null;
-  result_id?: string | null;
-  result_name?: string | null;
-  content_id: string;
-  content_size?: number | null;
-  x_label?: string | null;
-  y_label?: string | null;
-  x_unit?: string | null;
-  y_unit?: string | null;
-  points_total: number;
-  chunk_count: number;
-  storage_format: 'array' | 'binary';
-  compression: string;
-  checksum_sha256?: string | null;
-  created_at?: Date;
+export interface MaimlTemplateElement {
+  element_id?:         bigint;
+  template_id:         bigint;
+  parent_element_id?:  bigint | null;
+  hierarchy:           string;
+  element_type:        string;
+  description?:        string | null;
+  element_data?:       string | null;
+  hash_method?:        string | null;
+  xsi_type?:           string | null;
+  key?:                string | null;
+  format_string?:      string | null;
+  units?:              string | null;
+  scale_factor?:       number | null;
+  axis?:               string | null;
+  size_value?:         number | null;
+  element_id_attr?:    string | null;
+  element_ref?:        string | null;
+  maiml_line_no?:      number | null;
 }
 
 /**
- * maiml_series_raw_chunk テーブルの型定義（Array方式）
+ * {org_schema}.maiml_template_element_value テーブルの型定義
  *
  * @remarks
- * DDL: BasicDesign v1.3 § 6.2
+ * DDL: backend/migrations/20260312_create_org_schema_tables.sql
  */
-export interface MaimlSeriesRawChunk {
-  raw_id: number;
-  chunk_index: number;
-  point_offset: number;
-  point_count: number;
-  x_chunk: number[];
-  y_chunk: number[];
+export interface MaimlTemplateElementValue {
+  value_id?:    bigint;
+  element_id:   bigint;
+  value_idx:    number;
+  value?:       string | null;
+  value_array?: string[] | null;
+}
+
+/**
+ * {org_schema}.maiml_template_insertion テーブルの型定義
+ *
+ * @remarks
+ * DDL: backend/migrations/20260312_create_org_schema_tables.sql
+ */
+export interface MaimlTemplateInsertion {
+  insertion_id?:  bigint;
+  template_id:    bigint;
+  uri:            string;
+  hash_value?:    string | null;
+  hash_method?:   string | null;
+  file_uuid?:     string | null;
+  mime_format?:   string | null;
+  maiml_line_no?: number | null;
 }
 
 // ============================================================
-// API リクエスト / レスポンス型定義
+// bullmq Worker ペイロード型定義
 // ============================================================
 
 /**
- * 公開リクエスト
+ * 公開ジョブ（bullmq）のペイロード型
  */
-export interface PublishRequest {
-  /** テンプレートのみ公開するか（値なし）。デフォルト: false */
-  template_only?: boolean;
-  /** 生データを保存するか。デフォルト: false */
-  store_raw_series?: boolean;
-  /** ラスタデータを保存するか。デフォルト: false */
-  store_raw_raster?: boolean;
-  /** チャンクサイズ（点数）。デフォルト: 65536 */
-  raw_chunk_size?: number;
-  /** 圧縮方式。デフォルト: 'zstd' */
-  raw_compression?: string;
-  /** 非公開時に生データを残すか。デフォルト: false */
-  keep_raw_on_unpublish?: boolean;
-  /** 公開期限（ISO 8601形式）。省略時は無期限 */
-  retention_until?: string | null;
-  /**
-   * プレビュー生成モード。デフォルト: 'uniform'
-   * TODO: デフォルトモードを確定させる
-   */
-  preview_mode?: PreviewMode;
+export interface PublishJobData {
+  jobId:          string;
+  organizationId: string;
+  projectName:    string;
+  fileUri:        string;
+  userId?:        string | null;
 }
 
 /**
- * 非公開リクエスト
+ * 非公開ジョブ（bullmq）のペイロード型
  */
-export interface UnpublishRequest {
-  /**
-   * 非公開モード
-   * - keep_meta: 代表メタデータを残す（デフォルト）
-   * - full_delete: 完全削除
-   */
-  mode?: 'keep_meta' | 'full_delete';
+export interface UnpublishJobData {
+  jobId:          string;
+  organizationId: string;
+  projectName:    string;
+  assetId:        bigint;
+  triggerType:    'manual' | 'schedule';
+  userId?:        string | null;
 }
 
+// ============================================================
+// API レスポンス型定義
+// ============================================================
+
 /**
- * 公開レスポンス
+ * 公開・非公開 API の 202 レスポンス
  */
-export interface PublishResponse {
-  asset_id: number;
-  registry_id: number;
-  status: MaimlPublishRegistry['status'];
-  doc_name: string | null;
-  file_uri: string;
-  template_only: boolean;
-  store_raw_series: boolean;
+export interface PublishJobResponse {
+  job_id:  string;
+  status:  'pending';
   message: string;
 }
 
 /**
- * 公開ステータス取得レスポンス
+ * 公開ステータス取得 API のレスポンス
  */
 export interface PublishStatusResponse {
-  is_published: boolean;
-  asset_id: number | null;
-  registry_id: number | null;
-  status: MaimlPublishRegistry['status'] | null;
-  doc_name: string | null;
-  template_only: boolean | null;
-  store_raw_series: boolean | null;
-  retention_until: Date | null;
-  published_at: Date | null;
+  job_id?:      string | null;
+  job_type?:    'publish' | 'unpublish' | null;
+  status?:      'pending' | 'running' | 'done' | 'error' | null;
+  asset_id?:    bigint | null;
+  project_name: string;
+  started_at?:  Date | null;
+  finished_at?: Date | null;
+  error_message?: string | null;
 }
 
 // ============================================================
-// 内部処理用型定義
+// ingest パーサー結果型定義
 // ============================================================
 
 /**
- * KV抽出の入力コンテキスト
+ * maimlIngestParserService.parseForIngest() の返り値
+ * MaimlParserTyped で解析した MaimlRoot から各 DB テーブル用データにマッピングした結果
  */
-export interface KvExtractContext {
-  asset_id: number;
-  /** 現在のinstruction要素のid属性 */
-  current_instruction_id: string | null;
-  /** 現在のtemplate要素のid属性 */
-  current_template_id: string | null;
-  /** 現在のsource_section（conditionTemplate / condition 等） */
-  source_section: string;
+export interface ParsedMaimlData {
+  docName:                 string | null;
+  instances:               MaimlInstanceInput[];
+  elements:                MaimlElementInput[];
+  elementValues:           MaimlElementValueInput[];
+  insertions:              MaimlInsertionInput[];
+  templates:               MaimlTemplateInput[];
+  templateElements:        MaimlTemplateElementInput[];
+  templateElementValues:   MaimlTemplateElementValueInput[];
+  templateInsertions:      MaimlTemplateInsertionInput[];
 }
 
 /**
- * seriesデータ（XML解析結果）
+ * asset_id 未確定状態の maiml_instance 挿入データ
  */
-export interface ParsedSeries {
-  instruction_id: string | null;
-  template_id: string | null;
-  result_id: string | null;
-  result_name: string | null;
-  content_id: string | null;
-  content_size: number | null;
-  x_label: string;
-  y_label: string;
-  x_unit: string | null;
-  y_unit: string | null;
-  x_values: number[];
-  y_values: number[];
+export interface MaimlInstanceInput {
+  instance_type:     'result' | 'material' | 'condition';
+  instance_key:      string;
+  template_ref?:     string | null;
+  instance_uuid?:    string | null;
+  instance_name?:    string | null;
+  instance_line_no?: number | null;
 }
 
 /**
- * Ingest処理の結果サマリー
+ * 挿入前の maiml_element データ（instance_id は後処理で設定）
+ * _tempId は parent_element_id 解決用の仮 ID
  */
-export interface IngestResult {
-  asset_id: number;
-  doc_name: string | null;
-  condition_kv_count: number;
-  material_kv_count: number;
-  preview_count: number;
-  raw_header_count: number;
-  raw_chunk_count: number;
+export interface MaimlElementInput {
+  _tempId:              number;
+  _tempParentId?:       number | null;
+  _instanceKey:         string;
+  hierarchy:            string;
+  element_type:         string;
+  description?:         string | null;
+  element_data?:        string | null;
+  hash_method?:         string | null;
+  xsi_type?:            string | null;
+  key?:                 string | null;
+  format_string?:       string | null;
+  units?:               string | null;
+  scale_factor?:        number | null;
+  axis?:                string | null;
+  size_value?:          number | null;
+  element_id_attr?:     string | null;
+  element_ref?:         string | null;
+  maiml_line_no?:       number | null;
+}
+
+/**
+ * 挿入前の maiml_element_value データ
+ */
+export interface MaimlElementValueInput {
+  _tempElementId: number;
+  value_idx:      number;
+  value?:         string | null;
+  value_array?:   string[] | null;
+}
+
+/**
+ * 挿入前の maiml_insertion データ
+ */
+export interface MaimlInsertionInput {
+  _instanceKey:   string;
+  uri:            string;
+  hash_value?:    string | null;
+  hash_method?:   string | null;
+  file_uuid?:     string | null;
+  mime_format?:   string | null;
+  maiml_line_no?: number | null;
+}
+
+/**
+ * 挿入前の maiml_template データ
+ */
+export interface MaimlTemplateInput {
+  template_type:     'result' | 'material' | 'condition';
+  template_key:      string;
+  template_uuid?:    string | null;
+  template_name?:    string | null;
+  template_line_no?: number | null;
+}
+
+/**
+ * 挿入前の maiml_template_element データ
+ */
+export interface MaimlTemplateElementInput {
+  _tempId:             number;
+  _tempParentId?:      number | null;
+  _templateKey:        string;
+  hierarchy:           string;
+  element_type:        string;
+  description?:        string | null;
+  element_data?:       string | null;
+  hash_method?:        string | null;
+  xsi_type?:           string | null;
+  key?:                string | null;
+  format_string?:      string | null;
+  units?:              string | null;
+  scale_factor?:       number | null;
+  axis?:               string | null;
+  size_value?:         number | null;
+  element_id_attr?:    string | null;
+  element_ref?:        string | null;
+  maiml_line_no?:      number | null;
+}
+
+/**
+ * 挿入前の maiml_template_element_value データ
+ */
+export interface MaimlTemplateElementValueInput {
+  _tempElementId: number;
+  value_idx:      number;
+  value?:         string | null;
+  value_array?:   string[] | null;
+}
+
+/**
+ * 挿入前の maiml_template_insertion データ
+ */
+export interface MaimlTemplateInsertionInput {
+  _templateKey:   string;
+  uri:            string;
+  hash_value?:    string | null;
+  hash_method?:   string | null;
+  file_uuid?:     string | null;
+  mime_format?:   string | null;
+  maiml_line_no?: number | null;
 }

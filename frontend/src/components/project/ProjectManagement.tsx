@@ -31,6 +31,9 @@ import BulkUploadDialog from './BulkUploadDialog';
 import TaskRegistrationTab from './TaskRegistrationTab';
 import InstructionRegistrationTab from './InstructionRegistrationTab';
 import CreateProjectModal, { CreateProjectData } from './CreateProjectModal';
+import MaimlPublishDialog from './MaimlPublishDialog';
+import MaimlUnpublishDialog from './MaimlUnpublishDialog';
+import { usePublishStatusPoller } from '@/hooks/usePublishStatusPoller';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import DraftRestoreDialog from '../viewer/DraftRestoreDialog';
 import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
@@ -51,10 +54,12 @@ import {
   checkinProject,
   completeReviewTasks,
   publishProject,
+  unpublishProject,
+  getPublishStatus,
   type CreateProjectRequest,
   type ApiResponse,
   type ProjectListResponse,
-  type MaimlPublishRequest,
+  type PublishStatusResponse,
 } from '@/services/projectApiService';
 import { AxiosError } from 'axios';
 import type { Project, Task } from '@/types/project';
@@ -155,6 +160,17 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   
   // プロジェクトリロード状態管理
   const [isReloadingProject, setIsReloadingProject] = useState(false);
+
+  // 公開ステータス状態管理
+  const [publishStatus, setPublishStatus] = useState<PublishStatusResponse | null>(null);
+  const [publishStatusLoading, setPublishStatusLoading] = useState(false);
+
+  // 公開/非公開ダイアログ状態
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [unpublishDialogOpen, setUnpublishDialogOpen] = useState(false);
+
+  // ポーリング中フラグ（ボタンにスピナー表示用）
+  const [isPolling, setIsPolling] = useState(false);
 
   // プロジェクト一覧をAPI経由で取得
   const {
@@ -749,32 +765,105 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     }
   }, [selectedProject, onEdit]);
 
-  // 公開ボタンハンドラ
-  const handlePublish = useCallback(async () => {
+  // 選択プロジェクト変更時に公開ステータスを取得
+  useEffect(() => {
+    if (!selectedProject) {
+      setPublishStatus(null);
+      return;
+    }
+
+    const fetchStatus = async () => {
+      setPublishStatusLoading(true);
+      try {
+        const status = await getPublishStatus(selectedProject.name);
+        setPublishStatus(status);
+        console.log('[ProjectManagement] publishStatus:', status);
+      } catch (error) {
+        console.error('[ProjectManagement] getPublishStatus error:', error);
+        setPublishStatus(null);
+      } finally {
+        setPublishStatusLoading(false);
+      }
+    };
+
+    fetchStatus();
+  }, [selectedProject]);
+
+  /**
+   * 現在のプロジェクトが「公開済み」かどうかを判定する
+   * 条件: job_type === 'publish' && status === 'done' && asset_id が存在する
+   */
+  const isPublished = useMemo(() => {
+    if (!publishStatus) return false;
+    return (
+      publishStatus.job_type === 'publish' &&
+      publishStatus.status === 'done' &&
+      publishStatus.asset_id !== null
+    );
+  }, [publishStatus]);
+
+  // 公開完了/非公開完了時にポーリングを停止してステータスを再取得
+  const handlePollingComplete = useCallback(async (status: PublishStatusResponse) => {
+    setIsPolling(false);
+    if (status.status === 'done') {
+      if (status.job_type === 'publish') {
+        message.success(`プロジェクト「${selectedProject?.name}」の公開が完了しました`);
+      } else {
+        message.success(`プロジェクト「${selectedProject?.name}」の非公開が完了しました`);
+      }
+    } else if (status.status === 'error') {
+      message.error(status.error_message ?? '処理に失敗しました');
+    }
+    // ステータスを再取得
+    if (selectedProject) {
+      try {
+        const latest = await getPublishStatus(selectedProject.name);
+        setPublishStatus(latest);
+      } catch {
+        setPublishStatus(null);
+      }
+    }
+  }, [selectedProject]);
+
+  // ポーリングフック
+  const { start: startPoller } = usePublishStatusPoller({
+    projectName: selectedProject?.name ?? '',
+    onComplete: handlePollingComplete,
+    onError: () => {
+      setIsPolling(false);
+      message.error('ステータスの取得に失敗しました');
+    },
+  });
+
+  // 公開ボタンハンドラ → 確認ダイアログを開く
+  const handlePublish = useCallback(() => {
     if (!selectedProject) {
       message.warning('プロジェクトを選択してください');
       return;
     }
-    const request: MaimlPublishRequest = {
-      template_only: false,
-      store_raw_series: true,
-      retention: null,
-      keep_raw_on_unpublish: false,
-    };
-    try {
-      console.log('📢 [ProjectManagement] 公開開始:', selectedProject.name);
-      await publishProject(selectedProject.name, request);
-      message.success(`プロジェクト「${selectedProject.name}」の公開を受け付けました`);
-    } catch (error) {
-      console.error('❌ [ProjectManagement] 公開エラー:', error);
-      if (error instanceof AxiosError && error.response?.data) {
-        const msg = error.response.data.error?.message || '公開処理に失敗しました';
-        message.error(msg);
-      } else {
-        message.error('公開処理に失敗しました');
-      }
-    }
+    setPublishDialogOpen(true);
   }, [selectedProject]);
+
+  // 非公開ボタンハンドラ → 確認ダイアログを開く
+  const handleUnpublish = useCallback(() => {
+    if (!selectedProject) {
+      message.warning('プロジェクトを選択してください');
+      return;
+    }
+    setUnpublishDialogOpen(true);
+  }, [selectedProject]);
+
+  // 公開ダイアログ成功時
+  const handlePublishSuccess = useCallback((_jobId: string) => {
+    setIsPolling(true);
+    startPoller();
+  }, [startPoller]);
+
+  // 非公開ダイアログ成功時
+  const handleUnpublishSuccess = useCallback((_jobId: string) => {
+    setIsPolling(true);
+    startPoller();
+  }, [startPoller]);
 
   // 新規プロジェクト作成モーダルを開く
   const handleOpenCreateModal = useCallback(() => {
@@ -1317,14 +1406,27 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                   >
                     問題確認
                   </Button>
-                  <Button
-                    type="primary"
-                    style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
-                    onClick={handlePublish}
-                    disabled={!selectedProject}
-                  >
-                    {t('projectManagement.publish')}
-                  </Button>
+                  {isPublished ? (
+                    <Button
+                      type="primary"
+                      danger
+                      onClick={handleUnpublish}
+                      loading={publishStatusLoading || isPolling}
+                      disabled={!selectedProject || publishStatusLoading || isPolling}
+                    >
+                      {isPolling ? '処理中...' : (t('projectManagement.unpublish') || '非公開')}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="primary"
+                      style={{ backgroundColor: token.colorInfo, borderColor: token.colorInfo }}
+                      onClick={handlePublish}
+                      loading={publishStatusLoading || isPolling}
+                      disabled={!selectedProject || publishStatusLoading || isPolling}
+                    >
+                      {isPolling ? '処理中...' : t('projectManagement.publish')}
+                    </Button>
+                  )}
                 </Space>
               </Card>
 
@@ -1639,6 +1741,26 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
           projectName={selectedProject.name}
           onClose={handleCloseIssueManagement}
           viewMode={selectedProject.status === 4}
+        />
+      )}
+
+      {/* 公開確認ダイアログ */}
+      {selectedProject && (
+        <MaimlPublishDialog
+          open={publishDialogOpen}
+          projectName={selectedProject.name}
+          onClose={() => setPublishDialogOpen(false)}
+          onSuccess={handlePublishSuccess}
+        />
+      )}
+
+      {/* 非公開確認ダイアログ */}
+      {selectedProject && (
+        <MaimlUnpublishDialog
+          open={unpublishDialogOpen}
+          projectName={selectedProject.name}
+          onClose={() => setUnpublishDialogOpen(false)}
+          onSuccess={handleUnpublishSuccess}
         />
       )}
 

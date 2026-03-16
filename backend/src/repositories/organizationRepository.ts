@@ -4,6 +4,21 @@
  */
 
 import { Pool } from 'pg';
+import { getPool } from '../database/db';
+
+// ============================================================
+// 組織行の型定義
+// ============================================================
+
+export interface OrganizationRow {
+  organization_id:          string;
+  organization_cd:          string;
+  organization_name:        string;
+  is_entry:                 boolean;
+  use_deemed_progress:      boolean;
+  default_retention_days:   number;
+  [key: string]: unknown;
+}
 
 /**
  * 組織の二段階認証要否フラグを取得
@@ -57,4 +72,29 @@ export async function getUseDeemedProgress(
 
   // use_deemed_progressがnullの場合はデフォルトでtrue（みなし進捗あり）
   return result.rows[0].use_deemed_progress ?? true;
+}
+
+/**
+ * 組織 ID で組織レコードを取得する
+ *
+ * @param organizationId - 組織 ID
+ * @returns 組織レコード（存在しない場合は null）
+ */
+export async function findById(organizationId: string): Promise<OrganizationRow | null> {
+  const pool = getPool();
+
+  const query = `
+    SELECT
+      organization_id,
+      organization_cd,
+      organization_name,
+      is_entry,
+      use_deemed_progress,
+      COALESCE(default_retention_days, 365) AS default_retention_days
+    FROM organization
+    WHERE organization_id = $1
+  `;
+
+  const result = await pool.query(query, [organizationId]);
+  return result.rows.length > 0 ? (result.rows[0] as OrganizationRow) : null;
 }

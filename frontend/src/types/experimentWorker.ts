@@ -119,7 +119,11 @@ export interface Property {
   min?: number;
   max?: number;
   nestedProperties?: Property[];
+  description?: string;     // プロパティの説明文（MAIMLの <description> 要素）
+  formatString?: string;    // 数値フォーマット文字列（例: "%.3f"）
+  scaleFactor?: string;     // 単位変換係数
 }
+
 
 // テンプレート定義
 export interface Template {

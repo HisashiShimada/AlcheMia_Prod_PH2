@@ -238,6 +238,10 @@ router.post(
       .optional()
       .isBoolean()
       .withMessage('isActive must be a boolean'),
+    body('defaultRetentionDays')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('defaultRetentionDays must be an integer of 1 or more'),
   ],
   handleValidationErrors,
   organizationController.createOrganization
@@ -284,6 +288,10 @@ router.put(
       .optional()
       .isBoolean()
       .withMessage('isActive must be a boolean'),
+    body('defaultRetentionDays')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('defaultRetentionDays must be an integer of 1 or more'),
   ],
   handleValidationErrors,
   organizationController.updateOrganization

@@ -29,6 +29,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { createApiClient } from '@/utils/authUtils';
 import { formatDateTime } from '@/utils/dateFormatter';
+import { getSystemConfig } from '@/services/systemConfigApiService';
 import { getMenuPermission } from '@/utils/menuPermissions';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -49,6 +50,7 @@ interface OrganizationData {
   contractCapacity: number | null;
   contractedUsers: number | null;
   contractedProjects: number | null;
+  defaultRetentionDays: number;
   updatedAt: string;
 }
 
@@ -88,10 +90,24 @@ export default function OrganizationManagement() {
   const [isDuplicateChecking, setIsDuplicateChecking] = useState(false);
   const [isDuplicate, setIsDuplicate] = useState(false);
   const [organizationCdValue, setOrganizationCdValue] = useState('');
+  const [defaultRetentionDaysDefault, setDefaultRetentionDaysDefault] = useState<number>(30);
 
   useEffect(() => {
     fetchOrganizations();
+    fetchSystemConfig();
   }, []);
+
+  const fetchSystemConfig = async () => {
+    try {
+      const config = await getSystemConfig(['defaultRetentionDays']);
+      if (config.defaultRetentionDays != null) {
+        setDefaultRetentionDaysDefault(config.defaultRetentionDays as number);
+      }
+    } catch (error) {
+      console.error('system-config取得エラー:', error);
+      // フォールバック: デフォルト30を維持
+    }
+  };
 
   const fetchOrganizations = async () => {
     setLoading(true);
@@ -367,6 +383,7 @@ export default function OrganizationManagement() {
       isActive: true,
       chiefUserName: '',
       chiefUserEmail: '',
+      defaultRetentionDays: defaultRetentionDaysDefault,
     });
     setIsModalVisible(true);
   };
@@ -885,6 +902,17 @@ export default function OrganizationManagement() {
                   ]}
                 />
               </Form.Item>
+              <Form.Item
+                name="defaultRetentionDays"
+                label={t('organizationManagement.form.defaultRetentionDays')}
+                rules={[
+                  { required: true, message: t('organizationManagement.form.defaultRetentionDaysRequired') },
+                  { type: 'integer', min: 1, message: t('organizationManagement.form.defaultRetentionDaysInvalid') },
+                ]}
+                extra={t('organizationManagement.form.defaultRetentionDaysHelp')}
+              >
+                <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+              </Form.Item>
             </>
           ) : (
             <>
@@ -973,6 +1001,17 @@ export default function OrganizationManagement() {
                     { value: false, label: t('organizationManagement.status.inactive') },
                   ]}
                 />
+              </Form.Item>
+              <Form.Item
+                name="defaultRetentionDays"
+                label={t('organizationManagement.form.defaultRetentionDays')}
+                rules={[
+                  { required: true, message: t('organizationManagement.form.defaultRetentionDaysRequired') },
+                  { type: 'integer', min: 1, message: t('organizationManagement.form.defaultRetentionDaysInvalid') },
+                ]}
+                extra={t('organizationManagement.form.defaultRetentionDaysHelp')}
+              >
+                <InputNumber min={1} precision={0} style={{ width: '100%' }} />
               </Form.Item>
               <Divider>{t('organizationManagement.form.chiefInfo')}</Divider>
               <Form.Item

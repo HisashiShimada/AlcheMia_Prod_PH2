@@ -351,35 +351,36 @@ export class EventLogRepository {
                 property: [
                   {
                     '@key': 'timestamp',
-                    '@xsi:type': 'xs:dateTime',
+                    '@xsi:type': 'dateTimeType',
                     '#text': nowIso,
                   },
                   {
                     '@key': 'worker_id',
-                    '@xsi:type': 'xs:string',
+                    '@xsi:type': 'stringType',
                     '#text': loginId,
                   },
                   {
                     '@key': 'status',
-                    '@xsi:type': 'xs:string',
+                    '@xsi:type': 'stringType',
                     '#text': statusLabel,
                   },
                   {
                     '@key': 'progress_percentage',
-                    '@xsi:type': 'xs:int',
+                    '@xsi:type': 'intType',
                     '#text': progressPercentage,
                   },
                   {
                     '@key': 'report_type',
-                    '@xsi:type': 'xs:string',
+                    '@xsi:type': 'stringType',
                     '#text': 'transition_progress',
                   },
                   {
                     '@key': 'comments',
-                    '@xsi:type': 'xs:string',
+                    '@xsi:type': 'stringType',
                     '#text': comment ?? '',
                   },
                 ],
+
               },
             },
           },
@@ -453,20 +454,21 @@ export class EventLogRepository {
     const properties = [
       {
         '@key': 'acknowledged_at',
-        '@xsi:type': 'xs:dateTime',
+        '@xsi:type': 'dateTimeType',
         '#text': acknowledgedAt,
       },
       {
         '@key': 'experiment_instruction_id',
-        '@xsi:type': 'xs:string',
+        '@xsi:type': 'stringType',
         '#text': experimentInstructionId,
       },
       {
         '@key': 'experiment_user_id',
-        '@xsi:type': 'xs:string',
+        '@xsi:type': 'stringType',
         '#text': userId,
       },
     ];
+
 
     if (instructionTarget === 3) {
       // トランジション: eventLog > log > trace(@ref=programId) > evnet(@ref=experimentInstructionId)
