@@ -400,6 +400,86 @@ page.locator('button').filter({ hasText: /CSV.*ダウンロード/s }).click()
 
 ---
 
+### Ant Design Button の2文字漢字スペース自動挿入（重要）
+
+#### 問題の背景
+
+Ant Design の `Button` コンポーネントは、**2文字の漢字テキストの間にスペースを自動挿入**する仕様がある。
+
+| ボタンラベル（ja.json） | DOM上の実際のテキスト |
+|---|---|
+| `開始` | `開 始` |
+| `指示` | `指 示` |
+| `記録` | `記 録` |
+| `終了` | `終 了` |
+| `確認` | `確 認` |
+
+そのため `filter({ hasText: '開始' })` や `button:has-text("開始")` がマッチせず、
+**タイムアウトエラー（TimeoutError: locator.waitFor）** となる。
+
+エラーコンテキスト（`error-context.md`）のページスナップショットで実際の DOM を確認すると、
+ボタンの `aria-label` 属性にはスペースなしの説明テキストが入っているため、
+**`aria-label` 属性を使ったセレクターを使用する**こと。
+
+#### ❌ 悪い例（hasText / has-text）
+
+```typescript
+// ❌ 悪い例: Ant Design が「開始」→「開 始」とスペースを挿入するためマッチしない
+const startBtn = page
+  .locator('[data-testid="task-list-table"] button')
+  .filter({ hasText: '開始' })
+  .first();
+
+// ❌ 悪い例: has-text 疑似クラスも同様にマッチしない
+const startBtns = page.locator('[data-testid="task-list-table"] button:has-text("開始")');
+```
+
+#### ✅ 正しい例（aria-label）
+
+```typescript
+// ✅ 正しい例: aria-label 属性でボタンを特定する（スペース挿入の影響を受けない）
+const startBtn = page
+  .locator('[data-testid="task-list-table"] button[aria-label="タスクを開始"]')
+  .first();
+await startBtn.waitFor({ state: 'visible', timeout: 10000 });
+await startBtn.click();
+```
+
+#### aria-label の確認方法
+
+テスト失敗時のエラーコンテキスト（`test-results/.../error-context.md`）の
+ページスナップショットを確認すると、ボタンの実際の `aria-label` が把握できる。
+
+```yaml
+# error-context.md のページスナップショット例
+- cell "タスクを開始" [ref=e215]:
+  - button "タスクを開始" [ref=e216] [cursor=pointer]:  ← ここの文字列が aria-label
+    - generic [ref=e217]: 開 始                          ← DOM上は「開 始」（スペースあり）
+```
+
+この場合、`button[aria-label="タスクを開始"]` でセレクタを作成する。
+
+#### よくある2文字漢字ボタンとその aria-label 対応表
+
+| ボタン表示 | 推奨セレクタ |
+|---|---|
+| 開 始 | `button[aria-label="タスクを開始"]` |
+| 終 了 | `button[aria-label="タスクを強制終了"]` |
+| 指 示 | `button[aria-label="作業指示を確認"]` |
+| 記 録 | `button[aria-label="実験記録を入力"]` |
+| 確 認 | `button[aria-label="問題確認"]` |
+
+#### DO / DON'T
+
+✅ **2文字漢字ボタンのセレクタは `button[aria-label="..."]` を使用する**  
+✅ **aria-label の値はエラーコンテキストのページスナップショットで確認する**  
+✅ **disabled 確認も同様に aria-label セレクタを使用する**（例: `button[aria-label="タスクを開始"]`）  
+❌ **`filter({ hasText: '開始' })` を2文字漢字ボタンに使用しない**（スペースが挿入されてマッチしない）  
+❌ **`button:has-text("終了")` を2文字漢字ボタンに使用しない**（同上）  
+❌ **3文字以上のボタン（「承認依頼」「強制終了」など）は影響を受けない**ため、hasText のままでよい
+
+---
+
 ### 編集ダイアログの Input セレクター（重要）
 
 #### 問題の背景
@@ -514,6 +594,81 @@ await page.evaluate(
 **適用ケース:**
 - Ant Design の `<Input>` コンポーネント
 - React が `value` と `onChange` で制御している全てのフォーム要素
+
+---
+
+### Ant Design Select の disabled 状態の検出と待機（重要）
+
+#### 問題の背景
+
+Ant Design の `<Select>` コンポーネントは `disabled={true}` プロパティを渡した場合、  
+DOM に `disabled` 属性を付与するのではなく **CSS クラス `ant-select-disabled`** を追加する方式で無効化する。
+
+そのため Playwright の `toBeEnabled()` / `toBeDisabled()` は **Ant Design Select には効かない**。
+
+```typescript
+// ❌ 間違い: Ant Design Select の disabled 状態を検出できない
+await expect(selectEl).toBeEnabled({ timeout: 15000 });   // disabled でもすぐ通過してしまう
+await expect(selectEl).toBeDisabled({ timeout: 15000 });  // enabled でも通過してしまう
+```
+
+#### ✅ 正しい待機方法
+
+`ant-select-disabled` クラスが**消えるまで**待機する。
+
+```typescript
+// ✅ 正しい: CSS クラスで disabled 状態を判定する
+// disabled={loading} → API ロード中は ant-select-disabled クラスが付く
+await expect(selectEl).not.toHaveClass(/ant-select-disabled/, { timeout: 15000 });
+```
+
+#### ✅ Ant Design Select を開く正しいクリックターゲット
+
+Ant Design Select の DOM 構造は以下のとおりで、**外側の `div` ではなく `.ant-select-selector` をクリックしないとドロップダウンが開かない**。
+
+```html
+<!-- Ant Design Select の DOM 構造 -->
+<div class="ant-select" data-testid="xxx">          ← ここをクリックしても開かない場合がある
+  <div class="ant-select-selector">                  ← ここをクリックするとドロップダウンが開く
+    <span class="ant-select-selection-placeholder">プレースホルダー</span>
+  </div>
+</div>
+```
+
+```typescript
+// ❌ 外側 div のクリックはドロップダウンが開かない場合がある
+await selectEl.click();
+
+// ✅ .ant-select-selector を明示的にクリックする
+await selectEl.locator('.ant-select-selector').click();
+```
+
+#### まとめ：Ant Design Select の disabled 待機 + 開くパターン
+
+```typescript
+const selectEl = page.locator('[data-testid="xxx"]');
+await selectEl.waitFor({ state: 'visible', timeout: 10000 });
+
+// ① disabled={loading} 対策: ant-select-disabled クラスが消えるまで待機
+await expect(selectEl).not.toHaveClass(/ant-select-disabled/, { timeout: 15000 });
+
+// ② .ant-select-selector をクリックしてドロップダウンを開く
+await selectEl.locator('.ant-select-selector').click();
+
+// ③ ドロップダウンが表示されるまで待機
+await waitForSelectDropdown(page);
+
+// ④ オプションを選択
+const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
+await visibleDropdown.locator(`.ant-select-item-option:has-text("${optionLabel}")`).click();
+```
+
+#### DO / DON'T
+
+✅ **Ant Design Select の disabled 待機は `not.toHaveClass(/ant-select-disabled/)` を使う**  
+✅ **Ant Design Select を開くには `.ant-select-selector` をクリックする**  
+❌ **`toBeEnabled()` / `toBeDisabled()` を Ant Design Select に使わない**（native disabled 属性がないため効かない）  
+❌ **外側 div をそのままクリックしない**（`.ant-select-selector` を明示的に指定する）
 
 ---
 

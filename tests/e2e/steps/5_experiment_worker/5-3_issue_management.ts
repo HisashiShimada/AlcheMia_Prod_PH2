@@ -67,6 +67,14 @@ const createdProjectTaskKeys: Array<{
   experiment_order: number;
 }> = [];
 
+/** テスト中に作成した project_task_detail の主キーリスト（After で削除） */
+const createdProjectTaskDetailKeys: Array<{
+  organization_id: string;
+  project_id: string;
+  method_id: string;
+  task_no: number;
+}> = [];
+
 /** 前提問題データの issue_id リスト（After で削除対象） */
 const setupIssueIds: string[] = [];
 
@@ -357,6 +365,23 @@ After(async () => {
       console.error('[5-3 After] transition_set 削除 失敗:', error);
     }
 
+    // project_task_detail を削除（project_task より先に削除）
+    for (const key of createdProjectTaskDetailKeys) {
+      try {
+        await db.query(
+          `DELETE FROM project_task_detail
+           WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+          [key.organization_id, key.project_id, key.method_id, key.task_no]
+        );
+        console.log(
+          `[5-3 After] project_task_detail 削除 完了: project_id=${key.project_id}, task_no=${key.task_no}`
+        );
+      } catch (error) {
+        console.error(`[5-3 After] project_task_detail 削除 失敗:`, error);
+      }
+    }
+    createdProjectTaskDetailKeys.length = 0;
+
     // project_task を削除
     for (const key of createdProjectTaskKeys) {
       try {
@@ -397,6 +422,71 @@ AfterAll(async () => {
 });
 
 // ---------------------------------------------------------------------------
+// When: メソッド・タスク選択操作（5-3 固有）
+// ---------------------------------------------------------------------------
+
+/**
+ * メソッド・タスク選択エリアの「選択」ボタンをクリックする
+ * ExperimentRecordTab.tsx: data-testid="method-task-select-button"
+ */
+When('メソッド・タスク選択エリアの「選択」ボタンをクリックする', async ({ page }) => {
+  const methodTaskBtn = page.locator('[data-testid="method-task-select-button"]');
+  await methodTaskBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await methodTaskBtn.click();
+  // メソッド・タスク選択モーダルが表示されるまで待機
+  await page.waitForSelector('.ant-modal', { timeout: 10000 });
+});
+
+/**
+ * メソッド・タスク選択モーダルでタスクを選択して決定する
+ * モーダル内のラジオボタン最初の1件を選択し、「決定」ボタンをクリックする
+ *
+ * NOTE: モーダルが開いた直後はメソッド・タスク一覧のAPIレスポンスを待機中のため、
+ *       テーブルにデータが描画されるまで待ってからラジオボタンをクリックする必要がある。
+ *       data-testid="method-task-selection-modal" を優先し、フォールバックで
+ *       '.ant-modal' テキストフィルタを使用する。
+ */
+When('メソッド・タスク選択モーダルでタスクを選択して決定する', async ({ page }) => {
+  // モーダルの表示を待機（data-testid を優先、フォールバックで antd クラス）
+  const modal = page.locator('[data-testid="method-task-selection-modal"]');
+  const modalFallback = page.locator('.ant-modal').filter({ hasText: 'メソッド・タスク選択' });
+
+  // どちらかが表示されるまで待機
+  await Promise.race([
+    modal.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
+    modalFallback.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
+  ]);
+
+  // テーブルにデータ（ラジオボタン）が描画されるまで待機
+  // APIレスポンス後にタスク一覧が描画されるため、最大15秒待機する
+  const radioLocator = page.locator(
+    '[data-testid="method-task-selection-modal"] input[type="radio"], ' +
+    '.ant-modal input[type="radio"]'
+  ).first();
+
+  await radioLocator.waitFor({ state: 'visible', timeout: 15000 });
+
+  // 最初のラジオボタンを選択
+  await radioLocator.click();
+
+  // 決定ボタンをクリック（data-testid を優先）
+  const okBtn = page.locator('[data-testid="method-task-selection-ok-button"]');
+  const okBtnFallback = page.locator('.ant-modal-footer .ant-btn-primary');
+  if (await okBtn.isVisible().catch(() => false)) {
+    await okBtn.click();
+  } else {
+    await okBtnFallback.click();
+  }
+
+  // モーダルが閉じるまで待機
+  await Promise.race([
+    modal.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {}),
+    modalFallback.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {}),
+  ]);
+  await page.waitForTimeout(300);
+});
+
+// ---------------------------------------------------------------------------
 // When: ログイン
 // ---------------------------------------------------------------------------
 
@@ -408,8 +498,8 @@ When('Managerユーザー {string} でログインする', async ({ page }, _use
   await page.goto(`/?orgId=${ORG_ID}`);
   await page.waitForSelector('#userId', { timeout: 15000 });
   // TODO: 実際の Manager（experiment_admin）ユーザーIDとパスワードに更新すること
-  await page.fill('#userId', 'manager@example.com');
-  await page.fill('#password', 'manager123');
+  await page.fill('#userId', 'worker@example.com');
+  await page.fill('#password', 'worker123');
   await page.click('button[type="submit"]');
   await page.waitForLoadState('networkidle', { timeout: 30000 });
 });
@@ -906,6 +996,11 @@ async function upsertTestProject(projectId: string, projectName: string): Promis
 /**
  * テスト用プロジェクトタスクを UPSERT する
  * DDL参照: docs/design/db/ddl/project_task.sql
+ *
+ * project_task_detail テーブルにも task_no=1 のレコードを作成する。
+ * MethodTaskSelectionModal は project_task_detail を参照してタスク一覧を描画するため、
+ * このレコードがないとモーダル内にラジオボタンが表示されない。
+ * DDL参照: docs/design/db/ddl/project_task_detail.sql
  */
 async function upsertTestProjectTask(
   projectId: string,
@@ -913,14 +1008,18 @@ async function upsertTestProjectTask(
   experimentOrder: number
 ): Promise<void> {
   console.log(`[5-3 upsertTestProjectTask] 開始: project_id=${projectId}, method_id=${methodId}`);
+  // task_no は experimentOrder と同値を使用（1始まり）
+  const taskNo = experimentOrder;
+
   try {
-    const existing = await db.query<{ project_id: string }>(
+    // --- project_task ---
+    const existingTask = await db.query<{ project_id: string }>(
       `SELECT project_id FROM project_task
        WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND experiment_order = $4`,
       [ORG_ID, projectId, methodId, experimentOrder]
     );
 
-    if ((existing.rowCount ?? 0) === 0) {
+    if ((existingTask.rowCount ?? 0) === 0) {
       await db.query(
         `INSERT INTO project_task (
           organization_id, project_id, method_id, experiment_order,
@@ -939,9 +1038,44 @@ async function upsertTestProjectTask(
         method_id: methodId,
         experiment_order: experimentOrder,
       });
-      console.log(`[5-3 upsertTestProjectTask] INSERT 完了`);
+      console.log(`[5-3 upsertTestProjectTask] project_task INSERT 完了`);
     } else {
-      console.log(`[5-3 upsertTestProjectTask] スキップ（既存レコードあり）`);
+      console.log(`[5-3 upsertTestProjectTask] project_task スキップ（既存レコードあり）`);
+    }
+
+    // --- project_task_detail ---
+    // getWorkerTasks API は project_task_detail を JOIN してタスク一覧を返す。
+    // レコードがないとメソッド・タスク選択モーダルに行が表示されず E2E テストがタイムアウトする。
+    const existingDetail = await db.query<{ task_no: number }>(
+      `SELECT task_no FROM project_task_detail
+       WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+      [ORG_ID, projectId, methodId, taskNo]
+    );
+
+    if ((existingDetail.rowCount ?? 0) === 0) {
+      await db.query(
+        `INSERT INTO project_task_detail (
+          organization_id, project_id, method_id, task_no,
+          task_status,
+          experiment_user_id,
+          create_user_id, create_at, update_user_id, update_at
+        ) VALUES (
+          $1, $2, $3, $4,
+          1,
+          $5,
+          'e2e-test', NOW(), 'e2e-test', NOW()
+        )`,
+        [ORG_ID, projectId, methodId, taskNo, '5']
+      );
+      createdProjectTaskDetailKeys.push({
+        organization_id: ORG_ID,
+        project_id: projectId,
+        method_id: methodId,
+        task_no: taskNo,
+      });
+      console.log(`[5-3 upsertTestProjectTask] project_task_detail INSERT 完了 (task_no=${taskNo})`);
+    } else {
+      console.log(`[5-3 upsertTestProjectTask] project_task_detail スキップ（既存レコードあり）`);
     }
   } catch (error) {
     console.error(`[5-3 upsertTestProjectTask] 失敗:`, error);
@@ -1285,6 +1419,30 @@ Then('「コメント送信」ボタンが無効化されていること', async
   await expect(modal).toBeVisible({ timeout: 10000 });
   const commentBtn = modal.locator('[data-testid="issue-management-comment-submit-button"]');
   await expect(commentBtn).toBeDisabled({ timeout: 10000 });
+});
+
+/**
+ * [5-3 feature:386] 「解決」ボタン単独が無効化されていること
+ * IssueManagementModal.tsx: data-testid="issue-management-set-resolved-button"
+ */
+Then('「解決」ボタンが無効化されていること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(modal).toBeVisible({ timeout: 10000 });
+  await expect(
+    modal.locator('[data-testid="issue-management-set-resolved-button"]')
+  ).toBeDisabled({ timeout: 10000 });
+});
+
+/**
+ * [5-3 feature:387] 「未解決」ボタン単独が無効化されていること
+ * IssueManagementModal.tsx: data-testid="issue-management-set-unresolved-button"
+ */
+Then('「未解決」ボタンが無効化されていること', async ({ page }) => {
+  const modal = page.locator('[data-testid="issue-management-modal"]');
+  await expect(modal).toBeVisible({ timeout: 10000 });
+  await expect(
+    modal.locator('[data-testid="issue-management-set-unresolved-button"]')
+  ).toBeDisabled({ timeout: 10000 });
 });
 
 /**

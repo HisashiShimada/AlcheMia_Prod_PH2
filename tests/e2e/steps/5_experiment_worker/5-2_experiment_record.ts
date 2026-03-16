@@ -1048,6 +1048,103 @@ Then('データ記録ダイアログのステータス更新コントロール�
   await expect(statusSelect).toHaveClass(/ant-select-disabled/, { timeout: 5000 });
 });
 
+// ---------------------------------------------------------------------------
+// When: テンプレート検索・フィルタ（鍵括弧リテラル版）
+// ---------------------------------------------------------------------------
+
+/**
+ * [5-2-18] テンプレート検索欄に「材料」と入力する（鍵括弧リテラル版）
+ *
+ * feature で `テンプレート検索欄に「材料」と入力する` と記述されている場合、
+ * playwright-bdd の {string} は Gherkin 標準の二重引用符にしかマッチしないため、
+ * 鍵括弧リテラルを含む別ステップとして定義する。
+ */
+When('テンプレート検索欄に「材料」と入力する', async ({ page }) => {
+  const searchInput = page.locator('[data-testid="template-search-input"]');
+  await searchInput.waitFor({ state: 'visible', timeout: 10000 });
+  await searchInput.fill('材料');
+  await page.waitForTimeout(500);
+});
+
+/**
+ * [5-2-19] テンプレート種別フィルタで「結果」を選択する（鍵括弧リテラル版）
+ *
+ * feature で `テンプレート種別フィルタで「結果」を選択する` と記述されている場合、
+ * 鍵括弧リテラルを含む別ステップとして定義する。
+ */
+When('テンプレート種別フィルタで「結果」を選択する', async ({ page }) => {
+  const categorySelect = page.locator('[data-testid="template-category-select"]');
+  await categorySelect.waitFor({ state: 'visible', timeout: 10000 });
+  await categorySelect.click();
+  await waitForSelectDropdown(page);
+  const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
+  await visibleDropdown.locator('.ant-select-item-option[title="結果"]').click();
+  await page.waitForTimeout(500);
+});
+
+// ---------------------------------------------------------------------------
+// Then: waiting_approval 時の操作制限確認（5-2-25, 5-2-26）
+// ---------------------------------------------------------------------------
+
+/**
+ * [5-2-25] テンプレートのプロパティ入力フィールドが無効化されていること
+ *
+ * waiting_approval 時はプロパティフォーム内のすべての入力要素が disabled になること。
+ * DataRecordDialog.tsx: プロパティフォームのフィールド全体を検証する。
+ *
+ * ※ テンプレート未選択時はフォーム自体が表示されないため、
+ *   waiting_approval ダイアログが開いた直後に確認する。
+ */
+Then('テンプレートのプロパティ入力フィールドが無効化されていること', async ({ page }) => {
+  const dialog = page.locator('[data-testid="data-record-dialog"]');
+  await expect(dialog).toBeVisible({ timeout: 15000 });
+
+  // プロパティフォームエリア（テンプレート右側コンテンツ）を取得
+  // DataRecordDialog.tsx: data-testid="property-form-area" または .ant-form
+  const formArea = dialog.locator('[data-testid="property-form-area"], .ant-form').first();
+  await formArea.waitFor({ state: 'visible', timeout: 10000 });
+
+  // フォーム内の input / textarea / Select が disabled であること
+  // Ant Design の disabled Select は .ant-select-disabled クラスが付与される
+  const inputs = formArea.locator('input:not([type="hidden"]), textarea');
+  const inputCount = await inputs.count();
+  for (let i = 0; i < inputCount; i++) {
+    await expect(inputs.nth(i)).toBeDisabled({ timeout: 5000 });
+  }
+
+  const selects = formArea.locator('.ant-select');
+  const selectCount = await selects.count();
+  for (let i = 0; i < selectCount; i++) {
+    await expect(selects.nth(i)).toHaveClass(/ant-select-disabled/, { timeout: 5000 });
+  }
+});
+
+/**
+ * [5-2-25] 保存ボタンが無効化されていること
+ *
+ * DataRecordDialog.tsx: data-testid="data-record-save-button"
+ * waiting_approval 時はテンプレートデータの保存ができないため disabled になること。
+ */
+Then('保存ボタンが無効化されていること', async ({ page }) => {
+  const dialog = page.locator('[data-testid="data-record-dialog"]');
+  await expect(dialog).toBeVisible({ timeout: 15000 });
+  const saveBtn = dialog.locator('[data-testid="data-record-save-button"]');
+  await expect(saveBtn).toBeDisabled({ timeout: 10000 });
+});
+
+/**
+ * [5-2-26] ステータス更新セクションの保存ボタンが無効化されていること
+ *
+ * DataRecordDialog.tsx: data-testid="status-update-section" 内の「保存」ボタン
+ * waiting_approval 時はステータス更新ができないため保存ボタンが disabled になること。
+ */
+Then('ステータス更新セクションの保存ボタンが無効化されていること', async ({ page }) => {
+  const statusSection = page.locator('[data-testid="status-update-section"]');
+  await expect(statusSection).toBeVisible({ timeout: 10000 });
+  const saveBtn = statusSection.locator('button').filter({ hasText: '保存' }).first();
+  await expect(saveBtn).toBeDisabled({ timeout: 10000 });
+});
+
 // ===========================================================================
 // ヘルパー関数
 // ===========================================================================

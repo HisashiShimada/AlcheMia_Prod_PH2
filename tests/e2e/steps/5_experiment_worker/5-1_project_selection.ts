@@ -63,6 +63,14 @@ const createdProjectTaskKeys: Array<{
   experiment_order: number;
 }> = [];
 
+/** テスト中に作成した project_task_detail の主キー（After で削除） */
+const createdProjectTaskDetailKeys: Array<{
+  organization_id: string;
+  project_id: string;
+  method_id: string;
+  task_no: number;
+}> = [];
+
 /** テスト中に作成した project の主キー（After で削除） */
 const createdProjectIds: string[] = [];
 
@@ -75,16 +83,45 @@ const createdProjectIds: string[] = [];
  * - テスト用プロジェクト_5-1 を INSERT
  * - テスト用メソッドA・B と各タスクを project_task に INSERT
  */
-Before({ tags: '@5-1-1 or @5-1-2 or @5-1-4 or @5-1-5 or @5-1-8 or @5-1-9' }, async () => {
+Before({ tags: '@5-1-1 or @5-1-2 or @5-1-4 or @5-1-5' }, async () => {
   console.log('[5-1 Before] テストデータ準備 開始 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5)');
   try {
     await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 2);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_B, 1);
+    // task_status: 0 = not_started（デフォルト）
+    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1, 0);
+    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 2, 0);
+    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_B, 1, 0);
     console.log('[5-1 Before] テストデータ準備 完了 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5)');
   } catch (error) {
     console.error('[5-1 Before] テストデータ準備 失敗 (tags: @5-1-1 or @5-1-2 or @5-1-4 or @5-1-5):', error);
+    throw error;
+  }
+});
+
+/**
+ * 5-1-8, 5-1-9 用
+ * - テスト用プロジェクト_5-1 を UPSERT
+ * - メソッドA: task_no=1(completed=4), task_no=2(not_started=0)
+ * - メソッドB: task_no=1(not_started=0)
+ * ステータスフィルター・AND条件フィルターのテストに使用
+ */
+Before({ tags: '@5-1-8 or @5-1-9' }, async () => {
+  console.log('[5-1 Before] テストデータ準備 開始 (tags: @5-1-8 or @5-1-9)');
+  try {
+    await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
+    await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1);
+    await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 2);
+    await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_B, 1);
+    // task_no=1 → completed(4)、task_no=2 → not_started(0)
+    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1, 4);
+    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 2, 0);
+    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_B, 1, 0);
+    console.log('[5-1 Before] テストデータ準備 完了 (tags: @5-1-8 or @5-1-9)');
+  } catch (error) {
+    console.error('[5-1 Before] テストデータ準備 失敗 (tags: @5-1-8 or @5-1-9):', error);
     throw error;
   }
 });
@@ -101,6 +138,8 @@ Before({ tags: '@5-1-3' }, async () => {
     await upsertTestProject(TEST_PROJECT_ID_B, TEST_PROJECT_NAME_B);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1);
     await upsertTestProjectTask(TEST_PROJECT_ID_B, TEST_METHOD_ID_A, 1);
+    await upsertTestProjectTaskDetail(TEST_PROJECT_ID, TEST_METHOD_ID_A, 1);
+    await upsertTestProjectTaskDetail(TEST_PROJECT_ID_B, TEST_METHOD_ID_A, 1);
     console.log('[5-1 Before] テストデータ準備 完了 (tags: @5-1-3)');
   } catch (error) {
     console.error('[5-1 Before] テストデータ準備 失敗 (tags: @5-1-3):', error);
@@ -115,6 +154,21 @@ Before({ tags: '@5-1-3' }, async () => {
 After(async () => {
   console.log('[5-1 After] クリーンアップ 開始');
   try {
+    // project_task_detail を削除（project_task より先に削除）
+    for (const key of createdProjectTaskDetailKeys) {
+      try {
+        await db.query(
+          `DELETE FROM project_task_detail
+           WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+          [key.organization_id, key.project_id, key.method_id, key.task_no]
+        );
+        console.log(`[5-1 After] project_task_detail 削除 完了: project_id=${key.project_id}, method_id=${key.method_id}, task_no=${key.task_no}`);
+      } catch (error) {
+        console.error(`[5-1 After] project_task_detail 削除 失敗: project_id=${key.project_id}, method_id=${key.method_id}, task_no=${key.task_no}:`, error);
+      }
+    }
+    createdProjectTaskDetailKeys.length = 0;
+
     // project_task を削除
     for (const key of createdProjectTaskKeys) {
       try {
@@ -331,15 +385,20 @@ When('タスク名フィルターに {string} と入力する', async ({ page },
 
 /**
  * [5-1-6] プロジェクト選択モーダルの検索ボックスに文字列を入力する
- * ProjectSelectionModal.tsx: data-testid="project-selection-search-input"
+ * ProjectSelectionModal.tsx: data-testid="project-selection-modal-search-input"
  * あいまい検索対象: プロジェクト名（projectName）・プロジェクトコード（projectCd）
  * 参照: ui_project_selection_modal.md §6.1
  */
 When('プロジェクト選択モーダルの検索ボックスに {string} と入力する', async ({ page }, searchText: string) => {
-  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクト選択' });
+  // モーダルタイトルは「プロジェクトを選択」（ProjectSelectionModal.tsx）
+  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクトを選択' });
   await modal.waitFor({ state: 'visible', timeout: 10000 });
-  const searchInput = page.locator('[data-testid="project-selection-search-input"]');
+  const searchInput = page.locator('[data-testid="project-selection-modal-search-input"]');
   await searchInput.waitFor({ state: 'visible', timeout: 10000 });
+  // disabled={loading} 対策: プロジェクト一覧ロード完了まで enabled になるのを待機
+  await expect(searchInput).toBeEnabled({ timeout: 15000 });
+  // Controlled Input 対策: click() でフォーカスを当ててから fill()
+  await searchInput.click();
   await searchInput.fill(searchText);
   // フィルタリング結果の反映を待機
   await page.waitForTimeout(500);
@@ -350,10 +409,14 @@ When('プロジェクト選択モーダルの検索ボックスに {string} と�
  * allowClear ボタン（.ant-input-clear-icon）をクリックする
  */
 When('プロジェクト選択モーダルの検索ボックスをクリアする', async ({ page }) => {
-  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクト選択' });
+  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクトを選択' });
   await modal.waitFor({ state: 'visible', timeout: 10000 });
-  const searchInput = page.locator('[data-testid="project-selection-search-input"]');
+  const searchInput = page.locator('[data-testid="project-selection-modal-search-input"]');
   await searchInput.waitFor({ state: 'visible', timeout: 10000 });
+  // disabled={loading} 対策: enabled になるまで待機
+  await expect(searchInput).toBeEnabled({ timeout: 15000 });
+  // Controlled Input 対策: click() でフォーカスを当ててから clear()
+  await searchInput.click();
   await searchInput.clear();
   await page.waitForTimeout(500);
 });
@@ -364,12 +427,18 @@ When('プロジェクト選択モーダルの検索ボックスをクリアす�
  * 参照: ui_project_selection_modal.md §6.2（完全一致フィルター）
  */
 When('プロジェクト選択モーダルのプロジェクト名フィルターで {string} を選択する', async ({ page }, projectName: string) => {
-  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクト選択' });
+  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクトを選択' });
   await modal.waitFor({ state: 'visible', timeout: 10000 });
-  // ProjectSelectionModal.tsx: data-testid="project-selection-name-filter"
-  const nameFilter = page.locator('[data-testid="project-selection-name-filter"]');
+  // ProjectSelectionModal.tsx: data-testid="project-selection-modal-name-filter"
+  const nameFilter = page.locator('[data-testid="project-selection-modal-name-filter"]');
   await nameFilter.waitFor({ state: 'visible', timeout: 10000 });
-  await nameFilter.click();
+  // disabled={loading} 対策:
+  // Ant Design Select は disabled 状態を CSS クラス "ant-select-disabled" で管理する。
+  // toBeEnabled() はネイティブ disabled 属性を検査するため Ant Design Select には効かない。
+  // → ant-select-disabled クラスが消えるまで待機する
+  await expect(nameFilter).not.toHaveClass(/ant-select-disabled/, { timeout: 15000 });
+  // Ant Design Select は外側 div ではなく .ant-select-selector をクリックしないとドロップダウンが開かない
+  await nameFilter.locator('.ant-select-selector').click();
   await waitForSelectDropdown(page);
   // プロジェクト名選択肢をクリック
   const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
@@ -462,7 +531,8 @@ Then('メソッド・タスク選択モーダルが表示されること', async
  */
 Then('メソッドタブが表示されていること', async ({ page }) => {
   const modal = page.locator('.ant-modal').filter({ hasText: 'メソッド・タスク選択' });
-  await expect(modal.locator('.ant-tabs-tab')).toBeVisible({ timeout: 10000 });
+  // .ant-tabs-tab は複数要素（各メソッドタブ）が存在するため .first() を使用
+  await expect(modal.locator('.ant-tabs-tab').first()).toBeVisible({ timeout: 10000 });
 });
 
 /**
@@ -532,7 +602,7 @@ Then('タスク一覧に {string} が表示されていないこと', async ({ p
  * 参照: ui_project_selection_modal.md §5.3
  */
 Then('プロジェクト一覧に {string} が表示されていること', async ({ page }, projectName: string) => {
-  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクト選択' });
+  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクトを選択' });
   await expect(
     modal.locator(`table tbody tr:has-text("${projectName}")`)
   ).toBeVisible({ timeout: 10000 });
@@ -544,7 +614,7 @@ Then('プロジェクト一覧に {string} が表示されていること', asyn
  * 参照: ui_project_selection_modal.md §6.3（AND条件フィルタリング）
  */
 Then('プロジェクト一覧に {string} が表示されていないこと', async ({ page }, projectName: string) => {
-  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクト選択' });
+  const modal = page.locator('.ant-modal').filter({ hasText: 'プロジェクトを選択' });
   await expect(
     modal.locator(`table tbody tr:has-text("${projectName}")`)
   ).not.toBeVisible({ timeout: 5000 });
@@ -671,6 +741,66 @@ async function upsertTestProjectTask(
     }
   } catch (error) {
     console.error(`[5-1 upsertTestProjectTask] 失敗: project_id=${projectId}, method_id=${methodId}, experiment_order=${experimentOrder}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * テスト用プロジェクトタスク詳細を UPSERT する
+ *
+ * @param projectId  - プロジェクトID
+ * @param methodId   - メソッドID
+ * @param taskNo     - タスク連番（project_task.experiment_order に対応）
+ * @param taskStatus - タスクステータス（0:not_started, 4:completed など）デフォルト 0
+ *
+ * DDL参照: docs/design/db/ddl/project_task_detail.sql
+ */
+async function upsertTestProjectTaskDetail(
+  projectId: string,
+  methodId: string,
+  taskNo: number,
+  taskStatus: number = 0
+): Promise<void> {
+  console.log(`[5-1 upsertTestProjectTaskDetail] 開始: project_id=${projectId}, method_id=${methodId}, task_no=${taskNo}, task_status=${taskStatus}`);
+  try {
+    const existing = await db.query<{ project_id: string }>(
+      `SELECT project_id FROM project_task_detail
+       WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+      [ORG_ID, projectId, methodId, taskNo]
+    );
+
+    if ((existing.rowCount ?? 0) === 0) {
+      await db.query(
+        `INSERT INTO project_task_detail (
+          organization_id, project_id, method_id, task_no,
+          task_status,
+          create_user_id, create_at, update_user_id, update_at
+        ) VALUES (
+          $1, $2, $3, $4,
+          $5,
+          'e2e-test', NOW(), 'e2e-test', NOW()
+        )`,
+        [ORG_ID, projectId, methodId, taskNo, taskStatus]
+      );
+      createdProjectTaskDetailKeys.push({
+        organization_id: ORG_ID,
+        project_id: projectId,
+        method_id: methodId,
+        task_no: taskNo,
+      });
+      console.log(`[5-1 upsertTestProjectTaskDetail] INSERT 完了: project_id=${projectId}, method_id=${methodId}, task_no=${taskNo}, task_status=${taskStatus}`);
+    } else {
+      // 既存レコードが存在する場合は task_status を更新
+      await db.query(
+        `UPDATE project_task_detail
+         SET task_status = $1, update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $2 AND project_id = $3 AND method_id = $4 AND task_no = $5`,
+        [taskStatus, ORG_ID, projectId, methodId, taskNo]
+      );
+      console.log(`[5-1 upsertTestProjectTaskDetail] UPDATE 完了: project_id=${projectId}, method_id=${methodId}, task_no=${taskNo}, task_status=${taskStatus}`);
+    }
+  } catch (error) {
+    console.error(`[5-1 upsertTestProjectTaskDetail] 失敗: project_id=${projectId}, method_id=${methodId}, task_no=${taskNo}:`, error);
     throw error;
   }
 }

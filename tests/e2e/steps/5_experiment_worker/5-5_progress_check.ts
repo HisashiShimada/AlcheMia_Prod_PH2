@@ -81,6 +81,14 @@ const createdProjectTaskKeys: Array<{
   experiment_order: number;
 }> = [];
 
+/** テスト中に作成した project_task_detail の複合キー */
+const createdProjectTaskDetailKeys: Array<{
+  organization_id: string;
+  project_id: string;
+  method_id: string;
+  task_no: number;
+}> = [];
+
 // ---------------------------------------------------------------------------
 // Before フック: テストデータ準備
 // ---------------------------------------------------------------------------
@@ -237,6 +245,21 @@ Before({ tags: '@5-5-13 or @5-5-14' }, async () => {
 After(async () => {
   console.log('[5-5 After] クリーンアップ 開始');
   try {
+    // project_task_detail を削除（project_task より先に削除）
+    for (const key of createdProjectTaskDetailKeys) {
+      try {
+        await db.query(
+          `DELETE FROM project_task_detail
+           WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+          [key.organization_id, key.project_id, key.method_id, key.task_no]
+        );
+        console.log(`[5-5 After] project_task_detail 削除 完了: project_id=${key.project_id}, method_id=${key.method_id}, task_no=${key.task_no}`);
+      } catch (error) {
+        console.error(`[5-5 After] project_task_detail 削除 失敗:`, error);
+      }
+    }
+    createdProjectTaskDetailKeys.length = 0;
+
     // project_task を削除
     for (const key of createdProjectTaskKeys) {
       try {
@@ -281,41 +304,6 @@ AfterAll(async () => {
 // ---------------------------------------------------------------------------
 
 /**
- * 実験作業者ユーザーでログインする
- */
-When('実験作業者ユーザー {string} でログインする', async ({ page }, _userId: string) => {
-  await page.goto(`/?orgId=${ORG_ID}`);
-  await page.waitForSelector('#userId', { timeout: 15000 });
-  // TODO: 実際の実験作業者ユーザーIDとパスワードに更新すること
-  await page.fill('#userId', 'worker@example.com');
-  await page.fill('#password', 'worker123');
-  await page.click('button[type="submit"]');
-  await page.waitForLoadState('networkidle', { timeout: 30000 });
-});
-
-/**
- * 実験作業者メイン画面が表示されていることを確認する
- */
-When('実験作業者メイン画面が表示されている', async ({ page }) => {
-  await page.waitForSelector('[data-testid="project-select"]', {
-    timeout: 15000,
-  });
-});
-
-/**
- * プロジェクト選択コンボボックスで指定プロジェクトを選択する
- */
-When('プロジェクト選択コンボボックスでプロジェクト {string} を選択する', async ({ page }, projectName: string) => {
-  const projectSelect = page.locator('[data-testid="project-select"]');
-  await projectSelect.waitFor({ state: 'visible', timeout: 10000 });
-  await projectSelect.click();
-  await waitForSelectDropdown(page);
-  const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
-  await visibleDropdown.locator(`.ant-select-item-option[title^="${projectName} "]`).click();
-  await page.waitForLoadState('networkidle', { timeout: 10000 });
-});
-
-/**
  * 進捗確認タブを開く
  * ExperimentWorkerMenu.tsx: tabItems key='4'、t('menu.experiment_worker.tabs.progressCheck')
  */
@@ -325,20 +313,8 @@ When('進捗確認タブを開く', async ({ page }) => {
   const progressTab = page.locator('.ant-tabs-tab').filter({ hasText: /進捗確認/ }).first();
   await progressTab.waitFor({ state: 'visible', timeout: 10000 });
   await progressTab.click();
-  // タブコンテンツが表示されるまで待機
-  await page.waitForTimeout(1000);
-});
-
-/**
- * 実験記録タブを開く（5-5-3 でのタブ切り替え確認用）
- * ExperimentWorkerMenu.tsx: tabItems key='3'
- */
-When('実験記録タブを開く', async ({ page }) => {
-  // Ant Design Tabs コンポーネントは .ant-tabs-tab セレクターを使用すること（[role="tab"] は禁止）
-  const recordTab = page.locator('.ant-tabs-tab').filter({ hasText: /実験記録/ }).first();
-  await recordTab.waitFor({ state: 'visible', timeout: 10000 });
-  await recordTab.click();
-  await page.waitForTimeout(500);
+  // タブコンテンツのAPI取得完了まで待機（固定待機ではなくネットワーク応答待ち）
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
 });
 
 /**
@@ -346,9 +322,21 @@ When('実験記録タブを開く', async ({ page }) => {
  * TaskListTable.tsx の各行に配置された「開始」ボタン（disabled でないもの）
  */
 When('最初の有効な「開始」ボタンをクリックする', async ({ page }) => {
-  // テーブル内の有効な開始ボタンを取得
-  const startBtn = page.locator('[data-testid="task-list-table"] button:has-text("開始"):not([disabled])').first();
+  // Step1: ProgressCheckTable が描画されるまで待機
+  //   ProgressCheckTab は methodTasks.length > 0 のときのみ ProgressCheckTable を描画するため、
+  //   networkidle の後に React の state 更新・再レンダリングが完了してからテーブルを探す必要がある
+  await page.waitForSelector('[data-testid="progress-check-table"]', { timeout: 15000 });
+  // Step2: テーブル行が描画されるまで待機
+  await page.waitForSelector(
+    '[data-testid="task-list-table"] .ant-table-tbody tr.ant-table-row',
+    { timeout: 10000 }
+  );
+  // テーブル内の開始ボタンを取得（aria-label で指定: Ant Design が2文字漢字にスペースを自動挿入するためhasTextは使用不可）
+  const startBtn = page
+    .locator('[data-testid="task-list-table"] button[aria-label="タスクを開始"]')
+    .first();
   await startBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await startBtn.scrollIntoViewIfNeeded();
   await startBtn.click();
   // API応答を待機
   await page.waitForLoadState('networkidle', { timeout: 15000 });
@@ -359,8 +347,19 @@ When('最初の有効な「開始」ボタンをクリックする', async ({ pa
  * TaskListTable.tsx の各行に配置された「終了」ボタン（disabled でないもの）
  */
 When('最初の有効な「終了」ボタンをクリックする', async ({ page }) => {
-  const terminateBtn = page.locator('[data-testid="task-list-table"] button:has-text("終了"):not([disabled])').first();
+  // Step1: ProgressCheckTable が描画されるまで待機
+  await page.waitForSelector('[data-testid="progress-check-table"]', { timeout: 15000 });
+  // Step2: テーブル行が描画されるまで待機
+  await page.waitForSelector(
+    '[data-testid="task-list-table"] .ant-table-tbody tr.ant-table-row',
+    { timeout: 10000 }
+  );
+  // aria-label で指定（Ant Design が「終了」→「終 了」とスペースを挿入するためhasTextは使用不可）
+  const terminateBtn = page
+    .locator('[data-testid="task-list-table"] button[aria-label="タスクを強制終了"]')
+    .first();
   await terminateBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await terminateBtn.scrollIntoViewIfNeeded();
   await terminateBtn.click();
   // API応答を待機
   await page.waitForLoadState('networkidle', { timeout: 15000 });
@@ -371,8 +370,19 @@ When('最初の有効な「終了」ボタンをクリックする', async ({ pa
  * TaskListTable.tsx: 指示確認ボタン（aria-label="作業指示を確認"）
  */
 When('タスク一覧の最初の「指示」ボタンをクリックする', async ({ page }) => {
-  const instructionBtn = page.locator('[data-testid="task-list-table"] button:has-text("指示")').first();
+  // Step1: ProgressCheckTable が描画されるまで待機
+  await page.waitForSelector('[data-testid="progress-check-table"]', { timeout: 15000 });
+  // Step2: テーブル行が描画されるまで待機
+  await page.waitForSelector(
+    '[data-testid="task-list-table"] .ant-table-tbody tr.ant-table-row',
+    { timeout: 10000 }
+  );
+  // aria-label で指定（Ant Design が「指示」→「指 示」とスペースを挿入するためhasTextは使用不可）
+  const instructionBtn = page
+    .locator('[data-testid="task-list-table"] button[aria-label="作業指示を確認"]')
+    .first();
   await instructionBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await instructionBtn.scrollIntoViewIfNeeded();
   await instructionBtn.click();
   await page.waitForTimeout(1000);
 });
@@ -382,8 +392,19 @@ When('タスク一覧の最初の「指示」ボタンをクリックする', as
  * TaskListTable.tsx: 実験記録ボタン（aria-label="実験記録を入力"）
  */
 When('タスク一覧の最初の「記録」ボタンをクリックする', async ({ page }) => {
-  const recordBtn = page.locator('[data-testid="task-list-table"] button:has-text("記録")').first();
+  // Step1: ProgressCheckTable が描画されるまで待機
+  await page.waitForSelector('[data-testid="progress-check-table"]', { timeout: 15000 });
+  // Step2: テーブル行が描画されるまで待機
+  await page.waitForSelector(
+    '[data-testid="task-list-table"] .ant-table-tbody tr.ant-table-row',
+    { timeout: 10000 }
+  );
+  // aria-label で指定（Ant Design が「記録」→「記 録」とスペースを挿入するためhasTextは使用不可）
+  const recordBtn = page
+    .locator('[data-testid="task-list-table"] button[aria-label="実験記録を入力"]')
+    .first();
   await recordBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await recordBtn.scrollIntoViewIfNeeded();
   await recordBtn.click();
   await page.waitForTimeout(1000);
 });
@@ -393,12 +414,19 @@ When('タスク一覧の最初の「記録」ボタンをクリックする', as
  * TaskListTable.tsx: issueCheck ボタン（t('experimentWork.progressCheck.checkButton')）
  */
 When('タスク一覧の最初の問題確認ボタンをクリックする', async ({ page }) => {
-  // 問題確認ボタン（「確認」または「問題」テキストのボタン）
+  // Step1: ProgressCheckTable が描画されるまで待機
+  await page.waitForSelector('[data-testid="progress-check-table"]', { timeout: 15000 });
+  // Step2: テーブル行が描画されるまで待機
+  await page.waitForSelector(
+    '[data-testid="task-list-table"] .ant-table-tbody tr.ant-table-row',
+    { timeout: 10000 }
+  );
+  // aria-label で指定（Ant Design が「確認」→「確 認」とスペースを挿入するためhasTextは使用不可）
   const issueBtn = page
-    .locator('[data-testid="task-list-table"] button')
-    .filter({ hasText: /確認|問題/ })
+    .locator('[data-testid="task-list-table"] button[aria-label="問題確認"]')
     .first();
   await issueBtn.waitFor({ state: 'visible', timeout: 10000 });
+  await issueBtn.scrollIntoViewIfNeeded();
   await issueBtn.click();
   await page.waitForTimeout(1000);
 });
@@ -409,10 +437,12 @@ When('タスク一覧の最初の問題確認ボタンをクリックする', as
  */
 When('タスク一覧の最初の進捗率テキストをクリックする', async ({ page }) => {
   // 進捗率テキスト: 青色・下線付き・クリック可（cursor: pointer）
+  // Note: テーブルが水平スクロールされている場合にクリックできないため scrollIntoViewIfNeeded() を追加
   const progressRateText = page
     .locator('[data-testid="task-list-table"] [aria-label^="進捗率"]')
     .first();
   await progressRateText.waitFor({ state: 'visible', timeout: 10000 });
+  await progressRateText.scrollIntoViewIfNeeded();
   await progressRateText.click();
   await page.waitForTimeout(1000);
 });
@@ -580,7 +610,8 @@ Then('フロー図ダイアログが表示されること', async ({ page }) => 
  * waiting_approval（project_status=3）の場合、isEditableStatus=false → 全開始ボタンが disabled
  */
 Then('タスク一覧の全「開始」ボタンが無効化されていること', async ({ page }) => {
-  const startBtns = page.locator('[data-testid="task-list-table"] button:has-text("開始")');
+  // aria-label で指定（Ant Design が「開始」→「開 始」とスペースを挿入するためhas-textは使用不可）
+  const startBtns = page.locator('[data-testid="task-list-table"] button[aria-label="タスクを開始"]');
   const count = await startBtns.count();
   expect(count).toBeGreaterThan(0);
   for (let i = 0; i < count; i++) {
@@ -599,8 +630,8 @@ Then('「作業中」ステータスの行の「開始」ボタンが無効化�
     has: page.locator('.ant-tag-orange:has-text("作業中")')
   }).first();
   await inProgressRow.waitFor({ state: 'visible', timeout: 10000 });
-  // その行の「開始」ボタンが disabled であること
-  await expect(inProgressRow.locator('button:has-text("開始")')).toBeDisabled({ timeout: 10000 });
+  // その行の「開始」ボタンが disabled であること（aria-label で指定）
+  await expect(inProgressRow.locator('button[aria-label="タスクを開始"]')).toBeDisabled({ timeout: 10000 });
 });
 
 /**
@@ -611,7 +642,8 @@ Then('「完了」ステータスの行の「終了」ボタンが無効化さ�
     has: page.locator('.ant-tag-green:has-text("完了")')
   }).first();
   await completedRow.waitFor({ state: 'visible', timeout: 10000 });
-  await expect(completedRow.locator('button:has-text("終了")')).toBeDisabled({ timeout: 10000 });
+  // aria-label で指定（Ant Design が「終了」→「終 了」とスペースを挿入するためhas-textは使用不可）
+  await expect(completedRow.locator('button[aria-label="タスクを強制終了"]')).toBeDisabled({ timeout: 10000 });
 });
 
 /**
@@ -622,7 +654,8 @@ Then('「強制終了」ステータスの行の「終了」ボタンが無効�
     has: page.locator('.ant-tag-red:has-text("強制終了")')
   }).first();
   await forcedRow.waitFor({ state: 'visible', timeout: 10000 });
-  await expect(forcedRow.locator('button:has-text("終了")')).toBeDisabled({ timeout: 10000 });
+  // aria-label で指定（Ant Design が「終了」→「終 了」とスペースを挿入するためhas-textは使用不可）
+  await expect(forcedRow.locator('button[aria-label="タスクを強制終了"]')).toBeDisabled({ timeout: 10000 });
 });
 
 /**
@@ -702,7 +735,7 @@ Then('メソッドタブがexperiment_orderの昇順で表示されているこ�
 // ===========================================================================
 
 /**
- * Ant Design Select のドロップダウンが表示されるまで待機する
+ * テス
  */
 async function waitForSelectDropdown(page: import('@playwright/test').Page): Promise<void> {
   await page.waitForFunction(
@@ -776,12 +809,18 @@ async function upsertTestProject(
 /**
  * テスト用プロジェクトタスクを UPSERT する
  *
+ * task_status は project_task テーブルには存在せず、project_task_detail テーブルにある。
+ * そのため以下の2ステップで処理する:
+ *   1. project_task に task_status なしで UPSERT
+ *   2. project_task_detail に task_status ありで UPSERT（task_no = experiment_order）
+ *
  * @param projectId        - プロジェクトID
  * @param methodId         - メソッドID
- * @param experimentOrder  - 実験順序（タスクNo）
- * @param taskStatus       - タスクステータス（'not_started' | 'in_progress' | 'completed' | 'forced_terminated'）
+ * @param experimentOrder  - 実験順序（= project_task_detail.task_no として使用）
+ * @param taskStatus       - タスクステータス文字列（'not_started' | 'in_progress' | 'completed' | 'forced_terminated'）
  *
  * DDL参照: docs/design/db/ddl/project_task.sql
+ * DDL参照: docs/design/db/ddl/project_task_detail.sql
  */
 async function upsertTestProjectTask(
   projectId: string,
@@ -790,34 +829,48 @@ async function upsertTestProjectTask(
   taskStatus: string
 ): Promise<void> {
   console.log(`[5-5 upsertTestProjectTask] 開始: project_id=${projectId}, method_id=${methodId}, experiment_order=${experimentOrder}, task_status=${taskStatus}`);
+
+  /**
+   * task_status 文字列 → 数値変換
+   * DDL: project_task_detail.task_status numeric(2,0)
+   * 0: not_started, 1: in_progress, 3: completed, 4: forced_terminated
+   */
+  const taskStatusMap: Record<string, number> = {
+    'not_started': 0,
+    'in_progress': 1,
+    'completed': 3,
+    'forced_terminated': 4,
+  };
+  const taskStatusNum = taskStatusMap[taskStatus] ?? 0;
+
   try {
-    const existing = await db.query<{ project_id: string }>(
+    // --- Step 1: project_task テーブルへ UPSERT（task_status カラムは存在しない） ---
+    const existingTask = await db.query<{ project_id: string }>(
       `SELECT project_id FROM project_task
        WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND experiment_order = $4`,
       [ORG_ID, projectId, methodId, experimentOrder]
     );
 
-    if ((existing.rowCount ?? 0) > 0) {
-      // 既存レコードがある場合はタスクステータスを更新
+    if ((existingTask.rowCount ?? 0) > 0) {
       await db.query(
         `UPDATE project_task
-         SET task_status = $1, update_user_id = 'e2e-test', update_at = NOW()
-         WHERE organization_id = $2 AND project_id = $3 AND method_id = $4 AND experiment_order = $5`,
-        [taskStatus, ORG_ID, projectId, methodId, experimentOrder]
+         SET update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND experiment_order = $4`,
+        [ORG_ID, projectId, methodId, experimentOrder]
       );
-      console.log(`[5-5 upsertTestProjectTask] UPDATE 完了: project_id=${projectId}, experiment_order=${experimentOrder}`);
+      console.log(`[5-5 upsertTestProjectTask] project_task UPDATE 完了: project_id=${projectId}, experiment_order=${experimentOrder}`);
     } else {
       await db.query(
         `INSERT INTO project_task (
           organization_id, project_id, method_id, experiment_order,
-          task_status, experiment_condition, attempts_count, worker_linked_flg,
+          experiment_condition, attempts_count, worker_linked_flg,
           create_user_id, create_at, update_user_id, update_at
         ) VALUES (
           $1, $2, $3, $4,
-          $5, 1, 1, false,
+          1, 1, false,
           'e2e-test', NOW(), 'e2e-test', NOW()
         )`,
-        [ORG_ID, projectId, methodId, experimentOrder, taskStatus]
+        [ORG_ID, projectId, methodId, experimentOrder]
       );
       createdProjectTaskKeys.push({
         organization_id: ORG_ID,
@@ -825,7 +878,44 @@ async function upsertTestProjectTask(
         method_id: methodId,
         experiment_order: experimentOrder,
       });
-      console.log(`[5-5 upsertTestProjectTask] INSERT 完了: project_id=${projectId}, experiment_order=${experimentOrder}`);
+      console.log(`[5-5 upsertTestProjectTask] project_task INSERT 完了: project_id=${projectId}, experiment_order=${experimentOrder}`);
+    }
+
+    // --- Step 2: project_task_detail テーブルへ UPSERT（task_no = experiment_order） ---
+    const existingDetail = await db.query<{ task_no: number }>(
+      `SELECT task_no FROM project_task_detail
+       WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
+      [ORG_ID, projectId, methodId, experimentOrder]
+    );
+
+    if ((existingDetail.rowCount ?? 0) > 0) {
+      await db.query(
+        `UPDATE project_task_detail
+         SET task_status = $1, update_user_id = 'e2e-test', update_at = NOW()
+         WHERE organization_id = $2 AND project_id = $3 AND method_id = $4 AND task_no = $5`,
+        [taskStatusNum, ORG_ID, projectId, methodId, experimentOrder]
+      );
+      console.log(`[5-5 upsertTestProjectTask] project_task_detail UPDATE 完了: task_no=${experimentOrder}, task_status=${taskStatusNum}`);
+    } else {
+      await db.query(
+        `INSERT INTO project_task_detail (
+          organization_id, project_id, method_id, task_no,
+          task_status,
+          create_user_id, create_at, update_user_id, update_at
+        ) VALUES (
+          $1, $2, $3, $4,
+          $5,
+          'e2e-test', NOW(), 'e2e-test', NOW()
+        )`,
+        [ORG_ID, projectId, methodId, experimentOrder, taskStatusNum]
+      );
+      createdProjectTaskDetailKeys.push({
+        organization_id: ORG_ID,
+        project_id: projectId,
+        method_id: methodId,
+        task_no: experimentOrder,
+      });
+      console.log(`[5-5 upsertTestProjectTask] project_task_detail INSERT 完了: task_no=${experimentOrder}, task_status=${taskStatusNum}`);
     }
   } catch (error) {
     console.error(`[5-5 upsertTestProjectTask] 失敗: project_id=${projectId}, experiment_order=${experimentOrder}:`, error);
