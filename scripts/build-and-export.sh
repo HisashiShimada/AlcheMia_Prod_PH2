@@ -116,6 +116,22 @@ check_requirements() {
     fi
     success "Docker: $(docker --version)"
 
+    # Docker デーモンへのアクセス権限チェック
+    if ! docker info &>/dev/null; then
+        error "Docker デーモンへの接続に失敗しました（permission denied）"
+        echo ""
+        echo "  【解決方法】現在のユーザーを docker グループに追加してください："
+        echo ""
+        echo "    sudo usermod -aG docker \$USER"
+        echo "    newgrp docker   # 現在のシェルに即時反映（ログアウト不要）"
+        echo ""
+        echo "  ※ newgrp docker を実行した後、このスクリプトを再実行してください。"
+        echo "  ※ 完全に反映させるには、ログアウト → 再ログイン が確実です。"
+        echo ""
+        exit 1
+    fi
+    success "Docker デーモン: 接続OK"
+
     # Docker Compose の確認
     if ! docker compose version &>/dev/null; then
         error "Docker Compose がインストールされていません"
