@@ -118,6 +118,15 @@ export interface LoginResponse {
 }
 
 /**
+ * POST /api/v1/auth/resend-pin レスポンス
+ */
+export interface ResendPINResponse {
+  message: string;
+  email: string;     // マスキング済み（"use***@example.com"）
+  expiresIn: number; // 秒単位（300 = 5分）
+}
+
+/**
  * POST /api/v1/auth/verify-pin レスポンス
  */
 export interface VerifyPINResponse {

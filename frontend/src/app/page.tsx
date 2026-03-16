@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { message, Spin } from 'antd';
 import LoginPage from '@/components/LoginPage';
@@ -22,9 +22,9 @@ import type { LoginCredentials, User, UserRole } from '@/types/auth';
 type AuthStep = 'login' | 'pin-code' | 'password-reset-request' | 'password-reset-execute' | 'authenticated';
 
 /**
- * ホームページ（統合ログイン画面）
+ * ホームページのメインコンテンツ（useSearchParams使用のためSuspense内に配置）
  */
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -739,5 +739,36 @@ export default function Home() {
         onSuccess={handleChangePasswordSuccess}
       />
     </>
+  );
+}
+
+/**
+ * ホームページ（エクスポート用）
+ * useSearchParams() を使用する HomeContent を Suspense でラップする
+ */
+export default function Home() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+            flexDirection: 'column',
+            gap: '16px',
+            backgroundColor: '#f0f2f5',
+          }}
+        >
+          <Spin size="large" />
+          <div style={{ fontSize: '16px', color: '#595959' }}>
+            読み込み中...
+          </div>
+        </div>
+      }
+    >
+      <HomeContent />
+    </Suspense>
   );
 }
