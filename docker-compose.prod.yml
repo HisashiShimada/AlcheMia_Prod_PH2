@@ -23,7 +23,14 @@ services:
   # ※ AWSではRDS Aurora PostgreSQLに切り替え可（.envのDB_HOST等を変更）
   # ===========================================================================
   postgres:
-    image: postgres:17-alpine
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM postgres:17
+        RUN apt-get update && \
+            apt-get install -y postgresql-17-pgvector && \
+            apt-get clean && \
+            rm -rf /var/lib/apt/lists/*
     container_name: mmdpf-postgres
     restart: unless-stopped
     environment:
