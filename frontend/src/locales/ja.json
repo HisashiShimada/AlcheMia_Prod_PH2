@@ -409,6 +409,7 @@
     "checkout_action": "チェックアウト",
     "send_instruction": "指示送信",
     "publish": "公開",
+    "unpublish": "非公開",
     "select_project": "プロジェクトを選択してください",
     "select_project_description": "左側のフォルダツリーからプロジェクトを選択すると、ファイル一覧が表示されます",
     "folder_tree": {
@@ -758,6 +759,10 @@
       "isEntryRequired": "二段階認証判定を選択してください",
       "useDeemedProgress": "みなし進捗使用フラグ",
       "useDeemedProgressRequired": "みなし進捗使用フラグを選択してください",
+      "defaultRetentionDays": "公開保持日数（日）",
+      "defaultRetentionDaysRequired": "公開保持日数を入力してください",
+      "defaultRetentionDaysInvalid": "公開保持日数は1以上の整数で入力してください",
+      "defaultRetentionDaysHelp": "MaiMLデータ公開時のデフォルト保持日数（1日以上の整数）",
       "status": "状態",
       "chiefUserName": "代表システム管理者",
       "chiefUserNameRequired": "代表システム管理者を入力してください",

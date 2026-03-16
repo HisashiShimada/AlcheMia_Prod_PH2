@@ -11,6 +11,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import type { CreateProjectRequest, MethodTaskItem, MethodTasksResponse, MethodTasksStatistics, TaskProgressStats, TaskDetailResponse,MaimlPublishRequest,MaimlPublishResponse } from '../types/api';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
+import { enqueuePublish, enqueueUnpublish, getPublishStatus as fetchPublishStatus } from '../services/maimlPublishService';
+import { getPool } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
+import * as projectRepository from '../repositories/projectRepository';
 
 /**
  * プロジェクト作成エンドポイント
@@ -139,7 +143,6 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
     }
 
     // ── projectName → projectId 解決 ──────────────────────────────
-    const { getPool } = require('../database/db');
     const pool = getPool();
     const projectResult = await pool.query(
       'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2',
@@ -278,7 +281,6 @@ export async function getProjectTasks(req: Request, res: Response): Promise<void
     console.log('[DEBUG] getProjectTasks - Auth OK', { organizationId, projectName });
 
     // projectNameからprojectIdを取得
-    const { getPool } = require('../database/db');
     const pool = getPool();
     const projectQuery = 'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2';
     const projectResult = await pool.query(projectQuery, [organizationId, projectName]);
@@ -639,7 +641,6 @@ export async function getProjectFiles(req: Request, res: Response): Promise<void
     console.log('[DEBUG] getProjectFiles - Auth OK', { organizationId, projectName, userId: req.user!.userId });
 
     // projectNameからprojectIdを取得
-    const { getPool } = require('../database/db');
     const pool = getPool();
     const projectQuery = 'SELECT project_id FROM project WHERE organization_id = $1 AND project_name = $2';
     const projectResult = await pool.query(projectQuery, [organizationId, projectName]);
@@ -852,7 +853,6 @@ export async function requestApproval(req: Request, res: Response): Promise<void
     const { comment } = req.body;
 
     // projectNameからprojectIdを取得（リポジトリ層を使用）
-    const projectRepository = require('../repositories/projectRepository');
     const project = await projectRepository.findProjectIdByName(organizationId, projectName);
     
     if (!project) {
@@ -1151,7 +1151,6 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
     const statusFilter = (req.query.status as string) || 'all';
 
     // プロジェクト存在確認（マルチテナント分離）
-    const { getPool } = require('../database/db');
     const pool = getPool();
     const projectCheckResult = await pool.query(
       'SELECT project_id FROM project WHERE project_id = $1 AND organization_id = $2',
@@ -1171,7 +1170,6 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
     }
 
     // SQLファイルを使ってタスク一覧取得
-    const { loadSqlFile } = require('../sql/loader');
     const sql = await loadSqlFile('tasks/findByProjectMethod.sql');
     const queryResult = await pool.query(sql, [projectId, methodId, organizationId]);
     const rows = queryResult.rows;
@@ -1334,21 +1332,72 @@ export async function publish(req: Request, res: Response): Promise<void> {
     }
     const fileUri = maimlResult.data.filePath;
 
-    // 2. 公開リクエストを登録し bullmq キューにジョブを投入（非同期）
-    // TODO: maimlIngestService.requestPublish() 実装後に置き換える
-    //   - maiml_asset INSERT
-    //   - maiml_publish_registry INSERT (status='requested')
-    //   - maimlPublishQueue へのジョブ投入
-    console.warn('[projectController.publish] requestPublish は未実装です（bullmq Worker 実装待ち）');
+    // 2. 公開ジョブを bullmq キューに投入（非同期）
+    const userId = req.user!.userId ?? null;
+
+    let result;
+    try {
+      result = await enqueuePublish(organizationId, projectName, userId);
+    } catch (svcErr: unknown) {
+      const code = svcErr instanceof Error ? svcErr.message : 'PUBLISH_ERROR';
+      if (code === 'PROJECT_NOT_FOUND') {
+        res.status(404).json({
+          success: false,
+          error: { code: 'PROJECT_NOT_FOUND', message: 'プロジェクトが見つかりません' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      if (code === 'PROJECT_NOT_CHECKED_OUT') {
+        res.status(400).json({
+          success: false,
+          error: { code: 'PROJECT_NOT_CHECKED_OUT', message: 'プロジェクトがチェックアウトされていません' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      if (code === 'PROJECT_STATUS_INVALID') {
+        res.status(400).json({
+          success: false,
+          error: { code: 'PROJECT_STATUS_INVALID', message: 'プロジェクトステータスがタスク結果レビュー待ちではありません' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      if (code === 'TASKS_NOT_COMPLETED') {
+        res.status(400).json({
+          success: false,
+          error: { code: 'TASKS_NOT_COMPLETED', message: '完了・異常終了以外のタスクが残っています' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      if (code === 'ALREADY_IN_PROGRESS') {
+        res.status(409).json({
+          success: false,
+          error: { code: 'ALREADY_IN_PROGRESS', message: '既に処理中のジョブがあります' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      if (code === 'MAIML_NOT_FOUND') {
+        res.status(400).json({
+          success: false,
+          error: { code: 'MAIML_NOT_FOUND', message: 'MAIMLファイルが存在しません' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      throw svcErr;
+    }
 
     // 202 Accepted: 処理は非同期で継続する
     res.status(202).json({
       success: true,
       data: {
-        asset_id:    null,
-        registry_id: null,
-        status:      'requested',
-        message:     '公開処理を開始しました。完了までしばらくお待ちください。',
+        job_id:  result.job_id,
+        status:  result.status,
+        message: result.message,
       },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
@@ -1385,8 +1434,6 @@ export async function unpublish(req: Request, res: Response): Promise<void> {
   try {
     const { organizationId } = req.user!;
     const { projectName } = req.params;
-    const { mode = 'keep_meta' } = req.body as { mode?: 'keep_meta' | 'full_delete' };
-
     // projectName から公開ステータスを取得して asset_id を特定
     const projectService = new ProjectService();
     const maimlResult = await projectService.getProjectMaiml(organizationId, projectName);
@@ -1401,18 +1448,39 @@ export async function unpublish(req: Request, res: Response): Promise<void> {
     const fileUri = maimlResult.data.filePath;
 
     // 非公開ジョブを bullmq キューに投入（非同期）
-    // TODO: maimlIngestService.requestUnpublish() 実装後に置き換える
-    //   - maiml_publish_job INSERT (job_type='unpublish', status='pending')
-    //   - maimlUnpublishQueue へのジョブ投入
-    console.warn('[projectController.unpublish] requestUnpublish は未実装です（bullmq Worker 実装待ち）');
+    const userId = req.user!.userId ?? null;
+
+    let result;
+    try {
+      result = await enqueueUnpublish(organizationId, projectName, userId);
+    } catch (svcErr: unknown) {
+      const code = svcErr instanceof Error ? svcErr.message : 'UNPUBLISH_ERROR';
+      if (code === 'NOT_PUBLISHED') {
+        res.status(404).json({
+          success: false,
+          error: { code: 'NOT_PUBLISHED', message: '公開済みアセットが存在しません' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      if (code === 'ALREADY_IN_PROGRESS') {
+        res.status(409).json({
+          success: false,
+          error: { code: 'ALREADY_IN_PROGRESS', message: '既に処理中のジョブがあります' },
+          meta: { timestamp: new Date().toISOString(), requestId },
+        });
+        return;
+      }
+      throw svcErr;
+    }
 
     // 202 Accepted: 処理は非同期で継続する
     res.status(202).json({
       success: true,
       data: {
-        job_id:  null,
-        status:  'pending',
-        message: '非公開処理を開始しました。完了までしばらくお待ちください。',
+        job_id:  result.job_id,
+        status:  result.status,
+        message: result.message,
       },
       meta: { timestamp: new Date().toISOString(), requestId },
     });
@@ -1456,21 +1524,11 @@ export async function getPublishStatus(req: Request, res: Response): Promise<voi
       return;
     }
 
-    // TODO: maiml_asset / maiml_publish_registry の実装後に getPublishStatus() を復元する
-    console.warn('[projectController.getPublishStatus] getPublishStatus は未実装です（DB テーブル構成確定待ち）');
+    const statusData = await fetchPublishStatus(organizationId, projectName);
+
     res.status(200).json({
       success: true,
-      data: {
-        is_published:     false,
-        asset_id:         null,
-        registry_id:      null,
-        status:           null,
-        doc_name:         null,
-        template_only:    null,
-        store_raw_series: null,
-        retention_until:  null,
-        published_at:     null,
-      },
+      data: statusData,
       meta: { timestamp: new Date().toISOString(), requestId },
     });
   } catch (error) {

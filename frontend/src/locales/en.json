@@ -358,6 +358,7 @@
     "checkout_action": "Check Out",
     "send_instruction": "Send Instruction",
     "publish": "Publish",
+    "unpublish": "Unpublish",
     "select_project": "Please select a project",
     "select_project_description": "Select a project from the folder tree on the left to display the file list",
     "folder_tree": {
@@ -650,6 +651,10 @@
       "isEntryRequired": "Please select two-factor auth setting",
       "useDeemedProgress": "Use Deemed Progress",
       "useDeemedProgressRequired": "Please select use deemed progress setting",
+      "defaultRetentionDays": "Default Retention Days",
+      "defaultRetentionDaysRequired": "Please enter default retention days",
+      "defaultRetentionDaysInvalid": "Default retention days must be an integer of 1 or more",
+      "defaultRetentionDaysHelp": "Default retention days when publishing MaiML data (integer, 1 or more)",
       "status": "Status",
       "chiefUserName": "Chief System Admin",
       "chiefUserNameRequired": "Please enter chief system admin",

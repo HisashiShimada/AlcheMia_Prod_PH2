@@ -9,6 +9,7 @@
  */
 
 import * as projectRepository from '../repositories/projectRepository';
+import * as instructionRepository from '../repositories/instructionRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
 import * as projectTaskDetailRepository from '../repositories/projectTaskDetailRepository';
 import { TransitionDataRepository } from '../repositories/transitionDataRepository';
@@ -244,7 +245,6 @@ export async function saveTaskRegistration(
     
     // 6-5. 指示データの保存（instructions配列が指定されている場合のみ）
     if (requestData.instructions && requestData.instructions.length > 0) {
-      const instructionRepository = await import('../repositories/instructionRepository');
       await instructionRepository.batchInsert(
         t as any, // instructionRepository.batchInsertがany型を期待
         organizationId,
@@ -384,12 +384,13 @@ async function deleteAndInsertTemplateData(
         if (!template.placeRefs || template.placeRefs.length === 0) continue;
 
         // このテンプレートのプロパティ定義を構築
+        // { ...p, value: null } でMAIMLの全フィールド（description・attributes等）を保持しつつ
+        // value のみを null（未記録）で初期化する
         const properties = (template.properties || []).map(p => ({
-          key: p.key || '',
-          xsiType: p.xsiType || 'stringType',
+          ...p,
           value: null,
-          units: p.units || null,
         }));
+
 
         const propertySet: Record<string, unknown> = {
           templateId: template.id || '',

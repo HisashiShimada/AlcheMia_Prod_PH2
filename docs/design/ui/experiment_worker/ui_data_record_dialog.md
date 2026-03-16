@@ -6,7 +6,8 @@
 - **ファイルパス**: `frontend/src/components/ExperimentWorker/DataRecordDialog.tsx`
 - **利用権限**: 実験作業者（experiment_worker）
 - **作成日**: 2026-01-21
-- **最終更新日**: 2026-03-11
+- **最終更新日**: 2026-03-16
+
 
 ---
 
@@ -181,13 +182,19 @@ DataGrid編集画面:
 |----------------|---------------|------|
 | stringType | TextArea | 文字列入力（3行） |
 | intType | InputNumber | 整数入力（step: 1, precision: 0） |
-| floatType | InputNumber | 小数入力（step: 0.01, precision: 2） |
+| floatType | InputNumber | 小数入力（step/precision は `formatString` から算出。`formatString` 未指定時は step: 0.01, precision: 2） |
 | booleanType | Checkbox | 真偽値 |
 | dateType | DatePicker | 日付（YYYY-MM-DD） |
 | dateTimeType | DatePicker | 日時（YYYY-MM-DD HH:mm:ss） |
 | contentDoubleListType | DataGrid | 2次元数値配列 |
 | propertyListType | ネストフォーム | 階層化されたプロパティ |
 | insertion | Upload | ファイルアップロード |
+
+**プロパティラベルの表示:**
+- `units` が設定されている場合: ラベル右に青色タグで単位を表示
+- `scaleFactor` が設定されている場合: ラベル右に紫色タグで「×{scaleFactor}」を表示
+- `description` が設定されている場合: 入力コンポーネントの下部（Form.Item の `extra`）に薄グレーの説明文を表示
+
 
 ### 3.2 ボタン
 
@@ -776,7 +783,13 @@ DataRecordDialog
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.3.0 | 2026-03-16 | maimlDataWriter仕様修正に伴うUI仕様更新 | Cline |
+| | | - `floatType` の precision を固定値（2）から `formatString` 依存に変更（`%.Nf` 形式からN桁を算出） | |
+| | | - プロパティラベルに `scaleFactor` タグ表示（紫色、×{scaleFactor}）を追加 | |
+| | | - プロパティの `description` を Form.Item の `extra` として説明文表示する仕様を追加 | |
+| | | - `Property` 型に `description`・`formatString`・`scaleFactor` フィールドが追加されたことを反映 | |
 | 1.2.0 | 2026-03-11 | ソースコード調査に基づく仕様書修正 | Cline |
+
 | | | - Props に `projectName`・`taskNo`・`useDeemedProgress` を追加 | |
 | | | - `TransitionStatus` 型を文字列型→数値型（0〜6）に修正 | |
 | | | - ステータス遷移ルール（`ALLOWED_TRANSITIONS`）を追加 | |

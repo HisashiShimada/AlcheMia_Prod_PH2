@@ -11,6 +11,7 @@
 -- $10: contract_capacity (null=変更なし)
 -- $11: contract_users (null=変更なし)
 -- $12: contract_projects (null=変更なし)
+-- $13: default_retention_days (null=変更なし)
 UPDATE organization
 SET
   organization_display_name = COALESCE($2, organization_display_name),
@@ -21,8 +22,9 @@ SET
   use_deemed_progress       = COALESCE($7, use_deemed_progress),
   is_active                 = COALESCE($8, is_active),
   contract_capacity         = COALESCE($10, contract_capacity),
-  contract_users          = COALESCE($11, contract_users),
-  contract_projects       = COALESCE($12, contract_projects),
+  contract_users            = COALESCE($11, contract_users),
+  contract_projects         = COALESCE($12, contract_projects),
+  default_retention_days    = COALESCE($13, default_retention_days),
   update_user_id            = $9,
   update_at                 = NOW()
 WHERE organization_id = $1

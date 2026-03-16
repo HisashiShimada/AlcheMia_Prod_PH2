@@ -455,28 +455,13 @@ function buildCommonTemplateXML(
     xml += `      <uuid>${generateUUID()}</uuid>\n`;
   }
   
-  // テンプレート継承
-  if (template.href) {
-    const inheritNodeId = template.href.startsWith('#') ? template.href.substring(1) : template.href;
-    const inheritNode = allPlaces.find(p => p.id === inheritNodeId);
-    if (inheritNode && inheritNode.data.template) {
-      const inheritTemplate = inheritNode.data.template as Template;
-      const inheritTemplateId = inheritTemplate.templateId || inheritTemplate.id || 
-        `Common${templateType.replace('Template', '')}${inheritNode.id}`;
-      const templateRefId = `templateRef_${templateId}`;
-      xml += `      <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
-    }
-  }
-  
-  // insertion要素
+  // XSD準拠: insertionType の uri/hash は必須（minOccurs=1）
   if (template.insertion) {
     xml += `      <insertion>\n`;
-    if (template.insertion.uri !== undefined) {
-      xml += `        <uri>${escapeXml(template.insertion.uri || '')}</uri>\n`;
-    }
-    if (template.insertion.hash !== undefined) {
-      xml += `        <hash>${escapeXml(template.insertion.hash || '')}</hash>\n`;
-    }
+    // uri は必須（undefinedでも空文字で出力）
+    xml += `        <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
+    // hash は必須（undefinedでも空文字で出力）
+    xml += `        <hash>${escapeXml(template.insertion.hash ?? '')}</hash>\n`;
     if (template.insertion.format) {
       xml += `        <format>${escapeXml(template.insertion.format)}</format>\n`;
     }
@@ -499,7 +484,7 @@ function buildCommonTemplateXML(
       });
   }
   
-  // 複数のplaceRef
+  // XSD準拠: placeRef → templateRef の順で出力
   const placeRefId = template.placeRefId || `${templateId}TL`;
   xml += `      <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(node.id)}"/>\n`;
   
@@ -514,248 +499,20 @@ function buildCommonTemplateXML(
     const refPlaceRefId = `${templateId}TL_ref${index + 1}`;
     xml += `      <placeRef id="${escapeXml(refPlaceRefId)}" ref="${escapeXml(refNode.id)}"/>\n`;
   });
+
+  // XSD準拠: templateRef は placeRef の後に出力
+  if (template.href) {
+    const inheritNodeId = template.href.startsWith('#') ? template.href.substring(1) : template.href;
+    const inheritNode = allPlaces.find(p => p.id === inheritNodeId);
+    if (inheritNode && inheritNode.data.template) {
+      const inheritTemplate = inheritNode.data.template as Template;
+      const inheritTemplateId = inheritTemplate.templateId || inheritTemplate.id || 
+        `Common${templateType.replace('Template', '')}${inheritNode.id}`;
+      const templateRefId = `templateRef_${templateId}`;
+      xml += `      <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
+    }
+  }
   
   xml += `    </${templateType}>\n`;
   return xml;
-}
-
-/**
- * React FlowのノードとエッジからMaiML XMLを生成
- * @param nodes - React Flowノード配列
- * @param edges - React Flowエッジ配列
- * @param metadata - メタデータ
- * @param documentData - Document情報
- * @param originalStructure - 元MaiML構造情報
- * @returns MaiML XML文字列
- */
-export async function convertReactFlowToMaiML(
-  nodes: Node[],
-  edges: Edge[],
-  metadata: { name?: string; description?: string } = {},
-  documentData: DocumentData | null = null,
-  originalStructure: MaiMLStructure | null = null
-): Promise<string> {
-  // バリデーション
-  const validation = validatePetriNet(nodes, edges);
-  if (!validation.valid) {
-    throw new Error(`バリデーションエラー:\n${validation.errors.join('\n')}`);
-  }
-  
-  const fileName = (documentData && documentData.name) ? documentData.name : (metadata.name || 'document');
-  
-  const places = nodes.filter(n => n.type !== 'transition');
-  const transitions = nodes.filter(n => n.type === 'transition');
-  
-  const protocolId = documentData?.protocolId || originalStructure?.protocol?.id || 'protocolID';
-  const protocolUuid = originalStructure?.protocol?.uuid || generateUUID();
-  const methodId = documentData?.methodId || originalStructure?.method?.id || 'methodID';
-  const methodUuid = originalStructure?.method?.uuid || generateUUID();
-  const pnmlId = documentData?.pnmlId || originalStructure?.pnml?.id || 'pnmlID';
-  const pnmlUuid = originalStructure?.pnml?.uuid || generateUUID();
-  const pnmlName = originalStructure?.pnml?.name || `${fileName}PNML`;
-  const pnmlDescription = originalStructure?.pnml?.description || '';
-  const programId = documentData?.programId || originalStructure?.program?.id || 'programID';
-  const programUuid = originalStructure?.program?.uuid || generateUUID();
-  const programDescription = originalStructure?.program?.description || '';
-  
-  // XMLヘッダー
-  let maiml = `<?xml version="1.0" encoding="utf-8" standalone="no"?>\n`;
-  maiml += `<maiml version="1.0" xmlns="http://www.maiml.org/schemas" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.maiml.org/schemas maiml.xsd">\n`;
-  
-  // Document要素
-  if (documentData) {
-    maiml += buildDocumentXML(documentData);
-  } else {
-    const defaultDoc: DocumentData = {
-      id: 'documentID',
-      uuid: generateUUID(),
-      name: fileName,
-      description: '',
-      date: new Date().toISOString(),
-      protocolId,
-      methodId,
-      pnmlId,
-      programId,
-      creators: [],
-      vendors: [],
-      owners: [],
-      instruments: [],
-    };
-    maiml += buildDocumentXML(defaultDoc);
-  }
-  
-  // Template要素群
-  const templateNodes = places.filter(place => place.data.template && place.data.template.type);
-  const commonTemplates = templateNodes.filter(n => n.data.isCommonTemplate === true);
-  const normalTemplates = templateNodes.filter(n => !n.data.isCommonTemplate);
-  
-  maiml += `  <protocol id="${escapeXml(protocolId)}">\n`;
-  maiml += `    <uuid>${escapeXml(protocolUuid)}</uuid>\n`;
-  
-  // 共通テンプレート出力
-  if (commonTemplates.length > 0) {
-    console.log('📋 共通テンプレートを<protocol>直下に出力:', commonTemplates.length, '個');
-    
-    const commonMaterialTemplates = commonTemplates.filter(n => n.data.placeType === 'material');
-    const commonConditionTemplates = commonTemplates.filter(n => n.data.placeType === 'condition');
-    const commonResultTemplates = commonTemplates.filter(n => n.data.placeType === 'result');
-    
-    commonMaterialTemplates.forEach(node => {
-      maiml += buildCommonTemplateXML(node, 'materialTemplate', places, nodes);
-    });
-    commonConditionTemplates.forEach(node => {
-      maiml += buildCommonTemplateXML(node, 'conditionTemplate', places, nodes);
-    });
-    commonResultTemplates.forEach(node => {
-      maiml += buildCommonTemplateXML(node, 'resultTemplate', places, nodes);
-    });
-  }
-  
-  maiml += `    <method id="${escapeXml(methodId)}">\n`;
-  maiml += `      <uuid>${escapeXml(methodUuid)}</uuid>\n`;
-  maiml += `      <pnml id="${escapeXml(pnmlId)}">\n`;
-  maiml += `        <uuid>${escapeXml(pnmlUuid)}</uuid>\n`;
-  
-  if (originalStructure?.pnml?.name || !originalStructure) {
-    maiml += `        <name>${escapeXml(pnmlName)}</name>\n`;
-  }
-  if (pnmlDescription) {
-    maiml += `        <description>${escapeXml(pnmlDescription)}</description>\n`;
-  }
-  
-  // Place要素群
-  places.forEach(place => {
-    const hasName = place.data.name && place.data.name.trim() !== '';
-    const hasDescription = place.data.description && 
-      place.data.description !== 'インポート済み' && 
-      place.data.description !== '既存プレース' && 
-      place.data.description !== 'imported' &&
-      place.data.description.trim() !== '';
-    
-    if (hasName || hasDescription) {
-      maiml += `        <place id="${escapeXml(place.id)}">\n`;
-      if (hasName) {
-        maiml += `          <name>${escapeXml(place.data.name)}</name>\n`;
-      }
-      if (hasDescription) {
-        maiml += `          <description>${escapeXml(place.data.description)}</description>\n`;
-      }
-      maiml += `        </place>\n`;
-    } else {
-      maiml += `        <place id="${escapeXml(place.id)}"/>\n`;
-    }
-  });
-  
-  // Transition要素群
-  transitions.forEach(transition => {
-    const hasName = transition.data.name && transition.data.name.trim() !== '';
-    const hasDescription = transition.data.description && transition.data.description.trim() !== '';
-    
-    if (hasName || hasDescription) {
-      maiml += `        <transition id="${escapeXml(transition.id)}">\n`;
-      if (hasName) {
-        maiml += `          <name>${escapeXml(transition.data.name)}</name>\n`;
-      }
-      if (hasDescription) {
-        maiml += `          <description>${escapeXml(transition.data.description)}</description>\n`;
-      }
-      maiml += `        </transition>\n`;
-    } else {
-      maiml += `        <transition id="${escapeXml(transition.id)}"/>\n`;
-    }
-  });
-  
-  // Arc要素群
-  edges.forEach(arc => {
-    maiml += `        <arc id="${escapeXml(arc.id)}" source="${escapeXml(arc.source)}" target="${escapeXml(arc.target)}">\n`;
-    maiml += `        </arc>\n`;
-  });
-  
-  maiml += `      </pnml>\n`;
-  
-  // Program要素
-  maiml += `      <program id="${escapeXml(programId)}">\n`;
-  maiml += `        <uuid>${escapeXml(programUuid)}</uuid>\n`;
-  if (programDescription) {
-    maiml += `        <description>${escapeXml(programDescription)}</description>\n`;
-  }
-  
-  // Instruction要素群
-  transitions.forEach(transition => {
-    const transitionId = transition.id;
-    const originalInstruction = originalStructure?.instructions?.[transitionId];
-    
-    if (originalInstruction) {
-      maiml += `        <instruction id="${escapeXml(originalInstruction.instructionId)}">\n`;
-      maiml += `          <uuid>${escapeXml(originalInstruction.uuid)}</uuid>\n`;
-      if (originalInstruction.description) {
-        maiml += `          <description>${escapeXml(originalInstruction.description)}</description>\n`;
-      }
-      maiml += `          <transitionRef id="${escapeXml(originalInstruction.transitionRefId)}" ref="${escapeXml(originalInstruction.transitionRefRef)}"/>\n`;
-      maiml += `        </instruction>\n`;
-    } else {
-      maiml += `        <instruction id="${escapeXml(transition.id)}">\n`;
-      maiml += `          <uuid>${generateUUID()}</uuid>\n`;
-      maiml += `          <description>${escapeXml(transition.data.description || transition.data.name || transition.id)}</description>\n`;
-      maiml += `          <transitionRef id="TR_${escapeXml(transition.id)}" ref="${escapeXml(transition.id)}"/>\n`;
-      maiml += `        </instruction>\n`;
-    }
-  });
-  
-  // 通常テンプレート出力（program内）は省略（大規模なため、必要に応じて後で追加）
-  
-  maiml += `      </program>\n`;
-  maiml += `    </method>\n`;
-  maiml += `  </protocol>\n`;
-  
-  // data/eventLog要素
-  const dataId = originalStructure?.data?.id || 'dataID';
-  maiml += `  <data id="${escapeXml(dataId)}">\n`;
-  maiml += `  </data>\n`;
-  
-  const eventLogId = originalStructure?.eventLog?.id || 'eventLogID';
-  maiml += `  <eventLog id="${escapeXml(eventLogId)}">\n`;
-  maiml += `  </eventLog>\n`;
-  
-  maiml += `</maiml>`;
-  
-  return maiml;
-}
-
-/**
- * バリデーションエラーメッセージを整形
- * @param errors - エラー配列
- * @returns 整形されたエラーメッセージ
- */
-export function formatValidationErrors(errors: string[]): string {
-  if (!errors || errors.length === 0) {
-    return 'エラーはありません';
-  }
-  
-  return `以下のエラーが見つかりました:\n\n${errors.map((err, i) => `${i + 1}. ${err}`).join('\n')}`;
-}
-
-/**
- * ノード・エッジの統計情報を取得
- * @param nodes - ノード配列
- * @param edges - エッジ配列
- * @returns 統計情報
- */
-export function getGraphStatistics(nodes: Node[], edges: Edge[]): GraphStatistics {
-  const places = nodes.filter(n => n.type !== 'transition');
-  const transitions = nodes.filter(n => n.type === 'transition');
-  
-  const placesByType = {
-    material: places.filter(p => p.data.placeType === 'material').length,
-    condition: places.filter(p => p.data.placeType === 'condition').length,
-    result: places.filter(p => p.data.placeType === 'result').length,
-  };
-  
-  return {
-    totalNodes: nodes.length,
-    places: places.length,
-    transitions: transitions.length,
-    edges: edges ? edges.length : 0,
-    placesByType
-  };
 }

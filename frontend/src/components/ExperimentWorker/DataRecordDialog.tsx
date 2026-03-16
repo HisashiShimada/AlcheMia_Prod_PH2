@@ -149,9 +149,13 @@ function convertTemplateDataItemsToTemplates(items: TemplateDataItem[]): Templat
       key: p.key,
       label: p.key,                          // ラベルはキーをそのまま使用
       type: mapXsiTypeToPropertyType(p.xsiType),
-      units: p.units ?? undefined,
+      units: (p as Record<string, unknown>).units as string | undefined ?? undefined,
       required: false,
+      description: (p as Record<string, unknown>).description as string | undefined ?? undefined,
+      formatString: (p as Record<string, unknown>).formatString as string | undefined ?? undefined,
+      scaleFactor: (p as Record<string, unknown>).scaleFactor as string | undefined ?? undefined,
     }));
+
 
     const name = buildTemplateName(item.templateType, item.templateId);
 
@@ -705,8 +709,28 @@ export default function DataRecordDialog({
             {property.units}
           </Tag>
         )}
+        {property.scaleFactor && (
+          <Tag color="purple" style={{ marginLeft: 4, fontSize: 11 }}>
+            ×{property.scaleFactor}
+          </Tag>
+        )}
       </>
     );
+
+    // description があれば extra として表示するヘルパー
+    const descriptionExtra = property.description ? (
+      <Text type="secondary" style={{ fontSize: 12 }}>
+        {property.description}
+      </Text>
+    ) : undefined;
+
+    // formatString から InputNumber の precision を算出（例: "%.3f" → 3）
+    const precisionFromFormat = (() => {
+      if (!property.formatString) return undefined;
+      const match = property.formatString.match(/\.(\d+)f/);
+      return match ? parseInt(match[1], 10) : undefined;
+    })();
+
 
     const rules = [
       {
@@ -722,6 +746,7 @@ export default function DataRecordDialog({
             key={key}
             name={key}
             label={label}
+            extra={descriptionExtra}
             rules={rules}
           >
             <TextArea
@@ -738,6 +763,7 @@ export default function DataRecordDialog({
             key={key}
             name={key}
             label={label}
+            extra={descriptionExtra}
             rules={rules}
           >
             <InputNumber
@@ -758,6 +784,7 @@ export default function DataRecordDialog({
             key={key}
             name={key}
             label={label}
+            extra={descriptionExtra}
             rules={rules}
           >
             <InputNumber
@@ -765,8 +792,8 @@ export default function DataRecordDialog({
               placeholder={`${property.label}を入力`}
               min={property.min}
               max={property.max}
-              step={0.01}
-              precision={2}
+              step={precisionFromFormat !== undefined ? Math.pow(10, -precisionFromFormat) : 0.01}
+              precision={precisionFromFormat ?? 2}
               disabled={!isProjectEditable}
             />
           </Form.Item>
@@ -777,6 +804,7 @@ export default function DataRecordDialog({
           <Form.Item
             key={key}
             name={key}
+            extra={descriptionExtra}
             valuePropName="checked"
           >
             <Checkbox disabled={!isProjectEditable}>{property.label}</Checkbox>
@@ -789,6 +817,7 @@ export default function DataRecordDialog({
             key={key}
             name={key}
             label={label}
+            extra={descriptionExtra}
             rules={rules}
           >
             <DatePicker
@@ -806,6 +835,7 @@ export default function DataRecordDialog({
             key={key}
             name={key}
             label={label}
+            extra={descriptionExtra}
             rules={rules}
           >
             <DatePicker
@@ -833,12 +863,14 @@ export default function DataRecordDialog({
             key={key}
             name={key}
             label={label}
+            extra={descriptionExtra}
             rules={rules}
           >
             <Input placeholder={`${property.label}を入力`} disabled={!isProjectEditable} />
           </Form.Item>
         );
     }
+
   };
 
   // DataGrid表示
