@@ -377,7 +377,7 @@ backend/certs/
 
 開発機から、デプロイ先サーバへ必要なファイルを転送します。
 
-### 環境変数ファイルの準備（開発機側）
+### 手順1: 環境変数ファイルの準備（開発機側）
 
 ```bash
 # テンプレートをコピーして編集
@@ -419,71 +419,76 @@ openssl rand -hex 64
 openssl rand -hex 64
 ```
 
-### scp でファイルを転送
+### 手順2: デプロイパッケージの作成（開発機側）
+
+すべてのファイルを1つの圧縮ファイル（`dist/mmdpf-deploy.tar.gz`）にまとめます。
 
 ```bash
-# 転送先のディレクトリを変数に設定（適宜変更）
+# プロジェクトルートに移動
+cd /path/to/mmdpf
+
+# スクリプトに実行権限を付与（初回のみ）
+chmod +x scripts/package-for-deploy.sh
+
+# パッケージを作成
+./scripts/package-for-deploy.sh
+```
+
+スクリプトは以下を自動で行います：
+
+- 前提ファイルの存在確認（不足があればエラーで停止）
+- 必要なファイルをデプロイ先と同じディレクトリ構造に整理
+- `.env.deploy` を `.env` にリネームして格納
+- `dist/mmdpf-deploy.tar.gz` に圧縮
+
+**パッケージ内のディレクトリ構造（展開後）：**
+
+```
+~/mmdpf/
+├── docker-compose.prod.yml
+├── .env
+├── mmdpf-backend.tar.gz
+├── mmdpf-frontend.tar.gz
+├── mmdpf-schema.sql
+├── mmdpf-config-data.sql
+├── config/
+│   └── nginx/
+│       ├── nginx.prod.conf
+│       └── ssl.conf
+└── backend/
+    ├── certs/
+    │   ├── ca/
+    │   │   └── ca.crt
+    │   └── server/
+    │       ├── server.crt
+    │       └── server.key
+    └── migrations/
+        └── *.sql
+```
+
+### 手順3: サーバへ転送（開発機側）
+
+```bash
+# 転送先の情報を変数に設定（適宜変更）
 DEPLOY_USER=user
 DEPLOY_HOST=target-server-ip
-DEPLOY_DIR=/home/user/mmdpf
 
-# ① Docker イメージを転送（dist/ ディレクトリに出力されたファイルを転送）
-scp dist/mmdpf-backend.tar.gz dist/mmdpf-frontend.tar.gz \
-  ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/
-
-# ② docker-compose.prod.yml を転送
-scp docker-compose.prod.yml \
-  ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/
-
-# ③ .env ファイルを転送（機密情報を含むため注意）
-scp .env.deploy \
-  ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/.env
-
-# ④ nginx 設定ディレクトリを転送
-scp -r config/ \
-  ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/
-
-# ⑤ SSL証明書ディレクトリを転送
-scp -r backend/certs/ \
-  ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/backend/
-
-# ⑥ マイグレーション SQL を転送
-scp -r backend/migrations/ \
-  ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/backend/
-
-# ⑦ DB ダンプファイルを転送（STEP 2.5 で作成したファイル）
-scp dist/mmdpf-schema.sql dist/mmdpf-config-data.sql \
-  ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}/
+# 圧縮ファイルを1つ転送するだけでOK
+scp dist/mmdpf-deploy.tar.gz ${DEPLOY_USER}@${DEPLOY_HOST}:~/
 ```
 
-### 転送後のディレクトリ構成確認（デプロイ先サーバ）
+### 手順4: サーバ上で展開（デプロイ先サーバで実行）
 
 ```bash
-# デプロイ先で確認
-ssh ${DEPLOY_USER}@${DEPLOY_HOST}
-cd ~/mmdpf
+# ホームディレクトリで展開（~/mmdpf/ が作成される）
+tar -xzf ~/mmdpf-deploy.tar.gz -C ~/
 
+# ディレクトリ構成を確認
+cd ~/mmdpf
 tree -L 3
-# 期待する構成:
-# ~/mmdpf/
-# ├── docker-compose.prod.yml
-# ├── .env
-# ├── mmdpf-backend.tar.gz
-# ├── mmdpf-frontend.tar.gz
-# ├── config/
-# │   └── nginx/
-# │       ├── nginx.prod.conf
-# │       └── ssl.conf
-# └── backend/
-#     ├── certs/
-#     │   ├── ca/
-#     │   │   └── ca.crt
-#     │   └── server/
-#     │       ├── server.crt
-#     │       └── server.key
-#     └── migrations/
-#         └── *.sql
 ```
+
+> **補足**: `tree` コマンドがない場合は `find . -maxdepth 3 | sort` でも確認できます。
 
 ---
 
@@ -790,22 +795,40 @@ sudo systemctl stop apache2  # Apache が競合している場合など
 
 ---
 
-## 付録: 転送ファイルチェックリスト
+## 付録: デプロイ前チェックリスト
 
-デプロイ前に以下のファイルがすべて転送済みであることを確認してください。
+### パッケージ作成前（開発機側）
 
-- [ ] `docker-compose.prod.yml`
-- [ ] `.env`（環境変数設定済み）
-- [ ] `mmdpf-backend.tar.gz`（Docker イメージ）
-- [ ] `mmdpf-frontend.tar.gz`（Docker イメージ）
-- [ ] `config/nginx/nginx.prod.conf`
-- [ ] `config/nginx/ssl.conf`（存在する場合）
-- [ ] `backend/certs/ca/ca.crt`
-- [ ] `backend/certs/server/server.crt`
-- [ ] `backend/certs/server/server.key`
-- [ ] `backend/migrations/*.sql`（全マイグレーションファイル）
-- [ ] `mmdpf-schema.sql`（DB スキーマダンプ）
-- [ ] `mmdpf-config-data.sql`（設定データダンプ）
+`scripts/package-for-deploy.sh` 実行前に以下がすべて揃っていることを確認してください。
+
+| ファイル/ディレクトリ | 作成方法 |
+|---|---|
+| `dist/mmdpf-backend.tar.gz` | `./scripts/build-and-export.sh` |
+| `dist/mmdpf-frontend.tar.gz` | `./scripts/build-and-export.sh` |
+| `dist/mmdpf-schema.sql` | STEP 2.5 参照 |
+| `dist/mmdpf-config-data.sql` | STEP 2.5 参照 |
+| `.env.deploy` | `.env.prod.onprem.example` をコピーして編集 |
+| `backend/certs/ca/` | `generate-ca-certificate.ts` |
+| `backend/certs/server/` | `generate-server-cert.ts` |
+| `backend/migrations/` | リポジトリに含まれている |
+| `config/nginx/` | リポジトリに含まれている |
+
+### 転送チェックリスト
+
+- [ ] `dist/mmdpf-deploy.tar.gz` をサーバへ転送済み（`scp dist/mmdpf-deploy.tar.gz user@server:~/`）
+- [ ] サーバ上で `tar -xzf ~/mmdpf-deploy.tar.gz -C ~/` を実行済み
+- [ ] `~/mmdpf/` に以下のファイルが展開されていること
+  - [ ] `docker-compose.prod.yml`
+  - [ ] `.env`（環境変数設定済み）
+  - [ ] `mmdpf-backend.tar.gz`
+  - [ ] `mmdpf-frontend.tar.gz`
+  - [ ] `mmdpf-schema.sql`
+  - [ ] `mmdpf-config-data.sql`
+  - [ ] `config/nginx/nginx.prod.conf`
+  - [ ] `backend/certs/ca/ca.crt`
+  - [ ] `backend/certs/server/server.crt`
+  - [ ] `backend/certs/server/server.key`
+  - [ ] `backend/migrations/*.sql`
 
 ---
 
