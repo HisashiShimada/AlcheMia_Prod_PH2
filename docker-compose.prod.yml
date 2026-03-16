@@ -60,7 +60,7 @@ services:
       - AUTH_URL=http://localhost:${SWIFT_PORT:-8080}/auth/v1.0
       - ACCOUNT=${SWIFT_ACCOUNT:-mmdpf}
       - USER=${SWIFT_USER:-mmdpf_user}
-      - PASSWORD=${SWIFT_PASSWORD:?SWIFT_PASSWORD is required for onprem profile}
+      - PASSWORD=${SWIFT_PASSWORD:-}
     volumes:
       - swift-data:/srv
     networks:
