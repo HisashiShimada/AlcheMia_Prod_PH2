@@ -1,7 +1,7 @@
 # MaiML OpenData Pipeline DB 設計書
 
 > 作成日: 2026-03-11  
-> 最終更新: 2026-03-12  
+> 最終更新: 2026-03-17  
 > ステータス: **確定**（全項目確定済み）
 > 基準資料: `docs/MaiML_OpenData_Pipeline/DB検討/`
 
@@ -23,7 +23,10 @@ PostgreSQL
     ├── maiml_template
     ├── maiml_template_element
     ├── maiml_template_element_value
-    └── maiml_template_insertion
+    ├── maiml_template_insertion
+    ├── maiml_event                  ← eventLog 層
+    ├── maiml_event_element
+    └── maiml_event_element_value
 ```
 
 ### スキーマ命名規則
@@ -65,28 +68,39 @@ maiml_asset（MaiML ファイル代表メタ）
     │         │
     │         └── maiml_insertion（外部ファイル参照の正規化）
     │
-    └── maiml_template（テンプレート定義）                            ← protocol 層
+    ├── maiml_template（テンプレート定義）                            ← protocol 層
+    │         │
+    │         ├── maiml_template_element（テンプレート行データ）
+    │         │         │
+    │         │         └── maiml_template_element_value（複数 <value> を展開）
+    │         │
+    │         └── maiml_template_insertion（テンプレートの外部ファイル参照）
+    │
+    └── maiml_event（event 要素）                                    ← eventLog 層
+              │  ※eventLog/log/trace はテーブルとして持たない
+              │  ※maiml_instance と results_ref/results_id で結合
               │
-              ├── maiml_template_element（テンプレート行データ）
-              │         │
-              │         └── maiml_template_element_value（複数 <value> を展開）
-              │
-              └── maiml_template_insertion（テンプレートの外部ファイル参照）
+              └── maiml_event_element（property 行）
+                        │
+                        └── maiml_event_element_value（value 展開）
 ```
 
 ### テーブル役割一覧
 
-| テーブル名 | 役割 | maiml2Excel 対応単位 |
-|-----------|------|-------------------|
-| `maiml_asset` | MaiML ファイル 1 件の代表メタ | 1 ファイル = 1 レコード |
-| `maiml_instance` | result/material/condition インスタンス | instances.xlsx 1 シート = 1 レコード |
-| `maiml_element` | 汎用データ行（property/content/uncertainty/insertion 系） | instances.xlsx 1 行 = 1 レコード（value 除く） |
-| `maiml_element_value` | `<value>` 子要素の展開（複数 value 対応） | 1 value = 1 レコード |
-| `maiml_insertion` | 外部ファイル参照（正規化） | insertion 1 件 = 1 レコード |
-| `maiml_template` | テンプレート定義（protocol 層） | templates.xlsx 1 シート = 1 レコード |
-| `maiml_template_element` | テンプレートの汎用データ行 | templates.xlsx 1 行 = 1 レコード |
-| `maiml_template_element_value` | テンプレートの `<value>` 展開 | 1 value = 1 レコード |
-| `maiml_template_insertion` | テンプレートの外部ファイル参照（正規化） | insertion 1 件 = 1 レコード |
+| テーブル名 | 層 | 役割 |
+|-----------|-----|------|
+| `maiml_asset` | 共通 | MaiML ファイル 1 件の代表メタ（1 ファイル = 1 レコード） |
+| `maiml_instance` | data | result/material/condition インスタンス |
+| `maiml_element` | data | 汎用データ行（property/content/uncertainty/insertion 系） |
+| `maiml_element_value` | data | `<value>` 子要素の展開（複数 value 対応） |
+| `maiml_insertion` | data | 外部ファイル参照（正規化） |
+| `maiml_template` | protocol | テンプレート定義 |
+| `maiml_template_element` | protocol | テンプレートの汎用データ行 |
+| `maiml_template_element_value` | protocol | テンプレートの `<value>` 展開 |
+| `maiml_template_insertion` | protocol | テンプレートの外部ファイル参照（正規化） |
+| `maiml_event` | eventLog | event 要素（`resultsRef/@ref` で data層と結合） |
+| `maiml_event_element` | eventLog | event 配下の property 行 |
+| `maiml_event_element_value` | eventLog | property の `<value>` 展開 |
 
 ---
 
@@ -207,7 +221,15 @@ erDiagram
     maiml_template_element ||--o{ maiml_template_element_value : "1 要素 : N 値"
     maiml_template_element ||--o{ maiml_template_element : "自己参照（入れ子）"
     maiml_instance }o--|| maiml_template : "@ref で参照"
+    maiml_asset ||--o{ maiml_event : "1 ファイル : N イベント"
+    maiml_event ||--o{ maiml_event_element : "1 イベント : N プロパティ"
+    maiml_event_element ||--o{ maiml_event_element_value : "1 プロパティ : N 値"
+    maiml_instance }o..o{ maiml_event : "results_id / results_ref で結合（論理）"
 ```
+
+> **eventLog 層との結合はFK制約なし（論理結合）:**  
+> `maiml_instance.results_id = maiml_event.results_ref AND maiml_instance.asset_id = maiml_event.asset_id`  
+> で JOIN する。DB上のFK制約は設けず、アプリケーション側で管理する。
 
 ---
 
@@ -249,16 +271,24 @@ CREATE TABLE maiml_instance (
   instance_type    TEXT       NOT NULL
                      CHECK (instance_type IN ('result', 'material', 'condition')),
   instance_key     TEXT       NOT NULL,
+  results_id       TEXT,      -- results/@id 属性（eventLog層との結合キー）
   template_ref     TEXT,
   instance_uuid    TEXT,
   instance_name    TEXT,
   instance_line_no INT
 );
-CREATE INDEX ix_maiml_instance_asset    ON maiml_instance(asset_id);
-CREATE INDEX ix_maiml_instance_type     ON maiml_instance(instance_type);
-CREATE INDEX ix_maiml_instance_key      ON maiml_instance(instance_key);
-CREATE INDEX ix_maiml_instance_template ON maiml_instance(template_ref);
+CREATE INDEX ix_maiml_instance_asset      ON maiml_instance(asset_id);
+CREATE INDEX ix_maiml_instance_type       ON maiml_instance(instance_type);
+CREATE INDEX ix_maiml_instance_key        ON maiml_instance(instance_key);
+CREATE INDEX ix_maiml_instance_results_id ON maiml_instance(asset_id, results_id);
+CREATE INDEX ix_maiml_instance_template   ON maiml_instance(template_ref);
 ```
+
+| カラム | 取得元 | 例 |
+|--------|--------|---|
+| `results_id` | `data/results/@id` | `results_xrfSpectrumAnalysis` |
+
+> `results_id` は `maiml_event.results_ref` との結合キー。同一 `asset_id` 内で `results_id = results_ref` の条件で JOIN する。
 
 ---
 
@@ -510,130 +540,181 @@ WHERE i.asset_id = :asset_id;
 
 ---
 
-## 7. eventLog テーブル設計 ⚠️ PENDING
+## 7. eventLog テーブル設計 ✅ 確定
 
-> ⚠️ **このセクションは未確定（PENDING）です。**  
-> `concept:instance` の参照先解決方法について情報不足により設計が中断されています。  
-> 詳細は [pending.md](./pending.md) セクション4を参照。実装前に確定させること。
+> 最終更新: 2026-03-17
 
-### 7.1 概要
+### 7.1 概要・確定事項
 
-MaiML の `/maiml/eventLog` 配下の階層構造を以下のテーブルに保存する（設計案）。
+#### 確定事項
+
+| 確定事項 | 内容 |
+|---------|------|
+| **格納範囲** | `event` タグ以降のみ格納。`eventLog` / `log` / `trace` タグはテーブルとして持たない |
+| **data層との結合** | `maiml_event.results_ref` ↔ `maiml_instance.results_id` で JOIN。同一 `asset_id` 内で結合 |
+| `results_ref` の取得元 | `event/resultsRef/@ref` 属性 |
+| `results_id` の取得元 | `data/results/@id` 属性 |
+
+#### MaiML 上の対応関係
+
+```xml
+<!-- data 層 -->
+<data id="data_xrfSpectrumAnalysis">
+  <results id="results_xrfSpectrumAnalysis">    ← maiml_instance.results_id
+    <material id="material_xrfSample" .../>
+    <condition id="condition_xrfSpectrumAnalysis" .../>
+    <result id="result_xrfSpectrumData" .../>
+  </results>
+</data>
+
+<!-- eventLog 層 -->
+<eventLog ...>
+  <log ...>
+    <trace ...>
+      <event ...>
+        <resultsRef ref="results_xrfSpectrumAnalysis"/>  ← maiml_event.results_ref
+        <property key="lifecycle:transition">...</property>
+        <property key="time:timestamp">...</property>
+        <property key="concept:instance">...</property>
+      </event>
+    </trace>
+  </log>
+</eventLog>
+```
+
+#### テーブル構成
 
 ```
-maiml_asset（1ファイル）
-    └── maiml_event_log（eventLog 要素）
-              └── maiml_log（log 要素、@ref=method）
-                        └── maiml_trace（trace 要素、@ref=program）
-                                  └── maiml_event（event 要素、@ref=instruction）
-                                            └── maiml_event_instance_ref（concept:instance 複数対応）
+maiml_asset
+    ├── maiml_instance（results_id を持つ）  ← data 層
+    │     ├── maiml_element
+    │     │     └── maiml_element_value
+    │     └── maiml_insertion
+    └── maiml_event（asset_id + results_ref を持つ）  ← eventLog 層
+          └── maiml_event_element（property 行）
+                └── maiml_event_element_value（value 展開）
+
+-- data層 と eventLog層 の結合
+SELECT *
+FROM maiml_instance mi
+JOIN maiml_event e ON e.results_ref = mi.results_id
+                  AND e.asset_id    = mi.asset_id
 ```
+
+---
 
 ### 7.2 DDL
 
 ```sql
--- eventLog 代表メタ（maiml_asset と 1:1）
-CREATE TABLE maiml_event_log (
-  event_log_id   BIGSERIAL  PRIMARY KEY,
-  asset_id       BIGINT     NOT NULL REFERENCES maiml_asset(asset_id) ON DELETE CASCADE,
-  event_log_key  TEXT,          -- @id 属性
-  event_log_uuid TEXT,          -- <uuid> テキスト
-  event_log_name TEXT,          -- <name> テキスト
-  description    TEXT,
-  annotation     TEXT,
-  maiml_line_no  INT
-);
-CREATE INDEX ix_maiml_event_log_asset ON maiml_event_log(asset_id);
-
--- log 要素（eventLog 1つにつき複数可）
-CREATE TABLE maiml_log (
-  log_id        BIGSERIAL  PRIMARY KEY,
-  event_log_id  BIGINT     NOT NULL REFERENCES maiml_event_log(event_log_id) ON DELETE CASCADE,
-  log_key       TEXT,          -- @id 属性
-  method_ref    TEXT,          -- @ref 属性（protocol/method の @id を参照）
-  log_uuid      TEXT,
-  log_name      TEXT,
-  description   TEXT,
-  annotation    TEXT,
-  maiml_line_no INT
-);
-CREATE INDEX ix_maiml_log_event_log ON maiml_log(event_log_id);
-
--- trace 要素（log 1つにつき複数可）
-CREATE TABLE maiml_trace (
-  trace_id      BIGSERIAL  PRIMARY KEY,
-  log_id        BIGINT     NOT NULL REFERENCES maiml_log(log_id) ON DELETE CASCADE,
-  trace_key     TEXT,          -- @id 属性
-  program_ref   TEXT,          -- @ref 属性（protocol/method/program の @id を参照）
-  trace_uuid    TEXT,
-  trace_name    TEXT,
-  description   TEXT,
-  annotation    TEXT,
-  maiml_line_no INT
-);
-CREATE INDEX ix_maiml_trace_log ON maiml_trace(log_id);
-
--- event 要素（trace 1つにつき複数可）
+-- event 要素（eventLog/log/trace は持たない）
 CREATE TABLE maiml_event (
-  event_id            BIGSERIAL    PRIMARY KEY,
-  trace_id            BIGINT       NOT NULL REFERENCES maiml_trace(trace_id) ON DELETE CASCADE,
-  event_key           TEXT,            -- @id 属性
-  instruction_ref     TEXT,            -- @ref 属性（instruction の @id を参照）
-  event_uuid          TEXT,
-  event_name          TEXT,
-  description         TEXT,
-  annotation          TEXT,
-  lifecycle_transition TEXT,           -- property[@key='lifecycle:transition'] の <value>
-  event_timestamp     TIMESTAMPTZ,     -- property[@key='time:timestamp'] の <value>（ISO8601→変換）
-  maiml_line_no       INT
+  event_id         BIGSERIAL    PRIMARY KEY,
+  asset_id         BIGINT       NOT NULL REFERENCES maiml_asset(asset_id) ON DELETE CASCADE,
+  event_key        TEXT,            -- event/@id 属性
+  results_ref      TEXT,            -- event/resultsRef/@ref（data層の results_id と結合するキー）
+  instruction_ref  TEXT,            -- event/@ref 属性（instruction の @id を参照）
+  event_uuid       TEXT,            -- event/uuid テキスト
+  event_name       TEXT,            -- event/name テキスト
+  description      TEXT,
+  annotation       TEXT,
+  maiml_line_no    INT
 );
-CREATE INDEX ix_maiml_event_trace       ON maiml_event(trace_id);
-CREATE INDEX ix_maiml_event_instruction ON maiml_event(instruction_ref);
-CREATE INDEX ix_maiml_event_timestamp   ON maiml_event(event_timestamp);
+CREATE INDEX ix_maiml_event_asset        ON maiml_event(asset_id);
+CREATE INDEX ix_maiml_event_results_ref  ON maiml_event(asset_id, results_ref);
+CREATE INDEX ix_maiml_event_instruction  ON maiml_event(instruction_ref);
 
--- concept:instance 参照（event 1つにつき複数可）
-CREATE TABLE maiml_event_instance_ref (
-  ref_id       BIGSERIAL  PRIMARY KEY,
-  event_id     BIGINT     NOT NULL REFERENCES maiml_event(event_id) ON DELETE CASCADE,
-  ref_idx      INT        NOT NULL DEFAULT 0,  -- 同一 key の複数 property の順序
-  result_uuid  TEXT       NOT NULL,             -- property[@key='concept:instance'] の <value>
-  description  TEXT                             -- property の <description>
+-- event 配下の property（汎用プロパティ行）
+CREATE TABLE maiml_event_element (
+  event_element_id   BIGSERIAL  PRIMARY KEY,
+  event_id           BIGINT     NOT NULL REFERENCES maiml_event(event_id) ON DELETE CASCADE,
+  element_type       TEXT       NOT NULL DEFAULT 'property',  -- 現時点では 'property' 固定
+  key                TEXT,          -- property/@key 属性
+  description        TEXT,          -- property/description テキスト
+  maiml_line_no      INT
 );
-CREATE INDEX ix_maiml_event_instance_ref_event ON maiml_event_instance_ref(event_id);
-CREATE INDEX ix_maiml_event_instance_ref_uuid  ON maiml_event_instance_ref(result_uuid);
+CREATE INDEX ix_maiml_event_element_event ON maiml_event_element(event_id);
+CREATE INDEX ix_maiml_event_element_key   ON maiml_event_element(key);
+
+-- property の value 展開（複数 value 対応）
+CREATE TABLE maiml_event_element_value (
+  value_id          BIGSERIAL  PRIMARY KEY,
+  event_element_id  BIGINT     NOT NULL REFERENCES maiml_event_element(event_element_id) ON DELETE CASCADE,
+  value_idx         INT        NOT NULL DEFAULT 0,
+  value             TEXT,
+  value_array       TEXT[]
+);
+CREATE INDEX ix_maiml_event_element_value_elem ON maiml_event_element_value(event_element_id);
+CREATE UNIQUE INDEX ux_maiml_event_element_value ON maiml_event_element_value(event_element_id, value_idx);
 ```
+
+> `maiml_event_element_value` の登録方針は `maiml_element_value` と同一。  
+> `<value>` テキストをスペース区切りで分割した結果が2要素以上の場合は `value_array` に格納し `value` は NULL、1要素の場合は `value` に格納し `value_array` は NULL にする。
+
+---
 
 ### 7.3 カラムマッピング
 
-| MaiML 要素 | DB テーブル | DB カラム |
-|-----------|-----------|---------|
-| `eventLog/@id` | `maiml_event_log` | `event_log_key` |
-| `eventLog/uuid` | `maiml_event_log` | `event_log_uuid` |
-| `eventLog/name` | `maiml_event_log` | `event_log_name` |
-| `log/@id` | `maiml_log` | `log_key` |
-| `log/@ref` | `maiml_log` | `method_ref` |
-| `log/uuid` | `maiml_log` | `log_uuid` |
-| `trace/@id` | `maiml_trace` | `trace_key` |
-| `trace/@ref` | `maiml_trace` | `program_ref` |
-| `trace/uuid` | `maiml_trace` | `trace_uuid` |
-| `event/@id` | `maiml_event` | `event_key` |
-| `event/@ref` | `maiml_event` | `instruction_ref` |
-| `event/uuid` | `maiml_event` | `event_uuid` |
-| `event/property[@key='lifecycle:transition']/value` | `maiml_event` | `lifecycle_transition` |
-| `event/property[@key='time:timestamp']/value` | `maiml_event` | `event_timestamp` |
-| `event/property[@key='concept:instance']/value` | `maiml_event_instance_ref` | `result_uuid` |
+#### maiml_event
 
-### 7.4 テーブル全体構成（更新後）
+| MaiML 要素 | DB カラム | 例 |
+|-----------|---------|---|
+| `event/@id` | `event_key` | `event_001` |
+| `event/resultsRef/@ref` | `results_ref` | `results_xrfSpectrumAnalysis` |
+| `event/@ref` | `instruction_ref` | `instruction_step1` |
+| `event/uuid` | `event_uuid` | |
+| `event/name` | `event_name` | |
+| `event/description` | `description` | |
 
-```
-maiml_asset
-    ├── maiml_instance / maiml_element / ... （data 層）
-    ├── maiml_template / maiml_template_element / ... （protocol 層）
-    └── maiml_event_log                             （eventLog 層）
-              └── maiml_log
-                        └── maiml_trace
-                                  └── maiml_event
-                                            └── maiml_event_instance_ref
+#### maiml_event_element
+
+| MaiML 要素 | DB カラム | 例 |
+|-----------|---------|---|
+| `event/property` の種別 | `element_type` | `property`（固定） |
+| `event/property/@key` | `key` | `lifecycle:transition` / `time:timestamp` / `concept:instance` |
+| `event/property/description` | `description` | |
+
+#### maiml_event_element_value
+
+| MaiML 要素 | DB カラム | 例 |
+|-----------|---------|---|
+| `event/property/value` テキスト（単一値） | `value` | `complete` / `2024-01-15T09:30:00Z` |
+| `event/property/value` テキスト（複数値） | `value_array` | `ARRAY['val1','val2']` |
+
+---
+
+### 7.4 data層 と eventLog層 の結合クエリ例
+
+```sql
+-- 特定アセットの event と対応する instance を一覧取得
+SELECT
+  mi.instance_type,
+  mi.instance_key,
+  mi.instance_name,
+  ev.event_key,
+  ev.results_ref,
+  ee.key         AS property_key,
+  eev.value      AS property_value
+FROM maiml_instance mi
+JOIN maiml_event ev  ON ev.results_ref = mi.results_id
+                    AND ev.asset_id    = mi.asset_id
+JOIN maiml_event_element ee   ON ee.event_id  = ev.event_id
+JOIN maiml_event_element_value eev ON eev.event_element_id = ee.event_element_id
+WHERE mi.asset_id = :asset_id
+  AND eev.value_idx = 0
+ORDER BY mi.instance_key, ev.event_key, ee.key;
+
+-- lifecycle:transition が 'complete' のイベントに紐づく result インスタンス取得
+SELECT
+  mi.instance_key,
+  mi.instance_name,
+  ev.event_key,
+  eev.value AS lifecycle_value
+FROM maiml_event ev
+JOIN maiml_event_element ee   ON ee.event_id  = ev.event_id AND ee.key = 'lifecycle:transition'
+JOIN maiml_event_element_value eev ON eev.event_element_id = ee.event_element_id AND eev.value_idx = 0
+JOIN maiml_instance mi ON mi.results_id = ev.results_ref AND mi.asset_id = ev.asset_id
+WHERE ev.asset_id = :asset_id
+  AND eev.value = 'complete';
 ```
 
 ---
