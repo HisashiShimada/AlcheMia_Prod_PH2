@@ -19,7 +19,9 @@
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
-    "info": "Info"
+    "info": "Info",
+    "total": "Total",
+    "items": "items"
   },
   "languages": {
     "ja": "日本語",
@@ -71,7 +73,7 @@
         "myTasks": "My Tasks",
         "workInstruction": "Instruction Confirmation",
         "experimentRecord": "Experiment Record",
-        "taskList": "Task List",
+        "progressCheck": "Progress Check",
         "maimlViewer": "MAIML Viewer",
         "fileUpload": "File Upload",
         "progressReport": "Progress Report",
@@ -116,6 +118,51 @@
       "project": "Project",
       "method": "Method"
     },
+    "progressCheck": {
+      "issueCheck": "Issue Check",
+      "checkButton": "Check"
+    },
+    "projectStatus": {
+      "planning": "Planning",
+      "waiting_task": "Waiting for Task",
+      "executing_task": "Executing Task",
+      "waiting_approval": "Waiting for Approval",
+      "completed": "Completed"
+    },
+    "projectSelection": {
+      "title": "Select Project",
+      "projectName": "Project Name",
+      "description": "Description",
+      "owner": "Owner",
+      "unknownOwner": "Unknown",
+      "clearSelection": "Clear Selection",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "searchPlaceholder": "Search by project name, description, or owner",
+      "projectNameFilter": "Project Name",
+      "ownerFilter": "Owner"
+    },
+    "issueReport": {
+      "title": "Issue Report",
+      "issueType": "Issue Type",
+      "comment": "Comment",
+      "commentPlaceholder": "Please describe the issue in detail\nExample: We are out of material X and cannot continue the experiment.",
+      "commentRequired": "Please enter the issue details",
+      "commentMinLength": "Comment must be at least 10 characters",
+      "clear": "Clear",
+      "submit": "Submit",
+      "success": "Issue report submitted",
+      "noTask": "Task information not found",
+      "issueTypes": {
+        "material_shortage": "Material Shortage",
+        "equipment_failure": "Equipment Failure",
+        "procedure_unclear": "Procedure Unclear",
+        "safety_concern": "Safety Concern",
+        "quality_issue": "Quality Issue",
+        "time_constraint": "Time Constraint",
+        "other": "Other"
+      }
+    },
     "stats": {
       "notStarted": "Not Started Transitions",
       "started": "Started",
@@ -124,12 +171,12 @@
       "progressRate": "Progress Rate"
     },
     "table": {
+      "methodName": "Method Name",
       "taskName": "Task Name",
-      "sampleNumber": "Sample Number",
-      "notes": "Notes",
       "status": "Status",
-      "progressReport": "Progress Report",
-      "recordNumber": "Record Number",
+      "progressRate": "Progress Rate",
+      "issueReport": "Issue Report",
+      "experimentRecord": "Experiment Record",
       "actions": "Actions"
     },
     "actions": {
@@ -188,6 +235,10 @@
       "descriptionMaxLength": "Description must be 500 characters or less",
       "createdByInfo": "Creator Information",
       "createdBy": "Created By",
+      "templateType": "Template Type",
+      "templateTypeExtra": "Select the template type for the XML to be created",
+      "templateTypeRequired": "Please select a template type",
+      "templateTypePlaceholder": "Select template type",
       "success": "File created successfully",
       "successDescription": "A new file has been created and added to the list"
     },
@@ -477,6 +528,63 @@
     },
     "actions": {
       "viewDetails": "View Details"
+    }
+  },
+  "issueManagement": {
+    "title": "Issue Reports",
+    "newIssue": "New Issue Report",
+    "issueList": "Issue List",
+    "issueDetails": "Issue Details",
+    "noIssueSelected": "Please select an issue",
+    "noIssues": "No issues reported",
+    "columns": {
+      "title": "Title",
+      "status": "Status",
+      "targetType": "Target",
+      "reportedBy": "Reported By",
+      "reportedAt": "Reported At"
+    },
+    "status": {
+      "unresolved": "Unresolved",
+      "resolved": "Resolved"
+    },
+    "targetType": {
+      "project": "Project",
+      "task": "Task",
+      "transition": "Transition"
+    },
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "Enter issue title",
+      "titleRequired": "Please enter a title",
+      "titleMaxLength": "Title must be 100 characters or less",
+      "targetType": "Target",
+      "targetTypeRequired": "Please select a target",
+      "content": "Content",
+      "contentPlaceholder": "Please describe the issue in detail",
+      "contentRequired": "Please enter content",
+      "contentMinLength": "Content must be at least 10 characters",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "details": {
+      "title": "Title",
+      "status": "Status",
+      "targetType": "Target",
+      "reportedBy": "Reported By",
+      "reportedAt": "Reported At",
+      "content": "Content",
+      "comments": "Comments",
+      "commentsCount": "Comments",
+      "noComments": "No comments",
+      "addComment": "Add Comment",
+      "commentPlaceholder": "Enter a comment...",
+      "commentRequired": "Please enter a comment",
+      "send": "Send"
+    },
+    "messages": {
+      "issueReported": "Issue reported successfully",
+      "commentPosted": "Comment posted successfully"
     }
   },
   "taskRegistration": {
@@ -1089,6 +1197,10 @@
       "action": "Action"
     },
     "priority": {
+      "0": "Low",
+      "1": "Normal",
+      "2": "Medium",
+      "3": "High",
       "high": "High",
       "medium": "Medium",
       "normal": "Normal",
@@ -1101,6 +1213,11 @@
       "3": "High"
     },
     "type": {
+      "0": "General",
+      "1": "Setup",
+      "2": "Measurement",
+      "3": "Safety",
+      "4": "Cleanup",
       "general": "General",
       "setup": "Setup",
       "measurement": "Measurement",
@@ -1119,6 +1236,12 @@
       "transition": "Transition",
       "task": "Task",
       "project": "Entire Project"
+    },
+    "targetLabels": {
+      "method": "Method",
+      "transition": "Transition",
+      "task": "Task",
+      "wholeProject": "Entire Project"
     },
     "emptyState": "No instructions registered",
     "editButton": "Edit",

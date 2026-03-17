@@ -35,11 +35,11 @@ export interface Project {
  * タスクステータス
  */
 export type TaskStatus = 
-  | 'pending'         // 実行待ち
-  | 'in_progress'     // 実行中
-  | 'error'           // 異常終了
-  | 'review_waiting'  // レビュー待ち
-  | 'completed';      // 完了
+  | 'pending'            // 0: 実行待ち
+  | 'in_progress'        // 1: 実行中
+  | 'review_waiting'     // 2: レビュー待ち
+  | 'completed'          // 3: 完了
+  | 'forced_terminated'; // 4: 強制終了（異常終了）
 
 /**
  * タスク

@@ -391,7 +391,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_002",
@@ -405,7 +406,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_003",
@@ -419,7 +421,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": true
+        "isRead": true,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_004",
@@ -435,7 +438,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_005",
@@ -451,7 +455,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_006",
@@ -467,7 +472,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_007",
@@ -484,7 +490,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_008",
@@ -501,7 +508,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_009",
@@ -518,7 +526,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_010",
@@ -535,7 +544,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": true
+        "isRead": true,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_011",
@@ -552,7 +562,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_012",
@@ -569,7 +580,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_013",
@@ -585,7 +597,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_014",
@@ -601,7 +614,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_015",
@@ -617,48 +631,56 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       }
     ],
     "methods": [
       {
         "methodId": "m001",
         "methodName": "温度キャリブレーション",
+        "experimentOrder": 1,
         "description": "加熱炉の温度計が正確であることを確認する手順。標準温度計と比較して誤差を測定します。",
         "category": "キャリブレーション",
         "tasks": [
           {
             "taskId": "task_m001_001",
             "methodName": "温度キャリブレーション",
+            "taskNo": "001",
             "taskName": "温度記録",
             "sampleNumber": "Sample-001",
             "notes": "標準温度計との比較測定",
             "status": "started",
             "progressRate": 30,
             "progressReport": "実験記録報告",
-            "recordNumber": "EXP-2024-001"
+            "recordNumber": "EXP-2024-001",
+            "updatedAt": "2024-12-05T10:30:00Z"
           },
           {
             "taskId": "task_m001_002",
             "methodName": "温度キャリブレーション",
+            "taskNo": "002",
             "taskName": "誤差計算",
             "sampleNumber": "Sample-001",
             "notes": "温度誤差の算出と記録",
             "status": "not_started",
             "progressRate": 0,
             "progressReport": "",
-            "recordNumber": ""
+            "recordNumber": "",
+            "updatedAt": "2024-12-05T10:30:00Z"
           },
           {
             "taskId": "task_m001_003",
             "methodName": "温度キャリブレーション",
+            "taskNo": "003",
             "taskName": "レポート作成",
             "sampleNumber": "Sample-001",
             "notes": "キャリブレーション結果のまとめ",
             "status": "not_started",
             "progressRate": 0,
             "progressReport": "",
-            "recordNumber": ""
+            "recordNumber": "",
+            "updatedAt": "2024-12-05T10:30:00Z"
           }
         ],
         "transitions": [
@@ -760,19 +782,22 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "methodId": "m002",
         "methodName": "サンプル重量測定",
+        "experimentOrder": 2,
         "description": "精密天秤を使用してサンプルの正確な重量を測定する手順。",
         "category": "測定",
         "tasks": [
           {
             "taskId": "task_m002_001",
             "methodName": "サンプル重量測定",
+            "taskNo": "001",
             "taskName": "重量測定記録",
             "sampleNumber": "Sample-W001",
             "notes": "精密天秤による重量測定とデータ記録",
             "status": "not_started",
             "progressRate": 0,
             "progressReport": "",
-            "recordNumber": ""
+            "recordNumber": "",
+            "updatedAt": "2024-12-05T10:30:00Z"
           }
         ],
         "transitions": [
@@ -1023,6 +1048,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "methodId": "m003",
         "methodName": "データバックアップ",
+        "experimentOrder": 3,
         "description": "測定データを適切に保存・バックアップする手順。",
         "category": "データ管理",
         "transitions": [
@@ -1070,6 +1096,7 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "methodId": "m004",
         "methodName": "機器クリーニング",
+        "experimentOrder": 4,
         "description": "実験終了後に機器を適切にクリーニングする手順。",
         "category": "後処理",
         "transitions": [
@@ -1593,7 +1620,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_002",
           "userName": "佐藤花子"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_202",
@@ -1607,7 +1635,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_002",
           "userName": "佐藤花子"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       }
     ],
     "transitionDetails": {},
@@ -1646,7 +1675,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_302",
@@ -1663,7 +1693,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       },
       {
         "instructionId": "inst_303",
@@ -1680,7 +1711,8 @@ export const projectsData: Record<string, ProjectData> = {
           "userId": "manager_001",
           "userName": "山田太郎"
         },
-        "isRead": false
+        "isRead": false,
+        "isAcknowledged": false
       }
     ],
     "transitionDetails": {
@@ -1719,41 +1751,48 @@ export const projectsData: Record<string, ProjectData> = {
       {
         "methodId": "m301",
         "methodName": "XRF元素分析",
+        "experimentOrder": 1,
         "description": "蛍光X線分析法による試料の元素組成分析手順。",
         "category": "元素分析",
         "tasks": [
           {
             "taskId": "task_m301_001",
             "methodName": "XRF元素分析",
+            "taskNo": "001",
             "taskName": "サンプル前処理",
             "sampleNumber": "XRF-Sample-001",
             "notes": "表面クリーニングと異物除去",
             "status": "completed",
             "progressRate": 100,
             "progressReport": "実験記録報告",
-            "recordNumber": "EXP-XRF-001"
+            "recordNumber": "EXP-XRF-001",
+            "updatedAt": "2024-12-07T14:00:00Z"
           },
           {
             "taskId": "task_m301_002",
             "methodName": "XRF元素分析",
+            "taskNo": "002",
             "taskName": "XRF測定実行",
             "sampleNumber": "XRF-Sample-001",
             "notes": "元素組成の測定と記録",
             "status": "completed",
             "progressRate": 100,
             "progressReport": "実験記録報告",
-            "recordNumber": "EXP-XRF-002"
+            "recordNumber": "EXP-XRF-002",
+            "updatedAt": "2024-12-07T14:00:00Z"
           },
           {
             "taskId": "task_m301_003",
             "methodName": "XRF元素分析",
+            "taskNo": "003",
             "taskName": "データ解析",
             "sampleNumber": "XRF-Sample-001",
             "notes": "測定データの解析とレポート作成",
             "status": "in_progress",
             "progressRate": 60,
             "progressReport": "実験記録報告",
-            "recordNumber": "EXP-XRF-003"
+            "recordNumber": "EXP-XRF-003",
+            "updatedAt": "2024-12-07T14:00:00Z"
           }
         ],
         "transitions": [

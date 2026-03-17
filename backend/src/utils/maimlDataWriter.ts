@@ -78,7 +78,7 @@ export function buildDataXML(
   if (validRows.length === 0) {
     const emptyResultsId = `results_${dataId}`;
     return [
-      `  <data id="${escapeXml(dataId)}">`,
+      `<data id="${escapeXml(dataId)}">`,
       `    <uuid>${randomUUID()}</uuid>`,
       `    <results id="${escapeXml(emptyResultsId)}">`,
       `      <uuid>${randomUUID()}</uuid>`,
@@ -107,7 +107,7 @@ export function buildDataXML(
   // results タグの id は data id から生成
   const resultsId = `results_${dataId}`;
 
-  let dataXml = `  <data id="${escapeXml(dataId)}">\n`;
+  let dataXml = `<data id="${escapeXml(dataId)}">\n`;
   dataXml += `    <uuid>${randomUUID()}</uuid>\n`;
   dataXml += `    <results id="${escapeXml(resultsId)}">\n`;
   dataXml += `      <uuid>${randomUUID()}</uuid>\n`;
@@ -241,7 +241,7 @@ export function buildEventLogXML(
     // XSD準拠: eventLogType は log が必須（minOccurs=1）のため最小構造を返す
     const emptyLogId = `log_${eventLogId}_empty`;
     return [
-      `  <eventLog id="${escapeXml(eventLogId)}">`,
+      `<eventLog id="${escapeXml(eventLogId)}">`,
       `    <uuid>${randomUUID()}</uuid>`,
       `    <log id="${escapeXml(emptyLogId)}" ref="${escapeXml(emptyLogId)}">`,
       `      <uuid>${randomUUID()}</uuid>`,
@@ -293,10 +293,9 @@ export function buildEventLogXML(
  */
 function buildLogEntryXML(logEntry: Record<string, unknown>): string {
   const id = logEntry['@id'] as string | undefined;
-  // XSD準拠: logType の ref は use="required" → 必須出力（なければ id を代用）
-  const ref = (logEntry['@ref'] as string | undefined)
-    ?? (logEntry['@id'] as string | undefined)
-    ?? '';
+  // ref は XSD 上必須（ref: string）のため常に出力する。
+  // '@ref' キーが存在しない場合（target=1: ファイル全体指示）は空文字を使用する。
+  const ref = (logEntry['@ref'] as string | undefined) ?? '';
 
   let attrs = '';
   if (id) attrs += ` id="${escapeXml(id)}"`;
@@ -382,10 +381,28 @@ function buildEventXML(eventObj: Record<string, unknown>): string {
       : [rawProperty as Record<string, unknown>]
     : [];
 
+  // resultsRef: data層の result-type place ID を参照する要素
+  // DB JSON では { '@ref': placeId } 形式（単体 or 配列）
+  const rawResultsRef = eventObj['resultsRef'];
+  const resultsRefList: Record<string, unknown>[] = rawResultsRef
+    ? Array.isArray(rawResultsRef)
+      ? (rawResultsRef as Record<string, unknown>[])
+      : [rawResultsRef as Record<string, unknown>]
+    : [];
+
   let xml = `        <event${attrs}>\n`;
   // XSD準拠: eventType の globalObjectContentGroup に uuid が必須
   xml += `          <uuid>${randomUUID()}</uuid>\n`;
   xml += buildPropertiesXML(properties, 5);
+
+  // resultsRef 要素の出力（存在する場合のみ）
+  for (const rr of resultsRefList) {
+    const rrRef = rr['@ref'] as string | undefined;
+    if (rrRef !== undefined) {
+      xml += `          <resultsRef ref="${escapeXml(rrRef)}"/>\n`;
+    }
+  }
+
   xml += `        </event>\n`;
   return xml;
 }
@@ -393,6 +410,8 @@ function buildEventXML(eventObj: Record<string, unknown>): string {
 /**
  * <evnet> 要素の XML を生成（パターンB: 指示確認）
  * インデントレベルを引数で指定可能（log外evnet=2、trace内evnet=4）
+ *
+ * @remarks XSD準拠: evnetType は globalObjectContentGroup を継承するため uuid が必須
  */
 function buildEvnetXML(evnetObj: Record<string, unknown>, indentLevel: number): string {
   const indent = '  '.repeat(indentLevel);
@@ -411,6 +430,8 @@ function buildEvnetXML(evnetObj: Record<string, unknown>, indentLevel: number): 
     : [];
 
   let xml = `${indent}<evnet${attrs}>\n`;
+  // XSD準拠: globalObjectContentGroup に uuid が必須
+  xml += `${indent}  <uuid>${randomUUID()}</uuid>\n`;
   xml += buildPropertiesXML(properties, indentLevel + 1);
   xml += `${indent}</evnet>\n`;
   return xml;
@@ -447,7 +468,10 @@ function buildPropertiesXML(
         : '';
 
     if (textStr) {
-      xml += `${indent}<property${attrs}>${textStr}</property>\n`;
+      // MAIML XSD 準拠: property の値は <value> 子要素として出力する
+      xml += `${indent}<property${attrs}>\n`;
+      xml += `${indent}  <value>${textStr}</value>\n`;
+      xml += `${indent}</property>\n`;
     } else {
       xml += `${indent}<property${attrs}/>\n`;
     }

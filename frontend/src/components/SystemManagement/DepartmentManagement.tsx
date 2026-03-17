@@ -352,18 +352,18 @@ export default function DepartmentManagement() {
         const editingRecord = editingDepartment as DepartmentRecord;
         await updateMaster(editingRecord.departmentId, {
           ...(editingRecord as unknown as import('@/services/departmentApiService').MasterRecord),
-          departmentName: values.displayName,
-          isActive: values.isActive,
+          department_name: values.displayName,
+          is_active: values.isActive,
         } as import('@/services/departmentApiService').MasterRecord);
         await fetchDepartments();
         message.success(t('departmentManagement.messages.saveSuccess'));
       } else {
         // 新規追加の場合
         await createMaster({
-          departmentCd: values.departmentId,
-          departmentName: values.displayName,
-          isActive: values.isActive !== undefined ? values.isActive : true,
-        } as import('@/services/departmentApiService').MasterRecord);
+          department_cd: values.departmentId,
+          department_name: values.displayName,
+          is_active: values.isActive !== undefined ? values.isActive : true,
+        } as unknown as import('@/services/departmentApiService').MasterRecord);
         await fetchDepartments();
         message.success(t('departmentManagement.messages.addSuccess'));
       }

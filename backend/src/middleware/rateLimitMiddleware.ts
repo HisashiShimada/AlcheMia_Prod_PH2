@@ -89,31 +89,15 @@ export function rateLimitMiddleware(config: RateLimitConfig) {
         const organizationId = req.query.orgId as string | undefined;
         const userId = key.split('_')[1];
         
-        // user_idからuser_nameを取得
-        const userNameQuery = `
-          SELECT user_name 
-          FROM organization_user 
-          WHERE user_id = $1 AND organization_id = $2
-        `;
-        const userNameResult = await pool.query(userNameQuery, [userId, organizationId]);
-        
-        if (userNameResult.rows.length === 0) {
-          // ユーザーが存在しない場合はスキップ（初回ログイン試行）
-          next();
-          return;
-        }
-        
-        const userName = userNameResult.rows[0].user_name;
-        
-        // インデックス idx_login_history_rate_limit (login_at, login_sf) を利用
+        // インデックス idx_login_history_query (organization_id, user_id, entry_execute_flg) を利用
         const query = `
           SELECT COUNT(*) as count 
           FROM login_history 
           WHERE login_at > $1 
-          AND user_name = $2 
+          AND user_id = $2 
           AND organization_id = $3
         `;
-        const result = await pool.query(query, [windowStart, userName, organizationId]);
+        const result = await pool.query(query, [windowStart, userId, organizationId]);
         currentAttempts = parseInt(result.rows[0].count, 10);
       }
 

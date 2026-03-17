@@ -128,7 +128,59 @@ export class MaimlWriterService {
     // --- 7. 既存 MAIML の <data> / <eventLog> タグを置き換え ---
     const updatedMaiml = replaceDataAndEventLogInMaiml(maimlContent, dataXml, eventLogXml);
 
-    // --- 8. 上書き保存 ---
+    // --- 8. 上書き保存前にアーカイブ処理 ---
+    // 既存ファイルを archive/{projectName}_v{n}.maiml として保存する。
+    // 命名規則: {baseName}_v{n}.maiml （s3_structure.md 規約準拠）
+    // アーカイブ失敗は警告ログのみに留め、本体の書き込み処理は継続する。
+    try {
+      const pathParts = filePath.split('/');
+      const fileName = pathParts[pathParts.length - 1]; // {projectName}.maiml
+      const dirPath = pathParts.slice(0, -1).join('/'); // projects/{projectName}
+      const baseName = fileName.replace(/\.maiml$/i, ''); // {projectName}
+      const archivePath = `${dirPath}/archive`;
+
+      // archive 内の既存バックアップを取得して最大バージョン番号を算出
+      let maxVersion = 0;
+      try {
+        const archiveFiles = await storageService.listFiles(organizationId, archivePath);
+        const pattern = new RegExp(
+          `^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_v(\\d+)\\.maiml$`
+        );
+        archiveFiles.forEach((file: any) => {
+          const name: string = (file.key || '').split('/').pop() ?? '';
+          const match = name.match(pattern);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxVersion) maxVersion = num;
+          }
+        });
+      } catch (_listErr) {
+        // archiveフォルダが存在しない場合は v1 から開始
+      }
+
+      const newVersion = maxVersion + 1;
+      const backupFileName = `${baseName}_v${newVersion}.maiml`;
+      const backupPath = `${archivePath}/${backupFileName}`;
+
+      await storageService.uploadFile(
+        organizationId,
+        backupPath,
+        fileBuffer, // ダウンロード済みの既存ファイル内容をそのまま使用
+        { contentType: 'application/xml' }
+      );
+
+      console.log(
+        `[MaimlWriterService] アーカイブ作成: ${backupPath} ` +
+          `(organizationId=${organizationId}, projectId=${projectId})`
+      );
+    } catch (archiveError) {
+      console.warn(
+        '[MaimlWriterService] アーカイブ作成に失敗しました（処理は継続）:',
+        archiveError
+      );
+    }
+
+    // --- 9. 上書き保存 ---
     await storageService.uploadFile(
       organizationId,
       filePath,

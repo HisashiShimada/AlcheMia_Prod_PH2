@@ -520,3 +520,43 @@ export async function updateWorkerLinkedFlgByProject(
   
   return result.rowCount || 0;
 }
+
+/**
+ * プロジェクト内の指定ステータスのタスクを一括でステータス更新する
+ * @param client pg-promise トランザクションクライアント
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param fromStatus 変更元ステータス
+ * @param toStatus 変更先ステータス
+ * @param userId 更新者ユーザーID
+ * @returns 更新件数
+ */
+export async function bulkUpdateTaskStatusByProject(
+  client: any,
+  organizationId: string,
+  projectId: string,
+  fromStatus: number,
+  toStatus: number,
+  userId: string
+): Promise<number> {
+  const query = `
+    UPDATE project_task_detail
+    SET
+      task_status = $1,
+      update_user_id = $2,
+      update_at = CURRENT_TIMESTAMP
+    WHERE organization_id = $3
+      AND project_id = $4
+      AND task_status = $5
+  `;
+
+  const result = await client.query(query, [
+    toStatus,
+    userId,
+    organizationId,
+    projectId,
+    fromStatus,
+  ]);
+
+  return result.rowCount || 0;
+}

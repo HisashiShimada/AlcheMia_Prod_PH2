@@ -1222,7 +1222,7 @@ export default function DataRecordDialog({
                           });
                           return;
                         }
-                        try {
+                          try {
                           setLoading(true);
                           await updateTransitionStatus(projectName, methodId, transition.transitionId, {
                             taskNo,
@@ -1233,6 +1233,9 @@ export default function DataRecordDialog({
                           message.success(
                             `ステータスを更新しました（${statusOptions.find(opt => opt.value === selectedStatus)?.label}、進捗: ${progress}%）`
                           );
+                          // onSave を呼び出してダイアログを閉じ、親のトランジション一覧を最新状態に更新する
+                          // TransitionList の handleDataSave は _data を参照しないため空配列を渡して問題なし
+                          onSave([]);
                         } catch (error: unknown) {
                           console.error('ステータス更新エラー:', error);
                           const axiosError = error as { response?: { data?: { error?: { message?: string } } }; message?: string };
