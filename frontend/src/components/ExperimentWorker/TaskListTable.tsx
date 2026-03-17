@@ -13,11 +13,13 @@ const { Text } = Typography;
  * ステータスバッジの色とラベルを取得
  */
 function getStatusConfig(status: TaskStatus) {
-  const configs = {
+  const configs: Record<TaskStatus, { color: string; label: string }> = {
     not_started: { color: 'default', label: '開始前' },
+    started: { color: 'blue', label: '開始済み' },
     in_progress: { color: 'orange', label: '作業中' },
     completed: { color: 'green', label: '完了' },
-    forced_terminated: { color: 'red', label: '強制終了' }
+    forced_terminated: { color: 'red', label: '強制終了' },
+    suspended: { color: 'purple', label: '中断' }
   };
   return configs[status] || { color: 'default', label: '不明' };
 }
@@ -53,9 +55,11 @@ export default function TaskListTable({
   // ステータスの選択肢
   const statusOptions = [
     { label: '開始前', value: 'not_started' },
+    { label: '開始済み', value: 'started' },
     { label: '作業中', value: 'in_progress' },
     { label: '完了', value: 'completed' },
-    { label: '強制終了', value: 'forced_terminated' }
+    { label: '強制終了', value: 'forced_terminated' },
+    { label: '中断', value: 'suspended' }
   ];
   
   // 絞り込み条件を適用（tasksは既にメソッドでフィルタリング済み）
@@ -63,11 +67,13 @@ export default function TaskListTable({
     return tasks.filter(task => {
       // ステータスバッジの色とラベルを取得
       const getStatusLabel = (status: TaskStatus): string => {
-        const configs = {
+        const configs: Record<TaskStatus, string> = {
           not_started: '開始前',
+          started: '開始済み',
           in_progress: '作業中',
           completed: '完了',
-          forced_terminated: '強制終了'
+          forced_terminated: '強制終了',
+          suspended: '中断'
         };
         return configs[status] || '不明';
       };
