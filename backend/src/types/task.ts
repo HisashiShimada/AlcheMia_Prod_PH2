@@ -12,6 +12,7 @@
 export type TaskStatus = 
   | 'not_started' 
   | 'in_progress' 
+  | 'review_waiting'
   | 'completed' 
   | 'forced_terminated';
 

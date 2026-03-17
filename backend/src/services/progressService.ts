@@ -962,7 +962,55 @@ export class ProgressService {
         finalUpdate
       );
 
-      // 5. イベントログを記録（指定のXML構造を模したJSONフォーマット）
+      // 5. MAIMLをパースして programId / instructionId / resultsRefs を一括取得
+      //    log/@ref = methodId, trace/@ref = programId, event/@ref = instructionId
+      //    event/resultsRef = result-type place IDs
+      let eventLogProgramId: string | null = null;
+      let eventLogInstructionId: string | null = null;
+      let eventLogResultsRefs: string[] | null = null;
+      try {
+        const pgp = getPgp();
+        const projectNameSql = await loadSqlFile('projects/findNameById.sql');
+        const projectNameRows = await pgp.any<{ project_name: string }>(
+          projectNameSql,
+          [organizationId, projectId]
+        );
+        if (projectNameRows.length > 0) {
+          const projectName = projectNameRows[0].project_name;
+          const maimlResult = await this.downloadAndParseMAIML(projectName, organizationId);
+          if (maimlResult.success) {
+            const parsedMethod = this.findMethodById(maimlResult.methods, methodId);
+            if (parsedMethod) {
+              // programId / instructionId
+              const transition = parsedMethod.transitions.find((t: any) => t.id === transitionId);
+              if (transition) {
+                eventLogProgramId     = (transition as any).data?.program ?? null;
+                eventLogInstructionId = (transition as any).data?.instructionId ?? null;
+              }
+
+              // result-type place IDs（アーク接続先プレースのうち stereotype が 'resultTemplate'）
+              const resultPlaceIds = parsedMethod.places
+                .filter((p: any) =>
+                  parsedMethod.arcs.some((a: any) =>
+                    (a.source === transitionId && a.target === p.id) ||
+                    (a.target === transitionId && a.source === p.id)
+                  ) && p.data?.stereotype === 'resultTemplate'
+                )
+                .map((p: any) => String(p.id));
+              if (resultPlaceIds.length > 0) {
+                eventLogResultsRefs = resultPlaceIds;
+              }
+            }
+          }
+        }
+      } catch (maimlErr) {
+        // MAIMLパース失敗は警告に留め、各値は null のままフォールバック
+        logger.warn('[ProgressService] MAIMLパース失敗のため programId/instructionId/resultsRefs を null でフォールバック', {
+          methodId, transitionId, error: maimlErr
+        });
+      }
+
+      // 6. イベントログを記録（指定のXML構造を模したJSONフォーマット）
       // トランジションステータス数値 → ラベル文字列 のマッピング
       const transitionStatusLabelMap: Record<number, string> = {
         [TransitionStatusEnum.INITIAL]: 'initial',
@@ -983,7 +1031,11 @@ export class ProgressService {
         statusLabel,
         finalProgressRate,
         comment ?? null,
-        client
+        client,
+        methodId,              // log/@ref = methodId
+        eventLogProgramId,     // trace/@ref = programId（MAIMLから取得）
+        eventLogInstructionId, // event/@ref = instructionId（MAIMLから取得）
+        eventLogResultsRefs    // event/resultsRef = result-type place IDs
       );
 
       // 6. タスク進捗率を再計算

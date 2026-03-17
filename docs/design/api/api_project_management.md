@@ -1190,6 +1190,7 @@ const user = await db
 
 **処理内容**:
 - `project_status` を `3`（承認待ち）に更新
+- `project_task_detail` の `task_status` が `1`（IN_PROGRESS: 実行中）のレコードを `2`（REVIEW_WAITING: レビュー待ち）に一括更新（同一トランザクション内）
 - `previous_status` は `"active"`（ハードコード）
 - `new_status` は `"waiting_approval"`（ハードコード）
 
@@ -1197,7 +1198,8 @@ const user = await db
 - **ルート**: `backend/src/routes/projectRoutes.ts`
 - **コントローラー**: `backend/src/controllers/projectController.ts` (`requestApproval`)
 - **サービス**: `backend/src/services/projectService.ts` (`requestApproval`)
-- **リポジトリ**: `backend/src/repositories/projectRepository.ts` (`findProjectIdByName`)
+- **リポジトリ**: `backend/src/repositories/projectRepository.ts` (`findProjectIdByName`, `updateApprovalStatus`)
+- **リポジトリ**: `backend/src/repositories/projectTaskRepository.ts` (`bulkUpdateTaskStatusByProject`)
 
 ---
 
