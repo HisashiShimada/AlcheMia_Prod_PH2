@@ -202,9 +202,9 @@ export async function bulkInsert(taskDetails: ProjectTaskDetail[]): Promise<numb
 const TASK_STATUS_MAP: Record<number, string> = {
   0: 'pending',
   1: 'in_progress',
-  2: 'failed',
-  3: 'review_waiting',
-  4: 'completed',
+  2: 'review_waiting',
+  3: 'completed',
+  4: 'forced_terminated',
 };
 
 /**

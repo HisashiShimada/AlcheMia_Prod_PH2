@@ -10,6 +10,7 @@
 import { TaskStatus, TaskStatusResponse, ServiceResult, UpdateTaskStatusParams } from '../types/taskService.types';
 import { MethodGroup, TaskSummary, TaskFilters, MethodTaskRecord } from '../types/task';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
+import * as projectRepository from '../repositories/projectRepository';
 import { getPgp } from '../database/db';
 import { logger } from '../utils/logger';
 import { loadSqlFile } from '../sql/loader';
@@ -21,6 +22,7 @@ import { loadSqlFile } from '../sql/loader';
 export const TaskStatusEnum = {
   PENDING: 0,
   IN_PROGRESS: 1,
+  REVIEW_WAITING: 2,  // レビュー待ち（承認依頼後）
   COMPLETED: 3,
   FORCED_TERMINATED: 4
 } as const;
@@ -226,6 +228,7 @@ export async function updateTaskStatus(
     const statusStringToNumber: Record<TaskStatus, number> = {
       'not_started': TaskStatusEnum.PENDING,
       'in_progress': TaskStatusEnum.IN_PROGRESS,
+      'review_waiting': TaskStatusEnum.REVIEW_WAITING,
       'completed': TaskStatusEnum.COMPLETED,
       'forced_terminated': TaskStatusEnum.FORCED_TERMINATED
     };
@@ -325,6 +328,31 @@ export async function updateTaskStatus(
         };
       }
 
+      // タスクが IN_PROGRESS に遷移した場合、プロジェクトステータスを
+      // 1（タスク実行待ち）→ 2（タスク実行中）に更新する
+      // 既に 2 以上の場合は変更しない（他タスクが先に開始済みのケース等）
+      if (newStatusNum === TaskStatusEnum.IN_PROGRESS) {
+        // DB操作規約に従い getById でプロジェクトを取得してから update で更新
+        const currentProject = await projectRepository.getById(
+          params.projectId,
+          params.organizationId
+        );
+
+        if (currentProject && currentProject.project_status === 1) {
+          // 既存レコードに更新値を反映して update を呼び出す
+          await projectRepository.update({
+            ...currentProject,
+            project_status: 2, // タスク実行中
+            update_user_id: params.userId
+          });
+
+          logger.info('updateTaskStatus - project_status updated 1 -> 2 (in_progress)', {
+            organizationId: params.organizationId,
+            projectId: params.projectId,
+          });
+        }
+      }
+
       // 成功時のレスポンスデータを返す
       return {
         currentTask,
@@ -336,6 +364,7 @@ export async function updateTaskStatus(
     const statusMap: Record<number, TaskStatus> = {
       [TaskStatusEnum.PENDING]: 'not_started',
       [TaskStatusEnum.IN_PROGRESS]: 'in_progress',
+      [TaskStatusEnum.REVIEW_WAITING]: 'review_waiting',
       [TaskStatusEnum.COMPLETED]: 'completed',
       [TaskStatusEnum.FORCED_TERMINATED]: 'forced_terminated'
     };
@@ -577,6 +606,7 @@ export class TaskService {
     const statusMap: Record<number, TaskStatus> = {
       0: 'not_started',      // PENDING → not_started
       1: 'in_progress',      // IN_PROGRESS → in_progress
+      2: 'review_waiting',   // REVIEW_WAITING → review_waiting
       3: 'completed',        // COMPLETED → completed
       4: 'forced_terminated' // FORCED_TERMINATED → forced_terminated
     };

@@ -12,6 +12,7 @@ import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
 import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
+import { TaskStatusEnum } from './taskService';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
 import * as instructionRepository from '../repositories/instructionRepository';
 import { EventLogRepository } from '../repositories/eventLogRepository';
@@ -1151,7 +1152,7 @@ export class ProjectService {
       // Task 3.2: トランザクション管理とステータス更新（pg-promiseのtx使用）
       const currentTimestamp = new Date().toISOString();
       
-      await pgp.tx(async () => {
+      await pgp.tx(async (t: any) => {
         // プロジェクトステータス更新（リポジトリ層使用）
         const rowCount = await projectRepository.updateApprovalStatus(
           organizationId,
@@ -1160,10 +1161,27 @@ export class ProjectService {
           currentTimestamp,
           userId
         );
-        
+
         if (rowCount === 0) {
           throw new Error('Failed to update project status');
         }
+
+        // タスクステータス一括更新: IN_PROGRESS(1) → REVIEW_WAITING(2)
+        // 承認依頼時にプロジェクト内の実行中タスクをレビュー待ちに変更する
+        await projectTaskRepository.bulkUpdateTaskStatusByProject(
+          t,
+          organizationId,
+          projectId,
+          TaskStatusEnum.IN_PROGRESS,   // fromStatus: 1（実行中）
+          TaskStatusEnum.REVIEW_WAITING, // toStatus: 2（レビュー待ち）
+          userId
+        );
+
+        winston.info('requestApproval - task_status updated IN_PROGRESS -> REVIEW_WAITING', {
+          organizationId,
+          projectId,
+          userId,
+        });
       });
 
       // commentをエスケープしてXSS攻撃を防ぐ（通知削除後も保持）
@@ -1282,8 +1300,9 @@ export class ProjectService {
       const TASK_STATUS_MAP: { [key: number]: string } = {
         0: 'pending',
         1: 'in_progress',
-        2: 'failed',
+        2: 'review_waiting',
         3: 'completed',
+        4: 'forced_terminated',
       };
 
       // タスクデータをフロントエンドの型に合わせて変換
@@ -1362,10 +1381,13 @@ export class ProjectService {
             statistics.inProgress = count;
             break;
           case 2:
-            statistics.failed = count;
+            // review_waiting（レビュー待ち）
             break;
           case 3:
             statistics.completed = count;
+            break;
+          case 4:
+            statistics.failed = count; // forced_terminated（強制終了）
             break;
         }
       });

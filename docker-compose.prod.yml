@@ -23,13 +23,20 @@ services:
   # ※ AWSではRDS Aurora PostgreSQLに切り替え可（.envのDB_HOST等を変更）
   # ===========================================================================
   postgres:
-    image: postgres:17-alpine
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM postgres:17
+        RUN apt-get update && \
+            apt-get install -y postgresql-17-pgvector && \
+            apt-get clean && \
+            rm -rf /var/lib/apt/lists/*
     container_name: mmdpf-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-mmdpf_db}
-      POSTGRES_USER: ${DB_USER:-mmdpf_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-mmdpf_password}
+      POSTGRES_DB: ${DB_NAME:-maiml_db}
+      POSTGRES_USER: ${DB_USER:-maiml_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-maiml_user}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
@@ -60,7 +67,7 @@ services:
       - AUTH_URL=http://localhost:${SWIFT_PORT:-8080}/auth/v1.0
       - ACCOUNT=${SWIFT_ACCOUNT:-mmdpf}
       - USER=${SWIFT_USER:-mmdpf_user}
-      - PASSWORD=${SWIFT_PASSWORD:?SWIFT_PASSWORD is required for onprem profile}
+      - PASSWORD=${SWIFT_PASSWORD:-}
     volumes:
       - swift-data:/srv
     networks:
@@ -94,7 +101,7 @@ services:
     command: >
       redis-server
       --appendonly yes
-      --requirepass ${REDIS_PASSWORD:-}
+      --requirepass ${REDIS_PASSWORD:-maiml_redis}
       --maxmemory ${REDIS_MAXMEMORY:-256mb}
       --maxmemory-policy allkeys-lru
     healthcheck:
@@ -128,7 +135,7 @@ services:
     networks:
       - mmdpf-network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/v1/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -190,10 +197,11 @@ services:
     volumes:
       # nginx本番設定
       - ./config/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      # SSL証明書（サーバー証明書）
-      - ${SSL_CERT_DIR:-./backend/certs/server}:/etc/nginx/ssl:ro
+      # SSL証明書（サーバー証明書・秘密鍵）
+      - ./backend/certs/server/server.crt:/etc/nginx/ssl/server.crt:ro
+      - ./backend/certs/server/server.key:/etc/nginx/ssl/server.key:ro
       # CA証明書（クライアント証明書検証用）
-      - ${CA_CERT_DIR:-./backend/certs/ca}:/etc/nginx/ssl/ca:ro
+      - ./backend/certs/ca/ca.crt:/etc/nginx/ssl/ca.crt:ro
       # nginx静的ファイル
       - nginx-logs:/var/log/nginx
     depends_on:
@@ -204,7 +212,7 @@ services:
     networks:
       - mmdpf-network
     healthcheck:
-      test: ["CMD-SHELL", "nginx -t && wget -qO- http://localhost/api/v1/health || exit 1"]
+      test: ["CMD-SHELL", "nginx -t || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

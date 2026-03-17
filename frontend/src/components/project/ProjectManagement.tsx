@@ -525,7 +525,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       total: taskResults.length,
       pending: 0,
       in_progress: 0,
-      error: 0,
+      forced_terminated: 0,
       review_waiting: 0,
       completed: 0,
     };
@@ -538,8 +538,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
         case 'in_progress':
           stats.in_progress++;
           break;
-        case 'error':
-          stats.error++;
+        case 'forced_terminated':
+          stats.forced_terminated++;
           break;
         case 'review_waiting':
           stats.review_waiting++;
@@ -552,12 +552,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
     return stats;
   }, [taskResults]);
-
-  // タスク結果確認ハンドラ
-  const handleViewTaskResult = useCallback((result: Task) => {
-    console.log('View task result:', result);
-    // TODO: タスク結果詳細モーダルを表示
-  }, []);
 
   // プロジェクトがチェックアウト中かどうかを判定（プロジェクト単位）
   const isProjectCheckedOut = useMemo(() => {
@@ -661,13 +655,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   const handleCloseIssueManagement = useCallback(() => {
     setIssueManagementModalOpen(false);
   }, []);
-
-  // モックの問題データ（将来的にAPIから取得）
-  const mockIssues = useMemo(() => {
-    if (!selectedProject) return [];
-    // TODO: 実際のAPIから取得する
-    return [];
-  }, [selectedProject]);
 
   // Phase 6追加: 編集ボタンクリックハンドラー
   const handleEditButtonClick = useCallback(() => {
@@ -1385,7 +1372,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     type="primary"
                     icon={<EditOutlined />}
                     onClick={handleEditButtonClick}
-                    disabled={!selectedProject}
+                    disabled={!selectedProject || isProjectCheckedOut}
+                    title={isProjectCheckedOut ? 'チェックイン状態でのみ編集できます' : undefined}
                   >
                     {t('projectManagement.edit')}
                   </Button>
@@ -1556,8 +1544,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                             タスク確認完了
                           </Button>
                         </Flex>
-                        {/* 統計カード */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: token.margin }}>
+                        {/* 統計カード: コード値順 total / pending(0) / in_progress(1) / review_waiting(2) / completed(3) / forced_terminated(4) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: token.margin, paddingLeft: token.paddingLG, paddingRight: token.paddingLG }}>
                       <Card
                         variant="borderless"
                         style={{ backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius }}
@@ -1572,7 +1560,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                           </Title>
                         </Flex>
                       </Card>
-                      
+
+                      {/* 0: 実行待ち */}
                       <Card
                         variant="borderless"
                         style={{ backgroundColor: token.colorBgContainer, borderRadius: token.borderRadius }}
@@ -1587,7 +1576,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                           </Title>
                         </Flex>
                       </Card>
-                      
+
+                      {/* 1: 実行中 */}
                       <Card
                         variant="borderless"
                         style={{ backgroundColor: token.colorPrimaryBg, borderRadius: token.borderRadius }}
@@ -1602,22 +1592,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                           </Title>
                         </Flex>
                       </Card>
-                      
-                      <Card
-                        variant="borderless"
-                        style={{ backgroundColor: token.colorErrorBg, borderRadius: token.borderRadius }}
-                        styles={{ body: { padding: token.margin } }}
-                      >
-                        <Flex vertical align="center">
-                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
-                            {t('projectManagement.task_results.stats.error_count') || '異常終了'}
-                          </Text>
-                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorError }}>
-                            {taskStats.error}
-                          </Title>
-                        </Flex>
-                      </Card>
-                      
+
+                      {/* 2: レビュー待ち */}
                       <Card
                         variant="borderless"
                         style={{ backgroundColor: token.colorWarningBg, borderRadius: token.borderRadius }}
@@ -1632,7 +1608,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                           </Title>
                         </Flex>
                       </Card>
-                      
+
+                      {/* 3: 完了 */}
                       <Card
                         variant="borderless"
                         style={{ backgroundColor: token.colorSuccessBg, borderRadius: token.borderRadius }}
@@ -1647,12 +1624,27 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                           </Title>
                         </Flex>
                       </Card>
+
+                      {/* 4: 強制終了（異常終了） */}
+                      <Card
+                        variant="borderless"
+                        style={{ backgroundColor: token.colorErrorBg, borderRadius: token.borderRadius }}
+                        styles={{ body: { padding: token.margin } }}
+                      >
+                        <Flex vertical align="center">
+                          <Text type="secondary" style={{ fontSize: token.fontSizeSM }}>
+                            {t('projectManagement.task_results.stats.error_count') || '異常終了'}
+                          </Text>
+                          <Title level={3} style={{ margin: `${token.marginXS}px 0 0 0`, color: token.colorError }}>
+                            {taskStats.forced_terminated}
+                          </Title>
+                        </Flex>
+                      </Card>
                     </div>
 
                     {/* タスク結果テーブル */}
                     <TaskResultsTable
                       results={taskResults}
-                      onViewResult={handleViewTaskResult}
                     />
                   </div>
                     ),

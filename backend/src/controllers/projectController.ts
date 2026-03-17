@@ -1178,9 +1178,9 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
     const statusMap: Record<number, string> = {
       0: 'pending',
       1: 'in_progress',
-      2: 'failed',
-      3: 'review_waiting',
-      4: 'completed',
+      2: 'review_waiting',
+      3: 'completed',
+      4: 'forced_terminated',
     };
 
     // statusフィルタのマッピング（クエリパラメータ → DB数値）
@@ -1188,9 +1188,9 @@ export async function getMethodTasks(req: Request, res: Response): Promise<void>
       all: null,
       pending: 0,
       in_progress: 1,
-      failed: 2,
-      review_waiting: 3,
-      completed: 4,
+      review_waiting: 2,
+      completed: 3,
+      forced_terminated: 4,
     };
 
     // DBロウをAPIレスポンス型に変換

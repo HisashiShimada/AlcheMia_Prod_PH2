@@ -35,11 +35,11 @@ export interface Project {
  * タスクステータス
  */
 export type TaskStatus = 
-  | 'pending'         // 0: 実行待ち
-  | 'in_progress'     // 1: 実行中
-  | 'error'           // 2: 異常終了
-  | 'review_waiting'  // 3: レビュー待ち
-  | 'completed';      // 4: 完了
+  | 'pending'           // 0: 実行待ち
+  | 'in_progress'       // 1: 実行中
+  | 'review_waiting'    // 2: レビュー待ち
+  | 'completed'         // 3: 完了
+  | 'forced_terminated'; // 4: 強制終了（異常終了）
 
 /**
  * タスク
@@ -84,9 +84,9 @@ export interface ProjectListResponse {
 export const TASK_STATUS_MAP: Record<number, TaskStatus> = {
   0: 'pending',
   1: 'in_progress',
-  2: 'error',
-  3: 'review_waiting',
-  4: 'completed'
+  2: 'review_waiting',
+  3: 'completed',
+  4: 'forced_terminated'
 };
 
 /**

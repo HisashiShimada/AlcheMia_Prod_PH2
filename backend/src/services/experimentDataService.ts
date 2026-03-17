@@ -624,6 +624,77 @@ async function updateDeemedProgress(
       };
       const deemedStatusLabel = deemedStatusLabelMap[newStatus] ?? String(newStatus);
 
+      // MAIMLパーサーからprogramId / instructionId を取得
+      // log/@ref = methodId, trace/@ref = programId, event/@ref = instructionId
+      let deemedProgramId: string | null = null;
+      let deemedInstructionId: string | null = null;
+      try {
+        const parsedMethods = parser.getMethods();
+        const targetMethodForLog = parsedMethods.find(m => m.id === methodId);
+        if (targetMethodForLog) {
+          const pnmlTransitionsForLog = targetMethodForLog.pnml.transitions || [];
+          const transitionForLog = pnmlTransitionsForLog.find(t => t.id === transitionId);
+          if (transitionForLog) {
+            // pnml.transitions の各トランジションは program 属性を持つ場合がある
+            deemedProgramId = (transitionForLog as any).program ?? null;
+          }
+          // instructionId は program 要素配下の instruction から取得
+          const programElements = targetMethodForLog.program || [];
+          const programArr = Array.isArray(programElements) ? programElements : [programElements];
+          for (const prog of programArr) {
+            if (!prog) continue;
+            // program.id を programId として使用
+            if (!deemedProgramId && prog.id) {
+              deemedProgramId = prog.id;
+            }
+            // instruction を探してinstructionIdを取得
+            const instructions = prog.instructions || [];
+            const instructionArr = Array.isArray(instructions) ? instructions : [instructions];
+            for (const instr of instructionArr) {
+              // transitionRef は Reference 型（{ ref: string } または string）
+              const instrTransitionRef = typeof instr?.transitionRef === 'string'
+                ? instr.transitionRef
+                : (instr?.transitionRef as any)?.ref ?? '';
+              if (instr && instrTransitionRef === transitionId) {
+                deemedInstructionId = instr.id ?? null;
+                break;
+              }
+            }
+            if (deemedInstructionId) break;
+          }
+        }
+      } catch (maimlIdErr) {
+        logger.warn('[ExperimentDataService] みなし進捗: programId/instructionId取得失敗。フォールバックを使用。', {
+          transitionId, maimlIdErr,
+        });
+      }
+
+      // result-type place IDs の収集（event/resultsRef に使用）
+      // トランジションに接続する result-type プレースのIDを取得する
+      let deemedResultsRefs: string[] | null = null;
+      try {
+        const allPlaceIds = transitionToAllPlaceIds.get(transitionId);
+        if (allPlaceIds && allPlaceIds.size > 0) {
+          const pnmlPlaces = targetMethod.pnml.places || [];
+          const resultIds = [...allPlaceIds].filter(pid => {
+            const place = pnmlPlaces.find((p: any) => p.id === pid);
+            // placeのstereotype/type情報はpnml.placesの各要素のデータから取得
+            // MAIMLパーサーによってstereotypeが設定される場合がある
+            return place && (
+              (place as any).stereotype === 'resultTemplate' ||
+              (place as any).data?.stereotype === 'resultTemplate'
+            );
+          });
+          if (resultIds.length > 0) {
+            deemedResultsRefs = resultIds;
+          }
+        }
+      } catch (resultRefErr2) {
+        logger.warn('[ExperimentDataService] みなし進捗: resultsRefs 取得失敗。resultsRef なしで記録します。', {
+          transitionId, resultRefErr2,
+        });
+      }
+
       try {
         const eventLogRepository = new EventLogRepository();
         await eventLogRepository.insertTransitionProgressLog(
@@ -634,7 +705,11 @@ async function updateDeemedProgress(
           deemedStatusLabel,
           newProgressRate,
           null, // みなし進捗は自動更新のためコメントなし
-          client
+          client,
+          methodId,           // log/@ref = methodId
+          deemedProgramId,    // trace/@ref = programId（MAIMLから取得）
+          deemedInstructionId, // event/@ref = instructionId（MAIMLから取得）
+          deemedResultsRefs   // event/resultsRef = result-type place IDs
         );
       } catch (logErr) {
         // イベントログ記録失敗はwarningログを出力し、メイン処理は継続
