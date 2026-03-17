@@ -31,6 +31,11 @@ COPY . .
 
 # Next.jsビルド（本番用スタンドアロンビルド）
 # standalone出力を使用することでDockerイメージを軽量化
+# NEXT_PUBLIC_* 変数はビルド時にバンドルへ静的に埋め込まれるため、ARGで受け取る必要がある
+# デフォルト値 /api/v1 はnginxリバースプロキシ経由でアクセスする本番環境用
+ARG NEXT_PUBLIC_API_URL=/api/v1
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

@@ -12,7 +12,7 @@ import React from 'react';
 import { Property, Content, PropertyCustomElement } from '@/types/maiml-unified';
 import { xml2js, ElementCompact } from 'xml-js';
 import type { PropertyData } from '../components/NestedPropertyEditor';
-import type { TemplateFile } from '@/services/templateApi';
+import type { FormatTemplateFile } from '@/services/templateApi';
 import { FileOutlined, FolderOutlined } from '@ant-design/icons';
 
 // ===== Property変換系 =====
@@ -748,11 +748,11 @@ export interface TreeNode {
  * @param files - TemplateFile配列
  * @returns TreeNode[] - ツリー構造データ
  */
-export function buildTreeData(files: TemplateFile[]): TreeNode[] {
+export function buildTreeData(files: FormatTemplateFile[]): TreeNode[] {
   const tree: Record<string, TreeNode> = {};
   
   files.forEach(file => {
-    const parts = file.filePath.split('/');
+    const parts = file.key.split('/');
     let currentPath = '';
     
     parts.forEach((part, index) => {

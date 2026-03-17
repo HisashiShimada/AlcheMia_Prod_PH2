@@ -4,7 +4,14 @@ version: '3.8'
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM postgres:17
+        RUN apt-get update && \
+            apt-get install -y postgresql-17-pgvector && \
+            apt-get clean && \
+            rm -rf /var/lib/apt/lists/*
     container_name: mmdpf-postgres
     environment:
       POSTGRES_DB: mmdpf_db

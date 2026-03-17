@@ -36,7 +36,7 @@ CREATE TABLE login_history (
 
 -- インデックス
 CREATE INDEX idx_login_history_rate_limit ON login_history(login_at, login_sf);
-CREATE INDEX idx_login_history_query ON login_history(organization_id,user_name,entry_execute_flg);
+CREATE INDEX idx_login_history_query ON login_history(organization_id,user_id,entry_execute_flg);
 
 -- コメント
 COMMENT ON TABLE login_history IS 'ログイン履歴';

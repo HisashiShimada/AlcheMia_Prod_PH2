@@ -34,6 +34,7 @@ export class RedisConnectionService {
       console.log(`🔌 Redis接続試行中: ${redisHost}:${redisPort}`);
 
       // Redisクライアント作成
+      const redisPassword = process.env.REDIS_PASSWORD;
       this.client = createClient({
         socket: {
           host: redisHost,
@@ -41,6 +42,7 @@ export class RedisConnectionService {
           connectTimeout: 5000,  // 5秒でタイムアウト
           reconnectStrategy: false,  // 自動再接続を無効化（エラーの繰り返しを防ぐ）
         },
+        password: redisPassword || undefined,  // REDIS_PASSWORDが設定されている場合のみ使用
       });
 
       // エラーハンドラー設定（接続失敗時のログ出力を抑制）
