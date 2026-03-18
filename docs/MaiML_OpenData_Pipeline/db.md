@@ -1,7 +1,7 @@
 # MaiML OpenData Pipeline DB 設計書
 
 > 作成日: 2026-03-11  
-> 最終更新: 2026-03-17  
+> 最終更新: 2026-03-18  
 > ステータス: **確定**（全項目確定済み）
 > 基準資料: `docs/MaiML_OpenData_Pipeline/DB検討/`
 
@@ -627,6 +627,7 @@ CREATE INDEX ix_maiml_event_instruction  ON maiml_event(instruction_ref);
 CREATE TABLE maiml_event_element (
   event_element_id   BIGSERIAL  PRIMARY KEY,
   event_id           BIGINT     NOT NULL REFERENCES maiml_event(event_id) ON DELETE CASCADE,
+  hierarchy          TEXT       NOT NULL,  -- property の階層パス
   element_type       TEXT       NOT NULL DEFAULT 'property',  -- 現時点では 'property' 固定
   key                TEXT,          -- property/@key 属性
   description        TEXT,          -- property/description テキスト

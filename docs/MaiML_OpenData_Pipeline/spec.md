@@ -1,7 +1,7 @@
 # MaiML OpenData Pipeline 仕様書
 
 > 作成日: 2026-03-11  
-> 最終更新: 2026-03-12  
+> 最終更新: 2026-03-18  
 > ステータス: **確定事項のみ記載**（未確定事項は [pending.md](./pending.md) を参照）
 
 ---
@@ -260,6 +260,7 @@ pending → running → done（完了）
   - スキーマの COMMENT に `organization_cd` を設定する
 - テーブル構成: `maiml_asset` → `maiml_instance` → `maiml_element` / `maiml_insertion` の階層構造
 - テンプレート（protocol 層）: `maiml_template` → `maiml_template_element` / `maiml_template_insertion`
+- eventLog 層: `maiml_event` → `maiml_event_element` / `maiml_event_element_value`（`results_ref` で `maiml_instance` と結合）
 - スキーマは**組織作成時に自動作成**する。スキーマが存在しない場合は公開操作時にエラー
 - 詳細な DDL は **[db.md](./db.md)** のセクション1参照
 
@@ -358,13 +359,14 @@ backend/src/
 ├── config/
 │   └── redis.ts                    （新規）bullmq 用 Redis 接続設定
 ├── queues/
-│   └── maimlIngestQueue.ts         （新規）公開ジョブ Queue 定義
-│   └── maimlUnpublishQueue.ts      （新規）非公開ジョブ Queue 定義
+│   └── maimlPublishQueue.ts        （実装済み）公開ジョブ Queue 定義
+│   └── maimlUnpublishQueue.ts      （実装済み）非公開ジョブ Queue 定義
 ├── workers/
-│   └── maimlIngestWorker.ts        （新規）公開 Worker
-│   └── maimlUnpublishWorker.ts     （新規）非公開 Worker
+│   └── maimlPublishWorker.ts       （実装済み）公開 Worker
+│   └── maimlUnpublishWorker.ts     （実装済み）非公開 Worker
 ├── services/
-│   └── maimlIngestService.ts       （変更）requestPublish() に分割
+│   └── maimlPublishService.ts      （実装済み）enqueuePublish() / enqueueUnpublish()
+│   └── maimlIngestParserService.ts （実装済み）parseForIngest()（XML解析）
 ├── controllers/
 │   └── projectController.ts        （変更・既存）202 返却に変更
 ├── routes/
@@ -432,5 +434,7 @@ CREATE INDEX IF NOT EXISTS ix_publish_job_type_status ON maiml_publish_job(job_t
 | 二重公開 | 禁止。再公開したい場合は非公開後に再度公開する。公開中の場合は `409 Conflict` を返す |
 | 公開期限（retention_until） | 組織設定 `default_retention_days` を優先、なければ環境変数 `RETENTION_DAYS_DEFAULT`（デフォルト365日） |
 
-> ⚠️ 未確定事項が残っています（pending.md #9）。実装着手前に確認してください。  
-> - **#9**: eventLog テーブル設計（解決不可・保留中）
+> ✅ **pending.md #9（eventLog テーブル設計）は解決済み（2026-03-18）**  
+> `maiml_event` / `maiml_event_element` / `maiml_event_element_value` の3テーブルを組織スキーマに実装。  
+> マイグレーション: `backend/migrations/20260318_add_event_tables_to_org_schema.sql`  
+> DDL 詳細は [db.md §7.2](./db.md) を参照。

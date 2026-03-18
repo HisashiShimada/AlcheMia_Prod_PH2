@@ -22,13 +22,15 @@ import {
 } from '../types/maimlOpenData';
 
 /** タスクステータス: 完了 */
-const TASK_STATUS_COMPLETED = 4;
-/** タスクステータス: 異常終了 */
-const TASK_STATUS_ABORTED = 5;
+const TASK_STATUS_COMPLETED = 3;
+/** タスクステータス: 異常終了（強制終了） */
+const TASK_STATUS_ABORTED = 4;
 /** プロジェクトステータス: タスク結果レビュー待ち */
 const PROJECT_STATUS_REVIEW_WAITING = 3;
 /** プロジェクトステータス: プロジェクト完了 */
 const PROJECT_STATUS_COMPLETED = 4;
+/** 公開可能なプロジェクトステータス一覧（レビュー待ち or 完了） */
+const ALLOWED_PUBLISH_STATUSES = [PROJECT_STATUS_REVIEW_WAITING, PROJECT_STATUS_COMPLETED];
 /** チェックアウトステータス: チェックアウト中 */
 const CHECKOUT_STATUS_CHECKED_OUT = 1;
 
@@ -68,16 +70,20 @@ export async function enqueuePublish(
     throw new Error('PROJECT_NOT_FOUND');
   }
   const projectId = project.project_id!;
+  console.log("projectあり");
 
   // ── 2. チェックアウト状態確認 ────────────────────────────
   if (project.checkout_status !== CHECKOUT_STATUS_CHECKED_OUT) {
     throw new Error('PROJECT_NOT_CHECKED_OUT');
   }
+  console.log("チェックアウト済み");
 
   // ── 3. プロジェクトステータス確認 ───────────────────────
-  if (project.project_status !== PROJECT_STATUS_REVIEW_WAITING) {
+  // タスク結果レビュー待ち（3）または プロジェクト完了（4）のみ公開可能（再公開も許可）
+  if (!ALLOWED_PUBLISH_STATUSES.includes(project.project_status ?? -1)) {
     throw new Error('PROJECT_STATUS_INVALID');
   }
+  console.log("レビュー待ち、完了");
 
   // ── 4. タスク詳細の完了確認 ─────────────────────────────
   const taskDetails = await projectTaskDetailRepo.findByProject(organizationId, projectId);
@@ -91,12 +97,14 @@ export async function enqueuePublish(
       throw new Error('TASKS_NOT_COMPLETED');
     }
   }
+  console.log("タスクは完了");
 
   // ── 5. 重複チェック ──────────────────────────────────────
   const latest = await publishJobRepo.findLatestByProject(organizationId, projectName);
   if (latest && (latest.status === 'pending' || latest.status === 'running')) {
     throw new Error('ALREADY_IN_PROGRESS');
   }
+  console.log("重複なし");
 
   // ── 6. Swift/S3 ファイル存在確認 ───────────────────────
   const fileUri = `projects/${projectName}/${projectName}.maiml`;
@@ -105,6 +113,7 @@ export async function enqueuePublish(
   if (!exists) {
     throw new Error('MAIML_NOT_FOUND');
   }
+  console.log("ファイルあり");
 
   // ── 7. DB に pending ジョブを作成 ───────────────────────
   const job = await publishJobRepo.insert({
@@ -119,6 +128,7 @@ export async function enqueuePublish(
     started_at:      null,
     finished_at:     null,
   });
+  console.log("job登録完了");
 
   const jobId = job.job_id!;
 
