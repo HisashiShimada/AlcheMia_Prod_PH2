@@ -1,8 +1,8 @@
 # API仕様書: MaiML OpenData 公開・非公開
 
 **作成日**: 2026-03-13  
-**最終更新**: 2026-03-13  
-**バージョン**: 1.0.0  
+**最終更新**: 2026-03-18  
+**バージョン**: 1.1.0  
 **実装状況**: 実装済み
 
 ---
@@ -76,7 +76,7 @@ BullMQ キュー（`maiml-publish`）へジョブを投入して 202 を返す�
 | 1 | プロジェクトが存在する | `PROJECT_NOT_FOUND` | 404 |
 | 2 | `checkout_status = 1`（チェックアウト中） | `PROJECT_NOT_CHECKED_OUT` | 400 |
 | 3 | `project_status = 3`（タスク結果レビュー待ち） | `PROJECT_STATUS_INVALID` | 400 |
-| 4 | 全タスク詳細が完了（4）または異常終了（5） | `TASKS_NOT_COMPLETED` | 400 |
+| 4 | 全タスク詳細が完了（3）または異常終了（4） | `TASKS_NOT_COMPLETED` | 400 |
 | 5 | 進行中ジョブが存在しない（`status != pending/running`） | `ALREADY_IN_PROGRESS` | 409 |
 | 6 | Swift/S3 に `projects/{name}/{name}.maiml` が存在する | `MAIML_NOT_FOUND` | 400 |
 
@@ -396,4 +396,5 @@ Frontend           Backend API       maiml-unpublish Queue   Worker
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-03-18 | §3.4 タスク完了ステータス値を修正（完了=4→3、異常終了=5→4） | Cline |
 | 1.0.0 | 2026-03-13 | 初版作成（実装済みソースコードから仕様を起こす） | Cline |

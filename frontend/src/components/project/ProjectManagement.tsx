@@ -1376,6 +1376,8 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     type="primary"
                     icon={<FileTextOutlined />}
                     onClick={handleToggleCheckout}
+                    disabled={selectedProject?.status === 4}
+                    title={selectedProject?.status === 4 ? 'プロジェクト完了後はチェックインできません' : undefined}
                     style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                   >
                     {isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}

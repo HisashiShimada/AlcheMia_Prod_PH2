@@ -591,11 +591,11 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
 
   /**
    * 実験条件・試行回数・指示追加ボタンの非活性判定
-   * isCheckoutLockedを含めない（順序以外は変更可能）
+   * チェックアウト中・ワーカー連携済みは変更不可
    */
   const isFieldDisabled = useCallback((record: TaskDetail) => {
-    return isSaving || loadingMethods || record.workerLinkedFlg;
-  }, [isSaving, loadingMethods]);
+    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg;
+  }, [isSaving, loadingMethods, isCheckoutLocked]);
 
   /**
    * ドラッグ可能な行コンポーネント
@@ -823,7 +823,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           <Button
             type="primary"
             onClick={handleProjectInstructionClick}
-            disabled={loadingMethods}
+            disabled={loadingMethods || isCheckoutLocked}
           >
             {t('taskRegistration.buttons.projectInstruction')}
           </Button>
@@ -832,7 +832,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             icon={<SaveOutlined />}
             onClick={handleSave}
             loading={isSaving}
-            disabled={loadingMethods}
+            disabled={loadingMethods || isCheckoutLocked}
           >
             {isSaving ? t('taskRegistration.saving') : t('taskRegistration.saveButton')}
           </Button>

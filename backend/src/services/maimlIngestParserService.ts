@@ -13,6 +13,8 @@
  */
 
 import { MaimlParserTyped } from '../utils/maimlParserTyped';
+import { buildMaimlLineNoMap } from '../utils/maimlLineNoExtractor';
+import type { MaimlLineNoMap } from '../utils/maimlLineNoExtractor';
 import type {
   Material,
   Condition,
@@ -21,6 +23,7 @@ import type {
   Property,
   Content,
   Insertion,
+  Event,
 } from '../types/maiml-unified';
 import type {
   ParsedMaimlData,
@@ -32,6 +35,9 @@ import type {
   MaimlTemplateElementInput,
   MaimlTemplateElementValueInput,
   MaimlTemplateInsertionInput,
+  MaimlEventInput,
+  MaimlEventElementInput,
+  MaimlEventElementValueInput,
 } from '../types/maimlOpenData';
 
 // ============================================================
@@ -51,6 +57,9 @@ class TempIdCounter {
 
 /**
  * Property を再帰的に走査し、MaimlElementInput / MaimlElementValueInput を生成する
+ *
+ * @param hierarchy - 連番形式の階層番号（例: "1", "2-1", "2-1-3"）
+ * @param lineNoMap - buildMaimlLineNoMap() で構築した行番号マップ
  */
 function flattenProperty(
   prop:         Property,
@@ -59,9 +68,11 @@ function flattenProperty(
   hierarchy:    string,
   counter:      TempIdCounter,
   elements:     MaimlElementInput[],
-  values:       MaimlElementValueInput[]
+  values:       MaimlElementValueInput[],
+  lineNoMap:    MaimlLineNoMap
 ): void {
-  const tempId = counter.next();
+  const tempId  = counter.next();
+  const lineNo  = lineNoMap.elements.get(`${instanceKey}::${hierarchy}`) ?? null;
 
   elements.push({
     _tempId:          tempId,
@@ -80,7 +91,7 @@ function flattenProperty(
     size_value:       null,
     element_id_attr:  null,
     element_ref:      null,
-    maiml_line_no:    null,
+    maiml_line_no:    lineNo,
   });
 
   // value
@@ -93,35 +104,41 @@ function flattenProperty(
     });
   }
 
-  // ネストされた property
+  // ネストされた property / content（連番 hierarchy で走査）
+  let childIdx = 0;
   for (const child of prop.properties ?? []) {
+    childIdx++;
     flattenProperty(
       child,
       tempId,
       instanceKey,
-      `${hierarchy}/property[${child.key}]`,
+      `${hierarchy}-${childIdx}`,
       counter,
       elements,
-      values
+      values,
+      lineNoMap
     );
   }
-
-  // ネストされた content
   for (const child of prop.contents ?? []) {
+    childIdx++;
     flattenContent(
       child,
       tempId,
       instanceKey,
-      `${hierarchy}/content[${child.key}]`,
+      `${hierarchy}-${childIdx}`,
       counter,
       elements,
-      values
+      values,
+      lineNoMap
     );
   }
 }
 
 /**
  * Content を再帰的に走査し、MaimlElementInput / MaimlElementValueInput を生成する
+ *
+ * @param hierarchy - 連番形式の階層番号（例: "1", "2-1", "2-1-3"）
+ * @param lineNoMap - buildMaimlLineNoMap() で構築した行番号マップ
  */
 function flattenContent(
   cont:         Content,
@@ -130,9 +147,11 @@ function flattenContent(
   hierarchy:    string,
   counter:      TempIdCounter,
   elements:     MaimlElementInput[],
-  values:       MaimlElementValueInput[]
+  values:       MaimlElementValueInput[],
+  lineNoMap:    MaimlLineNoMap
 ): void {
-  const tempId = counter.next();
+  const tempId  = counter.next();
+  const lineNo  = lineNoMap.elements.get(`${instanceKey}::${hierarchy}`) ?? null;
 
   elements.push({
     _tempId:          tempId,
@@ -144,14 +163,14 @@ function flattenContent(
     element_data:     null,
     xsi_type:         cont.xsiType ?? null,
     key:              cont.key ?? null,
-    format_string:    null,
+    format_string:    cont.formatString ?? null,
     units:            cont.units ?? null,
     scale_factor:     cont.scaleFactor ?? null,
     axis:             cont.axis ?? null,
     size_value:       cont.size ?? null,
     element_id_attr:  cont.id ?? null,
     element_ref:      cont.ref ?? null,
-    maiml_line_no:    null,
+    maiml_line_no:    lineNo,
   });
 
   // value（文字列化して格納）
@@ -176,29 +195,32 @@ function flattenContent(
     }
   }
 
-  // ネストされた property
+  // ネストされた property / content（連番 hierarchy で走査）
+  let childIdx = 0;
   for (const child of cont.properties ?? []) {
+    childIdx++;
     flattenProperty(
       child,
       tempId,
       instanceKey,
-      `${hierarchy}/property[${child.key}]`,
+      `${hierarchy}-${childIdx}`,
       counter,
       elements,
-      values
+      values,
+      lineNoMap
     );
   }
-
-  // ネストされた content
   for (const child of cont.contents ?? []) {
+    childIdx++;
     flattenContent(
       child,
       tempId,
       instanceKey,
-      `${hierarchy}/content[${child.key}]`,
+      `${hierarchy}-${childIdx}`,
       counter,
       elements,
-      values
+      values,
+      lineNoMap
     );
   }
 }
@@ -235,7 +257,8 @@ function processInstance(
   instances:    MaimlInstanceInput[],
   elements:     MaimlElementInput[],
   values:       MaimlElementValueInput[],
-  insertions:   MaimlInsertionInput[]
+  insertions:   MaimlInsertionInput[],
+  lineNoMap:    MaimlLineNoMap
 ): void {
   const instanceKey = inst.id;
 
@@ -245,32 +268,35 @@ function processInstance(
     template_ref:      inst.ref ?? null,
     instance_uuid:     inst.uuid ?? null,
     instance_name:     inst.name ?? null,
-    instance_line_no:  null,
+    instance_line_no:  lineNoMap.instances.get(instanceKey) ?? null,
   });
 
-  // property
+  // property / content（連番 hierarchy で走査）
+  let topIdx = 0;
   for (const prop of inst.properties ?? []) {
+    topIdx++;
     flattenProperty(
       prop,
       null,
       instanceKey,
-      `/${instType}/property[${prop.key}]`,
+      String(topIdx),
       counter,
       elements,
-      values
+      values,
+      lineNoMap
     );
   }
-
-  // content
   for (const cont of inst.contents ?? []) {
+    topIdx++;
     flattenContent(
       cont,
       null,
       instanceKey,
-      `/${instType}/content[${cont.key}]`,
+      String(topIdx),
       counter,
       elements,
-      values
+      values,
+      lineNoMap
     );
   }
 
@@ -278,7 +304,10 @@ function processInstance(
   if (instType === 'result') {
     const r = inst as Result;
     if (r.insertion) {
-      insertions.push(toInsertionInput(r.insertion, instanceKey));
+      const insIdx = insertions.filter(i => i._instanceKey === instanceKey).length;
+      const insLineNo = lineNoMap.insertions.get(`${instanceKey}::insertion::${insIdx}`) ?? null;
+      const ins = toInsertionInput(r.insertion, instanceKey);
+      insertions.push({ ...ins, maiml_line_no: insLineNo });
     }
   }
 }
@@ -294,9 +323,11 @@ function flattenTemplateProperty(
   hierarchy:    string,
   counter:      TempIdCounter,
   elements:     MaimlTemplateElementInput[],
-  values:       MaimlTemplateElementValueInput[]
+  values:       MaimlTemplateElementValueInput[],
+  lineNoMap:    MaimlLineNoMap
 ): void {
   const tempId = counter.next();
+  const lineNo = lineNoMap.elements.get(`${templateKey}::${hierarchy}`) ?? null;
 
   elements.push({
     _tempId:          tempId,
@@ -315,7 +346,7 @@ function flattenTemplateProperty(
     size_value:       null,
     element_id_attr:  null,
     element_ref:      null,
-    maiml_line_no:    null,
+    maiml_line_no:    lineNo,
   });
 
   if (prop.value !== undefined && prop.value !== null) {
@@ -327,11 +358,15 @@ function flattenTemplateProperty(
     });
   }
 
+  // ネストされた property / content（連番 hierarchy で走査）
+  let childIdx = 0;
   for (const child of prop.properties ?? []) {
-    flattenTemplateProperty(child, tempId, templateKey, `${hierarchy}/property[${child.key}]`, counter, elements, values);
+    childIdx++;
+    flattenTemplateProperty(child, tempId, templateKey, `${hierarchy}-${childIdx}`, counter, elements, values, lineNoMap);
   }
   for (const child of prop.contents ?? []) {
-    flattenTemplateContent(child, tempId, templateKey, `${hierarchy}/content[${child.key}]`, counter, elements, values);
+    childIdx++;
+    flattenTemplateContent(child, tempId, templateKey, `${hierarchy}-${childIdx}`, counter, elements, values, lineNoMap);
   }
 }
 
@@ -342,9 +377,11 @@ function flattenTemplateContent(
   hierarchy:    string,
   counter:      TempIdCounter,
   elements:     MaimlTemplateElementInput[],
-  values:       MaimlTemplateElementValueInput[]
+  values:       MaimlTemplateElementValueInput[],
+  lineNoMap:    MaimlLineNoMap
 ): void {
   const tempId = counter.next();
+  const lineNo = lineNoMap.elements.get(`${templateKey}::${hierarchy}`) ?? null;
 
   elements.push({
     _tempId:          tempId,
@@ -356,14 +393,14 @@ function flattenTemplateContent(
     element_data:     null,
     xsi_type:         cont.xsiType ?? null,
     key:              cont.key ?? null,
-    format_string:    null,
+    format_string:    cont.formatString ?? null,
     units:            cont.units ?? null,
     scale_factor:     cont.scaleFactor ?? null,
     axis:             cont.axis ?? null,
     size_value:       cont.size ?? null,
     element_id_attr:  cont.id ?? null,
     element_ref:      cont.ref ?? null,
-    maiml_line_no:    null,
+    maiml_line_no:    lineNo,
   });
 
   if (cont.value !== undefined && cont.value !== null) {
@@ -377,11 +414,15 @@ function flattenTemplateContent(
     });
   }
 
+  // ネストされた property / content（連番 hierarchy で走査）
+  let childIdx = 0;
   for (const child of cont.properties ?? []) {
-    flattenTemplateProperty(child, tempId, templateKey, `${hierarchy}/property[${child.key}]`, counter, elements, values);
+    childIdx++;
+    flattenTemplateProperty(child, tempId, templateKey, `${hierarchy}-${childIdx}`, counter, elements, values, lineNoMap);
   }
   for (const child of cont.contents ?? []) {
-    flattenTemplateContent(child, tempId, templateKey, `${hierarchy}/content[${child.key}]`, counter, elements, values);
+    childIdx++;
+    flattenTemplateContent(child, tempId, templateKey, `${hierarchy}-${childIdx}`, counter, elements, values, lineNoMap);
   }
 }
 
@@ -392,7 +433,8 @@ function processTemplate(
   templates:          MaimlTemplateInput[],
   elements:           MaimlTemplateElementInput[],
   values:             MaimlTemplateElementValueInput[],
-  insertions:         MaimlTemplateInsertionInput[]
+  insertions:         MaimlTemplateInsertionInput[],
+  lineNoMap:          MaimlLineNoMap
 ): void {
   const templateKey = tmpl.id;
 
@@ -401,17 +443,23 @@ function processTemplate(
     template_key:      templateKey,
     template_uuid:     tmpl.uuid ?? null,
     template_name:     tmpl.name ?? null,
-    template_line_no:  null,
+    template_line_no:  lineNoMap.templates.get(templateKey) ?? null,
   });
 
+  // トップレベル property / content（連番 hierarchy で走査）
+  let topIdx = 0;
   for (const prop of tmpl.properties ?? []) {
-    flattenTemplateProperty(prop, null, templateKey, `/template/property[${prop.key}]`, counter, elements, values);
+    topIdx++;
+    flattenTemplateProperty(prop, null, templateKey, String(topIdx), counter, elements, values, lineNoMap);
   }
   for (const cont of tmpl.contents ?? []) {
-    flattenTemplateContent(cont, null, templateKey, `/template/content[${cont.key}]`, counter, elements, values);
+    topIdx++;
+    flattenTemplateContent(cont, null, templateKey, String(topIdx), counter, elements, values, lineNoMap);
   }
 
   if (tmpl.insertion) {
+    // template insertion の行番号: lineNoMap.insertions のキーは `${contextKey}::insertion::0`
+    const tmplInsLineNo = lineNoMap.insertions.get(`${templateKey}::insertion::0`) ?? null;
     insertions.push({
       _templateKey:  templateKey,
       uri:           tmpl.insertion.uri,
@@ -419,7 +467,7 @@ function processTemplate(
       hash_method:   tmpl.insertion.hash?.method ?? null,
       file_uuid:     tmpl.insertion.uuid ?? null,
       mime_format:   tmpl.insertion.format ?? null,
-      maiml_line_no: null,
+      maiml_line_no: tmplInsLineNo,
     });
   }
 }
@@ -436,8 +484,9 @@ export const maimlIngestParserService = {
    * @returns フラット化された挿入データ
    */
   parseForIngest(xmlString: string): ParsedMaimlData {
-    const parser = new MaimlParserTyped(xmlString);
-    const root   = parser.getTypedMaiml();
+    const parser    = new MaimlParserTyped(xmlString);
+    const root      = parser.getTypedMaiml();
+    const lineNoMap = buildMaimlLineNoMap(xmlString);
 
     const counter = new TempIdCounter();
 
@@ -450,19 +499,22 @@ export const maimlIngestParserService = {
     const templateElements:       MaimlTemplateElementInput[]       = [];
     const templateElementValues:  MaimlTemplateElementValueInput[]  = [];
     const templateInsertions:     MaimlTemplateInsertionInput[]     = [];
+    const events:                 MaimlEventInput[]                 = [];
+    const eventElements:          MaimlEventElementInput[]          = [];
+    const eventElementValues:     MaimlEventElementValueInput[]     = [];
 
     // ── data セクション ──────────────────────────────────
     const dataSection = root.data;
     if (dataSection?.results) {
       for (const results of dataSection.results) {
         for (const mat of results.materials ?? []) {
-          processInstance(mat, 'material', counter, instances, elements, elementValues, insertions);
+          processInstance(mat, 'material', counter, instances, elements, elementValues, insertions, lineNoMap);
         }
         for (const cond of results.conditions ?? []) {
-          processInstance(cond, 'condition', counter, instances, elements, elementValues, insertions);
+          processInstance(cond, 'condition', counter, instances, elements, elementValues, insertions, lineNoMap);
         }
         for (const res of results.results ?? []) {
-          processInstance(res, 'result', counter, instances, elements, elementValues, insertions);
+          processInstance(res, 'result', counter, instances, elements, elementValues, insertions, lineNoMap);
         }
       }
     }
@@ -495,7 +547,65 @@ export const maimlIngestParserService = {
       for (const { tmpl, type } of allTemplates) {
         if (seen.has(tmpl.id)) continue;
         seen.add(tmpl.id);
-        processTemplate(tmpl, type, counter, templates, templateElements, templateElementValues, templateInsertions);
+        processTemplate(tmpl, type, counter, templates, templateElements, templateElementValues, templateInsertions, lineNoMap);
+      }
+    }
+
+    // ── eventLog セクション ─────────────────────────────
+    // MaimlRoot.eventLog（単数）> logs > traces > events 階層を走査する
+    const eventLogSection = root.eventLog;
+    if (eventLogSection) {
+      for (const log of eventLogSection.logs ?? []) {
+        for (const trace of log.traces ?? []) {
+          for (const event of trace.events ?? []) {
+            const eventIndex = events.length;
+
+            // resultsRefs は配列。最初の ref 値を results_ref として格納する
+            const firstResultsRef = (event.resultsRefs ?? [])[0]?.ref ?? null;
+
+            // event の行番号: lineNoMap.events は event/@id or 出現順インデックス文字列がキー
+            const eventMapKey  = event.id ?? String(eventIndex);
+            const eventLineNo  = lineNoMap.events.get(eventMapKey) ?? null;
+
+            events.push({
+              event_key:       event.id          ?? null,
+              results_ref:     firstResultsRef,
+              instruction_ref: event.ref         ?? null,
+              event_uuid:      event.uuid        ?? null,
+              event_name:      event.name        ?? null,
+              description:     event.description ?? null,
+              annotation:      event.annotation  ?? null,
+              maiml_line_no:   eventLineNo,
+            });
+
+            // event 直下の property を eventElement / eventElementValue に変換
+            let evElemIdx = 0;
+            for (const prop of event.properties ?? []) {
+              evElemIdx++;
+              const elemIndex = eventElements.length;
+              // eventElements の行番号: `${eventMapKey}::${evElemIdx}` がキー
+              const eeLineNo = lineNoMap.eventElements.get(`${eventMapKey}::${evElemIdx}`) ?? null;
+
+              eventElements.push({
+                _eventIndex:   eventIndex,
+                hierarchy:     String(evElemIdx),
+                element_type:  'property',
+                key:           prop.key         ?? null,
+                description:   prop.description ?? null,
+                maiml_line_no: eeLineNo,
+              });
+
+              if (prop.value !== undefined && prop.value !== null) {
+                eventElementValues.push({
+                  _eventElementIndex: elemIndex,
+                  value_idx:          0,
+                  value:              String(prop.value),
+                  value_array:        null,
+                });
+              }
+            }
+          }
+        }
       }
     }
 
@@ -512,6 +622,9 @@ export const maimlIngestParserService = {
       templateElements,
       templateElementValues,
       templateInsertions,
+      events,
+      eventElements,
+      eventElementValues,
     };
   },
 };

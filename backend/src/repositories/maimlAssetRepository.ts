@@ -18,6 +18,9 @@ import {
   MaimlTemplateElement,
   MaimlTemplateElementValue,
   MaimlTemplateInsertion,
+  MaimlEvent,
+  MaimlEventElement,
+  MaimlEventElementValue,
 } from '../types/maimlOpenData';
 
 // ============================================================
@@ -447,6 +450,103 @@ export async function insertTemplateInsertion(
       data.file_uuid ?? null,
       data.mime_format ?? null,
       data.maiml_line_no ?? null,
+    ]
+  );
+}
+
+// ============================================================
+// maiml_event（eventLog 層）
+// ============================================================
+
+/**
+ * maiml_event を INSERT する
+ *
+ * @reference docs/MaiML_OpenData_Pipeline/db.md §7.2
+ */
+export async function insertEvent(
+  organizationId: string,
+  data: Omit<MaimlEvent, 'event_id'>
+): Promise<MaimlEvent> {
+  const pgp = getPgp();
+  const schemaName = toSchemaName(organizationId);
+  validateSchemaName(schemaName);
+
+  return await pgp.one<MaimlEvent>(
+    `INSERT INTO "${schemaName}".maiml_event
+       (asset_id, event_key, results_ref, instruction_ref,
+        event_uuid, event_name, description, annotation, maiml_line_no)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING *`,
+    [
+      data.asset_id,
+      data.event_key       ?? null,
+      data.results_ref     ?? null,
+      data.instruction_ref ?? null,
+      data.event_uuid      ?? null,
+      data.event_name      ?? null,
+      data.description     ?? null,
+      data.annotation      ?? null,
+      data.maiml_line_no   ?? null,
+    ]
+  );
+}
+
+// ============================================================
+// maiml_event_element（eventLog 層）
+// ============================================================
+
+/**
+ * maiml_event_element を INSERT する
+ */
+export async function insertEventElement(
+  organizationId: string,
+  data: Omit<MaimlEventElement, 'event_element_id'>
+): Promise<MaimlEventElement> {
+  const pgp = getPgp();
+  const schemaName = toSchemaName(organizationId);
+  validateSchemaName(schemaName);
+
+  return await pgp.one<MaimlEventElement>(
+    `INSERT INTO "${schemaName}".maiml_event_element
+       (event_id, hierarchy, element_type, key, description, maiml_line_no)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      data.event_id,
+      data.hierarchy,
+      data.element_type,
+      data.key           ?? null,
+      data.description   ?? null,
+      data.maiml_line_no ?? null,
+    ]
+  );
+}
+
+// ============================================================
+// maiml_event_element_value（eventLog 層）
+// ============================================================
+
+/**
+ * maiml_event_element_value を INSERT する
+ */
+export async function insertEventElementValue(
+  organizationId: string,
+  data: Omit<MaimlEventElementValue, 'value_id'>
+): Promise<MaimlEventElementValue> {
+  const pgp = getPgp();
+  const schemaName = toSchemaName(organizationId);
+  validateSchemaName(schemaName);
+
+  return await pgp.one<MaimlEventElementValue>(
+    `INSERT INTO "${schemaName}".maiml_event_element_value
+       (event_element_id, value_idx, value, value_array)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [
+      data.event_element_id,
+      data.value_idx,
+      data.value       ?? null,
+      data.value_array ?? null,
     ]
   );
 }

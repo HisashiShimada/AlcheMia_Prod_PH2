@@ -1,7 +1,7 @@
 # MaiML OpenData Pipeline 未確定事項
 
 > 作成日: 2026-03-11  
-> 最終更新: 2026-03-12 16:58  
+> 最終更新: 2026-03-17  
 > 確定事項は [spec.md](./spec.md) を参照  
 > DB テーブル設計（確定）は [db.md](./db.md) を参照
 
@@ -131,39 +131,6 @@ due-check 1回で複数アセットを処理する際の `maiml_publish_job` の
 
 ---
 
-### 9. eventLog テーブル設計の見直し（検討中断）
-
-**背景:**  
-`db.md` セクション7（eventLog テーブル設計）について見直しを実施した。現設計（`maiml_event_log` → `maiml_log` → `maiml_trace` → `maiml_event` → `maiml_event_instance_ref` の5層構造）に対し、以下の方針が候補として挙がった。
-
-**方針案:**
-- `event` タグを `maiml_instance` と同じ位置づけとし、event配下のpropertyを `maiml_element` と同様に `maiml_event_element` / `maiml_event_element_value` に展開する構造に統一する
-
-```
-maiml_event_log（eventLog + log + trace のコンテキスト情報）
-    └── maiml_event（event = instanseと同じ位置づけ）
-              └── maiml_event_element（property行 = elementと同じ構造）
-                        └── maiml_event_element_value（value展開）
-```
-
-**検討中断の理由:**  
-`concept:instance` の value（結果インスタンスのUUID）と `maiml_instance` との紐づけ方法について以下の3案が挙がったが、判断に必要な情報が不足しているため確定を保留した。
-
-| 案 | 内容 | メリット | デメリット |
-|----|------|---------|-----------|
-| **A案** | `maiml_event_element` に `instance_id FK` を追加 | テーブル数増えない | `concept:instance` 以外の行はNULL → 不自然 |
-| **B案** | `maiml_event_element_value` に `instance_id FK` を追加 | valueと直接紐付く | 他のUUID型valueとの区別が困難 |
-| **C案** | FKなし・JOIN解決（`instance_uuid = value` でJOIN） | 設計がinstanceと完全統一 | 検索時にUUID解決が必要 |
-
-**確定に必要な情報:**
-- `concept:instance` の参照先が必ず同一ファイル内の `maiml_instance` であるか（仕様確認）
-- 取込後の検索クエリで「eventとinstanceを結合する」ユースケースの頻度・重要度
-- 取込パイプライン側でUUID→instance_idの解決処理を行う工数の許容度
-
-**参照資料:**
-- `db.md` セクション7（現行のeventLog設計）
-- `sample/XRF.maiml`（eventLog構造の実例）
-
 ---
 
 ## ✅ 確定済み事項
@@ -214,6 +181,20 @@ DB 構成変更（`maiml2Excel` ベースのテーブル設計に統一）に伴
 - 参照整合性はアプリケーション側（Worker）で管理する
 - 詳細は `db.md` セクション10 および `spec.md` セクション10 を参照
 
+### 9. eventLog テーブル設計 ✅ 確定（2026-03-17）
+
+| 確定事項 | 内容 |
+|---------|------|
+| **格納範囲** | `event` タグ以降のみ格納。`eventLog` / `log` / `trace` はテーブルとして持たない |
+| **テーブル構成** | `maiml_event` → `maiml_event_element` → `maiml_event_element_value` の3層 |
+| **data層との結合** | `maiml_event.results_ref`（= `event/resultsRef/@ref`）↔ `maiml_instance.results_id`（= `data/results/@id`）で論理JOIN |
+| **`maiml_instance.results_id`** | 新規追加カラム。`data/results/@id` 属性を格納 |
+| **concept:instance の扱い** | `maiml_event_element`（key=`concept:instance`）+ `maiml_event_element_value` に汎用展開。専用テーブル・FK なし |
+
+詳細は `db.md` セクション4.2・セクション7 を参照。
+
+---
+
 ### スケジュール非公開のトリガー方式 ✅ 確定（bullmq Repeat Job）
 
 - スケジュール非公開は **bullmq の Repeat Job** を使用する（cron 直実行は廃止）
@@ -236,3 +217,4 @@ DB 構成変更（`maiml2Excel` ベースのテーブル設計に統一）に伴
 | 2026-03-12 | 期限関連仕様（retention_until）の確定に伴い未確定事項6〜8を追記（スキーマ横断検索・asset_id FK なし・境界値バリデーション）。再公開禁止（未確定事項5）を確定済みに昇格 |
 | 2026-03-12 | スケジュール非公開を bullmq Repeat Job に確定・cron直実行廃止・既存KV方式マイグレーション廃止（未確定事項6）を確定済みに昇格。`keep_meta` モード廃止を明記 |
 | 2026-03-12 16:58 | #7（asset_id FK なし運用）を確定済みに昇格。#6・#8 は後回し保留継続。#9 は解決不可・保留継続 |
+| 2026-03-17 | #9（eventLog テーブル設計）を確定済みに昇格。格納範囲を `event` タグ以降のみに変更、`maiml_instance.results_id` 追加、`maiml_event.results_ref` で data層と論理JOIN |
