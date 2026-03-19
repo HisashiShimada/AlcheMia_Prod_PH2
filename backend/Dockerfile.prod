@@ -45,7 +45,8 @@ RUN npm ci --omit=dev && \
 COPY --from=builder /app/dist ./dist
 
 # SQLファイルをコピー（SQLファイル外部管理のため）
-COPY --from=builder /app/src/sql ./src/sql
+# loader.ts の __dirname はコンパイル後 /app/dist/sql を指すため dist/sql にコピー
+COPY --from=builder /app/src/sql ./dist/sql
 
 # certsディレクトリをコピー（証明書ファイル）
 COPY --from=builder /app/certs ./certs
