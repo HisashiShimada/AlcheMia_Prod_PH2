@@ -11,12 +11,12 @@ import { getPool } from '../database/db';
 // ============================================================
 
 export interface OrganizationRow {
-  organization_id:          string;
-  organization_cd:          string;
-  organization_name:        string;
-  is_entry:                 boolean;
-  use_deemed_progress:      boolean;
-  default_retention_days:   number;
+  organization_id:             string;
+  organization_cd:             string;
+  organization_display_name:   string;
+  is_entry:                    boolean;
+  use_deemed_progress:         boolean;
+  default_retention_days:      number;
   [key: string]: unknown;
 }
 
@@ -87,7 +87,7 @@ export async function findById(organizationId: string): Promise<OrganizationRow 
     SELECT
       organization_id,
       organization_cd,
-      organization_name,
+      organization_display_name,
       is_entry,
       use_deemed_progress,
       COALESCE(default_retention_days, 365) AS default_retention_days

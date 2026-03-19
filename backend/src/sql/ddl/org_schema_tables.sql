@@ -215,3 +215,61 @@ CREATE INDEX IF NOT EXISTS ix_maiml_tmpl_insertion_template
   ON "{{SCHEMA_NAME}}".maiml_template_insertion(template_id);
 CREATE INDEX IF NOT EXISTS ix_maiml_tmpl_insertion_uri
   ON "{{SCHEMA_NAME}}".maiml_template_insertion(uri);
+
+-- ============================================================
+-- maiml_event（eventLog/log/trace は持たない、event 要素のみ格納）
+-- @reference docs/MaiML_OpenData_Pipeline/db.md §7.2
+-- ============================================================
+CREATE TABLE IF NOT EXISTS "{{SCHEMA_NAME}}".maiml_event (
+  event_id         BIGSERIAL    PRIMARY KEY,
+  asset_id         BIGINT       NOT NULL
+                   REFERENCES "{{SCHEMA_NAME}}".maiml_asset(asset_id) ON DELETE CASCADE,
+  event_key        TEXT,            -- event/@id 属性
+  results_ref      TEXT,            -- event/resultsRef/@ref（data層の results_id と結合するキー）
+  instruction_ref  TEXT,            -- event/@ref 属性（instruction の @id を参照）
+  event_uuid       TEXT,            -- event/uuid テキスト
+  event_name       TEXT,            -- event/name テキスト
+  description      TEXT,
+  annotation       TEXT,
+  maiml_line_no    INT
+);
+CREATE INDEX IF NOT EXISTS ix_maiml_event_asset
+  ON "{{SCHEMA_NAME}}".maiml_event(asset_id);
+CREATE INDEX IF NOT EXISTS ix_maiml_event_results_ref
+  ON "{{SCHEMA_NAME}}".maiml_event(asset_id, results_ref);
+CREATE INDEX IF NOT EXISTS ix_maiml_event_instruction
+  ON "{{SCHEMA_NAME}}".maiml_event(instruction_ref);
+
+-- ============================================================
+-- maiml_event_element（event 配下の property 行）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS "{{SCHEMA_NAME}}".maiml_event_element (
+  event_element_id   BIGSERIAL  PRIMARY KEY,
+  event_id           BIGINT     NOT NULL
+                     REFERENCES "{{SCHEMA_NAME}}".maiml_event(event_id) ON DELETE CASCADE,
+  hierarchy          TEXT       NOT NULL,
+  element_type       TEXT       NOT NULL DEFAULT 'property',
+  key                TEXT,
+  description        TEXT,
+  maiml_line_no      INT
+);
+CREATE INDEX IF NOT EXISTS ix_maiml_event_element_event
+  ON "{{SCHEMA_NAME}}".maiml_event_element(event_id);
+CREATE INDEX IF NOT EXISTS ix_maiml_event_element_key
+  ON "{{SCHEMA_NAME}}".maiml_event_element(key);
+
+-- ============================================================
+-- maiml_event_element_value（property の value 展開）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS "{{SCHEMA_NAME}}".maiml_event_element_value (
+  value_id          BIGSERIAL  PRIMARY KEY,
+  event_element_id  BIGINT     NOT NULL
+                    REFERENCES "{{SCHEMA_NAME}}".maiml_event_element(event_element_id) ON DELETE CASCADE,
+  value_idx         INT        NOT NULL DEFAULT 0,
+  value             TEXT,
+  value_array       TEXT[]
+);
+CREATE INDEX IF NOT EXISTS ix_maiml_event_element_value_elem
+  ON "{{SCHEMA_NAME}}".maiml_event_element_value(event_element_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_maiml_event_element_value
+  ON "{{SCHEMA_NAME}}".maiml_event_element_value(event_element_id, value_idx);

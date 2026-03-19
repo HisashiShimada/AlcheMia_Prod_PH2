@@ -298,7 +298,8 @@ export async function sendInstructions(
     const result = await projectInstructionService.sendInstructions(
       organizationId,
       projectId,
-      userId
+      userId,
+      projectName
     );
     
     res.json({

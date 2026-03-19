@@ -1,8 +1,8 @@
 # Worker仕様書: MaiML 公開 Worker (maimlPublishWorker)
 
 **作成日**: 2026-03-13  
-**最終更新**: 2026-03-13  
-**バージョン**: 1.0.0  
+**最終更新**: 2026-03-18  
+**バージョン**: 1.1.0  
 **実装状況**: 実装済み
 
 ---
@@ -50,7 +50,8 @@ BullMQ: maiml-publish キュー
 [Step 6a] maiml_asset INSERT（retention_until を計算）
 [Step 6b] maiml_instance / maiml_element / maiml_element_value / maiml_insertion を INSERT
 [Step 6c] maiml_template / maiml_template_element / maiml_template_element_value / maiml_template_insertion を INSERT
-[Step 6d] retention_until 時刻に自動非公開 delayed Job を maiml-unpublish キューへ登録
+[Step 6d] maiml_event / maiml_event_element / maiml_event_element_value を INSERT
+[Step 6e] retention_until 時刻に自動非公開 delayed Job を maiml-unpublish キューへ登録
         ↓
 [Step 7] maiml_publish_job を status = done に更新（asset_id 設定）
         ↓
@@ -146,7 +147,8 @@ const asset = await assetRepo.insertAsset(organizationId, {
 
 **instance**:  
 `parsed.instances` をループして `maiml_instance` に INSERT。  
-`instance_key` → `instance_id` のマップを構築（後続の element 挿入で使用）。
+`instance_key` → `instance_id` のマップを構築（後続の element 挿入で使用）。  
+`results_id` は `data/results/@id` 属性値を格納し、`maiml_event.results_ref` との結合キーとなる。
 
 **element**:  
 `parsed.elements` をループして `maiml_element` に INSERT。  
@@ -162,7 +164,20 @@ const asset = await assetRepo.insertAsset(organizationId, {
 
 Step 6b と同じパターンでテンプレート系テーブルに INSERT。
 
-### Step 6d: 自動非公開 delayed Job 登録
+### Step 6d: event / event_element / event_element_value INSERT
+
+**event**:  
+`parsed.events` をループして `maiml_event` に INSERT。  
+`event_key`（`event/@id`）→ `event_id` のマップを構築。  
+`results_ref` は `data/results/@id` を参照し、`maiml_instance.results_id` との結合キーとなる。
+
+**event_element**:  
+`parsed.eventElements` をループして `maiml_event_element` に INSERT。
+
+**event_element_value**:  
+`parsed.eventElementValues` をループして `maiml_event_element_value` に INSERT。
+
+### Step 6e: 自動非公開 delayed Job 登録
 
 ```typescript
 const delayMs = retentionUntil.getTime() - Date.now();
@@ -252,6 +267,9 @@ export interface PublishJobData {
 | `{org_schema}.maiml_template_element` | テンプレート配下の要素 |
 | `{org_schema}.maiml_template_element_value` | テンプレート要素の値 |
 | `{org_schema}.maiml_template_insertion` | テンプレートの insertion |
+| `{org_schema}.maiml_event` | MaiML の event（`results_ref` で maiml_instance と結合） |
+| `{org_schema}.maiml_event_element` | event 配下の property 行 |
+| `{org_schema}.maiml_event_element_value` | event property の値展開 |
 
 > `{org_schema}` は組織 `organization_cd` を元に生成されたスキーマ名
 
@@ -292,4 +310,5 @@ export interface PublishJobData {
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-03-18 | eventLog層（Step 6d）追加、maiml_instance.results_id 注記追加、§7 eventテーブル3件追加 | Cline |
 | 1.0.0 | 2026-03-13 | 初版作成（実装済みソースコードから仕様を起こす） | Cline |

@@ -127,7 +127,7 @@ export class PinCodeService {
            r.role_name,
            ou.user_name as display_name,
            ou.department_cd,
-           o.organization_name,
+           o.organization_display_name as organization_name,
            o.corporation_id
          FROM pin_codes pc
          INNER JOIN organization_user ou ON pc.user_id = ou.user_id AND pc.organization_id = ou.organization_id
@@ -192,6 +192,7 @@ export class PinCodeService {
         },
       };
     } catch (error) {
+      console.error('[pinCodeService.verify] Database error:', (error as Error).message, (error as Error).stack);
       return {
         success: false,
         error: {

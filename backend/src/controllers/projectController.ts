@@ -1316,23 +1316,8 @@ export async function publish(req: Request, res: Response): Promise<void> {
     const { projectName } = req.params;
     const body = req.body as MaimlPublishRequest;
 
-    // 1. projectName から最新 MaiML ファイルパスを取得
-    const maimlResult = await projectService.getProjectMaiml(organizationId, projectName);
-    if (!maimlResult.success || !maimlResult.data?.filePath) {
-      const statusCode = maimlResult.error?.code === 'RESOURCE_NOT_FOUND' ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        error: {
-          code: maimlResult.error?.code ?? 'RESOURCE_NOT_FOUND',
-          message: maimlResult.error?.message ?? 'MaiML ファイルが見つかりません',
-        },
-        meta: { timestamp: new Date().toISOString(), requestId },
-      });
-      return;
-    }
-    const fileUri = maimlResult.data.filePath;
-
-    // 2. 公開ジョブを bullmq キューに投入（非同期）
+    // 公開ジョブを bullmq キューに投入（非同期）
+    // ファイル存在確認・各種バリデーションは enqueuePublish 内部で実施
     const userId = req.user!.userId ?? null;
 
     let result;
@@ -1434,20 +1419,9 @@ export async function unpublish(req: Request, res: Response): Promise<void> {
   try {
     const { organizationId } = req.user!;
     const { projectName } = req.params;
-    // projectName から公開ステータスを取得して asset_id を特定
-    const projectService = new ProjectService();
-    const maimlResult = await projectService.getProjectMaiml(organizationId, projectName);
-    if (!maimlResult.success || !maimlResult.data?.filePath) {
-      res.status(404).json({
-        success: false,
-        error: { code: 'RESOURCE_NOT_FOUND', message: 'MaiML ファイルが見つかりません' },
-        meta: { timestamp: new Date().toISOString(), requestId },
-      });
-      return;
-    }
-    const fileUri = maimlResult.data.filePath;
 
     // 非公開ジョブを bullmq キューに投入（非同期）
+    // ファイル確認・バリデーションは enqueueUnpublish 内部で実施
     const userId = req.user!.userId ?? null;
 
     let result;
@@ -1513,17 +1487,7 @@ export async function getPublishStatus(req: Request, res: Response): Promise<voi
     const { organizationId } = req.user!;
     const { projectName } = req.params;
 
-    const projectService = new ProjectService();
-    const maimlResult = await projectService.getProjectMaiml(organizationId, projectName);
-    if (!maimlResult.success || !maimlResult.data?.filePath) {
-      res.status(404).json({
-        success: false,
-        error: { code: 'RESOURCE_NOT_FOUND', message: 'MaiML ファイルが見つかりません' },
-        meta: { timestamp: new Date().toISOString(), requestId },
-      });
-      return;
-    }
-
+    // ジョブのステータスのみ取得（MAIMLファイル存在確認は不要）
     const statusData = await fetchPublishStatus(organizationId, projectName);
 
     res.status(200).json({
