@@ -103,6 +103,7 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
     const { email } = req.body;
     const organizationId = (req.headers['x-organization-id'] || req.query.orgId) as string;
 
+    console.log(organizationId, email);
     const result = await authService.processPasswordResetRequest({
       email,
       organizationId,
