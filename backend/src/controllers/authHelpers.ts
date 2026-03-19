@@ -23,8 +23,8 @@ interface UserData {
   role_cd: string;
   organization_id: string;
   department_cd: string;
-  corporation_id?: string;     // 会社ID（オプション）
-  organization_name?: string;  // 組織名（オプション）
+  corporation_id?: string;              // 会社ID（オプション）
+  organization_display_name?: string;   // 組織表示名（オプション）
 }
 
 /**

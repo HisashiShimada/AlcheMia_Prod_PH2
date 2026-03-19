@@ -44,8 +44,15 @@ export class PinExemptionService {
         organizationId
       );
 
+      // EMAIL_ENABLED=true または本番環境の場合は、is_entry=false でも免除しない
+      // （メール送信が有効な場合は必ず二段階認証を通す）
+      const emailEnabled =
+        process.env.NODE_ENV === 'production' ||
+        process.env.EMAIL_ENABLED === 'true';
+
       // is_entry=false の場合は常に免除（二段階認証不要）
-      if (!isEntry) {
+      // ただし EMAIL_ENABLED=true または本番環境では免除しない
+      if (!isEntry && !emailEnabled) {
         return {
           success: true,
           data: {

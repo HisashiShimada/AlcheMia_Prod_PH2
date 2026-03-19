@@ -90,37 +90,74 @@ export class EmailService {
   }
 
   /**
-   * パスワードリセットメールを送信
+   * 組織登録完了通知メールを送信
    * 
-   * @param email - 送信先メールアドレス
-   * @param resetToken - リセットトークン
-   * @param username - ユーザー名
+   * @param email - 送信先メールアドレス（代表者）
+   * @param userId - ユーザーID（メールアドレスと同一）
+   * @param tempPassword - 初期パスワード
    * @returns 送信結果
    */
-  async sendPasswordReset(
+  async sendOrganizationCreated(
     email: string,
-    resetToken: string,
-    username: string
+    userId: string,
+    tempPassword: string
   ): Promise<Result<void, ServiceError>> {
-    // バリデーション
-    const validationError = this.validatePasswordResetParams(email, resetToken);
-    if (validationError) {
-      return { success: false, error: validationError };
+    if (!this.isValidEmail(email)) {
+      return {
+        success: false,
+        error: {
+          code: 'VALIDATION_INVALID_EMAIL',
+          message: 'Invalid email address format'
+        }
+      };
     }
 
-    // リセットURLを生成
-    const resetUrl = this.generateResetUrl(resetToken);
+    const loginUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`;
 
-    // メール内容を構築
     const mailOptions = {
       from: `"${this.config.fromName}" <${this.config.fromAddress}>`,
       to: email,
-      subject: 'MMDPF - パスワードリセットのご案内',
-      text: this.createPasswordResetTextContent(username, resetUrl),
-      html: this.createPasswordResetHtmlContent(username, resetUrl)
+      subject: 'MMDPF - 組織登録完了のお知らせ',
+      text: this.createOrganizationCreatedTextContent(userId, tempPassword, loginUrl),
+      html: this.createOrganizationCreatedHtmlContent(userId, tempPassword, loginUrl)
     };
 
-    // リトライ付きで送信
+    return await this.sendWithRetry(mailOptions);
+  }
+
+  /**
+   * ユーザーアカウント作成通知メールを送信
+   * 
+   * @param email - 送信先メールアドレス
+   * @param userId - ユーザーID（メールアドレスと同一）
+   * @param tempPassword - 初期パスワード
+   * @returns 送信結果
+   */
+  async sendUserCreated(
+    email: string,
+    userId: string,
+    tempPassword: string
+  ): Promise<Result<void, ServiceError>> {
+    if (!this.isValidEmail(email)) {
+      return {
+        success: false,
+        error: {
+          code: 'VALIDATION_INVALID_EMAIL',
+          message: 'Invalid email address format'
+        }
+      };
+    }
+
+    const loginUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login`;
+
+    const mailOptions = {
+      from: `"${this.config.fromName}" <${this.config.fromAddress}>`,
+      to: email,
+      subject: 'MMDPF - アカウント作成完了のお知らせ',
+      text: this.createUserCreatedTextContent(userId, tempPassword, loginUrl),
+      html: this.createUserCreatedHtmlContent(userId, tempPassword, loginUrl)
+    };
+
     return await this.sendWithRetry(mailOptions);
   }
 
@@ -229,41 +266,12 @@ export class EmailService {
   }
 
   /**
-   * パスワードリセットパラメータのバリデーション
-   */
-  private validatePasswordResetParams(email: string, resetToken: string): ServiceError | null {
-    if (!this.isValidEmail(email)) {
-      return {
-        code: 'VALIDATION_INVALID_EMAIL',
-        message: 'Invalid email address format'
-      };
-    }
-
-    if (!/^reset_[a-zA-Z0-9_-]+_\d+$/.test(resetToken)) {
-      return {
-        code: 'VALIDATION_INVALID_RESET_TOKEN',
-        message: 'Invalid reset token format'
-      };
-    }
-
-    return null;
-  }
-
-  /**
    * メールアドレスのバリデーション
    */
   private isValidEmail(email: string): boolean {
     // RFC 5322準拠の簡易バージョン
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
-  }
-
-  /**
-   * リセットURL生成
-   */
-  private generateResetUrl(resetToken: string): string {
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    return `${baseUrl}/reset-password?token=${resetToken}`;
   }
 
   /**
@@ -320,73 +328,6 @@ MMDPF Authentication System
       <div class="pin-code">${pinCode}</div>
       <p><strong>このコードの有効期限は5分間です。</strong></p>
       <p>このメールに心当たりがない場合は、無視してください。</p>
-    </div>
-    <div class="footer">
-      <p>MMDPF Authentication System</p>
-    </div>
-  </div>
-</body>
-</html>
-    `.trim();
-  }
-
-  /**
-   * パスワードリセットメールのテキスト版コンテンツ
-   */
-  private createPasswordResetTextContent(username: string, resetUrl: string): string {
-    return `
-${username} 様
-
-MMDPFのパスワードリセットが要求されました。
-
-以下のリンクをクリックして、新しいパスワードを設定してください：
-
-${resetUrl}
-
-このリンクの有効期限は1時間です。
-
-パスワードリセットを要求していない場合は、このメールを無視してください。
-
----
-MMDPF Authentication System
-    `.trim();
-  }
-
-  /**
-   * パスワードリセットメールのHTML版コンテンツ
-   */
-  private createPasswordResetHtmlContent(username: string, resetUrl: string): string {
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background-color: #CF0027; color: white; padding: 20px; text-align: center; }
-    .content { background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }
-    .button { display: inline-block; padding: 15px 30px; background-color: #CF0027; 
-              color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-    .button:hover { background-color: #A50020; }
-    .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-    .warning { color: #d9534f; font-weight: bold; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>MMDPF パスワードリセット</h1>
-    </div>
-    <div class="content">
-      <p>${username} 様</p>
-      <p>MMDPFのパスワードリセットが要求されました。</p>
-      <p>以下のボタンをクリックして、新しいパスワードを設定してください：</p>
-      <div style="text-align: center;">
-        <a href="${resetUrl}" class="button">パスワードをリセット</a>
-      </div>
-      <p><strong>このリンクの有効期限は1時間です。</strong></p>
-      <p class="warning">パスワードリセットを要求していない場合は、このメールを無視してください。</p>
     </div>
     <div class="footer">
       <p>MMDPF Authentication System</p>
@@ -464,6 +405,176 @@ MMDPF Authentication System
     </div>
     <div class="footer">
       <p>MMDPF Authentication System</p>
+    </div>
+  </div>
+</body>
+</html>
+    `.trim();
+  }
+
+  /**
+   * 組織登録完了メールのテキスト版コンテンツ
+   */
+  private createOrganizationCreatedTextContent(userId: string, tempPassword: string, loginUrl: string): string {
+    return `
+この度はMMDPFにご登録いただきありがとうございます。
+
+以下のアカウント情報でログインしてください。
+
+ログインURL: ${loginUrl}
+ユーザーID: ${userId}
+初期パスワード: ${tempPassword}
+
+初回ログイン後、必ず新しいパスワードに変更してください。
+
+このメールに心当たりがない場合は、管理者にお問い合わせください。
+
+---
+MMDPF System
+    `.trim();
+  }
+
+  /**
+   * 組織登録完了メールのHTML版コンテンツ
+   */
+  private createOrganizationCreatedHtmlContent(userId: string, tempPassword: string, loginUrl: string): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #CF0027; color: white; padding: 20px; text-align: center; }
+    .content { background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }
+    .info-box { background-color: white; border: 1px solid #ddd; padding: 20px; margin: 20px 0; }
+    .info-row { margin: 10px 0; }
+    .info-label { font-weight: bold; color: #555; }
+    .info-value { font-family: monospace; font-size: 16px; color: #CF0027; }
+    .button { display: inline-block; padding: 15px 30px; background-color: #CF0027;
+              color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+    .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+    .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>MMDPF 組織登録完了</h1>
+    </div>
+    <div class="content">
+      <p>この度はMMDPFにご登録いただきありがとうございます。</p>
+      <p>以下のアカウント情報でログインしてください。</p>
+      <div class="info-box">
+        <div class="info-row">
+          <span class="info-label">ログインURL: </span>
+          <a href="${loginUrl}">${loginUrl}</a>
+        </div>
+        <div class="info-row">
+          <span class="info-label">ユーザーID: </span>
+          <span class="info-value">${userId}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">初期パスワード: </span>
+          <span class="info-value">${tempPassword}</span>
+        </div>
+      </div>
+      <div class="warning">
+        <strong>⚠️ 初回ログイン後、必ず新しいパスワードに変更してください。</strong>
+      </div>
+      <div style="text-align: center;">
+        <a href="${loginUrl}" class="button">ログインページへ</a>
+      </div>
+      <p>このメールに心当たりがない場合は、管理者にお問い合わせください。</p>
+    </div>
+    <div class="footer">
+      <p>MMDPF System</p>
+    </div>
+  </div>
+</body>
+</html>
+    `.trim();
+  }
+
+  /**
+   * ユーザーアカウント作成通知メールのテキスト版コンテンツ
+   */
+  private createUserCreatedTextContent(userId: string, tempPassword: string, loginUrl: string): string {
+    return `
+MMDPFのアカウントが作成されました。
+
+以下のアカウント情報でログインしてください。
+
+ログインURL: ${loginUrl}
+ユーザーID: ${userId}
+初期パスワード: ${tempPassword}
+
+初回ログイン後、必ず新しいパスワードに変更してください。
+
+このメールに心当たりがない場合は、管理者にお問い合わせください。
+
+---
+MMDPF System
+    `.trim();
+  }
+
+  /**
+   * ユーザーアカウント作成通知メールのHTML版コンテンツ
+   */
+  private createUserCreatedHtmlContent(userId: string, tempPassword: string, loginUrl: string): string {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background-color: #CF0027; color: white; padding: 20px; text-align: center; }
+    .content { background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }
+    .info-box { background-color: white; border: 1px solid #ddd; padding: 20px; margin: 20px 0; }
+    .info-row { margin: 10px 0; }
+    .info-label { font-weight: bold; color: #555; }
+    .info-value { font-family: monospace; font-size: 16px; color: #CF0027; }
+    .button { display: inline-block; padding: 15px 30px; background-color: #CF0027;
+              color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+    .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+    .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>MMDPF アカウント作成完了</h1>
+    </div>
+    <div class="content">
+      <p>MMDPFのアカウントが作成されました。</p>
+      <p>以下のアカウント情報でログインしてください。</p>
+      <div class="info-box">
+        <div class="info-row">
+          <span class="info-label">ログインURL: </span>
+          <a href="${loginUrl}">${loginUrl}</a>
+        </div>
+        <div class="info-row">
+          <span class="info-label">ユーザーID: </span>
+          <span class="info-value">${userId}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">初期パスワード: </span>
+          <span class="info-value">${tempPassword}</span>
+        </div>
+      </div>
+      <div class="warning">
+        <strong>⚠️ 初回ログイン後、必ず新しいパスワードに変更してください。</strong>
+      </div>
+      <div style="text-align: center;">
+        <a href="${loginUrl}" class="button">ログインページへ</a>
+      </div>
+      <p>このメールに心当たりがない場合は、管理者にお問い合わせください。</p>
+    </div>
+    <div class="footer">
+      <p>MMDPF System</p>
     </div>
   </div>
 </body>

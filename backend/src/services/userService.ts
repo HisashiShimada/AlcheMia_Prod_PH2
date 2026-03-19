@@ -4,6 +4,7 @@
  */
 
 import * as userRepository from '../repositories/userRepository';
+import { EmailService } from './emailService';
 import { UserRow } from '../repositories/userRepository';
 import { getMessage } from '../utils/messages';
 import { UserSearchFilters } from '../types/database';
@@ -100,7 +101,7 @@ export async function createUser(
   console.log(`Password:${plainPassword}`);
 
   try {
-    return await userRepository.create(
+    const user = await userRepository.create(
       organizationId,
       {
         userId: data.userId,
@@ -113,6 +114,35 @@ export async function createUser(
       plainPassword,
       createUserId
     );
+
+    // アカウント作成完了メールを送信
+    // 本番環境では常に送信、開発環境では EMAIL_ENABLED=true の場合のみ送信
+    // 失敗してもユーザー作成自体は成功とする
+    try {
+      const shouldSendEmail =
+        process.env.NODE_ENV === 'production' ||
+        process.env.EMAIL_ENABLED === 'true';
+
+      if (shouldSendEmail) {
+        const emailService = new EmailService();
+        const result = await emailService.sendUserCreated(
+          data.mailAddress,
+          data.mailAddress,
+          plainPassword
+        );
+        if (result.success) {
+          console.log(`[userService] アカウント作成完了メール送信成功: userId=${data.mailAddress}`);
+        } else {
+          console.warn(`[userService] アカウント作成完了メール送信失敗（ユーザー作成は成功）: userId=${data.mailAddress}`, result.error);
+        }
+      } else {
+        console.log(`[userService] アカウント作成完了メール（EMAIL_ENABLED=false スキップ）: userId=${data.mailAddress}, password=${plainPassword}`);
+      }
+    } catch (emailError) {
+      console.warn(`[userService] アカウント作成完了メール送信で例外発生（ユーザー作成は成功）`, emailError);
+    }
+
+    return user;
   } catch (error) {
     console.error('ユーザー作成エラー（詳細）:', error);
     console.error('エラースタック:', error instanceof Error ? error.stack : 'スタック情報なし');
@@ -408,7 +438,30 @@ export async function uploadUsersFromCSV(
         plainPassword,  // 自動生成したランダムパスワードを使用
         userId
       );
-      
+
+      // アカウント作成完了メールを送信
+      // 本番環境では常に送信、開発環境では EMAIL_ENABLED=true の場合のみ送信
+      // 失敗しても処理は継続する
+      try {
+        const shouldSendEmail =
+          process.env.NODE_ENV === 'production' ||
+          process.env.EMAIL_ENABLED === 'true';
+
+        if (shouldSendEmail) {
+          const emailService = new EmailService();
+          const result = await emailService.sendUserCreated(mailAddress, mailAddress, plainPassword);
+          if (result.success) {
+            console.log(`[userService CSV] アカウント作成完了メール送信成功: userId=${mailAddress}`);
+          } else {
+            console.warn(`[userService CSV] アカウント作成完了メール送信失敗: userId=${mailAddress}`, result.error);
+          }
+        } else {
+          console.log(`[userService CSV] アカウント作成完了メール（EMAIL_ENABLED=false スキップ）: userId=${mailAddress}, password=${plainPassword}`);
+        }
+      } catch (emailError) {
+        console.warn(`[userService CSV] アカウント作成完了メール送信で例外発生（処理は継続）`, emailError);
+      }
+
       successCount++;
     }
   });
