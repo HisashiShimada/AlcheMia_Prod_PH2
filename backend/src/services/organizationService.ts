@@ -10,6 +10,7 @@ import { OrganizationSearchFilters } from '../repositories/organizationManagemen
 import { getPgp } from '../database/db';
 import { loadSqlFile } from '../sql/loader';
 import { generateAndSaveCertificate } from './certificateService';
+import { EmailService } from './emailService';
 import { getStorageService } from './storageService';
 import { logger } from '../utils/logger';
 import { getMessage } from '../utils/messages';
@@ -398,6 +399,37 @@ export async function createOrganization(
         organizationId: data.organizationId,
       }
     );
+  }
+
+  // 組織登録完了メールを送信
+  // 本番環境では常に送信、開発環境では EMAIL_ENABLED=true の場合のみ送信
+  // 失敗しても組織作成自体は成功とする
+  try {
+    const shouldSendEmail =
+      process.env.NODE_ENV === 'production' ||
+      process.env.EMAIL_ENABLED === 'true';
+
+    if (shouldSendEmail && data.chiefUserEmail && plainPassword) {
+      const emailService = new EmailService();
+      const result = await emailService.sendOrganizationCreated(
+        data.chiefUserEmail,
+        data.chiefUserEmail,
+        plainPassword
+      );
+      if (result.success) {
+        logger.info(`[organizationService] 組織登録完了メール送信成功: userId=${data.chiefUserEmail}`);
+      } else {
+        logger.warn(`[organizationService] 組織登録完了メール送信失敗（組織作成は成功）: userId=${data.chiefUserEmail}`, {
+          error: result.error,
+        });
+      }
+    } else if (!shouldSendEmail) {
+      logger.info(`[organizationService] 組織登録完了メール（EMAIL_ENABLED=false スキップ）: userId=${data.chiefUserEmail}, password=${plainPassword}`);
+    }
+  } catch (emailError) {
+    logger.warn(`[organizationService] 組織登録完了メール送信で例外発生（組織作成は成功）`, {
+      error: emailError instanceof Error ? emailError.message : String(emailError),
+    });
   }
 
   // MaiML OpenData 用 組織スキーマ・テーブルの作成
