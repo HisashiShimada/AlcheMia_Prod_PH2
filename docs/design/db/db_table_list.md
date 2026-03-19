@@ -6,7 +6,7 @@
 
 **重要**: DDLファイルを変更した際は、必ずこのファイルも更新してください。
 
-**最終更新**: 2026-02-09
+**最終更新**: 2026-03-18
 **ER図ファイル**: `docs/design/db/er_diagram.a5er`
 **DDLディレクトリ**: `docs/design/db/ddl/`
 
@@ -567,6 +567,120 @@
 
 ---
 
+### 7. 公開ジョブ管理テーブル（1テーブル、publicスキーマ）
+
+#### 7.1 maiml_publish_job（MaiML公開ジョブ）
+- **物理名**: `maiml_publish_job`
+- **論理名**: MaiML公開ジョブ
+- **スキーマ**: `public`（全組織共通）
+- **DDLファイル**: `docs/design/db/ddl/maiml_publish_job.sql`
+- **マイグレーション**: `backend/migrations/20260311_create_maiml_publish_job.sql`
+- **主キー**: `job_id` (UUID)
+- **主要カラム**:
+  - `job_id` - ジョブID（UUID、BullMQペイロードにも含める）
+  - `job_type` - ジョブ種別（`publish` / `unpublish`）
+  - `organization_id` - 組織ID（マルチテナント分離用）
+  - `project_name` - プロジェクト名
+  - `asset_id` - maiml_assetのasset_id（FK制約なし、クロススキーマのため）
+  - `status` - ステータス（`pending` / `running` / `done` / `error`）
+  - `triggered_by` - 実行者ユーザーID（スケジュール実行時はNULL）
+  - `trigger_type` - 実行種別（`manual` / `schedule`）
+  - `error_message` - エラー内容（status='error'時）
+  - `started_at` - 処理開始日時
+  - `finished_at` - 処理完了日時
+  - `created_at` - レコード作成日時
+- **インデックス**:
+  - `ix_publish_job_org_project` - organization_id, project_name
+  - `ix_publish_job_status` - status
+  - `ix_publish_job_type_status` - job_type, status
+- **ステータス遷移**: `pending` → `running` → `done` / `error`
+- **備考**: asset_idはクロススキーマのためFK制約なし。参照整合性はアプリケーション側で管理
+
+---
+
+### 8. 公開データテーブル（12テーブル、組織スキーマ）
+
+> **重要**: 以下のテーブルは `public` スキーマではなく、**組織ごとに作成される専用スキーマ**に配置される。
+> - スキーマ命名規則: `organization_id` の `-` を `_` に変換した文字列（例: `550e8400_e29b_41d4_a716_446655440000`）
+> - スキーマ作成タイミング: 組織作成時（`POST /api/v1/provider/organization`）
+> - マイグレーション: `backend/migrations/20260313_create_org_schema_tables.sql`（data/protocol 層）、`backend/migrations/20260318_add_event_tables_to_org_schema.sql`（eventLog 層）
+> - DDL詳細: `docs/MaiML_OpenData_Pipeline/db.md` を参照
+
+#### 8.1 maiml_asset（MaiMLアセット）
+- **物理名**: `maiml_asset`
+- **スキーマ**: 組織スキーマ（例: `550e8400_e29b_41d4_a716_446655440000`）
+- **主キー**: `asset_id` (BIGSERIAL)
+- **役割**: MaiMLファイル1件の代表メタ（1ファイル = 1レコード）
+- **主要カラム**: `file_uri`, `doc_name`, `retention_until`, `created_at`, `updated_at`
+
+#### 8.2 maiml_instance（MaiMLインスタンス）
+- **物理名**: `maiml_instance`
+- **主キー**: `instance_id` (BIGSERIAL)
+- **役割**: result/material/condition インスタンス（data層）
+- **主要カラム**: `asset_id`(FK), `instance_type`(`result`/`material`/`condition`), `instance_key`, `results_id`, `template_ref`
+
+#### 8.3 maiml_element（MaiML要素）
+- **物理名**: `maiml_element`
+- **主キー**: `element_id` (BIGSERIAL)
+- **役割**: 汎用データ行（property/content/uncertainty/insertion系）
+- **主要カラム**: `instance_id`(FK), `parent_element_id`(自己参照FK), `hierarchy`, `element_type`, `key`, `units`
+
+#### 8.4 maiml_element_value（MaiML要素値）
+- **物理名**: `maiml_element_value`
+- **主キー**: `value_id` (BIGSERIAL)
+- **役割**: `<value>`子要素の展開（複数value対応）
+- **主要カラム**: `element_id`(FK), `value_idx`, `value`(単一値), `value_array`(配列値)
+
+#### 8.5 maiml_insertion（MaiML外部参照）
+- **物理名**: `maiml_insertion`
+- **主キー**: `insertion_id` (BIGSERIAL)
+- **役割**: 外部ファイル参照（正規化）
+- **主要カラム**: `instance_id`(FK), `uri`, `hash_value`, `mime_format`
+
+#### 8.6 maiml_template（MaiMLテンプレート）
+- **物理名**: `maiml_template`
+- **主キー**: `template_id` (BIGSERIAL)
+- **役割**: テンプレート定義（protocol層）
+- **主要カラム**: `asset_id`(FK), `template_type`(`result`/`material`/`condition`), `template_key`
+
+#### 8.7 maiml_template_element（MaiMLテンプレート要素）
+- **物理名**: `maiml_template_element`
+- **主キー**: `element_id` (BIGSERIAL)
+- **役割**: テンプレートの汎用データ行
+- **主要カラム**: `template_id`(FK), `parent_element_id`(自己参照FK), `hierarchy`, `element_type`, `key`
+
+#### 8.8 maiml_template_element_value（MaiMLテンプレート要素値）
+- **物理名**: `maiml_template_element_value`
+- **主キー**: `value_id` (BIGSERIAL)
+- **役割**: テンプレートの`<value>`展開
+- **主要カラム**: `element_id`(FK), `value_idx`, `value`, `value_array`
+
+#### 8.9 maiml_template_insertion（MaiMLテンプレート外部参照）
+- **物理名**: `maiml_template_insertion`
+- **主キー**: `insertion_id` (BIGSERIAL)
+- **役割**: テンプレートの外部ファイル参照（正規化）
+- **主要カラム**: `template_id`(FK), `uri`, `hash_value`, `mime_format`
+
+#### 8.10 maiml_event（MaiMLイベント）
+- **物理名**: `maiml_event`
+- **主キー**: `event_id` (BIGSERIAL)
+- **役割**: event要素（eventLog層）。`results_ref`でdata層と論理結合
+- **主要カラム**: `asset_id`(FK), `event_key`, `results_ref`（maiml_instance.results_idと結合）, `instruction_ref`
+
+#### 8.11 maiml_event_element（MaiMLイベント要素）
+- **物理名**: `maiml_event_element`
+- **主キー**: `event_element_id` (BIGSERIAL)
+- **役割**: event配下のproperty行
+- **主要カラム**: `event_id`(FK), `hierarchy`, `element_type`, `key`, `description`
+
+#### 8.12 maiml_event_element_value（MaiMLイベント要素値）
+- **物理名**: `maiml_event_element_value`
+- **主キー**: `value_id` (BIGSERIAL)
+- **役割**: propertyの`<value>`展開
+- **主要カラム**: `event_element_id`(FK), `value_idx`, `value`, `value_array`
+
+---
+
 ## 📊 テーブル数サマリー
 
 | カテゴリ | テーブル数 |
@@ -577,7 +691,10 @@
 | 共通マスタ | 5 |
 | 監査・ログ関連 | 1 |
 | ファイル管理関連 | 1 |
-| **合計** | **25** |
+| 公開ジョブ管理（publicスキーマ） | 1 |
+| 公開データ（組織スキーマ） | 12 |
+| **合計（publicスキーマ）** | **26** |
+| **合計（組織スキーマ）** | **12** |
 
 ---
 

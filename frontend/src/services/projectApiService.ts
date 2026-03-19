@@ -322,7 +322,8 @@ export const getProjects = async (
   try {
     console.log('[DEBUG] getProjects - Frontend call start', { status, page, limit });
     
-    const params: Record<string, string | number> = { page, limit };
+    // include_completed=true を常に送信する（フロントエンド側でフィルタリングするため）
+    const params: Record<string, string | number | boolean> = { page, limit, include_completed: true };
     if (status && status !== 'all') {
       params.status = status;
     }

@@ -273,6 +273,10 @@ export interface ParsedMaimlData {
   templateElements:        MaimlTemplateElementInput[];
   templateElementValues:   MaimlTemplateElementValueInput[];
   templateInsertions:      MaimlTemplateInsertionInput[];
+  // eventLog 層
+  events:                  MaimlEventInput[];
+  eventElements:           MaimlEventElementInput[];
+  eventElementValues:      MaimlEventElementValueInput[];
 }
 
 /**
@@ -391,4 +395,91 @@ export interface MaimlTemplateInsertionInput {
   file_uuid?:     string | null;
   mime_format?:   string | null;
   maiml_line_no?: number | null;
+}
+
+// ============================================================
+// DB テーブル型定義（組織スキーマ - eventLog 層）
+// @reference docs/MaiML_OpenData_Pipeline/db.md §7.2
+// ============================================================
+
+/**
+ * {org_schema}.maiml_event テーブルの型定義
+ */
+export interface MaimlEvent {
+  event_id?:        bigint;
+  asset_id:         bigint;
+  event_key?:       string | null;   // event/@id
+  results_ref?:     string | null;   // event/resultsRef/@ref
+  instruction_ref?: string | null;   // event/@ref
+  event_uuid?:      string | null;
+  event_name?:      string | null;
+  description?:     string | null;
+  annotation?:      string | null;
+  maiml_line_no?:   number | null;
+}
+
+/**
+ * {org_schema}.maiml_event_element テーブルの型定義
+ */
+export interface MaimlEventElement {
+  event_element_id?: bigint;
+  event_id:          bigint;
+  hierarchy:         string;
+  element_type:      string;   // 現時点では 'property' 固定
+  key?:              string | null;
+  description?:      string | null;
+  maiml_line_no?:    number | null;
+}
+
+/**
+ * {org_schema}.maiml_event_element_value テーブルの型定義
+ */
+export interface MaimlEventElementValue {
+  value_id?:        bigint;
+  event_element_id: bigint;
+  value_idx:        number;
+  value?:           string | null;
+  value_array?:     string[] | null;
+}
+
+// ============================================================
+// ingest パーサー結果型定義（eventLog 層）
+// ============================================================
+
+/**
+ * 挿入前の maiml_event データ
+ */
+export interface MaimlEventInput {
+  event_key?:       string | null;
+  results_ref?:     string | null;
+  instruction_ref?: string | null;
+  event_uuid?:      string | null;
+  event_name?:      string | null;
+  description?:     string | null;
+  annotation?:      string | null;
+  maiml_line_no?:   number | null;
+}
+
+/**
+ * 挿入前の maiml_event_element データ
+ */
+export interface MaimlEventElementInput {
+  /** 対応する MaimlEventInput のインデックス（Worker が event_id を解決するために使用） */
+  _eventIndex:   number;
+  hierarchy:     string;
+  element_type:  string;
+  key?:          string | null;
+  description?:  string | null;
+  maiml_line_no?: number | null;
+}
+
+/**
+ * 挿入前の maiml_event_element_value データ
+ */
+export interface MaimlEventElementValueInput {
+  /** 対応する MaimlEventElementInput のインデックス */
+  _eventElementIndex: number;
+  value_idx:          number;
+  value?:             string | null;
+  value_array?:       string[] | null;
 }

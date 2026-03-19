@@ -241,7 +241,56 @@ export function startMaimlPublishWorker(): Worker<PublishJobData> {
           });
         }
 
-        // ── 6c. retention_until 時刻に自動非公開 delayed Job を登録 ──
+        // ── 6c. eventLog → event → event_element → event_element_value ──
+        // events[i] の index → 実 event_id マップ
+        const eventIdByIndex = new Map<number, bigint>();
+        for (let i = 0; i < parsed.events.length; i++) {
+          const ev = parsed.events[i];
+          const row = await assetRepo.insertEvent(organizationId, {
+            asset_id:        assetId,
+            event_key:       ev.event_key       ?? null,
+            results_ref:     ev.results_ref     ?? null,
+            instruction_ref: ev.instruction_ref ?? null,
+            event_uuid:      ev.event_uuid      ?? null,
+            event_name:      ev.event_name      ?? null,
+            description:     ev.description     ?? null,
+            annotation:      ev.annotation      ?? null,
+            maiml_line_no:   ev.maiml_line_no   ?? null,
+          });
+          eventIdByIndex.set(i, row.event_id!);
+        }
+
+        // eventElements[j] の index → 実 event_element_id マップ
+        const eventElementIdByIndex = new Map<number, bigint>();
+        for (let j = 0; j < parsed.eventElements.length; j++) {
+          const ee = parsed.eventElements[j];
+          const eventId = eventIdByIndex.get(ee._eventIndex);
+          if (!eventId) continue;
+
+          const row = await assetRepo.insertEventElement(organizationId, {
+            event_id:      eventId,
+            hierarchy:     ee.hierarchy,
+            element_type:  ee.element_type,
+            key:           ee.key           ?? null,
+            description:   ee.description   ?? null,
+            maiml_line_no: ee.maiml_line_no ?? null,
+          });
+          eventElementIdByIndex.set(j, row.event_element_id!);
+        }
+
+        // event_element_value
+        for (const ev of parsed.eventElementValues) {
+          const eventElementId = eventElementIdByIndex.get(ev._eventElementIndex);
+          if (!eventElementId) continue;
+          await assetRepo.insertEventElementValue(organizationId, {
+            event_element_id: eventElementId,
+            value_idx:        ev.value_idx,
+            value:            ev.value       ?? null,
+            value_array:      ev.value_array ?? null,
+          });
+        }
+
+        // ── 6d. retention_until 時刻に自動非公開 delayed Job を登録 ──
         const delayMs = retentionUntil.getTime() - Date.now();
         await maimlUnpublishQueue.add(
           'auto-unpublish',

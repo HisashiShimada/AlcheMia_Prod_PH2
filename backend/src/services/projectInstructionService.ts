@@ -20,7 +20,10 @@ import {
   SendInstructionsResponse,
   InstructionData
 } from '../types/api';
-import { logger } from '../utils/logger';
+import { logger, logError } from '../utils/logger';
+import { EventLogRepository } from '../repositories/eventLogRepository';
+import { getStorageService } from './storageService';
+import { XMLParser } from 'fast-xml-parser';
 
 /**
  * 指示一覧を取得
@@ -278,6 +281,7 @@ export async function deleteInstruction(
  * @remarks
  * トランザクション処理:
  * 1. 未送信指示のステータスを送信済に更新
+ * 2. maiml_event_log に送信ログを記録（各指示ごと）
  * 
  * タスク作成は別途タスク登録タブで実施されるため、このAPIでは行いません。
  * プロジェクトステータスに関わらず指示送信が可能です。
@@ -285,13 +289,14 @@ export async function deleteInstruction(
  * @param organizationId 組織ID
  * @param projectId プロジェクトID
  * @param userId ユーザーID
- * @param request 指示送信リクエスト（空のリクエストボディ）
+ * @param projectName プロジェクト名（MAIMLファイルパス構築・programId取得に使用）
  * @returns 送信結果
  */
 export async function sendInstructions(
   organizationId: string,
   projectId: string,
   userId: string,
+  projectName: string,
 ): Promise<SendInstructionsResponse> {
   const pool = getPool();
   const client = await pool.connect();
@@ -316,6 +321,10 @@ export async function sendInstructions(
     if (unsentInstructions.length === 0) {
       throw new Error('未送信の指示がありません');
     }
+
+    // MAIMLファイルをパースして method_id → program_id のマップを構築
+    // パース失敗時は空マップで継続（programId は null として処理）
+    const programIdMap = await buildProgramIdMap(organizationId, projectName);
     
     // 1. 未送信指示を送信済に更新
     const sentCount = await projectInstructionRepository.bulkUpdateStatus(
@@ -328,6 +337,35 @@ export async function sendInstructions(
       organizationId,
       projectId,
       sentCount
+    });
+
+    // 2. 各指示に対して maiml_event_log に送信ログを記録
+    const sentAt = new Date().toISOString();
+    const eventLogRepo = new EventLogRepository();
+    for (const instruction of unsentInstructions) {
+      const methodId = instruction.method_id ?? null;
+      const programId = methodId ? (programIdMap[methodId] ?? null) : null;
+      await eventLogRepo.insertInstructionSentLog(
+        organizationId,
+        projectId,
+        {
+          instructionTarget: instruction.instruction_target ?? 1,
+          methodId,
+          transitionId: instruction.transition_id ?? null,
+          programId,
+          taskNo: instruction.task_no ?? null,
+          experimentInstructionId: instruction.experiment_instruction_id!,
+          userId,
+          sentAt,
+        },
+        client
+      );
+    }
+
+    logger.info('指示送信ログを記録しました', {
+      organizationId,
+      projectId,
+      logCount: unsentInstructions.length
     });
     
     // プロジェクトステータスの更新は行わない（チェックアウト時に実施）
@@ -350,5 +388,58 @@ export async function sendInstructions(
     throw error;
   } finally {
     client.release();
+  }
+}
+
+/**
+ * MAIMLファイルをパースして method_id → program_id のマップを構築する
+ *
+ * @param organizationId 組織ID
+ * @param projectName プロジェクト名
+ * @returns method_id をキー、program_id を値とするマップ
+ *          パース失敗時は空のマップを返す
+ */
+async function buildProgramIdMap(
+  organizationId: string,
+  projectName: string
+): Promise<Record<string, string>> {
+  try {
+    const storageService = getStorageService();
+    const filePath = `projects/${projectName}/${projectName}.maiml`;
+    const fileBuffer = await storageService.downloadFile(organizationId, filePath);
+    const maimlContent = fileBuffer.toString('utf-8');
+
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: '@_',
+    });
+    const parsed = parser.parse(maimlContent);
+
+    // protocol.method は単一要素の場合もあるため配列に統一
+    const methods = parsed?.maiml?.protocol?.method;
+    const methodsArray = Array.isArray(methods)
+      ? methods
+      : methods
+      ? [methods]
+      : [];
+
+    // method_id → program_id のマップを構築
+    const map: Record<string, string> = {};
+    for (const m of methodsArray) {
+      const methodId: string | undefined = m['@_id'];
+      const programId: string | undefined = m?.program?.['@_id'];
+      if (methodId && programId) {
+        map[methodId] = programId;
+      }
+    }
+
+    return map;
+  } catch (error) {
+    // MAIMLファイル取得・パース失敗時は空マップで継続（ログのみ）
+    logError('MAIMLファイルのパースに失敗しました（programIdMapは空で継続）', error as Error, {
+      organizationId,
+      projectName,
+    });
+    return {};
   }
 }

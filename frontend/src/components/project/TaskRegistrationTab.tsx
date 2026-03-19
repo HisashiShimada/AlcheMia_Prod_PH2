@@ -591,11 +591,11 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
 
   /**
    * 実験条件・試行回数・指示追加ボタンの非活性判定
-   * isCheckoutLockedを含めない（順序以外は変更可能）
+   * チェックアウト中・ワーカー連携済みは変更不可
    */
   const isFieldDisabled = useCallback((record: TaskDetail) => {
-    return isSaving || loadingMethods || record.workerLinkedFlg;
-  }, [isSaving, loadingMethods]);
+    return isSaving || loadingMethods || isCheckoutLocked || record.workerLinkedFlg;
+  }, [isSaving, loadingMethods, isCheckoutLocked]);
 
   /**
    * ドラッグ可能な行コンポーネント
@@ -630,14 +630,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
     };
 
     return (
-      <tr
-        {...restProps}
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
-        data-testid={`task-row-${rowKey}`}
-        data-worker-linked={isRowWorkerLinked ? 'true' : 'false'}
-      >
+      <tr {...restProps} ref={setNodeRef} style={style} {...attributes}>
         {React.Children.map(children, (child) => {
           if ((child as React.ReactElement).key === 'sort') {
             // worker_linked_flg=trueの場合もドラッグ不可にする
@@ -650,8 +643,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
                   padding: '8px',
                   opacity: isDragDisabled ? 0.5 : 1
                 }}
-                data-testid={`task-drag-handle-${rowKey}`}
-                data-drag-disabled={isDragDisabled ? 'true' : 'false'}
               >
                 <HolderOutlined />
               </div>
@@ -752,7 +743,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           size="small"
           style={{ width: '100%' }}
           options={experimentConditionSelectOptions}
-          data-testid={`task-experiment-condition-select-${record.id}`}
         />
       ),
     },
@@ -781,7 +771,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           min={1}
           max={999}
           style={{ width: '100%' }}
-          data-testid={`task-trial-count-input-${record.id}`}
         />
       ),
     },
@@ -798,7 +787,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             icon={<PlusOutlined />}
             onClick={() => handleAddInstructionClick(record.methodId)}
             disabled={isFieldDisabled(record)}
-            data-testid={`task-add-instruction-button-${record.id}`}
           >
             {t('taskRegistration.buttons.addInstruction')}
           </Button>
@@ -835,8 +823,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           <Button
             type="primary"
             onClick={handleProjectInstructionClick}
-            disabled={loadingMethods}
-            data-testid="project-instruction-button"
+            disabled={loadingMethods || isCheckoutLocked}
           >
             {t('taskRegistration.buttons.projectInstruction')}
           </Button>
@@ -845,8 +832,7 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
             icon={<SaveOutlined />}
             onClick={handleSave}
             loading={isSaving}
-            disabled={loadingMethods}
-            data-testid="task-registration-save-button"
+            disabled={loadingMethods || isCheckoutLocked}
           >
             {isSaving ? t('taskRegistration.saving') : t('taskRegistration.saveButton')}
           </Button>

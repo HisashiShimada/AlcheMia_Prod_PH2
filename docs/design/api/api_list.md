@@ -3,7 +3,7 @@
 ## メタデータ
 - **作成日**: 2026-01-20
 - **バージョン**: 2.18.0
-- **最終更新**: 2026-03-12
+- **最終更新**: 2026-03-18
 - **担当**: Development Team
 
 ---
@@ -69,7 +69,9 @@
 | 2.9 | POST | /api/v1/projects/:projectName/instructions | 指示送信（タスク作成） | ⏳ 未実装 | ProjectController.createInstruction |
 | 2.10 | GET | /api/v1/projects/:projectName/instructions | 指示一覧取得 | ⏳ 未実装 | ProjectController.listInstructions |
 | 2.11 | POST | /api/v1/projects/search | プロジェクト詳細検索 | ⏳ 未実装 | ProjectController.search |
-| 2.12 | POST | /api/v1/projects/:projectName/publish | プロジェクト公開 | ⏳ 未実装 | ProjectController.publish |
+| 2.12 | POST | /api/v1/projects/:projectName/publish | MaiML公開ジョブ投入 | ✅ 実装済み | ProjectController.publish |
+| 2.12b | POST | /api/v1/projects/:projectName/unpublish | MaiML非公開ジョブ投入 | ✅ 実装済み | ProjectController.unpublish |
+| 2.12c | GET | /api/v1/projects/:projectName/publish-status | 公開ジョブステータス取得 | ✅ 実装済み | ProjectController.getPublishStatus |
 | 2.13 | GET | /api/v1/projects/:projectName/worker-instructions | 指示一覧取得（実験作業者用） | ✅ 実装済み | ProjectController.getWorkerInstructions |
 | 2.14 | PUT | /api/v1/projects/:projectName/instructions/:instructionId/confirm | 指示確認完了 | ✅ 実装済み | ProjectController.confirmInstruction |
 | 2.15 | PATCH | /api/v1/projects/:projectName/approval-request | 承認依頼 | ✅ 実装済み | ProjectController.requestApproval |
@@ -665,7 +667,7 @@
 | カテゴリ | 総数 | 実装済み | スタブ | 未実装 | 実装率 |
 |---------|------|---------|-------|--------|--------|
 | 認証API | 6 | 6 | 0 | 0 | 100% |
-| プロジェクト管理API | 20 | 18 | 0 | 2 | 90% |
+| プロジェクト管理API | 22 | 19 | 0 | 3 | 86% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 6 | 5 | 0 | 1 | 83% |
 | Maiml編集API | 18 | 17 | 0 | 1 | 94% |
