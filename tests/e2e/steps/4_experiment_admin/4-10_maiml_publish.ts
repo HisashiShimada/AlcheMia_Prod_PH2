@@ -5,8 +5,8 @@
  *
  * テスト実行情報:
  *   URL      : http://localhost:3000/?orgId=a0718dc5-21f3-44e6-87e9-cc2ae83f3385
- *   ユーザID  : experiment_admin@example.com
- *   パスワード: admin123
+ *   ユーザID  : exp.admin@example.com
+ *   パスワード: expAdmin123
  *
  * ⚠️ 注意: フロントエンド未実装のため @pending タグを付与しています。
  *          フロントエンド実装完了後に feature ファイルの @pending タグを削除してテストを有効化すること。
@@ -61,8 +61,8 @@ const ORG_ID = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385';
  * テスト用ユーザー（実験管理者）
  * TODO: 実際の実験管理者ユーザーIDとパスワードに更新すること
  */
-const ADMIN_EMAIL = 'experiment_admin@example.com';
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_EMAIL = 'exp.admin@example.com';
+const ADMIN_PASSWORD = 'expAdmin123';
 
 /** テスト用プロジェクト情報 */
 const TEST_PROJECT_ID = 'E2E-4-10';

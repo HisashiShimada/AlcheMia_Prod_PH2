@@ -5,8 +5,8 @@
  *
  * テスト実行情報:
  *   URL      : http://localhost:3000/?orgId=a0718dc5-21f3-44e6-87e9-cc2ae83f3385
- *   ユーザID  : experiment_admin@example.com
- *   パスワード: admin123
+ *   ユーザID  : exp.admin@example.com
+ *   パスワード: expAdmin123
  *
  * 前提条件（テストデータ）:
  *   - organization_user テーブルに実験管理者ユーザーが存在すること
@@ -53,7 +53,7 @@ const ORG_ID = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385';
  * テスト用ユーザー（実験管理者）
  * TODO: 実際の実験管理者ユーザーIDとパスワードに更新すること
  */
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_PASSWORD = 'expAdmin123';
 
 /** テスト用プロジェクト情報 */
 const TEST_PROJECT_ID = 'E2E-4-12';
@@ -311,7 +311,7 @@ When('実験管理者ユーザー {string} でログインする', async ({ page
     .first();
   await emailInput.waitFor({ state: 'visible', timeout: 15000 });
   // TODO: 実際の実験管理者ユーザーIDに更新すること
-  await emailInput.fill('experiment_admin@example.com');
+  await emailInput.fill('exp.admin@example.com');
 
   const passwordInput = page.locator('input[type="password"]').first();
   await passwordInput.fill(ADMIN_PASSWORD);

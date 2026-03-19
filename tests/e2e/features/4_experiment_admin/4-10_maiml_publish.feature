@@ -2,7 +2,7 @@
 #
 # テスト実行情報
 #   URL      : http://localhost:3000/?orgId=a0718dc5-21f3-44e6-87e9-cc2ae83f3385
-#   ユーザID  : experiment_admin@example.com
+#   ユーザID  : exp.admin@example.com
 #   パスワード: admin123
 #
 # ⚠️ 注意: フロントエンド未実装のため @pending タグを付与しています。
@@ -18,7 +18,7 @@
   4-10-4 : 公開済みファイルの「公開済み」ボタンから「非公開にする」を選択するとMaimlUnpublishConfirmDialogが表示され、確認後に非公開にできること
 
   背景:
-    前提 実験管理者のユーザID "experiment_admin_user@example.com" がDB（organization_userテーブル）に存在する
+    前提 実験管理者のユーザID "exp.admin@example.com" がDB（organization_userテーブル）に存在する
 
   # ===========================================================================
   # [4-10-1] ファイル一覧の「公開」ボタンをクリックするとMaimlPublishDialogが表示されること
@@ -27,7 +27,7 @@
   @4-10-1 @pending
   シナリオ: [4-10-1] ファイル一覧の「公開」ボタンをクリックするとMaimlPublishDialogが表示されること
     前提 テスト用MAIMLファイルがS3に存在し、プロジェクトがDBに登録されている
-    もし 実験管理者ユーザー "experiment_admin_user@example.com" でログインする
+    もし 実験管理者ユーザー "exp.admin@example.com" でログインする
     かつ プロジェクト管理タブが表示されている
     かつ テスト用プロジェクト "E2Eテスト用プロジェクト_4-10" を選択する
     かつ ファイル一覧のMAIMLファイル行の「公開」ボタンをクリックする
@@ -44,7 +44,7 @@
   @4-10-2 @pending
   シナリオ: [4-10-2] MaimlPublishDialogで公開オプションを設定してMAIMLファイルを公開できること
     前提 テスト用MAIMLファイルがS3に存在し、プロジェクトがDBに登録されている
-    もし 実験管理者ユーザー "experiment_admin_user@example.com" でログインする
+    もし 実験管理者ユーザー "exp.admin@example.com" でログインする
     かつ プロジェクト管理タブが表示されている
     かつ テスト用プロジェクト "E2Eテスト用プロジェクト_4-10" を選択する
     かつ ファイル一覧のMAIMLファイル行の「公開」ボタンをクリックする
@@ -62,7 +62,7 @@
   @4-10-3 @pending
   シナリオ: [4-10-3] 公開済みファイルのボタンが「公開済み」（緑・disabled）に変わること
     前提 テスト用MAIMLファイルが公開済み状態でDBに登録されている
-    もし 実験管理者ユーザー "experiment_admin_user@example.com" でログインする
+    もし 実験管理者ユーザー "exp.admin@example.com" でログインする
     かつ プロジェクト管理タブが表示されている
     かつ テスト用プロジェクト "E2Eテスト用プロジェクト_4-10" を選択する
     ならば ファイル一覧のMAIMLファイル行に「公開済み」ボタンが表示されること
@@ -76,7 +76,7 @@
   @4-10-4 @pending
   シナリオ: [4-10-4] 公開済みファイルの「公開済み」ボタンから「非公開にする」を選択するとMaimlUnpublishConfirmDialogが表示され、確認後に非公開にできること
     前提 テスト用MAIMLファイルが公開済み状態でDBに登録されている
-    もし 実験管理者ユーザー "experiment_admin_user@example.com" でログインする
+    もし 実験管理者ユーザー "exp.admin@example.com" でログインする
     かつ プロジェクト管理タブが表示されている
     かつ テスト用プロジェクト "E2Eテスト用プロジェクト_4-10" を選択する
     かつ ファイル一覧のMAIMLファイル行の「公開済み」ボタンをクリックする

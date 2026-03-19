@@ -50,7 +50,7 @@
   4-2-26: 自動補正適用後に再バリデーションが自動実行され、ValidationPanelの結果が更新されること
 
   背景:
-    前提 実験管理者のユーザID "experiment_admin_user@example.com" がDB（organization_userテーブル）に存在する
+    前提 実験管理者のユーザID "exp.admin@example.com" がDB（organization_userテーブル）に存在する
 
   # ===========================================================================
   # [4-2-1] PetriNetEditorでワークフローを開いて表示できること

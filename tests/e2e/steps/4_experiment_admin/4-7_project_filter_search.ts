@@ -5,8 +5,8 @@
  *
  * テスト実行情報:
  *   URL      : http://localhost:3000/?orgId=a0718dc5-21f3-44e6-87e9-cc2ae83f3385
- *   ユーザID  : experiment_admin@example.com
- *   パスワード: admin123
+ *   ユーザID  : exp.admin@example.com
+ *   パスワード: expAdmin123
  *
  * 前提条件（テストデータ）:
  *   - organization_user テーブルに実験管理者ユーザーが存在すること
@@ -49,8 +49,8 @@ const ORG_ID = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385';
  * テスト用ユーザー（実験管理者）
  * TODO: 実際の実験管理者ユーザーIDとパスワードに更新すること
  */
-const ADMIN_EMAIL = 'experiment_admin@example.com';
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_EMAIL = 'exp.admin@example.com';
+const ADMIN_PASSWORD = 'expAdmin123';
 
 /**
  * project_status の数値定義（DDL: docs/design/db/ddl/project.sql）

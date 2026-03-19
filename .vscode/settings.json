@@ -33,6 +33,7 @@
   // --- 問題タブの視認性 ---
   "problems.showCurrentInStatus": true,
   "problems.decorations.enabled": true,
+  "livePreview.defaultPreviewPath": "/tests/e2e/reports/html/index.html",
 
   // --- Next.js 開発体験 ---
   // もし React 18 の型推論を React 19 的にしたくない場合などの抑制が必要なら tsconfig で調整

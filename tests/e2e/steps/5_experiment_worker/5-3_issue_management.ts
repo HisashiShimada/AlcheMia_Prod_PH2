@@ -110,13 +110,14 @@ Before({ tags: '@5-3-3' }, async () => {
   try {
     await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
-    await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    const transitionId = await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
     // 既存問題データを作成（コメント投稿テスト用）
     const issueId = await insertTestIssue(
       TEST_PROJECT_ID,
       'E2Eテスト既存問題_5-3-3',
       '5-3-3 コメント投稿テスト用の問題内容です',
-      'unresolved'
+      'unresolved',
+      transitionId
     );
     if (issueId) setupIssueIds.push(issueId);
     console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-3)');
@@ -135,13 +136,14 @@ Before({ tags: '@5-3-5' }, async () => {
   try {
     await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
-    await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    const transitionId = await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
     // 未解決問題
     const unresolvedId = await insertTestIssue(
       TEST_PROJECT_ID,
       'E2Eテスト未解決問題_5-3-5',
       '5-3-5 未解決フィルタ確認用の問題内容です',
-      'unresolved'
+      'unresolved',
+      transitionId
     );
     if (unresolvedId) setupIssueIds.push(unresolvedId);
     // 解決済問題
@@ -149,7 +151,8 @@ Before({ tags: '@5-3-5' }, async () => {
       TEST_PROJECT_ID,
       'E2Eテスト解決済問題_5-3-5',
       '5-3-5 解決済フィルタ確認用の問題内容です',
-      'resolved'
+      'resolved',
+      transitionId
     );
     if (resolvedId) setupIssueIds.push(resolvedId);
     console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-5)');
@@ -168,13 +171,14 @@ Before({ tags: '@5-3-6' }, async () => {
   try {
     await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
-    await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    const transitionId = await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
     // 未解決問題（解決済に変更するテスト用）
     const issueId = await insertTestIssue(
       TEST_PROJECT_ID,
       'E2Eテスト未解決問題_5-3-6',
       '5-3-6 解決済に変更するテスト用の問題内容です',
-      'unresolved'
+      'unresolved',
+      transitionId
     );
     if (issueId) setupIssueIds.push(issueId);
     console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-6)');
@@ -211,13 +215,14 @@ Before({ tags: '@5-3-13' }, async () => {
   try {
     await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
-    await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    const transitionId = await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
     // 問題詳細表示確認用の問題データを作成
     const issueId = await insertTestIssue(
       TEST_PROJECT_ID,
       'E2Eテスト問題_5-3-13',
       '5-3-13 問題詳細表示確認用の問題内容です。詳細な内容を確認するためのテストデータです。',
-      'unresolved'
+      'unresolved',
+      transitionId
     );
     if (issueId) setupIssueIds.push(issueId);
     console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-13)');
@@ -236,14 +241,15 @@ Before({ tags: '@5-3-14' }, async () => {
   try {
     await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
-    await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    const transitionId = await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
     // コメントつきの問題データを作成
     const issueId = await insertTestIssueWithComment(
       TEST_PROJECT_ID,
       'E2Eテスト問題_5-3-14',
       '5-3-14 コメント一覧表示確認用の問題内容です。詳細な内容を確認するためのテストデータです。',
       'unresolved',
-      'E2Eテスト用コメント_5-3-14'
+      'E2Eテスト用コメント_5-3-14',
+      transitionId
     );
     if (issueId) setupIssueIds.push(issueId);
     console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-14)');
@@ -277,13 +283,14 @@ Before({ tags: '@5-3-15 or @5-3-16 or @5-3-17' }, async () => {
       [ORG_ID]
     );
     await upsertTestProjectTask('E2E-5-3-WA', TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
-    await upsertTestTransitionSet('E2E-5-3-WA', TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    const waTransitionId = await upsertTestTransitionSet('E2E-5-3-WA', TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
     // 既存問題データを作成（コメント投稿・ステータス変更テスト用）
     const issueId = await insertTestIssue(
       'E2E-5-3-WA',
       'E2Eテスト問題_5-3-WA',
       'waiting_approval状態でのテスト用問題内容です。',
-      'unresolved'
+      'unresolved',
+      waTransitionId
     );
     if (issueId) setupIssueIds.push(issueId);
     console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-15〜@5-3-17)');
@@ -302,13 +309,14 @@ Before({ tags: '@5-3-7' }, async () => {
   try {
     await upsertTestProject(TEST_PROJECT_ID, TEST_PROJECT_NAME);
     await upsertTestProjectTask(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
-    await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
+    const transitionId = await upsertTestTransitionSet(TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER);
     // 解決済問題（未解決に戻すテスト用）
     const issueId = await insertTestIssue(
       TEST_PROJECT_ID,
       'E2Eテスト解決済問題_5-3-7',
       '5-3-7 未解決に戻すテスト用の問題内容です',
-      'resolved'
+      'resolved',
+      transitionId
     );
     if (issueId) setupIssueIds.push(issueId);
     console.log('[5-3 Before] テストデータ準備 完了 (tags: @5-3-7)');
@@ -325,12 +333,169 @@ Before({ tags: '@5-3-7' }, async () => {
 After(async () => {
   console.log('[5-3 After] クリーンアップ 開始');
   try {
+    // =========================================================================
+    // テストデータ確認ログ（クリーンアップ前に出力）
+    // =========================================================================
+    console.log('\n========== [5-3 テストデータ確認] ==========');
+
+    // --- project_task ---
+    try {
+      const ptRows = await db.query<{
+        project_id: string;
+        method_id: string;
+        experiment_order: number;
+        create_at: Date;
+      }>(
+        `SELECT project_id, method_id, experiment_order, create_at
+         FROM project_task
+         WHERE organization_id = $1
+           AND project_id LIKE 'E2E-5-3%'
+         ORDER BY create_at DESC`,
+        [ORG_ID]
+      );
+      console.log(`\n[project_task] 件数: ${ptRows.rowCount ?? 0}`);
+      if ((ptRows.rowCount ?? 0) > 0) {
+        console.table(ptRows.rows.map(r => ({
+          project_id:       r.project_id,
+          method_id:        r.method_id,
+          experiment_order: r.experiment_order,
+          create_at:        r.create_at?.toISOString(),
+        })));
+      }
+    } catch (e) {
+      console.warn('[5-3 テストデータ確認] project_task 取得失敗:', e);
+    }
+
+    // --- project_task_detail ---
+    try {
+      const ptdRows = await db.query<{
+        project_id: string;
+        method_id: string;
+        task_no: number;
+        task_status: number;
+        create_at: Date;
+      }>(
+        `SELECT project_id, method_id, task_no, task_status, create_at
+         FROM project_task_detail
+         WHERE organization_id = $1
+           AND project_id LIKE 'E2E-5-3%'
+         ORDER BY create_at DESC`,
+        [ORG_ID]
+      );
+      console.log(`\n[project_task_detail] 件数: ${ptdRows.rowCount ?? 0}`);
+      if ((ptdRows.rowCount ?? 0) > 0) {
+        console.table(ptdRows.rows.map(r => ({
+          project_id:  r.project_id,
+          method_id:   r.method_id,
+          task_no:     r.task_no,
+          task_status: r.task_status,
+          create_at:   r.create_at?.toISOString(),
+        })));
+      }
+    } catch (e) {
+      console.warn('[5-3 テストデータ確認] project_task_detail 取得失敗:', e);
+    }
+
+    // --- transition_set ---
+    try {
+      const tsRows = await db.query<{
+        project_name: string;
+        transition_id: string;
+        create_at: Date;
+      }>(
+        `SELECT project_name, transition_id, create_at
+         FROM transition_set
+         WHERE organization_id = $1
+           AND project_name LIKE 'E2E-5-3%'
+         ORDER BY create_at DESC`,
+        [ORG_ID]
+      );
+      console.log(`\n[transition_set] 件数: ${tsRows.rowCount ?? 0}`);
+      if ((tsRows.rowCount ?? 0) > 0) {
+        console.table(tsRows.rows.map(r => ({
+          project_name:  r.project_name,
+          transition_id: r.transition_id,
+          create_at:     r.create_at?.toISOString(),
+        })));
+      }
+    } catch (e) {
+      console.warn('[5-3 テストデータ確認] transition_set 取得失敗:', e);
+    }
+
+    // --- issue ---
+    try {
+      const issueRows = await db.query<{
+        issue_id: string;
+        project_id: string;
+        issue_title: string;
+        status: number;
+        transition_id: string | null;
+        issue_report_at: Date;
+      }>(
+        `SELECT issue_id, project_id, issue_title, status, transition_id, issue_report_at
+         FROM issue
+         WHERE organization_id = $1
+           AND project_id LIKE 'E2E-5-3%'
+         ORDER BY issue_report_at DESC`,
+        [ORG_ID]
+      );
+      console.log(`\n[issue] 件数: ${issueRows.rowCount ?? 0}`);
+      if ((issueRows.rowCount ?? 0) > 0) {
+        console.table(issueRows.rows.map(r => ({
+          issue_id:        r.issue_id,
+          project_id:      r.project_id,
+          issue_title:     r.issue_title,
+          status:          r.status === 0 ? '0(未解決)' : '1(解決済)',
+          transition_id:   r.transition_id ?? '(null)',
+          issue_report_at: r.issue_report_at?.toISOString(),
+        })));
+      }
+    } catch (e) {
+      console.warn('[5-3 テストデータ確認] issue 取得失敗:', e);
+    }
+
+    // --- issue_comment ---
+    try {
+      const commentRows = await db.query<{
+        issue_id: string;
+        project_id: string;
+        sequence_no: number;
+        comment: string;
+        author_id: string;
+        commented_at: Date;
+      }>(
+        `SELECT ic.issue_id, ic.project_id, ic.sequence_no, ic.comment, ic.author_id, ic.commented_at
+         FROM issue_comment ic
+         WHERE ic.organization_id = $1
+           AND ic.project_id LIKE 'E2E-5-3%'
+         ORDER BY ic.commented_at DESC`,
+        [ORG_ID]
+      );
+      console.log(`\n[issue_comment] 件数: ${commentRows.rowCount ?? 0}`);
+      if ((commentRows.rowCount ?? 0) > 0) {
+        console.table(commentRows.rows.map(r => ({
+          issue_id:     r.issue_id,
+          project_id:   r.project_id,
+          sequence_no:  r.sequence_no,
+          comment:      r.comment,
+          author_id:    r.author_id,
+          commented_at: r.commented_at?.toISOString(),
+        })));
+      }
+    } catch (e) {
+      console.warn('[5-3 テストデータ確認] issue_comment 取得失敗:', e);
+    }
+
+    console.log('\n========== [5-3 テストデータ確認 終了] ==========\n');
+
+    // =========================================================================
     // テスト中に作成した issue を削除（コメントも cascade 削除）
+    // DDL参照: 主キーは (organization_id, project_id, issue_id) - organization_id を必ず指定
     for (const issueId of createdIssueIds) {
       try {
         await db.query(
-          `DELETE FROM issue WHERE issue_id = $1`,
-          [issueId]
+          `DELETE FROM issue WHERE organization_id = $1 AND issue_id = $2`,
+          [ORG_ID, issueId]
         );
         console.log(`[5-3 After] issue 削除 完了: issue_id=${issueId}`);
       } catch (error) {
@@ -343,8 +508,8 @@ After(async () => {
     for (const issueId of setupIssueIds) {
       try {
         await db.query(
-          `DELETE FROM issue WHERE issue_id = $1`,
-          [issueId]
+          `DELETE FROM issue WHERE organization_id = $1 AND issue_id = $2`,
+          [ORG_ID, issueId]
         );
         console.log(`[5-3 After] setup issue 削除 完了: issue_id=${issueId}`);
       } catch (error) {
@@ -354,11 +519,12 @@ After(async () => {
     setupIssueIds.length = 0;
 
     // transition_set を削除
+    // DDL参照: project_name カラムで管理（project_id/method_id/task_no は存在しない）
     try {
       await db.query(
         `DELETE FROM transition_set
-         WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
-        [ORG_ID, TEST_PROJECT_ID, TEST_METHOD_ID, TEST_EXPERIMENT_ORDER]
+         WHERE organization_id = $1 AND project_name = $2`,
+        [ORG_ID, TEST_PROJECT_ID]
       );
       console.log('[5-3 After] transition_set 削除 完了');
     } catch (error) {
@@ -426,65 +592,52 @@ AfterAll(async () => {
 // ---------------------------------------------------------------------------
 
 /**
- * メソッド・タスク選択エリアの「選択」ボタンをクリックする
- * ExperimentRecordTab.tsx: data-testid="method-task-select-button"
- */
-When('メソッド・タスク選択エリアの「選択」ボタンをクリックする', async ({ page }) => {
-  const methodTaskBtn = page.locator('[data-testid="method-task-select-button"]');
-  await methodTaskBtn.waitFor({ state: 'visible', timeout: 10000 });
-  await methodTaskBtn.click();
-  // メソッド・タスク選択モーダルが表示されるまで待機
-  await page.waitForSelector('.ant-modal', { timeout: 10000 });
-});
-
-/**
- * メソッド・タスク選択モーダルでタスクを選択して決定する
- * モーダル内のラジオボタン最初の1件を選択し、「決定」ボタンをクリックする
+ * タスク選択プルダウンでタスク連番を選択する
+ * MethodTaskSelector.tsx: data-testid="task-select"
  *
- * NOTE: モーダルが開いた直後はメソッド・タスク一覧のAPIレスポンスを待機中のため、
- *       テーブルにデータが描画されるまで待ってからラジオボタンをクリックする必要がある。
- *       data-testid="method-task-selection-modal" を優先し、フォールバックで
- *       '.ant-modal' テキストフィルタを使用する。
+ * プロジェクト選択後に表示されるタスクプルダウンを開き、
+ * 最初の有効な選択肢（タスク連番 1）を選択する。
  */
-When('メソッド・タスク選択モーダルでタスクを選択して決定する', async ({ page }) => {
-  // モーダルの表示を待機（data-testid を優先、フォールバックで antd クラス）
-  const modal = page.locator('[data-testid="method-task-selection-modal"]');
-  const modalFallback = page.locator('.ant-modal').filter({ hasText: 'メソッド・タスク選択' });
-
-  // どちらかが表示されるまで待機
-  await Promise.race([
-    modal.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
-    modalFallback.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
-  ]);
-
-  // テーブルにデータ（ラジオボタン）が描画されるまで待機
-  // APIレスポンス後にタスク一覧が描画されるため、最大15秒待機する
-  const radioLocator = page.locator(
-    '[data-testid="method-task-selection-modal"] input[type="radio"], ' +
-    '.ant-modal input[type="radio"]'
-  ).first();
-
-  await radioLocator.waitFor({ state: 'visible', timeout: 15000 });
-
-  // 最初のラジオボタンを選択
-  await radioLocator.click();
-
-  // 決定ボタンをクリック（data-testid を優先）
-  const okBtn = page.locator('[data-testid="method-task-selection-ok-button"]');
-  const okBtnFallback = page.locator('.ant-modal-footer .ant-btn-primary');
-  if (await okBtn.isVisible().catch(() => false)) {
-    await okBtn.click();
-  } else {
-    await okBtnFallback.click();
+When('タスク選択プルダウンでタスク連番を選択する', async ({ page }) => {
+  // タスク選択プルダウンが表示されるまで待機
+  const taskSelect = page.locator('[data-testid="task-select"]');
+  await taskSelect.waitFor({ state: 'visible', timeout: 10000 });
+  // プルダウンをクリックして開く
+  await taskSelect.click();
+  // ドロップダウンが表示されるまで待機
+  await page.waitForFunction(
+    () => {
+      /* eslint-disable no-undef */
+      const dropdowns = (document as Document).querySelectorAll('.ant-select-dropdown');
+      return Array.from(dropdowns).some((d) => {
+        const el = d as HTMLElement;
+        return (
+          !el.classList.contains('ant-select-dropdown-hidden') &&
+          (window as Window & typeof globalThis).getComputedStyle(el).display !== 'none'
+        );
+      });
+      /* eslint-enable no-undef */
+    },
+    { timeout: 10000 }
+  );
+  // 最初の有効な選択肢（'-' 以外の選択肢）をクリックする
+  const visibleDropdown = page
+    .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')
+    .first();
+  // '-' オプション以外の最初のオプションを選択
+  const options = visibleDropdown.locator('.ant-select-item-option');
+  const count = await options.count();
+  for (let i = 0; i < count; i++) {
+    const label = await options.nth(i).textContent();
+    if (label && label.trim() !== '-') {
+      await options.nth(i).click();
+      break;
+    }
   }
-
-  // モーダルが閉じるまで待機
-  await Promise.race([
-    modal.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {}),
-    modalFallback.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {}),
-  ]);
+  // 選択後に少し待機（React state 更新待ち）
   await page.waitForTimeout(300);
 });
+
 
 // ---------------------------------------------------------------------------
 // When: ログイン
@@ -1022,11 +1175,13 @@ async function upsertTestProjectTask(
     if ((existingTask.rowCount ?? 0) === 0) {
       await db.query(
         `INSERT INTO project_task (
-          organization_id, project_id, method_id, experiment_order,
+          organization_id, project_id, method_id,
+          experiment_order,
           experiment_condition, attempts_count, worker_linked_flg,
           create_user_id, create_at, update_user_id, update_at
         ) VALUES (
-          $1, $2, $3, $4,
+          $1, $2, $3,
+          $4,
           1, 1, false,
           'e2e-test', NOW(), 'e2e-test', NOW()
         )`,
@@ -1046,141 +1201,168 @@ async function upsertTestProjectTask(
     // --- project_task_detail ---
     // getWorkerTasks API は project_task_detail を JOIN してタスク一覧を返す。
     // レコードがないとメソッド・タスク選択モーダルに行が表示されず E2E テストがタイムアウトする。
-    const existingDetail = await db.query<{ task_no: number }>(
-      `SELECT task_no FROM project_task_detail
+    //
+    // 前回テスト実行時の残留データを排除するため、毎回 DELETE → INSERT する。
+    // - task_status = 0 (not_started): 既存テストデータに合わせた初期状態
+    // - experiment_user_id = NULL: organization_user への LEFT JOIN に影響を与えない
+    //   （'5' などの不正なIDを設定すると JOIN 条件が意図しない動作になるため）
+    await db.query(
+      `DELETE FROM project_task_detail
        WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
       [ORG_ID, projectId, methodId, taskNo]
     );
-
-    if ((existingDetail.rowCount ?? 0) === 0) {
-      await db.query(
-        `INSERT INTO project_task_detail (
-          organization_id, project_id, method_id, task_no,
-          task_status,
-          experiment_user_id,
-          create_user_id, create_at, update_user_id, update_at
-        ) VALUES (
-          $1, $2, $3, $4,
-          1,
-          $5,
-          'e2e-test', NOW(), 'e2e-test', NOW()
-        )`,
-        [ORG_ID, projectId, methodId, taskNo, '5']
-      );
-      createdProjectTaskDetailKeys.push({
-        organization_id: ORG_ID,
-        project_id: projectId,
-        method_id: methodId,
-        task_no: taskNo,
-      });
-      console.log(`[5-3 upsertTestProjectTask] project_task_detail INSERT 完了 (task_no=${taskNo})`);
-    } else {
-      console.log(`[5-3 upsertTestProjectTask] project_task_detail スキップ（既存レコードあり）`);
-    }
+    await db.query(
+      `INSERT INTO project_task_detail (
+        organization_id, project_id, method_id, task_no,
+        task_status,
+        experiment_user_id,
+        create_user_id, create_at, update_user_id, update_at
+      ) VALUES (
+        $1, $2, $3, $4,
+        0,
+        NULL,
+        'e2e-test', NOW(), 'e2e-test', NOW()
+      )`,
+      [ORG_ID, projectId, methodId, taskNo]
+    );
+    // After フックで必ず削除されるよう追跡リストに追加（毎回登録し直す）
+    createdProjectTaskDetailKeys.push({
+      organization_id: ORG_ID,
+      project_id: projectId,
+      method_id: methodId,
+      task_no: taskNo,
+    });
+    console.log(`[5-3 upsertTestProjectTask] project_task_detail DELETE→INSERT 完了 (task_no=${taskNo})`);
   } catch (error) {
     console.error(`[5-3 upsertTestProjectTask] 失敗:`, error);
     throw error;
   }
 }
 
+/** E2E テスト用の固定 transition_id */
+const E2E_TRANSITION_ID = 'E2E_TRANSITION_5-3';
+
 /**
  * テスト用トランジションセットを UPSERT する
  * transition_set テーブル（backend/migrations/20260226_create_transition_set_table.sql 参照）
  * NOTE: transition_set テーブルのカラム構成は migration ファイルを参照すること
+ *
+ * @returns 挿入（または既存）の transition_id 文字列
  */
 async function upsertTestTransitionSet(
   projectId: string,
   methodId: string,
   experimentOrder: number
-): Promise<void> {
+): Promise<string> {
   console.log(`[5-3 upsertTestTransitionSet] 開始: project_id=${projectId}`);
   try {
     // transition_set テーブルの存在確認
-    const existing = await db.query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM transition_set
-       WHERE organization_id = $1 AND project_id = $2 AND method_id = $3 AND task_no = $4`,
-      [ORG_ID, projectId, methodId, experimentOrder]
+    // DDL参照: docs/design/db/ddl/transition_set.sql
+    // transition_set は project_name カラムでプロジェクトを管理
+    // （project_id / method_id / task_no カラムは存在しない）
+    const existing = await db.query<{ transition_id: string }>(
+      `SELECT transition_id FROM transition_set
+       WHERE organization_id = $1 AND project_name = $2
+       LIMIT 1`,
+      [ORG_ID, projectId]
     );
 
-    if (parseInt(existing.rows[0]?.count ?? '0', 10) === 0) {
-      // transition_set に最低1件のトランジションを挿入する
-      // NOTE: transition_id は UUID 形式が必要（実際のスキーマに従う）
-      await db.query(
-        `INSERT INTO transition_set (
-          organization_id, project_id, method_id, task_no,
-          transition_id, transition_name, status, progress_rate,
-          create_at, update_at
-        ) VALUES (
-          $1, $2, $3, $4,
-          gen_random_uuid(), 'E2Eテスト用トランジション_5-3', 0, 0,
-          NOW(), NOW()
-        )`,
-        [ORG_ID, projectId, methodId, experimentOrder]
-      );
-      console.log(`[5-3 upsertTestTransitionSet] INSERT 完了`);
-    } else {
-      console.log(`[5-3 upsertTestTransitionSet] スキップ（既存レコードあり）`);
+    if ((existing.rowCount ?? 0) > 0) {
+      const tid = existing.rows[0].transition_id;
+      console.log(`[5-3 upsertTestTransitionSet] スキップ（既存レコードあり）: transition_id=${tid}`);
+      return tid;
     }
+
+    // transition_set に最低1件のトランジションを挿入する
+    // emb_* カラムは pgvector 型（768次元）のため、ゼロベクトルで初期化
+    await db.query(
+      `INSERT INTO transition_set (
+        organization_id, project_name,
+        file_id, file_path, method_uuid, transition_id,
+        emb_input, emb_transition, emb_output, emb_structure
+      ) VALUES (
+        $1, $2,
+        gen_random_uuid(), 'e2e-test/dummy.maiml', gen_random_uuid(), $3,
+        array_fill(0, ARRAY[768])::vector,
+        array_fill(0, ARRAY[768])::vector,
+        array_fill(0, ARRAY[768])::vector,
+        array_fill(0, ARRAY[768])::vector
+      )`,
+      [ORG_ID, projectId, E2E_TRANSITION_ID]
+    );
+    console.log(`[5-3 upsertTestTransitionSet] INSERT 完了: transition_id=${E2E_TRANSITION_ID}`);
+    return E2E_TRANSITION_ID;
   } catch (error) {
     // transition_set への直接 INSERT が失敗した場合はログを残して続行
     // （MAIML から自動生成されるケースのため、手動 INSERT が不可能な構成の場合あり）
     console.warn(`[5-3 upsertTestTransitionSet] 警告: transition_set への INSERT に失敗しました。
       テストデータが既に存在する場合はそのまま続行します。エラー: ${error}`);
+    return E2E_TRANSITION_ID;
   }
 }
 
 /**
  * テスト用問題データを INSERT する
+ * @param transitionId - issue に紐づける transition_id（listIssuesWithComments のフィルタ条件に一致させるため必須）
  * @returns 作成された issue_id（失敗時は null）
  *
  * NOTE: issue テーブルのカラム構成は backend/migrations/20260204_create_issue_comments_table.sql
  *       および関連マイグレーションファイルを参照すること
+ *
+ * [重要] listIssuesWithComments は
+ *   AND (i.issue_target != 3 OR i.transition_id = $N)
+ * でフィルタするため、issue_target=3（トランジション対象）の問題は
+ * 必ず transition_id をセットしなければ表示されない。
  */
 async function insertTestIssue(
   projectId: string,
   title: string,
   content: string,
-  status: 'unresolved' | 'resolved'
+  status: 'unresolved' | 'resolved',
+  transitionId: string = E2E_TRANSITION_ID
 ): Promise<string | null> {
-  console.log(`[5-3 insertTestIssue] 開始: title=${title}, status=${status}`);
-  try {
-    // 同名の問題が既に存在する場合は先に削除してから INSERT
-    await db.query(
-      `DELETE FROM issue WHERE organization_id = $1 AND project_id = $2 AND title = $3`,
-      [ORG_ID, projectId, title]
-    );
+  console.log(`[5-3 insertTestIssue] 開始: title=${title}, status=${status}, transitionId=${transitionId}`);
+  // 同名の問題が既に存在する場合は先に削除してから INSERT
+  // DDL参照: backend/migrations/20260205_add_issue_performance_indexes.sql
+  // issue_target は VARCHAR ('project' / 'task' / 'transition')
+  // status は NUMERIC (0=未解決, 1=解決済)
+  await db.query(
+    `DELETE FROM issue WHERE organization_id = $1 AND project_id = $2 AND issue_title = $3`,
+    [ORG_ID, projectId, title]
+  );
 
-    const result = await db.query<{ issue_id: string }>(
-      `INSERT INTO issue (
-        issue_id, organization_id, project_id,
-        title, content, status,
-        target_type, issue_type,
-        reported_by, reported_at,
-        create_at, update_at
-      ) VALUES (
-        gen_random_uuid(), $1, $2,
-        $3, $4, $5,
-        'transition', 'other',
-        'e2e-test', NOW(),
-        NOW(), NOW()
-      )
-      RETURNING issue_id`,
-      [ORG_ID, projectId, title, content, status]
-    );
+  const result = await db.query<{ issue_id: string }>(
+    `INSERT INTO issue (
+      issue_id, organization_id, project_id,
+      issue_title, issue_contents, status,
+      issue_target, issue_type,
+      transition_id,
+      issue_reporter_id, issue_report_at,
+      create_user_id, create_at, update_user_id, update_at
+    ) VALUES (
+      gen_random_uuid(), $1, $2,
+      $3, $4, CASE WHEN $5 = 'unresolved' THEN 0 ELSE 1 END,
+      3, 0,
+      $6,
+      'e2e-test', NOW(),
+      'e2e-test', NOW(), 'e2e-test', NOW()
+    )
+    RETURNING issue_id`,
+    [ORG_ID, projectId, title, content, status, transitionId]
+  );
 
-    const issueId = result.rows[0]?.issue_id ?? null;
-    if (issueId) {
-      console.log(`[5-3 insertTestIssue] INSERT 完了: issue_id=${issueId}, title=${title}`);
-    }
-    return issueId;
-  } catch (error) {
-    console.error(`[5-3 insertTestIssue] 失敗: title=${title}:`, error);
-    return null;
+  const issueId = result.rows[0]?.issue_id ?? null;
+  if (issueId) {
+    console.log(`[5-3 insertTestIssue] INSERT 完了: issue_id=${issueId}, title=${title}`);
+  } else {
+    throw new Error(`[5-3 insertTestIssue] INSERT 失敗: RETURNING が空でした (title=${title})`);
   }
+  return issueId;
 }
 
 /**
  * テスト用問題データ（コメントつき）を INSERT する（5-3-14 用）
+ * @param transitionId - issue に紐づける transition_id（listIssuesWithComments のフィルタ条件に一致させるため必須）
  * @returns 作成された issue_id（失敗時は null）
  */
 async function insertTestIssueWithComment(
@@ -1188,32 +1370,36 @@ async function insertTestIssueWithComment(
   title: string,
   content: string,
   status: 'unresolved' | 'resolved',
-  commentContent: string
+  commentContent: string,
+  transitionId: string = E2E_TRANSITION_ID
 ): Promise<string | null> {
-  console.log(`[5-3 insertTestIssueWithComment] 開始: title=${title}`);
+  console.log(`[5-3 insertTestIssueWithComment] 開始: title=${title}, transitionId=${transitionId}`);
   try {
     // 同名の問題が既に存在する場合は先に削除してから INSERT
+    // DDL参照: docs/design/db/ddl/issue.sql (issue_title / issue_contents / status:NUMERIC)
     await db.query(
-      `DELETE FROM issue WHERE organization_id = $1 AND project_id = $2 AND title = $3`,
+      `DELETE FROM issue WHERE organization_id = $1 AND project_id = $2 AND issue_title = $3`,
       [ORG_ID, projectId, title]
     );
 
     const issueResult = await db.query<{ issue_id: string }>(
       `INSERT INTO issue (
         issue_id, organization_id, project_id,
-        title, content, status,
-        target_type, issue_type,
-        reported_by, reported_at,
-        create_at, update_at
+        issue_title, issue_contents, status,
+        issue_target, issue_type,
+        transition_id,
+        issue_reporter_id, issue_report_at,
+        create_user_id, create_at, update_user_id, update_at
       ) VALUES (
         gen_random_uuid(), $1, $2,
-        $3, $4, $5,
-        'transition', 'other',
+        $3, $4, CASE WHEN $5 = 'unresolved' THEN 0 ELSE 1 END,
+        3, 0,
+        $6,
         'e2e-test', NOW(),
-        NOW(), NOW()
+        'e2e-test', NOW(), 'e2e-test', NOW()
       )
       RETURNING issue_id`,
-      [ORG_ID, projectId, title, content, status]
+      [ORG_ID, projectId, title, content, status, transitionId]
     );
 
     const issueId = issueResult.rows[0]?.issue_id ?? null;
@@ -1223,24 +1409,27 @@ async function insertTestIssueWithComment(
     }
 
     // コメントを INSERT する
+    // DDL参照: docs/design/db/ddl/issue_comment.sql
+    // 主キー: (organization_id, project_id, issue_id, sequence_no)
+    // カラム名: comment / author_id（"content"/"commented_by"/"comment_id" は存在しない）
     await db.query(
       `INSERT INTO issue_comment (
-        comment_id, issue_id, organization_id,
-        content, commented_by, commented_at,
-        create_at, update_at
+        organization_id, project_id, issue_id, sequence_no,
+        comment, author_id, commented_at,
+        create_user_id, create_at, update_user_id, update_at
       ) VALUES (
-        gen_random_uuid(), $1, $2,
-        $3, 'e2e-test', NOW(),
-        NOW(), NOW()
+        $1, $2, $3, 1,
+        $4, 'e2e-test', NOW(),
+        'e2e-test', NOW(), 'e2e-test', NOW()
       )`,
-      [issueId, ORG_ID, commentContent]
+      [ORG_ID, projectId, issueId, commentContent]
     );
 
     console.log(`[5-3 insertTestIssueWithComment] INSERT 完了: issue_id=${issueId}, title=${title}`);
     return issueId;
   } catch (error) {
     console.error(`[5-3 insertTestIssueWithComment] 失敗: title=${title}:`, error);
-    return null;
+    throw error;
   }
 }
 

@@ -5,8 +5,8 @@
  *
  * テスト実行情報:
  *   URL      : http://localhost:3000/?orgId=a0718dc5-21f3-44e6-87e9-cc2ae83f3385
- *   ユーザID  : experiment_admin@example.com
- *   パスワード: admin123
+ *   ユーザID  : exp.admin@example.com
+ *   パスワード: expAdmin123
  *
  * 前提条件（テストデータ）:
  *   - organization_user テーブルに実験管理者ユーザーが存在すること
@@ -34,8 +34,8 @@ const ORG_ID = 'a0718dc5-21f3-44e6-87e9-cc2ae83f3385';
 /** テスト用ユーザー（実験管理者）
  * TODO: 実際の実験管理者ユーザーIDとパスワードに更新すること
  */
-const ADMIN_EMAIL = 'experiment_admin@example.com';
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_EMAIL = 'exp.admin@example.com';
+const ADMIN_PASSWORD = 'expAdmin123';
 
 /** ベースプロジェクト名（4-1-8〜4-1-20 で使用する共通テストプロジェクト） */
 const BASE_PROJECT_NAME = 'E2Eテスト用プロジェクト_4-1-base';
@@ -174,9 +174,9 @@ When('実験管理者ユーザー {string} でログインする', async ({ page
  * 実験管理者メニューのプロジェクト管理タブが表示されるまで待機する
  */
 When('プロジェクト管理画面が表示されている', async ({ page }) => {
-  // プロジェクト管理タブ（data-testid="project-management-tab"）が表示されるまで待機
-  // ログイン後、デフォルトでプロジェクト管理タブが表示される想定
-  await page.waitForSelector('[data-testid="project-management-tab"]', {
+  // 新規プロジェクト作成ボタン（data-testid="create-project-button"）が表示されるまで待機
+  // ログイン後、デフォルトでプロジェクト管理画面が表示される想定
+  await page.waitForSelector('[data-testid="create-project-button"]', {
     timeout: 15000,
   });
 });
@@ -219,7 +219,12 @@ When('プロジェクト名入力フィールドに 101文字のプロジェク�
   const longName = 'A'.repeat(101);
   await input.evaluate((el: HTMLInputElement, val: string) => {
     el.removeAttribute('maxlength');
-    el.value = val;
+    // Reactの制御コンポーネントに値を認識させるため nativeInputValueSetter を使用
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      'value'
+    )?.set;
+    nativeInputValueSetter?.call(el, val);
     el.dispatchEvent(new Event('input', { bubbles: true }));
   }, longName);
 });
@@ -251,17 +256,16 @@ When('プロジェクト作成モーダルの「キャンセル」ボタンを�
 // ---------------------------------------------------------------------------
 
 /**
- * プロジェクト一覧でプロジェクトを選択する（ラジオボタン/行クリックで選択）
- * ProjectManagement.tsx: data-testid="project-list-table" 内の行
+ * プロジェクト一覧でプロジェクトを選択する（項目クリックで選択）
+ * ProjectFolderTree.tsx: data-testid="project-item-{id}" をプロジェクト名テキストで検索してクリック
  */
 When('プロジェクト一覧でプロジェクト {string} を選択する', async ({ page }, projectName: string) => {
-  // プロジェクト一覧テーブルが表示されるまで待機
-  const table = page.locator('[data-testid="project-list-table"]');
-  await table.waitFor({ state: 'visible', timeout: 10000 });
-  // プロジェクト名を含む行のラジオボタンをクリック
-  const row = table.locator(`tr:has-text("${projectName}")`).first();
-  await row.waitFor({ state: 'visible', timeout: 10000 });
-  await row.locator('input[type="radio"], .ant-radio-wrapper').first().click();
+  // プロジェクト名テキストを含む project-item を検索
+  const projectItem = page.locator('[data-testid^="project-item-"]').filter({ hasText: projectName }).first();
+  await projectItem.waitFor({ state: 'attached', timeout: 10000 });
+  // スクロールして表示範囲内に入れてからクリック
+  await projectItem.scrollIntoViewIfNeeded();
+  await projectItem.click();
   await page.waitForTimeout(500);
 });
 
@@ -397,27 +401,28 @@ Then('プロジェクト作成モーダルが閉じること', async ({ page }) 
 
 /**
  * プロジェクト一覧に指定プロジェクト名が表示されること
- * ProjectManagement.tsx: data-testid="project-list-table" 内のテキスト
+ * ProjectFolderTree.tsx: data-testid="project-item-{id}" 内の Text コンポーネントにプロジェクト名が表示される
+ * スクロールしないと見えない位置にある場合も scrollIntoViewIfNeeded で対応
  */
 Then('プロジェクト一覧に {string} が表示されること', async ({ page }, projectName: string) => {
   // プロジェクト一覧の再ロードを待つ
   await page.waitForTimeout(1000);
-  const table = page.locator('[data-testid="project-list-table"]');
-  await expect(table).toBeVisible({ timeout: 10000 });
-  await expect(table.locator(`td:has-text("${projectName}")`).first()).toBeVisible({
-    timeout: 10000,
-  });
+  // プロジェクト名テキストを含む project-item を検索
+  const projectItem = page.locator('[data-testid^="project-item-"]').filter({ hasText: projectName }).first();
+  await projectItem.waitFor({ state: 'attached', timeout: 10000 });
+  // スクロールして表示範囲内に入れてから可視確認
+  await projectItem.scrollIntoViewIfNeeded();
+  await expect(projectItem).toBeVisible({ timeout: 10000 });
+  await expect(projectItem).toContainText(projectName);
 });
 
 /**
  * プロジェクト一覧に指定プロジェクト名が表示されていないこと（キャンセル後の確認）
  */
 Then('プロジェクト一覧に {string} が表示されていないこと', async ({ page }, projectName: string) => {
-  const table = page.locator('[data-testid="project-list-table"]');
-  await expect(table).toBeVisible({ timeout: 10000 });
-  await expect(table.locator(`td:has-text("${projectName}")`)).not.toBeVisible({
-    timeout: 5000,
-  });
+  // プロジェクト名テキストを含む project-item が存在しないことを確認
+  const projectItem = page.locator('[data-testid^="project-item-"]').filter({ hasText: projectName });
+  await expect(projectItem).toHaveCount(0, { timeout: 5000 });
 });
 
 /**

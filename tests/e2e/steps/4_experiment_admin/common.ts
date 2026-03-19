@@ -19,7 +19,7 @@ const { Given } = createBdd();
  * 前提: 実験管理者のユーザIDがDB（organization_userテーブル）に存在する
  * → テスト用ユーザーは事前にDBに存在することを前提とするため何もしない
  *
- * TODO: 実際のユーザーIDに要更新（experiment_admin_user@example.com は仮値）
+ * TODO: 実際のユーザーIDに要更新（exp.admin@example.com は仮値）
  *
  * 参照 feature:
  *   - features/4_experiment_admin/4-1_project_create_file_operation.feature
