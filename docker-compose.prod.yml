@@ -76,7 +76,7 @@ services:
       test: >
         ["CMD-SHELL",
          "swift -A http://localhost:${SWIFT_PORT:-8080}/auth/v1.0
-         -U ${SWIFT_ACCOUNT:-mmdpf}:${SWIFT_USER:-mmdpf_user}
+         -U ${SWIFT_USER:-mmdpf_user}
          -K ${SWIFT_PASSWORD:-testing} stat || exit 1"]
       interval: 30s
       timeout: 10s
