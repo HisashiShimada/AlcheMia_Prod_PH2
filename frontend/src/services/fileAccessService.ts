@@ -211,6 +211,20 @@ export const uploadFiles = async (
   const client = createApiClient();
 
   try {
+    // ファイルサイズの累積値を事前計算（uploadedCountの推定用）
+    const fileSizes: number[] = [];
+    files.forEach(file => {
+      fileSizes.push(file.size);
+    });
+
+    // 各ファイルの累積サイズを計算
+    const cumulativeSizes: number[] = [];
+    let cumulative = 0;
+    fileSizes.forEach(size => {
+      cumulative += size;
+      cumulativeSizes.push(cumulative);
+    });
+
     // FormDataの構築
     const formData = new FormData();
     formData.append('uploadMode', uploadMode);
@@ -244,11 +258,21 @@ export const uploadFiles = async (
               (progressEvent.loaded * 100) / progressEvent.total
             );
             
+            // アップロード済みバイト数から完了ファイル数を推定
+            let uploadedCount = 0;
+            for (let i = 0; i < cumulativeSizes.length; i++) {
+              if (progressEvent.loaded >= cumulativeSizes[i]) {
+                uploadedCount = i + 1;
+              } else {
+                break;
+              }
+            }
+            
             onProgress({
               uploadedBytes: progressEvent.loaded,
               totalBytes: progressEvent.total,
               percentage,
-              uploadedCount: 0,
+              uploadedCount, // 正しく計算されたファイル数
               totalCount: files.length,
             });
           }
