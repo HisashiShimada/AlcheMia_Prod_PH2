@@ -20,8 +20,6 @@
 #   docker compose -f docker-compose.ollama.yml down -v
 # =========================================================
 
-version: '3.8'
-
 services:
   # -------------------------------------------------------
   # Ollama Service - AI Model Engine

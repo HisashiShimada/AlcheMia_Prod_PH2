@@ -21,8 +21,6 @@
 #   docker compose -f docker-compose.redis.yml down -v
 # =========================================================
 
-version: '3.8'
-
 services:
   # -------------------------------------------------------
   # Redis Service - Session Store / Cache
