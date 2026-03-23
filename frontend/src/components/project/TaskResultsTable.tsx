@@ -139,6 +139,7 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
       rowKey={(record) => record.workId || record.taskId}
       size="small"
       pagination={false}
+      data-testid="task-results-table"
       locale={{
         emptyText: (
           <Empty

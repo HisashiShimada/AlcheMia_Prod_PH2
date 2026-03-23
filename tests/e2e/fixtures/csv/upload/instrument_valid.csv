@@ -1,0 +1,2 @@
+instrument_id,instrument_name,instrument_description,instrument_annotation,is_active
+e2e_csv_ins_001,E2ECSVUP_装置,E2Eテスト用説明,E2Eテスト用注釈,true

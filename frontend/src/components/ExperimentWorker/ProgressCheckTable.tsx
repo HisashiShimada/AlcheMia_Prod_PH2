@@ -81,7 +81,7 @@ export default function ProgressCheckTable({ tasks, projectStatus, onTaskAction,
   };
 
   return (
-    <div>
+    <div data-testid="progress-check-table">
       {/* タスク一覧テーブル（メソッドはタブで選択済み） */}
       <TaskListTable
         tasks={tasks}

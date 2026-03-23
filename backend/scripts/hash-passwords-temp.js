@@ -7,7 +7,7 @@ const bcrypt = require('bcrypt');
 // ハッシュ化するパスワードリスト
 const passwords = [
   'dataadmin123',
-  'expadmin123',
+  'expAdmin123',
   'expworker123'
 ];
 

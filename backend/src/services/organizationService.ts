@@ -86,6 +86,16 @@ function formatDateTime(date: Date | null): string {
 }
 
 /**
+ * 組織CD重複チェック
+ *
+ * @param organizationCd チェック対象の組織CD
+ * @returns 重複している場合は true
+ */
+export async function checkOrganizationCdExists(organizationCd: string): Promise<boolean> {
+  return await organizationRepository.existsByCd(organizationCd);
+}
+
+/**
  * Organizationを取得
  * 
  * @param filters 検索フィルター

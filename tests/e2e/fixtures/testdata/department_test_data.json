@@ -1,0 +1,80 @@
+{
+  "_comment": "部署管理画面（2-13〜2-17）のテストデータ",
+  "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
+  "loginUser": {
+    "userId": "system.admin@example.com",
+    "password": "admin123"
+  },
+  "createActive": {
+    "departmentCd": "E2E-DEPT-001",
+    "departmentName": "E2Eテスト部署",
+    "isActive": true
+  },
+  "createInactive": {
+    "departmentCd": "E2E-DEPT-002",
+    "departmentName": "E2E非アクティブ部署",
+    "isActive": false
+  },
+  "createCancel": {
+    "departmentCd": "E2E-DEPT-CANCEL",
+    "departmentName": "E2Eキャンセル部署"
+  },
+  "editBefore": {
+    "departmentCd": "E2E-EDIT-BEFORE",
+    "departmentName": "E2E編集前部署",
+    "isActive": true
+  },
+  "editAfter": {
+    "departmentName": "E2E編集後部署"
+  },
+  "editTest2": {
+    "departmentCd": "E2E-EDIT-TEST-2",
+    "departmentName": "E2E編集テスト部署2",
+    "isActive": true
+  },
+  "editTest3": {
+    "departmentCd": "E2E-EDIT-TEST-3",
+    "departmentName": "E2E編集テスト部署3",
+    "isActive": true
+  },
+  "editTest4": {
+    "departmentCd": "E2E-EDIT-TEST-4",
+    "departmentName": "E2E編集テスト部署4",
+    "isActive": true
+  },
+  "toggleActive": {
+    "departmentCd": "E2E-TOGGLE-ACTIVE-DEPT",
+    "departmentName": "E2Eトグル部署アクティブ",
+    "isActive": true
+  },
+  "toggleInactive": {
+    "departmentCd": "E2E-TOGGLE-INACTIVE-DEPT",
+    "departmentName": "E2Eトグル部署非アクティブ",
+    "isActive": false
+  },
+  "permanentForDuplicate": {
+    "departmentCd": "E2E-PERM-DEPT-001",
+    "departmentName": "E2E常設重複テスト部署",
+    "isActive": true
+  },
+  "csvUpload": {
+    "departmentName": "E2ECSVUP部署",
+    "departmentCd": "E2E-CSV-DEPT-001",
+    "validCsvFile": "departments_valid.csv",
+    "dupCsvFile": "departments_dup.csv"
+  },
+  "validation": {
+    "emptyDeptCd": {
+      "departmentName": "E2Eテスト部署",
+      "expectedError": "部署CDを入力してください"
+    },
+    "duplicateDeptCd": {
+      "departmentCd": "E2E-PERM-DEPT-001",
+      "departmentName": "E2E重複テスト部署",
+      "expectedError": "入力された部署CDは既に存在しています"
+    },
+    "emptyDeptNameOnEdit": {
+      "expectedError": "部署名を入力してください"
+    }
+  }
+}

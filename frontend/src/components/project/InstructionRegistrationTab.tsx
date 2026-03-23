@@ -472,6 +472,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
               size="small"
               icon={<EyeOutlined />}
               onClick={() => handleOpenEditDialog(record)}
+              data-testid={`instruction-detail-button-${record.id}`}
             >
               {t('instructionRegistration.detailButton')}
             </Button>
@@ -483,6 +484,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 icon={<EditOutlined />}
                 onClick={() => handleOpenEditDialog(record)}
                 disabled={isSending}
+                data-testid={`instruction-edit-button-${record.id}`}
               >
                 {t('instructionRegistration.editButton')}
               </Button>
@@ -492,6 +494,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
                 icon={<DeleteOutlined />}
                 onClick={() => handleDeleteInstruction(record.id)}
                 disabled={isSending}
+                data-testid={`instruction-delete-button-${record.id}`}
               >
                 {t('instructionRegistration.deleteButton')}
               </Button>
@@ -506,7 +509,12 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* ツールバー */}
       <div style={{ marginBottom: token.marginMD, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: `0 ${token.paddingLG}px` }}>
-        <Text type="secondary">{t('instructionRegistration.listTitle').replace('{count}', instructions.length.toString())}</Text>
+        <Text
+          type="secondary"
+          data-testid="instruction-status-summary"
+        >
+          {t('instructionRegistration.listTitle').replace('{count}', instructions.length.toString())}
+        </Text>
         <Space>
           <Button
             type="primary"
@@ -514,6 +522,7 @@ const InstructionRegistrationTab: React.FC<InstructionRegistrationTabProps> = ({
             onClick={handleSubmitInstructions}
             disabled={instructions.length === 0 || isSending || isCheckoutLocked}
             loading={isSending}
+            data-testid="instruction-bulk-send-button"
             style={{
               backgroundColor: instructions.length > 0 ? token.colorSuccess : undefined,
               borderColor: instructions.length > 0 ? token.colorSuccess : undefined,

@@ -26,6 +26,7 @@ export default function ProjectSelector({
 
   return (
     <Card
+      data-testid="project-selector"
       size="small"
       style={{
         backgroundColor: selectedProject ? token.colorPrimaryBg : token.colorBgContainer,

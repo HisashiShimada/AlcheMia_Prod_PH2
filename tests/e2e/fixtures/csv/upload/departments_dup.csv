@@ -1,0 +1,2 @@
+department_cd,department_name,is_active
+E2E-PERM-DEPT-001,重複テスト部署,true
