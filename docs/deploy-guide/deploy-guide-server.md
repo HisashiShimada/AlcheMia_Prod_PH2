@@ -35,6 +35,7 @@
 | `mmdpf-backend` | Node.js API サーバー | 3001 |
 | `mmdpf-frontend` | Next.js フロントエンド | 3000 |
 | `mmdpf-nginx` | リバースプロキシ (HTTPS) | 80, 443 |
+| `mmdpf-ollama` | AI Model Engine (Ollama) | 11434 |
 
 ```
 ブラウザ
@@ -47,6 +48,7 @@ mmdpf-nginx (リバースプロキシ / クライアント証明書認証)
                └── mmdpf-postgres (5432)
                └── mmdpf-redis (6379)
                └── mmdpf-swift (8080)
+               └── mmdpf-ollama (11434)  ← backend の OLLAMA_HOST で参照（セマンティック検索）
 ```
 
 ---
@@ -57,7 +59,7 @@ mmdpf-nginx (リバースプロキシ / クライアント証明書認証)
 |---|---|
 | OS | Ubuntu 20.04 / 22.04 / 24.04 LTS 推奨 |
 | CPU | 2コア以上推奨 |
-| メモリ | 4GB以上推奨 |
+| メモリ | 8GB以上推奨（Ollamaモデル使用時） |
 | ディスク空き容量 | 20GB 以上 |
 | 開放ポート | 80 (HTTP), 443 (HTTPS) |
 | Docker | 26.x 以上 |
