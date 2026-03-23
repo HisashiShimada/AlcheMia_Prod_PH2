@@ -163,6 +163,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
               icon={<DownloadOutlined />}
               loading={downloadingFileId === record.id}
               disabled={downloadingFileId !== null}
+              data-testid="file-download-button"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDownloadFile(record);
@@ -175,6 +176,7 @@ const FileListTable: React.FC<FileListTableProps> = ({
               size="small"
               icon={<EyeOutlined />}
               style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+              data-testid="file-viewer-button"
               onClick={(e) => {
                 e.stopPropagation();
                 onViewFile?.(record);

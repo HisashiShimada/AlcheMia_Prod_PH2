@@ -25,13 +25,13 @@ SELECT DISTINCT
   project.update_at,
   organization.use_deemed_progress
 FROM project
-INNER JOIN project_task_detail 
-  ON project.project_id = project_task_detail.project_id
+INNER JOIN project_task 
+  ON project.project_id = project_task.project_id
 INNER JOIN organization
   ON project.organization_id = organization.organization_id
 WHERE 
   project.organization_id = $1
-  AND project_task_detail.organization_id = $2
+  AND project_task.organization_id = $2
   {STATUS_FILTER}
 ORDER BY {SORT_COLUMN} {SORT_ORDER}
 LIMIT {LIMIT} OFFSET {OFFSET}

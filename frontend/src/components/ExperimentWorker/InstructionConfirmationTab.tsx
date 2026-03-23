@@ -508,9 +508,10 @@ export default function InstructionConfirmationTab({
   };
 
   return (
-    <div style={{ height: '100%', overflow: 'auto' }}>
+    <div data-testid="instruction-confirmation-tab" style={{ height: '100%', overflow: 'auto' }}>
       {!selectedProjectName ? (
         <Card
+          data-testid="instruction-confirmation-empty-state"
           style={{
             borderRadius: '8px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
@@ -557,6 +558,7 @@ export default function InstructionConfirmationTab({
                   <span>指示詳細</span>
                 </div>
                 <Button
+                  data-testid="instruction-flow-diagram-button"
                   type="default"
                   icon={<NodeIndexOutlined />}
                   onClick={handleOpenFlowDiagram}
@@ -596,6 +598,7 @@ export default function InstructionConfirmationTab({
               >
                 {/* タイトル部分（クリック可能） */}
                 <div
+                  data-testid="instruction-group-file-toggle"
                   style={{
                     flex: 1,
                     display: 'flex',
@@ -665,6 +668,7 @@ export default function InstructionConfirmationTab({
             {/* タスク単位指示グループ */}
             <div style={{ marginBottom: '8px' }}>
               <div
+                data-testid="instruction-group-task-toggle"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -712,6 +716,7 @@ export default function InstructionConfirmationTab({
             {/* トランジション単位指示グループ */}
             <div style={{ marginBottom: '8px' }}>
               <div
+                data-testid="instruction-group-transition-toggle"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -761,6 +766,7 @@ export default function InstructionConfirmationTab({
             <Divider style={{ margin: `${token.marginXL}px 0` }} />
             <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: token.marginLG }}>
               <Button
+                data-testid="instruction-confirm-all-button"
                 type="primary"
                 size="large"
                 icon={<CheckCircleOutlined />}

@@ -96,12 +96,14 @@ export default function SelectionDialog({
       }
     >
       <List
+        data-testid={`selection-dialog-list-${type}`}
         dataSource={items}
         renderItem={(item) => {
           const isSelected = item.id === selectedId;
           
           return (
             <List.Item
+              data-testid={`selection-dialog-item-${item.id}`}
               onClick={() => handleSelect(item.id)}
               style={{
                 cursor: 'pointer',

@@ -30,6 +30,7 @@ export default function InstructionCard({
   // projectStatusは将来の拡張に備えて受け取るのみ
   return (
     <Card
+      data-testid={`instruction-card-${instruction.instructionId}`}
       style={{
         borderLeft: `4px solid ${getPriorityColor(instruction.priority)}`,
         backgroundColor: instruction.priority === 'high' ? '#fef2f2' : 'white',
@@ -45,23 +46,33 @@ export default function InstructionCard({
         <Flex justify="space-between" align="center">
           <Space size="small" wrap>
             <Tag
+              data-testid={`instruction-card-priority-tag-${instruction.instructionId}`}
               color={getPriorityColor(instruction.priority)}
               style={{ fontWeight: 'bold' }}
             >
               {getPriorityLabel(instruction.priority)}
             </Tag>
-            <Tag>{getTypeLabel(instruction.instructionType)}</Tag>
+            <Tag data-testid={`instruction-card-type-tag-${instruction.instructionId}`}>
+              {getTypeLabel(instruction.instructionType)}
+            </Tag>
           </Space>
           
           {isClient && (
-            <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+            <Text
+              data-testid={`instruction-card-date-${instruction.instructionId}`}
+              type="secondary"
+              style={{ fontSize: 12, whiteSpace: 'nowrap' }}
+            >
               <CalendarOutlined /> {formatRelativeTime(instruction.createdAt)}
             </Text>
           )}
         </Flex>
         
         {/* 指示内容 */}
-        <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>
+        <Paragraph
+          data-testid={`instruction-card-content-${instruction.instructionId}`}
+          style={{ marginTop: 8, marginBottom: 0 }}
+        >
           {instruction.content}
         </Paragraph>
       </Space>

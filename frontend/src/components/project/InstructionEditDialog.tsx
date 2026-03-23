@@ -362,6 +362,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
 
   return (
     <Modal
+      data-testid="instruction-edit-dialog"
       title={isSentInstruction ? '指示詳細' : mode === 'create' ? '新規指示の追加' : '指示の編集'}
       open={open}
       onCancel={handleCancel}
@@ -392,6 +393,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
             type="primary"
             icon={<SaveOutlined />}
             onClick={handleSave}
+            data-testid="instruction-edit-dialog-save-button"
           >
             保存
           </Button>,
@@ -570,12 +572,13 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
               { max: 1000, message: '1000文字以内で入力してください' },
             ]}
           >
-            <TextArea
+          <TextArea
               placeholder="作業者への具体的な指示を入力してください..."
               rows={6}
               showCount
               maxLength={1000}
               disabled={isSentInstruction}
+              data-testid="instruction-edit-dialog-content"
             />
           </Form.Item>
         </Space>

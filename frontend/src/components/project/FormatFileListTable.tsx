@@ -143,6 +143,7 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
               size="small"
               icon={<EditOutlined />}
               style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+              data-testid={`file-edit-button-${record.name}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit?.(record);
@@ -155,6 +156,7 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
               type="default"
               size="small"
               icon={<DownloadOutlined />}
+              data-testid={`file-download-button-${record.name}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onDownload?.(record);
@@ -167,6 +169,7 @@ const FormatFileListTable: React.FC<FormatFileListTableProps> = ({
               danger
               size="small"
               icon={<DeleteOutlined />}
+              data-testid={`file-delete-button-${record.name}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete?.(record);

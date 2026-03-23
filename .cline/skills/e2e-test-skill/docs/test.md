@@ -1,0 +1,1451 @@
+## E2Eテスト規約（Playwright + playwright-bdd）
+
+### 概要
+
+E2Eテストは **Playwright** + **playwright-bdd** を使用した BDD（Gherkin）形式で実装する。  
+フロントエンド・バックエンド・PostgreSQL がすべて起動している状態でテストを実行する。
+
+---
+
+### フロントエンドUIフレームワーク（本システム固有の必須知識）
+
+本システムのフロントエンドは **Ant Design v6（React）** を使用している。
+
+Playwrightでセレクターを記述する際は、ネイティブHTMLのDOMではなく  
+**Ant DesignのCSSクラス名** を使用する必要がある。
+
+**⚠️ 重要:** 以下のような汎用セレクターは Ant Design のDOM構造に合わないため **使用禁止**：
+
+```typescript
+// ❌ 禁止: ネイティブHTMLやaria属性ベースのセレクター（Ant Designでは機能しない）
+page.locator('[data-menu-id]')          // Ant Design Menu の data-* 属性
+page.locator('.ant-menu-item')          // Ant Design Menu のメニュー項目（本システムは Tabs を使用）
+page.locator('li, a, span').filter(...)  // 汎用HTML要素での絞り込み（DOM構造依存でNG）
+page.locator('[role="tab"]')             // WAI-ARIA属性（Ant Designは独自クラスで管理）
+```
+
+すべての画面操作は後述の **「Ant Design v6 セレクタ一覧」** に記載されたCSSクラス名を使用すること。
+
+---
+
+### ディレクトリ構造
+
+```
+e2e/
+├── playwright.config.ts          # Playwright 設定
+├── db.ts                         # DB接続（テストデータ検証・クリーンアップ用）
+├── features/                     # Gherkin シナリオファイル（.feature）
+│   └── {機能グループ}/
+│       └── {シナリオID}_{機能名}.feature
+├── steps/                        # Steps 実装ファイル（.ts）
+│   └── {機能グループ}/
+│       └── {シナリオID}_{機能名}.ts
+└── test-scenarios/               # テストシナリオ一覧（業務内容定義）
+    └── {番号}_{グループ名}.md
+```
+
+**ルール:**
+- `.feature` ファイルと Steps ファイルは同じ名前・同じグループフォルダに配置する
+- 例: `features/provider/1-1_corporation_create.feature` → `steps/provider/1-1_corporation_create.ts`
+- テストが完了したファイルは `e2e/done/` へ移動して退避する（後述）
+
+---
+
+### feature ファイル作成前の設計ドキュメント参照（必須）
+
+Gherkin を使用して feature ファイルを作成する際は、テストに関係する画面の以下の設計ドキュメントを **必ず事前に参照** すること。
+
+#### ① UI設計ドキュメント（`docs/design/ui/`）
+
+画面ごとの UI ドキュメントが格納されている。テスト対象画面の名前で対応するファイルを特定して参照する。
+
+| ドキュメント例 | 内容 |
+|---|---|
+| `ui_corporation_main.md` | 会社管理画面（一覧） |
+| `ui_corporation_add_dialog.md` | 会社追加ダイアログ |
+| `ui_corporation_edit_dialog.md` | 会社編集ダイアログ |
+| `ui_organization_main.md` | 組織管理画面（一覧） |
+| `ui_login.md` | ログイン画面 |
+
+**参照目的:**
+- 画面に存在するボタン・入力フィールド・テーブル列などの UI 要素を正確に把握する
+- バリデーションルール（必須/文字数制限など）を確認する
+- エラーメッセージの文言を確認する
+- 操作フロー（ダイアログ開閉・確認ダイアログの有無など）を確認する
+
+#### ② DBテーブル定義（`docs/design/db/ddl/`）【必須】
+
+DB操作（`db.query()` によるクエリ・クリーンアップ・検証）を含むステップを実装する前に、  
+**必ず対象テーブルの DDL ファイルを参照**してカラム名・型・制約を確認すること。
+
+**DDLファイル一覧（`docs/design/db/ddl/`）:**
+
+| DDLファイル | テーブル | 主なカラム |
+|---|---|---|
+| `corporation.sql` | corporation（会社） | `corporation_id`, `corporation_name`, `is_active` |
+| `organization.sql` | organization（組織） | `organization_id`, `organization_cd`, `organization_display_name`, `organization_email`, `chief_user_id`, `corporation_id`, `is_entry`, `use_deemed_progress`, `contract_capacity`, `contract_users`, `contract_projects`, `is_active` |
+| `organization_user.sql` | organization_user | 組織ユーザー紐づけ |
+| `user_authentication.sql` | user_authentication | ユーザー認証情報 |
+| `role.sql` | role | ロール定義 |
+| `role_permission.sql` | role_permission | ロール権限 |
+| `project.sql` | project | プロジェクト |
+| `project_task.sql` | project_task | プロジェクトタスク |
+| `department.sql` | department | 部門 |
+| `file_metadata.sql` | file_metadata | ファイルメタデータ |
+
+**参照目的:**
+- カラム名を正確に確認する（例: `organization_name` は存在せず `organization_display_name` が正しい）
+- NOT NULL 制約のあるカラムに値を漏れなく指定する
+- 主キー・ユニーク制約を把握して INSERT/SELECT クエリを正しく組み立てる
+- タイムスタンプカラムが `create_at`/`update_at` か `created_at`/`updated_at` かを確認する
+
+**確認フロー:**
+
+```
+DB操作ステップを実装する前に
+  ↓
+① docs/design/db/ddl/{テーブル名}.sql を開く
+② カラム名・型・NOT NULL 制約を確認する
+③ 確認したカラム名で SELECT / INSERT / UPDATE / DELETE を記述する
+```
+
+**よくある間違い（DDL を確認せずに実装した場合）:**
+
+```typescript
+// ❌ 誤り: organization テーブルに organization_name カラムは存在しない
+await db.query('SELECT organization_id FROM organization WHERE organization_name = $1', [name]);
+
+// ✅ 正しい: DDL を確認するとカラム名は organization_display_name
+await db.query('SELECT organization_id FROM organization WHERE organization_display_name = $1', [name]);
+```
+
+---
+
+#### ③ API設計ドキュメント（`docs/design/api/`）
+
+画面で使用する API エンドポイントのドキュメントが格納されている。
+
+| ドキュメント例 | 内容 |
+|---|---|
+| `api_corporation_management.md` | 会社管理 API |
+| `api_organization_management.md` | 組織管理 API |
+| `api_user_management.md` | ユーザー管理 API |
+
+**参照目的:**
+- 保存・更新・削除時のエンドポイントパス（`Promise.race` の URL 判定に使用）
+- リクエスト/レスポンスのデータ構造を確認する
+- エラーレスポンスのパターンを確認する
+
+#### 参照フロー
+
+```
+feature ファイル作成開始
+  ↓
+① docs/design/ui/{画面名}.md を確認
+   → UI要素・バリデーション・操作フローを把握
+  ↓
+② docs/design/api/{機能名}.md を確認
+   → APIエンドポイントパス・レスポンスを把握
+  ↓
+テストシナリオ（test-scenarios/*.md）を読む
+  ↓
+Gherkin シナリオを作成する
+```
+
+---
+
+### featureファイルのタグ付け規約
+
+#### すべてのシナリオに @タグ を付けること（必須）
+
+featureファイルのシナリオには **必ず `@タグ`** を付ける。  
+タグがないシナリオは `--grep` による絞り込み実行ができないため。
+
+**タグ命名規則:** `@{シナリオID}` （例: `@1-4-1`, `@1-4-2`）
+
+```gherkin
+# ✅ 正しい例: タグあり（--grep で絞り込み可能）
+@1-4-1
+シナリオ: [1-4-1] CSVダウンロードボタンをクリックすると...
+
+# ❌ 悪い例: タグなし（--grep で絞り込みできない）
+シナリオ: [1-4-4] 会社名が空のCSVをアップロードすると...
+```
+
+---
+
+### 特定シナリオのみ実行する（--grep）
+
+`--grep` オプションでタグを指定することで、featureファイル内の特定シナリオだけを実行できる。
+
+#### 単一シナリオを実行
+
+```bash
+cd tests
+npx bddgen --config e2e/playwright.config.ts && \
+npx playwright test --config e2e/playwright.config.ts --headed --grep "@1-4-1"
+```
+
+#### 複数シナリオを実行（OR条件）
+
+```bash
+npx playwright test --config e2e/playwright.config.ts --headed --grep "@1-4-1|@1-4-2"
+```
+
+#### グループ全体を実行
+
+```bash
+npx playwright test --config e2e/playwright.config.ts --headed --grep "@1-4"
+```
+
+#### 特定シナリオを除外して実行
+
+```bash
+npx playwright test --config e2e/playwright.config.ts --headed --grep-invert "@1-4-3"
+```
+
+| やりたいこと | コマンド例 |
+|---|---|
+| 1-4-1 のみ | `--grep "@1-4-1"` |
+| 1-4-1 と 1-4-2 | `--grep "@1-4-1|@1-4-2"` |
+| 1-4-x 全部 | `--grep "@1-4"` |
+| 1-4-3 を除外 | `--grep-invert "@1-4-3"` |
+
+---
+
+### テスト実行前提
+
+E2Eテストを実行する前に以下がすべて起動していること：
+
+- フロントエンド: `http://localhost:3000`
+- バックエンド: `http://localhost:3001`
+- PostgreSQL: 起動済み
+- テスト用ユーザーが DB に存在すること（事前データ投入）
+
+---
+
+### After フック（クリーンアップ）
+
+テストで作成したデータは必ず `After` フックで削除する。  
+タグによって削除対象を制御できる。
+
+```typescript
+import { After, AfterAll } from 'playwright-bdd';
+import { db, closeDb } from '../../db';
+
+/** 作成したレコードを追跡する配列 */
+const createdNames: string[] = [];
+
+// @常設データ タグ以外のシナリオ: DB からレコードを削除
+After({ tags: 'not @常設データタグ' }, async () => {
+  for (const name of createdNames) {
+    await db.query('DELETE FROM some_table WHERE name = $1', [name]);
+  }
+  createdNames.length = 0;
+});
+
+// @常設データ タグのシナリオ: DB 削除は行わずリストだけリセット
+After({ tags: '@常設データタグ' }, async () => {
+  createdNames.length = 0;
+});
+
+// 全シナリオ完了後に DB 接続プールを1回だけクローズ
+AfterAll(async () => {
+  await closeDb();
+});
+```
+
+---
+
+### ログイン手順
+
+`orgId` クエリパラメータを含む URL へ遷移してログインする。
+
+```typescript
+When('プロバイダーユーザー {string} でログインする', async ({ page }, userId: string) => {
+  // orgId をクエリパラメータに含めた URL へ遷移
+  await page.goto('/?orgId=809cae51-cd16-4429-b2cf-bb6cab13c3f6');
+
+  // ログインフォームが表示されるまで待機
+  await page.waitForSelector('#userId', { timeout: 15000 });
+
+  // ユーザーID・パスワードを入力してログイン
+  await page.fill('#userId', userId);
+  await page.fill('#password', 'パスワード');
+  await page.click('button[type="submit"]');
+
+  // ログイン完了を待機（networkidle でコンテンツが表示されるまで）
+  await page.waitForLoadState('networkidle', { timeout: 30000 });
+});
+```
+
+---
+
+### Ant Design v6 セレクタ一覧
+
+Ant Design v6 で使用する CSS クラス名を統一して使用すること。  
+バージョンによってクラス名が変わるため、下記以外のクラスを使用する場合は実際の DOM を確認すること。
+
+| 用途 | セレクタ |
+|------|---------|
+| モーダル全体 | `.ant-modal` |
+| モーダル 保存/OKボタン | `.ant-modal-footer .ant-btn-primary` |
+| モーダル キャンセルボタン | `.ant-modal-footer .ant-btn-default` |
+| テキスト入力フィールド | `.ant-input` |
+| Select コンポーネント | `.ant-select` |
+| Select ドロップダウン（全体） | `.ant-select-dropdown` |
+| Select 非表示ドロップダウン | `.ant-select-dropdown-hidden` |
+| Select オプション | `.ant-select-item-option[title="値"]` |
+| フォームバリデーションエラー | `.ant-form-item-explain-error` |
+| トーストメッセージ | `.ant-message-notice-wrapper` |
+| Form.Item コンテナ | `.ant-form-item` |
+| **Tabs ナビゲーション全体** | `.ant-tabs` |
+| **Tabs タブアイテム（全状態）** | `.ant-tabs-tab` |
+| **Tabs アクティブなタブ** | `.ant-tabs-tab.ant-tabs-tab-active` |
+
+---
+
+### 画面ナビゲーション（Ant Design Tabs コンポーネント）【重要】
+
+#### 本システムのナビゲーション実装
+
+本システムの **システム管理者画面・実験管理者画面等** では、  
+画面内のナビゲーション（タブ切り替え）に Ant Design の **`Tabs` コンポーネント** を使用している。
+
+**⚠️ `Menu` コンポーネントは使用していない。**  
+以下のセレクターはDOMに存在しないため **絶対に使用しないこと**：
+
+```typescript
+// ❌ 禁止: Menu コンポーネントのセレクター（本システムには存在しない）
+await page.waitForSelector('[data-menu-id]', { timeout: 15000 });  // DOM に存在しない → タイムアウト
+await page.waitForSelector('.ant-menu-item', { timeout: 15000 }); // DOM に存在しない → タイムアウト
+const menuItem = page.locator('li, a, span').filter({ hasText: 'タブ名' }); // 汎用要素 → 誤マッチ
+```
+
+#### Tabs タブクリックの正しい実装
+
+```typescript
+// ✅ 正しい例: .ant-tabs-tab セレクターを使用してタブをクリック
+When('ユーザー管理画面を開く', async ({ page }) => {
+  // タブが表示されるまで待機
+  await page.waitForSelector('.ant-tabs-tab', { timeout: 15000 });
+  // タブテキストでフィルタしてクリック
+  const tab = page.locator('.ant-tabs-tab').filter({ hasText: 'ユーザー管理' }).first();
+  await tab.click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+});
+```
+
+#### 各メニュー画面のタブ一覧
+
+**システム管理者画面（`SystemAdminMenu.tsx`）:**
+
+| タブ key | タブラベル | セレクター |
+|---|---|---|
+| '1' | システム概要 | `.ant-tabs-tab:has-text("システム概要")` |
+| '2' | ユーザー管理 | `.ant-tabs-tab:has-text("ユーザー管理")` |
+| '3' | セッション管理 | `.ant-tabs-tab:has-text("セッション管理")` |
+| '4' | 部署管理 | `.ant-tabs-tab:has-text("部署管理")` |
+| '5' | ロール管理 | `.ant-tabs-tab:has-text("ロール管理")` |
+
+**タブ操作パターン（統一フォーム）:**
+
+```typescript
+// タブ遷移の統一パターン
+async function clickTab(page: Page, tabLabel: string): Promise<void> {
+  await page.waitForSelector('.ant-tabs-tab', { timeout: 15000 });
+  const tab = page.locator('.ant-tabs-tab').filter({ hasText: tabLabel }).first();
+  await tab.click();
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+}
+
+// 使用例
+await clickTab(page, 'ユーザー管理');
+await clickTab(page, 'ロール管理');
+```
+
+---
+
+### ボタンラベルに改行文字（`\n`）が含まれる場合のセレクタ（重要）
+
+ja.json でボタンラベルに `\n`（改行）が含まれている場合、**正規表現の `.`（ドット）はデフォルトで `\n` にマッチしない**ため、
+`filter({ hasText: /CSV.*ダウンロード/ })` では一致しない。
+
+**Playwright の `:has-text()` 擬似クラスはホワイトスペース（`\n` 含む）を正規化**してサブストリングマッチするため、
+改行あり・なしどちらのボタンラベルにも対応できる。
+
+#### 実例（会社管理 vs 情報ダウンロード）
+
+| 画面 | ja.json のラベル | 備考 |
+|---|---|---|
+| 会社管理 | `"CSV\nダウンロード"` | 改行あり |
+| 情報ダウンロード | `"CSVダウンロード"` | 改行なし |
+
+```typescript
+// ❌ 悪い例: 正規表現の . は \n にマッチしないため会社管理ボタンに当たらない
+page.locator('button').filter({ hasText: /CSV.*ダウンロード/ }).click()
+
+// ❌ 誤った例: :has-text() は \n をスペースに正規化するため "CSV\nダウンロード" → "CSV ダウンロード" になり
+//             "CSVダウンロード"（スペースなし）とはマッチしない
+page.locator('button:has-text("CSVダウンロード")').click()
+
+// ✅ 正しい例: [\s\S]* は改行を含むあらゆる文字にマッチするため、改行あり・なし両方に対応
+page.locator('button').filter({ hasText: /CSV[\s\S]*ダウンロード/ }).click()
+
+// ✅ 代替案: 正規表現に s フラグ（dotAll）を付けて \n にもマッチさせる
+page.locator('button').filter({ hasText: /CSV.*ダウンロード/s }).click()
+```
+
+**推奨:** `:has-text()` 擬似クラスを使う。シンプルで改行の有無を意識しなくてよい。
+
+---
+
+### Ant Design Button の2文字漢字スペース自動挿入（重要）
+
+#### 問題の背景
+
+Ant Design の `Button` コンポーネントは、**2文字の漢字テキストの間にスペースを自動挿入**する仕様がある。
+
+| ボタンラベル（ja.json） | DOM上の実際のテキスト |
+|---|---|
+| `開始` | `開 始` |
+| `指示` | `指 示` |
+| `記録` | `記 録` |
+| `終了` | `終 了` |
+| `確認` | `確 認` |
+
+そのため `filter({ hasText: '開始' })` や `button:has-text("開始")` がマッチせず、
+**タイムアウトエラー（TimeoutError: locator.waitFor）** となる。
+
+エラーコンテキスト（`error-context.md`）のページスナップショットで実際の DOM を確認すると、
+ボタンの `aria-label` 属性にはスペースなしの説明テキストが入っているため、
+**`aria-label` 属性を使ったセレクターを使用する**こと。
+
+#### ❌ 悪い例（hasText / has-text）
+
+```typescript
+// ❌ 悪い例: Ant Design が「開始」→「開 始」とスペースを挿入するためマッチしない
+const startBtn = page
+  .locator('[data-testid="task-list-table"] button')
+  .filter({ hasText: '開始' })
+  .first();
+
+// ❌ 悪い例: has-text 疑似クラスも同様にマッチしない
+const startBtns = page.locator('[data-testid="task-list-table"] button:has-text("開始")');
+```
+
+#### ✅ 正しい例（aria-label）
+
+```typescript
+// ✅ 正しい例: aria-label 属性でボタンを特定する（スペース挿入の影響を受けない）
+const startBtn = page
+  .locator('[data-testid="task-list-table"] button[aria-label="タスクを開始"]')
+  .first();
+await startBtn.waitFor({ state: 'visible', timeout: 10000 });
+await startBtn.click();
+```
+
+#### aria-label の確認方法
+
+テスト失敗時のエラーコンテキスト（`test-results/.../error-context.md`）の
+ページスナップショットを確認すると、ボタンの実際の `aria-label` が把握できる。
+
+```yaml
+# error-context.md のページスナップショット例
+- cell "タスクを開始" [ref=e215]:
+  - button "タスクを開始" [ref=e216] [cursor=pointer]:  ← ここの文字列が aria-label
+    - generic [ref=e217]: 開 始                          ← DOM上は「開 始」（スペースあり）
+```
+
+この場合、`button[aria-label="タスクを開始"]` でセレクタを作成する。
+
+#### よくある2文字漢字ボタンとその aria-label 対応表
+
+| ボタン表示 | 推奨セレクタ |
+|---|---|
+| 開 始 | `button[aria-label="タスクを開始"]` |
+| 終 了 | `button[aria-label="タスクを強制終了"]` |
+| 指 示 | `button[aria-label="作業指示を確認"]` |
+| 記 録 | `button[aria-label="実験記録を入力"]` |
+| 確 認 | `button[aria-label="問題確認"]` |
+
+#### DO / DON'T
+
+✅ **2文字漢字ボタンのセレクタは `button[aria-label="..."]` を使用する**  
+✅ **aria-label の値はエラーコンテキストのページスナップショットで確認する**  
+✅ **disabled 確認も同様に aria-label セレクタを使用する**（例: `button[aria-label="タスクを開始"]`）  
+❌ **`filter({ hasText: '開始' })` を2文字漢字ボタンに使用しない**（スペースが挿入されてマッチしない）  
+❌ **`button:has-text("終了")` を2文字漢字ボタンに使用しない**（同上）  
+❌ **3文字以上のボタン（「承認依頼」「強制終了」など）は影響を受けない**ため、hasText のままでよい
+
+---
+
+### 編集ダイアログの Input セレクター（重要）
+
+#### 問題の背景
+
+追加ダイアログと編集ダイアログで **IDフィールドが `disabled` になる** 画面では、  
+`.ant-modal .ant-input` という汎用セレクターが **disabled な ID フィールド（1番目の Input）** にヒットしてしまい、  
+本来操作したい名前フィールドへの入力やバリデーション確認が失敗する。
+
+#### 本システムで確認されている事象
+
+| 画面 | disabled フィールド | 正しく操作すべきフィールド |
+|---|---|---|
+| 部署管理（編集） | `#departmentId`（部署CD） | `#displayName`（部署名） |
+| ロール管理（編集） | `#role`（ロールCD） | `#roleName`（ロール名） |
+| ユーザー管理（編集） | `#userId`（メールアドレス） | `#userName`（ユーザー名）等 |
+
+同様の設計（編集時にIDフィールドが disabled になる）を持つ他の画面でも同じ問題が発生する。
+
+#### ❌ 悪い例（汎用セレクター）
+
+```typescript
+// ❌ 悪い例: .ant-modal .ant-input は disabled な1番目のフィールドにヒットする
+const inputSel = '.ant-modal .ant-input';
+await page.click(inputSel);               // disabled フィールドをクリック → 入力できない
+await setReactInputValue(page, inputSel, newName);  // 値が入らずタイムアウト
+```
+
+#### ✅ 正しい例（Form.Item name から導出した ID セレクター）
+
+Ant Design の `Form.Item name="xxx"` は DOM上で `id="xxx"` の Input を生成する。  
+この ID を使って **操作対象フィールドを直接指定**する。
+
+```typescript
+// ✅ 部署編集ダイアログ: 部署名フィールドを直接指定
+// Form.Item name="displayName" → id="displayName"
+const inputSel = '.ant-modal #displayName';
+await page.click(inputSel);
+await page.keyboard.press('Control+A');
+await setReactInputValue(page, inputSel, newName);
+
+// ✅ ロール編集ダイアログ: ロール名フィールドを直接指定
+// Form.Item name="roleName" → id="roleName"
+const inputSel = '.ant-modal #roleName';
+await page.click(inputSel);
+await page.keyboard.press('Control+A');
+await setReactInputValue(page, inputSel, newName);
+```
+
+#### ID の確認方法
+
+対象コンポーネント（`DepartmentManagement.tsx`, `RoleManagement.tsx` 等）の  
+`<Form.Item name="xxx">` を確認し、その `name` 値をそのまま ID セレクターとして使用する。
+
+```typescript
+// コンポーネントのフォーム定義例（RoleManagement.tsx）
+<Form.Item name="role" ...>      // → id="role"（編集時 disabled）
+  <Input disabled={!!editingMaster} />
+</Form.Item>
+<Form.Item name="roleName" ...>  // → id="roleName"（操作対象）
+  <Input />
+</Form.Item>
+```
+
+#### Then ステップでのフィールド値確認も同様
+
+```typescript
+// ❌ 悪い例: first() は disabled なフィールドを取得してしまう
+const input = page.locator('.ant-modal .ant-input').first();
+await expect(input).toHaveValue(expectedValue, { timeout: 5000 });
+
+// ✅ 正しい例: 特定の ID フィールドを直接指定
+const input = page.locator('.ant-modal #roleName');
+await expect(input).toHaveValue(expectedValue, { timeout: 5000 });
+```
+
+#### DO / DON'T
+
+✅ **編集ダイアログでは `Form.Item name` から導出した `#id` セレクターを使用する**  
+✅ **コンポーネントの `disabled={!!editingMaster}` パターンを見つけたら、そのフィールドを避けて操作する**  
+✅ **追加ダイアログでも可能な限り `#id` セレクターを使い、フィールドを明示的に指定する**  
+❌ **`.ant-modal .ant-input` の汎用セレクターを編集ダイアログで使わない**（disabled フィールドにヒットする）  
+❌ **`.ant-modal .ant-input:nth-of-type(N)` も位置依存で不安定なため使わない**
+
+---
+
+### React 制御コンポーネントへの入力方法（重要）
+
+`page.fill()` は HTML の value を変えるだけで React の `onChange` イベントをトリガーしない。  
+React が状態として管理している入力フィールドには `nativeInputValueSetter` を使って強制的に `onChange` を発火させる必要がある。
+
+```typescript
+// ❌ 悪い例: React の onChange が発火しないため、入力値がフォーム状態に反映されない
+await page.fill('.ant-modal .ant-input', '入力値');
+
+// ✅ 正しい例: nativeInputValueSetter で React の onChange を強制トリガー
+await page.evaluate(
+  ({ selector, val }: { selector: string; val: string }) => {
+    /* eslint-disable no-undef */
+    const el = (document as Document).querySelector(selector) as HTMLInputElement | null;
+    if (!el) return;
+    const proto = (window as Window & typeof globalThis).HTMLInputElement.prototype;
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+    nativeInputValueSetter?.call(el, val);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    /* eslint-enable no-undef */
+  },
+  { selector: '.ant-modal .ant-input', val: '入力値' }
+);
+```
+
+**適用ケース:**
+- Ant Design の `<Input>` コンポーネント
+- React が `value` と `onChange` で制御している全てのフォーム要素
+
+---
+
+### Ant Design Select の disabled 状態の検出と待機（重要）
+
+#### 問題の背景
+
+Ant Design の `<Select>` コンポーネントは `disabled={true}` プロパティを渡した場合、  
+DOM に `disabled` 属性を付与するのではなく **CSS クラス `ant-select-disabled`** を追加する方式で無効化する。
+
+そのため Playwright の `toBeEnabled()` / `toBeDisabled()` は **Ant Design Select には効かない**。
+
+```typescript
+// ❌ 間違い: Ant Design Select の disabled 状態を検出できない
+await expect(selectEl).toBeEnabled({ timeout: 15000 });   // disabled でもすぐ通過してしまう
+await expect(selectEl).toBeDisabled({ timeout: 15000 });  // enabled でも通過してしまう
+```
+
+#### ✅ 正しい待機方法
+
+`ant-select-disabled` クラスが**消えるまで**待機する。
+
+```typescript
+// ✅ 正しい: CSS クラスで disabled 状態を判定する
+// disabled={loading} → API ロード中は ant-select-disabled クラスが付く
+await expect(selectEl).not.toHaveClass(/ant-select-disabled/, { timeout: 15000 });
+```
+
+#### ✅ Ant Design Select を開く正しいクリックターゲット
+
+Ant Design Select の DOM 構造は以下のとおりで、**外側の `div` ではなく `.ant-select-selector` をクリックしないとドロップダウンが開かない**。
+
+```html
+<!-- Ant Design Select の DOM 構造 -->
+<div class="ant-select" data-testid="xxx">          ← ここをクリックしても開かない場合がある
+  <div class="ant-select-selector">                  ← ここをクリックするとドロップダウンが開く
+    <span class="ant-select-selection-placeholder">プレースホルダー</span>
+  </div>
+</div>
+```
+
+```typescript
+// ❌ 外側 div のクリックはドロップダウンが開かない場合がある
+await selectEl.click();
+
+// ✅ .ant-select-selector を明示的にクリックする
+await selectEl.locator('.ant-select-selector').click();
+```
+
+#### まとめ：Ant Design Select の disabled 待機 + 開くパターン
+
+```typescript
+const selectEl = page.locator('[data-testid="xxx"]');
+await selectEl.waitFor({ state: 'visible', timeout: 10000 });
+
+// ① disabled={loading} 対策: ant-select-disabled クラスが消えるまで待機
+await expect(selectEl).not.toHaveClass(/ant-select-disabled/, { timeout: 15000 });
+
+// ② .ant-select-selector をクリックしてドロップダウンを開く
+await selectEl.locator('.ant-select-selector').click();
+
+// ③ ドロップダウンが表示されるまで待機
+await waitForSelectDropdown(page);
+
+// ④ オプションを選択
+const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
+await visibleDropdown.locator(`.ant-select-item-option:has-text("${optionLabel}")`).click();
+```
+
+#### DO / DON'T
+
+✅ **Ant Design Select の disabled 待機は `not.toHaveClass(/ant-select-disabled/)` を使う**  
+✅ **Ant Design Select を開くには `.ant-select-selector` をクリックする**  
+❌ **`toBeEnabled()` / `toBeDisabled()` を Ant Design Select に使わない**（native disabled 属性がないため効かない）  
+❌ **外側 div をそのままクリックしない**（`.ant-select-selector` を明示的に指定する）
+
+---
+
+### Ant Design Select の操作手順
+
+Ant Design の Select は DOM 上でドロップダウンが常に存在するが、非表示時は `.ant-select-dropdown-hidden` クラスが付与される。  
+`click()` で開いた後、`waitForFunction` で可視状態を確認してからオプションを選択する。
+
+```typescript
+// 1. Select をクリックしてドロップダウンを開く
+const selectEl = page.locator('.ant-modal .ant-select');
+await selectEl.waitFor({ state: 'visible', timeout: 5000 });
+await selectEl.click();
+
+// 2. ドロップダウンが visible になるまで待機
+//    .ant-select-dropdown-hidden がなく、display が none でないものを確認
+await page.waitForFunction(
+  () => {
+    /* eslint-disable no-undef */
+    const dropdowns = (document as Document).querySelectorAll('.ant-select-dropdown');
+    return Array.from(dropdowns).some((d) => {
+      const el = d as HTMLElement;
+      return (
+        !el.classList.contains('ant-select-dropdown-hidden') &&
+        (window as Window & typeof globalThis).getComputedStyle(el).display !== 'none'
+      );
+    });
+    /* eslint-enable no-undef */
+  },
+  { timeout: 5000 }
+);
+
+// 3. 表示中のドロップダウン内の title 属性でオプションを選択
+const visibleDropdown = page
+  .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')
+  .first();
+await visibleDropdown
+  .locator(`.ant-select-item-option[title="選択したい値"]`)
+  .click();
+```
+
+**注意:**
+- `page.selectOption()` は Ant Design Select では機能しない（ネイティブ `<select>` ではないため）
+- オプションは `title` 属性で特定する（テキストコンテンツよりも安定している）
+
+---
+
+### 待機戦略
+
+#### ❌ 禁止: `waitForLoadState('networkidle')`
+
+保存後の検証に `waitForLoadState('networkidle')` を使ってはならない。  
+理由: トーストメッセージ（`.ant-message-notice-wrapper`）が消えるまで networkidle にならないため、  
+トーストの検証を行う前に消えてしまう。
+
+```typescript
+// ❌ 悪い例
+await page.click('.ant-modal-footer .ant-btn-primary');
+await page.waitForLoadState('networkidle'); // トーストが消えるまで待つため検証できない
+await expect(page.locator('.ant-message-notice-wrapper')).toBeVisible(); // 既に消えている
+```
+
+#### ✅ 推奨: `Promise.race()` で並列待機
+
+保存ボタンクリック後は以下の3パターンのいずれかが発生する。  
+`Promise.race()` で最初に発生したものを検知する。
+
+```typescript
+await page.click('.ant-modal-footer .ant-btn-primary');
+
+// ケース A: POST API レスポンス（正常保存・重複エラー）
+// ケース B: フロントバリデーションエラー（必須/文字数違反）
+// ケース C: トーストメッセージ表示（API エラー通知）
+await Promise.race([
+  page
+    .waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/エンドポイントパス') &&
+        resp.request().method() === 'POST',
+      { timeout: 10000 }
+    )
+    .catch(() => {}),
+  page
+    .waitForSelector('.ant-form-item-explain-error', { timeout: 10000 })
+    .catch(() => {}),
+  page
+    .waitForSelector('.ant-message-notice-wrapper', { timeout: 10000 })
+    .catch(() => {}),
+]);
+```
+
+---
+
+### モーダルの確認・特定方法
+
+同一ページに複数のモーダルが存在する場合や、タイトルでモーダルを特定する場合は  
+`filter({ hasText: 'タイトル名' })` を使う。
+
+```typescript
+// ✅ タイトルテキストでモーダルを特定（複数モーダルが存在しても安全）
+await expect(
+  page.locator('.ant-modal').filter({ hasText: '会社追加' })
+).toBeVisible({ timeout: 10000 });
+
+// モーダルが閉じたことを確認
+await expect(
+  page.locator('.ant-modal').filter({ hasText: '会社追加' })
+).not.toBeVisible({ timeout: 10000 });
+```
+
+---
+
+### 一括アクティブ/非アクティブボタンの操作（ツールバー）
+
+画面上部のツールバーには「追加」「アクティブ」「非アクティブ」「リロード」が並んでいる。  
+テーブル行の個別切り替えボタンと区別するため、**ツールバーの親 div を基点にボタンを特定**する。
+
+**ボタン配置（左→右）:** 追加 ｜ アクティブ ｜ 非アクティブ ｜ リロード
+
+```typescript
+// ① 「追加」ボタン右隣の「アクティブ」ボタン
+const addBtn = page.locator('button:has-text("追加")');
+await addBtn.waitFor({ state: 'visible', timeout: 10000 });
+const toolbar = addBtn.locator('xpath=ancestor::div[1]');
+await toolbar.locator('button:has-text("アクティブ")').first().click();
+await page.waitForSelector('.ant-modal-confirm', { timeout: 10000 });
+
+// ② 「リロード」ボタン左隣の「非アクティブ」ボタン
+const reloadBtn = page.locator('button:has-text("リロード")');
+await reloadBtn.waitFor({ state: 'visible', timeout: 10000 });
+const toolbar = reloadBtn.locator('xpath=ancestor::div[1]');
+await toolbar.locator('button:has-text("非アクティブ")').first().click();
+await page.waitForSelector('.ant-modal-confirm', { timeout: 10000 });
+```
+
+**なぜ XPath sibling を使わないのか:**  
+Ant Design のボタンは `<button>` の直接兄弟ではなくラッパー `<div>` で囲まれているため、  
+`following-sibling::button` / `preceding-sibling::button` による XPath は一致しない。  
+代わりに `ancestor::div[1]` でツールバー親 div を取得し、その中から `has-text` でボタンを特定する。
+
+```typescript
+// ❌ 悪い例: XPath sibling は Ant Design のボタン DOM に合わない
+await addBtn.locator('xpath=following-sibling::button[contains(., "アクティブ")]').first().click();
+
+// ✅ 正しい例: ancestor div 経由でツールバー内ボタンを特定
+const toolbar = addBtn.locator('xpath=ancestor::div[1]');
+await toolbar.locator('button:has-text("アクティブ")').first().click();
+```
+
+---
+
+### テーブル行の状態確認（CSS クラスベース）
+
+テーブルの行スタイルが `rowClassName` で制御されている場合（例: `inactive-row`）、  
+`toHaveClass` / `not.toHaveClass` で状態を検証する。
+
+```typescript
+// 対象行を「その行に含まれるテキスト」で特定する
+const row = page.locator('table tr', {
+  has: page.locator(`td:has-text("${corporationName}")`),
+});
+await expect(row).toBeVisible({ timeout: 10000 });
+
+// アクティブ: inactive-row クラスが存在しないこと
+await expect(row).not.toHaveClass(/inactive-row/);
+
+// 非アクティブ: inactive-row クラスが存在すること
+await expect(row).toHaveClass(/inactive-row/, { timeout: 10000 });
+```
+
+---
+
+### テーブルセルのテキスト確認
+
+一覧画面に特定の値が表示されているかを検証するパターン。
+
+```typescript
+// ✅ 表示されていること
+await expect(
+  page.locator(`table td:has-text("${targetName}")`)
+).toBeVisible({ timeout: 10000 });
+
+// ✅ 表示されていないこと
+await expect(
+  page.locator(`table td:has-text("${targetName}")`)
+).not.toBeVisible({ timeout: 10000 });
+```
+
+---
+
+### エラーメッセージの検証
+
+フォームバリデーションエラー（フロント）とトーストメッセージ（API エラー）では  
+使用するセレクタが異なる。
+
+```typescript
+// フロントバリデーションエラー（Form.Item 直下のエラーテキスト）
+await expect(
+  page.locator(`.ant-form-item-explain-error:has-text("${errorMessage}")`)
+).toBeVisible({ timeout: 5000 });
+
+// API エラー（トーストメッセージ） または バリデーションエラー の両方を対象にしたい場合
+await expect(
+  page.locator(
+    `.ant-message-notice-wrapper:has-text("${errorMessage}"), .ant-form-item-explain-error:has-text("${errorMessage}")`
+  )
+).toBeVisible({ timeout: 5000 });
+```
+
+---
+
+### Select の初期値確認
+
+Ant Design Select の表示テキストは `.ant-select-selector` 内の DOM が複雑なため、  
+親の Form.Item コンテナを基点にテキストを確認する方が安定している。
+
+```typescript
+// ❌ 不安定: .ant-select-selector の DOM 構造に依存
+await expect(page.locator('.ant-select-selector')).toHaveText('アクティブ');
+
+// ✅ 安定: Form.Item 全体を基点に containsText で確認
+const statusFormItem = page.locator('.ant-modal .ant-form-item', { hasText: '状態' });
+await expect(statusFormItem).toBeVisible({ timeout: 5000 });
+await expect(statusFormItem).toContainText('アクティブ', { timeout: 5000 });
+```
+
+---
+
+### E2Eテスト ベストプラクティス
+
+#### DO（推奨）
+
+✅ **`nativeInputValueSetter` で React 制御入力に値をセットする**  
+✅ **Ant Design Select は `waitForFunction` でドロップダウン可視確認後に選択する**  
+✅ **保存後の待機は `Promise.race()` で API レスポンス・バリデーションエラー・トーストを並列監視する**  
+✅ **モーダルは `filter({ hasText: 'タイトル' })` で特定する**  
+✅ **テーブル行の状態は `rowClassName` に使われる CSS クラスで検証する**  
+✅ **テスト後は `After` フックで必ず DB レコードを削除する**  
+✅ **常設テストデータはタグ（`@タグ名`）で識別して削除対象から除外する**  
+✅ **`AfterAll` で DB 接続プールを1回だけクローズする**  
+✅ **DB 検証（INSERT/DELETE確認）は Playwright の `db.query()` で直接行う**
+
+#### DON'T（非推奨）
+
+❌ **`page.fill()` を React 制御コンポーネントに使わない** → `onChange` が発火しない  
+❌ **保存後に `waitForLoadState('networkidle')` を使わない** → トーストが消えてから解決される  
+❌ **`page.selectOption()` を Ant Design Select に使わない** → ネイティブ `<select>` ではない  
+❌ **`.ant-select-selector` のテキストを直接検証しない** → DOM 構造が不安定  
+❌ **テストで作成した DB レコードを削除せずに終了しない** → 他のテストに干渉する
+
+---
+
+### ステップ定義の重複エラー（Multiple definitions matched）
+
+#### エラーの症状
+
+```
+Error: Multiple definitions matched scenario step.
+Step: 前提プロバイダーのユーザID "xxx" がDB（organization_userテーブル）に存在する
+  - Given '...' # e2e\steps\provider\1-1_xxx.ts:XX
+  - Given '...' # e2e\steps\provider\1-2_xxx.ts:XX
+```
+
+#### 原因
+
+複数の `.ts` ステップファイルに**同一文言の `Given/When/Then`** が定義されている。  
+playwright-bdd はすべての steps ファイルを一括ロードするため、同じパターンが2か所以上存在すると上記エラーが発生する。
+
+#### 解決策: 共通ステップファイルに集約する
+
+複数の feature ファイルで共有するステップは、専用の **`common.ts`** ファイルに一元定義する。
+
+**ファイル配置例:**
+```
+e2e/steps/
+└── provider/
+    ├── common.ts                   # ← 共通ステップはここに集約
+    ├── 1-1_corporation_create.ts
+    └── 1-2_corporation_edit.ts
+```
+
+**`common.ts` の実装例:**
+```typescript
+// e2e/steps/provider/common.ts
+import { createBdd } from 'playwright-bdd';
+
+const { Given } = createBdd();
+
+Given(
+  'プロバイダーのユーザID {string} がDB（organization_userテーブル）に存在する',
+  async ({}, _userId: string) => {
+    // no-op: テスト用ユーザーは事前準備済みとする
+  }
+);
+```
+
+**各ステップファイルからは重複定義を削除する:**
+```typescript
+// ❌ 1-1_xxx.ts / 1-2_xxx.ts に同じ Given を書かない
+Given('プロバイダーのユーザID {string} がDB...', async ({}, _userId) => { ... }); // 削除
+
+// ✅ common.ts の1か所だけに定義する
+```
+
+> **注意:** `common.ts` を `import` する必要はない。  
+> playwright-bdd は `steps/` ディレクトリ配下のファイルを自動ロードするため、  
+> ファイルを配置するだけで有効になる（`playwright.config.ts` の `steps` glob 設定に従う）。
+
+#### bddgen キャッシュが原因で同じエラーが継続する場合
+
+ソースファイルの重複を解消してもエラーが継続する場合、`bddgen` が生成した  
+`e2e/.features-gen/` フォルダに古い生成ファイルが残っていることが原因。  
+`npm run test` は実行前に自動でこのフォルダを削除してから `bddgen` を再実行する。
+
+```json
+// package.json（参考）
+"test": "node -e \"try{require('fs').rmSync('e2e/.features-gen',{recursive:true,force:true})}catch(e){}\" && npx bddgen ..."
+```
+
+手動で削除したい場合：
+
+```powershell
+# Windows PowerShell
+Remove-Item -Recurse -Force e2e\.features-gen -ErrorAction SilentlyContinue
+npm run test
+```
+
+```bash
+# Mac / Linux
+rm -rf e2e/.features-gen
+npm run test
+```
+
+#### DO / DON'T
+
+✅ **複数 feature で共有するステップは `common.ts` に1か所だけ定義する**  
+✅ **グループ（機能単位）ごとに `common.ts` を作成する**（例: `steps/provider/common.ts`, `steps/system/common.ts`）  
+✅ **`npm run test` はキャッシュ自動削除済み（`e2e/.features-gen` を削除してから実行）**  
+❌ **同じステップ文言を複数のファイルに重複定義しない**  
+❌ **ソースを修正してもエラーが続く場合、`e2e/.features-gen` の削除を疑う**
+
+---
+
+### 完了済みテストの退避（e2e/done/）
+
+#### 概要
+
+テストが完了したシナリオ（`.feature` + `.ts`）は、`e2e/done/` フォルダへ移動して退避する。  
+`features/` / `steps/` の外なので `npm run test` で一切読み込まれない。
+
+#### フォルダ構造
+
+```
+e2e/
+├── done/                            # ← 完了済みテストの退避先（テスト実行対象外）
+│   ├── features/
+│   │   └── provider/
+│   │       └── 1-1_corporation_create.feature
+│   └── steps/
+│       └── provider/
+│           └── 1-1_corporation_create.ts
+├── features/                        # ← テスト実行対象
+└── steps/                           # ← テスト実行対象
+```
+
+#### 退避手順（PowerShell）
+
+```powershell
+# フォルダ作成（存在しない場合）
+New-Item -ItemType Directory -Force -Path "e2e\done\features\provider" | Out-Null
+New-Item -ItemType Directory -Force -Path "e2e\done\steps\provider" | Out-Null
+
+# ファイルを移動
+Move-Item "e2e\features\provider\1-1_xxx.feature" "e2e\done\features\provider\1-1_xxx.feature"
+Move-Item "e2e\steps\provider\1-1_xxx.ts" "e2e\done\steps\provider\1-1_xxx.ts"
+```
+
+#### 再実行したい場合
+
+退避済みファイルを元の場所に戻すだけで再実行できる。
+
+```powershell
+Move-Item "e2e\done\features\provider\1-1_xxx.feature" "e2e\features\provider\1-1_xxx.feature"
+Move-Item "e2e\done\steps\provider\1-1_xxx.ts" "e2e\steps\provider\1-1_xxx.ts"
+```
+
+#### DO / DON'T
+
+✅ **完了したテストは `e2e/done/` へ移動して退避する**  
+✅ **退避はファイルを削除せず移動する（Git 履歴が残る）**  
+✅ **`features/` と `steps/` のペアを必ず同時に退避する**  
+❌ **`features/` / `steps/` 配下にサブフォルダを作って退避しない** → glob `**/*.feature` にマッチしてしまう  
+❌ **完了済みファイルを削除しない** → 後から参照・再実行できなくなる
+
+---
+
+### テストデータの準備方針（グループ登録パターン）
+
+#### 概要
+
+複数シナリオが同じマスターデータを前提とするグループ（例: `1-2-1`〜`1-2-6` が同じ会社データを使う）では、  
+**グループ最初のシナリオの `Before` フックで UI 経由一括登録**し、  
+後続シナリオは **DB UPDATE で `is_active` のみ調整**する方式を採用する。
+
+これにより、テストデータが「実際の画面操作で作成されたもの」であることを保証できる。
+
+#### テストデータ JSON ファイルの構造
+
+テストデータは `e2e/fixtures/testdata/` に JSON ファイルで管理する。
+
+```
+e2e/fixtures/testdata/
+├── corporation_test_data.json    # 会社マスターデータ
+├── organization_test_data.json   # 組織マスターデータ
+└── ...
+```
+
+**JSON の構造（会社の例）:**
+
+```json
+{
+  "_comment": "group-X-X-setup: グループ最初のシナリオの Before で UI 経由一括登録するデータ",
+
+  "group-1-2-setup": {
+    "description": "[1-2] グループで使う会社を UI 経由で一括登録",
+    "records": [
+      { "corporation_name": "MaimlソフトAAA", "is_active": true },
+      { "corporation_name": "MaimlソフトBBB", "is_active": true }
+    ],
+    "cleanup_names": ["E2E編集後株式会社", "E2Eキャンセル後テスト社"]
+  },
+
+  "1-2-1": {
+    "description": "会社名変更テスト",
+    "is_active_overrides": [
+      { "corporation_name": "MaimlソフトAAA", "is_active": true }
+    ],
+    "cleanup_names": ["E2E編集後株式会社"]
+  },
+  "1-2-2": {
+    "description": "アクティブ→非アクティブ変更テスト",
+    "is_active_overrides": [
+      { "corporation_name": "MaimlソフトBBB", "is_active": true }
+    ],
+    "cleanup_names": []
+  }
+}
+```
+
+| キー | 説明 |
+|---|---|
+| `group-X-X-setup` | グループ全体で共通利用するデータ。UI 経由で登録する。`is_active` は初期値（通常 `true`）。 |
+| `X-X-X`（シナリオID） | 各シナリオ固有の設定。`is_active_overrides` で DB UPDATE する is_active 値を指定する。 |
+| `records` | グループ登録時に UI 経由で作成するレコード一覧。 |
+| `is_active_overrides` | シナリオ開始直前に DB UPDATE で適用する is_active 値。グループ登録後の差分のみ記述。 |
+| `cleanup_names` | Before で事前削除する名前リスト（前回のテストで残ったゴミデータを除去するため）。 |
+
+#### Before フックのフロー
+
+```
+グループ最初のシナリオ（例: @1-2-1）の Before:
+  1. loginForSetup(page)        ← プロバイダーとしてログイン
+  2. registerCorporationsViaUI(page, 'group-1-2-setup')
+     ├── cleanup_names を DB DELETE
+     ├── 会社管理画面へ遷移
+     └── records の各会社を「追加」ダイアログ経由で登録（DB に存在する場合はスキップ）
+  3. applyCorporationIsActiveOverrides('1-2-1')
+     ├── cleanup_names を DB DELETE
+     └── is_active_overrides を DB UPDATE で適用
+
+後続シナリオ（例: @1-2-3）の Before:
+  1. applyCorporationIsActiveOverrides('1-2-3')
+     ├── cleanup_names を DB DELETE
+     └── is_active = false に DB UPDATE
+```
+
+#### After フックのクリーンアップ
+
+UI 経由で作成したレコードは `createdCorporationNames` / `createdOrganizationCds` 配列で追跡し、  
+After フックで DB DELETE する。
+
+```typescript
+// After フック（クリーンアップ例）
+After(async () => {
+  for (const name of createdCorporationNames) {
+    await db.query('DELETE FROM corporation WHERE corporation_name = $1', [name]).catch(() => {});
+  }
+  createdCorporationNames.length = 0;
+
+  for (const cd of createdOrganizationCds) {
+    await db.query('DELETE FROM organization WHERE organization_cd = $1', [cd]).catch(() => {});
+  }
+  createdOrganizationCds.length = 0;
+
+  // is_active の復元
+  for (const { name, isActive } of corpStatusRestore) {
+    await db.query(
+      'UPDATE corporation SET is_active = $1 WHERE corporation_name = $2',
+      [isActive, name]
+    ).catch(() => {});
+  }
+  corpStatusRestore.length = 0;
+});
+```
+
+#### ヘルパー関数一覧
+
+| 関数名 | 役割 |
+|---|---|
+| `loginForSetup(page)` | Before フック用ログイン（プロバイダーユーザー） |
+| `registerCorporationsViaUI(page, groupKey)` | `group-X-X-setup` キーの会社を会社追加ダイアログ経由で一括登録 |
+| `registerOrganizationsViaUI(page, groupKey)` | `group-X-X-setup` キーの組織を組織追加ダイアログ経由で一括登録 |
+| `applyCorporationIsActiveOverrides(scenarioId)` | `is_active_overrides` を DB UPDATE で適用 |
+| `applyOrganizationIsActiveOverrides(scenarioId)` | `is_active_overrides` を DB UPDATE で適用 |
+
+#### DO / DON'T
+
+✅ **グループ最初のシナリオ（`@1-2-1`, `@1-3-1`, `@1-6-1`, `@1-7-1`）の Before で UI 経由一括登録する**  
+✅ **後続シナリオは `applyCorporationIsActiveOverrides` / `applyOrganizationIsActiveOverrides` で is_active のみ調整する**  
+✅ **テストデータは JSON ファイルに集約し、コードに直書きしない**  
+✅ **UI 経由で作成したレコードを `createdXxxNames` / `createdXxxCds` に追跡し After フックで削除する**  
+❌ **グループ最初のシナリオ以外の Before で UI ログイン → 登録操作をしない**（テスト時間が長くなる）  
+❌ **DB に直接 INSERT してテストデータを作成しない**（UI 経由で作成したデータである保証が失われる）
+
+---
+
+### テスト順序依存・前提状態依存の管理（重要）
+
+#### 問題の典型例（1-7-4 / 1-7-5）
+
+「アクティブ化」を確認するシナリオは、**前のシナリオで「非アクティブ化」されていること**を前提とする。
+
+```gherkin
+# 1-7-3: 非アクティブ化を確認（アクティブ → 非アクティブ）
+@1-7-3
+シナリオ: 組織の個別切り替えボタンで非アクティブ化できること
+
+# 1-7-4: アクティブ化を確認（非アクティブ → アクティブ）  ← 1-7-3 で非アクティブになっている前提
+@1-7-4
+シナリオ: 組織の個別切り替えボタンでアクティブ化できること
+```
+
+1-7-4 単独実行すると Before フックが `setupOrganizationTestData('1-7-4')` で対象組織の `is_active = false` を保証するため問題ない。  
+しかし **組織 CD が DB に存在しない場合**（前回の After で削除された等）は `setupOrganizationTestData` が INSERT するため、`createdOrganizationCds` に追加して After で削除される。
+
+#### 対処ルール
+
+- アクティブ化確認シナリオは `before` フックで対象組織の `is_active = false` を明示的に保証する
+- `applyOrganizationIsActiveOverrides` の `is_active_overrides` で対象 CD の `is_active: false` を定義する
+- 状態依存が発生するシナリオは **必ず前のシナリオと連続実行**するか、Before フックで前提状態を独立して保証する
+
+---
+
+### Ant Design Select のデフォルト値はスキップすること（重要）
+
+#### 問題の症状
+
+`fillOrganizationForm` 等で「なし」「無効」といったデフォルト値を Select に渡すと、  
+`selectOptionByLabel` がドロップダウン表示を待ち続けてタイムアウトになる。
+
+#### 原因
+
+Ant Design Select は既に「なし」が選択されている状態でも `click()` が実行されるため、  
+ドロップダウンの動作が不安定になりタイムアウトする。
+
+#### 対処：デフォルト値はスキップする
+
+```typescript
+// ✅ デフォルト値の場合は操作不要のためスキップ
+const defaultValues = ['なし', '無効'];
+if (value && !defaultValues.includes(value)) {
+  await selectOptionByLabel(page, selectLabelMap[field], value);
+}
+```
+
+**適用が必要なフィールド例：**
+
+| フィールド | デフォルト値 | スキップ条件 |
+|---|---|---|
+| 二段階認証判定 | 無効 | `'無効'` の場合はスキップ |
+| みなし進捗使用フラグ | なし | `'なし'` の場合はスキップ |
+| 状態（会社/組織） | アクティブ | `'アクティブ'` の場合はスキップ |
+
+---
+
+### エラー確認テストでのクリーンアップ追跡の罠（重複エラーシナリオ等）
+
+#### 問題の症状（1-5-7 の事例）
+
+1-5-7「既存の組織CDを入力した場合に重複エラーが表示されること」を実行後、  
+次回実行時の Before フックで `e2e-permanent-org-aaa` が存在せず重複エラーを再現できなくなる。
+
+#### 原因
+
+`fillOrganizationForm` 内で入力した組織 CD を **保存成否に関わらず** `createdOrganizationCds` に追加していると、  
+POST が失敗（重複エラー）しても After フックで CD が削除されてしまう。
+
+```
+Before: e2e-permanent-org-aaa を INSERT（存在しなければ）
+  ↓
+テスト: '組織CD' = 'e2e-permanent-org-aaa' を入力 → [重複エラーが返る]
+  ↓ ❌ fillOrganizationForm 内で createdOrganizationCds.push('e2e-permanent-org-aaa') が走る
+  ↓
+After: createdOrganizationCds を DELETE → e2e-permanent-org-aaa が消えてしまう
+  ↓
+次回実行時: Before が INSERT しようとするが、または CD なしで重複確認ができない
+```
+
+#### 対処ルール
+
+**組織 CD / 組織表示名の追跡は「POST 成功時のみ」行う。**  
+フォーム入力時は一時変数（`lastEnteredOrgCd`）に保持するだけにし、POST レスポンスが成功した時点で `createdOrganizationCds` に追加する。
+
+```typescript
+// ✅ fillOrganizationForm 内：一時変数に保持するだけ
+if (field === '組織CD' && value) {
+  lastEnteredOrgCd = value;  // POST 成功時に createdOrganizationCds へ追加（呼び出し元で実施）
+}
+
+// ✅ POST 成功を検知したら追跡対象に追加（重複エラー確認テストでは呼ばれない）
+const response = await page.waitForResponse(
+  (r) => r.url().includes('/provider/organization') && r.request().method() === 'POST',
+  { timeout: 10000 }
+);
+if (response.status() < 400 && lastEnteredOrgCd) {
+  createdOrganizationCds.push(lastEnteredOrgCd);
+  lastEnteredOrgCd = null;
+}
+```
+
+**常設データ（Permanent Data）パターンの使い分け：**
+
+| パターン | 用途 | クリーンアップ |
+|---|---|---|
+| `createdOrganizationCds` | POST 成功で作成した組織 | After フックで DELETE |
+| Before で INSERT + After で復元 | 重複・トグル確認など前提データが必要なシナリオ | After フックで元の状態に復元 |
+| `setupOrganizationTestData` | Before フックでの前提データ準備（UPSERT） | After フックで復元 or DELETE |
+
+---
+
+### テスト順序変更時の連動更新（3点セット）
+
+グループシナリオ（例: 1-7-x）の末尾シナリオを変更するときは、以下の **3箇所を必ず同時に変更** すること。
+
+#### 変更が必要な3箇所
+
+| ファイル | 変更内容 |
+|---|---|
+| `tests/e2e/features/provider/1_provider.feature` | シナリオの順序・タグを変更 |
+| `tests/e2e/fixtures/testdata/organization_test_data.json` | `"group_end_tag"` キーを新しい末尾シナリオ ID に更新 |
+| `tests/e2e/steps/provider/1_provider.ts` | `After({ tags: '@X-X-X' })` のタグを新しい末尾タグに更新 |
+
+#### 例：1-7 グループの末尾が `@1-7-5` になった場合
+
+```json
+// organization_test_data.json
+{
+  "group-1-7-setup": {
+    "group_end_tag": "@1-7-5"  // ← 末尾シナリオを @1-7-5 に変更
+  }
+}
+```
+
+```typescript
+// 1_provider.ts
+After({ tags: '@1-7-5' }, async () => {  // ← @1-7-5 に変更
+  for (const cd of groupSharedOrganizationCds) {
+    await deleteOrganizationCascade(cd).catch(() => {});
+  }
+  groupSharedOrganizationCds.length = 0;
+});
+```
+
+**3点セットの更新を怠るとどうなるか：**
+
+- グループ共有データが削除されずに残り続ける（リソースリーク）
+- または途中のシナリオで共有データが消えて後続シナリオが失敗する
+
+### セレクタの決定方針（data-testid）
+
+#### 概要
+
+ステップファイルでセレクタを指定する際は、**フロントエンドソースに `data-testid` 属性を付与し、それをセレクタとして使用する**。  
+CSS クラス（`.ant-select` 等）や `text=` による推測セレクタは、コンポーネント変更・テキスト変更で壊れやすいため非推奨。
+
+#### セレクタ決定フロー
+
+```
+featureファイル・ステップファイル作成時
+  ↓
+① テスト対象画面の UI 設計書（docs/design/ui/）を開く
+   → 「使用コンポーネント」セクションで画面の構成要素を確認する
+  ↓
+② 対応するフロントエンドソースファイルを特定する
+   → UI 設計書のファイルパス（例: frontend/src/components/ExperimentWorker/DataRecordDialog.tsx）
+  ↓
+③ ソースファイルを read_file で読み込み、テスト対象要素を探す
+   → ボタン・Select・Input・Checkbox など
+  ↓
+④ 対象要素に data-testid 属性を追加する（ソースファイルを変更）
+   → 命名規則に従って命名する（後述）
+  ↓
+⑤ ステップファイルに [data-testid="xxx"] セレクタを記述する
+   → フォールバックセレクタ不要。data-testid のみで記述する
+```
+
+#### data-testid 命名規則
+
+**フォーマット:** `{コンポーネント名}-{要素の役割}` （ケバブケース・英語小文字）
+
+| コンポーネント | data-testid 例 | 対象要素 |
+|---|---|---|
+| プロジェクト選択 Select | `project-select` | Ant Design `<Select>` |
+| プロジェクト選択ボタン | `project-select-button` | `<Button>` |
+| メソッド選択 Select | `method-select` | Ant Design `<Select>` |
+| タスク選択 Select | `task-select` | Ant Design `<Select>` |
+| メソッド・タスク選択ボタン | `method-task-select-button` | `<Button>` |
+| みなし進捗チェックボックス | `deemed-progress-checkbox` | `<Checkbox>` |
+| 作業指示ボタン | `instruction-button` | `<Button>` |
+| データ記録キャンセルボタン | `data-record-cancel-button` | `<Button>` |
+| データ記録保存ボタン | `data-record-save-button` | `<Button>` |
+
+#### ソースファイルへの追加方法
+
+Ant Design コンポーネントは `data-testid` プロパティをそのまま受け取りDOMに反映される。
+
+```tsx
+// ✅ Select に data-testid を追加
+<Select
+  data-testid="project-select"
+  value={selectedProject}
+  onChange={handleProjectChange}
+  ...
+/>
+
+// ✅ Button に data-testid を追加
+<Button
+  data-testid="project-select-button"
+  type="primary"
+  onClick={() => setDialogOpen(true)}
+>
+  選択
+</Button>
+
+// ✅ Checkbox に data-testid を追加
+<Checkbox
+  data-testid="deemed-progress-checkbox"
+  checked={useDeemedProgress}
+  onChange={(e) => setUseDeemedProgress(e.target.checked)}
+>
+  みなし進捗更新
+</Checkbox>
+```
+
+#### ステップファイルでの使用方法
+
+```typescript
+// ✅ data-testid セレクタのみで記述（フォールバック不要）
+const projectSelect = page.locator('[data-testid="project-select"]');
+await projectSelect.waitFor({ state: 'visible', timeout: 10000 });
+await projectSelect.click();
+
+// ❌ 非推奨: CSS クラスによるフォールバック混在（保守が複雑になる）
+const projectSelect = page.locator('[data-testid="project-select"], .project-select-area .ant-select').first();
+```
+
+#### ステップファイル生成時の注意事項
+
+- シナリオ・ステップファイルを作成する時点で、**対応ソースに `data-testid` が存在しない場合は追加すること**
+- `data-testid` がない場合に `TODO:` コメントを残すのではなく、その場でソースを修正して `data-testid` を追加してセレクタを確定させる
+- `data-testid` はテスト専用の識別子であり、スタイルや業務ロジックに影響しない
+
+#### DO / DON'T
+
+✅ **UI 設計書の「使用コンポーネント」からソースファイルを特定し `data-testid` を追加する**  
+✅ **ステップファイルでは `[data-testid="xxx"]` のみを使用する**  
+✅ **ステップファイル生成時に `data-testid` が未追加なら即座にソースに追加する**  
+❌ **`TODO: 実際のセレクタに更新すること` のようなコメントを残さない**  
+❌ **CSS クラス（`.ant-select` 等）をメインセレクタとして使用しない**  
+❌ **`text=` や `:has-text()` を一意のセレクタとして使用しない**（複数要素にマッチしやすい）
