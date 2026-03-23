@@ -13,6 +13,7 @@ import { ProjectAccessValidator } from '../services/projectAccessValidator';
 import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import { ingestSingleFileAsync } from '../services/singleFileIngestService';
+import UploadBatchRepository from '../repositories/UploadBatchRepository';
 
 /**
  * 単一ファイルダウンロード用署名付きURL取得エンドポイント
@@ -655,10 +656,7 @@ export async function getBatchHistory(req: Request, res: Response): Promise<void
     const { organizationId } = req as any;
     const { status, startDate, endDate, limit, offset } = req.query;
 
-    // uploadBatchRepositoryを直接使用
-    const uploadBatchRepository = (await import('../repositories/UploadBatchRepository')).default;
-    
-    const batches = await uploadBatchRepository.search({
+    const batches = await UploadBatchRepository.search({
       organizationId,
       status: status as any,
       startDate: startDate ? new Date(startDate as string) : undefined,
@@ -716,10 +714,7 @@ export async function getBatchProgress(req: Request, res: Response): Promise<voi
       requestId,
     });
 
-    // uploadBatchRepositoryを直接使用
-    const uploadBatchRepository = (await import('../repositories/UploadBatchRepository')).default;
-    
-    const progress = await uploadBatchRepository.getProgress(batchId);
+    const progress = await UploadBatchRepository.getProgress(batchId);
 
     if (!progress) {
       console.log(`⚠️ [Batch Progress] バッチが見つかりません: ${batchId}`);

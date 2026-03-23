@@ -13,7 +13,6 @@ export interface OrganizationUser {
   role_cd: string;
   organization_id: string;
   is_active: boolean;
-  locked_until: Date | null;
   department_cd: string | null;
   corporation_id: string | null;
 }
@@ -103,7 +102,6 @@ export class OrganizationUserRepository {
           ou.role_cd,
           ou.organization_id,
           ou.is_active,
-          ou.locked_until,
           ou.department_cd,
           o.corporation_id
         FROM organization_user ou
@@ -161,7 +159,6 @@ export class OrganizationUserRepository {
           ou.role_cd,
           ou.organization_id,
           ou.is_active,
-          ou.locked_until,
           ou.department_cd,
           o.corporation_id,
           r.initial_screen_function_cd,

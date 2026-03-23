@@ -607,13 +607,14 @@ async function createBackup(filePath: string, organizationId: string): Promise<s
     // 3. archiveフォルダパス生成
     const archivePath = `${dirPath}/archive`;
 
-    // 4. archive内の既存バックアップファイルを取得して最大連番を算出
+    // 4. archive内の既存バックアップファイルを取得して最大バージョン番号を算出
+    // 命名規則: {baseName}_v{n}.maiml （s3_structure.md 規約準拠）
     let maxNumber = 0;
     try {
       const files = await storageService.listFiles(organizationId, archivePath);
       
-      // baseName_数字.maiml パターンのファイルから最大連番を取得
-      const pattern = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_(\\d{3})\\.maiml$`);
+      // baseName_v{n}.maiml パターンのファイルから最大バージョン番号を取得
+      const pattern = new RegExp(`^${baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_v(\\d+)\\.maiml$`);
       files.forEach((file: any) => {
         const name = file.key.split('/').pop();
         if (name) {
@@ -627,15 +628,15 @@ async function createBackup(filePath: string, organizationId: string): Promise<s
         }
       });
       
-      console.log(`📊 [maimlService] archive内の既存バックアップ最大連番: ${maxNumber}`);
+      console.log(`📊 [maimlService] archive内の既存バックアップ最大バージョン番号: ${maxNumber}`);
     } catch (error) {
-      // archiveフォルダが存在しない場合は0から開始
-      console.log('📁 [maimlService] archiveフォルダが存在しないため、001から開始');
+      // archiveフォルダが存在しない場合は v1 から開始
+      console.log('📁 [maimlService] archiveフォルダが存在しないため、v1から開始');
     }
 
-    // 5. 新しいバックアップファイル名生成（連番を3桁にゼロパディング）
+    // 5. 新しいバックアップファイル名生成（_v{n} 形式）
     const newNumber = maxNumber + 1;
-    const backupFileName = `${baseName}_${String(newNumber).padStart(3, '0')}.maiml`;
+    const backupFileName = `${baseName}_v${newNumber}.maiml`;
     const backupPath = `${archivePath}/${backupFileName}`;
 
     // 6. 既存ファイルを取得

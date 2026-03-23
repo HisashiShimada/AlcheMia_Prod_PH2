@@ -596,27 +596,13 @@ function buildCommonTemplateXML(
     xml += `      <uuid>${generateUUID()}</uuid>\n`;
   }
   
-  // テンプレート継承（templateRef要素）
-  if (template.templateRef) {
-    const inheritNodeId = template.templateRef.ref;
-    const inheritNode = allPlaces.find(p => p.id === inheritNodeId);
-    if (inheritNode && inheritNode.data.template) {
-      const inheritTemplateId = inheritNode.data.template.id || inheritNode.data.template.id || 
-        `Common${templateType.replace('Template', '')}${inheritNode.id}`;
-      const templateRefId = `templateRef_${templateId}`;
-      xml += `      <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
-    }
-  }
-  
-  // insertion要素
+  // XSD準拠: insertionType の uri/hash は必須（minOccurs=1）
   if (template.insertion) {
     xml += `      <insertion>\n`;
-    if (template.insertion.uri !== undefined) {
-      xml += `        <uri>${escapeXml(template.insertion.uri || '')}</uri>\n`;
-    }
-    if (template.insertion.hash !== undefined) {
-      xml += `        <hash>${escapeXml(template.insertion.hash.value || '')}</hash>\n`;
-    }
+    // uri は必須（undefinedでも空文字で出力）
+    xml += `        <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
+    // hash は必須（undefinedでも空文字で出力）
+    xml += `        <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
     if (template.insertion.format) {
       xml += `        <format>${escapeXml(template.insertion.format)}</format>\n`;
     }
@@ -633,29 +619,36 @@ function buildCommonTemplateXML(
     xml += `      <description>${escapeXml(template.description)}</description>\n`;
   }
   
-  // property要素群（insertion型を除外して出力）
+  // property要素群
   if (template.properties && template.properties.length > 0) {
-    template.properties
-      .forEach((prop: Property) => {
-        xml += buildPropertyXML(prop, 3);
-      });
+    template.properties.forEach((prop: Property) => {
+      xml += buildPropertyXML(prop, 3);
+    });
   }
   
-  // ✅ 共通テンプレート: 複数のplaceRefを出力（template.placeRefsから取得）
+  // XSD準拠: placeRef（必須・1以上）を placeRef→templateRef の順で出力
   const placeRefs = template.placeRefs || [];
-  
   console.log(`📋 共通テンプレート ${templateId}: placeRefs数 ${placeRefs.length}`, placeRefs);
   
-  // template.placeRefsの各ノードIDに対してplaceRefを出力
   placeRefs.forEach((placeRef, index) => {
     const placeRefId = index === 0 
       ? (template.placeRefs[0].id || `${templateId}TL`)
       : `${templateId}TL_ref${index}`;
-    
     xml += `      <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
-    
     console.log(`  ✅ placeRef追加: id="${placeRefId}" ref="${placeRef.ref}"`);
   });
+
+  // XSD準拠: templateRef は placeRef の後に出力
+  if (template.templateRef) {
+    const inheritNodeId = template.templateRef.ref;
+    const inheritNode = allPlaces.find(p => p.id === inheritNodeId);
+    if (inheritNode && inheritNode.data.template) {
+      const inheritTemplateId = inheritNode.data.template.id ||
+        `Common${templateType.replace('Template', '')}${inheritNode.id}`;
+      const templateRefId = `templateRef_${templateId}`;
+      xml += `      <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
+    }
+  }
   
   xml += `    </${templateType}>\n`;
   return xml;
@@ -853,31 +846,8 @@ export async function convertReactFlowToMaiML(
   maiml += `  <protocol id="${escapeXml(protocolId)}">\n`;
   maiml += `    <uuid>${escapeXml(protocolUuid)}</uuid>\n`;
   
-  // ✅ 共通テンプレートを<protocol>直下に出力（<method>の前）
-  if (commonTemplates.length > 0) {
-    console.log('📋 共通テンプレートを<protocol>直下に出力:', commonTemplates.length, '個');
-    
-    // タイプ別に分類
-    const commonMaterialTemplates = commonTemplates.filter(n => n.data.placeType === 'material');
-    const commonConditionTemplates = commonTemplates.filter(n => n.data.placeType === 'condition');
-    const commonResultTemplates = commonTemplates.filter(n => n.data.placeType === 'result');
-    
-    // materialTemplate
-    commonMaterialTemplates.forEach(node => {
-      maiml += buildCommonTemplateXML(node, 'materialTemplate', places, nodes);
-    });
-    
-    // conditionTemplate
-    commonConditionTemplates.forEach(node => {
-      maiml += buildCommonTemplateXML(node, 'conditionTemplate', places, nodes);
-    });
-    
-    // resultTemplate
-    commonResultTemplates.forEach(node => {
-      maiml += buildCommonTemplateXML(node, 'resultTemplate', places, nodes);
-    });
-  }
-  
+  // XSD準拠: protocolType は method → materialTemplate → conditionTemplate → resultTemplate の順
+  // 共通テンプレートは method の後に出力する
   maiml += `    <method id="${escapeXml(methodId)}">\n`;
   maiml += `      <uuid>${escapeXml(methodUuid)}</uuid>\n`;
   maiml += `      <pnml id="${escapeXml(pnmlId)}">\n`;
@@ -1135,26 +1105,11 @@ export async function convertReactFlowToMaiML(
       maiml += `          <uuid>${generateUUID()}</uuid>\n`;
     }
     
-    // テンプレート継承（templateRef要素）
-    if (template.templateRef) {
-      const inheritNodeId = template.templateRef.ref;
-      const inheritNode = places.find(p => p.id === inheritNodeId);
-      if (inheritNode && inheritNode.data.template) {
-        const inheritTemplateId = inheritNode.data.template.id || inheritNode.data.template.id || `MT${inheritNode.id}`;
-        const templateRefId = `templateRef_${templateId}`;
-        maiml += `          <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
-      }
-    }
-    
-    // insertion要素
+    // XSD準拠: insertionType の uri/hash は必須（minOccurs=1）
     if (template.insertion) {
       maiml += `          <insertion>\n`;
-      if (template.insertion.uri !== undefined) {
-        maiml += `            <uri>${escapeXml(template.insertion.uri || '')}</uri>\n`;
-      }
-      if (template.insertion.hash !== undefined) {
-        maiml += `            <hash>${escapeXml(template.insertion.hash.value || '')}</hash>\n`;
-      }
+      maiml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
+      maiml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
       if (template.insertion.format) {
         maiml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
       }
@@ -1171,21 +1126,29 @@ export async function convertReactFlowToMaiML(
       maiml += `          <description>${escapeXml(template.description)}</description>\n`;
     }
     
-    // property要素群（insertion型を除外して出力）
+    // property要素群
     if (template.properties && template.properties.length > 0) {
-      template.properties
-        .forEach((prop: Property) => {
-          maiml += buildPropertyXML(prop, 5);
-        });
+      template.properties.forEach((prop: Property) => {
+        maiml += buildPropertyXML(prop, 5);
+      });
     }
     
-    // placeRef（複数対応）
+    // XSD準拠: placeRef → templateRef の順で出力
     placeRefs.forEach((placeRef, index) => {
       const placeRefId = index === 0 
         ? (template.placeRefs[0].id || `${templateId}TL`)
         : `${templateId}TL_${index}`;
       maiml += `          <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
     });
+
+    // XSD準拠: templateRef は placeRef の後に出力
+    if (template.templateRef) {
+      const inheritNode = places.find(p => p.id === template.templateRef!.ref);
+      if (inheritNode && inheritNode.data.template) {
+        const inheritTemplateId = inheritNode.data.template.id || `MT${inheritNode.id}`;
+        maiml += `          <templateRef id="${escapeXml(`templateRef_${templateId}`)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
+      }
+    }
     
     maiml += `        </materialTemplate>\n`;
   });
@@ -1196,10 +1159,10 @@ export async function convertReactFlowToMaiML(
     const template = node.data.template;
     if (!template) return;
     
-    const templateId = template.id || template.id || `CT${node.id}`;
+    const templateId = template.id || `CT${node.id}`;
     let placeRefs = template.placeRefs || [];
     if (placeRefs.length === 0) {
-      placeRefs = [{id: '',ref : node.id}];
+      placeRefs = [{id: '', ref: node.id}];
     }
     
     maiml += `        <conditionTemplate id="${escapeXml(templateId)}">\n`;
@@ -1211,26 +1174,11 @@ export async function convertReactFlowToMaiML(
       maiml += `          <uuid>${generateUUID()}</uuid>\n`;
     }
     
-    // テンプレート継承（templateRef要素）
-    if (template.templateRef) {
-      const inheritNodeId = template.templateRef.ref;
-      const inheritNode = places.find(p => p.id === inheritNodeId);
-      if (inheritNode && inheritNode.data.template) {
-        const inheritTemplateId = inheritNode.data.template.id ||  `CT${inheritNode.id}`;
-        const templateRefId = `templateRef_${templateId}`;
-        maiml += `          <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
-      }
-    }
-    
-    // insertion要素
+    // XSD準拠: insertionType の uri/hash は必須（minOccurs=1）
     if (template.insertion) {
       maiml += `          <insertion>\n`;
-      if (template.insertion.uri !== undefined) {
-        maiml += `            <uri>${escapeXml(template.insertion.uri || '')}</uri>\n`;
-      }
-      if (template.insertion.hash !== undefined) {
-        maiml += `            <hash>${escapeXml(template.insertion.hash.value || '')}</hash>\n`;
-      }
+      maiml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
+      maiml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
       if (template.insertion.format) {
         maiml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
       }
@@ -1247,21 +1195,29 @@ export async function convertReactFlowToMaiML(
       maiml += `          <description>${escapeXml(template.description)}</description>\n`;
     }
     
-    // property要素群（insertion型を除外して出力）
+    // property要素群
     if (template.properties && template.properties.length > 0) {
-      template.properties
-        .forEach((prop: Property) => {
-          maiml += buildPropertyXML(prop, 5);
-        });
+      template.properties.forEach((prop: Property) => {
+        maiml += buildPropertyXML(prop, 5);
+      });
     }
     
-    // placeRef（複数対応）
+    // XSD準拠: placeRef → templateRef の順で出力
     placeRefs.forEach((placeRef, index) => {
       const placeRefId = index === 0 
         ? (template.placeRefs[0].id || `${templateId}TL`)
         : `${templateId}TL_${index}`;
       maiml += `          <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
     });
+
+    // XSD準拠: templateRef は placeRef の後に出力
+    if (template.templateRef) {
+      const inheritNode = places.find(p => p.id === template.templateRef!.ref);
+      if (inheritNode && inheritNode.data.template) {
+        const inheritTemplateId = inheritNode.data.template.id || `CT${inheritNode.id}`;
+        maiml += `          <templateRef id="${escapeXml(`templateRef_${templateId}`)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
+      }
+    }
     
     maiml += `        </conditionTemplate>\n`;
   });
@@ -1275,7 +1231,7 @@ export async function convertReactFlowToMaiML(
     const templateId = template.id || `RT${node.id}`;
     let placeRefs = template.placeRefs || [];
     if (placeRefs.length === 0) {
-      placeRefs = [{id: '',ref : node.id}];
+      placeRefs = [{id: '', ref: node.id}];
     }
     
     maiml += `        <resultTemplate id="${escapeXml(templateId)}">\n`;
@@ -1287,26 +1243,11 @@ export async function convertReactFlowToMaiML(
       maiml += `          <uuid>${generateUUID()}</uuid>\n`;
     }
     
-    // テンプレート継承（templateRef要素）
-    if (template.templateRef) {
-      const inheritNodeId = template.templateRef.ref;
-      const inheritNode = places.find(p => p.id === inheritNodeId);
-      if (inheritNode && inheritNode.data.template) {
-        const inheritTemplateId = inheritNode.data.template.id ||  `CT${inheritNode.id}`;
-        const templateRefId = `templateRef_${templateId}`;
-        maiml += `          <templateRef id="${escapeXml(templateRefId)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
-      }
-    }
-    
-    // insertion要素
+    // XSD準拠: insertionType の uri/hash は必須（minOccurs=1）
     if (template.insertion) {
       maiml += `          <insertion>\n`;
-      if (template.insertion.uri !== undefined) {
-        maiml += `            <uri>${escapeXml(template.insertion.uri || '')}</uri>\n`;
-      }
-      if (template.insertion.hash !== undefined) {
-        maiml += `            <hash>${escapeXml(template.insertion.hash.value || '')}</hash>\n`;
-      }
+      maiml += `            <uri>${escapeXml(template.insertion.uri ?? '')}</uri>\n`;
+      maiml += `            <hash>${escapeXml(template.insertion.hash?.value ?? '')}</hash>\n`;
       if (template.insertion.format) {
         maiml += `            <format>${escapeXml(template.insertion.format)}</format>\n`;
       }
@@ -1323,21 +1264,29 @@ export async function convertReactFlowToMaiML(
       maiml += `          <description>${escapeXml(template.description)}</description>\n`;
     }
     
-    // property要素群（insertion型を除外して出力）
+    // property要素群
     if (template.properties && template.properties.length > 0) {
-      template.properties
-        .forEach((prop: Property) => {
-          maiml += buildPropertyXML(prop, 5);
-        });
+      template.properties.forEach((prop: Property) => {
+        maiml += buildPropertyXML(prop, 5);
+      });
     }
     
-    // placeRef（複数対応）
+    // XSD準拠: placeRef → templateRef の順で出力
     placeRefs.forEach((placeRef, index) => {
       const placeRefId = index === 0 
         ? (template.placeRefs[0].id || `${templateId}TL`)
         : `${templateId}TL_${index}`;
       maiml += `          <placeRef id="${escapeXml(placeRefId)}" ref="${escapeXml(placeRef.ref)}"/>\n`;
     });
+
+    // XSD準拠: templateRef は placeRef の後に出力
+    if (template.templateRef) {
+      const inheritNode = places.find(p => p.id === template.templateRef!.ref);
+      if (inheritNode && inheritNode.data.template) {
+        const inheritTemplateId = inheritNode.data.template.id || `RT${inheritNode.id}`;
+        maiml += `          <templateRef id="${escapeXml(`templateRef_${templateId}`)}" ref="${escapeXml(inheritTemplateId)}"/>\n`;
+      }
+    }
     
     maiml += `        </resultTemplate>\n`;
   });
@@ -1352,7 +1301,9 @@ export async function convertReactFlowToMaiML(
     maiml += `  ${originalStructure.data.rawXML}\n`;
   } else {
     const dataId = originalStructure?.data?.id || 'dataID';
+    // XSD準拠: globalObjectContentGroup により uuid が必須
     maiml += `  <data id="${escapeXml(dataId)}">\n`;
+    maiml += `    <uuid>${generateUUID()}</uuid>\n`;
     maiml += `  </data>\n`;
   }
   
@@ -1360,7 +1311,9 @@ export async function convertReactFlowToMaiML(
     maiml += `  ${originalStructure.eventLog.rawXML}\n`;
   } else {
     const eventLogId = originalStructure?.eventLog?.id || 'eventLogID';
+    // XSD準拠: globalObjectContentGroup により uuid が必須
     maiml += `  <eventLog id="${escapeXml(eventLogId)}">\n`;
+    maiml += `    <uuid>${generateUUID()}</uuid>\n`;
     maiml += `  </eventLog>\n`;
   }
   

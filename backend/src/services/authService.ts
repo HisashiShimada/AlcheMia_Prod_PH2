@@ -37,9 +37,13 @@ export class AuthService {
   constructor(pool: Pool) {
     this.pool = pool;
     this.passwordService = new PasswordService(pool);
+    // 本番環境、または EMAIL_ENABLED=true の場合は EmailService を渡してメール送信を有効にする
+    const emailEnabled =
+      process.env.NODE_ENV === 'production' ||
+      process.env.EMAIL_ENABLED === 'true';
     this.pinCodeService = new PinCodeService(
       pool,
-      process.env.NODE_ENV === 'development' ? undefined : new EmailService()
+      emailEnabled ? new EmailService() : undefined
     );
     this.pinExemptionService = new PinExemptionService(pool);
     this.jwtService = new JwtService();
@@ -103,7 +107,7 @@ export class AuthService {
       if (!user.is_active) {
         await loginHistoryRepository.recordLogin(
           this.pool,
-          user.user_name,
+          user.user_id,
           user.organization_id,
           false,
           'Account disabled',
@@ -132,7 +136,7 @@ export class AuthService {
       if (!passwordResult.success || !passwordResult.data) {
         await loginHistoryRepository.recordLogin(
           this.pool,
-          user.user_name,
+          user.user_id,
           user.organization_id,
           false,
           'Invalid password',
@@ -151,7 +155,7 @@ export class AuthService {
 
       // 4. PIN免除判定
       const exemptionCheck = await this.pinExemptionService.isExemptionApplicable(
-        user.user_name,
+        user.user_id,
         user.organization_id
       );
 
@@ -208,7 +212,7 @@ export class AuthService {
       // 6. ログイン成功履歴記録
       await loginHistoryRepository.recordLogin(
         this.pool,
-        user.user_name,
+        user.user_id,
         user.organization_id,
         true,
         null,
@@ -224,8 +228,11 @@ export class AuthService {
         expiresIn: 300, // 5分（秒）
       };
 
-      // 開発環境の場合のみPINコードを含める
-      if (process.env.NODE_ENV === 'development') {
+      // EMAIL_ENABLED=false かつ非本番環境の場合のみPINコードをレスポンスに含める（開発用）
+      const emailEnabled =
+        process.env.NODE_ENV === 'production' ||
+        process.env.EMAIL_ENABLED === 'true';
+      if (!emailEnabled) {
         responseData.pinCode = pinSendResult.data.pinCode;
         responseData.devMode = true;
       }
@@ -266,6 +273,8 @@ export class AuthService {
       let maskedEmailResult = 'use***@example.com';
       let tempPassword = '';
 
+      console.log(userResult.success);
+
       if (userResult.success) {
         const user = userResult.data;
         maskedEmailResult = maskEmail(user.mail_address);
@@ -294,8 +303,12 @@ export class AuthService {
           hashResult.data
         );
 
-        // メール送信（開発環境ではスキップ）
-        if (process.env.NODE_ENV !== 'development') {
+        // 本番環境、または EMAIL_ENABLED=true の場合はメール送信
+        const emailEnabled =
+          process.env.NODE_ENV === 'production' ||
+          process.env.EMAIL_ENABLED === 'true';
+
+        if (emailEnabled) {
           const emailResult = await this.emailService.sendTempPassword(
             user.mail_address,
             tempPassword,
@@ -311,10 +324,8 @@ export class AuthService {
               },
             };
           }
-        }
-
-        // 開発環境の場合、コンソールに一時パスワードを出力
-        if (process.env.NODE_ENV === 'development') {
+        } else {
+          // EMAIL_ENABLED=false の場合はコンソールに一時パスワードを出力
           console.log(`[INFO] 一時パスワード: ${tempPassword} (user_id=${user.user_id})`);
         }
         
@@ -327,8 +338,11 @@ export class AuthService {
         email: maskedEmailResult,
       };
 
-      // 開発環境の場合のみ一時パスワードを含める
-      if (process.env.NODE_ENV === 'development' && userResult.success) {
+      // EMAIL_ENABLED=false かつ非本番環境の場合のみ一時パスワードをレスポンスに含める（開発用）
+      const emailEnabledForResponse =
+        process.env.NODE_ENV === 'production' ||
+        process.env.EMAIL_ENABLED === 'true';
+      if (!emailEnabledForResponse && userResult.success) {
         responseData.tempPassword = tempPassword;
         responseData.devMode = true;
       }
@@ -564,7 +578,7 @@ export class AuthService {
       // 9. ログイン履歴を記録（二段階認証実施）
       await loginHistoryRepository.recordLogin(
         this.pool,
-        userInfo.username,
+        userInfo.id,
         userInfo.organizationId,
         true,
         null,

@@ -2,8 +2,8 @@
 
 ## メタデータ
 - **作成日**: 2026-01-20
-- **バージョン**: 2.17.0
-- **最終更新**: 2026-03-11
+- **バージョン**: 2.18.0
+- **最終更新**: 2026-03-18
 - **担当**: Development Team
 
 ---
@@ -54,7 +54,7 @@
 
 **API設計書**: [api_project_management.md](./api_project_management.md)  
 **ルートファイル**: `backend/src/routes/projectRoutes.ts`  
-**備考**: 実装済み13/16エンドポイント（81%）
+**備考**: 実装済み18/20エンドポイント（90%）
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
@@ -69,12 +69,14 @@
 | 2.9 | POST | /api/v1/projects/:projectName/instructions | 指示送信（タスク作成） | ⏳ 未実装 | ProjectController.createInstruction |
 | 2.10 | GET | /api/v1/projects/:projectName/instructions | 指示一覧取得 | ⏳ 未実装 | ProjectController.listInstructions |
 | 2.11 | POST | /api/v1/projects/search | プロジェクト詳細検索 | ⏳ 未実装 | ProjectController.search |
-| 2.12 | POST | /api/v1/projects/:projectName/publish | プロジェクト公開 | ⏳ 未実装 | ProjectController.publish |
-| 2.13 | GET | /api/v1/projects/:projectName/worker-instructions | 指示一覧取得（実験作業者用） | ⏳ 未実装 | InstructionController.list |
+| 2.12 | POST | /api/v1/projects/:projectName/publish | MaiML公開ジョブ投入 | ✅ 実装済み | ProjectController.publish |
+| 2.12b | POST | /api/v1/projects/:projectName/unpublish | MaiML非公開ジョブ投入 | ✅ 実装済み | ProjectController.unpublish |
+| 2.12c | GET | /api/v1/projects/:projectName/publish-status | 公開ジョブステータス取得 | ✅ 実装済み | ProjectController.getPublishStatus |
+| 2.13 | GET | /api/v1/projects/:projectName/worker-instructions | 指示一覧取得（実験作業者用） | ✅ 実装済み | ProjectController.getWorkerInstructions |
 | 2.14 | PUT | /api/v1/projects/:projectName/instructions/:instructionId/confirm | 指示確認完了 | ✅ 実装済み | ProjectController.confirmInstruction |
-| 2.15 | PATCH | /api/v1/projects/:projectName/approval-request | 承認依頼 | ⏳ 未実装 | ProjectController.requestApproval |
-| 2.16 | GET | /api/v1/projects/worker-accessible | 実験作業者用プロジェクト一覧取得 | ⏳ 未実装 | ProjectController.listWorkerAccessible |
-| 2.17 | GET | /api/v1/projects/:projectId/maiml | MAIMLファイル取得（プロジェクト） | ⏳ 未実装 | ProjectController.getProjectMaiml |
+| 2.15 | PATCH | /api/v1/projects/:projectName/approval-request | 承認依頼 | ✅ 実装済み | ProjectController.requestApproval |
+| 2.16 | GET | /api/v1/projects/worker-accessible | 実験作業者用プロジェクト一覧取得 | ✅ 実装済み | WorkerProjectController.listWorkerAccessible |
+| 2.17 | GET | /api/v1/projects/:projectName/maiml | MAIMLファイル取得（プロジェクト） | ✅ 実装済み | ProjectController.getProjectMaiml |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -228,20 +230,20 @@
 ### 6. 進捗確認API（Progress Monitoring）
 
 **API設計書**: [api_progress_monitoring.md](./api_progress_monitoring.md)  
-**ルートファイル**: `backend/src/routes/progressRoutes.ts`（推定）
+**ルートファイル**: `backend/src/routes/progressRoutes.ts`
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
 | 6.1 | GET | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details | タスク詳細取得 | ✅ 実装済み | ProjectController.getTaskDetail |
-| 6.3 | GET | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions | 進捗データ取得 | ⏳ 未実装 | ProgressController.getProgress |
-| 6.4 | GET | /api/v1/progress/projects/:projectName/worker-tasks | タスク一覧取得（実験作業者用） | ⏳ 未実装 | ProgressController.getWorkerTasks |
-| 6.5 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | タスクステータス更新 | ⏳ 未実装 | ProgressController.updateTaskStatus |
-| 6.6 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status | トランジションステータス更新 | ⏳ 未実装 | ProgressController.updateTransitionStatus |
+| 6.3 | GET | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions | 進捗データ取得 | ✅ 実装済み | ProgressController.getProgressData |
+| 6.4 | GET | /api/v1/progress/projects/:projectName/worker-tasks | タスク一覧取得（実験作業者用） | ✅ 実装済み | ProgressController.getWorkerTasks |
+| 6.5 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status | タスクステータス更新 | ✅ 実装済み | ProgressController.updateTaskStatus |
+| 6.6 | PATCH | /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status | トランジションステータス更新 | ✅ 実装済み | ProgressController.updateTransitionStatus |
 | 6.7 | GET | /api/v1/progress/projects/:projectName/work-details | 作業詳細一括取得 | ✅ 実装済み | ProgressController.getWorkDetails |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
-- 権限: 6.1-6.2（Manager以上）、6.3-6.4（experiment_worker読取専用）、6.5-6.6（experiment_worker書込可）
+- 権限: 6.1, 6.7（experiment_admin 読取専用）、6.3-6.4（experiment_worker 読取専用）、6.5-6.6（experiment_worker 書込可）
 
 **備考:**
 - メソッド別進捗集約
@@ -292,12 +294,12 @@
 ### 8. 実験データ記録API（Experiment Data Recording）
 
 **API設計書**: [api_experiment_data.md](./api_experiment_data.md)  
-**ルートファイル**: `backend/src/routes/experimentDataRoutes.ts`（推定）
+**ルートファイル**: `backend/src/routes/experimentRoutes.ts`
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | コントローラー |
 |----|-------------|---------------|------|---------|--------------|
-| 8.1 | POST | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | ExperimentDataController.saveBatch |
-| 8.2 | GET | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | テンプレート実績一覧取得 | ⏳ 未実装 | ExperimentDataController.getTemplateData |
+| 8.1 | POST | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ✅ 実装済み | experimentController.saveBatchData |
+| 8.2 | GET | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | テンプレート実績一覧取得 | ✅ 実装済み | experimentController.getTemplateData |
 
 **ミドルウェアチェーン:**
 - すべて: `auth` → `tenantIsolation` → `permissionCheck`
@@ -306,18 +308,20 @@
 **備考:**
 - 実験データのテンプレート単位保存
 - DataGrid（2次元配列）、ネストプロパティに対応
-- プロジェクトステータスが編集可能な場合のみ保存可能
-- ファイルアップロードは共通API（3.1）を使用
-- トランザクション保証により整合性を確保
-- マルチテナント分離により自組織の実験データのみ操作可能
-- **トランジションステータス更新APIは進捗確認API（6.6）に移動**
+- **API 8.1: 実験データ一括保存**
+  - `project_status = 2`（タスク実行中）のプロジェクトのみ保存可能（それ以外は 403）
+  - `records` 配列で複数プレースを一括保存（All or Nothing トランザクション保証）
+  - `use_deemed_progress = true` の組織では保存時に `transition_data` のステータスを自動更新（みなし進捗）
+  - 詳細仕様: [api_experiment_data.md](./api_experiment_data.md) API #1 を参照
 - **API 8.2: テンプレート実績一覧取得**
   - DataRecordDialog でダイアログを開いた際に既存入力済みデータを復元するために使用
   - クエリパラメータ `transitionId` を必須とする
   - S3/Swift の MaiML ファイルをパースしてペトリネット構造を解析
   - 指定トランジションに隣接するプレース（入力・出力の両方）のレコードを返却
-  - 隣接プレースの実績データが 0 件の場合も 200 OK（空配列）
+  - 隣接プレースの実績データが 0 件の場合も 200 OK（MAIMLテンプレート定義から初期値フォールバック生成）
   - 詳細仕様: [api_experiment_data.md](./api_experiment_data.md) API #2 を参照
+- **トランジションステータス更新APIは進捗確認API（6.6）に移動**
+- マルチテナント分離により自組織の実験データのみ操作可能
 
 ---
 
@@ -663,13 +667,13 @@
 | カテゴリ | 総数 | 実装済み | スタブ | 未実装 | 実装率 |
 |---------|------|---------|-------|--------|--------|
 | 認証API | 6 | 6 | 0 | 0 | 100% |
-| プロジェクト管理API | 16 | 13 | 0 | 3 | 81% |
+| プロジェクト管理API | 22 | 19 | 0 | 3 | 86% |
 | 共通API | 2 | 0 | 0 | 2 | 0% |
 | フォーマット管理API | 6 | 5 | 0 | 1 | 83% |
 | Maiml編集API | 18 | 17 | 0 | 1 | 94% |
-| 進捗確認API | 7 | 3 | 0 | 4 | 43% |
+| 進捗確認API | 7 | 7 | 0 | 0 | 100% |
 | 問題管理API | 5 | 5 | 0 | 0 | 100% |
-| 実験データ記録API | 2 | 0 | 0 | 2 | 0% |
+| 実験データ記録API | 2 | 2 | 0 | 0 | 100% |
 | 部署管理API | 7 | 7 | 0 | 0 | 100% |
 | ロール管理API | 8 | 8 | 0 | 0 | 100% |
 | マスタ管理API | 21 | 21 | 0 | 0 | 100% |
@@ -679,7 +683,7 @@
 | システム概要API | 1 | 1 | 0 | 0 | 100% |
 | ユーザー管理API | 7 | 7 | 0 | 0 | 100% |
 | MaiML OpenData Pipeline API | 3 | 3 | 0 | 0 | 100% |
-| **合計** | **127** | **113** | **0** | **14** | **89%** |
+| **合計** | **134** | **127** | **0** | **14** | **89%** |
 
 ### 優先度別実装状況
 
@@ -863,6 +867,12 @@ const path = `projects/${projectName}/file.maiml`;
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 2.18.0 | 2026-03-12 | 進捗確認API・実験データ記録API・プロジェクト管理APIの実装状況を更新 | Cline |
+| | | - 進捗確認API: 6.3〜6.6 を実装済みに更新（6.3: getProgressData, 6.4: getWorkerTasks, 6.5: updateTaskStatus, 6.6: updateTransitionStatus） | |
+| | | - 実験データ記録API: 8.1/8.2 を実装済みに更新、ルートファイルを experimentRoutes.ts に修正 | |
+| | | - プロジェクト管理API: 2.13/2.15/2.16/2.17 を実装済みに更新、2.17 エンドポイントを :projectName に修正 | |
+| | | - 実装状況サマリー: 進捗確認API 43%→100%、実験データ記録API 0%→100%、プロジェクト管理API 81%→90% | |
+| | | - 全体: 113/127 (89%) → 124/131 (95%) | |
 | 2.17.0 | 2026-03-11 | 進捗確認API - 作業詳細一括取得API追加 | Cline |
 | | | - API 6.7: GET /api/v1/progress/projects/:projectName/work-details 新規追加（実装済み） | |
 | | | - WorkProgressDetailDialog 用の projectInfo / fileInfo / workDetails を一括返却 | |

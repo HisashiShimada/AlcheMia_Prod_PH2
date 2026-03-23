@@ -1,430 +1,400 @@
-# MaiML OpenData Pipeline API 仕様書
+# API仕様書: MaiML OpenData 公開・非公開
 
-**作成日**: 2026-03-10  
-**最終更新**: 2026-03-10  
-**バージョン**: 1.0.0  
-**対象機能**: MaiML OpenData Pipeline  
-**総API数**: 3個  
-**実装状況**: 3個実装済み
+**作成日**: 2026-03-13  
+**最終更新**: 2026-03-18  
+**バージョン**: 1.1.0  
+**実装状況**: 実装済み
 
 ---
 
-## 📊 実装状況サマリー
+## 1. 概要
 
-| カテゴリ | 実装済み | 未実装 | 合計 |
-|---------|---------|--------|------|
-| 公開管理 | 3 | 0 | 3 |
-| **合計** | **3** | **0** | **3** |
+プロジェクトの MaiML ファイルを OpenData として公開・非公開にするための非同期 API 群。  
+処理は BullMQ キュー経由でバックグラウンド Worker が実行するため、  
+公開・非公開 API は **202 Accepted** を即時返却する。  
+フロントエンドはポーリング API でジョブ完了を確認する。
 
-**完了率**: 100% (3/3)
+### 1.1 ベース URL
 
----
+```
+/api/v1/projects/:projectName
+```
 
-## 🎯 API一覧
+### 1.2 認証
 
-| # | API名 | メソッド | エンドポイント | 状態 |
-|---|------|---------|---------------|------|
-| 1 | MaiML公開 | POST | `/api/v1/maiml-opendata/publish` | ✅ 実装済み |
-| 2 | MaiML非公開 | DELETE | `/api/v1/maiml-opendata/unpublish/:assetId` | ✅ 実装済み |
-| 3 | 公開ステータス取得 | GET | `/api/v1/maiml-opendata/status` | ✅ 実装済み |
+すべてのエンドポイントで JWT + Session Hybrid 認証が必要。
 
----
-
-## 📋 概要
-
-MaiML OpenData Pipeline API は、ストレージ上の MaiML ファイルを解析し、
-条件KV・材料KV・プレビューデータを DB に保存する公開処理を提供します。
-
-### 主な特徴
-
-1. **KV抽出**: MaiML XML から `<condition>` / `<conditionTemplate>` / `<material>` / `<materialTemplate>` の属性値を key-value 形式で DB に保存
-2. **プレビュー生成**: `<result>` 内の数値系列データを間引いてプレビューデータとして保存（uniform / maxhold / mmr モード対応）
-3. **トランザクション保証**: 公開・非公開は DB トランザクションで原子性を保証
-4. **マルチテナント分離**: 組織IDをすべての DB 操作・ストレージ操作に強制付与
-
-### 使用ロール
-
-| ロール | 公開 | 非公開 | ステータス取得 |
-|-------|------|--------|--------------|
-| experiment_admin | ✅ | ✅ | ✅ |
-| system_admin | ✅ | ✅ | ✅ |
-| その他 | ❌ | ❌ | ❌ |
-
----
-
-## 🔐 共通仕様
-
-### 認証・認可
-
-**認証方式**: JWT + Session Hybrid
-
-**必須ヘッダー**:
-```http
+```
 Authorization: Bearer maiml_session-{sessionId}_{timestamp}
 ```
 
-**organization_id の取得**:
-- `authMiddleware` がセッション情報を検証し、`req.user.organizationId` に格納
-- リクエストヘッダーで `X-Organization-Id` を指定する必要はなし
+ミドルウェアチェーン: `authMiddleware` → `tenantIsolation` → `permissionCheck`
 
-**ミドルウェアチェーン**:
-```typescript
-router.METHOD('/path',
-  authMiddleware,       // 1. JWT認証（req.user に格納）
-  [...validation],      // 2. express-validator バリデーション
-  handleValidationErrors,
-  controller.handler    // 3. コントローラー処理
-);
-```
+### 1.3 対象ロール
 
-### 統一レスポンス形式
+| ロール | publish | unpublish | publish-status |
+|-------|---------|-----------|---------------|
+| experiment_admin | ✅ | ✅ | ✅ |
+| その他 | ❌ 403 | ❌ 403 | ❌ 403 |
 
-**成功レスポンス**:
+---
+
+## 2. エンドポイント一覧
+
+| # | メソッド | エンドポイント | 説明 |
+|---|---------|-------------|------|
+| 1 | POST | `/api/v1/projects/:projectName/publish` | MaiML 公開ジョブ投入 |
+| 2 | POST | `/api/v1/projects/:projectName/unpublish` | MaiML 非公開ジョブ投入 |
+| 3 | GET | `/api/v1/projects/:projectName/publish-status` | 公開ジョブステータス取得 |
+
+---
+
+## 3. POST /api/v1/projects/:projectName/publish
+
+### 3.1 概要
+
+指定プロジェクトの MaiML ファイルを OpenData として公開する。  
+バックエンドでプリコンディションチェックを実施し、すべて OK であれば  
+BullMQ キュー（`maiml-publish`）へジョブを投入して 202 を返す。
+
+### 3.2 パスパラメータ
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|---|------|------|
+| `projectName` | `string` | ✅ | 公開するプロジェクト名 |
+
+### 3.3 リクエスト
+
+リクエストボディなし。
+
+### 3.4 プリコンディションチェック（サービス層）
+
+以下をすべて満たす必要がある。満たさない場合は対応するエラーコードを返す。
+
+| # | チェック内容 | エラーコード | HTTPステータス |
+|---|------------|------------|-------------|
+| 1 | プロジェクトが存在する | `PROJECT_NOT_FOUND` | 404 |
+| 2 | `checkout_status = 1`（チェックアウト中） | `PROJECT_NOT_CHECKED_OUT` | 400 |
+| 3 | `project_status = 3`（タスク結果レビュー待ち） | `PROJECT_STATUS_INVALID` | 400 |
+| 4 | 全タスク詳細が完了（3）または異常終了（4） | `TASKS_NOT_COMPLETED` | 400 |
+| 5 | 進行中ジョブが存在しない（`status != pending/running`） | `ALREADY_IN_PROGRESS` | 409 |
+| 6 | Swift/S3 に `projects/{name}/{name}.maiml` が存在する | `MAIML_NOT_FOUND` | 400 |
+
+### 3.5 成功レスポンス (202 Accepted)
+
 ```json
 {
   "success": true,
-  "data": { ... },
-  "message": "..."
+  "data": {
+    "job_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "status": "pending",
+    "message": "公開ジョブを受け付けました"
+  }
 }
 ```
 
-**エラーレスポンス**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `job_id` | `string` | DB に作成された `maiml_publish_job` の UUID |
+| `status` | `"pending"` | ジョブ初期ステータス |
+| `message` | `string` | 確認メッセージ |
+
+### 3.6 副作用
+
+- `maiml_publish_job` テーブルに `status = pending` レコードを INSERT
+- BullMQ キュー `maiml-publish` にジョブを追加
+- `project.project_status` を `3`（レビュー待ち）→ `4`（プロジェクト完了）に更新
+
+### 3.7 エラーレスポンス
+
 ```json
 {
   "success": false,
   "error": {
-    "code": "ERROR_CODE",
+    "code": "エラーコード",
     "message": "エラーメッセージ"
   }
 }
 ```
 
----
-
-## 📋 API詳細仕様
-
-### 1. MaiML公開
-
-**エンドポイント**: `POST /api/v1/maiml-opendata/publish`
-
-**説明**:  
-ストレージ上の MaiML ファイルを解析し、条件KV・材料KV・プレビューデータを DB に保存する。  
-`maiml_asset` / `maiml_publish_registry` も同時に作成し、公開ステータスを `published` に設定する。
-
-**認証**: 必須
-
-**権限**: `experiment_admin`, `system_admin`
-
-#### リクエスト
-
-**ボディ（JSON）**:
-```json
-{
-  "file_uri": "projects/sample_project/sample_project.maiml",
-  "template_only": false,
-  "store_raw_series": false,
-  "store_raw_raster": false,
-  "raw_chunk_size": 65536,
-  "raw_compression": "zstd",
-  "keep_raw_on_unpublish": false,
-  "retention_until": "2027-03-10T00:00:00Z",
-  "preview_mode": "uniform"
-}
-```
-
-**バリデーション**:
-| フィールド | 型 | 必須 | 制約 |
-|----------|---|------|------|
-| `file_uri` | string | ✅ | ストレージ上の相対パス（organization_id なし） |
-| `template_only` | boolean | ❌ | デフォルト: `false` |
-| `store_raw_series` | boolean | ❌ | 生データ（数値系列）保存フラグ。デフォルト: `false` |
-| `store_raw_raster` | boolean | ❌ | 生データ（ラスター）保存フラグ。デフォルト: `false` |
-| `raw_chunk_size` | integer | ❌ | チャンクサイズ（バイト）。最小1。デフォルト: `65536` |
-| `raw_compression` | string | ❌ | `zstd` / `gzip` / `none`。デフォルト: `zstd` |
-| `keep_raw_on_unpublish` | boolean | ❌ | 非公開時に生データを保持するか。デフォルト: `false` |
-| `retention_until` | string | ❌ | ISO 8601 形式。データ保持期限 |
-| `preview_mode` | string | ❌ | `uniform` / `maxhold` / `mmr`。デフォルト: `uniform` |
-
-#### レスポンス
-
-**成功時 (201 Created)**:
-```json
-{
-  "success": true,
-  "data": {
-    "asset_id": 1,
-    "doc_name": "XRF Analysis - Iron alloy",
-    "file_uri": "projects/sample_project/sample_project.maiml",
-    "status": "published",
-    "condition_kv_count": 42,
-    "material_kv_count": 15,
-    "preview_count": 3
-  },
-  "message": "MaiML ファイルを公開しました"
-}
-```
-
-**レスポンスフィールド**:
-| フィールド | 型 | 説明 |
-|----------|---|------|
-| `asset_id` | number | 作成された `maiml_asset` の ID |
-| `doc_name` | string \| null | MaiML の `<document><name>` から抽出したドキュメント名 |
-| `file_uri` | string | リクエストで指定した `file_uri` |
-| `status` | string | 公開後のステータス（`published` 固定） |
-| `condition_kv_count` | number | 保存した `maiml_condition_kv` の行数 |
-| `material_kv_count` | number | 保存した `maiml_material_kv` の行数 |
-| `preview_count` | number | 保存した `maiml_series_preview` の行数 |
-
-**エラー時**:
-
-| ステータス | code | 説明 |
-|----------|------|------|
-| 400 | `VALIDATION_ERROR` | バリデーションエラー |
-| 401 | - | 認証エラー |
-| 403 | - | 権限不足 |
-| 500 | `PUBLISH_FAILED` | 公開処理失敗（ストレージアクセス失敗、XML解析失敗等） |
-
-#### 処理フロー
-
-```
-POST /publish
-  │
-  ├─ 1. authMiddleware（JWT 認証 → req.user）
-  ├─ 2. express-validator バリデーション
-  ├─ 3. publishMaiml() [トランザクション開始]
-  │     ├─ maiml_asset INSERT
-  │     ├─ maiml_publish_registry INSERT (status='processing')
-  │     ├─ storageService.downloadFile() でMaiML取得
-  │     ├─ extractFromMaiml() でKV抽出
-  │     ├─ generatePreviews() でプレビュー生成
-  │     ├─ maiml_condition_kv 一括INSERT
-  │     ├─ maiml_material_kv 一括INSERT
-  │     ├─ maiml_series_preview 一括INSERT
-  │     └─ maiml_publish_registry UPDATE (status='published')
-  │        [コミット]
-  └─ 4. 201 レスポンス返却
-```
+| HTTPステータス | エラーコード | 説明 |
+|-------------|------------|------|
+| 400 | `PROJECT_NOT_CHECKED_OUT` | プロジェクトがチェックアウト中でない |
+| 400 | `PROJECT_STATUS_INVALID` | プロジェクトステータスが不正 |
+| 400 | `TASKS_NOT_COMPLETED` | 未完了タスクが存在する |
+| 400 | `MAIML_NOT_FOUND` | MaiMLファイルが存在しない |
+| 404 | `PROJECT_NOT_FOUND` | プロジェクトが存在しない |
+| 409 | `ALREADY_IN_PROGRESS` | 処理中ジョブが既に存在する |
+| 500 | `SYSTEM_ERROR` | サーバー内部エラー |
 
 ---
 
-### 2. MaiML非公開
+## 4. POST /api/v1/projects/:projectName/unpublish
 
-**エンドポイント**: `DELETE /api/v1/maiml-opendata/unpublish/:assetId`
+### 4.1 概要
 
-**説明**:  
-指定した `asset_id` のKV・プレビューデータを削除し、公開ステータスを `unpublished` に設定する。  
-`mode=full_delete` を指定するとアセット自体も CASCADE DELETE する。
+公開済みプロジェクトの MaiML アセットを非公開にする。  
+BullMQ キュー（`maiml-unpublish`）へ非公開ジョブを投入して 202 を返す。
 
-**認証**: 必須
+### 4.2 パスパラメータ
 
-**権限**: `experiment_admin`, `system_admin`
-
-#### リクエスト
-
-**パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
-|----------|---|------|------|
-| `assetId` | integer | ✅ | 対象の asset_id（正の整数） |
+|-----------|---|------|------|
+| `projectName` | `string` | ✅ | 非公開にするプロジェクト名 |
 
-**ボディ（JSON, 省略可）**:
-```json
-{
-  "mode": "keep_meta"
-}
-```
+### 4.3 リクエスト
 
-**バリデーション**:
-| フィールド | 型 | 必須 | 制約 |
-|----------|---|------|------|
-| `assetId` (path) | integer | ✅ | 正の整数 |
-| `mode` (body) | string | ❌ | `keep_meta` / `full_delete`。デフォルト: `keep_meta` |
+リクエストボディなし。
 
-**mode の違い**:
-| mode | 動作 |
-|------|------|
-| `keep_meta` | KV・プレビュー・生データを削除し、`maiml_asset` / `maiml_publish_registry` は残す。`registry.status` を `unpublished` に更新 |
-| `full_delete` | `maiml_asset` を CASCADE DELETE（関連テーブルすべて削除） |
+### 4.4 プリコンディションチェック（サービス層）
 
-**注意**: `registry.keep_raw_on_unpublish = true` の場合、`keep_meta` モードでも生データ（`maiml_series_raw_header` / チャンク）は削除されない。
+| # | チェック内容 | エラーコード | HTTPステータス |
+|---|------------|------------|-------------|
+| 1 | 公開済みアセット（`asset_id`）が存在する | `NOT_PUBLISHED` | 404 |
+| 2 | 進行中ジョブが存在しない（`status != pending/running`） | `ALREADY_IN_PROGRESS` | 409 |
 
-#### レスポンス
+### 4.5 成功レスポンス (202 Accepted)
 
-**成功時 (200 OK)**:
 ```json
 {
   "success": true,
   "data": {
-    "asset_id": 1,
-    "mode": "keep_meta"
-  },
-  "message": "公開を取り消しました"
-}
-```
-
-**エラー時**:
-
-| ステータス | code | 説明 |
-|----------|------|------|
-| 400 | `VALIDATION_ERROR` | バリデーションエラー（assetId が不正等） |
-| 401 | - | 認証エラー |
-| 403 | `UNPUBLISH_FAILED` | 他の組織のアセットへのアクセス |
-| 404 | `UNPUBLISH_FAILED` | 指定した asset_id が存在しない |
-| 500 | `UNPUBLISH_FAILED` | 非公開処理失敗 |
-
----
-
-### 3. 公開ステータス取得
-
-**エンドポイント**: `GET /api/v1/maiml-opendata/status`
-
-**説明**:  
-ストレージパス（`file_uri`）を指定して、対象 MaiML ファイルの公開状態を確認する。  
-未公開ファイルの場合は `is_published: false` を返す（404 ではなく 200）。
-
-**認証**: 必須
-
-**権限**: `experiment_admin`, `system_admin`
-
-#### リクエスト
-
-**クエリパラメータ**:
-| パラメータ | 型 | 必須 | 説明 |
-|----------|---|------|------|
-| `file_uri` | string | ✅ | ストレージ上の相対パス（organization_id なし） |
-
-**例**:
-```
-GET /api/v1/maiml-opendata/status?file_uri=projects/sample_project/sample_project.maiml
-```
-
-#### レスポンス
-
-**成功時 (200 OK) - 公開済みの場合**:
-```json
-{
-  "success": true,
-  "data": {
-    "is_published": true,
-    "asset_id": 1,
-    "registry_id": 1,
-    "status": "published",
-    "doc_name": "XRF Analysis - Iron alloy",
-    "template_only": false,
-    "store_raw_series": false,
-    "retention_until": null,
-    "published_at": "2026-03-10T10:00:00Z"
+    "job_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "status": "pending",
+    "message": "非公開ジョブを受け付けました"
   }
 }
 ```
 
-**成功時 (200 OK) - 未公開の場合**:
+| フィールド | 型 | 説明 |
+|-----------|---|------|
+| `job_id` | `string` | DB に作成された `maiml_publish_job` の UUID |
+| `status` | `"pending"` | ジョブ初期ステータス |
+| `message` | `string` | 確認メッセージ |
+
+### 4.6 副作用
+
+- `maiml_publish_job` テーブルに `job_type = unpublish`, `status = pending` レコードを INSERT
+- BullMQ キュー `maiml-unpublish` にジョブを追加
+
+### 4.7 エラーレスポンス
+
+| HTTPステータス | エラーコード | 説明 |
+|-------------|------------|------|
+| 404 | `NOT_PUBLISHED` | 公開済みアセットが存在しない |
+| 409 | `ALREADY_IN_PROGRESS` | 処理中ジョブが既に存在する |
+| 500 | `SYSTEM_ERROR` | サーバー内部エラー |
+
+---
+
+## 5. GET /api/v1/projects/:projectName/publish-status
+
+### 5.1 概要
+
+指定プロジェクトの最新の公開/非公開ジョブステータスを返す。  
+フロントエンドはこの API を 3秒ごとにポーリングしてジョブ完了を検知する。
+
+### 5.2 パスパラメータ
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|---|------|------|
+| `projectName` | `string` | ✅ | 照会するプロジェクト名 |
+
+### 5.3 リクエスト
+
+クエリパラメータ・ボディなし。
+
+### 5.4 成功レスポンス (200 OK)
+
 ```json
 {
   "success": true,
   "data": {
-    "is_published": false,
-    "asset_id": null,
-    "registry_id": null,
+    "job_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "job_type": "publish",
+    "status": "done",
+    "asset_id": 42,
+    "project_name": "my-project",
+    "started_at": "2026-03-13T07:00:00.000Z",
+    "finished_at": "2026-03-13T07:00:05.000Z",
+    "error_message": null
+  }
+}
+```
+
+#### ジョブ履歴なし（未公開）の場合
+
+```json
+{
+  "success": true,
+  "data": {
+    "job_id": null,
+    "job_type": null,
     "status": null,
-    "doc_name": null,
-    "template_only": null,
-    "store_raw_series": null,
-    "retention_until": null,
-    "published_at": null
+    "asset_id": null,
+    "project_name": "my-project",
+    "started_at": null,
+    "finished_at": null,
+    "error_message": null
   }
 }
 ```
 
-**レスポンスフィールド**:
+### 5.5 レスポンスフィールド詳細
+
 | フィールド | 型 | 説明 |
-|----------|---|------|
-| `is_published` | boolean | `true` = 公開中（`registry.status = 'published'`） |
-| `asset_id` | number \| null | `maiml_asset.asset_id` |
-| `registry_id` | number \| null | `maiml_publish_registry.registry_id` |
-| `status` | string \| null | `requested` / `processing` / `published` / `unpublished` |
-| `doc_name` | string \| null | MaiML ドキュメント名 |
-| `template_only` | boolean \| null | テンプレートのみモード |
-| `store_raw_series` | boolean \| null | 生データ保存フラグ |
-| `retention_until` | string \| null | データ保持期限（ISO 8601） |
-| `published_at` | string \| null | 最終公開日時（`status = 'published'` の場合のみ） |
+|-----------|---|------|
+| `job_id` | `string \| null` | 最新ジョブの UUID。ジョブ履歴なしの場合は `null` |
+| `job_type` | `"publish" \| "unpublish" \| null` | ジョブ種別 |
+| `status` | `"pending" \| "running" \| "done" \| "error" \| null` | ジョブステータス |
+| `asset_id` | `number \| null` | 公開済みアセット ID（`job_type=publish` かつ `status=done` のとき設定） |
+| `project_name` | `string` | プロジェクト名（エコーバック） |
+| `started_at` | `string \| null` | Worker がジョブ処理を開始した日時（ISO 8601） |
+| `finished_at` | `string \| null` | Worker がジョブ処理を完了した日時（ISO 8601） |
+| `error_message` | `string \| null` | エラー時のメッセージ（`status=error` のとき設定） |
 
-**エラー時**:
+### 5.6 ステータス遷移
 
-| ステータス | code | 説明 |
-|----------|------|------|
-| 400 | `VALIDATION_ERROR` | `file_uri` が未指定 |
-| 401 | - | 認証エラー |
-| 403 | - | 権限不足 |
-| 500 | `STATUS_FETCH_FAILED` | ステータス取得失敗 |
+```
+[API 呼び出し]
+      │
+      ▼
+  pending   ─→  running  ─→  done
+                    │
+                    └──────────→  error
+```
+
+| status | 説明 |
+|--------|------|
+| `pending` | ジョブをキューに投入済み、Worker 未処理 |
+| `running` | Worker が処理中 |
+| `done` | 処理正常完了 |
+| `error` | 処理失敗（`error_message` 参照） |
+
+### 5.7 フロントエンドのポーリング判定
+
+| `status` の値 | フロントエンドの処理 |
+|-------------|-----------------|
+| `pending` | ポーリング継続 |
+| `running` | ポーリング継続 |
+| `done` | ポーリング停止、`onComplete` 呼び出し |
+| `error` | ポーリング停止、`onComplete` 呼び出し |
+| `null`（ジョブ履歴なし） | ポーリング停止、未公開として扱う |
+
+### 5.8 エラーレスポンス
+
+| HTTPステータス | エラーコード | 説明 |
+|-------------|------------|------|
+| 500 | `SYSTEM_ERROR` | サーバー内部エラー |
 
 ---
 
-## 🗄️ 関連 DB テーブル
+## 6. シーケンス図
 
-| テーブル | 役割 |
-|---------|------|
-| `maiml_asset` | 公開対象ファイルのメタデータ（organization_id / file_uri / doc_name） |
-| `maiml_publish_registry` | 公開設定・ステータス管理（status / store_raw_series 等のオプション） |
-| `maiml_condition_kv` | `<condition>` / `<conditionTemplate>` の key-value |
-| `maiml_material_kv` | `<material>` / `<materialTemplate>` の key-value |
-| `maiml_series_preview` | 数値系列データのプレビュー（間引きサンプル） |
-| `maiml_series_raw_header` | 生データヘッダー（`store_raw_series=true` 時のみ保存） |
-| `maiml_series_raw_chunk` | 生データチャンク（`store_raw_series=true` 時のみ保存） |
+### 6.1 公開フロー
 
-DDL: `backend/migrations/20260310_create_maiml_opendata_tables.sql`
+```
+Frontend           Backend API        maiml-publish Queue    Worker
+   │                    │                      │                │
+   │ POST /publish       │                      │                │
+   │────────────────────►│                      │                │
+   │                    │ チェック OK            │                │
+   │                    │ DB: INSERT pending    │                │
+   │                    │──────────────────────►│ enqueue        │
+   │  202 Accepted      │                      │                │
+   │◄────────────────────│                      │                │
+   │                    │                      │ dequeue        │
+   │                    │                      │────────────────►│
+   │                    │                      │                │ DB: running
+   │                    │                      │                │ Swift DL
+   │                    │                      │                │ Parse
+   │                    │                      │                │ DB INSERT
+   │ GET /publish-status │                      │                │
+   │────────────────────►│                      │                │
+   │  {status:"running"} │                      │                │
+   │◄────────────────────│                      │                │
+   │                    │                      │                │ DB: done
+   │ GET /publish-status │                      │                │
+   │────────────────────►│                      │                │
+   │  {status:"done"}    │                      │                │
+   │◄────────────────────│                      │                │
+```
 
----
+### 6.2 非公開フロー
 
-## 🔒 セキュリティ考慮事項
-
-### マルチテナント分離
-
-- `maiml_asset` の `organization_id` は `req.user!.organizationId` から取得（クライアント指定不可）
-- 非公開操作時は DB から `asset.organization_id === req.user.organizationId` を検証
-- ストレージ操作は `storageService.downloadFile(organizationId, fileUri)` で organization_id プレフィックスを自動付与
-
-### アクセス制御
-
-```typescript
-// ✅ 正しい組織IDの取得方法
-const organizationId = req.user!.organizationId;
-
-// ❌ クライアントからのorganizationId受け取りは禁止
-const organizationId = req.body.organizationId; // NG
+```
+Frontend           Backend API       maiml-unpublish Queue   Worker
+   │                    │                      │                │
+   │ POST /unpublish     │                      │                │
+   │────────────────────►│                      │                │
+   │                    │ チェック OK            │                │
+   │                    │ DB: INSERT pending    │                │
+   │                    │──────────────────────►│ enqueue        │
+   │  202 Accepted      │                      │                │
+   │◄────────────────────│                      │                │
+   │                    │                      │ dequeue        │
+   │                    │                      │────────────────►│
+   │                    │                      │                │ DB: running
+   │                    │                      │                │ asset CASCADE DELETE
+   │                    │                      │                │ DB: done
+   │ GET /publish-status │                      │                │
+   │────────────────────►│                      │                │
+   │  {status:"done"}    │                      │                │
+   │◄────────────────────│                      │                │
 ```
 
 ---
 
-## 🛠️ 実装ファイル
+## 7. DB テーブル: public.maiml_publish_job
+
+公開・非公開ジョブの状態管理テーブル。
+
+| カラム | 型 | 説明 |
+|-------|---|------|
+| `job_id` | `UUID` PK | ジョブの一意識別子（bullmq jobId と同一） |
+| `job_type` | `VARCHAR` | `publish` / `unpublish` |
+| `organization_id` | `UUID` | 組織 ID（マルチテナント分離用） |
+| `project_name` | `VARCHAR` | プロジェクト名 |
+| `asset_id` | `BIGINT NULL` | 公開済みアセット ID（publish 完了時に設定） |
+| `status` | `VARCHAR` | `pending` / `running` / `done` / `error` |
+| `triggered_by` | `UUID NULL` | 操作ユーザー ID（スケジュール実行時は NULL） |
+| `trigger_type` | `VARCHAR` | `manual` / `schedule` |
+| `error_message` | `TEXT NULL` | エラー時のメッセージ |
+| `started_at` | `TIMESTAMPTZ NULL` | Worker 処理開始日時 |
+| `finished_at` | `TIMESTAMPTZ NULL` | Worker 処理完了日時 |
+| `created_at` | `TIMESTAMPTZ` | レコード作成日時 |
+
+---
+
+## 8. 関連ファイル
 
 | 種別 | ファイルパス |
 |------|------------|
-| ルート | `backend/src/routes/maimlOpenDataRoutes.ts` |
-| コントローラー | `backend/src/controllers/maimlOpenDataController.ts` |
-| Ingest Service | `backend/src/services/maimlIngestService.ts` |
-| KV抽出 Service | `backend/src/services/maimlKvExtractorService.ts` |
-| プレビュー Service | `backend/src/services/maimlPreviewService.ts` |
-| Asset Repository | `backend/src/repositories/maimlAssetRepository.ts` |
-| Registry Repository | `backend/src/repositories/maimlPublishRegistryRepository.ts` |
-| ConditionKv Repository | `backend/src/repositories/maimlConditionKvRepository.ts` |
-| MaterialKv Repository | `backend/src/repositories/maimlMaterialKvRepository.ts` |
-| SeriesPreview Repository | `backend/src/repositories/maimlSeriesPreviewRepository.ts` |
-| SeriesRawHeader Repository | `backend/src/repositories/maimlSeriesRawHeaderRepository.ts` |
+| ルーター | `backend/src/routes/projectRoutes.ts` |
+| コントローラー | `backend/src/controllers/projectController.ts`（`publish`, `unpublish`, `getPublishStatus`） |
+| サービス | `backend/src/services/maimlPublishService.ts` |
+| キュー（公開） | `backend/src/queues/maimlPublishQueue.ts` |
+| キュー（非公開） | `backend/src/queues/maimlUnpublishQueue.ts` |
+| Worker（公開） | `backend/src/workers/maimlPublishWorker.ts` |
+| Worker（非公開） | `backend/src/workers/maimlUnpublishWorker.ts` |
+| リポジトリ | `backend/src/repositories/maimlPublishJobRepository.ts` |
 | 型定義 | `backend/src/types/maimlOpenData.ts` |
-| マイグレーション | `backend/migrations/20260310_create_maiml_opendata_tables.sql` |
 
 ---
 
-## 📚 関連ドキュメント
+## 9. 関連ドキュメント
 
-- [設計書](../../MaiML_OpenData_Pipeline/MaiML_OpenData_Pipeline_BasicDesign_v1.3.md) - OpenData Pipeline 基本設計書
-- [API一覧](./api_list.md) - 全API一覧
-- [セキュリティ規約](../../.clinerules/development/security.md) - マルチテナント分離
+- [UI仕様: 公開確認ダイアログ](../ui/experiment_admin/01_project_management/ui_maiml_publish_dialog.md)
+- [UI仕様: 非公開確認ダイアログ](../ui/experiment_admin/01_project_management/ui_maiml_unpublish_dialog.md)
+- [Worker仕様: 公開Worker](../worker/worker_maiml_publish.md)
+- [Worker仕様: 非公開Worker](../worker/worker_maiml_unpublish.md)
+- [OpenData パイプライン設計書](../../MaiML_OpenData_Pipeline/spec.md)
 
 ---
 
-## 📝 変更履歴
+## 10. 変更履歴
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
-| 1.0.0 | 2026-03-10 | 初版作成（3エンドポイント、実装済み100%） | Cline |
+| 1.1.0 | 2026-03-18 | §3.4 タスク完了ステータス値を修正（完了=4→3、異常終了=5→4） | Cline |
+| 1.0.0 | 2026-03-13 | 初版作成（実装済みソースコードから仕様を起こす） | Cline |

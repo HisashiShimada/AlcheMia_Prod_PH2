@@ -5,6 +5,7 @@
 
 import { Pool } from 'pg';
 import { getPool } from '../database/db';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Creatorマスタのデータ型定義
@@ -266,8 +267,6 @@ export async function create(
   corporationId?: string | null
 ): Promise<CreatorMasterRow> {
   const pool: Pool = getPool();
-  const { v4: uuidv4 } = require('uuid');
-  
   // vendor_idとvendor_nameからvendor_uuidを取得（存在する場合）
   let vendorUuid: string | null = null;
   if (data.vendorName) {

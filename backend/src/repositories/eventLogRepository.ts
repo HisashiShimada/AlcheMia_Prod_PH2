@@ -9,6 +9,31 @@ import { PoolClient } from 'pg';
 import { TransitionStatus } from '../types/transitionData';
 
 /**
+ * 指示送信ログのパラメータ
+ */
+export interface InstructionSentLogParams {
+  /** 指示対象: 1=ファイル全体、2=タスク、3=トランジション */
+  instructionTarget: number;
+  /** メソッドID */
+  methodId: string | null;
+  /** トランジションID */
+  transitionId: string | null;
+  /**
+   * programのID（MAIMLファイルから解析して取得）
+   * トランジション（target=3）・タスク（target=2）の場合に trace @ref として使用する。
+   */
+  programId: string | null;
+  /** タスク連番 */
+  taskNo: number | null;
+  /** 実験指示ID */
+  experimentInstructionId: string;
+  /** 送信ユーザID */
+  userId: string;
+  /** 送信日時（ISO8601文字列） */
+  sentAt: string;
+}
+
+/**
  * 指示確認ログのパラメータ
  */
 export interface InstructionConfirmLogParams {
@@ -263,6 +288,197 @@ export class EventLogRepository {
   }
 
   /**
+   * 指示送信イベントログを記録
+   *
+   * 指示送信（POST /instructions/send）時に未送信指示ごとに呼び出す。
+   * instruction_target に応じて以下のJSON構造を生成して maiml_event_log に保存する。
+   *
+   * - instruction_target = 1（ファイル全体）: eventLog > log > trace > evnet（ref なし）
+   * - instruction_target = 2（タスク）:       eventLog > log > trace(@taskno) > evnet
+   * - instruction_target = 3（トランジション）: eventLog > log > trace > evnet
+   *
+   * property のキーは確認時と異なり送信用のキーを使用する:
+   *   - sent_at: 送信日時
+   *   - experiment_instruction_id: 実験指示ID
+   *   - instruction_user_id: 送信ユーザID
+   *
+   * sequence_no は (organization_id, project_id) 単位で MAX+1 自動採番。
+   *
+   * @param organizationId - 組織ID（マルチテナント分離）
+   * @param projectId - プロジェクトID
+   * @param params - 指示送信ログパラメータ
+   * @param client - トランザクション用のPoolClient
+   * @throws {DatabaseError} データベースエラーが発生した場合
+   */
+  async insertInstructionSentLog(
+    organizationId: string,
+    projectId: string,
+    params: InstructionSentLogParams,
+    client: PoolClient
+  ): Promise<void> {
+    try {
+      // sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
+      const sequenceQuery = `
+        SELECT COALESCE(MAX(sequence_no), 0) + 1 AS next_sequence_no
+        FROM maiml_event_log
+        WHERE organization_id = $1 AND project_id = $2
+      `;
+      const sequenceResult = await client.query(sequenceQuery, [
+        organizationId,
+        projectId,
+      ]);
+      const nextSequenceNo: number = sequenceResult.rows[0].next_sequence_no;
+
+      // instruction_target に応じた JSON 構造を構築
+      const logJson = this.buildInstructionSentLogJson(params, nextSequenceNo);
+
+      // maiml_event_log にINSERT（Parameterized Query）
+      const insertQuery = `
+        INSERT INTO maiml_event_log (
+          organization_id,
+          project_id,
+          sequence_no,
+          log,
+          create_user_id,
+          create_at,
+          update_user_id,
+          update_at
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4::jsonb,
+          $5,
+          CURRENT_TIMESTAMP,
+          $5,
+          CURRENT_TIMESTAMP
+        )
+      `;
+
+      await client.query(insertQuery, [
+        organizationId,
+        projectId,
+        nextSequenceNo,
+        JSON.stringify(logJson),
+        params.userId,
+      ]);
+    } catch (error) {
+      throw new DatabaseError(
+        'Database error occurred while inserting instruction sent log',
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * 指示送信用の eventLog JSON 構造を生成するヘルパー
+   *
+   * @param params - 指示送信ログパラメータ
+   * @param sequenceNo - 採番済みの sequence_no（ID生成に使用）
+   * @returns eventLog JSON オブジェクト
+   */
+  private buildInstructionSentLogJson(
+    params: InstructionSentLogParams,
+    sequenceNo: number
+  ): Record<string, unknown> {
+    const {
+      instructionTarget,
+      methodId,
+      programId,
+      taskNo,
+      experimentInstructionId,
+      userId,
+      sentAt,
+    } = params;
+
+    const logId = `log_${sequenceNo}`;
+    const evnetId = `evnet_${sequenceNo}`;
+
+    // property 配列（3ターゲット共通）
+    const properties = [
+      {
+        '@key': 'sent_at',
+        '@xsi:type': 'dateTimeType',
+        '#text': sentAt,
+      },
+      {
+        '@key': 'experiment_instruction_id',
+        '@xsi:type': 'stringType',
+        '#text': experimentInstructionId,
+      },
+      {
+        '@key': 'instruction_user_id',
+        '@xsi:type': 'stringType',
+        '#text': userId,
+      },
+    ];
+
+    if (instructionTarget === 3) {
+      // トランジション: eventLog > log > trace(@id, @ref=programId) > evnet(@ref=experimentInstructionId)
+      const traceId3 = `trace_${sequenceNo}`;
+      return {
+        eventLog: {
+          log: {
+            '@id': logId,
+            '@ref': methodId ?? '',
+            trace: {
+              '@id': traceId3,
+              '@ref': programId ?? traceId3,
+              evnet: {
+                '@id': evnetId,
+                '@ref': experimentInstructionId,
+                property: properties,
+              },
+            },
+          },
+        },
+      };
+    } else if (instructionTarget === 2) {
+      // タスク: eventLog > log > trace(@id, @ref=programId, @taskno) > evnet(@ref=experimentInstructionId)
+      const traceId2 = `trace_${sequenceNo}`;
+      return {
+        eventLog: {
+          log: {
+            '@id': logId,
+            '@ref': methodId ?? '',
+            trace: {
+              '@id': traceId2,
+              '@ref': programId ?? traceId2,
+              '@taskno': String(taskNo ?? ''),
+              evnet: {
+                '@id': evnetId,
+                '@ref': experimentInstructionId,
+                property: properties,
+              },
+            },
+          },
+        },
+      };
+    } else {
+      // ファイル全体（instruction_target = 1）: eventLog > log > trace > evnet（ref なし）
+      const traceId1 = `trace_${sequenceNo}`;
+      return {
+        eventLog: {
+          log: {
+            '@id': logId,
+            // '@ref' は意図的に省略（ファイル全体指示はrefなし）
+            trace: {
+              '@id': traceId1,
+              // '@ref' は意図的に省略
+              evnet: {
+                '@id': evnetId,
+                // '@ref' は意図的に省略
+                property: properties,
+              },
+            },
+          },
+        },
+      };
+    }
+  }
+
+  /**
    * トランジション進捗更新イベントログを記録
    *
    * トランジションの進捗が更新された際（みなし進捗・手動更新）に呼び出す。
@@ -308,7 +524,15 @@ export class EventLogRepository {
     statusLabel: string,
     progressPercentage: number,
     comment: string | null | undefined,
-    client: PoolClient
+    client: PoolClient,
+    /** log/@ref に使用するメソッドID（未指定時は transitionId をフォールバック） */
+    methodId?: string | null,
+    /** trace/@ref に使用するプログラムID（未指定時は transitionId をフォールバック） */
+    programId?: string | null,
+    /** event/@ref に使用するインストラクションID（未指定時は transitionId をフォールバック） */
+    instructionId?: string | null,
+    /** event/resultsRef の ref 値配列（data層の result-type place IDを参照） */
+    resultsRefs?: string[] | null
   ): Promise<void> {
     try {
       // 1. sequence_no の自動採番（organization_id + project_id 単位の MAX+1）
@@ -336,51 +560,75 @@ export class EventLogRepository {
       const nowIso = new Date(ts).toISOString();
 
       // 4. JSON構造を構築
+      // ref 採番ルール（MAIML XML 仕様準拠）:
+      //   log/@ref   → methodId（メソッドID）
+      //   trace/@ref → programId（プログラムID）
+      //   event/@ref → instructionId（インストラクションID）
+      // いずれも未指定の場合は transitionId をフォールバックとして使用する
+      const logRefId    = methodId     ?? transitionId;
+      const traceRefId  = programId    ?? transitionId;
+      const eventRefId  = instructionId ?? transitionId;
+
+      // resultsRefs: data層の result-type place ID 配列を { '@ref': placeId } 形式に変換
+      // XSD: eventType.resultsRefs は Reference[] (ref: string が必須)
+      const resultsRefsJson = (resultsRefs && resultsRefs.length > 0)
+        ? resultsRefs.map(ref => ({ '@ref': ref }))
+        : undefined;
+
+      const eventObj: Record<string, unknown> = {
+        '@id': `event_report_${loginId}_${ts}`,
+        '@ref': eventRefId,
+        property: [
+          {
+            '@key': 'timestamp',
+            '@xsi:type': 'dateTimeType',
+            '#text': nowIso,
+          },
+          {
+            '@key': 'worker_id',
+            '@xsi:type': 'stringType',
+            '#text': loginId,
+          },
+          {
+            '@key': 'status',
+            '@xsi:type': 'stringType',
+            '#text': statusLabel,
+          },
+          {
+            '@key': 'progress_percentage',
+            '@xsi:type': 'intType',
+            '#text': progressPercentage,
+          },
+          {
+            '@key': 'report_type',
+            '@xsi:type': 'stringType',
+            '#text': 'transition_progress',
+          },
+          {
+            '@key': 'comments',
+            '@xsi:type': 'stringType',
+            '#text': comment ?? '',
+          },
+        ],
+      };
+
+      // resultsRef が存在する場合のみ追加
+      if (resultsRefsJson) {
+        eventObj['resultsRef'] = resultsRefsJson.length === 1
+          ? resultsRefsJson[0]
+          : resultsRefsJson;
+      }
+
       const logJson = {
         eventLog: {
           '@id': 'eventLogID',
           log: {
             '@id': `work_${ts}_${shortName}_log_transition_${transitionId}`,
-            '@ref': transitionId,
+            '@ref': logRefId,
             trace: {
               '@id': `trace_${transitionId}_work_${ts}_${shortName}`,
-              '@ref': transitionId,
-              event: {
-                '@id': `event_report_${loginId}_${ts}`,
-                '@ref': transitionId,
-                property: [
-                  {
-                    '@key': 'timestamp',
-                    '@xsi:type': 'xs:dateTime',
-                    '#text': nowIso,
-                  },
-                  {
-                    '@key': 'worker_id',
-                    '@xsi:type': 'xs:string',
-                    '#text': loginId,
-                  },
-                  {
-                    '@key': 'status',
-                    '@xsi:type': 'xs:string',
-                    '#text': statusLabel,
-                  },
-                  {
-                    '@key': 'progress_percentage',
-                    '@xsi:type': 'xs:int',
-                    '#text': progressPercentage,
-                  },
-                  {
-                    '@key': 'report_type',
-                    '@xsi:type': 'xs:string',
-                    '#text': 'transition_progress',
-                  },
-                  {
-                    '@key': 'comments',
-                    '@xsi:type': 'xs:string',
-                    '#text': comment ?? '',
-                  },
-                ],
-              },
+              '@ref': traceRefId,
+              event: eventObj,
             },
           },
         },
@@ -453,30 +701,33 @@ export class EventLogRepository {
     const properties = [
       {
         '@key': 'acknowledged_at',
-        '@xsi:type': 'xs:dateTime',
+        '@xsi:type': 'dateTimeType',
         '#text': acknowledgedAt,
       },
       {
         '@key': 'experiment_instruction_id',
-        '@xsi:type': 'xs:string',
+        '@xsi:type': 'stringType',
         '#text': experimentInstructionId,
       },
       {
         '@key': 'experiment_user_id',
-        '@xsi:type': 'xs:string',
+        '@xsi:type': 'stringType',
         '#text': userId,
       },
     ];
 
+
     if (instructionTarget === 3) {
-      // トランジション: eventLog > log > trace(@ref=programId) > evnet(@ref=experimentInstructionId)
+      // トランジション: eventLog > log > trace(@id, @ref=programId) > evnet(@ref=experimentInstructionId)
+      const traceId3 = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
             '@ref': methodId ?? '',
             trace: {
-              '@ref': programId ?? '',
+              '@id': traceId3,
+              '@ref': programId ?? traceId3,
               evnet: {
                 '@id': evnetId,
                 '@ref': experimentInstructionId,
@@ -487,14 +738,16 @@ export class EventLogRepository {
         },
       };
     } else if (instructionTarget === 2) {
-      // タスク: eventLog > log > trace(@ref=programId, @taskno) > evnet(@ref=experimentInstructionId)
+      // タスク: eventLog > log > trace(@id, @ref=programId, @taskno) > evnet(@ref=experimentInstructionId)
+      const traceId2 = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
             '@ref': methodId ?? '',
             trace: {
-              '@ref': programId ?? '',
+              '@id': traceId2,
+              '@ref': programId ?? traceId2,
               '@taskno': String(taskNo ?? ''),
               evnet: {
                 '@id': evnetId,
@@ -506,16 +759,23 @@ export class EventLogRepository {
         },
       };
     } else {
-      // ファイル全体（instruction_target = 1）: eventLog > log + evnet（log外）
+      // ファイル全体（instruction_target = 1）: eventLog > log > trace > evnet（他ターゲットと同じ階層構造）
+      // ref は不要なため @id のみ付与する（@ref キーを持たせない）
+      const traceId1 = `trace_${sequenceNo}`;
       return {
         eventLog: {
           log: {
             '@id': logId,
-            trace: {},
-          },
-          evnet: {
-            '@id': evnetId,
-            property: properties,
+            // '@ref' は意図的に省略（ファイル全体指示はrefなし）
+            trace: {
+              '@id': traceId1,
+              // '@ref' は意図的に省略
+              evnet: {
+                '@id': evnetId,
+                // '@ref' は意図的に省略
+                property: properties,
+              },
+            },
           },
         },
       };

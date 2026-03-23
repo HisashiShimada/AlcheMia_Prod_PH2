@@ -369,8 +369,9 @@ export async function findProjectTasks(
   const TASK_STATUS_MAP: { [key: string]: number } = {
     'pending': 0,
     'in_progress': 1,
-    'failed': 2,
+    'review_waiting': 2,
     'completed': 3,
+    'forced_terminated': 4,
   };
   
   let query = `
@@ -467,14 +468,14 @@ export async function completeReviewTasks(
 ): Promise<number> {
   const pool = getPool();
 
-  // task_status = 3 (review_waiting) を 4 (completed) に更新
+  // task_status = 2 (review_waiting) を 3 (completed) に更新
   const query = `
     UPDATE project_task_detail
-    SET task_status = 4,
+    SET task_status = 3,
         update_at = CURRENT_TIMESTAMP
     WHERE organization_id = $1
       AND project_id = $2
-      AND task_status = 3
+      AND task_status = 2
   `;
 
   const result = await pool.query(query, [organizationId, projectId]);

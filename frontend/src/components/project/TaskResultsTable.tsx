@@ -10,7 +10,6 @@ const { Text } = Typography;
 
 interface TaskResultsTableProps {
   results: Task[];
-  onViewResult?: (result: Task) => void;
 }
 
 /**
@@ -29,7 +28,7 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
         return t('projectManagement.task_results.status_pending') || '実行待ち';
       case 'in_progress':
         return t('projectManagement.task_results.status_in_progress') || '実行中';
-      case 'error':
+      case 'forced_terminated':
         return t('projectManagement.task_results.status_error') || '異常終了';
       case 'review_waiting':
         return t('projectManagement.task_results.status_review_waiting') || 'レビュー待ち';
@@ -64,7 +63,7 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
       width: '14%',
       align: 'center',
       sorter: (a, b) => {
-        const statusOrder = { pending: 0, in_progress: 1, error: 2, review_waiting: 3, completed: 4 };
+        const statusOrder = { pending: 0, in_progress: 1, forced_terminated: 2, review_waiting: 3, completed: 4 };
         return (statusOrder[a.workStatus as keyof typeof statusOrder] || 0) - (statusOrder[b.workStatus as keyof typeof statusOrder] || 0);
       },
       render: (status: string) => {
@@ -74,7 +73,7 @@ const TaskResultsTable: React.FC<TaskResultsTableProps> = ({
               return 'default';
             case 'in_progress':
               return 'processing';
-            case 'error':
+            case 'forced_terminated':
               return 'error';
             case 'review_waiting':
               return 'warning';

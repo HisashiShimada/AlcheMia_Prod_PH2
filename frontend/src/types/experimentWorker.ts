@@ -119,7 +119,11 @@ export interface Property {
   min?: number;
   max?: number;
   nestedProperties?: Property[];
+  description?: string;     // プロパティの説明文（MAIMLの <description> 要素）
+  formatString?: string;    // 数値フォーマット文字列（例: "%.3f"）
+  scaleFactor?: string;     // 単位変換係数
 }
+
 
 // テンプレート定義
 export interface Template {
@@ -250,9 +254,11 @@ export interface TransitionProgress {
 // タスクステータス（実験作業タブ用）
 export type TaskStatus = 
   | 'not_started'       // 開始前
+  | 'started'           // 開始済み
   | 'in_progress'       // 作業中
   | 'completed'         // 完了
-  | 'forced_terminated'; // 強制終了
+  | 'forced_terminated' // 強制終了
+  | 'suspended';        // 中断
 
 // タスクデータ（実験作業タブ用）
 export interface Task {

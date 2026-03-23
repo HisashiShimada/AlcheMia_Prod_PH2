@@ -17,6 +17,7 @@ import type {
   AuthFlowState,
   LoginResponse,
   VerifyPINResponse,
+  UserRole,
   ROLE_REDIRECT_MAP,
 } from '../../types/auth';
 
@@ -90,7 +91,7 @@ export default function AuthContainer({
     }
     
     // ロール別画面にリダイレクト
-    const redirectUrl = roleRedirectMap[response.user.role] || '/';
+    const redirectUrl = response.redirectUrl || roleRedirectMap[response.user.roleCd as UserRole] || '/';
     router.push(redirectUrl);
   };
 

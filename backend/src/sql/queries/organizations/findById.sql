@@ -15,6 +15,7 @@ SELECT
   o.contract_capacity,
   o.contract_users,
   o.contract_projects,
+  o.default_retention_days,
   o.update_at
 FROM organization o
 LEFT JOIN organization_user ou

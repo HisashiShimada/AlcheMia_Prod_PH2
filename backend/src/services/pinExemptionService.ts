@@ -29,12 +29,12 @@ export class PinExemptionService {
    * 7. 経過日数 <= 免除期間 → 免除適用
    * 8. 経過日数 > 免除期間 → 二段階認証必要
    * 
-   * @param userName - ユーザー名（organization_user.user_name）
+   * @param userId - ユーザーID（organization_user.user_id）
    * @param organizationId - 組織ID
    * @returns 免除判定結果
    */
   async isExemptionApplicable(
-    userName: string,
+    userId: string,
     organizationId: string
   ): Promise<Result<PinExemptionCheck>> {
     try {
@@ -44,8 +44,15 @@ export class PinExemptionService {
         organizationId
       );
 
+      // EMAIL_ENABLED=true または本番環境の場合は、is_entry=false でも免除しない
+      // （メール送信が有効な場合は必ず二段階認証を通す）
+      const emailEnabled =
+        process.env.NODE_ENV === 'production' ||
+        process.env.EMAIL_ENABLED === 'true';
+
       // is_entry=false の場合は常に免除（二段階認証不要）
-      if (!isEntry) {
+      // ただし EMAIL_ENABLED=true または本番環境では免除しない
+      if (!isEntry && !emailEnabled) {
         return {
           success: true,
           data: {
@@ -79,7 +86,7 @@ export class PinExemptionService {
       // 3. ユーザーの最終二段階認証日時を取得
       const lastAuthLogin = await loginHistoryRepository.getLastTwoFactorAuthLogin(
         this.pool,
-        userName,
+        userId,
         organizationId
       );
 

@@ -322,7 +322,8 @@ export const getProjects = async (
   try {
     console.log('[DEBUG] getProjects - Frontend call start', { status, page, limit });
     
-    const params: Record<string, string | number> = { page, limit };
+    // include_completed=true を常に送信する（フロントエンド側でフィルタリングするため）
+    const params: Record<string, string | number | boolean> = { page, limit, include_completed: true };
     if (status && status !== 'all') {
       params.status = status;
     }
@@ -1727,52 +1728,35 @@ export const checkinProject = async (
 // ========================================
 
 /**
- * MaiML 公開リクエスト型
- */
-export interface MaimlPublishRequest {
-  template_only: boolean;
-  store_raw_series: boolean;
-  retention: string | null;
-  keep_raw_on_unpublish: boolean;
-}
-
-/**
- * MaiML 公開レスポンス型
- */
-export interface MaimlPublishResponse {
-  registryId: string;
-  projectName: string;
-  status: 'requested';
-  requestedAt: string;
-}
-
-/**
  * プロジェクトの MaiML を公開する
  * POST /api/v1/projects/:projectName/publish
  *
+ * @description
+ * バックエンドは bullmq 非同期処理（202 Accepted）を返す。
+ * リクエストボディなし（バックエンドは organizationId/projectName/userId のみ使用）。
+ *
  * @param projectName プロジェクト名
- * @param request 公開オプション
- * @returns 公開受付結果
+ * @returns 公開ジョブ受付結果 (job_id, status: 'pending', message)
  * @throws Error APIエラー時
  */
 export const publishProject = async (
-  projectName: string,
-  request: MaimlPublishRequest
-): Promise<ApiResponse<MaimlPublishResponse>> => {
+  projectName: string
+): Promise<ApiResponse<PublishJobResponse>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] publishProject - Request', { projectName, request });
+    console.log('[DEBUG] publishProject - Request', { projectName });
 
     const response = await client.post<{
       success: boolean;
-      data: MaimlPublishResponse;
+      data: PublishJobResponse;
       meta: { timestamp: string; requestId: string };
-    }>(`/projects/${encodeURIComponent(projectName)}/publish`, request);
+    }>(`/projects/${encodeURIComponent(projectName)}/publish`);
 
     console.log('[DEBUG] publishProject - Success', {
-      registryId: response.data.data.registryId,
+      job_id: response.data.data.job_id,
       status: response.data.data.status,
+      message: response.data.data.message,
     });
 
     return {
@@ -1792,42 +1776,60 @@ export const publishProject = async (
 };
 
 /**
- * MaiML 非公開レスポンス型
+ * MaiML 公開/非公開ジョブレスポンス型（publish/unpublish 共通）
+ * バックエンドの PublishJobResponse に対応（202 Accepted）
  */
-export interface MaimlUnpublishResponse {
-  projectName: string;
-  mode: 'keep_meta' | 'full_delete';
-  unpublishedAt: string;
+export interface PublishJobResponse {
+  job_id: string | null;
+  status: 'pending' | 'running' | 'done' | 'error' | null;
+  message: string;
+}
+
+/**
+ * MaiML 公開ステータスレスポンス型
+ * バックエンドの PublishStatusResponse に対応
+ */
+export interface PublishStatusResponse {
+  job_id: string | null;
+  job_type: 'publish' | 'unpublish' | null;
+  status: 'pending' | 'running' | 'done' | 'error' | null;
+  asset_id: string | null;
+  project_name: string;
+  started_at: string | null;
+  finished_at: string | null;
+  error_message: string | null;
 }
 
 /**
  * プロジェクトの MaiML を非公開にする
  * POST /api/v1/projects/:projectName/unpublish
  *
+ * @description
+ * バックエンドは bullmq 非同期処理（202 Accepted）を返す。
+ * リクエストボディは不要（バックエンドは organizationId/projectName/userId のみ使用）。
+ *
  * @param projectName プロジェクト名
- * @param mode 非公開モード（keep_meta: 代表メタは残す / full_delete: 完全削除）
- * @returns 非公開処理結果
+ * @returns 非公開ジョブ受付結果 (job_id, status: 'pending', message)
  * @throws Error APIエラー時
  */
 export const unpublishProject = async (
-  projectName: string,
-  mode: 'keep_meta' | 'full_delete' = 'keep_meta'
-): Promise<ApiResponse<MaimlUnpublishResponse>> => {
+  projectName: string
+): Promise<ApiResponse<PublishJobResponse>> => {
   const client = createApiClient();
 
   try {
-    console.log('[DEBUG] unpublishProject - Request', { projectName, mode });
+    console.log('[DEBUG] unpublishProject - Request', { projectName });
 
     const response = await client.post<{
       success: boolean;
-      data: MaimlUnpublishResponse;
+      data: PublishJobResponse;
       meta: { timestamp: string; requestId: string };
-    }>(`/projects/${encodeURIComponent(projectName)}/unpublish`, { mode });
+    }>(`/projects/${encodeURIComponent(projectName)}/unpublish`);
 
     console.log('[DEBUG] unpublishProject - Success', {
-      projectName: response.data.data.projectName,
-      mode: response.data.data.mode,
-      unpublishedAt: response.data.data.unpublishedAt,
+      job_id: response.data.data.job_id,
+      status: response.data.data.status,
+      message: response.data.data.message,
     });
 
     return {
@@ -1837,6 +1839,46 @@ export const unpublishProject = async (
     };
   } catch (error) {
     console.error('[DEBUG] unpublishProject - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * プロジェクトの MaiML 公開ステータスを取得する
+ * GET /api/v1/projects/:projectName/publish-status
+ *
+ * @param projectName プロジェクト名
+ * @returns 最新ジョブの公開状態
+ * @throws Error APIエラー時（404: MAIMLファイルなし、500: システムエラー）
+ */
+export const getPublishStatus = async (
+  projectName: string
+): Promise<PublishStatusResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] getPublishStatus - Request', { projectName });
+
+    const response = await client.get<{
+      success: boolean;
+      data: PublishStatusResponse;
+      meta: { timestamp: string; requestId: string };
+    }>(`/projects/${encodeURIComponent(projectName)}/publish-status`);
+
+    console.log('[DEBUG] getPublishStatus - Success', {
+      job_type: response.data.data.job_type,
+      status: response.data.data.status,
+      job_id: response.data.data.job_id,
+    });
+
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] getPublishStatus - Error', {
       error,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
       errorResponse: (error as AxiosError)?.response?.data,

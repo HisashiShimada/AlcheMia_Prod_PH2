@@ -13,26 +13,22 @@
 
 import { PoolClient } from 'pg';
 import { loadSqlFile } from '../sql/loader';
-
-/**
- * property_set JSONB 内のプロパティ定義
- */
-export interface PropertySetProperty {
-  key: string;
-  xsiType: string;
-  value: unknown;
-  units: string | null;
-}
+import type { Property } from '../types/maiml-unified';
 
 /**
  * property_set JSONB の型定義
  * template_data.property_set カラムに格納されるJSONBの構造
+ *
+ * @remarks
+ * properties の型を maiml-unified.Property に統一。
+ * PropertySetProperty インターフェースは廃止済み。
  */
 export interface PropertySet {
   templateId: string;
   templateType: 'material' | 'condition' | 'result';
-  properties: PropertySetProperty[];
+  properties: Property[];
 }
+
 
 /**
  * テンプレートデータレコード（UPSERT用）

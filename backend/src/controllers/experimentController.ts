@@ -8,6 +8,7 @@ import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import * as experimentDataService from '../services/experimentDataService';
 import { TemplateDataRecord, PropertySet } from '../repositories/templateDataRepository';
+import type { Property } from '../types/maiml-unified';
 
 /**
  * テンプレート実績一覧取得
@@ -153,12 +154,14 @@ export const saveBatchData = async (
 
     // リクエストの data フィールドをそのまま PropertySet（property_set）として保存
     // data は GET レスポンスの templates[].data と同一形式のため変換不要
+    // リクエストボディから来た properties は maiml-unified.Property 互換の構造を持つが
+    // TypeScript 上は型チェックできないため unknown as Property[] でキャストする
     const records: TemplateDataRecord[] = rawRecords.map(r => {
       const propertySet: PropertySet = {
         templateId: r.data.templateId,
         templateType: r.data.templateType,
         properties: Array.isArray(r.data.properties)
-          ? r.data.properties
+          ? r.data.properties as unknown as Property[]
           : [],
       };
       return {
@@ -167,6 +170,7 @@ export const saveBatchData = async (
         updateUserId: recordedBy,
       };
     });
+
 
     // サービス層を呼び出して一括保存
     const savedRecords = await experimentDataService.saveBatchData(

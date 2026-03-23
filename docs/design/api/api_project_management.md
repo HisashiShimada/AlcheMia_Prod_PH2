@@ -1,27 +1,28 @@
 # プロジェクト管理API仕様書
 
 **作成日**: 2026-01-21 16:30  
-**最終更新**: 2026-02-27 15:20  
-**バージョン**: 2.7.0  
-**対象画面**: 実験管理者 - プロジェクト管理画面  
-**総API数**: 16個  
-**実装状況**: 13個実装済み、3個未実装
+**最終更新**: 2026-03-12 15:22  
+**バージョン**: 3.0.0  
+**対象画面**: 実験管理者 - プロジェクト管理画面、実験作業者画面  
+**総API数**: 20個  
+**実装状況**: 18個実装済み、1個未実装、1個廃止済み
 
 ---
 
 ## 📊 実装状況サマリー
 
-| カテゴリ | 実装済み | 未実装 | 合計 |
-|---------|---------|--------|------|
-| 基本CRUD | 2 | 0 | 2 |
-| チェックイン/チェックアウト | 3 | 0 | 3 |
-| データ取得 | 2 | 0 | 2 |
-| 指示管理 | 2 | 2 | 4 |
-| プロジェクト検索 | 0 | 1 | 1 |
-| 実験作業者用 | 4 | 0 | 4 |
-| **合計** | **13** | **3** | **16** |
+| カテゴリ | 実装済み | 未実装 | 廃止済み | 合計 |
+|---------|---------|--------|---------|------|
+| 基本CRUD | 2 | 0 | 0 | 2 |
+| チェックイン/チェックアウト | 3 | 0 | 0 | 3 |
+| データ取得 | 2 | 0 | 0 | 2 |
+| 指示管理 | 4 | 0 | 0 | 4 |
+| プロジェクト検索 | 0 | 1 | 0 | 1 |
+| 実験作業者用 | 4 | 0 | 0 | 4 |
+| 実験データ | 2 | 0 | 1 | 3 |
+| **合計** | **18** | **1** | **1** | **20** |
 
-**完了率**: 81% (13/16)
+**完了率**: 90% (18/20)
 
 ---
 
@@ -37,16 +38,19 @@
 | 6 | タスク一覧取得 | GET | `/api/v1/projects/:projectName/tasks` | ✅ 実装済み | - |
 | 7 | プロジェクト詳細取得 | GET | `/api/v1/projects/:projectId` | ✅ 実装済み | - |
 | 8 | チェックアウト状態取得 | GET | `/api/v1/projects/:projectId/checkout-status` | ✅ 実装済み | - |
-| 9 | 指示一覧取得（実験作業者用） | GET | `/api/v1/projects/:projectName/worker-instructions` | ✅ 実装済み | - |
-| 10 | 指示確認完了 | PUT | `/api/v1/projects/:projectName/instructions/:instructionId/confirm` | ✅ 実装済み | - |
+| 9 | 指示一覧取得（実験作業者用） | GET | `/api/v1/projects/:projectName/worker-instructions` | ✅ 実装済み（`getWorkerInstructions`） | - |
+| 10 | 指示確認完了 | PUT | `/api/v1/projects/:projectName/instructions/:instructionId/confirm` | ✅ 実装済み（`confirmInstruction`） | - |
 | 11 | 承認依頼 | PATCH | `/api/v1/projects/:projectName/approval-request` | ✅ 実装済み | - |
 | 12 | 実験作業者用プロジェクト一覧 | GET | `/api/v1/projects/worker-accessible` | ✅ 実装済み | - |
-| 13 | MAIMLファイル取得（プロジェクト） | GET | `/api/v1/projects/:projectId/maiml` | ✅ 実装済み | - |
+| 13 | MAIMLファイル取得（プロジェクト） | GET | `/api/v1/projects/:projectName/maiml` | ✅ 実装済み | - |
 | 14 | 指示送信（タスク作成） | POST | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐⭐ 高 |
 | 15 | 指示一覧取得（実験管理者用） | GET | `/api/v1/projects/:projectName/instructions` | 🔴 未実装 | ⭐⭐ 中 |
 | 16 | プロジェクト詳細検索 | POST | `/api/v1/projects/search` | 🔴 未実装 | ⭐ 低 |
 | 17 | タスク登録情報取得 | GET | `/api/v1/projects/:projectName/task-registration` | ✅ 実装済み | ⭐⭐⭐ 高 |
 | 18 | タスク登録保存 | POST | `/api/v1/projects/:projectName/task-registration` | ✅ 実装済み | ⭐⭐⭐ 高 |
+| 21 | テンプレート実績取得 | GET | `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | ✅ 実装済み | ⭐⭐⭐ 高 |
+| 22 | 実験データ一括保存 | POST | `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | ✅ 実装済み | ⭐⭐⭐ 高 |
+| 23 | トランジションステータス更新（廃止済み） | PUT | `/api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status` | ⛔ 廃止済み（410） | - |
 
 ---
 
@@ -858,7 +862,7 @@ router.METHOD('/path',
 
 ---
 
-### 11. 指示一覧取得（実験作業者用） 🔴
+### 11. 指示一覧取得（実験作業者用） ✅
 
 **エンドポイント**: `GET /api/v1/projects/:projectName/worker-instructions`
 
@@ -1114,17 +1118,17 @@ const user = await db
 
 ---
 
-### 13. 承認依頼 🔴
+### 13. 承認依頼 ✅
 
 **エンドポイント**: `PATCH /api/v1/projects/:projectName/approval-request`
 
-**説明**: 実験作業完了後に実験管理者へ承認依頼を送信
+**説明**: 実験作業完了後に実験管理者へ承認依頼を送信。プロジェクトのステータスを承認待ち（3）に変更する。
 
 **認証**: 必須
 
-**権限**: `experiment_worker`（書込可）
+**権限**: `experiment_worker`（書込可、機能CD: `050000`）
 
-**優先度**: ⭐⭐⭐ 高
+**ミドルウェア**: `authMiddleware` → `tenantIsolation` → `checkPermission('050000', 1)` → バリデーション
 
 #### リクエストパラメータ
 
@@ -1159,8 +1163,7 @@ const user = await db
     "requested_by": "worker-uuid",
     "requested_by_name": "Worker Name",
     "requested_at": "2026-01-27T19:00:00Z",
-    "comment": "すべての実験が完了しました。ご確認をお願いします。",
-    "notification_id": "notification-uuid"
+    "comment": "すべての実験が完了しました。ご確認をお願いします。"
   },
   "meta": {
     "timestamp": "2026-01-27T19:00:00Z",
@@ -1169,115 +1172,38 @@ const user = await db
 }
 ```
 
+**注意**: レスポンスに `notification_id` は含まれません。
+
 **エラー時**:
-- 400: バリデーションエラー、タスク未完了
+- 400: バリデーションエラー
 - 401: 認証エラー
-- 403: 権限不足（担当者以外が依頼しようとした）
 - 404: プロジェクトが存在しない
-- 409: プロジェクトステータスが不正、未解決の問題が存在
-- 500: システムエラー
+- 409: プロジェクトステータスが不正（`BUSINESS_STATUS_INVALID`）
+- 500: システムエラー（`SYSTEM_DATABASE_ERROR`）
 
 #### ビジネスロジック
 
 **前提条件チェック**:
-```typescript
-// プロジェクト情報を取得
-const project = await db
-  .selectFrom('project')
-  .where('project_id', '=', projectId)
-  .where('organization_id', '=', organizationId)
-  .selectAll()
-  .executeTakeFirstOrThrow();
+- プロジェクトの `project_status` が `2`（タスク実行中）であることを確認
+- 条件を満たさない場合は `BUSINESS_STATUS_INVALID` (409) を返却
+- タスク完了チェック・未解決問題チェックは**実装なし**
 
-// プロジェクトステータスが active であることを確認
-if (project.project_status !== 'active') {
-  throw new ConflictError(
-    `プロジェクトステータスが '${project.project_status}' のため、承認依頼できません`
-  );
-}
+**処理内容**:
+- `project_status` を `3`（承認待ち）に更新
+- `project_task_detail` の `task_status` が `1`（IN_PROGRESS: 実行中）のレコードを `2`（REVIEW_WAITING: レビュー待ち）に一括更新（同一トランザクション内）
+- `previous_status` は `"active"`（ハードコード）
+- `new_status` は `"waiting_approval"`（ハードコード）
 
-// すべてのタスクが完了状態であることを確認
-const incompleteTasks = await db
-  .selectFrom('project_task')
-  .where('project_id', '=', projectId)
-  .where('organization_id', '=', organizationId)
-  .where('task_status', '!=', 'completed')
-  .select(db.fn.count('task_id').as('count'))
-  .executeTakeFirstOrThrow();
-
-if (Number(incompleteTasks.count) > 0) {
-  throw new BadRequestError(
-    `未完了のタスクが ${incompleteTasks.count} 件あります。すべてのタスクを完了してください。`
-  );
-}
-
-// 未解決の問題が存在しないことを確認
-const unresolvedIssues = await db
-  .selectFrom('task_issue')
-  .where('project_id', '=', projectId)
-  .where('organization_id', '=', organizationId)
-  .where('status', '=', 'open')
-  .select(db.fn.count('issue_id').as('count'))
-  .executeTakeFirstOrThrow();
-
-if (Number(unresolvedIssues.count) > 0) {
-  throw new ConflictError(
-    `未解決の問題が ${unresolvedIssues.count} 件あります。すべての問題を解決してください。`
-  );
-}
-```
-
-#### 実装要件
-
-**DBクエリ（トランザクション）**:
-```typescript
-await db.transaction().execute(async (trx) => {
-  // プロジェクトステータスを waiting_approval に更新
-  await trx
-    .updateTable('project')
-    .set({
-      project_status: 'waiting_approval',
-      update_at: new Date().toISOString(),
-      update_user_id: req.user.userId
-    })
-    .where('project_id', '=', projectId)
-    .where('organization_id', '=', organizationId)
-    .execute();
-
-  // system_notificationテーブルに通知登録
-  const notificationId = uuidv4();
-  await trx
-    .insertInto('system_notification')
-    .values({
-      notification_id: notificationId,
-      organization_id: organizationId,
-      notification_type: 'approval_request',
-      title: `承認依頼: ${project.project_name}`,
-      message: comment || '実験作業が完了しました。承認をお願いします。',
-      related_entity_type: 'project',
-      related_entity_id: projectId,
-      created_by: req.user.userId,
-      create_at: new Date().toISOString(),
-      is_read: false
-    })
-    .execute();
-
-  // 監査ログ記録
-  logger.info('Approval request submitted', {
-    projectId,
-    projectName: project.project_name,
-    requestedBy: req.user.userId,
-    organizationId,
-    comment
-  });
-
-  return notificationId;
-});
-```
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/projectController.ts` (`requestApproval`)
+- **サービス**: `backend/src/services/projectService.ts` (`requestApproval`)
+- **リポジトリ**: `backend/src/repositories/projectRepository.ts` (`findProjectIdByName`, `updateApprovalStatus`)
+- **リポジトリ**: `backend/src/repositories/projectTaskRepository.ts` (`bulkUpdateTaskStatusByProject`)
 
 ---
 
-### 14. 実験作業者用プロジェクト一覧取得 🔴
+### 14. 実験作業者用プロジェクト一覧取得 ✅
 
 **エンドポイント**: `GET /api/v1/projects/worker-accessible`
 
@@ -1285,9 +1211,9 @@ await db.transaction().execute(async (trx) => {
 
 **認証**: 必須
 
-**権限**: `experiment_worker`（読取専用）
+**権限**: `experiment_worker`（読取専用、機能CD: `050000`）
 
-**優先度**: ⭐⭐⭐ 高
+**ミドルウェア**: `authMiddleware` → `tenantIsolation` → `checkPermission('050000', 0)`
 
 #### リクエストパラメータ
 
@@ -1296,9 +1222,11 @@ await db.transaction().execute(async (trx) => {
 |----------|---|------|-----------|------|
 | `page` | integer | × | 1 | ページ番号（1以上） |
 | `limit` | integer | × | 20 | 1ページあたりの件数（1-100） |
-| `status` | string | × | - | ステータスフィルタ（`draft`, `active`, `waiting_approval`, `approved`） |
+| `status` | string | × | - | ステータスフィルタ（`"1"`, `"2"`, `"3"` の数値文字列） |
 | `sort_by` | string | × | `create_at` | ソート項目（`create_at`, `project_name`, `update_at`） |
-| `order` | string | × | `desc` | ソート順（`asc`, `desc`） |
+| `order` | string | × | `asc` | ソート順（`asc`, `desc`） |
+
+**注意**: `status` は数値文字列で指定します。`"1"`, `"2"`, `"3"` などのプロジェクトステータスコードに対応します。
 
 #### レスポンス
 
@@ -1308,28 +1236,22 @@ await db.transaction().execute(async (trx) => {
   "success": true,
   "data": [
     {
-      "project_id": "project-uuid",
-      "project_name": "Sample Project",
+      "projectId": "project-uuid",
+      "projectName": "Sample Project",
       "description": "プロジェクトの説明",
-      "project_status": "active",
-      "my_task_count": 5,
-      "completed_task_count": 2,
-      "pending_instruction_count": 3,
-      "has_unresolved_issues": false,
-      "created_at": "2026-01-21T10:00:00Z",
-      "updated_at": "2026-01-27T19:00:00Z"
+      "projectStatus": 2,
+      "useDeemedProgress": false,
+      "createdAt": "2026-01-21T10:00:00Z",
+      "updatedAt": "2026-01-27T19:00:00Z"
     },
     {
-      "project_id": "project-uuid-2",
-      "project_name": "Another Project",
+      "projectId": "project-uuid-2",
+      "projectName": "Another Project",
       "description": "別のプロジェクト",
-      "project_status": "waiting_approval",
-      "my_task_count": 3,
-      "completed_task_count": 3,
-      "pending_instruction_count": 0,
-      "has_unresolved_issues": false,
-      "created_at": "2026-01-20T10:00:00Z",
-      "updated_at": "2026-01-27T18:00:00Z"
+      "projectStatus": 3,
+      "useDeemedProgress": true,
+      "createdAt": "2026-01-20T10:00:00Z",
+      "updatedAt": "2026-01-27T18:00:00Z"
     }
   ],
   "pagination": {
@@ -1347,6 +1269,17 @@ await db.transaction().execute(async (trx) => {
 }
 ```
 
+**レスポンスフィールド説明**:
+| フィールド | 型 | 説明 |
+|----------|---|------|
+| `projectId` | string (UUID) | プロジェクトID |
+| `projectName` | string | プロジェクト名 |
+| `description` | string | プロジェクト説明 |
+| `projectStatus` | number | プロジェクトステータス（数値） |
+| `useDeemedProgress` | boolean | みなし進捗使用フラグ |
+| `createdAt` | string (ISO 8601) | 作成日時 |
+| `updatedAt` | string (ISO 8601) | 更新日時 |
+
 **エラー時**:
 - 400: バリデーションエラー
 - 401: 認証エラー
@@ -1355,130 +1288,37 @@ await db.transaction().execute(async (trx) => {
 
 #### ビジネスロジック
 
-**対象プロジェクト**:
-- ステータスが `draft`, `active`, `waiting_approval`, `approved` のプロジェクト
-- 実験作業者に少なくとも1つのタスクが割り当てられているプロジェクト
-- 自組織内のプロジェクトのみ（マルチテナント分離）
+- 自組織内のプロジェクトのみ返却（マルチテナント分離）
+- `experiment_worker` ユーザーは自分がタスク担当として登録されているプロジェクトのみ参照可能
 
-#### 実装要件
-
-**DBクエリ**:
-```typescript
-let query = db
-  .selectFrom('project')
-  .innerJoin('project_task', 'project.project_id', 'project_task.project_id')
-  .where('project.organization_id', '=', organizationId)
-  .where('project.project_status', 'in', ['draft', 'active', 'waiting_approval', 'approved']);
-
-// 実験作業者の場合は自分が担当するタスクがあるプロジェクトのみ
-if (req.user.role === 'experiment_worker') {
-  query = query.where('project_task.assign_user_id', '=', req.user.userId);
-}
-
-// ステータスフィルタ
-if (status) {
-  query = query.where('project.project_status', '=', status);
-}
-
-// プロジェクトごとにグループ化
-const projects = await query
-  .select([
-    'project.project_id',
-    'project.project_name',
-    'project.description',
-    'project.project_status',
-    'project.create_at as created_at',
-    'project.update_at as updated_at',
-    db.fn.count('project_task.task_id').as('my_task_count'),
-    db.fn.count(
-      db.case()
-        .when('project_task.task_status', '=', 'completed')
-        .then(1)
-        .end()
-    ).as('completed_task_count')
-  ])
-  .groupBy([
-    'project.project_id',
-    'project.project_name',
-    'project.description',
-    'project.project_status',
-    'project.create_at',
-    'project.update_at'
-  ])
-  .orderBy(`project.${sortBy}`, order)
-  .execute();
-
-// 各プロジェクトの未確認指示数と未解決問題を取得
-for (const project of projects) {
-  // 未確認指示数
-  const pendingInstructions = await db
-    .selectFrom('project_instruction')
-    .innerJoin('project_task', 'project_instruction.instruction_id', 'project_task.instruction_id')
-    .where('project_instruction.project_id', '=', project.project_id)
-    .where('project_instruction.is_acknowledged', '=', false)
-    .where('project_task.assign_user_id', '=', req.user.userId)
-    .where('project_instruction.organization_id', '=', organizationId)
-    .select(db.fn.count('project_instruction.instruction_id').as('count'))
-    .executeTakeFirstOrThrow();
-
-  project.pending_instruction_count = Number(pendingInstructions.count);
-
-  // 未解決問題の有無
-  const unresolvedIssues = await db
-    .selectFrom('task_issue')
-    .where('project_id', '=', project.project_id)
-    .where('status', '=', 'open')
-    .where('organization_id', '=', organizationId)
-    .select(db.fn.count('issue_id').as('count'))
-    .executeTakeFirstOrThrow();
-
-  project.has_unresolved_issues = Number(unresolvedIssues.count) > 0;
-}
-```
-
-**ページネーション**:
-```typescript
-const offset = (page - 1) * limit;
-const paginatedProjects = projects.slice(offset, offset + limit);
-
-const totalItems = projects.length;
-const totalPages = Math.ceil(totalItems / limit);
-
-return {
-  data: paginatedProjects,
-  pagination: {
-    page,
-    limit,
-    totalItems,
-    totalPages,
-    hasNext: page < totalPages,
-    hasPrev: page > 1
-  }
-};
-```
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
+- **コントローラー**: `backend/src/controllers/workerProjectController.ts` (`listWorkerAccessible`)
+- **サービス**: `backend/src/services/workerProjectService.ts` (`listWorkerAccessible`)
+- **リポジトリ**: `backend/src/repositories/workerProjectRepository.ts`
 
 ---
 
-### 15. MAIMLファイル取得（プロジェクト） 🔴
+### 15. MAIMLファイル取得（プロジェクト） ✅
 
-**エンドポイント**: `GET /api/v1/projects/:projectId/maiml`
+**エンドポイント**: `GET /api/v1/projects/:projectName/maiml`
 
-**説明**: プロジェクトの最新MAIMLファイルを取得（指示確認タブのフロー図表示で使用）
+**説明**: プロジェクトの最新MAIMLファイルをXML文字列で取得（プロジェクト管理画面・指示確認タブのフロー図表示で使用）
 
 **認証**: 必須
 
-**権限**: `experiment_worker`（読取専用）
+**権限**: 全ロール（`authMiddleware` のみ、`checkPermission` なし）
 
-**優先度**: ⭐⭐⭐ 高
+**ミドルウェア**: `authMiddleware` → コントローラー
 
-**重要**: 実験作業者も閲覧可能（指示確認タブで使用するため）
+**重要**: 実験作業者を含むすべてのロールが閲覧可能
 
 #### リクエストパラメータ
 
 **パスパラメータ**:
 | パラメータ | 型 | 必須 | 説明 |
 |----------|---|------|------|
-| `projectId` | UUID | ○ | プロジェクトID |
+| `projectName` | string | ○ | プロジェクト名（UUIDではなく名前文字列） |
 
 **クエリパラメータ**:
 なし（最新版のMAIMLファイルを常に返却）
@@ -1490,15 +1330,7 @@ return {
 {
   "success": true,
   "data": {
-    "file_id": "file-uuid-generated",
-    "project_id": "project-uuid",
-    "project_name": "Sample Project",
-    "file_name": "Sample_Project.maiml",
-    "file_path": "org_maiml_lab_001/projects/Sample_Project/Sample_Project.maiml",
-    "file_size": 12345,
-    "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<maiml xmlns=\"http://www.example.org/maiml\">...</maiml>",
-    "content_type": "application/xml",
-    "loaded_at": "2026-02-16T14:40:00Z"
+    "maimlContent": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
   },
   "meta": {
     "timestamp": "2026-02-16T14:40:00Z",
@@ -1507,94 +1339,54 @@ return {
 }
 ```
 
-**エラー時**:
-- 400: バリデーションエラー（projectId不正）
-- 401: 認証エラー
-- 403: 権限不足（他組織のプロジェクト）
-- 404: プロジェクトまたはファイルが存在しない
-- 500: システムエラー（S3接続エラー等）
-
-#### 実装要件
-
-**マルチテナント分離（必須）**:
-```typescript
-// プロジェクトの存在確認 & organization_idチェック
-const project = await db
-  .selectFrom('project')
-  .where('project_id', '=', projectId)
-  .where('organization_id', '=', req.user.organizationId)  // ⭐ 必須チェック
-  .select(['project_id', 'project_name', 'organization_id'])
-  .executeTakeFirstOrThrow();
-```
-
-**S3から直接取得**:
-```typescript
-// organization_prefixを取得
-const organizationPrefix = await getOrganizationPrefix(project.organization_id);
-
-// S3パスを構築
-const filePath = `projects/${project.project_name}/${project.project_name}.maiml`;
-
-// S3からファイルを取得
-const content = await storageService.downloadFile(
-  organizationPrefix,  // ⭐ organization_prefix必須
-  filePath
-);
-```
-
-**エラーハンドリング**:
-```typescript
-try {
-  // ファイル取得処理
-} catch (error) {
-  if (error.name === 'NoResultError') {
-    // プロジェクトが存在しない or 他組織
-    return res.status(404).json({
-      success: false,
-      error: {
-        code: 'NOT_FOUND',
-        message: 'プロジェクトが見つかりません'
-      }
-    });
+**MAIMLファイルが存在しない場合も 200 OK**（空文字列を返却）:
+```json
+{
+  "success": true,
+  "data": {
+    "maimlContent": ""
+  },
+  "meta": {
+    "timestamp": "2026-02-16T14:40:00Z",
+    "requestId": "req_abc123"
   }
-  
-  if (error.code === 'NoSuchKey') {
-    // S3にファイルが存在しない
-    return res.status(404).json({
-      success: false,
-      error: {
-        code: 'FILE_NOT_FOUND',
-        message: 'MAIMLファイルが見つかりません'
-      }
-    });
-  }
-  
-  // その他のエラー
-  logger.error('MAIML file retrieval failed', { error, projectId });
-  return res.status(500).json({
-    success: false,
-    error: {
-      code: 'INTERNAL_ERROR',
-      message: 'システムエラーが発生しました'
-    }
-  });
 }
 ```
 
+**レスポンスフィールド説明**:
+| フィールド | 型 | 説明 |
+|----------|---|------|
+| `maimlContent` | string | MAIMLファイルのXML文字列。ファイルが存在しない場合は空文字列 `""` |
+
+**エラー時**:
+- 401: 認証エラー
+- 404: プロジェクトが存在しない（`RESOURCE_NOT_FOUND`）
+- 500: システムエラー（`SYSTEM_DATABASE_ERROR`, `SYSTEM_S3_ERROR`）
+
+**注意**: MAIMLファイルが見つからない場合はエラーではなく、`maimlContent: ""` で 200 OK を返します。
+
+#### ビジネスロジック
+
+1. `projectName` からプロジェクトを検索（organization_idでテナント分離）
+2. プロジェクトが存在しない場合は 404 を返却
+3. S3からMAIMLファイルを取得（`{organizationId}/projects/{projectName}/{projectName}.maiml`）
+4. ファイルが存在しない場合は `maimlContent: ""` で 200 OK を返却
+5. ファイルが存在する場合はXML文字列を `maimlContent` に格納して返却
+
 #### 設計方針
 
-**特徴**:
 - ✅ **プロジェクトのみ対応**（フォーマットは非対応）
 - ✅ **最新版のみ取得**（アーカイブ非対応）
 - ✅ **S3から直接取得**（file_metadataテーブル不使用）
-- ✅ **実験作業者も閲覧可能**（指示確認タブで使用）
+- ✅ **全ロール閲覧可能**（実験作業者含む）
+- ✅ **ファイル未存在時は空文字列で正常レスポンス**
 
-**使用箇所**:
-- 実験作業者 - 指示確認タブ - フロー図表示機能
-- InstructionConfirmationTab → InstructionFlowDialog → ViewRenderer
+#### 使用箇所
+- 実験管理者 - プロジェクト管理画面 - Petri Netフロー図表示（`ProjectMaimlContext`）
+- 実験作業者 - 指示確認タブ - フロー図表示（`InstructionConfirmationTab` → `InstructionFlowDialog` → `ViewRenderer`）
 
-**実装ファイル**:
-- **ルート**: `backend/src/routes/projectRoutes.ts`（追加予定）
+#### 実装ファイル
+- **ルート**: `backend/src/routes/projectRoutes.ts`
 - **コントローラー**: `backend/src/controllers/projectController.ts` (`getProjectMaiml`)
 - **サービス**: `backend/src/services/projectService.ts` (`getProjectMaiml`)
 
@@ -2188,6 +1980,395 @@ const projects = await db
 
 ---
 
+---
+
+## API #21: テンプレート実績取得
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | GET |
+| **エンドポイント** | `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` |
+| **説明** | 指定トランジションに隣接するプレースのテンプレート実績データ（template_data）を取得する |
+| **実装状態** | ✅ 実装済み |
+| **権限** | `experiment_worker` 以上（機能CD: `050000`）読取可 |
+| **ミドルウェア** | `authMiddleware` → `tenantIsolation` → `checkPermission('050000', 0)` → バリデーション |
+| **呼び出し元** | DataRecordDialog |
+
+### リクエスト
+
+**パスパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| `projectName` | string | ✅ | プロジェクト名（1〜255文字） |
+| `methodId` | string | ✅ | メソッドID（1〜255文字） |
+| `taskNo` | integer | ✅ | タスク番号（1以上の整数） |
+
+**クエリパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| `transitionId` | string | ✅ | トランジションID（1〜255文字）。このトランジションに隣接するプレースのデータを返す |
+
+**注意**: `transitionId` は必須クエリパラメータです。`API一覧_実験作業者画面.md` には記載がありませんが、実装上必須です。
+
+### レスポンス
+
+**成功時（200 OK）**
+
+```json
+{
+  "success": true,
+  "data": {
+    "projectName": "sample_project",
+    "methodId": "method_001",
+    "taskNo": 1,
+    "transitionId": "t001",
+    "adjacentPlaceIds": ["place_001", "place_002"],
+    "templates": [
+      {
+        "placeId": "place_001",
+        "templateType": "material",
+        "templateId": "tmpl_mat_001",
+        "data": {
+          "templateId": "tmpl_mat_001",
+          "templateType": "material",
+          "properties": [
+            {
+              "key": "reagentName",
+              "xsiType": "stringType",
+              "value": "NaCl",
+              "units": null
+            },
+            {
+              "key": "amount",
+              "xsiType": "floatType",
+              "value": 1.5,
+              "units": "g"
+            }
+          ]
+        },
+        "recordedBy": "user-uuid",
+        "recordedAt": "2026-03-01T10:00:00Z"
+      },
+      {
+        "placeId": "place_002",
+        "templateType": "condition",
+        "templateId": "tmpl_cond_001",
+        "data": {
+          "templateId": "tmpl_cond_001",
+          "templateType": "condition",
+          "properties": [
+            {
+              "key": "temperature",
+              "xsiType": "floatType",
+              "value": null,
+              "units": "℃"
+            }
+          ]
+        },
+        "recordedBy": null,
+        "recordedAt": null
+      }
+    ],
+    "totalCount": 2
+  },
+  "meta": {
+    "timestamp": "2026-03-12T10:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**レスポンスフィールド説明**
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `projectName` | string | プロジェクト名 |
+| `methodId` | string | メソッドID |
+| `taskNo` | number | タスク番号 |
+| `transitionId` | string | トランジションID |
+| `adjacentPlaceIds` | string[] | トランジションに隣接するプレースIDの配列（入力・出力プレース両方） |
+| `templates` | array | テンプレート実績一覧 |
+| `templates[].placeId` | string | プレースID |
+| `templates[].templateType` | string | テンプレート種別（`material` / `condition` / `result`） |
+| `templates[].templateId` | string | テンプレートID |
+| `templates[].data` | object | テンプレートデータ（PropertySet形式） |
+| `templates[].data.templateId` | string | テンプレートID |
+| `templates[].data.templateType` | string | テンプレート種別 |
+| `templates[].data.properties` | array | プロパティ一覧 |
+| `templates[].data.properties[].key` | string | プロパティキー |
+| `templates[].data.properties[].xsiType` | string | データ型（`stringType`, `floatType`, etc.） |
+| `templates[].data.properties[].value` | any | プロパティ値（未記録の場合は `null`） |
+| `templates[].data.properties[].units` | string\|null | 単位 |
+| `templates[].recordedBy` | string\|null | 記録者のユーザーID（未記録の場合は `null`） |
+| `templates[].recordedAt` | string\|null | 記録日時（ISO 8601）（未記録の場合は `null`） |
+| `totalCount` | number | テンプレート件数 |
+
+**注意**: DBにデータがない場合（未記録）は、MAIMLファイルのテンプレート定義から初期値（`value: null`）のフォールバックデータを返します。
+
+**エラー時**
+
+| ステータス | 説明 |
+|-----------|------|
+| 400 | バリデーションエラー（`transitionId` 未指定など） |
+| 404 | プロジェクト / メソッド / トランジションが見つからない |
+| 500 | サーバーエラー（S3接続エラー、MAIMLパースエラー等） |
+
+### ビジネスロジック
+
+1. `projectName` → `projectId` を解決（SQLファイル: `projects/findIdByName.sql`）
+2. `template_data` テーブルから対象タスクの全レコードを取得
+3. S3/Swift から MaiML ファイルをダウンロード（`{organizationId}/projects/{projectName}/{projectName}.maiml`）
+4. `MaimlParserTyped` でペトリネット構造を解析
+5. 指定 `methodId` の method を特定し `transitionId` の存在を確認
+6. アーク情報から隣接プレースID を特定（入力プレース・出力プレース両方）
+7. `template_data` レコードを隣接プレースIDでフィルタリング
+8. DBにデータがないプレースは MAIMLテンプレート定義からフォールバック（`value: null`）
+
+### 実装ファイル
+
+- **ルート**: `backend/src/routes/experimentRoutes.ts`
+- **コントローラー**: `backend/src/controllers/experimentController.ts` (`getTemplateData`)
+- **サービス**: `backend/src/services/experimentDataService.ts` (`getTemplateData`)
+- **リポジトリ**: `backend/src/repositories/templateDataRepository.ts` (`findByTaskNo`)
+
+---
+
+## API #22: 実験データ一括保存
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | POST |
+| **エンドポイント** | `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` |
+| **説明** | 複数プレースの実験データを一括保存（upsert）する。みなし進捗が有効な組織ではトランジションステータスを自動更新する |
+| **実装状態** | ✅ 実装済み |
+| **権限** | `experiment_worker` のみ（機能CD: `050000`）書込可 |
+| **ミドルウェア** | `authMiddleware` → `tenantIsolation` → `checkPermission('050000', 1)` → バリデーション |
+| **呼び出し元** | DataRecordDialog |
+
+**注意**: `API一覧_実験作業者画面.md` には「1リクエストにつき1テンプレート分」と記載されていますが、実装は**バッチ処理**（`records` 配列で複数件を一括保存）です。
+
+### リクエスト
+
+**パスパラメータ**
+
+| パラメータ | 型 | 必須 | 説明 |
+|-----------|-----|------|------|
+| `projectName` | string | ✅ | プロジェクト名（1〜255文字） |
+| `methodId` | string | ✅ | メソッドID（1〜255文字） |
+| `taskNo` | integer | ✅ | タスク番号（1以上の整数） |
+
+**リクエストボディ**
+
+```json
+{
+  "records": [
+    {
+      "placeId": "place_001",
+      "data": {
+        "templateId": "tmpl_mat_001",
+        "templateType": "material",
+        "properties": [
+          {
+            "key": "reagentName",
+            "xsiType": "stringType",
+            "value": "NaCl",
+            "units": null
+          },
+          {
+            "key": "amount",
+            "xsiType": "floatType",
+            "value": 1.5,
+            "units": "g"
+          }
+        ]
+      },
+      "comment": "記録メモ（省略可）"
+    }
+  ]
+}
+```
+
+**バリデーション**
+
+| フィールド | 型 | 必須 | 制約 |
+|-----------|-----|------|------|
+| `records` | array | ✅ | 1件以上50件以下 |
+| `records[].placeId` | string | ✅ | 1〜255文字 |
+| `records[].data` | object | ✅ | オブジェクト形式 |
+| `records[].data.templateId` | string | ✅ | 1〜255文字 |
+| `records[].data.templateType` | string | ✅ | `material` / `condition` / `result` のいずれか |
+| `records[].data.properties` | array | ✅ | 配列形式 |
+| `records[].comment` | string | - | 最大2000文字 |
+
+### レスポンス
+
+**成功時（201 Created）**
+
+```json
+{
+  "success": true,
+  "data": {
+    "saved": 2,
+    "records": [
+      {
+        "organization_id": "org-uuid",
+        "project_id": "project-uuid",
+        "method_id": "method_001",
+        "task_no": 1,
+        "place_id": "place_001",
+        "property_set": {
+          "templateId": "tmpl_mat_001",
+          "templateType": "material",
+          "properties": [...]
+        },
+        "create_user_id": "user-uuid",
+        "update_user_id": "user-uuid",
+        "create_at": "2026-03-12T10:00:00Z",
+        "update_at": "2026-03-12T10:00:00Z"
+      }
+    ]
+  },
+  "meta": {
+    "timestamp": "2026-03-12T10:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+**レスポンスフィールド説明**
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `saved` | number | 保存されたレコード件数 |
+| `records` | array | 保存されたレコードの配列（`template_data` テーブルのDBレコード形式） |
+
+**エラー時**
+
+| ステータス | 説明 |
+|-----------|------|
+| 400 | バリデーションエラー |
+| 403 | プロジェクトが編集不可（`project_status ≠ 2`） |
+| 404 | タスクが見つからない |
+| 500 | サーバーエラー |
+
+### ビジネスロジック
+
+1. `projectName` → `projectId` + `projectStatus` を解決（SQLファイル: `projects/findByNameWithStatus.sql`）
+2. `project_status = 2`（タスク実行中）のみ編集可能。それ以外は 403 エラー
+3. タスク存在確認（SQLファイル: `tasks/checkExists.sql`）
+4. トランザクション開始
+5. `records` の各要素を `template_data` テーブルに UPSERT（キー: `organization_id`, `project_id`, `method_id`, `task_no`, `place_id`）
+6. `use_deemed_progress = true` の組織の場合、アーク情報からトランジションIDを解決し `transition_data` の `status` / `progress_rate` を自動更新（みなし進捗）
+   - 実績登録済み数 < 総プレース数 → IN_PROGRESS (3)
+   - 実績登録済み数 === 総プレース数 → COMPLETED (5)
+7. トランザクションコミット
+
+### 実装ファイル
+
+- **ルート**: `backend/src/routes/experimentRoutes.ts`
+- **コントローラー**: `backend/src/controllers/experimentController.ts` (`saveBatchData`)
+- **サービス**: `backend/src/services/experimentDataService.ts` (`saveBatchData`)
+- **リポジトリ**: `backend/src/repositories/templateDataRepository.ts` (`upsert`)
+
+---
+
+## API #23: トランジションステータス更新（廃止済み）
+
+### 概要
+
+| 項目 | 内容 |
+|------|------|
+| **HTTPメソッド** | PUT |
+| **エンドポイント** | `/api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status` |
+| **説明** | **このエンドポイントは廃止済みです（410 Gone）。** 新しいエンドポイントを使用してください |
+| **実装状態** | ⛔ 廃止済み（410 Gone） |
+| **廃止日** | 2026-02-18 |
+| **移動先** | `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` |
+| **移動先仕様書** | `docs/design/api/api_progress_monitoring.md` - API #6 |
+
+### 廃止の背景
+
+2026-02-18 にトランジションステータス更新APIが `experimentRoutes.ts` から `progressRoutes.ts` へ移動されました。
+
+移行内容：
+- **旧エンドポイント**: `PUT /api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status`
+  - パスパラメータに `projectId`（UUID）を使用
+- **新エンドポイント**: `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status`
+  - パスパラメータに `projectName`（文字列）を使用
+  - HTTPメソッドが `PUT` → `PATCH` に変更
+
+### 現在の動作（廃止済みエンドポイント）
+
+旧エンドポイントへのリクエストは **410 Gone** を返します：
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ENDPOINT_DEPRECATED",
+    "message": "このエンドポイントは廃止されました。新しいエンドポイントを使用してください。",
+    "details": {
+      "deprecated_endpoint": "PUT /api/v1/experiments/projects/:projectId/methods/:methodId/transitions/:transitionId/status",
+      "new_endpoint": "PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status",
+      "migration_guide": "docs/20260218_1730_トランジションステータス更新API移動_PLAN.md"
+    }
+  },
+  "meta": {
+    "timestamp": "2026-03-12T10:00:00Z",
+    "requestId": "req_abc123"
+  }
+}
+```
+
+### 移行先API
+
+正式なトランジションステータス更新APIは `api_progress_monitoring.md` の API #6 を参照してください。
+
+**移行先エンドポイント**: `PATCH /api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status`
+
+**`API一覧_実験作業者画面.md` の記載について**: 同ドキュメントには `PUT /api/v1/experiments/.../status` として記載されていますが、これは古い情報です。実際の実装は `PATCH /api/v1/progress/.../status` です。
+
+### 実装ファイル（廃止済み処理）
+
+- **ルート**: `backend/src/routes/experimentRoutes.ts`（廃止済みルートは定義なし）
+- **コントローラー**: `backend/src/controllers/experimentController.ts` (`updateTransitionStatus`) ※410を返すスタブ
+
+---
+
+## 📝 変更履歴（3.0.0）
+
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|----------|--------|
+| 3.0.0 | 2026-03-12 | 実験データ関連API（#21〜#23）をソースコード実装に基づき追加 | Cline |
+| | | - ヘッダー更新: 総API数 20個、実装済み 18個、未実装 1個、廃止済み 1個 | |
+| | | - 実装状況サマリーに「実験データ」カテゴリを追加 | |
+| | | - API一覧テーブルに #21, #22, #23 を追加 | |
+| | | - API #21: テンプレート実績取得 GET /experiments/.../data を追加（`API一覧_実験作業者画面.md` との差異: エンドポイント末尾は `/data`、`transitionId` クエリパラメータが必須、レスポンスはネスト構造） | |
+| | | - API #22: 実験データ一括保存 POST /experiments/.../data を追加（`API一覧_実験作業者画面.md` との差異: バッチ処理、`records` 配列形式、201 Created） | |
+| | | - API #23: トランジションステータス更新（廃止済み）を追加（旧 PUT エンドポイントは 410 Gone、新エンドポイントは PATCH /progress/.../status） | |
+
+---
+
+## 📝 変更履歴（2.9.0）
+
+| バージョン | 日付 | 変更内容 | 担当者 |
+|-----------|------|----------|--------|
+| 2.9.0 | 2026-03-12 | 実験作業者画面のプロジェクト関連APIをソースコード実装に基づき修正 | Cline |
+| | | - ヘッダー更新: 総API数 17個、実装済み 16個、未実装 1個、完了率 94% | |
+| | | - 実装状況サマリー更新（合計 16/17 → 完了率 94%） | |
+| | | - API一覧テーブル #13 エンドポイントを `:projectId` → `:projectName` に修正 | |
+| | | - API #13 MAIMLファイル取得: ✅実装済みに変更、パスパラメータを `projectName`（文字列）に修正、権限を全ロールに変更、レスポンスを `{ maimlContent: string }` に修正、ファイル未存在時は空文字列で 200 OK を返す仕様に修正、実装ファイル追記 | |
+| | | - API #13 承認依頼: ✅実装済みに変更、ビジネスロジックをソースコード実装に合わせて修正（タスク完了チェック・問題チェックは実装なし）、レスポンスから `notification_id` を削除、エラーコードを実装に合わせて修正、ミドルウェア情報追記 | |
+| | | - API #14 実験作業者用プロジェクト一覧: ✅実装済みに変更、`status` パラメータを数値文字列 `"1"/"2"/"3"` に修正、レスポンスをcamelCase形式（`projectId`, `projectName`, `projectStatus`, `useDeemedProgress`, `createdAt`, `updatedAt`）に修正、実装ファイル追記 | |
+
+---
+
 **作成者**: Cline
 **作成日**: 2026-01-21 16:30
-**最終更新**: 2026-03-06 15:36
+**最終更新**: 2026-03-12 13:21

@@ -9,7 +9,7 @@ import { Pool } from 'pg';
  * 最終ログイン情報の型
  */
 export interface LastLogin {
-  user_name: string;
+  user_id: string;
   organization_id: string;
   login_at: Date;
 }
@@ -18,7 +18,7 @@ export interface LastLogin {
  * 最終二段階認証ログイン情報の型
  */
 export interface LastTwoFactorAuthLogin {
-  user_name: string;
+  user_id: string;
   organization_id: string;
   login_at: Date;
 }
@@ -27,36 +27,36 @@ export interface LastTwoFactorAuthLogin {
  * 最終成功ログイン情報を取得
  * 
  * @param pool - データベース接続プール
- * @param userName - ユーザー名（organization_user.user_name）
+ * @param userId - ユーザーID（organization_user.user_id）
  * @param organizationId - 組織ID
  * @returns 最終ログイン情報（存在しない場合はnull）
  */
 export async function getLastSuccessfulLogin(
   pool: Pool,
-  userName: string,
+  userId: string,
   organizationId: string
 ): Promise<LastLogin | null> {
   const query = `
     SELECT 
-      user_name,
+      user_id,
       organization_id,
       login_at
     FROM login_history
-    WHERE user_name = $1
+    WHERE user_id = $1
       AND organization_id = $2
       AND login_sf = true
     ORDER BY login_at DESC
     LIMIT 1
   `;
 
-  const result = await pool.query(query, [userName, organizationId]);
+  const result = await pool.query(query, [userId, organizationId]);
 
   if (result.rows.length === 0) {
     return null;
   }
 
   return {
-    user_name: result.rows[0].user_name,
+    user_id: result.rows[0].user_id,
     organization_id: result.rows[0].organization_id,
     login_at: new Date(result.rows[0].login_at),
   };
@@ -67,22 +67,22 @@ export async function getLastSuccessfulLogin(
  * （新仕様: entry_execute_flg=trueのログインのみ）
  * 
  * @param pool - データベース接続プール
- * @param userName - ユーザー名（organization_user.user_name）
+ * @param userId - ユーザーID（organization_user.user_id）
  * @param organizationId - 組織ID
  * @returns 最終二段階認証ログイン情報（存在しない場合はnull）
  */
 export async function getLastTwoFactorAuthLogin(
   pool: Pool,
-  userName: string,
+  userId: string,
   organizationId: string
 ): Promise<LastTwoFactorAuthLogin | null> {
   const query = `
     SELECT 
-      user_name,
+      user_id,
       organization_id,
       login_at
     FROM login_history
-    WHERE user_name = $1
+    WHERE user_id = $1
       AND organization_id = $2
       AND login_sf = true
       AND entry_execute_flg = true
@@ -90,14 +90,14 @@ export async function getLastTwoFactorAuthLogin(
     LIMIT 1
   `;
 
-  const result = await pool.query(query, [userName, organizationId]);
+  const result = await pool.query(query, [userId, organizationId]);
 
   if (result.rows.length === 0) {
     return null;
   }
 
   return {
-    user_name: result.rows[0].user_name,
+    user_id: result.rows[0].user_id,
     organization_id: result.rows[0].organization_id,
     login_at: new Date(result.rows[0].login_at),
   };

@@ -2,10 +2,11 @@
 
 ## メタデータ
 - **作成日**: 2026-01-27
-- **バージョン**: 3.3.0
-- **最終更新**: 2026-03-02
+- **バージョン**: 3.4.0
+- **最終更新**: 2026-03-16
+
 - **担当**: Development Team
-- **実装状況**: ⏳ 未実装
+- **実装状況**: ✅ 実装済み
 
 ---
 
@@ -30,8 +31,8 @@
 
 | No | HTTPメソッド | エンドポイント | 説明 | 実装状態 | 権限 |
 |----|-------------|---------------|------|---------|------|
-| 1 | POST | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ⏳ 未実装 | experiment_worker のみ書込可 |
-| 2 | GET | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | テンプレート実績一覧取得 | ⏳ 未実装 | experiment_worker 読取専用 |
+| 1 | POST | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | 実験データ一括保存 | ✅ 実装済み | experiment_worker のみ書込可 |
+| 2 | GET | /api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data | テンプレート実績一覧取得 | ✅ 実装済み | experiment_worker 読取専用 |
 
 ---
 
@@ -59,7 +60,7 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
   auth,                        // JWT認証
   tenantIsolation,            // テナント分離
   permissionCheck(['experiment_worker']), // 権限チェック
-  experimentDataController.saveBatch
+  experimentDataController.saveBatchData
 );
 ```
 
@@ -121,7 +122,8 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 | data | object | ○ | 実験データ（PropertySet形式） | `{ templateId, templateType, properties }` の形式 |
 | data.templateId | string | ○ | テンプレートID | |
 | data.templateType | string | ○ | テンプレート種別 | material, condition, result |
-| data.properties | array | ○ | プロパティ配列 | `[{ key, xsiType, value, units }]` の形式 |
+| data.properties | array | ○ | プロパティ配列 | `[{ key, xsiType, value, units, description?, formatString?, scaleFactor? }]` の形式 |
+
 | comment | string | × | コメント | 最大2000文字 |
 
 > **注意**: `templateType`・`templateId` はトップレベルには含めず、`data` オブジェクト内に含めてください。
@@ -248,8 +250,8 @@ router.post('/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/
 ### ビジネスロジック
 
 1. **プロジェクトステータス確認**
-   - プロジェクトステータスが編集可能（draft/active/waiting_approval）であることを確認
-   - archived/completedの場合はエラー
+   - プロジェクトステータスが編集可能（**project_status = 2（タスク実行中）のみ**）であることを確認
+   - project_status が 2 以外の場合は `ProjectNotEditableError` をスローして 403 エラーを返す
 
 2. **タスク存在確認**
    - taskNoが指定されたproject_id、method_idに属することを確認
@@ -527,9 +529,10 @@ GET /api/v1/experiments/projects/sample_project/methods/method_001/tasks/1/data?
     - `parser.getMethods()` で対象メソッドを特定
     - `materialTemplates` / `conditionTemplates` / `resultTemplates` をループ
     - 各テンプレートの `placeRefs` から隣接プレースIDに一致するものを抽出
-    - `properties` を `{ key, xsiType, value: null, units }` 形式でマッピング
+    - `properties` を `{ key, xsiType, value: p.value ?? null, units }` 形式でマッピング（MAIMLに初期値がある場合はその値、なければ `null`）
     - `data` に `{ templateId, templateType, properties }` をセット（`taskRegistrationService.ts` の `property_set` と同形式）
     - `recordedBy` / `recordedAt` は `null` を設定
+    - **注意**: テンプレートはメソッド直下（`method.materialTemplates` 等）と `method.program[]` 配下の両方を統合して検索する
 
 ### レスポンス
 
@@ -666,9 +669,9 @@ GET /api/v1/experiments/projects/sample_project/methods/method_001/tasks/1/data?
 | placeId | string | プレースID（テンプレートとプレースの紐付けに使用） |
 | templateType | string | テンプレート種別（material / condition / result） |
 | templateId | string | テンプレートID（テンプレート定義の特定に使用） |
-| data | object | 実験データ本体。DBに実績がある場合は記録済みデータ、0件フォールバック時は `{ templateId, templateType, properties: [{ key, xsiType, value: null, units }] }` 形式のMAIML定義値 |
-| recordedBy | string \| null | 記録者のユーザーID（UUID）。DBに実績がない場合は `null` |
-| recordedAt | string \| null | 記録日時（ISO 8601 形式）。DBに実績がない場合は `null` |
+| data | object | 実験データ本体。DBに実績がある場合は `template_data.property_set` の値（`PropertySet` 型: `{ templateId, templateType, properties: [{ key, xsiType, value, units }] }` 形式）。該当プレースがフォールバック時は `{ templateId, templateType, properties: [{ key, xsiType, value, units }] }` 形式のMAIML定義値（未入力 `value` は `null` または MAIMLの初期値） |
+| recordedBy | string \| null | 記録者のユーザーID（UUID）。`template_data.update_user_id` の値。DBに実績がない場合は `null` |
+| recordedAt | string \| null | 記録日時（ISO 8601 形式）。`template_data.update_at` の値。DBに実績がない場合は `null` |
 
 ### バリデーション
 
@@ -862,12 +865,12 @@ if (filteredRecords.length > 0) {
 
 ### ルートファイル
 ```
-backend/src/routes/experimentDataRoutes.ts
+backend/src/routes/experimentRoutes.ts
 ```
 
 ### コントローラーファイル
 ```
-backend/src/controllers/experimentDataController.ts
+backend/src/controllers/experimentController.ts
 ```
 
 ### サービスファイル
@@ -877,9 +880,9 @@ backend/src/services/experimentDataService.ts
 
 ### テストファイル
 ```
-backend/tests/routes/experimentDataRoutes.test.ts
+backend/tests/routes/experimentRoutes.test.ts
 backend/tests/services/experimentDataService.test.ts
-backend/tests/controllers/experimentDataController.test.ts
+backend/tests/controllers/experimentController.test.ts
 ```
 
 ---
@@ -925,7 +928,22 @@ backend/tests/controllers/experimentDataController.test.ts
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 3.4.0 | 2026-03-16 | maimlDataWriter仕様修正に伴うプロパティ形式の更新 | Cline |
+| | | - `data.properties` 要素に `description?`・`formatString?`・`scaleFactor?` フィールドを追加 | |
+| | | - `templateDataRepository.ts` の `PropertySetProperty` を廃止し `Property[]`（maiml-unified）に統一 | |
+| | | - `taskRegistrationService.ts` でプロパティを `{ ...p, value: null }` として保存するよう変更（全フィールド保持） | |
+| | | - `eventLogRepository.ts` の xsi:type 文字列を `xs:string`→`stringType` 等に修正 | |
+| 3.4.0 | 2026-03-12 | ソースコード実装に合わせて仕様書を修正 | Cline |
+| | | - 実装状況を「未実装」→「実装済み」に更新 | |
+| | | - 実装ファイルパスを `experimentDataController.ts` → `experimentController.ts`、`experimentDataRoutes.ts` → `experimentRoutes.ts` に修正 | |
+| | | - ミドルウェアチェーンのコントローラー関数名を `saveBatch` → `saveBatchData` に修正 | |
+| | | - POST APIのプロジェクト編集可能ステータスを `draft/active/waiting_approval` → `project_status = 2（タスク実行中）のみ` に修正 | |
+| | | - GET APIの `templates[].data` フィールド説明を `PropertySet` 型に合わせて修正 | |
+| | | - GET APIの `recordedBy` / `recordedAt` を `update_user_id` / `update_at` カラムに対応させるよう修正 | |
+| | | - フォールバック処理の `properties[].value` を `p.value ?? null` に修正（MAIML初期値対応） | |
+| | | - フォールバック処理のテンプレート取得元にメソッド直下と `method.program[]` 配下を統合する旨を追記 | |
 | 3.3.0 | 2026-03-02 | 実験データ一括保存API みなし進捗対応 | Cline |
+
 | | | - ビジネスロジック #5 にみなし進捗自動更新仕様を追加 | |
 | | | - `use_deemed_progress = true` の組織でデータ保存時に `transition_data` を自動更新 | |
 | | | - 実績1件以上: IN_PROGRESS (3)、全件完了: COMPLETED (5) | |
@@ -966,4 +984,4 @@ backend/tests/controllers/experimentDataController.test.ts
 
 ---
 
-**注意**: この設計書は未実装APIの仕様を定義したものです。実装時には、この設計書に従ってルート、コントローラー、サービス、テストを作成してください。
+**注意**: この設計書は実装済みAPIの仕様を記述したものです。仕様変更時はソースコード（`experimentController.ts`、`experimentDataService.ts`）と合わせて本ドキュメントも更新してください。

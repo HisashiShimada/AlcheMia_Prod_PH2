@@ -12,7 +12,14 @@ import { sanitizeForLog, sanitizeErrorForLog } from '../utils/sanitizeLog';
 import winston from 'winston';
 import * as projectRepository from '../repositories/projectRepository';
 import * as projectTaskRepository from '../repositories/projectTaskRepository';
+import { TaskStatusEnum } from './taskService';
 import * as projectInstructionRepository from '../repositories/projectInstructionRepository';
+import * as instructionRepository from '../repositories/instructionRepository';
+import { EventLogRepository } from '../repositories/eventLogRepository';
+import { MaimlWriterService } from './maimlWriterService';
+import { loadSqlFile } from '../sql/loader';
+import { logError } from '../utils/logger';
+import { XMLParser } from 'fast-xml-parser';
 import type { 
   Project, 
   Pagination, 
@@ -150,7 +157,6 @@ export class ProjectService {
       ]);
 
       // Task 3.6: S3フォルダ作成
-      const { getStorageService } = require('../services/storageService');
       const storageService = getStorageService();
       const s3Path = `projects/${data.projectName}/.keep`;
 
@@ -1083,9 +1089,6 @@ export class ProjectService {
     userId: string
   ): Promise<ServiceResult<any>> {
     const pgp = getPgp();
-    
-    // リポジトリ層のインポート
-    const projectRepository = require('../repositories/projectRepository');
 
     // Task 5.2.4: ログ記録開始（機密情報フィルタリング）
     winston.info('Approval request initiated', {
@@ -1149,7 +1152,7 @@ export class ProjectService {
       // Task 3.2: トランザクション管理とステータス更新（pg-promiseのtx使用）
       const currentTimestamp = new Date().toISOString();
       
-      await pgp.tx(async () => {
+      await pgp.tx(async (t: any) => {
         // プロジェクトステータス更新（リポジトリ層使用）
         const rowCount = await projectRepository.updateApprovalStatus(
           organizationId,
@@ -1158,10 +1161,27 @@ export class ProjectService {
           currentTimestamp,
           userId
         );
-        
+
         if (rowCount === 0) {
           throw new Error('Failed to update project status');
         }
+
+        // タスクステータス一括更新: IN_PROGRESS(1) → REVIEW_WAITING(2)
+        // 承認依頼時にプロジェクト内の実行中タスクをレビュー待ちに変更する
+        await projectTaskRepository.bulkUpdateTaskStatusByProject(
+          t,
+          organizationId,
+          projectId,
+          TaskStatusEnum.IN_PROGRESS,   // fromStatus: 1（実行中）
+          TaskStatusEnum.REVIEW_WAITING, // toStatus: 2（レビュー待ち）
+          userId
+        );
+
+        winston.info('requestApproval - task_status updated IN_PROGRESS -> REVIEW_WAITING', {
+          organizationId,
+          projectId,
+          userId,
+        });
       });
 
       // commentをエスケープしてXSS攻撃を防ぐ（通知削除後も保持）
@@ -1280,8 +1300,9 @@ export class ProjectService {
       const TASK_STATUS_MAP: { [key: number]: string } = {
         0: 'pending',
         1: 'in_progress',
-        2: 'failed',
+        2: 'review_waiting',
         3: 'completed',
+        4: 'forced_terminated',
       };
 
       // タスクデータをフロントエンドの型に合わせて変換
@@ -1360,10 +1381,13 @@ export class ProjectService {
             statistics.inProgress = count;
             break;
           case 2:
-            statistics.failed = count;
+            // review_waiting（レビュー待ち）
             break;
           case 3:
             statistics.completed = count;
+            break;
+          case 4:
+            statistics.failed = count; // forced_terminated（強制終了）
             break;
         }
       });
@@ -1406,8 +1430,7 @@ export class ProjectService {
     };
   }): Promise<ServiceResult<any[]>> {
     const pgp = getPgp();
-    const { loadSqlFile } = require('../sql/loader');
-    
+
     try {
       const { projectName, organizationId, userId, userRole, filters = {} } = params;
       
@@ -1678,11 +1701,6 @@ export class ProjectService {
     organizationId: string,
     role: string
   ): Promise<ServiceResult<InstructionConfirmationData>> {
-    // リポジトリ層のインポート
-    const instructionRepository = require('../repositories/instructionRepository');
-    const projectRepository = require('../repositories/projectRepository');
-    const { EventLogRepository } = require('../repositories/eventLogRepository');
-
     const pool = getPool();
     let client;
 
@@ -1768,7 +1786,6 @@ export class ProjectService {
           const fileBuffer = await storageService.downloadFile(organizationId, filePath);
           const maimlContent = fileBuffer.toString('utf-8');
 
-          const { XMLParser } = require('fast-xml-parser');
           const parser = new XMLParser({
             ignoreAttributes: false,
             attributeNamePrefix: '@_',
@@ -1790,7 +1807,6 @@ export class ProjectService {
           programId = targetMethod?.program?.['@_id'] ?? null;
         } catch (maimlError) {
           // MAIMLファイル取得・パース失敗時は null のまま続行（ログのみ）
-          const { logError } = require('../utils/logger');
           logError('Failed to parse MAIML for programId', maimlError as Error, {
             projectName,
             organizationId,
@@ -1860,7 +1876,6 @@ export class ProjectService {
         await client.query('ROLLBACK');
       }
 
-      const { logError } = require('../utils/logger');
       logError('Instruction confirmation error', error as Error, {
         instructionId,
         userId,
@@ -1910,6 +1925,23 @@ export class ProjectService {
         organizationId,
         projectRow.project_id
       );
+
+      // MAIMLファイルへの data 層・eventLog 層書き出し
+      // 承認完了後に template_data / maiml_event_log の内容を MAIMLファイルに反映する。
+      // 書き出し失敗はログのみに留め、承認完了レスポンスには影響させない。
+      try {
+        const maimlWriterService = new MaimlWriterService();
+        await maimlWriterService.writeDataAndEventLog(
+          organizationId,
+          projectRow.project_id,
+          projectName
+        );
+      } catch (maimlWriteError) {
+        console.error(
+          '[ProjectService.completeReviewTasks] MAIMLファイルへの書き出しに失敗しました（処理は継続）:',
+          maimlWriteError
+        );
+      }
 
       return {
         success: true,
