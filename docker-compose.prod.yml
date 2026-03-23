@@ -67,8 +67,9 @@ services:
       - SWIFT_BIND_ADDR=0.0.0.0
       - SWIFT_REGENERATE_RING=false
     volumes:
+      - swift-etc:/etc/swift
       - ./config/swift/proxy-server.conf:/etc/swift/proxy-server.conf
-      - swift-data:/srv
+      - swift-data:/swift
     networks:
       - mmdpf-network
     healthcheck:
@@ -225,6 +226,8 @@ volumes:
     name: mmdpf_prod_postgres-data
   redis-data:
     name: mmdpf_prod_redis-data
+  swift-etc:
+    name: mmdpf_prod_swift-etc
   swift-data:
     name: mmdpf_prod_swift-data
   nginx-logs:
