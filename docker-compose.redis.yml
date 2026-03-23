@@ -1,0 +1,65 @@
+# mmdpf Redis Docker Compose Configuration
+# セッションストア・キャッシュ用 Redis サービス
+#
+# =========================================================
+# 起動方法:
+#   1. Redis サービスを起動
+#      docker compose -f docker-compose.redis.yml up -d
+#      ※ mmdpf-network が存在しない場合は自動作成されます
+#
+#   2. 接続確認
+#      docker exec mmdpf-redis redis-cli ping
+#      # => PONG
+#
+#   3. 動作確認（任意）
+#      docker exec mmdpf-redis redis-cli info server
+#
+# 停止方法:
+#   docker compose -f docker-compose.redis.yml down
+#
+# ボリューム含めて削除（データも削除される）:
+#   docker compose -f docker-compose.redis.yml down -v
+# =========================================================
+
+version: '3.8'
+
+services:
+  # -------------------------------------------------------
+  # Redis Service - Session Store / Cache
+  # -------------------------------------------------------
+  # バックエンドから redis://redis:6379 でアクセス可能
+  redis:
+    image: redis:7-alpine
+    container_name: mmdpf-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - mmdpf-network
+    # AOF（Append Only File）によるデータ永続化を有効化
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+# =========================================================
+# Volumes
+# =========================================================
+volumes:
+  # Redis データの永続化ボリューム
+  redis-data:
+    name: mmdpf_redis-data
+
+# =========================================================
+# Networks
+# =========================================================
+networks:
+  # mmdpf-network が存在しない場合は自動作成、存在する場合はそのまま利用
+  # これにより backend コンテナから redis://redis:6379 でアクセス可能
+  mmdpf-network:
+    name: mmdpf-network
+    driver: bridge
