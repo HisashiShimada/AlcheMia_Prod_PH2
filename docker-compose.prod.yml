@@ -65,19 +65,15 @@ services:
       - "${SWIFT_PORT:-8080}:8080"
     environment:
       - AUTH_URL=http://localhost:${SWIFT_PORT:-8080}/auth/v1.0
-      - ACCOUNT=${SWIFT_ACCOUNT:-mmdpf}
-      - USER=${SWIFT_USER:-mmdpf_user}
-      - PASSWORD=${SWIFT_PASSWORD:-}
+      - ACCOUNT=${SWIFT_ACCOUNT:-test}
+      - USER=${SWIFT_USER:-test:tester}
+      - PASSWORD=${SWIFT_PASSWORD:-testing}
     volumes:
       - swift-data:/srv
     networks:
       - mmdpf-network
     healthcheck:
-      test: >
-        ["CMD-SHELL",
-         "swift -A http://localhost:${SWIFT_PORT:-8080}/auth/v1.0
-         -U ${SWIFT_USER:-mmdpf_user}
-         -K ${SWIFT_PASSWORD:-testing} stat || exit 1"]
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen(urllib.request.Request('http://localhost:8080/auth/v1.0', headers={'X-Auth-User': 'test:tester', 'X-Auth-Key': 'testing'}))\" 2>/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
