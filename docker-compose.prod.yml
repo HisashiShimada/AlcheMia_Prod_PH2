@@ -69,7 +69,7 @@ services:
     volumes:
       - swift-etc:/etc/swift
       - ./config/swift/proxy-server.conf:/etc/swift/proxy-server.conf
-      - swift-data:/swift/nodes
+      - swift-data:/swift
     networks:
       - mmdpf-network
     healthcheck:
