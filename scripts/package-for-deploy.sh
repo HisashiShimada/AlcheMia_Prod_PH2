@@ -91,6 +91,7 @@ check_file "${OUTPUT_DIR}/mmdpf-config-data.sql"    "設定データダンプ"
 check_file ".env.deploy"                            "環境変数ファイル"
 check_file "docker-compose.prod.yml"               "Docker Compose ファイル"
 check_dir  "config/nginx"                           "nginx 設定ディレクトリ"
+check_dir  "config/swift"                           "Swift 設定ディレクトリ"
 check_dir  "backend/certs/ca"                       "CA 証明書ディレクトリ"
 check_dir  "backend/certs/server"                   "サーバー証明書ディレクトリ"
 check_dir  "backend/migrations"                     "マイグレーション SQL ディレクトリ"
@@ -137,6 +138,10 @@ success "コピー: mmdpf-schema.sql, mmdpf-config-data.sql"
 # ⑤ nginx 設定
 cp -r config/nginx/. "${TMP_PKG}/config/nginx/"
 success "コピー: config/nginx/"
+
+# ⑤-b Swift 設定
+cp -r config/swift/. "${TMP_PKG}/config/swift/"
+success "コピー: config/swift/"
 
 # ⑥ SSL 証明書
 cp -r backend/certs/ca/.     "${TMP_PKG}/backend/certs/ca/"
