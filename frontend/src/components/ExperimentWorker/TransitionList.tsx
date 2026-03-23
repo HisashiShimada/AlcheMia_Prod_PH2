@@ -7,6 +7,7 @@ import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue, ProjectStatus, isRecordViewableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
 import { getIssues, createIssue, addComment, updateIssueStatus } from '@/services/issueApiService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
@@ -148,7 +149,7 @@ export default function TransitionList({
       setIssues(fetchedIssues);
     } catch (error) {
       console.error('[handleIssueReport] 問題一覧取得エラー', error);
-      message.error('問題一覧の取得に失敗しました');
+      message.error(extractErrorMessage(error));
     } finally {
       setIssueLoading(false);
     }
@@ -207,7 +208,7 @@ export default function TransitionList({
       }
     } catch (error) {
       console.error('[handleSubmitIssue] 問題報告エラー', error);
-      message.error('問題の報告に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -249,7 +250,7 @@ export default function TransitionList({
       }
     } catch (error) {
       console.error('[handleSubmitComment] コメント投稿エラー', error);
-      message.error('コメントの投稿に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -291,7 +292,7 @@ export default function TransitionList({
       }
     } catch (error) {
       console.error('[handleUpdateStatus] ステータス更新エラー', error);
-      message.error('ステータスの更新に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 

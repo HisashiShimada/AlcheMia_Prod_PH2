@@ -9,6 +9,7 @@ import { Spin, message, Button, Typography } from 'antd';
 import { CloseOutlined, MinusOutlined, ExpandOutlined } from '@ant-design/icons';
 import { Rnd } from 'react-rnd';
 import ViewRenderer from '@/components/viewer/ViewRenderer';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -107,7 +108,7 @@ const loadFileContent = async (file: FileData): Promise<string | null> => {
     return null;
   } catch (error) {
     console.error('❌ [InstructionFlowDialog] ファイル読み込みエラー:', error);
-    message.error(`ファイルの読み込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    message.error(extractErrorMessage(error));
     return null;
   }
 };

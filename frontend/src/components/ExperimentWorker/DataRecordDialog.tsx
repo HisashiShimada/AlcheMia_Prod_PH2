@@ -79,6 +79,7 @@ const ALL_STATUS_OPTIONS: { value: TransitionStatus; label: string }[] = [
   { value: 6 as TransitionStatus, label: '異常終了状態' },
 ];
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 import { updateTransitionStatus } from '@/services/projectApiService';
 import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
@@ -583,7 +584,7 @@ export default function DataRecordDialog({
       } else if (axiosError?.message) {
         message.error(`保存に失敗しました: ${axiosError.message}`);
       } else {
-        message.error('入力内容を確認してください');
+        message.error(extractErrorMessage(error));
       }
     } finally {
       setLoading(false);
@@ -1245,7 +1246,7 @@ export default function DataRecordDialog({
                           } else if (axiosError?.message) {
                             message.error(`更新に失敗しました: ${axiosError.message}`);
                           } else {
-                            message.error('ステータスの更新に失敗しました');
+                            message.error(extractErrorMessage(error));
                           }
                         } finally {
                           setLoading(false);

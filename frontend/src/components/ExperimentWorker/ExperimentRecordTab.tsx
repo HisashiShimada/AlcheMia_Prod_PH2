@@ -20,6 +20,7 @@ import { Method, ProjectStatus, ProgressStatus, Transition, Issue, IssueReportFo
 import { getWorkerTasks } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { createApiClient } from '@/utils/authUtils';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Title, Text } = Typography;
 
@@ -211,13 +212,13 @@ export default function ExperimentRecordTab({
           setTasks(allTasks);
         } else {
           console.error('[DEBUG] ExperimentRecordTab - API returned unsuccessful', result);
-          message.error('タスク一覧の取得に失敗しました');
+          message.error(extractErrorMessage(null));
           setMethods([]);
           setTasks([]);
         }
       } catch (error) {
         console.error('[DEBUG] ExperimentRecordTab - Error fetching tasks', error);
-        message.error('タスク一覧の取得中にエラーが発生しました');
+        message.error(extractErrorMessage(error));
         setMethods([]);
         setTasks([]);
       } finally {
@@ -333,7 +334,7 @@ export default function ExperimentRecordTab({
       setIssues(fetchedIssues);
     } catch (error) {
       console.error('[handleIssueClick] 問題一覧取得エラー', error);
-      message.error('問題一覧の取得に失敗しました');
+      message.error(extractErrorMessage(error));
     } finally {
       setIssueLoading(false);
     }
@@ -411,7 +412,7 @@ export default function ExperimentRecordTab({
       }
     } catch (error) {
       console.error('[handleSubmitIssue] 問題報告エラー', error);
-      message.error('問題の報告に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
   
@@ -449,7 +450,7 @@ export default function ExperimentRecordTab({
       }
     } catch (error) {
       console.error('[handleSubmitComment] コメント投稿エラー', error);
-      message.error('コメントの投稿に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 

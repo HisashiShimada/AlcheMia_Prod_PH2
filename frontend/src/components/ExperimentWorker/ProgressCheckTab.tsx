@@ -9,6 +9,7 @@ import IssueReportModal from './IssueReportModal';
 import IssueManagementModal from './IssueManagementModal';
 import { getWorkerTasks, updateTaskStatus } from '@/services/projectApiService';
 import type { WorkerTasksResponse, WorkerMethod, WorkerTask } from '@/services/projectApiService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 import { AxiosError } from 'axios';
 import type { Task, Method, ProjectStatus, Issue, IssueStatus } from '@/types/experimentWorker';
 
@@ -151,13 +152,13 @@ export default function ProgressCheckTab({
           message.success('タスク一覧を取得しました');
         } else {
           console.error('[DEBUG] ProgressCheckTab - API returned unsuccessful', result);
-          message.error('タスク一覧の取得に失敗しました');
+          message.error(extractErrorMessage(null));
           setMethods([]);
           setTasks([]);
         }
       } catch (error) {
         console.error('[DEBUG] ProgressCheckTab - Error fetching tasks', error);
-        message.error('タスク一覧の取得中にエラーが発生しました');
+        message.error(extractErrorMessage(error));
         setMethods([]);
         setTasks([]);
       } finally {

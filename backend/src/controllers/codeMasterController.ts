@@ -54,7 +54,7 @@ export async function getSelectOptions(req: Request, res: Response): Promise<voi
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: error instanceof Error ? error.message : 'Internal server error',
       },
       meta: {
@@ -106,7 +106,7 @@ export async function getMultipleSelectOptions(req: Request, res: Response): Pro
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: error instanceof Error ? error.message : 'Internal server error',
       },
       meta: {

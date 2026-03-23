@@ -75,7 +75,7 @@ export class IssueService {
         return {
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'E1003',
             message: error.message,
             originalError: error,
           },
@@ -85,7 +85,7 @@ export class IssueService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: error.message,
             originalError: error,
           },
@@ -94,7 +94,7 @@ export class IssueService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
           originalError: error as Error,
         },
@@ -134,7 +134,7 @@ export class IssueService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
           originalError: error as Error,
         },
@@ -162,7 +162,7 @@ export class IssueService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: error.message,
             originalError: error,
           },
@@ -171,7 +171,7 @@ export class IssueService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
           originalError: error as Error,
         },
@@ -226,7 +226,7 @@ export class IssueService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: error.message,
             originalError: error,
           },
@@ -236,7 +236,7 @@ export class IssueService {
         return {
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'E1003',
             message: error.message,
             originalError: error,
           },
@@ -245,7 +245,7 @@ export class IssueService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
           originalError: error as Error,
         },
@@ -297,7 +297,7 @@ export class IssueService {
         return {
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'E1003',
             message: error.message,
             originalError: error,
           },
@@ -307,7 +307,7 @@ export class IssueService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: error.message,
             originalError: error,
           },
@@ -316,7 +316,7 @@ export class IssueService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
           originalError: error as Error,
         },

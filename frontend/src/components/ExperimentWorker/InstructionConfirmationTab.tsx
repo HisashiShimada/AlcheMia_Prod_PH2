@@ -13,6 +13,7 @@ import type { FileData, SubnetData } from './InstructionFlowDialog';
 import { Stats, Instruction, ProjectStatus, isEditableStatus, Method, Task } from '@/types/experimentWorker';
 import { getWorkerTasks, confirmInstruction, getProjectMaiml } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Title, Text } = Typography;
 
@@ -181,15 +182,19 @@ export default function InstructionConfirmationTab({
           
           setMethods(methodsData);
           setTasks(allTasks);
-        } else {
+        } else if (!result.success) {
           console.error('[DEBUG] InstructionConfirmationTab - API returned unsuccessful', result);
-          message.error('タスク一覧の取得に失敗しました');
+          message.error(result.error?.message || extractErrorMessage(null));
+          setMethods([]);
+          setTasks([]);
+        } else {
+          // success: true だが data がない場合
           setMethods([]);
           setTasks([]);
         }
       } catch (error) {
         console.error('[DEBUG] InstructionConfirmationTab - Error fetching tasks', error);
-        message.error('タスク一覧の取得中にエラーが発生しました');
+        message.error(extractErrorMessage(error));
         setMethods([]);
         setTasks([]);
       } finally {
@@ -262,7 +267,7 @@ export default function InstructionConfirmationTab({
 
       if (!result.success || !result.data?.maimlContent) {
         console.error('[DEBUG] handleOpenFlowDiagram - MAIMLコンテンツ取得失敗', result);
-        message.error('フロー図の読み込みに失敗しました');
+        message.error(result.error?.message || extractErrorMessage(null));
         return;
       }
 
@@ -294,7 +299,7 @@ export default function InstructionConfirmationTab({
       setNextZIndex(nextZIndex + 1);
     } catch (error) {
       console.error('[DEBUG] handleOpenFlowDiagram - エラー', error);
-      message.error('フロー図の読み込み中にエラーが発生しました');
+      message.error(extractErrorMessage(error));
     } finally {
       setFlowDiagramLoading(false);
     }
@@ -396,7 +401,7 @@ export default function InstructionConfirmationTab({
       }
     } catch (error) {
       console.error('指示確認処理エラー:', error);
-      message.error('指示の確認処理中にエラーが発生しました');
+      message.error(extractErrorMessage(error));
     } finally {
       setConfirmLoading(false);
     }

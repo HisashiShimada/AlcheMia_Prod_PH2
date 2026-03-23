@@ -71,7 +71,11 @@ export const createApiClient = (): AxiosInstance => {
 
   // レスポンスインターセプター: 401エラー時の自動トークン更新
   client.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      // レスポンスはそのまま返す
+      // 各サービス層で response.data.success / response.data.data を参照する形を維持する
+      return response;
+    },
     async (error: AxiosError) => {
       const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 

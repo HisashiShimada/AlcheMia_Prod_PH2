@@ -10,6 +10,7 @@ import React, { useState } from 'react';
 import { Form, Input, Button, Alert, Typography, theme } from 'antd';
 import { UserOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { resetPasswordRequest } from '../../utils/authApi';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Title, Paragraph } = Typography;
 const { useToken } = theme;
@@ -67,7 +68,7 @@ export default function PasswordResetRequest({
       // 成功時は親コンポーネントに通知
       onSuccess();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '予期しないエラーが発生しました';
+      const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       onError(errorMessage);
     } finally {
