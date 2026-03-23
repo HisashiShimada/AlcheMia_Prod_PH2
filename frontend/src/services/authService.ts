@@ -107,15 +107,27 @@ export const authService = {
       // （ログイン前のため、証明書認証によるヘッダー設定がまだ行われていない）
       const params = orgId ? { orgId } : {};
       
-      const response = await apiClient.post<LoginResponseData>(
+      const response = await apiClient.post<ApiResponse<LoginResponseData>>(
         '/auth/login',
         credentials,
         { params }
       );
 
-      // インターセプターにより response.data = 実データ（LoginResponseData）
-      return response.data;
+      // インターセプターはレスポンスをそのまま返すため、response.data.data でアンラップする
+      if (response.data.success) {
+        return response.data.data;
+      }
+
+      // エラーレスポンスの場合（通常はAxiosErrorとして捕捉されるため、ここには到達しにくい）
+      throw new AuthServiceError(
+        response.data.error?.message || 'ログインに失敗しました',
+        response.data.error?.code || 'E9999',
+        response.data.error?.details
+      );
     } catch (error) {
+      if (error instanceof AuthServiceError) {
+        throw error;
+      }
       throw handleApiError(error);
     }
   },
