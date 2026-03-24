@@ -1407,7 +1407,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         }}
         onOk={handleConfirmImportWithDuplicateCheck}
         width={800}
-        okText="取り込み"
+        okText="取り込む"
         cancelText="キャンセル"
         okButtonProps={{ disabled: !selectedNamespaceFile }}
       >

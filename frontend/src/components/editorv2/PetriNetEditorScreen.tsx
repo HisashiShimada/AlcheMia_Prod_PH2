@@ -203,6 +203,8 @@ export default function PetriNetEditorScreen({
             initialDocumentId={documentId}
             initialDescription={description}
             openDraftManagerOnStart={openDraftManagerOnStart}
+            onContentChange={handleContentChange}
+            onContentSaved={() => setHasUnsavedChanges(false)}
           />
         </ReactFlowProvider>
       </div>

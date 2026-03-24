@@ -279,8 +279,9 @@ const handleClose = () => {
     Modal.confirm({
       title: 'アップロード中',
       content: 'アップロード処理が進行中です。キャンセルしますか？',
-      okText: 'はい',
-      cancelText: 'いいえ',
+      okText: '中断する',
+      cancelText: '続行',
+      okButtonProps: { danger: true },
       onOk: onClose,
     });
   } else {
