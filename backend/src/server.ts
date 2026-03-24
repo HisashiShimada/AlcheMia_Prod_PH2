@@ -13,6 +13,7 @@ import { TokenBlacklistService } from './services/tokenBlacklistService';
 import { startMaimlPublishWorker,   stopMaimlPublishWorker   } from './workers/maimlPublishWorker';
 import { startMaimlUnpublishWorker, stopMaimlUnpublishWorker } from './workers/maimlUnpublishWorker';
 import { startMaimlScannerWorker,   stopMaimlScannerWorker   } from './workers/maimlScannerWorker';
+import { getStorageService } from './services/storageService';
 
 // Import routes after dotenv is configured
 import authRoutes from './routes/authRoutes';
@@ -82,6 +83,17 @@ async function startServer() {
     // Redis初期化（リフレッシュトークン管理用）
     // 開発環境ではRedis未起動でもサーバーを起動可能
     await RedisConnectionService.initialize();
+
+    // Swift/S3 バケット/コンテナの存在確認・自動作成
+    // Swift 使用時に mmdpf-files コンテナが未作成でも自動で作成する
+    if (process.env.STORAGE_TYPE === 'swift' || process.env.USE_S3_COMPATIBLE_API === 'true') {
+      try {
+        const storageService = getStorageService();
+        await storageService.ensureBucketExists();
+      } catch (storageErr) {
+        console.warn('⚠️  Storage bucket check skipped:', (storageErr as Error).message);
+      }
+    }
     
     // Setup session middleware after Redis initialization
     app.use(setupSessionMiddleware());

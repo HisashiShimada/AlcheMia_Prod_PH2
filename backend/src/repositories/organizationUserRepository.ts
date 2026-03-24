@@ -59,7 +59,7 @@ export class OrganizationUserRepository {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'User not found',
           },
         };
@@ -115,7 +115,7 @@ export class OrganizationUserRepository {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'User not found',
           },
         };
@@ -176,7 +176,7 @@ export class OrganizationUserRepository {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'User not found',
           },
         };
@@ -229,7 +229,7 @@ export class OrganizationUserRepository {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'セッショントークンに対応するユーザーが見つかりません',
           },
         };

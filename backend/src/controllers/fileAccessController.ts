@@ -62,7 +62,7 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
 
     // エラータイプに応じたステータスコードとレスポンス
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
     let errorMessage = 'システムエラーが発生しました';
 
     if (error.message) {
@@ -72,28 +72,28 @@ export async function downloadFile(req: Request, res: Response): Promise<void> {
           error.message.includes('ファイル名') ||
           error.message.includes('無効な')) {
         statusCode = 400;
-        errorCode = 'VALIDATION_ERROR';
+        errorCode = 'E1003';
         errorMessage = error.message;
       }
       // AuthorizationErrorのチェック
       else if (error.message.includes('アクセス権限') || 
                error.message.includes('権限がありません')) {
         statusCode = 403;
-        errorCode = 'PERMISSION_INSUFFICIENT';
+        errorCode = 'E5015';
         errorMessage = error.message;
       }
       // NotFoundErrorのチェック
       else if (error.message.includes('見つかりません') || 
                error.message.includes('存在しません')) {
         statusCode = 404;
-        errorCode = 'RESOURCE_NOT_FOUND';
+        errorCode = 'E6001';
         errorMessage = error.message;
       }
       // StorageErrorのチェック
       else if (error.message.includes('署名付きURL') || 
                error.message.includes('ストレージ')) {
         statusCode = 500;
-        errorCode = 'STORAGE_ERROR';
+        errorCode = 'E4006';
         errorMessage = error.message;
       }
     }
@@ -156,7 +156,7 @@ export async function downloadFolderAsZip(req: Request, res: Response): Promise<
 
     // エラータイプに応じたステータスコードとレスポンス
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
     let errorMessage = 'システムエラーが発生しました';
 
     if (error.message) {
@@ -166,14 +166,14 @@ export async function downloadFolderAsZip(req: Request, res: Response): Promise<
           error.message.includes('フォルダパス') ||
           error.message.includes('無効な')) {
         statusCode = 400;
-        errorCode = 'VALIDATION_ERROR';
+        errorCode = 'E1003';
         errorMessage = error.message;
       }
       // NotFoundErrorのチェック
       else if (error.message.includes('見つかりません') || 
                error.message.includes('存在しません')) {
         statusCode = 404;
-        errorCode = 'RESOURCE_NOT_FOUND';
+        errorCode = 'E6001';
         errorMessage = error.message;
       }
       // StorageErrorのチェック
@@ -181,7 +181,7 @@ export async function downloadFolderAsZip(req: Request, res: Response): Promise<
                error.message.includes('ストレージ') ||
                error.message.includes('ファイル一覧')) {
         statusCode = 500;
-        errorCode = 'STORAGE_ERROR';
+        errorCode = 'E4006';
         errorMessage = error.message;
       }
     }
@@ -292,7 +292,7 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
 
     // エラータイプに応じたステータスコードとレスポンス
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
     let errorMessage = 'システムエラーが発生しました';
 
     if (error.message) {
@@ -303,7 +303,7 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
           error.message.includes('単一ファイルモード') ||
           error.message.includes('無効な')) {
         statusCode = 400;
-        errorCode = 'VALIDATION_ERROR';
+        errorCode = 'E1003';
         errorMessage = error.message;
       }
       // StorageErrorのチェック
@@ -311,7 +311,7 @@ export async function uploadFiles(req: Request, res: Response): Promise<void> {
                error.message.includes('ストレージ') ||
                error.message.includes('メタデータの保存')) {
         statusCode = 500;
-        errorCode = 'STORAGE_ERROR';
+        errorCode = 'E4006';
         errorMessage = error.message;
       }
     }
@@ -376,7 +376,7 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
 
     // エラータイプに応じたステータスコードとレスポンス
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
     let errorMessage = 'システムエラーが発生しました';
 
     if (error.message) {
@@ -386,14 +386,14 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
           error.message.includes('ファイルキー') ||
           error.message.includes('無効な')) {
         statusCode = 400;
-        errorCode = 'VALIDATION_ERROR';
+        errorCode = 'E1003';
         errorMessage = error.message;
       }
       // NotFoundErrorのチェック
       else if (error.message.includes('見つかりません') || 
                error.message.includes('存在しません')) {
         statusCode = 404;
-        errorCode = 'RESOURCE_NOT_FOUND';
+        errorCode = 'E6001';
         errorMessage = error.message;
       }
       // StorageErrorのチェック
@@ -401,7 +401,7 @@ export async function getFileDownloadUrl(req: Request, res: Response): Promise<v
                error.message.includes('ストレージ') ||
                error.message.includes('メタデータ')) {
         statusCode = 500;
-        errorCode = 'STORAGE_ERROR';
+        errorCode = 'E4006';
         errorMessage = error.message;
       }
     }
@@ -459,17 +459,17 @@ export async function getFileContentAsText(req: Request, res: Response): Promise
     });
 
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
     let errorMessage = 'システムエラーが発生しました';
 
     if (error.message) {
       if (error.message.includes('見つかりません') || error.message.includes('存在しません')) {
         statusCode = 404;
-        errorCode = 'RESOURCE_NOT_FOUND';
+        errorCode = 'E6001';
         errorMessage = error.message;
       } else if (error.message.includes('パストラバーサル') || error.message.includes('不正な')) {
         statusCode = 400;
-        errorCode = 'VALIDATION_ERROR';
+        errorCode = 'E1003';
         errorMessage = error.message;
       }
     }
@@ -520,13 +520,13 @@ export async function getFileViewUrl(req: Request, res: Response): Promise<void>
     });
 
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
     let errorMessage = 'システムエラーが発生しました';
 
     if (error.message) {
       if (error.message.includes('見つかりません') || error.message.includes('存在しません')) {
         statusCode = 404;
-        errorCode = 'RESOURCE_NOT_FOUND';
+        errorCode = 'E6001';
         errorMessage = error.message;
       }
     }
@@ -594,7 +594,7 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
 
     // エラータイプに応じたステータスコードとレスポンス
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
     let errorMessage = 'システムエラーが発生しました';
 
     if (error.message) {
@@ -604,21 +604,21 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
           error.message.includes('ファイルキー') ||
           error.message.includes('無効な')) {
         statusCode = 400;
-        errorCode = 'VALIDATION_ERROR';
+        errorCode = 'E1003';
         errorMessage = error.message;
       }
       // NotFoundErrorのチェック
       else if (error.message.includes('見つかりません') || 
                error.message.includes('存在しません')) {
         statusCode = 404;
-        errorCode = 'RESOURCE_NOT_FOUND';
+        errorCode = 'E6001';
         errorMessage = error.message;
       }
       // StorageErrorのチェック
       else if (error.message.includes('削除') || 
                error.message.includes('ストレージ')) {
         statusCode = 500;
-        errorCode = 'STORAGE_ERROR';
+        errorCode = 'E4006';
         errorMessage = error.message;
       }
     }

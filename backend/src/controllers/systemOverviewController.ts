@@ -38,7 +38,7 @@ export async function getOverview(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システム概要情報の取得に失敗しました',
       },
       meta: {

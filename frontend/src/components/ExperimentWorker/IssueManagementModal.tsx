@@ -39,6 +39,7 @@ import {
   addComment,
   updateIssueStatus,
 } from '@/services/issueApiService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -114,7 +115,7 @@ export default function IssueManagementModal({
       setIssues(data);
     } catch (error) {
       console.error('[IssueManagementModal] fetchIssues error:', error);
-      message.error('問題一覧の取得に失敗しました');
+      message.error(extractErrorMessage(error));
     } finally {
       setIssuesLoading(false);
     }
@@ -250,7 +251,7 @@ export default function IssueManagementModal({
         return;
       }
       console.error('[IssueManagementModal] handleSubmitNewIssue error:', error);
-      message.error('問題の報告に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -277,7 +278,7 @@ export default function IssueManagementModal({
       await fetchIssues();
     } catch (error) {
       console.error('[IssueManagementModal] handleCommentSubmit error:', error);
-      message.error('コメントの送信に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -310,7 +311,7 @@ export default function IssueManagementModal({
       await fetchIssues();
     } catch (error) {
       console.error('[IssueManagementModal] handleSetUnresolved error:', error);
-      message.error('ステータスの変更に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -343,7 +344,7 @@ export default function IssueManagementModal({
       await fetchIssues();
     } catch (error) {
       console.error('[IssueManagementModal] handleSetResolved error:', error);
-      message.error('ステータスの変更に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 

@@ -92,7 +92,7 @@ export class SessionController {
       res.status(500).json({
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'セッション一覧の取得に失敗しました',
         },
         meta: {
@@ -146,13 +146,13 @@ export class SessionController {
         let statusCode = 500;
         
         switch (result.error?.code) {
-          case 'RESOURCE_NOT_FOUND':
+          case 'E6001':
             statusCode = 404;
             break;
-          case 'VALIDATION_ERROR':
+          case 'E1003':
             statusCode = 400;
             break;
-          case 'PERMISSION_INSUFFICIENT':
+          case 'E5015':
             statusCode = 403;
             break;
           case 'SYSTEM_REDIS_ERROR':
@@ -192,7 +192,7 @@ export class SessionController {
       res.status(500).json({
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'セッションの終了に失敗しました',
         },
         meta: {

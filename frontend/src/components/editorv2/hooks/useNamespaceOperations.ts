@@ -10,6 +10,7 @@
 
 import { useCallback, useState } from 'react';
 import { createApiClient } from '@/utils/authUtils';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 /**
  * ファイル一覧取得（S3から）
@@ -286,7 +287,7 @@ const useNamespaceOperations = (): UseNamespaceOperationsReturn => {
       return folderStructure;
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = extractErrorMessage(error);
       console.error('[V2名前空間] S3フォルダ構造取得エラー:', error);
       throw new Error(`S3フォルダ構造取得エラー: ${errorMessage}`);
     } finally {
@@ -585,7 +586,7 @@ const useNamespaceOperations = (): UseNamespaceOperationsReturn => {
       return namespaceFiles;
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = extractErrorMessage(error);
       console.error('[V2名前空間] ファイル一覧取得エラー:', error);
       throw new Error(`名前空間ファイル一覧取得エラー: ${errorMessage}`);
     }
@@ -617,7 +618,7 @@ const useNamespaceOperations = (): UseNamespaceOperationsReturn => {
       return parsedNamespace;
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = extractErrorMessage(error);
       console.error('[V2名前空間] ファイル解析エラー:', error);
       throw new Error(`名前空間ファイル解析エラー: ${errorMessage}`);
     }
@@ -699,7 +700,7 @@ const useNamespaceOperations = (): UseNamespaceOperationsReturn => {
       console.log('[V2名前空間] Template全体置き換え完了:', templateType);
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = extractErrorMessage(error);
       console.error('[V2名前空間] Template全体置き換えエラー:', error);
       throw new Error(`Template全体置き換えエラー: ${errorMessage}`);
     }
@@ -766,7 +767,7 @@ const useNamespaceOperations = (): UseNamespaceOperationsReturn => {
       console.log('[V2名前空間] 要素単体置き換え完了:', elementKey);
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = extractErrorMessage(error);
       console.error('[V2名前空間] 要素単体置き換えエラー:', error);
       throw new Error(`要素単体置き換えエラー: ${errorMessage}`);
     }

@@ -30,16 +30,16 @@ import { loadSqlFile } from '../sql/loader';
  */
 function getHttpStatusFromErrorCode(errorCode: string): number {
   const statusMap: Record<string, number> = {
-    'VALIDATION_ERROR': 400,
+    'E1003': 400,
     'AUTH_TOKEN_MISSING': 401,
-    'AUTH_TOKEN_INVALID': 401,
+    'E5002': 401,
     'PERMISSION_DENIED': 403,
-    'TASK_NOT_FOUND': 404,
-    'METHOD_NOT_FOUND': 404,
+    'E7008': 404,
+    'E7008': 404,
     'MAIML_DOWNLOAD_FAILED': 500,
     'MAIML_PARSE_FAILED': 500,
     'DATABASE_ERROR': 500,
-    'SYSTEM_ERROR': 500
+    'E4001': 500
   };
 
   return statusMap[errorCode] || 500;
@@ -92,7 +92,7 @@ export async function getProgressData(req: Request, res: Response): Promise<void
       res.status(404).json({
         success: false,
         error: {
-          code: 'RESOURCE_NOT_FOUND',
+          code: 'E6001',
           message: 'プロジェクトが見つかりません'
         },
         meta: {
@@ -172,7 +172,7 @@ export async function getProgressData(req: Request, res: Response): Promise<void
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました'
       },
       meta: {
@@ -350,7 +350,7 @@ export async function getWorkerTasks(
       res.status(404).json({
         success: false,
         error: {
-          code: 'RESOURCE_NOT_FOUND',
+          code: 'E6001',
           message: 'Project not found',
         },
         meta: {
@@ -538,7 +538,7 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       res.status(404).json({
         success: false,
         error: {
-          code: 'RESOURCE_NOT_FOUND',
+          code: 'E6001',
           message: 'プロジェクトが見つかりません'
         },
         meta: {
@@ -567,7 +567,7 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       res.status(409).json({
         success: false,
         error: {
-          code: 'PERMISSION_INSUFFICIENT',
+          code: 'E5015',
           message: 'プロジェクトステータスが編集可能な状態ではありません'
         },
         meta: {
@@ -596,16 +596,16 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
       
       // エラーコードからHTTPステータスコードへマッピング
       const statusCodeMap: Record<string, number> = {
-        'VALIDATION_ERROR': 400,
-        'VALIDATION_INVALID_FORMAT': 400,
+        'E1003': 400,
+        'E1005': 400,
         'VALIDATION_INVALID_STATUS': 400,
-        'VALIDATION_REQUIRED_FIELD': 400,
+        'E1004': 400,
         'INVALID_STATUS_TRANSITION': 400,
-        'AUTH_TOKEN_INVALID': 401,
-        'PERMISSION_INSUFFICIENT': 403,
-        'RESOURCE_NOT_FOUND': 404,
+        'E5002': 401,
+        'E5015': 403,
+        'E6001': 404,
         'CONCURRENT_UPDATE_DETECTED': 409,
-        'SYSTEM_DATABASE_ERROR': 500,
+        'E4002': 500,
         'DATABASE_ERROR': 500,
         'NOT_IMPLEMENTED': 501,
       };
@@ -677,7 +677,7 @@ export async function updateTaskStatus(req: Request, res: Response): Promise<voi
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました'
       },
       meta: {

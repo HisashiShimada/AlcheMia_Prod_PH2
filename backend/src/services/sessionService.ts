@@ -105,7 +105,7 @@ export class SessionService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'セッション一覧の取得に失敗しました',
           originalError: error as Error
         }
@@ -143,7 +143,7 @@ export class SessionService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'セッションが見つかりません'
           }
         };
@@ -163,7 +163,7 @@ export class SessionService {
         return {
           success: false,
           error: {
-            code: 'PERMISSION_INSUFFICIENT',
+            code: 'E5015',
             message: 'このセッションを終了する権限がありません'
           }
         };
@@ -179,7 +179,7 @@ export class SessionService {
         return {
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'E1003',
             message: '現在使用中のセッションは終了できません'
           }
         };
@@ -224,7 +224,7 @@ export class SessionService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'セッションの終了に失敗しました',
           originalError: error as Error
         }

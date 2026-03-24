@@ -38,7 +38,7 @@ export class UserAuthenticationRepository {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'User authentication record not found',
           },
         };
@@ -145,7 +145,7 @@ export class UserAuthenticationRepository {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'User authentication record not found',
           },
         };
@@ -202,7 +202,7 @@ export class UserAuthenticationRepository {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'User authentication record not found',
           },
         };
