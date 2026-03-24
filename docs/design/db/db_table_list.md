@@ -670,8 +670,9 @@
 #### 8.11 maiml_event_element（MaiMLイベント要素）
 - **物理名**: `maiml_event_element`
 - **主キー**: `event_element_id` (BIGSERIAL)
-- **役割**: event配下のproperty行
-- **主要カラム**: `event_id`(FK), `hierarchy`, `element_type`, `key`, `description`
+- **役割**: event配下のproperty / content行（maiml_elementと同一カラム構成）
+- **主要カラム**: `event_id`(FK), `hierarchy`, `element_type`(`property`/`content`), `description`, `xsi_type`, `key`, `format_string`, `units`, `scale_factor`, `axis`(contentのみ), `size_value`(contentのみ), `element_id_attr`(contentのみ), `element_ref`(contentのみ)
+- **マイグレーション**: `backend/migrations/20260319_add_columns_to_event_element.sql`（2026-03-19 カラム追加）
 
 #### 8.12 maiml_event_element_value（MaiMLイベント要素値）
 - **物理名**: `maiml_event_element_value`
