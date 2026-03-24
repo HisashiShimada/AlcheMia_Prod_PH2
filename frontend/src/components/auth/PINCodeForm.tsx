@@ -12,6 +12,7 @@ import { Form, Input, Button, Alert, Typography, Space, theme } from 'antd';
 import { MailOutlined, ReloadOutlined } from '@ant-design/icons';
 import { verifyPin, resendPin } from '../../utils/authApi';
 import type { VerifyPINResponse } from '../../types/auth';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text, Paragraph } = Typography;
 const { useToken } = theme;
@@ -111,7 +112,7 @@ export default function PINCodeForm({
       
       onSuccess(response);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '予期しないエラーが発生しました';
+      const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       onError(errorMessage);
       
@@ -145,7 +146,7 @@ export default function PINCodeForm({
       setError(null);
       form.resetFields();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'PINコードの再送信に失敗しました';
+      const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       onError(errorMessage);
     } finally {

@@ -56,7 +56,7 @@ services:
   # AWSでは S3 を使用するため不要
   # ===========================================================================
   swift:
-    image: bouncestorage/swift-aio:latest
+    image: dockerswiftaio/docker-swift
     container_name: mmdpf-swift
     restart: unless-stopped
     profiles:
@@ -64,20 +64,16 @@ services:
     ports:
       - "${SWIFT_PORT:-8080}:8080"
     environment:
-      - AUTH_URL=http://localhost:${SWIFT_PORT:-8080}/auth/v1.0
-      - ACCOUNT=${SWIFT_ACCOUNT:-mmdpf}
-      - USER=${SWIFT_USER:-mmdpf_user}
-      - PASSWORD=${SWIFT_PASSWORD:-}
+      - SWIFT_BIND_ADDR=0.0.0.0
+      - SWIFT_REGENERATE_RING=false
     volumes:
-      - swift-data:/srv
+      - swift-etc:/etc/swift
+      - ./config/swift/proxy-server.conf:/etc/swift/proxy-server.conf
+      - swift-data:/swift
     networks:
       - mmdpf-network
     healthcheck:
-      test: >
-        ["CMD-SHELL",
-         "swift -A http://localhost:${SWIFT_PORT:-8080}/auth/v1.0
-         -U ${SWIFT_ACCOUNT:-mmdpf}:${SWIFT_USER:-mmdpf_user}
-         -K ${SWIFT_PASSWORD:-testing} stat || exit 1"]
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/healthcheck')\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -230,6 +226,8 @@ volumes:
     name: mmdpf_prod_postgres-data
   redis-data:
     name: mmdpf_prod_redis-data
+  swift-etc:
+    name: mmdpf_prod_swift-etc
   swift-data:
     name: mmdpf_prod_swift-data
   nginx-logs:

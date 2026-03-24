@@ -94,7 +94,7 @@ export class AuthService {
         return {
           success: false,
           error: {
-            code: 'AUTH_INVALID_CREDENTIALS',
+            code: 'E5001',
             message: 'ユーザーIDまたはパスワードが正しくありません',
           },
         };
@@ -118,7 +118,7 @@ export class AuthService {
         return {
           success: false,
           error: {
-            code: 'AUTH_ACCOUNT_DISABLED',
+            code: 'E5006',
             message: 'アカウントが無効化されています。管理者にお問い合わせください',
           },
         };
@@ -147,7 +147,7 @@ export class AuthService {
         return {
           success: false,
           error: {
-            code: 'AUTH_INVALID_CREDENTIALS',
+            code: 'E5001',
             message: 'ユーザーIDまたはパスワードが正しくありません',
           },
         };
@@ -245,7 +245,7 @@ export class AuthService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
         },
       };
@@ -289,7 +289,7 @@ export class AuthService {
           return {
             success: false,
             error: {
-              code: hashResult.error?.code || 'SYSTEM_ERROR',
+              code: hashResult.error?.code || 'E4001',
               message: 'パスワードのハッシュ化に失敗しました',
             },
           };
@@ -355,7 +355,7 @@ export class AuthService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
         },
       };
@@ -402,7 +402,7 @@ export class AuthService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'ユーザーが見つかりません',
           },
         };
@@ -417,7 +417,7 @@ export class AuthService {
         return {
           success: false,
           error: {
-            code: hashResult.error?.code || 'SYSTEM_ERROR',
+            code: hashResult.error?.code || 'E4001',
             message: 'パスワードのハッシュ化に失敗しました',
           },
         };
@@ -441,7 +441,7 @@ export class AuthService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
         },
       };
@@ -628,7 +628,7 @@ export class AuthService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
         },
       };
@@ -675,7 +675,7 @@ export class AuthService {
         return {
           success: false,
           error: {
-            code: 'AUTH_TOKEN_INVALID',
+            code: 'E5002',
             message: 'リフレッシュトークンが無効です。再度ログインしてください',
           },
         };
@@ -711,7 +711,7 @@ export class AuthService {
         return {
           success: false,
           error: {
-            code: 'AUTH_ACCOUNT_DISABLED',
+            code: 'E5006',
             message: 'アカウントが無効化されています',
           },
         };
@@ -786,7 +786,7 @@ export class AuthService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
         },
       };
@@ -827,7 +827,7 @@ export class AuthService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
         },
       };
@@ -855,7 +855,7 @@ export class AuthService {
         return {
           success: false,
           error: {
-            code: 'AUTH_TOKEN_INVALID',
+            code: 'E5002',
             message: 'セッショントークンが不正です',
           },
         };
@@ -897,7 +897,7 @@ export class AuthService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
         },
       };
@@ -961,7 +961,7 @@ export class AuthService {
         return {
           success: false,
           error: {
-            code: hashResult.error?.code || 'SYSTEM_ERROR',
+            code: hashResult.error?.code || 'E4001',
             message: hashResult.error?.message || 'Failed to hash password',
           },
         };
@@ -997,7 +997,7 @@ export class AuthService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'システムエラーが発生しました',
         },
       };

@@ -58,9 +58,9 @@ export async function getTaskRegistration(
     });
     
     const errorCode = error instanceof Error && error.message.includes('not found') 
-      ? 'RESOURCE_NOT_FOUND' 
-      : 'SYSTEM_ERROR';
-    const statusCode = errorCode === 'RESOURCE_NOT_FOUND' ? 404 : 500;
+      ? 'E6001' 
+      : 'E4001';
+    const statusCode = errorCode === 'E6001' ? 404 : 500;
     
     res.status(statusCode).json({
       success: false,
@@ -122,20 +122,20 @@ export async function saveTaskRegistration(
     
     // エラーメッセージからエラーコードを判定
     const errorMessage = error instanceof Error ? error.message : '';
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
     let statusCode = 500;
     
     if (errorMessage.includes('not found')) {
-      errorCode = 'RESOURCE_NOT_FOUND';
+      errorCode = 'E6001';
       statusCode = 404;
     } else if (errorMessage.includes('checked out')) {
-      errorCode = 'BUSINESS_PROJECT_CHECKED_OUT';
+      errorCode = 'E7002';
       statusCode = 409;
     } else if (errorMessage.includes('not registered')) {
-      errorCode = 'BUSINESS_MAIML_NOT_REGISTERED';
+      errorCode = 'E7003';
       statusCode = 400;
     } else if (errorMessage.includes('required') || errorMessage.includes('must be')) {
-      errorCode = 'VALIDATION_ERROR';
+      errorCode = 'E1003';
       statusCode = 400;
     }
     
