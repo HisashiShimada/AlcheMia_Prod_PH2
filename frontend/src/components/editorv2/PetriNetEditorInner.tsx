@@ -79,6 +79,12 @@ import type { TemplatesByCategory } from '@/types/editor';
 import * as maimlService from '../../services/maimlApiService';
 import { AnalysisResult, ErrorContent } from '@/types/maimlValidation';
 import type { StorageFile } from '@/types/storage';
+import {
+  loadDraftFromLocalStorage,
+  removeDraftFromLocalStorage,
+  cleanupOldLocalStorageDrafts,
+} from '../../services/localStorageDraftService';
+import { useLocalStorageAutoSave } from './hooks/useLocalStorageAutoSave';
 
 // ✅ window.cline* の型定義
 declare global {
@@ -396,7 +402,75 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       console.error('❌ [PetriNetEditorInner] 自動保存エラー:', error);
     },
   });
-  
+
+  // ===== LocalStorage自動保存フック =====
+  useLocalStorageAutoSave({
+    projectId: initialDocumentId || '',
+    editState: currentEditState,
+  });
+
+  // ===== 起動時: LocalStorageからDraftを復元 =====
+  // LocalStorage Draftが存在する場合、editStateに読み込む
+  // （ProjectManagement.handleRestoreDraft → エディタ起動 → ここで復元）
+  const hasRestoredLocalDraftRef = useRef(false);
+  useEffect(() => {
+    if (!initialDocumentId) return;
+    if (hasRestoredLocalDraftRef.current) return;
+
+    // 古いLocalStorage Draftをクリーンアップ
+    const retentionDays = parseInt(
+      process.env.NEXT_PUBLIC_MAIML_LOCALSTORAGE_RETENTION_DAYS || '7',
+      10
+    );
+    cleanupOldLocalStorageDrafts(isNaN(retentionDays) ? 7 : retentionDays);
+
+    // LocalStorage Draftを読み込む
+    const draft = loadDraftFromLocalStorage(initialDocumentId);
+    if (!draft) return;
+
+    hasRestoredLocalDraftRef.current = true;
+    console.log('🔄 [PetriNetEditorInner] LocalStorage Draftを復元:', {
+      savedAt: draft.savedAt,
+      nodesCount: draft.nodes.length,
+      edgesCount: draft.edges.length,
+    });
+
+    // nodes / edges を反映
+    const restoredNodes = draft.nodes || [];
+    const restoredEdges = draft.edges.map((edge) => ({
+      ...edge,
+      type: 'default',
+      animated: false,
+      style: {
+        stroke: '#333',
+        strokeWidth: 2,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: '#333',
+        width: 20,
+        height: 20,
+      },
+    }));
+
+    setNodes(restoredNodes);
+    setEdges(restoredEdges);
+    reset({ nodes: restoredNodes, edges: restoredEdges });
+
+    // documentData を反映
+    if (draft.documentData) {
+      setDocumentData(draft.documentData);
+    }
+
+    console.log('✅ [PetriNetEditorInner] LocalStorage Draft復元完了');
+
+    // フィットビュー
+    setTimeout(() => {
+      fitView({ padding: 0.2, duration: 300 });
+    }, 100);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDocumentId]);
+
   console.log('🔍 [PetriNetEditorInner] Received editingFileName:', editingFileName);
   
   // Phase 3C: Undo/Redo履歴管理
@@ -593,6 +667,16 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       setDraftManagerOpen(true);
     }
   }, [editMode, draftModeHandled, isLoading]);
+
+  // ✅ openDraftManagerOnStart: 起動時にDraftManagerを自動表示
+  const openDraftManagerOnStartHandledRef = useRef(false);
+  useEffect(() => {
+    if (props.openDraftManagerOnStart && !openDraftManagerOnStartHandledRef.current && !isLoading) {
+      console.log('💾 [PetriNetEditorInner] openDraftManagerOnStart フラグ検出 - DraftManagerを自動表示');
+      openDraftManagerOnStartHandledRef.current = true;
+      setDraftManagerOpen(true);
+    }
+  }, [props.openDraftManagerOnStart, isLoading]);
 
   // Viewer用ノードを使用（pentagon等の正しい形状）
   const nodeTypes: NodeTypes = useMemo(
@@ -2524,7 +2608,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         
         const result = response.data;
         console.log('✅ [PetriNetEditorInner] S3保存完了:', result);
-        
+
+        // ✅ LocalStorage Draftを削除（保存成功後）
+        if (initialDocumentId) {
+          removeDraftFromLocalStorage(initialDocumentId);
+        }
+
         alert(`ペトリネット "${metadata.name}" をS3に保存しました`);
         
       } else {
@@ -3258,6 +3347,11 @@ export interface PetriNetEditorInnerProps {
   onError?: (error: Error) => void;
   editingFileName?: string;
   editMode: string;
+  /**
+   * 起動時に DraftManager を自動表示するかどうか
+   * MAIMLファイルが存在せず、バックエンドDraftがある場合に使用
+   */
+  openDraftManagerOnStart?: boolean;
   /** DocumentData.id の初期値（新規作成時のみ適用） */
   initialDocumentId?: string;
   /** DocumentData.description の初期値（新規作成時のみ適用） */

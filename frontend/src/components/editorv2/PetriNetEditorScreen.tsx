@@ -40,6 +40,7 @@ export default function PetriNetEditorScreen({
     displaySubtitle,
     documentId,
     description,
+    openDraftManagerOnStart,
   } = params;
 
   // ステート管理
@@ -201,6 +202,7 @@ export default function PetriNetEditorScreen({
             sourceS3Key={sourceS3Key}
             initialDocumentId={documentId}
             initialDescription={description}
+            openDraftManagerOnStart={openDraftManagerOnStart}
           />
         </ReactFlowProvider>
       </div>
