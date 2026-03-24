@@ -347,7 +347,7 @@ When('「+指示追加」ボタンをクリックする', async ({ page }) => {
   // 指示登録タブに直接の追加ボタンがない場合は
   // タスク登録タブを経由して指示を追加する代替フロー
   // → タスク登録タブに切り替え → +指示ボタンをクリック
-  const taskTab = page.locator('[data-testid="task-registration-tab"]');
+  const taskTab = page.getByRole('tab', { name: 'タスク登録' });
   await taskTab.waitFor({ state: 'visible', timeout: 10000 });
   await taskTab.click();
   await page.waitForLoadState('networkidle', { timeout: 15000 });
@@ -374,7 +374,7 @@ When('「+指示追加」ボタンをクリックする', async ({ page }) => {
  */
 When('「一括送信」ボタンをクリックする', async ({ page }) => {
   // 指示登録タブに戻る
-  const instrTab = page.locator('[data-testid="instruction-registration-tab"]');
+  const instrTab = page.getByRole('tab', { name: '指示一覧' });
   await instrTab.waitFor({ state: 'visible', timeout: 10000 });
   await instrTab.click();
   await page.waitForLoadState('networkidle', { timeout: 15000 });
@@ -382,6 +382,13 @@ When('「一括送信」ボタンをクリックする', async ({ page }) => {
 
   const sendBtn = page.locator('[data-testid="instruction-bulk-send-button"]');
   await sendBtn.waitFor({ state: 'visible', timeout: 10000 });
+  // タブ切替後、指示一覧テーブルに行が表示されるまで待機（React状態更新完了を保証）
+  const instructionRow = page
+    .getByRole('tabpanel', { name: '指示一覧' })
+    .locator('.ant-table-row');
+  await expect(instructionRow).toHaveCount(1, { timeout: 15000 });
+  // 行表示後にボタンが有効化されるまで待機
+  await expect(sendBtn).toBeEnabled({ timeout: 5000 });
 
   // API レスポンスを並列待機
   const responsePromise = page.waitForResponse(
@@ -470,7 +477,8 @@ Then('指示更新成功メッセージが表示されること', async ({ page 
  * InstructionRegistrationTab.tsx: Table 内のコンテンツテキスト
  */
 Then('指示一覧に {string} が表示されること', async ({ page }, content: string) => {
-  const table = page.locator('.ant-table-tbody');
+  // 指示一覧タブパネル内に限定（ファイル管理タブのテーブルと混同しないよう絞り込む）
+  const table = page.getByRole('tabpanel', { name: '指示一覧' }).locator('.ant-table-tbody');
   await table.waitFor({ state: 'visible', timeout: 10000 });
   await expect(table).toContainText(content, { timeout: 10000 });
 });
@@ -488,7 +496,8 @@ Then('指示削除成功メッセージが表示されること', async ({ page 
  * InstructionRegistrationTab.tsx: Empty コンポーネントが表示される
  */
 Then('指示一覧が空であること', async ({ page }) => {
-  const emptyState = page.locator('.ant-empty');
+  // 指示一覧タブパネル内に限定（ファイル管理タブのEmptyと混同しないよう絞り込む）
+  const emptyState = page.getByRole('tabpanel', { name: '指示一覧' }).locator('.ant-empty');
   await expect(emptyState).toBeVisible({ timeout: 10000 });
 });
 
@@ -670,23 +679,26 @@ async function insertInstruction(
   content: string,
   isSent: boolean
 ): Promise<void> {
+  const instructionStatus = isSent ? 1 : 0; // boolean → numeric(0:未送信, 1:送信済) に変換
+  const instructionId = `E2E-INST-${projectId}-${Date.now()}`; // experiment_instruction_id（主キー）を生成
+
   console.log(
-    `[4-5 insertInstruction] 開始: project_id=${projectId}, is_sent=${isSent}, content="${content}"`
+    `[4-5 insertInstruction] 開始: project_id=${projectId}, instruction_status=${instructionStatus}, content="${content}"`
   );
   try {
     await db.query(
       `INSERT INTO project_instruction (
-        organization_id, project_id, method_id,
-        priority, type, content, is_sent,
+        organization_id, project_id, experiment_instruction_id,
+        method_id, priority, type, instructions, instruction_status,
         create_user_id, create_at, update_user_id, update_at
       ) VALUES (
         $1, $2, $3,
-        1, 0, $4, $5,
+        $4, 1, 0, $5, $6,
         'e2e-test', NOW(), 'e2e-test', NOW()
       )`,
-      [ORG_ID, projectId, methodId, content, isSent]
+      [ORG_ID, projectId, instructionId, methodId, content, instructionStatus]
     );
-    console.log(`[4-5 insertInstruction] INSERT 完了: project_id=${projectId}, is_sent=${isSent}`);
+    console.log(`[4-5 insertInstruction] INSERT 完了: project_id=${projectId}, instruction_status=${instructionStatus}`);
   } catch (error) {
     console.error(`[4-5 insertInstruction] 失敗: project_id=${projectId}:`, error);
     throw error;

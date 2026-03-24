@@ -185,32 +185,8 @@ Given('テスト用プロジェクト {string} がDBに登録されている', a
 
 /**
  * 実験管理者ユーザーでログインする
- *
- * @param email - ログインするユーザーのメールアドレス
+ * → common.ts に定義済み（複数 feature で共通使用のため）
  */
-When('実験管理者ユーザー {string} でログインする', async ({ page }, email: string) => {
-  console.log(`[4-11 When] ログイン: email=${email}`);
-
-  await page.goto('/');
-  await page.waitForLoadState('networkidle');
-
-  // メールアドレス入力
-  const emailInput = page.locator('input[type="email"], input[name="email"], input[placeholder*="メール"], input[placeholder*="ID"]').first();
-  await emailInput.waitFor({ state: 'visible', timeout: 10000 });
-  await emailInput.fill(email);
-
-  // パスワード入力
-  const passwordInput = page.locator('input[type="password"]').first();
-  await passwordInput.fill(ADMIN_PASSWORD);
-
-  // ログインボタンクリック
-  const loginBtn = page.locator('button[type="submit"], button:has-text("ログイン")').first();
-  await loginBtn.click();
-
-  // ログイン完了を待機（プロジェクト管理画面への遷移）
-  await page.waitForLoadState('networkidle', { timeout: 15000 });
-  await page.waitForTimeout(500);
-});
 
 /**
  * プロジェクト管理タブが表示されている
@@ -670,6 +646,41 @@ Then('選択ファイル一覧がクリアされていること', async ({ page 
     const count = await fileListItems.count();
     expect(count).toBe(0);
   }
+});
+
+// ---------------------------------------------------------------------------
+// When/Then: 手動テスト専用ステップ（@manual）
+// ---------------------------------------------------------------------------
+
+/**
+ * 「フォルダを選択」ボタンをクリックしてテスト用フォルダを選択する（4-11-3 @manual）
+ * ブラウザの webkitdirectory 属性を使用するため Playwright での自動化は困難
+ * → 手動テスト時のみ実施
+ */
+When('「フォルダを選択」ボタンをクリックしてテスト用フォルダを選択する', async ({}) => {
+  console.log('[4-11 When] 手動テスト: 「フォルダを選択」ボタンクリック（@manual スキップ）');
+});
+
+/**
+ * 「フォルダ構造を保持する」オプションをチェックする（4-11-4 @manual）
+ */
+When('「フォルダ構造を保持する」オプションをチェックする', async ({}) => {
+  console.log('[4-11 When] 手動テスト: 「フォルダ構造を保持する」オプションチェック（@manual スキップ）');
+});
+
+/**
+ * 「フォルダを選択」ボタンをクリックしてサブフォルダを含むテスト用フォルダを選択する（4-11-4 @manual）
+ */
+When('「フォルダを選択」ボタンをクリックしてサブフォルダを含むテスト用フォルダを選択する', async ({}) => {
+  console.log('[4-11 When] 手動テスト: サブフォルダを含むフォルダ選択（@manual スキップ）');
+});
+
+/**
+ * S3上でフォルダ階層が維持されていること（4-11-4 @manual）
+ * ※ 目視確認が必要なため自動アサーションは省略
+ */
+Then('S3上でフォルダ階層が維持されていること', async ({}) => {
+  console.log('[4-11 Then] 手動テスト: S3フォルダ階層確認（@manual スキップ）');
 });
 
 // ===========================================================================

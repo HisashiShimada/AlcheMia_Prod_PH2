@@ -216,6 +216,26 @@ Given('Ollamaエンベディングサービスが起動していること', asyn
 // ---------------------------------------------------------------------------
 
 /**
+ * 進捗確認画面が表示されている
+ * → サイドメニューから「進捗確認」を選択する
+ * ※ 4-6_progress_monitoring.ts と同一実装（単体実行時に common.ts 以外は読み込まれないため複製）
+ */
+When('進捗確認画面が表示されている', async ({ page }) => {
+  // ログイン済みの状態でサイドメニューから進捗確認を開く
+  const progressMenu = page.locator('[data-testid="progress-monitoring-menu"]');
+  if (await progressMenu.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await progressMenu.click();
+  } else {
+    // メニューが data-testid で見つからない場合はテキストで探す
+    const menuItem = page.locator('text=進捗確認').first();
+    await menuItem.waitFor({ state: 'visible', timeout: 10000 });
+    await menuItem.click();
+  }
+  await page.waitForLoadState('networkidle', { timeout: 15000 });
+  await page.waitForTimeout(500);
+});
+
+/**
  * トランジション検索タブをクリックする
  * ProgressMonitoring.tsx: data-testid="transition-search-tab"
  * ※ フロントエンド実装後に data-testid を確認すること

@@ -279,49 +279,13 @@ AfterAll(async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Given: 前提条件ステップ
-// ---------------------------------------------------------------------------
-
-/**
- * 実験管理者のユーザIDがDBに存在する（背景ステップ・no-op）
- */
-Given(
-  '実験管理者のユーザID {string} がDB（organization_userテーブル）に存在する',
-  async ({}, _userId: string) => {
-    console.log(`[4-12 Given] 実験管理者ユーザー前提: no-op (userId=${_userId})`);
-  }
-);
-
-// ---------------------------------------------------------------------------
 // When: ログイン・画面遷移ステップ
 // ---------------------------------------------------------------------------
 
 /**
  * 実験管理者ユーザーでログインする
- *
- * @param email - ログインするユーザーのメールアドレス
+ * → common.ts に定義済み（複数 feature で共通使用のため）
  */
-When('実験管理者ユーザー {string} でログインする', async ({ page }, _email: string) => {
-  console.log(`[4-12 When] ログイン: email=${_email}`);
-  await page.goto(`/?orgId=${ORG_ID}`);
-  await page.waitForLoadState('networkidle');
-
-  const emailInput = page
-    .locator('input[type="email"], input[name="email"], #userId, input[placeholder*="ID"]')
-    .first();
-  await emailInput.waitFor({ state: 'visible', timeout: 15000 });
-  // TODO: 実際の実験管理者ユーザーIDに更新すること
-  await emailInput.fill('exp.admin@example.com');
-
-  const passwordInput = page.locator('input[type="password"]').first();
-  await passwordInput.fill(ADMIN_PASSWORD);
-
-  const loginBtn = page.locator('button[type="submit"], button:has-text("ログイン")').first();
-  await loginBtn.click();
-
-  await page.waitForLoadState('networkidle', { timeout: 30000 });
-  await page.waitForTimeout(500);
-});
 
 /**
  * プロジェクト管理タブが表示されている

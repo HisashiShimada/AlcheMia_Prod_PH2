@@ -235,16 +235,6 @@ AfterAll(async () => {
 // ===========================================================================
 
 /**
- * 実験管理者ユーザーがDBに存在する
- */
-Given(
-  '実験管理者のユーザID {string} がDB（organization_userテーブル）に存在する',
-  async ({}, _email: string) => {
-    console.log('[4-8 Given] 実験管理者ユーザーは Before フックで準備済み（no-op）');
-  }
-);
-
-/**
  * フォーマット管理テスト用フォーマットがDBに存在する
  * → Before フックで準備済みのため no-op
  */
@@ -332,22 +322,21 @@ Given(
 
 /**
  * 実験管理者でログインする
+ * → common.ts に定義済み（複数 feature で共通使用のため）
  */
-When(
-  '実験管理者ユーザー {string} でログインする',
-  async ({ page }, _email: string) => {
-    console.log(`[4-8 When] 実験管理者でログイン`);
-    await loginAndNavigateToFormatManagement(page);
-  }
-);
 
 /**
  * フォーマット管理画面が表示されている
+ * ログイン後にフォーマット管理タブへ遷移し、一覧表示を確認する
  */
 When(
   'フォーマット管理画面が表示されている',
   async ({ page }) => {
-    console.log('[4-8 When] フォーマット管理画面 表示確認');
+    console.log('[4-8 When] フォーマット管理画面へ遷移 開始');
+    // フォーマット管理タブをクリックして遷移
+    const formatTab = page.getByText(FORMAT_MANAGEMENT_MENU_TEXT).first();
+    await formatTab.waitFor({ state: 'visible', timeout: 15000 });
+    await formatTab.click();
     // フォーマット一覧が表示されていることを確認
     const formatList = page.locator('[data-testid="format-list"]');
     await formatList.waitFor({ state: 'visible', timeout: 15000 });
