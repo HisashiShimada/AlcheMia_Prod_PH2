@@ -199,23 +199,26 @@ export default function MethodSelectionModal({
             icon={<CloseOutlined />}
             onClick={handleClearSelection}
             disabled={!tempMethodId}
+            data-testid="method-selection-clear-button"
           >
             選択解除
           </Button>
           <Space>
-            <Button onClick={handleCancel}>
+            <Button onClick={handleCancel} data-testid="method-selection-cancel-button">
               キャンセル
             </Button>
             <Button
               type="primary"
               onClick={handleOk}
               icon={<CheckOutlined />}
+              data-testid="method-selection-ok-button"
             >
               決定
             </Button>
           </Space>
         </Space>
       }
+      data-testid="method-selection-modal"
     >
       <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         {/* フィルタリングコントロール */}
@@ -227,6 +230,7 @@ export default function MethodSelectionModal({
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
+              data-testid="method-selection-search-input"
             />
           </Col>
           <Col flex="150px">
@@ -237,6 +241,7 @@ export default function MethodSelectionModal({
               allowClear
               style={{ width: '100%' }}
               options={methodNameOptions}
+              data-testid="method-selection-method-name-filter"
             />
           </Col>
           <Col flex="150px">
@@ -247,6 +252,7 @@ export default function MethodSelectionModal({
               allowClear
               style={{ width: '100%' }}
               options={ownerOptions}
+              data-testid="method-selection-owner-filter"
             />
           </Col>
         </Row>
@@ -268,6 +274,7 @@ export default function MethodSelectionModal({
           locale={{
             emptyText: 'メソッドがありません',
           }}
+          data-testid="method-selection-table"
         />
       </Space>
     </Modal>

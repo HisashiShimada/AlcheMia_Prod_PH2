@@ -152,11 +152,13 @@ const FormatFolderTree: React.FC<FormatFolderTreeProps> = ({
       </div>
 
       {/* フォーマット一覧 */}
-      <Space orientation="vertical" size={0} style={{ width: '100%' }}>
+      <Space orientation="vertical" size={0} style={{ width: '100%' }} data-testid="format-list">
         {formats.map((format) => (
           <div
             key={format.id}
             onClick={() => onFormatSelect(format.id)}
+            data-testid={`format-item-${format.id}`}
+            data-format-name={format.name}
             style={{
               padding: `${token.paddingSM}px ${token.margin}px`,
               cursor: 'pointer',

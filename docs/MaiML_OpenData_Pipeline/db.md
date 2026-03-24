@@ -623,14 +623,22 @@ CREATE INDEX ix_maiml_event_asset        ON maiml_event(asset_id);
 CREATE INDEX ix_maiml_event_results_ref  ON maiml_event(asset_id, results_ref);
 CREATE INDEX ix_maiml_event_instruction  ON maiml_event(instruction_ref);
 
--- event 配下の property（汎用プロパティ行）
+-- event 配下の property / content（maiml_element と同一構成）
 CREATE TABLE maiml_event_element (
-  event_element_id   BIGSERIAL  PRIMARY KEY,
-  event_id           BIGINT     NOT NULL REFERENCES maiml_event(event_id) ON DELETE CASCADE,
-  hierarchy          TEXT       NOT NULL,  -- property の階層パス
-  element_type       TEXT       NOT NULL DEFAULT 'property',  -- 現時点では 'property' 固定
-  key                TEXT,          -- property/@key 属性
-  description        TEXT,          -- property/description テキスト
+  event_element_id   BIGSERIAL        PRIMARY KEY,
+  event_id           BIGINT           NOT NULL REFERENCES maiml_event(event_id) ON DELETE CASCADE,
+  hierarchy          TEXT             NOT NULL,      -- 要素の階層パス
+  element_type       TEXT             NOT NULL,      -- 'property' or 'content'
+  description        TEXT,
+  xsi_type           TEXT,                           -- @xsi:type 属性（intType, stringType 等）
+  key                TEXT,                           -- @key 属性（property/content 共通）
+  format_string      TEXT,                           -- @formatString 属性
+  units              TEXT,                           -- @units 属性（単位）
+  scale_factor       DOUBLE PRECISION,               -- @scaleFactor 属性
+  axis               TEXT,                           -- @axis 属性（content のみ）
+  size_value         INT,                            -- @size 属性（content のみ）
+  element_id_attr    TEXT,                           -- @id 属性（content のみ）
+  element_ref        TEXT,                           -- @ref 属性（content のみ）
   maiml_line_no      INT
 );
 CREATE INDEX ix_maiml_event_element_event ON maiml_event_element(event_id);
@@ -668,11 +676,22 @@ CREATE UNIQUE INDEX ux_maiml_event_element_value ON maiml_event_element_value(ev
 
 #### maiml_event_element
 
-| MaiML 要素 | DB カラム | 例 |
-|-----------|---------|---|
-| `event/property` の種別 | `element_type` | `property`（固定） |
-| `event/property/@key` | `key` | `lifecycle:transition` / `time:timestamp` / `concept:instance` |
-| `event/property/description` | `description` | |
+> `element_type` は `'property'` または `'content'`。  
+> `maiml_element` / `maiml_template_element` と同一のカラム構成に統一（2026-03-19 追加）。
+
+| MaiML 要素 / 属性 | DB カラム | 対象 | 例 |
+|-----------------|---------|------|---|
+| 要素種別 | `element_type` | property / content | `property` / `content` |
+| `/description` テキスト | `description` | 共通 | |
+| `@xsi:type` | `xsi_type` | 共通 | `intType` / `stringType` |
+| `@key` | `key` | 共通 | `lifecycle:transition` / `time:timestamp` |
+| `@formatString` | `format_string` | 共通 | `%g` |
+| `@units` | `units` | 共通 | `nm` / `K` |
+| `@scaleFactor` | `scale_factor` | 共通 | `1.0E-9` |
+| `@axis` | `axis` | content のみ | `x` |
+| `@size` | `size_value` | content のみ | `256` |
+| `@id` | `element_id_attr` | content のみ | |
+| `@ref` | `element_ref` | content のみ | |
 
 #### maiml_event_element_value
 

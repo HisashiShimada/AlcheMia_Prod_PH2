@@ -1,30 +1,40 @@
 -- ============================================================
--- maiml_publish.maiml_asset（公開アセット）
--- スキーマ: maiml_publish
--- 設計書: docs/MaiML_OpenData_Pipeline/MaiML_OpenData_Pipeline_BasicDesign_v1.3.md
--- 作成日: 2026-03-10
+-- {org_schema}.maiml_asset（公開アセット）
+--
+-- @schema   {org_schema}（組織ごとに作成: organization_id の '-' を '_' に変換）
+--           例: 550e8400_e29b_41d4_a716_446655440000
+-- @description
+--   MaiML ファイル 1 件を代表するメタデータテーブル。
+--   1 ファイル = 1 レコード。全インスタンス・テンプレート・イベントの親。
+--
+-- @reference
+--   docs/MaiML_OpenData_Pipeline/db.md §4.1
+--   backend/src/sql/ddl/org_schema_tables.sql（実装テンプレート）
+--   backend/migrations/20260313_create_org_schema_tables.sql（マイグレーション）
 -- ============================================================
--- TODO: v1.3以前の設計書確認後、既存スキーマと統合する
---       現在は asset_id / file_uri / doc_name / template_only のみ最低限定義
 
-CREATE TABLE IF NOT EXISTS maiml_publish.maiml_asset (
-  asset_id        BIGSERIAL    PRIMARY KEY,
-  organization_id TEXT         NOT NULL,
-  file_uri        TEXT         NOT NULL,
-  doc_name        TEXT,
-  template_only   BOOLEAN      NOT NULL DEFAULT FALSE,
-  created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
-  updated_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
+CREATE TABLE IF NOT EXISTS {org_schema}.maiml_asset (
+  asset_id         BIGSERIAL    PRIMARY KEY,
+  file_uri         TEXT         NOT NULL,       -- S3/Swift のファイルパス（organizationId 相対パス）
+  doc_name         TEXT,                        -- /maiml/document/name テキスト
+  retention_until  TIMESTAMPTZ  NOT NULL,       -- 公開期限（期限到来でスケジュール非公開の対象）
+  created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS ix_maiml_asset_org ON maiml_publish.maiml_asset(organization_id);
-CREATE INDEX IF NOT EXISTS ix_maiml_asset_uri ON maiml_publish.maiml_asset(file_uri);
+CREATE INDEX IF NOT EXISTS ix_maiml_asset_uri
+  ON {org_schema}.maiml_asset(file_uri);
+CREATE INDEX IF NOT EXISTS ix_maiml_asset_retention_until
+  ON {org_schema}.maiml_asset(retention_until);
 
 -- カラム説明
 -- asset_id        : サロゲートキー（BIGSERIAL）
--- organization_id : 組織ID（マルチテナント分離用）
 -- file_uri        : S3/Swift のファイルパス（organizationId 相対パス）
--- doc_name        : /maiml/document/name から抽出したドキュメント名
--- template_only   : テンプレートのみファイルかどうか
+--                   例: projects/sample/sample.maiml
+-- doc_name        : /maiml/document/name テキスト。例: juyoSampleProtocol_1
+-- retention_until : 公開期限（NOT NULL）。
+--                   Worker が organization.default_retention_days または
+--                   環境変数 RETENTION_DAYS_DEFAULT（デフォルト: 365日）から算出。
+--                   スケジュール非公開 Worker が retention_until <= now() のレコードを削除。
 -- created_at      : 登録日時
 -- updated_at      : 更新日時

@@ -236,7 +236,7 @@ describe('authController - logout', () => {
     test('Experiment Adminロールは監査ログが記録されない', async () => {
       // Arrange
       mockRequest.user = {
-        userId: 'expadmin123',
+        userId: 'expAdmin123',
         organizationId: 'org456',
         role: 'experiment_admin',
         sessionId: 'session789',

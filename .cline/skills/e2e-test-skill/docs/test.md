@@ -400,6 +400,171 @@ page.locator('button').filter({ hasText: /CSV.*ダウンロード/s }).click()
 
 ---
 
+### Ant Design Button の2文字漢字スペース自動挿入（重要）
+
+#### 問題の背景
+
+Ant Design の `Button` コンポーネントは、**2文字の漢字テキストの間にスペースを自動挿入**する仕様がある。
+
+| ボタンラベル（ja.json） | DOM上の実際のテキスト |
+|---|---|
+| `開始` | `開 始` |
+| `指示` | `指 示` |
+| `記録` | `記 録` |
+| `終了` | `終 了` |
+| `確認` | `確 認` |
+
+そのため `filter({ hasText: '開始' })` や `button:has-text("開始")` がマッチせず、
+**タイムアウトエラー（TimeoutError: locator.waitFor）** となる。
+
+エラーコンテキスト（`error-context.md`）のページスナップショットで実際の DOM を確認すると、
+ボタンの `aria-label` 属性にはスペースなしの説明テキストが入っているため、
+**`aria-label` 属性を使ったセレクターを使用する**こと。
+
+#### ❌ 悪い例（hasText / has-text）
+
+```typescript
+// ❌ 悪い例: Ant Design が「開始」→「開 始」とスペースを挿入するためマッチしない
+const startBtn = page
+  .locator('[data-testid="task-list-table"] button')
+  .filter({ hasText: '開始' })
+  .first();
+
+// ❌ 悪い例: has-text 疑似クラスも同様にマッチしない
+const startBtns = page.locator('[data-testid="task-list-table"] button:has-text("開始")');
+```
+
+#### ✅ 正しい例（aria-label）
+
+```typescript
+// ✅ 正しい例: aria-label 属性でボタンを特定する（スペース挿入の影響を受けない）
+const startBtn = page
+  .locator('[data-testid="task-list-table"] button[aria-label="タスクを開始"]')
+  .first();
+await startBtn.waitFor({ state: 'visible', timeout: 10000 });
+await startBtn.click();
+```
+
+#### aria-label の確認方法
+
+テスト失敗時のエラーコンテキスト（`test-results/.../error-context.md`）の
+ページスナップショットを確認すると、ボタンの実際の `aria-label` が把握できる。
+
+```yaml
+# error-context.md のページスナップショット例
+- cell "タスクを開始" [ref=e215]:
+  - button "タスクを開始" [ref=e216] [cursor=pointer]:  ← ここの文字列が aria-label
+    - generic [ref=e217]: 開 始                          ← DOM上は「開 始」（スペースあり）
+```
+
+この場合、`button[aria-label="タスクを開始"]` でセレクタを作成する。
+
+#### よくある2文字漢字ボタンとその aria-label 対応表
+
+| ボタン表示 | 推奨セレクタ |
+|---|---|
+| 開 始 | `button[aria-label="タスクを開始"]` |
+| 終 了 | `button[aria-label="タスクを強制終了"]` |
+| 指 示 | `button[aria-label="作業指示を確認"]` |
+| 記 録 | `button[aria-label="実験記録を入力"]` |
+| 確 認 | `button[aria-label="問題確認"]` |
+
+#### DO / DON'T
+
+✅ **2文字漢字ボタンのセレクタは `button[aria-label="..."]` を使用する**  
+✅ **aria-label の値はエラーコンテキストのページスナップショットで確認する**  
+✅ **disabled 確認も同様に aria-label セレクタを使用する**（例: `button[aria-label="タスクを開始"]`）  
+❌ **`filter({ hasText: '開始' })` を2文字漢字ボタンに使用しない**（スペースが挿入されてマッチしない）  
+❌ **`button:has-text("終了")` を2文字漢字ボタンに使用しない**（同上）  
+❌ **3文字以上のボタン（「承認依頼」「強制終了」など）は影響を受けない**ため、hasText のままでよい
+
+---
+
+### 編集ダイアログの Input セレクター（重要）
+
+#### 問題の背景
+
+追加ダイアログと編集ダイアログで **IDフィールドが `disabled` になる** 画面では、  
+`.ant-modal .ant-input` という汎用セレクターが **disabled な ID フィールド（1番目の Input）** にヒットしてしまい、  
+本来操作したい名前フィールドへの入力やバリデーション確認が失敗する。
+
+#### 本システムで確認されている事象
+
+| 画面 | disabled フィールド | 正しく操作すべきフィールド |
+|---|---|---|
+| 部署管理（編集） | `#departmentId`（部署CD） | `#displayName`（部署名） |
+| ロール管理（編集） | `#role`（ロールCD） | `#roleName`（ロール名） |
+| ユーザー管理（編集） | `#userId`（メールアドレス） | `#userName`（ユーザー名）等 |
+
+同様の設計（編集時にIDフィールドが disabled になる）を持つ他の画面でも同じ問題が発生する。
+
+#### ❌ 悪い例（汎用セレクター）
+
+```typescript
+// ❌ 悪い例: .ant-modal .ant-input は disabled な1番目のフィールドにヒットする
+const inputSel = '.ant-modal .ant-input';
+await page.click(inputSel);               // disabled フィールドをクリック → 入力できない
+await setReactInputValue(page, inputSel, newName);  // 値が入らずタイムアウト
+```
+
+#### ✅ 正しい例（Form.Item name から導出した ID セレクター）
+
+Ant Design の `Form.Item name="xxx"` は DOM上で `id="xxx"` の Input を生成する。  
+この ID を使って **操作対象フィールドを直接指定**する。
+
+```typescript
+// ✅ 部署編集ダイアログ: 部署名フィールドを直接指定
+// Form.Item name="displayName" → id="displayName"
+const inputSel = '.ant-modal #displayName';
+await page.click(inputSel);
+await page.keyboard.press('Control+A');
+await setReactInputValue(page, inputSel, newName);
+
+// ✅ ロール編集ダイアログ: ロール名フィールドを直接指定
+// Form.Item name="roleName" → id="roleName"
+const inputSel = '.ant-modal #roleName';
+await page.click(inputSel);
+await page.keyboard.press('Control+A');
+await setReactInputValue(page, inputSel, newName);
+```
+
+#### ID の確認方法
+
+対象コンポーネント（`DepartmentManagement.tsx`, `RoleManagement.tsx` 等）の  
+`<Form.Item name="xxx">` を確認し、その `name` 値をそのまま ID セレクターとして使用する。
+
+```typescript
+// コンポーネントのフォーム定義例（RoleManagement.tsx）
+<Form.Item name="role" ...>      // → id="role"（編集時 disabled）
+  <Input disabled={!!editingMaster} />
+</Form.Item>
+<Form.Item name="roleName" ...>  // → id="roleName"（操作対象）
+  <Input />
+</Form.Item>
+```
+
+#### Then ステップでのフィールド値確認も同様
+
+```typescript
+// ❌ 悪い例: first() は disabled なフィールドを取得してしまう
+const input = page.locator('.ant-modal .ant-input').first();
+await expect(input).toHaveValue(expectedValue, { timeout: 5000 });
+
+// ✅ 正しい例: 特定の ID フィールドを直接指定
+const input = page.locator('.ant-modal #roleName');
+await expect(input).toHaveValue(expectedValue, { timeout: 5000 });
+```
+
+#### DO / DON'T
+
+✅ **編集ダイアログでは `Form.Item name` から導出した `#id` セレクターを使用する**  
+✅ **コンポーネントの `disabled={!!editingMaster}` パターンを見つけたら、そのフィールドを避けて操作する**  
+✅ **追加ダイアログでも可能な限り `#id` セレクターを使い、フィールドを明示的に指定する**  
+❌ **`.ant-modal .ant-input` の汎用セレクターを編集ダイアログで使わない**（disabled フィールドにヒットする）  
+❌ **`.ant-modal .ant-input:nth-of-type(N)` も位置依存で不安定なため使わない**
+
+---
+
 ### React 制御コンポーネントへの入力方法（重要）
 
 `page.fill()` は HTML の value を変えるだけで React の `onChange` イベントをトリガーしない。  
@@ -429,6 +594,81 @@ await page.evaluate(
 **適用ケース:**
 - Ant Design の `<Input>` コンポーネント
 - React が `value` と `onChange` で制御している全てのフォーム要素
+
+---
+
+### Ant Design Select の disabled 状態の検出と待機（重要）
+
+#### 問題の背景
+
+Ant Design の `<Select>` コンポーネントは `disabled={true}` プロパティを渡した場合、  
+DOM に `disabled` 属性を付与するのではなく **CSS クラス `ant-select-disabled`** を追加する方式で無効化する。
+
+そのため Playwright の `toBeEnabled()` / `toBeDisabled()` は **Ant Design Select には効かない**。
+
+```typescript
+// ❌ 間違い: Ant Design Select の disabled 状態を検出できない
+await expect(selectEl).toBeEnabled({ timeout: 15000 });   // disabled でもすぐ通過してしまう
+await expect(selectEl).toBeDisabled({ timeout: 15000 });  // enabled でも通過してしまう
+```
+
+#### ✅ 正しい待機方法
+
+`ant-select-disabled` クラスが**消えるまで**待機する。
+
+```typescript
+// ✅ 正しい: CSS クラスで disabled 状態を判定する
+// disabled={loading} → API ロード中は ant-select-disabled クラスが付く
+await expect(selectEl).not.toHaveClass(/ant-select-disabled/, { timeout: 15000 });
+```
+
+#### ✅ Ant Design Select を開く正しいクリックターゲット
+
+Ant Design Select の DOM 構造は以下のとおりで、**外側の `div` ではなく `.ant-select-selector` をクリックしないとドロップダウンが開かない**。
+
+```html
+<!-- Ant Design Select の DOM 構造 -->
+<div class="ant-select" data-testid="xxx">          ← ここをクリックしても開かない場合がある
+  <div class="ant-select-selector">                  ← ここをクリックするとドロップダウンが開く
+    <span class="ant-select-selection-placeholder">プレースホルダー</span>
+  </div>
+</div>
+```
+
+```typescript
+// ❌ 外側 div のクリックはドロップダウンが開かない場合がある
+await selectEl.click();
+
+// ✅ .ant-select-selector を明示的にクリックする
+await selectEl.locator('.ant-select-selector').click();
+```
+
+#### まとめ：Ant Design Select の disabled 待機 + 開くパターン
+
+```typescript
+const selectEl = page.locator('[data-testid="xxx"]');
+await selectEl.waitFor({ state: 'visible', timeout: 10000 });
+
+// ① disabled={loading} 対策: ant-select-disabled クラスが消えるまで待機
+await expect(selectEl).not.toHaveClass(/ant-select-disabled/, { timeout: 15000 });
+
+// ② .ant-select-selector をクリックしてドロップダウンを開く
+await selectEl.locator('.ant-select-selector').click();
+
+// ③ ドロップダウンが表示されるまで待機
+await waitForSelectDropdown(page);
+
+// ④ オプションを選択
+const visibleDropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').first();
+await visibleDropdown.locator(`.ant-select-item-option:has-text("${optionLabel}")`).click();
+```
+
+#### DO / DON'T
+
+✅ **Ant Design Select の disabled 待機は `not.toHaveClass(/ant-select-disabled/)` を使う**  
+✅ **Ant Design Select を開くには `.ant-select-selector` をクリックする**  
+❌ **`toBeEnabled()` / `toBeDisabled()` を Ant Design Select に使わない**（native disabled 属性がないため効かない）  
+❌ **外側 div をそのままクリックしない**（`.ant-select-selector` を明示的に指定する）
 
 ---
 
@@ -1106,3 +1346,106 @@ After({ tags: '@1-7-5' }, async () => {  // ← @1-7-5 に変更
 
 - グループ共有データが削除されずに残り続ける（リソースリーク）
 - または途中のシナリオで共有データが消えて後続シナリオが失敗する
+
+### セレクタの決定方針（data-testid）
+
+#### 概要
+
+ステップファイルでセレクタを指定する際は、**フロントエンドソースに `data-testid` 属性を付与し、それをセレクタとして使用する**。  
+CSS クラス（`.ant-select` 等）や `text=` による推測セレクタは、コンポーネント変更・テキスト変更で壊れやすいため非推奨。
+
+#### セレクタ決定フロー
+
+```
+featureファイル・ステップファイル作成時
+  ↓
+① テスト対象画面の UI 設計書（docs/design/ui/）を開く
+   → 「使用コンポーネント」セクションで画面の構成要素を確認する
+  ↓
+② 対応するフロントエンドソースファイルを特定する
+   → UI 設計書のファイルパス（例: frontend/src/components/ExperimentWorker/DataRecordDialog.tsx）
+  ↓
+③ ソースファイルを read_file で読み込み、テスト対象要素を探す
+   → ボタン・Select・Input・Checkbox など
+  ↓
+④ 対象要素に data-testid 属性を追加する（ソースファイルを変更）
+   → 命名規則に従って命名する（後述）
+  ↓
+⑤ ステップファイルに [data-testid="xxx"] セレクタを記述する
+   → フォールバックセレクタ不要。data-testid のみで記述する
+```
+
+#### data-testid 命名規則
+
+**フォーマット:** `{コンポーネント名}-{要素の役割}` （ケバブケース・英語小文字）
+
+| コンポーネント | data-testid 例 | 対象要素 |
+|---|---|---|
+| プロジェクト選択 Select | `project-select` | Ant Design `<Select>` |
+| プロジェクト選択ボタン | `project-select-button` | `<Button>` |
+| メソッド選択 Select | `method-select` | Ant Design `<Select>` |
+| タスク選択 Select | `task-select` | Ant Design `<Select>` |
+| メソッド・タスク選択ボタン | `method-task-select-button` | `<Button>` |
+| みなし進捗チェックボックス | `deemed-progress-checkbox` | `<Checkbox>` |
+| 作業指示ボタン | `instruction-button` | `<Button>` |
+| データ記録キャンセルボタン | `data-record-cancel-button` | `<Button>` |
+| データ記録保存ボタン | `data-record-save-button` | `<Button>` |
+
+#### ソースファイルへの追加方法
+
+Ant Design コンポーネントは `data-testid` プロパティをそのまま受け取りDOMに反映される。
+
+```tsx
+// ✅ Select に data-testid を追加
+<Select
+  data-testid="project-select"
+  value={selectedProject}
+  onChange={handleProjectChange}
+  ...
+/>
+
+// ✅ Button に data-testid を追加
+<Button
+  data-testid="project-select-button"
+  type="primary"
+  onClick={() => setDialogOpen(true)}
+>
+  選択
+</Button>
+
+// ✅ Checkbox に data-testid を追加
+<Checkbox
+  data-testid="deemed-progress-checkbox"
+  checked={useDeemedProgress}
+  onChange={(e) => setUseDeemedProgress(e.target.checked)}
+>
+  みなし進捗更新
+</Checkbox>
+```
+
+#### ステップファイルでの使用方法
+
+```typescript
+// ✅ data-testid セレクタのみで記述（フォールバック不要）
+const projectSelect = page.locator('[data-testid="project-select"]');
+await projectSelect.waitFor({ state: 'visible', timeout: 10000 });
+await projectSelect.click();
+
+// ❌ 非推奨: CSS クラスによるフォールバック混在（保守が複雑になる）
+const projectSelect = page.locator('[data-testid="project-select"], .project-select-area .ant-select').first();
+```
+
+#### ステップファイル生成時の注意事項
+
+- シナリオ・ステップファイルを作成する時点で、**対応ソースに `data-testid` が存在しない場合は追加すること**
+- `data-testid` がない場合に `TODO:` コメントを残すのではなく、その場でソースを修正して `data-testid` を追加してセレクタを確定させる
+- `data-testid` はテスト専用の識別子であり、スタイルや業務ロジックに影響しない
+
+#### DO / DON'T
+
+✅ **UI 設計書の「使用コンポーネント」からソースファイルを特定し `data-testid` を追加する**  
+✅ **ステップファイルでは `[data-testid="xxx"]` のみを使用する**  
+✅ **ステップファイル生成時に `data-testid` が未追加なら即座にソースに追加する**  
+❌ **`TODO: 実際のセレクタに更新すること` のようなコメントを残さない**  
+❌ **CSS クラス（`.ant-select` 等）をメインセレクタとして使用しない**  
+❌ **`text=` や `:has-text()` を一意のセレクタとして使用しない**（複数要素にマッチしやすい）

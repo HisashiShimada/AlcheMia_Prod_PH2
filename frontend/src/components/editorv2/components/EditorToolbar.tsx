@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { Space, Button, Divider, Tooltip, Switch, Typography, Segmented, Flex } from 'antd';
+import { Space, Button, Divider, Tooltip, Switch, Typography, Segmented, Flex, Select } from 'antd';
 import {
   SaveOutlined,
   UndoOutlined,
@@ -25,6 +25,12 @@ import {
   RadiusSettingOutlined,
   SwapOutlined,
 } from '@ant-design/icons';
+import {
+  useAttributeDisplay,
+  ATTRIBUTE_OPTIONS,
+  ATTRIBUTE_LABELS,
+  AttributeOption,
+} from '@/contexts/AttributeDisplayContext';
 const { Text } = Typography;
 
 /**
@@ -103,6 +109,15 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   viewMode,
   onViewModeChange,
 }) => {
+  // ノード表示属性切替（Context 経由で管理）
+  const { selectedAttribute, setSelectedAttribute } = useAttributeDisplay();
+
+  // ドロップダウンの選択肢リスト
+  const attributeSelectOptions = Object.values(ATTRIBUTE_OPTIONS).map((value) => ({
+    value,
+    label: ATTRIBUTE_LABELS[value] || value,
+  }));
+
   return (
     <Flex
       style={{
@@ -141,6 +156,20 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
               },
             ]}
           />
+
+          {/* ノード表示属性切替ドロップダウン（トグル直右） */}
+          {viewMode === 'petriNet' && (
+            <Tooltip title="ノードに表示する属性を切り替えます">
+              <Select
+                size="small"
+                value={selectedAttribute}
+                onChange={(value) => setSelectedAttribute(value as AttributeOption)}
+                options={attributeSelectOptions}
+                style={{ width: 160 }}
+              />
+            </Tooltip>
+          )}
+
           <Divider type="vertical" style={{ height: 24 }} />
         </>
       )}
