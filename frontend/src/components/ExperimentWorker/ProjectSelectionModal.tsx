@@ -202,6 +202,7 @@ export default function ProjectSelectionModal({
         <Row gutter={16}>
           <Col flex="400px">
             <Input
+              data-testid="project-selection-modal-search-input"
               placeholder="プロジェクト名またはコードで検索"
               prefix={<SearchOutlined />}
               value={searchText}
@@ -212,6 +213,7 @@ export default function ProjectSelectionModal({
           </Col>
           <Col flex="200px">
             <Select
+              data-testid="project-selection-modal-name-filter"
               placeholder="プロジェクト名でフィルタ"
               value={selectedProjectName}
               onChange={setSelectedProjectName}
@@ -225,6 +227,7 @@ export default function ProjectSelectionModal({
 
         {/* テーブル */}
         <Table
+          data-testid="project-selection-modal-table"
           columns={columns}
           dataSource={filteredData}
           rowSelection={rowSelection}

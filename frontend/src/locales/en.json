@@ -635,8 +635,8 @@
       "updatedAt": "Updated At"
     },
     "buttons": {
-      "csvUpload": "CSV\nUpload",
-      "csvDownload": "CSV\nDownload",
+      "csvUpload": "CSVUpload",
+      "csvDownload": "CSVDownload",
       "add": "Add",
       "activate": "Activate",
       "deactivate": "Deactivate",
@@ -738,6 +738,7 @@
       "organizationCdDuplicate": "This organization CD is already in use",
       "organizationDisplayName": "Display Name",
       "organizationDisplayNameRequired": "Please enter a display name",
+      "organizationDisplayNameMaxLength": "Display name must be between 1 and 50 characters",
       "organizationEmail": "Organization Email",
       "organizationEmailRequired": "Please enter an organization email",
       "chiefUserId": "Chief System Admin",

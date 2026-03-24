@@ -10,6 +10,29 @@ import Papa from 'papaparse';
 import { getCertificateFromStorage } from '../services/certificateService';
 
 /**
+ * 組織CD重複チェック
+ *
+ * GET /api/v1/provider/organization/check-cd/:organizationCd
+ */
+export async function checkOrganizationCd(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { organizationCd } = req.params;
+    const exists = await organizationService.checkOrganizationCdExists(organizationCd);
+    res.json({
+      success: true,
+      exists,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId: req.headers['x-request-id'] || uuidv4(),
+      },
+    });
+  } catch (error) {
+    console.error('Check organization CD error:', error);
+    next(error);
+  }
+}
+
+/**
  * Organization一覧取得
  * 
  * GET /api/v1/systemManagement/organization

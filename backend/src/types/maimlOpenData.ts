@@ -420,14 +420,26 @@ export interface MaimlEvent {
 
 /**
  * {org_schema}.maiml_event_element テーブルの型定義
+ *
+ * @remarks
+ * XSD上 event 配下には property / content の両方が配置可能。
+ * maiml_element / maiml_template_element と同じカラム構成に統一。
  */
 export interface MaimlEventElement {
   event_element_id?: bigint;
   event_id:          bigint;
   hierarchy:         string;
-  element_type:      string;   // 現時点では 'property' 固定
-  key?:              string | null;
+  element_type:      string;           // 'property' or 'content'
   description?:      string | null;
+  xsi_type?:         string | null;    // @xsi:type 属性
+  key?:              string | null;    // @key 属性
+  format_string?:    string | null;    // @formatString 属性
+  units?:            string | null;    // @units 属性
+  scale_factor?:     number | null;    // @scaleFactor 属性
+  axis?:             string | null;    // @axis 属性（content のみ）
+  size_value?:       number | null;    // @size 属性（content のみ）
+  element_id_attr?:  string | null;    // @id 属性（content のみ）
+  element_ref?:      string | null;    // @ref 属性（content のみ）
   maiml_line_no?:    number | null;
 }
 
@@ -462,14 +474,25 @@ export interface MaimlEventInput {
 
 /**
  * 挿入前の maiml_event_element データ
+ *
+ * @remarks
+ * MaimlEventElement と同じカラム構成（event_id / event_element_id は Worker が解決）
  */
 export interface MaimlEventElementInput {
   /** 対応する MaimlEventInput のインデックス（Worker が event_id を解決するために使用） */
-  _eventIndex:   number;
-  hierarchy:     string;
-  element_type:  string;
-  key?:          string | null;
-  description?:  string | null;
+  _eventIndex:    number;
+  hierarchy:      string;
+  element_type:   string;           // 'property' or 'content'
+  description?:   string | null;
+  xsi_type?:      string | null;
+  key?:           string | null;
+  format_string?: string | null;
+  units?:         string | null;
+  scale_factor?:  number | null;
+  axis?:          string | null;
+  size_value?:    number | null;
+  element_id_attr?: string | null;
+  element_ref?:   string | null;
   maiml_line_no?: number | null;
 }
 

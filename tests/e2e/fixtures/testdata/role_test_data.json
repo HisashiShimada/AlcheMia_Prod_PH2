@@ -1,0 +1,75 @@
+{
+  "_comment": "ロール管理画面（2-18〜2-22）のテストデータ",
+  "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
+  "loginUser": {
+    "userId": "system.admin@example.com",
+    "password": "admin123"
+  },
+  "createActive": {
+    "roleCd": "e2e_role_001",
+    "roleName": "E2Eテストロール",
+    "isActive": true
+  },
+  "createCancel": {
+    "roleCd": "e2e_role_cancel",
+    "roleName": "E2Eキャンセルロール"
+  },
+  "editBefore": {
+    "roleCd": "e2e_edit_before_role",
+    "roleName": "E2E編集前ロール",
+    "isActive": true
+  },
+  "editAfter": {
+    "roleName": "E2E編集後ロール"
+  },
+  "editTest": {
+    "roleCd": "e2e_edit_test_role",
+    "roleName": "E2E編集テストロール",
+    "isActive": true
+  },
+  "editTest2": {
+    "roleCd": "e2e_edit_test_role2",
+    "roleName": "E2E編集テストロール2",
+    "isActive": true
+  },
+  "editTest3": {
+    "roleCd": "e2e_edit_test_role3",
+    "roleName": "E2E編集テストロール3",
+    "isActive": true
+  },
+  "editTest4": {
+    "roleCd": "e2e_edit_test_role4",
+    "roleName": "E2E編集テストロール4",
+    "isActive": true
+  },
+  "toggleActive": {
+    "roleCd": "e2e_toggle_active_role",
+    "roleName": "E2Eトグルロールアクティブ",
+    "isActive": true
+  },
+  "toggleInactive": {
+    "roleCd": "e2e_toggle_inactive_role",
+    "roleName": "E2Eトグルロール非アクティブ",
+    "isActive": false
+  },
+  "csvUpload": {
+    "roleName": "E2ECSVUP_ロール",
+    "roleCd": "e2e_csv_role_001",
+    "validCsvFile": "roles_valid.csv",
+    "expectedCsvHeaders": ["ロールCD", "ロール名"]
+  },
+  "validation": {
+    "emptyRoleCd": {
+      "roleName": "E2Eテストロール",
+      "expectedError": "ロールCDを入力してください"
+    },
+    "duplicateRoleCd": {
+      "roleCd": "system_admin",
+      "roleName": "E2E重複テストロール",
+      "expectedError": "入力されたロールCDは既に存在しています"
+    },
+    "emptyRoleNameOnEdit": {
+      "expectedError": "ロール名を入力してください"
+    }
+  }
+}

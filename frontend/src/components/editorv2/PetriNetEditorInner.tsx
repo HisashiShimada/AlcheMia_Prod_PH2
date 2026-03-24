@@ -27,6 +27,7 @@ import ReactFlow, {
 } from 'reactflow';
 import { Flex, Spin, Alert, Typography, Space, theme } from 'antd';
 import { TemplateProvider, useTemplates } from '../../contexts/TemplateContext';
+import { AttributeDisplayProvider } from '../../contexts/AttributeDisplayContext';
 import TemplateList from './components/TemplateViewer/TemplateList';
 import EditorToolbar from './components/EditorToolbar';
 import MethodTabPanel from './components/MethodTabPanel';
@@ -2667,8 +2668,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   }
 
   // 通常の編集画面表示（新規作成時も含む）
-  // TemplateProviderで内部をラップ
+  // AttributeDisplayProvider → TemplateProvider の順でラップ
   return (
+    <AttributeDisplayProvider>
     <TemplateProvider 
       maimlData={maimlData} 
       validationResult={validationResult}
@@ -2762,6 +2764,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         sourceS3Key={props.sourceS3Key}
       />
     </TemplateProvider>
+    </AttributeDisplayProvider>
   );
 };
 

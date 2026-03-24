@@ -7,6 +7,7 @@ import type { ColumnsType } from 'antd/es/table';
 import type { ProgressStatus } from '@/types/experimentWorker';
 import { Transition, ExperimentDataValue, ProjectStatus, isRecordViewableStatus, Issue, IssueReportFormData } from '@/types/experimentWorker';
 import { getIssues, createIssue, addComment, updateIssueStatus } from '@/services/issueApiService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
 import DataRecordDialog from './DataRecordDialog';
 import IssueManagementModal from './IssueManagementModal';
@@ -148,7 +149,7 @@ export default function TransitionList({
       setIssues(fetchedIssues);
     } catch (error) {
       console.error('[handleIssueReport] 問題一覧取得エラー', error);
-      message.error('問題一覧の取得に失敗しました');
+      message.error(extractErrorMessage(error));
     } finally {
       setIssueLoading(false);
     }
@@ -207,7 +208,7 @@ export default function TransitionList({
       }
     } catch (error) {
       console.error('[handleSubmitIssue] 問題報告エラー', error);
-      message.error('問題の報告に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -249,7 +250,7 @@ export default function TransitionList({
       }
     } catch (error) {
       console.error('[handleSubmitComment] コメント投稿エラー', error);
-      message.error('コメントの投稿に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -291,7 +292,7 @@ export default function TransitionList({
       }
     } catch (error) {
       console.error('[handleUpdateStatus] ステータス更新エラー', error);
-      message.error('ステータスの更新に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -404,6 +405,7 @@ export default function TransitionList({
           return (
             <button
               type="button"
+              data-testid="transition-record-button"
               onClick={(e) => {
                 e.stopPropagation();
                 handleRecord(record);
@@ -450,6 +452,7 @@ export default function TransitionList({
                 e.stopPropagation();
                 handleIssueReport(record);
               }}
+              data-testid="transition-issue-report-button"
               style={{
                 padding: '4px 12px',
                 fontSize: '13px',
@@ -491,7 +494,7 @@ export default function TransitionList({
     <>
       <div>
         {/* 絞り込みUI */}
-        <Row gutter={[16, 8]} style={{ marginBottom: 16 }}>
+        <Row gutter={[16, 8]} style={{ marginBottom: 16 }} data-testid="transition-list-filter-row">
           <Col xs={24} sm={12} md={12}>
             <Input
               placeholder="トランジション名、説明で検索..."
@@ -500,6 +503,7 @@ export default function TransitionList({
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
               aria-label="全カラム検索"
+              data-testid="transition-list-search-input"
             />
           </Col>
           <Col xs={24} sm={12} md={12}>
@@ -511,6 +515,7 @@ export default function TransitionList({
               allowClear
               options={transitionNameOptions}
               aria-label="トランジション名で絞り込み"
+              data-testid="transition-list-name-filter"
             />
           </Col>
         </Row>
@@ -541,6 +546,7 @@ export default function TransitionList({
           bordered
           aria-label="トランジション一覧"
           aria-describedby="transition-list-description"
+          data-testid="transition-list-table"
           rowClassName={(_, index) => index % 2 === 0 ? 'table-row-light' : 'table-row-dark'}
           style={{
             background: '#ffffff',

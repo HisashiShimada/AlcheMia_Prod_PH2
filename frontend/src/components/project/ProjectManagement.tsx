@@ -1194,6 +1194,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
               style={{ width: 200 }}
               value={projectStatusFilter}
               onChange={setProjectStatusFilter}
+              data-testid="project-status-filter"
               options={[
                 { value: 'all', label: t('projectManagement.all') },
                 { value: '0', label: t('projectManagement.status_planning') },
@@ -1215,6 +1216,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
               style={{ width: 150 }}
               value={checkoutFilter}
               onChange={setCheckoutFilter}
+              data-testid="checkout-status-filter"
               options={[
                 { value: 'all', label: t('projectManagement.all') },
                 { value: 'checked_in', label: t('projectManagement.checked_in') },
@@ -1235,6 +1237,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ width: 250 }}
               allowClear
+              data-testid="project-search-input"
             />
           </Space>
 
@@ -1247,6 +1250,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
             icon={<PlusOutlined />}
             style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
             onClick={handleOpenCreateModal}
+            data-testid="create-project-button"
           >
             {t('projectManagement.new_project')}
           </Button>
@@ -1329,7 +1333,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     )}
                     {/* チェックアウト状態表示 - プロジェクト単位 */}
                     {selectedProject.isCheckedOut && (
-                      <Tag color="orange">{t('projectManagement.checking_out')}</Tag>
+                      <Tag color="orange" data-testid="checkout-status-tag">{t('projectManagement.checking_out')}</Tag>
                     )}
                   </Space>
                   {/* プロジェクト概要 */}
@@ -1357,6 +1361,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     onClick={handleProjectDownload}
                     loading={isDownloading}
                     disabled={!selectedProject || isDownloading}
+                    data-testid="project-download-button"
                   >
                     {isDownloading 
                       ? 'ZIPダウンロード中...'
@@ -1379,6 +1384,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                     disabled={selectedProject?.status === 4}
                     title={selectedProject?.status === 4 ? 'プロジェクト完了後はチェックインできません' : undefined}
                     style={isProjectCheckedOut ? { backgroundColor: token.colorWarning, borderColor: token.colorWarning } : { backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
+                    data-testid="checkout-checkin-button"
                   >
                     {isProjectCheckedOut ? t('projectManagement.checkin') : t('projectManagement.checkout_action')}
                   </Button>
@@ -1515,6 +1521,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
                           <Button
                             type="primary"
                             style={{ marginRight: 16 }}
+                            data-testid="complete-review-button"
                             disabled={taskStats.review_waiting === 0}
                             title={taskStats.review_waiting === 0 ? 'レビュー待ちのタスクがありません' : undefined}
                             onClick={async () => {

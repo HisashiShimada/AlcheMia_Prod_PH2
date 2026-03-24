@@ -124,6 +124,8 @@ export default function CreateProjectModal({
       confirmLoading={submitting}
       okText={t('common.create')}
       cancelText={t('common.cancel')}
+      okButtonProps={{ 'data-testid': 'create-project-submit-button' } as any}
+      cancelButtonProps={{ 'data-testid': 'create-project-cancel-button' } as any}
       width={600}
       destroyOnHidden
     >
@@ -170,6 +172,7 @@ export default function CreateProjectModal({
               maxLength={100}
               showCount
               autoFocus
+              data-testid="create-project-name-input"
             />
           </Form.Item>
 
@@ -189,6 +192,7 @@ export default function CreateProjectModal({
               maxLength={500}
               showCount
               rows={4}
+              data-testid="create-project-description-input"
             />
           </Form.Item>
         </Form>

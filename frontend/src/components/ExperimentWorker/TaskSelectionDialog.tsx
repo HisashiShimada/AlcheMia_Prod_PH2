@@ -177,20 +177,21 @@ export default function TaskSelectionDialog({
         disabled: !tempTaskId,
         icon: <CheckOutlined />,
       }}
+      data-testid="task-selection-dialog"
     >
-      <div style={{ maxHeight: 500, overflowY: 'auto' }}>
+      <div style={{ maxHeight: 500, overflowY: 'auto' }} data-testid="task-selection-dialog-content">
         {!selectedProject ? (
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-project">
             <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
             <Text type="secondary">プロジェクトを選択してください</Text>
           </Space>
         ) : !selectedMethodId ? (
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-method">
             <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
             <Text type="secondary">メソッドを選択してください</Text>
           </Space>
         ) : tasks.length === 0 ? (
-          <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }}>
+          <Space direction="vertical" align="center" style={{ width: '100%', padding: token.marginXL }} data-testid="task-selection-no-tasks">
             <AimOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />
             <Text type="secondary">選択されたメソッドにタスクがありません</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>
@@ -205,6 +206,7 @@ export default function TaskSelectionDialog({
             dataSource={tasks}
             renderItem={renderTaskItem}
             style={{ padding: `${token.paddingSM}px 0` }}
+            data-testid="task-selection-list"
           />
         )}
       </div>

@@ -471,6 +471,7 @@ export default function ProgressMonitoring() {
           ghost
           icon={<EyeOutlined />}
           size="small"
+          data-testid={`progress-detail-button-${record.projectId}`}
           loading={loadingProjectId === record.projectId}
           disabled={loadingProjectId !== null && loadingProjectId !== record.projectId}
           onClick={() => handleViewDetails(record)}

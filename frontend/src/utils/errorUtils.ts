@@ -1,14 +1,20 @@
 /**
  * エラーハンドリングユーティリティ
- * AxiosErrorから適切なエラーメッセージを抽出
+ * AxiosErrorからエラーコードを抽出し、errorMapper.ts 経由でメッセージを取得する。
+ *
+ * ⚠️ このファイルでは日本語メッセージを直接定義しない。
+ *    メッセージ変換は必ず errorMapper.ts の mapErrorToMessage() を使用する。
  */
 
 import axios, { AxiosError } from 'axios';
+import { mapErrorToMessage } from './errorMapper';
+import { HTTP_STATUS_TO_ERROR_CODE } from './errorCodes';
 
 /**
  * APIエラーレスポンス型定義
  */
 interface ApiErrorResponse {
+  success?: boolean;
   error?: {
     message?: string;
     code?: string;
@@ -16,54 +22,46 @@ interface ApiErrorResponse {
 }
 
 /**
- * エラーオブジェクトからユーザーフレンドリーなエラーメッセージを抽出
- * 
+ * エラーオブジェクトからエラーコードを抽出する
+ *
  * @param error - エラーオブジェクト（AxiosError, Error, unknown）
- * @returns ユーザーに表示するエラーメッセージ（日本語）
+ * @returns エラーコード（例: 'E5001'）
  */
-export function extractErrorMessage(error: unknown): string {
-  // AxiosErrorの場合
+export function extractErrorCode(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ApiErrorResponse>;
-    
-    // APIエラーレスポンスからメッセージを抽出
-    if (axiosError.response?.data?.error?.message) {
-      return axiosError.response.data.error.message;
-    }
-    
-    // HTTPステータスコード別デフォルトメッセージ
-    switch (axiosError.response?.status) {
-      case 400:
-        return 'ファイル情報が不正です';
-      case 401:
-        return 'セッションが期限切れです。再ログインしてください';
-      case 403:
-        return 'アップロード権限がありません';
-      case 404:
-        return 'プロジェクトが見つかりません';
-      case 500:
-        return 'システムエラーが発生しました';
-      default:
-        return 'アップロードに失敗しました';
-    }
+
+    // タイムアウト
+    if (axiosError.code === 'ECONNABORTED') return 'E3002';
+
+    // ネットワークエラー（レスポンスなし）
+    if (!axiosError.response) return 'E3001';
+
+    // APIエラーレスポンスにコードがある場合はそれを優先
+    const code = axiosError.response.data?.error?.code;
+    if (code) return code;
+
+    // HTTPステータスからコードを推定（フォールバック）
+    const status = axiosError.response.status;
+    return HTTP_STATUS_TO_ERROR_CODE[status] ?? 'E9999';
   }
-  
-  // 通常のErrorオブジェクトの場合
+
   if (error instanceof Error) {
-    // タイムアウトエラー
-    if (error.message.includes('timeout')) {
-      return 'アップロードがタイムアウトしました';
-    }
-    
-    // ネットワークエラー
-    if (error.message.includes('Network Error')) {
-      return 'ネットワークエラーが発生しました';
-    }
-    
-    // その他のエラー
-    return 'アップロードに失敗しました';
+    if (error.message.includes('timeout')) return 'E3002';
+    if (error.message.includes('Network Error')) return 'E3003';
   }
-  
-  // 不明なエラー型の場合
-  return 'アップロードに失敗しました';
+
+  return 'E9999';
+}
+
+/**
+ * エラーオブジェクトからユーザーフレンドリーなエラーメッセージを抽出
+ *
+ * @param error - エラーオブジェクト（AxiosError, Error, unknown）
+ * @param defaultMessage - マッピングが見つからない場合のデフォルトメッセージ
+ * @returns ユーザーに表示するエラーメッセージ（日本語）
+ */
+export function extractErrorMessage(error: unknown, defaultMessage?: string): string {
+  const code = extractErrorCode(error);
+  return mapErrorToMessage(code, defaultMessage);
 }

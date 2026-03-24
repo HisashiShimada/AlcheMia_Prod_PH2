@@ -578,21 +578,28 @@ export const maimlIngestParserService = {
               maiml_line_no:   eventLineNo,
             });
 
-            // event 直下の property を eventElement / eventElementValue に変換
+            // event 直下の property / content を eventElement / eventElementValue に変換
             let evElemIdx = 0;
             for (const prop of event.properties ?? []) {
               evElemIdx++;
               const elemIndex = eventElements.length;
-              // eventElements の行番号: `${eventMapKey}::${evElemIdx}` がキー
               const eeLineNo = lineNoMap.eventElements.get(`${eventMapKey}::${evElemIdx}`) ?? null;
 
               eventElements.push({
-                _eventIndex:   eventIndex,
-                hierarchy:     String(evElemIdx),
-                element_type:  'property',
-                key:           prop.key         ?? null,
-                description:   prop.description ?? null,
-                maiml_line_no: eeLineNo,
+                _eventIndex:    eventIndex,
+                hierarchy:      String(evElemIdx),
+                element_type:   'property',
+                description:    prop.description  ?? null,
+                xsi_type:       prop.xsiType      ?? null,
+                key:            prop.key          ?? null,
+                format_string:  prop.formatString ?? null,
+                units:          prop.units        ?? null,
+                scale_factor:   prop.scaleFactor  ?? null,
+                axis:           null,
+                size_value:     null,
+                element_id_attr: null,
+                element_ref:    null,
+                maiml_line_no:  eeLineNo,
               });
 
               if (prop.value !== undefined && prop.value !== null) {
@@ -601,6 +608,39 @@ export const maimlIngestParserService = {
                   value_idx:          0,
                   value:              String(prop.value),
                   value_array:        null,
+                });
+              }
+            }
+            for (const cont of event.contents ?? []) {
+              evElemIdx++;
+              const elemIndex = eventElements.length;
+              const eeLineNo = lineNoMap.eventElements.get(`${eventMapKey}::${evElemIdx}`) ?? null;
+
+              eventElements.push({
+                _eventIndex:    eventIndex,
+                hierarchy:      String(evElemIdx),
+                element_type:   'content',
+                description:    cont.description  ?? null,
+                xsi_type:       cont.xsiType      ?? null,
+                key:            cont.key          ?? null,
+                format_string:  cont.formatString ?? null,
+                units:          cont.units        ?? null,
+                scale_factor:   cont.scaleFactor  ?? null,
+                axis:           cont.axis         ?? null,
+                size_value:     cont.size         ?? null,
+                element_id_attr: cont.id          ?? null,
+                element_ref:    cont.ref          ?? null,
+                maiml_line_no:  eeLineNo,
+              });
+
+              if (cont.value !== undefined && cont.value !== null) {
+                const raw   = String(cont.value);
+                const parts = raw.trim().split(/\s+/).filter(Boolean);
+                eventElementValues.push({
+                  _eventElementIndex: elemIndex,
+                  value_idx:          0,
+                  value:              parts.length > 1 ? null : raw,
+                  value_array:        parts.length > 1 ? parts : null,
                 });
               }
             }

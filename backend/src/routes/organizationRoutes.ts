@@ -67,9 +67,30 @@ router.get(
 );
 
 /**
+ * 組織CD重複チェック
+ * GET /api/v1/provider/organization/check-cd/:organizationCd
+ *
+ * 注意: このルートは /organization/:organizationId より前に定義する必要がある
+ */
+router.get(
+  '/organization/check-cd/:organizationCd',
+  authMiddleware,
+  [
+    param('organizationCd')
+      .notEmpty()
+      .withMessage('organizationCd is required')
+      .isString()
+      .withMessage('organizationCd must be a string'),
+  ],
+  handleValidationErrors,
+  organizationController.checkOrganizationCd
+);
+
+/**
  * 情報ダウンロード（全組織の統計情報CSV）
+ *
  * GET /api/v1/provider/organization/download-information-csv
- * 
+ *
  * 注意: このルートは /organization/:organizationId より前に定義する必要がある
  */
 router.get(

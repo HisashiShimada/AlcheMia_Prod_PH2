@@ -42,6 +42,7 @@ export default function TaskSelector({
         borderColor: selectedTaskId ? token.colorPrimary : token.colorBorder,
         opacity: disabled ? 0.6 : 1,
       }}
+      data-testid="task-selector-card"
     >
       <Space orientation="vertical" size="small" style={{ width: '100%' }}>
         {/* ヘッダー */}
@@ -52,18 +53,18 @@ export default function TaskSelector({
 
         {/* 選択中の情報 */}
         {selectedTask ? (
-          <Space orientation="vertical" size={0} style={{ paddingLeft: 24 }}>
-            <Text strong style={{ fontSize: 14 }}>
+          <Space orientation="vertical" size={0} style={{ paddingLeft: 24 }} data-testid="task-selector-selected-info">
+            <Text strong style={{ fontSize: 14 }} data-testid="task-selector-task-name">
               {selectedTask.taskName}
             </Text>
             {selectedTask.tag && (
-              <Text type="secondary" style={{ fontSize: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }} data-testid="task-selector-task-tag">
                 {selectedTask.tag}
               </Text>
             )}
           </Space>
         ) : (
-          <Text type="secondary" style={{ paddingLeft: 24, fontSize: 12 }}>
+          <Text type="secondary" style={{ paddingLeft: 24, fontSize: 12 }} data-testid="task-selector-placeholder">
             {disabled ? 'プロジェクトを選択してください' : 'タスクが選択されていません'}
           </Text>
         )}

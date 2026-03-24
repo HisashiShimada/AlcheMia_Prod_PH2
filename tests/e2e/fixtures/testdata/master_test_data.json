@@ -1,0 +1,265 @@
+{
+  "_comment": "マスタ管理画面（3-1〜3-12）のテストデータ Creator / Vendor / Instrument",
+  "organizationId": "a0718dc5-21f3-44e6-87e9-cc2ae83f3385",
+  "loginUser": {
+    "userId": "data.admin@example.com",
+    "password": "admin123"
+  },
+
+  "creator": {
+    "createActive": {
+      "creatorId": "e2e_crt_001",
+      "creatorName": "E2Eテストクリエイター",
+      "creatorDescription": "E2Eテスト用クリエイター説明",
+      "creatorAnnotation": "E2Eテスト用クリエイター注釈",
+      "vendorName": "島津製作所",
+      "instrumentName": "Atomic Force Microscope AFM-3000",
+      "isActive": true
+    },
+    "createInactive": {
+      "creatorId": "e2e_crt_002",
+      "creatorName": "E2E非アクティブクリエイター",
+      "creatorDescription": "E2E非アクティブ用クリエイター説明",
+      "creatorAnnotation": "E2E非アクティブ用クリエイター注釈",
+      "vendorName": "島津製作所",
+      "instrumentName": "Atomic Force Microscope AFM-3000",
+      "isActive": false
+    },
+    "createCancel": {
+      "creatorId": "e2e_crt_cancel",
+      "creatorName": "E2Eキャンセルクリエイター",
+      "creatorDescription": "E2Eキャンセル用クリエイター説明",
+      "creatorAnnotation": "E2Eキャンセル用クリエイター注釈",
+      "vendorName": "島津製作所",
+      "instrumentName": "Atomic Force Microscope AFM-3000"
+    },
+    "permanent": {
+      "_comment": "重複チェック用に事前DBに登録されていること",
+      "creatorId": "e2e_crt_perm_001",
+      "creatorName": "E2E永続クリエイター",
+      "creatorDescription": "E2E永続クリエイター説明",
+      "creatorAnnotation": "E2E永続クリエイター注釈",
+      "vendorName": "島津製作所",
+      "instrumentName": "Atomic Force Microscope AFM-3000",
+      "isActive": true
+    },
+    "editBefore": {
+      "_comment": "3-3-1: 編集前データ (Before フックでINSERT)",
+      "creatorId": "e2e_crt_edit_before",
+      "creatorName": "E2E編集前クリエイター",
+      "creatorDescription": "E2E編集前クリエイター説明",
+      "creatorAnnotation": "E2E編集前クリエイター注釈",
+      "vendorName": "島津製作所",
+      "instrumentName": "Atomic Force Microscope AFM-3000",
+      "isActive": true
+    },
+    "editAfter": {
+      "_comment": "3-3-1: 編集後の期待値",
+      "creatorName": "E2E編集後クリエイター"
+    },
+    "editTest": {
+      "_comment": "3-3-2 / 3-3-3 / 3-3-4: 編集ダイアログテスト用 (Before フックでINSERT)",
+      "creatorId": "e2e_crt_edit_test",
+      "creatorName": "E2E編集テストクリエイター",
+      "creatorDescription": "E2E編集テストクリエイター説明",
+      "creatorAnnotation": "E2E編集テストクリエイター注釈",
+      "vendorName": "島津製作所",
+      "instrumentName": "Atomic Force Microscope AFM-3000",
+      "isActive": true
+    },
+    "toggleActive": {
+      "_comment": "3-4-1 / 3-4-3: アクティブ→非アクティブ切り替えテスト用 (Before フックでINSERT)",
+      "creatorId": "e2e_crt_toggle_active",
+      "creatorName": "E2Eトグルクリエイターアクティブ",
+      "creatorDescription": "E2Eトグルアクティブクリエイター説明",
+      "creatorAnnotation": "E2Eトグルアクティブクリエイター注釈",
+      "vendorName": "島津製作所",
+      "instrumentName": "Atomic Force Microscope AFM-3000",
+      "isActive": true
+    },
+    "toggleInactive": {
+      "_comment": "3-4-2: 非アクティブ→アクティブ切り替えテスト用 (Before フックでINSERT)",
+      "creatorId": "e2e_crt_toggle_inactive",
+      "creatorName": "E2Eトグルクリエイター非アクティブ",
+      "creatorDescription": "E2Eトグル非アクティブクリエイター説明",
+      "creatorAnnotation": "E2Eトグル非アクティブクリエイター注釈",
+      "vendorName": "島津製作所",
+      "instrumentName": "Atomic Force Microscope AFM-3000",
+      "isActive": false
+    },
+    "csvUpload": {
+      "creatorId": "e2e_csv_crt_001",
+      "creatorName": "E2ECSVUP_クリエイター",
+      "validCsvFile": "creator_valid.csv",
+      "expectedCsvHeaders": ["creator_id", "creator_name", "creator_description", "creator_annotation", "vendor_name", "instrument_name", "is_active"]
+    },
+    "validation": {
+      "emptyCreatorId": {
+        "creatorName": "E2Eテストクリエイター",
+        "expectedError": "IDを入力してください"
+      },
+      "duplicateCreatorId": {
+        "creatorId": "e2e_crt_perm_001",
+        "creatorName": "E2E重複テストクリエイター",
+        "expectedError": "このIDは既に使用されています"
+      },
+      "emptyCreatorNameOnEdit": {
+        "expectedError": "名前を入力してください"
+      }
+    }
+  },
+
+  "vendor": {
+    "createActive": {
+      "vendorId": "e2e_vnd_001",
+      "vendorName": "E2Eテストベンダー",
+      "vendorDescription": "E2Eテスト用ベンダー説明",
+      "vendorAnnotation": "E2Eテスト用ベンダー注釈",
+      "isActive": true
+    },
+    "createInactive": {
+      "vendorId": "e2e_vnd_002",
+      "vendorName": "E2E非アクティブベンダー",
+      "vendorDescription": "E2E非アクティブ用ベンダー説明",
+      "vendorAnnotation": "E2E非アクティブ用ベンダー注釈",
+      "isActive": false
+    },
+    "createCancel": {
+      "vendorId": "e2e_vnd_cancel",
+      "vendorName": "E2Eキャンセルベンダー",
+      "vendorDescription": "E2Eキャンセル用ベンダー説明",
+      "vendorAnnotation": "E2Eキャンセル用ベンダー注釈"
+    },
+    "permanent": {
+      "_comment": "重複チェック用に事前DBに登録されていること",
+      "vendorId": "e2e_vnd_perm_001",
+      "vendorName": "E2E永続ベンダー",
+      "isActive": true
+    },
+    "editBefore": {
+      "_comment": "3-7-1: 編集前データ (Before フックでINSERT)",
+      "vendorId": "e2e_vnd_edit_before",
+      "vendorName": "E2E編集前ベンダー",
+      "isActive": true
+    },
+    "editAfter": {
+      "_comment": "3-7-1: 編集後の期待値",
+      "vendorName": "E2E編集後ベンダー"
+    },
+    "editTest": {
+      "_comment": "3-7-2 / 3-7-3 / 3-7-4: 編集ダイアログテスト用 (Before フックでINSERT)",
+      "vendorId": "e2e_vnd_edit_test",
+      "vendorName": "E2E編集テストベンダー",
+      "isActive": true
+    },
+    "toggleActive": {
+      "_comment": "3-8-1 / 3-8-3: アクティブ→非アクティブ切り替えテスト用 (Before フックでINSERT)",
+      "vendorId": "e2e_vnd_toggle_active",
+      "vendorName": "E2Eトグルベンダーアクティブ",
+      "isActive": true
+    },
+    "toggleInactive": {
+      "_comment": "3-8-2: 非アクティブ→アクティブ切り替えテスト用 (Before フックでINSERT)",
+      "vendorId": "e2e_vnd_toggle_inactive",
+      "vendorName": "E2Eトグルベンダー非アクティブ",
+      "isActive": false
+    },
+    "csvUpload": {
+      "vendorId": "e2e_csv_vnd_001",
+      "vendorName": "E2ECSVUP_ベンダー",
+      "validCsvFile": "vendor_valid.csv",
+      "expectedCsvHeaders": ["vendor_id", "vendor_name", "vendor_description", "vendor_annotation", "is_active"]
+    },
+    "validation": {
+      "emptyVendorId": {
+        "vendorName": "E2Eテストベンダー",
+        "expectedError": "IDを入力してください"
+      },
+      "duplicateVendorId": {
+        "vendorId": "e2e_vnd_perm_001",
+        "vendorName": "E2E重複テストベンダー",
+        "expectedError": "このIDは既に使用されています"
+      },
+      "emptyVendorNameOnEdit": {
+        "expectedError": "名前を入力してください"
+      }
+    }
+  },
+
+  "instrument": {
+    "createActive": {
+      "instrumentId": "e2e_ins_001",
+      "instrumentName": "E2Eテスト装置",
+      "instrumentDescription": "E2Eテスト用装置説明",
+      "instrumentAnnotation": "E2Eテスト用装置注釈",
+      "isActive": true
+    },
+    "createInactive": {
+      "instrumentId": "e2e_ins_002",
+      "instrumentName": "E2E非アクティブ装置",
+      "instrumentDescription": "E2E非アクティブ用装置説明",
+      "instrumentAnnotation": "E2E非アクティブ用装置注釈",
+      "isActive": false
+    },
+    "createCancel": {
+      "instrumentId": "e2e_ins_cancel",
+      "instrumentName": "E2Eキャンセル装置",
+      "instrumentDescription": "E2Eキャンセル用装置説明",
+      "instrumentAnnotation": "E2Eキャンセル用装置注釈"
+    },
+    "permanent": {
+      "_comment": "重複チェック用に事前DBに登録されていること",
+      "instrumentId": "e2e_ins_perm_001",
+      "instrumentName": "E2E永続装置",
+      "isActive": true
+    },
+    "editBefore": {
+      "_comment": "3-11-1: 編集前データ (Before フックでINSERT)",
+      "instrumentId": "e2e_ins_edit_before",
+      "instrumentName": "E2E編集前装置",
+      "isActive": true
+    },
+    "editAfter": {
+      "_comment": "3-11-1: 編集後の期待値",
+      "instrumentName": "E2E編集後装置"
+    },
+    "editTest": {
+      "_comment": "3-11-2 / 3-11-3 / 3-11-4: 編集ダイアログテスト用 (Before フックでINSERT)",
+      "instrumentId": "e2e_ins_edit_test",
+      "instrumentName": "E2E編集テスト装置",
+      "isActive": true
+    },
+    "toggleActive": {
+      "_comment": "3-12-1 / 3-12-3: アクティブ→非アクティブ切り替えテスト用 (Before フックでINSERT)",
+      "instrumentId": "e2e_ins_toggle_active",
+      "instrumentName": "E2Eトグル装置アクティブ",
+      "isActive": true
+    },
+    "toggleInactive": {
+      "_comment": "3-12-2: 非アクティブ→アクティブ切り替えテスト用 (Before フックでINSERT)",
+      "instrumentId": "e2e_ins_toggle_inactive",
+      "instrumentName": "E2Eトグル装置非アクティブ",
+      "isActive": false
+    },
+    "csvUpload": {
+      "instrumentId": "e2e_csv_ins_001",
+      "instrumentName": "E2ECSVUP_装置",
+      "validCsvFile": "instrument_valid.csv",
+      "expectedCsvHeaders": ["instrument_id", "instrument_name", "instrument_description", "instrument_annotation", "is_active"]
+    },
+    "validation": {
+      "emptyInstrumentId": {
+        "instrumentName": "E2Eテスト装置",
+        "expectedError": "IDを入力してください"
+      },
+      "duplicateInstrumentId": {
+        "instrumentId": "e2e_ins_perm_001",
+        "instrumentName": "E2E重複テスト装置",
+        "expectedError": "このIDは既に使用されています"
+      },
+      "emptyInstrumentNameOnEdit": {
+        "expectedError": "名前を入力してください"
+      }
+    }
+  }
+}

@@ -12,6 +12,7 @@ import { Form, Input, Button, Alert, theme } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { login } from '../../utils/authApi';
 import type { LoginResponse } from '../../types/auth';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { useToken } = theme;
 
@@ -74,7 +75,7 @@ export default function LoginForm({
       
       onSuccess(response);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '予期しないエラーが発生しました';
+      const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       onError(errorMessage);
     } finally {

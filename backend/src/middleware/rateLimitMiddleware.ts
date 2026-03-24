@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../database/db';
+import { E5005, E5007, E5008 } from '../enums/errorCodes';
 
 /**
  * レート制限設定インターフェース
@@ -138,7 +139,7 @@ export const loginRateLimit = rateLimitMiddleware({
   windowMs: 15 * 60 * 1000, // 15分
   maxAttempts: 5,
   keyGenerator: (req) => `${req.query.orgId}_${req.body.userId}`,
-  errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
+  errorCode: E5007,
   message: 'ログイン試行回数が上限に達しました。15分後に再試行してください。',
 });
 
@@ -147,7 +148,7 @@ export const pinVerifyRateLimit = rateLimitMiddleware({
   windowMs: 5 * 60 * 1000, // 5分
   maxAttempts: 3,
   keyGenerator: (req) => req.headers.authorization?.replace('Bearer ', '') || '',
-  errorCode: 'AUTH_PIN_MAX_ATTEMPTS',
+  errorCode: E5005,
   message: 'PIN検証の試行回数が上限に達しました。再度ログインしてください。',
   useTable: 'pin_codes',
   attemptsColumn: 'attempts_count',
@@ -158,7 +159,7 @@ export const pinResendRateLimit = rateLimitMiddleware({
   windowMs: 15 * 60 * 1000, // 15分
   maxAttempts: 3,
   keyGenerator: (req) => req.headers.authorization?.replace('Bearer ', '') || '',
-  errorCode: 'AUTH_RESEND_LIMIT_EXCEEDED',
+  errorCode: E5008,
   message: 'PIN再送信の回数が上限に達しました。15分後に再試行してください。',
   useTable: 'pin_codes',
   countColumn: 'created_at',
@@ -169,6 +170,6 @@ export const passwordResetRequestRateLimit = rateLimitMiddleware({
   windowMs: 15 * 60 * 1000, // 15分
   maxAttempts: 3,
   keyGenerator: (req) => req.query.orgId as string || '',
-  errorCode: 'AUTH_RATE_LIMIT_EXCEEDED',
+  errorCode: E5007,
   message: 'パスワードリセット要求の回数が上限に達しました。15分後に再試行してください。',
 });

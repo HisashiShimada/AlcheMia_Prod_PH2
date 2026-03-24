@@ -79,6 +79,7 @@ const ALL_STATUS_OPTIONS: { value: TransitionStatus; label: string }[] = [
   { value: 6 as TransitionStatus, label: '異常終了状態' },
 ];
 import { saveBatchExperimentData, getTemplateData } from '@/services/experimentDataApiService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 import { updateTransitionStatus } from '@/services/projectApiService';
 import { ExperimentDataRecord, TemplateDataItem } from '@/types/api';
 import InstructionConfirmationModal from './InstructionConfirmationModal';
@@ -583,7 +584,7 @@ export default function DataRecordDialog({
       } else if (axiosError?.message) {
         message.error(`保存に失敗しました: ${axiosError.message}`);
       } else {
-        message.error('入力内容を確認してください');
+        message.error(extractErrorMessage(error));
       }
     } finally {
       setLoading(false);
@@ -1028,6 +1029,7 @@ export default function DataRecordDialog({
 
   return (
     <Modal
+      data-testid="data-record-dialog"
       title={
         <Space>
           <Text strong style={{ fontSize: 18 }}>
@@ -1047,12 +1049,14 @@ export default function DataRecordDialog({
       footer={[
         <Button
           key="cancel"
+          data-testid="data-record-cancel-button"
           onClick={onClose}
         >
           キャンセル
         </Button>,
         <Button
           key="save"
+          data-testid="data-record-save-button"
           type="primary"
           icon={<SaveOutlined />}
           onClick={handleSaveTemplate}
@@ -1064,11 +1068,12 @@ export default function DataRecordDialog({
       ]}
     >
       <div>
-        {/* みなし進捗更新チェックボックスと作業指示ボタン */}
+      {/* みなし進捗更新チェックボックスと作業指示ボタン */}
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {/* useDeemedProgressProp が false の場合はチェックボックスを非表示（組織設定で無効化） */}
           {useDeemedProgressProp ? (
             <Checkbox
+              data-testid="deemed-progress-checkbox"
               checked={useDeemedProgress}
               onChange={(e) => setUseDeemedProgress(e.target.checked)}
             >
@@ -1078,6 +1083,7 @@ export default function DataRecordDialog({
             <span /> /* チェックボックス非表示時のスペーサー */
           )}
           <Button
+            data-testid="instruction-button"
             icon={<InfoCircleOutlined />}
             onClick={() => setInstructionModalOpen(true)}
           >
@@ -1089,7 +1095,7 @@ export default function DataRecordDialog({
             - useDeemedProgressProp が false の場合: 常時表示（組織設定でみなし進捗無効）
             - useDeemedProgressProp が true の場合: チェックボックスOFF時のみ表示 */}
         {(!useDeemedProgressProp || !useDeemedProgress) && (
-          <div style={{ marginBottom: 24 }}>
+          <div data-testid="status-update-section" style={{ marginBottom: 24 }}>
             {/* タイトルセクション */}
             <div
               style={{
@@ -1245,7 +1251,7 @@ export default function DataRecordDialog({
                           } else if (axiosError?.message) {
                             message.error(`更新に失敗しました: ${axiosError.message}`);
                           } else {
-                            message.error('ステータスの更新に失敗しました');
+                            message.error(extractErrorMessage(error));
                           }
                         } finally {
                           setLoading(false);
@@ -1295,6 +1301,7 @@ export default function DataRecordDialog({
               {/* フィルタリングエリア */}
               <Space direction="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
                 <Input
+                  data-testid="template-search-input"
                   placeholder="テンプレート名で検索"
                   prefix={<SearchOutlined />}
                   value={templateSearchText}
@@ -1302,6 +1309,7 @@ export default function DataRecordDialog({
                   allowClear
                 />
                 <Select
+                  data-testid="template-category-select"
                   placeholder="テンプレート種別"
                   value={selectedTemplateCategory}
                   onChange={setSelectedTemplateCategory}
