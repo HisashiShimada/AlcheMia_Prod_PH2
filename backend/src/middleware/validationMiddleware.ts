@@ -50,7 +50,7 @@ export const handleValidationErrors = (
     res.status(400).json({
       success: false,
       error: {
-        code: 'VALIDATION_ERROR',
+        code: 'E1003',
         message: 'バリデーションエラーが発生しました',
         details,
       },
@@ -74,7 +74,7 @@ export const handleValidationErrors = (
  */
 function mapErrorToCode(error: ValidationError): string {
   if (error.type !== 'field') {
-    return 'VALIDATION_ERROR';
+    return 'E1003';
   }
 
   // msgから推測してコードを決定
@@ -99,7 +99,7 @@ function mapErrorToCode(error: ValidationError): string {
     return 'INVALID_VALUE';
   }
 
-  return 'VALIDATION_ERROR';
+  return 'E1003';
 }
 
 /**
@@ -113,7 +113,7 @@ function mapErrorToCode(error: ValidationError): string {
 export const createValidationError = (
   field: string,
   message: string,
-  code: string = 'VALIDATION_ERROR',
+  code: string = 'E1003',
   value?: any
 ): ValidationErrorDetail => {
   return {

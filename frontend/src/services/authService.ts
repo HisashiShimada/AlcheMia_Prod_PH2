@@ -21,11 +21,14 @@ const apiClient = createApiClient();
 
 /**
  * APIエラーハンドリング
+ *
+ * エラーコードはそのまま保持してthrowする（翻訳しない）。
+ * メッセージ変換は errorMapper.ts が唯一の変換場所。
  */
 export class AuthServiceError extends Error {
   constructor(
     message: string,
-    public code: string = 'UNKNOWN_ERROR',
+    public code: string = 'E9999',
     public details?: Array<{
       field: string;
       message: string;
@@ -38,107 +41,54 @@ export class AuthServiceError extends Error {
 }
 
 /**
- * エラーメッセージを日本語化
- */
-const translateErrorMessage = (code: string, defaultMessage: string): string => {
-  const errorMessages: Record<string, string> = {
-    // バリデーションエラー
-    VALIDATION_ERROR: '入力内容に誤りがあります',
-    
-    // 認証エラー
-    AUTH_INVALID_CREDENTIALS: 'ユーザー名またはパスワードが正しくありません',
-    AUTH_ACCOUNT_DISABLED: 'アカウントが無効化されています。管理者にお問い合わせください',
-    AUTH_TOKEN_INVALID: 'セッションが無効です。再度ログインしてください',
-    AUTH_TOKEN_EXPIRED: 'セッションの有効期限が切れました。再度ログインしてください',
-    AUTH_UNAUTHORIZED: '認証が必要です',
-    AUTH_FORBIDDEN: 'アクセスが拒否されました',
-    
-    // PINコードエラー
-    AUTH_PIN_INVALID: 'PINコードが正しくありません',
-    AUTH_PIN_EXPIRED: 'PINコードの有効期限が切れています',
-    AUTH_PIN_MAX_ATTEMPTS: 'PINコードの入力試行回数が上限を超えました',
-    
-    // リソースエラー
-    RESOURCE_NOT_FOUND: 'リソースが見つかりません',
-    
-    // システムエラー
-    SYSTEM_ERROR: 'システムエラーが発生しました',
-    SYSTEM_DATABASE_ERROR: 'データベースエラーが発生しました',
-    SYSTEM_EMAIL_SEND_FAILED: 'メール送信に失敗しました。しばらく待ってから再試行してください',
-    SYSTEM_JWT_GENERATION_FAILED: 'セッション生成に失敗しました',
-    
-    // ネットワークエラー
-    NETWORK_ERROR: 'ネットワークエラーが発生しました。接続を確認してください',
-    TIMEOUT_ERROR: 'リクエストがタイムアウトしました。再度お試しください',
-    SERVER_UNAVAILABLE: 'サーバーに接続できません。しばらく待ってから再試行してください',
-  };
-
-  return errorMessages[code] || defaultMessage;
-};
-
-/**
  * Axiosエラーをハンドリング
+ *
+ * - エラーコードは翻訳せずそのまま保持する
+ * - バックエンドが返した code / message をそのまま AuthServiceError に詰める
+ * - バックエンドが code を返さない場合は HTTP ステータスから errorCodes.ts のコードに変換する
  */
 const handleApiError = (error: unknown): AuthServiceError => {
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<ApiResponse<never>>;
-    
+
     // タイムアウトエラー
     if (axiosError.code === 'ECONNABORTED') {
-      return new AuthServiceError(
-        translateErrorMessage('TIMEOUT_ERROR', 'リクエストがタイムアウトしました'),
-        'TIMEOUT_ERROR'
-      );
+      return new AuthServiceError('リクエストがタイムアウトしました', 'E3002');
     }
-    
-    // ネットワークエラー
+
+    // ネットワークエラー（レスポンスなし）
     if (!axiosError.response) {
-      return new AuthServiceError(
-        translateErrorMessage('SERVER_UNAVAILABLE', 'サーバーに接続できません'),
-        'SERVER_UNAVAILABLE'
-      );
+      return new AuthServiceError('サーバーに接続できません', 'E3001');
     }
-    
-    // APIエラーレスポンス
+
+    // APIエラーレスポンス（バックエンドが error.code を返している場合）
     const response = axiosError.response.data;
     if (response && !response.success && response.error) {
-      const errorCode = response.error.code || 'UNKNOWN_ERROR';
-      const errorMessage = translateErrorMessage(
-        errorCode,
-        response.error.message || 'エラーが発生しました'
+      // ✅ コードをそのまま保持（翻訳しない）
+      return new AuthServiceError(
+        response.error.message || 'エラーが発生しました',
+        response.error.code || 'E9999',
+        response.error.details
       );
-      return new AuthServiceError(errorMessage, errorCode, response.error.details);
     }
-    
-    // レスポンスはあるがエラー構造が不正な場合
-    if (axiosError.response.status >= 400) {
-      const statusCode = axiosError.response.status;
-      let errorCode = 'HTTP_ERROR';
-      let errorMessage = 'エラーが発生しました';
-      
-      if (statusCode === 401) {
-        errorCode = 'AUTH_UNAUTHORIZED';
-        errorMessage = translateErrorMessage(errorCode, '認証が必要です');
-      } else if (statusCode === 403) {
-        errorCode = 'AUTH_FORBIDDEN';
-        errorMessage = translateErrorMessage('AUTH_FORBIDDEN', 'アクセスが拒否されました');
-      } else if (statusCode === 404) {
-        errorCode = 'RESOURCE_NOT_FOUND';
-        errorMessage = translateErrorMessage('RESOURCE_NOT_FOUND', 'リソースが見つかりません');
-      } else if (statusCode >= 500) {
-        errorCode = 'SYSTEM_ERROR';
-        errorMessage = translateErrorMessage('SYSTEM_ERROR', 'サーバーエラーが発生しました');
-      }
-      
-      return new AuthServiceError(errorMessage, errorCode);
+
+    // レスポンスはあるがエラー構造が不正な場合 → HTTPステータスからコードを推定
+    const statusCode = axiosError.response.status;
+    if (statusCode === 401) {
+      return new AuthServiceError('認証が必要です', 'E5013');
+    } else if (statusCode === 403) {
+      return new AuthServiceError('アクセスが拒否されました', 'E5012');
+    } else if (statusCode === 404) {
+      return new AuthServiceError('リソースが見つかりません', 'E6001');
+    } else if (statusCode >= 500) {
+      return new AuthServiceError('サーバーエラーが発生しました', 'E4001');
     }
+
+    return new AuthServiceError('エラーが発生しました', 'E9999');
   }
-  
+
   // その他のエラー
-  return new AuthServiceError(
-    translateErrorMessage('UNKNOWN_ERROR', 'エラーが発生しました'),
-    'UNKNOWN_ERROR'
-  );
+  return new AuthServiceError('エラーが発生しました', 'E9999');
 };
 
 /**
@@ -162,13 +112,22 @@ export const authService = {
         credentials,
         { params }
       );
-      
+
+      // インターセプターはレスポンスをそのまま返すため、response.data.data でアンラップする
       if (response.data.success) {
         return response.data.data;
       }
-      
-      throw new AuthServiceError('ログインに失敗しました', 'LOGIN_FAILED');
+
+      // エラーレスポンスの場合（通常はAxiosErrorとして捕捉されるため、ここには到達しにくい）
+      throw new AuthServiceError(
+        response.data.error?.message || 'ログインに失敗しました',
+        response.data.error?.code || 'E9999',
+        response.data.error?.details
+      );
     } catch (error) {
+      if (error instanceof AuthServiceError) {
+        throw error;
+      }
       throw handleApiError(error);
     }
   },

@@ -431,7 +431,7 @@ export class ProjectService {
           return {
             success: false,
             error: {
-              code: 'RESOURCE_NOT_FOUND',
+              code: 'E6001',
               message: 'プロジェクトが見つかりません',
             },
           };
@@ -465,7 +465,7 @@ export class ProjectService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'プロジェクトが見つかりません',
           },
         };
@@ -684,7 +684,7 @@ export class ProjectService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'プロジェクトが見つかりません',
           },
         };
@@ -715,7 +715,7 @@ export class ProjectService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'プロジェクトが見つかりません',
           },
         };
@@ -838,7 +838,7 @@ export class ProjectService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'プロジェクトが見つかりません',
           },
         };
@@ -898,7 +898,7 @@ export class ProjectService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'プロジェクトが見つかりません',
           },
         };
@@ -1109,7 +1109,7 @@ export class ProjectService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'プロジェクトが見つかりません',
           },
         };
@@ -1281,7 +1281,7 @@ export class ProjectService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'プロジェクトが見つかりません',
           },
         };
@@ -1546,7 +1546,7 @@ export class ProjectService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'プロジェクトが見つかりません',
           },
         };
@@ -1712,7 +1712,7 @@ export class ProjectService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'プロジェクトが見つかりません',
           },
         };
@@ -1727,7 +1727,7 @@ export class ProjectService {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: '指示が見つかりません',
           },
         };
@@ -1763,7 +1763,7 @@ export class ProjectService {
           return {
             success: false,
             error: {
-              code: 'PERMISSION_INSUFFICIENT',
+              code: 'E5015',
               message: '自分に割り当てられていない指示は確認できません',
             },
           };
@@ -1917,7 +1917,7 @@ export class ProjectService {
       if (!projectRow) {
         return {
           success: false,
-          error: { code: 'RESOURCE_NOT_FOUND', message: 'プロジェクトが見つかりません' },
+          error: { code: 'E6001', message: 'プロジェクトが見つかりません' },
         };
       }
 

@@ -44,7 +44,7 @@ export class PasswordResetTokenRepository {
         return {
           success: false,
           error: {
-            code: 'RESOURCE_NOT_FOUND',
+            code: 'E6001',
             message: 'Reset token not found',
           },
         };

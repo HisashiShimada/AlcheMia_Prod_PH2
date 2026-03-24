@@ -33,7 +33,7 @@ export class PasswordService {
         return {
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'E1003',
             message: 'Password cannot be empty',
           },
         };
@@ -43,7 +43,7 @@ export class PasswordService {
         return {
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'E1003',
             message: 'Password must be at least 8 characters',
           },
         };
@@ -53,7 +53,7 @@ export class PasswordService {
         return {
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'E1003',
             message: 'Password must be less than 255 characters',
           },
         };
@@ -77,7 +77,7 @@ export class PasswordService {
       return {
         success: false,
         error: {
-          code: 'SYSTEM_ERROR',
+          code: 'E4001',
           message: 'Failed to hash password',
           originalError: error as Error,
         },

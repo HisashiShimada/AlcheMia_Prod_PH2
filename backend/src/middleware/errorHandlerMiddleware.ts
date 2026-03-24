@@ -21,7 +21,7 @@ export const errorHandler = (
   const statusCode = err.statusCode || 500;
 
   // エラーコードの決定（err.code → err.name → デフォルト値の順で優先）
-  const errorCode = err.code || err.name || 'SYSTEM_INTERNAL_ERROR';
+  const errorCode = err.code || err.name || 'E4001';
 
   // ユーザーフレンドリーなエラーメッセージ
   let errorMessage: string;
