@@ -244,7 +244,7 @@ services:
     networks:
       - mmdpf-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:11434/api/tags > /dev/null || exit 1"]
+      test: ["CMD-SHELL", "OLLAMA_HOST=http://localhost:11434 ollama list > /dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
