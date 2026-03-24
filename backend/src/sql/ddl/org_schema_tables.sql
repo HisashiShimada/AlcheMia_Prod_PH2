@@ -241,16 +241,25 @@ CREATE INDEX IF NOT EXISTS ix_maiml_event_instruction
   ON "{{SCHEMA_NAME}}".maiml_event(instruction_ref);
 
 -- ============================================================
--- maiml_event_element（event 配下の property 行）
+-- maiml_event_element（event 配下の property / content 行）
+-- @reference docs/MaiML_OpenData_Pipeline/db.md §7.2
 -- ============================================================
 CREATE TABLE IF NOT EXISTS "{{SCHEMA_NAME}}".maiml_event_element (
-  event_element_id   BIGSERIAL  PRIMARY KEY,
-  event_id           BIGINT     NOT NULL
+  event_element_id   BIGSERIAL        PRIMARY KEY,
+  event_id           BIGINT           NOT NULL
                      REFERENCES "{{SCHEMA_NAME}}".maiml_event(event_id) ON DELETE CASCADE,
-  hierarchy          TEXT       NOT NULL,
-  element_type       TEXT       NOT NULL DEFAULT 'property',
-  key                TEXT,
+  hierarchy          TEXT             NOT NULL,
+  element_type       TEXT             NOT NULL,   -- 'property' or 'content'
   description        TEXT,
+  xsi_type           TEXT,                        -- @xsi:type 属性（intType, stringType 等）
+  key                TEXT,                        -- @key 属性（property/content 共通）
+  format_string      TEXT,                        -- @formatString 属性
+  units              TEXT,                        -- @units 属性（単位）
+  scale_factor       DOUBLE PRECISION,            -- @scaleFactor 属性
+  axis               TEXT,                        -- @axis 属性（content のみ）
+  size_value         INT,                         -- @size 属性（content のみ）
+  element_id_attr    TEXT,                        -- @id 属性（content のみ）
+  element_ref        TEXT,                        -- @ref 属性（content のみ）
   maiml_line_no      INT
 );
 CREATE INDEX IF NOT EXISTS ix_maiml_event_element_event

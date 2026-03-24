@@ -508,16 +508,26 @@ export async function insertEventElement(
 
   return await pgp.one<MaimlEventElement>(
     `INSERT INTO "${schemaName}".maiml_event_element
-       (event_id, hierarchy, element_type, key, description, maiml_line_no)
-     VALUES ($1, $2, $3, $4, $5, $6)
+       (event_id, hierarchy, element_type,
+        description, xsi_type, key, format_string, units, scale_factor,
+        axis, size_value, element_id_attr, element_ref, maiml_line_no)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
      RETURNING *`,
     [
       data.event_id,
       data.hierarchy,
       data.element_type,
-      data.key           ?? null,
-      data.description   ?? null,
-      data.maiml_line_no ?? null,
+      data.description    ?? null,
+      data.xsi_type       ?? null,
+      data.key            ?? null,
+      data.format_string  ?? null,
+      data.units          ?? null,
+      data.scale_factor   ?? null,
+      data.axis           ?? null,
+      data.size_value     ?? null,
+      data.element_id_attr ?? null,
+      data.element_ref    ?? null,
+      data.maiml_line_no  ?? null,
     ]
   );
 }

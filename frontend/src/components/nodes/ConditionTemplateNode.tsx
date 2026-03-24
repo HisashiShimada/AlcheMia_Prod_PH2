@@ -5,6 +5,7 @@
 
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
+import { useAttributeDisplay, ATTRIBUTE_OPTIONS } from '@/contexts/AttributeDisplayContext';
 
 interface ConditionTemplateData {
   label?: string;
@@ -15,6 +16,11 @@ interface ConditionTemplateData {
   description?: string;
   properties?: Record<string, string>;
   selectedProperties?: Record<string, string>;
+  // 表示切替用フィールド
+  templateId?: string;
+  templateName?: string;
+  templateDescription?: string;
+  template?: { id?: string; name?: string; description?: string };
 }
 
 /**
@@ -22,6 +28,20 @@ interface ConditionTemplateData {
  * SVGポリゴンで五角形を描画、内部は空（白色）
  */
 const ConditionTemplateNode: React.FC<NodeProps<ConditionTemplateData>> = memo(({ data, selected }) => {
+  const { selectedAttribute } = useAttributeDisplay();
+
+  const displayLabel = (() => {
+    switch (selectedAttribute) {
+      case ATTRIBUTE_OPTIONS.NODE_ID:              return data.id || '';
+      case ATTRIBUTE_OPTIONS.NODE_NAME:            return data.name || data.label || data.id || '';
+      case ATTRIBUTE_OPTIONS.NODE_DESCRIPTION:     return data.description || '';
+      case ATTRIBUTE_OPTIONS.TEMPLATE_ID:          return data.template?.id || data.templateId || '';
+      case ATTRIBUTE_OPTIONS.TEMPLATE_NAME:        return data.template?.name || data.templateName || '';
+      case ATTRIBUTE_OPTIONS.TEMPLATE_DESCRIPTION: return data.template?.description || data.templateDescription || '';
+      default:                                     return data.name || data.label || data.id || '';
+    }
+  })();
+
   return (
     <div style={{ position: 'relative' }}>
       <Handle 
@@ -88,7 +108,7 @@ const ConditionTemplateNode: React.FC<NodeProps<ConditionTemplateData>> = memo((
               textOverflow: 'ellipsis',
               fontWeight: 'bold',
             }}>
-              {data.name || data.label || data.id}
+              {displayLabel}
             </div>
           </foreignObject>
         </svg>
