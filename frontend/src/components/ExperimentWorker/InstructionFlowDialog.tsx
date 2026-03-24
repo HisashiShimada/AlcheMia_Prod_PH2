@@ -9,6 +9,7 @@ import { Spin, message, Button, Typography } from 'antd';
 import { CloseOutlined, MinusOutlined, ExpandOutlined } from '@ant-design/icons';
 import { Rnd } from 'react-rnd';
 import ViewRenderer from '@/components/viewer/ViewRenderer';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Text } = Typography;
 
@@ -107,7 +108,7 @@ const loadFileContent = async (file: FileData): Promise<string | null> => {
     return null;
   } catch (error) {
     console.error('❌ [InstructionFlowDialog] ファイル読み込みエラー:', error);
-    message.error(`ファイルの読み込みに失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    message.error(extractErrorMessage(error));
     return null;
   }
 };
@@ -256,6 +257,7 @@ const InstructionFlowDialog: React.FC<InstructionFlowDialogProps> = ({
         {/* タイトルバー */}
         <div
           className="drag-handle"
+          data-testid={`instruction-flow-dialog-titlebar-${id}`}
           style={{
             padding: '16px 24px',
             borderBottom: isMinimized ? 'none' : '1px solid #f0f0f0',
@@ -271,6 +273,7 @@ const InstructionFlowDialog: React.FC<InstructionFlowDialogProps> = ({
           <Text strong style={{ fontSize: 16 }}>{getTitle()}</Text>
           <div style={{ display: 'flex', gap: 4 }}>
             <Button
+              data-testid={`instruction-flow-dialog-minimize-button-${id}`}
               type="text"
               icon={isMinimized ? <ExpandOutlined /> : <MinusOutlined />}
               onClick={(e) => {
@@ -280,6 +283,7 @@ const InstructionFlowDialog: React.FC<InstructionFlowDialogProps> = ({
               title={isMinimized ? '展開' : '最小化'}
             />
             <Button
+              data-testid={`instruction-flow-dialog-close-button-${id}`}
               type="text"
               icon={<CloseOutlined />}
               onClick={(e) => {
@@ -295,6 +299,7 @@ const InstructionFlowDialog: React.FC<InstructionFlowDialogProps> = ({
         {!isMinimized && (
           <div 
             id={`instruction-flow-dialog-container-${id}`}
+            data-testid={`instruction-flow-dialog-content-${id}`}
             style={{ 
               position: 'relative',
               flex: 1, 

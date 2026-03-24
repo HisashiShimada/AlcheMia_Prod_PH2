@@ -712,6 +712,7 @@ await storageService.deleteFile(
 - [セキュリティ規約](../../.clinerules/development/security.md)
 
 ### 設計書
+- [**エラーコード仕様書**](./api_error_codes.md) ← エラーコード体系・メッセージマッピング・処理フロー
 - [API一覧（統合版）](../../20260121_API一覧.md)
 - [API実装方針](../../20260121_API実装方針.md)
 - [S3構造](../../.clinerules/references/s3_structure.md)
@@ -724,6 +725,7 @@ await storageService.deleteFile(
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
+| 1.1.0 | 2026-03-23 | エラーコード仕様書（api_error_codes.md）への参照を追加 | Cline |
 | 1.0.0 | 2026-01-21 | 新規作成 | Cline |
 
 ---

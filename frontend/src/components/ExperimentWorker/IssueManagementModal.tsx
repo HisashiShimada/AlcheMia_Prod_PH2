@@ -39,6 +39,7 @@ import {
   addComment,
   updateIssueStatus,
 } from '@/services/issueApiService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
@@ -114,7 +115,7 @@ export default function IssueManagementModal({
       setIssues(data);
     } catch (error) {
       console.error('[IssueManagementModal] fetchIssues error:', error);
-      message.error('問題一覧の取得に失敗しました');
+      message.error(extractErrorMessage(error));
     } finally {
       setIssuesLoading(false);
     }
@@ -250,7 +251,7 @@ export default function IssueManagementModal({
         return;
       }
       console.error('[IssueManagementModal] handleSubmitNewIssue error:', error);
-      message.error('問題の報告に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -277,7 +278,7 @@ export default function IssueManagementModal({
       await fetchIssues();
     } catch (error) {
       console.error('[IssueManagementModal] handleCommentSubmit error:', error);
-      message.error('コメントの送信に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -310,7 +311,7 @@ export default function IssueManagementModal({
       await fetchIssues();
     } catch (error) {
       console.error('[IssueManagementModal] handleSetUnresolved error:', error);
-      message.error('ステータスの変更に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -343,7 +344,7 @@ export default function IssueManagementModal({
       await fetchIssues();
     } catch (error) {
       console.error('[IssueManagementModal] handleSetResolved error:', error);
-      message.error('ステータスの変更に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -386,6 +387,7 @@ export default function IssueManagementModal({
       width={1200}
       style={{ top: 20 }}
       destroyOnHidden
+      data-testid="issue-management-modal"
     >
       {/* 新規問題報告ボタン（参照専用モードまたは承認依頼中は非表示） */}
       {!viewMode && (
@@ -396,6 +398,7 @@ export default function IssueManagementModal({
             onClick={handleNewIssueClick}
             disabled={isEditDisabled}
             title={isApprovalPending ? 'プロジェクトが承認依頼中のため、新規問題報告はできません' : undefined}
+            data-testid="issue-management-new-issue-button"
           >
             新規問題報告
           </Button>
@@ -420,6 +423,7 @@ export default function IssueManagementModal({
                 onChange={(e) => setSearchText(e.target.value)}
                 allowClear
                 style={{ width: '100%' }}
+                data-testid="issue-management-search-input"
               />
               <Select
                 placeholder="ステータスで絞り込み"
@@ -428,6 +432,7 @@ export default function IssueManagementModal({
                 style={{ width: '100%' }}
                 allowClear
                 onClear={() => setStatusFilter('all')}
+                data-testid="issue-management-status-filter"
               >
                 <Select.Option value="all">すべて</Select.Option>
                 <Select.Option value="unresolved">未解決</Select.Option>
@@ -472,7 +477,7 @@ export default function IssueManagementModal({
           >
             {/* 新規問題報告フォーム */}
             {showNewIssueForm && (
-              <Form form={form} layout="vertical">
+              <Form form={form} layout="vertical" data-testid="issue-management-new-issue-form">
                 <Form.Item
                   label="タイトル"
                   name="title"
@@ -481,7 +486,7 @@ export default function IssueManagementModal({
                     { max: 100, message: 'タイトルは100文字以内で入力してください' },
                   ]}
                 >
-                  <Input placeholder="問題のタイトルを入力" maxLength={100} />
+                  <Input placeholder="問題のタイトルを入力" maxLength={100} data-testid="issue-management-title-input" />
                 </Form.Item>
 
                 <Form.Item
@@ -490,7 +495,7 @@ export default function IssueManagementModal({
                   initialValue="transition"
                   rules={[{ required: true, message: '対象を選択してください' }]}
                 >
-                  <Select>
+                  <Select data-testid="issue-management-target-type-select">
                     <Select.Option value="project">プロジェクト</Select.Option>
                     <Select.Option value="task">タスク</Select.Option>
                     <Select.Option value="transition">トランジション</Select.Option>
@@ -506,6 +511,7 @@ export default function IssueManagementModal({
                     placeholder="問題タイプを選択"
                     loading={issueTypeLoading}
                     options={issueTypeOptions}
+                    data-testid="issue-management-issue-type-select"
                   />
                 </Form.Item>
 
@@ -522,15 +528,16 @@ export default function IssueManagementModal({
                     placeholder="問題の詳細を具体的に入力してください"
                     maxLength={1000}
                     showCount
+                    data-testid="issue-management-content-textarea"
                   />
                 </Form.Item>
 
                 <Form.Item style={{ marginBottom: 0 }}>
                   <Space style={{ float: 'right' }}>
-                    <Button onClick={() => setShowNewIssueForm(false)}>
+                    <Button onClick={() => setShowNewIssueForm(false)} data-testid="issue-management-form-cancel-button">
                       キャンセル
                     </Button>
-                    <Button type="primary" onClick={handleSubmitNewIssue}>
+                    <Button type="primary" onClick={handleSubmitNewIssue} data-testid="issue-management-form-save-button">
                       保存
                     </Button>
                   </Space>
@@ -654,6 +661,7 @@ export default function IssueManagementModal({
                       showCount
                       style={{ marginTop: 8 }}
                       disabled={isEditDisabled}
+                      data-testid="issue-management-comment-textarea"
                     />
                   </div>
                 )}
@@ -666,6 +674,7 @@ export default function IssueManagementModal({
                       onClick={handleCommentSubmit}
                       disabled={!newComment.trim() || isEditDisabled}
                       title={isApprovalPending ? 'プロジェクトが承認依頼中のため、コメント送信はできません' : undefined}
+                      data-testid="issue-management-comment-submit-button"
                     >
                       コメント送信
                     </Button>
@@ -673,6 +682,7 @@ export default function IssueManagementModal({
                       onClick={handleSetUnresolved}
                       disabled={!newComment.trim() || selectedIssue.status === 'unresolved' || isEditDisabled}
                       title={isApprovalPending ? 'プロジェクトが承認依頼中のため、ステータス変更はできません' : undefined}
+                      data-testid="issue-management-set-unresolved-button"
                     >
                       未解決
                     </Button>
@@ -685,6 +695,7 @@ export default function IssueManagementModal({
                         borderColor: newComment.trim() && selectedIssue.status === 'unresolved' && !isEditDisabled ? '#52c41a' : undefined,
                         color: newComment.trim() && selectedIssue.status === 'unresolved' && !isEditDisabled ? '#fff' : undefined,
                       }}
+                      data-testid="issue-management-set-resolved-button"
                     >
                       解決
                     </Button>

@@ -128,7 +128,7 @@ export async function authMiddleware(
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました'
       },
       meta: {

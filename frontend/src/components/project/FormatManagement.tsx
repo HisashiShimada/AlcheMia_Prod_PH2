@@ -985,11 +985,12 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
 
           {/* 下段: 新規フォーマットフォルダボタン */}
           <div>
-            <Button
+          <Button
               type="primary"
               icon={<FolderAddOutlined />}
               style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
               onClick={() => setCreateFormatModalOpen(true)}
+              data-testid="new-format-folder-button"
             >
               {t('formatManagement.buttons.new_format_folder')}
             </Button>
@@ -1049,6 +1050,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                     icon={<PlusOutlined />}
                     style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     onClick={handleOpenCreateFileModal}
+                    data-testid="new-file-button"
                   >
                     {selectedFileType === 'xml' ? t('formatManagement.new_xml_file') : t('formatManagement.new_maiml_file')}
                   </Button>
@@ -1057,6 +1059,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                     icon={<FolderAddOutlined />}
                     style={{ backgroundColor: token.colorSuccess, borderColor: token.colorSuccess }}
                     onClick={handleOpenCreateFolderModal}
+                    data-testid="new-folder-button"
                   >
                     {t('formatManagement.buttons.new_subfolder')}
                   </Button>
@@ -1064,6 +1067,7 @@ const FormatManagement: React.FC<FormatManagementProps> = ({ user }) => {
                     type="primary"
                     icon={<UploadOutlined />}
                     onClick={() => setUploadDialogOpen(true)}
+                    data-testid="upload-button"
                   >
                     {t('formatManagement.upload')}
                   </Button>

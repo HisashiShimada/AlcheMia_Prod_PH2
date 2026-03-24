@@ -13,7 +13,7 @@
  */
 export class ValidationError extends Error {
   public readonly statusCode = 400;
-  public readonly code = 'VALIDATION_ERROR';
+  public readonly code = 'E1003';
   public readonly details?: any[];
 
   constructor(message: string, details?: any[]) {
@@ -176,7 +176,7 @@ export class InvalidStatusTransitionError extends Error {
  */
 export class StorageError extends Error {
   public readonly statusCode = 500;
-  public readonly code = 'STORAGE_ERROR';
+  public readonly code = 'E4006';
   public readonly originalError?: Error;
 
   constructor(message: string, originalError?: Error) {
@@ -276,7 +276,7 @@ export interface ErrorResponse {
  * ```typescript
  * const error = new ValidationError('Invalid email', [{ field: 'email', message: 'Required' }]);
  * const response = formatErrorResponse(error, 'req_123');
- * // => { success: false, error: { code: 'VALIDATION_ERROR', ... }, meta: { ... } }
+ * // => { success: false, error: { code: 'E1003', ... }, meta: { ... } }
  * ```
  */
 export function formatErrorResponse(

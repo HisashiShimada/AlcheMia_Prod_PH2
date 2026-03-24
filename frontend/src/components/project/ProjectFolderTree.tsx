@@ -145,6 +145,7 @@ const ProjectFolderTree: React.FC<ProjectFolderTreeProps> = ({
         {projects.map((project) => (
           <div
             key={project.id}
+            data-testid={`project-item-${project.id}`}
             onClick={() => onProjectSelect(project.id)}
             style={{
               padding: `${token.paddingSM}px ${token.margin}px`,

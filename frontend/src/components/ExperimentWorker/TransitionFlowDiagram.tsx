@@ -158,6 +158,7 @@ export default function TransitionFlowDiagram({
           background: token.colorBgLayout,
           borderRadius: token.borderRadiusLG,
         }}
+        data-testid="transition-flow-diagram-empty"
       >
         <Empty
           image={<PartitionOutlined style={{ fontSize: 48, color: token.colorTextDisabled }} />}
@@ -187,6 +188,7 @@ export default function TransitionFlowDiagram({
         overflow: 'hidden',
         background: token.colorBgLayout,
       }}
+      data-testid="transition-flow-diagram"
     >
       <ReactFlow
         nodes={nodes}

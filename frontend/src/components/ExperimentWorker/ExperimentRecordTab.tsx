@@ -20,6 +20,7 @@ import { Method, ProjectStatus, ProgressStatus, Transition, Issue, IssueReportFo
 import { getWorkerTasks } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { createApiClient } from '@/utils/authUtils';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Title, Text } = Typography;
 
@@ -211,13 +212,13 @@ export default function ExperimentRecordTab({
           setTasks(allTasks);
         } else {
           console.error('[DEBUG] ExperimentRecordTab - API returned unsuccessful', result);
-          message.error('タスク一覧の取得に失敗しました');
+          message.error(extractErrorMessage(null));
           setMethods([]);
           setTasks([]);
         }
       } catch (error) {
         console.error('[DEBUG] ExperimentRecordTab - Error fetching tasks', error);
-        message.error('タスク一覧の取得中にエラーが発生しました');
+        message.error(extractErrorMessage(error));
         setMethods([]);
         setTasks([]);
       } finally {
@@ -333,7 +334,7 @@ export default function ExperimentRecordTab({
       setIssues(fetchedIssues);
     } catch (error) {
       console.error('[handleIssueClick] 問題一覧取得エラー', error);
-      message.error('問題一覧の取得に失敗しました');
+      message.error(extractErrorMessage(error));
     } finally {
       setIssueLoading(false);
     }
@@ -411,7 +412,7 @@ export default function ExperimentRecordTab({
       }
     } catch (error) {
       console.error('[handleSubmitIssue] 問題報告エラー', error);
-      message.error('問題の報告に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
   
@@ -449,7 +450,7 @@ export default function ExperimentRecordTab({
       }
     } catch (error) {
       console.error('[handleSubmitComment] コメント投稿エラー', error);
-      message.error('コメントの投稿に失敗しました');
+      message.error(extractErrorMessage(error));
     }
   };
 
@@ -492,12 +493,15 @@ export default function ExperimentRecordTab({
   };
 
   return (
-    <div style={{ 
-      height: '100%', 
-      display: 'flex', 
-      flexDirection: 'column',
-      overflow: 'hidden'
-    }}>
+    <div
+      data-testid="experiment-record-tab"
+      style={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}
+    >
       {/* 選択メソッド・タスクエリア（共通コンポーネント使用） */}
       <MethodTaskSelector
         selectedProject={selectedProject}
@@ -518,6 +522,7 @@ export default function ExperimentRecordTab({
           <Space size="middle">
             {viewMode === 'list' ? (
               <Button
+                data-testid="switch-to-flow-button"
                 type="default"
                 icon={<PartitionOutlined />}
                 onClick={handleSwitchToFlow}
@@ -527,6 +532,7 @@ export default function ExperimentRecordTab({
               </Button>
             ) : (
               <Button
+                data-testid="switch-to-list-button"
                 type="default"
                 icon={<UnorderedListOutlined />}
                 onClick={handleSwitchToList}
@@ -542,7 +548,7 @@ export default function ExperimentRecordTab({
       {/* トランジション一覧カード - タスク選択後のみ表示 */}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {!selectedProject ? (
-          <Card style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Card data-testid="empty-project-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
@@ -554,7 +560,7 @@ export default function ExperimentRecordTab({
             </Space>
           </Card>
         ) : !selectedMethodId ? (
-          <Card style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Card data-testid="empty-method-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <ExperimentOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
@@ -566,7 +572,7 @@ export default function ExperimentRecordTab({
             </Space>
           </Card>
         ) : !selectedTaskId ? (
-          <Card style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Card data-testid="empty-task-card" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Space direction="vertical" align="center" style={{ width: '100%', padding: `${token.marginXXL}px 0` }}>
               <CheckSquareOutlined style={{ fontSize: EMPTY_ICON_SIZE, color: token.colorTextDisabled }} />
               <Title level={3} type="secondary">
@@ -578,10 +584,10 @@ export default function ExperimentRecordTab({
             </Space>
           </Card>
         ) : (
-          <Card style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <Card data-testid="transition-content-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {viewMode === 'list' ? (
               /* トランジション一覧表示 - タスク選択後のみ表示 */
-              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div data-testid="transition-list-area" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0, fontSize: 16 }}>
                   <BarChartOutlined style={{ marginRight: 8 }} />
                   トランジション一覧
@@ -603,7 +609,7 @@ export default function ExperimentRecordTab({
               </div>
             ) : (
               /* フロー図表示 */
-              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div data-testid="transition-flow-area" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                 <Title level={4} style={{ marginTop: 0, marginBottom: token.marginLG, flexShrink: 0, fontSize: 16 }}>
                   <PartitionOutlined style={{ marginRight: 8 }} />
                   フロー図
@@ -625,6 +631,7 @@ export default function ExperimentRecordTab({
 
       {/* メソッド・タスク選択モーダル */}
       <MethodTaskSelectionModal
+        data-testid="method-task-selection-modal"
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         selectedProject={selectedProject}

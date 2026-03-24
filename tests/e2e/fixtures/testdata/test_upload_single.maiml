@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<maiml version="1.0" xmlns="http://maiml.org/schema/1.0">
+  <document>
+    <name>E2Eテスト用単一アップロードファイル</name>
+    <description>4-11 ファイルアップロード E2Eテスト用サンプルファイル（単一ファイルモード）</description>
+    <creator>e2e-test</creator>
+    <date>2026-03-13</date>
+  </document>
+  <methods>
+    <method id="method_001" name="テストメソッド">
+      <places>
+        <place id="mat_001" type="material" name="テスト材料" />
+        <place id="cond_001" type="condition" name="テスト条件" />
+        <place id="res_001" type="result" name="テスト結果" />
+      </places>
+      <transitions>
+        <transition id="trans_001" name="テストトランジション">
+          <inArcs>
+            <arc placeRef ref="mat_001" />
+            <arc placeRef ref="cond_001" />
+          </inArcs>
+          <outArcs>
+            <arc placeRef ref="res_001" />
+          </outArcs>
+        </transition>
+      </transitions>
+    </method>
+  </methods>
+</maiml>

@@ -26,6 +26,7 @@ import ProjectSelectionModal from '../ExperimentWorker/ProjectSelectionModal';
 import { getWorkerAccessibleProjects, requestApproval, type WorkerProject } from '@/services/projectApiService';
 import { useCodeMaster } from '@/hooks/useCodeMaster';
 import { AxiosError } from 'axios';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -129,14 +130,12 @@ export default function ExperimentWorkerMenu({
         const result = await getWorkerAccessibleProjects();
         if (result.success && result.data) {
           setProjects(result.data.projects);
+        } else if (!result.success) {
+          message.error(result.error?.message || extractErrorMessage(null));
         }
       } catch (error) {
         console.error('プロジェクト一覧取得エラー:', error);
-        const axiosError = error as AxiosError<{ error: { message: string } }>;
-        message.error(
-          axiosError.response?.data?.error?.message || 
-          'プロジェクト一覧の取得に失敗しました'
-        );
+        message.error(extractErrorMessage(error));
       } finally {
         setProjectsLoading(false);
       }
@@ -169,6 +168,8 @@ export default function ExperimentWorkerMenu({
         if (projectsResult.success && projectsResult.data) {
           setProjects(projectsResult.data.projects);
         }
+      } else {
+        message.error(result.error?.message || extractErrorMessage(null));
       }
     } catch (error) {
       console.error('承認依頼エラー:', error);
@@ -179,10 +180,7 @@ export default function ExperimentWorkerMenu({
       } else if (axiosError.response?.status === 404) {
         message.error('プロジェクトが見つかりません');
       } else {
-        message.error(
-          axiosError.response?.data?.error?.message || 
-          '承認依頼の送信に失敗しました'
-        );
+        message.error(extractErrorMessage(error));
       }
     } finally {
       setApprovalLoading(false);
@@ -383,6 +381,7 @@ export default function ExperimentWorkerMenu({
           <FolderOutlined style={{ fontSize: 16, color: token.colorPrimary }} />
           <Text strong>{t('experimentWork.labels.project')}:</Text>
           <Select
+            data-testid="project-select"
             value={selectedProject === '' ? undefined : selectedProject}
             placeholder="-"
             style={{ width: 280 }}
@@ -405,6 +404,7 @@ export default function ExperimentWorkerMenu({
           />
           {/* 選択ボタン: readOnly時は disabled */}
           <Button
+            data-testid="project-select-button"
             type="primary"
             icon={<CheckOutlined />}
             onClick={() => setDialogOpen(true)}

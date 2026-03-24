@@ -6,11 +6,64 @@
 
 ---
 
+## 🚫 絶対禁止パターン（最重要）
+
+### 複雑なコマンドは使用しない
+
+コマンドが複雑になるほど実行結果の取得が不安定になり、タスクが進行不能になる。
+以下のパターンは**絶対に使用しない**こと。
+
+| 禁止パターン | 理由 | 代替手段 |
+|------------|------|---------|
+| `grep -r` / `grep -rl` / `grep -rn` | 複数ファイル検索は結果が不安定 | `search_files` ツール |
+| `sed -i` + ワイルドカード | 複数ファイル置換は失敗しやすい | `replace_in_file` ツール（1ファイルずつ） |
+| `find ... \| xargs` | パイプチェーンは出力キャプチャ失敗しやすい | `list_files` + `read_file` ツール |
+| `awk` / `sort` / `uniq` を含むパイプ | 複雑な処理は結果が取得できない | TypeScript で処理またはツールで代替 |
+
+```bash
+# ❌ 絶対禁止: 複数ファイルの一括検索
+grep -rn "AUTH_INVALID_CREDENTIALS" backend/src/
+grep -rl "AUTH_" backend/src/ | wc -l
+
+# ❌ 絶対禁止: 複数ファイルの一括置換
+sed -i 's/AUTH_INVALID_CREDENTIALS/E5001/g' backend/src/controllers/*.ts
+find backend/src/ -name "*.ts" | xargs sed -i 's/old/new/g'
+
+# ❌ 絶対禁止: 複雑なパイプチェーン
+grep -r "AUTH_" backend/src/ | awk '{print $1}' | sort | uniq | wc -l
+```
+
+### 代替手段: Clineのツールを使用する
+
+```
+// ✅ 推奨: 複数ファイル検索 → search_files ツール
+// ✅ 推奨: ファイル読み込み → read_file ツール
+// ✅ 推奨: ファイル置換 → replace_in_file ツール（1ファイルずつ）
+// ✅ 推奨: ディレクトリ確認 → list_files ツール
+```
+
+### 単純なコマンドのみ許可
+
+```bash
+# ✅ 許可: 単一ファイルのパターン確認（1コマンド完結）
+grep "AUTH_INVALID_CREDENTIALS" backend/src/controllers/authController.ts
+
+# ✅ 許可: ディレクトリ構造確認
+ls -lh backend/src/controllers/
+
+# ✅ 許可: ファイル内容の一部確認
+cat backend/src/controllers/authController.ts | head -50
+```
+
+**ルール**: 1コマンドで完結し、結果が必ず標準出力に返ってくるものだけ使用する。
+
+---
+
 ## 基本原則
 
 ### 1. シンプルで明確なコマンド
 - 1つのコマンドで1つの目的
-- 複雑なロジックはスクリプトファイルに分離
+- **複雑なロジックは Cline ツール（search_files / read_file / replace_in_file）で対応**
 - 結果を確認できる出力を含める
 
 ### 2. タイムアウトとエラーハンドリング

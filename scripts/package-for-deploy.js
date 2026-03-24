@@ -142,6 +142,7 @@ checkFile(`${OUTPUT_DIR}/mmdpf-config-data.sql`,   '設定データダンプ');
 checkFile('.env.deploy',                           '環境変数ファイル');
 checkFile('docker-compose.prod.yml',              'Docker Compose ファイル');
 checkDir ('config/nginx',                          'nginx 設定ディレクトリ');
+checkDir ('config/swift',                          'Swift 設定ディレクトリ');
 checkDir ('backend/certs/ca',                      'CA 証明書ディレクトリ');
 checkDir ('backend/certs/server',                  'サーバー証明書ディレクトリ');
 checkDir ('backend/migrations',                    'マイグレーション SQL ディレクトリ');
@@ -187,6 +188,10 @@ success('コピー: mmdpf-schema.sql, mmdpf-config-data.sql');
 // ⑤ nginx 設定
 copyDir('config/nginx', path.join(TMP_PKG, 'config', 'nginx'));
 success('コピー: config/nginx/');
+
+// ⑤-b Swift 設定
+copyDir('config/swift', path.join(TMP_PKG, 'config', 'swift'));
+success('コピー: config/swift/');
 
 // ⑥ SSL 証明書
 copyDir('backend/certs/ca',     path.join(TMP_PKG, 'backend', 'certs', 'ca'));

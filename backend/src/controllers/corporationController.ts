@@ -109,7 +109,8 @@ export async function createCorporation(req: Request, res: Response, next: NextF
 
     // バリデーションはミドルウェアで処理済み
     const userId = req.user?.userId;
-    const corporation = await masterService.createCorporation(req.body, String(userId));
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
+    const corporation = await masterService.createCorporation(req.body, String(userId), lang);
 
     res.status(201).json({
       success: true,
@@ -134,11 +135,13 @@ export async function updateCorporation(req: Request, res: Response, next: NextF
   try {
     const { corporationId } = req.params;
     const userId = req.user?.userId;
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
 
     const corporation = await masterService.updateCorporation(
       corporationId,
       req.body,
-      String(userId)
+      String(userId),
+      lang
     );
 
     if (!corporation) {

@@ -13,6 +13,7 @@ import type { FileData, SubnetData } from './InstructionFlowDialog';
 import { Stats, Instruction, ProjectStatus, isEditableStatus, Method, Task } from '@/types/experimentWorker';
 import { getWorkerTasks, confirmInstruction, getProjectMaiml } from '@/services/projectApiService';
 import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Title, Text } = Typography;
 
@@ -181,15 +182,19 @@ export default function InstructionConfirmationTab({
           
           setMethods(methodsData);
           setTasks(allTasks);
-        } else {
+        } else if (!result.success) {
           console.error('[DEBUG] InstructionConfirmationTab - API returned unsuccessful', result);
-          message.error('タスク一覧の取得に失敗しました');
+          message.error(result.error?.message || extractErrorMessage(null));
+          setMethods([]);
+          setTasks([]);
+        } else {
+          // success: true だが data がない場合
           setMethods([]);
           setTasks([]);
         }
       } catch (error) {
         console.error('[DEBUG] InstructionConfirmationTab - Error fetching tasks', error);
-        message.error('タスク一覧の取得中にエラーが発生しました');
+        message.error(extractErrorMessage(error));
         setMethods([]);
         setTasks([]);
       } finally {
@@ -262,7 +267,7 @@ export default function InstructionConfirmationTab({
 
       if (!result.success || !result.data?.maimlContent) {
         console.error('[DEBUG] handleOpenFlowDiagram - MAIMLコンテンツ取得失敗', result);
-        message.error('フロー図の読み込みに失敗しました');
+        message.error(result.error?.message || extractErrorMessage(null));
         return;
       }
 
@@ -294,7 +299,7 @@ export default function InstructionConfirmationTab({
       setNextZIndex(nextZIndex + 1);
     } catch (error) {
       console.error('[DEBUG] handleOpenFlowDiagram - エラー', error);
-      message.error('フロー図の読み込み中にエラーが発生しました');
+      message.error(extractErrorMessage(error));
     } finally {
       setFlowDiagramLoading(false);
     }
@@ -396,7 +401,7 @@ export default function InstructionConfirmationTab({
       }
     } catch (error) {
       console.error('指示確認処理エラー:', error);
-      message.error('指示の確認処理中にエラーが発生しました');
+      message.error(extractErrorMessage(error));
     } finally {
       setConfirmLoading(false);
     }
@@ -503,9 +508,10 @@ export default function InstructionConfirmationTab({
   };
 
   return (
-    <div style={{ height: '100%', overflow: 'auto' }}>
+    <div data-testid="instruction-confirmation-tab" style={{ height: '100%', overflow: 'auto' }}>
       {!selectedProjectName ? (
         <Card
+          data-testid="instruction-confirmation-empty-state"
           style={{
             borderRadius: '8px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
@@ -552,6 +558,7 @@ export default function InstructionConfirmationTab({
                   <span>指示詳細</span>
                 </div>
                 <Button
+                  data-testid="instruction-flow-diagram-button"
                   type="default"
                   icon={<NodeIndexOutlined />}
                   onClick={handleOpenFlowDiagram}
@@ -591,6 +598,7 @@ export default function InstructionConfirmationTab({
               >
                 {/* タイトル部分（クリック可能） */}
                 <div
+                  data-testid="instruction-group-file-toggle"
                   style={{
                     flex: 1,
                     display: 'flex',
@@ -660,6 +668,7 @@ export default function InstructionConfirmationTab({
             {/* タスク単位指示グループ */}
             <div style={{ marginBottom: '8px' }}>
               <div
+                data-testid="instruction-group-task-toggle"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -707,6 +716,7 @@ export default function InstructionConfirmationTab({
             {/* トランジション単位指示グループ */}
             <div style={{ marginBottom: '8px' }}>
               <div
+                data-testid="instruction-group-transition-toggle"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -756,6 +766,7 @@ export default function InstructionConfirmationTab({
             <Divider style={{ margin: `${token.marginXL}px 0` }} />
             <div style={{ display: 'flex', justifyContent: 'center', paddingBottom: token.marginLG }}>
               <Button
+                data-testid="instruction-confirm-all-button"
                 type="primary"
                 size="large"
                 icon={<CheckCircleOutlined />}

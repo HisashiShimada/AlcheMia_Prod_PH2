@@ -12,6 +12,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { extractErrorMessage } from '@/utils/errorUtils';
 import { Node, Edge, Connection, XYPosition, NodeChange, EdgeChange } from 'reactflow';
 import { maimlToReactFlow } from '../utils/converters/maimlToReactFlow';
 import { Template } from '@/types/maiml-unified';
@@ -513,7 +514,7 @@ export const useWorkflow = ({
       };
       
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = extractErrorMessage(error);
       console.error('❌ [useWorkflow] ワークフロー追加エラー:', error);
       return {
         success: false,

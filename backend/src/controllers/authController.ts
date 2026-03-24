@@ -39,7 +39,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     
     if (!result.success) {
       // エラーコードに応じてステータスコードを設定
-      const statusCode = result.error?.code === 'AUTH_ACCOUNT_DISABLED' ? 403 : 401;
+      const statusCode = result.error?.code === 'E5006' ? 403 : 401;
       res.status(statusCode).json({
         success: false,
         error: result.error,
@@ -72,7 +72,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -137,7 +137,7 @@ export async function resetPasswordRequest(req: Request, res: Response): Promise
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -208,7 +208,7 @@ export async function logout(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -242,9 +242,9 @@ export async function resendPin(req: Request, res: Response): Promise<void> {
     });
 
     if (!result.success) {
-      const errorCode = result.error?.code || 'SYSTEM_ERROR';
-      const statusCode = errorCode === 'SYSTEM_EMAIL_SEND_FAILED' ? 500 
-        : errorCode === 'AUTH_TOKEN_INVALID' ? 401 
+      const errorCode = result.error?.code || 'E4001';
+      const statusCode = errorCode === 'E4003' ? 500 
+        : errorCode === 'E5002' ? 401 
         : 500;
       
       res.status(statusCode).json({
@@ -274,7 +274,7 @@ export async function resendPin(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -303,11 +303,11 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
     });
 
     if (!result.success) {
-      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      const errorCode = result.error?.code || 'E4001';
       const statusCode = 
-        errorCode === 'AUTH_RESET_TOKEN_INVALID' ? 400 :
-        errorCode === 'AUTH_RESET_TOKEN_EXPIRED' ? 400 :
-        errorCode === 'AUTH_RESET_TOKEN_USED' ? 400 :
+        errorCode === 'E5009' ? 400 :
+        errorCode === 'E5010' ? 400 :
+        errorCode === 'E5011' ? 400 :
         500;
       
       res.status(statusCode).json({
@@ -338,7 +338,7 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -381,8 +381,8 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     });
     
     if (!result.success) {
-      const errorCode = result.error?.code || 'AUTH_PIN_INVALID';
-      const statusCode = errorCode === 'AUTH_PIN_MAX_ATTEMPTS' ? 429 : 401;
+      const errorCode = result.error?.code || 'E5003';
+      const statusCode = errorCode === 'E5005' ? 429 : 401;
       
       res.status(statusCode).json({
         success: false,
@@ -411,7 +411,7 @@ export async function verifyPin(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -445,7 +445,7 @@ export async function changePassword(req: Request, res: Response): Promise<void>
 
     if (!result.success) {
       const statusCode = result.error?.code === 'AUTH_INVALID_CURRENT_PASSWORD' ? 401 
-        : result.error?.code === 'RESOURCE_NOT_FOUND' ? 404 
+        : result.error?.code === 'E6001' ? 404 
         : 500;
       
       res.status(statusCode).json({
@@ -478,7 +478,7 @@ export async function changePassword(req: Request, res: Response): Promise<void>
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -537,11 +537,11 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
     });
 
     if (!result.success) {
-      const errorCode = result.error?.code || 'AUTH_TOKEN_INVALID';
+      const errorCode = result.error?.code || 'E5002';
       const statusCode = 
-        errorCode === 'SYSTEM_REDIS_ERROR' ? 500 :
-        errorCode === 'AUTH_ACCOUNT_DISABLED' ? 403 :
-        errorCode === 'SYSTEM_JWT_GENERATION_FAILED' ? 500 :
+        errorCode === 'E4005' ? 500 :
+        errorCode === 'E5006' ? 403 :
+        errorCode === 'E4004' ? 500 :
         401;
       
       res.status(statusCode).json({
@@ -606,7 +606,7 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {

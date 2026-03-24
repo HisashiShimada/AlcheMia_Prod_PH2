@@ -256,7 +256,7 @@ export class JwtService {
         return {
           success: false,
           error: {
-            code: 'AUTH_TOKEN_INVALID',
+            code: 'E5002',
             message: 'Invalid token format'
           }
         };
@@ -281,7 +281,7 @@ export class JwtService {
         return {
           success: false,
           error: {
-            code: 'AUTH_TOKEN_EXPIRED',
+            code: 'E5002',
             message: 'Token has expired',
             originalError: error
           }
@@ -292,7 +292,7 @@ export class JwtService {
         return {
           success: false,
           error: {
-            code: 'AUTH_TOKEN_INVALID',
+            code: 'E5002',
             message: 'Invalid token',
             originalError: error
           }
@@ -302,7 +302,7 @@ export class JwtService {
       return {
         success: false,
         error: {
-          code: 'AUTH_TOKEN_INVALID',
+          code: 'E5002',
           message: 'Token verification failed',
           originalError: error as Error
         }
@@ -326,7 +326,7 @@ export class JwtService {
         return {
           success: false,
           error: {
-            code: 'AUTH_TOKEN_INVALID',
+            code: 'E5002',
             message: 'Invalid refresh token format'
           }
         };
@@ -351,7 +351,7 @@ export class JwtService {
         return {
           success: false,
           error: {
-            code: 'AUTH_TOKEN_EXPIRED',
+            code: 'E5002',
             message: 'Refresh token has expired',
             originalError: error
           }
@@ -362,7 +362,7 @@ export class JwtService {
         return {
           success: false,
           error: {
-            code: 'AUTH_TOKEN_INVALID',
+            code: 'E5002',
             message: 'Invalid refresh token',
             originalError: error
           }
@@ -372,7 +372,7 @@ export class JwtService {
       return {
         success: false,
         error: {
-          code: 'AUTH_TOKEN_INVALID',
+          code: 'E5002',
           message: 'Refresh token verification failed',
           originalError: error as Error
         }

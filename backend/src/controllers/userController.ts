@@ -199,7 +199,7 @@ export async function createUser(req: Request, res: Response, next: NextFunction
         res.status(400).json({
           success: false,
           error: {
-            code: 'VALIDATION_ERROR',
+            code: 'E1003',
             message: error.message,
           },
           meta: {
