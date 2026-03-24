@@ -271,7 +271,7 @@ services:
       - |
         echo '=== Ollama モデル初期化を開始します ==='
         echo '>>> Ollama サーバーの起動を待機中...'
-        until curl -s http://ollama:11434/api/tags > /dev/null 2>&1; do
+        until OLLAMA_HOST=http://ollama:11434 ollama list > /dev/null 2>&1; do
           echo '  - Ollama 起動待ち...'
           sleep 3
         done
