@@ -185,6 +185,53 @@ Given(
 // ---------------------------------------------------------------------------
 
 /**
+ * 所有者フィルタで指定値を選択する
+ * ProjectManagement.tsx: data-testid="owner-filter"
+ * Ant Design Select コンポーネントの操作
+ *
+ * @param ownerLabel - 選択する所有者フィルタのラベル（例: "全てのプロジェクト"）
+ */
+When(
+  '所有者フィルタで {string} を選択する',
+  async ({ page }, ownerLabel: string) => {
+    console.log(`[4-7 When] 所有者フィルタで "${ownerLabel}" を選択`);
+
+    // Ant Design の Select コンポーネントをクリックして開く
+    // data-testid が付いていないため、「所有者」ラベルを含む Space コンテナ内の Select を取得
+    const ownerFilter = page
+      .locator('.ant-space')
+      .filter({ hasText: /^所有者/ })
+      .locator('.ant-select')
+      .first();
+    await ownerFilter.waitFor({ state: 'visible', timeout: 10000 });
+    await ownerFilter.click();
+
+    // ドロップダウンオプションが表示されるまで待機
+    await page.waitForSelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', {
+      state: 'visible',
+      timeout: 5000,
+    });
+
+    // ラベルに一致するオプションを選択
+    const option = page
+      .locator('.ant-select-item-option')
+      .filter({ hasText: new RegExp(`^${ownerLabel}$`) });
+    await option.waitFor({ state: 'visible', timeout: 5000 });
+    await option.click();
+
+    // ドロップダウンが閉じるまで待機
+    await page.waitForSelector('.ant-select-dropdown:not(.ant-select-dropdown-hidden)', {
+      state: 'hidden',
+      timeout: 5000,
+    }).catch(() => {
+      // 閉じない場合は続行
+    });
+
+    await page.waitForTimeout(500);
+  }
+);
+
+/**
  * ステータスフィルタで指定ステータスを選択する
  * ProjectManagement.tsx: data-testid="project-status-filter"
  * Ant Design Select コンポーネントの操作

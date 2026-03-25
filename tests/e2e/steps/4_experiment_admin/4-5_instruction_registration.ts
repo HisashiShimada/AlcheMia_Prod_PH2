@@ -371,15 +371,40 @@ When('「+指示追加」ボタンをクリックする', async ({ page }) => {
 /**
  * 「一括送信」ボタンをクリックする（4-5-1用）
  * InstructionRegistrationTab.tsx: data-testid="instruction-bulk-send-button"
+ *
+ * NOTE: タスク登録タブで「+指示」ボタン経由で指示追加した場合、
+ *       指示データはフロントのローカルstate にのみ保持されており DB には未保存。
+ *       そのため、指示一覧タブへ切り替える前に「タスク登録保存」ボタンをクリックして
+ *       バックエンドに保存する必要がある。
  */
 When('「一括送信」ボタンをクリックする', async ({ page }) => {
-  // 指示登録タブに戻る
+  // --- Step 1: タスク登録タブ上で「タスク登録保存」ボタンが表示されている場合は押下 ---
+  // （TaskRegistrationTab 経由で指示を追加した直後は保存ボタンが表示されている）
+  const saveTaskBtn = page.locator('[data-testid="task-registration-save-button"]');
+  const isSaveBtnVisible = await saveTaskBtn.isVisible().catch(() => false);
+  if (isSaveBtnVisible) {
+    console.log('[4-5] タスク登録保存ボタンが表示されているため、クリックしてDBに保存します');
+    const saveResponsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/task-registration') &&
+        (resp.request().method() === 'POST' || resp.request().method() === 'PUT'),
+      { timeout: 15000 }
+    );
+    await saveTaskBtn.click();
+    await saveResponsePromise.catch(() => {
+      console.warn('[4-5] タスク登録保存 APIレスポンスを待機中にタイムアウト（処理は継続）');
+    });
+    await page.waitForTimeout(500);
+  }
+
+  // --- Step 2: 指示一覧タブへ切り替え ---
   const instrTab = page.getByRole('tab', { name: '指示一覧' });
   await instrTab.waitFor({ state: 'visible', timeout: 10000 });
   await instrTab.click();
   await page.waitForLoadState('networkidle', { timeout: 15000 });
   await page.waitForTimeout(500);
 
+  // --- Step 3: 一括送信ボタンが活性化するまで待機 ---
   const sendBtn = page.locator('[data-testid="instruction-bulk-send-button"]');
   await sendBtn.waitFor({ state: 'visible', timeout: 10000 });
   // タブ切替後、指示一覧テーブルに行が表示されるまで待機（React状態更新完了を保証）
@@ -390,14 +415,14 @@ When('「一括送信」ボタンをクリックする', async ({ page }) => {
   // 行表示後にボタンが有効化されるまで待機
   await expect(sendBtn).toBeEnabled({ timeout: 5000 });
 
-  // API レスポンスを並列待機
+  // --- Step 4: 一括送信ボタンをクリック ---
   const responsePromise = page.waitForResponse(
     (resp) => resp.url().includes('/instructions/send') && resp.request().method() === 'POST',
     { timeout: 15000 }
   );
   await sendBtn.click();
   await responsePromise.catch(() => {
-    // API レスポンスが来ない場合はトースト表示を待機
+    console.warn('[4-5] 一括送信 APIレスポンスを待機中にタイムアウト（処理は継続）');
   });
   await page.waitForTimeout(1000);
 });
