@@ -378,10 +378,17 @@ function buildMethodXML(
       place.data.description !== 'インポート済み' && 
       place.data.description !== '既存プレース' && 
       place.data.description !== 'imported';
-    
-    if (hasDescription) {
+    const hasPosition = !!place.position;
+
+    if (hasDescription || hasPosition) {
       methodXml += `        <place id="${place.id}">\n`;
-      methodXml += `          <description>${place.data.description}</description>\n`;
+      if (hasDescription) {
+        methodXml += `          <description>${place.data.description}</description>\n`;
+      }
+      // ノード座標を <position> タグとして書き出す
+      if (hasPosition) {
+        methodXml += `          <position x="${place.position.x}" y="${place.position.y}"/>\n`;
+      }
       methodXml += `        </place>\n`;
     } else {
       methodXml += `        <place id="${place.id}"/>\n`;
@@ -392,13 +399,18 @@ function buildMethodXML(
   transitions.forEach((transition: Node<NodeData>) => {
     const hasName = transition.data.name && transition.data.name.trim() !== '';
     const hasDescription = transition.data.description && transition.data.description.trim() !== '';
-    if (hasName || hasDescription) {
+    const hasPosition = !!transition.position;
+    if (hasName || hasDescription || hasPosition) {
       methodXml += `        <transition id="${escapeXml(transition.id)}">\n`;
       if (hasName) {
         methodXml += `          <name>${escapeXml(transition.data.name)}</name>\n`;
       }
       if (hasDescription) {
         methodXml += `          <description>${escapeXml(transition.data.description)}</description>\n`;
+      }
+      // ノード座標を <position> タグとして書き出す
+      if (hasPosition) {
+        methodXml += `          <position x="${transition.position.x}" y="${transition.position.y}"/>\n`;
       }
       methodXml += `        </transition>\n`;
     } else {
