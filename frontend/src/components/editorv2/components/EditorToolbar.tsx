@@ -109,6 +109,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   viewMode,
   onViewModeChange,
 }) => {
+  // テンプレートモード時はペトリネット編集ボタンを非活性化
+  const isTemplateMode = viewMode === 'templates';
   // ノード表示属性切替（Context 経由で管理）
   const { selectedAttribute, setSelectedAttribute } = useAttributeDisplay();
 
@@ -181,6 +183,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             size="small"
             icon={<PlusCircleOutlined />}
             onClick={() => onAddNode('material')}
+            disabled={isTemplateMode}
           >
             Material
           </Button>
@@ -191,6 +194,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             size="small"
             icon={<BorderOutlined />}
             onClick={() => onAddNode('condition')}
+            disabled={isTemplateMode}
           >
             Condition
           </Button>
@@ -201,6 +205,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
             size="small"
             icon={<RadiusSettingOutlined />}
             onClick={() => onAddNode('result')}
+            disabled={isTemplateMode}
           >
             Result
           </Button>
@@ -215,6 +220,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           size="small"
           icon={<SwapOutlined />}
           onClick={() => onAddNode('transition')}
+          disabled={isTemplateMode}
         >
           Transition
         </Button>
@@ -235,6 +241,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           type={workflowModeActive ? 'primary' : 'default'}
           icon={<ApartmentOutlined />}
           onClick={onAddWorkflow}
+          disabled={isTemplateMode}
         >
           {workflowModeActive ? 'ワークフロー (有効)' : 'ワークフロー'}
         </Button>
