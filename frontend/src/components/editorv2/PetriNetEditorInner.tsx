@@ -37,6 +37,7 @@ import DocumentEditDialog from './components/DocumentEditDialog';
 import WorkflowSelectorDialog from './components/WorkflowSelectorDialog';
 import useHistory from './hooks/useHistory';
 import { useWorkflow } from './hooks/useWorkflow';
+import { useSessionHeartbeat } from '@/hooks/useSessionHeartbeat';
 import useDraftManager from './hooks/useDraftManager';
 import DraftManager from './components/DraftManager';
 import SaveConfirmDialog from './components/SaveConfirmDialog';
@@ -79,13 +80,6 @@ import type { TemplatesByCategory } from '@/types/editor';
 import * as maimlService from '../../services/maimlApiService';
 import { AnalysisResult, ErrorContent } from '@/types/maimlValidation';
 import type { StorageFile } from '@/types/storage';
-import {
-  loadDraftFromLocalStorage,
-  removeDraftFromLocalStorage,
-  cleanupOldLocalStorageDrafts,
-} from '../../services/localStorageDraftService';
-import { useLocalStorageAutoSave } from './hooks/useLocalStorageAutoSave';
-
 // ✅ window.cline* の型定義
 declare global {
   interface Window {
@@ -392,9 +386,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     setAutoSaveEnabled,
     lastSavedDraft,
     lastAutoSaveTime, // number | null
+    deleteDraft,
+    fetchDrafts,
   } = useDraftManager(currentEditState, {
     userId: currentUserId,
     autoSaveInterval: 30 * 1000, // 30秒
+    projectId: initialDocumentId,
     onAutoSaveSuccess: (draft) => {
       console.log('✅ [PetriNetEditorInner] 自動保存成功:', draft);
     },
@@ -403,73 +400,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     },
   });
 
-  // ===== LocalStorage自動保存フック =====
-  useLocalStorageAutoSave({
-    projectId: initialDocumentId || '',
-    editState: currentEditState,
-  });
-
-  // ===== 起動時: LocalStorageからDraftを復元 =====
-  // LocalStorage Draftが存在する場合、editStateに読み込む
-  // （ProjectManagement.handleRestoreDraft → エディタ起動 → ここで復元）
-  const hasRestoredLocalDraftRef = useRef(false);
-  useEffect(() => {
-    if (!initialDocumentId) return;
-    if (hasRestoredLocalDraftRef.current) return;
-
-    // 古いLocalStorage Draftをクリーンアップ
-    const retentionDays = parseInt(
-      process.env.NEXT_PUBLIC_MAIML_LOCALSTORAGE_RETENTION_DAYS || '7',
-      10
-    );
-    cleanupOldLocalStorageDrafts(isNaN(retentionDays) ? 7 : retentionDays);
-
-    // LocalStorage Draftを読み込む
-    const draft = loadDraftFromLocalStorage(initialDocumentId);
-    if (!draft) return;
-
-    hasRestoredLocalDraftRef.current = true;
-    console.log('🔄 [PetriNetEditorInner] LocalStorage Draftを復元:', {
-      savedAt: draft.savedAt,
-      nodesCount: draft.nodes.length,
-      edgesCount: draft.edges.length,
-    });
-
-    // nodes / edges を反映
-    const restoredNodes = draft.nodes || [];
-    const restoredEdges = draft.edges.map((edge) => ({
-      ...edge,
-      type: 'default',
-      animated: false,
-      style: {
-        stroke: '#333',
-        strokeWidth: 2,
-      },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: '#333',
-        width: 20,
-        height: 20,
-      },
-    }));
-
-    setNodes(restoredNodes);
-    setEdges(restoredEdges);
-    reset({ nodes: restoredNodes, edges: restoredEdges });
-
-    // documentData を反映
-    if (draft.documentData) {
-      setDocumentData(draft.documentData);
-    }
-
-    console.log('✅ [PetriNetEditorInner] LocalStorage Draft復元完了');
-
-    // フィットビュー
-    setTimeout(() => {
-      fitView({ padding: 0.2, duration: 300 });
-    }, 100);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialDocumentId]);
+  // ===== セッションハートビートフック =====
+  useSessionHeartbeat();
 
   console.log('🔍 [PetriNetEditorInner] Received editingFileName:', editingFileName);
   
@@ -2623,12 +2555,22 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         const result = response.data;
         console.log('✅ [PetriNetEditorInner] S3保存完了:', result);
 
-        // ✅ LocalStorage Draftを削除（保存成功後）
-        if (initialDocumentId) {
-          removeDraftFromLocalStorage(initialDocumentId);
-        }
-
         alert(`ペトリネット "${metadata.name}" をS3に保存しました`);
+
+        // S3保存成功時のみDraftを全削除（自動保存Draftをクリア）
+        try {
+          const currentDrafts = await fetchDrafts();
+          if (currentDrafts && currentDrafts.length > 0) {
+            console.log(`🗑️ [PetriNetEditorInner] S3保存成功のためDraftを全削除: ${currentDrafts.length}件`);
+            for (const draft of currentDrafts) {
+              await deleteDraft(draft.draftKey);
+            }
+            console.log('✅ [PetriNetEditorInner] Draft全削除完了');
+          }
+        } catch (draftErr) {
+          // Draft削除失敗はサイレントに無視（保存自体は成功しているため）
+          console.warn('⚠️ [PetriNetEditorInner] 保存後のDraft削除に失敗（無視）:', draftErr);
+        }
         
       } else {
         // ローカルダウンロード
@@ -2868,6 +2810,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         currentEditState={currentEditState}
         currentUserId={currentUserId}
         sourceS3Key={props.sourceS3Key}
+        projectId={initialDocumentId}
       />
     </TemplateProvider>
     </AttributeDisplayProvider>
@@ -2991,6 +2934,8 @@ interface PetriNetEditorInnerUIProps {
   currentEditState: EditState;
   currentUserId: string;
   sourceS3Key?: string;
+  /** プロジェクトID（DraftManagerに渡してDraft保存時にproject_idを記録する） */
+  projectId?: string;
 }
 
 // UIレンダリングコンポーネント（TemplateProvider内）
@@ -3075,6 +3020,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   currentEditState,
   currentUserId,
   sourceS3Key,
+  projectId,
 }) => {
   // TemplateContextからtemplateErrors、addTemplate、deleteTemplate、updateTemplate、allTemplatesを取得
   const { templateErrors, addTemplate, deleteTemplate, updateTemplate, allTemplates } = useTemplates();
@@ -3354,6 +3300,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           autoSaveEnabled={autoSaveEnabled}
           onAutoSaveToggle={() => setAutoSaveEnabled(!autoSaveEnabled)}
           currentDraftKey={lastSavedDraft?.draftKey || null}
+          projectId={projectId}
         />
       </Flex>
   );

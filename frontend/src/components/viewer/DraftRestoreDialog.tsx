@@ -41,7 +41,7 @@ export default function DraftRestoreDialog({
 }: DraftRestoreDialogProps) {
   const footer: React.ReactNode[] = [
     <Button key="new" onClick={onCreateNew}>
-      新規作成
+      復元しない
     </Button>,
   ];
 
