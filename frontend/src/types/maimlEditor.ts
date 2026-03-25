@@ -37,4 +37,10 @@ export interface MaimlEditorParams {
    * S3から既存のMAIMLを読み込んだ場合はMAIML内の値が優先される
    */
   description?: string;
+  /**
+   * エディタ起動時にDraft管理ダイアログを自動表示するかどうか（任意）
+   * true の場合、エディタ起動後に DraftManager が自動的に開く
+   * MAIMLファイルが存在せず、バックエンドDraftがある場合に使用
+   */
+  openDraftManagerOnStart?: boolean;
 }
