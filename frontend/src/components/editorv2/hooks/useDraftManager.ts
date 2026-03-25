@@ -24,6 +24,8 @@ export interface UseDraftManagerOptions {
   autoSaveGenerations?: number;
   onAutoSaveSuccess?: (result: { draft_key: string }) => void;
   onAutoSaveError?: (error: Error) => void;
+  /** プロジェクトID（Draft保存時に記録し、復元時のプロジェクト特定に使用） */
+  projectId?: string;
 }
 
 /**
@@ -66,14 +68,15 @@ const useDraftManager = (
     autoSaveInterval = 30 * 1000, // デフォルト30秒
     autoSaveGenerations = 3, // 保持する世代数
     onAutoSaveSuccess,
-    onAutoSaveError
+    onAutoSaveError,
+    projectId,
   } = options;
 
   // 状態管理
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [lastSavedDraft, setLastSavedDraft] = useState<Draft | null>(null);
   const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
 
@@ -235,7 +238,8 @@ const useDraftManager = (
           edges: currentEditState.edges || [],
           templates: currentEditState.templates || [],
           documentData: currentEditState.documentData,
-          lastSavedAt : new Date().toISOString()
+          lastSavedAt: new Date().toISOString(),
+          projectId: projectId || null,
         };
         
         await saveDraft(draftPayload);

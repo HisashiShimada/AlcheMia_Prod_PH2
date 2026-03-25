@@ -83,7 +83,47 @@ docker-compose up -d
 - バックエンド: http://localhost:3001
 - PostgreSQL: localhost:5432
 
-5. **ローカル開発（Docker不使用）**
+5. **Ollama（セマンティック検索）の起動**
+
+セマンティック検索機能を使用する場合は、Ollamaサービスを別途起動してください。
+
+> **前提**: 先に手順4のDocker Composeを起動し、`mmdpf-network` を作成しておく必要があります。
+
+```bash
+# プロジェクトルートで実行
+docker compose -f docker-compose.ollama.yml up -d
+```
+
+初回起動時に `embeddinggemma:latest` モデルが自動ダウンロードされます（数分かかります）。
+進捗はログで確認できます：
+
+```bash
+docker compose -f docker-compose.ollama.yml logs -f ollama-init
+```
+
+接続確認：
+```bash
+curl http://localhost:11434/api/tags
+```
+
+Embeddingテスト：
+```bash
+npx ts-node backend/scripts/test-ollama-embedding.ts
+```
+
+停止方法：
+```bash
+docker compose -f docker-compose.ollama.yml down
+```
+
+> **バックエンド環境変数の設定** (`backend/.env`):
+> ```
+> OLLAMA_HOST=http://localhost:11434
+> OLLAMA_EMBEDDING_MODEL=embeddinggemma:latest
+> ```
+> Dockerコンテナ内のバックエンドから接続する場合は `http://ollama:11434` を使用してください。
+
+6. **ローカル開発（Docker不使用）**
 
 バックエンド:
 ```bash

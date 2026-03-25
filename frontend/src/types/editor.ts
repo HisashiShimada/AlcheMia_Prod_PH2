@@ -205,6 +205,8 @@ export interface Draft {
   edges?: Edge<EdgeData>[];
   templates?: Template[];
   documentData?: DocumentData;
+  /** プロジェクトID（プロジェクト管理画面からのDraft特定用） */
+  projectId?: string | null;
 }
 
 /**

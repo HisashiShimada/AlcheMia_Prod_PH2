@@ -346,27 +346,7 @@ const handleEditButtonClick = useCallback(() => {
     return;
   }
 
-  // Draftチェック
-  const draftKey = `petri-net-draft-${selectedProject.id}`;
-  const draftData = localStorage.getItem(draftKey);
-  
-  if (draftData) {
-    try {
-      const draft = JSON.parse(draftData);
-      const info = {
-        savedAt: draft.savedAt || new Date().toISOString(),
-        methodCount: draft.methods?.length || 0,
-        nodeCount: draft.nodes?.length || 0
-      };
-      setDraftInfo(info);
-      setDraftRestoreDialogOpen(true);
-      return;
-    } catch (error) {
-      console.error('Draft parse error:', error);
-    }
-  }
-
-  // Draftがない場合は直接エディタへ
+  // Draft復元確認は初期表示時のみ。編集ボタンは常に直接エディタへ遷移
   const userInfo = getUserInfo();
   const orgId = userInfo?.organizationId ?? '';
   const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
@@ -384,10 +364,33 @@ const handleEditButtonClick = useCallback(() => {
 }, [selectedProject, onEdit]);
 ```
 
-#### 3.6.2 Draft復元確認
-- LocalStorageにDraftデータが存在する場合、DraftRestoreDialogを表示
-- ユーザーが「復元」を選択 → Draftを読み込んでエディタ起動
-- ユーザーが「新規作成/既存ファイル」を選択 → Draftを削除してエディタ起動
+#### 3.6.2 Draft復元確認（初期表示時）
+- **画面マウント時**かつ**プロジェクト未選択時**のみ、バックエンドDraft確認を実行
+- `GET /api/v1/maiml/drafts` でDraft一覧を取得し、存在する場合はDraftRestoreDialogを表示
+- ユーザーが「**復元する**」を選択 → 対象プロジェクトを自動選択してエディタへ遷移（`openDraftManagerOnStart: true`）
+- ユーザーが「**復元しない**」を選択 → `DELETE /api/v1/maiml/draft/:draftKey` でDraftを削除、プロジェクト選択をクリア
+- 編集画面から戻った場合（sessionStorageにprojectIdが残っている場合）はDraftチェックをスキップ
+
+```typescript
+// 初期表示時のDraft確認（プロジェクト未選択時のみ）
+useEffect(() => {
+  if (selectedProjectId) return; // プロジェクト選択済みならスキップ
+
+  const checkDraftOnMount = async () => {
+    try {
+      const drafts = await fetchDrafts();
+      if (Array.isArray(drafts) && drafts.length > 0) {
+        setDraftToRestore(drafts[0]);
+        setHasBackendDraft(true);
+        setDraftRestoreDialogOpen(true);
+      }
+    } catch {
+      // 取得失敗は無視
+    }
+  };
+  checkDraftOnMount();
+}, []);
+```
 
 ### 3.7 プロジェクトリロード
 
@@ -671,8 +674,13 @@ const [departmentFilter, setDepartmentFilter] = useState<string>('all');
 const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt');
 const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-// プロジェクト選択
-const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+// プロジェクト選択（編集画面から戻った際に sessionStorage から復元）
+const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
+  if (typeof window !== 'undefined') {
+    return sessionStorage.getItem('projectManagement_selectedProjectId') ?? null;
+  }
+  return null;
+});
 
 // フォルダ・タブ
 const [currentFolder, setCurrentFolder] = useState<string>('root');
@@ -686,12 +694,9 @@ const [issueManagementModalOpen, setIssueManagementModalOpen] = useState(false);
 const [semanticSearchModalOpen, setSemanticSearchModalOpen] = useState(false);
 const [draftRestoreDialogOpen, setDraftRestoreDialogOpen] = useState(false);
 
-// Draft情報
-const [draftInfo, setDraftInfo] = useState<{
-  savedAt: string;
-  methodCount: number;
-  nodeCount: number;
-} | null>(null);
+// Draft情報（バックエンドDraft復元用）
+const [hasBackendDraft, setHasBackendDraft] = useState(false);        // バックエンドDraftが存在するか
+const [draftToRestore, setDraftToRestore] = useState<Draft | null>(null); // 復元対象のDraftオブジェクト
 
 // プロジェクトデータキャッシュ
 const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
@@ -793,6 +798,8 @@ interface OpenDialog {
 | 7 | completeReviewTasks | POST | `/api/v1/experiment-admin/projects/:projectName/tasks/complete-review` | ✅ 実装済み | レビュー待ちタスクを完了に更新 |
 | 8 | publishProject | POST | `/api/v1/experiment-admin/projects/:projectName/publish` | ✅ 実装済み | プロジェクト公開 |
 | 9 | downloadFolderAsZip | GET | `/api/v1/files/download-zip` | ✅ 実装済み | フォルダをZIPでダウンロード |
+| 10 | fetchDrafts | GET | `/api/v1/maiml/drafts` | ✅ 実装済み | Draft一覧取得（初期表示時のDraft確認に使用） |
+| 11 | deleteDraft | DELETE | `/api/v1/maiml/draft/:draftKey` | ✅ 実装済み | Draft削除（「復元しない」選択時に使用） |
 
 ### 5.2 API呼び出し例
 
@@ -1030,6 +1037,12 @@ useEffect(() => {
 
 | 日付 | 変更内容 | 担当者 |
 |------|----------|--------|
+| 2026-03-25 | Draft復元フロー変更・sessionStorage保持対応 | Cline |
+| | - 3.6 編集ボタン: Draft復元確認を削除、常に直接エディタへ遷移 | |
+| | - 3.6.2 新規追加: 初期表示時のDraft確認（バックエンドDraftのみ） | |
+| | - State: selectedProjectId の初期値を sessionStorage から復元するよう変更 | |
+| | - State: draftInfo を hasBackendDraft / draftToRestore に変更 | |
+| | - API一覧: fetchDrafts / deleteDraft を追加（#10, #11） | |
 | 2026-03-11 | 実装ベースで仕様書を再作成（約1,300行の実装を完全に反映） | Cline |
 
 ---

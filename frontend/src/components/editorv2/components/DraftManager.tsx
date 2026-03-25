@@ -42,6 +42,8 @@ interface DraftManagerProps {
   autoSaveEnabled?: boolean;
   onAutoSaveToggle?: (enabled: boolean) => void;
   currentDraftKey?: string | null;
+  /** プロジェクトID（保存時に記録し、復元時のプロジェクト特定に使用） */
+  projectId?: string;
 }
 
 const DraftManager: React.FC<DraftManagerProps> = ({
@@ -53,6 +55,7 @@ const DraftManager: React.FC<DraftManagerProps> = ({
   autoSaveEnabled = false,
   onAutoSaveToggle,
   currentDraftKey = null,
+  projectId,
 }) => {
   // useDraftManager hook の使用
   const {
@@ -120,7 +123,8 @@ const DraftManager: React.FC<DraftManagerProps> = ({
         edges: currentEditState?.edges || [],
         templates: currentEditState?.templates || [],
         documentData: currentEditState?.documentData,
-        lastSavedAt : new Date().toISOString(),
+        lastSavedAt: new Date().toISOString(),
+        projectId: projectId || null,
       });
 
       Modal.success({ title: '保存完了', content: 'Draftを保存しました' });

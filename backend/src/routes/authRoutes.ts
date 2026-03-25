@@ -115,6 +115,14 @@ router.post(
   authController.logout
 );
 
+// 9. セッションハートビートエンドポイント
+// POST /api/v1/auth/heartbeat
+router.post(
+  '/heartbeat',
+  authMiddleware,
+  authController.heartbeat
+);
+
 // 6. パスワードリセット要求エンドポイント
 // POST /api/v1/auth/reset-password-request
 // 注意: X-Organization-Idは不要（証明書から自動設定）
