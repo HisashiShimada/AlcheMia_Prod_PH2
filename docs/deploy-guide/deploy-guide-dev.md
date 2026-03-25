@@ -49,6 +49,7 @@
 | `mmdpf-backend` | Node.js API サーバー | 3001 |
 | `mmdpf-frontend` | Next.js フロントエンド | 3000 |
 | `mmdpf-nginx` | リバースプロキシ (HTTPS) | 80, 443 |
+| `mmdpf-ollama` | AI Model Engine (Ollama) | 11434 |
 
 ```
 ブラウザ
@@ -61,6 +62,7 @@ mmdpf-nginx (リバースプロキシ / クライアント証明書認証)
                └── mmdpf-postgres (5432)
                └── mmdpf-redis (6379)
                └── mmdpf-swift (8080)
+               └── mmdpf-ollama (11434)  ← backend の OLLAMA_HOST で参照（セマンティック検索）
 ```
 
 ---
@@ -367,8 +369,10 @@ SESSION_SECRET=【openssl rand -hex 64 の出力値】
 # ─── CORS 設定（アクセス元ドメイン/IPアドレス）───
 CORS_ORIGIN=https://your-server-ip-or-domain
 
-# ─── Ollama（セマンティック検索を使う場合）───
-OLLAMA_HOST=http://YOUR_OLLAMA_SERVER:11434
+# ─── Ollama（セマンティック検索）───
+# オンプレ環境: docker-compose.prod.yml の ollama コンテナが起動するため以下の値を使用
+# ※ モデルは初回起動時に ollama-init コンテナが自動でダウンロードします
+OLLAMA_HOST=http://ollama:11434
 ```
 
 シークレットキーの生成方法：
