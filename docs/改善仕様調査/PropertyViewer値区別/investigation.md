@@ -377,6 +377,80 @@ interface PropertyObject {
 
 ---
 
+## 11. TemplateEditorDialog周辺での初期値・値なし処理（追調査）
+
+### 11.1 `templateConverter.ts` の `convertPropertiesArrayToNestedFormat` での値処理
+
+**現行実装（`templateConverter.ts`）**:
+```typescript
+// value要素の追加
+if (prop.value !== undefined && prop.value !== null && prop.value !== '') {
+  result[key].elements.value = String(prop.value);
+}
+```
+
+**問題点**:
+- `prop.value === ''`（空文字）の場合、`elements.value` にセットされない
+- つまりテンプレートで `<value></value>` があっても、空文字は「なかったこと」として扱われ、`elements.value` 自体が存在しない状態になる
+- PropertyViewerで表示すると「未設定」と表示され、「意図的な空値」と「値なし」が区別できない
+
+同様のパターンが `convertPropertiesArrayToNestedFormatRecursive` や `convertContentsArrayToNestedFormat` にも存在する。
+
+### 11.2 Reference版 `TemplateEditorDialog.jsx` の `convertPropertiesArrayToNestedFormat` での値処理
+
+**Reference実装**:
+```javascript
+// ✅ 修正: defaultValueがあればelements.valueとして確実に追加
+if (prop.defaultValue !== undefined && prop.defaultValue !== null && prop.defaultValue !== '') {
+  result[key].elements.value = String(prop.defaultValue);
+  console.log(`  ✅ value要素追加: ${key} = ${prop.defaultValue}`);
+}
+```
+
+**問題点**:  
+Referenceも同様に空文字を除外している。`=== ''` 条件がある限り空文字の初期値は保存されない。
+
+### 11.3 両実装でのテンプレートEditorからの初期値設定フロー
+
+| フロー段階 | 処理 | 空値の扱い |
+|---|---|---|
+| MAIMLパース（`maimlParserTyped.ts`） | `<value></value>` → `prop.value = ?` | **要確認**: 空文字 or undefined |
+| `convertPropertiesArrayToNestedFormat` | `prop.value → elements.value` | 空文字を**除外**（現行・Reference共通） |
+| NestedPropertyEditorの `elements.value` | テキストフィールドに表示 | `elements.value` がなければ空欄表示 |
+| PropertyViewerで閲覧 | `elements.value` → 表示 | `undefined` → 「未設定」 |
+
+### 11.4 TemplateEditorDialogでの「要素追加」ダイアログの初期値
+
+Reference版の「要素追加」ダイアログ（`showElementAddModal`）:
+```jsx
+<TextField
+  fullWidth
+  multiline
+  rows={3}
+  label="要素値"
+  value={newElementValue}
+  onChange={(e) => setNewElementValue(e.target.value)}
+  placeholder="例: 3.5, Sample description"
+/>
+```
+→ **空文字のまま「追加」できない**: `newElementName.trim() && newElementValue.trim()` で両方必須チェック
+
+現行実装（Ant Design版）も同様で、**意図的に空文字を要素値として保存する手段がない**。
+
+### 11.5 PropertyPanel（実験記録側）での初期値セット
+
+`frontend/src/components/editorv2/components/PropertyPanel.tsx` は実験記録時に使用されるが、TemplateEditorとは独立しており、本調査の対象外。
+
+### 11.6 まとめ：TemplateEditorDialog周辺での問題箇所
+
+| 問題 | 場所 | 影響 |
+|---|---|---|
+| `prop.value !== ''` で空文字除外 | `templateConverter.ts` の全変換関数 | テンプレートの初期値として空文字を設定できない |
+| 要素追加ダイアログで値が必須 | Reference・現行ともに `newElementValue.trim()` 必須 | 空値の意図的な記録不可 |
+| `elements.value` がないと「未設定」 | `PropertyViewer.tsx` の表示ロジック | 初期値未設定と初期値空を区別できない |
+
+---
+
 ## 10. 関連ファイル
 
 ```
