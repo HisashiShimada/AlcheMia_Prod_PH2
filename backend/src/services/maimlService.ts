@@ -901,6 +901,7 @@ function convertRowToDraft(row: MaimlDraftsRow): Draft {
     draftName: row.draft_name,
     originalFileKey: row.original_file_key || undefined,
     lastSavedAt: row.last_saved_at.toISOString(),
+    projectId: row.project_id || null,
     nodes: safeParseJson(row.nodes),
     edges: safeParseJson(row.arcs), // arcs → edges
     templates: safeParseJson(row.templates),

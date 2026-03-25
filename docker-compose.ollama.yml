@@ -1,0 +1,101 @@
+# mmdpf Ollama Docker Compose Configuration
+# セマンティック検索用 Ollama サービス
+#
+# =========================================================
+# 起動方法:
+#   1. Ollama サービスを起動（embeddinggemma モデルも自動 pull）
+#      docker compose -f docker-compose.ollama.yml up -d
+#      ※ mmdpf-network が存在しない場合は自動作成されます
+#
+#   2. 接続確認
+#      curl http://localhost:11434/api/tags
+#
+#   3. Embedding テスト
+#      npx ts-node backend/scripts/test-ollama-embedding.ts
+#
+# 停止方法:
+#   docker compose -f docker-compose.ollama.yml down
+#
+# ボリューム含めて削除（モデルも削除される）:
+#   docker compose -f docker-compose.ollama.yml down -v
+# =========================================================
+
+services:
+  # -------------------------------------------------------
+  # Ollama Service - AI Model Engine
+  # -------------------------------------------------------
+  # バックエンドから http://ollama:11434 でアクセス可能
+  # (transitionSetEmbeddingService.ts の OLLAMA_HOST 参照)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: mmdpf-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      # パラレル処理数（開発環境向け設定）
+      - OLLAMA_NUM_PARALLEL=2
+      # 同時ロード可能モデル数
+      - OLLAMA_MAX_LOADED_MODELS=2
+      # モデルのキープアライブ時間
+      - OLLAMA_KEEP_ALIVE=5m
+    networks:
+      - mmdpf-network
+
+  # -------------------------------------------------------
+  # Ollama Init Service - モデル自動 pull（ワンショット）
+  # -------------------------------------------------------
+  # ollama サービス起動後に embeddinggemma:latest を pull して終了する
+  # 2回目以降の起動時はモデルが既にキャッシュされているため短時間で完了
+  #
+  # 注意: embeddinggemma:latest のダウンロードには数分かかる場合があります
+  #       ログで進捗を確認: docker compose -f docker-compose.ollama.yml logs -f ollama-init
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: mmdpf-ollama-init
+    restart: "no"
+    volumes:
+      - ollama-data:/root/.ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo '=== Ollama モデル初期化を開始します ==='
+        echo '>>> Ollama サーバーの起動を待機中...'
+        until OLLAMA_HOST=http://ollama:11434 ollama list > /dev/null 2>&1; do
+          echo '  - Ollama 起動待ち...'
+          sleep 3
+        done
+        echo '>>> Ollama サーバーが起動しました'
+        echo '>>> embeddinggemma:latest をダウンロード中... (数分かかる場合があります)'
+        ollama pull embeddinggemma:latest
+        echo '>>> embeddinggemma:latest のダウンロードが完了しました'
+        echo '>>> インストール済みモデル一覧:'
+        ollama list
+        echo '=== 初期化完了 ==='
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    networks:
+      - mmdpf-network
+    depends_on:
+      - ollama
+
+# =========================================================
+# Volumes
+# =========================================================
+volumes:
+  # Ollama モデルデータの永続化ボリューム
+  # モデルデータは毎回ダウンロードされないようにここに保存される
+  ollama-data:
+    name: mmdpf_ollama-data
+
+# =========================================================
+# Networks
+# =========================================================
+networks:
+  # mmdpf-network が存在しない場合は自動作成、存在する場合はそのまま利用
+  # これにより backend コンテナから http://ollama:11434 でアクセス可能
+  mmdpf-network:
+    name: mmdpf-network
+    driver: bridge

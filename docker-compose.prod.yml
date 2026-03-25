@@ -3,7 +3,7 @@
 # =============================================================================
 #
 # 使い方:
-#   【オンプレ環境】Swift + nginx を含む全サービスを起動
+#   【オンプレ環境】Swift + nginx + Ollama を含む全サービスを起動
 #     docker-compose -f docker-compose.prod.yml --profile onprem up -d
 #
 #   【AWS環境】backend/frontend/DB のみ起動（S3・ALBは外部サービスを使用）
@@ -218,6 +218,77 @@ services:
         max-size: "50m"
         max-file: "5"
 
+  # ===========================================================================
+  # Ollama - AI Model Engine（オンプレ環境専用）
+  # profiles: [onprem] → --profile onprem 指定時のみ起動
+  # AWSでは .env の OLLAMA_HOST に外部 Ollama サーバーの URL を設定して使用
+  # バックエンドから http://ollama:11434 でアクセス可能
+  # ===========================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: mmdpf-ollama
+    restart: unless-stopped
+    profiles:
+      - onprem
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      # パラレル処理数
+      - OLLAMA_NUM_PARALLEL=2
+      # 同時ロード可能モデル数
+      - OLLAMA_MAX_LOADED_MODELS=2
+      # モデルのキープアライブ時間
+      - OLLAMA_KEEP_ALIVE=5m
+    networks:
+      - mmdpf-network
+    healthcheck:
+      test: ["CMD-SHELL", "OLLAMA_HOST=http://localhost:11434 ollama list > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Ollama Init - モデル自動 pull（オンプレ環境専用・ワンショット）
+  # ollama サービス起動後に embeddinggemma:latest を pull して終了する
+  # 2回目以降の起動時はモデルが既にキャッシュされているため短時間で完了
+  #
+  # 注意: embeddinggemma:latest のダウンロードには数分かかる場合があります
+  #       ログで進捗を確認: docker compose -f docker-compose.prod.yml logs -f ollama-init
+  # ===========================================================================
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: mmdpf-ollama-init
+    restart: "no"
+    profiles:
+      - onprem
+    volumes:
+      - ollama-data:/root/.ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo '=== Ollama モデル初期化を開始します ==='
+        echo '>>> Ollama サーバーの起動を待機中...'
+        until OLLAMA_HOST=http://ollama:11434 ollama list > /dev/null 2>&1; do
+          echo '  - Ollama 起動待ち...'
+          sleep 3
+        done
+        echo '>>> Ollama サーバーが起動しました'
+        echo '>>> embeddinggemma:latest をダウンロード中... (数分かかる場合があります)'
+        ollama pull embeddinggemma:latest
+        echo '>>> embeddinggemma:latest のダウンロードが完了しました'
+        echo '>>> インストール済みモデル一覧:'
+        ollama list
+        echo '=== 初期化完了 ==='
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    networks:
+      - mmdpf-network
+    depends_on:
+      - ollama
+
 # =============================================================================
 # Volumes
 # =============================================================================
@@ -232,6 +303,8 @@ volumes:
     name: mmdpf_prod_swift-data
   nginx-logs:
     name: mmdpf_prod_nginx-logs
+  ollama-data:
+    name: mmdpf_prod_ollama-data
 
 # =============================================================================
 # Networks
