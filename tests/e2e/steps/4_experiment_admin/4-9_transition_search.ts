@@ -217,50 +217,41 @@ Given('Ollamaエンベディングサービスが起動していること', asyn
 
 /**
  * 進捗確認画面が表示されている
- * → サイドメニューから「進捗確認」を選択する
- * ※ 4-6_progress_monitoring.ts と同一実装（単体実行時に common.ts 以外は読み込まれないため複製）
+ * → ログイン後はプロジェクト管理画面がデフォルト表示される
+ * → 「編集中のデータが見つかりました」ダイアログが表示されている場合は「復元しない」をクリックして閉じる
  */
 When('進捗確認画面が表示されている', async ({ page }) => {
-  // ログイン済みの状態でサイドメニューから進捗確認を開く
-  const progressMenu = page.locator('[data-testid="progress-monitoring-menu"]');
-  if (await progressMenu.isVisible({ timeout: 5000 }).catch(() => false)) {
-    await progressMenu.click();
-  } else {
-    // メニューが data-testid で見つからない場合はテキストで探す
-    const menuItem = page.locator('text=進捗確認').first();
-    await menuItem.waitFor({ state: 'visible', timeout: 10000 });
-    await menuItem.click();
+  // 「編集中のデータが見つかりました」ダイアログが表示されている場合は閉じる
+  const draftDialog = page.locator('.ant-modal').filter({ hasText: '編集中のデータが見つかりました' });
+  if (await draftDialog.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const discardButton = page.locator('button').filter({ hasText: '復元しない' });
+    await discardButton.click();
+    await page.waitForSelector('.ant-modal:has-text("編集中のデータが見つかりました")', {
+      state: 'hidden',
+      timeout: 5000,
+    }).catch(() => {});
+    await page.waitForTimeout(300);
   }
-  await page.waitForLoadState('networkidle', { timeout: 15000 });
-  await page.waitForTimeout(500);
+  // プロジェクト管理画面（デフォルト表示）が表示されるまで待機
+  await page.waitForSelector('[data-testid="create-project-button"]', { timeout: 15000 });
+  await page.waitForTimeout(300);
 });
 
 /**
  * トランジション検索タブをクリックする
- * ProgressMonitoring.tsx: data-testid="transition-search-tab"
- * ※ フロントエンド実装後に data-testid を確認すること
+ * → プロジェクト管理画面ヘッダーにある「トランジション検索」ボタンをクリックしてモーダルを開く
+ * ProjectManagement.tsx: button に「トランジション検索」テキストが含まれる
  */
 When('トランジション検索タブをクリックする', async ({ page }) => {
-  console.log('[4-9 When] トランジション検索タブをクリック');
+  console.log('[4-9 When] トランジション検索ボタンをクリックしてモーダルを開く');
 
-  // data-testid="transition-search-tab" を優先し、
-  // 見つからない場合はテキストで探す
-  const tabByTestId = page.locator('[data-testid="transition-search-tab"]');
-  const tabByText = page.locator('.ant-tabs-tab').filter({ hasText: 'トランジション検索' });
+  // プロジェクト管理画面の「トランジション検索」ボタンをクリック
+  const btn = page.locator('button').filter({ hasText: 'トランジション検索' });
+  await btn.waitFor({ state: 'visible', timeout: 10000 });
+  await btn.click();
 
-  const tabLocator = (await tabByTestId.count()) > 0 ? tabByTestId : tabByText;
-  await tabLocator.waitFor({ state: 'visible', timeout: 10000 });
-
-  const responsePromise = page.waitForResponse(
-    (resp) =>
-      resp.url().includes('/transition-search') && resp.request().method() === 'GET',
-    { timeout: 15000 }
-  ).catch(() => {
-    // タブ切り替え時に API が呼ばれない場合は続行
-  });
-
-  await tabLocator.click();
-  await responsePromise;
+  // モーダルが開くまで待機
+  await page.waitForSelector('.ant-modal', { state: 'visible', timeout: 10000 });
   await page.waitForTimeout(500);
 });
 
