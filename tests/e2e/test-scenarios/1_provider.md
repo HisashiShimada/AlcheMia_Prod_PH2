@@ -10,10 +10,10 @@
 
 | 項目 | 値 |
 |------|-----|
-| テスト実施日 | - |
-| テスト実施者 | - |
+| テスト実施日 | 2026-03-26 |
+| テスト実施者 | Cline |
 | テスト環境バージョン | - |
-| 総合判定 | - |
+| 総合判定 | OK |
 | 備考 | - |
 
 ---
@@ -24,16 +24,16 @@
 
 | テストグループID | テストグループ名 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
 |----------------|----------------|-----------|-----------|------|-------|-------|
-| **1-1** | 会社の作成 | 7件 | Playwright自動 | - | - | 7 |
-| **1-2** | 会社の編集 | 6件 | Playwright自動 | - | - | 6 |
-| **1-3** | 会社のアクティブ/非アクティブ化 | 5件 | Playwright自動 | - | - | 5 |
-| **1-4** | 会社のCSVダウンロード・アップロード | 4件 | Playwright自動 | - | - | 4 |
-| **1-5** | 組織の作成 | 7件 | Playwright自動 | - | - | 7 |
-| **1-6** | 組織の編集 | 8件 | Playwright自動 | - | - | 8 |
-| **1-7** | 組織のアクティブ/非アクティブ化 | 5件 | Playwright自動 | - | - | 5 |
-| **1-8** | 組織のCSVダウンロード・アップロード | 4件 | Playwright自動 | - | - | 4 |
-| **1-9** | 全組織の課金情報CSVダウンロード | 2件 | Playwright自動 | - | - | 2 |
-| **合計** | - | **48件** | - | - | - | - |
+| **1-1** | 会社の作成 | 7件 | Playwright自動 | 7 | 0 | 0 |
+| **1-2** | 会社の編集 | 6件 | Playwright自動 | 6 | 0 | 0 |
+| **1-3** | 会社のアクティブ/非アクティブ化 | 5件 | Playwright自動 | 5 | 0 | 0 |
+| **1-4** | 会社のCSVダウンロード・アップロード | 4件 | Playwright自動 | 4 | 0 | 0 |
+| **1-5** | 組織の作成 | 7件 | Playwright自動 | 7 | 0 | 0 |
+| **1-6** | 組織の編集 | 8件 | Playwright自動 | 8 | 0 | 0 |
+| **1-7** | 組織のアクティブ/非アクティブ化 | 5件 | Playwright自動 | 5 | 0 | 0 |
+| **1-8** | 組織のCSVダウンロード・アップロード | 4件 | Playwright自動 | 4 | 0 | 0 |
+| **1-9** | 全組織の課金情報CSVダウンロード | 2件 | Playwright自動 | 2 | 0 | 0 |
+| **合計** | - | **48件** | - | **48** | **0** | **0** |
 
 ### スコープ外
 
@@ -54,13 +54,13 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-1-1 | アクティブな会社を新規作成できること | 正常系 | `ui_corporation_add_dialog.md` §3.1 | POST `/api/v1/provider/corporation` | － | |
-| 1-1-2 | 非アクティブな会社を新規作成できること | 正常系 | `ui_corporation_add_dialog.md` §3.3 | POST `/api/v1/provider/corporation` | － | |
-| 1-1-3 | 会社追加ダイアログをキャンセルしても会社が作成されないこと | 正常系 | `ui_corporation_add_dialog.md` §4.1 | - | － | |
-| 1-1-4 | 会社追加ダイアログの初期状態が正しいこと | 表示確認 | `ui_corporation_add_dialog.md` §2.2 | - | － | |
-| 1-1-5 | 会社名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_corporation_add_dialog.md` §3.2 バリデーション | - | － | |
-| 1-1-6 | 会社名が51文字以上の場合にバリデーションエラーが表示されること | 異常系 | `ui_corporation_add_dialog.md` §3.2 バリデーション | - | － | |
-| 1-1-7 | 既存の会社名を入力した場合に重複エラーが表示されること | 異常系 | `ui_corporation_add_dialog.md` §6.2、API 409エラー | POST `/api/v1/provider/corporation` | － | |
+| 1-1-1 | アクティブな会社を新規作成できること | 正常系 | `ui_corporation_add_dialog.md` §3.1 | POST `/api/v1/provider/corporation` | OK | |
+| 1-1-2 | 非アクティブな会社を新規作成できること | 正常系 | `ui_corporation_add_dialog.md` §3.3 | POST `/api/v1/provider/corporation` | OK | |
+| 1-1-3 | 会社追加ダイアログをキャンセルしても会社が作成されないこと | 正常系 | `ui_corporation_add_dialog.md` §4.1 | - | OK | |
+| 1-1-4 | 会社追加ダイアログの初期状態が正しいこと | 表示確認 | `ui_corporation_add_dialog.md` §2.2 | - | OK | |
+| 1-1-5 | 会社名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_corporation_add_dialog.md` §3.2 バリデーション | - | OK | |
+| 1-1-6 | 会社名が51文字以上の場合にバリデーションエラーが表示されること | 異常系 | `ui_corporation_add_dialog.md` §3.2 バリデーション | - | OK | |
+| 1-1-7 | 既存の会社名を入力した場合に重複エラーが表示されること | 異常系 | `ui_corporation_add_dialog.md` §6.2、API 409エラー | POST `/api/v1/provider/corporation` | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -76,12 +76,12 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-2-1 | 会社名を変更して保存できること | 正常系 | `ui_corporation_edit_dialog.md` | PUT `/api/v1/provider/corporation/:corporationId` | － | |
-| 1-2-2 | 会社の状態をアクティブから非アクティブに変更して保存できること | 正常系 | `ui_corporation_edit_dialog.md` | PUT `/api/v1/provider/corporation/:corporationId` | － | |
-| 1-2-3 | 会社の状態を非アクティブからアクティブに変更して保存できること | 正常系 | `ui_corporation_edit_dialog.md` | PUT `/api/v1/provider/corporation/:corporationId` | － | |
-| 1-2-4 | 会社編集ダイアログをキャンセルしても変更が保存されないこと | 正常系 | `ui_corporation_edit_dialog.md` §キャンセル | - | － | |
-| 1-2-5 | 会社編集ダイアログに既存の値が表示されること | 表示確認 | `ui_corporation_edit_dialog.md` §初期値 | GET `/api/v1/provider/corporation/:corporationId` | － | |
-| 1-2-6 | 会社名を空にして保存しようとするとバリデーションエラーが表示されること | 異常系 | `ui_corporation_edit_dialog.md` §バリデーション | - | － | |
+| 1-2-1 | 会社名を変更して保存できること | 正常系 | `ui_corporation_edit_dialog.md` | PUT `/api/v1/provider/corporation/:corporationId` | OK | |
+| 1-2-2 | 会社の状態をアクティブから非アクティブに変更して保存できること | 正常系 | `ui_corporation_edit_dialog.md` | PUT `/api/v1/provider/corporation/:corporationId` | OK | |
+| 1-2-3 | 会社の状態を非アクティブからアクティブに変更して保存できること | 正常系 | `ui_corporation_edit_dialog.md` | PUT `/api/v1/provider/corporation/:corporationId` | OK | |
+| 1-2-4 | 会社編集ダイアログをキャンセルしても変更が保存されないこと | 正常系 | `ui_corporation_edit_dialog.md` §キャンセル | - | OK | |
+| 1-2-5 | 会社編集ダイアログに既存の値が表示されること | 表示確認 | `ui_corporation_edit_dialog.md` §初期値 | GET `/api/v1/provider/corporation/:corporationId` | OK | |
+| 1-2-6 | 会社名を空にして保存しようとするとバリデーションエラーが表示されること | 異常系 | `ui_corporation_edit_dialog.md` §バリデーション | - | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -98,11 +98,11 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-3-1 | 個別ボタンでアクティブな会社を非アクティブに切り替えられること | 正常系 | `ui_corporation_main.md` §4.2.5 | PATCH `/api/v1/provider/corporation/:corporationId/status` | － | |
-| 1-3-2 | 個別ボタンで非アクティブな会社をアクティブに切り替えられること | 正常系 | `ui_corporation_main.md` §4.2.5 | PATCH `/api/v1/provider/corporation/:corporationId/status` | － | |
-| 1-3-3 | 個別切り替えダイアログをキャンセルしても状態が変わらないこと | 正常系 | `ui_corporation_main.md` §7.6 | - | － | |
-| 1-3-4 | 複数選択して一括アクティブ化できること | 正常系 | `ui_corporation_main.md` §一括操作 | PATCH `/api/v1/provider/corporation/bulk-status` | － | |
-| 1-3-5 | 複数選択して一括非アクティブ化できること | 正常系 | `ui_corporation_main.md` §一括操作 | PATCH `/api/v1/provider/corporation/bulk-status` | － | |
+| 1-3-1 | 個別ボタンでアクティブな会社を非アクティブに切り替えられること | 正常系 | `ui_corporation_main.md` §4.2.5 | PATCH `/api/v1/provider/corporation/:corporationId/status` | OK | |
+| 1-3-2 | 個別ボタンで非アクティブな会社をアクティブに切り替えられること | 正常系 | `ui_corporation_main.md` §4.2.5 | PATCH `/api/v1/provider/corporation/:corporationId/status` | OK | |
+| 1-3-3 | 個別切り替えダイアログをキャンセルしても状態が変わらないこと | 正常系 | `ui_corporation_main.md` §7.6 | - | OK | |
+| 1-3-4 | 複数選択して一括アクティブ化できること | 正常系 | `ui_corporation_main.md` §一括操作 | PATCH `/api/v1/provider/corporation/bulk-status` | OK | |
+| 1-3-5 | 複数選択して一括非アクティブ化できること | 正常系 | `ui_corporation_main.md` §一括操作 | PATCH `/api/v1/provider/corporation/bulk-status` | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -125,10 +125,10 @@
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-4-1 | CSVダウンロードボタンをクリックするとCSVファイルが取得できること | 正常系 | `ui_corporation_main.md` §3.2.3 | GET `/api/v1/provider/corporation/download-csv` | － | |
-| 1-4-2 | ダウンロードしたCSVに会社名を追加してアップロードすると会社が作成されること | 正常系 | `ui_corporation_main.md` §3.2.4 | POST `/api/v1/provider/corporation/upload-csv` | － | |
-| 1-4-3 | 既存の会社名を含むCSVをアップロードするとエラーが表示されること | 異常系 | `ui_corporation_main.md` §6.4 | POST `/api/v1/provider/corporation/upload-csv` | － | |
-| 1-4-4 | 会社名が空のCSVをアップロードするとエラーが表示されること | 異常系 | `ui_corporation_main.md` §6.4 | POST `/api/v1/provider/corporation/upload-csv` | － | |
+| 1-4-1 | CSVダウンロードボタンをクリックするとCSVファイルが取得できること | 正常系 | `ui_corporation_main.md` §3.2.3 | GET `/api/v1/provider/corporation/download-csv` | OK | |
+| 1-4-2 | ダウンロードしたCSVに会社名を追加してアップロードすると会社が作成されること | 正常系 | `ui_corporation_main.md` §3.2.4 | POST `/api/v1/provider/corporation/upload-csv` | OK | |
+| 1-4-3 | 既存の会社名を含むCSVをアップロードするとエラーが表示されること | 異常系 | `ui_corporation_main.md` §6.4 | POST `/api/v1/provider/corporation/upload-csv` | OK | |
+| 1-4-4 | 会社名が空のCSVをアップロードするとエラーが表示されること | 異常系 | `ui_corporation_main.md` §6.4 | POST `/api/v1/provider/corporation/upload-csv` | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -153,13 +153,13 @@ CORP001,テスト会社,アクティブ
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-5-1 | アクティブな組織を新規作成できること | 正常系 | `ui_organization_add_dialog.md` §4.8 | POST `/api/v1/provider/organization` | － | |
-| 1-5-2 | 非アクティブな組織を新規作成できること | 正常系 | `ui_organization_add_dialog.md` §4.8 | POST `/api/v1/provider/organization` | － | |
-| 1-5-3 | 組織追加ダイアログをキャンセルしても組織が作成されないこと | 正常系 | `ui_organization_add_dialog.md` §5.1 | - | － | |
-| 1-5-4 | 組織追加ダイアログの初期状態が正しいこと | 表示確認 | `ui_organization_add_dialog.md` §3.2 | - | － | |
-| 1-5-5 | 組織CDが未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_organization_add_dialog.md` §4.1 バリデーション | - | － | |
-| 1-5-6 | 組織表示名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_organization_add_dialog.md` §4.2 バリデーション | - | － | |
-| 1-5-7 | 既存の組織CDを入力した場合に重複エラーが表示されること | 異常系 | `ui_organization_add_dialog.md` §7.2、API 409エラー | POST `/api/v1/provider/organization` | － | |
+| 1-5-1 | アクティブな組織を新規作成できること | 正常系 | `ui_organization_add_dialog.md` §4.8 | POST `/api/v1/provider/organization` | OK | |
+| 1-5-2 | 非アクティブな組織を新規作成できること | 正常系 | `ui_organization_add_dialog.md` §4.8 | POST `/api/v1/provider/organization` | OK | |
+| 1-5-3 | 組織追加ダイアログをキャンセルしても組織が作成されないこと | 正常系 | `ui_organization_add_dialog.md` §5.1 | - | OK | |
+| 1-5-4 | 組織追加ダイアログの初期状態が正しいこと | 表示確認 | `ui_organization_add_dialog.md` §3.2 | - | OK | |
+| 1-5-5 | 組織CDが未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_organization_add_dialog.md` §4.1 バリデーション | - | OK | |
+| 1-5-6 | 組織表示名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_organization_add_dialog.md` §4.2 バリデーション | - | OK | |
+| 1-5-7 | 既存の組織CDを入力した場合に重複エラーが表示されること | 異常系 | `ui_organization_add_dialog.md` §7.2、API 409エラー | POST `/api/v1/provider/organization` | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -181,14 +181,14 @@ CORP001,テスト会社,アクティブ
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-6-1 | 組織表示名を変更して保存できること | 正常系 | `ui_organization_edit_dialog.md` | PUT `/api/v1/provider/organization/:organizationId` | － | |
-| 1-6-2 | 組織の状態をアクティブから非アクティブに変更して保存できること | 正常系 | `ui_organization_edit_dialog.md` | PUT `/api/v1/provider/organization/:organizationId` | － | |
-| 1-6-3 | 組織の状態を非アクティブからアクティブに変更して保存できること | 正常系 | `ui_organization_edit_dialog.md` | PUT `/api/v1/provider/organization/:organizationId` | － | |
-| 1-6-4 | 組織編集ダイアログをキャンセルしても変更が保存されないこと | 正常系 | `ui_organization_edit_dialog.md` §キャンセル | - | － | |
-| 1-6-5 | 組織編集ダイアログに既存の値が表示されること | 表示確認 | `ui_organization_edit_dialog.md` §初期値 | GET `/api/v1/provider/organization/:organizationId` | － | |
-| 1-6-6 | 組織表示名を空にして保存しようとするとバリデーションエラーが表示されること | 異常系 | `ui_organization_edit_dialog.md` §バリデーション | - | － | |
-| 1-6-7 | 組織表示名を51文字以上に変更するとバリデーションエラーが表示されること | 異常系 | `ui_organization_edit_dialog.md` §バリデーション | - | － | |
-| 1-6-8 | 既存の別組織表示名に変更しようとすると重複エラーが表示されること | 異常系 | `ui_organization_edit_dialog.md` §エラー、API 409エラー | PUT `/api/v1/provider/organization/:organizationId` | － | |
+| 1-6-1 | 組織表示名を変更して保存できること | 正常系 | `ui_organization_edit_dialog.md` | PUT `/api/v1/provider/organization/:organizationId` | OK | |
+| 1-6-2 | 組織の状態をアクティブから非アクティブに変更して保存できること | 正常系 | `ui_organization_edit_dialog.md` | PUT `/api/v1/provider/organization/:organizationId` | OK | |
+| 1-6-3 | 組織の状態を非アクティブからアクティブに変更して保存できること | 正常系 | `ui_organization_edit_dialog.md` | PUT `/api/v1/provider/organization/:organizationId` | OK | |
+| 1-6-4 | 組織編集ダイアログをキャンセルしても変更が保存されないこと | 正常系 | `ui_organization_edit_dialog.md` §キャンセル | - | OK | |
+| 1-6-5 | 組織編集ダイアログに既存の値が表示されること | 表示確認 | `ui_organization_edit_dialog.md` §初期値 | GET `/api/v1/provider/organization/:organizationId` | OK | |
+| 1-6-6 | 組織表示名を空にして保存しようとするとバリデーションエラーが表示されること | 異常系 | `ui_organization_edit_dialog.md` §バリデーション | - | OK | |
+| 1-6-7 | 組織表示名を51文字以上に変更するとバリデーションエラーが表示されること | 異常系 | `ui_organization_edit_dialog.md` §バリデーション | - | OK | |
+| 1-6-8 | 既存の別組織表示名に変更しようとすると重複エラーが表示されること | 異常系 | `ui_organization_edit_dialog.md` §エラー、API 409エラー | PUT `/api/v1/provider/organization/:organizationId` | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -206,11 +206,11 @@ CORP001,テスト会社,アクティブ
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-7-1 | 個別ボタンでアクティブな組織を非アクティブに切り替えられること | 正常系 | `ui_organization_main.md` §5.2.8 | PATCH `/api/v1/provider/organization/:organizationId/status` | － | |
-| 1-7-2 | 個別ボタンで非アクティブな組織をアクティブに切り替えられること | 正常系 | `ui_organization_main.md` §5.2.8 | PATCH `/api/v1/provider/organization/:organizationId/status` | － | |
-| 1-7-3 | 個別切り替えダイアログをキャンセルしても状態が変わらないこと | 正常系 | `ui_organization_main.md` §8.5 | - | － | |
-| 1-7-4 | 複数選択して一括アクティブ化できること | 正常系 | `ui_organization_main.md` §一括操作 | PATCH `/api/v1/provider/organization/bulk-status` | － | |
-| 1-7-5 | 複数選択して一括非アクティブ化できること | 正常系 | `ui_organization_main.md` §一括操作 | PATCH `/api/v1/provider/organization/bulk-status` | － | |
+| 1-7-1 | 個別ボタンでアクティブな組織を非アクティブに切り替えられること | 正常系 | `ui_organization_main.md` §5.2.8 | PATCH `/api/v1/provider/organization/:organizationId/status` | OK | |
+| 1-7-2 | 個別ボタンで非アクティブな組織をアクティブに切り替えられること | 正常系 | `ui_organization_main.md` §5.2.8 | PATCH `/api/v1/provider/organization/:organizationId/status` | OK | |
+| 1-7-3 | 個別切り替えダイアログをキャンセルしても状態が変わらないこと | 正常系 | `ui_organization_main.md` §8.5 | - | OK | |
+| 1-7-4 | 複数選択して一括アクティブ化できること | 正常系 | `ui_organization_main.md` §一括操作 | PATCH `/api/v1/provider/organization/bulk-status` | OK | |
+| 1-7-5 | 複数選択して一括非アクティブ化できること | 正常系 | `ui_organization_main.md` §一括操作 | PATCH `/api/v1/provider/organization/bulk-status` | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -232,10 +232,10 @@ CORP001,テスト会社,アクティブ
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-8-1 | CSVダウンロードボタンをクリックすると組織CSVファイルが取得できること | 正常系 | `ui_organization_main.md` §4.2.3 | GET `/api/v1/provider/organization/download-csv` | － | |
-| 1-8-2 | ダウンロードしたCSVに組織表示名を追加してアップロードすると組織が作成されること | 正常系 | `ui_organization_main.md` §4.2.4 | POST `/api/v1/provider/organization/upload-csv` | － | |
-| 1-8-3 | 既存の組織表示名を含むCSVをアップロードするとエラーが表示されること | 異常系 | `ui_organization_main.md` §CSVアップロード | POST `/api/v1/provider/organization/upload-csv` | － | |
-| 1-8-4 | 組織表示名が空のCSVをアップロードするとエラーが表示されること | 異常系 | `ui_organization_main.md` §CSVアップロード | POST `/api/v1/provider/organization/upload-csv` | － | |
+| 1-8-1 | CSVダウンロードボタンをクリックすると組織CSVファイルが取得できること | 正常系 | `ui_organization_main.md` §4.2.3 | GET `/api/v1/provider/organization/download-csv` | OK | |
+| 1-8-2 | ダウンロードしたCSVに組織表示名を追加してアップロードすると組織が作成されること | 正常系 | `ui_organization_main.md` §4.2.4 | POST `/api/v1/provider/organization/upload-csv` | OK | |
+| 1-8-3 | 既存の組織表示名を含むCSVをアップロードするとエラーが表示されること | 異常系 | `ui_organization_main.md` §CSVアップロード | POST `/api/v1/provider/organization/upload-csv` | OK | |
+| 1-8-4 | 組織表示名が空のCSVをアップロードするとエラーが表示されること | 異常系 | `ui_organization_main.md` §CSVアップロード | POST `/api/v1/provider/organization/upload-csv` | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
@@ -259,8 +259,8 @@ organization_cd,organization_display_name,organization_email,chief_user_name,chi
 
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
 |-----------|-----------|------|------|---------|------|------|
-| 1-9-1 | CSVダウンロードボタンをクリックするとCSVファイルが取得できること | 正常系 | `ui_information_download_main.md` §4.1 | GET `/api/v1/provider/organization/download-information-csv` | － | |
-| 1-9-2 | ダウンロードした情報CSVに正しいヘッダーが含まれること | 表示確認 | `ui_information_download_main.md` §6.4 | GET `/api/v1/provider/organization/download-information-csv` | － | |
+| 1-9-1 | CSVダウンロードボタンをクリックするとCSVファイルが取得できること | 正常系 | `ui_information_download_main.md` §4.1 | GET `/api/v1/provider/organization/download-information-csv` | OK | |
+| 1-9-2 | ダウンロードした情報CSVに正しいヘッダーが含まれること | 表示確認 | `ui_information_download_main.md` §6.4 | GET `/api/v1/provider/organization/download-information-csv` | OK | |
 
 **前提条件:**
 - プロバイダーロールでログイン済み
