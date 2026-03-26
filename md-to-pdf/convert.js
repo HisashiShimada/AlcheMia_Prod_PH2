@@ -164,17 +164,27 @@ const config = {
       border-collapse: collapse;
       width: 100%;
       margin: 16px 0;
+      table-layout: fixed;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      font-size: 9pt;
     }
     th {
       background-color: #f6f8fa;
       border: 1px solid #ddd;
-      padding: 10px;
+      padding: 8px;
       text-align: left;
       font-weight: bold;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     td {
       border: 1px solid #ddd;
-      padding: 10px;
+      padding: 8px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     blockquote {
       border-left: 4px solid #ddd;
