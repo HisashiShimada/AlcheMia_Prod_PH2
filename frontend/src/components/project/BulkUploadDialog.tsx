@@ -4,9 +4,10 @@
  * Ant Design v6を使用し、UIポリシーに準拠
  */
 
-import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { uploadFiles } from '@/services/fileAccessService';
+import React, { useState, useCallback, useRef } from 'react';
+import { uploadFiles, abortChunkUpload } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import type { UploadRetryState, UploadProgressState } from '@/types/file';
 import {
   Modal,
   Segmented,
@@ -31,7 +32,7 @@ import {
 } from '@ant-design/icons';
 import type { UploadFile, UploadProps, RcFile } from 'antd/es/upload/interface';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text } = Typography;
 const { Dragger } = Upload;
 
 /**
@@ -103,9 +104,15 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
     totalCount: 0,
     error: null,
   });
+  /** リトライ状態（null = リトライなし） */
+  const [retryState, setRetryState] = useState<UploadRetryState | null>(null);
+  /** ファイルごとのプログレスバー状態 */
+  const [fileProgressMap, setFileProgressMap] = useState<Map<string, UploadProgressState>>(new Map());
 
   // Refs
   const folderInputRef = useRef<HTMLInputElement>(null);
+  /** チャンクアップロード中のセッションID（キャンセル時に abort するために保持） */
+  const activeUploadIdsRef = useRef<string[]>([]);
 
   /**
    * アップロード先パスを構築
@@ -213,6 +220,13 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       return;
     }
 
+    // ファイルごとのプログレスバーを初期化
+    const initialProgressMap = new Map<string, UploadProgressState>();
+    fileList.forEach(f => {
+      initialProgressMap.set(f.name, { percent: 0, status: 'normal' });
+    });
+    setFileProgressMap(initialProgressMap);
+
     setUploadState({
       isUploading: true,
       progress: 0,
@@ -231,22 +245,19 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
           
           // フォルダモードで、かつnameにパスが含まれている場合
           if (uploadMode === 'folder' && f.name.includes('/')) {
-            // nameにパスを含む新しいFileオブジェクトを作成
-            // これによりバックエンドでfile.originalnameからパスを取得できる
             return new File([originFile], f.name, {
               type: originFile.type,
               lastModified: originFile.lastModified,
             });
           }
           
-          // フォルダモード以外はそのまま返す
           return originFile as File;
         })
         .filter((f): f is File => !!f);
 
       const targetPath = getTargetPath();
 
-      // API呼び出し（正しいパラメータ構造）
+      // API呼び出し（onRetry でリトライ状態を UI に通知）
       const response = await uploadFiles({
         uploadMode,
         targetPath,
@@ -256,11 +267,30 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
           batchName: batchName || undefined,
         },
         onProgress: (progress) => {
+          // リトライ成功後はリトライ表示をクリア
+          setRetryState(null);
+          // 全体進捗を更新
           setUploadState(prev => ({
             ...prev,
             progress: progress.percentage,
             uploadedCount: progress.uploadedCount,
           }));
+        },
+        onFileProgress: (fileName, percent, status) => {
+          // ファイルごとのプログレスバーを更新
+          setFileProgressMap(prev => {
+            const next = new Map(prev);
+            next.set(fileName, { percent, status });
+            return next;
+          });
+        },
+        onRetry: (state) => {
+          // リトライ発生時に状態を更新して UI に表示
+          setRetryState(state);
+        },
+        onSessionInit: (uploadId) => {
+          // チャンクアップロードセッション開始時に uploadId を記録
+          activeUploadIdsRef.current.push(uploadId);
         },
       });
 
@@ -310,7 +340,15 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
         content: 'アップロード処理が進行中です。キャンセルしますか？',
         okText: 'はい',
         cancelText: 'いいえ',
-        onOk: onClose,
+        onOk: async () => {
+          // チャンクアップロード中のセッションをすべて中断してサーバー一時ファイルを削除
+          const ids = activeUploadIdsRef.current;
+          if (ids.length > 0) {
+            await Promise.all(ids.map((id) => abortChunkUpload(id)));
+            activeUploadIdsRef.current = [];
+          }
+          onClose();
+        },
       });
     } else {
       onClose();
@@ -442,28 +480,39 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
                   overflowY: 'auto',
                 }}
               >
-                {fileList.slice(0, 10).map((file) => (
-                  <div
-                    key={file.uid}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      padding: '8px 0',
-                      borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
-                    }}
-                  >
-                    <Text
-                      ellipsis
-                      style={{ flex: 1, fontSize: 13 }}
-                      title={file.name}
+                {fileList.slice(0, 10).map((file) => {
+                  const fp = fileProgressMap.get(file.name);
+                  return (
+                    <div
+                      key={file.uid}
+                      style={{
+                        padding: '8px 0',
+                        borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                      }}
                     >
-                      {file.name}
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 12 }}>
-                      {formatFileSize(file.size || 0)}
-                    </Text>
-                  </div>
-                ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text
+                          ellipsis
+                          style={{ flex: 1, fontSize: 13 }}
+                          title={file.name}
+                        >
+                          {file.name}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 12 }}>
+                          {formatFileSize(file.size || 0)}
+                        </Text>
+                      </div>
+                      {fp && fp.status !== 'normal' && (
+                        <Progress
+                          percent={fp.percent}
+                          status={fp.status}
+                          size="small"
+                          style={{ marginTop: 4, marginBottom: 0 }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
                 {fileList.length > 10 && (
                   <div style={{ textAlign: 'center', padding: 8 }}>
                     <Text type="secondary" style={{ fontSize: 12 }}>
@@ -554,6 +603,16 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
               disabled={uploadState.isUploading}
             />
           </div>
+        )}
+
+        {/* リトライ中表示 */}
+        {retryState && uploadState.isUploading && (
+          <Alert
+            message={`接続エラーが発生しました。自動リトライ中... (${retryState.retryCount}/${retryState.maxRetries})`}
+            type="warning"
+            showIcon
+            icon={<LoadingOutlined />}
+          />
         )}
 
         {/* アップロード進行状況 */}

@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import { ingestSingleFileAsync } from '../services/singleFileIngestService';
 import UploadBatchRepository from '../repositories/UploadBatchRepository';
+import { ChunkUploadService } from '../services/chunkUploadService';
 
 /**
  * 単一ファイルダウンロード用署名付きURL取得エンドポイント
@@ -633,6 +634,156 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
         timestamp: new Date().toISOString(),
         requestId,
       },
+    });
+  }
+}
+
+/**
+ * チャンクアップロードセッション開始
+ * POST /api/v1/files/chunks/init
+ *
+ * uploadId（UUID）を発行し、一時ディレクトリを準備する。
+ */
+export async function initChunkUpload(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { fileName, totalChunks, filePath } = req.body;
+
+    const service = new ChunkUploadService();
+    const uploadId = service.initSession(fileName, filePath, Number(totalChunks));
+
+    res.status(200).json({
+      success: true,
+      data: { uploadId },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error: any) {
+    logError('Chunk upload init error', error, { action: 'chunk_upload_init', requestId });
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * チャンク受信
+ * POST /api/v1/files/chunks/:uploadId
+ *
+ * チャンクデータを受け取り、一時ディレクトリに保存する。
+ */
+export async function uploadChunk(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { uploadId } = req.params;
+    const chunkIndex = Number(req.body.chunkIndex);
+    const chunk = req.file;
+
+    if (!chunk) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'E1003', message: 'チャンクデータが存在しません' },
+        meta: { timestamp: new Date().toISOString(), requestId },
+      });
+      return;
+    }
+
+    const service = new ChunkUploadService();
+    const received = service.saveChunk(uploadId, chunkIndex, chunk.buffer);
+
+    res.status(200).json({
+      success: true,
+      data: { received },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error: any) {
+    logError('Chunk upload error', error, { action: 'chunk_upload', requestId });
+
+    const isNotFound = error.message?.includes('見つかりません');
+    res.status(isNotFound ? 404 : 500).json({
+      success: false,
+      error: {
+        code: isNotFound ? 'E6001' : 'E4001',
+        message: isNotFound ? error.message : 'システムエラーが発生しました',
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * チャンクアップロード中断
+ * DELETE /api/v1/files/chunks/:uploadId
+ *
+ * セッションを中断し、一時ファイルを削除する。
+ * ダイアログを閉じたときなど、complete を呼ばずに終了するときに使用する。
+ */
+export async function abortChunkUpload(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { uploadId } = req.params;
+
+    const service = new ChunkUploadService();
+    service.abortSession(uploadId);
+
+    res.status(200).json({
+      success: true,
+      data: { message: 'アップロードを中断しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error: any) {
+    logError('Chunk abort error', error, { action: 'chunk_abort', requestId });
+    res.status(500).json({
+      success: false,
+      error: { code: 'E4001', message: 'システムエラーが発生しました' },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  }
+}
+
+/**
+ * チャンク結合・アップロード完了
+ * POST /api/v1/files/chunks/:uploadId/complete
+ *
+ * 全チャンクを結合してストレージに保存し、一時ファイルを削除する。
+ */
+export async function completeChunkUpload(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+
+  try {
+    const { organizationId } = req.user!;
+    const { uploadId } = req.params;
+    const totalChunks = Number(req.body.totalChunks);
+    const contentType: string = req.body.contentType || 'application/octet-stream';
+
+    const service = new ChunkUploadService();
+    const result = await service.completeUpload(uploadId, organizationId, totalChunks, contentType);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        fileKey: result.fileKey,
+        fileSize: result.fileSize,
+        contentType: result.contentType,
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
+    });
+  } catch (error: any) {
+    logError('Chunk complete error', error, { action: 'chunk_complete', requestId });
+
+    const isNotFound = error.message?.includes('見つかりません');
+    const isMismatch = error.message?.includes('チャンク数が不一致');
+    res.status(isNotFound || isMismatch ? 400 : 500).json({
+      success: false,
+      error: {
+        code: isNotFound || isMismatch ? 'E1003' : 'E4001',
+        message: isNotFound || isMismatch ? error.message : 'システムエラーが発生しました',
+      },
+      meta: { timestamp: new Date().toISOString(), requestId },
     });
   }
 }

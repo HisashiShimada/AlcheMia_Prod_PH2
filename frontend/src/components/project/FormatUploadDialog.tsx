@@ -5,8 +5,9 @@
  */
 
 import React, { useState, useCallback, useRef } from 'react';
-import { uploadFiles } from '@/services/fileAccessService';
+import { uploadFiles, abortChunkUpload } from '@/services/fileAccessService';
 import { extractErrorMessage } from '@/utils/errorUtils';
+import type { UploadProgressState, UploadRetryState } from '@/types/file';
 import {
   Modal,
   Segmented,
@@ -109,9 +110,15 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
     totalCount: 0,
     error: null,
   });
+  /** ファイルごとのプログレスバー状態 (key: ファイル名) */
+  const [fileProgressMap, setFileProgressMap] = useState<Map<string, UploadProgressState>>(new Map());
+  /** リトライ状態（null = リトライなし） */
+  const [retryState, setRetryState] = useState<UploadRetryState | null>(null);
 
   // Refs
   const folderInputRef = useRef<HTMLInputElement>(null);
+  /** チャンクアップロード中のセッションID（キャンセル時に abort するために保持） */
+  const activeUploadIdsRef = useRef<string[]>([]);
 
   /**
    * モード変更時のファイルリストクリア
@@ -212,6 +219,13 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
       return;
     }
 
+    // ファイルごとのプログレスバーを初期化
+    const initialProgressMap = new Map<string, UploadProgressState>();
+    fileList.forEach(f => {
+      initialProgressMap.set(f.name, { percent: 0, status: 'normal' });
+    });
+    setFileProgressMap(initialProgressMap);
+
     setUploadState({
       isUploading: true,
       progress: 0,
@@ -230,22 +244,26 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           
           // フォルダモードで、かつnameにパスが含まれている場合
           if (uploadMode === 'folder' && f.name.includes('/')) {
-            // nameにパスを含む新しいFileオブジェクトを作成
-            // これによりバックエンドでfile.originalnameからパスを取得できる
             return new File([originFile], f.name, {
               type: originFile.type,
               lastModified: originFile.lastModified,
             });
           }
           
-          // フォルダモード以外はそのまま返す
           return originFile as File;
         })
         .filter((f): f is File => !!f);
 
       const targetPath = getTargetPath();
 
-      // API呼び出し
+      // アップロード中: すべてのファイルを active 状態に
+      setFileProgressMap(prev => {
+        const next = new Map(prev);
+        files.forEach(f => next.set(f.name, { percent: 0, status: 'active' }));
+        return next;
+      });
+
+      // API呼び出し（onRetry でリトライ状態を UI に通知）
       const response = await uploadFiles({
         uploadMode,
         targetPath,
@@ -254,15 +272,45 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           formatId: baseFolder.id,
         },
         onProgress: (progress) => {
+          // リトライ成功後はリトライ表示をクリア
+          setRetryState(null);
+          // 全体進捗を更新
           setUploadState(prev => ({
             ...prev,
             progress: progress.percentage,
             uploadedCount: progress.uploadedCount,
           }));
+          // 現在送信中のファイルのプログレスバーを更新
+          const currentFile = files[progress.uploadedCount];
+          if (currentFile) {
+            setFileProgressMap(prev => {
+              const next = new Map(prev);
+              next.set(currentFile.name, {
+                percent: progress.percentage,
+                status: progress.percentage >= 100 ? 'success' : 'active',
+              });
+              return next;
+            });
+          }
+        },
+        onRetry: (state) => {
+          // リトライ発生時に状態を更新して UI に表示
+          setRetryState(state);
+        },
+        onSessionInit: (uploadId) => {
+          // チャンクアップロードセッション開始時に uploadId を記録
+          activeUploadIdsRef.current.push(uploadId);
         },
       });
 
       if (response) {
+        // 全ファイルを success 状態に
+        setFileProgressMap(prev => {
+          const next = new Map(prev);
+          files.forEach(f => next.set(f.name, { percent: 100, status: 'success' }));
+          return next;
+        });
+
         message.success('アップロードが完了しました');
         
         if (onUploadComplete) {
@@ -277,6 +325,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         setTimeout(() => {
           setFileList([]);
           setSubFolderPath('');
+          setFileProgressMap(new Map());
           setUploadState({
             isUploading: false,
             progress: 100,
@@ -288,6 +337,16 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
       }
     } catch (error) {
       const errorMessage = extractErrorMessage(error);
+      // エラー時: アップロード中のファイルを exception 状態に
+      setFileProgressMap(prev => {
+        const next = new Map(prev);
+        next.forEach((val, key) => {
+          if (val.status === 'active') {
+            next.set(key, { ...val, status: 'exception' });
+          }
+        });
+        return next;
+      });
       setUploadState(prev => ({
         ...prev,
         isUploading: false,
@@ -307,7 +366,15 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         content: 'アップロード処理が進行中です。キャンセルしますか？',
         okText: 'はい',
         cancelText: 'いいえ',
-        onOk: onClose,
+        onOk: async () => {
+          // チャンクアップロード中のセッションをすべて中断してサーバー一時ファイルを削除
+          const ids = activeUploadIdsRef.current;
+          if (ids.length > 0) {
+            await Promise.all(ids.map((id) => abortChunkUpload(id)));
+            activeUploadIdsRef.current = [];
+          }
+          onClose();
+        },
       });
     } else {
       onClose();
@@ -462,28 +529,39 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
                   overflowY: 'auto',
                 }}
               >
-                {fileList.slice(0, 10).map((file) => (
-                  <div
-                    key={file.uid}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      padding: '8px 0',
-                      borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
-                    }}
-                  >
-                    <Text
-                      ellipsis
-                      style={{ flex: 1, fontSize: 13 }}
-                      title={file.name}
+                {fileList.slice(0, 10).map((file) => {
+                  const fileProgress = fileProgressMap.get(file.name);
+                  return (
+                    <div
+                      key={file.uid}
+                      style={{
+                        padding: '8px 0',
+                        borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
+                      }}
                     >
-                      {file.name}
-                    </Text>
-                    <Text type="secondary" style={{ fontSize: 12, marginLeft: 12 }}>
-                      {formatFileSize(file.size || 0)}
-                    </Text>
-                  </div>
-                ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text
+                          ellipsis
+                          style={{ flex: 1, fontSize: 13 }}
+                          title={file.name}
+                        >
+                          {file.name}
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 12, marginLeft: 12 }}>
+                          {formatFileSize(file.size || 0)}
+                        </Text>
+                      </div>
+                      {fileProgress && fileProgress.status !== 'normal' && (
+                        <Progress
+                          percent={fileProgress.percent}
+                          status={fileProgress.status}
+                          size="small"
+                          style={{ marginTop: 4 }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
                 {fileList.length > 10 && (
                   <div style={{ textAlign: 'center', padding: 8 }}>
                     <Text type="secondary" style={{ fontSize: 12 }}>
@@ -562,6 +640,16 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
               サブフォルダを指定しない場合は、選択フォーマットフォルダ直下にアップロードされます
             </Text>
           </div>
+        )}
+
+        {/* リトライ中表示 */}
+        {retryState && uploadState.isUploading && (
+          <Alert
+            message={`接続エラーが発生しました。自動リトライ中... (${retryState.retryCount}/${retryState.maxRetries})`}
+            type="warning"
+            showIcon
+            icon={<LoadingOutlined />}
+          />
         )}
 
         {/* アップロード進行状況 */}
