@@ -10,6 +10,7 @@ import React, { useState } from 'react';
 import { Form, Input, Button, Alert, Typography, Space, theme } from 'antd';
 import { LockOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { resetPassword } from '../../utils/authApi';
+import { extractErrorMessage } from '@/utils/errorUtils';
 
 const { Title, Paragraph, Text } = Typography;
 const { useToken } = theme;
@@ -61,7 +62,7 @@ export default function PasswordResetExecute({
       
       onSuccess();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '予期しないエラーが発生しました';
+      const errorMessage = extractErrorMessage(err);
       setError(errorMessage);
       onError(errorMessage);
     } finally {

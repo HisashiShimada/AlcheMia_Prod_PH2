@@ -1320,7 +1320,7 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             overflowY: 'auto'
           }
         }}
-        okText="取り込み"
+        okText="取り込む"
         cancelText="キャンセル"
         okButtonProps={{ disabled: !selectedNamespaceFile }}
       >

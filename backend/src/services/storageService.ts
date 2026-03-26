@@ -15,6 +15,8 @@ import {
   ListObjectsV2Command,
   HeadObjectCommand,
   CopyObjectCommand,
+  HeadBucketCommand,
+  CreateBucketCommand,
   PutObjectCommandInput,
   GetObjectCommandInput,
   DeleteObjectCommandInput,
@@ -423,6 +425,41 @@ export class StorageService {
     }
     
     console.log(`${folderPaths.length} folder(s) created`);
+  }
+
+  /**
+   * バケット/コンテナの存在確認・自動作成
+   * 
+   * Swift 起動直後（バケット未作成状態）でも自動で指定コンテナを作成する。
+   * Swift/S3 どちらの環境でも動作する。
+   * 
+   * @remarks
+   * - バケットが存在する場合: 何もしない
+   * - バケットが存在しない場合: 自動作成する
+   * - Swift/S3 が未起動の場合: 警告ログを出力して続行（起動を妨げない）
+   */
+  async ensureBucketExists(): Promise<void> {
+    try {
+      // バケット/コンテナの存在確認
+      await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucketName }));
+      console.log(`✅ Bucket/Container already exists: ${this.bucketName}`);
+    } catch (error: any) {
+      const statusCode = error.$metadata?.httpStatusCode;
+
+      if (statusCode === 404 || error.name === 'NotFound' || error.name === 'NoSuchBucket') {
+        // バケットが存在しない → 作成する
+        console.log(`⚠️  Bucket/Container not found. Creating: ${this.bucketName}`);
+        try {
+          await this.s3Client.send(new CreateBucketCommand({ Bucket: this.bucketName }));
+          console.log(`✅ Bucket/Container created: ${this.bucketName}`);
+        } catch (createError: any) {
+          console.warn(`⚠️  Failed to create bucket/container "${this.bucketName}": ${createError.message}`);
+        }
+      } else {
+        // 接続エラー等（Swift/S3未起動含む）→ 警告のみでサーバー起動は続行
+        console.warn(`⚠️  Could not verify bucket/container "${this.bucketName}": ${error.message}`);
+      }
+    }
   }
 
   /**

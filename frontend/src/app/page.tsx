@@ -489,7 +489,7 @@ function HomeContent() {
       console.error('Logout API error:', error);
       
       // 401エラーの場合は自動ログアウトイベントで処理されるため、メッセージを表示しない
-      if (error instanceof AuthServiceError && error.code === 'AUTH_TOKEN_EXPIRED') {
+      if (error instanceof AuthServiceError && error.code === 'E5002') {
         // メッセージ表示なし（自動ログアウトイベントで表示済み）
       } else if (error instanceof AuthServiceError) {
         messageApi.warning(`ログアウト処理でエラーが発生しましたが、ローカル状態をクリアしました: ${error.message}`);

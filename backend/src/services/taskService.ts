@@ -206,7 +206,7 @@ export async function updateTaskStatus(
       return {
         success: false,
         error: {
-          code: 'VALIDATION_ERROR',
+          code: 'E1003',
           message: 'currentUpdateAt is required'
         }
       };
@@ -218,7 +218,7 @@ export async function updateTaskStatus(
       return {
         success: false,
         error: {
-          code: 'VALIDATION_ERROR',
+          code: 'E1003',
           message: 'currentUpdateAt must be a valid ISO8601 date'
         }
       };
@@ -238,7 +238,7 @@ export async function updateTaskStatus(
       return {
         success: false,
         error: {
-          code: 'VALIDATION_ERROR',
+          code: 'E1003',
           message: 'Invalid status value'
         }
       };
@@ -264,7 +264,7 @@ export async function updateTaskStatus(
       // タスクが存在しない場合
       if (!currentTask) {
         throw {
-          code: 'RESOURCE_NOT_FOUND',
+          code: 'E6001',
           message: 'Task not found'
         };
       }
@@ -272,7 +272,7 @@ export async function updateTaskStatus(
       // マルチテナント分離: organization_idの一致を検証
       if (currentTask.organization_id !== params.organizationId) {
         throw {
-          code: 'RESOURCE_NOT_FOUND',
+          code: 'E6001',
           message: 'Task not found'
         };
       }

@@ -37,7 +37,7 @@ export async function getFormats(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'フォーマット一覧の取得に失敗しました',
         details:
           process.env.NODE_ENV === 'development'
@@ -121,17 +121,17 @@ async function createFormatFolder(
     // エラーメッセージに応じてステータスコードを設定
     const errorMessage = (error as Error).message;
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
 
     if (errorMessage.includes('英数字とアンダースコア')) {
       statusCode = 400;
-      errorCode = 'INVALID_FOLDER_NAME';
+      errorCode = 'E1006';
     } else if (errorMessage.includes('1〜255文字')) {
       statusCode = 400;
-      errorCode = 'INVALID_FOLDER_NAME_LENGTH';
+      errorCode = 'E1006';
     } else if (errorMessage.includes('既に存在')) {
       statusCode = 409;
-      errorCode = 'FOLDER_ALREADY_EXISTS';
+      errorCode = 'E6006';
     }
 
     res.status(statusCode).json({
@@ -185,23 +185,23 @@ async function createFormatSubfolder(
     // エラーメッセージに応じてステータスコードを設定
     const errorMessage = (error as Error).message;
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
 
     if (errorMessage.includes('英数字') || errorMessage.includes('アンダースコア') || errorMessage.includes('ハイフン')) {
       statusCode = 400;
-      errorCode = 'INVALID_SUBFOLDER_NAME';
+      errorCode = 'E1007';
     } else if (errorMessage.includes('1〜255文字')) {
       statusCode = 400;
-      errorCode = 'INVALID_SUBFOLDER_NAME_LENGTH';
+      errorCode = 'E1007';
     } else if (errorMessage.includes('既に存在')) {
       statusCode = 409;
-      errorCode = 'FOLDER_ALREADY_EXISTS';
+      errorCode = 'E6006';
     } else if (errorMessage.includes('親フォルダが存在しません')) {
       statusCode = 404;
-      errorCode = 'PARENT_FOLDER_NOT_FOUND';
+      errorCode = 'E6004';
     } else if (errorMessage.includes('フォーマット名が指定されていません')) {
       statusCode = 400;
-      errorCode = 'FORMAT_NAME_REQUIRED';
+      errorCode = 'E1009';
     }
 
     res.status(statusCode).json({
@@ -267,14 +267,14 @@ async function createFormatFile(
     // エラーメッセージに応じてステータスコードを設定
     const errorMessage = (error as Error).message;
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
 
     if (errorMessage.includes('既に存在')) {
       statusCode = 409;
-      errorCode = 'FILE_ALREADY_EXISTS';
+      errorCode = 'E6005';
     } else if (errorMessage.includes('フォルダが見つかりません')) {
       statusCode = 404;
-      errorCode = 'FOLDER_NOT_FOUND';
+      errorCode = 'E6003';
     }
 
     res.status(statusCode).json({
@@ -326,7 +326,7 @@ async function updateFormatFile(
       res.status(400).json({
         success: false,
         error: {
-          code: 'INVALID_CONTENT',
+          code: 'E1008',
           message: 'ファイル内容が不正です',
         },
       });
@@ -354,14 +354,14 @@ async function updateFormatFile(
     // エラーメッセージに応じてステータスコードを設定
     const errorMessage = (error as Error).message;
     let statusCode = 500;
-    let errorCode = 'SYSTEM_ERROR';
+    let errorCode = 'E4001';
 
     if (errorMessage.includes('見つかりません')) {
       statusCode = 404;
-      errorCode = 'FILE_NOT_FOUND';
+      errorCode = 'E6002';
     } else if (errorMessage.includes('不正です')) {
       statusCode = 400;
-      errorCode = 'INVALID_CONTENT';
+      errorCode = 'E1008';
     }
 
     res.status(statusCode).json({

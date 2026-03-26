@@ -288,7 +288,7 @@ export async function uploadRolesCsv(
   if (errors.length > 0) {
     throw {
       statusCode: 400,
-      code: 'VALIDATION_ERROR',
+      code: 'E1003',
       message: getMessage(lang, 'role.csv.validationError'),
       details: errors,
     };

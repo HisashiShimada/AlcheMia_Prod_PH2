@@ -36,12 +36,12 @@ export async function create(req: Request, res: Response): Promise<void> {
 
     // エラーハンドリング
     if (!result.success) {
-      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      const errorCode = result.error?.code || 'E4001';
       let statusCode = 500;
 
-      if (errorCode === 'RESOURCE_NOT_FOUND') {
+      if (errorCode === 'E6001') {
         statusCode = 404;
-      } else if (errorCode.startsWith('VALIDATION_')) {
+      } else if (errorCode.startsWith('E1')) {
         statusCode = 400;
       } else if (errorCode.startsWith('BUSINESS_')) {
         statusCode = 409;
@@ -81,7 +81,7 @@ export async function create(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -125,12 +125,12 @@ export async function list(req: Request, res: Response): Promise<void> {
 
     // エラーハンドリング
     if (!result.success) {
-      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      const errorCode = result.error?.code || 'E4001';
       let statusCode = 500;
 
-      if (errorCode === 'RESOURCE_NOT_FOUND') {
+      if (errorCode === 'E6001') {
         statusCode = 404;
-      } else if (errorCode.startsWith('VALIDATION_')) {
+      } else if (errorCode.startsWith('E1')) {
         statusCode = 400;
       }
 
@@ -168,7 +168,7 @@ export async function list(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -193,7 +193,7 @@ export async function getById(req: Request, res: Response): Promise<void> {
       res.status(401).json({
         success: false,
         error: {
-          code: 'AUTH_TOKEN_INVALID',
+          code: 'E5002',
           message: '認証が必要です',
         },
         meta: {
@@ -213,7 +213,7 @@ export async function getById(req: Request, res: Response): Promise<void> {
       res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_INVALID_FORMAT',
+          code: 'E1005',
           message: 'issueIdはUUID形式である必要があります',
           details: [{
             field: 'issueId',
@@ -234,12 +234,12 @@ export async function getById(req: Request, res: Response): Promise<void> {
 
     // エラーハンドリング
     if (!result.success) {
-      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      const errorCode = result.error?.code || 'E4001';
       let statusCode = 500;
 
-      if (errorCode === 'RESOURCE_NOT_FOUND') {
+      if (errorCode === 'E6001') {
         statusCode = 404;
-      } else if (errorCode.startsWith('VALIDATION_')) {
+      } else if (errorCode.startsWith('E1')) {
         statusCode = 400;
       }
 
@@ -277,7 +277,7 @@ export async function getById(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -316,14 +316,14 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
 
     // エラーハンドリング
     if (!result.success) {
-      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      const errorCode = result.error?.code || 'E4001';
       let statusCode = 500;
 
-      if (errorCode === 'RESOURCE_NOT_FOUND') {
+      if (errorCode === 'E6001') {
         statusCode = 404;
-      } else if (errorCode.startsWith('VALIDATION_')) {
+      } else if (errorCode.startsWith('E1')) {
         statusCode = 400;
-      } else if (errorCode === 'PERMISSION_INSUFFICIENT') {
+      } else if (errorCode === 'E5015') {
         statusCode = 403;
       }
 
@@ -374,7 +374,7 @@ export async function updateStatus(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {
@@ -402,12 +402,12 @@ export async function addComment(req: Request, res: Response): Promise<void> {
 
     // エラーハンドリング
     if (!result.success) {
-      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      const errorCode = result.error?.code || 'E4001';
       let statusCode = 500;
 
-      if (errorCode === 'RESOURCE_NOT_FOUND') {
+      if (errorCode === 'E6001') {
         statusCode = 404;
-      } else if (errorCode.startsWith('VALIDATION_')) {
+      } else if (errorCode.startsWith('E1')) {
         statusCode = 400;
       }
 
@@ -445,7 +445,7 @@ export async function addComment(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       success: false,
       error: {
-        code: 'SYSTEM_ERROR',
+        code: 'E4001',
         message: 'システムエラーが発生しました',
       },
       meta: {

@@ -81,7 +81,7 @@ export class RefreshTokenService {
         return {
           success: false,
           error: {
-            code: 'AUTH_TOKEN_EXPIRED',
+            code: 'E5002',
             message: 'Token has already expired'
           }
         };

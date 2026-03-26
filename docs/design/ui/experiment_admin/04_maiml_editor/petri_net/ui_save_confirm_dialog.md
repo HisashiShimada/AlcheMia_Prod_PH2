@@ -187,7 +187,7 @@ SaveConfirmDialogは、Petri Net編集画面でMAIMLファイルを保存する�
 - Tag: "→ S3" または "→ ダウンロード"
 
 **キャンセルボタン:**
-- ラベル: "キャンセル"
+- ラベル: "閉じる"
 - アイコン: CloseCircleOutlined
 - タイプ: default
 

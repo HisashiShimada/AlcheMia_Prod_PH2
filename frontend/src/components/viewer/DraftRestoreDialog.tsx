@@ -1,15 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Modal, Button, Space, Alert, Typography } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
-
-const { Text } = Typography;
+import { Modal, Button, Space } from 'antd';
+import { ExclamationCircleOutlined } from '@ant-design/icons';
 
 /**
  * Draft復元確認ダイアログ
- * 
- * ローカルストレージに保存されているDraftデータを復元するかどうかをユーザーに確認する
+ *
+ * サーバーに保存されたDraftデータを復元するかどうかをユーザーに確認する。
+ * ボタンは「新規作成」と「復元する」（バックエンドDraftがある場合）の2択のみ表示する。
  */
 
 interface DraftRestoreDialogProps {
@@ -17,81 +16,59 @@ interface DraftRestoreDialogProps {
   open: boolean;
   /** ダイアログを閉じるコールバック */
   onClose: () => void;
-  /** Draft復元を選択したときのコールバック */
+  /** LocalStorage Draft復元を選択したときのコールバック（現在未使用・後方互換のために残す） */
   onRestoreDraft: () => void;
-  /** 新規作成/既存ファイルを開くを選択したときのコールバック */
+  /** 新規作成を選択したときのコールバック */
   onCreateNew: () => void;
-  /** Draft情報 */
-  draftInfo: {
-    /** 最終保存日時 */
+  /** LocalStorage Draft情報（後方互換のために残す。表示には使用しない） */
+  draftInfo?: {
     savedAt: string;
-    /** Method数 */
     methodCount: number;
-    /** ノード数 */
     nodeCount: number;
-  };
+  } | null;
+  /** バックエンドDraftが存在するかどうか */
+  hasBackendDraft?: boolean;
+  /** バックエンドDraftから復元を選択したときのコールバック */
+  onRestoreBackendDraft?: () => void;
 }
 
-/**
- * Draft復元確認ダイアログコンポーネント
- */
 export default function DraftRestoreDialog({
   open,
   onClose,
-  onRestoreDraft,
   onCreateNew,
-  draftInfo
+  hasBackendDraft = false,
+  onRestoreBackendDraft,
 }: DraftRestoreDialogProps) {
+  const footer: React.ReactNode[] = [
+    <Button key="new" onClick={onCreateNew}>
+      復元しない
+    </Button>,
+  ];
+
+  if (hasBackendDraft && onRestoreBackendDraft) {
+    footer.push(
+      <Button key="restore-backend" type="primary" onClick={onRestoreBackendDraft}>
+        復元する
+      </Button>
+    );
+  }
+
   return (
     <Modal
       title={
         <Space>
-          <InfoCircleOutlined style={{ color: '#1890ff' }} />
-          <span>一時保存データの復元</span>
+          <ExclamationCircleOutlined style={{ color: '#faad14' }} />
+          <span>編集中のデータが見つかりました</span>
         </Space>
       }
       open={open}
       onCancel={onClose}
-      footer={[
-        <Button key="new" onClick={onCreateNew}>
-          新規作成/既存ファイルを開く
-        </Button>,
-        <Button key="restore" type="primary" onClick={onRestoreDraft}>
-          一時保存を復元する
-        </Button>
-      ]}
-      width={500}
+      footer={footer}
+      width={420}
     >
-      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-        <Alert
-          message="一時保存データが見つかりました"
-          description={`最終保存: ${new Date(draftInfo.savedAt).toLocaleString('ja-JP')}`}
-          type="info"
-          showIcon
-        />
-        
-        <div style={{ 
-          padding: '16px', 
-          background: '#f5f5f5', 
-          borderRadius: '4px' 
-        }}>
-          <Space orientation="vertical" size="small">
-            <Text>
-              <strong>Method数:</strong> {draftInfo.methodCount}
-            </Text>
-            <Text>
-              <strong>ノード数:</strong> {draftInfo.nodeCount}
-            </Text>
-          </Space>
-        </div>
-
-        <Alert
-          message="注意"
-          description="一時保存を復元しない場合、最新の保存済みファイルまたは新規作成から開始します。"
-          type="warning"
-          showIcon
-        />
-      </Space>
+      <p style={{ margin: '16px 0' }}>
+        前回の編集データが保存されています。復元しますか？
+      </p>
     </Modal>
   );
 }
