@@ -7,18 +7,30 @@
 
 ---
 
+## 0. テスト実施情報
+
+| 項目 | 値 |
+|------|-----|
+| テスト実施日 | - |
+| テスト実施者 | - |
+| テスト環境バージョン | - |
+| 総合判定 | - |
+| 備考 | - |
+
+---
+
 ## 1. テスト対象スコープ（確定版）
 
 ### スコープ内
 
-| テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 |
-|----------------|----------------|------|-----------|-----------|
-| **5-1** | プロジェクト・メソッド・タスク選択 | 要件書#1、追加機能A/B | 9件 | Playwright自動 |
-| **5-2** | 実験記録（トランジション記録） | 要件書#2〜7、追加機能L/M/N/Q | 26件 | Playwright自動 |
-| **5-3** | 問題報告・ステータス変更 | 要件書（なし）、追加機能D/E/F/G | 17件 | Playwright自動 |
-| **5-4** | 指示確認 | 要件書#8、追加機能H/I/J/O/P | 10件 | Playwright自動 |
-| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K | 16件 | Playwright自動 |
-| **合計** | - | - | **78件** | - |
+| テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
+|----------------|----------------|------|-----------|-----------|------|-------|-------|
+| **5-1** | プロジェクト・メソッド・タスク選択 | 要件書#1、追加機能A/B | 9件 | Playwright自動 | - | - | 9 |
+| **5-2** | 実験記録（トランジション記録） | 要件書#2〜7、追加機能L/M/N/Q | 26件 | Playwright自動 | - | - | 26 |
+| **5-3** | 問題報告・ステータス変更 | 要件書（なし）、追加機能D/E/F/G | 17件 | Playwright自動 | - | - | 17 |
+| **5-4** | 指示確認 | 要件書#8、追加機能H/I/J/O/P | 10件 | Playwright自動 | - | - | 10 |
+| **5-5** | 進捗確認・承認依頼 | 要件書#1、追加機能C/K | 16件 | Playwright自動 | - | - | 16 |
+| **合計** | - | - | **78件** | - | - | - | - |
 
 ### スコープ外
 
@@ -34,17 +46,17 @@
 
 ### 5-1: プロジェクト・メソッド・タスク選択
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 5-1-1 | プロジェクト選択コンボボックスで実験作業可能なプロジェクトが表示されること | 正常系 | 追加機能A | GET `/api/v1/projects/worker-accessible` |
-| 5-1-2 | 「選択」ボタンでプロジェクト選択モーダルが開くこと | 正常系 | 追加機能A | - |
-| 5-1-3 | プロジェクト変更時にメソッドとタスクがリセットされること | 正常系 | `ui_experiment_worker_main.md` §8.1 | - |
-| 5-1-4 | メソッド・タスク選択モーダルでメソッドタブを切り替えてタスクを選択できること | 正常系 | 追加機能B | - |
-| 5-1-5 | メソッド・タスク選択モーダルでタスク名フィルタが機能すること | 正常系 | `ui_method_task_selection_modal.md` §7.2 | - |
-| 5-1-6 | プロジェクト選択モーダルでプロジェクト名・プロジェクトコードのあいまい検索が機能すること | 正常系 | `ui_project_selection_modal.md` §6.1 | - |
-| 5-1-7 | プロジェクト選択モーダルでプロジェクト名フィルターが機能すること | 正常系 | `ui_project_selection_modal.md` §6.2 | - |
-| 5-1-8 | メソッド・タスク選択モーダルでステータスフィルターが機能すること | 正常系 | `ui_method_task_selection_modal.md` §7.2 | - |
-| 5-1-9 | メソッド・タスク選択モーダルで複数フィルター条件がAND条件で適用されること | 正常系 | `ui_method_task_selection_modal.md` §7.2 | - |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 5-1-1 | プロジェクト選択コンボボックスで実験作業可能なプロジェクトが表示されること | 正常系 | 追加機能A | GET `/api/v1/projects/worker-accessible` | － | |
+| 5-1-2 | 「選択」ボタンでプロジェクト選択モーダルが開くこと | 正常系 | 追加機能A | - | － | |
+| 5-1-3 | プロジェクト変更時にメソッドとタスクがリセットされること | 正常系 | `ui_experiment_worker_main.md` §8.1 | - | － | |
+| 5-1-4 | メソッド・タスク選択モーダルでメソッドタブを切り替えてタスクを選択できること | 正常系 | 追加機能B | - | － | |
+| 5-1-5 | メソッド・タスク選択モーダルでタスク名フィルタが機能すること | 正常系 | `ui_method_task_selection_modal.md` §7.2 | - | － | |
+| 5-1-6 | プロジェクト選択モーダルでプロジェクト名・プロジェクトコードのあいまい検索が機能すること | 正常系 | `ui_project_selection_modal.md` §6.1 | - | － | |
+| 5-1-7 | プロジェクト選択モーダルでプロジェクト名フィルターが機能すること | 正常系 | `ui_project_selection_modal.md` §6.2 | - | － | |
+| 5-1-8 | メソッド・タスク選択モーダルでステータスフィルターが機能すること | 正常系 | `ui_method_task_selection_modal.md` §7.2 | - | － | |
+| 5-1-9 | メソッド・タスク選択モーダルで複数フィルター条件がAND条件で適用されること | 正常系 | `ui_method_task_selection_modal.md` §7.2 | - | － | |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み
@@ -55,34 +67,34 @@
 
 ### 5-2: 実験記録（トランジション記録）
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 5-2-1 | 実験記録タブでトランジション一覧が表示されること | 正常系 | 要件書#2 | GET `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` |
-| 5-2-2 | トランジションの「記録」ボタンでデータ記録ダイアログが開くこと | 正常系 | 要件書#3〜7 | - |
-| 5-2-3 | データ記録ダイアログでテンプレートデータを入力して保存できること | 正常系 | 要件書#3〜7 | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` |
-| 5-2-4 | プロジェクト未選択時は記録ボタンが無効化されていること | 表示確認 | `ui_transition_list.md` §4.4 | - |
-| 5-2-5 | トランジション一覧に名称・ステータス・進捗率・材料数・条件数・結果数・記録ボタン・問題報告ボタンの各列が正しく表示されること | 表示確認 | 追加機能L、`ui_transition_list.md` | GET `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` |
-| 5-2-6 | 表示切り替えボタンでリスト表示⇄フロー図表示を切り替えられること | 正常系 | 追加機能L、`ui_experiment_record_tab.md` §3.2 | - |
-| 5-2-7 | フロー図表示でトランジションノードが表示されること | 表示確認 | 追加機能L、`ui_transition_flow_diagram.md` | - |
-| 5-2-8 | データ記録ダイアログ表示時に既存テンプレートデータが取得されること | 正常系 | `ui_data_record_dialog.md` §5.4 | GET `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` |
-| 5-2-9 | 既存データが存在するテンプレート行に記録済みバッジ（緑ドット）が表示されること | 表示確認 | `ui_data_record_dialog.md` §3.3 | - |
-| 5-2-10 | データ記録ダイアログで「みなし進捗更新」チェックボックスがON（初期状態）の場合にステータス更新セクションが非表示になること | 表示確認 | `ui_data_record_dialog.md` §3.1 | - |
-| 5-2-11 | データ記録ダイアログで「みなし進捗更新」チェックボックスをOFFにするとステータス更新セクション（ステータス選択・進捗スライダー・コメント）が表示されること | 表示確認 | `ui_data_record_dialog.md` §3.1、§4.4 | - |
-| 5-2-12 | 組織設定でみなし進捗を使用しない場合、チェックボックスが非表示でステータス更新セクションが常時表示されること | 表示確認 | `ui_data_record_dialog.md` §3.1（useDeemedProgressProp=false） | - |
-| 5-2-13 | みなし進捗OFFの状態でトランジションステータスを選択して保存ボタンを押すとステータスが更新されること | 正常系 | `ui_data_record_dialog.md` §4.4 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` |
-| 5-2-14 | みなし進捗OFFの状態で進捗率スライダーを操作して保存ボタンを押すと進捗率が更新されること | 正常系 | `ui_data_record_dialog.md` §3.1、§4.4 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` |
-| 5-2-15 | 終端ステータス（終状態=5、異常終了状態=6）の場合にステータス選択が無効化されること | 表示確認 | `ui_data_record_dialog.md` §3.3（終端ステータス） | - |
-| 5-2-16 | プロジェクトステータスが編集不可（waiting_approval）の場合にデータ記録ダイアログのステータス更新セクションが折りたたまれた状態で表示されること | 表示確認 | `ui_data_record_dialog.md` §10.1 | - |
-| 5-2-17 | データ記録ダイアログにテンプレート一覧（材料IN/条件IN/結果OUT）が表示されること | 表示確認 | `ui_data_record_dialog.md` §3.3 | - |
-| 5-2-18 | テンプレート名検索でテンプレート一覧が絞り込まれること | 正常系 | `ui_data_record_dialog.md` §3.1 | - |
-| 5-2-19 | テンプレート種別（材料/条件/結果）フィルタでテンプレート一覧が絞り込まれること | 正常系 | `ui_data_record_dialog.md` §3.1 | - |
-| 5-2-20 | テンプレートを選択するとプロパティ入力フォームが表示されること | 正常系 | `ui_data_record_dialog.md` §4.2 | - |
-| 5-2-21 | テンプレート未選択時に「テンプレートを選択してください」のメッセージが表示されること | 表示確認 | `ui_data_record_dialog.md` §3.3 | - |
-| 5-2-22 | DataGridタイプのプロパティで行・列を追加・削除できること | 正常系 | `ui_data_record_dialog.md` §3.2、§4.3 | - |
-| 5-2-23 | 必須プロパティが未入力の場合に保存ボタンを押すとバリデーションエラーが表示されること | 異常系 | `ui_data_record_dialog.md` §6.1 | - |
-| 5-2-24 | プロパティリストタイプのプロパティで項目を追加・削除できること | 正常系 | `ui_data_record_dialog.md` §3.1、§3.2 | - |
-| 5-2-25 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にデータ記録ダイアログで実験データの入力・保存ができないこと | 表示確認 | `ui_data_record_dialog.md` §10.1 | - |
-| 5-2-26 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にデータ記録ダイアログでステータスが更新できないこと | 表示確認 | `ui_data_record_dialog.md` §10.1 | - |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 5-2-1 | 実験記録タブでトランジション一覧が表示されること | 正常系 | 要件書#2 | GET `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | － | |
+| 5-2-2 | トランジションの「記録」ボタンでデータ記録ダイアログが開くこと | 正常系 | 要件書#3〜7 | - | － | |
+| 5-2-3 | データ記録ダイアログでテンプレートデータを入力して保存できること | 正常系 | 要件書#3〜7 | POST `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | － | |
+| 5-2-4 | プロジェクト未選択時は記録ボタンが無効化されていること | 表示確認 | `ui_transition_list.md` §4.4 | - | － | |
+| 5-2-5 | トランジション一覧に名称・ステータス・進捗率・材料数・条件数・結果数・記録ボタン・問題報告ボタンの各列が正しく表示されること | 表示確認 | 追加機能L、`ui_transition_list.md` | GET `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/transitions` | － | |
+| 5-2-6 | 表示切り替えボタンでリスト表示⇄フロー図表示を切り替えられること | 正常系 | 追加機能L、`ui_experiment_record_tab.md` §3.2 | - | － | |
+| 5-2-7 | フロー図表示でトランジションノードが表示されること | 表示確認 | 追加機能L、`ui_transition_flow_diagram.md` | - | － | |
+| 5-2-8 | データ記録ダイアログ表示時に既存テンプレートデータが取得されること | 正常系 | `ui_data_record_dialog.md` §5.4 | GET `/api/v1/experiments/projects/:projectName/methods/:methodId/tasks/:taskNo/data` | － | |
+| 5-2-9 | 既存データが存在するテンプレート行に記録済みバッジ（緑ドット）が表示されること | 表示確認 | `ui_data_record_dialog.md` §3.3 | - | － | |
+| 5-2-10 | データ記録ダイアログで「みなし進捗更新」チェックボックスがON（初期状態）の場合にステータス更新セクションが非表示になること | 表示確認 | `ui_data_record_dialog.md` §3.1 | - | － | |
+| 5-2-11 | データ記録ダイアログで「みなし進捗更新」チェックボックスをOFFにするとステータス更新セクション（ステータス選択・進捗スライダー・コメント）が表示されること | 表示確認 | `ui_data_record_dialog.md` §3.1、§4.4 | - | － | |
+| 5-2-12 | 組織設定でみなし進捗を使用しない場合、チェックボックスが非表示でステータス更新セクションが常時表示されること | 表示確認 | `ui_data_record_dialog.md` §3.1（useDeemedProgressProp=false） | - | － | |
+| 5-2-13 | みなし進捗OFFの状態でトランジションステータスを選択して保存ボタンを押すとステータスが更新されること | 正常系 | `ui_data_record_dialog.md` §4.4 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | － | |
+| 5-2-14 | みなし進捗OFFの状態で進捗率スライダーを操作して保存ボタンを押すと進捗率が更新されること | 正常系 | `ui_data_record_dialog.md` §3.1、§4.4 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/transitions/:transitionId/status` | － | |
+| 5-2-15 | 終端ステータス（終状態=5、異常終了状態=6）の場合にステータス選択が無効化されること | 表示確認 | `ui_data_record_dialog.md` §3.3（終端ステータス） | - | － | |
+| 5-2-16 | プロジェクトステータスが編集不可（waiting_approval）の場合にデータ記録ダイアログのステータス更新セクションが折りたたまれた状態で表示されること | 表示確認 | `ui_data_record_dialog.md` §10.1 | - | － | |
+| 5-2-17 | データ記録ダイアログにテンプレート一覧（材料IN/条件IN/結果OUT）が表示されること | 表示確認 | `ui_data_record_dialog.md` §3.3 | - | － | |
+| 5-2-18 | テンプレート名検索でテンプレート一覧が絞り込まれること | 正常系 | `ui_data_record_dialog.md` §3.1 | - | － | |
+| 5-2-19 | テンプレート種別（材料/条件/結果）フィルタでテンプレート一覧が絞り込まれること | 正常系 | `ui_data_record_dialog.md` §3.1 | - | － | |
+| 5-2-20 | テンプレートを選択するとプロパティ入力フォームが表示されること | 正常系 | `ui_data_record_dialog.md` §4.2 | - | － | |
+| 5-2-21 | テンプレート未選択時に「テンプレートを選択してください」のメッセージが表示されること | 表示確認 | `ui_data_record_dialog.md` §3.3 | - | － | |
+| 5-2-22 | DataGridタイプのプロパティで行・列を追加・削除できること | 正常系 | `ui_data_record_dialog.md` §3.2、§4.3 | - | － | |
+| 5-2-23 | 必須プロパティが未入力の場合に保存ボタンを押すとバリデーションエラーが表示されること | 異常系 | `ui_data_record_dialog.md` §6.1 | - | － | |
+| 5-2-24 | プロパティリストタイプのプロパティで項目を追加・削除できること | 正常系 | `ui_data_record_dialog.md` §3.1、§3.2 | - | － | |
+| 5-2-25 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にデータ記録ダイアログで実験データの入力・保存ができないこと | 表示確認 | `ui_data_record_dialog.md` §10.1 | - | － | |
+| 5-2-26 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にデータ記録ダイアログでステータスが更新できないこと | 表示確認 | `ui_data_record_dialog.md` §10.1 | - | － | |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み
@@ -130,25 +142,25 @@
 
 ### 5-3: 問題報告・ステータス変更
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 5-3-1 | トランジションの「問題報告」ボタンで問題管理モーダルが開くこと | 正常系 | 追加機能D | GET `/api/v1/issues` |
-| 5-3-2 | 問題管理モーダルで新しい問題を報告できること | 正常系 | 追加機能D | POST `/api/v1/issues` |
-| 5-3-3 | 問題管理モーダルで既存の問題にコメントを投稿できること | 正常系 | 追加機能E | POST `/api/v1/issues/comments` |
-| 5-3-4 | タイトルが未入力の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - |
-| 5-3-5 | 問題一覧がステータスでフィルタリングできること | 正常系 | 追加機能F | GET `/api/v1/issues` |
-| 5-3-6 | 未解決の問題を解決済みに変更できること | 正常系 | 追加機能G | PATCH `/api/v1/issues/status` |
-| 5-3-7 | 解決済みの問題を未解決に戻せること | 正常系 | 追加機能G | PATCH `/api/v1/issues/status` |
-| 5-3-8 | 内容が未入力の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - |
-| 5-3-9 | 問題タイプが未選択の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - |
-| 5-3-10 | 内容が10文字未満の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - |
-| 5-3-11 | タイトルが100文字を超える場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - |
-| 5-3-12 | 内容が1000文字を超える場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - |
-| 5-3-13 | 問題一覧で問題を選択すると詳細エリアにタイトル・状態・対象・報告者・報告時刻・内容が表示されること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - |
-| 5-3-14 | 問題詳細にコメントが存在する場合、コメント一覧（投稿者名・投稿時刻・コメント内容）が表示されること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - |
-| 5-3-15 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合に新規の問題報告ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - |
-| 5-3-16 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にコメントの投稿ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - |
-| 5-3-17 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にステータスの更新ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 5-3-1 | トランジションの「問題報告」ボタンで問題管理モーダルが開くこと | 正常系 | 追加機能D | GET `/api/v1/issues` | － | |
+| 5-3-2 | 問題管理モーダルで新しい問題を報告できること | 正常系 | 追加機能D | POST `/api/v1/issues` | － | |
+| 5-3-3 | 問題管理モーダルで既存の問題にコメントを投稿できること | 正常系 | 追加機能E | POST `/api/v1/issues/comments` | － | |
+| 5-3-4 | タイトルが未入力の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | － | |
+| 5-3-5 | 問題一覧がステータスでフィルタリングできること | 正常系 | 追加機能F | GET `/api/v1/issues` | － | |
+| 5-3-6 | 未解決の問題を解決済みに変更できること | 正常系 | 追加機能G | PATCH `/api/v1/issues/status` | － | |
+| 5-3-7 | 解決済みの問題を未解決に戻せること | 正常系 | 追加機能G | PATCH `/api/v1/issues/status` | － | |
+| 5-3-8 | 内容が未入力の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | － | |
+| 5-3-9 | 問題タイプが未選択の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | － | |
+| 5-3-10 | 内容が10文字未満の場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | － | |
+| 5-3-11 | タイトルが100文字を超える場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | － | |
+| 5-3-12 | 内容が1000文字を超える場合に問題報告がバリデーションエラーになること | 異常系 | `ui_issue_management_modal.md` §8.1 | - | － | |
+| 5-3-13 | 問題一覧で問題を選択すると詳細エリアにタイトル・状態・対象・報告者・報告時刻・内容が表示されること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - | － | |
+| 5-3-14 | 問題詳細にコメントが存在する場合、コメント一覧（投稿者名・投稿時刻・コメント内容）が表示されること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - | － | |
+| 5-3-15 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合に新規の問題報告ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - | － | |
+| 5-3-16 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にコメントの投稿ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - | － | |
+| 5-3-17 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合にステータスの更新ができないこと | 表示確認 | `ui_issue_management_modal.md` §4.3 | - | － | |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み（5-3-1〜5-3-17）
@@ -191,18 +203,18 @@
 
 ### 5-4: 指示確認
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 5-4-1 | 指示確認タブでプロジェクト指示・タスク指示・トランジション指示が表示されること | 正常系 | 要件書#8、追加機能H | GET `/api/v1/instructions` |
-| 5-4-2 | タスク指示グループを折りたたみ・展開できること | 正常系 | 追加機能I | - |
-| 5-4-3 | プロジェクト指示の「確認完了」ボタンで確認完了処理が実行されること | 正常系 | 追加機能J | PUT `/api/v1/instructions/{instructionId}/confirm` |
-| 5-4-4 | タスク指示の「確認完了」ボタンで確認完了処理が実行されること | 正常系 | 追加機能J | PUT `/api/v1/instructions/{instructionId}/confirm` |
-| 5-4-5 | トランジション指示の「確認完了」ボタンで確認完了処理が実行されること | 正常系 | 追加機能J | PUT `/api/v1/instructions/{instructionId}/confirm` |
-| 5-4-6 | 「確認完了」ボタンを押下したユーザーは同一指示に対して再度押下できないこと | 正常系 | 追加機能J | PUT `/api/v1/instructions/{instructionId}/confirm` |
-| 5-4-7 | 指示がない場合に空状態メッセージが表示されること | 表示確認 | `ui_instruction_group.md` §9 | GET `/api/v1/instructions` |
-| 5-4-8 | 「フロー図」ボタンをクリックするとフロー図ダイアログが表示されること | 正常系 | 追加機能O、`ui_instruction_confirmation_tab.md` §4.2 | GET `/api/v1/projects/:projectName/maiml` |
-| 5-4-9 | 「全ての指示の確認完了」ボタンで全未確認指示が一括で確認完了になること | 正常系 | 追加機能P、`ui_instruction_confirmation_tab.md` §3.2 | PUT `/api/v1/instructions/{instructionId}/confirm` |
-| 5-4-10 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合に指示確認タブの「確認完了」ボタンが非活性になること | 表示確認 | `ui_instruction_group.md` §6.2 | - |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 5-4-1 | 指示確認タブでプロジェクト指示・タスク指示・トランジション指示が表示されること | 正常系 | 要件書#8、追加機能H | GET `/api/v1/instructions` | － | |
+| 5-4-2 | タスク指示グループを折りたたみ・展開できること | 正常系 | 追加機能I | - | － | |
+| 5-4-3 | プロジェクト指示の「確認完了」ボタンで確認完了処理が実行されること | 正常系 | 追加機能J | PUT `/api/v1/instructions/{instructionId}/confirm` | － | |
+| 5-4-4 | タスク指示の「確認完了」ボタンで確認完了処理が実行されること | 正常系 | 追加機能J | PUT `/api/v1/instructions/{instructionId}/confirm` | － | |
+| 5-4-5 | トランジション指示の「確認完了」ボタンで確認完了処理が実行されること | 正常系 | 追加機能J | PUT `/api/v1/instructions/{instructionId}/confirm` | － | |
+| 5-4-6 | 「確認完了」ボタンを押下したユーザーは同一指示に対して再度押下できないこと | 正常系 | 追加機能J | PUT `/api/v1/instructions/{instructionId}/confirm` | － | |
+| 5-4-7 | 指示がない場合に空状態メッセージが表示されること | 表示確認 | `ui_instruction_group.md` §9 | GET `/api/v1/instructions` | － | |
+| 5-4-8 | 「フロー図」ボタンをクリックするとフロー図ダイアログが表示されること | 正常系 | 追加機能O、`ui_instruction_confirmation_tab.md` §4.2 | GET `/api/v1/projects/:projectName/maiml` | － | |
+| 5-4-9 | 「全ての指示の確認完了」ボタンで全未確認指示が一括で確認完了になること | 正常系 | 追加機能P、`ui_instruction_confirmation_tab.md` §3.2 | PUT `/api/v1/instructions/{instructionId}/confirm` | － | |
+| 5-4-10 | プロジェクトステータスが「承認待ち（waiting_approval）」の場合に指示確認タブの「確認完了」ボタンが非活性になること | 表示確認 | `ui_instruction_group.md` §6.2 | - | － | |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み
@@ -232,24 +244,24 @@
 
 ### 5-5: 進捗確認・承認依頼
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 5-5-1 | 進捗確認タブでタスク一覧がメソッドタブ別に表示されること | 正常系 | 要件書#1、追加機能C | GET `/api/v1/worker/tasks` |
-| 5-5-2 | 進捗確認タブでタスクのステータスを「開始」に変更できること | 正常系 | 要件書#1 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` |
-| 5-5-3 | 進捗確認タブ表示時のみ「承認依頼」ボタンが表示されること | 表示確認 | 追加機能K | - |
-| 5-5-4 | プロジェクト選択時に承認依頼ボタンが活性化されること | 表示確認 | `ui_experiment_worker_main.md` §3.2.3 | - |
-| 5-5-5 | 「指示確認」ボタンをクリックすると指示確認タブに遷移すること | 正常系 | `ui_task_list_table.md` §5.3 | - |
-| 5-5-6 | 「実験記録」ボタンをクリックすると実験記録タブに遷移すること | 正常系 | `ui_task_list_table.md` §5.3 | - |
-| 5-5-7 | 「問題確認」ボタンをクリックすると問題確認モーダルが参照専用で開くこと | 正常系 | `ui_task_list_table.md` §5.3 | GET `/api/v1/issues` |
-| 5-5-8 | 「強制終了」ボタンをクリックするとタスクが強制終了されること | 正常系 | `ui_task_list_table.md` §5.3 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` |
-| 5-5-9 | 進捗率をクリックするとフロー図ダイアログが表示されること | 正常系 | `ui_task_list_table.md` §5.2 | - |
-| 5-5-10 | プロジェクトステータスが編集不可（waiting_approval）の場合に「開始」ボタンが無効化されること | 表示確認 | `ui_task_list_table.md` §5.3 | - |
-| 5-5-11 | タスクステータスが「開始前（not_started）」以外の場合に「開始」ボタンが無効化されること | 表示確認 | `ui_task_list_table.md` §5.3 | - |
-| 5-5-12 | タスクステータスが「完了（completed）」または「強制終了（forced_terminated）」の場合に「強制終了」ボタンが無効化されること | 表示確認 | `ui_task_list_table.md` §5.3 | - |
-| 5-5-13 | 「承認依頼」ボタンをクリックすると承認依頼が送信され、成功メッセージが表示されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` |
-| 5-5-14 | 承認依頼送信後にプロジェクトステータスが「承認待ち（waiting_approval）」に更新されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` |
-| 5-5-15 | 既に承認依頼済みのプロジェクトで再度「承認依頼」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` |
-| 5-5-16 | 進捗確認タブのメソッドタブが`project_task`テーブルの`experiment_order`の昇順で表示されること | 表示確認 | `ui_progress_check_tab.md` | GET `/api/v1/worker/tasks` |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 5-5-1 | 進捗確認タブでタスク一覧がメソッドタブ別に表示されること | 正常系 | 要件書#1、追加機能C | GET `/api/v1/worker/tasks` | － | |
+| 5-5-2 | 進捗確認タブでタスクのステータスを「開始」に変更できること | 正常系 | 要件書#1 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | － | |
+| 5-5-3 | 進捗確認タブ表示時のみ「承認依頼」ボタンが表示されること | 表示確認 | 追加機能K | - | － | |
+| 5-5-4 | プロジェクト選択時に承認依頼ボタンが活性化されること | 表示確認 | `ui_experiment_worker_main.md` §3.2.3 | - | － | |
+| 5-5-5 | 「指示確認」ボタンをクリックすると指示確認タブに遷移すること | 正常系 | `ui_task_list_table.md` §5.3 | - | － | |
+| 5-5-6 | 「実験記録」ボタンをクリックすると実験記録タブに遷移すること | 正常系 | `ui_task_list_table.md` §5.3 | - | － | |
+| 5-5-7 | 「問題確認」ボタンをクリックすると問題確認モーダルが参照専用で開くこと | 正常系 | `ui_task_list_table.md` §5.3 | GET `/api/v1/issues` | － | |
+| 5-5-8 | 「強制終了」ボタンをクリックするとタスクが強制終了されること | 正常系 | `ui_task_list_table.md` §5.3 | PATCH `/api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/status` | － | |
+| 5-5-9 | 進捗率をクリックするとフロー図ダイアログが表示されること | 正常系 | `ui_task_list_table.md` §5.2 | - | － | |
+| 5-5-10 | プロジェクトステータスが編集不可（waiting_approval）の場合に「開始」ボタンが無効化されること | 表示確認 | `ui_task_list_table.md` §5.3 | - | － | |
+| 5-5-11 | タスクステータスが「開始前（not_started）」以外の場合に「開始」ボタンが無効化されること | 表示確認 | `ui_task_list_table.md` §5.3 | - | － | |
+| 5-5-12 | タスクステータスが「完了（completed）」または「強制終了（forced_terminated）」の場合に「強制終了」ボタンが無効化されること | 表示確認 | `ui_task_list_table.md` §5.3 | - | － | |
+| 5-5-13 | 「承認依頼」ボタンをクリックすると承認依頼が送信され、成功メッセージが表示されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | － | |
+| 5-5-14 | 承認依頼送信後にプロジェクトステータスが「承認待ち（waiting_approval）」に更新されること | 正常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | － | |
+| 5-5-15 | 既に承認依頼済みのプロジェクトで再度「承認依頼」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_experiment_worker_main.md` §15.2 | PATCH `/api/v1/projects/{projectName}/approval-request` | － | |
+| 5-5-16 | 進捗確認タブのメソッドタブが`project_task`テーブルの`experiment_order`の昇順で表示されること | 表示確認 | `ui_progress_check_tab.md` | GET `/api/v1/worker/tasks` | － | |
 
 **前提条件:**
 - 実験作業者ロールでログイン済み

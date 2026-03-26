@@ -6,25 +6,37 @@
 
 ---
 
+## 0. テスト実施情報
+
+| 項目 | 値 |
+|------|-----|
+| テスト実施日 | - |
+| テスト実施者 | - |
+| テスト環境バージョン | - |
+| 総合判定 | - |
+| 備考 | - |
+
+---
+
 ## 1. テスト対象スコープ（確定版）
 
 ### スコープ内
 
-| テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 |
-|----------------|----------------|------|-----------|-----------|
-| **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M | 20件 | Playwright自動 |
-| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 26件 | 手動 |
-| **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 9件 | Playwright自動 |
-| **4-4** | タスク登録 | 要件書#3、追加機能K/N | 7件 | Playwright自動 |
-| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 10件 | Playwright自動 |
-| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 13件 | Playwright自動 |
-| **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 7件 | Playwright自動 |
-| **4-8** | フォーマット管理 | 要件書#13 | 40件 | Playwright自動 |
-| **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） |
-| **4-10** | プロジェクト公開 | 追加機能S | 4件 | Playwright自動（フロントエンド実装後） |
-| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 |
-| **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | Playwright自動 |
-| **合計** | - | - | **164件** | - |
+| テストグループID | テストグループ名 | 根拠 | シナリオ数 | テスト方法 | 合格 | 不合格 | 未実施 |
+|----------------|----------------|------|-----------|-----------|------|-------|-------|
+| **4-1** | プロジェクト作成・ファイル操作 | 要件書#1、追加機能C/D/M | 20件 | Playwright自動 | - | - | 20 |
+| **4-2** | MAIML編集（PetriNetEditor） | 要件書#2 | 26件 | 手動 | - | - | 26 |
+| **4-3** | チェックアウト/チェックイン | 要件書#4/#5 | 9件 | Playwright自動 | - | - | 9 |
+| **4-4** | タスク登録 | 要件書#3、追加機能K/N | 7件 | Playwright自動 | - | - | 7 |
+| **4-5** | 指示登録・送信 | 要件書#6、追加機能G/H/I/O | 10件 | Playwright自動 | - | - | 10 |
+| **4-6** | 進捗確認・タスク結果 | 要件書#7/#15、追加機能E/F/J/P | 13件 | Playwright自動 | - | - | 13 |
+| **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 7件 | Playwright自動 | - | - | 7 |
+| **4-8** | フォーマット管理 | 要件書#13 | 40件 | Playwright自動 | - | - | 40 |
+| **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） | - | - | 10 |
+| **4-10** | プロジェクト公開 | 追加機能S | 4件 | Playwright自動（フロントエンド実装後） | - | - | 4 |
+| **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 | - | - | 10 |
+| **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | Playwright自動 | - | - | 8 |
+| **合計** | - | - | **164件** | - | - | - | - |
 
 ### スコープ外
 
@@ -41,28 +53,28 @@
 
 ### 4-1: プロジェクト作成・ファイル操作
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-1-1 | プロジェクトを新規作成できること | 正常系 | 要件書#1 | POST `/api/v1/projects` |
-| 4-1-2 | プロジェクト名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `CreateProjectModal` バリデーション | - |
-| 4-1-3 | プロジェクト名が3文字未満の場合にバリデーションエラーが表示されること | 異常系 | `CreateProjectModal` バリデーション | - |
-| 4-1-4 | プロジェクト名が100文字超の場合にバリデーションエラーが表示されること | 異常系 | `CreateProjectModal` バリデーション | - |
-| 4-1-5 | キャンセルしてもプロジェクトが作成されないこと | 正常系 | `CreateProjectModal` キャンセル | - |
-| 4-1-6 | 既存のプロジェクト名を入力した場合に重複エラーが表示されること | 異常系 | 要件書#1、API 409エラー | POST `/api/v1/projects` |
-| 4-1-7 | プロジェクト未選択時は「プロジェクトダウンロード」ボタンが非活性であること | 表示確認 | `ui_project_management.md` §2.2.3 | - |
-| 4-1-8 | プロジェクト選択後に「プロジェクトダウンロード」ボタンが活性化されること | 表示確認 | `ui_project_management.md` §2.2.3-B、§3.7 | - |
-| 4-1-9 | 「プロジェクトダウンロード」ボタンをクリックするとZIPファイルがダウンロードされること | 正常系 | 追加機能D、`ui_project_management.md` §3.7 | POST `/api/v1/files/download-folder-zip` |
-| 4-1-10 | ファイル一覧の「ダウンロード」ボタンをクリックするとファイルがダウンロードされること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.4 | POST `/api/v1/files/download` |
-| 4-1-11 | ダウンロード中は該当ファイルの「ダウンロード」ボタンがローディング状態になり、他のダウンロードボタンが非活性になること | 表示確認 | `ui_file_list_table.md` §3.4.2 | - |
-| 4-1-12 | ファイルダウンロードに失敗した場合にエラーメッセージが表示されること | 異常系 | `ui_file_list_table.md` §9.1 | POST `/api/v1/files/download` |
-| 4-1-13 | ファイル一覧の「ビューア」ボタンをクリックするとビューアダイアログが起動すること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.5 | - |
-| 4-1-14 | 複数のビューアダイアログを同時に開けること（上限5個） | 正常系 | `ui_project_management.md` §3.10.2 | - |
-| 4-1-15 | 5個を超えてビューアダイアログを開こうとすると警告メッセージが表示されること | 異常系 | `ui_project_management.md` §3.10.2 | - |
-| 4-1-16 | プロジェクト一覧のプロジェクト名をクリックするとProjectDetailModalが表示されること | 正常系 | 追加機能M、`ui_project_detail_modal.md` §概要 | - |
-| 4-1-17 | ProjectDetailModalにプロジェクト情報（名前・ステータスタグ・フォルダ名・説明・所有者・メンバー・ファイル数・ストレージ使用量・作成日・最終更新日・タグ）が表示されること | 表示確認 | `ui_project_detail_modal.md` §2.3 | GET `/api/v1/projects/:projectName` |
-| 4-1-18 | ProjectDetailModalの「プロジェクトを開く」ボタンをクリックするとモーダルが閉じてプロジェクトが選択状態になること | 正常系 | `ui_project_detail_modal.md` §2.6 | - |
-| 4-1-19 | ProjectDetailModal内のファイル一覧にFileListTableコンポーネントが表示されること | 表示確認 | `ui_project_detail_modal.md` §2.5 | GET `/api/v1/projects/:projectName/files` |
-| 4-1-20 | ProjectDetailModalの「閉じる」ボタンをクリックするとモーダルが閉じること | 正常系 | `ui_project_detail_modal.md` §2.6 | - |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-1-1 | プロジェクトを新規作成できること | 正常系 | 要件書#1 | POST `/api/v1/projects` | － | |
+| 4-1-2 | プロジェクト名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `CreateProjectModal` バリデーション | - | － | |
+| 4-1-3 | プロジェクト名が3文字未満の場合にバリデーションエラーが表示されること | 異常系 | `CreateProjectModal` バリデーション | - | － | |
+| 4-1-4 | プロジェクト名が100文字超の場合にバリデーションエラーが表示されること | 異常系 | `CreateProjectModal` バリデーション | - | － | |
+| 4-1-5 | キャンセルしてもプロジェクトが作成されないこと | 正常系 | `CreateProjectModal` キャンセル | - | － | |
+| 4-1-6 | 既存のプロジェクト名を入力した場合に重複エラーが表示されること | 異常系 | 要件書#1、API 409エラー | POST `/api/v1/projects` | － | |
+| 4-1-7 | プロジェクト未選択時は「プロジェクトダウンロード」ボタンが非活性であること | 表示確認 | `ui_project_management.md` §2.2.3 | - | － | |
+| 4-1-8 | プロジェクト選択後に「プロジェクトダウンロード」ボタンが活性化されること | 表示確認 | `ui_project_management.md` §2.2.3-B、§3.7 | - | － | |
+| 4-1-9 | 「プロジェクトダウンロード」ボタンをクリックするとZIPファイルがダウンロードされること | 正常系 | 追加機能D、`ui_project_management.md` §3.7 | POST `/api/v1/files/download-folder-zip` | － | |
+| 4-1-10 | ファイル一覧の「ダウンロード」ボタンをクリックするとファイルがダウンロードされること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.4 | POST `/api/v1/files/download` | － | |
+| 4-1-11 | ダウンロード中は該当ファイルの「ダウンロード」ボタンがローディング状態になり、他のダウンロードボタンが非活性になること | 表示確認 | `ui_file_list_table.md` §3.4.2 | - | － | |
+| 4-1-12 | ファイルダウンロードに失敗した場合にエラーメッセージが表示されること | 異常系 | `ui_file_list_table.md` §9.1 | POST `/api/v1/files/download` | － | |
+| 4-1-13 | ファイル一覧の「ビューア」ボタンをクリックするとビューアダイアログが起動すること | 正常系 | 追加機能C、`ui_file_list_table.md` §3.5 | - | － | |
+| 4-1-14 | 複数のビューアダイアログを同時に開けること（上限5個） | 正常系 | `ui_project_management.md` §3.10.2 | - | － | |
+| 4-1-15 | 5個を超えてビューアダイアログを開こうとすると警告メッセージが表示されること | 異常系 | `ui_project_management.md` §3.10.2 | - | － | |
+| 4-1-16 | プロジェクト一覧のプロジェクト名をクリックするとProjectDetailModalが表示されること | 正常系 | 追加機能M、`ui_project_detail_modal.md` §概要 | - | － | |
+| 4-1-17 | ProjectDetailModalにプロジェクト情報（名前・ステータスタグ・フォルダ名・説明・所有者・メンバー・ファイル数・ストレージ使用量・作成日・最終更新日・タグ）が表示されること | 表示確認 | `ui_project_detail_modal.md` §2.3 | GET `/api/v1/projects/:projectName` | － | |
+| 4-1-18 | ProjectDetailModalの「プロジェクトを開く」ボタンをクリックするとモーダルが閉じてプロジェクトが選択状態になること | 正常系 | `ui_project_detail_modal.md` §2.6 | - | － | |
+| 4-1-19 | ProjectDetailModal内のファイル一覧にFileListTableコンポーネントが表示されること | 表示確認 | `ui_project_detail_modal.md` §2.5 | GET `/api/v1/projects/:projectName/files` | － | |
+| 4-1-20 | ProjectDetailModalの「閉じる」ボタンをクリックするとモーダルが閉じること | 正常系 | `ui_project_detail_modal.md` §2.6 | - | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -82,34 +94,34 @@
 
 > **テスト方法**: 手動テスト（GUI操作が複雑かつ専門的なため、Playwrightによる自動化対象外）
 
-| シナリオID | シナリオ名 | 種別 | 根拠 |
-|-----------|-----------|------|------|
-| 4-2-1 | PetriNetEditorでワークフローを開いて表示できること | 正常系 | 要件書#2 |
-| 4-2-2 | PetriNetEditorでノード・トランジションを編集して保存できること | 正常系 | 要件書#2 |
-| 4-2-3 | 編集内容がS3に反映されMAIMLファイルが更新されること | 正常系 | 要件書#2 |
-| 4-2-4 | ペトリネット編集画面が表示されること（ノード・エッジの描画確認） | 正常系 | `ui_petri_net_editor_screen.md` §2.1、`ui_petri_net_editor.md` §6.1 |
-| 4-2-5 | ビューモードを「テンプレート」に切り替えるとテンプレート一覧が表示されること | 正常系 | `ui_editor_toolbar.md` §5.1、`ui_petri_net_editor.md` §5.13 |
-| 4-2-6 | メソッドタブからメソッドを追加でき、タブが増えること | 正常系 | `ui_petri_net_editor.md` §5.7 |
-| 4-2-7 | ツールバーの「Material」ボタン（またはM+クリック）でMaterialノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 |
-| 4-2-8 | ツールバーの「Condition」ボタン（またはC+クリック）でConditionノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 |
-| 4-2-9 | ツールバーの「Result」ボタン（またはR+クリック）でResultノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 |
-| 4-2-10 | ツールバーの「Transition」ボタン（またはT+クリック）でTransitionノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 |
-| 4-2-11 | ワークフロー取込モードを有効にしてMAIMLファイルを選択するとサブネットが追加されること | 正常系 | `ui_editor_toolbar.md` §5.3、`ui_workflow_selector_dialog.md` §5.5 |
-| 4-2-12 | Documentボタンからドキュメント情報（名前・日付・Creator等）を編集して保存できること | 正常系 | `ui_editor_toolbar.md` §5.4、`ui_document_edit_dialog.md` §3.1.8 |
-| 4-2-13 | バリデーションボタンをクリックするとバリデーション結果パネルが表示されること | 正常系 | `ui_editor_toolbar.md` §5.4、`ui_validation_panel.md` §5.1 |
-| 4-2-14 | バリデーションエラーがある場合にエラー箇所が強調表示されること | 正常系 | `ui_petri_net_editor.md` §5.8、`ui_validation_panel.md` §5.3 |
-| 4-2-15 | 保存ダイアログからS3への保存ができること | 正常系 | `ui_save_confirm_dialog.md` §5.4、`ui_petri_net_editor_screen.md` §3.1.2 |
-| 4-2-16 | Draftボタンから下書き管理ダイアログが開き、現在の編集内容を下書き保存できること | 正常系 | `ui_draft_manager.md` §3.1.2、`ui_editor_toolbar.md` §5.4 |
-| 4-2-17 | 自動保存をONにすると一定時間ごとに下書きが自動保存されること | 正常系 | `ui_draft_manager.md` §3.1.5、`ui_editor_toolbar.md` §5.5 |
-| 4-2-18 | ValidationPanelでエラー一覧の各行にチェックボックスが表示されること | 表示確認 | `ui_validation_panel.md` §5.3、自動補正機能 |
-| 4-2-19 | ValidationPanelでエラーを1件以上選択すると「自動補正」ボタンが活性化されること | 表示確認 | `ui_validation_panel.md` §自動補正ボタン |
-| 4-2-20 | エラー未選択の状態で「自動補正」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ValidationPanel.tsx` handleApplyCorrections |
-| 4-2-21 | version属性が欠落したMAIMLに対して自動補正を実行すると `version="1.0"` が追加されること | 正常系 | `maimlParser.ts` generateAutoCorrections / MISSING_REQUIRED |
-| 4-2-22 | 名前空間が欠落したMAIMLに対して自動補正を実行すると正しい xmlns が追加されること | 正常系 | `maimlParser.ts` generateAutoCorrections / NAMESPACE_ERROR |
-| 4-2-23 | 未定義の参照（reference_error）を含むMAIMLに対して自動補正を実行すると無効な ref 属性が削除されること | 正常系 | `maimlParser.ts` generateAutoCorrections / REFERENCE_ERROR |
-| 4-2-24 | 保存ダイアログの「自動補正して保存」ボタンをクリックすると補正処理が実行された後に保存されること | 正常系 | `SaveConfirmDialog` auto-correct アクション |
-| 4-2-25 | 重複IDエラー・シンタックスエラーは自動補正の対象外であり、補正後もエラーが残ること | 異常系 | `maimlService.ts` autoCorrectMaiml 制限事項 |
-| 4-2-26 | 自動補正適用後に再バリデーションが自動実行され、ValidationPanelの結果が更新されること | 正常系 | `PetriNetEditorInner.tsx` handleAutoCorrect → handleRevalidate |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 結果 | 備考 |
+|-----------|-----------|------|------|------|------|
+| 4-2-1 | PetriNetEditorでワークフローを開いて表示できること | 正常系 | 要件書#2 | － | |
+| 4-2-2 | PetriNetEditorでノード・トランジションを編集して保存できること | 正常系 | 要件書#2 | － | |
+| 4-2-3 | 編集内容がS3に反映されMAIMLファイルが更新されること | 正常系 | 要件書#2 | － | |
+| 4-2-4 | ペトリネット編集画面が表示されること（ノード・エッジの描画確認） | 正常系 | `ui_petri_net_editor_screen.md` §2.1、`ui_petri_net_editor.md` §6.1 | － | |
+| 4-2-5 | ビューモードを「テンプレート」に切り替えるとテンプレート一覧が表示されること | 正常系 | `ui_editor_toolbar.md` §5.1、`ui_petri_net_editor.md` §5.13 | － | |
+| 4-2-6 | メソッドタブからメソッドを追加でき、タブが増えること | 正常系 | `ui_petri_net_editor.md` §5.7 | － | |
+| 4-2-7 | ツールバーの「Material」ボタン（またはM+クリック）でMaterialノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 | － | |
+| 4-2-8 | ツールバーの「Condition」ボタン（またはC+クリック）でConditionノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 | － | |
+| 4-2-9 | ツールバーの「Result」ボタン（またはR+クリック）でResultノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 | － | |
+| 4-2-10 | ツールバーの「Transition」ボタン（またはT+クリック）でTransitionノードがキャンバスに追加されること | 正常系 | `ui_editor_toolbar.md` §5.2、`ui_petri_net_editor.md` §5.3 | － | |
+| 4-2-11 | ワークフロー取込モードを有効にしてMAIMLファイルを選択するとサブネットが追加されること | 正常系 | `ui_editor_toolbar.md` §5.3、`ui_workflow_selector_dialog.md` §5.5 | － | |
+| 4-2-12 | Documentボタンからドキュメント情報（名前・日付・Creator等）を編集して保存できること | 正常系 | `ui_editor_toolbar.md` §5.4、`ui_document_edit_dialog.md` §3.1.8 | － | |
+| 4-2-13 | バリデーションボタンをクリックするとバリデーション結果パネルが表示されること | 正常系 | `ui_editor_toolbar.md` §5.4、`ui_validation_panel.md` §5.1 | － | |
+| 4-2-14 | バリデーションエラーがある場合にエラー箇所が強調表示されること | 正常系 | `ui_petri_net_editor.md` §5.8、`ui_validation_panel.md` §5.3 | － | |
+| 4-2-15 | 保存ダイアログからS3への保存ができること | 正常系 | `ui_save_confirm_dialog.md` §5.4、`ui_petri_net_editor_screen.md` §3.1.2 | － | |
+| 4-2-16 | Draftボタンから下書き管理ダイアログが開き、現在の編集内容を下書き保存できること | 正常系 | `ui_draft_manager.md` §3.1.2、`ui_editor_toolbar.md` §5.4 | － | |
+| 4-2-17 | 自動保存をONにすると一定時間ごとに下書きが自動保存されること | 正常系 | `ui_draft_manager.md` §3.1.5、`ui_editor_toolbar.md` §5.5 | － | |
+| 4-2-18 | ValidationPanelでエラー一覧の各行にチェックボックスが表示されること | 表示確認 | `ui_validation_panel.md` §5.3、自動補正機能 | － | |
+| 4-2-19 | ValidationPanelでエラーを1件以上選択すると「自動補正」ボタンが活性化されること | 表示確認 | `ui_validation_panel.md` §自動補正ボタン | － | |
+| 4-2-20 | エラー未選択の状態で「自動補正」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ValidationPanel.tsx` handleApplyCorrections | － | |
+| 4-2-21 | version属性が欠落したMAIMLに対して自動補正を実行すると `version="1.0"` が追加されること | 正常系 | `maimlParser.ts` generateAutoCorrections / MISSING_REQUIRED | － | |
+| 4-2-22 | 名前空間が欠落したMAIMLに対して自動補正を実行すると正しい xmlns が追加されること | 正常系 | `maimlParser.ts` generateAutoCorrections / NAMESPACE_ERROR | － | |
+| 4-2-23 | 未定義の参照（reference_error）を含むMAIMLに対して自動補正を実行すると無効な ref 属性が削除されること | 正常系 | `maimlParser.ts` generateAutoCorrections / REFERENCE_ERROR | － | |
+| 4-2-24 | 保存ダイアログの「自動補正して保存」ボタンをクリックすると補正処理が実行された後に保存されること | 正常系 | `SaveConfirmDialog` auto-correct アクション | － | |
+| 4-2-25 | 重複IDエラー・シンタックスエラーは自動補正の対象外であり、補正後もエラーが残ること | 異常系 | `maimlService.ts` autoCorrectMaiml 制限事項 | － | |
+| 4-2-26 | 自動補正適用後に再バリデーションが自動実行され、ValidationPanelの結果が更新されること | 正常系 | `PetriNetEditorInner.tsx` handleAutoCorrect → handleRevalidate | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -151,17 +163,17 @@
 
 ### 4-3: チェックアウト / チェックイン
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-3-1 | プロジェクトをチェックアウトできること（`checked_in` ステータス） | 正常系 | 要件書#4 | POST `/api/v1/projects/:projectName/checkout` |
-| 4-3-2 | チェックアウト中のプロジェクトをチェックインできること | 正常系 | 要件書#5 | POST `/api/v1/projects/:projectName/checkin` |
-| 4-3-3 | チェックアウト中のプロジェクトには「チェックアウト中」タグが表示されること | 表示確認 | `ui_project_management.md` §2.2.3 | GET `/api/v1/projects` |
-| 4-3-4 | `in_progress` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
-| 4-3-5 | `checkout_status` が `checked_out`（チェックアウト中）のプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
-| 4-3-6 | `completed` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` |
-| 4-3-7 | 実行中のタスクがある場合はチェックインできないこと | 異常系 | ビジネスルール（チェックイン不可条件） | POST `/api/v1/projects/:projectName/checkin` |
-| 4-3-9 | MAIMLファイルが未登録のプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト前提条件） | POST `/api/v1/projects/:projectName/checkout` |
-| 4-3-10 | タスクが未登録のプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト前提条件） | POST `/api/v1/projects/:projectName/checkout` |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-3-1 | プロジェクトをチェックアウトできること（`checked_in` ステータス） | 正常系 | 要件書#4 | POST `/api/v1/projects/:projectName/checkout` | － | |
+| 4-3-2 | チェックアウト中のプロジェクトをチェックインできること | 正常系 | 要件書#5 | POST `/api/v1/projects/:projectName/checkin` | － | |
+| 4-3-3 | チェックアウト中のプロジェクトには「チェックアウト中」タグが表示されること | 表示確認 | `ui_project_management.md` §2.2.3 | GET `/api/v1/projects` | － | |
+| 4-3-4 | `in_progress` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` | － | |
+| 4-3-5 | `checkout_status` が `checked_out`（チェックアウト中）のプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` | － | |
+| 4-3-6 | `completed` ステータスのプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト可能ステータス） | POST `/api/v1/projects/:projectName/checkout` | － | |
+| 4-3-7 | 実行中のタスクがある場合はチェックインできないこと | 異常系 | ビジネスルール（チェックイン不可条件） | POST `/api/v1/projects/:projectName/checkin` | － | |
+| 4-3-9 | MAIMLファイルが未登録のプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト前提条件） | POST `/api/v1/projects/:projectName/checkout` | － | |
+| 4-3-10 | タスクが未登録のプロジェクトはチェックアウトできないこと | 異常系 | ビジネスルール（チェックアウト前提条件） | POST `/api/v1/projects/:projectName/checkout` | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -186,15 +198,15 @@
 
 ### 4-4: タスク登録
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-4-1 | タスク登録タブで試行回数を設定して保存できること | 正常系 | 要件書#3 | POST `/api/v1/projects/:projectName/task-registration` |
-| 4-4-2 | タスク登録タブで実験条件を変更して保存できること | 正常系 | 要件書#3 | POST `/api/v1/projects/:projectName/task-registration` |
-| 4-4-3 | ドラッグ＆ドロップでタスクの実行順序を変更して保存できること | 正常系 | 追加機能K | POST `/api/v1/projects/:projectName/task-registration` |
-| 4-4-4 | ワーカー連携済みタスク（`workerLinkedFlg=true`）は試行回数・実験条件の編集ができないこと | 表示確認 | 追加機能N、`ui_task_registration_tab.md` §ビジネスルール | - |
-| 4-4-5 | ワーカー連携済みタスクはドラッグ＆ドロップによる順序変更ができないこと | 表示確認 | 追加機能N、`ui_task_registration_tab.md` §ビジネスルール | - |
-| 4-4-6 | 各タスクの「指示追加」ボタンをクリックすると指示編集ダイアログ（InstructionEditDialog）が表示されること | 正常系 | 追加機能O、`ui_instruction_edit_dialog.md` §概要 | - |
-| 4-4-7 | タスク登録タブから追加した指示が指示登録タブの未送信指示一覧に反映されること | 正常系 | 追加機能O、`ui_instruction_edit_dialog.md` §saveMode | GET `/api/v1/projects/:projectName/instructions/status` |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-4-1 | タスク登録タブで試行回数を設定して保存できること | 正常系 | 要件書#3 | POST `/api/v1/projects/:projectName/task-registration` | － | |
+| 4-4-2 | タスク登録タブで実験条件を変更して保存できること | 正常系 | 要件書#3 | POST `/api/v1/projects/:projectName/task-registration` | － | |
+| 4-4-3 | ドラッグ＆ドロップでタスクの実行順序を変更して保存できること | 正常系 | 追加機能K | POST `/api/v1/projects/:projectName/task-registration` | － | |
+| 4-4-4 | ワーカー連携済みタスク（`workerLinkedFlg=true`）は試行回数・実験条件の編集ができないこと | 表示確認 | 追加機能N、`ui_task_registration_tab.md` §ビジネスルール | - | － | |
+| 4-4-5 | ワーカー連携済みタスクはドラッグ＆ドロップによる順序変更ができないこと | 表示確認 | 追加機能N、`ui_task_registration_tab.md` §ビジネスルール | - | － | |
+| 4-4-6 | 各タスクの「指示追加」ボタンをクリックすると指示編集ダイアログ（InstructionEditDialog）が表示されること | 正常系 | 追加機能O、`ui_instruction_edit_dialog.md` §概要 | - | － | |
+| 4-4-7 | タスク登録タブから追加した指示が指示登録タブの未送信指示一覧に反映されること | 正常系 | 追加機能O、`ui_instruction_edit_dialog.md` §saveMode | GET `/api/v1/projects/:projectName/instructions/status` | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -214,14 +226,14 @@
 
 ### 4-5: 指示登録・送信
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-5-1 | 指示を追加して一括送信できること | 正常系 | 要件書#6 | POST `/api/v1/projects/:projectName/instructions/send` |
-| 4-5-2 | 未送信の指示を編集できること | 正常系 | 追加機能G | PUT `/api/v1/projects/:projectName/instructions/:instructionId` |
-| 4-5-3 | 未送信の指示を削除できること | 正常系 | 追加機能H | DELETE `/api/v1/projects/:projectName/instructions/:instructionId` |
-| 4-5-4 | 送信済みの指示は削除ボタンが非表示であること | 表示確認 | `ui_instruction_registration_tab.md` §3.3.3 | - |
-| 4-5-5 | 指示が0件の場合に一括送信ボタンが無効化されること | 表示確認 | `ui_instruction_registration_tab.md` §3.3.4 | - |
-| 4-5-6 | 指示登録状況（未送信件数/送信済み件数/合計）が表示されること | 表示確認 | 追加機能I | GET `/api/v1/projects/:projectName/instructions/status` |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-5-1 | 指示を追加して一括送信できること | 正常系 | 要件書#6 | POST `/api/v1/projects/:projectName/instructions/send` | － | |
+| 4-5-2 | 未送信の指示を編集できること | 正常系 | 追加機能G | PUT `/api/v1/projects/:projectName/instructions/:instructionId` | － | |
+| 4-5-3 | 未送信の指示を削除できること | 正常系 | 追加機能H | DELETE `/api/v1/projects/:projectName/instructions/:instructionId` | － | |
+| 4-5-4 | 送信済みの指示は削除ボタンが非表示であること | 表示確認 | `ui_instruction_registration_tab.md` §3.3.3 | - | － | |
+| 4-5-5 | 指示が0件の場合に一括送信ボタンが無効化されること | 表示確認 | `ui_instruction_registration_tab.md` §3.3.4 | - | － | |
+| 4-5-6 | 指示登録状況（未送信件数/送信済み件数/合計）が表示されること | 表示確認 | 追加機能I | GET `/api/v1/projects/:projectName/instructions/status` | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -237,18 +249,18 @@
 
 ### 4-6: 進捗確認・タスク結果
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-6-1 | 進捗確認タブでプロジェクト一覧が表示されること | 正常系 | 要件書#7 | GET `/api/v1/projects` |
-| 4-6-2-1 | 詳細ボタン（EyeアイコンつきPrimary Ghostボタン）をクリックすると「プロジェクト進捗詳細」モーダルが表示されること | 正常系 | 追加機能J、`ui_progress_monitoring.md` §2.2.5、`ui_work_progress_detail_dialog.md` §2.2.1 | - |
-| 4-6-2-2 | 詳細ダイアログにプロジェクト情報（プロジェクト名・ステータスTag・プロジェクトID・説明・オーナー・部門・更新日時）が表示されること | 表示確認 | `ui_work_progress_detail_dialog.md` §2.2.3 | - |
-| 4-6-2-3 | プロジェクトに複数メソッドがある場合はメソッドフィルタが表示され、単一メソッドの場合は表示されないこと | 表示確認 | `ui_work_progress_detail_dialog.md` §2.2.4、§3.1.3 | - |
-| 4-6-2-4 | タスクタブを切り替えると各タスクの詳細（タスク名・タスクID・ステータス・メソッド名）とトランジションサマリー（全体・完了・作業中・未着手・完了率）が切り替わること | 正常系 | `ui_work_progress_detail_dialog.md` §2.2.5、§2.2.6、§2.2.7、§3.1.4 | - |
-| 4-6-2-5 | 詳細ダイアログにトランジション詳細一覧（トランジション名・進捗ステータスTag・作業者・開始日・終了日）が表示されること | 表示確認 | `ui_work_progress_detail_dialog.md` §2.2.9 | - |
-| 4-6-2-6 | 詳細ダイアログの「再読み込み」ボタンをクリックするとデータが再取得されること | 正常系 | `ui_work_progress_detail_dialog.md` §2.2.2、§3.1.7 | - |
-| 4-6-2-7 | 詳細ダイアログの「閉じる」ボタンをクリックするとモーダルが閉じること | 正常系 | `ui_work_progress_detail_dialog.md` §2.2.2、§3.1.8 | - |
-| 4-6-3 | タスク結果タブでタスク統計（件数）が表示されること | 表示確認 | 要件書#15、追加機能E | GET `/api/v1/projects/:projectName/tasks` |
-| 4-6-4 | レビュー待ちタスクを一括完了できること | 正常系 | 追加機能F | POST `/api/v1/projects/:projectName/tasks/complete-review` |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-6-1 | 進捗確認タブでプロジェクト一覧が表示されること | 正常系 | 要件書#7 | GET `/api/v1/projects` | － | |
+| 4-6-2-1 | 詳細ボタン（EyeアイコンつきPrimary Ghostボタン）をクリックすると「プロジェクト進捗詳細」モーダルが表示されること | 正常系 | 追加機能J、`ui_progress_monitoring.md` §2.2.5、`ui_work_progress_detail_dialog.md` §2.2.1 | - | － | |
+| 4-6-2-2 | 詳細ダイアログにプロジェクト情報（プロジェクト名・ステータスTag・プロジェクトID・説明・オーナー・部門・更新日時）が表示されること | 表示確認 | `ui_work_progress_detail_dialog.md` §2.2.3 | - | － | |
+| 4-6-2-3 | プロジェクトに複数メソッドがある場合はメソッドフィルタが表示され、単一メソッドの場合は表示されないこと | 表示確認 | `ui_work_progress_detail_dialog.md` §2.2.4、§3.1.3 | - | － | |
+| 4-6-2-4 | タスクタブを切り替えると各タスクの詳細（タスク名・タスクID・ステータス・メソッド名）とトランジションサマリー（全体・完了・作業中・未着手・完了率）が切り替わること | 正常系 | `ui_work_progress_detail_dialog.md` §2.2.5、§2.2.6、§2.2.7、§3.1.4 | - | － | |
+| 4-6-2-5 | 詳細ダイアログにトランジション詳細一覧（トランジション名・進捗ステータスTag・作業者・開始日・終了日）が表示されること | 表示確認 | `ui_work_progress_detail_dialog.md` §2.2.9 | - | － | |
+| 4-6-2-6 | 詳細ダイアログの「再読み込み」ボタンをクリックするとデータが再取得されること | 正常系 | `ui_work_progress_detail_dialog.md` §2.2.2、§3.1.7 | - | － | |
+| 4-6-2-7 | 詳細ダイアログの「閉じる」ボタンをクリックするとモーダルが閉じること | 正常系 | `ui_work_progress_detail_dialog.md` §2.2.2、§3.1.8 | - | － | |
+| 4-6-3 | タスク結果タブでタスク統計（件数）が表示されること | 表示確認 | 要件書#15、追加機能E | GET `/api/v1/projects/:projectName/tasks` | － | |
+| 4-6-4 | レビュー待ちタスクを一括完了できること | 正常系 | 追加機能F | POST `/api/v1/projects/:projectName/tasks/complete-review` | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -268,11 +280,11 @@
 
 ### 4-7: プロジェクトフィルタ・検索
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-7-1 | プロジェクトステータスでフィルタリングできること | 正常系 | 追加機能A | GET `/api/v1/projects` |
-| 4-7-2 | チェックアウト状態でフィルタリングできること | 正常系 | 追加機能A | GET `/api/v1/projects` |
-| 4-7-3 | キーワード検索でプロジェクトを絞り込みできること | 正常系 | 追加機能B | GET `/api/v1/projects` |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-7-1 | プロジェクトステータスでフィルタリングできること | 正常系 | 追加機能A | GET `/api/v1/projects` | － | |
+| 4-7-2 | チェックアウト状態でフィルタリングできること | 正常系 | 追加機能A | GET `/api/v1/projects` | － | |
+| 4-7-3 | キーワード検索でプロジェクトを絞り込みできること | 正常系 | 追加機能B | GET `/api/v1/projects` | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -288,48 +300,48 @@
 
 ### 4-8: フォーマット管理
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-8-1 | フォーマット一覧が表示されること | 正常系 | 要件書#13 | GET `/api/v1/formats` |
-| 4-8-2 | フォーマット（ワークフローベース）を新規登録できること | 正常系 | 要件書#13 | POST `/api/v1/formats` |
-| 4-8-3 | 登録済みフォーマットを削除できること | 正常系 | 要件書#13 | DELETE `/api/v1/formats/:formatId` |
-| 4-8-4 | 「詳細検索」ボタンをクリックすると詳細検索モーダルが開くこと | 表示確認 | `ui_format_search_modal.md` §3.1.1 | - |
-| 4-8-5 | 検索条件を「条件追加」ボタンで5件まで追加できること | 表示確認 | `ui_format_search_modal.md` §3.1.2 | - |
-| 4-8-6 | 「リセット」ボタンをクリックすると検索条件と結果がクリアされ初期状態（条件1件）に戻ること | 正常系 | `ui_format_search_modal.md` §3.1.2 | - |
-| 4-8-7 | 有効な検索条件が0件の状態で検索を実行するとエラーメッセージが表示されること | 異常系 | `ui_format_search_modal.md` §3.3 | - |
-| 4-8-8 | フォーマット未選択時に「新規フォルダ」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ui_format_management.md` §3.2 | - |
-| 4-8-9 | フォーマット選択後に「新規フォルダ」ボタンをクリックすると新規フォルダ作成モーダルが開くこと | 表示確認 | `ui_create_format_folder_modal.md` §3.1.1 | - |
-| 4-8-10 | フォルダ名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_folder_modal.md` §3.3 | - |
-| 4-8-11 | フォルダ名に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_folder_modal.md` §3.3 | - |
-| 4-8-12 | 「キャンセル」ボタンをクリックするとモーダルが閉じてフォルダが作成されないこと | 正常系 | `ui_create_format_folder_modal.md` §3.1.4 | - |
-| 4-8-13 | フォーマット未選択時に「新規ファイル」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ui_format_management.md` §3.2 / §6.3 | - |
-| 4-8-14 | フォーマット選択後に「新規ファイル」ボタンをクリックすると新規ファイル作成モーダルが開くこと | 表示確認 | `ui_create_format_file_modal.md` §3.1.1 | - |
-| 4-8-15 | XMLタイプのフォーマット選択時はテンプレートタイプ選択（Material/Condition/Result）が表示されること | 表示確認 | `ui_create_format_file_modal.md` §3.1.1 / §3.1.3 | - |
-| 4-8-16 | MAIMLタイプのフォーマット選択時はテンプレートタイプ選択が表示されないこと | 表示確認 | `ui_create_format_file_modal.md` §3.1.1 / §3.1.3 | - |
-| 4-8-17 | ファイル名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_file_modal.md` §3.3 | - |
-| 4-8-18 | ファイル名が100文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_file_modal.md` §3.3 | - |
-| 4-8-19 | XMLファイル作成時にテンプレートタイプが未選択の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_file_modal.md` §3.3 | - |
-| 4-8-20 | 「キャンセル」ボタンをクリックするとモーダルが閉じてファイルが作成されないこと | 正常系 | `ui_create_format_file_modal.md` §3.1.6 | - |
-| 4-8-21 | フォーマット未選択時に「アップロード」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ui_format_management.md` §3.2 / §6.3 | - |
-| 4-8-22 | フォーマット選択後に「アップロード」ボタンをクリックするとアップロードダイアログが開くこと | 表示確認 | `ui_format_upload_dialog.md` §3.1.1 | - |
-| 4-8-23 | 単一ファイルモードでファイルを1件選択してアップロードできること | 正常系 | `ui_format_upload_dialog.md` §3.1.3 / §3.1.8 | POST `/api/v1/formats/upload` |
-| 4-8-24 | 一括ファイルモードで複数ファイルを選択してアップロードできること | 正常系 | `ui_format_upload_dialog.md` §3.1.3 / §3.1.8 | POST `/api/v1/formats/upload` |
-| 4-8-25 | フォルダモードでフォルダを選択してアップロードできること | 正常系 | `ui_format_upload_dialog.md` §3.1.4 / §3.1.8 | POST `/api/v1/formats/upload` |
-| 4-8-26 | モード切り替え時に選択済みファイルリストがクリアされること | 表示確認 | `ui_format_upload_dialog.md` §3.1.2 | - |
-| 4-8-27 | 単一ファイルモードで複数ファイルを選択すると最後の1ファイルのみが選択状態になること | 表示確認 | `ui_format_upload_dialog.md` §3.1.3 | - |
-| 4-8-28 | ファイルを選択せずにアップロードボタンを押すと警告メッセージが表示されること | 異常系 | `ui_format_upload_dialog.md` §3.3 / §6.1 | - |
-| 4-8-29 | アップロード中にファイル完了件数とパーセントが進捗表示されること | 表示確認 | `ui_format_upload_dialog.md` §2.2.7 / §3.1.8 | - |
-| 4-8-30 | アップロード完了後に成功メッセージが表示されること | 表示確認 | `ui_format_upload_dialog.md` §2.2.7 | - |
-| 4-8-31 | アップロード中にダイアログを閉じようとすると確認ダイアログが表示されること | 異常系 | `ui_format_upload_dialog.md` §3.1.10 / §6.2 | - |
-| 4-8-32 | MAIMLファイル（.maiml）の「編集」ボタンをクリックするとPetriNetEditorがフルスクリーンで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | POST `/api/worker/load-maiml-file` |
-| 4-8-33 | XMLファイル（.xml）の「編集」ボタンをクリックするとTemplateEditorDialogがモーダルで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | - |
-| 4-8-34 | MAIMLファイルの編集後に保存するとS3ファイルが更新されること | 正常系 | `ui_format_management.md` §3.1.7 | PUT `/api/v1/formats/:formatId/files/:fileId` |
-| 4-8-35 | .maimlでも.xmlでもないファイルの「編集」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_format_management.md` §6.3 | - |
-| 4-8-36 | ファイルの「ダウンロード」ボタンをクリックするとファイルがダウンロードされること | 正常系 | `ui_format_file_list_table.md` §3.1.5 | POST `/api/v1/files/download` |
-| 4-8-37 | ファイルダウンロードに失敗した場合にエラーメッセージが表示されること | 異常系 | `ui_format_management.md` §6.2 | POST `/api/v1/files/download` |
-| 4-8-38 | ファイルの「削除」ボタンをクリックすると削除確認ダイアログが表示されること | 表示確認 | `ui_format_file_list_table.md` §3.1.6、`ui_format_management.md` §3.2 | - |
-| 4-8-39 | 削除確認ダイアログで確認するとファイルが削除されてファイル一覧から消えること | 正常系 | `ui_format_management.md` §3.2 / §6.4 | DELETE `/api/v1/formats/:formatId/files/:fileId` |
-| 4-8-40 | 削除確認ダイアログでキャンセルするとファイルが削除されないこと | 正常系 | `ui_format_file_list_table.md` §3.1.6 | - |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-8-1 | フォーマット一覧が表示されること | 正常系 | 要件書#13 | GET `/api/v1/formats` | － | |
+| 4-8-2 | フォーマット（ワークフローベース）を新規登録できること | 正常系 | 要件書#13 | POST `/api/v1/formats` | － | |
+| 4-8-3 | 登録済みフォーマットを削除できること | 正常系 | 要件書#13 | DELETE `/api/v1/formats/:formatId` | － | |
+| 4-8-4 | 「詳細検索」ボタンをクリックすると詳細検索モーダルが開くこと | 表示確認 | `ui_format_search_modal.md` §3.1.1 | - | － | |
+| 4-8-5 | 検索条件を「条件追加」ボタンで5件まで追加できること | 表示確認 | `ui_format_search_modal.md` §3.1.2 | - | － | |
+| 4-8-6 | 「リセット」ボタンをクリックすると検索条件と結果がクリアされ初期状態（条件1件）に戻ること | 正常系 | `ui_format_search_modal.md` §3.1.2 | - | － | |
+| 4-8-7 | 有効な検索条件が0件の状態で検索を実行するとエラーメッセージが表示されること | 異常系 | `ui_format_search_modal.md` §3.3 | - | － | |
+| 4-8-8 | フォーマット未選択時に「新規フォルダ」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ui_format_management.md` §3.2 | - | － | |
+| 4-8-9 | フォーマット選択後に「新規フォルダ」ボタンをクリックすると新規フォルダ作成モーダルが開くこと | 表示確認 | `ui_create_format_folder_modal.md` §3.1.1 | - | － | |
+| 4-8-10 | フォルダ名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_folder_modal.md` §3.3 | - | － | |
+| 4-8-11 | フォルダ名に使用不可文字（日本語・スペース等）を含む場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_folder_modal.md` §3.3 | - | － | |
+| 4-8-12 | 「キャンセル」ボタンをクリックするとモーダルが閉じてフォルダが作成されないこと | 正常系 | `ui_create_format_folder_modal.md` §3.1.4 | - | － | |
+| 4-8-13 | フォーマット未選択時に「新規ファイル」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ui_format_management.md` §3.2 / §6.3 | - | － | |
+| 4-8-14 | フォーマット選択後に「新規ファイル」ボタンをクリックすると新規ファイル作成モーダルが開くこと | 表示確認 | `ui_create_format_file_modal.md` §3.1.1 | - | － | |
+| 4-8-15 | XMLタイプのフォーマット選択時はテンプレートタイプ選択（Material/Condition/Result）が表示されること | 表示確認 | `ui_create_format_file_modal.md` §3.1.1 / §3.1.3 | - | － | |
+| 4-8-16 | MAIMLタイプのフォーマット選択時はテンプレートタイプ選択が表示されないこと | 表示確認 | `ui_create_format_file_modal.md` §3.1.1 / §3.1.3 | - | － | |
+| 4-8-17 | ファイル名が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_file_modal.md` §3.3 | - | － | |
+| 4-8-18 | ファイル名が100文字超の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_file_modal.md` §3.3 | - | － | |
+| 4-8-19 | XMLファイル作成時にテンプレートタイプが未選択の場合にバリデーションエラーが表示されること | 異常系 | `ui_create_format_file_modal.md` §3.3 | - | － | |
+| 4-8-20 | 「キャンセル」ボタンをクリックするとモーダルが閉じてファイルが作成されないこと | 正常系 | `ui_create_format_file_modal.md` §3.1.6 | - | － | |
+| 4-8-21 | フォーマット未選択時に「アップロード」ボタンをクリックすると警告メッセージが表示されること | 異常系 | `ui_format_management.md` §3.2 / §6.3 | - | － | |
+| 4-8-22 | フォーマット選択後に「アップロード」ボタンをクリックするとアップロードダイアログが開くこと | 表示確認 | `ui_format_upload_dialog.md` §3.1.1 | - | － | |
+| 4-8-23 | 単一ファイルモードでファイルを1件選択してアップロードできること | 正常系 | `ui_format_upload_dialog.md` §3.1.3 / §3.1.8 | POST `/api/v1/formats/upload` | － | |
+| 4-8-24 | 一括ファイルモードで複数ファイルを選択してアップロードできること | 正常系 | `ui_format_upload_dialog.md` §3.1.3 / §3.1.8 | POST `/api/v1/formats/upload` | － | |
+| 4-8-25 | フォルダモードでフォルダを選択してアップロードできること | 正常系 | `ui_format_upload_dialog.md` §3.1.4 / §3.1.8 | POST `/api/v1/formats/upload` | － | |
+| 4-8-26 | モード切り替え時に選択済みファイルリストがクリアされること | 表示確認 | `ui_format_upload_dialog.md` §3.1.2 | - | － | |
+| 4-8-27 | 単一ファイルモードで複数ファイルを選択すると最後の1ファイルのみが選択状態になること | 表示確認 | `ui_format_upload_dialog.md` §3.1.3 | - | － | |
+| 4-8-28 | ファイルを選択せずにアップロードボタンを押すと警告メッセージが表示されること | 異常系 | `ui_format_upload_dialog.md` §3.3 / §6.1 | - | － | |
+| 4-8-29 | アップロード中にファイル完了件数とパーセントが進捗表示されること | 表示確認 | `ui_format_upload_dialog.md` §2.2.7 / §3.1.8 | - | － | |
+| 4-8-30 | アップロード完了後に成功メッセージが表示されること | 表示確認 | `ui_format_upload_dialog.md` §2.2.7 | - | － | |
+| 4-8-31 | アップロード中にダイアログを閉じようとすると確認ダイアログが表示されること | 異常系 | `ui_format_upload_dialog.md` §3.1.10 / §6.2 | - | － | |
+| 4-8-32 | MAIMLファイル（.maiml）の「編集」ボタンをクリックするとPetriNetEditorがフルスクリーンで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | POST `/api/worker/load-maiml-file` | － | |
+| 4-8-33 | XMLファイル（.xml）の「編集」ボタンをクリックするとTemplateEditorDialogがモーダルで開くこと | 正常系 | `ui_format_management.md` §3.1.7、`ui_format_file_list_table.md` §3.1.4 | - | － | |
+| 4-8-34 | MAIMLファイルの編集後に保存するとS3ファイルが更新されること | 正常系 | `ui_format_management.md` §3.1.7 | PUT `/api/v1/formats/:formatId/files/:fileId` | － | |
+| 4-8-35 | .maimlでも.xmlでもないファイルの「編集」ボタンをクリックするとエラーメッセージが表示されること | 異常系 | `ui_format_management.md` §6.3 | - | － | |
+| 4-8-36 | ファイルの「ダウンロード」ボタンをクリックするとファイルがダウンロードされること | 正常系 | `ui_format_file_list_table.md` §3.1.5 | POST `/api/v1/files/download` | － | |
+| 4-8-37 | ファイルダウンロードに失敗した場合にエラーメッセージが表示されること | 異常系 | `ui_format_management.md` §6.2 | POST `/api/v1/files/download` | － | |
+| 4-8-38 | ファイルの「削除」ボタンをクリックすると削除確認ダイアログが表示されること | 表示確認 | `ui_format_file_list_table.md` §3.1.6、`ui_format_management.md` §3.2 | - | － | |
+| 4-8-39 | 削除確認ダイアログで確認するとファイルが削除されてファイル一覧から消えること | 正常系 | `ui_format_management.md` §3.2 / §6.4 | DELETE `/api/v1/formats/:formatId/files/:fileId` | － | |
+| 4-8-40 | 削除確認ダイアログでキャンセルするとファイルが削除されないこと | 正常系 | `ui_format_file_list_table.md` §3.1.6 | - | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -365,18 +377,18 @@
 
 > **テスト方法**: Playwright自動（4-9-1〜4-9-9）+ 手動（4-9-10：意味的類似検索は検索精度の目視確認が必要なため）
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-9-1 | 進捗確認画面にトランジション検索タブが表示されること | 表示確認 | 追加機能R、`ui_progress_monitoring.md` §タブ構成 | - |
-| 4-9-2 | プロジェクト名でトランジションを検索できること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
-| 4-9-3 | トランジション名でトランジションを検索できること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
-| 4-9-4 | ステータス（完了/作業中/未着手）でトランジションをフィルタリングできること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
-| 4-9-5 | 検索結果一覧にトランジション情報（トランジション名・プロジェクト名・タスク名・ステータス・作業者・開始日・終了日）が表示されること | 表示確認 | 追加機能R | GET `/api/v1/transition-search` |
-| 4-9-6 | 検索結果が0件の場合に「該当するトランジションが見つかりません」等のメッセージが表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
-| 4-9-7 | 検索条件を変更して再検索すると結果が更新されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
-| 4-9-8 | 検索条件をリセットすると全件が表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
-| 4-9-9 | 検索結果の行をクリックするとプロジェクト進捗詳細ダイアログが開き、該当トランジションが強調表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` |
-| 4-9-10 | 意味的類似検索（ベクトル検索）でテキスト内容が類似するトランジションが返されること | 正常系（手動） | 追加機能R（セマンティック検索） | GET `/api/v1/transition-search?semantic=true` |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-9-1 | 進捗確認画面にトランジション検索タブが表示されること | 表示確認 | 追加機能R、`ui_progress_monitoring.md` §タブ構成 | - | － | |
+| 4-9-2 | プロジェクト名でトランジションを検索できること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | － | |
+| 4-9-3 | トランジション名でトランジションを検索できること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | － | |
+| 4-9-4 | ステータス（完了/作業中/未着手）でトランジションをフィルタリングできること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | － | |
+| 4-9-5 | 検索結果一覧にトランジション情報（トランジション名・プロジェクト名・タスク名・ステータス・作業者・開始日・終了日）が表示されること | 表示確認 | 追加機能R | GET `/api/v1/transition-search` | － | |
+| 4-9-6 | 検索結果が0件の場合に「該当するトランジションが見つかりません」等のメッセージが表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | － | |
+| 4-9-7 | 検索条件を変更して再検索すると結果が更新されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | － | |
+| 4-9-8 | 検索条件をリセットすると全件が表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | － | |
+| 4-9-9 | 検索結果の行をクリックするとプロジェクト進捗詳細ダイアログが開き、該当トランジションが強調表示されること | 正常系 | 追加機能R | GET `/api/v1/transition-search` | － | |
+| 4-9-10 | 意味的類似検索（ベクトル検索）でテキスト内容が類似するトランジションが返されること | 正常系（手動） | 追加機能R（セマンティック検索） | GET `/api/v1/transition-search?semantic=true` | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -394,12 +406,12 @@
 
 > **テスト方法**: Playwright自動（フロントエンド実装後に実施。現在フロントエンド未実装のため保留）
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-10-1 | ファイル一覧の「公開」ボタンをクリックするとMaimlPublishDialogが表示されること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlPublishDialog | - |
-| 4-10-2 | MaimlPublishDialogで公開オプションを設定してMAIMLファイルを公開できること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlPublishDialog | POST `/api/v1/maiml-opendata/publish` |
-| 4-10-3 | 公開済みファイルのボタンが「公開済み」（緑・disabled）に変わること | 表示確認 | 追加機能S、`ui_maiml_publish.md` §公開ボタン | GET `/api/v1/maiml-opendata/status` |
-| 4-10-4 | 公開済みファイルの「公開済み」ボタンから「非公開にする」を選択するとMaimlUnpublishConfirmDialogが表示され、確認後に非公開にできること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlUnpublishConfirmDialog | DELETE `/api/v1/maiml-opendata/unpublish/:assetId` |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-10-1 | ファイル一覧の「公開」ボタンをクリックするとMaimlPublishDialogが表示されること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlPublishDialog | - | － | |
+| 4-10-2 | MaimlPublishDialogで公開オプションを設定してMAIMLファイルを公開できること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlPublishDialog | POST `/api/v1/maiml-opendata/publish` | － | |
+| 4-10-3 | 公開済みファイルのボタンが「公開済み」（緑・disabled）に変わること | 表示確認 | 追加機能S、`ui_maiml_publish.md` §公開ボタン | GET `/api/v1/maiml-opendata/status` | － | |
+| 4-10-4 | 公開済みファイルの「公開済み」ボタンから「非公開にする」を選択するとMaimlUnpublishConfirmDialogが表示され、確認後に非公開にできること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlUnpublishConfirmDialog | DELETE `/api/v1/maiml-opendata/unpublish/:assetId` | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -418,18 +430,18 @@
 
 > **テスト方法**: Playwright自動（4-11-1〜2、4-11-5〜10）+ 手動（4-11-3〜4：ブラウザの `webkitdirectory` 属性を使用するフォルダモードは自動化困難なため）
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-11-1 | 単一ファイルモードでファイルをアップロードできること | 正常系 | 追加機能L | POST `/api/v1/files/upload` |
-| 4-11-2 | 一括ファイルモードで複数ファイルを同時にアップロードできること | 正常系 | 追加機能L | POST `/api/v1/files/upload` |
-| 4-11-3 | フォルダモードでフォルダをアップロードできること | 正常系 | 追加機能L | POST `/api/v1/files/upload` |
-| 4-11-4 | フォルダ構造を保持するオプションが有効な場合にフォルダ階層を維持してアップロードできること | 正常系 | `ui_bulk_upload_dialog.md` §3.5 | POST `/api/v1/files/upload` |
-| 4-11-5 | アップロード中にファイル完了件数とパーセントが進捗表示されること | 表示確認 | `ui_bulk_upload_dialog.md` §3.6.2 | - |
-| 4-11-6 | アップロード完了後に成功メッセージが表示されること | 表示確認 | `ui_bulk_upload_dialog.md` §3.6.2 | - |
-| 4-11-7 | ファイルを選択せずにアップロードボタンを押すと警告メッセージが表示されること | 異常系 | `ui_bulk_upload_dialog.md` §7.2 | - |
-| 4-11-8 | アップロード中にダイアログを閉じようとすると確認ダイアログが表示されること | 異常系 | `ui_bulk_upload_dialog.md` §3.7 | - |
-| 4-11-9 | 単一ファイルモードで複数ファイルを選択すると最後の1ファイルのみが選択状態になること | 表示確認 | `ui_bulk_upload_dialog.md` §3.2.3 | - |
-| 4-11-10 | モード切り替え時に選択済みファイルリストがクリアされること | 表示確認 | `ui_bulk_upload_dialog.md` §3.1.2 | - |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-11-1 | 単一ファイルモードでファイルをアップロードできること | 正常系 | 追加機能L | POST `/api/v1/files/upload` | － | |
+| 4-11-2 | 一括ファイルモードで複数ファイルを同時にアップロードできること | 正常系 | 追加機能L | POST `/api/v1/files/upload` | － | |
+| 4-11-3 | フォルダモードでフォルダをアップロードできること | 正常系 | 追加機能L | POST `/api/v1/files/upload` | － | |
+| 4-11-4 | フォルダ構造を保持するオプションが有効な場合にフォルダ階層を維持してアップロードできること | 正常系 | `ui_bulk_upload_dialog.md` §3.5 | POST `/api/v1/files/upload` | － | |
+| 4-11-5 | アップロード中にファイル完了件数とパーセントが進捗表示されること | 表示確認 | `ui_bulk_upload_dialog.md` §3.6.2 | - | － | |
+| 4-11-6 | アップロード完了後に成功メッセージが表示されること | 表示確認 | `ui_bulk_upload_dialog.md` §3.6.2 | - | － | |
+| 4-11-7 | ファイルを選択せずにアップロードボタンを押すと警告メッセージが表示されること | 異常系 | `ui_bulk_upload_dialog.md` §7.2 | - | － | |
+| 4-11-8 | アップロード中にダイアログを閉じようとすると確認ダイアログが表示されること | 異常系 | `ui_bulk_upload_dialog.md` §3.7 | - | － | |
+| 4-11-9 | 単一ファイルモードで複数ファイルを選択すると最後の1ファイルのみが選択状態になること | 表示確認 | `ui_bulk_upload_dialog.md` §3.2.3 | - | － | |
+| 4-11-10 | モード切り替え時に選択済みファイルリストがクリアされること | 表示確認 | `ui_bulk_upload_dialog.md` §3.1.2 | - | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
@@ -455,16 +467,16 @@
 
 ### 4-12: 問題管理
 
-| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API |
-|-----------|-----------|------|------|---------|
-| 4-12-1 | 問題管理モーダルで問題一覧が表示されること（タイトル・内容による検索、ステータスフィルター） | 正常系 | `ui_issue_management_modal.md` §5、§6 | GET `/api/v1/issues` |
-| 4-12-2 | 新規問題をプロジェクト単位で登録できること | 正常系 | `ui_issue_management_modal.md` §8、`api_issue_management.md` §1 | POST `/api/v1/issues` |
-| 4-12-3 | 新規問題をトランジション単位で登録できること | 正常系 | `ui_issue_management_modal.md` §8、`api_issue_management.md` §1 | POST `/api/v1/issues` |
-| 4-12-4 | 新規問題登録時にタイトルまたは内容が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_issue_management_modal.md` §8.2 | - |
-| 4-12-5 | 既存問題を選択してコメントを追加できること | 正常系 | `ui_issue_management_modal.md` §7、`api_issue_management.md` §2 | POST `/api/v1/issues/comments` |
-| 4-12-6 | コメントが未入力の場合に「コメント送信」「解決」「未解決」ボタンが非活性であること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - |
-| 4-12-7 | 未解決の問題を「解決済」に変更できること（コメントと同時送信） | 正常系 | `ui_issue_management_modal.md` §7.2、`api_issue_management.md` §5 | POST `/api/v1/issues/comments`、PATCH `/api/v1/issues/status` |
-| 4-12-8 | 解決済の問題を「未解決」に戻せること（コメントと同時送信） | 正常系 | `ui_issue_management_modal.md` §7.2、`api_issue_management.md` §5 | POST `/api/v1/issues/comments`、PATCH `/api/v1/issues/status` |
+| シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
+|-----------|-----------|------|------|---------|------|------|
+| 4-12-1 | 問題管理モーダルで問題一覧が表示されること（タイトル・内容による検索、ステータスフィルター） | 正常系 | `ui_issue_management_modal.md` §5、§6 | GET `/api/v1/issues` | － | |
+| 4-12-2 | 新規問題をプロジェクト単位で登録できること | 正常系 | `ui_issue_management_modal.md` §8、`api_issue_management.md` §1 | POST `/api/v1/issues` | － | |
+| 4-12-3 | 新規問題をトランジション単位で登録できること | 正常系 | `ui_issue_management_modal.md` §8、`api_issue_management.md` §1 | POST `/api/v1/issues` | － | |
+| 4-12-4 | 新規問題登録時にタイトルまたは内容が未入力の場合にバリデーションエラーが表示されること | 異常系 | `ui_issue_management_modal.md` §8.2 | - | － | |
+| 4-12-5 | 既存問題を選択してコメントを追加できること | 正常系 | `ui_issue_management_modal.md` §7、`api_issue_management.md` §2 | POST `/api/v1/issues/comments` | － | |
+| 4-12-6 | コメントが未入力の場合に「コメント送信」「解決」「未解決」ボタンが非活性であること | 表示確認 | `ui_issue_management_modal.md` §7.2 | - | － | |
+| 4-12-7 | 未解決の問題を「解決済」に変更できること（コメントと同時送信） | 正常系 | `ui_issue_management_modal.md` §7.2、`api_issue_management.md` §5 | POST `/api/v1/issues/comments`、PATCH `/api/v1/issues/status` | － | |
+| 4-12-8 | 解決済の問題を「未解決」に戻せること（コメントと同時送信） | 正常系 | `ui_issue_management_modal.md` §7.2、`api_issue_management.md` §5 | POST `/api/v1/issues/comments`、PATCH `/api/v1/issues/status` | － | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
