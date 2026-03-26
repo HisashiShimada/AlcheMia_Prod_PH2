@@ -338,8 +338,8 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       Modal.confirm({
         title: 'アップロード中',
         content: 'アップロード処理が進行中です。キャンセルしますか？',
-        okText: 'はい',
-        cancelText: 'いいえ',
+        okText: '中断する',
+        cancelText: '続行',
         onOk: async () => {
           // チャンクアップロード中のセッションをすべて中断してサーバー一時ファイルを削除
           const ids = activeUploadIdsRef.current;
@@ -349,6 +349,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
           }
           onClose();
         },
+
       });
     } else {
       onClose();

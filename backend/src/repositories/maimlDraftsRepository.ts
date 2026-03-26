@@ -29,6 +29,7 @@ export interface MaimlDraftsRow {
   template_count: number;
   created_at: Date;
   last_saved_at: Date;
+  project_id: string | null;
 }
 
 /**
@@ -76,10 +77,11 @@ export class MaimlDraftsRepository {
         node_count,
         arc_count,
         template_count,
+        project_id,
         created_at,
         last_saved_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       ON CONFLICT (draft_key)
       DO UPDATE SET
         draft_name = EXCLUDED.draft_name,
@@ -91,6 +93,7 @@ export class MaimlDraftsRepository {
         node_count = EXCLUDED.node_count,
         arc_count = EXCLUDED.arc_count,
         template_count = EXCLUDED.template_count,
+        project_id = EXCLUDED.project_id,
         last_saved_at = CURRENT_TIMESTAMP
       WHERE maiml_drafts.organization_id = $3
         AND maiml_drafts.user_id = $2
@@ -110,6 +113,7 @@ export class MaimlDraftsRepository {
       nodeCount,
       arcCount,
       templateCount,
+      draft.projectId || null,
     ];
 
     const result = await pool.query(query, values);

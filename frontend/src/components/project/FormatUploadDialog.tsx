@@ -364,8 +364,8 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
       Modal.confirm({
         title: 'アップロード中',
         content: 'アップロード処理が進行中です。キャンセルしますか？',
-        okText: 'はい',
-        cancelText: 'いいえ',
+        okText: '中断する',
+        cancelText: '続行',
         onOk: async () => {
           // チャンクアップロード中のセッションをすべて中断してサーバー一時ファイルを削除
           const ids = activeUploadIdsRef.current;
@@ -375,6 +375,7 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
           }
           onClose();
         },
+
       });
     } else {
       onClose();
@@ -396,11 +397,11 @@ const FormatUploadDialog: React.FC<FormatUploadDialogProps> = ({
         title="ファイルアップロード"
         open={open}
         onCancel={onClose}
-        footer={[
-          <Button key="close" onClick={onClose}>
-            閉じる
-          </Button>,
-        ]}
+      footer={[
+        <Button key="cancel" onClick={onClose}>
+          キャンセル
+        </Button>,
+      ]}
       >
         <Alert
           message="フォーマットが選択されていません"

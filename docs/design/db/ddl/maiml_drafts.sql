@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS maiml_drafts (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_saved_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_auto_saved_at TIMESTAMP WITH TIME ZONE,
-    organization_id VARCHAR(100)
+    organization_id VARCHAR(100),
+    project_id VARCHAR(255)  -- プロジェクトID（プロジェクト管理画面からのDraft特定用）
 );
 
 CREATE INDEX IF NOT EXISTS idx_maiml_drafts_user_id ON maiml_drafts(user_id);
@@ -25,3 +26,5 @@ CREATE INDEX IF NOT EXISTS idx_maiml_drafts_organization_id ON maiml_drafts(orga
 CREATE INDEX IF NOT EXISTS idx_maiml_drafts_org_user ON maiml_drafts(organization_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_maiml_drafts_last_saved ON maiml_drafts(user_id, last_saved_at DESC);
 CREATE INDEX IF NOT EXISTS idx_maiml_drafts_original_file ON maiml_drafts(original_file_key) WHERE original_file_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_maiml_drafts_project_id ON maiml_drafts(project_id);
+CREATE INDEX IF NOT EXISTS idx_maiml_drafts_org_project ON maiml_drafts(organization_id, project_id);

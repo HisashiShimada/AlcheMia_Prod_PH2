@@ -835,8 +835,6 @@ const TaskRegistrationTab: React.FC<TaskRegistrationTabProps> = ({
           <Button
             type="primary"
             onClick={handleProjectInstructionClick}
-            disabled={loadingMethods}
-            data-testid="project-instruction-button"
             disabled={loadingMethods || isCheckoutLocked}
             data-testid="project-instruction-button"
           >
