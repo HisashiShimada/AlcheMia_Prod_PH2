@@ -701,6 +701,7 @@ export default function ProgressCheckTab({
                 projectStatus={projectStatus}
                 onTaskAction={handleTaskAction}
                 readOnly={readOnly}
+                projectName={selectedProjectName}
               />
             ) : (
               <div
