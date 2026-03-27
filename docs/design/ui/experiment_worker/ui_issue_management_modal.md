@@ -1207,12 +1207,15 @@ scroll={{ y: 'calc(70vh - 280px)' }}
 
 ### 14.3 関連コンポーネント
 
-- **IssueReportModal**: 単一問題の報告とステータス変更
-- **ProgressCheckTab**: 問題管理ボタンの呼び出し元
+- **ProgressCheckTab**: 問題管理ボタンの呼び出し元（viewMode=false で問題報告、viewMode=true で問題確認）
 - **InstructionConfirmationTab**: 問題管理ボタンの呼び出し元
 - **Issue型**: 問題のデータ型
 - **IssueStatus型**: ステータスの型定義
 - **IssueTargetType型**: 対象タイプの型定義
+
+> **廃止コンポーネント:**
+> `IssueReportModal`（`frontend/src/components/ExperimentWorker/IssueReportModal.tsx`）は API 未実装のまま放置されていたため、2026-03-25 に削除されました。
+> 問題報告機能は本コンポーネント（`IssueManagementModal`）の `viewMode=false` で提供します。
 
 ---
 
@@ -1221,6 +1224,7 @@ scroll={{ y: 'calc(70vh - 280px)' }}
 | バージョン | 日付 | 変更内容 | 担当者 |
 |-----------|------|----------|--------|
 | 1.3.0 | 2026-03-11 | 仕様書をソースコードと同期: Props設計をコールバック方式から内部API直接呼び出し方式に変更（`issues`/`onSubmitIssue`/`onSubmitComment`/`onUpdateStatus` 削除 → `projectId`/`projectName`/`targetName`/`methodId`/`taskNo` 追加）、`fetchIssues`/`issuesLoading` 追記、各イベントハンドラのAPI呼び出し処理に更新、`destroyOnClose` → `destroyOnHidden` 修正、`bodyStyle` → `styles.body` 修正、ボタンtooltip追記 | Cline |
+| 1.4.0 | 2026-03-25 | 関連コンポーネント欄の IssueReportModal を削除、廃止コンポーネント注記を追加（永続化漏れ修正対応） | Cline |
 | 1.2.0 | 2026-02-27 | コメント送信後の即時表示対応: `selectedIssue` を state から `useMemo` による派生値に変更し、`issues` props 更新時に自動反映されるよう修正 | Cline |
 | 1.1.0 | 2026-02-27 | 問題タイプ選択肢をハードコードからコードマスターAPI取得に変更（useCodeMaster('issue_type')） | Cline |
 | 1.0.0 | 2026-01-19 | 初版作成、UI設計書として文書化 | Cline |
