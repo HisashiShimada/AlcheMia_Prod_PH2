@@ -84,8 +84,9 @@
 └─────────────────────────────────────────────┘
 
 モーダル:
-- IssueReportModal（問題報告）
-- IssueManagementModal（問題確認 - 参照専用）
+- IssueManagementModal（問題報告・問題確認 共通）
+  - viewMode=false: 問題報告（編集可能）
+  - viewMode=true: 問題確認（参照専用）
 ```
 
 ### 2.3 使用コンポーネント
@@ -101,12 +102,10 @@
 
 #### カスタムコンポーネント
 - `ProgressCheckTable` - タスク進捗テーブル
-- `IssueReportModal` - 問題報告モーダル
-- `IssueManagementModal` - 問題確認モーダル（参照専用）
+- `IssueManagementModal` - 問題管理モーダル（報告・確認共通）
 
 #### アイコン
 - `CheckSquareOutlined` - チェックボックスアイコン（空状態）
-- `RightOutlined` - 右矢印（将来拡張用）
 
 ---
 
@@ -143,8 +142,8 @@
 | 開始 | `start` | タスクを開始（API連携・楽観的ロック対応） | - |
 | 指示確認 | `instruction` | 指示確認タブに遷移 | InstructionConfirmationTab（タブ2） |
 | 実験記録 | `record` | 実験記録タブに遷移 | ExperimentRecordTab（タブ3） |
-| 問題報告 | `issue` | 問題報告モーダルを開く | IssueReportModal |
-| 問題確認 | `issueCheck` | 問題確認モーダルを開く（参照専用） | IssueManagementModal |
+| 問題報告 | `issue` | 問題報告モーダルを開く（編集可能） | IssueManagementModal（viewMode=false） |
+| 問題確認 | `issueCheck` | 問題確認モーダルを開く（参照専用） | IssueManagementModal（viewMode=true） |
 | 強制終了 | `forceTerminate` | タスクを強制終了（API連携・楽観的ロック対応） | - |
 
 ---
@@ -241,10 +240,9 @@ switch (action) {
 
 | イベント名 | トリガー | 処理内容 |
 |-----------|---------|---------|
-| handleOpenIssueReport | 問題報告ボタンクリック | 選択したタスクを設定し、IssueReportModalを開く |
-| handleCloseIssueReport | 問題報告モーダルを閉じる | モーダルを非表示、選択タスクをクリア |
-| handleOpenIssueCheck | 問題確認ボタンクリック | 選択したタスクを設定し、IssueManagementModalを開く（参照専用） |
-| handleCloseIssueCheck | 問題確認モーダルを閉じる | モーダルを非表示、選択タスクをクリア |
+| handleOpenIssueReport | 問題報告ボタンクリック | 選択したタスクを設定し、IssueManagementModal（viewMode=false）を開く |
+| handleOpenIssueCheck | 問題確認ボタンクリック | 選択したタスクを設定し、IssueManagementModal（viewMode=true）を開く |
+| handleCloseIssueModal | モーダルを閉じる | モーダルを非表示、選択タスクをクリア（報告・確認共通） |
 
 ---
 
@@ -465,9 +463,9 @@ useEffect(() => {
 
 ```
 ProgressCheckTab
-  ├→ IssueReportModal（問題報告）
+  ├→ IssueManagementModal viewMode=false（問題報告 - 編集可能）
   │   └→ 閉じる
-  └→ IssueManagementModal（問題確認 - 参照専用）
+  └→ IssueManagementModal viewMode=true（問題確認 - 参照専用）
       └→ 閉じる
 ```
 
@@ -566,3 +564,4 @@ ProgressCheckTab
 |-----------|------|----------|--------|
 | 1.0.0 | 2026-01-19 | 初版作成 | Cline |
 | 1.1.0 | 2026-03-11 | ソースコード差分に基づく仕様書修正（Props追加・API連携実装反映・IssueReportModal追加・アクション処理更新・ローディング状態追加） | Cline |
+| 1.2.0 | 2026-03-25 | IssueReportModal を削除し IssueManagementModal（viewMode=false/true）に統一（永続化漏れ修正対応） | Cline |
