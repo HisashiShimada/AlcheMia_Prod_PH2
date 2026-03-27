@@ -30,6 +30,7 @@ CREATE TABLE organization (
   , contract_users integer
   , contract_projects integer
   , is_active BOOLEAN
+  , default_retention_days INT NOT NULL DEFAULT 30
   , create_user_id character varying(50)
   , create_at timestamp
   , update_user_id character varying(50)
@@ -38,7 +39,7 @@ CREATE TABLE organization (
 ) ;
 
 CREATE UNIQUE INDEX idx_organizaton_organization_cd
-  ON organization(organization_cd);
+  ON organization(LOWER(organization_cd));
 
 COMMENT ON TABLE organization IS '組織';
 COMMENT ON COLUMN organization.organization_id IS '組織ID:9eea5300-db8b-4b2d-8e9e-ec306c476b12';
@@ -53,6 +54,7 @@ COMMENT ON COLUMN organization.contract_capacity IS '契約容量';
 COMMENT ON COLUMN organization.contract_users IS '契約ユーザー数';
 COMMENT ON COLUMN organization.contract_projects IS '契約プロジェクト数';
 COMMENT ON COLUMN organization.is_active IS 'アクティブ判定';
+COMMENT ON COLUMN organization.default_retention_days IS 'MaiMLデータ公開時のデフォルト保持日数（日）。公開Workerがretention_until算出時に参照する。1以上の整数必須。';
 COMMENT ON COLUMN organization.create_user_id IS '作成者ユーザID';
 COMMENT ON COLUMN organization.create_at IS '作成日時';
 COMMENT ON COLUMN organization.update_user_id IS '更新者ユーザID';

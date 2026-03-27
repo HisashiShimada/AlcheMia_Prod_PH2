@@ -220,26 +220,50 @@ export async function count(organizationId: string): Promise<number> {
 /**
  * Creator IDが既に存在するかチェック
  * 
+ * corporationId が指定された場合は法人スコープ（同一法人内）で重複チェックを行う。
+ * corporationId が null/undefined の場合は organization_id スコープでチェックする。
+ * findById / update / findAllWithFilters と同じスコープ判定に統一。
+ * 
  * @param organizationId 組織ID
  * @param creatorId Creator ID
+ * @param corporationId 会社ID（任意）
  * @returns 存在する場合true
  */
 export async function existsById(
   organizationId: string,
-  creatorId: string
+  creatorId: string,
+  corporationId?: string | null
 ): Promise<boolean> {
   const pool: Pool = getPool();
-  
-  const query = `
-    SELECT EXISTS (
-      SELECT 1
-      FROM creator
-      WHERE organization_id = $1
-        AND creator_id = $2
-    ) as exists
-  `;
-  
-  const result = await pool.query(query, [organizationId, creatorId]);
+
+  let query: string;
+  let params: any[];
+
+  if (corporationId !== null && corporationId !== undefined) {
+    // 法人スコープ: 同一法人内で creator_id が一意であること
+    query = `
+      SELECT EXISTS (
+        SELECT 1
+        FROM creator
+        WHERE corporation_id = $1
+          AND creator_id = $2
+      ) as exists
+    `;
+    params = [corporationId, creatorId];
+  } else {
+    // 組織スコープ: 同一組織内で creator_id が一意であること
+    query = `
+      SELECT EXISTS (
+        SELECT 1
+        FROM creator
+        WHERE organization_id = $1
+          AND creator_id = $2
+      ) as exists
+    `;
+    params = [organizationId, creatorId];
+  }
+
+  const result = await pool.query(query, params);
   return result.rows[0].exists;
 }
 
