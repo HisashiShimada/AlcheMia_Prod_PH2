@@ -3,11 +3,11 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Typography, Tabs, Table, Card, Button, Space, Tag, theme } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 /**
  * プロパティオブジェクトの型定義
@@ -107,7 +107,31 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
     return result;
   }, [structuredProperties.data]);
   
-  // プロパティテーブルのカラム定義
+  // プロパティ値のレンダリングヘルパー
+  const renderValue = (value: unknown) => {
+    if (value === null || value === undefined || value === '') {
+      return <Text type="secondary" italic>未設定</Text>;
+    }
+    if (typeof value === 'boolean') {
+      return value ? <Tag color="success">はい</Tag> : <Tag color="error">いいえ</Tag>;
+    }
+    if (typeof value === 'object') {
+      // ✅ Fix4: Object型を JSON.stringify 1行ではなくフラット展開して表示
+      return (
+        <div style={{ fontSize: 12 }}>
+          {Object.entries(value as Record<string, unknown>).map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', gap: 4 }}>
+              <Text type="secondary" style={{ fontSize: 11, minWidth: 60 }}>{k}:</Text>
+              <Text style={{ fontSize: 11 }}>{String(v ?? '')}</Text>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return <Text>{String(value)}</Text>;
+  };
+
+  // 基本情報・データタブ用カラム
   const columns = [
     {
       title: 'プロパティ',
@@ -120,26 +144,58 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
       title: '値',
       dataIndex: 'value',
       key: 'value',
-      render: (value: unknown) => {
-        if (value === null || value === undefined || value === '') {
-          return <Text type="secondary" italic>未設定</Text>;
-        }
-        if (typeof value === 'boolean') {
-          return value ? (
-            <Tag color="success">はい</Tag>
-          ) : (
-            <Tag color="error">いいえ</Tag>
-          );
-        }
-        if (typeof value === 'object') {
-          return <Text code>{JSON.stringify(value)}</Text>;
-        }
-        return <Text>{String(value)}</Text>;
-      },
+      render: renderValue,
     },
   ];
+
+  // ✅ Fix4: テンプレートタブ専用カラム（type/description列追加）
+  const templateColumns = [
+    {
+      title: 'キー',
+      dataIndex: 'propKey',
+      key: 'propKey',
+      width: '30%',
+      render: (text: string) => <Text strong style={{ fontSize: 12 }}>{text}</Text>,
+    },
+    {
+      title: 'xsi:type',
+      dataIndex: 'xsiType',
+      key: 'xsiType',
+      width: '20%',
+      render: (text: string) => text ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text> : null,
+    },
+    {
+      title: '値',
+      dataIndex: 'value',
+      key: 'value',
+      width: '25%',
+      render: renderValue,
+    },
+    {
+      title: '説明/単位',
+      dataIndex: 'description',
+      key: 'description',
+      width: '25%',
+      render: (text: string) => text ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text> : null,
+    },
+  ];
+
+  // ✅ Fix4: テンプレートタブ用データ変換（structuredProperties.template から直接 xsiType/description を取り出す）
+  const convertToTemplateTableData = (propsMap: Record<string, PropertyObject>) => {
+    return Object.entries(propsMap).map(([rawKey, propObj], index) => {
+      // 'property_' プレフィックスを除去して表示
+      const displayKey = rawKey.startsWith('property_') ? rawKey.slice('property_'.length) : rawKey;
+      return {
+        key: index.toString(),
+        propKey: displayKey,
+        xsiType: propObj.type ?? '',
+        value: propObj.value,
+        description: propObj.description ?? '',
+      };
+    });
+  };
   
-  // プロパティデータをテーブル用に変換
+  // 基本情報・データタブ用データ変換
   const convertToTableData = (data: Record<string, unknown>) => {
     return Object.entries(data).map(([propKey, value], index) => ({
       key: index.toString(),
@@ -150,12 +206,18 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
   
   // キー名をフォーマット
   const formatKey = (key: string): string => {
+    // ✅ property_* プレフィックスを除去して表示
+    if (key.startsWith('property_')) {
+      return key.slice('property_'.length);
+    }
     const keyMap: Record<string, string> = {
       id: 'ID',
       name: '名前',
       type: 'タイプ',
       description: '説明',
       uuid: 'UUID',
+      annotation: 'Annotation',
+      placeRefs: 'Place参照',
       template_uuid: 'Template UUID',
       template_description: 'Template Description',
       instruction_id: 'Instruction ID',
@@ -193,13 +255,14 @@ const PropertyViewer: React.FC<PropertyViewerProps> = ({
     {
       key: 'template',
       label: 'テンプレート',
-      children: Object.keys(templateProps).length > 0 ? (
+      children: Object.keys(structuredProperties.template || {}).length > 0 ? (
         <Table
-          columns={columns}
-          dataSource={convertToTableData(templateProps)}
+          columns={templateColumns}
+          dataSource={convertToTemplateTableData(structuredProperties.template)}
           pagination={false}
           size="small"
-          showHeader={false}
+          showHeader={true}
+          scroll={{ x: true }}
         />
       ) : (
         <Text type="secondary">表示するプロパティがありません</Text>

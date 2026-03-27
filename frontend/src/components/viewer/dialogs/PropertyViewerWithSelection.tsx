@@ -3,7 +3,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Typography, Tabs, Table, Button, Space, Tag, theme, Checkbox, Empty } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -71,9 +71,11 @@ interface PropertyViewerWithSelectionProps {
  * テーブルデータの型
  */
 interface TableDataType {
-  key: string;  // 内部キー（プロパティ名）
-  propKey: string;  // 表示用プロパティ名
-  value: unknown;  // 値
+  key: string;       // 内部キー（プロパティ名）
+  propKey: string;   // 表示用プロパティ名
+  value: unknown;    // 値
+  xsiType?: string;  // テンプレートタブ用 xsi:type
+  description?: string; // テンプレートタブ用 説明/単位
 }
 
 const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = ({
@@ -169,15 +171,54 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
     return keyMap[key] || key;
   };
   
-  // プロパティデータをテーブル用に変換
+  // プロパティデータをテーブル用に変換（基本情報・データタブ）
   const convertToTableData = (data: Record<string, unknown>): TableDataType[] => {
     return Object.entries(data).map(([propKey, value]) => ({
-      key: propKey,  // 内部キー
-      propKey: formatKey(propKey),  // 表示用プロパティ名
-      value: value,  // 値
+      key: propKey,
+      propKey: formatKey(propKey),
+      value: value,
     }));
   };
+
+  // ✅ テンプレートタブ専用: structuredProperties.template から xsiType/description を取り出す
+  const convertToTemplateTableData = (propsMap: Record<string, PropertyObject>): TableDataType[] => {
+    return Object.entries(propsMap).map(([rawKey, propObj]) => {
+      // 'property_' プレフィックスを除去して表示
+      const displayKey = rawKey.startsWith('property_') ? rawKey.slice('property_'.length) : rawKey;
+      return {
+        key: rawKey,  // 内部キーはそのまま（選択状態管理に使用）
+        propKey: displayKey,
+        value: propObj.value,
+        xsiType: propObj.type ?? '',
+        description: propObj.description ?? '',
+      };
+    });
+  };
   
+  // 値のレンダリングヘルパー（PropertyViewer.tsx の Fix4 と同様）
+  const renderValue = (value: unknown) => {
+    if (value === null || value === undefined || value === '') {
+      return <Text type="secondary" italic>未設定</Text>;
+    }
+    if (typeof value === 'boolean') {
+      return value ? <Tag color="success">はい</Tag> : <Tag color="error">いいえ</Tag>;
+    }
+    if (typeof value === 'object') {
+      // ✅ Object型をフラット展開して表示（JSON.stringify 1行をやめる）
+      return (
+        <div style={{ fontSize: 12 }}>
+          {Object.entries(value as Record<string, unknown>).map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', gap: 4 }}>
+              <Text type="secondary" style={{ fontSize: 11, minWidth: 60 }}>{k}:</Text>
+              <Text style={{ fontSize: 11 }}>{String(v ?? '')}</Text>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return <Text>{String(value)}</Text>;
+  };
+
   // テーブルのカラム定義を生成
   const getColumns = (structure: 'basic' | 'template' | 'data'): ColumnsType<TableDataType> => {
     const selected = selectedProperties[structure] || [];
@@ -210,22 +251,7 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
         title: '値',
         dataIndex: 'value',
         key: 'value',
-        render: (value: unknown) => {
-          if (value === null || value === undefined || value === '') {
-            return <Text type="secondary" italic>未設定</Text>;
-          }
-          if (typeof value === 'boolean') {
-            return value ? (
-              <Tag color="success">はい</Tag>
-            ) : (
-              <Tag color="error">いいえ</Tag>
-            );
-          }
-          if (typeof value === 'object') {
-            return <Text code>{JSON.stringify(value)}</Text>;
-          }
-          return <Text>{String(value)}</Text>;
-        },
+        render: renderValue,
       },
     ];
   };
@@ -295,7 +321,74 @@ const PropertyViewerWithSelection: React.FC<PropertyViewerWithSelectionProps> = 
           )}
         </Space>
       ),
-      children: renderPropertyTable('template', templateProps),
+      // ✅ テンプレートタブ専用: convertToTemplateTableData + 専用カラム
+      children: (() => {
+        const selected = selectedProperties['template'] || [];
+        const tableData = convertToTemplateTableData(structuredProperties.template || {});
+        if (tableData.length === 0) {
+          return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="プロパティがありません" />;
+        }
+        const templateCols: ColumnsType<TableDataType> = [
+          {
+            title: '',
+            dataIndex: 'selected',
+            key: 'selected',
+            width: 40,
+            align: 'center',
+            render: (_: unknown, record: TableDataType) => (
+              <Checkbox
+                checked={selected.includes(record.key)}
+                onChange={(e) => { e.stopPropagation(); onPropertyToggle('template', record.key); }}
+              />
+            ),
+          },
+          {
+            title: 'キー',
+            dataIndex: 'propKey',
+            key: 'propKey',
+            width: '28%',
+            render: (text: string) => <Text strong style={{ fontSize: 12 }}>{text}</Text>,
+          },
+          {
+            title: 'xsi:type',
+            dataIndex: 'xsiType',
+            key: 'xsiType',
+            width: '20%',
+            render: (text: string) => text ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text> : null,
+          },
+          {
+            title: '値',
+            dataIndex: 'value',
+            key: 'value',
+            width: '25%',
+            render: renderValue,
+          },
+          {
+            title: '説明/単位',
+            dataIndex: 'description',
+            key: 'description',
+            width: '27%',
+            render: (text: string) => text ? <Text type="secondary" style={{ fontSize: 11 }}>{text}</Text> : null,
+          },
+        ];
+        return (
+          <Table<TableDataType>
+            columns={templateCols}
+            dataSource={tableData}
+            pagination={false}
+            size="small"
+            showHeader={true}
+            onRow={(record) => ({
+              onClick: () => onPropertyToggle('template', record.key),
+              style: {
+                cursor: 'pointer',
+                backgroundColor: selected.includes(record.key) ? '#e6f7ff' : 'transparent',
+              },
+            })}
+            scroll={{ x: true, y: 400 }}
+          />
+        );
+      })(),
     },
     {
       key: 'data',
