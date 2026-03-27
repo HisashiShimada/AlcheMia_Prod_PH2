@@ -1,17 +1,16 @@
 'use client';
 
 import React, { useCallback, useEffect, useState, useMemo, useRef } from 'react';
-import { Card, Space, Button, Typography, Tabs, theme, Badge, App } from 'antd';
-import { RightOutlined, CheckSquareOutlined } from '@ant-design/icons';
+import { Card, Space, Typography, Tabs, theme, Badge, App } from 'antd';
+import { CheckSquareOutlined } from '@ant-design/icons';
 import type { BadgeProps } from 'antd';
 import ProgressCheckTable from './ProgressCheckTable';
-import IssueReportModal from './IssueReportModal';
 import IssueManagementModal from './IssueManagementModal';
 import { getWorkerTasks, updateTaskStatus } from '@/services/projectApiService';
-import type { WorkerTasksResponse, WorkerMethod, WorkerTask } from '@/services/projectApiService';
+import type { WorkerMethod, WorkerTask } from '@/services/projectApiService';
 import { extractErrorMessage } from '@/utils/errorUtils';
 import { AxiosError } from 'axios';
-import type { Task, Method, ProjectStatus, Issue, IssueStatus } from '@/types/experimentWorker';
+import type { Task, Method, ProjectStatus } from '@/types/experimentWorker';
 
 const { Title, Text } = Typography;
 
@@ -213,36 +212,29 @@ export default function ProgressCheckTab({
     }
   }, [methods, needsAutoSelect, selectedMethodId, onSelectMethod]);
   
-  // 問題報告モーダルの状態管理
-  const [issueReportModalVisible, setIssueReportModalVisible] = useState<boolean>(false);
+  // 問題管理モーダルの状態管理（報告・確認共通）
+  const [issueModalVisible, setIssueModalVisible] = useState<boolean>(false);
   const [selectedTaskForIssue, setSelectedTaskForIssue] = useState<Task | null>(null);
-  
-  // 問題確認モーダルの状態管理
-  const [issueCheckModalVisible, setIssueCheckModalVisible] = useState<boolean>(false);
-  const [selectedTaskForIssueCheck, setSelectedTaskForIssueCheck] = useState<Task | null>(null);
+  const [issueModalViewMode, setIssueModalViewMode] = useState<boolean>(false);
 
-  // 問題報告モーダルを開く
+  // 問題報告モーダルを開く（編集モード）
   const handleOpenIssueReport = useCallback((task: Task) => {
     setSelectedTaskForIssue(task);
-    setIssueReportModalVisible(true);
+    setIssueModalViewMode(false);
+    setIssueModalVisible(true);
   }, []);
 
-  // 問題報告モーダルを閉じる
-  const handleCloseIssueReport = useCallback(() => {
-    setIssueReportModalVisible(false);
-    setSelectedTaskForIssue(null);
-  }, []);
-
-  // 問題確認モーダルを開く（参照専用）
+  // 問題確認モーダルを開く（参照専用モード）
   const handleOpenIssueCheck = useCallback((task: Task) => {
-    setSelectedTaskForIssueCheck(task);
-    setIssueCheckModalVisible(true);
+    setSelectedTaskForIssue(task);
+    setIssueModalViewMode(true);
+    setIssueModalVisible(true);
   }, []);
 
-  // 問題確認モーダルを閉じる
-  const handleCloseIssueCheck = useCallback(() => {
-    setIssueCheckModalVisible(false);
-    setSelectedTaskForIssueCheck(null);
+  // モーダルを閉じる
+  const handleCloseIssueModal = useCallback(() => {
+    setIssueModalVisible(false);
+    setSelectedTaskForIssue(null);
   }, []);
 
 
@@ -637,27 +629,6 @@ export default function ProgressCheckTab({
     }
   }, [selectedProject, tasks, onTabChange, onSelectTaskAndTab, onSelectMethod]);
 
-  // 承認依頼ボタン
-  const handleApprovalRequest = useCallback(() => {
-    message.info('承認依頼機能は今後実装予定です');
-  }, []);
-
-  // コメント送信処理
-  const handleCommentSubmit = useCallback((taskId: string, comment: string) => {
-    console.log('コメント送信:', { taskId, comment });
-    // TODO: バックエンドAPIへの送信処理を実装
-    message.success('コメントを送信しました');
-  }, []);
-
-  // ステータス変更処理
-  const handleStatusChange = useCallback((taskId: string, newStatus: IssueStatus) => {
-    console.log('ステータス変更:', { taskId, newStatus });
-    // TODO: バックエンドAPIへの送信処理を実装
-    message.success(`ステータスを「${newStatus === 'unresolved' ? '未解決' : '解決済'}」に変更しました`);
-  }, []);
-
-  // モックの問題データ（プロジェクト全体の問題を想定）
-
   // メソッドのステータスを計算する関数
   const getMethodStatus = useCallback((methodTasks: Task[]): {
     status: BadgeProps['status'];
@@ -838,27 +809,17 @@ export default function ProgressCheckTab({
         </Card>
       )}
 
-      {/* 問題報告モーダル */}
-      <IssueReportModal
-        visible={issueReportModalVisible}
-        task={selectedTaskForIssue}
-        initialStatus="unresolved"
-        onClose={handleCloseIssueReport}
-        onCommentSubmit={handleCommentSubmit}
-        onStatusChange={handleStatusChange}
-      />
-
-      {/* 問題確認モーダル（参照専用） */}
-      {selectedTaskForIssueCheck && projectId && (
+      {/* 問題管理モーダル（報告・確認共通） */}
+      {selectedTaskForIssue && projectId && (
         <IssueManagementModal
-          visible={issueCheckModalVisible}
-          targetName={selectedTaskForIssueCheck.taskName}
+          visible={issueModalVisible}
+          targetName={selectedTaskForIssue.taskName}
           projectId={projectId}
           projectName={selectedProject || ''}
-          methodId={selectedTaskForIssueCheck.methodId}
-          taskNo={selectedTaskForIssueCheck.taskNo ? parseInt(selectedTaskForIssueCheck.taskNo, 10) || undefined : undefined}
-          onClose={handleCloseIssueCheck}
-          viewMode={true}
+          methodId={selectedTaskForIssue.methodId}
+          taskNo={selectedTaskForIssue.taskNo ? parseInt(selectedTaskForIssue.taskNo, 10) || undefined : undefined}
+          onClose={handleCloseIssueModal}
+          viewMode={issueModalViewMode}
         />
       )}
     </div>

@@ -487,11 +487,23 @@ function convertPNML(xmlPnml: any): PNML {
  * Place変換
  */
 function convertPlace(xmlPlace: any): Place {
+  // <position x="..." y="..." /> 要素を読み込む
+  const positionEl = xmlPlace.position;
+  let position: { x: number; y: number } | undefined;
+  if (positionEl && positionEl._attributes) {
+    const x = parseFloat(positionEl._attributes.x);
+    const y = parseFloat(positionEl._attributes.y);
+    if (!isNaN(x) && !isNaN(y)) {
+      position = { x, y };
+    }
+  }
+
   return {
     id: xmlPlace._attributes?.id || '',
     uuid: xmlPlace.uuid?._text,
     name: xmlPlace.name?._text,
-    description: xmlPlace.description?._text
+    description: xmlPlace.description?._text,
+    position
   };
 }
 
@@ -499,11 +511,23 @@ function convertPlace(xmlPlace: any): Place {
  * Transition変換
  */
 function convertTransition(xmlTransition: any): Transition {
+  // <position x="..." y="..." /> 要素を読み込む
+  const positionEl = xmlTransition.position;
+  let position: { x: number; y: number } | undefined;
+  if (positionEl && positionEl._attributes) {
+    const x = parseFloat(positionEl._attributes.x);
+    const y = parseFloat(positionEl._attributes.y);
+    if (!isNaN(x) && !isNaN(y)) {
+      position = { x, y };
+    }
+  }
+
   return {
     id: xmlTransition._attributes?.id || '',
     uuid: xmlTransition.uuid?._text,
     name: xmlTransition.name?._text,
-    description: xmlTransition.description?._text
+    description: xmlTransition.description?._text,
+    position
   };
 }
 
