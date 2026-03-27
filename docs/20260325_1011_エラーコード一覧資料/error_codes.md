@@ -1,6 +1,6 @@
 # エラーコード一覧資料
 
-> **対象ファイル**: `backend/src/enums/errorCodes.ts`  
+> **対象ファイル**: `backend/src/enums/errorCodes.ts`, `frontend/src/utils/errorCodes.ts`  
 > **作成日**: 2026-03-25  
 > **バージョン**: 1.0
 
@@ -362,3 +362,4 @@
 | `backend/src/controllers/fileAccessController.ts` | ファイル操作系エラーコード使用箇所 |
 | `backend/src/controllers/issueController.ts` | Issue系エラーコード使用箇所 |
 | `backend/src/controllers/taskRegistrationController.ts` | タスク登録系エラーコード使用箇所 |
+| `frontend/src/utils/errorCodes.ts` | エラーコード定数・ErrorCode型・HTTP_STATUS_TO_ERROR_CODEマップ |

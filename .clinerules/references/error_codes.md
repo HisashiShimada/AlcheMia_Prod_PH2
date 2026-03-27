@@ -1,6 +1,6 @@
 # エラーコード一覧資料
 
-> **対象ファイル**: `backend/src/enums/errorCodes.ts`  
+> **対象ファイル**: `backend/src/enums/errorCodes.ts`, `frontend/src/utils/errorCodes.ts`  
 > **作成日**: 2026-03-25  
 > **バージョン**: 1.0
 
@@ -348,7 +348,100 @@
 
 ---
 
-## 8. 参照ファイル
+## 8. ErrorCode 型定義
+
+### バックエンド（`backend/src/enums/errorCodes.ts`）
+
+```typescript
+export type ErrorCode =
+  | typeof E1001 | typeof E1002 | typeof E1003 | typeof E1004 | typeof E1005
+  | typeof E1006 | typeof E1007 | typeof E1008 | typeof E1009
+  | typeof E2001 | typeof E2002 | typeof E2003 | typeof E2004
+  | typeof E3001 | typeof E3002 | typeof E3003
+  | typeof E4001 | typeof E4002 | typeof E4003 | typeof E4004 | typeof E4005 | typeof E4006
+  | typeof E5001 | typeof E5002 | typeof E5003 | typeof E5004 | typeof E5005
+  | typeof E5006 | typeof E5007 | typeof E5008 | typeof E5009 | typeof E5010
+  | typeof E5011 | typeof E5012 | typeof E5013 | typeof E5014 | typeof E5015
+  | typeof E6001 | typeof E6002 | typeof E6003 | typeof E6004 | typeof E6005 | typeof E6006
+  | typeof E7001 | typeof E7002 | typeof E7003 | typeof E7004 | typeof E7005
+  | typeof E7006 | typeof E7007 | typeof E7008
+  | typeof E9999;
+```
+
+### フロントエンド（`frontend/src/utils/errorCodes.ts`）
+
+バックエンドと同一定数を定義。`ErrorCode` 型末尾に `| string` が追加されており、未知のコードも受け入れる。
+
+```typescript
+export type ErrorCode =
+  // ... （バックエンドと同一）
+  | typeof E9999
+  | string; // 未知のコードも受け入れる
+```
+
+---
+
+## 9. フロントエンド固有の定義
+
+### ERROR_CATEGORIES（エラーカテゴリ定数）
+
+```typescript
+export const ERROR_CATEGORIES = {
+  CLIENT:   'CLIENT',
+  DATA:     'DATA',
+  NETWORK:  'NETWORK',
+  SERVER:   'SERVER',
+  AUTH:     'AUTH',
+  RESOURCE: 'RESOURCE',
+  BUSINESS: 'BUSINESS',
+  UNKNOWN:  'UNKNOWN',
+} as const;
+
+export type ErrorCategory = typeof ERROR_CATEGORIES[keyof typeof ERROR_CATEGORIES];
+```
+
+### getErrorCategory()（エラーコード→カテゴリ変換）
+
+```typescript
+export function getErrorCategory(code: string): ErrorCategory {
+  const num = parseInt(code.substring(1, 2)); // E1→1, E2→2, ...
+  switch (num) {
+    case 1: return ERROR_CATEGORIES.CLIENT;
+    case 2: return ERROR_CATEGORIES.DATA;
+    case 3: return ERROR_CATEGORIES.NETWORK;
+    case 4: return ERROR_CATEGORIES.SERVER;
+    case 5: return ERROR_CATEGORIES.AUTH;
+    case 6: return ERROR_CATEGORIES.RESOURCE;
+    case 7: return ERROR_CATEGORIES.BUSINESS;
+    default: return ERROR_CATEGORIES.UNKNOWN;
+  }
+}
+```
+
+### HTTP_STATUS_TO_ERROR_CODE（HTTPステータス→エラーコード フォールバックマッピング）
+
+バックエンドがエラーコードを返さなかった場合のフォールバックとして使用。
+
+```typescript
+export const HTTP_STATUS_TO_ERROR_CODE: Record<number, ErrorCode> = {
+  400: E1003, // Bad Request             → バリデーションエラー
+  401: E5013, // Unauthorized            → 認証必須
+  403: E5012, // Forbidden               → アクセス拒否
+  404: E6001, // Not Found               → リソース不存在
+  409: E6005, // Conflict                → 重複
+  429: E5007, // Too Many Requests       → レート制限
+  500: E4001, // Internal Server Error   → サーバー内部エラー
+  502: E3001, // Bad Gateway             → サーバー接続失敗
+  503: E3001, // Service Unavailable     → サーバー接続失敗
+  504: E3002, // Gateway Timeout         → タイムアウト
+};
+```
+
+---
+
+## 10. 参照ファイル
+
+### バックエンド
 
 | ファイル | 内容 |
 |---------|------|
@@ -362,3 +455,13 @@
 | `backend/src/controllers/fileAccessController.ts` | ファイル操作系エラーコード使用箇所 |
 | `backend/src/controllers/issueController.ts` | Issue系エラーコード使用箇所 |
 | `backend/src/controllers/taskRegistrationController.ts` | タスク登録系エラーコード使用箇所 |
+
+### フロントエンド
+
+| ファイル | 内容 |
+|---------|------|
+| `frontend/src/utils/errorCodes.ts` | エラーコード定数・型定義（`ErrorCode`型）・HTTPステータス→エラーコードのマッピング（`HTTP_STATUS_TO_ERROR_CODE`） |
+| `frontend/src/utils/errorMapper.ts` | エラーコード→日本語メッセージのマッピング（`ERROR_MESSAGE_MAP`）・`mapErrorToMessage()`関数 |
+| `frontend/src/utils/errorUtils.ts` | エラーオブジェクトからエラーコードを抽出するユーティリティ（`extractErrorCode()`） |
+| `frontend/src/utils/errorHandler.ts` | エラーオブジェクト生成・ログ出力・HTTPステータスからのコード変換（`createError()`, `logError()`, `getErrorCodeFromStatus()`） |
+| `frontend/src/services/authService.ts` | 認証系APIエラーハンドリング（`AuthServiceError`クラス） |
