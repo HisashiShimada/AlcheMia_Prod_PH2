@@ -4,7 +4,8 @@
  */
 
 import { Pool } from 'pg';
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -220,27 +221,37 @@ export async function count(organizationId: string): Promise<number> {
 /**
  * Creator IDが既に存在するかチェック
  * 
+ * corporationId が指定された場合は法人スコープ（同一法人内）で重複チェックを行う。
+ * corporationId が null/undefined の場合は organization_id スコープでチェックする。
+ * findById / update / findAllWithFilters と同じスコープ判定に統一。
+ * 
  * @param organizationId 組織ID
  * @param creatorId Creator ID
+ * @param corporationId 会社ID（任意）
  * @returns 存在する場合true
  */
 export async function existsById(
   organizationId: string,
-  creatorId: string
+  creatorId: string,
+  corporationId?: string | null
 ): Promise<boolean> {
-  const pool: Pool = getPool();
-  
-  const query = `
-    SELECT EXISTS (
-      SELECT 1
-      FROM creator
-      WHERE organization_id = $1
-        AND creator_id = $2
-    ) as exists
-  `;
-  
-  const result = await pool.query(query, [organizationId, creatorId]);
-  return result.rows[0].exists;
+  const pgp = getPgp();
+
+  let query: string;
+  let params: any[];
+
+  if (corporationId !== null && corporationId !== undefined) {
+    // 法人スコープ: 同一法人内で creator_id が一意であること
+    query = await loadSqlFile('creators/existsByIdByCorporation.sql');
+    params = [corporationId, creatorId];
+  } else {
+    // 組織スコープ: 同一組織内で creator_id が一意であること
+    query = await loadSqlFile('creators/existsByIdByOrganization.sql');
+    params = [organizationId, creatorId];
+  }
+
+  const result = await pgp.one<{ exists: boolean }>(query, params);
+  return result.exists;
 }
 
 /**
