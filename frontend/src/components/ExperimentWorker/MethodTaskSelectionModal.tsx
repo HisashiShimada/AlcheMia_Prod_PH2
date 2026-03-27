@@ -5,6 +5,7 @@ import { Modal, Table, Tag, Typography, Input, Select, Space, Row, Col, Button, 
 import { SearchOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { Task, TaskStatus, Method } from '@/types/experimentWorker';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const { Text } = Typography;
 
@@ -35,6 +36,7 @@ export default function MethodTaskSelectionModal({
   methods: propsMethods,
 }: MethodTaskSelectionModalProps) {
   const { token } = theme.useToken();
+  const { t } = useLanguage();
   
   // 一時選択状態（モーダル内での選択状態）
   const [tempSelectedMethodId, setTempSelectedMethodId] = useState<string | null>(null);
@@ -305,7 +307,7 @@ export default function MethodTaskSelectionModal({
               <Row gutter={[16, 16]} style={{ marginBottom: 16, marginTop: 16 }}>
                 <Col xs={24} sm={8}>
                   <Input
-                    placeholder="検索..."
+                    placeholder={t('experimentWork.methodTaskSelection.searchPlaceholder')}
                     prefix={<SearchOutlined />}
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
@@ -316,7 +318,7 @@ export default function MethodTaskSelectionModal({
                 </Col>
                 <Col xs={24} sm={8}>
                   <Select
-                    placeholder="タスク番号"
+                    placeholder={t('experimentWork.methodTaskSelection.taskNoPlaceholder')}
                     style={{ width: '100%' }}
                     value={selectedTaskName}
                     onChange={(value) => setSelectedTaskName(value)}
@@ -328,7 +330,7 @@ export default function MethodTaskSelectionModal({
                 </Col>
                 <Col xs={24} sm={8}>
                   <Select
-                    placeholder="ステータス"
+                    placeholder={t('experimentWork.table.status')}
                     style={{ width: '100%' }}
                     value={selectedStatus}
                     onChange={(value) => setSelectedStatus(value as TaskStatus)}
@@ -356,7 +358,7 @@ export default function MethodTaskSelectionModal({
                   pageSize: 10,
                   showSizeChanger: true,
                   showQuickJumper: false,
-                  showTotal: (total) => `全${total}件`,
+                  showTotal: (total) => t('experimentWork.methodTaskSelection.showTotal').replace('{total}', String(total)),
                   pageSizeOptions: ['10', '20', '50'],
                   position: ['bottomRight'],
                   locale: {
