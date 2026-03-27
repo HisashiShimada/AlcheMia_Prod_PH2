@@ -4,7 +4,8 @@
  */
 
 import { Pool } from 'pg';
-import { getPool } from '../database/db';
+import { getPool, getPgp } from '../database/db';
+import { loadSqlFile } from '../sql/loader';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -234,37 +235,23 @@ export async function existsById(
   creatorId: string,
   corporationId?: string | null
 ): Promise<boolean> {
-  const pool: Pool = getPool();
+  const pgp = getPgp();
 
   let query: string;
   let params: any[];
 
   if (corporationId !== null && corporationId !== undefined) {
     // 法人スコープ: 同一法人内で creator_id が一意であること
-    query = `
-      SELECT EXISTS (
-        SELECT 1
-        FROM creator
-        WHERE corporation_id = $1
-          AND creator_id = $2
-      ) as exists
-    `;
+    query = await loadSqlFile('creators/existsByIdByCorporation.sql');
     params = [corporationId, creatorId];
   } else {
     // 組織スコープ: 同一組織内で creator_id が一意であること
-    query = `
-      SELECT EXISTS (
-        SELECT 1
-        FROM creator
-        WHERE organization_id = $1
-          AND creator_id = $2
-      ) as exists
-    `;
+    query = await loadSqlFile('creators/existsByIdByOrganization.sql');
     params = [organizationId, creatorId];
   }
 
-  const result = await pool.query(query, params);
-  return result.rows[0].exists;
+  const result = await pgp.one<{ exists: boolean }>(query, params);
+  return result.exists;
 }
 
 /**
