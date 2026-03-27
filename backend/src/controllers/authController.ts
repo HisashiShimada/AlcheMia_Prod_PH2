@@ -490,16 +490,26 @@ export async function changePassword(req: Request, res: Response): Promise<void>
 }
 
 /**
- * トークン更新エンドポイント
- * POST /api/v1/auth/refresh
+ * セッションハートビートエンドポイント
+ * POST /api/v1/auth/heartbeat
  * 
- * @description
- * リフレッシュトークンを使用してアクセストークンを更新
- * - リフレッシュトークンを検証
- * - 新しいトークンペアを生成
- * - 古いリフレッシュトークンを無効化（トークンローテーション）
- * - Redis未起動時はJWT検証のみで動作（開発環境用）
+ * @description 編集画面のセッション維持用ハートビート
+ * authMiddlewareを通過したら成功レスポンスを返す
  */
+export async function heartbeat(req: Request, res: Response): Promise<void> {
+  res.status(200).json({
+    success: true,
+    data: {
+      message: 'Session is alive',
+      userId: req.user!.userId,
+      organizationId: req.user!.organizationId,
+    },
+    meta: {
+      timestamp: new Date().toISOString(),
+    },
+  });
+}
+
 export async function refreshToken(req: Request, res: Response): Promise<void> {
   const pool = getPool();
   const requestId = uuidv4();

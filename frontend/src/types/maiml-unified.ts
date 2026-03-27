@@ -629,6 +629,8 @@ export interface Place {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
+  /** ノード座標（MAIMLの <position x y /> 要素から読み込み・書き出し） */
+  position?: { x: number; y: number };
 }
 
 /**
@@ -658,6 +660,8 @@ export interface Transition {
   description?: string;
   /** 注釈（XSD仕様、実MAIMLでは稀） */
   annotation?: string;
+  /** ノード座標（MAIMLの <position x y /> 要素から読み込み・書き出し） */
+  position?: { x: number; y: number };
 }
 
 /**

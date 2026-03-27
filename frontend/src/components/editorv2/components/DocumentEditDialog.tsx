@@ -117,6 +117,10 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   const [instruments, setInstruments] = useState<DocumentTagData[]>([]);
   const [isLoadingMasters, setIsLoadingMasters] = useState(false);
 
+  // 画面上で現在設定されているVendor/Instrumentのstate（vendorIds/instrumentIds算出に使用）
+  const [currentVendors, setCurrentVendors] = useState<DocumentTagData[]>([]);
+  const [currentInstruments, setCurrentInstruments] = useState<DocumentTagData[]>([]);
+
   /**
    * UUID v4生成
    */
@@ -229,6 +233,10 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
         date: documentData.date ? dayjs(documentData.date) : dayjs(),
         signatureEnabled: documentData.signatureEnabled || false,
       });
+
+      // 現在のVendor/Instrumentをstateに初期化（vendorIds/instrumentIds算出用）
+      setCurrentVendors(documentData.vendors || []);
+      setCurrentInstruments(documentData.instruments || []);
     }
   }, [open, documentData, form]);
 
@@ -270,6 +278,14 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   const handleMultiObjectDataChange = useCallback((objectKey: 'creators' | 'vendors' | 'owners' | 'instruments', objectsArray: DocumentTagData[]) => {
     form.setFieldsValue({ [objectKey]: objectsArray });
 
+    // Vendor/Instrumentが変更された場合はstateも更新（vendorIds/instrumentIds算出用）
+    if (objectKey === 'vendors') {
+      setCurrentVendors(objectsArray);
+    }
+    if (objectKey === 'instruments') {
+      setCurrentInstruments(objectsArray);
+    }
+
     setHasChanges(true);
     
     // バリデーション
@@ -285,16 +301,16 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
 
   /**
    * VendorとInstrumentのIDリスト算出
+   * currentVendors/currentInstruments stateに依存することで、
+   * 画面上での追加・削除時に正しく再計算される
    */
   const vendorIds = useMemo(() => {
-    const vendors = form.getFieldValue('vendors') || [];
-    return vendors.map((v: DocumentTagData) => v.id).filter(Boolean);
-  }, [form]);
+    return currentVendors.map((v) => v.id).filter(Boolean) as string[];
+  }, [currentVendors]);
 
   const instrumentIds = useMemo(() => {
-    const instruments = form.getFieldValue('instruments') || [];
-    return instruments.map((i: DocumentTagData) => i.id).filter(Boolean);
-  }, [form]);
+    return currentInstruments.map((i) => i.id).filter(Boolean) as string[];
+  }, [currentInstruments]);
 
   /**
    * フォーム変更ハンドラー
@@ -460,21 +476,23 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                     <Input />
                   </Form.Item>
 
-                  <Space.Compact style={{ width: '100%' }}>
-                    <Form.Item label="UUID" name="uuid" noStyle>
+                  <Form.Item label="UUID">
+                    <Space.Compact style={{ width: '100%' }}>
+                      <Form.Item name="uuid" noStyle>
                         <Input />
-                    </Form.Item>
-                    <Button
-                      icon={<ThunderboltOutlined />}
-                      onClick={() => {
-                        const uuid = generateUUID();
-                        form.setFieldValue('uuid', uuid);
-                        setHasChanges(true);
-                      }}
-                    >
-                      生成
-                    </Button>
-                  </Space.Compact>
+                      </Form.Item>
+                      <Button
+                        icon={<ThunderboltOutlined />}
+                        onClick={() => {
+                          const uuid = generateUUID();
+                          form.setFieldValue('uuid', uuid);
+                          setHasChanges(true);
+                        }}
+                      >
+                        生成
+                      </Button>
+                    </Space.Compact>
+                  </Form.Item>
 
                   <Form.Item
                     label="Name"
@@ -568,7 +586,7 @@ const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
           <MultiObjectEditor
             objectKey="creators"
             title="Creator"
-            icon="👤"
+            icon="⚙️"
             includeReferences={true}
             initialData={form.getFieldValue('creators') || []}
             onDataChange={handleMultiObjectDataChange}

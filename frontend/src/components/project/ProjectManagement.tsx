@@ -38,6 +38,7 @@ import MaimlUnpublishDialog from './MaimlUnpublishDialog';
 import { usePublishStatusPoller } from '@/hooks/usePublishStatusPoller';
 import ViewRendererDialog from '@/components/viewer/ViewRendererDialog';
 import DraftRestoreDialog from '../viewer/DraftRestoreDialog';
+import { fetchDrafts, deleteDraft } from '@/services/draftService';
 import IssueManagementModal from '../ExperimentWorker/IssueManagementModal';
 import TransitionSetSearchModal from '@/components/TransitionSetSearch/TransitionSetSearchModal';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -69,6 +70,7 @@ import {
 import { AxiosError } from 'axios';
 import type { Project, Task } from '@/types/project';
 import type { MaimlEditorParams } from '@/types/maimlEditor';
+import type { Draft } from '@/types/editor';
 import { getUserInfo } from '@/utils/sessionStorageHelper';
 import type { ProjectFile } from '@/types/file';
 import type { InstructionData } from '@/types/instructionRegistration';
@@ -104,7 +106,13 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   const [checkoutFilter, setCheckoutFilter] = useState<string>('all'); // all, checked_in, checked_out
   const [projectStatusFilter, setProjectStatusFilter] = useState<string>('all'); // all, planning, pending, in_progress, completed
   const [departmentFilter, setDepartmentFilter] = useState<string>('all'); // 初期値: 全部門
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(() => {
+    // 編集画面から戻った際に直前の選択状態を復元
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('projectManagement_selectedProjectId') ?? null;
+    }
+    return null;
+  });
   const [sortBy, setSortBy] = useState<'name' | 'status' | 'createdAt'>('createdAt'); // ソート項目
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc'); // ソート順序
   const [currentFolder, setCurrentFolder] = useState<string>('root');
@@ -116,11 +124,10 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   
   // Phase 6追加: Draft関連のステート
   const [draftRestoreDialogOpen, setDraftRestoreDialogOpen] = useState(false);
-  const [draftInfo, setDraftInfo] = useState<{
-    savedAt: string;
-    methodCount: number;
-    nodeCount: number;
-  } | null>(null);
+  /** バックエンドDraft（DB保存）が存在するかどうか */
+  const [hasBackendDraft, setHasBackendDraft] = useState(false);
+  /** 復元対象のDraftオブジェクト（projectId特定用） */
+  const [draftToRestore, setDraftToRestore] = useState<Draft | null>(null);
   const [currentTab, setCurrentTab] = useState<'file_management' | 'task_results' | 'task_registration' | 'instruction_registration'>('file_management');
   const [projectFilesData, setProjectFilesData] = useState<Record<string, ProjectFilesData>>({});
   const [projectTasksData, setProjectTasksData] = useState<Record<string, { tasks: Task[]; statistics: unknown }>>({});
@@ -681,7 +688,51 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
     setIssueManagementModalOpen(false);
   }, []);
 
-  // Phase 6追加: 編集ボタンクリックハンドラー
+  // selectedProjectId を sessionStorage に保存（編集画面から戻った際に復元するため）
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (selectedProjectId) {
+      sessionStorage.setItem('projectManagement_selectedProjectId', selectedProjectId);
+    } else {
+      sessionStorage.removeItem('projectManagement_selectedProjectId');
+    }
+  }, [selectedProjectId]);
+
+  // Phase 5-2追加: 初期表示時のDraft確認（プロジェクト未選択時のみ）
+  useEffect(() => {
+    // すでにプロジェクトが選択されている場合（編集画面から戻った場合など）はスキップ
+    if (selectedProjectId) return;
+
+    const checkDraftOnMount = async () => {
+      try {
+        const drafts = await fetchDrafts();
+        if (Array.isArray(drafts) && drafts.length > 0) {
+          const draft = drafts[0];
+          setDraftToRestore(draft); // 最新Draftを保持
+          setHasBackendDraft(true);
+          setDraftRestoreDialogOpen(true);
+        }
+      } catch {
+        // 取得失敗は無視
+      }
+    };
+    checkDraftOnMount();
+  }, []);
+
+  // draftToRestore と projects が揃ったら selectedProjectId を設定する
+  useEffect(() => {
+    if (!draftToRestore?.projectId || projects.length === 0) return;
+    // すでに選択済みの場合はスキップ
+    if (selectedProjectId) return;
+    const targetProject = projects.find(p => p.id === draftToRestore.projectId);
+    if (targetProject) {
+      console.log('🎯 [ProjectManagement] Draft projectId からプロジェクトを自動選択:', targetProject.id);
+      setSelectedProjectId(targetProject.id);
+      loadMaiml(targetProject.name).catch(() => {/* 失敗は無視 */});
+    }
+  }, [draftToRestore, projects]);
+
+  // Phase 6追加: 編集ボタンクリックハンドラー（Draftチェックなし・直接エディタへ）
   const handleEditButtonClick = useCallback(() => {
     if (!selectedProject) {
       message.warning('プロジェクトを選択してください');
@@ -690,30 +741,6 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
 
     console.log('✏️ [ProjectManagement] Edit button clicked:', selectedProject.id);
 
-    // Draftチェック
-    const draftKey = `petri-net-draft-${selectedProject.id}`;
-    const draftData = localStorage.getItem(draftKey);
-    
-    if (draftData) {
-      try {
-        const draft = JSON.parse(draftData);
-        const info = {
-          savedAt: draft.savedAt || new Date().toISOString(),
-          methodCount: draft.methods?.length || 0,
-          nodeCount: draft.nodes?.length || 0
-        };
-        
-        console.log('💾 [ProjectManagement] Draft found:', info);
-        setDraftInfo(info);
-        setDraftRestoreDialogOpen(true);
-        return;
-      } catch (error) {
-        console.error('❌ [ProjectManagement] Draft parse error:', error);
-      }
-    }
-
-    // Draftがない場合は直接エディタへ
-    console.log('➡️ [ProjectManagement] No draft, opening editor directly');
     const userInfo = getUserInfo();
     const orgId = userInfo?.organizationId ?? '';
     const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
@@ -734,48 +761,51 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
   const handleRestoreDraft = useCallback(() => {
     console.log('💾 [ProjectManagement] Restoring draft');
     setDraftRestoreDialogOpen(false);
-    if (selectedProject) {
-      const userInfo = getUserInfo();
-      const orgId = userInfo?.organizationId ?? '';
-      const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
-      const params: MaimlEditorParams = {
-        editMode: 'project',
-        editingFileName: `${selectedProject.name}.maiml`,
-        originalFileName: selectedProject.name,
-        sourceS3Key,
-        displayTitle: selectedProject.name,
-        displaySubtitle: selectedProject.description || undefined,
-        documentId: selectedProject.id,
-        description: selectedProject.description || undefined,
-      };
-      onEdit?.(params);
-    }
-  }, [selectedProject, onEdit]);
 
-  // Phase 6追加: 新規作成/既存ファイルハンドラー
-  const handleCreateNewOrExisting = useCallback(() => {
-    console.log('🆕 [ProjectManagement] Create new or open existing');
-    setDraftRestoreDialogOpen(false);
-    if (selectedProject) {
-      // Draftを削除してから開く
-      const draftKey = `petri-net-draft-${selectedProject.id}`;
-      localStorage.removeItem(draftKey);
+    // selectedProject が null の場合（初期表示時）は draftToRestore.projectId からプロジェクトを特定
+    const targetProject = selectedProject
+      ?? (draftToRestore?.projectId ? projects.find(p => p.id === draftToRestore.projectId) ?? null : null);
+
+    if (targetProject) {
       const userInfo = getUserInfo();
       const orgId = userInfo?.organizationId ?? '';
-      const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+      const sourceS3Key = `${orgId}/projects/${targetProject.name}/${targetProject.name}.maiml`;
       const params: MaimlEditorParams = {
         editMode: 'project',
-        editingFileName: `${selectedProject.name}.maiml`,
-        originalFileName: selectedProject.name,
+        editingFileName: `${targetProject.name}.maiml`,
+        originalFileName: targetProject.name,
         sourceS3Key,
-        displayTitle: selectedProject.name,
-        displaySubtitle: selectedProject.description || undefined,
-        documentId: selectedProject.id,
-        description: selectedProject.description || undefined,
+        displayTitle: targetProject.name,
+        displaySubtitle: targetProject.description || undefined,
+        documentId: targetProject.id,
+        description: targetProject.description || undefined,
       };
       onEdit?.(params);
+    } else {
+      console.warn('⚠️ [ProjectManagement] handleRestoreDraft: プロジェクトを特定できませんでした');
     }
-  }, [selectedProject, onEdit]);
+  }, [selectedProject, draftToRestore, projects, onEdit]);
+
+  // Phase 6追加: 復元しないハンドラー（Draftを削除してダイアログを閉じるのみ）
+  const handleCreateNewOrExisting = useCallback(async () => {
+    console.log('🗑️ [ProjectManagement] Draft discarded (no restore)');
+    setDraftRestoreDialogOpen(false);
+
+    // Draftを削除する
+    if (draftToRestore?.draftKey) {
+      try {
+        await deleteDraft(draftToRestore.draftKey);
+        console.log('✅ [ProjectManagement] Draft deleted:', draftToRestore.draftKey);
+      } catch (error) {
+        console.warn('⚠️ [ProjectManagement] Draft deletion failed (ignored):', error);
+      }
+    }
+
+    // 状態をリセット（プロジェクト選択もクリア）
+    setDraftToRestore(null);
+    setHasBackendDraft(false);
+    setSelectedProjectId(null);
+  }, [draftToRestore]);
 
   // 選択プロジェクト変更時に公開ステータスを取得
   useEffect(() => {
@@ -1887,13 +1917,34 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       ))}
 
       {/* Phase 6追加: Draft復元確認ダイアログ */}
-      {draftInfo && (
+      {hasBackendDraft && (
         <DraftRestoreDialog
           open={draftRestoreDialogOpen}
           onClose={() => setDraftRestoreDialogOpen(false)}
           onRestoreDraft={handleRestoreDraft}
           onCreateNew={handleCreateNewOrExisting}
-          draftInfo={draftInfo}
+          hasBackendDraft={hasBackendDraft}
+          onRestoreBackendDraft={() => {
+            // バックエンドDraft復元: ダイアログを閉じてエディタのDraft管理画面へ
+            setDraftRestoreDialogOpen(false);
+            if (selectedProject) {
+              const userInfo = getUserInfo();
+              const orgId = userInfo?.organizationId ?? '';
+              const sourceS3Key = `${orgId}/projects/${selectedProject.name}/${selectedProject.name}.maiml`;
+              const params: MaimlEditorParams = {
+                editMode: 'project',
+                editingFileName: `${selectedProject.name}.maiml`,
+                originalFileName: selectedProject.name,
+                sourceS3Key,
+                displayTitle: selectedProject.name,
+                displaySubtitle: selectedProject.description || undefined,
+                documentId: selectedProject.id,
+                description: selectedProject.description || undefined,
+                openDraftManagerOnStart: true,
+              };
+              onEdit?.(params);
+            }
+          }}
         />
       )}
 

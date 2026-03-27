@@ -370,7 +370,7 @@ const InstructionEditDialog: React.FC<InstructionEditDialogProps> = ({
       footer={
         isSentInstruction ? [
           // 送信済：閉じるボタンのみ
-          <Button key="close" type="primary" onClick={handleCancel}>
+          <Button key="close" type="default" onClick={handleCancel}>
             閉じる
           </Button>,
         ] : [

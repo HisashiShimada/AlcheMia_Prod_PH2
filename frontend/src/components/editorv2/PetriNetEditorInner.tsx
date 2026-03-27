@@ -37,6 +37,7 @@ import DocumentEditDialog from './components/DocumentEditDialog';
 import WorkflowSelectorDialog from './components/WorkflowSelectorDialog';
 import useHistory from './hooks/useHistory';
 import { useWorkflow } from './hooks/useWorkflow';
+import { useSessionHeartbeat } from '@/hooks/useSessionHeartbeat';
 import useDraftManager from './hooks/useDraftManager';
 import DraftManager from './components/DraftManager';
 import SaveConfirmDialog from './components/SaveConfirmDialog';
@@ -79,7 +80,6 @@ import type { TemplatesByCategory } from '@/types/editor';
 import * as maimlService from '../../services/maimlApiService';
 import { AnalysisResult, ErrorContent } from '@/types/maimlValidation';
 import type { StorageFile } from '@/types/storage';
-
 // ✅ window.cline* の型定義
 declare global {
   interface Window {
@@ -104,7 +104,7 @@ const getErrorMessage = (err: unknown): string => {
 // const TemplateListView = lazy(() => import('./components/TemplateListView'));
 
 // 内部コンポーネント
-const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, initialDocumentId, initialDescription, ...props }: PetriNetEditorInnerProps) => {
+const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, initialDocumentId, initialDescription, onContentChange, onContentSaved, ...props }: PetriNetEditorInnerProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<EdgeData>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -386,9 +386,12 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     setAutoSaveEnabled,
     lastSavedDraft,
     lastAutoSaveTime, // number | null
+    deleteDraft,
+    fetchDrafts,
   } = useDraftManager(currentEditState, {
     userId: currentUserId,
     autoSaveInterval: 30 * 1000, // 30秒
+    projectId: initialDocumentId,
     onAutoSaveSuccess: (draft) => {
       console.log('✅ [PetriNetEditorInner] 自動保存成功:', draft);
     },
@@ -396,7 +399,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       console.error('❌ [PetriNetEditorInner] 自動保存エラー:', error);
     },
   });
-  
+
+  // ===== セッションハートビートフック =====
+  useSessionHeartbeat();
+
   console.log('🔍 [PetriNetEditorInner] Received editingFileName:', editingFileName);
   
   // Phase 3C: Undo/Redo履歴管理
@@ -593,6 +599,16 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       setDraftManagerOpen(true);
     }
   }, [editMode, draftModeHandled, isLoading]);
+
+  // ✅ openDraftManagerOnStart: 起動時にDraftManagerを自動表示
+  const openDraftManagerOnStartHandledRef = useRef(false);
+  useEffect(() => {
+    if (props.openDraftManagerOnStart && !openDraftManagerOnStartHandledRef.current && !isLoading) {
+      console.log('💾 [PetriNetEditorInner] openDraftManagerOnStart フラグ検出 - DraftManagerを自動表示');
+      openDraftManagerOnStartHandledRef.current = true;
+      setDraftManagerOpen(true);
+    }
+  }, [props.openDraftManagerOnStart, isLoading]);
 
   // Viewer用ノードを使用（pentagon等の正しい形状）
   const nodeTypes: NodeTypes = useMemo(
@@ -982,8 +998,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       pushState({ nodes: newNodes, edges });
       return newNodes;
     });
+    onContentChange?.();
     console.log('➕ [PetriNetEditorInner] ノード追加（テンプレートなし）:', newNode);
-  }, [setNodes, edges, pushState]);
+  }, [setNodes, edges, pushState, onContentChange]);
 
   // ノード削除ハンドラー（Phase 3A + 3C: 履歴追加 + エッジ削除修正）
   const handleNodesDelete = useCallback((deletedNodes: Node<NodeData>[]) => {
@@ -1013,7 +1030,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
               pushState({ nodes: newNodes, edges: newEdges });
               return newNodes;
             });
-  }, [edges, setEdges, setNodes, pushState]);
+            onContentChange?.();
+  }, [edges, setEdges, setNodes, pushState, onContentChange]);
 
   // PropertyPanelからのノード削除ハンドラー
   const handleDeleteNode = useCallback((nodeId: string) => {
@@ -1026,9 +1044,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       return newNodes;
     });
     
+    onContentChange?.();
     // 選択状態をクリア
     setSelectedNode(null);
-  }, [setNodes, edges, pushState]);
+  }, [setNodes, edges, pushState, onContentChange]);
 
   // エッジ接続ハンドラー（Phase 3A + 3C: 履歴追加）
   const handleConnect = useCallback((connection: Connection) => {
@@ -1057,8 +1076,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       pushState({ nodes, edges: newEdges });
       return newEdges;
     });
+    onContentChange?.();
     console.log('🔗 [PetriNetEditorInner] エッジ追加:', newEdge);
-  }, [setEdges, nodes, pushState]);
+  }, [setEdges, nodes, pushState, onContentChange]);
 
   // エッジ削除ハンドラー（Phase 3A + 3C: 履歴追加）
   const handleEdgesDelete = useCallback((deletedEdges: Edge<EdgeData>[]) => {
@@ -1076,9 +1096,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       return newEdges;
     });
     
+    onContentChange?.();
     // 選択状態をクリア
     setSelectedEdge(null);
-  }, [nodes, setEdges, pushState]);
+  }, [nodes, setEdges, pushState, onContentChange]);
 
   // PropertyPanelからのエッジ削除ハンドラー（Phase 3.1）
   const handleDeleteEdge = useCallback((edgeId: string) => {
@@ -1091,9 +1112,10 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       return newEdges;
     });
     
+    onContentChange?.();
     // 選択状態をクリア
     setSelectedEdge(null);
-  }, [setEdges, nodes, pushState]);
+  }, [setEdges, nodes, pushState, onContentChange]);
 
   // ノードドラッグ停止ハンドラー（Phase 3A + 3C: 履歴追加）
   const handleNodeDragStop = useCallback((event: React.MouseEvent, node: Node<NodeData>) => {
@@ -1106,7 +1128,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     setTimeout(() => {
       pushState({ nodes, edges });
     }, 0);
-  }, [nodes, edges, pushState]);
+    onContentChange?.();
+  }, [nodes, edges, pushState, onContentChange]);
 
   // ノード選択ハンドラー（Phase 3B: プロパティパネル表示 + Phase 3C-3: 複数選択）
   const handleNodeClick = useCallback((event: React.MouseEvent, node: Node<NodeData>) => {
@@ -1252,13 +1275,14 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       pushState({ nodes: newNodes, edges });
       return newNodes;
     });
+    onContentChange?.();
     
     console.log(`✨ [PetriNetEditorInner] ${isFirstNode ? '🎯初回' : '2回目以降'}ノード追加（テンプレートなし）:`, {
       nodeType,
       position,
       screenCoords: { x: event.clientX, y: event.clientY }
     });
-  }, [pressedKeys, edges, pushState, setNodes, screenToFlowPosition, selectedTool, openWorkflowDialogInternal]);
+  }, [pressedKeys, edges, pushState, setNodes, screenToFlowPosition, selectedTool, openWorkflowDialogInternal, onContentChange]);
 
   // プロパティパネルを閉じる
   const handleClosePropertyPanel = useCallback(() => {
@@ -1283,8 +1307,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       return newNodes;
     });
+    onContentChange?.();
     console.log('📝 [PetriNetEditorInner] プロパティ更新:', { nodeId, newData });
-  }, [setNodes, edges, pushState]);
+  }, [setNodes, edges, pushState, onContentChange]);
 
   // ノードID変更ハンドラー
   const handleUpdateNodeId = useCallback((oldId: string, newId: string) => {
@@ -1358,7 +1383,8 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       return newNodes;
     });
-  }, [setNodes, setEdges, pushState]);
+    onContentChange?.();
+  }, [setNodes, setEdges, pushState, onContentChange]);
 
   // エッジプロパティ更新（Phase 3: エッジID変更対応）
   const handleUpdateEdgeProperty = useCallback((edgeId: string, newId: string) => {
@@ -1377,8 +1403,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       
       return newEdges;
     });
+    onContentChange?.();
     console.log('📝 [PetriNetEditorInner] エッジID更新:', { oldId: edgeId, newId });
-  }, [setEdges, nodes, pushState]);
+  }, [setEdges, nodes, pushState, onContentChange]);
 
   // Phase 4A: テンプレート編集ダイアログを開く
   const handleOpenTemplateEditor = useCallback((node: Node<NodeData>) => {
@@ -1615,6 +1642,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         return newNodes;
       });
 
+      onContentChange?.();
       // テンプレートエディタを閉じる
       setTemplateEditorOpen(false);
       setTemplateEditNode(null);
@@ -1732,8 +1760,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
       return newNodes;
     });
     
+    onContentChange?.();
     console.log('💾 [PetriNetEditorInner] Template保存完了:', { nodeId, templateId, convertedTemplateRef });  // ✅ templateIdを追加
-  }, [setNodes, edges, pushState, convertNestedPropertiesToArray]);
+  }, [setNodes, edges, pushState, convertNestedPropertiesToArray, onContentChange]);
 
   // Document編集ダイアログを開く
   const handleOpenDocumentEditor = useCallback(() => {
@@ -1749,8 +1778,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
   // Document保存ハンドラー
   const handleSaveDocument = useCallback((newDocumentData: DocumentData) => {
     setDocumentData(newDocumentData);
+    onContentChange?.();
     console.log('💾 [PetriNetEditorInner] Document保存:', newDocumentData);
-  }, []);
+  }, [onContentChange]);
 
   // Draft管理ダイアログを開く
   const handleOpenDraftManager = useCallback(() => {
@@ -2524,8 +2554,23 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         
         const result = response.data;
         console.log('✅ [PetriNetEditorInner] S3保存完了:', result);
-        
+
         alert(`ペトリネット "${metadata.name}" をS3に保存しました`);
+
+        // S3保存成功時のみDraftを全削除（自動保存Draftをクリア）
+        try {
+          const currentDrafts = await fetchDrafts();
+          if (currentDrafts && currentDrafts.length > 0) {
+            console.log(`🗑️ [PetriNetEditorInner] S3保存成功のためDraftを全削除: ${currentDrafts.length}件`);
+            for (const draft of currentDrafts) {
+              await deleteDraft(draft.draftKey);
+            }
+            console.log('✅ [PetriNetEditorInner] Draft全削除完了');
+          }
+        } catch (draftErr) {
+          // Draft削除失敗はサイレントに無視（保存自体は成功しているため）
+          console.warn('⚠️ [PetriNetEditorInner] 保存後のDraft削除に失敗（無視）:', draftErr);
+        }
         
       } else {
         // ローカルダウンロード
@@ -2564,6 +2609,9 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         alert(`ペトリネット "${fileName}" をダウンロードしました`);
       }
       
+      // 保存成功: 未保存フラグをリセット
+      onContentSaved?.();
+      
       // ダイアログを閉じる
       setSaveConfirmDialogOpen(false);
       setValidationResult(null);
@@ -2582,7 +2630,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
     } finally {
       setIsSaving(false);
     }
-  }, [nodes, edges, documentData, handleCloseSaveConfirmDialog]);
+  }, [nodes, edges, documentData, handleCloseSaveConfirmDialog, onContentSaved]);
 
   // エッジ選択ハンドラー（Phase 3: エッジ選択でPropertyPanel表示）
   const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge<EdgeData>) => {
@@ -2762,6 +2810,7 @@ const PetriNetEditorContent = ({ maimlData, onError, editingFileName, editMode, 
         currentEditState={currentEditState}
         currentUserId={currentUserId}
         sourceS3Key={props.sourceS3Key}
+        projectId={initialDocumentId}
       />
     </TemplateProvider>
     </AttributeDisplayProvider>
@@ -2885,6 +2934,8 @@ interface PetriNetEditorInnerUIProps {
   currentEditState: EditState;
   currentUserId: string;
   sourceS3Key?: string;
+  /** プロジェクトID（DraftManagerに渡してDraft保存時にproject_idを記録する） */
+  projectId?: string;
 }
 
 // UIレンダリングコンポーネント（TemplateProvider内）
@@ -2969,6 +3020,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
   currentEditState,
   currentUserId,
   sourceS3Key,
+  projectId,
 }) => {
   // TemplateContextからtemplateErrors、addTemplate、deleteTemplate、updateTemplate、allTemplatesを取得
   const { templateErrors, addTemplate, deleteTemplate, updateTemplate, allTemplates } = useTemplates();
@@ -3248,6 +3300,7 @@ const PetriNetEditorInnerUI: React.FC<PetriNetEditorInnerUIProps> = ({
           autoSaveEnabled={autoSaveEnabled}
           onAutoSaveToggle={() => setAutoSaveEnabled(!autoSaveEnabled)}
           currentDraftKey={lastSavedDraft?.draftKey || null}
+          projectId={projectId}
         />
       </Flex>
   );
@@ -3258,12 +3311,21 @@ export interface PetriNetEditorInnerProps {
   onError?: (error: Error) => void;
   editingFileName?: string;
   editMode: string;
+  /**
+   * 起動時に DraftManager を自動表示するかどうか
+   * MAIMLファイルが存在せず、バックエンドDraftがある場合に使用
+   */
+  openDraftManagerOnStart?: boolean;
   /** DocumentData.id の初期値（新規作成時のみ適用） */
   initialDocumentId?: string;
   /** DocumentData.description の初期値（新規作成時のみ適用） */
   initialDescription?: string;
   originalFileName?: string;
   sourceS3Key?: string;
+  /** コンテンツが変更されたときのコールバック（未保存変更フラグの設定用） */
+  onContentChange?: () => void;
+  /** 保存が完了したときのコールバック（未保存変更フラグのリセット用） */
+  onContentSaved?: () => void;
   [key: string]: unknown;
 }
 

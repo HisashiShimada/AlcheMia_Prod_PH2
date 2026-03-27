@@ -466,7 +466,7 @@ const SaveConfirmDialog: React.FC<SaveConfirmDialogProps> = ({
             icon={<CloseCircleOutlined />}
             onClick={() => handleChoice('cancel')}
           >
-            キャンセル
+            閉じる
           </Button>
         </Space>
 
