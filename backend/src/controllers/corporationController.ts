@@ -243,7 +243,8 @@ export async function uploadCorporationCsv(req: Request, res: Response, next: Ne
 
     const userId = req.user?.userId;
     const csvContent = req.file.buffer.toString('utf-8');
-    const result = await masterService.uploadCorporationsCsv(csvContent, String(userId));
+    const lang = (req.headers['accept-language'] || 'ja').split(',')[0].split('-')[0];
+    const result = await masterService.uploadCorporationsCsv(csvContent, String(userId), lang);
 
     res.json({
       success: true,

@@ -612,9 +612,29 @@ export default function OrganizationManagement() {
       }
       console.error('保存エラー:', error);
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { error?: string } } };
-        if (axiosError.response?.data?.error) {
-          messageApi.error(axiosError.response.data.error);
+        const axiosError = error as { response?: { status?: number; data?: { error?: { code?: string; message?: string } | string } } };
+        const status = axiosError.response?.status;
+        const errorBody = axiosError.response?.data?.error;
+
+        // 409: 重複エラーの場合は対象フィールドにエラーを表示
+        if (status === 409) {
+          const code = typeof errorBody === 'object' ? errorBody?.code : undefined;
+          if (code === 'DUPLICATE_ORGANIZATION_CD') {
+            form.setFields([{ name: 'organizationCd', errors: [t('organizationManagement.form.organizationCdDuplicate')] }]);
+            setIsDuplicate(true);
+            return;
+          } else if (code === 'DUPLICATE_ORGANIZATION_ID') {
+            messageApi.error(t('organizationManagement.messages.saveError'));
+            return;
+          }
+        }
+
+        // その他エラー
+        const errorMessage = typeof errorBody === 'string' ? errorBody
+          : typeof errorBody === 'object' && errorBody?.message ? errorBody.message
+          : null;
+        if (errorMessage) {
+          messageApi.error(errorMessage);
         } else {
           messageApi.error(t('organizationManagement.messages.saveError'));
         }
