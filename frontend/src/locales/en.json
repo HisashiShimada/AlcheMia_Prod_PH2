@@ -129,6 +129,11 @@
       "waiting_approval": "Waiting for Approval",
       "completed": "Completed"
     },
+    "methodTaskSelection": {
+      "searchPlaceholder": "Search...",
+      "taskNoPlaceholder": "Task No.",
+      "showTotal": "Total {total} items"
+    },
     "projectSelection": {
       "title": "Select Project",
       "projectName": "Project Name",
