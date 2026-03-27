@@ -133,10 +133,26 @@ export async function saveMaiML(
   archive: boolean = true,
 ): Promise<maimlSaveResult> {
   try {
+    // ✅ fileKeyの正規化: 先頭の "/" を除去し、組織IDプレフィックスを追加
+    let normalizedFileKey = fileKey.startsWith('/') ? fileKey.slice(1) : fileKey;
+    
+    // 組織IDプレフィックスが含まれていない場合は追加
+    if (!normalizedFileKey.startsWith(organizationId + '/')) {
+      normalizedFileKey = `${organizationId}/${normalizedFileKey}`;
+      console.log('🔍 [maimlService] fileKey正規化（組織IDプレフィックス追加）:', {
+        original: fileKey,
+        normalized: normalizedFileKey,
+      });
+    } else if (normalizedFileKey !== fileKey) {
+      console.log('🔍 [maimlService] fileKey正規化（先頭スラッシュ除去のみ）:', {
+        original: fileKey,
+        normalized: normalizedFileKey,
+      });
+    }
 
     // ファイルのバックアップ（archiveがtrueの場合のみ）
     if (archive) {
-      await createBackup(fileKey, organizationId);
+      await createBackup(normalizedFileKey, organizationId);
     } else {
       console.log('ℹ️ [maimlService] アーカイブ化スキップ（上書き保存）');
     }
@@ -144,7 +160,7 @@ export async function saveMaiML(
     // S3/Swiftアップロード（リトライ機能付き）
     await uploadFileWithRetry(
       organizationId,
-      fileKey,
+      normalizedFileKey,
       Buffer.from(content, 'utf-8'),
       {
         contentType: 'application/xml',
@@ -159,33 +175,54 @@ export async function saveMaiML(
     // 5. コンテンツハッシュ計算
     const contentHash = calculateContentHash(content);
 
-    console.log('✅ [maimlService] MAIML保存完了:', fileKey);
+    console.log('✅ [maimlService] MAIML保存完了:', normalizedFileKey);
 
     const fileMetadataRepository = new FileMetadataRepository();
 
-    const existingMetadata = await fileMetadataRepository.getFileMetadataByFileKey(fileKey);
+    const existingMetadata = await fileMetadataRepository.getFileMetadataByFileKey(normalizedFileKey);
     if (existingMetadata) {
       const updateData = {
         file_size: Buffer.byteLength(content, 'utf-8'),
         updated_at: new Date(),
         last_edit_timestamp: new Date()
       };
-      await fileMetadataRepository.updateFileMetadata(fileKey,updateData);
+      await fileMetadataRepository.updateFileMetadata(normalizedFileKey, updateData);
     } else {
-      // 新規ファイル: 作成（maimlMetadataExtractorが後で作成するのでスキップ）
-      console.log('ℹ️ [S3 Save] 新規ファイルのためDB作成はメタデータ抽出時に実行');
+      // 新規ファイル: file_metadataに登録
+      const newMetadata = {
+        file_key: normalizedFileKey,
+        s3_bucket: process.env.S3_BUCKET_NAME || process.env.SWIFT_CONTAINER || 'mmdpf-files',
+        organization_id: organizationId,
+        original_filename: normalizedFileKey.split('/').pop() || 'unknown.maiml',
+        file_size: Buffer.byteLength(content, 'utf-8'),
+        file_type: 'application/xml',
+        uploaded_by: 'system', // システムによる保存
+        is_maiml_file: true,
+        upload_source: 'editor',
+        created_at: new Date(),
+        updated_at: new Date(),
+        last_edit_timestamp: new Date()
+      };
+      
+      try {
+        await fileMetadataRepository.insertFileMetadata(newMetadata);
+        console.log('✅ [MAIML Save] file_metadataレコード作成:', normalizedFileKey);
+      } catch (error) {
+        console.error('❌ [MAIML Save] file_metadataレコード作成エラー:', error);
+        // DB登録失敗してもファイル保存は成功しているため、処理は続行
+      }
     }
     
     // MaiMLファイルの場合、project_maiml_flgを更新
-    if (fileKey.toLowerCase().endsWith('.maiml')) {
+    if (normalizedFileKey.toLowerCase().endsWith('.maiml')) {
       // project_maiml_flgをtrueに更新（プロジェクトファイルの場合のみ）
       // fileKeyがprojects/を含む場合のみ実行
-      if (fileKey.includes('/projects/')) {
-        console.log('🔍 [MAIML Save] project_maiml_flg更新開始:', fileKey);
+      if (normalizedFileKey.includes('/projects/')) {
+        console.log('🔍 [MAIML Save] project_maiml_flg更新開始:', normalizedFileKey);
         
         // fileKeyからproject_nameを抽出
         // 想定形式: projects/sample_project/sample_project.maiml
-        const pathParts = fileKey.split('/');
+        const pathParts = normalizedFileKey.split('/');
         console.log('🔍 [MAIML Save] pathParts:', pathParts);
         
         // 'projects'の位置を探す
@@ -204,7 +241,7 @@ export async function saveMaiML(
           console.error('❌ [MAIML Save] プロジェクトが見つかりません:', {
             projectName,
             organizationId,
-            fileKey,
+            fileKey: normalizedFileKey,
             pathParts,
           });
           throw new Error(errorMsg);
@@ -236,9 +273,9 @@ export async function saveMaiML(
           }
         } else {
           // fileKeyの形式が不正な場合はエラー
-          const errorMsg = `Invalid fileKey format: ${fileKey} (pathParts: ${JSON.stringify(pathParts)})`;
+          const errorMsg = `Invalid fileKey format: ${normalizedFileKey} (pathParts: ${JSON.stringify(pathParts)})`;
           console.error('❌ [MAIML Save] fileKeyからproject_nameを抽出できません:', {
-            fileKey,
+            fileKey: normalizedFileKey,
             pathParts,
             projectsIndex,
           });
@@ -246,12 +283,12 @@ export async function saveMaiML(
         }
       } else {
         // フォーマットファイルの場合はproject_maiml_flg更新をスキップ
-        console.log('ℹ️ [MAIML Save] フォーマットファイルのためproject_maiml_flg更新をスキップ:', fileKey);
+        console.log('ℹ️ [MAIML Save] フォーマットファイルのためproject_maiml_flg更新をスキップ:', normalizedFileKey);
       }
     }
 
     return {
-      fileKey,
+      fileKey: normalizedFileKey,
       size: Buffer.byteLength(content, 'utf-8'),
       lastModified: new Date().toISOString(),
       contentHash,

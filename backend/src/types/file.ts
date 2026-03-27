@@ -84,6 +84,9 @@ export interface FileUploadResult {
   emptyFolders?: PlaceholderResult[];
   // Phase2-1: バッチ情報（2026-02-18）
   batch?: BatchSummary;
+  // ✨ Task: project_maiml_flg更新処理実装 - Phase 2
+  // アップロード対象にMAIMLファイルが含まれているか
+  hasMaimlFile?: boolean;
 }
 
 /**

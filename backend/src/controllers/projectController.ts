@@ -113,6 +113,192 @@ export async function create(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * プロジェクト削除エンドポイント
+ * DELETE /api/v1/projects/:projectName
+ * 
+ * Task: プロジェクト管理画面削除機能実装 - Phase 3-2
+ * @description プロジェクトを削除する（DB + ストレージ）
+ * @note project_maiml_flg=falseの場合のみ削除可能
+ */
+export async function deleteProject(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+
+  try {
+    const { organizationId, userId } = req.user!;
+    const { projectName } = req.params;
+
+    console.log('🗑️ [projectController.deleteProject] リクエスト開始:', {
+      projectName,
+      organizationId,
+      userId,
+      requestId,
+    });
+
+    // Service層呼び出し
+    const result = await projectService.deleteProject(organizationId, projectName);
+
+    // エラーハンドリング
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      } else if (errorCode === 'BUSINESS_MAIML_FILE_EXISTS') {
+        statusCode = 400;
+      } else if (errorCode.startsWith('VALIDATION_')) {
+        statusCode = 400;
+      }
+
+      console.log('❌ [projectController.deleteProject] エラー:', {
+        errorCode,
+        statusCode,
+        message: result.error?.message,
+      });
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+          details: result.error?.details,
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    console.log('✅ [projectController.deleteProject] 削除成功');
+
+    // 成功レスポンス
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    logError('Project delete error', error as Error, {
+      action: 'project_delete',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
+ * project_maiml_flgフラグ更新コントローラー
+ * PATCH /api/v1/projects/:projectName/maiml-flag
+ * 
+ * Task: project_maiml_flg更新処理実装 - Phase 1
+ */
+export async function updateMaimlFlag(req: Request, res: Response): Promise<void> {
+  const requestId = uuidv4();
+  const projectService = new ProjectService();
+  
+  try {
+    const { organizationId } = req.user!;
+    const { projectName } = req.params;
+    
+    // ✨ デバッグ: リクエストボディ全体をログ出力
+    console.log('📥 [updateMaimlFlag] req.body受信:', {
+      body: req.body,
+      bodyType: typeof req.body,
+      bodyKeys: Object.keys(req.body || {}),
+    });
+    
+    const { flagValue } = req.body;  // リクエストボディからflagValueを受け取る
+
+    console.log('🔄 [updateMaimlFlag] project_maiml_flgフラグ更新リクエスト:', {
+      organizationId,
+      projectName,
+      flagValue,
+      flagValueType: typeof flagValue,
+      requestId,
+    });
+
+    // Service層でproject_maiml_flgを更新（flagValueがundefinedの場合はデフォルトfalse）
+    const result = await projectService.updateMaimlFlag(
+      organizationId,
+      projectName,
+      flagValue ?? false
+    );
+
+    // エラーハンドリング
+    if (!result.success) {
+      const errorCode = result.error?.code || 'SYSTEM_ERROR';
+      let statusCode = 500;
+
+      if (errorCode === 'RESOURCE_NOT_FOUND') {
+        statusCode = 404;
+      }
+
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: errorCode,
+          message: result.error?.message || 'エラーが発生しました',
+        },
+        meta: {
+          timestamp: new Date().toISOString(),
+          requestId,
+        },
+      });
+      return;
+    }
+
+    console.log('✅ [updateMaimlFlag] project_maiml_flgフラグ更新成功');
+
+    res.status(200).json({
+      success: true,
+      data: result.data,
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  } catch (error) {
+    logError('updateMaimlFlag error', error as Error, {
+      action: 'update_maiml_flag',
+      organizationId: req.user?.organizationId,
+      projectName: req.params.projectName,
+      requestId,
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYSTEM_ERROR',
+        message: 'システムエラーが発生しました',
+      },
+      meta: {
+        timestamp: new Date().toISOString(),
+        requestId,
+      },
+    });
+  }
+}
+
+/**
  * タスク詳細取得エンドポイント
  * GET /api/v1/progress/projects/:projectName/methods/:methodId/tasks/:taskNo/details
  *

@@ -434,6 +434,18 @@ export class FileAccessService {
     const failCount = uploadResults.filter(r => !r.success).length;
     const totalSize = uploadedFiles.reduce((sum, f) => sum + f.fileSize, 0);
 
+    // ✨ Task: project_maiml_flg更新処理実装 - Phase 2
+    // 複数ファイル内にMAIMLファイルが含まれているかチェック
+    console.log(`📊 [Upload] アップロードファイル一覧:`, uploadedFiles.map(f => ({
+      fileName: f.fileName,
+      contentType: f.contentType,
+      isMaiml: isMaimlFile(f.fileName, f.contentType)
+    })));
+    
+    const hasMaimlFile = uploadedFiles.some(file => 
+      isMaimlFile(file.fileName, file.contentType)
+    );
+    
     // 5. Phase2-1: バッチ完了
     const finalStatus: BatchStatus = 
       failCount === 0 ? 'completed' :
@@ -465,6 +477,8 @@ export class FileAccessService {
         batchName: batch.batchName,
         status: finalStatus,
       },
+      // ✨ Task: project_maiml_flg更新処理実装 - Phase 2
+      hasMaimlFile,
     };
   }
 
@@ -623,7 +637,9 @@ export class FileAccessService {
    * ファイルキーベースでファイルを削除
    * 
    * Task: ファイル削除API共通化
+   * Task: ファイル削除時DBメタデータ削除実装 (2026-03-25)
    * - ファイルキーを指定してストレージからファイルを削除
+   * - file_metadataテーブルのレコードを論理削除
    * - フォーマット、プロジェクト、その他のファイルで共通利用可能
    * 
    * @param organizationId 組織ID
@@ -644,6 +660,18 @@ export class FileAccessService {
     // パストラバーサル攻撃対策
     if (fileKey.includes('..') || fileKey.includes('//')) {
       throw new ValidationError('不正なファイルパスが検出されました');
+    }
+
+    // ✅ fileKeyの正規化: 先頭の "/" を除去し、組織IDプレフィックスを追加（DB検索用）
+    let normalizedFileKey = fileKey.startsWith('/') ? fileKey.slice(1) : fileKey;
+    
+    // 組織IDプレフィックスが含まれていない場合は追加
+    if (!normalizedFileKey.startsWith(organizationId + '/')) {
+      normalizedFileKey = `${organizationId}/${normalizedFileKey}`;
+      console.log('🔍 [Delete] fileKey正規化（組織IDプレフィックス追加）:', {
+        original: fileKey,
+        normalized: normalizedFileKey,
+      });
     }
 
     // 2. ストレージ上のファイル存在確認
@@ -668,10 +696,102 @@ export class FileAccessService {
       );
     }
 
-    // 4. DBからメタデータを削除（存在する場合のみ）
-    // Note: file_metadataテーブルの削除は将来的に実装予定
-    // 現時点ではストレージからの削除のみ実行
-    console.log(`ℹ️ [Delete] file_metadataテーブルの削除は未実装: ${fileKey}`);
+    // 4. DBからメタデータを論理削除（正規化されたfileKeyを使用）
+    try {
+      await this.repository.softDeleteByFileKey(organizationId, normalizedFileKey);
+      console.log(`✅ [Delete] DBメタデータ論理削除成功: ${normalizedFileKey}`);
+    } catch (error) {
+      // ログに記録するが、処理は続行（ストレージ削除は成功しているため）
+      console.error(`⚠️ [Delete] DBメタデータ論理削除エラー（処理は続行）: ${normalizedFileKey}`, error);
+    }
+  }
+
+  /**
+   * フォルダを再帰的に削除
+   * 
+   * Task: プロジェクト管理画面削除機能実装 - Phase 3
+   * Task: ファイル削除時DBメタデータ削除実装 (2026-03-25)
+   * - フォルダパス配下のすべてのファイルを削除
+   * - file_metadataテーブルのレコードを一括論理削除
+   * - プロジェクト、フォーマット、その他のフォルダで共通利用可能
+   * 
+   * @param organizationId 組織ID
+   * @param folderPath フォルダパス（相対パス、例: "projects/project_001"）
+   * @returns 削除されたファイル数
+   * @throws ValidationError フォルダパスが不正な場合
+   * @throws NotFoundError フォルダが存在しない、またはファイルがない場合
+   * @throws StorageError ストレージエラーの場合
+   */
+  async deleteFolderRecursive(
+    organizationId: string,
+    folderPath: string
+  ): Promise<number> {
+    // 1. フォルダパスのバリデーション
+    if (!folderPath || folderPath.trim().length === 0) {
+      throw new ValidationError('フォルダパスは必須です');
+    }
+
+    // パストラバーサル攻撃対策
+    if (folderPath.includes('..') || folderPath.includes('//')) {
+      throw new ValidationError('不正なフォルダパスが検出されました');
+    }
+
+    // 末尾のスラッシュを削除
+    const normalizedFolderPath = folderPath.replace(/\/$/, '');
+
+    console.log(`🗑️ [Folder Delete] 削除開始: ${normalizedFolderPath}`);
+
+    // 2. 削除対象のファイル一覧を取得
+    let fileKeys: string[] = [];
+    try {
+      const files = await this.storageService.listFiles(
+        organizationId,
+        normalizedFolderPath
+      );
+      
+      // ファイルのキーのみを抽出（フォルダは除外）
+      fileKeys = files
+        .filter((file: { key: string }) => !file.key.endsWith('/'))
+        .map((file: { key: string }) => file.key);
+      
+      console.log(`📋 [Folder Delete] 削除対象ファイル数: ${fileKeys.length}`);
+    } catch (error) {
+      console.error(`❌ [Folder Delete] ファイル一覧取得エラー: ${normalizedFolderPath}`, error);
+      // ファイル一覧取得エラーは処理を続行（ストレージ削除を試みる）
+    }
+
+    // 3. storageServiceのdeleteFolderRecursiveメソッドを呼び出し
+    try {
+      const deletedCount = await this.storageService.deleteFolderRecursive(
+        organizationId,
+        normalizedFolderPath
+      );
+
+      console.log(`✅ [Folder Delete] ストレージから削除完了: ${deletedCount}ファイル`);
+
+      // 4. DBからメタデータを一括論理削除
+      if (fileKeys.length > 0) {
+        try {
+          const dbDeletedCount = await this.repository.softDeleteBatch(
+            organizationId,
+            fileKeys
+          );
+          console.log(`✅ [Folder Delete] DBメタデータ一括論理削除成功: ${dbDeletedCount}/${fileKeys.length}件`);
+        } catch (error) {
+          // ログに記録するが、処理は続行（ストレージ削除は成功しているため）
+          console.error(`⚠️ [Folder Delete] DBメタデータ一括論理削除エラー（処理は続行）: ${normalizedFolderPath}`, error);
+        }
+      } else {
+        console.log(`ℹ️ [Folder Delete] DBメタデータ削除対象なし: ${normalizedFolderPath}`);
+      }
+
+      return deletedCount;
+    } catch (error) {
+      console.error(`❌ [Folder Delete] 削除エラー: ${normalizedFolderPath}`, error);
+      throw new StorageError(
+        `フォルダの削除に失敗しました: ${normalizedFolderPath}`
+      );
+    }
   }
 
   /**

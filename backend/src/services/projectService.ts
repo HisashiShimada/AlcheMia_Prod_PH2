@@ -20,14 +20,8 @@ import { MaimlWriterService } from './maimlWriterService';
 import { loadSqlFile } from '../sql/loader';
 import { logError } from '../utils/logger';
 import { XMLParser } from 'fast-xml-parser';
-import type { 
-  Project, 
-  Pagination, 
-  ProjectListResponse
-} from '../types/project';
-import {
-  nanoid
-} from 'nanoid'
+import type { Project, Pagination, ProjectListResponse } from '../types/project';
+import { nanoid } from 'nanoid';
 
 interface ListOptions {
   page: number;
@@ -161,12 +155,7 @@ export class ProjectService {
       const s3Path = `projects/${data.projectName}/.keep`;
 
       try {
-        await storageService.uploadFile(
-          organizationId,
-          s3Path,
-          '',
-          { contentType: 'text/plain' }
-        );
+        await storageService.uploadFile(organizationId, s3Path, '', { contentType: 'text/plain' });
       } catch (s3Error) {
         await client.query('ROLLBACK');
         return {
@@ -198,7 +187,8 @@ export class ProjectService {
         members: [],
         tags: [],
         isCheckedOut: insertResult.rows[0].checkout_status === 1,
-        checkedOutBy: insertResult.rows[0].checkout_status === 1 ? insertResult.rows[0].owner_user_id : null,
+        checkedOutBy:
+          insertResult.rows[0].checkout_status === 1 ? insertResult.rows[0].owner_user_id : null,
         checkedOutAt: insertResult.rows[0].checkout_status === 1 ? new Date().toISOString() : null,
         createdAt: new Date(insertResult.rows[0].create_at).toISOString(),
         updatedAt: new Date(insertResult.rows[0].create_at).toISOString(),
@@ -226,6 +216,274 @@ export class ProjectService {
       if (client) {
         client.release();
       }
+    }
+  }
+
+  /**
+   * プロジェクト削除
+   *
+   * Task: プロジェクト管理画面削除機能実装 - Phase 3-2
+   * @description プロジェクトを削除する（DB + ストレージ）
+   * @note project_maiml_flg=falseの場合のみ削除可能
+   *
+   * @param organizationId - 組織ID
+   * @param projectName - プロジェクト名
+   * @returns 削除結果
+   */
+  async deleteProject(
+    organizationId: string,
+    projectName: string
+  ): Promise<ServiceResult<{ deletedCount: number; message: string }>> {
+    const pool = getPool();
+    let client;
+
+    try {
+      // 1. projectNameからprojectIdを取得
+      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
+
+      if (!project) {
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'プロジェクトが見つかりません',
+          },
+        };
+      }
+
+      const projectId = project.project_id;
+
+      // 2. トランザクション開始
+      client = await pool.connect();
+      await client.query('BEGIN');
+
+      // 3. 削除条件チェック: project_maiml_flg = false のみ削除可能
+      const projectInfoQuery = `
+          SELECT project_maiml_flg, project_name
+          FROM project
+          WHERE organization_id = $1 AND project_id = $2
+          FOR UPDATE
+        `;
+
+      const projectResult = await client.query(projectInfoQuery, [organizationId, projectId]);
+
+      if (projectResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'プロジェクトが見つかりません',
+          },
+        };
+      }
+
+      const projectInfo = projectResult.rows[0];
+
+      // project_maiml_flg = true の場合は削除不可
+      if (projectInfo.project_maiml_flg === true) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          error: {
+            code: 'BUSINESS_MAIML_FILE_EXISTS',
+            message: 'MAIMLファイルが存在するため削除できません',
+            details: {
+              projectId,
+              projectName: projectInfo.project_name,
+              maimlFileExists: true,
+            },
+          },
+        };
+      }
+
+      // 4. 関連テーブルのデータを削除（外部キー制約順）
+      console.log('🗑️ [ProjectService.deleteProject] 関連テーブル削除開始');
+
+      // 孫テーブル: project_task_detail
+      await client.query(
+        'DELETE FROM project_task_detail WHERE organization_id = $1 AND project_id = $2',
+        [organizationId, projectId]
+      );
+
+      // 孫テーブル: template_data
+      await client.query(
+        'DELETE FROM template_data WHERE organization_id = $1 AND project_id = $2',
+        [organizationId, projectId]
+      );
+
+      // 孫テーブル: transition_data
+      await client.query(
+        'DELETE FROM transition_data WHERE organization_id = $1 AND project_id = $2',
+        [organizationId, projectId]
+      );
+
+      // 孫テーブル: instruction_acknowledged_history
+      await client.query(
+        `DELETE FROM instruction_acknowledged_history 
+           WHERE organization_id = $1 
+           AND project_id = $2`,
+        [organizationId, projectId]
+      );
+
+      // 子テーブル: project_task
+      await client.query(
+        'DELETE FROM project_task WHERE organization_id = $1 AND project_id = $2',
+        [organizationId, projectId]
+      );
+
+      // 子テーブル: project_instruction
+      await client.query(
+        'DELETE FROM project_instruction WHERE organization_id = $1 AND project_id = $2',
+        [organizationId, projectId]
+      );
+
+      // 子テーブル: issue
+      await client.query('DELETE FROM issue WHERE organization_id = $1 AND project_id = $2', [
+        organizationId,
+        projectId,
+      ]);
+
+      // 子テーブル: issue_comment
+      await client.query(
+        'DELETE FROM issue_comment WHERE organization_id = $1 AND project_id = $2',
+        [organizationId, projectId]
+      );
+
+      // 子テーブル: maiml_event_log
+      await client.query(
+        'DELETE FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2',
+        [organizationId, projectId]
+      );
+
+      // 親テーブル: project
+      await client.query('DELETE FROM project WHERE organization_id = $1 AND project_id = $2', [
+        organizationId,
+        projectId,
+      ]);
+
+      console.log('✅ [ProjectService.deleteProject] DB削除完了');
+
+      // 5. コミット
+      await client.query('COMMIT');
+
+      // 6. ストレージからプロジェクトフォルダを削除（トランザクション外）
+      let deletedFileCount = 0;
+      try {
+        // FileAccessServiceを使用してフォルダ削除
+        const { FileAccessService } = await import('./fileAccessService');
+        const fileAccessService = new FileAccessService();
+        const folderPath = `projects/${projectName}`;
+
+        deletedFileCount = await fileAccessService.deleteFolderRecursive(
+          organizationId,
+          folderPath
+        );
+
+        console.log(
+          `✅ [ProjectService.deleteProject] ストレージ削除完了: ${deletedFileCount}ファイル`
+        );
+      } catch (storageError) {
+        // ストレージエラーは警告のみ（DB削除は成功しているため）
+        console.warn(
+          '⚠️ [ProjectService.deleteProject] ストレージ削除エラー（続行）:',
+          storageError
+        );
+      }
+
+      return {
+        success: true,
+        data: {
+          deletedCount: deletedFileCount,
+          message: `プロジェクト「${projectName}」を削除しました`,
+        },
+      };
+    } catch (error) {
+      if (client) {
+        await client.query('ROLLBACK');
+      }
+
+      console.error('❌ [ProjectService.deleteProject] エラー:', error);
+
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'データベースエラーが発生しました',
+          originalError: error as Error,
+        },
+      };
+    } finally {
+      if (client) {
+        client.release();
+      }
+    }
+  }
+
+  /**
+   * project_maiml_flgフラグ更新
+   *
+   * Task: project_maiml_flg更新処理実装 - Phase 1
+   * @description プロジェクトのproject_maiml_flgを更新する（true/false両対応）
+   * @note MAIMLファイル削除時・アップロード時・編集保存時に呼び出す
+   *
+   * @param organizationId - 組織ID
+   * @param projectName - プロジェクト名
+   * @param flagValue - フラグ値（true: 有, false: 無）デフォルトfalse（後方互換性）
+   * @returns 更新結果
+   */
+  async updateMaimlFlag(
+    organizationId: string,
+    projectName: string,
+    flagValue: boolean = false
+  ): Promise<ServiceResult<{ message: string }>> {
+    const pool = getPool();
+
+    try {
+      // 1. projectNameからprojectIdを取得
+      const project = await projectRepository.findProjectIdByName(organizationId, projectName);
+
+      if (!project) {
+        return {
+          success: false,
+          error: {
+            code: 'RESOURCE_NOT_FOUND',
+            message: 'プロジェクトが見つかりません',
+          },
+        };
+      }
+
+      const projectId = project.project_id;
+
+      // 2. project_maiml_flgを動的に更新
+      const updateQuery = `
+            UPDATE project
+            SET project_maiml_flg = $3,
+                update_at = CURRENT_TIMESTAMP
+            WHERE organization_id = $1 AND project_id = $2
+          `;
+
+      await pool.query(updateQuery, [organizationId, projectId, flagValue]);
+
+      console.log(`✅ [ProjectService.updateMaimlFlag] project_maiml_flg更新完了: ${flagValue}`);
+
+      return {
+        success: true,
+        data: {
+          message: `project_maiml_flgを${flagValue}に更新しました`,
+        },
+      };
+    } catch (error) {
+      console.error('❌ [ProjectService.updateMaimlFlag] エラー:', error);
+
+      return {
+        success: false,
+        error: {
+          code: 'SYSTEM_DATABASE_ERROR',
+          message: 'データベースエラーが発生しました',
+          originalError: error as Error,
+        },
+      };
     }
   }
 
@@ -313,12 +571,7 @@ export class ProjectService {
         LIMIT $3 OFFSET $4
       `;
 
-      const projectParams = [
-        organizationId,
-        includeCompleted,
-        limit,
-        offset
-      ];
+      const projectParams = [organizationId, includeCompleted, limit, offset];
 
       // 総件数取得クエリ
       const countQuery = `
@@ -335,7 +588,7 @@ export class ProjectService {
       const pool = getPool();
       const [projectsResult, countResult] = await Promise.all([
         pool.query(projectQuery, projectParams),
-        pool.query(countQuery, countParams)
+        pool.query(countQuery, countParams),
       ]);
 
       const projects = projectsResult.rows;
@@ -365,7 +618,7 @@ export class ProjectService {
         createdAt: row.create_at ? row.create_at.toISOString() : '',
         updatedAt: row.update_at ? row.update_at.toISOString() : '', // 後で実装予定
         totalTasks: parseInt(row.task_count, 10),
-        completedTasks: parseInt(row.completed_task_count, 10)
+        completedTasks: parseInt(row.completed_task_count, 10),
       }));
 
       // ページネーション情報を構築
@@ -375,15 +628,15 @@ export class ProjectService {
         totalItems,
         totalPages,
         hasNext: page < totalPages,
-        hasPrev: page > 1
+        hasPrev: page > 1,
       };
 
       return {
         success: true,
         data: {
           projects: formattedProjects,
-          pagination
-        }
+          pagination,
+        },
       };
     } catch (error) {
       console.log(error);
@@ -392,18 +645,18 @@ export class ProjectService {
         error: {
           code: 'SYSTEM_DATABASE_ERROR',
           message: 'Database query failed',
-          originalError: error as Error
-        }
+          originalError: error as Error,
+        },
       };
     }
   }
 
   /**
    * プロジェクトチェックアウト
-   * 
+   *
    * Task 3.1: チェックアウトビジネスロジックの実装
    * Requirements: FR-1.1, FR-1.2, NFR-1, NFR-2
-   * 
+   *
    * @param organizationId - 組織ID
    * @param projectId - プロジェクトID
    * @param userId - ユーザーID
@@ -420,13 +673,16 @@ export class ProjectService {
     try {
       // projectNameからprojectIdを取得（Repository層経由）
       let projectId: string;
-      
+
       // UUIDの場合はそのまま使用、それ以外はprojectNameとして扱う
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(projectNameOrId)) {
         projectId = projectNameOrId;
       } else {
-        const projectRow = await projectRepository.findProjectIdByName(organizationId, projectNameOrId);
+        const projectRow = await projectRepository.findProjectIdByName(
+          organizationId,
+          projectNameOrId
+        );
         if (!projectRow) {
           return {
             success: false,
@@ -438,7 +694,7 @@ export class ProjectService {
         }
         projectId = projectRow.project_id;
       }
-      
+
       // トランザクション開始
       client = await pool.connect();
       await client.query('BEGIN');
@@ -503,7 +759,7 @@ export class ProjectService {
           5: 'タスク異常終了',
         };
         const currentStatusName = statusNames[project.project_status ?? -1] || '不明';
-        
+
         return {
           success: false,
           error: {
@@ -515,7 +771,11 @@ export class ProjectService {
               currentStatus: project.project_status,
               currentStatusName,
               allowedStatuses: [0, 3, 5],
-              allowedStatusNames: ['プロジェクト計画中', 'タスク結果レビュー待ち', 'タスク異常終了'],
+              allowedStatusNames: [
+                'プロジェクト計画中',
+                'タスク結果レビュー待ち',
+                'タスク異常終了',
+              ],
             },
           },
         };
@@ -541,7 +801,10 @@ export class ProjectService {
       }
 
       // バリデーション4: 未送信指示チェック（Repository層経由）
-      const hasUnsent = await projectInstructionRepository.hasUnsentInstructions(organizationId, projectId);
+      const hasUnsent = await projectInstructionRepository.hasUnsentInstructions(
+        organizationId,
+        projectId
+      );
 
       if (hasUnsent) {
         await client.query('ROLLBACK');
@@ -623,7 +886,7 @@ export class ProjectService {
         true,
         userId
       );
-      
+
       console.log(`[DEBUG] checkout - Updated worker_linked_flg for ${updatedTaskCount} tasks`);
 
       // トランザクションコミット
@@ -660,10 +923,10 @@ export class ProjectService {
 
   /**
    * プロジェクトチェックイン
-   * 
+   *
    * Task 3.2: チェックインビジネスロジックの実装
    * Requirements: FR-2.1, NFR-1, NFR-2
-   * 
+   *
    * @param organizationId - 組織ID
    * @param projectName - プロジェクト名
    * @param userId - ユーザーID
@@ -724,7 +987,10 @@ export class ProjectService {
       const project = selectResult.rows[0];
 
       // 前提条件チェック: task_status が 3 (completed) または 4 (error) 以外のタスク存在確認（Repository層経由）
-      const hasIncomplete = await projectTaskRepository.hasIncompleteTasks(organizationId, projectId);
+      const hasIncomplete = await projectTaskRepository.hasIncompleteTasks(
+        organizationId,
+        projectId
+      );
 
       if (hasIncomplete) {
         await client.query('ROLLBACK');
@@ -801,10 +1067,10 @@ export class ProjectService {
 
   /**
    * プロジェクトチェックアウト状態取得
-   * 
+   *
    * Task 3.3: チェックアウト状態照会ビジネスロジックの実装
    * Requirements: FR-3.1, NFR-2
-   * 
+   *
    * @param organizationId - 組織ID
    * @param projectId - プロジェクトID
    * @returns チェックアウト状態情報
@@ -873,10 +1139,10 @@ export class ProjectService {
 
   /**
    * プロジェクトファイル一覧を取得
-   * 
+   *
    * Task 2.1: ファイル一覧取得API - Service層実装
    * Requirements: 2, 3, 11
-   * 
+   *
    * @param organizationId - 組織ID
    * @param projectId - プロジェクトID
    * @returns ファイル一覧（archiveファイルは常に取得）
@@ -884,12 +1150,14 @@ export class ProjectService {
   async getProjectFiles(
     organizationId: string,
     projectId: string
-  ): Promise<ServiceResult<{
-    projectId: string;
-    projectName: string;
-    files: any[];
-    archiveFiles: any[];
-  }>> {
+  ): Promise<
+    ServiceResult<{
+      projectId: string;
+      projectName: string;
+      files: any[];
+      archiveFiles: any[];
+    }>
+  > {
     try {
       // Repository層経由でプロジェクト情報を取得
       const project = await projectRepository.findProjectBasicInfo(organizationId, projectId);
@@ -914,10 +1182,9 @@ export class ProjectService {
         const storageService = getStorageService();
 
         // 現在のファイル一覧を取得
-        const currentFiles = await storageService.listFiles(
-          organizationId,
-          `projects/${projectName}/`
-        ).catch(() => []);
+        const currentFiles = await storageService
+          .listFiles(organizationId, `projects/${projectName}/`)
+          .catch(() => []);
 
         // archive配下のファイルと.keepファイルを除外してフィルタリング
         const rootFiles = currentFiles.filter((file: any) => {
@@ -926,13 +1193,13 @@ export class ProjectService {
           if (file.key.includes('/archive/')) {
             return false;
           }
-          
+
           // .keepファイルを除外
           const fileName = file.key.split('/').pop() || '';
           if (fileName === '' || fileName === '.keep') {
             return false;
           }
-          
+
           return true;
         });
 
@@ -940,7 +1207,7 @@ export class ProjectService {
         const startTime = Date.now();
         const chunkSize = 20;
         files = [];
-        
+
         for (let i = 0; i < rootFiles.length; i += chunkSize) {
           const chunk = rootFiles.slice(i, i + chunkSize);
           const chunkResults = await Promise.all(
@@ -978,15 +1245,16 @@ export class ProjectService {
           );
           files.push(...chunkResults);
         }
-        
+
         const endTime = Date.now();
-        console.log(`[Performance] 署名付きURL生成完了: ${rootFiles.length}ファイル、処理時間: ${endTime - startTime}ms`);
+        console.log(
+          `[Performance] 署名付きURL生成完了: ${rootFiles.length}ファイル、処理時間: ${endTime - startTime}ms`
+        );
 
         // archiveファイルを常に取得（include_archiveパラメータ削除）
-        const archiveFilesList = await storageService.listFiles(
-          organizationId,
-          `projects/${projectName}/archive/`
-        ).catch(() => []);
+        const archiveFilesList = await storageService
+          .listFiles(organizationId, `projects/${projectName}/archive/`)
+          .catch(() => []);
 
         // .keepファイルを除外
         const filteredArchiveFiles = archiveFilesList.filter((file: any) => {
@@ -998,7 +1266,7 @@ export class ProjectService {
         if (filteredArchiveFiles.length > 0) {
           const archiveStartTime = Date.now();
           archiveFiles = [];
-          
+
           for (let i = 0; i < filteredArchiveFiles.length; i += chunkSize) {
             const chunk = filteredArchiveFiles.slice(i, i + chunkSize);
             const chunkResults = await Promise.all(
@@ -1037,9 +1305,11 @@ export class ProjectService {
             );
             archiveFiles.push(...chunkResults);
           }
-          
+
           const archiveEndTime = Date.now();
-          console.log(`[Performance] アーカイブファイル署名付きURL生成完了: ${filteredArchiveFiles.length}ファイル、処理時間: ${archiveEndTime - archiveStartTime}ms`);
+          console.log(
+            `[Performance] アーカイブファイル署名付きURL生成完了: ${filteredArchiveFiles.length}ファイル、処理時間: ${archiveEndTime - archiveStartTime}ms`
+          );
         } else {
           // 空配列を明示的に設定
           archiveFiles = [];
@@ -1072,10 +1342,10 @@ export class ProjectService {
 
   /**
    * 承認依頼
-   * 
+   *
    * Task: 3.1-3.3 プロジェクト存在確認、ステータス検証、トランザクション管理、ステータス更新
    * Requirements: 3, 4, 5, 6, 7, 9, 10, 11
-   * 
+   *
    * @param projectId - プロジェクトID
    * @param comment - コメント（オプション）
    * @param organizationId - 組織ID
@@ -1127,7 +1397,7 @@ export class ProjectService {
           5: 'タスク異常終了',
         };
         const currentStatusName = statusNames[project.project_status] || '不明';
-        
+
         // waiting_approval (3) の場合は特別なメッセージ
         const message =
           project.project_status === 3
@@ -1151,7 +1421,7 @@ export class ProjectService {
 
       // Task 3.2: トランザクション管理とステータス更新（pg-promiseのtx使用）
       const currentTimestamp = new Date().toISOString();
-      
+
       await pgp.tx(async (t: any) => {
         // プロジェクトステータス更新（リポジトリ層使用）
         const rowCount = await projectRepository.updateApprovalStatus(
@@ -1172,7 +1442,7 @@ export class ProjectService {
           t,
           organizationId,
           projectId,
-          TaskStatusEnum.IN_PROGRESS,   // fromStatus: 1（実行中）
+          TaskStatusEnum.IN_PROGRESS, // fromStatus: 1（実行中）
           TaskStatusEnum.REVIEW_WAITING, // toStatus: 2（レビュー待ち）
           userId
         );
@@ -1200,10 +1470,10 @@ export class ProjectService {
 
       // Task 3.4.1: ユーザー名を取得（トランザクション後、リポジトリ層使用）
       let requestedByName = userId; // デフォルトはuserIdをフォールバック
-      
+
       try {
         const userName = await projectRepository.findUserNameById(organizationId, userId);
-        
+
         if (userName) {
           requestedByName = userName;
         }
@@ -1222,7 +1492,7 @@ export class ProjectService {
           requested_by: userId,
           requested_by_name: requestedByName,
           requested_at: currentTimestamp,
-          comment: escapedComment,  // エスケープ済みコメント（nullの場合はnull）
+          comment: escapedComment, // エスケープ済みコメント（nullの場合はnull）
         },
       };
     } catch (error) {
@@ -1234,7 +1504,7 @@ export class ProjectService {
         error: sanitizeErrorForLog(error as Error),
         timestamp: new Date().toISOString(),
       });
-      
+
       return {
         success: false,
         error: {
@@ -1248,10 +1518,10 @@ export class ProjectService {
 
   /**
    * プロジェクトに紐づくタスク一覧と統計情報を取得
-   * 
+   *
    * Task 3.1: タスク一覧取得API - Service層実装
    * Requirements: 6, 7, 8, 11
-   * 
+   *
    * @param organizationId - 組織ID
    * @param projectId - プロジェクトID
    * @param status - タスクステータスフィルタ
@@ -1261,18 +1531,20 @@ export class ProjectService {
     organizationId: string,
     projectId: string,
     status: 'all' | 'pending' | 'in_progress' | 'completed' | 'failed'
-  ): Promise<ServiceResult<{
-    projectId: string;
-    projectName: string;
-    tasks: any[];
-    statistics: {
-      total: number;
-      pending: number;
-      inProgress: number;
-      completed: number;
-      failed: number;
-    };
-  }>> {
+  ): Promise<
+    ServiceResult<{
+      projectId: string;
+      projectName: string;
+      tasks: any[];
+      statistics: {
+        total: number;
+        pending: number;
+        inProgress: number;
+        completed: number;
+        failed: number;
+      };
+    }>
+  > {
     try {
       // Repository層経由でプロジェクト情報を取得
       const project = await projectRepository.findProjectBasicInfo(organizationId, projectId);
@@ -1309,7 +1581,7 @@ export class ProjectService {
       const tasks = tasksResult.map((row: any) => {
         const taskStatus = TASK_STATUS_MAP[row.task_status] || 'pending';
         const taskId = `${row.method_id}_${row.task_no}`;
-        
+
         return {
           // フロントエンドの必須プロパティ
           taskId,
@@ -1324,24 +1596,21 @@ export class ProjectService {
           startedAt: row.experiment_start_at
             ? new Date(row.experiment_start_at).toISOString()
             : null,
-          completedAt: row.experiment_end_at
-            ? new Date(row.experiment_end_at).toISOString()
-            : null,
+          completedAt: row.experiment_end_at ? new Date(row.experiment_end_at).toISOString() : null,
           progress: taskStatus === 'completed' ? 100 : taskStatus === 'in_progress' ? 50 : 0,
-          
+
           // TaskResultsTable用の追加プロパティ
           workId: taskId,
           taskName: `Task ${row.task_no}`,
           methodName: row.method_id,
           assignedWorker: row.experiment_user_name || '',
-          progressPercentage: taskStatus === 'completed' ? 100 : taskStatus === 'in_progress' ? 50 : 0,
+          progressPercentage:
+            taskStatus === 'completed' ? 100 : taskStatus === 'in_progress' ? 50 : 0,
           workCompletedAt: row.experiment_end_at
             ? new Date(row.experiment_end_at).toISOString()
             : null,
-          reviewCompletedAt: row.reviewed_at
-            ? new Date(row.reviewed_at).toISOString()
-            : null,
-          
+          reviewCompletedAt: row.reviewed_at ? new Date(row.reviewed_at).toISOString() : null,
+
           // バックエンド固有のプロパティ（デバッグ用）
           organizationId: row.organization_id,
           projectId: row.project_id,
@@ -1415,7 +1684,7 @@ export class ProjectService {
 
   /**
    * 作業指示一覧を取得
-   * 
+   *
    * Task 2.1: Worker Instructions API - Service層実装
    * @param params - 取得パラメータ
    * @returns 作業指示一覧
@@ -1433,53 +1702,53 @@ export class ProjectService {
 
     try {
       const { projectName, organizationId, userId, userRole, filters = {} } = params;
-      
+
       // 外部SQLファイルからベースクエリを読み込み
       let query = await loadSqlFile('instructions/findWorkerInstructions.sql');
-      
+
       const queryParams: any[] = [userId]; // $1: acknowledged_user_id (LEFT JOIN用)
       const conditions: string[] = [];
       let paramIndex = 2; // userIdが$1なので、$2から開始
-      
+
       // 実験作業者の場合は、自分に割り当てられたタスクに紐づく指示のみ取得
       if (userRole === 'experiment_worker') {
         // FROM句とWHERE句の間にINNER JOINを挿入
         query = query.trim(); // 末尾の改行を削除
         query += `\nINNER JOIN project_task pt ON pt.project_id = pi.project_id`;
-        
+
         conditions.push(`pt.assign_user_id = $${paramIndex++}`);
         queryParams.push(userId);
         conditions.push(`pt.organization_id = $${paramIndex++}`);
         queryParams.push(organizationId);
       }
-      
+
       // 必須フィルタ: organization_id（マルチテナント分離）
       conditions.push(`p.organization_id = $${paramIndex++}`);
       queryParams.push(organizationId);
       conditions.push(`pi.organization_id = $${paramIndex++}`);
       queryParams.push(organizationId);
-      
+
       // 必須フィルタ: project_name
       conditions.push(`p.project_name = $${paramIndex++}`);
       queryParams.push(projectName);
-      
+
       // オプショナルフィルタの適用
       if (filters.projectId) {
         conditions.push(`pi.project_id = $${paramIndex++}`);
         queryParams.push(filters.projectId);
       }
-      
+
       // WHERE句の追加
       if (conditions.length > 0) {
         query += `\nWHERE ${conditions.join(' AND ')}`;
       }
-      
+
       // ソート: create_atで降順
       query += `\nORDER BY pi.create_at DESC`;
-      
+
       // pg-promiseを使用してクエリ実行
       const result = await pgp.any(query, queryParams);
-      
+
       // TODO: タスク2.2実装時にMAIMLファイルからメソッド名・トランジション名を取得
       // 暫定対応: method_name, transition_nameは空文字列を返却
       const instructions = result.map((row: any) => ({
@@ -1500,7 +1769,7 @@ export class ProjectService {
         created_by_name: row.created_by_name || '',
         is_acknowledged: row.is_acknowledged,
       }));
-      
+
       return {
         success: true,
         data: instructions,
@@ -1520,26 +1789,23 @@ export class ProjectService {
 
   /**
    * プロジェクトMAIMLファイル取得
-   * 
+   *
    * Task 3.1 (P): Service層実装（projectName版）
    * Requirements: 1, 3, 4, 6, 7
-   * 
+   *
    * @param organizationId - 組織ID
    * @param projectName - プロジェクト名
    * @returns MAIMLファイルデータ
    */
-  async getProjectMaiml(
-    organizationId: string,
-    projectName: string
-  ): Promise<ServiceResult<any>> {
+  async getProjectMaiml(organizationId: string, projectName: string): Promise<ServiceResult<any>> {
     let projectId: string | undefined; // スコープを拡大
-    
+
     try {
       console.log('[DEBUG] getProjectMaiml - Service層開始', { organizationId, projectName });
-      
+
       // Repository層を使用してprojectNameからprojectIdを取得
       const project = await projectRepository.findProjectIdByName(organizationId, projectName);
-      
+
       // プロジェクト存在確認
       if (!project) {
         console.log('[DEBUG] getProjectMaiml - プロジェクトが見つかりません', { projectName });
@@ -1551,18 +1817,18 @@ export class ProjectService {
           },
         };
       }
-      
+
       projectId = project.project_id;
       console.log('[DEBUG] getProjectMaiml - プロジェクトID取得完了', { projectId, projectName });
-      
+
       // Task 3.1: S3パスを構築
       const filePath = `projects/${projectName}/${projectName}.maiml`;
       console.log('[DEBUG] getProjectMaiml - S3パス構築完了', { filePath });
-      
+
       // Task 3.1: storageService経由でファイル存在確認
       const storageService = getStorageService();
       const exists = await storageService.fileExists(organizationId, filePath);
-      
+
       // ファイルが存在しない場合は空のcontentで成功レスポンスを返す（新規プロジェクト等）
       if (!exists) {
         console.log('[DEBUG] getProjectMaiml - ファイル不在、空のcontentを返却', { filePath });
@@ -1573,7 +1839,7 @@ export class ProjectService {
           filePath,
           timestamp: new Date().toISOString(),
         });
-        
+
         return {
           success: true,
           data: {
@@ -1581,22 +1847,24 @@ export class ProjectService {
           },
         };
       }
-      
+
       // Task 3.1: ファイルが存在する場合はS3から取得
       try {
         console.log('[DEBUG] getProjectMaiml - S3からファイル取得開始');
-        
+
         const fileBuffer = await storageService.downloadFile(organizationId, filePath);
-        console.log('[DEBUG] getProjectMaiml - S3からファイル取得完了', { size: fileBuffer.length });
-        
+        console.log('[DEBUG] getProjectMaiml - S3からファイル取得完了', {
+          size: fileBuffer.length,
+        });
+
         // Task 3.1: BufferをUTF-8文字列に変換
         const content = fileBuffer.toString('utf-8');
-        
+
         // Task 3.1: レスポンスデータ構築（フロントエンドのProjectMaimlResponse型に合わせる）
         const maimlFileData = {
           maimlContent: content, // フロントエンドが期待するプロパティ名
         };
-        
+
         // Task 3.1: 成功ログ記録
         winston.info('MAIML file retrieved successfully', {
           projectId,
@@ -1606,7 +1874,7 @@ export class ProjectService {
           filePath,
           timestamp: new Date().toISOString(),
         });
-        
+
         console.log('[DEBUG] getProjectMaiml - 成功レスポンス返却');
         return {
           success: true,
@@ -1615,14 +1883,14 @@ export class ProjectService {
       } catch (s3Error: any) {
         // Task 3.1: S3ファイル不在時の処理
         // ファイルが見つからない場合の判定を拡張（NotFound, NoSuchKey, 404ステータス, エラーメッセージに"not found"を含む）
-        const isNotFound = 
+        const isNotFound =
           s3Error.name === 'NotFound' ||
           s3Error.name === 'NoSuchKey' ||
           s3Error.code === 'NoSuchKey' ||
           s3Error.$metadata?.httpStatusCode === 404 ||
           (s3Error.message && s3Error.message.toLowerCase().includes('not found')) ||
           (s3Error.message && s3Error.message.toLowerCase().includes('does not exist'));
-        
+
         if (isNotFound) {
           winston.warn('MAIML file not found in S3', {
             projectId,
@@ -1632,7 +1900,7 @@ export class ProjectService {
             errorType: s3Error.name || s3Error.code || 'Unknown',
             timestamp: new Date().toISOString(),
           });
-          
+
           return {
             success: false,
             error: {
@@ -1641,7 +1909,7 @@ export class ProjectService {
             },
           };
         }
-        
+
         // Task 3.1: その他のS3エラー
         winston.error('S3 error during MAIML file retrieval', {
           projectId,
@@ -1650,7 +1918,7 @@ export class ProjectService {
           error: sanitizeErrorForLog(s3Error),
           timestamp: new Date().toISOString(),
         });
-        
+
         return {
           success: false,
           error: {
@@ -1668,7 +1936,7 @@ export class ProjectService {
         error: sanitizeErrorForLog(error as Error),
         timestamp: new Date().toISOString(),
       });
-      
+
       return {
         success: false,
         error: {
@@ -1721,7 +1989,11 @@ export class ProjectService {
       const projectId = project.project_id;
 
       // 1. 指示の存在確認（organization_idフィルタ付き）
-      const instruction = await instructionRepository.findById(instructionId, projectId, organizationId);
+      const instruction = await instructionRepository.findById(
+        instructionId,
+        projectId,
+        organizationId
+      );
 
       if (!instruction) {
         return {
@@ -1776,10 +2048,7 @@ export class ProjectService {
       let programId: string | null = null;
       const instructionTarget = instruction.instruction_target ?? 1;
 
-      if (
-        instruction.method_id &&
-        (instructionTarget === 2 || instructionTarget === 3)
-      ) {
+      if (instruction.method_id && (instructionTarget === 2 || instructionTarget === 3)) {
         try {
           const storageService = getStorageService();
           const filePath = `projects/${projectName}/${projectName}.maiml`;
@@ -1794,16 +2063,10 @@ export class ProjectService {
 
           // protocol.method は単一要素の場合もあるため配列に統一
           const methods = parsed?.maiml?.protocol?.method;
-          const methodsArray = Array.isArray(methods)
-            ? methods
-            : methods
-            ? [methods]
-            : [];
+          const methodsArray = Array.isArray(methods) ? methods : methods ? [methods] : [];
 
           // method_id が一致するメソッドの program id を取得
-          const targetMethod = methodsArray.find(
-            (m: any) => m['@_id'] === instruction.method_id
-          );
+          const targetMethod = methodsArray.find((m: any) => m['@_id'] === instruction.method_id);
           programId = targetMethod?.program?.['@_id'] ?? null;
         } catch (maimlError) {
           // MAIMLファイル取得・パース失敗時は null のまま続行（ログのみ）

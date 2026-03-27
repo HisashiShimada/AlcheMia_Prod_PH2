@@ -1944,3 +1944,140 @@ export const getProjectMaiml = async (
   }
 };
 
+// ========================================
+// プロジェクト削除関連API関数
+// ========================================
+
+/**
+ * プロジェクト削除レスポンス型
+ */
+export interface DeleteProjectResponse {
+  deletedCount: number;
+  message: string;
+}
+
+/**
+ * プロジェクトを削除
+ * DELETE /api/v1/projects/:projectName
+ * 
+ * @param projectName プロジェクト名
+ * @returns 削除結果（削除されたファイル数とメッセージ）
+ * @throws Error APIエラー時
+ * 
+ * @remarks
+ * - project_maiml_flg=falseの場合のみ削除可能
+ * - DB + ストレージのファイルを全て削除
+ * 
+ * @example
+ * ```typescript
+ * try {
+ *   const result = await deleteProject('sample_project');
+ *   console.log(`削除成功: ${result.deletedCount}ファイル`);
+ * } catch (error) {
+ *   console.error('削除失敗:', error);
+ * }
+ * ```
+ */
+export const deleteProject = async (
+  projectName: string
+): Promise<DeleteProjectResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] deleteProject - Request', { projectName });
+    
+    const response = await client.delete<{
+      success: true;
+      data: DeleteProjectResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}`);
+
+    console.log('[DEBUG] deleteProject - Success', {
+      deletedCount: response.data.data.deletedCount,
+      message: response.data.data.message,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] deleteProject - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError<ApiErrorResponse>)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};
+
+/**
+ * project_maiml_flgフラグ更新レスポンス型
+ */
+export interface UpdateMaimlFlagResponse {
+  message: string;
+}
+
+/**
+ * project_maiml_flgを更新
+ * PATCH /api/v1/projects/:projectName/maiml-flag
+ * 
+ * ✨ Task: project_maiml_flg更新処理実装 - Phase 1
+ * 
+ * @param projectName プロジェクト名
+ * @param flagValue フラグ値（true: MAIMLファイルあり, false: なし）デフォルト: false
+ * @returns 更新結果メッセージ
+ * @throws Error APIエラー時
+ * 
+ * @remarks
+ * - MAIMLファイル削除後: flagValue=falseで呼び出し
+ * - MAIMLファイルアップロード後: flagValue=trueで呼び出し
+ * - ファイル削除/アップロード自体は共通API（fileAccessService）を使用
+ * 
+ * @example
+ * ```typescript
+ * // MAIMLファイル削除後
+ * await deleteFile(organizationId, filePath);
+ * await updateMaimlFlag('sample_project', false);
+ * 
+ * // MAIMLファイルアップロード後
+ * await uploadFile(...);
+ * await updateMaimlFlag('sample_project', true);
+ * ```
+ */
+export const updateMaimlFlag = async (
+  projectName: string,
+  flagValue: boolean = false
+): Promise<UpdateMaimlFlagResponse> => {
+  const client = createApiClient();
+
+  try {
+    console.log('[DEBUG] updateMaimlFlag - Request', { projectName, flagValue });
+    
+    const response = await client.patch<{
+      success: true;
+      data: UpdateMaimlFlagResponse;
+      meta: {
+        timestamp: string;
+        requestId: string;
+      };
+    }>(`/projects/${encodeURIComponent(projectName)}/maiml-flag`, {
+      flagValue, // ✨ リクエストボディにflagValueを追加
+    });
+
+    console.log('[DEBUG] updateMaimlFlag - Success', {
+      message: response.data.data.message,
+    });
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('[DEBUG] updateMaimlFlag - Error', {
+      error,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorResponse: (error as AxiosError<ApiErrorResponse>)?.response?.data,
+      errorStatus: (error as AxiosError)?.response?.status,
+    });
+    throw error;
+  }
+};

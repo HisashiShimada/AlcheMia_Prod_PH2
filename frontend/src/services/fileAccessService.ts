@@ -362,25 +362,38 @@ export const getFileViewUrl = async (fileKey: string): Promise<string> => {
  * - プロジェクト、フォーマット、その他のファイルで共通利用可能
  * - organization_idは認証情報から自動取得
  * 
+ * Task: プロジェクト管理画面maimlファイル削除時project_status確認（2026-03-27）
+ * - オプショナルパラメータ: checkProjectStatus
+ * - プロジェクト管理画面からはcheckProjectStatus=trueで呼び出し
+ * - maimlファイル削除時にproject_status=0であることを確認
+ * 
  * @param fileKey ファイルキー（相対パス）
+ * @param checkProjectStatus project_statusチェックを行うか（デフォルト: false）
  * @returns Promise<void> 削除完了後に解決
  * @throws Error APIエラー時
  * 
  * @example
- * // フォーマットファイル削除
+ * // フォーマットファイル削除（statusチェックなし）
  * await deleteFileByKey('formats/chemistry/template.xml');
  * 
- * // プロジェクトファイル削除
+ * // プロジェクトファイル削除（statusチェックなし）
  * await deleteFileByKey('projects/sample_project/data.csv');
+ * 
+ * // プロジェクト管理画面からのmaimlファイル削除（statusチェックあり）
+ * await deleteFileByKey('projects/sample_project/sample_project.maiml', true);
  */
 export const deleteFileByKey = async (
-  fileKey: string
+  fileKey: string,
+  checkProjectStatus?: boolean
 ): Promise<void> => {
   const client = createApiClient();
 
   try {
     await client.delete('/files/delete', {
-      data: { fileKey },
+      data: {
+        fileKey,
+        ...(checkProjectStatus !== undefined && { checkProjectStatus }),
+      },
     });
 
     console.log('ファイル削除成功:', fileKey);

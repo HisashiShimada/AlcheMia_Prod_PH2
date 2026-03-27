@@ -14,6 +14,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { logError } from '../utils/logger';
 import { ingestSingleFileAsync } from '../services/singleFileIngestService';
 import UploadBatchRepository from '../repositories/UploadBatchRepository';
+import * as projectRepository from '../repositories/projectRepository';
+import { ProjectService } from '../services/projectService';
 
 /**
  * 単一ファイルダウンロード用署名付きURL取得エンドポイント
@@ -547,28 +549,155 @@ export async function getFileViewUrl(req: Request, res: Response): Promise<void>
  * Task: ファイル削除API共通化
  * - ファイルキー（相対パス）を指定してファイルを削除
  * - フォーマット、プロジェクト、その他のファイルで共通利用可能
+ * 
+ * Task: プロジェクト管理画面maimlファイル削除時project_status確認（2026-03-27）
+ * - オプショナルパラメータ: checkProjectStatus
+ * - checkProjectStatus=trueかつmaimlファイルの場合、project_status=0をチェック
+ * - maimlファイル削除後、project_maiml_flg=falseに更新
  */
 export async function deleteFile(req: Request, res: Response): Promise<void> {
   const requestId = uuidv4();
+  const projectService = new ProjectService();
   
   try {
     const { organizationId } = req.user!;
-    const { fileKey } = req.body;
+    const { fileKey, checkProjectStatus } = req.body;
 
     console.log('🗑️ [File Delete] リクエスト開始:', {
       organizationId,
       fileKey,
+      checkProjectStatus,
       requestId,
     });
 
-    // Service層の初期化と呼び出し
+    let maimlFlagUpdated = false;
+
+    // ① オプショナル: project_statusチェック（checkProjectStatus === true の場合のみ）
+    if (checkProjectStatus === true) {
+      const fileName = fileKey.split('/').pop() || '';
+      const isMaimlFile = fileName.endsWith('.maiml');
+
+      if (isMaimlFile) {
+        console.log('📝 [File Delete] maimlファイル検出、project_statusチェック開始');
+
+        // fileKeyからプロジェクト名を抽出 (projects/{projectName}/...)
+        const pathParts = fileKey.split('/');
+        if (pathParts.length >= 2 && pathParts[0] === 'projects') {
+          const projectName = pathParts[1];
+
+          // プロジェクト情報を取得
+          const project = await projectRepository.findProjectIdByName(
+            organizationId,
+            projectName
+          );
+
+          if (!project) {
+            res.status(404).json({
+              success: false,
+              error: {
+                code: 'RESOURCE_NOT_FOUND',
+                message: 'プロジェクトが見つかりません',
+              },
+              meta: {
+                timestamp: new Date().toISOString(),
+                requestId,
+              },
+            });
+            return;
+          }
+
+          // プロジェクトの詳細情報を取得（project_statusを含む）
+          const projectInfo = await projectRepository.findByIdWithOrganization(
+            organizationId,
+            project.project_id
+          );
+
+          // project_status != 0 の場合はエラー
+          if (projectInfo && projectInfo.project_status !== 0) {
+            // ステータス名のマッピング
+            const statusNames: { [key: number]: string } = {
+              0: 'プロジェクト計画中',
+              1: 'タスク実行待ち',
+              2: 'タスク実行中',
+              3: 'タスク結果レビュー待ち',
+              4: 'プロジェクト完了',
+              5: 'タスク異常終了',
+            };
+            const currentStatusName = statusNames[projectInfo.project_status] || '不明';
+
+            console.log('❌ [File Delete] project_statusチェック失敗:', {
+              currentStatus: projectInfo.project_status,
+              currentStatusName,
+            });
+
+            res.status(400).json({
+              success: false,
+              error: {
+                code: 'BUSINESS_INVALID_PROJECT_STATUS_FOR_MAIML_DELETE',
+                message: `プロジェクトステータスが計画中ではないため、MAIMLファイルを削除できません（現在のステータス: ${currentStatusName}）`,
+                details: {
+                  projectName,
+                  currentStatus: projectInfo.project_status,
+                  currentStatusName,
+                  requiredStatus: 0,
+                  requiredStatusName: 'プロジェクト計画中',
+                },
+              },
+              meta: {
+                timestamp: new Date().toISOString(),
+                requestId,
+              },
+            });
+            return;
+          }
+
+          console.log('✅ [File Delete] project_statusチェック通過（status=0）');
+        } else {
+          console.log('⚠️ [File Delete] fileKeyがprojects/配下ではないため、project_statusチェックスキップ');
+        }
+      } else {
+        console.log('ℹ️ [File Delete] maimlファイル以外のため、project_statusチェックスキップ');
+      }
+    }
+
+    // ② 削除処理（既存処理）
     const repository = new FileMetadataRepository();
     const accessValidator = new ProjectAccessValidator();
     const service = new FileAccessService(repository, accessValidator);
 
     await service.deleteFileByKey(organizationId, fileKey);
 
-    console.log('✅ [File Delete] 削除成功:', fileKey);
+    console.log('✅ [File Delete] ファイル削除成功:', fileKey);
+
+    // ③ オプショナル: maiml_flg更新（checkProjectStatus === true かつ maimlファイルの場合）
+    if (checkProjectStatus === true) {
+      const fileName = fileKey.split('/').pop() || '';
+      const isMaimlFile = fileName.endsWith('.maiml');
+
+      if (isMaimlFile) {
+        // fileKeyからプロジェクト名を抽出
+        const pathParts = fileKey.split('/');
+        if (pathParts.length >= 2 && pathParts[0] === 'projects') {
+          const projectName = pathParts[1];
+
+          console.log('🔄 [File Delete] project_maiml_flg更新開始');
+
+          const updateResult = await projectService.updateMaimlFlag(
+            organizationId,
+            projectName,
+            false
+          );
+
+          if (!updateResult.success) {
+            // maiml_flg更新失敗は警告のみ（ファイル削除は成功しているため）
+            console.warn('⚠️ [File Delete] project_maiml_flg更新失敗（処理は続行）:', updateResult.error);
+          } else {
+            maimlFlagUpdated = true;
+            console.log('✅ [File Delete] project_maiml_flg=false更新完了');
+          }
+        }
+      }
+    }
 
     // 成功レスポンス
     res.status(200).json({
@@ -576,6 +705,7 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
       data: {
         message: 'ファイルを削除しました',
         fileKey,
+        ...(maimlFlagUpdated && { maimlFlagUpdated: true }),
       },
       meta: {
         timestamp: new Date().toISOString(),

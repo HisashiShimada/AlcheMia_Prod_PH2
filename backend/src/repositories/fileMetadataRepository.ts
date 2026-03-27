@@ -578,4 +578,86 @@ export class FileMetadataRepository {
     }
   }
 
+  /**
+   * 単一ファイルのメタデータを削除
+   * 
+   * @param organizationId - 組織ID（マルチテナント分離に必須）
+   * @param fileKey - ファイルキー（S3/Swiftのキー）
+   * @returns 削除された件数
+   */
+  async softDeleteByFileKey(
+    organizationId: string,
+    fileKey: string
+  ): Promise<number> {
+    const pool = getPool();
+
+    // Parameterized Queryを使用してSQLインジェクション対策
+    // organization_idとfile_keyでフィルタリング
+    const query = `
+      DELETE FROM file_metadata
+      WHERE organization_id = $1
+        AND file_key = $2
+    `;
+
+    const params = [organizationId, fileKey];
+
+    try {
+      const result = await pool.query(query, params);
+      const deletedCount = result.rowCount || 0;
+      
+      if (deletedCount > 0) {
+        console.log(`✅ [FileMetadataRepository] ファイルメタデータ削除: ${fileKey}`);
+      } else {
+        console.log(`ℹ️ [FileMetadataRepository] 削除対象なし（存在しない）: ${fileKey}`);
+      }
+      
+      return deletedCount;
+    } catch (error) {
+      console.error(`❌ [FileMetadataRepository] ファイルメタデータ削除エラー: ${fileKey}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 複数ファイルのメタデータを一括削除
+   * 
+   * @param organizationId - 組織ID（マルチテナント分離に必須）
+   * @param fileKeys - ファイルキーの配列
+   * @returns 削除された件数
+   */
+  async softDeleteBatch(
+    organizationId: string,
+    fileKeys: string[]
+  ): Promise<number> {
+    // 空の配列の場合は何もしない
+    if (fileKeys.length === 0) {
+      return 0;
+    }
+
+    const pool = getPool();
+
+    // UNNESTを使用したバッチDELETE
+    const query = `
+      DELETE FROM file_metadata
+      WHERE file_key IN (
+        SELECT * FROM UNNEST($1::text[])
+      )
+      AND organization_id = $2
+    `;
+
+    const params = [fileKeys, organizationId];
+
+    try {
+      const result = await pool.query(query, params);
+      const deletedCount = result.rowCount || 0;
+      
+      console.log(`✅ [FileMetadataRepository] ファイルメタデータ一括削除: ${deletedCount}/${fileKeys.length}件`);
+      
+      return deletedCount;
+    } catch (error) {
+      console.error(`❌ [FileMetadataRepository] ファイルメタデータ一括削除エラー`, error);
+      throw error;
+    }
+  }
+
 }
