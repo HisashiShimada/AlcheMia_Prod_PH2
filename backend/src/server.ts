@@ -8,6 +8,7 @@ dotenv.config();
 
 // Import middleware
 import { setupSessionMiddleware } from './middleware/sessionMiddleware';
+import { errorHandler } from './middleware/errorHandlerMiddleware';
 import { RedisConnectionService } from './services/redisConnectionService';
 import { TokenBlacklistService } from './services/tokenBlacklistService';
 import { startMaimlPublishWorker,   stopMaimlPublishWorker   } from './workers/maimlPublishWorker';
@@ -139,6 +140,9 @@ async function startServer() {
     app.use('/api/v1/semantic-search', semanticSearchRoutes);
     // Mount system overview routes
     app.use('/api/v1/systemManagement', systemOverviewRoutes);
+
+    // エラーハンドリングミドルウェア（全ルートの後に登録する必要がある）
+    app.use(errorHandler);
 
     if (process.env.NODE_ENV !== 'test') {
       const server = app.listen(PORT, () => {
