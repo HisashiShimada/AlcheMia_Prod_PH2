@@ -228,7 +228,6 @@ export async function createOrganization(
 
   if (data.chiefUserEmail) {
     plainPassword = generateRandomPassword();
-    console.log(`Password:${plainPassword}`);
     const saltRounds = 12;
     passwordHash = await bcrypt.hash(plainPassword, saltRounds);
     passwordExpiresAt = new Date();
