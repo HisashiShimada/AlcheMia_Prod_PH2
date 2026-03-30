@@ -509,3 +509,118 @@ export async function findProjectBasicInfo(
   
   return result.rows[0];
 }
+
+/**
+ * プロジェクト情報を取得（削除前チェック用）
+ * 
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param client トランザクション用のクライアント
+ * @returns プロジェクト情報（見つからない場合はnull）
+ */
+export async function findProjectForDelete(
+  organizationId: string,
+  projectId: string,
+  client: PoolClient
+): Promise<{ project_maiml_flg: boolean; project_name: string } | null> {
+  const query = `
+    SELECT project_maiml_flg, project_name
+    FROM project
+    WHERE organization_id = $1 AND project_id = $2
+    FOR UPDATE
+  `;
+  
+  const result = await client.query(query, [organizationId, projectId]);
+  
+  if (result.rows.length === 0) {
+    return null;
+  }
+  
+  return result.rows[0];
+}
+
+/**
+ * 関連テーブルのデータを削除（プロジェクト削除用）
+ * 
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param client トランザクション用のクライアント
+ */
+export async function deleteProjectRelatedData(
+  organizationId: string,
+  projectId: string,
+  client: PoolClient
+): Promise<void> {
+  // 孫テーブル: project_task_detail
+  await client.query(
+    'DELETE FROM project_task_detail WHERE organization_id = $1 AND project_id = $2',
+    [organizationId, projectId]
+  );
+
+  // 孫テーブル: template_data
+  await client.query(
+    'DELETE FROM template_data WHERE organization_id = $1 AND project_id = $2',
+    [organizationId, projectId]
+  );
+
+  // 孫テーブル: transition_data
+  await client.query(
+    'DELETE FROM transition_data WHERE organization_id = $1 AND project_id = $2',
+    [organizationId, projectId]
+  );
+
+  // 孫テーブル: instruction_acknowledged_history
+  await client.query(
+    `DELETE FROM instruction_acknowledged_history 
+     WHERE organization_id = $1 AND project_id = $2`,
+    [organizationId, projectId]
+  );
+
+  // 子テーブル: project_task
+  await client.query(
+    'DELETE FROM project_task WHERE organization_id = $1 AND project_id = $2',
+    [organizationId, projectId]
+  );
+
+  // 子テーブル: project_instruction
+  await client.query(
+    'DELETE FROM project_instruction WHERE organization_id = $1 AND project_id = $2',
+    [organizationId, projectId]
+  );
+
+  // 子テーブル: issue
+  await client.query(
+    'DELETE FROM issue WHERE organization_id = $1 AND project_id = $2',
+    [organizationId, projectId]
+  );
+
+  // 子テーブル: issue_comment
+  await client.query(
+    'DELETE FROM issue_comment WHERE organization_id = $1 AND project_id = $2',
+    [organizationId, projectId]
+  );
+
+  // 子テーブル: maiml_event_log
+  await client.query(
+    'DELETE FROM maiml_event_log WHERE organization_id = $1 AND project_id = $2',
+    [organizationId, projectId]
+  );
+}
+
+/**
+ * プロジェクトを削除
+ * 
+ * @param organizationId 組織ID
+ * @param projectId プロジェクトID
+ * @param client トランザクション用のクライアント
+ */
+export async function deleteProject(
+  organizationId: string,
+  projectId: string,
+  client: PoolClient
+): Promise<void> {
+  await client.query(
+    'DELETE FROM project WHERE organization_id = $1 AND project_id = $2',
+    [organizationId, projectId]
+  );
+}

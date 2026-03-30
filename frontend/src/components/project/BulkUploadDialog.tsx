@@ -63,6 +63,7 @@ interface BulkUploadDialogProps {
     mode: UploadMode;
     fileCount: number;
     success: boolean;
+    hasMaimlFile?: boolean; // ✨ Task: project_maiml_flg更新処理実装 - Phase 3
   }) => void;
   /** 事前選択されたフォルダパス */
   preselectedFolder?: string;
@@ -267,11 +268,14 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
       if (response) {
         message.success('アップロードが完了しました');
         
+        // ✨ Task: project_maiml_flg更新処理実装 - Phase 3
+        // バックエンドからのhasMaimlFileをコールバックに渡す
         if (onUploadComplete) {
           onUploadComplete({
             mode: uploadMode,
             fileCount: fileList.length,
             success: true,
+            hasMaimlFile: response.hasMaimlFile, // バックエンドからの判定結果を追加
           });
         }
 
