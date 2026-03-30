@@ -134,6 +134,80 @@ class ErrorContext {
 }
 
 /**
+ * xml-jsオブジェクトのキーから名前空間プレフィックスを再帰的に除去する
+ * 例: { 'maiml:pnml': {...}, 'ns:place': {...} } → { pnml: {...}, place: {...} }
+ *
+ * @param obj - xml-jsが生成したオブジェクト
+ * @returns プレフィックス除去後のオブジェクト
+ */
+export function stripNamespacePrefixes(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripNamespacePrefixes);
+
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    // _attributes, _text などの xml-js 内部キーはそのまま保持
+    // _attributes は XML 属性名（xsi:type 等）をそのまま保持するため再帰しない
+    if (key === '_attributes') {
+      result[key] = value;
+      continue;
+    }
+    if (key.startsWith('_')) {
+      result[key] = stripNamespacePrefixes(value);
+      continue;
+    }
+    // 名前空間プレフィックスを除去（例: 'maiml:pnml' → 'pnml'）
+    const strippedKey = key.includes(':') ? key.split(':').pop()! : key;
+    // 同名キーが複数ある場合は配列化（安全のため）
+    if (result[strippedKey] !== undefined) {
+      result[strippedKey] = [
+        ...(Array.isArray(result[strippedKey]) ? result[strippedKey] : [result[strippedKey]]),
+        stripNamespacePrefixes(value)
+      ];
+    } else {
+      result[strippedKey] = stripNamespacePrefixes(value);
+    }
+  }
+  return result;
+}
+
+/**
+ * xml-jsオブジェクトのタグ名キーを再帰的に小文字化する
+ * 大文字小文字のみ異なるタグ名（例: <Protocol> vs <protocol>）を正規化する
+ *
+ * @remarks
+ * - `_text`, `_attributes` などの xml-js 内部キーはそのまま保持
+ * - `_attributes` の中身（属性名・属性値）はそのまま保持（xsi:type 等の値を変えない）
+ */
+export function normalizeTagCase(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(normalizeTagCase);
+
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    // xml-js 内部キー（_ 始まり）はそのまま保持
+    if (key.startsWith('_')) {
+      result[key] = value; // _attributes の中身は変えない
+      continue;
+    }
+    const lowerKey = key.toLowerCase();
+    // 同名キーが既にある場合は配列化
+    const normalizedValue = normalizeTagCase(value);
+    if (result[lowerKey] !== undefined) {
+      result[lowerKey] = [
+        ...(Array.isArray(result[lowerKey]) ? result[lowerKey] : [result[lowerKey]]),
+        ...(Array.isArray(normalizedValue) ? normalizedValue : [normalizedValue])
+      ];
+    } else {
+      result[lowerKey] = normalizedValue;
+    }
+  }
+  return result;
+}
+
+/**
  * xml-jsからMaimlRootへの変換（エントリーポイント・エラーハンドリング付き）
  * 
  * @param xmlData - 変換元のxml-jsデータ
@@ -147,7 +221,11 @@ export function convertXmlJsToMaimlRoot(xmlData: XmlJsMaimlRoot | XmlJsElement):
   
   try {
     // XmlJsMaimlRootの場合はmaimlを取得、XmlJsElementの場合はそのまま使用
-    const maimlElement = (xmlData as XmlJsMaimlRoot).maiml || xmlData as XmlJsElement;
+    const rawMaimlElement = (xmlData as XmlJsMaimlRoot).maiml || xmlData as XmlJsElement;
+
+    // ⭐ 名前空間プレフィックスを一括除去（全変換関数が固定キーでアクセスできるようにする）
+    // ⭐ さらにタグ名キーを小文字化（大文字小文字差異を吸収: <Protocol> → protocol）
+    const maimlElement = normalizeTagCase(stripNamespacePrefixes(rawMaimlElement));
     
     if (!maimlElement) {
       errorContext.addError('root', 'Invalid MAIML data: no maiml element found', 'error');
@@ -222,6 +300,22 @@ export function convertXmlJsToMaimlRoot(xmlData: XmlJsMaimlRoot | XmlJsElement):
       }
     }
     
+    // 既知キー以外の要素を unknownElements に収集（MaimlRoot レベル）
+    const ROOT_KNOWN_KEYS = new Set([
+      '_attributes', 'document', 'protocol', 'data', 'eventLog'
+    ]);
+    const rootUnknownElements: Record<string, any> = {};
+    for (const key of Object.keys(maimlElement)) {
+      if (!ROOT_KNOWN_KEYS.has(key)) {
+        rootUnknownElements[key] = maimlElement[key];
+        errorContext.addError(
+          key,
+          `Unknown element <${key}> found in maiml root`,
+          'warning'
+        );
+      }
+    }
+
     const result: MaimlRoot = {
       xmlns: attrs.xmlns,
       xmlnsConcept: attrs['xmlns:concept'],
@@ -235,7 +329,8 @@ export function convertXmlJsToMaimlRoot(xmlData: XmlJsMaimlRoot | XmlJsElement):
       document,
       protocol,
       data,
-      eventLog
+      eventLog,
+      ...(Object.keys(rootUnknownElements).length > 0 ? { unknownElements: rootUnknownElements } : {})
     };
     
     console.log('✅ [convertXmlJsToMaimlRoot] 型変換完了');
@@ -417,7 +512,26 @@ function convertProtocol(xmlProtocol: XmlJsElement, errorContext?: ErrorContext)
   }
   
   const methods = normalizeXmlJsArray(xmlProtocol.method as XmlJsElement);
-  
+
+  // 既知キー以外の要素を unknownElements に収集
+  const PROTOCOL_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation',
+    'method', 'materialTemplate', 'conditionTemplate', 'resultTemplate'
+  ]);
+  const protocolUnknownElements: Record<string, any> = {};
+  for (const key of Object.keys(xmlProtocol)) {
+    if (!PROTOCOL_KNOWN_KEYS.has(key)) {
+      protocolUnknownElements[key] = (xmlProtocol as any)[key];
+      if (errorContext) {
+        errorContext.addError(
+          key,
+          `Unknown element <${key}> found in protocol (id=${id || 'unknown'})`,
+          'warning'
+        );
+      }
+    }
+  }
+
   return {
     id: id || '',
     uuid: uuid || '',
@@ -426,7 +540,8 @@ function convertProtocol(xmlProtocol: XmlJsElement, errorContext?: ErrorContext)
     methods: convertArraySafe(methods, convertMethod, errorContext, 'method'),
     materialTemplates: xmlProtocol.materialTemplate ? convertArraySafe(xmlProtocol.materialTemplate, convertMaterialTemplate, errorContext, 'materialTemplate') : [],
     conditionTemplates: xmlProtocol.conditionTemplate ? convertArraySafe(xmlProtocol.conditionTemplate, convertConditionTemplate, errorContext, 'conditionTemplate') : [],
-    resultTemplates: xmlProtocol.resultTemplate ? convertArraySafe(xmlProtocol.resultTemplate, convertResultTemplate, errorContext, 'resultTemplate') : []
+    resultTemplates: xmlProtocol.resultTemplate ? convertArraySafe(xmlProtocol.resultTemplate, convertResultTemplate, errorContext, 'resultTemplate') : [],
+    ...(Object.keys(protocolUnknownElements).length > 0 ? { unknownElements: protocolUnknownElements } : {})
   };
 }
 
@@ -454,7 +569,26 @@ function convertMethod(xmlMethod: any, errorContext?: ErrorContext): Method {
   }
   
   const program = normalizeArray(xmlMethod.program);
-  
+
+  // 既知キー以外の要素を unknownElements に収集
+  const METHOD_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation',
+    'pnml', 'program', 'materialTemplate', 'conditionTemplate', 'resultTemplate'
+  ]);
+  const methodUnknownElements: Record<string, any> = {};
+  for (const key of Object.keys(xmlMethod)) {
+    if (!METHOD_KNOWN_KEYS.has(key)) {
+      methodUnknownElements[key] = xmlMethod[key];
+      if (errorContext) {
+        errorContext.addError(
+          key,
+          `Unknown element <${key}> found in method (id=${id || 'unknown'})`,
+          'warning'
+        );
+      }
+    }
+  }
+
   return {
     id: id || '',
     uuid: uuid || '',
@@ -464,7 +598,8 @@ function convertMethod(xmlMethod: any, errorContext?: ErrorContext): Method {
     program: convertArraySafe(program, convertProgram, errorContext, 'program'),
     materialTemplates: xmlMethod.materialTemplate ? convertArraySafe(xmlMethod.materialTemplate, convertMaterialTemplate, errorContext, 'materialTemplate') : [],
     conditionTemplates: xmlMethod.conditionTemplate ? convertArraySafe(xmlMethod.conditionTemplate, convertConditionTemplate, errorContext, 'conditionTemplate') : [],
-    resultTemplates: xmlMethod.resultTemplate ? convertArraySafe(xmlMethod.resultTemplate, convertResultTemplate, errorContext, 'resultTemplate') : []
+    resultTemplates: xmlMethod.resultTemplate ? convertArraySafe(xmlMethod.resultTemplate, convertResultTemplate, errorContext, 'resultTemplate') : [],
+    ...(Object.keys(methodUnknownElements).length > 0 ? { unknownElements: methodUnknownElements } : {})
   };
 }
 

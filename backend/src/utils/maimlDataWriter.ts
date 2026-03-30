@@ -88,127 +88,147 @@ export function buildDataXML(
     ].join('\n');
   }
 
-  // templateType 別に分類
-  const materialRows: TemplateDataRow[] = [];
-  const conditionRows: TemplateDataRow[] = [];
-  const resultRows: TemplateDataRow[] = [];
-
+  // ── method_id × task_no ごとにグルーピング ─────────────────────────────
+  // maimlWriterService.ts が ORDER BY method_id, task_no, place_id で取得するため
+  // Map のキー挿入順がそのままグループの出力順になる
+  const groupMap = new Map<string, TemplateDataRow[]>();
   for (const row of validRows) {
-    const ps = row.property_set!;
-    if (ps.templateType === 'material') {
-      materialRows.push(row);
-    } else if (ps.templateType === 'condition') {
-      conditionRows.push(row);
-    } else if (ps.templateType === 'result') {
-      resultRows.push(row);
+    const key = `${row.method_id}\x00${row.task_no}`;
+    if (!groupMap.has(key)) {
+      groupMap.set(key, []);
     }
+    groupMap.get(key)!.push(row);
   }
-
-  // results タグの id は data id から生成
-  const resultsId = `results_${dataId}`;
 
   let dataXml = `<data id="${escapeXml(dataId)}">\n`;
   dataXml += `    <uuid>${randomUUID()}</uuid>\n`;
-  dataXml += `    <results id="${escapeXml(resultsId)}">\n`;
-  dataXml += `      <uuid>${randomUUID()}</uuid>\n`;
 
-  // material → condition → result の順に出力（reference JS版と同順）
-  const categoryPairs: Array<{ category: string; categoryRows: TemplateDataRow[] }> = [
-    { category: 'material', categoryRows: materialRows },
-    { category: 'condition', categoryRows: conditionRows },
-    { category: 'result', categoryRows: resultRows },
-  ];
+  // グループごとに <results> タグを1つ生成
+  for (const [, groupRows] of groupMap) {
+    // グループ内の最初のレコードから method_id / task_no を取得
+    const { method_id, task_no } = groupRows[0];
 
-  for (const { category, categoryRows } of categoryPairs) {
-    categoryRows.forEach((row, index) => {
+    // results タグの id: "results_{method_id}_{task_no}"
+    const resultsId = `results_${escapeXml(method_id)}_${task_no}`;
+
+    dataXml += `    <results id="${resultsId}">\n`;
+    dataXml += `      <uuid>${randomUUID()}</uuid>\n`;
+
+    // グループ内レコードを templateType 別に分類
+    const materialRows: TemplateDataRow[] = [];
+    const conditionRows: TemplateDataRow[] = [];
+    const resultRows: TemplateDataRow[] = [];
+
+    for (const row of groupRows) {
       const ps = row.property_set!;
-
-      // インスタンスID: place_id をそのまま使用（なければ自動採番）
-      const instanceId = row.place_id || `${category}_instance_${index}`;
-      // ref: templateId をテンプレート参照として使用
-      const templateRef = ps.templateId || '';
-
-      dataXml += `      <${category} id="${escapeXml(instanceId)}" ref="${escapeXml(templateRef)}">\n`;
-      dataXml += `        <uuid>${randomUUID()}</uuid>\n`;
-
-      // プロパティを出力
-      if (ps.properties && Array.isArray(ps.properties)) {
-        for (const prop of ps.properties) {
-          if (!prop || !prop.key) continue;
-
-          // xsi:type フォールバック（未設定時は stringType）
-          const propType = prop.xsiType || 'stringType';
-
-          dataXml += `        <property key="${escapeXml(prop.key)}"`;
-
-          // カスタム属性を動的出力（xsi:type / units / formatString / scaleFactor は個別処理）
-          if (prop.attributes) {
-            for (const [attrName, attrValue] of Object.entries(prop.attributes)) {
-              if (attrName !== 'xsi:type' && attrValue) {
-                dataXml += ` ${attrName}="${escapeXml(attrValue)}"`;
-              }
-            }
-          }
-
-          // units
-          if (prop.units) {
-            dataXml += ` units="${escapeXml(prop.units)}"`;
-          }
-
-          // formatString
-          if (prop.formatString) {
-            dataXml += ` formatString="${escapeXml(prop.formatString)}"`;
-          }
-
-          // scaleFactor
-          if (prop.scaleFactor !== undefined && prop.scaleFactor !== null) {
-            dataXml += ` scaleFactor="${escapeXml(String(prop.scaleFactor))}"`;
-          }
-
-          // xsi:type は最後に出力
-          dataXml += ` xsi:type="${escapeXml(propType)}"`;
-
-          dataXml += `>\n`;
-
-          // description（value より前に出力）
-          if (prop.description) {
-            dataXml += `          <description>${escapeXml(prop.description)}</description>\n`;
-          }
-
-          // value（null / undefined / 空文字は出力しない）
-          const propValue = prop.value;
-          if (propValue !== null && propValue !== undefined && propValue !== '') {
-            dataXml += `          <value>${escapeXml(String(propValue))}</value>\n`;
-          }
-
-          // customElements（任意の追加要素）
-          if (prop.customElements) {
-            for (const [elemName, customElem] of Object.entries(prop.customElements)) {
-              if (customElem && customElem.value !== undefined && customElem.value !== '') {
-                let elemXml = `          <${elemName}`;
-                if (customElem.attributes) {
-                  for (const [aName, aVal] of Object.entries(customElem.attributes)) {
-                    if (aVal) elemXml += ` ${aName}="${escapeXml(aVal)}"`;
-                  }
-                }
-                elemXml += `>${escapeXml(String(customElem.value))}</${elemName}>\n`;
-                dataXml += elemXml;
-              }
-            }
-          }
-
-          dataXml += `        </property>\n`;
-        }
+      if (ps.templateType === 'material') {
+        materialRows.push(row);
+      } else if (ps.templateType === 'condition') {
+        conditionRows.push(row);
+      } else if (ps.templateType === 'result') {
+        resultRows.push(row);
       }
+    }
 
-      // operatorId は data 層から出力しない（案C: 削除）
-      // 作成者情報は eventLog 層（trace/event）で管理する
+    // material → condition → result の順に出力（reference JS版と同順）
+    const categoryPairs: Array<{ category: string; categoryRows: TemplateDataRow[] }> = [
+      { category: 'material', categoryRows: materialRows },
+      { category: 'condition', categoryRows: conditionRows },
+      { category: 'result', categoryRows: resultRows },
+    ];
 
-      dataXml += `      </${category}>\n`;
-    });
+    for (const { category, categoryRows } of categoryPairs) {
+      categoryRows.forEach((row, index) => {
+        const ps = row.property_set!;
+
+        // インスタンスID: place_id をそのまま使用（なければ自動採番）
+        const instanceId = row.place_id || `${category}_instance_${index}`;
+        // ref: templateId をテンプレート参照として使用
+        const templateRef = ps.templateId || '';
+
+        dataXml += `      <${category} id="${escapeXml(instanceId)}" ref="${escapeXml(templateRef)}">\n`;
+        dataXml += `        <uuid>${randomUUID()}</uuid>\n`;
+
+        // プロパティを出力
+        if (ps.properties && Array.isArray(ps.properties)) {
+          for (const prop of ps.properties) {
+            if (!prop || !prop.key) continue;
+
+            // xsi:type フォールバック（未設定時は stringType）
+            const propType = prop.xsiType || 'stringType';
+
+            dataXml += `        <property key="${escapeXml(prop.key)}"`;
+
+            // カスタム属性を動的出力（xsi:type / units / formatString / scaleFactor は個別処理）
+            if (prop.attributes) {
+              for (const [attrName, attrValue] of Object.entries(prop.attributes)) {
+                if (attrName !== 'xsi:type' && attrValue) {
+                  dataXml += ` ${attrName}="${escapeXml(attrValue)}"`;
+                }
+              }
+            }
+
+            // units
+            if (prop.units) {
+              dataXml += ` units="${escapeXml(prop.units)}"`;
+            }
+
+            // formatString
+            if (prop.formatString) {
+              dataXml += ` formatString="${escapeXml(prop.formatString)}"`;
+            }
+
+            // scaleFactor
+            if (prop.scaleFactor !== undefined && prop.scaleFactor !== null) {
+              dataXml += ` scaleFactor="${escapeXml(String(prop.scaleFactor))}"`;
+            }
+
+            // xsi:type は最後に出力
+            dataXml += ` xsi:type="${escapeXml(propType)}"`;
+
+            dataXml += `>\n`;
+
+            // description（value より前に出力）
+            if (prop.description) {
+              dataXml += `          <description>${escapeXml(prop.description)}</description>\n`;
+            }
+
+            // value（null / undefined / 空文字は出力しない）
+            const propValue = prop.value;
+            if (propValue !== null && propValue !== undefined && propValue !== '') {
+              dataXml += `          <value>${escapeXml(String(propValue))}</value>\n`;
+            }
+
+            // customElements（任意の追加要素）
+            if (prop.customElements) {
+              for (const [elemName, customElem] of Object.entries(prop.customElements)) {
+                if (customElem && customElem.value !== undefined && customElem.value !== '') {
+                  let elemXml = `          <${elemName}`;
+                  if (customElem.attributes) {
+                    for (const [aName, aVal] of Object.entries(customElem.attributes)) {
+                      if (aVal) elemXml += ` ${aName}="${escapeXml(aVal)}"`;
+                    }
+                  }
+                  elemXml += `>${escapeXml(String(customElem.value))}</${elemName}>\n`;
+                  dataXml += elemXml;
+                }
+              }
+            }
+
+            dataXml += `        </property>\n`;
+          }
+        }
+
+        // operatorId は data 層から出力しない（案C: 削除）
+        // 作成者情報は eventLog 層（trace/event）で管理する
+
+        dataXml += `      </${category}>\n`;
+      });
+    }
+
+    dataXml += `    </results>\n`;
   }
 
-  dataXml += `    </results>\n`;
   dataXml += `  </data>\n`;
   return dataXml;
 }
