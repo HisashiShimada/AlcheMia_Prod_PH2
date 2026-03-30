@@ -594,7 +594,7 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
             res.status(404).json({
               success: false,
               error: {
-                code: 'RESOURCE_NOT_FOUND',
+                code: 'E6001',
                 message: 'プロジェクトが見つかりません',
               },
               meta: {
@@ -636,7 +636,7 @@ export async function deleteFile(req: Request, res: Response): Promise<void> {
             res.status(400).json({
               success: false,
               error: {
-                code: 'BUSINESS_INVALID_PROJECT_STATUS_FOR_MAIML_DELETE',
+                code: 'E7005',
                 message: `プロジェクトステータスが計画中ではないため、MAIMLファイルを削除できません（現在のステータス: ${currentStatusName}）`,
                 details: {
                   projectName,
@@ -792,7 +792,7 @@ export async function getBatchHistory(req: Request, res: Response): Promise<void
     res.status(500).json({
       success: false,
       error: {
-        code: 'BATCH_FETCH_ERROR',
+        code: 'E4002',
         message: 'バッチ履歴の取得に失敗しました',
       },
       meta: {
@@ -828,7 +828,7 @@ export async function getBatchProgress(req: Request, res: Response): Promise<voi
       res.status(404).json({
         success: false,
         error: {
-          code: 'BATCH_NOT_FOUND',
+          code: 'E6001',
           message: 'バッチが見つかりません',
         },
         meta: {
@@ -859,7 +859,7 @@ export async function getBatchProgress(req: Request, res: Response): Promise<voi
     res.status(500).json({
       success: false,
       error: {
-        code: 'BATCH_PROGRESS_ERROR',
+        code: 'E4002',
         message: 'バッチ進捗の取得に失敗しました',
       },
       meta: {
