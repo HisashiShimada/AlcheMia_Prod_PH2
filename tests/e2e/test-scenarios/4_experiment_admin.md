@@ -33,7 +33,7 @@
 | **4-7** | プロジェクトフィルタ・検索 | 追加機能A/B/Q | 7件 | Playwright自動 | 7 | 0 | 0 |
 | **4-8** | フォーマット管理 | 要件書#13 | 40件 | Playwright自動 | 40 | 0 | 0 |
 | **4-9** | トランジション検索 | 追加機能R | 10件 | Playwright自動（手動1件含む） | 10 | 0 | 0 |
-| **4-10** | プロジェクト公開 | 追加機能S | 4件 | Playwright自動（フロントエンド実装後） | 4 | 0 | 0 |
+| **4-10** | プロジェクト公開 | 追加機能S | 7件 | Playwright自動（フロントエンド実装後） | 4 | 0 | 0 |
 | **4-11** | ファイルアップロード | `ui_bulk_upload_dialog.md` | 10件（手動2件含む） | Playwright自動 + 手動 | 10 | 0 | 0 |
 | **4-12** | 問題管理 | `ui_issue_management_modal.md`、`api_issue_management.md` | 8件 | Playwright自動 | 8 | 0 | 0 |
 | **合計** | - | - | **164件** | - | **164** | **0** | **0** |
@@ -178,17 +178,17 @@
 **前提条件:**
 - 実験管理者ロールでログイン済み
 - テスト用プロジェクトがDB・S3に存在する
-- 4-3-1: プロジェクトが `checked_in`（チェックイン済み）状態、MAIMLファイル登録済み、タスク登録済みであること
-- 4-3-2〜4-3-3: プロジェクトがチェックアウト済み（`checked_out`）状態であること
-- 4-3-4: `project_status` が `in_progress` のプロジェクトが1件存在すること
-- 4-3-5: `checkout_status` が `checked_out` のプロジェクトが1件存在すること
-- 4-3-6: `project_status` が `completed` のプロジェクトが1件存在すること
-- 4-3-7: チェックアウト済みプロジェクトに `in_progress` 状態のタスクが存在すること
-- 4-3-9: MAIMLファイルが未登録の `checked_in` プロジェクトが1件存在すること
-- 4-3-10: タスクが未登録の `checked_in` プロジェクトが1件存在すること
+- 4-3-1: プロジェクトが `checkout_status = 0`（チェックイン済み）かつ `project_status` が 0（計画中）、3（レビュー待ち）、または 5 のいずれか、MAIMLファイル登録済み、タスク登録済みであること
+- 4-3-2〜4-3-3: プロジェクトが `checkout_status = 1`（チェックアウト中）の状態であること
+- 4-3-4: `project_status = 2`（タスク実行中）のプロジェクトが1件存在すること
+- 4-3-5: `checkout_status = 1`（チェックアウト中）のプロジェクトが1件存在すること
+- 4-3-6: `project_status = 4`（プロジェクト完了）のプロジェクトが1件存在すること
+- 4-3-7: チェックアウト済みプロジェクトに `task_status = 2`（実行中）のタスク詳細が存在すること
+- 4-3-9: MAIMLファイルが未登録（`project_maiml_flg = false`）の `checkout_status = 0` プロジェクトが1件存在すること
+- 4-3-10: タスクが未登録の `checkout_status = 0` プロジェクトが1件存在すること
 
 **ビジネスルール（設計書より）:**
-- チェックアウトできるのは `checked_in`（チェックイン済み）ステータスのみ
+- チェックアウトできるのは `checkout_status = 0`（チェックイン済み）かつ `project_status` が許可された値（0, 3, 5 のいずれか）のプロジェクトのみ
 - チェックアウトにはMAIMLファイルの登録が必要
 - チェックアウトにはタスクが1件以上登録済みであることが必要
 - チェックインできるのはチェックアウトしたユーザーのみ
@@ -406,23 +406,37 @@
 
 > **テスト方法**: Playwright自動（フロントエンド実装後に実施。現在フロントエンド未実装のため保留）
 
+<<<<<<< HEAD
 | シナリオID | シナリオ名 | 種別 | 根拠 | 対応API | 結果 | 備考 |
-|-----------|-----------|------|------|---------|------|------|
-| 4-10-1 | ファイル一覧の「公開」ボタンをクリックするとMaimlPublishDialogが表示されること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlPublishDialog | - | OK | |
-| 4-10-2 | MaimlPublishDialogで公開オプションを設定してMAIMLファイルを公開できること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlPublishDialog | POST `/api/v1/maiml-opendata/publish` | OK | |
-| 4-10-3 | 公開済みファイルのボタンが「公開済み」（緑・disabled）に変わること | 表示確認 | 追加機能S、`ui_maiml_publish.md` §公開ボタン | GET `/api/v1/maiml-opendata/status` | OK | |
-| 4-10-4 | 公開済みファイルの「公開済み」ボタンから「非公開にする」を選択するとMaimlUnpublishConfirmDialogが表示され、確認後に非公開にできること | 正常系 | 追加機能S、`ui_maiml_publish.md` §MaimlUnpublishConfirmDialog | DELETE `/api/v1/maiml-opendata/unpublish/:assetId` | OK | |
+|-----------|-----------|------|------|---------|
+| 4-10-1 | ファイル操作ツールバーの「公開する」ボタンをクリックするとMaimlPublishDialogが表示されること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md` | - | OK | |
+| 4-10-2 | MaimlPublishDialogで「公開する」ボタンをクリックすると公開ジョブが受け付けられ、ポーリング完了後にボタンが「非公開にする」に切り替わること | 正常系 | 追加機能S、`ui_maiml_publish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/publish`、GET `/api/v1/projects/:projectName/publish-status` | OK | |
+| 4-10-3 | 公開済みファイルのボタンが「非公開にする」（赤・活性）に切り替わること | 表示確認 | 追加機能S、`ui_maiml_publish_dialog.md` | GET `/api/v1/projects/:projectName/publish-status` | OK | |
+| 4-10-4 | 公開済みファイルの「非公開にする」ボタンをクリックするとMaimlUnpublishDialogが表示され、確認後に非公開ジョブが受け付けられ、ポーリング完了後にボタンが「公開する」に戻ること | 正常系 | 追加機能S、`ui_maiml_unpublish_dialog.md`、`api_maiml_opendata.md` | POST `/api/v1/projects/:projectName/unpublish`、GET `/api/v1/projects/:projectName/publish-status` | OK | |
+| 4-10-5 | 公開/非公開ジョブ処理中（status=pending/running）はボタンがローディング状態になること | 表示確認 | `api_maiml_opendata.md` §5.7、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | OK | |
+| 4-10-6 | 公開条件を満たしていない場合にMaimlPublishDialogにエラーメッセージが表示されること | 異常系 | `api_maiml_opendata.md` §3.4、`ui_maiml_publish_dialog.md` §4 | POST `/api/v1/projects/:projectName/publish` | OK | |
+| 4-10-7 | 公開ジョブがエラー終了した場合（status=error）にエラーメッセージが表示されること | 異常系 | `api_maiml_opendata.md` §5.6、`ui_maiml_publish_dialog.md` §3.1 | GET `/api/v1/projects/:projectName/publish-status` | OK | |
 
 **前提条件:**
 - 実験管理者ロールでログイン済み
 - プロジェクト管理タブでプロジェクトが選択済みであること
 - テスト用MAIMLファイルがS3に存在すること
-- 4-10-3〜4-10-4: OpenData Pipelineバックエンドが稼働していること
+- BullMQキュー（Redis）が稼働していること（全シナリオ）
+- OpenData Pipelineバックエンドが稼働していること（全シナリオ）
+- 4-10-2用: プロジェクトが `checkout_status = 1`（チェックアウト中）の状態であること
+- 4-10-2用: プロジェクトが `project_status = 3`（タスク結果レビュー待ち）の状態であること
+- 4-10-2用: 全タスク詳細が完了（task_status=3）または異常終了（task_status=4）の状態であること
+- 4-10-3〜4-10-4: `maiml_publish_job` テーブルに `status=done`、`job_type=publish` のレコードが存在すること
 
 **注意事項:**
 - **フロントエンド未実装のため、フロントエンド実装完了後にテストを実施すること**（`ui_maiml_publish.md` §実装状況: フロントエンド未実装）
 - 公開APIはバックエンド実装済みのため、APIレベルのテストは先行して実施可能
 - `experiment_admin` および `system_admin` ロールのみ公開ボタンが表示されること
+- **公開・非公開処理は非同期（BullMQ）で実行される**。API は 202 Accepted を即時返却し、ダイアログは即座に閉じる。フロントエンドは `GET /publish-status` を3秒ごとにポーリングしてジョブ完了を検知する（`api_maiml_opendata.md` §6.1、§6.2 参照）
+- ポーリング中（status=pending/running）はボタンがローディング状態となり、クリック不可になること
+- `status=done` になった時点でボタン表示が切り替わること（公開→「非公開にする」、非公開→「公開する」）
+- `status=error` の場合はエラーメッセージを表示し、ボタンを操作可能な状態に戻すこと
+- 4-10-6 の各エラーケースはテスト用DBデータで事前状態を作成すること（`api_maiml_opendata.md` §3.4 プリコンディションチェック参照）
 
 ---
 
@@ -579,7 +593,7 @@
 | P | 進捗確認画面でのPetriNet可視化表示 | `PetriNetVisualization.md` | - | **4-6** |
 | Q | プロジェクト検索モーダル（ProjectSearchModal）での高度な検索 | `ProjectSearchModal.md` | GET `/api/v1/projects`（クエリパラメータ） | **4-7** |
 | R | トランジション検索（キーワード/ステータス/セマンティック検索） | `ProgressMonitoring.md` §トランジション検索 | GET `/api/v1/transition-search` | **4-9** |
-| S | MAIMLファイルのOpenData Pipeline公開・非公開管理 | `ui_maiml_publish.md` | POST `/api/v1/maiml-opendata/publish`、DELETE `/api/v1/maiml-opendata/unpublish/:assetId` | **4-10** |
+| S | MAIMLファイルのOpenData Pipeline公開・非公開管理 | `ui_maiml_publish.md` | POST `/api/v1/projects/:projectName/publish`、POST `/api/v1/projects/:projectName/unpublish` | **4-10** |
 
 ---
 
@@ -692,7 +706,9 @@
 
 | ドキュメント | パス |
 |------------|------|
-| MaiML公開管理設計 | `docs/design/ui/experiment_admin/ui_maiml_publish.md` |
+| MaiML公開管理設計（概要・旧仕様） | `docs/design/ui/experiment_admin/ui_maiml_publish.md` |
+| MaiML公開確認ダイアログ設計 | `docs/design/ui/experiment_admin/01_project_management/ui_maiml_publish_dialog.md` |
+| MaiML非公開確認ダイアログ設計 | `docs/design/ui/experiment_admin/01_project_management/ui_maiml_unpublish_dialog.md` |
 | MaiML OpenData Pipeline API設計 | `docs/design/api/api_maiml_opendata.md` |
 
 ### 7.8 API設計書
