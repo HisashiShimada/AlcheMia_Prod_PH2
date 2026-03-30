@@ -190,18 +190,36 @@ export const updateStatus = async (
 /**
  * Instrument IDが既に存在するかチェック
  *
+ * corporationId が指定された場合は法人スコープ（同一法人内）で重複チェックを行う。
+ * corporationId が null/undefined の場合は organization_id スコープでチェックする。
+ * update / updateStatus / findAllWithFilters と同じスコープ判定に統一。
+ *
  * @param organizationId 組織ID
  * @param instrumentId Instrument ID
+ * @param corporationId 会社ID（任意）
  * @returns 存在する場合true
  */
 export const existsById = async (
   organizationId: string,
-  instrumentId: string
+  instrumentId: string,
+  corporationId?: string | null
 ): Promise<boolean> => {
   const pgp = getPgp();
 
-  const query = await loadSqlFile('instruments/existsById.sql');
-  const result = await pgp.one<{ exists: boolean }>(query, [organizationId, instrumentId]);
+  let query: string;
+  let values: any[];
+
+  if (corporationId !== null && corporationId !== undefined) {
+    // 法人スコープ: 同一法人内で instrument_id が一意であること
+    query = await loadSqlFile('instruments/existsByIdByCorporation.sql');
+    values = [corporationId, instrumentId];
+  } else {
+    // 組織スコープ: 同一組織内で instrument_id が一意であること
+    query = await loadSqlFile('instruments/existsByIdByOrganization.sql');
+    values = [organizationId, instrumentId];
+  }
+
+  const result = await pgp.one<{ exists: boolean }>(query, values);
   return result.exists;
 };
 

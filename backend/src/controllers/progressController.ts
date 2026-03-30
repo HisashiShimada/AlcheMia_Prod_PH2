@@ -35,7 +35,6 @@ function getHttpStatusFromErrorCode(errorCode: string): number {
     'E5002': 401,
     'PERMISSION_DENIED': 403,
     'E7008': 404,
-    'E7008': 404,
     'MAIML_DOWNLOAD_FAILED': 500,
     'MAIML_PARSE_FAILED': 500,
     'DATABASE_ERROR': 500,

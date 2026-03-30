@@ -111,7 +111,7 @@ export async function createCorporation(
   // 会社名重複チェック
   const exists = await corporationRepository.existsByName(data.corporationName);
   if (exists) {
-    const error: any = new Error(getMessage(lang, 'corporation.duplicateNameOnUpdate'));
+    const error: any = new Error(getMessage(lang, 'corporation.duplicateName'));
     error.statusCode = 409;
     error.code = 'DUPLICATE_CORPORATION_NAME';
     throw error;
