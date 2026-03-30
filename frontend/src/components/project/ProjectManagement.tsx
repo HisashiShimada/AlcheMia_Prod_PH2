@@ -1930,7 +1930,7 @@ const ProjectManagementInner: React.FC<ProjectManagementInnerProps> = ({ onEdit,
       {/* 問題確認モーダル */}
       {selectedProject && (
         <IssueManagementModal
-          visible={issueManagementModalOpen}
+          open={issueManagementModalOpen}
           targetName={selectedProject.name}
           projectId={selectedProject.id}
           projectName={selectedProject.name}
