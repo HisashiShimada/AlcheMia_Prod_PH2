@@ -11,6 +11,7 @@
 
 import { randomUUID } from 'crypto';
 import type { TemplateDataRow } from '../repositories/templateDataRepository';
+import { resolveUuid } from './maimlUuidExtractor';
 
 
 // ============================================================
@@ -62,13 +63,17 @@ function escapeXml(text: unknown): string {
  * TemplateDataRow[] を受け取り、propertySet.templateType ごとに
  * <material> / <condition> / <result> 要素を出力する。
  *
- * @param rows   - template_data テーブルの全レコード（プロジェクト単位）
- * @param dataId - data 要素の id 属性値（デフォルト: 'dataID'）
+ * @param rows          - template_data テーブルの全レコード（プロジェクト単位）
+ * @param dataId        - data 要素の id 属性値（デフォルト: 'dataID'）
+ * @param existingUuids - 既存 MAIMLから抽出した UUID マップ（extractUuidsFromMaiml() の戻り値）
+ *                        指定した場合、同じ識別キーを持つ要素には既存 UUID を再利用する。
+ *                        省略した場合は毎回 randomUUID() で生成する。
  * @returns `<data id="...">...</data>` の XML 文字列（末尾改行あり）
  */
 export function buildDataXML(
   rows: TemplateDataRow[],
-  dataId: string = 'dataID'
+  dataId: string = 'dataID',
+  existingUuids?: Map<string, string>
 ): string {
   // property_set が null のレコードは除外
   const validRows = rows.filter(
@@ -79,9 +84,9 @@ export function buildDataXML(
     const emptyResultsId = `results_${dataId}`;
     return [
       `<data id="${escapeXml(dataId)}">`,
-      `    <uuid>${randomUUID()}</uuid>`,
+      `    <uuid>${resolveUuid('data', existingUuids, randomUUID)}</uuid>`,
       `    <results id="${escapeXml(emptyResultsId)}">`,
-      `      <uuid>${randomUUID()}</uuid>`,
+      `      <uuid>${resolveUuid(`results:${emptyResultsId}`, existingUuids, randomUUID)}</uuid>`,
       `    </results>`,
       `  </data>`,
       '',
@@ -101,7 +106,7 @@ export function buildDataXML(
   }
 
   let dataXml = `<data id="${escapeXml(dataId)}">\n`;
-  dataXml += `    <uuid>${randomUUID()}</uuid>\n`;
+  dataXml += `    <uuid>${resolveUuid('data', existingUuids, randomUUID)}</uuid>\n`;
 
   // グループごとに <results> タグを1つ生成
   for (const [, groupRows] of groupMap) {
@@ -112,7 +117,7 @@ export function buildDataXML(
     const resultsId = `results_${escapeXml(method_id)}_${task_no}`;
 
     dataXml += `    <results id="${resultsId}">\n`;
-    dataXml += `      <uuid>${randomUUID()}</uuid>\n`;
+    dataXml += `      <uuid>${resolveUuid(`results:${resultsId}`, existingUuids, randomUUID)}</uuid>\n`;
 
     // グループ内レコードを templateType 別に分類
     const materialRows: TemplateDataRow[] = [];
@@ -147,7 +152,7 @@ export function buildDataXML(
         const templateRef = ps.templateId || '';
 
         dataXml += `      <${category} id="${escapeXml(instanceId)}" ref="${escapeXml(templateRef)}">\n`;
-        dataXml += `        <uuid>${randomUUID()}</uuid>\n`;
+        dataXml += `        <uuid>${resolveUuid(`${category}:${instanceId}`, existingUuids, randomUUID)}</uuid>\n`;
 
         // プロパティを出力
         if (ps.properties && Array.isArray(ps.properties)) {
@@ -249,26 +254,30 @@ export function buildDataXML(
  *   - パターンA: insertTransitionProgressLog() 生成 JSON（event 要素）
  *   - パターンB: insertInstructionConfirmLog() 生成 JSON（evnet 要素）
  *
- * @param logJsonArray - maiml_event_log.log カラムの JSON オブジェクト配列
- * @param eventLogId   - eventLog 要素の id 属性値（デフォルト: 'eventLogID'）
+ * @param logJsonArray  - maiml_event_log.log カラムの JSON オブジェクト配列
+ * @param eventLogId    - eventLog 要素の id 属性値（デフォルト: 'eventLogID'）
+ * @param existingUuids - 既存 MAIMLから抽出した UUID マップ（extractUuidsFromMaiml() の戻り値）
+ *                        指定した場合、同じ識別キーを持つ要素には既存 UUID を再利用する。
+ *                        省略した場合は毎回 randomUUID() で生成する。
  * @returns `<eventLog id="...">...</eventLog>` の XML 文字列（末尾改行あり）
  */
 export function buildEventLogXML(
   logJsonArray: EventLogJsonRecord[],
-  eventLogId: string = 'eventLogID'
+  eventLogId: string = 'eventLogID',
+  existingUuids?: Map<string, string>
 ): string {
   if (!logJsonArray || logJsonArray.length === 0) {
     // XSD準拠: eventLogType は log が必須（minOccurs=1）のため最小構造を返す
     const emptyLogId = `log_${eventLogId}_empty`;
     return [
       `<eventLog id="${escapeXml(eventLogId)}">`,
-      `    <uuid>${randomUUID()}</uuid>`,
+      `    <uuid>${resolveUuid('eventLog', existingUuids, randomUUID)}</uuid>`,
       `    <log id="${escapeXml(emptyLogId)}" ref="${escapeXml(emptyLogId)}">`,
-      `      <uuid>${randomUUID()}</uuid>`,
+      `      <uuid>${resolveUuid(`log:${emptyLogId}`, existingUuids, randomUUID)}</uuid>`,
       `      <trace id="${escapeXml(emptyLogId)}_trace" ref="${escapeXml(emptyLogId)}_trace">`,
-      `        <uuid>${randomUUID()}</uuid>`,
+      `        <uuid>${resolveUuid(`trace:${emptyLogId}_trace`, existingUuids, randomUUID)}</uuid>`,
       `        <event id="${escapeXml(emptyLogId)}_event" ref="${escapeXml(emptyLogId)}_event">`,
-      `          <uuid>${randomUUID()}</uuid>`,
+      `          <uuid>${resolveUuid(`event:${emptyLogId}_event`, existingUuids, randomUUID)}</uuid>`,
       `        </event>`,
       `      </trace>`,
       `    </log>`,
@@ -279,7 +288,7 @@ export function buildEventLogXML(
 
   // XSD準拠: eventLogType の globalObjectContentGroup に uuid が必須
   let xml = `  <eventLog id="${escapeXml(eventLogId)}">\n`;
-  xml += `    <uuid>${randomUUID()}</uuid>\n`;
+  xml += `    <uuid>${resolveUuid('eventLog', existingUuids, randomUUID)}</uuid>\n`;
 
   for (const logJson of logJsonArray) {
     const eventLogObj = logJson['eventLog'] as Record<string, unknown> | undefined;
@@ -294,13 +303,13 @@ export function buildEventLogXML(
       : [];
 
     for (const logEntry of logEntries) {
-      xml += buildLogEntryXML(logEntry);
+      xml += buildLogEntryXML(logEntry, existingUuids);
     }
 
     // instruction_target=1 のパターンB: log 外の evnet
     const topLevelEvnet = eventLogObj['evnet'] as Record<string, unknown> | undefined;
     if (topLevelEvnet) {
-      xml += buildEvnetXML(topLevelEvnet, 2);
+      xml += buildEvnetXML(topLevelEvnet, 2, existingUuids);
     }
   }
 
@@ -311,7 +320,10 @@ export function buildEventLogXML(
 /**
  * <log> 要素の XML を生成
  */
-function buildLogEntryXML(logEntry: Record<string, unknown>): string {
+function buildLogEntryXML(
+  logEntry: Record<string, unknown>,
+  existingUuids?: Map<string, string>
+): string {
   const id = logEntry['@id'] as string | undefined;
   // ref は XSD 上必須（ref: string）のため常に出力する。
   // '@ref' キーが存在しない場合（target=1: ファイル全体指示）は空文字を使用する。
@@ -323,7 +335,7 @@ function buildLogEntryXML(logEntry: Record<string, unknown>): string {
 
   let xml = `    <log${attrs}>\n`;
   // XSD準拠: logType の globalObjectContentGroup に uuid が必須
-  xml += `      <uuid>${randomUUID()}</uuid>\n`;
+  xml += `      <uuid>${resolveUuid(id ? `log:${id}` : 'log', existingUuids, randomUUID)}</uuid>\n`;
 
   // trace（単体または配列）
   const rawTrace = logEntry['trace'];
@@ -334,7 +346,7 @@ function buildLogEntryXML(logEntry: Record<string, unknown>): string {
     : [];
 
   for (const trace of traces) {
-    xml += buildTraceXML(trace);
+    xml += buildTraceXML(trace, existingUuids);
   }
 
   xml += `    </log>\n`;
@@ -344,7 +356,10 @@ function buildLogEntryXML(logEntry: Record<string, unknown>): string {
 /**
  * <trace> 要素の XML を生成
  */
-function buildTraceXML(trace: Record<string, unknown>): string {
+function buildTraceXML(
+  trace: Record<string, unknown>,
+  existingUuids?: Map<string, string>
+): string {
   const id = trace['@id'] as string | undefined;
   // XSD準拠: traceType の ref は use="required" → 必須出力（なければ id を代用）
   const ref = (trace['@ref'] as string | undefined)
@@ -360,12 +375,12 @@ function buildTraceXML(trace: Record<string, unknown>): string {
 
   let xml = `      <trace${attrs}>\n`;
   // XSD準拠: traceType の globalObjectContentGroup に uuid が必須
-  xml += `        <uuid>${randomUUID()}</uuid>\n`;
+  xml += `        <uuid>${resolveUuid(id ? `trace:${id}` : 'trace', existingUuids, randomUUID)}</uuid>\n`;
 
   // パターンA: event 要素
   const eventObj = trace['event'] as Record<string, unknown> | undefined;
   if (eventObj) {
-    xml += buildEventXML(eventObj);
+    xml += buildEventXML(eventObj, existingUuids);
   }
 
   // パターンB: evnet 要素（MAIMLスキーマのスペルミスをそのまま使用）
@@ -373,7 +388,7 @@ function buildTraceXML(trace: Record<string, unknown>): string {
   //       MAIMLスキーマ本体のtypoを踏襲する設計のため XSD バリデーションはスキップ
   const evnetObj = trace['evnet'] as Record<string, unknown> | undefined;
   if (evnetObj) {
-    xml += buildEvnetXML(evnetObj, 4);
+    xml += buildEvnetXML(evnetObj, 4, existingUuids);
   }
 
   xml += `      </trace>\n`;
@@ -383,7 +398,10 @@ function buildTraceXML(trace: Record<string, unknown>): string {
 /**
  * <event> 要素の XML を生成（パターンA: 作業進捗）
  */
-function buildEventXML(eventObj: Record<string, unknown>): string {
+function buildEventXML(
+  eventObj: Record<string, unknown>,
+  existingUuids?: Map<string, string>
+): string {
   const id = eventObj['@id'] as string | undefined;
   // XSD準拠: eventType の ref は use="required" → 必須出力（なければ id を代用）
   const ref = (eventObj['@ref'] as string | undefined)
@@ -412,7 +430,7 @@ function buildEventXML(eventObj: Record<string, unknown>): string {
 
   let xml = `        <event${attrs}>\n`;
   // XSD準拠: eventType の globalObjectContentGroup に uuid が必須
-  xml += `          <uuid>${randomUUID()}</uuid>\n`;
+  xml += `          <uuid>${resolveUuid(id ? `event:${id}` : 'event', existingUuids, randomUUID)}</uuid>\n`;
   xml += buildPropertiesXML(properties, 5);
 
   // resultsRef 要素の出力（存在する場合のみ）
@@ -433,7 +451,11 @@ function buildEventXML(eventObj: Record<string, unknown>): string {
  *
  * @remarks XSD準拠: evnetType は globalObjectContentGroup を継承するため uuid が必須
  */
-function buildEvnetXML(evnetObj: Record<string, unknown>, indentLevel: number): string {
+function buildEvnetXML(
+  evnetObj: Record<string, unknown>,
+  indentLevel: number,
+  existingUuids?: Map<string, string>
+): string {
   const indent = '  '.repeat(indentLevel);
   const id = evnetObj['@id'] as string | undefined;
   const ref = evnetObj['@ref'] as string | undefined;
@@ -451,7 +473,7 @@ function buildEvnetXML(evnetObj: Record<string, unknown>, indentLevel: number): 
 
   let xml = `${indent}<evnet${attrs}>\n`;
   // XSD準拠: globalObjectContentGroup に uuid が必須
-  xml += `${indent}  <uuid>${randomUUID()}</uuid>\n`;
+  xml += `${indent}  <uuid>${resolveUuid(id ? `evnet:${id}` : 'evnet', existingUuids, randomUUID)}</uuid>\n`;
   xml += buildPropertiesXML(properties, indentLevel + 1);
   xml += `${indent}</evnet>\n`;
   return xml;
