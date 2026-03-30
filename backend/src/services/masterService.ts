@@ -221,8 +221,8 @@ export async function createCreatorMaster(
   corporationId?: string | null,
   lang: string = 'ja'
 ): Promise<CreatorMasterResponse> {
-  // ID重複チェック
-  const exists = await creatorRepository.existsById(organizationId, data.creatorId);
+  // ID重複チェック（法人スコープ優先: corporationId がある場合は法人内、ない場合は組織内で一意チェック）
+  const exists = await creatorRepository.existsById(organizationId, data.creatorId, corporationId);
   if (exists) {
     const error: any = new Error(getMessage(lang, 'master.duplicateCreatorId'));
     error.statusCode = 409;
@@ -462,8 +462,8 @@ export async function createInstrumentMaster(
   corporationId?: string | null,
   lang: string = 'ja'
 ): Promise<InstrumentMasterResponse> {
-  // ID重複チェック
-  const exists = await instrumentRepository.existsById(organizationId, data.instrumentId);
+  // ID重複チェック（法人スコープ優先: corporationId がある場合は法人内、ない場合は組織内で一意チェック）
+  const exists = await instrumentRepository.existsById(organizationId, data.instrumentId, corporationId);
   if (exists) {
     const error: any = new Error(getMessage(lang, 'master.duplicateInstrumentId'));
     error.statusCode = 409;
@@ -559,8 +559,8 @@ export async function createVendorMaster(
   corporationId?: string | null,
   lang: string = 'ja'
 ): Promise<VendorMasterResponse> {
-  // ID重複チェック
-  const exists = await vendorRepository.existsById(organizationId, data.vendorId);
+  // ID重複チェック（法人スコープ優先: corporationId がある場合は法人内、ない場合は組織内で一意チェック）
+  const exists = await vendorRepository.existsById(organizationId, data.vendorId, corporationId);
   if (exists) {
     const error: any = new Error(getMessage(lang, 'master.duplicateVendorId'));
     error.statusCode = 409;
@@ -830,7 +830,8 @@ export async function uploadCreatorsCsv(
     const isActive = isActiveStr === 'true' || isActiveStr === '1';
     
     // DB既存チェック（既存レコードはエラー扱い）
-    const exists = await creatorRepository.existsById(organizationId, creatorId);
+    // 法人スコープ優先: corporationId がある場合は法人内、ない場合は組織内で重複チェック
+    const exists = await creatorRepository.existsById(organizationId, creatorId, corporationId);
     if (exists) {
       errors.push({
         row: rowNumber,
@@ -976,7 +977,8 @@ export async function uploadInstrumentsCsv(
     const isActive = isActiveStr === 'true' || isActiveStr === '1';
     
     // DB既存チェック（既存レコードはエラー扱い）
-    const exists = await instrumentRepository.existsById(organizationId, instrumentId);
+    // 法人スコープ優先: corporationId がある場合は法人内、ない場合は組織内で重複チェック
+    const exists = await instrumentRepository.existsById(organizationId, instrumentId, corporationId);
     if (exists) {
       errors.push({
         row: rowNumber,
@@ -1120,7 +1122,8 @@ export async function uploadVendorsCsv(
     const isActive = isActiveStr === 'true' || isActiveStr === '1';
     
     // DB既存チェック（既存レコードはエラー扱い）
-    const exists = await vendorRepository.existsById(organizationId, vendorId);
+    // 法人スコープ優先: corporationId がある場合は法人内、ない場合は組織内で重複チェック
+    const exists = await vendorRepository.existsById(organizationId, vendorId, corporationId);
     if (exists) {
       errors.push({
         row: rowNumber,
