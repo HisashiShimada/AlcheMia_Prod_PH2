@@ -865,7 +865,7 @@ export default function DataRecordDialog({
 
     return (
       <div key={key} style={{ marginBottom: 24 }}>
-        <Space direction="vertical" style={{ width: '100%' }} size="small">
+        <Space orientation="vertical" style={{ width: '100%' }} size="small">
           <Space>
             <Text strong>
               {property.label}
@@ -1248,7 +1248,7 @@ export default function DataRecordDialog({
               </div>
 
               {/* フィルタリングエリア */}
-              <Space direction="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
+              <Space orientation="vertical" style={{ width: '100%', marginBottom: token.marginMD }} size="small">
                 <Input
                   data-testid="template-search-input"
                   placeholder="テンプレート名で検索"

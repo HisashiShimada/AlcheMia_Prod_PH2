@@ -501,7 +501,7 @@ const BulkUploadDialog: React.FC<BulkUploadDialogProps> = ({
               border: '1px solid #0093CF',
             }}
           >
-            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={4} style={{ width: '100%' }}>
               <Text strong style={{ color: '#007AB3', fontSize: 13 }}>
                 アップロード先プロジェクト
               </Text>
