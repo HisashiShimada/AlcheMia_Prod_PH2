@@ -7,9 +7,11 @@ import {
   Tooltip,
   Space,
   Empty,
+  Dropdown,
   message,
   theme,
 } from 'antd';
+import type { MenuProps } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   FileTextOutlined,
@@ -17,7 +19,10 @@ import {
   TableOutlined,
   FolderOpenOutlined,
   DownloadOutlined,
+  DeleteOutlined,
+  EditOutlined,
   EyeOutlined,
+  MoreOutlined,
 } from '@ant-design/icons';
 import { formatFileSize, formatRelativeTime } from '@/utils/formatters';
 import {
@@ -32,6 +37,7 @@ interface FileListTableProps {
   onFileClick?: (file: ProjectFile) => void;
   onFolderClick?: (folderId: string) => void;
   onViewFile?: (file: ProjectFile) => void;
+  onDeleteFile?: (file: ProjectFile) => void;
 }
 
 /**
@@ -42,7 +48,8 @@ const FileListTable: React.FC<FileListTableProps> = ({
   projectId, 
   onFileClick, 
   onFolderClick, 
-  onViewFile 
+  onViewFile,
+  onDeleteFile
 }) => {
   const { token } = theme.useToken();
   const { t } = useLanguage();
@@ -152,11 +159,53 @@ const FileListTable: React.FC<FileListTableProps> = ({
     {
       title: t('projectManagement.fileManagement.table.actions'),
       key: 'actions',
-      width: 220,
+      width: 280,
       align: 'center',
-      render: (_text: string, record: ProjectFile) =>
-        !record.isFolder ? (
+      render: (_text: string, record: ProjectFile) => {
+        if (record.isFolder) return null;
+
+        // ドロップダウンメニューの項目
+        const menuItems: MenuProps['items'] = [
+          {
+            key: 'rename',
+            label: '名前の変更',
+            icon: <EditOutlined />,
+            onClick: () => {
+              console.log('ファイルリネームボタンがクリックされました:', record.name);
+              message.info('名前の変更機能は未実装です');
+            },
+          },
+          {
+            type: 'divider',
+          },
+          {
+            key: 'delete',
+            label: '削除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => {
+              console.log('ファイル削除ボタンがクリックされました:', record.name);
+              onDeleteFile?.(record);
+            },
+          },
+        ];
+
+        return (
           <Space size="small">
+            <Dropdown
+              menu={{ items: menuItems }}
+              trigger={['click']}
+              placement="bottomRight"
+            >
+              <Button
+                type="default"
+                size="small"
+                icon={<MoreOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+              />
+            </Dropdown>
             <Button
               type="default"
               size="small"
@@ -185,7 +234,8 @@ const FileListTable: React.FC<FileListTableProps> = ({
               {t('projectManagement.fileManagement.buttons.viewer')}
             </Button>
           </Space>
-        ) : null,
+        );
+      },
     },
   ];
 

@@ -865,6 +865,8 @@ export interface Method {
   materialTemplates: Template[];
   conditionTemplates: Template[];
   resultTemplates: Template[];
+  /** 変換できなかった未知のXML要素（キー: タグ名, 値: xml-jsオブジェクト） */
+  unknownElements?: Record<string, any>;
 }
 
 /**
@@ -902,6 +904,8 @@ export interface Protocol {
   materialTemplates: Template[];
   conditionTemplates: Template[];
   resultTemplates: Template[];
+  /** 変換できなかった未知のXML要素（キー: タグ名, 値: xml-jsオブジェクト） */
+  unknownElements?: Record<string, any>;
 }
 
 // ============================================================================
@@ -1233,6 +1237,8 @@ export interface MaimlRoot {
   protocol: Protocol;
   data?: Data;
   eventLog?: EventLog;
+  /** 変換できなかった未知のXML要素（キー: タグ名, 値: xml-jsオブジェクト） */
+  unknownElements?: Record<string, any>;
 }
 
 // ============================================================================

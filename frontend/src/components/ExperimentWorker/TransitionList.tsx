@@ -576,7 +576,7 @@ export default function TransitionList({
       {/* 問題管理モーダル */}
       {selectedTransition && (
         <IssueManagementModal
-          visible={issueModalOpen}
+          open={issueModalOpen}
           targetName={selectedTransition.transitionName}
           projectId={projectId || ''}
           projectName={projectName || ''}

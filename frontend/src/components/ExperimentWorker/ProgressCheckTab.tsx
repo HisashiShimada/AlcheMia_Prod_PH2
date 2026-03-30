@@ -813,7 +813,7 @@ export default function ProgressCheckTab({
       {/* 問題管理モーダル（報告・確認共通） */}
       {selectedTaskForIssue && projectId && (
         <IssueManagementModal
-          visible={issueModalVisible}
+          open={issueModalVisible}
           targetName={selectedTaskForIssue.taskName}
           projectId={projectId}
           projectName={selectedProject || ''}

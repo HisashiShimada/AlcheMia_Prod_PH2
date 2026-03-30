@@ -42,6 +42,9 @@ import { buildTemplateMap } from '../../utils/petriNetExtractor';
 import { convertToReactFlowFormat } from '../../utils/reactFlowConverter';
 import type { Method } from '../../types/maiml-unified';
 
+// データタブ用ユーティリティ
+import { fetchDataInfoFromMaiml, DataPropertyObject } from '../../utils/maimlDataExtractor';
+
 const { Title, Text } = Typography;
 
 interface PetriNetViewerProps {
@@ -204,6 +207,9 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
             stereotype: tmpl?.category || 'material',
             template: tmpl ? { id: tmpl.id } : undefined,
             templateId: tmpl?.id,
+            // ✅ Fix1: uuid/description を追加してSubNetViewerで表示できるようにする
+            uuid: tmpl?.uuid,
+            description: tmpl?.description,
           },
         };
       });
@@ -261,6 +267,62 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
     }
   }, [maimlData, selectedMethodId, setNodes, setEdges]);
 
+  // ✅ Fix6: テンプレート要素から基本情報とプロパティを抽出（SubNetViewer.extractTemplateInfo と同じロジック）
+  const extractTemplateInfoForNode = useCallback((templateElement: Element | null, templateType: string): {
+    basicInfo: Record<string, PropertyObject>;
+    templateProps: Record<string, PropertyObject>;
+  } => {
+    if (!templateElement) return { basicInfo: {}, templateProps: {} };
+
+    const basicInfo: Record<string, PropertyObject> = {
+      id: { key: 'id', value: templateElement.getAttribute('id') || '', type: 'string', description: 'テンプレートID' },
+      type: { key: 'type', value: templateType.charAt(0).toUpperCase() + templateType.slice(1), type: 'string', description: 'テンプレート種別' },
+      name: { key: 'name', value: templateElement.getAttribute('name') || '名称未設定', type: 'string', description: 'テンプレート名' },
+    };
+
+    const uuidEl = templateElement.querySelector(':scope > uuid');
+    if (uuidEl?.textContent?.trim()) {
+      basicInfo.uuid = { key: 'uuid', value: uuidEl.textContent.trim(), type: 'string', description: 'UUID' };
+    }
+    const descEl = templateElement.querySelector(':scope > description');
+    if (descEl?.textContent?.trim()) {
+      basicInfo.description = { key: 'description', value: descEl.textContent.trim(), type: 'string', description: '説明' };
+    }
+    const annotationEl = templateElement.querySelector(':scope > annotation');
+    if (annotationEl?.textContent?.trim()) {
+      basicInfo.annotation = { key: 'annotation', value: annotationEl.textContent.trim(), type: 'string', description: 'アノテーション' };
+    }
+    const insertionEl = templateElement.querySelector(':scope > insertion');
+    if (insertionEl) {
+      const uri = insertionEl.querySelector(':scope > uri')?.textContent?.trim();
+      const hash = insertionEl.querySelector(':scope > hash')?.textContent?.trim();
+      const format = insertionEl.querySelector(':scope > format')?.textContent?.trim();
+      if (uri) basicInfo.insertion_uri = { key: 'insertion_uri', value: uri, type: 'string', description: 'Insertion URI' };
+      if (hash) basicInfo.insertion_hash = { key: 'insertion_hash', value: hash, type: 'string', description: 'Insertion Hash' };
+      if (format) basicInfo.insertion_format = { key: 'insertion_format', value: format, type: 'string', description: 'Insertion Format' };
+    }
+    // placeRef → 基本情報タブには表示しない（内部参照のため）
+
+    // property 要素をテンプレートプロパティとして取得
+    const templateProps: Record<string, PropertyObject> = {};
+    Array.from(templateElement.querySelectorAll(':scope > property')).forEach((prop) => {
+      const key = prop.getAttribute('key');
+      if (!key) return;
+      const xsiType = prop.getAttribute('xsi:type') || prop.getAttribute('type') || 'string';
+      const units = prop.getAttribute('units');
+      const value = prop.querySelector(':scope > value')?.textContent?.trim() ?? '';
+      const desc = prop.querySelector(':scope > description')?.textContent?.trim();
+      templateProps[`property_${key}`] = {
+        key,
+        value,
+        type: xsiType,
+        description: [desc, units ? `単位: ${units}` : undefined].filter(Boolean).join(' / ') || key,
+      };
+    });
+
+    return { basicInfo, templateProps };
+  }, []);
+
   // ノードクリックハンドラ
   const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     console.log('👆 [PetriNetViewer] ノードクリック:', node.id, node.data?.nodeType);
@@ -272,47 +334,113 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
     if (node.data?.nodeType === 'place') {
       console.log('🔍 [PetriNetViewer] Placeノード処理開始');
 
-      // 基本情報
-      const basicProperties: Record<string, PropertyObject> = {
-        id: { key: 'id', value: String(node.id), type: 'string', description: 'ノードID' },
-        type: { key: 'type', value: String(node.data.templateType || 'material'), type: 'string', description: 'ノード種別' },
-        name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: 'ノード名' },
-        description: { key: 'description', value: String(node.data.description || '説明なし'), type: 'string', description: 'ノード説明' }
-      };
+      // ✅ Fix6: templateMap からテンプレート要素を取得して詳細プロパティを抽出
+      const tmplEntry = templateMap[node.id];
+      let basicProperties: Record<string, PropertyObject>;
+      let templateProperties: Record<string, PropertyObject>;
 
-      // テンプレートプロパティ
-      const templateProperties: Record<string, PropertyObject> = {};
-      if (node.data.properties && typeof node.data.properties === 'object') {
-        Object.entries(node.data.properties).forEach(([key, value]) => {
-          templateProperties[key] = {
-            key,
-            value: value || '値なし',
-            type: 'string',
-            description: '説明なし'
-          };
-        });
+      if (tmplEntry?.element) {
+        const templateType = String(node.data.templateType || 'material');
+        const { basicInfo, templateProps } = extractTemplateInfoForNode(tmplEntry.element, templateType);
+        basicProperties = basicInfo;
+        templateProperties = templateProps;
+      } else {
+        // templateMap にヒットしない場合は node.data からフォールバック
+        basicProperties = {
+          id: { key: 'id', value: String(node.id), type: 'string', description: 'ノードID' },
+          type: { key: 'type', value: String(node.data.templateType || 'material'), type: 'string', description: 'ノード種別' },
+          name: { key: 'name', value: String(node.data.label || node.id), type: 'string', description: 'ノード名' },
+          description: { key: 'description', value: String(node.data.description || '説明なし'), type: 'string', description: 'ノード説明' },
+        };
+        templateProperties = {};
+        if (node.data.properties && typeof node.data.properties === 'object') {
+          Object.entries(node.data.properties).forEach(([key, value]) => {
+            templateProperties[key] = { key, value: value || '値なし', type: 'string', description: key };
+          });
+        }
       }
 
-      // データプロパティ
-      const dataProperties: Record<string, PropertyObject> = {
-        coordinates: {
+      // ✅ Fix8c: データタブ: MAIMLの<data><results>から実験結果値を取得
+      // data.results.*.ref はテンプレートIDを指しているため、テンプレートIDを使用する
+      const templateType = String(node.data.templateType || 'material').toLowerCase() as 'material' | 'condition' | 'result';
+      // templateMap から templateId を取得（templateMap[node.id].element の id 属性）
+      const templateIdForData =
+        tmplEntry?.element?.getAttribute('id') ??
+        String(node.data.templateId || node.data.template?.id || node.id);
+      const dataInfo = maimlData
+        ? fetchDataInfoFromMaiml(maimlData, templateIdForData, templateType)
+        : null;
+
+      const dataProperties: Record<string, PropertyObject> = {};
+      if (dataInfo) {
+        Object.entries(dataInfo).forEach(([rawKey, val]) => {
+          if (rawKey.startsWith('property_')) {
+            const propObj = val as DataPropertyObject;
+            const displayKey = rawKey.slice('property_'.length);
+            // property_* の各フィールドを個別エントリに展開して表示
+            if (propObj.value !== undefined) {
+              dataProperties[`${rawKey}_value`] = {
+                key: `${displayKey} (value)`,
+                value: propObj.value,
+                type: propObj.xsiType ?? 'string',
+                description: propObj.description ?? displayKey,
+              };
+            }
+            if (propObj.xsiType) {
+              dataProperties[`${rawKey}_type`] = {
+                key: `${displayKey} (type)`,
+                value: propObj.xsiType,
+                type: 'string',
+                description: `${displayKey} の xsi:type`,
+              };
+            }
+            if (propObj.units) {
+              dataProperties[`${rawKey}_units`] = {
+                key: `${displayKey} (units)`,
+                value: propObj.units,
+                type: 'string',
+                description: `${displayKey} の単位`,
+              };
+            }
+            if (propObj.description) {
+              dataProperties[`${rawKey}_desc`] = {
+                key: `${displayKey} (description)`,
+                value: propObj.description,
+                type: 'string',
+                description: `${displayKey} の説明`,
+              };
+            }
+          } else {
+            dataProperties[rawKey] = {
+              key: rawKey,
+              value: String(val ?? ''),
+              type: 'string',
+              description: rawKey,
+            };
+          }
+        });
+      } else {
+        // data要素が見つからない場合はノード座標のみ
+        dataProperties.coordinates = {
           key: 'coordinates',
           value: `(${node.position.x.toFixed(2)}, ${node.position.y.toFixed(2)})`,
           type: 'coordinates',
-          description: 'ノード座標'
-        }
-      };
+          description: 'ノード座標',
+        };
+      }
 
       console.log('🔍 [PetriNetViewer] プロパティ設定:', {
         basic: Object.keys(basicProperties).length,
         template: Object.keys(templateProperties).length,
-        data: Object.keys(dataProperties).length
+        data: Object.keys(dataProperties).length,
+        tmplHit: !!tmplEntry?.element,
+        dataHit: !!dataInfo,
       });
 
       setStructuredProperties({
         basic: basicProperties,
         template: templateProperties,
-        data: dataProperties
+        data: dataProperties,
       });
 
       setDrawerOpen(true);
@@ -339,7 +467,7 @@ const PetriNetViewerInner: React.FC<PetriNetViewerProps> = ({
         message.info('サブネット表示機能は準備中です');
       }
     }
-  }, [petriNetStructure, maimlData, templateMap, onOpenSubNetViewer]);
+  }, [petriNetStructure, maimlData, templateMap, onOpenSubNetViewer, extractTemplateInfoForNode]);
 
   // プロパティ選択トグルハンドラ
   const handlePropertyToggle = useCallback((structure: 'basic' | 'template' | 'data', property: string) => {

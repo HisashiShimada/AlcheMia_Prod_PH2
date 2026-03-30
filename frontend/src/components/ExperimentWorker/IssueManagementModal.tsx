@@ -45,7 +45,7 @@ const { TextArea } = Input;
 const { Text, Title } = Typography;
 
 interface IssueManagementModalProps {
-  visible: boolean;
+  open: boolean;
   /** タイトルに表示する名前 */
   targetName: string;
   /** 問題一覧取得・新規報告に必要なプロジェクトID */
@@ -69,7 +69,7 @@ interface IssueManagementModalProps {
  * 問題一覧の取得・新規報告・コメント送信・ステータス変更をモーダル内部で行う
  */
 export default function IssueManagementModal({
-  visible,
+  open,
   targetName,
   projectId,
   projectName,
@@ -123,10 +123,10 @@ export default function IssueManagementModal({
 
   // モーダルが開いた時に問題一覧を取得する
   useEffect(() => {
-    if (visible) {
+    if (open) {
       fetchIssues();
     }
-  }, [visible, fetchIssues]);
+  }, [open, fetchIssues]);
 
   // 選択中の問題を issues state から導出する
   const selectedIssue = useMemo(
@@ -381,7 +381,7 @@ export default function IssueManagementModal({
           </span>
         </Space>
       }
-      open={visible}
+      open={open}
       onCancel={handleClose}
       footer={null}
       width={1200}
@@ -416,7 +416,7 @@ export default function IssueManagementModal({
             styles={{ body: { padding: 12, overflow: 'auto', height: 'calc(100% - 38px)' } }}
           >
             {/* フィルタUI */}
-            <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 12 }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 12 }}>
               <Input
                 placeholder="タイトル、内容で検索..."
                 value={searchText}
@@ -549,7 +549,7 @@ export default function IssueManagementModal({
             {!showNewIssueForm && selectedIssue && (
               <div>
                 {/* 基本情報 */}
-                <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
+                <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 16 }}>
                   <div>
                     <Text type="secondary">タイトル:</Text>
                     <Title level={5} style={{ margin: '4px 0 0 0' }}>
