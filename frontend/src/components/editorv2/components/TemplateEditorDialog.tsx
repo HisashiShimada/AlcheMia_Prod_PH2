@@ -23,6 +23,7 @@ import {
   Tag,
   message,
   Collapse,
+  Tabs,
 } from 'antd';
 import {
   SaveOutlined,
@@ -56,6 +57,14 @@ import {
   convertPropertyDataToContentsArray,
   convertContentsArrayToNestedFormat,
 } from '../utils/templateConverter';
+import {
+  convertTemplateToXML,
+  parseXMLToTemplate,
+  validateTemplateXML,
+  type ParseError,
+  type NestedPropertyData,
+  type NestedContentData,
+} from '../utils/converters/templateToXML';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -117,6 +126,12 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   const [forceRenderKey, setForceRenderKey] = useState(0);
   // Bug Fix: V1のforceRenderKeyパターンを適用（Contents用）
   const [forceContentRenderKey, setForceContentRenderKey] = useState(0);
+
+  // ✅ XMLビュー用State
+  const [activeTabKey, setActiveTabKey] = useState<string>('ui');
+  const [xmlContent, setXmlContent] = useState('');
+  const [xmlErrors, setXmlErrors] = useState<ParseError[]>([]);
+  const [hasUnsyncedXmlChanges, setHasUnsyncedXmlChanges] = useState(false);
 
   // ✅ Phase 1-1: Place References編集用State
   const [showPlaceRefAddDialog, setShowPlaceRefAddDialog] = useState(false);
@@ -924,9 +939,119 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
   };
 
   /**
+   * XMLビュー: UI → XML 変換して xmlContent を更新
+   */
+  const buildXmlFromCurrentState = (): string => {
+    const placeType = node.data.placeType || 'material';
+    const templateData = {
+      id: templateId,
+      templateId: templateId,
+      uuid: uuid,
+      name: name,
+      description: description,
+      insertion: insertion,
+      properties: properties as Record<string, NestedPropertyData>,
+      contents: contents as Record<string, NestedContentData>,
+      placeRefs: placeRefs.map(pr => pr.ref),
+      href: node.data.templateRef?.templateRef?.ref
+        ? `#${node.data.templateRef.templateRef.ref}`
+        : undefined,
+    };
+    return convertTemplateToXML(templateData, placeType);
+  };
+
+  /**
+   * XMLビュー: タブ切り替えハンドラー
+   */
+  const handleTabChange = (key: string) => {
+    console.log('🔄 [XMLビュー] タブ切り替え:', { from: activeTabKey, to: key });
+
+    // UI → XML
+    if (key === 'xml') {
+      try {
+        const xml = buildXmlFromCurrentState();
+        setXmlContent(xml);
+        setXmlErrors([]);
+        setHasUnsyncedXmlChanges(false);
+        console.log('✅ [XMLビュー] UI→XML変換成功');
+      } catch (err) {
+        const e = err instanceof Error ? err : new Error(String(err));
+        console.error('❌ [XMLビュー] UI→XML変換エラー:', e);
+        setXmlErrors([{ type: 'conversion_error', message: 'XMLへの変換に失敗しました', details: e.message }]);
+      }
+    }
+
+    // XML → UI （変更あり時のみ同期）
+    if (activeTabKey === 'xml' && key === 'ui' && hasUnsyncedXmlChanges) {
+      const parseResult = parseXMLToTemplate(xmlContent);
+      if (parseResult.success && parseResult.data) {
+        const d = parseResult.data;
+        setTemplateId(d.id || templateId);
+        setUuid(d.uuid || '');
+        setName(d.name || '');
+        setDescription(d.description || '');
+        setProperties((d.properties || {}) as Record<string, PropertyData>);
+        setContents((d.contents || {}) as Record<string, PropertyData>);
+        setPlaceRefs((d.placeRefs || []).map(ref => ({ id: '', ref })));
+        setForceRenderKey(Date.now());
+        setForceContentRenderKey(Date.now());
+        setXmlErrors([]);
+        setHasUnsyncedXmlChanges(false);
+        console.log('✅ [XMLビュー] XML→UI同期成功');
+      } else {
+        message.warning('XMLのパースに失敗しました。UI編集タブに切り替えますが、XMLの変更は反映されません。');
+        setXmlErrors(parseResult.errors);
+        setHasUnsyncedXmlChanges(false);
+      }
+    }
+
+    setActiveTabKey(key);
+  };
+
+  /**
+   * XMLビュー: バリデーション実行
+   */
+  const handleValidateXml = () => {
+    const result = validateTemplateXML(xmlContent);
+    setXmlErrors(result.errors);
+    if (result.isValid) {
+      message.success('✅ XMLは有効です！');
+    } else {
+      message.error(`⚠️ ${result.errors.length}件のエラーが見つかりました`);
+    }
+  };
+
+  /**
    * 保存処理
    */
   const handleSave = () => {
+    // XMLビューから保存する場合、先にUI状態に同期
+    if (activeTabKey === 'xml' && hasUnsyncedXmlChanges) {
+      const validationResult = validateTemplateXML(xmlContent);
+      if (!validationResult.isValid) {
+        message.error(
+          `XMLにエラーがあるため保存できません: ${validationResult.errors.map(e => e.message).join(', ')}`
+        );
+        return;
+      }
+      const parseResult = parseXMLToTemplate(xmlContent);
+      if (!parseResult.success || !parseResult.data) {
+        message.error(
+          `XMLのパースに失敗しました: ${parseResult.errors.map(e => e.message).join(', ')}`
+        );
+        return;
+      }
+      const d = parseResult.data;
+      setTemplateId(d.id || templateId);
+      setUuid(d.uuid || '');
+      setName(d.name || '');
+      setDescription(d.description || '');
+      setProperties((d.properties || {}) as Record<string, PropertyData>);
+      setContents((d.contents || {}) as Record<string, PropertyData>);
+      setPlaceRefs((d.placeRefs || []).map(ref => ({ id: '', ref })));
+      setHasUnsyncedXmlChanges(false);
+    }
+
     // ✅ Phase 1-2: 基本チェック
     if (!templateId.trim()) {
       message.error('テンプレートIDを入力してください');
@@ -1026,6 +1151,84 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
         </Button>
       ]}
     >
+      <Tabs
+        activeKey={activeTabKey}
+        onChange={handleTabChange}
+        items={[
+          { key: 'ui', label: '✏️ UI編集' },
+          { key: 'xml', label: '💻 XMLビュー' },
+        ]}
+        style={{ marginBottom: 8 }}
+      />
+
+      {/* ===== XMLビュータブ ===== */}
+      {activeTabKey === 'xml' && (
+        <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          {/* XMLエラー表示 */}
+          {xmlErrors.length > 0 && (
+            <Alert
+              message={`⚠️ ${xmlErrors.length}件のXMLエラー`}
+              description={
+                <div>
+                  {xmlErrors.map((error, index) => (
+                    <div key={index} style={{ marginBottom: 4 }}>
+                      <Text strong>{error.type}:</Text> {error.message}
+                      {error.details && (
+                        <div style={{ fontSize: 12, color: '#888' }}>{error.details}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              }
+              type="error"
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
+          {/* 未保存変更の警告 */}
+          {hasUnsyncedXmlChanges && (
+            <Alert
+              message="XMLに未保存の変更があります"
+              description="「UI編集」タブに戻ると自動的に同期されます。"
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
+          {/* バリデーションボタン */}
+          <Space style={{ marginBottom: 16 }}>
+            <Button onClick={handleValidateXml}>🔍 XMLバリデーション</Button>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              💡 XMLを直接編集できます。「UI編集」タブに戻ると自動的に同期されます。
+            </Text>
+          </Space>
+
+          {/* XMLエディタ */}
+          <TextArea
+            rows={28}
+            value={xmlContent}
+            onChange={(e) => {
+              setXmlContent(e.target.value);
+              setHasUnsyncedXmlChanges(true);
+            }}
+            placeholder="XMLコンテンツ"
+            style={{ fontFamily: 'monospace', fontSize: 13 }}
+          />
+
+          {/* XML情報 */}
+          <div style={{ marginTop: 12, padding: 12, backgroundColor: '#f8f9fa', borderRadius: 4 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              <strong>XML形式:</strong> MaiML準拠の {node.data.placeType}Template　　
+              <strong>文字数:</strong> {xmlContent.length}文字　　
+              <strong>行数:</strong> {xmlContent.split('\n').length}行
+            </Text>
+          </div>
+        </div>
+      )}
+
+      {/* ===== UI編集タブ ===== */}
+      {activeTabKey === 'ui' && (
       <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
         {/* エラー表示 */}
         {mergedTemplate && templateErrors[mergedTemplate.id] && templateErrors[mergedTemplate.id].length > 0 && (
@@ -1219,10 +1422,9 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
             </>
           )}
         </div>
-      </div>
 
-      {/* Properties編集セクション */}
-      <Divider />
+        {/* Properties編集セクション */}
+        <Divider />
         <div style={{ marginBottom: 16 }}>
           <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
             <Title level={5}>🏷️ Properties</Title>
@@ -1699,6 +1901,8 @@ const TemplateEditorDialog: React.FC<TemplateEditorDialogProps> = ({
           </Space>
         </div>
       </Modal>
+      </div>
+      )}
     </Modal>
   );
 };
