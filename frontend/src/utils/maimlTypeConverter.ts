@@ -411,7 +411,13 @@ function convertDocument(xmlDoc: XmlJsElement, errorContext?: ErrorContext): Mai
   if (!xmlDoc) {
     throw new Error('Document element is required');
   }
-  
+
+  const DOCUMENT_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'date', 'annotation',
+    'creator', 'vendor', 'owner', 'instrument', 'chain', 'parent'
+  ]);
+  warnUnknownKeys(xmlDoc, DOCUMENT_KNOWN_KEYS, errorContext, `document(id=${getAttribute(xmlDoc, 'id') || 'unknown'})`);
+
   // 必須フィールドの検証
   const id = getAttribute(xmlDoc, 'id');
   if (!id && errorContext) {
@@ -594,7 +600,7 @@ function convertMethod(xmlMethod: any, errorContext?: ErrorContext): Method {
     uuid: uuid || '',
     name: xmlMethod.name?._text,
     description: xmlMethod.description?._text,
-    pnml: convertPNML(pnml),
+    pnml: convertPNML(pnml, errorContext),
     program: convertArraySafe(program, convertProgram, errorContext, 'program'),
     materialTemplates: xmlMethod.materialTemplate ? convertArraySafe(xmlMethod.materialTemplate, convertMaterialTemplate, errorContext, 'materialTemplate') : [],
     conditionTemplates: xmlMethod.conditionTemplate ? convertArraySafe(xmlMethod.conditionTemplate, convertConditionTemplate, errorContext, 'conditionTemplate') : [],
@@ -606,22 +612,33 @@ function convertMethod(xmlMethod: any, errorContext?: ErrorContext): Method {
 /**
  * PNML変換
  */
-function convertPNML(xmlPnml: any): PNML {
+function convertPNML(xmlPnml: any, errorContext?: ErrorContext): PNML {
+  const PNML_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation',
+    'place', 'transition', 'arc'
+  ]);
+  warnUnknownKeys(xmlPnml, PNML_KNOWN_KEYS, errorContext, `pnml(id=${xmlPnml._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlPnml._attributes?.id || '',
     uuid: xmlPnml.uuid?._text || '',
     name: xmlPnml.name?._text,
     description: xmlPnml.description?._text,
-    places: convertArray(xmlPnml.place, convertPlace),
-    transitions: convertArray(xmlPnml.transition, convertTransition),
-    arcs: convertArray(xmlPnml.arc, convertArc)
+    places: convertArray(xmlPnml.place, (el: any) => convertPlace(el, errorContext)),
+    transitions: convertArray(xmlPnml.transition, (el: any) => convertTransition(el, errorContext)),
+    arcs: convertArray(xmlPnml.arc, (el: any) => convertArc(el, errorContext))
   };
 }
 
 /**
  * Place変換
  */
-function convertPlace(xmlPlace: any): Place {
+function convertPlace(xmlPlace: any, errorContext?: ErrorContext): Place {
+  const PLACE_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation', 'position'
+  ]);
+  warnUnknownKeys(xmlPlace, PLACE_KNOWN_KEYS, errorContext, `place(id=${xmlPlace._attributes?.id || 'unknown'})`);
+
   // <position x="..." y="..." /> 要素を読み込む
   const positionEl = xmlPlace.position;
   let position: { x: number; y: number } | undefined;
@@ -645,7 +662,12 @@ function convertPlace(xmlPlace: any): Place {
 /**
  * Transition変換
  */
-function convertTransition(xmlTransition: any): Transition {
+function convertTransition(xmlTransition: any, errorContext?: ErrorContext): Transition {
+  const TRANSITION_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation', 'position'
+  ]);
+  warnUnknownKeys(xmlTransition, TRANSITION_KNOWN_KEYS, errorContext, `transition(id=${xmlTransition._attributes?.id || 'unknown'})`);
+
   // <position x="..." y="..." /> 要素を読み込む
   const positionEl = xmlTransition.position;
   let position: { x: number; y: number } | undefined;
@@ -669,7 +691,12 @@ function convertTransition(xmlTransition: any): Transition {
 /**
  * Arc変換
  */
-function convertArc(xmlArc: any): Arc {
+function convertArc(xmlArc: any, errorContext?: ErrorContext): Arc {
+  const ARC_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation'
+  ]);
+  warnUnknownKeys(xmlArc, ARC_KNOWN_KEYS, errorContext, `arc(id=${xmlArc._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlArc._attributes?.id || '',
     uuid: xmlArc.uuid?._text,
@@ -683,23 +710,34 @@ function convertArc(xmlArc: any): Arc {
 /**
  * Program変換
  */
-function convertProgram(xmlProgram: any): Program {
+function convertProgram(xmlProgram: any, errorContext?: ErrorContext): Program {
+  const PROGRAM_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation',
+    'instruction', 'materialTemplate', 'conditionTemplate', 'resultTemplate'
+  ]);
+  warnUnknownKeys(xmlProgram, PROGRAM_KNOWN_KEYS, errorContext, `program(id=${xmlProgram._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlProgram._attributes?.id || '',
     uuid: xmlProgram.uuid?._text || '',
     name: xmlProgram.name?._text,
     description: xmlProgram.description?._text,
-    instructions: xmlProgram.instruction ? convertArray(xmlProgram.instruction, convertInstruction) : [],
-    materialTemplates: xmlProgram.materialTemplate ? convertArray(xmlProgram.materialTemplate, convertMaterialTemplate) : [],
-    conditionTemplates: xmlProgram.conditionTemplate ? convertArray(xmlProgram.conditionTemplate, convertConditionTemplate) : [],
-    resultTemplates: xmlProgram.resultTemplate ? convertArray(xmlProgram.resultTemplate, convertResultTemplate) : []
+    instructions: xmlProgram.instruction ? convertArray(xmlProgram.instruction, (el: any) => convertInstruction(el, errorContext)) : [],
+    materialTemplates: xmlProgram.materialTemplate ? convertArray(xmlProgram.materialTemplate, (el: any) => convertMaterialTemplate(el, errorContext)) : [],
+    conditionTemplates: xmlProgram.conditionTemplate ? convertArray(xmlProgram.conditionTemplate, (el: any) => convertConditionTemplate(el, errorContext)) : [],
+    resultTemplates: xmlProgram.resultTemplate ? convertArray(xmlProgram.resultTemplate, (el: any) => convertResultTemplate(el, errorContext)) : []
   };
 }
 
 /**
  * Instruction変換
  */
-function convertInstruction(xmlInstruction: any): Instruction {
+function convertInstruction(xmlInstruction: any, errorContext?: ErrorContext): Instruction {
+  const INSTRUCTION_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation', 'transitionRef'
+  ]);
+  warnUnknownKeys(xmlInstruction, INSTRUCTION_KNOWN_KEYS, errorContext, `instruction(id=${xmlInstruction._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlInstruction._attributes?.id || '',
     uuid: xmlInstruction.uuid?._text || '',
@@ -709,10 +747,17 @@ function convertInstruction(xmlInstruction: any): Instruction {
   };
 }
 
+/** 共通の Template 既知キー */
+const TEMPLATE_KNOWN_KEYS = new Set([
+  '_attributes', 'uuid', 'name', 'description', 'annotation',
+  'placeRef', 'templateRef', 'property', 'content', 'insertion'
+]);
+
 /**
  * Template変換（Material）
  */
-function convertMaterialTemplate(xmlTemplate: any): Template {
+function convertMaterialTemplate(xmlTemplate: any, errorContext?: ErrorContext): Template {
+  warnUnknownKeys(xmlTemplate, TEMPLATE_KNOWN_KEYS, errorContext, `materialTemplate(id=${xmlTemplate._attributes?.id || 'unknown'})`);
   return {
     id: xmlTemplate._attributes?.id || '',
     uuid: xmlTemplate.uuid?._text || '',
@@ -730,7 +775,8 @@ function convertMaterialTemplate(xmlTemplate: any): Template {
 /**
  * Template変換（Condition）
  */
-function convertConditionTemplate(xmlTemplate: any): Template {
+function convertConditionTemplate(xmlTemplate: any, errorContext?: ErrorContext): Template {
+  warnUnknownKeys(xmlTemplate, TEMPLATE_KNOWN_KEYS, errorContext, `conditionTemplate(id=${xmlTemplate._attributes?.id || 'unknown'})`);
   return {
     id: xmlTemplate._attributes?.id || '',
     uuid: xmlTemplate.uuid?._text || '',
@@ -748,7 +794,8 @@ function convertConditionTemplate(xmlTemplate: any): Template {
 /**
  * Template変換（Result）
  */
-function convertResultTemplate(xmlTemplate: any): Template {
+function convertResultTemplate(xmlTemplate: any, errorContext?: ErrorContext): Template {
+  warnUnknownKeys(xmlTemplate, TEMPLATE_KNOWN_KEYS, errorContext, `resultTemplate(id=${xmlTemplate._attributes?.id || 'unknown'})`);
   return {
     id: xmlTemplate._attributes?.id || '',
     uuid: xmlTemplate.uuid?._text || '',
@@ -1056,6 +1103,11 @@ function convertClassifier(xmlClassifier: any): Classifier {
  * Data変換
  */
 function convertData(xmlData: any, errorContext?: ErrorContext): Data {
+  const DATA_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation', 'results'
+  ]);
+  warnUnknownKeys(xmlData, DATA_KNOWN_KEYS, errorContext, `data(id=${xmlData._attributes?.id || 'unknown'})`);
+
   // 必須フィールドの検証
   const id = xmlData._attributes?.id;
   if (!id && errorContext) {
@@ -1079,22 +1131,34 @@ function convertData(xmlData: any, errorContext?: ErrorContext): Data {
 /**
  * Results変換
  */
-function convertResults(xmlResults: any): Results {
+function convertResults(xmlResults: any, errorContext?: ErrorContext): Results {
+  const RESULTS_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation',
+    'material', 'condition', 'result'
+  ]);
+  warnUnknownKeys(xmlResults, RESULTS_KNOWN_KEYS, errorContext, `results(id=${xmlResults._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlResults._attributes?.id || '',
     uuid: xmlResults.uuid?._text || '',
     name: xmlResults.name?._text,
     description: xmlResults.description?._text,
-    materials: xmlResults.material ? convertArray(xmlResults.material, convertMaterial) : [],
-    conditions: xmlResults.condition ? convertArray(xmlResults.condition, convertCondition) : [],
-    results: xmlResults.result ? convertArray(xmlResults.result, convertResult) : []
+    materials: xmlResults.material ? convertArray(xmlResults.material, (el: any) => convertMaterial(el, errorContext)) : [],
+    conditions: xmlResults.condition ? convertArray(xmlResults.condition, (el: any) => convertCondition(el, errorContext)) : [],
+    results: xmlResults.result ? convertArray(xmlResults.result, (el: any) => convertResult(el, errorContext)) : []
   };
 }
 
 /**
  * Material変換
  */
-function convertMaterial(xmlMaterial: any): Material {
+function convertMaterial(xmlMaterial: any, errorContext?: ErrorContext): Material {
+  const MATERIAL_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation',
+    'instanceRef', 'property', 'content'
+  ]);
+  warnUnknownKeys(xmlMaterial, MATERIAL_KNOWN_KEYS, errorContext, `material(id=${xmlMaterial._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlMaterial._attributes?.id || '',
     uuid: xmlMaterial.uuid?._text || '',
@@ -1110,7 +1174,13 @@ function convertMaterial(xmlMaterial: any): Material {
 /**
  * Condition変換
  */
-function convertCondition(xmlCondition: any): Condition {
+function convertCondition(xmlCondition: any, errorContext?: ErrorContext): Condition {
+  const CONDITION_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation',
+    'instanceRef', 'property', 'content'
+  ]);
+  warnUnknownKeys(xmlCondition, CONDITION_KNOWN_KEYS, errorContext, `condition(id=${xmlCondition._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlCondition._attributes?.id || '',
     uuid: xmlCondition.uuid?._text || '',
@@ -1126,7 +1196,13 @@ function convertCondition(xmlCondition: any): Condition {
 /**
  * Result変換
  */
-function convertResult(xmlResult: any): Result {
+function convertResult(xmlResult: any, errorContext?: ErrorContext): Result {
+  const RESULT_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation',
+    'instanceRef', 'insertion', 'property', 'content'
+  ]);
+  warnUnknownKeys(xmlResult, RESULT_KNOWN_KEYS, errorContext, `result(id=${xmlResult._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlResult._attributes?.id || '',
     uuid: xmlResult.uuid?._text || '',
@@ -1144,6 +1220,11 @@ function convertResult(xmlResult: any): Result {
  * EventLog変換
  */
 function convertEventLog(xmlEventLog: any, errorContext?: ErrorContext): EventLog {
+  const EVENTLOG_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation', 'log'
+  ]);
+  warnUnknownKeys(xmlEventLog, EVENTLOG_KNOWN_KEYS, errorContext, `eventLog(id=${xmlEventLog._attributes?.id || 'unknown'})`);
+
   // 必須フィールドの検証
   const id = xmlEventLog._attributes?.id;
   if (!id && errorContext) {
@@ -1167,7 +1248,13 @@ function convertEventLog(xmlEventLog: any, errorContext?: ErrorContext): EventLo
 /**
  * Log変換
  */
-function convertLog(xmlLog: any): Log {
+function convertLog(xmlLog: any, errorContext?: ErrorContext): Log {
+  const LOG_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation', 'ref',
+    'extension', 'global', 'classifier', 'trace', 'creatorRef', 'ownerRef'
+  ]);
+  warnUnknownKeys(xmlLog, LOG_KNOWN_KEYS, errorContext, `log(id=${xmlLog._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlLog._attributes?.id || '',
     uuid: xmlLog.uuid?._text || '',
@@ -1177,7 +1264,7 @@ function convertLog(xmlLog: any): Log {
     extensions: xmlLog.extension ? convertArray(xmlLog.extension, convertExtension) : [],
     globals: xmlLog.global ? convertArray(xmlLog.global, convertGlobals) : [],
     classifiers: xmlLog.classifier ? convertArray(xmlLog.classifier, convertClassifier) : [],
-    traces: convertArray(xmlLog.trace, convertTrace),
+    traces: convertArray(xmlLog.trace, (el: any) => convertTrace(el, errorContext)),
     creatorRefs: xmlLog.creatorRef ? convertArray(xmlLog.creatorRef, convertRef) : [],
     ownerRefs: xmlLog.ownerRef ? convertArray(xmlLog.ownerRef, convertRef) : []
   };
@@ -1186,14 +1273,20 @@ function convertLog(xmlLog: any): Log {
 /**
  * Trace変換
  */
-function convertTrace(xmlTrace: any): Trace {
+function convertTrace(xmlTrace: any, errorContext?: ErrorContext): Trace {
+  const TRACE_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation', 'ref',
+    'event', 'creatorRef', 'ownerRef'
+  ]);
+  warnUnknownKeys(xmlTrace, TRACE_KNOWN_KEYS, errorContext, `trace(id=${xmlTrace._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlTrace._attributes?.id || '',
     uuid: xmlTrace.uuid?._text || '',
     name: xmlTrace.name?._text,
     description: xmlTrace.description?._text,
     ref: xmlTrace._attributes?.ref || '',
-    events: convertArray(xmlTrace.event, convertEvent),
+    events: convertArray(xmlTrace.event, (el: any) => convertEvent(el, errorContext)),
     creatorRefs: xmlTrace.creatorRef ? convertArray(xmlTrace.creatorRef, convertRef) : [],
     ownerRefs: xmlTrace.ownerRef ? convertArray(xmlTrace.ownerRef, convertRef) : []
   };
@@ -1202,7 +1295,13 @@ function convertTrace(xmlTrace: any): Trace {
 /**
  * Event変換
  */
-function convertEvent(xmlEvent: any): Event {
+function convertEvent(xmlEvent: any, errorContext?: ErrorContext): Event {
+  const EVENT_KNOWN_KEYS = new Set([
+    '_attributes', 'uuid', 'name', 'description', 'annotation', 'ref',
+    'resultsRef', 'creatorRef', 'ownerRef', 'property', 'content'
+  ]);
+  warnUnknownKeys(xmlEvent, EVENT_KNOWN_KEYS, errorContext, `event(id=${xmlEvent._attributes?.id || 'unknown'})`);
+
   return {
     id: xmlEvent._attributes?.id || '',
     uuid: xmlEvent.uuid?._text || '',
@@ -1215,6 +1314,32 @@ function convertEvent(xmlEvent: any): Event {
     properties: xmlEvent.property ? convertArray(xmlEvent.property, convertXmlJsProperty) : [],
     contents: xmlEvent.content ? convertArray(xmlEvent.content, convertContent) : []
   };
+}
+
+/**
+ * ヘルパー: 未知キーを警告として収集する共通関数
+ *
+ * @param xmlEl - 検査対象のxml-jsオブジェクト
+ * @param knownKeys - 既知キーのSet（小文字で定義）
+ * @param errorContext - エラーコンテキスト
+ * @param elementLabel - ログ用の要素名（例: "document", "pnml"）
+ */
+function warnUnknownKeys(
+  xmlEl: any,
+  knownKeys: Set<string>,
+  errorContext: ErrorContext | undefined,
+  elementLabel: string
+): void {
+  if (!errorContext || !xmlEl || typeof xmlEl !== 'object') return;
+  for (const key of Object.keys(xmlEl)) {
+    if (!knownKeys.has(key)) {
+      errorContext.addError(
+        key,
+        `Unknown element <${key}> found in ${elementLabel}`,
+        'warning'
+      );
+    }
+  }
 }
 
 /**
