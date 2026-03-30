@@ -463,6 +463,86 @@ export class StorageService {
   }
 
   /**
+   * フォルダを再帰的に削除
+   * 
+   * Task: プロジェクト管理画面削除機能実装 - storageService層実装
+   * @description フォルダパス配下のすべてのファイルを削除する
+   * 
+   * @param organizationId 組織ID
+   * @param folderPath フォルダパス（相対パス）
+   * @returns 削除されたファイル数
+   * 
+   * @example
+   * // プロジェクトフォルダを削除
+   * const deletedCount = await storageService.deleteFolderRecursive(
+   *   organizationId,
+   *   'projects/sample_project'
+   * );
+   * console.log(`${deletedCount}ファイルを削除しました`);
+   */
+  async deleteFolderRecursive(
+    organizationId: string,
+    folderPath: string
+  ): Promise<number> {
+    // 1. フォルダパスの正規化（末尾のスラッシュを削除）
+    const normalizedFolderPath = folderPath.replace(/\/$/, '');
+
+    console.log(`🗑️ [StorageService] フォルダ削除開始: ${normalizedFolderPath}`);
+
+    try {
+      // 2. フォルダ配下のファイル一覧を取得
+      const files = await this.listFiles(organizationId, normalizedFolderPath);
+
+      if (!files || files.length === 0) {
+        console.log(`📭 [StorageService] 削除対象ファイルなし: ${normalizedFolderPath}`);
+        return 0;
+      }
+
+      console.log(`📋 [StorageService] 削除対象ファイル数: ${files.length}`);
+
+      // 3. 各ファイルを削除
+      let deletedCount = 0;
+      let failedCount = 0;
+
+      for (const file of files) {
+        try {
+          // フォルダは除外（キーが'/'で終わるもの）
+          if (file.key.endsWith('/')) {
+            console.log(`📁 [StorageService] フォルダをスキップ: ${file.key}`);
+            continue;
+          }
+
+          // organizationIdプレフィックスを除去して相対パスを生成
+          // 例: "550e8400.../projects/sample/file.maiml" → "projects/sample/file.maiml"
+          let relativePath = file.key;
+          if (file.key.startsWith(`${organizationId}/`)) {
+            relativePath = file.key.substring(organizationId.length + 1);
+          }
+
+          // ファイルを削除（deleteFileメソッドを使用）
+          await this.deleteFile(organizationId, relativePath);
+          deletedCount++;
+
+          if (deletedCount % 10 === 0) {
+            console.log(`🗑️ [StorageService] 削除進捗: ${deletedCount}/${files.length}`);
+          }
+        } catch (error) {
+          // 個別ファイルの削除エラーはログに記録して続行
+          console.error(`❌ [StorageService] ファイル削除エラー: ${file.key}`, error);
+          failedCount++;
+        }
+      }
+
+      console.log(`✅ [StorageService] フォルダ削除完了: 成功=${deletedCount}, 失敗=${failedCount}`);
+
+      return deletedCount;
+    } catch (error) {
+      console.error(`❌ [StorageService] フォルダ削除エラー: ${normalizedFolderPath}`, error);
+      throw new Error(`Failed to delete folder recursively: ${normalizedFolderPath}`);
+    }
+  }
+
+  /**
    * ストレージタイプを取得
    * @returns 'swift' または 's3'
    */
